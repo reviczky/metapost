@@ -1,0 +1,29 @@
+$Id: INSTALL.W32,v 1.3 2005/04/28 15:40:40 taco Exp $
+This file is public domain.
+
+metapost
+======
+
+INSTALL for MetaPost on fptex
+========================
+
+This distribution is a very stripped-down TeX Live distribution, and 
+the executables have been built from the sources using the MSYS
+Unix emulation layer.
+
+A side-effect of this is that you need a functional web2c-tex 
+distribution (like fptex) as a prerequisite.  Our current executables 
+will not work with MiKTeX, sorry. 
+
+There are binaries in the `bin' folder, these should replace the
+similar ones in your fptex installation. Likewise, the files in `texmf'
+should also replace their existing counterparts.
+
+If the mpost.exe fails with `cannot find mp.pool', you have to make the
+environment variable TEXMFCNF point to the correct texmf.cnf. 
+
+Do not forget to regenerate any .mem files in your TeX installation.
+
+The manual sources are included in the directory manual, these do not
+need to be installed.  PDFs are available at:
+http://cvs.sarovar.org/cgi-bin/cvsweb.cgi/doc/?cvsroot=metapost
