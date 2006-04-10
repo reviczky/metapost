@@ -28,15 +28,15 @@ mems =  # mfplain.mem is probably not generally useful.
 # available from ftp://ftp.tug.org/tex/modes.mf, among other places.
 localmodes = modes
 
-kpse_include ../make/paths.mk
+ac_include ../make/paths.mk
 
 # Used for triptrap.
 DIFF = diff
 DIFFFLAGS =
 
 .SUFFIXES: # get rid of .p.o
-kpse_include ../make/common.mk
-kpse_include ../make/programs.mk
+ac_include ../make/common.mk
+ac_include ../make/programs.mk
 
 CXX = @CXX@
 CXXLD = $(CXX)
@@ -185,7 +185,7 @@ dvicopy-clean:
 	rm -f tests/xstory.dvi tests/xpplr.dvi
 
 ## dvitomp is a special case
-kpse_include dvitomp.mk
+ac_include dvitomp.mk
 ##
 
 dvitype: dvitype.o
@@ -482,7 +482,7 @@ trap-clean:
 	rm -f mftrap.pl trap.72270gf trap.typ
 # 
 # MetaPost
-kpse_include metapost.mk
+ac_include metapost.mk
 # 
 # TeX
 tex_c = texini.c tex0.c tex1.c tex2.c
@@ -551,15 +551,15 @@ trip-clean:
 	rm -rf tfm
 # 
 # Helper makefile fragment for pdf*tex.
-kpse_include pdftexdir/pdftexlib.mk
+ac_include pdftexdir/pdftexlib.mk
 # 
 # Makefile fragments:
-kpse_include etexdir/etex.mk
-kpse_include omegadir/omega.mk
-kpse_include alephdir/aleph.mk
-kpse_include pdftexdir/pdftex.mk
-kpse_include pdfetexdir/pdfetex.mk
-kpse_include pdfxtexdir/pdfxtex.mk
+ac_include etexdir/etex.mk
+ac_include omegadir/omega.mk
+ac_include alephdir/aleph.mk
+ac_include pdftexdir/pdftex.mk
+ac_include pdfetexdir/pdfetex.mk
+ac_include pdfxtexdir/pdfxtex.mk
 # 
 # Common
 programs = bibtex ctangle ctie cweave dvicopy dvitomp dvitype gftodvi gftopk \
@@ -708,7 +708,7 @@ web2c/splitup: web2c/splitup.c web2c/kps.c
 web2c/web2c: web2c/main.c web2c/web2c.h web2c/web2c.l web2c/web2c.y web2c/kps.c
 	cd web2c && $(MAKE) $(common_makeargs) web2c
 
-kpse_include ../make/tkpathsea.mk
+ac_include ../make/tkpathsea.mk
 
 # 
 # Making dumps.
@@ -1102,9 +1102,9 @@ manpages:
 @MAINT@	GZIP=-9 tar czf web2c-$(version)-pdftexlibs.tar.gz $(top_distdir)
 @MAINT@	rm -rf $(top_distdir)
 
-kpse_include ../make/dist.mk
+ac_include ../make/dist.mk
 
-kpse_include ../make/config.mk
+ac_include ../make/config.mk
 
 @MAINT@$(srcdir)/configure: $(srcdir)/withenable.ac
 
@@ -1144,14 +1144,14 @@ maintainer-clean::
 	test ! -r lib/Makefile \
 	  || for d in $(all_subdirs); do (cd $$d && $(MAKE) $@); done
 
-kpse_include ../make/clean.mk
+ac_include ../make/clean.mk
 
 @MAINT@depend::
 @MAINT@	for d in lib $(mpware) web2c window $(otps); do \
 @MAINT@	  (cd $$d && $(MAKE) depend); done
 
-kpse_include ../make/rdepend.mk
-kpse_include depend.mk
+ac_include ../make/rdepend.mk
+ac_include depend.mk
 
 # 
 # Local variables:

@@ -7,7 +7,7 @@
 
 Makefile: metapost.mk
 
-mpost = mpost
+metapost = mpost dvitomp
 
 # mpware is the subdirectory.
 mpware = mpware
@@ -24,8 +24,11 @@ $(mp_c) mpcoerce.h mpd.h: mp.p $(web2c_texmf) web2c/cvtmf1.sed web2c/cvtmf2.sed
 	$(web2c) mp
 mpextra.c: lib/texmfmp.c
 	sed s/TEX-OR-MF-OR-MP/mp/ $(srcdir)/lib/texmfmp.c >$@
-mp.p mp.pool: tangle mp.web mp.ch
-	$(tangle) mp.web mp.ch
+mp.p mp.pool: tie tangle mp.web mp.ch mpversion.ch
+	$(TIE) -m mp-tied.web $(srcdir)/mp.web $(srcdir)/mpversion.ch
+	$(tangle) ./mp-tied.web $(srcdir)/mp.ch
+	mv -f mp-tied.p mp.p
+	mv -f mp-tied.pool mp.pool
 check: mpost-check
 mpost-check: mptrap mpost.mem $(mpware)
 	./mpost --progname=mpost '&./mpost \tracingstats:=1; end.'
@@ -95,3 +98,6 @@ $(mpware_programs): $(mpware_sources)
 install-programs: install-mpware-programs
 install-mpware-programs: $(mpware_programs)
 	cd $(mpware) && $(MAKE) $(install_makeargs) install-exec
+
+
+mp-programs: $(metapost) $(mpware)
