@@ -92,12 +92,13 @@ mptrap-clean:
 # mpware
 
 # We put mpware (written directly in C) in a subdirectory.
+$(mpware): $(mpware_programs)
+
 $(mpware_programs): $(mpware_sources)
-	cd mpware && $(MAKE) $(common_makeargs)
+	cd $(mpware) && $(MAKE) $(common_makeargs)
 
 install-programs: install-mpware-programs
 install-mpware-programs: $(mpware_programs)
 	cd $(mpware) && $(MAKE) $(install_makeargs) install-exec
-
 
 mp-programs: $(metapost) $(mpware)
