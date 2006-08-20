@@ -24,8 +24,8 @@ $(mp_c) mpcoerce.h mpd.h: mp.p $(web2c_texmf) web2c/cvtmf1.sed web2c/cvtmf2.sed
 	$(web2c) mp
 mpextra.c: lib/texmfmp.c
 	sed s/TEX-OR-MF-OR-MP/mp/ $(srcdir)/lib/texmfmp.c >$@
-mp.p mp.pool: tie tangle mp.web mp.ch mpversion.ch fntemplate.ch
-	$(TIE) -m mp-tied.web $(srcdir)/mp.web $(srcdir)/mpversion.ch $(srcdir)/fntemplate.ch
+mp.p mp.pool: tie tangle mp.web mp.ch mpversion.ch fntemplate.ch color.ch
+	$(TIE) -m mp-tied.web $(srcdir)/mp.web $(srcdir)/mpversion.ch $(srcdir)/fntemplate.ch $(srcdir)/color.ch
 	$(tangle) ./mp-tied.web $(srcdir)/mp.ch
 	mv -f mp-tied.p mp.p
 	mv -f mp-tied.pool mp.pool

@@ -2,6 +2,18 @@ $Id: CHANGES,v 1.9 2005/08/24 10:54:02 taco Exp $
 By John Hobby and others.  Public domain (see README).
 
 ----------------------------------------------------------------------
+Changes in version 0.920:
+----------------------------------------------------------------------
+
+*  Fixed a long-standing bug in web2c where changing values of the
+   memory_size setting in web2c could cause crashes and other random
+   problems. The memory array size is now written to the dump file
+   and loading is aborted if the values do not match.
+*  Implement configurable figure output filename templates.
+*  Implement cmyk, greyscale, and marking only color models.
+*  The mpost executable is now version 0.920
+  
+----------------------------------------------------------------------
 Changes in version 0.902:
 ----------------------------------------------------------------------
 *  Fix a bug in mpto resulting in correctly placed labels (with
