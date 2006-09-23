@@ -62,12 +62,8 @@ This script uses mpware/mpto to create TeX (or troff) input and uses
 the program dvitomp (for TeX) or mpware/dmp (for troff) to postprocess
 the output.
 
-The dmp translator reads data files ./troff/trfonts.map and
-./troff/trchar.adj. The former handles the translation between troff
-names and tfm file names, while the latter gives character positioning
-adjustments.  There is also a directory ./troff/charlib containing
-MetaPost programs for characters used in troff and not appearing in
-standard PostScript fonts.
+The dmp translator reads data file ./troff/trfonts.map.
+It handles the translation between troff names and tfm file names.
 
 Like its ancestor Metafont, MetaPost is written in the web language.
 Anyone who is not familiar with the mechanics of web programs should
