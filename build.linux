@@ -70,12 +70,11 @@ unset NATIVE
  
 mkdir -p native/texk/web2c/web2c
 mkdir -p native/texk/web2c/mpware
+mkdir -p native/texk/web2c/mpdir
 cp build/texk/web2c/web2c/{web2c,fixwrites,splitup} native/texk/web2c/web2c
 cp build/texk/web2c/mpware/{dmp,makempx,newer,mpto} native/texk/web2c
-cp build/texk/web2c/{dvitomp,mpost,tangle,tangleboot,mp.pool} native/texk/web2c
-strip native/texk/web2c/dvitomp
-strip native/texk/web2c/mpost
-
+cp build/texk/web2c/{dvitomp,mpost,tangle,tangleboot} native/texk/web2c
+cp build/texk/web2c/mpdir/makecpool native/texk/web2c/mpdir
 
 # show the results
 ls -ltr native/texk/web2c

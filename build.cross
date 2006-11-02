@@ -69,19 +69,18 @@ fi
 (cd texk/web2c; $MAKE ../kpathsea/libkpathsea.la) || exit 1
 (cd texk/web2c/lib; $MAKE) || exit 1
 (cd texk/web2c; $MAKE mp-programs) || exit 1
-# strip them
-$STRIP texk/web2c/mpost texk/web2c/dvitomp
 # go back
 
 cd ..
- 
-mkdir -p windows/texk/web2c/web2c
-mkdir -p windows/texk/web2c/mpware
-cp build/texk/web2c/web2c/{web2c,fixwrites,splitup} windows/texk/web2c/web2c
-cp build/texk/web2c/mpware/{dmp,makempx,newer,mpto} windows/texk/web2c
-cp build/texk/web2c/{dvitomp,mpost,tangle,tangleboot,mp.pool} windows/texk/web2c
-strip windows/texk/web2c/dvitomp
-strip windows/texk/web2c/mpost
+
+mkdir -p windows/texk/web2c
+cp build/texk/web2c/mpware/dmp     windows/texk/web2c/dmp.exe
+cp build/texk/web2c/mpware/makempx windows/texk/web2c/makempx.sh
+cp build/texk/web2c/mpware/newer   windows/texk/web2c/newer.exe
+cp build/texk/web2c/mpware/mpto    windows/texk/web2c/mpto.exe
+cp build/texk/web2c/dvitomp        windows/texk/web2c/dvitomp.exe
+cp build/texk/web2c/mpost          windows/texk/web2c/mpost.exe
+strip windows/texk/web2c/*.exe
 
 PATH=$OLDPATH
 unset NATIVE
