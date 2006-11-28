@@ -75,12 +75,13 @@ cd ..
 
 mkdir -p windows/texk/web2c
 cp build/texk/web2c/mpware/dmp     windows/texk/web2c/dmp.exe
-cp build/texk/web2c/mpware/makempx windows/texk/web2c/makempx.sh
+cp build/texk/web2c/mpware/makempx windows/texk/web2c/makempx.exe
 cp build/texk/web2c/mpware/newer   windows/texk/web2c/newer.exe
 cp build/texk/web2c/mpware/mpto    windows/texk/web2c/mpto.exe
 cp build/texk/web2c/dvitomp        windows/texk/web2c/dvitomp.exe
 cp build/texk/web2c/mpost          windows/texk/web2c/mpost.exe
-strip windows/texk/web2c/*.exe
+cp -f windows/tex/web2c/* windows-bin
+strip windows=bin/*.exe
 
 PATH=$OLDPATH
 unset NATIVE

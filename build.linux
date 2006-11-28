@@ -62,9 +62,7 @@ fi
 (cd texk/web2c; $MAKE ../kpathsea/libkpathsea.la) || exit 1
 (cd texk/web2c/lib; $MAKE) || exit 1
 (cd texk/web2c; $MAKE mp-programs) || exit 1
-# strip them
-$STRIP texk/web2c/mpost texk/web2c/dvitomp
-# go back
+# go back 
 cd ..
 unset NATIVE
  
@@ -75,6 +73,8 @@ cp build/texk/web2c/web2c/{web2c,fixwrites,splitup} native/texk/web2c/web2c
 cp build/texk/web2c/mpware/{dmp,makempx,newer,mpto} native/texk/web2c
 cp build/texk/web2c/{dvitomp,mpost,tangle,tangleboot} native/texk/web2c
 cp build/texk/web2c/mpdir/makecpool native/texk/web2c/mpdir
+cp -f native/texk/web2c/{mpost,dvitomp,newer,makempx,dmp,mpto} linux-bin
+strip linux-bin/*
 
 # show the results
 ls -ltr native/texk/web2c
