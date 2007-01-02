@@ -1,18 +1,21 @@
-# For installing mp 0.901 over the tetex-3.0 files (mp 0.641)
+# For installing latest mp over the tetex-3.0 equivalents (mp 0.641)
 
-.PHONY: install install-exec install-pool install-mplib
+.PHONY: install install-exec install-mplib
 
 INSTALL := rsync -ptv
 
-edir1 := metapost-0.901/build/texk/web2c
+# directories where the generated executables are put
+edir1 := build/texk/web2c
 edir2 := $(edir1)/mpware
+# executables to install
+execs := $(edir1)/mpost $(edir1)/dvitomp 
+execs += $(edir2)/dmp $(edir2)/mpto $(edir2)/newer $(edir2)/makempx
 
-install: install-exec install-pool install-mplib
-	fmtutil-sys --refresh
+# the "fmtutil-sys --all" might be overkill
+install: install-exec install-mplib
+	fmtutil-sys --all
 
-install-exec: $(edir1)/mpost $(edir1)/dvitomp $(edir2)/dmp $(edir2)/mpto $(edir2)/newer $(edir2)/makempx
+install-exec: $(execs)
 	$(INSTALL) $^ /usr/bin/
-install-pool: $(edir1)/mp.pool
-	$(INSTALL) $^ /usr/share/texmf/web2c/
-install-mplib: 
-	$(INSTALL) -r metapost-0.901/texmf/metapost /usr/share/texmf-tetex/
+install-mplib:
+	$(INSTALL) -r texmf/metapost /usr/share/texmf-tetex/
