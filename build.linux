@@ -19,7 +19,7 @@ export NATIVE
 #
 # guess the correct datadir
 
-DATADIR=`which kpsewhich > /dev/null && kpsewhich texmf.cnf | sed 's%/texmf/web2c/texmf.cnf$%%'`
+DATADIR=`which kpsewhich > /dev/null && kpsewhich texmf.cnf | sed 's%/texmf.cnf$%%' | sed 's%/web2c$%%' | sed 's%/texmf[^\/]*$%%'` 
 if test -z "$DATADIR"; then 
   DATADIR=/usr/share
 fi
@@ -73,6 +73,7 @@ cp build/texk/web2c/web2c/{web2c,fixwrites,splitup} native/texk/web2c/web2c
 cp build/texk/web2c/mpware/{dmp,makempx,newer,mpto} native/texk/web2c
 cp build/texk/web2c/{dvitomp,mpost,tangle,tangleboot} native/texk/web2c
 cp build/texk/web2c/mpdir/makecpool native/texk/web2c/mpdir
+mkdir -p linux-bin
 cp -f native/texk/web2c/{mpost,dvitomp,newer,makempx,dmp,mpto} linux-bin
 strip linux-bin/*
 

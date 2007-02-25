@@ -26,7 +26,7 @@ cd build
 #
 # guess the correct datadir
 
-DATADIR=`which kpsewhich > /dev/null && kpsewhich texmf.cnf | sed 's%/texmf/web2c/texmf.cnf$%%'`
+DATADIR=`which kpsewhich > /dev/null && kpsewhich texmf.cnf | sed 's%/texmf.cnf$%%' | sed 's%/web2c$%%' | sed 's%/texmf[^\/]*$%%'` 
 if test -z "$DATADIR"; then 
   DATADIR=/usr/share
 fi
@@ -80,7 +80,8 @@ cp build/texk/web2c/mpware/newer   windows/texk/web2c/newer.exe
 cp build/texk/web2c/mpware/mpto    windows/texk/web2c/mpto.exe
 cp build/texk/web2c/dvitomp        windows/texk/web2c/dvitomp.exe
 cp build/texk/web2c/mpost          windows/texk/web2c/mpost.exe
-cp -f windows/tex/web2c/* windows-bin
+mkdir -p windows-bin
+cp -f windows/texk/web2c/* windows-bin
 strip windows-bin/*.exe
 
 PATH=$OLDPATH

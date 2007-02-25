@@ -15,7 +15,7 @@ cd build
 #
 # guess the correct datadir
 
-DATADIR=`which kpsewhich > /dev/null && kpsewhich texmf.cnf | sed 's%/texmf/web2c/texmf.cnf$%%'`
+DATADIR=`which kpsewhich > /dev/null && kpsewhich texmf.cnf | sed 's%/texmf.cnf$%%' | sed 's%/web2c$%%' | sed 's%/texmf[^\/]*$%%'` 
 if test -z "$DATADIR"; then 
   DATADIR=/usr/share
 fi
