@@ -2,6 +2,50 @@ $Id: CHANGES,v 1.9 2005/08/24 10:54:02 taco Exp $
 By John Hobby and others.  Public domain (see README).
 
 ----------------------------------------------------------------------
+What is new in version 1.000:
+----------------------------------------------------------------------
+
+*  The use of DSC (document structuring) comments has been
+   been cleaned up, thanks to comments by Michail Vidiassov.
+ 
+*  By setting prologues to 2 or 3, you can ask MetaPost to 
+   reencode and include the used labels fonts in the output,
+   thus creating proper Encapsulated PostScript files even
+   if labels are present.
+
+*  Support for greyscale and cmykcolor models is added.
+
+*  The new drawing options "withprescript" and withpostscript"
+   allow the user to attach PostSCript special text to a specific
+   drawing object.
+
+*  Setting the new internal "mpprocset" to 1 will make MetaPost
+   create a somewhat extended preamble that defines shortcuts
+   for the postscript commands (e..g "l" instead of "lineto").
+   For big images, this can help shrink the output a bit.
+
+*  The pool file is now integrated in the executable, so there
+   is not separate 'mp.pool' anymore, except at build time.
+
+*  Groff support is redone, and dmp now uses kpathsea searching.
+   Groff related changes are thanks to the efforts of Werner 
+   Lemberg and Michail Vidiassov 
+
+*  makempx is now a compiled executable on all systems,
+   thank you Akira Kakuto
+
+*  The error for 'special's longer then 255 characters
+   is removed, so specials can now be of any length.
+
+*  There is new turningnumber implementation that attempts
+   to find the mathematically correct "turningnumber" of a 
+   path. The formulae are derived from a mailinglist discussion
+   between (especially) Dan Luecking and Giuseppe Bilotta.
+
+*  The manual is updated and modernized. It is currently 
+   maintained by Stephan Hennig and Troy Henderson.
+
+------------------------------------------------------------------
 Changes in version 0.920:
 ----------------------------------------------------------------------
 
