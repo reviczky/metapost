@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
 # $Id: Build,v 1.3 2005/05/08 15:55:26 taco Exp $
 # builds new pdftex binaries
-MAKE=make
+
+# OME 20070912: Taken from luatex build.sh:
+# try to find gnu make; we need it
+MAKE=make;
+if make -v 2>&1| grep -q "GNU Make" 
+then 
+  echo "Your make is a GNU-make; I will use that"
+elif gmake -v >/dev/null 2>&1
+then
+  MAKE=gmake;
+  echo "You have a GNU-make installed as gmake; I will use that"
+else
+  echo "I can't find a GNU-make; I'll try to use make and hope that works." 
+  echo "If it doesn't, please install GNU-make."
+fi
+
 STRIP=strip
 # this deletes all previous builds. 
 # comment out the rm and mkdir if you want to keep them (and uncomment and
@@ -15,7 +30,7 @@ cd build
 #
 # guess the correct datadir
 
-DATADIR=`which kpsewhich > /dev/null && kpsewhich texmf.cnf | sed 's%/texmf.cnf$%%' | sed 's%/web2c$%%' | sed 's%/texmf[^\/]*$%%'` 
+DATADIR=`which kpsewhich > /dev/null && kpsewhich texmf.cnf | sed 's%/texmf.cnf$%%' | sed 's%/web2c$%%' | sed 's%/texmf[^\/]*$%%'`
 if test -z "$DATADIR"; then 
   DATADIR=/usr/share
 fi
@@ -53,6 +68,7 @@ fi
             --without-tth       \
             --without-xdvik     \
             || exit 1 
+
 # make the binaries
 (cd texk/web2c/web2c; $MAKE) || exit 1
 (cd texk/web2c; $MAKE ../kpathsea/libkpathsea.la) || exit 1
