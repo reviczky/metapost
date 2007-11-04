@@ -2,6 +2,41 @@ $Id: CHANGES,v 1.9 2005/08/24 10:54:02 taco Exp $
 By John Hobby and others.  Public domain (see README).
 
 ----------------------------------------------------------------------
+What is new in version 1.001:
+----------------------------------------------------------------------
+
+* The default cmyk 'black' color now uses only black, not all four
+  ink colors (after a discussion on the mailing list).
+
+* Some issues were reported with the new turningnumber algorithm,
+  all known problems are now fixed.
+
+* Gábor Braun discovered that mpost did not always download the font
+  encodings into all the created output files.
+
+* Akira Kakuto and Hartmut Henkel found some small issues in mpto
+  regarding trailing and leading whitespace.
+
+* A fix for the 'Helvetica' entries in trfonts.map was provided by
+  Werner Lemberg, and Michail Vidiassov supplied two extra font 
+  entries for troff.map (Symbol and ZapfDingbats).
+
+* Mpost now supports web2c's --output-directory option.
+
+* Any warnings about missing fonts and characters are now always 
+  written to the terminal as well as to the log.
+
+* Now that makempx is a C program, it needed a different install line
+  in build.sh. Also, Olaf Mersmann contributed a patch to recognize
+  'gmake' in build.sh
+
+* Luigi Scarso found some typo's in the web source that prevented
+  clean weaving of the source.
+
+* Stephan Hennig fixed a number of problems in the manual, and the 
+  manual is now ready for web publishing.
+
+----------------------------------------------------------------------
 What is new in version 1.000:
 ----------------------------------------------------------------------
 
