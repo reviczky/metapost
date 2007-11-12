@@ -19,7 +19,9 @@ What is new in version 1.001:
 
 * A fix for the 'Helvetica' entries in trfonts.map was provided by
   Werner Lemberg, and Michail Vidiassov supplied two extra font 
-  entries for troff.map (Symbol and ZapfDingbats).
+  entries for troff.map (Symbol and ZapfDingbats). Karl Berry
+  provided the new file troff-updmap.map, to be used by the updmap 
+  tool in texlive.
 
 * Mpost now supports web2c's --output-directory option.
 
@@ -30,11 +32,14 @@ What is new in version 1.001:
   in build.sh. Also, Olaf Mersmann contributed a patch to recognize
   'gmake' in build.sh
 
-* Luigi Scarso found some typo's in the web source that prevented
+* Luigi Scarso found some typing errors in the web source that prevented
   clean weaving of the source.
 
-* Stephan Hennig fixed a number of problems in the manual, and the 
-  manual is now ready for web publishing.
+* Stephan Hennig fixed a number of problems in the manual (mpman.tex)
+  and the introduction paper (mpintro.tex). He also wrote new sections on 
+  how to preview metapost graphics and on how to use metapost graphics 
+  inside  other documents. On top of that, the manual is now hypertext-aware, 
+  and fixes for a whole series of small problems have been applied.
 
 ----------------------------------------------------------------------
 What is new in version 1.000:
