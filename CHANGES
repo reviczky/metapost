@@ -2,6 +2,13 @@ $Id: CHANGES,v 1.9 2005/08/24 10:54:02 taco Exp $
 By John Hobby and others.  Public domain (see README).
 
 ----------------------------------------------------------------------
+What is new in version 1.002:
+----------------------------------------------------------------------
+
+* Version 1.001 introduced a memory allocation error in mpto that could
+  result in the program looping endlessly
+
+----------------------------------------------------------------------
 What is new in version 1.001:
 ----------------------------------------------------------------------
 
