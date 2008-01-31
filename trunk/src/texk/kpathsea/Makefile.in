@@ -29,7 +29,9 @@ pathsearch.lo proginit.lo progname.lo readable.lo rm-suffix.lo \
 str-list.lo str-llist.lo tex-glyph.lo tex-hush.lo tex-make.lo \
 tilde.lo truncate.lo uppercasify.lo variable.lo version.lo xbasename.lo \
 xcalloc.lo xdirname.lo xfopen.lo xfseek.lo xftell.lo xgetcwd.lo xmalloc.lo \
-xopendir.lo xputenv.lo xrealloc.lo xstat.lo xstrdup.lo $(liblobjs) $(malloc)
+xopendir.lo xputenv.lo xrealloc.lo xstat.lo xstrdup.lo $(liblobjs) $(malloc) \
+error.lo filename.lo home.lo lookcmd.lo string.lo system.lo time.lo user.lo \
+volume.lo
 liblobjs = @LTLIBOBJS@
 
 library = kpathsea

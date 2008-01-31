@@ -23,7 +23,7 @@
 #include <kpathsea/xopendir.h>
 
 
-#ifndef WIN32
+#if !defined(WIN32) || defined(__MINGW32__)
 DIR *
 xopendir P1C(string, dirname)
 {

@@ -48,7 +48,11 @@ extern char *getenv ();
 #else
 #ifndef STDC_HEADERS
 #ifndef ALLOC_RETURN_TYPE
+#ifdef DOSISH
 #define ALLOC_RETURN_TYPE void
+#els
+#define ALLOC_RETURN_TYPE char
+#endif /* not DOSISH */
 #endif /* not ALLOC_RETURN_TYPE */
 extern ALLOC_RETURN_TYPE *calloc (), *malloc (), *realloc ();
 #endif /* not STDC_HEADERS */

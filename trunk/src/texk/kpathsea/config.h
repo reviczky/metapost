@@ -56,7 +56,9 @@
 #endif
 
 #ifdef WIN32
-#define __STDC__ 1
+# ifndef __STDC__
+#  define __STDC__ 1
+# endif
 #endif /* not WIN32 */
 
 /* System dependencies that are figured out by `configure'.  */
@@ -81,9 +83,11 @@
   This must be included after "c-proto.h"
   but before "lib.h". FP.
 */
-#ifdef WIN32
-#include <win32lib.h>
-#endif
+# ifndef __MINGW32__
+#   include <win32lib.h>
+# else
+#   include "win32lib.h"
+# endif
 
 #include <kpathsea/debug.h>    /* Runtime tracing.  */
 #include <kpathsea/lib.h>      /* STREQ, etc. */

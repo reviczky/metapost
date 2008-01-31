@@ -436,7 +436,12 @@ kpse_set_program_name P2C(const_string, argv0, const_string, progname)
      ensure that HOME is set. If debug_paths is on, 
      turn on some message if $HOME is not found. */
   if (KPSE_DEBUG_P(KPSE_DEBUG_PATHS)) {
+#ifndef __MINGW32__
     set_home_warning();
+#else
+    extern int output_home_warning;
+    output_home_warning = 1;
+#endif
   }
   init_user_info();
 
