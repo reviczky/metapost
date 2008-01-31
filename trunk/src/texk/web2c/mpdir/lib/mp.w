@@ -145,24 +145,30 @@ to specify a file name if |output| were specified here.
 @d true 1
 @d false 0
  
-@(mpbasictypes.h@>=
+@(mplib.h@>=
+#  ifndef LIBAVL_ALLOCATOR
+#    define LIBAVL_ALLOCATOR
+    struct libavl_allocator {
+        void *(*libavl_malloc) (struct libavl_allocator *, size_t libavl_size);
+        void (*libavl_free) (struct libavl_allocator *, void *libavl_block);
+    };
+#  endif
+typedef struct psout_data_struct * psout_data;
+typedef struct MP_instance * MP;
 typedef int boolean;
 typedef signed int integer;
-@<Declare helpers@>;
-
-@ @(mplib.h@>=
-#include "mpbasictypes.h"
-#include "mppstypes.h"
-typedef struct MP_instance * MP;
 @<Types in the outer block@>
-@<Constants in the outer block@>
 typedef struct MP_options {
   @<Option variables@>
 } MP_options;
+@<Exported function headers@>
+
+@ @(mpmp.h@>=
+@<Declare helpers@>;
+@<Constants in the outer block@>
 typedef struct MP_instance {
   @<Global variables@>
 } MP_instance;
-@<Exported function headers@>
 
 @ @c 
 #include <stdio.h>
@@ -172,9 +178,9 @@ typedef struct MP_instance {
 #include <assert.h>
 #include <unistd.h> /* for access() */
 #include <time.h> /* for struct tm \& co */
-#include "avl.h"
 #include "mplib.h"
-#include "mppsout.h"
+#include "mpmp.h" /* internal header */
+#include "mppsout.h" /* internal header */
 @h
 @<Declarations@>
 @<Basic printing procedures@>

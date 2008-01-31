@@ -57,27 +57,26 @@
 #include <assert.h>
 #include "avl.h"
 #include "mplib.h"
-#include "mppsout.h"
+#include "mpmp.h" /* internal header */
+#include "mppsout.h" /* internal header */
 @h
 @<Declarations@>;
 @<Static variables in the outer block@>;
 
-@ @(mppstypes.h@>=
+@ There is a small bit of code from the backend that bleads through
+to the frontend because I do not know how to set up the includes
+properly. Those are the definitions of |struct libavl_allocator|
+and |typedef struct psout_data_struct * psout_data|.
+
+The |libavl_allocator| is a trick that makes sure that frontends 
+do not need |avl.h|, and the |psout_data| is needed for the backend 
+data structure.
+
+@ @(mppsout.h@>=
 @<Types...@>;
-/* this is a trick that makes sure that frontends do not need avl.h */
-#  ifndef LIBAVL_ALLOCATOR
-#    define LIBAVL_ALLOCATOR
-    struct libavl_allocator {
-        void *(*libavl_malloc) (struct libavl_allocator *, size_t libavl_size);
-        void (*libavl_free) (struct libavl_allocator *, void *libavl_block);
-    };
-#  endif
 typedef struct psout_data_struct {
   @<Globals@>;
 } psout_data_struct ;
-typedef struct psout_data_struct * psout_data;
-
-@ @(mppsout.h@>=
 @<Exported function headers@>
 
 @ @<Exported function headers@>=
