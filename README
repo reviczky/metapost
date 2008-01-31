@@ -1,0 +1,106 @@
+$Id: README,v 1.6 2005/03/21 19:16:12 karl Exp $
+
+This README file for the MetaPost distribution is public domain.
+(As is the MetaPost software, see the end of this file.)
+
+MetaPost is a system for producing graphics developed by John Hobby at
+AT&T, based on Donald Knuth's Metafont.
+
+- The MetaPost home page is http://tug.org/metapost.
+
+- The <metapost@tug.org> mailing list is for general help and discussion
+  of MetaPost; to subscribe, visit http://tug.org/mailman/listinfo/metapost.
+
+- MetaPost development is currently hosted at supelec.fr; visit
+  https://foundry.supelec.fr/projects/metapost for the current development
+  team members, sources, and much else.
+  
+- Please report bugs and request enhancements either on the
+  metapost@tug.org list, or through Sarovar.  (Please do not send
+  reports directly to Dr. Hobby any more.)
+
+
+This README file merely describes this packaging and source layout of
+the MetaPost system.  See ./INSTALL for some installation help, and
+./CHANGES for recent and not-so-recent improvements to MetaPost.
+
+The source installation package has been created by extracting the
+bits and pieces of TeX Live 2004 that are absolutely needed to compile
+the programs in such a way that they can be plugged into an existing
+web2c-based installation afterwards. It follows, that for a succesful
+build, your system has to be able to compile and install a web2c based
+distribution like tetex or TeX Live. See http://tug.org/texlive/ for more
+information.
+
+Some support is required in a dvi-to-PostScript program in order to take
+full advantage of MetaPost's ability to include typeset text in figures.
+Rokicki's dvips is one of the few drivers that has this support; it is
+available from http://www.ctan.org and/or other standard sites as well
+as being included in most common TeX distributions.
+
+When using pdftex, that same functionality is provided by the mptopdf
+TeX macros by Hans Hagen that convert MetaPost output to PDF primitives
+on the fly. These macros are part of his ConTeXt format, which is also
+included in most TeX distributions. More information on ConTeXt can be
+obtained from http://www.pragma-ade.com.
+
+The main source files for MetaPost are located in src/texk/web2c;
+auxiliary programs that process included TeX commands are contained in
+the subdirectory src/texk/web2c/mpware; standard macro files and such
+are distributed below the top-level ./texmf directory. The manual and
+some other documentation is under ./manual. Optional troff files are
+in ./troff.
+
+The executable that is created by the build process is named mpost. As
+is normal in current web2c systems, this executable functions as both
+inimp and virmp by means of a command-line switch.
+
+When mpost is processing an input file that contains TeX commands, it
+depends on a shell script (mpware/makempx) to create an auxiliary
+input file that gives corresponding MetaPost picture expressions.
+This script uses mpware/mpto to create TeX (or troff) input and uses
+the program dvitomp (for TeX) or mpware/dmp (for troff) to postprocess
+the output.
+
+The dmp translator reads data file ./troff/trfonts.map.
+It handles the translation between troff names and tfm file names.
+
+Like its ancestor Metafont, MetaPost is written in the web language.
+Anyone who is not familiar with the mechanics of web programs should
+see the documentation that comes with his/her TeX distribution.  The
+distribution contains a directory called "web2c" with Tim Morgan's
+programs for automatically translating web programs into C.  It is a
+good idea to look at the documentation for web2c before installing
+MetaPost.
+
+The ultimate source for MetaPost is mp/mp.web.  System-dependent
+changes go in mp/mp.ch, and there may be extra .ch files if you have
+donwloaded a pretest or beta release. These are basically diff files
+where changes are denoted
+                   @x <old text> @y <new text> @z
+
+Have fun!
+
+-----------------------------------------------------------------------
+The following AT&T software is hereby put into the public domain:
+
+    The MetaPost system, including the interpreter, mp,
+    and support programs mpto, dvitomp and dmp
+
+This does not constitute a precedent to be applied to any other AT&T
+copyright software.
+
+AT&T relinquishes all intellectual property rights to this code, both
+source and binary form and permission is granted for anyone to use,
+duplicate, modify and redistribute it.
+
+AT&T provides absolutely NO WARRENTEE OF ANY KIND with respect to this
+software.  The entire risk as to the quality and performance of this
+software is with the user.
+
+IN NO EVENT WILL AT&T BE LIABLE TO ANYONE FOR ANY DAMAGES
+ARISING OUT OF THE USE OF THIS SOFTWARE, INCLUDING, WITHOUT
+LIMITATION, DAMAGES RESULTING FROM LOST DATA OR LOST PROFITS,
+OR FOR ANY SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES.
+
+-----------------------------------------------------------------------

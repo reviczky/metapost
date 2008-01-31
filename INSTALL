@@ -1,0 +1,34 @@
+$Id: INSTALL,v 1.4 2005/03/31 22:49:16 karl Exp $
+This file is public domain.
+
+metapost
+======
+
+INSTALL for metapost
+========================
+
+This distribution is a (very!) stripped-down version of the TeX Live
+distribution.  All source code is in the directory src; the script Build
+will generate and populate a directory named build.
+
+Try the script Build from this top-level directory. If it succeeds, you
+should end up with the executable files mpost and dvitomp in
+build/texk/web2c along with the pool file mp.pool.
+
+There will also be four executables named dmp, mpto, newer, and makempx in 
+the directory build/texk/web2c/mpware
+
+Replace all these files in your TeX installation by the new ones, and
+regenerate any .mem files in your TeX installation.
+
+The directory texmf contains the standard (mplib) include files,
+and the optional support files for troff are in troff. These need to
+be copied to a location where your installation can find them at
+runtime.
+
+The manual sources are included in the directory manual.  PDFs are
+available at:
+http://cvs.sarovar.org/cgi-bin/cvsweb.cgi/doc/?cvsroot=metapost
+
+If all else fails, follow the clues in README, src/texk/INSTALL and
+src/texk/web2c/INSTALL.
