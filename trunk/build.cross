@@ -1,0 +1,26 @@
+#!/bin/sh
+
+# cross-compile on linux using mingw32 for windows
+
+MAKE=make
+STRIP=strip
+PATH=/usr/mingw32/mingw32/bin:$PATH
+
+rm -rf build-win
+mkdir build-win
+mkdir build-win/texk
+cd build-win/texk
+../../src/texk/configure --host=i386-linux --enable-shared=no || exit 1 
+# make the kpathsea library
+(cd kpathsea && $MAKE ../kpathsea/libkpathsea.la ) || exit 1
+# make the newmpost binary
+cp -a ../../src/texk/web2c .
+(cd web2c/mpdir; $MAKE ) || exit 1
+mv  web2c/mpdir/newmpost web2c/mpdir/newmpost.exe
+$STRIP web2c/mpdir/newmpost.exe
+# go back
+cd ../..
+# show the results
+ls -l build-win/texk/web2c/mpdir/newmpost.exe
+
+
