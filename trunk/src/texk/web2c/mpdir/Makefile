@@ -2,7 +2,7 @@
 LD = gcc
 
 KPSEBUILDDIR = ../../../texk/kpathsea/.libs
-KPSESRCDIR = ../..
+KPSESRCDIR = ../../../../src/texk
 
 CFLAGS = -Wall -W -g -I../.. -I./lib
 OBJECTS = mpost.o 
