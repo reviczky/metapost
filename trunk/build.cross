@@ -10,16 +10,29 @@ rm -rf build-win
 mkdir build-win
 mkdir build-win/texk
 cd build-win/texk
+
 ../../src/texk/configure --host=i386-linux --enable-shared=no || exit 1 
 # make the kpathsea library
 (cd kpathsea && $MAKE ../kpathsea/libkpathsea.la ) || exit 1
+
+# make the library
+mkdir web2c
+mkdir web2c/mpdir
+mkdir web2c/mpdir/lib
+cd web2c/mpdir/lib
+(../../../../../src/texk/web2c/mpdir/lib/configure \
+    --host=i386-linux --enable-shared=no ; $MAKE )|| exit 1 
+
 # make the newmpost binary
-cp -a ../../src/texk/web2c .
-(cd web2c/mpdir; $MAKE ) || exit 1
-mv  web2c/mpdir/newmpost web2c/mpdir/newmpost.exe
-$STRIP web2c/mpdir/newmpost.exe
-# go back
-cd ../..
+cd .. 
+ln -s ../../../../src/texk/web2c/mpdir/Makefile .
+ln -s ../../../../src/texk/web2c/mpdir/mpost.w .
+$MAKE || exit 1
+
+# strip them
+mv  newmpost newmpost.exe
+$STRIP newmpost.exe
+cd ../../../..
 # show the results
 ls -l build-win/texk/web2c/mpdir/newmpost.exe
 

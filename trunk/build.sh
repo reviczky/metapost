@@ -43,13 +43,23 @@ cd texk
 
 # make the kpathsea library
 (cd kpathsea;  $MAKE ../kpathsea/libkpathsea.la) || exit 1
+
+# make the library
+mkdir web2c
+mkdir web2c/mpdir
+mkdir web2c/mpdir/lib
+cd web2c/mpdir/lib
+(../../../../../src/texk/web2c/mpdir/lib/configure; $MAKE )|| exit 1 
+
 # make the newmpost binary
-cp -a ../../src/texk/web2c .
-(cd web2c/mpdir; $MAKE) || exit 1
+cd .. 
+ln -s ../../../../src/texk/web2c/mpdir/Makefile .
+ln -s ../../../../src/texk/web2c/mpdir/mpost.w .
+$MAKE || exit 1
 # strip them
 #STRIP=strip
 # $STRIP web2c/mpdir/newmpost
 # go back
-cd ../..
+cd ../../../..
 # show the results
 ls -l build/texk/web2c/mpdir/newmpost

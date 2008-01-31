@@ -16,7 +16,7 @@ CTANGLE=ctangle
 mp.c: psout.c
 
 .w.c:
-	$(CTANGLE) $*
+	$(CTANGLE) $< $@
 
 clean::
 	rm mp.c psout.c mplib.h mppsout.h mpmp.h

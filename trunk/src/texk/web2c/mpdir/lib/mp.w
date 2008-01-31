@@ -161,10 +161,10 @@ typedef signed int integer;
 typedef struct MP_options {
   @<Option variables@>
 } MP_options;
+@<Declare helpers@>;
 @<Exported function headers@>
 
 @ @(mpmp.h@>=
-@<Declare helpers@>;
 @<Constants in the outer block@>
 typedef struct MP_instance {
   @<Global variables@>
@@ -4931,6 +4931,12 @@ mp->max_internal=2*max_given_internal;
 mp->internal = xmalloc ((mp->max_internal+1), sizeof(scaled));
 mp->int_name = xmalloc ((mp->max_internal+1), sizeof(char *));
 mp->troff_mode=(opt.troff_mode>0 ? true : false);
+
+@ @<Exported ...@>=
+int mp_troff_mode(MP mp);
+
+@ @c
+int mp_troff_mode(MP mp) { return mp->troff_mode; }
 
 @ @<Set initial ...@>=
 for (k=0;k<= mp->max_internal; k++ ) { 
@@ -21583,10 +21589,11 @@ Each execution of |do_statement| concludes with
     }
   } while (mp->cur_cmd!=stop);
 }
-void mp_run (MP mp) {
+int mp_run (MP mp) {
   mp_main_control(mp); /* come to life */
   mp_final_cleanup(mp); /* prepare for death */
   mp_close_files_and_terminate(mp);
+  return mp->history;
 }
 char * mp_mplib_version (MP mp) {
   assert(mp);
@@ -21598,7 +21605,7 @@ char * mp_metapost_version (MP mp) {
 }
 
 @ @<Exported function headers@>=
-void mp_run (MP mp);
+int mp_run (MP mp);
 char * mp_mplib_version (MP mp);
 char * mp_metapost_version (MP mp);
 

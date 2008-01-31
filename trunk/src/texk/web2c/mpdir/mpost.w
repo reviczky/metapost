@@ -99,7 +99,7 @@ boolean mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
     if (!cnf_cmd)
       cnf_cmd = mp_xstrdup (MPXCOMMAND);
 
-    if (mp->troff_mode)
+    if (mp_troff_mode(mp))
       cmd = concatn (cnf_cmd, " -troff ",
                      qmpname, " ", qmpxname, NULL);
     else if (mpost_tex_program && *mpost_tex_program)
@@ -373,8 +373,7 @@ int main (int argc, char **argv) { /* |start_here| */
 	exit(EXIT_FAILURE);
   if(!mp_initialize(mp))
 	exit(EXIT_FAILURE);
-  mp_run(mp);
-  history = mp->history;
+  history = mp_run(mp);
   mp_free(mp);
   exit(history);
 }

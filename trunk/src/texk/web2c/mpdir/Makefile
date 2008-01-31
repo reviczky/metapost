@@ -1,28 +1,32 @@
 
 LD = gcc
+CC = gcc
+CFLAGS = -Wall -W -g
 
 KPSEBUILDDIR = ../../../texk/kpathsea/.libs
 KPSESRCDIR = ../../../../src/texk
+KPSELIB=$(KPSEBUILDDIR)/libkpathsea.a
+
+MPLIBBUILDDIR = ../../../texk/web2c/mpdir/lib/.libs
+MPLIBSRCDIR = ../../../../src/texk/web2c/mpdir/lib
+MPLIB = $(MPLIBBUILDDIR)/libmplib.a
 
 CFLAGS = -Wall -W -g -I../.. -I./lib
 OBJECTS = mpost.o 
-MPLIB = lib/libmplib.a
-KPSELIB=$(KPSEBUILDDIR)/libkpathsea.a
-
 
 newmpost: $(MPLIB) $(OBJECTS) 
 	$(LD) -o newmpost $(OBJECTS) $(MPLIB) $(KPSELIB)
 
-$(MPLIB):
-	cd lib && make
-
-mpost.c: mpost.w 
-	$(CTANGLE) mpost.w 
-
 clean:
 	cd lib && make clean
-	$(RM) *.o newmpost mp.c mpost.c *.scn *.idx *.toc *.pdf *.log
+	$(RM) *.o newmpost mpost.c *.scn *.idx *.toc *.pdf *.log
 
+
+.c.o:
+	$(CC) -c $< -o $@
+
+.w.c:
+	$(CTANGLE) $< $@
 
 $(OBJECTS): %.o: %.c
-	$(CC) -c $(CFLAGS) -I$(KPSESRCDIR) $< -o $@
+	$(CC) -c $(CFLAGS) -I$(MPLIBSRCDIR) -I$(KPSESRCDIR) $< -o $@
