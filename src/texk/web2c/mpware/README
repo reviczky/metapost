@@ -1,0 +1,5 @@
+$Id: README,v 1.1 2004/09/19 21:52:59 karl Exp $
+Public domain, including the test files whose format precludes a standard
+license statement.
+
+This directory contains assorted utility routines for MetaPost.
