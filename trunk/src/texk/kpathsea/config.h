@@ -83,11 +83,13 @@
   This must be included after "c-proto.h"
   but before "lib.h". FP.
 */
+#ifdef WIN32
 # ifndef __MINGW32__
 #   include <win32lib.h>
 # else
 #   include "win32lib.h"
 # endif
+#endif
 
 #include <kpathsea/debug.h>    /* Runtime tracing.  */
 #include <kpathsea/lib.h>      /* STREQ, etc. */
