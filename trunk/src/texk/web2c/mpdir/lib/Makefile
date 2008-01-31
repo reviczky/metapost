@@ -1,32 +1,25 @@
 
-srcdir = .
-
-KPSEBUILDDIR = ../../../../../build/texk/kpathsea/.libs
-KPSESRCDIR = ../../..
-
 RM = rm -f
-LD = gcc
 CC = gcc
 CTANGLE = ctangle
+AR = ar
+RANLIB = ranlib
 
 CFLAGS = -Wall -W -g -I../../..
-OBJECTS = avl.o mp.o mpost.o psout.o
+OBJECTS = avl.o mp.o psout.o
 
-
-newmpost: $(OBJECTS) avl.h $(KPSEBUILDDIR)/libkpathsea.a
-	$(LD) -o newmpost $(OBJECTS) $(KPSEBUILDDIR)/libkpathsea.a 
+libmplib.a: $(OBJECTS)
+	$(AR) cru libmplib.a $(OBJECTS)
+	$(RANLIB) libmplib.a
 
 mp.c: mp.w psout.c
 	$(CTANGLE) mp.w
-
-mpost.c: mpost.w 
-	$(CTANGLE) mpost.w 
 
 psout.c: psout.w 
 	$(CTANGLE) psout.w 
 
 $(OBJECTS): %.o: %.c
-	$(CC) -c $(CFLAGS) -I$(KPSESRCDIR) $< -o $@
+	$(CC) -c $(CFLAGS) $< -o $@
 
 clean:
-	$(RM) *.o newmpost mp.c mpost.c psout.c mp*.h *.scn *.idx *.toc *.pdf *.log  
+	$(RM) *.o libmplib.a mp.c psout.c mp*.h *.scn *.idx *.toc *.pdf *.log  

@@ -56,8 +56,6 @@
 #include <stdarg.h>
 #include <assert.h>
 #include "avl.h"
-#include "mpbasictypes.h"
-#include "mppstypes.h"
 #include "mplib.h"
 #include "mppsout.h"
 @h
@@ -66,6 +64,14 @@
 
 @ @(mppstypes.h@>=
 @<Types...@>;
+/* this is a trick that makes sure that frontends do not need avl.h */
+#  ifndef LIBAVL_ALLOCATOR
+#    define LIBAVL_ALLOCATOR
+    struct libavl_allocator {
+        void *(*libavl_malloc) (struct libavl_allocator *, size_t libavl_size);
+        void (*libavl_free) (struct libavl_allocator *, void *libavl_block);
+    };
+#  endif
 typedef struct psout_data_struct {
   @<Globals@>;
 } psout_data_struct ;

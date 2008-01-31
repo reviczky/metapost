@@ -151,6 +151,8 @@ typedef signed int integer;
 @<Declare helpers@>;
 
 @ @(mplib.h@>=
+#include "mpbasictypes.h"
+#include "mppstypes.h"
 typedef struct MP_instance * MP;
 @<Types in the outer block@>
 @<Constants in the outer block@>
@@ -171,8 +173,6 @@ typedef struct MP_instance {
 #include <unistd.h> /* for access() */
 #include <time.h> /* for struct tm \& co */
 #include "avl.h"
-#include "mpbasictypes.h"
-#include "mppstypes.h"
 #include "mplib.h"
 #include "mppsout.h"
 @h

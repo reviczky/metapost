@@ -24,10 +24,7 @@ have our customary command-line interface.
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "avl.h"
-#include "mpbasictypes.h"
-#include "mppstypes.h"
-#include "mplib.h"
+#include <mplib.h>
 #define HAVE_BOOLEAN 1
 #define HAVE_PROTOTYPES 1
 #include <kpathsea/progname.h>
