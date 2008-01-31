@@ -39,10 +39,6 @@
 
 @* \[1] Introduction.
 This is \MP, a graphics-language processor based on D. E. Knuth's \MF.
-The \PASCAL\ program that follows defines a standard version
-@:PASCAL}{\PASCAL@>
-of \MP\ that is designed to be highly portable so that identical output
-will be obtainable on a great variety of computers.
 
 The main purpose of the following program is to explain the algorithms of \MP\
 as clearly as possible. As a result, the program will not necessarily be very
@@ -470,6 +466,9 @@ integer i;
 the user's external character set by means of arrays |xord| and |xchr|
 that are analogous to \PASCAL's |ord| and |chr| functions.
 
+@d xchr(A) mp->xchr[(A)]
+@d xord(A) mp->xord[(A)]
+
 @<Glob...@>=
 ASCII_code xord[256];  /* specifies conversion of input characters */
 text_char xchr[256];  /* specifies conversion of output characters */
@@ -489,7 +488,7 @@ more difficult, so they should be introduced cautiously if at all.
 @^system dependencies@>
 
 @<Set initial ...@>=
-for (i=0;i<=0377;i++) { mp->xchr[i]=i; }
+for (i=0;i<=0377;i++) { xchr(i)=i; }
 
 @ The following system-independent code makes the |xord| array contain a
 suitable inverse to the information in |xchr|. Note that if |xchr[i]=xchr[j]|
@@ -499,10 +498,10 @@ codes below 040 in case there is a coincidence.
 
 @<Set initial ...@>=
 for (i=first_text_char;i<=last_text_char;i++) { 
-   mp->xord[chr(i)]=0177;
+   xord(chr(i))=0177;
 }
-for (i=0200;i<=0377;i++) { mp->xord[mp->xchr[i]]=i;}
-for (i=0;i<=0176;i++) {mp->xord[mp->xchr[i]]=i;}
+for (i=0200;i<=0377;i++) { xord(xchr(i))=i;}
+for (i=0;i<=0176;i++) { xord(xchr(i))=i;}
 
 @* \[3] Input and output.
 The bane of portability is the fact that different operating systems treat
@@ -770,7 +769,7 @@ boolean mp_input_ln (MP mp,FILE *  f, boolean bypass_eoln) {
         mp_reallocate_buffer(mp,(mp->buf_size+(mp->buf_size>>2)));
       }
     }
-    mp->buffer[mp->last]=mp->xord[c]; 
+    mp->buffer[mp->last]=xord(c); 
     incr(mp->last);
     if ( mp->buffer[mp->last-1]!=' ' ) 
       last_nonblank=mp->last;
@@ -1337,16 +1336,16 @@ void mp_reallocate_pool(MP mp, pool_pointer needed) ;
 void mp_reallocate_strings (MP mp, str_number str_use) { 
   while ( str_use>=mp->max_strings-1 ) {
     int l = mp->max_strings + (mp->max_strings>>2);
-    XREALLOC (mp->str_ref,   (l+1),sizeof(int));
-    XREALLOC (mp->str_start, (l+1),sizeof(pool_pointer));
-    XREALLOC (mp->next_str,  (l+1),sizeof(str_number));
+    XREALLOC (mp->str_ref,   l, int);
+    XREALLOC (mp->str_start, l, pool_pointer);
+    XREALLOC (mp->next_str,  l, str_number);
     mp->max_strings = l;
   }
 }
 void mp_reallocate_pool(MP mp, pool_pointer needed) {
   while ( needed>mp->pool_size ) {
     int l = mp->pool_size + (mp->pool_size>>2);
- 	XREALLOC (mp->str_pool, (l+1),sizeof(ASCII_code));
+ 	XREALLOC (mp->str_pool, l, ASCII_code);
     mp->pool_size = l;
   }
 }
@@ -1641,7 +1640,7 @@ Procedure |unit_str_room| needs to be declared |forward| here because it calls
 void mp_print_visible_char (MP mp, ASCII_code s) { /* prints a single character */
   switch (mp->selector) {
   case term_and_log: 
-    wterm_chr(mp->xchr[s]); wlog_chr(mp->xchr[s]);
+    wterm_chr(xchr(s)); wlog_chr(xchr(s));
     incr(mp->term_offset); incr(mp->file_offset);
     if ( mp->term_offset==(unsigned)mp->max_print_line ) { 
        wterm_cr; mp->term_offset=0;
@@ -1651,18 +1650,18 @@ void mp_print_visible_char (MP mp, ASCII_code s) { /* prints a single character 
     };
     break;
   case log_only: 
-    wlog_chr(mp->xchr[s]); incr(mp->file_offset);
+    wlog_chr(xchr(s)); incr(mp->file_offset);
     if ( mp->file_offset==(unsigned)mp->max_print_line ) mp_print_ln(mp);
     break;
   case term_only: 
-    wterm_chr(mp->xchr[s]); incr(mp->term_offset);
+    wterm_chr(xchr(s)); incr(mp->term_offset);
     if ( mp->term_offset==(unsigned)mp->max_print_line ) mp_print_ln(mp);
     break;
   case ps_file_only: 
     if ( s==13 ) {
       wps_cr; mp->ps_offset=0;
     } else {
-      wps_chr(mp->xchr[s]); incr(mp->ps_offset);
+      wps_chr(xchr(s)); incr(mp->ps_offset);
     };
     break;
   case no_print: 
@@ -1680,7 +1679,7 @@ void mp_print_visible_char (MP mp, ASCII_code s) { /* prints a single character 
     append_char(s);
     break;
   default:
-    fprintf(mp->wr_file[(mp->selector-write_file)],"%c",mp->xchr[s]);
+    fprintf(mp->wr_file[(mp->selector-write_file)],"%c",xchr(s));
   }
 DONE:
   incr(mp->tally);
@@ -3808,7 +3807,7 @@ pointer hi_mem_min; /* the smallest location of one-word memory in use */
 @d xrealloc mp_xrealloc
 @d xmalloc  mp_xmalloc
 @d xstrdup  mp_xstrdup
-@d XREALLOC(a,b,c) a = xrealloc(a,b,sizeof(c));
+@d XREALLOC(a,b,c) a = xrealloc(a,(b+1),sizeof(c));
 
 @<Declare helpers@>=
 void mp_xfree (void *x);
@@ -4246,9 +4245,9 @@ void mp_reallocate_memory(MP mp, int l) ;
 
 @ @c
 void mp_reallocate_memory(MP mp, int l) {
-   XREALLOC(mp->free,     (l+1), unsigned char);
-   XREALLOC(mp->was_free, (l+1), unsigned char);
-   XREALLOC(mp->mem,      (l+1), memory_word);
+   XREALLOC(mp->free,     l, unsigned char);
+   XREALLOC(mp->was_free, l, unsigned char);
+   XREALLOC(mp->mem,      l, memory_word);
    mp->mem_max = l;
    if (mp->ini_version) 
      mp->mem_top = l;
@@ -7402,14 +7401,14 @@ void mp_reallocate_paths (MP mp, int l);
 
 @ @c
 void mp_reallocate_paths (MP mp, int l) {
-  XREALLOC (mp->delta_x, (l+1), scaled);
-  XREALLOC (mp->delta_y, (l+1), scaled);
-  XREALLOC (mp->delta,   (l+1), scaled);
-  XREALLOC (mp->psi,     (l+1), angle);
-  XREALLOC (mp->theta,   (l+1), angle);
-  XREALLOC (mp->uu,      (l+1), fraction);
-  XREALLOC (mp->vv,      (l+1), angle);
-  XREALLOC (mp->ww,      (l+1), fraction);
+  XREALLOC (mp->delta_x, l, scaled);
+  XREALLOC (mp->delta_y, l, scaled);
+  XREALLOC (mp->delta,   l, scaled);
+  XREALLOC (mp->psi,     l, angle);
+  XREALLOC (mp->theta,   l, angle);
+  XREALLOC (mp->uu,      l, fraction);
+  XREALLOC (mp->vv,      l, angle);
+  XREALLOC (mp->ww,      l, fraction);
   mp->path_size = l;
 }
 
@@ -13045,7 +13044,7 @@ new level (having, initially, the same properties as the old).
     mp->max_in_stack=mp->input_ptr;
     if ( mp->input_ptr==mp->stack_size ) {
       int l = (mp->stack_size+(mp->stack_size>>2));
-      XREALLOC(mp->input_stack, (l+1), in_state_record);
+      XREALLOC(mp->input_stack, l, in_state_record);
       mp->stack_size = l;
     }         
   }
@@ -15652,7 +15651,7 @@ allows both lowercase and uppercase letters in the file name.
 
 @d append_to_name(A) { c=(A); 
   if ( k<file_name_size ) {
-    mp->name_of_file[k]=mp->xchr[c];
+    mp->name_of_file[k]=xchr(c);
     incr(k);
   }
 }
@@ -15728,14 +15727,14 @@ isn't found.
     b=a+file_name_size-n-1-mem_ext_length;
   k=0;
   for (j=0;j<n;j++) {
-    append_to_name(mp->xord[(int)mp->MP_mem_default[j]]);
+    append_to_name(xord((int)mp->MP_mem_default[j]));
   }
   for (j=a;j<=b;j++) {
     append_to_name(mp->buffer[j]);
   }
   for (j=mem_default_length-mem_ext_length;
       j<mem_default_length;j++) {
-    append_to_name(mp->xord[(int)mp->MP_mem_default[j]]);
+    append_to_name(xord((int)mp->MP_mem_default[j]));
   } 
   mp->name_of_file[k]=0;
   mp->name_length=k; 
@@ -15799,7 +15798,7 @@ str_number mp_make_name_string (MP mp) {
   int k; /* index into |name_of_file| */
   str_room(mp->name_length);
   for (k=0;k<mp->name_length;k++) {
-    append_char(mp->xord[(int)mp->name_of_file[k]]);
+    append_char(xord((int)mp->name_of_file[k]));
   }
   return mp_make_string(mp);
 }
@@ -16127,7 +16126,7 @@ copies the given string into a special array for an old file name.
   for (j=mp->str_start[s];j<=str_stop(s)-1;j++) { 
     incr(k);
     if ( k<=file_name_size ) 
-      mp->old_file_name[k]=mp->xchr[mp->str_pool[j]];
+      mp->old_file_name[k]=xchr(mp->str_pool[j]);
   }
   mp->old_file_name[++k] = 0;
 }
@@ -24227,18 +24226,18 @@ xfree(mp->font_sizes);
 @c 
 void mp_reallocate_fonts (MP mp, font_number l) {
   font_number f;
-  XREALLOC(mp->font_enc_name,      (l+1), char *);
-  XREALLOC(mp->font_ps_name_fixed, (l+1), boolean);
-  XREALLOC(mp->font_dsize,         (l+1), scaled);
-  XREALLOC(mp->font_name,          (l+1), char *);
-  XREALLOC(mp->font_ps_name,       (l+1), char *);
-  XREALLOC(mp->font_bc,            (l+1), eight_bits);
-  XREALLOC(mp->font_ec,            (l+1), eight_bits);
-  XREALLOC(mp->char_base,          (l+1), int);
-  XREALLOC(mp->width_base,         (l+1), int);
-  XREALLOC(mp->height_base,        (l+1), int);
-  XREALLOC(mp->depth_base,         (l+1), int);
-  XREALLOC(mp->font_sizes,         (l+1), pointer);
+  XREALLOC(mp->font_enc_name,      l, char *);
+  XREALLOC(mp->font_ps_name_fixed, l, boolean);
+  XREALLOC(mp->font_dsize,         l, scaled);
+  XREALLOC(mp->font_name,          l, char *);
+  XREALLOC(mp->font_ps_name,       l, char *);
+  XREALLOC(mp->font_bc,            l, eight_bits);
+  XREALLOC(mp->font_ec,            l, eight_bits);
+  XREALLOC(mp->char_base,          l, int);
+  XREALLOC(mp->width_base,         l, int);
+  XREALLOC(mp->height_base,        l, int);
+  XREALLOC(mp->depth_base,         l, int);
+  XREALLOC(mp->font_sizes,         l, pointer);
   for (f=(mp->last_fnum+1);f<=l;f++) {
     mp->font_enc_name[f]=NULL;
     mp->font_ps_name_fixed[f] = false;
