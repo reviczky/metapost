@@ -24477,7 +24477,8 @@ file_opened=false;
 mp_ptr_scan_file(mp, fname);
 if ( strlen(mp->cur_area)==0 ) { xfree(mp->cur_area); mp->cur_area=xstrdup(MP_font_area);}
 if ( strlen(mp->cur_ext)==0 )  { xfree(mp->cur_ext); mp->cur_ext=xstrdup(".tfm"); }
-mp->tfm_infile = mp_open_file(mp, fname, "rb",mp_filetype_metrics);
+pack_cur_name;
+mp->tfm_infile = mp_open_file(mp, mp->name_of_file, "rb",mp_filetype_metrics);
 if ( !mp->tfm_infile  ) goto BAD_TFM;
 file_opened=true
 
