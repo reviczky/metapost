@@ -44,7 +44,7 @@ void mpost_run_editor (MP mp, char *fname, int fline) {
 
 @ 
 @<Register the callback routines@>=
-options.run_editor = mpost_run_editor;
+options->run_editor = mpost_run_editor;
 
 @
 @c 
@@ -121,7 +121,8 @@ boolean mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
 
 @ 
 @<Register the callback routines@>=
-options.run_make_mpx = mpost_run_make_mpx;
+if (!nokpse)
+  options->run_make_mpx = mpost_run_make_mpx;
 
 
 @ @c scaled mpost_get_random_seed (MP mp) {
@@ -142,7 +143,7 @@ options.run_make_mpx = mpost_run_make_mpx;
 }
 
 @ @<Register the callback routines@>=
-options.get_random_seed = mpost_get_random_seed;
+options->get_random_seed = mpost_get_random_seed;
 
 @ 
 @c char *mpost_find_file(char *fname, char *fmode, int ftype)  {
@@ -184,7 +185,8 @@ options.get_random_seed = mpost_get_random_seed;
 }
 
 @  @<Register the callback routines@>=
-options.find_file = mpost_find_file;
+if (!nokpse)
+  options->find_file = mpost_find_file;
 
 @ At the moment, the command line is very simple.
 
@@ -203,33 +205,35 @@ options.find_file = mpost_find_file;
       if (!*optarg)  optarg=NULL;
     }
     if (option_is("ini")) {
-      options.ini_version = true;
+      options->ini_version = true;
     } else if (option_is ("kpathsea-debug")) {
       kpathsea_debug |= atoi (optarg);
     } else if (option_is("mem")) {
-      options.mem_name = mp_xstrdup(optarg);
+      options->mem_name = mp_xstrdup(optarg);
       if (!user_progname) 
 	    user_progname = optarg;
     } else if (option_is("jobname")) {
-      options.job_name = mp_xstrdup(optarg);
+      options->job_name = mp_xstrdup(optarg);
     } else if (option_is ("progname")) {
       user_progname = optarg;
     } else if (option_is("troff")) {
-      options.troff_mode = true;
+      options->troff_mode = true;
     } else if (option_is ("tex")) {
       mpost_tex_program = optarg;
     } else if (option_is("interaction")) {
       if (option_arg("batchmode")) {
-        options.interaction = mp_batch_mode;
+        options->interaction = mp_batch_mode;
       } else if (option_arg("nonstopmode")) {
-        options.interaction = mp_nonstop_mode;
+        options->interaction = mp_nonstop_mode;
       } else if (option_arg("scrollmode")) {
-        options.interaction = mp_scroll_mode;
+        options->interaction = mp_scroll_mode;
       } else if (option_arg("errorstopmode")) {
-        options.interaction = mp_error_stop_mode;
+        options->interaction = mp_error_stop_mode;
       } else {
         fprintf(stdout,"unknown option argument %s\n", argv[a]);
       }
+    } else if (option_is("no-kpathsea")) {
+      nokpse=1;
     } else if (option_is("help")) {
       @<Show help and exit@>;
     } else if (option_is("version")) {
@@ -300,43 +304,45 @@ input.
 
 @<Copy the rest of the command line@>=
 {
-  options.command_line = mp_xmalloc(command_line_size,1);
-  if (options.command_line==NULL) {
+  options->command_line = mp_xmalloc(command_line_size,1);
+  if (options->command_line==NULL) {
     fprintf(stderr,"Out of memory!\n");
     exit(EXIT_FAILURE);
   }
-  strcpy(options.command_line,"");
+  strcpy(options->command_line,"");
   if (a<argc) {
     k=0;
     for(;a<argc;a++) {
       char *c = argv[a];
       while (*c) {
 	    if (k<(command_line_size-1)) {
-          options.command_line[k++] = *c;
+          options->command_line[k++] = *c;
         }
         c++;
       }
-      options.command_line[k++] = ' ';
+      options->command_line[k++] = ' ';
     }
 	while (k>0) {
-      if (options.command_line[(k-1)] == ' ') 
+      if (options->command_line[(k-1)] == ' ') 
         k--; 
       else 
         break;
     }
-    options.command_line[k] = 0;
+    options->command_line[k] = 0;
   }
 }
 
 @ A simple function to get numerical |texmf.cnf| values
 @c
-int setup_kpse_var (int def, char *var_name) {
-  char * expansion = kpse_var_value (var_name);
-  if (expansion) {
-    int conf_val = atoi (expansion);
-    mp_xfree (expansion);
-    if (conf_val > 0) {
-      return conf_val;
+int setup_var (int def, char *var_name, int nokpse) {
+  if (!nokpse) {
+    char * expansion = kpse_var_value (var_name);
+    if (expansion) {
+      int conf_val = atoi (expansion);
+      mp_xfree (expansion);
+      if (conf_val > 0) {
+        return conf_val;
+      }
     }
   }
   return def;
@@ -351,24 +357,29 @@ int main (int argc, char **argv) { /* |start_here| */
   int k; /* index into buffer */
   int history; /* the exit status */
   MP mp; /* a metapost instance */
-  struct MP_options options; /* instance options */
+  struct MP_options * options; /* instance options */
+  int nokpse = 0; /* switch to {\it not} enable kpse */
   char *user_progname = NULL; /* If the user overrides argv[0] with -progname.  */
   options = mp_options();
-  options.ini_version       = false;
-  options.print_found_names = true;
+  options->ini_version       = false;
+  options->print_found_names = true;
   @<Read and set commmand line options@>;
-  kpse_set_program_name("mpost",user_progname);
-  options.main_memory       = setup_kpse_var (50000,"main_memory");
-  options.hash_size         = setup_kpse_var (9500,"hash_size");
-  options.hash_prime        = 7919;
-  options.max_in_open       = setup_kpse_var (25,"max_in_open");
-  options.param_size        = setup_kpse_var (1500,"param_size");
-  options.error_line        = setup_kpse_var (79,"error_line");
-  options.half_error_line   = setup_kpse_var (50,"half_error_line");
-  options.max_print_line    = setup_kpse_var (50,"max_print_line");
+  if (!nokpse)
+    kpse_set_program_name("mpost",user_progname);  
+  if(putenv("engine=newmetapost"))
+    fprintf(stdout,"warning: could not set up $engine\n");
+  options->main_memory       = setup_var (50000,"main_memory",nokpse);
+  options->hash_size         = setup_var (9500,"hash_size",nokpse);
+  options->hash_prime        = 7919;
+  options->max_in_open       = setup_var (25,"max_in_open",nokpse);
+  options->param_size        = setup_var (1500,"param_size",nokpse);
+  options->error_line        = setup_var (79,"error_line",nokpse);
+  options->half_error_line   = setup_var (50,"half_error_line",nokpse);
+  options->max_print_line    = setup_var (50,"max_print_line",nokpse);
   @<Copy the rest of the command line@>;
   @<Register the callback routines@>;
   mp = mp_new(options);
+  mp_xfree((void *)options);
   if (mp==NULL)
 	exit(EXIT_FAILURE);
   if(!mp_initialize(mp))
