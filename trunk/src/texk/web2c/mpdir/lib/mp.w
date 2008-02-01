@@ -4290,13 +4290,7 @@ void mp_check_mem (MP mp,boolean print_locs ) {
   if ( print_locs ) {
     @<Print newly busy locations@>;
   }
-  for (p=0;p<=mp->lo_mem_max;p++) {
-    mp->was_free[p]=mp->free[p];
-  }
-  for (p=mp->hi_mem_min;p<=mp->mem_end;p++) {
-    mp->was_free[p]=mp->free[p];
-  }
-  /* |was_free:=free| might be faster */
+  memcpy(mp->was_free,mp->free, sizeof(char)*(mp->mem_end+1));
   mp->was_mem_end=mp->mem_end; 
   mp->was_lo_max=mp->lo_mem_max; 
   mp->was_hi_min=mp->hi_mem_min;
