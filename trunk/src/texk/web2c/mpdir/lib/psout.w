@@ -4005,6 +4005,110 @@ void mp_print_prologue (MP mp, int prologues, int procset, int ldf) {
     }
   }
   mp_print(mp, "%%EndProlog");
+  mp_print_nl(mp, "%%Page: 1 1"); mp_print_ln(mp);
 }
 
+@ Deciding where to break the ps output line. For the moment,
+it is necessary to create an exported function as well.
+
+@d ps_room(A) if ( (mp->ps_offset+(int)(A))>mp->max_print_line ) 
+  mp_print_ln(mp) /* optional line break */
+
+@c
+void mp_ps_room (MP mp,int s) {
+  ps_room(s);
+}
+
+@ @<Exported...@>=
+void mp_ps_room (MP mp,int s) ;
+
+@ \MP\ used to have one single routine to print to both `write' files
+and the PostScript output. Web2c redefines ``Character |k| cannot be
+printed'', and that resulted in some bugs where 8-bit characters were
+written to the PostScript file (reported by Wlodek Bzyl).
+
+Also, Hans Hagen requested spaces to be output as "\\040" instead of
+a plain space, since that makes it easier to parse the result file
+for postprocessing.
+
+@<Character |k| is not allowed in PostScript output@>=
+  (k<=' ')||(k>'~')
+
+@ We often need to print a pair of coordinates.
+
+@c
+void mp_ps_pair_out (MP mp,scaled x, scaled y) { 
+  ps_room(26);
+  mp_print_scaled(mp, x); mp_print_char(mp, ' ');
+  mp_print_scaled(mp, y); mp_print_char(mp, ' ');
+}
+
+@ @<Exported...@>=
+void mp_ps_pair_out (MP mp,scaled x, scaled y) ;
+
+@ @c
+void mp_ps_print (MP mp,char *s) { 
+   ps_room(strlen(s));
+   mp_print(mp, s);
+}
+
+@ @<Exported...@>=
+void mp_ps_print (MP mp,char *s) ;
+
+@ @c
+void mp_ps_string_out (MP mp, char *s) {
+  ASCII_code k; /* bits to be converted to octal */
+  mp_print(mp, "(");
+  while ((k=*s++)) {
+    if ( mp->ps_offset+5>mp->max_print_line ) {
+      mp_print_char(mp, '\\');
+      mp_print_ln(mp);
+    }
+    if ( (@<Character |k| is not allowed in PostScript output@>) ) {
+      mp_print_char(mp, '\\');
+      mp_print_char(mp, '0'+(k / 64));
+      mp_print_char(mp, '0'+((k / 8) % 8));
+      mp_print_char(mp, '0'+(k % 8));
+    } else { 
+      if ( (k=='(')||(k==')')||(k=='\\') ) mp_print_char(mp, '\\');
+      mp_print_char(mp, k);
+    }
+  }
+  mp_print_char(mp, ')');
+}
+
+@ @<Exported...@>=
+void mp_ps_string_out (MP mp, char *s) ;
+
+@ This is a define because the function does not use its |mp| argument.
+
+@d mp_is_ps_name(M,A) mp_do_is_ps_name(A)
+
+@c
+boolean mp_do_is_ps_name (char *s) {
+  ASCII_code k; /* the character being checked */
+  while ((k=*s++)) {
+    if ( (k<=' ')||(k>'~') ) return false;
+    if ( (k=='(')||(k==')')||(k=='<')||(k=='>')||
+       (k=='{')||(k=='}')||(k=='/')||(k=='%') ) return false;
+  }
+  return true;
+}
+
+@ @<Exported...@>=
+void mp_ps_name_out (MP mp, char *s, boolean lit) ;
+
+@ @c
+void mp_ps_name_out (MP mp, char *s, boolean lit) {
+  ps_room(strlen(s)+2);
+  mp_print_char(mp, ' ');
+  if ( mp_is_ps_name(mp, s) ) {
+    if ( lit ) mp_print_char(mp, '/');
+      mp_print(mp, s);
+  } else { 
+    mp_ps_string_out(mp, s);
+    if ( ! lit ) mp_ps_print(mp, "cvx ");
+      mp_ps_print(mp, "cvn");
+  }
+}
 

@@ -24602,7 +24602,10 @@ void mp_do_mapline (MP mp) {
   mp_put_get_error(mp);
 }
 
-@
+@ This is temporary.
+
+@d ps_room(A) mp_ps_room(mp,A)
+
 @<Declare the \ps\ output procedures@>=
 void mp_ps_print_cmd (MP mp, char *l, char *s) {
   if ( mp->internal[mpprocset]>0 ) { ps_room(strlen(s)); mp_print(mp,s); }
@@ -24825,27 +24828,6 @@ if ( mp->total_shipped>0 ) {
     mp_print(mp, mp->last_file_name);
   }
 }
-
-@ We often need to print a pair of coordinates.
-
-@d ps_room(A) if ( (mp->ps_offset+(int)(A))>mp->max_print_line ) 
-  mp_print_ln(mp) /* optional line break */
-
-@<Declare the \ps\ output procedures@>=
-void mp_ps_pair_out (MP mp,scaled x, scaled y) { 
-  ps_room(26);
-  mp_print_scaled(mp, x); mp_print_char(mp, ' ');
-  mp_print_scaled(mp, y); mp_print_char(mp, ' ');
-}
-
-@ @<Declare the \ps\ output procedures@>=
-void mp_ps_print (MP mp,char *s) { 
-   ps_room(strlen(s));
-   mp_print(mp, s);
-};
-
-@ @<Exported...@>=
-void mp_ps_print (MP mp,char *s) ;
 
 
 @ The most important output procedure is the one that gives the \ps\ version of
@@ -25483,67 +25465,6 @@ scaled mp_choose_scale (MP mp,pointer p) ;
   return mp_pyth_add(mp, mp_pyth_add(mp, d+ad,ad), mp_pyth_add(mp, c+bc,bc));
 }
 
-@ @<Declare the \ps\ output procedures@>=
-void mp_ps_string_out (MP mp, char *s) {
-  char *i; /* current character code position */
-  ASCII_code k; /* bits to be converted to octal */
-  mp_print(mp, "(");
-  i=s;
-  while (*i) {
-    if ( mp->ps_offset+5>mp->max_print_line ) {
-      mp_print_char(mp, '\\');
-      mp_print_ln(mp);
-    }
-    k=*i;
-    if ( (@<Character |k| is not allowed in PostScript output@>) ) {
-      mp_print_char(mp, '\\');
-      mp_print_char(mp, '0'+(k / 64));
-      mp_print_char(mp, '0'+((k / 8) % 8));
-      mp_print_char(mp, '0'+(k % 8));
-    } else { 
-      if ( (k=='(')||(k==')')||(k=='\\') ) mp_print_char(mp, '\\');
-      mp_print_char(mp, k);
-    }
-    incr(i);
-  }
-  mp_print_char(mp, ')');
-}
-
-@ 
-@d mp_is_ps_name(M,A) mp_do_is_ps_name(A)
-
-@<Declare the \ps\ output procedures@>=
-boolean mp_do_is_ps_name (char *s) {
-  char *i; /* current character code position */
-  ASCII_code k; /* the character being checked */
-  i=s;
-  while (*i) {
-    k=*i;
-    if ( (k<=' ')||(k>'~') ) return false;
-    if ( (k=='(')||(k==')')||(k=='<')||(k=='>')||
-       (k=='{')||(k=='}')||(k=='/')||(k=='%') ) return false;
-    incr(i);
-  }
-  return true;
-}
-
-@ @<Exported...@>=
-void mp_ps_name_out (MP mp, char *s, boolean lit) ;
-
-@ @c
-void mp_ps_name_out (MP mp, char *s, boolean lit) {
-  ps_room(strlen(s)+2);
-  mp_print_char(mp, ' ');
-  if ( mp_is_ps_name(mp, s) ) {
-    if ( lit ) mp_print_char(mp, '/');
-      mp_print(mp, s);
-  } else { 
-    mp_ps_string_out(mp, s);
-    if ( ! lit ) mp_ps_print(mp, "cvx ");
-      mp_ps_print(mp, "cvn");
-  }
-}
-
 @ @<Declare the \ps\ output procedures@>= 
 void mp_mark_string_chars (MP mp,font_number f, str_number s) ;
 
@@ -25706,63 +25627,37 @@ void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
     mp_load_encodings(mp,mp->last_fnum);
     @<Update encoding names@>;
     @<Print the improved prologue and setup@>;
-    @<Print any pending specials@>;
-    mp_unknown_graphics_state(mp, 0);
-    mp->need_newpath=true;
-    p=link(dummy_loc(h));
-    while ( p!=null ) { 
-      if ( has_color(p) ) {
-        if ( (pre_script(p))!=null ) {
-          mp_print_nl (mp, str(pre_script(p))); mp_print_ln(mp);
-        }
-      }
-      mp_fix_graphics_state(mp, p);
-      switch (type(p)) {
-      @<Cases for translating graphical object~|p| into \ps@>;
-      case mp_start_bounds_code:
-      case mp_stop_bounds_code:
-	    break;
-      } /* all cases are enumerated */
-      p=link(p);
-    }
-    mp_print_cmd(mp, "showpage","P"); mp_print_ln(mp);
-    mp_print(mp, "%%EOF"); mp_print_ln(mp);
-    fclose(mp->ps_file);
-    mp->selector=mp->non_ps_setting;
-    if ( mp->internal[prologues]<=0 ) mp_clear_sizes(mp);
-    @<End progress report@>;
   } else {
     @<Print the initial comment and give the bounding box for edge structure~|h|@>;
     if ( (mp->internal[prologues]>0) && (mp->last_ps_fnum<mp->last_fnum) )
       mp_read_psname_table(mp);
     mp_print_prologue(mp, (mp->internal[prologues]>>16), (mp->internal[mpprocset]>>16), ldf);
-    mp_print_nl(mp, "%%Page: 1 1"); mp_print_ln(mp);
-    @<Print any pending specials@>;
-    mp_unknown_graphics_state(mp, 0);
-    mp->need_newpath=true;
-    p=link(dummy_loc(h));
-    while ( p!=null ) { 
-      if ( has_color(p) ) {
-        if ( (pre_script(p))!=null ) {
-          mp_print_nl (mp, str(pre_script(p))); mp_print_ln(mp);
-        }
-      }
-      mp_fix_graphics_state(mp, p);
-      switch (type(p)) {
-      @<Cases for translating graphical object~|p| into \ps@>;
-      case mp_start_bounds_code:
-      case mp_stop_bounds_code: 
-        break;
-      } /* all cases are enumerated */
-      p=link(p);
-    }
-    mp_print_cmd(mp, "showpage","P"); mp_print_ln(mp);
-    mp_print(mp, "%%EOF"); mp_print_ln(mp);
-    fclose(mp->ps_file);
-    mp->selector=mp->non_ps_setting;
-    if ( mp->internal[prologues]<=0 ) mp_clear_sizes(mp);
-    @<End progress report@>;
   }
+  @<Print any pending specials@>;
+  mp_unknown_graphics_state(mp, 0);
+  mp->need_newpath=true;
+  p=link(dummy_loc(h));
+  while ( p!=null ) { 
+    if ( has_color(p) ) {
+      if ( (pre_script(p))!=null ) {
+        mp_print_nl (mp, str(pre_script(p))); mp_print_ln(mp);
+      }
+    }
+    mp_fix_graphics_state(mp, p);
+    switch (type(p)) {
+    @<Cases for translating graphical object~|p| into \ps@>;
+    case mp_start_bounds_code:
+    case mp_stop_bounds_code:
+	  break;
+    } /* all cases are enumerated */
+    p=link(p);
+  }
+  mp_print_cmd(mp, "showpage","P"); mp_print_ln(mp);
+  mp_print(mp, "%%EOF"); mp_print_ln(mp);
+  fclose(mp->ps_file);
+  mp->selector=mp->non_ps_setting;
+  if ( mp->internal[prologues]<=0 ) mp_clear_sizes(mp);
+  @<End progress report@>;
   if ( mp->internal[tracing_output]>0 ) 
    mp_print_edges(mp, h," (just shipped out)",true);
 }
@@ -26744,18 +26639,6 @@ case 14: for (k=0;k<=n;k++) mp_print_str(mp, mp->buffer[k]);
 case 15: mp->panicking=! mp->panicking;
   break;
 
-
-@ \MP\ used to have one single routine to print to both `write' files
-and the PostScript output. Web2c redefines ``Character |k| cannot be
-printed'', and that resulted in some bugs where 8-bit characters were
-written to the PostScript file (reported by Wlodek Bzyl).
-
-Also, Hans Hagen requested spaces to be output as "\\040" instead of
-a plain space, since that makes it easier to parse the result file
-for postprocessing.
-
-@<Character |k| is not allowed in PostScript output@>=
-  (k<=' ')||(k>'~')
 
 @ Saving the filename template
 
