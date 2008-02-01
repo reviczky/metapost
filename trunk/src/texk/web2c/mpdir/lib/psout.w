@@ -1393,12 +1393,14 @@ void mp_map_line (MP mp, str_number t) {
 
 @ 
 @c void mp_init_map_file (MP mp, int is_troff) {
-    
+    char *r;
     mp->ps->mitem = mp_xmalloc (1,sizeof(mapitem));
     mp->ps->mitem->mode = FM_DUPIGNORE;
     mp->ps->mitem->type = MAPFILE;
     mp->ps->mitem->map_line = NULL;
-    if ((mp->find_file)("mpost.map", "rb", mp_filetype_fontmap) != NULL) {
+    r = (mp->find_file)("mpost.map", "rb", mp_filetype_fontmap);
+    if (r != NULL) {
+      mp_xfree(r);
       mp->ps->mitem->map_line = mp_xstrdup ("mpost.map");
     } else {
       if (is_troff) {

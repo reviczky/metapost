@@ -186,17 +186,19 @@ typedef struct MP_instance {
 
 @<Declarations@> =
 @<Declare |mp_reallocate| functions@>;
-struct MP_options mp_options (void) {
+struct MP_options *mp_options (void) {
   struct MP_options *opt;
   opt = xmalloc(1,sizeof(MP_options));
   memset (opt,0,sizeof(MP_options));
-  return *opt;
+  return opt;
 } 
-MP mp_new (struct MP_options opt) {
+MP mp_new (struct MP_options *opt) {
   MP mp;
   mp = xmalloc(1,sizeof(MP_instance));
   @<Set |ini_version|@>;
   @<Allocate or initialize variables@>
+  if (opt->main_memory>mp->mem_max)
+    mp_reallocate_memory(mp,opt->main_memory);
   mp_reallocate_paths(mp,1000);
   mp_reallocate_fonts(mp,8);
   mp->term_in = stdin;
@@ -243,8 +245,8 @@ boolean mp_initialize (MP mp) { /* this procedure gets things started properly *
 
 @ 
 @<Exported function headers@>=
-extern struct MP_options mp_options (void);
-extern MP mp_new (struct MP_options opt) ;
+extern struct MP_options *mp_options (void);
+extern MP mp_new (struct MP_options *opt) ;
 extern void mp_free (MP mp);
 extern boolean mp_initialize (MP mp);
 
@@ -330,17 +332,15 @@ int max_in_open;
 @<Allocate or ...@>=
 mp->max_strings=500;
 mp->pool_size=10000;
-set_value(mp->error_line,opt.error_line,79);
-set_value(mp->half_error_line,opt.half_error_line,50);
-set_value(mp->max_print_line,opt.max_print_line,79);
+set_value(mp->error_line,opt->error_line,79);
+set_value(mp->half_error_line,opt->half_error_line,50);
+set_value(mp->max_print_line,opt->max_print_line,79);
 mp->mem_max=5000;
 mp->mem_top=5000;
-if (opt.main_memory>mp->mem_max)
-  mp_reallocate_memory(mp,opt.main_memory);
-set_value(mp->hash_size,opt.hash_size,9500);
-set_value(mp->hash_prime,opt.hash_prime,7919);
-set_value(mp->param_size,opt.param_size,150);
-set_value(mp->max_in_open,opt.max_in_open,10);
+set_value(mp->hash_size,opt->hash_size,9500);
+set_value(mp->hash_prime,opt->hash_prime,7919);
+set_value(mp->param_size,opt->param_size,150);
+set_value(mp->max_in_open,opt->max_in_open,10);
 
 
 @ In case somebody has inadvertently made bad settings of the ``constants,''
@@ -570,7 +570,7 @@ char *mp_find_file (char *fname, char *fmode, int ftype)  {
 the |mp_new| allocations
 
 @d set_callback_option(A) do { mp->A = mp_##A;
-  if (opt.A!=NULL) mp->A = opt.A;
+  if (opt->A!=NULL) mp->A = opt->A;
 } while (0)
 
 @<Allocate or initialize ...@>=
@@ -611,7 +611,7 @@ file names for input files instead of the requested ones.
 It is off by default because it creates an extra filename lookup.
 
 @<Allocate or initialize ...@>=
-mp->print_found_names = (opt.print_found_names>0 ? true : false);
+mp->print_found_names = (opt->print_found_names>0 ? true : false);
 
 @ \MP's file-opening procedures return |false| if no file identified by
 |name_of_file| could be opened.
@@ -817,7 +817,7 @@ char *command_line;
 char *command_line;
 
 @ @<Allocate or initialize ...@>=
-mp->command_line = mp_xstrdup(opt.command_line);
+mp->command_line = opt->command_line;
 
 @ Sometimes it is necessary to synchronize the input/output mixture that
 happens on the user's terminal, and three system-dependent
@@ -1007,11 +1007,16 @@ int mp_xstrcmp (const char *a, const char *b) {
 @ @c
 char * mp_str (MP mp, str_number ss) {
   char *s;
-  int len = length(ss);
-  s = xmalloc(len+1,sizeof(char));
-  strncpy(s,(char *)(mp->str_pool+(mp->str_start[ss])),len);
-  s[len] = 0;
-  return (char *)s;
+  int len;
+  if (ss==mp->str_ptr) {
+    return NULL;
+  } else {
+    len = length(ss);
+    s = xmalloc(len+1,sizeof(char));
+    strncpy(s,(char *)(mp->str_pool+(mp->str_start[ss])),len);
+    s[len] = 0;
+    return (char *)s;
+  }
 }
 str_number mp_rts (MP mp, char *s) {
   int r; /* the new string */ 
@@ -1273,7 +1278,7 @@ void mp_do_compaction (MP mp, pool_pointer needed) {
 
 @ @<Advance |last_fixed_str| as far as possible and set |str_use|@>=
 t=mp->next_str[mp->last_fixed_str];
-while ( (mp->str_ref[t]==max_str_ref)&&(t!=mp->str_ptr) ) { 
+while (t!=mp->str_ptr && mp->str_ref[t]==max_str_ref) {
   incr(mp->fixed_str_use);
   mp->last_fixed_str=t;
   t=mp->next_str[t];
@@ -1439,6 +1444,7 @@ void mp_get_strings_started (MP mp) {
   mp->strs_used_up=0;
   @<Make the first 256 strings@>;
   g=mp_make_string(mp); /* string 256 == "" */
+  mp->str_ref[g]=max_str_ref;
   mp->last_fixed_str=mp->str_ptr-1;
   mp->fixed_str_use=mp->str_ptr;
   return;
@@ -1917,7 +1923,7 @@ int interaction; /* current level of interaction */
 @ Set it here so it can be overwritten by the commandline
 
 @<Allocate or initialize ...@>=
-mp->interaction=opt.interaction;
+mp->interaction=opt->interaction;
 if (mp->interaction==mp_unspecified_mode || mp->interaction>mp_error_stop_mode) 
   mp->interaction=mp_error_stop_mode;
 if (mp->interaction<mp_unspecified_mode) 
@@ -3803,7 +3809,7 @@ pointer hi_mem_min; /* the smallest location of one-word memory in use */
 
 
 @ 
-@d xfree    mp_xfree
+@d xfree(A) do { mp_xfree(A); A=NULL; } while (0)
 @d xrealloc mp_xrealloc
 @d xmalloc  mp_xmalloc
 @d xstrdup  mp_xstrdup
@@ -3866,6 +3872,7 @@ char *mp_xstrdup(const char *s) {
 @ 
 @<Allocate or initialize ...@>=
 mp->mem = xmalloc ((mp->mem_max+1),sizeof (memory_word));
+memset(mp->mem,0,(mp->mem_max+1)*sizeof (memory_word));
 
 @ @<Dealloc variables@>=
 xfree(mp->mem);
@@ -4247,7 +4254,14 @@ void mp_reallocate_memory(MP mp, int l) ;
 void mp_reallocate_memory(MP mp, int l) {
    XREALLOC(mp->free,     l, unsigned char);
    XREALLOC(mp->was_free, l, unsigned char);
-   XREALLOC(mp->mem,      l, memory_word);
+   if (mp->mem) {
+	 int newarea = l-mp->mem_max;
+     XREALLOC(mp->mem,      l, memory_word);
+     memset (mp->mem+(mp->mem_max+1),0,sizeof(memory_word)*(newarea));
+   } else {
+     XREALLOC(mp->mem,      l, memory_word);
+     memset(mp->mem,0,sizeof(memory_word)*(l+1));
+   }
    mp->mem_max = l;
    if (mp->ini_version) 
      mp->mem_top = l;
@@ -4929,7 +4943,7 @@ boolean troff_mode;
 mp->max_internal=2*max_given_internal;
 mp->internal = xmalloc ((mp->max_internal+1), sizeof(scaled));
 mp->int_name = xmalloc ((mp->max_internal+1), sizeof(char *));
-mp->troff_mode=(opt.troff_mode>0 ? true : false);
+mp->troff_mode=(opt->troff_mode>0 ? true : false);
 
 @ @<Exported ...@>=
 int mp_troff_mode(MP mp);
@@ -15615,7 +15629,7 @@ void mp_end_name (MP mp) {
   unsigned int len;
   /* "my/w.mp" */
   s = mp->str_start[mp->str_ptr];
-  if ( mp->area_delimiter<0 ) {
+  if ( mp->area_delimiter<0 ) {    
     mp->cur_area=xstrdup("");
   } else {
     len = mp->area_delimiter-s; 
@@ -15696,7 +15710,7 @@ char *mem_name; /* for commandline */
 
 @ @<Allocate or initialize ...@>=
 mp->MP_mem_default = xstrdup("plain.mem");
-mp->mem_name = mp_xstrdup(opt.mem_name);
+mp->mem_name = mp_xstrdup(opt->mem_name);
 @.plain@>
 @^system dependencies@>
 
@@ -15877,7 +15891,7 @@ We have |job_name=NULL| if and only if the `\.{log}' file has not been opened,
 except of course for a short time just after |job_name| has become nonzero.
 
 @<Allocate or ...@>=
-mp->job_name=mp_xstrdup(opt.job_name); 
+mp->job_name=opt->job_name; 
 mp->log_opened=false;
 
 @ @<Dealloc variables@>=
@@ -16083,7 +16097,7 @@ than just a copy of its argument and the full file name is needed for opening
 @^system dependencies@>
 
 @<Flush |name| and replace it with |cur_name| if it won't be needed@>=
-mp_flush_string(mp, name); name=rts(mp->cur_name); mp->cur_name=NULL
+mp_flush_string(mp, name); name=rts(mp->cur_name); xfree(mp->cur_name)
 
 @ Here we have to remember to tell the |input_ln| routine not to
 start with a |get|. If the file is empty, it is considered to
@@ -24461,8 +24475,8 @@ a C string already.
 @<Open |tfm_infile| for input@>=
 file_opened=false;
 mp_ptr_scan_file(mp, fname);
-if ( strlen(mp->cur_area)==0 ) mp->cur_area=xstrdup(MP_font_area);
-if ( strlen(mp->cur_ext)==0 ) mp->cur_ext=xstrdup(".tfm");
+if ( strlen(mp->cur_area)==0 ) { xfree(mp->cur_area); mp->cur_area=xstrdup(MP_font_area);}
+if ( strlen(mp->cur_ext)==0 )  { xfree(mp->cur_ext); mp->cur_ext=xstrdup(".tfm"); }
 mp->tfm_infile = mp_open_file(mp, fname, "rb",mp_filetype_metrics);
 if ( !mp->tfm_infile  ) goto BAD_TFM;
 file_opened=true
@@ -26123,10 +26137,10 @@ boolean mp_load_mem_file (MP mp) ;
 @ Mem files consist of |memory_word| items, and we use the following
 macros to dump words of different types:
 
-@d dump_wd(A)   { WW=(A);      fwrite(&WW,sizeof(WW),1,mp->mem_file); }
-@d dump_int(A)  { WW.cint=(A); fwrite(&WW,sizeof(WW),1,mp->mem_file); }
-@d dump_hh(A)   { WW.hh=(A);   fwrite(&WW,sizeof(WW),1,mp->mem_file); }
-@d dump_qqqq(A) { WW.qqqq=(A); fwrite(&WW,sizeof(WW),1,mp->mem_file); }
+@d dump_wd(A)   { WW=(A);       fwrite(&WW,sizeof(WW),1,mp->mem_file); }
+@d dump_int(A)  { int cint=(A); fwrite(&cint,sizeof(cint),1,mp->mem_file); }
+@d dump_hh(A)   { WW.hh=(A);    fwrite(&WW,sizeof(WW),1,mp->mem_file); }
+@d dump_qqqq(A) { WW.qqqq=(A);  fwrite(&WW,sizeof(WW),1,mp->mem_file); }
 @d dump_string(A) { dump_int(strlen(A)+1);
                     fwrite(A,strlen(A)+1,1,mp->mem_file); }
 
@@ -26138,7 +26152,7 @@ the range of the values we are reading in. We say `|undump(a)(b)(x)|' to
 read an integer value |x| that is supposed to be in the range |a<=x<=b|.
 
 @d undump_wd(A)   { fread(&WW,sizeof(WW),1,mp->mem_file); (A)=WW; }
-@d undump_int(A)  { fread(&WW,sizeof(WW),1,mp->mem_file); (A)=WW.cint; }
+@d undump_int(A)  { int cint; fread(&cint,sizeof(cint),1,mp->mem_file); (A)=cint; }
 @d undump_hh(A)   { fread(&WW,sizeof(WW),1,mp->mem_file); (A)=WW.hh; }
 @d undump_qqqq(A) { fread(&WW,sizeof(WW),1,mp->mem_file); (A)=WW.qqqq; }
 @d undump_strings(A,B,C) { 
@@ -26195,7 +26209,7 @@ while ( k<=mp->max_str_ptr ) {
 }
 k=0;
 while (1)  { 
-  dump_int((mp->str_start[k])); 
+  dump_int(mp->str_start[k]); /* TODO: valgrind warning here */
   if ( k==mp->str_ptr ) {
     break;
   } else { 
@@ -26430,7 +26444,7 @@ boolean ini_version; /* are we iniMP? */
 boolean ini_version; /* are we iniMP? */
 
 @ @<Set |ini_version|@>=
-mp->ini_version = (opt.ini_version ? true : false);
+mp->ini_version = (opt->ini_version ? true : false);
 
 @ Here we do whatever is needed to complete \MP's job gracefully on the
 local operating system. The code here might come into play after a fatal
@@ -26471,11 +26485,34 @@ void mp_close_files_and_terminate (MP mp) ;
 
 @ @<Close all open files in the |rd_file| and |wr_file| arrays@>=
 for (k=0;k<=(int)mp->read_files-1;k++ ) {
-  if ( mp->rd_fname[k]!=NULL ) fclose(mp->rd_file[k]);
+  if ( mp->rd_fname[k]!=NULL ) {
+    fclose(mp->rd_file[k]);
+  }
 }
 for (k=0;k<=(int)mp->write_files-1;k++) {
-  if ( mp->wr_fname[k]!=NULL ) fclose(mp->wr_file[k]);
+  if ( mp->wr_fname[k]!=NULL ) {
+    fclose(mp->wr_file[k]);
+  }
 }
+
+@ @<Dealloc ...@>=
+for (k=0;k<(int)mp->max_read_files;k++ ) {
+  if ( mp->rd_fname[k]!=NULL ) {
+    fclose(mp->rd_file[k]);
+    mp_xfree(mp->rd_fname[k]); 
+  }
+}
+mp_xfree(mp->rd_file);
+mp_xfree(mp->rd_fname);
+for (k=0;k<(int)mp->max_write_files;k++) {
+  if ( mp->wr_fname[k]!=NULL ) {
+    fclose(mp->wr_file[k]);
+    mp_xfree(mp->wr_fname[k]); 
+  }
+}
+mp_xfree(mp->wr_file);
+mp_xfree(mp->wr_fname);
+
 
 @ We want to produce a \.{TFM} file if and only if |fontmaking| is positive.
 
