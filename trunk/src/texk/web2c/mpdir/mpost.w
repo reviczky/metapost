@@ -25,7 +25,6 @@ have our customary command-line interface.
 #include <string.h>
 #include <time.h>
 #include <mplib.h>
-#define HAVE_BOOLEAN 1
 #define HAVE_PROTOTYPES 1
 #include <kpathsea/progname.h>
 #include <kpathsea/tex-file.h>
@@ -34,12 +33,35 @@ extern unsigned kpathsea_debug;
 #include <kpathsea/concatn.h>
 static string mpost_tex_program = "";
 
+@ Allocating a bit of memory, with error detection:
+
+@c
+void  *xmalloc (size_t bytes) {
+  void *w = malloc (bytes);
+  if (w==NULL) {
+    fprintf(stderr,"Out of memory!\n");
+    exit(EXIT_FAILURE);
+  }
+  return w;
+}
+char *xstrdup(const char *s) {
+  char *w; 
+  if (s==NULL) return NULL;
+  w = strdup(s);
+  if (w==NULL) {
+    fprintf(stderr,"Out of memory!\n");
+    exit(EXIT_FAILURE);
+  }
+  return w;
+}
+
+
 @ 
 @c
 void mpost_run_editor (MP mp, char *fname, int fline) {
   if (mp)
     fprintf(stdout,"Ok, bye (%s,%d)!",fname, fline);
-  exit(1);
+  exit(EXIT_SUCCESS);
 }
 
 @ 
@@ -49,10 +71,10 @@ options->run_editor = mpost_run_editor;
 @
 @c 
 string normalize_quotes (const char *name, const char *mesg) {
-    boolean quoted = false;
-    boolean must_quote = (strchr(name, ' ') != NULL);
+    int quoted = false;
+    int must_quote = (strchr(name, ' ') != NULL);
     /* Leave room for quotes and NUL. */
-    string ret = (string)mp_xmalloc(strlen(name)+3, sizeof(char));
+    string ret = (string)xmalloc(strlen(name)+3);
     string p;
     const_string q;
     p = ret;
@@ -69,7 +91,7 @@ string normalize_quotes (const char *name, const char *mesg) {
     *p = '\0';
     if (quoted) {
         fprintf(stderr, "! Unbalanced quotes in %s %s\n", mesg, name);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     return ret;
 }
@@ -83,7 +105,7 @@ string normalize_quotes (const char *name, const char *mesg) {
 #ifndef MPXCOMMAND
 #define MPXCOMMAND "makempx"
 #endif
-boolean mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
+int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
   int ret;
   string cnf_cmd = kpse_var_value ("MPXCOMMAND");
   
@@ -97,7 +119,7 @@ boolean mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
     string qmpname = normalize_quotes(mpname, "mpname");
     string qmpxname = normalize_quotes(mpxname, "mpxname");
     if (!cnf_cmd)
-      cnf_cmd = mp_xstrdup (MPXCOMMAND);
+      cnf_cmd = xstrdup (MPXCOMMAND);
 
     if (mp_troff_mode(mp))
       cmd = concatn (cnf_cmd, " -troff ",
@@ -110,12 +132,12 @@ boolean mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
 
     /* Run it.  */
     ret = system (cmd);
-    mp_xfree (cmd);
-    mp_xfree (qmpname);
-    mp_xfree (qmpxname);
+    free (cmd);
+    free (qmpname);
+    free (qmpxname);
   }
 
-  mp_xfree (cnf_cmd);
+  free (cnf_cmd);
   return ret == 0;
 }
 
@@ -125,21 +147,22 @@ if (!nokpse)
   options->run_make_mpx = mpost_run_make_mpx;
 
 
-@ @c scaled mpost_get_random_seed (MP mp) {
-  if (mp==NULL) exit(1); /* for -W */
+@ @c int mpost_get_random_seed (MP mp) {
+  int ret ;
 #if defined (HAVE_GETTIMEOFDAY)
   struct timeval tv;
   gettimeofday(&tv, NULL);
-  return (tv.tv_usec + 1000000 * tv.tv_usec);
+  ret = (tv.tv_usec + 1000000 * tv.tv_usec);
 #elif defined (HAVE_FTIME)
   struct timeb tb;
   ftime(&tb);
-  return (tb.millitm + 1000 * tb.time);
+  ret = (tb.millitm + 1000 * tb.time);
 #else
   time_t clock = time ((time_t*)NULL);
   struct tm *tmptr = localtime(&clock);
-  return (tmptr->tm_sec + 60*(tmptr->tm_min + 60*tmptr->tm_hour));
+  ret = (tmptr->tm_sec + 60*(tmptr->tm_min + 60*tmptr->tm_hour));
 #endif
+  return (mp ? ret : ret); /* for -W */
 }
 
 @ @<Register the callback routines@>=
@@ -179,7 +202,7 @@ options->get_random_seed = mpost_get_random_seed;
       break;
     }
   } else {
-    s = mp_xstrdup(fname); /* when writing */
+    s = xstrdup(fname); /* when writing */
   }
   return s;
 }
@@ -209,11 +232,11 @@ if (!nokpse)
     } else if (option_is ("kpathsea-debug")) {
       kpathsea_debug |= atoi (optarg);
     } else if (option_is("mem")) {
-      options->mem_name = mp_xstrdup(optarg);
+      options->mem_name = xstrdup(optarg);
       if (!user_progname) 
 	    user_progname = optarg;
     } else if (option_is("jobname")) {
-      options->job_name = mp_xstrdup(optarg);
+      options->job_name = xstrdup(optarg);
     } else if (option_is ("progname")) {
       user_progname = optarg;
     } else if (option_is("troff")) {
@@ -304,11 +327,7 @@ input.
 
 @<Copy the rest of the command line@>=
 {
-  options->command_line = mp_xmalloc(command_line_size,1);
-  if (options->command_line==NULL) {
-    fprintf(stderr,"Out of memory!\n");
-    exit(EXIT_FAILURE);
-  }
+  options->command_line = xmalloc(command_line_size);
   strcpy(options->command_line,"");
   if (a<argc) {
     k=0;
@@ -339,7 +358,7 @@ int setup_var (int def, char *var_name, int nokpse) {
     char * expansion = kpse_var_value (var_name);
     if (expansion) {
       int conf_val = atoi (expansion);
-      mp_xfree (expansion);
+      free (expansion);
       if (conf_val > 0) {
         return conf_val;
       }
@@ -379,11 +398,12 @@ int main (int argc, char **argv) { /* |start_here| */
   @<Copy the rest of the command line@>;
   @<Register the callback routines@>;
   mp = mp_new(options);
-  mp_xfree((void *)options);
+  free((void *)options);
   if (mp==NULL)
 	exit(EXIT_FAILURE);
-  if(!mp_initialize(mp))
-	exit(EXIT_FAILURE);
+  history = mp_initialize(mp);
+  if (history) 
+    exit(history);
   history = mp_run(mp);
   mp_free(mp);
   exit(history);
