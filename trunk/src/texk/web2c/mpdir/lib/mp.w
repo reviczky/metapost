@@ -2387,7 +2387,7 @@ particularly diabolical).  The index entries for `this can't happen' may
 help to pinpoint the problem.
 @^dry rot@>
 
-@<Declarations@>=
+@<Internal library ...@>=
 void mp_confusion (MP mp,char *s);
 
 @ @<Error hand...@>=
@@ -2959,7 +2959,10 @@ In other words, the result is $\lfloor2^{16}p/q+{1\over2}\rfloor$, if the
 operands are positive. \ (This procedure is not used especially often,
 so it is not part of \MP's inner loop.)
 
-@c 
+@<Internal library ...@>=
+scaled mp_make_scaled (MP mp,integer p, integer q) ;
+
+@ @c 
 scaled mp_make_scaled (MP mp,integer p, integer q) {
 #ifdef FIXPT 
   integer f; /* the fraction bits, with a leading 1 bit */
@@ -3176,7 +3179,11 @@ of Research and Development\/ \bf27} (1983), 577--581]. It modifies |a| and~|b|
 in such a way that their Pythagorean sum remains invariant, while the
 smaller argument decreases.
 
-@c 
+@<Internal library ...@>=
+integer mp_pyth_add (MP mp,integer a, integer b);
+
+
+@ @c 
 integer mp_pyth_add (MP mp,integer a, integer b) {
   fraction r; /* register used to transform |a| and |b| */
   boolean big; /* is the result dangerously near $2^{31}$? */
@@ -3814,6 +3821,8 @@ allow pointers to assume any |halfword| value. The minimum memory
 index represents a null pointer.
 
 @d null 0 /* the null pointer */
+@d mp_void (null+1) /* a null pointer different from |null| */
+
 
 @<Types...@>=
 typedef halfword pointer; /* a flag or a location in |mem| or |eqtb| */
@@ -5089,14 +5098,18 @@ There is a first state, that is only used for |gs_colormodel|. It flags
 the fact that there has not been any kind of color specification by
 the user so far in the game.
 
-@d no_model 1
-@d grey_model 3
-@d rgb_model 5
-@d cmyk_model 7
-@d uninitialized_model 9
+@<Types...@>=
+enum mp_color_model {
+  mp_no_model=1,
+  mp_grey_model=3,
+  mp_rgb_model=5,
+  mp_cmyk_model=7,
+  mp_uninitialized_model=9,
+};
 
-@<Initialize table entries (done by \.{INIMP} only)@>=
-mp->internal[mp_default_color_model]=(rgb_model*unity);
+
+@ @<Initialize table entries (done by \.{INIMP} only)@>=
+mp->internal[mp_default_color_model]=(mp_rgb_model*unity);
 mp->internal[mp_restore_clip_color]=unity;
 
 @ Well, we do have to list the names one more time, for use in symbolic
@@ -6866,13 +6879,17 @@ like the |split_cubic| function, or |copy_path|. The distinction is
 needed for the cleanup routine that runs after |split_cubic|, because
 it should only delete knots it has previously inserted, and never
 anything that was user-supplied. In order to be able to differentiate
-one knot from another, we will set |originator(p):=metapost_user| when
+one knot from another, we will set |originator(p):=mp_metapost_user| when
 it appeared in the actual metapost program, and
-|originator(p):=program_code| in all other cases.
+|originator(p):=mp_program_code| in all other cases.
 
 @d originator(A)   mp->mem[(A)+7].hh.b0 /* the creator of this knot */
-@d program_code 0 /* not created by a user */
-@d metapost_user 1 /* created by a user */
+
+@<Types...@>=
+enum {
+  mp_program_code=0, /* not created by a user */
+  mp_metapost_user, /* created by a user */
+};
 
 @ Here is a routine that prints a given knot list
 in symbolic form. It illustrates the conventions discussed above,
@@ -8549,7 +8566,7 @@ knot node and transformed as if it were a path.
   pointer h; /* the knot node to return */
   h=mp_get_node(mp, knot_node_size);
   link(h)=h; knil(h)=h;
-  originator(h)=program_code;
+  originator(h)=mp_program_code;
   x_coord(h)=0; y_coord(h)=0;
   left_x(h)=diam; left_y(h)=0;
   right_x(h)=0; right_y(h)=diam;
@@ -8718,7 +8735,7 @@ left_x(p)=x_coord(p)-dx;
 left_y(p)=y_coord(p)-dy;
 left_type(p)=mp_explicit;
 right_type(p)=mp_explicit;
-originator(p)=program_code
+originator(p)=mp_program_code
 
 @ @<Glob...@>=
 fraction half_cos[8]; /* ${1\over2}\cos(45k)$ */
@@ -9056,7 +9073,7 @@ pointer mp_new_fill_node (MP mp,pointer p) {
   green_val(t)=0;
   blue_val(t)=0;
   black_val(t)=0;
-  color_model(t)=uninitialized_model;
+  color_model(t)=mp_uninitialized_model;
   pre_script(t)=null;
   post_script(t)=null;
   @<Set the |ljoin_val| and |miterlim_val| fields in object |t|@>;
@@ -9102,7 +9119,7 @@ pointer mp_new_stroked_node (MP mp,pointer p) {
   green_val(t)=0;
   blue_val(t)=0;
   black_val(t)=0;
-  color_model(t)=uninitialized_model;
+  color_model(t)=mp_uninitialized_model;
   pre_script(t)=null;
   post_script(t)=null;
   @<Set the |ljoin_val| and |miterlim_val| fields in object |t|@>;
@@ -9140,6 +9157,10 @@ scaled mp_get_pen_scale (MP mp,pointer p) {
     left_y(p)-y_coord(p), right_y(p)-y_coord(p));
 }
 
+@ @<Internal library ...@>=
+scaled mp_sqrt_det (MP mp,scaled a, scaled b, scaled c, scaled d) ;
+
+
 @ @<Initialize |maxabs|@>=
 maxabs=abs(a);
 if ( abs(b)>maxabs ) maxabs=abs(b);
@@ -9171,7 +9192,7 @@ black with its reference point at the origin.
 @d tyx_val(A) mp->mem[(A)+15].sc  /* |tyx| transformation parameter */
 @d tyy_val(A) mp->mem[(A)+16].sc  /* |tyy| transformation parameter */
 @d text_trans_part(A) mp->mem[(A)+11-x_part].sc
-    /* interpret a text node ponter that has been offset by |x_part..yy_part| */
+    /* interpret a text node pointer that has been offset by |x_part..yy_part| */
 @d text_node_size 17
 
 @ @<Graphical object codes@>=
@@ -9189,7 +9210,7 @@ pointer mp_new_text_node (MP mp,char *f,str_number s) {
   green_val(t)=0;
   blue_val(t)=0;
   black_val(t)=0;
-  color_model(t)=uninitialized_model;
+  color_model(t)=mp_uninitialized_model;
   pre_script(t)=null;
   post_script(t)=null;
   tx_val(t)=0; ty_val(t)=0;
@@ -9624,18 +9645,18 @@ black (the default color).
 @<Declare subroutines needed by |print_edges|@>=
 @<Declare a procedure called |print_compact_node|@>;
 void mp_print_obj_color (MP mp,pointer p) { 
-  if ( color_model(p)==grey_model ) {
+  if ( color_model(p)==mp_grey_model ) {
     if ( grey_val(p)>0 ) { 
       mp_print(mp, "greyed ");
       mp_print_compact_node(mp, obj_grey_loc(p),1);
     };
-  } else if ( color_model(p)==cmyk_model ) {
+  } else if ( color_model(p)==mp_cmyk_model ) {
     if ( (cyan_val(p)>0) || (magenta_val(p)>0) || 
          (yellow_val(p)>0) || (black_val(p)>0) ) { 
       mp_print(mp, "processcolored ");
       mp_print_compact_node(mp, obj_cyan_loc(p),4);
     };
-  } else if ( color_model(p)==rgb_model ) {
+  } else if ( color_model(p)==mp_rgb_model ) {
     if ( (red_val(p)>0) || (green_val(p)>0) || (blue_val(p)>0) ) { 
       mp_print(mp, "colored "); 
       mp_print_compact_node(mp, obj_red_loc(p),3);
@@ -10347,7 +10368,7 @@ do {  r=link(p);
 if ( x_coord(p)==right_x(p) ) if ( y_coord(p)==right_y(p) )
  if ( x_coord(p)==left_x(r) ) if ( y_coord(p)==left_y(r) )
   if ( x_coord(p)==x_coord(r) ) if ( y_coord(p)==y_coord(r) )
-    if ( r!=p ) if ( ((r!=q) || (originator(r)!=metapost_user)) ) {
+    if ( r!=p ) if ( ((r!=q) || (originator(r)!=mp_metapost_user)) ) {
       @<Remove the cubic following |p| and update the data structures
         to merge |r| into |p|@>;
 }
@@ -10376,7 +10397,7 @@ void mp_split_cubic (MP mp,pointer p, fraction t) { /* splits the cubic after |p
   scaled v; /* an intermediate value */
   pointer q,r; /* for list manipulation */
   q=link(p); r=mp_get_node(mp, knot_node_size); link(p)=r; link(r)=q;
-  originator(r)=program_code;
+  originator(r)=mp_program_code;
   left_type(r)=mp_explicit; right_type(r)=mp_explicit;
   v=t_of_the_way(right_x(p),left_x(q));
   right_x(p)=t_of_the_way(x_coord(p),right_x(p));
@@ -10979,7 +11000,7 @@ pointer mp_insert_knot (MP mp,pointer q, scaled x, scaled y) {
   left_y(r)=y_coord(r);
   left_type(r)=mp_explicit;
   right_type(r)=mp_explicit;
-  originator(r)=program_code;
+  originator(r)=mp_program_code;
   return r;
 }
 
@@ -11071,13 +11092,13 @@ else { ww=knil(ww); incr(kk);  }
 if ( left_type(c)==mp_endpoint ) { 
   mp->spec_p1=mp_htap_ypoc(mp, c);
   mp->spec_p2=mp->path_tail;
-  originator(mp->spec_p1)=program_code;
+  originator(mp->spec_p1)=mp_program_code;
   link(mp->spec_p2)=link(mp->spec_p1);
   link(mp->spec_p1)=c;
   mp_remove_cubic(mp, mp->spec_p1);
   c=mp->spec_p1;
   if ( c!=link(c) ) {
-    originator(mp->spec_p2)=program_code;
+    originator(mp->spec_p2)=mp_program_code;
     mp_remove_cubic(mp, mp->spec_p2);
   } else {
     @<Make |c| look like a cycle of length one@>;
@@ -12971,8 +12992,6 @@ a constant expression.
 We'll discuss capsules later; for now, all we need to know is that
 the |link| field in a capsule parameter is |void| and that
 |print_exp(p,0)| displays the value of capsule~|p| in abbreviated form.
-
-@d mp_void (null+1) /* a null pointer different from |null| */
 
 @<Print the current loop value@>=
 { mp_print_nl(mp, "<for("); p=mp->param_stack[param_start];
@@ -17935,7 +17954,7 @@ when \MP\ discovers that the pair is part of a path.
 pointer mp_new_knot (MP mp) { /* convert a pair to a knot with two endpoints */
   pointer q; /* the new node */
   q=mp_get_node(mp, knot_node_size); left_type(q)=mp_endpoint;
-  right_type(q)=mp_endpoint; originator(q)=metapost_user; link(q)=q;
+  right_type(q)=mp_endpoint; originator(q)=mp_metapost_user; link(q)=q;
   mp_known_pair(mp); x_coord(q)=mp->cur_x; y_coord(q)=mp->cur_y;
   return q;
 }
@@ -18883,7 +18902,7 @@ void mp_take_pict_part (MP mp,quarterword c) {
     case cyan_part: case magenta_part: case yellow_part:
     case black_part:
       if ( has_color(p) ) {
-        if ( color_model(p)==uninitialized_model )
+        if ( color_model(p)==mp_uninitialized_model )
           mp_flush_cur_exp(mp, unity);
         else
           mp_flush_cur_exp(mp, obj_color_part(p+c+(red_part-cyan_part)));
@@ -18896,7 +18915,7 @@ void mp_take_pict_part (MP mp,quarterword c) {
       break;
     case color_model_part:
       if ( has_color(p) ) {
-        if ( color_model(p)==uninitialized_model )
+        if ( color_model(p)==mp_uninitialized_model )
           mp_flush_cur_exp(mp, mp->internal[mp_default_color_model]);
         else
           mp_flush_cur_exp(mp, color_model(p)*unity);
@@ -18980,7 +18999,7 @@ case path_part:
   link(mp->cur_exp)=mp->cur_exp;
   x_coord(mp->cur_exp)=0;
   y_coord(mp->cur_exp)=0;
-  originator(mp->cur_exp)=metapost_user;
+  originator(mp->cur_exp)=mp_metapost_user;
   mp->cur_type=mp_path_type;
   break;
 case pen_part: 
@@ -22245,16 +22264,16 @@ mp_primitive(mp, "withprescript",with_option,with_pre_script);
 @:with_pre_script_}{\&{withprescript} primitive@>
 mp_primitive(mp, "withpostscript",with_option,with_post_script);
 @:with_post_script_}{\&{withpostscript} primitive@>
-mp_primitive(mp, "withoutcolor",with_option,no_model);
+mp_primitive(mp, "withoutcolor",with_option,mp_no_model);
 @:with_color_}{\&{withoutcolor} primitive@>
-mp_primitive(mp, "withgreyscale",with_option,grey_model);
+mp_primitive(mp, "withgreyscale",with_option,mp_grey_model);
 @:with_color_}{\&{withgreyscale} primitive@>
-mp_primitive(mp, "withcolor",with_option,uninitialized_model);
+mp_primitive(mp, "withcolor",with_option,mp_uninitialized_model);
 @:with_color_}{\&{withcolor} primitive@>
 /*  \&{withrgbcolor} is an alias for \&{withcolor} */
-mp_primitive(mp, "withrgbcolor",with_option,rgb_model);
+mp_primitive(mp, "withrgbcolor",with_option,mp_rgb_model);
 @:with_color_}{\&{withrgbcolor} primitive@>
-mp_primitive(mp, "withcmykcolor",with_option,cmyk_model);
+mp_primitive(mp, "withcmykcolor",with_option,mp_cmyk_model);
 @:with_color_}{\&{withcmykcolor} primitive@>
 
 @ @<Cases of |print_cmd...@>=
@@ -22267,11 +22286,11 @@ case with_option:
   if ( m==mp_pen_type ) mp_print(mp, "withpen");
   else if ( m==with_pre_script ) mp_print(mp, "withprescript");
   else if ( m==with_post_script ) mp_print(mp, "withpostscript");
-  else if ( m==no_model ) mp_print(mp, "withoutcolor");
-  else if ( m==rgb_model ) mp_print(mp, "withrgbcolor");
-  else if ( m==uninitialized_model ) mp_print(mp, "withcolor");
-  else if ( m==cmyk_model ) mp_print(mp, "withcmykcolor");
-  else if ( m==grey_model ) mp_print(mp, "withgreyscale");
+  else if ( m==mp_no_model ) mp_print(mp, "withoutcolor");
+  else if ( m==mp_rgb_model ) mp_print(mp, "withrgbcolor");
+  else if ( m==mp_uninitialized_model ) mp_print(mp, "withcolor");
+  else if ( m==mp_cmyk_model ) mp_print(mp, "withcmykcolor");
+  else if ( m==mp_grey_model ) mp_print(mp, "withgreyscale");
   else mp_print(mp, "dashed");
   break;
 
@@ -22296,39 +22315,39 @@ void mp_scan_with_list (MP mp,pointer p) ;
   while ( mp->cur_cmd==with_option ){ 
     t=mp->cur_mod;
     mp_get_x_next(mp);
-    if ( t!=no_model ) mp_scan_expression(mp);
+    if ( t!=mp_no_model ) mp_scan_expression(mp);
     if (((t==with_pre_script)&&(mp->cur_type!=mp_string_type))||
      ((t==with_post_script)&&(mp->cur_type!=mp_string_type))||
-     ((t==uninitialized_model)&&
+     ((t==mp_uninitialized_model)&&
         ((mp->cur_type!=mp_cmykcolor_type)&&(mp->cur_type!=mp_color_type)
           &&(mp->cur_type!=mp_known)&&(mp->cur_type!=mp_boolean_type)))||
-     ((t==cmyk_model)&&(mp->cur_type!=mp_cmykcolor_type))||
-     ((t==rgb_model)&&(mp->cur_type!=mp_color_type))||
-     ((t==grey_model)&&(mp->cur_type!=mp_known))||
+     ((t==mp_cmyk_model)&&(mp->cur_type!=mp_cmykcolor_type))||
+     ((t==mp_rgb_model)&&(mp->cur_type!=mp_color_type))||
+     ((t==mp_grey_model)&&(mp->cur_type!=mp_known))||
      ((t==mp_pen_type)&&(mp->cur_type!=t))||
      ((t==mp_picture_type)&&(mp->cur_type!=t)) ) {
       @<Complain about improper type@>;
-    } else if ( t==uninitialized_model ) {
+    } else if ( t==mp_uninitialized_model ) {
       if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=null )
         @<Transfer a color from the current expression to object~|cp|@>;
       mp_flush_cur_exp(mp, 0);
-    } else if ( t==rgb_model ) {
+    } else if ( t==mp_rgb_model ) {
       if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=null )
         @<Transfer a rgbcolor from the current expression to object~|cp|@>;
       mp_flush_cur_exp(mp, 0);
-    } else if ( t==cmyk_model ) {
+    } else if ( t==mp_cmyk_model ) {
       if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=null )
         @<Transfer a cmykcolor from the current expression to object~|cp|@>;
       mp_flush_cur_exp(mp, 0);
-    } else if ( t==grey_model ) {
+    } else if ( t==mp_grey_model ) {
       if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=null )
         @<Transfer a greyscale from the current expression to object~|cp|@>;
       mp_flush_cur_exp(mp, 0);
-    } else if ( t==no_model ) {
+    } else if ( t==mp_no_model ) {
       if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=null )
         @<Transfer a noncolor from the current expression to object~|cp|@>;
@@ -22411,13 +22430,13 @@ else if ( t==with_post_script )
   mp->help_line[1]="Next time say `withpostscript <known string expression>';";
 else if ( t==mp_picture_type )
   mp->help_line[1]="Next time say `dashed <known picture expression>';";
-else if ( t==uninitialized_model )
+else if ( t==mp_uninitialized_model )
   mp->help_line[1]="Next time say `withcolor <known color expression>';";
-else if ( t==rgb_model )
+else if ( t==mp_rgb_model )
   mp->help_line[1]="Next time say `withrgbcolor <known color expression>';";
-else if ( t==cmyk_model )
+else if ( t==mp_cmyk_model )
   mp->help_line[1]="Next time say `withcmykcolor <known cmykcolor expression>';";
-else if ( t==grey_model )
+else if ( t==mp_grey_model )
   mp->help_line[1]="Next time say `withgreyscale <known numeric expression>';";;
 mp_put_get_flush_error(mp, 0);
 }
@@ -22445,7 +22464,7 @@ black_val(cp)=0;
 red_val(cp)=value(red_part_loc(q));
 green_val(cp)=value(green_part_loc(q));
 blue_val(cp)=value(blue_part_loc(q));
-color_model(cp)=rgb_model;
+color_model(cp)=mp_rgb_model;
 if ( red_val(cp)<0 ) red_val(cp)=0;
 if ( green_val(cp)<0 ) green_val(cp)=0;
 if ( blue_val(cp)<0 ) blue_val(cp)=0;
@@ -22460,7 +22479,7 @@ cyan_val(cp)=value(cyan_part_loc(q));
 magenta_val(cp)=value(magenta_part_loc(q));
 yellow_val(cp)=value(yellow_part_loc(q));
 black_val(cp)=value(black_part_loc(q));
-color_model(cp)=cmyk_model;
+color_model(cp)=mp_cmyk_model;
 if ( cyan_val(cp)<0 ) cyan_val(cp)=0;
 if ( magenta_val(cp)<0 ) magenta_val(cp)=0;
 if ( yellow_val(cp)<0 ) yellow_val(cp)=0;
@@ -22478,7 +22497,7 @@ magenta_val(cp)=0;
 yellow_val(cp)=0;
 black_val(cp)=0;
 grey_val(cp)=q;
-color_model(cp)=grey_model;
+color_model(cp)=mp_grey_model;
 if ( grey_val(cp)<0 ) grey_val(cp)=0;
 if ( grey_val(cp)>unity ) grey_val(cp)=unity;
 }
@@ -22490,7 +22509,7 @@ magenta_val(cp)=0;
 yellow_val(cp)=0;
 black_val(cp)=0;
 grey_val(cp)=0;
-color_model(cp)=no_model;
+color_model(cp)=mp_no_model;
 }
 
 @ @<Make |cp| a colored object in object list~|p|@>=
@@ -25003,7 +25022,7 @@ void mp_unknown_graphics_state (MP mp,scaled c) ;
       }
     }
     gs_red=c; gs_green=c; gs_blue=c; gs_black=c;
-    gs_colormodel=uninitialized_model;
+    gs_colormodel=mp_uninitialized_model;
     gs_ljoin=3;
     gs_lcap=3;
     gs_miterlim=0;
@@ -25079,16 +25098,16 @@ if ( gs_miterlim!=miterlim_val(p) ) {
 
 @ @<Make sure \ps\ will use the right color for object~|p|@>=
 {
-  if ( (color_model(p)==rgb_model)||
-     ((color_model(p)==uninitialized_model)&&
-     ((mp->internal[mp_default_color_model] / unity)==rgb_model)) ) {
-  if ( (gs_colormodel!=rgb_model)||(gs_red!=red_val(p))||
+  if ( (color_model(p)==mp_rgb_model)||
+     ((color_model(p)==mp_uninitialized_model)&&
+     ((mp->internal[mp_default_color_model] / unity)==mp_rgb_model)) ) {
+  if ( (gs_colormodel!=mp_rgb_model)||(gs_red!=red_val(p))||
       (gs_green!=green_val(p))||(gs_blue!=blue_val(p)) ) {
       gs_red=red_val(p);
       gs_green=green_val(p);
       gs_blue=blue_val(p);
       gs_black= -1;
-      gs_colormodel=rgb_model;
+      gs_colormodel=mp_rgb_model;
       { ps_room(36);
         mp_print_char(mp, ' ');
         mp_print_scaled(mp, gs_red); mp_print_char(mp, ' ');
@@ -25097,13 +25116,13 @@ if ( gs_miterlim!=miterlim_val(p) ) {
         mp_ps_print_cmd(mp, " setrgbcolor", " R");
       }
     }
-  } else if ( (color_model(p)==cmyk_model)||
-     ((color_model(p)==uninitialized_model)&&
-     ((mp->internal[mp_default_color_model] / unity)==cmyk_model)) ) {
+  } else if ( (color_model(p)==mp_cmyk_model)||
+     ((color_model(p)==mp_uninitialized_model)&&
+     ((mp->internal[mp_default_color_model] / unity)==mp_cmyk_model)) ) {
    if ( (gs_red!=cyan_val(p))||(gs_green!=magenta_val(p))||
       (gs_blue!=yellow_val(p))||(gs_black!=black_val(p))||
-      (gs_colormodel!=cmyk_model) ) {
-      if ( color_model(p)==uninitialized_model ) {
+      (gs_colormodel!=mp_cmyk_model) ) {
+      if ( color_model(p)==mp_uninitialized_model ) {
         gs_red=0;
         gs_green=0;
         gs_blue=0;
@@ -25114,7 +25133,7 @@ if ( gs_miterlim!=miterlim_val(p) ) {
         gs_blue=yellow_val(p);
         gs_black=black_val(p);
       }
-      gs_colormodel=cmyk_model;
+      gs_colormodel=mp_cmyk_model;
       { ps_room(45);
         mp_print_char(mp, ' ');
         mp_print_scaled(mp, gs_red); mp_print_char(mp, ' ');
@@ -25124,15 +25143,15 @@ if ( gs_miterlim!=miterlim_val(p) ) {
         mp_ps_print_cmd(mp, " setcmykcolor"," C");
       }
     }
-  } else if ( (color_model(p)==grey_model)||
-    ((color_model(p)==uninitialized_model)&&
-     ((mp->internal[mp_default_color_model] / unity)==grey_model)) ) {
-   if ( (gs_red!=grey_val(p))||(gs_colormodel!=grey_model) ) {
+  } else if ( (color_model(p)==mp_grey_model)||
+    ((color_model(p)==mp_uninitialized_model)&&
+     ((mp->internal[mp_default_color_model] / unity)==mp_grey_model)) ) {
+   if ( (gs_red!=grey_val(p))||(gs_colormodel!=mp_grey_model) ) {
       gs_red = grey_val(p);
       gs_green= -1;
       gs_blue= -1;
       gs_black= -1;
-      gs_colormodel=grey_model;
+      gs_colormodel=mp_grey_model;
       { ps_room(16);
         mp_print_char(mp, ' ');
         mp_print_scaled(mp, gs_red);
@@ -25140,8 +25159,8 @@ if ( gs_miterlim!=miterlim_val(p) ) {
       }
     }
   }
-  if ( color_model(p)==no_model )
-    gs_colormodel=no_model;
+  if ( color_model(p)==mp_no_model )
+    gs_colormodel=mp_no_model;
 }
 
 @ In order to get consistent widths for horizontal and vertical pen strokes, we
@@ -25553,7 +25572,10 @@ quarterword mp_size_index (MP mp, font_number f, scaled s) {
   return i;
 }
 
-@ @<Declare the \ps\ output procedures@>=
+@ @<Internal library ...@>=
+scaled mp_indexed_size (MP mp,font_number f, quarterword j);
+
+@ @c
 scaled mp_indexed_size (MP mp,font_number f, quarterword j) {
   pointer p; /* a font size node */
   quarterword i; /* the size index for |p| */
