@@ -15796,7 +15796,7 @@ if ( mem_default_length>file_name_size ) mp->bad=20;
 
 @ Here is the messy routine that was just mentioned. It sets |name_of_file|
 from the first |n| characters of |MP_mem_default|, followed by
-|buffer[a..b]|, followed by the last |mem_ext_length| characters of
+|buffer[a..b-1]|, followed by the last |mem_ext_length| characters of
 |MP_mem_default|.
 
 We dare not give error messages here, since \MP\ calls this routine before
@@ -15816,7 +15816,7 @@ isn't found.
   for (j=0;j<n;j++) {
     append_to_name(xord((int)mp->MP_mem_default[j]));
   }
-  for (j=a;j<=b;j++) {
+  for (j=a;j<b;j++) {
     append_to_name(mp->buffer[j]);
   }
   for (j=mem_default_length-mem_ext_length;
@@ -15848,7 +15848,7 @@ boolean mp_open_mem_file (MP mp) {
   if ( mp->buffer[loc]=='&' ) {
     incr(loc); j=loc; mp->buffer[mp->last]=' ';
     while ( mp->buffer[j]!=' ' ) incr(j);
-    mp_pack_buffered_name(mp, 0,loc,j-1); /* try first without the system file area */
+    mp_pack_buffered_name(mp, 0,loc,j); /* try first without the system file area */
     if ( mp_w_open_in(mp, &mp->mem_file) ) goto FOUND;
     wake_up_terminal;
     wterm_ln("Sorry, I can\'t find that mem file; will try PLAIN.");
