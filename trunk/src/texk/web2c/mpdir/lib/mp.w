@@ -25669,6 +25669,7 @@ void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
   mp_open_output_file(mp);
   mp->non_ps_setting=mp->selector;
   mp->selector=ps_file_only;
+  mp_set_bbox(mp, h, true);
   mp_print_initial_comment(mp, h, minx_val(h),miny_val(h),maxx_val(h),maxy_val(h));
   if ( (mp->internal[mp_prologues]==two)||(mp->internal[mp_prologues]==three) ) {
     @<Scan all the text nodes and mark the used characters@>;

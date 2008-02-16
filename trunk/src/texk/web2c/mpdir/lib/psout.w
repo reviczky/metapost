@@ -4172,7 +4172,6 @@ void mp_print_initial_comment(MP mp, pointer h,
   mp_print(mp, "%!PS");
   if ( prologues>0 ) 
     mp_print(mp, "-Adobe-3.0 EPSF-3.0");
-  mp_set_bbox(mp, h,true);
   mp_print_nl(mp, "%%BoundingBox: ");
   if ( minx>maxx) {
      mp_print(mp, "0 0 0 0");
