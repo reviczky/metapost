@@ -2491,8 +2491,8 @@ only be trusted to work on positive numbers, there is also a macro |halfp|
 that is used only when the quantity being halved is known to be positive
 or zero.
 
-@d half(A) ((A)) / 2
-@d halfp(A) ((A)) / 2
+@d half(A) ((A) / 2)
+@d halfp(A) ((A) / 2)
 
 @ A single computation might use several subroutine calls, and it is
 desirable to avoid producing multiple error messages in case of arithmetic
