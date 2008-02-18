@@ -7037,7 +7037,7 @@ pointer mp_copy_knot (MP mp,pointer p) {
   pointer q; /* the copy */
   int k; /* runs through the words of a knot node */
   q=mp_get_node(mp, knot_node_size);
-  for (k=0;k<=knot_node_size-1;k++) {
+  for (k=0;k<knot_node_size;k++) {
     mp->mem[q+k]=mp->mem[p+k];
   }
   originator(q)=originator(p);
@@ -7958,7 +7958,7 @@ a cubic corresponding to the |fraction| value~|t|.
 It is convenient to define a \.{WEB} macro |t_of_the_way| such that
 |t_of_the_way(a,b)| expands to |a-(a-b)*t|, i.e., to |t[a,b]|.
 
-@d t_of_the_way(A,B) ((A)-mp_take_fraction(mp,(A)-(B),t))
+@d t_of_the_way(A,B) ((A)-mp_take_fraction(mp,((A)-(B)),t))
 
 @c scaled mp_eval_cubic (MP mp,pointer p, pointer q, fraction t) {
   scaled x1,x2,x3; /* intermediate values */
@@ -10317,11 +10317,13 @@ pointer mp_offset_prep (MP mp,pointer c, pointer h) {
     @<Split the cubic between |p| and |q|, if necessary, into cubics
       associated with single offsets, after which |q| should
       point to the end of the final such cubic@>;
+  NOT_FOUND:
     @<Advance |p| to node |q|, removing any ``dead'' cubics that
       might have been introduced by the splitting process@>;
   } while (q!=c);
-  @<Fix the offset change in |info(c)| and set the return value of
+  @<Fix the offset change in |info(c)| and set |c| to the return value of
     |offset_prep|@>;
+  return c;
 }
 
 @ We shall want to keep track of where certain knots on the cyclic path
@@ -10364,15 +10366,18 @@ because at this point we cannot do so cleanly. The relevant bug is
 tracker id 267, bugs 52c, reported by Boguslav.
 
 @<Advance |p| to node |q|, removing any ``dead'' cubics...@>=
-do {  r=link(p);
-if ( x_coord(p)==right_x(p) ) if ( y_coord(p)==right_y(p) )
- if ( x_coord(p)==left_x(r) ) if ( y_coord(p)==left_y(r) )
-  if ( x_coord(p)==x_coord(r) ) if ( y_coord(p)==y_coord(r) )
-    if ( r!=p ) if ( ((r!=q) || (originator(r)!=mp_metapost_user)) ) {
+do { 
+  r=link(p);
+  if ( x_coord(p)==right_x(p) && y_coord(p)==right_y(p) &&
+       x_coord(p)==left_x(r)  && y_coord(p)==left_y(r) &&
+       x_coord(p)==x_coord(r) && y_coord(p)==y_coord(r) &&
+       r!=p ) {
+	if (1) { /* (r!=q) || (originator(r)!=mp_metapost_user) */
       @<Remove the cubic following |p| and update the data structures
         to merge |r| into |p|@>;
-}
-p=r;
+    }
+  }
+  p=r;
 } while (p!=q)
 
 @ @<Remove the cubic following |p| and update the data structures...@>=
@@ -10448,8 +10453,7 @@ k_needed=0;
 @<Find the final direction |(dxin,dyin)|@>;
 @<Decide on the net change in pen offsets and set |turn_amt|@>;
 @<Complete the offset splitting process@>;
-w0=mp_pen_walk(mp, w0,turn_amt);
-NOT_FOUND: do_nothing
+w0=mp_pen_walk(mp, w0,turn_amt)
 
 @ @<Declare subroutines needed by |offset_prep|@>=
 pointer mp_pen_walk (MP mp,pointer w, integer k) {
@@ -10477,7 +10481,7 @@ integer x0,x1,x2,y0,y1,y2; /* representatives of derivatives */
 integer t0,t1,t2; /* coefficients of polynomial for slope testing */
 integer du,dv,dx,dy; /* for directions of the pen and the curve */
 integer dx0,dy0; /* initial direction for the first cubic in the curve */
-integer mp_max_coef; /* used while scaling */
+integer max_coef; /* used while scaling */
 integer x0a,x1a,x2a,y0a,y1a,y2a; /* intermediate values */
 fraction t; /* where the derivative passes through zero */
 fraction s; /* a temporary value */
@@ -10488,17 +10492,17 @@ x2=x_coord(q)-left_x(q);
 x1=left_x(q)-right_x(p);
 y0=right_y(p)-y_coord(p); y2=y_coord(q)-left_y(q);
 y1=left_y(q)-right_y(p);
-mp_max_coef=abs(x0);
-if ( abs(x1)>mp_max_coef ) mp_max_coef=abs(x1);
-if ( abs(x2)>mp_max_coef ) mp_max_coef=abs(x2);
-if ( abs(y0)>mp_max_coef ) mp_max_coef=abs(y0);
-if ( abs(y1)>mp_max_coef ) mp_max_coef=abs(y1);
-if ( abs(y2)>mp_max_coef ) mp_max_coef=abs(y2);
-if ( mp_max_coef==0 ) goto NOT_FOUND;
-while ( mp_max_coef<fraction_half ) {
-  mp_max_coef+=mp_max_coef;
-  x0+=x0; x1+=x1; x2+=x2;
-  y0+=y0; y1+=y1; y2+=y2;
+max_coef=abs(x0);
+if ( abs(x1)>max_coef ) max_coef=abs(x1);
+if ( abs(x2)>max_coef ) max_coef=abs(x2);
+if ( abs(y0)>max_coef ) max_coef=abs(y0);
+if ( abs(y1)>max_coef ) max_coef=abs(y1);
+if ( abs(y2)>max_coef ) max_coef=abs(y2);
+if ( max_coef==0 ) goto NOT_FOUND;
+while ( max_coef<fraction_half ) {
+  double(max_coef);
+  double(x0); double(x1); double(x2);
+  double(y0); double(y1); double(y2);
 }
 
 @ Let us first solve a special case of the problem: Suppose we
@@ -10614,9 +10618,9 @@ degenerate.
 
 @<Find the initial direction |(dx,dy)|@>=
 dx=x0; dy=y0;
-if ( dx==0 ) if ( dy==0 ) { 
+if ( dx==0 && dy==0 ) { 
   dx=x1; dy=y1;
-  if ( dx==0 ) if ( dy==0 ) { 
+  if ( dx==0 && dy==0 ) { 
     dx=x2; dy=y2;
   }
 }
@@ -10624,9 +10628,9 @@ if ( p==c ) { dx0=dx; dy0=dy;  }
 
 @ @<Find the final direction |(dxin,dyin)|@>=
 dxin=x2; dyin=y2;
-if ( dxin==0 ) if ( dyin==0 ) {
+if ( dxin==0 && dyin==0 ) {
   dxin=x1; dyin=y1;
-  if ( dxin==0 ) if ( dyin==0 ) {
+  if ( dxin==0 && dyin==0 ) {
     dxin=x0; dyin=y0;
   }
 }
@@ -10639,7 +10643,7 @@ counter-clockwise in order to make \&{doublepath} envelopes come out
 right.) This code depends on |w0| being the offset for |(dxin,dyin)|.
 
 @<Update |info(p)| and find the offset $w_k$ such that...@>=
-turn_amt=mp_get_turn_amt(mp, w0, dx, dy, mp_ab_vs_cd(mp, dy,dxin,dx,dyin)>=0);
+turn_amt=mp_get_turn_amt(mp,w0,dx,dy,(mp_ab_vs_cd(mp, dy,dxin,dx,dyin)>=0));
 w=mp_pen_walk(mp, w0, turn_amt);
 w0=w;
 info(p)=info(p)+turn_amt
@@ -10663,16 +10667,16 @@ integer mp_get_turn_amt (MP mp,pointer w, scaled  dx,
   if ( ccw ) { 
     ww=link(w);
     do {  
-      t=mp_ab_vs_cd(mp, dy,x_coord(ww)-x_coord(w),
-                        dx,y_coord(ww)-y_coord(w));
+      t=mp_ab_vs_cd(mp, dy,(x_coord(ww)-x_coord(w)),
+                        dx,(y_coord(ww)-y_coord(w)));
       if ( t<0 ) break;
       incr(s);
       w=ww; ww=link(ww);
     } while (t>0);
   } else { 
     ww=knil(w);
-    while ( mp_ab_vs_cd(mp, dy,x_coord(w)-x_coord(ww),
-                            dx,y_coord(w)-y_coord(ww))<0 ) { 
+    while ( mp_ab_vs_cd(mp, dy,(x_coord(w)-x_coord(ww)),
+                            dx,(y_coord(w)-y_coord(ww))) < 0) { 
       decr(s);
       w=ww; ww=knil(ww);
     }
@@ -10687,7 +10691,7 @@ of~|h|.
 
 @d fix_by(A) info(c)=info(c)+(A)
 
-@<Fix the offset change in |info(c)| and set the return value of...@>=
+@<Fix the offset change in |info(c)| and set |c| to the return value of...@>=
 mp->spec_offset=info(c)-zero_off;
 if ( link(c)==c ) {
   info(c)=zero_off+n;
@@ -10727,7 +10731,7 @@ if ( t>fraction_one ) {
     @<Split off another rising cubic for |fin_offset_prep|@>;
     mp_fin_offset_prep(mp, r,ww,x0,x1,x2,y0,y1,y2,-1,0);
   } else {
-    mp_fin_offset_prep(mp, r,ww,x0,x1,x2,y0,y1,y2,-1,-1-turn_amt);
+    mp_fin_offset_prep(mp, r,ww,x0,x1,x2,y0,y1,y2,-1,(-1-turn_amt));
   }
 }
 
@@ -10782,15 +10786,13 @@ d_sign=mp_ab_vs_cd(mp, dx,dyin, dxin,dy);
 if ( d_sign==0 ) {
   if ( dx==0 ) {
     if ( dy>0 ) d_sign=1;  else d_sign=-1;
-  } else if ( dx>0 ) { 
-    d_sign=1;  
-  } else { 
-    d_sign=-1; 
+  } else {
+    if ( dx>0 ) d_sign=1;  else d_sign=-1; 
   }
 }
 @<Make |ss| negative if and only if the total change in direction is
   more than $180^\circ$@>;
-turn_amt=mp_get_turn_amt(mp, w, dxin, dyin, d_sign>0);
+turn_amt=mp_get_turn_amt(mp, w, dxin, dyin, (d_sign>0));
 if ( ss<0 ) turn_amt=turn_amt-d_sign*n
 
 @ In order to be invariant under path reversal, the result of this computation
@@ -10801,7 +10803,7 @@ then swapped with |(x2,y2)|.  We make use of the identities
 
 @<Make |ss| negative if and only if the total change in direction is...@>=
 t0=half(mp_take_fraction(mp, x0,y2))-half(mp_take_fraction(mp, x2,y0));
-t1=half(mp_take_fraction(mp, x1,y0+y2))-half(mp_take_fraction(mp, y1,x0+x2));
+t1=half(mp_take_fraction(mp, x1,(y0+y2)))-half(mp_take_fraction(mp, y1,(x0+x2)));
 if ( t0==0 ) t0=d_sign; /* path reversal always negates |d_sign| */
 if ( t0>0 ) {
   t=mp_crossing_point(mp, t0,t1,-t0);
@@ -10816,8 +10818,8 @@ if ( t0>0 ) {
   v0=t_of_the_way(y2,y1);
   v1=t_of_the_way(y1,y0);
 }
-s=mp_take_fraction(mp, x0+x2,t_of_the_way(u0,u1))+
-  mp_take_fraction(mp, y0+y2,t_of_the_way(v0,v1))
+ss=mp_take_fraction(mp, (x0+x2),t_of_the_way(u0,u1))+
+   mp_take_fraction(mp, (y0+y2),t_of_the_way(v0,v1))
 
 @ Here's a routine that prints an envelope spec in symbolic form.  It assumes
 that the |cur_pen| has not been walked around to the first offset.
@@ -10833,11 +10835,13 @@ void mp_print_spec (MP mp,pointer cur_spec, pointer cur_pen, char *s) {
   mp_print(mp, " % beginning with offset ");
   mp_print_two(mp, x_coord(w),y_coord(w));
   do { 
-    do {  
+    while (1) {  
       q=link(p);
       @<Print the cubic between |p| and |q|@>;
       p=q;
-    } while (! ((p==cur_spec) || (info(p)!=zero_off)));
+	  if ((p==cur_spec) || (info(p)!=zero_off)) 
+    	break;
+    }
     if ( info(p)!=zero_off ) {
       @<Update |w| as indicated by |info(p)| and print an explanation@>;
     }
@@ -10848,7 +10852,7 @@ void mp_print_spec (MP mp,pointer cur_spec, pointer cur_pen, char *s) {
 
 @ @<Update |w| as indicated by |info(p)| and print an explanation@>=
 { 
-  w=mp_pen_walk(mp, w,info(p)-zero_off);
+  w=mp_pen_walk(mp, w, (info(p)-zero_off));
   mp_print(mp, " % ");
   if ( info(p)>zero_off ) mp_print(mp, "counter");
   mp_print(mp, "clockwise to offset ");
@@ -11078,8 +11082,8 @@ ww=w;
 while (1)  { 
   @<Step |ww| and move |kk| one step closer to |k0|@>;
   if ( kk==k0 ) break;
-  tmp=mp_take_fraction(mp, x_coord(ww)-x_coord(w0),ht_x)+
-      mp_take_fraction(mp, y_coord(ww)-y_coord(w0),ht_y);
+  tmp=mp_take_fraction(mp, (x_coord(ww)-x_coord(w0)),ht_x)+
+      mp_take_fraction(mp, (y_coord(ww)-y_coord(w0)),ht_y);
   if ( tmp>max_ht ) max_ht=tmp;
 }
 

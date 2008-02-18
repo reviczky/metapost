@@ -53,7 +53,7 @@
 @d decr(A)   (A)=(A)-1 /* decrease a variable by unity */
 @d negate(A)   (A)=-(A) /* change the sign of a variable */
 @d odd(A)   ((A)%2==1)
-@d half(A) ((A)) / 2
+@d half(A) ((A)/2)
 @d print_err(A) mp_print_err(mp,(A))
 
 @c
