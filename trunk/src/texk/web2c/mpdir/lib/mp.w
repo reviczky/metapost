@@ -7384,7 +7384,7 @@ RESTART:
       goto RESTART; /* retry, loop size has changed */
     }
     if ( s==q ) n=k;
-  } while (! (k>=n)&&(left_type(s)!=mp_end_cycle));
+  } while (!((k>=n)&&(left_type(s)!=mp_end_cycle)));
   if ( k==n ) mp->psi[n]=0; else mp->psi[k]=mp->psi[1];
 }
 
@@ -8926,10 +8926,10 @@ void mp_find_offset (MP mp,scaled x, scaled y, pointer h) {
     q=h;
     do {  
       p=q; q=link(q);
-    } while (! mp_ab_vs_cd(mp, x_coord(q)-x_coord(p),y, y_coord(q)-y_coord(p),x)>=0);
+    } while (!(mp_ab_vs_cd(mp, x_coord(q)-x_coord(p),y, y_coord(q)-y_coord(p),x)>=0));
     do {  
       p=q; q=link(q);
-    } while (! mp_ab_vs_cd(mp, x_coord(q)-x_coord(p),y, y_coord(q)-y_coord(p),x)<=0);
+    } while (!(mp_ab_vs_cd(mp, x_coord(q)-x_coord(p),y, y_coord(q)-y_coord(p),x)<=0));
     mp->cur_x=x_coord(p);
     mp->cur_y=y_coord(p);
   }
