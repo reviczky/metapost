@@ -7060,6 +7060,60 @@ pointer mp_copy_path (MP mp, pointer p) {
   return q;
 }
 
+
+@ Just before |ship_out|, knot lists are exported for printing.
+
+@d gr_left_type(A)  (A)->left_type_field 
+@d gr_right_type(A) (A)->right_type_field
+@d gr_x_coord(A)    (A)->x_coord_field   
+@d gr_y_coord(A)    (A)->y_coord_field   
+@d gr_left_x(A)     (A)->left_x_field    
+@d gr_left_y(A)     (A)->left_y_field    
+@d gr_right_x(A)    (A)->right_x_field   
+@d gr_right_y(A)    (A)->right_y_field   
+@d gr_next_knot(A)  (A)->next_field
+@d gr_originator(A) (A)->originator_field
+
+@c 
+struct mp_knot *mp_export_knot (MP mp,pointer p) {
+  struct mp_knot *q; /* the copy */
+  if (p==null)
+     return NULL;
+  q = mp_xmalloc(mp, 1, sizeof (struct mp_knot));
+  memset(q,0,sizeof (struct mp_knot));
+  gr_left_type(q)  = left_type(p);
+  gr_right_type(q) = right_type(p);
+  gr_x_coord(q)    = x_coord(p);
+  gr_y_coord(q)    = y_coord(p);
+  gr_left_x(q)     = left_x(p);
+  gr_left_y(q)     = left_y(p);
+  gr_right_x(q)    = right_x(p);
+  gr_right_y(q)    = right_y(p);
+  gr_originator(q) = originator(p);
+  return q;
+}
+
+@ The |export_knot_list| routine therefore also makes a clone 
+of a given path.
+
+@c 
+struct mp_knot *mp_export_knot_list (MP mp, pointer p) {
+  struct mp_knot *q, *qq; /* for list manipulation */
+  pointer pp; /* for list manipulation */
+  if (p==null)
+     return NULL;
+  q=mp_export_knot(mp, p);
+  qq=q; pp=link(p);
+  while ( pp!=p ) { 
+    gr_next_knot(qq)=mp_export_knot(mp, pp);
+    qq=gr_next_knot(qq);
+    pp=link(pp);
+  }
+  gr_next_knot(qq)=q;
+  return q;
+}
+
+
 @ Similarly, there's a way to copy the {\sl reverse\/} of a path. This procedure
 returns a pointer to the first node of the copy, if the path is a cycle,
 but to the final node of a non-cyclic copy. The global
@@ -9367,9 +9421,13 @@ void mp_init_edges (MP mp,pointer h) {
 of the need to dereference edge structures that are used as dash patterns.
 @^recursion@>
 
-@d add_edge_ref(A) incr(ref_count((A)))
-@d delete_edge_ref(A) { if ( ref_count((A))==null ) mp_toss_edges(mp, (A));
-  else decr(ref_count((A))); }
+@d add_edge_ref(A) incr(ref_count(A))
+@d delete_edge_ref(A) { 
+   if ( ref_count((A))==null ) 
+     mp_toss_edges(mp, A);
+   else 
+     decr(ref_count(A)); 
+   }
 
 @<Declare the recycling subroutines@>=
 void mp_flush_dash_list (MP mp,pointer h);
@@ -9471,6 +9529,45 @@ while ( (p!=null_dash) ) {
 }
 link(pp)=null_dash;
 dash_y(hh)=dash_y(h)
+
+
+@ |h| is an edge structure
+
+@d gr_start_x(A)    (A)->start_x_field
+@d gr_stop_x(A)     (A)->stop_x_field
+@d gr_dash_link(A)  (A)->next_field
+
+@d gr_dash_list(A)  (A)->list_field
+@d gr_dash_y(A)     (A)->y_field
+
+@c
+struct mp_dash_list *mp_export_dashes (MP mp, pointer h) {
+  struct mp_dash_list *dl;
+  struct mp_dash_item *dh, *di;
+  pointer p;
+  if (h==null ||  dash_list(h)==null_dash) 
+	return NULL;
+  p = dash_list(h);
+  dl = mp_xmalloc(mp,1,sizeof(struct mp_dash_list));
+  gr_dash_list(dl) = NULL;
+  gr_dash_y(dl) = dash_y(h);
+  dh = NULL;
+  while (p != null_dash) { 
+    di=mp_xmalloc(mp,1,sizeof(struct mp_dash_item));
+    gr_dash_link(di) = NULL;
+    gr_start_x(di) = start_x(p);
+    gr_stop_x(di) = stop_x(p);
+    if (dh==NULL) {
+      gr_dash_list(dl) = di;
+    } else {
+      gr_dash_link(dh) = di;
+    }
+    dh = di;
+    p=link(p);
+  }
+  return dl;
+}
+
 
 @ @<Copy the bounding box information from |h| to |hh|...@>=
 minx_val(hh)=minx_val(h);
@@ -9728,7 +9825,7 @@ if ( (pp==null_dash) || (dash_y(hh)<0) ) {
 @ @<Declare subroutines needed by |print_edges|@>=
 scaled mp_dash_offset (MP mp,pointer h) {
   scaled x;  /* the answer */
-  if ( (dash_list(h)==null_dash) || (dash_y(h)<0) ) mp_confusion(mp, "dash0");
+  if (dash_list(h)==null_dash || dash_y(h)<0) mp_confusion(mp, "dash0");
 @:this can't happen dash0}{\quad dash0@>
   if ( dash_y(h)==0 ) {
     x=0; 
@@ -10001,15 +10098,15 @@ if ( dd==null_dash ) {
 |start_x(dln)<=xoff+take_scaled(hsf,stop_x(dd))|.
 
 @<Insert a dash between |d| and |dln| for the overlap with the offset...@>=
-if ( xoff+mp_take_scaled(mp, hsf,start_x(dd))<=stop_x(dln) ) {
+if ( (xoff+mp_take_scaled(mp, hsf,start_x(dd)))<=stop_x(dln) ) {
   link(d)=mp_get_node(mp, dash_node_size);
   d=link(d);
   link(d)=dln;
-  if ( start_x(dln)>xoff+mp_take_scaled(mp, hsf,start_x(dd)))
+  if ( start_x(dln)>(xoff+mp_take_scaled(mp, hsf,start_x(dd))))
     start_x(d)=start_x(dln);
   else 
     start_x(d)=xoff+mp_take_scaled(mp, hsf,start_x(dd));
-  if ( stop_x(dln)<xoff+mp_take_scaled(mp, hsf,stop_x(dd)) ) 
+  if ( stop_x(dln)<(xoff+mp_take_scaled(mp, hsf,stop_x(dd)))) 
     stop_x(d)=stop_x(dln);
   else 
     stop_x(d)=xoff+mp_take_scaled(mp, hsf,stop_x(dd));
@@ -22414,8 +22511,9 @@ void mp_scan_with_list (MP mp,pointer p) ;
          mp->cur_type=mp_vacuous;
        }
     } else { 
-      if ( dp==mp_void ) 
+      if ( dp==mp_void ) {
         @<Make |dp| a stroked node in list~|p|@>;
+      }
       if ( dp!=null ) {
         if ( dash_p(dp)!=null ) delete_edge_ref(dash_p(dp));
         dash_p(dp)=mp_make_dashes(mp, mp->cur_exp);
@@ -22547,9 +22645,13 @@ color_model(cp)=mp_no_model;
 
 @ @<Copy the information from objects |cp|, |pp|, and |dp| into...@>=
 @<Copy |cp|'s color into the colored objects linked to~|cp|@>;
-if ( pp>mp_void )
+if ( pp>mp_void ) {
   @<Copy |pen_p(pp)| into stroked and filled nodes linked to |pp|@>;
-if ( dp>mp_void ) @<Make stroked nodes linked to |dp| refer to |dash_p(dp)|@>
+}
+if ( dp>mp_void ) {
+  @<Make stroked nodes linked to |dp| refer to |dash_p(dp)|@>;
+}
+
 
 @ @<Copy |cp|'s color into the colored objects linked to~|cp|@>=
 { q=link(cp);
@@ -24902,613 +25004,6 @@ if ( mp->total_shipped>0 ) {
   }
 }
 
-
-@ The most important output procedure is the one that gives the \ps\ version of
-a \MP\ path.
-
-@<Declare the \ps\ output procedures@>=
-void mp_ps_path_out (MP mp,pointer h) {
-  pointer p,q; /* for scanning the path */
-  scaled d; /* a temporary value */
-  boolean curved; /* |true| unless the cubic is almost straight */
-  ps_room(40);
-  if ( mp->need_newpath ) 
-    mp_ps_print_cmd(mp, "newpath ","n ");
-  mp->need_newpath=true;
-  mp_ps_pair_out(mp, x_coord(h),y_coord(h));
-  mp_ps_print_cmd(mp, "moveto","m");
-  p=h;
-  do {  
-    if ( right_type(p)==mp_endpoint ) { 
-      if ( p==h ) mp_ps_print_cmd(mp, " 0 0 rlineto"," 0 0 r");
-      return;
-    }
-    q=link(p);
-    @<Start a new line and print the \ps\ commands for the curve from
-      |p| to~|q|@>;
-    p=q;
-  } while (p!=h);
-  mp_ps_print_cmd(mp, " closepath"," p");
-}
-
-@ @<Glob...@>=
-boolean need_newpath;
-  /* will |ps_path_out| need to issue a \&{newpath} command next time */
-@:newpath_}{\&{newpath} command@>
-
-@ @<Start a new line and print the \ps\ commands for the curve from...@>=
-curved=true;
-@<Set |curved:=false| if the cubic from |p| to |q| is almost straight@>;
-mp_print_ln(mp);
-if ( curved ){ 
-  mp_ps_pair_out(mp, right_x(p),right_y(p));
-  mp_ps_pair_out(mp, left_x(q),left_y(q));
-  mp_ps_pair_out(mp, x_coord(q),y_coord(q));
-  mp_ps_print_cmd(mp, "curveto","c");
-} else if ( q!=h ){ 
-  mp_ps_pair_out(mp, x_coord(q),y_coord(q));
-  mp_ps_print_cmd(mp, "lineto","l");
-}
-
-@ Two types of straight lines come up often in \MP\ paths:
-cubics with zero initial and final velocity as created by |make_path| or
-|make_envelope|, and cubics with control points uniformly spaced on a line
-as created by |make_choices|.
-
-@d bend_tolerance 131 /* allow rounding error of $2\cdot10^{-3}$ */
-
-@<Set |curved:=false| if the cubic from |p| to |q| is almost straight@>=
-if ( right_x(p)==x_coord(p) )
-  if ( right_y(p)==y_coord(p) )
-    if ( left_x(q)==x_coord(q) )
-      if ( left_y(q)==y_coord(q) ) curved=false;
-d=left_x(q)-right_x(p);
-if ( abs(right_x(p)-x_coord(p)-d)<=bend_tolerance )
-  if ( abs(x_coord(q)-left_x(q)-d)<=bend_tolerance )
-    { d=left_y(q)-right_y(p);
-    if ( abs(right_y(p)-y_coord(p)-d)<=bend_tolerance )
-      if ( abs(y_coord(q)-left_y(q)-d)<=bend_tolerance ) curved=false;
-    }
-
-@ We need to keep track of several parameters from the \ps\ graphics state.
-@^graphics state@>
-This allows us to be sure that \ps\ has the correct values when they are
-needed without wasting time and space setting them unnecessarily.
-
-@d gs_node_size 10
-@d gs_red        mp->mem[mp->gs_state+1].sc
-@d gs_green      mp->mem[mp->gs_state+2].sc
-@d gs_blue       mp->mem[mp->gs_state+3].sc
-@d gs_black      mp->mem[mp->gs_state+4].sc
-   /* color from the last \&{setcmykcolor} or \&{setrgbcolor} or \&{setgray} command */
-@d gs_colormodel mp->mem[mp->gs_state+5].qqqq.b0
-   /* the current colormodel */
-@d gs_ljoin      mp->mem[mp->gs_state+5].qqqq.b1
-@d gs_lcap       mp->mem[mp->gs_state+5].qqqq.b2
-   /* values from the last \&{setlinejoin} and \&{setlinecap} commands */
-@d gs_adj_wx     mp->mem[mp->gs_state+5].qqqq.b3
-   /* what resolution-dependent adjustment applies to the width */
-@d gs_miterlim   mp->mem[mp->gs_state+6].sc
-   /* the value from the last \&{setmiterlimit} command */
-@d gs_dash_p     mp->mem[mp->gs_state+7].hh.lh
-   /* edge structure for last \&{setdash} command */
-@d gs_previous   mp->mem[mp->gs_state+7].hh.rh
-   /* backlink to the previous |gs_state| structure */
-@d gs_dash_sc    mp->mem[mp->gs_state+8].sc
-   /* scale factor used with |gs_dash_p| */
-@d gs_width      mp->mem[mp->gs_state+9].sc
-   /* width setting or $-1$ if no \&{setlinewidth} command so far */
-
-@<Glob...@>=
-pointer gs_state;
-
-@ @<Set init...@>=
-mp->gs_state=null;
-
-@ To avoid making undue assumptions about the initial graphics state, these
-parameters are given special values that are guaranteed not to match anything
-in the edge structure being shipped out.  On the other hand, the initial color
-should be black so that the translation of an all-black picture will have no
-\&{setcolor} commands.  (These would be undesirable in a font application.)
-Hence we use |c=0| when initializing the graphics state and we use |c<0|
-to recover from a situation where we have lost track of the graphics state.
-
-@<Declare the \ps\ output procedures@>=
-void mp_unknown_graphics_state (MP mp,scaled c) ;
-
-@ @c void mp_unknown_graphics_state (MP mp,scaled c) {
-  pointer p; /* to shift graphic states around */
-  quarterword k; /* a loop index for copying the |gs_state| */
-  if ( (c==0)||(c==-1) ) {
-    if ( mp->gs_state==null ) {
-      mp->gs_state = mp_get_node(mp, gs_node_size);
-      gs_previous=null;
-    } else {
-      while ( gs_previous!=null ) {
-        p = gs_previous;
-        mp_free_node(mp, mp->gs_state,gs_node_size);
-        mp->gs_state=p;
-      }
-    }
-    gs_red=c; gs_green=c; gs_blue=c; gs_black=c;
-    gs_colormodel=mp_uninitialized_model;
-    gs_ljoin=3;
-    gs_lcap=3;
-    gs_miterlim=0;
-    gs_dash_p=mp_void;
-    gs_dash_sc=0;
-    gs_width=-1;
-  } else if ( c==1 ) {
-    p= mp->gs_state;
-    mp->gs_state = mp_get_node(mp, gs_node_size);
-    for (k=1;k<=gs_node_size-1;k++)
-      mp->mem[mp->gs_state+k]=mp->mem[p+k];
-    gs_previous = p;
-  } else if ( c==2 ) {
-    p = gs_previous;
-    mp_free_node(mp, mp->gs_state,gs_node_size);
-    mp->gs_state=p;
-  }
-}
-
-@ When it is time to output a graphical object, |fix_graphics_state| ensures
-that \ps's idea of the graphics state agrees with what is stored in the object.
-
-@<Declare the \ps\ output procedures@>=
-@<Declare subroutines needed by |fix_graphics_state|@>;
-void mp_fix_graphics_state (MP mp, pointer p) ;
-
-@ @c 
-void mp_fix_graphics_state (MP mp, pointer p) {
-  /* get ready to output graphical object |p| */
-  pointer hh,pp; /* for list manipulation */
-  scaled wx,wy,ww; /* dimensions of pen bounding box */
-  boolean adj_wx; /* whether pixel rounding should be based on |wx| or |wy| */
-  integer tx,ty; /* temporaries for computing |adj_wx| */
-  scaled scf; /* a scale factor for the dash pattern */
-  if ( has_color(p) )
-    @<Make sure \ps\ will use the right color for object~|p|@>;
-  if ( (type(p)==mp_fill_code)||(type(p)==mp_stroked_code) )
-    if ( pen_p(p)!=null )
-      if ( pen_is_elliptical(pen_p(p)) ) {
-        @<Generate \ps\ code that sets the stroke width to the
-          appropriate rounded value@>;
-        @<Make sure \ps\ will use the right dash pattern for |dash_p(p)|@>;
-        @<Decide whether the line cap parameter matters and set it if necessary@>;
-        @<Set the other numeric parameters as needed for object~|p|@>;
-      }
-  if ( mp->ps_offset>0 ) mp_print_ln(mp);
-}
-
-@ @<Decide whether the line cap parameter matters and set it if necessary@>=
-if ( type(p)==mp_stroked_code )
-  if ( (left_type(path_p(p))==mp_endpoint)||(dash_p(p)!=null) )
-    if ( gs_lcap!=lcap_val(p) ) {
-      ps_room(13);
-      mp_print_char(mp, ' ');
-      mp_print_char(mp, '0'+lcap_val(p)); 
-      mp_ps_print_cmd(mp, " setlinecap"," lc");
-      gs_lcap=lcap_val(p);
-    }
-
-@ @<Set the other numeric parameters as needed for object~|p|@>=
-if ( gs_ljoin!=ljoin_val(p) ) {
-  ps_room(14);
-  mp_print_char(mp, ' ');
-  mp_print_char(mp, '0'+ljoin_val(p)); mp_ps_print_cmd(mp, " setlinejoin"," lj");
-  gs_ljoin=ljoin_val(p);
-}
-if ( gs_miterlim!=miterlim_val(p) ) {
-  ps_room(27);
-  mp_print_char(mp, ' ');
-  mp_print_scaled(mp, miterlim_val(p)); mp_ps_print_cmd(mp, " setmiterlimit"," ml");
-  gs_miterlim=miterlim_val(p);
-}
-
-@ @<Make sure \ps\ will use the right color for object~|p|@>=
-{
-  if ( (color_model(p)==mp_rgb_model)||
-     ((color_model(p)==mp_uninitialized_model)&&
-     ((mp->internal[mp_default_color_model] / unity)==mp_rgb_model)) ) {
-  if ( (gs_colormodel!=mp_rgb_model)||(gs_red!=red_val(p))||
-      (gs_green!=green_val(p))||(gs_blue!=blue_val(p)) ) {
-      gs_red=red_val(p);
-      gs_green=green_val(p);
-      gs_blue=blue_val(p);
-      gs_black= -1;
-      gs_colormodel=mp_rgb_model;
-      { ps_room(36);
-        mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_red); mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_green); mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_blue);
-        mp_ps_print_cmd(mp, " setrgbcolor", " R");
-      }
-    }
-  } else if ( (color_model(p)==mp_cmyk_model)||
-     ((color_model(p)==mp_uninitialized_model)&&
-     ((mp->internal[mp_default_color_model] / unity)==mp_cmyk_model)) ) {
-   if ( (gs_red!=cyan_val(p))||(gs_green!=magenta_val(p))||
-      (gs_blue!=yellow_val(p))||(gs_black!=black_val(p))||
-      (gs_colormodel!=mp_cmyk_model) ) {
-      if ( color_model(p)==mp_uninitialized_model ) {
-        gs_red=0;
-        gs_green=0;
-        gs_blue=0;
-        gs_black=unity;
-      } else {
-        gs_red=cyan_val(p);
-        gs_green=magenta_val(p);
-        gs_blue=yellow_val(p);
-        gs_black=black_val(p);
-      }
-      gs_colormodel=mp_cmyk_model;
-      { ps_room(45);
-        mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_red); mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_green); mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_blue); mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_black);
-        mp_ps_print_cmd(mp, " setcmykcolor"," C");
-      }
-    }
-  } else if ( (color_model(p)==mp_grey_model)||
-    ((color_model(p)==mp_uninitialized_model)&&
-     ((mp->internal[mp_default_color_model] / unity)==mp_grey_model)) ) {
-   if ( (gs_red!=grey_val(p))||(gs_colormodel!=mp_grey_model) ) {
-      gs_red = grey_val(p);
-      gs_green= -1;
-      gs_blue= -1;
-      gs_black= -1;
-      gs_colormodel=mp_grey_model;
-      { ps_room(16);
-        mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_red);
-        mp_ps_print_cmd(mp, " setgray"," G");
-      }
-    }
-  }
-  if ( color_model(p)==mp_no_model )
-    gs_colormodel=mp_no_model;
-}
-
-@ In order to get consistent widths for horizontal and vertical pen strokes, we
-want \ps\ to use an integer number of pixels for the \&{setwidth} parameter.
-@:setwidth}{\&{setwidth}command@>
-We set |gs_width| to the ideal horizontal or vertical stroke width and then
-generate \ps\ code that computes the rounded value.  For non-circular pens, the
-pen shape will be rescaled so that horizontal or vertical parts of the stroke
-have the computed width.
-
-Rounding the width to whole pixels is not likely to improve the appearance of
-diagonal or curved strokes, but we do it anyway for consistency.  The
-\&{truncate} command generated here tends to make all the strokes a little
-@:truncate}{\&{truncate} command@>
-thinner, but this is appropriate for \ps's scan-conversion rules.  Even with
-truncation, an ideal with of $w$~pixels gets mapped into $\lfloor w\rfloor+1$.
-It would be better to have $\lceil w\rceil$ but that is ridiculously expensive
-to compute in \ps.
-
-@<Generate \ps\ code that sets the stroke width...@>=
-@<Set |wx| and |wy| to the width and height of the bounding box for
-  |pen_p(p)|@>;
-@<Use |pen_p(p)| and |path_p(p)| to decide whether |wx| or |wy| is more
-  important and set |adj_wx| and |ww| accordingly@>;
-if ( (ww!=gs_width) || (adj_wx!=gs_adj_wx) ) {
-  if ( adj_wx ) {
-    ps_room(13);
-    mp_print_char(mp, ' '); mp_print_scaled(mp, ww);
-    mp_ps_print_cmd(mp, 
-      " 0 dtransform exch truncate exch idtransform pop setlinewidth"," hlw");
-  } else {
-    if ( mp->internal[mp_procset]>0 ) {
-      ps_room(13);
-      mp_print_char(mp, ' ');
-      mp_print_scaled(mp, ww);
-      mp_ps_print(mp, " vlw");
-    } else { 
-      ps_room(15);
-      mp_print(mp, " 0 "); mp_print_scaled(mp, ww);
-      mp_ps_print(mp, " dtransform truncate idtransform setlinewidth pop");
-    }
-  }
-  gs_width = ww;
-  gs_adj_wx = adj_wx;
-}
-
-@ @<Set |wx| and |wy| to the width and height of the bounding box for...@>=
-pp=pen_p(p);
-if ( (right_x(pp)==x_coord(pp)) && (left_y(pp)==y_coord(pp)) ) {
-  wx = abs(left_x(pp) - x_coord(pp));
-  wy = abs(right_y(pp) - y_coord(pp));
-} else {
-  wx = mp_pyth_add(mp, left_x(pp)-x_coord(pp), right_x(pp)-x_coord(pp));
-  wy = mp_pyth_add(mp, left_y(pp)-y_coord(pp), right_y(pp)-y_coord(pp));
-}
-
-@ The path is considered ``essentially horizontal'' if its range of
-$y$~coordinates is less than the $y$~range |wy| for the pen.  ``Essentially
-vertical'' paths are detected similarly.  This code ensures that no component
-of the pen transformation is more that |aspect_bound*(ww+1)|.
-
-@d aspect_bound 10 /* ``less important'' of |wx|, |wy| cannot exceed the other by
-    more than this factor */
-
-@<Use |pen_p(p)| and |path_p(p)| to decide whether |wx| or |wy| is more...@>=
-tx=1; ty=1;
-if ( mp_coord_rangeOK(mp, path_p(p), y_loc(0), wy) ) tx=aspect_bound;
-else if ( mp_coord_rangeOK(mp, path_p(p), x_loc(0), wx) ) ty=aspect_bound;
-if ( wy / ty>=wx / tx ) { ww=wy; adj_wx=false; }
-else { ww=wx; adj_wx=true;  }
-
-@ This routine quickly tests if path |h| is ``essentially horizontal'' or
-``essentially vertical,'' where |zoff| is |x_loc(0)| or |y_loc(0)| and |dz| is
-allowable range for $x$ or~$y$.  We do not need and cannot afford a full
-bounding-box computation.
-
-@<Declare subroutines needed by |fix_graphics_state|@>=
-boolean mp_coord_rangeOK (MP mp,pointer h, 
-                          small_number  zoff, scaled dz) {
-  pointer p; /* for scanning the path form |h| */
-  scaled zlo,zhi; /* coordinate range so far */
-  scaled z; /* coordinate currently being tested */
-  zlo=knot_coord(h+zoff);
-  zhi=zlo;
-  p=h;
-  while ( right_type(p)!=mp_endpoint ) {
-    z=right_coord(p+zoff);
-    @<Make |zlo..zhi| include |z| and |return false| if |zhi-zlo>dz|@>;
-    p=link(p);
-    z=left_coord(p+zoff);
-    @<Make |zlo..zhi| include |z| and |return false| if |zhi-zlo>dz|@>;
-    z=knot_coord(p+zoff);
-    @<Make |zlo..zhi| include |z| and |return false| if |zhi-zlo>dz|@>;
-    if ( p==h ) break;
-  }
-  return true;
-}
-
-@ @<Make |zlo..zhi| include |z| and |return false| if |zhi-zlo>dz|@>=
-if ( z<zlo ) zlo=z;
-else if ( z>zhi ) zhi=z;
-if ( zhi-zlo>dz ) return false
-
-@ Filling with an elliptical pen is implemented via a combination of \&{stroke}
-and \&{fill} commands and a nontrivial dash pattern would interfere with this.
-@:stroke}{\&{stroke} command@>
-@:fill}{\&{fill} command@>
-Note that we don't use |delete_edge_ref| because |gs_dash_p| is not counted as
-a reference.
-
-@<Make sure \ps\ will use the right dash pattern for |dash_p(p)|@>=
-if ( type(p)==mp_fill_code ) {
-  hh=null;
-} else { 
-  hh=dash_p(p);
-  scf=mp_get_pen_scale(mp, pen_p(p));
-  if ( scf==0 ) {
-    if ( gs_width==0 ) scf=dash_scale(p);  else hh=null;
-  } else { 
-    scf=mp_make_scaled(mp, gs_width,scf);
-    scf=mp_take_scaled(mp, scf,dash_scale(p));
-  }
-}
-if ( hh==null ) {
-  if ( gs_dash_p!=null ) {
-    mp_ps_print_cmd(mp, " [] 0 setdash"," rd");
-    gs_dash_p=null;
-  }
-} else if ( (gs_dash_sc!=scf) || ! mp_same_dashes(mp, gs_dash_p,hh) ) {
-  @<Set the dash pattern from |dash_list(hh)| scaled by |scf|@>;
-}
-
-@ Translating a dash list into \ps\ is very similar to printing it symbolically
-in |print_edges|.  A dash pattern with |dash_y(hh)=0| has length zero and is
-ignored.  The same fate applies in the bizarre case of a dash pattern that
-cannot be printed without overflow.
-
-@<Set the dash pattern from |dash_list(hh)| scaled by |scf|@>=
-{ gs_dash_p=hh;
-  gs_dash_sc=scf;
-  if ( (dash_y(hh)==0) || (abs(dash_y(hh)) / unity >= el_gordo / scf)){
-    mp_ps_print_cmd(mp, " [] 0 setdash"," rd");
-  } else { 
-    pp=dash_list(hh);
-    start_x(null_dash)=start_x(pp)+dash_y(hh);
-    ps_room(28);
-    mp_print(mp, " [");
-    while ( pp!=null_dash ) {
-      mp_ps_pair_out(mp, mp_take_scaled(mp, stop_x(pp)-start_x(pp),scf),
-                         mp_take_scaled(mp, start_x(link(pp))-stop_x(pp),scf));
-      pp=link(pp);
-    }
-    ps_room(22);
-    mp_print(mp, "] ");
-    mp_print_scaled(mp, mp_take_scaled(mp, mp_dash_offset(mp, hh),scf));
-    mp_ps_print_cmd(mp, " setdash"," sd");
-  }
-}
-
-@ @<Declare subroutines needed by |fix_graphics_state|@>=
-boolean mp_same_dashes (MP mp,pointer h, pointer hh) ;
-
-@ @c
-boolean mp_same_dashes (MP mp,pointer h, pointer hh) {
-  /* do |h| and |hh| represent the same dash pattern? */
-  pointer p,pp; /* dash nodes being compared */
-  if ( h==hh ) return true;
-  else if ( (h<=mp_void)||(hh<=mp_void) ) return false;
-  else if ( dash_y(h)!=dash_y(hh) ) return false;
-  else { @<Compare |dash_list(h)| and |dash_list(hh)|@>; }
-  return false; /* can't happen */
-}
-
-@ @<Compare |dash_list(h)| and |dash_list(hh)|@>=
-{ p=dash_list(h);
-  pp=dash_list(hh);
-  while ( (p!=null_dash)&&(pp!=null_dash) ) {
-    if ( (start_x(p)!=start_x(pp))||(stop_x(p)!=stop_x(pp)) ) {
-      break;
-    } else { 
-      p=link(p);
-      pp=link(pp);
-    }
-  }
-  return (p==pp);
-}
-
-@ When stroking a path with an elliptical pen, it is necessary to transform
-the coordinate system so that a unit circular pen will have the desired shape.
-To keep this transformation local, we enclose it in a
-$$\&{gsave}\ldots\&{grestore}$$
-block. Any translation component must be applied to the path being stroked
-while the rest of the transformation must apply only to the pen.
-If |fill_also=true|, the path is to be filled as well as stroked so we must
-insert commands to do this after giving the path.
-
-@<Declare the \ps\ output procedures@>=
-void mp_stroke_ellipse (MP mp,pointer h, boolean fill_also) ;
-
-@ 
-@c void mp_stroke_ellipse (MP mp,pointer h, boolean fill_also) {
-  /* generate an elliptical pen stroke from object |h| */
-  scaled txx,txy,tyx,tyy; /* transformation parameters */
-  pointer p; /* the pen to stroke with */
-  scaled d1,det; /* for tweaking transformation parameters */
-  integer s; /* also for tweaking transformation paramters */
-  boolean transformed; /* keeps track of whether gsave/grestore are needed */
-  transformed=false;
-  @<Use |pen_p(h)| to set the transformation parameters and give the initial
-    translation@>;
-  @<Tweak the transformation parameters so the transformation is nonsingular@>;
-  mp_ps_path_out(mp, path_p(h));
-  if ( mp->internal[mp_procset]==0 ) {
-    if ( fill_also ) mp_print_nl(mp, "gsave fill grestore");
-    @<Issue \ps\ commands to transform the coordinate system@>;
-    mp_ps_print(mp, " stroke");
-    if ( transformed ) mp_ps_print(mp, " grestore");
-  } else {
-    if ( fill_also ) mp_print_nl(mp, "B"); else mp_print_ln(mp);
-    if ( (txy!=0)||(tyx!=0) ) {
-      mp_print(mp, " [");
-      mp_ps_pair_out(mp, txx,tyx);
-      mp_ps_pair_out(mp, txy,tyy);
-      mp_ps_print(mp, "0 0] t");
-    } else if ((txx!=unity)||(tyy!=unity) )  {
-      mp_ps_pair_out(mp,txx,tyy);
-      mp_print(mp, " s");
-    };
-    mp_ps_print(mp, " S");
-    if ( transformed ) mp_ps_print(mp, " Q");
-  }
-  mp_print_ln(mp);
-}
-
-@ @<Use |pen_p(h)| to set the transformation parameters and give the...@>=
-p=pen_p(h);
-txx=left_x(p);
-tyx=left_y(p);
-txy=right_x(p);
-tyy=right_y(p);
-if ( (x_coord(p)!=0)||(y_coord(p)!=0) ) {
-  mp_print_nl(mp, ""); mp_ps_print_cmd(mp, "gsave ","q ");
-  mp_ps_pair_out(mp, x_coord(p),y_coord(p));
-  mp_ps_print(mp, "translate ");
-  txx-=x_coord(p);
-  tyx-=y_coord(p);
-  txy-=x_coord(p);
-  tyy-=y_coord(p);
-  transformed=true;
-} else {
-  mp_print_nl(mp, "");
-}
-@<Adjust the transformation to account for |gs_width| and output the
-  initial \&{gsave} if |transformed| should be |true|@>
-
-@ @<Adjust the transformation to account for |gs_width| and output the...@>=
-if ( gs_width!=unity ) {
-  if ( gs_width==0 ) { 
-    txx=unity; tyy=unity;
-  } else { 
-    txx=mp_make_scaled(mp, txx,gs_width);
-    txy=mp_make_scaled(mp, txy,gs_width);
-    tyx=mp_make_scaled(mp, tyx,gs_width);
-    tyy=mp_make_scaled(mp, tyy,gs_width);
-  };
-}
-if ( (txy!=0)||(tyx!=0)||(txx!=unity)||(tyy!=unity) ) {
-  if ( (! transformed) ){ 
-    mp_ps_print_cmd(mp, "gsave ","q ");
-    transformed=true;
-  }
-}
-
-@ @<Issue \ps\ commands to transform the coordinate system@>=
-if ( (txy!=0)||(tyx!=0) ){ 
-  mp_print_ln(mp);
-  mp_print_char(mp, '[');
-  mp_ps_pair_out(mp, txx,tyx);
-  mp_ps_pair_out(mp, txy,tyy);
-  mp_ps_print(mp, "0 0] concat");
-} else if ( (txx!=unity)||(tyy!=unity) ){ 
-  mp_print_ln(mp);
-  mp_ps_pair_out(mp, txx,tyy);
-  mp_print(mp, "scale");
-}
-
-@ The \ps\ interpreter will probably abort if it encounters a singular
-transformation matrix.  The determinant must be large enough to ensure that
-the printed representation will be nonsingular.  Since the printed
-representation is always within $2^{-17}$ of the internal |scaled| value, the
-total error is at most $4T_{\rm max}2^{-17}$, where $T_{\rm max}$ is a bound on
-the magnitudes of |txx/65536|, |txy/65536|, etc.
-
-The |aspect_bound*(gs_width+1)| bound on the components of the pen
-transformation allows $T_{\rm max}$ to be at most |2*aspect_bound|.
-
-@<Tweak the transformation parameters so the transformation is nonsingular@>=
-det=mp_take_scaled(mp, txx,tyy) - mp_take_scaled(mp, txy,tyx);
-d1=4*aspect_bound+1;
-if ( abs(det)<d1 ) { 
-  if ( det>=0 ) { d1=d1-det; s=1;  }
-  else { d1=-d1-det; s=-1;  };
-  d1=d1*unity;
-  if ( abs(txx)+abs(tyy)>=abs(txy)+abs(tyy) ) {
-    if ( abs(txx)>abs(tyy) ) tyy=tyy+(d1+s*abs(txx)) / txx;
-    else txx=txx+(d1+s*abs(tyy)) / tyy;
-  } else {
-    if ( abs(txy)>abs(tyx) ) tyx=tyx+(d1+s*abs(txy)) / txy;
-    else txy=txy+(d1+s*abs(tyx)) / tyx;
-  }
-}
-
-@ Here is a simple routine that just fills a cycle.
-
-@<Declare the \ps\ output procedures@>=
-void mp_ps_fill_out (MP mp,pointer p) ;
-
-@ @c
-void mp_ps_fill_out (MP mp,pointer p) { /* fill cyclic path~|p| */
-  mp_ps_path_out(mp, p);
-  mp_ps_print_cmd(mp, " fill"," F");
-  mp_print_ln(mp);
-}
-
-@ Given a cyclic path~|p| and a graphical object~|h|, the |do_outer_envelope|
-procedure fills the cycle generated by |make_envelope|.  It need not do
-anything unless some region has positive winding number with respect to~|p|,
-but it does not seem worthwhile to test for this.
-
-@<Declare the \ps\ output procedures@>=
-void mp_do_outer_envelope (MP mp,pointer p, pointer h) ;
-
-@ @c
-void mp_do_outer_envelope (MP mp,pointer p, pointer h) {
-  p=mp_make_envelope(mp, p, pen_p(h), ljoin_val(h), 0, miterlim_val(h));
-  mp_ps_fill_out(mp, p);
-  mp_toss_knot_list(mp, p);
-}
-
 @ A text node may specify an arbitrary transformation but the usual case
 involves only shifting, scaling, and occasionally rotation.  The purpose
 of |choose_scale| is to select a scale factor so that the remaining
@@ -25667,19 +25162,42 @@ setting is saved in a global variable so that |begin_diagnostic| can access it.
 @<Declare the \ps\ output procedures@>=
 void mp_ship_out (MP mp, pointer h) ;
 
-@ @c
+@ 
+@d gr_type(A)         (A)->_type_field
+@d gr_link(A)         (A)->_link_field
+@d gr_name_type(A)    (A)->name_type_field
+@d gr_path_p(A)       (A)->path_p_field 
+@d gr_htap_p(A)       (A)->htap_p_field 
+@d gr_pen_p(A)        (A)->pen_p_field 
+@d gr_ljoin_val(A)    (A)->ljoin_field
+@d gr_lcap_val(A)     (A)->lcap_field
+@d gr_dash_scale(A)   (A)->dash_scale_field
+@d gr_miterlim_val(A) (A)->miterlim_field
+@d gr_pre_script(A)   (A)->pre_script_field
+@d gr_post_script(A)  (A)->post_script_field
+@d gr_dash_p(A)       (A)->dash_p_field
+@d gr_text_p(A)       (A)->text_p_field 
+@d gr_font_n(A)       (A)->font_n_field 
+@d gr_width_val(A)    (A)->width_field
+@d gr_height_val(A)   (A)->height_field
+@d gr_depth_val(A)    (A)->depth_field
+@d gr_tx_val(A)       (A)->tx_field
+@d gr_ty_val(A)       (A)->ty_field
+@d gr_txx_val(A)      (A)->txx_field
+@d gr_txy_val(A)      (A)->txy_field
+@d gr_tyx_val(A)      (A)->tyx_field
+@d gr_tyy_val(A)      (A)->tyy_field
+
+@c
 void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
   pointer p; /* the current graphical object */
-  pointer q; /* something that |p| points to */
   integer t; /* a temporary value */
   font_number f; /* fonts used in a text node or as loop counters */
-  scaled ds,scf; /* design size and scale factor for a text node */
-  boolean transformed; /* is the coordinate system being transformed? */
   mp_open_output_file(mp);
   mp->non_ps_setting=mp->selector;
   mp->selector=ps_file_only;
   mp_set_bbox(mp, h, true);
-  mp_print_initial_comment(mp, h, minx_val(h),miny_val(h),maxx_val(h),maxy_val(h));
+  mp_print_initial_comment(mp, minx_val(h),miny_val(h),maxx_val(h),maxy_val(h));
   if ( (mp->internal[mp_prologues]==two)||(mp->internal[mp_prologues]==three) ) {
     @<Scan all the text nodes and mark the used characters@>;
     @<Update encoding names@>;
@@ -25692,26 +25210,97 @@ void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
     mp_print_prologue(mp, h);
   }
   @<Print any pending specials@>;
-  mp_unknown_graphics_state(mp, 0);
-  mp->need_newpath=true;
-  p=link(dummy_loc(h));
-  while ( p!=null ) { 
-    if ( has_color(p) ) {
-      if ( (pre_script(p))!=null ) {
-        mp_print_nl (mp, str(pre_script(p))); mp_print_ln(mp);
+  {
+    struct mp_edge_object *hh; /* the first graphical object */
+    struct mp_graphic_object *hp; /* the current graphical object */
+    struct mp_graphic_object *hq; /* something |hp| points to  */
+    hh = mp_xmalloc(mp,1,sizeof(struct mp_edge_object));
+	hh->body = NULL;
+	p=link(dummy_loc(h));
+    while ( p!=null ) { 
+	  hq = mp_new_graphic_object(mp,type(p));
+      switch (type(p)) {
+      case mp_fill_code:
+	    gr_pen_p(hq)        = mp_export_knot_list(mp,pen_p(p));
+        if ((pen_p(p)==null) || pen_is_elliptical(pen_p(p)))  {
+		  gr_path_p(hq)       = mp_export_knot_list(mp,path_p(p));
+        } else {
+	      pointer pc, pp;
+	      pc = mp_copy_path(mp, path_p(p));
+          pp = mp_make_envelope(mp, pc, pen_p(p),ljoin_val(p),0,miterlim_val(p));
+          gr_path_p(hq)       = mp_export_knot_list(mp,pp);
+          mp_toss_knot_list(mp, pp);
+	      pc = mp_htap_ypoc(mp, path_p(p));
+          pp = mp_make_envelope(mp, pc, pen_p(p),ljoin_val(p),0,miterlim_val(p));
+          gr_htap_p(hq)       = mp_export_knot_list(mp,pp);
+          mp_toss_knot_list(mp, pp);
+        }
+        @<Export object color@>;
+        @<Export object scripts@>;
+        gr_ljoin_val(hq)    = ljoin_val(p);
+        gr_miterlim_val(hq) = miterlim_val(p);
+	    break;
+      case mp_stroked_code:
+	    gr_pen_p(hq)        = mp_export_knot_list(mp,pen_p(p));
+        if (pen_is_elliptical(pen_p(p)))  {
+  	      gr_path_p(hq)       = mp_export_knot_list(mp,path_p(p));
+        } else {
+	      pointer pc;
+          pc=mp_copy_path(mp, path_p(p));
+          t=lcap_val(p);
+          if ( left_type(pc)!=mp_endpoint ) { 
+            left_type(mp_insert_knot(mp, pc,x_coord(pc),y_coord(pc)))=mp_endpoint;
+            right_type(pc)=mp_endpoint;
+            pc=link(pc);
+            t=1;
+          }
+          pc=mp_make_envelope(mp,pc,pen_p(p),ljoin_val(p),t,miterlim_val(p));
+          gr_path_p(hq)       = mp_export_knot_list(mp,pc);
+          mp_toss_knot_list(mp, pc);
+        }
+        @<Export object color@>;
+        @<Export object scripts@>;
+        gr_ljoin_val(hq)    = ljoin_val(p);
+        gr_miterlim_val(hq) = miterlim_val(p);
+        gr_lcap_val(hq)     = lcap_val(p);
+        gr_dash_scale(hq)   = dash_scale(p);
+        gr_dash_p(hq)       = mp_export_dashes(mp,dash_p(p));
+	    break;
+      case mp_text_code:
+	    gr_text_p(hq)       = str(text_p(p));
+	    gr_font_n(hq)       = font_n(p);
+        @<Export object color@>;
+        @<Export object scripts@>;
+        gr_width_val(hq)    = width_val(p);
+        gr_height_val(hq)   = height_val(p);
+        gr_depth_val(hq)    = depth_val(p);
+        gr_tx_val(hq)       = tx_val(p);
+        gr_ty_val(hq)       = ty_val(p);
+        gr_txx_val(hq)      = txx_val(p);
+        gr_txy_val(hq)      = txy_val(p);
+        gr_tyx_val(hq)      = tyx_val(p);
+        gr_tyy_val(hq)      = tyy_val(p);
+	    break;
+      case mp_start_clip_code: 
+      case mp_start_bounds_code:
+	    gr_path_p(hq) = mp_export_knot_list(mp,path_p(p));
+	    break;
+      case mp_stop_clip_code: 
+      case mp_stop_bounds_code:
+        /* nothing to do here */
+	    break;
+      } 
+      if (hh->body==NULL) { 
+         hh->body=hq; hp = hq; 
+      } else {
+        gr_link(hp) = hq;
+        hp = gr_link(hp);
       }
+      p=link(p);
     }
-    mp_fix_graphics_state(mp, p);
-    switch (type(p)) {
-    @<Cases for translating graphical object~|p| into \ps@>;
-    case mp_start_bounds_code:
-    case mp_stop_bounds_code:
-	  break;
-    } /* all cases are enumerated */
-    p=link(p);
+    mp_gr_ship_out (mp, hh->body);
+    mp_xfree(hh);
   }
-  mp_ps_print_cmd(mp, "showpage","P"); mp_print_ln(mp);
-  mp_print(mp, "%%EOF"); mp_print_ln(mp);
   fclose(mp->ps_file);
   mp->selector=mp->non_ps_setting;
   if ( mp->internal[mp_prologues]<=0 ) mp_clear_sizes(mp);
@@ -25719,6 +25308,35 @@ void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
   if ( mp->internal[mp_tracing_output]>0 ) 
    mp_print_edges(mp, h," (just shipped out)",true);
 }
+
+@ 
+@d gr_color_model(A)  (A)->color_model_field
+@d gr_red_val(A)      (A)->color_field.rgb._red_val
+@d gr_green_val(A)    (A)->color_field.rgb._green_val
+@d gr_blue_val(A)     (A)->color_field.rgb._blue_val
+@d gr_cyan_val(A)     (A)->color_field.cmyk._cyan_val
+@d gr_magenta_val(A)  (A)->color_field.cmyk._magenta_val
+@d gr_yellow_val(A)   (A)->color_field.cmyk._yellow_val
+@d gr_black_val(A)    (A)->color_field.cmyk._black_val
+@d gr_grey_val(A)     (A)->color_field.grey._grey_val
+
+@<Export object color@>=
+gr_color_model(hq)  = color_model(p);
+gr_cyan_val(hq)     = cyan_val(p);
+gr_magenta_val(hq)  = magenta_val(p);
+gr_yellow_val(hq)   = yellow_val(p);
+gr_black_val(hq)    = black_val(p);
+gr_red_val(hq)      = red_val(p);
+gr_green_val(hq)    = green_val(p);
+gr_blue_val(hq)     = blue_val(p);
+gr_grey_val(hq)     = grey_val(p)
+
+
+@ @<Export object scripts@>=
+if (pre_script(p)!=null)
+  gr_pre_script(hq)   = str(pre_script(p));
+if (post_script(p)!=null)
+  gr_post_script(hq)  = str(post_script(p));
 
 @ @<Internal library declarations@>=
 void mp_apply_mark_string_chars(MP mp, pointer h, int next_size);
@@ -25792,113 +25410,6 @@ while ( p!=null ) {
   }
   p=link(p);
 }
-
-
-
-
-@ @<Cases for translating graphical object~|p| into \ps@>=
-case mp_start_clip_code: 
-  mp_print_nl(mp, ""); mp_ps_print_cmd(mp, "gsave ","q ");
-  mp_ps_path_out(mp, path_p(p));
-  mp_ps_print_cmd(mp, " clip"," W");
-  mp_print_ln(mp);
-  if ( mp->internal[mp_restore_clip_color]>0 )
-    mp_unknown_graphics_state(mp, 1);
-  break;
-case mp_stop_clip_code: 
-  mp_print_nl(mp, ""); mp_ps_print_cmd(mp, "grestore","Q");
-  mp_print_ln(mp);
-  if ( mp->internal[mp_restore_clip_color]>0 )
-    mp_unknown_graphics_state(mp, 2);
-  else
-    mp_unknown_graphics_state(mp, -1);
-  break;
-
-@ @<Cases for translating graphical object~|p| into \ps@>=
-case mp_fill_code: 
-  if ( pen_p(p)==null ) mp_ps_fill_out(mp, path_p(p));
-  else if ( pen_is_elliptical(pen_p(p)) ) mp_stroke_ellipse(mp, p,true);
-  else { 
-    mp_do_outer_envelope(mp, mp_copy_path(mp, path_p(p)), p);
-    mp_do_outer_envelope(mp, mp_htap_ypoc(mp, path_p(p)), p);
-  }
-  if ( (post_script(p))!=null ) {
-    mp_print_nl (mp, str(post_script(p))); mp_print_ln(mp);
-  };
-  break;
-case mp_stroked_code:
-  if ( pen_is_elliptical(pen_p(p)) ) mp_stroke_ellipse(mp, p,false);
-  else { 
-    q=mp_copy_path(mp, path_p(p));
-    t=lcap_val(p);
-    @<Break the cycle and set |t:=1| if path |q| is cyclic@>;
-    q=mp_make_envelope(mp, q,pen_p(p),ljoin_val(p),t,miterlim_val(p));
-    mp_ps_fill_out(mp, q);
-    mp_toss_knot_list(mp, q);
-  };
-  if ( (post_script(p))!=null ) {
-    mp_print_nl (mp, str(post_script(p))); mp_print_ln(mp);
-  };
-  break;
-
-@ The envelope of a cyclic path~|q| could be computed by calling
-|make_envelope| once for |q| and once for its reversal.  We don't do this
-because it would fail color regions that are covered by the pen regardless
-of where it is placed on~|q|.
-
-@<Break the cycle and set |t:=1| if path |q| is cyclic@>=
-if ( left_type(q)!=mp_endpoint ) { 
-  left_type(mp_insert_knot(mp, q,x_coord(q),y_coord(q)))=mp_endpoint;
-  right_type(q)=mp_endpoint;
-  q=link(q);
-  t=1;
-}
-
-@ @<Cases for translating graphical object~|p| into \ps@>=
-case mp_text_code: 
-  if ( (font_n(p)!=null_font) && (length(text_p(p))>0) ) {
-    if ( mp->internal[mp_prologues]>0 )
-      scf=mp_choose_scale(mp, p);
-    else 
-      scf=mp_indexed_size(mp, font_n(p), name_type(p));
-    @<Shift or transform as necessary before outputting text node~|p| at scale
-      factor~|scf|; set |transformed:=true| if the original transformation must
-      be restored@>;
-    mp_ps_string_out(mp, str(text_p(p)));
-    mp_ps_name_out(mp, mp->font_name[font_n(p)],false);
-    @<Print the size information and \ps\ commands for text node~|p|@>;
-    mp_print_ln(mp);
-  }
-  if ( (post_script(p))!=null ) {
-    mp_print_nl (mp, str(post_script(p))); mp_print_ln(mp);
-  }
-  break;
-
-@ @<Print the size information and \ps\ commands for text node~|p|@>=
-ps_room(18);
-mp_print_char(mp, ' ');
-ds=(mp->font_dsize[font_n(p)]+8) / 16;
-mp_print_scaled(mp, mp_take_scaled(mp, ds,scf));
-mp_print(mp, " fshow");
-if ( transformed ) 
-  mp_ps_print_cmd(mp, " grestore"," Q")
-
-@ @<Shift or transform as necessary before outputting text node~|p| at...@>=
-transformed=(txx_val(p)!=scf)||(tyy_val(p)!=scf)||
-            (txy_val(p)!=0)||(tyx_val(p)!=0);
-if ( transformed ) {
-  mp_ps_print_cmd(mp, "gsave [", "q [");
-  mp_ps_pair_out(mp, mp_make_scaled(mp, txx_val(p),scf),
-                     mp_make_scaled(mp, tyx_val(p),scf));
-  mp_ps_pair_out(mp, mp_make_scaled(mp, txy_val(p),scf),
-                     mp_make_scaled(mp, tyy_val(p),scf));
-  mp_ps_pair_out(mp, tx_val(p),ty_val(p));
-  mp_ps_print_cmd(mp, "] concat 0 0 moveto","] t 0 0 m");
-} else { 
-  mp_ps_pair_out(mp, tx_val(p),ty_val(p));
-  mp_ps_print_cmd(mp, "moveto","m");
-}
-mp_print_ln(mp)
 
 @ Now that we've finished |ship_out|, let's look at the other commands
 by which a user can send things to the \.{GF} file.

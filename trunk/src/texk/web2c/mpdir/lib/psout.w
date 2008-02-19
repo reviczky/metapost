@@ -4161,11 +4161,11 @@ accurately. (Overfull boxes are avoided if an illustration is made to
 match a given \.{\char`\\hsize}.)
 
 @<Exported...@>=
-void mp_print_initial_comment(MP mp, pointer h, 
+void mp_print_initial_comment(MP mp,
                               scaled minx, scaled miny, scaled maxx, scaled maxy);
 
 @ @c
-void mp_print_initial_comment(MP mp, pointer h, 
+void mp_print_initial_comment(MP mp,
                               scaled minx, scaled miny, scaled maxx, scaled maxy) {
   scaled t;
   int prologues = (mp->internal[mp_prologues]>>16);
@@ -4325,6 +4325,8 @@ void mp_do_gr_toss_knot_list (struct mp_knot *p) ;
 void mp_do_gr_toss_knot_list (struct mp_knot * p) {
   struct mp_knot *q; /* the node being freed */
   struct mp_knot *r; /* the next node */
+  if (p==NULL)
+    return;
   q=p;
   do {  
     r=gr_next_knot(q); 
@@ -4396,13 +4398,13 @@ if ( abs(gr_right_x(p)-gr_x_coord(p)-d)<=bend_tolerance )
 @<Types...@>=
 typedef union {
   struct {
-    scaled red_val, green_val, blue_val;
+    scaled _red_val, _green_val, _blue_val;
   } rgb;
   struct {
-    scaled cyan_val, magenta_val, yellow_val, black_val;
+    scaled _cyan_val, _magenta_val, _yellow_val, _black_val;
   } cmyk;
   struct {
-    scaled grey_val;
+    scaled _grey_val;
   } grey ;
 } mp_color;
 
@@ -4427,6 +4429,25 @@ typedef struct mp_dash_list {
 } mp_dash_list ;
 
 
+@ 
+@d mp_gr_toss_dashes(A,B) mp_do_gr_toss_dashes(B) 
+
+@<Declarations@>=
+void mp_do_gr_toss_dashes(struct mp_dash_list *dl);
+
+@ @c
+void mp_do_gr_toss_dashes(struct mp_dash_list *dl) {
+  struct mp_dash_item *di, *dn;
+  di = gr_dash_list(dl);
+  while (di!= NULL) {
+     dn = gr_dash_link(di);
+     mp_xfree(di);
+     di = dn;
+  }
+  mp_xfree(dl);
+}
+
+
 @ Now for outputting the actual graphic objects. First, set up some 
 structures and access macros.
 
@@ -4434,14 +4455,14 @@ structures and access macros.
 @d gr_link(A)         (A)->_link_field
 @d gr_name_type(A)    (A)->name_type_field
 @d gr_color_model(A)  (A)->color_model_field
-@d gr_red_val(A)      (A)->color_field.rgb.red_val
-@d gr_green_val(A)    (A)->color_field.rgb.green_val
-@d gr_blue_val(A)     (A)->color_field.rgb.blue_val
-@d gr_cyan_val(A)     (A)->color_field.cmyk.cyan_val
-@d gr_magenta_val(A)  (A)->color_field.cmyk.magenta_val
-@d gr_yellow_val(A)   (A)->color_field.cmyk.yellow_val
-@d gr_black_val(A)    (A)->color_field.cmyk.black_val
-@d gr_grey_val(A)     (A)->color_field.grey.grey_val
+@d gr_red_val(A)      (A)->color_field.rgb._red_val
+@d gr_green_val(A)    (A)->color_field.rgb._green_val
+@d gr_blue_val(A)     (A)->color_field.rgb._blue_val
+@d gr_cyan_val(A)     (A)->color_field.cmyk._cyan_val
+@d gr_magenta_val(A)  (A)->color_field.cmyk._magenta_val
+@d gr_yellow_val(A)   (A)->color_field.cmyk._yellow_val
+@d gr_black_val(A)    (A)->color_field.cmyk._black_val
+@d gr_grey_val(A)     (A)->color_field.grey._grey_val
 @d gr_path_p(A)       (A)->path_p_field 
 @d gr_htap_p(A)       (A)->htap_p_field 
 @d gr_pen_p(A)        (A)->pen_p_field 
@@ -4495,7 +4516,21 @@ typedef struct mp_graphic_object {
   scaled tyx_field ;
   scaled tyy_field ;
 } mp_graphic_object;
+typedef struct mp_edge_object {
+  struct mp_graphic_object * body;
+} mp_edge_object;
 
+@ @<Exported function headers@>=
+struct mp_graphic_object *mp_new_graphic_object(MP mp, int type);
+
+@ @c
+struct mp_graphic_object *mp_new_graphic_object (MP mp, int type) {
+  mp_graphic_object *p;
+  p = mp_xmalloc(mp,1,sizeof(struct mp_graphic_object));
+  memset(p,0,sizeof(struct mp_graphic_object));
+  gr_type(p) = type;
+  return p;
+}
 
 @ We need to keep track of several parameters from the \ps\ graphics state.
 @^graphics state@>
@@ -4615,7 +4650,7 @@ void mp_gr_fix_graphics_state (MP mp, struct mp_graphic_object *p) {
   if ( gr_has_color(p) )
     @<Make sure \ps\ will use the right color for object~|p|@>;
   if ( (gr_type(p)==mp_fill_code)||(gr_type(p)==mp_stroked_code) )
-    if ( gr_pen_p(p)!=null )
+    if ( gr_pen_p(p)!=NULL )
       if ( pen_is_elliptical(gr_pen_p(p)) ) {
         @<Generate \ps\ code that sets the stroke width to the
           appropriate rounded value@>;
@@ -4891,16 +4926,25 @@ cannot be printed without overflow.
 @<Set the dash pattern from |dash_list(hh)| scaled by |scf|@>=
 { gs_dash_p=hh;
   gs_dash_sc=scf;
-  if ( (gr_dash_y(hh)==0) || 
+  if ( (gr_dash_p(p)==NULL) || 
+       (gr_dash_y(hh)==0) || 
        ((abs(gr_dash_y(hh)) / unity) >= (el_gordo / scf))) {
     mp_ps_print_cmd(mp, " [] 0 setdash"," rd");
   } else { 
     struct mp_dash_item *dpp=gr_dash_list(hh);
+    struct mp_dash_item *pp= dpp;
     ps_room(28);
     mp_print(mp, " [");
     while ( dpp!=NULL ) {
-      mp_ps_pair_out(mp, mp_take_scaled(mp, gr_stop_x(dpp)-gr_start_x(dpp),scf),
-         mp_take_scaled(mp, gr_start_x(gr_dash_link(dpp))-gr_stop_x(dpp),scf));
+	  scaled dx,dy;
+      dx = mp_take_scaled(mp, gr_stop_x(dpp)-gr_start_x(dpp),scf);
+      dy = 0;
+      if (gr_dash_link(dpp)!=NULL) {
+        dy = mp_take_scaled(mp, gr_start_x(gr_dash_link(dpp))-gr_stop_x(dpp),scf);
+      } else {
+        dy = mp_take_scaled(mp, (gr_start_x(pp)+gr_dash_y(hh))-gr_stop_x(dpp),scf);
+      }
+      mp_ps_pair_out(mp, dx, dy);
       dpp=gr_dash_link(dpp);
     }
     ps_room(22);
@@ -4945,7 +4989,7 @@ scaled mp_gr_dash_offset (MP mp, struct mp_dash_list *h) ;
 @ @c 
 scaled mp_gr_dash_offset (MP mp, struct mp_dash_list *h) {
   scaled x;  /* the answer */
-  if ( (gr_dash_list(h)==NULL) || (gr_dash_y(h)<0) ) 
+  if ( h==NULL || (gr_dash_list(h)==NULL) || (gr_dash_y(h)<0) ) 
      mp_confusion(mp, "dash0");
 @:this can't happen dash0}{\quad dash0@>
   if ( gr_dash_y(h)==0 ) {
@@ -5128,12 +5172,16 @@ scaled mp_gr_choose_scale (MP mp, struct mp_graphic_object *p) ;
 @ 
 @d pen_is_elliptical(A) ((A)==gr_next_knot((A)))
 
-@c 
+@<Exported function headers@>=
+void mp_gr_ship_out (MP mp, struct mp_graphic_object *h) ;
+
+@ @c 
 void mp_gr_ship_out (MP mp, struct mp_graphic_object *h) {
   struct mp_graphic_object *p;
   scaled ds,scf; /* design size and scale factor for a text node */
   boolean transformed; /* is the coordinate system being transformed? */
   p =  h;
+  mp_gs_unknown_graphics_state(mp, 0);
   while ( p!=NULL ) { 
     if ( gr_has_color(p) ) {
       if ( (gr_pre_script(p))!=NULL ) {
@@ -5147,11 +5195,6 @@ void mp_gr_ship_out (MP mp, struct mp_graphic_object *h) {
       if ( gr_pen_p(p)==NULL ) mp_gr_ps_fill_out(mp, gr_path_p(p));
       else if ( pen_is_elliptical(gr_pen_p(p)) ) mp_gr_stroke_ellipse(mp, p,true);
       else { 
-        /* NOTE: these have to be the result of 
-           |mp_make_envelope(mp, mp_copy_path(path_p(p),p ...))|
-         add
-           |mp_make_envelope(mp, mp_htap_ypoc(path_p(p),p ...))|
-         */
         mp_gr_ps_fill_out(mp, gr_path_p(p));
         mp_gr_ps_fill_out(mp, gr_htap_p(p));
       }
@@ -5162,12 +5205,6 @@ void mp_gr_ship_out (MP mp, struct mp_graphic_object *h) {
     case mp_stroked_code:
       if ( pen_is_elliptical(gr_pen_p(p)) ) mp_gr_stroke_ellipse(mp, p,false);
       else { 
- 	/* NOTE: this has to be the result of :
-          |q=mp_gr_copy_path(mp, gr_path_p(p));|
-          |t=gr_lcap_val(p);|
-          |@<Break the cycle and set |t:=1| if path |q| is cyclic@>;|
-          |q=mp_make_envelope(mp, q, pen_p(p),ljoin_val(p),t,miterlim_val(p));|
-         */
         mp_gr_ps_fill_out(mp, gr_path_p(p));
       }
       if ( gr_post_script(p)!=NULL ) {
@@ -5214,6 +5251,9 @@ void mp_gr_ship_out (MP mp, struct mp_graphic_object *h) {
     } /* all cases are enumerated */
     p=gr_link(p);
   }
+  mp_ps_print_cmd(mp, "showpage","P"); mp_print_ln(mp);
+  mp_print(mp, "%%EOF"); mp_print_ln(mp);
+  mp_gr_toss_objects(mp, h);
 }
 
 @ The envelope of a cyclic path~|q| could be computed by calling
@@ -5257,3 +5297,48 @@ if ( transformed ) {
 }
 mp_print_ln(mp)
 
+
+@ 
+@d mp_gr_toss_objects(A,B)  mp_do_gr_toss_objects(B) 
+
+@<Declarations@>=
+void mp_do_gr_toss_objects (struct mp_graphic_object *p) ;
+
+@ @c
+void mp_do_gr_toss_objects (struct mp_graphic_object *p) {
+  struct mp_graphic_object *q;
+  while ( p!=NULL ) { 
+    switch (gr_type(p)) {
+    case mp_fill_code: 
+      mp_xfree(gr_pre_script(p));
+      mp_xfree(gr_post_script(p));
+      mp_gr_toss_knot_list(mp,gr_pen_p(p));
+      mp_gr_toss_knot_list(mp,gr_path_p(p));
+      mp_gr_toss_knot_list(mp,gr_htap_p(p));
+	  break;
+    case mp_stroked_code:
+      mp_xfree(gr_pre_script(p));
+      mp_xfree(gr_post_script(p));
+      mp_gr_toss_knot_list(mp,gr_pen_p(p));
+      mp_gr_toss_knot_list(mp,gr_path_p(p));
+      if (gr_dash_p(p)!=NULL) 
+        mp_gr_toss_dashes   (mp,gr_dash_p(p));
+      break;
+    case mp_text_code: 
+      mp_xfree(gr_pre_script(p));
+      mp_xfree(gr_post_script(p));
+      mp_xfree(gr_text_p(p));
+      break;
+    case mp_start_clip_code: 
+    case mp_stop_clip_code: 
+      mp_gr_toss_knot_list(mp,gr_path_p(p));
+      break;
+    case mp_start_bounds_code:
+    case mp_stop_bounds_code:
+	  break;
+    } /* all cases are enumerated */
+	q = gr_link(p);
+    mp_xfree(p);
+    p=q;
+  }
+}
