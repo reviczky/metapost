@@ -4048,10 +4048,10 @@ pointer mp_get_node (MP mp,integer s) { /* variable-size node allocation */
   do {  
     @<Try to allocate within node |p| and its physical successors,
      and |goto found| if allocation was possible@>;
-    if (rlink(p)==null) {
+    if (rlink(p)==null || rlink(p)==p) {
       print_err("Free list garbled");
-      help3("I found an entry in the list of free nodes that points")
-       ("nowhere. I will try to ignore the broken link, but something")
+      help3("I found an entry in the list of free nodes that links")
+       ("badly. I will try to ignore the broken link, but something")
        ("is seriously amiss. It is wise to warn the maintainers.")
 	  mp_error(mp);
       rlink(p)=mp->rover;
