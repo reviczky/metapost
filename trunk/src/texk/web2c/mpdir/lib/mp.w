@@ -4828,6 +4828,7 @@ values they test for.
 @d pen_offset_of 127 /* operation code for \.{penoffset} */
 @d arc_time_of 128 /* operation code for \.{arctime} */
 @d mp_version 129 /* operation code for \.{mpversion} */
+@d envelope_of 130 /* operation code for \{.envelope} */
 
 @c void mp_print_op (MP mp,quarterword c) { 
   if (c<=mp_numeric_type ) {
@@ -4933,6 +4934,7 @@ values they test for.
     case pen_offset_of:mp_print(mp, "penoffset"); break;
     case arc_time_of:mp_print(mp, "arctime"); break;
     case mp_version:mp_print(mp, "mpversion"); break;
+    case envelope_of:mp_print(mp, "envelope"); break;
     default: mp_print(mp, ".."); break;
     }
   }
@@ -18661,6 +18663,8 @@ mp_primitive(mp, "infont",secondary_binary,in_font);
 @:in_font_}{\&{infont} primitive@>
 mp_primitive(mp, "intersectiontimes",tertiary_binary,intersect);
 @:intersection_times_}{\&{intersectiontimes} primitive@>
+mp_primitive(mp, "envelope",primary_binary,envelope_of);
+@:envelope_}{\&{envelope} primitive@>
 
 @ @<Cases of |print_cmd...@>=
 case nullary:
@@ -19915,6 +19919,15 @@ void mp_bad_binary (MP mp,pointer p, quarterword c) {
       ("argument (see above) as the result of the operation.");
   mp_put_get_error(mp);
 }
+void mp_bad_envelope_pen (MP mp) {
+  mp_disp_err(mp, null,"");
+  exp_err("Not implemented: envelope(elliptical pen)of(path)");
+@.Not implemented...@>
+  help3("I'm afraid I don't know how to apply that operation to that")
+       ("combination of types. Continue, and I'll return the second")
+      ("argument (see above) as the result of the operation.");
+  mp_put_get_error(mp);
+}
 
 @ @<Trace the current binary operation@>=
 { 
@@ -21100,6 +21113,12 @@ case direction_time_of:
   else 
     mp_bad_binary(mp, p,direction_time_of);
   break;
+case envelope_of:
+  if ( (type(p) != mp_pen_type) || (mp->cur_type != mp_path_type) )
+    mp_bad_binary(mp, p,envelope_of);
+  else
+    mp_set_up_envelope(mp, p);
+  break;
 
 @ @<Declare binary action...@>=
 void mp_set_up_offset (MP mp,pointer p) { 
@@ -21109,6 +21128,31 @@ void mp_set_up_offset (MP mp,pointer p) {
 void mp_set_up_direction_time (MP mp,pointer p) { 
   mp_flush_cur_exp(mp, mp_find_direction_time(mp, value(x_part_loc(p)),
   value(y_part_loc(p)),mp->cur_exp));
+}
+void mp_set_up_envelope (MP mp,pointer p) {
+  pointer q = mp_copy_path(mp, mp->cur_exp); /* the original path */
+  mp_unstash_cur_exp(mp, p);
+  /* TODO: accept elliptical pens for straight paths */
+  if (pen_is_elliptical(mp->cur_exp)) {
+    mp_bad_envelope_pen(mp);
+    mp->cur_exp = q;
+    mp->cur_type = mp_path_type;
+    return;
+  }
+  small_number ljoin, lcap;
+  scaled miterlim;
+  if ( mp->internal[mp_linejoin]>unity ) ljoin=2;
+  else if ( mp->internal[mp_linejoin]>0 ) ljoin=1;
+  else ljoin=0;
+  if ( mp->internal[mp_linecap]>unity ) lcap=2;
+  else if ( mp->internal[mp_linecap]>0 ) lcap=1;
+  else lcap=0;
+  if ( mp->internal[mp_miterlimit]<unity )
+    miterlim=unity;
+  else
+    miterlim=mp->internal[mp_miterlimit];
+  mp->cur_exp = mp_make_envelope(mp, q, mp->cur_exp, ljoin,lcap,miterlim);
+  mp->cur_type = mp_path_type;
 }
 
 @ @<Declare binary action...@>=
