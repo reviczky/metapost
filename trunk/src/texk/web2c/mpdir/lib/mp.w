@@ -4048,7 +4048,15 @@ pointer mp_get_node (MP mp,integer s) { /* variable-size node allocation */
   do {  
     @<Try to allocate within node |p| and its physical successors,
      and |goto found| if allocation was possible@>;
-    p=rlink(p); /* move to the next node in the ring */
+    if (rlink(p)==null) {
+      print_err("Free list garbled");
+      help3("I found an entry in the list of free nodes that points")
+       ("nowhere. I will try to ignore the broken link, but something")
+       ("is seriously amiss. It is wise to warn the maintainers.")
+	  mp_error(mp);
+      rlink(p)=mp->rover;
+    }
+	p=rlink(p); /* move to the next node in the ring */
   } while (p!=mp->rover); /* repeat until the whole list has been traversed */
   if ( s==010000000000 ) { 
     return max_halfword;
@@ -4063,7 +4071,7 @@ pointer mp_get_node (MP mp,integer s) { /* variable-size node allocation */
 @:MetaPost capacity exceeded main memory size}{\quad main memory size@>
 FOUND: 
   link(r)=null; /* this node is now nonempty */
-  mp->var_used=mp->var_used+s; /* maintain usage statistics */
+  mp->var_used+=s; /* maintain usage statistics */
   return r;
 }
 
@@ -4084,7 +4092,8 @@ implemented on ``virtual memory'' systems.
   }
   if ( t>max_halfword ) t=max_halfword;
   p=llink(mp->rover); q=mp->lo_mem_max; rlink(p)=q; llink(mp->rover)=q;
-  rlink(q)=mp->rover; llink(q)=p; link(q)=empty_flag; node_size(q)=t-mp->lo_mem_max;
+  rlink(q)=mp->rover; llink(q)=p; link(q)=empty_flag; 
+  node_size(q)=t-mp->lo_mem_max;
   mp->lo_mem_max=t; link(mp->lo_mem_max)=null; info(mp->lo_mem_max)=null;
   mp->rover=q; 
   goto RESTART;
@@ -4141,7 +4150,7 @@ void mp_free_node (MP mp, pointer p, halfword s) { /* variable-size node
 @^inner loop@>
   q=llink(mp->rover); llink(p)=q; rlink(p)=mp->rover; /* set both links */
   llink(mp->rover)=p; rlink(q)=p; /* insert |p| into the ring */
-  mp->var_used=mp->var_used-s; /* maintain statistics */
+  mp->var_used-=s; /* maintain statistics */
 }
 
 @ Just before \.{INIMP} writes out the memory, it sorts the doubly linked
@@ -4218,7 +4227,8 @@ mp->rover=lo_mem_stat_max+1; /* initialize the dynamic memory */
 link(mp->rover)=empty_flag;
 node_size(mp->rover)=1000; /* which is a 1000-word available node */
 llink(mp->rover)=mp->rover; rlink(mp->rover)=mp->rover;
-mp->lo_mem_max=mp->rover+1000; link(mp->lo_mem_max)=null; info(mp->lo_mem_max)=null;
+mp->lo_mem_max=mp->rover+1000; 
+link(mp->lo_mem_max)=null; info(mp->lo_mem_max)=null;
 for (k=hi_mem_stat_min;k<=(int)mp->mem_top;k++) {
   mp->mem[k]=mp->mem[mp->lo_mem_max]; /* clear list heads */
 }
@@ -25543,16 +25553,16 @@ FILE * mem_file; /* for input or output of mem information */
 the range of the values we are reading in. We say `|undump(a)(b)(x)|' to
 read an integer value |x| that is supposed to be in the range |a<=x<=b|.
 
-@d undump_wd(A)   { fread(&WW,sizeof(WW),1,mp->mem_file); (A)=WW; }
-@d undump_int(A)  { int cint; fread(&cint,sizeof(cint),1,mp->mem_file); (A)=cint; }
-@d undump_hh(A)   { fread(&WW,sizeof(WW),1,mp->mem_file); (A)=WW.hh; }
-@d undump_qqqq(A) { fread(&WW,sizeof(WW),1,mp->mem_file); (A)=WW.qqqq; }
+@d undump_wd(A)   { fread(&WW,sizeof(WW),1,mp->mem_file); A=WW; }
+@d undump_int(A)  { int cint; fread(&cint,sizeof(cint),1,mp->mem_file); A=cint; }
+@d undump_hh(A)   { fread(&WW,sizeof(WW),1,mp->mem_file); A=WW.hh; }
+@d undump_qqqq(A) { fread(&WW,sizeof(WW),1,mp->mem_file); A=WW.qqqq; }
 @d undump_strings(A,B,C) { 
-   undump_int(x); if ( (x<(A)) || (x>(B)) ) goto OFF_BASE; else (C)=str(x); }
-@d undump(A,B,C) { undump_int(x); if ( (x<(A)) || (x>(int)(B)) ) goto OFF_BASE; else (C)=x; }
+   undump_int(x); if ( (x<(A)) || (x>(B)) ) goto OFF_BASE; else C=str(x); }
+@d undump(A,B,C) { undump_int(x); if ( (x<(A)) || (x>(int)(B)) ) goto OFF_BASE; else C=x; }
 @d undump_size(A,B,C,D) { undump_int(x);
-               if (x<(A)) goto OFF_BASE; 
-               if (x>(B)) { too_small((C)); } else {(D)=x;} }
+                          if (x<(A)) goto OFF_BASE; 
+                          if (x>(B)) { too_small((C)); } else { D=x;} }
 @d undump_string(A) { integer XX=0; undump_int(XX);
                       A = xmalloc(XX,sizeof(char));
                       fread(A,XX,1,mp->mem_file); }
