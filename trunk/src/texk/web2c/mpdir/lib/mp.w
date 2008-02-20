@@ -10886,6 +10886,9 @@ the path should always change the sign of |turn_amt|.
 @<Decide on the net change in pen offsets and set |turn_amt|@>=
 d_sign=mp_ab_vs_cd(mp, dx,dyin, dxin,dy);
 if ( d_sign==0 ) {
+  @<Check rotation direction based on node position@>
+}
+if ( d_sign==0 ) {
   if ( dx==0 ) {
     if ( dy>0 ) d_sign=1;  else d_sign=-1;
   } else {
@@ -10896,6 +10899,17 @@ if ( d_sign==0 ) {
   more than $180^\circ$@>;
 turn_amt=mp_get_turn_amt(mp, w, dxin, dyin, (d_sign>0));
 if ( ss<0 ) turn_amt=turn_amt-d_sign*n
+
+@ We check rotation direction by looking at the vector connecting the current
+node with the next. If its angle with incoming and outgoing tangents has the
+same sign, we pick this as |d_sign|, since it means we have a flex, not a cusp.
+Otherwise we proceed to the cusp code.
+
+@<Check rotation direction based on node position@>=
+u0=x_coord(q)-x_coord(p);
+u1=y_coord(q)-y_coord(p);
+d_sign = half(mp_ab_vs_cd(mp, dx, u1, u0, dy)+
+  mp_ab_vs_cd(mp, u0, dyin, dxin, u1));
 
 @ In order to be invariant under path reversal, the result of this computation
 should not change when |x0|, |y0|, $\ldots$ are all negated and |(x0,y0)| is
