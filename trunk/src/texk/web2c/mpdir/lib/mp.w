@@ -21131,9 +21131,8 @@ void mp_set_up_direction_time (MP mp,pointer p) {
 }
 void mp_set_up_envelope (MP mp,pointer p) {
   pointer q = mp_copy_path(mp, mp->cur_exp); /* the original path */
-  mp_unstash_cur_exp(mp, p);
   /* TODO: accept elliptical pens for straight paths */
-  if (pen_is_elliptical(mp->cur_exp)) {
+  if (pen_is_elliptical(value(p))) {
     mp_bad_envelope_pen(mp);
     mp->cur_exp = q;
     mp->cur_type = mp_path_type;
@@ -21151,7 +21150,7 @@ void mp_set_up_envelope (MP mp,pointer p) {
     miterlim=unity;
   else
     miterlim=mp->internal[mp_miterlimit];
-  mp->cur_exp = mp_make_envelope(mp, q, mp->cur_exp, ljoin,lcap,miterlim);
+  mp->cur_exp = mp_make_envelope(mp, q, value(p), ljoin,lcap,miterlim);
   mp->cur_type = mp_path_type;
 }
 
