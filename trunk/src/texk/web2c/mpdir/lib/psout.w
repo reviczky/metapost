@@ -546,7 +546,7 @@ static void mp_font_encodings (MP mp, int lastfnum, int encodings_only) ;
        mp_xfree(mp->font_enc_name[f]);
        mp->font_enc_name[f]=NULL;
     }
-    if (mp_has_font_size(mp,f) && mp_has_fm_entry (mp,f,&fm_cur)) { 
+    if (mp_has_fm_entry (mp,f,&fm_cur)) { 
       if (fm_cur != NULL && fm_cur->ps_name != NULL &&is_reencoded (fm_cur)) {
 	e = fm_cur->encoding;
 	mp_read_enc (mp,e);
@@ -3246,11 +3246,11 @@ static char * mp_fm_font_subset_name (MP mp, int f);
   if (mp_has_fm_entry (mp, f, &fm)) { 
     if (fm != NULL && (fm->ps_name != NULL)) {
       if (is_reencoded (fm)) {
-   	e = fm->encoding;
+   	    e = fm->encoding;
       	if (e->enc_name!=NULL)
      	  return mp_xstrdup(mp,e->enc_name);
       } else {
-	return NULL;
+	    return NULL;
       }
     }
   }
@@ -5248,6 +5248,10 @@ void mp_gr_ship_out (MP mp, struct mp_graphic_object *h) {
     case mp_start_bounds_code:
     case mp_stop_bounds_code:
 	  break;
+    case mp_special_code: 
+      mp_print_nl (mp, gr_pre_script(p)); 
+ 	  mp_print_ln (mp);
+      break;
     } /* all cases are enumerated */
     p=gr_link(p);
   }
@@ -5335,6 +5339,9 @@ void mp_do_gr_toss_objects (struct mp_graphic_object *p) {
       break;
     case mp_start_bounds_code:
     case mp_stop_bounds_code:
+	  break;
+    case mp_special_code: 
+      mp_xfree(gr_pre_script(p));
 	  break;
     } /* all cases are enumerated */
 	q = gr_link(p);

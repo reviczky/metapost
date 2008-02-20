@@ -9318,7 +9318,6 @@ mp_start_bounds_code=5, /* |type| of a node that gives a \&{setbounds} path */
 mp_stop_clip_code=6, /* |type| of a node that stops clipping */
 mp_stop_bounds_code=7, /* |type| of a node that stops \&{setbounds} */
 
-
 @ @c 
 pointer mp_new_bounds_node (MP mp,pointer p, small_number  c) {
   /* make a node of type |c| where |p| is the clipping or \&{setbounds} path */
@@ -25169,12 +25168,19 @@ void mp_do_special (MP mp) ;
   mp_put_get_error(mp);
 }
 
-@ @<Print any pending specials@>=
-t=link(spec_head);
-while ( t!=null ) {
-  mp_print_str(mp, value(t));
-  mp_print_ln(mp);
-  t=link(t);
+@ On the export side, we need an extra object type for special strings.
+
+@<Graphical object codes@>=
+mp_special_code=8, 
+
+@ @<Export pending specials@>=
+p=link(spec_head);
+while ( p!=null ) {
+  hq = mp_new_graphic_object(mp,mp_special_code);
+  gr_pre_script(hq)  = str(value(p));
+  if (hh->body==NULL) hh->body=hq; else gr_link(hp) = hq;
+  hp = hq;
+  p=link(p);
 }
 mp_flush_token_list(mp, link(spec_head));
 link(spec_head)=null;
@@ -25217,114 +25223,106 @@ void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
   pointer p; /* the current graphical object */
   integer t; /* a temporary value */
   font_number f; /* fonts used in a text node or as loop counters */
+  struct mp_edge_object *hh; /* the first graphical object */
+  struct mp_graphic_object *hp; /* the current graphical object */
+  struct mp_graphic_object *hq; /* something |hp| points to  */
+  int prologues = mp->internal[mp_prologues];
   mp_open_output_file(mp);
   mp->non_ps_setting=mp->selector;
   mp->selector=ps_file_only;
   mp_set_bbox(mp, h, true);
   mp_print_initial_comment(mp, minx_val(h),miny_val(h),maxx_val(h),maxy_val(h));
-  if ( (mp->internal[mp_prologues]==two)||(mp->internal[mp_prologues]==three) ) {
-    @<Scan all the text nodes and mark the used characters@>;
-    @<Update encoding names@>;
+  @<Unmark all marked characters@>;
+  mp_reload_encodings(mp);
+  @<Scan all the text nodes and mark the used characters@>;
+  if ( prologues==two || prologues==three ) {
     mp_print_improved_prologue(mp, h);
   } else {
-    @<Scan all the text nodes and set the |font_sizes| lists;
-     if |internal[mp_prologues]<=0| list the sizes selected by |choose_scale|,
-     apply |unmark_font| to each font encountered, and call |mark_string|
-     whenever the size index is zero@>;
     mp_print_prologue(mp, h);
   }
-  @<Print any pending specials@>;
-  {
-    struct mp_edge_object *hh; /* the first graphical object */
-    struct mp_graphic_object *hp; /* the current graphical object */
-    struct mp_graphic_object *hq; /* something |hp| points to  */
-    hh = mp_xmalloc(mp,1,sizeof(struct mp_edge_object));
-	hh->body = NULL;
-	p=link(dummy_loc(h));
-    while ( p!=null ) { 
-	  hq = mp_new_graphic_object(mp,type(p));
-      switch (type(p)) {
-      case mp_fill_code:
-	    gr_pen_p(hq)        = mp_export_knot_list(mp,pen_p(p));
-        if ((pen_p(p)==null) || pen_is_elliptical(pen_p(p)))  {
-		  gr_path_p(hq)       = mp_export_knot_list(mp,path_p(p));
-        } else {
-	      pointer pc, pp;
-	      pc = mp_copy_path(mp, path_p(p));
-          pp = mp_make_envelope(mp, pc, pen_p(p),ljoin_val(p),0,miterlim_val(p));
-          gr_path_p(hq)       = mp_export_knot_list(mp,pp);
-          mp_toss_knot_list(mp, pp);
-	      pc = mp_htap_ypoc(mp, path_p(p));
-          pp = mp_make_envelope(mp, pc, pen_p(p),ljoin_val(p),0,miterlim_val(p));
-          gr_htap_p(hq)       = mp_export_knot_list(mp,pp);
-          mp_toss_knot_list(mp, pp);
-        }
-        @<Export object color@>;
-        @<Export object scripts@>;
-        gr_ljoin_val(hq)    = ljoin_val(p);
-        gr_miterlim_val(hq) = miterlim_val(p);
-	    break;
-      case mp_stroked_code:
-	    gr_pen_p(hq)        = mp_export_knot_list(mp,pen_p(p));
-        if (pen_is_elliptical(pen_p(p)))  {
-  	      gr_path_p(hq)       = mp_export_knot_list(mp,path_p(p));
-        } else {
-	      pointer pc;
-          pc=mp_copy_path(mp, path_p(p));
-          t=lcap_val(p);
-          if ( left_type(pc)!=mp_endpoint ) { 
-            left_type(mp_insert_knot(mp, pc,x_coord(pc),y_coord(pc)))=mp_endpoint;
-            right_type(pc)=mp_endpoint;
-            pc=link(pc);
-            t=1;
-          }
-          pc=mp_make_envelope(mp,pc,pen_p(p),ljoin_val(p),t,miterlim_val(p));
-          gr_path_p(hq)       = mp_export_knot_list(mp,pc);
-          mp_toss_knot_list(mp, pc);
-        }
-        @<Export object color@>;
-        @<Export object scripts@>;
-        gr_ljoin_val(hq)    = ljoin_val(p);
-        gr_miterlim_val(hq) = miterlim_val(p);
-        gr_lcap_val(hq)     = lcap_val(p);
-        gr_dash_scale(hq)   = dash_scale(p);
-        gr_dash_p(hq)       = mp_export_dashes(mp,dash_p(p));
-	    break;
-      case mp_text_code:
-	    gr_text_p(hq)       = str(text_p(p));
-	    gr_font_n(hq)       = font_n(p);
-        @<Export object color@>;
-        @<Export object scripts@>;
-        gr_width_val(hq)    = width_val(p);
-        gr_height_val(hq)   = height_val(p);
-        gr_depth_val(hq)    = depth_val(p);
-        gr_tx_val(hq)       = tx_val(p);
-        gr_ty_val(hq)       = ty_val(p);
-        gr_txx_val(hq)      = txx_val(p);
-        gr_txy_val(hq)      = txy_val(p);
-        gr_tyx_val(hq)      = tyx_val(p);
-        gr_tyy_val(hq)      = tyy_val(p);
-	    break;
-      case mp_start_clip_code: 
-      case mp_start_bounds_code:
-	    gr_path_p(hq) = mp_export_knot_list(mp,path_p(p));
-	    break;
-      case mp_stop_clip_code: 
-      case mp_stop_bounds_code:
-        /* nothing to do here */
-	    break;
-      } 
-      if (hh->body==NULL) { 
-         hh->body=hq; hp = hq; 
+  hh = mp_xmalloc(mp,1,sizeof(struct mp_edge_object));
+  hh->body = NULL;
+  @<Export pending specials@>;
+  p=link(dummy_loc(h));
+  while ( p!=null ) { 
+    hq = mp_new_graphic_object(mp,type(p));
+    switch (type(p)) {
+    case mp_fill_code:
+      gr_pen_p(hq)        = mp_export_knot_list(mp,pen_p(p));
+      if ((pen_p(p)==null) || pen_is_elliptical(pen_p(p)))  {
+  	  gr_path_p(hq)       = mp_export_knot_list(mp,path_p(p));
       } else {
-        gr_link(hp) = hq;
-        hp = gr_link(hp);
+        pointer pc, pp;
+        pc = mp_copy_path(mp, path_p(p));
+        pp = mp_make_envelope(mp, pc, pen_p(p),ljoin_val(p),0,miterlim_val(p));
+        gr_path_p(hq)       = mp_export_knot_list(mp,pp);
+        mp_toss_knot_list(mp, pp);
+        pc = mp_htap_ypoc(mp, path_p(p));
+        pp = mp_make_envelope(mp, pc, pen_p(p),ljoin_val(p),0,miterlim_val(p));
+        gr_htap_p(hq)       = mp_export_knot_list(mp,pp);
+        mp_toss_knot_list(mp, pp);
       }
-      p=link(p);
-    }
-    mp_gr_ship_out (mp, hh->body);
-    mp_xfree(hh);
+      @<Export object color@>;
+      @<Export object scripts@>;
+      gr_ljoin_val(hq)    = ljoin_val(p);
+      gr_miterlim_val(hq) = miterlim_val(p);
+      break;
+    case mp_stroked_code:
+      gr_pen_p(hq)        = mp_export_knot_list(mp,pen_p(p));
+      if (pen_is_elliptical(pen_p(p)))  {
+	      gr_path_p(hq)       = mp_export_knot_list(mp,path_p(p));
+      } else {
+        pointer pc;
+        pc=mp_copy_path(mp, path_p(p));
+        t=lcap_val(p);
+        if ( left_type(pc)!=mp_endpoint ) { 
+          left_type(mp_insert_knot(mp, pc,x_coord(pc),y_coord(pc)))=mp_endpoint;
+          right_type(pc)=mp_endpoint;
+          pc=link(pc);
+          t=1;
+        }
+        pc=mp_make_envelope(mp,pc,pen_p(p),ljoin_val(p),t,miterlim_val(p));
+        gr_path_p(hq)       = mp_export_knot_list(mp,pc);
+        mp_toss_knot_list(mp, pc);
+      }
+      @<Export object color@>;
+      @<Export object scripts@>;
+      gr_ljoin_val(hq)    = ljoin_val(p);
+      gr_miterlim_val(hq) = miterlim_val(p);
+      gr_lcap_val(hq)     = lcap_val(p);
+      gr_dash_scale(hq)   = dash_scale(p);
+      gr_dash_p(hq)       = mp_export_dashes(mp,dash_p(p));
+      break;
+    case mp_text_code:
+      gr_text_p(hq)       = str(text_p(p));
+      gr_font_n(hq)       = font_n(p);
+      @<Export object color@>;
+      @<Export object scripts@>;
+      gr_width_val(hq)    = width_val(p);
+      gr_height_val(hq)   = height_val(p);
+      gr_depth_val(hq)    = depth_val(p);
+      gr_tx_val(hq)       = tx_val(p);
+      gr_ty_val(hq)       = ty_val(p);
+      gr_txx_val(hq)      = txx_val(p);
+      gr_txy_val(hq)      = txy_val(p);
+      gr_tyx_val(hq)      = tyx_val(p);
+      gr_tyy_val(hq)      = tyy_val(p);
+      break;
+    case mp_start_clip_code: 
+    case mp_start_bounds_code:
+      gr_path_p(hq) = mp_export_knot_list(mp,path_p(p));
+      break;
+    case mp_stop_clip_code: 
+    case mp_stop_bounds_code:
+      /* nothing to do here */
+      break;
+    } 
+    if (hh->body==NULL) hh->body=hq; else  gr_link(hp) = hq;
+    hp = hq;
+    p=link(p);
   }
+  mp_gr_ship_out (mp, hh->body);
+  mp_xfree(hh);
   fclose(mp->ps_file);
   mp->selector=mp->non_ps_setting;
   if ( mp->internal[mp_prologues]<=0 ) mp_clear_sizes(mp);
@@ -25370,62 +25368,45 @@ void mp_apply_mark_string_chars(MP mp, pointer h, int next_size) {
   pointer p;
   p=link(dummy_loc(h));
   while ( p!=null ) {
-    if ( type(p)==mp_text_code )
-      if ( font_n(p)!=null_font )
+    if ( type(p)==mp_text_code ) {
+      if ( font_n(p)!=null_font ) { 
         if ( name_type(p)==next_size )
           mp_mark_string_chars(mp, font_n(p),text_p(p));
-    p=link(p);
-  }
-}
-
-@ @<Scan all the text nodes and mark the used ...@>=
-for (f=null_font+1;f<=mp->last_fnum;f++) {
-  if ( mp->font_sizes[f]!=null ) {
-    mp_unmark_font(mp, f);
-    mp->font_sizes[f]=null;
-  }
-}
-for (f=null_font+1;f<=mp->last_fnum;f++) {
-  p=link(dummy_loc(h));
-  while ( p!=null ) {
-    if ( type(p)==mp_text_code ) {
-      if ( font_n(p)!=null_font ) {
-        mp->font_sizes[font_n(p)] = mp_void;
-        mp_mark_string_chars(mp, font_n(p),text_p(p));
-	if ( mp_has_fm_entry(mp,font_n(p),NULL) )
-          mp->font_ps_name[font_n(p)] = mp_fm_font_name(mp,font_n(p));
       }
     }
     p=link(p);
   }
 }
 
-@ @<Update encoding names@>=
-mp_reload_encodings(mp);
-p=link(dummy_loc(h));
-while ( p!=null ) {
-  if ( type(p)==mp_text_code )
-    if ( font_n(p)!=null_font )
-      if ( mp_has_fm_entry(mp,font_n(p),NULL) )
-        if ( mp->font_enc_name[font_n(p)]==NULL )
-          mp->font_enc_name[font_n(p)] = mp_fm_encoding_name(mp,font_n(p));
-  p=link(p);
+@ @<Unmark all marked characters@>=
+for (f=null_font+1;f<=mp->last_fnum;f++) {
+  if ( mp->font_sizes[f]!=null ) {
+    mp_unmark_font(mp, f);
+    mp->font_sizes[f]=null;
+  }
 }
 
-
-@ @<Scan all the text nodes and set the |font_sizes| lists;...@>=
-for (f=null_font+1;f<=mp->last_fnum;f++) 
-  mp->font_sizes[f]=null;
+@ @<Scan all the text nodes and mark the used ...@>=
 p=link(dummy_loc(h));
 while ( p!=null ) {
   if ( type(p)==mp_text_code ) {
-    if ( font_n(p)!=null_font ) {
-      f=font_n(p);
-      if ( mp->internal[mp_prologues]>0 ) {
+    f = font_n(p);
+    if (f!=null_font ) {
+      switch (prologues) {
+      case two:
+      case three:
+        mp->font_sizes[f] = mp_void;
+        mp_mark_string_chars(mp, f,text_p(p));
+   	    if (mp_has_fm_entry(mp,f,NULL) ) {
+          if (mp->font_enc_name[f]==NULL )
+            mp->font_enc_name[f] = mp_fm_encoding_name(mp,f);
+          mp->font_ps_name[f] = mp_fm_font_name(mp,f);
+        }
+        break;
+      case unity:
         mp->font_sizes[f]=mp_void;
-      } else { 
-        if ( mp->font_sizes[f]==null )
-          mp_unmark_font(mp, f);
+        break;
+      default: 
         name_type(p)=mp_size_index(mp, f,mp_choose_scale(mp, p));
         if ( name_type(p)==0 )
           mp_mark_string_chars(mp, f,text_p(p));
