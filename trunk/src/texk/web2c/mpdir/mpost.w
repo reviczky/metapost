@@ -394,7 +394,7 @@ int main (int argc, char **argv) { /* |start_here| */
   options->param_size        = setup_var (1500,"param_size",nokpse);
   options->error_line        = setup_var (79,"error_line",nokpse);
   options->half_error_line   = setup_var (50,"half_error_line",nokpse);
-  options->max_print_line    = setup_var (50,"max_print_line",nokpse);
+  options->max_print_line    = setup_var (100,"max_print_line",nokpse);
   @<Copy the rest of the command line@>;
   @<Register the callback routines@>;
   mp = mp_new(options);
