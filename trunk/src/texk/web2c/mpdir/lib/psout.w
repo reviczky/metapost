@@ -48,6 +48,8 @@
 @d null_font 0
 @d null 0
 @d unity   0200000 /* $2^{16}$, represents 1.00000 */
+@d two     0400000 /* $2^{17}$, represents 2.00000 */
+@d three   0600000 /* represents 3.00000 */
 @d el_gordo   017777777777 /* $2^{31}-1$, the largest value that \MP\ likes */
 @d incr(A)   (A)=(A)+1 /* increase a variable by unity */
 @d decr(A)   (A)=(A)-1 /* decrease a variable by unity */
@@ -55,6 +57,7 @@
 @d odd(A)   ((A)%2==1)
 @d half(A) ((A)/2)
 @d print_err(A) mp_print_err(mp,(A))
+@d max_quarterword 0x3FFF /* largest allowable value in a |quarterword| */
 
 @c
 #include <stdio.h>
@@ -104,6 +107,153 @@ void mp_backend_free (MP mp) {
   mp->ps = NULL;
 }
 
+@ Writing to ps files
+
+@<Globals@>=
+integer ps_offset;
+  /* the number of characters on the current \ps\ file line */
+
+@ @<Set initial values@>=
+mp->ps->ps_offset = 0;
+
+@
+
+@d wps(A)      fprintf(mp->ps_file,"%s",(A))
+@d wps_chr(A)  fprintf(mp->ps_file,"%c",(A))
+@d wps_ln(A)   fprintf(mp->ps_file,,"\n%s",(A))
+@d wps_cr      fprintf(mp->ps_file,"\n")
+
+@c
+void mp_ps_print_ln (MP mp) { /* prints an end-of-line */
+  wps_cr; 
+  mp->ps->ps_offset=0;
+} 
+
+@ @c
+void mp_ps_print_char (MP mp, ASCII_code s) { /* prints a single character */
+  if ( s==13 ) {
+    wps_cr; mp->ps->ps_offset=0;
+  } else {
+    wps_chr(s); incr(mp->ps->ps_offset);
+  }
+}
+
+@ @c
+void mp_ps_do_print (MP mp, char *ss, unsigned int len) { /* prints string |s| */
+  unsigned int j = 0;
+  while ( j<len ){ 
+    mp_ps_print_char(mp, ss[j]); incr(j);
+  }
+}
+
+@ Deciding where to break the ps output line. 
+
+@d ps_room(A) if ( (mp->ps->ps_offset+(int)(A))>mp->max_print_line ) {
+  mp_ps_print_ln(mp); /* optional line break */
+}
+
+@c
+void mp_ps_print (MP mp, char *ss) {
+  ps_room(strlen(ss));
+  mp_ps_do_print(mp, ss, strlen(ss));
+}
+
+@ The procedure |print_nl| is like |print|, but it makes sure that the
+string appears at the beginning of a new line.
+
+@c
+void mp_ps_print_nl (MP mp, char *s) { /* prints string |s| at beginning of line */
+  if ( mp->ps->ps_offset>0 ) mp_ps_print_ln(mp);
+  mp_ps_print(mp, s);
+}
+
+@ An array of digits in the range |0..9| is printed by |print_the_digs|.
+
+@c
+void mp_ps_print_the_digs (MP mp, eight_bits k) {
+  /* prints |dig[k-1]|$\,\ldots\,$|dig[0]| */
+  while ( k-->0 ){ 
+    mp_ps_print_char(mp, '0'+mp->dig[k]);
+  }
+}
+
+@ The following procedure, which prints out the decimal representation of a
+given integer |n|, has been written carefully so that it works properly
+if |n=0| or if |(-n)| would cause overflow. It does not apply |mod| or |div|
+to negative arguments, since such operations are not implemented consistently
+by all \PASCAL\ compilers.
+
+@c
+void mp_ps_print_int (MP mp,integer n) { /* prints an integer in decimal form */
+  integer m; /* used to negate |n| in possibly dangerous cases */
+  int k = 0; /* index to current digit; we assume that $|n|<10^{23}$ */
+  if ( n<0 ) { 
+    mp_ps_print_char(mp, '-');
+    if ( n>-100000000 ) {
+	  negate(n);
+    } else  { 
+	  m=-1-n; n=m / 10; m=(m % 10)+1; k=1;
+      if ( m<10 ) {
+        mp->dig[0]=m;
+      } else { 
+        mp->dig[0]=0; incr(n);
+      }
+    }
+  }
+  do {  
+    mp->dig[k]=n % 10; n=n / 10; incr(k);
+  } while (n!=0);
+  mp_ps_print_the_digs(mp, k);
+};
+
+@ @<Internal ...@>=
+void mp_ps_print_int (MP mp,integer n);
+
+@ \MP\ also makes use of a trivial procedure to print two digits. The
+following subroutine is usually called with a parameter in the range |0<=n<=99|.
+
+@c 
+void mp_ps_print_dd (MP mp,integer n) { /* prints two least significant digits */
+  n=abs(n) % 100; 
+  mp_ps_print_char(mp, '0'+(n / 10));
+  mp_ps_print_char(mp, '0'+(n % 10));
+}
+
+@ Conversely, here is a procedure analogous to |print_int|. If the output
+of this procedure is subsequently read by \MP\ and converted by the
+|round_decimals| routine above, it turns out that the original value will
+be reproduced exactly. A decimal point is printed only if the value is
+not an integer. If there is more than one way to print the result with
+the optimum number of digits following the decimal point, the closest
+possible value is given.
+
+The invariant relation in the \&{repeat} loop is that a sequence of
+decimal digits yet to be printed will yield the original number if and only if
+they form a fraction~$f$ in the range $s-\delta\L10\cdot2^{16}f<s$.
+We can stop if and only if $f=0$ satisfies this condition; the loop will
+terminate before $s$ can possibly become zero.
+
+@c
+void mp_ps_print_scaled (MP mp,scaled s) { 
+  scaled delta; /* amount of allowable inaccuracy */
+  if ( s<0 ) { 
+	mp_ps_print_char(mp, '-'); 
+    negate(s); /* print the sign, if negative */
+  }
+  mp_ps_print_int(mp, s / unity); /* print the integer part */
+  s=10*(s % unity)+5;
+  if ( s!=5 ) { 
+    delta=10; 
+    mp_ps_print_char(mp, '.');
+    do {  
+      if ( delta>unity )
+        s=s+0100000-(delta / 2); /* round the final digit */
+      mp_ps_print_char(mp, '0'+(s / unity)); 
+      s=10*(s % unity); 
+      delta=delta*10;
+    } while (s>delta);
+  }
+}
 
 @* Traditional {psfonts.map} loading.
 
@@ -419,27 +569,27 @@ static void mp_write_enc (MP mp, char **glyph_names, enc_entry * e) {
         g = glyph_names;
     }
 
-    mp_print(mp,"\n%%%%BeginResource: encoding ");
-    mp_print(mp, e->enc_name);
-    mp_print(mp, "\n/");
-    mp_print(mp, e->enc_name);
-    mp_print(mp, " [ ");
+    mp_ps_print(mp,"\n%%%%BeginResource: encoding ");
+    mp_ps_print(mp, e->enc_name);
+    mp_ps_print(mp, "\n/");
+    mp_ps_print(mp, e->enc_name);
+    mp_ps_print(mp, " [ ");
     foffset = strlen(e->file_name)+3;
     for (i = 0; i < 256; i++) {
       s = strlen(g[i]);
       if (s+1+foffset>=80) {
-   	    mp_print_ln (mp);
+   	    mp_ps_print_ln (mp);
     	foffset = 0;
       }
       foffset += s+2;
-      mp_print_char(mp,'/');
-      mp_print(mp, g[i]);
-      mp_print_char(mp,' ');
+      mp_ps_print_char(mp,'/');
+      mp_ps_print(mp, g[i]);
+      mp_ps_print_char(mp,' ');
     }
     if (foffset>75)
- 	   mp_print_ln (mp);
-    mp_print_nl (mp,"] def\n");
-    mp_print(mp,"%%%%EndResource");
+ 	   mp_ps_print_ln (mp);
+    mp_ps_print_nl (mp,"] def\n");
+    mp_ps_print(mp,"%%%%EndResource");
 }
 
 
@@ -3338,16 +3488,16 @@ static boolean mp_do_ps_font (MP mp, font_number f);
     return 0;
   }
   if (is_included(fm_cur)) {
-    mp_print_nl(mp,"%%BeginResource: font ");
+    mp_ps_print_nl(mp,"%%BeginResource: font ");
     if (is_subsetted(fm_cur)) {
-      mp_print(mp, fm_cur->subset_tag);
-      mp_print_char(mp,'-');
+      mp_ps_print(mp, fm_cur->subset_tag);
+      mp_ps_print_char(mp,'-');
     }
-    mp_print(mp, fm_cur->ps_name);
-    mp_print_ln(mp);
+    mp_ps_print(mp, fm_cur->ps_name);
+    mp_ps_print_ln(mp);
     writet1 (mp,f,fm_cur);
-    mp_print_nl(mp,"%%EndResource");
-    mp_print_ln(mp);
+    mp_ps_print_nl(mp,"%%EndResource");
+    mp_ps_print_ln(mp);
   }
   return 1;
 }
@@ -3367,9 +3517,9 @@ static void mp_list_used_resources (MP mp);
   int procset = (mp->internal[mp_procset]>>16);
 
   if ( procset>0 )
-    mp_print_nl(mp, "%%DocumentResources: procset mpost");
+    mp_ps_print_nl(mp, "%%DocumentResources: procset mpost");
   else
-    mp_print_nl(mp, "%%DocumentResources: procset mpost-minimal");
+    mp_ps_print_nl(mp, "%%DocumentResources: procset mpost-minimal");
   ldf=null_font;
   firstitem=true;
   for (f=null_font+1;f<=mp->last_fnum;f++) {
@@ -3381,15 +3531,15 @@ static void mp_list_used_resources (MP mp);
       }
       if ( mp_font_is_subsetted(mp,f) )
         goto FOUND;
-      if ( mp->ps_offset+1+strlen(mp->font_enc_name[f])>
+      if ( mp->ps->ps_offset+1+strlen(mp->font_enc_name[f])>
            (unsigned)mp->max_print_line )
-        mp_print_nl(mp, "%%+ encoding");
+        mp_ps_print_nl(mp, "%%+ encoding");
       if ( firstitem ) {
         firstitem=false;
-        mp_print_nl(mp, "%%+ encoding");
+        mp_ps_print_nl(mp, "%%+ encoding");
       }
-      mp_print_char(mp, ' ');
-      mp_print(mp, mp->font_enc_name[f]);
+      mp_ps_print_char(mp, ' ');
+      mp_ps_print(mp, mp->font_enc_name[f]);
       ldf=f;
     }
   FOUND:
@@ -3404,25 +3554,25 @@ static void mp_list_used_resources (MP mp);
           if ( mp_xstrcmp(mp->font_name[f],mp->font_name[ff])==0 )
             goto FOUND2;
       }
-      if ( mp->ps_offset+1+strlen(mp->font_ps_name[f])>
+      if ( mp->ps->ps_offset+1+strlen(mp->font_ps_name[f])>
 	       (unsigned)mp->max_print_line )
-        mp_print_nl(mp, "%%+ font");
+        mp_ps_print_nl(mp, "%%+ font");
       if ( firstitem ) {
         firstitem=false;
-        mp_print_nl(mp, "%%+ font");
+        mp_ps_print_nl(mp, "%%+ font");
       }
-      mp_print_char(mp, ' ');
+      mp_ps_print_char(mp, ' ');
 	  if ( (prologues==3)&&
            (mp_font_is_subsetted(mp,f)) )
-        mp_print(mp, mp_fm_font_subset_name(mp,f));
+        mp_ps_print(mp, mp_fm_font_subset_name(mp,f));
       else
-        mp_print(mp, mp->font_ps_name[f]);
+        mp_ps_print(mp, mp->font_ps_name[f]);
       ldf=f;
     }
   FOUND2:
     ;
   }
-  mp_print_ln(mp);
+  mp_ps_print_ln(mp);
 } 
 
 @ @<Declarations@>=
@@ -3436,9 +3586,9 @@ static void mp_list_supplied_resources (MP mp);
   int prologues = (mp->internal[mp_prologues]>>16);
   int procset = (mp->internal[mp_procset]>>16);
   if ( procset>0 )
-    mp_print_nl(mp, "%%DocumentSuppliedResources: procset mpost");
+    mp_ps_print_nl(mp, "%%DocumentSuppliedResources: procset mpost");
   else
-    mp_print_nl(mp, "%%DocumentSuppliedResources: procset mpost-minimal");
+    mp_ps_print_nl(mp, "%%DocumentSuppliedResources: procset mpost-minimal");
   ldf=null_font;
   firstitem=true;
   for (f=null_font+1;f<=mp->last_fnum;f++) {
@@ -3450,14 +3600,14 @@ static void mp_list_supplied_resources (MP mp);
         }
       if ( (prologues==3)&&(mp_font_is_subsetted(mp,f)))
         goto FOUND;
-      if ( mp->ps_offset+1+strlen(mp->font_enc_name[f])>(unsigned)mp->max_print_line )
-        mp_print_nl(mp, "%%+ encoding");
+      if ( mp->ps->ps_offset+1+strlen(mp->font_enc_name[f])>(unsigned)mp->max_print_line )
+        mp_ps_print_nl(mp, "%%+ encoding");
       if ( firstitem ) {
         firstitem=false;
-        mp_print_nl(mp, "%%+ encoding");
+        mp_ps_print_nl(mp, "%%+ encoding");
       }
-      mp_print_char(mp, ' ');
-      mp_print(mp, mp->font_enc_name[f]);
+      mp_ps_print_char(mp, ' ');
+      mp_ps_print(mp, mp->font_enc_name[f]);
       ldf=f;
     }
   FOUND:
@@ -3475,23 +3625,23 @@ static void mp_list_supplied_resources (MP mp);
         }
         if ( ! mp_font_is_included(mp,f) )
           goto FOUND2;
-        if ( mp->ps_offset+1+strlen(mp->font_ps_name[f])>(unsigned)mp->max_print_line )
-          mp_print_nl(mp, "%%+ font");
+        if ( mp->ps->ps_offset+1+strlen(mp->font_ps_name[f])>(unsigned)mp->max_print_line )
+          mp_ps_print_nl(mp, "%%+ font");
         if ( firstitem ) {
           firstitem=false;
-          mp_print_nl(mp, "%%+ font");
+          mp_ps_print_nl(mp, "%%+ font");
         }
-        mp_print_char(mp, ' ');
+        mp_ps_print_char(mp, ' ');
 	    if ( mp_font_is_subsetted(mp,f) ) 
-          mp_print(mp, mp_fm_font_subset_name(mp,f));
+          mp_ps_print(mp, mp_fm_font_subset_name(mp,f));
         else
-          mp_print(mp, mp->font_ps_name[f]);
+          mp_ps_print(mp, mp->font_ps_name[f]);
         ldf=f;
       }
     FOUND2:
       ;
     }
-    mp_print_ln(mp);
+    mp_ps_print_ln(mp);
   }
 }
 
@@ -3515,21 +3665,21 @@ static void mp_list_needed_resources (MP mp);
       };
       if ((prologues==3)&&(mp_font_is_included(mp,f)) )
         goto FOUND;
-      if ( mp->ps_offset+1+strlen(mp->font_ps_name[f])>(unsigned)mp->max_print_line )
-        mp_print_nl(mp, "%%+ font");
+      if ( mp->ps->ps_offset+1+strlen(mp->font_ps_name[f])>(unsigned)mp->max_print_line )
+        mp_ps_print_nl(mp, "%%+ font");
       if ( firstitem ) {
         firstitem=false;
-        mp_print_nl(mp, "%%DocumentNeededResources: font");
+        mp_ps_print_nl(mp, "%%DocumentNeededResources: font");
       }
-      mp_print_char(mp, ' ');
-      mp_print(mp, mp->font_ps_name[f]);
+      mp_ps_print_char(mp, ' ');
+      mp_ps_print(mp, mp->font_ps_name[f]);
       ldf=f;
     }
   FOUND:
     ;
   }
   if ( ! firstitem ) {
-    mp_print_ln(mp);
+    mp_ps_print_ln(mp);
     ldf=null_font;
     firstitem=true;
     for (f=null_font+1;f<= mp->last_fnum;f++) {
@@ -3541,9 +3691,9 @@ static void mp_list_needed_resources (MP mp);
         }
         if ((prologues==3)&&(mp_font_is_included(mp,f)) )
           goto FOUND2;
-        mp_print(mp, "%%IncludeResource: font ");
-        mp_print(mp, mp->font_ps_name[f]);
-        mp_print_ln(mp);
+        mp_ps_print(mp, "%%IncludeResource: font ");
+        mp_ps_print(mp, mp->font_ps_name[f]);
+        mp_ps_print_ln(mp);
         ldf=f;
       }
     FOUND2:
@@ -3572,18 +3722,18 @@ static void mp_write_font_definition (MP mp, font_number f);
     else 
       mp_ps_name_out(mp, mp->font_ps_name[f],true);
     mp_ps_print(mp, " fcp");
-    mp_print_ln(mp);
+    mp_ps_print_ln(mp);
     if ( applied_reencoding(f) ) {
       mp_ps_print(mp, "/Encoding ");
       mp_ps_print(mp, mp->font_enc_name[f]);
       mp_ps_print(mp, " def ");
     };
     if ( mp_fm_font_slant(mp,f)!=0 ) {
-      mp_print_int(mp, mp_fm_font_slant(mp,f));
+      mp_ps_print_int(mp, mp_fm_font_slant(mp,f));
       mp_ps_print(mp, " SlantFont ");
     };
     if ( mp_fm_font_extend(mp,f)!=0 ) {
-      mp_print_int(mp, mp_fm_font_extend(mp,f));
+      mp_ps_print_int(mp, mp_fm_font_extend(mp,f));
       mp_ps_print(mp, " ExtendFont ");
     };
     if ( mp_xstrcmp(mp->font_name[f],"psyrgo")==0 ) {
@@ -3598,10 +3748,10 @@ static void mp_write_font_definition (MP mp, font_number f);
       mp_ps_print(mp, "end def ");
     };  
     mp_ps_print(mp, "currentdict end");
-    mp_print_ln(mp);
+    mp_ps_print_ln(mp);
     mp_ps_print_defined_name(mp,f);
     mp_ps_print(mp, " exch definefont pop");
-    mp_print_ln(mp);
+    mp_ps_print_ln(mp);
   }
 }
 
@@ -3614,9 +3764,9 @@ static void mp_ps_print_defined_name (MP mp, font_number f);
   mp_ps_print(mp, " /");
   if ((mp_font_is_subsetted(mp,(A)))&&
       (mp_font_is_included(mp,(A)))&&(prologues==3))
-    mp_print(mp, mp_fm_font_subset_name(mp,(A)));
+    mp_ps_print(mp, mp_fm_font_subset_name(mp,(A)));
   else 
-    mp_print(mp, mp->font_ps_name[(A)]);
+    mp_ps_print(mp, mp->font_ps_name[(A)]);
   if ( mp_xstrcmp(mp->font_name[(A)],"psyrgo")==0 )
     mp_ps_print(mp, "-Slanted");
   if ( mp_xstrcmp(mp->font_name[(A)],"zpzdr-reversed")==0 ) 
@@ -3626,10 +3776,10 @@ static void mp_ps_print_defined_name (MP mp, font_number f);
     mp_ps_print(mp, mp->font_enc_name[(A)]); 
   }
   if ( mp_fm_font_slant(mp,(A))!=0 ) {
-    mp_ps_print(mp, "-Slant_"); mp_print_int(mp, mp_fm_font_slant(mp,(A))) ;
+    mp_ps_print(mp, "-Slant_"); mp_ps_print_int(mp, mp_fm_font_slant(mp,(A))) ;
   }
   if ( mp_fm_font_extend(mp,(A))!=0 ) {
-    mp_ps_print(mp, "-Extend_"); mp_print_int(mp, mp_fm_font_extend(mp,(A))); 
+    mp_ps_print(mp, "-Extend_"); mp_ps_print_int(mp, mp_fm_font_extend(mp,(A))); 
   }
 }
 
@@ -3678,21 +3828,21 @@ that use the left-over |b3| field in the |char_info| words; i.e.,
 enum mp_char_mark_state {mp_unused=0, mp_used};
 
 @ @<Exported...@>=
-void mp_mark_string_chars (MP mp,font_number f, str_number s) ;
+void mp_mark_string_chars (MP mp,font_number f, char *s) ;
 
 @ @c
-void mp_mark_string_chars (MP mp,font_number f, str_number s) {
+void mp_mark_string_chars (MP mp,font_number f, char *s) {
   integer b; /* |char_base[f]| */
   ASCII_code bc,ec; /* only characters between these bounds are marked */
-  pool_pointer k; /* an index into string |s| */
+  char *k; /* an index into string |s| */
   b=mp->char_base[f];
   bc=mp->font_bc[f];
   ec=mp->font_ec[f];
-  k=mp->str_start[mp->next_str[s]]; /* str_stop */
-  while ( k>mp->str_start[s] ){ 
-    decr(k);
-    if ( (mp->str_pool[k]>=bc)&&(mp->str_pool[k]<=ec) )
-      mp->font_info[b+mp->str_pool[k]].qqqq.b3=mp_used;
+  k=s; /* str_stop */
+  while (*k){ 
+    if ( (*k>=bc)&&(*k<=ec) )
+      mp->font_info[b+*k].qqqq.b3=mp_used;
+    k++;
   }
 }
 
@@ -3711,12 +3861,12 @@ void mp_unmark_font (MP mp,font_number f) {
 
 
 @ @<Exported...@>=
-void mp_print_improved_prologue (MP mp, pointer h) ;
+void mp_print_improved_prologue (MP mp, struct mp_edge_object *h) ;
 
 
 @
 @c
-void mp_print_improved_prologue (MP mp, pointer h) {
+void mp_print_improved_prologue (MP mp, struct mp_edge_object *h) {
   quarterword next_size; /* the size index for fonts being listed */
   pointer *cur_fsize; /* current positions in |font_sizes| */
   boolean done_fonts; /* have we finished listing the fonts in the header? */
@@ -3731,32 +3881,32 @@ void mp_print_improved_prologue (MP mp, pointer h) {
   mp_list_used_resources(mp);
   mp_list_supplied_resources(mp);
   mp_list_needed_resources(mp);
-  mp_print_nl(mp, "%%EndComments");
-  mp_print_nl(mp, "%%BeginProlog");
+  mp_ps_print_nl(mp, "%%EndComments");
+  mp_ps_print_nl(mp, "%%BeginProlog");
   if ( procset>0 )
-    mp_print_nl(mp, "%%BeginResource: procset mpost");
+    mp_ps_print_nl(mp, "%%BeginResource: procset mpost");
   else
-    mp_print_nl(mp, "%%BeginResource: procset mpost-minimal");
-  mp_print_nl(mp, "/bd{bind def}bind def"
+    mp_ps_print_nl(mp, "%%BeginResource: procset mpost-minimal");
+  mp_ps_print_nl(mp, "/bd{bind def}bind def"
                   "/fshow {exch findfont exch scalefont setfont show}bd");
   if ( procset>0 ) @<Print the procset@>;
-  mp_print_nl(mp, "/fcp{findfont dup length dict begin"
+  mp_ps_print_nl(mp, "/fcp{findfont dup length dict begin"
                   "{1 index/FID ne{def}{pop pop}ifelse}forall}bd");
-  mp_print_nl(mp, "/fmc{FontMatrix dup length array copy dup dup}bd"
+  mp_ps_print_nl(mp, "/fmc{FontMatrix dup length array copy dup dup}bd"
                    "/fmd{/FontMatrix exch def}bd");
-  mp_print_nl(mp, "/Amul{4 -1 roll exch mul 1000 div}bd"
+  mp_ps_print_nl(mp, "/Amul{4 -1 roll exch mul 1000 div}bd"
                   "/ExtendFont{fmc 0 get Amul 0 exch put fmd}bd");
   if ( groffmode>0 ) {
-    mp_print_nl(mp, "/ScaleFont{dup fmc 0 get"
+    mp_ps_print_nl(mp, "/ScaleFont{dup fmc 0 get"
 	                " Amul 0 exch put dup dup 3 get Amul 3 exch put fmd}bd");
     };
-  mp_print_nl(mp, "/SlantFont{fmc 2 get dup 0 eq{pop 1}if"
+  mp_ps_print_nl(mp, "/SlantFont{fmc 2 get dup 0 eq{pop 1}if"
 	              " Amul FontMatrix 0 get mul 2 exch put fmd}bd");
-  mp_print_nl(mp, "%%EndResource");
+  mp_ps_print_nl(mp, "%%EndResource");
   @<Include encodings and fonts  for edge structure~|h|@>;
-  mp_print_nl(mp, "%%EndProlog");
-  mp_print_nl(mp, "%%BeginSetup");
-  mp_print_ln(mp);
+  mp_ps_print_nl(mp, "%%EndProlog");
+  mp_ps_print_nl(mp, "%%BeginSetup");
+  mp_ps_print_ln(mp);
   for (f=null_font+1;f<=mp->last_fnum;f++) {
     if ( mp_has_font_size(mp,f) ) {
       if ( mp_has_fm_entry(mp,f,NULL) ) {
@@ -3772,22 +3922,22 @@ void mp_print_improved_prologue (MP mp, pointer h) {
         mp_ps_name_out(mp, mp->font_name[f],true);
         mp_ps_print(mp, " def");
       }
-      mp_print_ln(mp);
+      mp_ps_print_ln(mp);
     }
   }
-  mp_print_nl(mp, "%%EndSetup");
-  mp_print_nl(mp, "%%Page: 1 1");
-  mp_print_ln(mp);
+  mp_ps_print_nl(mp, "%%EndSetup");
+  mp_ps_print_nl(mp, "%%Page: 1 1");
+  mp_ps_print_ln(mp);
   mp_xfree(cur_fsize);
 }
 
 @ @<Declarations@>=
-static font_number mp_print_font_comments (MP mp , pointer h);
+static font_number mp_print_font_comments (MP mp , struct mp_edge_object *h);
 
 
 @ 
 @c 
-static font_number mp_print_font_comments (MP mp , pointer h) {
+static font_number mp_print_font_comments (MP mp , struct mp_edge_object *h) {
   quarterword next_size; /* the size index for fonts being listed */
   pointer *cur_fsize; /* current positions in |font_sizes| */
   int ff; /* a loop counter */
@@ -3834,16 +3984,16 @@ search.
   for (f=null_font+1;f<= mp->last_fnum;f++) {
     if ( mp->font_sizes[f]!=null ) {
       if ( ldf==null_font ) 
-        mp_print_nl(mp, "%%DocumentFonts:");
+        mp_ps_print_nl(mp, "%%DocumentFonts:");
       for (ff=ldf;ff>=null_font;ff--) {
         if ( mp->font_sizes[ff]!=null )
           if ( mp_xstrcmp(mp->font_ps_name[f],mp->font_ps_name[ff])==0 )
             goto FOUND;
       }
-      if ( mp->ps_offset+1+strlen(mp->font_ps_name[f])>(unsigned)mp->max_print_line )
-        mp_print_nl(mp, "%%+");
-      mp_print_char(mp, ' ');
-      mp_print(mp, mp->font_ps_name[f]);
+      if ( mp->ps->ps_offset+1+strlen(mp->font_ps_name[f])>(unsigned)mp->max_print_line )
+        mp_ps_print_nl(mp, "%%+");
+      mp_ps_print_char(mp, ' ');
+      mp_ps_print(mp, mp->font_ps_name[f]);
       ldf=f;
     FOUND:
       ;
@@ -3853,8 +4003,8 @@ search.
 
 @ @c
 static void mp_hex_digit_out (MP mp,small_number d) { 
-  if ( d<10 ) mp_print_char(mp, d+'0');
-  else mp_print_char(mp, d+'a'-10);
+  if ( d<10 ) mp_ps_print_char(mp, d+'0');
+  else mp_ps_print_char(mp, d+'a'-10);
 }
 
 @ We output the marks as a hexadecimal bit string starting at |c| or
@@ -3875,7 +4025,7 @@ static halfword mp_ps_marks_out (MP mp,font_number f, eight_bits c) {
   integer lim; /* the maximum number of marks to encode before truncating */
   int p; /* |font_info| index for the current character */
   int d,b; /* used to construct a hexadecimal digit */
-  lim=4*(emergency_line_length-mp->ps_offset-4);
+  lim=4*(emergency_line_length-mp->ps->ps_offset-4);
   bc=mp->font_bc[f];
   ec=mp->font_ec[f];
   if ( c>bc ) bc=c;
@@ -3904,10 +4054,10 @@ while ( (mp->font_info[p].qqqq.b3==mp_unused)&&(bc<ec) ) {
 }
 
 @ @<Print the initial label indicating that the bitmap starts at |bc|@>=
-mp_print_char(mp, ' ');
+mp_ps_print_char(mp, ' ');
 mp_hex_digit_out(mp, bc / 16);
 mp_hex_digit_out(mp, bc % 16);
-mp_print_char(mp, ':')
+mp_ps_print_char(mp, ':')
 
 @ 
 
@@ -3954,17 +4104,17 @@ TODO: these two defines are also defined in mp.w!
 @<Print the \.{\%*Font} comment for font |f| and advance |cur_fsize[f]|@>=
 { integer t=0;
   while ( mp_check_ps_marks(mp, f,t) ) {
-    mp_print_nl(mp, "%*Font: ");
-    if ( mp->ps_offset+strlen(mp->font_name[f])+12>emergency_line_length )
+    mp_ps_print_nl(mp, "%*Font: ");
+    if ( mp->ps->ps_offset+strlen(mp->font_name[f])+12>emergency_line_length )
       break;
-    mp_print(mp, mp->font_name[f]);
-    mp_print_char(mp, ' ');
+    mp_ps_print(mp, mp->font_name[f]);
+    mp_ps_print_char(mp, ' ');
     ds=(mp->font_dsize[f] + 8) / 16;
-    mp_print_scaled(mp, mp_take_scaled(mp, ds,sc_factor(cur_fsize[f])));
-    if ( mp->ps_offset+12>emergency_line_length ) break;
-    mp_print_char(mp, ' ');
-    mp_print_scaled(mp, ds);
-    if ( mp->ps_offset+5>emergency_line_length ) break;
+    mp_ps_print_scaled(mp, mp_take_scaled(mp, ds,sc_factor(cur_fsize[f])));
+    if ( mp->ps->ps_offset+12>emergency_line_length ) break;
+    mp_ps_print_char(mp, ' ');
+    mp_ps_print_scaled(mp, ds);
+    if ( mp->ps->ps_offset+5>emergency_line_length ) break;
     t=mp_ps_marks_out(mp, f,t);
   }
   cur_fsize[f]=link(cur_fsize[f]);
@@ -3972,15 +4122,15 @@ TODO: these two defines are also defined in mp.w!
 
 @ @<Print the procset@>=
 {
-  mp_print_nl(mp, "/hlw{0 dtransform exch truncate exch idtransform pop setlinewidth}bd");
-  mp_print_nl(mp, "/vlw{0 exch dtransform truncate idtransform setlinewidth pop}bd");
-  mp_print_nl(mp, "/l{lineto}bd/r{rlineto}bd/c{curveto}bd/m{moveto}bd"
+  mp_ps_print_nl(mp, "/hlw{0 dtransform exch truncate exch idtransform pop setlinewidth}bd");
+  mp_ps_print_nl(mp, "/vlw{0 exch dtransform truncate idtransform setlinewidth pop}bd");
+  mp_ps_print_nl(mp, "/l{lineto}bd/r{rlineto}bd/c{curveto}bd/m{moveto}bd"
                   "/p{closepath}bd/n{newpath}bd");
-  mp_print_nl(mp, "/C{setcmykcolor}bd/G{setgray}bd/R{setrgbcolor}bd"
+  mp_ps_print_nl(mp, "/C{setcmykcolor}bd/G{setgray}bd/R{setrgbcolor}bd"
                   "/lj{setlinejoin}bd/ml{setmiterlimit}bd");
-  mp_print_nl(mp, "/lc{setlinecap}bd/S{stroke}bd/F{fill}bd/q{gsave}bd"
+  mp_ps_print_nl(mp, "/lc{setlinecap}bd/S{stroke}bd/F{fill}bd/q{gsave}bd"
                   "/Q{grestore}bd/s{scale}bd/t{concat}bd");
-  mp_print_nl(mp, "/sd{setdash}bd/rd{[] 0 setdash}bd/P{showpage}bd/B{q F Q}bd/W{clip}bd");
+  mp_ps_print_nl(mp, "/sd{setdash}bd/rd{[] 0 setdash}bd/P{showpage}bd/B{q F Q}bd/W{clip}bd");
 }
 
 
@@ -3992,19 +4142,19 @@ trouble.
 @:prologues_}{\&{prologues} primitive@>
 
 @<Exported...@>=
-void mp_print_prologue (MP mp, pointer h);
+void mp_print_prologue (MP mp, struct mp_edge_object *h);
 
 @ @c 
-void mp_print_prologue (MP mp, pointer h) {
+void mp_print_prologue (MP mp, struct mp_edge_object *h) {
   font_number f;
-  font_number  ldf ;
+  font_number ldf ;
   int prologues = (mp->internal[mp_prologues]>>16);
   int procset = (mp->internal[mp_procset]>>16);
   ldf = mp_print_font_comments (mp, h);
-  mp_print_ln(mp);
+  mp_ps_print_ln(mp);
   if ( (mp->internal[mp_prologues]>0) && (mp->last_ps_fnum<mp->last_fnum) )
     mp_read_psname_table(mp);
-  mp_print(mp, "%%BeginProlog"); mp_print_ln(mp);
+  mp_ps_print(mp, "%%BeginProlog"); mp_ps_print_ln(mp);
   if ( (prologues>0)||(procset>0) ) {
     if ( ldf!=null_font ) {
       if ( prologues>0 ) {
@@ -4013,44 +4163,30 @@ void mp_print_prologue (MP mp, pointer h) {
             mp_ps_name_out(mp, mp->font_name[f],true);
             mp_ps_name_out(mp, mp->font_ps_name[f],true);
             mp_ps_print(mp, " def");
-            mp_print_ln(mp);
+            mp_ps_print_ln(mp);
           }
         }
         if ( procset==0 ) {
-          mp_print(mp, "/fshow {exch findfont exch scalefont setfont show}bind def");
-          mp_print_ln(mp);
+          mp_ps_print(mp, "/fshow {exch findfont exch scalefont setfont show}bind def");
+          mp_ps_print_ln(mp);
         }
       }
     }
     if (procset>0 ) {
-      mp_print_nl(mp, "%%BeginResource: procset mpost");
+      mp_ps_print_nl(mp, "%%BeginResource: procset mpost");
       if ( (prologues>0)&&(ldf!=null_font) )
-        mp_print(mp, 
+        mp_ps_print(mp, 
         "/bd{bind def}bind def/fshow {exch findfont exch scalefont setfont show}bd");
       else
-        mp_print_nl(mp, "/bd{bind def}bind def");
+        mp_ps_print_nl(mp, "/bd{bind def}bind def");
       @<Print the procset@>;
-      mp_print_nl(mp, "%%EndResource");
-      mp_print_ln(mp);
+      mp_ps_print_nl(mp, "%%EndResource");
+      mp_ps_print_ln(mp);
     }
   }
-  mp_print(mp, "%%EndProlog");
-  mp_print_nl(mp, "%%Page: 1 1"); mp_print_ln(mp);
+  mp_ps_print(mp, "%%EndProlog");
+  mp_ps_print_nl(mp, "%%Page: 1 1"); mp_ps_print_ln(mp);
 }
-
-@ Deciding where to break the ps output line. For the moment,
-it is necessary to create an exported function as well.
-
-@d ps_room(A) if ( (mp->ps_offset+(int)(A))>mp->max_print_line ) 
-  mp_print_ln(mp) /* optional line break */
-
-@c
-void mp_ps_room (MP mp,int s) {
-  ps_room(s);
-}
-
-@ @<Exported...@>=
-void mp_ps_room (MP mp,int s) ;
 
 @ \MP\ used to have one single routine to print to both `write' files
 and the PostScript output. Web2c redefines ``Character |k| cannot be
@@ -4069,47 +4205,43 @@ for postprocessing.
 @c
 void mp_ps_pair_out (MP mp,scaled x, scaled y) { 
   ps_room(26);
-  mp_print_scaled(mp, x); mp_print_char(mp, ' ');
-  mp_print_scaled(mp, y); mp_print_char(mp, ' ');
+  mp_ps_print_scaled(mp, x); mp_ps_print_char(mp, ' ');
+  mp_ps_print_scaled(mp, y); mp_ps_print_char(mp, ' ');
 }
 
 @ @<Exported...@>=
 void mp_ps_pair_out (MP mp,scaled x, scaled y) ;
 
 @ @c
-void mp_ps_print (MP mp,char *s) { 
-   ps_room(strlen(s));
-   mp_print(mp, s);
-}
 void mp_ps_print_cmd (MP mp, char *l, char *s) {
-  if ( mp->internal[mp_procset]>0 ) { ps_room(strlen(s)); mp_print(mp,s); }
-  else { ps_room(strlen(l)); mp_print(mp, l); };
+  if ( mp->internal[mp_procset]>0 ) { ps_room(strlen(s)); mp_ps_print(mp,s); }
+  else { ps_room(strlen(l)); mp_ps_print(mp, l); };
 }
 
 @ @<Exported...@>=
-void mp_ps_print (MP mp,char *s) ;
 void mp_ps_print_cmd (MP mp, char *l, char *s) ;
 
 @ @c
 void mp_ps_string_out (MP mp, char *s) {
   ASCII_code k; /* bits to be converted to octal */
-  mp_print(mp, "(");
+  mp_ps_print(mp, "(");
   while ((k=*s++)) {
-    if ( mp->ps_offset+5>mp->max_print_line ) {
-      mp_print_char(mp, '\\');
-      mp_print_ln(mp);
+    if ( mp->ps->ps_offset+5>mp->max_print_line ) {
+      mp_ps_print_char(mp, '\\');
+      mp_ps_print_ln(mp);
     }
     if ( (@<Character |k| is not allowed in PostScript output@>) ) {
-      mp_print_char(mp, '\\');
-      mp_print_char(mp, '0'+(k / 64));
-      mp_print_char(mp, '0'+((k / 8) % 8));
-      mp_print_char(mp, '0'+(k % 8));
+      mp_ps_print_char(mp, '\\');
+      mp_ps_print_char(mp, '0'+(k / 64));
+      mp_ps_print_char(mp, '0'+((k / 8) % 8));
+      mp_ps_print_char(mp, '0'+(k % 8));
     } else { 
-      if ( (k=='(')||(k==')')||(k=='\\') ) mp_print_char(mp, '\\');
-      mp_print_char(mp, k);
+      if ( (k=='(')||(k==')')||(k=='\\') ) 
+        mp_ps_print_char(mp, '\\');
+      mp_ps_print_char(mp, k);
     }
   }
-  mp_print_char(mp, ')');
+  mp_ps_print_char(mp, ')');
 }
 
 @ @<Exported...@>=
@@ -4136,10 +4268,10 @@ void mp_ps_name_out (MP mp, char *s, boolean lit) ;
 @ @c
 void mp_ps_name_out (MP mp, char *s, boolean lit) {
   ps_room(strlen(s)+2);
-  mp_print_char(mp, ' ');
+  mp_ps_print_char(mp, ' ');
   if ( mp_is_ps_name(mp, s) ) {
-    if ( lit ) mp_print_char(mp, '/');
-      mp_print(mp, s);
+    if ( lit ) mp_ps_print_char(mp, '/');
+      mp_ps_print(mp, s);
   } else { 
     mp_ps_string_out(mp, s);
     if ( ! lit ) mp_ps_print(mp, "cvx ");
@@ -4161,43 +4293,45 @@ accurately. (Overfull boxes are avoided if an illustration is made to
 match a given \.{\char`\\hsize}.)
 
 @<Exported...@>=
-void mp_print_initial_comment(MP mp,
-                              scaled minx, scaled miny, scaled maxx, scaled maxy);
+void mp_print_initial_comment(MP mp,struct mp_edge_object *hh);
 
 @ @c
-void mp_print_initial_comment(MP mp,
-                              scaled minx, scaled miny, scaled maxx, scaled maxy) {
+void mp_print_initial_comment(MP mp,struct mp_edge_object *hh) {
   scaled t;
   int prologues = (mp->internal[mp_prologues]>>16);
-  mp_print(mp, "%!PS");
+  mp_ps_print(mp, "%!PS");
   if ( prologues>0 ) 
-    mp_print(mp, "-Adobe-3.0 EPSF-3.0");
-  mp_print_nl(mp, "%%BoundingBox: ");
-  if ( minx>maxx) {
-     mp_print(mp, "0 0 0 0");
+    mp_ps_print(mp, "-Adobe-3.0 EPSF-3.0");
+  mp_ps_print_nl(mp, "%%BoundingBox: ");
+  if ( hh->_minx>hh->_maxx) {
+     mp_ps_print(mp, "0 0 0 0");
   } else if ( prologues<0 ) {
-    mp_ps_pair_out(mp, minx,miny);
-    mp_ps_pair_out(mp, maxx,maxy);
+    mp_ps_pair_out(mp, hh->_minx,hh->_miny);
+    mp_ps_pair_out(mp, hh->_maxx,hh->_maxy);
   } else { 
-    mp_ps_pair_out(mp, mp_floor_scaled(mp, minx),mp_floor_scaled(mp, miny));
-    mp_ps_pair_out(mp, -mp_floor_scaled(mp, -maxx),-mp_floor_scaled(mp, -maxy));
+    mp_ps_pair_out(mp, mp_floor_scaled(mp, hh->_minx),mp_floor_scaled(mp, hh->_miny));
+    mp_ps_pair_out(mp, -mp_floor_scaled(mp, -hh->_maxx),-mp_floor_scaled(mp, -hh->_maxy));
   }
-  mp_print_nl(mp, "%%HiResBoundingBox: ");
-  if ( minx>maxx ) {
-    mp_print(mp, "0 0 0 0");
+  mp_ps_print_nl(mp, "%%HiResBoundingBox: ");
+  if ( hh->_minx>hh->_maxx ) {
+    mp_ps_print(mp, "0 0 0 0");
   } else {
-    mp_ps_pair_out(mp, minx,miny);
-    mp_ps_pair_out(mp, maxx,maxy);
+    mp_ps_pair_out(mp, hh->_minx,hh->_miny);
+    mp_ps_pair_out(mp, hh->_maxx,hh->_maxy);
   }
-  mp_print_nl(mp, "%%Creator: MetaPost ");
-  mp_print(mp, mp_metapost_version(mp));
-  mp_print_nl(mp, "%%CreationDate: ");
-  mp_print_int(mp, mp_round_unscaled(mp, mp->internal[mp_year])); mp_print_char(mp, '.');
-  mp_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_month])); mp_print_char(mp, '.');
-  mp_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_day])); mp_print_char(mp, ':');
+  mp_ps_print_nl(mp, "%%Creator: MetaPost ");
+  mp_ps_print(mp, mp_metapost_version(mp));
+  mp_ps_print_nl(mp, "%%CreationDate: ");
+  mp_ps_print_int(mp, mp_round_unscaled(mp, mp->internal[mp_year])); 
+  mp_ps_print_char(mp, '.');
+  mp_ps_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_month])); 
+  mp_ps_print_char(mp, '.');
+  mp_ps_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_day])); 
+  mp_ps_print_char(mp, ':');
   t=mp_round_unscaled(mp, mp->internal[mp_time]);
-  mp_print_dd(mp, t / 60); mp_print_dd(mp, t % 60);
-  mp_print_nl(mp, "%%Pages: 1");
+  mp_ps_print_dd(mp, t / 60); 
+  mp_ps_print_dd(mp, t % 60);
+  mp_ps_print_nl(mp, "%%Pages: 1");
 }
 
 @ The most important output procedure is the one that gives the \ps\ version of
@@ -4362,7 +4496,7 @@ void mp_gr_ps_path_out (MP mp, struct mp_knot *h) {
 @ @<Start a new line and print the \ps\ commands for the curve from...@>=
 curved=true;
 @<Set |curved:=false| if the cubic from |p| to |q| is almost straight@>;
-mp_print_ln(mp);
+mp_ps_print_ln(mp);
 if ( curved ){ 
   mp_ps_pair_out(mp, gr_right_x(p),gr_right_y(p));
   mp_ps_pair_out(mp, gr_left_x(q),gr_left_y(q));
@@ -4518,6 +4652,7 @@ typedef struct mp_graphic_object {
 } mp_graphic_object;
 typedef struct mp_edge_object {
   struct mp_graphic_object * body;
+  scaled _minx, _miny, _maxx, _maxy;
 } mp_edge_object;
 
 @ @<Exported function headers@>=
@@ -4658,7 +4793,7 @@ void mp_gr_fix_graphics_state (MP mp, struct mp_graphic_object *p) {
         @<Decide whether the line cap parameter matters and set it if necessary@>;
         @<Set the other numeric parameters as needed for object~|p|@>;
       }
-  if ( mp->ps_offset>0 ) mp_print_ln(mp);
+  if ( mp->ps->ps_offset>0 ) mp_ps_print_ln(mp);
 }
 
 @ @<Decide whether the line cap parameter matters and set it if necessary@>=
@@ -4666,8 +4801,8 @@ if ( gr_type(p)==mp_stroked_code )
   if ( (gr_left_type(gr_path_p(p))==mp_endpoint)||(gr_dash_p(p)!=NULL) )
     if ( gs_lcap!=gr_lcap_val(p) ) {
       ps_room(13);
-      mp_print_char(mp, ' ');
-      mp_print_char(mp, '0'+gr_lcap_val(p)); 
+      mp_ps_print_char(mp, ' ');
+      mp_ps_print_char(mp, '0'+gr_lcap_val(p)); 
       mp_ps_print_cmd(mp, " setlinecap"," lc");
       gs_lcap=gr_lcap_val(p);
     }
@@ -4675,15 +4810,15 @@ if ( gr_type(p)==mp_stroked_code )
 @ @<Set the other numeric parameters as needed for object~|p|@>=
 if ( gs_ljoin!=gr_ljoin_val(p) ) {
   ps_room(14);
-  mp_print_char(mp, ' ');
-  mp_print_char(mp, '0'+gr_ljoin_val(p)); 
+  mp_ps_print_char(mp, ' ');
+  mp_ps_print_char(mp, '0'+gr_ljoin_val(p)); 
   mp_ps_print_cmd(mp, " setlinejoin"," lj");
   gs_ljoin=gr_ljoin_val(p);
 }
 if ( gs_miterlim!=gr_miterlim_val(p) ) {
   ps_room(27);
-  mp_print_char(mp, ' ');
-  mp_print_scaled(mp, gr_miterlim_val(p)); 
+  mp_ps_print_char(mp, ' ');
+  mp_ps_print_scaled(mp, gr_miterlim_val(p)); 
   mp_ps_print_cmd(mp, " setmiterlimit"," ml");
   gs_miterlim=gr_miterlim_val(p);
 }
@@ -4701,10 +4836,10 @@ if ( gs_miterlim!=gr_miterlim_val(p) ) {
       gs_black= -1;
       gs_colormodel=mp_rgb_model;
       { ps_room(36);
-        mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_red); mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_green); mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_blue);
+        mp_ps_print_char(mp, ' ');
+        mp_ps_print_scaled(mp, gs_red); mp_ps_print_char(mp, ' ');
+        mp_ps_print_scaled(mp, gs_green); mp_ps_print_char(mp, ' ');
+        mp_ps_print_scaled(mp, gs_blue);
         mp_ps_print_cmd(mp, " setrgbcolor", " R");
       }
     }
@@ -4727,11 +4862,14 @@ if ( gs_miterlim!=gr_miterlim_val(p) ) {
       }
       gs_colormodel=mp_cmyk_model;
       { ps_room(45);
-        mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_red); mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_green); mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_blue); mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_black);
+        mp_ps_print_char(mp, ' ');
+        mp_ps_print_scaled(mp, gs_red); 
+        mp_ps_print_char(mp, ' ');
+        mp_ps_print_scaled(mp, gs_green); 
+        mp_ps_print_char(mp, ' ');
+        mp_ps_print_scaled(mp, gs_blue); 
+	    mp_ps_print_char(mp, ' ');
+        mp_ps_print_scaled(mp, gs_black);
         mp_ps_print_cmd(mp, " setcmykcolor"," C");
       }
     }
@@ -4745,8 +4883,8 @@ if ( gs_miterlim!=gr_miterlim_val(p) ) {
       gs_black= -1;
       gs_colormodel=mp_grey_model;
       { ps_room(16);
-        mp_print_char(mp, ' ');
-        mp_print_scaled(mp, gs_red);
+        mp_ps_print_char(mp, ' ');
+        mp_ps_print_scaled(mp, gs_red);
         mp_ps_print_cmd(mp, " setgray"," G");
       }
     }
@@ -4780,18 +4918,18 @@ to compute in \ps.
 if ( (ww!=gs_width) || (adj_wx!=gs_adj_wx) ) {
   if ( adj_wx ) {
     ps_room(13);
-    mp_print_char(mp, ' '); mp_print_scaled(mp, ww);
+    mp_ps_print_char(mp, ' '); mp_ps_print_scaled(mp, ww);
     mp_ps_print_cmd(mp, 
       " 0 dtransform exch truncate exch idtransform pop setlinewidth"," hlw");
   } else {
     if ( mp->internal[mp_procset]>0 ) {
       ps_room(13);
-      mp_print_char(mp, ' ');
-      mp_print_scaled(mp, ww);
+      mp_ps_print_char(mp, ' ');
+      mp_ps_print_scaled(mp, ww);
       mp_ps_print(mp, " vlw");
     } else { 
       ps_room(15);
-      mp_print(mp, " 0 "); mp_print_scaled(mp, ww);
+      mp_ps_print(mp, " 0 "); mp_ps_print_scaled(mp, ww);
       mp_ps_print(mp, " dtransform truncate idtransform setlinewidth pop");
     }
   }
@@ -4934,7 +5072,7 @@ cannot be printed without overflow.
     struct mp_dash_item *dpp=gr_dash_list(hh);
     struct mp_dash_item *pp= dpp;
     ps_room(28);
-    mp_print(mp, " [");
+    mp_ps_print(mp, " [");
     while ( dpp!=NULL ) {
 	  scaled dx,dy;
       dx = mp_take_scaled(mp, gr_stop_x(dpp)-gr_start_x(dpp),scf);
@@ -4948,8 +5086,8 @@ cannot be printed without overflow.
       dpp=gr_dash_link(dpp);
     }
     ps_room(22);
-    mp_print(mp, "] ");
-    mp_print_scaled(mp, mp_take_scaled(mp, mp_gr_dash_offset(mp, hh),scf));
+    mp_ps_print(mp, "] ");
+    mp_ps_print_scaled(mp, mp_take_scaled(mp, mp_gr_dash_offset(mp, hh),scf));
     mp_ps_print_cmd(mp, " setdash"," sd");
   }
 }
@@ -5027,25 +5165,25 @@ void mp_gr_stroke_ellipse (MP mp, struct mp_graphic_object *h, boolean fill_also
   @<Tweak the transformation parameters so the transformation is nonsingular@>;
   mp_gr_ps_path_out(mp, gr_path_p(h));
   if ( mp->internal[mp_procset]==0 ) {
-    if ( fill_also ) mp_print_nl(mp, "gsave fill grestore");
+    if ( fill_also ) mp_ps_print_nl(mp, "gsave fill grestore");
     @<Issue \ps\ commands to transform the coordinate system@>;
     mp_ps_print(mp, " stroke");
     if ( transformed ) mp_ps_print(mp, " grestore");
   } else {
-    if ( fill_also ) mp_print_nl(mp, "B"); else mp_print_ln(mp);
+    if ( fill_also ) mp_ps_print_nl(mp, "B"); else mp_ps_print_ln(mp);
     if ( (txy!=0)||(tyx!=0) ) {
-      mp_print(mp, " [");
+      mp_ps_print(mp, " [");
       mp_ps_pair_out(mp, txx,tyx);
       mp_ps_pair_out(mp, txy,tyy);
       mp_ps_print(mp, "0 0] t");
     } else if ((txx!=unity)||(tyy!=unity) )  {
       mp_ps_pair_out(mp,txx,tyy);
-      mp_print(mp, " s");
+      mp_ps_print(mp, " s");
     };
     mp_ps_print(mp, " S");
     if ( transformed ) mp_ps_print(mp, " Q");
   }
-  mp_print_ln(mp);
+  mp_ps_print_ln(mp);
 }
 
 @ @<Use |pen_p(h)| to set the transformation parameters and give the...@>=
@@ -5055,7 +5193,7 @@ tyx=gr_left_y(p);
 txy=gr_right_x(p);
 tyy=gr_right_y(p);
 if ( (gr_x_coord(p)!=0)||(gr_y_coord(p)!=0) ) {
-  mp_print_nl(mp, ""); 
+  mp_ps_print_nl(mp, ""); 
   mp_ps_print_cmd(mp, "gsave ","q ");
   mp_ps_pair_out(mp, gr_x_coord(p), gr_y_coord(p));
   mp_ps_print(mp, "translate ");
@@ -5065,7 +5203,7 @@ if ( (gr_x_coord(p)!=0)||(gr_y_coord(p)!=0) ) {
   tyy-=gr_y_coord(p);
   transformed=true;
 } else {
-  mp_print_nl(mp, "");
+  mp_ps_print_nl(mp, "");
 }
 @<Adjust the transformation to account for |gs_width| and output the
   initial \&{gsave} if |transformed| should be |true|@>
@@ -5090,15 +5228,15 @@ if ( (txy!=0)||(tyx!=0)||(txx!=unity)||(tyy!=unity) ) {
 
 @ @<Issue \ps\ commands to transform the coordinate system@>=
 if ( (txy!=0)||(tyx!=0) ){ 
-  mp_print_ln(mp);
-  mp_print_char(mp, '[');
+  mp_ps_print_ln(mp);
+  mp_ps_print_char(mp, '[');
   mp_ps_pair_out(mp, txx,tyx);
   mp_ps_pair_out(mp, txy,tyy);
   mp_ps_print(mp, "0 0] concat");
 } else if ( (txx!=unity)||(tyy!=unity) ){ 
-  mp_print_ln(mp);
+  mp_ps_print_ln(mp);
   mp_ps_pair_out(mp, txx,tyy);
-  mp_print(mp, "scale");
+  mp_ps_print(mp, "scale");
 }
 
 @ The \ps\ interpreter will probably abort if it encounters a singular
@@ -5136,7 +5274,7 @@ void mp_gr_ps_fill_out (MP mp, struct mp_knot *p);
 void mp_gr_ps_fill_out (MP mp, struct mp_knot *p) { /* fill cyclic path~|p| */
   mp_gr_ps_path_out(mp, p);
   mp_ps_print_cmd(mp, " fill"," F");
-  mp_print_ln(mp);
+  mp_ps_print_ln(mp);
 }
 
 @ A text node may specify an arbitrary transformation but the usual case
@@ -5168,38 +5306,208 @@ scaled mp_gr_choose_scale (MP mp, struct mp_graphic_object *p) ;
   return mp_pyth_add(mp, mp_pyth_add(mp, d+ad,ad), mp_pyth_add(mp, c+bc,bc));
 }
 
+@ The potential overflow here is caused by the fact the returned value
+has to fit in a |name_type|, which is a quarterword. 
+
+@d fscale_tolerance 65 /* that's $.001\times2^{16}$ */
+
+@<Declarations@>=
+quarterword mp_size_index (MP mp, font_number f, scaled s) ;
+
+@ @c
+quarterword mp_size_index (MP mp, font_number f, scaled s) {
+  pointer p,q; /* the previous and current font size nodes */
+  quarterword i; /* the size index for |q| */
+  q=mp->font_sizes[f];
+  i=0;
+  while ( q!=null ) {
+    if ( abs(s-sc_factor(q))<=fscale_tolerance ) 
+      return i;
+    else 
+      { p=q; q=link(q); incr(i); };
+    if ( i==max_quarterword )
+      mp_overflow(mp, "sizes per font",max_quarterword);
+@:MetaPost capacity exceeded sizes per font}{\quad sizes per font@>
+  }
+  q=mp_get_node(mp, font_size_size);
+  sc_factor(q)=s;
+  if ( i==0 ) mp->font_sizes[f]=q;  else link(p)=q;
+  return i;
+}
+
+@ @<Declarations@>=
+scaled mp_indexed_size (MP mp,font_number f, quarterword j);
+
+@ @c
+scaled mp_indexed_size (MP mp,font_number f, quarterword j) {
+  pointer p; /* a font size node */
+  quarterword i; /* the size index for |p| */
+  p=mp->font_sizes[f];
+  i=0;
+  if ( p==null ) mp_confusion(mp, "size");
+  while ( (i!=j) ) { 
+    incr(i); p=link(p);
+    if ( p==null ) mp_confusion(mp, "size");
+  }
+  return sc_factor(p);
+}
+
+@ @<Declarations@>=
+void mp_clear_sizes (MP mp) ;
+
+@ @c void mp_clear_sizes (MP mp) {
+  font_number f;  /* the font whose size list is being cleared */
+  pointer p;  /* current font size nodes */
+  for (f=null_font+1;f<=mp->last_fnum;f++) {
+    while ( mp->font_sizes[f]!=null ) {
+      p=mp->font_sizes[f];
+      mp->font_sizes[f]=link(p);
+      mp_free_node(mp, p,font_size_size);
+    }
+  }
+}
+
+@ A text node may specify an arbitrary transformation but the usual case
+involves only shifting, scaling, and occasionally rotation.  The purpose
+of |choose_scale| is to select a scale factor so that the remaining
+transformation is as ``nice'' as possible.  The definition of ``nice''
+is somewhat arbitrary but shifting and $90^\circ$ rotation are especially
+nice because they work out well for bitmap fonts.  The code here selects
+a scale factor equal to $1/\sqrt2$ times the Frobenius norm of the
+non-shifting part of the transformation matrix.  It is careful to avoid
+additions that might cause undetected overflow.
+
+@<Declare the \ps\ output procedures@>=
+scaled mp_choose_scale (MP mp, mp_graphic_object *p) ;
+
+@ @c scaled mp_choose_scale (MP mp, mp_graphic_object *p) {
+  /* |p| should point to a text node */
+  scaled a,b,c,d,ad,bc; /* temporary values */
+  a=gr_txx_val(p);
+  b=gr_txy_val(p);
+  c=gr_tyx_val(p);
+  d=gr_tyy_val(p);
+  if ( (a<0) ) negate(a);
+  if ( (b<0) ) negate(b);
+  if ( (c<0) ) negate(c);
+  if ( (d<0) ) negate(d);
+  ad=half(a-d);
+  bc=half(b-c);
+  return mp_pyth_add(mp, mp_pyth_add(mp, d+ad,ad), mp_pyth_add(mp, c+bc,bc));
+}
+
+@ There may be many sizes of one font and we need to keep track of the
+characters used for each size.  This is done by keeping a linked list of
+sizes for each font with a counter in each text node giving the appropriate
+position in the size list for its font.
+
+@d font_size_size 2 /* size of a font size node */
+
+
+@ @<Declarations@>=
+void mp_apply_mark_string_chars(MP mp, struct mp_edge_object *h, int next_size);
+
+@ @c
+void mp_apply_mark_string_chars(MP mp, struct mp_edge_object *h, int next_size) {
+  struct mp_graphic_object * p;
+  p=h->body;
+  while ( p!= NULL ) {
+    if ( gr_type(p)==mp_text_code ) {
+      if ( gr_font_n(p)!=null_font ) { 
+        if ( gr_name_type(p)==next_size )
+          mp_mark_string_chars(mp, gr_font_n(p),gr_text_p(p));
+      }
+    }
+    p=gr_link(p);
+  }
+}
+
+@ @<Unmark all marked characters@>=
+for (f=null_font+1;f<=mp->last_fnum;f++) {
+  if ( mp->font_sizes[f]!=null ) {
+    mp_unmark_font(mp, f);
+    mp->font_sizes[f]=null;
+  }
+}
+
+@ @<Scan all the text nodes and mark the used ...@>=
+p=hh->body;
+while ( p!=null ) {
+  if ( gr_type(p)==mp_text_code ) {
+    f = gr_font_n(p);
+    if (f!=null_font ) {
+      switch (prologues) {
+      case two:
+      case three:
+        mp->font_sizes[f] = mp_void;
+        mp_mark_string_chars(mp, f, gr_text_p(p));
+   	    if (mp_has_fm_entry(mp,f,NULL) ) {
+          if (mp->font_enc_name[f]==NULL )
+            mp->font_enc_name[f] = mp_fm_encoding_name(mp,f);
+          mp->font_ps_name[f] = mp_fm_font_name(mp,f);
+        }
+        break;
+      case unity:
+        mp->font_sizes[f]=mp_void;
+        break;
+      default: 
+        gr_name_type(p)=mp_size_index(mp, f,mp_choose_scale(mp, p));
+        if ( gr_name_type(p)==0 )
+          mp_mark_string_chars(mp, f, gr_text_p(p));
+      }
+    }
+  }
+  p=gr_link(p);
+}
+
 
 @ 
 @d pen_is_elliptical(A) ((A)==gr_next_knot((A)))
 
 @<Exported function headers@>=
-void mp_gr_ship_out (MP mp, struct mp_graphic_object *h) ;
+void mp_gr_ship_out (MP mp, struct mp_edge_object *hh) ;
 
 @ @c 
-void mp_gr_ship_out (MP mp, struct mp_graphic_object *h) {
+void mp_gr_ship_out (MP mp, struct mp_edge_object *hh) {
   struct mp_graphic_object *p;
   scaled ds,scf; /* design size and scale factor for a text node */
+  font_number f; /* for loops over fonts while (un)marking characters */
   boolean transformed; /* is the coordinate system being transformed? */
-  p =  h;
+  scaled prologues = mp->internal[mp_prologues];
+  mp_open_output_file(mp);
+  mp_print_initial_comment(mp, hh);
+  p = hh->body;
+  @<Unmark all marked characters@>;
+  mp_reload_encodings(mp);
+  @<Scan all the text nodes and mark the used characters@>;
+  if ( prologues==two || prologues==three ) {
+    mp_print_improved_prologue(mp, hh);
+  } else {
+    mp_print_prologue(mp, hh);
+  }
   mp_gs_unknown_graphics_state(mp, 0);
+  p = hh->body;
   while ( p!=NULL ) { 
     if ( gr_has_color(p) ) {
       if ( (gr_pre_script(p))!=NULL ) {
-        mp_print_nl (mp, gr_pre_script(p)); 
-	mp_print_ln(mp);
+        mp_ps_print_nl (mp, gr_pre_script(p)); 
+	    mp_ps_print_ln(mp);
       }
     }
     mp_gr_fix_graphics_state(mp, p);
     switch (gr_type(p)) {
     case mp_fill_code: 
-      if ( gr_pen_p(p)==NULL ) mp_gr_ps_fill_out(mp, gr_path_p(p));
-      else if ( pen_is_elliptical(gr_pen_p(p)) ) mp_gr_stroke_ellipse(mp, p,true);
-      else { 
+      if ( gr_pen_p(p)==NULL ) {
+        mp_gr_ps_fill_out(mp, gr_path_p(p));
+      } else if ( pen_is_elliptical(gr_pen_p(p)) )  {
+        mp_gr_stroke_ellipse(mp, p,true);
+      } else { 
         mp_gr_ps_fill_out(mp, gr_path_p(p));
         mp_gr_ps_fill_out(mp, gr_htap_p(p));
       }
       if ( gr_post_script(p)!=NULL ) {
-         mp_print_nl (mp, gr_post_script(p)); mp_print_ln(mp);
+         mp_ps_print_nl (mp, gr_post_script(p)); 
+	     mp_ps_print_ln(mp);
       }
       break;
     case mp_stroked_code:
@@ -5208,7 +5516,7 @@ void mp_gr_ship_out (MP mp, struct mp_graphic_object *h) {
         mp_gr_ps_fill_out(mp, gr_path_p(p));
       }
       if ( gr_post_script(p)!=NULL ) {
-        mp_print_nl (mp, gr_post_script(p)); mp_print_ln(mp);
+        mp_ps_print_nl (mp, gr_post_script(p)); mp_ps_print_ln(mp);
       }
       break;
     case mp_text_code: 
@@ -5223,23 +5531,23 @@ void mp_gr_ship_out (MP mp, struct mp_graphic_object *h) {
         mp_ps_string_out(mp, gr_text_p(p));
         mp_ps_name_out(mp, mp->font_name[gr_font_n(p)],false);
         @<Print the size information and \ps\ commands for text node~|p|@>;
-        mp_print_ln(mp);
+        mp_ps_print_ln(mp);
       }
       if ( gr_post_script(p)!=NULL ) {
-        mp_print_nl (mp, gr_post_script(p)); mp_print_ln(mp);
+        mp_ps_print_nl (mp, gr_post_script(p)); mp_ps_print_ln(mp);
       }
       break;
     case mp_start_clip_code: 
-      mp_print_nl(mp, ""); mp_ps_print_cmd(mp, "gsave ","q ");
+      mp_ps_print_nl(mp, ""); mp_ps_print_cmd(mp, "gsave ","q ");
       mp_gr_ps_path_out(mp, gr_path_p(p));
       mp_ps_print_cmd(mp, " clip"," W");
-      mp_print_ln(mp);
+      mp_ps_print_ln(mp);
       if ( mp->internal[mp_restore_clip_color]>0 )
         mp_gs_unknown_graphics_state(mp, 1);
       break;
     case mp_stop_clip_code: 
-      mp_print_nl(mp, ""); mp_ps_print_cmd(mp, "grestore","Q");
-      mp_print_ln(mp);
+      mp_ps_print_nl(mp, ""); mp_ps_print_cmd(mp, "grestore","Q");
+      mp_ps_print_ln(mp);
       if ( mp->internal[mp_restore_clip_color]>0 )
         mp_gs_unknown_graphics_state(mp, 2);
       else
@@ -5249,15 +5557,18 @@ void mp_gr_ship_out (MP mp, struct mp_graphic_object *h) {
     case mp_stop_bounds_code:
 	  break;
     case mp_special_code: 
-      mp_print_nl (mp, gr_pre_script(p)); 
- 	  mp_print_ln (mp);
+      mp_ps_print_nl (mp, gr_pre_script(p)); 
+ 	  mp_ps_print_ln (mp);
       break;
     } /* all cases are enumerated */
     p=gr_link(p);
   }
-  mp_ps_print_cmd(mp, "showpage","P"); mp_print_ln(mp);
-  mp_print(mp, "%%EOF"); mp_print_ln(mp);
-  mp_gr_toss_objects(mp, h);
+  mp_ps_print_cmd(mp, "showpage","P"); mp_ps_print_ln(mp);
+  mp_ps_print(mp, "%%EOF"); mp_ps_print_ln(mp);
+  mp_gr_toss_objects(mp, hh->body);
+  fclose(mp->ps_file);
+  if ( mp->internal[mp_prologues]<=0 ) 
+    mp_clear_sizes(mp);
 }
 
 @ The envelope of a cyclic path~|q| could be computed by calling
@@ -5275,10 +5586,10 @@ if ( gr_left_type(q)!=mp_endpoint ) {
 
 @ @<Print the size information and \ps\ commands for text node~|p|@>=
 ps_room(18);
-mp_print_char(mp, ' ');
+mp_ps_print_char(mp, ' ');
 ds=(mp->font_dsize[gr_font_n(p)]+8) / 16;
-mp_print_scaled(mp, mp_take_scaled(mp, ds,scf));
-mp_print(mp, " fshow");
+mp_ps_print_scaled(mp, mp_take_scaled(mp, ds,scf));
+mp_ps_print(mp, " fshow");
 if ( transformed ) 
    mp_ps_print_cmd(mp, " grestore"," Q")
 
@@ -5299,7 +5610,7 @@ if ( transformed ) {
   mp_ps_pair_out(mp, gr_tx_val(p),gr_ty_val(p));
   mp_ps_print_cmd(mp, "moveto","m");
 }
-mp_print_ln(mp)
+mp_ps_print_ln(mp)
 
 
 @ 

@@ -1525,8 +1525,6 @@ values:
 \hang |no_print|, doesn't print at all. This is used only in rare cases
   before the transcript file is open.
 
-\hang |ps_file_only| prints only on the \ps\ output file.
-
 \hang |pseudo|, puts output into a cyclic buffer that is used
   by the |show_context| routine; when we get to that routine we shall discuss
   the reasoning behind this curious mode.
@@ -1542,20 +1540,18 @@ values:
 \noindent The symbolic names `|term_and_log|', etc., have been assigned
 numeric codes that satisfy the convenient relations |no_print+1=term_only|,
 |no_print+2=log_only|, |term_only+2=log_only+1=term_and_log|.  These
-relations are not used when |selector| could be |pseudo|, |new_string|,
-or |ps_file_only|.  We need not check for unprintable characters when
-|selector<pseudo|.
+relations are not used when |selector| could be |pseudo|, or |new_string|.
+We need not check for unprintable characters when |selector<pseudo|.
 
-Four additional global variables, |tally|, |term_offset|, |file_offset|,
-and |ps_offset| record the number of characters that have been printed
+Three additional global variables, |tally|, |term_offset| and |file_offset|
+record the number of characters that have been printed
 since they were most recently cleared to zero. We use |tally| to record
 the length of (possibly very long) stretches of printing; |term_offset|,
-|file_offset|, and |ps_offset|, on the other hand, keep track of how many
+and |file_offset|, on the other hand, keep track of how many
 characters have appeared so far on the current line that has been output
 to the terminal, the transcript file, or the \ps\ output file, respectively.
 
 @d new_string 0 /* printing is deflected to the string pool */
-@d ps_file_only 1 /* printing goes to the \ps\ output file */
 @d pseudo 2 /* special |selector| setting for |show_context| */
 @d no_print 3 /* |selector| setting that makes data disappear */
 @d term_only 4 /* printing is destined for the terminal only */
@@ -1573,8 +1569,6 @@ unsigned int term_offset;
   /* the number of characters on the current terminal line */
 unsigned int file_offset;
   /* the number of characters on the current file line */
-integer ps_offset;
-  /* the number of characters on the current \ps\ file line */
 ASCII_code *trick_buf; /* circular buffer for pseudoprinting */
 integer trick_count; /* threshold for pseudoprinting, explained later */
 integer first_count; /* another variable for pseudoprinting */
@@ -1587,7 +1581,7 @@ mp->trick_buf = xmalloc((mp->error_line+1),sizeof(ASCII_code));
 xfree(mp->trick_buf);
 
 @ @<Initialize the output routines@>=
-mp->selector=term_only; mp->tally=0; mp->term_offset=0; mp->file_offset=0; mp->ps_offset=0;
+mp->selector=term_only; mp->tally=0; mp->term_offset=0; mp->file_offset=0; 
 
 @ Macro abbreviations for output to the terminal and to the log file are
 defined here for convenience. Some systems need special conventions
@@ -1603,10 +1597,6 @@ by changing |wterm|, |wterm_ln|, and |wterm_cr| here.
 @d wlog_chr(A) fprintf(mp->log_file,"%c",(A))
 @d wlog_ln(A)  fprintf(mp->log_file,"\n%s",(A))
 @d wlog_cr     fprintf(mp->log_file, "\n")
-@d wps(A)      fprintf(mp->ps_file,"%s",(A))
-@d wps_chr(A)  fprintf(mp->ps_file,"%c",(A))
-@d wps_ln(A)   fprintf(mp->ps_file,,"\n%s",(A))
-@d wps_cr      fprintf(mp->ps_file,"\n")
 
 @ To end a line of text output, we call |print_ln|.  Cases |0..max_write_files|
 use an array |wr_file| that will be declared later.
@@ -1635,9 +1625,6 @@ void mp_print_ln (MP mp) { /* prints an end-of-line */
     break;
   case term_only: 
     wterm_cr; mp->term_offset=0;
-    break;
-  case ps_file_only: 
-    wps_cr; mp->ps_offset=0;
     break;
   case no_print:
   case pseudo: 
@@ -1682,13 +1669,6 @@ void mp_print_visible_char (MP mp, ASCII_code s) { /* prints a single character 
     wterm_chr(xchr(s)); incr(mp->term_offset);
     if ( mp->term_offset==(unsigned)mp->max_print_line ) mp_print_ln(mp);
     break;
-  case ps_file_only: 
-    if ( s==13 ) {
-      wps_cr; mp->ps_offset=0;
-    } else {
-      wps_chr(xchr(s)); incr(mp->ps_offset);
-    };
-    break;
   case no_print: 
     break;
   case pseudo: 
@@ -1715,10 +1695,8 @@ File names and string expressions might contain |ASCII_code| values that
 can't be printed using |print_visible_char|.  These characters will be
 printed in three- or four-symbol form like `\.{\^\^A}' or `\.{\^\^e4}'.
 (This procedure assumes that it is safe to bypass all checks for unprintable
-characters when |selector| is in the range |0..max_write_files-1| or when
-|selector=ps_file_only|.  In the former case the user might want to write
-unprintable characters, and in the latter case the \ps\ printing routines
-check their arguments themselves before calling |print_char| or |print|.)
+characters when |selector| is in the range |0..max_write_files-1|.
+The user might want to write unprintable characters.
 
 @d print_lc_hex(A) do { l=(A);
     mp_print_visible_char(mp, (l<10 ? l+'0' : l-10+'a'));
@@ -1804,9 +1782,6 @@ void mp_print_nl (MP mp, char *s) { /* prints string |s| at beginning of line */
     break;
   case term_only: 
     if ( mp->term_offset>0 ) mp_print_ln(mp);
-    break;
-  case ps_file_only: 
-    if ( mp->ps_offset>0 ) mp_print_ln(mp);
     break;
   case no_print:
   case pseudo:
@@ -2376,7 +2351,7 @@ void mp_overflow (MP mp, char *s, integer n) { /* stop due to finiteness */
   succumb;
 }
 
-@ @<Declarations@>=
+@ @<Internal library declarations@>=
 void mp_overflow (MP mp, char *s, integer n);
 
 @ The program might sometime run completely amok, at which point there is
@@ -4033,7 +4008,7 @@ space exists.
 If |get_node| is called with $s=2^{30}$, it simply merges adjacent free
 areas and returns the value |max_halfword|.
 
-@<Declarations@>=
+@<Internal library declarations@>=
 pointer mp_get_node (MP mp,integer s) ;
 
 @ @c 
@@ -4139,7 +4114,7 @@ node_size(p)=q-p /* reset the size in case it grew */
 the operation |free_node(p,s)| will make its words available, by inserting
 |p| as a new empty node just before where |rover| now points.
 
-@<Declarations@>=
+@<Internal library declarations@>=
 void mp_free_node (MP mp, pointer p, halfword s) ;
 
 @ @c 
@@ -5201,7 +5176,6 @@ void mp_print_diagnostic (MP mp, char *s, char *t, boolean nuline) ;
 @<Declare a function called |true_line|@>;
 void mp_begin_diagnostic (MP mp) { /* prepare to do some tracing */
   mp->old_setting=mp->selector;
-  if ( mp->selector==ps_file_only ) mp->selector=mp->non_ps_setting;
   if ((mp->internal[mp_tracing_online]<=0)&&(mp->selector==term_and_log)){ 
     decr(mp->selector);
     if ( mp->history==mp_spotless ) mp->history=mp_warning_issued;
@@ -5215,12 +5189,10 @@ void mp_end_diagnostic (MP mp,boolean blank_line) {
   mp->selector=mp->old_setting;
 }
 
-@ The global variable |non_ps_setting| is initialized when it is time to print
-on |ps_file|.
+@ 
 
 @<Glob...@>=
 unsigned int old_setting;
-unsigned int non_ps_setting;
 
 @ We will occasionally use |begin_diagnostic| in connection with line-number
 printing, as follows. (The parameter |s| is typically |"Path"| or
@@ -24853,10 +24825,6 @@ void mp_do_mapline (MP mp) {
   mp_put_get_error(mp);
 }
 
-@ This is temporary.
-
-@d ps_room(A) mp_ps_room(mp,A)
-
 @ To print |scaled| value to PDF output we need some subroutines to ensure
 accurary.
 
@@ -24910,7 +24878,11 @@ description of an edge structure.
 file named according to the current \&{charcode}.
 @:char_code_}{\&{charcode} primitive@>
 
-@<Declare the \ps\ output procedures@>=
+This is the only backend function that remains in the main |mpost.w| file. 
+There are just too many variable accesses needed for status reporting 
+etcetera to make it worthwile to move the code to |psout.w|.
+
+@<Internal library declarations@>=
 void mp_open_output_file (MP mp) ;
 
 @ @c void mp_open_output_file (MP mp) {
@@ -25070,108 +25042,12 @@ if ( mp->total_shipped>0 ) {
   }
 }
 
-@ A text node may specify an arbitrary transformation but the usual case
-involves only shifting, scaling, and occasionally rotation.  The purpose
-of |choose_scale| is to select a scale factor so that the remaining
-transformation is as ``nice'' as possible.  The definition of ``nice''
-is somewhat arbitrary but shifting and $90^\circ$ rotation are especially
-nice because they work out well for bitmap fonts.  The code here selects
-a scale factor equal to $1/\sqrt2$ times the Frobenius norm of the
-non-shifting part of the transformation matrix.  It is careful to avoid
-additions that might cause undetected overflow.
-
-@<Declare the \ps\ output procedures@>=
-scaled mp_choose_scale (MP mp,pointer p) ;
-
-@ @c scaled mp_choose_scale (MP mp,pointer p) {
-  /* |p| should point to a text node */
-  scaled a,b,c,d,ad,bc; /* temporary values */
-  a=txx_val(p);
-  b=txy_val(p);
-  c=tyx_val(p);
-  d=tyy_val(p);
-  if ( (a<0) ) negate(a);
-  if ( (b<0) ) negate(b);
-  if ( (c<0) ) negate(c);
-  if ( (d<0) ) negate(d);
-  ad=half(a-d);
-  bc=half(b-c);
-  return mp_pyth_add(mp, mp_pyth_add(mp, d+ad,ad), mp_pyth_add(mp, c+bc,bc));
-}
-
-@ There may be many sizes of one font and we need to keep track of the
-characters used for each size.  This is done by keeping a linked list of
-sizes for each font with a counter in each text node giving the appropriate
-position in the size list for its font.
-
-@d sc_factor(A) mp->mem[(A)+1].sc /* the scale factor stored in a font size node */
-@d font_size_size 2 /* size of a font size node */
-
 @ @<Internal library declarations@>=
 boolean mp_has_font_size(MP mp, font_number f );
 
 @ @c 
 boolean mp_has_font_size(MP mp, font_number f ) {
   return (mp->font_sizes[f]!=null);
-}
-
-
-@ The potential overflow here is caused by the fact the returned value
-has to fit in a |name_type|, which is a quarterword. 
-
-@d fscale_tolerance 65 /* that's $.001\times2^{16}$ */
-
-@<Declare the \ps\ output procedures@>=
-quarterword mp_size_index (MP mp, font_number f, scaled s) {
-  pointer p,q; /* the previous and current font size nodes */
-  quarterword i; /* the size index for |q| */
-  q=mp->font_sizes[f];
-  i=0;
-  while ( q!=null ) {
-    if ( abs(s-sc_factor(q))<=fscale_tolerance ) 
-      return i;
-    else 
-      { p=q; q=link(q); incr(i); };
-    if ( i==max_quarterword )
-      mp_overflow(mp, "sizes per font",max_quarterword);
-@:MetaPost capacity exceeded sizes per font}{\quad sizes per font@>
-  }
-  q=mp_get_node(mp, font_size_size);
-  sc_factor(q)=s;
-  if ( i==0 ) mp->font_sizes[f]=q;  else link(p)=q;
-  return i;
-}
-
-@ @<Internal library ...@>=
-scaled mp_indexed_size (MP mp,font_number f, quarterword j);
-
-@ @c
-scaled mp_indexed_size (MP mp,font_number f, quarterword j) {
-  pointer p; /* a font size node */
-  quarterword i; /* the size index for |p| */
-  p=mp->font_sizes[f];
-  i=0;
-  if ( p==null ) mp_confusion(mp, "size");
-  while ( (i!=j) ) { 
-    incr(i); p=link(p);
-    if ( p==null ) mp_confusion(mp, "size");
-  }
-  return sc_factor(p);
-}
-
-@ @<Declare the \ps\ output procedures@>=
-void mp_clear_sizes (MP mp) ;
-
-@ @c void mp_clear_sizes (MP mp) {
-  font_number f;  /* the font whose size list is being cleared */
-  pointer p;  /* current font size nodes */
-  for (f=null_font+1;f<=mp->last_fnum;f++) {
-    while ( mp->font_sizes[f]!=null ) {
-      p=mp->font_sizes[f];
-      mp->font_sizes[f]=link(p);
-      mp_free_node(mp, p,font_size_size);
-    }
-  }
 }
 
 @ The \&{special} command saves up lines of text to be printed during the next
@@ -25262,29 +25138,19 @@ void mp_ship_out (MP mp, pointer h) ;
 @d gr_tyy_val(A)      (A)->tyy_field
 
 @c
-void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
+struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   pointer p; /* the current graphical object */
   integer t; /* a temporary value */
-  font_number f; /* fonts used in a text node or as loop counters */
   struct mp_edge_object *hh; /* the first graphical object */
   struct mp_graphic_object *hp; /* the current graphical object */
   struct mp_graphic_object *hq; /* something |hp| points to  */
-  int prologues = mp->internal[mp_prologues];
-  mp_open_output_file(mp);
-  mp->non_ps_setting=mp->selector;
-  mp->selector=ps_file_only;
   mp_set_bbox(mp, h, true);
-  mp_print_initial_comment(mp, minx_val(h),miny_val(h),maxx_val(h),maxy_val(h));
-  @<Unmark all marked characters@>;
-  mp_reload_encodings(mp);
-  @<Scan all the text nodes and mark the used characters@>;
-  if ( prologues==two || prologues==three ) {
-    mp_print_improved_prologue(mp, h);
-  } else {
-    mp_print_prologue(mp, h);
-  }
   hh = mp_xmalloc(mp,1,sizeof(struct mp_edge_object));
   hh->body = NULL;
+  hh->_minx = minx_val(h);
+  hh->_miny = miny_val(h);
+  hh->_maxx = maxx_val(h);
+  hh->_maxy = maxy_val(h);
   @<Export pending specials@>;
   p=link(dummy_loc(h));
   while ( p!=null ) { 
@@ -25364,11 +25230,17 @@ void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
     hp = hq;
     p=link(p);
   }
-  mp_gr_ship_out (mp, hh->body);
+  return hh;
+}
+
+@ This function is now nearly trivial.
+
+@c
+void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
+  struct mp_edge_object *hh; /* the first graphical object */
+  hh = mp_gr_export(mp,h);
+  mp_gr_ship_out (mp, hh);
   mp_xfree(hh);
-  fclose(mp->ps_file);
-  mp->selector=mp->non_ps_setting;
-  if ( mp->internal[mp_prologues]<=0 ) mp_clear_sizes(mp);
   @<End progress report@>;
   if ( mp->internal[mp_tracing_output]>0 ) 
    mp_print_edges(mp, h," (just shipped out)",true);
@@ -25402,62 +25274,6 @@ if (pre_script(p)!=null)
   gr_pre_script(hq)   = str(pre_script(p));
 if (post_script(p)!=null)
   gr_post_script(hq)  = str(post_script(p));
-
-@ @<Internal library declarations@>=
-void mp_apply_mark_string_chars(MP mp, pointer h, int next_size);
-
-@ @c
-void mp_apply_mark_string_chars(MP mp, pointer h, int next_size) {
-  pointer p;
-  p=link(dummy_loc(h));
-  while ( p!=null ) {
-    if ( type(p)==mp_text_code ) {
-      if ( font_n(p)!=null_font ) { 
-        if ( name_type(p)==next_size )
-          mp_mark_string_chars(mp, font_n(p),text_p(p));
-      }
-    }
-    p=link(p);
-  }
-}
-
-@ @<Unmark all marked characters@>=
-for (f=null_font+1;f<=mp->last_fnum;f++) {
-  if ( mp->font_sizes[f]!=null ) {
-    mp_unmark_font(mp, f);
-    mp->font_sizes[f]=null;
-  }
-}
-
-@ @<Scan all the text nodes and mark the used ...@>=
-p=link(dummy_loc(h));
-while ( p!=null ) {
-  if ( type(p)==mp_text_code ) {
-    f = font_n(p);
-    if (f!=null_font ) {
-      switch (prologues) {
-      case two:
-      case three:
-        mp->font_sizes[f] = mp_void;
-        mp_mark_string_chars(mp, f,text_p(p));
-   	    if (mp_has_fm_entry(mp,f,NULL) ) {
-          if (mp->font_enc_name[f]==NULL )
-            mp->font_enc_name[f] = mp_fm_encoding_name(mp,f);
-          mp->font_ps_name[f] = mp_fm_font_name(mp,f);
-        }
-        break;
-      case unity:
-        mp->font_sizes[f]=mp_void;
-        break;
-      default: 
-        name_type(p)=mp_size_index(mp, f,mp_choose_scale(mp, p));
-        if ( name_type(p)==0 )
-          mp_mark_string_chars(mp, f,text_p(p));
-      }
-    }
-  }
-  p=link(p);
-}
 
 @ Now that we've finished |ship_out|, let's look at the other commands
 by which a user can send things to the \.{GF} file.
