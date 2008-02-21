@@ -7047,16 +7047,7 @@ pointer mp_copy_path (MP mp, pointer p) {
 
 @ Just before |ship_out|, knot lists are exported for printing.
 
-@d gr_left_type(A)  (A)->left_type_field 
-@d gr_right_type(A) (A)->right_type_field
-@d gr_x_coord(A)    (A)->x_coord_field   
-@d gr_y_coord(A)    (A)->y_coord_field   
-@d gr_left_x(A)     (A)->left_x_field    
-@d gr_left_y(A)     (A)->left_y_field    
-@d gr_right_x(A)    (A)->right_x_field   
-@d gr_right_y(A)    (A)->right_y_field   
-@d gr_next_knot(A)  (A)->next_field
-@d gr_originator(A) (A)->originator_field
+The |gr_XXXX| macros are defined in |mppsout.h|.
 
 @c 
 struct mp_knot *mp_export_knot (MP mp,pointer p) {
@@ -25111,31 +25102,7 @@ setting is saved in a global variable so that |begin_diagnostic| can access it.
 @<Declare the \ps\ output procedures@>=
 void mp_ship_out (MP mp, pointer h) ;
 
-@ 
-@d gr_type(A)         (A)->_type_field
-@d gr_link(A)         (A)->_link_field
-@d gr_name_type(A)    (A)->name_type_field
-@d gr_path_p(A)       (A)->path_p_field 
-@d gr_htap_p(A)       (A)->htap_p_field 
-@d gr_pen_p(A)        (A)->pen_p_field 
-@d gr_ljoin_val(A)    (A)->ljoin_field
-@d gr_lcap_val(A)     (A)->lcap_field
-@d gr_dash_scale(A)   (A)->dash_scale_field
-@d gr_miterlim_val(A) (A)->miterlim_field
-@d gr_pre_script(A)   (A)->pre_script_field
-@d gr_post_script(A)  (A)->post_script_field
-@d gr_dash_p(A)       (A)->dash_p_field
-@d gr_text_p(A)       (A)->text_p_field 
-@d gr_font_n(A)       (A)->font_n_field 
-@d gr_width_val(A)    (A)->width_field
-@d gr_height_val(A)   (A)->height_field
-@d gr_depth_val(A)    (A)->depth_field
-@d gr_tx_val(A)       (A)->tx_field
-@d gr_ty_val(A)       (A)->ty_field
-@d gr_txx_val(A)      (A)->txx_field
-@d gr_txy_val(A)      (A)->txy_field
-@d gr_tyx_val(A)      (A)->tyx_field
-@d gr_tyy_val(A)      (A)->tyy_field
+@ Once again, the |gr_XXXX| macros are defined in |mppsout.h|
 
 @c
 struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
@@ -25247,15 +25214,7 @@ void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
 }
 
 @ 
-@d gr_color_model(A)  (A)->color_model_field
-@d gr_red_val(A)      (A)->color_field.rgb._red_val
-@d gr_green_val(A)    (A)->color_field.rgb._green_val
-@d gr_blue_val(A)     (A)->color_field.rgb._blue_val
-@d gr_cyan_val(A)     (A)->color_field.cmyk._cyan_val
-@d gr_magenta_val(A)  (A)->color_field.cmyk._magenta_val
-@d gr_yellow_val(A)   (A)->color_field.cmyk._yellow_val
-@d gr_black_val(A)    (A)->color_field.cmyk._black_val
-@d gr_grey_val(A)     (A)->color_field.grey._grey_val
+@ Once again, the |gr_XXXX| macros are defined in |mppsout.h|
 
 @<Export object color@>=
 gr_color_model(hq)  = color_model(p);
