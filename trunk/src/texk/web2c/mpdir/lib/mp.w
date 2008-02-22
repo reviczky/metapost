@@ -736,15 +736,21 @@ boolean mp_w_open_out (MP mp, void **f) {
 @ @c
 char *mp_read_ascii_file (void *f, size_t *size) {
   int c;
-  size_t len = 0;
+  size_t len = 0, lim = 128;
   char *s = NULL;
   *size = 0;
 #if NOTTESTING
   c = fgetc(f);
   if (c==EOF)
     return NULL;
-  s = malloc(256);
+  s = malloc(lim); 
+  if (s==NULL) return NULL;
   while (c!=EOF && c!='\n' && c!='\r') { 
+    if (len==lim) {
+      s =realloc(s, (lim+(lim>>2)));
+      if (s==NULL) return NULL;
+      lim+=(lim>>2);
+    }
 	s[len++] = c;
     c =fgetc(f);
   }
@@ -808,8 +814,6 @@ void mp_flush_file (void *f) {
   fflush(f);
 #endif
 }
-
-
 
 @ Binary input and output are done with \PASCAL's ordinary |get| and |put|
 procedures, so we don't have to make any other special arrangements for
