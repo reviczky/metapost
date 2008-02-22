@@ -168,11 +168,14 @@ if (!nokpse)
 @ @<Register the callback routines@>=
 options->get_random_seed = mpost_get_random_seed;
 
-@ 
-@c char *mpost_find_file(char *fname, char *fmode, int ftype)  {
+@ @c 
+char *mpost_find_file(char *fname, char *fmode, int ftype)  {
   char *s;
   int l ;
   if (fmode[0]=='r') {
+	if (ftype>=mp_filetype_text) {
+      s = kpse_find_file (fname, kpse_mp_format, 0); 
+    } else {
     switch(ftype) {
     case mp_filetype_program: 
       l = strlen(fname);
@@ -181,9 +184,6 @@ options->get_random_seed = mpost_get_random_seed;
       } else {
    	    s = kpse_find_file (fname, kpse_mp_format, 0); 
       }
-      break;
-    case mp_filetype_text: 
-      s = kpse_find_file (fname, kpse_mp_format, 0); 
       break;
     case mp_filetype_memfile: 
       s = kpse_find_file (fname, kpse_mem_format, 0); 
@@ -201,6 +201,7 @@ options->get_random_seed = mpost_get_random_seed;
       s = kpse_find_file (fname, kpse_enc_format, 0); 
       break;
     }
+    }
   } else {
     s = xstrdup(fname); /* when writing */
   }
@@ -210,6 +211,27 @@ options->get_random_seed = mpost_get_random_seed;
 @  @<Register the callback routines@>=
 if (!nokpse)
   options->find_file = mpost_find_file;
+
+@ @c 
+void *mpost_open_file(char *fname, char *fmode, int ftype)  {
+  char *s;
+  if (ftype==mp_filetype_terminal) {
+    return (fmode[0] == 'r' ? stdin : stdout);
+  } else if (ftype==mp_filetype_error) {
+    return stderr;
+  } else { 
+    s = mpost_find_file (fname, fmode, ftype);
+    if (s!=NULL) {
+      return fopen(s,fmode);
+    }
+  }
+  return NULL;
+}
+
+@  @<Register the callback routines@>=
+if (!nokpse)
+  options->open_file = mpost_open_file;
+
 
 @ At the moment, the command line is very simple.
 

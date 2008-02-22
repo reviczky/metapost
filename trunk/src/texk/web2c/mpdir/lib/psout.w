@@ -118,10 +118,14 @@ mp->ps->ps_offset = 0;
 
 @
 
-@d wps(A)      fprintf(mp->ps_file,"%s",(A))
-@d wps_chr(A)  fprintf(mp->ps_file,"%c",(A))
-@d wps_ln(A)   fprintf(mp->ps_file,,"\n%s",(A))
-@d wps_cr      fprintf(mp->ps_file,"\n")
+@d wps(A)     (mp->write_ascii_file)(mp->ps_file,(A))
+@d wps_chr(A) do { 
+  char ss[2]; 
+  ss[0]=(A); ss[1]=0; 
+  (mp->write_ascii_file)(mp->ps_file,(char *)ss); 
+} while (0)
+@d wps_cr     (mp->write_ascii_file)(mp->ps_file,"\n")
+@d wps_ln(A)  { wterm_cr; (mp->write_ascii_file)(mp->ps_file,(A)); }
 
 @c
 void mp_ps_print_ln (MP mp) { /* prints an end-of-line */
@@ -255,131 +259,6 @@ void mp_ps_print_scaled (MP mp,scaled s) {
   }
 }
 
-@* Traditional {psfonts.map} loading.
-
-TODO: It is likely that this code can be removed after a few minor tweaks.
-
-@ The file |ps_tab_file| gives a table of \TeX\ font names and corresponding
-PostScript names for fonts that do not have to be downloaded, i.e., fonts that
-can be used when |internal[prologues]>0|.  Each line consists of a \TeX\ name,
-one or more spaces, a PostScript name, and possibly a space and some other junk.
-This routine reads the table, updates |font_ps_name| entries starting after
-|last_ps_fnum|, and sets |last_ps_fnum:=last_fnum|.  If the file |ps_tab_file|
-is missing, we assume that the existing font names are OK and nothing needs to
-be done.
-
-@d ps_tab_name "psfonts.map"  /* locates font name translation table */
-
-@<Declarations@>=
-static void mp_read_psname_table (MP mp) ;
-
-@ @c static void mp_read_psname_table (MP mp) {
-  font_number k; /* font for possible name match */
-  unsigned int lmax; /* upper limit on length of name to match */
-  unsigned int j; /* characters left to read before string gets too long */
-  char *s; /* possible font name to match */
-  text_char c=0; /* character being read from |ps_tab_file| */
-  if ( (mp->ps->ps_tab_file = mp_open_file(mp, ps_tab_name, "r", mp_filetype_fontmap)) ) {
-    @<Set |lmax| to the maximum |font_name| length for fonts
-      |last_ps_fnum+1| through |last_fnum|@>;
-    while (! feof(mp->ps->ps_tab_file) ) {
-      @<Read at most |lmax| characters from |ps_tab_file| into string |s|
-        but |goto common_ending| if there is trouble@>;
-      for (k=mp->last_ps_fnum+1;k<=mp->last_fnum;k++) {
-        if ( mp_xstrcmp(s,mp->font_name[k])==0 ) {
-          @<|flush_string(s)|, read in |font_ps_name[k]|, and
-            |goto common_ending|@>;
-        }
-      }
-      mp_xfree(s);
-    COMMON_ENDING:
-      c = fgetc(mp->ps->ps_tab_file);
-	  if (c=='\r') {
-        c = fgetc(mp->ps->ps_tab_file);
-        if (c!='\n') 
-          ungetc(c,mp->ps->ps_tab_file);
-      }
-    }
-    mp->last_ps_fnum=mp->last_fnum;
-    fclose(mp->ps->ps_tab_file);
-  }
-}
-
-@ @<Glob...@>=
-FILE * ps_tab_file; /* file for font name translation table */
-
-@ @<Set |lmax| to the maximum |font_name| length for fonts...@>=
-lmax=0;
-for (k=mp->last_ps_fnum+1;k<=mp->last_fnum;k++) {
-  if (strlen(mp->font_name[k])>lmax ) 
-    lmax=strlen(mp->font_name[k]);
-}
-
-@ If we encounter the end of line before we have started reading
-characters from |ps_tab_file|, we have found an entirely blank 
-line and we skip over it.  Otherwise, we abort if the line ends 
-prematurely.  If we encounter a comment character, we also skip 
-over the line, since recent versions of \.{dvips} allow comments
-in the font map file.
-
-TODO: this is probably not safe in the case of a really 
-broken font map file.
-
-@<Read at most |lmax| characters from |ps_tab_file| into string |s|...@>=
-s=mp_xmalloc(mp,lmax+1,1);
-j=0;
-while (1) { 
-  if (c == '\n' || c == '\r' ) {
-    if (j==0) {
-      mp_xfree(s); s=NULL; goto COMMON_ENDING;
-    } else {
-      mp_fatal_error(mp, "The psfont map file is bad!");
-    }
-  }
-  c = fgetc(mp->ps->ps_tab_file);
-  if (c=='%' || c=='*' || c==';' || c=='#' ) {
-    mp_xfree(s); s=NULL; goto COMMON_ENDING;
-  }
-  if (c==' ' || c=='\t') break;
-  if (j<lmax) {
-   s[j++] = mp->xord[c];
-  } else { 
-    mp_xfree(s); s=NULL; goto COMMON_ENDING;
-  }
-}
-s[j]=0
-
-@ PostScript font names should be at most 28 characters long but we allow 32
-just to be safe.
-
-@<|flush_string(s)|, read in |font_ps_name[k]|, and...@>=
-{ 
-  char *ps_name =NULL;
-  mp_xfree(s);
-  do {  
-    if (c=='\n' || c == '\r') 
-      mp_fatal_error(mp, "The psfont map file is bad!");
-    c = fgetc(mp->ps->ps_tab_file);
-  } while (c==' ' || c=='\t');
-  ps_name = mp_xmalloc(mp,33,1);
-  j=0;
-  do {  
-    if (j>31) {
-      mp_fatal_error(mp, "The psfont map file is bad!");
-    }
-    ps_name[j++] = mp->xord[c];
-    if (c=='\n' || c == '\r')
-      c=' ';  
-    else 
-      c = fgetc(mp->ps->ps_tab_file);
-  } while (c != ' ' && c != '\t');
-  ps_name[j]= 0;
-  mp_xfree(mp->font_ps_name[k]);
-  mp->font_ps_name[k]=ps_name;
-  goto COMMON_ENDING;
-}
-
-
 
 @* \[44a] Dealing with font encodings.
 
@@ -445,16 +324,24 @@ typedef struct {
 @<Glob...@>=
 #define ENC_BUF_SIZE  0x1000
 char enc_line[ENC_BUF_SIZE];
-FILE *enc_file;
+void * enc_file;
 
 @ 
-@d enc_getchar()   getc(mp->ps->enc_file)
-@d enc_eof()       feof(mp->ps->enc_file)
-@d enc_close()     fclose(mp->ps->enc_file)
+@d enc_eof()       (mp->eof_file)(mp->ps->enc_file)
+@d enc_close()     (mp->close_file)(mp->ps->enc_file)
 
-@c 
+@c
+int enc_getchar(MP mp) {
+  size_t len = 1;
+  unsigned char byte=0;
+  void *byte_ptr = &byte;  
+  (mp->read_binary_file)(mp->ps->enc_file,&byte_ptr,&len);
+  return byte;
+}
+
+@ @c 
 static boolean mp_enc_open (MP mp, char *n) {
-  mp->ps->enc_file=mp_open_file(mp, n, "rb", mp_filetype_encoding);
+  mp->ps->enc_file=(mp->open_file)(n, "rb", mp_filetype_encoding);
   if (mp->ps->enc_file!=NULL)
     return true;
   else
@@ -470,7 +357,7 @@ RESTART:
   }
   p = mp->ps->enc_line;
   do {
-    c = enc_getchar ();
+    c = enc_getchar (mp);
     append_char_to_buf (c, p, mp->ps->enc_line, ENC_BUF_SIZE);
   } while (c != 10);
   append_eol (p, mp->ps->enc_line, ENC_BUF_SIZE);
@@ -571,7 +458,7 @@ static void mp_write_enc (MP mp, char **glyph_names, enc_entry * e) {
 
     mp_ps_print(mp,"\n%%%%BeginResource: encoding ");
     mp_ps_print(mp, e->enc_name);
-    mp_ps_print(mp, "\n/");
+    mp_ps_print_nl(mp, "/");
     mp_ps_print(mp, e->enc_name);
     mp_ps_print(mp, " [ ");
     foffset = strlen(e->file_name)+3;
@@ -729,14 +616,25 @@ static void mp_font_encodings (MP mp, int lastfnum, int encodings_only) {
 @d FM_BUF_SIZE     1024
 
 @<Glob...@>=
-FILE *fm_file;
+void * fm_file;
 
 @
-@d fm_close()      fclose(mp->ps->fm_file)
-@d fm_getchar()    fgetc(mp->ps->fm_file)
-@d fm_eof()        feof(mp->ps->fm_file)
+@d fm_close()      (mp->close_file)(mp->ps->fm_file)
+@d fm_eof()        (mp->eof_file)(mp->ps->fm_file)
 
-@<Types...@>=
+@c
+int fm_getchar(MP mp) {
+  size_t len = 1;
+  unsigned char byte=0;
+  void *byte_ptr = &byte;  
+  (mp->read_binary_file)(mp->ps->fm_file,&byte_ptr,&len);
+  if (len==0)
+    return EOF;
+  return byte;
+}
+
+
+@ @<Types...@>=
 enum _mode { FM_DUPIGNORE, FM_REPLACE, FM_DELETE };
 enum _ltype { MAPFILE, MAPLINE };
 enum _tfmavail { TFM_UNCHECKED, TFM_FOUND, TFM_NOTFOUND };
@@ -1159,10 +1057,9 @@ static int check_fm_entry (MP mp, fm_entry * fm, boolean warn) {
     case MAPFILE:
         p = fm_line;
         do {
-            c = fm_getchar ();
+            c = fm_getchar (mp);
             append_char_to_buf (c, p, fm_line, FM_BUF_SIZE);
-        }
-        while (c != 10);
+        } while (c != 10);
         *(--p) = '\0';
         r = fm_line;
         break;
@@ -1308,7 +1205,7 @@ static int check_fm_entry (MP mp, fm_entry * fm, boolean warn) {
     switch (mp->ps->mitem->type) {
     case MAPFILE:
         n = mp->ps->mitem->map_line;
-        mp->ps->fm_file = mp_open_file(mp, n, "r", mp_filetype_fontmap);
+        mp->ps->fm_file = (mp->open_file)( n, "r", mp_filetype_fontmap);
         if (!mp->ps->fm_file) {
             snprintf(s,256,"cannot open font map file %s",n);
             mp_warn(mp,s);
@@ -1598,6 +1495,42 @@ static void fm_free (MP mp) {
         avl_destroy (mp->ps->ff_tree, destroy_ff_entry);
 }
 
+@ The file |ps_tab_file| gives a table of \TeX\ font names and corresponding
+PostScript names for fonts that do not have to be downloaded, i.e., fonts that
+can be used when |internal[prologues]>0|.  Each line consists of a \TeX\ name,
+one or more spaces, a PostScript name, and possibly a space and some other junk.
+This routine reads the table, updates |font_ps_name| entries starting after
+|last_ps_fnum|, and sets |last_ps_fnum:=last_fnum|.  
+
+@d ps_tab_name "psfonts.map"  /* locates font name translation table */
+
+@<Declarations@>=
+static void mp_read_psname_table (MP mp) ;
+
+@ @c 
+static void mp_read_psname_table (MP mp) {
+  font_number k;
+  if (mp->ps->mitem == NULL) {
+    mp->ps->mitem = mp_xmalloc (mp,1,sizeof(mapitem));
+    mp->ps->mitem->mode = FM_DUPIGNORE;
+    mp->ps->mitem->type = MAPFILE;
+    mp->ps->mitem->map_line = NULL;
+  }
+  mp->ps->mitem->map_line = mp_xstrdup (mp,ps_tab_name); 
+  fm_read_info (mp);
+  for (k=mp->last_ps_fnum+1;k<=mp->last_fnum;k++) {
+    if (mp_has_fm_entry(mp, k, NULL)) {
+      mp->font_ps_name[k] = mp_fm_font_name(mp,k);
+    }
+  }
+  mp->last_ps_fnum=mp->last_fnum;
+}
+
+
+@ The traditional function is a lot shorter now.
+
+
+
 @* \[44c] Helper functions for Type1 fonts.
 
 @<Types...@>=
@@ -1745,7 +1678,7 @@ static void make_subset_tag (MP mp, fm_entry * fm_cur, char **glyph_names, int t
     end_hexline(mp); 
     mp->ps->t1_eexec_encrypt = false
 @d t1_log(s)           mp_print(mp,(char *)s)
-@d t1_putchar(c)       fputc(c, mp->ps_file)
+@d t1_putchar(c)       wps_chr(c)
 @d embed_all_glyphs(tex_font)  false
 @d t1_char(c)          c
 @d extra_charset()     mp->ps->dvips_extra_charset
@@ -1759,18 +1692,33 @@ char *cur_enc_name;
 unsigned char *grid;
 char *ext_glyph_names[256];
 char print_buf[PRINTF_BUF_SIZE];
+int t1_byte_waiting;
 
 @ @<Set initial ...@>=
 mp->ps->dvips_extra_charset=NULL;
+mp->ps->t1_byte_waiting=0;
 
-@ 
-@d t1_getchar()    fgetc(mp->ps->t1_file)
-@d t1_ungetchar(c) ungetc(c, mp->ps->t1_file)
-@d t1_eof()        feof(mp->ps->t1_file)
-@d t1_close()      fclose(mp->ps->t1_file)
+@
+@d t1_ungetchar(A) mp->ps->t1_byte_waiting=A
+@d t1_eof()        (mp->eof_file)(mp->ps->t1_file)
+@d t1_close()      (mp->close_file)(mp->ps->t1_file)
 @d valid_code(c)   (c >= 0 && c < 256)
 
-@<Static variables in the outer block@>=
+@c
+int t1_getchar (MP mp) {
+  size_t len = 1;
+  unsigned char byte=0;
+  void *byte_ptr = &byte;  
+  if (mp->ps->t1_byte_waiting) {
+    byte = mp->ps->t1_byte_waiting;
+    mp->ps->t1_byte_waiting = 0;
+  } else {
+    (mp->read_binary_file)(mp->ps->t1_file,&byte_ptr,&len);
+  }
+  return byte;
+}
+
+@ @<Static variables in the outer block@>=
 static const char *standard_glyph_names[256] =
     { notdef, notdef, notdef, notdef, notdef, notdef, notdef, notdef,
     notdef, notdef, notdef, notdef, notdef, notdef, notdef, notdef, notdef,
@@ -1919,7 +1867,7 @@ boolean t1_pfa, t1_cs, t1_scan, t1_eexec_encrypt, t1_synthetic;
 int t1_in_eexec;  /* 0 before eexec-encrypted, 1 during, 2 after */
 long t1_block_length;
 int last_hexbyte;
-FILE *t1_file;
+void *t1_file;
 int hexline_length;
 
 @ 
@@ -1942,35 +1890,35 @@ mp->ps->hexline_length = HEXLINE_WIDTH;
 
 @c
 static void end_hexline (MP mp) {
-    if (mp->ps->hexline_length == HEXLINE_WIDTH) {
-        fputs ("\n", mp->ps_file);
-        mp->ps->hexline_length = 0;
-    }
+  if (mp->ps->hexline_length == HEXLINE_WIDTH) {
+    wps_cr; 
+    mp->ps->hexline_length = 0;
+  }
 }
 static void t1_check_pfa (MP mp) {
-    const int c = t1_getchar ();
+    const int c = t1_getchar (mp);
     mp->ps->t1_pfa = (c != 128) ? true : false;
     t1_ungetchar (c);
 }
 static int t1_getbyte (MP mp)
 {
-    int c = t1_getchar ();
+    int c = t1_getchar (mp);
     if (mp->ps->t1_pfa)
         return c;
     if (mp->ps->t1_block_length == 0) {
         if (c != 128)
          mp_fatal_error (mp, "invalid marker");
-        c = t1_getchar ();
+        c = t1_getchar (mp);
         if (c == 3) {
             while (!t1_eof ())
-                t1_getchar ();
+                t1_getchar (mp);
             return EOF;
         }
-        mp->ps->t1_block_length = t1_getchar () & 0xff;
-        mp->ps->t1_block_length |= (t1_getchar () & 0xff) << 8;
-        mp->ps->t1_block_length |= (t1_getchar () & 0xff) << 16;
-        mp->ps->t1_block_length |= (t1_getchar () & 0xff) << 24;
-        c = t1_getchar ();
+        mp->ps->t1_block_length = t1_getchar (mp) & 0xff;
+        mp->ps->t1_block_length |= (t1_getchar (mp) & 0xff) << 8;
+        mp->ps->t1_block_length |= (t1_getchar (mp) & 0xff) << 16;
+        mp->ps->t1_block_length |= (t1_getchar (mp) & 0xff) << 24;
+        c = t1_getchar (mp);
     }
     mp->ps->t1_block_length--;
     return c;
@@ -2542,7 +2490,7 @@ static boolean t1_open_fontfile (MP mp, fm_entry *fm_cur,const char *open_name_p
     ff_entry *ff;
     ff = check_ff_exist (mp, fm_cur);
     if (ff->ff_path != NULL) {
-        mp->ps->t1_file = mp_open_file(mp,ff->ff_path, "rb", mp_filetype_font);
+        mp->ps->t1_file = (mp->open_file)(ff->ff_path, "rb", mp_filetype_font);
     } else {
         mp_warn (mp, "cannot open Type 1 font file for reading");
         return false;
@@ -4152,7 +4100,7 @@ void mp_print_prologue (MP mp, struct mp_edge_object *h) {
   int procset = (mp->internal[mp_procset]>>16);
   ldf = mp_print_font_comments (mp, h);
   mp_ps_print_ln(mp);
-  if ( (mp->internal[mp_prologues]>0) && (mp->last_ps_fnum<mp->last_fnum) )
+  if ( (mp->internal[mp_prologues]==unity) && (mp->last_ps_fnum<mp->last_fnum) )
     mp_read_psname_table(mp);
   mp_ps_print(mp, "%%BeginProlog"); mp_ps_print_ln(mp);
   if ( (prologues>0)||(procset>0) ) {
@@ -5476,7 +5424,9 @@ void mp_gr_ship_out (MP mp, struct mp_edge_object *hh) {
   mp_print_initial_comment(mp, hh);
   p = hh->body;
   @<Unmark all marked characters@>;
-  mp_reload_encodings(mp);
+  if ( prologues==two || prologues==three ) {
+    mp_reload_encodings(mp);
+  }
   @<Scan all the text nodes and mark the used characters@>;
   if ( prologues==two || prologues==three ) {
     mp_print_improved_prologue(mp, hh);
@@ -5564,7 +5514,7 @@ void mp_gr_ship_out (MP mp, struct mp_edge_object *hh) {
   mp_ps_print_cmd(mp, "showpage","P"); mp_ps_print_ln(mp);
   mp_ps_print(mp, "%%EOF"); mp_ps_print_ln(mp);
   mp_gr_toss_objects(mp, hh->body);
-  fclose(mp->ps_file);
+  (mp->close_file)(mp->ps_file);
   if ( mp->internal[mp_prologues]<=0 ) 
     mp_clear_sizes(mp);
 }
