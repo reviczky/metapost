@@ -610,7 +610,7 @@ used for the default font map file.
 
 @c
 char *mp_find_file (char *fname, char *fmode, int ftype)  {
-  if (fmode[0] != 'r' || access (fname,R_OK) || ftype) {  
+  if (fmode[0] != 'r' || (! access (fname,R_OK)) || ftype) {  
      return strdup(fname);
   }
   return NULL;
@@ -657,7 +657,7 @@ void *mp_open_file(char *fname, char *fmode, int ftype)  {
     return (fmode[0] == 'r' ? stdin : stdout);
   } else if (ftype==mp_filetype_error) {
     return stderr;
-  } else if (fname != NULL && (fmode[0] != 'r' || access (fname,R_OK))) {
+  } else if (fname != NULL && (fmode[0] != 'r' || (! access (fname,R_OK)))) {
     return (void *)fopen(fname, fmode);
   }
 #endif
