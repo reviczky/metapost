@@ -1223,6 +1223,7 @@ static int check_fm_entry (MP mp, fm_entry * fm, boolean warn) {
             mp->selector = save_selector;
             mp->ps->fm_file = NULL;
         }
+        mp_xfree(n);
         break;
     case MAPLINE:
         fm_scan_line (mp);
@@ -1385,6 +1386,7 @@ read. Leading blanks and blanks immediately following [+-=] are ignored.
         break;
     default:
         mode = FM_DUPIGNORE;    /* like +, but also: */
+        mp_xfree(mp->ps->mitem->map_line);
         mp->ps->mitem->map_line = NULL;     /* flush default map file name */
     }
     if (*s == ' ')
@@ -4665,6 +4667,9 @@ struct _gs_state * gs_state;
 @ @<Set init...@>=
 mp->ps->gs_state=NULL;
 
+@ @<Dealloc variables@>=
+mp_xfree(mp->ps->gs_state);
+
 @ To avoid making undue assumptions about the initial graphics state, these
 parameters are given special values that are guaranteed not to match anything
 in the edge structure being shipped out.  On the other hand, the initial color
@@ -5593,10 +5598,10 @@ void mp_do_gr_toss_objects (struct mp_graphic_object *p) {
       mp_xfree(gr_text_p(p));
       break;
     case mp_start_clip_code: 
-    case mp_stop_clip_code: 
+    case mp_start_bounds_code:
       mp_gr_toss_knot_list(mp,gr_path_p(p));
       break;
-    case mp_start_bounds_code:
+    case mp_stop_clip_code: 
     case mp_stop_bounds_code:
 	  break;
     case mp_special_code: 

@@ -891,9 +891,9 @@ boolean mp_input_ln (MP mp, void *f ) {
       }
     }
     memcpy((mp->buffer+mp->first),s,size);
-    free(s);
     /* while ( mp->buffer[mp->last]==' ' ) mp->last--; */
   } 
+  free(s);
   return true;
 }
 
@@ -930,6 +930,15 @@ initialization.
     }
 } while (0)
 
+@d t_close_out do { /* close the terminal */
+  (mp->close_file)(mp->term_out);
+  (mp->close_file)(mp->err_out);
+} while (0)
+
+@d t_close_in do { /* close the terminal */
+  (mp->close_file)(mp->term_in);
+} while (0)
+
 @<Glob...@>=
 char *command_line;
 
@@ -937,7 +946,7 @@ char *command_line;
 char *command_line;
 
 @ @<Allocate or initialize ...@>=
-mp->command_line = opt->command_line;
+mp->command_line = xstrdup(opt->command_line);
 
 @ Sometimes it is necessary to synchronize the input/output mixture that
 happens on the user's terminal, and three system-dependent
@@ -21276,7 +21285,7 @@ void mp_do_infont (MP mp,pointer p) {
   pointer q;
   q=mp_get_node(mp, edge_header_size);
   mp_init_edges(mp, q);
-  link(obj_tail(q))=mp_new_text_node(mp, str(mp->cur_exp),value(p));
+  link(obj_tail(q))=mp_new_text_node(mp,str(mp->cur_exp),value(p));
   obj_tail(q)=link(obj_tail(q));
   mp_free_node(mp, p,value_node_size);
   mp_flush_cur_exp(mp, q);
@@ -24516,6 +24525,11 @@ mp->depth_base = NULL;
 mp->font_sizes = null;
 
 @ @<Dealloc variables@>=
+for (k=1;k<=(int)mp->last_fnum;k++) {
+  xfree(mp->font_enc_name[k]);
+  xfree(mp->font_name[k]);
+  xfree(mp->font_ps_name[k]);
+}
 xfree(mp->font_info);
 xfree(mp->font_enc_name);
 xfree(mp->font_ps_name_fixed);
@@ -24612,7 +24626,7 @@ A preliminary name is obtained here from the \.{TFM} name as given in the
 
 @<Declare text measuring subroutines@>=
 @<Declare subroutines for parsing file names@>;
-font_number mp_read_font_info (MP mp, char*fname) {
+font_number mp_read_font_info (MP mp, char *fname) {
   boolean file_opened; /* has |tfm_infile| been opened? */
   font_number n; /* the number to return */
   halfword lf,tfm_lh,bc,ec,nw,nh,nd; /* subfile size parameters */
@@ -24633,8 +24647,8 @@ BAD_TFM:
 DONE:
   if ( file_opened ) (mp->close_file)(mp->tfm_infile);
   if ( n!=null_font ) { 
-    mp->font_ps_name[n]=fname;
-    mp->font_name[n]=fname;
+    mp->font_ps_name[n]=mp_xstrdup(mp,fname);
+    mp->font_name[n]=mp_xstrdup(mp,fname);
   }
   return n;
 }
@@ -24790,10 +24804,14 @@ we scan the |font_name| array before calling |read_font_info|.
 font_number mp_find_font (MP mp, char *f) {
   font_number n;
   for (n=0;n<=mp->last_fnum;n++) {
-    if (mp_xstrcmp(f,mp->font_name[n])==0 )
+    if (mp_xstrcmp(f,mp->font_name[n])==0 ) {
+      mp_xfree(f);
       return n;
+    }
   }
-  return mp_read_font_info(mp, f);
+  n = mp_read_font_info(mp, f);
+  mp_xfree(f);
+  return n;
 }
 
 @ One simple application of |find_font| is the implementation of the |font_size|
@@ -25787,6 +25805,8 @@ void mp_close_files_and_terminate (MP mp) {
     }
   }
   mp_print_ln(mp);
+  t_close_out;
+  t_close_in;
 }
 
 @ @<Declarations@>=

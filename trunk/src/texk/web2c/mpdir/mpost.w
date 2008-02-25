@@ -393,6 +393,8 @@ int setup_var (int def, char *var_name, int nokpse) {
 
 @ Now this is really it: \MP\ starts and ends here.
 
+@d xfree(A) if (A!=NULL) free(A)
+
 @c 
 int main (int argc, char **argv) { /* |start_here| */
   int a=0; /* argc counter */
@@ -421,7 +423,10 @@ int main (int argc, char **argv) { /* |start_here| */
   @<Copy the rest of the command line@>;
   @<Register the callback routines@>;
   mp = mp_new(options);
-  free((void *)options);
+  xfree(options->command_line);
+  xfree(options->mem_name);
+  xfree(options->job_name);
+  free(options);
   if (mp==NULL)
 	exit(EXIT_FAILURE);
   history = mp_initialize(mp);
