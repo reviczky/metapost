@@ -147,7 +147,8 @@ if (!nokpse)
   options->run_make_mpx = mpost_run_make_mpx;
 
 
-@ @c int mpost_get_random_seed (MP mp) {
+@ @c 
+static int get_random_seed (void) {
   int ret ;
 #if defined (HAVE_GETTIMEOFDAY)
   struct timeval tv;
@@ -162,11 +163,11 @@ if (!nokpse)
   struct tm *tmptr = localtime(&clock);
   ret = (tmptr->tm_sec + 60*(tmptr->tm_min + 60*tmptr->tm_hour));
 #endif
-  return (mp ? ret : ret); /* for -W */
+  return ret;
 }
 
 @ @<Register the callback routines@>=
-options->get_random_seed = mpost_get_random_seed;
+options->random_seed = get_random_seed();
 
 @ @c 
 char *mpost_find_file(char *fname, char *fmode, int ftype)  {

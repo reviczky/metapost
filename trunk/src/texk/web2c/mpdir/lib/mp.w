@@ -350,7 +350,7 @@ mp->max_strings=500;
 mp->pool_size=10000;
 set_value(mp->error_line,opt->error_line,79);
 set_value(mp->half_error_line,opt->half_error_line,50);
-set_value(mp->max_print_line,opt->max_print_line,79);
+set_value(mp->max_print_line,opt->max_print_line,100);
 mp->mem_max=5000;
 mp->mem_top=5000;
 set_value(mp->hash_size,opt->hash_size,9500);
@@ -3669,9 +3669,9 @@ fractions. Using the recurrence $x_n=(x_{n-55}-x_{n-31})\bmod 2^{28}$,
 we generate batches of 55 new $x_n$'s at a time by calling |new_randoms|.
 The global variable |j_random| tells which element has most recently
 been consumed.
-The global variable |sys_random_seed| was introduced in version 0.9,
+The global variable |random_seed| was introduced in version 0.9,
 for the sole reason of stressing the fact that the initial value of the
-random seed is system-dependant. The pascal code below will initialize
+random seed is system-dependant. The initialization code below will initialize
 this variable to |(internal[mp_time] div unity)+internal[mp_day]|, but this 
 is not good enough on modern fast machines that are capable of running
 multiple MetaPost processes within the same second.
@@ -3680,27 +3680,13 @@ multiple MetaPost processes within the same second.
 @<Glob...@>=
 fraction randoms[55]; /* the last 55 random values generated */
 int j_random; /* the number of unused |randoms| */
-scaled sys_random_seed; /* the default random seed */
-
-@ @<Exported types@>=
-typedef int (*mp_get_random_seed_command)(MP mp);
-
-@ @<Glob...@>=
-mp_get_random_seed_command get_random_seed;
+scaled random_seed; /* the default random seed */
 
 @ @<Option variables@>=
-mp_get_random_seed_command get_random_seed;
+int random_seed;
 
 @ @<Allocate or initialize ...@>=
-set_callback_option(get_random_seed);
-
-@ @<Internal library declarations@>=
-int mp_get_random_seed (MP mp);
-
-@ @c 
-int mp_get_random_seed (MP mp) {
-  return (mp->internal[mp_time] / unity)+mp->internal[mp_day];
-}
+mp->random_seed = (scaled)opt->random_seed;
 
 @ To consume a random fraction, the program below will say `|next_random|'
 and then it will fetch |randoms[j_random]|.
@@ -4607,7 +4593,7 @@ At any rate, here is the list, for future reference.
 @d protection_command 23 /* set protection flag (\&{outer}, \&{inner}) */
 @d show_command 24 /* diagnostic output (\&{show}, \&{showvariable}, etc.) */
 @d mode_command 25 /* set interaction level (\&{batchmode}, etc.) */
-@d random_seed 26 /* initialize random number generator (\&{randomseed}) */
+@d mp_random_seed 26 /* initialize random number generator (\&{randomseed}) */
 @d message_command 27 /* communicate to user (\&{message}, \&{errmessage}) */
 @d every_job_command 28 /* designate a starting token (\&{everyjob}) */
 @d delimiters 29 /* define a pair of delimiters (\&{delimiters}) */
@@ -5648,8 +5634,8 @@ mp_primitive(mp, "newinternal",new_internal,0);
 @:new_internal_}{\&{newinternal} primitive@>
 mp_primitive(mp, "of",of_token,0);
 @:of_}{\&{of} primitive@>
-mp_primitive(mp, "randomseed",random_seed,0);
-@:random_seed_}{\&{randomseed} primitive@>
+mp_primitive(mp, "randomseed",mp_random_seed,0);
+@:mp_random_seed_}{\&{randomseed} primitive@>
 mp_primitive(mp, "save",save_command,0);
 @:save_}{\&{save} primitive@>
 mp_primitive(mp, "scantokens",scan_tokens,0);
@@ -5708,7 +5694,7 @@ case let_command:mp_print(mp, "let"); break;
 case new_internal:mp_print(mp, "newinternal"); break;
 case of_token:mp_print(mp, "of"); break;
 case path_join:mp_print(mp, ".."); break;
-case random_seed:mp_print(mp, "randomseed"); break;
+case mp_random_seed:mp_print(mp, "randomseed"); break;
 case relax:mp_print_char(mp, '\\'); break;
 case right_brace:mp_print(mp, "}"); break;
 case right_bracket:mp_print(mp, "]"); break;
@@ -21943,7 +21929,7 @@ then we'll tackle the tougher commands.
 Here's one of the simplest:
 
 @<Cases of |do_statement|...@>=
-case random_seed: mp_do_random_seed(mp);  break;
+case mp_random_seed: mp_do_random_seed(mp);  break;
 
 @ @<Declare action procedures for use by |do_statement|@>=
 void mp_do_random_seed (MP mp) ;
@@ -25980,8 +25966,9 @@ But when we finish this part of the program, \MP\ is ready to call on the
   }
   mp->buffer[limit]='%';
   mp_fix_date_and_time(mp);
-  mp->sys_random_seed = (scaled)(mp->get_random_seed)(mp);
-  mp_init_randoms(mp, mp->sys_random_seed);
+  if (mp->random_seed==0)
+    mp->random_seed = (mp->internal[mp_time] / unity)+mp->internal[mp_day];
+  mp_init_randoms(mp, mp->random_seed);
   @<Initialize the print |selector|...@>;
   if ( loc<limit ) if ( mp->buffer[loc]!='\\' ) 
     mp_start_input(mp); /* \&{input} assumed */
