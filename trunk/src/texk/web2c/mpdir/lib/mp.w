@@ -24580,6 +24580,9 @@ mp->last_fnum=null_font;
 mp->last_ps_fnum=null_font;
 mp->font_name[null_font]="nullfont";
 mp->font_ps_name[null_font]="";
+mp->font_ps_name_fixed[null_font] = false;
+mp->font_enc_name[null_font]=NULL;
+mp->font_sizes[null_font]=null;
 
 @ Each |char_info| word is of type |four_quarters|.  The |b0| field contains
 the |width index|; the |b1| field contains the height
