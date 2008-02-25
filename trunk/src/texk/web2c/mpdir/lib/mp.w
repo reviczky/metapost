@@ -25305,18 +25305,43 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   return hh;
 }
 
+@ @<Exported function ...@>=
+struct mp_edge_object *mp_gr_export(MP mp, int h);
+extern void mp_gr_ship_out (MP mp, struct mp_edge_object *hh) ;
+
 @ This function is now nearly trivial.
 
 @c
 void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
-  struct mp_edge_object *hh; /* the first graphical object */
-  hh = mp_gr_export(mp,h);
-  mp_gr_ship_out (mp, hh);
-  mp_xfree(hh);
+  (mp->shipout_backend) (mp, h);
   @<End progress report@>;
   if ( mp->internal[mp_tracing_output]>0 ) 
    mp_print_edges(mp, h," (just shipped out)",true);
 }
+
+@ @<Declarations@>=
+void mp_shipout_backend (MP mp, pointer h);
+
+@ @c
+void mp_shipout_backend (MP mp, pointer h) {
+  struct mp_edge_object *hh; /* the first graphical object */
+  hh = mp_gr_export(mp,h);
+  mp_gr_ship_out (mp, hh);
+  mp_xfree(hh);
+}
+
+@ @<Exported types@>=
+typedef void (*mp_backend_writer)(MP, int);
+
+@ @<Glob...@>=
+mp_backend_writer shipout_backend;
+
+@ @<Option variables@>=
+mp_backend_writer shipout_backend;
+
+@ @<Allocate or initialize ...@>=
+set_callback_option(shipout_backend);
+
 
 @ 
 @ Once again, the |gr_XXXX| macros are defined in |mppsout.h|
