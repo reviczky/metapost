@@ -768,7 +768,7 @@ char *mp_read_ascii_file (void *f, size_t *size) {
 @ @c
 void mp_write_ascii_file (void *f, char *s) {
 #if NOTTESTING
-  if (f!=null) {
+  if (f!=NULL) {
     fputs(s,f);
   }
 #endif
@@ -786,7 +786,7 @@ void mp_read_binary_file (void *f, void **data, size_t *size) {
 @ @c
 void mp_write_binary_file (void *f, void *s, size_t size) {
 #if NOTTESTING
-  if (f!=null)
+  if (f!=NULL)
     fwrite(s,size,1,f);
 #endif
 }
