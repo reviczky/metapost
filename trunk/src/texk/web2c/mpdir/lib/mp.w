@@ -16395,28 +16395,11 @@ if ( file_state ) {
    xfree(mp->cur_area); mp->cur_area=xstrdup(""); 
 }
 
-@ Sometimes we need to deal with two file names at once.  This procedure
-copies the given string into a special array for an old file name.
-
-@c void mp_copy_old_name (MP mp,str_number s) {
-  integer k; /* number of positions filled in |old_file_name| */
-  pool_pointer j; /* index into |str_pool| */
-  k=0;
-  for (j=mp->str_start[s];j<=str_stop(s)-1;j++) { 
-    incr(k);
-    if ( k<=file_name_size ) 
-      mp->old_file_name[k]=xchr(mp->str_pool[j]);
-  }
-  mp->old_file_name[++k] = 0;
-}
-
-@ @<Glob...@>=
-char old_file_name[file_name_size+1];  /* analogous to |name_of_file| */
-
 @ The following simple routine starts reading the \.{MPX} file associated
 with the current input file.
 
 @c void mp_start_mpx_input (MP mp) {
+  char *origname = NULL; /* a copy of nameoffile */
   mp_pack_file_name(mp, in_name, in_area, ".mpx");
   @<Try to make sure |name_of_file| refers to a valid \.{MPX} file and
     |goto not_found| if there is a problem@>;
@@ -16431,11 +16414,12 @@ with the current input file.
   return;
 NOT_FOUND: 
     @<Explain that the \.{MPX} file can't be read and |succumb|@>;
+  xfree(origname);
 }
 
 @ This should ideally be changed to do whatever is necessary to create the
 \.{MPX} file given by |name_of_file| if it does not exist or if it is out
-of date.  This requires invoking \.{MPtoTeX} on the |old_file_name| and passing
+of date.  This requires invoking \.{MPtoTeX} on the |origname| and passing
 the results through \TeX\ and \.{DVItoMP}.  (It is possible to use a
 completely different typesetting program if suitable postprocessor is
 available to perform the function of \.{DVItoMP}.)
@@ -16464,18 +16448,17 @@ int mp_run_make_mpx (MP mp, char *origname, char *mtxname) {
   return false;
 }
 
-
-
 @ @<Try to make sure |name_of_file| refers to a valid \.{MPX} file and
   |goto not_found| if there is a problem@>=
-mp_copy_old_name(mp, name);
-if (!(mp->run_make_mpx)(mp, mp->old_file_name, mp->name_of_file))
-   goto NOT_FOUND
+origname = mp_xstrdup(mp,mp->name_of_file);
+*(origname+strlen(origname)-1)=0; /* drop the x */
+if (!(mp->run_make_mpx)(mp, origname, mp->name_of_file))
+  goto NOT_FOUND 
 
 @ @<Explain that the \.{MPX} file can't be read and |succumb|@>=
 if ( mp->interaction==mp_error_stop_mode ) wake_up_terminal;
 mp_print_nl(mp, ">> ");
-mp_print(mp, mp->old_file_name);
+mp_print(mp, origname);
 mp_print_nl(mp, ">> ");
 mp_print(mp, mp->name_of_file);
 mp_print_nl(mp, "! Unable to make mpx file");
