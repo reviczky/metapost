@@ -12,9 +12,7 @@
 % Here is TeX material that gets inserted after \input webmac
 \def\hang{\hangindent 3em\noindent\ignorespaces}
 \def\textindent#1{\hangindent2.5em\noindent\hbox to2.5em{\hss#1 }\ignorespaces}
-\def\PASCAL{Pascal}
 \def\ps{PostScript}
-\def\ph{\hbox{Pascal-H}}
 \def\psqrt#1{\sqrt{\mathstrut#1}}
 \def\k{_{k+1}}
 \def\pct!{{\char`\%}} % percent sign in ordinary text
@@ -22,7 +20,7 @@
 \font\logos=logosl10
 \def\MF{{\tenlogo META}\-{\tenlogo FONT}}
 \def\MP{{\tenlogo META}\-{\tenlogo POST}}
-\def\[#1]{#1.} % from pascal web
+\def\[#1]{\ignorespaces} % left over from pascal web
 \def\<#1>{$\langle#1\rangle$}
 \def\section{\mathhexbox278}
 \let\swap=\leftrightarrow
@@ -32,26 +30,19 @@
 \def\(#1){} % this is used to make section names sort themselves better
 \def\9#1{} % this is used for sort keys in the index via @@:sort key}{entry@@>
 \def\title{MetaPost}
-\def\glob{15} % this should be the section number of "<Global...>"
-\def\gglob{23, 28} % this should be the next two sections of "<Global...>"
 \pdfoutput=1
 \pageno=3
 
 @* \[1] Introduction.
+
 This is \MP, a graphics-language processor based on D. E. Knuth's \MF.
 
 The main purpose of the following program is to explain the algorithms of \MP\
-as clearly as possible. As a result, the program will not necessarily be very
-efficient when a particular \PASCAL\ compiler has translated it into a
-particular machine language. However, the program has been written so that it
+as clearly as possible. However, the program has been written so that it
 can be tuned to run efficiently in a wide variety of operating environments
 by making comparatively few changes. Such flexibility is possible because
 the documentation that follows is written in the \.{WEB} language, which is
-at a higher level than \PASCAL; the preprocessing step that converts \.{WEB}
-to \PASCAL\ is able to introduce most of the necessary refinements.
-Semi-automatic translation to other languages is also feasible, because the
-program below does not make extensive use of features that are peculiar to
-\PASCAL.
+at a higher level than C.
 
 A large piece of software like \MP\ has inherent complexity that cannot
 be reduced below a certain level of difficulty, although each individual
@@ -87,59 +78,16 @@ undergoes any modifications, so that it will be clear which version of
 @d mplib_version "0.20"
 @d version_string " (Cweb version 0.20)"
 
-@ Different \PASCAL s have slightly different conventions, and the present
-@:PASCAL H}{\ph@>
-program is expressed in a version of \PASCAL\ that D. E. Knuth used for \MF.
-Constructions that apply to
-this particular compiler, which we shall call \ph, should help the
-reader see how to make an appropriate interface for other systems
-if necessary. (\ph\ is Charles Hedrick's modification of a compiler
-@^Hedrick, Charles Locke@>
-for the DECsystem-10 that was originally developed at the University of
-Hamburg; cf.\ {\sl SOFTWARE---Practice \AM\ Experience \bf6} (1976),
-29--42. The \MP\ program below is intended to be adaptable, without
-extensive changes, to most other versions of \PASCAL\ and commonly used
-\PASCAL-to-C translators, so it does not fully
-@:C@>
-use the admirable features of \ph. Indeed, a conscious effort has been
-made here to avoid using several idiosyncratic features of standard
-\PASCAL\ itself, so that most of the code can be translated mechanically
-into other high-level languages. For example, the `\&{with}' and `\\{new}'
-features are not used, nor are pointer types, set types, or enumerated
-scalar types; there are no `\&{var}' parameters, except in the case of files;
-there are no tag fields on variant records; there are no |real| variables;
-no procedures are declared local to other procedures.)
-
-The portions of this program that involve system-dependent code, where
-changes might be necessary because of differences between \PASCAL\ compilers
-and/or differences between
-operating systems, can be identified by looking at the sections whose
-numbers are listed under `system dependencies' in the index. Furthermore,
-the index entries for `dirty \PASCAL' list all places where the restrictions
-of \PASCAL\ have not been followed perfectly, for one reason or another.
-@^system dependencies@>
-@^dirty \PASCAL@>
-
-@ The program begins with a normal \PASCAL\ program heading, whose
-components will be filled in later, using the conventions of \.{WEB}.
-@.WEB@>
-For example, the portion of the program called `\X\glob:Global
-variables\X' below will be replaced by a sequence of variable declarations
-that starts in $\section\glob$ of this documentation. In this way, we are able
-to define each individual global variable when we are prepared to
-understand what it means; we do not have to define all of the globals at
-once.  Cross references in $\section\glob$, where it says ``See also
-sections \gglob, \dots,'' also make it possible to look at the set of
-all global variables, if desired.  Similar remarks apply to the other
-portions of the program heading.
-
-Actually the heading shown here is not quite normal: The |program| line
-does not mention any |output| file, because \ph\ would ask the \MP\ user
-to specify a file name if |output| were specified here.
-@^system dependencies@>
-
 @d true 1
 @d false 0
+
+@ The external library header for \MP\ is |mplib.h|. It contains a
+few typedefs and the header defintions for the externally used
+fuctions.
+
+The most important of the typedefs is the definition of the structure 
+|MP_options|, that acts as a small, configurable front-end to the fairly 
+large |MP_instance| structure.
  
 @(mplib.h@>=
 typedef struct MP_instance * MP;
@@ -149,7 +97,14 @@ typedef struct MP_options {
 } MP_options;
 @<Exported function headers@>
 
-@ @(mpmp.h@>=
+@ The internal header file is much longer: it not only lists the complete
+|MP_instance|, but also a lot of functions that have to be available to
+the \ps\ backend, that is defined in a separate \.{WEB} file. 
+
+The variables from |MP_options| are included inside the |MP_instance| 
+wholesale.
+
+@(mpmp.h@>=
 #include <setjmp.h>
 typedef struct psout_data_struct * psout_data;
 typedef int boolean;
@@ -165,6 +120,7 @@ typedef signed int integer;
     };
 #  endif
 typedef struct MP_instance {
+  @<Option variables@>
   @<Global variables@>
 } MP_instance;
 @<Internal library declarations@>
@@ -201,6 +157,8 @@ struct MP_options *mp_options (void) {
   }
   return opt;
 } 
+
+@ @c
 MP mp_new (struct MP_options *opt) {
   MP mp;
   mp = xmalloc(1,sizeof(MP_instance));
@@ -213,6 +171,8 @@ MP mp_new (struct MP_options *opt) {
   mp_reallocate_fonts(mp,8);
   return mp;
 }
+
+@ @c
 void mp_free (MP mp) {
   int k; /* loop variable */
   @<Dealloc variables@>
@@ -263,10 +223,6 @@ extern MP mp_new (struct MP_options *opt) ;
 extern void mp_free (MP mp);
 extern int mp_initialize (MP mp);
 
-@ @<Declarations@>=
-void mp_do_initialize (MP mp);
-
-
 @ The overall \MP\ program begins with the heading just shown, after which
 comes a bunch of procedure declarations and function declarations.
 Finally we will get to the main program, which begins with the
@@ -316,31 +272,24 @@ numbers are computed from them.
 int max_strings; /* maximum number of strings; must not exceed |max_halfword| */
 int pool_size; /* maximum number of characters in strings, including all
   error messages and help texts, and the names of all identifiers */
-int error_line; /* width of context lines on terminal error messages */
-int half_error_line; /* width of first lines of contexts in terminal
-  error messages; should be between 30 and |error_line-15| */
-int max_print_line; /* width of longest text lines output; should be at least 60 */
 int mem_max; /* greatest index in \MP's internal |mem| array;
   must be strictly less than |max_halfword|;
   must be equal to |mem_top| in \.{INIMP}, otherwise |>=mem_top| */
 int mem_top; /* largest index in the |mem| array dumped by \.{INIMP};
   must not be greater than |mem_max| */
+
+@ @<Option variables@>=
+int error_line; /* width of context lines on terminal error messages */
+int half_error_line; /* width of first lines of contexts in terminal
+  error messages; should be between 30 and |error_line-15| */
+int max_print_line; /* width of longest text lines output; should be at least 60 */
 int hash_size; /* maximum number of symbolic tokens,
   must be less than |max_halfword-3*param_size| */
 int hash_prime; /* a prime number equal to about 85\pct! of |hash_size| */
 int param_size; /* maximum number of simultaneous macro parameters */
 int max_in_open; /* maximum number of input files and error insertions that
   can be going on simultaneously */
-
-@ @<Option variables@>=
-int error_line;
-int half_error_line;
-int max_print_line;
-int main_memory;
-int hash_size; 
-int hash_prime; 
-int param_size; 
-int max_in_open; 
+int main_memory; /* only for options, to set up |mem_max| and |mem_top| */
 
 @ 
 @d set_value(a,b,c) do { a=c; if (b>c) a=b; } while (0)
@@ -351,6 +300,7 @@ mp->pool_size=10000;
 set_value(mp->error_line,opt->error_line,79);
 set_value(mp->half_error_line,opt->half_error_line,50);
 set_value(mp->max_print_line,opt->max_print_line,100);
+mp->main_memory=5000;
 mp->mem_max=5000;
 mp->mem_top=5000;
 set_value(mp->hash_size,opt->hash_size,9500);
@@ -378,10 +328,7 @@ if ( mp->max_print_line<60 ) mp->bad=2;
 if ( mp->mem_top<=1100 ) mp->bad=4;
 if (mp->hash_prime>mp->hash_size ) mp->bad=5;
 
-@ Labels are given symbolic names by the following definitions, so that
-occasional |goto| statements will be meaningful. We insert the label
-`|exit|:' just before the `\ignorespaces|end|\unskip' of a procedure in
-which we have used the `|return|' statement defined below; the label
+@ Some |goto| labels are used by the following definitions. The label
 `|restart|' is occasionally used at the very beginning of a procedure; and
 the label `|reswitch|' is occasionally used just prior to a |case|
 statement in which some cases change the conditions and we wish to branch
@@ -391,27 +338,6 @@ construction defined below are commonly exited by going to `|done|' or to
 `|continue|'.  If two or more parts of a subroutine start differently but
 end up the same, the shared code may be gathered together at
 `|common_ending|'.
-
-Incidentally, this program never declares a label that isn't actually used,
-because some fussy \PASCAL\ compilers will complain about redundant labels.
-
-@d label_exit 10 /* go here to leave a procedure */
-@d restart 20 /* go here to start a procedure again */
-@d reswitch 21 /* go here to start a case statement again */
-@d continue 22 /* go here to resume a loop */
-@d done 30 /* go here to exit a loop */
-@d done1 31 /* like |done|, when there is more than one loop */
-@d done2 32 /* for exiting the second loop in a long block */
-@d done3 33 /* for exiting the third loop in a very long block */
-@d done4 34 /* for exiting the fourth loop in an extremely long block */
-@d done5 35 /* for exiting the fifth loop in an immense block */
-@d done6 36 /* for exiting the sixth loop in a block */
-@d found 40 /* go here when you've found it */
-@d found1 41 /* like |found|, when there's more than one per routine */
-@d found2 42 /* like |found|, when there's more than two per routine */
-@d found3 43 /* like |found|, when there's more than three per routine */
-@d not_found 45 /* go here when you've found nothing */
-@d common_ending 50 /* go here when you want to merge with another branch */
 
 @ Here are some macros for common programming idioms.
 
@@ -444,30 +370,16 @@ are said to be of type |ASCII_code|, which is a subrange of the integers.
 @<Types...@>=
 typedef unsigned char ASCII_code; /* eight-bit numbers */
 
-@ The original \PASCAL\ compiler was designed in the late 60s, when six-bit
-character sets were common, so it did not make provision for lowercase
-letters. Nowadays, of course, we need to deal with both capital and small
-letters in a convenient way, especially in a program for font design;
-so the present specification of \MP\ has been written under the assumption
-that the \PASCAL\ compiler and run-time system permit the use of text files
-with more than 64 distinguishable characters. More precisely, we assume that
-the character set contains at least the letters and symbols associated
+@ The present specification of \MP\ has been written under the assumption
+that the character set contains at least the letters and symbols associated
 with ASCII codes 040 through 0176; all of these characters are now
 available on most computer terminals.
 
-Since we are dealing with more characters than were present in the first
-\PASCAL\ compilers, we have to decide what to call the associated data
-type. Some \PASCAL s use the original name |char| for the
-characters in text files, even though there now are more than 64 such
-characters, while other \PASCAL s consider |char| to be a 64-element
-subrange of a larger data type that has some other name.
-
-In order to accommodate this difference, we shall use the name |text_char|
-to stand for the data type of the characters that are converted to and
-from |ASCII_code| when they are input and output. We shall also assume
-that |text_char| consists of the elements |chr(first_text_char)| through
-|chr(last_text_char)|, inclusive. The following definitions should be
-adjusted if necessary.
+We shall use the name |text_char| to stand for the data type of the characters 
+that are converted to and from |ASCII_code| when they are input and output. 
+We shall also assume that |text_char| consists of the elements 
+|chr(first_text_char)| through |chr(last_text_char)|, inclusive. 
+The following definitions should be adjusted if necessary.
 @^system dependencies@>
 
 @d first_text_char 0 /* ordinal number of the smallest element of |text_char| */
@@ -481,7 +393,7 @@ integer i;
 
 @ The \MP\ processor converts between ASCII code and
 the user's external character set by means of arrays |xord| and |xchr|
-that are analogous to \PASCAL's |ord| and |chr| functions.
+that are analogous to Pascal's |ord| and |chr| functions.
 
 @d xchr(A) mp->xchr[(A)]
 @d xord(A) mp->xord[(A)]
@@ -580,17 +492,6 @@ typedef void (*mp_file_writer)(void *, char *);
 typedef void (*mp_binfile_writer)(void *, void *, size_t);
 #define NOTTESTING 1
 
-@ @<Glob...@>=
-mp_file_finder find_file;
-mp_file_opener open_file;
-mp_file_reader read_ascii_file;
-mp_binfile_reader read_binary_file;
-mp_file_closer close_file;
-mp_file_eoftest eof_file;
-mp_file_flush flush_file;
-mp_file_writer write_ascii_file;
-mp_binfile_writer write_binary_file;
-
 @ @<Option variables@>=
 mp_file_finder find_file;
 mp_file_opener open_file;
@@ -670,7 +571,6 @@ void *mp_open_file(char *fname, char *fmode, int ftype)  {
 char name_of_file[file_name_size+1]; /* the name of a system file */
 int name_length;/* this many characters are actually
   relevant in |name_of_file| (the rest are blank) */
-boolean print_found_names; /* configuration parameter */
 
 @ @<Option variables@>=
 int print_found_names; /* configuration parameter */
@@ -815,14 +715,6 @@ void mp_flush_file (void *f) {
 #endif
 }
 
-@ Binary input and output are done with \PASCAL's ordinary |get| and |put|
-procedures, so we don't have to make any other special arrangements for
-binary~I/O. Text output is also easy to do with standard \PASCAL\ routines.
-The treatment of text input is more difficult, however, because
-of the necessary translation to |ASCII_code| values.
-\MP's conventions should be efficient, and they should
-blend nicely with the user's operating environment.
-
 @ Input from text files is read one line at a time, using a routine called
 |input_ln|. This function is defined in terms of global variables called
 |buffer|, |first|, and |last| that will be described in detail later; for
@@ -939,10 +831,7 @@ initialization.
   (mp->close_file)(mp->term_in);
 } while (0)
 
-@<Glob...@>=
-char *command_line;
-
-@ @<Option variables@>=
+@<Option variables@>=
 char *command_line;
 
 @ @<Allocate or initialize ...@>=
@@ -959,7 +848,7 @@ input that the user may have typed ahead (since we are about to
 issue an unexpected error message). The third, |wake_up_terminal|,
 is supposed to revive the terminal if the user has disabled it by
 some instruction to the operating system.  The following macros show how
-these operations can be specified in \ph:
+these operations can be specified:
 @^system dependencies@>
 
 @d update_terminal   (mp->flush_file)(mp->term_out) /* empty the terminal output buffer */
@@ -977,12 +866,11 @@ file will acquire its default name `\.{mpout.log}'. (The transcript file
 will not contain error messages generated by the first line before the
 first \.{input} command.)
 
-The first line is even more special if we are lucky enough to have an operating
-system that treats \MP\ differently from a run-of-the-mill \PASCAL\ object
-program. It's nice to let the user start running a \MP\ job by typing
-a command line like `\.{MP cmr10}'; in such a case, \MP\ will operate
-as if the first line of input were `\.{cmr10}', i.e., the first line will
-consist of the remainder of the command line, after the part that invoked \MP.
+The first line is even more special. It's nice to let the user start
+running a \MP\ job by typing a command line like `\.{MP cmr10}'; in
+such a case, \MP\ will operate as if the first line of input were
+`\.{cmr10}', i.e., the first line will consist of the remainder of the
+command line, after the part that invoked \MP.
 
 @ Different systems have different ways to get started. But regardless of
 what conventions are adopted, the routine that initializes the terminal
@@ -1049,8 +937,10 @@ boolean mp_init_terminal (MP mp) ;
 
 @* \[4] String handling.
 Symbolic token names and diagnostic messages are variable-length strings
-of eight-bit characters. Since \PASCAL\ does not have a well-developed string
-mechanism, \MP\ does all of its string processing by homegrown methods.
+of eight-bit characters. Many strings \MP\ uses are simply literals
+in the compiled source, like the error messages and the names of the
+internal parameters. Other strings are used or defined from the \MP\ input 
+language, and these have to be interned.
 
 \MP\ uses strings more extensively than \MF\ does, but the necessary
 operations can still be handled with a fairly simple data structure.
@@ -1188,7 +1078,7 @@ integer max_pl_used; /* maximum |pool_in_use| so far */
 integer max_strs_used; /* maximum |strs_in_use| so far */
 
 @ Several of the elementary string operations are performed using \.{WEB}
-macros instead of \PASCAL\ procedures, because many of the
+macros instead of functions, because many of the
 operations are done quite frequently and we want to avoid the
 overhead of procedure calls. For example, here is
 a simple macro that computes the length of a string.
@@ -1917,9 +1807,9 @@ void mp_print_the_digs (MP mp, eight_bits k) {
 
 @ The following procedure, which prints out the decimal representation of a
 given integer |n|, has been written carefully so that it works properly
-if |n=0| or if |(-n)| would cause overflow. It does not apply |mod| or |div|
+if |n=0| or if |(-n)| would cause overflow. It does not apply |%| or |/|
 to negative arguments, since such operations are not implemented consistently
-by all \PASCAL\ compilers.
+on all platforms.
 
 @<Basic print...@>=
 void mp_print_int (MP mp,integer n) { /* prints an integer in decimal form */
@@ -2025,9 +1915,6 @@ enum mp_interaction_mode {
  mp_scroll_mode, /* omits error stops */
  mp_error_stop_mode, /* stops at every opportunity to interact */
 };
-
-@ @<Glob...@>=
-int interaction; /* current level of interaction */
 
 @ @<Option variables@>=
 int interaction; /* current level of interaction */
@@ -2178,8 +2065,9 @@ if (setjmp(mp->jump_buf) != 0) return mp->history;
 @ @<Setup the non-local jump buffer in |mp_new|@>=
 if (setjmp(mp->jump_buf) != 0) return NULL;
 
-@ If |mp->internal| is zero, then a crash occured during initialization,
-and it is not safe to run |mp_close_files_and_terminate|.
+@ If the array of internals is still |NULL| when |jump_out| is called, a
+crash occured during initialization, and it is not safe to run the normal
+cleanup routine.
 
 @<Error hand...@>=
 void mp_jump_out (MP mp) { 
@@ -2242,9 +2130,6 @@ edited and the relevant line number.
 
 @<Exported types@>=
 typedef void (*mp_run_editor_command)(MP, char *, int);
-
-@ @<Glob...@>=
-mp_run_editor_command run_editor;
 
 @ @<Option variables@>=
 mp_run_editor_command run_editor;
@@ -2437,7 +2322,7 @@ void mp_normalize_selector (MP mp) {
 @d succumb { if ( mp->interaction==mp_error_stop_mode )
     mp->interaction=mp_scroll_mode; /* no more interaction */
   if ( mp->log_opened ) mp_error(mp);
-  /* if ( mp->interaction>mp_batch_mode ) mp_debug_help(mp); */
+  /*| if ( mp->interaction>mp_batch_mode ) mp_debug_help(mp); |*/
   mp->history=mp_fatal_error_stop; mp_jump_out(mp); /* irrecoverable error */
   }
 
@@ -2497,10 +2382,10 @@ void mp_confusion (MP mp,char *s) {
 }
 
 @ Users occasionally want to interrupt \MP\ while it's running.
-If the \PASCAL\ runtime system allows this, one can implement
+If the runtime system allows this, one can implement
 a routine that sets the global variable |interrupt| to some nonzero value
 when such an interrupt is signaled. Otherwise there is probably at least
-a way to make |interrupt| nonzero using the \PASCAL\ debugger.
+a way to make |interrupt| nonzero using the C debugger.
 @^system dependencies@>
 @^debugging@>
 
@@ -2552,36 +2437,35 @@ program can be carried out in exactly the same way on a wide variety of
 computers, including some small ones.
 @^small computers@>
 
-But \PASCAL\ does not define the |div|
-operation in the case of negative dividends; for example, the result of
-|(-2*n-1) div 2| is |-(n+1)| on some computers and |-n| on others.
-There are two principal types of arithmetic: ``translation-preserving,''
-in which the identity |(a+q*b)div b=(a div b)+q| is valid; and
-``negation-preserving,'' in which |(-a)div b=-(a div b)|. This leads to
-two \MP s, which can produce different results, although the differences
-should be negligible when the language is being used properly.
-The \TeX\ processor has been defined carefully so that both varieties
-of arithmetic will produce identical output, but it would be too
-inefficient to constrain \MP\ in a similar way.
+But C does not rigidly define the |/| operation in the case of negative
+dividends; for example, the result of |(-2*n-1) / 2| is |-(n+1)| on some
+computers and |-n| on others (is this true ?).  There are two principal
+types of arithmetic: ``translation-preserving,'' in which the identity
+|(a+q*b)/b=(a/b)+q| is valid; and ``negation-preserving,'' in which
+|(-a)/b=-(a/b)|. This leads to two \MP s, which can produce
+different results, although the differences should be negligible when the
+language is being used properly.  The \TeX\ processor has been defined
+carefully so that both varieties of arithmetic will produce identical
+output, but it would be too inefficient to constrain \MP\ in a similar way.
 
 @d el_gordo   017777777777 /* $2^{31}-1$, the largest value that \MP\ likes */
 
 @ One of \MP's most common operations is the calculation of
 $\lfloor{a+b\over2}\rfloor$,
-the midpoint of two given integers |a| and~|b|. The only decent way to do
-this in \PASCAL\ is to write `|(a+b) div 2|'; but on most machines it is
-far more efficient to calculate `|(a+b)| right shifted one bit'.
+the midpoint of two given integers |a| and~|b|. The most decent way to do
+this is to write `|(a+b)/2|'; but on many machines it is more efficient 
+to calculate `|(a+b)>>1|'.
 
 Therefore the midpoint operation will always be denoted by `|half(a+b)|'
 in this program. If \MP\ is being implemented with languages that permit
 binary shifting, the |half| macro should be changed to make this operation
-as efficient as possible.  Since some languages have shift operators that can
+as efficient as possible.  Since some systems have shift operators that can
 only be trusted to work on positive numbers, there is also a macro |halfp|
 that is used only when the quantity being halved is known to be positive
 or zero.
 
 @d half(A) ((A) / 2)
-@d halfp(A) ((A) / 2)
+@d halfp(A) ((A) >> 1)
 
 @ A single computation might use several subroutine calls, and it is
 desirable to avoid producing multiple error messages in case of arithmetic
@@ -2750,7 +2634,7 @@ been designed to avoid this sort of error.
 If this subroutine were programmed in assembly language on a typical
 machine, we could simply compute |(@t$2^{28}$@>*p)div q|, since a
 double-precision product can often be input to a fixed-point division
-instruction. But when we are restricted to \PASCAL\ arithmetic it
+instruction. But when we are restricted to int-eger arithmetic it
 is necessary either to resort to multiple-precision maneuvering
 or to use a simple but slow iteration. The multiple-precision technique
 would be about three times faster than the code adopted here, but it
@@ -3689,10 +3573,9 @@ multiple MetaPost processes within the same second.
 @<Glob...@>=
 fraction randoms[55]; /* the last 55 random values generated */
 int j_random; /* the number of unused |randoms| */
-scaled random_seed; /* the default random seed */
 
 @ @<Option variables@>=
-int random_seed;
+int random_seed; /* the default random seed */
 
 @ @<Allocate or initialize ...@>=
 mp->random_seed = (scaled)opt->random_seed;
@@ -3861,7 +3744,7 @@ typedef union {
 
 @ When debugging, we may want to print a |memory_word| without knowing
 what type it is; so we print it in all modes.
-@^dirty \PASCAL@>@^debugging@>
+@^debugging@>
 
 @c 
 void mp_print_word (MP mp,memory_word w) {
@@ -4522,8 +4405,7 @@ if ( q>r ) {
 @ The |search_mem| procedure attempts to answer the question ``Who points
 to node~|p|?'' In doing so, it fetches |link| and |info| fields of |mem|
 that might not be of type |two_halves|. Strictly speaking, this is
-@^dirty \PASCAL@>
-undefined in \PASCAL, and it can lead to ``false drops'' (words that seem to
+undefined, and it can lead to ``false drops'' (words that seem to
 point to |p| purely by coincidence). But for debugging purposes, we want
 to rule out the places that do {\sl not\/} point to |p|, so a few false
 drops are tolerable.
@@ -4903,7 +4785,7 @@ values they test for.
 @d pen_offset_of 127 /* operation code for \.{penoffset} */
 @d arc_time_of 128 /* operation code for \.{arctime} */
 @d mp_version 129 /* operation code for \.{mpversion} */
-@d envelope_of 130 /* operation code for \{.envelope} */
+@d envelope_of 130 /* operation code for \.{envelope} */
 
 @c void mp_print_op (MP mp,quarterword c) { 
   if (c<=mp_numeric_type ) {
@@ -5068,7 +4950,6 @@ scaled *internal;  /* the values of internal quantities */
 char **int_name;  /* their names */
 int int_ptr;  /* the maximum internal quantity defined so far */
 int max_internal; /* current maximum number of internal quantities */
-boolean troff_mode; 
 
 @ @<Option variables@>=
 int troff_mode; 
@@ -5792,10 +5673,6 @@ pointer mp_new_num_tok (MP mp,scaled v) {
 each node contains a token and a link.  Here's a subroutine that gets rid
 of a token list when it is no longer needed.
 
-@<Declarations@>=
-void mp_token_recycle (MP mp);
-
-@ 
 @c void mp_flush_token_list (MP mp,pointer p) {
   pointer q; /* the node being recycled */
   while ( p!=null ) { 
@@ -5813,7 +5690,7 @@ void mp_token_recycle (MP mp);
       case mp_picture_type: case mp_pair_type: case mp_color_type:
       case mp_cmykcolor_type: case mp_transform_type: case mp_dependent:
       case mp_proto_dependent: case mp_independent:
-        mp->g_pointer=q; mp_token_recycle(mp);
+        mp_recycle_value(mp,q);
         break;
       default: mp_confusion(mp, "token");
 @:this can't happen token}{\quad token@>
@@ -5847,10 +5724,7 @@ variable names within a capsule.)
 Unusual entries are printed in the form of all-caps tokens
 preceded by a space, e.g., `\.{\char`\ BAD}'.
 
-@<Declarations@>=
-void mp_print_capsule (MP mp);
-
-@ @<Declare the procedure called |show_token_list|@>=
+@<Declare the procedure called |show_token_list|@>=
 void mp_show_token_list (MP mp, integer p, integer q, integer l,
                          integer null_tally) ;
 
@@ -5921,7 +5795,7 @@ if ( name_type(p)==mp_token ) {
 } else if ((name_type(p)!=mp_capsule)||(type(p)<mp_vacuous)||(type(p)>mp_independent) ) {
   mp_print(mp, " BAD");
 } else { 
-  mp->g_pointer=p; mp_print_capsule(mp); c=right_paren_class;
+  mp_print_capsule(mp,p); c=right_paren_class;
 }
 
 @ @<Display a numeric token@>=
@@ -5978,24 +5852,13 @@ if ( c==class ) {
 mp_print_str(mp, r);
 }
 
-@ The following procedures have been declared |forward| with no parameters,
-because the author dislikes \PASCAL's convention about |forward| procedures
-with parameters. It was necessary to do something, because |show_token_list|
-is recursive (although the recursion is limited to one level), and because
-|flush_token_list| is syntactically (but not semantically) recursive.
-@^recursion@>
+@ @<Declarations@>=
+void mp_print_capsule (MP mp, pointer p);
 
-@<Declare miscellaneous procedures that were declared |forward|@>=
-void mp_print_capsule (MP mp) { 
-  mp_print_char(mp, '('); mp_print_exp(mp, mp->g_pointer,0); mp_print_char(mp, ')');
-};
-@#
-void mp_token_recycle (MP mp) { 
-  mp_recycle_value(mp, mp->g_pointer);
-};
-
-@ @<Glob...@>=
-pointer g_pointer; /* (global) parameter to the |forward| procedures */
+@ @<Declare miscellaneous procedures that were declared |forward|@>=
+void mp_print_capsule (MP mp, pointer p) { 
+  mp_print_char(mp, '('); mp_print_exp(mp,p,0); mp_print_char(mp, ')');
+}
 
 @ Macro definitions are kept in \MP's memory in the form of token lists
 that have a few extra one-word nodes at the beginning.
@@ -6208,7 +6071,7 @@ Variables of type \&{transform} are similar, but in this case their
 |value| points to a 12-word node containing six values, identified by
 |x_part_sector|, |y_part_sector|, |mp_xx_part_sector|, |mp_xy_part_sector|,
 |mp_yx_part_sector|, and |mp_yy_part_sector|.
-Finally, variables of type \&{color} have three values in six words
+Finally, variables of type \&{color} have 3~values in 6~words
 identified by |mp_red_part_sector|, |mp_green_part_sector|, and |mp_blue_part_sector|.
 
 When an entire structured variable is saved, the |root| indication
@@ -10152,7 +10015,7 @@ while ( start_x(dln)<=stop_x(dln) ) {
 link(d)=link(dln);
 mp_free_node(mp, dln,dash_node_size)
 
-@ The name of this module is a bit of a lie because we actually just find the
+@ The name of this module is a bit of a lie because we just find the
 first |dd| where |take_scaled (hsf, stop_x(dd))| is large enough to make an
 overlap possible.  It could be that the unoffset version of dash |dln| falls
 in the gap between |dd| and its predecessor.
@@ -15970,7 +15833,6 @@ and extensions related to mem files.
 
 @<Glob...@>=
 char *MP_mem_default;
-char *mem_name; /* for commandline */
 
 @ @<Option variables@>=
 char *mem_name; /* for commandline */
@@ -16066,7 +15928,7 @@ FOUND:
 possible version number) of a file that has been opened. The following routine,
 which simply makes a \MP\ string from the value of |name_of_file|, should
 ideally be changed to deduce the full name of file~|f|, which is the file
-most recently opened, if it is possible to do this in a \PASCAL\ program.
+most recently opened, if it is possible to do this.
 @^system dependencies@>
 
 @<Declarations@>=
@@ -16146,7 +16008,6 @@ void mp_ptr_scan_file (MP mp,  char *s) {
 `\.{.mem}' and `\.{.tfm}' in order to make the names of \MP's output files.
 
 @<Glob...@>=
-char *job_name; /* principal file name */
 boolean log_opened; /* has the transcript file been opened? */
 char *log_name; /* full name of the log file */
 
@@ -16427,9 +16288,6 @@ available to perform the function of \.{DVItoMP}.)
 
 @ @<Exported types@>=
 typedef int (*mp_run_make_mpx_command)(MP mp, char *origname, char *mtxname);
-
-@ @<Glob...@>=
-mp_run_make_mpx_command run_make_mpx;
 
 @ @<Option variables@>=
 mp_run_make_mpx_command run_make_mpx;
@@ -17948,6 +17806,7 @@ void mp_scan_suffix (MP mp) {
 }
 
 @* \[38] Parsing secondary and higher expressions.
+
 After the intricacies of |scan_primary|\kern-1pt,
 the |scan_secondary| routine is
 refreshingly simple. It's not trivial, but the operations are relatively
@@ -22263,7 +22122,7 @@ void mp_disp_token (MP mp) ;
   if ( mp->cur_cmd==numeric_token ) {
     mp_print_scaled(mp, mp->cur_mod);
   } else if ( mp->cur_cmd==capsule_token ) {
-    mp->g_pointer=mp->cur_mod; mp_print_capsule(mp);
+    mp_print_capsule(mp,mp->cur_mod);
   } else  { 
     mp_print_char(mp, '"'); 
     mp_print_str(mp, mp->cur_mod); mp_print_char(mp, '"');
@@ -25316,9 +25175,6 @@ void mp_shipout_backend (MP mp, pointer h) {
 @ @<Exported types@>=
 typedef void (*mp_backend_writer)(MP, int);
 
-@ @<Glob...@>=
-mp_backend_writer shipout_backend;
-
 @ @<Option variables@>=
 mp_backend_writer shipout_backend;
 
@@ -25768,11 +25624,8 @@ space consumed by the dumping/undumping routines and the numerous calls on
 
 The \.{VIRMP} program cannot read a mem file instantaneously, of course;
 the best implementations therefore allow for production versions of \MP\ that
-not only avoid the loading routine for \PASCAL\ object code, they also have
+not only avoid the loading routine for object code, they also have
 a mem file pre-loaded. 
-
-@<Glob...@>=
-boolean ini_version; /* are we iniMP? */
 
 @ @<Option variables@>=
 int ini_version; /* are we iniMP? */
@@ -26020,19 +25873,18 @@ But when we finish this part of the program, \MP\ is ready to call on the
 Once \MP\ is working, you should be able to diagnose most errors with
 the \.{show} commands and other diagnostic features. But for the initial
 stages of debugging, and for the revelation of really deep mysteries, you
-can compile \MP\ with a few more aids, including the \PASCAL\ runtime
-checks and its debugger. An additional routine called |debug_help|
+can compile \MP\ with a few more aids. An additional routine called |debug_help|
 will also come into play when you type `\.D' after an error message;
 |debug_help| also occurs just before a fatal error causes \MP\ to succumb.
 @^debugging@>
 @^system dependencies@>
 
 The interface to |debug_help| is primitive, but it is good enough when used
-with a \PASCAL\ debugger that allows you to set breakpoints and to read
+with a debugger that allows you to set breakpoints and to read
 variables and change their values. After getting the prompt `\.{debug \#}', you
 type either a negative number (this exits |debug_help|), or zero (this
 goes to a location where you can set a breakpoint, thereby entering into
-dialog with the \PASCAL\ debugger), or a positive number |m| followed by
+dialog with the debugger), or a positive number |m| followed by
 an argument |n|. The meaning of |m| and |n| will be clear from the
 program below. (If |m=13|, there is an additional argument, |l|.)
 @.debug \#@>
