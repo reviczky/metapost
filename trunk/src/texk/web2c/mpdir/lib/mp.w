@@ -158,8 +158,16 @@ struct MP_options *mp_options (void) {
   return opt;
 } 
 
+@ The |__attribute__| pragma is gcc-only.
+
+@<Internal library ... @>=
+#if !defined(__GNUC__) || (__GNUC__ < 2)
+# define __attribute__(x)
+#endif /* !defined(__GNUC__) || (__GNUC__ < 2) */
+
 @ @c
-MP mp_new (struct MP_options *opt) {
+MP __attribute__ ((noinline))
+mp_new (struct MP_options *opt) {
   MP mp;
   mp = xmalloc(1,sizeof(MP_instance));
   @<Set |ini_version|@>;
@@ -180,7 +188,8 @@ void mp_free (MP mp) {
 }
 
 @ @c
-void mp_do_initialize ( MP mp) {
+void  __attribute__((noinline))
+mp_do_initialize ( MP mp) {
   @<Local variables for initialization@>
   @<Set initial values of key variables@>
 }
@@ -1859,27 +1868,37 @@ The input is placed into locations |first| through |last-1| of the
 This procedure is never called when |interaction<mp_scroll_mode|.
 
 @d prompt_input(A) do { 
-    wake_up_terminal; mp_print(mp, (A)); mp_term_input(mp);
+    if (!mp->noninteractive) {
+      wake_up_terminal; mp_print(mp, (A)); 
+    }
+    mp_term_input(mp);
   } while (0) /* prints a string and gets a line of input */
 
 @c 
 void mp_term_input (MP mp) { /* gets a line from the terminal */
   size_t k; /* index into |buffer| */
   update_terminal; /* Now the user sees the prompt for sure */
-  if (!mp_input_ln(mp, mp->term_in )) 
-    mp_fatal_error(mp, "End of file on the terminal!");
+  if (!mp_input_ln(mp, mp->term_in )) {
+    if (!mp->noninteractive) {
+	  mp_fatal_error(mp, "End of file on the terminal!");
 @.End of file on the terminal@>
-  mp->term_offset=0; /* the user's line ended with \<\rm return> */
-  decr(mp->selector); /* prepare to echo the input */
-  if ( mp->last!=mp->first ) {
-    for (k=mp->first;k<=mp->last-1;k++) {
-      mp_print_char(mp, mp->buffer[k]);
+    } else { /* we are done with this input chunk */
+	  longjmp(mp->jump_buf,1);      
     }
   }
-  mp_print_ln(mp); 
-  mp->buffer[mp->last]='%'; 
-  incr(mp->selector); /* restore previous status */
-};
+  if (!mp->noninteractive) {
+    mp->term_offset=0; /* the user's line ended with \<\rm return> */
+    decr(mp->selector); /* prepare to echo the input */
+    if ( mp->last!=mp->first ) {
+      for (k=mp->first;k<=mp->last-1;k++) {
+        mp_print_char(mp, mp->buffer[k]);
+      }
+    }
+    mp_print_ln(mp); 
+    mp->buffer[mp->last]='%'; 
+    incr(mp->selector); /* restore previous status */
+  }
+}
 
 @* \[6] Reporting errors.
 When something anomalous is detected, \MP\ typically does something like this:
@@ -1918,6 +1937,7 @@ enum mp_interaction_mode {
 
 @ @<Option variables@>=
 int interaction; /* current level of interaction */
+int noninteractive; /* do we have a terminal? */
 
 @ Set it here so it can be overwritten by the commandline
 
@@ -1927,6 +1947,7 @@ if (mp->interaction==mp_unspecified_mode || mp->interaction>mp_error_stop_mode)
   mp->interaction=mp_error_stop_mode;
 if (mp->interaction<mp_unspecified_mode) 
   mp->interaction=mp_batch_mode;
+mp->noninteractive=opt->noninteractive;
 
 @ 
 
@@ -2060,7 +2081,8 @@ of |mp_run|. Those are the only library enty points.
 jmp_buf jump_buf;
 
 @ @<Install and test the non-local jump buffer@>=
-if (setjmp(mp->jump_buf) != 0) return mp->history;
+if (setjmp(mp->jump_buf) != 0) { return mp->history; }
+
 
 @ @<Setup the non-local jump buffer in |mp_new|@>=
 if (setjmp(mp->jump_buf) != 0) return NULL;
@@ -2083,9 +2105,10 @@ void mp_error (MP mp) { /* completes the job of error reporting */
   ASCII_code c; /* what the user types */
   integer s1,s2,s3; /* used to save global variables when deleting tokens */
   pool_pointer j; /* character position being printed */
-  if ( mp->history<mp_error_message_issued ) mp->history=mp_error_message_issued;
+  if ( mp->history<mp_error_message_issued ) 
+	mp->history=mp_error_message_issued;
   mp_print_char(mp, '.'); mp_show_context(mp);
-  if ( mp->interaction==mp_error_stop_mode ) {
+  if ((!mp->noninteractive) && (mp->interaction==mp_error_stop_mode )) {
     @<Get user's advice and |return|@>;
   }
   incr(mp->error_count);
@@ -16119,11 +16142,13 @@ it catch up to what has previously been printed on the terminal.
   @<Print the banner line, including the date and time@>;
   mp->input_stack[mp->input_ptr]=mp->cur_input; 
     /* make sure bottom level is in memory */
-  mp_print_nl(mp, "**");
 @.**@>
-  l=mp->input_stack[0].limit_field-1; /* last position of first line */
-  for (k=0;k<=l;k++) mp_print_str(mp, mp->buffer[k]);
-  mp_print_ln(mp); /* now the transcript file contains the first line of input */
+  if (!mp->noninteractive) {
+    mp_print_nl(mp, "**");
+    l=mp->input_stack[0].limit_field-1; /* last position of first line */
+    for (k=0;k<=l;k++) mp_print_str(mp, mp->buffer[k]);
+    mp_print_ln(mp); /* now the transcript file contains the first line of input */
+  }
   mp->selector=old_setting+2; /* |log_only| or |term_and_log| */
 }
 
@@ -21738,11 +21763,40 @@ Each execution of |do_statement| concludes with
     }
   } while (mp->cur_cmd!=stop);
 }
-int mp_run (MP mp) {
-  @<Install and test the non-local jump buffer@>;
-  mp_main_control(mp); /* come to life */
-  mp_final_cleanup(mp); /* prepare for death */
-  mp_close_files_and_terminate(mp);
+int __attribute__((noinline)) 
+mp_run (MP mp) {
+  if (mp->history < mp_fatal_error_stop ) {
+    @<Install and test the non-local jump buffer@>;
+    mp_main_control(mp); /* come to life */
+    mp_final_cleanup(mp); /* prepare for death */
+    mp_close_files_and_terminate(mp);
+  }
+  return mp->history;
+}
+int __attribute__((noinline)) 
+mp_execute (MP mp) {
+  if (mp->history < mp_fatal_error_stop ) {
+    mp->history = mp_spotless;
+    mp->file_offset = 0;
+    mp->term_offset = 0;
+    mp->tally = 0; 
+    @<Install and test the non-local jump buffer@>;
+    mp_input_ln(mp,mp->term_in);
+    mp_firm_up_the_line(mp);
+    mp->buffer[limit]='%';
+    mp->first=limit+1; 
+    loc=start;
+    mp_main_control(mp); /* come to life */ 
+  }
+  return mp->history;
+}
+int __attribute__((noinline)) 
+mp_finish (MP mp) {
+  if (mp->history < mp_fatal_error_stop ) {
+    @<Install and test the non-local jump buffer@>;
+    mp_final_cleanup(mp); /* prepare for death */
+    mp_close_files_and_terminate(mp);
+  }
   return mp->history;
 }
 char * mp_mplib_version (MP mp) {
@@ -21756,6 +21810,8 @@ char * mp_metapost_version (MP mp) {
 
 @ @<Exported function headers@>=
 int mp_run (MP mp);
+int mp_execute (MP mp);
+int mp_finish (MP mp);
 char * mp_mplib_version (MP mp);
 char * mp_metapost_version (MP mp);
 
@@ -24903,7 +24959,6 @@ void mp_open_output_file (MP mp) ;
     delete_str_ref(s);
   }
   @<Store the true output file name if appropriate@>;
-  @<Begin the progress report for the output of picture~|c|@>;
 }
 
 @ The file extension created here could be up to five characters long in
@@ -25061,6 +25116,8 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   mp_set_bbox(mp, h, true);
   hh = mp_xmalloc(mp,1,sizeof(struct mp_edge_object));
   hh->body = NULL;
+  hh->_next = NULL;
+  hh->_parent = mp;
   hh->_minx = minx_val(h);
   hh->_miny = miny_val(h);
   hh->_maxx = maxx_val(h);
@@ -25149,12 +25206,15 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
 
 @ @<Exported function ...@>=
 struct mp_edge_object *mp_gr_export(MP mp, int h);
-extern void mp_gr_ship_out (MP mp, struct mp_edge_object *hh) ;
+extern void mp_gr_ship_out (struct mp_edge_object *hh, int prologues, int procset) ;
 
 @ This function is now nearly trivial.
 
 @c
 void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
+  integer c; /* \&{charcode} rounded to the nearest integer */
+  c=mp_round_unscaled(mp, mp->internal[mp_char_code]);
+  @<Begin the progress report for the output of picture~|c|@>;
   (mp->shipout_backend) (mp, h);
   @<End progress report@>;
   if ( mp->internal[mp_tracing_output]>0 ) 
@@ -25168,7 +25228,9 @@ void mp_shipout_backend (MP mp, pointer h);
 void mp_shipout_backend (MP mp, pointer h) {
   struct mp_edge_object *hh; /* the first graphical object */
   hh = mp_gr_export(mp,h);
-  mp_gr_ship_out (mp, hh);
+  mp_gr_ship_out (hh,
+                 (mp->internal[mp_prologues]>>16),
+                 (mp->internal[mp_procset]>>16));
   mp_xfree(hh);
 }
 
