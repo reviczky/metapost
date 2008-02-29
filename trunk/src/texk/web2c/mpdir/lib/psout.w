@@ -48,8 +48,6 @@
 @d null_font 0
 @d null 0
 @d unity   0200000 /* $2^{16}$, represents 1.00000 */
-@d two     0400000 /* $2^{17}$, represents 2.00000 */
-@d three   0600000 /* represents 3.00000 */
 @d el_gordo   017777777777 /* $2^{31}-1$, the largest value that \MP\ likes */
 @d incr(A)   (A)=(A)+1 /* increase a variable by unity */
 @d decr(A)   (A)=(A)-1 /* decrease a variable by unity */
@@ -3456,16 +3454,13 @@ static boolean mp_do_ps_font (MP mp, font_number f);
 sure we skip that case.
 
 @<Declarations@>=
-static void mp_list_used_resources (MP mp);
+static void mp_list_used_resources (MP mp, int prologues, int procset);
 
-@ @c static void mp_list_used_resources (MP mp) {
+@ @c static void mp_list_used_resources (MP mp, int prologues, int procset) {
   font_number f; /* fonts used in a text node or as loop counters */
   int ff;  /* a loop counter */
   font_number ldf; /* the last \.{DocumentFont} listed (otherwise |null_font|) */
   boolean firstitem;
-  int prologues = (mp->internal[mp_prologues]>>16);
-  int procset = (mp->internal[mp_procset]>>16);
-
   if ( procset>0 )
     mp_ps_print_nl(mp, "%%DocumentResources: procset mpost");
   else
@@ -3526,15 +3521,13 @@ static void mp_list_used_resources (MP mp);
 } 
 
 @ @<Declarations@>=
-static void mp_list_supplied_resources (MP mp);
+static void mp_list_supplied_resources (MP mp, int prologues, int procset);
 
-@ @c static void mp_list_supplied_resources (MP mp) {
+@ @c static void mp_list_supplied_resources (MP mp, int prologues, int procset) {
   font_number f; /* fonts used in a text node or as loop counters */
   int ff; /* a loop counter */
   font_number ldf; /* the last \.{DocumentFont} listed (otherwise |null_font|) */
   boolean firstitem;
-  int prologues = (mp->internal[mp_prologues]>>16);
-  int procset = (mp->internal[mp_procset]>>16);
   if ( procset>0 )
     mp_ps_print_nl(mp, "%%DocumentSuppliedResources: procset mpost");
   else
@@ -3596,14 +3589,13 @@ static void mp_list_supplied_resources (MP mp);
 }
 
 @ @<Declarations...@>=
-static void mp_list_needed_resources (MP mp);
+static void mp_list_needed_resources (MP mp, int prologues);
 
-@ @c static void mp_list_needed_resources (MP mp) {
+@ @c static void mp_list_needed_resources (MP mp, int prologues) {
   font_number f; /* fonts used in a text node or as loop counters */
   int ff; /* a loop counter */
   font_number ldf; /* the last \.{DocumentFont} listed (otherwise |null_font|) */
   boolean firstitem;
-  int prologues = (mp->internal[mp_prologues]>>16);
   ldf=null_font;
   firstitem=true;
   for (f=null_font+1;f<=mp->last_fnum;f++ ) {
@@ -3653,15 +3645,14 @@ static void mp_list_needed_resources (MP mp);
 }
 
 @ @<Declarations@>=
-static void mp_write_font_definition (MP mp, font_number f);
+static void mp_write_font_definition (MP mp, font_number f, int prologues);
 
 @ 
 
 @d applied_reencoding(A) ((mp_font_is_reencoded(mp,(A)))&&
     ((! mp_font_is_subsetted(mp,(A)))||(prologues==2)))
 
-@c static void mp_write_font_definition(MP mp, font_number f) {
-  int prologues = (mp->internal[mp_prologues]>>16);
+@c static void mp_write_font_definition(MP mp, font_number f, int prologues) {
   if ( (applied_reencoding(f))||(mp_fm_font_slant(mp,f)!=0)||
        (mp_fm_font_extend(mp,f)!=0)||
        (mp_xstrcmp(mp->font_name[f],"psyrgo")==0)||
@@ -3699,18 +3690,17 @@ static void mp_write_font_definition (MP mp, font_number f);
     };  
     mp_ps_print(mp, "currentdict end");
     mp_ps_print_ln(mp);
-    mp_ps_print_defined_name(mp,f);
+    mp_ps_print_defined_name(mp,f,prologues);
     mp_ps_print(mp, " exch definefont pop");
     mp_ps_print_ln(mp);
   }
 }
 
 @ @<Declarations@>=
-static void mp_ps_print_defined_name (MP mp, font_number f);
+static void mp_ps_print_defined_name (MP mp, font_number f, int prologues);
 
 @ 
-@c static void mp_ps_print_defined_name(MP mp, font_number A) {
-  int prologues = (mp->internal[mp_prologues]>>16);
+@c static void mp_ps_print_defined_name(MP mp, font_number A, int prologues) {
   mp_ps_print(mp, " /");
   if ((mp_font_is_subsetted(mp,(A)))&&
       (mp_font_is_included(mp,(A)))&&(prologues==3))
@@ -3734,7 +3724,7 @@ static void mp_ps_print_defined_name (MP mp, font_number f);
 }
 
 @ @<Include encodings and fonts for edge structure~|h|@>=
-mp_font_encodings(mp,mp->last_fnum,prologues==2);
+mp_font_encodings(mp,mp->last_fnum,(prologues==2));
 @<Embed fonts that are available@>
 
 @ @<Embed fonts that are available@>=
@@ -3811,26 +3801,18 @@ void mp_unmark_font (MP mp,font_number f) {
 
 
 @ @<Exported...@>=
-void mp_print_improved_prologue (MP mp, struct mp_edge_object *h) ;
+void mp_print_improved_prologue (MP mp, struct mp_edge_object *h, int prologues, int procset) ;
 
-
-@
-@c
-void mp_print_improved_prologue (MP mp, struct mp_edge_object *h) {
+@ @c
+void mp_print_improved_prologue (MP mp, struct mp_edge_object *h, int prologues, int procset) {
   quarterword next_size; /* the size index for fonts being listed */
   pointer *cur_fsize; /* current positions in |font_sizes| */
   boolean done_fonts; /* have we finished listing the fonts in the header? */
   font_number f; /* a font number for loops */
-   
-  int prologues = (mp->internal[mp_prologues]>>16);
-  int procset = (mp->internal[mp_procset]>>16);
-  int groffmode = (mp->internal[mp_gtroffmode]>>16);
-
   cur_fsize = mp_xmalloc(mp,(mp->font_max+1),sizeof(pointer));
-
-  mp_list_used_resources(mp);
-  mp_list_supplied_resources(mp);
-  mp_list_needed_resources(mp);
+  mp_list_used_resources(mp, prologues, procset);
+  mp_list_supplied_resources(mp, prologues, procset);
+  mp_list_needed_resources(mp, prologues);
   mp_ps_print_nl(mp, "%%EndComments");
   mp_ps_print_nl(mp, "%%BeginProlog");
   if ( procset>0 )
@@ -3846,10 +3828,8 @@ void mp_print_improved_prologue (MP mp, struct mp_edge_object *h) {
                    "/fmd{/FontMatrix exch def}bd");
   mp_ps_print_nl(mp, "/Amul{4 -1 roll exch mul 1000 div}bd"
                   "/ExtendFont{fmc 0 get Amul 0 exch put fmd}bd");
-  if ( groffmode>0 ) {
-    mp_ps_print_nl(mp, "/ScaleFont{dup fmc 0 get"
-	                " Amul 0 exch put dup dup 3 get Amul 3 exch put fmd}bd");
-    };
+  mp_ps_print_nl(mp, "/ScaleFont{dup fmc 0 get"
+                  " Amul 0 exch put dup dup 3 get Amul 3 exch put fmd}bd");
   mp_ps_print_nl(mp, "/SlantFont{fmc 2 get dup 0 eq{pop 1}if"
 	              " Amul FontMatrix 0 get mul 2 exch put fmd}bd");
   mp_ps_print_nl(mp, "%%EndResource");
@@ -3860,12 +3840,12 @@ void mp_print_improved_prologue (MP mp, struct mp_edge_object *h) {
   for (f=null_font+1;f<=mp->last_fnum;f++) {
     if ( mp_has_font_size(mp,f) ) {
       if ( mp_has_fm_entry(mp,f,NULL) ) {
-        mp_write_font_definition(mp,f);
+        mp_write_font_definition(mp,f, prologues);
         mp_ps_name_out(mp, mp->font_name[f],true);
-        mp_ps_print_defined_name(mp,f);
+        mp_ps_print_defined_name(mp,f, prologues);
         mp_ps_print(mp, " def");
       } else {
-	char s[256];
+	    char s[256];
         snprintf(s,256,"font %s cannot be found in any fontmapfile!", mp->font_name[f]);
       	mp_warn(mp,s);
         mp_ps_name_out(mp, mp->font_name[f],true);
@@ -3882,12 +3862,12 @@ void mp_print_improved_prologue (MP mp, struct mp_edge_object *h) {
 }
 
 @ @<Declarations@>=
-static font_number mp_print_font_comments (MP mp , struct mp_edge_object *h);
+static font_number mp_print_font_comments (MP mp , struct mp_edge_object *h, int prologues);
 
 
 @ 
 @c 
-static font_number mp_print_font_comments (MP mp , struct mp_edge_object *h) {
+static font_number mp_print_font_comments (MP mp , struct mp_edge_object *h, int prologues) {
   quarterword next_size; /* the size index for fonts being listed */
   pointer *cur_fsize; /* current positions in |font_sizes| */
   int ff; /* a loop counter */
@@ -3895,7 +3875,6 @@ static font_number mp_print_font_comments (MP mp , struct mp_edge_object *h) {
   font_number f; /* a font number for loops */
   scaled ds; /* design size and scale factor for a text node */
   font_number ldf=0; /* the last \.{DocumentFont} listed (otherwise |null_font|) */
-  int prologues = (mp->internal[mp_prologues]>>16);
   cur_fsize = mp_xmalloc(mp,(mp->font_max+1),sizeof(pointer));
   if ( prologues>0 ) {
     @<Give a \.{DocumentFonts} comment listing all fonts with non-null
@@ -4092,17 +4071,15 @@ trouble.
 @:prologues_}{\&{prologues} primitive@>
 
 @<Exported...@>=
-void mp_print_prologue (MP mp, struct mp_edge_object *h);
+void mp_print_prologue (MP mp, struct mp_edge_object *h, int prologues, int procset);
 
 @ @c 
-void mp_print_prologue (MP mp, struct mp_edge_object *h) {
+void mp_print_prologue (MP mp, struct mp_edge_object *h, int prologues, int procset) {
   font_number f;
   font_number ldf ;
-  int prologues = (mp->internal[mp_prologues]>>16);
-  int procset = (mp->internal[mp_procset]>>16);
-  ldf = mp_print_font_comments (mp, h);
+  ldf = mp_print_font_comments (mp, h, prologues);
   mp_ps_print_ln(mp);
-  if ( (mp->internal[mp_prologues]==unity) && (mp->last_ps_fnum<mp->last_fnum) )
+  if ( (prologues==1) && (mp->last_ps_fnum<mp->last_fnum) )
     mp_read_psname_table(mp);
   mp_ps_print(mp, "%%BeginProlog"); mp_ps_print_ln(mp);
   if ( (prologues>0)||(procset>0) ) {
@@ -4243,12 +4220,11 @@ accurately. (Overfull boxes are avoided if an illustration is made to
 match a given \.{\char`\\hsize}.)
 
 @<Exported...@>=
-void mp_print_initial_comment(MP mp,struct mp_edge_object *hh);
+void mp_print_initial_comment(MP mp,struct mp_edge_object *hh, int prologues);
 
 @ @c
-void mp_print_initial_comment(MP mp,struct mp_edge_object *hh) {
+void mp_print_initial_comment(MP mp,struct mp_edge_object *hh, int prologues) {
   scaled t;
-  int prologues = (mp->internal[mp_prologues]>>16);
   mp_ps_print(mp, "%!PS");
   if ( prologues>0 ) 
     mp_ps_print(mp, "-Adobe-3.0 EPSF-3.0");
@@ -4600,6 +4576,8 @@ typedef struct mp_graphic_object {
 } mp_graphic_object;
 typedef struct mp_edge_object {
   struct mp_graphic_object * body;
+  struct mp_edge_object * _next;
+  MP _parent;
   scaled _minx, _miny, _maxx, _maxy;
 } mp_edge_object;
 
@@ -5388,8 +5366,8 @@ while ( p!=null ) {
     f = gr_font_n(p);
     if (f!=null_font ) {
       switch (prologues) {
-      case two:
-      case three:
+      case 2:
+      case 3:
         mp->font_sizes[f] = mp_void;
         mp_mark_string_chars(mp, f, gr_text_p(p));
    	    if (mp_has_fm_entry(mp,f,NULL) ) {
@@ -5398,7 +5376,7 @@ while ( p!=null ) {
           mp->font_ps_name[f] = mp_fm_font_name(mp,f);
         }
         break;
-      case unity:
+      case 1:
         mp->font_sizes[f]=mp_void;
         break;
       default: 
@@ -5416,27 +5394,32 @@ while ( p!=null ) {
 @d pen_is_elliptical(A) ((A)==gr_next_knot((A)))
 
 @<Exported function headers@>=
-void mp_gr_ship_out (MP mp, struct mp_edge_object *hh) ;
+void mp_gr_ship_out (struct mp_edge_object *hh, int prologues, int procset) ;
 
 @ @c 
-void mp_gr_ship_out (MP mp, struct mp_edge_object *hh) {
+void mp_gr_ship_out (struct mp_edge_object *hh, int prologues, int procset) {
   struct mp_graphic_object *p;
   scaled ds,scf; /* design size and scale factor for a text node */
   font_number f; /* for loops over fonts while (un)marking characters */
   boolean transformed; /* is the coordinate system being transformed? */
-  scaled prologues = mp->internal[mp_prologues];
+  MP mp = hh->_parent;
+  if (mp->history >= mp_fatal_error_stop ) return;
+  if (prologues<0) 
+	prologues = (mp->internal[mp_prologues]>>16);
+  if (procset<0) 
+	procset = (mp->internal[mp_procset]>>16);
   mp_open_output_file(mp);
-  mp_print_initial_comment(mp, hh);
+  mp_print_initial_comment(mp, hh, prologues);
   p = hh->body;
   @<Unmark all marked characters@>;
-  if ( prologues==two || prologues==three ) {
+  if ( prologues==2 || prologues==3 ) {
     mp_reload_encodings(mp);
   }
   @<Scan all the text nodes and mark the used characters@>;
-  if ( prologues==two || prologues==three ) {
-    mp_print_improved_prologue(mp, hh);
+  if ( prologues==2 || prologues==3 ) {
+    mp_print_improved_prologue(mp, hh, prologues, procset);
   } else {
-    mp_print_prologue(mp, hh);
+    mp_print_prologue(mp, hh, prologues, procset);
   }
   mp_gs_unknown_graphics_state(mp, 0);
   p = hh->body;
@@ -5474,7 +5457,7 @@ void mp_gr_ship_out (MP mp, struct mp_edge_object *hh) {
       break;
     case mp_text_code: 
       if ( (gr_font_n(p)!=null_font) && (strlen(gr_text_p(p))>0) ) {
-        if ( mp->internal[mp_prologues]>0 )
+        if ( prologues>0 )
           scf=mp_gr_choose_scale(mp, p);
         else 
           scf=mp_indexed_size(mp, gr_font_n(p), gr_name_type(p));
@@ -5520,7 +5503,7 @@ void mp_gr_ship_out (MP mp, struct mp_edge_object *hh) {
   mp_ps_print(mp, "%%EOF"); mp_ps_print_ln(mp);
   mp_gr_toss_objects(mp, hh->body);
   (mp->close_file)(mp->ps_file);
-  if ( mp->internal[mp_prologues]<=0 ) 
+  if ( prologues<=0 ) 
     mp_clear_sizes(mp);
 }
 
