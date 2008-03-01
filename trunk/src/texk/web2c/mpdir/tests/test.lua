@@ -10,27 +10,13 @@ if false then
   mpx = nil;
 end
 
-function finder (a,b,c)
-   print(a,b,c)
-   if a == "mpost.map" then
-     return "/opt/tex/texmf-local/fonts/map/pdftex/pdftex.map"
-   end
-   if a =="cmr10.tfm" then
-     return "/opt/tex/texmf/fonts/tfm/public/cm/cmr10.tfm"
-   end
-   return a
-end
-
--- if you don't do this, it only finds local files
-mp.find_file_function (finder)
-
 function dorun (m, s) 
   local v = m:execute(s)
 --  print ('<<term:'..v.term..'>>')
   print ('<<log:'..v.log..'>>')
   if v.fig then
      for _,gs in ipairs(v.fig) do
-       print(gs:postscript())
+--       print(gs:postscript())
      end
   end
 end
@@ -50,7 +36,20 @@ local lines = {
  "beginfig(7); label(\"stuff\", (0,0)); endfig;",
 }
 
-mpx = mp.new({mem_name = "plain.mem", command_line = "\\relax "})
+function finder (a,b,c)
+   print(a,b,c)
+   if a == "mpost.map" then
+     return "/opt/tex/texmf-local/fonts/map/pdftex/pdftex.map"
+   end
+   if a =="cmr10.tfm" then
+     return "/opt/tex/texmf/fonts/tfm/public/cm/cmr10.tfm"
+   end
+   return a
+end
+
+mpx = mp.new({mem_name = "plain.mem", 
+              command_line = "\\relax ", 
+              find_file = finder})
 
 for _,l in ipairs(lines) do
    dorun (mpx, l)

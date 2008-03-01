@@ -57,8 +57,8 @@ parm_struct img_parms[] = {
   {"command_line",      P_COMMAND_LINE,'s' },
   {"mem_name",          P_MEM_NAME,    's' },
   {"job_name",          P_JOB_NAME,    's' },
-#if 0
   {"find_file",         P_FIND_FILE,   'p' }, 
+#if 0
   {"open_file",         P_OPEN_FILE,   'p' },
   {"close_file",        P_CLOSE_FILE,  'p' },
   {"eof_file",          P_EOF_FILE,    'p' },
@@ -122,22 +122,18 @@ char *mplib_find_file (char *fname, char *fmode, int ftype)  {
   return NULL;
 }
 
-int mplib_find_file_function (lua_State *L) {
-  if (lua_gettop(L)!=1 || (!(lua_isfunction(L,1) || lua_isnil(L,1) ))) {
-    lua_pop(L,1);
-    lua_pushnil(L);
-    lua_pushstring(L,"Invalid arguments to mp.find_file_function");
-    return 2;
-  }
-  if (lua_isfunction(L,1)) {
+static int 
+mplib_find_file_function (lua_State *L) {
+  if (lua_isfunction(L,-1)) {
     LL =  L;
-  } else {
+  } else if (lua_isnil(L,-1)) {
     LL = NULL;
+  } else {
+    return 1; /* error */
   }
   lua_pushstring(L, "mplib_file_finder");
   lua_pushvalue(L,-2);
   lua_rawset(L,LUA_REGISTRYINDEX);
-  lua_pop(L,1);
   return 0;
 }
 
@@ -434,8 +430,12 @@ mplib_new (lua_State *L) {
 	case P_JOB_NAME:
 	  options->job_name = strdup((char *)lua_tostring(L,-1));
           break;
-#if 0
 	case P_FIND_FILE:  
+	  if(mplib_find_file_function(L)) { /* error here */
+	    fprintf(stdout,"Invalid arguments to mp.new({find_file=...})\n");
+	  }
+	  break;
+#if 0
 	case P_OPEN_FILE:
 	case P_CLOSE_FILE:
 	case P_EOF_FILE:
@@ -674,7 +674,6 @@ static const struct luaL_reg mplib_d [] = {
 
 static const struct luaL_reg mplib_m[] = {
   {"new",               mplib_new},
-  {"find_file_function", mplib_find_file_function },
   {NULL, NULL}                /* sentinel */
 };
 
