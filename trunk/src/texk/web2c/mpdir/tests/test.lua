@@ -17,7 +17,7 @@ function finder (a,b,c)
    end
    if a =="cmr10.tfm" then
      return "/opt/tex/texmf/fonts/tfm/public/cm/cmr10.tfm"
-   end
+   end
    return a
 end
 
@@ -29,13 +29,15 @@ function dorun (m, s)
 --  print ('<<term:'..v.term..'>>')
   print ('<<log:'..v.log..'>>')
   if v.fig then
-    print(v.fig:postscript())
+     for _,gs in ipairs(v.fig) do
+       print(gs:postscript())
+     end
   end
 end
 
 -- chunks have to have 'complete file' nesting state
 local lines = {
--- "prologues:=3;",
+ "prologues:=3;",
  "path p;",
  "p = (0,0){right}..(20,100)..(50,60)..(75,50)...(25,25)..cycle;",
  "pickup pencircle scaled 2;",
@@ -43,8 +45,8 @@ local lines = {
  "beginfig(2); fill p withcolor (0,1,0); draw p dashed evenly; endfig;",
  "beginfig(3); fill p withcolor (0,0,1); draw p dashed evenly; endfig;",
  "beginfig(4); fill p withcolor (1,1,0); draw p dashed evenly; endfig;",
- "beginfig(5); fill p withcolor (1,0,1); draw p dashed evenly; endfig;",
- "beginfig(6); fill p withcolor (0,1,1); draw p dashed evenly; endfig;",
+ [[beginfig(5); fill p withcolor (1,0,1); draw p dashed evenly; endfig; 
+   beginfig(6); fill p withcolor (0,1,1); draw p dashed evenly; endfig;]],
  "beginfig(7); label(\"stuff\", (0,0)); endfig;",
 }
 

@@ -510,6 +510,7 @@ mplib_run (lua_State *L) {
 
 static int 
 mplib_wrapresults(lua_State *L,int h) {
+   lua_checkstack(L,5);
    lua_newtable(L);
    if (term_out != NULL) {
      lua_pushstring(L,term_out);
@@ -527,14 +528,20 @@ mplib_wrapresults(lua_State *L,int h) {
      free(log_out); log_out = NULL;
    }
    if (edges != NULL ) {
-     /* todo: convert to array */
-     struct mp_edge_object **v = lua_newuserdata (L, sizeof(struct mp_edge_object *));
-     *v = malloc(sizeof(struct mp_edge_object));
-     memcpy(*v, edges, sizeof(struct mp_edge_object));
-     luaL_getmetatable(L,MPLIB_FIG_METATABLE);
-     lua_setmetatable(L,-2);
+     struct mp_edge_object **v;
+     struct mp_edge_object *p = edges;
+     int i = 1;
+     lua_newtable(L);
+     while (p!=NULL) { 
+       v = lua_newuserdata (L, sizeof(struct mp_edge_object *));
+       *v = p;
+       luaL_getmetatable(L,MPLIB_FIG_METATABLE);
+       lua_setmetatable(L,-2);
+       lua_rawseti(L,-2,i); i++;
+       p = p->_next;
+     }
      lua_setfield(L,-2,"fig");
-     free(edges); edges = NULL;
+     edges = NULL;
    }
    lua_pushnumber(L,h);
    lua_setfield(L,-2,"status");
