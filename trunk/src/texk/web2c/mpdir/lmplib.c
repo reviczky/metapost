@@ -577,7 +577,7 @@ static int
 mplib_fig_collect (lua_State *L) {
   struct mp_edge_object **hh = is_fig(L,1);
   if (*hh!=NULL) {
-    free(*hh);
+    mp_gr_toss_objects((*hh)->_parent,*hh);
     *hh=NULL;
   }
   return 0;

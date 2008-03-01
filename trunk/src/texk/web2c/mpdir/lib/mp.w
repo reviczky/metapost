@@ -25206,7 +25206,6 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
 
 @ @<Exported function ...@>=
 struct mp_edge_object *mp_gr_export(MP mp, int h);
-extern void mp_gr_ship_out (struct mp_edge_object *hh, int prologues, int procset) ;
 
 @ This function is now nearly trivial.
 
@@ -25231,7 +25230,7 @@ void mp_shipout_backend (MP mp, pointer h) {
   mp_gr_ship_out (hh,
                  (mp->internal[mp_prologues]>>16),
                  (mp->internal[mp_procset]>>16));
-  mp_xfree(hh);
+  mp_gr_toss_objects(mp, hh);
 }
 
 @ @<Exported types@>=

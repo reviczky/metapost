@@ -5501,7 +5501,6 @@ void mp_gr_ship_out (struct mp_edge_object *hh, int prologues, int procset) {
   }
   mp_ps_print_cmd(mp, "showpage","P"); mp_ps_print_ln(mp);
   mp_ps_print(mp, "%%EOF"); mp_ps_print_ln(mp);
-  mp_gr_toss_objects(mp, hh->body);
   (mp->close_file)(mp->ps_file);
   if ( prologues<=0 ) 
     mp_clear_sizes(mp);
@@ -5549,15 +5548,13 @@ if ( transformed ) {
 mp_ps_print_ln(mp)
 
 
-@ 
-@d mp_gr_toss_objects(A,B)  mp_do_gr_toss_objects(B) 
-
-@<Declarations@>=
-void mp_do_gr_toss_objects (struct mp_graphic_object *p) ;
+@ @<Exported function headers@>=
+void mp_gr_toss_objects (MP mp, struct mp_edge_object *hh) ;
 
 @ @c
-void mp_do_gr_toss_objects (struct mp_graphic_object *p) {
-  struct mp_graphic_object *q;
+void mp_gr_toss_objects (MP mp, struct mp_edge_object *hh) {
+  struct mp_graphic_object *p, *q;
+  p = hh->body;
   while ( p!=NULL ) { 
     switch (gr_type(p)) {
     case mp_fill_code: 
@@ -5591,8 +5588,9 @@ void mp_do_gr_toss_objects (struct mp_graphic_object *p) {
       mp_xfree(gr_pre_script(p));
 	  break;
     } /* all cases are enumerated */
-	q = gr_link(p);
+    q = gr_link(p);
     mp_xfree(p);
     p=q;
   }
+  mp_xfree(hh);
 }
