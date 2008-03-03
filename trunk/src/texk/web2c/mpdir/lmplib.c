@@ -1,11 +1,18 @@
 /* $Id$ */
 
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#ifndef pdfTeX
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
+#else
+#include <../lua51/lua.h>
+#include <../lua51/lauxlib.h>
+#include <../lua51/lualib.h>
+#endif
 
 #include "mplib.h"
 #include "mpmp.h"
@@ -34,14 +41,14 @@ typedef struct {
     const char *name;           /* parameter name */
     parm_idx idx;               /* parameter index */
     int class;                  /* parameter class */
-} parm_struct;
+} mplib_parm_struct;
 
 const char *interaction_options[] = 
   { "unknownmode","batchmode","nonstopmode","scrollmode","errorstopmode", NULL};
 
 /* the third field (type) is currently not used */
 
-parm_struct img_parms[] = {
+mplib_parm_struct mplib_parms[] = {
   {NULL,                P__ZERO,       0   },  /* dummy; lua indices run from 1 */
   {"error_line",        P_ERROR_LINE,  'i' },
   {"half_error_line",   P_HALF_LINE,   'i' },
@@ -364,13 +371,13 @@ mplib_new (lua_State *L) {
     options->noninteractive = 1; /* required ! */
     options->print_found_names = 0;
     if (lua_type(L,1)==LUA_TTABLE) {
-      for (i=1;img_parms[i].name!=NULL;i++) {
-	lua_getfield(L,1,img_parms[i].name);
+      for (i=1;mplib_parms[i].name!=NULL;i++) {
+	lua_getfield(L,1,mplib_parms[i].name);
 	if (lua_isnil(L,-1)) {
           lua_pop(L,1);
 	  continue; /* skip unset */
 	}
-        switch(img_parms[i].idx) {
+        switch(mplib_parms[i].idx) {
 	case P_ERROR_LINE: 
 	  options->error_line = lua_tointeger(L,-1);
           break;
@@ -662,6 +669,7 @@ mplib_gr_tostring (lua_State *L) {
   return 1;
 }
 
+/* only "endpoint" and "explicit" actually happen */
 
 char *knot_type_enum[]  = {
   "endpoint", "explicit", "given", "curl", "open", "end_cycle" 
@@ -710,11 +718,8 @@ mplib_push_path (lua_State *L, struct mp_knot *h ) {
 }
 
 char *color_model_enum[] = { NULL, "none",  NULL, "grey",
-  NULL, "rgb", NULL, "cmyk", NULL, "uninitialized" };
+			     NULL, "rgb", NULL, "cmyk", NULL, "uninitialized" };
 
-
-
-/* this is a bit silly, a better color model representation is needed */
 static void 
 mplib_push_color (lua_State *L, struct mp_graphic_object *h ) {
   if (h!=NULL) {
@@ -798,7 +803,8 @@ mplib_push_transform (lua_State *L, struct mp_graphic_object *h ) {
   }
 }
 
-static char *fill_fields[] = { "type", "path", "htap", "pen", "color", "ljoin", "miterlim", "prescript", "postscript", NULL };
+static char *fill_fields[] = { "type", "path", "htap", "pen", "color", "ljoin", "miterlim", 
+			       "prescript", "postscript", NULL };
 
 #define FIELD(A) (strcmp(field,#A)==0)
 
@@ -827,7 +833,8 @@ mplib_fill_field (lua_State *L, struct mp_graphic_object *h, char *field) {
   }
 }
 
-static char *stroked_fields[] = {"type", "path", "pen", "color", "ljoin", "miterlim", "lcap", "dash", "prescript", "postscript", NULL };
+static char *stroked_fields[] = {"type", "path", "pen", "color", "ljoin", "miterlim", 
+				 "lcap", "dash", "prescript", "postscript", NULL };
 
 static void 
 mplib_stroked_field (lua_State *L, struct mp_graphic_object *h, char *field) {
@@ -856,20 +863,21 @@ mplib_stroked_field (lua_State *L, struct mp_graphic_object *h, char *field) {
   }
 }
 
-static char *text_fields[] = { "type", "text", "nametype" "font", "color", "width", "height", "depth", "transform", "prescript", "postscript", NULL };
-
-/* todo: name_type and font_n do not make sense */
+static char *text_fields[] = { "type", "text", "dsize", "font", "color", 
+			       "width", "height", "depth", "transform", 
+			       "prescript", "postscript", NULL };
 
 static void 
 mplib_text_field (lua_State *L, struct mp_graphic_object *h, char *field) {
+  
   if (FIELD(type)) {
     lua_pushstring(L,"text");
   } else if (FIELD(text)) {
     lua_pushstring(L,h->text_p_field);
-  } else if (FIELD(nametype)) {
-    lua_pushnumber(L,h->name_type_field);
+  } else if (FIELD(dsize)) {
+    lua_pushnumber(L,h->font_dsize_field);
   } else if (FIELD(font)) {
-    lua_pushnumber(L,h->font_n_field);
+    lua_pushstring(L,h->font_name_field);
   } else if (FIELD(color)) {
     mplib_push_color(L, h);
   } else if (FIELD(width)) {
