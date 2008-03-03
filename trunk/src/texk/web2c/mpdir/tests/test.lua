@@ -21,6 +21,9 @@ function dorun (m, s)
 	   local b = gs:objects()
        for _,vv in ipairs(b) do
 		  print(vv, vv.type, table.serialize(vv.path), table.serialize(vv.color))
+          if vv.type == "text" then
+		    print(vv.text, vv.font, vv.dsize, table.serialize(vv.transform))
+          end
        end
 --       print(gs:postscript())
      end
@@ -30,16 +33,14 @@ end
 -- chunks have to have 'complete file' nesting state
 local lines = {
  "prologues:=3;",
- "path p;",
+ "path p,q;",
  "p = (0,0){right}..(20,100)..(50,60)..(75,50)...(25,25)..cycle;",
+ "q = (0,0){right}..(20,100)..(50,60)..(75,50)...(25,25);",
  "pickup pencircle scaled 2;",
  "beginfig(1); fill p withcolor (1,0,0); draw p dashed evenly; endfig;",
- "beginfig(2); fill p withcolor (0,1,0); draw p dashed evenly; endfig;",
- "beginfig(3); fill p withcolor (0,0,1); draw p dashed evenly; endfig;",
- "beginfig(4); fill p withcolor (1,1,0); draw p dashed evenly; endfig;",
- [[beginfig(5); fill p withcolor (1,0,1); draw p dashed evenly; endfig; 
-   beginfig(6); fill p withcolor (0,1,1); draw p dashed evenly; endfig;]],
- "beginfig(7); label(\"stuff\", (0,0)); endfig;",
+ [[beginfig(2); fill p withcolor (1,0,1); endfig; 
+   beginfig(3); draw q withcolor (0,1,1); endfig;]],
+ "beginfig(4); label(\"stuff\", (0,0)); endfig;",
 }
 
 function finder (a,b,c)
