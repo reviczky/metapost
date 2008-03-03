@@ -4537,6 +4537,8 @@ structures and access macros.
 #define gr_dash_p(A)       (A)->dash_p_field
 #define gr_text_p(A)       (A)->text_p_field 
 #define gr_font_n(A)       (A)->font_n_field 
+#define gr_font_name(A)    (A)->font_name_field 
+#define gr_font_dsize(A)   (A)->font_dsize_field 
 #define gr_width_val(A)    (A)->width_field
 #define gr_height_val(A)   (A)->height_field
 #define gr_depth_val(A)    (A)->depth_field
@@ -4564,6 +4566,8 @@ typedef struct mp_graphic_object {
   struct mp_dash_list *dash_p_field;
   char *text_p_field;
   font_number font_n_field ;   
+  char *font_name_field ;   
+  scaled font_dsize_field ;
   scaled width_field ;
   scaled height_field ;
   scaled depth_field ;
