@@ -424,23 +424,6 @@ mplib_new (lua_State *L) {
 	    fprintf(stdout,"Invalid arguments to mp.new({find_file=...})\n");
 	  }
 	  break;
-#if 0
-	case P_OPEN_FILE:
-	case P_CLOSE_FILE:
-	case P_EOF_FILE:
-	case P_FLUSH_FILE:
-	case P_WRITE_ASCII:
-	case P_READ_ASCII:
-	case P_WRITE_BINARY:
-	case P_READ_BINARY:
-	  break;
-	case P_SHIPOUT:
-	  break;
-	case P_RUN_EDITOR:
-	  break;
-	case P_RUN_MAKEMPX:
-	  break;
-#endif
         default:
 	  break;
 	}
