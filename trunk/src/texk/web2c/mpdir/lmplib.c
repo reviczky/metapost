@@ -11,14 +11,15 @@
 #include "mpmp.h"
 #include "mppsout.h" /* for mp_edge_object */
 
-#define MPLIB_METATABLE "MPlib"
+#define MPLIB_METATABLE     "MPlib"
 #define MPLIB_FIG_METATABLE "MPlib.fig"
+#define MPLIB_GR_METATABLE  "MPlib.gr"
 
 #define xfree(A) if (A!=NULL) free(A)
 
-
 #define is_mp(L,b) (MP *)luaL_checkudata(L,b,MPLIB_METATABLE)
 #define is_fig(L,b) (struct mp_edge_object **)luaL_checkudata(L,b,MPLIB_FIG_METATABLE)
+#define is_gr_object(L,b) (struct mp_graphic_object **)luaL_checkudata(L,b,MPLIB_GR_METATABLE)
 
 typedef enum {  
   P__ZERO,       P_ERROR_LINE,  P_HALF_LINE,   P_MAX_LINE,    P_MAIN_MEMORY, 
@@ -57,7 +58,7 @@ parm_struct img_parms[] = {
   {"command_line",      P_COMMAND_LINE,'s' },
   {"mem_name",          P_MEM_NAME,    's' },
   {"job_name",          P_JOB_NAME,    's' },
-  {"find_file",         P_FIND_FILE,   'p' }, 
+  {"find_file",         P_FIND_FILE,   'p' }, /* intercepted */
 #if 0
   {"open_file",         P_OPEN_FILE,   'p' },
   {"close_file",        P_CLOSE_FILE,  'p' },
@@ -579,15 +580,32 @@ mplib_finish (lua_State *L) {
   return 1;
 }
 
+/* figure methods */
 
 static int
 mplib_fig_collect (lua_State *L) {
   struct mp_edge_object **hh = is_fig(L,1);
   if (*hh!=NULL) {
-    mp_gr_toss_objects((*hh)->_parent,*hh);
+    mp_gr_toss_objects (*hh);
     *hh=NULL;
   }
   return 0;
+}
+
+static int
+mplib_fig_body (lua_State *L) {
+  struct mp_edge_object **hh = is_fig(L,1);
+  struct mp_graphic_object **v;
+  struct mp_graphic_object *p;
+    /* create a table from body */
+  lua_newtable(L);
+  p = (*hh)->body;
+  while (p!=NULL) {
+    /* TODO */
+    p = p->_link_field;
+  }
+  (*hh)->body = NULL; /* prevent double free */
+  return 1;
 }
 
 
@@ -597,6 +615,8 @@ mplib_fig_tostring (lua_State *L) {
   lua_pushfstring(L,"<figure %p>",*hh);
   return 1;
 }
+
+
 
 static int 
 mp_wrapped_shipout (struct mp_edge_object *hh, int prologues, int procset) {
@@ -648,6 +668,24 @@ mplib_fig_bb (lua_State *L) {
   return 1;
 }
 
+/* object methods */
+
+static int
+mplib_gr_collect (lua_State *L) {
+  struct mp_graphic_object **hh = is_gr_object(L,1);
+  if (*hh!=NULL) {
+    mp_gr_toss_object(*hh);
+    *hh=NULL;
+  }
+  return 0;
+}
+
+static int
+mplib_gr_tostring (lua_State *L) {
+  struct mp_graphic_object **hh = is_gr_object(L,1);
+  lua_pushfstring(L,"<object %p>",*hh);
+  return 1;
+}
 
 
 static const struct luaL_reg mplib_meta[] = {
@@ -663,6 +701,13 @@ static const struct luaL_reg mplib_fig_meta[] = {
   {"boundingbox",        mplib_fig_bb},
   {NULL, NULL}                /* sentinel */
 };
+
+static const struct luaL_reg mplib_gr_meta[] = {
+  {"__gc",               mplib_gr_collect},
+  {"__tostring",         mplib_gr_tostring},
+  {NULL, NULL}                /* sentinel */
+};
+
 
 static const struct luaL_reg mplib_d [] = {
   {"run",                mplib_run },
@@ -680,6 +725,12 @@ static const struct luaL_reg mplib_m[] = {
 
 int 
 luaopen_mp (lua_State *L) {
+  luaL_newmetatable(L,MPLIB_GR_METATABLE);
+  lua_pushvalue(L, -1); /* push metatable */
+  lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */
+  luaL_register(L, NULL, mplib_gr_meta);  /* object meta methods */
+  lua_pop(L,1);
+
   luaL_newmetatable(L,MPLIB_FIG_METATABLE);
   lua_pushvalue(L, -1); /* push metatable */
   lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */

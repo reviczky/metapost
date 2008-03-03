@@ -5549,14 +5549,12 @@ mp_ps_print_ln(mp)
 
 
 @ @<Exported function headers@>=
-void mp_gr_toss_objects (MP mp, struct mp_edge_object *hh) ;
+void mp_gr_toss_objects ( struct mp_edge_object *hh) ;
+void mp_gr_toss_object (struct mp_graphic_object *p) ;
 
 @ @c
-void mp_gr_toss_objects (MP mp, struct mp_edge_object *hh) {
-  struct mp_graphic_object *p, *q;
-  p = hh->body;
-  while ( p!=NULL ) { 
-    switch (gr_type(p)) {
+void mp_gr_toss_object (struct mp_graphic_object *p) {
+    switch (gr_type(p)) {	
     case mp_fill_code: 
       mp_xfree(gr_pre_script(p));
       mp_xfree(gr_post_script(p));
@@ -5588,8 +5586,17 @@ void mp_gr_toss_objects (MP mp, struct mp_edge_object *hh) {
       mp_xfree(gr_pre_script(p));
 	  break;
     } /* all cases are enumerated */
-    q = gr_link(p);
     mp_xfree(p);
+}
+
+
+@ @c
+void mp_gr_toss_objects (struct mp_edge_object *hh) {
+  struct mp_graphic_object *p, *q;
+  p = hh->body;
+  while ( p!=NULL ) { 
+    q = gr_link(p);
+    mp_gr_toss_object(p);
     p=q;
   }
   mp_xfree(hh);

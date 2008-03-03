@@ -25230,7 +25230,7 @@ void mp_shipout_backend (MP mp, pointer h) {
   mp_gr_ship_out (hh,
                  (mp->internal[mp_prologues]>>16),
                  (mp->internal[mp_procset]>>16));
-  mp_gr_toss_objects(mp, hh);
+  mp_gr_toss_objects(hh);
 }
 
 @ @<Exported types@>=
