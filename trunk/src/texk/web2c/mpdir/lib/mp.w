@@ -643,10 +643,11 @@ boolean mp_w_open_out (MP mp, void **f) {
 }
 
 @ @c
-char *mp_read_ascii_file (void *f, size_t *size) {
+char *mp_read_ascii_file (void *ff, size_t *size) {
   int c;
   size_t len = 0, lim = 128;
   char *s = NULL;
+  FILE *f = (FILE *)ff;
   *size = 0;
 #if NOTTESTING
   c = fgetc(f);
@@ -678,7 +679,7 @@ char *mp_read_ascii_file (void *f, size_t *size) {
 void mp_write_ascii_file (void *f, char *s) {
 #if NOTTESTING
   if (f!=NULL) {
-    fputs(s,f);
+    fputs(s,(FILE *)f);
   }
 #endif
 }
@@ -687,7 +688,7 @@ void mp_write_ascii_file (void *f, char *s) {
 void mp_read_binary_file (void *f, void **data, size_t *size) {
   size_t len = 0;
 #if NOTTESTING
-  len = fread(*data,1,*size,f);
+  len = fread(*data,1,*size,(FILE *)f);
 #endif
   *size = len;
 }
@@ -696,7 +697,7 @@ void mp_read_binary_file (void *f, void **data, size_t *size) {
 void mp_write_binary_file (void *f, void *s, size_t size) {
 #if NOTTESTING
   if (f!=NULL)
-    fwrite(s,size,1,f);
+    fwrite(s,size,1,(FILE *)f);
 #endif
 }
 
@@ -704,14 +705,14 @@ void mp_write_binary_file (void *f, void *s, size_t size) {
 @ @c
 void mp_close_file (void *f) {
 #if NOTTESTING
-  fclose(f);
+  fclose((FILE *)f);
 #endif
 }
 
 @ @c
 int mp_eof_file (void *f) {
 #if NOTTESTING
-  return feof(f);
+  return feof((FILE *)f);
 #else
   return 0;
 #endif
@@ -720,7 +721,7 @@ int mp_eof_file (void *f) {
 @ @c
 void mp_flush_file (void *f) {
 #if NOTTESTING
-  fflush(f);
+  fflush((FILE *)f);
 #endif
 }
 
@@ -25176,6 +25177,8 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
     case mp_text_code:
       gr_text_p(hq)       = str(text_p(p));
       gr_font_n(hq)       = font_n(p);
+      gr_font_name(hq)    = mp_xstrdup(mp,mp->font_name[font_n(p)]);
+      gr_font_dsize(hq)   = mp->font_dsize[font_n(p)];
       @<Export object color@>;
       @<Export object scripts@>;
       gr_width_val(hq)    = width_val(p);
