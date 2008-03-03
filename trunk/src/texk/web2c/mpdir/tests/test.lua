@@ -10,12 +10,18 @@ if false then
   mpx = nil;
 end
 
+dofile("/opt/tex/texmf-local/tex/context/base/l-table.lua");
+
 function dorun (m, s) 
   local v = m:execute(s)
 --  print ('<<term:'..v.term..'>>')
   print ('<<log:'..v.log..'>>')
   if v.fig then
      for _,gs in ipairs(v.fig) do
+	   local b = gs:objects()
+       for _,vv in ipairs(b) do
+		  print(vv, vv.type, table.serialize(vv.path), table.serialize(vv.color))
+       end
 --       print(gs:postscript())
      end
   end

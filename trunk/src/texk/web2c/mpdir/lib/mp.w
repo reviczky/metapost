@@ -12967,7 +12967,7 @@ integer mp_true_line (MP mp) {
             (mp->input_stack[(k-1)].name_field<=max_spec_src))) {
       decr(k);
     }
-    return mp->line_stack[(k-1)];
+    return (k>0 ? mp->line_stack[(k-1)] : 0 );
   }
   return 0; 
 }
