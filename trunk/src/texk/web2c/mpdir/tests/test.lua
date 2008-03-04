@@ -4,10 +4,15 @@
 -- or
 -- new * execute^1 * finish
 
-if false then 
-  mpx = mp.new({ini_version = true, command_line = "plain \\dump"})
-  print (mpx:run());
-  mpx = nil;
+if true then 
+   mpx = mplib.new({ini_version = true})
+   vv = mpx:execute("plain ");
+   v = mpx:execute("dump;");
+   vvv= mpx:finish();
+   print (tostring(vv.term) .. ' ' .. tostring(v.term) .. ' ' .. tostring(vvv.term))
+   print (tostring(vv.log) ..  ' ' .. tostring(v.log) .. ' ' .. tostring(vvv.log))
+   print (tostring(vv.error) ..  ' ' .. tostring(v.error) .. ' ' .. tostring(vvv.error))
+   mpx = nil;
 end
 
 dofile("/opt/tex/texmf-local/tex/context/base/l-table.lua");
@@ -15,8 +20,10 @@ dofile("/opt/tex/texmf-local/tex/context/base/l-table.lua");
 function dorun (m, s) 
   local v = m:execute(s)
 --  print ('<<term:'..v.term..'>>')
-  print ('<<log:'..v.log..'>>')
-  if v.fig then
+  if v.log then
+    print ('<<log:'..v.log..'>>')
+  end
+  if false and v.fig then
      for _,gs in ipairs(v.fig) do
 	   local b = gs:objects()
        for _,vv in ipairs(b) do
@@ -32,6 +39,7 @@ end
 
 -- chunks have to have 'complete file' nesting state
 local lines = {
+ "\\",
  "prologues:=3;",
  "path p,q;",
  "p = (0,0){right}..(20,100)..(50,60)..(75,50)...(25,25)..cycle;",
@@ -54,7 +62,7 @@ function finder (a,b,c)
    return a
 end
 
-mpx = mp.new({mem_name = "plain.mem", 
+mpx = mplib.new({mem_name = "plain.mem", 
               command_line = "\\relax ", 
               find_file = finder})
 
