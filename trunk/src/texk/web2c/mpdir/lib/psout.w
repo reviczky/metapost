@@ -4581,6 +4581,7 @@ typedef struct mp_graphic_object {
 typedef struct mp_edge_object {
   struct mp_graphic_object * body;
   struct mp_edge_object * _next;
+  char * _filename;
   MP _parent;
   scaled _minx, _miny, _maxx, _maxy;
 } mp_edge_object;
