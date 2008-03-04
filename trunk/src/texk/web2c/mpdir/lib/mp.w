@@ -829,6 +829,8 @@ initialization.
       mp->last = strlen(mp->command_line);
       strncpy((char *)mp->buffer,mp->command_line,mp->last);
       xfree(mp->command_line);
+    } else {
+	  mp->last = 0;
     }
 } while (0)
 
@@ -924,8 +926,10 @@ boolean mp_init_terminal (MP mp) { /* gets the terminal input started */
 	return true;
   }
   while (1) { 
-    wake_up_terminal; do_fprintf(mp->term_out,"**"); update_terminal;
+    if (!mp->noninteractive) {
+	  wake_up_terminal; do_fprintf(mp->term_out,"**"); update_terminal;
 @.**@>
+    }
     if ( ! mp_input_ln(mp, mp->term_in ) ) { /* this shouldn't happen */
       do_fprintf(mp->term_out,"\n! End of file on the terminal... why?");
 @.End of file on the terminal@>
@@ -936,8 +940,10 @@ boolean mp_init_terminal (MP mp) { /* gets the terminal input started */
       incr(loc);
     if ( loc<(int)mp->last ) { 
       return true; /* return unless the line was all blank */
-    };
-    do_fprintf(mp->term_out,"Please type the name of your input file.\n");
+    }
+    if (!mp->noninteractive) {
+	  do_fprintf(mp->term_out,"Please type the name of your input file.\n");
+    }
   }
 }
 
@@ -2419,9 +2425,10 @@ a way to make |interrupt| nonzero using the C debugger.
 @<Global...@>=
 integer interrupt; /* should \MP\ pause for instructions? */
 boolean OK_to_interrupt; /* should interrupts be observed? */
+integer run_state; /* are we processing input ?*/
 
 @ @<Allocate or ...@>=
-mp->interrupt=0; mp->OK_to_interrupt=true;
+mp->interrupt=0; mp->OK_to_interrupt=true; mp->run_state=0; 
 
 @ When an interrupt has been detected, the program goes into its
 highest interaction level and lets the user have the full flexibility of
@@ -15724,20 +15731,6 @@ integer area_delimiter;
   /* most recent `\.>' or `\.:' relative to |str_start[str_ptr]| */
 integer ext_delimiter; /* the relevant `\..', if any */
 
-@ Input files that can't be found in the user's area may appear in standard
-system areas called |MP_area| and |MF_area|.  (The latter is used when the file
-extension is |".mf"|.)  The standard system area for font metric files
-to be read is |MP_font_area|.
-This system area name will, of course, vary from place to place.
-@^system dependencies@>
-
-@d MP_area "MPinputs:"
-@.MPinputs@>
-@d MF_area "MFinputs:"
-@.MFinputs@>
-@d MP_font_area ""
-@.TeXfonts@>
-
 @ Here now is the first of the system-dependent routines for file name scanning.
 @^system dependencies@>
 
@@ -16202,9 +16195,7 @@ can't find the file in |cur_area| or the appropriate system area.
   if ( mp_a_open_in(mp, &cur_file, mp_filetype_program) ) {
     return true;
   } else { 
-    if (strcmp(ext,".mf")==0 ) in_area=xstrdup(MF_area);
-    else in_area=xstrdup(MP_area);
-    mp_pack_file_name(mp, mp->cur_name,in_area,ext);
+    mp_pack_file_name(mp, mp->cur_name,NULL,ext);
     return mp_a_open_in(mp, &cur_file, mp_filetype_program);
   }
   return false;
@@ -21782,11 +21773,15 @@ mp_execute (MP mp) {
     mp->term_offset = 0;
     mp->tally = 0; 
     @<Install and test the non-local jump buffer@>;
-    mp_input_ln(mp,mp->term_in);
-    mp_firm_up_the_line(mp);
-    mp->buffer[limit]='%';
-    mp->first=limit+1; 
-    loc=start;
+	if (mp->run_state==0) {
+      mp->run_state = 1;
+    } else {
+      mp_input_ln(mp,mp->term_in);
+      mp_firm_up_the_line(mp);	
+      mp->buffer[limit]='%';
+      mp->first=limit+1; 
+      loc=start;
+    }
     mp_main_control(mp); /* come to life */ 
   }
   return mp->history;
@@ -24689,7 +24684,7 @@ a C string already.
 @<Open |tfm_infile| for input@>=
 file_opened=false;
 mp_ptr_scan_file(mp, fname);
-if ( strlen(mp->cur_area)==0 ) { xfree(mp->cur_area); mp->cur_area=xstrdup(MP_font_area);}
+if ( strlen(mp->cur_area)==0 ) { xfree(mp->cur_area); }
 if ( strlen(mp->cur_ext)==0 )  { xfree(mp->cur_ext); mp->cur_ext=xstrdup(".tfm"); }
 pack_cur_name;
 mp->tfm_infile = (mp->open_file)( mp->name_of_file, "rb",mp_filetype_metrics);
@@ -24880,14 +24875,14 @@ etcetera to make it worthwile to move the code to |psout.w|.
 @<Internal library declarations@>=
 void mp_open_output_file (MP mp) ;
 
-@ @c void mp_open_output_file (MP mp) {
-  integer c; /* \&{charcode} rounded to the nearest integer */
+@ @c 
+char *mp_set_output_file_name (MP mp, integer c) {
+  char *ss = NULL; /* filename extension proposal */  
   int old_setting; /* previous |selector| setting */
   pool_pointer i; /*  indexes into |filename_template|  */
   integer cc; /* a temporary integer for template building  */
   integer f,g=0; /* field widths */
   if ( mp->job_name==NULL ) mp_open_log_file(mp);
-  c=mp_round_unscaled(mp, mp->internal[mp_char_code]);
   if ( mp->filename_template==0 ) {
     char *s; /* a file extension derived from |c| */
     if ( c<0 ) 
@@ -24895,9 +24890,7 @@ void mp_open_output_file (MP mp) ;
     else 
       @<Use |c| to compute the file extension |s|@>;
     mp_pack_job_name(mp, s);
-    xfree(s);
-    while ( ! mp_a_open_out(mp, (void *)&mp->ps_file, mp_filetype_postscript) )
-      mp_prompt_file_name(mp, "file name for output",s);
+    ss = s ;
   } else { /* initializations */
     str_number s, n; /* a file extension derived from |c| */
     old_setting=mp->selector; 
@@ -24954,11 +24947,31 @@ void mp_open_output_file (MP mp) ;
        s=rts("");
     };
     mp_pack_file_name(mp, str(n),"",str(s));
-    while ( ! mp_a_open_out(mp, (void *)&mp->ps_file, mp_filetype_postscript) )
-      mp_prompt_file_name(mp, "file name for output",str(s));
     delete_str_ref(n);
+	ss = str(s);
     delete_str_ref(s);
   }
+  return ss;
+}
+
+char * mp_get_output_file_name (MP mp) {
+  char *fname; /* return value */
+  char *saved_name;  /* saved |name_of_file| */
+  saved_name = mp_xstrdup(mp, mp->name_of_file);
+  (void)mp_set_output_file_name(mp, mp_round_unscaled(mp, mp->internal[mp_char_code]));
+  fname = mp_xstrdup(mp, mp->name_of_file);
+  mp_pack_file_name(mp, saved_name,NULL,NULL);
+  return fname;
+}
+
+void mp_open_output_file (MP mp) {
+  char *ss; /* filename extension proposal */
+  integer c; /* \&{charcode} rounded to the nearest integer */
+  c=mp_round_unscaled(mp, mp->internal[mp_char_code]);
+  ss = mp_set_output_file_name(mp, c);
+  while ( ! mp_a_open_out(mp, (void *)&mp->ps_file, mp_filetype_postscript) )
+    mp_prompt_file_name(mp, "file name for output",ss);
+  xfree(ss);
   @<Store the true output file name if appropriate@>;
 }
 
@@ -25123,6 +25136,7 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   hh->_miny = miny_val(h);
   hh->_maxx = maxx_val(h);
   hh->_maxy = maxy_val(h);
+  hh->_filename = mp_get_output_file_name(mp);
   @<Export pending specials@>;
   p=link(dummy_loc(h));
   while ( p!=null ) { 
