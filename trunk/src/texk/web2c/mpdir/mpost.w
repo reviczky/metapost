@@ -170,7 +170,7 @@ static int get_random_seed (void) {
 options->random_seed = get_random_seed();
 
 @ @c 
-char *mpost_find_file(char *fname, char *fmode, int ftype)  {
+char *mpost_find_file(MP mp, char *fname, char *fmode, int ftype)  {
   char *s;
   int l ;
   if (fmode[0]=='r') {
@@ -214,14 +214,14 @@ if (!nokpse)
   options->find_file = mpost_find_file;
 
 @ @c 
-void *mpost_open_file(char *fname, char *fmode, int ftype)  {
+void *mpost_open_file(MP mp, char *fname, char *fmode, int ftype)  {
   char *s;
   if (ftype==mp_filetype_terminal) {
     return (fmode[0] == 'r' ? stdin : stdout);
   } else if (ftype==mp_filetype_error) {
     return stderr;
   } else { 
-    s = mpost_find_file (fname, fmode, ftype);
+    s = mpost_find_file (mp, fname, fmode, ftype);
     if (s!=NULL) {
       return fopen(s,fmode);
     }
