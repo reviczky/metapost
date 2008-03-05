@@ -51,7 +51,6 @@ static const char *knot_originator_enum[]  =
 static const char *color_model_enum[] = 
   { NULL, "none",  NULL, "grey", NULL, "rgb", NULL, "cmyk", NULL, "uninitialized" };
 
-
 /* object fields */
 
 #define FIELD(A) (strcmp(field,#A)==0)
@@ -142,43 +141,47 @@ typedef struct _MPLIB_INSTANCE_DATA {
 
 typedef struct _MPLIB_INSTANCE_DATA mplib_instance;
 
-static mplib_instance _mplib_data = { NULL, NULL, NULL, NULL, 
-				      NULL, NULL, NULL, NULL, 
-				      NULL, NULL, 0, NULL,
-				      NULL };
-static mplib_instance *mplib_data = &_mplib_data;
+static mplib_instance *mplib_get_data (MP mp) {
+  return (mplib_instance *)mp->userdata;
+}
+
+static mplib_instance *mplib_make_data (void) {
+  mplib_instance *mplib_data = malloc(sizeof(mplib_instance));
+  memset(mplib_data,0,sizeof(mplib_instance));
+  return mplib_data ;
+}
 
 
 /* Start by defining all the callback routines for the library 
  * except |run_make_mpx| and |run_editor|.
  */
 
-char *mplib_find_file (char *fname, char *fmode, int ftype)  {
-  if (mplib_data->LL!=NULL) {
-    lua_State *L = mplib_data->LL;
-    lua_checkstack(L,4);
-    lua_getfield(L,LUA_REGISTRYINDEX,"mplib_file_finder");
-    if (lua_isfunction(L,-1)) {
-      char *s = NULL, *x = NULL;
-      lua_pushstring(L, fname);
-      lua_pushstring(L, fmode);
-      if (ftype >= mp_filetype_text) {
-        lua_pushnumber(L, ftype-mp_filetype_text);
-      } else {
-        lua_pushstring(L, mplib_filetype_names[ftype]);
-      }
-      if(lua_pcall(L,3,1,0) != 0) {
-	fprintf(stdout,"Error in mp.find_file: %s\n", (char *)lua_tostring(L,-1));
-	return NULL;
-      }
-      x = (char *)lua_tostring(L,-1);
-      if (x!=NULL)
-        s = strdup(x);
+
+char *mplib_find_file (MP mp, char *fname, char *fmode, int ftype)  {
+  mplib_instance *mplib_data = mplib_get_data(mp);
+  lua_State *L = mplib_data->LL;
+  lua_checkstack(L,4);
+  lua_getfield(L,LUA_REGISTRYINDEX,"mplib_file_finder");
+  if (lua_isfunction(L,-1)) {
+    char *s = NULL, *x = NULL;
+    lua_pushstring(L, fname);
+    lua_pushstring(L, fmode);
+    if (ftype >= mp_filetype_text) {
+      lua_pushnumber(L, ftype-mp_filetype_text);
+    } else {
+      lua_pushstring(L, mplib_filetype_names[ftype]);
+    }
+    if(lua_pcall(L,3,1,0) != 0) {
+      fprintf(stdout,"Error in mp.find_file: %s\n", (char *)lua_tostring(L,-1));
+      return NULL;
+    }
+    x = (char *)lua_tostring(L,-1);
+    if (x!=NULL)
+      s = strdup(x);
       lua_pop(L,1); /* pop the string */
       return s;
-    } else {
-      lua_pop(L,1);
-    }
+  } else {
+    lua_pop(L,1);
   }
   if (fmode[0] != 'r' || (! access (fname,R_OK)) || ftype) {  
      return strdup(fname);
@@ -188,11 +191,7 @@ char *mplib_find_file (char *fname, char *fmode, int ftype)  {
 
 static int 
 mplib_find_file_function (lua_State *L) {
-  if (lua_isfunction(L,-1)) {
-    mplib_data->LL =  L;
-  } else if (lua_isnil(L,-1)) {
-    mplib_data->LL = NULL;
-  } else {
+  if (! (lua_isfunction(L,-1)|| lua_isnil(L,-1) )) {
     return 1; /* error */
   }
   lua_pushstring(L, "mplib_file_finder");
@@ -201,7 +200,8 @@ mplib_find_file_function (lua_State *L) {
   return 0;
 }
 
-void *mplib_open_file(char *fname, char *fmode, int ftype)  {
+void *mplib_open_file(MP mp, char *fname, char *fmode, int ftype)  {
+  mplib_instance *mplib_data = mplib_get_data(mp);
   File *ff = malloc(sizeof (File));
   if (ff) {
     ff->f = NULL;
@@ -228,7 +228,7 @@ void *mplib_open_file(char *fname, char *fmode, int ftype)  {
     } else { 
       char *f = fname;
       if (fmode[0] == 'r') {
-	f = mplib_find_file(fname,fmode,ftype);
+	f = mplib_find_file(mp, fname,fmode,ftype);
 	if (f==NULL)
 	  return NULL;
       }
@@ -244,7 +244,7 @@ void *mplib_open_file(char *fname, char *fmode, int ftype)  {
 }
 
 static int 
-mplib_get_char (void *f) {
+mplib_get_char (void *f, mplib_instance *mplib_data) {
   int c;
   if (f==stdin && mplib_data->input_data != NULL) {
 	if (mplib_data->input_data_len==0) {
@@ -264,7 +264,7 @@ mplib_get_char (void *f) {
 }
 
 static void
-mplib_unget_char (void *f, int c) {
+mplib_unget_char (void *f, mplib_instance *mplib_data, int c) {
   if (f==stdin && mplib_data->input_data_ptr != NULL) {
 	mplib_data->input_data_len++;	
 	mplib_data->input_data_ptr--;
@@ -274,33 +274,34 @@ mplib_unget_char (void *f, int c) {
 }
 
 
-char *mplib_read_ascii_file (void *ff, size_t *size) {
+char *mplib_read_ascii_file (MP mp, void *ff, size_t *size) {
   int c;
   size_t len = 0, lim = 128;
   char *s = NULL;
+  mplib_instance *mplib_data = mplib_get_data(mp);
   if (ff!=NULL) {
     FILE *f = ((File *)ff)->f;
     if (f==NULL)
       return NULL;
     *size = 0;
-    c = mplib_get_char(f);
+    c = mplib_get_char(f,mplib_data);
     if (c==EOF)
       return NULL;
     s = malloc(lim); 
     if (s==NULL) return NULL;
     while (c!=EOF && c!='\n' && c!='\r') { 
       if (len==lim) {
-		s =realloc(s, (lim+(lim>>2)));
-		if (s==NULL) return NULL;
-		lim+=(lim>>2);
+	s =realloc(s, (lim+(lim>>2)));
+	if (s==NULL) return NULL;
+	lim+=(lim>>2);
       }
       s[len++] = c;
-	  c = mplib_get_char(f);
+      c = mplib_get_char(f,mplib_data);
     }
     if (c=='\r') {
-      c = mplib_get_char(f);
+      c = mplib_get_char(f,mplib_data);
       if (c!=EOF && c!='\n')
-		mplib_unget_char(f,c);
+	mplib_unget_char(f,mplib_data,c);
     }
     s[len] = 0;
     *size = len;
@@ -317,7 +318,8 @@ char *mplib_read_ascii_file (void *ff, size_t *size) {
     }						\
   } while (0)
 
-void mplib_write_ascii_file (void *ff, char *s) {
+void mplib_write_ascii_file (MP mp, void *ff, char *s) {
+  mplib_instance *mplib_data = mplib_get_data(mp);
   if (ff!=NULL) {
     void *f = ((File *)ff)->f;
     if (f!=NULL) {
@@ -336,7 +338,7 @@ void mplib_write_ascii_file (void *ff, char *s) {
   }
 }
 
-void mplib_read_binary_file (void *ff, void **data, size_t *size) {
+void mplib_read_binary_file (MP mp, void *ff, void **data, size_t *size) {
   size_t len = 0;
   if (ff!=NULL) {
     FILE *f = ((File *)ff)->f;
@@ -346,7 +348,7 @@ void mplib_read_binary_file (void *ff, void **data, size_t *size) {
   }
 }
 
-void mplib_write_binary_file (void *ff, void *s, size_t size) {
+void mplib_write_binary_file (MP mp, void *ff, void *s, size_t size) {
   if (ff!=NULL) {
     FILE *f = ((File *)ff)->f;
     if (f!=NULL)
@@ -355,7 +357,8 @@ void mplib_write_binary_file (void *ff, void *s, size_t size) {
 }
 
 
-void mplib_close_file (void *ff) {
+void mplib_close_file (MP mp, void *ff) {
+  mplib_instance *mplib_data = mplib_get_data(mp);
   if (ff!=NULL) {
     void *f = ((File *)ff)->f;
     if (f != NULL && f != mplib_data->term_file_ptr && f != mplib_data->err_file_ptr
@@ -366,7 +369,8 @@ void mplib_close_file (void *ff) {
   }
 }
 
-int mplib_eof_file (void *ff) {
+int mplib_eof_file (MP mp, void *ff) {
+  mplib_instance *mplib_data = mplib_get_data(mp);
   if (ff!=NULL) {
     FILE *f = ((File *)ff)->f;
     if (f==NULL)
@@ -379,7 +383,7 @@ int mplib_eof_file (void *ff) {
   return 1;
 }
 
-void mplib_flush_file (void *ff) {
+void mplib_flush_file (MP mp, void *ff) {
   return ;
 }
 
@@ -395,6 +399,7 @@ void mplib_flush_file (void *ff) {
 
 void mplib_shipout_backend (MP mp, int h) {
   struct mp_edge_object *hh; 
+  mplib_instance *mplib_data = mplib_get_data(mp);
   hh = mp_gr_export(mp, h);
   if (hh) {
     APPEND_TO_EDGES(hh); 
@@ -420,11 +425,15 @@ static int
 mplib_new (lua_State *L) {
   MP *mp_ptr;
   int i;
+  mplib_instance *mplib_data;
   struct MP_options * options; /* instance options */
   mp_ptr = lua_newuserdata(L, sizeof(MP *));
   if (mp_ptr) {
     options = mp_options();
     mplib_setup_file_ops(options);
+    mplib_data = mplib_make_data();
+    mplib_data->LL = L;
+    options->userdata = (void *)mplib_data;
     options->noninteractive = 1; /* required ! */
     options->print_found_names = 0;
     if (lua_type(L,1)==LUA_TTABLE) {
@@ -502,9 +511,9 @@ mplib_new (lua_State *L) {
     xfree(options->job_name);
     free(options);
     if (*mp_ptr) {
-	  luaL_getmetatable(L,MPLIB_METATABLE);
-	  lua_setmetatable(L,-2);
-	  return 1;
+      luaL_getmetatable(L,MPLIB_METATABLE);
+      lua_setmetatable(L,-2);
+      return 1;
     }
   }
   lua_pushnil(L);
@@ -529,7 +538,7 @@ mplib_tostring (lua_State *L) {
 }
 
 static int 
-mplib_wrapresults(lua_State *L,int h) {
+mplib_wrapresults(lua_State *L, mplib_instance *mplib_data, int h) {
    lua_checkstack(L,5);
    lua_newtable(L);
    if (mplib_data->term_out != NULL) {
@@ -573,18 +582,19 @@ mplib_execute (lua_State *L) {
   int h;
   MP *mp_ptr = is_mp(L,1);
   if (*mp_ptr!=NULL && lua_isstring(L,2)) {
-    if (mplib_data->input_data_len>0) {  /* this should NOT happen */
-      fprintf(stderr,"Can't do concurrency yet!\n");
-    } else {
-      mplib_data->input_data = (char *)lua_tolstring(L,2, &(mplib_data->input_data_len));
-      mplib_data->input_data_ptr = mplib_data->input_data;
-	  if ((*mp_ptr)->run_state==0) {
-		h = mp_initialize(*mp_ptr);
-	  }
-      h = mp_execute(*mp_ptr);
-      return mplib_wrapresults(L, h);
-    } 
-
+    mplib_instance *mplib_data = mplib_get_data(*mp_ptr);
+    mplib_data->input_data = (char *)lua_tolstring(L,2, &(mplib_data->input_data_len));
+    mplib_data->input_data_ptr = mplib_data->input_data;
+    if ((*mp_ptr)->run_state==0) {
+      h = mp_initialize(*mp_ptr);
+    }
+    h = mp_execute(*mp_ptr);
+    if (mplib_data->input_data_len!=0) {
+      xfree(mplib_data->input_data);
+      xfree(mplib_data->input_data_ptr);
+      mplib_data->input_data_len=0;
+    }
+    return mplib_wrapresults(L, mplib_data, h);
   } else {
     lua_pushnil(L);
   }
@@ -595,8 +605,9 @@ static int
 mplib_finish (lua_State *L) {
   MP *mp_ptr = is_mp(L,1);
   if (*mp_ptr!=NULL) {
+    mplib_instance *mplib_data = mplib_get_data(*mp_ptr);
     int h = mp_finish(*mp_ptr);
-    return mplib_wrapresults(L, h);
+    return mplib_wrapresults(L, mplib_data, h);
   } else {
     lua_pushnil(L);
   }
@@ -660,6 +671,7 @@ mplib_fig_postscript (lua_State *L) {
   struct mp_edge_object **hh = is_fig(L,1);
   int prologues = luaL_optnumber(L,2,-1);
   int procset = luaL_optnumber(L,3,-1);
+  mplib_instance *mplib_data = mplib_get_data((*hh)->_parent);
   if (mplib_data->ps_out == NULL) {
     if (mp_wrapped_shipout(*hh,prologues, procset)) {
       if (mplib_data->ps_out!=NULL ) {

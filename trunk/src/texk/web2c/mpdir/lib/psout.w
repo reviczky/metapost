@@ -116,14 +116,14 @@ mp->ps->ps_offset = 0;
 
 @
 
-@d wps(A)     (mp->write_ascii_file)(mp->ps_file,(A))
+@d wps(A)     (mp->write_ascii_file)(mp,mp->ps_file,(A))
 @d wps_chr(A) do { 
   char ss[2]; 
   ss[0]=(A); ss[1]=0; 
-  (mp->write_ascii_file)(mp->ps_file,(char *)ss); 
+  (mp->write_ascii_file)(mp,mp->ps_file,(char *)ss); 
 } while (0)
-@d wps_cr     (mp->write_ascii_file)(mp->ps_file,"\n")
-@d wps_ln(A)  { wterm_cr; (mp->write_ascii_file)(mp->ps_file,(A)); }
+@d wps_cr     (mp->write_ascii_file)(mp,mp->ps_file,"\n")
+@d wps_ln(A)  { wterm_cr; (mp->write_ascii_file)(mp,mp->ps_file,(A)); }
 
 @c
 void mp_ps_print_ln (MP mp) { /* prints an end-of-line */
@@ -325,21 +325,21 @@ char enc_line[ENC_BUF_SIZE];
 void * enc_file;
 
 @ 
-@d enc_eof()       (mp->eof_file)(mp->ps->enc_file)
-@d enc_close()     (mp->close_file)(mp->ps->enc_file)
+@d enc_eof()       (mp->eof_file)(mp,mp->ps->enc_file)
+@d enc_close()     (mp->close_file)(mp,mp->ps->enc_file)
 
 @c
 int enc_getchar(MP mp) {
   size_t len = 1;
   unsigned char byte=0;
   void *byte_ptr = &byte;  
-  (mp->read_binary_file)(mp->ps->enc_file,&byte_ptr,&len);
+  (mp->read_binary_file)(mp,mp->ps->enc_file,&byte_ptr,&len);
   return byte;
 }
 
 @ @c 
 static boolean mp_enc_open (MP mp, char *n) {
-  mp->ps->enc_file=(mp->open_file)(n, "rb", mp_filetype_encoding);
+  mp->ps->enc_file=(mp->open_file)(mp,n, "rb", mp_filetype_encoding);
   if (mp->ps->enc_file!=NULL)
     return true;
   else
@@ -617,15 +617,15 @@ static void mp_font_encodings (MP mp, int lastfnum, int encodings_only) {
 void * fm_file;
 
 @
-@d fm_close()      (mp->close_file)(mp->ps->fm_file)
-@d fm_eof()        (mp->eof_file)(mp->ps->fm_file)
+@d fm_close()      (mp->close_file)(mp,mp->ps->fm_file)
+@d fm_eof()        (mp->eof_file)(mp,mp->ps->fm_file)
 
 @c
 int fm_getchar(MP mp) {
   size_t len = 1;
   unsigned char byte=0;
   void *byte_ptr = &byte;  
-  (mp->read_binary_file)(mp->ps->fm_file,&byte_ptr,&len);
+  (mp->read_binary_file)(mp,mp->ps->fm_file,&byte_ptr,&len);
   if (len==0)
     return EOF;
   return byte;
@@ -1203,7 +1203,7 @@ static int check_fm_entry (MP mp, fm_entry * fm, boolean warn) {
     switch (mp->ps->mitem->type) {
     case MAPFILE:
         n = mp->ps->mitem->map_line;
-        mp->ps->fm_file = (mp->open_file)( n, "r", mp_filetype_fontmap);
+        mp->ps->fm_file = (mp->open_file)(mp, n, "r", mp_filetype_fontmap);
         if (!mp->ps->fm_file) {
             snprintf(s,256,"cannot open font map file %s",n);
             mp_warn(mp,s);
@@ -1435,7 +1435,7 @@ void mp_map_line (MP mp, str_number t) {
     mp->ps->mitem->mode = FM_DUPIGNORE;
     mp->ps->mitem->type = MAPFILE;
     mp->ps->mitem->map_line = NULL;
-    r = (mp->find_file)("mpost.map", "rb", mp_filetype_fontmap);
+    r = (mp->find_file)(mp,"mpost.map", "rb", mp_filetype_fontmap);
     if (r != NULL) {
       mp_xfree(r);
       mp->ps->mitem->map_line = mp_xstrdup (mp,"mpost.map");
@@ -1700,8 +1700,8 @@ mp->ps->t1_byte_waiting=0;
 
 @
 @d t1_ungetchar(A) mp->ps->t1_byte_waiting=A
-@d t1_eof()        (mp->eof_file)(mp->ps->t1_file)
-@d t1_close()      (mp->close_file)(mp->ps->t1_file)
+@d t1_eof()        (mp->eof_file)(mp,mp->ps->t1_file)
+@d t1_close()      (mp->close_file)(mp,mp->ps->t1_file)
 @d valid_code(c)   (c >= 0 && c < 256)
 
 @c
@@ -1713,7 +1713,7 @@ int t1_getchar (MP mp) {
     byte = mp->ps->t1_byte_waiting;
     mp->ps->t1_byte_waiting = 0;
   } else {
-    (mp->read_binary_file)(mp->ps->t1_file,&byte_ptr,&len);
+    (mp->read_binary_file)(mp,mp->ps->t1_file,&byte_ptr,&len);
   }
   return byte;
 }
@@ -2490,7 +2490,7 @@ static boolean t1_open_fontfile (MP mp, fm_entry *fm_cur,const char *open_name_p
     ff_entry *ff;
     ff = check_ff_exist (mp, fm_cur);
     if (ff->ff_path != NULL) {
-        mp->ps->t1_file = (mp->open_file)(ff->ff_path, "rb", mp_filetype_font);
+        mp->ps->t1_file = (mp->open_file)(mp,ff->ff_path, "rb", mp_filetype_font);
     } else {
         mp_warn (mp, "cannot open Type 1 font file for reading");
         return false;
@@ -5506,7 +5506,7 @@ void mp_gr_ship_out (struct mp_edge_object *hh, int prologues, int procset) {
   }
   mp_ps_print_cmd(mp, "showpage","P"); mp_ps_print_ln(mp);
   mp_ps_print(mp, "%%EOF"); mp_ps_print_ln(mp);
-  (mp->close_file)(mp->ps_file);
+  (mp->close_file)(mp,mp->ps_file);
   if ( prologues<=0 ) 
     mp_clear_sizes(mp);
 }

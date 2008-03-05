@@ -23,8 +23,9 @@ function dorun (m, s)
   if v.log then
     print ('<<log:'..v.log..'>>')
   end
-  if false and v.fig then
+  if true and v.fig then
      for _,gs in ipairs(v.fig) do
+       print(gs:postscript())
 	   local b = gs:objects()
        for _,vv in ipairs(b) do
 		  print(vv, vv.type, table.serialize(vv.path), table.serialize(vv.color))
@@ -32,7 +33,6 @@ function dorun (m, s)
 		    print(vv.text, vv.font, vv.dsize, table.serialize(vv.transform))
           end
        end
---       print(gs:postscript())
      end
   end
 end

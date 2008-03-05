@@ -299,6 +299,7 @@ int param_size; /* maximum number of simultaneous macro parameters */
 int max_in_open; /* maximum number of input files and error insertions that
   can be going on simultaneously */
 int main_memory; /* only for options, to set up |mem_max| and |mem_top| */
+void *userdata; /* this allows the calling application to setup local */
 
 @ 
 @d set_value(a,b,c) do { a=c; if (b>c) a=b; } while (0)
@@ -316,7 +317,7 @@ set_value(mp->hash_size,opt->hash_size,9500);
 set_value(mp->hash_prime,opt->hash_prime,7919);
 set_value(mp->param_size,opt->param_size,150);
 set_value(mp->max_in_open,opt->max_in_open,10);
-
+mp->userdata=opt->userdata;
 
 @ In case somebody has inadvertently made bad settings of the ``constants,''
 \MP\ checks them using a global variable called |bad|.
@@ -490,15 +491,15 @@ enum mp_filetype {
   mp_filetype_encoding, /*  PostScript font encoding files */
   mp_filetype_text,  /* first text file for readfrom and writeto primitives */
 };
-typedef char *(*mp_file_finder)(char *, char *, int);
-typedef void *(*mp_file_opener)(char *, char *, int);
-typedef char *(*mp_file_reader)(void *, size_t *);
-typedef void (*mp_binfile_reader)(void *, void **, size_t *);
-typedef void (*mp_file_closer)(void *);
-typedef int (*mp_file_eoftest)(void *);
-typedef void (*mp_file_flush)(void *);
-typedef void (*mp_file_writer)(void *, char *);
-typedef void (*mp_binfile_writer)(void *, void *, size_t);
+typedef char *(*mp_file_finder)(MP, char *, char *, int);
+typedef void *(*mp_file_opener)(MP, char *, char *, int);
+typedef char *(*mp_file_reader)(MP, void *, size_t *);
+typedef void (*mp_binfile_reader)(MP, void *, void **, size_t *);
+typedef void (*mp_file_closer)(MP, void *);
+typedef int (*mp_file_eoftest)(MP, void *);
+typedef void (*mp_file_flush)(MP, void *);
+typedef void (*mp_file_writer)(MP, void *, char *);
+typedef void (*mp_binfile_writer)(MP, void *, void *, size_t);
 #define NOTTESTING 1
 
 @ @<Option variables@>=
@@ -519,7 +520,7 @@ This function may disappear altogether, it is currently only
 used for the default font map file.
 
 @c
-char *mp_find_file (char *fname, char *fmode, int ftype)  {
+char *mp_find_file (MP mp, char *fname, char *fmode, int ftype)  {
   if (fmode[0] != 'r' || (! access (fname,R_OK)) || ftype) {  
      return strdup(fname);
   }
@@ -548,20 +549,20 @@ set_callback_option(write_binary_file);
 section.
 
 @<Internal ...@>=
-char *mp_find_file (char *fname, char *fmode, int ftype) ;
-void *mp_open_file (char *fname, char *fmode, int ftype) ;
-char *mp_read_ascii_file (void *f, size_t *size) ;
-void mp_read_binary_file (void *f, void **d, size_t *size) ;
-void mp_close_file (void *f) ;
-int mp_eof_file (void *f) ;
-void mp_flush_file (void *f) ;
-void mp_write_ascii_file (void *f, char *s) ;
-void mp_write_binary_file (void *f, void *s, size_t t) ;
+char *mp_find_file (MP mp, char *fname, char *fmode, int ftype) ;
+void *mp_open_file (MP mp ,char *fname, char *fmode, int ftype) ;
+char *mp_read_ascii_file (MP mp, void *f, size_t *size) ;
+void mp_read_binary_file (MP mp, void *f, void **d, size_t *size) ;
+void mp_close_file (MP mp, void *f) ;
+int mp_eof_file (MP mp, void *f) ;
+void mp_flush_file (MP mp, void *f) ;
+void mp_write_ascii_file (MP mp, void *f, char *s) ;
+void mp_write_binary_file (MP mp, void *f, void *s, size_t t) ;
 
 @ The function to open files can now be very short.
 
 @c
-void *mp_open_file(char *fname, char *fmode, int ftype)  {
+void *mp_open_file(MP mp, char *fname, char *fmode, int ftype)  {
 #if NOTTESTING
   if (ftype==mp_filetype_terminal) {
     return (fmode[0] == 'r' ? stdin : stdout);
@@ -600,16 +601,16 @@ is never printed.
 
 @d OPEN_FILE(A) do {
   if (mp->print_found_names) {
-    char *s = (mp->find_file)(mp->name_of_file,A,ftype);
+    char *s = (mp->find_file)(mp,mp->name_of_file,A,ftype);
     if (s!=NULL) {
-      *f = (mp->open_file)(mp->name_of_file,A, ftype); 
+      *f = (mp->open_file)(mp,mp->name_of_file,A, ftype); 
       strncpy(mp->name_of_file,s,file_name_size);
       xfree(s);
     } else {
       *f = NULL;
     }
   } else {
-    *f = (mp->open_file)(mp->name_of_file,A, ftype); 
+    *f = (mp->open_file)(mp,mp->name_of_file,A, ftype); 
   }
 } while (0);
 return (*f ? true : false)
@@ -622,7 +623,7 @@ boolean mp_a_open_in (MP mp, void **f, int ftype) {
 @#
 boolean mp_w_open_in (MP mp, void **f) {
   /* open a word file for input */
-  *f = (mp->open_file)(mp->name_of_file,"rb",mp_filetype_memfile); 
+  *f = (mp->open_file)(mp,mp->name_of_file,"rb",mp_filetype_memfile); 
   return (*f ? true : false);
 }
 @#
@@ -643,7 +644,7 @@ boolean mp_w_open_out (MP mp, void **f) {
 }
 
 @ @c
-char *mp_read_ascii_file (void *ff, size_t *size) {
+char *mp_read_ascii_file (MP mp, void *ff, size_t *size) {
   int c;
   size_t len = 0, lim = 128;
   char *s = NULL;
@@ -676,7 +677,7 @@ char *mp_read_ascii_file (void *ff, size_t *size) {
 }
 
 @ @c
-void mp_write_ascii_file (void *f, char *s) {
+void mp_write_ascii_file (MP mp, void *f, char *s) {
 #if NOTTESTING
   if (f!=NULL) {
     fputs(s,(FILE *)f);
@@ -685,7 +686,7 @@ void mp_write_ascii_file (void *f, char *s) {
 }
 
 @ @c
-void mp_read_binary_file (void *f, void **data, size_t *size) {
+void mp_read_binary_file (MP mp, void *f, void **data, size_t *size) {
   size_t len = 0;
 #if NOTTESTING
   len = fread(*data,1,*size,(FILE *)f);
@@ -694,7 +695,7 @@ void mp_read_binary_file (void *f, void **data, size_t *size) {
 }
 
 @ @c
-void mp_write_binary_file (void *f, void *s, size_t size) {
+void mp_write_binary_file (MP mp, void *f, void *s, size_t size) {
 #if NOTTESTING
   if (f!=NULL)
     fwrite(s,size,1,(FILE *)f);
@@ -703,14 +704,14 @@ void mp_write_binary_file (void *f, void *s, size_t size) {
 
 
 @ @c
-void mp_close_file (void *f) {
+void mp_close_file (MP mp, void *f) {
 #if NOTTESTING
   fclose((FILE *)f);
 #endif
 }
 
 @ @c
-int mp_eof_file (void *f) {
+int mp_eof_file (MP mp, void *f) {
 #if NOTTESTING
   return feof((FILE *)f);
 #else
@@ -719,7 +720,7 @@ int mp_eof_file (void *f) {
 }
 
 @ @c
-void mp_flush_file (void *f) {
+void mp_flush_file (MP mp, void *f) {
 #if NOTTESTING
   fflush((FILE *)f);
 #endif
@@ -781,7 +782,7 @@ boolean mp_input_ln (MP mp, void *f ) {
   char *s;
   size_t size = 0; 
   mp->last=mp->first; /* cf.\ Matthew 19\thinspace:\thinspace30 */
-  s = (mp->read_ascii_file)(f, &size);
+  s = (mp->read_ascii_file)(mp,f, &size);
   if (s==NULL)
 	return false;
   if (size>0) {
@@ -820,11 +821,11 @@ initialization.
 @^system dependencies@>
 
 @d t_open_out  do {/* open the terminal for text output */
-    mp->term_out = (mp->open_file)("terminal", "w", mp_filetype_terminal);
-    mp->err_out = (mp->open_file)("error", "w", mp_filetype_error);
+    mp->term_out = (mp->open_file)(mp,"terminal", "w", mp_filetype_terminal);
+    mp->err_out = (mp->open_file)(mp,"error", "w", mp_filetype_error);
 } while (0)
 @d t_open_in  do { /* open the terminal for text input */
-    mp->term_in = (mp->open_file)("terminal", "r", mp_filetype_terminal);
+    mp->term_in = (mp->open_file)(mp,"terminal", "r", mp_filetype_terminal);
     if (mp->command_line!=NULL) {
       mp->last = strlen(mp->command_line);
       strncpy((char *)mp->buffer,mp->command_line,mp->last);
@@ -835,12 +836,12 @@ initialization.
 } while (0)
 
 @d t_close_out do { /* close the terminal */
-  (mp->close_file)(mp->term_out);
-  (mp->close_file)(mp->err_out);
+  (mp->close_file)(mp,mp->term_out);
+  (mp->close_file)(mp,mp->err_out);
 } while (0)
 
 @d t_close_in do { /* close the terminal */
-  (mp->close_file)(mp->term_in);
+  (mp->close_file)(mp,mp->term_in);
 } while (0)
 
 @<Option variables@>=
@@ -863,9 +864,10 @@ some instruction to the operating system.  The following macros show how
 these operations can be specified:
 @^system dependencies@>
 
-@d update_terminal   (mp->flush_file)(mp->term_out) /* empty the terminal output buffer */
+@d update_terminal  (mp->flush_file)(mp,mp->term_out) /* empty the terminal output buffer */
 @d clear_terminal   do_nothing /* clear the terminal input buffer */
-@d wake_up_terminal  (mp->flush_file)(mp->term_out) /* cancel the user's cancellation of output */
+@d wake_up_terminal (mp->flush_file)(mp,mp->term_out) 
+                    /* cancel the user's cancellation of output */
 
 @ We need a special routine to read the first line of \MP\ input from
 the user's terminal. This line is different because it is read before we
@@ -1605,7 +1607,7 @@ for terminal output, and it is possible to adhere to those conventions
 by changing |wterm|, |wterm_ln|, and |wterm_cr| here.
 @^system dependencies@>
 
-@d do_fprintf(f,b) (mp->write_ascii_file)(f,b)
+@d do_fprintf(f,b) (mp->write_ascii_file)(mp,f,b)
 @d wterm(A)     do_fprintf(mp->term_out,(A))
 @d wterm_chr(A) { unsigned char ss[2]; ss[0]=(A); ss[1]=0; do_fprintf(mp->term_out,(char *)ss); }
 @d wterm_cr     do_fprintf(mp->term_out,"\n")
@@ -13361,7 +13363,7 @@ off the file stack.
       mp_confusion(mp, "endinput");
 @:this can't happen endinput}{\quad endinput@>
     } else { 
-      (mp->close_file)(mp->input_file[mp->in_open]); /* close an \.{MPX} file */
+      (mp->close_file)(mp,mp->input_file[mp->in_open]); /* close an \.{MPX} file */
       delete_str_ref(mp->mpx_name[mp->in_open]);
       decr(mp->in_open);
     }
@@ -13369,7 +13371,7 @@ off the file stack.
   mp->first=start;
   if ( index!=mp->in_open ) mp_confusion(mp, "endinput");
   if ( name>max_spec_src ) {
-    (mp->close_file)(cur_file);
+    (mp->close_file)(mp,cur_file);
     delete_str_ref(name);
     xfree(in_name); 
     xfree(in_area);
@@ -15914,7 +15916,7 @@ boolean mp_open_mem_file (MP mp) ;
 boolean mp_open_mem_file (MP mp) {
   int j; /* the first space after the file name */
   if (mp->mem_name!=NULL) {
-    mp->mem_file = (mp->open_file)(mp->mem_name, "rb", mp_filetype_memfile);
+    mp->mem_file = (mp->open_file)(mp,mp->mem_name, "rb", mp_filetype_memfile);
     if ( mp->mem_file ) return true;
   }
   j=loc;
@@ -16386,7 +16388,7 @@ be opened.  Otherwise it updates |rd_file[n]| and |rd_fname[n]|.
   if ( ! mp_a_open_in(mp, &mp->rd_file[n], (mp_filetype_text+n)) ) 
 	goto NOT_FOUND;
   if ( ! mp_input_ln(mp, mp->rd_file[n] ) ) {
-    (mp->close_file)(mp->rd_file[n]); 
+    (mp->close_file)(mp,mp->rd_file[n]); 
 	goto NOT_FOUND; 
   }
   mp->rd_fname[n]=xstrdup(mp->name_of_file);
@@ -19765,7 +19767,7 @@ FOUND:
     if ( mp->rd_fname[n]==NULL ) { n0=n; }
   } 
   if ( c==close_from_op ) { 
-    (mp->close_file)(mp->rd_file[n]); 
+    (mp->close_file)(mp,mp->rd_file[n]); 
     goto NOT_FOUND; 
   }
 }
@@ -23174,7 +23176,7 @@ void mp_do_write (MP mp) ;
 }
 
 @ @<Record the end of file on |wr_file[n]|@>=
-{ (mp->close_file)(mp->wr_file[n]);
+{ (mp->close_file)(mp,mp->wr_file[n]);
   xfree(mp->wr_fname[n]);
   mp->wr_fname[n]=NULL;
   if ( n==mp->write_files-1 ) mp->write_files=n;
@@ -24175,7 +24177,7 @@ Here are some utility routines for this purpose.
 
 @d tfm_out(A) do { /* output one byte to |tfm_file| */
   unsigned char s=(A); 
-  (mp->write_binary_file)(mp->tfm_file,(void *)&s,1); 
+  (mp->write_binary_file)(mp,mp->tfm_file,(void *)&s,1); 
   } while (0)
 
 @c void mp_tfm_two (MP mp,integer x) { /* output two bytes to |tfm_file| */
@@ -24213,7 +24215,7 @@ mp->metric_file_name=xstrdup(mp->name_of_file);
 mp_print_nl(mp, "Font metrics written on "); 
 mp_print(mp, mp->metric_file_name); mp_print_char(mp, '.');
 @.Font metrics written...@>
-(mp->close_file)(mp->tfm_file)
+(mp->close_file)(mp,mp->tfm_file)
 
 @ Integer variables |lh|, |k|, and |lk_offset| will be defined when we use
 this code.
@@ -24539,7 +24541,7 @@ font_number mp_read_font_info (MP mp, char *fname) {
 BAD_TFM:
   @<Complain that the \.{TFM} file is bad@>;
 DONE:
-  if ( file_opened ) (mp->close_file)(mp->tfm_infile);
+  if ( file_opened ) (mp->close_file)(mp,mp->tfm_infile);
   if ( n!=null_font ) { 
     mp->font_ps_name[n]=mp_xstrdup(mp,fname);
     mp->font_name[n]=mp_xstrdup(mp,fname);
@@ -24582,7 +24584,7 @@ of |tfget| could be changed to
 @d tfget do { 
   size_t wanted=1; 
   void *tfbyte_ptr = &tfbyte;
-  (mp->read_binary_file)(mp->tfm_infile,&tfbyte_ptr,&wanted); 
+  (mp->read_binary_file)(mp,mp->tfm_infile,&tfbyte_ptr,&wanted); 
   if (wanted==0) goto BAD_TFM; 
 } while (0)
 @d read_two(A) { (A)=tfbyte;
@@ -24687,7 +24689,7 @@ mp_ptr_scan_file(mp, fname);
 if ( strlen(mp->cur_area)==0 ) { xfree(mp->cur_area); }
 if ( strlen(mp->cur_ext)==0 )  { xfree(mp->cur_ext); mp->cur_ext=xstrdup(".tfm"); }
 pack_cur_name;
-mp->tfm_infile = (mp->open_file)( mp->name_of_file, "rb",mp_filetype_metrics);
+mp->tfm_infile = (mp->open_file)(mp, mp->name_of_file, "rb",mp_filetype_metrics);
 if ( !mp->tfm_infile  ) goto BAD_TFM;
 file_opened=true
 
@@ -25385,12 +25387,12 @@ boolean mp_load_mem_file (MP mp) ;
 @ Mem files consist of |memory_word| items, and we use the following
 macros to dump words of different types:
 
-@d dump_wd(A)   { WW=(A);       (mp->write_binary_file)(mp->mem_file,&WW,sizeof(WW)); }
-@d dump_int(A)  { int cint=(A); (mp->write_binary_file)(mp->mem_file,&cint,sizeof(cint)); }
-@d dump_hh(A)   { WW.hh=(A);    (mp->write_binary_file)(mp->mem_file,&WW,sizeof(WW)); }
-@d dump_qqqq(A) { WW.qqqq=(A);  (mp->write_binary_file)(mp->mem_file,&WW,sizeof(WW)); }
+@d dump_wd(A)   { WW=(A);       (mp->write_binary_file)(mp,mp->mem_file,&WW,sizeof(WW)); }
+@d dump_int(A)  { int cint=(A); (mp->write_binary_file)(mp,mp->mem_file,&cint,sizeof(cint)); }
+@d dump_hh(A)   { WW.hh=(A);    (mp->write_binary_file)(mp,mp->mem_file,&WW,sizeof(WW)); }
+@d dump_qqqq(A) { WW.qqqq=(A);  (mp->write_binary_file)(mp,mp->mem_file,&WW,sizeof(WW)); }
 @d dump_string(A) { dump_int(strlen(A)+1);
-                    (mp->write_binary_file)(mp->mem_file,A,strlen(A)+1); }
+                    (mp->write_binary_file)(mp,mp->mem_file,A,strlen(A)+1); }
 
 @<Glob...@>=
 void * mem_file; /* for input or output of mem information */
@@ -25402,14 +25404,14 @@ read an integer value |x| that is supposed to be in the range |a<=x<=b|.
 @d mgeti(A) do {
   size_t wanted = sizeof(A);
   void *A_ptr = &A;
-  (mp->read_binary_file)(mp->mem_file,&A_ptr,&wanted);
+  (mp->read_binary_file)(mp, mp->mem_file,&A_ptr,&wanted);
   if (wanted!=sizeof(A)) goto OFF_BASE;
 } while (0)
 
 @d mgetw(A) do {
   size_t wanted = sizeof(A);
   void *A_ptr = &A;
-  (mp->read_binary_file)(mp->mem_file,&A_ptr,&wanted);
+  (mp->read_binary_file)(mp, mp->mem_file,&A_ptr,&wanted);
   if (wanted!=sizeof(A)) goto OFF_BASE;
 } while (0)
 
@@ -25429,7 +25431,7 @@ read an integer value |x| that is supposed to be in the range |a<=x<=b|.
   undump_int(XX);
   wanted = XX;
   A = xmalloc(XX,sizeof(char));
-  (mp->read_binary_file)(mp->mem_file,(void **)&A,&wanted);
+  (mp->read_binary_file)(mp,mp->mem_file,(void **)&A,&wanted);
   if (wanted!=(size_t)XX) goto OFF_BASE;
 } while (0)
 
@@ -25675,7 +25677,7 @@ if (x!=69073) goto OFF_BASE
 xfree(mp->mem_ident);
 
 @ @<Close the mem file@>=
-(mp->close_file)(mp->mem_file)
+(mp->close_file)(mp,mp->mem_file)
 
 @* \[46] The main program.
 This is it: the part of \MP\ that executes all those procedures we have
@@ -25735,7 +25737,7 @@ void mp_close_files_and_terminate (MP mp) {
   @<Explain what output files were written@>;
   if ( mp->log_opened ){ 
     wlog_cr;
-    (mp->close_file)(mp->log_file); 
+    (mp->close_file)(mp,mp->log_file); 
     mp->selector=mp->selector-2;
     if ( mp->selector==term_only ) {
       mp_print_nl(mp, "Transcript written on ");
@@ -25755,14 +25757,14 @@ void mp_close_files_and_terminate (MP mp) ;
 if (mp->rd_fname!=NULL) {
   for (k=0;k<=(int)mp->read_files-1;k++ ) {
     if ( mp->rd_fname[k]!=NULL ) {
-      (mp->close_file)(mp->rd_file[k]);
+      (mp->close_file)(mp,mp->rd_file[k]);
    }
  }
 }
 if (mp->wr_fname!=NULL) {
   for (k=0;k<=(int)mp->write_files-1;k++) {
     if ( mp->wr_fname[k]!=NULL ) {
-     (mp->close_file)(mp->wr_file[k]);
+     (mp->close_file)(mp,mp->wr_file[k]);
     }
   }
 }
@@ -25770,7 +25772,7 @@ if (mp->wr_fname!=NULL) {
 @ @<Dealloc ...@>=
 for (k=0;k<(int)mp->max_read_files;k++ ) {
   if ( mp->rd_fname[k]!=NULL ) {
-    (mp->close_file)(mp->rd_file[k]);
+    (mp->close_file)(mp,mp->rd_file[k]);
     mp_xfree(mp->rd_fname[k]); 
   }
 }
@@ -25778,7 +25780,7 @@ mp_xfree(mp->rd_file);
 mp_xfree(mp->rd_fname);
 for (k=0;k<(int)mp->max_write_files;k++) {
   if ( mp->wr_fname[k]!=NULL ) {
-    (mp->close_file)(mp->wr_file[k]);
+    (mp->close_file)(mp,mp->wr_file[k]);
     mp_xfree(mp->wr_fname[k]); 
   }
 }
@@ -25920,10 +25922,10 @@ But when we finish this part of the program, \MP\ is ready to call on the
     }
     if ( ! mp_open_mem_file(mp) ) return mp_fatal_error_stop;
     if ( ! mp_load_mem_file(mp) ) {
-      (mp->close_file)(mp->mem_file); 
+      (mp->close_file)(mp, mp->mem_file); 
       return mp_fatal_error_stop;
     }
-    (mp->close_file)( mp->mem_file);
+    (mp->close_file)(mp, mp->mem_file);
     while ( (loc<limit)&&(mp->buffer[loc]==' ') ) incr(loc);
   }
   mp->buffer[limit]='%';
@@ -25978,12 +25980,12 @@ void mp_debug_help (MP mp) { /* routine to display various things */
     mp_print_nl(mp, "debug # (-1 to exit):"); update_terminal;
 @.debug \#@>
     m = 0;
-    aline = (mp->read_ascii_file)(mp->term_in, &len);
+    aline = (mp->read_ascii_file)(mp,mp->term_in, &len);
     if (len) { sscanf(aline,"%i",&m); xfree(aline); }
     if ( m<=0 )
       return;
     n = 0 ;
-    aline = (mp->read_ascii_file)(mp->term_in, &len);
+    aline = (mp->read_ascii_file)(mp,mp->term_in, &len);
     if (len) { sscanf(aline,"%i",&n); xfree(aline); }
     switch (m) {
     @<Numbered cases for |debug_help|@>;
@@ -26017,7 +26019,7 @@ case 12: mp_search_mem(mp, n); /* look for pointers to |n| */
   break;
 case 13: 
   l = 0;  
-  aline = (mp->read_ascii_file)(mp->term_in, &len);
+  aline = (mp->read_ascii_file)(mp,mp->term_in, &len);
   if (len) { sscanf(aline,"%i",&l); xfree(aline); }
   mp_print_cmd_mod(mp, n,l); 
   break;
