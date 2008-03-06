@@ -650,6 +650,25 @@ mplib_fig_body (lua_State *L) {
   return 1;
 }
 
+static int
+mplib_fig_body_copy (lua_State *L) {
+  int i = 1;
+  struct mp_graphic_object **v;
+  struct mp_graphic_object *p;
+  struct mp_edge_object **hh = is_fig(L,1);
+  lua_newtable(L);
+  p = (*hh)->body;
+  while (p!=NULL) {
+    v = lua_newuserdata (L, sizeof(struct mp_graphic_object *));
+    *v = mp_gr_copy_object(p);
+    luaL_getmetatable(L,MPLIB_GR_METATABLE);
+    lua_setmetatable(L,-2);
+    lua_rawseti(L,-2,i); i++;
+    p = p->_link_field;
+  }
+  return 1;
+}
+
 
 static int
 mplib_fig_tostring (lua_State *L) {
@@ -1067,6 +1086,7 @@ static const struct luaL_reg mplib_fig_meta[] = {
   {"__gc",               mplib_fig_collect    },
   {"__tostring",         mplib_fig_tostring   },
   {"objects",            mplib_fig_body       },
+  {"copy_objects",       mplib_fig_copy_body  },
   {"filename",           mplib_fig_filename   },
   {"postscript",         mplib_fig_postscript },
   {"boundingbox",        mplib_fig_bb         },

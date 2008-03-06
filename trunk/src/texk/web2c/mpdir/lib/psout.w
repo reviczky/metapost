@@ -4323,6 +4323,8 @@ struct mp_knot *mp_gr_copy_knot (MP mp,  struct mp_knot *p) {
 @c 
 struct mp_knot *mp_gr_copy_path (MP mp,  struct mp_knot *p) {
   struct mp_knot *q, *pp, *qq; /* for list manipulation */
+  if (p==NULL) 
+    return NULL;
   q=mp_gr_copy_knot(mp, p);
   qq=q; 
   pp=gr_next_knot(p);
@@ -4342,6 +4344,8 @@ variable |path_tail| will point to the final node of the original path;
 this trick makes it easier to implement `\&{doublepath}'.
 
 All node types are assumed to be |endpoint| or |explicit| only.
+
+This function is currenly unused.
 
 @c 
 struct mp_knot * mp_gr_htap_ypoc (MP mp,  struct mp_knot *p) {
@@ -4503,6 +4507,17 @@ void mp_do_gr_toss_dashes(struct mp_dash_list *dl) {
      di = dn;
   }
   mp_xfree(dl);
+}
+
+
+@ @c
+struct mp_dash_list *mp_gr_copy_dashes(MP mp, struct mp_dash_list *dl) {
+	struct mp_dash_list *q = NULL;
+    (void)mp;
+	if (dl==NULL)
+      return NULL;
+    /* todo */
+	return q;
 }
 
 
@@ -5578,6 +5593,7 @@ void mp_gr_toss_object (struct mp_graphic_object *p) {
       mp_xfree(gr_pre_script(p));
       mp_xfree(gr_post_script(p));
       mp_xfree(gr_text_p(p));
+      mp_xfree(gr_font_name(p));
       break;
     case mp_start_clip_code: 
     case mp_start_bounds_code:
@@ -5605,3 +5621,49 @@ void mp_gr_toss_objects (struct mp_edge_object *hh) {
   }
   mp_xfree(hh);
 }
+
+@ @<Exported function headers@>=
+struct mp_graphic_object *mp_gr_copy_object (MP mp, struct mp_graphic_object *p) ;
+
+@ @c
+struct mp_graphic_object * 
+mp_gr_copy_object (MP mp, struct mp_graphic_object *p) {
+  struct mp_graphic_object *q;
+  q = mp_xmalloc(mp,1,sizeof(mp_graphic_object));
+  memcpy(q,p,sizeof(mp_graphic_object));
+  gr_link(q) = NULL;
+  switch (gr_type(p)) {	
+  case mp_fill_code: 
+    gr_pre_script(q)  = mp_xstrdup(mp, gr_pre_script(p));
+    gr_post_script(q) = mp_xstrdup(mp, gr_post_script(p));
+    gr_path_p(q)      = mp_gr_copy_path(mp,gr_path_p(p));
+    gr_htap_p(q)      = mp_gr_copy_path(mp,gr_htap_p(p));
+    gr_pen_p(q)       = mp_gr_copy_path(mp,gr_pen_p(p));
+    break;
+  case mp_stroked_code:
+    gr_pre_script(q)  = mp_xstrdup(mp, gr_pre_script(p));
+    gr_post_script(q) = mp_xstrdup(mp, gr_post_script(p));
+    gr_path_p(q)      = mp_gr_copy_path(mp,gr_path_p(p));
+    gr_pen_p(q)       = mp_gr_copy_path(mp,gr_pen_p(p));
+    gr_dash_p(q)      = mp_gr_copy_dashes(mp,gr_dash_p(p));
+    break;
+  case mp_text_code: 
+    gr_pre_script(q)  = mp_xstrdup(mp, gr_pre_script(p));
+    gr_post_script(q) = mp_xstrdup(mp, gr_post_script(p));
+    gr_text_p(q)      = mp_xstrdup(mp, gr_text_p(p));
+    gr_font_name(q)   = mp_xstrdup(mp, gr_font_name(p));
+    break;
+  case mp_start_clip_code: 
+  case mp_start_bounds_code:
+    gr_path_p(q)      = mp_gr_copy_path(mp,gr_path_p(p));
+    break;
+  case mp_special_code: 
+    gr_pre_script(q)  = mp_xstrdup(mp, gr_pre_script(p));
+    break;
+  case mp_stop_clip_code: 
+  case mp_stop_bounds_code:
+    break;
+  } /* all cases are enumerated */
+  return q;
+}
+
