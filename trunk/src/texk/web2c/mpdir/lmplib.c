@@ -651,7 +651,7 @@ mplib_fig_body (lua_State *L) {
 }
 
 static int
-mplib_fig_body_copy (lua_State *L) {
+mplib_fig_copy_body (lua_State *L) {
   int i = 1;
   struct mp_graphic_object **v;
   struct mp_graphic_object *p;
@@ -660,7 +660,7 @@ mplib_fig_body_copy (lua_State *L) {
   p = (*hh)->body;
   while (p!=NULL) {
     v = lua_newuserdata (L, sizeof(struct mp_graphic_object *));
-    *v = mp_gr_copy_object(p);
+    *v = mp_gr_copy_object((*hh)->_parent,p);
     luaL_getmetatable(L,MPLIB_GR_METATABLE);
     lua_setmetatable(L,-2);
     lua_rawseti(L,-2,i); i++;
@@ -852,17 +852,25 @@ mplib_push_color (lua_State *L, struct mp_graphic_object *h ) {
   }
 }
 
-/* dashes are complicated, perhaps it would be better if the
-  object had a PS-compatible representation */
+/* the dash scale is not exported, the field has no external value */
 static void 
 mplib_push_dash (lua_State *L, struct mp_graphic_object *h ) {
-  if (h!=NULL) {
+  mp_dash_object *d;
+  if (h!=NULL && h->dash_p_field != NULL) {
+    d  = h->dash_p_field;
     lua_newtable(L);
-    mplib_push_number(L,h->dash_scale_field);
-    lua_setfield(L,-2,"scale");
-    /* todo */
-    lua_pushnumber(L,(int)h->dash_p_field);
-    lua_setfield(L,-2,"dashes");
+    mplib_push_number(L,d->offset_field);
+    lua_setfield(L,-2,"offset");
+    if (d->array_field!=NULL ) {
+      int i = 0;
+      lua_newtable(L);
+      while (*(d->array_field+i) != -1) {
+	mplib_push_number(L, *(d->array_field+1));
+	i++;
+	lua_rawseti(L,-2,i);
+      }
+      lua_setfield(L,-2,"dashes");
+    }
   } else {
     lua_pushnil(L);
   }

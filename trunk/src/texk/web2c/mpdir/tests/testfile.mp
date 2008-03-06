@@ -7,7 +7,7 @@ p = (0,0){right}..(20,100)..(50,60)--(75,50)...(25,25)..cycle;
 beginfig(1);
 fill p withcolor (1,0,0);
 pickup pencircle scaled 2;
-draw p dashed evenly;
+draw p dashed (evenly scaled 4);
 endfig;
 
 

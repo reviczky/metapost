@@ -4470,53 +4470,50 @@ typedef union {
   } grey ;
 } mp_color;
 
-@
- 
-@d gr_start_x(A)    (A)->start_x_field
-@d gr_stop_x(A)     (A)->stop_x_field
-@d gr_dash_link(A)  (A)->next_field
+@ The exported form of a dash pattern is simpler than the internal
+format, it is closely modelled to the PostScript model. The array of
+dashes is ended by a single negative value, because this is not
+allowed in PostScript.
 
-@d gr_dash_list(A)  (A)->list_field
-@d gr_dash_y(A)     (A)->y_field
+@d gr_dash_scale(A) (gr_dash_p(A))->scale_field
 
 @<Types...@>=
-typedef struct mp_dash_item {
-  scaled start_x_field;
-  scaled stop_x_field;
-  struct mp_dash_item *next_field;
-} mp_dash_item ;
-typedef struct mp_dash_list {
-  struct mp_dash_item *list_field;
-  scaled y_field;
-} mp_dash_list ;
+typedef struct mp_dash_object {
+  scaled offset_field;
+  scaled scale_field;
+  scaled *array_field;
+} mp_dash_object ;
 
 
 @ 
 @d mp_gr_toss_dashes(A,B) mp_do_gr_toss_dashes(B) 
 
 @<Declarations@>=
-void mp_do_gr_toss_dashes(struct mp_dash_list *dl);
+void mp_do_gr_toss_dashes(struct mp_dash_object *dl);
 
 @ @c
-void mp_do_gr_toss_dashes(struct mp_dash_list *dl) {
-  struct mp_dash_item *di, *dn;
-  di = gr_dash_list(dl);
-  while (di!= NULL) {
-     dn = gr_dash_link(di);
-     mp_xfree(di);
-     di = dn;
-  }
+void mp_do_gr_toss_dashes(struct mp_dash_object *dl) {
+  if (dl==NULL)   
+    return;
+  mp_xfree(dl->array_field);  
   mp_xfree(dl);
 }
 
 
 @ @c
-struct mp_dash_list *mp_gr_copy_dashes(MP mp, struct mp_dash_list *dl) {
-	struct mp_dash_list *q = NULL;
+struct mp_dash_object *mp_gr_copy_dashes(MP mp, struct mp_dash_object *dl) {
+	struct mp_dash_object *q = NULL;
     (void)mp;
 	if (dl==NULL)
       return NULL;
-    /* todo */
+	q = mp_xmalloc(mp, 1, sizeof (mp_dash_object));
+	memcpy (q,dl,sizeof(mp_dash_object));
+	if (dl->array_field != NULL) {
+  	  int i = 0;
+      while (*(dl->array_field+i) != -1) i++;
+   	  q->array_field = mp_xmalloc(mp, i, sizeof (scaled));
+	  memcpy(q->array_field,dl->array_field, (i*sizeof(scaled)));
+    }
 	return q;
 }
 
@@ -4544,7 +4541,6 @@ structures and access macros.
 #define gr_pen_p(A)        (A)->pen_p_field 
 #define gr_ljoin_val(A)    (A)->ljoin_field
 #define gr_lcap_val(A)     (A)->lcap_field
-#define gr_dash_scale(A)   (A)->dash_scale_field
 #define gr_miterlim_val(A) (A)->miterlim_field
 #define gr_pre_script(A)   (A)->pre_script_field
 #define gr_post_script(A)  (A)->post_script_field
@@ -4574,10 +4570,9 @@ typedef struct mp_graphic_object {
   quarterword ljoin_field ;   
   quarterword lcap_field ;   
   scaled miterlim_field ;
-  scaled dash_scale_field ;
   char *pre_script_field;
   char *post_script_field;
-  struct mp_dash_list *dash_p_field;
+  struct mp_dash_object *dash_p_field;
   char *text_p_field;
   font_number font_n_field ;   
   char *font_name_field ;   
@@ -4628,7 +4623,6 @@ needed without wasting time and space setting them unnecessarily.
 @d gs_miterlim   mp->ps->gs_state->miterlim_field    
 @d gs_dash_p     mp->ps->gs_state->dash_p_field	     
 @d gs_previous   mp->ps->gs_state->previous_field    
-@d gs_dash_sc    mp->ps->gs_state->dash_sc_field     
 @d gs_width      mp->ps->gs_state->width_field	     
 
 @<Types...@>=
@@ -4647,12 +4641,10 @@ typedef struct _gs_state {
    /* what resolution-dependent adjustment applies to the width */
   scaled miterlim_field ;
    /* the value from the last \&{setmiterlimit} command */
-  struct mp_dash_list * dash_p_field ;
+  struct mp_dash_object * dash_p_field ;
    /* edge structure for last \&{setdash} command */
   struct _gs_state * previous_field ;
    /* backlink to the previous |_gs_state| structure */
-  scaled dash_sc_field ;
-   /* scale factor used with |gs_dash_p| */
   scaled width_field ;
    /* width setting or $-1$ if no \&{setlinewidth} command so far */
 } _gs_state;
@@ -4700,7 +4692,6 @@ void mp_gs_unknown_graphics_state (MP mp,scaled c) ;
     gs_lcap=3;
     gs_miterlim=0;
     gs_dash_p=NULL;
-    gs_dash_sc=0;
     gs_width=-1;
   } else if ( c==1 ) {
     p= mp->ps->gs_state;
@@ -4725,7 +4716,7 @@ void mp_gr_fix_graphics_state (MP mp, struct mp_graphic_object *p) ;
 void mp_gr_fix_graphics_state (MP mp, struct mp_graphic_object *p) {
   /* get ready to output graphical object |p| */
   struct mp_knot *pp; /* for list manipulation */
-  struct mp_dash_list *hh;
+  struct mp_dash_object *hh;
   scaled wx,wy,ww; /* dimensions of pen bounding box */
   boolean adj_wx; /* whether pixel rounding should be based on |wx| or |wy| */
   integer tx,ty; /* temporaries for computing |adj_wx| */
@@ -4977,10 +4968,10 @@ if ( gr_type(p)==mp_fill_code ) {
   hh=gr_dash_p(p);
   scf=mp_gr_get_pen_scale(mp, gr_pen_p(p));
   if ( scf==0 ) {
-    if ( gs_width==0 ) scf=gr_dash_scale(p);  else hh=NULL;
+    if ( gs_width==0 ) scf=hh->scale_field;  else hh=NULL;
   } else { 
     scf=mp_make_scaled(mp, gs_width,scf);
-    scf=mp_take_scaled(mp, scf,gr_dash_scale(p));
+    scf=mp_take_scaled(mp, scf, (hh == NULL ? unity : gr_dash_scale(p)));
   }
 }
 if ( hh==NULL ) {
@@ -4988,7 +4979,7 @@ if ( hh==NULL ) {
     mp_ps_print_cmd(mp, " [] 0 setdash"," rd");
     gs_dash_p=NULL;
   }
-} else if ( (gs_dash_sc!=scf) || ! mp_gr_same_dashes(gs_dash_p,hh) ) {
+} else if ( ! mp_gr_same_dashes(gs_dash_p,hh) ) {
   @<Set the dash pattern from |dash_list(hh)| scaled by |scf|@>;
 }
 
@@ -5004,87 +4995,52 @@ scaled mp_gr_get_pen_scale (MP mp, struct mp_knot *p) {
 }
 
 
-@ Translating a dash list into \ps\ is very similar to printing it symbolically
-in |print_edges|.  A dash pattern with |dash_y(hh)=0| has length zero and is
-ignored.  The same fate applies in the bizarre case of a dash pattern that
-cannot be printed without overflow.
+@ The original code had a check here to ensure that the result from
+|mp_take_scaled| did not go out of bounds.
 
 @<Set the dash pattern from |dash_list(hh)| scaled by |scf|@>=
 { gs_dash_p=hh;
-  gs_dash_sc=scf;
-  if ( (gr_dash_p(p)==NULL) || 
-       (gr_dash_y(hh)==0) || 
-       ((abs(gr_dash_y(hh)) / unity) >= (el_gordo / scf))) {
+  if ( (gr_dash_p(p)==NULL) || (hh==NULL) || (hh->array_field==NULL)) {
     mp_ps_print_cmd(mp, " [] 0 setdash"," rd");
   } else { 
-    struct mp_dash_item *dpp=gr_dash_list(hh);
-    struct mp_dash_item *pp= dpp;
+	int i;
     ps_room(28);
     mp_ps_print(mp, " [");
-    while ( dpp!=NULL ) {
-	  scaled dx,dy;
-      dx = mp_take_scaled(mp, gr_stop_x(dpp)-gr_start_x(dpp),scf);
-      dy = 0;
-      if (gr_dash_link(dpp)!=NULL) {
-        dy = mp_take_scaled(mp, gr_start_x(gr_dash_link(dpp))-gr_stop_x(dpp),scf);
-      } else {
-        dy = mp_take_scaled(mp, (gr_start_x(pp)+gr_dash_y(hh))-gr_stop_x(dpp),scf);
-      }
-      mp_ps_pair_out(mp, dx, dy);
-      dpp=gr_dash_link(dpp);
+    for (i=0; *(hh->array_field+i) != -1;i++) {
+      ps_room(13);
+      mp_ps_print_scaled(mp, *(hh->array_field+i)); 
+ 	  mp_ps_print_char(mp, ' ')	;
     }
     ps_room(22);
     mp_ps_print(mp, "] ");
-    mp_ps_print_scaled(mp, mp_take_scaled(mp, mp_gr_dash_offset(mp, hh),scf));
+    mp_ps_print_scaled(mp, hh->offset_field);
     mp_ps_print_cmd(mp, " setdash"," sd");
   }
 }
 
 @ @<Declarations@>=
-boolean mp_gr_same_dashes (struct mp_dash_list *h, struct mp_dash_list *hh) ;
+boolean mp_gr_same_dashes (struct mp_dash_object *h, struct mp_dash_object *hh) ;
 
-@ @c
-boolean mp_gr_same_dashes (struct mp_dash_list * h, struct mp_dash_list *hh) {
-  /* do |h| and |hh| represent the same dash pattern? */
-  struct mp_dash_item * p, *pp; /* dash nodes being compared */
+@ This function test if |h| and |hh| represent the same dash pattern.
+
+@c
+boolean mp_gr_same_dashes (struct mp_dash_object *h, struct mp_dash_object *hh) {
   if ( h==hh ) return true;
   else if ( (h==NULL)||(hh==NULL) ) return false;
-  else if ( gr_dash_y(h)!=gr_dash_y(hh) ) return false;
+  else if ( h->scale_field!=hh->scale_field ) return false;
+  else if ( h->offset_field!=hh->offset_field ) return false;
+  else if ( h->array_field == hh->array_field) return true;
+  else if ( h->array_field == NULL || hh->array_field == NULL) return false;
   else { @<Compare |dash_list(h)| and |dash_list(hh)|@>; }
-  return false; /* can't happen */
+  return false;
 }
 
 @ @<Compare |dash_list(h)| and |dash_list(hh)|@>=
-{ p=gr_dash_list(h);
-  pp=gr_dash_list(hh);
-  while ( (p!=NULL)&&(pp!=NULL) ) {
-    if ( (gr_start_x(p)!=gr_start_x(pp))||
-         (gr_stop_x(p)!=gr_stop_x(pp)) ) {
-      break;
-    } else { 
-      p=gr_dash_link(p);
-      pp=gr_dash_link(pp);
-    }
-  }
-  return (p==pp);
-}
-
-@ @<Declarations@>=
-scaled mp_gr_dash_offset (MP mp, struct mp_dash_list *h) ;
-
-@ @c 
-scaled mp_gr_dash_offset (MP mp, struct mp_dash_list *h) {
-  scaled x;  /* the answer */
-  if ( h==NULL || (gr_dash_list(h)==NULL) || (gr_dash_y(h)<0) ) 
-     mp_confusion(mp, "dash0");
-@:this can't happen dash0}{\quad dash0@>
-  if ( gr_dash_y(h)==0 ) {
-    x=0; 
-  } else { 
-    x=-(gr_start_x(gr_dash_list(h)) % gr_dash_y(h));
-    if ( x<0 ) x=x+gr_dash_y(h);
-  }
-  return x;
+{
+  int i = 0; 
+  while ((h->array_field+i) == (hh->array_field+i)) i++;
+  if (*(h->array_field+i-1)==-1 && *(hh->array_field+i-1) == -1) 
+     return true;
 }
 
 @ When stroking a path with an elliptical pen, it is necessary to transform

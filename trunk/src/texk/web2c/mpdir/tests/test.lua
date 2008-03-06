@@ -28,7 +28,7 @@ function dorun (m, s)
        print(gs:postscript())
 	   local b = gs:objects()
        for _,vv in ipairs(b) do
-		  print(vv, vv.type, table.serialize(vv.path), table.serialize(vv.color))
+		  print(vv, vv.type, table.serialize(vv.path), table.serialize(vv.dash))
           if vv.type == "text" then
 		    print(vv.text, vv.font, vv.dsize, table.serialize(vv.transform))
           end
