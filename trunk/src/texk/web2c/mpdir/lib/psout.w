@@ -494,11 +494,11 @@ static void avl_xfree (struct libavl_allocator *allocator, void *block);
 
 @ @c
 static void *avl_xmalloc (struct libavl_allocator *allocator, size_t size) {
-    assert(allocator);
+    (void)allocator;
     return malloc (size);
 }
 static void avl_xfree (struct libavl_allocator *allocator, void *block) {
-    assert(allocator);
+    (void)allocator;
     free (block);
 }
 
@@ -512,7 +512,7 @@ mp->ps->enc_tree = NULL;
 
 @ @c
 static int comp_enc_entry (const void *pa, const void *pb, void *p) {
-    assert(p==NULL);
+    (void)p;
     return strcmp (((const enc_entry *) pa)->file_name,
                    ((const enc_entry *) pb)->file_name);
 }
@@ -545,9 +545,8 @@ static enc_entry * mp_add_enc (MP mp, char *s) {
 static void mp_destroy_enc_entry (void *pa, void *pb) {
     enc_entry *p;
     int i;
-
     p = (enc_entry *) pa;
-    assert(pb==NULL);
+    (void)pb;
     mp_xfree (p->file_name);
     if (p->glyph_names != NULL)
         for (i = 0; i < 256; i++)
@@ -769,7 +768,7 @@ mp->ps->ff_tree = NULL;
 
 @c
 static int comp_fm_entry_tfm (const void *pa, const void *pb, void *p) {
-    assert(p==NULL);
+    (void)p;
     return strcmp (((const fm_entry *) pa)->tfm_name,
                    ((const fm_entry *) pb)->tfm_name);
 }
@@ -777,7 +776,7 @@ static int comp_fm_entry_tfm (const void *pa, const void *pb, void *p) {
 @ AVL sort |fm_entry| into |ps_tree| by |ps_name|, |slant|, and |extend|
 
 @c static int comp_fm_entry_ps (const void *pa, const void *pb, void *p) {
-    assert(p==NULL);
+    (void)p;
     const fm_entry *p1 = (const fm_entry *) pa, *p2 = (const fm_entry *) pb;
     int i;
     assert (p1->ps_name != NULL && p2->ps_name != NULL);
@@ -794,7 +793,7 @@ static int comp_fm_entry_tfm (const void *pa, const void *pb, void *p) {
 @ AVL sort |ff_entry| into |ff_tree| by |ff_name|
 
 @c static int comp_ff_entry (const void *pa, const void *pb, void *p) {
-    assert(p==NULL);
+    (void)p;
     return strcmp (((const ff_entry *) pa)->ff_name,
                    ((const ff_entry *) pb)->ff_name);
 }
@@ -1459,7 +1458,7 @@ if (mp->ps->mitem!=NULL) {
 @c
 static void destroy_fm_entry_tfm (void *pa, void *pb) {
     fm_entry *fm;
-    assert(pb==NULL);
+    (void)pb;
     fm = (fm_entry *) pa;
     if (!has_pslink (fm))
         delete_fm_entry (fm);
@@ -1468,7 +1467,7 @@ static void destroy_fm_entry_tfm (void *pa, void *pb) {
 }
 static void destroy_fm_entry_ps (void *pa, void *pb) {
     fm_entry *fm;
-    assert(pb==NULL);
+    (void)pb;
     fm = (fm_entry *) pa;
     if (!has_tfmlink (fm))
         delete_fm_entry (fm);
@@ -1477,7 +1476,7 @@ static void destroy_fm_entry_ps (void *pa, void *pb) {
 }
 static void destroy_ff_entry (void *pa, void *pb) {
     ff_entry *ff;
-    assert(pb==NULL);
+    (void)pb;
     ff = (ff_entry *) pa;
     delete_ff_entry (ff);
 } 

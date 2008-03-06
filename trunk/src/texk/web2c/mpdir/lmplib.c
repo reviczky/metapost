@@ -340,6 +340,7 @@ void mplib_write_ascii_file (MP mp, void *ff, char *s) {
 
 void mplib_read_binary_file (MP mp, void *ff, void **data, size_t *size) {
   size_t len = 0;
+  (void)mp;
   if (ff!=NULL) {
     FILE *f = ((File *)ff)->f;
     if (f!=NULL) 
@@ -349,6 +350,7 @@ void mplib_read_binary_file (MP mp, void *ff, void **data, size_t *size) {
 }
 
 void mplib_write_binary_file (MP mp, void *ff, void *s, size_t size) {
+  (void)mp;
   if (ff!=NULL) {
     FILE *f = ((File *)ff)->f;
     if (f!=NULL)
@@ -384,6 +386,8 @@ int mplib_eof_file (MP mp, void *ff) {
 }
 
 void mplib_flush_file (MP mp, void *ff) {
+  (void)mp;
+  (void)ff;
   return ;
 }
 

@@ -40,7 +40,7 @@ end
 -- chunks have to have 'complete file' nesting state
 local lines = {
  "\\",
- "prologues:=3;",
+ "prologues:=1;",
  "path p,q;",
  "p = (0,0){right}..(20,100)..(50,60)..(75,50)...(25,25)..cycle;",
  "q = (0,0){right}..(20,100)..(50,60)..(75,50)...(25,25);",

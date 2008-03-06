@@ -173,6 +173,7 @@ options->random_seed = get_random_seed();
 char *mpost_find_file(MP mp, char *fname, char *fmode, int ftype)  {
   char *s;
   int l ;
+  (void)mp;
   if (fmode[0]=='r') {
 	if (ftype>=mp_filetype_text) {
       s = kpse_find_file (fname, kpse_mp_format, 0); 

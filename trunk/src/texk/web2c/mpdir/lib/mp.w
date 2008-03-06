@@ -521,6 +521,7 @@ used for the default font map file.
 
 @c
 char *mp_find_file (MP mp, char *fname, char *fmode, int ftype)  {
+  (void) mp;
   if (fmode[0] != 'r' || (! access (fname,R_OK)) || ftype) {  
      return strdup(fname);
   }
@@ -563,6 +564,7 @@ void mp_write_binary_file (MP mp, void *f, void *s, size_t t) ;
 
 @c
 void *mp_open_file(MP mp, char *fname, char *fmode, int ftype)  {
+  (void) mp;
 #if NOTTESTING
   if (ftype==mp_filetype_terminal) {
     return (fmode[0] == 'r' ? stdin : stdout);
@@ -650,6 +652,7 @@ char *mp_read_ascii_file (MP mp, void *ff, size_t *size) {
   char *s = NULL;
   FILE *f = (FILE *)ff;
   *size = 0;
+  (void) mp; /* for -Wunused */
 #if NOTTESTING
   c = fgetc(f);
   if (c==EOF)
@@ -678,6 +681,7 @@ char *mp_read_ascii_file (MP mp, void *ff, size_t *size) {
 
 @ @c
 void mp_write_ascii_file (MP mp, void *f, char *s) {
+  (void) mp;
 #if NOTTESTING
   if (f!=NULL) {
     fputs(s,(FILE *)f);
@@ -688,6 +692,7 @@ void mp_write_ascii_file (MP mp, void *f, char *s) {
 @ @c
 void mp_read_binary_file (MP mp, void *f, void **data, size_t *size) {
   size_t len = 0;
+  (void) mp;
 #if NOTTESTING
   len = fread(*data,1,*size,(FILE *)f);
 #endif
@@ -696,6 +701,7 @@ void mp_read_binary_file (MP mp, void *f, void **data, size_t *size) {
 
 @ @c
 void mp_write_binary_file (MP mp, void *f, void *s, size_t size) {
+  (void) mp;
 #if NOTTESTING
   if (f!=NULL)
     fwrite(s,size,1,(FILE *)f);
@@ -705,6 +711,7 @@ void mp_write_binary_file (MP mp, void *f, void *s, size_t size) {
 
 @ @c
 void mp_close_file (MP mp, void *f) {
+  (void) mp;
 #if NOTTESTING
   fclose((FILE *)f);
 #endif
@@ -712,6 +719,7 @@ void mp_close_file (MP mp, void *f) {
 
 @ @c
 int mp_eof_file (MP mp, void *f) {
+  (void) mp;
 #if NOTTESTING
   return feof((FILE *)f);
 #else
@@ -721,6 +729,7 @@ int mp_eof_file (MP mp, void *f) {
 
 @ @c
 void mp_flush_file (MP mp, void *f) {
+  (void) mp;
 #if NOTTESTING
   fflush((FILE *)f);
 #endif
@@ -16320,8 +16329,9 @@ int mp_run_make_mpx (MP mp, char *origname, char *mtxname);
 @ The default does nothing.
 @c 
 int mp_run_make_mpx (MP mp, char *origname, char *mtxname) {
-  if (mp && origname && mtxname) /* for -W */
-    return false;
+  (void)mp;
+  (void)origname;
+  (void)mtxname;
   return false;
 }
 
@@ -21798,11 +21808,11 @@ mp_finish (MP mp) {
   return mp->history;
 }
 char * mp_mplib_version (MP mp) {
-  assert(mp);
+  (void)mp;
   return mplib_version;
 }
 char * mp_metapost_version (MP mp) {
-  assert(mp);
+  (void)mp;
   return metapost_version;
 }
 
