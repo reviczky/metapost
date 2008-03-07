@@ -16859,7 +16859,12 @@ procedure pair_to_path;
 begin cur_exp:=new_knot; cur_type:=path_type;
 end;
 
-@ @<Additional cases of unary operators@>=
+@ 
+@d pict_color_type(#)==(link(dummy_loc(cur_exp))<>null) and
+                       (has_color(link(dummy_loc(cur_exp)))) and
+                       (color_model(link(dummy_loc(cur_exp)))=#)
+
+@<Additional cases of unary operators@>=
 x_part,y_part:if (cur_type=pair_type)or(cur_type=transform_type) then
     take_part(c)
   else if cur_type=picture_type then take_pict_part(c)
@@ -16867,15 +16872,20 @@ x_part,y_part:if (cur_type=pair_type)or(cur_type=transform_type) then
 xx_part,xy_part,yx_part,yy_part: if cur_type=transform_type then take_part(c)
   else if cur_type=picture_type then take_pict_part(c)
   else bad_unary(c);
-red_part,green_part,blue_part: if cur_type=color_type then take_part(c)
-  else if cur_type=picture_type then take_pict_part(c)
-  else bad_unary(c);
-cyan_part,magenta_part,yellow_part,black_part: if cur_type=cmykcolor_type
-  then take_part(c) else if cur_type=picture_type then take_pict_part(c)
-  else bad_unary(c);
+red_part,green_part,blue_part: 
+  if cur_type=color_type then take_part(c)
+  else if cur_type=picture_type then begin
+    if pict_color_type(rgb_model) then take_pict_part(c) else bad_color_part(c);
+  end else bad_unary(c);
+cyan_part,magenta_part,yellow_part,black_part: 
+  if cur_type=cmykcolor_type then take_part(c) 
+  else if cur_type=picture_type then begin
+    if pict_color_type(cmyk_model) then take_pict_part(c) else bad_color_part(c);
+  end else bad_unary(c);
 grey_part: if cur_type=known then cur_exp:=value(c)
-  else if cur_type=picture_type then take_pict_part(c)
-  else bad_unary(c);
+  else if cur_type=picture_type then begin
+    if pict_color_type(grey_model) then take_pict_part(c) else bad_color_part(c);
+  end else bad_unary(c);
 color_model_part: if cur_type=picture_type then take_pict_part(c)
   else bad_unary(c);
 
@@ -16889,6 +16899,33 @@ begin p:=value(cur_exp); value(temp_val):=p; type(temp_val):=cur_type;
 link(p):=temp_val; free_node(cur_exp,value_node_size);
 make_exp_copy(p+sector_offset[c+x_part_sector-x_part]);
 recycle_value(temp_val);
+end;
+
+@ @<Declare unary action...@>=
+procedure bad_color_part(@!c:quarterword);
+var @!p:pointer; {the big node}
+begin
+  p:=link(dummy_loc(cur_exp));
+  exp_err("Wrong picture color model: "); print_op(c);
+@.Wrong picture color model...@>
+  if color_model(p)=grey_model then
+    print(" of grey object")
+  else if color_model(p)=cmyk_model then
+    print(" of cmyk object")
+  else if color_model(p)=rgb_model then
+    print(" of rgb object")
+  else if color_model(p)=no_model then
+    print(" of marking object")
+  else 
+    print(" of defaulted object");
+  help3("You can only ask for the redpart, greenpart, bluepart of a rgb object,")@/
+    ("the cyanpart, magentapart, yellowpart or blackpart of a cmyk object, ")@/
+    ("or the greypart of a grey object. No mixing and matching, please.");
+  error;
+  if (c=black_part)or(c=grey_part) then
+    flush_cur_exp(unity)
+  else
+    flush_cur_exp(0);
 end;
 
 @ @<Initialize table entries...@>=
