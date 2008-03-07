@@ -2,6 +2,21 @@ $Id: CHANGES,v 1.9 2005/08/24 10:54:02 taco Exp $
 By John Hobby and others.  Public domain (see README).
 
 ----------------------------------------------------------------------
+What is new in version 1.003:
+----------------------------------------------------------------------
+
+* Polygonal pens now work better (bug #3 and #7 at supelec.fr).
+
+* When asking for a color part in a picture object, the color models
+  now have to match each other, otherwise an error will be reported
+  and the return value will be set to a 'black' part.
+
+* The Makefile fragment (metapost.mk) now defines a separate mpost target 
+  for better integration in TeXLive.
+
+* The manual is improved.
+
+----------------------------------------------------------------------
 What is new in version 1.002:
 ----------------------------------------------------------------------
 
