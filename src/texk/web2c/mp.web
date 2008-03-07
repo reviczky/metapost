@@ -9231,7 +9231,7 @@ spec_offset:integer; {number of pen edges between |h| and the initial offset}
 function offset_prep(@!c,@!h:pointer):pointer;
 label not_found;
 var @!n:halfword; {the number of vertices in the pen polygon}
-@!p,@!q,@!r,@!w,@!ww:pointer; {for list manipulation}
+@!p,@!q,@!q0,@!r,@!w,@!ww:pointer; {for list manipulation}
 @!k_needed:integer; {amount to be added to |info(p)| when it is computed}
 @!w0:pointer; {a pointer to pen offset to use just before |p|}
 @!dxin,@!dyin:scaled; {the direction into knot |p|}
@@ -9284,20 +9284,26 @@ w0:=h
 @ We must be careful not to remove the only cubic in a cycle.
 
 But we must also be careful for another reason. If the user-supplied
-path starts with a set of degenerate cubics, these should not be removed
-because at this point we cannot do so cleanly. The relevant bug is
-tracker id 267, bugs 52c, reported by Boguslav.
+path starts with a set of degenerate cubics, the target node |q| can
+be collapsed to the initial node |p| which might be the same as the
+initial node |c| of the curve. This would cause the |offset_prep| routine
+to bail out too early, causing distress later on. (See for example
+the testcase reported by Bogus\l{}aw Jackowski in tracker id 267, case 52c
+on Sarovar.)
 
 @<Advance |p| to node |q|, removing any ``dead'' cubics...@>=
+q0:=q;
 repeat r:=link(p);
 if x_coord(p)=right_x(p) then if y_coord(p)=right_y(p) then
  if x_coord(p)=left_x(r) then if y_coord(p)=left_y(r) then
   if x_coord(p)=x_coord(r) then if y_coord(p)=y_coord(r) then
-    if r<>p then if ((r<>q) or (originator(r)<>metapost_user)) then
+    if r<>p then
       @<Remove the cubic following |p| and update the data structures
         to merge |r| into |p|@>;
 p:=r;
-until p=q
+until p=q;
+{ Check if we removed too much }
+if q<>q0 then q:=link(q)
 
 @ @<Remove the cubic following |p| and update the data structures...@>=
 begin k_needed:=info(p)-zero_off;
