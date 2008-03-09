@@ -1356,11 +1356,8 @@ on the information that \.{WEB} has output while processing \MP.
 @p @!init function get_strings_started:boolean; {initializes the string pool,
   but returns |false| if something goes wrong}
 label done,exit;
-var @!k,@!l:0..255; {small indices or counters}
-@!m,@!n:text_char; {characters input from |pool_file|}
+var @!k:0..255; {small indices or counters}
 @!g:str_number; {garbage}
-@!a:integer; {accumulator for check sum}
-@!c:boolean; {check sum has been checked}
 begin pool_ptr:=0; str_ptr:=0; max_pool_ptr:=0; max_str_ptr:=0;
 str_start[0]:=0;
 next_str[0]:=1;
@@ -3043,8 +3040,8 @@ fourth_octant:n_arg:=one_eighty_deg-z;
 fifth_octant:n_arg:=z-one_eighty_deg;
 sixth_octant:n_arg:=-z-ninety_deg;
 seventh_octant:n_arg:=z-ninety_deg;
-eighth_octant:n_arg:=-z;
-end {there are no other cases}
+othercases n_arg:=-z; { |eighth_octant| }
+end 
 
 @ At this point we have |x>=y>=0|, and |x>0|. The numbers are scaled up
 or down until $2^{28}\L x<2^{29}$, so that accurate fixed-point calculations
@@ -5603,7 +5600,8 @@ place in the structure. Node~|p| itself does not move, nor are its
 
 @p function new_structure(@!p:pointer):pointer;
 var @!q,@!r:pointer; {list manipulation registers}
-begin case name_type(p) of
+begin r:=null;
+case name_type(p) of
 root: begin q:=link(p); r:=get_node(value_node_size); equiv(q):=r;
   end;
 subscr: @<Link a new subscript node |r| in place of node |p|@>;
@@ -5842,8 +5840,8 @@ path_type,unknown_path:und_type:=unknown_path;
 picture_type,unknown_picture:und_type:=unknown_picture;
 transform_type,color_type,cmykcolor_type,
 pair_type,numeric_type:und_type:=type(p);
-known,dependent,proto_dependent,independent:und_type:=numeric_type;
-end; {there are no other cases}
+othercases und_type:=numeric_type; { |known,dependent,proto_dependent,independent| }
+end;
 end;
 
 @ The |clear_symbol| routine is used when we want to redefine the equivalent
@@ -6610,7 +6608,7 @@ label found,exit;
 var @!k:0..path_size; {current knot number}
 @!r,@!s,@!t:pointer; {registers for list traversal}
 @<Other local variables for |solve_choices|@>@;
-begin k:=0; s:=p;
+begin k:=0; r:=null; s:=p;
 loop@+  begin t:=link(s);
   if k=0 then @<Get the linear equations started; or |return|
     with the control points in place, if linear equations
@@ -6621,9 +6619,9 @@ loop@+  begin t:=link(s);
       adjusted to equal $\theta_0$, if a cycle has ended@>;
     curl:@<Set up equation for a curl at $\theta_n$
       and |goto found|@>;
-    given:@<Calculate the given value of $\theta_n$
-      and |goto found|@>;
-    end; {there are no other cases}
+    othercases { |given:| }
+      @<Calculate the given value of $\theta_n$ and |goto found|@>;
+    end;
   r:=s; s:=t; incr(k);
   end;
 found:@<Finish choosing angles and assigning control points@>;
@@ -8753,7 +8751,7 @@ var @!p:pointer;  {this scans the stroked nodes in the object list}
 @!d,@!dd:pointer;  {pointers used to create the dash list}
 @<Other local variables in |make_dashes|@>@;
 begin if dash_list(h)<>null_dash then goto found;
-p0:=null;
+p0:=null; y0:=0;
 p:=link(dummy_loc(h));
 while p<>null do
   begin if type(p)<>stroked_code then
@@ -9413,6 +9411,7 @@ represent $Y_0=2^l(y_1-y_0)$, $Y_1=2^l(y_2-y_1)$, and $Y_2=2^l(y_3-y_2)$.
 @!s:fraction; {a temporary value}
 
 @ @<Prepare for derivative computations...@>=
+dx0:=0; dy0:=0;
 x0:=right_x(p)-x_coord(p);
 x2:=x_coord(q)-left_x(q);
 x1:=left_x(q)-right_x(p);
@@ -9826,6 +9825,7 @@ repeat q:=link(p); q0:=q;
 qx:=x_coord(q); qy:=y_coord(q);
 k:=info(q);@/
 k0:=k; w0:=w;
+dxin:=0;
 if k<>zero_off then
   @<Set |join_type| to indicate how to handle offset changes at~|q|@>;
 @<Add offset |w| to the cubic from |p| to |q|@>;
@@ -9853,6 +9853,7 @@ degenerate cubic.  Setting |join_type:=2| in this case makes the computed
 envelope degenerate as well.
 
 @<Set |join_type| to indicate how to handle offset changes at~|q|@>=
+dxin:=0; dyin:=0; dxout:=0; dyout:=0; join_type:=0;
 if k<zero_off then join_type:=2
 else begin if (q<>spec_p1)and(q<>spec_p2) then join_type:=ljoin
     else if lcap=2 then join_type:=3
@@ -10155,6 +10156,7 @@ x1:=right_x(p)-x_coord(p); x2:=left_x(q)-right_x(p);
 x3:=x_coord(q)-left_x(q);@/
 y1:=right_y(p)-y_coord(p); y2:=left_y(q)-right_y(p);
 y3:=y_coord(q)-left_y(q);@/
+phi:=0;
 max:=abs(x1);
 if abs(x2)>max then max:=abs(x2);
 if abs(x3)>max then max:=abs(x3);
@@ -13279,6 +13281,7 @@ var @!r:pointer; {current node in the macro's token list}
 @!l_delim,@!r_delim:pointer; {a delimiter pair}
 @!tail:pointer; {tail of the argument list}
 begin r:=link(def_ref); add_mac_ref(def_ref);
+tail:=null; l_delim:=null; r_delim:=null;
 if arg_list=null then n:=0
 else @<Determine the number |n| of arguments already supplied,
   and set |tail| to the tail of |arg_list|@>;
@@ -14937,7 +14940,7 @@ var @!restore_cur_exp:boolean; {should |cur_exp| be restored?}
 begin if p<>null then restore_cur_exp:=false
 else  begin p:=stash_cur_exp; restore_cur_exp:=true;
   end;
-t:=type(p);
+t:=type(p); v:=0;
 if t<dependent then v:=value(p)@+else if t<independent then v:=dep_list(p);
 @<Print an abbreviated value of |v| with format depending on |t|@>;
 if restore_cur_exp then unstash_cur_exp(p);
@@ -15060,7 +15063,7 @@ var @!t:small_number; {a type code}
 @!v:integer; {a value}
 @!vv:integer; {another value}
 @!q,@!r,@!s,@!pp:pointer; {link manipulation registers}
-begin t:=type(p);
+begin t:=type(p); v:=0;
 if t<dependent then v:=value(p);
 case t of
 undefined,vacuous,boolean_type,known,numeric_type:do_nothing;
@@ -15636,7 +15639,8 @@ doesn't bother to update its information about type. And if
 @!macro_ref:pointer; {reference count for a suffixed macro}
 
 @ @<Scan a variable primary...@>=
-begin fast_get_avail(pre_head); tail:=pre_head; post_head:=null; tt:=vacuous;
+begin fast_get_avail(pre_head); tail:=pre_head; post_head:=null; tt:=vacuous; 
+macro_ref:=null;
 loop@+  begin t:=cur_tok; link(tail):=t;
   if tt<>undefined then
     begin @<Find the approximate type |tt| and corresponding~|q|@>;
@@ -16026,7 +16030,7 @@ var @!p,@!q,@!r,@!pp,@!qq:pointer; {for list manipulation}
 @!cycle_hit:boolean; {did a path expression just end with `\&{cycle}'?}
 @!x,@!y:scaled; {explicit coordinates or tension at a path join}
 @!t:endpoint..open; {knot type following a path join}
-begin my_var_flag:=var_flag;
+begin my_var_flag:=var_flag; t:=endpoint; x:=0; y:=0; mac_name:=null;
 restart:if(cur_cmd<min_primary_command)or@|
  (cur_cmd>max_primary_command) then
   bad_exp("An");
@@ -18163,7 +18167,6 @@ to the path~|p|.
 
 @<Declare binary action...@>=
 procedure do_path_trans(@!p:pointer);
-label exit;
 var @!q:pointer; {list traverser}
 begin q:=p;
 repeat
@@ -18173,7 +18176,7 @@ if right_type(q)<>endpoint then trans(q+5,q+6); {that's |right_x| and |right_y|}
 @^data structure assumptions@>
 q:=link(q);
 until q=p;
-exit:end;
+end;
 
 @ Transforming a pen is very similar, except that there are no |left_type|
 and |right_type| fields.
@@ -18183,7 +18186,6 @@ and |right_type| fields.
 
 @<Declare binary action...@>=
 procedure do_pen_trans(@!p:pointer);
-label exit;
 var @!q:pointer; {list traverser}
 begin if pen_is_elliptical(p) then
   begin trans(p+3,p+4); {that's |left_x| and |left_y|}
@@ -18195,7 +18197,7 @@ trans(q+1,q+2); {that's |x_coord| and |y_coord|}
 @^data structure assumptions@>
 q:=link(q);
 until q=p;
-exit:end;
+end;
 
 @ The next transformation procedure applies to edge structures. It will do
 any transformation, but the results may be substandard if the picture contains
@@ -18923,7 +18925,7 @@ label restart,done, not_found;
 var @!t:small_number; {type of the left-hand side}
 @!v:integer; {value of the left-hand side}
 @!p,@!q:pointer; {pointers inside of big nodes}
-begin restart: t:=type(lhs);
+begin restart: t:=type(lhs); v:=0;
 if t<=pair_type then v:=value(lhs);
 case t of
 @t\4@>@<For each type |t|, make an equation and |goto done| unless |cur_type|
@@ -19703,7 +19705,7 @@ var @!t:small_number; {|cur_mod| of the |with_option| (should match |cur_type|)}
 @!s:str_number; {for string cleanup after combining }
 @!cp,@!pp,@!dp,@!ap,@!bp:pointer;
   {objects being updated; |void| initially; |null| to suppress update}
-begin cp:=void; pp:=void; dp:=void; ap:=void; bp:=void;
+begin cp:=void; pp:=void; dp:=void; ap:=void; bp:=void; k:=null;
 while cur_cmd=with_option do
   begin t:=cur_mod;
   get_x_next;
@@ -20075,7 +20077,7 @@ any time we call |get_x_next|.
 function start_draw_cmd(@!sep:quarterword):pointer;
 var @!lhv:pointer; {variable to add to left}
 @!add_type:quarterword; {value to be returned in |last_add_type|}
-begin lhv:=null;@/
+begin lhv:=null; add_type:=0;
 get_x_next; var_flag:=sep; scan_primary;
 if cur_type<>token_list then
   @<Abandon edges command because there's no variable@>
@@ -23224,7 +23226,7 @@ var @!p:pointer; {the current graphical object}
 @!cur_fsize:array[font_number] of pointer; {current positions in |font_sizes|}
 @!ds,@!scf:scaled; {design size and scale factor for a text node}
 @!transformed:boolean; {is the coordinate system being transformed?}
-begin open_output_file;
+begin ldf:=null_font; open_output_file;
 non_ps_setting:=selector; selector:=ps_file_only;@/
 if (internal[prologues]=two)or(internal[prologues]=three) then begin
   @<Print improved initial comment and bounding box for edge structure~|h|@>;

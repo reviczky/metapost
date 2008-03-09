@@ -50,5 +50,9 @@ extern void remembersourceinfo P2H(strnumber, int);
 #else /* luaTeX */
 #ifdef pdfTeX
 #include <pdftexdir/pdftex.h>
+#else 
+#ifdef MP
+#include <mpdir/mplib.h>
+#endif /* MP */
 #endif /* pdfTeX */
 #endif /* luaTeX */

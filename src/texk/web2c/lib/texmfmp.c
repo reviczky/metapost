@@ -139,10 +139,12 @@ string translate_filename;
 string default_translate_filename;
 
 /* Needed for --src-specials option. */
+#ifndef MP
 static char *last_source_name;
 static int last_lineno;
 static boolean srcspecialsoption = false;
 static void parse_src_specials_option P1H(const_string);
+#endif
 
 /* The main body of the WEB is transformed into this procedure.  */
 extern TEXDLL void mainbody P1H(void);
@@ -1569,7 +1571,7 @@ getrandomseed()
 boolean
 input_line P1C(FILE *, f)
 {
-  int i;
+  int i = EOF;
 
   /* Recognize either LF or CR as a line terminator.  */
   last = first;
@@ -1861,6 +1863,7 @@ setupboundvariable P3C(integer *, var,  const_string, var_name,  integer, dflt)
 
 /* FIXME -- some (most?) of this can/should be moved to the Pascal/WEB side. */
 #if defined(TeX) || defined(MP) || defined(MF)
+#ifndef MP
 static void
 checkpoolpointer (poolpointer poolptr, size_t len)
 {
@@ -1870,8 +1873,9 @@ checkpoolpointer (poolpointer poolptr, size_t len)
     exit(1);
   }
 }
+#endif
 
-#if !defined(pdfTeX) && !defined(pdfeTeX)
+#if !defined(pdfTeX) && !defined(pdfeTeX) && !defined(MP)
 #ifndef XeTeX	/* XeTeX uses this from XeTeX_mac.c */
 static
 #endif
