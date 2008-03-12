@@ -1,5 +1,28 @@
-$Id: CHANGES,v 1.9 2005/08/24 10:54:02 taco Exp $
+$Id $
 By John Hobby and others.  Public domain (see README).
+
+----------------------------------------------------------------------
+What is new in the alpha release of MPlib (0.20.0):
+----------------------------------------------------------------------
+
+* Two bugs in MP 1.002 were fixed by Giuseppe Bilotta, both fixes
+  are about polygonals pens and will be included in the upcoming 
+  MP 1.003 release also.
+
+* It is now possible to ask for the envelope of a path drawn as 
+  traced by a (non-elliptical) pen:
+
+    path p,q;
+    p = fullcircle scaled 30;
+    q = envelope pensquare of p;
+   
+* There is a lua interface now, and it is already used by luatex. 
+
+  To play with this, currently the best solution is to fetch the 
+  0.25.0 beta of luatex: http://foundry.supelec.fr/projects/luatex
+  This embeds MPlib 0.25.0 as well as its documentation. 
+
+* Many bugs were fixed.
 
 ----------------------------------------------------------------------
 What is new in the alpha release of MPlib (0.10.0):

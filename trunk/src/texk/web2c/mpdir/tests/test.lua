@@ -25,7 +25,7 @@ function dorun (m, s)
   end
   if true and v.fig then
      for _,gs in ipairs(v.fig) do
-      -- print(gs:postscript())
+      print(gs:postscript())
 	   local b = gs:objects()
        for _,vv in ipairs(b) do
                   l = vv.path
@@ -47,11 +47,11 @@ local lines = {
  "q = (0,0){right}..(20,100)..(50,60)..(75,50)...(25,25);",
  "pickup pencircle scaled 2;",
  "beginfig(1); fill p withcolor (1,0,0); draw p dashed evenly; endfig;",
- [[for i=1 upto 1000 : beginfig(1);  for k:=1 upto 10 : draw fullcircle scaled (uniformdeviate(10mm)) ;
-endfor; endfig ;    endfor ;]],
+-- [[for i=1 upto 1000 : beginfig(1);  for k:=1 upto 10 : draw fullcircle scaled (uniformdeviate(10mm)) ;endfor; endfig ;    endfor ;]],
  [[beginfig(2); fill p withcolor (1,0,1); endfig;
    beginfig(3); draw q withcolor (0,1,1); endfig;]],
  "beginfig(4); label(\"stuff\", (0,0)); endfig;",
+ "beginfig(5); draw fullcircle scaled 100 withpen pencircle xscaled 20 yscaled 10 rotated 30 ; endfig;",
 }
 
 function finder (a,b,c)
