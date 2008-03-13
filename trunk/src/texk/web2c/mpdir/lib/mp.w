@@ -73,10 +73,10 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d banner "This is MetaPost, Version 1.002" /* printed when \MP\ starts */
-@d metapost_version "1.002"
-@d mplib_version "0.20"
-@d version_string " (Cweb version 0.20)"
+@d banner "This is MetaPost, Version 1.003" /* printed when \MP\ starts */
+@d metapost_version "1.003"
+@d mplib_version "0.25"
+@d version_string " (Cweb version 0.25)"
 
 @d true 1
 @d false 0
