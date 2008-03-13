@@ -938,9 +938,9 @@ mplib_push_transform (lua_State *L, struct mp_graphic_object *h ) {
     lua_rawseti(L,-2,i); i++;
     mplib_push_number(L,h->txx_field);
     lua_rawseti(L,-2,i); i++;
-    mplib_push_number(L,h->txy_field);
-    lua_rawseti(L,-2,i); i++;
     mplib_push_number(L,h->tyx_field);
+    lua_rawseti(L,-2,i); i++;
+    mplib_push_number(L,h->txy_field);
     lua_rawseti(L,-2,i); i++;
     mplib_push_number(L,h->tyy_field);
     lua_rawseti(L,-2,i); i++;
