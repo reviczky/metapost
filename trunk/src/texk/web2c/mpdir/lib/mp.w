@@ -21828,7 +21828,9 @@ mp_execute (MP mp) {
       mp->first=limit+1; 
       loc=start;
     }
-    mp_main_control(mp); /* come to life */ 
+	do {  
+      mp_do_statement(mp);
+    } while (mp->cur_cmd!=stop);
   }
   return mp->history;
 }
