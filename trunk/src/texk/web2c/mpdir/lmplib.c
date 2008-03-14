@@ -696,6 +696,26 @@ mplib_finish (lua_State *L) {
   return 1;
 }
 
+static int 
+mplib_statistics (lua_State *L) {
+  MP *mp_ptr = is_mp(L,1);
+  if (*mp_ptr!=NULL) {
+	lua_newtable(L);
+	lua_pushnumber(L, mp_memory_usage (*mp_ptr));
+	lua_setfield(L,-2,"main_memory");
+	lua_pushnumber(L, mp_hash_usage (*mp_ptr));
+	lua_setfield(L,-2,"hash_size");
+	lua_pushnumber(L, mp_param_usage (*mp_ptr));
+	lua_setfield(L,-2,"param_size");
+	lua_pushnumber(L, mp_open_usage (*mp_ptr));
+	lua_setfield(L,-2,"max_in_open");
+  } else {
+    lua_pushnil(L);
+  }
+  return 1;
+}
+
+
 /* figure methods */
 
 static int
@@ -1220,6 +1240,7 @@ static const struct luaL_reg mplib_gr_meta[] = {
 static const struct luaL_reg mplib_d [] = {
   {"execute",            mplib_execute },
   {"finish",             mplib_finish },
+  {"statistics",         mplib_statistics },
   {NULL, NULL}  /* sentinel */
 };
 

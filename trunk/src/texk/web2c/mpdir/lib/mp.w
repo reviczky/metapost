@@ -25901,6 +25901,28 @@ if ( mp->log_opened ) {
   wlog_ln(s);
 }
 
+@ It is nice to have have some of the stats available from the API.
+
+@<Exported function ...@>=
+int mp_memory_usage (MP mp );
+int mp_hash_usage (MP mp );
+int mp_param_usage (MP mp );
+int mp_open_usage (MP mp );
+
+@ @c
+int mp_memory_usage (MP mp ) {
+	return (int)mp->lo_mem_max+mp->mem_end-mp->hi_mem_min+2;
+}
+int mp_hash_usage (MP mp ) {
+  return (int)mp->st_count;
+}
+int mp_param_usage (MP mp ) {
+	return (int)mp->max_param_stack;
+}
+int mp_open_usage (MP mp ) {
+	return (int)mp->max_in_stack;
+}
+
 @ We get to the |final_cleanup| routine when \&{end} or \&{dump} has
 been scanned.
 
