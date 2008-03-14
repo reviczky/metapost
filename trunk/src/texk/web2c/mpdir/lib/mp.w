@@ -16042,7 +16042,7 @@ We have |job_name=NULL| if and only if the `\.{log}' file has not been opened,
 except of course for a short time just after |job_name| has become nonzero.
 
 @<Allocate or ...@>=
-mp->job_name=opt->job_name; 
+mp->job_name=mp_xstrdup(mp, opt->job_name); 
 mp->log_opened=false;
 
 @ @<Dealloc variables@>=
