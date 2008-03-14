@@ -216,6 +216,7 @@ if (!nokpse)
 
 @ @c 
 void *mpost_open_file(MP mp, char *fname, char *fmode, int ftype)  {
+  char realmode[3];
   char *s;
   if (ftype==mp_filetype_terminal) {
     return (fmode[0] == 'r' ? stdin : stdout);
@@ -224,7 +225,10 @@ void *mpost_open_file(MP mp, char *fname, char *fmode, int ftype)  {
   } else { 
     s = mpost_find_file (mp, fname, fmode, ftype);
     if (s!=NULL) {
-      return fopen(s,fmode);
+      realmode[0] = *fmode;
+	  realmode[1] = 'b';
+	  realmode[2] = 0;
+      return fopen(s,realmode);
     }
   }
   return NULL;
