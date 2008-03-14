@@ -18953,7 +18953,7 @@ void mp_bad_color_part(MP mp, quarterword c) {
     ("the cyanpart, magentapart, yellowpart or blackpart of a cmyk object, ")
     ("or the greypart of a grey object. No mixing and matching, please.");
   mp_error(mp);
-  if ((c==black_part) || (c==grey_part))
+  if (c==black_part)
     mp_flush_cur_exp(mp,unity);
   else
     mp_flush_cur_exp(mp,0);
