@@ -119,11 +119,6 @@ static const char *mplib_filetype_names[] =
 static const char *knot_type_enum[]  = 
   { "endpoint", "explicit", "given", "curl", "open", "end_cycle"  };
 
-/* this looks a bit funny because of the holes */
-
-static const char *color_model_enum[] = 
-  { NULL, "none",  NULL, "grey", NULL, "rgb", NULL, "cmyk", NULL, "uninitialized" };
-
 /* object fields */
 
 #define FIELD(A) (mplib_is_S(A,field))
@@ -939,41 +934,20 @@ mplib_push_color (lua_State *L, struct mp_graphic_object *p ) {
 	  set_color_objects(h);
 	}
     lua_newtable(L);
-    lua_pushstring(L,color_model_enum[object_color_model]);
-    lua_setfield(L,-2,"model");
-    if (object_color_model == mp_rgb_model ||
-	    object_color_model == mp_uninitialized_model) {
-      lua_newtable(L);
+	if (object_color_model >= mp_grey_model) {
       mplib_push_number(L,object_color_a);
       lua_rawseti(L,-2,1);
-      mplib_push_number(L,object_color_b);
-      lua_rawseti(L,-2,2);
-      mplib_push_number(L,object_color_c);
-      lua_rawseti(L,-2,3);
-      lua_setfield(L,-2,"rgb");
-    }
-
-    if (object_color_model == mp_cmyk_model ||
-	    object_color_model == mp_uninitialized_model) {
-      lua_newtable(L);
-      mplib_push_number(L,object_color_a);
-      lua_rawseti(L,-2,1);
-      mplib_push_number(L,object_color_b);
-      lua_rawseti(L,-2,2);
-      mplib_push_number(L,object_color_c);
-      lua_rawseti(L,-2,3);
-      mplib_push_number(L,object_color_d);
-      lua_rawseti(L,-2,4);
-      lua_setfield(L,-2,"cmyk");
-    }
-    if (object_color_model == mp_grey_model ||
- 	    object_color_model == mp_uninitialized_model) {
-      lua_newtable(L);
-      mplib_push_number(L,object_color_a);
-      lua_rawseti(L,-2,1);
-      lua_setfield(L,-2,"grey");
-    }
-    
+	}
+	if (object_color_model >= mp_rgb_model) {
+	  mplib_push_number(L,object_color_b);
+	  lua_rawseti(L,-2,2);
+	  mplib_push_number(L,object_color_c);
+	  lua_rawseti(L,-2,3);
+	}
+	if (object_color_model == mp_cmyk_model) {	
+	  mplib_push_number(L,object_color_d);
+	  lua_rawseti(L,-2,4);
+	}
   } else {
     lua_pushnil(L);
   }

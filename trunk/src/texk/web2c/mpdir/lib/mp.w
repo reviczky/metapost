@@ -25175,15 +25175,19 @@ void mp_ship_out (MP mp, pointer h) ;
 @ Once again, the |gr_XXXX| macros are defined in |mppsout.h|
 
 @d export_color(q,p) 
-  gr_color_model(q)  = color_model(p);
-  gr_cyan_val(q)     = cyan_val(p);
-  gr_magenta_val(q)  = magenta_val(p);
-  gr_yellow_val(q)   = yellow_val(p);
-  gr_black_val(q)    = black_val(p);
-  gr_red_val(q)      = red_val(p);
-  gr_green_val(q)    = green_val(p);
-  gr_blue_val(q)     = blue_val(p);
-  gr_grey_val(q)     = grey_val(p)
+  if ( color_model(p)==mp_uninitialized_model ) {
+    gr_color_model(q)  = (mp->internal[mp_default_color_model]>>16);
+    gr_cyan_val(q)     = 0;
+	gr_magenta_val(q)  = 0;
+	gr_yellow_val(q)   = 0;
+	gr_black_val(q)    = (gr_color_model(q)==mp_cmyk_model ? unity : 0);
+  } else {
+    gr_color_model(q)  = color_model(p);
+    gr_cyan_val(q)     = cyan_val(p);
+    gr_magenta_val(q)  = magenta_val(p);
+    gr_yellow_val(q)   = yellow_val(p);
+    gr_black_val(q)    = black_val(p);
+  }
 
 @d export_scripts(q,p)
   if (pre_script(p)!=null)  gr_pre_script(q)   = str(pre_script(p));

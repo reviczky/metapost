@@ -4851,10 +4851,8 @@ if ( gr_type(p)==mp_stroked_code ) {
     set_color_objects(pq);
   }
 
-  if ( (object_color_model==mp_rgb_model)||
-     ((object_color_model==mp_uninitialized_model)&&
-     ((mp->internal[mp_default_color_model]>>16)==mp_rgb_model)) ) {
-  if ( (gs_colormodel!=mp_rgb_model)||(gs_red!=object_color_a)||
+  if ( object_color_model==mp_rgb_model) {
+  	if ( (gs_colormodel!=mp_rgb_model)||(gs_red!=object_color_a)||
       (gs_green!=object_color_b)||(gs_blue!=object_color_c) ) {
       gs_red   = object_color_a;
       gs_green = object_color_b;
@@ -4869,23 +4867,14 @@ if ( gr_type(p)==mp_stroked_code ) {
         mp_ps_print_cmd(mp, " setrgbcolor", " R");
       }
     }
-  } else if ( (object_color_model==mp_cmyk_model)||
-     ((object_color_model==mp_uninitialized_model)&&
-     ((mp->internal[mp_default_color_model]>>16)==mp_cmyk_model)) ) {
+  } else if ( object_color_model==mp_cmyk_model) {
    if ( (gs_red!=object_color_a)||(gs_green!=object_color_b)||
       (gs_blue!=object_color_c)||(gs_black!=object_color_d)||
       (gs_colormodel!=mp_cmyk_model) ) {
-      if ( object_color_model==mp_uninitialized_model ) {
-        gs_red   = 0;
-        gs_green = 0;
-        gs_blue  = 0;
-        gs_black = unity;
-      } else {
-        gs_red   = object_color_a;
-        gs_green = object_color_b;
-        gs_blue  = object_color_c;
-        gs_black = object_color_d;
-      }
+      gs_red   = object_color_a;
+      gs_green = object_color_b;
+      gs_blue  = object_color_c;
+      gs_black = object_color_d;
       gs_colormodel=mp_cmyk_model;
       { ps_room(45);
         mp_ps_print_char(mp, ' ');
@@ -4899,9 +4888,7 @@ if ( gr_type(p)==mp_stroked_code ) {
         mp_ps_print_cmd(mp, " setcmykcolor"," C");
       }
     }
-  } else if ( (object_color_model==mp_grey_model)||
-    ((object_color_model==mp_uninitialized_model)&&
-     ((mp->internal[mp_default_color_model]>>16)==mp_grey_model)) ) {
+  } else if ( object_color_model==mp_grey_model ) {
    if ( (gs_red!=object_color_a)||(gs_colormodel!=mp_grey_model) ) {
       gs_red   = object_color_a;
       gs_green = -1;
