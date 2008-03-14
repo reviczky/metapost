@@ -16926,7 +16926,7 @@ begin
     ("the cyanpart, magentapart, yellowpart or blackpart of a cmyk object, ")@/
     ("or the greypart of a grey object. No mixing and matching, please.");
   error;
-  if (c=black_part)or(c=grey_part) then
+  if c=black_part then
     flush_cur_exp(unity)
   else
     flush_cur_exp(0);
