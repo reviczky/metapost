@@ -46,7 +46,6 @@ mplib_make_S(left_x);
 mplib_make_S(left_y);
 mplib_make_S(right_x);
 mplib_make_S(right_y);
-mplib_make_S(originator);
 
 mplib_make_S(color);
 mplib_make_S(dash);
@@ -76,7 +75,6 @@ void mplib_init_Ses(lua_State *L) {
   mplib_init_S(left_y);
   mplib_init_S(right_x);
   mplib_init_S(right_y);
-  mplib_init_S(originator);
 
   mplib_init_S(color);
   mplib_init_S(dash);
@@ -120,10 +118,6 @@ static const char *mplib_filetype_names[] =
 
 static const char *knot_type_enum[]  = 
   { "endpoint", "explicit", "given", "curl", "open", "end_cycle"  };
-
-static const char *knot_originator_enum[]  = 
-  { "program" ,"user" };
-
 
 /* this looks a bit funny because of the holes */
 
@@ -859,16 +853,19 @@ mplib_push_path (lua_State *L, struct mp_knot *h, int is_pen) {
   if (p!=NULL) {
     lua_newtable(L);
     do {  
-      lua_createtable(L,0,9);
-      mplib_push_S(originator);
-      lua_pushstring(L,knot_originator_enum[p->originator_field]);
-      lua_rawset(L,-3);
-      mplib_push_S(left_type);
-      lua_pushstring(L,(is_pen ? "explicit" : knot_type_enum[p->left_type_field]));
-      lua_rawset(L,-3);
-      mplib_push_S(right_type);
-      lua_pushstring(L,(is_pen ? "explicit" : knot_type_enum[p->right_type_field]));
-      lua_rawset(L,-3);
+      lua_createtable(L,0,6);
+	  if (!is_pen) {
+        if (p->left_type_field != mp_explicit) {
+		  mplib_push_S(left_type);
+		  lua_pushstring(L,knot_type_enum[p->left_type_field]);
+		  lua_rawset(L,-3);
+		}
+		if (p->right_type_field != mp_explicit) {
+		  mplib_push_S(right_type);
+		  lua_pushstring(L,knot_type_enum[p->right_type_field]);
+		  lua_rawset(L,-3);
+		}
+	  }
       mplib_push_S(x_coord);
       mplib_push_number(L,p->x_coord_field);
       lua_rawset(L,-3);
