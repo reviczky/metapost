@@ -2146,6 +2146,7 @@ void mp_warn (MP mp, char *msg) {
   mp_normalize_selector(mp);
   mp_print_nl(mp,"Warning: ");
   mp_print(mp,msg);
+  mp_print_ln(mp);
   mp->selector = saved_selector;
 }
 
@@ -11675,7 +11676,9 @@ CONTINUE:
     { 
       if ( mp->cur_t>=mp->max_t ){ 
         if ( mp->max_t==two ) { /* we've done 17 bisections */ 
-           mp->cur_t=halfp(mp->cur_t+1); mp->cur_tt=halfp(mp->cur_tt+1); return;
+           mp->cur_t=halfp(mp->cur_t+1); 
+	       mp->cur_tt=halfp(mp->cur_tt+1); 
+           return;
         }
         mp->max_t+=mp->max_t; mp->appr_t=mp->cur_t; mp->appr_tt=mp->cur_tt;
       }
@@ -16911,9 +16914,9 @@ proto-dependent cases.
     s=value_loc(q); /* now |link(s)=dep_list(q)| */
     while (1) { 
       r=link(s);
-      if ( info(r)==null ) break;;
+      if ( info(r)==null ) break;
       if ( info(r)!=p ) { 
-       s=r;
+        s=r;
       } else  { 
         t=type(q); link(s)=link(r); info(r)=q;
         if ( abs(value(r))>mp->max_c[t] ) {
@@ -16922,7 +16925,7 @@ proto-dependent cases.
           link(r)=mp->max_link[t]; mp->max_link[t]=r;
         }
       }
-    }   
+    } 
     q=link(r);
   }
   if ( (mp->max_c[mp_dependent]>0)||(mp->max_c[mp_proto_dependent]>0) ) {
@@ -16949,7 +16952,7 @@ pointer max_link[mp_proto_dependent+1]; /* other occurrences of |p| */
 
 @ @<Choose a dependent...@>=
 { 
-  if ( (mp->max_c[mp_dependent] / 010000 >= mp->max_c[mp_proto_dependent]) )
+  if ( (mp->max_c[mp_dependent] / 010000) >= mp->max_c[mp_proto_dependent] )
     t=mp_dependent;
   else 
     t=mp_proto_dependent;
@@ -25891,11 +25894,11 @@ if ( mp->log_opened ) {
   wlog_ln(s);
   snprintf(s,128," %i words of memory out of %i",
            (int)mp->lo_mem_max+mp->mem_end-mp->hi_mem_min+2,
-           (int)mp->mem_end+1);
+           (int)mp->mem_end);
   wlog_ln(s);
   snprintf(s,128," %i symbolic tokens out of %i", (int)mp->st_count, (int)mp->hash_size);
   wlog_ln(s);
-  snprintf(s,128," %ii, %in, %ip, %ib stack positions out of %ii, %in, %ip, %ib",
+  snprintf(s,128," %ii,%in,%ip,%ib stack positions out of %ii,%in,%ip,%ib",
            (int)mp->max_in_stack,(int)mp->int_ptr,
            (int)mp->max_param_stack,(int)mp->max_buf_stack+1,
            (int)mp->stack_size,(int)mp->max_internal,(int)mp->param_size,(int)mp->buf_size);
