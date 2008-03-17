@@ -1873,7 +1873,7 @@ int hexline_length;
 @d HEXLINE_WIDTH 64
 
 @<Set initial ...@>=
-mp->ps->hexline_length = HEXLINE_WIDTH;
+mp->ps->hexline_length = 0;
 
 @ 
 @d t1_prefix(s)        str_prefix(mp->ps->t1_line_array, s)
@@ -1889,7 +1889,7 @@ mp->ps->hexline_length = HEXLINE_WIDTH;
 
 @c
 static void end_hexline (MP mp) {
-  if (mp->ps->hexline_length == HEXLINE_WIDTH) {
+  if (mp->ps->hexline_length >= HEXLINE_WIDTH) {
     wps_cr; 
     mp->ps->hexline_length = 0;
   }
@@ -4668,6 +4668,7 @@ needed without wasting time and space setting them unnecessarily.
 @d gs_adj_wx     mp->ps->gs_state->adj_wx_field	     
 @d gs_miterlim   mp->ps->gs_state->miterlim_field    
 @d gs_dash_p     mp->ps->gs_state->dash_p_field	     
+@d gs_dash_init_done mp->ps->gs_state->dash_done_field
 @d gs_previous   mp->ps->gs_state->previous_field    
 @d gs_width      mp->ps->gs_state->width_field	     
 
@@ -4689,6 +4690,7 @@ typedef struct _gs_state {
    /* the value from the last \&{setmiterlimit} command */
   mp_dash_object * dash_p_field ;
    /* edge structure for last \&{setdash} command */
+  boolean dash_done_field ; /* to test for initial \&{setdash} */
   struct _gs_state * previous_field ;
    /* backlink to the previous |_gs_state| structure */
   scaled width_field ;
@@ -4738,6 +4740,7 @@ void mp_gs_unknown_graphics_state (MP mp,scaled c) ;
     gs_lcap=3;
     gs_miterlim=0;
     gs_dash_p=NULL;
+    gs_dash_init_done=false;
     gs_width=-1;
   } else if ( c==1 ) {
     p= mp->ps->gs_state;
@@ -5035,7 +5038,7 @@ Note that we don't use |delete_edge_ref| because |gs_dash_p| is not counted as
 a reference.
 
 @<Make sure \ps\ will use the right dash pattern for |dash_p(p)|@>=
-if ( gr_type(p)==mp_fill_code ) {
+if ( gr_type(p)==mp_fill_code || gr_dash_p(p) == NULL) {
   hh=NULL;
 } else { 
   hh=gr_dash_p(p);
@@ -5048,9 +5051,10 @@ if ( gr_type(p)==mp_fill_code ) {
   }
 }
 if ( hh==NULL ) {
-  if ( gs_dash_p!=NULL ) {
+  if ( gs_dash_p!=NULL || gs_dash_init_done == false) {
     mp_ps_print_cmd(mp, " [] 0 setdash"," rd");
     gs_dash_p=NULL;
+	gs_dash_init_done=true;
   }
 } else if ( ! mp_gr_same_dashes(gs_dash_p,hh) ) {
   @<Set the dash pattern from |dash_list(hh)| scaled by |scf|@>;
@@ -5098,8 +5102,8 @@ boolean mp_gr_same_dashes (mp_dash_object *h, mp_dash_object *hh) ;
 
 @c
 boolean mp_gr_same_dashes (mp_dash_object *h, mp_dash_object *hh) {
-  if ( (h==NULL)||(hh==NULL) ) return false;
-  else if ( h==hh ) return true;
+  if ( h==hh ) return true;
+  else if ( (h==NULL)||(hh==NULL) ) return false;
   else if ( h->scale_field!=hh->scale_field ) return false;
   else if ( h->offset_field!=hh->offset_field ) return false;
   else if ( h->array_field == hh->array_field) return true;
@@ -5111,9 +5115,11 @@ boolean mp_gr_same_dashes (mp_dash_object *h, mp_dash_object *hh) {
 @ @<Compare |dash_list(h)| and |dash_list(hh)|@>=
 {
   int i = 0; 
-  while ((h->array_field+i) == (hh->array_field+i)) i++;
-  if (*(h->array_field+i-1)==-1 && *(hh->array_field+i-1) == -1) 
-     return true;
+  while (*(h->array_field+i) == *(hh->array_field+i)) i++;
+  if (i>0) {
+    if (*(h->array_field+(i-1))==-1 && *(hh->array_field+(i-1)) == -1) 
+      return true;
+  }
 }
 
 @ When stroking a path with an elliptical pen, it is necessary to transform
