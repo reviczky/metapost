@@ -10156,7 +10156,6 @@ x1:=right_x(p)-x_coord(p); x2:=left_x(q)-right_x(p);
 x3:=x_coord(q)-left_x(q);@/
 y1:=right_y(p)-y_coord(p); y2:=left_y(q)-right_y(p);
 y3:=y_coord(q)-left_y(q);@/
-phi:=0;
 max:=abs(x1);
 if abs(x2)>max then max:=abs(x2);
 if abs(x3)>max then max:=abs(x3);
