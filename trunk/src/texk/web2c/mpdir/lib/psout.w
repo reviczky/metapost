@@ -5102,23 +5102,26 @@ boolean mp_gr_same_dashes (mp_dash_object *h, mp_dash_object *hh) ;
 
 @c
 boolean mp_gr_same_dashes (mp_dash_object *h, mp_dash_object *hh) {
-  if ( h==hh ) return true;
-  else if ( (h==NULL)||(hh==NULL) ) return false;
-  else if ( h->scale_field!=hh->scale_field ) return false;
-  else if ( h->offset_field!=hh->offset_field ) return false;
-  else if ( h->array_field == hh->array_field) return true;
-  else if ( h->array_field == NULL || hh->array_field == NULL) return false;
+  boolean ret=false;
+  int i = 0; 
+  if ( h==hh ) ret=true;
+  else if ( (h==NULL)||(hh==NULL) ) ret=false;
+  else if ( h->scale_field!=hh->scale_field ) ret=false;
+  else if ( h->offset_field!=hh->offset_field ) ret=false;
+  else if ( h->array_field == hh->array_field) ret=true;
+  else if ( h->array_field == NULL || hh->array_field == NULL) ret=false;
   else { @<Compare |dash_list(h)| and |dash_list(hh)|@>; }
-  return false;
+  return ret;
 }
 
 @ @<Compare |dash_list(h)| and |dash_list(hh)|@>=
 {
-  int i = 0; 
-  while (*(h->array_field+i) == *(hh->array_field+i)) i++;
+  while (*(h->array_field+i)!=-1 && 
+	     *(hh->array_field+i)!=-1 &&
+	     *(h->array_field+i) == *(hh->array_field+i)) i++;
   if (i>0) {
-    if (*(h->array_field+(i-1))==-1 && *(hh->array_field+(i-1)) == -1) 
-      return true;
+    if (*(h->array_field+(i))==-1 && *(hh->array_field+(i)) == -1) 
+      ret=true;
   }
 }
 
