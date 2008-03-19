@@ -1628,7 +1628,7 @@ by changing |wterm|, |wterm_ln|, and |wterm_cr| here.
 @d wlog(A)      do_fprintf(mp->log_file,(A))
 @d wlog_chr(A)  { unsigned char ss[2]; ss[0]=(A); ss[1]=0; do_fprintf(mp->log_file,(char *)ss); }
 @d wlog_cr      do_fprintf(mp->log_file, "\n")
-@d wlog_ln(A)   {wlog_cr; do_fprintf(mp->log_file,(A)); }
+@d wlog_ln(A)   { wlog_cr; do_fprintf(mp->log_file,(A)); }
 
 
 @ To end a line of text output, we call |print_ln|.  Cases |0..max_write_files|
@@ -6632,7 +6632,8 @@ void mp_clear_symbol (MP mp,pointer p, boolean saving) {
       if ( saving ) {
         name_type(q)=mp_saved_root;
       } else { 
-        mp_flush_below_variable(mp, q); mp_free_node(mp,q,value_node_size); 
+        mp_flush_below_variable(mp, q); 
+	    mp_free_node(mp,q,value_node_size); 
       }
     }
     break;
@@ -12054,10 +12055,10 @@ pointer mp_p_plus_fq ( MP mp, pointer p, integer f,
                       pointer q, small_number t, small_number tt) {
   pointer pp,qq; /* |info(p)| and |info(q)|, respectively */
   pointer r,s; /* for list manipulation */
-  integer mp_threshold; /* defines a neighborhood of zero */
+  integer threshold; /* defines a neighborhood of zero */
   integer v; /* temporary register */
-  if ( t==mp_dependent ) mp_threshold=fraction_threshold;
-  else mp_threshold=scaled_threshold;
+  if ( t==mp_dependent ) threshold=fraction_threshold;
+  else threshold=scaled_threshold;
   r=temp_head; pp=info(p); qq=info(q);
   while (1) {
     if ( pp==qq ) {
@@ -12086,7 +12087,7 @@ pointer mp_p_plus_fq ( MP mp, pointer p, integer f,
   if ( tt==mp_dependent ) v=value(p)+mp_take_fraction(mp, f,value(q));
   else v=value(p)+mp_take_scaled(mp, f,value(q));
   value(p)=v; s=p; p=link(p);
-  if ( abs(v)<mp_threshold ) {
+  if ( abs(v)<threshold ) {
     mp_free_node(mp, s,dep_node_size);
   } else {
     if ( (abs(v)>=coef_bound)  && mp->watch_coefs ) { 
@@ -12101,7 +12102,7 @@ pointer mp_p_plus_fq ( MP mp, pointer p, integer f,
 { 
   if ( tt==mp_dependent ) v=mp_take_fraction(mp, f,value(q));
   else v=mp_take_scaled(mp, f,value(q));
-  if ( abs(v)>halfp(mp_threshold) ) { 
+  if ( abs(v)>halfp(threshold) ) { 
     s=mp_get_node(mp, dep_node_size); info(s)=qq; value(s)=v;
     if ( (abs(v)>=coef_bound) && mp->watch_coefs ) { 
       type(qq)=independent_needing_fix; mp->fix_needed=true;
@@ -12118,10 +12119,10 @@ both of the same type~|t| (either |dependent| or |mp_proto_dependent|).
 @c pointer mp_p_plus_q (MP mp,pointer p, pointer q, small_number t) {
   pointer pp,qq; /* |info(p)| and |info(q)|, respectively */
   pointer r,s; /* for list manipulation */
-  integer mp_threshold; /* defines a neighborhood of zero */
+  integer threshold; /* defines a neighborhood of zero */
   integer v; /* temporary register */
-  if ( t==mp_dependent ) mp_threshold=fraction_threshold;
-  else mp_threshold=scaled_threshold;
+  if ( t==mp_dependent ) threshold=fraction_threshold;
+  else threshold=scaled_threshold;
   r=temp_head; pp=info(p); qq=info(q);
   while (1) {
     if ( pp==qq ) {
@@ -12131,11 +12132,13 @@ both of the same type~|t| (either |dependent| or |mp_proto_dependent|).
         @<Contribute a term from |p|, plus the
           corresponding term from |q|@>
       }
-    } else if ( value(pp)<value(qq) ) {
-      s=mp_get_node(mp, dep_node_size); info(s)=qq; value(s)=value(q);
-      q=link(q); qq=info(q); link(r)=s; r=s;
     } else { 
-      link(r)=p; r=p; p=link(p); pp=info(p);
+	  if ( value(pp)<value(qq) ) {
+        s=mp_get_node(mp, dep_node_size); info(s)=qq; value(s)=value(q);
+        q=link(q); qq=info(q); link(r)=s; r=s;
+      } else { 
+        link(r)=p; r=p; p=link(p); pp=info(p);
+      }
     }
   }
   value(p)=mp_slow_add(mp, value(p),value(q));
@@ -12147,7 +12150,7 @@ both of the same type~|t| (either |dependent| or |mp_proto_dependent|).
 { 
   v=value(p)+value(q);
   value(p)=v; s=p; p=link(p); pp=info(p);
-  if ( abs(v)<mp_threshold ) {
+  if ( abs(v)<threshold ) {
     mp_free_node(mp, s,dep_node_size);
   } else { 
     if ( (abs(v)>=coef_bound ) && mp->watch_coefs ) {
@@ -12170,16 +12173,16 @@ and |v_is_scaled=true|.
                          small_number t1, boolean v_is_scaled) {
   pointer r,s; /* for list manipulation */
   integer w; /* tentative coefficient */
-  integer mp_threshold;
+  integer threshold;
   boolean scaling_down;
-  if ( t0!=t1 ) scaling_down=true; else scaling_down=! v_is_scaled;
-  if ( t1==mp_dependent ) mp_threshold=half_fraction_threshold;
-  else mp_threshold=half_scaled_threshold;
+  if ( t0!=t1 ) scaling_down=true; else scaling_down=(!v_is_scaled);
+  if ( t1==mp_dependent ) threshold=half_fraction_threshold;
+  else threshold=half_scaled_threshold;
   r=temp_head;
   while ( info(p)!=null ) {    
     if ( scaling_down ) w=mp_take_fraction(mp, v,value(p));
     else w=mp_take_scaled(mp, v,value(p));
-    if ( abs(w)<=mp_threshold ) { 
+    if ( abs(w)<=threshold ) { 
       s=link(p); mp_free_node(mp, p,dep_node_size); p=s;
     } else {
       if ( abs(w)>=coef_bound ) { 
@@ -12206,11 +12209,11 @@ pointer mp_p_over_v (MP mp,pointer p, scaled v, small_number
   t0, small_number t1) {
   pointer r,s; /* for list manipulation */
   integer w; /* tentative coefficient */
-  integer mp_threshold;
+  integer threshold;
   boolean scaling_down;
   if ( t0!=t1 ) scaling_down=true; else scaling_down=false;
-  if ( t1==mp_dependent ) mp_threshold=half_fraction_threshold;
-  else mp_threshold=half_scaled_threshold;
+  if ( t1==mp_dependent ) threshold=half_fraction_threshold;
+  else threshold=half_scaled_threshold;
   r=temp_head;
   while ( info( p)!=null ) {
     if ( scaling_down ) {
@@ -12219,7 +12222,7 @@ pointer mp_p_over_v (MP mp,pointer p, scaled v, small_number
     } else {
       w=mp_make_scaled(mp, value(p),v);
     }
-    if ( abs(w)<=mp_threshold ) {
+    if ( abs(w)<=threshold ) {
       s=link(p); mp_free_node(mp, p,dep_node_size); p=s;
     } else { 
       if ( abs(w)>=coef_bound ) {
@@ -17033,12 +17036,16 @@ for (t=mp_dependent;t<=mp_proto_dependent;t++) {
     if ( t==mp_dependent ) { /* for safety's sake, we change |q| to |mp_proto_dependent| */
       if ( mp->cur_exp==q ) if ( mp->cur_type==mp_dependent )
         mp->cur_type=mp_proto_dependent;
-      dep_list(q)=mp_p_over_v(mp, dep_list(q),unity,mp_dependent,mp_proto_dependent);
-      type(q)=mp_proto_dependent; value(r)=mp_round_fraction(mp, value(r));
+      dep_list(q)=mp_p_over_v(mp, dep_list(q),unity,
+         mp_dependent,mp_proto_dependent);
+      type(q)=mp_proto_dependent; 
+      value(r)=mp_round_fraction(mp, value(r));
     }
     dep_list(q)=mp_p_plus_fq(mp, dep_list(q),
-      mp_make_scaled(mp, value(r),-v),s,mp_proto_dependent,mp_proto_dependent);
-    if ( dep_list(q)==mp->dep_final ) mp_make_known(mp, q,mp->dep_final);
+       mp_make_scaled(mp, value(r),-v),s,
+       mp_proto_dependent,mp_proto_dependent);
+    if ( dep_list(q)==mp->dep_final ) 
+       mp_make_known(mp, q,mp->dep_final);
     q=r; r=link(r); mp_free_node(mp, q,dep_node_size);
   }
 }
@@ -17318,7 +17325,7 @@ integer group_line; /* where a group began */
   save_boundary_item(p);
   do {  
     mp_do_statement(mp); /* ends with |cur_cmd>=semicolon| */
-  } while (! (mp->cur_cmd!=semicolon));
+  } while (mp->cur_cmd==semicolon);
   if ( mp->cur_cmd!=end_group ) {
     print_err("A group begun on line ");
 @.A group...never ended@>
@@ -17856,19 +17863,24 @@ RESTART:
 @.A secondary expression...@>
   mp_scan_primary(mp);
 CONTINUE: 
-  if ( mp->cur_cmd<=max_secondary_command )
-    if ( mp->cur_cmd>=min_secondary_command ) {
-      p=mp_stash_cur_exp(mp); c=mp->cur_mod; d=mp->cur_cmd;
-      if ( d==secondary_primary_macro ) { 
-        mac_name=mp->cur_sym; add_mac_ref(c);
-     }
-     mp_get_x_next(mp); mp_scan_primary(mp);
-     if ( d!=secondary_primary_macro ) {
-       mp_do_binary(mp, p,c);
-     } else  { 
-       mp_back_input(mp); mp_binary_mac(mp, p,c,mac_name);
-       decr(ref_count(c)); mp_get_x_next(mp); 
-       goto RESTART;
+  if ( mp->cur_cmd<=max_secondary_command &&
+       mp->cur_cmd>=min_secondary_command ) {
+    p=mp_stash_cur_exp(mp); 
+    c=mp->cur_mod; d=mp->cur_cmd;
+    if ( d==secondary_primary_macro ) { 
+      mac_name=mp->cur_sym; 
+      add_mac_ref(c);
+    }
+    mp_get_x_next(mp); 
+    mp_scan_primary(mp);
+    if ( d!=secondary_primary_macro ) {
+      mp_do_binary(mp, p,c);
+    } else { 
+      mp_back_input(mp); 
+      mp_binary_mac(mp, p,c,mac_name);
+      decr(ref_count(c)); 
+      mp_get_x_next(mp); 
+      goto RESTART;
     }
     goto CONTINUE;
   }
@@ -19843,7 +19855,13 @@ mp->eof_line=0;
 @ Finally, we have the operations that combine a capsule~|p|
 with the current expression.
 
+@d binary_return  { mp_finish_binary(mp, old_p, old_exp); return; }
+
 @c @<Declare binary action procedures@>;
+void mp_finish_binary (MP mp, pointer old_p, pointer old_exp ){
+  check_arith; 
+  @<Recycle any sidestepped |independent| capsules@>;
+}
 void mp_do_binary (MP mp,pointer p, quarterword c) {
   pointer q,r,rr; /* for list manipulation */
   pointer old_p,old_exp; /* capsules to recycle */
@@ -19862,8 +19880,7 @@ void mp_do_binary (MP mp,pointer p, quarterword c) {
   }; /* there are no other cases */
   mp_recycle_value(mp, p); 
   mp_free_node(mp, p,value_node_size); /* |return| to avoid this */
-  check_arith; 
-  @<Recycle any sidestepped |independent| capsules@>;
+  mp_finish_binary(mp, old_p, old_exp);
 }
 
 @ @<Declare binary action...@>=
@@ -20184,7 +20201,8 @@ case times:
   } else if ( (mp_nice_color_or_pair(mp, p,type(p))&&(mp->cur_type>mp_pair_type))
       ||(mp_nice_color_or_pair(mp, mp->cur_exp,mp->cur_type)&&
           (type(p)>mp_pair_type)) ) {
-    mp_hard_times(mp, p); return;
+    mp_hard_times(mp, p); 
+    binary_return;
   } else {
     mp_bad_binary(mp, p,times);
   }
@@ -20199,7 +20217,8 @@ case times:
   }
   if ( mp->cur_type==mp_known ) {
     mp->cur_exp=mp_take_scaled(mp, mp->cur_exp,v);
-  } else if ( (mp->cur_type==mp_pair_type)||(mp->cur_type==mp_color_type)||
+  } else if ( (mp->cur_type==mp_pair_type)||
+              (mp->cur_type==mp_color_type)||
               (mp->cur_type==mp_cmykcolor_type) ) {
     p=value(mp->cur_exp)+mp->big_node_size[mp->cur_type];
     do {  
@@ -20208,7 +20227,7 @@ case times:
   } else {
     mp_dep_mult(mp, null,v,true);
   }
-  return;
+  binary_return;
 }
 
 @ @<Declare binary action...@>=
@@ -20330,7 +20349,7 @@ case over:
         mp_dep_div(mp, null,v);
       }
     }
-    return;
+    binary_return;
   }
   break;
 
@@ -20375,16 +20394,16 @@ case rotated_by: case slanted_by:
 case scaled_by: case shifted_by: case transformed_by:
 case x_scaled: case y_scaled: case z_scaled:
   if ( type(p)==mp_path_type ) { 
-    path_trans(c,p); return;
+    path_trans(c,p); binary_return;
   } else if ( type(p)==mp_pen_type ) { 
     pen_trans(c,p);
     mp->cur_exp=mp_convex_hull(mp, mp->cur_exp); 
       /* rounding error could destroy convexity */
-    return;
+    binary_return;
   } else if ( (type(p)==mp_pair_type)||(type(p)==mp_transform_type) ) {
     mp_big_trans(mp, p,c);
   } else if ( type(p)==mp_picture_type ) {
-    mp_do_edges_trans(mp, p,c); return;
+    mp_do_edges_trans(mp, p,c); binary_return;
   } else {
     mp_bad_binary(mp, p,c);
   }
@@ -21186,7 +21205,7 @@ case intersect:
 case in_font:
   if ( (mp->cur_type!=mp_string_type)||(type(p)!=mp_string_type)) 
     mp_bad_binary(mp, p,in_font);
-  else { mp_do_infont(mp, p); return; }
+  else { mp_do_infont(mp, p); binary_return; }
   break;
 
 @ Function |new_text_node| owns the reference count for its second argument
