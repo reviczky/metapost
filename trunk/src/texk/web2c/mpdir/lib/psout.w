@@ -5100,13 +5100,15 @@ boolean mp_gr_same_dashes (mp_dash_object *h, mp_dash_object *hh) ;
 
 @ This function test if |h| and |hh| represent the same dash pattern.
 
+The |scale_field| is ignored in this test because it is not really
+a property of the PostScript format of a dash pattern.
+
 @c
 boolean mp_gr_same_dashes (mp_dash_object *h, mp_dash_object *hh) {
   boolean ret=false;
   int i = 0; 
   if ( h==hh ) ret=true;
   else if ( (h==NULL)||(hh==NULL) ) ret=false;
-  else if ( h->scale_field!=hh->scale_field ) ret=false;
   else if ( h->offset_field!=hh->offset_field ) ret=false;
   else if ( h->array_field == hh->array_field) ret=true;
   else if ( h->array_field == NULL || hh->array_field == NULL) ret=false;
