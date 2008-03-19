@@ -149,6 +149,7 @@ portions of the program heading.
 Actually the heading shown here is not quite normal: The |program| line
 does not mention any |output| file, because \ph\ would ask the \MP\ user
 to specify a file name if |output| were specified here.
+@:PASCAL H}{\ph@>
 @^system dependencies@>
 
 @d mtype==t@&y@&p@&e {this is a \.{WEB} coding trick:}
@@ -235,6 +236,7 @@ directives shown below specify full checking and inclusion of the \PASCAL\
 debugger when \MP\ is being debugged, but they cause range checking and other
 redundant code to be eliminated when the production system is being generated.
 Arithmetic overflow will be detected in all cases.
+@:PASCAL H}{\ph@>
 @^system dependencies@>
 @^Overflow in arithmetic@>
 
@@ -270,6 +272,7 @@ if the compiler wants one. (Of course, if no default mechanism is
 available, the |case| statements of \MP\ will have to be laboriously
 extended by listing all remaining cases. People who are stuck with such
 \PASCAL s have, in fact, done this, successfully but not happily!)
+@:PASCAL H}{\ph@>
 
 @d othercases == others: {default for cases not listed explicitly}
 @d endcases == @+end {follows the default case in an extended |case| statement}
@@ -738,6 +741,7 @@ begin rewrite(f,name_of_file,'/O'); w_open_out:=rewrite_OK(f);
 end;
 
 @ Files can be closed with the \ph\ routine `|close(f)|', which
+@:PASCAL H}{\ph@>
 @^system dependencies@>
 should be used when all input or output with respect to |f| has been completed.
 This makes |f| available to be opened again, if desired; and if |f| was used for
@@ -843,6 +847,7 @@ is considered an output file the file variable is |term_out|.
 
 @ Here is how to open the terminal files
 in \ph. The `\.{/I}' switch suppresses the first |get|.
+@:PASCAL H}{\ph@>
 @^system dependencies@>
 
 @d t_open_in==reset(term_in,'TTY:','/O/I') {open the terminal for text input}
@@ -860,6 +865,7 @@ issue an unexpected error message). The third, |wake_up_terminal|,
 is supposed to revive the terminal if the user has disabled it by
 some instruction to the operating system.  The following macros show how
 these operations can be specified in \ph:
+@:PASCAL H}{\ph@>
 @^system dependencies@>
 
 @d update_terminal == break(term_out) {empty the terminal output buffer}
@@ -995,6 +1001,7 @@ integers lie in the range |-128..127|. To accommodate such systems
 we access the string pool via macros that can easily be redefined.
 When accessing character dimensions for the \&{infont} operator, an explicit
 offset is used to convert from |pool_ASCII_code| to |ASCII_code|.
+@^system dependencies@>
 
 @d si(#) == # {convert from |ASCII_code| to |pool_ASCII_code|}
 @d so(#) == # {convert from |pool_ASCII_code| to |ASCII_code|}
@@ -2208,6 +2215,7 @@ or zero.
 desirable to avoid producing multiple error messages in case of arithmetic
 overflow. So the routines below set the global variable |arith_error| to |true|
 instead of reporting errors directly to the user.
+@^overflow in arithmetic@>
 
 @<Glob...@>=
 @!arith_error:boolean; {has arithmetic overflow occurred recently?}
@@ -2441,7 +2449,7 @@ var @!p:integer; {the fraction so far}
 @!negative:boolean; {should the result be negated?}
 @!n:integer; {additional multiple of $q$}
 @!be_careful:integer; {disables certain compiler optimizations}
-begin @<Reduce to the case that |f>=0| and |q>0|@>;
+begin @<Reduce to the case that |f>=0| and |q>=0|@>;
 if f<fraction_one then n:=0
 else  begin n:=f div fraction_one; f:=f mod fraction_one;
   if q<=el_gordo div n then n:=n*q
@@ -2458,7 +2466,7 @@ if negative then take_fraction:=-(n+p)
 else take_fraction:=n+p;
 end;
 
-@ @<Reduce to the case that |f>=0| and |q>0|@>=
+@ @<Reduce to the case that |f>=0| and |q>=0|@>=
 if f>=0 then negative:=false
 else  begin negate(f); negative:=true;
   end;
@@ -2497,7 +2505,7 @@ var @!p:integer; {the fraction so far}
 @!negative:boolean; {should the result be negated?}
 @!n:integer; {additional multiple of $q$}
 @!be_careful:integer; {disables certain compiler optimizations}
-begin @<Reduce to the case that |f>=0| and |q>0|@>;
+begin @<Reduce to the case that |f>=0| and |q>=0|@>;
 if f<unity then n:=0
 else  begin n:=f div unity; f:=f mod unity;
   if q<=el_gordo div n then n:=n*q
@@ -3403,7 +3411,7 @@ relevant size when a node is freed. Locations greater than or equal to
 \.{AVAIL} stack is used for allocation in this region.
 
 Locations of |mem| between |mem_min| and |mem_top| may be dumped as part
-of preloaded format files, by the \.{INIMP} preprocessor.
+of preloaded mem files, by the \.{INIMP} preprocessor.
 @.INIMP@>
 Production versions of \MP\ may extend the memory at the top end in order to
 provide more space; these locations, between |mem_top| and |mem_max|,
@@ -3681,7 +3689,6 @@ appear in locations |hi_mem_stat_min| through |mem_top|, inclusive.
 when \MP\ is initializing itself the slow way.
 
 @<Initialize table entries (done by \.{INIMP} only)@>=
-@^data structure assumptions@>
 rover:=lo_mem_stat_max+1; {initialize the dynamic memory}
 link(rover):=empty_flag;
 node_size(rover):=1000; {which is a 1000-word available node}
@@ -3918,7 +3925,7 @@ At any rate, here is the list, for future reference.
 @d mpx_break=3 {stop reading an \.{MPX} file (\&{mpxbreak})}
 @d max_pre_command=mpx_break
 @d if_test=4 {conditional text (\&{if})}
-@d fi_or_else=5 {delimiters for conditionals (\&{elseif}, \&{else}, \&{fi}}
+@d fi_or_else=5 {delimiters for conditionals (\&{elseif}, \&{else}, \&{fi})}
 @d input=6 {input a source file (\&{input}, \&{endinput})}
 @d iteration=7 {iterate (\&{for}, \&{forsuffixes}, \&{forever}, \&{endfor})}
 @d repeat_loop=8 {special command substituted for \&{endfor}}
@@ -3947,7 +3954,7 @@ At any rate, here is the list, for future reference.
 @d special_command=30 {output special info (\&{special})
                        or font map info (\&{fontmapfile}, \&{fontmapline})}
 @d write_command=31 {write text to a file (\&{write})}
-@d type_name=32 {declare a type (\&{numeric}, \&{pair}, etc.}
+@d type_name=32 {declare a type (\&{numeric}, \&{pair}, etc.)}
 @d max_statement_command=type_name
 @d min_primary_command=type_name
 @d left_delimiter=33 {the left delimiter of a matching pair}
@@ -4003,7 +4010,7 @@ At any rate, here is the list, for future reference.
 @d until_token=73 {the operator `\&{until}'}
 @d within_token=74 {the operator `\&{within}'}
 @d lig_kern_token=75
-  {the operators `\&{kern}' and `\.{=:}' and `\.{=:\char'174}, etc.}
+  {the operators `\&{kern}' and `\.{=:}' and `\.{=:\char'174}', etc.}
 @d assignment=76 {the operator `\.{:=}'}
 @d skip_to=77 {the operation `\&{skipto}'}
 @d bchar_label=78 {the operator `\.{\char'174\char'174:}'}
@@ -4355,7 +4362,7 @@ fuss with. Every such parameter has an identifying code number, defined here.
 @d tracing_lost_chars=11 {show characters that aren't \&{infont}}
 @d tracing_online=12 {show long diagnostics on terminal and in the log file}
 @d year=13 {the current year (e.g., 1984)}
-@d month=14 {the current month (e.g, 3 $\equiv$ March)}
+@d month=14 {the current month (e.g., 3 $\equiv$ March)}
 @d day=15 {the current day of the month}
 @d time=16 {the number of minutes past midnight when this job started}
 @d char_code=17 {the number of the next character to be output}
@@ -5221,9 +5228,8 @@ present, we shall refer to the |info| field of this special node as the
 @^reference counts@>
 
 The next node or nodes after the reference count serve to describe the
-formal parameters. They either contain a code word that specifies all
-of the parameters, or they contain zero or more parameter tokens followed
-by the code `|general_macro|'.
+formal parameters. They consist of zero or more parameter tokens followed
+by a code for the type of macro.
 
 @d ref_count==info
   {reference count preceding a macro definition or picture header}
@@ -5278,7 +5284,7 @@ exit:end;
 The variables of \MP\ programs can be simple, like `\.x', or they can
 combine the structural properties of arrays and records, like `\.{x20a.b}'.
 A \MP\ user assigns a type to a variable like \.{x20a.b} by saying, for
-example, `\.{boolean} \.{x20a.b}'. It's time for us to study how such
+example, `\.{boolean} \.{x[]a.b}'. It's time for us to study how such
 things are represented inside of the computer.
 
 Each variable value occupies two consecutive words, either in a two-word
@@ -5323,7 +5329,8 @@ final attribute node links to the constant |end_attr|, whose |attr_loc|
 field is greater than any legal hash address. The |attr_head| in the
 parent points to a node whose |name_type| is |structured_root|; this
 node represents the null attribute, i.e., the variable that is relevant
-when no attributes are attached to the parent. The |attr_head| node is either
+when no attributes are attached to the parent. The |attr_head| node 
+has the fields of either
 a value node, a subscript node, or an attribute node, depending on what
 the parent would be if it were not structured; but the subscript and
 attribute fields are ignored, so it effectively contains only the data of
@@ -5362,9 +5369,10 @@ a pencil to draw a diagram.) The lone variable `\.x' is represented by
 to an attribute node representing `\.{x[]}'. Thus |name_type(q1)=attr|,
 |attr_loc(q1)=collective_subscript=0|, |parent(q1)=p|,
 |type(q1)=structured|, |attr_head(q1)=qq|, and |subscr_head(q1)=qq1|;
-|qq| is a value node with |type(qq)=numeric_type| (assuming that \.{x5} is
-numeric, because |qq| represents `\.{x[]}' with no further attributes),
-|name_type(qq)=structured_root|, and
+|qq| is a  three-word ``attribute-as-value'' node with |type(qq)=numeric_type|
+(assuming that \.{x5} is numeric, because |qq| represents `\.{x[]}' 
+with no further attributes), |name_type(qq)=structured_root|, 
+|attr_loc(qq)=0|, |parent(qq)=p|, and
 |link(qq)=qq1|. (Now pay attention to the next part.) Node |qq1| is
 an attribute node representing `\.{x[][]}', which has never yet
 occurred; its |type| field is |undefined|, and its |value| field is
@@ -5858,7 +5866,7 @@ defined_macro,secondary_primary_macro,tertiary_secondary_macro,
 tag_token:if q<>null then
   if saving then name_type(q):=saved_root
   else  begin flush_below_variable(q); free_node(q,value_node_size);
-    end;
+    end;@;
 othercases do_nothing
 endcases;@/
 eqtb[p]:=eqtb[frozen_undefined];
@@ -5884,7 +5892,7 @@ until the most recent such entry has been removed.
 \smallskip\hang
 |info(p)=q|, where |1<=q<=hash_end|, means that |mem[p+1]| holds the former
 contents of |eqtb[q]|. Such save stack entries are generated by \&{save}
-commands or suitable \&{interim} commands.
+commands.
 
 \smallskip\hang
 |info(p)=hash_end+q|, where |q>0|, means that |value(p)| is a |scaled|
@@ -6042,7 +6050,7 @@ the knot, and to \\{left} fields instead of \\{right} fields.
 Non-|explicit| control points will be chosen based on ``tension'' parameters
 in the |left_tension| and |right_tension| fields. The
 `\&{atleast}' option is represented by negative tension values.
-@!@:at_least_}{\&{atleast} primitive@>
+@:at_least_}{\&{atleast} primitive@>
 
 For example, the \MP\ path specification
 $$\.{z0..z1..tension atleast 1..\{curl 2\}z2..z3\{-1,-2\}..tension
@@ -6178,9 +6186,6 @@ if (left_type(p)<>explicit)and(left_type(p)<>open) then
 
 @ A curl of 1 is shown explicitly, so that the user sees clearly that
 \MP's default curl is present.
-
-The code here uses the fact that |left_curl==left_given| and
-|right_curl==right_given|.
 
 @<Print information for a curve that begins |curl|...@>=
 begin if left_type(p)=open then print("??"); {can't happen}
@@ -6451,7 +6456,7 @@ have been given for $0<k<n$, and it will be convenient to introduce
 equations of the same form for $k=0$ and $k=n$, where
 $$A_0=B_0=C_n=D_n=0.$$
 If $\theta_0$ is supposed to have a given value $E_0$, we simply
-define $C_0=0$, $D_0=0$, and $R_0=E_0$. Otherwise a curl
+define $C_0=1$, $D_0=0$, and $R_0=E_0$. Otherwise a curl
 parameter, $\gamma_0$, has been specified at~$z_0$; this means
 that the mock curvature at $z_0$ should be $\gamma_0$ times the
 mock curvature at $z_1$; i.e.,
@@ -6871,7 +6876,6 @@ end;
 $\\{ss}\L\sin\theta\,/\sin(\theta+\phi)$ are to be enforced if $\sin\theta$,
 $\sin\phi$, and $\sin(\theta+\phi)$ all have the same sign. Otherwise
 there is no ``bounding triangle.''
-@!@:at_least_}{\&{atleast} primitive@>
 
 @<Decrease the velocities, if necessary...@>=
 if((st>=0)and(sf>=0))or((st<=0)and(sf<=0)) then
@@ -9486,7 +9490,7 @@ begins to fail.
 
 @<Compute test coefficients |(t0,t1,t2)| for $d(t)$ versus...@>=
 du:=x_coord(ww)-x_coord(w); dv:=y_coord(ww)-y_coord(w);
-if abs(du)>=abs(dv) then
+if abs(du)>=abs(dv) then {$s_{k-1}\le1$ or $s_k\le1$}
   begin s:=make_fraction(dv,du);
   t0:=take_fraction(x0,s)-y0;
   t1:=take_fraction(x1,s)-y1;
@@ -9502,7 +9506,8 @@ else  begin s:=make_fraction(du,dv);
 if t0<0 then t0:=0 {should be positive without rounding error}
 
 @ The curve has crossed $d_k$ or $d_{k-1}$; its initial segment satisfies
-$(*)$, and it might cross again, yielding another solution of $(*)$.
+$(*)$, and it might cross again and return towards $s_{k-1}$ or $s_k$,
+respectively, yielding another solution of $(*)$.
 
 @<Split the cubic at $t$, and split off another...@>=
 begin split_cubic(p,t); p:=link(p); info(p):=zero_off+rise;
@@ -10123,7 +10128,7 @@ else  begin y:=make_fraction(y,abs(x));
   end
 
 @ Since we're interested in the tangent directions, we work with the
-derivative $${\textstyle1\over3}B'(x_0,x_1,x_2,x_3;t)=
+derivative $${1\over3}B'(x_0,x_1,x_2,x_3;t)=
 B(x_1-x_0,x_2-x_1,x_3-x_2;t)$$ instead of
 $B(x_0,x_1,x_2,x_3;t)$ itself. The derived coefficients are also scaled up
 in order to achieve better accuracy.
@@ -10293,7 +10298,7 @@ overlap if and only if $u\submin\L x\submax$ and
 $x\submin\L u\submax$. Letting
 $$U\submin=\min(0,U_1,U_1+U_2,U_1+U_2+U_3),\;
   U\submax=\max(0,U_1,U_1+U_2,U_1+U_2+U_3),$$
-we have $u\submin=2^lu_0+U\submin$, etc.; the condition for overlap
+we have $2^lu\submin=2^lu_0+U\submin$, etc.; the condition for overlap
 reduces to
 $$X\submin-U\submax\L 2^l(u_0-x_0)\L X\submax-U\submin.$$
 Thus we want to maintain the quantity $2^l(u_0-x_0)$; similarly,
@@ -10500,13 +10505,14 @@ split |cubic_intersection| up into two procedures.
 
 @<Glob...@>=
 @!delx,@!dely:integer; {the components of $\Delta=2^l(w_0-z_0)$}
-@!tol:integer; {bound on the uncertainly in the overlap test}
+@!tol:integer; {bound on the uncertainty in the overlap test}
 @!uv,@!xy:0..bistack_size; {pointers to the current packets of interest}
 @!three_l:integer; {|tol_step| times the bisection level}
 @!appr_t,@!appr_tt:integer; {best approximations known to the answers}
 
 @ We shall assume that the coordinates are sufficiently non-extreme that
 integer overflow will not occur.
+@^overflow in arithmetic@>
 
 @<Initialize for intersections at level zero@>=
 q:=link(p); qq:=link(pp); bisect_ptr:=int_packets;@/
@@ -10557,8 +10563,8 @@ not_found: if odd(cur_tt) then
       +stack_3(u_packet(uv));
     dely:=dely+stack_1(v_packet(uv))+stack_2(v_packet(uv))
       +stack_3(v_packet(uv));
-    uv:=uv+int_packets; {switch from |l_packet| to |r_packet|}
-    decr(cur_tt); xy:=xy-int_packets; {switch from |r_packet| to |l_packet|}
+    uv:=uv+int_packets; {switch from |l_packets| to |r_packets|}
+    decr(cur_tt); xy:=xy-int_packets; {switch from |r_packets| to |l_packets|}
     delx:=delx+stack_1(x_packet(xy))+stack_2(x_packet(xy))
       +stack_3(x_packet(xy));
     dely:=dely+stack_1(y_packet(xy))+stack_2(y_packet(xy))
@@ -10569,7 +10575,7 @@ else  begin incr(cur_tt); tol:=tol+three_l;
     -stack_3(x_packet(xy));
   dely:=dely-stack_1(y_packet(xy))-stack_2(y_packet(xy))
     -stack_3(y_packet(xy));
-  xy:=xy+int_packets; {switch from |l_packet| to |r_packet|}
+  xy:=xy+int_packets; {switch from |l_packets| to |r_packets|}
   end
 
 @ @<Descend to the previous level...@>=
@@ -10668,11 +10674,10 @@ The next patch detects overflow of independent-variable serial
 numbers. Diagnosed and patched by Thorsten Dahlheimer.
 
 @d s_scale=64 {the serial numbers are multiplied by this factor}
-@d max_indep_vars==@'177777777 {$2^{25}-1$}
-@d max_serial_no==@'17777777700 {|max_indep_vars*s_scale|}
 @d new_indep(#)== {create a new independent variable}
-  begin if serial_no=max_serial_no then
-    overflow("independent variables",max_indep_vars);
+  begin if serial_no>el_gordo-s_scale then
+      overflow("independent variables",serial_no div s_scale);
+@:METAPOST capacity exceeded independent variables}{\quad independent variables@>
   type(#):=independent; serial_no:=serial_no+s_scale;
   value(#):=serial_no;
   end
@@ -12342,8 +12347,8 @@ fin_numeric_token:@<Pack the numeric and fraction parts of a numeric token
 found: cur_sym:=id_lookup(k,loc-k);
 end
 
-@ We go to |restart| instead of to |switch|, because |state| might equal
-|token_list| after the error has been dealt with
+@ We go to |restart| instead of to |switch|, because we might enter
+|token_state| after the error has been dealt with
 (cf.\ |clear_for_error_prompt|).
 
 @<Decry the invalid...@>=
@@ -12750,7 +12755,7 @@ it makes sense to have most of the work done by a single subroutine. That
 subroutine is called |scan_toks|.
 
 The first parameter to |scan_toks| is the command code that will
-terminate scanning (either |macro_def|, |loop_repeat|, or |iteration|).
+terminate scanning (either |macro_def| or |iteration|).
 
 The second parameter, |subst_list|, points to a (possibly empty) list
 of two-word nodes whose |info| and |value| fields specify symbol tokens
@@ -13407,7 +13412,7 @@ if (cur_cmd<>right_delimiter)or(cur_mod<>l_delim) then
     back_error;
     end
 
-@ A \&{suffix} or \&{text} parameter will be have been scanned as
+@ A \&{suffix} or \&{text} parameter will have been scanned as
 a token list pointed to by |cur_exp|, in which case we will have
 |cur_type=token_list|.
 
@@ -14067,7 +14072,7 @@ of three system-dependent
 procedures called |begin_name|, |more_name|, and |end_name|. In
 essence, if the user-specified characters of the file name are $c_1\ldots c_n$,
 the system-independent driver program does the operations
-$$|begin_name|;\,|more_name|(c_1);\,\ldots\,;|more_name|(c_n);
+$$|begin_name|;\,|more_name|(c_1);\,\ldots\,;\,|more_name|(c_n);
 \,|end_name|.$$
 These three procedures communicate with each other via global variables.
 Afterwards the file name will appear in the string pool as three strings
@@ -14741,8 +14746,8 @@ or |false_code|.
 
 \smallskip\hang
 |cur_type=unknown_boolean| means that |cur_exp| points to a capsule
-node that is in the ring of variables equivalent
-to at least one undefined boolean variable.
+node that is in 
+a ring of equivalent booleans whose value has not yet been defined.
 
 \smallskip\hang
 |cur_type=string_type| means that |cur_exp| is a string number (i.e., an
@@ -14751,8 +14756,8 @@ includes this particular reference.
 
 \smallskip\hang
 |cur_type=unknown_string| means that |cur_exp| points to a capsule
-node that is in the ring of variables equivalent
-to at least one undefined string variable.
+node that is in
+a ring of equivalent strings whose value has not yet been defined.
 
 \smallskip\hang
 |cur_type=pen_type| means that |cur_exp| points to a node in a pen.  Nobody
@@ -14761,8 +14766,8 @@ elliptical.
 
 \smallskip\hang
 |cur_type=unknown_pen| means that |cur_exp| points to a capsule
-node that is in the ring of variables equivalent
-to at least one undefined pen variable.
+node that is in
+a ring of equivalent pens whose value has not yet been defined.
 
 \smallskip\hang
 |cur_type=path_type| means that |cur_exp| points to a the first node of
@@ -14771,8 +14776,8 @@ the path will have been chosen.
 
 \smallskip\hang
 |cur_type=unknown_path| means that |cur_exp| points to a capsule
-node that is in the ring of variables equivalent
-to at least one undefined path variable.
+node that is in
+a ring of equivalent paths whose value has not yet been defined.
 
 \smallskip\hang
 |cur_type=picture_type| means that |cur_exp| points to an edge header node.
@@ -14781,8 +14786,8 @@ contains a reference count that includes this particular reference.
 
 \smallskip\hang
 |cur_type=unknown_picture| means that |cur_exp| points to a capsule
-node that is in the ring of variables equivalent
-to at least one undefined picture variable.
+node that is in
+a ring of equivalent pictures whose value has not yet been defined.
 
 \smallskip\hang
 |cur_type=transform_type| means that |cur_exp| points to a |transform_type|
@@ -14829,8 +14834,7 @@ example, in the expression
 
 \smallskip\hang
 |cur_type=token_list| means that |cur_exp| points to a linked list of
-tokens. This case arises only on the left-hand side of an assignment
-(`\.{:=}') operation, under very special circumstances.
+tokens. 
 
 \smallskip\noindent
 The possible settings of |cur_type| have been listed here in increasing
@@ -14840,9 +14844,9 @@ are allowed.  Conversely, \MP\ has no variables of type |vacuous| or
 |token_list|.
 
 @ Capsules are two-word nodes that have a similar meaning
-to |cur_type| and |cur_exp|. Such nodes have |name_type=capsule|
-and |link<=void|; and their |type| field is one of the possibilities for
-|cur_type| listed above.
+to |cur_type| and |cur_exp|. Such nodes have |name_type=capsule|,
+and their |type| field is one of the possibilities for |cur_type| listed above.
+Also |link<=void| in capsules that aren't part of a token list.
 
 The |value| field of a capsule is, in most cases, the value that
 corresponds to its |type|, as |cur_exp| corresponds to |cur_type|.
@@ -14927,6 +14931,7 @@ output. If it is~0, dependency lists will be abbreviated to
 `\.{linearform}' unless they consist of a single term.  If it is greater
 than~1, complicated structures (pens, pictures, and paths) will be displayed
 in full.
+@.linearform@>
 
 @<Declare subroutines for printing expressions@>=
 @t\4@>@<Declare the procedure called |print_dp|@>@;
@@ -14999,6 +15004,7 @@ var @!q:pointer; {the node following |p|}
 begin q:=link(p);
 if (info(q)=null) or (verbosity>0) then print_dependency(p,t)
 else print("linearform");
+@.linearform@>
 end;
 
 @ The displayed name of a variable in a ring will not be a capsule unless
@@ -15101,7 +15107,7 @@ something depends on it. In the latter case, a dependent variable whose
 coefficient of dependence is maximal will take its place.
 The relevant algorithm is due to Ignacio~A. Zabala, who implemented it
 as part of his Ph.D. thesis (Stanford University, December 1982).
-@^Zabala Salelles, Ignacio Andres@>
+@^Zabala Salelles, Ignacio Andr\'es@>
 
 For example, suppose that variable $x$ is being recycled, and that the
 only variables depending on~$x$ are $y=2x+a$ and $z=x+b$. In this case
@@ -15823,7 +15829,7 @@ numeric_type:begin new_indep(p); goto restart;
   end;
 independent: begin q:=single_dependency(p);
   if q=dep_final then
-    begin cur_type:=known; cur_exp:=0; free_node(q,value_node_size);
+    begin cur_type:=known; cur_exp:=0; free_node(q,dep_node_size);
     end
   else  begin cur_type:=dependent; encapsulate(q);
     end;
@@ -15869,7 +15875,7 @@ begin if type(q)=known then
 else  if type(q)=independent then
     begin p:=single_dependency(q);
     if p=dep_final then
-      begin type(r):=known; value(r):=0; free_node(p,value_node_size);
+      begin type(r):=known; value(r):=0; free_node(p,dep_node_size);
       end
     else  begin type(r):=dependent; new_dep(r,p);
       end;
@@ -16249,9 +16255,9 @@ cur_y:=cur_exp; cur_x:=x;
 end
 
 @ At this point |right_type(q)| is usually |open|, but it may have been
-set to some other value by a previous splicing operation. We must maintain
-the value of |right_type(q)| in unusual cases such as
-`\.{..z1\{z2\}\&\{z3\}z1\{0,0\}..}'.
+set to some other value by a previous operation. We must maintain
+the value of |right_type(q)| in cases such as
+`\.{..\{curl2\}z\{0,0\}..}'.
 
 @<Put the pre-join...@>=
 begin t:=scan_direction;
@@ -17693,6 +17699,7 @@ argument).  The third argument is either |plus| or |minus|.
 The sum or difference of the numeric quantities will replace the second
 operand.  Arithmetic overflow may go undetected; users aren't supposed to
 be monkeying around with really big values.
+@^overflow in arithmetic@>
 
 @<Declare binary action...@>=
 @t\4@>@<Declare the procedure called |dep_finish|@>@;
@@ -18854,7 +18861,7 @@ if cur_type=unknown_path then if type(lhs)=pair_type then
 make_eq(lhs); {equate |lhs| to |(cur_type,cur_exp)|}
 end;
 
-@ And |do_assignment| is similar to |do_expression|:
+@ And |do_assignment| is similar to |do_equation|:
 
 @<Declare action procedures for use by |do_statement|@>=
 procedure do_assignment;
@@ -18948,7 +18955,7 @@ put_get_error
 @ @<For each type |t|, make an equation and |goto done| unless...@>=
 boolean_type,string_type,pen_type,path_type,picture_type:
   if cur_type=t+unknown_tag then
-    begin nonlinear_eq(v,cur_exp,false); goto done;
+    begin nonlinear_eq(v,cur_exp,false); unstash_cur_exp(cur_exp); goto done;
     end
   else if cur_type=t then
     @<Report redundant or inconsistent equation and |goto done|@>;
@@ -19114,7 +19121,7 @@ loop@+  begin get_x_next;
     else goto done;
   link(t):=get_avail; t:=link(t); info(t):=cur_sym;
   end;
-done: if eq_type(x)<>tag_token then clear_symbol(x,false);
+done: if eq_type(x) mod outer_tag<>tag_token then clear_symbol(x,false);
 if equiv(x)=null then new_root(x);
 scan_declared_variable:=h;
 end;
@@ -19504,7 +19511,7 @@ else  begin print_char(""""); print(cur_mod); print_char("""");
 end
 
 @ The following cases of |print_cmd_mod| might arise in connection
-with |disp_token|, although they don't correspond to any
+with |disp_token|, although they don't necessarily correspond to
 primitive tokens.
 
 @<Cases of |print_cmd_...@>=
@@ -20538,6 +20545,7 @@ since many fonts have a design size equal to one em.  The other dimensions
 must be less than 16 design-size units in absolute value; thus,
 |header[1]| and |param[1]| are the only |fix_word| entries in the whole
 \.{TFM} file whose first byte might be something besides 0 or 255.
+@^design size@>
 
 @ Next comes the |char_info| array, which contains one |@!char_info_word|
 per character. Each word in this part of the file contains six fields
@@ -20673,6 +20681,7 @@ to help position accents. For example, |slant=.25| means that when you go
 up one unit, you also go .25 units to the right. The |slant| is a pure
 number; it is the only |fix_word| other than the design size itself that is
 not scaled by the design size.
+@^design size@>
 
 \hang|param[2]=space| is the normal spacing between words in text.
 Note that character @'40 in the font need not have anything to do with
@@ -20980,7 +20989,7 @@ We may need to cancel skips that span more than 127 lig/kern steps.
 
 @<Process a |skip_to| command and |goto done|@>=
 begin c:=get_code;
-if nl-skip_table[c]>128 then {|skip_table[c]<<nl<=undefined_label|}
+if nl-skip_table[c]>128 then
   begin skip_error(skip_table[c]); skip_table[c]:=undefined_label;
   end;
 if skip_table[c]=undefined_label then skip_byte(nl-1):=qi(0)
@@ -21263,6 +21272,7 @@ value(zero_val):=0; info(zero_val):=0;
 
 @ Bytes 5--8 of the header are set to the design size, unless the user has
 some crazy reason for specifying them differently.
+@^design size@>
 
 Error messages are not allowed at the time this procedure is called,
 so a warning is printed instead.
@@ -21289,7 +21299,7 @@ if header_byte[5]<0 then if header_byte[6]<0 then
   header_byte[7]:=(d div 16) mod 256;
   header_byte[8]:=(d mod 16)*16;
   end;
-max_tfm_dimen:=16*internal[design_size]-internal[design_size] div @'10000000;
+max_tfm_dimen:=16*internal[design_size]-1-internal[design_size] div @'10000000;
 if max_tfm_dimen>=fraction_half then max_tfm_dimen:=fraction_half-1;
 end;
 
@@ -21300,9 +21310,9 @@ global variable |tfm_changed| is increased by~one.
 @p function dimen_out(@!x:scaled):integer;
 begin if abs(x)>max_tfm_dimen then
   begin incr(tfm_changed);
-  if x>0 then x:=three_bytes-1@+else x:=1-three_bytes;
-  end
-else x:=make_scaled(x*16,internal[design_size]);
+  if x>0 then x:=max_tfm_dimen@+else x:=-max_tfm_dimen;
+  end;
+x:=make_scaled(x*16,internal[design_size]);
 dimen_out:=x;
 end;
 
@@ -23978,7 +23988,7 @@ so that the inverse relation between them is clear.
 The global variable |mem_ident| is a string that is printed right
 after the |banner| line when \MP\ is ready to start. For \.{INIMP} this
 string says simply `\.{(INIMP)}'; for other versions of \MP\ it says,
-for example, `\.{(preloaded mem=plain 90.4.14)}', showing the year,
+for example, `\.{(preloaded mem=plain 1990.4.14)}', showing the year,
 month, and day that the mem file was created. We have |mem_ident=0|
 before \MP's tables are loaded.
 
