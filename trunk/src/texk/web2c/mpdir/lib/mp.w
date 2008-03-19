@@ -8410,7 +8410,7 @@ scaled mp_solve_rising_cubic (MP mp,scaled a, scaled b,  scaled c, scaled x) {
       @<Subdivide the B\'ezier quadratic defined by |a|, |b|, |c|@>;
       xx = x - a - ab - ac;
       if ( xx < -x ) { x+=x; b=ab; c=ac;  }
-      else { x = x + xx;  a=ac; b=mp->bc; t = t+1; };
+      else { x = x + xx;  a=ac; b=bc; t = t+1; };
     } while (t < unity);
     return (t - unity);
   }
@@ -8536,10 +8536,8 @@ else { t_tot = t_tot + unity;  arc = arc - t;  }
 if ( arc>0 ) { 
   n = arc / (arc0 - arc);
   arc = arc - n*(arc0 - arc);
-  if ( t_tot > el_gordo / (n+1) ) { 
-    mp->arith_error = true;
-    t_tot = el_gordo;
-    break;
+  if ( t_tot > (el_gordo / (n+1)) ) { 
+	return el_gordo;
   }
   t_tot = (n + 1)*t_tot;
 }
