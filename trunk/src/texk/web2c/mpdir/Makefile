@@ -1,7 +1,6 @@
 
 LD = gcc
 CC = gcc
-CFLAGS = -Wall -W -g
 
 LUABUILDDIR=/opt/tex/luatex/trunk/build/libs/lua51
 LUASRCDIR =/opt/tex/luatex/trunk/src/libs/lua51
@@ -15,7 +14,7 @@ MPLIBBUILDDIR = ../../../texk/web2c/mpdir/lib/.libs
 MPLIBSRCDIR = ../../../../src/texk/web2c/mpdir/lib
 MPLIB = $(MPLIBBUILDDIR)/libmplib.a
 
-CFLAGS = -Wall -W -g -I../.. -I./lib
+CFLAGS = -Wall -W -Wwrite-strings -g -I../.. -I./lib
 OBJECTS = mpost.o 
 LUAOBJECTS = lmplib.o luamain.o
 

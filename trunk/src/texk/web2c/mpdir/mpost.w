@@ -31,7 +31,7 @@ have our customary command-line interface.
 #include <kpathsea/variable.h>
 extern unsigned kpathsea_debug;
 #include <kpathsea/concatn.h>
-static string mpost_tex_program = "";
+static const char *mpost_tex_program = "";
 
 @ Allocating a bit of memory, with error detection:
 
@@ -170,9 +170,9 @@ static int get_random_seed (void) {
 options->random_seed = get_random_seed();
 
 @ @c 
-char *mpost_find_file(MP mp, char *fname, char *fmode, int ftype)  {
-  char *s;
+char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ftype)  {
   int l ;
+  char *s = NULL;
   (void)mp;
   if (fmode[0]=='r') {
 	if (ftype>=mp_filetype_text) {
@@ -215,7 +215,7 @@ if (!nokpse)
   options->find_file = mpost_find_file;
 
 @ @c 
-void *mpost_open_file(MP mp, char *fname, char *fmode, int ftype)  {
+void *mpost_open_file(MP mp, const char *fname, const char *fmode, int ftype)  {
   char realmode[3];
   char *s;
   if (ftype==mp_filetype_terminal) {
@@ -288,6 +288,7 @@ if (!nokpse)
     } else if (option_is("help")) {
       @<Show help and exit@>;
     } else if (option_is("version")) {
+	  mp = mp_new(mp_options());
       @<Show version and exit@>;
     } else if (option_is("")) {
       continue; /* ignore unknown options */
@@ -307,15 +308,16 @@ fprintf(stdout,
 "  Run MetaPost on MPNAME, usually creating MPNAME.NNN (and perhaps\n"
 "  MPNAME.tfm), where NNN are the character numbers generated.\n"
 "  Any remaining COMMANDS are processed as MetaPost input,\n"
-"  after MPNAME is read.\n"
-"\n"
+"  after MPNAME is read.\n\n");
+fprintf(stdout,
 "  If no arguments or options are specified, prompt for input.\n"
 "\n"
 "  -ini                    be inimpost, for dumping mems\n"
 "  -interaction=STRING     set interaction mode (STRING=batchmode/nonstopmode/\n"
 "                          scrollmode/errorstopmode)\n"
 "  -jobname=STRING         set the job name to STRING\n"
-"  -progname=STRING        set program (and mem) name to STRING\n"
+"  -progname=STRING        set program (and mem) name to STRING\n");
+fprintf(stdout,
 "  -tex=TEXPROGRAM         use TEXPROGRAM for text labels\n"
 "  -kpathsea-debug=NUMBER  set path searching debugging flags according to\n"
 "                          the bits of NUMBER\n"
@@ -332,7 +334,7 @@ fprintf(stdout,
 @ 
 @<Show version...@>=
 {
-fprintf(stdout,
+fprintf(stdout, 
 "\n"
 "MetaPost %s (CWeb version %s)\n"
 "Copyright 2008 AT&T Bell Laboratories.\n"
@@ -381,7 +383,7 @@ input.
 
 @ A simple function to get numerical |texmf.cnf| values
 @c
-int setup_var (int def, char *var_name, int nokpse) {
+int setup_var (int def, const char *var_name, int nokpse) {
   if (!nokpse) {
     char * expansion = kpse_var_value (var_name);
     if (expansion) {
@@ -415,7 +417,7 @@ int main (int argc, char **argv) { /* |start_here| */
   @<Read and set commmand line options@>;
   if (!nokpse)
     kpse_set_program_name("mpost",user_progname);  
-  if(putenv("engine=newmetapost"))
+  if(putenv((char *)"engine=newmetapost"))
     fprintf(stdout,"warning: could not set up $engine\n");
   options->main_memory       = setup_var (50000,"main_memory",nokpse);
   options->hash_size         = setup_var (9500,"hash_size",nokpse);

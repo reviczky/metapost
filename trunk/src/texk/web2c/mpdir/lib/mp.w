@@ -75,8 +75,8 @@ undergoes any modifications, so that it will be clear which version of
 
 @d banner "This is MetaPost, Version 1.003" /* printed when \MP\ starts */
 @d metapost_version "1.003"
-@d mplib_version "0.25"
-@d version_string " (Cweb version 0.25)"
+@d mplib_version "0.30"
+@d version_string " (Cweb version 0.30)"
 
 @d true 1
 @d false 0
@@ -109,8 +109,8 @@ wholesale.
 typedef struct psout_data_struct * psout_data;
 typedef int boolean;
 typedef signed int integer;
-@<Declare helpers@>;
-@<Types in the outer block@>;
+@<Declare helpers@>
+@<Types in the outer block@>
 @<Constants in the outer block@>
 #  ifndef LIBAVL_ALLOCATOR
 #    define LIBAVL_ALLOCATOR
@@ -144,7 +144,7 @@ typedef struct MP_instance {
 @ Here are the functions that set up the \MP\ instance.
 
 @<Declarations@> =
-@<Declare |mp_reallocate| functions@>;
+@<Declare |mp_reallocate| functions@>
 struct MP_options *mp_options (void);
 MP mp_new (struct MP_options *opt);
 
@@ -169,7 +169,9 @@ struct MP_options *mp_options (void) {
 MP __attribute__ ((noinline))
 mp_new (struct MP_options *opt) {
   MP mp;
-  mp = xmalloc(1,sizeof(MP_instance));
+  mp = malloc(1*sizeof(MP_instance));
+  if (mp==NULL)
+	return mp;
   @<Set |ini_version|@>;
   @<Setup the non-local jump buffer in |mp_new|@>;
   @<Allocate or initialize variables@>
@@ -489,16 +491,16 @@ enum mp_filetype {
   mp_filetype_fontmap, /* PostScript font mapping files */
   mp_filetype_font, /*  PostScript type1 font programs */
   mp_filetype_encoding, /*  PostScript font encoding files */
-  mp_filetype_text,  /* first text file for readfrom and writeto primitives */
+  mp_filetype_text  /* first text file for readfrom and writeto primitives */
 };
-typedef char *(*mp_file_finder)(MP, char *, char *, int);
-typedef void *(*mp_file_opener)(MP, char *, char *, int);
+typedef char *(*mp_file_finder)(MP, const char *, const char *, int);
+typedef void *(*mp_file_opener)(MP, const char *, const char *, int);
 typedef char *(*mp_file_reader)(MP, void *, size_t *);
 typedef void (*mp_binfile_reader)(MP, void *, void **, size_t *);
 typedef void (*mp_file_closer)(MP, void *);
 typedef int (*mp_file_eoftest)(MP, void *);
 typedef void (*mp_file_flush)(MP, void *);
-typedef void (*mp_file_writer)(MP, void *, char *);
+typedef void (*mp_file_writer)(MP, void *, const char *);
 typedef void (*mp_binfile_writer)(MP, void *, void *, size_t);
 #define NOTTESTING 1
 
@@ -520,7 +522,7 @@ This function may disappear altogether, it is currently only
 used for the default font map file.
 
 @c
-char *mp_find_file (MP mp, char *fname, char *fmode, int ftype)  {
+char *mp_find_file (MP mp, const char *fname, const char *fmode, int ftype)  {
   (void) mp;
   if (fmode[0] != 'r' || (! access (fname,R_OK)) || ftype) {  
      return strdup(fname);
@@ -550,22 +552,22 @@ set_callback_option(write_binary_file);
 section.
 
 @<Internal ...@>=
-char *mp_find_file (MP mp, char *fname, char *fmode, int ftype) ;
-void *mp_open_file (MP mp ,char *fname, char *fmode, int ftype) ;
+char *mp_find_file (MP mp, const char *fname, const char *fmode, int ftype) ;
+void *mp_open_file (MP mp , const char *fname, const char *fmode, int ftype) ;
 char *mp_read_ascii_file (MP mp, void *f, size_t *size) ;
 void mp_read_binary_file (MP mp, void *f, void **d, size_t *size) ;
 void mp_close_file (MP mp, void *f) ;
 int mp_eof_file (MP mp, void *f) ;
 void mp_flush_file (MP mp, void *f) ;
-void mp_write_ascii_file (MP mp, void *f, char *s) ;
+void mp_write_ascii_file (MP mp, void *f, const char *s) ;
 void mp_write_binary_file (MP mp, void *f, void *s, size_t t) ;
 
 @ The function to open files can now be very short.
 
 @c
-void *mp_open_file(MP mp, char *fname, char *fmode, int ftype)  {
-  (void) mp;
+void *mp_open_file(MP mp, const char *fname, const char *fmode, int ftype)  {
   char realmode[3];
+  (void) mp;
   realmode[0] = *fmode;
   realmode[1] = 'b';
   realmode[2] = 0;
@@ -684,7 +686,7 @@ char *mp_read_ascii_file (MP mp, void *ff, size_t *size) {
 }
 
 @ @c
-void mp_write_ascii_file (MP mp, void *f, char *s) {
+void mp_write_ascii_file (MP mp, void *f, const char *s) {
   (void) mp;
 #if NOTTESTING
   if (f!=NULL) {
@@ -1037,7 +1039,7 @@ int mp_xstrcmp (const char *a, const char *b);
 char * mp_str (MP mp, str_number s);
 
 @ @<Declarations@>=
-str_number mp_rts (MP mp, char *s);
+str_number mp_rts (MP mp, const char *s);
 str_number mp_make_string (MP mp);
 
 @ The attempt to catch interrupted strings that is in |mp_rts|, is not 
@@ -1068,7 +1070,7 @@ char * mp_str (MP mp, str_number ss) {
     return (char *)s;
   }
 }
-str_number mp_rts (MP mp, char *s) {
+str_number mp_rts (MP mp, const char *s) {
   int r; /* the new string */ 
   int old; /* a possible string in progress */
   int i=0;
@@ -1220,7 +1222,7 @@ be flushed.
 @d intern(A) mp_intern(mp,(A))
 
 @c
-str_number mp_intern (MP mp, char *s) {
+str_number mp_intern (MP mp, const char *s) {
   str_number r ;
   r = rts(s);
   mp->str_ref[r] = max_str_ref;
@@ -1228,7 +1230,7 @@ str_number mp_intern (MP mp, char *s) {
 }
 
 @ @<Declarations@>=
-str_number mp_intern (MP mp, char *s);
+str_number mp_intern (MP mp, const char *s);
 
 
 @ Once a sequence of characters has been appended to |str_pool|, it
@@ -1244,8 +1246,8 @@ initialized yet.  We never allow |str_ptr| to reach |mp->max_strings|;
 |do_compaction| is responsible for making sure of this.
 
 @<Declarations@>=
-@<Declare the procedure called |do_compaction|@>;
-@<Declare the procedure called |unit_str_room|@>;
+@<Declare the procedure called |do_compaction|@>
+@<Declare the procedure called |unit_str_room|@>
 str_number mp_make_string (MP mp);
 
 @ @c 
@@ -1640,9 +1642,9 @@ use an array |wr_file| that will be declared later.
 void mp_print_ln (MP mp);
 void mp_print_visible_char (MP mp, ASCII_code s); 
 void mp_print_char (MP mp, ASCII_code k);
-void mp_print (MP mp, char *s);
+void mp_print (MP mp, const char *s);
 void mp_print_str (MP mp, str_number s);
-void mp_print_nl (MP mp, char *s);
+void mp_print_nl (MP mp, const char *s);
 void mp_print_two (MP mp,scaled x, scaled y) ;
 void mp_print_scaled (MP mp,scaled s);
 
@@ -1755,7 +1757,7 @@ void mp_print_char (MP mp, ASCII_code k) { /* prints a single character */
   } else {
     mp_print_visible_char(mp, k);
   }
-};
+}
 
 @ An entire string is output by calling |print|. Note that if we are outputting
 the single standard ASCII character \.c, we could call |print("c")|, since
@@ -1766,7 +1768,7 @@ assumes that it is always safe to print a visible ASCII character.)
 @^system dependencies@>
 
 @<Basic print...@>=
-void mp_do_print (MP mp, char *ss, unsigned int len) { /* prints string |s| */
+void mp_do_print (MP mp, const char *ss, unsigned int len) { /* prints string |s| */
   unsigned int j = 0;
   while ( j<len ){ 
     mp_print_char(mp, ss[j]); incr(j);
@@ -1775,7 +1777,7 @@ void mp_do_print (MP mp, char *ss, unsigned int len) { /* prints string |s| */
 
 @ 
 @<Basic print...@>=
-void mp_print (MP mp, char *ss) {
+void mp_print (MP mp, const char *ss) {
   mp_do_print(mp, ss, strlen(ss));
 }
 void mp_print_str (MP mp, str_number s) {
@@ -1807,7 +1809,7 @@ update_terminal;
 string appears at the beginning of a new line.
 
 @<Basic print...@>=
-void mp_print_nl (MP mp, char *s) { /* prints string |s| at beginning of line */
+void mp_print_nl (MP mp, const char *s) { /* prints string |s| at beginning of line */
   switch(mp->selector) {
   case term_and_log: 
     if ( (mp->term_offset>0)||(mp->file_offset>0) ) mp_print_ln(mp);
@@ -1834,7 +1836,7 @@ void mp_print_the_digs (MP mp, eight_bits k) {
   while ( k>0 ){ 
     decr(k); mp_print_char(mp, '0'+mp->dig[k]);
   }
-};
+}
 
 @ The following procedure, which prints out the decimal representation of a
 given integer |n|, has been written carefully so that it works properly
@@ -1863,7 +1865,7 @@ void mp_print_int (MP mp,integer n) { /* prints an integer in decimal form */
     mp->dig[k]=n % 10; n=n / 10; incr(k);
   } while (n!=0);
   mp_print_the_digs(mp, k);
-};
+}
 
 @ @<Internal ...@>=
 void mp_print_int (MP mp,integer n);
@@ -1954,7 +1956,7 @@ enum mp_interaction_mode {
  mp_batch_mode, /* omits all stops and omits terminal output */
  mp_nonstop_mode, /* omits all stops */
  mp_scroll_mode, /* omits error stops */
- mp_error_stop_mode, /* stops at every opportunity to interact */
+ mp_error_stop_mode /* stops at every opportunity to interact */
 };
 
 @ @<Option variables@>=
@@ -1976,10 +1978,10 @@ mp->noninteractive=opt->noninteractive;
 @d print_err(A) mp_print_err(mp,(A))
 
 @<Internal ...@>=
-void mp_print_err(MP mp, char * A);
+void mp_print_err(MP mp, const char * A);
 
 @ @c
-void mp_print_err(MP mp, char * A) { 
+void mp_print_err(MP mp, const char * A) { 
   if ( mp->interaction==mp_error_stop_mode ) 
     wake_up_terminal;
   mp_print_nl(mp, "! "); 
@@ -2023,7 +2025,7 @@ enum mp_history_states {
   mp_spotless=0, /* |history| value when nothing has been amiss yet */
   mp_warning_issued, /* |history| value when |begin_diagnostic| has been called */
   mp_error_message_issued, /* |history| value when |error| has been called */
-  mp_fatal_error_stop, /* |history| value when termination was premature */
+  mp_fatal_error_stop /* |history| value when termination was premature */
 };
 
 @ @<Glob...@>=
@@ -2080,7 +2082,7 @@ in reverse order, i.e., with |help_line[0]| appearing last.
 @d help6  { mp->help_ptr=6; hlp6 /* use this with six help lines */
 
 @<Glob...@>=
-char * help_line[6]; /* helps for the next |error| */
+const char * help_line[6]; /* helps for the next |error| */
 unsigned int help_ptr; /* the number of help lines present */
 boolean use_err_help; /* should the |err_help| string be shown? */
 str_number err_help; /* a string set up by \&{errhelp} */
@@ -2105,9 +2107,9 @@ jmp_buf jump_buf;
 @ @<Install and test the non-local jump buffer@>=
 if (setjmp(mp->jump_buf) != 0) { return mp->history; }
 
-
 @ @<Setup the non-local jump buffer in |mp_new|@>=
 if (setjmp(mp->jump_buf) != 0) return NULL;
+
 
 @ If the array of internals is still |NULL| when |jump_out| is called, a
 crash occured during initialization, and it is not safe to run the normal
@@ -2141,7 +2143,7 @@ void mp_error (MP mp) { /* completes the job of error reporting */
   }
   @<Put help message on the transcript file@>;
 }
-void mp_warn (MP mp, char *msg) {
+void mp_warn (MP mp, const char *msg) {
   int saved_selector = mp->selector;
   mp_normalize_selector(mp);
   mp_print_nl(mp,"Warning: ");
@@ -2152,7 +2154,7 @@ void mp_warn (MP mp, char *msg) {
 
 @ @<Exported function ...@>=
 void mp_error (MP mp);
-void mp_warn (MP mp, char *msg);
+void mp_warn (MP mp, const char *msg);
 
 
 @ @<Get user's advice...@>=
@@ -2373,20 +2375,20 @@ void mp_normalize_selector (MP mp) {
   }
 
 @<Error hand...@>=
-void mp_fatal_error (MP mp, char *s) { /* prints |s|, and that's it */
+void mp_fatal_error (MP mp, const char *s) { /* prints |s|, and that's it */
   mp_normalize_selector(mp);
   print_err("Emergency stop"); help1(s); succumb;
 @.Emergency stop@>
 }
 
 @ @<Exported function ...@>=
-void mp_fatal_error (MP mp, char *s);
+void mp_fatal_error (MP mp, const char *s);
 
 
 @ Here is the most dreaded error message.
 
 @<Error hand...@>=
-void mp_overflow (MP mp, char *s, integer n) { /* stop due to finiteness */
+void mp_overflow (MP mp, const char *s, integer n) { /* stop due to finiteness */
   mp_normalize_selector(mp);
   print_err("MetaPost capacity exceeded, sorry [");
 @.MetaPost capacity exceeded ...@>
@@ -2397,7 +2399,7 @@ void mp_overflow (MP mp, char *s, integer n) { /* stop due to finiteness */
 }
 
 @ @<Internal library declarations@>=
-void mp_overflow (MP mp, char *s, integer n);
+void mp_overflow (MP mp, const char *s, integer n);
 
 @ The program might sometime run completely amok, at which point there is
 no choice but to stop. If no previous error has been detected, that's bad
@@ -2408,10 +2410,10 @@ help to pinpoint the problem.
 @^dry rot@>
 
 @<Internal library ...@>=
-void mp_confusion (MP mp,char *s);
+void mp_confusion (MP mp, const char *s);
 
 @ @<Error hand...@>=
-void mp_confusion (MP mp,char *s) {
+void mp_confusion (MP mp, const char *s) {
   /* consistency check violated; |s| tells where */
   mp_normalize_selector(mp);
   if ( mp->history<mp_error_message_issued ) { 
@@ -2472,7 +2474,7 @@ inserted behind the scenes. We can save string space and program space
 by putting this common code into a subroutine.
 
 @c 
-void mp_missing_err (MP mp, char *s) { 
+void mp_missing_err (MP mp, const char *s) { 
   print_err("Missing `"); mp_print(mp, s); mp_print(mp, "' has been inserted");
 @.Missing...inserted@>
 }
@@ -3961,7 +3963,7 @@ a token like `\&{enddef}' or `\&{endfor}'. We will define some procedures
 later that try to help pinpoint the trouble.
 
 @c 
-@<Declare the procedure called |show_token_list|@>;
+@<Declare the procedure called |show_token_list|@>
 @<Declare the procedure called |runaway|@>
 
 @ The function |get_avail| returns a pointer to a new one-word node whose
@@ -3988,7 +3990,7 @@ pointer mp_get_avail (MP mp) { /* single-word node allocation */
   link(p)=null; /* provide an oft-desired initialization of the new node */
   incr(mp->dyn_used);/* maintain statistics */
   return p;
-};
+}
 
 @ Conversely, a one-word node is recycled by calling |free_avail|.
 
@@ -4985,7 +4987,7 @@ enum mp_given_internal {
   mp_default_color_model, /* the default color model for unspecified items */
   mp_restore_clip_color,
   mp_procset, /* wether or not create PostScript command shortcuts */
-  mp_gtroffmode,  /* whether the user specified |-troff| on the command line */
+  mp_gtroffmode  /* whether the user specified |-troff| on the command line */
 };
 
 @
@@ -5119,7 +5121,7 @@ enum mp_color_model {
   mp_grey_model=3,
   mp_rgb_model=5,
   mp_cmyk_model=7,
-  mp_uninitialized_model=9,
+  mp_uninitialized_model=9
 };
 
 
@@ -5178,8 +5180,8 @@ be used after the year 32767.
 
 @c 
 void mp_fix_date_and_time (MP mp) { 
-  time_t clock = time ((time_t *) 0);
-  struct tm *tmptr = localtime (&clock);
+  time_t aclock = time ((time_t *) 0);
+  struct tm *tmptr = localtime (&aclock);
   mp->internal[mp_time]=
       (tmptr->tm_hour*60+tmptr->tm_min)*unity; /* minutes since midnight */
   mp->internal[mp_day]=(tmptr->tm_mday)*unity; /* fourth day of the month */
@@ -5198,10 +5200,10 @@ two routines that adjust the destination of print commands:
 @<Declarations@>=
 void mp_begin_diagnostic (MP mp) ;
 void mp_end_diagnostic (MP mp,boolean blank_line);
-void mp_print_diagnostic (MP mp, char *s, char *t, boolean nuline) ;
+void mp_print_diagnostic (MP mp, const char *s, const char *t, boolean nuline) ;
 
 @ @<Basic printing...@>=
-@<Declare a function called |true_line|@>;
+@<Declare a function called |true_line|@>
 void mp_begin_diagnostic (MP mp) { /* prepare to do some tracing */
   mp->old_setting=mp->selector;
   if ((mp->internal[mp_tracing_online]<=0)&&(mp->selector==term_and_log)){ 
@@ -5227,7 +5229,7 @@ printing, as follows. (The parameter |s| is typically |"Path"| or
 |"Cycle spec"|, etc.)
 
 @<Basic printing...@>=
-void mp_print_diagnostic (MP mp, char *s, char *t, boolean nuline) { 
+void mp_print_diagnostic (MP mp, const char *s, const char *t, boolean nuline) { 
   mp_begin_diagnostic(mp);
   if ( nuline ) mp_print_nl(mp, s); else mp_print(mp, s);
   mp_print(mp, " at line "); 
@@ -5434,7 +5436,7 @@ pointer mp_id_lookup (MP mp,integer j, integer l) { /* search the hash table */
     p=next(p);
   }
   return p;
-};
+}
 
 @ @<Treat special case of length 1...@>=
  p=mp->buffer[j]+1; text(p)=p-1; return p;
@@ -5492,7 +5494,7 @@ does this, in a way that no \MP\ user can. The global value |cur_sym|
 contains the new |eqtb| pointer after |primitive| has acted.
 
 @c 
-void mp_primitive (MP mp, char *ss, halfword c, halfword o) {
+void mp_primitive (MP mp, const char *ss, halfword c, halfword o) {
   pool_pointer k; /* index into |str_pool| */
   small_number j; /* index into |buffer| */
   small_number l; /* length of the string */
@@ -5793,7 +5795,7 @@ void mp_show_token_list (MP mp, integer p, integer q, integer l,
      mp_print(mp, " ETC.");
 @.ETC@>
   return;
-};
+}
 
 @ @<Display token |p| and set |c| to its class...@>=
 c=letter_class; /* the default */
@@ -5945,7 +5947,7 @@ void mp_delete_mac_ref (MP mp,pointer p) {
 reference count.
 
 @c 
-@<Declare the procedure called |print_cmd_mod|@>;
+@<Declare the procedure called |print_cmd_mod|@>
 void mp_show_macro (MP mp, pointer p, integer q, integer l) {
   pointer r; /* temporary storage */
   p=link(p); /* bypass the reference count */
@@ -6346,7 +6348,7 @@ pointer mp_new_structure (MP mp,pointer p) {
   parent(q)=r; type(q)=undefined; name_type(q)=mp_attr; link(q)=end_attr;
   attr_loc(q)=collective_subscript; 
   return r;
-};
+}
 
 @ @<Link a new subscript node |r| in place of node |p|@>=
 { 
@@ -6642,7 +6644,7 @@ void mp_clear_symbol (MP mp,pointer p, boolean saving) {
     break;
   }
   mp->eqtb[p]=mp->eqtb[frozen_undefined];
-};
+}
 
 @* \[16] Saving and restoring equivalents.
 The nested structure given by \&{begingroup} and \&{endgroup}
@@ -6802,7 +6804,7 @@ enum mp_knot_type {
  mp_curl, /* |left_type| or |right_type| when a curl is desired */
  mp_open, /* |left_type| or |right_type| when \MP\ should choose the direction */
  mp_end_cycle
-} ;
+};
 
 @ Before the B\'ezier control points have been calculated, the memory
 space they will ultimately occupy is taken up by information that can be
@@ -6884,7 +6886,7 @@ it appeared in the actual metapost program, and
 @<Types...@>=
 enum {
   mp_program_code=0, /* not created by a user */
-  mp_metapost_user, /* created by a user */
+  mp_metapost_user /* created by a user */
 };
 
 @ Here is a routine that prints a given knot list
@@ -7016,7 +7018,7 @@ if ( (left_type(p)!=mp_explicit)&&(left_type(p)!=mp_open) ) {
 as a diagnostic message.
 
 @<Declare subroutines for printing expressions@>=
-void mp_print_path (MP mp,pointer h, char *s, boolean nuline) { 
+void mp_print_path (MP mp,pointer h, const char *s, boolean nuline) { 
   mp_print_diagnostic(mp, "Path", s, nuline); mp_print_ln(mp);
 @.Path at line...@>
   mp_pr_path(mp, h);
@@ -7156,7 +7158,7 @@ which are knots whose left and right angles are both prespecified in
 some way (i.e., their |left_type| and |right_type| aren't both open).
 
 @c 
-@<Declare the procedure called |solve_choices|@>;
+@<Declare the procedure called |solve_choices|@>
 void mp_make_choices (MP mp,pointer knots) {
   pointer h; /* the first breakpoint */
   pointer p,q; /* consecutive breakpoints being processed */
@@ -7527,7 +7529,7 @@ first equation or by realizing that no equations are needed, and to fit
 this initialization into a framework suitable for the overall computation.
 
 @<Declare the procedure called |solve_choices|@>=
-@<Declare subroutines needed by |solve_choices|@>;
+@<Declare subroutines needed by |solve_choices|@>
 void mp_solve_choices (MP mp,pointer p, pointer q, halfword n) {
   int k; /* current knot number */
   pointer r,s,t; /* registers for list traversal */
@@ -8202,7 +8204,7 @@ for ${1\over3}\vb\dot B(0)\vb$, ${2\over3}\vb\dot B({1\over2})\vb$, and
 ${1\over3}\vb\dot B(1)\vb$.  These quantities are relatively expensive to compute
 and they are needed in different instances of |arc_test|.
 
-@c @t\4@>@<Declare subroutines needed by |arc_test|@>;
+@c @<Declare subroutines needed by |arc_test|@>
 scaled mp_arc_test (MP mp, scaled dx0, scaled dy0, scaled dx1, scaled dy1, 
                     scaled dx2, scaled dy2, scaled  v0, scaled v02, 
                     scaled v2, scaled a_goal, scaled tol) {
@@ -8573,7 +8575,7 @@ straight line.
 
 @d copy_pen(A) mp_make_pen(mp, mp_copy_path(mp, (A)),false)
 
-@c @<Declare a function called |convex_hull|@>;
+@c @<Declare a function called |convex_hull|@>
 pointer mp_make_pen (MP mp,pointer h, boolean need_hull) {
   pointer p,q; /* two consecutive knots */
   q=h;
@@ -8685,7 +8687,7 @@ mp_print_char(mp, ')');
 message.
 
 @<Declare subroutines for printing expressions@>=
-void mp_print_pen (MP mp,pointer h, char *s, boolean nuline) { 
+void mp_print_pen (MP mp,pointer h, const char *s, boolean nuline) { 
   mp_print_diagnostic(mp, "Pen",s,nuline); mp_print_ln(mp);
 @.Pen at line...@>
   mp_pr_pen(mp, h);
@@ -8806,7 +8808,7 @@ The convex hull algorithm used here is described by F.~P. Preparata and
 M.~I. Shamos [{\sl Computational Geometry}, Springer-Verlag, 1985].
 
 @<Declare a function called |convex_hull|@>=
-@<Declare a procedure called |move_knot|@>;
+@<Declare a procedure called |move_knot|@>
 pointer mp_convex_hull (MP mp,pointer h) { /* Make a polygonal pen convex */
   pointer l,r; /* the leftmost and rightmost knots */
   pointer p,q; /* knots being scanned */
@@ -9054,6 +9056,7 @@ let the second one overwrite it if necessary.
 @<Types...@>=
 enum mp_graphical_object_code {
   @<Graphical object codes@>
+  mp_final_graphic
 };
 
 @ Let's consider the types of graphical objects one at a time.
@@ -9233,7 +9236,7 @@ black with its reference point at the origin.
 @ @<Graphical object codes@>=
 mp_text_code=3,
 
-@ @c @<Declare text measuring subroutines@>;
+@ @c @<Declare text measuring subroutines@>
 pointer mp_new_text_node (MP mp,char *f,str_number s) {
   /* make a text node for font |f| and text string |s| */
   pointer t; /* the new node */
@@ -9297,7 +9300,7 @@ pointer mp_new_bounds_node (MP mp,pointer p, small_number  c) {
   type(t)=c;
   path_p(t)=p;
   return t;
-};
+}
 
 @ We need an array to keep track of the sizes of graphical objects.
 
@@ -9478,7 +9481,7 @@ to be done before making a significant change to an edge structure.  Much of
 the work is done in a separate routine |copy_objects| that copies a list of
 graphical objects into a new edge header.
 
-@c @<Declare a function called |copy_objects|@>;
+@c @<Declare a function called |copy_objects|@>
 pointer mp_private_edges (MP mp,pointer h) {
   /* make a private copy of the edge structure headed by |h| */
   pointer hh;  /* the edge header for the new copy */
@@ -9639,8 +9642,8 @@ pointer mp_skip_1component (MP mp,pointer p) {
 @ Here is a diagnostic routine for printing an edge structure in symbolic form.
 
 @<Declare subroutines for printing expressions@>=
-@<Declare subroutines needed by |print_edges|@>;
-void mp_print_edges (MP mp,pointer h, char *s, boolean nuline) {
+@<Declare subroutines needed by |print_edges|@>
+void mp_print_edges (MP mp,pointer h, const char *s, boolean nuline) {
   pointer p;  /* a graphical object to be printed */
   pointer hh,pp;  /* temporary pointers */
   scaled scf;  /* a scale factor for the dash pattern */
@@ -9711,7 +9714,7 @@ mp_print(mp, " ends, ");
 black (the default color).
 
 @<Declare subroutines needed by |print_edges|@>=
-@<Declare a procedure called |print_compact_node|@>;
+@<Declare a procedure called |print_compact_node|@>
 void mp_print_obj_color (MP mp,pointer p) { 
   if ( color_model(p)==mp_grey_model ) {
     if ( grey_val(p)>0 ) { 
@@ -9847,14 +9850,15 @@ be no retracing.  If the resulting paths cover a range of $x$~coordinates of
 length $\Delta x$, we set |dash_y(h)| to the length of the dash pattern by
 finding the maximum of $\Delta x$ and the absolute value of~$y_0$.
 
-@c @<Declare a procedure called |x_retrace_error|@>;
+@c @<Declare a procedure called |x_retrace_error|@>
 pointer mp_make_dashes (MP mp,pointer h) { /* returns |h| or |null| */
   pointer p;  /* this scans the stroked nodes in the object list */
   pointer p0;  /* if not |null| this points to the first stroked node */
   pointer pp,qq,rr;  /* pointers into |path_p(p)| */
   pointer d,dd;  /* pointers used to create the dash list */
+  scaled y0;
   @<Other local variables in |make_dashes|@>;
-  scaled y0=0;  /* the initial $y$ coordinate */
+  y0=0;  /* the initial $y$ coordinate */
   if ( dash_list(h)!=null_dash ) 
 	return h;
   p0=null;
@@ -9878,7 +9882,7 @@ pointer mp_make_dashes (MP mp,pointer h) { /* returns |h| or |null| */
   return h;
 NOT_FOUND: 
   @<Flush the dash list, recycle |h| and return |null|@>;
-};
+}
 
 @ @<Compain that the edge structure contains a node of the wrong type...@>=
 { 
@@ -10367,7 +10371,7 @@ Since an envelope spec only determines relative changes in pen offsets,
 @<Glob...@>=
 integer spec_offset; /* number of pen edges between |h| and the initial offset */
 
-@ @c @<Declare subroutines needed by |offset_prep|@>;
+@ @c @<Declare subroutines needed by |offset_prep|@>
 pointer mp_offset_prep (MP mp,pointer c, pointer h) {
   halfword n; /* the number of vertices in the pen polygon */
   pointer p,q,q0,r,w, ww; /* for list manipulation */
@@ -10776,7 +10780,6 @@ if ( link(c)==c ) {
   while ( info(c)>zero_off ) fix_by(-n);
   if ( (info(c)!=zero_off)&&(mp_ab_vs_cd(mp, dy0,dxin,dx0,dyin)>=0) ) fix_by(n);
 }
-return c
 
 @ Finally we want to reduce the general problem to situations that
 |fin_offset_prep| can handle. We split the cubic into at most three parts
@@ -10913,7 +10916,7 @@ ss=mp_take_fraction(mp, (x0+x2),t_of_the_way(u0,u1))+
 that the |cur_pen| has not been walked around to the first offset.
 
 @c 
-void mp_print_spec (MP mp,pointer cur_spec, pointer cur_pen, char *s) {
+void mp_print_spec (MP mp,pointer cur_spec, pointer cur_pen, const char *s) {
   pointer p,q; /* list traversal */
   pointer w; /* the current pen offset */
   mp_print_diagnostic(mp, "Envelope spec",s,true);
@@ -10975,7 +10978,7 @@ None of these parameters apply to inside joins where the convolution tracing
 has retrograde lines.  In such cases we use a simple connect-the-endpoints
 approach that is achieved by setting |join_type:=2|.
 
-@c @<Declare a function called |insert_knot|@>;
+@c @<Declare a function called |insert_knot|@>
 pointer mp_make_envelope (MP mp,pointer c, pointer h, small_number ljoin,
   small_number lcap, scaled miterlim) {
   pointer p,q,r,q0; /* for manipulating the path */
@@ -12190,7 +12193,7 @@ and |v_is_scaled=true|.
   if ( v_is_scaled ) value(p)=mp_take_scaled(mp, value(p),v);
   else value(p)=mp_take_fraction(mp, value(p),v);
   return link(temp_head);
-};
+}
 
 @ Similarly, we sometimes need to divide a dependency list
 by a given |scaled| constant.
@@ -12228,7 +12231,7 @@ pointer mp_p_over_v (MP mp,pointer p, scaled v, small_number
   }
   link(r)=p; value(p)=mp_make_scaled(mp, value(p),v);
   return link(temp_head);
-};
+}
 
 @ Here's another utility routine for dependency lists. When an independent
 variable becomes dependent, we want to remove it from all existing
@@ -12974,7 +12977,7 @@ compute it as well.
 integer mp_true_line (MP mp) {
   int k; /* an index into the input stack */
   if ( file_state && (name>max_spec_src) ) {
-     return line;
+    return line;
   } else { 
     k=mp->input_ptr;
     while ((k>0) &&
@@ -12984,7 +12987,6 @@ integer mp_true_line (MP mp) {
     }
     return (k>0 ? mp->line_stack[(k-1)] : 0 );
   }
-  return 0; 
 }
 
 @ Thus, the ``current input state'' can be very complicated indeed; there
@@ -13283,7 +13285,7 @@ DONE:
 token by the |cur_tok| routine.
 @^inner loop@>
 
-@c @<Declare the procedure called |make_exp_copy|@>;
+@c @<Declare the procedure called |make_exp_copy|@>
 pointer mp_cur_tok (MP mp) {
   pointer p; /* a new token node */
   small_number save_type; /* |cur_type| to be restored */
@@ -14401,8 +14403,8 @@ case param_type:
 and \&{vardef}. When the following procedure is called, |cur_mod|
 should be either |start_def| or |var_def|.
 
-@c @<Declare the procedure called |check_delimiter|@>;
-@<Declare the function called |scan_declared_variable|@>;
+@c @<Declare the procedure called |check_delimiter|@>
+@<Declare the function called |scan_declared_variable|@>
 void mp_scan_def (MP mp) {
   int m; /* the type of definition */
   int n; /* the number of special suffix parameters */
@@ -14553,7 +14555,7 @@ void mp_scan_secondary (MP mp);
 void mp_scan_tertiary (MP mp);
 void mp_scan_expression (MP mp);
 void mp_scan_suffix (MP mp);
-@<Declare the procedure called |macro_call|@>;
+@<Declare the procedure called |macro_call|@>
 void mp_get_boolean (MP mp);
 void mp_pass_text (MP mp);
 void mp_conditional (MP mp);
@@ -14607,7 +14609,7 @@ when it has to do exotic expansion commands.
    mp_macro_call(mp, mp->cur_mod,null,mp->cur_sym);
    break;
   }; /* there are no other cases */
-};
+}
 
 @ @<Scold the user...@>=
 { 
@@ -14793,9 +14795,9 @@ the replacement text of the macro is placed at the top of the \MP's
 input stack, so that |get_t_next| will proceed to read it next.
 
 @<Declare the procedure called |macro_call|@>=
-@<Declare the procedure called |print_macro_name|@>;
-@<Declare the procedure called |print_arg|@>;
-@<Declare the procedure called |scan_text_arg|@>;
+@<Declare the procedure called |print_macro_name|@>
+@<Declare the procedure called |print_arg|@>
+@<Declare the procedure called |scan_text_arg|@>
 void mp_macro_call (MP mp,pointer def_ref, pointer arg_list, 
                     pointer macro_name) ;
 
@@ -14887,7 +14889,7 @@ mp->cur_cmd=comma+1; /* anything |<>comma| will do */
 while ( info(r)>=expr_base ) { 
   @<Scan the delimited argument represented by |info(r)|@>;
   r=link(r);
-};
+}
 if ( mp->cur_cmd==comma ) {
   print_err("Too many arguments to ");
 @.Too many arguments...@>
@@ -15010,7 +15012,7 @@ void mp_scan_text_arg (MP mp,pointer l_delim, pointer r_delim) {
   }
   mp->cur_exp=link(hold_head); mp->cur_type=mp_token_list;
   mp->scanner_status=normal;
-};
+}
 
 @ @<Adjust the balance for a delimited argument...@>=
 if ( mp->cur_cmd==right_delimiter ) { 
@@ -15398,7 +15400,7 @@ mp->loop_ptr=null;
 a \&{for} loop don't have known numeric values, the |bad_for|
 subroutine screams at the user.
 
-@c void mp_bad_for (MP mp, char * s) {
+@c void mp_bad_for (MP mp, const char * s) {
   mp_disp_err(mp, null,"Improper "); /* show the bad expression above the message */
 @.Improper...replaced by 0@>
   mp_print(mp, s); mp_print(mp, " has been replaced by 0");
@@ -15407,7 +15409,7 @@ subroutine screams at the user.
     ("and the final value `c' must have known numeric values.")
     ("I'm zeroing this one. Proceed, with fingers crossed.");
   mp_put_get_flush_error(mp, 0);
-};
+}
 
 @ Here's what \MP\ does when \&{for}, \&{forsuffixes}, or \&{forever}
 has just been scanned. (This code requires slight familiarity with
@@ -15809,7 +15811,7 @@ some operating systems put the file area last instead of first.)
 @<Basic printing...@>=
 void mp_print_file_name (MP mp, char * n, char * a, char * e) { 
   mp_print(mp, a); mp_print(mp, n); mp_print(mp, e);
-};
+}
 
 @ Another system-dependent routine is needed to convert three internal
 \MP\ strings
@@ -15825,10 +15827,10 @@ allows both lowercase and uppercase letters in the file name.
 }
 
 @<Declare subroutines for parsing file names@>=
-void mp_pack_file_name (MP mp, char *n, char *a, char *e) {
+void mp_pack_file_name (MP mp, const char *n, const char *a, const char *e) {
   integer k; /* number of positions filled in |name_of_file| */
   ASCII_code c; /* character being packed */
-  char *j; /* a character  index */
+  const char *j; /* a character  index */
   k=0;
   assert(n);
   if (a!=NULL) {
@@ -15843,7 +15845,7 @@ void mp_pack_file_name (MP mp, char *n, char *a, char *e) {
 }
 
 @ @<Internal library declarations@>=
-void mp_pack_file_name (MP mp, char *n, char *a, char *e) ;
+void mp_pack_file_name (MP mp, const char *n, const char *a, const char *e) ;
 
 @ A messier routine is also needed, since mem file names must be scanned
 before \MP's string mechanism has been initialized. We shall use the
@@ -16056,9 +16058,10 @@ and |cur_ext|.
 @d pack_cur_name mp_pack_file_name(mp, mp->cur_name,mp->cur_area,mp->cur_ext)
 
 @<Declarations@>=
-void mp_pack_job_name (MP mp, char *s) ;
+void mp_pack_job_name (MP mp, const char *s) ;
 
-@ @c void mp_pack_job_name (MP mp, char  *s) { /* |s = ".log"|, |".mem"|, |".ps"|, or .\\{nnn} */
+@ @c 
+void mp_pack_job_name (MP mp, const char  *s) { /* |s = ".log"|, |".mem"|, |".ps"|, or .\\{nnn} */
   xfree(mp->cur_name); mp->cur_name=xstrdup(mp->job_name);
   xfree(mp->cur_area); mp->cur_area=xstrdup(""); 
   xfree(mp->cur_ext);  mp->cur_ext=xstrdup(s);
@@ -16073,9 +16076,9 @@ variables |cur_name|, |cur_area|, |cur_ext|, and |name_of_file| are
 ready for another attempt at file opening.
 
 @<Declarations@>=
-void mp_prompt_file_name (MP mp,char * s, char * e) ;
+void mp_prompt_file_name (MP mp, const char * s, const char * e) ;
 
-@ @c void mp_prompt_file_name (MP mp,char * s, char * e) {
+@ @c void mp_prompt_file_name (MP mp, const char * s, const char * e) {
   size_t k; /* index into |buffer| */
   char * saved_cur_name;
   if ( mp->interaction==mp_scroll_mode ) 
@@ -16099,7 +16102,7 @@ void mp_prompt_file_name (MP mp,char * s, char * e) ;
   saved_cur_name = xstrdup(mp->cur_name);
   clear_terminal; prompt_input(": "); @<Scan file name in the buffer@>;
   if (strcmp(mp->cur_ext,"")==0) 
-	mp->cur_ext=e;
+	mp->cur_ext=xstrdup(e);
   if (strlen(mp->cur_name)==0) {
     mp->cur_name=saved_cur_name;
   } else {
@@ -16128,7 +16131,7 @@ it catch up to what has previously been printed on the terminal.
   int k; /* index into |months| and |buffer| */
   int l; /* end of first input line */
   integer m; /* the current month */
-  char *months="JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC"; 
+  const char *months="JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC"; 
     /* abbreviations of month names */
   old_setting=mp->selector;
   if ( mp->job_name==NULL ) {
@@ -16195,7 +16198,7 @@ this file.
 |cur_name|, |cur_area|, and the argument |ext|.  It returns |false| if it
 can't find the file in |cur_area| or the appropriate system area.
 
-@c boolean mp_try_extension (MP mp,char *ext) { 
+@c boolean mp_try_extension (MP mp, const char *ext) { 
   mp_pack_file_name(mp, mp->cur_name,mp->cur_area, ext);
   in_name=xstrdup(mp->cur_name); 
   in_area=xstrdup(mp->cur_area);
@@ -16205,7 +16208,6 @@ can't find the file in |cur_area| or the appropriate system area.
     mp_pack_file_name(mp, mp->cur_name,NULL,ext);
     return mp_a_open_in(mp, &cur_file, mp_filetype_program);
   }
-  return false;
 }
 
 @ Let's turn now to the procedure that is used to initiate file reading
@@ -16671,8 +16673,8 @@ in full.
 @.linearform@>
 
 @<Declare subroutines for printing expressions@>=
-@<Declare the procedure called |print_dp|@>;
-@<Declare the stashing/unstashing routines@>;
+@<Declare the procedure called |print_dp|@>
+@<Declare the stashing/unstashing routines@>
 void mp_print_exp (MP mp,pointer p, small_number verbosity) {
   boolean restore_cur_exp; /* should |cur_exp| be restored? */
   small_number t; /* the type of the expression */
@@ -16779,7 +16781,7 @@ or |disp_err| instead of |print_err|.
 @d exp_err(A) mp_disp_err(mp, null,(A)) /* displays the current expression */
 
 @<Declare subroutines for printing expressions@>=
-void mp_disp_err (MP mp,pointer p, char *s) { 
+void mp_disp_err (MP mp,pointer p, const char *s) { 
   if ( mp->interaction==mp_error_stop_mode ) wake_up_terminal;
   mp_print_nl(mp, ">> ");
 @.>>@>
@@ -17159,7 +17161,7 @@ DONE:
 
 @ Errors at the beginning of expressions are flagged by |bad_exp|.
 
-@c void mp_bad_exp (MP mp,char * s) {
+@c void mp_bad_exp (MP mp, const char * s) {
   int save_flag;
   print_err(s); mp_print(mp, " expression can't begin with `");
   mp_print_cmd_mod(mp, mp->cur_cmd,mp->cur_mod); 
@@ -17673,7 +17675,7 @@ found. Some cases are harder than others, but complexity arises solely
 because of the multiplicity of possible cases.
 
 @<Declare the procedure called |make_exp_copy|@>=
-@<Declare subroutines needed by |make_exp_copy|@>;
+@<Declare subroutines needed by |make_exp_copy|@>
 void mp_make_exp_copy (MP mp,pointer p) {
   pointer q,r,t; /* registers for list manipulation */
 RESTART: 
@@ -18018,7 +18020,7 @@ FINISH_PATH:
 @ A pair of numeric values is changed into a knot node for a one-point path
 when \MP\ discovers that the pair is part of a path.
 
-@c@<Declare the procedure called |known_pair|@>;
+@c @<Declare the procedure called |known_pair|@>
 pointer mp_new_knot (MP mp) { /* convert a pair to a knot with two endpoints */
   pointer q; /* the new node */
   q=mp_get_node(mp, knot_node_size); left_type(q)=mp_endpoint;
@@ -18621,7 +18623,7 @@ case and_command:
 
 @ OK, let's look at the simplest \\{do} procedure first.
 
-@c @<Declare nullary action procedure@>;
+@c @<Declare nullary action procedure@>
 void mp_do_nullary (MP mp,quarterword c) { 
   check_arith;
   if ( mp->internal[mp_tracing_commands]>two )
@@ -18682,7 +18684,7 @@ void mp_finish_read (MP mp) { /* copy |buffer| line to |cur_exp| */
 @ Things get a bit more interesting when there's an operand. The
 operand to |do_unary| appears in |cur_type| and |cur_exp|.
 
-@c @<Declare unary action procedures@>;
+@c @<Declare unary action procedures@>
 void mp_do_unary (MP mp,quarterword c) {
   pointer p,q,r; /* for list manipulation */
   integer x; /* a temporary register */
@@ -18699,7 +18701,7 @@ void mp_do_unary (MP mp,quarterword c) {
   @<Additional cases of unary operators@>;
   } /* there are no other cases */
   check_arith;
-};
+}
 
 @ The |nice_pair| function returns |true| if both components of a pair
 are known.
@@ -18883,7 +18885,7 @@ be a path, we call |pair_to_path|.
 void mp_pair_to_path (MP mp) { 
   mp->cur_exp=mp_new_knot(mp); 
   mp->cur_type=mp_path_type;
-};
+}
 
 @ 
 @d pict_color_type(A) ((link(dummy_loc(mp->cur_exp))!=null) &&
@@ -19852,7 +19854,7 @@ with the current expression.
 
 @d binary_return  { mp_finish_binary(mp, old_p, old_exp); return; }
 
-@c @<Declare binary action procedures@>;
+@c @<Declare binary action procedures@>
 void mp_finish_binary (MP mp, pointer old_p, pointer old_exp ){
   check_arith; 
   @<Recycle any sidestepped |independent| capsules@>;
@@ -19942,7 +19944,7 @@ case mp_pair_type:
   break;
 case mp_independent: old_p=mp_void; break;
 default: old_p=null; break;
-};
+}
 if ( old_p!=null ) {
   q=mp_stash_cur_exp(mp); old_p=p; mp_make_exp_copy(mp, old_p);
   p=mp_stash_cur_exp(mp); mp_unstash_cur_exp(mp, q);
@@ -19958,7 +19960,7 @@ case mp_pair_type:
   break;
 case mp_independent:old_exp=mp_void; break;
 default: old_exp=null; break;
-};
+}
 if ( old_exp!=null ) {
   old_exp=mp->cur_exp; mp_make_exp_copy(mp, old_exp);
 }
@@ -20007,7 +20009,7 @@ be monkeying around with really big values.
 @^overflow in arithmetic@>
 
 @<Declare binary action...@>=
-@<Declare the procedure called |dep_finish|@>;
+@<Declare the procedure called |dep_finish|@>
 void mp_add_or_subtract (MP mp,pointer p, pointer q, quarterword c) {
   small_number s,t; /* operand types */
   pointer r; /* list traverser */
@@ -20773,7 +20775,7 @@ mp->tx=sx; mp->ty=sy
 and when some of their components are unknown.
 
 @<Declare binary action...@>=
-@<Declare subroutines needed by |big_trans|@>;
+@<Declare subroutines needed by |big_trans|@>
 void mp_big_trans (MP mp,pointer p, quarterword c) {
   pointer q,r,pp,qq; /* list manipulation registers */
   small_number s; /* size of a big node */
@@ -20785,7 +20787,7 @@ void mp_big_trans (MP mp,pointer p, quarterword c) {
     }
   } while (r!=q);
   @<Transform a known big node@>;
-}; /* node |p| will now be recycled by |do_binary| */
+} /* node |p| will now be recycled by |do_binary| */
 
 @ @<Transform an unknown big node and |return|@>=
 { 
@@ -21106,6 +21108,8 @@ void mp_set_up_direction_time (MP mp,pointer p) {
   value(y_part_loc(p)),mp->cur_exp));
 }
 void mp_set_up_envelope (MP mp,pointer p) {
+  small_number ljoin, lcap;
+  scaled miterlim;
   pointer q = mp_copy_path(mp, mp->cur_exp); /* the original path */
   /* TODO: accept elliptical pens for straight paths */
   if (pen_is_elliptical(value(p))) {
@@ -21114,8 +21118,6 @@ void mp_set_up_envelope (MP mp,pointer p) {
     mp->cur_type = mp_path_type;
     return;
   }
-  small_number ljoin, lcap;
-  scaled miterlim;
   if ( mp->internal[mp_linejoin]>unity ) ljoin=2;
   else if ( mp->internal[mp_linejoin]>0 ) ljoin=1;
   else ljoin=0;
@@ -21259,7 +21261,7 @@ as a type declaration rather than a boolean expression.
 }
 
 @ @<Declarations@>=
-@<Declare action procedures for use by |do_statement|@>;
+@<Declare action procedures for use by |do_statement|@>
 
 @ The only command codes |>max_primary_command| that can be present
 at the beginning of a statement are |semicolon| and higher; these
@@ -21362,8 +21364,8 @@ will be equal to the right-hand side (which will normally be equal
 to the left-hand side).
 
 @<Declare action procedures for use by |do_statement|@>=
-@<Declare the procedure called |try_eq|@>;
-@<Declare the procedure called |make_eq|@>;
+@<Declare the procedure called |try_eq|@>
+@<Declare the procedure called |make_eq|@>
 void mp_do_equation (MP mp) ;
 
 @ @c
@@ -21866,11 +21868,11 @@ mp_finish (MP mp) {
   }
   return mp->history;
 }
-char * mp_mplib_version (MP mp) {
+const char * mp_mplib_version (MP mp) {
   (void)mp;
   return mplib_version;
 }
-char * mp_metapost_version (MP mp) {
+const char * mp_metapost_version (MP mp) {
   (void)mp;
   return metapost_version;
 }
@@ -21879,8 +21881,8 @@ char * mp_metapost_version (MP mp) {
 int mp_run (MP mp);
 int mp_execute (MP mp);
 int mp_finish (MP mp);
-char * mp_mplib_version (MP mp);
-char * mp_metapost_version (MP mp);
+const char * mp_mplib_version (MP mp);
+const char * mp_metapost_version (MP mp);
 
 @ @<Put each...@>=
 mp_primitive(mp, "end",stop,0);
@@ -22303,15 +22305,11 @@ void mp_do_show_stats (MP mp) ;
   mp_print_nl(mp, "Memory usage ");
 @.Memory usage...@>
   mp_print_int(mp, mp->var_used); mp_print_char(mp, '&'); mp_print_int(mp, mp->dyn_used);
-  if ( false )
-    mp_print(mp, "unknown");
   mp_print(mp, " ("); mp_print_int(mp, mp->hi_mem_min-mp->lo_mem_max-1);
   mp_print(mp, " still untouched)"); mp_print_ln(mp);
   mp_print_nl(mp, "String usage ");
   mp_print_int(mp, mp->strs_in_use-mp->init_str_use);
   mp_print_char(mp, '&'); mp_print_int(mp, mp->pool_in_use-mp->init_pool_ptr);
-  if ( false )
-    mp_print(mp, "unknown");
   mp_print(mp, " (");
   mp_print_int(mp, mp->max_strings-1-mp->strs_used_up); mp_print_char(mp, '&');
   mp_print_int(mp, mp->pool_size-mp->pool_ptr); 
@@ -22604,7 +22602,7 @@ void mp_scan_with_list (MP mp,pointer p) ;
   }
   @<Copy the information from objects |cp|, |pp|, and |dp| into the rest
     of the list@>;
-};
+}
 
 @ @<Complain about improper type@>=
 { exp_err("Improper type");
@@ -22799,7 +22797,7 @@ pointer mp_find_edges_var (MP mp, pointer t) ;
   }
   mp_flush_node_list(mp, t);
   return cur_edges;
-};
+}
 
 @ @<Cases of |do_statement|...@>=
 case add_to_command: mp_do_add_to(mp); break;
@@ -23005,8 +23003,8 @@ if ( lhe==null ) {
 case ship_out_command: mp_do_ship_out(mp); break;
 
 @ @<Declare action procedures for use by |do_statement|@>=
-@<Declare the function called |tfm_check|@>;
-@<Declare the \ps\ output procedures@>;
+@<Declare the function called |tfm_check|@>
+@<Declare the \ps\ output procedures@>
 void mp_do_ship_out (MP mp) ;
 
 @ @c void mp_do_ship_out (MP mp) {
@@ -23084,7 +23082,7 @@ case message_command:
 case message_command: mp_do_message(mp); break;
 
 @ @<Declare action procedures for use by |do_statement|@>=
-@<Declare a procedure called |no_string_err|@>;
+@<Declare a procedure called |no_string_err|@>
 void mp_do_message (MP mp) ;
 
 @ 
@@ -23113,7 +23111,7 @@ void mp_do_message (MP mp) ;
 }
 
 @ @<Declare a procedure called |no_string_err|@>=
-void mp_no_string_err (MP mp,char *s) { 
+void mp_no_string_err (MP mp, const char *s) { 
    exp_err("Not a string");
 @.Not a string@>
   help1(s);
@@ -23578,7 +23576,7 @@ for (k=0;k<= 255;k++ ) {
   mp->tfm_width[k]=0; mp->tfm_height[k]=0; mp->tfm_depth[k]=0; mp->tfm_ital_corr[k]=0;
   mp->char_exists[k]=false; mp->char_tag[k]=no_tag; mp->char_remainder[k]=0;
   mp->skip_table[k]=undefined_label;
-};
+}
 memset(mp->header_byte,0,mp->header_size);
 mp->bc=255; mp->ec=0; mp->nl=0; mp->nk=0; mp->ne=0; mp->np=0;
 mp->internal[mp_boundary_char]=-unity;
@@ -23671,7 +23669,7 @@ eight_bits mp_get_code (MP mp) ;
        ("string of length 1. Didn't find it; will use 0 instead.");
   mp_put_get_flush_error(mp, 0); c=0;
   return c;
-};
+}
 
 @ @<Declare action procedures for use by |do_statement|@>=
 void mp_set_tag (MP mp,halfword c, small_number t, halfword r) ;
@@ -23759,7 +23757,7 @@ void mp_do_tfm_command (MP mp) ;
     }
     break;
   } /* there are no other cases */
-};
+}
 
 @ @<Store a list of ligature/kern steps@>=
 { 
@@ -24361,7 +24359,7 @@ if ( mp->label_loc[k]+lk_offset>255 ) {
     incr(lk_offset); decr(k);
   } while (! (lk_offset+mp->label_loc[k]<256));
     /* N.B.: |lk_offset=256| satisfies this when |k=0| */
-};
+}
 if ( lk_offset>0 ) {
   while ( k>0 ) {
     mp->char_remainder[mp->label_char[k]]
@@ -24559,8 +24557,8 @@ mp->depth_base[null_font]=0;
 mp->next_fmem=0;
 mp->last_fnum=null_font;
 mp->last_ps_fnum=null_font;
-mp->font_name[null_font]="nullfont";
-mp->font_ps_name[null_font]="";
+mp->font_name[null_font]=(char *)"nullfont";
+mp->font_ps_name[null_font]=(char *)"";
 mp->font_ps_name_fixed[null_font] = false;
 mp->font_enc_name[null_font]=NULL;
 mp->font_sizes[null_font]=null;
@@ -24592,7 +24590,7 @@ A preliminary name is obtained here from the \.{TFM} name as given in the
 |fname| argument.  This gets updated later from an external table if necessary.
 
 @<Declare text measuring subroutines@>=
-@<Declare subroutines for parsing file names@>;
+@<Declare subroutines for parsing file names@>
 font_number mp_read_font_info (MP mp, char *fname) {
   boolean file_opened; /* has |tfm_infile| been opened? */
   font_number n; /* the number to return */
@@ -25175,12 +25173,12 @@ mp_special_code=8,
 @ @<Export pending specials@>=
 p=link(spec_head);
 while ( p!=null ) {
-  mp_special_object *tt;
-  tt = (mp_special_object *)mp_new_graphic_object(mp,mp_special_code);  
-  gr_pre_script(tt)  = str(value(p));
-  if (hh->body==NULL) hh->body = (mp_graphic_object *)tt; 
-  else gr_link(hp) = (mp_graphic_object *)tt;
-  hp = (mp_graphic_object *)tt;
+  mp_special_object *tp;
+  tp = (mp_special_object *)mp_new_graphic_object(mp,mp_special_code);  
+  gr_pre_script(tp)  = str(value(p));
+  if (hh->body==NULL) hh->body = (mp_graphic_object *)tp; 
+  else gr_link(hp) = (mp_graphic_object *)tp;
+  hp = (mp_graphic_object *)tp;
   p=link(p);
 }
 mp_flush_token_list(mp, link(spec_head));
@@ -25219,13 +25217,13 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   pointer p; /* the current graphical object */
   integer t; /* a temporary value */
   mp_edge_object *hh; /* the first graphical object */
-  struct mp_graphic_object *hp; /* the current graphical object */
   struct mp_graphic_object *hq; /* something |hp| points to  */
   struct mp_text_object    *tt;
   struct mp_fill_object    *tf;
   struct mp_stroked_object *ts;
   struct mp_clip_object    *tc;
   struct mp_bounds_object  *tb;
+  struct mp_graphic_object *hp = NULL; /* the current graphical object */
   mp_set_bbox(mp, h, true);
   hh = mp_xmalloc(mp,1,sizeof(mp_edge_object));
   hh->body = NULL;
@@ -25507,13 +25505,15 @@ read an integer value |x| that is supposed to be in the range |a<=x<=b|.
                           if (x<(A)) goto OFF_BASE; 
                           if (x>(B)) { too_small((C)); } else { D=x;} }
 @d undump_string(A) do { 
-  size_t wanted; 
+  size_t the_wanted; 
+  void *the_string;
   integer XX=0; 
   undump_int(XX);
-  wanted = XX;
-  A = xmalloc(XX,sizeof(char));
-  (mp->read_binary_file)(mp,mp->mem_file,(void **)&A,&wanted);
-  if (wanted!=(size_t)XX) goto OFF_BASE;
+  the_wanted = XX;
+  the_string = xmalloc(XX,sizeof(char));
+  (mp->read_binary_file)(mp,mp->mem_file,&the_string,&the_wanted);
+  A = (char *)the_string;
+  if (the_wanted!=(size_t)XX) goto OFF_BASE;
 } while (0)
 
 @ The next few sections of the program should make it clear how we use the
@@ -25566,7 +25566,7 @@ while (1)  {
   } else { 
     k=mp->next_str[k]; 
   }
-};
+}
 k=0;
 while (k+4<mp->pool_ptr ) { 
   dump_four_ASCII; k=k+4; 
@@ -25768,8 +25768,8 @@ Well---almost. We haven't put the parsing subroutines into the
 program yet; and we'd better leave space for a few more routines that may
 have been forgotten.
 
-@c @<Declare the basic parsing subroutines@>;
-@<Declare miscellaneous procedures that were declared |forward|@>;
+@c @<Declare the basic parsing subroutines@>
+@<Declare miscellaneous procedures that were declared |forward|@>
 @<Last-minute procedures@>
 
 @ We've noted that there are two versions of \MP. One, called \.{INIMP},

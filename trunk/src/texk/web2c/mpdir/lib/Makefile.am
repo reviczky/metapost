@@ -1,7 +1,7 @@
 
 AUTOMAKE_OPTIONS = foreign
 
-CFLAGS=-Wall -W -g
+CFLAGS=-Wall -W -Wwrite-strings -g
 
 lib_LTLIBRARIES = libmplib.la
 
