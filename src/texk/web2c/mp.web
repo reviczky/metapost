@@ -8518,6 +8518,8 @@ p:=link(p);
 end
 
 @ @<Fix anything in graphical object |pp| that should differ from the...@>=
+if pre_script(p)<>null  then add_str_ref(pre_script(pp));
+if post_script(p)<>null then add_str_ref(post_script(pp));
 case type(p) of
 start_clip_code,start_bounds_code: path_p(pp):=copy_path(path_p(p));
 fill_code: begin path_p(pp):=copy_path(path_p(p));
