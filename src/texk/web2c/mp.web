@@ -8518,18 +8518,24 @@ p:=link(p);
 end
 
 @ @<Fix anything in graphical object |pp| that should differ from the...@>=
-if pre_script(p)<>null  then add_str_ref(pre_script(pp));
-if post_script(p)<>null then add_str_ref(post_script(pp));
 case type(p) of
 start_clip_code,start_bounds_code: path_p(pp):=copy_path(path_p(p));
 fill_code: begin path_p(pp):=copy_path(path_p(p));
+  if pre_script(p)<>null  then add_str_ref(pre_script(pp));
+  if post_script(p)<>null then add_str_ref(post_script(pp));
   if pen_p(p)<>null then pen_p(pp):=copy_pen(pen_p(p));
   end;
 stroked_code: begin path_p(pp):=copy_path(path_p(p));
+  if pre_script(p)<>null  then add_str_ref(pre_script(pp));
+  if post_script(p)<>null then add_str_ref(post_script(pp));
   pen_p(pp):=copy_pen(pen_p(p));
   if dash_p(p)<>null then add_edge_ref(dash_p(pp));
   end;
-text_code: add_str_ref(text_p(pp));
+text_code: begin
+  if pre_script(p)<>null  then add_str_ref(pre_script(pp));
+  if post_script(p)<>null then add_str_ref(post_script(pp));
+  add_str_ref(text_p(pp));
+  end;
 stop_clip_code,stop_bounds_code: do_nothing;
 end  {there are no other cases}
 
