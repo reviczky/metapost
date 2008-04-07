@@ -9241,7 +9241,7 @@ spec_offset:integer; {number of pen edges between |h| and the initial offset}
 function offset_prep(@!c,@!h:pointer):pointer;
 label not_found;
 var @!n:halfword; {the number of vertices in the pen polygon}
-@!p,@!q,@!q0,@!r,@!w,@!ww:pointer; {for list manipulation}
+@!p,@!q,@!q0,@!c0,@!r,@!w,@!ww:pointer; {for list manipulation}
 @!k_needed:integer; {amount to be added to |info(p)| when it is computed}
 @!w0:pointer; {a pointer to pen offset to use just before |p|}
 @!dxin,@!dyin:scaled; {the direction into knot |p|}
@@ -9249,7 +9249,7 @@ var @!n:halfword; {the number of vertices in the pen polygon}
 @<Other local variables for |offset_prep|@>@;
 begin @<Initialize the pen size~|n|@>;
 @<Initialize the incoming direction and pen offset at |c|@>;
-p:=c; k_needed:=0;
+p:=c; c0:=c; k_needed:=0;
 repeat q:=link(p);
 @<Split the cubic between |p| and |q|, if necessary, into cubics
   associated with single offsets, after which |q| should
@@ -9313,7 +9313,7 @@ if x_coord(p)=right_x(p) then if y_coord(p)=right_y(p) then
 p:=r;
 until p=q;
 { Check if we removed too much }
-if q<>q0 then q:=link(q)
+if (q<>q0) and ((q<>c) or (c=c0)) then q:=link(q)
 
 @ @<Remove the cubic following |p| and update the data structures...@>=
 begin k_needed:=info(p)-zero_off;
