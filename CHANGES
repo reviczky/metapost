@@ -14,6 +14,23 @@ What is new in version 1.003:
 * The Makefile fragment (metapost.mk) now defines a separate mpost target 
   for better integration in TeXLive.
 
+* There was a bug in the internal handling of withprescript and 
+  withpostscript, resulting in incorrect output when paths using 
+  such scripts were stored in picture variables.
+
+* A newline was missing from the PostScript output when the 
+  procset internal variable was set, so the first line of that
+  accidentally became a PostScript comment.
+
+* Applicable changes from Knuth's updates for MetaFont 2.718281 
+  are incorporated.
+
+* Mpto did not play nice with %&<format> verbatimtex lines, it now
+  automatically tries to detect comment-lines.
+
+* Dvitomp  1.003 has higher limits for some internal constants like 
+  the number of allowed fonts in DVI files.
+
 * The manual is improved.
 
 ----------------------------------------------------------------------
