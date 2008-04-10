@@ -5702,8 +5702,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 @d name_type(A)   mp->mem[(A)].hh.b1 /* a clue to the name of this value */
 @d token_node_size 2 /* the number of words in a large token node */
 @d value_loc(A) ((A)+1) /* the word that contains the |value| field */
-@d value(A)       info(value_loc((A))) /* the value stored in a large token node */
-@d value_scale(A) link(value_loc((A))) /* the scale factor of a value */
+@d value(A) mp->mem[value_loc((A))].cint /* the value stored in a large token node */
 @d expr_base (hash_end+1) /* code for the zeroth \&{expr} parameter */
 @d suffix_base (expr_base+mp->param_size) /* code for the zeroth \&{suffix} parameter */
 @d text_base (suffix_base+mp->param_size) /* code for the zeroth \&{text} parameter */
@@ -5715,14 +5714,14 @@ if ( text_base+mp->param_size>max_halfword ) mp->bad=18;
 |value(null)=0|.  We will make use of this coincidence later.
 
 @<Initialize table entries...@>=
-link(null)=null; value(null)=0; value_scale(null)=0;
+link(null)=null; value(null)=0;
 
 @ A numeric token is created by the following trivial routine.
 
 @c 
 pointer mp_new_num_tok (MP mp,scaled v) {
   pointer p; /* the new node */
-  p=mp_get_node(mp, token_node_size); value(p)=v; 
+  p=mp_get_node(mp, token_node_size); value(p)=v;
   type(p)=mp_known; name_type(p)=mp_token; 
   return p;
 }
@@ -10401,7 +10400,7 @@ integer spec_offset; /* number of pen edges between |h| and the initial offset *
 @ @c @<Declare subroutines needed by |offset_prep|@>
 pointer mp_offset_prep (MP mp,pointer c, pointer h) {
   halfword n; /* the number of vertices in the pen polygon */
-  pointer c0,p,q,q0,r,w, ww; /* for list manipulation */
+  pointer p,q,q0,r,w, ww; /* for list manipulation */
   integer k_needed; /* amount to be added to |info(p)| when it is computed */
   pointer w0; /* a pointer to pen offset to use just before |p| */
   scaled dxin,dyin; /* the direction into knot |p| */
@@ -10410,7 +10409,7 @@ pointer mp_offset_prep (MP mp,pointer c, pointer h) {
   dx0=0; dy0=0;
   @<Initialize the pen size~|n|@>;
   @<Initialize the incoming direction and pen offset at |c|@>;
-  p=c; c0=c; k_needed=0;
+  p=c; k_needed=0;
   do {  
     q=link(p);
     @<Split the cubic between |p| and |q|, if necessary, into cubics
@@ -10481,7 +10480,7 @@ do {
   p=r;
 } while (p!=q);
 /* Check if we removed too much */
-if ((q!=q0)&&(q!=c||c==c0))
+if(q!=q0)
   q = link(q)
 
 @ @<Remove the cubic following |p| and update the data structures...@>=
@@ -11883,9 +11882,9 @@ as a |scaled| number plus a sum of independent variables with |fraction|
 coefficients.
 
 \smallskip\hang
-|type(p)=mp_independent| means that |value(p)=s| and |value_scale(p)=m|, 
-where |s>0| is a ``serial number'' reflecting the time this variable was 
-first used in an equation; also |0<=m<64|, and each dependent variable
+|type(p)=mp_independent| means that |value(p)=64s+m|, where |s>0| is a ``serial
+number'' reflecting the time this variable was first used in an equation;
+also |0<=m<64|, and each dependent variable
 that refers to this one is actually referring to the future value of
 this variable times~$2^m$. (Usually |m=0|, but higher degrees of
 scaling are sometimes needed to keep the coefficients in dependency lists
@@ -11913,15 +11912,16 @@ independent variables it depends on is reverting to |undefined|.
 The next patch detects overflow of independent-variable serial
 numbers. Diagnosed and patched by Thorsten Dahlheimer.
 
+@d s_scale 64 /* the serial numbers are multiplied by this factor */
 @d new_indep(A)  /* create a new independent variable */
-  { if ( mp->serial_no>el_gordo )
+  { if ( mp->serial_no>el_gordo-s_scale )
     mp_fatal_error(mp, "variable instance identifiers exhausted");
-  type((A))=mp_independent; mp->serial_no=mp->serial_no+1;
-  value((A))=mp->serial_no; value_scale((A))=0;
+  type((A))=mp_independent; mp->serial_no=mp->serial_no+s_scale;
+  value((A))=mp->serial_no;
   }
 
 @<Glob...@>=
-integer serial_no; /* the most recent serial number */
+integer serial_no; /* the most recent serial number, times |s_scale| */
 
 @ @<Make variable |q+s| newly independent@>=new_indep(q+s)
 
@@ -11990,7 +11990,7 @@ void mp_print_dependency (MP mp,pointer p, small_number t) {
     @<Print the coefficient, unless it's $\pm1.0$@>;
     if ( type(q)!=mp_independent ) mp_confusion(mp, "dep");
 @:this can't happen dep}{\quad dep@>
-    mp_print_variable_name(mp, q); v=value_scale(q);
+    mp_print_variable_name(mp, q); v=value(q) % s_scale;
     while ( v>0 ) { mp_print(mp, "*4"); v=v-2; }
     p=link(p);
   }
@@ -12353,7 +12353,7 @@ void mp_fix_dependencies (MP mp);
   }
   while ( s!=null ) { 
     p=link(s); x=info(s); free_avail(s); s=p;
-    type(x)=mp_independent; value_scale(x)=value_scale(x)+2;
+    type(x)=mp_independent; value(x)=value(x)+2;
   }
   mp->fix_needed=false;
 }
@@ -12414,7 +12414,7 @@ recognized by testing that the returned list pointer is equal to
 @c pointer mp_single_dependency (MP mp,pointer p) {
   pointer q; /* the new dependency list */
   integer m; /* the number of doublings */
-  m=value_scale(p);
+  m=value(p) % s_scale;
   if ( m>28 ) {
     return mp_const_dependency(mp, 0);
   } else { 
@@ -12458,7 +12458,7 @@ The given list |p| is, of course, totally destroyed by all this processing.
   pointer final_node; /* the constant term of the new dependency list */
   integer w; /* a tentative coefficient */
    @<Find a node |q| in list |p| whose coefficient |v| is largest@>;
-  x=info(q); n=value_scale(x);
+  x=info(q); n=value(x) % s_scale;
   @<Divide list |p| by |-v|, removing node |q|@>;
   if ( mp->internal[mp_tracing_equations]>0 ) {
     @<Display the new dependency@>;
@@ -17028,8 +17028,8 @@ if ( mp_interesting(mp, p) ) {
   else vv=mp->max_c[mp_proto_dependent];
   if ( vv!=unity ) mp_print_scaled(mp, vv);
   mp_print_variable_name(mp, p);
-  while ( value_scale(p)>0 ) {
-    mp_print(mp, "*4"); value_scale(p)=value_scale(p)-2;
+  while ( value(p) % s_scale>0 ) {
+    mp_print(mp, "*4"); value(p)=value(p)-2;
   }
   if ( t==mp_dependent ) mp_print_char(mp, '='); else mp_print(mp, " = ");
   mp_print_dependency(mp, s,t);
