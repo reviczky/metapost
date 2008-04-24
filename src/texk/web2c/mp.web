@@ -97,8 +97,8 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d banner=='This is MetaPost, Version 1.003' {printed when \MP\ starts}
-@d metapost_version=="1.003"
+@d banner=='This is MetaPost, Version 1.004' {printed when \MP\ starts}
+@d metapost_version=="1.004"
 
 @ Different \PASCAL s have slightly different conventions, and the present
 @!@:PASCAL H}{\ph@>
@@ -16879,7 +16879,10 @@ end;
 @ 
 @d pict_color_type(#)==(link(dummy_loc(cur_exp))<>null) and
                        (has_color(link(dummy_loc(cur_exp)))) and
-                       (color_model(link(dummy_loc(cur_exp)))=#)
+                       ((color_model(link(dummy_loc(cur_exp)))=#)
+                         or
+                        (color_model(link(dummy_loc(cur_exp)))=uninitialized_model) and
+                        ((internal[default_color_model] div unity)=#))
 
 @<Additional cases of unary operators@>=
 x_part,y_part:if (cur_type=pair_type)or(cur_type=transform_type) then
@@ -16969,8 +16972,8 @@ if p<>null then
       else goto not_found;
     cyan_part,magenta_part,yellow_part,black_part:
       if has_color(p) then
-        if color_model(p)=uninitialized_model then
-          flush_cur_exp(unity)
+        if (color_model(p)=uninitialized_model)and(c=black_part) then
+	      flush_cur_exp(unity)
         else
           flush_cur_exp(obj_color_part(p+c+(red_part-cyan_part)))
       else goto not_found;
