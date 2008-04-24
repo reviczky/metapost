@@ -2,6 +2,27 @@ $Id: CHANGES,v 1.9 2005/08/24 10:54:02 taco Exp $
 By John Hobby and others.  Public domain (see README).
 
 ----------------------------------------------------------------------
+What is new in version 1.004:
+----------------------------------------------------------------------
+
+* The picture color component commands misbehaved in 1.003:
+  the current (default) colormodel was not taken into consideration,
+  so all colors had to be explicit for "redpart" etc. to work. 
+
+  In 1.004 for "defaulted" colors, the suitable value in the current 
+  (default) colormodel is returned without any errors.
+
+* The picture color component commands misbehaved in 1.003 in
+  a different manner also: the defaults for uninitialized CMYK
+  color picture parts were still assuming 'black' was defined as 
+  (1,1,1,1) instead of as (0,0,0,1).
+
+* The macro Gwithpc_ in the graph.mp package did not work properly
+  with non-rgb colormodel objects.
+
+* The latest kpathsea library from TeXLive is included.
+
+----------------------------------------------------------------------
 What is new in version 1.003:
 ----------------------------------------------------------------------
 
