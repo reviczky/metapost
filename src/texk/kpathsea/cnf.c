@@ -1,7 +1,7 @@
 /* cnf.c: read config files.
 
+   Copyright 1994, 1995, 1996, 1997, 2008 Karl Berry.
    Copyright 1997-2005 Olaf Weber.
-   Copyright 1994, 95, 96, 97 Karl Berry.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -13,11 +13,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Lesser General Public License for more details.
 
-   You should have received a copy of the GNU Lesser General Public
-   License along with this library; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
-*/
+   You should have received a copy of the GNU Lesser General Public License
+   along with this library; if not, see <http://www.gnu.org/licenses/>.  */
 
 #include <kpathsea/config.h>
 #include <kpathsea/c-fopen.h>
@@ -30,6 +27,7 @@
 #include <kpathsea/paths.h>
 #include <kpathsea/pathsearch.h>
 #include <kpathsea/progname.h>
+#include <kpathsea/recorder.h>
 #include <kpathsea/tex-file.h>
 #include <kpathsea/variable.h>
 
@@ -166,6 +164,8 @@ read_all_cnf P1H(void)
     for (cnf = cnf_files; *cnf; cnf++) {
       string line;
       FILE *cnf_file = xfopen (*cnf, FOPEN_R_MODE);
+      if (kpse_record_input)
+        kpse_record_input (*cnf);
 
       while ((line = read_line (cnf_file)) != NULL) {
         unsigned len = strlen (line);
@@ -197,8 +197,13 @@ read_all_cnf P1H(void)
       free (*cnf);
     }
     free (cnf_files);
-  } else
-    WARNING1 ("Configuration file texmf.cnf not found! Searched these directories:\n%s\nTrying to proceed..", cnf_path);
+  } else {
+    string warn = getenv ("KPATHSEA_WARNING");
+    if (!(warn && STREQ (warn, "0"))) {
+      WARNING1 ("kpathsea: configuration file texmf.cnf not found in these directories: %s", 
+        cnf_path);
+    }
+  }
 }
 
 /* Read the cnf files on the first call.  Return the first value in the
@@ -248,5 +253,4 @@ kpse_cnf_get P1C(const_string, name)
   }
   
   return ret;
-
 }

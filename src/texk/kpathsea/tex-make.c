@@ -1,6 +1,5 @@
 /* tex-make.c: Run external programs to make TeX-related files.
 
-
     Copyright 1997, 98, 2001-05 Olaf Weber.
     Copyright 1993, 94, 95, 96, 97 Karl Berry.
 
@@ -31,9 +30,7 @@
 #include <kpathsea/readable.h>
 #include <kpathsea/tex-make.h>
 #include <kpathsea/variable.h>
-#ifndef  WIN32
-#  include <sys/wait.h>
-#endif
+
 
 /* We never throw away stdout, since that is supposed to be the filename
    found, if all is successful.  This variable controls whether stderr
@@ -162,7 +159,7 @@ maketex P2C(kpse_file_format_type, format, string*, args)
   string fn;
   
   if (!kpse_make_tex_discard_errors) {
-    fprintf (stderr, "kpathsea: Running");
+    fprintf (stderr, "\nkpathsea: Running");
     for (s = &args[0]; *s != NULL; s++)
       fprintf (stderr, " %s", *s);
     fputc('\n', stderr);
@@ -504,7 +501,7 @@ kpse_make_tex P2C(kpse_file_format_type, format,  const_string, base)
      * No doubt some possibilities were overlooked.
      */
     if (base[0] == '-' /* || IS_DIR_SEP(base[0])  */) {
-      fprintf(stderr, "kpathsea: Illegal fontname `%s': starts with '%c'\n",
+      fprintf(stderr, "kpathsea: Invalid fontname `%s', starts with '%c'\n",
               base, base[0]);
       return NULL;
     }
@@ -516,7 +513,7 @@ kpse_make_tex P2C(kpse_file_format_type, format,  const_string, base)
           && base[i] != '.'
           && !IS_DIR_SEP(base[i]))
       {
-        fprintf(stderr, "kpathsea: Illegal fontname `%s': contains '%c'\n",
+        fprintf(stderr, "kpathsea: Invalid fontname `%s', contains '%c'\n",
                 base, base[i]);
         return NULL;
       }

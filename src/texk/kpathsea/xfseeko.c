@@ -1,7 +1,7 @@
-/* xopendir.c: opendir and closedir with error checking.
+/* xfseeko.c: fseeko with error checking.
 
-    Copyright 2005 Olaf Weber.
-    Copyright 1992, 93, 94, 95, 96 Karl Berry.
+    Copyright 2005     Olaf Weber
+    Copyright 1992, 95 Karl Berry
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -20,32 +20,11 @@
 */
 
 #include <kpathsea/config.h>
-#include <kpathsea/xopendir.h>
 
-
-#if !defined(WIN32) || defined(__MINGW32__)
-DIR *
-xopendir P1C(string, dirname)
-{
-    DIR *d = opendir(dirname);
-
-    if (d == NULL)
-        FATAL_PERROR(dirname);
-
-    return d;
-}
-#endif /* not WIN32 */
 
 void
-xclosedir P1C(DIR *, d)
+xfseeko P4C(FILE *, f,  off_t, offset,  int, wherefrom,  string, filename)
 {
-#ifdef CLOSEDIR_VOID
-    closedir (d);
-#else
-    int ret = closedir(d);
-  
-    if (ret != 0)
-        FATAL("closedir failed");
-#endif
+    if (fseeko(f, offset, wherefrom) < 0)
+        FATAL_PERROR(filename);
 }
-

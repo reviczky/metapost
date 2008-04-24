@@ -1,7 +1,6 @@
-/* c-errno.h: <errno.h> and the errno variable.
+/* recorder.h: filename recorder callback.
 
-   Copyright 1992, 2008 Karl Berry.
-   Copyright 2005 Olaf Weber
+   Copyright 2007, 2008 Karl Berry.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -16,12 +15,13 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this library; if not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef KPATHSEA_C_ERRNO_H
-#define KPATHSEA_C_ERRNO_H
+#ifndef KPATHSEA_RECORDER_H
+#define KPATHSEA_RECORDER_H
 
-#include <errno.h>
-#ifndef errno
-extern int errno;
-#endif
+/* These variables are set by web2c and are used to record filenames for its
+   filename -recorder option.  This way they can also be used for files
+   opened by kpathsea, e.g., texmf.cnf */
+void (*kpse_record_input) (const_string);
+void (*kpse_record_output) (const_string);
 
-#endif /* not KPATHSEA_C_ERRNO_H */
+#endif /* not KPATHSEA_RECORDER_H */
