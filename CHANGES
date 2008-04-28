@@ -23,7 +23,7 @@ What is new in version 1.004:
   with non-rgb colormodel objects.
 
 * plain.mp has a new macro, 'colorpart', that returns the color
-  parts of a graphical object within a picture is a form suitable
+  parts of a graphical object within a picture in a form suitable
   for feeding it back to 'withcolor'.
 
 * The latest kpathsea library from TeXLive is included.
