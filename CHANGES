@@ -10,7 +10,9 @@ What is new in version 1.004:
   so all colors had to be explicit for "redpart" etc. to work. 
 
   In 1.004 for "defaulted" colors, the suitable value in the current 
-  (default) colormodel is returned without any errors.
+  (default) colormodel is returned without any errors. This change
+  also reverts to silently defaulting a 'black' color when asking
+  for the redpart etc. of an object that cannot be colored at all.
 
 * The picture color component commands misbehaved in 1.003 in
   a different manner also: the defaults for uninitialized CMYK
@@ -19,6 +21,10 @@ What is new in version 1.004:
 
 * The macro Gwithpc_ in the graph.mp package did not work properly
   with non-rgb colormodel objects.
+
+* plain.mp has a new macro, 'colorpart', that returns the color
+  parts of a graphical object within a picture is a form suitable
+  for feeding it back to 'withcolor'.
 
 * The latest kpathsea library from TeXLive is included.
 
