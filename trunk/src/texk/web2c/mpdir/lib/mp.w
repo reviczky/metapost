@@ -163,7 +163,7 @@ struct MP_options *mp_options (void) {
 @<Internal library ... @>=
 #if !defined(__GNUC__) || (__GNUC__ < 2)
 # define __attribute__(x)
-#endif /* !defined(__GNUC__) || (__GNUC__ < 2) */
+#endif
 
 @ @c
 MP __attribute__ ((noinline))

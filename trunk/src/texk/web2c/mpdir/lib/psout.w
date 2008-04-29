@@ -3715,7 +3715,7 @@ void mp_mark_string_chars (MP mp,font_number f, char *s) {
   b=mp->char_base[f];
   bc=mp->font_bc[f];
   ec=mp->font_ec[f];
-  k=s; /* str_stop */
+  k=s;
   while (*k){ 
     if ( (*k>=bc)&&(*k<=ec) )
       mp->font_info[b+*k].qqqq.b3=mp_used;
@@ -4302,7 +4302,7 @@ mp_knot * mp_gr_htap_ypoc (MP mp,  mp_knot *p) {
     gr_originator(qq)=gr_originator(pp);
     if ( gr_next_knot(pp)==p ) { 
       gr_next_knot(q)=qq; 
-      /* mp->path_tail=pp; */ /* ? */
+      /* |mp->path_tail=pp;| */ /* ? */
       return q;
     }
     rr=mp_xmalloc(mp, 1, sizeof (mp_knot));
