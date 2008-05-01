@@ -34,6 +34,10 @@ fi
 # do a configure without all the things we don't need
 ../src/configure \
             --datadir=$DATADIR  \
+	    --target=i386-mingw32 \
+            --build=i386-mingw32  \
+            --host=i386-linux     \
+   	    --disable-ipc         \
             --without-bibtex8   \
             --without-cjkutils  \
             --without-detex     \

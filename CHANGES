@@ -28,6 +28,8 @@ What is new in version 1.004:
 
 * The latest kpathsea library from TeXLive is included.
 
+* There is now a separate manual for the boxes package (mpboxes.pdf).
+
 ----------------------------------------------------------------------
 What is new in version 1.003:
 ----------------------------------------------------------------------
