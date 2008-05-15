@@ -2,6 +2,18 @@ $Id: CHANGES,v 1.9 2005/08/24 10:54:02 taco Exp $
 By John Hobby and others.  Public domain (see README).
 
 ----------------------------------------------------------------------
+What is new in version 1.005:
+----------------------------------------------------------------------
+
+* In MetaPost 1.004, mpost --version still incorrectly reported 1.003 
+
+* C Compilation of MetaPost 1.004 was broken on MacOS X 10.5
+
+* The sources package did not contain mpboxes.pdf
+
+* Some last-minute fixes to the manual
+
+----------------------------------------------------------------------
 What is new in version 1.004:
 ----------------------------------------------------------------------
 
