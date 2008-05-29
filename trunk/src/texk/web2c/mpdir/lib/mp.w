@@ -1,4 +1,4 @@
-% $Id: mp.web,v 1.8 2005/08/24 10:54:02 taco Exp $
+% $Id: mp.w 1299 2008-05-28 14:09:04Z taco $
 % MetaPost, by John Hobby.  Public domain.
 
 % Much of this program was copied with permission from MF.web Version 1.9
@@ -163,7 +163,7 @@ struct MP_options *mp_options (void) {
 @<Internal library ... @>=
 #if !defined(__GNUC__) || (__GNUC__ < 2)
 # define __attribute__(x)
-#endif
+#endif /* !defined(__GNUC__) || (__GNUC__ < 2) */
 
 @ @c
 MP __attribute__ ((noinline))
@@ -859,12 +859,12 @@ initialization.
 } while (0)
 
 @d t_close_out do { /* close the terminal */
-  (mp->close_file)(mp,mp->term_out);
-  (mp->close_file)(mp,mp->err_out);
+  /* (mp->close_file)(mp,mp->term_out); */
+  /* (mp->close_file)(mp,mp->err_out); */
 } while (0)
 
 @d t_close_in do { /* close the terminal */
-  (mp->close_file)(mp,mp->term_in);
+  /* (mp->close_file)(mp,mp->term_in); */
 } while (0)
 
 @<Option variables@>=
@@ -1327,6 +1327,7 @@ void mp_do_compaction (MP mp, pool_pointer needed) {
     @<Move string |r| back so that |str_start[r]=p|; make |p| the location
      after the end of the string@>;
   }
+DONE:   
   @<Move the current string back so that it starts at |p|@>;
   if ( needed<mp->pool_size ) {
     @<Make sure that there is room for another string with |needed| characters@>;
@@ -1356,7 +1357,7 @@ s=mp->next_str[s];
 mp->next_str[r]=s;
 mp->next_str[t]=mp->next_str[mp->str_ptr];
 mp->next_str[mp->str_ptr]=t;
-if ( s==mp->str_ptr ) break;
+if ( s==mp->str_ptr ) goto DONE;
 }
 
 @ The string currently starts at |str_start[r]| and ends just before
@@ -2033,7 +2034,8 @@ enum mp_history_states {
   mp_spotless=0, /* |history| value when nothing has been amiss yet */
   mp_warning_issued, /* |history| value when |begin_diagnostic| has been called */
   mp_error_message_issued, /* |history| value when |error| has been called */
-  mp_fatal_error_stop /* |history| value when termination was premature */
+  mp_fatal_error_stop, /* |history| value when termination was premature */
+  mp_system_error_stop /* |history| value when termination was due to disaster */
 };
 
 @ @<Glob...@>=
@@ -2125,7 +2127,7 @@ cleanup routine.
 
 @<Error hand...@>=
 void mp_jump_out (MP mp) { 
-  if(mp->internal!=NULL)
+  if (mp->internal!=NULL && mp->history < mp_system_error_stop) 
     mp_close_files_and_terminate(mp);
   longjmp(mp->jump_buf,1);
 }
@@ -3902,7 +3904,7 @@ void  *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) {
   w = realloc (p,(nmem*size));
   if (w==NULL) {
     do_fprintf(mp->err_out,"Out of memory!\n");
-    mp->history =mp_fatal_error_stop;    mp_jump_out(mp);
+    mp->history =mp_system_error_stop;    mp_jump_out(mp);
   }
   return w;
 }
@@ -3915,7 +3917,7 @@ void  *mp_xmalloc (MP mp, size_t nmem, size_t size) {
   w = malloc (nmem*size);
   if (w==NULL) {
     do_fprintf(mp->err_out,"Out of memory!\n");
-    mp->history =mp_fatal_error_stop;    mp_jump_out(mp);
+    mp->history =mp_system_error_stop;    mp_jump_out(mp);
   }
   return w;
 }
@@ -3926,7 +3928,7 @@ char *mp_xstrdup(MP mp, const char *s) {
   w = strdup(s);
   if (w==NULL) {
     do_fprintf(mp->err_out,"Out of memory!\n");
-    mp->history =mp_fatal_error_stop;    mp_jump_out(mp);
+    mp->history =mp_system_error_stop;    mp_jump_out(mp);
   }
   return w;
 }
