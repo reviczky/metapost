@@ -14,8 +14,8 @@ MPLIBBUILDDIR = ../../../texk/web2c/mpdir/lib/.libs
 MPLIBSRCDIR = ../../../../src/texk/web2c/mpdir/lib
 MPLIB = $(MPLIBBUILDDIR)/libmplib.a
 
-CFLAGS = -Wall -W -Wwrite-strings -g -I../.. -I./lib
-OBJECTS = mpost.o 
+CFLAGS = -Wall -W -pedantic -g -I../.. -I./lib
+OBJECTS = mpost.o mpxout.o makempx.o
 LUAOBJECTS = lmplib.o luamain.o
 
 newmpost: $(MPLIB) $(OBJECTS) 
@@ -24,9 +24,17 @@ newmpost: $(MPLIB) $(OBJECTS)
 luampost: $(MPLIB) $(LUAOBJECTS) 
 	$(LD) -o luampost $(LUAOBJECTS) $(MPLIB) $(LUALIB) -lm
 
+lib/avl.o: lib/avl.c
+	cd lib && make avl.o
+
+makempx.o: mpxout.o
+
+makempx: makempx.o mpxout.o lib/avl.o
+	$(LD) -o makempx lib/avl.o makempx.o mpxout.o $(KPSELIB) -lm
+
 clean:
-	cd lib && make clean
-	$(RM) *.o newmpost luampost mpost.c *.scn *.idx *.toc *.pdf *.log
+	$(RM) *.o makempx newmpost luampost mpost.c *.scn *.idx *.toc *.pdf *.log mpxerr.*
+	$(RM) mpxout.c mpxout.h makempx.c makempx.tex mpost.tex mpxout.tex
 
 .c.o:
 	$(CC) -c $< -o $@
@@ -39,3 +47,5 @@ $(OBJECTS): %.o: %.c
 
 $(LUAOBJECTS): %.o: %.c
 	$(CC) -c $(CFLAGS) -I$(MPLIBSRCDIR) -I$(LUASRCDIR) $< -o $@
+
+
