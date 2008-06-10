@@ -126,6 +126,7 @@ typedef struct MP_instance {
 @<Internal library declarations@>
 
 @ @c 
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18927,8 +18928,8 @@ void mp_pair_to_path (MP mp) {
                        (has_color(link(dummy_loc(mp->cur_exp)))) &&
                        ((color_model(link(dummy_loc(mp->cur_exp)))==A)
                         ||
-                        (color_model(link(dummy_loc(mp->cur_exp)))==mp_uninitialized_model) &&
-                        (mp->internal[mp_default_color_model]/unity)==(A)))
+                        ((color_model(link(dummy_loc(mp->cur_exp)))==mp_uninitialized_model) &&
+                        (mp->internal[mp_default_color_model]/unity)==(A))))
 
 @<Additional cases of unary operators@>=
 case x_part:

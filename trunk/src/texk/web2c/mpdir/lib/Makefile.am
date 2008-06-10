@@ -1,22 +1,30 @@
 
 AUTOMAKE_OPTIONS = foreign
 
-CFLAGS=-Wall -W -Wwrite-strings -g
+KPSEBUILDDIR = ../../../../texk/kpathsea/.libs
+KPSELIB=$(KPSEBUILDDIR)/libkpathsea.a
+CFLAGS=-Wall -W -g -I. -I../../..
 
-lib_LTLIBRARIES = libmplib.la
+bin_PROGRAMS = mpost
+mpost_SOURCES = mpost.c 
+mpost_DEPENDENCIES = libmplib.a
 
-libmplib_la_SOURCES = avl.c mp.c psout.c
+noinst_LIBRARIES = libmplib.a
+libmplib_a_SOURCES = avl.c mp.c psout.c mpxout.c
+
+mpost_LDADD = libmplib.a $(KPSELIB)
 
 include_HEADERS = mplib.h
 
-libmplib_la_LDFLAGS = -version-info 0:0:0
-
 CTANGLE=ctangle
 
-mp.c: psout.c
+mp.c: psout.c mpxout.c
 
 .w.c:
 	$(CTANGLE) $< $@
 
 clean::
-	rm mp.c psout.c mplib.h mppsout.h mpmp.h
+	$(RM) mp.c psout.c mpost.c mplib.h mppsout.h mpmp.h mpxout.c mpxout.h *.o mpost libmplib.a
+
+distclean:: clean
+	$(RM) Makefile config.h config.status config.log libtool

@@ -38,27 +38,59 @@ The local C preprocessor definitions have to come after the C includes
 in order to prevent name clashes.
 
 @c
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
+/* #include <fcntl.h> */
 #include <assert.h>
 #include <setjmp.h>
+/* unistd.h is needed for every non-Win32 platform, and we assume
+ * that implies that sys/types.h is also present 
+ */
+#ifndef WIN32
+#include <sys/types.h>
+#include <unistd.h>
+#endif
+/* processes */
 #ifdef WIN32
-#include <direct.h>
 #include <io.h>
 #include <process.h>
 #else
-#include <sys/types.h>
-#include <dirent.h>
-#include <sys/wait.h>
-#include <unistd.h>
+#if HAVE_SYS_WAIT_H
+# include <sys/wait.h>
 #endif
+#ifndef WEXITSTATUS
+# define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
+#endif
+#ifndef WIFEXITED
+# define WIFEXITED(stat_val) (((stat_val) & 255) == 0)
+#endif
+#endif
+/* directories */
+#ifdef WIN32
+#include <direct.h>
+#else
+#if HAVE_DIRENT_H
+# include <dirent.h>
+#else
+# define dirent direct
+# if HAVE_SYS_NDIR_H
+#  include <sys/ndir.h>
+# endif
+# if HAVE_SYS_DIR_H
+#  include <sys/dir.h>
+# endif
+# if HAVE_NDIR_H
+#  include <ndir.h>
+# endif
+#endif
+#endif
+#if HAVE_SYS_STAT_H
 #include <sys/stat.h>
-#include <ctype.h>
-#if !defined(HAVE_MKSTEMP) && ! defined (HAVE_MKTEMP)
-#include "time.h"
 #endif
+#include <ctype.h>
+#include <time.h>
 #include <kpathsea/kpathsea.h>
 #include <math.h>
 #define trunc(x)   ((integer) (x))
@@ -67,7 +99,7 @@ in order to prevent name clashes.
 #ifndef PI
 #define PI  3.14159265358979323846
 #endif
-#include "lib/avl.h"
+#include "avl.h"
 #include "mpxout.h"
 @h
 
@@ -242,8 +274,8 @@ if (setjmp(mpx->jump_buf) != 0) {
 @c
 /* We may have high-res timers in struct stat.  If we do, use them.  */
 #if HAVE_ST_MTIM
-#define ISNEWER(S,T) (S.st_mtim.tv_sec > T.st_mtim.tv_sec ||
-                    (S.st_mtim.tv_sec  == T.st_mtim.tv_sec &&
+#define ISNEWER(S,T) (S.st_mtim.tv_sec > T.st_mtim.tv_sec ||   \
+                    (S.st_mtim.tv_sec  == T.st_mtim.tv_sec &&  \
                      S.st_mtim.tv_nsec >= T.st_mtim.tv_nsec))
 #else
 #define ISNEWER(S,T) (S.st_mtime >= T.st_mtime)
@@ -251,10 +283,12 @@ if (setjmp(mpx->jump_buf) != 0) {
 
 static int mpx_newer(char *source, char *target) {
     struct stat source_stat, target_stat;
+#if HAVE_SYS_STAT_H
     if (stat(target, &target_stat) < 0) return 0; /* true */
     if (stat(source, &source_stat) < 0) return 1; /* false */
     if (ISNEWER(source_stat, target_stat))
   	  return 0;
+#endif
     return 1;
 }
 
