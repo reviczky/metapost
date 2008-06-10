@@ -1,9 +1,9 @@
 
 AUTOMAKE_OPTIONS = foreign
 
-KPSEBUILDDIR = ../../../../texk/kpathsea/.libs
+KPSEBUILDDIR = ../../../texk/kpathsea/.libs
 KPSELIB=$(KPSEBUILDDIR)/libkpathsea.a
-CFLAGS=-Wall -W -g -I. -I../../..
+CFLAGS=-Wall -W -g -I. -I../..
 
 bin_PROGRAMS = mpost
 mpost_SOURCES = mpost.c 
