@@ -25,6 +25,7 @@ have our customary command-line interface.
 #include <string.h>
 #include <time.h>
 #include <mplib.h>
+#include <mpxout.h>
 #define HAVE_PROTOTYPES 1
 #include <kpathsea/progname.h>
 #include <kpathsea/tex-file.h>
@@ -118,21 +119,22 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
     string cmd;
     string qmpname = normalize_quotes(mpname, "mpname");
     string qmpxname = normalize_quotes(mpxname, "mpxname");
-    if (!cnf_cmd)
-      cnf_cmd = xstrdup (MPXCOMMAND);
-
-    if (mp_troff_mode(mp))
-      cmd = concatn (cnf_cmd, " -troff ",
+    if (cnf_cmd) {
+      if (mp_troff_mode(mp))
+        cmd = concatn (cnf_cmd, " -troff ",
                      qmpname, " ", qmpxname, NULL);
-    else if (mpost_tex_program && *mpost_tex_program)
-      cmd = concatn (cnf_cmd, " -tex=", mpost_tex_program, " ",
+      else if (mpost_tex_program && *mpost_tex_program)
+        cmd = concatn (cnf_cmd, " -tex=", mpost_tex_program, " ",
                      qmpname, " ", qmpxname, NULL);
-    else
-      cmd = concatn (cnf_cmd, " -tex ", qmpname, " ", qmpxname, NULL);
-
-    /* Run it.  */
-    ret = system (cmd);
-    free (cmd);
+      else
+        cmd = concatn (cnf_cmd, " -tex ", qmpname, " ", qmpxname, NULL);
+  
+      /* Run it.  */
+      ret = system (cmd);
+      free (cmd);
+    } else {
+      mpx_makempx(mp_troff_mode(mp),NULL, qmpname, qmpxname,0);
+    }
     free (qmpname);
     free (qmpxname);
   }
