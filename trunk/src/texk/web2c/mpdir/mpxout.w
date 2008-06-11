@@ -26,12 +26,6 @@ It includes all of the functional code from the old standalone programs
 combined into one, with many changes to make all of the code cooperate
 nicely.
 
-The |banner| string defined here should be changed whenever \.{makempx}
-gets modified.
-
-@d banner "%% Written by makempx, Version 1.006\n"
-  /* the first line of any output file */
-
 @ Header files
 
 The local C preprocessor definitions have to come after the C includes
@@ -187,6 +181,7 @@ the variables for the intermediate files are declared where they
 are needed.
 
 @<Globals@>=
+char *banner;
 char *mpname;
 FILE *mpfile;
 char *mpxname;
@@ -2027,7 +2022,8 @@ static int mpx_dvitomp (MPX mpx, char *dviname) {
   mpx_open_dvi_file(mpx);
   @<Process the preamble@>;
   mpx_open_mpxfile(mpx);
-  fprintf (mpx->mpxfile,banner);
+  fprintf (mpx->mpxfile,mpx->banner);
+  fprintf (mpx->mpxfile,"\n");
   while ( true ) { 
     @<Advance to the next |bop| command@>;
     for (k=0;k<=10;k++) 
@@ -3665,7 +3661,8 @@ static int mpx_dmp(MPX mpx, char *infile) {
     int more;
     FILE *trf = mpx_xfopen(mpx,infile, "r");
     mpx_open_mpxfile(mpx);
-    fprintf(mpx->mpxfile, banner);
+    fprintf(mpx->mpxfile, mpx->banner);
+    fprintf (mpx->mpxfile,"\n");
     mpx_read_desc(mpx);
     mpx_read_fmap(mpx,dbname);
     if (!mpx->gflag)
@@ -4033,6 +4030,7 @@ typedef struct makempx_options {
   char *mptexpre;
   char *mpname;
   char *mpxname;
+  char *banner;
   int debug;
   mpx_file_finder find_file;
 } makempx_options;
@@ -4060,6 +4058,7 @@ int mp_makempx (makempx_options *mpxopt) {
     if (mpx==NULL)
       return mpx_fatal_error;
     mpx_initialize(mpx);
+    mpx->banner = mpxopt->banner;
     mpx->mode = mpxopt->mode;
     mpx->debug = mpxopt->debug;
     if (mpxopt->find_file!=NULL)
