@@ -33,6 +33,7 @@ have our customary command-line interface.
 extern unsigned kpathsea_debug;
 #include <kpathsea/concatn.h>
 static const char *mpost_tex_program = "";
+static int debug = 0; /* debugging for makempx */
 
 @ Allocating a bit of memory, with error detection:
 
@@ -161,26 +162,30 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       char *s = NULL;
       char *maincmd = NULL;
       int mpxmode = mp_troff_mode(mp);
-      if (mpxmode == mpx_tex_mode) {
-        s = kpse_var_value("TEX");
-        if (!s) s = kpse_var_value("MPXMAINCMD");
-        if (!s) s = xstrdup (TEX);
-        maincmd = (char *)xmalloc (strlen(s)+strlen(default_args)+1);
-        strcpy(maincmd,s);
-        strcat(maincmd,default_args);
-        free(s);
+      if (mpost_tex_program && *mpost_tex_program) {
+        maincmd = xstrdup(mpost_tex_program);
       } else {
-        s = kpse_var_value("TROFF");
-        if (!s) s = kpse_var_value("MPXMAINCMD");
-        if (!s) s = xstrdup (TROFF);
-        maincmd = s;
+        if (mpxmode == mpx_tex_mode) {
+          s = kpse_var_value("TEX");
+          if (!s) s = kpse_var_value("MPXMAINCMD");
+          if (!s) s = xstrdup (TEX);
+          maincmd = (char *)xmalloc (strlen(s)+strlen(default_args)+1);
+          strcpy(maincmd,s);
+          strcat(maincmd,default_args);
+          free(s);
+        } else {
+          s = kpse_var_value("TROFF");
+          if (!s) s = kpse_var_value("MPXMAINCMD");
+          if (!s) s = xstrdup (TROFF);
+          maincmd = s;
+        }
       }
       mpxopt->mode = mpxmode;
       mpxopt->cmd  = maincmd;
       mpxopt->mptexpre = kpse_var_value("MPTEXPRE");
       mpxopt->mpname = qmpname;
       mpxopt->mpxname = qmpxname;
-      mpxopt->debug = 0;
+      mpxopt->debug = debug;
       mpxopt->find_file = makempx_find_file;
       ret = mp_makempx(mpxopt);
       free(mpxopt->cmd);
@@ -303,7 +308,7 @@ if (!nokpse)
 @d option_arg(B) (optarg && strncmp(optarg,B, strlen(B))==0)
 
 
-@<Read and set commmand line options@>=
+@<Read and set command line options@>=
 {
   char *optarg;
   while (++a<argc) {
@@ -314,6 +319,8 @@ if (!nokpse)
     }
     if (option_is("ini")) {
       options->ini_version = true;
+    } else if (option_is("debug")) {
+      debug = 1;
     } else if (option_is ("kpathsea-debug")) {
       kpathsea_debug |= atoi (optarg);
     } else if (option_is("mem")) {
@@ -461,17 +468,17 @@ int setup_var (int def, const char *var_name, int nokpse) {
 
 @c 
 int main (int argc, char **argv) { /* |start_here| */
-  int a=0; /* argc counter */
   int k; /* index into buffer */
   int history; /* the exit status */
   MP mp; /* a metapost instance */
   struct MP_options * options; /* instance options */
+  int a=0; /* argc counter */
   int nokpse = 0; /* switch to {\it not} enable kpse */
   char *user_progname = NULL; /* If the user overrides argv[0] with -progname.  */
   options = mp_options();
   options->ini_version       = false;
   options->print_found_names = true;
-  @<Read and set commmand line options@>;
+  @<Read and set command line options@>;
   if (!nokpse)
     kpse_set_program_name("mpost",user_progname);  
   if(putenv((char *)"engine=newmetapost"))
