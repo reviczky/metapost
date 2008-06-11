@@ -73,10 +73,10 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d banner "This is MetaPost, Version 1.004" /* printed when \MP\ starts */
-@d metapost_version "1.004"
-@d mplib_version "0.45"
-@d version_string " (Cweb version 0.45)"
+@d banner "This is MetaPost, Version 1.060" /* printed when \MP\ starts */
+@d metapost_version "1.060"
+@d mplib_version "0.60"
+@d version_string " (Cweb version)"
 
 @d true 1
 @d false 0
@@ -204,6 +204,7 @@ mp_do_initialize ( MP mp) {
 }
 int mp_initialize (MP mp) { /* this procedure gets things started properly */
   mp->history=mp_fatal_error_stop; /* in case we quit during initialization */
+  jmp_buf buf;
   @<Install and test the non-local jump buffer@>;
   t_open_out; /* open the terminal for output */
   @<Check the ``constant'' values...@>;
@@ -2122,6 +2123,7 @@ of |mp_run|. Those are the only library enty points.
 jmp_buf *jump_buf;
 
 @ @<Install and test the non-local jump buffer@>=
+mp->jump_buf = &buf;
 if (setjmp(*(mp->jump_buf)) != 0) { return mp->history; }
 
 @ @<Setup the non-local jump buffer in |mp_new|@>=
@@ -21941,6 +21943,7 @@ Each execution of |do_statement| concludes with
 }
 int __attribute__((noinline)) 
 mp_run (MP mp) {
+  jmp_buf buf;
   if (mp->history < mp_fatal_error_stop ) {
     @<Install and test the non-local jump buffer@>;
     mp_main_control(mp); /* come to life */
@@ -21951,6 +21954,7 @@ mp_run (MP mp) {
 }
 int __attribute__((noinline)) 
 mp_execute (MP mp) {
+  jmp_buf buf;
   if (mp->history < mp_fatal_error_stop ) {
     mp->history = mp_spotless;
     mp->file_offset = 0;
@@ -21974,6 +21978,7 @@ mp_execute (MP mp) {
 }
 int __attribute__((noinline)) 
 mp_finish (MP mp) {
+  jmp_buf buf;
   if (mp->history < mp_fatal_error_stop ) {
     @<Install and test the non-local jump buffer@>;
     mp_final_cleanup(mp); /* prepare for death */
