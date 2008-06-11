@@ -2633,6 +2633,7 @@ static float mpx_get_float(MPX mpx, char *s) {
   register int d, neg, digits;
   register float x, y;
   digits = 0;
+  neg = 0; x=0.0; 
   if (s != NULL) {
 	for (neg = 0;; s++) {
       if (*s == '-')
@@ -3885,7 +3886,8 @@ static int do_spawn (MPX mpx, char *cmd, char **options) {
    }
    return retcode;
 #else
-   return spawnvp(P_WAIT, cmd, options);
+   (void)mpx;
+   return spawnvp(P_WAIT, cmd, (const char **)options);
 #endif
 }
 
@@ -4207,9 +4209,10 @@ if (mpx_newer(mpxopt->mpname, mpxopt->mpxname))
       /* this should not really be needed, but better
          safe than sorry. */
       if (tmpstring != tmpname) {
-	  i = strlen(tmpstring);
-	  if (i > 8) i = 8;
-	    strncpy(tmpname, tmpstring, i);
+	    i = strlen(tmpstring);
+	    if (i > 8) i = 8;
+	      strncpy(tmpname, tmpstring, i);
+      }
     }
   }
 #else
