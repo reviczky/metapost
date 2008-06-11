@@ -4056,7 +4056,9 @@ int mp_makempx (makempx_options *mpxopt) {
     if (!mpxopt->debug) {
       @<Check if mp file is newer than mpxfile, exit if not@>;
     }
-    mpx = xmalloc(sizeof(struct mpx_data),1);
+    mpx = malloc(sizeof(struct mpx_data));
+    if (mpx==NULL)
+      return mpx_fatal_error;
     mpx_initialize(mpx);
     mpx->mode = mpxopt->mode;
     mpx->debug = mpxopt->debug;
