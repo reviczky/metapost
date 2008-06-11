@@ -4095,6 +4095,7 @@ int mp_makempx (makempx_options *mpxopt) {
 	                    TROFF_OUTERR, mpx->mpxname);
       }
     }
+    mpx_fclose(mpx,mpx->mpxfile);
     if (!mpx->debug)
       mpx_fclose(mpx,mpx->errfile);
     if (!mpx->debug) {
@@ -4103,9 +4104,11 @@ int mp_makempx (makempx_options *mpxopt) {
    	  remove(infile);
     }
     mpx_erasetmp(mpx);
-    if (mpx->history == mpx_cksum_trouble)
-       mpx->history = 0;
-    return mpx->history;
+    retcode = mpx->history;
+    free(mpx);
+    if (retcode == mpx_cksum_trouble)
+       retcode = 0;
+    return retcode;
 }
 
 @ \TeX\ has to operate on an actual input file, so we have to append

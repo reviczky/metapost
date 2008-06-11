@@ -63,9 +63,11 @@ int main (int ac, char **av) {
   mpxopt->debug = debug;
   mpxopt->find_file = makempx_find_file;
   h = mp_makempx (mpxopt);
+  free(mpxopt->cmd);
+  free(mpxopt->mptexpre);
+  free(mpxopt);
   if (mpname!=NULL) free(mpname);
   if (mpxname!=NULL) free(mpxname);
-  if (cmd!=NULL) free(cmd);
   return h;
 }
 

@@ -183,6 +183,9 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       mpxopt->debug = 0;
       mpxopt->find_file = makempx_find_file;
       ret = mp_makempx(mpxopt);
+      free(mpxopt->cmd);
+      free(mpxopt->mptexpre);
+      free(mpxopt);
     }
     free (qmpname);
     free (qmpxname);
