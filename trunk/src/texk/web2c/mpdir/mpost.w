@@ -97,6 +97,26 @@ string normalize_quotes (const char *name, const char *mesg) {
     return ret;
 }
 
+@ @c 
+static char *makempx_find_file (MPX mpx, const char *nam, const char *mode, int ftype) {
+  (void) mpx;
+  int format, req;
+  if (mode[0] != 'r') { 
+     return strdup(nam);
+  }
+  req = 1;
+  switch(ftype) {
+  case mpx_tfm_format:       format = kpse_tfm_format; break;
+  case mpx_vf_format:        format = kpse_vf_format; req = 0; break;
+  case mpx_trfontmap_format: format = kpse_mpsupport_format; break;
+  case mpx_trcharadj_format: format = kpse_mpsupport_format; break;
+  case mpx_desc_format:      format = kpse_troff_font_format; break;
+  case mpx_fontdesc_format:  format =  kpse_troff_font_format; break;
+  case mpx_specchar_format:  format =  kpse_mpsupport_format; break;
+  default:                   return NULL;  break;
+  }
+  return  kpse_find_file (nam, format, req);
+}
 
 @ Invoke makempx (or troffmpx) to make sure there is an up-to-date
    .mpx file for a given .mp file.  (Original from John Hobby 3/14/90) 
@@ -136,6 +156,8 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       ret = system (cmd);
       free (cmd);
     } else {
+      makempx_options * mpxopt;
+      mpxopt = xmalloc(sizeof(makempx_options));
       char *s = NULL;
       char *maincmd = NULL;
       int mpxmode = mp_troff_mode(mp);
@@ -153,7 +175,14 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
         if (!s) s = xstrdup (TROFF);
         maincmd = s;
       }
-      mp_makempx(mpxmode,maincmd, kpse_var_value("MPTEXPRE"), qmpname, qmpxname,0);
+      mpxopt->mode = mpxmode;
+      mpxopt->cmd  = maincmd;
+      mpxopt->mptexpre = kpse_var_value("MPTEXPRE");
+      mpxopt->mpname = qmpname;
+      mpxopt->mpxname = qmpxname;
+      mpxopt->debug = 0;
+      mpxopt->find_file = makempx_find_file;
+      ret = mp_makempx(mpxopt);
     }
     free (qmpname);
     free (qmpxname);

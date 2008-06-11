@@ -621,7 +621,7 @@ static void mpx_mpto(MPX mpx, char *tmpname, char *mptexpre) {
 }
 
 @ @<Run |mpto| on the mp file@>=
-mpx_mpto(mpx, tmpname, mptexpre)
+mpx_mpto(mpx, tmpname, mpxopt->mptexpre)
 
 @* DVItoMP Processing.
 
@@ -4019,17 +4019,28 @@ static void mpx_command_error (MPX mpx, int cmdlength, char **cmdline) {
   mpx_abort(mpx, "Command failed: %s; see mpxerr.log", s);
 }
 
+
+
 @ @(mpxout.h@>=
-int mp_makempx (int mode, char *cmd, char *mptexpre, char *mpname, char *mpxname, int debug) ;
+typedef struct makempx_options {
+  int mode;
+  char *cmd;
+  char *mptexpre;
+  char *mpname;
+  char *mpxname;
+  int debug;
+  mpx_file_finder find_file;
+} makempx_options;
+int mp_makempx (makempx_options *mpxopt) ;
 
-
+ 
 @ 
 
 @d ERRLOG "mpxerr.log"
 @d MPXLOG "makempx.log"
 
 @c
-int mp_makempx (int mode, char *cmd, char *mptexpre, char *mpname, char *mpxname, int debug) {
+int mp_makempx (makempx_options *mpxopt) {
     MPX mpx;
     char **cmdline, **cmdbits;
     char infile[15];
@@ -4037,30 +4048,32 @@ int mp_makempx (int mode, char *cmd, char *mptexpre, char *mpname, char *mpxname
     char tmpname[] = "mpXXXXXX";
     int cmdlength = 1;
     int cmdbitlength = 1;
-    if (!debug) {
+    if (!mpxopt->debug) {
       @<Check if mp file is newer than mpxfile, exit if not@>;
     }
     mpx = xmalloc(sizeof(struct mpx_data),1);
     mpx_initialize(mpx);
-    mpx->mode = mode;
-    mpx->debug = debug;
-    if (cmd!=NULL)
-      mpx->maincmd = xstrdup(cmd);
-    mpx->mpname = xstrdup(mpname);
-    mpx->mpxname = xstrdup(mpxname);
+    mpx->mode = mpxopt->mode;
+    mpx->debug = mpxopt->debug;
+    if (mpxopt->find_file!=NULL)
+      mpx->find_file = mpxopt->find_file;
+    if (mpxopt->cmd!=NULL)
+      mpx->maincmd = xstrdup(mpxopt->cmd);
+    mpx->mpname = xstrdup(mpxopt->mpname);
+    mpx->mpxname = xstrdup(mpxopt->mpxname);
     @<Install and test the non-local jump buffer@>;
 
-    if (debug) {
+    if (mpx->debug) {
       mpx->errfile = stderr;
     } else {
       mpx->errfile = mpx_xfopen(mpx,MPXLOG, "wb");
     }
     mpx->progname = "makempx";
     @<Initialize the |tmpname| variable@>;
-    if (mptexpre == NULL)
-      mptexpre = xstrdup("mptexpre.tex");
+    if (mpxopt->mptexpre == NULL)
+      mpxopt->mptexpre = xstrdup("mptexpre.tex");
     @<Run |mpto| on the mp file@>;
-    if (cmd==NULL)
+    if (mpxopt->cmd==NULL)
       return mpx->history;
     if (mpx->mode == mpx_tex_mode) {
       @<Run |TeX| and set up |infile| or abort@>;
@@ -4082,7 +4095,7 @@ int mp_makempx (int mode, char *cmd, char *mptexpre, char *mpname, char *mpxname
 	                    TROFF_OUTERR, mpx->mpxname);
       }
     }
-    if (!debug)
+    if (!mpx->debug)
       mpx_fclose(mpx,mpx->errfile);
     if (!mpx->debug) {
 	  remove(MPXLOG);
@@ -4090,6 +4103,8 @@ int mp_makempx (int mode, char *cmd, char *mptexpre, char *mpname, char *mpxname
    	  remove(infile);
     }
     mpx_erasetmp(mpx);
+    if (mpx->history == mpx_cksum_trouble)
+       mpx->history = 0;
     return mpx->history;
 }
 
@@ -4157,7 +4172,7 @@ that to the command line.
 @ If MPX file is up-to-date or if MP file does not exist, do nothing. 
 
 @<Check if mp file is newer than mpxfile, exit if not@>=
-if (mpx_newer(mpname, mpxname))
+if (mpx_newer(mpxopt->mpname, mpxopt->mpxname))
    return 0
 
 

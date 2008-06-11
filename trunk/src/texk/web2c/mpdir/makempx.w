@@ -21,6 +21,27 @@
 #include <kpathsea/kpathsea.h>
 #include "mpxout.h"
 
+@ @c 
+static char *makempx_find_file (MPX mpx, const char *nam, const char *mode, int ftype) {
+  (void) mpx;
+  int format, req;
+  if (mode[0] != 'r') { 
+     return strdup(nam);
+  }
+  req = 1;
+  switch(ftype) {
+  case mpx_tfm_format:       format = kpse_tfm_format; break;
+  case mpx_vf_format:        format = kpse_vf_format; req = 0; break;
+  case mpx_trfontmap_format: format = kpse_mpsupport_format; break;
+  case mpx_trcharadj_format: format = kpse_mpsupport_format; break;
+  case mpx_desc_format:      format = kpse_troff_font_format; break;
+  case mpx_fontdesc_format:  format =  kpse_troff_font_format; break;
+  case mpx_specchar_format:  format =  kpse_mpsupport_format; break;
+  default:                   return NULL;  break;
+  }
+  return  kpse_find_file (nam, format, req);
+}
+
 @ @c
 int main (int ac, char **av) {
   int h;
@@ -29,10 +50,19 @@ int main (int ac, char **av) {
   char *cmd = NULL;
   int mode = 0;
   int debug = 0;
+  makempx_options * mpxopt = NULL;
+  mpxopt = xmalloc(sizeof(makempx_options));
   kpse_set_program_name(av[0], av[0]);
   @<Parse arguments@>;
   @<Setup the default main command, if needed@>;
-  h = mp_makempx (mode, cmd, kpse_var_value("MPTEXPRE"), mpname, mpxname, debug);
+  mpxopt->mode = mode;
+  mpxopt->cmd  = cmd;
+  mpxopt->mptexpre = kpse_var_value("MPTEXPRE");
+  mpxopt->mpname = mpname;
+  mpxopt->mpxname = mpxname;
+  mpxopt->debug = debug;
+  mpxopt->find_file = makempx_find_file;
+  h = mp_makempx (mpxopt);
   if (mpname!=NULL) free(mpname);
   if (mpxname!=NULL) free(mpxname);
   if (cmd!=NULL) free(cmd);
