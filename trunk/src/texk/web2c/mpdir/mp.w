@@ -203,7 +203,7 @@ int mp_initialize (MP mp) { /* this procedure gets things started properly */
   @<Check the ``constant'' values...@>;
   if ( mp->bad>0 ) {
 	char ss[256];
-    snprintf(ss,256,"Ouch---my internal constants have been clobbered!\n"
+    mp_snprintf(ss,256,"Ouch---my internal constants have been clobbered!\n"
                    "---case %i",(int)mp->bad);
     do_fprintf(mp->err_out,(char *)ss);
 @.Ouch...clobbered@>
@@ -3886,6 +3886,7 @@ void mp_xfree (void *x);
 void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) ;
 void *mp_xmalloc (MP mp, size_t nmem, size_t size) ;
 char *mp_xstrdup(MP mp, const char *s);
+void mp_do_snprintf(char *str, int size, const char *fmt, ...);
 
 @ The |max_size_test| guards against overflow, on the assumption that
 |size_t| is at least 31bits wide.
@@ -3934,6 +3935,72 @@ char *mp_xstrdup(MP mp, const char *s) {
   return w;
 }
 
+@ @<Internal library declarations@>=
+#ifdef HAVE_SNPRINTF
+#define mp_snprintf (void)snprintf
+#else
+#define mp_snprintf mp_do_snprintf
+#endif
+
+@ This internal version is rather stupid, but good enough for its purpose.
+
+@c
+void mp_do_snprintf (char *str, int size, const char *format, ...) {
+  const char *fmt;
+  char *res, *work;
+  char workbuf[32];
+  va_list ap;
+  work = (char *)workbuf;
+  va_start(ap, format);
+  res = str;
+  for (fmt=format;*fmt!='\0';fmt++) {
+     if (*fmt=='%') {
+       fmt++;
+       switch(*fmt) {
+       case 's':
+         {
+           char *s = va_arg(ap, char *);
+           while (*s) {
+             *res = *s++;
+             if (size-->0) res++;
+           }
+         }
+         break;
+       case 'i':
+       case 'd':
+         {
+           sprintf(work,"%i",va_arg(ap, int));
+           while (*work) {
+             *res = *work++;
+             if (size-->0) res++;
+           }
+         }
+         break;
+       case 'g':
+         {
+           sprintf(work,"%g",va_arg(ap, double));
+           while (*work) {
+             *res = *work++;
+             if (size-->0) res++;
+           }
+         }
+         break;
+       case '%':
+         *res = '%';
+         if (size-->0) res++;
+         break;
+       default:
+         /* hm .. */
+         break;
+       }
+     } else {
+       *res = *fmt;
+       if (size-->0) res++;
+     }
+  }
+  *res = '\0';
+  va_end(ap);
+}
 
 @ 
 @<Allocate or initialize ...@>=
@@ -24462,7 +24529,7 @@ if ( mp->tfm_changed>0 )  {
   char s[200];
   wlog_ln(" ");
   if ( mp->bch_label<undefined_label ) decr(mp->nl);
-  snprintf(s,128,"(You used %iw,%ih,%id,%ii,%il,%ik,%ie,%ip metric file positions)",
+  mp_snprintf(s,128,"(You used %iw,%ih,%id,%ii,%il,%ik,%ie,%ip metric file positions)",
                  mp->nw, mp->nh, mp->nd, mp->ni, mp->nl, mp->nk, mp->ne,mp->np);
   wlog_ln(s);
 }
@@ -25091,7 +25158,7 @@ extreme cases so it may have to be shortened on some systems.
 @<Use |c| to compute the file extension |s|@>=
 { 
   s = xmalloc(7,1);
-  snprintf(s,7,".%i",(int)c);
+  mp_snprintf(s,7,".%i",(int)c);
 }
 
 @ The user won't want to see all the output file names so we only save the
@@ -25782,7 +25849,7 @@ if (x!=69073) goto OFF_BASE
 { 
   xfree(mp->mem_ident);
   mp->mem_ident = xmalloc(256,1);
-  snprintf(mp->mem_ident,256," (mem=%s %i.%i.%i)", 
+  mp_snprintf(mp->mem_ident,256," (mem=%s %i.%i.%i)", 
            mp->job_name,
            (int)(mp_round_unscaled(mp, mp->internal[mp_year]) % 100),
            (int)mp_round_unscaled(mp, mp->internal[mp_month]),
@@ -25946,26 +26013,26 @@ if ( mp->log_opened ) {
   wlog_ln(" ");
   wlog_ln("Here is how much of MetaPost's memory you used:");
 @.Here is how much...@>
-  snprintf(s,128," %i string%s out of %i",(int)mp->max_strs_used-mp->init_str_use,
+  mp_snprintf(s,128," %i string%s out of %i",(int)mp->max_strs_used-mp->init_str_use,
           (mp->max_strs_used!=mp->init_str_use+1 ? "s" : ""),
           (int)(mp->max_strings-1-mp->init_str_use));
   wlog_ln(s);
-  snprintf(s,128," %i string characters out of %i",
+  mp_snprintf(s,128," %i string characters out of %i",
            (int)mp->max_pl_used-mp->init_pool_ptr,
            (int)mp->pool_size-mp->init_pool_ptr);
   wlog_ln(s);
-  snprintf(s,128," %i words of memory out of %i",
+  mp_snprintf(s,128," %i words of memory out of %i",
            (int)mp->lo_mem_max+mp->mem_end-mp->hi_mem_min+2,
            (int)mp->mem_end);
   wlog_ln(s);
-  snprintf(s,128," %i symbolic tokens out of %i", (int)mp->st_count, (int)mp->hash_size);
+  mp_snprintf(s,128," %i symbolic tokens out of %i", (int)mp->st_count, (int)mp->hash_size);
   wlog_ln(s);
-  snprintf(s,128," %ii,%in,%ip,%ib stack positions out of %ii,%in,%ip,%ib",
+  mp_snprintf(s,128," %ii,%in,%ip,%ib stack positions out of %ii,%in,%ip,%ib",
            (int)mp->max_in_stack,(int)mp->int_ptr,
            (int)mp->max_param_stack,(int)mp->max_buf_stack+1,
            (int)mp->stack_size,(int)mp->max_internal,(int)mp->param_size,(int)mp->buf_size);
   wlog_ln(s);
-  snprintf(s,128," %i string compactions (moved %i characters, %i strings)",
+  mp_snprintf(s,128," %i string compactions (moved %i characters, %i strings)",
           (int)mp->pact_count,(int)mp->pact_chars,(int)mp->pact_strs);
   wlog_ln(s);
 }
