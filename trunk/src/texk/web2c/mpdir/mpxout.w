@@ -42,9 +42,10 @@ in order to prevent name clashes.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-/* #include <fcntl.h> */
+#include <stdarg.h>
 #include <assert.h>
 #include <setjmp.h>
+#include <errno.h> /* TODO autoconf ? */
 /* unistd.h is needed for every non-Win32 platform, and we assume
  * that implies that sys/types.h is also present 
  */
@@ -91,7 +92,6 @@ in order to prevent name clashes.
 #endif
 #include <ctype.h>
 #include <time.h>
-#include <kpathsea/kpathsea.h>
 #include <math.h>
 #define trunc(x)   ((integer) (x))
 #define fabs(x)    ((x)<0?(-(x)):(x))
@@ -106,8 +106,7 @@ in order to prevent name clashes.
 @ Data types
 
 From the Pascal code of DVItoMP two implicit types are inherited: |boolean| and
-|integer|. The boolean type is defined by the kpathsea library, but it does
-not define |true| nor |false|.
+|integer|. 
 
 The more complex datatypes are defined in the following sections. 
 
@@ -116,6 +115,7 @@ The more complex datatypes are defined in the following sections.
 
 @c
 typedef signed int integer;
+typedef signed int boolean;
 @<C Data Types@>
 @<Declarations@>
 
@@ -133,6 +133,7 @@ typedef enum {
   mpx_tex_mode=0,
   mpx_troff_mode=1 
 } mpx_modes;
+typedef struct mpx_data * MPX;
 
 @ @<C Data Types@>=
 @<Types in the outer block@>
@@ -140,7 +141,6 @@ typedef struct mpx_data {
   int mode;
   @<Globals@>
 } mpx_data ;
-typedef struct mpx_data * MPX;
 
 @ Here are some macros for common programming idioms.
 
@@ -245,7 +245,6 @@ this is initialized at a single spot: the start of |mp_makempx|.
 jmp_buf jump_buf;
 
 @ 
-@d xfree(A) if (A!=NULL) free(A)
 @c
 static void mpx_abort(MPX mpx, char *msg, ...) {
   va_list ap;
@@ -268,7 +267,66 @@ if (setjmp(mpx->jump_buf) != 0) {
   return h; 
 }
 
+@ @c
+static FILE *mpx_xfopen (MPX mpx, char *fname, char *fmode) {
+  FILE *f  = fopen(fname,fmode);
+  if (f == NULL)
+    mpx_abort(mpx,"File open error for %s in mode %s", fname, fmode);
+  return f;
+}
+static void mpx_fclose (MPX mpx, FILE *file) {
+  (void)mpx;
+  (void)fclose(file);
+}
 
+@ 
+@d xfree(A) do { mpx_xfree(A); A=NULL; } while (0)
+@d xrealloc(P,A,B) mpx_xrealloc(mpx,P,A,B)
+@d xmalloc(A,B)  mpx_xmalloc(mpx,A,B)
+@d xstrdup(A)  mpx_xstrdup(mpx,A)
+
+@<Declarations@>=
+static void mpx_xfree (void *x);
+static void *mpx_xrealloc (MPX mpx, void *p, size_t nmem, size_t size) ;
+static void *mpx_xmalloc (MPX mpx, size_t nmem, size_t size) ;
+static char *mpx_xstrdup(MPX mpX, const char *s);
+
+
+@ The |max_size_test| guards against overflow, on the assumption that
+|size_t| is at least 31bits wide.
+
+@d max_size_test 0x7FFFFFFF
+
+@c
+static void mpx_xfree (void *x) {
+  if (x!=NULL) free(x);
+}
+static void  *mpx_xrealloc (MPX mpx, void *p, size_t nmem, size_t size) {
+  void *w ; 
+  if ((max_size_test/size)<nmem) {
+    mpx_abort(mpx,"Memory size overflow");
+  }
+  w = realloc (p,(nmem*size));
+  if (w==NULL) mpx_abort(mpx,"Out of Memory");
+  return w;
+}
+static void  *mpx_xmalloc (MPX mpx, size_t nmem, size_t size) {
+  void *w;
+  if ((max_size_test/size)<nmem) {
+    mpx_abort(mpx,"Memory size overflow");
+  }
+  w = malloc (nmem*size);
+  if (w==NULL) mpx_abort(mpx,"Out of Memory");
+  return w;
+}
+static char *mpx_xstrdup(MPX mpx, const char *s) {
+  char *w; 
+  if (s==NULL)
+    return NULL;
+  w = strdup(s);
+  if (w==NULL) mpx_abort(mpx,"Out of Memory");
+  return w;
+}
 @* The command 'newer' became a function.
 
 @c
@@ -328,7 +386,7 @@ static char *mpx_getline(MPX mpx, FILE *mpfile) {
     int c;
     unsigned loc = 0;
     if (mpx->buf==NULL)
-      mpx->buf = xmalloc(mpx->bufsize);
+      mpx->buf = xmalloc(mpx->bufsize,1);
     while ((c = getc(mpfile)) != EOF && c != '\n' && c != '\r') {
       mpx->buf[loc++] = c;
       if (loc == mpx->bufsize) {
@@ -336,7 +394,7 @@ static char *mpx_getline(MPX mpx, FILE *mpfile) {
         unsigned n = mpx->bufsize + (mpx->bufsize>>4);
         if (n>MAXINT) 
           mpx_abort(mpx,"Line is too long");
-        mpx->buf = xmalloc(n);
+        mpx->buf = xmalloc(n,1);
         memcpy(mpx->buf,temp,mpx->bufsize);
         free(temp);
         mpx->bufsize = n;
@@ -448,10 +506,10 @@ static void mpx_copy_mpto (MPX mpx, FILE *outfile) {
     c = *s;
     *s = 0;
     if (res==NULL) {
-      res = xmalloc(strlen(mpx->bb)+2);
+      res = xmalloc(strlen(mpx->bb)+2,1);
       res = strncpy(res,mpx->bb,(strlen(mpx->bb)+1));
     } else {
-      res = xrealloc(res,strlen(res)+strlen(mpx->bb)+2);
+      res = xrealloc(res,strlen(res)+strlen(mpx->bb)+2,1);
       res = strncat(res,mpx->bb, strlen(mpx->bb));
     }
     if (c == '\0')
@@ -511,22 +569,22 @@ static void mpx_mpto(MPX mpx, char *tmpname, char *mptexpre) {
     } else {
        TMPNAME_EXT(mpx->tex,".i");
     }
-    outfile  = xfopen(mpx->tex, "wb");
+    outfile  = mpx_xfopen(mpx,mpx->tex, "wb");
     if (mode==mpx_tex_mode) {
       FILE *fr;
       if ((fr = fopen(mptexpre, "r"))!= NULL) {
 	    while (mpx_getline(mpx, fr) != NULL)
 	      fputs(mpx->buf, outfile);
- 	    fclose(fr);
+ 	    mpx_fclose(mpx,fr);
       }
     }
-    mpx->mpfile   = xfopen(mpname, "r");
+    mpx->mpfile   = mpx_xfopen(mpx,mpname, "r");
     fprintf(outfile,"%s", mpx_predoc[mode]);
     while (mpx_getline(mpx, mpx->mpfile) != NULL)
         @<Do a line@>;
     fprintf(outfile,"%s", mpx_postdoc[mode]);
-    fclose(mpx->mpfile);
-    fclose(outfile);
+    mpx_fclose(mpx,mpx->mpfile);
+    mpx_fclose(mpx,outfile);
     mpx->lnno = 0;
 }
 
@@ -618,7 +676,7 @@ set, the accesses to |xchr| and |printable| are replaced by macro calls.
 
 @ @c 
 static void mpx_open_mpxfile (MPX mpx) { /* prepares to write text on |mpxfile| */
-   mpx->mpxfile = xfopen (mpx->mpxname, "wb");
+   mpx->mpxfile = mpx_xfopen (mpx,mpx->mpxname, "wb");
 }
 
 @* Device-independent file format.
@@ -682,7 +740,9 @@ static void mpx_open_dvi_file (MPX mpx) {
 @ Prepares to read packed bytes in |tfm_file|
 @c 
 static boolean mpx_open_tfm_file (MPX mpx) { 
-  mpx->tfm_file = kpse_open_file (mpx->cur_name, kpse_tfm_format);
+  mpx->tfm_file = mpx_fsearch(mpx, mpx->cur_name, mpx_tfm_format);
+  if (mpx->tfm_file == NULL)
+	  mpx_abort(mpx,"Cannot find TFM %s", mpx->cur_name);
   free (mpx->cur_name); /* We |xmalloc|'d this before we got called. */
   return true; /* If we get here, we succeeded. */
 }
@@ -692,11 +752,9 @@ It's ok if the \.{VF} file doesn't exist.
 
 @c 
 static boolean mpx_open_vf_file (MPX mpx) {
-  char *full_name = kpse_find_vf (mpx->cur_name);
-  if ( full_name ) {
-    mpx->vf_file = fopen (full_name,"rb");
+  mpx->vf_file = mpx_fsearch(mpx, mpx->cur_name, mpx_vf_format);
+  if (mpx->vf_file) {
     free (mpx->cur_name);
-    free (full_name);
     return true;
   } 
   return false;
@@ -1004,7 +1062,7 @@ mpx->font_check_sum[mpx->nfonts]=mpx_signed_quad(mpx);
 @<Read |font_scaled_size[nf]| and |font_design_size[nf]|@>;
 n=mpx_get_byte(mpx);  /* that is the area */
 n=n+mpx_get_byte(mpx);
-mpx->font_name[mpx->nfonts]=xmalloc(n+1);
+mpx->font_name[mpx->nfonts]=xmalloc(n+1,1);
 for (k=0;k<n;k++)
    mpx->font_name[mpx->nfonts][k]=mpx_get_byte(mpx);
 mpx->font_name[mpx->nfonts][k]=0
@@ -1965,7 +2023,7 @@ and where it ends.
 @c 
 static int mpx_dvitomp (MPX mpx, char *dviname) {
   int k;
-  mpx->dviname = extend_filename (dviname, "dvi");
+  mpx->dviname = dviname;
   mpx_open_dvi_file(mpx);
   @<Process the preamble@>;
   mpx_open_mpxfile(mpx);
@@ -2289,7 +2347,7 @@ if ( @<|buf[l]| contains an rgb command@> ) {
 l = l + 4;
 while ( (l < len) && (buf[l] == ' ') ) incr(l); /*  Remove spaces at end of buf  */
 while ( (len > l) && (buf[len - 1] == ' ') ) decr(len);
-mpx->color_stack[mpx->color_stack_depth]=xmalloc(len-l+3);
+mpx->color_stack[mpx->color_stack_depth]=xmalloc(len-l+3,1);
 k = 0;
 @<Copy |buf[l]| to |color_stack[color_stack_depth][k]| in tuple form@>
 
@@ -2305,7 +2363,7 @@ k = 0;
 l = l + 5;
 while ( (l < len) && (buf[l] == ' ') ) incr(l); /*  Remove spaces at end of buf  */
 while ( (len > l) && (buf[len - 1] == ' ') ) decr(len);
-mpx->color_stack[mpx->color_stack_depth]=xmalloc(len-l+9);
+mpx->color_stack[mpx->color_stack_depth]=xmalloc(len-l+9,1);
 strcpy(mpx->color_stack[mpx->color_stack_depth],"white*");
 k = 6;
 @<Copy |buf[l]| to |color_stack[color_stack_depth][k]| in tuple form@>
@@ -2323,7 +2381,7 @@ l = l + 5;
 while ( (l < len) && (buf[l] == ' ') ) incr(l);
 /*  Remove spaces at end of buf  */
 while ( (len > l) && (buf[len - 1] == ' ') ) decr(len);
-mpx->color_stack[mpx->color_stack_depth]=xmalloc(len-l+7);
+mpx->color_stack[mpx->color_stack_depth]=xmalloc(len-l+7,1);
 strcpy(mpx->color_stack[mpx->color_stack_depth],"cmyk");
 k = 4;
 @<Copy |buf[l]| to |color_stack[color_stack_depth][k]| in tuple form@>
@@ -2431,14 +2489,46 @@ mpx->lnno = 0; /* this is a reset */
 mpx->gflag = 0;
 mpx->h = 0; mpx->v = 0; 
 
+@ @(mpxout.h@>=
+typedef char *(*mpx_file_finder)(MPX, const char *, const char *, int);
+enum mpx_filetype {
+  mpx_tfm_format,           /* kpse_tfm_format */
+  mpx_vf_format,            /* kpse_vf_format */
+  mpx_trfontmap_format,     /* kpse_mpsupport_format */
+  mpx_trcharadj_format,     /* kpse_mpsupport_format */
+  mpx_desc_format,          /* kpse_troff_font_format */
+  mpx_fontdesc_format,      /* kpse_troff_font_format */
+  mpx_specchar_format       /* kpse_mpsupport_format */
+};
+
+@ @<Globals@>=
+mpx_file_finder find_file;
+
+@ @<Declarations@>=
+static char *mpx_find_file (MPX mpx, const char *nam, const char *mode, int ftype);
+
+@ @c
+static char *mpx_find_file (MPX mpx, const char *nam, const char *mode, int ftype) {
+  (void) mpx;
+  if (mode[0] != 'r' || (! access (nam,R_OK)) || ftype) {  
+     return strdup(nam);
+  }
+  return NULL;
+}
+
+@ @<Set initial...@>=
+mpx->find_file = mpx_find_file;
+
+@ @<Declarations@>=
+static FILE *mpx_fsearch(MPX mpx, char *nam, int format);
+
 @ @c
 static FILE *mpx_fsearch(MPX mpx, char *nam, int format) {
 	FILE *f = NULL;
-	string fname = kpse_find_file(nam, format, true);
-	const char *mode = kpse_format_info[format].binmode ? "rb" : "r";
+	char *fname = (mpx->find_file)(mpx, nam, "r", format);
 	if (fname) {
-	  f = fopen(fname, mode);
-      mpx_report(mpx,"%p = fopen(%s,%s)",f, fname, mode);
+	  f = fopen(fname, "rb");
+      mpx_report(mpx,"%p = fopen(%s,\"rb\")",f, fname);
 	}
 	return f;
 }
@@ -2611,7 +2701,7 @@ static void mpx_read_fmap(MPX mpx, char *dbase) {
     char *nam;			/* a font name being read */
     char *buf;
     mpx->nfonts = 0;
-    fin = mpx_fsearch(mpx,dbase, kpse_mpsupport_format);
+    fin = mpx_fsearch(mpx,dbase, mpx_trfontmap_format);
     if (fin==NULL)
 	  mpx_abort(mpx,"Cannot find %s", dbase);
 
@@ -2622,7 +2712,7 @@ static void mpx_read_fmap(MPX mpx, char *dbase) {
        nam = buf;    
        while (*buf && *buf != '\t')
          buf++;
-      tmp = xmalloc(sizeof(avl_entry));
+      tmp = xmalloc(sizeof(avl_entry),1);
       tmp->name = nam;
       tmp->num = mpx->nfonts++;
       (void)mpx_avl_probe (mpx,mpx->trfonts, tmp) ;
@@ -2639,7 +2729,7 @@ static void mpx_read_fmap(MPX mpx, char *dbase) {
 	  mpx->font_num[tmp->num] = -1;	/* indicate font is not mounted */
 	  mpx->nfonts++;
     }
-    fclose(fin);
+    mpx_fclose(mpx,fin);
 }
 
 
@@ -2664,7 +2754,7 @@ static void mpx_read_char_adj(MPX mpx, char *adjfile) {
     avl_entry tmp, *p;
     unsigned int i;
 
-    fin = mpx_fsearch(mpx,adjfile, kpse_mpsupport_format);
+    fin = mpx_fsearch(mpx,adjfile, mpx_trcharadj_format);
     if (fin==NULL)
 	  mpx_abort(mpx,"Cannot find %s", adjfile);
 
@@ -2694,7 +2784,7 @@ static void mpx_read_char_adj(MPX mpx, char *adjfile) {
 	}
     }
     mpx->shiftchar[mpx->shiftptr++] = -1;
-    fclose(fin);
+    mpx_fclose(mpx,fin);
 }
 
 @ Read the DESC file of the troff device to gather information
@@ -2721,7 +2811,7 @@ static void mpx_read_desc(MPX mpx) {
     FILE *fp;
     int i, n;
 
-    fp = mpx_fsearch(mpx,"DESC", kpse_troff_font_format);
+    fp = mpx_fsearch(mpx,"DESC", mpx_desc_format);
     if (fp==NULL)
 	  mpx_abort(mpx,"Cannot find DESC");
     while (fscanf(fp, "%199s", cmd) != EOF) {
@@ -2794,13 +2884,13 @@ static int mpx_scan_desc_line(MPX mpx, int f, char *lin) {
     t = lin;
     while (*lin != ' ' && *lin != '\t' && *lin != '\0')
 	  lin++;
-    s = xmalloc(lin-t+1);
+    s = xmalloc(lin-t+1,1);
     strncpy(s,t,lin-t);
     while (*lin == ' ' || *lin == '\t')
 	  lin++;
     if (*lin == '"') {
 	  if (lastcode < MAXCHARS) {
-        tmp = xmalloc(sizeof(avl_entry));
+        tmp = xmalloc(sizeof(avl_entry),1);
         tmp->name = s ;
         tmp->num = lastcode;
         (void)mpx_avl_probe (mpx, mpx->charcodes[f],tmp);
@@ -2812,7 +2902,7 @@ static int mpx_scan_desc_line(MPX mpx, int f, char *lin) {
 	  if (mpx->arg_tail == NULL)
 	    return 0;
 	  if (lastcode < MAXCHARS) {
-        tmp = xmalloc(sizeof(avl_entry));
+        tmp = xmalloc(sizeof(avl_entry),1);
         tmp->name = s ;
         tmp->num = lastcode;
         (void)mpx_avl_probe (mpx, mpx->charcodes[f],tmp);
@@ -2838,7 +2928,7 @@ static int mpx_read_fontdesc(MPX mpx, char *nam) {	/* troff name */
     if (p == NULL)
 	  mpx_abort(mpx, "Font was not in map file");
     f = p->num;
-    fin = mpx_fsearch(mpx, nam, kpse_troff_font_format);
+    fin = mpx_fsearch(mpx, nam, mpx_fontdesc_format);
     if (fin==NULL)
 	  mpx_abort(mpx,"Cannot find %s", nam);
     for (;;) {
@@ -2855,7 +2945,7 @@ static int mpx_read_fontdesc(MPX mpx, char *nam) {	/* troff name */
     while (fgets(buf, 200, fin) != NULL)
 	  if (mpx_scan_desc_line(mpx, f, buf) == 0)
 	    mpx_abort(mpx, "%s has a bad line in its description file: %s", nam, buf);
-    fclose(fin);
+    mpx_fclose(mpx,fin);
     return f;
 }
 
@@ -2958,7 +3048,7 @@ It is a hack, I know. I've stuck to  names on TeXLive.
 
 @d test_redo_search do {
    if (deff==NULL)
-	 deff = mpx_fsearch(mpx, cname, kpse_mpsupport_format);
+	 deff = mpx_fsearch(mpx, cname, mpx_specchar_format);
  } while (0)
 
 @c
@@ -2969,16 +3059,16 @@ static char *mpx_copy_spec_char(MPX mpx, char *cname) {
   char specintro[] = "vardef ";	/* MetaPost name follows this */
   unsigned k = 0;			/* how much of specintro so far */
   if (strcmp(cname, "ao") == 0) {
-	deff = mpx_fsearch(mpx, "ao.x", kpse_mpsupport_format);
+	deff = mpx_fsearch(mpx, "ao.x", mpx_specchar_format);
 	test_redo_search;
   } else if (strcmp(cname, "lh") == 0) {
-	deff = mpx_fsearch(mpx, "lh.x", kpse_mpsupport_format);
+	deff = mpx_fsearch(mpx, "lh.x", mpx_specchar_format);
 	test_redo_search;
   } else if (strcmp(cname, "~=") == 0) {
-	deff = mpx_fsearch(mpx, "twiddle", kpse_mpsupport_format);
+	deff = mpx_fsearch(mpx, "twiddle", mpx_specchar_format);
 	test_redo_search;
   } else {
-	deff = mpx_fsearch(mpx, cname, kpse_mpsupport_format);
+	deff = mpx_fsearch(mpx, cname, mpx_specchar_format);
   }
   if (deff==NULL)
      mpx_abort(mpx, "No vardef in charlib/%s", cname);
@@ -2992,7 +3082,7 @@ static char *mpx_copy_spec_char(MPX mpx, char *cname) {
 	else
 	  k = 0;
   }
-  s = xmalloc(mpx->bufsize);
+  s = xmalloc(mpx->bufsize,1);
   t = s ;
   while ((c = getc(deff)) != '(') {
 	if (c == EOF)
@@ -3056,7 +3146,7 @@ OUT:
 	    mpx_first_use(mpx, f);
 	if (mpx->spec_tab)
        mpx->spec_tab = mpx_avl_create (mpx);
-    sp = xmalloc(sizeof(spec_entry));
+    sp = xmalloc(sizeof(spec_entry),1);
     sp->name = cname;
     sp->mac = NULL;
     sp  = (spec_entry *)avl_probe(mpx->spec_tab,sp);
@@ -3572,7 +3662,7 @@ static int mpx_do_page (MPX mpx, FILE *trf) {
 @c
 static int mpx_dmp(MPX mpx, char *infile) {
     int more;
-    FILE *trf = xfopen(infile, "r");
+    FILE *trf = mpx_xfopen(mpx,infile, "r");
     mpx_open_mpxfile(mpx);
     fprintf(mpx->mpxfile, banner);
     mpx_read_desc(mpx);
@@ -3588,8 +3678,8 @@ static int mpx_dmp(MPX mpx, char *infile) {
 	    fprintf(mpx->mpxfile, "mpxbreak\n");
 	  } while (more);
     }
-    fclose(trf);
-    fclose(mpx->mpxfile);
+    mpx_fclose(mpx,trf);
+    mpx_fclose(mpx,mpx->mpxfile);
     if ( mpx->history<=mpx_cksum_trouble )
       return 0;
     else 
@@ -3762,7 +3852,7 @@ static char *mpx_print_command (MPX mpx, int cmdlength, char **cmdline) {
   for (i = 0; i < cmdlength ; i++) {
      l += strlen(cmdline[i])+1;
   }
-  s = xmalloc(l); t=s;
+  s = xmalloc(l,1); t=s;
   for (i = 0; i < cmdlength ; i++) {
     if (i>0) *t++ = ' ';
     t = strcpy(t,cmdline[i]);
@@ -3815,13 +3905,13 @@ static int mpx_run_command(MPX mpx, char *inname, char *outname, int count, char
 
     mpx_report(mpx,"running command %s", mpx_print_command(mpx,count, cmdl));
 
-    fr = xfopen((inname ? inname : nuldev), "r");
-    fw = xfopen((outname ? outname : nuldev), "wb");
+    fr = mpx_xfopen(mpx,(inname ? inname : nuldev), "r");
+    fw = mpx_xfopen(mpx,(outname ? outname : nuldev), "wb");
     @<Save and redirect the standard I/O@>;
     retcode = do_spawn(mpx,cmdl[0], cmdl);
     @<Restore the standard I/O@>;
-    fclose(fr);
-    fclose(fw);
+    mpx_fclose(mpx,fr);
+    mpx_fclose(mpx,fw);
     return retcode;
 }
 
@@ -3857,12 +3947,12 @@ course much larger than is really needed, but it will still only be a
 few hunderd bytes at the most, and this ensures that the separate
 parts of the |maincmd| will all fit.
 
-@d split_command(a,b) mpx_do_split_command(a,&b,' ')
-@d split_pipes(a,b)   mpx_do_split_command(a,&b,'|')
+@d split_command(a,b) mpx_do_split_command(mpx,a,&b,' ')
+@d split_pipes(a,b)   mpx_do_split_command(mpx,a,&b,'|')
 
 @c
 static int
-mpx_do_split_command(char *maincmd, char ***cmdline_addr, char target) {
+mpx_do_split_command(MPX mpx, char *maincmd, char ***cmdline_addr, char target) {
   char *piece;
   char *cmd;
   char **cmdline;
@@ -3872,7 +3962,7 @@ mpx_do_split_command(char *maincmd, char ***cmdline_addr, char target) {
   if (strlen(maincmd) == 0)
     return 0;
   i = sizeof(char *)*(strlen(maincmd)+1);
-  cmdline = xmalloc(i);
+  cmdline = xmalloc(i,1);
   memset(cmdline,0,i);
   *cmdline_addr = cmdline;
 
@@ -3950,7 +4040,7 @@ int mp_makempx (int mode, char *cmd, char *mptexpre, char *mpname, char *mpxname
     if (!debug) {
       @<Check if mp file is newer than mpxfile, exit if not@>;
     }
-    mpx = xmalloc(sizeof(struct mpx_data));
+    mpx = xmalloc(sizeof(struct mpx_data),1);
     mpx_initialize(mpx);
     mpx->mode = mode;
     mpx->debug = debug;
@@ -3963,7 +4053,7 @@ int mp_makempx (int mode, char *cmd, char *mptexpre, char *mpname, char *mpxname
     if (debug) {
       mpx->errfile = stderr;
     } else {
-      mpx->errfile = xfopen(MPXLOG, "wb");
+      mpx->errfile = mpx_xfopen(mpx,MPXLOG, "wb");
     }
     mpx->progname = "makempx";
     @<Initialize the |tmpname| variable@>;
@@ -3993,7 +4083,7 @@ int mp_makempx (int mode, char *cmd, char *mptexpre, char *mpname, char *mpxname
       }
     }
     if (!debug)
-      fclose(mpx->errfile);
+      mpx_fclose(mpx,mpx->errfile);
     if (!mpx->debug) {
 	  remove(MPXLOG);
 	  remove(ERRLOG);
@@ -4009,7 +4099,7 @@ that to the command line.
 @<Run |TeX| and set ...@>=
 {
   char log[15];
-  mpx->maincmd = xrealloc(mpx->maincmd,strlen(mpx->maincmd)+strlen(mpx->tex)+2);
+  mpx->maincmd = xrealloc(mpx->maincmd,strlen(mpx->maincmd)+strlen(mpx->tex)+2,1);
   strcat(mpx->maincmd, " ");
   strcat(mpx->maincmd, mpx->tex);
   cmdlength = split_command(mpx->maincmd, cmdline);
