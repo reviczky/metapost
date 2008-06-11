@@ -502,7 +502,7 @@ static const char *mpx_preverb[] = { "%% line %d %s\n", ".lf %d %s\n"};  /* all 
 static const char *mpx_postverb[] = { "\n", "\n" } ;
 
 @ @c
-static void mpx_mpto(MPX mpx, char *tmpname) {
+static void mpx_mpto(MPX mpx, char *tmpname, char *mptexpre) {
     FILE *outfile;
     int mode      = mpx->mode;
     char *mpname  = mpx->mpname; 
@@ -514,16 +514,11 @@ static void mpx_mpto(MPX mpx, char *tmpname) {
     outfile  = xfopen(mpx->tex, "wb");
     if (mode==mpx_tex_mode) {
       FILE *fr;
-      char *mptexpre = NULL;
-      mptexpre = kpse_var_value("MPTEXPRE");
-      if (!mptexpre)
-	    mptexpre = xstrdup("mptexpre.tex");
       if ((fr = fopen(mptexpre, "r"))!= NULL) {
 	    while (mpx_getline(mpx, fr) != NULL)
 	      fputs(mpx->buf, outfile);
  	    fclose(fr);
       }
-      free(mptexpre);
     }
     mpx->mpfile   = xfopen(mpname, "r");
     fprintf(outfile,"%s", mpx_predoc[mode]);
@@ -568,7 +563,7 @@ static void mpx_mpto(MPX mpx, char *tmpname) {
 }
 
 @ @<Run |mpto| on the mp file@>=
-mpx_mpto(mpx, tmpname)
+mpx_mpto(mpx, tmpname, mptexpre)
 
 @* DVItoMP Processing.
 
@@ -3935,7 +3930,7 @@ static void mpx_command_error (MPX mpx, int cmdlength, char **cmdline) {
 }
 
 @ @(mpxout.h@>=
-int mp_makempx (int mode, char *cmd, char *mpname, char *mpxname, int debug) ;
+int mp_makempx (int mode, char *cmd, char *mptexpre, char *mpname, char *mpxname, int debug) ;
 
 
 @ 
@@ -3944,7 +3939,7 @@ int mp_makempx (int mode, char *cmd, char *mpname, char *mpxname, int debug) ;
 @d MPXLOG "makempx.log"
 
 @c
-int mp_makempx (int mode, char *cmd, char *mpname, char *mpxname, int debug) {
+int mp_makempx (int mode, char *cmd, char *mptexpre, char *mpname, char *mpxname, int debug) {
     MPX mpx;
     char **cmdline, **cmdbits;
     char infile[15];
@@ -3971,10 +3966,12 @@ int mp_makempx (int mode, char *cmd, char *mpname, char *mpxname, int debug) {
       mpx->errfile = xfopen(MPXLOG, "wb");
     }
     mpx->progname = "makempx";
-    @<Setup the default main command@>;
     @<Initialize the |tmpname| variable@>;
+    if (mptexpre == NULL)
+      mptexpre = xstrdup("mptexpre.tex");
     @<Run |mpto| on the mp file@>;
-
+    if (cmd==NULL)
+      return mpx->history;
     if (mpx->mode == mpx_tex_mode) {
       @<Run |TeX| and set up |infile| or abort@>;
       if (mpx_dvitomp(mpx, infile)) {
@@ -4103,30 +4100,3 @@ if (mpx_newer(mpname, mpxname))
     sprintf(tmpname, "mp%06d", (int)(time(NULL) % 1000000));
 #endif
 #endif
-
-@ Here is a the default command to run, if it not specified on the commandline.
-
-@d default_args " --parse-first-line --interaction=nonstopmode"
-@d TEX     "tex"
-@d TROFF   "soelim | eqn -Tps -d$$ | troff -Tps"
-
-@<Setup the default main command@>=
-{
-  if (mpx->maincmd == NULL) {
-    char *s = NULL;
-    if (mpx->mode == mpx_tex_mode) {
-      s = kpse_var_value("TEX");
-      if (!s) s = kpse_var_value("MPXMAINCMD");
-      if (!s) s = xstrdup (TEX);
-      mpx->maincmd = (char *)xmalloc (strlen(s)+strlen(default_args)+1);
-      strcpy(mpx->maincmd,s);
-      strcat(mpx->maincmd,default_args);
-      free(s);
-    } else {
-      s = kpse_var_value("TROFF");
-      if (!s) s = kpse_var_value("MPXMAINCMD");
-      if (!s) s = xstrdup (TROFF);
-      mpx->maincmd = s;
-    }
-  }
-}

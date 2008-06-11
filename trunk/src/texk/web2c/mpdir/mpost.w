@@ -101,8 +101,11 @@ string normalize_quotes (const char *name, const char *mesg) {
 @ Invoke makempx (or troffmpx) to make sure there is an up-to-date
    .mpx file for a given .mp file.  (Original from John Hobby 3/14/90) 
 
-@c
+@d default_args " --parse-first-line --interaction=nonstopmode"
+@d TEX     "tex"
+@d TROFF   "soelim | eqn -Tps -d$$ | troff -Tps"
 
+@c
 #ifndef MPXCOMMAND
 #define MPXCOMMAND "makempx"
 #endif
@@ -133,7 +136,24 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       ret = system (cmd);
       free (cmd);
     } else {
-      mp_makempx(mp_troff_mode(mp),NULL, qmpname, qmpxname,0);
+      char *s = NULL;
+      char *maincmd = NULL;
+      int mpxmode = mp_troff_mode(mp);
+      if (mpxmode == mpx_tex_mode) {
+        s = kpse_var_value("TEX");
+        if (!s) s = kpse_var_value("MPXMAINCMD");
+        if (!s) s = xstrdup (TEX);
+        maincmd = (char *)xmalloc (strlen(s)+strlen(default_args)+1);
+        strcpy(maincmd,s);
+        strcat(maincmd,default_args);
+        free(s);
+      } else {
+        s = kpse_var_value("TROFF");
+        if (!s) s = kpse_var_value("MPXMAINCMD");
+        if (!s) s = xstrdup (TROFF);
+        maincmd = s;
+      }
+      mp_makempx(mpxmode,maincmd, kpse_var_value("MPTEXPRE"), qmpname, qmpxname,0);
     }
     free (qmpname);
     free (qmpxname);

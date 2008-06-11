@@ -31,13 +31,40 @@ int main (int ac, char **av) {
   int debug = 0;
   kpse_set_program_name(av[0], av[0]);
   @<Parse arguments@>;
-  h = mp_makempx (mode, cmd, mpname, mpxname, debug);
+  @<Setup the default main command, if needed@>;
+  h = mp_makempx (mode, cmd, kpse_var_value("MPTEXPRE"), mpname, mpxname, debug);
   if (mpname!=NULL) free(mpname);
   if (mpxname!=NULL) free(mpxname);
   if (cmd!=NULL) free(cmd);
   return h;
 }
 
+@ Here is a the default command to run, if it not specified on the commandline.
+
+@d default_args " --parse-first-line --interaction=nonstopmode"
+@d TEX     "tex"
+@d TROFF   "soelim | eqn -Tps -d$$ | troff -Tps"
+
+@<Setup the default main command, if needed@>=
+{
+  if (cmd == NULL) {
+    char *s = NULL;
+    if (mode == mpx_tex_mode) {
+      s = kpse_var_value("TEX");
+      if (!s) s = kpse_var_value("MPXMAINCMD");
+      if (!s) s = xstrdup (TEX);
+      cmd = (char *)xmalloc (strlen(s)+strlen(default_args)+1);
+      strcpy(cmd,s);
+      strcat(cmd,default_args);
+      free(s);
+    } else {
+      s = kpse_var_value("TROFF");
+      if (!s) s = kpse_var_value("MPXMAINCMD");
+      if (!s) s = xstrdup (TROFF);
+      cmd = s;
+    }
+  }
+}
 
 @ 
 @d ARGUMENT_IS(a) (!strncmp((av[curarg]+i),(a),strlen((a))))
