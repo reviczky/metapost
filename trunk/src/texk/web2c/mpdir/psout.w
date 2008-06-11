@@ -2056,7 +2056,7 @@ static void t1_printf (MP mp, const char *fmt, ...)
     va_end (args);
 }
 
-static void t1_init_params (MP mp, char *open_name_prefix,
+static void t1_init_params (MP mp, const char *open_name_prefix,
                            char *cur_file_name) {
   if ((open_name_prefix != NULL) && strlen(open_name_prefix)) {
     t1_log (open_name_prefix);
@@ -2430,7 +2430,7 @@ static boolean t1_open_fontfile (MP mp, fm_entry *fm_cur,const char *open_name_p
         mp_warn (mp, "cannot open Type 1 font file for reading");
         return false;
     }
-    t1_init_params (mp,(char *)open_name_prefix,fm_cur->ff_name);
+    t1_init_params (mp,open_name_prefix,fm_cur->ff_name);
     mp->ps->fontfile_found = true;
     return true;
 }
