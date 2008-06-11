@@ -16401,6 +16401,7 @@ with the current input file.
   name=mp_a_make_name_string(mp, cur_file);
   mp->mpx_name[index]=name; add_str_ref(name);
   @<Read the first line of the new file@>;
+  xfree(origname);
   return;
 NOT_FOUND: 
     @<Explain that the \.{MPX} file can't be read and |succumb|@>;
@@ -25054,6 +25055,7 @@ void mp_open_output_file (MP mp) ;
 @ @c 
 char *mp_set_output_file_name (MP mp, integer c) {
   char *ss = NULL; /* filename extension proposal */  
+  char *nn = NULL; /* temp string  for str() */
   int old_setting; /* previous |selector| setting */
   pool_pointer i; /*  indexes into |filename_template|  */
   integer cc; /* a temporary integer for template building  */
@@ -25122,22 +25124,25 @@ char *mp_set_output_file_name (MP mp, integer c) {
        n=s;
        s=rts("");
     };
-    mp_pack_file_name(mp, str(n),"",str(s));
+    ss = str(s);
+    nn = str(n);
+    mp_pack_file_name(mp, nn,"",ss);
+    free(nn);
     delete_str_ref(n);
-	ss = str(s);
     delete_str_ref(s);
   }
   return ss;
 }
 
 char * mp_get_output_file_name (MP mp) {
-  char *fname; /* return value */
+  char *junk;
   char *saved_name;  /* saved |name_of_file| */
   saved_name = mp_xstrdup(mp, mp->name_of_file);
-  (void)mp_set_output_file_name(mp, mp_round_unscaled(mp, mp->internal[mp_char_code]));
-  fname = mp_xstrdup(mp, mp->name_of_file);
+  junk = mp_set_output_file_name(mp, mp_round_unscaled(mp, mp->internal[mp_char_code]));
+  free(junk);
   mp_pack_file_name(mp, saved_name,NULL,NULL);
-  return fname;
+  free(saved_name);
+  return mp->name_of_file;
 }
 
 void mp_open_output_file (MP mp) {

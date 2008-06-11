@@ -279,10 +279,13 @@ void *mpost_open_file(MP mp, const char *fname, const char *fmode, int ftype)  {
   } else { 
     s = mpost_find_file (mp, fname, fmode, ftype);
     if (s!=NULL) {
+      void *ret = NULL;
       realmode[0] = *fmode;
 	  realmode[1] = 'b';
 	  realmode[2] = 0;
-      return fopen(s,realmode);
+      ret = fopen(s,realmode);
+      free(s);
+      return ret;
     }
   }
   return NULL;
