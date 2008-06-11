@@ -3808,6 +3808,7 @@ static void mpx_cleandir(MPX mpx, char *cur_path) {
     closedir(d);
   }
 #endif	    
+  free(wrk);
 }
 
 
@@ -3895,16 +3896,18 @@ static int do_spawn (MPX mpx, char *cmd, char **options) {
 #define nuldev "/dev/null"
 #endif
 static int mpx_run_command(MPX mpx, char *inname, char *outname, int count, char **cmdl) {
-
+    char *s;
     int retcode;
     int sav_o, sav_i; /* for I/O redirection */
     FILE *fr, *fw;    /* read and write streams for the command */
 
     if (count < 1 || cmdl == NULL || cmdl[0] == NULL)
 	  return -1; /* return non-zero by default, signalling an error */
-
-    mpx_report(mpx,"running command %s", mpx_print_command(mpx,count, cmdl));
-
+     
+    s = mpx_print_command(mpx,count, cmdl);
+    mpx_report(mpx,"running command %s", s);
+    free(s);
+    
     fr = mpx_xfopen(mpx,(inname ? inname : nuldev), "r");
     fw = mpx_xfopen(mpx,(outname ? outname : nuldev), "wb");
     @<Save and redirect the standard I/O@>;
@@ -4058,7 +4061,7 @@ int mp_makempx (makempx_options *mpxopt) {
     if (mpxopt->find_file!=NULL)
       mpx->find_file = mpxopt->find_file;
     if (mpxopt->cmd!=NULL)
-      mpx->maincmd = xstrdup(mpxopt->cmd);
+      mpx->maincmd = xstrdup(mpxopt->cmd); /* valgrind says this leaks */
     mpx->mpname = xstrdup(mpxopt->mpname);
     mpx->mpxname = xstrdup(mpxopt->mpxname);
     @<Install and test the non-local jump buffer@>;
@@ -4074,7 +4077,7 @@ int mp_makempx (makempx_options *mpxopt) {
       mpxopt->mptexpre = xstrdup("mptexpre.tex");
     @<Run |mpto| on the mp file@>;
     if (mpxopt->cmd==NULL)
-      return mpx->history;
+      goto DONE;
     if (mpx->mode == mpx_tex_mode) {
       @<Run |TeX| and set up |infile| or abort@>;
       if (mpx_dvitomp(mpx, infile)) {
@@ -4104,7 +4107,12 @@ int mp_makempx (makempx_options *mpxopt) {
    	  remove(infile);
     }
     mpx_erasetmp(mpx);
+  DONE:
     retcode = mpx->history;
+    mpx_xfree(mpx->buf);
+    mpx_xfree(mpx->maincmd);
+    for (i = 0; i < (int)mpx->nfonts; i++)
+      mpx_xfree(mpx->font_name[i]);
     free(mpx);
     if (retcode == mpx_cksum_trouble)
        retcode = 0;
