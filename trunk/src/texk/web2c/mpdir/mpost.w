@@ -158,6 +158,7 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       free (cmd);
     } else {
       makempx_options * mpxopt;
+      const char *mpversion = mp_metapost_version (mp) ;
       mpxopt = xmalloc(sizeof(makempx_options));
       char *s = NULL;
       char *maincmd = NULL;
@@ -187,6 +188,12 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       mpxopt->mpxname = qmpxname;
       mpxopt->debug = debug;
       mpxopt->find_file = makempx_find_file;
+      {
+        char *banner = "% Written by metapost version ";
+        mpxopt->banner = xmalloc(strlen(mpversion)+strlen(banner)+1);
+        strcpy (mpxopt->banner, banner);
+        strcat (mpxopt->banner, mpversion);
+      }
       ret = mp_makempx(mpxopt);
       free(mpxopt->cmd);
       free(mpxopt->mptexpre);
