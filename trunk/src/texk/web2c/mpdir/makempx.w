@@ -31,7 +31,7 @@ int main (int ac, char **av) {
   int debug = 0;
   kpse_set_program_name(av[0], av[0]);
   @<Parse arguments@>;
-  h = mpx_makempx (mode, cmd, mpname, mpxname, debug);
+  h = mp_makempx (mode, cmd, mpname, mpxname, debug);
   if (mpname!=NULL) free(mpname);
   if (mpxname!=NULL) free(mpxname);
   if (cmd!=NULL) free(cmd);

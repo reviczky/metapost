@@ -237,7 +237,7 @@ static void mpx_error(MPX mpx, char *msg, ...) {
 }
 
 @  The program uses a |jump_buf| to handle non-local returns, 
-this is initialized at a single spot: the start of |mpx_makempx|.
+this is initialized at a single spot: the start of |mp_makempx|.
 
 @d mpx_jump_out longjmp(mpx->jump_buf,1)
 
@@ -3935,7 +3935,7 @@ static void mpx_command_error (MPX mpx, int cmdlength, char **cmdline) {
 }
 
 @ @(mpxout.h@>=
-int mpx_makempx (int mode, char *cmd, char *mpname, char *mpxname, int debug) ;
+int mp_makempx (int mode, char *cmd, char *mpname, char *mpxname, int debug) ;
 
 
 @ 
@@ -3944,7 +3944,7 @@ int mpx_makempx (int mode, char *cmd, char *mpname, char *mpxname, int debug) ;
 @d MPXLOG "makempx.log"
 
 @c
-int mpx_makempx (int mode, char *cmd, char *mpname, char *mpxname, int debug) {
+int mp_makempx (int mode, char *cmd, char *mpname, char *mpxname, int debug) {
     MPX mpx;
     char **cmdline, **cmdbits;
     char infile[15];

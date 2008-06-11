@@ -133,7 +133,7 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       ret = system (cmd);
       free (cmd);
     } else {
-      mpx_makempx(mp_troff_mode(mp),NULL, qmpname, qmpxname,0);
+      mp_makempx(mp_troff_mode(mp),NULL, qmpname, qmpxname,0);
     }
     free (qmpname);
     free (qmpxname);
