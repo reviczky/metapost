@@ -481,7 +481,7 @@ int main (int argc, char **argv) { /* |start_here| */
   @<Read and set command line options@>;
   if (!nokpse)
     kpse_set_program_name("mpost",user_progname);  
-  if(putenv((char *)"engine=newmetapost"))
+  if(putenv((char *)"engine=metapost"))
     fprintf(stdout,"warning: could not set up $engine\n");
   options->main_memory       = setup_var (50000,"main_memory",nokpse);
   options->hash_size         = setup_var (9500,"hash_size",nokpse);
