@@ -329,23 +329,23 @@ static char *mpx_xstrdup(MPX mpx, const char *s) {
 }
 @* The command 'newer' became a function.
 
-@c
-/* We may have high-res timers in struct stat.  If we do, use them.  */
-#if HAVE_ST_MTIM
-#define ISNEWER(S,T) (S.st_mtim.tv_sec > T.st_mtim.tv_sec ||   \
-                    (S.st_mtim.tv_sec  == T.st_mtim.tv_sec &&  \
-                     S.st_mtim.tv_nsec >= T.st_mtim.tv_nsec))
-#else
-#define ISNEWER(S,T) (S.st_mtime >= T.st_mtime)
-#endif
+We may have high-res timers in struct stat.  If we do, use them. 
 
+@c
 static int mpx_newer(char *source, char *target) {
     struct stat source_stat, target_stat;
 #if HAVE_SYS_STAT_H
     if (stat(target, &target_stat) < 0) return 0; /* true */
     if (stat(source, &source_stat) < 0) return 1; /* false */
-    if (ISNEWER(source_stat, target_stat))
+#if HAVE_ST_MTIM
+    if (source_stat.st_mtim.tv_sec > target_stat.st_mtim.tv_sec || 
+         (source_stat.st_mtim.tv_sec  == target_stat.st_mtim.tv_sec && 
+          source_stat.st_mtim.tv_nsec >+ target_stat.st_mtim.tv_nsec))
   	  return 0;
+#else
+    if (source_stat.st_mtime >= target_stat.st_mtime)
+  	  return 0;
+#endif
 #endif
     return 1;
 }
