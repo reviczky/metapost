@@ -168,13 +168,12 @@ struct MP_options *mp_options (void) {
 
 @ @c
 MP __attribute__ ((noinline))
-mp_new (struct MP_options *opt) {
-  MP mp;
-  mp = malloc(1*sizeof(MP_instance));
+mp_do_new (struct MP_options *opt, jmp_buf *buf) {
+  MP mp = malloc(sizeof(MP_instance));
   if (mp==NULL)
-	return mp;
+	return NULL;
+  mp->jump_buf = buf;
   @<Set |ini_version|@>;
-  @<Setup the non-local jump buffer in |mp_new|@>;
   @<Allocate or initialize variables@>
   if (opt->main_memory>mp->mem_max)
     mp_reallocate_memory(mp,opt->main_memory);
@@ -182,6 +181,13 @@ mp_new (struct MP_options *opt) {
   mp_reallocate_fonts(mp,8);
   return mp;
 }
+MP __attribute__ ((noinline))
+mp_new (struct MP_options *opt) {
+  jmp_buf buf;
+  @<Setup the non-local jump buffer in |mp_new|@>;
+  return mp_do_new(opt, &buf);
+}
+
 
 @ @c
 void mp_free (MP mp) {
@@ -1917,7 +1923,7 @@ void mp_term_input (MP mp) { /* gets a line from the terminal */
 	  mp_fatal_error(mp, "End of file on the terminal!");
 @.End of file on the terminal@>
     } else { /* we are done with this input chunk */
-	  longjmp(mp->jump_buf,1);      
+	  longjmp(*(mp->jump_buf),1);      
     }
   }
   if (!mp->noninteractive) {
@@ -2113,13 +2119,13 @@ of |mp_run|. Those are the only library enty points.
 @^system dependencies@>
 
 @<Glob...@>=
-jmp_buf jump_buf;
+jmp_buf *jump_buf;
 
 @ @<Install and test the non-local jump buffer@>=
-if (setjmp(mp->jump_buf) != 0) { return mp->history; }
+if (setjmp(*(mp->jump_buf)) != 0) { return mp->history; }
 
 @ @<Setup the non-local jump buffer in |mp_new|@>=
-if (setjmp(mp->jump_buf) != 0) return NULL;
+if (setjmp(buf) != 0) { return NULL; }
 
 
 @ If the array of internals is still |NULL| when |jump_out| is called, a
@@ -2130,7 +2136,7 @@ cleanup routine.
 void mp_jump_out (MP mp) { 
   if (mp->internal!=NULL && mp->history < mp_system_error_stop) 
     mp_close_files_and_terminate(mp);
-  longjmp(mp->jump_buf,1);
+  longjmp(*(mp->jump_buf),1);
 }
 
 @ Here now is the general |error| routine.
