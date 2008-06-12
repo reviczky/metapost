@@ -19,7 +19,7 @@ Make sure you have access to the command "ctangle" from the
 commandline, and install it (e.g. from TEXLIVE) if necessary. Then
 try to run the script build.sh from this top-level directory. 
 
-If it succeeds, you will end up with the executable "newmpost" in
+If it succeeds, you will end up with the executable "mpost" in
 build/texk/web2c/mpdir. If it doesn't, feel free to email questions
 to mp-implementors@tug.org. To install, simply copy the executable
 to somewhere in your path. 

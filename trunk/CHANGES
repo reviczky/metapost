@@ -1,6 +1,28 @@
 $Id $
-By John Hobby and others.  Public domain (see README).
+By John Hobby and others.
 
+----------------------------------------------------------------------
+What is new in the beta release of MPlib 1.060:
+----------------------------------------------------------------------
+
+* The MPlib distribution is released under the GPL version 2.
+
+* This release is the first that replaces the old metapost distribution
+  completely. The executable is now named 'mpost' with engine name
+  'metapost'.
+
+* The release now includes a cweb implementation of the makempx 
+  functionality that is linked into the mpost executable. 
+  This internal code will be used unless the MPXCOMMAND variable is set.
+  Because of this functionality, the mpware directory is no longer 
+  included and the standalone programs 'makempx', 'newer', 'mpto',
+  'dvitomp' and 'dmp'. are no longer maintained.
+
+* This is the first development release of the new cycle, and contains 
+  all of the functionality of Metapost 1.005. The mpost version is now 
+  1.060, and the special version number for the cweb version has been 
+  removed from the banner.
+  
 ----------------------------------------------------------------------
 What is new in the alpha release of MPlib (0.20.0):
 ----------------------------------------------------------------------

@@ -1,10 +1,10 @@
 
 This README file for the MetaPost distribution is public domain.
-(As is the MetaPost software, see the end of this file.)
 
 MetaPost is a system for producing graphics developed by John Hobby at
 AT&T, based on Donald Knuth's Metafont. The current distribution is
-written in Cweb.
+written in Cweb, and released under GPL version 2. See COPYING
+for details.
 
 - The MetaPost home page is http://tug.org/metapost.
 
@@ -20,26 +20,20 @@ written in Cweb.
   reports directly to Dr. Hobby any more.)
 
 This README file merely describes this packaging and source layout of
-the MetaPost system.  See ./INSTALL for some installation help, and
-./CHANGES for recent and not-so-recent improvements to MetaPost.
+the MetaPost system.  See INSTALL for some installation help, and
+CHANGES for recent and not-so-recent improvements to MetaPost.
 
 The source installation package has been created by extracting the
 bits and pieces of TeX Live 2007 that are absolutely needed to compile
-the programs in such a way that they can be plugged into an existing
-web2c-based installation afterwards. It follows, that for a succesful
-build, your system has to be able to compile and install a web2c based
-distribution like tetex or TeX Live. See http://tug.org/texlive/ for more
+Metapost in such a way that it can be plugged into an existing
+web2c-based installation afterwards. See http://tug.org/texlive/ for more
 information.
 
-The executable that is created by the build process is named newmpost. 
+The executable that is created by the build process is named mpost. 
 As is normal in current web2c systems, this executable functions as both
 inimp and virmp by means of a command-line switch.
 
-When newmpost is processing an input file that contains TeX commands, 
-it depends on a shell script (mpware/makempx) to create an auxiliary
-input file that gives corresponding MetaPost picture expressions.
-
-The source for MetaPost is mplib/lib/*.w and lib/mpost.w
+The source for MetaPost is mplib/*.w
 
 Have fun!
 
