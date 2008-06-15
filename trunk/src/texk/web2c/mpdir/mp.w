@@ -1,4 +1,4 @@
-% $Id: mp.w 1299 2008-05-28 14:09:04Z taco $
+% $Id: mp.w 1313 2008-06-15 14:32:34Z taco $
 % MetaPost, by John Hobby.  Public domain.
 
 % Much of this program was copied with permission from MF.web Version 1.9
@@ -107,8 +107,12 @@ wholesale.
 @(mpmp.h@>=
 #include <setjmp.h>
 typedef struct psout_data_struct * psout_data;
+#ifndef HAVE_BOOLEAN
 typedef int boolean;
-typedef signed int integer;
+#endif
+#ifndef INTEGER_TYPE
+typedef int integer;
+#endif
 @<Declare helpers@>
 @<Types in the outer block@>
 @<Constants in the outer block@>
