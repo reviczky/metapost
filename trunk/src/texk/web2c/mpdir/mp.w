@@ -24896,6 +24896,33 @@ font_number mp_find_font (MP mp, char *f) {
   return n;
 }
 
+@ This is an interface function for getting the width of character,
+as a double in ps units
+
+@c double mp_get_char_width (MP mp, char *fname, int c) {
+  int n;
+  four_quarters cc;
+  font_number f = 0;
+  double w = -1.0;
+  for (n=0;n<=mp->last_fnum;n++) {
+    if (mp_xstrcmp(fname,mp->font_name[n])==0 ) {
+      f = n;
+      break;
+    }
+  }
+  if (f==0)
+    return 0;
+  cc = char_info(f)(c);
+  if (! ichar_exists(cc) )
+    return 0;
+  w = char_width(f)(cc);
+  return w/655.35*(72.27/72);
+}
+
+@ @<Exported function ...@>=
+double mp_get_char_width (MP mp, char *fname, int n);
+
+
 @ One simple application of |find_font| is the implementation of the |font_size|
 operator that gets the design size for a given font name.
 
