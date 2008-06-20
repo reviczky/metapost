@@ -15972,25 +15972,10 @@ void mp_pack_file_name (MP mp, const char *n, const char *a, const char *e) {
 @ @<Internal library declarations@>=
 void mp_pack_file_name (MP mp, const char *n, const char *a, const char *e) ;
 
-@ A messier routine is also needed, since mem file names must be scanned
-before \MP's string mechanism has been initialized. We shall use the
-global variable |MP_mem_default| to supply the text for default system areas
-and extensions related to mem files.
-@^system dependencies@>
-
-@d mem_default_length 9 /* length of the |MP_mem_default| string */
-@d mem_ext_length 4 /* length of its `\.{.mem}' part */
-@d mem_extension ".mem" /* the extension, as a \.{WEB} constant */
-
-@<Glob...@>=
-char *MP_mem_default;
-
 @ @<Option variables@>=
 char *mem_name; /* for commandline */
 
 @ @<Allocate or initialize ...@>=
-mp->MP_mem_default = xstrdup("plain.mem");
-@.plain@>
 mp->mem_name = xstrdup(opt->mem_name);
 if (mp->mem_name) {
   int l = strlen(mp->mem_name);
@@ -16004,51 +15989,13 @@ if (mp->mem_name) {
 
 
 @ @<Dealloc variables@>=
-xfree(mp->MP_mem_default);
 xfree(mp->mem_name);
 
-@ @<Check the ``constant'' values for consistency@>=
-if ( mem_default_length>file_name_size ) mp->bad=20;
-
-@ Here is the messy routine that was just mentioned. It sets |name_of_file|
-from the first |n| characters of |MP_mem_default|, followed by
-|buffer[a..b-1]|, followed by the last |mem_ext_length| characters of
-|MP_mem_default|.
-
-We dare not give error messages here, since \MP\ calls this routine before
-the |error| routine is ready to roll. Instead, we simply drop excess characters,
-since the error will be detected in another way when a strange file name
-isn't found.
-@^system dependencies@>
-
-@c void mp_pack_buffered_name (MP mp,small_number n, integer a,
-                               integer b) {
-  integer k; /* number of positions filled in |name_of_file| */
-  ASCII_code c; /* character being packed */
-  integer j; /* index into |buffer| or |MP_mem_default| */
-  if ( n+b-a+1+mem_ext_length>file_name_size )
-    b=a+file_name_size-n-1-mem_ext_length;
-  k=0;
-  for (j=0;j<n;j++) {
-    append_to_name(xord((int)mp->MP_mem_default[j]));
-  }
-  for (j=a;j<b;j++) {
-    append_to_name(mp->buffer[j]);
-  }
-  for (j=mem_default_length-mem_ext_length;
-      j<mem_default_length;j++) {
-    append_to_name(xord((int)mp->MP_mem_default[j]));
-  } 
-  mp->name_of_file[k]=0;
-  mp->name_length=k; 
-}
-
-@ Here is the only place we use |pack_buffered_name|. This part of the program
-becomes active when a ``virgin'' \MP\ is trying to get going, just after
-the preliminary initialization, or when the user is substituting another
-mem file by typing `\.\&' after the initial `\.{**}' prompt.  The buffer
-contains the first line of input in |buffer[loc..(last-1)]|, where
-|loc<last| and |buffer[loc]<>" "|.
+@ This part of the program becomes active when a ``virgin'' \MP\ is
+trying to get going, just after the preliminary initialization, or
+when the user is substituting another mem file by typing `\.\&' after
+the initial `\.{**}' prompt.  The buffer contains the first line of
+input in |buffer[loc..(last-1)]|, where |loc<last| and |buffer[loc]<>""|.
 
 @<Declarations@>=
 boolean mp_open_mem_file (MP mp) ;
@@ -16075,9 +16022,12 @@ boolean mp_open_mem_file (MP mp) {
   }
   j=loc;
   if ( mp->buffer[loc]=='&' ) {
+    int sloc;
     incr(loc); j=loc; mp->buffer[mp->last]=' ';
     while ( mp->buffer[j]!=' ' ) incr(j);
-    mp_pack_buffered_name(mp, 0,loc,j); /* try first without the system file area */
+    sloc = mp->buffer[j];  mp->buffer[j] = '\0';
+    mp_pack_file_name(mp, (char *)(mp->buffer+loc), NULL,".mem");
+    mp->buffer[j] = sloc;
     if ( mp_w_open_in(mp, &mp->mem_file) ) goto FOUND;
     wake_up_terminal;
     wterm_ln("Sorry, I can\'t find that mem file; will try PLAIN.");
@@ -16085,7 +16035,7 @@ boolean mp_open_mem_file (MP mp) {
     update_terminal;
   }
   /* now pull out all the stops: try for the system \.{plain} file */
-  mp_pack_buffered_name(mp, mem_default_length-mem_ext_length,0,0);
+  mp_pack_file_name(mp, "plain", NULL,".mem");
   if ( ! mp_w_open_in(mp, &mp->mem_file) ) {
     wake_up_terminal;
     wterm_ln("I can\'t find the PLAIN mem file!\n");
@@ -22344,12 +22294,14 @@ mp_run_data *mp_rundata (MP mp)  {
 }
 
 @ @<Dealloc ...@>=
-mp_free_stream(&(mp->run_data->term_in));
-mp_free_stream(&(mp->run_data->term_out));
-mp_free_stream(&(mp->run_data->log_out));
-mp_free_stream(&(mp->run_data->error_out));
-mp_free_stream(&(mp->run_data->ps_out));
-xfree(mp->run_data);
+if (mp->run_data != NULL) {
+  mp_free_stream(&(mp->run_data->term_in));
+  mp_free_stream(&(mp->run_data->term_out));
+  mp_free_stream(&(mp->run_data->log_out));
+  mp_free_stream(&(mp->run_data->error_out));
+  mp_free_stream(&(mp->run_data->ps_out));
+  free(mp->run_data);
+}
 
 @ @<Finish non-interactive use@>=
 xfree(mp->term_out);
@@ -26391,9 +26343,9 @@ if (x!=69073) goto OFF_BASE
           (int)mp_round_unscaled(mp, mp->internal[mp_day]));
   mp_snprintf(mp->mem_ident,256," (mem=%s %s)",mp->job_name, tmp);
   xfree(tmp);
-  mp_pack_job_name(mp, mem_extension);
+  mp_pack_job_name(mp, ".mem");
   while (! mp_w_open_out(mp, &mp->mem_file) )
-    mp_prompt_file_name(mp, "mem file name", mem_extension);
+    mp_prompt_file_name(mp, "mem file name", ".mem");
   mp_print_nl(mp, "Beginning to dump on file ");
 @.Beginning to dump...@>
   mp_print(mp, mp->name_of_file); 
