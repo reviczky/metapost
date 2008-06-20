@@ -26,12 +26,10 @@ have our customary command-line interface.
 #include <time.h>
 #include <mplib.h>
 #include <mpxout.h>
-#define HAVE_PROTOTYPES 1
-#include <kpathsea/progname.h>
-#include <kpathsea/tex-file.h>
-#include <kpathsea/variable.h>
-extern unsigned kpathsea_debug;
-#include <kpathsea/concatn.h>
+#ifdef WIN32
+#include <process.h>
+#endif
+#include <kpathsea/kpathsea.h>
 static const char *mpost_tex_program = "";
 static int debug = 0; /* debugging for makempx */
 
@@ -58,12 +56,64 @@ char *xstrdup(const char *s) {
 }
 
 
-@ 
-@c
+@ @c
 void mpost_run_editor (MP mp, char *fname, int fline) {
-  if (mp)
-    fprintf(stdout,"Ok, bye (%s,%d)!",fname, fline);
-  exit(EXIT_SUCCESS);
+  char *temp, *command, *edit_value;
+  char c;
+  int sdone, ddone;
+  sdone = ddone = 0;
+  edit_value = kpse_var_value ("MPEDIT");
+  if (edit_value == NULL)
+    edit_value = getenv("EDITOR");
+  if (edit_value == NULL) {
+    fprintf (stderr,"call_edit: can't find a suitable MPEDIT or EDITOR variable\n");
+    exit(mp_status(mp));    
+  }
+  command = (string) xmalloc (strlen (edit_value) + strlen(fname) + 11 + 3);
+  temp = command;
+  while ((c = *edit_value++) != 0) {
+      if (c == '%')   {
+        switch (c = *edit_value++) {
+	    case 'd':
+	      if (ddone) {
+            fprintf (stderr,"call_edit: `%%d' appears twice in editor command\n");
+            exit(EXIT_FAILURE);  
+          }
+          sprintf (temp, "%d", fline);
+          while (*temp != '\0')
+            temp++;
+          ddone = 1;
+          break;
+	    case 's':
+          if (sdone) {
+            fprintf (stderr,"call_edit: `%%s' appears twice in editor command\n");
+            exit(EXIT_FAILURE);
+          }
+          while (*fname)
+		    *temp++ = *fname++;
+          *temp++ = '.';
+		  *temp++ = 'm';
+		  *temp++ = 'p';
+          sdone = 1;
+          break;
+	    case '\0':
+          *temp++ = '%';
+          /* Back up to the null to force termination.  */
+	      edit_value--;
+	      break;
+	    default:
+	      *temp++ = '%';
+	      *temp++ = c;
+	      break;
+	    }
+	 } else {
+     	*temp++ = c;
+     }
+   }
+  *temp = 0;
+  if (system (command) != 0)
+    fprintf (stderr, "! Trouble executing `%s'.\n", command);
+  exit(EXIT_FAILURE);
 }
 
 @ 
@@ -158,7 +208,7 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       free (cmd);
     } else {
       makempx_options * mpxopt;
-      const char *mpversion = mp_metapost_version (mp) ;
+      const char *mpversion = mp_metapost_version () ;
       mpxopt = xmalloc(sizeof(makempx_options));
       char *s = NULL;
       char *maincmd = NULL;
@@ -318,6 +368,7 @@ if (!nokpse)
 @<Read and set command line options@>=
 {
   char *optarg;
+  boolean ini_version_test = false;
   while (++a<argc) {
     optarg = strstr(argv[a],"=") ;
     if (optarg!=NULL) {
@@ -325,7 +376,7 @@ if (!nokpse)
       if (!*optarg)  optarg=NULL;
     }
     if (option_is("ini")) {
-      options->ini_version = true;
+      ini_version_test = true;
     } else if (option_is("debug")) {
       debug = 1;
     } else if (option_is ("kpathsea-debug")) {
@@ -359,7 +410,6 @@ if (!nokpse)
     } else if (option_is("help")) {
       @<Show help and exit@>;
     } else if (option_is("version")) {
-	  mp = mp_new(mp_options());
       @<Show version and exit@>;
     } else if (option_is("")) {
       continue; /* ignore unknown options */
@@ -367,6 +417,7 @@ if (!nokpse)
       break;
     }
   }
+  options->ini_version = ini_version_test;
 }
 
 @ 
@@ -407,7 +458,7 @@ fprintf(stdout,
 {
 fprintf(stdout, 
 "\n"
-"MetaPost %s (CWeb version %s)\n"
+"MetaPost %s\n"
 "Copyright 2008 AT&T Bell Laboratories.\n"
 "There is NO warranty.  Redistribution of this software is\n"
 "covered by the terms of both the MetaPost copyright and\n"
@@ -416,7 +467,7 @@ fprintf(stdout,
 "named COPYING and the MetaPost source.\n"
 "Primary author of MetaPost: John Hobby.\n"
 "Current maintainer of MetaPost: Taco Hoekwater.\n"
-"\n", mp_metapost_version(mp), mp_mplib_version(mp));
+"\n", mp_metapost_version());
   exit(EXIT_SUCCESS);
 }
 
@@ -491,8 +542,7 @@ int main (int argc, char **argv) { /* |start_here| */
   if(putenv((char *)"engine=metapost"))
     fprintf(stdout,"warning: could not set up $engine\n");
   options->main_memory       = setup_var (50000,"main_memory",nokpse);
-  options->hash_size         = setup_var (9500,"hash_size",nokpse);
-  options->hash_prime        = 7919;
+  options->hash_size         = setup_var (16384,"hash_size",nokpse);
   options->max_in_open       = setup_var (25,"max_in_open",nokpse);
   options->param_size        = setup_var (1500,"param_size",nokpse);
   options->error_line        = setup_var (79,"error_line",nokpse);
@@ -500,18 +550,18 @@ int main (int argc, char **argv) { /* |start_here| */
   options->max_print_line    = setup_var (100,"max_print_line",nokpse);
   @<Copy the rest of the command line@>;
   @<Register the callback routines@>;
-  mp = mp_new(options);
+  mp = mp_initialize(options);
   xfree(options->command_line);
   xfree(options->mem_name);
   xfree(options->job_name);
   free(options);
   if (mp==NULL)
 	exit(EXIT_FAILURE);
-  history = mp_initialize(mp);
-  if (history) 
-    exit(history);
+  history = mp_status(mp);
+  if (history)
+	exit(history);
   history = mp_run(mp);
-  mp_free(mp);
+  (void)mp_finish(mp);
   exit(history);
 }
 
