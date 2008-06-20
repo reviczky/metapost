@@ -73,8 +73,8 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d banner "This is MetaPost, Version 1.070 (Cweb version)" /* printed when \MP\ starts */
-@d metapost_version "1.070"
+@d banner "This is MetaPost, Version 1.071 (Cweb version)" /* printed when \MP\ starts */
+@d metapost_version "1.071"
 
 @d true 1
 @d false 0
@@ -1636,7 +1636,7 @@ to the terminal, the transcript file, or the \ps\ output file, respectively.
 void * log_file; /* transcript of \MP\ session */
 void * ps_file; /* the generic font output goes here */
 unsigned int selector; /* where to print a message */
-unsigned char dig[23]; /* digits in a number being output */
+unsigned char dig[23]; /* digits in a number, for rounding */
 integer tally; /* the number of characters recently printed */
 unsigned int term_offset;
   /* the number of characters on the current terminal line */
@@ -1868,43 +1868,15 @@ void mp_print_nl (MP mp, const char *s) { /* prints string |s| at beginning of l
   mp_print(mp, s);
 }
 
-@ An array of digits in the range |0..9| is printed by |print_the_digs|.
-
-@<Basic print...@>=
-void mp_print_the_digs (MP mp, eight_bits k) {
-  /* prints |dig[k-1]|$\,\ldots\,$|dig[0]| */
-  while ( k>0 ){ 
-    decr(k); mp_print_char(mp, '0'+mp->dig[k]);
-  }
-}
-
 @ The following procedure, which prints out the decimal representation of a
-given integer |n|, has been written carefully so that it works properly
-if |n=0| or if |(-n)| would cause overflow. It does not apply |%| or |/|
-to negative arguments, since such operations are not implemented consistently
-on all platforms.
+given integer |n|, assumes that all integers fit nicely into a |int|.
+@^system dependencies@>
 
 @<Basic print...@>=
 void mp_print_int (MP mp,integer n) { /* prints an integer in decimal form */
-  integer m; /* used to negate |n| in possibly dangerous cases */
-  int k = 0; /* index to current digit; we assume that $|n|<10^{23}$ */
-  if ( n<0 ) { 
-    mp_print_char(mp, '-');
-    if ( n>-100000000 ) {
-	  negate(n);
-    } else  { 
-	  m=-1-n; n=m / 10; m=(m % 10)+1; k=1;
-      if ( m<10 ) {
-        mp->dig[0]=m;
-      } else { 
-        mp->dig[0]=0; incr(n);
-      }
-    }
-  }
-  do {  
-    mp->dig[k]=n % 10; n=n / 10; incr(k);
-  } while (n!=0);
-  mp_print_the_digs(mp, k);
+  char s[12];
+  mp_snprintf(s,12,"%d", (int)n);
+  mp_print(mp,s);
 }
 
 @ @<Internal ...@>=
@@ -1941,16 +1913,15 @@ This procedure is never called when |interaction<mp_scroll_mode|.
 @c 
 void mp_term_input (MP mp) { /* gets a line from the terminal */
   size_t k; /* index into |buffer| */
-  update_terminal; /* Now the user sees the prompt for sure */
-  if (!mp_input_ln(mp, mp->term_in )) {
-    if (!mp->noninteractive) {
+  if (mp->noninteractive) {
+    if (!mp_input_ln(mp, mp->term_in ))
+	  longjmp(*(mp->jump_buf),1);  /* chunk finished */
+  } else {
+    update_terminal; /* Now the user sees the prompt for sure */
+    if (!mp_input_ln(mp, mp->term_in )) {
 	  mp_fatal_error(mp, "End of file on the terminal!");
 @.End of file on the terminal@>
-    } else { /* we are done with this input chunk */
-	  longjmp(*(mp->jump_buf),1);      
     }
-  }
-  if (!mp->noninteractive) {
     mp->term_offset=0; /* the user's line ended with \<\rm return> */
     decr(mp->selector); /* prepare to echo the input */
     if ( mp->last!=mp->first ) {
@@ -2424,10 +2395,11 @@ void mp_fatal_error (MP mp, const char *s);
 
 @<Error hand...@>=
 void mp_overflow (MP mp, const char *s, integer n) { /* stop due to finiteness */
+  char msg[256];
   mp_normalize_selector(mp);
-  print_err("MetaPost capacity exceeded, sorry [");
+  mp_snprintf(msg, 256, "MetaPost capacity exceeded, sorry [%s=%d]",s,(int)n);
 @.MetaPost capacity exceeded ...@>
-  mp_print(mp, s); mp_print_char(mp, '='); mp_print_int(mp, n); mp_print_char(mp, ']');
+  print_err(msg);
   help2("If you really absolutely need more capacity,")
        ("you can ask a wizard to enlarge me.");
   succumb;
@@ -2447,13 +2419,15 @@ help to pinpoint the problem.
 @<Internal library ...@>=
 void mp_confusion (MP mp, const char *s);
 
-@ @<Error hand...@>=
+@ Consistency check violated; |s| tells where.
+@<Error hand...@>=
 void mp_confusion (MP mp, const char *s) {
-  /* consistency check violated; |s| tells where */
+  char msg[256];
   mp_normalize_selector(mp);
   if ( mp->history<mp_error_message_issued ) { 
-    print_err("This can't happen ("); mp_print(mp, s); mp_print_char(mp, ')');
+    mp_snprintf(msg, 256, "This can't happen (%s)",s);
 @.This can't happen@>
+    print_err(msg);
     help1("I'm broken. Please show this to someone who can fix can fix");
   } else { 
     print_err("I can\'t go on meeting you like this");
@@ -2510,8 +2484,10 @@ by putting this common code into a subroutine.
 
 @c 
 void mp_missing_err (MP mp, const char *s) { 
-  print_err("Missing `"); mp_print(mp, s); mp_print(mp, "' has been inserted");
+  char msg[256];
+  mp_snprintf(msg, 256, "Missing `%s' has been inserted", s);
 @.Missing...inserted@>
+  print_err(msg);
 }
 
 @* \[7] Arithmetic with scaled numbers.
