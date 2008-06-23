@@ -170,19 +170,22 @@ struct MP_options *mp_options (void) {
 # define __attribute__(x)
 #endif /* !defined(__GNUC__) || (__GNUC__ < 2) */
 
-@ @c
+@ The whole instance structure is initialized with zeroes,
+this greatly reduces the number of statements needed in 
+the |Allocate or initialize variables| block.
+
+@d set_callback_option(A) do { mp->A = mp_##A;
+  if (opt->A!=NULL) mp->A = opt->A;
+} while (0)
+
+@c
 MP __attribute__ ((noinline))
 mp_do_new (struct MP_options *opt, jmp_buf *buf) {
   MP mp = malloc(sizeof(MP_instance));
   if (mp==NULL)
 	return NULL;
+  memset(mp,0,sizeof(MP_instance));
   mp->jump_buf = buf;
-  @<Set |ini_version|@>;
-  @<Allocate or initialize variables@>
-  if (opt->main_memory>mp->mem_max)
-    mp_reallocate_memory(mp,opt->main_memory);
-  mp_reallocate_paths(mp,1000);
-  mp_reallocate_fonts(mp,8);
   return mp;
 }
 
@@ -207,18 +210,36 @@ mp_do_initialize ( MP mp) {
 @c
 MP __attribute__ ((noinline))
 mp_initialize (struct MP_options *opt) { 
-  jmp_buf buf;
   MP mp;
+  jmp_buf buf;
+  @<Setup the non-local jump buffer in |mp_new|@>;
   mp = mp_do_new(opt, &buf);
   if (mp == NULL)
     return NULL;
-  mp->history=mp_fatal_error_stop; /* in case we quit during initialization */
-  @<Setup the non-local jump buffer in |mp_new|@>;
+  @<Set |ini_version|@>;
+  mp->noninteractive=opt->noninteractive;
+  if (*(opt->command_line))
+    mp->command_line = xstrdup(opt->command_line);
   if (mp->noninteractive) {
-    @<Prepare for non-interactive use@>;
-  } else {
-    t_open_out; /* open the terminal for output */
-  }
+    @<Prepare function pointers for non-interactive use@>;
+  } 
+  set_callback_option(find_file);
+  set_callback_option(open_file);
+  set_callback_option(read_ascii_file);
+  set_callback_option(read_binary_file);
+  set_callback_option(close_file);
+  set_callback_option(eof_file);
+  set_callback_option(flush_file);
+  set_callback_option(write_ascii_file);
+  set_callback_option(write_binary_file);
+  /* open the terminal for output */
+  t_open_out; 
+  @<Find constant sizes@>;
+  @<Allocate or initialize variables@>
+  mp_reallocate_memory(mp,mp->mem_max);
+  mp_reallocate_paths(mp,1000);
+  mp_reallocate_fonts(mp,8);
+  mp->history=mp_fatal_error_stop; /* in case we quit during initialization */
   @<Check the ``constant'' values...@>;
   if ( mp->bad>0 ) {
 	char ss[256];
@@ -338,22 +359,6 @@ int main_memory; /* only for options, to set up |mem_max| and |mem_top| */
 void *userdata; /* this allows the calling application to setup local */
 
 
-@ The code below make the final chosen hash size the next larger
-multiple of 2 from the requested size, and this array is a list of
-suitable prime numbers to go with such values. 
-
-The top limit is chosen such that it is definately lower than
-|max_halfword-3*param_size|, because |param_size| cannot be larger
-than |max_halfword/sizeof(pointer)|.
-
-@<Declarations@>=
-static int mp_prime_choices[] = 
-  { 12289,        24593,    49157,    98317,
-    196613,      393241,   786433,  1572869,
-    3145739,    6291469, 12582917, 25165843,
-    50331653, 100663319  };
-
-
 @ 
 @d set_value(a,b,c) do { a=c; if (b>c) a=b; } while (0)
 
@@ -365,24 +370,6 @@ set_value(mp->half_error_line,opt->half_error_line,50);
 if (mp->half_error_line>mp->error_line-15 ) 
   mp->half_error_line = mp->error_line-15;
 set_value(mp->max_print_line,opt->max_print_line,100);
-mp->main_memory=5000;
-mp->mem_max=5000;
-mp->mem_top=5000;
-if (opt->hash_size>0x8000000) opt->hash_size=0x8000000;
-set_value(mp->hash_size,(2*opt->hash_size-1),16384);
-{ 
-  int i = 14;
-  mp->hash_size = mp->hash_size>>i;
-  while (mp->hash_size>=2) {
-    mp->hash_size /= 2;
-    i++;
-  }
-  mp->hash_size = mp->hash_size << i;
-  if (mp->hash_size>0x8000000) mp->hash_size=0x8000000;
-  mp->hash_prime=mp_prime_choices[(i-14)];
-}
-set_value(mp->param_size,opt->param_size,150);
-set_value(mp->max_in_open,opt->max_in_open,10);
 mp->userdata=opt->userdata;
 
 @ In case somebody has inadvertently made bad settings of the ``constants,''
@@ -449,16 +436,6 @@ that the character set contains at least the letters and symbols associated
 with ASCII codes 040 through 0176; all of these characters are now
 available on most computer terminals.
 
-We shall use the name |text_char| to stand for the data type of the characters 
-that are converted to and from |ASCII_code| when they are input and output. 
-We shall also assume that |text_char| consists of the elements 
-|chr(first_text_char)| through |chr(last_text_char)|, inclusive. 
-The following definitions should be adjusted if necessary.
-@^system dependencies@>
-
-@d first_text_char 0 /* ordinal number of the smallest element of |text_char| */
-@d last_text_char 255 /* ordinal number of the largest element of |text_char| */
-
 @<Types...@>=
 typedef unsigned char text_char; /* the data type of characters in text files */
 
@@ -500,7 +477,7 @@ where |i<j<0177|, the value of |xord[xchr[i]]| will turn out to be
 codes below 040 in case there is a coincidence.
 
 @<Set initial ...@>=
-for (i=first_text_char;i<=last_text_char;i++) { 
+for (i=0;i<=255;i++) { 
    xord(xchr(i))=0177;
 }
 for (i=0200;i<=0377;i++) { xord(xchr(i))=i;}
@@ -590,24 +567,6 @@ char *mp_find_file (MP mp, const char *fname, const char *fmode, int ftype)  {
   }
   return NULL;
 }
-
-@ This has to be done very early on, so it is best to put it in with
-the |mp_new| allocations
-
-@d set_callback_option(A) do { mp->A = mp_##A;
-  if (opt->A!=NULL) mp->A = opt->A;
-} while (0)
-
-@<Allocate or initialize ...@>=
-set_callback_option(find_file);
-set_callback_option(open_file);
-set_callback_option(read_ascii_file);
-set_callback_option(read_binary_file);
-set_callback_option(close_file);
-set_callback_option(eof_file);
-set_callback_option(flush_file);
-set_callback_option(write_ascii_file);
-set_callback_option(write_binary_file);
 
 @ Because |mp_find_file| is used so early, it has to be in the helpers
 section.
@@ -901,9 +860,6 @@ initialization.
 
 @<Option variables@>=
 char *command_line;
-
-@ @<Allocate or initialize ...@>=
-mp->command_line = xstrdup(opt->command_line);
 
 @ Sometimes it is necessary to synchronize the input/output mixture that
 happens on the user's terminal, and three system-dependent
@@ -1625,7 +1581,6 @@ integer trick_count; /* threshold for pseudoprinting, explained later */
 integer first_count; /* another variable for pseudoprinting */
 
 @ @<Allocate or initialize ...@>=
-memset(mp->dig,0,23);
 mp->trick_buf = xmalloc((mp->error_line+1),sizeof(ASCII_code));
 
 @ @<Dealloc variables@>=
@@ -1958,7 +1913,6 @@ if (mp->interaction==mp_unspecified_mode || mp->interaction>mp_error_stop_mode)
   mp->interaction=mp_error_stop_mode;
 if (mp->interaction<mp_unspecified_mode) 
   mp->interaction=mp_batch_mode;
-mp->noninteractive=opt->noninteractive;
 
 @ 
 
@@ -2025,7 +1979,7 @@ int error_count; /* the number of scrolled errors since the last statement ended
 be changed to |spotless| if \MP\ survives the initialization process.
 
 @<Allocate or ...@>=
-mp->deletions_allowed=true; mp->error_count=0; /* |history| is initialized elsewhere */
+mp->deletions_allowed=true; /* |history| is initialized elsewhere */
 
 @ Since errors can be detected almost anywhere in \MP, we want to declare the
 error procedures near the beginning of the program. But the error procedures
@@ -2076,7 +2030,7 @@ str_number err_help; /* a string set up by \&{errhelp} */
 str_number filename_template; /* a string set up by \&{filenametemplate} */
 
 @ @<Allocate or ...@>=
-mp->help_ptr=0; mp->use_err_help=false; mp->err_help=0; mp->filename_template=0;
+mp->use_err_help=false;
 
 @ The |jump_out| procedure just cuts across all active procedure levels and
 goes to |end_of_MP|. This is the only nonlocal |goto| statement in the
@@ -2429,9 +2383,11 @@ a way to make |interrupt| nonzero using the C debugger.
 integer interrupt; /* should \MP\ pause for instructions? */
 boolean OK_to_interrupt; /* should interrupts be observed? */
 integer run_state; /* are we processing input ?*/
+boolean finished; /* set true by |close_files_and_terminate| */
 
 @ @<Allocate or ...@>=
-mp->interrupt=0; mp->OK_to_interrupt=true; mp->run_state=0; 
+mp->OK_to_interrupt=true;
+mp->finished=false;
 
 @ When an interrupt has been detected, the program goes into its
 highest interaction level and lets the user have the full flexibility of
@@ -4354,8 +4310,7 @@ xfree(mp->free);
 xfree(mp->was_free);
 
 @ @<Allocate or ...@>=
-mp->was_mem_end=0; /* indicate that everything was previously free */
-mp->was_lo_max=0; mp->was_hi_min=mp->mem_max;
+mp->was_hi_min=mp->mem_max;
 mp->panicking=false;
 
 @ @<Declare |mp_reallocate| functions@>=
@@ -5053,7 +5008,9 @@ int troff_mode;
 @ @<Allocate or initialize ...@>=
 mp->max_internal=2*max_given_internal;
 mp->internal = xmalloc ((mp->max_internal+1), sizeof(scaled));
+memset(mp->internal,0,(mp->max_internal+1)* sizeof(scaled));
 mp->int_name = xmalloc ((mp->max_internal+1), sizeof(char *));
+memset(mp->int_name,0,(mp->max_internal+1) * sizeof(char *));
 mp->troff_mode=(opt->troff_mode>0 ? true : false);
 
 @ @<Exported function ...@>=
@@ -5063,10 +5020,6 @@ int mp_troff_mode(MP mp);
 int mp_troff_mode(MP mp) { return mp->troff_mode; }
 
 @ @<Set initial ...@>=
-for (k=0;k<= mp->max_internal; k++ ) { 
-   mp->internal[k]=0; 
-   mp->int_name[k]=NULL; 
-}
 mp->int_ptr=max_given_internal;
 
 @ The symbolic names for internal quantities are put into \MP's hash table
@@ -7430,12 +7383,6 @@ scaled *delta_y;
 scaled *delta; /* knot differences */
 angle  *psi; /* turning angles */
 
-@ @<Allocate or initialize ...@>=
-mp->delta_x = NULL;
-mp->delta_y = NULL;
-mp->delta = NULL;
-mp->psi = NULL;
-
 @ @<Dealloc variables@>=
 xfree(mp->delta_x);
 xfree(mp->delta_y);
@@ -7542,12 +7489,6 @@ angle *theta; /* values of $\theta_k$ */
 fraction *uu; /* values of $u_k$ */
 angle *vv; /* values of $v_k$ */
 fraction *ww; /* values of $w_k$ */
-
-@ @<Allocate or initialize ...@>=
-mp->theta = NULL;
-mp->uu = NULL;
-mp->vv = NULL;
-mp->ww = NULL;
 
 @ @<Dealloc variables@>=
 xfree(mp->theta);
@@ -15929,7 +15870,7 @@ void mp_pack_file_name (MP mp, const char *n, const char *a, const char *e) ;
 @ @<Option variables@>=
 char *mem_name; /* for commandline */
 
-@ @<Allocate or initialize ...@>=
+@ @<Find constant sizes@>=
 mp->mem_name = xstrdup(opt->mem_name);
 if (mp->mem_name) {
   int l = strlen(mp->mem_name);
@@ -15952,11 +15893,11 @@ the initial `\.{**}' prompt.  The buffer contains the first line of
 input in |buffer[loc..(last-1)]|, where |loc<last| and |buffer[loc]<>""|.
 
 @<Declarations@>=
+boolean mp_open_mem_name (MP mp) ;
 boolean mp_open_mem_file (MP mp) ;
 
 @ @c
-boolean mp_open_mem_file (MP mp) {
-  int j; /* the first space after the file name */
+boolean mp_open_mem_name (MP mp) {
   if (mp->mem_name!=NULL) {
     int l = strlen(mp->mem_name);
     char *s = xstrdup (mp->mem_name);
@@ -15974,31 +15915,29 @@ boolean mp_open_mem_file (MP mp) {
     xfree(s);
     if ( mp->mem_file ) return true;
   }
-  j=loc;
-  if ( mp->buffer[loc]=='&' ) {
-    int sloc;
-    incr(loc); j=loc; mp->buffer[mp->last]=' ';
-    while ( mp->buffer[j]!=' ' ) incr(j);
-    sloc = mp->buffer[j];  mp->buffer[j] = '\0';
-    mp_pack_file_name(mp, (char *)(mp->buffer+loc), NULL,".mem");
-    mp->buffer[j] = sloc;
-    if ( mp_w_open_in(mp, &mp->mem_file) ) goto FOUND;
+  return false;
+}
+boolean mp_open_mem_file (MP mp) {
+  if (mp->mem_file != NULL)
+    return true;
+  if (mp_open_mem_name(mp)) 
+    return true;
+  if (mp_xstrcmp(mp->mem_name, "plain")) {
     wake_up_terminal;
     wterm_ln("Sorry, I can\'t find that mem file; will try PLAIN.");
 @.Sorry, I can't find...@>
     update_terminal;
+    /* now pull out all the stops: try for the system \.{plain} file */
+    xfree(mp->mem_name);
+    mp->mem_name = xstrdup("plain");
+    if (mp_open_mem_name(mp))
+      return true;
   }
-  /* now pull out all the stops: try for the system \.{plain} file */
-  mp_pack_file_name(mp, "plain", NULL,".mem");
-  if ( ! mp_w_open_in(mp, &mp->mem_file) ) {
-    wake_up_terminal;
-    wterm_ln("I can\'t find the PLAIN mem file!\n");
+  wake_up_terminal;
+  wterm_ln("I can\'t find the PLAIN mem file!");
 @.I can't find PLAIN...@>
 @.plain@>
-    return false;
-  }
-FOUND:
-  loc=j; return true;
+  return false;
 }
 
 @ Operating systems often make it possible to determine the exact name (and
@@ -16440,12 +16379,10 @@ mp->max_read_files=8;
 mp->rd_file = xmalloc((mp->max_read_files+1),sizeof(void *));
 mp->rd_fname = xmalloc((mp->max_read_files+1),sizeof(char *));
 memset(mp->rd_fname, 0, sizeof(char *)*(mp->max_read_files+1));
-mp->read_files=0;
 mp->max_write_files=8;
 mp->wr_file = xmalloc((mp->max_write_files+1),sizeof(void *));
 mp->wr_fname = xmalloc((mp->max_write_files+1),sizeof(char *));
 memset(mp->wr_fname, 0, sizeof(char *)*(mp->max_write_files+1));
-mp->write_files=0;
 
 
 @ This routine starts reading the file named by string~|s| without setting
@@ -21963,7 +21900,7 @@ even though it is essentially static, because that makes it is easier to move
 the object around.
 
 @<Global ...@>=
-mp_run_data *run_data;
+mp_run_data run_data;
 
 @ Another type is needed: the indirection will overload some of the
 file pointer objects in the instance (but not all). For clarity, an
@@ -22221,11 +22158,8 @@ static void mplib_shipout_backend(MP mp, int h)
 
 
 @ This is where we fill them all in.
-@<Prepare for non-interactive use@>=
+@<Prepare function pointers for non-interactive use@>=
 {
-    mp_run_data *f = mp_xmalloc(mp,1, sizeof(mp_run_data));
-    memset(f, 0, sizeof(mp_run_data));
-    mp->run_data          = f;
     mp->open_file         = mplib_open_file;
     mp->close_file        = mplib_close_file;
     mp->eof_file          = mplib_eof_file;
@@ -22244,18 +22178,15 @@ mp_run_data *mp_rundata (MP mp) ;
 
 @ @c
 mp_run_data *mp_rundata (MP mp)  {
-  return mp->run_data;
+  return &(mp->run_data);
 }
 
 @ @<Dealloc ...@>=
-if (mp->run_data != NULL) {
-  mp_free_stream(&(mp->run_data->term_in));
-  mp_free_stream(&(mp->run_data->term_out));
-  mp_free_stream(&(mp->run_data->log_out));
-  mp_free_stream(&(mp->run_data->error_out));
-  mp_free_stream(&(mp->run_data->ps_out));
-  free(mp->run_data);
-}
+mp_free_stream(&(mp->run_data.term_in));
+mp_free_stream(&(mp->run_data.term_out));
+mp_free_stream(&(mp->run_data.log_out));
+mp_free_stream(&(mp->run_data.error_out));
+mp_free_stream(&(mp->run_data.ps_out));
 
 @ @<Finish non-interactive use@>=
 xfree(mp->term_out);
@@ -22263,7 +22194,6 @@ xfree(mp->term_in);
 xfree(mp->err_out);
 
 @ @<Start non-interactive work@>=
-t_open_out; 
 @<Initialize the output routines@>;
 mp->input_ptr=0; mp->max_in_stack=0;
 mp->in_open=0; mp->open_parens=0; mp->max_buf_stack=0;
@@ -22275,10 +22205,6 @@ mp->force_eof=false;
 t_open_in; 
 mp->scanner_status=normal;
 if (mp->mem_ident==NULL) {
-  if ( ! mp_open_mem_file(mp) ) {
-     mp->history = mp_fatal_error_stop;
-     return mp->history;
-  }
   if ( ! mp_load_mem_file(mp) ) {
     (mp->close_file)(mp, mp->mem_file); 
      mp->history  = mp_fatal_error_stop;
@@ -22304,13 +22230,13 @@ if (mp->troff_mode) {
 int __attribute__((noinline)) 
 mp_execute (MP mp, char *s, size_t l) {
   jmp_buf buf;
-  mp_reset_stream(&(mp->run_data->term_out));
-  mp_reset_stream(&(mp->run_data->log_out));
-  mp_reset_stream(&(mp->run_data->error_out));
-  mp_reset_stream(&(mp->run_data->ps_out));
+  mp_reset_stream(&(mp->run_data.term_out));
+  mp_reset_stream(&(mp->run_data.log_out));
+  mp_reset_stream(&(mp->run_data.error_out));
+  mp_reset_stream(&(mp->run_data.ps_out));
   if (mp->finished) {
       return mp->history;
-  } else if ((!mp->noninteractive) || (!mp->run_data)) {
+  } else if (!mp->noninteractive) {
       mp->history = mp_fatal_error_stop ;
       return mp->history;
   }
@@ -22329,11 +22255,11 @@ mp_execute (MP mp, char *s, size_t l) {
     /* Perhaps some sort of warning here when |data| is not 
      * yet exhausted would be nice ...  this happens after errors
      */
-    if (mp->run_data->term_in.data)
-      xfree(mp->run_data->term_in.data);
-    mp->run_data->term_in.data = xstrdup(s);
-    mp->run_data->term_in.cur = mp->run_data->term_in.data;
-    mp->run_data->term_in.size = l;
+    if (mp->run_data.term_in.data)
+      xfree(mp->run_data.term_in.data);
+    mp->run_data.term_in.data = xstrdup(s);
+    mp->run_data.term_in.cur = mp->run_data.term_in.data;
+    mp->run_data.term_in.size = l;
     if (mp->run_state == 0) {
       mp->selector=term_only; 
       @<Start non-interactive work@>; 
@@ -24062,11 +23988,8 @@ eight_bits label_char[257]; /* characters for |label_loc| */
 short label_ptr; /* highest position occupied in |label_loc| */
 
 @ @<Allocate or initialize ...@>=
-mp->header_last = 0; mp->header_size = 128; /* just for init */
+mp->header_size = 128; /* just for init */
 mp->header_byte = xmalloc(mp->header_size, sizeof(char));
-mp->lig_kern = NULL; /* allocated when needed */
-mp->kern = NULL; /* allocated when needed */ 
-mp->param = NULL; /* allocated when needed */
 
 @ @<Dealloc variables@>=
 xfree(mp->header_byte);
@@ -24978,19 +24901,7 @@ pointer     *font_sizes;
 mp->font_mem_size = 10000; 
 mp->font_info = xmalloc ((mp->font_mem_size+1),sizeof(memory_word));
 memset (mp->font_info,0,sizeof(memory_word)*(mp->font_mem_size+1));
-mp->font_enc_name = NULL;
-mp->font_ps_name_fixed = NULL;
-mp->font_dsize = NULL;
-mp->font_name = NULL;
-mp->font_ps_name = NULL;
-mp->font_bc = NULL;
-mp->font_ec = NULL;
 mp->last_fnum = null_font;
-mp->char_base = NULL;
-mp->width_base = NULL;
-mp->height_base = NULL;
-mp->depth_base = NULL;
-mp->font_sizes = null;
 
 @ @<Dealloc variables@>=
 for (k=1;k<=(int)mp->last_fnum;k++) {
@@ -25991,7 +25902,7 @@ boolean mp_load_mem_file (MP mp) {
   str_number s; /* some temporary string */
   four_quarters w; /* four ASCII codes */
   memory_word WW;
-  @<Undump constants for consistency check@>;
+  /* |@<Undump constants for consistency check@>;|  read earlier */
   @<Undump the string pool@>;
   @<Undump the dynamic memory@>;
   @<Undump the table of equivalents and the hash table@>;
@@ -26078,10 +25989,10 @@ the same strings. (And it is, of course, a good thing that they do.)
 
 @<Undump constants for consistency check@>=
 undump_int(x); mp->mem_top = x;
-undump_int(x); if (mp->hash_size != x) goto OFF_BASE;
-undump_int(x); if (mp->hash_prime != x) goto OFF_BASE;
-undump_int(x); if (mp->param_size != x) goto OFF_BASE;
-undump_int(x); if (mp->max_in_open != x) goto OFF_BASE
+undump_int(x); mp->hash_size = x;
+undump_int(x); mp->hash_prime = x;
+undump_int(x); mp->param_size = x;
+undump_int(x); mp->max_in_open = x;
 
 @ We do string pool compaction to avoid dumping unused strings.
 
@@ -26341,6 +26252,71 @@ int ini_version; /* are we iniMP? */
 @ @<Set |ini_version|@>=
 mp->ini_version = (opt->ini_version ? true : false);
 
+@ The code below make the final chosen hash size the next larger
+multiple of 2 from the requested size, and this array is a list of
+suitable prime numbers to go with such values. 
+
+The top limit is chosen such that it is definately lower than
+|max_halfword-3*param_size|, because |param_size| cannot be larger
+than |max_halfword/sizeof(pointer)|.
+
+@<Declarations@>=
+static int mp_prime_choices[] = 
+  { 12289,        24593,    49157,    98317,
+    196613,      393241,   786433,  1572869,
+    3145739,    6291469, 12582917, 25165843,
+    50331653, 100663319  };
+
+@ @<Find constant sizes@>=
+if (mp->ini_version) {
+  int i = 14;
+  set_value(mp->mem_top,opt->main_memory,5000);
+  mp->mem_max = mp->mem_top;
+  set_value(mp->param_size,opt->param_size,150);
+  set_value(mp->max_in_open,opt->max_in_open,10);
+  if (opt->hash_size>0x8000000) 
+    opt->hash_size=0x8000000;
+  set_value(mp->hash_size,(2*opt->hash_size-1),16384);
+  mp->hash_size = mp->hash_size>>i;
+  while (mp->hash_size>=2) {
+    mp->hash_size /= 2;
+    i++;
+  }
+  mp->hash_size = mp->hash_size << i;
+  if (mp->hash_size>0x8000000) 
+    mp->hash_size=0x8000000;
+  mp->hash_prime=mp_prime_choices[(i-14)];
+} else {
+  int x;
+  if (mp->command_line != NULL && *(mp->command_line) == '&') {
+    char *s = NULL;
+    char *cmd = mp->command_line+1;
+    xfree(mp->mem_name); /* just in case */
+    mp->mem_name = mp_xstrdup(mp,cmd);
+    while (*cmd && *cmd!=' ')  cmd++;
+    if (*cmd==' ') *cmd++ = '\0';
+    if (*cmd) {
+      s = mp_xstrdup(mp,cmd);
+    }
+    xfree(mp->command_line);
+    mp->command_line = s;
+  }
+  if (mp->mem_name == NULL) {
+    mp->mem_name = mp_xstrdup(mp,"plain");
+  }
+  if (mp_open_mem_file(mp)) {
+    @<Undump constants for consistency check@>;
+    set_value(mp->mem_max,opt->main_memory,mp->mem_top);
+    goto DONE;
+  } 
+OFF_BASE:
+  wterm_ln("(Fatal mem file error; I'm stymied)\n");
+  mp->history = mp_fatal_error_stop;
+  mp_jump_out(mp);
+}
+DONE:
+
+
 @ Here we do whatever is needed to complete \MP's job gracefully on the
 local operating system. The code here might come into play after a fatal
 error; it must therefore consist entirely of ``safe'' operations that
@@ -26350,12 +26326,6 @@ might lead to an infinite loop.
 @^system dependencies@>
 
 This program doesn't bother to close the input files that may still be open.
-
-@<Global ...@>=
-boolean finished; /* set true by |close_files_and_terminate| */
-
-@ @<Set initial ...@>=
-mp->finished=false;
 
 @ @<Last-minute...@>=
 void mp_close_files_and_terminate (MP mp) {
@@ -26572,21 +26542,13 @@ But when we finish this part of the program, \MP\ is ready to call on the
 @<Get the first line...@>=
 { 
   @<Initialize the input routines@>;
-  if ( (mp->mem_ident==NULL)||(mp->buffer[loc]=='&') ) {
-    if ( mp->mem_ident!=NULL ) {
-      mp_do_initialize(mp); /* erase preloaded mem */
-    }
-    if ( ! mp_open_mem_file(mp) ) {
-       mp->history = mp_fatal_error_stop;
-       return mp;
-    }
+  if (mp->mem_ident==NULL) {
     if ( ! mp_load_mem_file(mp) ) {
       (mp->close_file)(mp, mp->mem_file); 
        mp->history = mp_fatal_error_stop;
        return mp;
     }
     (mp->close_file)(mp, mp->mem_file);
-    while ( (loc<limit)&&(mp->buffer[loc]==' ') ) incr(loc);
   }
   @<Initializations following first line@>;
 }
