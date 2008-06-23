@@ -25404,7 +25404,7 @@ char *mp_set_output_file_name (MP mp, integer c) {
     else 
       @<Use |c| to compute the file extension |s|@>;
     mp_pack_job_name(mp, s);
-    ss = s ;
+    ss = mp->name_of_file ;
   } else { /* initializations */
     str_number s, n; /* a file extension derived from |c| */
     old_setting=mp->selector; 
@@ -25471,14 +25471,13 @@ char *mp_set_output_file_name (MP mp, integer c) {
 }
 
 char * mp_get_output_file_name (MP mp) {
-  char *junk;
+  char *f;
   char *saved_name;  /* saved |name_of_file| */
-  saved_name = mp_xstrdup(mp, mp->name_of_file);
-  junk = mp_set_output_file_name(mp, mp_round_unscaled(mp, mp->internal[mp_char_code]));
-  free(junk);
+  saved_name = xstrdup(mp->name_of_file);
+  f = xstrdup(mp_set_output_file_name(mp, mp_round_unscaled(mp, mp->internal[mp_char_code])));
   mp_pack_file_name(mp, saved_name,NULL,NULL);
   free(saved_name);
-  return mp->name_of_file;
+  return f;
 }
 
 void mp_open_output_file (MP mp) {
