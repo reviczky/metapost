@@ -423,10 +423,7 @@ end up the same, the shared code may be gathered together at
 @d negate(A) (A)=-(A) /* change the sign of a variable */
 @d double(A) (A)=(A)+(A)
 @d odd(A)   ((A)%2==1)
-@d chr(A)   (A)
 @d do_nothing   /* empty statement */
-@d Return   goto exit /* terminate a procedure call */
-@f return   nil /* \.{WEB} will henceforth say |return| instead of \\{return} */
 
 @* \[2] The character set.
 In order to make \MP\ readily portable to a wide variety of
@@ -504,7 +501,7 @@ codes below 040 in case there is a coincidence.
 
 @<Set initial ...@>=
 for (i=first_text_char;i<=last_text_char;i++) { 
-   xord(chr(i))=0177;
+   xord(xchr(i))=0177;
 }
 for (i=0200;i<=0377;i++) { xord(xchr(i))=i;}
 for (i=0;i<=0176;i++) { xord(xchr(i))=i;}
@@ -887,8 +884,6 @@ to the input buffer.  The variable |command_line| will be filled by the
 logic because in the |INI| version, the |buffer| is also used for primitive 
 initialization.
 
-@^system dependencies@>
-
 @d t_open_out  do {/* open the terminal for text output */
     mp->term_out = (mp->open_file)(mp,"terminal", "w", mp_filetype_terminal);
     mp->err_out = (mp->open_file)(mp,"error", "w", mp_filetype_error);
@@ -1081,10 +1076,7 @@ char * mp_str (MP mp, str_number s);
 str_number mp_rts (MP mp, const char *s);
 str_number mp_make_string (MP mp);
 
-@ The attempt to catch interrupted strings that is in |mp_rts|, is not 
-very good: it does not handle nesting over more than one level.
-
-@c 
+@ @c 
 int mp_xstrcmp (const char *a, const char *b) {
 	if (a==NULL && b==NULL) 
 	  return 0;
@@ -1095,7 +1087,10 @@ int mp_xstrcmp (const char *a, const char *b) {
     return strcmp(a,b);
 }
 
-@ @c
+@ The attempt to catch interrupted strings that is in |mp_rts|, is not 
+very good: it does not handle nesting over more than one level.
+
+@c
 char * mp_str (MP mp, str_number ss) {
   char *s;
   int len;
@@ -1156,8 +1151,7 @@ overhead of procedure calls. For example, here is
 a simple macro that computes the length of a string.
 @.WEB@>
 
-@d str_stop(A) mp->str_start[mp->next_str[(A)]] /* one cell past the end of string
-  number \# */
+@d str_stop(A) mp->str_start[mp->next_str[(A)]] /* one cell past the end of string \# */
 @d length(A) (str_stop((A))-mp->str_start[(A)]) /* the number of characters in string \# */
 
 @ The length of the current string is called |cur_length|.  If we decide that
@@ -1212,8 +1206,7 @@ a string is ever referred to more than 126 times, simultaneously, we
 put it in this category. Hence a single byte suffices to store each |str_ref|.
 
 @d max_str_ref 127 /* ``infinite'' number of references */
-@d add_str_ref(A) { if ( mp->str_ref[(A)]<max_str_ref ) incr(mp->str_ref[(A)]);
-  }
+@d add_str_ref(A) { if ( mp->str_ref[(A)]<max_str_ref ) incr(mp->str_ref[(A)]); }
 
 @<Glob...@>=
 int *str_ref;
@@ -1301,10 +1294,6 @@ RESTART:
       mp_do_compaction(mp, 0);
       goto RESTART;
     } else {
-#ifdef DEBUG 
-      if ( mp->strs_used_up!=mp->max_str_ptr ) mp_confusion(mp, "s");
-@:this can't happen s}{\quad \.s@>
-#endif
       mp->max_str_ptr=mp->str_ptr;
       mp->next_str[mp->str_ptr]=mp->max_str_ptr+1;
     }
@@ -1454,14 +1443,6 @@ if ( (mp->str_start[mp->str_ptr]!=mp->pool_in_use)||(str_use!=mp->strs_in_use) )
 incr(mp->pact_count);
 mp->pact_chars=mp->pact_chars+mp->pool_ptr-str_stop(mp->last_fixed_str);
 mp->pact_strs=mp->pact_strs+str_use-mp->fixed_str_use;
-#ifdef DEBUG
-s=mp->str_ptr; t=str_use;
-while ( s<=mp->max_str_ptr ){
-  if ( t>mp->max_str_ptr ) mp_confusion(mp, "\"");
-  incr(t); s=mp->next_str[s];
-};
-if ( t<=mp->max_str_ptr ) mp_confusion(mp, "\"");
-#endif
 
 @ A few more global variables are needed to keep track of statistics when
 |stat| $\ldots$ |tats| blocks are not commented out.
@@ -1565,9 +1546,6 @@ even people with an extended character set will want to represent string
 to produce visible strings instead of tabs or line-feeds or carriage-returns
 or bell-rings or characters that are treated anomalously in text files.
 
-Unprintable characters of codes 128--255 are, similarly, rendered
-\.{\^\^80}--\.{\^\^ff}.
-
 The boolean expression defined here should be |true| unless \MP\ internal
 code number~|k| corresponds to a non-troublesome visible symbol in the
 local character set.
@@ -1578,7 +1556,7 @@ must be printable.
 @^system dependencies@>
 
 @<Character |k| cannot be printed@>=
-  (k<' ')||(k>'~')
+  (k<' ')||(k==127)
 
 @* \[5] On-line and off-line printing.
 Messages that are sent to a user's terminal and to the transcript-log file
@@ -1775,13 +1753,8 @@ printed in three- or four-symbol form like `\.{\^\^A}' or `\.{\^\^e4}'.
 characters when |selector| is in the range |0..max_write_files-1|.
 The user might want to write unprintable characters.
 
-@d print_lc_hex(A) do { l=(A);
-    mp_print_visible_char(mp, (l<10 ? l+'0' : l-10+'a'));
-  } while (0)
-
 @<Basic printing...@>=
 void mp_print_char (MP mp, ASCII_code k) { /* prints a single character */
-  int l; /* small index or counter */
   if ( mp->selector<pseudo || mp->selector>=write_file) {
     mp_print_visible_char(mp, k);
   } else if ( @<Character |k| cannot be printed@> ) { 
@@ -1790,9 +1763,12 @@ void mp_print_char (MP mp, ASCII_code k) { /* prints a single character */
       mp_print_visible_char(mp, k+0100); 
     } else if ( k<0200 ) { 
       mp_print_visible_char(mp, k-0100); 
-    } else { 
-      print_lc_hex(k / 16);  
-      print_lc_hex(k % 16); 
+    } else {
+      int l; /* small index or counter */
+      l = (k / 16);
+      mp_print_visible_char(mp, (l<10 ? l+'0' : l-10+'a'));
+      l = (k % 16);
+      mp_print_visible_char(mp, (l<10 ? l+'0' : l-10+'a'));
     }
   } else {
     mp_print_visible_char(mp, k);
@@ -1906,8 +1882,8 @@ This procedure is never called when |interaction<mp_scroll_mode|.
 @d prompt_input(A) do { 
     if (!mp->noninteractive) {
       wake_up_terminal; mp_print(mp, (A)); 
+      mp_term_input(mp);
     }
-    mp_term_input(mp);
   } while (0) /* prints a string and gets a line of input */
 
 @c 
@@ -2508,7 +2484,8 @@ language is being used properly.  The \TeX\ processor has been defined
 carefully so that both varieties of arithmetic will produce identical
 output, but it would be too inefficient to constrain \MP\ in a similar way.
 
-@d el_gordo   017777777777 /* $2^{31}-1$, the largest value that \MP\ likes */
+@d el_gordo   0x7fffffff /* $2^{31}-1$, the largest value that \MP\ likes */
+
 
 @ One of \MP's most common operations is the calculation of
 $\lfloor{a+b\over2}\rfloor$,
@@ -2724,7 +2701,6 @@ integer mp_take_scaled (MP mp,integer q, scaled f) ;
 
 @ If FIXPT is not defined, we need these preprocessor values
 
-@d ELGORDO  0x7fffffff
 @d TWEXP31  2147483648.0
 @d TWEXP28  268435456.0
 @d TWEXP16 65536.0
@@ -2734,52 +2710,50 @@ integer mp_take_scaled (MP mp,integer q, scaled f) ;
 
 @c 
 fraction mp_make_fraction (MP mp,integer p, integer q) {
+  fraction i;
+  if ( q==0 ) mp_confusion(mp, "/");
+@:this can't happen /}{\quad \./@>
 #ifdef FIXPT
+{
   integer f; /* the fraction bits, with a leading 1 bit */
   integer n; /* the integer part of $\vert p/q\vert$ */
-  integer be_careful; /* disables certain compiler optimizations */
   boolean negative = false; /* should the result be negated? */
   if ( p<0 ) {
     negate(p); negative=true;
   }
-  if ( q<=0 ) { 
-#ifdef DEBUG
-    if ( q==0 ) mp_confusion(mp, '/');
-#endif
-@:this can't happen /}{\quad \./@>
+  if ( q<0 ) { 
     negate(q); negative = ! negative;
-  };
+  }
   n=p / q; p=p % q;
   if ( n>=8 ){ 
     mp->arith_error=true;
-    return ( negative ? -el_gordo : el_gordo);
+    i= ( negative ? -el_gordo : el_gordo);
   } else { 
     n=(n-1)*fraction_one;
     @<Compute $f=\lfloor 2^{28}(1+p/q)+{1\over2}\rfloor$@>;
-    return (negative ? (-(f+n)) : (f+n));
+    i = (negative ? (-(f+n)) : (f+n));
   }
+}
 #else /* FIXPT */
+  {
     register double d;
-	register integer i;
-#ifdef DEBUG
-	if (q==0) mp_confusion(mp,'/'); 
-#endif /* DEBUG */
 	d = TWEXP28 * (double)p /(double)q;
 	if ((p^q) >= 0) {
 		d += 0.5;
-		if (d>=TWEXP31) {mp->arith_error=true; return ELGORDO;}
+		if (d>=TWEXP31) {mp->arith_error=true; return el_gordo;}
 		i = (integer) d;
 		if (d==i && ( ((q>0 ? -q : q)&077777)
 				* (((i&037777)<<1)-1) & 04000)!=0) --i;
 	} else {
 		d -= 0.5;
-		if (d<= -TWEXP31) {mp->arith_error=true; return -ELGORDO;}
+		if (d<= -TWEXP31) {mp->arith_error=true; return -el_gordo;}
 		i = (integer) d;
 		if (d==i && ( ((q>0 ? q : -q)&077777)
 				* (((i&037777)<<1)+1) & 04000)!=0) ++i;
 	}
-	return i;
+  }
 #endif /* FIXPT */
+  return i;
 }
 
 @ The |repeat| loop here preserves the following invariant relations
@@ -2797,6 +2771,7 @@ in a register, not store it in memory.
 
 @<Compute $f=\lfloor 2^{28}(1+p/q)+{1\over2}\rfloor$@>=
 {
+  integer be_careful; /* disables certain compiler optimizations */
   f=1;
   do {  
     be_careful=p-q; p=be_careful+p;
@@ -2861,7 +2836,7 @@ integer mp_take_fraction (MP mp,integer p, fraction q) {
 		if (d>=TWEXP31) {
 			if (d!=TWEXP31 || (((p&077777)*(q&077777))&040000)==0)
 				mp->arith_error = true;
-			return ELGORDO;
+			return el_gordo;
 		}
 		i = (integer) d;
 		if (d==i && (((p&077777)*(q&077777))&040000)!=0) --i;
@@ -2870,7 +2845,7 @@ integer mp_take_fraction (MP mp,integer p, fraction q) {
 		if (d<= -TWEXP31) {
 			if (d!= -TWEXP31 || ((-(p&077777)*(q&077777))&040000)==0)
 				mp->arith_error = true;
-			return -ELGORDO;
+			return -el_gordo;
 		}
 		i = (integer) d;
 		if (d==i && ((-(p&077777)*(q&077777))&040000)!=0) ++i;
@@ -2954,7 +2929,7 @@ integer mp_take_scaled (MP mp,integer p, scaled q) {
 		if (d>=TWEXP31) {
 			if (d!=TWEXP31 || (((p&077777)*(q&077777))&040000)==0)
 				mp->arith_error = true;
-			return ELGORDO;
+			return el_gordo;
 		}
 		i = (integer) d;
 		if (d==i && (((p&077777)*(q&077777))&040000)!=0) --i;
@@ -2963,7 +2938,7 @@ integer mp_take_scaled (MP mp,integer p, scaled q) {
 		if (d<= -TWEXP31) {
 			if (d!= -TWEXP31 || ((-(p&077777)*(q&077777))&040000)==0)
 				mp->arith_error = true;
-			return -ELGORDO;
+			return -el_gordo;
 		}
 		i = (integer) d;
 		if (d==i && ((-(p&077777)*(q&077777))&040000)!=0) ++i;
@@ -2998,51 +2973,48 @@ scaled mp_make_scaled (MP mp,integer p, integer q) ;
 
 @ @c 
 scaled mp_make_scaled (MP mp,integer p, integer q) {
-#ifdef FIXPT 
-  integer f; /* the fraction bits, with a leading 1 bit */
-  integer n; /* the integer part of $\vert p/q\vert$ */
-  boolean negative; /* should the result be negated? */
-  integer be_careful; /* disables certain compiler optimizations */
-  if ( p>=0 ) negative=false;
-  else  { negate(p); negative=true; };
-  if ( q<=0 ) { 
-#ifdef DEBUG 
-    if ( q==0 ) mp_confusion(mp, "/");
+  register integer i;
+  if ( q==0 ) mp_confusion(mp, "/");
 @:this can't happen /}{\quad \./@>
-#endif
-    negate(q); negative=! negative;
-  }
-  n=p / q; p=p % q;
-  if ( n>=0100000 ) { 
-    mp->arith_error=true;
-    return (negative ? (-el_gordo) : el_gordo);
-  } else  { 
-    n=(n-1)*unity;
-    @<Compute $f=\lfloor 2^{16}(1+p/q)+{1\over2}\rfloor$@>;
-    return ( negative ? (-(f+n)) :(f+n));
-  }
+  {
+#ifdef FIXPT 
+    integer f; /* the fraction bits, with a leading 1 bit */
+    integer n; /* the integer part of $\vert p/q\vert$ */
+    boolean negative; /* should the result be negated? */
+    integer be_careful; /* disables certain compiler optimizations */
+    if ( p>=0 ) negative=false;
+    else  { negate(p); negative=true; };
+    if ( q<0 ) { 
+      negate(q); negative=! negative;
+    }
+    n=p / q; p=p % q;
+    if ( n>=0100000 ) { 
+      mp->arith_error=true;
+      return (negative ? (-el_gordo) : el_gordo);
+    } else  { 
+      n=(n-1)*unity;
+      @<Compute $f=\lfloor 2^{16}(1+p/q)+{1\over2}\rfloor$@>;
+      i = (negative ? (-(f+n)) :(f+n));
+    }
 #else /* FIXPT */
     register double d;
-	register integer i;
-#ifdef DEBUG
-	if (q==0) mp_confusion(mp,"/"); 
-#endif /* DEBUG */
 	d = TWEXP16 * (double)p /(double)q;
 	if ((p^q) >= 0) {
 		d += 0.5;
-		if (d>=TWEXP31) {mp->arith_error=true; return ELGORDO;}
+		if (d>=TWEXP31) {mp->arith_error=true; return el_gordo;}
 		i = (integer) d;
 		if (d==i && ( ((q>0 ? -q : q)&077777)
 				* (((i&037777)<<1)-1) & 04000)!=0) --i;
 	} else {
 		d -= 0.5;
-		if (d<= -TWEXP31) {mp->arith_error=true; return -ELGORDO;}
+		if (d<= -TWEXP31) {mp->arith_error=true; return -el_gordo;}
 		i = (integer) d;
 		if (d==i && ( ((q>0 ? q : -q)&077777)
 				* (((i&037777)<<1)+1) & 04000)!=0) ++i;
 	}
-	return i;
 #endif /* FIXPT */
+  }
+  return i;
 }
 
 @ @<Compute $f=\lfloor 2^{16}(1+p/q)+{1\over2}\rfloor$@>=
@@ -14004,8 +13976,12 @@ if ( name>max_spec_src ) {
      /* text was inserted during error recovery or by \&{scantokens} */
     mp_end_file_reading(mp); goto RESTART; /* resume previous level */
   }
+  if (mp->noninteractive) { 
+    /* in noninteractive mode, the next |mp_execute| call will continue */
+    mp_jump_out(mp);
+  }
   if (mp->job_name == NULL && ( mp->selector<log_only || mp->selector>=write_file))  
-     mp_open_log_file(mp);
+    mp_open_log_file(mp);
   if ( mp->interaction>mp_nonstop_mode ) {
     if ( limit==start ) /* previous line was empty */
       mp_print_nl(mp, "(Please type a command or say `end')");
@@ -14019,7 +13995,7 @@ if ( name>max_spec_src ) {
     mp_fatal_error(mp, "*** (job aborted, no legal end found)");
 @.job aborted@>
     /* nonstop mode, which is intended for overnight batch processing,
-    never waits for on-line input */
+       never waits for on-line input */
   }
 }
 
@@ -14094,7 +14070,9 @@ used instead of the line in the file.
 @c void mp_firm_up_the_line (MP mp) {
   size_t k; /* an index into |buffer| */
   limit=mp->last;
-  if ( mp->internal[mp_pausing]>0) if ( mp->interaction>mp_nonstop_mode ) {
+  if ((!mp->noninteractive)   
+      && (mp->internal[mp_pausing]>0 )
+      && (mp->interaction>mp_nonstop_mode )) {
     wake_up_terminal; mp_print_ln(mp);
     if ( start<limit ) {
       for (k=(size_t)start;k<=(size_t)(limit-1);k++) {
@@ -16172,15 +16150,15 @@ void mp_prompt_file_name (MP mp, const char * s, const char * e) ;
 @.I can't find file x@>
   } else {
 	print_err("I can\'t write on file `");
-  }
 @.I can't write on file x@>
+  }
   mp_print_file_name(mp, mp->cur_name,mp->cur_area,mp->cur_ext); 
   mp_print(mp, "'.");
   if (strcmp(e,"")==0) 
 	mp_show_context(mp);
   mp_print_nl(mp, "Please type another "); mp_print(mp, s);
 @.Please type...@>
-  if ( mp->interaction<mp_scroll_mode )
+  if (mp->noninteractive || mp->interaction<mp_scroll_mode )
     mp_fatal_error(mp, "*** (job aborted, file error in nonstop mode)");
 @.job aborted, file error...@>
   saved_cur_name = xstrdup(mp->cur_name);
@@ -18748,7 +18726,7 @@ void mp_do_nullary (MP mp,quarterword c) {
 
 @ @<Read a string...@>=
 { 
-  if ( mp->interaction<=mp_nonstop_mode )
+  if (mp->noninteractive || mp->interaction<=mp_nonstop_mode )
     mp_fatal_error(mp, "*** (cannot readstring in nonstop modes)");
   mp_begin_file_reading(mp); name=is_read;
   limit=start; prompt_input("");
@@ -25097,17 +25075,13 @@ The corresponding words in the width, height, and depth tables are stored as
 |scaled| values in units of \ps\ points.
 
 With the macros below, the |char_info| word for character~|c| in font~|f| is
-|char_info(f)(c)| and the width is
-$$\hbox{|char_width(f)(char_info(f)(c)).sc|.}$$
+|char_info(f,c)| and the width is
+$$\hbox{|char_width(f,char_info(f,c)).sc|.}$$
 
-@d char_info_end(A) (A)].qqqq
-@d char_info(A) mp->font_info[mp->char_base[(A)]+char_info_end
-@d char_width_end(A) (A).b0].sc
-@d char_width(A) mp->font_info[mp->width_base[(A)]+char_width_end
-@d char_height_end(A) (A).b1].sc
-@d char_height(A) mp->font_info[mp->height_base[(A)]+char_height_end
-@d char_depth_end(A) (A).b2].sc
-@d char_depth(A) mp->font_info[mp->depth_base[(A)]+char_depth_end
+@d char_info(A,B) mp->font_info[mp->char_base[(A)]+(B)].qqqq
+@d char_width(A,B) mp->font_info[mp->width_base[(A)]+(B).b0].sc
+@d char_height(A,B) mp->font_info[mp->height_base[(A)]+(B).b1].sc
+@d char_depth(A,B) mp->font_info[mp->depth_base[(A)]+(B).b2].sc
 @d ichar_exists(A) ((A).b0>0)
 
 @ The |font_ps_name| for a built-in font should be what PostScript expects.
@@ -25320,15 +25294,15 @@ as a double in ps units
   }
   if (f==0)
     return 0.0;
-  cc = char_info(f)(c);
+  cc = char_info(f,c);
   if (! ichar_exists(cc) )
     return 0.0;
   if (t=='w')
-    w = char_width(f)(cc);
+    w = char_width(f,cc);
   else if (t=='h')
-    w = char_height(f)(cc);
+    w = char_height(f,cc);
   else if (t=='d')
-    w = char_depth(f)(cc);
+    w = char_depth(f,cc);
   return w/655.35*(72.27/72);
 }
 
@@ -25390,13 +25364,13 @@ void mp_set_text_box (MP mp,pointer p) {
   if ( (mp->str_pool[k]<bc)||(mp->str_pool[k]>ec) ) {
     mp_lost_warning(mp, f,k);
   } else { 
-    cc=char_info(f)(mp->str_pool[k]);
+    cc=char_info(f,mp->str_pool[k]);
     if ( ! ichar_exists(cc) ) {
       mp_lost_warning(mp, f,k);
     } else { 
-      width_val(p)=width_val(p)+char_width(f)(cc);
-      h=char_height(f)(cc);
-      d=char_depth(f)(cc);
+      width_val(p)=width_val(p)+char_width(f,cc);
+      h=char_height(f,cc);
+      d=char_depth(f,cc);
       if ( h>height_val(p) ) height_val(p)=h;
       if ( d>depth_val(p) ) depth_val(p)=d;
     }
@@ -26003,7 +25977,6 @@ void mp_store_mem_file (MP mp) ;
 that reads~one~in. The function returns |false| if the dumped mem is
 incompatible with the present \MP\ table sizes, etc.
 
-@d off_base 6666 /* go here if the mem file is unacceptable */
 @d too_small(A) { wake_up_terminal;
   wterm_ln("---! Must increase the "); wterm((A));
 @.Must increase the x@>
