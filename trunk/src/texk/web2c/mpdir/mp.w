@@ -180,7 +180,7 @@ the |Allocate or initialize variables| block.
 
 @c
 MP __attribute__ ((noinline))
-mp_do_new (struct MP_options *opt, jmp_buf *buf) {
+mp_do_new (jmp_buf *buf) {
   MP mp = malloc(sizeof(MP_instance));
   if (mp==NULL)
 	return NULL;
@@ -213,7 +213,7 @@ mp_initialize (struct MP_options *opt) {
   MP mp;
   jmp_buf buf;
   @<Setup the non-local jump buffer in |mp_new|@>;
-  mp = mp_do_new(opt, &buf);
+  mp = mp_do_new(&buf);
   if (mp == NULL)
     return NULL;
   @<Set |ini_version|@>;
@@ -25668,6 +25668,7 @@ void mp_ship_out (MP mp, pointer h) ;
 struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   pointer p; /* the current graphical object */
   integer t; /* a temporary value */
+  integer c; /* a rounded charcode */
   scaled d_width; /* the current pen width */
   mp_edge_object *hh; /* the first graphical object */
   struct mp_graphic_object *hq; /* something |hp| points to  */
@@ -25687,6 +25688,11 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   hh->_maxx = maxx_val(h);
   hh->_maxy = maxy_val(h);
   hh->_filename = mp_get_output_file_name(mp);
+  hh->_charcode = mp->internal[mp_char_code]; /* not rounded */
+  hh->_width= mp->tfm_width[c];
+  hh->_height= mp->tfm_height[c];
+  hh->_depth= mp->tfm_depth[c];
+  hh->_ital_corr= mp->tfm_ital_corr[c];
   @<Export pending specials@>;
   p=link(dummy_loc(h));
   while ( p!=null ) { 

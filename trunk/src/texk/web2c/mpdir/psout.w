@@ -4565,6 +4565,8 @@ typedef struct mp_edge_object {
   char * _filename;
   MP _parent;
   int _minx, _miny, _maxx, _maxy;
+  int _width, _height, _depth, _ital_corr;
+  int _charcode;
 } mp_edge_object;
 
 @ @<Exported function headers@>=
