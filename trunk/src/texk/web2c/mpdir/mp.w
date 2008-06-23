@@ -273,10 +273,8 @@ if (mp->troff_mode) {
   mp->internal[mp_gtroffmode]=unity; 
   mp->internal[mp_prologues]=unity; 
 }
-if (!mp->noninteractive) {
-  if ( mp->start_sym>0 ) { /* insert the `\&{everyjob}' symbol */
-    mp->cur_sym=mp->start_sym; mp_back_input(mp);
-  }
+if ( mp->start_sym>0 ) { /* insert the `\&{everyjob}' symbol */
+  mp->cur_sym=mp->start_sym; mp_back_input(mp);
 }
 
 @ @<Exported function headers@>=
@@ -22223,6 +22221,9 @@ mp->history=mp_spotless; /* ready to go! */
 if (mp->troff_mode) {
   mp->internal[mp_gtroffmode]=unity; 
   mp->internal[mp_prologues]=unity; 
+}
+if ( mp->start_sym>0 ) { /* insert the `\&{everyjob}' symbol */
+  mp->cur_sym=mp->start_sym; mp_back_input(mp);
 }
 
 @ @c
