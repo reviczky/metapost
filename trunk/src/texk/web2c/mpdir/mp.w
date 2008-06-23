@@ -216,13 +216,9 @@ mp_initialize (struct MP_options *opt) {
   mp = mp_do_new(&buf);
   if (mp == NULL)
     return NULL;
+  mp->userdata=opt->userdata;
   @<Set |ini_version|@>;
   mp->noninteractive=opt->noninteractive;
-  if (*(opt->command_line))
-    mp->command_line = xstrdup(opt->command_line);
-  if (mp->noninteractive) {
-    @<Prepare function pointers for non-interactive use@>;
-  } 
   set_callback_option(find_file);
   set_callback_option(open_file);
   set_callback_option(read_ascii_file);
@@ -232,6 +228,12 @@ mp_initialize (struct MP_options *opt) {
   set_callback_option(flush_file);
   set_callback_option(write_ascii_file);
   set_callback_option(write_binary_file);
+  set_callback_option(shipout_backend);
+  if (opt->command_line && *(opt->command_line))
+    mp->command_line = xstrdup(opt->command_line);
+  if (mp->noninteractive) {
+    @<Prepare function pointers for non-interactive use@>;
+  } 
   /* open the terminal for output */
   t_open_out; 
   @<Find constant sizes@>;
@@ -370,7 +372,6 @@ set_value(mp->half_error_line,opt->half_error_line,50);
 if (mp->half_error_line>mp->error_line-15 ) 
   mp->half_error_line = mp->error_line-15;
 set_value(mp->max_print_line,opt->max_print_line,100);
-mp->userdata=opt->userdata;
 
 @ In case somebody has inadvertently made bad settings of the ``constants,''
 \MP\ checks them using a global variable called |bad|.
@@ -1837,8 +1838,8 @@ This procedure is never called when |interaction<mp_scroll_mode|.
 @d prompt_input(A) do { 
     if (!mp->noninteractive) {
       wake_up_terminal; mp_print(mp, (A)); 
-      mp_term_input(mp);
     }
+    mp_term_input(mp);
   } while (0) /* prints a string and gets a line of input */
 
 @c 
@@ -1847,6 +1848,7 @@ void mp_term_input (MP mp) { /* gets a line from the terminal */
   if (mp->noninteractive) {
     if (!mp_input_ln(mp, mp->term_in ))
 	  longjmp(*(mp->jump_buf),1);  /* chunk finished */
+    mp->buffer[mp->last]='%'; 
   } else {
     update_terminal; /* Now the user sees the prompt for sure */
     if (!mp_input_ln(mp, mp->term_in )) {
@@ -12768,7 +12770,7 @@ xfree(mp->input_stack);
 in our discussion of basic input-output routines. The other components of
 |cur_input| are defined in the same way:
 
-@d index mp->cur_input.index_field /* reference for buffer information */
+@d iindex mp->cur_input.index_field /* reference for buffer information */
 @d start mp->cur_input.start_field /* starting position in |buffer| */
 @d limit mp->cur_input.limit_field /* end of current line in |buffer| */
 @d name mp->cur_input.name_field /* name of the current file */
@@ -12846,12 +12848,12 @@ by analogy with |line_stack|.
 @^system dependencies@>
 
 @d terminal_input (name==is_term) /* are we reading from the terminal? */
-@d cur_file mp->input_file[index] /* the current |void *| variable */
-@d line mp->line_stack[index] /* current line number in the current source file */
-@d in_name mp->iname_stack[index] /* a string used to construct \.{MPX} file names */
-@d in_area mp->iarea_stack[index] /* another string for naming \.{MPX} files */
+@d cur_file mp->input_file[iindex] /* the current |void *| variable */
+@d line mp->line_stack[iindex] /* current line number in the current source file */
+@d in_name mp->iname_stack[iindex] /* a string used to construct \.{MPX} file names */
+@d in_area mp->iarea_stack[iindex] /* another string for naming \.{MPX} files */
 @d absent 1 /* |name_field| value for unused |mpx_in_stack| entries */
-@d mpx_reading (mp->mpx_name[index]>absent)
+@d mpx_reading (mp->mpx_name[iindex]>absent)
   /* when reading a file, is it an \.{MPX} file? */
 @d mpx_finished 0
   /* |name_field| value when the corresponding \.{MPX} file is finished */
@@ -12897,7 +12899,7 @@ xfree(mp->mpx_name);
 @ However, all this discussion about input state really applies only to the
 case that we are inputting from a file. There is another important case,
 namely when we are currently getting input from a token list. In this case
-|index>max_in_open|, and the conventions about the other state variables
+|iindex>max_in_open|, and the conventions about the other state variables
 are different:
 
 \yskip\hang|loc| is a pointer to the current node in the token list, i.e.,
@@ -12908,7 +12910,7 @@ fully read.
 may or may not contain a reference count, depending on the type of token
 list involved.
 
-\yskip\hang|token_type|, which takes the place of |index| in the
+\yskip\hang|token_type|, which takes the place of |iindex| in the
 discussion above, is a code number that explains what kind of token list
 is being scanned.
 
@@ -12946,9 +12948,9 @@ The token list begins with a reference count if and only if |token_type=
 macro|.
 @^reference counts@>
 
-@d token_type index /* type of current token list */
-@d token_state (index>(int)mp->max_in_open) /* are we scanning a token list? */
-@d file_state (index<=(int)mp->max_in_open) /* are we scanning a file line? */
+@d token_type iindex /* type of current token list */
+@d token_state (iindex>(int)mp->max_in_open) /* are we scanning a token list? */
+@d file_state (iindex<=(int)mp->max_in_open) /* are we scanning a file line? */
 @d param_start limit /* base of macro parameters in |param_stack| */
 @d forever_text (mp->max_in_open+1) /* |token_type| code for loop texts */
 @d loop_text (mp->max_in_open+2) /* |token_type| code for loop texts */
@@ -12973,8 +12975,8 @@ mp->param_stack = xmalloc((mp->param_size+1),sizeof(pointer));
 xfree(mp->param_stack);
 
 @ Notice that the |line| isn't valid when |token_state| is true because it
-depends on |index|.  If we really need to know the line number for the
-topmost file in the index stack we use the following function.  If a page
+depends on |iindex|.  If we really need to know the line number for the
+topmost file in the iindex stack we use the following function.  If a page
 number or other information is needed, this routine should be modified to
 compute it as well.
 @^system dependencies@>
@@ -13360,8 +13362,8 @@ or |limit| or |line|.
 @:MetaPost capacity exceeded text input levels}{\quad text input levels@>
   if ( mp->first==mp->buf_size ) 
     mp_reallocate_buffer(mp,(mp->buf_size+(mp->buf_size>>2)));
-  incr(mp->in_open); push_input; index=mp->in_open;
-  mp->mpx_name[index]=absent;
+  incr(mp->in_open); push_input; iindex=mp->in_open;
+  mp->mpx_name[iindex]=absent;
   start=mp->first;
   name=is_term; /* |terminal_input| is now |true| */
 }
@@ -13371,7 +13373,7 @@ is finished.  Any associated \.{MPX} file must also be closed and popped
 off the file stack.
 
 @c void mp_end_file_reading (MP mp) { 
-  if ( mp->in_open>index ) {
+  if ( mp->in_open>iindex ) {
     if ( (mp->mpx_name[mp->in_open]==absent)||(name<=max_spec_src) ) {
       mp_confusion(mp, "endinput");
 @:this can't happen endinput}{\quad endinput@>
@@ -13382,7 +13384,7 @@ off the file stack.
     }
   }
   mp->first=start;
-  if ( index!=mp->in_open ) mp_confusion(mp, "endinput");
+  if ( iindex!=mp->in_open ) mp_confusion(mp, "endinput");
   if ( name>max_spec_src ) {
     (mp->close_file)(mp,cur_file);
     delete_str_ref(name);
@@ -13397,14 +13399,14 @@ associated with the current input file.  It returns |false| if this doesn't
 work.
 
 @c boolean mp_begin_mpx_reading (MP mp) { 
-  if ( mp->in_open!=index+1 ) {
+  if ( mp->in_open!=iindex+1 ) {
      return false;
   } else { 
     if ( mp->mpx_name[mp->in_open]<=absent ) mp_confusion(mp, "mpx");
 @:this can't happen mpx}{\quad mpx@>
     if ( mp->first==mp->buf_size ) 
       mp_reallocate_buffer(mp,(mp->buf_size+(mp->buf_size>>2)));
-    push_input; index=mp->in_open;
+    push_input; iindex=mp->in_open;
     start=mp->first;
     name=mp->mpx_name[mp->in_open]; add_str_ref(name);
     @<Put an empty line in the input buffer@>;
@@ -13415,7 +13417,7 @@ work.
 @ This procedure temporarily stops reading an \.{MPX} file.
 
 @c void mp_end_mpx_reading (MP mp) { 
-  if ( mp->in_open!=index ) mp_confusion(mp, "mpx");
+  if ( mp->in_open!=iindex ) mp_confusion(mp, "mpx");
 @:this can't happen mpx}{\quad mpx@>
   if ( loc<limit ) {
     @<Complain that we are not at the end of a line in the \.{MPX} file@>;
@@ -13456,7 +13458,7 @@ actions.
   mp->in_open=0; mp->open_parens=0; mp->max_buf_stack=0;
   mp->param_ptr=0; mp->max_param_stack=0;
   mp->first=1;
-  start=1; index=0; line=0; name=is_term;
+  start=1; iindex=0; line=0; name=is_term;
   mp->mpx_name[0]=absent;
   mp->force_eof=false;
   if ( ! mp_init_terminal(mp) ) mp_jump_out(mp);
@@ -13909,17 +13911,13 @@ if ( loc>=mp->hi_mem_min ) { /* one-word token */
 There is one more branch.
 
 @<Move to next line of file, or |goto restart|...@>=
-if ( name>max_spec_src ) {
+if ( name>max_spec_src) {
   @<Read next line of file into |buffer|, or
     |goto restart| if the file has ended@>;
 } else { 
   if ( mp->input_ptr>0 ) {
      /* text was inserted during error recovery or by \&{scantokens} */
     mp_end_file_reading(mp); goto RESTART; /* resume previous level */
-  }
-  if (mp->noninteractive) { 
-    /* in noninteractive mode, the next |mp_execute| call will continue */
-    mp_jump_out(mp);
   }
   if (mp->job_name == NULL && ( mp->selector<log_only || mp->selector>=write_file))  
     mp_open_log_file(mp);
@@ -13983,7 +13981,7 @@ files should have an \&{mpxbreak} after the translation of the last
 
 @<Complain that the \.{MPX} file ended unexpectly; then set...@>=
 { 
-  mp->mpx_name[index]=mpx_finished;
+  mp->mpx_name[iindex]=mpx_finished;
   print_err("mpx file ended unexpectedly");
   help4("The file had too few picture expressions for btex...etex")
     ("blocks.  Such files are normally generated automatically")
@@ -14079,7 +14077,7 @@ void mp_t_next (MP mp) {
   integer old_info; /* saves the |warning_info| */
   while ( mp->cur_cmd<=max_pre_command ) {
     if ( mp->cur_cmd==mpx_break ) {
-      if ( ! file_state || (mp->mpx_name[index]==absent) ) {
+      if ( ! file_state || (mp->mpx_name[iindex]==absent) ) {
         @<Complain about a misplaced \&{mpxbreak}@>;
       } else { 
         mp_end_mpx_reading(mp); 
@@ -14091,7 +14089,7 @@ void mp_t_next (MP mp) {
       } else if ( mpx_reading ) {
         @<Complain that \.{MPX} files cannot contain \TeX\ material@>;
       } else if ( (mp->cur_mod!=verbatim_code)&&
-                  (mp->mpx_name[index]!=mpx_finished) ) {
+                  (mp->mpx_name[iindex]!=mpx_finished) ) {
         if ( ! mp_begin_mpx_reading(mp) ) mp_start_mpx_input(mp);
       } else {
         goto TEX_FLUSH;
@@ -16039,11 +16037,12 @@ mp->job_name=mp_xstrdup(mp, opt->job_name);
 if (opt->noninteractive && opt->ini_version) {
   if (mp->job_name == NULL)
     mp->job_name=mp_xstrdup(mp,mp->mem_name); 
-  int l = strlen(mp->job_name);
-  if (l>4) {
-    char *test = strstr(mp->job_name,".mem");
-    if (test == mp->job_name+l-4) {
-      *test = 0;
+  if (mp->job_name != NULL) {
+    int l = strlen(mp->job_name);
+    if (l>4) {
+      char *test = strstr(mp->job_name,".mem");
+      if (test == mp->job_name+l-4)
+        *test = 0;
     }
   }
 }
@@ -16297,7 +16296,7 @@ with the current input file.
     goto NOT_FOUND;
   }
   name=mp_a_make_name_string(mp, cur_file);
-  mp->mpx_name[index]=name; add_str_ref(name);
+  mp->mpx_name[iindex]=name; add_str_ref(name);
   @<Read the first line of the new file@>;
   xfree(origname);
   return;
@@ -22198,7 +22197,7 @@ xfree(mp->err_out);
 mp->input_ptr=0; mp->max_in_stack=0;
 mp->in_open=0; mp->open_parens=0; mp->max_buf_stack=0;
 mp->param_ptr=0; mp->max_param_stack=0;
-start = index = loc = mp->first = 0;
+start = iindex = loc = mp->first = 0;
 line=0; name=is_term;
 mp->mpx_name[0]=absent;
 mp->force_eof=false;
@@ -25688,7 +25687,8 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   hh->_maxx = maxx_val(h);
   hh->_maxy = maxy_val(h);
   hh->_filename = mp_get_output_file_name(mp);
-  hh->_charcode = mp->internal[mp_char_code]; /* not rounded */
+  c = mp_round_unscaled(mp,mp->internal[mp_char_code]);
+  hh->_charcode = c;
   hh->_width= mp->tfm_width[c];
   hh->_height= mp->tfm_height[c];
   hh->_depth= mp->tfm_depth[c];
@@ -25820,9 +25820,6 @@ typedef void (*mp_backend_writer)(MP, int);
 
 @ @<Option variables@>=
 mp_backend_writer shipout_backend;
-
-@ @<Allocate or initialize ...@>=
-set_callback_option(shipout_backend);
 
 @ Now that we've finished |ship_out|, let's look at the other commands
 by which a user can send things to the \.{GF} file.
