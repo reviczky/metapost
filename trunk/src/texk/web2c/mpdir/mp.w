@@ -24035,7 +24035,7 @@ scaled mp_tfm_check (MP mp,small_number m) {
 if ( c<mp->bc ) mp->bc=c;
 if ( c>mp->ec ) mp->ec=c;
 mp->char_exists[c]=true;
-mp->tfm_width[c]=mp_tfm_check(mp, mp_char_wd);
+mp->tfm_width[c]=mp_tfm_check(mp,mp_char_wd);
 mp->tfm_height[c]=mp_tfm_check(mp, mp_char_ht);
 mp->tfm_depth[c]=mp_tfm_check(mp, mp_char_dp);
 mp->tfm_ital_corr[c]=mp_tfm_check(mp, mp_char_ic)
@@ -25689,10 +25689,10 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   hh->_filename = mp_get_output_file_name(mp);
   c = mp_round_unscaled(mp,mp->internal[mp_char_code]);
   hh->_charcode = c;
-  hh->_width= mp->tfm_width[c];
-  hh->_height= mp->tfm_height[c];
-  hh->_depth= mp->tfm_depth[c];
-  hh->_ital_corr= mp->tfm_ital_corr[c];
+  hh->_width = mp->internal[mp_char_wd];
+  hh->_height = mp->internal[mp_char_ht];
+  hh->_depth = mp->internal[mp_char_dp];
+  hh->_ital_corr = mp->internal[mp_char_ic];
   @<Export pending specials@>;
   p=link(dummy_loc(h));
   while ( p!=null ) { 
