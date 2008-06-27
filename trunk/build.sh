@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
-# $Id: Build,v 1.3 2005/05/08 15:55:26 taco Exp $
-
-# builds new metapost binary. 
-# this is a temporary hack, it simply copies the source dir to the build dir.
-# no mpware support yet, either
-
+# $Id$
+#
+# Copyright 2008 Taco Hoekwater.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>
+#
+#
 # OME 20070912: Taken from luatex build.sh:
 # try to find gnu make; we need it
 MAKE=make;
