@@ -22,12 +22,12 @@ CFLAGS=-Wall -W -g -I. -I../.. -I$(KPSESRCDIR)/..
 
 bin_PROGRAMS = mpost
 
-mpost_SOURCES = mpost.c 
+mpost_SOURCES = mpost.c mpxout.c
 mpost_DEPENDENCIES = libmplib.a
 mpost_LDADD = libmplib.a $(KPSELIB) -lm
 
 noinst_LIBRARIES = libmplib.a
-libmplib_a_SOURCES = avl.c mp.c psout.c mpxout.c
+libmplib_a_SOURCES = avl.c mp.c psout.c
 
 include_HEADERS = mplib.h
 
