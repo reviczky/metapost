@@ -51,15 +51,15 @@ static int debug = 0; /* debugging for makempx */
 @ Allocating a bit of memory, with error detection:
 
 @c
-void  *xmalloc (size_t bytes) {
-  void *w = malloc (bytes);
+static void  *mpost_xmalloc (size_t bytes) {
+  void *w = malloc (bytes); 
   if (w==NULL) {
     fprintf(stderr,"Out of memory!\n");
     exit(EXIT_FAILURE);
   }
   return w;
 }
-char *xstrdup(const char *s) {
+static char *mpost_xstrdup(const char *s) {
   char *w; 
   if (s==NULL) return NULL;
   w = strdup(s);
@@ -84,9 +84,9 @@ void mpost_run_editor (MP mp, char *fname, int fline) {
     fprintf (stderr,"call_edit: can't find a suitable MPEDIT or EDITOR variable\n");
     exit(mp_status(mp));    
   }
-  command = (string) xmalloc (strlen (edit_value) + strlen(fname) + 11 + 3);
+  command = (string) mpost_xmalloc (strlen (edit_value) + strlen(fname) + 11 + 3);
   temp = command;
-  while ((c = *edit_value++) != 0) {
+  while ((c = *edit_value++) != (char)0) {
       if (c == '%')   {
         switch (c = *edit_value++) {
 	    case 'd':
@@ -104,7 +104,7 @@ void mpost_run_editor (MP mp, char *fname, int fline) {
             fprintf (stderr,"call_edit: `%%s' appears twice in editor command\n");
             exit(EXIT_FAILURE);
           }
-          while (*fname)
+          while (*fname != '\0')
 		    *temp++ = *fname++;
           *temp++ = '.';
 		  *temp++ = 'm';
@@ -125,7 +125,7 @@ void mpost_run_editor (MP mp, char *fname, int fline) {
      	*temp++ = c;
      }
    }
-  *temp = 0;
+  *temp = '\0';
   if (system (command) != 0)
     fprintf (stderr, "! Trouble executing `%s'.\n", command);
   exit(EXIT_FAILURE);
@@ -141,13 +141,13 @@ string normalize_quotes (const char *name, const char *mesg) {
     int quoted = false;
     int must_quote = (strchr(name, ' ') != NULL);
     /* Leave room for quotes and NUL. */
-    string ret = (string)xmalloc(strlen(name)+3);
+    string ret = (string)mpost_xmalloc(strlen(name)+3);
     string p;
     const_string q;
     p = ret;
     if (must_quote)
         *p++ = '"';
-    for (q = name; *q; q++) {
+    for (q = name; *q != '\0'; q++) {
         if (*q == '"')
             quoted = !quoted;
         else
@@ -165,23 +165,23 @@ string normalize_quotes (const char *name, const char *mesg) {
 
 @ @c 
 static char *makempx_find_file (MPX mpx, const char *nam, const char *mode, int ftype) {
+  int fmt, req;
   (void) mpx;
-  int format, req;
   if (mode[0] != 'r') { 
      return strdup(nam);
   }
-  req = 1;
+  req = 1; fmt = -1;
   switch(ftype) {
-  case mpx_tfm_format:       format = kpse_tfm_format; break;
-  case mpx_vf_format:        format = kpse_vf_format; req = 0; break;
-  case mpx_trfontmap_format: format = kpse_mpsupport_format; break;
-  case mpx_trcharadj_format: format = kpse_mpsupport_format; break;
-  case mpx_desc_format:      format = kpse_troff_font_format; break;
-  case mpx_fontdesc_format:  format =  kpse_troff_font_format; break;
-  case mpx_specchar_format:  format =  kpse_mpsupport_format; break;
-  default:                   return NULL;  break;
+  case mpx_tfm_format:       fmt = kpse_tfm_format; break;
+  case mpx_vf_format:        fmt = kpse_vf_format; req = 0; break;
+  case mpx_trfontmap_format: fmt = kpse_mpsupport_format; break;
+  case mpx_trcharadj_format: fmt = kpse_mpsupport_format; break;
+  case mpx_desc_format:      fmt = kpse_troff_font_format; break;
+  case mpx_fontdesc_format:  fmt = kpse_troff_font_format; break;
+  case mpx_specchar_format:  fmt = kpse_mpsupport_format; break;
   }
-  return  kpse_find_file (nam, format, req);
+  if (fmt<0) return NULL;
+  return  kpse_find_file (nam, fmt, req);
 }
 
 @ Invoke makempx (or troffmpx) to make sure there is an up-to-date
@@ -199,7 +199,7 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
   int ret;
   string cnf_cmd = kpse_var_value ("MPXCOMMAND");
   
-  if (cnf_cmd && (strcmp (cnf_cmd, "0")==0)) {
+  if (cnf_cmd != NULL && (strcmp (cnf_cmd, "0")==0)) {
     /* If they turned off this feature, just return success.  */
     ret = 0;
 
@@ -212,7 +212,7 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       if (mp_troff_mode(mp))
         cmd = concatn (cnf_cmd, " -troff ",
                      qmpname, " ", qmpxname, NULL);
-      else if (mpost_tex_program && *mpost_tex_program)
+      else if (mpost_tex_program!=NULL && *mpost_tex_program != '\0')
         cmd = concatn (cnf_cmd, " -tex=", mpost_tex_program, " ",
                      qmpname, " ", qmpxname, NULL);
       else
@@ -223,26 +223,26 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       free (cmd);
     } else {
       makempx_options * mpxopt;
-      const char *mpversion = mp_metapost_version () ;
-      mpxopt = xmalloc(sizeof(makempx_options));
       char *s = NULL;
       char *maincmd = NULL;
       int mpxmode = mp_troff_mode(mp);
+      const char *mpversion = mp_metapost_version () ;
+      mpxopt = mpost_xmalloc(sizeof(makempx_options));
       if (mpost_tex_program && *mpost_tex_program) {
-        maincmd = xstrdup(mpost_tex_program);
+        maincmd = mpost_xstrdup(mpost_tex_program);
       } else {
         if (mpxmode == mpx_tex_mode) {
           s = kpse_var_value("TEX");
           if (!s) s = kpse_var_value("MPXMAINCMD");
-          if (!s) s = xstrdup (TEX);
-          maincmd = (char *)xmalloc (strlen(s)+strlen(default_args)+1);
+          if (!s) s = mpost_xstrdup (TEX);
+          maincmd = (char *)mpost_xmalloc (strlen(s)+strlen(default_args)+1);
           strcpy(maincmd,s);
           strcat(maincmd,default_args);
           free(s);
         } else {
           s = kpse_var_value("TROFF");
           if (!s) s = kpse_var_value("MPXMAINCMD");
-          if (!s) s = xstrdup (TROFF);
+          if (!s) s = mpost_xstrdup (TROFF);
           maincmd = s;
         }
       }
@@ -255,7 +255,7 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       mpxopt->find_file = makempx_find_file;
       {
         char *banner = "% Written by metapost version ";
-        mpxopt->banner = xmalloc(strlen(mpversion)+strlen(banner)+1);
+        mpxopt->banner = mpost_xmalloc(strlen(mpversion)+strlen(banner)+1);
         strcpy (mpxopt->banner, banner);
         strcat (mpxopt->banner, mpversion);
       }
@@ -302,7 +302,7 @@ options->random_seed = get_random_seed();
 
 @ @c 
 char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ftype)  {
-  int l ;
+  size_t l ;
   char *s = NULL;
   (void)mp;
   if (fmode[0]=='r') {
@@ -336,7 +336,7 @@ char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ftype)  {
     }
     }
   } else {
-    s = xstrdup(fname); /* when writing */
+    s = mpost_xstrdup(fname); /* when writing */
   }
   return s;
 }
@@ -359,7 +359,7 @@ void *mpost_open_file(MP mp, const char *fname, const char *fmode, int ftype)  {
       void *ret = NULL;
       realmode[0] = *fmode;
 	  realmode[1] = 'b';
-	  realmode[2] = 0;
+	  realmode[2] = '\0';
       ret = fopen(s,realmode);
       free(s);
       return ret;
@@ -397,11 +397,11 @@ if (!nokpse)
     } else if (option_is ("kpathsea-debug")) {
       kpathsea_debug |= atoi (optarg);
     } else if (option_is("mem")) {
-      options->mem_name = xstrdup(optarg);
+      options->mem_name = mpost_xstrdup(optarg);
       if (!user_progname) 
 	    user_progname = optarg;
     } else if (option_is("jobname")) {
-      options->job_name = xstrdup(optarg);
+      options->job_name = mpost_xstrdup(optarg);
     } else if (option_is ("progname")) {
       user_progname = optarg;
     } else if (option_is("troff")) {
@@ -494,13 +494,13 @@ input.
 
 @<Copy the rest of the command line@>=
 {
-  options->command_line = xmalloc(command_line_size);
+  options->command_line = mpost_xmalloc(command_line_size);
   strcpy(options->command_line,"");
   if (a<argc) {
     k=0;
     for(;a<argc;a++) {
       char *c = argv[a];
-      while (*c) {
+      while (*c != '\0') {
 	    if (k<(command_line_size-1)) {
           options->command_line[k++] = *c;
         }
@@ -514,7 +514,7 @@ input.
       else 
         break;
     }
-    options->command_line[k] = 0;
+    options->command_line[k] = '\0';
   }
 }
 
@@ -540,7 +540,7 @@ int setup_var (int def, const char *var_name, int nokpse) {
   const char * banner = "This is MetaPost, version ";
   const char * kpsebanner_start = " (";
   const char * kpsebanner_stop = ")";
-  options->banner = xmalloc(strlen(banner)+
+  options->banner = mpost_xmalloc(strlen(banner)+
                             strlen(mpversion)+
                             strlen(kpsebanner_start)+
                             strlen(kpathsea_version_string)+
