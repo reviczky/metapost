@@ -35,6 +35,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include <kpathsea/win32lib.h>
 #include <kpathsea/lib.h>
 
+extern char *get_home_directory(void);
+
 #define PASSWD_FIELD_SIZE 256
 
 static char the_passwd_name[PASSWD_FIELD_SIZE];
