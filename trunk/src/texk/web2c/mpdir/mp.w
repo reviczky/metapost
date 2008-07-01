@@ -88,8 +88,8 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d banner "This is MetaPost, Version 1.071 (Cweb version)" /* printed when \MP\ starts */
-@d metapost_version "1.071"
+@d default_banner "This is MetaPost, Version 1.080" /* printed when \MP\ starts */
+@d metapost_version "1.080"
 
 @d true 1
 @d false 0
@@ -244,6 +244,11 @@ mp_initialize (struct MP_options *opt) {
   set_callback_option(write_ascii_file);
   set_callback_option(write_binary_file);
   set_callback_option(shipout_backend);
+  if (opt->banner && *(opt->banner)) {
+    mp->banner = xstrdup(opt->banner);
+  } else {
+    mp->banner = xstrdup(default_banner);
+  }
   if (opt->command_line && *(opt->command_line))
     mp->command_line = xstrdup(opt->command_line);
   if (mp->noninteractive) {
@@ -372,7 +377,10 @@ int max_in_open; /* maximum number of input files and error insertions that
   can be going on simultaneously */
 int main_memory; /* only for options, to set up |mem_max| and |mem_top| */
 void *userdata; /* this allows the calling application to setup local */
+char *banner; /* the banner that is printed to the screen and log */
 
+@ @<Dealloc variables@>=
+xfree(mp->banner);
 
 @ 
 @d set_value(a,b,c) do { a=c; if (b>c) a=b; } while (0)
@@ -1784,7 +1792,7 @@ and mem identifier together will occupy at most |max_print_line|
 character positions.
 
 @<Initialize the output...@>=
-wterm (banner);
+wterm (mp->banner);
 if (mp->mem_ident!=NULL) 
   mp_print(mp,mp->mem_ident); 
 mp_print_ln(mp);
@@ -16194,7 +16202,7 @@ this file.
 
 @ @<Print the banner...@>=
 { 
-  wlog(banner);
+  wlog(mp->banner);
   mp_print(mp, mp->mem_ident); mp_print(mp, "  ");
   mp_print_int(mp, mp_round_unscaled(mp, mp->internal[mp_day])); 
   mp_print_char(mp, ' ');

@@ -44,6 +44,7 @@ have our customary command-line interface.
 #include <process.h>
 #endif
 #include <kpathsea/kpathsea.h>
+extern char *kpathsea_version_string;
 static const char *mpost_tex_program = "";
 static int debug = 0; /* debugging for makempx */
 
@@ -533,6 +534,24 @@ int setup_var (int def, const char *var_name, int nokpse) {
   return def;
 }
 
+@ @<Set up the banner line@>=
+{
+  const char *mpversion = mp_metapost_version () ;
+  const char * banner = "This is MetaPost, version ";
+  const char * kpsebanner_start = " (";
+  const char * kpsebanner_stop = ")";
+  options->banner = xmalloc(strlen(banner)+
+                            strlen(mpversion)+
+                            strlen(kpsebanner_start)+
+                            strlen(kpathsea_version_string)+
+                            strlen(kpsebanner_stop)+1);
+  strcpy (options->banner, banner);
+  strcat (options->banner, mpversion);
+  strcat (options->banner, kpsebanner_start);
+  strcat (options->banner, kpathsea_version_string);
+  strcat (options->banner, kpsebanner_stop);
+}
+
 
 @ Now this is really it: \MP\ starts and ends here.
 
@@ -562,12 +581,14 @@ int main (int argc, char **argv) { /* |start_here| */
   options->error_line        = setup_var (79,"error_line",nokpse);
   options->half_error_line   = setup_var (50,"half_error_line",nokpse);
   options->max_print_line    = setup_var (100,"max_print_line",nokpse);
+  @<Set up the banner line@>;
   @<Copy the rest of the command line@>;
   @<Register the callback routines@>;
   mp = mp_initialize(options);
   xfree(options->command_line);
   xfree(options->mem_name);
   xfree(options->job_name);
+  xfree(options->banner);
   free(options);
   if (mp==NULL)
 	exit(EXIT_FAILURE);
