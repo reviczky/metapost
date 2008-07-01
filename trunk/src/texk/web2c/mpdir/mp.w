@@ -16419,7 +16419,7 @@ be opened.  Otherwise it updates |rd_file[n]| and |rd_fname[n]|.
     (mp->close_file)(mp,mp->rd_file[n]); 
 	goto NOT_FOUND; 
   }
-  mp->rd_fname[n]=xstrdup(mp->name_of_file);
+  mp->rd_fname[n]=xstrdup(s);
   return true;
 NOT_FOUND: 
   mp_end_file_reading(mp);
@@ -16436,7 +16436,7 @@ void mp_open_write_file (MP mp, char *s, readf_index  n) ;
   pack_cur_name;
   while ( ! mp_a_open_out(mp, &mp->wr_file[n], (mp_filetype_text+n)) )
     mp_prompt_file_name(mp, "file name for write output","");
-  mp->wr_fname[n]=xstrdup(mp->name_of_file);
+  mp->wr_fname[n]=xstrdup(s);
 }
 
 
