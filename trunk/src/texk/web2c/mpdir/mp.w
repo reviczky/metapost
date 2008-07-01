@@ -25427,7 +25427,8 @@ char *mp_set_output_file_name (MP mp, integer c) {
     else 
       @<Use |c| to compute the file extension |s|@>;
     mp_pack_job_name(mp, s);
-    ss = mp->name_of_file ;
+    free(s);
+    ss = xstrdup(mp->name_of_file);
   } else { /* initializations */
     str_number s, n; /* a file extension derived from |c| */
     old_setting=mp->selector; 
