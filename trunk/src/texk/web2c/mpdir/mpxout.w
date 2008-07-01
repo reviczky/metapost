@@ -388,12 +388,13 @@ unsigned bufsize;
 mpx->bufsize = 1000;
 
 @ This function returns NULL on EOF, otherwise it returns |buf|. 
-TODO: It fails to detect a partial last line (missing newline)
 
 @c 
 static char *mpx_getline(MPX mpx, FILE *mpfile) {
     int c;
     unsigned loc = 0;
+    if (feof(mpfile))
+      return NULL; 
     if (mpx->buf==NULL)
       mpx->buf = xmalloc(mpx->bufsize,1);
     while ((c = getc(mpfile)) != EOF && c != '\n' && c != '\r') {
@@ -409,8 +410,6 @@ static char *mpx_getline(MPX mpx, FILE *mpfile) {
         mpx->bufsize = n;
       }
     }
-    if (c == EOF)
-        return NULL;
     mpx->buf[loc] = 0;
     if (c == '\r') {
         c = getc(mpfile);
