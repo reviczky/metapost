@@ -206,7 +206,7 @@ int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
   } else {
     /* We will invoke something. Compile-time default if nothing else.  */
     string cmd;
-    string qmpname = normalize_quotes(mpname, "mpname");
+    string qmpname = kpse_find_file (normalize_quotes(mpname, "mpname"),kpse_mp_format, 1);
     string qmpxname = normalize_quotes(mpxname, "mpxname");
     if (cnf_cmd) {
       if (mp_troff_mode(mp))
