@@ -2,10 +2,10 @@
 This file is public domain.
 
 
-INSTALL for MPlib alpha releases
+INSTALL for MPlib beta releases
 ========================
 
-NOTE: This is alpha software. Use at your own risk!
+NOTE: This is beta software. Use at your own risk!
 
 This distribution is partially a subset of the TeX Live distribution,
 hence the peculiar directory layout.
@@ -27,4 +27,4 @@ to somewhere in your path.
 For now, the executable still contains a statically linked libmplib.
 
 See CHANGES for a short rundown of differences between this release
-and the last pascal-based release. 
+and previous releases. 

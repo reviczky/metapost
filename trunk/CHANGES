@@ -2,6 +2,23 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in the beta release of MPlib 1.080:
+----------------------------------------------------------------------
+
+* The MPlib distribution is released under the GPL version 2 or, at 
+  your option, any later version. The copyright statements in the source
+  files have been updated to reflect this.
+
+* The mpost program banner now contains the kpathsea version, and no 
+  longer mentions the fact that the source is now cweb at all.
+
+* The mpost program once again supports 'E' error responses.
+
+* There are some minor internal API changes, but there is still no 
+  documentation for the API, so that is not very interesting yet.
+
+
+----------------------------------------------------------------------
 What is new in the beta release of MPlib 1.060:
 ----------------------------------------------------------------------
 
