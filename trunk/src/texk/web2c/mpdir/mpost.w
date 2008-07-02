@@ -459,7 +459,7 @@ fprintf(stdout,
 "  -kpathsea-debug=NUMBER  set path searching debugging flags according to\n"
 "                          the bits of NUMBER\n"
 "  -mem=MEMNAME            use MEMNAME instead of program name or a %%& line\n"
-"  -troff                  set the prologues variable, use `makempx -troff'\n"
+"  -troff                  set the prologues variable and assume TEXPROGRAM is really troff\n"
 "  -help                   display this help and exit\n"
 "  -version                output version information and exit\n"
 "\n"
