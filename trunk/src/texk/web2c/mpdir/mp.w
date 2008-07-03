@@ -149,7 +149,9 @@ typedef struct MP_instance {
 #include <string.h>
 #include <stdarg.h>
 #include <assert.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h> /* for access() */
+#endif
 #include <time.h> /* for struct tm \& co */
 #include "mplib.h"
 #include "psout.h" /* external header */
