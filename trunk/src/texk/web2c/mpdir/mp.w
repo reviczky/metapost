@@ -22291,21 +22291,21 @@ int mp_execute (MP mp, char *s, size_t l) {
 @ This function cleans up
 @c
 int mp_finish (MP mp) {
-  int history = mp->history;
-  if (!mp->finished) {
-    if (mp->history < mp_fatal_error_stop ) {
-      jmp_buf buf;
-      mp->jump_buf = &buf;
-      if (setjmp(*(mp->jump_buf)) != 0) { 
-        history = mp->history;
-        mp_close_files_and_terminate(mp);
-        goto RET;
-      }
-      mp_final_cleanup(mp); /* prepare for death */
-      mp_close_files_and_terminate(mp);
-    }
+  jmp_buf buf;
+  int history = 0;
+  if (mp->finished || mp->history >= mp_fatal_error_stop) {
+    history = mp->history;
+    mp_free(mp);
+    return history;
   }
- RET:
+  mp->jump_buf = &buf;
+  if (setjmp(*(mp->jump_buf)) != 0) { 
+    history = mp->history;
+  } else {
+    history = mp->history;
+    mp_final_cleanup(mp); /* prepare for death */
+  }
+  mp_close_files_and_terminate(mp);
   mp_free(mp);
   return history;
 }
