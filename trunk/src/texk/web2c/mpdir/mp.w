@@ -3912,7 +3912,7 @@ void mp_do_snprintf (char *str, int size, const char *format, ...) {
        case 'i':
        case 'd':
          {
-           mp_snprintf(work,32,"%i",va_arg(ap, int));
+           sprintf(work,"%i",va_arg(ap, int));
            while (*work) {
              *res = *work++;
              if (size-->0) res++;
@@ -3921,7 +3921,7 @@ void mp_do_snprintf (char *str, int size, const char *format, ...) {
          break;
        case 'g':
          {
-           mp_snprintf(work,32,"%g",va_arg(ap, double));
+           sprintf(work,"%g",va_arg(ap, double));
            while (*work) {
              *res = *work++;
              if (size-->0) res++;

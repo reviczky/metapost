@@ -1512,7 +1512,7 @@ void mp_set_job_id (MP mp) {
         strlen (name_string) +
         strlen (format_string);
     s = mp_xmalloc (mp,slen, sizeof (char));
-    mp_snprintf (s,(int)slen,"%.4d/%.2d/%.2d %.2d:%.2d %s %s",
+    sprintf (s,"%.4d/%.2d/%.2d %.2d:%.2d %s %s",
                (mp->internal[mp_year]>>16),
                (mp->internal[mp_month]>>16), 
                (mp->internal[mp_day]>>16), 
