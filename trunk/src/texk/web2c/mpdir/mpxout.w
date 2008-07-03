@@ -2035,8 +2035,7 @@ static int mpx_dvitomp (MPX mpx, char *dviname) {
   mpx_open_dvi_file(mpx);
   @<Process the preamble@>;
   mpx_open_mpxfile(mpx);
-  fprintf (mpx->mpxfile,mpx->banner);
-  fprintf (mpx->mpxfile,"\n");
+  fprintf (mpx->mpxfile,"%s\n",mpx->banner);
   while ( true ) { 
     @<Advance to the next |bop| command@>;
     for (k=0;k<=10;k++) 
