@@ -157,6 +157,7 @@ typedef struct MP_instance {
 #include "psout.h" /* external header */
 #include "mpmp.h" /* internal header */
 #include "mppsout.h" /* internal header */
+#include "mptfmin.h" /* mp_read_font_info */
 @h
 @<Declarations@>
 @<Basic printing procedures@>
@@ -165,7 +166,6 @@ typedef struct MP_instance {
 @ Here are the functions that set up the \MP\ instance.
 
 @<Declarations@> =
-@<Declare |mp_reallocate| functions@>
 MP_options *mp_options (void);
 MP mp_initialize (MP_options *opt);
 
@@ -180,6 +180,10 @@ MP_options *mp_options (void) {
   }
   return opt;
 } 
+
+@ @<Internal library declarations@>=
+@<Declare |mp_reallocate| functions@>
+@<Declare subroutines for parsing file names@>
 
 @ The whole instance structure is initialized with zeroes,
 this greatly reduces the number of statements needed in 
@@ -2478,7 +2482,7 @@ that is used only when the quantity being halved is known to be positive
 or zero.
 
 @d half(A) ((A) / 2)
-@d halfp(A) ((unsigned)(A) >> 1)
+@d halfp(A) (integer)((unsigned)(A) >> 1)
 
 @ A single computation might use several subroutine calls, and it is
 desirable to avoid producing multiple error messages in case of arithmetic
@@ -2554,7 +2558,7 @@ scaled mp_round_decimals (MP mp,quarterword k) {
  while ( k-->0 ) { 
     a=(a+mp->dig[k]*two) / 10;
   }
-  return halfp(a+1);
+  return (scaled)halfp(a+1);
 }
 
 @ Conversely, here is a procedure analogous to |print_int|. If the output
@@ -2770,7 +2774,7 @@ the present implementation consumes almost 20\pct! of \MP's computation
 time during typical jobs, so a machine-language substitute is advisable.
 @^inner loop@> @^system dependencies@>
 
-@<Declarations@>=
+@<Internal library declarations@>=
 integer mp_take_fraction (MP mp,integer q, fraction f) ;
 
 @ @c 
@@ -3125,7 +3129,7 @@ scaled mp_square_rt (MP mp,scaled x) {
       @<Decrease |k| by 1, maintaining the invariant
       relations between |x|, |y|, and~|q|@>;
     } while (k!=0);
-    return (halfp(q));
+    return (scaled)(halfp(q));
   }
 }
 
@@ -3216,7 +3220,7 @@ integer mp_pyth_sub (MP mp,integer a, integer b) {
     if ( a<fraction_four ) {
       big=false;
     } else  { 
-      a=halfp(a); b=halfp(b); big=true;
+      a=(integer)halfp(a); b=(integer)halfp(b); big=true;
     }
     @<Replace |a| by an approximation to $\psqrt{a^2-b^2}$@>;
     if ( big ) double(a);
@@ -3827,10 +3831,10 @@ pointer hi_mem_min; /* the smallest location of one-word memory in use */
 @d XREALLOC(a,b,c) a = xrealloc(a,(b+1),sizeof(c));
 
 @<Declare helpers@>=
-void mp_xfree (void *x);
-void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) ;
-void *mp_xmalloc (MP mp, size_t nmem, size_t size) ;
-char *mp_xstrdup(MP mp, const char *s);
+void mp_xfree ( @= /*@@only@@*/ /*@@out@@*/ /*@@null@@*/ @> void *x);
+@= /*@@only@@*/ @> void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) ;
+@= /*@@only@@*/ @> void *mp_xmalloc (MP mp, size_t nmem, size_t size) ;
+@= /*@@only@@*/ @> char *mp_xstrdup(MP mp, const char *s);
 void mp_do_snprintf(char *str, int size, const char *fmt, ...);
 
 @ The |max_size_test| guards against overflow, on the assumption that
@@ -5376,7 +5380,7 @@ integer st_count; /* total number of known identifiers */
 @ Certain entries in the hash table are ``frozen'' and not redefinable,
 since they are used in error recovery.
 
-@d hash_top (hash_base+mp->hash_size) /* the first location of the frozen area */
+@d hash_top (integer)(hash_base+mp->hash_size) /* the first location of the frozen area */
 @d frozen_inaccessible hash_top /* |hash| location to protect the frozen area */
 @d frozen_repeat_loop (hash_top+1) /* |hash| location of a loop-repeat token */
 @d frozen_right_delimiter (hash_top+2) /* |hash| location of a permanent `\.)' */
@@ -5470,7 +5474,7 @@ pointer mp_id_lookup (MP mp,integer j, integer l) { /* search the hash table */
 if ( text(p)>0 ) { 
   do {  
     if ( hash_is_full )
-      mp_overflow(mp, "hash size",mp->hash_size);
+      mp_overflow(mp, "hash size",(integer)mp->hash_size);
 @:MetaPost capacity exceeded hash size}{\quad hash size@>
     decr(mp->hash_used);
   } while (text(mp->hash_used)!=0); /* search for an empty location in |hash| */
@@ -9195,7 +9199,7 @@ scaled mp_sqrt_det (MP mp,scaled a, scaled b, scaled c, scaled d) {
   s=64;
   while ( (maxabs<fraction_one) && (s>1) ){ 
     a+=a; b+=b; c+=c; d+=d;
-    maxabs+=maxabs; s=halfp(s);
+    maxabs+=maxabs; s=(unsigned)(halfp(s));
   }
   return (scaled)(s*mp_square_rt(mp, abs(mp_take_fraction(mp, a,d)-mp_take_fraction(mp, b,c))));
 }
@@ -12129,7 +12133,7 @@ pointer mp_p_plus_fq ( MP mp, pointer p, integer f,
 { 
   if ( tt==mp_dependent ) v=mp_take_fraction(mp, f,value(q));
   else v=mp_take_scaled(mp, f,value(q));
-  if ( (unsigned)abs(v)>halfp(threshold) ) { 
+  if ( abs(v)>halfp(threshold) ) { 
     s=mp_get_node(mp, dep_node_size); info(s)=qq; value(s)=v;
     if ( (abs(v)>=coef_bound) && mp->watch_coefs ) { 
       type(qq)=independent_needing_fix; mp->fix_needed=true;
@@ -12422,7 +12426,7 @@ recognized by testing that the returned list pointer is equal to
     return mp_const_dependency(mp, 0);
   } else { 
     q=mp_get_node(mp, dep_node_size);
-    value(q)=two_to_the(28-m); info(q)=p;
+    value(q)=(integer)two_to_the(28-m); info(q)=p;
     mp_link(q)=mp_const_dependency(mp, 0);
     return q;
   }
@@ -15783,6 +15787,11 @@ offsets into |mp->str_pool|. I am not in a great hurry to fix this, because
 calling |str_room()| just once is more efficient anyway. TODO.
 
 @<Declare subroutines for parsing file names@>=
+void mp_begin_name (MP mp);
+boolean mp_more_name (MP mp, ASCII_code c);
+void mp_end_name (MP mp);
+
+@ @c
 void mp_begin_name (MP mp) { 
   xfree(mp->cur_name); 
   xfree(mp->cur_area); 
@@ -15795,7 +15804,7 @@ void mp_begin_name (MP mp) {
 @ And here's the second.
 @^system dependencies@>
 
-@<Declare subroutines for parsing file names@>=
+@c 
 boolean mp_more_name (MP mp, ASCII_code c) {
   if (c==' ') {
     return false;
@@ -15819,7 +15828,7 @@ boolean mp_more_name (MP mp, ASCII_code c) {
       strncpy(A,(char *)(mp->str_pool+B),C);  
       A[C] = 0;}
 
-@<Declare subroutines for parsing file names@>=
+@c
 void mp_end_name (MP mp) {
   pool_pointer s; /* length of area, name, and extension */
   unsigned int len;
@@ -15867,6 +15876,9 @@ allows both lowercase and uppercase letters in the file name.
 }
 
 @<Declare subroutines for parsing file names@>=
+void mp_pack_file_name (MP mp, const char *n, const char *a, const char *e);
+
+@ @c
 void mp_pack_file_name (MP mp, const char *n, const char *a, const char *e) {
   integer k; /* number of positions filled in |name_of_file| */
   ASCII_code c; /* character being packed */
@@ -16013,6 +16025,9 @@ includes special characters is ``quoted'' somehow.
 @ Here is another version that takes its input from a string.
 
 @<Declare subroutines for parsing file names@>=
+void mp_str_scan_file (MP mp,  str_number s) ;
+
+@ @c
 void mp_str_scan_file (MP mp,  str_number s) {
   pool_pointer p,q; /* current position and stopping point */
   mp_begin_name(mp);
@@ -16027,6 +16042,9 @@ void mp_str_scan_file (MP mp,  str_number s) {
 @ And one that reads from a |char*|.
 
 @<Declare subroutines for parsing file names@>=
+extern void mp_ptr_scan_file (MP mp,  char *s);
+
+@ @c
 void mp_ptr_scan_file (MP mp,  char *s) {
   char *p, *q; /* current position and stopping point */
   mp_begin_name(mp);
@@ -19310,7 +19328,7 @@ that receives eight integers corresponding to the four controlling points,
 and returns a single angle.  Besides those, we have to account for discrete
 moves at the actual points.
 
-@d mp_floor(a) (a>=0 ? (int)a : -(int)(-a))
+@d mp_floor(a) ((a)>=0 ? (int)(a) : -(int)(-(a)))
 @d bezier_error (720*(256*256*16))+1
 @d mp_sign(v) ((v)>0 ? 1 : ((v)<0 ? -1 : 0 ))
 @d mp_out(A) (double)((A)/(256*256*16))
@@ -25005,184 +25023,6 @@ $$\hbox{|char_width(f,char_info(f,c)).sc|.}$$
 @d char_depth(A,B) mp->font_info[mp->depth_base[(A)]+(B).b2].sc
 @d ichar_exists(A) ((A).b0>0)
 
-@ The |font_ps_name| for a built-in font should be what PostScript expects.
-A preliminary name is obtained here from the \.{TFM} name as given in the
-|fname| argument.  This gets updated later from an external table if necessary.
-
-@<Declare text measuring subroutines@>=
-@<Declare subroutines for parsing file names@>
-font_number mp_read_font_info (MP mp, char *fname) {
-  boolean file_opened; /* has |tfm_infile| been opened? */
-  font_number n; /* the number to return */
-  halfword lf,tfm_lh,bc,ec,nw,nh,nd; /* subfile size parameters */
-  size_t whd_size; /* words needed for heights, widths, and depths */
-  int i,ii; /* |font_info| indices */
-  int jj; /* counts bytes to be ignored */
-  scaled z; /* used to compute the design size */
-  fraction d;
-  /* height, width, or depth as a fraction of design size times $2^{-8}$ */
-  eight_bits h_and_d; /* height and depth indices being unpacked */
-  unsigned char tfbyte; /* a byte read from the file */
-  n=null_font;
-  @<Open |tfm_infile| for input@>;
-  @<Read data from |tfm_infile|; if there is no room, say so and |goto done|;
-    otherwise |goto bad_tfm| or |goto done| as appropriate@>;
-BAD_TFM:
-  @<Complain that the \.{TFM} file is bad@>;
-DONE:
-  if ( file_opened ) (mp->close_file)(mp,mp->tfm_infile);
-  if ( n!=null_font ) { 
-    mp->font_ps_name[n]=mp_xstrdup(mp,fname);
-    mp->font_name[n]=mp_xstrdup(mp,fname);
-  }
-  return n;
-}
-
-@ \MP\ doesn't bother to check the entire \.{TFM} file for errors or explain
-precisely what is wrong if it does find a problem.  Programs called \.{TFtoPL}
-@.TFtoPL@> @.PLtoTF@>
-and \.{PLtoTF} can be used to debug \.{TFM} files.
-
-@<Complain that the \.{TFM} file is bad@>=
-print_err("Font ");
-mp_print(mp, fname);
-if ( file_opened ) mp_print(mp, " not usable: TFM file is bad");
-else mp_print(mp, " not usable: TFM file not found");
-help3("I wasn't able to read the size data for this font so this",
-  "`infont' operation won't produce anything. If the font name",
-  "is right, you might ask an expert to make a TFM file");
-if ( file_opened )
-  mp->help_line[0]="is right, try asking an expert to fix the TFM file";
-mp_error(mp)
-
-@ @<Read data from |tfm_infile|; if there is no room, say so...@>=
-@<Read the \.{TFM} size fields@>;
-@<Use the size fields to allocate space in |font_info|@>;
-@<Read the \.{TFM} header@>;
-@<Read the character data and the width, height, and depth tables and
-  |goto done|@>
-
-@ A bad \.{TFM} file can be shorter than it claims to be.  The code given here
-might try to read past the end of the file if this happens.  Changes will be
-needed if it causes a system error to refer to |tfm_infile^| or call
-|get_tfm_infile| when |eof(tfm_infile)| is true.  For example, the definition
-@^system dependencies@>
-of |tfget| could be changed to
-``|begin get(tfm_infile); if eof(tfm_infile) then goto bad_tfm; end|.''
-
-@d tfget do { 
-  size_t wanted=1; 
-  void *tfbyte_ptr = &tfbyte;
-  (mp->read_binary_file)(mp,mp->tfm_infile,&tfbyte_ptr,&wanted); 
-  if (wanted==0) goto BAD_TFM; 
-} while (0)
-@d read_two(A) { (A)=tfbyte;
-  if ( (A)>127 ) goto BAD_TFM;
-  tfget; (A)=(A)*0400+tfbyte;
-}
-@d tf_ignore(A) { for (jj=(A);jj>=1;jj--) tfget; }
-
-@<Read the \.{TFM} size fields@>=
-tfget; read_two(lf);
-tfget; read_two(tfm_lh);
-tfget; read_two(bc);
-tfget; read_two(ec);
-if ( (bc>1+ec)||(ec>255) ) goto BAD_TFM;
-tfget; read_two(nw);
-tfget; read_two(nh);
-tfget; read_two(nd);
-whd_size=(size_t)((ec+1-bc)+nw+nh+nd);
-if ( lf<(int)(6+tfm_lh+whd_size) ) goto BAD_TFM;
-tf_ignore(10)
-
-@ Offsets are added to |char_base[n]| and |width_base[n]| so that is not
-necessary to apply the |so|  and |qo| macros when looking up the width of a
-character in the string pool.  In order to ensure nonnegative |char_base|
-values when |bc>0|, it may be necessary to reserve a few unused |font_info|
-elements.
-
-@<Use the size fields to allocate space in |font_info|@>=
-if ( mp->next_fmem<(size_t)bc) 
-  mp->next_fmem=(size_t)bc; /* ensure nonnegative |char_base| */
-if (mp->last_fnum==mp->font_max)
-  mp_reallocate_fonts(mp,(mp->font_max+(mp->font_max/4)));
-while (mp->next_fmem+whd_size>=mp->font_mem_size) {
-  size_t l = mp->font_mem_size+(mp->font_mem_size/4);
-  memory_word *font_info;
-  font_info = xmalloc ((l+1),sizeof(memory_word));
-  memset (font_info,0,sizeof(memory_word)*(l+1));
-  memcpy (font_info,mp->font_info,sizeof(memory_word)*(mp->font_mem_size+1));
-  xfree(mp->font_info);
-  mp->font_info = font_info;
-  mp->font_mem_size = l;
-}
-incr(mp->last_fnum);
-n=mp->last_fnum;
-mp->font_bc[n]=(eight_bits)bc;
-mp->font_ec[n]=(eight_bits)ec;
-mp->char_base[n]=(int)(mp->next_fmem-bc);
-mp->width_base[n]=(int)(mp->next_fmem+ec-bc+1);
-mp->height_base[n]=mp->width_base[n]+nw;
-mp->depth_base[n]=mp->height_base[n]+nh;
-mp->next_fmem=mp->next_fmem+whd_size;
-
-
-@ @<Read the \.{TFM} header@>=
-if ( tfm_lh<2 ) goto BAD_TFM;
-tf_ignore(4);
-tfget; read_two(z);
-tfget; z=z*0400+tfbyte;
-tfget; z=z*0400+tfbyte; /* now |z| is 16 times the design size */
-mp->font_dsize[n]=mp_take_fraction(mp, z,267432584);
-  /* times ${72\over72.27}2^{28}$ to convert from \TeX\ points */
-tf_ignore(4*(tfm_lh-2))
-
-@ @<Read the character data and the width, height, and depth tables...@>=
-ii=mp->width_base[n];
-i=mp->char_base[n]+bc;
-while ( i<ii ) { 
-  tfget; mp->font_info[i].qqqq.b0=qi(tfbyte);
-  tfget; h_and_d=tfbyte;
-  mp->font_info[i].qqqq.b1=qi(h_and_d / 16);
-  mp->font_info[i].qqqq.b2=qi(h_and_d % 16);
-  tfget; tfget;
-  incr(i);
-}
-while ( i<(int)mp->next_fmem ) {
-  @<Read a four byte dimension, scale it by the design size, store it in
-    |font_info[i]|, and increment |i|@>;
-}
-goto DONE
-
-@ The raw dimension read into |d| should have magnitude at most $2^{24}$ when
-interpreted as an integer, and this includes a scale factor of $2^{20}$.  Thus
-we can multiply it by sixteen and think of it as a |fraction| that has been
-divided by sixteen.  This cancels the extra scale factor contained in
-|font_dsize[n|.
-
-@<Read a four byte dimension, scale it by the design size, store it in...@>=
-{ 
-tfget; d=tfbyte;
-if ( d>=0200 ) d=d-0400;
-tfget; d=d*0400+tfbyte;
-tfget; d=d*0400+tfbyte;
-tfget; d=d*0400+tfbyte;
-mp->font_info[i].sc=mp_take_fraction(mp, d*16,mp->font_dsize[n]);
-incr(i);
-}
-
-@ This function does no longer use the file name parser, because |fname| is
-a C string already.
-@<Open |tfm_infile| for input@>=
-file_opened=false;
-mp_ptr_scan_file(mp, fname);
-if ( strlen(mp->cur_area)==0 ) { xfree(mp->cur_area); }
-if ( strlen(mp->cur_ext)==0 )  { xfree(mp->cur_ext); mp->cur_ext=xstrdup(".tfm"); }
-pack_cur_name;
-mp->tfm_infile = (mp->open_file)(mp, mp->name_of_file, "r",mp_filetype_metrics);
-if ( !mp->tfm_infile  ) goto BAD_TFM;
-file_opened=true
-
 @ When we have a font name and we don't know whether it has been loaded yet,
 we scan the |font_name| array before calling |read_font_info|.
 
@@ -25992,7 +25832,7 @@ dump/undump macros.
 
 @<Dump constants for consistency check@>=
 dump_int(mp->mem_top);
-dump_int(mp->hash_size);
+dump_int((integer)mp->hash_size);
 dump_int(mp->hash_prime)
 dump_int(mp->param_size);
 dump_int(mp->max_in_open);
@@ -26005,7 +25845,7 @@ the same strings. (And it is, of course, a good thing that they do.)
 
 @<Undump constants for consistency check@>=
 undump_int(x); mp->mem_top = x;
-undump_int(x); mp->hash_size = x;
+undump_int(x); mp->hash_size = (unsigned)x;
 undump_int(x); mp->hash_prime = x;
 undump_int(x); mp->param_size = x;
 undump_int(x); mp->max_in_open = x;

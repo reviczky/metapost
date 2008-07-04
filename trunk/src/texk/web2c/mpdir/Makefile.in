@@ -68,7 +68,8 @@ LIBRARIES = $(noinst_LIBRARIES)
 ARFLAGS = cru
 libmplib_a_AR = $(AR) $(ARFLAGS)
 libmplib_a_LIBADD =
-am_libmplib_a_OBJECTS = avl.$(OBJEXT) mp.$(OBJEXT) psout.$(OBJEXT)
+am_libmplib_a_OBJECTS = avl.$(OBJEXT) mp.$(OBJEXT) psout.$(OBJEXT) \
+	tfmin.$(OBJEXT)
 libmplib_a_OBJECTS = $(am_libmplib_a_OBJECTS)
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(includedir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
@@ -224,7 +225,7 @@ mpost_SOURCES = mpost.c mpxout.c
 mpost_DEPENDENCIES = libmplib.a
 mpost_LDADD = libmplib.a $(KPSELIB) -lm
 noinst_LIBRARIES = libmplib.a
-libmplib_a_SOURCES = avl.c mp.c psout.c
+libmplib_a_SOURCES = avl.c mp.c psout.c tfmin.c
 include_HEADERS = mplib.h
 CTANGLE = ctangle
 all: config.h
@@ -332,6 +333,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mpost.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mpxout.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/psout.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tfmin.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -666,13 +668,13 @@ uninstall-am: uninstall-binPROGRAMS uninstall-includeHEADERS
 	uninstall-am uninstall-binPROGRAMS uninstall-includeHEADERS
 
 
-mp.c: psout.c mpxout.c
+mp.c: psout.c mpxout.c tfmin.c
 
 .w.c:
 	$(CTANGLE) $< $@
 
 clean::
-	$(RM) mp.c psout.c mplib.h mppsout.h mpmp.h mpxout.c mpxout.h *.o libmplib.a mpost.c mpost
+	$(RM) mp.c psout.c tfmin.c mptfmin.h mplib.h mppsout.h mpmp.h mpxout.c mpxout.h *.o libmplib.a mpost.c mpost
 
 distclean:: clean
 	$(RM) Makefile config.h config.status config.log libtool
