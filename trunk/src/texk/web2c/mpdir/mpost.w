@@ -72,7 +72,7 @@ static char *mpost_xstrdup(const char *s) {
 
 
 @ @c
-void mpost_run_editor (MP mp, char *fname, int fline) {
+static void mpost_run_editor (MP mp, char *fname, int fline) {
   char *temp, *command, *edit_value;
   char c;
   int sdone, ddone;
@@ -137,7 +137,7 @@ options->run_editor = mpost_run_editor;
 
 @
 @c 
-string normalize_quotes (const char *name, const char *mesg) {
+static string normalize_quotes (const char *name, const char *mesg) {
     int quoted = false;
     int must_quote = (strchr(name, ' ') != NULL);
     /* Leave room for quotes and NUL. */
@@ -195,7 +195,7 @@ static char *makempx_find_file (MPX mpx, const char *nam, const char *mode, int 
 #ifndef MPXCOMMAND
 #define MPXCOMMAND "makempx"
 #endif
-int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
+static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
   int ret;
   string cnf_cmd = kpse_var_value ("MPXCOMMAND");
   
@@ -301,7 +301,7 @@ static int get_random_seed (void) {
 options->random_seed = get_random_seed();
 
 @ @c 
-char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ftype)  {
+static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ftype)  {
   size_t l ;
   char *s = NULL;
   (void)mp;
@@ -346,7 +346,7 @@ if (!nokpse)
   options->find_file = mpost_find_file;
 
 @ @c 
-void *mpost_open_file(MP mp, const char *fname, const char *fmode, int ftype)  {
+static void *mpost_open_file(MP mp, const char *fname, const char *fmode, int ftype)  {
   char realmode[3];
   char *s;
   if (ftype==mp_filetype_terminal) {
@@ -520,7 +520,7 @@ input.
 
 @ A simple function to get numerical |texmf.cnf| values
 @c
-int setup_var (int def, const char *var_name, int nokpse) {
+static int setup_var (int def, const char *var_name, int nokpse) {
   if (!nokpse) {
     char * expansion = kpse_var_value (var_name);
     if (expansion) {
@@ -575,7 +575,7 @@ int main (int argc, char **argv) { /* |start_here| */
   if(putenv((char *)"engine=metapost"))
     fprintf(stdout,"warning: could not set up $engine\n");
   options->main_memory       = setup_var (50000,"main_memory",nokpse);
-  options->hash_size         = setup_var (16384,"hash_size",nokpse);
+  options->hash_size         = (unsigned)setup_var (16384,"hash_size",nokpse);
   options->max_in_open       = setup_var (25,"max_in_open",nokpse);
   options->param_size        = setup_var (1500,"param_size",nokpse);
   options->error_line        = setup_var (79,"error_line",nokpse);
