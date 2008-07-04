@@ -573,7 +573,7 @@ static void enc_free (MP mp);
 void mp_reload_encodings (MP mp) ;
 
 @ @<Declarations@>=
-static void mp_font_encodings (MP mp, font_number lastfnum, int encodings_only) ;
+static void mp_font_encodings (MP mp, font_number lastfnum, boolean encodings_only) ;
 
 @ @c void mp_reload_encodings (MP mp) {
   font_number f;
@@ -593,7 +593,7 @@ static void mp_font_encodings (MP mp, font_number lastfnum, int encodings_only) 
     }
   }
 }
-static void mp_font_encodings (MP mp, font_number lastfnum, int encodings_only) {
+static void mp_font_encodings (MP mp, font_number lastfnum, boolean encodings_only) {
   font_number f;
   enc_entry *e;
   fm_entry *fm;
@@ -1104,11 +1104,11 @@ static int check_fm_entry (MP mp, fm_entry * fm, boolean warn) {
                         s--;    /* e. g. 0.5ExtendFont: \%f = 0.5E */
                     if (str_prefix (s, "SlantFont")) {
                         d *= 1000.0;    /* correct rounding also for neg. numbers */
-                        fm->slant = (integer) (d > 0 ? d + 0.5 : d - 0.5);
+                        fm->slant = (short int) (d > 0 ? d + 0.5 : d - 0.5);
                         r = s + strlen ("SlantFont");
                     } else if (str_prefix (s, "ExtendFont")) {
                         d *= 1000.0;
-                        fm->extend = (integer) (d > 0 ? d + 0.5 : d - 0.5);
+                        fm->extend = (short int) (d > 0 ? d + 0.5 : d - 0.5);
                         if (fm->extend == 1000)
                             fm->extend = 0;
                         r = s + strlen ("ExtendFont");
@@ -1140,11 +1140,11 @@ static int check_fm_entry (MP mp, fm_entry * fm, boolean warn) {
             break;
         case 'P':              /* handle cases for subfonts like 'PidEid=3,1' */
             if (sscanf (r, "PidEid=%i, %i %n", &a, &b, &c) >= 2) {
-                fm->pid = a;
-                fm->eid = b;
+                fm->pid = (short int)a;
+                fm->eid = (short int)b;
                 r += c;
-                break;
-            }
+                break;         
+            } /* fallthrough */
         default:               /* encoding or font file specification */
             a = b = 0;
             if (*r == '<') {
@@ -1512,12 +1512,12 @@ void mp_set_job_id (MP mp) {
         strlen (name_string) +
         strlen (format_string);
     s = mp_xmalloc (mp,slen, sizeof (char));
-    sprintf (s,"%.4d/%.2d/%.2d %.2d:%.2d %s %s",
-               (mp->internal[mp_year]>>16),
-               (mp->internal[mp_month]>>16), 
-               (mp->internal[mp_day]>>16), 
-               (mp->internal[mp_time]>>16) / 60, 
-               (mp->internal[mp_time]>>16) % 60,
+    sprintf (s,"%.4u/%.2u/%.2u %.2u:%.2u %s %s",
+               ((unsigned)mp->internal[mp_year]>>16),
+               ((unsigned)mp->internal[mp_month]>>16), 
+               ((unsigned)mp->internal[mp_day]>>16), 
+               ((unsigned)mp->internal[mp_time]>>16) / 60, 
+               ((unsigned)mp->internal[mp_time]>>16) % 60,
                 name_string, format_string);
     mp->ps->job_id_string = mp_xstrdup (mp,s);
     mp_xfree (s);
@@ -1809,7 +1809,7 @@ static const char *cs_token_pairs_list[][2] = {
 const char **cs_token_pair;
 boolean t1_pfa, t1_cs, t1_scan, t1_eexec_encrypt, t1_synthetic;
 int t1_in_eexec;  /* 0 before eexec-encrypted, 1 during, 2 after */
-long t1_block_length;
+int t1_block_length;
 int last_hexbyte;
 void *t1_file;
 int hexline_length;
@@ -1855,13 +1855,13 @@ static int t1_getbyte (MP mp)
         c = t1_getchar (mp);
         if (c == 3) {
             while (!t1_eof ())
-                t1_getchar (mp);
+                (void)t1_getchar (mp);
             return EOF;
         }
         mp->ps->t1_block_length = t1_getchar (mp) & 0xff;
-        mp->ps->t1_block_length |= (t1_getchar (mp) & 0xff) << 8;
-        mp->ps->t1_block_length |= (t1_getchar (mp) & 0xff) << 16;
-        mp->ps->t1_block_length |= (t1_getchar (mp) & 0xff) << 24;
+        mp->ps->t1_block_length |= (unsigned)(t1_getchar (mp) & 0xff) << 8;
+        mp->ps->t1_block_length |= (unsigned)(t1_getchar (mp) & 0xff) << 16;
+        mp->ps->t1_block_length |= (unsigned)(t1_getchar (mp) & 0xff) << 24;
         c = t1_getchar (mp);
     }
     mp->ps->t1_block_length--;
@@ -1882,7 +1882,8 @@ static byte edecrypt (MP mp, byte cipher) {
     if (mp->ps->t1_pfa) {
         while (cipher == 10 || cipher == 13)
             cipher = (byte)t1_getbyte (mp);
-        mp->ps->last_hexbyte = cipher = (byte)((hexval (cipher) << 4) + hexval (t1_getbyte (mp)));
+        mp->ps->last_hexbyte = cipher = (byte)(((byte)hexval (cipher) << 4) + 
+           hexval (t1_getbyte (mp)));
     }
     plain = (cipher ^ (mp->ps->t1_dr >> 8));
     mp->ps->t1_dr = (cipher + mp->ps->t1_dr) * t1_c1 + t1_c2;
@@ -1910,7 +1911,7 @@ static byte cencrypt (byte plain, unsigned short *cr)
 
 static char *eol (char *s) {
     char *p = strend (s);
-    if (p - s > 1 && p[-1] != 10) {
+    if (p!=NULL && p - s > 1 && p[-1] != 10) {
         *p++ = 10;
         *p = 0;
     }
@@ -2018,8 +2019,10 @@ static void t1_getline (MP mp) {
             mp->ps->cs_start = mp->ps->t1_line_ptr - mp->ps->t1_line_array;     
                   /* |mp->ps->cs_start| is an index now */
             alloc_array (t1_line, l, T1_BUF_SIZE);
-            while (l-- > 0)
-                *mp->ps->t1_line_ptr++ = (t1_line_entry)edecrypt (mp,(byte)t1_getbyte (mp));
+            while (l-- > 0) {
+                *mp->ps->t1_line_ptr = (t1_line_entry)edecrypt (mp,(byte)t1_getbyte (mp));
+                mp->ps->t1_line_ptr++;
+            }
         }
         c = t1_getbyte (mp);
     }
@@ -2061,7 +2064,7 @@ static void t1_printf (MP mp, const char *fmt, ...)
 {
     va_list args;
     va_start (args, fmt);
-    vsprintf (mp->ps->t1_line_array, fmt, args);
+    (void)vsprintf (mp->ps->t1_line_array, fmt, args);
     t1_puts (mp,mp->ps->t1_line_array);
     va_end (args);
 }
@@ -2103,7 +2106,7 @@ static void  t1_check_block_len (MP mp, boolean decrypt) {
         mp_snprintf(s,128,"%i bytes more than expected were ignored", l+ 1);
         mp_warn(mp,s);
         while (l-- > 0)
-          t1_getbyte (mp);
+          (void)t1_getbyte (mp);
     }
 }
 static void  t1_start_eexec (MP mp, fm_entry *fm_cur) {
@@ -2290,7 +2293,7 @@ static void  t1_builtin_enc (MP mp) {
      * At this moment "/Encoding" is the prefix of |mp->ps->t1_line_array|
      */
     if (t1_suffix ("def")) {    /* predefined encoding */
-        sscanf (mp->ps->t1_line_array + strlen ("/Encoding"), "%256s", mp->ps->t1_buf_array);
+        (void)sscanf (mp->ps->t1_line_array + strlen ("/Encoding"), "%256s", mp->ps->t1_buf_array);
         if (strcmp (mp->ps->t1_buf_array, "StandardEncoding") == 0) {
             for (i = 0; i < 256; i++)
                 if (standard_glyph_names[i] == notdef)
@@ -2361,7 +2364,7 @@ static void  t1_builtin_enc (MP mp) {
         }
     } else {                    /* the second case */
         p = strchr (mp->ps->t1_line_array, 10);
-        for (;;) {
+        for (;p!=NULL;) {
             if (*p == 10) {
                 t1_getline (mp);
                 p = mp->ps->t1_line_array;
@@ -2531,7 +2534,7 @@ static void cs_store (MP mp, boolean is_subr) {
     }
     /* copy " RD " + cs data to |mp->ps->t1_buf_array| */
     memcpy (mp->ps->t1_buf_array, mp->ps->t1_line_array + mp->ps->cs_start - 4,
-            (unsigned) (mp->ps->t1_cslen + 4));
+            (size_t) (mp->ps->t1_cslen + 4));
     /* copy the end of cs data to |mp->ps->t1_buf_array| */
     for (p = mp->ps->t1_line_array + mp->ps->cs_start + mp->ps->t1_cslen, mp->ps->t1_buf_ptr =
          mp->ps->t1_buf_array + mp->ps->t1_cslen + 4; *p != 10; *mp->ps->t1_buf_ptr++ = *p++);
@@ -2540,8 +2543,8 @@ static void cs_store (MP mp, boolean is_subr) {
         mp->ps->cs_token_pair = check_cs_token_pair (mp);
     ptr->len = (unsigned short)(mp->ps->t1_buf_ptr - mp->ps->t1_buf_array);
     ptr->cslen = mp->ps->t1_cslen;
-    ptr->data = mp_xmalloc (mp,ptr->len , sizeof (byte));
-    memcpy (ptr->data, mp->ps->t1_buf_array, ptr->len);
+    ptr->data = mp_xmalloc (mp, (size_t)ptr->len , sizeof (byte));
+    memcpy (ptr->data, mp->ps->t1_buf_array, (size_t)ptr->len);
     ptr->valid = true;
 }
 
@@ -2631,7 +2634,7 @@ static void cs_warn (MP mp, const char *cs_name, int subr, const char *fmt, ...)
     char s[300];
     va_list args;
     va_start (args, fmt);
-    vsprintf (buf, fmt, args);
+    (void)vsprintf (buf, fmt, args);
     va_end (args);
     if (cs_name == NULL) {
         mp_snprintf(s,299,"Subr (%i): %s", (int) subr, buf);
@@ -2692,10 +2695,10 @@ static void cs_mark (MP mp, const char *cs_name, int subr)
                 a = b - 139;
             else if (b <= 250) {
                 --cs_len;
-                a = ((b - 247) << 8) + 108 + cs_getchar (mp);
+                a = (int)((unsigned)(b - 247) << 8) + 108 + cs_getchar (mp);
             } else if (b <= 254) {
                 --cs_len;
-                a = -((b - 251) << 8) - 108 - cs_getchar (mp);
+                a = -(int)((unsigned)(b - 251) << 8) - 108 - cs_getchar (mp);
             } else {
                 cs_len -= 4;
                 a = (cs_getchar (mp) & 0xff) << 24;
@@ -2980,7 +2983,7 @@ static void t1_flush_cs (MP mp, boolean is_subr)
             else
                 sprintf (mp->ps->t1_line_array, "/%s %u", ptr->glyph_name, ptr->cslen);
             p = strend (mp->ps->t1_line_array);
-            memcpy (p, ptr->data, ptr->len);
+            memcpy (p, ptr->data, (size_t)ptr->len);
             mp->ps->t1_line_ptr = p + ptr->len;
             t1_putline (mp);
         } else {
@@ -2989,7 +2992,7 @@ static void t1_flush_cs (MP mp, boolean is_subr)
                 sprintf (mp->ps->t1_line_array, "dup %i %u%s ", (int) (ptr - tab),
                          cs_len,  mp->ps->cs_token_pair[0]);
                 p = strend (mp->ps->t1_line_array);
-                memcpy (p, return_cs, cs_len);
+                memcpy (p, return_cs, (size_t)cs_len);
                 mp->ps->t1_line_ptr = p + cs_len;
                 t1_putline (mp);
                 sprintf (mp->ps->t1_line_array, " %s",  mp->ps->cs_token_pair[1]);
@@ -3251,9 +3254,9 @@ static boolean mp_font_is_reencoded (MP mp, font_number f) {
     if (fm != NULL 
 	&& (fm->ps_name != NULL)
 	&& is_reencoded (fm))
-      return 1;
+      return true;
   }
-  return 0;
+  return false;
 }
 static boolean mp_font_is_included (MP mp, font_number f) {
   fm_entry *fm;
@@ -3261,9 +3264,9 @@ static boolean mp_font_is_included (MP mp, font_number f) {
     if (fm != NULL 
 	&& (fm->ps_name != NULL && fm->ff_name != NULL) 
 	&& is_included (fm))
-      return 1;
+      return true;
   }
-  return 0;
+  return false;
 }
 static boolean mp_font_is_subsetted (MP mp, font_number f) {
   fm_entry *fm;
@@ -3271,9 +3274,9 @@ static boolean mp_font_is_subsetted (MP mp, font_number f) {
     if (fm != NULL 
   	  && (fm->ps_name != NULL && fm->ff_name != NULL) 
 	  && is_included (fm) && is_subsetted (fm))
-      return 1;
+      return true;
   }
-  return 0;
+  return false;
 }
 
 @ @<Exported function headers@>=
@@ -3376,10 +3379,10 @@ static boolean mp_do_ps_font (MP mp, font_number f);
   fm_entry *fm_cur;
   (void)mp_has_fm_entry (mp, f, &fm_cur); /* for side effects */
   if (fm_cur == NULL)
-    return 1;
+    return true;
   if (is_truetype(fm_cur) ||
 	 (fm_cur->ps_name == NULL && fm_cur->ff_name == NULL)) {
-    return 0;
+    return false;
   }
   if (is_included(fm_cur)) {
     mp_ps_print_nl(mp,"%%BeginResource: font ");
@@ -3393,7 +3396,7 @@ static boolean mp_do_ps_font (MP mp, font_number f);
     mp_ps_print_nl(mp,"%%EndResource");
     mp_ps_print_ln(mp);
   }
-  return 1;
+  return true;
 }
 
 @ Included subset fonts do not need and encoding vector, make
@@ -3423,7 +3426,7 @@ static void mp_list_used_resources (MP mp, int prologues, int procset);
       if ( mp_font_is_subsetted(mp,f) )
         goto FOUND;
       if ( mp->ps->ps_offset+1+strlen(mp->font_enc_name[f])>
-           (unsigned)mp->max_print_line )
+           (size_t)mp->max_print_line )
         mp_ps_print_nl(mp, "%%+ encoding");
       if ( firstitem ) {
         firstitem=false;
@@ -3446,7 +3449,7 @@ static void mp_list_used_resources (MP mp, int prologues, int procset);
             goto FOUND2;
       }
       if ( mp->ps->ps_offset+1+strlen(mp->font_ps_name[f])>
-	       (unsigned)mp->max_print_line )
+	       (size_t)mp->max_print_line )
         mp_ps_print_nl(mp, "%%+ font");
       if ( firstitem ) {
         firstitem=false;
@@ -3489,7 +3492,7 @@ static void mp_list_supplied_resources (MP mp, int prologues, int procset);
         }
       if ( (prologues==3)&&(mp_font_is_subsetted(mp,f)))
         goto FOUND;
-      if ( mp->ps->ps_offset+1+strlen(mp->font_enc_name[f])>(unsigned)mp->max_print_line )
+      if ( mp->ps->ps_offset+1+strlen(mp->font_enc_name[f])>(size_t)mp->max_print_line )
         mp_ps_print_nl(mp, "%%+ encoding");
       if ( firstitem ) {
         firstitem=false;
@@ -3514,7 +3517,7 @@ static void mp_list_supplied_resources (MP mp, int prologues, int procset);
         }
         if ( ! mp_font_is_included(mp,f) )
           goto FOUND2;
-        if ( mp->ps->ps_offset+1+strlen(mp->font_ps_name[f])>(unsigned)mp->max_print_line )
+        if ( mp->ps->ps_offset+1+strlen(mp->font_ps_name[f])>(size_t)mp->max_print_line )
           mp_ps_print_nl(mp, "%%+ font");
         if ( firstitem ) {
           firstitem=false;
@@ -3553,7 +3556,7 @@ static void mp_list_needed_resources (MP mp, int prologues);
       };
       if ((prologues==3)&&(mp_font_is_included(mp,f)) )
         goto FOUND;
-      if ( mp->ps->ps_offset+1+strlen(mp->font_ps_name[f])>(unsigned)mp->max_print_line )
+      if ( mp->ps->ps_offset+1+strlen(mp->font_ps_name[f])>(size_t)mp->max_print_line )
         mp_ps_print_nl(mp, "%%+ font");
       if ( firstitem ) {
         firstitem=false;
@@ -3755,7 +3758,7 @@ void mp_print_improved_prologue (MP mp, mp_edge_object *h, int prologues, int pr
   pointer *cur_fsize; /* current positions in |font_sizes| */
   boolean done_fonts; /* have we finished listing the fonts in the header? */
   font_number f; /* a font number for loops */
-  cur_fsize = mp_xmalloc(mp,(mp->font_max+1),sizeof(pointer));
+  cur_fsize = mp_xmalloc(mp,(size_t)(mp->font_max+1),sizeof(pointer));
   mp_list_used_resources(mp, prologues, procset);
   mp_list_supplied_resources(mp, prologues, procset);
   mp_list_needed_resources(mp, prologues);
@@ -3821,7 +3824,7 @@ static font_number mp_print_font_comments (MP mp , mp_edge_object *h, int prolog
   font_number f; /* a font number for loops */
   scaled ds; /* design size and scale factor for a text node */
   int ldf=0; /* the last \.{DocumentFont} listed (otherwise |null_font|) */
-  cur_fsize = mp_xmalloc(mp,(mp->font_max+1),sizeof(pointer));
+  cur_fsize = mp_xmalloc(mp,(size_t)(mp->font_max+1),sizeof(pointer));
   if ( prologues>0 ) {
     @<Give a \.{DocumentFonts} comment listing all fonts with non-null
       |font_sizes| and eliminate duplicates@>;
@@ -3865,7 +3868,7 @@ search.
           if ( mp_xstrcmp(mp->font_ps_name[f],mp->font_ps_name[ff])==0 )
             goto FOUND;
       }
-      if ( mp->ps->ps_offset+1+strlen(mp->font_ps_name[f])>(unsigned)mp->max_print_line )
+      if ( mp->ps->ps_offset+1+strlen(mp->font_ps_name[f])>(size_t)mp->max_print_line )
         mp_ps_print_nl(mp, "%%+");
       mp_ps_print_char(mp, ' ');
       mp_ps_print(mp, mp->font_ps_name[f]);
@@ -3899,7 +3902,8 @@ static halfword mp_ps_marks_out (MP mp,font_number f, eight_bits c) {
   eight_bits bc,ec; /* only encode characters between these bounds */
   integer lim; /* the maximum number of marks to encode before truncating */
   int p; /* |font_info| index for the current character */
-  int d,b; /* used to construct a hexadecimal digit */
+  int d; /* used to construct a hexadecimal digit */
+  unsigned b; /* used to construct a hexadecimal digit */
   lim=4*(emergency_line_length-mp->ps->ps_offset-4);
   bc=mp->font_bc[f];
   ec=mp->font_ec[f];
@@ -3940,13 +3944,13 @@ mp_ps_print_char(mp, ':')
 b=8; d=0;
 for (p=mp->char_base[f]+bc;p<=mp->char_base[f]+ec;p++) {
   if ( b==0 ) {
-    mp_hex_digit_out(mp, d);
+    mp_hex_digit_out(mp, (quarterword)d);
     d=0; b=8;
   }
   if ( mp->font_info[p].qqqq.b3!=mp_unused ) d=d+b;
   b=b>>1;
 }
-mp_hex_digit_out(mp, d)
+mp_hex_digit_out(mp, (quarterword)d)
 
 
 @ Here is a simple function that determines whether there are any marked
@@ -4716,7 +4720,7 @@ void mp_gr_fix_graphics_state (MP mp, mp_graphic_object *p) {
   mp_knot *pp, *path_p; /* for list manipulation */
   mp_dash_object *hh;
   scaled wx,wy,ww; /* dimensions of pen bounding box */
-  boolean adj_wx; /* whether pixel rounding should be based on |wx| or |wy| */
+  quarterword adj_wx; /* whether pixel rounding should be based on |wx| or |wy| */
   integer tx,ty; /* temporaries for computing |adj_wx| */
   if ( gr_has_color(p) )
     @<Make sure \ps\ will use the right color for object~|p|@>;
@@ -4880,7 +4884,7 @@ to compute in \ps.
 @<Use |pen_p(p)| and |path_p(p)| to decide whether |wx| or |wy| is more
   important and set |adj_wx| and |ww| accordingly@>;
 if ( (ww!=gs_width) || (adj_wx!=gs_adj_wx) ) {
-  if ( adj_wx ) {
+  if ( adj_wx != 0 ) {
     ps_room(13);
     mp_ps_print_char(mp, ' '); mp_ps_print_scaled(mp, ww);
     mp_ps_print_cmd(mp, 
@@ -4925,8 +4929,8 @@ of the pen transformation is more that |aspect_bound*(ww+1)|.
 tx=1; ty=1;
 if ( mp_gr_coord_rangeOK(path_p, do_y_loc, wy) ) tx=aspect_bound;
 else if ( mp_gr_coord_rangeOK(path_p, do_x_loc, wx) ) ty=aspect_bound;
-if ( wy / ty>=wx / tx ) { ww=wy; adj_wx=false; }
-else { ww=wx; adj_wx=true;  }
+if ( wy / ty>=wx / tx ) { ww=wy; adj_wx=0; }
+else { ww=wx; adj_wx=1;  }
 
 @ This routine quickly tests if path |h| is ``essentially horizontal'' or
 ``essentially vertical,'' where |zoff| is |x_loc(0)| or |y_loc(0)| and |dz| is
@@ -5402,7 +5406,7 @@ while ( p!=null ) {
 int mp_gr_ship_out (mp_edge_object *hh, int prologues, int procset, int standalone) ;
 
 @ @c 
-int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset, int standalone) {
+int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standalone) {
   mp_graphic_object *p;
   scaled ds,scf; /* design size and scale factor for a text node */
   font_number f; /* for loops over fonts while (un)marking characters */
@@ -5417,11 +5421,11 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset, int standa
   }
   if (mp->history >= mp_fatal_error_stop ) return 1;
   if (qprologues<0) 
-	prologues = (mp->internal[mp_prologues]>>16);
+	prologues = (int)((unsigned)mp->internal[mp_prologues]>>16);
   else
    prologues=qprologues;
   if (qprocset<0) 
-	procset = (mp->internal[mp_procset]>>16);
+	procset = (int)((unsigned)mp->internal[mp_procset]>>16);
   else
     procset=qprocset;
   mp_open_output_file(mp);
@@ -5530,7 +5534,7 @@ int mp_ps_ship_out (mp_edge_object *hh, int prologues, int procset) ;
 
 @ @c
 int mp_ps_ship_out (mp_edge_object *hh, int prologues, int procset) {
-  return mp_gr_ship_out (hh, prologues, procset, true);
+  return mp_gr_ship_out (hh, prologues, procset, (int)true);
 }
 
 
