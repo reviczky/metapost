@@ -22455,15 +22455,15 @@ int mp_finish (MP mp) {
 
 @ People may want to know the library version
 @c 
-const char * mp_metapost_version (void) {
-  return metapost_version;
+char * mp_metapost_version (void) {
+  return mp_strdup(metapost_version);
 }
 
 @ @<Exported function headers@>=
 int mp_run (MP mp);
 int mp_execute (MP mp, char *s, size_t l);
 int mp_finish (MP mp);
-const char * mp_metapost_version (void);
+char * mp_metapost_version (void);
 
 @ @<Put each...@>=
 mp_primitive(mp, "end",stop,0);
