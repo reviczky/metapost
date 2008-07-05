@@ -221,7 +221,7 @@ a C string already.
 @<Open |tfm_infile| for input@>=
 file_opened=false;
 mp_ptr_scan_file(mp, fname);
-if ( strlen(mp->cur_area)==0 ) { mp_xfree(mp->cur_area); }
+if ( strlen(mp->cur_area)==0 ) { mp_xfree(mp->cur_area); mp->cur_area=NULL; }
 if ( strlen(mp->cur_ext)==0 )  { 
     mp_xfree(mp->cur_ext); 
     mp->cur_ext=mp_xstrdup(mp,".tfm"); 
