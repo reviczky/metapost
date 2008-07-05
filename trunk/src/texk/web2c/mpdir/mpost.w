@@ -45,13 +45,16 @@ have our customary command-line interface.
 #endif
 #include <kpathsea/kpathsea.h>
 extern char *kpathsea_version_string;
-static const char *mpost_tex_program = "";
+extern string kpse_program_name;
+@= /*@@null@@*/ @> static char *mpost_tex_program = NULL;
 static int debug = 0; /* debugging for makempx */
 
 @ Allocating a bit of memory, with error detection:
 
+@d mpost_xfree(A) do { if (A!=NULL) free(A); A=NULL; } while (0)
+
 @c
-static void  *mpost_xmalloc (size_t bytes) {
+@= /*@@only@@*/ /*@@out@@*/ @> static void  *mpost_xmalloc (size_t bytes) {
   void *w = malloc (bytes); 
   if (w==NULL) {
     fprintf(stderr,"Out of memory!\n");
@@ -59,9 +62,8 @@ static void  *mpost_xmalloc (size_t bytes) {
   }
   return w;
 }
-static char *mpost_xstrdup(const char *s) {
+@= /*@@only@@*/ @> static char *mpost_xstrdup(const char *s) {
   char *w; 
-  if (s==NULL) return NULL;
   w = strdup(s);
   if (w==NULL) {
     fprintf(stderr,"Out of memory!\n");
@@ -91,8 +93,8 @@ static char *mpost_itoa (int i) {
 static void mpost_run_editor (MP mp, char *fname, int fline) {
   char *temp, *command, *edit_value;
   char c;
-  int sdone, ddone;
-  sdone = ddone = 0;
+  boolean sdone, ddone;
+  sdone = ddone = false;
   edit_value = kpse_var_value ("MPEDIT");
   if (edit_value == NULL)
     edit_value = getenv("EDITOR");
@@ -111,9 +113,12 @@ static void mpost_run_editor (MP mp, char *fname, int fline) {
               exit(EXIT_FAILURE);  
             } else {
               char *s = mpost_itoa(fline);
-              while (*s != '\0')
-	        *temp++ = *s++;
-              ddone = 1;
+              if (s != NULL) {
+                while (*s != '\0')
+	          *temp++ = *s++;
+                free(s);
+              }
+              ddone = true;
             }
             break;
 	  case 's':
@@ -126,7 +131,7 @@ static void mpost_run_editor (MP mp, char *fname, int fline) {
               *temp++ = '.';
 	      *temp++ = 'm';
 	      *temp++ = 'p';
-              sdone = 1;
+              sdone = true;
             }
             break;
 	  case '\0':
@@ -156,8 +161,8 @@ options->run_editor = mpost_run_editor;
 @
 @c 
 static string normalize_quotes (const char *name, const char *mesg) {
-    int quoted = false;
-    int must_quote = (strchr(name, ' ') != NULL);
+    boolean quoted = false;
+    boolean must_quote = (strchr(name, ' ') != NULL);
     /* Leave room for quotes and NUL. */
     string ret = (string)mpost_xmalloc(strlen(name)+3);
     string p;
@@ -182,16 +187,18 @@ static string normalize_quotes (const char *name, const char *mesg) {
 }
 
 @ @c 
-static char *makempx_find_file (MPX mpx, const char *nam, const char *mode, int ftype) {
-  int fmt, req;
+@= /*@@null@@*/ @> static char *makempx_find_file (MPX mpx, const char *nam, 
+                                                   const char *mode, int ftype) {
+  int fmt;
+  boolean req;
   (void) mpx;
   if (mode[0] != 'r') { 
      return strdup(nam);
   }
-  req = 1; fmt = -1;
+  req = true; fmt = -1;
   switch(ftype) {
   case mpx_tfm_format:       fmt = kpse_tfm_format; break;
-  case mpx_vf_format:        fmt = kpse_vf_format; req = 0; break;
+  case mpx_vf_format:        fmt = kpse_vf_format; req = false; break;
   case mpx_trfontmap_format: fmt = kpse_mpsupport_format; break;
   case mpx_trcharadj_format: fmt = kpse_mpsupport_format; break;
   case mpx_desc_format:      fmt = kpse_troff_font_format; break;
@@ -215,7 +222,7 @@ static char *makempx_find_file (MPX mpx, const char *nam, const char *mode, int 
 #endif
 static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
   int ret;
-  string cnf_cmd = kpse_var_value ("MPXCOMMAND");
+  char *cnf_cmd = kpse_var_value ("MPXCOMMAND");
   
   if (cnf_cmd != NULL && (strcmp (cnf_cmd, "0")==0)) {
     /* If they turned off this feature, just return success.  */
@@ -223,11 +230,13 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
 
   } else {
     /* We will invoke something. Compile-time default if nothing else.  */
-    string cmd;
-    string qmpname = kpse_find_file (normalize_quotes(mpname, "mpname"),kpse_mp_format, 1);
-    string qmpxname = normalize_quotes(mpxname, "mpxname");
-    if (cnf_cmd) {
-      if (mp_troff_mode(mp))
+    char *cmd;
+    char *tmp = normalize_quotes(mpname, "mpname");
+    char *qmpname = kpse_find_file (tmp,kpse_mp_format, true);
+    char *qmpxname = normalize_quotes(mpxname, "mpxname");
+    mpost_xfree(tmp);
+    if (cnf_cmd!=NULL) {
+      if (mp_troff_mode(mp)!=0)
         cmd = concatn (cnf_cmd, " -troff ",
                      qmpname, " ", qmpxname, NULL);
       else if (mpost_tex_program!=NULL && *mpost_tex_program != '\0')
@@ -239,37 +248,39 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       /* Run it.  */
       ret = system (cmd);
       free (cmd);
+      mpost_xfree(qmpname);
+      mpost_xfree(qmpxname);
     } else {
       makempx_options * mpxopt;
       char *s = NULL;
       char *maincmd = NULL;
       int mpxmode = mp_troff_mode(mp);
-      const char *mpversion = mp_metapost_version () ;
+      char *mpversion = mp_metapost_version () ;
       mpxopt = mpost_xmalloc(sizeof(makempx_options));
-      if (mpost_tex_program && *mpost_tex_program) {
+      if (mpost_tex_program != NULL && *mpost_tex_program != '\0') {
         maincmd = mpost_xstrdup(mpost_tex_program);
       } else {
         if (mpxmode == mpx_tex_mode) {
           s = kpse_var_value("TEX");
-          if (!s) s = kpse_var_value("MPXMAINCMD");
-          if (!s) s = mpost_xstrdup (TEX);
+          if (s==NULL) s = kpse_var_value("MPXMAINCMD");
+          if (s==NULL) s = mpost_xstrdup (TEX);
           maincmd = (char *)mpost_xmalloc (strlen(s)+strlen(default_args)+1);
           strcpy(maincmd,s);
           strcat(maincmd,default_args);
           free(s);
         } else {
           s = kpse_var_value("TROFF");
-          if (!s) s = kpse_var_value("MPXMAINCMD");
-          if (!s) s = mpost_xstrdup (TROFF);
+          if (s==NULL) s = kpse_var_value("MPXMAINCMD");
+          if (s==NULL) s = mpost_xstrdup (TROFF);
           maincmd = s;
         }
       }
       mpxopt->mode = mpxmode;
       mpxopt->cmd  = maincmd;
       mpxopt->mptexpre = kpse_var_value("MPTEXPRE");
+      mpxopt->debug = debug;
       mpxopt->mpname = qmpname;
       mpxopt->mpxname = qmpxname;
-      mpxopt->debug = debug;
       mpxopt->find_file = makempx_find_file;
       {
         char *banner = "% Written by metapost version ";
@@ -278,16 +289,18 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
         strcat (mpxopt->banner, mpversion);
       }
       ret = mp_makempx(mpxopt);
-      free(mpxopt->cmd);
-      free(mpxopt->mptexpre);
-      free(mpxopt);
+      mpost_xfree(mpxopt->cmd);
+      mpost_xfree(mpxopt->mptexpre);
+      mpost_xfree(mpxopt->banner);
+      mpost_xfree(mpxopt->mpname);
+      mpost_xfree(mpxopt->mpxname);
+      mpost_xfree(mpxopt);
+      mpost_xfree(mpversion);
     }
-    free (qmpname);
-    free (qmpxname);
   }
 
-  free (cnf_cmd);
-  return ret == 0;
+  mpost_xfree (cnf_cmd);
+  return (int)(ret == 0);
 }
 
 @ 
@@ -298,7 +311,7 @@ if (!nokpse)
 
 @ @c 
 static int get_random_seed (void) {
-  int ret ;
+  int ret = 0;
 #if defined (HAVE_GETTIMEOFDAY)
   struct timeval tv;
   gettimeofday(&tv, NULL);
@@ -310,7 +323,8 @@ static int get_random_seed (void) {
 #else
   time_t clock = time ((time_t*)NULL);
   struct tm *tmptr = localtime(&clock);
-  ret = (tmptr->tm_sec + 60*(tmptr->tm_min + 60*tmptr->tm_hour));
+  if (tmptr!=NULL)
+    ret = (tmptr->tm_sec + 60*(tmptr->tm_min + 60*tmptr->tm_hour));
 #endif
   return ret;
 }
@@ -321,8 +335,9 @@ options->random_seed = get_random_seed();
 @ @c 
 static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ftype)  {
   size_t l ;
-  char *s = NULL;
+  char *s;
   (void)mp;
+  s = NULL;
   if (fmode[0]=='r') {
 	if (ftype>=mp_filetype_text) {
       s = kpse_find_file (fname, kpse_mp_format, 0); 
@@ -354,7 +369,8 @@ static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ft
     }
     }
   } else {
-    s = mpost_xstrdup(fname); /* when writing */
+    if (fname!=NULL)
+      s = mpost_xstrdup(fname); /* when writing */
   }
   return s;
 }
@@ -378,7 +394,7 @@ static void *mpost_open_file(MP mp, const char *fname, const char *fmode, int ft
       realmode[0] = *fmode;
 	  realmode[1] = 'b';
 	  realmode[2] = '\0';
-      ret = fopen(s,realmode);
+      ret = (void *)fopen(s,realmode);
       free(s);
       return ret;
     }
@@ -395,37 +411,44 @@ if (!nokpse)
 
 @d option_is(A) ((strncmp(argv[a],"--" A, strlen(A)+2)==0) || 
        (strncmp(argv[a],"-" A, strlen(A)+1)==0))
-@d option_arg(B) (optarg && strncmp(optarg,B, strlen(B))==0)
+@d option_arg(B) (optarg != NULL && strncmp(optarg,B, strlen(B))==0)
 
 
 @<Read and set command line options@>=
 {
-  char *optarg;
+  char *mpost_optarg;
   boolean ini_version_test = false;
   while (++a<argc) {
-    optarg = strstr(argv[a],"=") ;
-    if (optarg!=NULL) {
-      optarg++;
-      if (!*optarg)  optarg=NULL;
+    mpost_optarg = strstr(argv[a],"=") ;
+    if (mpost_optarg!=NULL) {
+      mpost_optarg++;
+      if (*mpost_optarg == '\0')  mpost_optarg=NULL;
     }
     if (option_is("ini")) {
       ini_version_test = true;
     } else if (option_is("debug")) {
       debug = 1;
     } else if (option_is ("kpathsea-debug")) {
-      kpathsea_debug |= atoi (optarg);
+      if (mpost_optarg!=NULL)
+        kpathsea_debug |= atoi (mpost_optarg);
     } else if (option_is("mem")) {
-      options->mem_name = mpost_xstrdup(optarg);
-      if (!user_progname) 
-	    user_progname = optarg;
+      if (mpost_optarg!=NULL) {
+        mpost_xfree(options->mem_name);
+        options->mem_name = mpost_xstrdup(mpost_optarg);
+        if (user_progname == NULL) 
+	    user_progname = mpost_optarg;
+      }
     } else if (option_is("jobname")) {
-      options->job_name = mpost_xstrdup(optarg);
+      if (mpost_optarg!=NULL) {
+        mpost_xfree(options->job_name);
+        options->job_name = mpost_xstrdup(mpost_optarg);
+      }
     } else if (option_is ("progname")) {
-      user_progname = optarg;
+      user_progname = mpost_optarg;
     } else if (option_is("troff")) {
-      options->troff_mode = true;
+      options->troff_mode = (int)true;
     } else if (option_is ("tex")) {
-      mpost_tex_program = optarg;
+      mpost_tex_program = mpost_optarg;
     } else if (option_is("interaction")) {
       if (option_arg("batchmode")) {
         options->interaction = mp_batch_mode;
@@ -439,7 +462,7 @@ if (!nokpse)
         fprintf(stdout,"unknown option argument %s\n", argv[a]);
       }
     } else if (option_is("no-kpathsea")) {
-      nokpse=1;
+      nokpse=true;
     } else if (option_is("help")) {
       @<Show help and exit@>;
     } else if (option_is("version")) {
@@ -450,7 +473,7 @@ if (!nokpse)
       break;
     }
   }
-  options->ini_version = ini_version_test;
+  options->ini_version = (int)ini_version_test;
 }
 
 @ 
@@ -489,6 +512,7 @@ fprintf(stdout,
 @ 
 @<Show version...@>=
 {
+  char *s = mp_metapost_version();
 fprintf(stdout, 
 "\n"
 "MetaPost %s\n"
@@ -500,7 +524,8 @@ fprintf(stdout,
 "named COPYING and the MetaPost source.\n"
 "Primary author of MetaPost: John Hobby.\n"
 "Current maintainer of MetaPost: Taco Hoekwater.\n"
-"\n", mp_metapost_version());
+"\n", s);
+  mpost_xfree(s);
   exit(EXIT_SUCCESS);
 }
 
@@ -512,6 +537,7 @@ input.
 
 @<Copy the rest of the command line@>=
 {
+  mpost_xfree(options->command_line);
   options->command_line = mpost_xmalloc(command_line_size);
   strcpy(options->command_line,"");
   if (a<argc) {
@@ -538,7 +564,7 @@ input.
 
 @ A simple function to get numerical |texmf.cnf| values
 @c
-static int setup_var (int def, const char *var_name, int nokpse) {
+static int setup_var (int def, const char *var_name, boolean nokpse) {
   if (!nokpse) {
     char * expansion = kpse_var_value (var_name);
     if (expansion) {
@@ -554,10 +580,11 @@ static int setup_var (int def, const char *var_name, int nokpse) {
 
 @ @<Set up the banner line@>=
 {
-  const char *mpversion = mp_metapost_version () ;
+  char * mpversion = mp_metapost_version () ;
   const char * banner = "This is MetaPost, version ";
   const char * kpsebanner_start = " (";
   const char * kpsebanner_stop = ")";
+  mpost_xfree(options->banner);
   options->banner = mpost_xmalloc(strlen(banner)+
                             strlen(mpversion)+
                             strlen(kpsebanner_start)+
@@ -568,12 +595,108 @@ static int setup_var (int def, const char *var_name, int nokpse) {
   strcat (options->banner, kpsebanner_start);
   strcat (options->banner, kpathsea_version_string);
   strcat (options->banner, kpsebanner_stop);
+  mpost_xfree(mpversion);
 }
+
+@ Precedence order is:
+
+\item {} \.{-mem=MEMNAME} on the command line 
+\item {} \.{\&MEMNAME} on the command line 
+\item {} \.{\%\&MEM} as first line inside input file
+\item {} \.{argv[0]} if all else fails
+
+@<Discover the mem name@>=
+{
+  char *m = NULL; /* head of potential |mem_name| */
+  char *n = NULL; /* a moving pointer */
+  if (options->command_line != NULL && *(options->command_line) == '&'){
+    m = mpost_xstrdup(options->command_line+1);
+    n = m;
+    while (*n != '\0' && *n != ' ') n++;
+    while (*n == ' ') n++;
+    if (*n != '\0') { /* more command line to follow */
+      char *s = mpost_xstrdup(n);
+      if (n>m) n--;
+      while (*n == ' ' && n>m) n--;
+      n++;
+      *n ='\0'; /* this terminates |m| */
+      mpost_xfree(options->command_line);
+      options->command_line = s;
+    } else { /* only \.{\&MEMNAME} on command line */
+      if (n>m) n--;
+      while (*n == ' ' && n>m) n--;
+      n++;
+      *n ='\0'; /* this terminates |m| */
+      mpost_xfree(options->command_line);
+    }
+    if ( options->mem_name == NULL && *m != '\0') {
+      mpost_xfree(options->mem_name); /* for lint only */
+      options->mem_name = m;
+    } else {
+      mpost_xfree(m);
+    }
+  }
+}
+if ( options->mem_name == NULL ) {
+  char *m = NULL; /* head of potential |job_name| */
+  char *n = NULL; /* a moving pointer */
+  if (options->command_line != NULL && *(options->command_line) != '\\'){
+    m = mpost_xstrdup(options->command_line);
+    n = m;
+    while (*n != '\0' && *n != ' ') n++;
+    if (n>m) {
+      char *fname;
+      *n='\0';
+      fname = m;
+      if (!nokpse)
+        fname = kpse_find_file(m,kpse_mp_format,true);
+      if (fname == NULL) {
+        mpost_xfree(m);
+      } else {
+        FILE *F = fopen(fname,"r");
+        if (F==NULL) {
+          mpost_xfree(fname);
+        } else {
+          char *line = mpost_xmalloc(256);
+          if (fgets(line,255,F) == NULL) {
+            (void)fclose(F);
+            mpost_xfree(fname);
+            mpost_xfree(line);
+          } else {
+            (void)fclose(F);
+            while (*line != '\0' && *line == ' ') line++;
+            if (*line == '%') {
+              n = m = line+1;
+              while (*n != '\0' && *n == ' ') n++;
+              if (*n == '&') {
+                m = n+1;
+                while (*n != '\0' && *n != ' ') n++;
+                if (n>(m+1)) {
+                  n--;
+                  while (*n == ' ' && n>m) n--;
+                  *n ='\0'; /* this terminates |m| */
+                  options->mem_name = mpost_xstrdup(m);
+                  mpost_xfree(fname);
+                } else {
+                  mpost_xfree(fname);
+                  mpost_xfree(line);    
+                }
+              }
+            }
+          }
+        }
+      }
+    } else {
+      mpost_xfree(m);
+    }
+  }
+}
+if ( options->mem_name == NULL )
+  if (kpse_program_name!=NULL)
+    options->mem_name = mpost_xstrdup(kpse_program_name);
 
 
 @ Now this is really it: \MP\ starts and ends here.
-
-@d xfree(A) if (A!=NULL) free(A)
 
 @c 
 int main (int argc, char **argv) { /* |start_here| */
@@ -582,14 +705,16 @@ int main (int argc, char **argv) { /* |start_here| */
   MP mp; /* a metapost instance */
   struct MP_options * options; /* instance options */
   int a=0; /* argc counter */
-  int nokpse = 0; /* switch to {\it not} enable kpse */
+  boolean nokpse = false; /* switch to {\it not} enable kpse */
   char *user_progname = NULL; /* If the user overrides argv[0] with -progname.  */
   options = mp_options();
-  options->ini_version       = false;
-  options->print_found_names = true;
+  options->ini_version       = (int)false;
+  options->print_found_names = (int)true;
   @<Read and set command line options@>;
+  @= /*@@-nullpass@@*/ @> 
   if (!nokpse)
-    kpse_set_program_name("mpost",user_progname);  
+    kpse_set_program_name("mpost", user_progname);  
+  @= /*@@=nullpass@@*/ @> 
   if(putenv((char *)"engine=metapost"))
     fprintf(stdout,"warning: could not set up $engine\n");
   options->main_memory       = setup_var (50000,"main_memory",nokpse);
@@ -601,17 +726,20 @@ int main (int argc, char **argv) { /* |start_here| */
   options->max_print_line    = setup_var (100,"max_print_line",nokpse);
   @<Set up the banner line@>;
   @<Copy the rest of the command line@>;
+  if (options->ini_version!=(int)true) {
+    @<Discover the mem name@>;
+  }
   @<Register the callback routines@>;
   mp = mp_initialize(options);
-  xfree(options->command_line);
-  xfree(options->mem_name);
-  xfree(options->job_name);
-  xfree(options->banner);
+  mpost_xfree(options->command_line);
+  mpost_xfree(options->mem_name);
+  mpost_xfree(options->job_name);
+  mpost_xfree(options->banner);
   free(options);
   if (mp==NULL)
 	exit(EXIT_FAILURE);
   history = mp_status(mp);
-  if (history)
+  if (history!=0)
 	exit(history);
   history = mp_run(mp);
   (void)mp_finish(mp);
