@@ -69,6 +69,22 @@ static char *mpost_xstrdup(const char *s) {
   }
   return w;
 }
+static char *mpost_itoa (int i) {
+  char res[32] ;
+  unsigned idx = 30;
+  unsigned v = (unsigned)abs(i);
+  memset(res,0,32*sizeof(char));
+  while (v>=10) {
+    char d = (char)(v % 10);
+    v = v / 10;
+    res[idx--] = d;
+  }
+  res[idx--] = (char)v;
+  if (i<0) {
+      res[idx--] = '-';
+  }
+  return mpost_xstrdup(res+idx);
+}
 
 
 @ @c
@@ -89,39 +105,41 @@ static void mpost_run_editor (MP mp, char *fname, int fline) {
   while ((c = *edit_value++) != (char)0) {
       if (c == '%')   {
         switch (c = *edit_value++) {
-	    case 'd':
-	      if (ddone) {
-            fprintf (stderr,"call_edit: `%%d' appears twice in editor command\n");
-            exit(EXIT_FAILURE);  
-          }
-          sprintf (temp, "%d", fline);
-          while (*temp != '\0')
-            temp++;
-          ddone = 1;
-          break;
-	    case 's':
-          if (sdone) {
-            fprintf (stderr,"call_edit: `%%s' appears twice in editor command\n");
-            exit(EXIT_FAILURE);
-          }
-          while (*fname != '\0')
-		    *temp++ = *fname++;
-          *temp++ = '.';
-		  *temp++ = 'm';
-		  *temp++ = 'p';
-          sdone = 1;
-          break;
-	    case '\0':
-          *temp++ = '%';
-          /* Back up to the null to force termination.  */
-	      edit_value--;
-	      break;
-	    default:
-	      *temp++ = '%';
-	      *temp++ = c;
-	      break;
-	    }
-	 } else {
+	  case 'd':
+	    if (ddone) {
+              fprintf (stderr,"call_edit: `%%d' appears twice in editor command\n");
+              exit(EXIT_FAILURE);  
+            } else {
+              char *s = mpost_itoa(fline);
+              while (*s != '\0')
+	        *temp++ = *s++;
+              ddone = 1;
+            }
+            break;
+	  case 's':
+            if (sdone) {
+              fprintf (stderr,"call_edit: `%%s' appears twice in editor command\n");
+              exit(EXIT_FAILURE);
+            } else {
+              while (*fname != '\0')
+		*temp++ = *fname++;
+              *temp++ = '.';
+	      *temp++ = 'm';
+	      *temp++ = 'p';
+              sdone = 1;
+            }
+            break;
+	  case '\0':
+            *temp++ = '%';
+            /* Back up to the null to force termination.  */
+	    edit_value--;
+	    break;
+	  default:
+	    *temp++ = '%';
+	    *temp++ = c;
+	    break;
+	  }
+     } else {
      	*temp++ = c;
      }
    }
