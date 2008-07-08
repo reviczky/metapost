@@ -227,7 +227,6 @@ if ( strlen(mp->cur_ext)==0 )  {
     mp->cur_ext=mp_xstrdup(mp,".tfm"); 
 }
 mp_pack_file_name(mp, mp->cur_name,mp->cur_area,mp->cur_ext);
-mp_xfree(mp->tfm_infile);
 mp->tfm_infile = (mp->open_file)(mp, mp->name_of_file, "r",mp_filetype_metrics);
 if ( !mp->tfm_infile  ) goto BAD_TFM;
 file_opened=true
