@@ -2,6 +2,26 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in the beta release of MPlib 1.085:
+----------------------------------------------------------------------
+
+* Determination of the mem name to use in non-ini mode is now much 
+  closer to the web2c approach. 
+
+* There is now a magic word in the beginning of the mem file to make
+  sure it is written by the correct version of MPlib.
+
+* Fixed the disappearing comment sign in the to-be-typeset document 
+  created by the mpx generation subsystem.
+
+* Various identifiers have been renamed to avoid clashes (that prevented
+  the source from building correctly on many platforms)
+
+* A great many small changes and fixes have been added after running 
+  splint on the generated C source.
+
+
+----------------------------------------------------------------------
 What is new in the beta release of MPlib 1.080:
 ----------------------------------------------------------------------
 
