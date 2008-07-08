@@ -481,7 +481,7 @@ if (!nokpse)
 {
 fprintf(stdout,
 "\n"
-"Usage: mpost [OPTION] [MPNAME[.mp]] [COMMANDS]\n"
+"Usage: mpost [OPTION] [&MEMNAME] [MPNAME[.mp]] [COMMANDS]\n"
 "\n"
 "  Run MetaPost on MPNAME, usually creating MPNAME.NNN (and perhaps\n"
 "  MPNAME.tfm), where NNN are the character numbers generated.\n"
@@ -490,19 +490,19 @@ fprintf(stdout,
 fprintf(stdout,
 "  If no arguments or options are specified, prompt for input.\n"
 "\n"
-"  -ini                    be inimpost, for dumping mems\n"
-"  -interaction=STRING     set interaction mode (STRING=batchmode/nonstopmode/\n"
-"                          scrollmode/errorstopmode)\n"
-"  -jobname=STRING         set the job name to STRING\n"
-"  -progname=STRING        set program (and mem) name to STRING\n");
+"  -ini                      be inimpost, for dumping mem files\n"
+"  -interaction=STRING       set interaction mode (STRING=batchmode/nonstopmode/\n"
+"                            scrollmode/errorstopmode)\n"
+"  -jobname=STRING           set the job name to STRING\n"
+"  -progname=STRING          set program (and mem) name to STRING\n");
 fprintf(stdout,
-"  -tex=TEXPROGRAM         use TEXPROGRAM for text labels\n"
-"  -kpathsea-debug=NUMBER  set path searching debugging flags according to\n"
-"                          the bits of NUMBER\n"
-"  -mem=MEMNAME            use MEMNAME instead of program name or a %%& line\n"
-"  -troff                  set the prologues variable and assume TEXPROGRAM is really troff\n"
-"  -help                   display this help and exit\n"
-"  -version                output version information and exit\n"
+"  -tex=TEXPROGRAM           use TEXPROGRAM for text labels\n"
+"  -kpathsea-debug=NUMBER    set path searching debugging flags according to\n"
+"                            the bits of NUMBER\n"
+"  -mem=MEMNAME or &MEMNAME  use MEMNAME instead of program name or a %%& line\n"
+"  -troff                    set prologues:=1 and assume TEXPROGRAM is really troff\n"
+"  -help                     display this help and exit\n"
+"  -version                  output version information and exit\n"
 "\n"
 "Email bug reports to mp-implementors@@tug.org.\n"
 "\n");
