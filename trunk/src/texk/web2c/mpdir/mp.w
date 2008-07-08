@@ -88,8 +88,9 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.080" /* printed when \MP\ starts */
-@d metapost_version "1.080"
+@d default_banner "This is MetaPost, Version 1.085" /* printed when \MP\ starts */
+@d metapost_version "1.085"
+@d metapost_magic (('M'*256) + 'P')*65536 + 1085
 
 @d true 1
 @d false 0
@@ -195,8 +196,10 @@ the |Allocate or initialize variables| block.
 @c
 static MP mp_do_new (jmp_buf *buf) {
   MP mp = malloc(sizeof(MP_instance));
-  if (mp==NULL)
+  if (mp==NULL) {
+    xfree(buf);
 	return NULL;
+  }
   memset(mp,0,sizeof(MP_instance));
   mp->jump_buf = buf;
   return mp;
@@ -209,6 +212,7 @@ static void mp_free (MP mp) {
   if (mp->noninteractive) {
     @<Finish non-interactive use@>;
   }
+  xfree(mp->jump_buf);
   xfree(mp);
 }
 
@@ -223,9 +227,8 @@ static void mp_do_initialize ( MP mp) {
 MP mp_initialize (MP_options *opt) { 
   MP mp;
   jmp_buf *buf = malloc(sizeof(jmp_buf));
-  if (buf == NULL)  
+  if (buf == NULL || setjmp(*buf) != 0) 
     return NULL;
-  if (setjmp(*buf) != 0) { return NULL; }
   mp = mp_do_new(buf);
   if (mp == NULL)
     return NULL;
@@ -1465,7 +1468,7 @@ static integer mp_str_vs_str (MP mp, str_number s, str_number t) {
     if ( mp->str_pool[j]!=mp->str_pool[k] ) {
        return (mp->str_pool[j]-mp->str_pool[k]); 
     }
-    incr(j); incr(k);
+    j++; k++;
   }
   return (ls-lt);
 }
@@ -1764,7 +1767,7 @@ assumes that it is always safe to print a visible ASCII character.)
 static void mp_do_print (MP mp, const char *ss, size_t len) { /* prints string |s| */
   size_t j = 0;
   while ( j<len ){ 
-    mp_print_char(mp, xord((int)ss[j])); incr(j);
+    mp_print_char(mp, xord((int)ss[j])); j++;
   }
 }
 
@@ -2287,8 +2290,8 @@ while ( j<str_stop(mp->err_help) ) {
   if ( mp->str_pool[j]!='%' ) mp_print_str(mp, mp->str_pool[j]);
   else if ( j+1==str_stop(mp->err_help) ) mp_print_ln(mp);
   else if ( mp->str_pool[j+1]!='%' ) mp_print_ln(mp);
-  else  { incr(j); mp_print_char(mp, xord('%')); };
-  incr(j);
+  else  { j++; mp_print_char(mp, xord('%')); };
+  j++;
 }
 
 @ @<Put help message on the transcript file@>=
@@ -3142,10 +3145,10 @@ scaled mp_square_rt (MP mp,scaled x) {
 @ @<Decrease |k| by 1, maintaining...@>=
 x+=x; y+=y;
 if ( x>=fraction_four ) { /* note that |fraction_four=@t$2^{30}$@>| */
-  x=x-fraction_four; incr(y);
+  x=x-fraction_four; y++;
 };
 x+=x; y=y+y-q; q+=q;
-if ( x>=fraction_four ) { x=x-fraction_four; incr(y); };
+if ( x>=fraction_four ) { x=x-fraction_four; y++; };
 if ( y>(int)q ){ y=y-q; q=q+2; }
 else if ( y<=0 )  { q=q-2; y=y+q;  };
 decr(k)
@@ -3301,7 +3304,7 @@ static scaled mp_m_log (MP mp,scaled x) {
 @ @<Increase |k| until |x| can...@>=
 { 
   z=((x-1) / two_to_the(k))+1; /* $z=\lceil x/2^k\rceil$ */
-  while ( x<fraction_four+z ) { z=halfp(z+1); incr(k); };
+  while ( x<fraction_four+z ) { z=halfp(z+1); k++; };
   y+=spec_log[k]; x-=z;
 }
 
@@ -3366,7 +3369,7 @@ while ( z>0 ) {
     z-=spec_log[k];
     y=y-1-((y-two_to_the(k-1)) / two_to_the(k));
   }
-  incr(k);
+  k++;
 }
 
 @ The trigonometric subroutines use an auxiliary table such that
@@ -3483,13 +3486,13 @@ there is no chance of integer overflow.
 @<Increase |z|...@>=
 k=0;
 do {  
-  y+=y; incr(k);
+  y+=y; k++;
   if ( y>x ){ 
     z=z+spec_atan[k]; t=x; x=x+(y / two_to_the(k+k)); y=y-t;
   };
 } while (k!=15);
 do {  
-  y+=y; incr(k);
+  y+=y; k++;
   if ( y>x ) { z=z+spec_atan[k]; y=y-x; };
 } while (k!=26)
 
@@ -3553,7 +3556,7 @@ while ( z>0 ){
     x=t+y / two_to_the(k);
     y=y-t / two_to_the(k);
   }
-  incr(k);
+  k++;
 }
 if ( y<0 ) y=0 /* this precaution may never be needed */
 
@@ -4463,8 +4466,8 @@ while ( p<=mp->lo_mem_max ) { /* node |p| should not be empty */
     mp_print_nl(mp, "Bad flag at "); mp_print_int(mp, p);
 @.Bad flag...@>
   }
-  while ( (p<=mp->lo_mem_max) && ! mp->free[p] ) incr(p);
-  while ( (p<=mp->lo_mem_max) && mp->free[p] ) incr(p);
+  while ( (p<=mp->lo_mem_max) && ! mp->free[p] ) p++;
+  while ( (p<=mp->lo_mem_max) && mp->free[p] ) p++;
 }
 
 @ @<Print newly busy...@>=
@@ -21983,6 +21986,7 @@ static void mp_main_control (MP mp) {
 }
 int mp_run (MP mp) {
   if (mp->history < mp_fatal_error_stop ) {
+    xfree(mp->jump_buf);
     mp->jump_buf = malloc(sizeof(jmp_buf));
     if (mp->jump_buf == NULL || setjmp(*(mp->jump_buf)) != 0) 
       return mp->history;
@@ -22394,6 +22398,7 @@ int mp_execute (MP mp, char *s, size_t l) {
       return mp->history;
   }
   if (mp->history < mp_fatal_error_stop ) {
+    xfree(mp->jump_buf);
     mp->jump_buf = malloc(sizeof(jmp_buf));
     if (mp->jump_buf == NULL || setjmp(*(mp->jump_buf)) != 0) {   
        return mp->history; 
@@ -22441,6 +22446,7 @@ int mp_finish (MP mp) {
     mp_free(mp);
     return history;
   }
+  xfree(mp->jump_buf);
   mp->jump_buf = malloc(sizeof(jmp_buf));
   if (mp->jump_buf == NULL || setjmp(*(mp->jump_buf)) != 0) { 
     history = mp->history;
@@ -25900,7 +25906,6 @@ boolean mp_load_mem_file (MP mp) {
   str_number s; /* some temporary string */
   four_quarters w; /* four ASCII codes */
   memory_word WW;
-  /* |@<Undump constants for consistency check@>;|  read earlier */
   @<Undump the string pool@>;
   @<Undump the dynamic memory@>;
   @<Undump the table of equivalents and the hash table@>;
@@ -25974,6 +25979,7 @@ read an integer value |x| that is supposed to be in the range |a<=x<=b|.
 dump/undump macros.
 
 @<Dump constants for consistency check@>=
+x = metapost_magic; dump_int(x);
 dump_int(mp->mem_top);
 dump_int((integer)mp->hash_size);
 dump_int(mp->hash_prime)
@@ -25987,6 +25993,8 @@ the same strings. (And it is, of course, a good thing that they do.)
 @^string pool@>
 
 @<Undump constants for consistency check@>=
+undump_int(x); 
+if (x!=metapost_magic) goto OFF_BASE;
 undump_int(x); mp->mem_top = x;
 undump_int(x); mp->hash_size = (unsigned)x;
 undump_int(x); mp->hash_prime = x;
@@ -26022,7 +26030,7 @@ while (1)  {
   }
 }
 k=0;
-while (k+4<mp->pool_ptr ) { 
+while (k+4<mp->pool_ptr ) {
   dump_four_ASCII; k=k+4; 
 }
 k=mp->pool_ptr-4; dump_four_ASCII;
