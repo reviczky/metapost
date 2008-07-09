@@ -4236,29 +4236,29 @@ a \MP\ path.
 
 @(psout.h@>=
 typedef struct mp_knot {
-  unsigned short left_type_field;
-  unsigned short right_type_field;
-  signed int x_coord_field;
-  signed int y_coord_field;
-  signed int left_x_field;
-  signed int left_y_field;
-  signed int right_x_field;
-  signed int right_y_field;
-  struct mp_knot * next_field;
-  unsigned char originator_field;
+  unsigned short left_type;
+  unsigned short right_type;
+  signed int x_coord;
+  signed int y_coord;
+  signed int left_x;
+  signed int left_y;
+  signed int right_x;
+  signed int right_y;
+  struct mp_knot * next;
+  unsigned char originator;
 } mp_knot;
 
 @ @<Types...@>=
-#define gr_left_type(A)  (A)->left_type_field 
-#define gr_right_type(A) (A)->right_type_field
-#define gr_x_coord(A)    (A)->x_coord_field   
-#define gr_y_coord(A)    (A)->y_coord_field   
-#define gr_left_x(A)     (A)->left_x_field    
-#define gr_left_y(A)     (A)->left_y_field    
-#define gr_right_x(A)    (A)->right_x_field   
-#define gr_right_y(A)    (A)->right_y_field   
-#define gr_next_knot(A)  (A)->next_field
-#define gr_originator(A) (A)->originator_field
+#define gr_left_type(A)  (A)->left_type
+#define gr_right_type(A) (A)->right_type
+#define gr_x_coord(A)    (A)->x_coord
+#define gr_y_coord(A)    (A)->y_coord  
+#define gr_left_x(A)     (A)->left_x
+#define gr_left_y(A)     (A)->left_y
+#define gr_right_x(A)    (A)->right_x
+#define gr_right_y(A)    (A)->right_y
+#define gr_next_knot(A)  (A)->next
+#define gr_originator(A) (A)->originator
 
 @ If we want to duplicate a knot node, we can say |copy_knot|:
 
@@ -4576,7 +4576,7 @@ typedef struct mp_special_object {
 
 typedef struct mp_edge_object {
   struct mp_graphic_object * body;
-  struct mp_edge_object * _next;
+  struct mp_edge_object * next;
   char * _filename;
   MP _parent;
   int _minx, _miny, _maxx, _maxy;

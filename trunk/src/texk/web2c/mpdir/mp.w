@@ -5379,12 +5379,12 @@ table, it is never removed.
 The actual sequence of characters forming a symbolic token is
 stored in the |str_pool| array together with all the other strings. An
 auxiliary array |hash| consists of items with two halfword fields per
-word. The first of these, called |next(p)|, points to the next identifier
+word. The first of these, called |mp_next(p)|, points to the next identifier
 belonging to the same coalesced list as the identifier corresponding to~|p|;
 and the other, called |text(p)|, points to the |str_start| entry for
 |p|'s identifier. If position~|p| of the hash table is empty, we have
 |text(p)=0|; if position |p| is either empty or the end of a coalesced
-hash list, we have |next(p)=0|.
+hash list, we have |mp_next(p)=0|.
 
 An auxiliary pointer variable called |hash_used| is maintained in such a
 way that all locations |p>=hash_used| are nonempty. The global variable
@@ -5398,7 +5398,7 @@ values of each symbolic token. The entries of this array consist of
 two halfwords called |eq_type| (a command code) and |equiv| (a secondary
 piece of information that qualifies the |eq_type|).
 
-@d next(A)   mp->hash[(A)].lh /* link for coalesced lists */
+@d mp_next(A)   mp->hash[(A)].lh /* link for coalesced lists */
 @d text(A)   mp->hash[(A)].rh /* string number for symbolic token name */
 @d eq_type(A)   mp->eqtb[(A)].lh /* the current ``meaning'' of a symbolic token */
 @d equiv(A)   mp->eqtb[(A)].rh /* parametric part of a token's meaning */
@@ -5443,7 +5443,7 @@ xfree(mp->hash);
 xfree(mp->eqtb);
 
 @ @<Set init...@>=
-next(1)=0; text(1)=0; eq_type(1)=tag_token; equiv(1)=null;
+mp_next(1)=0; text(1)=0; eq_type(1)=tag_token; equiv(1)=null;
 for (k=2;k<=hash_end;k++)  { 
   mp->hash[k]=mp->hash[1]; mp->eqtb[k]=mp->eqtb[1];
 }
@@ -5488,11 +5488,11 @@ static pointer mp_id_lookup (MP mp,integer j, integer l) { /* search the hash ta
   while (true)  { 
 	if (text(p)>0 && length(text(p))==l && mp_str_eq_buf(mp, text(p),j)) 
       break;
-    if ( next(p)==0 ) {
+    if ( mp_next(p)==0 ) {
       @<Insert a new symbolic token after |p|, then
         make |p| point to it and |break|@>;
     }
-    p=next(p);
+    p=mp_next(p);
   }
   return p;
 }
@@ -5510,7 +5510,7 @@ if ( text(p)>0 ) {
 @:MetaPost capacity exceeded hash size}{\quad hash size@>
     decr(mp->hash_used);
   } while (text(mp->hash_used)!=0); /* search for an empty location in |hash| */
-  next(p)=mp->hash_used; 
+  mp_next(p)=mp->hash_used; 
   p=mp->hash_used;
 }
 str_room(l);
@@ -6823,7 +6823,7 @@ for |0<=t<=1|.
 There is a 8-word node for each knot $z_k$, containing one word of
 control information and six words for the |x| and |y| coordinates of
 $z_k^-$ and $z_k$ and~$z_k^+$. The control information appears in the
-|left_type| and |right_type| fields, which each occupy a quarter of
+|mp_left_type| and |mp_right_type| fields, which each occupy a quarter of
 the first word in the node; they specify properties of the curve as it
 enters and leaves the knot. There's also a halfword |link| field,
 which points to the following knot, and a final supplementary word (of
@@ -6831,18 +6831,18 @@ which only a quarter is used).
 
 If the path is a closed contour, knots 0 and |n| are identical;
 i.e., the |link| in knot |n-1| points to knot~0. But if the path
-is not closed, the |left_type| of knot~0 and the |right_type| of knot~|n|
+is not closed, the |mp_left_type| of knot~0 and the |mp_right_type| of knot~|n|
 are equal to |endpoint|. In the latter case the |link| in knot~|n| points
 to knot~0, and the control points $z_0^-$ and $z_n^+$ are not used.
 
-@d left_type(A)   mp->mem[(A)].hh.b0 /* characterizes the path entering this knot */
-@d right_type(A)   mp->mem[(A)].hh.b1 /* characterizes the path leaving this knot */
-@d x_coord(A)   mp->mem[(A)+1].sc /* the |x| coordinate of this knot */
-@d y_coord(A)   mp->mem[(A)+2].sc /* the |y| coordinate of this knot */
-@d left_x(A)   mp->mem[(A)+3].sc /* the |x| coordinate of previous control point */
-@d left_y(A)   mp->mem[(A)+4].sc /* the |y| coordinate of previous control point */
-@d right_x(A)   mp->mem[(A)+5].sc /* the |x| coordinate of next control point */
-@d right_y(A)   mp->mem[(A)+6].sc /* the |y| coordinate of next control point */
+@d mp_left_type(A)   mp->mem[(A)].hh.b0 /* characterizes the path entering this knot */
+@d mp_right_type(A)   mp->mem[(A)].hh.b1 /* characterizes the path leaving this knot */
+@d mp_x_coord(A)   mp->mem[(A)+1].sc /* the |x| coordinate of this knot */ 
+@d mp_y_coord(A)   mp->mem[(A)+2].sc /* the |y| coordinate of this knot */
+@d mp_left_x(A)   mp->mem[(A)+3].sc /* the |x| coordinate of previous control point */
+@d mp_left_y(A)   mp->mem[(A)+4].sc /* the |y| coordinate of previous control point */
+@d mp_right_x(A)   mp->mem[(A)+5].sc /* the |x| coordinate of next control point */
+@d mp_right_y(A)   mp->mem[(A)+6].sc /* the |y| coordinate of next control point */
 @d x_loc(A)   ((A)+1) /* where the |x| coordinate is stored in a knot */
 @d y_loc(A)   ((A)+2) /* where the |y| coordinate is stored in a knot */
 @d knot_coord(A)   mp->mem[(A)].sc /* |x| or |y| coordinate given |x_loc| or |y_loc| */
@@ -6854,11 +6854,11 @@ to knot~0, and the control points $z_0^-$ and $z_n^+$ are not used.
 
 @(mplib.h@>=
 enum mp_knot_type {
- mp_endpoint=0, /* |left_type| at path beginning and |right_type| at path end */
- mp_explicit, /* |left_type| or |right_type| when control points are known */
- mp_given, /* |left_type| or |right_type| when a direction is given */
- mp_curl, /* |left_type| or |right_type| when a curl is desired */
- mp_open, /* |left_type| or |right_type| when \MP\ should choose the direction */
+ mp_endpoint=0, /* |mp_left_type| at path beginning and |mp_right_type| at path end */
+ mp_explicit, /* |mp_left_type| or |mp_right_type| when control points are known */
+ mp_given, /* |mp_left_type| or |mp_right_type| when a direction is given */
+ mp_curl, /* |mp_left_type| or |mp_right_type| when a curl is desired */
+ mp_open, /* |mp_left_type| or |mp_right_type| when \MP\ should choose the direction */
  mp_end_cycle
 };
 
@@ -6867,26 +6867,26 @@ space they will ultimately occupy is taken up by information that can be
 used to compute them. There are four cases:
 
 \yskip
-\textindent{$\bullet$} If |right_type=mp_open|, the curve should leave
+\textindent{$\bullet$} If |mp_right_type=mp_open|, the curve should leave
 the knot in the same direction it entered; \MP\ will figure out a
 suitable direction.
 
 \yskip
-\textindent{$\bullet$} If |right_type=mp_curl|, the curve should leave the
+\textindent{$\bullet$} If |mp_right_type=mp_curl|, the curve should leave the
 knot in a direction depending on the angle at which it enters the next
 knot and on the curl parameter stored in |right_curl|.
 
 \yskip
-\textindent{$\bullet$} If |right_type=mp_given|, the curve should leave the
+\textindent{$\bullet$} If |mp_right_type=mp_given|, the curve should leave the
 knot in a nonzero direction stored as an |angle| in |right_given|.
 
 \yskip
-\textindent{$\bullet$} If |right_type=mp_explicit|, the B\'ezier control
+\textindent{$\bullet$} If |mp_right_type=mp_explicit|, the B\'ezier control
 point for leaving this knot has already been computed; it is in the
-|right_x| and |right_y| fields.
+|mp_right_x| and |mp_right_y| fields.
 
 \yskip\noindent
-The rules for |left_type| are similar, but they refer to the curve entering
+The rules for |mp_left_type| are similar, but they refer to the curve entering
 the knot, and to \\{left} fields instead of \\{right} fields.
 
 Non-|explicit| control points will be chosen based on ``tension'' parameters
@@ -6901,7 +6901,7 @@ where \.p is the path `\.{z4..controls z45 and z54..z5}', will be represented
 by the six knots
 \def\lodash{\hbox to 1.1em{\thinspace\hrulefill\thinspace}}
 $$\vbox{\halign{#\hfil&&\qquad#\hfil\cr
-|left_type|&\\{left} info&|x_coord,y_coord|&|right_type|&\\{right} info\cr
+|mp_left_type|&\\{left} info&|mp_x_coord,mp_y_coord|&|mp_right_type|&\\{right} info\cr
 \noalign{\yskip}
 |endpoint|&\lodash$,\,$\lodash&$x_0,y_0$&|curl|&$1.0,1.0$\cr
 |open|&\lodash$,1.0$&$x_1,y_1$&|open|&\lodash$,-1.0$\cr
@@ -6917,16 +6917,16 @@ These types must satisfy certain restrictions because of the form of \MP's
 path syntax:
 (i)~|open| type never appears in the same node together with |endpoint|,
 |given|, or |curl|.
-(ii)~The |right_type| of a node is |explicit| if and only if the
-|left_type| of the following node is |explicit|.
+(ii)~The |mp_right_type| of a node is |explicit| if and only if the
+|mp_left_type| of the following node is |explicit|.
 (iii)~|endpoint| types occur only at the ends, as mentioned above.
 
-@d left_curl left_x /* curl information when entering this knot */
-@d left_given left_x /* given direction when entering this knot */
-@d left_tension left_y /* tension information when entering this knot */
-@d right_curl right_x /* curl information when leaving this knot */
-@d right_given right_x /* given direction when leaving this knot */
-@d right_tension right_y /* tension information when leaving this knot */
+@d left_curl mp_left_x /* curl information when entering this knot */
+@d left_given mp_left_x /* given direction when entering this knot */
+@d left_tension mp_left_y /* tension information when entering this knot */
+@d right_curl mp_right_x /* curl information when leaving this knot */
+@d right_given mp_right_x /* given direction when leaving this knot */
+@d right_tension mp_right_y /* tension information when leaving this knot */
 
 @ Knots can be user-supplied, or they can be created by program code,
 like the |split_cubic| function, or |copy_path|. The distinction is
@@ -6937,7 +6937,7 @@ one knot from another, we will set |originator(p):=mp_metapost_user| when
 it appeared in the actual metapost program, and
 |originator(p):=mp_program_code| in all other cases.
 
-@d originator(A)   mp->mem[(A)+7].hh.b0 /* the creator of this knot */
+@d mp_originator(A)   mp->mem[(A)+7].hh.b0 /* the creator of this knot */
 
 @<Exported types@>=
 enum mp_knot_originator {
@@ -6965,21 +6965,21 @@ void mp_pr_path (MP mp,pointer h) {
     @<Print information for adjacent knots |p| and |q|@>;
   DONE1:
     p=q;
-    if ( (p!=h)||(left_type(h)!=mp_endpoint) ) {
+    if ( (p!=h)||(mp_left_type(h)!=mp_endpoint) ) {
       @<Print two dots, followed by |given| or |curl| if present@>;
     }
   } while (p!=h);
-  if ( left_type(h)!=mp_endpoint ) 
+  if ( mp_left_type(h)!=mp_endpoint ) 
     mp_print(mp, "cycle");
 }
 
 @ @<Print information for adjacent knots...@>=
-mp_print_two(mp, x_coord(p),y_coord(p));
-switch (right_type(p)) {
+mp_print_two(mp, mp_x_coord(p),mp_y_coord(p));
+switch (mp_right_type(p)) {
 case mp_endpoint: 
-  if ( left_type(p)==mp_open ) mp_print(mp, "{open?}"); /* can't happen */
+  if ( mp_left_type(p)==mp_open ) mp_print(mp, "{open?}"); /* can't happen */
 @.open?@>
-  if ( (left_type(q)!=mp_endpoint)||(q!=h) ) q=null; /* force an error */
+  if ( (mp_left_type(q)!=mp_endpoint)||(q!=h) ) q=null; /* force an error */
   goto DONE1;
   break;
 case mp_explicit: 
@@ -6997,7 +6997,7 @@ default:
 @.???@>
   break;
 }
-if ( left_type(q)<=mp_explicit ) {
+if ( mp_left_type(q)<=mp_explicit ) {
   mp_print(mp, "..control?"); /* can't happen */
 @.control?@>
 } else if ( (right_tension(p)!=unity)||(left_tension(q)!=unity) ) {
@@ -7010,11 +7010,11 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
 @<Print two dots...@>=
 { 
   mp_print_nl(mp, " ..");
-  if ( left_type(p)==mp_given ) { 
+  if ( mp_left_type(p)==mp_given ) { 
     mp_n_sin_cos(mp, left_given(p)); mp_print_char(mp, xord('{'));
     mp_print_scaled(mp, mp->n_cos); mp_print_char(mp, xord(','));
     mp_print_scaled(mp, mp->n_sin); mp_print_char(mp, xord('}'));
-  } else if ( left_type(p)==mp_curl ){ 
+  } else if ( mp_left_type(p)==mp_curl ){ 
     mp_print(mp, "{curl "); 
     mp_print_scaled(mp, left_curl(p)); mp_print_char(mp, xord('}'));
   }
@@ -7035,19 +7035,19 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
 @ @<Print control points between |p| and |q|, then |goto done1|@>=
 { 
   mp_print(mp, "..controls "); 
-  mp_print_two(mp, right_x(p),right_y(p)); 
+  mp_print_two(mp, mp_right_x(p),mp_right_y(p)); 
   mp_print(mp, " and ");
-  if ( left_type(q)!=mp_explicit ) { 
+  if ( mp_left_type(q)!=mp_explicit ) { 
     mp_print(mp, "??"); /* can't happen */
 @.??@>
   } else {
-    mp_print_two(mp, left_x(q),left_y(q));
+    mp_print_two(mp, mp_left_x(q),mp_left_y(q));
   }
   goto DONE1;
 }
 
 @ @<Print information for a curve that begins |open|@>=
-if ( (left_type(p)!=mp_explicit)&&(left_type(p)!=mp_open) ) {
+if ( (mp_left_type(p)!=mp_explicit)&&(mp_left_type(p)!=mp_open) ) {
   mp_print(mp, "{open?}"); /* can't happen */
 @.open?@>
 }
@@ -7057,10 +7057,10 @@ if ( (left_type(p)!=mp_explicit)&&(left_type(p)!=mp_open) ) {
 
 @<Print information for a curve that begins |curl|...@>=
 { 
-  if ( left_type(p)==mp_open )  
+  if ( mp_left_type(p)==mp_open )  
     mp_print(mp, "??"); /* can't happen */
 @.??@>
-  if ( right_type(p)==mp_curl ) { 
+  if ( mp_right_type(p)==mp_curl ) { 
     mp_print(mp, "{curl "); mp_print_scaled(mp, right_curl(p));
   } else { 
     mp_n_sin_cos(mp, right_given(p)); mp_print_char(mp, xord('{'));
@@ -7094,7 +7094,7 @@ static pointer mp_copy_knot (MP mp,pointer p) {
   for (k=0;k<knot_node_size;k++) {
     mp->mem[q+k]=mp->mem[p+k];
   }
-  originator(q)=originator(p);
+  mp_originator(q)=mp_originator(p);
   return q;
 }
 
@@ -7126,15 +7126,15 @@ static mp_knot *mp_export_knot (MP mp,pointer p) {
      return NULL;
   q = xmalloc(1, sizeof (mp_knot));
   memset(q,0,sizeof (mp_knot));
-  gr_left_type(q)  = (unsigned short)left_type(p);
-  gr_right_type(q) = (unsigned short)right_type(p);
-  gr_x_coord(q)    = x_coord(p);
-  gr_y_coord(q)    = y_coord(p);
-  gr_left_x(q)     = left_x(p);
-  gr_left_y(q)     = left_y(p);
-  gr_right_x(q)    = right_x(p);
-  gr_right_y(q)    = right_y(p);
-  gr_originator(q) = (unsigned char)originator(p);
+  gr_left_type(q)  = (unsigned short)mp_left_type(p);
+  gr_right_type(q) = (unsigned short)mp_right_type(p);
+  gr_x_coord(q)    = mp_x_coord(p);
+  gr_y_coord(q)    = mp_y_coord(p);
+  gr_left_x(q)     = mp_left_x(p);
+  gr_left_y(q)     = mp_left_y(p);
+  gr_right_x(q)    = mp_right_x(p);
+  gr_right_y(q)    = mp_right_y(p);
+  gr_originator(q) = (unsigned char)mp_originator(p);
   return q;
 }
 
@@ -7173,11 +7173,11 @@ static pointer mp_htap_ypoc (MP mp,pointer p) {
   q=mp_get_node(mp, knot_node_size); /* this will correspond to |p| */
   qq=q; pp=p;
   while (1) { 
-    right_type(qq)=left_type(pp); left_type(qq)=right_type(pp);
-    x_coord(qq)=x_coord(pp); y_coord(qq)=y_coord(pp);
-    right_x(qq)=left_x(pp); right_y(qq)=left_y(pp);
-    left_x(qq)=right_x(pp); left_y(qq)=right_y(pp);
-    originator(qq)=originator(pp);
+    mp_right_type(qq)=mp_left_type(pp); mp_left_type(qq)=mp_right_type(pp);
+    mp_x_coord(qq)=mp_x_coord(pp); mp_y_coord(qq)=mp_y_coord(pp);
+    mp_right_x(qq)=mp_left_x(pp); mp_right_y(qq)=mp_left_y(pp);
+    mp_left_x(qq)=mp_right_x(pp); mp_left_y(qq)=mp_right_y(pp);
+    mp_originator(qq)=mp_originator(pp);
     if ( mp_link(pp)==p ) { 
       mp_link(q)=qq; mp->path_tail=pp; return q;
     }
@@ -7214,7 +7214,7 @@ path information, as described above.
 
 A path decomposes into independent segments at ``breakpoint'' knots,
 which are knots whose left and right angles are both prespecified in
-some way (i.e., their |left_type| and |right_type| aren't both open).
+some way (i.e., their |mp_left_type| and |mp_right_type| aren't both open).
 
 @c 
 static void mp_make_choices (MP mp,pointer knots) {
@@ -7256,57 +7256,58 @@ knots.
 p=knots;
 do {  
   q=mp_link(p);
-  if ( x_coord(p)==x_coord(q) && y_coord(p)==y_coord(q) && right_type(p)>mp_explicit ) { 
-    right_type(p)=mp_explicit;
-    if ( left_type(p)==mp_open ) { 
-      left_type(p)=mp_curl; left_curl(p)=unity;
+  if ( mp_x_coord(p)==mp_x_coord(q) && 
+       mp_y_coord(p)==mp_y_coord(q) && mp_right_type(p)>mp_explicit ) { 
+    mp_right_type(p)=mp_explicit;
+    if ( mp_left_type(p)==mp_open ) { 
+      mp_left_type(p)=mp_curl; left_curl(p)=unity;
     }
-    left_type(q)=mp_explicit;
-    if ( right_type(q)==mp_open ) { 
-      right_type(q)=mp_curl; right_curl(q)=unity;
+    mp_left_type(q)=mp_explicit;
+    if ( mp_right_type(q)==mp_open ) { 
+      mp_right_type(q)=mp_curl; right_curl(q)=unity;
     }
-    right_x(p)=x_coord(p); left_x(q)=x_coord(p);
-    right_y(p)=y_coord(p); left_y(q)=y_coord(p);
+    mp_right_x(p)=mp_x_coord(p); mp_left_x(q)=mp_x_coord(p);
+    mp_right_y(p)=mp_y_coord(p); mp_left_y(q)=mp_y_coord(p);
   }
   p=q;
 } while (p!=knots)
 
 @ If there are no breakpoints, it is necessary to compute the direction
-angles around an entire cycle. In this case the |left_type| of the first
+angles around an entire cycle. In this case the |mp_left_type| of the first
 node is temporarily changed to |end_cycle|.
 
 @<Find the first breakpoint, |h|, on the path...@>=
 h=knots;
 while (1) { 
-  if ( left_type(h)!=mp_open ) break;
-  if ( right_type(h)!=mp_open ) break;
+  if ( mp_left_type(h)!=mp_open ) break;
+  if ( mp_right_type(h)!=mp_open ) break;
   h=mp_link(h);
   if ( h==knots ) { 
-    left_type(h)=mp_end_cycle; break;
+    mp_left_type(h)=mp_end_cycle; break;
   }
 }
 
-@ If |right_type(p)<given| and |q=mp_link(p)|, we must have
-|right_type(p)=left_type(q)=mp_explicit| or |endpoint|.
+@ If |mp_right_type(p)<given| and |q=mp_link(p)|, we must have
+|mp_right_type(p)=mp_left_type(q)=mp_explicit| or |endpoint|.
 
 @<Fill in the control points between |p| and the next breakpoint...@>=
 q=mp_link(p);
-if ( right_type(p)>=mp_given ) { 
-  while ( (left_type(q)==mp_open)&&(right_type(q)==mp_open) ) q=mp_link(q);
+if ( mp_right_type(p)>=mp_given ) { 
+  while ( (mp_left_type(q)==mp_open)&&(mp_right_type(q)==mp_open) ) q=mp_link(q);
   @<Fill in the control information between
     consecutive breakpoints |p| and |q|@>;
-} else if ( right_type(p)==mp_endpoint ) {
+} else if ( mp_right_type(p)==mp_endpoint ) {
   @<Give reasonable values for the unused control points between |p| and~|q|@>;
 }
 p=q
 
 @ This step makes it possible to transform an explicitly computed path without
-checking the |left_type| and |right_type| fields.
+checking the |mp_left_type| and |mp_right_type| fields.
 
 @<Give reasonable values for the unused control points between |p| and~|q|@>=
 { 
-  right_x(p)=x_coord(p); right_y(p)=y_coord(p);
-  left_x(q)=x_coord(q); left_y(q)=y_coord(q);
+  mp_right_x(p)=mp_x_coord(p); mp_right_y(p)=mp_y_coord(p);
+  mp_left_x(q)=mp_x_coord(q); mp_left_y(q)=mp_y_coord(q);
 }
 
 @ Before we can go further into the way choices are made, we need to
@@ -7459,8 +7460,8 @@ RESTART:
   k=0; s=p; n=mp->path_size;
   do {  
     t=mp_link(s);
-    mp->delta_x[k]=x_coord(t)-x_coord(s);
-    mp->delta_y[k]=y_coord(t)-y_coord(s);
+    mp->delta_x[k]=mp_x_coord(t)-mp_x_coord(s);
+    mp->delta_y[k]=mp_y_coord(t)-mp_y_coord(s);
     mp->delta[k]=mp_pyth_add(mp, mp->delta_x[k],mp->delta_y[k]);
     if ( k>0 ) { 
       sine=mp_make_fraction(mp, mp->delta_y[k-1],mp->delta[k-1]);
@@ -7476,35 +7477,35 @@ RESTART:
       goto RESTART; /* retry, loop size has changed */
     }
     if ( s==q ) n=k;
-  } while (!((k>=n)&&(left_type(s)!=mp_end_cycle)));
+  } while (!((k>=n)&&(mp_left_type(s)!=mp_end_cycle)));
   if ( k==n ) mp->psi[n]=0; else mp->psi[k]=mp->psi[1];
 }
 
-@ When we get to this point of the code, |right_type(p)| is either
+@ When we get to this point of the code, |mp_right_type(p)| is either
 |given| or |curl| or |open|. If it is |open|, we must have
-|left_type(p)=mp_end_cycle| or |left_type(p)=mp_explicit|. In the latter
+|mp_left_type(p)=mp_end_cycle| or |mp_left_type(p)=mp_explicit|. In the latter
 case, the |open| type is converted to |given|; however, if the
 velocity coming into this knot is zero, the |open| type is
 converted to a |curl|, since we don't know the incoming direction.
 
-Similarly, |left_type(q)| is either |given| or |curl| or |open| or
+Similarly, |mp_left_type(q)| is either |given| or |curl| or |open| or
 |mp_end_cycle|. The |open| possibility is reduced either to |given| or to |curl|.
 
 @<Remove |open| types at the breakpoints@>=
-if ( left_type(q)==mp_open ) { 
-  delx=right_x(q)-x_coord(q); dely=right_y(q)-y_coord(q);
+if ( mp_left_type(q)==mp_open ) { 
+  delx=mp_right_x(q)-mp_x_coord(q); dely=mp_right_y(q)-mp_y_coord(q);
   if ( (delx==0)&&(dely==0) ) { 
-    left_type(q)=mp_curl; left_curl(q)=unity;
+    mp_left_type(q)=mp_curl; left_curl(q)=unity;
   } else { 
-    left_type(q)=mp_given; left_given(q)=mp_n_arg(mp, delx,dely);
+    mp_left_type(q)=mp_given; left_given(q)=mp_n_arg(mp, delx,dely);
   }
 }
-if ( (right_type(p)==mp_open)&&(left_type(p)==mp_explicit) ) { 
-  delx=x_coord(p)-left_x(p); dely=y_coord(p)-left_y(p);
+if ( (mp_right_type(p)==mp_open)&&(mp_left_type(p)==mp_explicit) ) { 
+  delx=mp_x_coord(p)-mp_left_x(p); dely=mp_y_coord(p)-mp_left_y(p);
   if ( (delx==0)&&(dely==0) ) { 
-    right_type(p)=mp_curl; right_curl(p)=unity;
+    mp_right_type(p)=mp_curl; right_curl(p)=unity;
   } else { 
-    right_type(p)=mp_given; right_given(p)=mp_n_arg(mp, delx,dely);
+    mp_right_type(p)=mp_given; right_given(p)=mp_n_arg(mp, delx,dely);
   }
 }
 
@@ -7590,7 +7591,7 @@ void mp_solve_choices (MP mp,pointer p, pointer q, halfword n) {
         with the control points in place, if linear equations
         needn't be solved@>
     } else  { 
-      switch (left_type(s)) {
+      switch (mp_left_type(s)) {
       case mp_end_cycle: case mp_open:
         @<Set up equation to match mock curvatures
           at $z_k$; then |goto found| with $\theta_n$
@@ -7616,16 +7617,16 @@ FOUND:
 defined. The first linear equation, if any, will have $A_0=B_0=0$.
 
 @<Get the linear equations started...@>=
-switch (right_type(s)) {
+switch (mp_right_type(s)) {
 case mp_given: 
-  if ( left_type(t)==mp_given ) {
+  if ( mp_left_type(t)==mp_given ) {
     @<Reduce to simple case of two givens  and |return|@>
   } else {
     @<Set up the equation for a given value of $\theta_0$@>;
   }
   break;
 case mp_curl: 
-  if ( left_type(t)==mp_curl ) {
+  if ( mp_left_type(t)==mp_curl ) {
     @<Reduce to simple case of straight line and |return|@>
   } else {
     @<Set up the equation for a curl at $\theta_0$@>;
@@ -7665,7 +7666,7 @@ scaled lt,rt; /* tension values */
   @<Calculate the ratio $\\{ff}=C_k/(C_k+B_k-u_{k-1}A_k)$@>;
   mp->uu[k]=mp_take_fraction(mp, ff,bb);
   @<Calculate the values of $v_k$ and $w_k$@>;
-  if ( left_type(s)==mp_end_cycle ) {
+  if ( mp_left_type(s)==mp_end_cycle ) {
     @<Adjust $\theta_n$ to equal $\theta_0$ and |goto found|@>;
   }
 }
@@ -7721,7 +7722,7 @@ $-B_1\psi_1-A_1v_0=-(B_1-u_0A_1)\psi_1=-\\{cc}\cdot B_1\psi_1$.
 
 @<Calculate the values of $v_k$ and $w_k$@>=
 acc=-mp_take_fraction(mp, mp->psi[k+1],mp->uu[k]);
-if ( right_type(r)==mp_curl ) { 
+if ( mp_right_type(r)==mp_curl ) { 
   mp->ww[k]=0;
   mp->vv[k]=acc-mp_take_fraction(mp, mp->psi[1],fraction_one-ff);
 } else { 
@@ -7876,19 +7877,19 @@ void mp_set_controls (MP mp,pointer p, pointer q, integer k) {
     @<Decrease the velocities,
       if necessary, to stay inside the bounding triangle@>;
   }
-  right_x(p)=x_coord(p)+mp_take_fraction(mp, 
+  mp_right_x(p)=mp_x_coord(p)+mp_take_fraction(mp, 
                           mp_take_fraction(mp, mp->delta_x[k],mp->ct)-
                           mp_take_fraction(mp, mp->delta_y[k],mp->st),rr);
-  right_y(p)=y_coord(p)+mp_take_fraction(mp, 
+  mp_right_y(p)=mp_y_coord(p)+mp_take_fraction(mp, 
                           mp_take_fraction(mp, mp->delta_y[k],mp->ct)+
                           mp_take_fraction(mp, mp->delta_x[k],mp->st),rr);
-  left_x(q)=x_coord(q)-mp_take_fraction(mp, 
+  mp_left_x(q)=mp_x_coord(q)-mp_take_fraction(mp, 
                          mp_take_fraction(mp, mp->delta_x[k],mp->cf)+
                          mp_take_fraction(mp, mp->delta_y[k],mp->sf),ss);
-  left_y(q)=y_coord(q)-mp_take_fraction(mp, 
+  mp_left_y(q)=mp_y_coord(q)-mp_take_fraction(mp, 
                          mp_take_fraction(mp, mp->delta_y[k],mp->cf)-
                          mp_take_fraction(mp, mp->delta_x[k],mp->sf),ss);
-  right_type(p)=mp_explicit; left_type(q)=mp_explicit;
+  mp_right_type(p)=mp_explicit; mp_left_type(q)=mp_explicit;
 }
 
 @ The boundedness conditions $\\{rr}\L\sin\phi\,/\sin(\theta+\phi)$ and
@@ -7923,27 +7924,27 @@ if (((mp->st>=0)&&(mp->sf>=0))||((mp->st<=0)&&(mp->sf<=0)) ) {
 
 @ @<Reduce to simple case of straight line and |return|@>=
 { 
-  right_type(p)=mp_explicit; left_type(q)=mp_explicit;
+  mp_right_type(p)=mp_explicit; mp_left_type(q)=mp_explicit;
   lt=abs(left_tension(q)); rt=abs(right_tension(p));
   if ( rt==unity ) {
-    if ( mp->delta_x[0]>=0 ) right_x(p)=x_coord(p)+((mp->delta_x[0]+1) / 3);
-    else right_x(p)=x_coord(p)+((mp->delta_x[0]-1) / 3);
-    if ( mp->delta_y[0]>=0 ) right_y(p)=y_coord(p)+((mp->delta_y[0]+1) / 3);
-    else right_y(p)=y_coord(p)+((mp->delta_y[0]-1) / 3);
+    if ( mp->delta_x[0]>=0 ) mp_right_x(p)=mp_x_coord(p)+((mp->delta_x[0]+1) / 3);
+    else mp_right_x(p)=mp_x_coord(p)+((mp->delta_x[0]-1) / 3);
+    if ( mp->delta_y[0]>=0 ) mp_right_y(p)=mp_y_coord(p)+((mp->delta_y[0]+1) / 3);
+    else mp_right_y(p)=mp_y_coord(p)+((mp->delta_y[0]-1) / 3);
   } else { 
     ff=mp_make_fraction(mp, unity,3*rt); /* $\alpha/3$ */
-    right_x(p)=x_coord(p)+mp_take_fraction(mp, mp->delta_x[0],ff);
-    right_y(p)=y_coord(p)+mp_take_fraction(mp, mp->delta_y[0],ff);
+    mp_right_x(p)=mp_x_coord(p)+mp_take_fraction(mp, mp->delta_x[0],ff);
+    mp_right_y(p)=mp_y_coord(p)+mp_take_fraction(mp, mp->delta_y[0],ff);
   }
   if ( lt==unity ) {
-    if ( mp->delta_x[0]>=0 ) left_x(q)=x_coord(q)-((mp->delta_x[0]+1) / 3);
-    else left_x(q)=x_coord(q)-((mp->delta_x[0]-1) / 3);
-    if ( mp->delta_y[0]>=0 ) left_y(q)=y_coord(q)-((mp->delta_y[0]+1) / 3);
-    else left_y(q)=y_coord(q)-((mp->delta_y[0]-1) / 3);
+    if ( mp->delta_x[0]>=0 ) mp_left_x(q)=mp_x_coord(q)-((mp->delta_x[0]+1) / 3);
+    else mp_left_x(q)=mp_x_coord(q)-((mp->delta_x[0]-1) / 3);
+    if ( mp->delta_y[0]>=0 ) mp_left_y(q)=mp_y_coord(q)-((mp->delta_y[0]+1) / 3);
+    else mp_left_y(q)=mp_y_coord(q)-((mp->delta_y[0]-1) / 3);
   } else  { 
     ff=mp_make_fraction(mp, unity,3*lt); /* $\beta/3$ */
-    left_x(q)=x_coord(q)-mp_take_fraction(mp, mp->delta_x[0],ff);
-    left_y(q)=y_coord(q)-mp_take_fraction(mp, mp->delta_y[0],ff);
+    mp_left_x(q)=mp_x_coord(q)-mp_take_fraction(mp, mp->delta_x[0],ff);
+    mp_left_y(q)=mp_y_coord(q)-mp_take_fraction(mp, mp->delta_y[0],ff);
   }
   return;
 }
@@ -8179,11 +8180,11 @@ must cut it to zero to avoid confusion.
 
 @c static void mp_path_bbox (MP mp,pointer h) {
   pointer p,q; /* a pair of adjacent knots */
-   minx=x_coord(h); miny=y_coord(h);
+   minx=mp_x_coord(h); miny=mp_y_coord(h);
   maxx=minx; maxy=miny;
   p=h;
   do {  
-    if ( right_type(p)==mp_endpoint ) return;
+    if ( mp_right_type(p)==mp_endpoint ) return;
     q=mp_link(p);
     mp_bound_cubic(mp, x_loc(p),x_loc(q),mp_x_code);
     mp_bound_cubic(mp, y_loc(p),y_loc(q),mp_y_code);
@@ -8519,11 +8520,11 @@ length less than |fraction_four|.
   scaled a,a_tot; /* current and total arc lengths */
   a_tot = 0;
   p = h;
-  while ( right_type(p)!=mp_endpoint ){ 
+  while ( mp_right_type(p)!=mp_endpoint ){ 
     q = mp_link(p);
-    a = mp_do_arc_test(mp, right_x(p)-x_coord(p), right_y(p)-y_coord(p),
-      left_x(q)-right_x(p), left_y(q)-right_y(p),
-      x_coord(q)-left_x(q), y_coord(q)-left_y(q), el_gordo);
+    a = mp_do_arc_test(mp, mp_right_x(p)-mp_x_coord(p), mp_right_y(p)-mp_y_coord(p),
+      mp_left_x(q)-mp_right_x(p), mp_left_y(q)-mp_right_y(p),
+      mp_x_coord(q)-mp_left_x(q), mp_y_coord(q)-mp_left_y(q), el_gordo);
     a_tot = mp_slow_add(mp, a, a_tot);
     if ( q==h ) break;  else p=q;
   }
@@ -8555,11 +8556,11 @@ we must be prepared to compute the arc length of path~|h| and divide this into
   t_tot = 0;
   arc = arc0;
   p = h;
-  while ( (right_type(p)!=mp_endpoint) && (arc>0) ) {
+  while ( (mp_right_type(p)!=mp_endpoint) && (arc>0) ) {
     q = mp_link(p);
-    t = mp_do_arc_test(mp, right_x(p)-x_coord(p), right_y(p)-y_coord(p),
-      left_x(q)-right_x(p), left_y(q)-right_y(p),
-      x_coord(q)-left_x(q), y_coord(q)-left_y(q), arc);
+    t = mp_do_arc_test(mp, mp_right_x(p)-mp_x_coord(p), mp_right_y(p)-mp_y_coord(p),
+      mp_left_x(q)-mp_right_x(p), mp_left_y(q)-mp_right_y(p),
+      mp_x_coord(q)-mp_left_x(q), mp_y_coord(q)-mp_left_y(q), arc);
     @<Update |arc| and |t_tot| after |do_arc_test| has just returned |t|@>;
     if ( q==h ) {
       @<Update |t_tot| and |arc| to avoid going around the cyclic
@@ -8578,7 +8579,7 @@ else { t_tot = t_tot + unity;  arc = arc - t;  }
 
 @ @<Deal with a negative |arc0| value and |return|@>=
 { 
-  if ( left_type(h)==mp_endpoint ) {
+  if ( mp_left_type(h)==mp_endpoint ) {
     t_tot=0;
   } else { 
     p = mp_htap_ypoc(mp, h);
@@ -8617,13 +8618,13 @@ counter-clockwise order.
 Since we will need to scan pen polygons both forward and backward, a pen
 should be represented as a doubly linked ring of knot nodes.  There is
 room for the extra back pointer because we do not need the
-|left_type| or |right_type| fields.  In fact, we don't need the |left_x|,
-|left_y|, |right_x|, or |right_y| fields either but we leave these alone
+|mp_left_type| or |mp_right_type| fields.  In fact, we don't need the |mp_left_x|,
+|mp_left_y|, |mp_right_x|, or |mp_right_y| fields either but we leave these alone
 so that certain procedures can operate on both pens and paths.  In particular,
 pens can be copied using |copy_path| and recycled using |toss_knot_list|.
 
 @d knil info
-  /* this replaces the |left_type| and |right_type| fields in a pen knot */
+  /* this replaces the |mp_left_type| and |mp_right_type| fields in a pen knot */
 
 @ The |make_pen| procedure turns a path into a pen by initializing
 the |knil| pointers and making sure the knots form a convex polygon.
@@ -8662,22 +8663,22 @@ static pointer mp_get_pen_circle (MP mp,scaled diam) {
   pointer h; /* the knot node to return */
   h=mp_get_node(mp, knot_node_size);
   mp_link(h)=h; knil(h)=h;
-  originator(h)=mp_program_code;
-  x_coord(h)=0; y_coord(h)=0;
-  left_x(h)=diam; left_y(h)=0;
-  right_x(h)=0; right_y(h)=diam;
+  mp_originator(h)=mp_program_code;
+  mp_x_coord(h)=0; mp_y_coord(h)=0;
+  mp_left_x(h)=diam; mp_left_y(h)=0;
+  mp_right_x(h)=0; mp_right_y(h)=diam;
   return h;
 }
 
 @ If the polygon being returned by |make_pen| has only one vertex, it will
 be interpreted as an elliptical pen.  This is no problem since a degenerate
 polygon can equally well be thought of as a degenerate ellipse.  We need only
-initialize the |left_x|, |left_y|, |right_x|, and |right_y| fields.
+initialize the |mp_left_x|, |mp_left_y|, |mp_right_x|, and |mp_right_y| fields.
 
 @<Make sure |h| isn't confused with an elliptical pen@>=
 if ( pen_is_elliptical( h) ){ 
-  left_x(h)=x_coord(h); left_y(h)=y_coord(h);
-  right_x(h)=x_coord(h); right_y(h)=y_coord(h);
+  mp_left_x(h)=mp_x_coord(h); mp_left_y(h)=mp_y_coord(h);
+  mp_right_x(h)=mp_x_coord(h); mp_right_y(h)=mp_y_coord(h);
 }
 
 @ We have to cheat a little here but most operations on pens only use
@@ -8685,12 +8686,12 @@ the first three words in each knot node.
 @^data structure assumptions@>
 
 @<Initialize a pen at |test_pen| so that it fits in nine words@>=
-x_coord(test_pen)=-half_unit;
-y_coord(test_pen)=0;
-x_coord(test_pen+3)=half_unit;
-y_coord(test_pen+3)=0;
-x_coord(test_pen+6)=0;
-y_coord(test_pen+6)=unity;
+mp_x_coord(test_pen)=-half_unit;
+mp_y_coord(test_pen)=0;
+mp_x_coord(test_pen+3)=half_unit;
+mp_y_coord(test_pen+3)=0;
+mp_x_coord(test_pen+6)=0;
+mp_y_coord(test_pen+6)=unity;
 mp_link(test_pen)=test_pen+3;
 mp_link(test_pen+3)=test_pen+6;
 mp_link(test_pen+6)=test_pen;
@@ -8711,7 +8712,7 @@ void mp_pr_pen (MP mp,pointer h) {
   } else { 
     p=h;
     do {  
-      mp_print_two(mp, x_coord(p),y_coord(p));
+      mp_print_two(mp, mp_x_coord(p),mp_y_coord(p));
       mp_print_nl(mp, " .. ");
       @<Advance |p| making sure the links are OK and |return| if there is
         a problem@>;
@@ -8731,17 +8732,17 @@ p=q
 @ @<Print the elliptical pen |h|@>=
 { 
 mp_print(mp, "pencircle transformed (");
-mp_print_scaled(mp, x_coord(h));
+mp_print_scaled(mp, mp_x_coord(h));
 mp_print_char(mp, xord(','));
-mp_print_scaled(mp, y_coord(h));
+mp_print_scaled(mp, mp_y_coord(h));
 mp_print_char(mp, xord(','));
-mp_print_scaled(mp, left_x(h)-x_coord(h));
+mp_print_scaled(mp, mp_left_x(h)-mp_x_coord(h));
 mp_print_char(mp, xord(','));
-mp_print_scaled(mp, right_x(h)-x_coord(h));
+mp_print_scaled(mp, mp_right_x(h)-mp_x_coord(h));
 mp_print_char(mp, xord(','));
-mp_print_scaled(mp, left_y(h)-y_coord(h));
+mp_print_scaled(mp, mp_left_y(h)-mp_y_coord(h));
 mp_print_char(mp, xord(','));
-mp_print_scaled(mp, right_y(h)-y_coord(h));
+mp_print_scaled(mp, mp_right_y(h)-mp_y_coord(h));
 mp_print_char(mp, xord(')'));
 }
 
@@ -8759,8 +8760,8 @@ void mp_print_pen (MP mp,pointer h, const char *s, boolean nuline) {
   mp_end_diagnostic(mp, true);
 }
 
-@ Making a polygonal pen into a path involves restoring the |left_type| and
-|right_type| fields and setting the control points so as to make a polygonal
+@ Making a polygonal pen into a path involves restoring the |mp_left_type| and
+|mp_right_type| fields and setting the control points so as to make a polygonal
 path.
 
 @c 
@@ -8773,8 +8774,8 @@ static void mp_make_path (MP mp,pointer h) {
   } else { 
     p=h;
     do {  
-      left_type(p)=mp_explicit;
-      right_type(p)=mp_explicit;
+      mp_left_type(p)=mp_explicit;
+      mp_right_type(p)=mp_explicit;
       @<copy the coordinates of knot |p| into its control points@>;
        p=mp_link(p);
     } while (p!=h);
@@ -8782,10 +8783,10 @@ static void mp_make_path (MP mp,pointer h) {
 }
 
 @ @<copy the coordinates of knot |p| into its control points@>=
-left_x(p)=x_coord(p);
-left_y(p)=y_coord(p);
-right_x(p)=x_coord(p);
-right_y(p)=y_coord(p)
+mp_left_x(p)=mp_x_coord(p);
+mp_left_y(p)=mp_y_coord(p);
+mp_right_x(p)=mp_x_coord(p);
+mp_right_y(p)=mp_y_coord(p)
 
 @ We need an eight knot path to get a good approximation to an ellipse.
 
@@ -8802,12 +8803,12 @@ right_y(p)=y_coord(p)
 }
 
 @ @<Extract the transformation parameters from the elliptical pen~|h|@>=
-center_x=x_coord(h);
-center_y=y_coord(h);
-width_x=left_x(h)-center_x;
-width_y=left_y(h)-center_y;
-height_x=right_x(h)-center_x;
-height_y=right_y(h)-center_y
+center_x=mp_x_coord(h);
+center_y=mp_y_coord(h);
+width_x=mp_left_x(h)-center_x;
+width_y=mp_left_y(h)-center_y;
+height_x=mp_right_x(h)-center_x;
+height_y=mp_right_y(h)-center_y
 
 @ @<Other local variables in |make_path|@>=
 scaled center_x,center_y; /* translation parameters for an elliptical pen */
@@ -8823,21 +8824,21 @@ to use there.
 
 @<Initialize |p| as the |k|th knot of a circle of unit diameter,...@>=
 kk=(k+6)% 8;
-x_coord(p)=center_x+mp_take_fraction(mp, mp->half_cos[k],width_x)
+mp_x_coord(p)=center_x+mp_take_fraction(mp, mp->half_cos[k],width_x)
            +mp_take_fraction(mp, mp->half_cos[kk],height_x);
-y_coord(p)=center_y+mp_take_fraction(mp, mp->half_cos[k],width_y)
+mp_y_coord(p)=center_y+mp_take_fraction(mp, mp->half_cos[k],width_y)
            +mp_take_fraction(mp, mp->half_cos[kk],height_y);
 dx=-mp_take_fraction(mp, mp->d_cos[kk],width_x)
    +mp_take_fraction(mp, mp->d_cos[k],height_x);
 dy=-mp_take_fraction(mp, mp->d_cos[kk],width_y)
    +mp_take_fraction(mp, mp->d_cos[k],height_y);
-right_x(p)=x_coord(p)+dx;
-right_y(p)=y_coord(p)+dy;
-left_x(p)=x_coord(p)-dx;
-left_y(p)=y_coord(p)-dy;
-left_type(p)=mp_explicit;
-right_type(p)=mp_explicit;
-originator(p)=mp_program_code
+mp_right_x(p)=mp_x_coord(p)+dx;
+mp_right_y(p)=mp_y_coord(p)+dy;
+mp_left_x(p)=mp_x_coord(p)-dx;
+mp_left_y(p)=mp_y_coord(p)-dy;
+mp_left_type(p)=mp_explicit;
+mp_right_type(p)=mp_explicit;
+mp_originator(p)=mp_program_code
 
 @ @<Glob...@>=
 fraction half_cos[8]; /* ${1\over2}\cos(45k)$ */
@@ -8908,8 +8909,8 @@ pointer mp_convex_hull (MP mp,pointer h) { /* Make a polygonal pen convex */
 l=h;
 p=mp_link(h);
 while ( p!=h ) { 
-  if ( x_coord(p)<=x_coord(l) )
-    if ( (x_coord(p)<x_coord(l)) || (y_coord(p)<y_coord(l)) )
+  if ( mp_x_coord(p)<=mp_x_coord(l) )
+    if ( (mp_x_coord(p)<mp_x_coord(l)) || (mp_y_coord(p)<mp_y_coord(l)) )
       l=p;
   p=mp_link(p);
 }
@@ -8918,19 +8919,19 @@ while ( p!=h ) {
 r=h;
 p=mp_link(h);
 while ( p!=h ) { 
-  if ( x_coord(p)>=x_coord(r) )
-    if ( (x_coord(p)>x_coord(r)) || (y_coord(p)>y_coord(r)) )
+  if ( mp_x_coord(p)>=mp_x_coord(r) )
+    if ( (mp_x_coord(p)>mp_x_coord(r)) || (mp_y_coord(p)>mp_y_coord(r)) )
       r=p;
   p=mp_link(p);
 }
 
 @ @<Find any knots on the path from |l| to |r| above the |l|-|r| line...@>=
-dx=x_coord(r)-x_coord(l);
-dy=y_coord(r)-y_coord(l);
+dx=mp_x_coord(r)-mp_x_coord(l);
+dy=mp_y_coord(r)-mp_y_coord(l);
 p=mp_link(l);
 while ( p!=r ) { 
   q=mp_link(p);
-  if ( mp_ab_vs_cd(mp, dx,y_coord(p)-y_coord(l),dy,x_coord(p)-x_coord(l))>0 )
+  if ( mp_ab_vs_cd(mp, dx,mp_y_coord(p)-mp_y_coord(l),dy,mp_x_coord(p)-mp_x_coord(l))>0 )
     mp_move_knot(mp, p, r);
   p=q;
 }
@@ -8955,7 +8956,7 @@ void mp_move_knot (MP mp,pointer p, pointer q) {
 p=s;
 while ( p!=l ) { 
   q=mp_link(p);
-  if ( mp_ab_vs_cd(mp, dx,y_coord(p)-y_coord(l),dy,x_coord(p)-x_coord(l))<0 )
+  if ( mp_ab_vs_cd(mp, dx,mp_y_coord(p)-mp_y_coord(l),dy,mp_x_coord(p)-mp_x_coord(l))<0 )
     mp_move_knot(mp, p,l);
   p=q;
 }
@@ -8968,9 +8969,9 @@ choice of |l| and |r|.
 p=mp_link(l);
 while ( p!=r ) { 
   q=knil(p);
-  while ( x_coord(q)>x_coord(p) ) q=knil(q);
-  while ( x_coord(q)==x_coord(p) ) {
-    if ( y_coord(q)>y_coord(p) ) q=knil(q); else break;
+  while ( mp_x_coord(q)>mp_x_coord(p) ) q=knil(q);
+  while ( mp_x_coord(q)==mp_x_coord(p) ) {
+    if ( mp_y_coord(q)>mp_y_coord(p) ) q=knil(q); else break;
   }
   if ( q==knil(p) ) p=mp_link(p);
   else { p=mp_link(p); mp_move_knot(mp, knil(p),q); };
@@ -8980,9 +8981,9 @@ while ( p!=r ) {
 p=mp_link(r);
 while ( p!=l ){ 
   q=knil(p);
-  while ( x_coord(q)<x_coord(p) ) q=knil(q);
-  while ( x_coord(q)==x_coord(p) ) {
-    if ( y_coord(q)<y_coord(p) ) q=knil(q); else break;
+  while ( mp_x_coord(q)<mp_x_coord(p) ) q=knil(q);
+  while ( mp_x_coord(q)==mp_x_coord(p) ) {
+    if ( mp_y_coord(q)<mp_y_coord(p) ) q=knil(q); else break;
   }
   if ( q==knil(p) ) p=mp_link(p);
   else { p=mp_link(p); mp_move_knot(mp, knil(p),q); };
@@ -8996,12 +8997,12 @@ where the |then| clause is not executed.
 { 
 p=l; q=mp_link(l);
 while (1) { 
-  dx=x_coord(q)-x_coord(p);
-  dy=y_coord(q)-y_coord(p);
+  dx=mp_x_coord(q)-mp_x_coord(p);
+  dy=mp_y_coord(q)-mp_y_coord(p);
   p=q; q=mp_link(q);
   if ( p==l ) break;
   if ( p!=r )
-    if ( mp_ab_vs_cd(mp, dx,y_coord(q)-y_coord(p),dy,x_coord(q)-x_coord(p))<=0 ) {
+    if ( mp_ab_vs_cd(mp, dx,mp_y_coord(q)-mp_y_coord(p),dy,mp_x_coord(q)-mp_x_coord(p))<=0 ) {
       @<Remove knot |p| and back up |p| and |q| but don't go past |l|@>;
     }
   }
@@ -9033,12 +9034,12 @@ static void mp_find_offset (MP mp,scaled x, scaled y, pointer h) {
     q=h;
     do {  
       p=q; q=mp_link(q);
-    } while (!(mp_ab_vs_cd(mp, x_coord(q)-x_coord(p),y, y_coord(q)-y_coord(p),x)>=0));
+    } while (!(mp_ab_vs_cd(mp, mp_x_coord(q)-mp_x_coord(p),y, mp_y_coord(q)-mp_y_coord(p),x)>=0));
     do {  
       p=q; q=mp_link(q);
-    } while (!(mp_ab_vs_cd(mp, x_coord(q)-x_coord(p),y, y_coord(q)-y_coord(p),x)<=0));
-    mp->cur_x=x_coord(p);
-    mp->cur_y=y_coord(p);
+    } while (!(mp_ab_vs_cd(mp, mp_x_coord(q)-mp_x_coord(p),y, mp_y_coord(q)-mp_y_coord(p),x)<=0));
+    mp->cur_x=mp_x_coord(p);
+    mp->cur_y=mp_y_coord(p);
   }
 }
 
@@ -9048,7 +9049,7 @@ scaled cur_y; /* all-purpose return value registers */
 
 @ @<Find the offset for |(x,y)| on the elliptical pen~|h|@>=
 if ( (x==0) && (y==0) ) {
-  mp->cur_x=x_coord(h); mp->cur_y=y_coord(h);  
+  mp->cur_x=mp_x_coord(h); mp->cur_y=mp_y_coord(h);  
 } else { 
   @<Find the non-constant part of the transformation for |h|@>;
   while ( (abs(x)<fraction_half) && (abs(y)<fraction_half) ){ 
@@ -9056,15 +9057,15 @@ if ( (x==0) && (y==0) ) {
   };
   @<Make |(xx,yy)| the offset on the untransformed \&{pencircle} for the
     untransformed version of |(x,y)|@>;
-  mp->cur_x=x_coord(h)+mp_take_fraction(mp, xx,wx)+mp_take_fraction(mp, yy,hx);
-  mp->cur_y=y_coord(h)+mp_take_fraction(mp, xx,wy)+mp_take_fraction(mp, yy,hy);
+  mp->cur_x=mp_x_coord(h)+mp_take_fraction(mp, xx,wx)+mp_take_fraction(mp, yy,hx);
+  mp->cur_y=mp_y_coord(h)+mp_take_fraction(mp, xx,wy)+mp_take_fraction(mp, yy,hy);
 }
 
 @ @<Find the non-constant part of the transformation for |h|@>=
-wx=left_x(h)-x_coord(h);
-wy=left_y(h)-y_coord(h);
-hx=right_x(h)-x_coord(h);
-hy=right_y(h)-y_coord(h)
+wx=mp_left_x(h)-mp_x_coord(h);
+wy=mp_left_y(h)-mp_y_coord(h);
+hx=mp_right_x(h)-mp_x_coord(h);
+hy=mp_right_y(h)-mp_y_coord(h)
 
 @ @<Make |(xx,yy)| the offset on the untransformed \&{pencircle} for the...@>=
 yy=-(mp_take_fraction(mp, x,hy)+mp_take_fraction(mp, y,-hx));
@@ -9085,14 +9086,14 @@ static void mp_pen_bbox (MP mp,pointer h) {
   if ( pen_is_elliptical(h) ) {
     @<Find the bounding box of an elliptical pen@>;
   } else { 
-    minx=x_coord(h); maxx=minx;
-    miny=y_coord(h); maxy=miny;
+    minx=mp_x_coord(h); maxx=minx;
+    miny=mp_y_coord(h); maxy=miny;
     p=mp_link(h);
     while ( p!=h ) {
-      if ( x_coord(p)<minx ) minx=x_coord(p);
-      if ( y_coord(p)<miny ) miny=y_coord(p);
-      if ( x_coord(p)>maxx ) maxx=x_coord(p);
-      if ( y_coord(p)>maxy ) maxy=y_coord(p);
+      if ( mp_x_coord(p)<minx ) minx=mp_x_coord(p);
+      if ( mp_y_coord(p)<miny ) miny=mp_y_coord(p);
+      if ( mp_x_coord(p)>maxx ) maxx=mp_x_coord(p);
+      if ( mp_y_coord(p)>maxy ) maxy=mp_y_coord(p);
       p=mp_link(p);
     }
   }
@@ -9102,10 +9103,10 @@ static void mp_pen_bbox (MP mp,pointer h) {
 { 
 mp_find_offset(mp, 0,fraction_one,h);
 maxx=mp->cur_x;
-minx=2*x_coord(h)-mp->cur_x;
+minx=2*mp_x_coord(h)-mp->cur_x;
 mp_find_offset(mp, -fraction_one,0,h);
 maxy=mp->cur_y;
-miny=2*y_coord(h)-mp->cur_y;
+miny=2*mp_y_coord(h)-mp->cur_y;
 }
 
 @* \[21] Edge structures.
@@ -9261,8 +9262,8 @@ scaled mp_sqrt_det (MP mp,scaled a, scaled b, scaled c, scaled d) {
 @#
 static scaled mp_get_pen_scale (MP mp,pointer p) { 
   return mp_sqrt_det(mp, 
-    left_x(p)-x_coord(p), right_x(p)-x_coord(p),
-    left_y(p)-y_coord(p), right_y(p)-y_coord(p));
+    mp_left_x(p)-mp_x_coord(p), mp_right_x(p)-mp_x_coord(p),
+    mp_left_y(p)-mp_y_coord(p), mp_right_y(p)-mp_y_coord(p));
 }
 
 @ @<Declarations@>=
@@ -9970,7 +9971,7 @@ static pointer mp_make_dashes (MP mp,pointer h) { /* returns |h| or |null| */
         and |goto not_found|@>;
     }
     pp=path_p(p);
-    if ( p0==null ){ p0=p; y0=y_coord(pp);  };
+    if ( p0==null ){ p0=p; y0=mp_y_coord(pp);  };
     @<Make |d| point to a new dash node created from stroke |p| and path |pp|
       or |goto not_found| if there is an error@>;
     @<Insert |d| into the dash list and |goto not_found| if there is an error@>;
@@ -10021,26 +10022,26 @@ if ( mp_link(pp)!=pp ) {
     qq=rr; rr=mp_link(rr);
     @<Check for retracing between knots |qq| and |rr| and |goto not_found|
       if there is a problem@>;
-  } while (right_type(rr)!=mp_endpoint);
+  } while (mp_right_type(rr)!=mp_endpoint);
 }
 d=mp_get_node(mp, dash_node_size);
 if ( dash_p(p)==0 ) info(d)=0;  else info(d)=p;
-if ( x_coord(pp)<x_coord(rr) ) { 
-  start_x(d)=x_coord(pp);
-  stop_x(d)=x_coord(rr);
+if ( mp_x_coord(pp)<mp_x_coord(rr) ) { 
+  start_x(d)=mp_x_coord(pp);
+  stop_x(d)=mp_x_coord(rr);
 } else { 
-  start_x(d)=x_coord(rr);
-  stop_x(d)=x_coord(pp);
+  start_x(d)=mp_x_coord(rr);
+  stop_x(d)=mp_x_coord(pp);
 }
 
 @ We also need to check for the case where the segment from |qq| to |rr| is
 monotone in $x$ but is reversed relative to the path from |pp| to |qq|.
 
 @<Check for retracing between knots |qq| and |rr| and |goto not_found|...@>=
-x0=x_coord(qq);
-x1=right_x(qq);
-x2=left_x(rr);
-x3=x_coord(rr);
+x0=mp_x_coord(qq);
+x1=mp_right_x(qq);
+x2=mp_left_x(rr);
+x3=mp_x_coord(rr);
 if ( (x0>x1) || (x1>x2) || (x2>x3) ) {
   if ( (x0<x1) || (x1<x2) || (x2<x3) ) {
     if ( mp_ab_vs_cd(mp, x2-x1,x2-x1,x1-x0,x3-x2)>0 ) {
@@ -10048,8 +10049,8 @@ if ( (x0>x1) || (x1>x2) || (x2>x3) ) {
     }
   }
 }
-if ( (x_coord(pp)>x0) || (x0>x3) ) {
-  if ( (x_coord(pp)<x0) || (x0<x3) ) {
+if ( (mp_x_coord(pp)>x0) || (x0>x3) ) {
+  if ( (mp_x_coord(pp)<x0) || (x0<x3) ) {
     mp_x_retrace_error(mp); goto NOT_FOUND;
   }
 }
@@ -10215,7 +10216,7 @@ that is to be stroked with the pen~|pp|.
   scaled z;  /* a coordinate being tested against the bounding box */
   scaled xx,yy;  /* the extreme pen vertex in the |(dx,dy)| direction */
   integer i; /* a loop counter */
-  if ( right_type(p)!=mp_endpoint ) { 
+  if ( mp_right_type(p)!=mp_endpoint ) { 
     q=mp_link(p);
     while (1) { 
       @<Make |(dx,dy)| the final direction for the path segment from
@@ -10229,7 +10230,7 @@ that is to be stroked with the pen~|pp|.
            dx=-dx; dy=-dy; 
         }
       }
-      if ( right_type(p)==mp_endpoint ) {
+      if ( mp_right_type(p)==mp_endpoint ) {
          return;
       } else {
         @<Advance |p| to the end of the path and make |q| the previous knot@>;
@@ -10240,22 +10241,22 @@ that is to be stroked with the pen~|pp|.
 
 @ @<Make |(dx,dy)| the final direction for the path segment from...@>=
 if ( q==mp_link(p) ) { 
-  dx=x_coord(p)-right_x(p);
-  dy=y_coord(p)-right_y(p);
+  dx=mp_x_coord(p)-mp_right_x(p);
+  dy=mp_y_coord(p)-mp_right_y(p);
   if ( (dx==0)&&(dy==0) ) {
-    dx=x_coord(p)-left_x(q);
-    dy=y_coord(p)-left_y(q);
+    dx=mp_x_coord(p)-mp_left_x(q);
+    dy=mp_y_coord(p)-mp_left_y(q);
   }
 } else { 
-  dx=x_coord(p)-left_x(p);
-  dy=y_coord(p)-left_y(p);
+  dx=mp_x_coord(p)-mp_left_x(p);
+  dy=mp_y_coord(p)-mp_left_y(p);
   if ( (dx==0)&&(dy==0) ) {
-    dx=x_coord(p)-right_x(q);
-    dy=y_coord(p)-right_y(q);
+    dx=mp_x_coord(p)-mp_right_x(q);
+    dy=mp_y_coord(p)-mp_right_y(q);
   }
 }
-dx=x_coord(p)-x_coord(q);
-dy=y_coord(p)-y_coord(q)
+dx=mp_x_coord(p)-mp_x_coord(q);
+dy=mp_y_coord(p)-mp_y_coord(q)
 
 @ @<Normalize the direction |(dx,dy)| and find the pen offset |(xx,yy)|@>=
 dx=mp_make_fraction(mp, dx,d);
@@ -10269,10 +10270,10 @@ d=mp_take_fraction(mp, xx-mp->cur_x,dx)+mp_take_fraction(mp, yy-mp->cur_y,dy);
 if ( ((d<0)&&(i==1)) || ((d>0)&&(i==2))) 
   mp_confusion(mp, "box_ends");
 @:this can't happen box ends}{\quad\\{box\_ends}@>
-z=x_coord(p)+mp->cur_x+mp_take_fraction(mp, d,dx);
+z=mp_x_coord(p)+mp->cur_x+mp_take_fraction(mp, d,dx);
 if ( z<minx_val(h) ) minx_val(h)=z;
 if ( z>maxx_val(h) ) maxx_val(h)=z;
-z=y_coord(p)+mp->cur_y+mp_take_fraction(mp, d,dy);
+z=mp_y_coord(p)+mp->cur_y+mp_take_fraction(mp, d,dy);
 if ( z<miny_val(h) ) miny_val(h)=z;
 if ( z>maxy_val(h) ) maxy_val(h)=z
 
@@ -10280,7 +10281,7 @@ if ( z>maxy_val(h) ) maxy_val(h)=z
 do {  
   q=p;
   p=mp_link(p);
-} while (right_type(p)!=mp_endpoint)
+} while (mp_right_type(p)!=mp_endpoint)
 
 @ The major difficulty in finding the bounding box of an edge structure is the
 effect of clipping paths.  We treat them conservatively by only clipping to the
@@ -10387,7 +10388,7 @@ case mp_stroked_code:
   maxx=maxx+x1;
   maxy=maxy+y1;
   mp_adjust_bbox(mp, h);
-  if ( (left_type(path_p(p))==mp_endpoint)&&(lcap_val(p)==2) )
+  if ( (mp_left_type(path_p(p))==mp_endpoint)&&(lcap_val(p)==2) )
     mp_box_ends(mp, path_p(p), pen_p(p), h);
   break;
 
@@ -10527,11 +10528,11 @@ consistent with the pen offset~|h|.  If this is wrong, it can be corrected
 later.
 
 @<Initialize the incoming direction and pen offset at |c|@>=
-dxin=x_coord(mp_link(h))-x_coord(knil(h));
-dyin=y_coord(mp_link(h))-y_coord(knil(h));
+dxin=mp_x_coord(mp_link(h))-mp_x_coord(knil(h));
+dyin=mp_y_coord(mp_link(h))-mp_y_coord(knil(h));
 if ( (dxin==0)&&(dyin==0) ) {
-  dxin=y_coord(knil(h))-y_coord(h);
-  dyin=x_coord(h)-x_coord(knil(h));
+  dxin=mp_y_coord(knil(h))-mp_y_coord(h);
+  dyin=mp_x_coord(h)-mp_x_coord(knil(h));
 }
 w0=h
 
@@ -10549,9 +10550,9 @@ on Sarovar.)
 q0=q;
 do { 
   r=mp_link(p);
-  if ( x_coord(p)==right_x(p) && y_coord(p)==right_y(p) &&
-       x_coord(p)==left_x(r)  && y_coord(p)==left_y(r) &&
-       x_coord(p)==x_coord(r) && y_coord(p)==y_coord(r) &&
+  if ( mp_x_coord(p)==mp_right_x(p) && mp_y_coord(p)==mp_right_y(p) &&
+       mp_x_coord(p)==mp_left_x(r)  && mp_y_coord(p)==mp_left_y(r) &&
+       mp_x_coord(p)==mp_x_coord(r) && mp_y_coord(p)==mp_y_coord(r) &&
        r!=p ) {
       @<Remove the cubic following |p| and update the data structures
         to merge |r| into |p|@>;
@@ -10587,23 +10588,23 @@ void mp_split_cubic (MP mp,pointer p, fraction t) { /* splits the cubic after |p
   scaled v; /* an intermediate value */
   pointer q,r; /* for list manipulation */
   q=mp_link(p); r=mp_get_node(mp, knot_node_size); mp_link(p)=r; mp_link(r)=q;
-  originator(r)=mp_program_code;
-  left_type(r)=mp_explicit; right_type(r)=mp_explicit;
-  v=t_of_the_way(right_x(p),left_x(q));
-  right_x(p)=t_of_the_way(x_coord(p),right_x(p));
-  left_x(q)=t_of_the_way(left_x(q),x_coord(q));
-  left_x(r)=t_of_the_way(right_x(p),v);
-  right_x(r)=t_of_the_way(v,left_x(q));
-  x_coord(r)=t_of_the_way(left_x(r),right_x(r));
-  v=t_of_the_way(right_y(p),left_y(q));
-  right_y(p)=t_of_the_way(y_coord(p),right_y(p));
-  left_y(q)=t_of_the_way(left_y(q),y_coord(q));
-  left_y(r)=t_of_the_way(right_y(p),v);
-  right_y(r)=t_of_the_way(v,left_y(q));
-  y_coord(r)=t_of_the_way(left_y(r),right_y(r));
+  mp_originator(r)=mp_program_code;
+  mp_left_type(r)=mp_explicit; mp_right_type(r)=mp_explicit;
+  v=t_of_the_way(mp_right_x(p),mp_left_x(q));
+  mp_right_x(p)=t_of_the_way(mp_x_coord(p),mp_right_x(p));
+  mp_left_x(q)=t_of_the_way(mp_left_x(q),mp_x_coord(q));
+  mp_left_x(r)=t_of_the_way(mp_right_x(p),v);
+  mp_right_x(r)=t_of_the_way(v,mp_left_x(q));
+  mp_x_coord(r)=t_of_the_way(mp_left_x(r),mp_right_x(r));
+  v=t_of_the_way(mp_right_y(p),mp_left_y(q));
+  mp_right_y(p)=t_of_the_way(mp_y_coord(p),mp_right_y(p));
+  mp_left_y(q)=t_of_the_way(mp_left_y(q),mp_y_coord(q));
+  mp_left_y(r)=t_of_the_way(mp_right_y(p),v);
+  mp_right_y(r)=t_of_the_way(v,mp_left_y(q));
+  mp_y_coord(r)=t_of_the_way(mp_left_y(r),mp_right_y(r));
 }
 
-@ This does not set |info(p)| or |right_type(p)|.
+@ This does not set |info(p)| or |mp_right_type(p)|.
 
 @<Declarations@>=
 static void mp_remove_cubic (MP mp,pointer p) ; 
@@ -10612,7 +10613,7 @@ static void mp_remove_cubic (MP mp,pointer p) ;
 void mp_remove_cubic (MP mp,pointer p) { /* removes the dead cubic following~|p| */
   pointer q; /* the node that disappears */
   q=mp_link(p); mp_link(p)=mp_link(q);
-  right_x(p)=right_x(q); right_y(p)=right_y(q);
+  mp_right_x(p)=mp_right_x(q); mp_right_y(p)=mp_right_y(q);
   mp_free_node(mp, q,knot_node_size);
 }
 
@@ -10678,11 +10679,11 @@ fraction t; /* where the derivative passes through zero */
 fraction s; /* a temporary value */
 
 @ @<Prepare for derivative computations...@>=
-x0=right_x(p)-x_coord(p);
-x2=x_coord(q)-left_x(q);
-x1=left_x(q)-right_x(p);
-y0=right_y(p)-y_coord(p); y2=y_coord(q)-left_y(q);
-y1=left_y(q)-right_y(p);
+x0=mp_right_x(p)-mp_x_coord(p);
+x2=mp_x_coord(q)-mp_left_x(q);
+x1=mp_left_x(q)-mp_right_x(p);
+y0=mp_right_y(p)-mp_y_coord(p); y2=mp_y_coord(q)-mp_left_y(q);
+y1=mp_left_y(q)-mp_right_y(p);
 max_coef=abs(x0);
 if ( abs(x1)>max_coef ) max_coef=abs(x1);
 if ( abs(x2)>max_coef ) max_coef=abs(x2);
@@ -10758,7 +10759,7 @@ function cross from positive to negative when $d_{k-1}\preceq d(t)\preceq d_k$
 begins to fail.
 
 @<Compute test coefficients |(t0,t1,t2)| for $d(t)$ versus...@>=
-du=x_coord(ww)-x_coord(w); dv=y_coord(ww)-y_coord(w);
+du=mp_x_coord(ww)-mp_x_coord(w); dv=mp_y_coord(ww)-mp_y_coord(w);
 if ( abs(du)>=abs(dv) ) {
   s=mp_make_fraction(mp, dv,du);
   t0=mp_take_fraction(mp, x0,s)-y0;
@@ -10868,16 +10869,16 @@ integer mp_get_turn_amt (MP mp,pointer w, scaled  dx,
   if ( ccw ) { 
     ww=mp_link(w);
     do {  
-      t=mp_ab_vs_cd(mp, dy,(x_coord(ww)-x_coord(w)),
-                        dx,(y_coord(ww)-y_coord(w)));
+      t=mp_ab_vs_cd(mp, dy,(mp_x_coord(ww)-mp_x_coord(w)),
+                        dx,(mp_y_coord(ww)-mp_y_coord(w)));
       if ( t<0 ) break;
       incr(s);
       w=ww; ww=mp_link(ww);
     } while (t>0);
   } else { 
     ww=knil(w);
-    while ( mp_ab_vs_cd(mp, dy,(x_coord(w)-x_coord(ww)),
-                            dx,(y_coord(w)-y_coord(ww))) < 0) { 
+    while ( mp_ab_vs_cd(mp, dy,(mp_x_coord(w)-mp_x_coord(ww)),
+                            dx,(mp_y_coord(w)-mp_y_coord(ww))) < 0) { 
       decr(s);
       w=ww; ww=knil(ww);
     }
@@ -11004,8 +11005,8 @@ same sign, we pick this as |d_sign|, since it means we have a flex, not a cusp.
 Otherwise we proceed to the cusp code.
 
 @<Check rotation direction based on node position@>=
-u0=x_coord(q)-x_coord(p);
-u1=y_coord(q)-y_coord(p);
+u0=mp_x_coord(q)-mp_x_coord(p);
+u1=mp_y_coord(q)-mp_y_coord(p);
 d_sign = half(mp_ab_vs_cd(mp, dx, u1, u0, dy)+
   mp_ab_vs_cd(mp, u0, dyin, dxin, u1));
 
@@ -11045,9 +11046,9 @@ static void mp_print_spec (MP mp,pointer cur_spec, pointer cur_pen, const char *
   mp_print_diagnostic(mp, "Envelope spec",s,true);
   p=cur_spec; w=mp_pen_walk(mp, cur_pen,mp->spec_offset);
   mp_print_ln(mp);
-  mp_print_two(mp, x_coord(cur_spec),y_coord(cur_spec));
+  mp_print_two(mp, mp_x_coord(cur_spec),mp_y_coord(cur_spec));
   mp_print(mp, " % beginning with offset ");
-  mp_print_two(mp, x_coord(w),y_coord(w));
+  mp_print_two(mp, mp_x_coord(w),mp_y_coord(w));
   do { 
     while (1) {  
       q=mp_link(p);
@@ -11070,17 +11071,17 @@ static void mp_print_spec (MP mp,pointer cur_spec, pointer cur_pen, const char *
   mp_print(mp, " % ");
   if ( info(p)>zero_off ) mp_print(mp, "counter");
   mp_print(mp, "clockwise to offset ");
-  mp_print_two(mp, x_coord(w),y_coord(w));
+  mp_print_two(mp, mp_x_coord(w),mp_y_coord(w));
 }
 
 @ @<Print the cubic between |p| and |q|@>=
 { 
   mp_print_nl(mp, "   ..controls ");
-  mp_print_two(mp, right_x(p),right_y(p));
+  mp_print_two(mp, mp_right_x(p),mp_right_y(p));
   mp_print(mp, " and ");
-  mp_print_two(mp, left_x(q),left_y(q));
+  mp_print_two(mp, mp_left_x(q),mp_left_y(q));
   mp_print_nl(mp, " ..");
-  mp_print_two(mp, x_coord(q),y_coord(q));
+  mp_print_two(mp, mp_x_coord(q),mp_y_coord(q));
 }
 
 @ Once we have an envelope spec, the remaining task to construct the actual
@@ -11119,7 +11120,7 @@ static pointer mp_make_envelope (MP mp,pointer c, pointer h, quarterword ljoin,
   p=c;
   do {  
     q=mp_link(p); q0=q;
-    qx=x_coord(q); qy=y_coord(q);
+    qx=mp_x_coord(q); qy=mp_y_coord(q);
     k=info(q);
     k0=k; w0=w;
     if ( k!=zero_off ) {
@@ -11129,7 +11130,7 @@ static pointer mp_make_envelope (MP mp,pointer c, pointer h, quarterword ljoin,
     while ( k!=zero_off ) { 
       @<Step |w| and move |k| one step closer to |zero_off|@>;
       if ( (join_type==1)||(k==zero_off) )
-         q=mp_insert_knot(mp, q,qx+x_coord(w),qy+y_coord(w));
+         q=mp_insert_knot(mp, q,qx+mp_x_coord(w),qy+mp_y_coord(w));
     };
     if ( q!=mp_link(p) ) {
       @<Set |p=mp_link(p)| and add knots between |p| and |q| as
@@ -11185,21 +11186,21 @@ scaled tmp; /* a temporary value */
 knot in which case they get shifted at the very end.
 
 @<Add offset |w| to the cubic from |p| to |q|@>=
-right_x(p)=right_x(p)+x_coord(w);
-right_y(p)=right_y(p)+y_coord(w);
-left_x(q)=left_x(q)+x_coord(w);
-left_y(q)=left_y(q)+y_coord(w);
-x_coord(q)=x_coord(q)+x_coord(w);
-y_coord(q)=y_coord(q)+y_coord(w);
-left_type(q)=mp_explicit;
-right_type(q)=mp_explicit
+mp_right_x(p)=mp_right_x(p)+mp_x_coord(w);
+mp_right_y(p)=mp_right_y(p)+mp_y_coord(w);
+mp_left_x(q)=mp_left_x(q)+mp_x_coord(w);
+mp_left_y(q)=mp_left_y(q)+mp_y_coord(w);
+mp_x_coord(q)=mp_x_coord(q)+mp_x_coord(w);
+mp_y_coord(q)=mp_y_coord(q)+mp_y_coord(w);
+mp_left_type(q)=mp_explicit;
+mp_right_type(q)=mp_explicit
 
 @ @<Step |w| and move |k| one step closer to |zero_off|@>=
 if ( k>zero_off ){ w=mp_link(w); decr(k);  }
 else { w=knil(w); incr(k);  }
 
 @ The cubic from |q| to the new knot at |(x,y)| becomes a line segment and
-the |right_x| and |right_y| fields of |r| are set from |q|.  This is done in
+the |mp_right_x| and |mp_right_y| fields of |r| are set from |q|.  This is done in
 case the cubic containing these control points is ``yet to be examined.''
 
 @<Declarations@>=
@@ -11211,17 +11212,17 @@ pointer mp_insert_knot (MP mp,pointer q, scaled x, scaled y) {
   pointer r; /* the new knot */
   r=mp_get_node(mp, knot_node_size);
   mp_link(r)=mp_link(q); mp_link(q)=r;
-  right_x(r)=right_x(q);
-  right_y(r)=right_y(q);
-  x_coord(r)=x;
-  y_coord(r)=y;
-  right_x(q)=x_coord(q);
-  right_y(q)=y_coord(q);
-  left_x(r)=x_coord(r);
-  left_y(r)=y_coord(r);
-  left_type(r)=mp_explicit;
-  right_type(r)=mp_explicit;
-  originator(r)=mp_program_code;
+  mp_right_x(r)=mp_right_x(q);
+  mp_right_y(r)=mp_right_y(q);
+  mp_x_coord(r)=x;
+  mp_y_coord(r)=y;
+  mp_right_x(q)=mp_x_coord(q);
+  mp_right_y(q)=mp_y_coord(q);
+  mp_left_x(r)=mp_x_coord(r);
+  mp_left_y(r)=mp_y_coord(r);
+  mp_left_type(r)=mp_explicit;
+  mp_right_type(r)=mp_explicit;
+  mp_originator(r)=mp_program_code;
   return r;
 }
 
@@ -11238,8 +11239,8 @@ pointer mp_insert_knot (MP mp,pointer q, scaled x, scaled y) {
         squared join@>;
     }
     if ( r!=null ) { 
-      right_x(r)=x_coord(r);
-      right_y(r)=y_coord(r);
+      mp_right_x(r)=mp_x_coord(r);
+      mp_right_y(r)=mp_y_coord(r);
     }
   }
 }
@@ -11253,11 +11254,11 @@ problems, so we just set |r:=null| in that case.
   if ( abs(det)<26844 ) { 
      r=null; /* sine $<10^{-4}$ */
   } else { 
-    tmp=mp_take_fraction(mp, x_coord(q)-x_coord(p),dyout)-
-        mp_take_fraction(mp, y_coord(q)-y_coord(p),dxout);
+    tmp=mp_take_fraction(mp, mp_x_coord(q)-mp_x_coord(p),dyout)-
+        mp_take_fraction(mp, mp_y_coord(q)-mp_y_coord(p),dxout);
     tmp=mp_make_fraction(mp, tmp,det);
-    r=mp_insert_knot(mp, p,x_coord(p)+mp_take_fraction(mp, tmp,dxin),
-      y_coord(p)+mp_take_fraction(mp, tmp,dyin));
+    r=mp_insert_knot(mp, p,mp_x_coord(p)+mp_take_fraction(mp, tmp,dxin),
+      mp_y_coord(p)+mp_take_fraction(mp, tmp,dyin));
   }
 }
 
@@ -11266,8 +11267,8 @@ fraction det; /* a determinant used for mitered join calculations */
 
 @ @<Make |r| the last of two knots inserted between |p| and |q| to form a...@>=
 { 
-  ht_x=y_coord(w)-y_coord(w0);
-  ht_y=x_coord(w0)-x_coord(w);
+  ht_x=mp_y_coord(w)-mp_y_coord(w0);
+  ht_y=mp_x_coord(w0)-mp_x_coord(w);
   while ( (abs(ht_x)<fraction_half)&&(abs(ht_y)<fraction_half) ) { 
     ht_x+=ht_x; ht_y+=ht_y;
   }
@@ -11275,12 +11276,12 @@ fraction det; /* a determinant used for mitered join calculations */
     product with |(ht_x,ht_y)|@>;
   tmp=mp_make_fraction(mp, max_ht,mp_take_fraction(mp, dxin,ht_x)+
                                   mp_take_fraction(mp, dyin,ht_y));
-  r=mp_insert_knot(mp, p,x_coord(p)+mp_take_fraction(mp, tmp,dxin),
-                         y_coord(p)+mp_take_fraction(mp, tmp,dyin));
+  r=mp_insert_knot(mp, p,mp_x_coord(p)+mp_take_fraction(mp, tmp,dxin),
+                         mp_y_coord(p)+mp_take_fraction(mp, tmp,dyin));
   tmp=mp_make_fraction(mp, max_ht,mp_take_fraction(mp, dxout,ht_x)+
                                   mp_take_fraction(mp, dyout,ht_y));
-  r=mp_insert_knot(mp, r,x_coord(q)+mp_take_fraction(mp, tmp,dxout),
-                         y_coord(q)+mp_take_fraction(mp, tmp,dyout));
+  r=mp_insert_knot(mp, r,mp_x_coord(q)+mp_take_fraction(mp, tmp,dxout),
+                         mp_y_coord(q)+mp_take_fraction(mp, tmp,dyout));
 }
 
 @ @<Other local variables for |make_envelope|@>=
@@ -11299,8 +11300,8 @@ ww=w;
 while (1)  { 
   @<Step |ww| and move |kk| one step closer to |k0|@>;
   if ( kk==k0 ) break;
-  tmp=mp_take_fraction(mp, (x_coord(ww)-x_coord(w0)),ht_x)+
-      mp_take_fraction(mp, (y_coord(ww)-y_coord(w0)),ht_y);
+  tmp=mp_take_fraction(mp, (mp_x_coord(ww)-mp_x_coord(w0)),ht_x)+
+      mp_take_fraction(mp, (mp_y_coord(ww)-mp_y_coord(w0)),ht_y);
   if ( tmp>max_ht ) max_ht=tmp;
 }
 
@@ -11310,16 +11311,16 @@ if ( kk>k0 ) { ww=mp_link(ww); decr(kk);  }
 else { ww=knil(ww); incr(kk);  }
 
 @ @<If endpoint, double the path |c|, and set |spec_p1| and |spec_p2|@>=
-if ( left_type(c)==mp_endpoint ) { 
+if ( mp_left_type(c)==mp_endpoint ) { 
   mp->spec_p1=mp_htap_ypoc(mp, c);
   mp->spec_p2=mp->path_tail;
-  originator(mp->spec_p1)=mp_program_code;
+  mp_originator(mp->spec_p1)=mp_program_code;
   mp_link(mp->spec_p2)=mp_link(mp->spec_p1);
   mp_link(mp->spec_p1)=c;
   mp_remove_cubic(mp, mp->spec_p1);
   c=mp->spec_p1;
   if ( c!=mp_link(c) ) {
-    originator(mp->spec_p2)=mp_program_code;
+    mp_originator(mp->spec_p2)=mp_program_code;
     mp_remove_cubic(mp, mp->spec_p2);
   } else {
     @<Make |c| look like a cycle of length one@>;
@@ -11328,26 +11329,26 @@ if ( left_type(c)==mp_endpoint ) {
 
 @ @<Make |c| look like a cycle of length one@>=
 { 
-  left_type(c)=mp_explicit; right_type(c)=mp_explicit;
-  left_x(c)=x_coord(c); left_y(c)=y_coord(c);
-  right_x(c)=x_coord(c); right_y(c)=y_coord(c);
+  mp_left_type(c)=mp_explicit; mp_right_type(c)=mp_explicit;
+  mp_left_x(c)=mp_x_coord(c); mp_left_y(c)=mp_y_coord(c);
+  mp_right_x(c)=mp_x_coord(c); mp_right_y(c)=mp_y_coord(c);
 }
 
 @ In degenerate situations we might have to look at the knot preceding~|q|.
 That knot is |p| but if |p<>c|, its coordinates have already been offset by |w|.
 
 @<Set the incoming and outgoing directions at |q|; in case of...@>=
-dxin=x_coord(q)-left_x(q);
-dyin=y_coord(q)-left_y(q);
+dxin=mp_x_coord(q)-mp_left_x(q);
+dyin=mp_y_coord(q)-mp_left_y(q);
 if ( (dxin==0)&&(dyin==0) ) {
-  dxin=x_coord(q)-right_x(p);
-  dyin=y_coord(q)-right_y(p);
+  dxin=mp_x_coord(q)-mp_right_x(p);
+  dyin=mp_y_coord(q)-mp_right_y(p);
   if ( (dxin==0)&&(dyin==0) ) {
-    dxin=x_coord(q)-x_coord(p);
-    dyin=y_coord(q)-y_coord(p);
+    dxin=mp_x_coord(q)-mp_x_coord(p);
+    dyin=mp_y_coord(q)-mp_y_coord(p);
     if ( p!=c ) { /* the coordinates of |p| have been offset by |w| */
-      dxin=dxin+x_coord(w);
-      dyin=dyin+y_coord(w);
+      dxin=dxin+mp_x_coord(w);
+      dyin=dyin+mp_y_coord(w);
     }
   }
 }
@@ -11364,20 +11365,20 @@ if ( tmp==0 ) {
 and~|r| have already been offset by |h|.
 
 @<Set the outgoing direction at |q|@>=
-dxout=right_x(q)-x_coord(q);
-dyout=right_y(q)-y_coord(q);
+dxout=mp_right_x(q)-mp_x_coord(q);
+dyout=mp_right_y(q)-mp_y_coord(q);
 if ( (dxout==0)&&(dyout==0) ) {
   r=mp_link(q);
-  dxout=left_x(r)-x_coord(q);
-  dyout=left_y(r)-y_coord(q);
+  dxout=mp_left_x(r)-mp_x_coord(q);
+  dyout=mp_left_y(r)-mp_y_coord(q);
   if ( (dxout==0)&&(dyout==0) ) {
-    dxout=x_coord(r)-x_coord(q);
-    dyout=y_coord(r)-y_coord(q);
+    dxout=mp_x_coord(r)-mp_x_coord(q);
+    dyout=mp_y_coord(r)-mp_y_coord(q);
   }
 }
 if ( q==c ) {
-  dxout=dxout-x_coord(h);
-  dyout=dyout-y_coord(h);
+  dxout=dxout-mp_x_coord(h);
+  dyout=dyout-mp_y_coord(h);
 }
 tmp=mp_pyth_add(mp, dxout,dyout);
 if ( tmp==0 ) mp_confusion(mp, "degenerate spec");
@@ -11418,7 +11419,7 @@ static scaled mp_find_direction_time (MP mp,scaled x, scaled y, pointer h) {
     but |return| with zero result if it's zero@>;
   n=0; p=h; phi=0;
   while (1) { 
-    if ( right_type(p)==mp_endpoint ) break;
+    if ( mp_right_type(p)==mp_endpoint ) break;
     q=mp_link(p);
     @<Rotate the cubic between |p| and |q|; then
       |goto found| if the rotated cubic travels due east at some time |tt|;
@@ -11471,10 +11472,10 @@ angle theta,phi; /* angles of exit and entry at a knot */
 fraction t; /* temp storage */
 
 @ @<Set local variables |x1,x2,x3| and |y1,y2,y3| to multiples...@>=
-x1=right_x(p)-x_coord(p); x2=left_x(q)-right_x(p);
-x3=x_coord(q)-left_x(q);
-y1=right_y(p)-y_coord(p); y2=left_y(q)-right_y(p);
-y3=y_coord(q)-left_y(q);
+x1=mp_right_x(p)-mp_x_coord(p); x2=mp_left_x(q)-mp_right_x(p);
+x3=mp_x_coord(q)-mp_left_x(q);
+y1=mp_right_y(p)-mp_y_coord(p); y2=mp_left_y(q)-mp_right_y(p);
+y3=mp_y_coord(q)-mp_left_y(q);
 max=abs(x1);
 if ( abs(x2)>max ) max=abs(x2);
 if ( abs(x3)>max ) max=abs(x3);
@@ -11842,15 +11843,15 @@ integer overflow will not occur.
 
 @<Initialize for intersections at level zero@>=
 q=mp_link(p); qq=mp_link(pp); mp->bisect_ptr=int_packets;
-u1r=right_x(p)-x_coord(p); u2r=left_x(q)-right_x(p);
-u3r=x_coord(q)-left_x(q); set_min_max(ur_packet);
-v1r=right_y(p)-y_coord(p); v2r=left_y(q)-right_y(p);
-v3r=y_coord(q)-left_y(q); set_min_max(vr_packet);
-x1r=right_x(pp)-x_coord(pp); x2r=left_x(qq)-right_x(pp);
-x3r=x_coord(qq)-left_x(qq); set_min_max(xr_packet);
-y1r=right_y(pp)-y_coord(pp); y2r=left_y(qq)-right_y(pp);
-y3r=y_coord(qq)-left_y(qq); set_min_max(yr_packet);
-mp->delx=x_coord(p)-x_coord(pp); mp->dely=y_coord(p)-y_coord(pp);
+u1r=mp_right_x(p)-mp_x_coord(p); u2r=mp_left_x(q)-mp_right_x(p);
+u3r=mp_x_coord(q)-mp_left_x(q); set_min_max(ur_packet);
+v1r=mp_right_y(p)-mp_y_coord(p); v2r=mp_left_y(q)-mp_right_y(p);
+v3r=mp_y_coord(q)-mp_left_y(q); set_min_max(vr_packet);
+x1r=mp_right_x(pp)-mp_x_coord(pp); x2r=mp_left_x(qq)-mp_right_x(pp);
+x3r=mp_x_coord(qq)-mp_left_x(qq); set_min_max(xr_packet);
+y1r=mp_right_y(pp)-mp_y_coord(pp); y2r=mp_left_y(qq)-mp_right_y(pp);
+y3r=mp_y_coord(qq)-mp_left_y(qq); set_min_max(yr_packet);
+mp->delx=mp_x_coord(p)-mp_x_coord(pp); mp->dely=mp_y_coord(p)-mp_y_coord(pp);
 mp->tol=0; mp->uv=r_packets; mp->xy=r_packets; 
 mp->three_l=0; mp->cur_t=1; mp->cur_tt=1
 
@@ -11937,10 +11938,10 @@ static void mp_path_intersection (MP mp,pointer h, pointer hh) {
   do {  
     n=-unity; p=h;
     do {  
-      if ( right_type(p)!=mp_endpoint ) { 
+      if ( mp_right_type(p)!=mp_endpoint ) { 
         nn=-unity; pp=hh;
         do {  
-          if ( right_type(pp)!=mp_endpoint )  { 
+          if ( mp_right_type(pp)!=mp_endpoint )  { 
             mp_cubic_intersection(mp, p,pp);
             if ( mp->cur_t>0 ) { 
               mp->cur_t=mp->cur_t+n; mp->cur_tt=mp->cur_tt+nn; 
@@ -11958,13 +11959,13 @@ static void mp_path_intersection (MP mp,pointer h, pointer hh) {
 }
 
 @ @<Change one-point paths...@>=
-if ( right_type(h)==mp_endpoint ) {
-  right_x(h)=x_coord(h); left_x(h)=x_coord(h);
-  right_y(h)=y_coord(h); left_y(h)=y_coord(h); right_type(h)=mp_explicit;
+if ( mp_right_type(h)==mp_endpoint ) {
+  mp_right_x(h)=mp_x_coord(h); mp_left_x(h)=mp_x_coord(h);
+  mp_right_y(h)=mp_y_coord(h); mp_left_y(h)=mp_y_coord(h); mp_right_type(h)=mp_explicit;
 }
-if ( right_type(hh)==mp_endpoint ) {
-  right_x(hh)=x_coord(hh); left_x(hh)=x_coord(hh);
-  right_y(hh)=y_coord(hh); left_y(hh)=y_coord(hh); right_type(hh)=mp_explicit;
+if ( mp_right_type(hh)==mp_endpoint ) {
+  mp_right_x(hh)=mp_x_coord(hh); mp_left_x(hh)=mp_x_coord(hh);
+  mp_right_y(hh)=mp_y_coord(hh); mp_left_y(hh)=mp_y_coord(hh); mp_right_type(hh)=mp_explicit;
 }
 
 @* \[24] Dynamic linear equations.
@@ -18184,10 +18185,10 @@ FINISH_PATH:
   else return;
   q=p;
   while ( mp_link(q)!=p ) q=mp_link(q);
-  if ( left_type(p)!=mp_endpoint ) { /* open up a cycle */
+  if ( mp_left_type(p)!=mp_endpoint ) { /* open up a cycle */
     r=mp_copy_knot(mp, p); mp_link(q)=r; q=r;
   }
-  left_type(p)=mp_open; right_type(q)=mp_open;
+  mp_left_type(p)=mp_open; mp_right_type(q)=mp_open;
 }
 
 @ A pair of numeric values is changed into a knot node for a one-point path
@@ -18196,9 +18197,9 @@ when \MP\ discovers that the pair is part of a path.
 @c 
 static pointer mp_new_knot (MP mp) { /* convert a pair to a knot with two endpoints */
   pointer q; /* the new node */
-  q=mp_get_node(mp, knot_node_size); left_type(q)=mp_endpoint;
-  right_type(q)=mp_endpoint; originator(q)=mp_metapost_user; mp_link(q)=q;
-  mp_known_pair(mp); x_coord(q)=mp->cur_x; y_coord(q)=mp->cur_y;
+  q=mp_get_node(mp, knot_node_size); mp_left_type(q)=mp_endpoint;
+  mp_right_type(q)=mp_endpoint; mp_originator(q)=mp_metapost_user; mp_link(q)=q;
+  mp_known_pair(mp); mp_x_coord(q)=mp->cur_x; mp_y_coord(q)=mp->cur_y;
   return q;
 }
 
@@ -18274,7 +18275,7 @@ if ( d==path_join ) {
 mp_get_x_next(mp);
 if ( mp->cur_cmd==left_brace ) {
   @<Put the post-join direction information into |x| and |t|@>;
-} else if ( right_type(q)!=mp_explicit ) {
+} else if ( mp_right_type(q)!=mp_explicit ) {
   t=mp_open; x=0;
 }
 
@@ -18366,31 +18367,31 @@ t=mp_curl;
   mp->cur_y=mp->cur_exp; mp->cur_x=x;
 }
 
-@ At this point |right_type(q)| is usually |open|, but it may have been
+@ At this point |mp_right_type(q)| is usually |open|, but it may have been
 set to some other value by a previous operation. We must maintain
-the value of |right_type(q)| in cases such as
+the value of |mp_right_type(q)| in cases such as
 `\.{..\{curl2\}z\{0,0\}..}'.
 
 @<Put the pre-join...@>=
 { 
   t=mp_scan_direction(mp);
   if ( t!=mp_open ) {
-    right_type(q)=t; right_given(q)=mp->cur_exp;
-    if ( left_type(q)==mp_open ) {
-      left_type(q)=t; left_given(q)=mp->cur_exp;
+    mp_right_type(q)=t; right_given(q)=mp->cur_exp;
+    if ( mp_left_type(q)==mp_open ) {
+      mp_left_type(q)=t; left_given(q)=mp->cur_exp;
     } /* note that |left_given(q)=left_curl(q)| */
   }
 }
 
-@ Since |left_tension| and |left_y| share the same position in knot nodes,
-and since |left_given| is similarly equivalent to |left_x|, we use
+@ Since |left_tension| and |mp_left_y| share the same position in knot nodes,
+and since |left_given| is similarly equivalent to |mp_left_x|, we use
 |x| and |y| to hold the given direction and tension information when
 there are no explicit control points.
 
 @<Put the post-join...@>=
 { 
   t=mp_scan_direction(mp);
-  if ( right_type(q)!=mp_explicit ) x=mp->cur_exp;
+  if ( mp_right_type(q)!=mp_explicit ) x=mp->cur_exp;
   else t=mp_explicit; /* the direction information is superfluous */
 }
 
@@ -18445,10 +18446,10 @@ if ( (mp->cur_type!=mp_known)||(mp->cur_exp<min_tension) ) {
 
 @ @<Set explicit control points@>=
 { 
-  right_type(q)=mp_explicit; t=mp_explicit; mp_get_x_next(mp); mp_scan_primary(mp);
-  mp_known_pair(mp); right_x(q)=mp->cur_x; right_y(q)=mp->cur_y;
+  mp_right_type(q)=mp_explicit; t=mp_explicit; mp_get_x_next(mp); mp_scan_primary(mp);
+  mp_known_pair(mp); mp_right_x(q)=mp->cur_x; mp_right_y(q)=mp->cur_y;
   if ( mp->cur_cmd!=and_command ) {
-    x=right_x(q); y=right_y(q);
+    x=mp_right_x(q); y=mp_right_y(q);
   } else { 
     mp_get_x_next(mp); mp_scan_primary(mp);
     mp_known_pair(mp); x=mp->cur_x; y=mp->cur_y;
@@ -18461,10 +18462,10 @@ if ( (mp->cur_type!=mp_known)||(mp->cur_exp<min_tension) ) {
   else pp=mp->cur_exp;
   qq=pp;
   while ( mp_link(qq)!=pp ) qq=mp_link(qq);
-  if ( left_type(pp)!=mp_endpoint ) { /* open up a cycle */
+  if ( mp_left_type(pp)!=mp_endpoint ) { /* open up a cycle */
     r=mp_copy_knot(mp, pp); mp_link(qq)=r; qq=r;
   }
-  left_type(pp)=mp_open; right_type(qq)=mp_open;
+  mp_left_type(pp)=mp_open; mp_right_type(qq)=mp_open;
 }
 
 @ If a person tries to define an entire path by saying `\.{(x,y)\&cycle}',
@@ -18482,7 +18483,7 @@ shouldn't have length zero.
 @ @<Join the partial paths and reset |p| and |q|...@>=
 { 
 if ( d==ampersand ) {
-  if ( (x_coord(q)!=x_coord(pp))||(y_coord(q)!=y_coord(pp)) ) {
+  if ( (mp_x_coord(q)!=mp_x_coord(pp))||(mp_y_coord(q)!=mp_y_coord(pp)) ) {
     print_err("Paths don't touch; `&' will be changed to `..'");
 @.Paths don't touch@>
     help3("When you join paths `p&q', the ending point of p",
@@ -18491,41 +18492,41 @@ if ( d==ampersand ) {
     mp_put_get_error(mp); d=path_join; right_tension(q)=unity; y=unity;
   }
 }
-@<Plug an opening in |right_type(pp)|, if possible@>;
+@<Plug an opening in |mp_right_type(pp)|, if possible@>;
 if ( d==ampersand ) {
   @<Splice independent paths together@>;
 } else  { 
-  @<Plug an opening in |right_type(q)|, if possible@>;
-  mp_link(q)=pp; left_y(pp)=y;
-  if ( t!=mp_open ) { left_x(pp)=x; left_type(pp)=t;  };
+  @<Plug an opening in |mp_right_type(q)|, if possible@>;
+  mp_link(q)=pp; mp_left_y(pp)=y;
+  if ( t!=mp_open ) { mp_left_x(pp)=x; mp_left_type(pp)=t;  };
 }
 q=qq;
 }
 
-@ @<Plug an opening in |right_type(q)|...@>=
-if ( right_type(q)==mp_open ) {
-  if ( (left_type(q)==mp_curl)||(left_type(q)==mp_given) ) {
-    right_type(q)=left_type(q); right_given(q)=left_given(q);
+@ @<Plug an opening in |mp_right_type(q)|...@>=
+if ( mp_right_type(q)==mp_open ) {
+  if ( (mp_left_type(q)==mp_curl)||(mp_left_type(q)==mp_given) ) {
+    mp_right_type(q)=mp_left_type(q); right_given(q)=left_given(q);
   }
 }
 
-@ @<Plug an opening in |right_type(pp)|...@>=
-if ( right_type(pp)==mp_open ) {
+@ @<Plug an opening in |mp_right_type(pp)|...@>=
+if ( mp_right_type(pp)==mp_open ) {
   if ( (t==mp_curl)||(t==mp_given) ) {
-    right_type(pp)=t; right_given(pp)=x;
+    mp_right_type(pp)=t; right_given(pp)=x;
   }
 }
 
 @ @<Splice independent paths together@>=
 { 
-  if ( left_type(q)==mp_open ) if ( right_type(q)==mp_open ) {
-    left_type(q)=mp_curl; left_curl(q)=unity;
+  if ( mp_left_type(q)==mp_open ) if ( mp_right_type(q)==mp_open ) {
+    mp_left_type(q)=mp_curl; left_curl(q)=unity;
   }
-  if ( right_type(pp)==mp_open ) if ( t==mp_open ) {
-    right_type(pp)=mp_curl; right_curl(pp)=unity;
+  if ( mp_right_type(pp)==mp_open ) if ( t==mp_open ) {
+    mp_right_type(pp)=mp_curl; right_curl(pp)=unity;
   }
-  right_type(q)=right_type(pp); mp_link(q)=mp_link(pp);
-  right_x(q)=right_x(pp); right_y(q)=right_y(pp);
+  mp_right_type(q)=mp_right_type(pp); mp_link(q)=mp_link(pp);
+  mp_right_x(q)=mp_right_x(pp); mp_right_y(q)=mp_right_y(pp);
   mp_free_node(mp, pp,knot_node_size);
   if ( qq==pp ) qq=q;
 }
@@ -18534,13 +18535,13 @@ if ( right_type(pp)==mp_open ) {
 if ( cycle_hit ) { 
   if ( d==ampersand ) p=q;
 } else  { 
-  left_type(p)=mp_endpoint;
-  if ( right_type(p)==mp_open ) { 
-    right_type(p)=mp_curl; right_curl(p)=unity;
+  mp_left_type(p)=mp_endpoint;
+  if ( mp_right_type(p)==mp_open ) { 
+    mp_right_type(p)=mp_curl; right_curl(p)=unity;
   }
-  right_type(q)=mp_endpoint;
-  if ( left_type(q)==mp_open ) { 
-    left_type(q)=mp_curl; left_curl(q)=unity;
+  mp_right_type(q)=mp_endpoint;
+  if ( mp_left_type(q)==mp_open ) { 
+    mp_left_type(q)=mp_curl; left_curl(q)=unity;
   }
   mp_link(q)=p;
 }
@@ -19289,12 +19290,12 @@ case text_part: case font_part:
   break;
 case path_part: 
   mp_flush_cur_exp(mp, mp_get_node(mp, knot_node_size));
-  left_type(mp->cur_exp)=mp_endpoint;
-  right_type(mp->cur_exp)=mp_endpoint;
+  mp_left_type(mp->cur_exp)=mp_endpoint;
+  mp_right_type(mp->cur_exp)=mp_endpoint;
   mp_link(mp->cur_exp)=mp->cur_exp;
-  x_coord(mp->cur_exp)=0;
-  y_coord(mp->cur_exp)=0;
-  originator(mp->cur_exp)=mp_metapost_user;
+  mp_x_coord(mp->cur_exp)=0;
+  mp_y_coord(mp->cur_exp)=0;
+  mp_originator(mp->cur_exp)=mp_metapost_user;
   mp->cur_type=mp_path_type;
   break;
 case pen_part: 
@@ -19415,7 +19416,7 @@ static scaled mp_path_length (MP mp) { /* computes the length of the current pat
   scaled n; /* the path length so far */
   pointer p; /* traverser */
   p=mp->cur_exp;
-  if ( left_type(p)==mp_endpoint ) n=-unity; else n=0;
+  if ( mp_left_type(p)==mp_endpoint ) n=-unity; else n=0;
   do {  p=mp_link(p); n=n+unity; } while (p!=mp->cur_exp);
   return n;
 }
@@ -19444,7 +19445,7 @@ static scaled mp_pict_length (MP mp) {
 case turning_op:
   if ( mp->cur_type==mp_pair_type ) mp_flush_cur_exp(mp, 0);
   else if ( mp->cur_type!=mp_path_type ) mp_bad_unary(mp, turning_op);
-  else if ( left_type(mp->cur_exp)==mp_endpoint )
+  else if ( mp_left_type(mp->cur_exp)==mp_endpoint )
      mp_flush_cur_exp(mp, 0); /* not a cyclic path */
   else
     mp_flush_cur_exp(mp, mp_turn_cycles_wrapper(mp, mp->cur_exp));
@@ -19577,9 +19578,9 @@ static scaled mp_new_turn_cycles (MP mp,pointer c) {
     mp_end_diagnostic(mp, false);
   }
   do { 
-    xp = x_coord(p_next); yp = y_coord(p_next);
-    ang  = mp_bezier_slope(mp,x_coord(p), y_coord(p), right_x(p), right_y(p),
-             left_x(p_next), left_y(p_next), xp, yp);
+    xp = mp_x_coord(p_next); yp = mp_y_coord(p_next);
+    ang  = mp_bezier_slope(mp,mp_x_coord(p), mp_y_coord(p), mp_right_x(p), mp_right_y(p),
+             mp_left_x(p_next), mp_left_y(p_next), xp, yp);
     if ( ang>seven_twenty_deg ) {
       print_err("Strange path");
       mp_error(mp);
@@ -19596,14 +19597,14 @@ static scaled mp_new_turn_cycles (MP mp,pointer c) {
       turns = turns - unity;
     }
     /*  incoming angle at next point  */
-    x = left_x(p_next);  y = left_y(p_next);
-    if ( (xp==x)&&(yp==y) ) { x = right_x(p);  y = right_y(p);  };
-    if ( (xp==x)&&(yp==y) ) { x = x_coord(p);  y = y_coord(p);  };
+    x = mp_left_x(p_next);  y = mp_left_y(p_next);
+    if ( (xp==x)&&(yp==y) ) { x = mp_right_x(p);  y = mp_right_y(p);  };
+    if ( (xp==x)&&(yp==y) ) { x = mp_x_coord(p);  y = mp_y_coord(p);  };
     in_angle = mp_an_angle(mp, xp - x, yp - y);
     /*  outgoing angle at next point  */
-    x = right_x(p_next);  y = right_y(p_next);
-    if ( (xp==x)&&(yp==y) ) { x = left_x(p_nextnext);  y = left_y(p_nextnext);  };
-    if ( (xp==x)&&(yp==y) ) { x = x_coord(p_nextnext); y = y_coord(p_nextnext); };
+    x = mp_right_x(p_next);  y = mp_right_y(p_next);
+    if ( (xp==x)&&(yp==y) ) { x = mp_left_x(p_nextnext);  y = mp_left_y(p_nextnext);  };
+    if ( (xp==x)&&(yp==y) ) { x = mp_x_coord(p_nextnext); y = mp_y_coord(p_nextnext); };
     out_angle = mp_an_angle(mp, x - xp, y- yp);
     ang  = (out_angle - in_angle);
     reduce_angle(ang);
@@ -19675,10 +19676,10 @@ static scaled mp_turn_cycles (MP mp,pointer c) {
   pointer p;     /*  for running around the path  */
   res=0;  turns= 0; p=c;
   do { 
-    ang  = mp_an_angle (mp, x_coord(p_to) - x_coord(p_here), 
-                            y_coord(p_to) - y_coord(p_here))
-    	- mp_an_angle (mp, x_coord(p_here) - x_coord(p_from), 
-                           y_coord(p_here) - y_coord(p_from));
+    ang  = mp_an_angle (mp, mp_x_coord(p_to) - mp_x_coord(p_here), 
+                            mp_y_coord(p_to) - mp_y_coord(p_here))
+    	- mp_an_angle (mp, mp_x_coord(p_here) - mp_x_coord(p_from), 
+                           mp_y_coord(p_here) - mp_y_coord(p_from));
     reduce_angle(ang);
     res  = res + ang;
     if ( res >= three_sixty_deg )  {
@@ -19699,7 +19700,7 @@ static scaled mp_turn_cycles_wrapper (MP mp,pointer c) {
   scaled nval,oval;
   scaled saved_t_o; /* tracing\_online saved  */
   if ( (mp_link(c)==c)||(mp_link(mp_link(c))==c) ) {
-    if ( mp_an_angle (mp, x_coord(c) - right_x(c),  y_coord(c) - right_y(c)) > 0 )
+    if ( mp_an_angle (mp, mp_x_coord(c) - mp_right_x(c),  mp_y_coord(c) - mp_right_y(c)) > 0 )
       return unity;
     else
       return -unity;
@@ -19787,7 +19788,7 @@ static void mp_test_known (MP mp,quarterword c) {
 @ @<Additional cases of unary operators@>=
 case cycle_op: 
   if ( mp->cur_type!=mp_path_type ) mp_flush_cur_exp(mp, false_code);
-  else if ( left_type(mp->cur_exp)!=mp_endpoint ) mp_flush_cur_exp(mp, true_code);
+  else if ( mp_left_type(mp->cur_exp)!=mp_endpoint ) mp_flush_cur_exp(mp, true_code);
   else mp_flush_cur_exp(mp, false_code);
   mp->cur_type=mp_boolean_type;
   break;
@@ -19836,7 +19837,7 @@ case make_path_op:
 case reverse: 
   if ( mp->cur_type==mp_path_type ) {
     p=mp_htap_ypoc(mp, mp->cur_exp);
-    if ( right_type(p)==mp_endpoint ) p=mp_link(p);
+    if ( mp_right_type(p)==mp_endpoint ) p=mp_link(p);
     mp_toss_knot_list(mp, mp->cur_exp); mp->cur_exp=p;
   } else if ( mp->cur_type==mp_pair_type ) mp_pair_to_path(mp);
   else mp_bad_unary(mp, reverse);
@@ -20734,18 +20735,18 @@ static void mp_do_path_trans (MP mp,pointer p) {
   pointer q; /* list traverser */
   q=p;
   do { 
-    if ( left_type(q)!=mp_endpoint ) 
-      mp_trans(mp, q+3,q+4); /* that's |left_x| and |left_y| */
-    mp_trans(mp, q+1,q+2); /* that's |x_coord| and |y_coord| */
-    if ( right_type(q)!=mp_endpoint ) 
-      mp_trans(mp, q+5,q+6); /* that's |right_x| and |right_y| */
+    if ( mp_left_type(q)!=mp_endpoint ) 
+      mp_trans(mp, q+3,q+4); /* that's |mp_left_x| and |mp_left_y| */
+    mp_trans(mp, q+1,q+2); /* that's |mp_x_coord| and |mp_y_coord| */
+    if ( mp_right_type(q)!=mp_endpoint ) 
+      mp_trans(mp, q+5,q+6); /* that's |mp_right_x| and |mp_right_y| */
 @^data structure assumptions@>
     q=mp_link(q);
   } while (q!=p);
 }
 
-@ Transforming a pen is very similar, except that there are no |left_type|
-and |right_type| fields.
+@ Transforming a pen is very similar, except that there are no |mp_left_type|
+and |mp_right_type| fields.
 
 @d pen_trans(A,B) { mp_set_up_known_trans(mp, (A)); 
                     mp_unstash_cur_exp(mp, (B)); 
@@ -20755,12 +20756,12 @@ and |right_type| fields.
 static void mp_do_pen_trans (MP mp,pointer p) {
   pointer q; /* list traverser */
   if ( pen_is_elliptical(p) ) {
-    mp_trans(mp, p+3,p+4); /* that's |left_x| and |left_y| */
-    mp_trans(mp, p+5,p+6); /* that's |right_x| and |right_y| */
+    mp_trans(mp, p+3,p+4); /* that's |mp_left_x| and |mp_left_y| */
+    mp_trans(mp, p+5,p+6); /* that's |mp_right_x| and |mp_right_y| */
   };
   q=p;
   do { 
-    mp_trans(mp, q+1,q+2); /* that's |x_coord| and |y_coord| */
+    mp_trans(mp, q+1,q+2); /* that's |mp_x_coord| and |mp_y_coord| */
 @^data structure assumptions@>
     q=mp_link(q);
   } while (q!=p);
@@ -21173,7 +21174,7 @@ static void mp_chop_path (MP mp,pointer p) {
   } else { 
     @<Construct a path from |pp| to |qq| of length $\lceil b\rceil$@>; 
   }
-  left_type(pp)=mp_endpoint; right_type(qq)=mp_endpoint; mp_link(qq)=pp;
+  mp_left_type(pp)=mp_endpoint; mp_right_type(qq)=mp_endpoint; mp_link(qq)=pp;
   mp_toss_knot_list(mp, mp->cur_exp);
   if ( reversed ) {
     mp->cur_exp=mp_link(mp_htap_ypoc(mp, pp)); mp_toss_knot_list(mp, pp);
@@ -21184,14 +21185,14 @@ static void mp_chop_path (MP mp,pointer p) {
 
 @ @<Dispense with the cases |a<0| and/or |b>l|@>=
 if ( a<0 ) {
-  if ( left_type(mp->cur_exp)==mp_endpoint ) {
+  if ( mp_left_type(mp->cur_exp)==mp_endpoint ) {
     a=0; if ( b<0 ) b=0;
   } else  {
     do {  a=a+l; b=b+l; } while (a<0); /* a cycle always has length |l>0| */
   }
 }
 if ( b>l ) {
-  if ( left_type(mp->cur_exp)==mp_endpoint ) {
+  if ( mp_left_type(mp->cur_exp)==mp_endpoint ) {
     b=l; if ( a>l ) a=l;
   } else {
     while ( a>=l ) { 
@@ -21295,15 +21296,15 @@ static void mp_find_point (MP mp,scaled v, quarterword c) {
   pointer p; /* the path */
   scaled n; /* its length */
   p=mp->cur_exp;
-  if ( left_type(p)==mp_endpoint ) n=-unity; else n=0;
+  if ( mp_left_type(p)==mp_endpoint ) n=-unity; else n=0;
   do {  p=mp_link(p); n=n+unity; } while (p!=mp->cur_exp);
   if ( n==0 ) { 
     v=0; 
   } else if ( v<0 ) {
-    if ( left_type(p)==mp_endpoint ) v=0;
+    if ( mp_left_type(p)==mp_endpoint ) v=0;
     else v=n-1-((-v-1) % n);
   } else if ( v>n ) {
-    if ( left_type(p)==mp_endpoint ) v=n;
+    if ( mp_left_type(p)==mp_endpoint ) v=n;
     else v=v % n;
   }
   p=mp->cur_exp;
@@ -21320,15 +21321,15 @@ static void mp_find_point (MP mp,scaled v, quarterword c) {
 @ @<Set the current expression to the desired path coordinates...@>=
 switch (c) {
 case point_of: 
-  mp_pair_value(mp, x_coord(p),y_coord(p));
+  mp_pair_value(mp, mp_x_coord(p),mp_y_coord(p));
   break;
 case precontrol_of: 
-  if ( left_type(p)==mp_endpoint ) mp_pair_value(mp, x_coord(p),y_coord(p));
-  else mp_pair_value(mp, left_x(p),left_y(p));
+  if ( mp_left_type(p)==mp_endpoint ) mp_pair_value(mp, mp_x_coord(p),mp_y_coord(p));
+  else mp_pair_value(mp, mp_left_x(p),mp_left_y(p));
   break;
 case postcontrol_of: 
-  if ( right_type(p)==mp_endpoint ) mp_pair_value(mp, x_coord(p),y_coord(p));
-  else mp_pair_value(mp, right_x(p),right_y(p));
+  if ( mp_right_type(p)==mp_endpoint ) mp_pair_value(mp, mp_x_coord(p),mp_y_coord(p));
+  else mp_pair_value(mp, mp_right_x(p),mp_right_y(p));
   break;
 } /* there are no other cases */
 
@@ -22306,8 +22307,8 @@ static void mplib_shipout_backend(MP mp, int h)
            run->edges = hh;
         } else {
            mp_edge_object *p = run->edges; 
-           while (p->_next!=NULL) { p = p->_next; }
-            p->_next = hh;
+           while (p->next!=NULL) { p = p->next; }
+            p->next = hh;
         } 
     }
 }
@@ -23464,7 +23465,7 @@ static void mp_do_bounds (MP mp) ;
       help2("This expression should have specified a known path.",
             "So I'll not change anything just now."); 
       mp_put_get_flush_error(mp, 0);
-    } else if ( left_type(mp->cur_exp)==mp_endpoint ) {
+    } else if ( mp_left_type(mp->cur_exp)==mp_endpoint ) {
       @<Complain about a non-cycle@>;
     } else {
       @<Make |cur_exp| into a \&{setbounds} or clipping path and add it to |lhe|@>;
@@ -23547,7 +23548,7 @@ attempts to add to the edge structure.
           "So I'll not change anything just now."); 
     mp_put_get_flush_error(mp, 0);
   } else if ( add_type==contour_code ) {
-    if ( left_type(mp->cur_exp)==mp_endpoint ) {
+    if ( mp_left_type(mp->cur_exp)==mp_endpoint ) {
       @<Complain about a non-cycle@>;
     } else { 
       p=mp_new_fill_node(mp, mp->cur_exp);
@@ -25681,7 +25682,7 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   mp_set_bbox(mp, h, true);
   hh = xmalloc(1,sizeof(mp_edge_object));
   hh->body = NULL;
-  hh->_next = NULL;
+  hh->next = NULL;
   hh->_parent = mp;
   hh->_minx = minx_val(h);
   hh->_miny = miny_val(h);
@@ -25731,9 +25732,9 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
         pointer pc;
         pc=mp_copy_path(mp, path_p(p));
         t=lcap_val(p);
-        if ( left_type(pc)!=mp_endpoint ) { 
-          left_type(mp_insert_knot(mp, pc,x_coord(pc),y_coord(pc)))=mp_endpoint;
-          right_type(pc)=mp_endpoint;
+        if ( mp_left_type(pc)!=mp_endpoint ) { 
+          mp_left_type(mp_insert_knot(mp, pc,mp_x_coord(pc),mp_y_coord(pc)))=mp_endpoint;
+          mp_right_type(pc)=mp_endpoint;
           pc=mp_link(pc);
           t=1;
         }
