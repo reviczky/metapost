@@ -4466,45 +4466,45 @@ structures and access macros.
 @d gr_has_color(A) (gr_type((A))<mp_start_clip_code)
 
 @<Types...@>=
-#define gr_type(A)         (A)->_type_field
-#define gr_link(A)         (A)->_link_field
-#define gr_color_model(A)  (A)->color_model_field
-#define gr_red_val(A)      (A)->color_field.a_val
-#define gr_green_val(A)    (A)->color_field.b_val
-#define gr_blue_val(A)     (A)->color_field.c_val
-#define gr_cyan_val(A)     (A)->color_field.a_val
-#define gr_magenta_val(A)  (A)->color_field.b_val
-#define gr_yellow_val(A)   (A)->color_field.c_val
-#define gr_black_val(A)    (A)->color_field.d_val
-#define gr_grey_val(A)     (A)->color_field.a_val
-#define gr_path_p(A)       (A)->path_p_field 
-#define gr_htap_p(A)       ((mp_fill_object *)A)->htap_p_field 
-#define gr_pen_p(A)        (A)->pen_p_field 
-#define gr_ljoin_val(A)    (A)->ljoin_field
-#define gr_lcap_val(A)     ((mp_stroked_object *)A)->lcap_field
-#define gr_miterlim_val(A) (A)->miterlim_field
-#define gr_pre_script(A)   (A)->pre_script_field
-#define gr_post_script(A)  (A)->post_script_field
-#define gr_dash_p(A)       ((mp_stroked_object *)A)->dash_p_field
-#define gr_name_type(A)    ((mp_text_object *)A)->name_type_field
-#define gr_text_p(A)       ((mp_text_object *)A)->text_p_field 
-#define gr_font_n(A)       ((mp_text_object *)A)->font_n_field 
-#define gr_font_name(A)    ((mp_text_object *)A)->font_name_field 
-#define gr_font_dsize(A)   ((mp_text_object *)A)->font_dsize_field 
-#define gr_width_val(A)    ((mp_text_object *)A)->width_field
-#define gr_height_val(A)   ((mp_text_object *)A)->height_field
-#define gr_depth_val(A)    ((mp_text_object *)A)->depth_field
-#define gr_tx_val(A)       ((mp_text_object *)A)->tx_field
-#define gr_ty_val(A)       ((mp_text_object *)A)->ty_field
-#define gr_txx_val(A)      ((mp_text_object *)A)->txx_field
-#define gr_txy_val(A)      ((mp_text_object *)A)->txy_field
-#define gr_tyx_val(A)      ((mp_text_object *)A)->tyx_field
-#define gr_tyy_val(A)      ((mp_text_object *)A)->tyy_field
+#define gr_type(A)         (A)->type
+#define gr_link(A)         (A)->next
+#define gr_color_model(A)  (A)->color_model
+#define gr_red_val(A)      (A)->color.a_val
+#define gr_green_val(A)    (A)->color.b_val
+#define gr_blue_val(A)     (A)->color.c_val
+#define gr_cyan_val(A)     (A)->color.a_val
+#define gr_magenta_val(A)  (A)->color.b_val
+#define gr_yellow_val(A)   (A)->color.c_val
+#define gr_black_val(A)    (A)->color.d_val
+#define gr_grey_val(A)     (A)->color.a_val
+#define gr_path_p(A)       (A)->path_p 
+#define gr_htap_p(A)       ((mp_fill_object *)A)->htap_p 
+#define gr_pen_p(A)        (A)->pen_p
+#define gr_ljoin_val(A)    (A)->ljoin
+#define gr_lcap_val(A)     ((mp_stroked_object *)A)->lcap
+#define gr_miterlim_val(A) (A)->miterlim
+#define gr_pre_script(A)   (A)->pre_script
+#define gr_post_script(A)  (A)->post_script
+#define gr_dash_p(A)       ((mp_stroked_object *)A)->dash_p
+#define gr_size_index(A)    ((mp_text_object *)A)->size_index
+#define gr_text_p(A)       ((mp_text_object *)A)->text_p 
+#define gr_font_n(A)       ((mp_text_object *)A)->font_n 
+#define gr_font_name(A)    ((mp_text_object *)A)->font_name 
+#define gr_font_dsize(A)   ((mp_text_object *)A)->font_dsize 
+#define gr_width_val(A)    ((mp_text_object *)A)->width
+#define gr_height_val(A)   ((mp_text_object *)A)->height
+#define gr_depth_val(A)    ((mp_text_object *)A)->depth
+#define gr_tx_val(A)       ((mp_text_object *)A)->tx
+#define gr_ty_val(A)       ((mp_text_object *)A)->ty
+#define gr_txx_val(A)      ((mp_text_object *)A)->txx
+#define gr_txy_val(A)      ((mp_text_object *)A)->txy
+#define gr_tyx_val(A)      ((mp_text_object *)A)->tyx
+#define gr_tyy_val(A)      ((mp_text_object *)A)->tyy
 
 @ @(psout.h@>=
 #define GRAPHIC_BODY                      \
-  int _type_field;                   \
-  struct mp_graphic_object * _link_field
+  int type;                               \
+  struct mp_graphic_object * next
 
 typedef struct mp_graphic_object {
   GRAPHIC_BODY;
@@ -4512,66 +4512,66 @@ typedef struct mp_graphic_object {
 
 typedef struct mp_text_object {
   GRAPHIC_BODY;
-  char *pre_script_field;
-  char *post_script_field;
-  mp_color color_field;
-  unsigned char color_model_field;
-  unsigned char name_type_field;
-  char *text_p_field;
-  char *font_name_field ;   
-  unsigned int font_dsize_field ;
-  unsigned int font_n_field ;   
-  int width_field ;
-  int height_field ;
-  int depth_field ;
-  int tx_field ;
-  int ty_field ;
-  int txx_field ;
-  int txy_field ;
-  int tyx_field ;
-  int tyy_field ;
+  char *pre_script;
+  char *post_script;
+  mp_color color;
+  unsigned char color_model;
+  unsigned char size_index;
+  char *text_p;
+  char *font_name ;   
+  unsigned int font_dsize ;
+  unsigned int font_n ;   
+  int width ;
+  int height ;
+  int depth ;
+  int tx ;
+  int ty ;
+  int txx ;
+  int txy ;
+  int tyx ;
+  int tyy ;
 } mp_text_object;
 
 typedef struct mp_fill_object {
   GRAPHIC_BODY;
-  char *pre_script_field;
-  char *post_script_field;
-  mp_color color_field;
-  unsigned char color_model_field;
-  unsigned char ljoin_field ;   
-  mp_knot * path_p_field;
-  mp_knot * htap_p_field;
-  mp_knot * pen_p_field;
-  int miterlim_field ;
+  char *pre_script;
+  char *post_script;
+  mp_color color;
+  unsigned char color_model;
+  unsigned char ljoin ;   
+  mp_knot * path_p;
+  mp_knot * htap_p;
+  mp_knot * pen_p;
+  int miterlim ;
 } mp_fill_object;
 
 typedef struct mp_stroked_object {
   GRAPHIC_BODY;
-  char *pre_script_field;
-  char *post_script_field;
-  mp_color color_field;
-  unsigned char color_model_field;
-  unsigned char ljoin_field ;   
-  unsigned char lcap_field ;   
-  mp_knot * path_p_field;
-  mp_knot * pen_p_field;
-  int miterlim_field ;
-  mp_dash_object *dash_p_field;
+  char *pre_script;
+  char *post_script;
+  mp_color color;
+  unsigned char color_model;
+  unsigned char ljoin ;   
+  unsigned char lcap ;   
+  mp_knot * path_p;
+  mp_knot * pen_p;
+  int miterlim ;
+  mp_dash_object *dash_p;
 } mp_stroked_object;
 
 typedef struct mp_clip_object {
   GRAPHIC_BODY;
-  mp_knot * path_p_field;
+  mp_knot * path_p;
 } mp_clip_object;
 
 typedef struct mp_bounds_object {
   GRAPHIC_BODY;
-  mp_knot * path_p_field;
+  mp_knot * path_p;
 } mp_bounds_object;
 
 typedef struct mp_special_object {
   GRAPHIC_BODY;
-  char *pre_script_field;
+  char *pre_script;
 } mp_special_object ;
 
 typedef struct mp_edge_object {
@@ -4615,7 +4615,7 @@ needed without wasting time and space setting them unnecessarily.
 @d gs_green      mp->ps->gs_state->green_field	     
 @d gs_blue       mp->ps->gs_state->blue_field	     
 @d gs_black      mp->ps->gs_state->black_field	     
-@d gs_colormodel mp->ps->gs_state->colormodel_field  
+@d gs_colormodel mp->ps->gs_state->colormodel_field
 @d gs_ljoin      mp->ps->gs_state->ljoin_field	     
 @d gs_lcap       mp->ps->gs_state->lcap_field	     
 @d gs_adj_wx     mp->ps->gs_state->adj_wx_field	     
@@ -4781,11 +4781,11 @@ if ( gr_type(p)==mp_stroked_code ) {
 
 @ 
 @d set_color_objects(pq)
-  object_color_model = pq->color_model_field;
-  object_color_a = pq->color_field.a_val;
-  object_color_b = pq->color_field.b_val;
-  object_color_c = pq->color_field.c_val;
-  object_color_d = pq->color_field.d_val; 
+  object_color_model = pq->color_model;
+  object_color_a = pq->color.a_val;
+  object_color_b = pq->color.b_val;
+  object_color_c = pq->color.c_val;
+  object_color_d = pq->color.d_val; 
 
 @<Make sure \ps\ will use the right color for object~|p|@>=
 {  
@@ -5334,7 +5334,7 @@ void mp_apply_mark_string_chars(MP mp, mp_edge_object *h, int next_size) {
   while ( p!= NULL ) {
     if ( gr_type(p)==mp_text_code ) {
       if ( gr_font_n(p)!=null_font ) { 
-        if ( gr_name_type(p)==(unsigned char)next_size )
+        if ( gr_size_index(p)==(unsigned char)next_size )
           mp_mark_string_chars(mp, gr_font_n(p),gr_text_p(p));
       }
     }
@@ -5371,8 +5371,8 @@ while ( p!=null ) {
         mp->font_sizes[f]=mp_void;
         break;
       default: 
-        gr_name_type(p)=(unsigned char)mp_size_index(mp, f,mp_choose_scale(mp, p));
-        if ( gr_name_type(p)==0 )
+        gr_size_index(p)=(unsigned char)mp_size_index(mp, f,mp_choose_scale(mp, p));
+        if ( gr_size_index(p)==0 )
           mp_mark_string_chars(mp, f, gr_text_p(p));
       }
     }
@@ -5460,7 +5460,7 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standal
         if ( prologues>0 )
           scf=mp_gr_choose_scale(mp, p);
         else 
-          scf=mp_indexed_size(mp, gr_font_n(p), (quarterword)gr_name_type(p));
+          scf=mp_indexed_size(mp, gr_font_n(p), (quarterword)gr_size_index(p));
         @<Shift or transform as necessary before outputting text node~|p| at scale
           factor~|scf|; set |transformed:=true| if the original transformation must
           be restored@>;
