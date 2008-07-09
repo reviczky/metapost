@@ -4422,8 +4422,8 @@ allowed in PostScript.
 
 @(psout.h@>=
 typedef struct {
-  int offset_field;
-  int *array_field;
+  int offset;
+  int *array;
 } mp_dash_object ;
 
 
@@ -4437,7 +4437,7 @@ static void mp_do_gr_toss_dashes(mp_dash_object *dl);
 void mp_do_gr_toss_dashes(mp_dash_object *dl) {
   if (dl==NULL)   
     return;
-  mp_xfree(dl->array_field);  
+  mp_xfree(dl->array);  
   mp_xfree(dl);
 }
 
@@ -4450,11 +4450,11 @@ static mp_dash_object *mp_gr_copy_dashes(MP mp, mp_dash_object *dl) {
       return NULL;
 	q = mp_xmalloc(mp, 1, sizeof (mp_dash_object));
 	memcpy (q,dl,sizeof(mp_dash_object));
-	if (dl->array_field != NULL) {
+	if (dl->array != NULL) {
   	  size_t i = 0;
-      while (*(dl->array_field+i) != -1) i++;
-   	  q->array_field = mp_xmalloc(mp, i, sizeof (scaled));
-	  memcpy(q->array_field,dl->array_field, (i*sizeof(scaled)));
+      while (*(dl->array+i) != -1) i++;
+   	  q->array = mp_xmalloc(mp, i, sizeof (scaled));
+	  memcpy(q->array,dl->array, (i*sizeof(scaled)));
     }
 	return q;
 }
@@ -5006,20 +5006,20 @@ if ( hh==NULL ) {
 
 @<Set the dash pattern from |dash_list(hh)| scaled by |scf|@>=
 { gs_dash_p=hh;
-  if ( (gr_dash_p(p)==NULL) || (hh==NULL) || (hh->array_field==NULL)) {
+  if ( (gr_dash_p(p)==NULL) || (hh==NULL) || (hh->array==NULL)) {
     mp_ps_print_cmd(mp, " [] 0 setdash"," rd");
   } else { 
 	int i;
     ps_room(28);
     mp_ps_print(mp, " [");
-    for (i=0; *(hh->array_field+i) != -1;i++) {
+    for (i=0; *(hh->array+i) != -1;i++) {
       ps_room(13);
-      mp_ps_print_scaled(mp, *(hh->array_field+i)); 
+      mp_ps_print_scaled(mp, *(hh->array+i)); 
  	  mp_ps_print_char(mp, ' ')	;
     }
     ps_room(22);
     mp_ps_print(mp, "] ");
-    mp_ps_print_scaled(mp, hh->offset_field);
+    mp_ps_print_scaled(mp, hh->offset);
     mp_ps_print_cmd(mp, " setdash"," sd");
   }
 }
@@ -5035,20 +5035,20 @@ boolean mp_gr_same_dashes (mp_dash_object *h, mp_dash_object *hh) {
   int i = 0; 
   if ( h==hh ) ret=true;
   else if ( (h==NULL)||(hh==NULL) ) ret=false;
-  else if ( h->offset_field!=hh->offset_field ) ret=false;
-  else if ( h->array_field == hh->array_field) ret=true;
-  else if ( h->array_field == NULL || hh->array_field == NULL) ret=false;
+  else if ( h->offset!=hh->offset ) ret=false;
+  else if ( h->array == hh->array ) ret=true;
+  else if ( h->array == NULL || hh->array == NULL) ret=false;
   else { @<Compare |dash_list(h)| and |dash_list(hh)|@>; }
   return ret;
 }
 
 @ @<Compare |dash_list(h)| and |dash_list(hh)|@>=
 {
-  while (*(h->array_field+i)!=-1 && 
-	     *(hh->array_field+i)!=-1 &&
-	     *(h->array_field+i) == *(hh->array_field+i)) i++;
+  while (*(h->array+i)!=-1 && 
+	     *(hh->array+i)!=-1 &&
+	     *(h->array+i) == *(hh->array+i)) i++;
   if (i>0) {
-    if (*(h->array_field+(i))==-1 && *(hh->array_field+(i)) == -1) 
+    if (*(h->array+i)==-1 && *(hh->array+i) == -1) 
       ret=true;
   }
 }

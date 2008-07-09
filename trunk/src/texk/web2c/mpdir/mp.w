@@ -9618,9 +9618,8 @@ static mp_dash_object *mp_export_dashes (MP mp, pointer q, scaled *w) {
 	num_dashes+=2;
     p=mp_link(p);
   }
-  d->array_field  = dashes;
-  d->offset_field = 
-    mp_take_scaled(mp,mp_dash_offset(mp, h),scf);
+  d->array  = dashes;
+  d->offset = mp_take_scaled(mp,mp_dash_offset(mp, h),scf);
   return d;
 }
 
