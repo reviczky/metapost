@@ -2136,10 +2136,10 @@ edited and the relevant line number.
 @^system dependencies@>
 
 @<Exported types@>=
-typedef void (*mp_run_editor_command)(MP, char *, int);
+typedef void (*mp_editor_cmd)(MP, char *, int);
 
 @ @<Option variables@>=
-mp_run_editor_command run_editor;
+mp_editor_cmd run_editor;
 
 @ @<Allocate or initialize ...@>=
 set_callback_option(run_editor);
@@ -16474,10 +16474,10 @@ available to perform the function of \.{DVItoMP}.)
 @^system dependencies@>
 
 @ @<Exported types@>=
-typedef int (*mp_run_make_mpx_command)(MP mp, char *origname, char *mtxname);
+typedef int (*mp_makempx_cmd)(MP mp, char *origname, char *mtxname);
 
 @ @<Option variables@>=
-mp_run_make_mpx_command run_make_mpx;
+mp_makempx_cmd run_make_mpx;
 
 @ @<Allocate or initialize ...@>=
 set_callback_option(run_make_mpx);
