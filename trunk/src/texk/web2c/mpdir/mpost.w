@@ -251,12 +251,12 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       mpost_xfree(qmpname);
       mpost_xfree(qmpxname);
     } else {
-      makempx_options * mpxopt;
+      mpx_options * mpxopt;
       char *s = NULL;
       char *maincmd = NULL;
       int mpxmode = mp_troff_mode(mp);
       char *mpversion = mp_metapost_version () ;
-      mpxopt = mpost_xmalloc(sizeof(makempx_options));
+      mpxopt = mpost_xmalloc(sizeof(mpx_options));
       if (mpost_tex_program != NULL && *mpost_tex_program != '\0') {
         maincmd = mpost_xstrdup(mpost_tex_program);
       } else {
@@ -288,7 +288,7 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
         strcpy (mpxopt->banner, banner);
         strcat (mpxopt->banner, mpversion);
       }
-      ret = mp_makempx(mpxopt);
+      ret = mpx_makempx(mpxopt);
       mpost_xfree(mpxopt->cmd);
       mpost_xfree(mpxopt->mptexpre);
       mpost_xfree(mpxopt->banner);

@@ -4037,7 +4037,7 @@ static void mpx_command_error (MPX mpx, int cmdlength, char **cmdline) {
 
 
 @ @(mpxout.h@>=
-typedef struct makempx_options {
+typedef struct mpx_options {
   int mode;
   char *cmd;
   char *mptexpre;
@@ -4046,8 +4046,8 @@ typedef struct makempx_options {
   char *banner;
   int debug;
   mpx_file_finder find_file;
-} makempx_options;
-int mp_makempx (makempx_options *mpxopt) ;
+} mpx_options;
+int mpx_makempx (mpx_options *mpxopt) ;
 
  
 @ 
@@ -4056,7 +4056,7 @@ int mp_makempx (makempx_options *mpxopt) ;
 @d MPXLOG "makempx.log"
 
 @c
-int mp_makempx (makempx_options *mpxopt) {
+int mpx_makempx (mpx_options *mpxopt) {
     MPX mpx;
     char **cmdline, **cmdbits;
     char infile[15];
