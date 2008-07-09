@@ -1987,8 +1987,8 @@ Another global variable, |error_count|, is increased by one when an
 the end of every statement.  If |error_count| reaches 100, \MP\ decides
 that there is no point in continuing further.
 
-@<Types...@>=
-enum mp_history_states {
+@<Exported types@>=
+enum mp_history_state {
   mp_spotless=0, /* |history| value when nothing has been amiss yet */
   mp_warning_issued, /* |history| value when |begin_diagnostic| has been called */
   mp_error_message_issued, /* |history| value when |error| has been called */
@@ -26294,19 +26294,6 @@ if (mp->ini_version) {
   mp->hash_prime=mp_prime_choices[(i-14)];
 } else {
   int x;
-  if (mp->command_line != NULL && *(mp->command_line) == '&') {
-    char *s = NULL;
-    char *cmd = mp->command_line+1;
-    xfree(mp->mem_name); /* just in case */
-    mp->mem_name = mp_xstrdup(mp,cmd);
-    while (*cmd && *cmd!=' ')  cmd++;
-    if (*cmd==' ') *cmd++ = '\0';
-    if (*cmd) {
-      s = mp_xstrdup(mp,cmd);
-    }
-    xfree(mp->command_line);
-    mp->command_line = s;
-  }
   if (mp->mem_name == NULL) {
     mp->mem_name = mp_xstrdup(mp,"plain");
   }
