@@ -2035,7 +2035,8 @@ static int mpx_dvitomp (MPX mpx, char *dviname) {
   mpx_open_dvi_file(mpx);
   @<Process the preamble@>;
   mpx_open_mpxfile(mpx);
-  fprintf (mpx->mpxfile,"%s\n",mpx->banner);
+  if (mpx->banner!=NULL)
+    fprintf (mpx->mpxfile,"%s\n",mpx->banner);
   while ( true ) { 
     @<Advance to the next |bop| command@>;
     for (k=0;k<=10;k++) 
@@ -3673,8 +3674,8 @@ static int mpx_dmp(MPX mpx, char *infile) {
     int more;
     FILE *trf = mpx_xfopen(mpx,infile, "r");
     mpx_open_mpxfile(mpx);
-    fprintf(mpx->mpxfile, mpx->banner);
-    fprintf (mpx->mpxfile,"\n");
+    if (mpx->banner != NULL)
+      fprintf (mpx->mpxfile,"%s\n",mpx->banner);
     mpx_read_desc(mpx);
     mpx_read_fmap(mpx,dbname);
     if (!mpx->gflag)
@@ -4067,10 +4068,11 @@ int mp_makempx (makempx_options *mpxopt) {
       @<Check if mp file is newer than mpxfile, exit if not@>;
     }
     mpx = malloc(sizeof(struct mpx_data));
-    if (mpx==NULL)
+    if (mpx==NULL || mpxopt->cmd==NULL || mpxopt->mpname==NULL || mpxopt->mpxname==NULL)
       return mpx_fatal_error;
     mpx_initialize(mpx);
-    mpx->banner = mpxopt->banner;
+    if (mpxopt->banner!=NULL)
+      mpx->banner = mpxopt->banner;
     mpx->mode = mpxopt->mode;
     mpx->debug = mpxopt->debug;
     if (mpxopt->find_file!=NULL)
