@@ -211,14 +211,14 @@ static void mpx_printf(MPX mpx, char *header, char *msg, va_list ap) {
   if (mpx->lnno!=0)
     fprintf(mpx->errfile, "%d:", mpx->lnno);
   fprintf(mpx->errfile, " ");
-  vfprintf(mpx->errfile, msg, ap);
+  (void)vfprintf(mpx->errfile, msg, ap);
   fprintf(mpx->errfile, "\n");
 }
 
 @ @c
 static void mpx_report(MPX mpx, char *msg, ...) {
   va_list ap;
-  if (!mpx->debug) return;
+  if (mpx->debug==0) return;
   va_start(ap, msg);
   mpx_printf(mpx, "debug", msg, ap);
   va_end(ap);
