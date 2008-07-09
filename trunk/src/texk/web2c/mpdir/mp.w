@@ -8077,10 +8077,10 @@ enum mp_bb_code  {
 } ;
 
 @ 
-@d minx mp->bbmin[mp_x_code]
-@d maxx mp->bbmax[mp_x_code]
-@d miny mp->bbmin[mp_y_code]
-@d maxy mp->bbmax[mp_y_code]
+@d mp_minx mp->bbmin[mp_x_code]
+@d mp_maxx mp->bbmax[mp_x_code]
+@d mp_miny mp->bbmin[mp_y_code]
+@d mp_maxy mp->bbmax[mp_y_code]
 
 @<Glob...@>=
 scaled bbmin[mp_y_code+1];
@@ -8180,8 +8180,8 @@ must cut it to zero to avoid confusion.
 
 @c static void mp_path_bbox (MP mp,pointer h) {
   pointer p,q; /* a pair of adjacent knots */
-   minx=mp_x_coord(h); miny=mp_y_coord(h);
-  maxx=minx; maxy=miny;
+  mp_minx=mp_x_coord(h); mp_miny=mp_y_coord(h);
+  mp_maxx=mp_minx; mp_maxy=mp_miny;
   p=h;
   do {  
     if ( mp_right_type(p)==mp_endpoint ) return;
@@ -9086,14 +9086,14 @@ static void mp_pen_bbox (MP mp,pointer h) {
   if ( pen_is_elliptical(h) ) {
     @<Find the bounding box of an elliptical pen@>;
   } else { 
-    minx=mp_x_coord(h); maxx=minx;
-    miny=mp_y_coord(h); maxy=miny;
+    mp_minx=mp_x_coord(h); mp_maxx=mp_minx;
+    mp_miny=mp_y_coord(h); mp_maxy=mp_miny;
     p=mp_link(h);
     while ( p!=h ) {
-      if ( mp_x_coord(p)<minx ) minx=mp_x_coord(p);
-      if ( mp_y_coord(p)<miny ) miny=mp_y_coord(p);
-      if ( mp_x_coord(p)>maxx ) maxx=mp_x_coord(p);
-      if ( mp_y_coord(p)>maxy ) maxy=mp_y_coord(p);
+      if ( mp_x_coord(p)<mp_minx ) mp_minx=mp_x_coord(p);
+      if ( mp_y_coord(p)<mp_miny ) mp_miny=mp_y_coord(p);
+      if ( mp_x_coord(p)>mp_maxx ) mp_maxx=mp_x_coord(p);
+      if ( mp_y_coord(p)>mp_maxy ) mp_maxy=mp_y_coord(p);
       p=mp_link(p);
     }
   }
@@ -9102,11 +9102,11 @@ static void mp_pen_bbox (MP mp,pointer h) {
 @ @<Find the bounding box of an elliptical pen@>=
 { 
 mp_find_offset(mp, 0,fraction_one,h);
-maxx=mp->cur_x;
-minx=2*mp_x_coord(h)-mp->cur_x;
+mp_maxx=mp->cur_x;
+mp_minx=2*mp_x_coord(h)-mp->cur_x;
 mp_find_offset(mp, -fraction_one,0,h);
-maxy=mp->cur_y;
-miny=2*mp_y_coord(h)-mp->cur_y;
+mp_maxy=mp->cur_y;
+mp_miny=2*mp_y_coord(h)-mp->cur_y;
 }
 
 @* \[21] Edge structures.
@@ -10198,10 +10198,10 @@ header's bounding box to accommodate the box computed by |path_bbox| or
 |maxy|.)
 
 @c static void mp_adjust_bbox (MP mp,pointer h) { 
-  if ( minx<minx_val(h) ) minx_val(h)=minx;
-  if ( miny<miny_val(h) ) miny_val(h)=miny;
-  if ( maxx>maxx_val(h) ) maxx_val(h)=maxx;
-  if ( maxy>maxy_val(h) ) maxy_val(h)=maxy;
+  if ( mp_minx<minx_val(h) ) minx_val(h)=mp_minx;
+  if ( mp_miny<miny_val(h) ) miny_val(h)=mp_miny;
+  if ( mp_maxx>maxx_val(h) ) maxx_val(h)=mp_maxx;
+  if ( mp_maxy>maxy_val(h) ) maxy_val(h)=mp_maxy;
 }
 
 @ Here is a special routine for updating the bounding box information in
@@ -10332,13 +10332,13 @@ case bounds_unset:
 case mp_fill_code: 
   mp_path_bbox(mp, mp_path_p(p));
   if ( mp_pen_p(p)!=null ) { 
-    x0=minx; y0=miny;
-    x1=maxx; y1=maxy;
+    x0=mp_minx; y0=mp_miny;
+    x1=mp_maxx; y1=mp_maxy;
     mp_pen_bbox(mp, mp_pen_p(p));
-    minx=minx+x0;
-    miny=miny+y0;
-    maxx=maxx+x1;
-    maxy=maxy+y1;
+    mp_minx=mp_minx+x0;
+    mp_miny=mp_miny+y0;
+    mp_maxx=mp_maxx+x1;
+    mp_maxy=mp_maxy+y1;
   }
   mp_adjust_bbox(mp, h);
   break;
@@ -10379,13 +10379,13 @@ when using butt end caps.  The basic computation is for round end caps and
 @<Other cases for updating the bounding box...@>=
 case mp_stroked_code: 
   mp_path_bbox(mp, mp_path_p(p));
-  x0=minx; y0=miny;
-  x1=maxx; y1=maxy;
+  x0=mp_minx; y0=mp_miny;
+  x1=mp_maxx; y1=mp_maxy;
   mp_pen_bbox(mp, mp_pen_p(p));
-  minx=minx+x0;
-  miny=miny+y0;
-  maxx=maxx+x1;
-  maxy=maxy+y1;
+  mp_minx=mp_minx+x0;
+  mp_miny=mp_miny+y0;
+  mp_maxx=mp_maxx+x1;
+  mp_maxy=mp_maxy+y1;
   mp_adjust_bbox(mp, h);
   if ( (mp_left_type(mp_path_p(p))==mp_endpoint)&&(lcap_val(p)==2) )
     mp_box_ends(mp, mp_path_p(p), mp_pen_p(p), h);
@@ -10400,19 +10400,19 @@ case mp_text_code:
   x1=mp_take_scaled(mp, txx_val(p),width_val(p));
   y0=mp_take_scaled(mp, txy_val(p),-depth_val(p));
   y1=mp_take_scaled(mp, txy_val(p),height_val(p));
-  minx=tx_val(p);
-  maxx=minx;
-  if ( y0<y1 ) { minx=minx+y0; maxx=maxx+y1;  }
-  else         { minx=minx+y1; maxx=maxx+y0;  }
-  if ( x1<0 ) minx=minx+x1;  else maxx=maxx+x1;
+  mp_minx=tx_val(p);
+  mp_maxx=mp_minx;
+  if ( y0<y1 ) { mp_minx=mp_minx+y0; mp_maxx=mp_maxx+y1;  }
+  else         { mp_minx=mp_minx+y1; mp_maxx=mp_maxx+y0;  }
+  if ( x1<0 ) mp_minx=mp_minx+x1;  else mp_maxx=mp_maxx+x1;
   x1=mp_take_scaled(mp, tyx_val(p),width_val(p));
   y0=mp_take_scaled(mp, tyy_val(p),-depth_val(p));
   y1=mp_take_scaled(mp, tyy_val(p),height_val(p));
-  miny=ty_val(p);
-  maxy=miny;
-  if ( y0<y1 ) { miny=miny+y0; maxy=maxy+y1;  }
-  else         { miny=miny+y1; maxy=maxy+y0;  }
-  if ( x1<0 ) miny=miny+x1;  else maxy=maxy+x1;
+  mp_miny=ty_val(p);
+  mp_maxy=mp_miny;
+  if ( y0<y1 ) { mp_miny=mp_miny+y0; mp_maxy=mp_maxy+y1;  }
+  else         { mp_miny=mp_miny+y1; mp_maxy=mp_maxy+y0;  }
+  if ( x1<0 ) mp_miny=mp_miny+x1;  else mp_maxy=mp_maxy+x1;
   mp_adjust_bbox(mp, h);
   break;
 
@@ -10422,16 +10422,16 @@ type |mp_stop_clip_code| that matches |p|.
 @<Other cases for updating the bounding box...@>=
 case mp_start_clip_code: 
   mp_path_bbox(mp, mp_path_p(p));
-  x0=minx; y0=miny;
-  x1=maxx; y1=maxy;
+  x0=mp_minx; y0=mp_miny;
+  x1=mp_maxx; y1=mp_maxy;
   sminx=minx_val(h); sminy=miny_val(h);
   smaxx=maxx_val(h); smaxy=maxy_val(h);
   @<Reinitialize the bounding box in header |h| and call |set_bbox| recursively
     starting at |mp_link(p)|@>;
   @<Clip the bounding box in |h| to the rectangle given by |x0|, |x1|,
     |y0|, |y1|@>;
-  minx=sminx; miny=sminy;
-  maxx=smaxx; maxy=smaxy;
+  mp_minx=sminx; mp_miny=sminy;
+  mp_maxx=smaxx; mp_maxy=smaxy;
   mp_adjust_bbox(mp, h);
   break;
 
@@ -19859,19 +19859,19 @@ static void mp_pair_value (MP mp,scaled x, scaled y) {
 @ @<Additional cases of unary operators@>=
 case ll_corner_op: 
   if ( ! mp_get_cur_bbox(mp) ) mp_bad_unary(mp, ll_corner_op);
-  else mp_pair_value(mp, minx,miny);
+  else mp_pair_value(mp, mp_minx, mp_miny);
   break;
 case lr_corner_op: 
   if ( ! mp_get_cur_bbox(mp) ) mp_bad_unary(mp, lr_corner_op);
-  else mp_pair_value(mp, maxx,miny);
+  else mp_pair_value(mp, mp_maxx, mp_miny);
   break;
 case ul_corner_op: 
   if ( ! mp_get_cur_bbox(mp) ) mp_bad_unary(mp, ul_corner_op);
-  else mp_pair_value(mp, minx,maxy);
+  else mp_pair_value(mp, mp_minx, mp_maxy);
   break;
 case ur_corner_op: 
   if ( ! mp_get_cur_bbox(mp) ) mp_bad_unary(mp, ur_corner_op);
-  else mp_pair_value(mp, maxx,maxy);
+  else mp_pair_value(mp, mp_maxx, mp_maxy);
   break;
 
 @ Here is a function that sets |minx|, |maxx|, |miny|, |maxy| to the bounding
@@ -19884,12 +19884,12 @@ static boolean mp_get_cur_bbox (MP mp) {
   case mp_picture_type: 
     mp_set_bbox(mp, mp->cur_exp,true);
     if ( minx_val(mp->cur_exp)>maxx_val(mp->cur_exp) ) {
-      minx=0; maxx=0; miny=0; maxy=0;
+      mp_minx=0; mp_maxx=0; mp_miny=0; mp_maxy=0;
     } else { 
-      minx=minx_val(mp->cur_exp);
-      maxx=maxx_val(mp->cur_exp);
-      miny=miny_val(mp->cur_exp);
-      maxy=maxy_val(mp->cur_exp);
+      mp_minx=minx_val(mp->cur_exp);
+      mp_maxx=maxx_val(mp->cur_exp);
+      mp_miny=miny_val(mp->cur_exp);
+      mp_maxy=maxy_val(mp->cur_exp);
     }
     break;
   case mp_path_type: 
@@ -25682,18 +25682,18 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   hh = xmalloc(1,sizeof(mp_edge_object));
   hh->body = NULL;
   hh->next = NULL;
-  hh->_parent = mp;
-  hh->_minx = minx_val(h);
-  hh->_miny = miny_val(h);
-  hh->_maxx = maxx_val(h);
-  hh->_maxy = maxy_val(h);
-  hh->_filename = mp_get_output_file_name(mp);
+  hh->parent = mp;
+  hh->minx = minx_val(h);
+  hh->miny = miny_val(h);
+  hh->maxx = maxx_val(h);
+  hh->maxy = maxy_val(h);
+  hh->filename = mp_get_output_file_name(mp);
   c = mp_round_unscaled(mp,mp->internal[mp_char_code]);
-  hh->_charcode = c;
-  hh->_width = mp->internal[mp_char_wd];
-  hh->_height = mp->internal[mp_char_ht];
-  hh->_depth = mp->internal[mp_char_dp];
-  hh->_ital_corr = mp->internal[mp_char_ic];
+  hh->charcode = c;
+  hh->width = mp->internal[mp_char_wd];
+  hh->height = mp->internal[mp_char_ht];
+  hh->depth = mp->internal[mp_char_dp];
+  hh->ital_corr = mp->internal[mp_char_ic];
   @<Export pending specials@>;
   p=mp_link(dummy_loc(h));
   while ( p!=null ) { 

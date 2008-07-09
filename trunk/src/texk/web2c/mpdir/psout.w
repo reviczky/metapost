@@ -4200,21 +4200,21 @@ void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues) {
   if ( prologues>0 ) 
     mp_ps_print(mp, "-Adobe-3.0 EPSF-3.0");
   mp_ps_print_nl(mp, "%%BoundingBox: ");
-  if ( hh->_minx>hh->_maxx) {
+  if ( hh->minx>hh->maxx) {
      mp_ps_print(mp, "0 0 0 0");
   } else if ( prologues<0 ) {
-    mp_ps_pair_out(mp, hh->_minx,hh->_miny);
-    mp_ps_pair_out(mp, hh->_maxx,hh->_maxy);
+    mp_ps_pair_out(mp, hh->minx,hh->miny);
+    mp_ps_pair_out(mp, hh->maxx,hh->maxy);
   } else { 
-    mp_ps_pair_out(mp, mp_floor_scaled(mp, hh->_minx),mp_floor_scaled(mp, hh->_miny));
-    mp_ps_pair_out(mp, -mp_floor_scaled(mp, -hh->_maxx),-mp_floor_scaled(mp, -hh->_maxy));
+    mp_ps_pair_out(mp, mp_floor_scaled(mp, hh->minx),mp_floor_scaled(mp, hh->miny));
+    mp_ps_pair_out(mp, -mp_floor_scaled(mp, -hh->maxx),-mp_floor_scaled(mp, -hh->maxy));
   }
   mp_ps_print_nl(mp, "%%HiResBoundingBox: ");
-  if ( hh->_minx>hh->_maxx ) {
+  if ( hh->minx>hh->maxx ) {
     mp_ps_print(mp, "0 0 0 0");
   } else {
-    mp_ps_pair_out(mp, hh->_minx,hh->_miny);
-    mp_ps_pair_out(mp, hh->_maxx,hh->_maxy);
+    mp_ps_pair_out(mp, hh->minx,hh->miny);
+    mp_ps_pair_out(mp, hh->maxx,hh->maxy);
   }
   mp_ps_print_nl(mp, "%%Creator: MetaPost ");
   mp_ps_print(mp, mp_metapost_version());
@@ -4577,11 +4577,11 @@ typedef struct mp_special_object {
 typedef struct mp_edge_object {
   struct mp_graphic_object * body;
   struct mp_edge_object * next;
-  char * _filename;
-  MP _parent;
-  int _minx, _miny, _maxx, _maxy;
-  int _width, _height, _depth, _ital_corr;
-  int _charcode;
+  char * filename;
+  MP parent;
+  int minx, miny, maxx, maxy;
+  int width, height, depth, ital_corr;
+  int charcode;
 } mp_edge_object;
 
 @ @<Exported function headers@>=
@@ -5394,7 +5394,7 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standal
   font_number f; /* for loops over fonts while (un)marking characters */
   boolean transformed; /* is the coordinate system being transformed? */
   int prologues, procset;
-  MP mp = hh->_parent;
+  MP mp = hh->parent;
   if (standalone) {
      mp->jump_buf = malloc(sizeof(jmp_buf));
      if (mp->jump_buf == NULL || setjmp(*(mp->jump_buf)))
