@@ -4412,7 +4412,7 @@ if ( abs(gr_right_x(p)-gr_x_coord(p)-d)<=bend_tolerance )
 
 @(psout.h@>=
 typedef struct {
-   int _a_val, _b_val, _c_val, _d_val;
+   int a_val, b_val, c_val, d_val;
 } mp_color;
 
 @ The exported form of a dash pattern is simpler than the internal
@@ -4469,14 +4469,14 @@ structures and access macros.
 #define gr_type(A)         (A)->_type_field
 #define gr_link(A)         (A)->_link_field
 #define gr_color_model(A)  (A)->color_model_field
-#define gr_red_val(A)      (A)->color_field._a_val
-#define gr_green_val(A)    (A)->color_field._b_val
-#define gr_blue_val(A)     (A)->color_field._c_val
-#define gr_cyan_val(A)     (A)->color_field._a_val
-#define gr_magenta_val(A)  (A)->color_field._b_val
-#define gr_yellow_val(A)   (A)->color_field._c_val
-#define gr_black_val(A)    (A)->color_field._d_val
-#define gr_grey_val(A)     (A)->color_field._a_val
+#define gr_red_val(A)      (A)->color_field.a_val
+#define gr_green_val(A)    (A)->color_field.b_val
+#define gr_blue_val(A)     (A)->color_field.c_val
+#define gr_cyan_val(A)     (A)->color_field.a_val
+#define gr_magenta_val(A)  (A)->color_field.b_val
+#define gr_yellow_val(A)   (A)->color_field.c_val
+#define gr_black_val(A)    (A)->color_field.d_val
+#define gr_grey_val(A)     (A)->color_field.a_val
 #define gr_path_p(A)       (A)->path_p_field 
 #define gr_htap_p(A)       ((mp_fill_object *)A)->htap_p_field 
 #define gr_pen_p(A)        (A)->pen_p_field 
@@ -4782,10 +4782,10 @@ if ( gr_type(p)==mp_stroked_code ) {
 @ 
 @d set_color_objects(pq)
   object_color_model = pq->color_model_field;
-  object_color_a = pq->color_field._a_val;
-  object_color_b = pq->color_field._b_val;
-  object_color_c = pq->color_field._c_val;
-  object_color_d = pq->color_field._d_val; 
+  object_color_a = pq->color_field.a_val;
+  object_color_b = pq->color_field.b_val;
+  object_color_c = pq->color_field.c_val;
+  object_color_d = pq->color_field.d_val; 
 
 @<Make sure \ps\ will use the right color for object~|p|@>=
 {  
