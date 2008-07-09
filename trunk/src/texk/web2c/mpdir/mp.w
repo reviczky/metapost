@@ -6939,8 +6939,8 @@ it appeared in the actual metapost program, and
 
 @d originator(A)   mp->mem[(A)+7].hh.b0 /* the creator of this knot */
 
-@<Types...@>=
-enum {
+@<Exported types@>=
+enum mp_knot_originator {
   mp_program_code=0, /* not created by a user */
   mp_metapost_user /* created by a user */
 };
