@@ -21,6 +21,11 @@
 
 % Here is TeX material that gets inserted after \input webmac
 
+\font\tenlogo=logo10 % font used for the METAFONT logo
+\font\logos=logosl10
+\def\MF{{\tenlogo META}\-{\tenlogo FONT}}
+\def\MP{{\tenlogo META}\-{\tenlogo POST}}
+
 \def\title{Reading TEX metrics files}
 \pdfoutput=1
 

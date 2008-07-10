@@ -36,7 +36,8 @@
 \def\section{\mathhexbox278}
 \let\swap=\leftrightarrow
 \def\round{\mathop{\rm round}\nolimits}
-\mathchardef\vb="026A % synonym for `\|'
+\mathchardef\vbv="026A % synonym for `\|'
+\def\vb{\relax\ifmmode\vbv\else$\vbv$\fi}
 \def\[#1]{} % from pascal web
 \def\(#1){} % this is used to make section names sort themselves better
 \def\9#1{} % this is used for sort keys in the index via @@:sort key}{entry@@>
@@ -245,9 +246,6 @@ static void mp_ps_print_int (MP mp,integer n) { /* prints an integer in decimal 
   } while (n!=0);
   mp_ps_print_the_digs(mp, k);
 }
-
-@ @<Internal ...@>=
-void mp_ps_print_int (MP mp,integer n);
 
 @ \MP\ also makes use of a trivial procedure to print two digits. The
 following subroutine is usually called with a parameter in the range |0<=n<=99|.
@@ -5535,19 +5533,6 @@ int mp_ps_ship_out (mp_edge_object *hh, int prologues, int procset) {
   if (gr_type(p)==mp_fill_code) { do_write_prescript(p,mp_fill_object); }
   else if (gr_type(p)==mp_stroked_code) { do_write_prescript(p,mp_stroked_object); }
   else if (gr_type(p)==mp_text_code) { do_write_prescript(p,mp_text_object); }
-}
-
-@ The envelope of a cyclic path~|q| could be computed by calling
-|make_envelope| once for |q| and once for its reversal.  We don't do this
-because it would fail color regions that are covered by the pen regardless
-of where it is placed on~|q|.
-
-@<Break the cycle and set |t:=1| if path |q| is cyclic@>=
-if ( gr_left_type(q)!=mp_endpoint ) { 
-  gr_left_type(mp_gr_insert_knot(mp, q,gr_x_coord(q),gr_y_coord(q)))=mp_endpoint;
-  gr_right_type(q)=mp_endpoint;
-  q=gr_next_knot(q);
-  t=1;
 }
 
 @ @<Print the size information and \ps\ commands for text node~|p|@>=

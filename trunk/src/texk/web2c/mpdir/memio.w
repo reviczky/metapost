@@ -21,6 +21,8 @@
 
 % Here is TeX material that gets inserted after \input webmac
 
+\font\tenlogo=logo10 % font used for the METAFONT logo
+\def\MP{{\tenlogo META}\-{\tenlogo POST}}
 \def\title{MetaPost MEM reading and writing}
 \def\topofcontents{\hsize 5.5in
   \vglue -30pt plus 1fil minus 1.5in

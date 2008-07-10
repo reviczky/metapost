@@ -35,7 +35,8 @@
 \def\section{\mathhexbox278}
 \let\swap=\leftrightarrow
 \def\round{\mathop{\rm round}\nolimits}
-\mathchardef\vb="026A % synonym for `\|'
+\mathchardef\vbv="026A % synonym for `\|'
+\def\vb{\relax\ifmmode\vbv\else$\vbv$\fi}
 
 \def\(#1){} % this is used to make section names sort themselves better
 \def\9#1{} % this is used for sort keys in the index via @@:sort key}{entry@@>
@@ -71,7 +72,7 @@ features of the implementation, but they rarely attempt to explain the
 \MP\ language itself, since the reader is supposed to be familiar with
 {\sl The {\logos METAFONT\/}book} as well as the manual
 @.WEB@>
-@:METAFONTbook}{\sl The {\logos METAFONT\/}book}@>
+@:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
 {\sl A User's Manual for MetaPost}, Computing Science Technical Report 162,
 AT\AM T Bell Laboratories.
 

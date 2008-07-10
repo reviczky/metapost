@@ -2501,13 +2501,13 @@ mpx->h = 0; mpx->v = 0;
 @ @(mpxout.h@>=
 typedef char *(*mpx_file_finder)(MPX, const char *, const char *, int);
 enum mpx_filetype {
-  mpx_tfm_format,           /* kpse_tfm_format */
-  mpx_vf_format,            /* kpse_vf_format */
-  mpx_trfontmap_format,     /* kpse_mpsupport_format */
-  mpx_trcharadj_format,     /* kpse_mpsupport_format */
-  mpx_desc_format,          /* kpse_troff_font_format */
-  mpx_fontdesc_format,      /* kpse_troff_font_format */
-  mpx_specchar_format       /* kpse_mpsupport_format */
+  mpx_tfm_format,           /* |kpse_tfm_format| */
+  mpx_vf_format,            /* |kpse_vf_format| */
+  mpx_trfontmap_format,     /* |kpse_mpsupport_format| */
+  mpx_trcharadj_format,     /* |kpse_mpsupport_format| */
+  mpx_desc_format,          /* |kpse_troff_font_format| */
+  mpx_fontdesc_format,      /* |kpse_troff_font_format| */
+  mpx_specchar_format       /* |kpse_mpsupport_format| */
 };
 
 @ @<Globals@>=
