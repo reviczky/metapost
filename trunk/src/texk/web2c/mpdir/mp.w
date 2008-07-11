@@ -2153,13 +2153,10 @@ static void mp_run_editor (MP mp, char *fname, int fline);
 
 @ @c 
 void mp_run_editor (MP mp, char *fname, int fline) {
-    mp_print_nl(mp, "You want to edit file ");
+    char *s = xmalloc(256,1);
+    mp_snprintf(s, 256,"You want to edit file %s at line %d\n", fname, fline);
+    wterm_ln(s);
 @.You want to edit file x@>
-    mp_print(mp, fname);
-    mp_print(mp, " at line "); 
-    mp_print_int(mp, fline);
-    mp->interaction=mp_scroll_mode; 
-    mp_jump_out(mp);
 }
 
 @ 
@@ -2177,9 +2174,12 @@ case '5': case '6': case '7': case '8': case '9':
   break;
 case 'E': 
   if ( mp->file_ptr>0 ){ 
+    mp_close_files_and_terminate(mp);
     (mp->run_editor)(mp, 
                      str(mp->input_stack[mp->file_ptr].name_field), 
                      mp_true_line(mp));
+    mp->interaction=mp_scroll_mode; 
+    mp_jump_out(mp);
   }
   break;
 case 'H': 
@@ -25977,6 +25977,8 @@ void mp_close_files_and_terminate (MP mp) {
   integer LH; /* the length of the \.{TFM} header, in words */
   int lk_offset; /* extra words inserted at beginning of |lig_kern| array */
   pointer p; /* runs through a list of \.{TFM} dimensions */
+  if (mp->finished) 
+    return;
   @<Close all open files in the |rd_file| and |wr_file| arrays@>;
   if ( mp->internal[mp_tracing_stats]>0 )
     @<Output statistics about this job@>;
