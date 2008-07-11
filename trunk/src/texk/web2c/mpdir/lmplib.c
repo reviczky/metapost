@@ -479,6 +479,13 @@ static int mplib_charheight(lua_State * L)
   return mplib_char_dimension(L, 'h');
 }
 
+static int mplib_version(lua_State * L)
+{
+  char *s = mp_metapost_version();
+  lua_pushstring(L, s);
+  free(s);
+  return 1;
+}
 
 static int mplib_statistics(lua_State * L)
 {
@@ -1197,6 +1204,7 @@ static const struct luaL_reg mplib_d[] = {
 
 static const struct luaL_reg mplib_m[] = {
     {"new", mplib_new},
+    {"version",    mplib_version},
     {"fields", mplib_gr_fields},
     {"pen_info", mplib_gr_peninfo},
     {NULL, NULL}                /* sentinel */
