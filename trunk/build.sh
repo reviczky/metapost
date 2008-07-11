@@ -50,21 +50,27 @@ if test -z "$DATADIR"; then
 fi
 mkdir texk
 cd texk
-# do a configure without all the things we don't need
 ../../src/texk/configure --datadir=$DATADIR || exit 1 
 
 # make the kpathsea library
 (cd kpathsea;  $MAKE ../kpathsea/libkpathsea.la) || exit 1
 
+# make ctangle
+mkdir web2c/cwebdir
+cd web2c/cwebdir
+(cp ../../../../src/texk/web2c/cwebdir/* .; $MAKE )|| exit 1 
+cd ../..
+
+CTANGLE=../cwebdir/ctangle 
+export CTANGLE 
+
 # make the library
 mkdir web2c/mpdir
 cd web2c/mpdir
-(../../../../src/texk/web2c/mpdir/configure; $MAKE )|| exit 1 
+(../../../../src/texk/web2c/mpdir/configure --enable-lua=yes; $MAKE )|| exit 1 
 
-# strip them
-#STRIP=strip
-# $STRIP web2c/mpdir/newmpost
 # go back
 cd ../../../..
 # show the results
 ls -l build/texk/web2c/mpdir/mpost
+ls -l build/texk/web2c/mpdir/.libs/mplib.so

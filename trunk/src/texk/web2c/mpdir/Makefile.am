@@ -19,29 +19,37 @@ KPSEBUILDDIR = ../../../texk/kpathsea/.libs
 KPSESRCDIR = ../../../../src/texk/kpathsea
 KPSELIB=$(KPSEBUILDDIR)/libkpathsea.a
 AM_CFLAGS=-I. -I../.. -I$(KPSESRCDIR)/.. -I$(KPSESRCDIR)
+CORE_MP_SOURCES=mp.c psout.c tfmin.c memio.c
 
-bin_PROGRAMS = mpost
+noinst_LTLIBRARIES    = libmplib.la
+libmplib_la_SOURCES   = avl.c $(CORE_MP_SOURCES)
 
-mpost_SOURCES = mpost.c mpxout.c
-mpost_DEPENDENCIES = libmplib.a
-mpost_LDADD = libmplib.a $(KPSELIB) -lm
+bin_PROGRAMS          = mpost
+mpost_SOURCES         = mpost.c mpxout.c
+mpost_DEPENDENCIES    = libmplib.la
+mpost_LDADD           = libmplib.la $(KPSELIB) -lm
 
-noinst_LIBRARIES = libmplib.a
-libmplib_a_SOURCES = avl.c mp.c psout.c tfmin.c memio.c
+pkglib_LTLIBRARIES    =
+if WITH_LUA
+pkglib_LTLIBRARIES    += mplib.la
+endif
+mplib_la_SOURCES      = lmplib.c
+mplib_la_DEPENDENCIES = libmplib.la
+mplib_la_LIBADD       = libmplib.la
+mplib_la_LDFLAGS      = -module -avoid-version
 
-include_HEADERS = mplib.h
+lmplib.c: mp.c
 
-CTANGLE=ctangle
+mp.c:     psout.c
 
-mp.c: psout.c
-
-mpost.c: mpxout.c
+mpost.c:  mpxout.c
 
 .w.c:
 	$(CTANGLE) $< $@
 
 clean::
-	$(RM) mp.c psout.c tfmin.c memio.c mplib.h mppsout.h mpmp.h mpxout.c mpxout.h *.o libmplib.a mpost.c mpost
+	$(RM) psout.h mp*.h $(CORE_MP_SOURCES) mpost.c mpxout.c
+	$(RM) .libs/* libmplib.a mpost *.lo *.la *.o 
 
 distclean:: clean
 	$(RM) Makefile config.h config.status config.log libtool

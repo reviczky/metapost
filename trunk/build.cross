@@ -36,7 +36,7 @@ cd build-win/texk
 mkdir web2c/mpdir
 cd web2c/mpdir
 (../../../../src/texk/web2c/mpdir/configure \
-    --host=i386-linux --enable-shared=no ; $MAKE )|| exit 1 
+    --host=i386-linux --enable-shared=no -enable-lua=no ; $MAKE )|| exit 1 
 
 # strip them
 $STRIP mpost.exe
