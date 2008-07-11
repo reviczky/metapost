@@ -33,7 +33,7 @@
 #endif
 
 #include "mplib.h"
-#include "psout.h"
+#include "mplibps.h"
 
    /*@unused@*/ static const char _svn_version[] =
     "$Id: lmplib.c 1364 2008-07-04 16:09:46Z taco $ $URL: http://scm.foundry.supelec.fr/svn/luatex/trunk/src/texk/web2c/luatexdir/lua/lmplib.c $";

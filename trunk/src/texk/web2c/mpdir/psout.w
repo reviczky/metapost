@@ -76,7 +76,7 @@
 #include <assert.h>
 #include "avl.h"
 #include "mplib.h"
-#include "psout.h" /* external header */
+#include "mplibps.h" /* external header */
 #include "mpmp.h" /* internal header */
 #include "mppsout.h" /* internal header */
 @h
@@ -4232,7 +4232,7 @@ void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues) {
 @ The most important output procedure is the one that gives the \ps\ version of
 a \MP\ path.
 
-@(psout.h@>=
+@(mplibps.h@>=
 typedef struct mp_knot {
   unsigned short left_type;
   unsigned short right_type;
@@ -4408,7 +4408,7 @@ if ( abs(gr_right_x(p)-gr_x_coord(p)-d)<=bend_tolerance )
 
 @ The colored objects use a struct with anonymous fields to express the color parts:
 
-@(psout.h@>=
+@(mplibps.h@>=
 typedef struct {
    int a_val, b_val, c_val, d_val;
 } mp_color;
@@ -4418,7 +4418,7 @@ format, it is closely modelled to the PostScript model. The array of
 dashes is ended by a single negative value, because this is not
 allowed in PostScript.
 
-@(psout.h@>=
+@(mplibps.h@>=
 typedef struct {
   int offset;
   int *array;
@@ -4499,7 +4499,7 @@ structures and access macros.
 #define gr_tyx_val(A)      ((mp_text_object *)A)->tyx
 #define gr_tyy_val(A)      ((mp_text_object *)A)->tyy
 
-@ @(psout.h@>=
+@ @(mplibps.h@>=
 #define GRAPHIC_BODY                      \
   int type;                               \
   struct mp_graphic_object * next
@@ -5508,7 +5508,7 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standal
   return 1;
 }
 
-@ @(psout.h@>=
+@ @(mplibps.h@>=
 int mp_ps_ship_out (mp_edge_object *hh, int prologues, int procset) ;
 
 @ @c
@@ -5563,7 +5563,7 @@ if ( transformed ) {
 }
 mp_ps_print_ln(mp)
 
-@ @(psout.h@>=
+@ @(mplibps.h@>=
 void mp_gr_toss_objects ( mp_edge_object *hh) ;
 void mp_gr_toss_object (mp_graphic_object *p) ;
 
@@ -5626,7 +5626,7 @@ void mp_gr_toss_objects (mp_edge_object *hh) {
   mp_xfree(hh);
 }
 
-@ @(psout.h@>=
+@ @(mplibps.h@>=
 mp_graphic_object *mp_gr_copy_object (MP mp, mp_graphic_object *p) ;
 
 @ @c

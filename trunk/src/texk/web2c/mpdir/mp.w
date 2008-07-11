@@ -157,7 +157,7 @@ typedef struct MP_instance {
 #endif
 #include <time.h> /* for struct tm \& co */
 #include "mplib.h"
-#include "psout.h" /* external header */
+#include "mplibps.h" /* external header */
 #include "mpmp.h" /* internal header */
 #include "mppsout.h" /* internal header */
 extern font_number mp_read_font_info (MP mp, char *fname); /* tfmin.w */

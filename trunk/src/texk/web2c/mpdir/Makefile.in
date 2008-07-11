@@ -706,7 +706,7 @@ mpost.c:  mpxout.c
 	$(CTANGLE) $< $@
 
 clean::
-	$(RM) psout.h mp*.h $(CORE_MP_SOURCES) mpost.c mpxout.c
+	$(RM) mp*.h $(CORE_MP_SOURCES) mpost.c mpxout.c
 	$(RM) .libs/* libmplib.a mpost *.lo *.la *.o 
 
 distclean:: clean
