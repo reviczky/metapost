@@ -2,6 +2,72 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost beta version 1.090:
+----------------------------------------------------------------------
+
+This MetaPost release is based on MPlib. For those of you who are not 
+aware of the MPlib project yet:
+
+MPlib is the name of the new, revamped version of the MetaPost
+interpreter. It is implemented in Cweb, and internally consists
+of a core library, an mpx generation library, and a frontend
+driver program (mpost).
+
+There are no changes to the MetaPost language, but nevertheless there
+are some minor differences with the last pascal-web based version of 
+MetaPost (1.005):
+
+* The MPlib distribution is released under the GPL version 2 or, 
+  at your option, any later version.
+
+* The commandline is slightly different, run mpost --help for details.
+
+* The mem file format is changed, you have to regenerate any 
+  existing ones.
+
+* The new mpx generation library includes the label generation
+  functionality that was previously provided by 'makempx', and
+  this internal code will be used instead of an external program.
+  That is, unless the MPXCOMMAND variable is set in the  environment 
+  or texmf.cnf. The 'mpware' programs became obsolete and are no 
+  longer included in the distribution.
+
+* Most of the memory configuration variables from texmf.cnf
+  have become obsolete due to dynamic reallocation. The four remaining 
+  ones are 'main_memory', 'hash_size', 'max_in_open', 'param_size'.
+  These are only taken into account at mem generation time, the
+  values are stored in and reloaded from the mem file.
+
+* The core MPlib library does not interpret an initial '&' as anything
+  special and it does not support re-initialization using a different
+  mem file either. The command line program mpost _does_ interpret '&' 
+  as an alias for the -mem switch to preserve (some) compatility.
+
+* The MPlib distribution includes lua script language bindings.
+
+Following are the NEWS items for the previous beta releases of MPlib.
+
+----------------------------------------------------------------------
+What is new in the beta release of MPlib 1.090:
+----------------------------------------------------------------------
+
+* The lua bindings to MPlib are added to the distribution, and
+  build.sh can now build an mplib.so loadable module for lua
+  (this needs an installed lua 5.1 distribution)
+
+* Some internal macros are renamed so that the exported C structure
+  fields could have better names, and a new document (mplibapi.tex)
+  provides the documentation of the C api and Lua bindings.
+
+* The texmf and manual trees are now included again.
+
+* (un)dumping mem files is delegated to a separate cweb source file.
+
+* All gcc-isms in the build and configure scripts have been removed.
+
+* The kpathsea library is updated.
+
+----------------------------------------------------------------------
 What is new in the beta release of MPlib 1.085:
 ----------------------------------------------------------------------
 

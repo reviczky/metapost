@@ -30,7 +30,7 @@ the MetaPost system.  See INSTALL for some installation help, and
 CHANGES for recent and not-so-recent improvements to MetaPost.
 
 The source installation package has been created by extracting the
-bits and pieces of TeX Live 2007 that are absolutely needed to compile
+bits and pieces of TeX Live 2008 that are absolutely needed to compile
 Metapost in such a way that it can be plugged into an existing
 web2c-based installation afterwards. See http://tug.org/texlive/ for more
 information.
