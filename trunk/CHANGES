@@ -2,6 +2,20 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost beta version 1.091:
+----------------------------------------------------------------------
+
+* Dash lists were interfaced incorrectly by the lua bindings.
+
+* The Type 1 Font inclusion in the previous version produced invalid
+  subsets.
+
+* The configure script now also checks for sys/time.h
+
+* The error message you get for invalid mem files now mentions the
+  name of the file as well as the nature of the problem.
+
+----------------------------------------------------------------------
 What is new in MetaPost beta version 1.090:
 ----------------------------------------------------------------------
 
