@@ -3913,13 +3913,13 @@ static char *mp_itoa (int i) {
   while (v>=10) {
     char d = (char)(v % 10);
     v = v / 10;
-    res[idx--] = d;
+    res[idx--] = (char)d + '0';
   }
-  res[idx--] = (char)v;
+  res[idx--] = (char)v + '0';
   if (i<0) {
       res[idx--] = '-';
   }
-  return mp_strdup(res+idx);
+  return mp_strdup((res+idx+1));
 }
 static char *mp_utoa (unsigned v) {
   char res[32] ;
@@ -3928,10 +3928,10 @@ static char *mp_utoa (unsigned v) {
   while (v>=10) {
     char d = (char)(v % 10);
     v = v / 10;
-    res[idx--] = d;
+    res[idx--] = d + '0';
   }
-  res[idx--] = (char)v;
-  return mp_strdup(res+idx);
+  res[idx--] = (char)v + '0';
+  return mp_strdup((res+idx+1));
 }
 void mp_do_snprintf (char *str, int size, const char *format, ...) {
   const char *fmt;
