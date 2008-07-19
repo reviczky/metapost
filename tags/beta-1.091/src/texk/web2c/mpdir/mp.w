@@ -25951,7 +25951,7 @@ if (mp->ini_version) {
   }
   if (mp_open_mem_file(mp)) {
     i = mp_undump_constants(mp);
-    if (i != metapost_magic);
+    if (i != metapost_magic)
       goto OFF_BASE;    
     set_value(mp->mem_max,opt->main_memory,mp->mem_top);
     goto DONE;
