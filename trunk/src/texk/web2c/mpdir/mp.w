@@ -96,6 +96,7 @@ undergoes any modifications, so that it will be clear which version of
 @(mpmp.h@>=
 #define metapost_version "1.091"
 #define metapost_magic (('M'*256) + 'P')*65536 + 1091
+#define metapost_old_magic (('M'*256) + 'P')*65536 + 1080
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
 few typedefs and the header defintions for the externally used
@@ -25870,7 +25871,7 @@ mp->mem_ident=xstrdup(" (INIMP)");
 @ @<Declarations@>=
 extern void mp_store_mem_file (MP mp) ;
 extern boolean mp_load_mem_file (MP mp);
-extern boolean mp_undump_constants (MP mp);
+extern int mp_undump_constants (MP mp);
 
 @ @<Dealloc variables@>=
 xfree(mp->mem_ident);
@@ -25944,17 +25945,25 @@ if (mp->ini_version) {
     mp->hash_size=0x8000000;
   mp->hash_prime=mp_prime_choices[(i-14)];
 } else {
+  int i = -1;
   if (mp->mem_name == NULL) {
     mp->mem_name = mp_xstrdup(mp,"plain");
   }
   if (mp_open_mem_file(mp)) {
-    if (!mp_undump_constants(mp))
+    i = mp_undump_constants(mp);
+    if (i != metapost_magic);
       goto OFF_BASE;    
     set_value(mp->mem_max,opt->main_memory,mp->mem_top);
     goto DONE;
   } 
 OFF_BASE:
-  wterm_ln("(Fatal mem file error; I'm stymied)\n");
+  wterm_ln("(Fatal mem file error; ");
+  wterm((mp->find_file)(mp, mp->mem_name, "r", mp_filetype_memfile));
+  if (i>metapost_old_magic && i<metapost_magic) {
+    wterm(" was written by an older version)\n");
+  } else {
+    wterm(" appears not to be a mem file)\n");
+  }
   mp->history = mp_fatal_error_stop;
   mp_jump_out(mp);
 }
