@@ -1,0 +1,17 @@
+/*.aux
+/*.bbl
+/*.blg
+/*.idx
+/*.ilg
+/*.ind
+/*.log
+/*.mps
+/*.mpx
+/*.toc
+/*.out
+/mp*.dvi
+/mp*.pdf
+/mp*.ps
+/auto
+/*.prv
+/_region_.tex
