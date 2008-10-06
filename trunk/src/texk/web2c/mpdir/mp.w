@@ -1714,7 +1714,7 @@ void mp_print_visible_char (MP mp, ASCII_code s) { /* prints a single character 
       mp->trick_buf[mp->tally % mp->error_line]=s;
     break;
   case new_string: 
-    if ( mp->pool_ptr>=mp->max_pool_ptr ) { 
+    if (mp->pool_ptr>=mp->pool_size || mp->pool_ptr>=mp->max_pool_ptr ) { 
       mp_unit_str_room(mp);
       if ( mp->pool_ptr>=mp->pool_size ) 
         goto DONE; /* drop characters if string space is full */
