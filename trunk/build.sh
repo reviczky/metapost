@@ -73,4 +73,4 @@ cd web2c/mpdir
 cd ../../../..
 # show the results
 ls -l build/texk/web2c/mpdir/mpost
-ls -l build/texk/web2c/mpdir/.libs/mplib.so
+#ls -l build/texk/web2c/mpdir/.libs/mplib.so
