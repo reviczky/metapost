@@ -6659,7 +6659,7 @@ m4trace:configure.in:16: -1- m4_pattern_allow([^LIBS$])
 m4trace:configure.in:16: -1- m4_pattern_allow([^build_alias$])
 m4trace:configure.in:16: -1- m4_pattern_allow([^host_alias$])
 m4trace:configure.in:16: -1- m4_pattern_allow([^target_alias$])
-m4trace:configure.in:17: -1- AM_INIT_AUTOMAKE([libmplib], [1.0.9])
+m4trace:configure.in:17: -1- AM_INIT_AUTOMAKE([libmplib], [1.1.1])
 m4trace:configure.in:17: -1- m4_pattern_allow([^AM_[A-Z]+FLAGS$])
 m4trace:configure.in:17: -1- AM_SET_CURRENT_AUTOMAKE_VERSION
 m4trace:configure.in:17: -1- AM_AUTOMAKE_VERSION([1.10.1])
