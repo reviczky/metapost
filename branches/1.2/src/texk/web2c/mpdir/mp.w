@@ -2062,7 +2062,6 @@ const char * help_line[6]; /* helps for the next |error| */
 unsigned int help_ptr; /* the number of help lines present */
 boolean use_err_help; /* should the |err_help| string be shown? */
 str_number err_help; /* a string set up by \&{errhelp} */
-str_number filename_template; /* a string set up by \&{filenametemplate} */
 
 @ @<Allocate or ...@>=
 mp->use_err_help=false;
@@ -5028,7 +5027,9 @@ fuss with. Every such parameter has an identifying code number, defined here.
 
 @<Types...@>=
 enum mp_given_internal {
-  mp_tracing_titles=1, /* show titles online when they appear */
+  mp_output_template=1, /* a string set up by \&{outputtemplate} */
+  mp_output_format, /* the output format set up by \&{outputformat} */
+  mp_tracing_titles, /* show titles online when they appear */
   mp_tracing_equations, /* show each variable when it becomes known */
   mp_tracing_capsules, /* show capsules too */
   mp_tracing_choices, /* show the control points chosen for paths */
@@ -5177,6 +5178,10 @@ mp_primitive(mp, "defaultcolormodel",internal_quantity,mp_default_color_model);
 @:mp_default_color_model_}{\&{defaultcolormodel} primitive@>
 mp_primitive(mp, "restoreclipcolor",internal_quantity,mp_restore_clip_color);
 @:mp_restore_clip_color_}{\&{restoreclipcolor} primitive@>
+mp_primitive(mp, "outputtemplate",internal_quantity,mp_output_template);
+@:mp_output_template_}{\&{outputtemplate} primitive@>
+mp_primitive(mp, "outputformat",internal_quantity,mp_output_format);
+@:mp_output_format_}{\&{outputformat} primitive@>
 
 @ Colors can be specified in four color models. In the special
 case of |no_model|, MetaPost does not output any color operator to
@@ -5203,6 +5208,8 @@ enum mp_color_model {
 @ @<Initialize table entries (done by \.{INIMP} only)@>=
 mp->internal[mp_default_color_model]=(mp_rgb_model*unity);
 mp->internal[mp_restore_clip_color]=unity;
+mp->internal[mp_output_template]=0; /* rts("%j.%c") */
+mp->internal[mp_output_format]=0; /* rts("ps") */
 
 @ Well, we do have to list the names one more time, for use in symbolic
 printouts.
@@ -5245,6 +5252,8 @@ mp->int_name[mp_default_color_model]=xstrdup("defaultcolormodel");
 mp->int_name[mp_procset]=xstrdup("mpprocset");
 mp->int_name[mp_gtroffmode]=xstrdup("troffmode");
 mp->int_name[mp_restore_clip_color]=xstrdup("restoreclipcolor");
+mp->int_name[mp_output_template]=xstrdup("outputtemplate");
+mp->int_name[mp_output_format]=xstrdup("outputformat");
 
 @ The following procedure, which is called just before \MP\ initializes its
 input and output, establishes the initial values of the date and time.
@@ -25412,7 +25421,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
   integer cc; /* a temporary integer for template building  */
   integer f,g=0; /* field widths */
   if ( mp->job_name==NULL ) mp_open_log_file(mp);
-  if ( mp->filename_template==0 ) {
+  if ( mp->internal[mp_output_template]==0) { 
     char *s; /* a file extension derived from |c| */
     if ( c<0 ) 
       s=xstrdup(".ps");
@@ -25426,13 +25435,13 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     old_setting=mp->selector; 
     mp->selector=new_string;
     f = 0;
-    i = mp->str_start[mp->filename_template];
+    i = mp->str_start[mp->internal[mp_output_template]];
     n = null_str; /* initialize */
-    while ( i<str_stop(mp->filename_template) ) {
+    while ( i<str_stop(mp->internal[mp_output_template]) ) {
        if ( mp->str_pool[i]=='%' ) {
       CONTINUE:
         incr(i);
-        if ( i<str_stop(mp->filename_template) ) {
+        if ( i<str_stop(mp->internal[mp_output_template]) ) {
           if ( mp->str_pool[i]=='j' ) {
             mp_print(mp, mp->job_name);
           } else if ( mp->str_pool[i]=='d' ) {
@@ -25820,14 +25829,22 @@ void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
 @ @<Declarations@>=
 static void mp_shipout_backend (MP mp, pointer h);
 
-@ @c
+@ 
+@c
 void mp_shipout_backend (MP mp, pointer h) {
+  char *s;
   mp_edge_object *hh; /* the first graphical object */
   hh = mp_gr_export(mp,h);
-  (void)mp_gr_ship_out (hh,
+  s = NULL;
+  if (mp->internal[mp_output_format]>0)
+    s =  str(mp->internal[mp_output_format]);
+  if (s && strcmp(s,"svg")==0) {
+  } else {
+    (void)mp_gr_ship_out (hh,
                  (mp->internal[mp_prologues]/65536),
                  (mp->internal[mp_procset]/65536), 
                  false);
+  }
   mp_gr_toss_objects(hh);
 }
 
@@ -26253,10 +26270,13 @@ But when we finish this part of the program, \MP\ is ready to call on the
 
 @<Save the filename template@>=
 { 
-  if ( mp->filename_template!=0 ) delete_str_ref(mp->filename_template);
-  if ( length(mp->cur_exp)==0 ) mp->filename_template=0;
-  else { 
-    mp->filename_template=mp->cur_exp; add_str_ref(mp->filename_template);
+  if ( mp->internal[mp_output_template]!=0 ) 
+     delete_str_ref(mp->internal[mp_output_template]);
+  if ( length(mp->cur_exp)==0 ) {
+    mp->internal[mp_output_template] = 0;
+  } else { 
+    mp->internal[mp_output_template]=mp->cur_exp; 
+    add_str_ref(mp->internal[mp_output_template]);
   }
 }
 
