@@ -717,7 +717,7 @@ static char *mp_read_ascii_file (MP mp, void *ff, size_t *size) {
   s = malloc(lim); 
   if (s==NULL) return NULL;
   while (c!=EOF && c!='\n' && c!='\r') { 
-    if (len==lim) {
+    if ((len+1)==lim) {
       s =realloc(s, (lim+(lim>>2)));
       if (s==NULL) return NULL;
       lim+=(lim>>2);
