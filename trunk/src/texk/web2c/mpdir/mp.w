@@ -1774,7 +1774,7 @@ assumes that it is always safe to print a visible ASCII character.)
 static void mp_do_print (MP mp, const char *ss, size_t len) { /* prints string |s| */
   size_t j = 0;
   if (mp->selector == new_string) {
-    str_room(len*4);
+    str_room((integer)(len*4));
   }
   while ( j<len ){ 
     mp_print_char(mp, xord((int)ss[j])); j++;
