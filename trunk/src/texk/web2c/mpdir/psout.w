@@ -190,7 +190,7 @@ static void mp_ps_do_print (MP mp, const char *ss, size_t len) { /* prints strin
 
 @ Deciding where to break the ps output line. 
 
-@d ps_room(A) if ( (mp->ps->ps_offset+(int)(A))>mp->max_print_line ) {
+@d ps_room(A) if (mp->ps->ps_offset>0 && (mp->ps->ps_offset+(int)(A))>mp->max_print_line ) {
   mp_ps_print_ln(mp); /* optional line break */
 }
 
