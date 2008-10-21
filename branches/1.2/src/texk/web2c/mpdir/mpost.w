@@ -502,16 +502,29 @@ if (!nokpse)
       } else if (option_arg("errorstopmode")) {
         options->interaction = mp_error_stop_mode;
       } else {
-        fprintf(stdout,"unknown option argument %s\n", argv[a]);
+        fprintf(stdout,"warning: %s: unknown option argument %s\n", argv[0], argv[a]);
       }
     } else if (option_is("no-kpathsea")) {
       nokpse=true;
+    } else if (option_is("file-line-error")) {
+      options->file_line_error_style=true;
+    } else if (option_is("no-file-line-error")) {
+      options->file_line_error_style=false;
     } else if (option_is("help")) {
       @<Show help and exit@>;
     } else if (option_is("version")) {
       @<Show version and exit@>;
+    } else if (option_is("8bit") ||
+               option_is("parse-first-line")) {
+      /* do nothing, these are always on */
+    } else if (option_is("halt-on-error") ||
+               option_is("translate-file") ||
+               option_is("output-directory") ||
+               option_is("no-parse-first-line")) {
+      fprintf(stdout,"warning: %s: unimplemented option %s\n", argv[0], argv[a]);
     } else if (option_is("")) {
-      continue; /* ignore unknown options */
+      fprintf(stdout,"fatal error: %s: unknown option %s\n", argv[0], argv[a]);
+      exit(EXIT_FAILURE);
     } else {
       break;
     }
@@ -540,6 +553,7 @@ fprintf(stdout,
 "  -progname=STRING          set program (and mem) name to STRING\n"
 "  -tex=TEXPROGRAM           use TEXPROGRAM for text labels\n");
 fprintf(stdout,
+"  [-no]-file-line-error     disable/enable file:line:error style messages\n"
 "  -kpathsea-debug=NUMBER    set path searching debugging flags according to\n"
 "                            the bits of NUMBER\n"
 "  -mem=MEMNAME or &MEMNAME  use MEMNAME instead of program name or a %%& line\n"

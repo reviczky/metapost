@@ -637,15 +637,31 @@ char name_of_file[file_name_size+1]; /* the name of a system file */
 int name_length;/* this many characters are actually
   relevant in |name_of_file| (the rest are blank) */
 
-@ @<Option variables@>=
-int print_found_names; /* configuration parameter */
-
 @ If this parameter is true, the terminal and log will report the found
 file names for input files instead of the requested ones. 
 It is off by default because it creates an extra filename lookup.
 
-@<Allocate or initialize ...@>=
+@<Option variables@>=
+int print_found_names; /* configuration parameter */
+
+@ @<Allocate or initialize ...@>=
 mp->print_found_names = (opt->print_found_names>0 ? true : false);
+
+@ The |file_line_error_style| parameter makes \MP\ use a more
+standard compiler error message format instead of the Knuthian 
+exclamation mark. It needs the actual version of the current input 
+file name, that will be saved by |a_open_in| in the global 
+|mp->long_name|.
+
+@<Glob...@>=
+char *long_name;
+
+@ @<Option variables@>=
+int file_line_error_style; /* configuration parameter */
+
+@ @<Allocate or initialize ...@>=
+mp->file_line_error_style = (opt->file_line_error_style>0 ? true : false);
+mp->long_name = NULL;
 
 @ \MP's file-opening procedures return |false| if no file identified by
 |name_of_file| could be opened.
@@ -655,11 +671,17 @@ It is not used for opening a mem file for read, because that file name
 is never printed.
 
 @d OPEN_FILE(A) do {
-  if (mp->print_found_names) {
+  if (mp->print_found_names || mp->file_line_error_style) {
     char *s = (mp->find_file)(mp,mp->name_of_file,A,ftype);
     if (s!=NULL) {
       *f = (mp->open_file)(mp,mp->name_of_file,A, ftype); 
-      strncpy(mp->name_of_file,s,file_name_size);
+      if (mp->print_found_names) {
+        strncpy(mp->name_of_file,s,file_name_size);
+      }
+      if ((*(A) == 'r') && (ftype == mp_filetype_program)) {
+        xfree(mp->long_name);
+        mp->long_name = xstrdup(s);
+      }
       xfree(s);
     } else {
       *f = NULL;
@@ -1961,7 +1983,19 @@ void mp_print_err(MP mp, const char * A);
 void mp_print_err(MP mp, const char * A) { 
   if ( mp->interaction==mp_error_stop_mode ) 
     wake_up_terminal;
-  mp_print_nl(mp, "! "); 
+  if (mp->file_line_error_style && file_state && !terminal_input) {
+    mp_print_nl(mp, ""); 
+    if (mp->long_name != NULL) {
+      mp_print(mp, mp->long_name);      
+    } else {
+      mp_print(mp, mp_str(mp,name));
+    }
+    mp_print(mp, ":");
+    mp_print_int(mp, line);
+    mp_print(mp, ": ");
+  } else{
+    mp_print_nl(mp, "! "); 
+  }
   mp_print(mp, A);
 @.!\relax@>
 }
@@ -16094,7 +16128,7 @@ boolean mp_open_mem_file (MP mp) {
       return true;
   }
   wake_up_terminal;
-  wterm_ln("I can\'t find the PLAIN mem file!");
+  wterm_ln("I can\'t find the PLAIN mem file!\n");
 @.I can't find PLAIN...@>
 @.plain@>
   return false;
@@ -16963,8 +16997,7 @@ void mp_disp_err (MP mp,pointer p, const char *s) {
 @.>>@>
   mp_print_exp(mp, p,1); /* ``medium verbose'' printing of the expression */
   if (strlen(s)>0) { 
-    mp_print_nl(mp, "! "); mp_print(mp, s);
-@.!\relax@>
+    print_err(s);
   }
 }
 
@@ -25993,15 +26026,15 @@ if (mp->ini_version) {
       goto OFF_BASE;    
     set_value(mp->mem_max,opt->main_memory,mp->mem_top);
     goto DONE;
-  } 
 OFF_BASE:
-  wterm_ln("(Fatal mem file error; ");
-  wterm((mp->find_file)(mp, mp->mem_name, "r", mp_filetype_memfile));
-  if (i>metapost_old_magic && i<metapost_magic) {
-    wterm(" was written by an older version)\n");
-  } else {
-    wterm(" appears not to be a mem file)\n");
-  }
+    wterm_ln("(Fatal mem file error; ");
+    wterm((mp->find_file)(mp, mp->mem_name, "r", mp_filetype_memfile));
+    if (i>metapost_old_magic && i<metapost_magic) {
+      wterm(" was written by an older version)\n");
+    } else {
+      wterm(" appears not to be a mem file)\n");
+    }
+  } 
   mp->history = mp_fatal_error_stop;
   mp_jump_out(mp);
 }
