@@ -553,6 +553,7 @@ fprintf(stdout,
 "  -progname=STRING          set program (and mem) name to STRING\n"
 "  -tex=TEXPROGRAM           use TEXPROGRAM for text labels\n");
 fprintf(stdout,
+"  [-no]-file-line-error     disable/enable file:line:error style messages\n"
 "  -kpathsea-debug=NUMBER    set path searching debugging flags according to\n"
 "                            the bits of NUMBER\n"
 "  -mem=MEMNAME or &MEMNAME  use MEMNAME instead of program name or a %%& line\n"
