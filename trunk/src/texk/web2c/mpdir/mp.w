@@ -16085,7 +16085,7 @@ boolean mp_open_mem_file (MP mp) {
       return true;
   }
   wake_up_terminal;
-  wterm_ln("I can\'t find the PLAIN mem file!");
+  wterm_ln("I can\'t find the PLAIN mem file!\n");
 @.I can't find PLAIN...@>
 @.plain@>
   return false;
@@ -25976,15 +25976,15 @@ if (mp->ini_version) {
       goto OFF_BASE;    
     set_value(mp->mem_max,opt->main_memory,mp->mem_top);
     goto DONE;
-  } 
 OFF_BASE:
-  wterm_ln("(Fatal mem file error; ");
-  wterm((mp->find_file)(mp, mp->mem_name, "r", mp_filetype_memfile));
-  if (i>metapost_old_magic && i<metapost_magic) {
-    wterm(" was written by an older version)\n");
-  } else {
-    wterm(" appears not to be a mem file)\n");
-  }
+    wterm_ln("(Fatal mem file error; ");
+    wterm((mp->find_file)(mp, mp->mem_name, "r", mp_filetype_memfile));
+    if (i>metapost_old_magic && i<metapost_magic) {
+      wterm(" was written by an older version)\n");
+    } else {
+      wterm(" appears not to be a mem file)\n");
+    }
+  } 
   mp->history = mp_fatal_error_stop;
   mp_jump_out(mp);
 }
