@@ -20249,17 +20249,18 @@ if ( mp_type(p)==mp_known ) {
   s=mp_type(p); r=dep_list(p);
   if ( t==mp_dependent ) {
     if ( s==mp_dependent ) {
-      if ( mp_max_coef(mp, r)+mp_max_coef(mp, v)<coef_bound )
-        v=mp_p_plus_q(mp, v,r,mp_dependent); goto DONE;
+      if ( mp_max_coef(mp, r)+mp_max_coef(mp, v)<coef_bound ) {
+          v=mp_p_plus_q(mp, v,r,mp_dependent); goto DONE;
+        } 
       } /* |fix_needed| will necessarily be false */
-      t=mp_proto_dependent; 
-      v=mp_p_over_v(mp, v,unity,mp_dependent,mp_proto_dependent);
-    }
-    if ( s==mp_proto_dependent ) v=mp_p_plus_q(mp, v,r,mp_proto_dependent);
-    else v=mp_p_plus_fq(mp, v,unity,r,mp_proto_dependent,mp_dependent);
- DONE:  
-    @<Output the answer, |v| (which might have become |known|)@>;
+    t=mp_proto_dependent; 
+    v=mp_p_over_v(mp, v,unity,mp_dependent,mp_proto_dependent);
   }
+  if ( s==mp_proto_dependent ) v=mp_p_plus_q(mp, v,r,mp_proto_dependent);
+  else v=mp_p_plus_fq(mp, v,unity,r,mp_proto_dependent,mp_dependent);
+ DONE:  
+  @<Output the answer, |v| (which might have become |known|)@>;
+}
 
 @ @<Add the known |value(p)| to the constant term of |v|@>=
 { 
