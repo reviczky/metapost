@@ -24879,6 +24879,7 @@ for (k=mp->bc;k<=mp->ec;k++) {
     B3=(eight_bits)((B3+B3+x) % 251);
     B4=(eight_bits)((B4+B4+x) % 247);
   }
+  if (k==mp->ec) break;
 }
 
 @ Finally we're ready to actually write the \.{TFM} information.
