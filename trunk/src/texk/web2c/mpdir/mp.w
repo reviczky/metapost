@@ -398,7 +398,8 @@ set_value(mp->error_line,opt->error_line,79);
 set_value(mp->half_error_line,opt->half_error_line,50);
 if (mp->half_error_line>mp->error_line-15 ) 
   mp->half_error_line = mp->error_line-15;
-set_value(mp->max_print_line,opt->max_print_line,100);
+mp->max_print_line=100;
+set_value(mp->max_print_line,opt->max_print_line,79);
 
 @ In case somebody has inadvertently made bad settings of the ``constants,''
 \MP\ checks them using a global variable called |bad|.
