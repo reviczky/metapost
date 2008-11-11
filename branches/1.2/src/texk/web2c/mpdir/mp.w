@@ -398,7 +398,8 @@ set_value(mp->error_line,opt->error_line,79);
 set_value(mp->half_error_line,opt->half_error_line,50);
 if (mp->half_error_line>mp->error_line-15 ) 
   mp->half_error_line = mp->error_line-15;
-set_value(mp->max_print_line,opt->max_print_line,100);
+mp->max_print_line=100;
+set_value(mp->max_print_line,opt->max_print_line,79);
 
 @ In case somebody has inadvertently made bad settings of the ``constants,''
 \MP\ checks them using a global variable called |bad|.
@@ -20258,17 +20259,18 @@ if ( mp_type(p)==mp_known ) {
   s=mp_type(p); r=dep_list(p);
   if ( t==mp_dependent ) {
     if ( s==mp_dependent ) {
-      if ( mp_max_coef(mp, r)+mp_max_coef(mp, v)<coef_bound )
-        v=mp_p_plus_q(mp, v,r,mp_dependent); goto DONE;
+      if ( mp_max_coef(mp, r)+mp_max_coef(mp, v)<coef_bound ) {
+          v=mp_p_plus_q(mp, v,r,mp_dependent); goto DONE;
+        } 
       } /* |fix_needed| will necessarily be false */
-      t=mp_proto_dependent; 
-      v=mp_p_over_v(mp, v,unity,mp_dependent,mp_proto_dependent);
-    }
-    if ( s==mp_proto_dependent ) v=mp_p_plus_q(mp, v,r,mp_proto_dependent);
-    else v=mp_p_plus_fq(mp, v,unity,r,mp_proto_dependent,mp_dependent);
- DONE:  
-    @<Output the answer, |v| (which might have become |known|)@>;
+    t=mp_proto_dependent; 
+    v=mp_p_over_v(mp, v,unity,mp_dependent,mp_proto_dependent);
   }
+  if ( s==mp_proto_dependent ) v=mp_p_plus_q(mp, v,r,mp_proto_dependent);
+  else v=mp_p_plus_fq(mp, v,unity,r,mp_proto_dependent,mp_dependent);
+ DONE:  
+  @<Output the answer, |v| (which might have become |known|)@>;
+}
 
 @ @<Add the known |value(p)| to the constant term of |v|@>=
 { 
@@ -24888,6 +24890,7 @@ for (k=mp->bc;k<=mp->ec;k++) {
     B3=(eight_bits)((B3+B3+x) % 251);
     B4=(eight_bits)((B4+B4+x) % 247);
   }
+  if (k==mp->ec) break;
 }
 
 @ Finally we're ready to actually write the \.{TFM} information.
