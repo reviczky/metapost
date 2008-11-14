@@ -124,6 +124,7 @@ wholesale.
 @(mpmp.h@>=
 #include <setjmp.h>
 typedef struct psout_data_struct * psout_data;
+typedef struct svgout_data_struct * svgout_data;
 #ifndef HAVE_BOOLEAN
 typedef int boolean;
 #endif
@@ -159,8 +160,10 @@ typedef struct MP_instance {
 #include <time.h> /* for struct tm \& co */
 #include "mplib.h"
 #include "mplibps.h" /* external header */
+#include "mplibsvg.h" /* external header */
 #include "mpmp.h" /* internal header */
 #include "mppsout.h" /* internal header */
+#include "mpsvgout.h" /* internal header */
 extern font_number mp_read_font_info (MP mp, char *fname); /* tfmin.w */
 @h
 @<Declarations@>
@@ -1622,7 +1625,7 @@ to the terminal, the transcript file, or the \ps\ output file, respectively.
 
 @<Glob...@>=
 void * log_file; /* transcript of \MP\ session */
-void * ps_file; /* the generic font output goes here */
+void * output_file; /* the generic font output goes here */
 unsigned int selector; /* where to print a message */
 unsigned char dig[23]; /* digits in a number, for rounding */
 integer tally; /* the number of characters recently printed */
@@ -5244,7 +5247,7 @@ enum mp_color_model {
 mp->internal[mp_default_color_model]=(mp_rgb_model*unity);
 mp->internal[mp_restore_clip_color]=unity;
 mp->internal[mp_output_template]=0; /* rts("%j.%c") */
-mp->internal[mp_output_format]=0; /* rts("ps") */
+mp->internal[mp_output_format]=0; /* rts("eps") */
 
 @ Well, we do have to list the names one more time, for use in symbolic
 printouts.
@@ -21649,7 +21652,9 @@ void mp_do_assignment (MP mp) {
 }
 
 @ @<Assign the current expression to an internal variable@>=
-if ( mp->cur_type==mp_known )  {
+if ( mp->cur_type==mp_known || mp->cur_type==mp_string_type )  {
+  if (mp->cur_type==mp_string_type)
+    add_str_ref(mp->cur_exp);
   mp->internal[mp_info(lhs)-(hash_end)]=mp->cur_exp;
 } else { 
   exp_err("Internal quantity `");
@@ -25546,7 +25551,7 @@ void mp_open_output_file (MP mp) {
   integer c; /* \&{charcode} rounded to the nearest integer */
   c=mp_round_unscaled(mp, mp->internal[mp_char_code]);
   ss = mp_set_output_file_name(mp, c);
-  while ( ! mp_a_open_out(mp, (void *)&mp->ps_file, mp_filetype_postscript) )
+  while ( ! mp_a_open_out(mp, (void *)&mp->output_file, mp_filetype_postscript) )
     mp_prompt_file_name(mp, "file name for output",ss);
   xfree(ss);
   @<Store the true output file name if appropriate@>;
@@ -25875,6 +25880,10 @@ void mp_shipout_backend (MP mp, pointer h) {
   if (mp->internal[mp_output_format]>0)
     s =  str(mp->internal[mp_output_format]);
   if (s && strcmp(s,"svg")==0) {
+    (void)mp_svg_gr_ship_out (hh,
+                 (mp->internal[mp_prologues]/65536),
+                 (mp->internal[mp_procset]/65536), 
+                 false);
   } else {
     (void)mp_gr_ship_out (hh,
                  (mp->internal[mp_prologues]/65536),
@@ -25903,12 +25912,15 @@ by which a user can send things to the \.{GF} file.
 
 @ @<Glob...@>=
 psout_data ps;
+svgout_data svg;
 
 @ @<Allocate or initialize ...@>=
-mp_backend_initialize(mp);
+mp_ps_backend_initialize(mp);
+mp_svg_backend_initialize(mp);
 
 @ @<Dealloc...@>=
-mp_backend_free(mp);
+mp_ps_backend_free(mp);
+mp_svg_backend_free(mp);
 
 
 @* \[45] Dumping and undumping the tables.

@@ -128,15 +128,15 @@ static int mp_strcasecmp (const char *s1, const char *s2) {
 }
 
 @ @<Exported function headers@>=
-void mp_backend_initialize (MP mp) ;
-void mp_backend_free (MP mp) ;
+void mp_ps_backend_initialize (MP mp) ;
+void mp_ps_backend_free (MP mp) ;
 
 @
-@c void mp_backend_initialize (MP mp) {
+@c void mp_ps_backend_initialize (MP mp) {
   mp->ps = mp_xmalloc(mp,1,sizeof(psout_data_struct));
   @<Set initial values@>;
 }
-void mp_backend_free (MP mp) {
+void mp_ps_backend_free (MP mp) {
   @<Dealloc variables@>;
   enc_free(mp);
   t1_free(mp);
@@ -156,14 +156,14 @@ mp->ps->ps_offset = 0;
 
 @
 
-@d wps(A)     (mp->write_ascii_file)(mp,mp->ps_file,(A))
+@d wps(A)     (mp->write_ascii_file)(mp,mp->output_file,(A))
 @d wps_chr(A) do { 
   char ss[2]; 
   ss[0]=(A); ss[1]=0; 
-  (mp->write_ascii_file)(mp,mp->ps_file,(char *)ss); 
+  (mp->write_ascii_file)(mp,mp->output_file,(char *)ss); 
 } while (0)
-@d wps_cr     (mp->write_ascii_file)(mp,mp->ps_file,"\n")
-@d wps_ln(A)  { wterm_cr; (mp->write_ascii_file)(mp,mp->ps_file,(A)); }
+@d wps_cr     (mp->write_ascii_file)(mp,mp->output_file,"\n")
+@d wps_ln(A)  { wterm_cr; (mp->write_ascii_file)(mp,mp->output_file,(A)); }
 
 @c
 static void mp_ps_print_ln (MP mp) { /* prints an end-of-line */
@@ -1269,11 +1269,11 @@ static int check_fm_entry (MP mp, fm_entry * fm, boolean warn) {
     }
 }
 
-@ @<Declarations@>=
-static fm_entry * mp_fm_lookup (MP mp, font_number f);
+@ @<Exported function ...@>=
+fm_entry * mp_fm_lookup (MP mp, font_number f);
 
 @ @c 
-static fm_entry * mp_fm_lookup (MP mp, font_number f) {
+fm_entry * mp_fm_lookup (MP mp, font_number f) {
     char *tfm;
     fm_entry *fm;
     fm_entry tmp;
@@ -1475,11 +1475,11 @@ This routine reads the table, updates |font_ps_name| entries starting after
 
 @d ps_tab_name "psfonts.map"  /* locates font name translation table */
 
-@<Declarations@>=
-static void mp_read_psname_table (MP mp) ;
+@<Exported function ...@>=
+void mp_read_psname_table (MP mp) ;
 
 @ @c 
-static void mp_read_psname_table (MP mp) {
+void mp_read_psname_table (MP mp) {
   font_number k;
   if (mp->ps->mitem == NULL) {
     mp->ps->mitem = mp_xmalloc (mp,1,sizeof(mapitem));
@@ -5506,7 +5506,7 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standal
   }
   mp_ps_print_cmd(mp, "showpage","P"); mp_ps_print_ln(mp);
   mp_ps_print(mp, "%%EOF"); mp_ps_print_ln(mp);
-  (mp->close_file)(mp,mp->ps_file);
+  (mp->close_file)(mp,mp->output_file);
   if ( prologues<=0 ) 
     mp_clear_sizes(mp);
   return 1;

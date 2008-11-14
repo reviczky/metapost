@@ -19,7 +19,7 @@ KPSEBUILDDIR = ../../../texk/kpathsea/.libs
 KPSESRCDIR = ../../../../src/texk/kpathsea
 KPSELIB=$(KPSEBUILDDIR)/libkpathsea.a
 AM_CFLAGS=-I. -I../.. -I$(KPSESRCDIR)/.. -I$(KPSESRCDIR)
-CORE_MP_SOURCES=mp.c psout.c tfmin.c memio.c
+CORE_MP_SOURCES=mp.c psout.c tfmin.c memio.c svgout.c
 
 noinst_LTLIBRARIES    = libmplib.la
 libmplib_la_SOURCES   = avl.c $(CORE_MP_SOURCES)
@@ -40,7 +40,7 @@ mplib_la_LDFLAGS      = -module -avoid-version
 
 lmplib.c: mp.c
 
-mp.c:     psout.c
+mp.c:     psout.c svgout.c
 
 mpost.c:  mpxout.c
 
