@@ -490,6 +490,7 @@ static void mp_write_enc (MP mp, enc_entry * e) {
     mp_ps_print_nl(mp, "/");
     mp_ps_print(mp, e->enc_name);
     mp_ps_print(mp, " [ ");
+    mp_ps_print_ln (mp);
     foffset = strlen(e->file_name)+3;
     for (i = 0; i < 256; i++) {
       s = strlen(g[i]);
