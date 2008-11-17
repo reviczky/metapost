@@ -15945,6 +15945,7 @@ while scanning a file name.
 integer area_delimiter;
   /* most recent `\.>' or `\.:' relative to |str_start[str_ptr]| */
 integer ext_delimiter; /* the relevant `\..', if any */
+boolean quoted_filename; /* whether the filename is wrapped in " markers */
 
 @ Here now is the first of the system-dependent routines for file name scanning.
 @^system dependencies@>
@@ -15967,26 +15968,31 @@ void mp_begin_name (MP mp) {
   xfree(mp->cur_ext);
   mp->area_delimiter=-1; 
   mp->ext_delimiter=-1;
+  mp->quoted_filename=false;
   str_room(file_name_size); 
 }
 
 @ And here's the second.
 @^system dependencies@>
 
+@d IS_DIR_SEP(c) (c=='/' || c=='\\')
+
 @c 
 boolean mp_more_name (MP mp, ASCII_code c) {
-  if (c==' ') {
+  if (c=='"') {
+    mp->quoted_filename= ! mp->quoted_filename;
+  } else if ((c==' '|| c=='\t') && (mp->quoted_filename==false)) {
     return false;
-  } else { 
-    if ( (c=='>')||(c==':') ) { 
+  } else {
+    if (IS_DIR_SEP (c)) {
       mp->area_delimiter=mp->pool_ptr; 
       mp->ext_delimiter=-1;
-    } else if ( (c=='.')&&(mp->ext_delimiter<0) ) {
+    } else if ( c=='.' ) {
       mp->ext_delimiter=mp->pool_ptr;
     }
     append_char(c); /* contribute |c| to the current string */
-    return true;
   }
+  return true;
 }
 
 @ The third.
@@ -16006,9 +16012,9 @@ void mp_end_name (MP mp) {
   if ( mp->area_delimiter<0 ) {    
     mp->cur_area=xstrdup("");
   } else {
-    len = (unsigned)(mp->area_delimiter-s); 
+    len = (unsigned)(mp->area_delimiter-s+1); 
     copy_pool_segment(mp->cur_area,s,len);
-    s += len+1;
+    s += len;
   }
   if ( mp->ext_delimiter<0 ) {
     mp->cur_ext=xstrdup("");
@@ -16028,7 +16034,14 @@ some operating systems put the file area last instead of first.)
 
 @<Basic printing...@>=
 static void mp_print_file_name (MP mp, char * n, char * a, char * e) { 
+  boolean must_quote = false;
+  if (((a != NULL) && (strchr(a,' ') != NULL)) || 
+      ((n != NULL) && (strchr(n,' ') != NULL)) ||
+      ((e != NULL) && (strchr(e,' ') != NULL)))
+    must_quote = true;
+  if (must_quote) mp_print_char(mp, '"');
   mp_print(mp, a); mp_print(mp, n); mp_print(mp, e);
+  if (must_quote) mp_print_char(mp, '"');
 }
 
 @ Another system-dependent routine is needed to convert three internal

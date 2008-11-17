@@ -490,6 +490,7 @@ static void mp_write_enc (MP mp, enc_entry * e) {
     mp_ps_print_nl(mp, "/");
     mp_ps_print(mp, e->enc_name);
     mp_ps_print(mp, " [ ");
+    mp_ps_print_ln (mp);
     foffset = strlen(e->file_name)+3;
     for (i = 0; i < 256; i++) {
       s = strlen(g[i]);
@@ -2452,9 +2453,11 @@ typedef struct {
 static boolean t1_open_fontfile (MP mp, fm_entry *fm_cur,const char *open_name_prefix) {
     ff_entry *ff;
     ff = check_ff_exist (mp, fm_cur);
+    mp->ps->t1_file = NULL;
     if (ff->ff_path != NULL) {
         mp->ps->t1_file = (mp->open_file)(mp,ff->ff_path, "r", mp_filetype_font);
-    } else {
+    }
+    if (mp->ps->t1_file == NULL) {
         mp_warn (mp, "cannot open Type 1 font file for reading");
         return false;
     }
@@ -3749,7 +3752,7 @@ void mp_mark_string_chars (MP mp,font_number f, char *s) {
   ec=mp->font_ec[f];
   k=s;
   while (*k){ 
-    if ( (*k>=(char)bc)&&(*k<=(char)ec) )
+    if ( (*k>=bc)&&(*k<=ec) )
       mp->font_info[b+*k].qqqq.b3=mp_used;
     k++;
   }
