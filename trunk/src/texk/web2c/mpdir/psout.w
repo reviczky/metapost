@@ -2452,9 +2452,11 @@ typedef struct {
 static boolean t1_open_fontfile (MP mp, fm_entry *fm_cur,const char *open_name_prefix) {
     ff_entry *ff;
     ff = check_ff_exist (mp, fm_cur);
+    mp->ps->t1_file = NULL;
     if (ff->ff_path != NULL) {
         mp->ps->t1_file = (mp->open_file)(mp,ff->ff_path, "r", mp_filetype_font);
-    } else {
+    }
+    if (mp->ps->t1_file == NULL) {
         mp_warn (mp, "cannot open Type 1 font file for reading");
         return false;
     }
