@@ -20,31 +20,18 @@
 % PostScript is a trademark of Adobe Systems Incorporated.
 
 % Here is TeX material that gets inserted after \input webmac
-\def\hang{\hangindent 3em\noindent\ignorespaces}
-\def\textindent#1{\hangindent2.5em\noindent\hbox to2.5em{\hss#1 }\ignorespaces}
-\def\PASCAL{Pascal}
-\def\ps{PostScript}
-\def\ph{\hbox{Pascal-H}}
-\def\psqrt#1{\sqrt{\mathstrut#1}}
-\def\k{_{k+1}}
-\def\pct!{{\char`\%}} % percent sign in ordinary text
+
 \font\tenlogo=logo10 % font used for the METAFONT logo
 \font\logos=logosl10
 \def\MF{{\tenlogo META}\-{\tenlogo FONT}}
 \def\MP{{\tenlogo META}\-{\tenlogo POST}}
 \def\<#1>{$\langle#1\rangle$}
 \def\section{\mathhexbox278}
-\let\swap=\leftrightarrow
-\def\round{\mathop{\rm round}\nolimits}
-\mathchardef\vbv="026A % synonym for `\|'
-\def\vb{\relax\ifmmode\vbv\else$\vbv$\fi}
 \def\[#1]{} % from pascal web
 \def\(#1){} % this is used to make section names sort themselves better
 \def\9#1{} % this is used for sort keys in the index via @@:sort key}{entry@@>
 
-\let\?=\relax % we want to be able to \write a \?
-
-\def\title{MetaPost \ps\ output}
+\def\title{MetaPost SVG output}
 \def\topofcontents{\hsize 5.5in
   \vglue -30pt plus 1fil minus 1.5in
   \def\?##1]{\hbox to 1in{\hfil##1.\ }}
@@ -59,23 +46,15 @@
 @d null_font 0
 @d null 0
 @d unity   0200000 /* $2^{16}$, represents 1.00000 */
-@d el_gordo   017777777777 /* $2^{31}-1$, the largest value that \MP\ likes */
 @d incr(A)   (A)=(A)+1 /* increase a variable by unity */
 @d decr(A)   (A)=(A)-1 /* decrease a variable by unity */
 @d negate(A)   (A)=-(A) /* change the sign of a variable */
-@d odd(A)   ((A)%2==1)
-@d half(A) ((A)/2)
-@d print_err(A) mp_print_err(mp,(A))
-@d max_quarterword 0x3FFF /* largest allowable value in a |quarterword| */
 
 @c
 #include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
-#include <assert.h>
-#include "avl.h"
 #include "mplib.h"
 #include "mplibps.h" /* external header */
 #include "mpmp.h" /* internal header */
@@ -87,12 +66,7 @@
 
 @ There is a small bit of code from the backend that bleads through
 to the frontend because I do not know how to set up the includes
-properly. Those are the definitions of |struct libavl_allocator|
-and |typedef struct svgout_data_struct * svgout_data|.
-
-The |libavl_allocator| is a trick that makes sure that frontends 
-do not need |avl.h|, and the |psout_data| is needed for the backend 
-data structure.
+properly. That is |typedef struct svgout_data_struct * svgout_data|.
 
 @ @(mpsvgout.h@>=
 typedef struct svgout_data_struct {
@@ -104,8 +78,8 @@ typedef struct svgout_data_struct {
 void mp_svg_backend_initialize (MP mp) ;
 void mp_svg_backend_free (MP mp) ;
 
-@
-@c void mp_svg_backend_initialize (MP mp) {
+@ @c 
+void mp_svg_backend_initialize (MP mp) {
   mp->svg = mp_xmalloc(mp,1,sizeof(svgout_data_struct));
   @<Set initial values@>;
 }
@@ -114,7 +88,7 @@ void mp_svg_backend_free (MP mp) {
   mp->svg = NULL;
 }
 
-@ Writing to ps files
+@ Writing to SVG files
 
 @<Globals@>=
 integer file_offset;
@@ -123,76 +97,53 @@ integer file_offset;
 @ @<Set initial values@>=
 mp->svg->file_offset = 0;
 
-@
-
-@d wps(A)     (mp->write_ascii_file)(mp,mp->output_file,(A))
-@d wps_chr(A) do { 
-  char ss[2]; 
-  ss[0]=(A); ss[1]=0; 
-  (mp->write_ascii_file)(mp,mp->output_file,(char *)ss); 
-} while (0)
-@d wps_cr     (mp->write_ascii_file)(mp,mp->output_file,"\n")
-@d wps_ln(A)  { wterm_cr; (mp->write_ascii_file)(mp,mp->output_file,(A)); }
+@ Print a newline.
 
 @c
-static void mp_svg_print_ln (MP mp) { /* prints an end-of-line */
-  wps_cr; 
+static void mp_svg_print_ln (MP mp) {
+  (mp->write_ascii_file)(mp,mp->output_file,"\n");
   mp->svg->file_offset=0;
 } 
 
-@ @c
-static void mp_svg_print_char (MP mp, int s) { /* prints a single character */
+@ Print a single character 
+
+@c
+static void mp_svg_print_char (MP mp, int s) {
   if ( s==13 ) {
-    wps_cr; mp->svg->file_offset=0;
+    (mp->write_ascii_file)(mp,mp->output_file,"\n");
+    mp->svg->file_offset=0;
   } else {
-    wps_chr(s); incr(mp->svg->file_offset);
+     char ss[2]; 
+     ss[0]=s; ss[1]=0; 
+    (mp->write_ascii_file)(mp,mp->output_file,(char *)ss); 
+    mp->svg->file_offset ++;
   }
 }
 
-@ @c
-static void mp_svg_do_print (MP mp, const char *ss, size_t len) { /* prints string |s| */
+@ Print a string
+
+@c
+static void mp_svg_print (MP mp, const char *ss) {
+  size_t len = strlen(ss);
   size_t j = 0;
   while ( j<len ){ 
     mp_svg_print_char(mp, ss[j]); incr(j);
   }
 }
 
-@ Deciding where to break the ps output line. 
-
-@d svg_room(A) if ( (mp->svg->file_offset+(int)(A))>mp->max_print_line ) {
-  mp_svg_print_ln(mp); /* optional line break */
-}
-
-@c
-static void mp_svg_print (MP mp, const char *ss) {
-  svg_room(strlen(ss));
-  mp_svg_do_print(mp, ss, strlen(ss));
-}
-
 @ The procedure |print_nl| is like |print|, but it makes sure that the
 string appears at the beginning of a new line.
 
 @c
-static void mp_svg_print_nl (MP mp, const char *s) { /* prints string |s| at beginning of line */
-  if ( mp->svg->file_offset>0 ) mp_svg_print_ln(mp);
+static void mp_svg_print_nl (MP mp, const char *s) { 
+  if ( mp->svg->file_offset>0 )
+    mp_svg_print_ln(mp);
   mp_svg_print(mp, s);
-}
-
-@ An array of digits in the range |0..9| is printed by |print_the_digs|.
-
-@c
-static void mp_svg_print_the_digs (MP mp, int k) {
-  /* prints |dig[k-1]|$\,\ldots\,$|dig[0]| */
-  while ( k-->0 ){ 
-    mp_svg_print_char(mp, '0'+mp->dig[k]);
-  }
 }
 
 @ The following procedure, which prints out the decimal representation of a
 given integer |n|, has been written carefully so that it works properly
-if |n=0| or if |(-n)| would cause overflow. It does not apply |mod| or |div|
-to negative arguments, since such operations are not implemented consistently
-by all \PASCAL\ compilers.
+if |n=0| or if |(-n)| would cause overflow. 
 
 @c
 static void mp_svg_print_int (MP mp,integer n) { /* prints an integer in decimal form */
@@ -214,7 +165,10 @@ static void mp_svg_print_int (MP mp,integer n) { /* prints an integer in decimal
   do {  
     mp->dig[k]=(unsigned char)(n % 10); n=n / 10; incr(k);
   } while (n!=0);
-  mp_svg_print_the_digs(mp, k);
+  /* print the digits */
+  while ( k-->0 ){ 
+    mp_svg_print_char(mp, '0'+mp->dig[k]);
+  }
 }
 
 @ \MP\ also makes use of a trivial procedure to print two digits. The
@@ -244,7 +198,6 @@ terminate before $s$ can possibly become zero.
 @c
 static void mp_svg_print_scaled (MP mp,scaled s) { 
   scaled delta; /* amount of allowable inaccuracy */
-  svg_room(16); 
   if ( s<0 ) { 
 	mp_svg_print_char(mp, '-'); 
     negate(s); /* print the sign, if negative */
@@ -265,22 +218,61 @@ static void mp_svg_print_scaled (MP mp,scaled s) {
 }
 
 
-@* Fonts.
-
-
-@ This is just a hack
+@ This is test is used to switch between direct representation of characters
+and character references.
 
 @<Character |k| is not allowed in SVG output@>=
-  (k<=' ')||(k>'~')
+  (k<=' ')||(k>'~')||(k=='&')||(k=='>')||(k=='<')
 
-@ We often need to print a pair of coordinates.
+@ We often need to print a pair of coordinates. 
 
-@c
+Because of bugs in svg rendering software, it is necessary to 
+change the point coordinates so that there are all in the "positive" 
+quadrant of the SVG field. This means an shift and a vertical flip.
+
+The two correction values are calculated by the function that writes
+the initial |<svg>| tag, and  are stored in two globals:
+
+@<Globals@>=
+integer dx;
+integer dy;
+
+@ @c
 void mp_svg_pair_out (MP mp,scaled x, scaled y) { 
-  svg_room(26);
-  mp_svg_print_scaled(mp, x); mp_svg_print_char(mp, ' ');
-  mp_svg_print_scaled(mp, y); mp_svg_print_char(mp, ' ');
+  mp_svg_print_scaled(mp, (x+mp->svg->dx)); mp_svg_print_char(mp, ' ');
+  mp_svg_print_scaled(mp, (-(y+mp->svg->dy))); mp_svg_print_char(mp, ' ');
 }
+
+@ When stroking a path with an elliptical pen, it is necessary to distort
+the path such that a circular pen can be used to stroke the path.  The path
+itself is wrapped in another transformation to restore the points to their
+correct location (but now with a modified pen stroke).
+
+Because all the points in the path need fixing, it makes sense to 
+have a specific helper to write such distorted pairs of coordinates out. 
+
+@d scaled_from_double(a) (scaled)(a*65536.0)
+@d double_from_scaled(a) (double)(a)/65536.0
+
+@c 
+void mp_svg_trans_pair_out (MP mp, mp_pen_info *pen, scaled x, scaled y) { 
+  double sx,sy, rx,ry, px, py, retval, divider;
+  sx = double_from_scaled(pen->sx);
+  sy = double_from_scaled(pen->sy);
+  rx = double_from_scaled(pen->rx);
+  ry = double_from_scaled(pen->ry);
+  px = double_from_scaled((x+mp->svg->dx));
+  py = double_from_scaled((-(y+mp->svg->dy)));
+  divider = (sx*sy - rx*ry);
+  retval = (sy*px-ry*py)/divider;
+  mp_svg_print_scaled(mp, scaled_from_double(retval)); 
+  mp_svg_print_char(mp, ' ');
+  retval = (sx*py-rx*px)/divider;
+  mp_svg_print_scaled(mp, scaled_from_double(retval)); 
+  mp_svg_print_char(mp, ' ');
+}
+
+
 
 @ @<Declarations@>=
 static void mp_svg_pair_out (MP mp,scaled x, scaled y) ;
@@ -289,46 +281,50 @@ static void mp_svg_pair_out (MP mp,scaled x, scaled y) ;
 @<Declarations@>=
 static void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh);
 
-@ @c
+@ The |<g>| is not really needed right now, but let's keep it just in
+case I change my mind about the coordinates yet again. 
+
+@c
 void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
   scaled t, tx, ty;
-  char *s;   
   mp_svg_print(mp, "<?xml version=\"1.0\"?>");
+  @<Print the MetaPost version and time @>;
   mp_svg_print_nl(mp, "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\"");
-  mp_svg_print_nl(mp, "     width=\"");
   if ( hh->minx>hh->maxx)  { 
     tx = 0;
-    mp_svg_print(mp, "0pt"); 
-  } else {
-    tx = abs(hh->minx) + abs(hh->maxx);
-    mp_svg_print_scaled(mp, tx);
+    ty = 0;
+    mp->svg->dx = 0;
+    mp->svg->dy = 0;
+ } else {
+    tx = (hh->minx<0 ? -hh->minx : 0) + hh->maxx;
+    ty = (hh->miny<0 ? -hh->miny : 0) + hh->maxy;
+    mp->svg->dx = (hh->minx<0 ? -hh->minx : 0);
+    mp->svg->dy = (hh->miny<0 ? -hh->miny : 0) - ty;
   }
+  mp_svg_print_nl(mp, "     width=\"");
+  mp_svg_print_scaled(mp, tx);
   mp_svg_print(mp, "\"");
   mp_svg_print(mp," height=\"");
-  if ( hh->minx>hh->maxx)  { 
-    ty = 0;
-    mp_svg_print(mp, "0pt"); 
-  } else {
-    ty = abs(hh->miny) + abs(hh->maxy);
-    mp_svg_print_scaled(mp, ty);
-  }
-  mp_svg_print(mp, "\"");
-  if ( hh->minx<=hh->maxx)  { 
-      mp_svg_print(mp," viewBox=\"");
-      mp_svg_pair_out(mp,hh->minx, hh->miny);
-      mp_svg_pair_out(mp,tx, ty);
-      mp_svg_print(mp, "\"");
-  }
-  mp_svg_print(mp, ">");
-  mp_svg_print(mp, "<g transform=\"translate (0,0");
-  /* mp_svg_print_scaled(mp, ty); */
-  mp_svg_print(mp,  ") scale(1,-1)\">");
+  mp_svg_print_scaled(mp, ty);
+  mp_svg_print(mp, "\">");
+  mp_svg_print_nl(mp,"<!-- points transformed from original BB: ");
+  mp_svg_print_nl(mp,"     ");
+  mp_svg_print_scaled(mp, hh->minx); mp_svg_print_char(mp,' ');
+  mp_svg_print_scaled(mp, hh->miny); mp_svg_print_char(mp,' ');
+  mp_svg_print_scaled(mp, hh->maxx); mp_svg_print_char(mp,' ');
+  mp_svg_print_scaled(mp, hh->maxy);
+  mp_svg_print(mp," -->");
+  mp_svg_print_nl(mp, "<g>");
+}
 
-  mp_svg_print_nl(mp, "<!-- %%Creator: MetaPost ");
+@ @<Print the MetaPost version and time @>=
+{
+  char *s;   
+  mp_svg_print_nl(mp, "<!-- Created by MetaPost ");
   s = mp_metapost_version();
   mp_svg_print(mp, s);
   mp_xfree(s);
-  mp_svg_print_nl(mp, "%%CreationDate: ");
+  mp_svg_print(mp, " on ");
   mp_svg_print_int(mp, mp_round_unscaled(mp, mp->internal[mp_year])); 
   mp_svg_print_char(mp, '.');
   mp_svg_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_month])); 
@@ -338,7 +334,7 @@ void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
   t=mp_round_unscaled(mp, mp->internal[mp_time]);
   mp_svg_print_dd(mp, t / 60); 
   mp_svg_print_dd(mp, t % 60);
-  mp_svg_print_nl(mp, "-->");
+  mp_svg_print(mp, " -->");
 }
 
 
@@ -365,7 +361,22 @@ static void mp_svg_color_out (MP mp, mp_graphic_object *p) {
     mp_text_object *pq = (mp_text_object *)p;
     set_color_objects(pq);
   }
-  if ( object_color_model==mp_rgb_model) {
+  if ( object_color_model==mp_no_model ) {
+    mp_svg_print(mp,"black");
+  } else {
+    if ( object_color_model==mp_grey_model ) {
+       object_color_b = object_color_a;
+       object_color_c = object_color_a;
+    } else if ( object_color_model==mp_cmyk_model) {
+      int c,m,y,k;
+      c = object_color_a;
+      m = object_color_b;
+      y = object_color_c;
+      k = object_color_d;
+      object_color_a = unity - (c+k>unity ? unity : c+k);
+      object_color_b = unity - (m+k>unity ? unity : m+k);
+      object_color_c = unity - (y+k>unity ? unity : y+k);
+    }
     mp_svg_print(mp,"rgb(");
     mp_svg_print_scaled(mp, (object_color_a * 100));
     mp_svg_print(mp,"%,");
@@ -373,18 +384,6 @@ static void mp_svg_color_out (MP mp, mp_graphic_object *p) {
     mp_svg_print(mp,"%,");
     mp_svg_print_scaled(mp, (object_color_c * 100));
     mp_svg_print(mp,"%)");
-  } else if ( object_color_model==mp_cmyk_model) {
-    /* hm ... todo */
-  } else if ( object_color_model==mp_grey_model ) {
-    mp_svg_print(mp,"rgb(");
-    mp_svg_print_scaled(mp, (object_color_a * 100));
-    mp_svg_print(mp,"%,");
-    mp_svg_print_scaled(mp, (object_color_a * 100));
-    mp_svg_print(mp,"%,");
-    mp_svg_print_scaled(mp, (object_color_a * 100));
-    mp_svg_print(mp,"%)");
-  } else if ( object_color_model==mp_no_model ) {
-    mp_svg_print(mp,"black");
   }
 }
 
@@ -401,12 +400,15 @@ typedef struct mp_pen_info {
 } mp_pen_info;
 
 
-@ Discover the width of an elliptical pen
+@ (Re)discover the characteristics of an elliptical pen
 
 @<Declarations@>=
 mp_pen_info *mp_svg_pen_info(MP mp, mp_knot *pp, mp_knot *p);
 
-@ 
+@ The next two constants come from the original web source. 
+Together with the two helper functions, they will tell whether 
+the |x| or the |y| direction of the path is the most important
+
 @d aspect_bound   10
 @d aspect_default 1
 
@@ -445,15 +447,18 @@ static scaled coord_range_y (mp_knot *h, scaled dz) {
   }
   return (zhi - zlo <= dz ? aspect_bound : aspect_default);
 }
+
+@ 
+@c
 mp_pen_info *mp_svg_pen_info(MP mp, mp_knot *pp, mp_knot *p) {
-  scaled wx, wy;
-  struct mp_pen_info *pen = mp_xmalloc(mp, 1, sizeof(mp_pen_info));
+  scaled wx, wy; /* temporary pen widths, in either direction */
+  struct mp_pen_info *pen; /* return structure */
+  if (p == NULL)
+     return NULL;
+  pen = mp_xmalloc(mp, 1, sizeof(mp_pen_info));
   pen->rx = unity;
   pen->ry = unity;
   pen->ww = unity;
-  if (p == NULL)
-     return NULL;
-
   if ((gr_right_x(p) == gr_x_coord(p)) 
        && 
       (gr_left_y(p) == gr_y_coord(p))) {
@@ -489,13 +494,41 @@ mp_pen_info *mp_svg_pen_info(MP mp, mp_knot *pp, mp_knot *p) {
   return pen;
 }
 
+@ Two types of straight lines come up often in \MP\ paths:
+cubics with zero initial and final velocity as created by |make_path| or
+|make_envelope|, and cubics with control points uniformly spaced on a line
+as created by |make_choices|.
+
+@<Declarations@>=
+static boolean mp_is_curved(MP mp, mp_knot *p, mp_knot *q) ;
+
+
+@ 
+@d bend_tolerance 131 /* allow rounding error of $2\cdot10^{-3}$ */
+
+@c 
+boolean mp_is_curved(MP mp, mp_knot *p, mp_knot *q) {
+  scaled d; /* a temporary value */
+  if ( gr_right_x(p)==gr_x_coord(p) )
+    if ( gr_right_y(p)==gr_y_coord(p) )
+      if ( gr_left_x(q)==gr_x_coord(q) )
+        if ( gr_left_y(q)==gr_y_coord(q) ) 
+          return false;
+  d=gr_left_x(q)-gr_right_x(p);
+  if ( abs(gr_right_x(p)-gr_x_coord(p)-d)<=bend_tolerance )
+    if ( abs(gr_x_coord(q)-gr_left_x(q)-d)<=bend_tolerance ) {
+      d=gr_left_y(q)-gr_right_y(p);
+      if ( abs(gr_right_y(p)-gr_y_coord(p)-d)<=bend_tolerance )
+        if ( abs(gr_y_coord(q)-gr_left_y(q)-d)<=bend_tolerance )
+           return false;
+    }
+  return true;
+}
+
 
 @ @c
 static void mp_svg_path_out (MP mp, mp_knot *h) {
   mp_knot *p, *q; /* for scanning the path */
-  scaled d; /* a temporary value */
-  boolean curved; /* |true| unless the cubic is almost straight */
-  svg_room(40);
   mp_svg_print(mp, " d=\"M ");
   mp_svg_pair_out(mp, gr_x_coord(h),gr_y_coord(h));
   mp_svg_print(mp, " ");
@@ -507,75 +540,28 @@ static void mp_svg_path_out (MP mp, mp_knot *h) {
       return;
     }
     q=gr_next_knot(p);
-    @<Start a new line and print the \ps\ commands for the curve from
-      |p| to~|q|@>;
+    mp_svg_print_ln(mp);
+    if (mp_is_curved(mp, p, q)){ 
+      mp_svg_print(mp, "C ");
+      mp_svg_pair_out(mp, gr_right_x(p),gr_right_y(p));
+      mp_svg_print(mp, ", ");
+      mp_svg_pair_out(mp, gr_left_x(q),gr_left_y(q));
+      mp_svg_print(mp, ", ");
+      mp_svg_pair_out(mp, gr_x_coord(q),gr_y_coord(q));
+      mp_svg_print(mp, " ");
+    } else if ( q!=h ){ 
+      mp_svg_print(mp, "L ");
+      mp_svg_pair_out(mp, gr_x_coord(q),gr_y_coord(q));
+      mp_svg_print(mp, " ");
+    }
     p=q;
   } while (p!=h);
   mp_svg_print(mp, "\"");
 }
 
-@ @<Start a new line and print the \ps\ commands for the curve from...@>=
-curved=true;
-@<Set |curved:=false| if the cubic from |p| to |q| is almost straight@>;
-mp_svg_print_ln(mp);
-if ( curved ){ 
-  mp_svg_print(mp, "C ");
-  mp_svg_pair_out(mp, gr_right_x(p),gr_right_y(p));
-  mp_svg_print(mp, ", ");
-  mp_svg_pair_out(mp, gr_left_x(q),gr_left_y(q));
-  mp_svg_print(mp, ", ");
-  mp_svg_pair_out(mp, gr_x_coord(q),gr_y_coord(q));
-  mp_svg_print(mp, " ");
-} else if ( q!=h ){ 
-  mp_svg_print(mp, "L ");
-  mp_svg_pair_out(mp, gr_x_coord(q),gr_y_coord(q));
-  mp_svg_print(mp, " ");
-}
-
-
-@ When stroking a path with an elliptical pen, it is necessary to transform
-the coordinate system so that a unit circular pen will have the desired shape.
-To keep this transformation local, we enclose it in a
-$$\&{gsave}\ldots\&{grestore}$$
-block. Any translation component must be applied to the path being stroked
-while the rest of the transformation must apply only to the pen.
-If |fill_also=true|, the path is to be filled as well as stroked so we must
-insert commands to do this after giving the path.
-
-@<Declarations@>=
-static void mp_svg_stroke_out (MP mp,  mp_graphic_object *h, 
-                               mp_pen_info *pen, boolean fill_also) ;
-
-@ 
-@d scaled_from_double(a) (scaled)(a*65536.0)
-@d double_from_scaled(a) (double)(a)/65536.0
-
-@c 
-void mp_svg_trans_pair_out (MP mp, mp_pen_info *pen, scaled x, scaled y) { 
-  double sx,sy, rx,ry, px, py, retval, divider;
-  sx = double_from_scaled(pen->sx);
-  sy = double_from_scaled(pen->sy);
-  rx = double_from_scaled(pen->rx);
-  ry = double_from_scaled(pen->ry);
-  px = double_from_scaled(x);
-  py = double_from_scaled(y);
-  divider = (sx*sy - rx*ry);
-  svg_room(26);
-  retval = (sy*px-ry*py)/divider;
-  mp_svg_print_scaled(mp, scaled_from_double(retval)); 
-  mp_svg_print_char(mp, ' ');
-  retval = (sx*py-rx*px)/divider;
-  mp_svg_print_scaled(mp, scaled_from_double(retval)); 
-  mp_svg_print_char(mp, ' ');
-}
-
-
 @ @c
 static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
   mp_knot *p, *q; /* for scanning the path */
-  scaled d; /* a temporary value */
-  boolean curved; /* |true| unless the cubic is almost straight */
-  svg_room(40);
   mp_svg_print(mp, " d=\"M ");
   mp_svg_trans_pair_out(mp, pen, gr_x_coord(h),gr_y_coord(h));
   mp_svg_print(mp, " ");
@@ -587,54 +573,29 @@ static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
       return;
     }
     q=gr_next_knot(p);
-    @<Start a new line and print the tranformed \ps\ commands 
-      for the curve from |p| to~|q|@>;
+    mp_svg_print_ln(mp);
+    if (mp_is_curved(mp, p, q)){ 
+      mp_svg_print(mp, "C ");
+      mp_svg_trans_pair_out(mp, pen, gr_right_x(p),gr_right_y(p));
+      mp_svg_print(mp, ", ");
+      mp_svg_trans_pair_out(mp, pen,gr_left_x(q),gr_left_y(q));
+      mp_svg_print(mp, ", ");
+      mp_svg_trans_pair_out(mp, pen,gr_x_coord(q),gr_y_coord(q));
+      mp_svg_print(mp, " ");
+    } else if ( q!=h ){ 
+      mp_svg_print(mp, "L ");
+      mp_svg_trans_pair_out(mp, pen,gr_x_coord(q),gr_y_coord(q));
+      mp_svg_print(mp, " ");
+   }
     p=q;
   } while (p!=h);
   mp_svg_print(mp, "\"");
 }
 
-@ @<Start a new line and print the tranformed \ps\ commands ...@>=
-curved=true;
-@<Set |curved:=false| if the cubic from |p| to |q| is almost straight@>;
-mp_svg_print_ln(mp);
-if ( curved ){ 
-  mp_svg_print(mp, "C ");
-  mp_svg_trans_pair_out(mp, pen, gr_right_x(p),gr_right_y(p));
-  mp_svg_print(mp, ", ");
-  mp_svg_trans_pair_out(mp, pen,gr_left_x(q),gr_left_y(q));
-  mp_svg_print(mp, ", ");
-  mp_svg_trans_pair_out(mp, pen,gr_x_coord(q),gr_y_coord(q));
-  mp_svg_print(mp, " ");
-} else if ( q!=h ){ 
-  mp_svg_print(mp, "L ");
-  mp_svg_trans_pair_out(mp, pen,gr_x_coord(q),gr_y_coord(q));
-  mp_svg_print(mp, " ");
-}
-
-
-@ Two types of straight lines come up often in \MP\ paths:
-cubics with zero initial and final velocity as created by |make_path| or
-|make_envelope|, and cubics with control points uniformly spaced on a line
-as created by |make_choices|.
-
-@d bend_tolerance 131 /* allow rounding error of $2\cdot10^{-3}$ */
-
-@<Set |curved:=false| if the cubic from |p| to |q| is almost straight@>=
-if ( gr_right_x(p)==gr_x_coord(p) )
-  if ( gr_right_y(p)==gr_y_coord(p) )
-    if ( gr_left_x(q)==gr_x_coord(q) )
-      if ( gr_left_y(q)==gr_y_coord(q) ) curved=false;
-d=gr_left_x(q)-gr_right_x(p);
-if ( abs(gr_right_x(p)-gr_x_coord(p)-d)<=bend_tolerance )
-  if ( abs(gr_x_coord(q)-gr_left_x(q)-d)<=bend_tolerance )
-    { d=gr_left_y(q)-gr_right_y(p);
-    if ( abs(gr_right_y(p)-gr_y_coord(p)-d)<=bend_tolerance )
-      if ( abs(gr_y_coord(q)-gr_left_y(q)-d)<=bend_tolerance ) curved=false;
-    }
-
-
 @ Now for outputting the actual graphic objects. 
+
+@<Declarations@>=
+static void mp_svg_text_out (MP mp, mp_text_object *p) ;
 
 @ @c
 void mp_svg_text_out (MP mp, mp_text_object *p) {
@@ -646,7 +607,7 @@ void mp_svg_text_out (MP mp, mp_text_object *p) {
   s = gr_text_p(p);
   transformed=(gr_txx_val(p)!=unity)||(gr_tyy_val(p)!=unity)||
               (gr_txy_val(p)!=0)||(gr_tyx_val(p)!=0);
-  mp_svg_print(mp, "<g transform=\"");
+  mp_svg_print_nl(mp, "<g transform=\"");
   if ( transformed ) {
     mp_svg_print(mp, "matrix(");
     mp_svg_print_scaled(mp,gr_txx_val(p));
@@ -655,22 +616,18 @@ void mp_svg_text_out (MP mp, mp_text_object *p) {
     mp_svg_print(mp,",");
     mp_svg_print_scaled(mp,gr_txy_val(p));
     mp_svg_print(mp,",");
-    mp_svg_print_scaled(mp,-gr_tyy_val(p)); /* negate for PS<->SVG */
+    mp_svg_print_scaled(mp,gr_tyy_val(p));
     mp_svg_print(mp,",");
   } else { 
     mp_svg_print(mp, "translate(");
   }
-  mp_svg_print_scaled(mp,gr_tx_val(p));
-  mp_svg_print(mp,",");
-  mp_svg_print_scaled(mp,gr_ty_val(p));
+  mp_svg_pair_out(mp,gr_tx_val(p),gr_ty_val(p));
   mp_svg_print(mp, ")\">");
-  mp_svg_print_nl(mp, "<text x=\"0");
-  mp_svg_print(mp, "\" y=\"0");
-  mp_svg_print(mp, "\" font-size=\"");
+  mp_svg_print_nl(mp, "<text font-size=\"");
   ds=(mp->font_dsize[gr_font_n(p)]+8) / 16;
   mp_svg_print_scaled(mp,ds);
 
-  mp_svg_print(mp, "\" style=\"");
+  mp_svg_print(mp, "\"\r style=\"");
   mp_svg_print(mp, "fill: ");
   mp_svg_color_out(mp,(mp_graphic_object *)p);
   mp_svg_print(mp, "; ");
@@ -687,12 +644,6 @@ void mp_svg_text_out (MP mp, mp_text_object *p) {
       mp_svg_print(mp, "&#");
       mp_svg_print_int(mp,k);
       mp_svg_print(mp, ";");
-    } else if (k=='&') {
-      mp_svg_print(mp, "&amp;");
-    } else if (k=='<') {
-      mp_svg_print(mp, "&lt;");
-    } else if (k=='>') {
-      mp_svg_print(mp, "&gt;");
     } else {
       mp_svg_print_char(mp, k);
     }
@@ -702,8 +653,17 @@ void mp_svg_text_out (MP mp, mp_text_object *p) {
   mp_svg_print_ln(mp);
 }
 
-@ @<Declarations@>=
-static void mp_svg_text_out (MP mp, mp_text_object *p) ;
+@ When stroking a path with an elliptical pen, it is necessary to transform
+the coordinate system so that a unit circular pen will have the desired shape.
+To keep this transformation local, we enclose it in a $$\&{<g>}\ldots\&{</g>}$$
+block. Any translation component must be applied to the path being stroked
+while the rest of the transformation must apply only to the pen.
+If |fill_also=true|, the path is to be filled as well as stroked so we must
+insert commands to do this after giving the path.
+
+@<Declarations@>=
+static void mp_svg_stroke_out (MP mp,  mp_graphic_object *h, 
+                               mp_pen_info *pen, boolean fill_also) ;
 
 
 @ @c
@@ -722,7 +682,7 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
     }
   }
   if (transformed) {
-    mp_svg_print(mp, "<g transform=\"");
+    mp_svg_print_nl(mp, "<g transform=\"");
     mp_svg_print(mp, "matrix(");
     mp_svg_print_scaled(mp,pen->sx);
     mp_svg_print(mp,",");
@@ -743,7 +703,7 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
       mp_svg_path_trans_out(mp, gr_path_p((mp_fill_object *)h), pen);
     else
       mp_svg_path_out(mp, gr_path_p((mp_fill_object *)h));
-    mp_svg_print(mp, " style=\"");
+    mp_svg_print(mp, "\r style=\"");
     mp_svg_print(mp, "fill: ");
     mp_svg_color_out(mp,h);
     mp_svg_print(mp, "; ");
@@ -754,7 +714,7 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
       mp_svg_path_trans_out(mp, gr_path_p((mp_stroked_object *)h), pen);
     else
       mp_svg_path_out(mp, gr_path_p((mp_stroked_object *)h));
-    mp_svg_print(mp, " style=\"");
+    mp_svg_print(mp, "\r style=\"");
 
     mp_svg_print(mp, "stroke: ");
     mp_svg_color_out(mp,h);
@@ -775,10 +735,8 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
       hh =gr_dash_p(h);
       if (hh != NULL && hh->array != NULL) {
          int i;
-         svg_room(28);
          mp_svg_print(mp, "stroke-dasharray: ");
          for (i=0; *(hh->array+i) != -1;i++) {
-           svg_room(13);
            mp_svg_print_scaled(mp, *(hh->array+i)); 
            mp_svg_print_char(mp, ' ')	;
          }
@@ -828,7 +786,6 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
   mp_svg_print_ln(mp);
 }
 
-
 @ Here is a simple routine that just fills a cycle.
 
 @<Declarations@>=
@@ -838,7 +795,7 @@ static void mp_svg_fill_out (MP mp, mp_knot *p, mp_graphic_object *h);
 void mp_svg_fill_out (MP mp, mp_knot *p, mp_graphic_object *h) {
   mp_svg_print_nl(mp, "<path");
   mp_svg_path_out(mp, p);
-  mp_svg_print(mp, " style=\"");
+  mp_svg_print(mp, "\r style=\"");
   mp_svg_print(mp, "fill: ");
   mp_svg_color_out(mp,h);
   mp_svg_print(mp, "; ");
@@ -913,7 +870,7 @@ int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int sta
       mp_svg_print_nl(mp, "<clipPath id=\"XX\">");
       mp_svg_print_nl(mp, "<path ");
       mp_svg_path_out(mp, gr_path_p((mp_clip_object *)p));
-      mp_svg_print(mp, " style=\"fill:black; stroke:none;\"/>");
+      mp_svg_print(mp, "\r style=\"fill:black; stroke:none;\"/>");
       mp_svg_print_nl(mp, "</clipPath></defs>");
       mp_svg_print_nl(mp, "<g clip-path=\"url(#XX);\">");
       mp_svg_print_ln(mp);
