@@ -500,14 +500,14 @@ cubics with zero initial and final velocity as created by |make_path| or
 as created by |make_choices|.
 
 @<Declarations@>=
-static boolean mp_is_curved(MP mp, mp_knot *p, mp_knot *q) ;
+static boolean mp_is_curved(mp_knot *p, mp_knot *q) ;
 
 
 @ 
 @d bend_tolerance 131 /* allow rounding error of $2\cdot10^{-3}$ */
 
 @c 
-boolean mp_is_curved(MP mp, mp_knot *p, mp_knot *q) {
+boolean mp_is_curved(mp_knot *p, mp_knot *q) {
   scaled d; /* a temporary value */
   if ( gr_right_x(p)==gr_x_coord(p) )
     if ( gr_right_y(p)==gr_y_coord(p) )
@@ -541,7 +541,7 @@ static void mp_svg_path_out (MP mp, mp_knot *h) {
     }
     q=gr_next_knot(p);
     mp_svg_print_ln(mp);
-    if (mp_is_curved(mp, p, q)){ 
+    if (mp_is_curved(p, q)){ 
       mp_svg_print(mp, "C ");
       mp_svg_pair_out(mp, gr_right_x(p),gr_right_y(p));
       mp_svg_print(mp, ", ");
@@ -574,7 +574,7 @@ static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
     }
     q=gr_next_knot(p);
     mp_svg_print_ln(mp);
-    if (mp_is_curved(mp, p, q)){ 
+    if (mp_is_curved(p, q)){ 
       mp_svg_print(mp, "C ");
       mp_svg_trans_pair_out(mp, pen, gr_right_x(p),gr_right_y(p));
       mp_svg_print(mp, ", ");
