@@ -810,10 +810,10 @@ void mp_svg_fill_out (MP mp, mp_knot *p, mp_graphic_object *h) {
 @d pen_is_elliptical(A) ((A)==gr_next_knot((A)))
 
 @<Exported function ...@>=
-int mp_svg_gr_ship_out (mp_edge_object *hh, int prologues, int procset, int standalone) ;
+int mp_svg_gr_ship_out (mp_edge_object *hh, int prologues, int standalone) ;
 
 @ @c 
-int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standalone) {
+int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
   mp_graphic_object *p;
   mp_pen_info *pen = NULL;
   MP mp = hh->parent;
@@ -901,11 +901,11 @@ int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int sta
 }
 
 @ @(mplibsvg.h@>=
-int mp_svg_ship_out (mp_edge_object *hh, int prologues, int procset) ;
+int mp_svg_ship_out (mp_edge_object *hh, int prologues) ;
 
 @ @c
-int mp_svg_ship_out (mp_edge_object *hh, int prologues, int procset) {
-  return mp_svg_gr_ship_out (hh, prologues, procset, (int)true);
+int mp_svg_ship_out (mp_edge_object *hh, int prologues) {
+  return mp_svg_gr_ship_out (hh, prologues, (int)true);
 }
 
 @ 

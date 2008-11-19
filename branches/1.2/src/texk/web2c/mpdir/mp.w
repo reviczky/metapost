@@ -25895,7 +25895,6 @@ void mp_shipout_backend (MP mp, pointer h) {
   if (s && strcmp(s,"svg")==0) {
     (void)mp_svg_gr_ship_out (hh,
                  (mp->internal[mp_prologues]/65536),
-                 (mp->internal[mp_procset]/65536), 
                  false);
   } else {
     (void)mp_gr_ship_out (hh,
