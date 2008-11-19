@@ -84,15 +84,19 @@ void mp_svg_backend_initialize (MP mp) {
   @<Set initial values@>;
 }
 void mp_svg_backend_free (MP mp) {
+  mp_xfree(mp->svg->buf);
   mp_xfree(mp->svg);
   mp->svg = NULL;
 }
 
 @ Writing to SVG files
 
+This variable holds the number of characters on the current SVG file
+line. It could also be a boolean because right now the only interesting
+thing it does is keep track of whether or not we are start-of-line.
+
 @<Globals@>=
 integer file_offset;
-  /* the number of characters on the current svg file line */
 
 @ @<Set initial values@>=
 mp->svg->file_offset = 0;
@@ -105,31 +109,29 @@ static void mp_svg_print_ln (MP mp) {
   mp->svg->file_offset=0;
 } 
 
-@ Print a single character 
+@ Print a single character.
 
 @c
 static void mp_svg_print_char (MP mp, int s) {
-  if ( s==13 ) {
-    (mp->write_ascii_file)(mp,mp->output_file,"\n");
-    mp->svg->file_offset=0;
-  } else {
-     char ss[2]; 
-     ss[0]=s; ss[1]=0; 
-    (mp->write_ascii_file)(mp,mp->output_file,(char *)ss); 
-    mp->svg->file_offset ++;
-  }
+  char ss[2]; 
+  ss[0]=s; ss[1]=0; 
+  (mp->write_ascii_file)(mp,mp->output_file,(char *)ss); 
+  mp->svg->file_offset ++;
 }
 
-@ Print a string
+@ Print a string.
+
+In PostScript, this used to be done in terms of |mp_svg_print_char|,
+but that is very expensive (in other words: slow). It should be ok
+to print whole strings here because line length of an XML file should
+not be an issue to any respectable XML processing tool.
 
 @c
 static void mp_svg_print (MP mp, const char *ss) {
-  size_t len = strlen(ss);
-  size_t j = 0;
-  while ( j<len ){ 
-    mp_svg_print_char(mp, ss[j]); incr(j);
-  }
+  (mp->write_ascii_file)(mp,mp->output_file,(char *)ss); 
+  mp->svg->file_offset += strlen(ss);
 }
+
 
 @ The procedure |print_nl| is like |print|, but it makes sure that the
 string appears at the beginning of a new line.
@@ -141,16 +143,79 @@ static void mp_svg_print_nl (MP mp, const char *s) {
   mp_svg_print(mp, s);
 }
 
-@ The following procedure, which prints out the decimal representation of a
-given integer |n|, has been written carefully so that it works properly
-if |n=0| or if |(-n)| would cause overflow. 
+
+@ Many of the printing routines use a print buffer to store partial
+strings in before feeding the attribute value to |mp_svg_attribute|.
+
+@<Globals...@>=
+char *buf;
+int loc;
+int bufsize;
+
+@ Start with a modest size of 256. the buffer will grow automatically
+when needed.
+
+@<Set initial values@>=
+mp->svg->loc = 0;
+mp->svg->bufsize = 256;
+mp->svg->buf = mp_xmalloc(mp,mp->svg->bufsize,1);
+
+
+@ How to append a character or a string of characters to 
+the end of the buffer.
+
+@d append_char(A) do {
+  if (mp->svg->loc==(mp->svg->bufsize-1)) {
+    char *buffer;
+    unsigned l;
+    l = (unsigned)(mp->svg->bufsize+(mp->svg->bufsize>>4));
+    if (l>(0x3FFFFFF)) {
+      mp_confusion(mp,"svg buffer size");
+    }
+    buffer = mp_xmalloc(mp,l,1);
+    memset (buffer,0,l);
+    memcpy(buffer,mp->svg->buf,mp->svg->bufsize);
+    mp_xfree(mp->svg->buf);
+    mp->svg->buf = buffer ;
+    mp->svg->bufsize = l;    
+  }
+  mp->svg->buf[mp->svg->loc++] = (A);
+} while (0)
+
+@d append_string(A) do {
+   char *ss = (A);
+   while (*ss != '\0') { append_char(*ss); ss++ ;}
+} while (0)
+
+@ This function resets the buffer in preparation of the next string.
+The |memset| is an easy way to make sure that the old string is
+forgotten completely and that the new string will be zero-terminated.
+
+@c 
+static void mp_svg_reset_buf(MP mp) {
+   mp->svg->loc = 0;
+   memset (mp->svg->buf,0,mp->svg->bufsize);
+}
+
+@ Printing the buffer is a matter of printing its string, then
+it is reset.
 
 @c
-static void mp_svg_print_int (MP mp,integer n) { /* prints an integer in decimal form */
+static void mp_svg_print_buf (MP mp) {
+   mp_svg_print(mp, (char *)mp->svg->buf);
+   mp_svg_reset_buf(mp);
+}
+
+@ The following procedure, which stores the decimal representation of
+a given integer |n| in the buffer, has been written carefully so that
+it works properly if |n=0| or if |(-n)| would cause overflow.
+
+@c
+static void mp_svg_store_int (MP mp,integer n) {
   integer m; /* used to negate |n| in possibly dangerous cases */
   int k = 0; /* index to current digit; we assume that $|n|<10^{23}$ */
   if ( n<0 ) { 
-    mp_svg_print_char(mp, '-');
+    append_char('-');
     if ( n>-100000000 ) {
 	  negate(n);
     } else  { 
@@ -167,50 +232,50 @@ static void mp_svg_print_int (MP mp,integer n) { /* prints an integer in decimal
   } while (n!=0);
   /* print the digits */
   while ( k-->0 ){ 
-    mp_svg_print_char(mp, '0'+mp->dig[k]);
+    append_char('0'+mp->dig[k]);
   }
 }
 
-@ \MP\ also makes use of a trivial procedure to print two digits. The
-following subroutine is usually called with a parameter in the range |0<=n<=99|.
+@ \MP\ also makes use of a trivial procedure to output two digits. The
+following subroutine is usually called with a parameter in the range |0<=n<=99|,
+but the assignments makes sure that only the two least significant digits 
+are printed, just in case.
 
 @c 
-static void mp_svg_print_dd (MP mp,integer n) { /* prints two least significant digits */
+static void mp_svg_store_dd (MP mp,integer n) {
   n=abs(n) % 100; 
-  mp_svg_print_char(mp, '0'+(n / 10));
-  mp_svg_print_char(mp, '0'+(n % 10));
+  append_char('0'+(n / 10));
+  append_char('0'+(n % 10));
 }
 
-@ Conversely, here is a procedure analogous to |print_int|. If the output
-of this procedure is subsequently read by \MP\ and converted by the
-|round_decimals| routine above, it turns out that the original value will
-be reproduced exactly. A decimal point is printed only if the value is
-not an integer. If there is more than one way to print the result with
-the optimum number of digits following the decimal point, the closest
-possible value is given.
+@ Conversely, here is a procedure analogous to |mp_svg_store_int|. 
+A decimal point is printed only if the value is not an integer. If
+there is more than one way to print the result with the optimum
+number of digits following the decimal point, the closest possible
+value is given.
 
-The invariant relation in the \&{repeat} loop is that a sequence of
+The invariant relation in the \&{do while} loop is that a sequence of
 decimal digits yet to be printed will yield the original number if and only if
 they form a fraction~$f$ in the range $s-\delta\L10\cdot2^{16}f<s$.
 We can stop if and only if $f=0$ satisfies this condition; the loop will
 terminate before $s$ can possibly become zero.
 
 @c
-static void mp_svg_print_scaled (MP mp,scaled s) { 
+static void mp_svg_store_scaled (MP mp,scaled s) { 
   scaled delta; /* amount of allowable inaccuracy */
   if ( s<0 ) { 
-	mp_svg_print_char(mp, '-'); 
+	append_char('-'); 
     negate(s); /* print the sign, if negative */
   }
-  mp_svg_print_int(mp, s / unity); /* print the integer part */
+  mp_svg_store_int(mp, s / unity); /* print the integer part */
   s=10*(s % unity)+5;
   if ( s!=5 ) { 
     delta=10; 
-    mp_svg_print_char(mp, '.');
+    append_char('.');
     do {  
       if ( delta>unity )
         s=s+0100000-(delta / 2); /* round the final digit */
-      mp_svg_print_char(mp, '0'+(s / unity)); 
+      append_char('0'+(s / unity)); 
       s=10*(s % unity); 
       delta=delta*10;
     } while (s>delta);
@@ -218,11 +283,83 @@ static void mp_svg_print_scaled (MP mp,scaled s) {
 }
 
 
+@ Output XML tags. 
+
+In order to create a nicely indented output file, the current tag
+nesting level needs to be remembered.
+
+@<Globals...@>=
+int level;
+
+@ @<Set initial values@>=
+mp->svg->level = 0;
+
+@ Output an XML start tag. 
+
+Because start tags may carry attributes, this happens in two steps.
+The close function is trivial of course, but it looks nicer in the source.
+
+@d mp_svg_starttag(A,B) { mp_svg_open_starttag (A,B); mp_svg_close_starttag(A); }
+
+@c 
+static void mp_svg_open_starttag (MP mp, char *s) { 
+  int l = mp->svg->level * 2;
+  mp_svg_print_ln(mp);
+  while (l-->0) {
+     append_char(' ');
+  }
+  append_char('<');
+  append_string(s);
+  mp_svg_print_buf(mp);
+  mp->svg->level++;
+}
+static void mp_svg_close_starttag (MP mp) { 
+  mp_svg_print_char(mp,'>');
+}
+
+@ Output an XML end tag. 
+
+If the |indent| is true, then the end tag will appear on the next line
+of the SVG file, correctly indented for the current XML nesting
+level. If it is false, the end tag will appear immediatelu after the
+preceding output.
+
+@c
+static void mp_svg_endtag (MP mp, char *s, boolean indent) { 
+  mp->svg->level--;
+  if (indent) {
+    int l = mp->svg->level * 2;
+    mp_svg_print_ln(mp);
+    while (l-->0) {
+      append_char(' ');
+    }
+  }
+  append_string("</");
+  append_string(s);
+  append_char('>');
+  mp_svg_print_buf(mp);
+}
+
+@ Attribute. Can't play with the buffer here becase it is likely
+that that is the |v| argument.
+
+@c
+static void mp_svg_attribute (MP mp, char *s, char *v) { 
+  mp_svg_print_char(mp, ' ');
+  mp_svg_print(mp, s);
+  mp_svg_print(mp,"=\"");
+  mp_svg_print(mp, v);
+  mp_svg_print_char(mp,'"');
+}
+
+
+
 @ This is test is used to switch between direct representation of characters
-and character references.
+and character references. Just in case the input string is UTF-8, allow everything
+except the characters that have to be quoted for XML well-formedness.
 
 @<Character |k| is not allowed in SVG output@>=
-  (k<=' ')||(k>'~')||(k=='&')||(k=='>')||(k=='<')
+  (k=='&')||(k=='>')||(k=='<')
 
 @ We often need to print a pair of coordinates. 
 
@@ -239,8 +376,9 @@ integer dy;
 
 @ @c
 void mp_svg_pair_out (MP mp,scaled x, scaled y) { 
-  mp_svg_print_scaled(mp, (x+mp->svg->dx)); mp_svg_print_char(mp, ' ');
-  mp_svg_print_scaled(mp, (-(y+mp->svg->dy))); mp_svg_print_char(mp, ' ');
+  mp_svg_store_scaled(mp, (x+mp->svg->dx));
+  append_char(' ');
+  mp_svg_store_scaled(mp, (-(y+mp->svg->dy)));
 }
 
 @ When stroking a path with an elliptical pen, it is necessary to distort
@@ -265,11 +403,10 @@ void mp_svg_trans_pair_out (MP mp, mp_pen_info *pen, scaled x, scaled y) {
   py = double_from_scaled((-(y+mp->svg->dy)));
   divider = (sx*sy - rx*ry);
   retval = (sy*px-ry*py)/divider;
-  mp_svg_print_scaled(mp, scaled_from_double(retval)); 
-  mp_svg_print_char(mp, ' ');
+  mp_svg_store_scaled(mp, scaled_from_double(retval)); 
+  append_char(' ');
   retval = (sx*py-rx*px)/divider;
-  mp_svg_print_scaled(mp, scaled_from_double(retval)); 
-  mp_svg_print_char(mp, ' ');
+  mp_svg_store_scaled(mp, scaled_from_double(retval)); 
 }
 
 
@@ -289,7 +426,9 @@ void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
   scaled t, tx, ty;
   mp_svg_print(mp, "<?xml version=\"1.0\"?>");
   @<Print the MetaPost version and time @>;
-  mp_svg_print_nl(mp, "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\"");
+  mp_svg_open_starttag(mp,"svg");
+  mp_svg_attribute(mp,"xmlns", "http://www.w3.org/2000/svg");
+  mp_svg_attribute(mp,"version", "1.1");
   if ( hh->minx>hh->maxx)  { 
     tx = 0;
     ty = 0;
@@ -301,20 +440,21 @@ void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
     mp->svg->dx = (hh->minx<0 ? -hh->minx : 0);
     mp->svg->dy = (hh->miny<0 ? -hh->miny : 0) - ty;
   }
-  mp_svg_print_nl(mp, "     width=\"");
-  mp_svg_print_scaled(mp, tx);
-  mp_svg_print(mp, "\"");
-  mp_svg_print(mp," height=\"");
-  mp_svg_print_scaled(mp, ty);
-  mp_svg_print(mp, "\">");
-  mp_svg_print_nl(mp,"<!-- points transformed from original BB: ");
-  mp_svg_print_nl(mp,"     ");
-  mp_svg_print_scaled(mp, hh->minx); mp_svg_print_char(mp,' ');
-  mp_svg_print_scaled(mp, hh->miny); mp_svg_print_char(mp,' ');
-  mp_svg_print_scaled(mp, hh->maxx); mp_svg_print_char(mp,' ');
-  mp_svg_print_scaled(mp, hh->maxy);
+  mp_svg_store_scaled(mp, tx);
+  mp_svg_attribute(mp,"width", mp->svg->buf);
+  mp_svg_reset_buf(mp);
+  mp_svg_store_scaled(mp, ty);
+  mp_svg_attribute(mp,"height", mp->svg->buf);
+  mp_svg_reset_buf(mp);
+  mp_svg_close_starttag(mp);
+  mp_svg_print_nl(mp,"<!-- Original BoundingBox: ");
+  mp_svg_store_scaled(mp, hh->minx); append_char(' ');
+  mp_svg_store_scaled(mp, hh->miny); append_char(' ');
+  mp_svg_store_scaled(mp, hh->maxx); append_char(' ');
+  mp_svg_store_scaled(mp, hh->maxy);
+  mp_svg_print_buf(mp);  
   mp_svg_print(mp," -->");
-  mp_svg_print_nl(mp, "<g>");
+  mp_svg_starttag(mp, "g");
 }
 
 @ @<Print the MetaPost version and time @>=
@@ -325,15 +465,16 @@ void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
   mp_svg_print(mp, s);
   mp_xfree(s);
   mp_svg_print(mp, " on ");
-  mp_svg_print_int(mp, mp_round_unscaled(mp, mp->internal[mp_year])); 
-  mp_svg_print_char(mp, '.');
-  mp_svg_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_month])); 
-  mp_svg_print_char(mp, '.');
-  mp_svg_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_day])); 
-  mp_svg_print_char(mp, ':');
+  mp_svg_store_int(mp, mp_round_unscaled(mp, mp->internal[mp_year])); 
+  append_char('.');
+  mp_svg_store_dd(mp, mp_round_unscaled(mp, mp->internal[mp_month])); 
+  append_char('.');
+  mp_svg_store_dd(mp, mp_round_unscaled(mp, mp->internal[mp_day])); 
+  append_char(':');
   t=mp_round_unscaled(mp, mp->internal[mp_time]);
-  mp_svg_print_dd(mp, t / 60); 
-  mp_svg_print_dd(mp, t % 60);
+  mp_svg_store_dd(mp, t / 60); 
+  mp_svg_store_dd(mp, t % 60);
+  mp_svg_print_buf(mp);
   mp_svg_print(mp, " -->");
 }
 
@@ -362,7 +503,7 @@ static void mp_svg_color_out (MP mp, mp_graphic_object *p) {
     set_color_objects(pq);
   }
   if ( object_color_model==mp_no_model ) {
-    mp_svg_print(mp,"black");
+    append_string("black");
   } else {
     if ( object_color_model==mp_grey_model ) {
        object_color_b = object_color_a;
@@ -377,13 +518,16 @@ static void mp_svg_color_out (MP mp, mp_graphic_object *p) {
       object_color_b = unity - (m+k>unity ? unity : m+k);
       object_color_c = unity - (y+k>unity ? unity : y+k);
     }
-    mp_svg_print(mp,"rgb(");
-    mp_svg_print_scaled(mp, (object_color_a * 100));
-    mp_svg_print(mp,"%,");
-    mp_svg_print_scaled(mp, (object_color_b * 100));
-    mp_svg_print(mp,"%,");
-    mp_svg_print_scaled(mp, (object_color_c * 100));
-    mp_svg_print(mp,"%)");
+    append_string("rgb(");
+    mp_svg_store_scaled(mp, (object_color_a * 100));
+    append_char('%');
+    append_char(',');
+    mp_svg_store_scaled(mp, (object_color_b * 100));
+    append_char('%');
+    append_char(',');
+    mp_svg_store_scaled(mp, (object_color_c * 100));
+    append_char('%');
+    append_char(')');
   }
 }
 
@@ -529,67 +673,64 @@ boolean mp_is_curved(mp_knot *p, mp_knot *q) {
 @ @c
 static void mp_svg_path_out (MP mp, mp_knot *h) {
   mp_knot *p, *q; /* for scanning the path */
-  mp_svg_print(mp, " d=\"M ");
+  append_char('M');
   mp_svg_pair_out(mp, gr_x_coord(h),gr_y_coord(h));
-  mp_svg_print(mp, " ");
   p=h;
   do {  
     if ( gr_right_type(p)==mp_endpoint ) { 
-      if ( p==h ) mp_svg_print(mp, " l 0 0 ");
-      mp_svg_print(mp, "\"");
+      if ( p==h ) {
+        append_char('l');
+        mp_svg_pair_out(mp, 0, 0);
+      }
       return;
     }
     q=gr_next_knot(p);
-    mp_svg_print_ln(mp);
     if (mp_is_curved(p, q)){ 
-      mp_svg_print(mp, "C ");
+      append_char('C');
       mp_svg_pair_out(mp, gr_right_x(p),gr_right_y(p));
-      mp_svg_print(mp, ", ");
+      append_char(',');
       mp_svg_pair_out(mp, gr_left_x(q),gr_left_y(q));
-      mp_svg_print(mp, ", ");
+      append_char(',');
       mp_svg_pair_out(mp, gr_x_coord(q),gr_y_coord(q));
-      mp_svg_print(mp, " ");
     } else if ( q!=h ){ 
-      mp_svg_print(mp, "L ");
+      append_char('C');
       mp_svg_pair_out(mp, gr_x_coord(q),gr_y_coord(q));
-      mp_svg_print(mp, " ");
     }
     p=q;
   } while (p!=h);
-  mp_svg_print(mp, "\"");
+  append_char(0);
 }
 
 @ @c
 static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
   mp_knot *p, *q; /* for scanning the path */
-  mp_svg_print(mp, " d=\"M ");
+  append_char('M');
   mp_svg_trans_pair_out(mp, pen, gr_x_coord(h),gr_y_coord(h));
-  mp_svg_print(mp, " ");
   p=h;
   do {  
     if ( gr_right_type(p)==mp_endpoint ) { 
-      if ( p==h ) mp_svg_print(mp, " l 0 0 ");
-      mp_svg_print(mp, "\"");
+      if ( p==h ) {
+        append_char('l');
+        mp_svg_pair_out(mp, 0, 0);
+      }
       return;
     }
     q=gr_next_knot(p);
-    mp_svg_print_ln(mp);
     if (mp_is_curved(p, q)){ 
-      mp_svg_print(mp, "C ");
+      append_char('C');
       mp_svg_trans_pair_out(mp, pen, gr_right_x(p),gr_right_y(p));
-      mp_svg_print(mp, ", ");
+      append_char(',');
       mp_svg_trans_pair_out(mp, pen,gr_left_x(q),gr_left_y(q));
-      mp_svg_print(mp, ", ");
+      append_char(',');
       mp_svg_trans_pair_out(mp, pen,gr_x_coord(q),gr_y_coord(q));
-      mp_svg_print(mp, " ");
     } else if ( q!=h ){ 
+      append_char('L');
       mp_svg_print(mp, "L ");
       mp_svg_trans_pair_out(mp, pen,gr_x_coord(q),gr_y_coord(q));
-      mp_svg_print(mp, " ");
    }
     p=q;
   } while (p!=h);
-  mp_svg_print(mp, "\"");
+  append_char(0);
 }
 
 @ Now for outputting the actual graphic objects. 
@@ -600,57 +741,57 @@ static void mp_svg_text_out (MP mp, mp_text_object *p) ;
 @ @c
 void mp_svg_text_out (MP mp, mp_text_object *p) {
   char *s, *fname;
-  ASCII_code k; /* bits to be converted to octal */
+  int k; /* a character */
   boolean transformed ;
   scaled ds; /* design size and scale factor for a text node */
   fname = mp->font_ps_name[gr_font_n(p)];
   s = gr_text_p(p);
   transformed=(gr_txx_val(p)!=unity)||(gr_tyy_val(p)!=unity)||
               (gr_txy_val(p)!=0)||(gr_tyx_val(p)!=0);
-  mp_svg_print_nl(mp, "<g transform=\"");
+  mp_svg_open_starttag(mp, "g");
   if ( transformed ) {
-    mp_svg_print(mp, "matrix(");
-    mp_svg_print_scaled(mp,gr_txx_val(p));
-    mp_svg_print(mp,",");
-    mp_svg_print_scaled(mp,gr_tyx_val(p));
-    mp_svg_print(mp,",");
-    mp_svg_print_scaled(mp,gr_txy_val(p));
-    mp_svg_print(mp,",");
-    mp_svg_print_scaled(mp,gr_tyy_val(p));
-    mp_svg_print(mp,",");
+    append_string("matrix(");
+    mp_svg_store_scaled(mp,gr_txx_val(p)); append_char(',');
+    mp_svg_store_scaled(mp,gr_tyx_val(p)); append_char(',');
+    mp_svg_store_scaled(mp,gr_txy_val(p)); append_char(',');
+    mp_svg_store_scaled(mp,gr_tyy_val(p)); append_char(',');
   } else { 
-    mp_svg_print(mp, "translate(");
+    append_string("translate(");
   }
-  mp_svg_pair_out(mp,gr_tx_val(p),gr_ty_val(p));
-  mp_svg_print(mp, ")\">");
-  mp_svg_print_nl(mp, "<text font-size=\"");
+  mp_svg_pair_out(mp,gr_tx_val(p),gr_ty_val(p)); 
+  append_char(')');
+  
+  mp_svg_attribute(mp, "transform", mp->svg->buf);
+  mp_svg_reset_buf(mp);
+  mp_svg_close_starttag(mp);
+   
+  mp_svg_open_starttag(mp, "text");
   ds=(mp->font_dsize[gr_font_n(p)]+8) / 16;
-  mp_svg_print_scaled(mp,ds);
+  mp_svg_store_scaled(mp,ds);
+  mp_svg_attribute(mp, "font-size", mp->svg->buf);
+  mp_svg_reset_buf(mp);
 
-  mp_svg_print(mp, "\"\r style=\"");
-  mp_svg_print(mp, "fill: ");
+  append_string("fill: ");
   mp_svg_color_out(mp,(mp_graphic_object *)p);
-  mp_svg_print(mp, "; ");
-  mp_svg_print(mp, "\" font-family=\"");
-  mp_svg_print(mp, fname);
-  mp_svg_print(mp, "\">");
+  append_char(';');
+  mp_svg_attribute(mp, "style",  mp->svg->buf);
+  mp_svg_reset_buf(mp);
 
-  while ((k=(ASCII_code)*s++)) {
-    if ( mp->svg->file_offset+5>mp->max_print_line ) {
-      mp_svg_print(mp, "<!--");
-      mp_svg_print_nl(mp,"-->");
-    }
+  mp_svg_attribute(mp, "font-family", fname);
+  mp_svg_close_starttag(mp);
+
+  while ((k=(int)*s++)) {
     if ( (@<Character |k| is not allowed in SVG output@>) ) {
-      mp_svg_print(mp, "&#");
-      mp_svg_print_int(mp,k);
-      mp_svg_print(mp, ";");
+      append_string("&#");
+      mp_svg_store_int(mp,k);
+      append_char(';');
     } else {
-      mp_svg_print_char(mp, k);
+      append_char(k);
     }
   }
-
-  mp_svg_print(mp, "</text></g>");
-  mp_svg_print_ln(mp);
+  mp_svg_print_buf(mp);
+  mp_svg_endtag(mp, "text", false);
+  mp_svg_endtag(mp, "g", true);
 }
 
 @ When stroking a path with an elliptical pen, it is necessary to transform
@@ -682,108 +823,104 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
     }
   }
   if (transformed) {
-    mp_svg_print_nl(mp, "<g transform=\"");
-    mp_svg_print(mp, "matrix(");
-    mp_svg_print_scaled(mp,pen->sx);
-    mp_svg_print(mp,",");
-    mp_svg_print_scaled(mp,pen->rx);
-    mp_svg_print(mp,",");
-    mp_svg_print_scaled(mp,pen->ry);
-    mp_svg_print(mp,",");
-    mp_svg_print_scaled(mp,pen->sy);
-    mp_svg_print(mp,",");
-    mp_svg_print_scaled(mp,pen->tx);
-    mp_svg_print(mp,",");
-    mp_svg_print_scaled(mp,pen->ty);
-    mp_svg_print(mp, ")\">");
+    mp_svg_open_starttag(mp, "g");
+    append_string("matrix(");
+    mp_svg_store_scaled(mp,pen->sx);  append_char(',');
+    mp_svg_store_scaled(mp,pen->rx);  append_char(',');
+    mp_svg_store_scaled(mp,pen->ry);  append_char(',');
+    mp_svg_store_scaled(mp,pen->sy);  append_char(',');
+    mp_svg_store_scaled(mp,pen->tx);  append_char(',');
+    mp_svg_store_scaled(mp,pen->ty);
+    append_char(')');
+    mp_svg_attribute(mp, "transform", mp->svg->buf);
+    mp_svg_reset_buf(mp);
+    mp_svg_close_starttag(mp);
   }
-  mp_svg_print_nl(mp, "<path");
+  mp_svg_open_starttag(mp, "path");
+
   if (gr_type(h)==mp_fill_code) {
     if (transformed) 
       mp_svg_path_trans_out(mp, gr_path_p((mp_fill_object *)h), pen);
     else
       mp_svg_path_out(mp, gr_path_p((mp_fill_object *)h));
-    mp_svg_print(mp, "\r style=\"");
-    mp_svg_print(mp, "fill: ");
+    mp_svg_attribute(mp, "d", mp->svg->buf);
+    mp_svg_reset_buf(mp);
+    append_string("fill: ");
     mp_svg_color_out(mp,h);
-    mp_svg_print(mp, "; ");
-    mp_svg_print(mp, "stroke: none;");
-    mp_svg_print(mp, "\"");
+    append_string("; stroke: none;");
+    mp_svg_attribute(mp, "style", mp->svg->buf);
+    mp_svg_reset_buf(mp);
   } else {
     if (transformed) 
       mp_svg_path_trans_out(mp, gr_path_p((mp_stroked_object *)h), pen);
     else
       mp_svg_path_out(mp, gr_path_p((mp_stroked_object *)h));
-    mp_svg_print(mp, "\r style=\"");
-
-    mp_svg_print(mp, "stroke: ");
+    mp_svg_attribute(mp, "d", mp->svg->buf);
+    mp_svg_reset_buf(mp);
+    append_string("stroke:");
     mp_svg_color_out(mp,h);
-    mp_svg_print(mp, ";");
-
-    {
-      mp_svg_print(mp, "stroke-width: ");
-      if (pen != NULL) {
-        mp_svg_print_scaled(mp, pen->ww);
-      } else {
-        mp_svg_print(mp, "0");
-      }
-      mp_svg_print(mp, ";");
+    append_string("; stroke-width: ");
+    if (pen != NULL) {
+      mp_svg_store_scaled(mp, pen->ww);
+    } else {
+      append_char('0');
     }
-
+    append_char(';');
     {
       mp_dash_object *hh;
       hh =gr_dash_p(h);
       if (hh != NULL && hh->array != NULL) {
          int i;
-         mp_svg_print(mp, "stroke-dasharray: ");
-         for (i=0; *(hh->array+i) != -1;i++) {
-           mp_svg_print_scaled(mp, *(hh->array+i)); 
-           mp_svg_print_char(mp, ' ')	;
-         }
+         append_string("stroke-dasharray: "); 
          /* svg doesn't accept offsets */
-         mp_svg_print(mp, ";");
+         for (i=0; *(hh->array+i) != -1;i++) {
+           mp_svg_store_scaled(mp, *(hh->array+i)); 
+           append_char(' ')	;
+         }
+         append_char(';');
       }
     }
 
     if (gr_lcap_val(h)!=0) {
-      mp_svg_print(mp, "stroke-linecap: ");
+      append_string("stroke-linecap: ");
       switch (gr_lcap_val(h)) {
-        case 1: mp_svg_print(mp, "round"); break;
-        case 2: mp_svg_print(mp, "square"); break;
-        default: mp_svg_print(mp, "butt"); break;
+        case 1: append_string("round"); break;
+        case 2: append_string("square"); break;
+        default: append_string("butt"); break;
       }
-      mp_svg_print(mp, ";");
+      append_char(';');
     }
     if (gr_ljoin_val((mp_stroked_object *)h)!=0) {
-      mp_svg_print(mp, "stroke-linejoin: ");
+      append_string ("stroke-linejoin: ");
       switch (gr_ljoin_val((mp_stroked_object *)h)) {
-        case 1: mp_svg_print(mp, "round"); break;
-        case 2: mp_svg_print(mp, "bevel"); break;
-        default: mp_svg_print(mp, "miter"); break;
+        case 1:  append_string("round"); break;
+        case 2:  append_string("bevel"); break;
+        default: append_string("miter"); break;
       }
-      mp_svg_print(mp, ";");
+      append_char(';');
     }
   
     if (gr_miterlim_val((mp_stroked_object *)h) != 4*unity) {
-      mp_svg_print(mp, "stroke-miterlimit: ");
-      mp_svg_print_scaled(mp, gr_miterlim_val((mp_stroked_object *)h)); 
-      mp_svg_print(mp, ";");
+      append_string("stroke-miterlimit: ");
+      mp_svg_store_scaled(mp, gr_miterlim_val((mp_stroked_object *)h)); 
+      append_char(';');
     }
 
-    mp_svg_print(mp, "fill: ");
+    append_string("fill: ");
     if (fill_also) {
       mp_svg_color_out(mp,h);
     } else {
-      mp_svg_print(mp, " none");
+      append_string("none");
     }
-    mp_svg_print(mp, ";");
-    mp_svg_print(mp, "\"");
+    append_char(';');
+    mp_svg_attribute(mp, "style", mp->svg->buf);
+    mp_svg_reset_buf(mp);
   }
-  mp_svg_print(mp, "/>");
+  mp_svg_close_starttag(mp);
+  mp_svg_endtag(mp, "path", false);
   if (transformed) {
-    mp_svg_print(mp, "</g>");
+    mp_svg_endtag(mp, "g", true);
   }
-  mp_svg_print_ln(mp);
 }
 
 @ Here is a simple routine that just fills a cycle.
@@ -793,16 +930,65 @@ static void mp_svg_fill_out (MP mp, mp_knot *p, mp_graphic_object *h);
 
 @ @c
 void mp_svg_fill_out (MP mp, mp_knot *p, mp_graphic_object *h) {
-  mp_svg_print_nl(mp, "<path");
+  mp_svg_open_starttag(mp, "path");
   mp_svg_path_out(mp, p);
-  mp_svg_print(mp, "\r style=\"");
-  mp_svg_print(mp, "fill: ");
+  mp_svg_attribute(mp, "d", mp->svg->buf);
+  mp_svg_reset_buf(mp);
+  append_string("fill: ");
   mp_svg_color_out(mp,h);
-  mp_svg_print(mp, "; ");
-  mp_svg_print(mp, "stroke: none;");
-  mp_svg_print(mp, "\"/>");
-  mp_svg_print_ln(mp);
+  append_string(";stroke: none;");
+  mp_svg_attribute(mp, "style", mp->svg->buf);
+  mp_svg_reset_buf(mp);
+  mp_svg_close_starttag(mp); /* path */
+  mp_svg_endtag(mp, "path", false);
 }
+
+@ Clipping paths use IDs, so an extra global is needed:
+
+@<Globals...@>=
+int clipid;
+
+@
+@<Set initial values@>=
+mp->svg->clipid = 0;
+
+@ @<Declarations@>=
+static void mp_svg_clip_out (MP mp, mp_clip_object *p);
+
+@ @c
+void mp_svg_clip_out (MP mp, mp_clip_object *p) {
+  mp->svg->clipid++;
+  mp_svg_starttag(mp, "g"); 
+  mp_svg_starttag(mp, "defs"); 
+  mp_svg_open_starttag(mp, "clipPath"); 
+
+  append_string("CLIP");
+  mp_svg_store_int(mp, mp->svg->clipid);
+  mp_svg_attribute(mp, "id", mp->svg->buf);
+  mp_svg_reset_buf(mp);
+
+  mp_svg_close_starttag(mp); 
+  mp_svg_open_starttag(mp, "path"); 
+  mp_svg_path_out(mp, gr_path_p(p));
+  mp_svg_attribute(mp,"d", mp->svg->buf);
+  mp_svg_reset_buf(mp);
+  mp_svg_attribute(mp, "style", "fill: black; stroke: none;");
+  mp_svg_close_starttag(mp);  /* path */
+  mp_svg_endtag(mp, "path", false); 
+  mp_svg_endtag(mp, "clipPath", true); 
+  mp_svg_endtag(mp, "defs", true); 
+  mp_svg_open_starttag(mp, "g"); 
+
+  append_string("url(#CLIP");
+  mp_svg_store_int(mp, mp->svg->clipid);
+  append_string(");");
+  mp_svg_attribute(mp, "clip-path", mp->svg->buf);
+  mp_svg_reset_buf(mp);
+
+  mp_svg_close_starttag(mp); 
+}
+
+
 
 @ The main output function
 
@@ -866,18 +1052,11 @@ int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
       }
       break;
     case mp_start_clip_code: 
-      mp_svg_print_nl(mp, "<g><defs>");
-      mp_svg_print_nl(mp, "<clipPath id=\"XX\">");
-      mp_svg_print_nl(mp, "<path ");
-      mp_svg_path_out(mp, gr_path_p((mp_clip_object *)p));
-      mp_svg_print(mp, "\r style=\"fill:black; stroke:none;\"/>");
-      mp_svg_print_nl(mp, "</clipPath></defs>");
-      mp_svg_print_nl(mp, "<g clip-path=\"url(#XX);\">");
-      mp_svg_print_ln(mp);
+       mp_svg_clip_out(mp, (mp_clip_object *)p);
       break;
     case mp_stop_clip_code: 
-      mp_svg_print_nl(mp, "</g></g>"); 
-      mp_svg_print_ln(mp);
+      mp_svg_endtag(mp, "g", true); 
+      mp_svg_endtag(mp, "g", true); 
       break;
     case mp_start_bounds_code:
     case mp_stop_bounds_code:
@@ -895,7 +1074,9 @@ int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
     }
     p=gr_link(p);
   }
-  mp_svg_print_nl(mp, "</g></svg>"); mp_svg_print_ln(mp);
+  mp_svg_endtag(mp, "g", true); 
+  mp_svg_endtag(mp, "svg", true); 
+  mp_svg_print_ln(mp);
   (mp->close_file)(mp,mp->output_file);
   return 1;
 }
