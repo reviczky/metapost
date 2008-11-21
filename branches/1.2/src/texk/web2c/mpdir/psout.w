@@ -2875,14 +2875,15 @@ static void init_cs_entry ( cs_entry * cs) {
 
 static void t1_mark_glyphs (MP mp, font_number tex_font);
 
-static void t1_read_subrs (MP mp, font_number tex_font, fm_entry *fm_cur)
+static void t1_read_subrs (MP mp, font_number tex_font, fm_entry *fm_cur, int read_only)
 {
     int i, s;
     cs_entry *ptr;
     t1_getline (mp);
     while (!(t1_charstrings () || t1_subrs ())) {
         t1_scan_param (mp,tex_font, fm_cur);
-        t1_putline (mp);
+        if (!read_only)
+          t1_putline (mp);
         t1_getline (mp);
     }
   FOUND:
@@ -3088,7 +3089,7 @@ static void t1_mark_glyphs (MP mp, font_number tex_font)
                 mp->ps->subr_max = ptr - mp->ps->subr_tab;
 }
 
-static void t1_subset_charstrings (MP mp, font_number tex_font) 
+static void t1_do_subset_charstrings (MP mp, font_number tex_font) 
 {
     cs_entry *ptr;
     mp->ps->cs_size_pos =
@@ -3109,6 +3110,12 @@ static void t1_subset_charstrings (MP mp, font_number tex_font)
     }
     mp->ps->cs_dict_end = mp_xstrdup (mp,mp->ps->t1_line_array);
     t1_mark_glyphs (mp,tex_font);
+}
+
+static void t1_subset_charstrings (MP mp, font_number tex_font) 
+{
+    cs_entry *ptr;
+    t1_do_subset_charstrings (mp, tex_font);
     if (mp->ps->subr_tab != NULL) {
         if (mp->ps->cs_token_pair == NULL) 
             mp_fatal_error
@@ -3191,7 +3198,7 @@ static void  writet1 (MP mp, font_number tex_font, fm_entry *fm_cur) {
     t1_start_eexec (mp,fm_cur);
     cc_init ();
     cs_init (mp);
-    t1_read_subrs (mp,tex_font, fm_cur);
+    t1_read_subrs (mp,tex_font, fm_cur, false);
     t1_subset_charstrings (mp,tex_font);
     t1_subset_end (mp);
     t1_close_font_file (mp,">");
@@ -3206,6 +3213,331 @@ static void  t1_free (MP mp) {
   mp_xfree (mp->ps->t1_line_array);
   mp_xfree (mp->ps->t1_buf_array);
 }
+
+@* Embedding Charstrings.
+
+The SVG backend uses some routines that use an ascii representation of
+a type1 font. First, here is the type associated with it:
+
+@<Types ...@>=
+typedef struct mp_ps_font {
+  int font_num; /* just to put something in */
+  char **t1_glyph_names;
+  cs_entry *cs_tab;
+  cs_entry *cs_ptr;
+  cs_entry *subr_tab;
+  int t1_lenIV;
+} mp_ps_font;
+
+@ The parser creates a structure and fills it.
+
+@c
+
+mp_ps_font *mp_ps_font_parse (MP mp, int tex_font) {
+  mp_ps_font *f;
+  int i, j;
+  fm_entry *fm_cur;
+  char msg[128];
+  (void)mp_has_fm_entry (mp, tex_font, &fm_cur);
+  if (fm_cur == NULL) {
+    mp_snprintf(msg,128,"fontmap entry for `%s' not found", mp->font_name[tex_font]);
+    mp_warn(mp,msg);
+    return NULL;
+  }
+  if (is_truetype(fm_cur) ||
+	 (fm_cur->ps_name == NULL && fm_cur->ff_name == NULL) ||
+      (!is_included(fm_cur))) {
+    mp_snprintf(msg,128,"font `%s' cannot be embedded", mp->font_name[tex_font]);
+    mp_warn(mp,msg);
+    return NULL;
+  }
+  if (!t1_open_fontfile (mp,fm_cur,"<")) { /* message handled there */
+    return NULL;
+  }
+  f = mp_xmalloc(mp, 1, sizeof(struct mp_ps_font));
+  f->font_num = tex_font;
+  f->t1_glyph_names = NULL;
+  f->cs_tab   = NULL;
+  f->cs_ptr   = NULL;
+  f->subr_tab = NULL;
+
+  t1_getline (mp);
+  while (!t1_prefix ("/Encoding")) {
+    t1_scan_param (mp,tex_font, fm_cur);
+    t1_getline (mp);
+  }
+  t1_builtin_enc (mp);
+  if (is_reencoded (fm_cur)) {
+	mp_read_enc (mp, fm_cur->encoding);;
+    f->t1_glyph_names = external_enc ();
+  } else {
+    f->t1_glyph_names = mp->ps->t1_builtin_glyph_names;
+  }
+  do {
+    t1_getline (mp);
+    t1_scan_param (mp,tex_font, fm_cur);
+  } while (mp->ps->t1_in_eexec == 0);
+
+  /* t1_start_eexec (mp,fm_cur); */
+  cc_init ();
+  cs_init (mp);
+  /* the boolean is needed to make sure that |t1_read_subrs| 
+     doesn't output stuff */
+  t1_read_subrs (mp,tex_font, fm_cur, true);
+  mp->ps->t1_synthetic = true ;
+  t1_do_subset_charstrings (mp, tex_font);
+  f->cs_tab = mp->ps->cs_tab;
+  mp->ps->cs_tab = NULL;
+  f->cs_ptr = mp->ps->cs_ptr;
+  mp->ps->cs_ptr = NULL;
+  f->subr_tab = mp->ps->subr_tab;
+  mp->ps->subr_tab = NULL;   
+  f->t1_lenIV = mp->ps->t1_lenIV;
+  t1_close_font_file (mp,">");
+  return f;
+}
+
+@ @<Exported function headers@>=
+mp_ps_font *mp_ps_font_parse (MP mp, int tex_font);
+
+@ Freeing the structure
+
+@c
+void mp_ps_font_free (MP mp, mp_ps_font *f) {
+  mp_xfree(f);
+}
+
+@ @<Exported function headers@>=
+void mp_ps_font_free (MP mp, mp_ps_font *f);
+
+
+@ Parsing 
+
+@c 
+mp_graphic_object *cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
+{
+  mp_graphic_object *h; /* return value */
+  byte *data;
+  int i, b, cs_len;
+  integer a, a1, a2;
+  unsigned short cr;
+  static integer lastargOtherSubr3 = 3;
+
+  cs_entry *ptr;
+  cc_entry *cc;
+
+  h = NULL;
+  if (cs_name == NULL) {
+     ptr = f->subr_tab + subr;
+  } else {
+    i = 0;
+    for (ptr = f->cs_tab; ptr < f->cs_ptr; ptr++, i++) {
+      if (strcmp (ptr->glyph_name, cs_name) == 0)
+        break;
+    }
+    ptr = f->cs_tab+i; /* this is the right charstring */
+  }
+
+  data = ptr->data + 4;
+  cr = 4330;
+  cs_len = (int)ptr->cslen;
+  for (i = 0; i < f->t1_lenIV; i++, cs_len--)
+      (void)cs_getchar (mp);
+
+  while (cs_len > 0) {
+    --cs_len;
+    b = cs_getchar(mp);
+    if (b >= 32) {
+       if (b <= 246)
+           a = b - 139;
+       else if (b <= 250) {
+           --cs_len;
+           a = (int)((unsigned)(b - 247) << 8) + 108 + cs_getchar (mp);
+       } else if (b <= 254) {
+           --cs_len;
+           a = -(int)((unsigned)(b - 251) << 8) - 108 - cs_getchar (mp);
+       } else {
+           cs_len -= 4;
+           a = (cs_getchar (mp) & 0xff) << 24;
+           a |= (cs_getchar (mp) & 0xff) << 16;
+           a |= (cs_getchar (mp) & 0xff) << 8;
+           a |= (cs_getchar (mp) & 0xff) << 0;
+           if (sizeof (integer) > 4 && (a & 0x80000000))
+               a |= ~0x7FFFFFFF;
+       }
+       cc_push (a);
+   } else {
+       if (b == CS_ESCAPE) {
+           b = cs_getchar (mp) + CS_1BYTE_MAX;
+           cs_len--;
+       }
+       if (b >= CS_MAX) {
+           cs_warn (mp,cs_name, subr, "command value out of range: %i",
+                    (int) b);
+           goto cs_error;
+       }
+       cc = cc_tab + b;
+       if (!cc->valid) {
+           cs_warn (mp,cs_name, subr, "command not valid: %i", (int) b);
+           goto cs_error;
+       }
+       if (cc->bottom) {
+           if (stack_ptr - cc_stack < cc->nargs)
+               cs_warn (mp,cs_name, subr,
+                        "less arguments on stack (%i) than required (%i)",
+                        (int) (stack_ptr - cc_stack), (int) cc->nargs);
+           else if (stack_ptr - cc_stack > cc->nargs)
+               cs_warn (mp,cs_name, subr,
+                        "more arguments on stack (%i) than required (%i)",
+                        (int) (stack_ptr - cc_stack), (int) cc->nargs);
+       }
+       switch (cc - cc_tab) {
+      case CS_VMOVETO:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_RLINETO:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_HLINETO:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_VLINETO:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_RRCURVETO:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_CLOSEPATH:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_RMOVETO:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_HMOVETO:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_VHCURVETO:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_HVCURVETO:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      /* hinting commands */
+      case CS_DOTSECTION:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_HSTEM:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_VSTEM:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_VSTEM3:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_HSTEM3:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      /* start and close commands */
+      case CS_SEAC:
+        a1 = cc_get (3);
+        a2 = cc_get (4);
+        cc_clear ();
+        (void)cs_parse(mp,f,standard_glyph_names[a1],0);
+        (void)cs_parse(mp,f,standard_glyph_names[a2],0);
+        break;
+      case CS_ENDCHAR: 
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_HSBW:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_SBW:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      /* arithmetic */
+      case CS_DIV:
+        cc_pop (2);
+        cc_push (0);
+        break;
+      /* subrs */
+      case CS_CALLSUBR:
+        a1 = cc_get (-1);
+        cc_pop (1);
+        (void)cs_parse(mp,f,NULL,a1);
+        break;
+      case CS_RETURN:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      case CS_CALLOTHERSUBR:
+        if (cc_get (-1) == 3)
+          lastargOtherSubr3 = cc_get (-3);
+        a1 = cc_get (-2) + 2;
+        cc_pop (a1);
+        break;
+      case CS_POP:
+        cc_push (lastargOtherSubr3);
+        break;
+      case CS_SETCURRENTPOINT:
+        if (cc->clear)
+          cc_clear ();
+        break;
+      default:
+        if (cc->clear)
+          cc_clear ();
+      }
+    }
+  }  
+  return h;
+cs_error:   /* an error occured during parsing */
+  cc_clear ();
+  ptr->valid = false;
+  ptr->is_used = false;
+  return NULL;
+}
+
+@ Fetch a charstring
+
+@c
+mp_edge_object *mp_ps_font_charstring (MP mp, mp_ps_font *f, int c) {
+  char *cs_name;
+  mp_graphic_object *p;
+  mp_edge_object *h = NULL;
+  cs_name = f->t1_glyph_names[c];
+  p = cs_parse(mp,f,cs_name, 0);
+  if (p != NULL ){
+     h = mp_xmalloc(mp,1,sizeof(mp_edge_object));
+     h->next = NULL;
+     h->body = p;
+     h->parent = mp;
+  }
+  return h;
+}
+
+
+
+@ @<Exported function headers@>=
+mp_edge_object *mp_ps_font_charstring (MP mp, mp_ps_font *f, int c);
+
 
 
 @* \[44d] Embedding fonts.

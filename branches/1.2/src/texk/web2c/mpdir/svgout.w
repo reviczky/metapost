@@ -418,10 +418,7 @@ static void mp_svg_pair_out (MP mp,scaled x, scaled y) ;
 @<Declarations@>=
 static void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh);
 
-@ The |<g>| is not really needed right now, but let's keep it just in
-case I change my mind about the coordinates yet again. 
-
-@c
+@ @c
 void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
   scaled t, tx, ty;
   mp_svg_print(mp, "<?xml version=\"1.0\"?>");
@@ -454,7 +451,6 @@ void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
   mp_svg_store_scaled(mp, hh->maxy);
   mp_svg_print_buf(mp);  
   mp_svg_print(mp," -->");
-  mp_svg_starttag(mp, "g");
 }
 
 @ @<Print the MetaPost version and time @>=
@@ -733,13 +729,101 @@ static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
   append_char(0);
 }
 
+@ If |prologues:=3|, any glyphs in labels will be converted into paths.
+
+@d do_mark(A,B) do {
+   if (mp_chars == NULL) {
+     mp_chars = mp_xmalloc(mp, mp->font_max, sizeof(int *));
+     memset(mp_chars, 0, (mp->font_max * sizeof(int *)));
+   }
+   if (mp_chars[(A)] == NULL) {
+     int *glfs =  mp_xmalloc(mp, 256, sizeof(int));
+     memset(glfs, 0, (256 * sizeof(int)));
+     mp_chars[(A)] = glfs;
+   }
+   mp_chars[(A)][(int)(B)] = 1;
+} while (0)
+
+@c
+void mp_svg_charpath_out(MP mp, mp_ps_font *f, int l) {
+   append_string("called");
+}
+
+void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
+  mp_graphic_object *p; /* object index */
+  int k, l; /* general purpose indices */
+  int **mp_chars = NULL; /* a twodimensional array of used glyphs */
+  mp_ps_font *f = NULL; 
+  mp_edge_object *ch;
+  p = h->body;
+  while ( p!=NULL ) { 
+    if ((gr_type(p) == mp_text_code) &&
+        (gr_font_n(p)!=null_font) && 
+        (strlen(gr_text_p(p))>0) ) {
+      char *s = gr_text_p(p);
+      while (*s) {
+        do_mark(gr_font_n(p), *s);
+        s++;
+      }
+    }
+    p=gr_link(p);
+  }
+  if (mp_chars != NULL) {
+    /* do stuff */
+    mp_svg_starttag(mp,"defs");
+    for (k=0;k<(int)mp->font_max;k++) {
+       if (mp_chars[k] != NULL ) {
+          for (l=0;l<256;l++) {
+            if (mp_chars[k][l] == 1) {
+               mp_svg_open_starttag(mp,"g");
+                /* todo: apply Extend and Slant */
+               mp_svg_attribute(mp, "transform", "scale(0.001,0.001)");
+               append_string("GLYPH");
+               append_string(mp->font_name[k]);
+               append_char('_');
+               mp_svg_store_int(mp,l);
+               mp_svg_attribute(mp, "id", mp->svg->buf);
+               mp_svg_reset_buf(mp);
+               mp_svg_close_starttag(mp);
+               if (f == NULL) {
+                  f = mp_ps_font_parse(mp, k);
+               }
+               if (f != NULL) {
+                 ch = mp_ps_font_charstring(mp,f,l);
+                 if (ch != NULL) {
+                   p =ch->body;
+                   mp_svg_open_starttag(mp,"path");
+                   mp_svg_path_out(mp, gr_path_p((mp_fill_object *)p));
+                   mp_svg_attribute(mp, "d", mp->svg->buf);
+                   mp_svg_reset_buf(mp);
+                   mp_svg_close_starttag(mp);
+                   mp_svg_endtag(mp,"path",false);
+                 }
+               }
+               mp_svg_endtag(mp,"g",true);
+            }
+          }
+          if (f!=NULL) { mp_ps_font_free(mp, f); f = NULL; }
+       }
+    }
+    mp_svg_endtag(mp,"defs", true);
+    
+    /* cleanup */
+    for (k=0;k<(int)mp->font_max;k++) {
+      mp_xfree(mp_chars[k]);
+    }
+    mp_xfree(mp_chars);
+  }
+}
+
+
 @ Now for outputting the actual graphic objects. 
 
 @<Declarations@>=
-static void mp_svg_text_out (MP mp, mp_text_object *p) ;
+static void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) ;
 
 @ @c
-void mp_svg_text_out (MP mp, mp_text_object *p) {
+void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) {
   char *s, *fname;
   int k; /* a character */
   boolean transformed ;
@@ -763,34 +847,58 @@ void mp_svg_text_out (MP mp, mp_text_object *p) {
   
   mp_svg_attribute(mp, "transform", mp->svg->buf);
   mp_svg_reset_buf(mp);
-  mp_svg_close_starttag(mp);
-   
-  mp_svg_open_starttag(mp, "text");
-  ds=(mp->font_dsize[gr_font_n(p)]+8) / 16;
-  mp_svg_store_scaled(mp,ds);
-  mp_svg_attribute(mp, "font-size", mp->svg->buf);
-  mp_svg_reset_buf(mp);
 
   append_string("fill: ");
   mp_svg_color_out(mp,(mp_graphic_object *)p);
   append_char(';');
-  mp_svg_attribute(mp, "style",  mp->svg->buf);
+  mp_svg_attribute(mp, "style", mp->svg->buf);
   mp_svg_reset_buf(mp);
 
-  mp_svg_attribute(mp, "font-family", fname);
   mp_svg_close_starttag(mp);
-
-  while ((k=(int)*s++)) {
-    if ( (@<Character |k| is not allowed in SVG output@>) ) {
-      append_string("&#");
+   
+  if (prologues == 3 ) {
+    scaled charwd;
+    double wd = 0.0; /* this is in PS design units */
+    while ((k=(int)*s++)) {
+      mp_svg_open_starttag(mp, "use");
+      append_string("#GLYPH");
+      append_string(mp->font_name[gr_font_n(p)]);
+      append_char('_');
       mp_svg_store_int(mp,k);
-      append_char(';');
-    } else {
-      append_char(k);
+      mp_svg_attribute(mp,"xlink:href", mp->svg->buf);
+      mp_svg_reset_buf(mp);
+      charwd = scaled_from_double((wd/100));
+      if (charwd!=0) {
+        mp_svg_store_scaled(mp,charwd);
+        mp_svg_attribute(mp,"x", mp->svg->buf);
+        mp_svg_reset_buf(mp);
+      }
+      wd += mp_get_char_dimension (mp, mp->font_name[gr_font_n(p)], k, 'w');
+      mp_svg_close_starttag(mp);
+      mp_svg_endtag(mp, "use", false);
+   }
+  }  else {
+    mp_svg_open_starttag(mp, "text");
+    ds=(mp->font_dsize[gr_font_n(p)]+8) / 16;
+    mp_svg_store_scaled(mp,ds);
+    mp_svg_attribute(mp, "font-size", mp->svg->buf);
+    mp_svg_reset_buf(mp);
+
+    mp_svg_attribute(mp, "style",  mp->svg->buf);
+    mp_svg_reset_buf(mp);
+  
+    while ((k=(int)*s++)) {
+      if ( (@<Character |k| is not allowed in SVG output@>) ) {
+        append_string("&#");
+        mp_svg_store_int(mp,k);
+        append_char(';');
+      } else {
+        append_char(k);
+      }
     }
+    mp_svg_print_buf(mp);
+    mp_svg_endtag(mp, "text", false);
   }
-  mp_svg_print_buf(mp);
-  mp_svg_endtag(mp, "text", false);
   mp_svg_endtag(mp, "g", true);
 }
 
@@ -1013,6 +1121,9 @@ int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
   if ( (qprologues>=1) && (mp->last_ps_fnum<mp->last_fnum) )
     mp_read_psname_table(mp);
   mp_svg_print_initial_comment(mp, hh);
+  if (qprologues == 3) {
+    mp_svg_print_glyph_defs(mp, hh);
+  }
   p = hh->body;
   while ( p!=NULL ) { 
     if ( gr_has_scripts(p) ) {
@@ -1048,7 +1159,7 @@ int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
       break;
     case mp_text_code: 
       if ( (gr_font_n(p)!=null_font) && (strlen(gr_text_p(p))>0) ) {
-        mp_svg_text_out(mp, (mp_text_object *)p);
+        mp_svg_text_out(mp, (mp_text_object *)p, qprologues);
       }
       break;
     case mp_start_clip_code: 
@@ -1074,7 +1185,6 @@ int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
     }
     p=gr_link(p);
   }
-  mp_svg_endtag(mp, "g", true); 
   mp_svg_endtag(mp, "svg", true); 
   mp_svg_print_ln(mp);
   (mp->close_file)(mp,mp->output_file);
