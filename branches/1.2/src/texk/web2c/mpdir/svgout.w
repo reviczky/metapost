@@ -883,9 +883,7 @@ void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) {
     mp_svg_store_scaled(mp,ds);
     mp_svg_attribute(mp, "font-size", mp->svg->buf);
     mp_svg_reset_buf(mp);
-
-    mp_svg_attribute(mp, "style",  mp->svg->buf);
-    mp_svg_reset_buf(mp);
+    mp_svg_close_starttag(mp);
   
     while ((k=(int)*s++)) {
       if ( (@<Character |k| is not allowed in SVG output@>) ) {
