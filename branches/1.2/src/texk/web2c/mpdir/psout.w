@@ -3227,6 +3227,7 @@ typedef struct mp_ps_font {
   cs_entry *cs_ptr;
   cs_entry *subr_tab;
   int t1_lenIV;
+  @<Variables for the charstring parser@>
 } mp_ps_font;
 
 @ The parser creates a structure and fills it.
@@ -3311,12 +3312,126 @@ void mp_ps_font_free (MP mp, mp_ps_font *f) {
 void mp_ps_font_free (MP mp, mp_ps_font *f);
 
 
-@ Parsing 
+@ Parsing Charstrings.
+
+@<Variables for the charstring parser@>=
+integer cur_x, cur_y; /* current point */
+mp_edge_object *h; /* the whole picture */
+mp_graphic_object *p; /* the current subpath in the picture */
+mp_knot *pp; /* the last known knot in the subpath */
+
+
+@ @c
+mp_edge_object *mp_ps_font_charstring (MP mp, mp_ps_font *f, int c) {
+  mp_edge_object *h = NULL;
+  f->h = NULL; f->p = NULL; f->pp = NULL; /* just in case */
+  f->cur_x = f->cur_y = 0;
+  if (cs_parse(mp,f,f->t1_glyph_names[c], 0)) {
+    h = f->h;
+  } else {
+    /* todo: cleanup |f| nicely in case of error */
+  }
+  f->h = NULL; f->p = NULL; f->pp = NULL;
+  return h;
+}
+
+
+
+@ @<Exported function headers@>=
+mp_edge_object *mp_ps_font_charstring (MP mp, mp_ps_font *f, int c);
+
+
+@ 
+@<Declarations@>=
+boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
+
+@ 
+
+@d start_subpath(f,dx,dy) do {  
+  assert(f->pp == NULL);
+  assert(f->p == NULL);
+  f->pp = mp_xmalloc(mp, 1, sizeof (mp_knot));
+  f->pp->left_type = mp_endpoint;
+  f->pp->right_type = mp_open;
+  f->pp->x_coord = f->cur_x + (dx * 65536);
+  f->pp->y_coord = f->cur_y + (dy * 65536);
+  f->pp->left_x = f->pp->right_x = f->pp->x_coord;
+  f->pp->left_y = f->pp->right_y = f->pp->y_coord;
+  f->pp->next = NULL;
+  f->p = mp_new_graphic_object(mp,mp_fill_code);
+  gr_path_p((mp_fill_object *)f->p) = f->pp;
+} while (0)
+
+@d finish_subpath() do {
+  if (f->p != NULL) {
+    if (f->h->body == NULL) {
+      f->h->body = f->p;
+    } else {
+      mp_graphic_object *q = f->h->body;
+      while (gr_link(q) != NULL)
+        q = gr_link(q);
+      q->next = f->p;
+    }
+  }
+  f->p = NULL;
+  f->pp = NULL;
+} while (0)
+
+@d add_line_segment(f,dx,dy) do {
+   assert(f->pp != NULL);
+   n = mp_xmalloc(mp,1, sizeof (mp_knot));
+   n->x_coord = f->pp->x_coord + (dx * 65536);
+   n->y_coord = f->pp->y_coord + (dy * 65536);
+   f->cur_x = n->x_coord;
+   f->cur_y = n->y_coord;
+   n->left_x = n->x_coord;
+   n->left_y = n->y_coord;
+   n->right_x = n->x_coord;
+   n->right_y = n->y_coord;
+   n->next = gr_path_p((mp_fill_object *)f->p); /* loop */  
+   n->left_type = mp_open;
+   n->right_type = mp_endpoint;
+   f->pp->right_type = mp_open;
+   f->pp->next = n;
+   f->pp = n;
+} while (0)
+
+@d add_curve_segment(f,dx1,dy1,dx2,dy2,dx3,dy3) do {
+   n = mp_xmalloc(mp, 1, sizeof (mp_knot));
+   n->left_type = mp_open;
+   n->right_type = mp_endpoint; 
+   n->next = gr_path_p((mp_fill_object *)f->p); /* loop */  
+   n->x_coord = f->pp->x_coord + ((dx1 + dx2 + dx3) * 65536);
+   n->y_coord = f->pp->y_coord + ((dy1 + dy2 + dy3) * 65536);
+   f->cur_x = n->x_coord;
+   f->cur_y = n->y_coord;
+   n->left_x = f->pp->x_coord + ((dx1 + dx2 ) * 65536);
+   n->left_y = f->pp->y_coord + ((dy1 + dy2 ) * 65536);
+   n->right_x = n->x_coord; /* temp */
+   n->right_y = n->y_coord; /* temp */
+   f->pp->right_x = f->pp->x_coord + (dx1 * 65536);
+   f->pp->right_y = f->pp->y_coord + (dy1 * 65536);
+   f->pp->right_type = mp_open;
+   f->pp->next = n;
+   f->pp = n;
+} while (0)
+
+@d cs_debug(A) cs_do_debug(mp,f,A,#A)
+@d cs_debug(A) 
 
 @c 
-mp_graphic_object *cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
+
+void cs_do_debug (MP mp, mp_ps_font *f, int i, char *s) {
+   int n = cc_tab[i].nargs;
+   while (n>0) {
+      fprintf (stdout,"%d ", cc_get((-n)));
+      n--;
+   }
+   fprintf (stdout,"%s\n", s);
+}
+
+boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
 {
-  mp_graphic_object *h; /* return value */
   byte *data;
   int i, b, cs_len;
   integer a, a1, a2;
@@ -3325,8 +3440,8 @@ mp_graphic_object *cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr
 
   cs_entry *ptr;
   cc_entry *cc;
+  mp_knot *n;
 
-  h = NULL;
   if (cs_name == NULL) {
      ptr = f->subr_tab + subr;
   } else {
@@ -3391,115 +3506,150 @@ mp_graphic_object *cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr
                         "more arguments on stack (%i) than required (%i)",
                         (int) (stack_ptr - cc_stack), (int) cc->nargs);
        }
-       switch (cc - cc_tab) {
-      case CS_VMOVETO:
-        if (cc->clear)
-          cc_clear ();
+      switch (cc - cc_tab) {
+      case CS_CLOSEPATH: /* - CLOSEPATH |- */
+	cs_debug(CS_CLOSEPATH);
+        finish_subpath();
+        cc_clear ();
         break;
-      case CS_RLINETO:
-        if (cc->clear)
-          cc_clear ();
+      case CS_HLINETO: /* |- dx HLINETO  |- */
+	cs_debug(CS_HLINETO);
+        add_line_segment(f,cc_get(-1),0);
+        cc_clear ();
         break;
-      case CS_HLINETO:
-        if (cc->clear)
-          cc_clear ();
+      case CS_HVCURVETO: /* |- dx1 dx2 dy2 dy3 HVCURVETO |- */
+	cs_debug(CS_HVCURVETO);
+        add_curve_segment(f,cc_get(-4),0,cc_get(-3),cc_get(-2),0,cc_get(-1));
+        cc_clear ();
         break;
-      case CS_VLINETO:
-        if (cc->clear)
-          cc_clear ();
+      case CS_RLINETO: /* |- dx dy RLINETO |- */
+ 	cs_debug(CS_RLINETO);
+        add_line_segment(f,cc_get(-2),cc_get(-1));
+        cc_clear ();
         break;
-      case CS_RRCURVETO:
-        if (cc->clear)
-          cc_clear ();
+      case CS_RRCURVETO: /* |- dx1 dy1 dx2 dy2 dx3 dy3 RRCURVETO |- */
+ 	cs_debug(CS_RRCURVETO);
+        add_curve_segment(f,cc_get(-6),cc_get(-5),cc_get(-4),cc_get(-3),cc_get(-2),cc_get(-1));
+        cc_clear ();
         break;
-      case CS_CLOSEPATH:
-        if (cc->clear)
-          cc_clear ();
+      case CS_VHCURVETO: /* |- dy1 dx2 dy2 dx3 VHCURVETO |- */
+ 	cs_debug(CS_VHCURVETO);
+        add_curve_segment(f,0, cc_get(-4),cc_get(-3),cc_get(-2),cc_get(-1),0);
+        cc_clear ();
         break;
-      case CS_RMOVETO:
-        if (cc->clear)
-          cc_clear ();
+      case CS_VLINETO: /* |- dy VLINETO |- */
+	cs_debug(CS_VLINETO);
+        add_line_segment(f,0,cc_get(-1));
+        cc_clear ();
         break;
-      case CS_HMOVETO:
-        if (cc->clear)
-          cc_clear ();
+      case CS_HMOVETO: /* |- dx HMOVETO  |- */
+	cs_debug(CS_HMOVETO);
+        finish_subpath();
+        start_subpath(f,cc_get(-1),0);
+        cc_clear ();
         break;
-      case CS_VHCURVETO:
-        if (cc->clear)
-          cc_clear ();
+      case CS_RMOVETO:  /* |- dx dy RMOVETO |- */
+	cs_debug(CS_RMOVETO);
+        finish_subpath();
+        start_subpath(f,cc_get(-2),cc_get(-1));
+        cc_clear ();
         break;
-      case CS_HVCURVETO:
-        if (cc->clear)
-          cc_clear ();
+      case CS_VMOVETO: /* |- dy VMOVETO |- */
+	cs_debug(CS_VMOVETO);
+        finish_subpath();
+        start_subpath(f,0,cc_get(-1));
+        cc_clear ();
         break;
       /* hinting commands */
-      case CS_DOTSECTION:
-        if (cc->clear)
-          cc_clear ();
+      case CS_DOTSECTION: /* - DOTSECTION |- */
+        cs_debug(CS_DOTSECTION);
+        cc_clear ();
         break;
-      case CS_HSTEM:
-        if (cc->clear)
-          cc_clear ();
+      case CS_HSTEM:  /* |- y dy HSTEM |- */
+        cs_debug(CS_HSTEM);
+        cc_clear ();
         break;
-      case CS_VSTEM:
-        if (cc->clear)
-          cc_clear ();
+      case CS_HSTEM3: /* |- y0 dy0 y1 dy1 y2 dy2 HSTEM3 |- */
+        cs_debug(CS_HSTEM3);
+        cc_clear ();
         break;
-      case CS_VSTEM3:
-        if (cc->clear)
-          cc_clear ();
+      case CS_VSTEM:  /* |- x dx VSTEM |- */
+        cs_debug(CS_VSTEM);
+        cc_clear ();
         break;
-      case CS_HSTEM3:
-        if (cc->clear)
-          cc_clear ();
+      case CS_VSTEM3: /* |- x0 dx0 x1 dx1 x2 dx2 VSTEM3 |- */
+        cs_debug(CS_VSTEM3);
+        cc_clear ();
         break;
       /* start and close commands */
-      case CS_SEAC:
+      case CS_SEAC: /* |- asb adx ady bchar achar SEAC |- */
+        cs_debug(CS_SEAC);
+        /* TODO */
         a1 = cc_get (3);
         a2 = cc_get (4);
         cc_clear ();
         (void)cs_parse(mp,f,standard_glyph_names[a1],0);
         (void)cs_parse(mp,f,standard_glyph_names[a2],0);
         break;
-      case CS_ENDCHAR: 
-        if (cc->clear)
-          cc_clear ();
+      case CS_ENDCHAR: /* - ENDCHAR |- */
+        cs_debug(CS_ENDCHAR);
+        cc_clear ();
+        return true;
         break;
-      case CS_HSBW:
-        if (cc->clear)
-          cc_clear ();
+      case CS_HSBW:  /* |- sbx wx HSBW |- */
+        cs_debug(CS_HSBW);
+        f->h = mp_xmalloc(mp, 1,sizeof(mp_edge_object));
+        f->h->body = NULL; f->h->next = NULL;
+        f->h->parent = mp;
+        f->h->minx = f->h->miny = f->h->maxx = f->h->maxy = 0;
+        f->cur_x = (cc_get(-2) * 65536);
+        f->cur_y = 0;
+        cc_clear ();
         break;
-      case CS_SBW:
-        if (cc->clear)
-          cc_clear ();
+      case CS_SBW: /* |- sbx sby wx wy SBW |- */
+        cs_debug(CS_SBW);
+        f->h = mp_xmalloc(mp, 1,sizeof(mp_edge_object));
+        f->h->body = NULL; f->h->next = NULL;
+        f->h->parent = mp;
+        f->h->minx = f->h->miny = f->h->maxx = f->h->maxy = 0;
+        f->cur_x = ( cc_get(-4) * 65536);
+        f->cur_y = ( cc_get(-3) * 65536);
+        cc_clear ();
         break;
       /* arithmetic */
-      case CS_DIV:
+      case CS_DIV:  /* num1 num2 DIV quotient */
+        cs_debug(CS_DIV);
+        a1 = cc_get (-2);
+        a2 = cc_get (-1);
         cc_pop (2);
-        cc_push (0);
+        cc_push ((a1/a2));
         break;
       /* subrs */
-      case CS_CALLSUBR:
+      case CS_CALLSUBR: /* subr CALLSUBR - */
+        cs_debug(CS_CALLSUBR);
         a1 = cc_get (-1);
         cc_pop (1);
         (void)cs_parse(mp,f,NULL,a1);
         break;
-      case CS_RETURN:
-        if (cc->clear)
-          cc_clear ();
+      case CS_RETURN: /* - RETURN - */
+        cs_debug(CS_RETURN);
+        return true;
         break;
-      case CS_CALLOTHERSUBR:
+      case CS_CALLOTHERSUBR: /* arg1 ... argn n othersubr CALLOTHERSUBR - */
         if (cc_get (-1) == 3)
           lastargOtherSubr3 = cc_get (-3);
         a1 = cc_get (-2) + 2;
         cc_pop (a1);
         break;
-      case CS_POP:
+      case CS_POP: /* - POP number */
         cc_push (lastargOtherSubr3);
         break;
-      case CS_SETCURRENTPOINT:
-        if (cc->clear)
-          cc_clear ();
+      case CS_SETCURRENTPOINT: /* |- x y SETCURRENTPOINT |- */
+        cs_debug(CS_SETCURRENTPOINT); /* TODO */
+        f->cur_x = (cc_get(-2) * 65536);
+        f->cur_y = (cc_get(-1) * 65536);
+        f->pp = NULL;
+        cc_clear ();
         break;
       default:
         if (cc->clear)
@@ -3507,38 +3657,13 @@ mp_graphic_object *cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr
       }
     }
   }  
-  return h;
+  return true;
 cs_error:   /* an error occured during parsing */
   cc_clear ();
   ptr->valid = false;
   ptr->is_used = false;
-  return NULL;
+  return false;
 }
-
-@ Fetch a charstring
-
-@c
-mp_edge_object *mp_ps_font_charstring (MP mp, mp_ps_font *f, int c) {
-  char *cs_name;
-  mp_graphic_object *p;
-  mp_edge_object *h = NULL;
-  cs_name = f->t1_glyph_names[c];
-  p = cs_parse(mp,f,cs_name, 0);
-  if (p != NULL ){
-     h = mp_xmalloc(mp,1,sizeof(mp_edge_object));
-     h->next = NULL;
-     h->body = p;
-     h->parent = mp;
-  }
-  return h;
-}
-
-
-
-@ @<Exported function headers@>=
-mp_edge_object *mp_ps_font_charstring (MP mp, mp_ps_font *f, int c);
-
-
 
 @* \[44d] Embedding fonts.
 
