@@ -424,8 +424,9 @@ void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
   mp_svg_print(mp, "<?xml version=\"1.0\"?>");
   @<Print the MetaPost version and time @>;
   mp_svg_open_starttag(mp,"svg");
-  mp_svg_attribute(mp,"xmlns", "http://www.w3.org/2000/svg");
   mp_svg_attribute(mp,"version", "1.1");
+  mp_svg_attribute(mp,"xmlns", "http://www.w3.org/2000/svg");
+  mp_svg_attribute(mp, "xmlns:xlink", "http://www.w3.org/1999/xlink");
   if ( hh->minx>hh->maxx)  { 
     tx = 0;
     ty = 0;
@@ -689,7 +690,7 @@ static void mp_svg_path_out (MP mp, mp_knot *h) {
       append_char(',');
       mp_svg_pair_out(mp, gr_x_coord(q),gr_y_coord(q));
     } else if ( q!=h ){ 
-      append_char('C');
+      append_char('L');
       mp_svg_pair_out(mp, gr_x_coord(q),gr_y_coord(q));
     }
     p=q;
@@ -776,8 +777,8 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
           for (l=0;l<256;l++) {
             if (mp_chars[k][l] == 1) {
                mp_svg_open_starttag(mp,"g");
-                /* todo: apply Extend and Slant */
-               mp_svg_attribute(mp, "transform", "scale(0.001,0.001)");
+                /* todo: apply Extend and Slant, fix scale */
+               mp_svg_attribute(mp, "transform", "scale(0.01,0.01)");
                append_string("GLYPH");
                append_string(mp->font_name[k]);
                append_char('_');
@@ -791,13 +792,16 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
                if (f != NULL) {
                  ch = mp_ps_font_charstring(mp,f,l);
                  if (ch != NULL) {
-                   p =ch->body;
-                   mp_svg_open_starttag(mp,"path");
-                   mp_svg_path_out(mp, gr_path_p((mp_fill_object *)p));
-                   mp_svg_attribute(mp, "d", mp->svg->buf);
-                   mp_svg_reset_buf(mp);
-                   mp_svg_close_starttag(mp);
-                   mp_svg_endtag(mp,"path",false);
+                   p = ch->body;
+                   while (p!=NULL) {
+                     mp_svg_open_starttag(mp,"path");
+                     mp_svg_path_out(mp, gr_path_p((mp_fill_object *)p));
+                     mp_svg_attribute(mp, "d", mp->svg->buf);
+                     mp_svg_reset_buf(mp);
+                     mp_svg_close_starttag(mp);
+                     mp_svg_endtag(mp,"path",false);
+                     p = gr_link(p);
+                   }
                  }
                }
                mp_svg_endtag(mp,"g",true);
