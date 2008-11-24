@@ -814,6 +814,7 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
                    mp_svg_close_starttag(mp);
                    mp_svg_endtag(mp,"path",false);
                  }
+                 mp_gr_toss_objects(ch);
                }
                mp_svg_endtag(mp,"g",true);
             }

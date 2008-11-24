@@ -3329,7 +3329,10 @@ mp_edge_object *mp_ps_font_charstring (MP mp, mp_ps_font *f, int c) {
   if (cs_parse(mp,f,f->t1_glyph_names[c], 0)) {
     h = f->h;
   } else {
-    /* todo: cleanup |f| nicely in case of error */
+    if (f->h != NULL) { 
+      finish_subpath();
+      mp_gr_toss_objects(f->h);
+    }
   }
   f->h = NULL; f->p = NULL; f->pp = NULL;
   return h;
