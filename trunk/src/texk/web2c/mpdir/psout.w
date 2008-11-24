@@ -1392,12 +1392,10 @@ void mp_init_map_file (MP mp, int is_troff);
 void mp_map_file (MP mp, str_number t) {
   char *s = mp_xstrdup(mp,mp_str (mp,t));
   mp_process_map_item (mp, s, MAPFILE);
-  mp_xfree (s);
 }
 void mp_map_line (MP mp, str_number t) {
   char *s = mp_xstrdup(mp,mp_str (mp,t));
   mp_process_map_item (mp, s, MAPLINE);
-  mp_xfree (s);
 }
 
 @ 
