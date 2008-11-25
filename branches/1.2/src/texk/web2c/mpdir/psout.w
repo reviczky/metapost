@@ -3259,6 +3259,7 @@ mp_ps_font *mp_ps_font_parse (MP mp, int tex_font) {
   f->cs_tab   = NULL;
   f->cs_ptr   = NULL;
   f->subr_tab = NULL;
+  f->orig_x = f->orig_y = 0;
 
   t1_getline (mp);
   while (!t1_prefix ("/Encoding")) {
@@ -3314,6 +3315,7 @@ void mp_ps_font_free (MP mp, mp_ps_font *f);
 
 @<Variables for the charstring parser@>=
 integer cur_x, cur_y; /* current point */
+integer orig_x, orig_y; /* origin (for seac) */
 mp_edge_object *h; /* the whole picture */
 mp_graphic_object *p; /* the current subpath in the picture */
 mp_knot *pp; /* the last known knot in the subpath */
@@ -3587,12 +3589,19 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
       /* start and close commands */
       case CS_SEAC: /* |- asb adx ady bchar achar SEAC |- */
         cs_debug(CS_SEAC);
-        /* TODO */
-        a1 = cc_get (3);
-        a2 = cc_get (4);
-        cc_clear ();
-        (void)cs_parse(mp,f,standard_glyph_names[a1],0);
-        (void)cs_parse(mp,f,standard_glyph_names[a2],0);
+        { integer adx, ady;
+          adx = cc_get (1);
+          ady = cc_get (2);
+          a1 = cc_get (3);
+          a2 = cc_get (4);
+          cc_clear ();
+          (void)cs_parse(mp,f,standard_glyph_names[a1],0); /* base */
+          f->orig_x = adx * 65536;
+          f->orig_y = ady * 65536;
+          (void)cs_parse(mp,f,standard_glyph_names[a2],0);
+          f->orig_x = 0;
+          f->orig_y = 0;
+        }
         break;
       case CS_ENDCHAR: /* - ENDCHAR |- */
         cs_debug(CS_ENDCHAR);
@@ -3604,9 +3613,10 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
         f->h = mp_xmalloc(mp, 1,sizeof(mp_edge_object));
         f->h->body = NULL; f->h->next = NULL;
         f->h->parent = mp;
+        f->h->filename = NULL;
         f->h->minx = f->h->miny = f->h->maxx = f->h->maxy = 0;
-        f->cur_x = (cc_get(-2) * 65536);
-        f->cur_y = 0;
+        f->cur_x = (cc_get(-2) * 65536) + f->orig_x;
+        f->cur_y = 0 + f->orig_y;
         cc_clear ();
         break;
       case CS_SBW: /* |- sbx sby wx wy SBW |- */
@@ -3614,9 +3624,10 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
         f->h = mp_xmalloc(mp, 1,sizeof(mp_edge_object));
         f->h->body = NULL; f->h->next = NULL;
         f->h->parent = mp;
+        f->h->filename = NULL;
         f->h->minx = f->h->miny = f->h->maxx = f->h->maxy = 0;
-        f->cur_x = ( cc_get(-4) * 65536);
-        f->cur_y = ( cc_get(-3) * 65536);
+        f->cur_x = ( cc_get(-4) * 65536) + f->orig_x;
+        f->cur_y = ( cc_get(-3) * 65536) + f->orig_y;
         cc_clear ();
         break;
       /* arithmetic */
@@ -3648,7 +3659,7 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
         cc_push (lastargOtherSubr3);
         break;
       case CS_SETCURRENTPOINT: /* |- x y SETCURRENTPOINT |- */
-        cs_debug(CS_SETCURRENTPOINT); /* TODO */
+        cs_debug(CS_SETCURRENTPOINT);
         f->cur_x = (cc_get(-2) * 65536);
         f->cur_y = (cc_get(-1) * 65536);
         f->pp = NULL;
