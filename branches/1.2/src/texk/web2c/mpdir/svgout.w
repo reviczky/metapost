@@ -159,6 +159,7 @@ when needed.
 mp->svg->loc = 0;
 mp->svg->bufsize = 256;
 mp->svg->buf = mp_xmalloc(mp,mp->svg->bufsize,1);
+memset(mp->svg->buf,0,256);
 
 
 @ How to append a character or a string of characters to 
