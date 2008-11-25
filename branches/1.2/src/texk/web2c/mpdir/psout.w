@@ -3326,6 +3326,7 @@ mp_edge_object *mp_ps_font_charstring (MP mp, mp_ps_font *f, int c) {
   mp_edge_object *h = NULL;
   f->h = NULL; f->p = NULL; f->pp = NULL; /* just in case */
   f->cur_x = f->cur_y = 0;
+  f->orig_x = f->orig_y = 0;
   if (cs_parse(mp,f,f->t1_glyph_names[c], 0)) {
     h = f->h;
   } else {
@@ -3598,11 +3599,9 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
           a2 = cc_get (4);
           cc_clear ();
           (void)cs_parse(mp,f,standard_glyph_names[a1],0); /* base */
-          f->orig_x = adx * 65536;
-          f->orig_y = ady * 65536;
+          f->orig_x += adx * 65536;
+          f->orig_y += ady * 65536;
           (void)cs_parse(mp,f,standard_glyph_names[a2],0);
-          f->orig_x = 0;
-          f->orig_y = 0;
         }
         break;
       case CS_ENDCHAR: /* - ENDCHAR |- */
@@ -3619,6 +3618,8 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
         f->h->minx = f->h->miny = f->h->maxx = f->h->maxy = 0;
         f->cur_x = (cc_get(-2) * 65536) + f->orig_x;
         f->cur_y = 0 + f->orig_y;
+        f->orig_x = f->cur_x;
+        f->orig_y = f->cur_y;
         cc_clear ();
         break;
       case CS_SBW: /* |- sbx sby wx wy SBW |- */
@@ -3630,6 +3631,8 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
         f->h->minx = f->h->miny = f->h->maxx = f->h->maxy = 0;
         f->cur_x = ( cc_get(-4) * 65536) + f->orig_x;
         f->cur_y = ( cc_get(-3) * 65536) + f->orig_y;
+        f->orig_x = f->cur_x;
+        f->orig_y = f->cur_y;
         cc_clear ();
         break;
       /* arithmetic */
