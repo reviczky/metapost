@@ -3359,6 +3359,8 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
   f->pp->left_x = f->pp->right_x = f->pp->x_coord;
   f->pp->left_y = f->pp->right_y = f->pp->y_coord;
   f->pp->next = NULL;
+  f->cur_x = f->pp->x_coord;
+  f->cur_y = f->pp->y_coord;
   f->p = mp_new_graphic_object(mp,mp_fill_code);
   gr_path_p((mp_fill_object *)f->p) = f->pp;
 } while (0)
@@ -3381,10 +3383,8 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
 @d add_line_segment(f,dx,dy) do {
    assert(f->pp != NULL);
    n = mp_xmalloc(mp,1, sizeof (mp_knot));
-   n->x_coord = f->pp->x_coord + (dx * 65536);
-   n->y_coord = f->pp->y_coord + (dy * 65536);
-   f->cur_x = n->x_coord;
-   f->cur_y = n->y_coord;
+   n->x_coord = f->cur_x + (dx * 65536);
+   n->y_coord = f->cur_y + (dy * 65536);
    n->left_x = n->x_coord;
    n->left_y = n->y_coord;
    n->right_x = n->x_coord;
@@ -3395,6 +3395,8 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
    f->pp->right_type = mp_open;
    f->pp->next = n;
    f->pp = n;
+   f->cur_x = n->x_coord;
+   f->cur_y = n->y_coord;
 } while (0)
 
 @d add_curve_segment(f,dx1,dy1,dx2,dy2,dx3,dy3) do {
@@ -3402,19 +3404,19 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
    n->left_type = mp_open;
    n->right_type = mp_endpoint; 
    n->next = gr_path_p((mp_fill_object *)f->p); /* loop */  
-   n->x_coord = f->pp->x_coord + ((dx1 + dx2 + dx3) * 65536);
-   n->y_coord = f->pp->y_coord + ((dy1 + dy2 + dy3) * 65536);
-   f->cur_x = n->x_coord;
-   f->cur_y = n->y_coord;
-   n->left_x = f->pp->x_coord + ((dx1 + dx2 ) * 65536);
-   n->left_y = f->pp->y_coord + ((dy1 + dy2 ) * 65536);
+   n->x_coord = f->cur_x + ((dx1 + dx2 + dx3) * 65536);
+   n->y_coord = f->cur_y + ((dy1 + dy2 + dy3) * 65536);
+   n->left_x = f->cur_x + ((dx1 + dx2 ) * 65536);
+   n->left_y = f->cur_y + ((dy1 + dy2 ) * 65536);
    n->right_x = n->x_coord; /* temp */
    n->right_y = n->y_coord; /* temp */
-   f->pp->right_x = f->pp->x_coord + (dx1 * 65536);
-   f->pp->right_y = f->pp->y_coord + (dy1 * 65536);
+   f->pp->right_x = f->cur_x + (dx1 * 65536);
+   f->pp->right_y = f->cur_y + (dy1 * 65536);
    f->pp->right_type = mp_open;
    f->pp->next = n;
    f->pp = n;
+   f->cur_x = n->x_coord;
+   f->cur_y = n->y_coord;
 } while (0)
 
 @d cs_debug(A) cs_do_debug(mp,f,A,#A)
