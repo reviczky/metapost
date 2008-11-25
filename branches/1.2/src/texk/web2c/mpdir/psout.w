@@ -3234,7 +3234,6 @@ typedef struct mp_ps_font {
 
 mp_ps_font *mp_ps_font_parse (MP mp, int tex_font) {
   mp_ps_font *f;
-  int i, j;
   fm_entry *fm_cur;
   char msg[128];
   (void)mp_has_fm_entry (mp, tex_font, &fm_cur);
@@ -3304,6 +3303,7 @@ mp_ps_font *mp_ps_font_parse (MP mp, int tex_font);
 
 @c
 void mp_ps_font_free (MP mp, mp_ps_font *f) {
+  (void)mp;
   mp_xfree(f);
 }
 
@@ -3421,13 +3421,15 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
    f->cur_y = n->y_coord;
 } while (0)
 
-@d cs_debug(A) cs_do_debug(mp,f,A,#A)
+@d cs_no_debug(A) cs_do_debug(mp,f,A,#A)
 @d cs_debug(A) 
 
 @c 
 
 void cs_do_debug (MP mp, mp_ps_font *f, int i, char *s) {
    int n = cc_tab[i].nargs;
+   (void)mp; /* for -Wall */
+   (void)f; /* for -Wall */
    while (n>0) {
       fprintf (stdout,"%d ", cc_get((-n)));
       n--;

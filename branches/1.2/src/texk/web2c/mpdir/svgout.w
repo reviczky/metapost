@@ -747,10 +747,6 @@ static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
 } while (0)
 
 @c
-void mp_svg_charpath_out(MP mp, mp_ps_font *f, int l) {
-   append_string("called");
-}
-
 void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
   mp_graphic_object *p; /* object index */
   int k, l; /* general purpose indices */
