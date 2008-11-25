@@ -382,6 +382,13 @@ void mp_svg_pair_out (MP mp,scaled x, scaled y) {
   mp_svg_store_scaled(mp, (-(y+mp->svg->dy)));
 }
 
+@ @c
+void mp_svg_font_pair_out (MP mp,scaled x, scaled y) { 
+  mp_svg_store_scaled(mp, (x));
+  append_char(' ');
+  mp_svg_store_scaled(mp, -(y));
+}
+
 @ When stroking a path with an elliptical pen, it is necessary to distort
 the path such that a circular pen can be used to stroke the path.  The path
 itself is wrapped in another transformation to restore the points to their
@@ -731,6 +738,38 @@ static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
   append_char(0);
 }
 
+
+@ @c
+static void mp_svg_font_path_out (MP mp, mp_knot *h) {
+  mp_knot *p, *q; /* for scanning the path */
+  append_char('M');
+  mp_svg_font_pair_out(mp, gr_x_coord(h),gr_y_coord(h));
+  p=h;
+  do {  
+    if ( gr_right_type(p)==mp_endpoint ) { 
+      if ( p==h ) {
+        append_char('l');
+        mp_svg_font_pair_out(mp, 0, 0);
+      }
+      return;
+    }
+    q=gr_next_knot(p);
+    if (mp_is_curved(p, q)){ 
+      append_char('C');
+      mp_svg_font_pair_out(mp, gr_right_x(p),gr_right_y(p));
+      append_char(',');
+      mp_svg_font_pair_out(mp, gr_left_x(q),gr_left_y(q));
+      append_char(',');
+      mp_svg_font_pair_out(mp, gr_x_coord(q),gr_y_coord(q));
+    } else if ( q!=h ){ 
+      append_char('L');
+      mp_svg_font_pair_out(mp, gr_x_coord(q),gr_y_coord(q));
+    }
+    p=q;
+  } while (p!=h);
+  append_char(0);
+}
+
 @ If |prologues:=3|, any glyphs in labels will be converted into paths.
 
 @d do_mark(A,B) do {
@@ -803,7 +842,7 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
                    mp_svg_open_starttag(mp,"path");
                    mp_svg_attribute(mp, "style", "fill-rule: evenodd;");
                    while (p!=NULL) {
-                     mp_svg_path_out(mp, gr_path_p((mp_fill_object *)p));
+                     mp_svg_font_path_out(mp, gr_path_p((mp_fill_object *)p));
                      p = gr_link(p);
                    }
                    mp_svg_attribute(mp, "d", mp->svg->buf);
