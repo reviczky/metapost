@@ -2569,7 +2569,7 @@ static void cs_store (MP mp, boolean is_subr) {
 
 #define CC_STACK_SIZE       24
 
-static integer cc_stack[CC_STACK_SIZE], *stack_ptr = cc_stack;
+static double cc_stack[CC_STACK_SIZE], *stack_ptr = cc_stack;
 static cc_entry cc_tab[CS_MAX];
 static boolean is_cc_init = false;
 
@@ -2590,7 +2590,7 @@ static boolean is_cc_init = false;
 
 #define cc_get(N)   ((N) < 0 ? *(stack_ptr + (N)) : *(cc_stack + (N)))
 
-#define cc_push(V)  *stack_ptr++ = V
+#define cc_push(V)  *stack_ptr++ = (double)(V)
 #define cc_clear()  stack_ptr = cc_stack
 
 #define set_cc(N, B, A, C) \
@@ -2754,7 +2754,7 @@ static void cs_mark (MP mp, const char *cs_name, int subr)
             }
             switch (cc - cc_tab) {
             case CS_CALLSUBR:
-                a1 = cc_get (-1);
+                a1 = (integer)cc_get (-1);
                 cc_pop (1);
                 mark_subr (mp,a1);
                 if (!mp->ps->subr_tab[a1].valid) {
@@ -2767,9 +2767,10 @@ static void cs_mark (MP mp, const char *cs_name, int subr)
                 cc_push (0);
                 break;
             case CS_CALLOTHERSUBR:
-                if (cc_get (-1) == 3)
-                    lastargOtherSubr3 = cc_get (-3);
-                a1 = cc_get (-2) + 2;
+              a1 = (integer)cc_get (-1);
+                if (a1 == 3)
+                  lastargOtherSubr3 = (integer)cc_get (-3);
+                a1 = (integer)cc_get (-2) + 2;
                 cc_pop (a1);
                 break;
             case CS_POP:
@@ -2780,8 +2781,8 @@ static void cs_mark (MP mp, const char *cs_name, int subr)
                  */
                 break;
             case CS_SEAC:
-                a1 = cc_get (3);
-                a2 = cc_get (4);
+                a1 = (integer)cc_get (3);
+                a2 = (integer)cc_get (4);
                 cc_clear ();
                 mark_cs (mp,standard_glyph_names[a1]);
                 mark_cs (mp,standard_glyph_names[a2]);
@@ -3258,7 +3259,7 @@ mp_ps_font *mp_ps_font_parse (MP mp, int tex_font) {
   f->cs_tab   = NULL;
   f->cs_ptr   = NULL;
   f->subr_tab = NULL;
-  f->orig_x = f->orig_y = 0;
+  f->orig_x = f->orig_y = 0.0;
 
   t1_getline (mp);
   while (!t1_prefix ("/Encoding")) {
@@ -3314,8 +3315,8 @@ void mp_ps_font_free (MP mp, mp_ps_font *f);
 @ Parsing Charstrings.
 
 @<Variables for the charstring parser@>=
-integer cur_x, cur_y; /* current point */
-integer orig_x, orig_y; /* origin (for seac) */
+double cur_x, cur_y; /* current point */
+double orig_x, orig_y; /* origin (for seac) */
 mp_edge_object *h; /* the whole picture */
 mp_graphic_object *p; /* the current subpath in the picture */
 mp_knot *pp; /* the last known knot in the subpath */
@@ -3325,8 +3326,8 @@ mp_knot *pp; /* the last known knot in the subpath */
 mp_edge_object *mp_ps_font_charstring (MP mp, mp_ps_font *f, int c) {
   mp_edge_object *h = NULL;
   f->h = NULL; f->p = NULL; f->pp = NULL; /* just in case */
-  f->cur_x = f->cur_y = 0;
-  f->orig_x = f->orig_y = 0;
+  f->cur_x = f->cur_y = 0.0;
+  f->orig_x = f->orig_y = 0.0;
   if (cs_parse(mp,f,f->t1_glyph_names[c], 0)) {
     h = f->h;
   } else {
@@ -3350,6 +3351,8 @@ mp_edge_object *mp_ps_font_charstring (MP mp, mp_ps_font *f, int c);
 boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
 
 @ 
+@d scaled_from_double(a) (scaled)((a)*65536.0)
+@d double_from_scaled(a) (double)((a)/65536.0)
 
 @d start_subpath(f,dx,dy) do {  
   assert(f->pp == NULL);
@@ -3357,13 +3360,13 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
   f->pp = mp_xmalloc(mp, 1, sizeof (mp_knot));
   f->pp->left_type = mp_endpoint;
   f->pp->right_type = mp_open;
-  f->pp->x_coord = f->cur_x + (dx * 65536);
-  f->pp->y_coord = f->cur_y + (dy * 65536);
+  f->pp->x_coord = scaled_from_double(f->cur_x + dx);
+  f->pp->y_coord = scaled_from_double(f->cur_y + dy);
   f->pp->left_x = f->pp->right_x = f->pp->x_coord;
   f->pp->left_y = f->pp->right_y = f->pp->y_coord;
   f->pp->next = NULL;
-  f->cur_x = f->pp->x_coord;
-  f->cur_y = f->pp->y_coord;
+  f->cur_x += dx;
+  f->cur_y += dy;
   f->p = mp_new_graphic_object(mp,mp_fill_code);
   gr_path_p((mp_fill_object *)f->p) = f->pp;
 } while (0)
@@ -3386,20 +3389,20 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
 @d add_line_segment(f,dx,dy) do {
    assert(f->pp != NULL);
    n = mp_xmalloc(mp,1, sizeof (mp_knot));
-   n->x_coord = f->cur_x + (dx * 65536);
-   n->y_coord = f->cur_y + (dy * 65536);
-   n->left_x = n->x_coord;
-   n->left_y = n->y_coord;
-   n->right_x = n->x_coord;
-   n->right_y = n->y_coord;
-   n->next = gr_path_p((mp_fill_object *)f->p); /* loop */  
    n->left_type = mp_open;
    n->right_type = mp_endpoint;
+   n->next = gr_path_p((mp_fill_object *)f->p); /* loop */  
+   n->x_coord = scaled_from_double(f->cur_x + dx);
+   n->y_coord = scaled_from_double(f->cur_y + dy);
+   n->right_x = n->x_coord;
+   n->right_y = n->y_coord;
+   n->left_x = n->x_coord;
+   n->left_y = n->y_coord;
    f->pp->right_type = mp_open;
    f->pp->next = n;
    f->pp = n;
-   f->cur_x = n->x_coord;
-   f->cur_y = n->y_coord;
+   f->cur_x += dx;
+   f->cur_y += dy;
 } while (0)
 
 @d add_curve_segment(f,dx1,dy1,dx2,dy2,dx3,dy3) do {
@@ -3407,19 +3410,19 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
    n->left_type = mp_open;
    n->right_type = mp_endpoint; 
    n->next = gr_path_p((mp_fill_object *)f->p); /* loop */  
-   n->x_coord = f->cur_x + ((dx1 + dx2 + dx3) * 65536);
-   n->y_coord = f->cur_y + ((dy1 + dy2 + dy3) * 65536);
-   n->left_x = f->cur_x + ((dx1 + dx2 ) * 65536);
-   n->left_y = f->cur_y + ((dy1 + dy2 ) * 65536);
-   n->right_x = n->x_coord; /* temp */
-   n->right_y = n->y_coord; /* temp */
-   f->pp->right_x = f->cur_x + (dx1 * 65536);
-   f->pp->right_y = f->cur_y + (dy1 * 65536);
+   n->x_coord = scaled_from_double(f->cur_x + dx1 + dx2 + dx3);
+   n->y_coord = scaled_from_double(f->cur_y + dy1 + dy2 + dy3);
+   n->right_x = n->x_coord;
+   n->right_y = n->y_coord;
+   n->left_x = scaled_from_double(f->cur_x + dx1 + dx2);
+   n->left_y = scaled_from_double(f->cur_y + dy1 + dy2);
+   f->pp->right_x = scaled_from_double(f->cur_x + dx1);
+   f->pp->right_y = scaled_from_double(f->cur_y + dy1);
    f->pp->right_type = mp_open;
    f->pp->next = n;
    f->pp = n;
-   f->cur_x = n->x_coord;
-   f->cur_y = n->y_coord;
+   f->cur_x += dx1 + dx2 + dx3;
+   f->cur_y += dy1 + dy2 + dy3;
 } while (0)
 
 @d cs_no_debug(A) cs_do_debug(mp,f,A,#A)
@@ -3432,7 +3435,7 @@ void cs_do_debug (MP mp, mp_ps_font *f, int i, char *s) {
    (void)mp; /* for -Wall */
    (void)f; /* for -Wall */
    while (n>0) {
-      fprintf (stdout,"%d ", cc_get((-n)));
+      fprintf (stdout,"%d ", (int)cc_get((-n)));
       n--;
    }
    fprintf (stdout,"%s\n", s);
@@ -3516,59 +3519,59 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
        }
       switch (cc - cc_tab) {
       case CS_CLOSEPATH: /* - CLOSEPATH |- */
-	cs_debug(CS_CLOSEPATH);
+        cs_debug(CS_CLOSEPATH);
         finish_subpath();
         cc_clear ();
         break;
       case CS_HLINETO: /* |- dx HLINETO  |- */
-	cs_debug(CS_HLINETO);
+        cs_debug(CS_HLINETO);
         add_line_segment(f,cc_get(-1),0);
         cc_clear ();
         break;
       case CS_HVCURVETO: /* |- dx1 dx2 dy2 dy3 HVCURVETO |- */
-	cs_debug(CS_HVCURVETO);
+        cs_debug(CS_HVCURVETO);
         add_curve_segment(f,cc_get(-4),0,cc_get(-3),cc_get(-2),0,cc_get(-1));
         cc_clear ();
         break;
       case CS_RLINETO: /* |- dx dy RLINETO |- */
- 	cs_debug(CS_RLINETO);
+        cs_debug(CS_RLINETO);
         add_line_segment(f,cc_get(-2),cc_get(-1));
         cc_clear ();
         break;
       case CS_RRCURVETO: /* |- dx1 dy1 dx2 dy2 dx3 dy3 RRCURVETO |- */
- 	cs_debug(CS_RRCURVETO);
+        cs_debug(CS_RRCURVETO);
         add_curve_segment(f,cc_get(-6),cc_get(-5),cc_get(-4),cc_get(-3),cc_get(-2),cc_get(-1));
         cc_clear ();
         break;
       case CS_VHCURVETO: /* |- dy1 dx2 dy2 dx3 VHCURVETO |- */
- 	cs_debug(CS_VHCURVETO);
+        cs_debug(CS_VHCURVETO);
         add_curve_segment(f,0, cc_get(-4),cc_get(-3),cc_get(-2),cc_get(-1),0);
         cc_clear ();
         break;
       case CS_VLINETO: /* |- dy VLINETO |- */
-	cs_debug(CS_VLINETO);
+        cs_debug(CS_VLINETO);
         add_line_segment(f,0,cc_get(-1));
         cc_clear ();
         break;
       case CS_HMOVETO: /* |- dx HMOVETO  |- */
-	cs_debug(CS_HMOVETO);
+        cs_debug(CS_HMOVETO);
         finish_subpath();
         start_subpath(f,cc_get(-1),0);
         cc_clear ();
         break;
       case CS_RMOVETO:  /* |- dx dy RMOVETO |- */
-	cs_debug(CS_RMOVETO);
+        cs_debug(CS_RMOVETO);
         finish_subpath();
         start_subpath(f,cc_get(-2),cc_get(-1));
         cc_clear ();
         break;
       case CS_VMOVETO: /* |- dy VMOVETO |- */
-	cs_debug(CS_VMOVETO);
+        cs_debug(CS_VMOVETO);
         finish_subpath();
         start_subpath(f,0,cc_get(-1));
         cc_clear ();
         break;
-      /* hinting commands */
+        /* hinting commands */
       case CS_DOTSECTION: /* - DOTSECTION |- */
         cs_debug(CS_DOTSECTION);
         cc_clear ();
@@ -3589,18 +3592,18 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
         cs_debug(CS_VSTEM3);
         cc_clear ();
         break;
-      /* start and close commands */
+        /* start and close commands */
       case CS_SEAC: /* |- asb adx ady bchar achar SEAC |- */
         cs_debug(CS_SEAC);
-        { integer adx, ady;
+        { double adx, ady;
           adx = cc_get (1);
           ady = cc_get (2);
-          a1 = cc_get (3);
-          a2 = cc_get (4);
+          a1 = (integer)cc_get (3);
+          a2 = (integer)cc_get (4);
           cc_clear ();
           (void)cs_parse(mp,f,standard_glyph_names[a1],0); /* base */
-          f->orig_x += adx * 65536;
-          f->orig_y += ady * 65536;
+          f->orig_x += adx;
+          f->orig_y += ady;
           (void)cs_parse(mp,f,standard_glyph_names[a2],0);
         }
         break;
@@ -3616,8 +3619,8 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
         f->h->parent = mp;
         f->h->filename = NULL;
         f->h->minx = f->h->miny = f->h->maxx = f->h->maxy = 0;
-        f->cur_x = (cc_get(-2) * 65536) + f->orig_x;
-        f->cur_y = 0 + f->orig_y;
+        f->cur_x = cc_get(-2) + f->orig_x;
+        f->cur_y = 0.0 + f->orig_y;
         f->orig_x = f->cur_x;
         f->orig_y = f->cur_y;
         cc_clear ();
@@ -3629,24 +3632,27 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
         f->h->parent = mp;
         f->h->filename = NULL;
         f->h->minx = f->h->miny = f->h->maxx = f->h->maxy = 0;
-        f->cur_x = ( cc_get(-4) * 65536) + f->orig_x;
-        f->cur_y = ( cc_get(-3) * 65536) + f->orig_y;
+        f->cur_x = cc_get(-4) + f->orig_x;
+        f->cur_y = cc_get(-3) + f->orig_y;
         f->orig_x = f->cur_x;
         f->orig_y = f->cur_y;
         cc_clear ();
         break;
-      /* arithmetic */
+        /* arithmetic */
       case CS_DIV:  /* num1 num2 DIV quotient */
         cs_debug(CS_DIV);
-        a1 = cc_get (-2);
-        a2 = cc_get (-1);
-        cc_pop (2);
-        cc_push ((a1/a2));
-        break;
-      /* subrs */
+        { double num,den,res;
+          num = cc_get (-2);
+          den = cc_get (-1);
+          res = num/den;
+          cc_pop (2);
+          cc_push (res);
+          break;
+        }
+        /* subrs */
       case CS_CALLSUBR: /* subr CALLSUBR - */
         cs_debug(CS_CALLSUBR);
-        a1 = cc_get (-1);
+        a1 = (integer)cc_get (-1);
         cc_pop (1);
         (void)cs_parse(mp,f,NULL,a1);
         break;
@@ -3655,9 +3661,10 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
         return true;
         break;
       case CS_CALLOTHERSUBR: /* arg1 ... argn n othersubr CALLOTHERSUBR - */
-        if (cc_get (-1) == 3)
-          lastargOtherSubr3 = cc_get (-3);
-        a1 = cc_get (-2) + 2;
+        a1 = (integer)cc_get (-1);
+        if (a1 == 3)
+          lastargOtherSubr3 = (integer)cc_get (-3);
+        a1 = (integer)cc_get(-2) + 2;
         cc_pop (a1);
         break;
       case CS_POP: /* - POP number */
@@ -3665,8 +3672,8 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
         break;
       case CS_SETCURRENTPOINT: /* |- x y SETCURRENTPOINT |- */
         cs_debug(CS_SETCURRENTPOINT);
-        f->cur_x = (cc_get(-2) * 65536);
-        f->cur_y = (cc_get(-1) * 65536);
+        f->cur_x = cc_get(-2);
+        f->cur_y = cc_get(-1);
         f->pp = NULL;
         cc_clear ();
         break;

@@ -397,8 +397,8 @@ correct location (but now with a modified pen stroke).
 Because all the points in the path need fixing, it makes sense to 
 have a specific helper to write such distorted pairs of coordinates out. 
 
-@d scaled_from_double(a) (scaled)(a*65536.0)
-@d double_from_scaled(a) (double)(a)/65536.0
+@d scaled_from_double(a) (scaled)((a)*65536.0)
+@d double_from_scaled(a) (double)((a)/65536.0)
 
 @c 
 void mp_svg_trans_pair_out (MP mp, mp_pen_info *pen, scaled x, scaled y) { 
