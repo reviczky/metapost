@@ -5246,8 +5246,8 @@ enum mp_color_model {
 @ @<Initialize table entries (done by \.{INIMP} only)@>=
 mp->internal[mp_default_color_model]=(mp_rgb_model*unity);
 mp->internal[mp_restore_clip_color]=unity;
-mp->internal[mp_output_template]=0; /* rts("%j.%c") */
-mp->internal[mp_output_format]=0; /* rts("eps") */
+mp->internal[mp_output_template]=intern("%j.%c");
+mp->internal[mp_output_format]=intern("eps");
 
 @ Well, we do have to list the names one more time, for use in symbolic
 printouts.
@@ -17689,6 +17689,8 @@ of the save stack, as described earlier.)
     mp_back_input(mp);
   }
   mp->cur_type=mp_known; mp->cur_exp=mp->internal[q];
+  if (q == mp_output_format || q == mp_output_template)
+    mp->cur_type=mp_string_type;
 }
 
 @ The most difficult part of |scan_primary| has been saved for last, since
