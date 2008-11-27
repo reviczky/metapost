@@ -5,8 +5,6 @@ This file is public domain.
 INSTALL for MPlib releases
 ========================
 
-NOTE: This is still beta software. Use at your own risk!
-
 This distribution is partially a subset of the TeX Live distribution,
 hence the peculiar directory layout.
 
@@ -15,7 +13,7 @@ generate and populate a directory named build, the script build.cross
 will generate and populate a directory named build-win (this assumes
 you are on linux and have a cross-compiling mingw32 installed). 
 
-For cross-compilation, you hvae to make sure you have access to the
+For cross-compilation, you have to make sure you have access to the
 command "ctangle" from the commandline, and if not install it
 (e.g. from TEXLIVE).
 
