@@ -2,6 +2,63 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.100:
+----------------------------------------------------------------------
+
+CHANGES compared to the previous release, 1.005:
+
+* This version is based on MPlib, the C conversion of MetaPost.
+
+  The one user-visible change is that the btex ... etex
+  label conversion is now handled internally instead of via
+  the external "mpware" programs. These programs are therefore
+  no longer distributed.
+
+* There is a new manual, mplibapi.pdf, that describes the internal
+  interface to MPlib.
+
+* The file 'mpintro' is no longer distributed because it is
+  obsolete (it has been that way for some time).
+
+* The distribution now includes Dan Luecking's mpsproof.tex.
+
+
+CHANGES compared to the previous beta, 1.091:
+
+* The DVI -> mpx converter was bugged when virtual fonts were used.
+
+* MP could crash when a string was added to the string pool that 
+  was too large to fit.
+
+* The string pool compaction routine was called much too often, thus
+  preventing unnecessary slowdowns.
+
+* Various problems with uninitialized option settings and missing mem
+  files or pfb files have been fixed.
+
+* There was a line buffer overrun possible in the file reader.
+
+* mpost now honours --recorder and --file-line-error.
+
+* MP now accepts file names with  paths (separator is /) and with
+  embedded spaces (using " for quoting)
+
+* There could be empty lines in the PS output.
+
+* Full 8-bit fonts (i.e. font using character slot 255) could create 
+  an eternal loop.
+
+* The handling of equations with addition or substractions between two 
+  unknowns in the right hand side was wrong.
+
+* The first line of the PS font encoding output could be broken 
+  inbetween a glyph name and its preceding slash.
+
+* Font inclusion in the PS backend would fail for all fonts that had 
+  glyph ids using the 8th bit.
+
+
+----------------------------------------------------------------------
 What is new in MetaPost beta version 1.091:
 ----------------------------------------------------------------------
 
