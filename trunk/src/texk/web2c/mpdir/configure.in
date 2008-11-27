@@ -14,7 +14,7 @@ dnl You should have received a copy of the GNU General Public License
 dnl along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 AC_INIT(mp.w)
-AM_INIT_AUTOMAKE(libmplib,1.0.9)
+AM_INIT_AUTOMAKE(libmplib,1.1.1)
 AC_CONFIG_HEADERS(config.h)
 AM_PROG_LIBTOOL
 

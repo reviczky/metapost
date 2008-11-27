@@ -89,13 +89,13 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.100" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.110" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @(mpmp.h@>=
-#define metapost_version "1.100"
-#define metapost_magic (('M'*256) + 'P')*65536 + 1100
+#define metapost_version "1.110"
+#define metapost_magic (('M'*256) + 'P')*65536 + 1110
 #define metapost_old_magic (('M'*256) + 'P')*65536 + 1080
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
@@ -124,6 +124,7 @@ wholesale.
 @(mpmp.h@>=
 #include <setjmp.h>
 typedef struct psout_data_struct * psout_data;
+typedef struct svgout_data_struct * svgout_data;
 #ifndef HAVE_BOOLEAN
 typedef int boolean;
 #endif
@@ -159,8 +160,10 @@ typedef struct MP_instance {
 #include <time.h> /* for struct tm \& co */
 #include "mplib.h"
 #include "mplibps.h" /* external header */
+#include "mplibsvg.h" /* external header */
 #include "mpmp.h" /* internal header */
 #include "mppsout.h" /* internal header */
+#include "mpsvgout.h" /* internal header */
 extern font_number mp_read_font_info (MP mp, char *fname); /* tfmin.w */
 @h
 @<Declarations@>
@@ -1622,7 +1625,7 @@ to the terminal, the transcript file, or the \ps\ output file, respectively.
 
 @<Glob...@>=
 void * log_file; /* transcript of \MP\ session */
-void * ps_file; /* the generic font output goes here */
+void * output_file; /* the generic font output goes here */
 unsigned int selector; /* where to print a message */
 unsigned char dig[23]; /* digits in a number, for rounding */
 integer tally; /* the number of characters recently printed */
@@ -2097,7 +2100,6 @@ const char * help_line[6]; /* helps for the next |error| */
 unsigned int help_ptr; /* the number of help lines present */
 boolean use_err_help; /* should the |err_help| string be shown? */
 str_number err_help; /* a string set up by \&{errhelp} */
-str_number filename_template; /* a string set up by \&{filenametemplate} */
 
 @ @<Allocate or ...@>=
 mp->use_err_help=false;
@@ -5063,7 +5065,9 @@ fuss with. Every such parameter has an identifying code number, defined here.
 
 @<Types...@>=
 enum mp_given_internal {
-  mp_tracing_titles=1, /* show titles online when they appear */
+  mp_output_template=1, /* a string set up by \&{outputtemplate} */
+  mp_output_format, /* the output format set up by \&{outputformat} */
+  mp_tracing_titles, /* show titles online when they appear */
   mp_tracing_equations, /* show each variable when it becomes known */
   mp_tracing_capsules, /* show capsules too */
   mp_tracing_choices, /* show the control points chosen for paths */
@@ -5212,6 +5216,10 @@ mp_primitive(mp, "defaultcolormodel",internal_quantity,mp_default_color_model);
 @:mp_default_color_model_}{\&{defaultcolormodel} primitive@>
 mp_primitive(mp, "restoreclipcolor",internal_quantity,mp_restore_clip_color);
 @:mp_restore_clip_color_}{\&{restoreclipcolor} primitive@>
+mp_primitive(mp, "outputtemplate",internal_quantity,mp_output_template);
+@:mp_output_template_}{\&{outputtemplate} primitive@>
+mp_primitive(mp, "outputformat",internal_quantity,mp_output_format);
+@:mp_output_format_}{\&{outputformat} primitive@>
 
 @ Colors can be specified in four color models. In the special
 case of |no_model|, MetaPost does not output any color operator to
@@ -5238,6 +5246,8 @@ enum mp_color_model {
 @ @<Initialize table entries (done by \.{INIMP} only)@>=
 mp->internal[mp_default_color_model]=(mp_rgb_model*unity);
 mp->internal[mp_restore_clip_color]=unity;
+mp->internal[mp_output_template]=0; /* rts("%j.%c") */
+mp->internal[mp_output_format]=0; /* rts("eps") */
 
 @ Well, we do have to list the names one more time, for use in symbolic
 printouts.
@@ -5280,6 +5290,8 @@ mp->int_name[mp_default_color_model]=xstrdup("defaultcolormodel");
 mp->int_name[mp_procset]=xstrdup("mpprocset");
 mp->int_name[mp_gtroffmode]=xstrdup("troffmode");
 mp->int_name[mp_restore_clip_color]=xstrdup("restoreclipcolor");
+mp->int_name[mp_output_template]=xstrdup("outputtemplate");
+mp->int_name[mp_output_format]=xstrdup("outputformat");
 
 @ The following procedure, which is called just before \MP\ initializes its
 input and output, establishes the initial values of the date and time.
@@ -21653,7 +21665,9 @@ void mp_do_assignment (MP mp) {
 }
 
 @ @<Assign the current expression to an internal variable@>=
-if ( mp->cur_type==mp_known )  {
+if ( mp->cur_type==mp_known || mp->cur_type==mp_string_type )  {
+  if (mp->cur_type==mp_string_type)
+    add_str_ref(mp->cur_exp);
   mp->internal[mp_info(lhs)-(hash_end)]=mp->cur_exp;
 } else { 
   exp_err("Internal quantity `");
@@ -25461,7 +25475,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
   integer cc; /* a temporary integer for template building  */
   integer f,g=0; /* field widths */
   if ( mp->job_name==NULL ) mp_open_log_file(mp);
-  if ( mp->filename_template==0 ) {
+  if ( mp->internal[mp_output_template]==0) { 
     char *s; /* a file extension derived from |c| */
     if ( c<0 ) 
       s=xstrdup(".ps");
@@ -25475,13 +25489,13 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     old_setting=mp->selector; 
     mp->selector=new_string;
     f = 0;
-    i = mp->str_start[mp->filename_template];
+    i = mp->str_start[mp->internal[mp_output_template]];
     n = null_str; /* initialize */
-    while ( i<str_stop(mp->filename_template) ) {
+    while ( i<str_stop(mp->internal[mp_output_template]) ) {
        if ( mp->str_pool[i]=='%' ) {
       CONTINUE:
         incr(i);
-        if ( i<str_stop(mp->filename_template) ) {
+        if ( i<str_stop(mp->internal[mp_output_template]) ) {
           if ( mp->str_pool[i]=='j' ) {
             mp_print(mp, mp->job_name);
           } else if ( mp->str_pool[i]=='d' ) {
@@ -25550,7 +25564,7 @@ void mp_open_output_file (MP mp) {
   integer c; /* \&{charcode} rounded to the nearest integer */
   c=mp_round_unscaled(mp, mp->internal[mp_char_code]);
   ss = mp_set_output_file_name(mp, c);
-  while ( ! mp_a_open_out(mp, (void *)&mp->ps_file, mp_filetype_postscript) )
+  while ( ! mp_a_open_out(mp, (void *)&mp->output_file, mp_filetype_postscript) )
     mp_prompt_file_name(mp, "file name for output",ss);
   xfree(ss);
   @<Store the true output file name if appropriate@>;
@@ -25869,14 +25883,25 @@ void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
 @ @<Declarations@>=
 static void mp_shipout_backend (MP mp, pointer h);
 
-@ @c
+@ 
+@c
 void mp_shipout_backend (MP mp, pointer h) {
+  char *s;
   mp_edge_object *hh; /* the first graphical object */
   hh = mp_gr_export(mp,h);
-  (void)mp_gr_ship_out (hh,
+  s = NULL;
+  if (mp->internal[mp_output_format]>0)
+    s =  str(mp->internal[mp_output_format]);
+  if (s && strcmp(s,"svg")==0) {
+    (void)mp_svg_gr_ship_out (hh,
+                 (mp->internal[mp_prologues]/65536),
+                 false);
+  } else {
+    (void)mp_gr_ship_out (hh,
                  (mp->internal[mp_prologues]/65536),
                  (mp->internal[mp_procset]/65536), 
                  false);
+  }
   mp_gr_toss_objects(hh);
 }
 
@@ -25899,12 +25924,15 @@ by which a user can send things to the \.{GF} file.
 
 @ @<Glob...@>=
 psout_data ps;
+svgout_data svg;
 
 @ @<Allocate or initialize ...@>=
-mp_backend_initialize(mp);
+mp_ps_backend_initialize(mp);
+mp_svg_backend_initialize(mp);
 
 @ @<Dealloc...@>=
-mp_backend_free(mp);
+mp_ps_backend_free(mp);
+mp_svg_backend_free(mp);
 
 
 @* \[45] Dumping and undumping the tables.
@@ -26302,10 +26330,13 @@ But when we finish this part of the program, \MP\ is ready to call on the
 
 @<Save the filename template@>=
 { 
-  if ( mp->filename_template!=0 ) delete_str_ref(mp->filename_template);
-  if ( length(mp->cur_exp)==0 ) mp->filename_template=0;
-  else { 
-    mp->filename_template=mp->cur_exp; add_str_ref(mp->filename_template);
+  if ( mp->internal[mp_output_template]!=0 ) 
+     delete_str_ref(mp->internal[mp_output_template]);
+  if ( length(mp->cur_exp)==0 ) {
+    mp->internal[mp_output_template] = 0;
+  } else { 
+    mp->internal[mp_output_template]=mp->cur_exp; 
+    add_str_ref(mp->internal[mp_output_template]);
   }
 }
 
