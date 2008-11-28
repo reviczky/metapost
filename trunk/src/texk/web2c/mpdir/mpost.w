@@ -760,13 +760,26 @@ if ( options->mem_name == NULL )
 if ( options->job_name == NULL ) {
   char *m = NULL; /* head of potential |job_name| */
   char *n = NULL; /* a moving pointer */
-  if (options->command_line != NULL && *(options->command_line) != '\\'){
+  if (options->command_line != NULL){
     m = mpost_xstrdup(options->command_line);
     n = m;
-    while (*n != '\0' && *n != ' ') n++;
-    if (n>m) {
-      *n='\0';
-      job_name = mpost_xstrdup(m);
+    if (*(options->command_line) != '\\') { /* this is the simple case */
+      while (*n != '\0' && *n != ' ') n++;
+      if (n>m) {
+        *n='\0';
+        job_name = mpost_xstrdup(m);
+      }
+    } else { /* this is still not perfect, but better */
+      char *mm =  strstr(m,"input ");
+      if (mm != NULL) {
+         mm += 6;
+         n = mm;
+         while (*n != '\0' && *n != ' ' && *n!=';') n++;
+         if (n>mm) {
+           *n='\0';
+           job_name = mpost_xstrdup(mm);
+        }
+      }
     }
     free(m);
   }
@@ -779,6 +792,7 @@ if ( options->job_name == NULL ) {
   if (job_name == NULL) {
     job_name = mpost_xstrdup("mpout");
   }
+  options->job_name = job_name;
 } else {
   job_name = mpost_xstrdup(options->job_name);
 }
