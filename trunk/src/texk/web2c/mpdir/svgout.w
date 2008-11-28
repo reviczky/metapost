@@ -810,18 +810,34 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
     for (k=0;k<(int)mp->font_max;k++) {
        if (mp_chars[k] != NULL ) {
           double scale; /* the next gives rounding errors */
-          scaled ds=(mp->font_dsize[k]+8) / 16;
+          scaled ds,dx,sk;
+          ds =(mp->font_dsize[k]+8) / 16;
           scale = (1/1000.0) * double_from_scaled(ds);
           ds = scaled_from_double(scale);
+          dx = ds;
+          sk = 0;
           for (l=0;l<256;l++) {
             if (mp_chars[k][l] == 1) {
+               if (f == NULL) {
+                  f = mp_ps_font_parse(mp, k);
+                  if (f->extend != 0) {
+                    dx = scaled_from_double(((double)f->extend / 1000.0) * scale);
+                  }
+                  if (f->slant != 0) {
+                    sk = scaled_from_double(((double)f->slant / 1000.0) * 90);
+                  } 
+               }
                mp_svg_open_starttag(mp,"g");
-                /* todo: apply artificial Extend and Slant */
                append_string("scale(");
-               mp_svg_store_scaled(mp,ds);
+               mp_svg_store_scaled(mp,dx);
                append_char(',');
                mp_svg_store_scaled(mp,ds);
                append_char(')');
+               if (sk!=0) {
+                  append_string(" skewX(");
+                  mp_svg_store_scaled(mp,-sk);
+                  append_char(')');
+               }
                mp_svg_attribute(mp, "transform", mp->svg->buf);
                mp_svg_reset_buf(mp);
 
@@ -832,9 +848,6 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
                mp_svg_attribute(mp, "id", mp->svg->buf);
                mp_svg_reset_buf(mp);
                mp_svg_close_starttag(mp);
-               if (f == NULL) {
-                  f = mp_ps_font_parse(mp, k);
-               }
                if (f != NULL) {
                  ch = mp_ps_font_charstring(mp,f,l);
                  if (ch != NULL) {

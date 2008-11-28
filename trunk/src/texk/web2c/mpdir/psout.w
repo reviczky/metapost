@@ -3226,6 +3226,8 @@ typedef struct mp_ps_font {
   cs_entry *cs_ptr;
   cs_entry *subr_tab;
   int t1_lenIV;
+  int slant;
+  int extend;
   @<Variables for the charstring parser@>
 } mp_ps_font;
 
@@ -3260,7 +3262,8 @@ mp_ps_font *mp_ps_font_parse (MP mp, int tex_font) {
   f->cs_ptr   = NULL;
   f->subr_tab = NULL;
   f->orig_x = f->orig_y = 0.0;
-
+  f->slant = (int)fm_cur->slant;
+  f->extend = (int)fm_cur->extend;
   t1_getline (mp);
   while (!t1_prefix ("/Encoding")) {
     t1_scan_param (mp,tex_font, fm_cur);
