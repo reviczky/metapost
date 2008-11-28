@@ -684,8 +684,7 @@ static void mp_svg_path_out (MP mp, mp_knot *h) {
   do {  
     if ( gr_right_type(p)==mp_endpoint ) { 
       if ( p==h ) {
-        append_char('l');
-        mp_svg_pair_out(mp, 0, 0);
+        append_string("l0 0");
       }
       return;
     }
@@ -703,6 +702,7 @@ static void mp_svg_path_out (MP mp, mp_knot *h) {
     }
     p=q;
   } while (p!=h);
+  append_char('Z');
   append_char(0);
 }
 
@@ -715,8 +715,7 @@ static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
   do {  
     if ( gr_right_type(p)==mp_endpoint ) { 
       if ( p==h ) {
-        append_char('l');
-        mp_svg_pair_out(mp, 0, 0);
+        append_string("l0 0");
       }
       return;
     }
@@ -735,6 +734,7 @@ static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
    }
     p=q;
   } while (p!=h);
+  append_char('Z');
   append_char(0);
 }
 
