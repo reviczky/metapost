@@ -25500,6 +25500,12 @@ static char *mp_set_output_file_name (MP mp, integer c) {
         if ( i<str_stop(mp->internal[mp_output_template]) ) {
           if ( mp->str_pool[i]=='j' ) {
             mp_print(mp, mp->job_name);
+          } else if ( mp->str_pool[i]=='o' ) {
+             { char *s;
+               s = str(mp->internal[mp_output_format]);
+               mp_print(mp, s);
+               mp_xfree(s);
+             }
           } else if ( mp->str_pool[i]=='d' ) {
              cc= mp_round_unscaled(mp, mp->internal[mp_day]);
              print_with_leading_zeroes(cc);
@@ -26332,10 +26338,9 @@ But when we finish this part of the program, \MP\ is ready to call on the
 
 @<Save the filename template@>=
 { 
-  if ( mp->internal[mp_output_template]!=0 ) 
-     delete_str_ref(mp->internal[mp_output_template]);
+  delete_str_ref(mp->internal[mp_output_template]);
   if ( length(mp->cur_exp)==0 ) {
-    mp->internal[mp_output_template] = 0;
+    mp->internal[mp_output_template] = rts("%j.%c");
   } else { 
     mp->internal[mp_output_template]=mp->cur_exp; 
     add_str_ref(mp->internal[mp_output_template]);
