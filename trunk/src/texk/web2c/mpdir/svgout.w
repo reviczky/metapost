@@ -996,7 +996,7 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
   }
   mp_svg_open_starttag(mp, "path");
 
-  if (gr_type(h)==mp_fill_code) {
+  if (false) {
     if (transformed) 
       mp_svg_path_trans_out(mp, gr_path_p((mp_fill_object *)h), pen);
     else
@@ -1024,7 +1024,16 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
       append_char('0');
     }
     append_char(';');
-    {
+    if (gr_lcap_val(h)!=0) {
+      append_string("stroke-linecap: ");
+      switch (gr_lcap_val(h)) {
+        case 1: append_string("round"); break;
+        case 2: append_string("square"); break;
+        default: append_string("butt"); break;
+      }
+      append_char(';');
+    }
+    if (gr_type(h)!=mp_fill_code) {
       mp_dash_object *hh;
       hh =gr_dash_p(h);
       if (hh != NULL && hh->array != NULL) {
@@ -1037,17 +1046,7 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
          }
          append_char(';');
       }
-    }
 
-    if (gr_lcap_val(h)!=0) {
-      append_string("stroke-linecap: ");
-      switch (gr_lcap_val(h)) {
-        case 1: append_string("round"); break;
-        case 2: append_string("square"); break;
-        default: append_string("butt"); break;
-      }
-      append_char(';');
-    }
     if (gr_ljoin_val((mp_stroked_object *)h)!=0) {
       append_string ("stroke-linejoin: ");
       switch (gr_ljoin_val((mp_stroked_object *)h)) {
@@ -1062,6 +1061,7 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
       append_string("stroke-miterlimit: ");
       mp_svg_store_scaled(mp, gr_miterlim_val((mp_stroked_object *)h)); 
       append_char(';');
+    }
     }
 
     append_string("fill: ");
