@@ -888,8 +888,8 @@ void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) {
   if ( transformed ) {
     append_string("matrix(");
     mp_svg_store_scaled(mp,gr_txx_val(p)); append_char(',');
-    mp_svg_store_scaled(mp,gr_tyx_val(p)); append_char(',');
-    mp_svg_store_scaled(mp,gr_txy_val(p)); append_char(',');
+    mp_svg_store_scaled(mp,unity-gr_tyx_val(p)); append_char(',');
+    mp_svg_store_scaled(mp,-gr_txy_val(p)); append_char(',');
     mp_svg_store_scaled(mp,gr_tyy_val(p)); append_char(',');
   } else { 
     append_string("translate(");
