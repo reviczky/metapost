@@ -290,6 +290,7 @@ MP mp_initialize (MP_options *opt) {
 }
 
 @ @<Initializations after first line is read@>=
+mp_open_log_file(mp);
 mp_set_job_id(mp);
 mp_init_map_file(mp, mp->troff_mode);
 mp->history=mp_spotless; /* ready to go! */
