@@ -3874,10 +3874,12 @@ pointer hi_mem_min; /* the smallest location of one-word memory in use */
 
 @<Declare helpers@>=
 extern char *mp_strdup(const char *p) ;
+extern char *mp_strldup(const char *p, int l) ;
 extern void mp_xfree ( @= /*@@only@@*/ /*@@out@@*/ /*@@null@@*/ @> void *x);
 extern @= /*@@only@@*/ @> void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) ;
 extern @= /*@@only@@*/ @> void *mp_xmalloc (MP mp, size_t nmem, size_t size) ;
 extern @= /*@@only@@*/ @> char *mp_xstrdup(MP mp, const char *s);
+extern @= /*@@only@@*/ @> char *mp_xstrldup(MP mp, const char *s, int l);
 extern void mp_do_snprintf(char *str, int size, const char *fmt, ...);
 
 @ The |max_size_test| guards against overflow, on the assumption that
@@ -3886,15 +3888,17 @@ extern void mp_do_snprintf(char *str, int size, const char *fmt, ...);
 @d max_size_test 0x7FFFFFFF
 
 @c
-char *mp_strdup(const char *p) {
+char *mp_strldup(const char *p, int l) {
   char *r;
-  size_t l;
   if (p==NULL) return NULL;
-  l = strlen(p);
-  r = malloc (l*sizeof(char)+1);
+  r = malloc ((size_t)(l*sizeof(char)+1));
   if (r==NULL)
     return NULL;
-  return memcpy (r,p,(l+1));
+  return memcpy (r,p,(size_t)(l+1));
+}
+char *mp_strdup(const char *p) {
+  if (p==NULL) return NULL;
+  return mp_strldup(p, strlen(p));
 }
 void mp_xfree (void *x) {
   if (x!=NULL) free(x);
@@ -3925,17 +3929,22 @@ void  *mp_xmalloc (MP mp, size_t nmem, size_t size) {
   }
   return w;
 }
-char *mp_xstrdup(MP mp, const char *s) {
+char *mp_xstrldup(MP mp, const char *s, int l) {
   char *w; 
   if (s==NULL)
     return NULL;
-  w = mp_strdup(s);
+  w = mp_strldup(s, l);
   if (w==NULL) {
     do_fprintf(mp->err_out,"Out of memory!\n");
     mp->history =mp_system_error_stop;    mp_jump_out(mp);
   }
   return w;
 }
+char *mp_xstrdup(MP mp, const char *s) {
+  if (s==NULL)  return NULL;
+  return mp_xstrldup(mp,s,(int)strlen(s));
+}
+
 
 @ @<Internal library declarations@>=
 #ifdef HAVE_SNPRINTF
@@ -25819,6 +25828,7 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
     case mp_text_code:
       tt = (mp_text_object *)hq;
       gr_text_p(tt)       = str(mp_text_p(p));
+      gr_text_l(tt)       = length(mp_text_p(p));
       gr_font_n(tt)       = (unsigned int)mp_font_n(p);
       gr_font_name(tt)    = mp_xstrdup(mp,mp->font_name[mp_font_n(p)]);
       gr_font_dsize(tt)   = (unsigned int)mp->font_dsize[mp_font_n(p)];
