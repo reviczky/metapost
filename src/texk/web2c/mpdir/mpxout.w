@@ -649,9 +649,7 @@ input file.  Since \MP\ expects such files to have the extension \.{.MPX},
 the output of \.{DVItoMP} is sometimes called an ``\.{MPX}'' file.
 
 @ The following parameters can be changed at compile time to extend or
-reduce \.{DVItoMP}'s capacity. 
-
-TODO: dynamic reallocation
+reduce \.{DVItoMP}'s capacity.
 
 @d virtual_space 1000000 /* maximum total bytes of typesetting commands for virtual fonts */
 @d max_fonts 1000 /* maximum number of distinct fonts per \.{DVI} file */
@@ -1277,8 +1275,8 @@ static void mpx_in_VF (MPX mpx, integer f) {
   @<Start reading the preamble from a \.{VF} file@>;@/
   @<Initialize the data structures for the virtual font@>;@/
   p=mpx_get_byte(mpx);
-  while ( p>=fnt_def1 ) { 
-    if ( p>fnt_def1+3 ) 
+  while ( mpx->p>=fnt_def1 ) { 
+    if ( mpx->p>fnt_def1+3 ) 
       font_abort("Bad VF file for ",f);
     mpx_define_font(mpx, mpx_first_par(mpx, p));
     p=mpx_get_byte(mpx);
@@ -1290,7 +1288,7 @@ static void mpx_in_VF (MPX mpx, integer f) {
     @<Store the character packet in |cmd_buf|@>;
     p=mpx_get_byte(mpx);
   }
-  if ( p==post ) { 
+  if ( mpx->p==post ) { 
     @<Finish setting up the data structures for the new virtual font@>;
     mpx->vf_reading=was_vf_reading;
     return;
@@ -1986,6 +1984,9 @@ case bop:
 @.bop occurred before eop@>
   break;
 case eop: 
+  if ( mpx->stk_siz!=0 )
+    bad_dvi("stack not empty at end of page");
+@.stack not empty...@>
   return;
   break;
 case push: 
@@ -2043,9 +2044,6 @@ static int mpx_dvitomp (MPX mpx, char *dviname) {
     @<Do initialization required before starting a new page@>;
     mpx_start_picture(mpx);
     mpx_do_dvi_commands(mpx);
-    if ( mpx->stk_siz!=0 )
-      bad_dvi("stack not empty at end of page");
-@.stack not empty...@>
     mpx_stop_picture(mpx);
     fprintf(mpx->mpxfile,"mpxbreak\n");
   }
