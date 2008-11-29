@@ -684,7 +684,8 @@ static void mp_svg_path_out (MP mp, mp_knot *h) {
   do {  
     if ( gr_right_type(p)==mp_endpoint ) { 
       if ( p==h ) {
-        append_string("l0 0");
+        append_char('l');
+        mp_svg_pair_out(mp, 0, 0);
       }
       return;
     }
@@ -702,7 +703,6 @@ static void mp_svg_path_out (MP mp, mp_knot *h) {
     }
     p=q;
   } while (p!=h);
-  append_char('Z');
   append_char(0);
 }
 
@@ -715,7 +715,8 @@ static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
   do {  
     if ( gr_right_type(p)==mp_endpoint ) { 
       if ( p==h ) {
-        append_string("l0 0");
+        append_char('l');
+        mp_svg_pair_out(mp, 0, 0);
       }
       return;
     }
@@ -734,7 +735,6 @@ static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
    }
     p=q;
   } while (p!=h);
-  append_char('Z');
   append_char(0);
 }
 
@@ -810,34 +810,18 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
     for (k=0;k<(int)mp->font_max;k++) {
        if (mp_chars[k] != NULL ) {
           double scale; /* the next gives rounding errors */
-          scaled ds,dx,sk;
-          ds =(mp->font_dsize[k]+8) / 16;
+          scaled ds=(mp->font_dsize[k]+8) / 16;
           scale = (1/1000.0) * double_from_scaled(ds);
           ds = scaled_from_double(scale);
-          dx = ds;
-          sk = 0;
           for (l=0;l<256;l++) {
             if (mp_chars[k][l] == 1) {
-               if (f == NULL) {
-                  f = mp_ps_font_parse(mp, k);
-                  if (f->extend != 0) {
-                    dx = scaled_from_double(((double)f->extend / 1000.0) * scale);
-                  }
-                  if (f->slant != 0) {
-                    sk = scaled_from_double(((double)f->slant / 1000.0) * 90);
-                  } 
-               }
                mp_svg_open_starttag(mp,"g");
+                /* todo: apply artificial Extend and Slant */
                append_string("scale(");
-               mp_svg_store_scaled(mp,dx);
+               mp_svg_store_scaled(mp,ds);
                append_char(',');
                mp_svg_store_scaled(mp,ds);
                append_char(')');
-               if (sk!=0) {
-                  append_string(" skewX(");
-                  mp_svg_store_scaled(mp,-sk);
-                  append_char(')');
-               }
                mp_svg_attribute(mp, "transform", mp->svg->buf);
                mp_svg_reset_buf(mp);
 
@@ -848,6 +832,9 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
                mp_svg_attribute(mp, "id", mp->svg->buf);
                mp_svg_reset_buf(mp);
                mp_svg_close_starttag(mp);
+               if (f == NULL) {
+                  f = mp_ps_font_parse(mp, k);
+               }
                if (f != NULL) {
                  ch = mp_ps_font_charstring(mp,f,l);
                  if (ch != NULL) {
@@ -901,8 +888,8 @@ void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) {
   if ( transformed ) {
     append_string("matrix(");
     mp_svg_store_scaled(mp,gr_txx_val(p)); append_char(',');
-    mp_svg_store_scaled(mp,-gr_tyx_val(p)); append_char(',');
-    mp_svg_store_scaled(mp,-gr_txy_val(p)); append_char(',');
+    mp_svg_store_scaled(mp,gr_tyx_val(p)); append_char(',');
+    mp_svg_store_scaled(mp,gr_txy_val(p)); append_char(',');
     mp_svg_store_scaled(mp,gr_tyy_val(p)); append_char(',');
   } else { 
     append_string("translate(");
@@ -1009,7 +996,7 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
   }
   mp_svg_open_starttag(mp, "path");
 
-  if (false) {
+  if (gr_type(h)==mp_fill_code) {
     if (transformed) 
       mp_svg_path_trans_out(mp, gr_path_p((mp_fill_object *)h), pen);
     else
@@ -1037,16 +1024,7 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
       append_char('0');
     }
     append_char(';');
-    if (gr_lcap_val(h)!=0) {
-      append_string("stroke-linecap: ");
-      switch (gr_lcap_val(h)) {
-        case 1: append_string("round"); break;
-        case 2: append_string("square"); break;
-        default: append_string("butt"); break;
-      }
-      append_char(';');
-    }
-    if (gr_type(h)!=mp_fill_code) {
+    {
       mp_dash_object *hh;
       hh =gr_dash_p(h);
       if (hh != NULL && hh->array != NULL) {
@@ -1059,7 +1037,17 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
          }
          append_char(';');
       }
+    }
 
+    if (gr_lcap_val(h)!=0) {
+      append_string("stroke-linecap: ");
+      switch (gr_lcap_val(h)) {
+        case 1: append_string("round"); break;
+        case 2: append_string("square"); break;
+        default: append_string("butt"); break;
+      }
+      append_char(';');
+    }
     if (gr_ljoin_val((mp_stroked_object *)h)!=0) {
       append_string ("stroke-linejoin: ");
       switch (gr_ljoin_val((mp_stroked_object *)h)) {
@@ -1074,7 +1062,6 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
       append_string("stroke-miterlimit: ");
       mp_svg_store_scaled(mp, gr_miterlim_val((mp_stroked_object *)h)); 
       append_char(';');
-    }
     }
 
     append_string("fill: ");
