@@ -1,19 +1,5 @@
 % $Id$
-%
-% Copyright 2008 Taco Hoekwater.
-%
-% This program is free software: you can redistribute it and/or modify
-% it under the terms of the GNU General Public License as published by
-% the Free Software Foundation, either version 2 of the License, or
-% (at your option) any later version.
-%
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-%
-% You should have received a copy of the GNU General Public License
-% along with this program.  If not, see <http://www.gnu.org/licenses/>.
+% MetaPost command-line program, by Taco Hoekwater.  Public domain.
 
 \def\title{Creating mpx files}
 \def\hang{\hangindent 3em\indent\ignorespaces}
@@ -211,14 +197,14 @@ static void mpx_printf(MPX mpx, char *header, char *msg, va_list ap) {
   if (mpx->lnno!=0)
     fprintf(mpx->errfile, "%d:", mpx->lnno);
   fprintf(mpx->errfile, " ");
-  (void)vfprintf(mpx->errfile, msg, ap);
+  vfprintf(mpx->errfile, msg, ap);
   fprintf(mpx->errfile, "\n");
 }
 
 @ @c
 static void mpx_report(MPX mpx, char *msg, ...) {
   va_list ap;
-  if (mpx->debug==0) return;
+  if (!mpx->debug) return;
   va_start(ap, msg);
   mpx_printf(mpx, "debug", msg, ap);
   va_end(ap);
@@ -388,13 +374,12 @@ unsigned bufsize;
 mpx->bufsize = 1000;
 
 @ This function returns NULL on EOF, otherwise it returns |buf|. 
+TODO: It fails to detect a partial last line (missing newline)
 
 @c 
 static char *mpx_getline(MPX mpx, FILE *mpfile) {
     int c;
     unsigned loc = 0;
-    if (feof(mpfile))
-      return NULL; 
     if (mpx->buf==NULL)
       mpx->buf = xmalloc(mpx->bufsize,1);
     while ((c = getc(mpfile)) != EOF && c != '\n' && c != '\r') {
@@ -410,6 +395,8 @@ static char *mpx_getline(MPX mpx, FILE *mpfile) {
         mpx->bufsize = n;
       }
     }
+    if (c == EOF)
+        return NULL;
     mpx->buf[loc] = 0;
     if (c == '\r') {
         c = getc(mpfile);
@@ -649,9 +636,7 @@ input file.  Since \MP\ expects such files to have the extension \.{.MPX},
 the output of \.{DVItoMP} is sometimes called an ``\.{MPX}'' file.
 
 @ The following parameters can be changed at compile time to extend or
-reduce \.{DVItoMP}'s capacity. 
-
-TODO: dynamic reallocation
+reduce \.{DVItoMP}'s capacity.
 
 @d virtual_space 1000000 /* maximum total bytes of typesetting commands for virtual fonts */
 @d max_fonts 1000 /* maximum number of distinct fonts per \.{DVI} file */
@@ -869,9 +854,9 @@ static integer mpx_signed_quad (MPX mpx) { /* returns the next four bytes, signe
 
 @ @<Read one byte into |b|@>=
 if ( mpx->vf_reading ) {
-  b = (unsigned char)getc(mpx->vf_file);
+  b = getc(mpx->vf_file);
 } else if ( mpx->buf_ptr==virtual_space ) {
-  b = (unsigned char)getc(mpx->dvi_file);
+  b = getc(mpx->dvi_file);
 } else { 
   b=mpx->cmd_buf[mpx->buf_ptr];
   incr(mpx->buf_ptr);
@@ -879,11 +864,11 @@ if ( mpx->vf_reading ) {
 
 @ @<Read two bytes into |a| and |b|@>=
 if ( mpx->vf_reading ) { 
-  a = (unsigned char)getc(mpx->vf_file);
-  b = (unsigned char)getc(mpx->vf_file);
+  a = getc(mpx->vf_file);
+  b = getc(mpx->vf_file);
 } else if ( mpx->buf_ptr==virtual_space ) { 
-  a = (unsigned char)getc(mpx->dvi_file);
-  b = (unsigned char)getc(mpx->dvi_file);
+  a = getc(mpx->dvi_file);
+  b = getc(mpx->dvi_file);
 } else if ( mpx->buf_ptr+2>mpx->n_cmds ) {
   mpx_abort(mpx,"Error detected while interpreting a virtual font");
 @.Error detected while...@>
@@ -895,13 +880,13 @@ if ( mpx->vf_reading ) {
 
 @ @<Read three bytes into |a|, |b|, and~|c|@>=
 if ( mpx->vf_reading ) { 
-  a = (unsigned char)getc(mpx->vf_file);
-  b = (unsigned char)getc(mpx->vf_file);
-  c = (unsigned char)getc(mpx->vf_file);
+  a = getc(mpx->vf_file);
+  b = getc(mpx->vf_file);
+  c = getc(mpx->vf_file);
 } else if ( mpx->buf_ptr==virtual_space ) { 
-  a = (unsigned char)getc(mpx->dvi_file);
-  b = (unsigned char)getc(mpx->dvi_file);
-  c = (unsigned char)getc(mpx->dvi_file);
+  a = getc(mpx->dvi_file);
+  b = getc(mpx->dvi_file);
+  c = getc(mpx->dvi_file);
 } else if ( mpx->buf_ptr+3>mpx->n_cmds ) {
   mpx_abort(mpx,"Error detected while interpreting a virtual font");
 @.Error detected while...@>
@@ -914,15 +899,15 @@ if ( mpx->vf_reading ) {
 
 @ @<Read four bytes into |a|, |b|, |c|, and~|d|@>=
 if ( mpx->vf_reading ) { 
-  a = (unsigned char)getc(mpx->vf_file);
-  b = (unsigned char)getc(mpx->vf_file);
-  c = (unsigned char)getc(mpx->vf_file);
-  d = (unsigned char)getc(mpx->vf_file);
+  a = getc(mpx->vf_file);
+  b = getc(mpx->vf_file);
+  c = getc(mpx->vf_file);
+  d = getc(mpx->vf_file);
 } else if ( mpx->buf_ptr==virtual_space ) { 
-  a = (unsigned char)getc(mpx->dvi_file);
-  b = (unsigned char)getc(mpx->dvi_file);
-  c = (unsigned char)getc(mpx->dvi_file);
-  d = (unsigned char)getc(mpx->dvi_file);
+  a = getc(mpx->dvi_file);
+  b = getc(mpx->dvi_file);
+  c = getc(mpx->dvi_file);
+  d = getc(mpx->dvi_file);
 } else if ( mpx->buf_ptr+4>mpx->n_cmds ) {
   mpx_abort(mpx,"Error detected while interpreting a virtual font");
 @.Error detected while...@>
@@ -1016,7 +1001,7 @@ static void mpx_print_font (MPX mpx, integer f) { /* |f| is an internal font num
   } else { 
     char *s = mpx->font_name[f];
     while (*s) {
-      mpx_print_char(mpx,(unsigned char)*s);
+      mpx_print_char(mpx,*s);
       s++;
     }
   }
@@ -1168,7 +1153,7 @@ static void mpx_in_TFM (MPX mpx,integer f) {
   integer k; /* index for loops */
   int lh; /* length of the header data, in four-byte words */
   int nw; /* number of words in the width table */
-  unsigned wp; /* new value of |info_ptr| after successful input */
+  int wp; /* new value of |info_ptr| after successful input */
   @<Read past the header data; |abort| if there is a problem@>;
   @<Store character-width indices at the end of the |width| table@>;
   @<Read the width values into the |in_width| table@>;
@@ -1207,7 +1192,7 @@ for (k=1;k<=3+lh;k++) {
 
 @ @<Store character-width indices...@>=
 if ( wp>0 ) {
-  for (k=mpx->info_ptr;k<=(int)wp-1;k++ ) {
+  for (k=mpx->info_ptr;k<=wp-1;k++ ) {
     mpx_read_tfm_word(mpx);
     if ( mpx->b0>nw ) 
       font_abort("Bad TFM file for ",f);
@@ -1250,7 +1235,7 @@ if ( mpx->in_width[0]!=0 )
 @.Bad TFM file@>
 mpx->info_base[f]=mpx->info_ptr-mpx->font_bc[f];
 if ( wp>0 ) {
-  for (k=mpx->info_ptr;k<=(int)wp-1;k++) {
+  for (k=mpx->info_ptr;k<=wp-1;k++) {
     mpx->width[k]=mpx->in_width[mpx->width[k]];
   }
 }
@@ -1277,8 +1262,8 @@ static void mpx_in_VF (MPX mpx, integer f) {
   @<Start reading the preamble from a \.{VF} file@>;@/
   @<Initialize the data structures for the virtual font@>;@/
   p=mpx_get_byte(mpx);
-  while ( p>=fnt_def1 ) { 
-    if ( p>fnt_def1+3 ) 
+  while ( mpx->p>=fnt_def1 ) { 
+    if ( mpx->p>fnt_def1+3 ) 
       font_abort("Bad VF file for ",f);
     mpx_define_font(mpx, mpx_first_par(mpx, p));
     p=mpx_get_byte(mpx);
@@ -1290,7 +1275,7 @@ static void mpx_in_VF (MPX mpx, integer f) {
     @<Store the character packet in |cmd_buf|@>;
     p=mpx_get_byte(mpx);
   }
-  if ( p==post ) { 
+  if ( mpx->p==post ) { 
     @<Finish setting up the data structures for the new virtual font@>;
     mpx->vf_reading=was_vf_reading;
     return;
@@ -1372,7 +1357,7 @@ static integer mpx_select_font (MPX mpx, integer e) {
   @<Set |f| to the internal font number that corresponds to |e|,
     or |abort| if there is none@>;
   if ( mpx->info_base[f]==max_widths ) {
-    ff=mpx_match_font(mpx, (unsigned)f,false);
+    ff=mpx_match_font(mpx, f,false);
     if ( ff<(int)mpx->nfonts ) {
       @<Make font |f| refer to the width information from font |ff|@>;
     } else { 
@@ -1831,8 +1816,8 @@ typesetting commands for a character in a virtual font.
 static void mpx_do_dvi_commands (MPX mpx);
 static void mpx_set_virtual_char (MPX mpx,integer f, integer c) {
   double old_scale; /* original value of |dvi_scale| */
-  unsigned old_buf_ptr; /* original value of the input pointer |buf_ptr| */
-  unsigned old_fbase,old_ftop; /* originally applicable part of the |font_num| table */
+  int old_buf_ptr; /* original value of the input pointer |buf_ptr| */
+  int old_fbase,old_ftop; /* originally applicable part of the |font_num| table */
   if ( mpx->fbase[f]==0 )
     mpx_do_set_char(mpx, f,c);
   else { 
@@ -1986,6 +1971,9 @@ case bop:
 @.bop occurred before eop@>
   break;
 case eop: 
+  if ( mpx->stk_siz!=0 )
+    bad_dvi("stack not empty at end of page");
+@.stack not empty...@>
   return;
   break;
 case push: 
@@ -2034,8 +2022,8 @@ static int mpx_dvitomp (MPX mpx, char *dviname) {
   mpx_open_dvi_file(mpx);
   @<Process the preamble@>;
   mpx_open_mpxfile(mpx);
-  if (mpx->banner!=NULL)
-    fprintf (mpx->mpxfile,"%s\n",mpx->banner);
+  fprintf (mpx->mpxfile,mpx->banner);
+  fprintf (mpx->mpxfile,"\n");
   while ( true ) { 
     @<Advance to the next |bop| command@>;
     for (k=0;k<=10;k++) 
@@ -2043,9 +2031,6 @@ static int mpx_dvitomp (MPX mpx, char *dviname) {
     @<Do initialization required before starting a new page@>;
     mpx_start_picture(mpx);
     mpx_do_dvi_commands(mpx);
-    if ( mpx->stk_siz!=0 )
-      bad_dvi("stack not empty at end of page");
-@.stack not empty...@>
     mpx_stop_picture(mpx);
     fprintf(mpx->mpxfile,"mpxbreak\n");
   }
@@ -2103,7 +2088,7 @@ do {
   int p;
   k=mpx_get_byte(mpx);
   if ( (k>=fnt_def1)&&(k<fnt_def1+4) ){ 
-    p=mpx_first_par(mpx, (unsigned int)k); 
+    p=mpx_first_par(mpx, k); 
     mpx_define_font(mpx, p); k=nop;
   }
 } while (k==nop);
@@ -2406,7 +2391,7 @@ while ( l < len ) {
     while ( (l < len) && (buf[l] == ' ') ) incr(l);
     incr(k);
   } else {
-    mpx->color_stack[mpx->color_stack_depth][k] = (char)buf[l];
+    mpx->color_stack[mpx->color_stack_depth][k] = buf[l];
     incr(l);
     incr(k);
   }
@@ -2503,13 +2488,13 @@ mpx->h = 0; mpx->v = 0;
 @ @(mpxout.h@>=
 typedef char *(*mpx_file_finder)(MPX, const char *, const char *, int);
 enum mpx_filetype {
-  mpx_tfm_format,           /* |kpse_tfm_format| */
-  mpx_vf_format,            /* |kpse_vf_format| */
-  mpx_trfontmap_format,     /* |kpse_mpsupport_format| */
-  mpx_trcharadj_format,     /* |kpse_mpsupport_format| */
-  mpx_desc_format,          /* |kpse_troff_font_format| */
-  mpx_fontdesc_format,      /* |kpse_troff_font_format| */
-  mpx_specchar_format       /* |kpse_mpsupport_format| */
+  mpx_tfm_format,           /* kpse_tfm_format */
+  mpx_vf_format,            /* kpse_vf_format */
+  mpx_trfontmap_format,     /* kpse_mpsupport_format */
+  mpx_trcharadj_format,     /* kpse_mpsupport_format */
+  mpx_desc_format,          /* kpse_troff_font_format */
+  mpx_fontdesc_format,      /* kpse_troff_font_format */
+  mpx_specchar_format       /* kpse_mpsupport_format */
 };
 
 @ @<Globals@>=
@@ -2726,7 +2711,7 @@ static void mpx_read_fmap(MPX mpx, char *dbase) {
          buf++;
       tmp = xmalloc(sizeof(avl_entry),1);
       tmp->name = nam;
-      tmp->num = (int)mpx->nfonts++;
+      tmp->num = mpx->nfonts++;
       (void)mpx_avl_probe (mpx,mpx->trfonts, tmp) ;
       if (*buf) {
         *buf = 0; buf++;
@@ -2845,7 +2830,7 @@ static void mpx_read_desc(MPX mpx) {
 	    while ((i = getc(fp)) != EOF && i != '\n');
 	} else if (strcmp(cmd, "sizescale") == 0) {
 	    if (fscanf(fp, "%d", &n) == 1)
-		mpx->sizescale = (float)n;
+		mpx->sizescale = n;
 	    mpx->gflag++;
 	} else if (strcmp(cmd, "charset") == 0) {
 	    return;
@@ -2896,8 +2881,8 @@ static int mpx_scan_desc_line(MPX mpx, int f, char *lin) {
     t = lin;
     while (*lin != ' ' && *lin != '\t' && *lin != '\0')
 	  lin++;
-    s = xmalloc((size_t)(lin-t+1),1);
-    strncpy(s,t,(size_t)(lin-t));
+    s = xmalloc(lin-t+1,1);
+    strncpy(s,t,lin-t);
     while (*lin == ' ' || *lin == '\t')
 	  lin++;
     if (*lin == '"') {
@@ -3023,7 +3008,7 @@ static void mpx_set_num_char(MPX mpx, int f, int c) {
 	  mpx->dmp_str_h1 = hh;
 	  mpx->str_size = mpx->cursize;
     }
-    mpx_print_char(mpx, (unsigned char)c);
+    mpx_print_char(mpx,c);
     mpx->dmp_str_h2 = hh + char_width(f,c);
 }
 
@@ -3036,10 +3021,10 @@ static void mpx_set_string(MPX mpx, char *cname) {
     if (!*cname)
 	  return;
     hh = mpx->h;
-    mpx_set_num_char(mpx,(int)mpx->curfont, *cname);
+    mpx_set_num_char(mpx,mpx->curfont, *cname);
     hh +=  char_width(mpx->curfont,(int)*cname);
     while (*++cname) {
-	  mpx_print_char(mpx,(unsigned char)*cname);
+	  mpx_print_char(mpx,*cname);
 	  hh += char_width(mpx->curfont,(int)*cname);
     }
     mpx->h = (double)floor(hh+0.5);
@@ -3085,7 +3070,7 @@ static char *mpx_copy_spec_char(MPX mpx, char *cname) {
   if (deff==NULL)
      mpx_abort(mpx, "No vardef in charlib/%s", cname);
 
-  while (k < (unsigned)strlen(specintro)) {
+  while (k < strlen(specintro)) {
 	if ((c = getc(deff)) == EOF)
 	    mpx_abort(mpx, "No vardef in charlib/%s", cname);
 	putc(c, mpx->mpxfile);
@@ -3134,7 +3119,7 @@ static void mpx_set_char(MPX mpx, char *cname) {
 
   if (*cname == ' ' || *cname == '\t')
 	return;
-  f = (int)mpx->curfont;
+  f = mpx->curfont;
   tmp.name = cname;
   p = avl_find(mpx->charcodes[f], &tmp);
   if (p==NULL) {
@@ -3491,7 +3476,7 @@ static int mpx_do_x_cmd(MPX mpx, char *s0)
 	   argument to the x Height command is also in scaled points.
 	   sizescale for groff devps is 1000
 	 */
-	if (mpx->sizescale != 0.0) {
+	if (mpx->sizescale) {
 	    if (mpx->unit != 0.0)
 		mpx->Xheight *= mpx->unit;	/* ??? */
 	    else
@@ -3555,7 +3540,7 @@ static int mpx_do_page (MPX mpx, FILE *trf) {
 		   points.
 		   sizescale for groff devps is 1000
 		 */
-		if (mpx->sizescale != 0.0) {
+		if (mpx->sizescale) {
 		    if (mpx->unit != 0.0)
 			mpx->cursize *= mpx->unit;	/* ??? */
 		    else
@@ -3577,7 +3562,7 @@ static int mpx_do_page (MPX mpx, FILE *trf) {
 		while (*cc != ' ' && *cc != '\t' && *cc != '\0');
 		goto set;
 	    case 'N':
-		mpx_set_num_char(mpx, (int)mpx->curfont, mpx_get_int(mpx,c + 1));
+		mpx_set_num_char(mpx,  mpx->curfont, mpx_get_int(mpx,c + 1));
 		goto iarg;
 	    case 'H':
 		 mpx->h = mpx_get_int(mpx, c + 1);
@@ -3676,8 +3661,8 @@ static int mpx_dmp(MPX mpx, char *infile) {
     int more;
     FILE *trf = mpx_xfopen(mpx,infile, "r");
     mpx_open_mpxfile(mpx);
-    if (mpx->banner != NULL)
-      fprintf (mpx->mpxfile,"%s\n",mpx->banner);
+    fprintf(mpx->mpxfile, mpx->banner);
+    fprintf (mpx->mpxfile,"\n");
     mpx_read_desc(mpx);
     mpx_read_fmap(mpx,dbname);
     if (!mpx->gflag)
@@ -3866,7 +3851,7 @@ static char *mpx_print_command (MPX mpx, int cmdlength, char **cmdline) {
   for (i = 0; i < cmdlength ; i++) {
      l += strlen(cmdline[i])+1;
   }
-  s = xmalloc((size_t)l,1); t=s;
+  s = xmalloc(l,1); t=s;
   for (i = 0; i < cmdlength ; i++) {
     if (i>0) *t++ = ' ';
     t = strcpy(t,cmdline[i]);
@@ -3973,7 +3958,7 @@ mpx_do_split_command(MPX mpx, char *maincmd, char ***cmdline_addr, char target) 
   char *piece;
   char *cmd;
   char **cmdline;
-  size_t i;
+  unsigned int i;
   int ret = 0;
   int in_string = 0;
   if (strlen(maincmd) == 0)
@@ -4039,7 +4024,7 @@ static void mpx_command_error (MPX mpx, int cmdlength, char **cmdline) {
 
 
 @ @(mpxout.h@>=
-typedef struct mpx_options {
+typedef struct makempx_options {
   int mode;
   char *cmd;
   char *mptexpre;
@@ -4048,8 +4033,8 @@ typedef struct mpx_options {
   char *banner;
   int debug;
   mpx_file_finder find_file;
-} mpx_options;
-int mpx_makempx (mpx_options *mpxopt) ;
+} makempx_options;
+int mp_makempx (makempx_options *mpxopt) ;
 
  
 @ 
@@ -4058,7 +4043,7 @@ int mpx_makempx (mpx_options *mpxopt) ;
 @d MPXLOG "makempx.log"
 
 @c
-int mpx_makempx (mpx_options *mpxopt) {
+int mp_makempx (makempx_options *mpxopt) {
     MPX mpx;
     char **cmdline, **cmdbits;
     char infile[15];
@@ -4070,11 +4055,10 @@ int mpx_makempx (mpx_options *mpxopt) {
       @<Check if mp file is newer than mpxfile, exit if not@>;
     }
     mpx = malloc(sizeof(struct mpx_data));
-    if (mpx==NULL || mpxopt->cmd==NULL || mpxopt->mpname==NULL || mpxopt->mpxname==NULL)
+    if (mpx==NULL)
       return mpx_fatal_error;
     mpx_initialize(mpx);
-    if (mpxopt->banner!=NULL)
-      mpx->banner = mpxopt->banner;
+    mpx->banner = mpxopt->banner;
     mpx->mode = mpxopt->mode;
     mpx->debug = mpxopt->debug;
     if (mpxopt->find_file!=NULL)

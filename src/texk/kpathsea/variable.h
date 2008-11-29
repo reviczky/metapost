@@ -1,6 +1,6 @@
-/* variable.h: declare variable expander.
+/* variable.h: Declare variable expander.
 
-   Copyright 1993, 1995, 2008 Karl Berry.
+   Copyright (C) 1993, 1995, 2008 Karl Berry.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
