@@ -194,7 +194,7 @@ maketex P2C(kpse_file_format_type, format, string*, args)
     string new_cmd = NULL, app_name = NULL;
 
     char buf[1024+1];
-    int num;
+    DWORD num;
     extern char *quote_args(char **argv);
 
     if (look_for_cmd(args[0], &app_name) == FALSE) {

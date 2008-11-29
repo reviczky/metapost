@@ -34,16 +34,10 @@ have our customary command-line interface.
 @d false 0
  
 @c
-#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#if defined (HAVE_SYS_TIME_H)
-#include <sys/time.h>
-#elif defined (HAVE_SYS_TIMEB_H)
-#include <sys/timeb.h>
-#endif
 #include <mplib.h>
 #include <mpxout.h>
 #ifdef WIN32
@@ -54,15 +48,6 @@ extern char *kpathsea_version_string;
 extern string kpse_program_name;
 @= /*@@null@@*/ @> static char *mpost_tex_program = NULL;
 static int debug = 0; /* debugging for makempx */
-#ifdef WIN32
-#define GETCWD _getcwd
-#else
-#define GETCWD getcwd
-#endif
-static boolean recorder_enabled = false;
-static string recorder_name = NULL;
-static FILE *recorder_file = NULL;
-static char *job_name = NULL;
 
 @ Allocating a bit of memory, with error detection:
 
@@ -201,24 +186,6 @@ static string normalize_quotes (const char *name, const char *mesg) {
     return ret;
 }
 
-@ Helpers for the filename recorder.
-
-@c
-void recorder_start(char *jobname) {
-    char cwd[1024];
-    recorder_name = (string)xmalloc(strlen(jobname)+5);
-    strcpy(recorder_name, jobname);
-    strcat(recorder_name, ".fls");
-    recorder_file = xfopen(recorder_name, FOPEN_W_MODE);
-
-    if(GETCWD(cwd,1020) != NULL) {
-      fprintf(recorder_file, "PWD %s\n", cwd);
-    } else {
-      fprintf(recorder_file, "PWD <unknown>\n");
-    }
-}
-
-
 @ @c 
 @= /*@@null@@*/ @> static char *makempx_find_file (MPX mpx, const char *nam, 
                                                    const char *mode, int ftype) {
@@ -284,12 +251,12 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       mpost_xfree(qmpname);
       mpost_xfree(qmpxname);
     } else {
-      mpx_options * mpxopt;
+      makempx_options * mpxopt;
       char *s = NULL;
       char *maincmd = NULL;
       int mpxmode = mp_troff_mode(mp);
       char *mpversion = mp_metapost_version () ;
-      mpxopt = mpost_xmalloc(sizeof(mpx_options));
+      mpxopt = mpost_xmalloc(sizeof(makempx_options));
       if (mpost_tex_program != NULL && *mpost_tex_program != '\0') {
         maincmd = mpost_xstrdup(mpost_tex_program);
       } else {
@@ -321,7 +288,7 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
         strcpy (mpxopt->banner, banner);
         strcat (mpxopt->banner, mpversion);
       }
-      ret = mpx_makempx(mpxopt);
+      ret = mp_makempx(mpxopt);
       mpost_xfree(mpxopt->cmd);
       mpost_xfree(mpxopt->mptexpre);
       mpost_xfree(mpxopt->banner);
@@ -428,14 +395,6 @@ static void *mpost_open_file(MP mp, const char *fname, const char *fmode, int ft
 	  realmode[1] = 'b';
 	  realmode[2] = '\0';
       ret = (void *)fopen(s,realmode);
-      if (recorder_enabled) {
-        if (!recorder_file)
-            recorder_start(job_name);
-        if (*fmode == 'r')
-          fprintf(recorder_file, "INPUT %s\n", s);
-        else
-          fprintf(recorder_file, "OUTPUT %s\n", s);
-      }
       free(s);
       return ret;
     }
@@ -486,10 +445,8 @@ if (!nokpse)
       }
     } else if (option_is ("progname")) {
       user_progname = mpost_optarg;
-    } else if (option_is("troff") || option_is("T")) {
+    } else if (option_is("troff")) {
       options->troff_mode = (int)true;
-    } else if (option_is("recorder")) {
-      recorder_enabled = true;
     } else if (option_is ("tex")) {
       mpost_tex_program = mpost_optarg;
     } else if (option_is("interaction")) {
@@ -502,29 +459,16 @@ if (!nokpse)
       } else if (option_arg("errorstopmode")) {
         options->interaction = mp_error_stop_mode;
       } else {
-        fprintf(stdout,"warning: %s: unknown option argument %s\n", argv[0], argv[a]);
+        fprintf(stdout,"unknown option argument %s\n", argv[a]);
       }
     } else if (option_is("no-kpathsea")) {
       nokpse=true;
-    } else if (option_is("file-line-error")) {
-      options->file_line_error_style=true;
-    } else if (option_is("no-file-line-error")) {
-      options->file_line_error_style=false;
     } else if (option_is("help")) {
       @<Show help and exit@>;
     } else if (option_is("version")) {
       @<Show version and exit@>;
-    } else if (option_is("8bit") ||
-               option_is("parse-first-line")) {
-      /* do nothing, these are always on */
-    } else if (option_is("halt-on-error") ||
-               option_is("translate-file") ||
-               option_is("output-directory") ||
-               option_is("no-parse-first-line")) {
-      fprintf(stdout,"warning: %s: unimplemented option %s\n", argv[0], argv[a]);
     } else if (option_is("")) {
-      fprintf(stdout,"fatal error: %s: unknown option %s\n", argv[0], argv[a]);
-      exit(EXIT_FAILURE);
+      continue; /* ignore unknown options */
     } else {
       break;
     }
@@ -550,14 +494,12 @@ fprintf(stdout,
 "  -interaction=STRING       set interaction mode (STRING=batchmode/nonstopmode/\n"
 "                            scrollmode/errorstopmode)\n"
 "  -jobname=STRING           set the job name to STRING\n"
-"  -progname=STRING          set program (and mem) name to STRING\n"
-"  -tex=TEXPROGRAM           use TEXPROGRAM for text labels\n");
+"  -progname=STRING          set program (and mem) name to STRING\n");
 fprintf(stdout,
-"  [-no]-file-line-error     disable/enable file:line:error style messages\n"
+"  -tex=TEXPROGRAM           use TEXPROGRAM for text labels\n"
 "  -kpathsea-debug=NUMBER    set path searching debugging flags according to\n"
 "                            the bits of NUMBER\n"
 "  -mem=MEMNAME or &MEMNAME  use MEMNAME instead of program name or a %%& line\n"
-"  -recorder                 enable filename recorder\n"
 "  -troff                    set prologues:=1 and assume TEXPROGRAM is really troff\n"
 "  -help                     display this help and exit\n"
 "  -version                  output version information and exit\n"
@@ -754,50 +696,6 @@ if ( options->mem_name == NULL )
     options->mem_name = mpost_xstrdup(kpse_program_name);
 
 
-@ The jobname needs to be known for the recorder to work.
-
-@<Discover the job name@>=
-if ( options->job_name == NULL ) {
-  char *m = NULL; /* head of potential |job_name| */
-  char *n = NULL; /* a moving pointer */
-  if (options->command_line != NULL){
-    m = mpost_xstrdup(options->command_line);
-    n = m;
-    if (*(options->command_line) != '\\') { /* this is the simple case */
-      while (*n != '\0' && *n != ' ') n++;
-      if (n>m) {
-        *n='\0';
-        job_name = mpost_xstrdup(m);
-      }
-    } else { /* this is still not perfect, but better */
-      char *mm =  strstr(m,"input ");
-      if (mm != NULL) {
-         mm += 6;
-         n = mm;
-         while (*n != '\0' && *n != ' ' && *n!=';') n++;
-         if (n>mm) {
-           *n='\0';
-           job_name = mpost_xstrdup(mm);
-        }
-      }
-    }
-    free(m);
-  }
-  if (job_name == NULL) {
-    if (options->ini_version == 1 &&
-        options->mem_name != NULL) {
-      job_name = mpost_xstrdup(options->mem_name);
-    }
-  }
-  if (job_name == NULL) {
-    job_name = mpost_xstrdup("mpout");
-  }
-  options->job_name = job_name;
-} else {
-  job_name = mpost_xstrdup(options->job_name);
-}
-
-
 @ Now this is really it: \MP\ starts and ends here.
 
 @c 
@@ -831,7 +729,6 @@ int main (int argc, char **argv) { /* |start_here| */
   if (options->ini_version!=(int)true) {
     @<Discover the mem name@>;
   }
-  @<Discover the job name@>;
   @<Register the callback routines@>;
   mp = mp_initialize(options);
   mpost_xfree(options->command_line);

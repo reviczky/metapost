@@ -21,11 +21,6 @@
 
 % Here is TeX material that gets inserted after \input webmac
 
-\font\tenlogo=logo10 % font used for the METAFONT logo
-\font\logos=logosl10
-\def\MF{{\tenlogo META}\-{\tenlogo FONT}}
-\def\MP{{\tenlogo META}\-{\tenlogo POST}}
-
 \def\title{Reading TEX metrics files}
 \pdfoutput=1
 
@@ -43,13 +38,18 @@
 @d help3  { mp->help_ptr=3; hlp3 /* use this with three help lines */
 
 @c 
-#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "mplib.h"
 #include "mpmp.h" /* internal header */
+#include "mptfmin.h"
 @h
+
+@ Written header
+
+@(mptfmin.h@>=
+extern font_number mp_read_font_info (MP mp, char *fname);
 
 @ The |font_ps_name| for a built-in font should be what PostScript expects.
 A preliminary name is obtained here from the \.{TFM} name as given in the
