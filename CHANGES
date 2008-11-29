@@ -1,277 +1,78 @@
-
-This file is public domain.
-
-----------------------------------------------------------------------
-What is new in MetaPost version 1.100:
-----------------------------------------------------------------------
-
-CHANGES compared to the previous release, 1.005:
-
-* This version is based on MPlib, the C conversion of MetaPost.
-
-  The one user-visible change is that the btex ... etex
-  label conversion is now handled internally instead of via
-  the external "mpware" programs. These programs are therefore
-  no longer distributed.
-
-* There is a new manual, mplibapi.pdf, that describes the internal
-  interface to MPlib.
-
-* The file 'mpintro' is no longer distributed because it is
-  obsolete (it has been that way for some time).
-
-* The distribution now includes Dan Luecking's mpsproof.tex.
-
-
-CHANGES compared to the previous beta, 1.091:
-
-* The DVI -> mpx converter was bugged when virtual fonts were used.
-
-* MP could crash when a string was added to the string pool that 
-  was too large to fit.
-
-* The string pool compaction routine was called much too often, thus
-  preventing unnecessary slowdowns.
-
-* Various problems with uninitialized option settings and missing mem
-  files or pfb files have been fixed.
-
-* There was a line buffer overrun possible in the file reader.
-
-* mpost now honours --recorder and --file-line-error.
-
-* MP now accepts file names with  paths (separator is /) and with
-  embedded spaces (using " for quoting)
-
-* There could be empty lines in the PS output.
-
-* Full 8-bit fonts (i.e. font using character slot 255) could create 
-  an eternal loop.
-
-* The handling of equations with addition or substractions between two 
-  unknowns in the right hand side was wrong.
-
-* The first line of the PS font encoding output could be broken 
-  inbetween a glyph name and its preceding slash.
-
-* Font inclusion in the PS backend would fail for all fonts that had 
-  glyph ids using the 8th bit.
-
+$Id: CHANGES,v 1.9 2005/08/24 10:54:02 taco Exp $
+By John Hobby and others.  Public domain (see README).
 
 ----------------------------------------------------------------------
-What is new in MetaPost beta version 1.091:
+What is new in version 1.005:
 ----------------------------------------------------------------------
 
-* Dash lists were interfaced incorrectly by the lua bindings.
+* In MetaPost 1.004, mpost --version still incorrectly reported 1.003 
 
-* The Type 1 Font inclusion in the previous version produced invalid
-  subsets.
+* C Compilation of MetaPost 1.004 was broken on MacOS X 10.5
 
-* The configure script now also checks for sys/time.h
+* The sources package did not contain mpboxes.pdf
 
-* The error message you get for invalid mem files now mentions the
-  name of the file as well as the nature of the problem.
+* Some last-minute fixes to the manual
 
 ----------------------------------------------------------------------
-What is new in MetaPost beta version 1.090:
+What is new in version 1.004:
 ----------------------------------------------------------------------
 
-This MetaPost release is based on MPlib. For those of you who are not 
-aware of the MPlib project yet:
+* The picture color component commands misbehaved in 1.003:
+  the current (default) colormodel was not taken into consideration,
+  so all colors had to be explicit for "redpart" etc. to work. 
 
-MPlib is the name of the new, revamped version of the MetaPost
-interpreter. It is implemented in Cweb, and internally consists
-of a core library, an mpx generation library, and a frontend
-driver program (mpost).
+  In 1.004 for "defaulted" colors, the suitable value in the current 
+  (default) colormodel is returned without any errors. This change
+  also reverts to silently defaulting a 'black' color when asking
+  for the redpart etc. of an object that cannot be colored at all.
 
-There are no changes to the MetaPost language, but nevertheless there
-are some minor differences with the last pascal-web based version of 
-MetaPost (1.005):
+* The picture color component commands misbehaved in 1.003 in
+  a different manner also: the defaults for uninitialized CMYK
+  color picture parts were still assuming 'black' was defined as 
+  (1,1,1,1) instead of as (0,0,0,1).
 
-* The MPlib distribution is released under the GPL version 2 or, 
-  at your option, any later version.
+* The macro Gwithpc_ in the graph.mp package did not work properly
+  with non-rgb colormodel objects.
 
-* The commandline is slightly different, run mpost --help for details.
+* plain.mp has a new macro, 'colorpart', that returns the color
+  parts of a graphical object within a picture in a form suitable
+  for feeding it back to 'withcolor'.
 
-* The mem file format is changed, you have to regenerate any 
-  existing ones.
+* The latest kpathsea library from TeXLive is included.
 
-* The new mpx generation library includes the label generation
-  functionality that was previously provided by 'makempx', and
-  this internal code will be used instead of an external program.
-  That is, unless the MPXCOMMAND variable is set in the  environment 
-  or texmf.cnf. The 'mpware' programs became obsolete and are no 
-  longer included in the distribution.
-
-* Most of the memory configuration variables from texmf.cnf
-  have become obsolete due to dynamic reallocation. The four remaining 
-  ones are 'main_memory', 'hash_size', 'max_in_open', 'param_size'.
-  These are only taken into account at mem generation time, the
-  values are stored in and reloaded from the mem file.
-
-* The core MPlib library does not interpret an initial '&' as anything
-  special and it does not support re-initialization using a different
-  mem file either. The command line program mpost _does_ interpret '&' 
-  as an alias for the -mem switch to preserve (some) compatility.
-
-* The MPlib distribution includes lua script language bindings.
-
-Following are the NEWS items for the previous beta releases of MPlib.
+* There is now a separate manual for the boxes package (mpboxes.pdf).
 
 ----------------------------------------------------------------------
-What is new in the beta release of MPlib 1.090:
+What is new in version 1.003:
 ----------------------------------------------------------------------
 
-* The lua bindings to MPlib are added to the distribution, and
-  build.sh can now build an mplib.so loadable module for lua
-  (this needs an installed lua 5.1 distribution)
+* Polygonal pens now work better (bug #3 and #7 at supelec.fr).
 
-* Some internal macros are renamed so that the exported C structure
-  fields could have better names, and a new document (mplibapi.tex)
-  provides the documentation of the C api and Lua bindings.
+* When asking for a color part in a picture object, the color models
+  now have to match each other, otherwise an error will be reported
+  and the return value will be set to a 'black' part.
 
-* The texmf and manual trees are now included again.
+* The Makefile fragment (metapost.mk) now defines a separate mpost target 
+  for better integration in TeXLive.
 
-* (un)dumping mem files is delegated to a separate cweb source file.
+* There was a bug in the internal handling of withprescript and 
+  withpostscript, resulting in incorrect output when paths using 
+  such scripts were stored in picture variables.
 
-* All gcc-isms in the build and configure scripts have been removed.
+* A newline was missing from the PostScript output when the 
+  procset internal variable was set, so the first line of that
+  accidentally became a PostScript comment.
 
-* The kpathsea library is updated.
+* Applicable changes from Knuth's updates for MetaFont 2.718281 
+  are incorporated.
 
-----------------------------------------------------------------------
-What is new in the beta release of MPlib 1.085:
-----------------------------------------------------------------------
+* Mpto did not play nice with %&<format> verbatimtex lines, it now
+  automatically tries to detect comment-lines.
 
-* Determination of the mem name to use in non-ini mode is now much 
-  closer to the web2c approach. 
+* Dvitomp  1.003 has higher limits for some internal constants like 
+  the number of allowed fonts in DVI files.
 
-* There is now a magic word in the beginning of the mem file to make
-  sure it is written by the correct version of MPlib.
-
-* Fixed the disappearing comment sign in the to-be-typeset document 
-  created by the mpx generation subsystem.
-
-* Various identifiers have been renamed to avoid clashes (that prevented
-  the source from building correctly on many platforms)
-
-* A great many small changes and fixes have been added after running 
-  splint on the generated C source.
-
-
-----------------------------------------------------------------------
-What is new in the beta release of MPlib 1.080:
-----------------------------------------------------------------------
-
-* The MPlib distribution is released under the GPL version 2 or, at 
-  your option, any later version. The copyright statements in the source
-  files have been updated to reflect this.
-
-* The mpost program banner now contains the kpathsea version, and no 
-  longer mentions the fact that the source is now cweb at all.
-
-* The mpost program once again supports 'E' error responses.
-
-* There are some minor internal API changes, but there is still no 
-  documentation for the API, so that is not very interesting yet.
-
-
-----------------------------------------------------------------------
-What is new in the beta release of MPlib 1.060:
-----------------------------------------------------------------------
-
-* The MPlib distribution is released under the GPL version 2.
-
-* This release is the first that replaces the old metapost distribution
-  completely. The executable is now named 'mpost' with engine name
-  'metapost'.
-
-* The release now includes a cweb implementation of the makempx 
-  functionality that is linked into the mpost executable. 
-  This internal code will be used unless the MPXCOMMAND variable is set.
-  Because of this functionality, the mpware directory is no longer 
-  included and the standalone programs 'makempx', 'newer', 'mpto',
-  'dvitomp' and 'dmp'. are no longer maintained.
-
-* This is the first development release of the new cycle, and contains 
-  all of the functionality of Metapost 1.005. The mpost version is now 
-  1.060, and the special version number for the cweb version has been 
-  removed from the banner.
-  
-----------------------------------------------------------------------
-What is new in the alpha release of MPlib (0.20.0):
-----------------------------------------------------------------------
-
-* Two bugs in MP 1.002 were fixed by Giuseppe Bilotta, both fixes
-  are about polygonals pens and will be included in the upcoming 
-  MP 1.003 release also.
-
-* It is now possible to ask for the envelope of a path drawn as 
-  traced by a (non-elliptical) pen:
-
-    path p,q;
-    p = fullcircle scaled 30;
-    q = envelope pensquare of p;
-   
-* There is a lua interface now, and it is already used by luatex. 
-
-  To play with this, currently the best solution is to fetch the 
-  0.25.0 beta of luatex: http://foundry.supelec.fr/projects/luatex
-  This embeds MPlib 0.25.0 as well as its documentation. 
-
-* Many bugs were fixed.
-
-----------------------------------------------------------------------
-What is new in the alpha release of MPlib (0.10.0):
-----------------------------------------------------------------------
-
-* The source is converted to cweb, and split into a library part
-  (mpdir/lib/*.w) and a frontend executable (mpdir/mpost.w).
-
-* The front end executable is named "newmpost", this takes
-  care of configuring the MPlib library via C code, and uses
-  kpathsea for file searching. There is no change file involved, 
-  and the web2c runtime library is not used.
-
-* Some of the internal arrays now grow dynamically when needed:
-
-  * the input buffer
-  * the string pool and number of strings
-  * the font memory and number of fonts
-  * the number of "readfrom" and "write" files
-  * the path segment size
-  * the input nesting stack
-  * the number of new internals
-  * the TFM writing arrays (but these are limited by TFM format)
-
-  Still not doing that (so these can only be changed in --ini mode):
-
-  * the main memory
-  * the hash size
-  * the number of simultaneous macro parameters
-  * the level of "input" file nesting
-
-* The following command-line options are ignored by the front-end
-  command (for now):
-
-  -[no-]file-line-error
-  -halt-on-error
-  -output-directory=
-  -[no-]parse-first-line
-  -recorder
-  -translate-file=
-  -8bit
-  -T
-  
-  The other web2c command-line options should work as normal.
-
-* the mpware tools are not in this distribution, their functionality
-  will eventually be assimilated into the frontend application.
-
-* the build process depends on a local "ctangle" command being in the 
-  path, for now. The confiration and building system is not yet complete.
-
-* API documentation is still missing, but the MetaPost input language 
-  has not changed.
+* The manual is improved.
 
 ----------------------------------------------------------------------
 What is new in version 1.002:

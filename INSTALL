@@ -1,28 +1,34 @@
-
+$Id$
 This file is public domain.
 
+metapost
+======
 
-INSTALL for MPlib releases
+INSTALL for metapost
 ========================
 
-This distribution is partially a subset of the TeX Live distribution,
-hence the peculiar directory layout.
+This distribution is a (very!) stripped-down version of the TeX Live
+distribution.  All source code is in the directory src; the script Build
+will generate and populate a directory named build.
 
-All source code is in the directory src; the script build.sh will 
-generate and populate a directory named build, the script build.cross 
-will generate and populate a directory named build-win (this assumes
-you are on linux and have a cross-compiling mingw32 installed). 
+Try the script Build from this top-level directory. If it succeeds, you
+should end up with the executable files mpost and dvitomp in
+build/texk/web2c along with the pool file mp.pool.
 
-For cross-compilation, you have to make sure you have access to the
-command "ctangle" from the commandline, and if not install it
-(e.g. from TEXLIVE).
+There will also be four executables named dmp, mpto, newer, and makempx in 
+the directory build/texk/web2c/mpware
 
-If it succeeds, you will end up with the executable "mpost" in
-build/texk/web2c/mpdir. If it doesn't, feel free to email questions
-to mp-implementors@tug.org. To install, simply copy the executable
-to somewhere in your path. 
+Replace all these files in your TeX installation by the new ones, and
+regenerate any .mem files in your TeX installation.
 
-For now, the executable still contains a statically linked libmplib.
+The directory texmf contains the standard (mplib) include files,
+and the optional support files for troff are in troff. These need to
+be copied to a location where your installation can find them at
+runtime.
 
-See CHANGES for a rundown of differences between this release and 
-previous releases. 
+The manual sources are included in the directory manual.  PDFs are
+available at:
+http://cvs.sarovar.org/cgi-bin/cvsweb.cgi/doc/?cvsroot=metapost
+
+If all else fails, follow the clues in README, src/texk/INSTALL and
+src/texk/web2c/INSTALL.

@@ -20,7 +20,6 @@ LIBTOOL = $(SHELL) $(kpathsea_parent)/libtool
 ALL_CPPFLAGS = $(DEFS) -I. -I$(srcdir) -I$(kpathsea_parent) \
   -I$(kpathsea_srcdir_parent) $(prog_cflags) $(CPPFLAGS)
 ALL_CFLAGS = $(ALL_CPPFLAGS) $(CFLAGS)
-ALL_CXXFLAGS = $(ALL_CPPFLAGS) $(CXXFLAGS)
 compile = $(CC) $(ALL_CFLAGS)
 
 .SUFFIXES:

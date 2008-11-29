@@ -613,7 +613,7 @@ usagehelp(program==ctangle ? CTANGLEHELP : CWEAVEHELP, NULL);
 
 @<Display version information and exit@>=
 printversionandexit((program==ctangle ? ctangle_banner : cweave_banner),
-  "Silvio Levy and Donald E. Knuth", NULL, NULL);
+  "Silvio Levy and Donald E. Knuth", NULL);
 @.--version@>
 
 @** Index.

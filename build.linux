@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# $Id: Build,v 1.3 2005/05/08 15:55:26 taco Exp $
+# builds new pdftex binaries
+MAKE=make
+STRIP=strip
+# this deletes all previous builds. 
+# comment out the rm and mkdir if you want to keep them (and uncomment and
+# change the $MAKE distclean below)
+rm -rf build
+mkdir build
+cd build
+# clean up (uncomment the next line if you have commented out the rm and
+# mkdir above)
+# $MAKE distclean;
+
+NATIVE=`pwd`
+export NATIVE
+
+#
+# guess the correct datadir
+
+DATADIR=`which kpsewhich > /dev/null && kpsewhich texmf.cnf | sed 's%/texmf.cnf$%%' | sed 's%/web2c$%%' | sed 's%/texmf[^\/]*$%%'` 
+if test -z "$DATADIR"; then 
+  DATADIR=/usr/share
+fi
+
+# do a configure without all the things we don't need
+../src/configure \
+            --datadir=$DATADIR  \
+            --without-bibtex8   \
+            --without-cjkutils  \
+            --without-detex     \
+            --without-dialog    \
+            --without-dtl       \
+            --without-dvi2tty   \
+            --without-dvidvi    \
+            --without-dviljk    \
+            --without-dvipdfm   \
+            --without-dvipsk    \
+            --without-eomega    \
+            --without-etex      \
+            --without-gsftopk   \
+            --without-lacheck   \
+            --without-makeindexk\
+            --without-musixflx  \
+            --without-odvipsk   \
+            --without-omega     \
+            --without-oxdvik    \
+            --without-ps2pkm    \
+            --without-seetexk   \
+            --without-t1utils   \
+            --without-tetex     \
+            --without-tex4htk   \
+            --without-texinfo   \
+            --without-texlive   \
+            --without-ttf2pk    \
+            --without-tth       \
+            --without-xdvik     \
+            || exit 1 
+# make the binaries
+(cd texk/web2c/web2c; $MAKE) || exit 1
+(cd texk/web2c; $MAKE ../kpathsea/libkpathsea.la) || exit 1
+(cd texk/web2c/lib; $MAKE) || exit 1
+(cd texk/web2c; $MAKE mp-programs) || exit 1
+# go back 
+cd ..
+unset NATIVE
+ 
+mkdir -p native/texk/web2c/web2c
+mkdir -p native/texk/web2c/mpware
+mkdir -p native/texk/web2c/mpdir
+cp build/texk/web2c/web2c/{web2c,fixwrites,splitup} native/texk/web2c/web2c
+cp build/texk/web2c/mpware/{dmp,makempx,newer,mpto} native/texk/web2c
+cp build/texk/web2c/{dvitomp,mpost,tangle,tangleboot} native/texk/web2c
+cp build/texk/web2c/mpdir/makecpool native/texk/web2c/mpdir
+mkdir -p linux-bin
+cp -f native/texk/web2c/{mpost,dvitomp,newer,makempx,dmp,mpto} linux-bin
+strip linux-bin/*
+
+# show the results
+ls -ltr native/texk/web2c

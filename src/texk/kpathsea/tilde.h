@@ -1,4 +1,4 @@
-/* tilde.h: declare tilde expander.
+/* tilde.h: Declare tilde expander.
 
    Copyright 1993, 2008 Karl Berry.
 

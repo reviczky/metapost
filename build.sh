@@ -1,22 +1,7 @@
 #!/usr/bin/env bash
-# $Id$
-#
-# Copyright 2008 Taco Hoekwater.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>
-#
-#
+# $Id: Build,v 1.3 2005/05/08 15:55:26 taco Exp $
+# builds new pdftex binaries
+
 # OME 20070912: Taken from luatex build.sh:
 # try to find gnu make; we need it
 MAKE=make;
@@ -32,6 +17,7 @@ else
   echo "If it doesn't, please install GNU-make."
 fi
 
+STRIP=strip
 # this deletes all previous builds. 
 # comment out the rm and mkdir if you want to keep them (and uncomment and
 # change the $MAKE distclean below)
@@ -48,29 +34,51 @@ DATADIR=`which kpsewhich > /dev/null && kpsewhich texmf.cnf | sed 's%/texmf.cnf$
 if test -z "$DATADIR"; then 
   DATADIR=/usr/share
 fi
-mkdir texk
-cd texk
-../../src/texk/configure --datadir=$DATADIR || exit 1 
 
-# make the kpathsea library
-(cd kpathsea;  $MAKE ../kpathsea/libkpathsea.la) || exit 1
+# do a configure without all the things we don't need
+../src/configure \
+            --datadir=$DATADIR  \
+            --without-bibtex8   \
+            --without-cjkutils  \
+            --without-detex     \
+            --without-dialog    \
+            --without-dtl       \
+            --without-dvi2tty   \
+            --without-dvidvi    \
+            --without-dviljk    \
+            --without-dvipdfm   \
+            --without-dvipsk    \
+            --without-eomega    \
+            --without-etex      \
+            --without-gsftopk   \
+            --without-lacheck   \
+            --without-makeindexk\
+            --without-musixflx  \
+            --without-odvipsk   \
+            --without-omega     \
+            --without-oxdvik    \
+            --without-ps2pkm    \
+            --without-seetexk   \
+            --without-t1utils   \
+            --without-tetex     \
+            --without-tex4htk   \
+            --without-texinfo   \
+            --without-texlive   \
+            --without-ttf2pk    \
+            --without-tth       \
+            --without-xdvik     \
+            || exit 1 
 
-# make ctangle
-mkdir web2c/cwebdir
-cd web2c/cwebdir
-(cp ../../../../src/texk/web2c/cwebdir/* .; $MAKE )|| exit 1 
-cd ../..
-
-CTANGLE=../cwebdir/ctangle 
-export CTANGLE 
-
-# make the library
-mkdir web2c/mpdir
-cd web2c/mpdir
-(../../../../src/texk/web2c/mpdir/configure --enable-lua=yes; $MAKE )|| exit 1 
-
+# make the binaries
+(cd texk/web2c/web2c; $MAKE) || exit 1
+(cd texk/web2c; $MAKE ../kpathsea/libkpathsea.la) || exit 1
+(cd texk/web2c/lib; $MAKE) || exit 1
+(cd texk/web2c; $MAKE mp-programs) || exit 1
+# strip them
+$STRIP texk/web2c/mpost texk/web2c/dvitomp
 # go back
-cd ../../../..
+cd ..
 # show the results
-ls -l build/texk/web2c/mpdir/mpost
-#ls -l build/texk/web2c/mpdir/.libs/mplib.so
+ls -l build/texk/web2c/mpost build/texk/web2c/dvitomp build/texk/web2c/mp.pool \
+      build/texk/web2c/mpware/dmp build/texk/web2c/mpware/makempx \
+      build/texk/web2c/mpware/mpto build/texk/web2c/mpware/newer
