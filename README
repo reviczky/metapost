@@ -1,0 +1,62 @@
+
+This README file for the MetaPost distribution is public domain.
+
+MetaPost is a system for producing graphics developed by John Hobby at
+AT&T, based on Donald Knuth's Metafont. The current distribution is
+written in Cweb, and released under GPL version 2. See COPYING
+for details.
+
+- The MetaPost home page is http://tug.org/metapost.
+
+- The <metapost@tug.org> mailing list is for general help and discussion
+  of MetaPost; to subscribe, visit http://tug.org/mailman/listinfo/metapost.
+
+- MetaPost development is currently hosted at supelec.fr; visit
+  https://foundry.supelec.fr/projects/metapost for the current development
+  team members, sources, and much else.
+  
+- Please report bugs and request enhancements either on the
+  metapost@tug.org list, or through Sarovar.  (Please do not send
+  reports directly to Dr. Hobby any more.)
+
+This README file merely describes this packaging and source layout of
+the MetaPost system.  See INSTALL for some installation help, and
+CHANGES for recent and not-so-recent improvements to MetaPost.
+
+The source installation package has been created by extracting the
+bits and pieces of TeX Live 2007 that are absolutely needed to compile
+Metapost in such a way that it can be plugged into an existing
+web2c-based installation afterwards. See http://tug.org/texlive/ for more
+information.
+
+The executable that is created by the build process is named mpost. 
+As is normal in current web2c systems, this executable functions as both
+inimp and virmp by means of a command-line switch.
+
+The source for MetaPost is mplib/*.w
+
+Have fun!
+
+-----------------------------------------------------------------------
+The following AT&T software is hereby put into the public domain:
+
+    The MetaPost system, including the interpreter, mp,
+    and support programs mpto, dvitomp and dmp
+
+This does not constitute a precedent to be applied to any other AT&T
+copyright software.
+
+AT&T relinquishes all intellectual property rights to this code, both
+source and binary form and permission is granted for anyone to use,
+duplicate, modify and redistribute it.
+
+AT&T provides absolutely NO WARRENTEE OF ANY KIND with respect to this
+software.  The entire risk as to the quality and performance of this
+software is with the user.
+
+IN NO EVENT WILL AT&T BE LIABLE TO ANYONE FOR ANY DAMAGES
+ARISING OUT OF THE USE OF THIS SOFTWARE, INCLUDING, WITHOUT
+LIMITATION, DAMAGES RESULTING FROM LOST DATA OR LOST PROFITS,
+OR FOR ANY SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES.
+
+-----------------------------------------------------------------------
