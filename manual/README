@@ -1,0 +1,60 @@
+Public domain.
+
+This is the source for the documentation for MetaPost, consisting of
+"A User's Manual for MetaPost", "Drawing Boxes with MetaPost",
+"Drawing Graphs with MetaPost" and the introductory article "The
+MetaPost System", written by John D. Hobby.
+They were converted to more modern LaTeX by Dylan Thurston and are
+currently maintained by Troy Henderson and Stephan Hennig.  The manual
+may be freely used and modified, but John Hobby makes these requests:
+
+ - I request that it remain clear that I am the author of
+   "A User's Manual for MetaPost" and "Drawing Graphs with MetaPost".
+ - I request to be consulted before significant changes are made.
+
+See the end of mpman.tex or mpgraph.tex for the precise conditions.
+Auxiliary files (and the MetaPost software itself) are public domain,
+including the data (.d) files here, which due to file format limitations
+cannot incorporate a license themselves.
+
+Included files:
+
+Makefile
+README
+TODO
+agepop91.d
+agepopm.d
+cm2lm.map
+countries.d
+ctabbing.sty
+demo.ms
+energy.d
+figs.1
+figs.mp
+grdemo-doc.ms
+grdemo-doc.pdf
+grdemo-doc.ps
+grdemo.eps
+grdemo.mp
+grdemo.ms
+grdemo.pdf
+lead.d
+matmul.d
+mp.1
+mpboxes.bib
+mpboxes.mp
+mpboxes.tex
+mpgraph.bib
+mpgraph.mp
+mpgraph.tex
+mpintro.bib
+mpintro.mp
+mpintro.tex
+mpman-optab.tex
+mpman.bib
+mpman.ist
+mpman.mp
+mpman.tex
+timepop.d
+
+See the Makefile for the sequence of commands to create the DVI/PS/PDF output.
