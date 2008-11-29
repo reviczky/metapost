@@ -22,7 +22,7 @@
 unsigned long
 xftell P2C(FILE *, f,  string, filename)
 {
-    long where = ftello (f);
+    long where = ftell (f);
     
     if (where < 0)
         FATAL_PERROR(filename);
