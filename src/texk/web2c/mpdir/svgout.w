@@ -360,7 +360,7 @@ and character references. Just in case the input string is UTF-8, allow everythi
 except the characters that have to be quoted for XML well-formedness.
 
 @<Character |k| is not allowed in SVG output@>=
-  (k=='&')||(k=='>')||(k=='<')
+  (k=='\0')||(k=='&')||(k=='>')||(k=='<')
 
 @ We often need to print a pair of coordinates. 
 
@@ -794,11 +794,12 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
   mp_edge_object *ch;
   p = h->body;
   while ( p!=NULL ) { 
+    l = gr_text_l(p);
     if ((gr_type(p) == mp_text_code) &&
         (gr_font_n(p)!=null_font) && 
-        (strlen(gr_text_p(p))>0) ) {
+        (l>0) ) {
       char *s = gr_text_p(p);
-      while (*s) {
+      while (l-->0) {
         do_mark(gr_font_n(p), *s);
         s++;
       }
@@ -891,10 +892,12 @@ static void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) ;
 void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) {
   char *s, *fname;
   int k; /* a character */
+  int l; /* string length */
   boolean transformed ;
   scaled ds; /* design size and scale factor for a text node */
   fname = mp->font_ps_name[gr_font_n(p)];
   s = gr_text_p(p);
+  l = gr_text_l(p);
   transformed=(gr_txx_val(p)!=unity)||(gr_tyy_val(p)!=unity)||
               (gr_txy_val(p)!=0)||(gr_tyx_val(p)!=0);
   mp_svg_open_starttag(mp, "g");
@@ -922,9 +925,11 @@ void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) {
   mp_svg_close_starttag(mp);
    
   if (prologues == 3 ) {
+     
     scaled charwd;
     double wd = 0.0; /* this is in PS design units */
-    while ((k=(int)*s++)) {
+    while (l-->0) {
+      k=(int)*s++;
       mp_svg_open_starttag(mp, "use");
       append_string("#GLYPH");
       append_string(mp->font_name[gr_font_n(p)]);
@@ -950,7 +955,8 @@ void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) {
     mp_svg_reset_buf(mp);
     mp_svg_close_starttag(mp);
   
-    while ((k=(int)*s++)) {
+    while (l-->0) {
+      k=(int)*s++;
       if ( (@<Character |k| is not allowed in SVG output@>) ) {
         append_string("&#");
         mp_svg_store_int(mp,k);
@@ -1221,7 +1227,7 @@ int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
       }
       break;
     case mp_text_code: 
-      if ( (gr_font_n(p)!=null_font) && (strlen(gr_text_p(p))>0) ) {
+      if ( (gr_font_n(p)!=null_font) && (gr_text_l(p)>0) ) {
         mp_svg_text_out(mp, (mp_text_object *)p, qprologues);
       }
       break;
