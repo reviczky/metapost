@@ -1,0 +1,35 @@
+\begin{figure*}
+	\begin{center}
+		\scalebox{0.36}{\includegraphics{previewer}}
+		\caption{\MP{} Previewer}\label{fig:previewer}
+	\end{center}
+\end{figure*}
+
+\begin{section}{\MP{} compilation}
+A typical \MP{} source file consists of one or more figures.  Compilation of the source file generates an \EPS{} graphic for each figure.  These \EPS{} graphics are not self-contained in that fonts used in labels are not embedded into the graphic.
+
+If \texttt{foo.mp} is a typical \MP{} source file, then its contents are of the following form:
+\begin{lstlisting}[xleftmargin=1.25\parindent]
+beginfig(1);
+   |\normalfont\textit{draw commands}|
+endfig;
+beginfig(2);
+   |\normalfont\textit{draw commands}|
+endfig;
+|\dots|
+beginfig(|\normalfont$n$|);
+   |\normalfont\textit{draw commands}|
+endfig;
+end;
+\end{lstlisting}
+Executing \begin{flushleft}\hspace*{1.25\parindent}\texttt{mpost foo.mp}\end{flushleft} yields the following output:
+\begin{lstlisting}[xleftmargin=1.25\parindent]
+This is MetaPost, Version |\normalfont$\langle$\textit{version}$\rangle$|
+(foo.mp [1] [2] |\normalfont\ldots| [|\normalfont$n$|] )
+|\normalfont$n$| output files written: foo.1 .. foo.|\rlap{\normalfont$n$}|
+Transcript written on foo.log.
+\end{lstlisting}
+
+For users who just want to ``get started'' using \MP{}, a \MP{} previewer is available at \url{http://www.tlhiv.org/MetaPostPreviewer}.  This previewer (illustrated in Figure \ref{fig:previewer}) is simply a graphical interface to \MP{} itself.
+It generates a single graphic with the option to save the output in both \EPS{} and \PDF{} formats.  Users may also choose to save the source code and can view the compilation log to assist in debugging.
+\end{section}
