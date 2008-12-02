@@ -2049,6 +2049,8 @@ static int mpx_dvitomp (MPX mpx, char *dviname) {
     mpx_stop_picture(mpx);
     fprintf(mpx->mpxfile,"mpxbreak\n");
   }
+  if(mpx->dvi_file)
+    mpx_fclose(mpx,mpx->dvi_file);
   if ( mpx->history<=mpx_cksum_trouble )
     return 0;
   else 
