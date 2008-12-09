@@ -791,6 +791,13 @@ if ( options->job_name == NULL ) {
   }
   if (job_name == NULL) {
     job_name = mpost_xstrdup("mpout");
+  } else {
+    int i = strlen(job_name);
+    if (i>3
+        && *(job_name+i-3)=='.' 
+        && *(job_name+i-2)=='m' 
+        && *(job_name+i-1)=='p')
+    *(job_name+i-3)='\0';
   }
   options->job_name = job_name;
 } else {
