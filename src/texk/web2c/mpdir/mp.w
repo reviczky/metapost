@@ -89,13 +89,13 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.100" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.101" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @(mpmp.h@>=
-#define metapost_version "1.100"
-#define metapost_magic (('M'*256) + 'P')*65536 + 1100
+#define metapost_version "1.101"
+#define metapost_magic (('M'*256) + 'P')*65536 + 1101
 #define metapost_old_magic (('M'*256) + 'P')*65536 + 1080
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
