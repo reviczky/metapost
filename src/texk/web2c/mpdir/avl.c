@@ -1,792 +1,2636 @@
-/* Produced by texiweb from libavl.w on 2003/01/06 at 18:07. */
 
-/* libavl - library for manipulation of binary trees.
-   Copyright (C) 1998-2002 Free Software Foundation, Inc.
+/* pyavl -- File "avl.c" */
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; either version 2 of the
-   License, or (at your option) any later version.
+/* AVL trees with RANK field and parent pointers */
 
-   This program is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-   See the GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.
-
-   The author may be contacted at <blp@gnu.org> on the Internet, or
-   write to Ben Pfaff, Stanford University, Computer Science Dept., 353
-   Serra Mall, Stanford CA 94305, USA.
-*/
-
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "avl.h"
 
-/* Creates and returns a new table
-   with comparison function |compare| using parameter |param|
-   and memory allocator |allocator|.
-   Returns |NULL| if memory allocation failed. */
-struct avl_table *avl_create (avl_comparison_func * compare, void *param,
-                              struct libavl_allocator *allocator)
+#ifdef AVL_SHOW_ERROR_ON
+#define AVL_SHOW_ERROR(fmt,arg)	fprintf(stderr, "! avl.c: " fmt, arg)
+#else
+#define AVL_SHOW_ERROR(fmt,arg) (void) (fmt), (void) (arg)
+#endif
+
+void *
+avl_default_item_copy (const void *item)
 {
-    struct avl_table *tree;
-
-    assert (compare != NULL);
-
-    if (allocator == NULL)
-        allocator = &avl_allocator_default;
-
-    tree = allocator->libavl_malloc (allocator, sizeof *tree);
-    if (tree == NULL)
-        return NULL;
-
-    tree->avl_root = NULL;
-    tree->avl_compare = compare;
-    tree->avl_param = param;
-    tree->avl_alloc = allocator;
-    tree->avl_count = 0;
-    tree->avl_generation = 0;
-
-    return tree;
+  return (void *) item;
 }
 
-/* Search |tree| for an item matching |item|, and return it if found.
-   Otherwise return |NULL|. */
-void *avl_find (const struct avl_table *tree, const void *item)
+void *
+avl_default_item_dispose (void *item)
 {
-    const struct avl_node *p;
-
-    assert (tree != NULL && item != NULL);
-    for (p = tree->avl_root; p != NULL;) {
-        int cmp = tree->avl_compare (item, p->avl_data, tree->avl_param);
-
-        if (cmp < 0)
-            p = p->avl_link[0];
-        else if (cmp > 0)
-            p = p->avl_link[1];
-        else                    /* |cmp == 0| */
-            return p->avl_data;
-    }
-
-    return NULL;
+  return (void *) NULL;
 }
 
-/* Inserts |item| into |tree| and returns a pointer to |item|'s address.
-   If a duplicate item is found in the tree,
-   returns a pointer to the duplicate without inserting |item|.
-   Returns |NULL| in case of memory allocation failure. */
-void **avl_probe (struct avl_table *tree, void *item)
+#ifndef MPW_C
+typedef uint32_t rbal_t;		/* integral type to encode rank and skew bits */
+#else
+typedef UInt32 rbal_t;
+#endif
+
+/*
+ * avl_node structure
+ */
+
+typedef struct avl_node
 {
-    struct avl_node *y, *z;     /* Top node to update balance factor, and parent. */
-    struct avl_node *p, *q;     /* Iterator, and parent. */
-    struct avl_node *n;         /* Newly inserted node. */
-    struct avl_node *w;         /* New root of rebalanced subtree. */
-    int dir;                    /* Direction to descend. */
-
-    unsigned char da[AVL_MAX_HEIGHT];   /* Cached comparison results. */
-    int k = 0;                  /* Number of cached results. */
-
-    assert (tree != NULL && item != NULL);
-
-    z = (struct avl_node *) &tree->avl_root;
-    y = tree->avl_root;
-    dir = 0;
-    for (q = z, p = y; p != NULL; q = p, p = p->avl_link[dir]) {
-        int cmp = tree->avl_compare (item, p->avl_data, tree->avl_param);
-        if (cmp == 0)
-            return &p->avl_data;
-
-        if (p->avl_balance != 0)
-            z = q, y = p, k = 0;
-        da[k++] = dir = cmp > 0;
-    }
-
-    n = q->avl_link[dir] =
-        tree->avl_alloc->libavl_malloc (tree->avl_alloc, sizeof *n);
-    if (n == NULL)
-        return NULL;
-
-    tree->avl_count++;
-    n->avl_data = item;
-    n->avl_link[0] = n->avl_link[1] = NULL;
-    n->avl_balance = 0;
-    if (y == NULL)
-        return &n->avl_data;
-
-    for (p = y, k = 0; p != n; p = p->avl_link[da[k]], k++)
-        if (da[k] == 0)
-            p->avl_balance--;
-        else
-            p->avl_balance++;
-
-    if (y->avl_balance == -2) {
-        struct avl_node *x = y->avl_link[0];
-        if (x->avl_balance == -1) {
-            w = x;
-            y->avl_link[0] = x->avl_link[1];
-            x->avl_link[1] = y;
-            x->avl_balance = y->avl_balance = 0;
-        } else {
-            assert (x->avl_balance == +1);
-            w = x->avl_link[1];
-            x->avl_link[1] = w->avl_link[0];
-            w->avl_link[0] = x;
-            y->avl_link[0] = w->avl_link[1];
-            w->avl_link[1] = y;
-            if (w->avl_balance == -1)
-                x->avl_balance = 0, y->avl_balance = +1;
-            else if (w->avl_balance == 0)
-                x->avl_balance = y->avl_balance = 0;
-            else                /* |w->avl_balance == +1| */
-                x->avl_balance = -1, y->avl_balance = 0;
-            w->avl_balance = 0;
-        }
-    } else if (y->avl_balance == +2) {
-        struct avl_node *x = y->avl_link[1];
-        if (x->avl_balance == +1) {
-            w = x;
-            y->avl_link[1] = x->avl_link[0];
-            x->avl_link[0] = y;
-            x->avl_balance = y->avl_balance = 0;
-        } else {
-            assert (x->avl_balance == -1);
-            w = x->avl_link[0];
-            x->avl_link[0] = w->avl_link[1];
-            w->avl_link[1] = x;
-            y->avl_link[1] = w->avl_link[0];
-            w->avl_link[0] = y;
-            if (w->avl_balance == +1)
-                x->avl_balance = 0, y->avl_balance = -1;
-            else if (w->avl_balance == 0)
-                x->avl_balance = y->avl_balance = 0;
-            else                /* |w->avl_balance == -1| */
-                x->avl_balance = +1, y->avl_balance = 0;
-            w->avl_balance = 0;
-        }
-    } else
-        return &n->avl_data;
-    z->avl_link[y != z->avl_link[0]] = w;
-
-    tree->avl_generation++;
-    return &n->avl_data;
+  struct avl_node *sub[2];
+  struct avl_node *up;
+  rbal_t rbal;
+  void *item;
 }
+avl_node;
 
-/* Inserts |item| into |table|.
-   Returns |NULL| if |item| was successfully inserted
-   or if a memory allocation error occurred.
-   Otherwise, returns the duplicate item. */
-void *avl_insert (struct avl_table *table, void *item)
+/*
+ * avl_tree structure
+ */
+
+struct avl_tree_
 {
-    void **p = avl_probe (table, item);
-    return p == NULL || *p == item ? NULL : *p;
+  avl_node *root;
+  avl_size_t count;				/* how many nodes in tree rooted at [root] */
+  avl_compare_func compare;		/* compare items */
+  avl_item_copy_func copy;
+  avl_item_dispose_func dispose;
+  avl_alloc_func alloc;			/* to allocate memory (same signature as malloc) */
+  avl_dealloc_func dealloc;		/* to deallocate memory (same signature as free) */
+  void *param;
+};
+
+#define Item_Compare(cmp, tree, item1, item2)\
+            (*cmp)(tree->param, item1, item2)
+
+/* patches (November 2004) */
+
+#if AVL_CMPERR != 0
+#define CMPERR_CHECK__FIND(param)      if (avl_errcmp_occurred(param))  return NULL
+#define CMPERR_CHECK__INDEX(param)     if (avl_errcmp_occurred(param))  return 0
+#define CMPERR_CHECK__SPAN(param)      if (avl_errcmp_occurred(param))  return -2
+#define CMPERR_CHECK__INS(param)       if (avl_errcmp_occurred(param))  return -2
+#define CMPERR_CHECK__DEL(param)		(avl_errcmp_occurred(param) ? -2 : 0)
+#define CMPERR_CHECK__SPLIT(param)     if (avl_errcmp_occurred(param))  return -2
+#define CMPERR_CHECK__VERIFY(param)    && (!avl_errcmp_occurred(param))
+#else
+#define CMPERR_CHECK__FIND(param)      (void) param
+#define CMPERR_CHECK__INDEX(param)     (void) param
+#define CMPERR_CHECK__SPAN(param)      (void) param
+#define CMPERR_CHECK__INS(param)       (void) param
+#define CMPERR_CHECK__DEL(param)		0
+#define CMPERR_CHECK__SPLIT(param)     (void) param
+#define CMPERR_CHECK__VERIFY(param)	/* nothing */
+#endif
+
+#define sub_left(a)     (a)->sub[0]
+#define sub_right(a)    (a)->sub[1]
+#define get_item(a)     (a)->item
+
+/* RANK(a) = size of left subtree + 1 */
+
+#define rbal(a)\
+ (a)->rbal
+#define rzero(a)\
+ ( rbal(a) & ~3 )
+#define get_bal(a)\
+ ( rbal(a) & 3 )
+#define is_lskew(a)\
+ ( rbal(a) & 1 )
+#define is_rskew(a)\
+ ( rbal(a)>>1 & 1)
+#define set_lskew(a)\
+  ( rbal(a) |= 1 )
+#define set_rskew(a)\
+  ( rbal(a) |= 2 )
+#define set_skew(a,d)\
+  ( rbal(a) |= (1 << d) )
+#define unset_lskew(a)\
+  ( rbal(a) &= ~1 )
+#define unset_rskew(a)\
+  ( rbal(a) &= ~2 )
+#define get_rank(a)\
+ ( rbal(a) >> 2 )
+#define set_rank(a,r)\
+ ( rbal(a) = (r<<2 | get_bal(a))  )
+#define incr_rank(a,r)\
+ ( rbal(a) += r<<2 )
+#define decr_rank(a,r)\
+ ( rbal(a) -= r<<2 )
+
+#define AVL_MIN_DEPTH   0
+
+/*** Node management ***/
+
+#define DETACH_FUNC     1		/* nonzero to use function not macro */
+
+/* helper structure */
+typedef enum
+{
+  OP_BACKUP, OP_DETACH, OP_FREE
 }
-
-/* Inserts |item| into |table|, replacing any duplicate item.
-   Returns |NULL| if |item| was inserted without replacing a duplicate,
-   or if a memory allocation error occurred.
-   Otherwise, returns the item that was replaced. */
-void *avl_replace (struct avl_table *table, void *item)
+whichop_t;
+struct ptr_handler
 {
-    void **p = avl_probe (table, item);
-    if (p == NULL || *p == item)
-        return NULL;
-    else {
-        void *r = *p;
-        *p = item;
-        return r;
-    }
-}
+  whichop_t whichop;
+  void *ptr;
+};
 
-/* Deletes from |tree| and returns an item matching |item|.
-   Returns a null pointer if no matching item found. */
-void *avl_delete (struct avl_table *tree, const void *item)
+#define ini_ptr_handler(h,op)   struct ptr_handler h = { OP_##op, NULL }
+#define clear_node(a)                                           \
+    sub_left(a) = NULL;                                         \
+    sub_right(a) = NULL;                                        \
+    (a)->up = NULL;                                             \
+    rbal(a) = 4u
+
+/* Called by 'avl_ins', 'avl_dup', 'node_slice' */
+static avl_node *
+new_node (void *item, avl_node * up, avl_tree t)
 {
-    /* Stack of nodes. */
-    struct avl_node *pa[AVL_MAX_HEIGHT];        /* Nodes. */
-    unsigned char da[AVL_MAX_HEIGHT];   /* |avl_link[]| indexes. */
-    int k;                      /* Stack pointer. */
+  avl_node *a = (*t->alloc) (sizeof (avl_node));
 
-    struct avl_node *p;         /* Traverses tree to find node to delete. */
-    int cmp;                    /* Result of comparison between |item| and |p|. */
-
-    assert (tree != NULL && item != NULL);
-
-    k = 0;
-    p = (struct avl_node *) &tree->avl_root;
-    for (cmp = -1; cmp != 0;
-         cmp = tree->avl_compare (item, p->avl_data, tree->avl_param)) {
-        int dir = cmp > 0;
-
-        pa[k] = p;
-        da[k++] = dir;
-
-        p = p->avl_link[dir];
-        if (p == NULL)
-            return NULL;
-    }
-    item = p->avl_data;
-
-    if (p->avl_link[1] == NULL)
-        pa[k - 1]->avl_link[da[k - 1]] = p->avl_link[0];
-    else {
-        struct avl_node *r = p->avl_link[1];
-        if (r->avl_link[0] == NULL) {
-            r->avl_link[0] = p->avl_link[0];
-            r->avl_balance = p->avl_balance;
-            pa[k - 1]->avl_link[da[k - 1]] = r;
-            da[k] = 1;
-            pa[k++] = r;
-        } else {
-            struct avl_node *s;
-            int j = k++;
-
-            for (;;) {
-                da[k] = 0;
-                pa[k++] = r;
-                s = r->avl_link[0];
-                if (s->avl_link[0] == NULL)
-                    break;
-
-                r = s;
-            }
-
-            s->avl_link[0] = p->avl_link[0];
-            r->avl_link[0] = s->avl_link[1];
-            s->avl_link[1] = p->avl_link[1];
-            s->avl_balance = p->avl_balance;
-
-            pa[j - 1]->avl_link[da[j - 1]] = s;
-            da[j] = 1;
-            pa[j] = s;
-        }
-    }
-
-    tree->avl_alloc->libavl_free (tree->avl_alloc, p);
-
-    assert (k > 0);
-    while (--k > 0) {
-        struct avl_node *y = pa[k];
-
-        if (da[k] == 0) {
-            y->avl_balance++;
-            if (y->avl_balance == +1)
-                break;
-            else if (y->avl_balance == +2) {
-                struct avl_node *x = y->avl_link[1];
-                if (x->avl_balance == -1) {
-                    struct avl_node *w;
-                    assert (x->avl_balance == -1);
-                    w = x->avl_link[0];
-                    x->avl_link[0] = w->avl_link[1];
-                    w->avl_link[1] = x;
-                    y->avl_link[1] = w->avl_link[0];
-                    w->avl_link[0] = y;
-                    if (w->avl_balance == +1)
-                        x->avl_balance = 0, y->avl_balance = -1;
-                    else if (w->avl_balance == 0)
-                        x->avl_balance = y->avl_balance = 0;
-                    else        /* |w->avl_balance == -1| */
-                        x->avl_balance = +1, y->avl_balance = 0;
-                    w->avl_balance = 0;
-                    pa[k - 1]->avl_link[da[k - 1]] = w;
-                } else {
-                    y->avl_link[1] = x->avl_link[0];
-                    x->avl_link[0] = y;
-                    pa[k - 1]->avl_link[da[k - 1]] = x;
-                    if (x->avl_balance == 0) {
-                        x->avl_balance = -1;
-                        y->avl_balance = +1;
-                        break;
-                    } else
-                        x->avl_balance = y->avl_balance = 0;
-                }
-            }
-        } else {
-            y->avl_balance--;
-            if (y->avl_balance == -1)
-                break;
-            else if (y->avl_balance == -2) {
-                struct avl_node *x = y->avl_link[0];
-                if (x->avl_balance == +1) {
-                    struct avl_node *w;
-                    assert (x->avl_balance == +1);
-                    w = x->avl_link[1];
-                    x->avl_link[1] = w->avl_link[0];
-                    w->avl_link[0] = x;
-                    y->avl_link[0] = w->avl_link[1];
-                    w->avl_link[1] = y;
-                    if (w->avl_balance == -1)
-                        x->avl_balance = 0, y->avl_balance = +1;
-                    else if (w->avl_balance == 0)
-                        x->avl_balance = y->avl_balance = 0;
-                    else        /* |w->avl_balance == +1| */
-                        x->avl_balance = -1, y->avl_balance = 0;
-                    w->avl_balance = 0;
-                    pa[k - 1]->avl_link[da[k - 1]] = w;
-                } else {
-                    y->avl_link[0] = x->avl_link[1];
-                    x->avl_link[1] = y;
-                    pa[k - 1]->avl_link[da[k - 1]] = x;
-                    if (x->avl_balance == 0) {
-                        x->avl_balance = +1;
-                        y->avl_balance = -1;
-                        break;
-                    } else
-                        x->avl_balance = y->avl_balance = 0;
-                }
-            }
-        }
-    }
-
-    tree->avl_count--;
-    tree->avl_generation++;
-    return (void *) item;
-}
-
-/* Refreshes the stack of parent pointers in |trav|
-   and updates its generation number. */
-static void trav_refresh (struct avl_traverser *trav)
-{
-    assert (trav != NULL);
-
-    trav->avl_generation = trav->avl_table->avl_generation;
-
-    if (trav->avl_node != NULL) {
-        avl_comparison_func *cmp = trav->avl_table->avl_compare;
-        void *param = trav->avl_table->avl_param;
-        struct avl_node *node = trav->avl_node;
-        struct avl_node *i;
-
-        trav->avl_height = 0;
-        for (i = trav->avl_table->avl_root; i != node;) {
-            assert (trav->avl_height < AVL_MAX_HEIGHT);
-            assert (i != NULL);
-
-            trav->avl_stack[trav->avl_height++] = i;
-            i = i->avl_link[cmp (node->avl_data, i->avl_data, param) > 0];
-        }
-    }
-}
-
-/* Initializes |trav| for use with |tree|
-   and selects the null node. */
-void avl_t_init (struct avl_traverser *trav, struct avl_table *tree)
-{
-    trav->avl_table = tree;
-    trav->avl_node = NULL;
-    trav->avl_height = 0;
-    trav->avl_generation = tree->avl_generation;
-}
-
-/* Initializes |trav| for |tree|
-   and selects and returns a pointer to its least-valued item.
-   Returns |NULL| if |tree| contains no nodes. */
-void *avl_t_first (struct avl_traverser *trav, struct avl_table *tree)
-{
-    struct avl_node *x;
-
-    assert (tree != NULL && trav != NULL);
-
-    trav->avl_table = tree;
-    trav->avl_height = 0;
-    trav->avl_generation = tree->avl_generation;
-
-    x = tree->avl_root;
-    if (x != NULL)
-        while (x->avl_link[0] != NULL) {
-            assert (trav->avl_height < AVL_MAX_HEIGHT);
-            trav->avl_stack[trav->avl_height++] = x;
-            x = x->avl_link[0];
-        }
-    trav->avl_node = x;
-
-    return x != NULL ? x->avl_data : NULL;
-}
-
-/* Initializes |trav| for |tree|
-   and selects and returns a pointer to its greatest-valued item.
-   Returns |NULL| if |tree| contains no nodes. */
-void *avl_t_last (struct avl_traverser *trav, struct avl_table *tree)
-{
-    struct avl_node *x;
-
-    assert (tree != NULL && trav != NULL);
-
-    trav->avl_table = tree;
-    trav->avl_height = 0;
-    trav->avl_generation = tree->avl_generation;
-
-    x = tree->avl_root;
-    if (x != NULL)
-        while (x->avl_link[1] != NULL) {
-            assert (trav->avl_height < AVL_MAX_HEIGHT);
-            trav->avl_stack[trav->avl_height++] = x;
-            x = x->avl_link[1];
-        }
-    trav->avl_node = x;
-
-    return x != NULL ? x->avl_data : NULL;
-}
-
-/* Searches for |item| in |tree|.
-   If found, initializes |trav| to the item found and returns the item
-   as well.
-   If there is no matching item, initializes |trav| to the null item
-   and returns |NULL|. */
-void *avl_t_find (struct avl_traverser *trav, struct avl_table *tree,
-                  void *item)
-{
-    struct avl_node *p, *q;
-
-    assert (trav != NULL && tree != NULL && item != NULL);
-    trav->avl_table = tree;
-    trav->avl_height = 0;
-    trav->avl_generation = tree->avl_generation;
-    for (p = tree->avl_root; p != NULL; p = q) {
-        int cmp = tree->avl_compare (item, p->avl_data, tree->avl_param);
-
-        if (cmp < 0)
-            q = p->avl_link[0];
-        else if (cmp > 0)
-            q = p->avl_link[1];
-        else {                  /* |cmp == 0| */
-
-            trav->avl_node = p;
-            return p->avl_data;
-        }
-
-        assert (trav->avl_height < AVL_MAX_HEIGHT);
-        trav->avl_stack[trav->avl_height++] = p;
-    }
-
-    trav->avl_height = 0;
-    trav->avl_node = NULL;
-    return NULL;
-}
-
-/* Attempts to insert |item| into |tree|.
-   If |item| is inserted successfully, it is returned and |trav| is
-   initialized to its location.
-   If a duplicate is found, it is returned and |trav| is initialized to
-   its location.  No replacement of the item occurs.
-   If a memory allocation failure occurs, |NULL| is returned and |trav|
-   is initialized to the null item. */
-void *avl_t_insert (struct avl_traverser *trav, struct avl_table *tree,
-                    void *item)
-{
-    void **p;
-
-    assert (trav != NULL && tree != NULL && item != NULL);
-
-    p = avl_probe (tree, item);
-    if (p != NULL) {
-        trav->avl_table = tree;
-        trav->avl_node = ((struct avl_node *)
-                          ((char *) p - offsetof (struct avl_node, avl_data)));
-        trav->avl_generation = tree->avl_generation - 1;
-        return *p;
-    } else {
-        avl_t_init (trav, tree);
-        return NULL;
-    }
-}
-
-/* Initializes |trav| to have the same current node as |src|. */
-void *avl_t_copy (struct avl_traverser *trav, const struct avl_traverser *src)
-{
-    assert (trav != NULL && src != NULL);
-
-    if (trav != src) {
-        trav->avl_table = src->avl_table;
-        trav->avl_node = src->avl_node;
-        trav->avl_generation = src->avl_generation;
-        if (trav->avl_generation == trav->avl_table->avl_generation) {
-            trav->avl_height = src->avl_height;
-            memcpy (trav->avl_stack, (const void *) src->avl_stack,
-                    sizeof *trav->avl_stack * trav->avl_height);
-        }
-    }
-
-    return trav->avl_node != NULL ? trav->avl_node->avl_data : NULL;
-}
-
-/* Returns the next data item in inorder
-   within the tree being traversed with |trav|,
-   or if there are no more data items returns |NULL|. */
-void *avl_t_next (struct avl_traverser *trav)
-{
-    struct avl_node *x;
-
-    assert (trav != NULL);
-
-    if (trav->avl_generation != trav->avl_table->avl_generation)
-        trav_refresh (trav);
-
-    x = trav->avl_node;
-    if (x == NULL) {
-        return avl_t_first (trav, trav->avl_table);
-    } else if (x->avl_link[1] != NULL) {
-        assert (trav->avl_height < AVL_MAX_HEIGHT);
-        trav->avl_stack[trav->avl_height++] = x;
-        x = x->avl_link[1];
-
-        while (x->avl_link[0] != NULL) {
-            assert (trav->avl_height < AVL_MAX_HEIGHT);
-            trav->avl_stack[trav->avl_height++] = x;
-            x = x->avl_link[0];
-        }
-    } else {
-        struct avl_node *y;
-
-        do {
-            if (trav->avl_height == 0) {
-                trav->avl_node = NULL;
-                return NULL;
-            }
-
-            y = x;
-            x = trav->avl_stack[--trav->avl_height];
-        }
-        while (y == x->avl_link[1]);
-    }
-    trav->avl_node = x;
-
-    return x->avl_data;
-}
-
-/* Returns the previous data item in inorder
-   within the tree being traversed with |trav|,
-   or if there are no more data items returns |NULL|. */
-void *avl_t_prev (struct avl_traverser *trav)
-{
-    struct avl_node *x;
-
-    assert (trav != NULL);
-
-    if (trav->avl_generation != trav->avl_table->avl_generation)
-        trav_refresh (trav);
-
-    x = trav->avl_node;
-    if (x == NULL) {
-        return avl_t_last (trav, trav->avl_table);
-    } else if (x->avl_link[0] != NULL) {
-        assert (trav->avl_height < AVL_MAX_HEIGHT);
-        trav->avl_stack[trav->avl_height++] = x;
-        x = x->avl_link[0];
-
-        while (x->avl_link[1] != NULL) {
-            assert (trav->avl_height < AVL_MAX_HEIGHT);
-            trav->avl_stack[trav->avl_height++] = x;
-            x = x->avl_link[1];
-        }
-    } else {
-        struct avl_node *y;
-
-        do {
-            if (trav->avl_height == 0) {
-                trav->avl_node = NULL;
-                return NULL;
-            }
-
-            y = x;
-            x = trav->avl_stack[--trav->avl_height];
-        }
-        while (y == x->avl_link[0]);
-    }
-    trav->avl_node = x;
-
-    return x->avl_data;
-}
-
-/* Returns |trav|'s current item. */
-void *avl_t_cur (struct avl_traverser *trav)
-{
-    assert (trav != NULL);
-
-    return trav->avl_node != NULL ? trav->avl_node->avl_data : NULL;
-}
-
-/* Replaces the current item in |trav| by |new| and returns the item replaced.
-   |trav| must not have the null item selected.
-   The new item must not upset the ordering of the tree. */
-void *avl_t_replace (struct avl_traverser *trav, void *new)
-{
-    void *old;
-
-    assert (trav != NULL && trav->avl_node != NULL && new != NULL);
-    old = trav->avl_node->avl_data;
-    trav->avl_node->avl_data = new;
-    return old;
+  if (a != NULL)
+	{
+	  sub_left (a) = NULL;
+	  sub_right (a) = NULL;
+	  a->up = up;
+	  a->rbal = 4u;
+	  a->item = (*t->copy) (item);
+	}
+  return a;
 }
 
 static void
-copy_error_recovery (struct avl_node **stack, int height,
-                     struct avl_table *new, avl_item_func * destroy)
+free_node (avl_node * a, avl_tree t)
 {
-    assert (stack != NULL && height >= 0 && new != NULL);
-
-    for (; height > 2; height -= 2)
-        stack[height - 1]->avl_link[1] = NULL;
-    avl_destroy (new, destroy);
+  a->item = (*t->dispose) (a->item);
+  (*t->dealloc) (a);
 }
 
-/* Copies |org| to a newly created tree, which is returned.
-   If |copy != NULL|, each data item in |org| is first passed to |copy|,
-   and the return values are inserted into the tree,
-   with |NULL| return values taken as indications of failure.
-   On failure, destroys the partially created new tree,
-   applying |destroy|, if non-null, to each item in the new tree so far,
-   and returns |NULL|.
-   If |allocator != NULL|, it is used for allocation in the new tree.
-   Otherwise, the same allocator used for |org| is used. */
-struct avl_table *avl_copy (const struct avl_table *org, avl_copy_func * copy,
-                            avl_item_func * destroy,
-                            struct libavl_allocator *allocator)
+#define backup_item(backup,item,t)  if (backup == NULL) ; else *backup = (*t->copy)(item)
+
+#if ! DETACH_FUNC
+
+/* macro to detach node [a] from tree [t] */
+#define detach_node(a,t,h)  { struct ptr_handler *ch = h;       \
+    clear_node(a);                                              \
+    do {                                                        \
+        if (ch == NULL) ;                                       \
+        else if (ch->whichop == OP_DETACH){                     \
+            ch->ptr = a;                                        \
+            break;                                              \
+        } else if (ch->whichop == OP_BACKUP){                   \
+            ch->ptr = (*t->copy)(a->item);                      \
+        }                                                       \
+        free_node(a, t);                                        \
+    } while (0);}                                               \
+    t->count--
+#else
+
+/* function to detach node [a] from tree [t] */
+static void
+detach_node (avl_node * a, avl_tree t, struct ptr_handler *h)
 {
-    struct avl_node *stack[2 * (AVL_MAX_HEIGHT + 1)];
-    int height = 0;
+  clear_node (a);
+  do
+	{
+	  if (h == NULL);
+	  else if (h->whichop == OP_DETACH)
+		{
+		  h->ptr = a;
+		  break;
+		}
+	  else if (h->whichop == OP_BACKUP)
+		{
+		  h->ptr = (*t->copy) (a->item);
+		}
+	  free_node (a, t);
+	}
+  while (0);
+  t->count--;
+}
+#endif /* DETACH_FUNC */
 
-    struct avl_table *new;
-    const struct avl_node *x;
-    struct avl_node *y;
+/*** Tree methods ***/
 
-    assert (org != NULL);
-    new = avl_create (org->avl_compare, org->avl_param,
-                      allocator != NULL ? allocator : org->avl_alloc);
-    if (new == NULL)
-        return NULL;
-    new->avl_count = org->avl_count;
-    if (new->avl_count == 0)
-        return new;
+avl_tree
+avl_create (avl_compare_func compare, avl_item_copy_func copy,
+			avl_item_dispose_func dispose, avl_alloc_func alloc,
+			avl_dealloc_func dealloc, void *param)
+{
+  avl_tree t = (*alloc) (sizeof (struct avl_tree_));
 
-    x = (const struct avl_node *) &org->avl_root;
-    y = (struct avl_node *) &new->avl_root;
-    for (;;) {
-        while (x->avl_link[0] != NULL) {
-            assert (height < 2 * (AVL_MAX_HEIGHT + 1));
-
-            y->avl_link[0] =
-                new->avl_alloc->libavl_malloc (new->avl_alloc,
-                                               sizeof *y->avl_link[0]);
-            if (y->avl_link[0] == NULL) {
-                if (y != (struct avl_node *) &new->avl_root) {
-                    y->avl_data = NULL;
-                    y->avl_link[1] = NULL;
-                }
-
-                copy_error_recovery (stack, height, new, destroy);
-                return NULL;
-            }
-
-            stack[height++] = (struct avl_node *) x;
-            stack[height++] = y;
-            x = x->avl_link[0];
-            y = y->avl_link[0];
-        }
-        y->avl_link[0] = NULL;
-
-        for (;;) {
-            y->avl_balance = x->avl_balance;
-            if (copy == NULL)
-                y->avl_data = x->avl_data;
-            else {
-                y->avl_data = copy (x->avl_data, org->avl_param);
-                if (y->avl_data == NULL) {
-                    y->avl_link[1] = NULL;
-                    copy_error_recovery (stack, height, new, destroy);
-                    return NULL;
-                }
-            }
-
-            if (x->avl_link[1] != NULL) {
-                y->avl_link[1] =
-                    new->avl_alloc->libavl_malloc (new->avl_alloc,
-                                                   sizeof *y->avl_link[1]);
-                if (y->avl_link[1] == NULL) {
-                    copy_error_recovery (stack, height, new, destroy);
-                    return NULL;
-                }
-
-                x = x->avl_link[1];
-                y = y->avl_link[1];
-                break;
-            } else
-                y->avl_link[1] = NULL;
-
-            if (height <= 2)
-                return new;
-
-            y = stack[--height];
-            x = stack[--height];
-        }
-    }
+  if (t == NULL)
+	AVL_SHOW_ERROR ("%s\n", "couldn't create new handle in avl_create()");
+  else
+	{
+	  t->root = NULL;
+	  t->count = 0;
+	  t->param = param;
+	  t->compare = compare;
+	  t->copy = copy;
+	  t->dispose = dispose;
+	  t->alloc = alloc;
+	  t->dealloc = dealloc;
+	}
+  return t;
 }
 
-/* Frees storage allocated for |tree|.
-   If |destroy != NULL|, applies it to each data item in inorder. */
-void avl_destroy (struct avl_table *tree, avl_item_func * destroy)
+/* Empty the tree, using rotations */
+
+static void
+node_empty (avl_tree t)
 {
-    struct avl_node *p, *q;
+  avl_node *a, *p;
 
-    assert (tree != NULL);
-
-    for (p = tree->avl_root; p != NULL; p = q)
-        if (p->avl_link[0] == NULL) {
-            q = p->avl_link[1];
-            if (destroy != NULL && p->avl_data != NULL)
-                destroy (p->avl_data, tree->avl_param);
-            tree->avl_alloc->libavl_free (tree->avl_alloc, p);
-        } else {
-            q = p->avl_link[0];
-            p->avl_link[0] = q->avl_link[1];
-            q->avl_link[1] = p;
-        }
-
-    tree->avl_alloc->libavl_free (tree->avl_alloc, tree);
+  for (a = t->root; a != NULL;)
+	{
+	  p = a;
+	  if (sub_right (a) == NULL)
+		a = sub_left (a);
+	  else
+		{
+		  while (sub_left (a) != NULL)
+			{
+			  /* rotR(a) */
+			  a = sub_left (a);
+			  sub_left (p) = sub_right (a);
+			  sub_right (a) = p;
+			  p = a;
+			}
+		  a = sub_right (p);
+		}
+	  free_node (p, t);
+	  t->count--;
+	}
+  t->root = NULL;
 }
 
-/* Allocates |size| bytes of space using |malloc()|.
-   Returns a null pointer if allocation fails. */
-void *avl_malloc (struct libavl_allocator *allocator, size_t size)
+/* [t] is an existing tree handle */
+
+/* this function invokes node_empty() */
+
+void
+avl_reset (avl_tree t,
+		   avl_compare_func compare,
+		   avl_item_copy_func copy,
+		   avl_item_dispose_func dispose,
+		   avl_alloc_func alloc, avl_dealloc_func dealloc)
 {
-    assert (allocator != NULL && size > 0);
-    return malloc (size);
+  if (t == NULL)
+	return;
+  node_empty (t);
+  t->compare = compare;
+  t->copy = copy;
+  t->dispose = dispose;
+  t->alloc = alloc;
+  t->dealloc = dealloc;
 }
 
-/* Frees |block|. */
-void avl_free (struct libavl_allocator *allocator, void *block)
+void
+avl_empty (avl_tree t)
 {
-    assert (allocator != NULL && block != NULL);
-    free (block);
+  if (t != NULL)
+	node_empty (t);
 }
 
-/* Default memory allocator that uses |malloc()| and |free()|. */
-struct libavl_allocator avl_allocator_default = {
-    avl_malloc,
-    avl_free
+/* Destroy nodes, free handle */
+
+void
+avl_destroy (avl_tree t)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL)
+	return;
+#endif
+  node_empty (t);
+  (*t->dealloc) (t);
+}
+
+avl_tree
+avl_dup (avl_tree t, void *param)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL)
+	return NULL;
+#endif
+  {
+	avl_tree tt = avl_create (
+							   /*(avl_compare_func) */ t->compare,
+							   /*(avl_item_copy_func) */ t->copy,
+							   /*(avl_item_dispose_func) */ t->dispose,
+							   /*(avl_alloc_func) */ t->alloc,
+							   /*(avl_dealloc_func) */ t->dealloc,
+							   param);
+
+	if (tt == NULL)
+	  {
+		AVL_SHOW_ERROR ("%s\n", "couldn't create new handle in avl_dup()");
+		return NULL;
+	  }
+
+	tt->count = t->count;
+
+	if (t->root == NULL)
+	  return tt;
+
+	{
+	  avl_node *a, *c, *s;
+
+	  a = t->root;
+	  tt->root = c = new_node (get_item (a), NULL, t);
+	  if (c == NULL)
+		goto abort;
+
+	  sub_right (c) = NULL;		/*!!! */
+	  rbal (c) = rbal (a);
+
+	  while (1)
+		{
+		  while (sub_left (a) != NULL)
+			{
+			  a = sub_left (a);
+			  sub_left (c) = s = new_node (get_item (a), NULL, t);
+			  if (s == NULL)
+				goto recover;
+			  s->up = c;
+			  sub_right (s) = c;
+			  c = s;
+			  rbal (c) = rbal (a);
+			}
+
+		  sub_left (c) = NULL;
+
+		  while (sub_right (a) == NULL)
+			{
+			  s = sub_right (c);
+			  sub_right (c) = NULL;
+			  c = s;
+			  /* Find successor of [a] in original tree */
+			  do
+				{
+				  s = a;
+				  a = s->up;
+				  if (a == NULL)
+					return tt;
+				}
+			  while (s != sub_left (a));
+			}
+
+		  a = sub_right (a);
+		  s = new_node (get_item (a), NULL, t);
+		  if (s == NULL)
+			goto recover;
+		  sub_right (s) = sub_right (c);
+		  sub_right (c) = s;
+		  s->up = c;
+		  c = s;
+		  rbal (c) = rbal (a);
+		}
+	  /* recovery code     */
+	recover:
+	  while (1)
+		{
+		  s = sub_right (c);
+		  sub_right (c) = NULL;
+		  if (s == NULL)
+			break;
+		  c = s;
+		}
+	  node_empty (tt);
+
+	abort:
+	  (*t->dealloc) (tt);
+	  AVL_SHOW_ERROR ("%s\n", "couldn't allocate node in avl_dup()");
+	  return NULL;
+	}
+  }
+}
+
+avl_bool_t
+avl_isempty (avl_tree t)
+{
+#ifndef AVL_NULLCHECKS
+  return t == NULL || t->root == NULL;
+#else
+  return t->root == NULL;
+#endif
+}
+
+avl_size_t
+avl_size (avl_tree t)
+{
+#ifndef AVL_NULLCHECKS
+  return t == NULL ? 0 : t->count;
+#else
+  return t->count;
+#endif
+}
+
+static int
+depth (avl_node * a)
+{
+  int h = AVL_MIN_DEPTH;
+
+  for (; a != NULL; ++h)
+	a = a->sub[is_rskew (a)];
+  return h;
+}
+
+static avl_node *
+node_first (avl_node * a)
+{
+  while (sub_left (a) != NULL)
+	a = sub_left (a);
+  return a;
+}
+
+static avl_node *
+node_last (avl_node * a)
+{
+  while (sub_right (a) != NULL)
+	a = sub_right (a);
+  return a;
+}
+
+/* [a] : non-null */
+
+static avl_node *
+node_next (avl_node * a)
+{
+  if (sub_right (a) != NULL)
+	return node_first (sub_right (a));
+  {
+	avl_node *p;
+
+	do
+	  {
+		p = a;
+		a = p->up;
+	  }
+	while (a != NULL && sub_right (a) == p);
+	return a;
+  }
+}
+
+/* [a] : non-null */
+
+static avl_node *
+node_prev (avl_node * a)
+{
+  if (sub_left (a) != NULL)
+	return node_last (sub_left (a));
+  {
+	avl_node *p;
+
+	do
+	  {
+		p = a;
+		a = p->up;
+	  }
+	while (a != NULL && sub_left (a) == p);
+	return a;
+  }
+}
+
+static avl_node *
+node_find (const void *item, avl_tree t)
+{
+  avl_node *a = t->root;
+  avl_compare_func cmp = t->compare;
+  int c;
+
+  while (a != NULL)
+	{
+	  c = Item_Compare (cmp, t, item, get_item (a));
+	  CMPERR_CHECK__FIND (t->param);
+	  if (c < 0)
+		a = a->sub[0];
+	  else if (c)
+		a = a->sub[1];
+	  else
+		break;
+	}
+  return a;
+}
+
+#if 0==1
+static avl_node **
+avl_search (const void *item, avl_tree t, int *dir)
+{
+  if (t->root == NULL)
+	return &t->root;
+  {
+	avl_node **r = &t->root;
+	avl_node *a = *r;
+	avl_compare_func cmp = t->compare;
+	int c;
+
+	while (1)
+	  {
+		c = Item_Compare (cmp, t, item, get_item (a));
+		if (!c)
+		  break;
+		r = &a->sub[c = c > 0];
+		if (*r == NULL)
+		  {
+			*dir = c;
+			break;
+		  }
+		a = *r;
+	  }
+
+	return r;
+  }
+}
+#endif
+
+static avl_size_t
+get_index (avl_node * a)
+{
+  avl_size_t n = get_rank (a);
+  avl_node *p;
+
+  while ((p = a->up) != NULL)
+	{
+	  if (a != sub_left (p))
+		n += get_rank (p);
+	  a = p;
+	}
+  return n;
+}
+
+/* Find item by index */
+
+static avl_node *
+node_find_index (avl_size_t idx, avl_tree t)
+{
+  avl_node *a = t->root;
+  int c;
+
+  if (idx == 0 || idx > t->count)
+	return NULL;
+  if (idx == 1)
+	return node_first (a);
+  if (idx == t->count)
+	return node_last (a);
+
+  while ((c = idx - get_rank (a)) != 0)
+	{
+	  if (c < 0)
+		a = sub_left (a);
+	  else
+		{
+		  idx = c;
+		  a = sub_right (a);
+		}
+	}
+
+  return a;
+}
+
+/* Rebalance starting from node [a] where a->sub[d_]
+ * is deeper post-insertion
+ */
+
+static avl_code_t
+rebalance_ins (avl_node * a, int dir, avl_tree t)
+{
+  if (a != NULL)
+	{
+	  avl_node *p;
+
+	  while (1)
+		{
+		  incr_rank (a, !dir);
+		  if (get_bal (a))
+			break;
+		  set_skew (a, dir);
+		  p = a->up;
+		  if (p == NULL)
+			return 2;
+		  dir = a != sub_left (p);
+		  a = p;
+		}
+
+	  /* Now bal(a) == -1 or +1 */
+	  /* Rotate if need be */
+
+	  if (0 == dir)
+		{
+		  if (is_rskew (a))
+			unset_rskew (a);
+
+		  else
+			{
+			  avl_node *u = a->up;
+			  avl_node **r =
+				u != NULL ? &u->sub[a != sub_left (u)] : &t->root;
+
+			  p = a;
+
+			  if (is_lskew (sub_left (p)))
+				{
+				  /* rotR(p) */
+				  a = sub_left (p);
+				  sub_left (p) = sub_right (a);
+				  if (sub_right (a) != NULL)
+					sub_right (a)->up = p;
+				  sub_right (a) = p;
+				  unset_lskew (p);
+				  rbal (p) -= rzero (a);
+				}
+			  else
+				{
+				  /* rotLR(p) */
+				  a = sub_right (sub_left (p));
+				  sub_right (sub_left (p)) = sub_left (a);
+				  if (sub_left (a) != NULL)
+					sub_left (a)->up = sub_left (p);
+				  sub_left (p)->up = a;
+				  sub_left (a) = sub_left (p);
+				  sub_left (p) = sub_right (a);
+				  if (sub_right (a) != NULL)
+					sub_right (a)->up = p;
+				  sub_right (a) = p;
+				  switch (get_bal (a))
+					{
+					case 0:	/* not skewed */
+					  unset_lskew (p);
+					  unset_rskew (sub_left (a));
+					  break;
+					case 1:	/* left skew */
+					  unset_lskew (p);
+					  set_rskew (p);
+					  unset_rskew (sub_left (a));
+					  break;
+					case 2:	/* right skew */
+					  unset_lskew (p);
+					  unset_rskew (sub_left (a));
+					  set_lskew (sub_left (a));
+					}			/* switch */
+				  rbal (a) += rzero (sub_left (a));
+				  rbal (p) -= rzero (a);
+				}				/* which rot */
+			  rbal (a) &= ~3;
+			  a->up = u;
+			  p->up = a;
+			  *r = a;
+			}					/* rot or no rot ? */
+		}
+	  else
+		{
+		  /* direction == 1 */
+
+		  if (is_lskew (a))
+			unset_lskew (a);
+
+		  else
+			{
+			  avl_node *u = a->up;
+			  avl_node **r =
+				u != NULL ? &u->sub[a != sub_left (u)] : &t->root;
+
+			  p = a;
+			  if (is_rskew (sub_right (p)))
+				{
+				  /* rotL(p) */
+				  a = sub_right (p);
+				  sub_right (p) = sub_left (a);
+				  if (sub_left (a) != NULL)
+					sub_left (a)->up = p;
+				  sub_left (a) = p;
+				  unset_rskew (p);
+				  rbal (a) += rzero (p);
+				}
+			  else
+				{
+				  /* rotRL(p) */
+				  a = sub_left (sub_right (p));
+				  sub_left (sub_right (p)) = sub_right (a);
+				  if (sub_right (a) != NULL)
+					sub_right (a)->up = sub_right (p);
+				  sub_right (p)->up = a;
+				  sub_right (a) = sub_right (p);
+				  sub_right (p) = sub_left (a);
+				  if (sub_left (a) != NULL)
+					sub_left (a)->up = p;
+				  sub_left (a) = p;
+				  switch (get_bal (a))
+					{
+					case 0:	/* not skewed */
+					  unset_rskew (p);
+					  unset_lskew (sub_right (a));
+					  break;
+					case 1:	/* left skew */
+					  unset_rskew (p);
+					  unset_lskew (sub_right (a));
+					  set_rskew (sub_right (a));
+					  break;
+					case 2:	/* right skew */
+					  unset_rskew (p);
+					  set_lskew (p);
+					  unset_lskew (sub_right (a));
+					}			/* switch */
+				  rbal (sub_right (a)) -= rzero (a);
+				  rbal (a) += rzero (p);
+
+				}				/* which rot */
+
+			  rbal (a) &= ~3;
+			  a->up = u;
+			  p->up = a;
+			  *r = a;
+			}					/* rot or not rot ? */
+		}						/* if 0==dir */
+
+	  /* The tree rooted at 'a' is now valid */
+	  /* Finish adjusting ranks */
+
+	  while ((p = a->up) != NULL)
+		{
+		  incr_rank (p, (a == sub_left (p)));
+		  a = p;
+		}
+
+	  return 1;
+
+	}							/* if a != 0 */
+  return 2;
+}
+
+/* detach [p] : non-null */
+
+/* only the linkage is tweaked */
+
+static avl_code_t
+rebalance_del (avl_node * p, avl_tree t, void **backup)
+{
+  avl_node **r, *a, *c;
+  int dir, bal;
+
+  a = p->up;
+  if (a == NULL)
+	r = &t->root;
+  else
+	r = &a->sub[dir = p != sub_left (a)];
+
+  c = sub_right (p);
+  if (c == NULL && sub_left (p) == NULL)
+	*r = NULL;
+  else if (c == NULL || sub_left (p) == NULL)
+	{
+	  *r = c != NULL ? c : sub_left (p);
+	  (*r)->up = a;
+	}
+  else
+	{
+	  if (sub_left (c) == NULL)
+		{
+		  a = c;
+		  dir = 1;
+		}
+	  else
+		{
+		  do
+			c = sub_left (c);
+		  while (sub_left (c) != NULL);
+		  a = c->up;
+		  dir = 0;
+		  sub_left (a) = sub_right (c);
+		  if (sub_right (c) != NULL)
+			sub_right (c)->up = a;
+		  sub_right (c) = sub_right (p);
+		  sub_right (c)->up = c;
+		}
+	  sub_left (c) = sub_left (p);
+	  sub_left (c)->up = c;
+	  c->up = p->up;
+	  rbal (c) = rbal (p);
+	  *r = c;
+	}
+
+  backup_item (backup, p->item, t);
+  detach_node (p, t, NULL);
+
+  /* Start backtracking : subtree of [a] in direction [dir] is less deep */
+
+  for (;; a = (*r)->up)
+	{
+	  if (a == NULL)
+		return 2;
+
+	  decr_rank (a, !dir);
+	  bal = get_bal (a);
+
+	  if (0 == dir)
+		{
+		  if (bal == 0)
+			{
+			  set_rskew (a);
+			  break;
+			}
+		  if (a->up == NULL)
+			r = &t->root;
+		  else
+			{
+			  dir = a != sub_left (a->up);
+			  r = &a->up->sub[dir];
+			}
+		  if (bal & 1)
+			unset_lskew (a);
+		  if (get_bal (a))
+			{
+			  p = a;
+			  bal = get_bal (sub_right (p));
+			  if (!(bal & 1))
+				{
+				  /* bal = 0 or +1 */
+				  /* rotL(p) */
+				  a = sub_right (p);
+				  sub_right (p) = sub_left (a);
+				  if (sub_left (a) != NULL)
+					sub_left (a)->up = p;
+				  sub_left (a) = p;
+				  if (bal)
+					{
+					  unset_rskew (p);
+					  unset_rskew (a);
+					}
+				  else
+					set_lskew (a);
+				  rbal (a) += rzero (p);
+				}
+			  else
+				{
+				  /* rotRL(p) */
+				  a = sub_left (sub_right (p));
+				  sub_left (sub_right (p)) = sub_right (a);
+				  if (sub_right (a) != NULL)
+					sub_right (a)->up = sub_right (p);
+				  sub_right (p)->up = a;
+				  sub_right (a) = sub_right (p);
+				  sub_right (p) = sub_left (a);
+				  if (sub_left (a) != NULL)
+					sub_left (a)->up = p;
+				  sub_left (a) = p;
+				  switch (get_bal (a))
+					{
+					case 0:	/* not skewed */
+					  unset_rskew (p);
+					  unset_lskew (sub_right (a));
+					  break;
+					case 1:	/* left skew */
+					  unset_rskew (p);
+					  unset_lskew (sub_right (a));
+					  set_rskew (sub_right (a));
+					  break;
+					case 2:	/* right skew */
+					  unset_rskew (p);
+					  set_lskew (p);
+					  unset_lskew (sub_right (a));
+					}			/* switch */
+				  rbal (a) &= ~3;
+				  rbal (sub_right (a)) -= rzero (a);
+				  rbal (a) += rzero (p);
+
+				}				/* which rot */
+
+			  a->up = p->up;
+			  p->up = a;
+			  /* Done with rotation */
+			  *r = a;
+			  if (bal == 0)
+				break;
+			}					/* if getbal(a) */
+		}
+	  else
+		{
+		  /* dir == 1 */
+
+		  if (bal == 0)
+			{
+			  set_lskew (a);
+			  break;
+			}
+		  if (a->up == NULL)
+			r = &t->root;
+		  else
+			{
+			  dir = a != sub_left (a->up);
+			  r = &a->up->sub[dir];
+			}
+		  if (bal & 2)
+			unset_rskew (a);
+		  if (get_bal (a))
+			{
+			  p = a;
+			  bal = get_bal (sub_left (p));
+			  if (!(bal & 2))
+				{
+				  /* bal = 0 or -1 */
+				  /* rotR(p) */
+				  a = sub_left (p);
+				  sub_left (p) = sub_right (a);
+				  if (sub_right (a) != NULL)
+					sub_right (a)->up = p;
+				  sub_right (a) = p;
+				  if (bal)
+					{
+					  unset_lskew (p);
+					  unset_lskew (a);
+					}
+				  else
+					set_rskew (a);
+				  rbal (p) -= rzero (a);
+				}
+			  else
+				{
+				  /* rotLR(p) */
+				  a = sub_right (sub_left (p));
+				  sub_right (sub_left (p)) = sub_left (a);
+				  if (sub_left (a) != NULL)
+					sub_left (a)->up = sub_left (p);
+				  sub_left (p)->up = a;
+				  sub_left (a) = sub_left (p);
+				  sub_left (p) = sub_right (a);
+				  if (sub_right (a) != NULL)
+					sub_right (a)->up = p;
+				  sub_right (a) = p;
+				  switch (get_bal (a))
+					{
+					case 0:	/* not skewed */
+					  unset_lskew (p);
+					  unset_rskew (sub_left (a));
+					  break;
+					case 1:	/* left skew */
+					  unset_lskew (p);
+					  set_rskew (p);
+					  unset_rskew (sub_left (a));
+					  break;
+					case 2:	/* right skew */
+					  unset_lskew (p);
+					  unset_rskew (sub_left (a));
+					  set_lskew (sub_left (a));
+					}			/* switch */
+				  rbal (a) &= ~3;
+				  rbal (a) += rzero (sub_left (a));
+				  rbal (p) -= rzero (a);
+				}				/* which rot */
+
+			  a->up = p->up;
+			  p->up = a;
+			  /* Done with rotation */
+			  *r = a;
+			  if (bal == 0)
+				break;
+			}					/* if getbal(a) */
+		}						/* if dir==0 else 1 */
+	}							/* for */
+
+  /* Finish adjusting ranks */
+  while ((p = a->up) != NULL)
+	{
+	  decr_rank (p, (a == sub_left (p)));
+	  a = p;
+	}
+
+  return 1;
+}
+
+void *
+avl_first (avl_tree t)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL || t->root == NULL)
+#else
+  if (t->root == NULL)
+#endif
+	return NULL;
+  return get_item (node_first (t->root));
+}
+
+void *
+avl_last (avl_tree t)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL || t->root == NULL)
+#else
+  if (t->root == NULL)
+#endif
+	return NULL;
+  return get_item (node_last (t->root));
+}
+
+void *
+avl_find (const void *item, avl_tree t)
+{
+  avl_node *a;
+
+#ifndef AVL_NULLCHECKS
+  if (t == NULL)
+	return NULL;
+#endif
+  a = node_find (item, t);
+  return a != NULL ? get_item (a) : NULL;
+}
+
+/* 
+ * Return smallest index i in [1:len] s.t. tree[i] matches [item],
+ * or zero if not found
+ */
+
+avl_size_t
+avl_index (const void *item, avl_tree t)
+{
+#ifndef AVL_NULLCHECKS
+  if (item == NULL || t == NULL || t->root == NULL)
+#else
+  if (t->root == NULL)
+#endif
+	return 0;
+
+  {
+	avl_compare_func cmp = t->compare;
+	avl_node *a, *p;
+	avl_size_t idx = 0, n = 0;
+	int c;
+
+	for (a = t->root;;)
+	  {
+		c = Item_Compare (cmp, t, item, get_item (a));
+		CMPERR_CHECK__INDEX (t->param);
+		if (!c)
+		  idx = n + get_rank (a);
+		else if (c > 0)
+		  n += get_rank (a);
+		p = a->sub[c > 0];
+		if (p == NULL)
+		  return idx;
+		a = p;
+	  }
+  }
+}
+
+/* (lo,hi) where 
+ * lo smallest index s.t. t[lo] >= lo_item, or t->count+1 and
+ * hi greatest index s.t. t[hi] <= hi_item, or 0
+ */
+avl_code_t
+avl_span (const void *lo_item,
+		  const void *hi_item,
+		  avl_tree t, avl_size_t * lo_idx, avl_size_t * hi_idx)
+{
+  *lo_idx = t->count + 1;
+  *hi_idx = 0;
+
+#ifndef AVL_NULLCHECKS
+  if (t == NULL || t->root == NULL)
+#else
+  if (t->root == NULL)
+#endif
+	return -1;
+
+  {
+	avl_compare_func cmp = t->compare;
+	avl_node *a;
+	avl_size_t n = 0;
+	int c;
+
+	c = Item_Compare (cmp, t, lo_item, hi_item) > 0;
+	CMPERR_CHECK__SPAN (t->param);
+	if (c > 0)
+	  {
+		const void *temp = lo_item;
+
+		lo_item = hi_item;
+		hi_item = temp;
+	  }
+
+	a = t->root;
+	do
+	  {
+		c = Item_Compare (cmp, t, lo_item, get_item (a));
+		CMPERR_CHECK__SPAN (t->param);
+		if (c > 0)
+		  {
+			n += get_rank (a);
+			a = sub_right (a);
+		  }
+		else
+		  {
+			*lo_idx = n + get_rank (a);
+			a = sub_left (a);
+		  }
+	  }
+	while (a);
+
+	a = t->root;
+	do
+	  {
+		c = Item_Compare (cmp, t, hi_item, get_item (a));
+		CMPERR_CHECK__SPAN (t->param);
+		if (c < 0)
+		  {
+			a = sub_left (a);
+		  }
+		else
+		  {
+			*hi_idx += get_rank (a);
+			a = sub_right (a);
+		  }
+	  }
+	while (a);
+	return 0;
+  }
+}
+
+/*
+ * Find the smallest item in tree [t] that is GEQ the passed item 
+ */
+
+void *
+avl_find_atleast (const void *item, avl_tree t)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL || t->root == NULL)
+#else
+  if (t->root == NULL)
+#endif
+	return NULL;
+  {
+	avl_compare_func cmp = t->compare;
+	avl_node *a = t->root;
+	void *p = NULL;
+	int c;
+
+	do
+	  {
+		c = Item_Compare (cmp, t, item, get_item (a));
+		CMPERR_CHECK__FIND (t->param);
+		if (c > 0)
+		  {
+			a = sub_right (a);
+		  }
+		else
+		  {
+			p = get_item (a);
+			a = sub_left (a);
+		  }
+	  }
+	while (a);
+	return p;
+  }
+}
+
+/* 
+ * Find the greatest item in tree [t] that is LEQ the passed item
+ */
+
+void *
+avl_find_atmost (const void *item, avl_tree t)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL || t->root == NULL)
+#else
+  if (t->root == NULL)
+#endif
+	return NULL;
+  {
+	avl_compare_func cmp = t->compare;
+	avl_node *a = t->root;
+	void *p = NULL;
+	int c;
+
+	do
+	  {
+		c = Item_Compare (cmp, t, item, get_item (a));
+		CMPERR_CHECK__FIND (t->param);
+		if (c < 0)
+		  {
+			a = sub_left (a);
+		  }
+		else
+		  {
+			p = get_item (a);
+			a = sub_right (a);
+		  }
+	  }
+	while (a);
+	return p;
+  }
+}
+
+/* Retrieve item of index [idx] in tree [t] */
+
+void *
+avl_find_index (avl_size_t idx, avl_tree t)
+{
+  avl_node *a;
+
+#ifndef AVL_NULLCHECKS
+  if (t == NULL)
+	return NULL;
+#endif
+  a = node_find_index (idx, t);
+  return a != NULL ? get_item (a) : NULL;
+}
+
+#define attach_node(ptr,up,t)\
+ ptr = new_node(item, up, t);\
+ if (ptr == NULL){\
+        AVL_SHOW_ERROR("%s\n", "couldn't allocate node");\
+        return -1;\
+ }\
+ t->count++
+
+/* Iterative insertion */
+
+avl_code_t
+avl_ins (void *item, avl_tree t, avl_bool_t allow_duplicates)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL)
+	return NULL;
+  {
+#endif
+	avl_compare_func cmp = t->compare;
+	avl_node **r, *a;
+	int dir;
+
+	for (r = &t->root, a = NULL; *r != NULL; r = &a->sub[dir = dir > 0])
+	  {
+		a = *r;
+		dir = Item_Compare (cmp, t, item, get_item (a));
+		CMPERR_CHECK__INS (t->param);
+		if (!dir && !allow_duplicates)
+		  return 0;
+	  }
+
+	attach_node (*r, a, t);
+
+	return rebalance_ins (a, dir, t);
+
+#ifndef AVL_NULLCHECKS
+  }								/* end if non-empty tree */
+#endif
+}
+
+avl_code_t
+avl_del (void *item, avl_tree t, void **backup)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL || t->root == NULL)
+#else
+  if (t->root == NULL)
+#endif
+	return 0;
+  {
+	avl_node *a = node_find (item, t);
+
+	if (a == NULL)
+	  return CMPERR_CHECK__DEL (t->param);
+	return rebalance_del (a, t, backup);
+  }
+}
+
+/* helper function */
+static avl_code_t
+node_del_first (avl_tree t, struct ptr_handler *h)
+{
+  avl_node *p, *a, *c;
+  int bal;
+
+  p = node_first (t->root);
+  a = p->up;
+  if (sub_right (p) != NULL)
+	sub_right (p)->up = a;
+  if (a == NULL)
+	t->root = sub_right (p);
+  else
+	sub_left (a) = sub_right (p);
+
+  detach_node (p, t, h);
+
+  /* Start backtracking : subtree of [a] in direction [0] is less deep */
+
+  for (;; a = c)
+	{
+	  if (a == NULL)
+		return 2;
+
+	  decr_rank (a, 1);
+	  bal = get_bal (a);
+
+	  if (bal == 0)
+		{
+		  set_rskew (a);
+		  break;
+		}
+	  if (bal & 1)
+		unset_lskew (a);
+	  c = a->up;
+	  if (get_bal (a))
+		{
+		  p = a;
+		  bal = get_bal (sub_right (p));
+		  if (!(bal & 1))
+			{
+			  /* bal = 0 or +1 */
+			  /* rotL(p) */
+			  a = sub_right (p);
+			  sub_right (p) = sub_left (a);
+			  if (sub_left (a) != NULL)
+				sub_left (a)->up = p;
+			  sub_left (a) = p;
+			  if (bal)
+				{
+				  unset_rskew (p);
+				  unset_rskew (a);
+				}
+			  else
+				set_lskew (a);
+			  rbal (a) += rzero (p);
+			}
+		  else
+			{
+			  /* rotRL(p) */
+			  a = sub_left (sub_right (p));
+			  sub_left (sub_right (p)) = sub_right (a);
+			  if (sub_right (a) != NULL)
+				sub_right (a)->up = sub_right (p);
+			  sub_right (p)->up = a;
+			  sub_right (a) = sub_right (p);
+			  sub_right (p) = sub_left (a);
+			  if (sub_left (a) != NULL)
+				sub_left (a)->up = p;
+			  sub_left (a) = p;
+			  switch (get_bal (a))
+				{
+				case 0:		/* not skewed */
+				  unset_rskew (p);
+				  unset_lskew (sub_right (a));
+				  break;
+				case 1:		/* left skew */
+				  unset_rskew (p);
+				  unset_lskew (sub_right (a));
+				  set_rskew (sub_right (a));
+				  break;
+				case 2:		/* right skew */
+				  unset_rskew (p);
+				  set_lskew (p);
+				  unset_lskew (sub_right (a));
+				}				/* switch */
+			  rbal (a) &= ~3;
+			  rbal (sub_right (a)) -= rzero (a);
+			  rbal (a) += rzero (p);
+			}					/* which rot */
+
+		  a->up = p->up;
+		  p->up = a;
+		  /* Done with rotation */
+		  if (c != NULL)
+			sub_left (c) = a;
+		  else
+			t->root = a;
+		  if (bal == 0)
+			break;
+		}						/* if getbal(a) */
+	}							/* for */
+
+  /* Finish adjusting ranks */
+  while ((a = a->up) != NULL)
+	{
+	  decr_rank (a, 1);
+	}
+
+  return 1;
+}
+
+/* helper function */
+static avl_code_t
+node_del_last (avl_tree t, struct ptr_handler *h)
+{
+
+  avl_node *p, *a, *c;
+  int bal;
+
+  p = node_last (t->root);
+  a = p->up;
+  if (sub_left (p) != NULL)
+	sub_left (p)->up = a;
+  if (a == NULL)
+	t->root = sub_left (p);
+  else
+	sub_right (a) = sub_left (p);
+
+  detach_node (p, t, h);
+
+  /* Start backtracking : subtree of [a] in direction [1] is less deep */
+
+  for (;; a = c)
+	{
+	  if (a == NULL)
+		return 2;
+
+	  bal = get_bal (a);
+	  if (bal == 0)
+		{
+		  set_lskew (a);
+		  break;
+		}
+	  if (bal & 2)
+		unset_rskew (a);
+	  c = a->up;
+	  if (get_bal (a))
+		{
+		  p = a;
+		  bal = get_bal (sub_left (p));
+		  if (!(bal & 2))
+			{
+			  /* bal = 0 or -1 */
+			  /* rotR(p) */
+			  a = sub_left (p);
+			  sub_left (p) = sub_right (a);
+			  if (sub_right (a) != NULL)
+				sub_right (a)->up = p;
+			  sub_right (a) = p;
+			  if (bal)
+				{
+				  unset_lskew (p);
+				  unset_lskew (a);
+				}
+			  else
+				set_rskew (a);
+			  rbal (p) -= rzero (a);
+			}
+		  else
+			{
+			  /* rotLR(p) */
+			  a = sub_right (sub_left (p));
+			  sub_right (sub_left (p)) = sub_left (a);
+			  if (sub_left (a) != NULL)
+				sub_left (a)->up = sub_left (p);
+			  sub_left (p)->up = a;
+			  sub_left (a) = sub_left (p);
+			  sub_left (p) = sub_right (a);
+			  if (sub_right (a) != NULL)
+				sub_right (a)->up = p;
+			  sub_right (a) = p;
+			  switch (get_bal (a))
+				{
+				case 0:		/* not skewed */
+				  unset_lskew (p);
+				  unset_rskew (sub_left (a));
+				  break;
+				case 1:		/* left skew */
+				  unset_lskew (p);
+				  set_rskew (p);
+				  unset_rskew (sub_left (a));
+				  break;
+				case 2:		/* right skew */
+				  unset_lskew (p);
+				  unset_rskew (sub_left (a));
+				  set_lskew (sub_left (a));
+				}				/* switch */
+			  rbal (a) &= ~3;
+			  rbal (a) += rzero (sub_left (a));
+			  rbal (p) -= rzero (a);
+			}					/* which rot */
+
+		  a->up = p->up;
+		  p->up = a;
+		  /* Done with rotation */
+		  if (c != NULL)
+			sub_right (c) = a;
+		  else
+			t->root = a;
+		  if (bal == 0)
+			break;
+		}						/* if getbal(a) */
+	}							/* for */
+
+  return 1;
+}
+
+/* [p] : juncture node (zeroed out) */
+
+/* [n] : rank of [p] in resulting tree */
+
+/* [delta] = depth_1 - depth_0 */
+
+static avl_code_t
+join_left (avl_node * p, avl_node ** r0, avl_node * r1, int delta, int n)
+{
+  avl_node *a = NULL, **r = r0;
+
+  if (r1 == NULL)
+	{
+	  while (*r != NULL)
+		{
+		  a = *r;
+		  n -= get_rank (a);
+		  r = &sub_right (a);
+		}
+	}
+  else
+	{
+	  while (delta < -1)
+		{
+		  a = *r;
+		  delta += is_lskew (a) + 1;
+		  n -= get_rank (a);
+		  r = &sub_right (a);
+		}
+	  r1->up = p;
+	  if (*r != NULL)
+		(*r)->up = p;
+	  if (delta)
+		set_lskew (p);
+	}
+
+  /* at this point bal(*r) = -1 or 0 */
+  sub_left (p) = *r;
+  sub_right (p) = r1;
+  p->up = a;
+  set_rank (p, n);
+  *r = p;
+
+  for (;;)
+	{
+	  if (a == NULL)
+		return 2;
+	  if (get_bal (a))
+		break;
+	  set_rskew (a);
+	  a = a->up;
+	}
+
+  /* Rotate if need be */
+  /* No (+2,0) rotation to do */
+
+  if (is_lskew (a))
+	unset_lskew (a);
+
+  else
+	{
+	  avl_node *p = a;
+
+	  if (is_rskew (sub_right (p)))
+		{
+		  /* rotL(p) */
+		  a = sub_right (p);
+		  sub_right (p) = sub_left (a);
+		  if (sub_left (a) != NULL)
+			sub_left (a)->up = p;
+		  sub_left (a) = p;
+		  unset_rskew (p);
+		  rbal (a) += rzero (p);
+		}
+	  else
+		{
+		  /* rotRL(p) */
+		  a = sub_left (sub_right (p));
+		  sub_left (sub_right (p)) = sub_right (a);
+		  if (sub_right (a) != NULL)
+			sub_right (a)->up = sub_right (p);
+		  sub_right (p)->up = a;
+		  sub_right (a) = sub_right (p);
+		  sub_right (p) = sub_left (a);
+		  if (sub_left (a) != NULL)
+			sub_left (a)->up = p;
+		  sub_left (a) = p;
+		  switch (get_bal (a))
+			{
+			case 0:			/* not skewed */
+			  unset_rskew (p);
+			  unset_lskew (sub_right (a));
+			  break;
+			case 1:			/* left skew */
+			  unset_rskew (p);
+			  unset_lskew (sub_right (a));
+			  set_rskew (sub_right (a));
+			  break;
+			case 2:			/* right skew */
+			  unset_rskew (p);
+			  set_lskew (p);
+			  unset_lskew (sub_right (a));
+			}					/* switch */
+		  rbal (sub_right (a)) -= rzero (a);
+		  rbal (a) += rzero (p);
+		}						/* which rot */
+
+	  rbal (a) &= ~3;
+	  a->up = p->up;
+	  p->up = a;
+	  if (a->up != NULL)
+		sub_right (a->up) = a;
+	  else
+		*r0 = a;
+	}							/* rot or not rot */
+
+  return 1;
+}
+
+/* [p] : juncture node */
+
+/* [n] : rank of [p] in resulting tree */
+
+static avl_code_t
+join_right (avl_node * p, avl_node * r0, avl_node ** r1, int delta, int n)
+{
+  avl_node *a = NULL, **r = r1;
+
+  if (r0 == NULL)
+	{
+	  while (*r != NULL)
+		{
+		  a = *r;
+		  incr_rank (a, n);
+		  r = &sub_left (a);
+		}
+	  n = 1;
+	}
+  else
+	{
+	  while (delta > +1)
+		{
+		  a = *r;
+		  delta -= is_rskew (a) + 1;
+		  incr_rank (a, n);
+		  r = &sub_left (a);
+		}
+	  r0->up = p;
+	  if (*r != NULL)
+		(*r)->up = p;
+	  if (delta)
+		set_rskew (p);
+	}
+
+  /* at this point bal(*r) = +1 or 0 */
+  sub_left (p) = r0;
+  sub_right (p) = *r;
+  set_rank (p, n);
+  p->up = a;
+  *r = p;
+
+  for (;;)
+	{
+	  if (a == NULL)
+		return 2;
+	  if (get_bal (a))
+		break;
+	  set_lskew (a);
+	  a = a->up;
+	}
+
+  /* Rotate if need be */
+  /* No (-2,0) rotation to do */
+
+  if (is_rskew (a))
+	unset_rskew (a);
+
+  else
+	{
+	  avl_node *p = a;
+
+	  if (is_lskew (sub_left (p)))
+		{
+		  /* rotR(p) */
+		  a = sub_left (p);
+		  sub_left (p) = sub_right (a);
+		  if (sub_right (a) != NULL)
+			sub_right (a)->up = p;
+		  sub_right (a) = p;
+		  unset_lskew (p);
+		  rbal (p) -= rzero (a);
+		}
+	  else
+		{
+		  /* rotLR(p) */
+		  a = sub_right (sub_left (p));
+		  sub_right (sub_left (p)) = sub_left (a);
+		  if (sub_left (a) != NULL)
+			sub_left (a)->up = sub_left (p);
+		  sub_left (p)->up = a;
+		  sub_left (a) = sub_left (p);
+		  sub_left (p) = sub_right (a);
+		  if (sub_right (a) != NULL)
+			sub_right (a)->up = p;
+		  sub_right (a) = p;
+		  switch (get_bal (a))
+			{
+			case 0:			/* not skewed */
+			  unset_lskew (p);
+			  unset_rskew (sub_left (a));
+			  break;
+			case 1:			/* left skew */
+			  unset_lskew (p);
+			  set_rskew (p);
+			  unset_rskew (sub_left (a));
+			  break;
+			case 2:			/* right skew */
+			  unset_lskew (p);
+			  unset_rskew (sub_left (a));
+			  set_lskew (sub_left (a));
+			}					/* end switch */
+		  rbal (a) += rzero (sub_left (a));
+		  rbal (p) -= rzero (a);
+		}						/* end which rot */
+
+	  rbal (a) &= ~3;
+	  a->up = p->up;
+	  p->up = a;
+	  if (a->up != NULL)
+		sub_left (a->up) = a;
+	  else
+		*r1 = a;
+	}							/* end rot or not rot */
+
+  return 1;
+}
+
+avl_code_t
+avl_del_first (avl_tree t, void **backup)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL || t->root == NULL)
+#else
+  if (t->root == NULL)
+#endif
+	return 0;
+  {
+	avl_code_t rv;
+
+	if (backup == NULL)
+	  {
+		rv = node_del_first (t, NULL);
+	  }
+	else
+	  {
+		ini_ptr_handler (h, BACKUP);
+		rv = node_del_first (t, &h);
+		*backup = h.ptr;
+	  }
+	return rv;
+  }
+}
+
+avl_code_t
+avl_del_last (avl_tree t, void **backup)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL || t->root == NULL)
+#else
+  if (t->root == NULL)
+#endif
+	return 0;
+  {
+	avl_code_t rv;
+
+	if (backup == NULL)
+	  {
+		rv = node_del_last (t, NULL);
+	  }
+	else
+	  {
+		ini_ptr_handler (h, BACKUP);
+		rv = node_del_last (t, &h);
+		*backup = h.ptr;
+	  }
+	return rv;
+  }
+}
+
+avl_code_t
+avl_ins_index (void *item, avl_size_t idx, avl_tree t)
+{
+  avl_node *p;
+
+  if (idx == 0 || t == NULL || idx > t->count + 1)
+	return 0;
+
+  attach_node (p, NULL, t);
+  /* Note: 'attach_node' macro increments t->count */
+
+  if (idx == 1)
+	{
+	  return join_right (p, (avl_node *) NULL, &t->root, /*delta= */ 0, 1);
+	}
+  else if (idx == t->count)
+	{
+	  return
+		join_left (p, &t->root, (avl_node *) NULL, /*delta= */ 0, t->count);
+	}
+  else
+	{
+	  avl_node *a = node_find_index (idx - 1, t);
+	  int dir;
+
+	  if (sub_right (a) != NULL)
+		{
+		  a = node_first (sub_right (a));
+		  sub_left (a) = p;
+		  dir = 0;
+		}
+	  else
+		{
+		  sub_right (a) = p;
+		  dir = 1;
+		}
+
+	  p->up = a;
+	  return rebalance_ins (a, dir, t);
+	}
+}
+
+avl_code_t
+avl_del_index (avl_size_t idx, avl_tree t, void **backup)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL)
+	return 0;
+#endif
+
+  if (idx == 0 || idx > t->count)
+	return 0;
+  if (idx == 1)
+	return avl_del_first (t, backup);
+  if (idx == t->count)
+	return avl_del_last (t, backup);
+  {
+	avl_node *a = node_find_index (idx, t);
+
+	return rebalance_del (a, t, backup);
+  }
+}
+
+/*
+ * Outcome: [t0] handles the concatenation of [t0] and [t1] 
+ */
+
+void
+avl_cat (avl_tree t0, avl_tree t1)
+{
+#ifndef AVL_NULLCHECKS
+  if (t0 == NULL || t1 == NULL || t1->root == NULL)
+#else
+  if (t1->root == NULL)
+#endif
+	return;
+
+  if (t0->root == NULL)
+	{
+	  t0->root = t1->root;
+	  t0->count = t1->count;
+	  t1->root = NULL;
+	  t1->count = 0;
+
+	}
+  else
+	{
+	  int delta = depth (t1->root) - depth (t0->root);
+
+	  ini_ptr_handler (h, DETACH);
+
+	  if (delta <= 0)
+		{
+		  if (node_del_first (t1, &h) == 2)
+			--delta;
+		  (void) join_left ((avl_node *) h.ptr, &t0->root, t1->root, delta,
+							t0->count + 1);
+		}
+	  else
+		{
+		  if (node_del_last (t0, &h) == 2)
+			++delta;
+		  (void) join_right ((avl_node *) h.ptr, t0->root, &t1->root, delta,
+							 t0->count + 1);
+		  t0->root = t1->root;
+		}
+
+	  t1->root = NULL;
+	  t0->count += t1->count + 1;
+	  t1->count = 0;
+	}
+}
+
+/* 
+ * - [t0] and [t1] are existing handles
+ * - See Donald Knuth, TAOCP Vol.3 "Sorting and searching"
+ */
+
+avl_code_t
+avl_split (const void *item, avl_tree t, avl_tree t0, avl_tree t1)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL || t->root == NULL)
+#else
+  if (t->root == NULL)
+#endif /* AVL_NULLCHECKS */
+	return 0;
+
+  t0->root = NULL;
+  t1->root = NULL;
+  t0->count = 0;
+  t1->count = 0;
+
+  {
+	avl_compare_func cmp = t->compare;
+	avl_node *a, *p, *sn;		/* sn: split node */
+	int d_, k, na, an[AVL_STACK_CAPACITY];
+
+	/* invariant: [na]= size of tree rooted at [a] plus one */
+
+	for (a = t->root, na = t->count + 1, k = 0;;)
+	  {
+		d_ = Item_Compare (cmp, t, item, get_item (a));
+		CMPERR_CHECK__SPLIT (t->param);
+		if (!d_)
+		  break;
+		p = a->sub[d_ = d_ > 0];
+		if (p == NULL)
+		  return 0;
+		an[k++] = na;
+		if (d_)
+		  na -= get_rank (a);
+		else
+		  na = get_rank (a);
+		a = p;
+	  }
+
+	/* record split node */
+	sn = a;
+
+	if (k == 0)
+	  {
+		t0->root = sub_left (a);
+		t1->root = sub_right (a);
+		if (t0->root != NULL)
+		  t0->root->up = NULL;
+		if (t1->root != NULL)
+		  t1->root->up = NULL;
+		t0->count = get_rank (a) - 1;
+		t1->count = t->count - get_rank (a);
+	  }
+	else
+	  {
+		avl_node *r[2], *rr;
+		int h[2], ha, hh;
+		avl_size_t n[2], nn;
+
+		r[0] = sub_left (a);
+		r[1] = sub_right (a);
+		if (r[0] != NULL)
+		  r[0]->up = NULL;
+		if (r[1] != NULL)
+		  r[1]->up = NULL;
+		ha = depth (a);
+		h[0] = ha - (is_rskew (a) ? 2 : 1);
+		h[1] = ha - (is_lskew (a) ? 2 : 1);
+		n[0] = get_rank (a);	/* size of r[0] plus one */
+		n[1] = na - n[0];		/* size of r[1] plus one */
+
+		for (p = a->up, d_ = a != sub_left (p);;)
+		  {
+
+			a = p;				/* a: juncture node */
+			p = a->up;
+
+			if (d_ == 0)
+			  {
+				hh = h[1];
+				ha += (is_rskew (a) ? 2 : 1);
+				h[1] = ha - (is_lskew (a) ? 2 : 1);
+				nn = n[1];
+				n[1] += an[k - 1] - get_rank (a);
+				if (p != NULL)
+				  d_ = a != sub_left (p);
+				rbal (a) = 0;
+
+				if (h[1] >= hh)
+				  {
+					rr = r[1];
+					r[1] = sub_right (a);
+					if (r[1] != NULL)
+					  r[1]->up = NULL;
+					h[1] += (2 == join_right (a, rr, r + 1, h[1] - hh, nn));
+				  }
+				else
+				  {
+					h[1] =
+					  hh + (2 ==
+							join_left (a, r + 1, sub_right (a), h[1] - hh,
+									   nn));
+				  }
+			  }
+			else
+			  {
+				hh = h[0];
+				ha += (is_lskew (a) ? 2 : 1);
+				h[0] = ha - (is_rskew (a) ? 2 : 1);
+				nn = get_rank (a);
+				n[0] += nn;
+				if (p != NULL)
+				  d_ = a != sub_left (p);
+				rbal (a) = 0;
+
+				if (h[0] >= hh)
+				  {
+					rr = r[0];
+					r[0] = sub_left (a);
+					if (r[0] != NULL)
+					  r[0]->up = NULL;
+					h[0] += (2 == join_left (a, r, rr, hh - h[0], nn));
+				  }
+				else
+				  {
+					h[0] =
+					  hh + (2 ==
+							join_right (a, sub_left (a), r, hh - h[0], nn));
+				  }
+			  }
+
+			if (--k == 0)
+			  break;
+		  }						/* for p */
+
+		t0->root = r[0];
+		t1->root = r[1];
+		t0->count = n[0] - 1;
+		t1->count = n[1] - 1;
+	  }							/* if k==0 */
+
+	/* Detach split node */
+	detach_node (sn, t, NULL);
+	t->root = NULL;
+	t->count = 0;
+
+	return 1;
+  }
+}
+
+/* Inorder traversal */
+
+void
+avl_walk (avl_tree t, avl_item_func proc, void *param)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL || t->root == NULL)
+#else
+  if (t->root == NULL)
+#endif
+	return;
+
+  {
+	avl_node *a = t->root, *p;
+
+	while (1)
+	  {
+		while (sub_left (a) != NULL)
+		  a = sub_left (a);
+
+		while (1)
+		  {
+			(*proc) (get_item (a), param);
+			if (sub_right (a) != NULL)
+			  break;
+			do
+			  {
+				p = a;
+				a = p->up;
+				if (a == NULL)
+				  return;
+			  }
+			while (p != sub_left (a));
+		  }
+		a = sub_right (a);
+	  }
+  }
+}
+
+/* recursive helper for 'avl_slice' */
+static int
+node_slice (avl_node ** root, avl_node ** cur, avl_tree tree, avl_size_t len)
+{
+  avl_size_t mid = len / 2;
+
+  if (mid == 0)
+	{
+	  if ((*root = new_node ((*cur)->item, /*parent */ NULL, tree)) == NULL)
+		return -1;
+	  sub_left (*root) = NULL;
+	  sub_right (*root) = NULL;
+	  rbal (*root) = 4;
+	  *cur = node_next (*cur);
+	  return 0;
+
+	}
+  else if ((*root = new_node (NULL, /*parent */ NULL, tree)) == NULL)
+	{
+	  return -1;
+	}
+  else
+	{
+	  avl_node *p = *root;
+	  int h0, h1 = -1;
+
+	  rbal (p) = (mid + 1) << 2;
+
+	  if ((h0 = node_slice (&sub_left (p), cur, tree, mid)) < 0)
+		return -1;
+
+	  p->item = (*tree->copy) ((*cur)->item);
+	  sub_left (p)->up = p;
+
+	  *cur = node_next (*cur);
+
+	  if (len -= mid + 1)
+		{
+		  if ((h1 = node_slice (&sub_right (p), cur, tree, len)) < 0)
+			return -1;
+		  sub_right (p)->up = p;
+		}
+
+	  if (h0 > h1)
+		set_lskew (p);
+	  else if (h0 < h1)
+		{
+		  set_rskew (p);
+		  return 1 + h1;
+		}
+	  return 1 + h0;
+	}
+}
+
+/* Return a slice t[lo,hi) as a new tree */
+
+avl_tree
+avl_slice (avl_tree t, avl_size_t lo_idx, avl_size_t hi_idx, void *param)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL)
+	return NULL;
+#endif /* AVL_NULLCHECKS */
+
+  if (lo_idx > hi_idx || lo_idx > t->count)
+	return NULL;
+  if (lo_idx < 1)
+	lo_idx = 1;
+  if (hi_idx > t->count + 1)
+	hi_idx = t->count + 1;
+
+  {
+	avl_tree tt = avl_create (t->compare,
+							  t->copy,
+							  t->dispose,
+							  t->alloc,
+							  t->dealloc,
+							  param);
+
+	if (tt == NULL)
+	  {
+		AVL_SHOW_ERROR ("%s\n",
+						"couldn't allocate new handle in avl_slice()");
+		return NULL;
+	  }
+
+	if (lo_idx < hi_idx)
+	  {
+		avl_node *cur = node_find_index (lo_idx, t);
+
+		if (node_slice (&tt->root, &cur, t, tt->count = hi_idx - lo_idx) < 0)
+		  {
+			AVL_SHOW_ERROR ("%s\n", "couldn't allocate node in avl_slice()");
+			node_empty (tt);
+			(*t->dealloc) (tt);
+			return NULL;
+		  }
+		tt->root->up = NULL;
+	  }
+	return tt;
+  }
+}
+
+/* recursive helper for 'avl_xload' */
+
+static int
+node_load (avl_node ** root, avl_itersource cur, void **pres, avl_tree desc,
+		   avl_size_t len)
+{
+  avl_size_t mid = len / 2;
+
+  if (mid == 0)
+	{
+	  if (0 != (*cur->f) (cur, pres)
+		  || (*root = new_node (*pres, /*parent */ NULL, desc)) == NULL)
+		return -1;
+	  sub_left (*root) = NULL;
+	  sub_right (*root) = NULL;
+	  rbal (*root) = 4;
+	  return 0;
+
+	}
+  else if ((*root = new_node (NULL, /*parent */ NULL, desc)) == NULL)
+	{
+	  return -1;
+	}
+  else
+	{
+	  avl_node *p = *root;
+	  int h0, h1 = -1;
+
+	  rbal (p) = (mid + 1) << 2;
+
+	  if ((h0 = node_load (&sub_left (p), cur, pres, desc, mid)) < 0)
+		return -1;
+
+	  if (0 != (*cur->f) (cur, pres))
+		return -1;
+
+	  p->item = (*desc->copy) (*pres);
+	  sub_left (p)->up = p;
+
+	  if (len -= mid + 1)
+		{
+		  if ((h1 = node_load (&sub_right (p), cur, pres, desc, len)) < 0)
+			return -1;
+		  sub_right (p)->up = p;
+		}
+
+	  if (h0 > h1)
+		set_lskew (p);
+	  else if (h0 < h1)
+		{
+		  set_rskew (p);
+		  return 1 + h1;
+		}
+	  return 1 + h0;
+	}
+}
+
+/* Load 'len' items from itersource */
+
+avl_tree
+avl_xload (avl_itersource src, void **pres, avl_size_t len, avl_config conf,
+		   void *tree_param)
+{
+#ifndef AVL_NULLCHECKS
+  if (src == NULL)
+	return NULL;
+  {
+#endif /* AVL_NULLCHECKS */
+
+	avl_tree tt = avl_create (conf->compare,
+							  conf->copy,
+							  conf->dispose,
+							  conf->alloc,
+							  conf->dealloc,
+							  tree_param);
+
+	if (tt == NULL)
+	  {
+		AVL_SHOW_ERROR ("%s\n", "couldn't allocate new handle in avl_load()");
+		return NULL;
+	  }
+
+	if (len)
+	  {
+		if (node_load (&tt->root, src, pres, tt, tt->count = len) < 0)
+		  {
+			AVL_SHOW_ERROR ("%s\n", "couldn't allocate node in avl_load()");
+			node_empty (tt);
+			(*tt->dealloc) (tt);
+			return NULL;
+		  }
+		tt->root->up = NULL;
+	  }
+	return tt;
+#ifndef AVL_NULLCHECKS
+  }
+#endif
+}
+
+#ifdef HAVE_AVL_VERIFY
+
+/* Verification routine */
+typedef enum
+{
+  okay = 0,
+  bad_parent = 1,
+  bad_rank = 2,
+  out_of_balance = 3,
+  out_of_order = 4,
+  diff_mismatch = 5,
+  count_mismatch = 6
+}
+avl_verify_code;
+
+static avl_bool_t
+avl_error (avl_verify_code err)
+{
+  static char *errmess[] = {
+	"Bad parent link",
+	"Rank error",
+	"Out of balance",
+	"Out of order",
+	"Differential mismatch",
+	"Count mismatch"
+  };
+
+  AVL_SHOW_ERROR ("Invalid avl_tree: %s\n", errmess[err - 1]);
+  return avl_false;
+}
+
+static int bals[] = { 1, 0, 2 };
+
+/* 
+   helper for recursive 'avl_verify' function
+   return 0 iff okay
+ */
+
+static avl_verify_code
+node_verify (avl_node * root, avl_tree tree, int *h, avl_size_t * c,
+			 avl_node * up)
+{
+  avl_verify_code err = okay;
+
+  if (root == NULL)
+	*h = AVL_MIN_DEPTH, *c = 0;
+  else
+	{
+#define AVL_ASSERT(expr,n) if (expr) ; else { err = n; break; }
+#define CHECK(err) if (err) break
+
+	  avl_node *left, *right;
+	  avl_size_t c_[2];
+	  int h_[2], delta;
+
+	  left = sub_left (root);
+	  right = sub_right (root);
+	  do
+		{
+		  AVL_ASSERT (root->up == up, bad_parent);
+		  CHECK (err = node_verify (left, tree, h_, c_, root));
+		  AVL_ASSERT (get_rank (root) == *c_ + 1, bad_rank);
+		  CHECK (err = node_verify (right, tree, h_ + 1, c_ + 1, root));
+		  delta = h_[1] - h_[0];
+		  AVL_ASSERT (delta >= -1 && delta <= +1, out_of_balance);
+		  AVL_ASSERT (get_bal (root) == bals[delta + 1], diff_mismatch);
+		  AVL_ASSERT (left == NULL
+					  || (Item_Compare (tree->compare, tree, get_item (left),
+										get_item (root)) <=
+						  0 CMPERR_CHECK__VERIFY (tree->param)),
+					  out_of_order);
+		  AVL_ASSERT (right == NULL
+					  ||
+					  (Item_Compare
+					   (tree->compare, tree, get_item (root),
+						get_item (right)) <=
+					   0 CMPERR_CHECK__VERIFY (tree->param)), out_of_order);
+		  *h = 1 + (h_[0] > h_[1] ? h_[0] : h_[1]);
+		  *c = 1 + c_[0] + c_[1];
+		}
+	  while (0);
+	}
+  return err;
+}
+
+avl_bool_t
+avl_verify (avl_tree t)
+{
+#ifndef AVL_NULLCHECKS
+  if (t == NULL)
+	return avl_false;
+#endif /* AVL_NULLCHECKS */
+  {
+	int h;
+	avl_size_t c;
+	avl_verify_code err;
+
+	err = node_verify (t->root, t, &h, &c, (avl_node *) NULL);
+	if (err)
+	  return avl_error (err);
+	if (c != t->count)
+	  return avl_error (count_mismatch);
+	return avl_true;
+  }
+}
+#endif /* HAVE_AVL_VERIFY */
+
+/****************
+ *               *
+ *   ITERATORS   *
+ *               *
+ ****************/
+
+typedef enum
+{
+  AVL_ITERATOR_PRE,
+  AVL_ITERATOR_POST,
+  AVL_ITERATOR_INTREE
+}
+avl_status_t;
+
+struct avl_iterator_
+{
+  avl_node *pos;
+  avl_tree tree;
+  avl_status_t status;
 };
 
-#undef NDEBUG
-#include <assert.h>
+#define get_root(i)             i->tree->root
+#define is_pre(i)               i->status == AVL_ITERATOR_PRE
+#define is_post(i)              i->status == AVL_ITERATOR_POST
+#define set_pre_iterator(i)     i->status = AVL_ITERATOR_PRE
+#define set_post_iterator(i)    i->status = AVL_ITERATOR_POST
+#define set_in_iterator(i)      i->status = AVL_ITERATOR_INTREE
 
-/* Asserts that |avl_insert()| succeeds at inserting |item| into |table|. */
+/* Position existing iterator [iter] at node matching [item] in its own tree,
+ * if it exists ; otherwise do nothing
+ */
+
 void
- (avl_assert_insert) (struct avl_table * table, void *item) {
-    void **p = avl_probe (table, item);
-    assert (p != NULL && *p == item);
+avl_iterator_seek (const void *item, avl_iterator iter)
+{
+  avl_node *p = node_find (item, iter->tree);
+
+  if (p != NULL)
+	{
+	  set_in_iterator (iter);
+	  iter->pos = p;
+	}
 }
 
-/* Asserts that |avl_delete()| really removes |item| from |table|,
-   and returns the removed item. */
-void *(avl_assert_delete) (struct avl_table * table, void *item) {
-    void *p = avl_delete (table, item);
-    assert (p != NULL);
-    return p;
+void
+avl_iterator_seek_index (avl_size_t idx, avl_iterator iter)
+{
+  avl_node *p = node_find_index (idx, iter->tree);
+
+  if (p != NULL)
+	{
+	  set_in_iterator (iter);
+	  iter->pos = p;
+	}
+}
+
+/* Return item pointer at current position */
+
+void *
+avl_iterator_cur (avl_iterator iter)
+{
+  return iter->pos != NULL ? get_item (iter->pos) : NULL;
+}
+
+avl_size_t
+avl_iterator_count (avl_iterator iter)
+{
+  return iter->tree->count;
+}
+
+avl_size_t
+avl_iterator_index (avl_iterator iter)
+{
+  if (iter->pos != NULL)
+	return get_index (iter->pos);
+  else if (is_pre (iter))
+	return 0;
+  else
+	return iter->tree->count + 1;
+}
+
+/* Rustic: */
+
+avl_iterator
+avl_iterator_new (avl_tree t, avl_ini_t ini, ...)
+{
+  va_list args;
+  avl_iterator iter = NULL;
+
+  va_start (args, ini);
+
+  if (t == NULL)
+	goto finish;
+
+  if ((iter = (*t->alloc) (sizeof (struct avl_iterator_))) == NULL)
+	{
+	  AVL_SHOW_ERROR ("%s\n", "couldn't create iterator");
+	  goto finish;
+	}
+
+  iter->pos = NULL;
+  iter->tree = t;
+
+  if (ini != AVL_ITERATOR_INI_INTREE)
+	{
+	  iter->status =
+		(ini == AVL_ITERATOR_INI_PRE) ? AVL_ITERATOR_PRE : AVL_ITERATOR_POST;
+	}
+  else
+	{
+	  const void *item = NULL;
+
+	  item = va_arg (args, const void *);
+
+	  set_pre_iterator (iter);
+
+	  if (item == NULL)
+		AVL_SHOW_ERROR ("%s\n", "missing argument to avl_iterator_new()");
+	  else
+		avl_iterator_seek (item, iter);
+	}
+
+finish:
+  va_end (args);
+  return iter;
+}
+
+/* 
+ * The following used to write to memory after it was freed.
+ * Corrected by: David Turner <novalis@openplans.org>
+ */
+void
+avl_iterator_kill (avl_iterator iter)
+{
+  if (iter != NULL)
+	{
+	  avl_dealloc_func dealloc = iter->tree->dealloc;
+	  iter->pos = NULL;
+	  iter->tree = NULL;
+	  (*dealloc) (iter);
+	}
+}
+
+void *
+avl_iterator_next (avl_iterator iter)
+{
+  avl_node *a = iter->pos;
+
+  if (is_post (iter))
+	return NULL;
+
+  if (is_pre (iter))
+	{
+	  a = get_root (iter);
+	  if (a != NULL)
+		{
+		  a = node_first (a);
+		  set_in_iterator (iter);
+		}
+	}
+  else
+	{
+	  a = node_next (a);
+	  if (a == NULL)
+		set_post_iterator (iter);
+	}
+
+  iter->pos = a;
+  return a != NULL ? get_item (a) : NULL;
+}
+
+void *
+avl_iterator_prev (avl_iterator iter)
+{
+  avl_node *a = iter->pos;
+
+  if (is_pre (iter))
+	return NULL;
+
+  if (is_post (iter))
+	{
+	  a = get_root (iter);
+	  if (a != NULL)
+		{
+		  a = node_last (a);
+		  set_in_iterator (iter);
+		}
+	}
+  else
+	{
+	  a = node_prev (a);
+	  if (a == NULL)
+		set_pre_iterator (iter);
+	}
+
+  iter->pos = a;
+  return a != NULL ? get_item (a) : NULL;
+}
+
+/* Remove node at current position */
+
+/* Move cursor to next position */
+
+avl_code_t
+avl_iterator_del (avl_iterator iter, void **backup)
+{
+  if (iter == NULL || iter->pos == NULL)
+	return 0;
+  {
+	avl_node *a = iter->pos, *p;
+
+	p = node_next (a);
+	if (p == NULL)
+	  set_post_iterator (iter);
+	iter->pos = p;
+	return rebalance_del (a, iter->tree, backup);
+  }
 }

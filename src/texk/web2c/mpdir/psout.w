@@ -3,16 +3,16 @@
 % Copyright 2008 Taco Hoekwater.
 %
 % This program is free software: you can redistribute it and/or modify
-% it under the terms of the GNU General Public License as published by
-% the Free Software Foundation, either version 2 of the License, or
+% it under the terms of the GNU Lesser General Public License as published by
+% the Free Software Foundation, either version 3 of the License, or
 % (at your option) any later version.
 %
 % This program is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
 % MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
+% GNU Lesser General Public License for more details.
 %
-% You should have received a copy of the GNU General Public License
+% You should have received a copy of the GNU Lesser General Public License
 % along with this program.  If not, see <http://www.gnu.org/licenses/>.
 %
 % TeX is a trademark of the American Mathematical Society.
@@ -86,19 +86,29 @@
 
 @ There is a small bit of code from the backend that bleads through
 to the frontend because I do not know how to set up the includes
-properly. Those are the definitions of |struct libavl_allocator|
-and |typedef struct psout_data_struct * psout_data|.
-
-The |libavl_allocator| is a trick that makes sure that frontends 
-do not need |avl.h|, and the |psout_data| is needed for the backend 
-data structure.
+properly. That is the |typedef struct psout_data_struct * psout_data|.
 
 @ @(mppsout.h@>=
+#include "avl.h"
 @<Types...@>
 typedef struct psout_data_struct {
   @<Globals@>
 } psout_data_struct ;
 @<Exported function headers@>
+
+@ 
+@c
+void *avl_probe (avl_tree t, void *p) {
+  int ret = avl_ins(p, t, false);
+  if (ret < 0) 
+    return NULL;
+  else 
+    return avl_find(p, t);
+}
+
+@ @<Exported...@>=
+void *avl_probe (avl_tree t, void *p) ;
+
 
 @ @c
 static boolean mp_isdigit (int a) {
@@ -513,50 +523,69 @@ static void mp_write_enc (MP mp, enc_entry * e) {
 @ All encoding entries go into AVL tree for fast search by name.
 
 @<Glob...@>=
-struct avl_table *enc_tree;
+avl_tree enc_tree;
 
-@ Memory management functions for avl 
+@
 
 @<Static variables in the outer block@>=
 static const char notdef[] = ".notdef";
 
-@ @<Declarations@>=
-static void *avl_xmalloc (struct libavl_allocator *allocator, size_t size);
-static void avl_xfree (struct libavl_allocator *allocator, void *block);
-
-@ @c
-static void *avl_xmalloc (struct libavl_allocator *allocator, size_t size) {
-    (void)allocator;
-    return malloc (size);
-}
-static void avl_xfree (struct libavl_allocator *allocator, void *block) {
-    (void)allocator;
-    free (block);
-}
-
-@ @<Glob...@>=
-struct libavl_allocator avl_xallocator;
-
 @ @<Set initial...@>=
-mp->ps->avl_xallocator.libavl_malloc=avl_xmalloc;
-mp->ps->avl_xallocator.libavl_free= avl_xfree;
 mp->ps->enc_tree = NULL;
 
 @ @c
-static int comp_enc_entry (const void *pa, const void *pb, void *p) {
+static int comp_enc_entry (void *p, const void *pa, const void *pb) {
     (void)p;
     return strcmp (((const enc_entry *) pa)->file_name,
                    ((const enc_entry *) pb)->file_name);
 }
+static void *destroy_enc_entry (void *pa) {
+    enc_entry *p;
+    int i;
+    p = (enc_entry *) pa;
+    mp_xfree (p->file_name);
+    if (p->glyph_names != NULL)
+        for (i = 0; i < 256; i++)
+            if (p->glyph_names[i] != notdef)
+                mp_xfree (p->glyph_names[i]);
+    mp_xfree (p->glyph_names);
+    mp_xfree (p);
+}
+static void *copy_enc_entry (const void *pa) {
+    enc_entry *p, *q;
+    int i;
+    p = (enc_entry *) pa;
+    q = malloc (sizeof (enc_entry));
+    if (q!=NULL) {
+        q->loaded = p->loaded;
+        q->file_name = strdup (p->file_name);
+        q->objnum = p->objnum;
+        q->tounicode = p->tounicode;
+        q->glyph_names = malloc (256 * sizeof (char *));
+        if (p->glyph_names == NULL)
+            return NULL;
+        for (i = 0; i < 256; i++) {
+           if (p->glyph_names[i]!=NULL)
+              q->glyph_names[i] = strdup(p->glyph_names[i]);
+           else
+              q->glyph_names[i] = NULL;
+        }
+    }
+    return (void *)q;
+}
+
 static enc_entry * mp_add_enc (MP mp, char *s) {
     int i;
     enc_entry tmp, *p;
     void **aa;
     if (mp->ps->enc_tree == NULL) {
-      mp->ps->enc_tree = avl_create (comp_enc_entry, NULL, &mp->ps->avl_xallocator);
+      mp->ps->enc_tree = avl_create (comp_enc_entry,
+                                     copy_enc_entry, 
+                                     destroy_enc_entry, 
+                                     malloc, free, NULL);
     }
     tmp.file_name = s;
-    p = (enc_entry *) avl_find (mp->ps->enc_tree, &tmp);
+    p = (enc_entry *) avl_find (&tmp, mp->ps->enc_tree);
     if (p != NULL)              /* encoding already registered */
         return p;
     p = mp_xmalloc (mp,1,sizeof (enc_entry));
@@ -573,27 +602,13 @@ static enc_entry * mp_add_enc (MP mp, char *s) {
 
 @ cleaning up... 
 
-@c 
-static void mp_destroy_enc_entry (void *pa, void *pb) {
-    enc_entry *p;
-    int i;
-    p = (enc_entry *) pa;
-    (void)pb;
-    mp_xfree (p->file_name);
-    if (p->glyph_names != NULL)
-        for (i = 0; i < 256; i++)
-            if (p->glyph_names[i] != notdef)
-                mp_xfree (p->glyph_names[i]);
-    mp_xfree (p->glyph_names);
-    mp_xfree (p);
-}
 
 @ @<Declarations@>=
 static void enc_free (MP mp);
 
 @ @c static void enc_free (MP mp) {
     if (mp->ps->enc_tree != NULL)
-      avl_destroy (mp->ps->enc_tree, mp_destroy_enc_entry);
+      avl_destroy (mp->ps->enc_tree);
 }
 
 @ @<Declarations@>=
@@ -708,6 +723,8 @@ static const char nontfm[] = "<nontfm>";
     if (a < b)
         return -1
 
+@d do_strdup(a) (a==NULL ? NULL : strdup(a))
+
 @c
 static fm_entry *new_fm_entry (MP mp) {
     fm_entry *fm;
@@ -734,7 +751,24 @@ static fm_entry *new_fm_entry (MP mp) {
     return fm;
 }
 
-static void delete_fm_entry (fm_entry * fm) {
+static void *copy_fm_entry (const void *p) {
+    fm_entry *fm, *fp;
+    fp = (fm_entry *)p;
+    fm = malloc (sizeof(fm_entry));
+    if (fm==NULL)
+      return NULL;
+    memcpy(fm, fp, sizeof(fm_entry));
+    fm->tfm_name   = do_strdup(fp->tfm_name);
+    fm->ps_name    = do_strdup(fp->ps_name);
+    fm->ff_name    = do_strdup(fp->ff_name);
+    fm->subset_tag = do_strdup(fp->subset_tag);
+    fm->charset    = do_strdup(fp->charset);
+    return (void *)fm;
+}
+
+
+static void * delete_fm_entry (void *p) {
+    fm_entry *fm = (fm_entry *)p;
     mp_xfree (fm->tfm_name);
     mp_xfree (fm->ps_name);
     mp_xfree (fm->ff_name);
@@ -751,7 +785,19 @@ static ff_entry *new_ff_entry (MP mp) {
     return ff;
 }
 
-static void delete_ff_entry (ff_entry * ff) {
+static void *copy_ff_entry (const void *p) {
+    ff_entry *ff, *fp;
+    fp = (ff_entry *)p;
+    ff = (ff_entry *)malloc (sizeof(ff_entry));
+    if (ff == NULL) 
+      return NULL;
+    ff->ff_name = do_strdup(fp->ff_name);
+    ff->ff_path = do_strdup(fp->ff_path);
+    return ff;
+}
+
+static void * delete_ff_entry (void *p) {
+    ff_entry *ff = (ff_entry *)p;
     mp_xfree (ff->ff_name);
     mp_xfree (ff->ff_path);
     mp_xfree (ff);
@@ -785,9 +831,9 @@ boolean mp_has_fm_entry (MP mp,font_number f, fm_entry **fm) {
 }
 
 @ @<Glob...@>=
-struct avl_table *tfm_tree;
-struct avl_table *ps_tree;
-struct avl_table *ff_tree;
+avl_tree tfm_tree;
+avl_tree ps_tree;
+avl_tree ff_tree;
 
 @ @<Set initial...@>=
 mp->ps->tfm_tree = NULL;
@@ -797,7 +843,7 @@ mp->ps->ff_tree = NULL;
 @ AVL sort |fm_entry| into |tfm_tree| by |tfm_name |
 
 @c
-static int comp_fm_entry_tfm (const void *pa, const void *pb, void *p) {
+static int comp_fm_entry_tfm (void *p, const void *pa, const void *pb) {
     (void)p;
     return strcmp (((const fm_entry *) pa)->tfm_name,
                    ((const fm_entry *) pb)->tfm_name);
@@ -805,7 +851,7 @@ static int comp_fm_entry_tfm (const void *pa, const void *pb, void *p) {
 
 @ AVL sort |fm_entry| into |ps_tree| by |ps_name|, |slant|, and |extend|
 
-@c static int comp_fm_entry_ps (const void *pa, const void *pb, void *p) {
+@c static int comp_fm_entry_ps (void *p, const void *pa, const void *pb) {
     int i;
     const fm_entry *p1 = (const fm_entry *) pa;
     const fm_entry *p2 = (const fm_entry *) pb;
@@ -823,7 +869,7 @@ static int comp_fm_entry_tfm (const void *pa, const void *pb, void *p) {
 
 @ AVL sort |ff_entry| into |ff_tree| by |ff_name|
 
-@c static int comp_ff_entry (const void *pa, const void *pb, void *p) {
+@c static int comp_ff_entry (void *p, const void *pa, const void *pb) {
     (void)p;
     return strcmp (((const ff_entry *) pa)->ff_name,
                    ((const ff_entry *) pb)->ff_name);
@@ -831,15 +877,24 @@ static int comp_fm_entry_tfm (const void *pa, const void *pb, void *p) {
 
 @ @c static void create_avl_trees (MP mp) {
     if (mp->ps->tfm_tree == NULL) {
-        mp->ps->tfm_tree = avl_create (comp_fm_entry_tfm, NULL, &mp->ps->avl_xallocator);
+        mp->ps->tfm_tree = avl_create (comp_fm_entry_tfm,
+                                      copy_fm_entry,
+                                      delete_fm_entry,
+                                      malloc, free, NULL);
         assert (mp->ps->tfm_tree != NULL);
     }
     if (mp->ps->ps_tree == NULL) {
-        mp->ps->ps_tree = avl_create (comp_fm_entry_ps, NULL, &mp->ps->avl_xallocator);
+        mp->ps->ps_tree = avl_create (comp_fm_entry_ps, 
+                                      copy_fm_entry,
+                                      delete_fm_entry,
+                                      malloc, free, NULL);
         assert (mp->ps->ps_tree != NULL);
     }
     if (mp->ps->ff_tree == NULL) {
-        mp->ps->ff_tree = avl_create (comp_ff_entry, NULL, &mp->ps->avl_xallocator);
+        mp->ps->ff_tree = avl_create (comp_ff_entry, 
+                                      copy_ff_entry,
+                                      delete_ff_entry,
+                                      malloc, free, NULL);
         assert (mp->ps->ff_tree != NULL);
     }
 }
@@ -868,7 +923,7 @@ static int avl_do_entry (MP mp, fm_entry * fp, int mode) {
     /* handle |tfm_name| link */
 
     if (strcmp (fp->tfm_name, nontfm)) {
-        p = (fm_entry *) avl_find (mp->ps->tfm_tree, fp);
+        p = (fm_entry *) avl_find (fp, mp->ps->tfm_tree);
         if (p != NULL) {
             if (mode == FM_DUPIGNORE) {
                mp_snprintf(s,128,"fontmap entry for `%s' already exists, duplicates ignored",
@@ -883,7 +938,7 @@ static int avl_do_entry (MP mp, fm_entry * fp, int mode) {
                     mp_warn(mp,s);
                     goto exit;
                 }
-                a = avl_delete (mp->ps->tfm_tree, p);
+                (void) avl_del (p,mp->ps->tfm_tree,&a);
                 assert (a != NULL);
                 unset_tfmlink (p);
                 if (!has_pslink (p))
@@ -901,7 +956,7 @@ static int avl_do_entry (MP mp, fm_entry * fp, int mode) {
 
     if (fp->ps_name != NULL) {
         assert (fp->tfm_name != NULL);
-        p = (fm_entry *) avl_find (mp->ps->ps_tree, fp);
+        p = (fm_entry *) avl_find (fp, mp->ps->ps_tree);
         if (p != NULL) {
             if (mode == FM_DUPIGNORE) {
                 mp_snprintf(s,128,
@@ -918,7 +973,7 @@ static int avl_do_entry (MP mp, fm_entry * fp, int mode) {
                     mp_warn(mp,s);
                     goto exit;
                 }
-                a = avl_delete (mp->ps->ps_tree, p);
+                (void)avl_del (p,mp->ps->ps_tree,&a);
                 assert (a != NULL);
                 unset_pslink (p);
                 if (!has_tfmlink (p))
@@ -1285,7 +1340,7 @@ fm_entry * mp_fm_lookup (MP mp, font_number f) {
     assert (strcmp (tfm, nontfm));
     /* Look up for full <tfmname>[+-]<expand> */
     tmp.tfm_name = tfm;
-    fm = (fm_entry *) avl_find (mp->ps->tfm_tree, &tmp);
+    fm = (fm_entry *) avl_find (&tmp, mp->ps->tfm_tree);
     if (fm != NULL) {
         init_fm (fm, f);
         return (fm_entry *) fm;
@@ -1295,7 +1350,7 @@ fm_entry * mp_fm_lookup (MP mp, font_number f) {
         return NULL;
 
     tmp.tfm_name = tfm;
-    fm = (fm_entry *) avl_find (mp->ps->tfm_tree, &tmp);
+    fm = (fm_entry *) avl_find (&tmp, mp->ps->tfm_tree);
     if (fm != NULL) {           /* found an entry with the base tfm name, e.g. cmr10 */
       return (fm_entry *) fm; /* font expansion uses the base font */
     }
@@ -1320,7 +1375,7 @@ static ff_entry *check_ff_exist (MP mp, fm_entry * fm) {
 
     assert (fm->ff_name != NULL);
     tmp.ff_name = fm->ff_name;
-    ff = (ff_entry *) avl_find (mp->ps->ff_tree, &tmp);
+    ff = (ff_entry *) avl_find (&tmp, mp->ps->ff_tree);
     if (ff == NULL) {           /* not yet in database */
         ff = new_ff_entry (mp);
         ff->ff_name = mp_xstrdup (mp,fm->ff_name);
@@ -1458,11 +1513,11 @@ static void fm_free (MP mp);
 @ @c
 static void fm_free (MP mp) {
     if (mp->ps->tfm_tree != NULL)
-        avl_destroy (mp->ps->tfm_tree, destroy_fm_entry_tfm);
+        avl_destroy (mp->ps->tfm_tree);
     if (mp->ps->ps_tree != NULL)
-        avl_destroy (mp->ps->ps_tree, destroy_fm_entry_ps);
+        avl_destroy (mp->ps->ps_tree);
     if (mp->ps->ff_tree != NULL)
-        avl_destroy (mp->ps->ff_tree, destroy_ff_entry);
+        avl_destroy (mp->ps->ff_tree);
 }
 
 @ The file |ps_tab_file| gives a table of \TeX\ font names and corresponding

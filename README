@@ -5,11 +5,11 @@ MetaPost is a system for producing graphics developed by John Hobby at
 AT&T, based on Donald Knuth's Metafont. 
 
 MetaPost is free software: you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 2 of the License, or (at your
+under the terms of the GNU Lesser General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your
 option) any later version.
 
-You should have received a copy of the GNU General Public License
+You should have received a copy of the GNU Lesser General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 - The MetaPost home page is http://tug.org/metapost.
@@ -39,7 +39,7 @@ The executable that is created by the build process is named mpost.
 As is normal in current TeX systems, this executable functions as both
 inimp and virmp by means of a command-line switch.
 
-The source for MetaPost is mplib/*.w
+The source for MetaPost is src/texk/web2c/mpdir/*.w
 
 Have fun!
 
