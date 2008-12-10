@@ -360,7 +360,8 @@ and character references. Just in case the input string is UTF-8, allow everythi
 except the characters that have to be quoted for XML well-formedness.
 
 @<Character |k| is not allowed in SVG output@>=
-  (k=='\0')||(k=='&')||(k=='>')||(k=='<')
+ (k<=0x8)||(k==0xB)||(k==0xC)||(k>=0xE && k<=0x1F)||
+ (k=='&')||(k=='>')||(k=='<')||(k==0x7F)
 
 @ We often need to print a pair of coordinates. 
 
