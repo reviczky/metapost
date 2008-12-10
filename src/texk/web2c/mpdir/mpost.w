@@ -63,6 +63,7 @@ static boolean recorder_enabled = false;
 static string recorder_name = NULL;
 static FILE *recorder_file = NULL;
 static char *job_name = NULL;
+static int dvitomp_only = 0;
 
 @ Allocating a bit of memory, with error detection:
 
@@ -336,6 +337,65 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
   return (int)(ret == 0);
 }
 
+static int mpost_run_dvitomp (char *dviname, char *mpxname) {
+    int i, ret;
+    char *m, *d;
+    mpx_options * mpxopt;
+    char *mpversion = mp_metapost_version () ;
+    mpxopt = mpost_xmalloc(sizeof(mpx_options));
+    memset(mpxopt,0,sizeof(mpx_options));
+    mpxopt->mode = mpx_tex_mode;
+    if (dviname == NULL)
+      return EXIT_FAILURE;
+    i = strlen(dviname);
+    if (mpxname==NULL) {
+      m = mpost_xstrdup(dviname);
+      if (i>4 && *(m+i-4)=='.'
+        && *(m+i-3)=='d'  && *(m+i-2)=='v'  && *(m+i-1)=='i')
+         *(m+i-4)='\0' ;
+    } else {
+      m = mpost_xstrdup(mpxname);
+    }
+    d = mpost_xstrdup(dviname);
+    if (!(i>4 && *(d+i-4)=='.'
+       && *(d+i-3)=='d'  && *(d+i-2)=='v'  && *(d+i-1)=='i')) {
+      char *s = malloc (i+5);
+      memset(s,0,i+5);
+      s = strcat(s, d);
+      (void)strcat(s+i-1, ".dvi");
+      mpost_xfree (d);
+      d = s ;
+    }
+
+    i = strlen(m);
+    if (i>4 && *(m+i-4)=='.'
+      && *(m+i-3)=='m'  && *(m+i-2)=='p'  && *(m+i-1)=='x') {
+    } else {
+      char *s = malloc (i+5);
+      memset(s,0,i+5);
+      s = strcat(s, m);
+      (void)strcat(s+i-1, ".mpx");
+      mpost_xfree (m);
+      m = s ;
+    }
+    mpxopt->mpname = d;
+    mpxopt->mpxname = m;
+
+    mpxopt->find_file = makempx_find_file;
+    {
+      char *banner = "% Written by dvitomp version ";
+      mpxopt->banner = mpost_xmalloc(strlen(mpversion)+strlen(banner)+1);
+      strcpy (mpxopt->banner, banner);
+      strcat (mpxopt->banner, mpversion);
+    }
+    ret = mpx_run_dvitomp(mpxopt);
+    mpost_xfree(mpxopt->banner);
+    mpost_xfree(mpxopt);
+    mpost_xfree(mpversion);
+    return ret;
+}
+
+
 @ 
 @<Register the callback routines@>=
 if (!nokpse)
@@ -510,6 +570,8 @@ if (!nokpse)
       options->file_line_error_style=true;
     } else if (option_is("no-file-line-error")) {
       options->file_line_error_style=false;
+    } else if (option_is("dvitomp")) {
+      dvitomp_only = 1;
     } else if (option_is("help")) {
       @<Show help and exit@>;
     } else if (option_is("version")) {
@@ -538,11 +600,13 @@ if (!nokpse)
 fprintf(stdout,
 "\n"
 "Usage: mpost [OPTION] [&MEMNAME] [MPNAME[.mp]] [COMMANDS]\n"
+"       mpost --dvitomp DVINAME[.dvi] [MPXNAME[.mpx]]\n"
 "\n"
 "  Run MetaPost on MPNAME, usually creating MPNAME.NNN (and perhaps\n"
 "  MPNAME.tfm), where NNN are the character numbers generated.\n"
 "  Any remaining COMMANDS are processed as MetaPost input,\n"
-"  after MPNAME is read.\n\n");
+"  after MPNAME is read.\n\n"
+"  With a --dvitomp argument, MetaPost acts as DVI-to-MPX converter only.\n\n");
 fprintf(stdout,
 "  If no arguments or options are specified, prompt for input.\n"
 "\n"
@@ -820,6 +884,21 @@ int main (int argc, char **argv) { /* |start_here| */
   options->ini_version       = (int)false;
   options->print_found_names = (int)true;
   @<Read and set command line options@>;
+  if (dvitomp_only) {
+    char *mpx = NULL, *dvi = NULL;
+    if (a==argc) {
+      /* error ? */
+    } else {
+      dvi = argv[a++];
+      if (a<argc) {
+        mpx = argv[a++];
+      }
+    }
+    if (!nokpse)
+      kpse_set_program_name("dvitomp", user_progname);  
+    exit (mpost_run_dvitomp(dvi, mpx));
+  }
+
   @= /*@@-nullpass@@*/ @> 
   if (!nokpse)
     kpse_set_program_name("mpost", user_progname);  

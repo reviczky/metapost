@@ -108,6 +108,7 @@ in order to prevent name clashes.
 #define PI  3.14159265358979323846
 #endif
 #include "avl.h"
+extern void *avl_probe (avl_tree t, void *p);
 #include "mpxout.h"
 @h
 
@@ -2563,8 +2564,9 @@ static int mpx_comp_name (void *p, const void *pa, const void *pb) {
 static void *destroy_avl_entry (void *pa) {
     avl_entry *p;
     p = (avl_entry *) pa;
-    mp_xfree (p->name);
-    mp_xfree (p);
+    free (p->name);
+    free (p);
+    return NULL;
 }
 static void *copy_avl_entry (const void *pa) { /* never used */
     avl_entry *p, *q;
@@ -4071,6 +4073,7 @@ typedef struct mpx_options {
   mpx_file_finder find_file;
 } mpx_options;
 int mpx_makempx (mpx_options *mpxopt) ;
+int mpx_run_dvitomp (mpx_options *mpxopt) ;
 
  
 @ 
@@ -4158,6 +4161,52 @@ int mpx_makempx (mpx_options *mpxopt) {
        retcode = 0;
     return retcode;
 }
+int mpx_run_dvitomp (mpx_options *mpxopt) {
+    MPX mpx;
+    int retcode, i ;
+    mpx = malloc(sizeof(struct mpx_data));
+    if (mpx==NULL || mpxopt->mpname==NULL || mpxopt->mpxname==NULL)
+      return mpx_fatal_error;
+    mpx_initialize(mpx);
+    if (mpxopt->banner!=NULL)
+      mpx->banner = mpxopt->banner;
+    mpx->mode = mpxopt->mode;
+    mpx->debug = mpxopt->debug;
+    if (mpxopt->find_file!=NULL)
+      mpx->find_file = mpxopt->find_file;
+    mpx->mpname = xstrdup(mpxopt->mpname);
+    mpx->mpxname = xstrdup(mpxopt->mpxname);
+    @<Install and test the non-local jump buffer@>;
+    if (mpx->debug) {
+      mpx->errfile = stderr;
+    } else {
+      mpx->errfile = mpx_xfopen(mpx,MPXLOG, "wb");
+    }
+    mpx->progname = "dvitomp";
+    if (mpx_dvitomp(mpx, mpx->mpname)) {
+	  if (!mpx->debug)
+	    remove(mpx->mpxname);
+	  mpx_abort(mpx, "Dvi conversion failed: %s %s\n",
+	                  DVIERR, mpx->mpxname);
+    }
+    mpx_fclose(mpx,mpx->mpxfile);
+    if (!mpx->debug)
+      mpx_fclose(mpx,mpx->errfile);
+    if (!mpx->debug) {
+	  remove(MPXLOG);
+	  remove(ERRLOG);
+    }
+    mpx_erasetmp(mpx);
+    retcode = mpx->history;
+    mpx_xfree(mpx->buf);
+    for (i = 0; i < (int)mpx->nfonts; i++)
+      mpx_xfree(mpx->font_name[i]);
+    free(mpx);
+    if (retcode == mpx_cksum_trouble)
+       retcode = 0;
+    return retcode;
+}
+
 
 @ \TeX\ has to operate on an actual input file, so we have to append
 that to the command line.
