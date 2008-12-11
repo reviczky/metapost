@@ -39,7 +39,7 @@ The executable that is created by the build process is named mpost.
 As is normal in current TeX systems, this executable functions as both
 inimp and virmp by means of a command-line switch.
 
-The source for MetaPost is mplib/*.w
+The source for MetaPost is src/texk/web2c/mpdir/*.w
 
 Have fun!
 
