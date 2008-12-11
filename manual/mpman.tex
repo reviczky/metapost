@@ -13,7 +13,7 @@
 \documentclass{article} % article is NOT the original style
 \usepackage[nofancy]{svninfo}% Access VCS information.
 \svnInfo $Id$
-\newcommand*{\mpversion}{1.110}
+\newcommand*{\mpversion}{1.100}
 
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
@@ -130,8 +130,7 @@
 MetaPost is a programming language much like Knuth's \MF\footnote{\MF\
 is a trademark of Addison Wesley Publishing
 company.}\index{metafont?\MF}~\cite{kn:c} except that it outputs
-PostScript programs or SVG\index{SVG} graphics instead of bitmaps.  
-Borrowed from \MF\ are the
+PostScript programs instead of bitmaps.  Borrowed from \MF\ are the
 basic tools for creating and manipulating pictures. These include
 numbers, coordinate pairs, cubic splines, affine transformations, text
 strings, and boolean quantities.  Additional features facilitate
@@ -359,7 +358,7 @@ text in MetaPost is discussed in section~\ref{text}.
 \label{Dpreview}
 \index{previewing}
 
-The default output of MetaPost is a variant of PostScript, called Encapsulated
+The output of MetaPost is a variant of PostScript, called Encapsulated
 PostScript\index{PostScript!structured} (EPSF\index{EPSF}).  MetaPost
 graphics can therefore be previewed with any decent PostScript viewer,
 e.\,g., GSview\index{GSview}.
@@ -385,11 +384,6 @@ new behaviour can be triggered by setting MetaPost's internal variable
 \ttt{prologues}\index{prologues?\texttt{prologues}} to~3.  See
 section~\ref{Dbtex} for more information on \ttt{prologues}.
 
-Starting with version~1.110, MetaPost is also capable of producing 
-SVG output. SVG files can be previewed with certain web browsers,
-for example Firefox~3, and it can be imported by various interactive
-graphics editing programs, for example Inkscape. This method is not
-suitable for inclusion of MetaPost graphics in \TeX\ documents.
 
 \subsection{Using MetaPost graphics in \TeX, \LaTeX, pdf\LaTeX, pdf\TeX, Con\TeX{}t and troff}
 \label{Dteximport}
@@ -478,9 +472,9 @@ source files seems to be the more natural place than \LaTeX\ sources.
 Moreover, setting the MetaPost file extension to \ttt{mps} prevents from
 file extension pollution and you only have to register one new extension
 with your PostScript viewer, \ttt{.mps}, instead of \ttt{.0}, \ttt{.1},
-\ttt{.2}, etc.}  The MetaPost primitive \verb+outputtemplate+ can be
+\ttt{.2}, etc.}  The MetaPost primitive \verb+filenametemplate+ can be
 used to set the file extension of MetaPost output to \ttt{mps} (see
-section~\ref{Doutputtemplate}). Hence, no \verb+\DeclareGraphicsRule+
+section~\ref{Dfilenametemplate}). Hence, no \verb+\DeclareGraphicsRule+
 declaration is needed.  Moreover, the file extension can then be omitted
 in the \verb+\includegraphics+ command.
 
@@ -501,7 +495,7 @@ $$
 \end{verbatim}
 $$
 
-If you're using the \ttt{outputtemplate} method the \ttt{mps} file
+If you're using the \ttt{filenametemplate} method the \ttt{mps} file
 extension should not be omitted in \verb+\includegraphics+ commands,
 since \ttt{mps} is not part of \LaTeX's file name completion scheme, by
 default.  If the \ttt{mps} extension is present, \LaTeX\ handles those
@@ -550,12 +544,12 @@ MetaPost has support for output file name templates. These templates
 use \ttt{printf}-style escape sequences and are re-evaluated before
 each figure is written to disk. 
 
-There is an internal string variable called \ttt{outputtemplate}%
-\index{outputtemplate?\texttt{outputtemplate}}\label{Doutputtemplate},
-that you can assign template strings to:
+The command to use is \ttt{filenametemplate}%
+\index{filenametemplate?\texttt{filenametemplate}}\label{Dfilenametemplate},
+and it accepts a string as argument. The syntax is as simple as:
 
 \begin{center}\begin{tabular}{l}
-\verb|outputtemplate := "%j-%3c.mps";|\\
+\verb|filenametemplate "%j-%3c.mps";|\\
 \verb|beginfig(1);|\\
 \verb|   draw p;|\\
 \verb|endfig;|
@@ -582,21 +576,21 @@ sequences are possible, see table~\ref{tab:fntmpl} for details.
 \%\d  M & The minute\\
 \hline
 \end{tabular}
-\caption{Allowed escape sequences for \ttt{outputtemplate}}
+\caption{Allowed escape sequences for \ttt{filenametemplate}}
 \label{tab:fntmpl}
 \end{table}
 
-The \ttt{outputtemplate} primitive can also be helpful for naming
+The \ttt{filenametemplate} primitive can also be helpful for naming
 graphic files individually, yet keeping all MetaPost sources in one file.
 E.\,g., collecting different diagram sources in a file \ttt{fig.mp}
 $$
 \begin{verbatim}
-outputtemplate := "fig-quality.mps";
+filenametemplate "fig-quality.mps";
 beginfig(1);
   ...
 endfig;
 
-outputtemplate := "fig-cost-vs-productivity.mps";
+filenametemplate "fig-cost-vs-productivity.mps";
 beginfig(2);
   ...
 endfig;
@@ -608,31 +602,8 @@ it might be easier to recall the correct diagram names in a
 in the file name template string.
 
 To ensure compatibility with older files, the default value of
-\ttt{outputtemplate} is \verb|%j.%c|.
+\ttt{filenametemplate} is \verb|%j.%c|.
 If you assign an empty string, it will revert to that default.
-
-MetaPost version 1.000 used a different primitive with the name
-\ttt{filenametemplate}. This primitive is still provided, but its 
-use is deprecated.
-
-\subsection{Selecting the output format}
-
-By default, MetaPost generates PostScript language output. If you
-prefer to have SVG output, you can set the internal variable
-\ttt{outputformat}\label{Doutputformat} to \ttt{svg}:
-
-\begin{center}\begin{tabular}{l}
-\verb|outputformat := "svg";|\\
-\verb|outputtemplate := "%j-%3c.svg";|\\
-\verb|beginfig(1);|\\
-\verb|   draw p;|\\
-\verb|endfig;|
-\end{tabular}\end{center}
-
-For SVG, it makes sense to set the file extension to \ttt{svg}. At
-the moment, this has to be done explicitly, but in one of the upcoming
-development versions it will become possible to use a template escape
-instead.
 
 
 \section{Curves}
@@ -2010,49 +1981,29 @@ Setting \ttt{prologues} can be useful with \TeX, too, not just troff.
 Here is some explanation:
 
 \begin{itemize}
-\item In PostScript output mode, when \ttt{prologues} is 0, which is the default, the MetaPost
+\item When \ttt{prologues} is 0, which is the default, the MetaPost
 output files do not have embedded fonts.  Fonts in the resulting
-output will probably render as Courier\index{Courier} or
-Times-Roman\index{Times-Roman}.
+output will probably render as Courier\index{Courier} or Times-Roman\index{Times-Roman}.
 
-In SVG mode, the text will probably render in a generic sans serif font.
-There may very well be problems with the encoding of non-ASCII characters:
-the font model of SVG is totally different from the model used by MetaPost.
-
-\item In PostScript output mode, when \ttt{prologues} is 1, the MetaPost output claims to be
+\item When \ttt{prologues} is 1, the MetaPost output claims to be
 ``structured PostScript''\index{PostScript!structured} (EPSF\index{EPSF}),
 but it is not completely conformant. This variant is kept for backward
 compatibility with old (troff) documents, but its use is deprecated.
 For historical reasons, MetaPost sets \ttt{prologues} to~1 when the {\tt
--troff} option is given on the command line. 
+-troff} option is given on the command line.
 
-A \ttt{prologues:=1} setting is currently ignored in SVG output
-mode. The value is reserved for future use (possibly for mapping to
-\ttt{font-family}, \ttt{font-weight}, etc. properties). 
-
-\item In PostScript output mode, when \ttt{prologues} is 2, the
-MetaPost output is EPSF and assumes
+\item When \ttt{prologues} is 2, the MetaPost output is EPSF and assumes
 that the text comes from PostScript\index{PostScript!fonts} fonts
 provided by the ``environment'', such as the document viewer or
 embedded application using the output. MetaPost will attempt to
 set up the font encodings correctly, based on \ttt{fontmapfile} and
 \ttt{fontmapline} commands.
 
-A \ttt{prologues:=2} setting is currently ignored in SVG output mode.
-The value is reserved for future use (possibly for external
-\ttt{font-face} definitions). 
-
-\item In PostScript output mode, when \ttt{prologues} is 3, the MetaPost output will be EPSF but
+\item When \ttt{prologues} is 3, the MetaPost output will be EPSF but
 will contain the PostScript font(s) (or a subset) used based on the
 \ttt{fontmapfile} and \ttt{fontmapline} commands.  This value is useful
 for generating stand-alone PostScript graphics.
-
-In SVG mode, the font glyphs are converted to path definitions that
-are included at the top of the output file. This method is currently
-the only reliable way to export text objects to SVG.
-
 \end{itemize}
-
 
 It is worth noting that the default value \ttt{prologues:=0} is sufficient
 for graphics included in \TeX-based documents.  Also, the \ttt{prologues} variable is irrelevant
@@ -3486,8 +3437,8 @@ statement\index{shipout?\texttt{shipout}}\label{Dship}
 $$ {\tt shipout}\, \descr{picture expression} $$
 writes out a picture as a PostScript\index{PostScript} file whose
 file name is determined by
-{\tt outputtemplate}\index{outputtemplate?\texttt{outputtemplate}}
-(see section~\ref{Doutputtemplate}).  By default, the file name ends
+{\tt filenametemplate}\index{filenametemplate?\texttt{filenametemplate}}
+(see section~\ref{Dfilenametemplate}).  By default, the file name ends
 {\tt.}{\it nnn}, where {\tt nnn} is the decimal representation
 of the value of the internal variable\index{internal
 variables}\index{variables!internal} {\tt
@@ -5144,11 +5095,6 @@ $$\begin{tabular}{|l|l|r|l|}
         Commands for {\tt beginfig} to scan\\\hline
 \pl\tt  extra\_endfig&  string& \pageref{Dxefig}&
         Commands for {\tt endfig} to scan\\\hline
-\tt     outputformat&    string& \pageref{Doutputformat}&
-        Output backend to be used\\\hline
-\tt     outputtemplate&    string& \pageref{Doutputtemplate}&
-        Output filename template\\\hline
-
 \end{tabular}
 $$
 \label{pvartab}
@@ -5933,8 +5879,6 @@ magentapart\\
 miterlimit\\
 mpprocset\\
 mpxbreak\\
-outputformat\\
-outputtemplate\\
 pathpart\\
 penpart\\
 prologues\\

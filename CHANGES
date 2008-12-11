@@ -2,6 +2,22 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.101:
+----------------------------------------------------------------------
+
+* TFM file generation was completely broken.
+
+* The job name discovery on the commandline has been improved.
+
+* Under some (rare) conditions MetaPost forgot to create a log file.
+
+* Labels containing char0 were exported to PostScript incorrectly.
+
+* On Windows, the DVI file that is the result from the internal call 
+  to TeX for btex .. etex lables was not deleted automatically.
+
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.100:
 ----------------------------------------------------------------------
 

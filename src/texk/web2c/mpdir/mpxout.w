@@ -3,16 +3,16 @@
 % Copyright 2008 Taco Hoekwater.
 %
 % This program is free software: you can redistribute it and/or modify
-% it under the terms of the GNU Lesser General Public License as published by
-% the Free Software Foundation, either version 3 of the License, or
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation, either version 2 of the License, or
 % (at your option) any later version.
 %
 % This program is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
 % MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU Lesser General Public License for more details.
+% GNU General Public License for more details.
 %
-% You should have received a copy of the GNU Lesser General Public License
+% You should have received a copy of the GNU General Public License
 % along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 \def\title{Creating mpx files}
@@ -108,7 +108,6 @@ in order to prevent name clashes.
 #define PI  3.14159265358979323846
 #endif
 #include "avl.h"
-extern void *avl_probe (avl_tree t, void *p);
 #include "mpxout.h"
 @h
 
@@ -2556,41 +2555,21 @@ typedef struct {
 } avl_entry;
 
 @ @c
-static int mpx_comp_name (void *p, const void *pa, const void *pb) {
+static int mpx_comp_name (const void *pa, const void *pb, void *p) {
     (void)p;
     return strcmp (((const avl_entry *) pa)->name,
                    ((const avl_entry *) pb)->name);
 }
-static void *destroy_avl_entry (void *pa) {
-    avl_entry *p;
-    p = (avl_entry *) pa;
-    free (p->name);
-    free (p);
-    return NULL;
-}
-static void *copy_avl_entry (const void *pa) { /* never used */
-    avl_entry *p, *q;
-    p = (avl_entry *) pa;
-    q = malloc(sizeof(avl_entry));
-    if (q!=NULL) {
-      q->name = strdup(p->name);
-      q->num = p->num;
-    }
-    return (void *)q;
-}
-
 
 @ @c
-static avl_tree mpx_avl_create (MPX mpx) {
-   avl_tree t;
-   t = avl_create(mpx_comp_name, 
-                  copy_avl_entry,
-                  destroy_avl_entry,
-                  malloc, free, NULL);
+static struct avl_table *mpx_avl_create (MPX mpx) {
+   struct avl_table *t;
+   t = avl_create(mpx_comp_name, NULL, NULL);
    if (t==NULL) 
      mpx_abort(mpx, "Memory allocation failure");
    return t;
 }
+
 
 @ The only two operations on AVL lists are finding already existing
 items, or interning new items. Finding is handled by explicit |avl_find| 
@@ -2598,7 +2577,7 @@ calls where needed, but it is wise to have a wrapper around |avl_probe|
 to check for memory errors.
 
 @c
-static avl_entry * mpx_avl_probe(MPX mpx, avl_tree tab, avl_entry *p) {
+static avl_entry * mpx_avl_probe(MPX mpx, struct avl_table *tab, avl_entry *p) {
     avl_entry *r  = (avl_entry *)avl_probe(tab,p);
     if (r==NULL)
       mpx_abort(mpx,"Memory allocation failure");
@@ -2727,7 +2706,7 @@ or just
 if the \TeX\ name matches the PostScript name. (|\t| means one or more tabs.)
 
 @<Globals@>=
-avl_tree trfonts;
+struct avl_table *trfonts;
 
 @ @c
 static void mpx_read_fmap(MPX mpx, char *dbase) {
@@ -2804,7 +2783,7 @@ static void mpx_read_char_adj(MPX mpx, char *adjfile) {
 		    buf[i] = '\0';
 	    mpx->shiftchar[mpx->shiftptr++] = -1;
         tmp.name = buf;
-        p = (avl_entry *)avl_find (&tmp, mpx->trfonts);
+        p = (avl_entry *)avl_find (mpx->trfonts, &tmp);
 	    if (p==NULL)
 		  mpx_abort(mpx,"%s refers to unknown font %s", adjfile, buf);
 	    mpx->shiftbase[p->num] = mpx->shiftptr;
@@ -2909,7 +2888,7 @@ this function needs to be rewritten as follows:
    may be given either in decimal, octal, or hexadecimal format.
 
 @ @<Globals@>=
-avl_tree charcodes[(max_fnums+1)];	/* hash tables for translating char names */
+struct avl_table *charcodes[(max_fnums+1)];	/* hash tables for translating char names */
 
 @ @c
 static int mpx_scan_desc_line(MPX mpx, int f, char *lin) {
@@ -2959,7 +2938,7 @@ static int mpx_read_fontdesc(MPX mpx, char *nam) {	/* troff name */
     if (mpx->unit == 0.0)
 	mpx_abort(mpx, "Resolution is not set soon enough");
     tmp.name = nam;
-    p = (avl_entry *)avl_find (&tmp,mpx->trfonts);
+    p = (avl_entry *)avl_find (mpx->trfonts, &tmp);
     if (p == NULL)
 	  mpx_abort(mpx, "Font was not in map file");
     f = p->num;
@@ -3139,7 +3118,7 @@ If the character is not in the current font we have to search the special
 fonts.
 
 @<Globals@>=
-avl_tree spec_tab;
+struct avl_table *spec_tab;
 
 @ The |spec_tab| avl table combines character names with macro names. 
 
@@ -3159,10 +3138,10 @@ static void mpx_set_char(MPX mpx, char *cname) {
 	return;
   f = (int)mpx->curfont;
   tmp.name = cname;
-  p = avl_find(&tmp, mpx->charcodes[f]);
+  p = avl_find(mpx->charcodes[f], &tmp);
   if (p==NULL) {
 	for (f = mpx->specfnt; f != (max_fnums+1); f = mpx->next_specfnt[f]) {
-        p = avl_find(&tmp, mpx->charcodes[f]);
+        p = avl_find(mpx->charcodes[f], &tmp);
 	    if (p!=NULL)
 		  goto OUT;
 	}
@@ -3208,7 +3187,7 @@ static void mpx_do_font_def(MPX mpx, int n, char *nam) {
   unsigned k;
   avl_entry tmp, *p;
   tmp.name = nam;
-  p = (avl_entry *) avl_find (&tmp, mpx->trfonts);
+  p = (avl_entry *) avl_find (mpx->trfonts, &tmp);
   if (p==NULL)
     mpx_abort(mpx, "Font %s was not in map file", nam);
   f = p->num;
@@ -4073,7 +4052,6 @@ typedef struct mpx_options {
   mpx_file_finder find_file;
 } mpx_options;
 int mpx_makempx (mpx_options *mpxopt) ;
-int mpx_run_dvitomp (mpx_options *mpxopt) ;
 
  
 @ 
@@ -4161,52 +4139,6 @@ int mpx_makempx (mpx_options *mpxopt) {
        retcode = 0;
     return retcode;
 }
-int mpx_run_dvitomp (mpx_options *mpxopt) {
-    MPX mpx;
-    int retcode, i ;
-    mpx = malloc(sizeof(struct mpx_data));
-    if (mpx==NULL || mpxopt->mpname==NULL || mpxopt->mpxname==NULL)
-      return mpx_fatal_error;
-    mpx_initialize(mpx);
-    if (mpxopt->banner!=NULL)
-      mpx->banner = mpxopt->banner;
-    mpx->mode = mpxopt->mode;
-    mpx->debug = mpxopt->debug;
-    if (mpxopt->find_file!=NULL)
-      mpx->find_file = mpxopt->find_file;
-    mpx->mpname = xstrdup(mpxopt->mpname);
-    mpx->mpxname = xstrdup(mpxopt->mpxname);
-    @<Install and test the non-local jump buffer@>;
-    if (mpx->debug) {
-      mpx->errfile = stderr;
-    } else {
-      mpx->errfile = mpx_xfopen(mpx,MPXLOG, "wb");
-    }
-    mpx->progname = "dvitomp";
-    if (mpx_dvitomp(mpx, mpx->mpname)) {
-	  if (!mpx->debug)
-	    remove(mpx->mpxname);
-	  mpx_abort(mpx, "Dvi conversion failed: %s %s\n",
-	                  DVIERR, mpx->mpxname);
-    }
-    mpx_fclose(mpx,mpx->mpxfile);
-    if (!mpx->debug)
-      mpx_fclose(mpx,mpx->errfile);
-    if (!mpx->debug) {
-	  remove(MPXLOG);
-	  remove(ERRLOG);
-    }
-    mpx_erasetmp(mpx);
-    retcode = mpx->history;
-    mpx_xfree(mpx->buf);
-    for (i = 0; i < (int)mpx->nfonts; i++)
-      mpx_xfree(mpx->font_name[i]);
-    free(mpx);
-    if (retcode == mpx_cksum_trouble)
-       retcode = 0;
-    return retcode;
-}
-
 
 @ \TeX\ has to operate on an actual input file, so we have to append
 that to the command line.
