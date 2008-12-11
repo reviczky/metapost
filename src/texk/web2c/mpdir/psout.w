@@ -312,8 +312,8 @@ First, here are a few helpers for parsing files
 @d check_buf(size, buf_size)
     if ((unsigned)(size) > (unsigned)(buf_size)) {
       char S[128];
-      mp_snprintf(S,128,"buffer overflow: (%d,%d) at file %s, line %d",
-               size,buf_size, __FILE__,  __LINE__ );
+      mp_snprintf(S,128,"buffer overflow: (%u,%u) at file %s, line %d",
+               (unsigned)(size),(unsigned)(buf_size), __FILE__,  __LINE__ );
       mp_fatal_error(mp,S);
     }
 
