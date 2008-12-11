@@ -353,6 +353,11 @@ static void mp_svg_attribute (MP mp, char *s, char *v) {
   mp_svg_print_char(mp,'"');
 }
 
+@ This is a test to filter out characters that are illegal in XML.
+ 
+@<Character |k| is illegal in SVG output@>=
+ (k<=0x8)||(k==0xB)||(k==0xC)||(k>=0xE && k<=0x1F)||
+ (k>=0x7F && k<=0x84)||(k>=0x86 && k<=0x9F)
 
 
 @ This is test is used to switch between direct representation of characters
@@ -360,8 +365,7 @@ and character references. Just in case the input string is UTF-8, allow everythi
 except the characters that have to be quoted for XML well-formedness.
 
 @<Character |k| is not allowed in SVG output@>=
- (k<=0x8)||(k==0xB)||(k==0xC)||(k>=0xE && k<=0x1F)||
- (k=='&')||(k=='>')||(k=='<')||(k==0x7F)
+ (k=='&')||(k=='>')||(k=='<')
 
 @ We often need to print a pair of coordinates. 
 
@@ -958,7 +962,12 @@ void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) {
   
     while (l-->0) {
       k=(int)*s++;
-      if ( (@<Character |k| is not allowed in SVG output@>) ) {
+      if (@<Character |k| is illegal in SVG output@>) {
+        char S[100];
+        mp_snprintf(S,99,"The character %d cannot be output in SVG "
+                         "unless prologues:=3;",k);
+        mp_warn(mp,S);
+      } else if ( (@<Character |k| is not allowed in SVG output@>) ) {
         append_string("&#");
         mp_svg_store_int(mp,k);
         append_char(';');
