@@ -457,6 +457,10 @@ void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
   mp_svg_store_scaled(mp, ty);
   mp_svg_attribute(mp,"height", mp->svg->buf);
   mp_svg_reset_buf(mp);
+  append_string("0 0 "); mp_svg_store_scaled(mp,tx); 
+  append_char(' ');      mp_svg_store_scaled(mp,ty);
+  mp_svg_attribute(mp,"viewBox", mp->svg->buf);
+  mp_svg_reset_buf(mp);
   mp_svg_close_starttag(mp);
   mp_svg_print_nl(mp,"<!-- Original BoundingBox: ");
   mp_svg_store_scaled(mp, hh->minx); append_char(' ');
