@@ -42,6 +42,7 @@ mpman.tex
     or LaTeX from within MetaPost.
 * Add flow-chart visualizing MetaPost-TeX interaction.
 * Why is verbatimtex\end{document}etex "safer", cf. sec. 13.1?
+* Add note on postcontrol and precontrol when discussing control points.
 
 
 
