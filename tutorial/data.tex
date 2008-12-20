@@ -65,22 +65,22 @@ built-in affine transformations as ``building blocks'' from which other
 transformations can be constructed.  These include shifts, rotations,
 horizontal and vertical scalings, and slantings.
 
-For creating colored graphics \MP{} provides two data types,
-\textit{rgbcolor} and \textit{cmykcolor}, that correspond to the two
-supported color models \RGB{} and \CMYK.  While in \RGB{} color space
+For creating colored graphics, \MP{} provides two data types.
+\textit{rgbcolor} and \textit{cmykcolor}.  These data types correspond to the two
+supported color models \RGB{} and \CMYK.  While using the \RGB{} color model,
 fractions of the primary colors \textit{red}, \textit{green}, and
-\textit{blue} are ``additively mixed,'' in \CMYK{} color space primary
+\textit{blue} are ``additively mixed,''.  Similarly, in the \CMYK{} color model, the primary
 colors \textit{cyan}, \textit{magenta}, \textit{yellow}, and
 \textit{black} are ``subtractively mixed.''  The former model is
-suitable for on-screen viewing, the latter model is preferred in
+suitable for on-screen viewing whereas the latter model is preferred in
 high-quality print.  Both color types are ordered tuples,
 $(c_1,c_2,c_3)$ and $(c_1,c_2,c_3,c_4)$, with components~$c_i$ being
 \textit{numeric}s between $0$ and $1$.  For example, in the \RGB{} color
-model \texttt{(1,0,0)} refers to red, whereas \texttt{(0,0,.2,.6)}
+model, \texttt{(1,0,0)} refers to red, whereas \texttt{(0,0,.2,.6)}
 corresponds to a yellowish gray in the \CMYK{} color model.  If a
 particular color is to be used several times throughout a figure, it is
 natural to store this color into a variable of type \textit{rgbcolor} or
-\textit{cmykcolor} for multiple uses.
+\textit{cmykcolor}.
 
 The data type \textit{color} is a convenient synonym for
 \textit{rgbcolor}.  Additionally, there are five built-in \RGB{} colors
