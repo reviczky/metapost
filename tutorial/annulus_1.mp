@@ -9,7 +9,8 @@ beginfig(-1);
 	q:=fullcircle scaled u;
 
 	% Fill annulus
-	fill p--reverse q--cycle withcolor (3/5,4/5,1);
+	fill p withcolor (3/5,4/5,1);
+	unfill q;
 	
 	% Draw big circle
 	draw p;
