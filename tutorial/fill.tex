@@ -7,7 +7,7 @@ fill p withcolor red;
 draw p;
 \end{lstlisting}
 produces Figure \ref{fig:fill}.  Notice that \texttt{p} is essentially the same curved path as in Figure \ref{fig:draw1} with the additional piece that connects \texttt{z3} back to \texttt{z1} with a line segment using \texttt{-{}-cycle}.
-\begin{figure}[t]
+\begin{figure}[hptb]
 	\begin{center}\textattachfile[color={0 0 0},mimetype={text/plain}]{fill.mp}{\includegraphics{fill}}\end{center}
 	\caption{\texttt{fill} example}\label{fig:fill}
 \end{figure}
@@ -25,14 +25,14 @@ draw p;
 draw q;
 \end{lstlisting}
 The \texttt{fullcircle} path is a built-in path that closely approximates a circle in \MP{} with diameter 1\,bp traversed counter-clockwise.  This path is not exactly a circle since it is parameterized by a B\'{e}zier curve and not by trigonometric functions; however, visually it is essentially indistinguishable from an exact circle.
-\begin{figure}[t]
+\begin{figure}[hptb]
 	\begin{center}\textattachfile[color={0 0 0},mimetype={text/plain}]{annulus_1.mp}{\includegraphics{annulus_1}}\end{center}
 	\caption{\texttt{unfill} example}\label{fig:annulus1}
 \end{figure}
 Notice that \texttt{p} is a \texttt{fullcircle} of radius 54\,bp (3/4\,in) and \texttt{q} is a \texttt{fullcircle} of radius 27\,bp (3/8\,in).  The annulus is constructed by filling \texttt{p} with the baby blue color \texttt{bbblue} and then unfilling \texttt{q}.  The \texttt{unfill} command above is equivalent to \begin{center}\verb|fill q withcolor background;|\end{center} where \texttt{background} is a built-in color which is \texttt{white} by default.
 
 Often the \texttt{unfill} command appears to be the natural method for constructing figures like Figure \ref{fig:annulus1}.  However, the \texttt{fill} and \texttt{unfill} commands in Figure \ref{fig:annulus1} can be replaced by \begin{center}\verb|fill p--reverse q--cycle withcolor bbblue;|\end{center}
-\begin{figure}[t]
+\begin{figure}[hptb]
 	\begin{center}\textattachfile[color={0 0 0},mimetype={text/plain}]{annulus_2.mp}{\includegraphics{annulus_2}}\end{center}
 	\caption{Avoiding an \texttt{unfill}}\label{fig:annulus2}
 \end{figure}

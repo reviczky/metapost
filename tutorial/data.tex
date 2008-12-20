@@ -19,7 +19,7 @@
     $1$ (red, green, and blue)
 	\item \textit{cmykcolor}\Dash quadruplets with each component between $0$ and
     $1$ (cyan, magenta, yellow, and black)
-	\item \textit{string}\Dash strings to be labeled
+	\item \textit{string}\Dash strings of characters
 	\item \textit{boolean}\Dash ``true'' or ``false'' values
 	\item \textit{pen}\Dash stroke properties
 \end{itemize}
@@ -65,7 +65,7 @@ built-in affine transformations as ``building blocks'' from which other
 transformations can be constructed.  These include shifts, rotations,
 horizontal and vertical scalings, and slantings.
 
-For creating colored graphics, \MP{} provides two data types.
+For creating colored graphics, \MP{} provides two data types:
 \textit{rgbcolor} and \textit{cmykcolor}.  These data types correspond to the two
 supported color models \RGB{} and \CMYK.  While using the \RGB{} color model,
 fractions of the primary colors \textit{red}, \textit{green}, and
@@ -76,8 +76,8 @@ suitable for on-screen viewing whereas the latter model is preferred in
 high-quality print.  Both color types are ordered tuples,
 $(c_1,c_2,c_3)$ and $(c_1,c_2,c_3,c_4)$, with components~$c_i$ being
 \textit{numeric}s between $0$ and $1$.  For example, in the \RGB{} color
-model, \texttt{(1,0,0)} refers to red, whereas \texttt{(0,0,.2,.6)}
-corresponds to a yellowish gray in the \CMYK{} color model.  If a
+model, \texttt{(1,0,0)} refers to red, whereas in the \CMYK{} color model
+\texttt{(0,0,.2,.6)} corresponds to a yellowish gray color.  If a
 particular color is to be used several times throughout a figure, it is
 natural to store this color into a variable of type \textit{rgbcolor} or
 \textit{cmykcolor}.
@@ -91,7 +91,7 @@ dark violet in the \RGB{} color model.
 
 The most common application of \textit{string} data types is reusing a
 particular string that is typeset (or labeled).  The \textit{boolean}
-data type is the same as in other programming languages, used in
+data type is the same as in other programming languages and is primarily used in
 conditional statements for testing.  Finally, the \textit{pen} data type
 is used to affect the actual stroke paths.  The default unit of
 measurement in \MP{} is $1\,\mathrm{bp}=1/72\mathrm{\ in}$, and the
