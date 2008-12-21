@@ -1,5 +1,17 @@
+prologues:=3;
+outputtemplate:="%j.mps";
+verbatimtex
+%&latex
+\documentclass[11pt]{article}
+\usepackage[charter]{mathdesign}
+\usepackage[T1]{fontenc}
+\renewcommand*{\ttdefault}{lmtt}
+\begin{document}
+etex
+
 input graph;
-beginfig(-1);
+Fmfont_:="bchr8r";
+beginfig(0);
 	draw begingraph(144bp,89bp);
 		gdraw "data.d";
 	endgraph;

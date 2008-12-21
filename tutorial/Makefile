@@ -1,30 +1,38 @@
-# Makefile for MetaPost tutorial.
+MAKE=make
+MPOST=mpost
+LTX=pdflatex
+BIB=bibtex
 
-latex = latex
-pdflatex = pdflatex
-dvips = dvips
-bibtex = bibtex
-mpost = mpost -tex=tex
+SRC=mpguide.ltx
+INCL=$(wildcard *.tex)
+MYBIB=mpguide.bib
+MPMPS=annulus-1.mps annulus-2.mps annulus-3.mps circles.mps data.mps diamond.mps draw-1.mps draw-2.mps fill.mps label-1.mps label-2.mps parabola.mps
+MP=$(patsubst %,%.mp,$(patsubst %.mps,%,$(filter-out -%,$(subst -, -,$(MPMPS)))))
+MPLOG=$(patsubst %.mp,%.log,$(MP))
+MPMPX=$(patsubst %.mp,%.mpx,$(MP))
+RASTPDF=previewer.pdf
 
-all: pdf
-pdf: mpguide.pdf
-ps: mpguide.ps
+BASE=$(patsubst %.ltx,%,$(SRC))
+PDF=$(BASE).pdf
 
-mpguide.pdf: abstract.tex arrows.tex biblio.tex commands.tex compilation.tex conclusion.tex data.tex draw.tex fill.tex graph.tex inclusion.tex intro.tex label.tex mpguide.tex mpguide.bib
-	$(pdflatex) mpguide
-	$(bibtex) mpguide
-	$(pdflatex) mpguide
-	$(pdflatex) mpguide
+.PHONY: clean
 
-mpguide.ps: abstract.tex arrows.tex biblio.tex commands.tex compilation.tex conclusion.tex data.tex draw.tex fill.tex graph.tex inclusion.tex intro.tex label.tex mpguide.tex mpguide.bib
-	$(latex) mpguide
-	$(bibtex) mpguide
-	$(latex) mpguide
-	$(latex) mpguide
+$(PDF): $(SRC) $(MYBIB) $(INCL) $(MPMPS) $(RASTPDF)
+	$(LTX) $<
+	$(BIB) $(BASE)
+	$(LTX) $<
+	$(LTX) $<
+
+$(RASTPDF): $(patsubst %.pdf,%.png,$(RASTPDF))
+	sam2p $< PDF: $@
+
+%.mps: %.mp
+	$(MPOST) $<
+
+%.mps:: $(patsubst %,%.mp,$(patsubst %.pdf,%,$(filter-out -%,$(subst -, -,$(MPPDF)))))
+	$(MPOST) $(patsubst %,%.mp,$(patsubst %.pdf,%,$(filter-out -%,$(subst -, -,$@))))
 
 clean:
-	rm -f *.aux *.bbl *.blg *.dvi *.log *.mpx *.mps
-	rm -f *.idx *.ilg *.ind *.toc *.out
-
-distclean: clean
-	rm -f mp*.pdf mp*.ps
+	rm -f $(MPLOG) $(MPMPS) $(MPMPX) $(MPPDF) texnum.mpx
+	rm -f $(BASE).aux $(BASE).bbl $(BASE).blg $(BASE).log $(BASE).out
+#	rm -f $(PDF) $(RASTPDF)

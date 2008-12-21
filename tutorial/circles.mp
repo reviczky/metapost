@@ -1,4 +1,6 @@
-beginfig(-1);
+outputtemplate:="%j.mps";
+
+beginfig(0);
 	% Use 8 circles
 	N:=8;
 

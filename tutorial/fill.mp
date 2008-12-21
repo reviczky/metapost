@@ -1,4 +1,6 @@
-beginfig(-1);
+outputtemplate:="%j.mps";
+
+beginfig(0);
 	% Set unit size to 72bp = 1in
 	u:=72;
 	
