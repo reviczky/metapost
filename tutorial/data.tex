@@ -64,28 +64,31 @@ transformations can be constructed.  These include shifts, rotations,
 horizontal and vertical scalings, and slantings.
 
 For creating colored graphics, \MP{} provides two data types:
-\textit{rgbcolor} and \textit{cmykcolor}.  These data types correspond to the two
-supported color models \RGB{} and \CMYK.  While using the \RGB{} color model,
-fractions of the primary colors \textit{red}, \textit{green}, and
-\textit{blue} are ``additively mixed''.  Similarly, in the \CMYK{} color model, the primary
-colors \textit{cyan}, \textit{magenta}, \textit{yellow}, and
-\textit{black} are ``subtractively mixed.''  The former model is
-suitable for on-screen viewing whereas the latter model is preferred in
-high-quality print.  Both color types are ordered tuples,
-$(c_1,c_2,c_3)$ and $(c_1,c_2,c_3,c_4)$, with components~$c_i$ being
-\textit{numeric}s between $0$ and $1$.  For example, in the \RGB{} color
-model, \texttt{(1,0,0)} refers to red, whereas in the \CMYK{} color model
-\texttt{(0,0,.2,.6)} corresponds to a yellowish gray color.  If a
-particular color is to be used several times throughout a figure, it is
-natural to store this color into a variable of type \textit{rgbcolor} or
-\textit{cmykcolor}.
+\textit{rgbcolor} and \textit{cmykcolor}.  These data types correspond
+to the two supported color models \RGB{} and \CMYK.  While using the
+\RGB{} color model, fractions of the primary colors
+\textit{red}~\showcol{red}, \textit{green}~\showcol{green}, and
+\textit{blue}~\showcol{blue} are ``additively mixed''.  Similarly, in
+the \CMYK{} color model, the primary colors
+\textit{cyan}~\showcol{cyan}, \textit{magenta}~\showcol{magenta},
+\textit{yellow}~\showcol{yellow}, and \textit{black}~\showcol{black} are
+``subtractively mixed.''  The former model is suitable for on-screen
+viewing whereas the latter model is preferred in high-quality print.
+Both color types are ordered tuples, $(c_1,c_2,c_3)$ and
+$(c_1,c_2,c_3,c_4)$, with components~$c_i$ being \textit{numeric}s
+between $0$ and $1$.  For example, in the \RGB{} color model,
+\texttt{(1,0,0)} refers to red, whereas in the \CMYK{} color model
+\texttt{(0,.6,1,0)} corresponds to an orange
+tone~\showcol[cmyk]{0,.6,1,0}.  If a particular color is to be used
+several times throughout a figure, it is natural to store this color
+into a variable of type \textit{rgbcolor} or \textit{cmykcolor}.
 
 The data type \textit{color} is a convenient synonym for
 \textit{rgbcolor}.  Additionally, there are five built-in \RGB{} colors
 in \MP{}: \texttt{black}, \texttt{white}, \texttt{red}, \texttt{green},
 and \texttt{blue}.  So, in the example above \texttt{(1,0,0)} could
 simply be replaced by \texttt{red} and \texttt{.4(red+blue)} refers to a
-dark violet in the \RGB{} color model.
+dark violet~\showcol[rgb]{.4,0,.4} in the \RGB{} color model.
 
 The most common application of \textit{string} data types is reusing a
 particular string that is typeset (or labeled).  The \textit{boolean}

@@ -76,6 +76,18 @@
 			}
 \fi
 	
+\newcommand*{\showcol}[2][named]{%
+  \begingroup%
+  \setlength{\fboxsep}{0pt}%
+  \setlength{\fboxrule}{0.2pt}%
+%  \raisebox{1pt}{%
+    \fcolorbox{gray}[#1]{#2}{%
+      \makebox[1.5em]{\rule{0pt}{1.25ex}}%
+    }%
+%  }%
+  \endgroup%
+}
+
 \begin{document}
 
 \title{A Beginner's Guide to \MP{}\\for Creating High-Quality Graphics}
