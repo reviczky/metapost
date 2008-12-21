@@ -76,10 +76,11 @@ the \CMYK{} color model, the primary colors
 viewing whereas the latter model is preferred in high-quality print.
 Both color types are ordered tuples, $(c_1,c_2,c_3)$ and
 $(c_1,c_2,c_3,c_4)$, with components~$c_i$ being \textit{numeric}s
-between $0$ and $1$.  For example, in the \RGB{} color model,
-\texttt{(1,0,0)} refers to red, whereas in the \CMYK{} color model
-\texttt{(0,.6,1,0)} corresponds to an orange
-tone~\showcol[cmyk]{0,.6,1,0}.  If a particular color is to be used
+between $0$ and $1$.  For example, in the \RGB{} color model, a light
+orange tone can be referred to as
+\texttt{(1,.6,0)}~\showcol[rgb]{1,.6,0}, whereas in the \CMYK{} color
+model \texttt{(0,.6,1,0)}~\showcol[cmyk]{0,.6,1,0} corresponds to a
+clearly different orange tone.  If a particular color is to be used
 several times throughout a figure, it is natural to store this color
 into a variable of type \textit{rgbcolor} or \textit{cmykcolor}.
 
@@ -87,8 +88,9 @@ The data type \textit{color} is a convenient synonym for
 \textit{rgbcolor}.  Additionally, there are five built-in \RGB{} colors
 in \MP{}: \texttt{black}, \texttt{white}, \texttt{red}, \texttt{green},
 and \texttt{blue}.  So, in the example above \texttt{(1,0,0)} could
-simply be replaced by \texttt{red} and \texttt{.4(red+blue)} refers to a
-dark violet~\showcol[rgb]{.4,0,.4} in the \RGB{} color model.
+simply be replaced by \texttt{red} and the expression
+\texttt{.4(red+blue)} refers to a dark violet~\showcol[rgb]{.4,0,.4} in
+the \RGB{} color model.
 
 The most common application of \textit{string} data types is reusing a
 particular string that is typeset (or labeled).  The \textit{boolean}
