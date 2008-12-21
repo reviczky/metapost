@@ -1,14 +1,15 @@
 % This document is in the public domain.
 % Originally written 2007, 2008 Troy Henderson.
-\documentclass{article}
-%\usepackage[T1]{fontenc}
-%\usepackage[osf]{mathpazo}
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage[charter]{mathdesign}
+\renewcommand*{\ttdefault}{lmtt}
 \linespread{1.02}
 \usepackage{textcomp}
 \usepackage{mflogo}
 \usepackage[expansion=true]{microtype}
 
-\usepackage{graphics}
+\usepackage{graphicx}
 \usepackage{listings}
 \lstset{breaklines=true,basicstyle=\normalfont\ttfamily,columns=flexible,escapechar=|}
 \usepackage{attachfile}
@@ -66,21 +67,17 @@
 
 \iffalse
 % workaround for acrobat 7+8 bugs in printing
-    \let\origtextattachfile=\textattachfile
-    \renewcommand{\textattachfile}[3][]{%
-      {\notextattachfile[#1]{#3}}%
-%      \origtextattachfile[#1]{#2}{#3}%
-    }
+\let\origtextattachfile=\textattachfile
+\renewcommand{\textattachfile}[3][]{%
+  {\notextattachfile[#1]{#3}}%
+  \origtextattachfile[#1]{#2}{#3}%
+}
 \fi
 
 \begin{document}
 
 \title{A Beginner's Guide to \MP{}\\for Creating High-Quality Graphics}
-%\title{Using MetaPost to create beautiful graphics for \TeX-based documents}
 \author{Troy Henderson}
-%\address{Department of Mathematical Sciences\\United States Military Academy\\West Point, NY  10996, USA\\\href{mailto:troy (at) tlhiv dot org}{\texttt{troy (at) tlhiv dot org}}\\\href{http://www.tlhiv.org}{\texttt{http://www.tlhiv.org}}}
-%\netaddress{troy@tlhiv.org}
-%\personalURL{http://www.tlhiv.org}
 \maketitle
 
 \input{abstract}
