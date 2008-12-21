@@ -50,7 +50,7 @@
 \def\d@sh#1#2{\unskip#1\thinskip#2\thinskip\ignorespaces}
 \def\Dash{\d@sh\nobreak\emdash}
 \def\JPEG{\acro{JPEG}}
-\def\PiC{P\kern-.12em\lower.5ex\hbox{I}\kern-.075emC\@}
+\def\PiC{P\kern-.05em\lower.5ex\hbox{I}\kern-.07emC\@}
 \def\PNG{\acro{PNG}}
 \def\PS{\acro{PS}}
 \def\SVG{\acro{SVG}}
@@ -60,20 +60,20 @@
 \def\PDF{\acro{PDF}}
 \def\SVG{\acro{SVG}}
 \def\Xy{\leavevmode
- \hbox{\kern-.1em X\kern-.3em\lower.4ex\hbox{Y\kern-.15em}}}
+	\hbox{\kern-.1em X\kern-.15em\lower.4ex\hbox{Y\kern-.05em}}}
 \def\textdegree{$^\circ$}% real \textdegree is too small
 \def\RGB{\acro{RGB}}
 \def\CMYK{\acro{CMYK}}
 
 \iffalse
 % workaround for acrobat 7+8 bugs in printing
-\let\origtextattachfile=\textattachfile
-\renewcommand{\textattachfile}[3][]{%
-  {\notextattachfile[#1]{#3}}%
-  \origtextattachfile[#1]{#2}{#3}%
-}
+	\let\origtextattachfile=\textattachfile
+			\renewcommand{\textattachfile}[3][]{%
+				{\notextattachfile[#1]{#3}}%
+				\origtextattachfile[#1]{#2}{#3}%
+			}
 \fi
-
+	
 \begin{document}
 
 \title{A Beginner's Guide to \MP{}\\for Creating High-Quality Graphics}
