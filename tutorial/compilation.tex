@@ -11,6 +11,7 @@ A typical \MP{} source file consists of one or more figures.  Compilation of the
 If \texttt{foo.mp} is a typical \MP{} source file with, then its contents are likely of the following form:
 \begin{lstlisting}[xleftmargin=1.25\parindent]
 prologues:=3;
+filenametemplate "%j-%c.mps";
 beginfig(1);
    |\normalfont\textit{draw commands}|
 endfig;
@@ -27,7 +28,7 @@ Executing \begin{flushleft}\hspace*{1.25\parindent}\texttt{mpost foo.mp}\end{flu
 \begin{lstlisting}[xleftmargin=1.25\parindent]
 This is MetaPost, Version |\normalfont$\langle$\textit{version}$\rangle$|
 (foo.mp [1] [2] |\normalfont\ldots| [|\normalfont$n$|] )
-|\normalfont$n$| output files written: foo.1 .. foo.|\rlap{\normalfont$n$}|
+|\normalfont$n$| output files written: foo-1.mps .. foo-|\rlap{\normalfont$n$}|.mps
 Transcript written on foo.log.
 \end{lstlisting}
 
