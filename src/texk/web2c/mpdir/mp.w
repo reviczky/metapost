@@ -1801,7 +1801,8 @@ static void mp_do_print (MP mp, const char *ss, size_t len) { /* prints string |
     str_room((integer)(len*4));
   }
   while ( j<len ){ 
-    mp_print_char(mp, xord((int)ss[j])); j++;
+    /* this was |xord((int)ss[j])| but that doesnt work */
+    mp_print_char(mp, ss[j]); j++;
   }
 }
 
@@ -3948,6 +3949,7 @@ char *mp_xstrdup(MP mp, const char *s) {
 
 @ @<Internal library declarations@>=
 #ifdef HAVE_SNPRINTF
+extern int snprintf(char *str, size_t size, const char *format, ...);
 #define mp_snprintf (void)snprintf
 #else
 #define mp_snprintf mp_do_snprintf

@@ -48,8 +48,11 @@ in order to prevent name clashes.
 @c
 #include "config.h"
 #include <stdio.h>
+extern int fileno(FILE *stream);
 #include <stdlib.h>
+extern int mkstemp(char *template);
 #include <string.h>
+extern char *strdup(const char *s);
 #include <stdarg.h>
 #include <assert.h>
 #include <setjmp.h>
