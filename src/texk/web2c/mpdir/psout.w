@@ -3738,16 +3738,16 @@ that use the left-over |b3| field in the |char_info| words; i.e.,
 enum mp_char_mark_state {mp_unused=0, mp_used};
 
 @ @<Declarations@>=
-static void mp_mark_string_chars (MP mp,font_number f, char *s, int l) ;
+static void mp_mark_string_chars (MP mp,font_number f, char *s, size_t l) ;
 
 @ @c
-void mp_mark_string_chars (MP mp,font_number f, char *s, int l) {
+void mp_mark_string_chars (MP mp,font_number f, char *s, size_t l) {
   integer b; /* |char_base[f]| */
-  ASCII_code bc,ec; /* only characters between these bounds are marked */
+  int bc,ec; /* only characters between these bounds are marked */
   char *k; /* an index into string |s| */
   b=mp->char_base[f];
-  bc=mp->font_bc[f];
-  ec=mp->font_ec[f];
+  bc=(int)mp->font_bc[f];
+  ec=(int)mp->font_ec[f];
   k=s;
   while (l-->0){ 
     if ( (*k>=bc)&&(*k<=ec) )
@@ -4120,7 +4120,7 @@ void mp_ps_print_cmd (MP mp, const char *l, const char *s) {
 static void mp_ps_print_cmd (MP mp, const char *l, const char *s) ;
 
 @ @c
-void mp_ps_string_out (MP mp, const char *s, int l) {
+void mp_ps_string_out (MP mp, const char *s, size_t l) {
   ASCII_code k; /* bits to be converted to octal */
   mp_ps_print(mp, "(");
   while (l-->0) {
@@ -4144,7 +4144,7 @@ void mp_ps_string_out (MP mp, const char *s, int l) {
 }
 
 @ @<Declarations@>=
-static void mp_ps_string_out (MP mp, const char *s, int l) ;
+static void mp_ps_string_out (MP mp, const char *s, size_t l) ;
 
 @ This is a define because the function does not use its |mp| argument.
 
@@ -4523,7 +4523,7 @@ typedef struct mp_text_object {
   unsigned char color_model;
   unsigned char size_index;
   char *text_p;
-  int text_l;
+  size_t text_l;
   char *font_name ;   
   unsigned int font_dsize ;
   unsigned int font_n ;   
