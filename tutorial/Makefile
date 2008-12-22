@@ -3,9 +3,9 @@ MPOST=mpost
 LTX=pdflatex
 BIB=bibtex
 
-SRC=mpguide.ltx
+SRC=mpintro.ltx
 INCL=$(wildcard *.tex)
-MYBIB=mpguide.bib
+MYBIB=mpintro.bib
 MPMPS=annulus-1.mps annulus-2.mps annulus-3.mps circles.mps data.mps draw-1.mps draw-2.mps fill.mps label-1.mps label-2.mps parabola.mps
 MP=$(patsubst %,%.mp,$(patsubst %.mps,%,$(filter-out -%,$(subst -, -,$(MPMPS)))))
 MPLOG=$(patsubst %.mp,%.log,$(MP))
