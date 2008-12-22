@@ -2,7 +2,7 @@
 %%BoundingBox: -20 -20 20 20 
 %%HiResBoundingBox: -19.9253 -19.9253 19.9253 19.9253 
 %%Creator: MetaPost 1.110
-%%CreationDate: 2008.12.21:1509
+%%CreationDate: 2008.12.22:1652
 %%Pages: 1
 %%DocumentResources: procset mpost-minimal
 %%+ font ICXWUR-MathDesign-CH-Regular-Symbol-10 WXNWSP-LMMono10-Regular
