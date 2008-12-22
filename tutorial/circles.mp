@@ -1,4 +1,4 @@
-outputtemplate:="%j.mps";
+filenametemplate "%j.mps";
 
 beginfig(0);
 	% Use 8 circles

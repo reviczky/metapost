@@ -2,7 +2,7 @@
 %%BoundingBox: -6 -10 87 76 
 %%HiResBoundingBox: -5.72725 -9.5351 86.4545 75.26755 
 %%Creator: MetaPost 1.110
-%%CreationDate: 2008.12.21:1509
+%%CreationDate: 2008.12.22:1652
 %%Pages: 1
 %%DocumentResources: procset mpost-minimal
 %%+ font SAPBRH-LMMono10-Regular
