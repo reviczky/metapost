@@ -87,10 +87,10 @@ into a variable of type \textit{rgbcolor} or \textit{cmykcolor}.
 The data type \textit{color} is a convenient synonym for
 \textit{rgbcolor}.  Additionally, there are five built-in \RGB{} colors
 in \MP{}: \texttt{black}, \texttt{white}, \texttt{red}, \texttt{green},
-and \texttt{blue}.  So, in the example above \texttt{(1,0,0)} could
-simply be replaced by \texttt{red} and the expression
-\texttt{.4(red+blue)} refers to a dark violet~\showcol[rgb]{.4,0,.4} in
-the \RGB{} color model.
+and \texttt{blue}.  So, the expression \texttt{.4(red+blue)} refers to a
+dark violet~\showcol[rgb]{.4,0,.4} in the \RGB{} color model and in the
+example above \texttt{(1,.6,0)} could be replaced by
+\texttt{red+.6green}.
 
 The most common application of \textit{string} data types is reusing a
 particular string that is typeset (or labeled).  The \textit{boolean}
