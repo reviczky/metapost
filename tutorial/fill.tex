@@ -1,0 +1,45 @@
+\begin{subsection}{The \texttt{fill} Command}
+Another common command in \MP{} is the \texttt{fill} command.  This is used to fill closed paths (or cycles).  In order to construct a cycle, \texttt{cycle} may be appended to the path declaration.  For example,
+\begin{lstlisting}[xleftmargin=7bp]
+path p;
+p:=z1{right}..z2{dir 45}..{up}z3--cycle;
+fill p withcolor red;
+draw p;
+\end{lstlisting}
+produces Figure \ref{fig:fill}.  Notice that \texttt{p} is essentially the same curved path as in Figure \ref{fig:draw1} with the additional piece that connects \texttt{z3} back to \texttt{z1} with a line segment using \texttt{-{}-cycle}.
+\begin{figure}[hptb]
+	\begin{center}\textattachfile[color={0 0 0},mimetype={text/plain}]{fill.mp}{\includegraphics{fill.mps}}\end{center}
+	\caption{\texttt{fill} example}\label{fig:fill}
+\end{figure}
+
+Just as it is necessary to fill closed paths, it may also be necessary to \textit{unfill} closed paths.  For example, the annulus in Figure \ref{fig:annulus1} can be constructed by
+\begin{lstlisting}[xleftmargin=38bp]
+color bbblue;
+bbblue:=(3/5,4/5,1);
+path p,q;
+p:=fullcircle scaled (2*54);
+q:=fullcircle scaled (2*27);
+fill p withcolor bbblue;
+unfill q;
+draw p;
+draw q;
+\end{lstlisting}
+The \texttt{fullcircle} path is a built-in path that closely approximates a circle in \MP{} with diameter 1\,bp traversed counter-clockwise.  This path is not exactly a circle since it is parameterized by a B\'{e}zier curve and not by trigonometric functions; however, visually it is essentially indistinguishable from an exact circle.
+\begin{figure}[hptb]
+	\begin{center}\textattachfile[color={0 0 0},mimetype={text/plain}]{annulus.mp}{\includegraphics{annulus-1.mps}}\end{center}
+	\caption{\texttt{unfill} example}\label{fig:annulus1}
+\end{figure}
+Notice that \texttt{p} is a \texttt{fullcircle} of radius 54\,bp (3/4\,in) and \texttt{q} is a \texttt{fullcircle} of radius 27\,bp (3/8\,in).  The annulus is constructed by filling \texttt{p} with the baby blue color \texttt{bbblue} and then unfilling \texttt{q}.  The \texttt{unfill} command above is equivalent to \begin{center}\verb|fill q withcolor background;|\end{center} where \texttt{background} is a built-in color which is \texttt{white} by default.
+
+Often the \texttt{unfill} command appears to be the natural method for constructing figures like Figure \ref{fig:annulus1}.  However, the \texttt{fill} and \texttt{unfill} commands in Figure \ref{fig:annulus1} can be replaced by \begin{center}\verb|fill p--reverse q--cycle withcolor bbblue;|\end{center}
+\begin{figure}[hptb]
+	\begin{center}\textattachfile[color={0 0 0},mimetype={text/plain}]{annulus.mp}{\includegraphics{annulus-2.mps}}\end{center}
+	\caption{Avoiding an \texttt{unfill}}\label{fig:annulus2}
+\end{figure}
+The path \verb|p--reverse q--cycle| travels around \texttt{p} in a counter-clockwise directions (since this is the direction that \texttt{p} traverses) followed by a line segment to connect to \texttt{q}.  It then traverses clockwise around \texttt{q} (using the \texttt{reverse} operator) and finally returns to the starting point along a line segment using \texttt{-{}-cycle}.  This path is illustrated in Figure~\ref{fig:annulus2}.  One reason for using this method to construct the annulus as opposed to the \texttt{unfill} command is to ensure \textit{proper transparency} when placing the figure in an external document with a non-white background.  If the former method is used and the annulus is placed on a non-white background, say magenta, then the result is Figure \ref{fig:annulus3}.
+\begin{figure}[ht]
+	\begin{center}\textattachfile[color={0 0 0},mimetype={text/plain}]{annulus.mp}{\includegraphics{annulus-3.mps}}\end{center}
+	\caption{Improper transparency using \texttt{unfill}}\label{fig:annulus3}
+\end{figure}
+It may be desired to have the interior of \texttt{q} be magenta instead of \texttt{white}.  This could be accomplished by redefining \texttt{background}; however, the latter method described above is a much simpler solution.
+\end{subsection}
