@@ -1802,7 +1802,7 @@ static void mp_do_print (MP mp, const char *ss, size_t len) { /* prints string |
   }
   while ( j<len ){ 
     /* this was |xord((int)ss[j])| but that doesnt work */
-    mp_print_char(mp, ss[j]); j++;
+    mp_print_char(mp, (ASCII_code)ss[j]); j++;
   }
 }
 
@@ -3875,12 +3875,12 @@ pointer hi_mem_min; /* the smallest location of one-word memory in use */
 
 @<Declare helpers@>=
 extern char *mp_strdup(const char *p) ;
-extern char *mp_strldup(const char *p, int l) ;
+extern char *mp_strldup(const char *p, size_t l) ;
 extern void mp_xfree ( @= /*@@only@@*/ /*@@out@@*/ /*@@null@@*/ @> void *x);
 extern @= /*@@only@@*/ @> void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) ;
 extern @= /*@@only@@*/ @> void *mp_xmalloc (MP mp, size_t nmem, size_t size) ;
 extern @= /*@@only@@*/ @> char *mp_xstrdup(MP mp, const char *s);
-extern @= /*@@only@@*/ @> char *mp_xstrldup(MP mp, const char *s, int l);
+extern @= /*@@only@@*/ @> char *mp_xstrldup(MP mp, const char *s, size_t l);
 extern void mp_do_snprintf(char *str, int size, const char *fmt, ...);
 
 @ The |max_size_test| guards against overflow, on the assumption that
@@ -3889,7 +3889,7 @@ extern void mp_do_snprintf(char *str, int size, const char *fmt, ...);
 @d max_size_test 0x7FFFFFFF
 
 @c
-char *mp_strldup(const char *p, int l) {
+char *mp_strldup(const char *p, size_t l) {
   char *r;
   if (p==NULL) return NULL;
   r = malloc ((size_t)(l*sizeof(char)+1));
@@ -3930,7 +3930,7 @@ void  *mp_xmalloc (MP mp, size_t nmem, size_t size) {
   }
   return w;
 }
-char *mp_xstrldup(MP mp, const char *s, int l) {
+char *mp_xstrldup(MP mp, const char *s, size_t l) {
   char *w; 
   if (s==NULL)
     return NULL;
@@ -3943,7 +3943,7 @@ char *mp_xstrldup(MP mp, const char *s, int l) {
 }
 char *mp_xstrdup(MP mp, const char *s) {
   if (s==NULL)  return NULL;
-  return mp_xstrldup(mp,s,(int)strlen(s));
+  return mp_xstrldup(mp,s,strlen(s));
 }
 
 
@@ -16039,9 +16039,9 @@ static void mp_print_file_name (MP mp, char * n, char * a, char * e) {
       ((n != NULL) && (strchr(n,' ') != NULL)) ||
       ((e != NULL) && (strchr(e,' ') != NULL)))
     must_quote = true;
-  if (must_quote) mp_print_char(mp, '"');
+  if (must_quote) mp_print_char(mp, (ASCII_code)'"');
   mp_print(mp, a); mp_print(mp, n); mp_print(mp, e);
-  if (must_quote) mp_print_char(mp, '"');
+  if (must_quote) mp_print_char(mp, (ASCII_code)'"');
 }
 
 @ Another system-dependent routine is needed to convert three internal
@@ -21176,7 +21176,7 @@ static void mp_cat (MP mp,pointer p) {
   a=value(p); b=mp->cur_exp; k=length(a);
   needed=mp->pool_ptr+k+length(b);
   /* this will free some memory, hopefully */
-  if (mp->pool_ptr>1.1*mp->old_pool_size) {
+  if (mp->pool_ptr>(11*mp->old_pool_size)/10) {
       mp->old_pool_size = mp->pool_ptr;
       mp_do_compaction(mp, mp->pool_size);
   }
@@ -21186,10 +21186,10 @@ static void mp_cat (MP mp,pointer p) {
     }
     mp->max_pool_ptr=needed; 
   }
-  memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[a],k);
+  memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[a],(size_t)k);
   mp->pool_ptr+=k; 
   k=length(b);
-  memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[b],k);
+  memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[b],(size_t)k);
   mp->pool_ptr+=k;
   mp->cur_exp=mp_make_string(mp); delete_str_ref(b);
 }
@@ -25830,7 +25830,7 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
     case mp_text_code:
       tt = (mp_text_object *)hq;
       gr_text_p(tt)       = str(mp_text_p(p));
-      gr_text_l(tt)       = length(mp_text_p(p));
+      gr_text_l(tt)       = (size_t)length(mp_text_p(p));
       gr_font_n(tt)       = (unsigned int)mp_font_n(p);
       gr_font_name(tt)    = mp_xstrdup(mp,mp->font_name[mp_font_n(p)]);
       gr_font_dsize(tt)   = (unsigned int)mp->font_dsize[mp_font_n(p)];
