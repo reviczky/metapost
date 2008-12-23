@@ -2,7 +2,7 @@
 %%BoundingBox: -56 -56 56 56 
 %%HiResBoundingBox: -55.64296 -55.64296 55.64296 55.64296 
 %%Creator: MetaPost 1.110
-%%CreationDate: 2008.12.22:1755
+%%CreationDate: 2008.12.22:1924
 %%Pages: 1
 %%DocumentResources: procset mpost-minimal
 %%+ font MGTVBO-LMMono10-Regular

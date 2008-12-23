@@ -2,7 +2,7 @@
 %%BoundingBox: -87 -3 87 105 
 %%HiResBoundingBox: -86.72583 -2.5868 86.72583 104.33531 
 %%Creator: MetaPost 1.110
-%%CreationDate: 2008.12.22:1755
+%%CreationDate: 2008.12.22:1924
 %%Pages: 1
 %%DocumentResources: procset mpost-minimal
 %%+ font CGTVBO-CharterBT-Italic ICXWUR-MathDesign-CH-Regular-OT1-10
