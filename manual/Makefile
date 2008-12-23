@@ -9,8 +9,8 @@ bibtex = bibtex
 mpost = mpost -tex=tex
 
 all: pdf
-pdf: mpman.pdf mpintro.pdf mpgraph.pdf mpboxes.pdf grdemo.pdf
-ps: mpman.ps mpintro.ps mpgraph.ps mpboxes.ps
+pdf: mpman.pdf mpgraph.pdf mpboxes.pdf grdemo.pdf
+ps: mpman.ps mpgraph.ps mpboxes.ps
 
 mpboxes.pdf: mpboxes.tex mpboxes.bib mpboxes.mp
 	$(mpost) mpboxes
@@ -26,14 +26,6 @@ mpgraph.pdf: mpgraph.tex mpgraph.bib mpgraph.mp
 	$(bibtex) mpgraph
 	$(pdflatex) mpgraph
 	$(pdflatex) mpgraph
-
-mpintro.pdf: mpintro.tex mpintro.bib mpintro.mp mpman.mp
-	$(mpost) mpintro
-	$(mpost) mpman
-	$(pdflatex) mpintro
-	$(bibtex) mpintro
-	$(pdflatex) mpintro
-	$(pdflatex) mpintro
 
 mpman.pdf: mpman.tex mpman-optab.tex mpman.bib mpman.ist mpman.mp
 	$(mpost) mpman
@@ -51,15 +43,6 @@ mpgraph.ps: mpgraph.tex mpgraph.bib mpgraph.mp
 	$(latex) mpgraph
 	$(latex) mpgraph
 	$(dvips) mpgraph
-
-mpintro.ps: mpintro.tex mpintro.bib mpintro.mp mpman.mp
-	$(mpost) mpintro
-	$(mpost) mpman
-	$(latex) mpintro
-	$(bibtex) mpintro
-	$(latex) mpintro
-	$(latex) mpintro
-	$(dvips) mpintro
 
 mpman.ps: mpman.tex mpman-optab.tex mpman.bib mpman.ist mpman.mp
 	$(mpost) mpman
