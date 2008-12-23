@@ -1669,7 +1669,7 @@ mp->ps->dvips_extra_charset=NULL;
 mp->ps->t1_byte_waiting=0;
 
 @
-@d t1_ungetchar(A) mp->ps->t1_byte_waiting=A
+@d t1_ungetchar(A) mp->ps->t1_byte_waiting=(int)(A)
 @d t1_eof()        (mp->eof_file)(mp,mp->ps->t1_file)
 @d t1_close()      (mp->close_file)(mp,mp->ps->t1_file)
 @d valid_code(c)   (c >= 0 && c < 256)
@@ -1677,7 +1677,7 @@ mp->ps->t1_byte_waiting=0;
 @c
 static int t1_getchar (MP mp) {
   size_t len = 1;
-  int abyte=0;
+  unsigned char abyte=0;
   void *byte_ptr = &abyte;  
   if (mp->ps->t1_byte_waiting) {
     abyte = mp->ps->t1_byte_waiting;
@@ -1685,7 +1685,7 @@ static int t1_getchar (MP mp) {
   } else {
     (mp->read_binary_file)(mp,mp->ps->t1_file,&byte_ptr,&len);
   }
-  return abyte;
+  return (int)abyte;
 }
 
 @ @<Static variables in the outer block@>=
