@@ -2,7 +2,7 @@
 %%BoundingBox: -26 -20 147 92 
 %%HiResBoundingBox: -25.84807 -19.32751 146.25 91.25 
 %%Creator: MetaPost 1.110
-%%CreationDate: 2008.12.22:1924
+%%CreationDate: 2008.12.22:1928
 %%Pages: 1
 %%DocumentResources: procset mpost-minimal
 %%+ font RFDXHQ-CharterBT-Roman
