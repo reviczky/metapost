@@ -7,8 +7,15 @@ if  test -d $a ; then
   find $a -name \*~ -exec rm \{\} \;
   rm -rf $a/build $a/build-win
   ln -s $a metapost-$a
-  tar cvj --exclude=.svn -f $svndir/metapost-$a-src.tar.bz2 metapost-$a/*
   cd metapost-$a
+  cd manual
+  make
+  make clean
+  cd ../tutorial
+  make mpintro.pdf
+  make clean
+  cd ..
+  tar cvj --exclude=.svn -f $svndir/metapost-$a-src.tar.bz2 metapost-$a/*
   ./build.sh "$@"
   ./build.cross "$@"
   zip -j $svndir/metapost-$a-win32-mingw.zip build-win/texk/web2c/mpdir/mpost.exe
