@@ -236,7 +236,7 @@ $$ \hbox{\verb|draw (20,20)--(0,0)|} $$
 draws\index{draw?\texttt{draw}} a diagonal line and
 $$ \hbox{\verb|draw (20,20)--(0,0)--(0,30)--(30,0)--(0,0)|} $$
 draws a polygonal line like this:
-$$ \includegraphics{mpman-1} $$
+$$ \includegraphics{mpman-1.mps} $$
 
 \label{Ddrawdot}MetaPost also has a \ttt{drawdot} command to print a
 single point, as in \ttt{drawdot(30,0)}. 
@@ -309,7 +309,7 @@ for i=0 upto 2:
 endfor
 endfig;
 \end{verbatim}
-\quad \mathcenter{\includegraphics{mpman-2}}
+\quad \mathcenter{\includegraphics{mpman-2.mps}}
 $$
 \caption{MetaPost commands and the resulting output}
 \label{fig1}
@@ -407,7 +407,7 @@ The next paragraphs give brief information on some popular \TeX\ formats
 and output drivers.
 
 \begin{figure}[htp]
-$$ \includegraphics{mpman-0} $$
+$$ \includegraphics{mpman-0.mps} $$
 \caption[A diagram of the processing for a document with MetaPost figures]
         {A diagram of the processing for a \TeX\ document with figures
         in MetaPost}
@@ -625,7 +625,7 @@ Figure~\ref{fig2} shows the curve with points \verb|z0| through \verb|z4|
 labeled.
 
 \begin{figure}[htp]
-$$ \includegraphics{mpman-3}
+$$ \includegraphics{mpman-3.mps}
 $$
 \caption[A curve through points 0, 1, 2, 3, and 4]
         {The result of {\tt draw z0..z1..z2..z3..z4}}
@@ -650,8 +650,8 @@ as having two draw statements
 \end{eqnarray*}
 
 \begin{figure}[htp]
-$$ {\includegraphics{mpman-104} \atop (a)}
-  \qquad {\includegraphics{mpman-204} \atop (b)}
+$$ {\includegraphics{mpman-104.mps} \atop (a)}
+  \qquad {\includegraphics{mpman-204.mps} \atop (b)}
 $$
 \caption[Closed curves through five points]
         {(a)~The result of {\tt draw z0..\linebreak[0]z1..\linebreak[0]%
@@ -704,7 +704,7 @@ draw (0,0)..controls (26.8,-1.8) and (51.4,14.6)
 $$
 
 \begin{figure}[htp]
-$$ \includegraphics{mpman-5}
+$$ \includegraphics{mpman-5.mps}
 $$
 \caption[A curve and the control polygon]
         {The result of {\tt draw z0..z1..z2..z3..z4} with the
@@ -732,7 +732,7 @@ would have chosen a direction designed to make the curvature above
 \verb|z1| almost the same as the curvature below that point.
 
 \begin{figure}[htp]
-$$ \includegraphics{mpman-6}
+$$ \includegraphics{mpman-6.mps}
 $$
 \caption[A curve and the control polygon]
         {The result of {\tt draw z0..z1\char`\{up\char`\}..z2\char`\{left\char`\}%
@@ -747,7 +747,7 @@ directions there.  Figures \ref{fig6} and~\ref{fig7} give a good idea of what
 this family of curves is like.
 
 \begin{figure}[htp]
-$$ \mathcenter{\includegraphics{mpman-7}} \quad
+$$ \mathcenter{\includegraphics{mpman-7.mps}} \quad
 \begin{verbatim}
 beginfig(7)
 for a=0 upto 9:
@@ -761,7 +761,7 @@ $$
 \end{figure}
 
 \begin{figure}[htp]
-$$ \mathcenter{\includegraphics{mpman-8}} \quad
+$$ \mathcenter{\includegraphics{mpman-8.mps}} \quad
 \begin{verbatim}
 beginfig(8)
 for a=0 upto 7:
@@ -807,10 +807,10 @@ endpoint directions make this impossible.''  (It would be possible to
 avoid inflections in Figure~\ref{fig6}, but not in Figure~\ref{fig7}).
 
 \begin{figure}[htp]
-$$ {\mathcenter{\includegraphics{mpman-109}} \atop
+$$ {\mathcenter{\includegraphics{mpman-109.mps}} \atop
     \hbox{\verb|draw z0{up}..z1{right}..z2{down}|}}
   \quad
-   {\mathcenter{\includegraphics{mpman-209}} \atop
+   {\mathcenter{\includegraphics{mpman-209.mps}} \atop
     \hbox{\verb|draw z0{up}...z1{right}...z2{down}|}}
 $$
 \caption{Two {\tt draw} statements and the resulting curves.}
@@ -831,11 +831,11 @@ $$ \hbox{\verb|draw z0..z1..tension 1.5 and 1..z2..z3|} $$
 The tension parameter can be less than one, but it must be at least $3\over4$.
 
 \begin{figure}[htp]
-$$ {\mathcenter{\includegraphics{mpman-110}} \atop (a)}
+$$ {\mathcenter{\includegraphics{mpman-110.mps}} \atop (a)}
   \quad
-   {\mathcenter{\includegraphics{mpman-210}} \atop (b)}
+   {\mathcenter{\includegraphics{mpman-210.mps}} \atop (b)}
   \quad
-   {\mathcenter{\includegraphics{mpman-310}} \atop (c)}
+   {\mathcenter{\includegraphics{mpman-310.mps}} \atop (c)}
 $$
 \caption[Effects of changing the tension parameter]
         {Results of {\tt draw z0..z1..tension} $\alpha$ {\tt and} $\beta$
@@ -859,13 +859,13 @@ shown in Figure~\ref{fig10}.  In particular, a curl value of zero makes
 the curvature approach zero.
 
 \begin{figure}[htp]
-$$ {\mathcenter{\includegraphics{mpman-111}} \atop c=0}
+$$ {\mathcenter{\includegraphics{mpman-111.mps}} \atop c=0}
   \qquad
-   {\mathcenter{\includegraphics{mpman-211}} \atop c=1}
+   {\mathcenter{\includegraphics{mpman-211.mps}} \atop c=1}
   \qquad
-   {\mathcenter{\includegraphics{mpman-311}} \atop c=2}
+   {\mathcenter{\includegraphics{mpman-311.mps}} \atop c=2}
   \qquad
-   {\mathcenter{\includegraphics{mpman-411}} \atop c=\infty}
+   {\mathcenter{\includegraphics{mpman-411.mps}} \atop c=\infty}
 $$
 \caption[Effects of changing the curl parameter]
         {Results of {\tt draw z0\char`\{curl c\char`\}..z1..%
@@ -1036,7 +1036,7 @@ draw z1--z2;
 draw z3--z6;
 endfig;
 \end{verbatim}
-\quad \mathcenter{\includegraphics{mpman-13}}
+\quad \mathcenter{\includegraphics{mpman-13.mps}}
 $$
 \caption[MetaPost code and figure using linear equations]
         {MetaPost commands and the resulting figure.  Point labels have been
@@ -1364,7 +1364,7 @@ is written on a piece of graph paper so that the first character
 occupies $x$~coordinates between zero and one and the next character
 covers the range $1\le x\le2$, etc.  Thus the string \verb|"abcde"|
 should be thought of like this
-$$ \includegraphics{mpman-14} $$
+$$ \includegraphics{mpman-14.mps} $$
 and {\tt substring (2,4) of "abcde"} is {\tt "cd"}.  This takes a little
 getting used to but it tends to avoid annoying ``off by one'' errors.
 
@@ -1737,7 +1737,7 @@ label.lft("b", .5[z0,z2]);
 dotlabel.bot("(0,0)", z0);
 endfig;
 \end{verbatim}
-\qquad \mathcenter{\includegraphics{mpman-17}}
+\qquad \mathcenter{\includegraphics{mpman-17.mps}}
 $$
 \caption{MetaPost code and the resulting output}
 \label{fig16}
@@ -1856,7 +1856,7 @@ label.bot(btex $x$ etex, (2u,0));
 label.lft(btex $y$ etex, (0,u));
 endfig;
 \end{verbatim}
-\qquad \mathcenter{\includegraphics{mpman-18}}
+\qquad \mathcenter{\includegraphics{mpman-18.mps}}
 $$
 \caption{Arbitrary \TeX\ as labels}
 \label{fig17}
@@ -1892,7 +1892,7 @@ label.lft(
   (120ux, 4uy));
 endfig;
 \end{verbatim}
-\qquad \mathcenter{\includegraphics{mpman-19}}
+\qquad \mathcenter{\includegraphics{mpman-19.mps}}
 $$
 \caption{\TeX\ labels with display math, and rotated by MetaPost}
 \label{fig18}
@@ -2155,7 +2155,7 @@ variables}\index{variables!internal} {\tt
 bboxmargin}\index{bboxmargin?\texttt{bboxmargin}}\label{Dbbmargin}.
 
 \begin{figure}[htp]
-$$ \includegraphics{mpman-20} $$
+$$ \includegraphics{mpman-20.mps} $$
 \caption{A bounding box and its corner points.}
 \label{bbox}
 \end{figure}
@@ -2216,7 +2216,7 @@ fill p{up}..(0,0){-1,-2}..{up}cycle;
 draw p..(0,1cm)..cycle;
 endfig;
 \end{verbatim}
-\qquad \mathcenter{\includegraphics{mpman-21}}
+\qquad \mathcenter{\includegraphics{mpman-21.mps}}
 $$
 \caption{MetaPost code and the corresponding output.}
 \label{fig20}
@@ -2318,7 +2318,7 @@ label.lft(btex $U$ etex, (-1cm,.5cm));
 draw bbox currentpicture;
 endfig;
 \end{verbatim}
-\qquad \mathcenter{\includegraphics{mpman-22}}
+\qquad \mathcenter{\includegraphics{mpman-22.mps}}
 $$
 \caption{MetaPost code and the corresponding output.}
 \index{fullcircle?\texttt{fullcircle}}\index{halfcircle?\texttt{halfcircle}}\index{buildcycle?\texttt{buildcycle}}
@@ -2382,8 +2382,8 @@ little confusing.
 
 
 \begin{figure}[htp]
-$$ {\includegraphics{mpman-123} \atop (a)}
- \qquad {\includegraphics{mpman-223} \atop (b)}
+$$ {\includegraphics{mpman-123.mps} \atop (a)}
+ \qquad {\includegraphics{mpman-223.mps} \atop (b)}
 $$
 \caption[A demonstration of cycle building]
         {(a)~The semicircular path~{\tt aa}
@@ -2430,7 +2430,7 @@ dotlabel.lft(btex $R$ etex, p4 intersectionpoint q1.5);
 dotlabel.bot(btex $S$ etex, p4 intersectionpoint q0.5);
 endfig;
 \end{verbatim}
-\atop \mathcenter{\includegraphics{mpman-24}}
+\atop \mathcenter{\includegraphics{mpman-24.mps}}
 $$
 \caption{MetaPost code and the corresponding output.}
 \label{fig23}
@@ -2503,7 +2503,7 @@ there are no integers between $t_a$ and $t'_a$\index{intersection}.
 (For more details, see {\sl The \MF book} \cite[Chapter 14]{kn:c}).
 
 \begin{figure}[htp]
-$$ \includegraphics{mpman-25} $$
+$$ \includegraphics{mpman-25.mps} $$
 \caption{Two intersecting paths with time values marked on each path.}
 \label{fig24}
 \end{figure}
@@ -2604,7 +2604,7 @@ pickup pencircle scaled 1pt;
 draw fun;
 endfig;
 \end{verbatim}
-\atop \includegraphics{mpman-26}
+\atop \includegraphics{mpman-26.mps}
 $$
 \caption{MetaPost code and the resulting figure}
 \label{fig25}
@@ -2822,7 +2822,7 @@ endfor
 dotlabels.top(1,2,3); dotlabels.bot(4);
 endfig;
 \end{verbatim}
-\quad \mathcenter{\includegraphics{mpman-28}}
+\quad \mathcenter{\includegraphics{mpman-28.mps}}
 $$
 \caption{MetaPost code and the resulting ``fractal'' figure}
 \label{fig27}
@@ -2850,7 +2850,7 @@ can be scaled\index{scaled?\texttt{scaled}} as shown in
 Figure~\ref{fig28}.
 
 \begin{figure}[htp]
-$$ \includegraphics{mpman-29} $$
+$$ \includegraphics{mpman-29.mps} $$
 \caption[Dashed lines and the corresponding dash patters]
         {Dashed lines each labeled with the \tdescr{dash pattern} used to create
         it.}
@@ -2867,7 +2867,7 @@ $y$~axis is laid out along the path to be dashed\index{dash
 pattern?\tdescr{dash pattern}}.
 
 \begin{figure}[htp]
-$$ \includegraphics{mpman-30} $$
+$$ \includegraphics{mpman-30.mps} $$
 \caption[Dashed lines and the corresponding dash patters]
         {Dashed lines and the MetaPost statements for drawing them where {\tt e4}
         refers to the dash pattern {\tt evenly scaled 4}.}
@@ -2910,7 +2910,7 @@ $$ \hbox{\tt dashpattern(on 6bp  off 12bp  on 6bp)}, $$
 then {\tt llcorner d} is $(0,24)$ and {\tt urcorner d} is $(24,24)$.
 Drawing {\tt d} directly without using it as a dash pattern produces two
 thin horizontal line segments like this:
-$$ \includegraphics{mpman-31} $$
+$$ \includegraphics{mpman-31.mps} $$
 The lines in this example are specified as having width zero, but this
 does not matter because the line width is ignored when a picture is used
 as a dash pattern.
@@ -2952,7 +2952,7 @@ currentpicture:=nullpicture;
 draw fullcircle scaled 1cm xscaled 3 dashed p;
 endfig;
 \end{verbatim}
-\quad \mathcenter{\includegraphics{mpman-32}}
+\quad \mathcenter{\includegraphics{mpman-32.mps}}
 $$
 \caption{MetaPost code for dashed patterns and the corresponding output}
 \label{fig32}
@@ -3032,7 +3032,7 @@ dotlabels.top(0,1,2,3,4,5);
 endfig; linecap:=rounded;
 \end{verbatim}
 \qquad
-\mathcenter{\includegraphics{mpman-33}}
+\mathcenter{\includegraphics{mpman-33.mps}}
 $$
 \caption{MetaPost code and the corresponding output}
 \label{fig33}
@@ -3065,7 +3065,7 @@ dotlabels.bot(0,1,2,3,4,5,6,7,8);
 endfig; linejoin:=rounded;
 \end{verbatim}
 \qquad
-\mathcenter{\includegraphics{mpman-34}}
+\mathcenter{\includegraphics{mpman-34.mps}}
 $$
 \caption{MetaPost code and the corresponding output}
 \label{fig34}
@@ -3082,7 +3082,7 @@ default value of 10.0 and line joins revert to beveled when the ratio of
 miter length to line width reaches this value.
 
 \begin{figure}[htp]
-$$ \includegraphics{mpman-35} $$
+$$ \includegraphics{mpman-35.mps} $$
 \caption{The miter length and line width whose ratio is limited by
         {\tt miterlimit}.}
 \label{fig35}
@@ -3097,7 +3097,7 @@ width and is quite subtle at the default line width of 0.5bp as shown in
 Figure~\ref{fig36}.
 
 \begin{figure}[htp]
-$$\includegraphics{mpman-36}$$
+$$\includegraphics{mpman-36.mps}$$
 \caption{Three ways of drawing arrows.}
 \label{fig36}
 \end{figure}
@@ -3133,7 +3133,7 @@ parameter that controls the angle at the tip of the arrowhead.  The
 default value of this angle is 45 degrees as shown in the figure.
 
 \begin{figure}[htp]
-$$ \includegraphics{mpman-37} $$
+$$ \includegraphics{mpman-37.mps} $$
 \caption[A large arrowhead with key parameters labeled.]
         {A large arrowhead with key parameters labeled and paths used to
         draw it marked with white lines.}
@@ -3247,7 +3247,7 @@ draw z0--z1--z2--z3--z4--z5--z6 withcolor .7white;
 dotlabels.top(0,1,2,3,4,5,6);
 endfig;
 \end{verbatim}
-\quad \mathcenter{\includegraphics{mpman-38}}
+\quad \mathcenter{\includegraphics{mpman-38.mps}}
 $$
 \caption{MetaPost code and the resulting ``calligraphic'' figure.}
 \label{fig38}\index{lft?\texttt{lft}}\index{bot?\texttt{bot}}\index{top?\texttt{top}}
@@ -3425,7 +3425,7 @@ draw p3;
 endfig;
 \end{verbatim}
 \qquad
-\mathcenter{\includegraphics{mpman-40}}
+\mathcenter{\includegraphics{mpman-40.mps}}
 $$
 \caption{MetaPost code and the resulting ``clipped'' figure.}
 \label{fig40}
@@ -3469,7 +3469,7 @@ corresponding output, without affecting {\tt currentpicture}.
 As an example, in the code of figure~\ref{fig55} an object \ttt{wheel} has
 been defined that saves the output of two \ttt{draw} operations as follows:
 \begin{figure}[b]
-$$ \includegraphics{mpman-55} $$
+$$ \includegraphics{mpman-55.mps} $$
 \caption{Copying objects with the \ttt{image} operator.}
 \label{fig55}
 \end{figure}
@@ -3947,7 +3947,7 @@ mark_rt_angle(z.p, z0, a);
 mark_rt_angle(z.p, z1, b);
 endfig;
 \end{verbatim}
-\quad \mathcenter{\includegraphics{mpman-42}}
+\quad \mathcenter{\includegraphics{mpman-42.mps}}
 $$
 \caption{MetaPost code and the corresponding figure}
 \label{fig42}
@@ -4142,7 +4142,7 @@ for i=0 upto 3:
 endfor
 endfig;
 \end{verbatim}
-\quad \mathcenter{\includegraphics{mpman-45}}
+\quad \mathcenter{\includegraphics{mpman-45.mps}}
 $$
 \caption{MetaPost code and the corresponding figure}
 \label{fig45}
