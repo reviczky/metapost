@@ -54,6 +54,6 @@ $(RASTPDF): $(patsubst %.pdf,%.png,$(RASTPDF))
 	$(MPOST) $(patsubst %,%.mp,$(patsubst %.pdf,%,$(filter-out -%,$(subst -, -,$@))))
 
 clean:
-	rm -f $(MPLOG) $(MPMPS) $(MPMPX) $(MPPDF) texnum.mpx
+	rm -f $(MPLOG) $(MPMPX) $(MPPDF) texnum.mpx
 	rm -f $(BASE).aux $(BASE).bbl $(BASE).blg $(BASE).log $(BASE).out
-	rm -f $(DVI) $(PS) $(PDF) $(RASTEPS) $(RASTPDF)
+#	rm -f $(DVI) $(PS) $(PDF) $(MPMPS) $(RASTPDF) $(RASTEPS)
