@@ -1,5 +1,5 @@
 prologues:=3;
-outputtemplate:="%j-%c.mps";
+filenametemplate "%j-%c.mps";
 verbatimtex
 %&latex
 \documentclass[11pt]{article}

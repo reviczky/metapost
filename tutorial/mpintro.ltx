@@ -7,8 +7,9 @@
 \linespread{1.05}
 \usepackage{textcomp}
 \usepackage{mflogo}
-\usepackage[expansion=true]{microtype}
-
+\usepackage{microtype}
+\usepackage{ifpdf}
+\ifpdf\microtypesetup{expansion=true}\fi
 \usepackage[rgb,x11names]{xcolor}
 \usepackage{graphicx}
 \usepackage{listings}
@@ -91,7 +92,7 @@
 \begin{document}
 
 \title{A Beginner's Guide to \MP{}\\for Creating High-Quality Graphics}
-\author{Troy Henderson \& Stephan Henning}
+\author{Troy Henderson \& Stephan Hennig}
 \maketitle
 
 \input{abstract}

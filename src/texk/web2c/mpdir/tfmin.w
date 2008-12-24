@@ -3,16 +3,16 @@
 % Copyright 2008 Taco Hoekwater.
 %
 % This program is free software: you can redistribute it and/or modify
-% it under the terms of the GNU Lesser General Public License as published by
-% the Free Software Foundation, either version 3 of the License, or
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation, either version 2 of the License, or
 % (at your option) any later version.
 %
 % This program is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
 % MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU Lesser General Public License for more details.
+% GNU General Public License for more details.
 %
-% You should have received a copy of the GNU Lesser General Public License
+% You should have received a copy of the GNU General Public License
 % along with this program.  If not, see <http://www.gnu.org/licenses/>.
 %
 % TeX is a trademark of the American Mathematical Society.
@@ -115,10 +115,12 @@ of |tfget| could be changed to
 ``|begin get(tfm_infile); if eof(tfm_infile) then goto bad_tfm; end|.''
 
 @d tfget do { 
-  size_t wanted=1; 
-  void *tfbyte_ptr = &tfbyte;
+  size_t wanted=1;
+  unsigned char abyte=0;
+  void *tfbyte_ptr = &abyte;
   (mp->read_binary_file)(mp,mp->tfm_infile, &tfbyte_ptr,&wanted); 
   if (wanted==0) goto BAD_TFM; 
+  tfbyte = (int)abyte;
 } while (0)
 @d read_two(A) { (A)=tfbyte;
   if ( (A)>127 ) goto BAD_TFM;

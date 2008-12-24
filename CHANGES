@@ -2,6 +2,36 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.102:
+----------------------------------------------------------------------
+
+* Printing of 8-bit string characters has been fixed.
+
+* In previous versions, TFM files and PFB fonts would not be read
+  properly on big-endian machines (e.g. powerpc)
+
+* The MetaPost distribution now contains "A Beginner's Guide to
+  MetaPost for Creating High-Quality Graphics" by Troy Henderson
+  and Stephan Hennig. This tutorial replaces Hobby's mpintro.tex.
+
+
+----------------------------------------------------------------------
+What is new in MetaPost version 1.101:
+----------------------------------------------------------------------
+
+* TFM file generation was completely broken.
+
+* The job name discovery on the commandline has been improved.
+
+* Under some (rare) conditions MetaPost forgot to create a log file.
+
+* Labels containing char0 were exported to PostScript incorrectly.
+
+* On Windows, the DVI file that is the result from the internal call 
+  to TeX for btex .. etex lables was not deleted automatically.
+
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.100:
 ----------------------------------------------------------------------
 

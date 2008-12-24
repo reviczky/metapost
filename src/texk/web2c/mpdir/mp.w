@@ -3,16 +3,16 @@
 % Copyright 2008 Taco Hoekwater.
 %
 % This program is free software: you can redistribute it and/or modify
-% it under the terms of the GNU Lesser General Public License as published by
-% the Free Software Foundation, either version 3 of the License, or
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation, either version 2 of the License, or
 % (at your option) any later version.
 %
 % This program is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
 % MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU Lesser General Public License for more details.
+% GNU General Public License for more details.
 %
-% You should have received a copy of the GNU Lesser General Public License
+% You should have received a copy of the GNU General Public License
 % along with this program.  If not, see <http://www.gnu.org/licenses/>.
 %
 % TeX is a trademark of the American Mathematical Society.
@@ -89,13 +89,13 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.110" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.102" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @(mpmp.h@>=
-#define metapost_version "1.110"
-#define metapost_magic (('M'*256) + 'P')*65536 + 1110
+#define metapost_version "1.102"
+#define metapost_magic (('M'*256) + 'P')*65536 + 1102
 #define metapost_old_magic (('M'*256) + 'P')*65536 + 1080
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
@@ -124,7 +124,6 @@ wholesale.
 @(mpmp.h@>=
 #include <setjmp.h>
 typedef struct psout_data_struct * psout_data;
-typedef struct svgout_data_struct * svgout_data;
 #ifndef HAVE_BOOLEAN
 typedef int boolean;
 #endif
@@ -134,6 +133,13 @@ typedef int integer;
 @<Declare helpers@>
 @<Types in the outer block@>
 @<Constants in the outer block@>
+#  ifndef LIBAVL_ALLOCATOR
+#    define LIBAVL_ALLOCATOR
+    struct libavl_allocator {
+        void *(*libavl_malloc) (struct libavl_allocator *, size_t libavl_size);
+        void (*libavl_free) (struct libavl_allocator *, void *libavl_block);
+    };
+#  endif
 typedef struct MP_instance {
   @<Option variables@>
   @<Global variables@>
@@ -153,10 +159,8 @@ typedef struct MP_instance {
 #include <time.h> /* for struct tm \& co */
 #include "mplib.h"
 #include "mplibps.h" /* external header */
-#include "mplibsvg.h" /* external header */
 #include "mpmp.h" /* internal header */
 #include "mppsout.h" /* internal header */
-#include "mpsvgout.h" /* internal header */
 extern font_number mp_read_font_info (MP mp, char *fname); /* tfmin.w */
 @h
 @<Declarations@>
@@ -1619,7 +1623,7 @@ to the terminal, the transcript file, or the \ps\ output file, respectively.
 
 @<Glob...@>=
 void * log_file; /* transcript of \MP\ session */
-void * output_file; /* the generic font output goes here */
+void * ps_file; /* the generic font output goes here */
 unsigned int selector; /* where to print a message */
 unsigned char dig[23]; /* digits in a number, for rounding */
 integer tally; /* the number of characters recently printed */
@@ -1797,7 +1801,8 @@ static void mp_do_print (MP mp, const char *ss, size_t len) { /* prints string |
     str_room((integer)(len*4));
   }
   while ( j<len ){ 
-    mp_print_char(mp, xord((int)ss[j])); j++;
+    /* this was |xord((int)ss[j])| but that doesnt work */
+    mp_print_char(mp, (ASCII_code)ss[j]); j++;
   }
 }
 
@@ -2094,6 +2099,7 @@ const char * help_line[6]; /* helps for the next |error| */
 unsigned int help_ptr; /* the number of help lines present */
 boolean use_err_help; /* should the |err_help| string be shown? */
 str_number err_help; /* a string set up by \&{errhelp} */
+str_number filename_template; /* a string set up by \&{filenametemplate} */
 
 @ @<Allocate or ...@>=
 mp->use_err_help=false;
@@ -3869,12 +3875,12 @@ pointer hi_mem_min; /* the smallest location of one-word memory in use */
 
 @<Declare helpers@>=
 extern char *mp_strdup(const char *p) ;
-extern char *mp_strldup(const char *p, int l) ;
+extern char *mp_strldup(const char *p, size_t l) ;
 extern void mp_xfree ( @= /*@@only@@*/ /*@@out@@*/ /*@@null@@*/ @> void *x);
 extern @= /*@@only@@*/ @> void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) ;
 extern @= /*@@only@@*/ @> void *mp_xmalloc (MP mp, size_t nmem, size_t size) ;
 extern @= /*@@only@@*/ @> char *mp_xstrdup(MP mp, const char *s);
-extern @= /*@@only@@*/ @> char *mp_xstrldup(MP mp, const char *s, int l);
+extern @= /*@@only@@*/ @> char *mp_xstrldup(MP mp, const char *s, size_t l);
 extern void mp_do_snprintf(char *str, int size, const char *fmt, ...);
 
 @ The |max_size_test| guards against overflow, on the assumption that
@@ -3883,7 +3889,7 @@ extern void mp_do_snprintf(char *str, int size, const char *fmt, ...);
 @d max_size_test 0x7FFFFFFF
 
 @c
-char *mp_strldup(const char *p, int l) {
+char *mp_strldup(const char *p, size_t l) {
   char *r;
   if (p==NULL) return NULL;
   r = malloc ((size_t)(l*sizeof(char)+1));
@@ -3924,7 +3930,7 @@ void  *mp_xmalloc (MP mp, size_t nmem, size_t size) {
   }
   return w;
 }
-char *mp_xstrldup(MP mp, const char *s, int l) {
+char *mp_xstrldup(MP mp, const char *s, size_t l) {
   char *w; 
   if (s==NULL)
     return NULL;
@@ -3937,12 +3943,13 @@ char *mp_xstrldup(MP mp, const char *s, int l) {
 }
 char *mp_xstrdup(MP mp, const char *s) {
   if (s==NULL)  return NULL;
-  return mp_xstrldup(mp,s,(int)strlen(s));
+  return mp_xstrldup(mp,s,strlen(s));
 }
 
 
 @ @<Internal library declarations@>=
 #ifdef HAVE_SNPRINTF
+extern int snprintf(char *str, size_t size, const char *format, ...);
 #define mp_snprintf (void)snprintf
 #else
 #define mp_snprintf mp_do_snprintf
@@ -5068,9 +5075,7 @@ fuss with. Every such parameter has an identifying code number, defined here.
 
 @<Types...@>=
 enum mp_given_internal {
-  mp_output_template=1, /* a string set up by \&{outputtemplate} */
-  mp_output_format, /* the output format set up by \&{outputformat} */
-  mp_tracing_titles, /* show titles online when they appear */
+  mp_tracing_titles=1, /* show titles online when they appear */
   mp_tracing_equations, /* show each variable when it becomes known */
   mp_tracing_capsules, /* show capsules too */
   mp_tracing_choices, /* show the control points chosen for paths */
@@ -5219,10 +5224,6 @@ mp_primitive(mp, "defaultcolormodel",internal_quantity,mp_default_color_model);
 @:mp_default_color_model_}{\&{defaultcolormodel} primitive@>
 mp_primitive(mp, "restoreclipcolor",internal_quantity,mp_restore_clip_color);
 @:mp_restore_clip_color_}{\&{restoreclipcolor} primitive@>
-mp_primitive(mp, "outputtemplate",internal_quantity,mp_output_template);
-@:mp_output_template_}{\&{outputtemplate} primitive@>
-mp_primitive(mp, "outputformat",internal_quantity,mp_output_format);
-@:mp_output_format_}{\&{outputformat} primitive@>
 
 @ Colors can be specified in four color models. In the special
 case of |no_model|, MetaPost does not output any color operator to
@@ -5249,8 +5250,6 @@ enum mp_color_model {
 @ @<Initialize table entries (done by \.{INIMP} only)@>=
 mp->internal[mp_default_color_model]=(mp_rgb_model*unity);
 mp->internal[mp_restore_clip_color]=unity;
-mp->internal[mp_output_template]=intern("%j.%c");
-mp->internal[mp_output_format]=intern("eps");
 
 @ Well, we do have to list the names one more time, for use in symbolic
 printouts.
@@ -5293,8 +5292,6 @@ mp->int_name[mp_default_color_model]=xstrdup("defaultcolormodel");
 mp->int_name[mp_procset]=xstrdup("mpprocset");
 mp->int_name[mp_gtroffmode]=xstrdup("troffmode");
 mp->int_name[mp_restore_clip_color]=xstrdup("restoreclipcolor");
-mp->int_name[mp_output_template]=xstrdup("outputtemplate");
-mp->int_name[mp_output_format]=xstrdup("outputformat");
 
 @ The following procedure, which is called just before \MP\ initializes its
 input and output, establishes the initial values of the date and time.
@@ -16042,9 +16039,9 @@ static void mp_print_file_name (MP mp, char * n, char * a, char * e) {
       ((n != NULL) && (strchr(n,' ') != NULL)) ||
       ((e != NULL) && (strchr(e,' ') != NULL)))
     must_quote = true;
-  if (must_quote) mp_print_char(mp, '"');
+  if (must_quote) mp_print_char(mp, (ASCII_code)'"');
   mp_print(mp, a); mp_print(mp, n); mp_print(mp, e);
-  if (must_quote) mp_print_char(mp, '"');
+  if (must_quote) mp_print_char(mp, (ASCII_code)'"');
 }
 
 @ Another system-dependent routine is needed to convert three internal
@@ -17692,8 +17689,6 @@ of the save stack, as described earlier.)
     mp_back_input(mp);
   }
   mp->cur_type=mp_known; mp->cur_exp=mp->internal[q];
-  if (q == mp_output_format || q == mp_output_template)
-    mp->cur_type=mp_string_type;
 }
 
 @ The most difficult part of |scan_primary| has been saved for last, since
@@ -21181,7 +21176,7 @@ static void mp_cat (MP mp,pointer p) {
   a=value(p); b=mp->cur_exp; k=length(a);
   needed=mp->pool_ptr+k+length(b);
   /* this will free some memory, hopefully */
-  if (mp->pool_ptr>1.1*mp->old_pool_size) {
+  if (mp->pool_ptr>(11*mp->old_pool_size)/10) {
       mp->old_pool_size = mp->pool_ptr;
       mp_do_compaction(mp, mp->pool_size);
   }
@@ -21191,10 +21186,10 @@ static void mp_cat (MP mp,pointer p) {
     }
     mp->max_pool_ptr=needed; 
   }
-  memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[a],k);
+  memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[a],(size_t)k);
   mp->pool_ptr+=k; 
   k=length(b);
-  memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[b],k);
+  memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[b],(size_t)k);
   mp->pool_ptr+=k;
   mp->cur_exp=mp_make_string(mp); delete_str_ref(b);
 }
@@ -21670,9 +21665,7 @@ void mp_do_assignment (MP mp) {
 }
 
 @ @<Assign the current expression to an internal variable@>=
-if ( mp->cur_type==mp_known || mp->cur_type==mp_string_type )  {
-  if (mp->cur_type==mp_string_type)
-    add_str_ref(mp->cur_exp);
+if ( mp->cur_type==mp_known )  {
   mp->internal[mp_info(lhs)-(hash_end)]=mp->cur_exp;
 } else { 
   exp_err("Internal quantity `");
@@ -25483,7 +25476,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
   integer cc; /* a temporary integer for template building  */
   integer f,g=0; /* field widths */
   if ( mp->job_name==NULL ) mp_open_log_file(mp);
-  if ( mp->internal[mp_output_template]==0) { 
+  if ( mp->filename_template==0 ) {
     char *s; /* a file extension derived from |c| */
     if ( c<0 ) 
       s=xstrdup(".ps");
@@ -25497,21 +25490,15 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     old_setting=mp->selector; 
     mp->selector=new_string;
     f = 0;
-    i = mp->str_start[mp->internal[mp_output_template]];
+    i = mp->str_start[mp->filename_template];
     n = null_str; /* initialize */
-    while ( i<str_stop(mp->internal[mp_output_template]) ) {
+    while ( i<str_stop(mp->filename_template) ) {
        if ( mp->str_pool[i]=='%' ) {
       CONTINUE:
         incr(i);
-        if ( i<str_stop(mp->internal[mp_output_template]) ) {
+        if ( i<str_stop(mp->filename_template) ) {
           if ( mp->str_pool[i]=='j' ) {
             mp_print(mp, mp->job_name);
-          } else if ( mp->str_pool[i]=='o' ) {
-             { char *s;
-               s = str(mp->internal[mp_output_format]);
-               mp_print(mp, s);
-               mp_xfree(s);
-             }
           } else if ( mp->str_pool[i]=='d' ) {
              cc= mp_round_unscaled(mp, mp->internal[mp_day]);
              print_with_leading_zeroes(cc);
@@ -25578,7 +25565,7 @@ void mp_open_output_file (MP mp) {
   integer c; /* \&{charcode} rounded to the nearest integer */
   c=mp_round_unscaled(mp, mp->internal[mp_char_code]);
   ss = mp_set_output_file_name(mp, c);
-  while ( ! mp_a_open_out(mp, (void *)&mp->output_file, mp_filetype_postscript) )
+  while ( ! mp_a_open_out(mp, (void *)&mp->ps_file, mp_filetype_postscript) )
     mp_prompt_file_name(mp, "file name for output",ss);
   xfree(ss);
   @<Store the true output file name if appropriate@>;
@@ -25843,7 +25830,7 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
     case mp_text_code:
       tt = (mp_text_object *)hq;
       gr_text_p(tt)       = str(mp_text_p(p));
-      gr_text_l(tt)       = length(mp_text_p(p));
+      gr_text_l(tt)       = (size_t)length(mp_text_p(p));
       gr_font_n(tt)       = (unsigned int)mp_font_n(p);
       gr_font_name(tt)    = mp_xstrdup(mp,mp->font_name[mp_font_n(p)]);
       gr_font_dsize(tt)   = (unsigned int)mp->font_dsize[mp_font_n(p)];
@@ -25898,25 +25885,14 @@ void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
 @ @<Declarations@>=
 static void mp_shipout_backend (MP mp, pointer h);
 
-@ 
-@c
+@ @c
 void mp_shipout_backend (MP mp, pointer h) {
-  char *s;
   mp_edge_object *hh; /* the first graphical object */
   hh = mp_gr_export(mp,h);
-  s = NULL;
-  if (mp->internal[mp_output_format]>0)
-    s =  str(mp->internal[mp_output_format]);
-  if (s && strcmp(s,"svg")==0) {
-    (void)mp_svg_gr_ship_out (hh,
-                 (mp->internal[mp_prologues]/65536),
-                 false);
-  } else {
-    (void)mp_gr_ship_out (hh,
+  (void)mp_gr_ship_out (hh,
                  (mp->internal[mp_prologues]/65536),
                  (mp->internal[mp_procset]/65536), 
                  false);
-  }
   mp_gr_toss_objects(hh);
 }
 
@@ -25939,15 +25915,12 @@ by which a user can send things to the \.{GF} file.
 
 @ @<Glob...@>=
 psout_data ps;
-svgout_data svg;
 
 @ @<Allocate or initialize ...@>=
-mp_ps_backend_initialize(mp);
-mp_svg_backend_initialize(mp);
+mp_backend_initialize(mp);
 
 @ @<Dealloc...@>=
-mp_ps_backend_free(mp);
-mp_svg_backend_free(mp);
+mp_backend_free(mp);
 
 
 @* \[45] Dumping and undumping the tables.
@@ -26345,12 +26318,10 @@ But when we finish this part of the program, \MP\ is ready to call on the
 
 @<Save the filename template@>=
 { 
-  delete_str_ref(mp->internal[mp_output_template]);
-  if ( length(mp->cur_exp)==0 ) {
-    mp->internal[mp_output_template] = rts("%j.%c");
-  } else { 
-    mp->internal[mp_output_template]=mp->cur_exp; 
-    add_str_ref(mp->internal[mp_output_template]);
+  if ( mp->filename_template!=0 ) delete_str_ref(mp->filename_template);
+  if ( length(mp->cur_exp)==0 ) mp->filename_template=0;
+  else { 
+    mp->filename_template=mp->cur_exp; add_str_ref(mp->filename_template);
   }
 }
 

@@ -3,16 +3,16 @@
 % Copyright 2008 Taco Hoekwater.
 %
 % This program is free software: you can redistribute it and/or modify
-% it under the terms of the GNU Lesser General Public License as published by
-% the Free Software Foundation, either version 3 of the License, or
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation, either version 2 of the License, or
 % (at your option) any later version.
 %
 % This program is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
 % MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU Lesser General Public License for more details.
+% GNU General Public License for more details.
 %
-% You should have received a copy of the GNU Lesser General Public License
+% You should have received a copy of the GNU General Public License
 % along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 \font\tenlogo=logo10 % font used for the METAFONT logo
@@ -63,7 +63,6 @@ static boolean recorder_enabled = false;
 static string recorder_name = NULL;
 static FILE *recorder_file = NULL;
 static char *job_name = NULL;
-static int dvitomp_only = 0;
 
 @ Allocating a bit of memory, with error detection:
 
@@ -207,7 +206,7 @@ static string normalize_quotes (const char *name, const char *mesg) {
 @c
 void recorder_start(char *jobname) {
     char cwd[1024];
-    recorder_name = (string)xmalloc(strlen(jobname)+5);
+    recorder_name = (string)xmalloc((unsigned int)(strlen(jobname)+5));
     strcpy(recorder_name, jobname);
     strcat(recorder_name, ".fls");
     recorder_file = xfopen(recorder_name, FOPEN_W_MODE);
@@ -336,65 +335,6 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
   mpost_xfree (cnf_cmd);
   return (int)(ret == 0);
 }
-
-static int mpost_run_dvitomp (char *dviname, char *mpxname) {
-    int i, ret;
-    char *m, *d;
-    mpx_options * mpxopt;
-    char *mpversion = mp_metapost_version () ;
-    mpxopt = mpost_xmalloc(sizeof(mpx_options));
-    memset(mpxopt,0,sizeof(mpx_options));
-    mpxopt->mode = mpx_tex_mode;
-    if (dviname == NULL)
-      return EXIT_FAILURE;
-    i = strlen(dviname);
-    if (mpxname==NULL) {
-      m = mpost_xstrdup(dviname);
-      if (i>4 && *(m+i-4)=='.'
-        && *(m+i-3)=='d'  && *(m+i-2)=='v'  && *(m+i-1)=='i')
-         *(m+i-4)='\0' ;
-    } else {
-      m = mpost_xstrdup(mpxname);
-    }
-    d = mpost_xstrdup(dviname);
-    if (!(i>4 && *(d+i-4)=='.'
-       && *(d+i-3)=='d'  && *(d+i-2)=='v'  && *(d+i-1)=='i')) {
-      char *s = malloc (i+5);
-      memset(s,0,i+5);
-      s = strcat(s, d);
-      (void)strcat(s+i-1, ".dvi");
-      mpost_xfree (d);
-      d = s ;
-    }
-
-    i = strlen(m);
-    if (i>4 && *(m+i-4)=='.'
-      && *(m+i-3)=='m'  && *(m+i-2)=='p'  && *(m+i-1)=='x') {
-    } else {
-      char *s = malloc (i+5);
-      memset(s,0,i+5);
-      s = strcat(s, m);
-      (void)strcat(s+i-1, ".mpx");
-      mpost_xfree (m);
-      m = s ;
-    }
-    mpxopt->mpname = d;
-    mpxopt->mpxname = m;
-
-    mpxopt->find_file = makempx_find_file;
-    {
-      char *banner = "% Written by dvitomp version ";
-      mpxopt->banner = mpost_xmalloc(strlen(mpversion)+strlen(banner)+1);
-      strcpy (mpxopt->banner, banner);
-      strcat (mpxopt->banner, mpversion);
-    }
-    ret = mpx_run_dvitomp(mpxopt);
-    mpost_xfree(mpxopt->banner);
-    mpost_xfree(mpxopt);
-    mpost_xfree(mpversion);
-    return ret;
-}
-
 
 @ 
 @<Register the callback routines@>=
@@ -570,8 +510,6 @@ if (!nokpse)
       options->file_line_error_style=true;
     } else if (option_is("no-file-line-error")) {
       options->file_line_error_style=false;
-    } else if (option_is("dvitomp")) {
-      dvitomp_only = 1;
     } else if (option_is("help")) {
       @<Show help and exit@>;
     } else if (option_is("version")) {
@@ -600,24 +538,25 @@ if (!nokpse)
 fprintf(stdout,
 "\n"
 "Usage: mpost [OPTION] [&MEMNAME] [MPNAME[.mp]] [COMMANDS]\n"
-"       mpost --dvitomp DVINAME[.dvi] [MPXNAME[.mpx]]\n"
+);
+fprintf(stdout,
 "\n"
 "  Run MetaPost on MPNAME, usually creating MPNAME.NNN (and perhaps\n"
 "  MPNAME.tfm), where NNN are the character numbers generated.\n"
 "  Any remaining COMMANDS are processed as MetaPost input,\n"
 "  after MPNAME is read.\n\n"
-"  With a --dvitomp argument, MetaPost acts as DVI-to-MPX converter only.\n\n");
-fprintf(stdout,
 "  If no arguments or options are specified, prompt for input.\n"
-"\n"
+"\n");
+fprintf(stdout,
 "  -ini                      be inimpost, for dumping mem files\n"
 "  -interaction=STRING       set interaction mode (STRING=batchmode/nonstopmode/\n"
 "                            scrollmode/errorstopmode)\n"
 "  -jobname=STRING           set the job name to STRING\n"
 "  -progname=STRING          set program (and mem) name to STRING\n"
-"  -tex=TEXPROGRAM           use TEXPROGRAM for text labels\n");
-fprintf(stdout,
+"  -tex=TEXPROGRAM           use TEXPROGRAM for text labels\n"
 "  [-no]-file-line-error     disable/enable file:line:error style messages\n"
+);
+fprintf(stdout,
 "  -kpathsea-debug=NUMBER    set path searching debugging flags according to\n"
 "                            the bits of NUMBER\n"
 "  -mem=MEMNAME or &MEMNAME  use MEMNAME instead of program name or a %%& line\n"
@@ -641,9 +580,9 @@ fprintf(stdout,
 "Copyright 2008 AT&T Bell Laboratories.\n"
 "There is NO warranty.  Redistribution of this software is\n"
 "covered by the terms of both the MetaPost copyright and\n"
-"the Lesser GNU Lesser General Public License.\n"
-"For more information about these matters, see the files\n"
-"named COPYING, COPYING.LESSER and the MetaPost source.\n"
+"the Lesser GNU General Public License.\n"
+"For more information about these matters, see the file\n"
+"named COPYING and the MetaPost source.\n"
 "Primary author of MetaPost: John Hobby.\n"
 "Current maintainer of MetaPost: Taco Hoekwater.\n"
 "\n", s);
@@ -856,7 +795,7 @@ if ( options->job_name == NULL ) {
   if (job_name == NULL) {
     job_name = mpost_xstrdup("mpout");
   } else {
-    int i = strlen(job_name);
+    size_t i = strlen(job_name);
     if (i>3
         && *(job_name+i-3)=='.' 
         && *(job_name+i-2)=='m' 
@@ -884,21 +823,6 @@ int main (int argc, char **argv) { /* |start_here| */
   options->ini_version       = (int)false;
   options->print_found_names = (int)true;
   @<Read and set command line options@>;
-  if (dvitomp_only) {
-    char *mpx = NULL, *dvi = NULL;
-    if (a==argc) {
-      /* error ? */
-    } else {
-      dvi = argv[a++];
-      if (a<argc) {
-        mpx = argv[a++];
-      }
-    }
-    if (!nokpse)
-      kpse_set_program_name("dvitomp", user_progname);  
-    exit (mpost_run_dvitomp(dvi, mpx));
-  }
-
   @= /*@@-nullpass@@*/ @> 
   if (!nokpse)
     kpse_set_program_name("mpost", user_progname);  

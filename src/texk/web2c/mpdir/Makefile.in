@@ -17,16 +17,16 @@
 # Copyright 2008 Taco Hoekwater.
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published
-# by the Free Software Foundation, either version 3 of the License, or
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser General Public License for more details.
+# GNU General Public License for more details.
 #
-# You should have received a copy of the GNU Lesser General Public License
+# You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
@@ -74,7 +74,7 @@ am__installdirs = "$(DESTDIR)$(pkglibdir)" "$(DESTDIR)$(bindir)"
 pkglibLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(noinst_LTLIBRARIES) $(pkglib_LTLIBRARIES)
 libmplib_la_LIBADD =
-am__objects_1 = mp.lo psout.lo tfmin.lo memio.lo svgout.lo
+am__objects_1 = mp.lo psout.lo tfmin.lo memio.lo
 am_libmplib_la_OBJECTS = avl.lo $(am__objects_1)
 libmplib_la_OBJECTS = $(am_libmplib_la_OBJECTS)
 am_mplib_la_OBJECTS = lmplib.lo
@@ -134,7 +134,6 @@ CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
-DSYMUTIL = @DSYMUTIL@
 ECHO = @ECHO@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
@@ -157,7 +156,6 @@ LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
-NMEDIT = @NMEDIT@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
@@ -221,7 +219,6 @@ sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
-top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign
@@ -229,7 +226,7 @@ KPSEBUILDDIR = ../../../texk/kpathsea/.libs
 KPSESRCDIR = ../../../../src/texk/kpathsea
 KPSELIB = $(KPSEBUILDDIR)/libkpathsea.a
 AM_CFLAGS = -I. -I../.. -I$(KPSESRCDIR)/.. -I$(KPSESRCDIR)
-CORE_MP_SOURCES = mp.c psout.c tfmin.c memio.c svgout.c
+CORE_MP_SOURCES = mp.c psout.c tfmin.c memio.c
 noinst_LTLIBRARIES = libmplib.la
 libmplib_la_SOURCES = avl.c $(CORE_MP_SOURCES)
 mpost_SOURCES = mpost.c mpxout.c
@@ -380,7 +377,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mpost.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mpxout.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/psout.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/svgout.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tfmin.Plo@am__quote@
 
 .c.o:
@@ -702,7 +698,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-pkglibLTLIBRARIES
 
 lmplib.c: mp.c
 
-mp.c:     psout.c svgout.c
+mp.c:     psout.c
 
 mpost.c:  mpxout.c
 
