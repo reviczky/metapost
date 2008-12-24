@@ -2,6 +2,20 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.102:
+----------------------------------------------------------------------
+
+* Printing of 8-bit string characters has been fixed.
+
+* In previous versions, TFM files and PFB fonts would not be read
+  properly on big-endian machines (e.g. powerpc)
+
+* The MetaPost distribution now contains "A Beginner's Guide to
+  MetaPost for Creating High-Quality Graphics" by Troy Henderson
+  and Stephan Hennig. This tutorial replaces Hobby's mpintro.tex.
+
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.101:
 ----------------------------------------------------------------------
 
