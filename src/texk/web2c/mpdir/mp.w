@@ -371,6 +371,7 @@ int hash_prime; /* a prime number equal to about 85\pct! of |hash_size| */
 int error_line; /* width of context lines on terminal error messages */
 int half_error_line; /* width of first lines of contexts in terminal
   error messages; should be between 30 and |error_line-15| */
+int halt_on_error; /* do we quit at the first error? */
 int max_print_line; /* width of longest text lines output; should be at least 60 */
 unsigned hash_size; /* maximum number of symbolic tokens,
   must be less than |max_halfword-3*param_size| */
@@ -397,6 +398,7 @@ if (mp->half_error_line>mp->error_line-15 )
   mp->half_error_line = mp->error_line-15;
 mp->max_print_line=100;
 set_value(mp->max_print_line,opt->max_print_line,79);
+mp->halt_on_error = (opt->halt_on_error ? true : false);
 
 @ In case somebody has inadvertently made bad settings of the ``constants,''
 \MP\ checks them using a global variable called |bad|.
@@ -2133,6 +2135,9 @@ void mp_error (MP mp) { /* completes the job of error reporting */
   if ( mp->history<mp_error_message_issued ) 
 	mp->history=mp_error_message_issued;
   mp_print_char(mp, xord('.')); mp_show_context(mp);
+  if (mp->halt_on_error) {
+    mp->history=mp_fatal_error_stop; mp_jump_out(mp);
+  }
   if ((!mp->noninteractive) && (mp->interaction==mp_error_stop_mode )) {
     @<Get user's advice and |return|@>;
   }
