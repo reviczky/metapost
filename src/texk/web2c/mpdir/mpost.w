@@ -579,8 +579,9 @@ if (!nokpse)
     } else if (option_is("8bit") ||
                option_is("parse-first-line")) {
       /* do nothing, these are always on */
-    } else if (option_is("halt-on-error") ||
-               option_is("translate-file") ||
+    } else if (option_is("halt-on-error")) {
+	options->halt_on_error = true;
+    } else if (option_is("translate-file") ||
                option_is("output-directory") ||
                option_is("no-parse-first-line")) {
       fprintf(stdout,"warning: %s: unimplemented option %s\n", argv[0], argv[a]);
