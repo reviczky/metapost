@@ -512,7 +512,7 @@ if (!nokpse)
 
 @d option_is(A) ((strncmp(argv[a],"--" A, strlen(A)+2)==0) || 
        (strncmp(argv[a],"-" A, strlen(A)+1)==0))
-@d option_arg(B) (optarg != NULL && strncmp(optarg,B, strlen(B))==0)
+@d option_arg(B) (mpost_optarg != NULL && strncmp(mpost_optarg,B, strlen(B))==0)
 
 
 @<Read and set command line options@>=
