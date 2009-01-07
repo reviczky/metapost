@@ -14,8 +14,9 @@ if  test -d $a ; then
   cd ../tutorial
   make mpintro.pdf
   make clean
-  cd ..
-  tar cvj --exclude=.svn -f $svndir/metapost-$a-src.tar.bz2 metapost-$a/*
+  cd ../..
+  tar cvz --exclude=.svn -f $svndir/metapost-$a-src.tar.gz metapost-$a/*
+  cd metapost-$a
   ./build.sh "$@"
   ./build.cross "$@"
   zip -j $svndir/metapost-$a-win32-mingw.zip build-win/texk/web2c/mpdir/mpost.exe
