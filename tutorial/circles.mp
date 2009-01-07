@@ -1,4 +1,9 @@
-outputtemplate:="%j.mps";
+if scantokens(mpversion) > 1.005:
+  outputtemplate :=
+else:
+  filenametemplate
+fi
+"%j.mps";
 
 beginfig(0);
 	% Use 8 circles

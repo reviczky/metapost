@@ -2,7 +2,12 @@
 
 input graph
 
-filenametemplate "%j-%c.mps";
+if scantokens(mpversion) > 1.005:
+  outputtemplate :=
+else:
+  filenametemplate
+fi
+"%j-%c.mps";
 
 %if false:  %% Begin skipping already debugged figures
 %fi input sarith %% End skipping of already debugged figures

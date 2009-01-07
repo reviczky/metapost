@@ -1,5 +1,12 @@
 prologues:=3;
-outputtemplate:="%j.mps";
+
+if scantokens(mpversion) > 1.005:
+  outputtemplate :=
+else:
+  filenametemplate
+fi
+"%j.mps";
+
 verbatimtex
 %&latex
 \documentclass[11pt]{article}
