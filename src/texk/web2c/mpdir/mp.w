@@ -870,7 +870,7 @@ static boolean mp_input_ln (MP mp, void *f ) {
     mp->last = mp->first+size;
     if ( mp->last>=mp->max_buf_stack ) { 
       mp->max_buf_stack=mp->last+1;
-      while ( mp->max_buf_stack>=mp->buf_size ) {
+      while ( mp->max_buf_stack>mp->buf_size ) {
         mp_reallocate_buffer(mp,(mp->buf_size+(mp->buf_size>>2)));
       }
     }
@@ -16050,7 +16050,7 @@ to the |name_of_file| value that is used to open files. The present code
 allows both lowercase and uppercase letters in the file name.
 @^system dependencies@>
 
-@d append_to_name(A) { c=xord((int)(A)); 
+@d append_to_name(A) { c=xord((ASCII_code)(A));
   if ( k<file_name_size ) {
     mp->name_of_file[k]=(char)xchr(c);
     incr(k);
@@ -16168,7 +16168,7 @@ static str_number mp_make_name_string (MP mp) {
   int k; /* index into |name_of_file| */
   str_room(mp->name_length);
   for (k=0;k<mp->name_length;k++) {
-    append_char(xord((int)mp->name_of_file[k]));
+    append_char(xord((ASCII_code)mp->name_of_file[k]));
   }
   return mp_make_string(mp);
 }
@@ -16230,7 +16230,7 @@ void mp_ptr_scan_file (MP mp,  char *s) {
   mp_begin_name(mp);
   p=s; q=p+strlen(s);
   while ( p<q ){ 
-    if ( ! mp_more_name(mp, xord((int)(*p)))) break;
+    if ( ! mp_more_name(mp, xord((ASCII_code)(*p)))) break;
     p++;
   }
   mp_end_name(mp);
