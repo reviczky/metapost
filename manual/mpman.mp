@@ -1,6 +1,11 @@
 % Figures for MetaPost manual, by John Hobby.  Public domain.
 
-filenametemplate "%j-%c.mps";
+if scantokens(mpversion) > 1.005:
+  outputtemplate :=
+else:
+  filenametemplate
+fi
+"%j-%c.mps";
 
 %%% This redefinition of dotlabel draws dots as a closed path
 %%% which are rendered more smoothly in Adobe Reader.
