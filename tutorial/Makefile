@@ -20,11 +20,15 @@ DVI=$(BASE).dvi
 PDF=$(BASE).pdf
 PS=$(BASE).ps
 
-.PHONY: clean
+.PHONY: clean distclean
 
-all:
-	$(MAKE) $(PS)
+pdf:
 	$(MAKE) $(PDF)
+
+ps:
+	$(MAKE) $(PS)
+
+all: pdf ps
 
 $(DVI): $(SRC) $(MYBIB) $(INCL) $(MPMPS) $(RASTEPS)
 	$(LTX) $<
@@ -56,4 +60,7 @@ $(RASTPDF): $(patsubst %.pdf,%.png,$(RASTPDF))
 clean:
 	rm -f $(MPLOG) $(MPMPX) $(MPPDF) texnum.mpx
 	rm -f $(BASE).aux $(BASE).bbl $(BASE).blg $(BASE).log $(BASE).out
-#	rm -f $(DVI) $(PS) $(PDF) $(MPMPS) $(RASTPDF) $(RASTEPS)
+
+distclean:
+	$(MAKE) clean
+	rm -f $(DVI) $(PS) $(PDF) $(MPMPS) $(RASTPDF) $(RASTEPS)
