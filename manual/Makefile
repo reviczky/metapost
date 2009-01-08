@@ -9,7 +9,7 @@ bibtex = bibtex
 mpost = mpost -tex=tex
 
 all: pdf
-pdf: mpman.pdf mpgraph.pdf mpboxes.pdf grdemo.pdf
+pdf: mpman.pdf mpgraph.pdf mpboxes.pdf
 ps: mpman.ps mpgraph.ps mpboxes.ps
 
 mpboxes.pdf: mpboxes.tex mpboxes.bib mpboxes.mp
@@ -35,6 +35,16 @@ mpman.pdf: mpman.tex mpman-optab.tex mpman.bib mpman.ist mpman.mp
 	$(pdflatex) mpman
 	makeindex -s mpman.ist mpman
 	$(pdflatex) mpman
+
+mpboxes.ps: mpboxes.tex mpboxes.bib mpboxes.mp
+	$(mpost) mpboxes
+	$(latex) mpboxes
+	$(bibtex) mpboxes
+	$(latex) mpboxes
+	$(latex) mpboxes
+	makeindex -s mpman.ist mpboxes
+	$(latex) mpboxes
+	$(dvips) mpboxes
 
 mpgraph.ps: mpgraph.tex mpgraph.bib mpgraph.mp
 	$(mpost) mpgraph
