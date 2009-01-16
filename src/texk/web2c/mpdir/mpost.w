@@ -385,7 +385,7 @@ static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ft
       }
       break;
     case mp_filetype_memfile: 
-      s = kpse_find_file (fname, kpse_mem_format, 0); 
+      s = kpse_find_file (fname, kpse_mem_format, 1); 
       break;
     case mp_filetype_metrics: 
       s = kpse_find_file (fname, kpse_tfm_format, 0); 
@@ -824,8 +824,11 @@ int main (int argc, char **argv) { /* |start_here| */
   options->print_found_names = (int)true;
   @<Read and set command line options@>;
   @= /*@@-nullpass@@*/ @> 
-  if (!nokpse)
+  if (!nokpse) {
+    kpse_set_program_enabled (kpse_mem_format, MAKE_TEX_FMT_BY_DEFAULT,
+                              kpse_src_compile);
     kpse_set_program_name("mpost", user_progname);  
+  }
   @= /*@@=nullpass@@*/ @> 
   if(putenv((char *)"engine=metapost"))
     fprintf(stdout,"warning: could not set up $engine\n");
