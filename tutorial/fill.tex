@@ -16,12 +16,12 @@ the same curved path as in Figure \ref{fig:draw1} with the additional
 piece that connects \texttt{z3} back to \texttt{z1} with a line segment
 using \texttt{-{}-cycle}.
 
-\begin{figure}[hptb]
-	\begin{center}
-    \textattachfile[color={0 0 0},mimetype={text/plain}]{fill.mp}{\includegraphics{fill.mps}}
-  \end{center}
-	\caption{\texttt{fill} example}
+\begin{figure}
+  \centering
+  \includegraphics{fill.mps}
+  \caption{\texttt{fill} example}
   \label{fig:fill}
+  \attach{fill.mp}
 \end{figure}
 
 Just as it is necessary to fill closed paths, it may also be necessary
@@ -47,12 +47,12 @@ parameterized by a B\'{e}zier curve and not by trigonometric functions;
 however, visually it is essentially indistinguishable from an exact
 circle.
 
-\begin{figure}[hptb]
-	\begin{center}
-    \textattachfile[color={0 0 0},mimetype={text/plain}]{annulus.mp}{\includegraphics{annulus-1.mps}}
-  \end{center}
-	\caption{\texttt{unfill} example}
+\begin{figure}
+  \centering
+  \includegraphics{annulus-1.mps}
+  \caption{\texttt{unfill} example}
   \label{fig:annulus1}
+  \attach{annulus.mp}
 \end{figure}
 
 Notice that \texttt{p} is a \texttt{fullcircle} of radius 54\,bp
@@ -77,12 +77,12 @@ can be replaced by
   \verb|fill p--reverse q--cycle withcolor bbblue;|
 \end{center}
 
-\begin{figure}[hptb]
-	\begin{center}
-    \textattachfile[color={0 0 0},mimetype={text/plain}]{annulus.mp}{\includegraphics{annulus-2.mps}}
-  \end{center}
-	\caption{Avoiding an \texttt{unfill}}
+\begin{figure}
+  \centering
+  \includegraphics{annulus-2.mps}
+  \caption{Avoiding an \texttt{unfill}}
   \label{fig:annulus2}
+  \attach{annulus.mp}
 \end{figure}
 
 The path \verb|p--reverse q--cycle| travels around \texttt{p} in a
@@ -98,12 +98,12 @@ external document with a non-white background.  If the former method is
 used and the annulus is placed on a non-white background, say magenta,
 then the result is Figure \ref{fig:annulus3}.
 
-\begin{figure}[ht]
-	\begin{center}
-    \textattachfile[color={0 0 0},mimetype={text/plain}]{annulus.mp}{\includegraphics{annulus-3.mps}}
-  \end{center}
-	\caption{Improper transparency using \texttt{unfill}}
+\begin{figure}
+  \centering
+  \includegraphics{annulus-3.mps}
+  \caption{Improper transparency using \texttt{unfill}}
   \label{fig:annulus3}
+  \attach{annulus.mp}
 \end{figure}
 
 It may be desired to have the interior of \texttt{q} be magenta instead

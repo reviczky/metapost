@@ -10,12 +10,14 @@
 \usepackage{microtype}
 \usepackage{ifpdf}
 \ifpdf\microtypesetup{expansion=true}\fi
+\usepackage[margin=1.25in,letterpaper]{geometry}
 \usepackage[rgb,x11names]{xcolor}
 \usepackage{graphicx}
 \usepackage{listings}
 \lstset{breaklines=true,basicstyle=\normalfont\ttfamily,columns=flexible,escapechar=|}
-\usepackage{attachfile}
 \usepackage{float}
+\floatplacement{figure}{htp}
+\floatplacement{table}{tp}
 \usepackage{hyperxmp}
 \usepackage{hyperref}
 \hypersetup{
@@ -26,7 +28,20 @@
   urlcolor=Chocolate4,
   citecolor=DeepPink2
 }
-\usepackage[margin=1.25in,letterpaper]{geometry}
+\usepackage{attachfile2}
+\attachfilesetup{
+  icon=Paperclip,
+  color=DarkOliveGreen1,
+  mimetype={text/plain}
+}
+\usepackage{marginnote}
+\newcommand*{\attach}[2][]{%
+  \marginnote{%
+    \centering%
+    \attachfile[#1]{#2}%
+  }[-.5\baselineskip]%
+}
+
 %%% Definitions copied from ltugboat.cls.
 \makeatletter
 \DeclareRobustCommand\SMC{%
