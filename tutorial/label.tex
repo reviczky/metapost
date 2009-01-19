@@ -1,4 +1,5 @@
-\begin{subsection}{The \texttt{label} command}
+\subsection{The \texttt{label} command}
+
 One of the nicest features of \MP{} is that it relies on \TeX{} (or \LaTeX) to typeset labels within figures.  Almost all figures in technical documents are accompanied by labels which help clarify the situation for which the figure is assisting to illustrate.  Such labels may include anything from simple typesetting as in Figures \ref{fig:draw1}, \ref{fig:annulus2}, and \ref{fig:draw2} to typesetting function declarations and even axes labeling.
 
 The \texttt{label} command requires two arguments\Dash a string to typeset and the point for which label is placed.  For example, the command \begin{center}\verb|label("A",(0,0));|\end{center} will place the letter ``A'' at the coordinate \texttt{(0,0)} and the box around this label is centered vertically and horizontally at this point.  Simple strings like \texttt{"A"} require no real typesetting to ensure that they appear properly in the figure.  However, many typeset strings in technical figures require the assistance of \TeX{} to properly display them.
@@ -26,5 +27,3 @@ Often times it is desirable to typeset labels with a justification that are not 
 	\begin{center}\hfill\textattachfile[color={0 0 0},mimetype={text/plain}]{label.mp}{\includegraphics{label-1.mps}}\hfill\textattachfile[color={0 0 0},mimetype={text/plain}]{label.mp}{\includegraphics{label-2.mps}}\hfill\mbox{}\end{center}
 	\caption{Label suffixes}\label{fig:label}
 \end{figure}
-
-\end{subsection}

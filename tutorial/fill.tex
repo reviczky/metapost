@@ -1,4 +1,5 @@
-\begin{subsection}{The \texttt{fill} Command}
+\subsection{The \texttt{fill} Command}
+
 Another common command in \MP{} is the \texttt{fill} command.  This is used to fill closed paths (or cycles).  In order to construct a cycle, \texttt{cycle} may be appended to the path declaration.  For example,
 \begin{lstlisting}[xleftmargin=7bp]
 path p;
@@ -42,4 +43,3 @@ The path \verb|p--reverse q--cycle| travels around \texttt{p} in a counter-clock
 	\caption{Improper transparency using \texttt{unfill}}\label{fig:annulus3}
 \end{figure}
 It may be desired to have the interior of \texttt{q} be magenta instead of \texttt{white}.  This could be accomplished by redefining \texttt{background}; however, the latter method described above is a much simpler solution.
-\end{subsection}
