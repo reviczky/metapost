@@ -14,8 +14,7 @@ graphing simple functions.  However, for more complicated functions, the
 data should probably be constructed using external programs such as
 \acro{MATLAB} (or Octave), Maple, Mathematica, Gnuplot, et. al.
 
-A typical data file, say \textattachfile[color={0 0
-  0},mimetype={text/plain}]{data.d}{\texttt{data.d}}, to be used with
+A typical data file, say \texttt{data.d}\attach{data.d}, to be used with
 the \texttt{graph} package may have contents
 
 \lstinputlisting[xleftmargin=77bp]{data.d}
@@ -36,10 +35,10 @@ The \texttt{graph} package provides many commands used to customize
 generated graphs, and these commands are fully documented in the manual
 \cite{hobby:graph} for the \texttt{graph} package.
 
-\begin{figure}[hptb]
-   \begin{center}
-     \textattachfile[color={0 0 0},mimetype={text/plain}]{data.mp}{\includegraphics{data.mps}}
-   \end{center}
-   \caption{$f(x)=\sqrt{x}$ using the \texttt{graph} package}
-   \label{fig:data}
+\begin{figure}
+  \centering
+  \includegraphics{data.mps}
+  \caption{$f(x)=\sqrt{x}$ using the \texttt{graph} package}
+  \label{fig:data}
+  \attach{data.mp}
 \end{figure}
