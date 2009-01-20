@@ -1,27 +1,28 @@
 \section{Data types}
 \label{sec:datatypes}
 
-  There are ten data types in \MP{}: \textit{numeric}, \textit{pair},
-  \textit{path}, \textit{transform}, \textit{rgbcolor},
-  \textit{cmykcolor}, \textit{string}, \textit{boolean},
-  \textit{picture}, and \textit{pen}.  These data types allow users to
-  store fragments of the graphics for later use.  We will briefly
-  discuss each of these data types and elaborate on how they are used in
-  a typical \MP{} program.
-  \renewcommand{\labelitemi}{$\diamond$}
+There are ten data types in \MP{}: \textit{numeric}, \textit{pair},
+\textit{path}, \textit{transform}, \textit{rgbcolor},
+\textit{cmykcolor}, \textit{string}, \textit{boolean}, \textit{picture},
+and \textit{pen}.  These data types allow users to store fragments of
+the graphics for later use.  We will briefly discuss each of these data
+types and elaborate on how they are used in a typical \MP{} program.
+
+\renewcommand{\labelitemi}{$\diamond$}
 \begin{itemize}
-	\item \textit{numeric}\Dash numbers
-	\item \textit{pair}\Dash ordered pairs of numerics
-	\item \textit{path}\Dash B\'{e}zier curves (and lines)
-	\item \textit{picture}\Dash pictures
-	\item \textit{transform}\Dash transformations such as shifts,\\rotations, and slants
-	\item \textit{rgbcolor} or \textit{color}\Dash triplets with each component between $0$ and
-    $1$ (red, green, and blue)
-	\item \textit{cmykcolor}\Dash quadruplets with each component between $0$ and
-    $1$ (cyan, magenta, yellow, and black)
-	\item \textit{string}\Dash strings of characters
-	\item \textit{boolean}\Dash ``true'' or ``false'' values
-	\item \textit{pen}\Dash stroke properties
+\item \textit{numeric}\Dash numbers
+\item \textit{pair}\Dash ordered pairs of numerics
+\item \textit{path}\Dash B\'{e}zier curves (and lines)
+\item \textit{picture}\Dash pictures
+\item \textit{transform}\Dash transformations such as shifts, rotations,
+  and slants
+\item \textit{rgbcolor} or \textit{color}\Dash triplets with each
+  component between $0$ and $1$ (red, green, and blue)
+\item \textit{cmykcolor}\Dash quadruplets with each component between
+  $0$ and $1$ (cyan, magenta, yellow, and black)
+\item \textit{string}\Dash strings of characters
+\item \textit{boolean}\Dash ``true'' or ``false'' values
+\item \textit{pen}\Dash stroke properties
 \end{itemize}
 
 Virtually all programming languages provide a way of storing and
@@ -96,10 +97,10 @@ example above \texttt{(1,.6,0)} could be replaced by
 
 The most common application of \textit{string} data types is reusing a
 particular string that is typeset (or labeled).  The \textit{boolean}
-data type is the same as in other programming languages and is primarily used in
-conditional statements for testing.  Finally, the \textit{pen} data type
-is used to affect the actual stroke paths.  The default unit of
-measurement in \MP{} is $1\,\mathrm{bp}=1/72\mathrm{\ in}$, and the
+data type is the same as in other programming languages and is primarily
+used in conditional statements for testing.  Finally, the \textit{pen}
+data type is used to affect the actual stroke paths.  The default unit
+of measurement in \MP{} is $1\,\mathrm{bp}=1/72\mathrm{\ in}$, and the
 default thickness of all stroked paths is $0.5\,\mathrm{bp}$.  An
 example for using the \textit{pen} data type may include changing the
 thickness of several stroked paths.  This new pen can be stored and then
