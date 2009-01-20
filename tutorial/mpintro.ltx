@@ -14,7 +14,18 @@
 \usepackage[rgb,x11names]{xcolor}
 \usepackage{graphicx}
 \usepackage{listings}
-\lstset{breaklines=true,basicstyle=\normalfont\ttfamily,columns=flexible,escapechar=|}
+\lstloadlanguages{MetaPost, [LaTeX]TeX}
+\lstset{basicstyle=\normalfont\ttfamily, columns=flexible,
+  breaklines=true, breakatwhitespace=true, escapechar=|, aboveskip=.7em,
+  belowskip=.7em}
+\lstdefinestyle{MP}{language=MetaPost, keywordstyle={},
+  commentstyle=\itshape, xleftmargin=5\parindent}
+\lstdefinestyle{LaTeX}{language=[LaTeX]TeX, keywordstyle={},
+  commentstyle=\itshape, xleftmargin=5\parindent}
+\lstdefinestyle{text}{keywordstyle={}, commentstyle={},
+  xleftmargin=2\parindent}
+\lstMakeShortInline[style=MP]|
+\newcommand*{\File}[1]{\texttt{#1}}
 \usepackage{float}
 \floatplacement{figure}{htp}
 \floatplacement{table}{tp}

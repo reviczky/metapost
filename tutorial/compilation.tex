@@ -11,13 +11,13 @@
 A typical \MP{} source file consists of one or more figures.
 Compilation of the source file generates an \EPS{} graphic for each
 figure.  These \EPS{} graphics are self-contained (i.e., the fonts used
-in labels are embedded into the graphic) provided that
-\lstinline{prologues:=3} is declared.
+in labels are embedded into the graphic) provided that |prologues:=3| is
+declared.
 
-If \texttt{foo.mp} is a typical \MP{} source file, then its contents are
+If \File{foo.mp} is a typical \MP{} source file, then its contents are
 likely of the following form:
 
-\begin{lstlisting}[xleftmargin=1.25\parindent]
+\begin{lstlisting}[style=MP]
 prologues:=3;
 outputtemplate:="%j-%c.mps";
 beginfig(1);
@@ -34,12 +34,13 @@ end
 \end{lstlisting}
 
 Executing
-\begin{flushleft}
-  \hspace*{1.25\parindent}\texttt{mpostfoo.mp}
-\end{flushleft}
+
+\begin{lstlisting}[style=text]
+mpost foo.mp
+\end{lstlisting}
 yields the following output:
 
-\begin{lstlisting}[xleftmargin=1.25\parindent]
+\begin{lstlisting}[style=text]
 This is MetaPost, Version |\normalfont$\langle$\textit{version}$\rangle$|
 (foo.mp [1] [2] |\normalfont\ldots| [|\normalfont$n$|] )
 |\normalfont$n$| output files written: foo-1.mps .. foo-|\normalfont$n$|.mps
