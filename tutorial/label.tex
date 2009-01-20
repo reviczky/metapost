@@ -4,9 +4,9 @@ One of the nicest features of \MP{} is that it relies on \TeX{} (or
 \LaTeX) to typeset labels within figures.  Almost all figures in
 technical documents are accompanied by labels which help clarify the
 situation for which the figure is assisting to illustrate.  Such labels
-may include anything from simple typesetting as in Figures
-\ref{fig:draw1}, \ref{fig:annulus2}, and \ref{fig:draw2} to typesetting
-function declarations and even axes labeling.
+may include anything from simple typesetting as in
+Figures~\ref{fig:draw1}, \ref{fig:annulus2}, and~\ref{fig:draw2} to
+typesetting function declarations and even axes labeling.
 
 The \texttt{label} command requires two arguments\Dash a string to
 typeset and the point for which label is placed.  For example, the
@@ -30,9 +30,9 @@ display them.
   \attach{parabola.mp}
 \end{figure}
 
-For example, Figure \ref{fig:parabola} is an example where typesetting
-is preferred.  That is, the axes labels and the function declaration
-look less than perfect if \TeX{} is not used.  For reasons such as this,
+For example, \autoref{fig:parabola} is an example where typesetting is
+preferred.  That is, the axes labels and the function declaration look
+less than perfect if \TeX{} is not used.  For reasons such as this,
 \MP{} provides a way to \textit{escape} to \TeX{} in order to assist in
 typesetting the labels.  Therefore, instead of labeling the ``A'' as
 above,
@@ -43,7 +43,7 @@ above,
 provides a much nicer technique for typesetting the label.  The
 \texttt{btex\,...\,etex} block instructs \MP{} to process everything in
 between \texttt{btex} and \texttt{etex} using \TeX.  Therefore, the
-function declaration in Figure \ref{fig:parabola} is labeled using
+function declaration in \autoref{fig:parabola} is labeled using
 
 \begin{center}
   \verb|label(btex $f(x)=x^2$ etex,(|$a,b$\verb|));|
@@ -84,7 +84,7 @@ of the designated point.  For example,
 \begin{center}
   \verb|label.top(btex A etex,(0,0));|
 \end{center}
-places the ``A'' directly above \texttt{(0,0)}.  Figure \ref{fig:label}
+places the ``A'' directly above \texttt{(0,0)}.  \autoref{fig:label}
 demonstrates each of the suffixes and their corresponding placement of
 the labels.
 
