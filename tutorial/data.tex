@@ -32,9 +32,8 @@ simply two dimensional pictures, it is clear that an ordered pair is
 needed to identify each point in the picture.  The \textit{pair} data
 type provides this functionality.  Each point in the plane consists of
 an $x$ (i.e., abscissa) part and a $y$ (i.e., ordinate) part.  \MP{}
-uses the standard syntax for defining points in the plane, e.g.,
-\texttt{(}\textit{x}\texttt{,}\textit{y}\texttt{)} where both $x$ and
-$y$ are numeric data typed variables.
+uses the standard syntax for defining points in the plane, e.g., $(x,y)$
+where both $x$ and~$y$ are numeric data typed variables.
 
 In order to store paths between points, the \textit{path} data type is
 used.  All paths in \MP{} are represented as cubic B\'{e}zier curves.
@@ -81,19 +80,19 @@ Both color types are ordered tuples, $(c_1,c_2,c_3)$ and
 $(c_1,c_2,c_3,c_4)$, with components~$c_i$ being \textit{numeric}s
 between $0$ and $1$.  For example, in the \RGB{} color model, a light
 orange tone can be referred to as
-\texttt{(1,.6,0)}~\showcol[rgb]{1,.6,0}, whereas in the \CMYK{} color
-model \texttt{(0,.6,1,0)}~\showcol[cmyk]{0,.6,1,0} corresponds to a
-clearly different orange tone.  If a particular color is to be used
+|(1,.6,0)|~\showcol[rgb]{1,.6,0}, whereas in the
+\CMYK{} color model
+|(0,.6,1,0)|~\showcol[cmyk]{0,.6,1,0} corresponds to
+a clearly different orange tone.  If a particular color is to be used
 several times throughout a figure, it is natural to store this color
 into a variable of type \textit{rgbcolor} or \textit{cmykcolor}.
 
 The data type \textit{color} is a convenient synonym for
 \textit{rgbcolor}.  Additionally, there are five built-in \RGB{} colors
-in \MP{}: \texttt{black}, \texttt{white}, \texttt{red}, \texttt{green},
-and \texttt{blue}.  So, the expression \texttt{.4(red+blue)} refers to a
-dark violet~\showcol[rgb]{.4,0,.4} in the \RGB{} color model and in the
-example above \texttt{(1,.6,0)} could be replaced by
-\texttt{red+.6green}.
+in \MP{}: |black|, |white|, |red|, |green|, and |blue|.  So, the
+expression |.4(red+blue)| refers to a dark violet~\showcol[rgb]{.4,0,.4}
+in the \RGB{} color model and in the example above |(1,.6,0)| could be
+replaced by |red+.6green|.
 
 The most common application of \textit{string} data types is reusing a
 particular string that is typeset (or labeled).  The \textit{boolean}

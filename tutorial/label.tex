@@ -8,19 +8,18 @@ may include anything from simple typesetting as in
 Figures~\ref{fig:draw1}, \ref{fig:annulus2}, and~\ref{fig:draw2} to
 typesetting function declarations and even axes labeling.
 
-The \texttt{label} command requires two arguments\Dash a string to
-typeset and the point for which label is placed.  For example, the
-command
+The |label| command requires two arguments\Dash a string to typeset and
+the point for which label is placed.  For example, the command
 
-\begin{center}
-  \verb|label("A",(0,0));|
-\end{center}
-will place the letter ``A'' at the coordinate \texttt{(0,0)} and the box
-around this label is centered vertically and horizontally at this point.
-Simple strings like \texttt{"A"} require no real typesetting to ensure
-that they appear properly in the figure.  However, many typeset strings
-in technical figures require the assistance of \TeX{} to properly
-display them.
+\begin{lstlisting}[style=MP]
+label("A", (0,0));
+\end{lstlisting}
+will place the letter ``A'' at the coordinate |(0,0)| and the box around
+this label is centered vertically and horizontally at this point.
+Simple strings like \lstinline[style=text]{"A"} require no real
+typesetting to ensure that they appear properly in the figure.  However,
+many typeset strings in technical figures require the assistance of
+\TeX{} to properly display them.
 
 \begin{figure}
   \centering
@@ -37,27 +36,26 @@ less than perfect if \TeX{} is not used.  For reasons such as this,
 typesetting the labels.  Therefore, instead of labeling the ``A'' as
 above,
 
-\begin{center}
-  \verb|label(btex A etex,(0,0));|
-\end{center}
+\begin{lstlisting}[style=MP]
+label(btex A etex, (0,0));
+\end{lstlisting}
 provides a much nicer technique for typesetting the label.  The
-\texttt{btex\,...\,etex} block instructs \MP{} to process everything in
-between \texttt{btex} and \texttt{etex} using \TeX.  Therefore, the
-function declaration in \autoref{fig:parabola} is labeled using
+|btex ... etex| block instructs \MP{} to process everything in between
+|btex| and |etex| using \TeX.  Therefore, the function declaration in
+\autoref{fig:parabola} is labeled using
 
-\begin{center}
-  \verb|label(btex $f(x)=x^2$ etex,(|$a,b$\verb|));|
-\end{center}
-where \verb|(|$a,b$\verb|)| is the point for which the label is to be
-centered.
+\begin{lstlisting}[style=MP]
+label(btex $f(x)=x^2$ etex, (a,b));
+\end{lstlisting}
+where $(a,b)$ is the point for which the label is to be centered.
 
 Since many \MP{} users prefer to typeset their labels using \LaTeX{}
 instead of plain \TeX, \MP{} provides a convenient method for
 accommodating this, done in the preamble of the \MP{} source file.  The
-following code ensures that the \verb|btex...etex| block escapes to
+following code ensures that the |btex ... etex| block escapes to
 \LaTeX{} (instead of plain \TeX) for text processing.
 
-\begin{lstlisting}[xleftmargin=56bp]
+\begin{lstlisting}[style=MP, commentstyle={}]
 verbatimtex
 %&latex
 \documentclass{minimal}
@@ -71,20 +69,19 @@ end
 
 Often times it is desirable to typeset labels with a justification that
 are not necessarily centered.  For example, one may wish to place an
-``A'' centered horizontally about \texttt{(0,0)} but placed above
-\texttt{(0,0)}. \MP{} provides eight suffixes to accommodate such needs.
-The suffixes \texttt{.lft}, \texttt{.rt}, \texttt{.bot}, and
-\texttt{.top} align the label on the left, right, bottom, and top,
-respectively, of the designated point.  A hybrid of these four
-justifications provide four additional ones, namely, \texttt{.llft},
-\texttt{.ulft}, \texttt{.lrt}, and \texttt{.urt} to align the label on
-the lower left, upper left, lower right, and upper right, respectively,
-of the designated point.  For example,
+``A'' centered horizontally about |(0,0)|, but placed above
+|(0,0)|. \MP{} provides eight suffixes to accommodate such needs.  The
+suffixes |.lft|, |.rt|, |.bot|, and |.top| align the label on the left,
+right, bottom, and top, respectively, of the designated point.  A hybrid
+of these four justifications provide four additional ones, namely,
+|.llft|, |.ulft|, |.lrt|, and |.urt| to align the label on the lower
+left, upper left, lower right, and upper right, respectively, of the
+designated point.  For example,
 
-\begin{center}
-  \verb|label.top(btex A etex,(0,0));|
-\end{center}
-places the ``A'' directly above \texttt{(0,0)}.  \autoref{fig:label}
+\begin{lstlisting}[style=MP]
+label.top(btex A etex, (0,0));
+\end{lstlisting}
+places the ``A'' directly above |(0,0)|.  \autoref{fig:label}
 demonstrates each of the suffixes and their corresponding placement of
 the labels.
 
