@@ -15,7 +15,6 @@ command
 \begin{center}
   \verb|label("A",(0,0));|
 \end{center}
-
 will place the letter ``A'' at the coordinate \texttt{(0,0)} and the box
 around this label is centered vertically and horizontally at this point.
 Simple strings like \texttt{"A"} require no real typesetting to ensure
@@ -41,7 +40,6 @@ above,
 \begin{center}
   \verb|label(btex A etex,(0,0));|
 \end{center}
-
 provides a much nicer technique for typesetting the label.  The
 \texttt{btex\,...\,etex} block instructs \MP{} to process everything in
 between \texttt{btex} and \texttt{etex} using \TeX.  Therefore, the
@@ -50,7 +48,6 @@ function declaration in Figure \ref{fig:parabola} is labeled using
 \begin{center}
   \verb|label(btex $f(x)=x^2$ etex,(|$a,b$\verb|));|
 \end{center}
-
 where \verb|(|$a,b$\verb|)| is the point for which the label is to be
 centered.
 
@@ -87,7 +84,6 @@ of the designated point.  For example,
 \begin{center}
   \verb|label.top(btex A etex,(0,0));|
 \end{center}
-
 places the ``A'' directly above \texttt{(0,0)}.  Figure \ref{fig:label}
 demonstrates each of the suffixes and their corresponding placement of
 the labels.
