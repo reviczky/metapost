@@ -21,7 +21,7 @@ w:=fontsize defaultfont;
 
 beginfig(1);
 	% Place a "point" at (0,0)
-   label(btex $\scriptscriptstyle\bullet$ etex,(0,0)) scaled 1.5;
+	fill fullcircle scaled 3;
 
 	% Draw a square around the point
 	draw (-7*w/16,-7*w/16)--(7*w/16,-7*w/16)--(7*w/16,7*w/16)--(-7*w/16,7*w/16)--cycle;
@@ -42,7 +42,7 @@ endfig;
 
 beginfig(2);
 	% Place a "point" at (0,0)
-	label(btex $\scriptscriptstyle\bullet$ etex,(0,0)) scaled 1.5;
+	fill fullcircle scaled 3;
 
 	% Draw a square around the point
 	draw (-7*w/16,-7*w/16)--(7*w/16,-7*w/16)--(7*w/16,7*w/16)--(-7*w/16,7*w/16)--cycle;
