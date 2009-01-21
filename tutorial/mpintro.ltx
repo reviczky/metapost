@@ -15,11 +15,23 @@
 \usepackage{graphicx}
 \usepackage{listings}
 \lstloadlanguages{MetaPost, [LaTeX]TeX}
+\lstdefinelanguage[ext]{MetaPost}[]{MetaPost}{
+  morekeywords={verbatimtex},
+  morekeywords=[2]{blackpart, cmykcolor, colormodel, colorpart,
+    cyanpart, greypart, magentapart, rgbcolor, yellowpart},
+  morekeywords=[3]{filenametemplate, withcmykcolor, withgreyscale,
+    withoutcolor, withpostscript, withprescript, withrgbcolor},
+  morekeywords=[5]{defaultcolormodel, mpprocset, outputformat,
+    outputtemplate},
+  morekeywords=[6]{mpversion},
+  morecomment=[s][basicstyle]{\%}{&},
+  deletekeywords=[4]{z}
+}
 \lstset{basicstyle=\normalfont\ttfamily, columns=flexible,
   breaklines=true, breakatwhitespace=true, escapechar=|, aboveskip=.7em,
   belowskip=.7em}
 \lstdefinestyle{MP}{
-  language=MetaPost,
+  language=[ext]MetaPost,
   keywordstyle=\bfseries\color{DarkOliveGreen1!60!black},
   commentstyle=\itshape, xleftmargin=4.5em, frame=leftline,
   framesep=1.5em, framerule=3em,
