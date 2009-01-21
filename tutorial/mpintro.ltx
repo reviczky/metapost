@@ -18,13 +18,22 @@
 \lstset{basicstyle=\normalfont\ttfamily, columns=flexible,
   breaklines=true, breakatwhitespace=true, escapechar=|, aboveskip=.7em,
   belowskip=.7em}
-\lstdefinestyle{MP}{language=MetaPost, keywordstyle={},
-  commentstyle=\itshape, xleftmargin=5\parindent}
-\lstdefinestyle{LaTeX}{language=[LaTeX]TeX, keywordstyle={},
-  commentstyle=\itshape, xleftmargin=5\parindent}
-\lstdefinestyle{text}{keywordstyle={}, commentstyle={},
-  xleftmargin=2\parindent}
-\lstMakeShortInline[style=MP]|
+\lstdefinestyle{MP}{
+  language=MetaPost,
+  keywordstyle=\bfseries\color{DarkOliveGreen1!60!black},
+  commentstyle=\itshape, xleftmargin=4.5em, frame=leftline,
+  framesep=1.5em, framerule=3em,
+  rulecolor=\color{DarkOliveGreen1!80!black}
+}
+\lstdefinestyle{LaTeX}{
+  language=[LaTeX]TeX, keywordstyle={}, commentstyle=\itshape,
+  xleftmargin=4.5em, frame=leftline, framesep=1.5em, framerule=3em,
+  rulecolor=\color{white!80!black}
+}
+\lstdefinestyle{text}{
+  keywordstyle={}, commentstyle={}, xleftmargin=2\parindent
+}
+\lstMakeShortInline[style=MP, keywordstyle={}, commentstyle={}]|
 \newcommand*{\File}[1]{\texttt{#1}}
 \usepackage{float}
 \floatplacement{figure}{htp}
@@ -47,6 +56,7 @@
 }
 \usepackage{marginnote}
 \newcommand*{\attach}[2][]{%
+  \reversemarginpar%
   \marginnote{%
     \centering%
     \attachfile[#1]{#2}%
