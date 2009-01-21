@@ -79,13 +79,12 @@ viewing whereas the latter model is preferred in high-quality print.
 Both color types are ordered tuples, $(c_1,c_2,c_3)$ and
 $(c_1,c_2,c_3,c_4)$, with components~$c_i$ being \textit{numeric}s
 between $0$ and $1$.  For example, in the \RGB{} color model, a light
-orange tone can be referred to as
-|(1,.6,0)|~\showcol[rgb]{1,.6,0}, whereas in the
-\CMYK{} color model
-|(0,.6,1,0)|~\showcol[cmyk]{0,.6,1,0} corresponds to
-a clearly different orange tone.  If a particular color is to be used
-several times throughout a figure, it is natural to store this color
-into a variable of type \textit{rgbcolor} or \textit{cmykcolor}.
+orange tone can be referred to as |(1,.6,0)|~\showcol[rgb]{1,.6,0},
+whereas in the \CMYK{} color model |(0,.6,1,0)|~\showcol[cmyk]{0,.6,1,0}
+corresponds to a clearly different orange tone.  If a particular color
+is to be used several times throughout a figure, it is natural to store
+this color into a variable of type \textit{rgbcolor} or
+\textit{cmykcolor}.
 
 The data type \textit{color} is a convenient synonym for
 \textit{rgbcolor}.  Additionally, there are five built-in \RGB{} colors
