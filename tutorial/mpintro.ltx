@@ -30,12 +30,16 @@
 \lstset{basicstyle=\normalfont\ttfamily, columns=flexible,
   breaklines=true, breakatwhitespace=true, escapechar=|, aboveskip=.7em,
   belowskip=.7em}
+\colorlet{mpcolor}{Chartreuse3!50!white!95!black}
+% \colorlet{testcolor}{mpcolor!90!black}
+% \extractcolorspec{testcolor}{\testcol}
+% \show\testcol
 \lstdefinestyle{MP}{
   language=[ext]MetaPost,
-  keywordstyle=\bfseries\color{DarkOliveGreen1!60!black},
+  keywordstyle=\bfseries\color{mpcolor!75!black},
   commentstyle=\itshape, xleftmargin=4.5em, frame=leftline,
   framesep=1.5em, framerule=3em,
-  rulecolor=\color{DarkOliveGreen1!80!black}
+  rulecolor=\color{mpcolor}
 }
 \lstdefinestyle{LaTeX}{
   language=[LaTeX]TeX, keywordstyle={}, commentstyle=\itshape,
