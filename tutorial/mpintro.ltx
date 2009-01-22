@@ -62,18 +62,21 @@
 }
 \usepackage{attachfile2}
 \attachfilesetup{
-  icon=Paperclip,
-  color=DarkOliveGreen1,
   mimetype={text/plain}
 }
-\usepackage{marginnote}
+\newcommand*{\paperclip}[1][]{\includegraphics[#1]{paperclip.mps}}
 \newcommand*{\attach}[2][]{%
-  \reversemarginpar%
-  \marginnote{%
-    \centering%
-    \attachfile[#1]{#2}%
-  }[-.5\baselineskip]%
+  \makebox[0pt][l]{%
+    \qquad%
+    \textattachfile[description={#2},#1]{#2}{\paperclip}%
+  }%
 }
+\newcommand*{\includegraphicsattach}[3][]{%
+  \includegraphics[#1]{#2}%
+  \attach[subject={MetaPost source file}]{#3}
+}
+\usepackage{marginnote}
+\reversemarginpar
 
 %%% Definitions copied from ltugboat.cls.
 \makeatletter

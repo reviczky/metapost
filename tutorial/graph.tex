@@ -14,10 +14,16 @@ graphing simple functions.  However, for more complicated functions, the
 data should probably be constructed using external programs such as
 \acro{MATLAB} (or Octave), Maple, Mathematica, Gnuplot, et. al.
 
-A typical data file, say \File{data.d}\attach{data.d}, to be used with
-the \File{graph} package may have contents
+A typical data file, say \File{data.d}, to be used with the \File{graph}
+package may have contents
 
-\lstinputlisting[style=text]{data.d}
+\vspace{.7em}
+\noindent%
+\begin{tabular}[b]{@{}l@{}}
+  \lstinputlisting[style=text, boxpos=b]{data.d}
+\end{tabular}%
+\attach[subject={Graph data}]{data.d}
+\vspace{.7em}
 
 This data represents the graph of $f(x)=\sqrt{x}$ for six equally spaced
 points in $[0,1]$.  To graph this data, the size of the graph must first
@@ -37,8 +43,7 @@ manual~\cite{hobby:graph} for the \File{graph} package.
 
 \begin{figure}
   \centering
-  \includegraphics{data.mps}
+  \includegraphicsattach{data.mps}{data.mp}
   \caption{$f(x)=\sqrt{x}$ using the \texttt{graph} package}
   \label{fig:data}
-  \attach{data.mp}
 \end{figure}
