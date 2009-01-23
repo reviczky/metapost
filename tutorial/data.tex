@@ -1,6 +1,7 @@
 \section{Data types}
 \label{sec:datatypes}
 
+\subsection{Standard data types}
 There are ten data types in \MP{}: \textit{numeric}, \textit{pair},
 \textit{path}, \textit{transform}, \textit{rgbcolor},
 \textit{cmykcolor}, \textit{string}, \textit{boolean}, \textit{picture},
@@ -103,3 +104,56 @@ default thickness of all stroked paths is $0.5\,\mathrm{bp}$.  An
 example for using the \textit{pen} data type may include changing the
 thickness of several stroked paths.  This new pen can be stored and then
 referenced for drawing each of the paths.
+
+The following code declares a variable of type \textit{numeric}, one of
+type \textit{pair}, and two \textit{string} variables:
+
+\begin{lstlisting}[style=MP]
+numeric idx;
+pair v;
+string s, name;
+\end{lstlisting}
+
+Note, variables of type \textit{numeric} need not necessarily be
+declared.  A formerly undeclared variable is automatically assumed to be
+\textit{numeric} at first use.
+
+
+\subsection{Arrays}
+Just like many other programming languages MetaPost provides a way to
+access variables by index.  After the following variable declaration
+
+\begin{lstlisting}[style=MP]
+pair a[];
+\end{lstlisting}
+it is possible to store points in the ``array''~|a| with numeric values
+as index.  The console output of
+
+\begin{lstlisting}[style=MP]
+a[1] := (0,1);
+a[2] := (0,5);
+a[3] := (10,20);
+show a[1];
+show a1;
+j := 2;
+show a[j] + a[j+1];
+\end{lstlisting}
+is
+
+\begin{lstlisting}[style=text]
+>> (0,1)
+>> (0,1)
+>> (10,25)
+\end{lstlisting}
+
+Notice, the point stored at array index~1 can be referred to as~|a[1]|
+as well as just~|a1|, omitting the brackets.  The latter
+convenient---and often practised---notation works as long as the index
+is a plain numeric value.  If the index is a numeric \emph{variable} or
+an expression, however, the brackets have to be present, since, e.g.,
+|aj| would clearly refer to an unrelated variable of that name instead
+of index~|j| of variable~|a|.
+
+Aside, MetaPost, as a macro language, doesn't really provide true arrays.
+However, from a user's perspective, the MetaPost way of indexing
+variables perfectly looks like an array.
