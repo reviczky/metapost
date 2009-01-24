@@ -15,8 +15,10 @@ curved path as in \autoref{fig:draw1} with the additional piece that
 connects |z3| back to |z1| with a line segment using |--cycle|.
 
 \begin{figure}
-  \centering
-  \includegraphicsattach{fill.mps}{fill.mp}
+  \begin{withattachment}{fill.mp}
+    \centering
+    \includegraphics{fill.mps}
+  \end{withattachment}
   \caption{\texttt{fill} example}
   \label{fig:fill}
 \end{figure}
@@ -45,8 +47,10 @@ however, visually it is essentially indistinguishable from an exact
 circle.
 
 \begin{figure}
-  \centering
-  \includegraphicsattach{annulus-1.mps}{annulus.mp}
+  \begin{withattachment}{annulus.mp}
+    \centering
+    \includegraphics{annulus-1.mps}
+  \end{withattachment}
   \caption{\texttt{unfill} example}
   \label{fig:annulus1}
 \end{figure}
@@ -70,8 +74,10 @@ fill p--reverse q--cycle withcolor bbblue;
 \end{lstlisting}
 
 \begin{figure}
-  \centering
-  \includegraphicsattach{annulus-2.mps}{annulus.mp}
+  \begin{withattachment}{annulus.mp}
+    \centering
+    \includegraphics{annulus-2.mps}
+  \end{withattachment}
   \caption{Avoiding an \texttt{unfill}}
   \label{fig:annulus2}
 \end{figure}
@@ -89,8 +95,10 @@ the annulus is placed on a non-white background, say magenta, then the
 result is \autoref{fig:annulus3}.
 
 \begin{figure}
-  \centering
-  \includegraphicsattach{annulus-3.mps}{annulus.mp}
+  \begin{withattachment}{annulus.mp}
+    \centering
+    \includegraphics{annulus-3.mps}
+  \end{withattachment}
   \caption{Improper transparency using \texttt{unfill}}
   \label{fig:annulus3}
 \end{figure}
