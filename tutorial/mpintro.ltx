@@ -73,14 +73,23 @@
 }
 \newcommand*{\paperclip}[1][]{\includegraphics[#1]{paperclip.mps}}
 \newcommand*{\attach}[2][]{%
-  \makebox[0pt][l]{%
-    \qquad%
-    \textattachfile[description={#2},#1]{#2}{\paperclip}%
-  }%
+  \textattachfile[description={#2},#1]{#2}{\paperclip}%
 }
-\newcommand*{\includegraphicsattach}[3][]{%
-  \includegraphics[#1]{#2}%
-  \attach[subject={MetaPost source file}]{#3}
+\newlength{\attachmentraise}
+\newenvironment{withattachment}[2][0pt]
+{%
+  \setlength{\attachmentraise}{#1}%
+  \addtolength{\attachmentraise}{6pt}%
+  \makebox[0pt][l]{%
+    \raisebox{\attachmentraise}[0pt][0pt]{%
+      \makebox[32pt][c]{%
+        \attach[subject={MetaPost source file}]{#2}%
+      }%
+    }%
+  }%
+  \begin{minipage}[b]{\linewidth}%
+  }{%
+  \end{minipage}%
 }
 \usepackage{marginnote}
 \reversemarginpar

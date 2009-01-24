@@ -22,6 +22,7 @@ package may have contents
 \begin{tabular}[b]{@{\hspace{48pt}}l@{}}
   \lstinputlisting[style=text, boxpos=b]{data.d}
 \end{tabular}%
+\qquad%
 \attach[subject={Graph data}]{data.d}
 \vspace{8pt}
 
@@ -42,8 +43,10 @@ generated graphs, and these commands are fully documented in the
 manual~\cite{hobby:graph} for the \File{graph} package.
 
 \begin{figure}
-  \centering
-  \includegraphicsattach{data.mps}{data.mp}
+  \begin{withattachment}{data.mp}
+    \centering
+    \includegraphics{data.mps}
+  \end{withattachment}
   \caption{$f(x)=\sqrt{x}$ using the \texttt{graph} package}
   \label{fig:data}
 \end{figure}
