@@ -326,9 +326,10 @@ PostScript.  A MetaPost input file normally contains a sequence of
 end}\index{end?\texttt{end}} statement after the last one.  If this file
 is named {\tt fig.mp}, the output from \verb|draw| statements between
 \verb|beginfig(1)| and the next \verb|endfig| is written in a file {\tt
-fig.1}\index{files!output}.  In other words, the numeric argument to the
-\verb|beginfig| macro determines the name of the corresponding output
-file.
+fig.1}\index{files!output}, by default.  In other words, the numeric
+argument to the \verb|beginfig| macro determines the name of the
+corresponding output file.  See section~\ref{Doutputtemplate} for more
+information on file names.
 
 What does one do with all the PostScript files?  They can be included as
 figures in a \TeX\index{TeX?\TeX} or troff\index{troff} document if you
@@ -544,6 +545,7 @@ image as given in the file's bounding box.
 
 
 \subsection{File name templates}
+\label{Doutputtemplate}
 \suppressfloats[t]
 
 MetaPost has support for output file name templates. These templates
