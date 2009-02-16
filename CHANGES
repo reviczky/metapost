@@ -273,6 +273,85 @@ What is new in the alpha release of MPlib (0.10.0):
 * API documentation is still missing, but the MetaPost input language 
   has not changed.
 
+
+----------------------------------------------------------------------
+What is new in version 1.005:
+----------------------------------------------------------------------
+
+* In MetaPost 1.004, mpost --version still incorrectly reported 1.003
+
+* C Compilation of MetaPost 1.004 was broken on MacOS X 10.5
+
+* The sources package did not contain mpboxes.pdf
+
+* Some last-minute fixes to the manual
+
+
+----------------------------------------------------------------------
+What is new in version 1.004:
+----------------------------------------------------------------------
+
+* The picture color component commands misbehaved in 1.003:
+   the current (default) colormodel was not taken into consideration,
+   so all colors had to be explicit for "redpart" etc. to work.
+   (this bug is the one broke the graph.mp package)
+
+   In 1.004 for "defaulted" colors, the suitable value in the current
+   (default) colormodel is returned without any errors. This change
+   also reverts to silently defaulting a 'black' color when asking
+   for the redpart etc. of an object that cannot be colored at all.
+
+* The picture color component commands misbehaved in 1.003 in
+   a different manner also: the defaults for uninitialized CMYK
+   color picture parts were still assuming 'black' was defined as
+   (1,1,1,1) instead of as (0,0,0,1).
+
+* The macro Gwithpc_ in the graph.mp package did not work properly
+   with non-rgb colormodel objects.
+
+* plain.mp has a new macro, 'colorpart', that returns the color
+   parts of a graphical object within a picture in a form suitable
+   for feeding it back to 'withcolor'.
+
+* The latest kpathsea library from TeXLive is included.
+
+* There is now a separate manual for the boxes package (mpboxes.pdf).
+
+
+----------------------------------------------------------------------
+What is new in version 1.003:
+----------------------------------------------------------------------
+
+* Polygonal pens now work better (bug #3 and #7 at supelec.fr).
+
+* When asking for a color part in a picture object, the color models
+   now have to match each other, otherwise an error will be reported
+   and the return value will be set to a 'black' part.
+
+* The Makefile fragment (metapost.mk) now defines a separate mpost
+   target for better integration in TeXLive.
+
+* There was a bug in the internal handling of withprescript and
+   withpostscript, resulting in incorrect output when paths using
+   such scripts were stored in picture variables.
+
+* A newline was missing from the PostScript output when the
+   procset internal variable was set, so the first line of that
+   accidentally became a PostScript comment.
+
+* Applicable changes from Knuth's updates for MetaFont 2.718281
+   are incorporated.
+
+* Mpto did not play nice with %&<format> verbatimtex lines, it now
+   automatically tries to detect comment-lines.
+
+* Dvitomp  1.003 has higher limits for some internal constants like
+   the number of allowed fonts in DVI files.
+
+* The manual is improved.
+
+
+
 ----------------------------------------------------------------------
 What is new in version 1.002:
 ----------------------------------------------------------------------
