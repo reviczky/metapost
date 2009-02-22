@@ -328,7 +328,7 @@ is named {\tt fig.mp}, the output from \verb|draw| statements between
 \verb|beginfig(1)| and the next \verb|endfig| is written in a file {\tt
 fig.1}\index{files!output}, by default.  In other words, the numeric
 argument to the \verb|beginfig| macro determines the name of the
-corresponding output file.  See section~\ref{Doutputtemplate} for more
+corresponding output file.  See section~\ref{outputfilenames} for more
 information on file names.
 
 What does one do with all the PostScript files?  They can be included as
@@ -339,7 +339,7 @@ document.  The next sections give some more information.
 
 
 \section{Handling MetaPost output}
-\label{Dmpoutput}
+\label{mpoutput}
 
 There can be a two-fold interaction between \TeX\ and MetaPost.  On one
 hand, MetaPost graphics can be imported into documents typeset by \TeX\
@@ -357,7 +357,7 @@ text in MetaPost is discussed in section~\ref{text}.
 
 
 \subsection{Previewing MetaPost graphics}
-\label{Dpreview}
+\label{previewing}
 \index{previewing}
 
 The default output of MetaPost is a variant of PostScript, called Encapsulated
@@ -393,7 +393,7 @@ graphics editing programs, for example Inkscape. This method is not
 suitable for inclusion of MetaPost graphics in \TeX\ documents.
 
 \subsection{Using MetaPost graphics in \TeX, \LaTeX, pdf\LaTeX, pdf\TeX, Con\TeX{}t and troff}
-\label{Dteximport}
+\label{teximport}
 \index{TeX?\TeX!importing MetaPost files}
 \index{LaTeX?\LaTeX!importing MetaPost files}
 \index{pdfLaTeX?pdf\LaTeX!importing MetaPost files}
@@ -481,7 +481,7 @@ file extension pollution and you only have to register one new extension
 with your PostScript viewer, \ttt{.mps}, instead of \ttt{.0}, \ttt{.1},
 \ttt{.2}, etc.}  The MetaPost primitive \verb+outputtemplate+ can be
 used to set the file extension of MetaPost output to \ttt{mps} (see
-section~\ref{Doutputtemplate}). Hence, no \verb+\DeclareGraphicsRule+
+section~\ref{outputfilenames}). Hence, no \verb+\DeclareGraphicsRule+
 declaration is needed.  Moreover, the file extension can then be omitted
 in the \verb+\includegraphics+ command.
 
@@ -545,7 +545,7 @@ image as given in the file's bounding box.
 
 
 \subsection{File name templates}
-\label{Doutputtemplate}
+\label{outputfilenames}
 \suppressfloats[t]
 
 MetaPost has support for output file name templates. These templates
@@ -2068,7 +2068,7 @@ handle those.
 The details on how to include PostScript figures in a paper
 done in \TeX\ or troff are system-dependent.  They can generally be found
 in manual pages and other on-line documentation, but have a look at
-section~\ref{Dteximport} of this manual for some brief instructions that
+section~\ref{teximport} of this manual for some brief instructions that
 in many cases should work.  The manual for the
 widely-used Dvips processor is in a file \ttt{dvips.texi}, included in
 most distributions, and is available online at
@@ -3489,7 +3489,7 @@ $$ {\tt shipout}\, \descr{picture expression} $$
 writes out a picture as a PostScript\index{PostScript} file whose
 file name is determined by
 {\tt outputtemplate}\index{outputtemplate?\texttt{outputtemplate}}
-(see section~\ref{Doutputtemplate}).  By default, the file name ends
+(see section~\ref{outputfilenames}).  By default, the file name ends
 {\tt.}{\it nnn}, where {\tt nnn} is the decimal representation
 of the value of the internal variable\index{internal
 variables}\index{variables!internal} {\tt
