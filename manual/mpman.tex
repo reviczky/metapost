@@ -6019,6 +6019,72 @@ files. It should be of no concern to users since {\tt mpx} files are
 generated automatically.
 
 
+\section{Command-line switches}
+\label{commandline}
+
+The MetaPost executable understands a number of command-line switches
+that control the run-time behavior.  Here's a summary:
+
+\begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
+  \ttindex{-{}-ini}
+  & Be the INI variant of the program.\\
+  \ttindex{-{}-debug}
+  & Don't delete intermediate files.\\
+  \ttindex{-{}-kpathsea-debug}=\textit{NUMBER}
+  & Set debugging flags for path searching.\\
+  \ttindex{-{}-mem}=\textit{STRING}
+  & ???\\
+  \ttindex{-{}-jobname}=\textit{STRING}
+  & Set the name of the job (affects output file names).\\
+  \ttindex{-{}-progname}=\textit{STRING}
+  & Pretend to be the \texttt{\textit{STRING}} executable.\\
+  \ttindex{-{}-troff}, \ttindex{-{}-T}
+  & Output \textit{troff} compatible PostScript files.\\
+  \ttindex{-{}-recorder}
+  & ???\\
+  \ttindex{-{}-tex}=\textit{TEXPROGRAM}
+  & Load format \texttt{\textit{TEXPROGRAM}} for rendering \TeX\
+  material.\\
+  \ttindex{-{}-interaction}=\textit{STRING}
+  & Set interaction mode to one of \texttt{\itshape batchmode,
+    nonstopmode, scrollmode, errorstopmode}.\\
+  \ttindex{-{}-no-kpathsea}
+  & ???\\
+  \ttindex{-{}-file-line-error}
+  & ???\\
+  \ttindex{-{}-no-file-line-error}
+  & ???\\
+  \ttindex{-{}-help}
+  & Show help on command-line switches.\\
+  \ttindex{-{}-version}
+  & Print version information and exit.\\
+  \ttindex{-{}-halt-on-error}
+  & Immediately exit after the first error occurred.\\
+  \ttindex{-{}-dvitomp}
+  & ???\\
+\end{longtable}
+
+The following command-line switches are silently ignored in
+\textit{mplib}-based MetaPost (v1.100 or later), because they are always
+`on':
+\begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
+  \ttindex{-{}-8bit}
+  & \\
+  \ttindex{-{}-parse-first-line}
+  & \\
+\end{longtable}
+
+The following command-line switches are ignored, but trigger a warning:
+\begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
+  \ttindex{-{}-translate-file}=\textit{STRING}
+  & \\
+  \ttindex{-{}-output-directory}=\textit{STRING}
+  & \\
+  \ttindex{-{}-no-parse-first-line}
+  & \\
+\end{longtable}
+
+
 \bibliographystyle{plain}
 \bibliography{mpman}
 
