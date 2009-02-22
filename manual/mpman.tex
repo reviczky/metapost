@@ -5837,65 +5837,6 @@ package.}
 \label{mfponly}
 \end{table}
 
-Another limitation of the {\tt mfplain} package is that certain internal
-variables from Plain \MF\index{metafont?\MF} cannot be given reasonable
-MetaPost definitions.  These include {\tt displaying}, {\tt
-currentwindow}, \verb|screen_rows|, and \verb|screen_cols| which depend
-on \MF's ability to display images on the computer screen.  In addition,
-\verb|pixels_per_inch| is irrelevant since MetaPost uses fixed units of
-PostScript\index{PostScript!point}\index{point!PostScript} points.
-
-The reason why some macros and internal variables\index{internal
-variables}\index{variables!internal} are not meaningful in MetaPost is
-that \MF\ primitive commands {\tt cull}, {\tt display}, {\tt
-openwindow}, {\tt numspecial} and {\tt totalweight} are not implemented
-in MetaPost.  Also not implemented are a number of internal variables as
-well as the \tdescr{drawing option} {\tt withweight}.  Here is a
-complete listing of the internal variables whose primitive meanings in
-\MF\ do not make sense in MetaPost:
-$$\begin{verbatim}
-autorounding fillin       proofing     tracingpens   xoffset
-chardx       granularity  smoothing    turningcheck  yoffset
-chardy       hppp         tracingedges vppp
-\end{verbatim}
-$$
-
-There is also one \MF\ primitive that has a slightly different meaning in
-MetaPost.  Both languages allow statements of the
-form\index{special?\texttt{special}}\label{Dspecl}
-$$ {\tt special}\, \descr{string expression} \hbox{\tt;} $$
-but \MF\ copies the string into its ``generic font'' output file, while
-MetaPost interprets the string as a sequence of PostScript\index{PostScript}
-commands that are to be placed at the beginning of the next output file.
-
-In this regard, it is worth mentioning that rules in \TeX\ material
-included via {\tt btex..etex} in MetaPost are rounded to the correct
-number of pixels according to PostScript\index{PostScript!conversion rules}
-conversion rules~\cite{ad:red2}.  In \MF, rules are not generated
-directly, but simply included in specials and interpreted later by
-other programs, such as {\tt gftodvi}\index{gftodvi?\ttt{gftodvi}},
-so there is no special conversion.
-
-All the other differences between \MF\ and MetaPost are features found
-only in MetaPost.  These are listed in Table~\ref{mponly}.  The only
-commands listed in this table that the preceding sections do not discuss
-are
-\verb|extra_beginfig|\index{extra_beginfig?\texttt{extra\_beginfig}}\label{Dxbfig},
-\verb|extra_endfig|\index{extra_endfig?\texttt{extra\_endfig}}\label{Dxefig},
-and {\tt mpxbreak}.  The first two are strings that contain extra
-commands to be processed by {\tt
-beginfig}\index{beginfig?\texttt{beginfig}} and {\tt
-endfig}\index{endfig?\texttt{endfig}} just as \verb|extra_beginchar| and
-\verb|extra_endchar| are processed by {\tt beginchar} and {\tt endchar}.
-(The file {\tt boxes.mp}\index{boxes.mp?\texttt{boxes.mp}} uses these
-features).
-
-The other new feature listed in Table~\ref{mponly} not listed in the
-index is {\tt mpxbreak}\index{mpxbreak?\texttt{mpxbreak}}.  This is used
-to separate blocks of translated \TeX\index{TeX?\TeX} or
-troff\index{troff} commands in {\tt mpx}\index{files!mpx?{\tt mpx}}
-files. It should be of no concern to users since {\tt mpx} files are
-generated automatically.
 
 \begin{table}
 \centering
@@ -6016,6 +5957,66 @@ white
 \caption{Macros and internal variables defined in MetaPost but not \MF.}
 \label{mponly}
 \end{table}
+
+Another limitation of the {\tt mfplain} package is that certain internal
+variables from Plain \MF\index{metafont?\MF} cannot be given reasonable
+MetaPost definitions.  These include {\tt displaying}, {\tt
+currentwindow}, \verb|screen_rows|, and \verb|screen_cols| which depend
+on \MF's ability to display images on the computer screen.  In addition,
+\verb|pixels_per_inch| is irrelevant since MetaPost uses fixed units of
+PostScript\index{PostScript!point}\index{point!PostScript} points.
+
+The reason why some macros and internal variables\index{internal
+variables}\index{variables!internal} are not meaningful in MetaPost is
+that \MF\ primitive commands {\tt cull}, {\tt display}, {\tt
+openwindow}, {\tt numspecial} and {\tt totalweight} are not implemented
+in MetaPost.  Also not implemented are a number of internal variables as
+well as the \tdescr{drawing option} {\tt withweight}.  Here is a
+complete listing of the internal variables whose primitive meanings in
+\MF\ do not make sense in MetaPost:
+$$\begin{verbatim}
+autorounding fillin       proofing     tracingpens   xoffset
+chardx       granularity  smoothing    turningcheck  yoffset
+chardy       hppp         tracingedges vppp
+\end{verbatim}
+$$
+
+There is also one \MF\ primitive that has a slightly different meaning in
+MetaPost.  Both languages allow statements of the
+form\index{special?\texttt{special}}\label{Dspecl}
+$$ {\tt special}\, \descr{string expression} \hbox{\tt;} $$
+but \MF\ copies the string into its ``generic font'' output file, while
+MetaPost interprets the string as a sequence of PostScript\index{PostScript}
+commands that are to be placed at the beginning of the next output file.
+
+In this regard, it is worth mentioning that rules in \TeX\ material
+included via {\tt btex..etex} in MetaPost are rounded to the correct
+number of pixels according to PostScript\index{PostScript!conversion rules}
+conversion rules~\cite{ad:red2}.  In \MF, rules are not generated
+directly, but simply included in specials and interpreted later by
+other programs, such as {\tt gftodvi}\index{gftodvi?\ttt{gftodvi}},
+so there is no special conversion.
+
+All the other differences between \MF\ and MetaPost are features found
+only in MetaPost.  These are listed in Table~\ref{mponly}.  The only
+commands listed in this table that the preceding sections do not discuss
+are
+\verb|extra_beginfig|\index{extra_beginfig?\texttt{extra\_beginfig}}\label{Dxbfig},
+\verb|extra_endfig|\index{extra_endfig?\texttt{extra\_endfig}}\label{Dxefig},
+and {\tt mpxbreak}.  The first two are strings that contain extra
+commands to be processed by {\tt
+beginfig}\index{beginfig?\texttt{beginfig}} and {\tt
+endfig}\index{endfig?\texttt{endfig}} just as \verb|extra_beginchar| and
+\verb|extra_endchar| are processed by {\tt beginchar} and {\tt endchar}.
+(The file {\tt boxes.mp}\index{boxes.mp?\texttt{boxes.mp}} uses these
+features).
+
+The other new feature listed in Table~\ref{mponly} not listed in the
+index is {\tt mpxbreak}\index{mpxbreak?\texttt{mpxbreak}}.  This is used
+to separate blocks of translated \TeX\index{TeX?\TeX} or
+troff\index{troff} commands in {\tt mpx}\index{files!mpx?{\tt mpx}}
+files. It should be of no concern to users since {\tt mpx} files are
+generated automatically.
 
 
 \bibliographystyle{plain}
