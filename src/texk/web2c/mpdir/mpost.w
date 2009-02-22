@@ -269,7 +269,7 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
     char *qmpname = kpse_find_file (tmp,kpse_mp_format, true);
     char *qmpxname = normalize_quotes(mpxname, "mpxname");
     mpost_xfree(tmp);
-    if (cnf_cmd!=NULL) {
+    if (cnf_cmd!=NULL && (strcmp (cnf_cmd, "1")!=0)) {
       if (mp_troff_mode(mp)!=0)
         cmd = concatn (cnf_cmd, " -troff ",
                      qmpname, " ", qmpxname, NULL);
