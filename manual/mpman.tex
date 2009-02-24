@@ -6019,41 +6019,61 @@ files. It should be of no concern to users since {\tt mpx} files are
 generated automatically.
 
 
-\section{Command-line switches}
+\section{Command-line syntax}
 \label{commandline}
 
-The MetaPost executable understands a number of command-line switches
-that control the run-time behavior.  Here's a summary:
+\begingroup
+\renewcommand*{\arraystretch}{1.25}
+
+The command-line syntax of the MetaPost executable is
+$$ {\tt mpost}\ \descr{switch}\ \descr{file} $$
+where $\descr{file}$ is a text file containing statements in the
+MetaPost language.  Typically, MetaPost input files have file extension
+\texttt{.mp}, e.g., \texttt{foo.mp}.  This extension can then be omitted
+in the \texttt{mpost} call.  There exist a number of command-line
+switches to control the run-time behavior of the MetaPost executable.
+All switches are prefixed by one or two dashes.  Both forms have the
+same meaning.  An exemplary call to MetaPost that compiles file
+\texttt{foo.mp}, but immediately exits after encountering the first
+error without user-interaction would look like:
+$$ \hbox{\tt mpost -{}-halt-on-error foo} $$
+
+Here's a summary of the command-line switches understood by
+\texttt{mpost}:
 
 \begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
   \ttindex{-{}-ini}
   & Be the INI variant of the program.\\
   \ttindex{-{}-debug}
   & Don't delete intermediate files.\\
-  \ttindex{-{}-kpathsea-debug}=\textit{NUMBER}
+  \ttindex{-{}-kpathsea-debug}=$\descr{number}$
   & Set debugging flags for path searching.\\
-  \ttindex{-{}-mem}=\textit{STRING}
-  & ???\\
-  \ttindex{-{}-jobname}=\textit{STRING}
+  \ttindex{-{}-mem}=$\descr{string}$
+  & Use $\descr{string}$ as memory dump name (same as
+  \texttt{\&$\descr{string}$})\\
+  \ttindex{-{}-jobname}=$\descr{jobname}$
   & Set the name of the job (affects output file names).\\
-  \ttindex{-{}-progname}=\textit{STRING}
-  & Pretend to be the \texttt{\textit{STRING}} executable.\\
+  \ttindex{-{}-progname}=$\descr{string}$
+  & Pretend to be the $\descr{string}$ executable.\\
   \ttindex{-{}-troff}, \ttindex{-{}-T}
   & Output \textit{troff} compatible PostScript files.\\
   \ttindex{-{}-recorder}
-  & ???\\
-  \ttindex{-{}-tex}=\textit{TEXPROGRAM}
-  & Load format \texttt{\textit{TEXPROGRAM}} for rendering \TeX\
-  material.\\
-  \ttindex{-{}-interaction}=\textit{STRING}
-  & Set interaction mode to one of \texttt{\itshape batchmode,
-    nonstopmode, scrollmode, errorstopmode}.\\
+  & Write a list of all opened disk files to
+  \texttt{$\descr{jobname}$.fls}.  (This functionality is provided by
+  \textit{kpathsea}.)\\
+  \ttindex{-{}-tex}=$\descr{texprogram}$
+  & Load format $\descr{texprogram}$ for rendering \TeX\ material.\\
+  \ttindex{-{}-interaction}=$\descr{string}$
+  & Set interaction mode to one of \texttt{batchmode, nonstopmode,
+    scrollmode, errorstopmode}.\\
   \ttindex{-{}-no-kpathsea}
-  & ???\\
+  & Do not use \textit{kpathsea} to find files.  All files have to be in
+  the current directory or specified via a full path.\\
   \ttindex{-{}-file-line-error}
-  & ???\\
+  & Start error messages with \texttt{filename:lineno:} instead of
+  \texttt{!}.\\
   \ttindex{-{}-no-file-line-error}
-  & ???\\
+  & Enable normal MetaPost and \TeX\ style error messages.\\
   \ttindex{-{}-help}
   & Show help on command-line switches.\\
   \ttindex{-{}-version}
@@ -6061,7 +6081,8 @@ that control the run-time behavior.  Here's a summary:
   \ttindex{-{}-halt-on-error}
   & Immediately exit after the first error occurred.\\
   \ttindex{-{}-dvitomp}
-  & ???\\
+  & Act as the \textit{dvitomp} executable.  (This implies a different
+  command-line.)\\
 \end{longtable}
 
 The following command-line switches are silently ignored in
@@ -6076,14 +6097,15 @@ The following command-line switches are silently ignored in
 
 The following command-line switches are ignored, but trigger a warning:
 \begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
-  \ttindex{-{}-translate-file}=\textit{STRING}
+  \ttindex{-{}-translate-file}=$\descr{string}$
   & \\
-  \ttindex{-{}-output-directory}=\textit{STRING}
+  \ttindex{-{}-output-directory}=$\descr{string}$
   & \\
   \ttindex{-{}-no-parse-first-line}
   & \\
 \end{longtable}
 
+\endgroup
 
 \bibliographystyle{plain}
 \bibliography{mpman}
