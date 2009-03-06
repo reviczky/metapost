@@ -27,7 +27,7 @@ mpgraph.pdf: mpgraph.tex mpgraph.bib mpgraph.mp
 	$(pdflatex) mpgraph
 	$(pdflatex) mpgraph
 
-mpman.pdf: mpman.tex mpman-optab.tex mpman.bib mpman.ist mpman.mp
+mpman.pdf: mpman.tex mpman-app-legacy.tex mpman-app-optab.tex mpman-app-refman.tex mpman.bib mpman.ist mpman.mp
 	$(mpost) mpman
 	$(pdflatex) mpman
 	$(bibtex) mpman
@@ -54,7 +54,7 @@ mpgraph.ps: mpgraph.tex mpgraph.bib mpgraph.mp
 	$(latex) mpgraph
 	$(dvips) mpgraph
 
-mpman.ps: mpman.tex mpman-optab.tex mpman.bib mpman.ist mpman.mp
+mpman.ps: mpman.tex mpman-app-legacy.tex mpman-app-optab.tex mpman-app-refman.tex mpman.bib mpman.ist mpman.mp
 	$(mpost) mpman
 	$(latex) mpman
 	$(bibtex) mpman
