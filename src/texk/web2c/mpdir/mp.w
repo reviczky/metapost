@@ -13058,6 +13058,7 @@ by analogy with |line_stack|.
 
 @<Glob...@>=
 integer in_open; /* the number of lines in the buffer, less one */
+integer in_open_max; /* highest value of |in_open| ever seen */
 unsigned int open_parens; /* the number of open text files */
 void  * *input_file ;
 integer *line_stack ; /* the line number for each file */
@@ -13562,6 +13563,8 @@ or |limit| or |line|.
   if ( mp->first==mp->buf_size ) 
     mp_reallocate_buffer(mp,(mp->buf_size+(mp->buf_size/4)));
   incr(mp->in_open); push_input; iindex=mp->in_open;
+  if (mp->in_open_max<mp->in_open)
+    mp->in_open_max=mp->in_open;
   mp->mpx_name[iindex]=absent;
   start=(halfword)mp->first;
   name=is_term; /* |terminal_input| is now |true| */
@@ -26214,10 +26217,11 @@ if ( mp->log_opened ) {
   wlog_ln(s);
   mp_snprintf(s,128," %i symbolic tokens out of %i", (int)mp->st_count, (int)mp->hash_size);
   wlog_ln(s);
-  mp_snprintf(s,128," %ii,%in,%ip,%ib stack positions out of %ii,%in,%ip,%ib",
+  mp_snprintf(s,128," %ii,%in,%ip,%ib,%if stack positions out of %ii,%in,%ip,%ib,%if",
            (int)mp->max_in_stack,(int)mp->int_ptr,
-           (int)mp->max_param_stack,(int)mp->max_buf_stack+1,
-           (int)mp->stack_size,(int)mp->max_internal,(int)mp->param_size,(int)mp->buf_size);
+           (int)mp->max_param_stack,(int)mp->max_buf_stack+1,(int)mp->in_open_max,
+           (int)mp->stack_size,(int)mp->max_internal,(int)mp->param_size,
+	   (int)mp->buf_size,(int)mp->max_in_open);
   wlog_ln(s);
   mp_snprintf(s,128," %i string compactions (moved %i characters, %i strings)",
           (int)mp->pact_count,(int)mp->pact_chars,(int)mp->pact_strs);
