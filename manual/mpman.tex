@@ -308,6 +308,9 @@ this part of the name can be omitted when invoking MetaPost.  The
 command-line options provided by MetaPost are summarized in
 appendix~\ref{refman:commandline}.
 
+\paragraph{Input file}
+\label{inputfile}
+
 A MetaPost input file normally contains a sequence of
 \verb|beginfig()|\index{beginfig?\texttt{beginfig}},
 \verb|endfig|\index{endfig?\texttt{endfig}} pairs with an {\tt
@@ -329,6 +332,9 @@ output.  Typically, global configurations are put outside
 \verb|beginfig/endfig|, e.g., assignments to internal variables, such as
 \verb|outputtemplate| or \verb|prologues|, or a \LaTeX\ preamble
 declaration for enhanced text rendering.
+
+\paragraph{Log file and version number}
+\label{logfile}
 
 Any terminal I/O is summarized in a
 transcript\index{files!transcript}\index{transcript file} file called
@@ -359,7 +365,7 @@ mp = \mpversion
 $$
 to the console and the transcript file.
 
-\subsection{The output format}
+\paragraph{Output format}
 \label{outputformat}
 
 MetaPost can generate graphic in two output formats: Encapsulated
@@ -380,10 +386,10 @@ Any other value makes MetaPost fall back to PostScript output.  Variable
 \verb|outputformat| is case-sensitive, so assigning it the string
 \verb|"SVG"| enables PostScript output, too.
 
-\subsection{Output file names}
+\paragraph{Output file names}
 \label{outputfilenames}
 
-As discussed in section~\ref{processing}, by default, every
+As discussed earlier, by default, every
 \verb|beginfig/endfig| group in an input file corresponds to an output
 file that follows the naming scheme $\descr{jobname}{\tt.}\descr{n}$.
 That is, all files have varying numeric file extensions.  MetaPost
@@ -470,6 +476,8 @@ graphics into third-party applications.
 \subsection{Previewing MetaPost graphics}
 \label{previewing}
 \index{previewing}
+\index{PostScript!previewing}
+\index{SVG!previewing}
 
 The PostScript output of MetaPost can be previewed with any decent
 PostScript viewer, e.\,g., GSview\index{GSview}.
@@ -498,26 +506,22 @@ Starting with version~1.200, MetaPost is also capable of producing
 SVG output. SVG files can be previewed with certain web browsers,
 for example Firefox~3\index{Firefox} or Konqueror~4.2\index{Konqueror}.
 
-\subsection{Handling PostScript output}
+\subsection{Importing MetaPost graphics in \TeX\ documents}
 \label{teximport}
 \index{TeX?\TeX!importing MetaPost files}
 \index{LaTeX?\LaTeX!importing MetaPost files}
 \index{pdfLaTeX?pdf\LaTeX!importing MetaPost files}
 \index{pdfTeX?pdf\TeX!importing MetaPost files}
 \index{ConTeXt?Con\TeX t!importing MetaPost files}
-\index{troff!importing MetaPost files}
 
 How PostScript figures can be integrated into documents prepared with
 \TeX\ and friends depends on the exact format and output driver.
 Figure~\ref{fig0} shows the workflow for plain \TeX, \LaTeX\ and the
 freely available program \ttindex{dvips}.\footnote{The C source for
-\ttt{dvips} comes with the web2c \TeX\ distribution.  Similar programs
-are available from other sources.}  A similar procedure works with
-troff: the \ttt{grops} output processor includes PostScript figures when
-they are requested via troff's \ttt{\string\X} command.  For the PDF
-flavour of \TeX\ and \LaTeX\ the situation is a little bit different.
-The next paragraphs give brief information on some popular \TeX\ formats
-and output drivers.
+  \ttt{dvips} comes with the web2c \TeX\ distribution.  Similar programs
+  are available from other sources.}  For the PDF flavour of \TeX\ and
+\LaTeX\ the situation is a little bit different.  The next paragraphs
+give brief information on some popular \TeX\ formats and output drivers.
 
 \begin{figure}[htp]
 $$ \includegraphics{mpman-0.mps} $$
@@ -639,20 +643,28 @@ for MetaPost inclusion is present in the versions MkII as well as MkIV,
 but the used methods are slightly different.  Future versions of MkIV
 will support an even more tight integration.
 
-\paragraph{troff}
+\subsection{Importing MetaPost graphics in \emph{troff} documents}
+\label{troffimport}
+\index{troff!importing MetaPost files}
+
 It is also possible to include MetaPost output in a GNU \emph{troff}
-document.  The \ttt{-mpspic}\index{mpspic?\texttt{-mpspic}} macro
-package defines a command \verb|.PSPIC|\index{PSPIC?\texttt{.PSPIC}}
-that includes an encapsulated PostScript file.  For instance, the
-\emph{troff} command
+document.  The procedure is similar to Figure~\ref{fig0}: the
+\ttt{grops} output processor includes PostScript files when they are
+requested via \emph{troff}'s \ttt{\string\X} command.  The
+\ttt{-mpspic}\index{mpspic?\texttt{-mpspic}} macro package provides a
+command \verb|.PSPIC|\index{PSPIC?\texttt{.PSPIC}}, that does just that
+when including an encapsulated PostScript file in the source code.  For
+instance, the \emph{troff} command
 $$ \hbox{\verb|.PSPIC fig.1|} $$
 includes \ttt{fig.1}, using the natural height and width of the
 image as given in the file's bounding box.
 
-\subsection{Handling SVG output}
+\subsection{Handling SVG files}
 \label{svgimport}
+\index{SVG!third-party applications}
 
-SVG graphics can be easily embedded into HTML\index{HTML} documents:
+SVG graphics can be easily embedded into HTML\index{HTML} documents with
+the following code snippet:
 
 $$\begin{verbatim}
 <p>
@@ -662,10 +674,10 @@ $$\begin{verbatim}
 \end{verbatim}
 $$
 
-SVG graphics can also be imported by various interactive graphics
-editing programs, for example GIMP\index{GIMP} or
-Inkscape\index{Inkscape}.  See section~\ref{Dprologues} for information
-on font handling in SVG graphics.
+SVG files can also be imported by various interactive graphics editing
+programs, for example GIMP\index{GIMP} or Inkscape\index{Inkscape}.  See
+section~\ref{Dprologues} for information on font handling in SVG
+graphics.
 
 
 \section{Curves}
