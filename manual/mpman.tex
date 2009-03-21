@@ -152,49 +152,6 @@ is really a programming language for generating graphics, especially
 figures for \TeX\footnote{\TeX\ is a trademark of the American
 Mathematical Society.}\index{TeX?\TeX} and troff\index{troff} documents.
 
-To use MetaPost, you prepare an input file containing MetaPost code and
-then invoke MetaPost, usually by giving a command of the
-form\index{mpost?\texttt{mpost}}
-$$ {\tt mpost}\, \descr{filename} $$
-The syntax and program name itself are system-dependent; sometimes it is
-named \texttt{mp}.  MetaPost input
-files\index{files!input} normally have names ending ``{\tt .mp}'' but
-this part of the name can be omitted when invoking MetaPost.  For an
-input file {\tt foo.mp}
-$$ \hbox{\tt mpost foo} $$
-invokes MetaPost and produces output files with names like {\tt foo.1}
-and {\tt foo.2}.  Any terminal I/O is summarized in a
-transcript\index{files!transcript}\index{transcript file} file called
-{\tt foo.log}.  This includes error messages and any MetaPost commands
-entered interactively.\footnote{A {\tt *}\index{*?\texttt{*}} prompt is
-used for interactive input and a {\tt **}\index{**?\texttt{**}} prompt
-indicates that an input file name is expected.  This can be avoided by
-invoking MetaPost on a file that ends with an {\tt
-end}\index{end?\texttt{end}} command.} 
-
-\label{Dmpversion}The transcript file starts with a banner line that
-identifies the version of MetaPost you are using.  You can also determine
-the current version from within a MetaPost program via the
-\texttt{mpversion} predefined constant string (this was introduced in
-version 0.9).  For instance:
-$$\begin{verbatim}
-if known mpversion:
-  message "mp = " & mpversion;
-  if scantokens(mpversion) < 1: message "CMYK color support not available!" fi
-fi
-\end{verbatim}
-$$
-prints
-$$\begin{verbatim}[commandchars=\\\{\}]
-mp = \mpversion
-\end{verbatim}
-$$
-The {\tt scantokens} command is described on p.~\pageref{Dscantokens}
-and can be utilized to convert strings to numbers.
-\index{Creator comment in PostScript output}%
-The version number is also included in the \texttt{Creator} comment in
-the PostScript output.
-
 This document introduces the MetaPost language, beginning with the
 features that are easiest to use and most important for simple
 applications.  Reading the manual does not require knowledge of \MF\ or
@@ -316,57 +273,208 @@ $$
 \label{fig1}
 \end{figure}
 
-Note that the program in Figure~\ref{fig1} starts with
-\verb|beginfig(2)|\index{beginfig?\texttt{beginfig}} and ends with
-\verb|endfig|\index{endfig?\texttt{endfig}}.  These are macros that
-perform various administrative functions and ensure that the results of
-all the \verb|draw| statements get packaged up and translated into
-PostScript.  A MetaPost input file normally contains a sequence of
-\verb|beginfig|, \verb|endfig| pairs with an {\tt
-end}\index{end?\texttt{end}} statement after the last one.  If this file
-is named {\tt fig.mp}, the output from \verb|draw| statements between
-\verb|beginfig(1)| and the next \verb|endfig| is written in a file {\tt
-fig.1}\index{files!output}, by default.  In other words, the numeric
-argument to the \verb|beginfig| macro determines the name of the
-corresponding output file.  See section~\ref{outputfilenames} for more
-information on file names.
 
-What does one do with all the PostScript files?  They can be included as
-figures in a \TeX\index{TeX?\TeX} or troff\index{troff} document if you
-have an output driver that can handle encapsulated PostScript figures.
-They can also be previewed before they are included in a thousand pages
-document.  The next sections give some more information.
+\section{The MetaPost workflow}
+\label{workflow}
 
+Before describing the MetaPost language in detail, let's have a look at
+how the MetaPost program is used for developing graphics: creating
+MetaPost source files, compiling sources, previewing MetaPost graphics,
+and finally including MetaPost graphics into third-party applications.
+This section also contains some technical details about MetaPost that
+are useful to know.  If you're not interested in these basics right now
+you can savely skip those parts and only refer to them later.
 
-\section{Handling MetaPost output}
-\label{mpoutput}
+\subsection{Processing source files}
+\label{processing}
 
-There can be a two-fold interaction between \TeX\ and MetaPost.  On one
-hand, MetaPost graphics can be imported into documents typeset by \TeX\
-and friends.  On the other hand, MetaPost can delegate typesetting
-textual elements to \TeX, \LaTeX\ or \emph{troff}, e.g., text labels or
-mathematical formulas in a graphic.  That way, MetaPost graphics can
-easily adopt the style of a document (type, type size, etc.) and fit its
-typesetting quality (use kerning, ligatures, etc.)  This makes MetaPost
-an ideal tool for preparing high-quality graphics for \TeX\ or
-\emph{troff} documents.
+To create graphics with MetaPost, you prepare a text file containing
+code in the MetaPost language and then invoke the compiler, usually by
+giving a command of the form\index{mpost?\texttt{mpost}}
+$$ {\tt mpost}\, \descr{filename} $$
+on the command-line.  The syntax and program name itself are
+system-dependent; sometimes it is named \texttt{mp}.  MetaPost input
+files\index{files!input} normally have names ending \texttt{.mp} but
+this part of the name can be omitted when invoking MetaPost.  The
+command-line options provided by MetaPost are summarized in
+appendix~\ref{refman:commandline}.
 
-This section deals with the first aspect of \TeX--MetaPost interaction,
-the import of MetaPost graphics into \TeX\ and friends.  Typesetting
-text in MetaPost is discussed in section~\ref{text}.
+A MetaPost input file normally contains a sequence of
+\verb|beginfig()|\index{beginfig?\texttt{beginfig}},
+\verb|endfig|\index{endfig?\texttt{endfig}} pairs with an {\tt
+  end}\index{end?\texttt{end}} statement after the last one.  These are
+macros that perform various administrative functions and ensure that the
+results of all drawing operations get packaged up and translated into
+PostScript.  The numeric argument to the \verb|beginfig| macro
+determines the name of the corresponding output file, whose name, by
+default, is of the form $\descr{jobname}{\tt.}\descr{n}$, where
+$\descr{jobname}$ is the base name of the graphics source file and
+$\descr{n}$ is the current argument to \verb|beginfig|.  As an example,
+if a file is named {\tt fig.mp}, the output from drawing statements
+between \verb|beginfig(1)| and the next \verb|endfig| is written in a
+file {\tt fig.1}\index{files!output}.
 
+Statements can also appear outside \verb|beginfig/endfig|.  Such
+statements are processed, but drawing operations generate no visible
+output.  Typically, global configurations are put outside
+\verb|beginfig/endfig|, e.g., assignments to internal variables, such as
+\verb|outputtemplate| or \verb|prologues|, or a \LaTeX\ preamble
+declaration for enhanced text rendering.
+
+Any terminal I/O is summarized in a
+transcript\index{files!transcript}\index{transcript file} file called
+$\descr{filename}{\tt.log}$.  This includes error messages and any
+MetaPost commands entered interactively.\footnote{A {\tt
+    *}\index{*?\texttt{*}} prompt is used for interactive input and a
+  {\tt **}\index{**?\texttt{**}} prompt indicates that an input file
+  name is expected.  This can be avoided by invoking MetaPost on a file
+  that ends with an {\tt end}\index{end?\texttt{end}} command.}  The
+transcript file starts with a banner line that identifies the
+version\index{version number} of MetaPost you are using.  The version
+number is also written to the generated PostScript or SVG file as a
+comment (for PostScript output the \texttt{Creator}\index{Creator
+  comment in PostScript output} line is used).  You can also determine
+the current version from within a MetaPost program via the predefined
+constant string
+\texttt{mpversion}\index{mpversion?\texttt{mpversion}}\label{Dmpversion}
+(since version~0.9).  For instance the following code
+
+$$\begin{verbatim}
+message "mp = " & mpversion;
+\end{verbatim}
+$$
+writes
+$$\begin{verbatim}[commandchars=\\\{\}]
+mp = \mpversion
+\end{verbatim}
+$$
+to the console and the transcript file.
+
+\subsection{The output format}
+\label{outputformat}
+
+MetaPost can generate graphic in two output formats: Encapsulated
+PostScript\index{PostScript!structured} (EPSF\index{EPSF}), hence the
+name, and, since version~1.200, Scalable Vector Graphics
+(SVG\index{SVG}) that follow version~1.1 of the SVG specification
+(\url{http://www.w3.org/TR/SVG11/}).  Both are vector formats that can
+be scaled without quality degradation.  It seems appropriate to point
+out, that despite scalability, vector graphics, too, are best created at
+nearly target size, since the visual character of a graphic might change
+at different scales.  This is, because certain properties might not
+scale proportionally, e.g., line width or arrow size.  On the other
+hand, while outline fonts do scale proportionally, this is not always
+desired, e.g., when optical sizes are available, as for the Computer
+Modern font family.
+
+By default, MetaPost outputs PostScript files.  The output format can be
+changed to SVG by assigning the value \verb|"svg"| to the internal
+string variable \ttindex{outputformat}\label{Doutputformat}:
+
+$$\begin{verbatim}
+outputformat := "svg";
+\end{verbatim}
+$$
+
+Any other value makes MetaPost fall back to PostScript output.  Variable
+\verb|outputformat| is case-sensitive, so assigning it the string
+\verb|"SVG"| enables PostScript output, too.
+
+\subsection{Output file names}
+\label{outputfilenames}
+
+As discussed in section~\ref{processing}, by default, every
+\verb|beginfig/endfig| group in an input file corresponds to an output
+file that follows the naming scheme $\descr{jobname}{\tt.}\descr{n}$.
+That is, all files have varying numeric file extensions.  MetaPost
+provides a template mechanism that allows for more flexible output file
+names.  The template mechanism uses \ttt{printf}-style escape sequences
+that are re-evaluated at ship-out time, i.e., before each figure is
+written to disk.
+
+To configure the output file naming scheme a string containing the
+corresponding escape sequences has to be assigned to the internal string
+variable \ttt{outputtemplate}%
+\index{outputtemplate?\texttt{outputtemplate}}\label{Doutputtemplate}.
+The escape sequences provided are listed in table~\ref{tab:fntmpl}.  If
+this code is saved in a file \ttt{fig.mp},
+
+$$\begin{verbatim}
+outputtemplate := "%j-%3c.mps";
+beginfig(1);
+  draw origin--(100,100);
+endfig;
+\end{verbatim}
+$$
+it will create the output file \ttt{fig-001.mps} instead of \ttt{fig.1}.
+The file extension \texttt{.mps} is conventionally chosen for MetaPost's
+PostScript output (see section~\ref{teximport}).  For SVG output one
+would want to use \texttt{.svg} instead.
+
+%\suppressfloats[t]
+\begin{table}
+  \def\d{$\langle$0-9$\rangle$}
+  \centering
+  \begin{tabular}{|>{\ttfamily}l|l|}
+    \hline
+    \multicolumn1{|c|}{Escape sequence} & \multicolumn1{c|}{Meaning}\\\hline
+    \%\%   & percent sign \\
+    \%j    & current jobname\\
+    \%\d c & charcode value (\verb|beginfig| argument)\\
+    \%\d y & current year\\
+    \%\d m & month (numeric)\\
+    \%\d d & day of the month\\
+    \%\d H & hour\\
+    \%\d M & minute\\
+    \hline
+  \end{tabular}
+  \caption{Allowed escape sequences for \ttt{outputtemplate}}
+  \label{tab:fntmpl}
+\end{table}
+
+The template mechanism can also be used for naming graphic files
+individually, yet keeping all sources in one file.  E.\,g., collecting
+different diagram sources in a file \ttt{fig.mp}
+
+$$\begin{verbatim}
+outputtemplate := "fig-quality.mps";
+beginfig(1);
+  ...
+endfig;
+
+outputtemplate := "fig-cost-vs-productivity.mps";
+beginfig(2);
+  ...
+endfig;
+\end{verbatim}
+$$
+it might be easier to recall the correct diagram names in a \TeX\
+document than with numbered file names.  Note, the argument to
+\verb|beginfig| is not relevant as long as there's no \ttt{\%c} pattern
+in the file name template string.
+
+To ensure compatibility with older files, the default value of
+\ttt{outputtemplate} is \verb|%j.%c|.
+If you assign an empty string, it will revert to that default.  MetaPost
+versions~1.000 to~1.102 used a different template mechanism, see
+section~\ref{Dfilenametemplate} for more information.
+
+What does one do with all the graphic files?  PostScript files are
+perfectly suitable for inclusion into documents created by
+\TeX\index{TeX?\TeX} or \emph{troff}\index{troff}.  The SVG format, as
+an XML descendant (Extensible Meta Language), is more aiming at
+automated data processing/interchanging and is widely used for web
+applications.  The next sections deal with the import of MetaPost
+graphics into third-party applications.
 
 \subsection{Previewing MetaPost graphics}
 \label{previewing}
 \index{previewing}
 
-The default output of MetaPost is a variant of PostScript, called Encapsulated
-PostScript\index{PostScript!structured} (EPSF\index{EPSF}).  MetaPost
-graphics can therefore be previewed with any decent PostScript viewer,
-e.\,g., GSview\index{GSview}.
-
-The situation becomes only a little bit fussy when MetaPost output
-contains text.  By default, MetaPost doesn't produce self-contained EPS
+The PostScript output of MetaPost can be previewed with any decent
+PostScript viewer, e.\,g., GSview\index{GSview}.
+The situation becomes only a little bit fussy when PostScript graphics
+contain text.  By default, MetaPost doesn't produce self-contained EPS
 files, e.\,g., font resources and encoding vectors are not stored in
 the output.  For that reason MetaPost output containing text may be
 rendered with wrong fonts, wrong glyphs or with no text at all in a
@@ -386,13 +494,11 @@ new behaviour can be triggered by setting MetaPost's internal variable
 \ttt{prologues}\index{prologues?\texttt{prologues}} to~3.  See
 section~\ref{Dbtex} for more information on \ttt{prologues}.
 
-Starting with version~1.110, MetaPost is also capable of producing 
+Starting with version~1.200, MetaPost is also capable of producing
 SVG output. SVG files can be previewed with certain web browsers,
-for example Firefox~3, and it can be imported by various interactive
-graphics editing programs, for example Inkscape. This method is not
-suitable for inclusion of MetaPost graphics in \TeX\ documents.
+for example Firefox~3\index{Firefox} or Konqueror~4.2\index{Konqueror}.
 
-\subsection{Using MetaPost graphics in \TeX, \LaTeX, pdf\LaTeX, pdf\TeX, Con\TeX{}t and troff}
+\subsection{Handling PostScript output}
 \label{teximport}
 \index{TeX?\TeX!importing MetaPost files}
 \index{LaTeX?\LaTeX!importing MetaPost files}
@@ -401,7 +507,7 @@ suitable for inclusion of MetaPost graphics in \TeX\ documents.
 \index{ConTeXt?Con\TeX t!importing MetaPost files}
 \index{troff!importing MetaPost files}
 
-How MetaPost figures can be integrated into documents prepared with
+How PostScript figures can be integrated into documents prepared with
 \TeX\ and friends depends on the exact format and output driver.
 Figure~\ref{fig0} shows the workflow for plain \TeX, \LaTeX\ and the
 freely available program \ttindex{dvips}.\footnote{The C source for
@@ -543,98 +649,23 @@ $$ \hbox{\verb|.PSPIC fig.1|} $$
 includes \ttt{fig.1}, using the natural height and width of the
 image as given in the file's bounding box.
 
+\subsection{Handling SVG output}
+\label{svgimport}
 
-\subsection{File name templates}
-\label{outputfilenames}
-\suppressfloats[t]
+SVG graphics can be easily embedded into HTML\index{HTML} documents:
 
-MetaPost has support for output file name templates. These templates
-use \ttt{printf}-style escape sequences and are re-evaluated before
-each figure is written to disk. 
-
-There is an internal string variable called \ttt{outputtemplate}%
-\index{outputtemplate?\texttt{outputtemplate}}\label{Doutputtemplate},
-that you can assign template strings to:
-
-\begin{center}\begin{tabular}{l}
-\verb|outputtemplate := "%j-%3c.mps";|\\
-\verb|beginfig(1);|\\
-\verb|   draw p;|\\
-\verb|endfig;|
-\end{tabular}\end{center}
-
-If the file is saved as \ttt{fig.mp}, then this will create the output
-file \ttt{fig-001.mps} instead of \ttt{fig.1}.  A small set of escape
-sequences are possible, see table~\ref{tab:fntmpl} for details.
-
-\def\d{$\langle$0-9$\rangle$}
-
-\begin{table}
-\centering
-\begin{tabular}{|>{\ttfamily}l|l|}
-\hline
-\multicolumn1{|c|}{Escape sequence} & \multicolumn1{c|}{Meaning}\\\hline
-\%\%    & A percent sign \\
-\%j     & The current jobname\\
-\%\d  c & The charcode value\\
-\%\d  y & The current year\\
-\%\d  m & The numeric month\\
-\%\d  d & The day of the month\\
-\%\d  H & The hour\\
-\%\d  M & The minute\\
-\hline
-\end{tabular}
-\caption{Allowed escape sequences for \ttt{outputtemplate}}
-\label{tab:fntmpl}
-\end{table}
-
-The \ttt{outputtemplate} primitive can also be helpful for naming
-graphic files individually, yet keeping all MetaPost sources in one file.
-E.\,g., collecting different diagram sources in a file \ttt{fig.mp}
-$$
-\begin{verbatim}
-outputtemplate := "fig-quality.mps";
-beginfig(1);
-  ...
-endfig;
-
-outputtemplate := "fig-cost-vs-productivity.mps";
-beginfig(2);
-  ...
-endfig;
+$$\begin{verbatim}
+<p>
+  <object data="foo.svg" type="image/svg+xml" width="300" height="200">
+  </object>
+</p>
 \end{verbatim}
 $$
-it might be easier to recall the correct diagram names in a
-\TeX\ document than with numbered file names.  Note, the argument to
-\ttt{beginfig} is not relevant as long as there's no \ttt{\%c} pattern
-in the file name template string.
 
-To ensure compatibility with older files, the default value of
-\ttt{outputtemplate} is \verb|%j.%c|.
-If you assign an empty string, it will revert to that default.
-
-MetaPost version 1.000 used a different primitive with the name
-\ttt{filenametemplate}. This primitive is still provided, but its 
-use is deprecated.
-
-\subsection{Selecting the output format}
-
-By default, MetaPost generates PostScript language output. If you
-prefer to have SVG output, you can set the internal variable
-\ttindex{outputformat}\label{Doutputformat} to \ttt{svg}:
-
-\begin{center}\begin{tabular}{l}
-\verb|outputformat := "svg";|\\
-\verb|outputtemplate := "%j-%3c.svg";|\\
-\verb|beginfig(1);|\\
-\verb|   draw p;|\\
-\verb|endfig;|
-\end{tabular}\end{center}
-
-For SVG, it makes sense to set the file extension to \ttt{svg}. At
-the moment, this has to be done explicitly, but in one of the upcoming
-development versions it will become possible to use a template escape
-instead.
+SVG graphics can also be imported by various interactive graphics
+editing programs, for example GIMP\index{GIMP} or
+Inkscape\index{Inkscape}.  See section~\ref{Dprologues} for information
+on font handling in SVG graphics.
 
 
 \section{Curves}

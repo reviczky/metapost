@@ -1,4 +1,7 @@
-\section{MetaPost Versus \MF}
+\section{Legacy information}
+\label{legacy}
+
+\subsection{MetaPost Versus \MF}
 \label{MPvsMF}
 
 Since the \MF\index{metafont?\MF} and MetaPost languages have so much in
@@ -292,6 +295,26 @@ to separate blocks of translated \TeX\index{TeX?\TeX} or
 troff\index{troff} commands in {\tt mpx}\index{files!mpx?{\tt mpx}}
 files. It should be of no concern to users since {\tt mpx} files are
 generated automatically.
+
+\subsection{File name templates}
+\label{Dfilenametemplate}
+
+The output file naming template mechanism introduced in MetaPost
+version~1.000 originally used a primitive called
+\ttindex{filenametemplate}, as opposed to the internal string variable
+\ttindex{outputtemplate} described in section~\ref{Doutputtemplate}.
+This primitive took a string argument with the same syntax as
+\ttindex{outputtemplate}, e.g.,
+
+$$\begin{verbatim}
+filenametemplate "%j-%c.mps";
+\end{verbatim}
+$$
+
+The \verb|filenametemplate| primitive has been deprecated since the
+introduction of \verb|outputtemplate| (version~1.200), but is still
+supported.
+
 
 %%% Local Variables: 
 %%% mode: latex
