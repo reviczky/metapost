@@ -130,8 +130,8 @@
 MetaPost is a programming language much like Knuth's \MF\footnote{\MF\
 is a trademark of Addison Wesley Publishing
 company.}\index{metafont?\MF}~\cite{kn:c} except that it outputs
-PostScript programs or SVG\index{SVG} graphics instead of bitmaps.  
-Borrowed from \MF\ are the
+vector graphics, either PostScript programs or SVG\index{SVG} graphics,
+instead of bitmaps.  Borrowed from \MF\ are the
 basic tools for creating and manipulating pictures. These include
 numbers, coordinate pairs, cubic splines, affine transformations, text
 strings, and boolean quantities.  Additional features facilitate
@@ -151,6 +151,15 @@ of a freehand drawing tool or even an interactive graphics editor.  It
 is really a programming language for generating graphics, especially
 figures for \TeX\footnote{\TeX\ is a trademark of the American
 Mathematical Society.}\index{TeX?\TeX} and troff\index{troff} documents.
+
+It seems advisable to point out, that despite the fact, vector graphics
+can be scaled without quality degradation, they, too, are best created
+at nearly target size.  Otherwise the visual character of a graphic
+might change at different scales.  This is, because certain properties
+of a graphic might not scale proportionally, e.g., line width or arrow
+size.  On the other hand, while outline fonts do scale proportionally,
+this is not always desired, e.g., when a font is available in optical
+sizes, like the Computer Modern font family.
 
 This document introduces the MetaPost language, beginning with the
 features that are easiest to use and most important for simple
@@ -356,20 +365,11 @@ to the console and the transcript file.
 MetaPost can generate graphic in two output formats: Encapsulated
 PostScript\index{PostScript!structured} (EPSF\index{EPSF}), hence the
 name, and, since version~1.200, Scalable Vector Graphics
-(SVG\index{SVG}) that follow version~1.1 of the SVG specification
-(\url{http://www.w3.org/TR/SVG11/}).  Both are vector formats that can
-be scaled without quality degradation.  It seems appropriate to point
-out, that despite scalability, vector graphics, too, are best created at
-nearly target size, since the visual character of a graphic might change
-at different scales.  This is, because certain properties might not
-scale proportionally, e.g., line width or arrow size.  On the other
-hand, while outline fonts do scale proportionally, this is not always
-desired, e.g., when optical sizes are available, as for the Computer
-Modern font family.
-
-By default, MetaPost outputs PostScript files.  The output format can be
-changed to SVG by assigning the value \verb|"svg"| to the internal
-string variable \ttindex{outputformat}\label{Doutputformat}:
+(SVG\index{SVG}) following version~1.1 of the SVG
+specification~\cite{w3c:svg1.1}.  By default, MetaPost outputs
+PostScript files.  The output format can be changed to SVG by assigning
+the value \verb|"svg"| to the internal string variable
+\ttindex{outputformat}\label{Doutputformat}:
 
 $$\begin{verbatim}
 outputformat := "svg";
