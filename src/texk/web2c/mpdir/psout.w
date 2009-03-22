@@ -3041,7 +3041,7 @@ static void t1_flush_cs (MP mp, boolean is_subr)
         cr = 4330;
         cs_len = 0;
         return_cs = mp_xmalloc (mp, (size_t)(mp->ps->t1_lenIV + 1) , sizeof(byte));
-        if ( mp->ps->t1_lenIV > 0) {
+        if ( mp->ps->t1_lenIV >= 0) {
             for (cs_len = 0, r = return_cs; 
                  cs_len<(unsigned short)mp->ps->t1_lenIV; cs_len++, r++)
                 *r = cencrypt (0x00, &cr);
