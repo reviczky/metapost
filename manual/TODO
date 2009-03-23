@@ -32,7 +32,6 @@ mp-implementors list or alternatively the metapost list.
 *****************************
 
 mpman.tex
-* (SH) Revise LaTeX import.
 * Describe new outputtemplate syntax.
 * Describe glyph primitive.
 * Describe -D switch for mpost.

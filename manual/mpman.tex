@@ -514,14 +514,28 @@ for example Firefox~3\index{Firefox} or Konqueror~4.2\index{Konqueror}.
 \index{pdfTeX?pdf\TeX!importing MetaPost files}
 \index{ConTeXt?Con\TeX t!importing MetaPost files}
 
-How PostScript figures can be integrated into documents prepared with
-\TeX\ and friends depends on the exact format and output driver.
-Figure~\ref{fig0} shows the workflow for plain \TeX, \LaTeX\ and the
-freely available program \ttindex{dvips}.\footnote{The C source for
-  \ttt{dvips} comes with the web2c \TeX\ distribution.  Similar programs
-  are available from other sources.}  For the PDF flavour of \TeX\ and
-\LaTeX\ the situation is a little bit different.  The next paragraphs
-give brief information on some popular \TeX\ formats and output drivers.
+MetaPost graphics in the PostScript format can be easily integreated
+into documents prepared with \TeX\ and friends.  MetaPost's PostScript
+output is a low-featured dialect of the Postscript language, called
+\emph{purified EPS}, that can be converted into the Portable Document
+Format (PDF\index{PDF}) language on-the-fly.  For that reason, MetaPost
+graphics can be handled by both engines, the traditional \TeX\ with an
+external output driver and the newer pdf\TeX, that contains a built-in
+PDF output driver.
+
+Figure~\ref{fig0} shows the process of including a MetaPost graphic into
+a plain \TeX\ or \LaTeX\ document.  In the \TeX\ document a ``magic
+macro'' provided by the format or an external package is used for
+including a graphic file.  During the typesetting stage, the macro only
+reads bounding box information off the PostScript file and reserves the
+required space on the page via an empty box.  The file reference is
+passed-on to the output driver and only then, finally, the file is
+embedded into the document.  The freely available program
+\ttindex{dvips} is used as an output driver in this
+example.\footnote{The C source for \ttt{dvips} comes with the web2c
+  \TeX\ distribution.  Similar programs are available from other
+  sources.}  The next paragraphs give brief information on some popular
+combinations of formats and engines.
 
 \begin{figure}[htp]
 $$ \includegraphics{mpman-0.mps} $$
@@ -531,101 +545,55 @@ $$ \includegraphics{mpman-0.mps} $$
 \label{fig0}
 \end{figure}
 
-\paragraph{\TeX}
-\TeX\ users can import EPS graphics by first loading package
-\ttt{epsf}\index{epsf.tex?\texttt{epsf.tex}} via \verb+\input epsf+ and
-then issuing the command
-$$ \verb+\epsfbox{+\descr{filename}\verb+}+ $$%
-\index{epsfbox?\texttt{\string\epsfbox}}
-to load an EPS file, e.\,g., \verb+\epsfbox{fig.1}+.
+\paragraph{Plain \TeX\ with \TeX}
+For users of \TeX\ with traditional DVI output the
+\ttt{epsf}\index{epsf.tex?\texttt{epsf.tex}} package provides the
+``magic macro''
+$$ \verb|\epsfbox{|\descr{filename}\verb|}|%
+\index{epsfbox?\texttt{\string\epsfbox}} $$
+for embedding graphics, e.g., \verb|\epsfbox{fig.1}|.
 
-\paragraph{\LaTeX}
-For \LaTeX\ documents the procedure is similar:  first package
-\ttindex{graphicx} has to be loaded by putting
-\verb+\usepackage{graphicx}+ into the document preamble and then EPS
-files can be loaded via
-$$ \verb+\includegraphics{+\descr{filename}\verb+}+ $$%
-\index{includegraphics?\texttt{\string\includegraphics}}
-e.\,g., \verb+\includegraphics{fig.1}+.
+\paragraph{Plain \TeX\ with pdf\TeX}
+Users of Plain \TeX\ and pdf\TeX\ should refer to the standalone macros
+of the \ttindex{mptopdf} bundle, that can be found at
+\url{http://context.aanhet.net/mptopdf.htm}.
 
-As can be seen in figure~\ref{fig0} graphic files are never included in a
-\TeX\index{TeX?\TeX!importing MetaPost files} or
-\LaTeX\index{LaTeX?\LaTeX!importing MetaPost files} run.  Instead,
-\TeX\ and \LaTeX\ only read bounding box information off PostScript
-files, reserve as much space on a page as a graphic occupies and write
-a reference to the corresponding file into \ttt{dvi} output.  Graphic
-files are only included in the subsequent run of an output driver,
-that can handle PostScript files, e.\,g., \ttindex{dvips}.
+\paragraph{\LaTeX\ format}
+For \LaTeX\ documents the well-known \ttindex{graphics} (or
+\ttindex{graphicx}) package aids in external graphics inclusion.  The
+package supports different engines and can handle several graphic
+formats.  The ``magic macro'' is
+$$ \verb|\includegraphics{|\descr{filename}\verb|}|%
+\index{includegraphics?\texttt{\string\includegraphics}} $$
 
-\paragraph{pdf\LaTeX}
-The application pdf\LaTeX, when run in PDF mode, is both, a
-\LaTeX\ interpreter and an output driver for the PDF document format.
-For that reason graphic files are included in a single
-pdf\LaTeX\ run.  In contrast to \ttt{dvips}, pdf\LaTeX\ can't process
-general PostScript files, but only so-called purified
-EPS\index{PostScript!purified} files, which may only use a restricted
-set of PostScript language features.  Fortunately, MetaPost output
-\emph{is} purified EPS, so we are in luck.  Since
-pdf\LaTeX's default extension for purified EPS files is
-\ttt{mps}\index{files!mps?\texttt{mps}}, but MetaPost output by
-default has a number as extensions, we either have to
-\begin{itemize}
-\item tell pdf\LaTeX\ to handle MetaPost's numbered files according to
-\ttt{mps} file rules, or
-\item change the file extension of MetaPost output to \ttt{mps}.
-\end{itemize}
+When the \ttt{dvips} driver is chosen, the \ttt{graphics} package
+assumes all files with an unknown file extension to be in the EPS
+format.  MetaPost files with a numeric default file extension are
+therefore handled correctly -- even if only in a fall-back procedure.
 
-For the conventional first approach we have to add the line
-$$ \verb+\DeclareGraphicsRule{*}{mps}{*}{}+ $$%
-\index{DeclareGraphicsRule?\texttt{\string\DeclareGraphicsRule}}%
-to the document preamble after loading package \ttt{graphicx}.  That
-declaration tells pdf\LaTeX\ to load \emph{all} files with unknown file
-extensions as \ttt{mps} files.  Refer to the documentation of the
-\ttt{graphicx} and \ttt{graphics} packages for more details.
-
-Since MetaPost version~1.000 the second approach is
-recommended.\footnote{For handling MetaPost file extensions in MetaPost
-source files seems to be the more natural place than \LaTeX\ sources.
-Moreover, setting the MetaPost file extension to \ttt{mps} prevents from
-file extension pollution and you only have to register one new extension
-with your PostScript viewer, \ttt{.mps}, instead of \ttt{.0}, \ttt{.1},
-\ttt{.2}, etc.}  The MetaPost primitive \verb+outputtemplate+ can be
-used to set the file extension of MetaPost output to \ttt{mps} (see
-section~\ref{outputfilenames}). Hence, no \verb+\DeclareGraphicsRule+
-declaration is needed.  Moreover, the file extension can then be omitted
-in the \verb+\includegraphics+ command.
-
-\paragraph{\LaTeX\ and pdf\LaTeX}
-If you want to keep flexible and be able to compile your documents with
-both, \LaTeX\ and pdf\LaTeX, there are some things to take care of.  If
-you're using the conventional \verb+\DeclareGraphicsRule+ declaration,
-that may only be activated if pdf\LaTeX\ runs in PDF mode. A
-fully-featured declaration should therefore look like this:
-
-$$
-\begin{verbatim}
-\usepackage{graphicx}
-\usepackage{ifpdf}
-\ifpdf
-  \DeclareGraphicsRule{*}{mps}{*}{}
-\fi
+For the pdf\TeX\ driver, the situation is a bit different.  Only files
+with file extension \texttt{.mps} are recognized as purified EPS and can
+be converted to PDF\index{PDF} on-the-fly.  The recommended procedure
+for including MetaPost graphics into \LaTeX\ documents compiled with the
+pdf\TeX\ engine should be obvious: change MetaPost's output file naming
+scheme to write files ending \texttt{.mps} via
+\verb|outputtemplate|\index{outputtemplate?\texttt{outputtemplate}} (see
+section~\ref{Doutputtemplate}).  In the \LaTeX\ document include the
+graphic files with full name, e.g.,
+$$\begin{verbatim}
+\includegraphics{fig-1.mps}
 \end{verbatim}
 $$
 
-If you're using the \ttt{outputtemplate} method the \ttt{mps} file
-extension should not be omitted in \verb+\includegraphics+ commands,
-since \ttt{mps} is not part of \LaTeX's file name completion scheme, by
-default.  If the \ttt{mps} extension is present, \LaTeX\ handles those
-files as \ttt{eps} files, which is obviously correct.  For more
-information see the description of \verb+\DeclareGraphicsExtensions+%
-\index{DeclareGraphicsExtensions?\texttt{\string\DeclareGraphicsExtensions}}
-and \verb+\DeclareGraphicsRule+ in the documentation of packages
-\ttt{graphicx} and \ttt{graphics}.
-
-\paragraph{pdf\TeX}
-Users of plain pdf\TeX\ should refer to the standalone macros of the
-\ttindex{mptopdf} bundle, that can be found at
-\url{http://context.aanhet.net/mptopdf.htm}.
+Note, the latter approach works with the \ttt{dvips} driver, too.  Even
+though, again, this time \ttt{.mps} is an unknown file extension and
+triggers EPS file handling in the fall-back procedure.  This property of
+the \ttt{graphics} package, that comes in handy for MetaPost files, is
+the reason many MetaPost source files start with the line
+$$\begin{verbatim}
+outputtemplate := "%j-%c.mps";
+\end{verbatim}
+$$
 
 \paragraph{Con\TeX t}
 In Con\TeX t\index{ConTeXt?Con\TeX t} support of MetaPost is integrated
