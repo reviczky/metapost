@@ -2604,9 +2604,7 @@ $$ {\tt subpath}\, \descr{pair expression}\, {\tt of}\, \descr{path primary} $$
 If the value of the \tdescr{pair expression} is $(t_1,t_2)$ and the
 \tdescr{path primary} is $p$, the result is a path that follows $p$ from
 {\tt point $t_1$ of $p$} to {\tt point $t_2$ of $p$}.  If $t_2<t_1$, the
-subpath runs backwards along~$p$.  For an in-depth discussion of the
-\verb|subpath| operator the interested reader should refer
-to~\cite[p.~133]{kn:c}.
+subpath runs backwards along~$p$.
 
 An important operation based on the {\tt subpath} operator is the
 \tdescr{tertiary binop}\index{tertiary binop?\tdescr{tertiary binop}}
@@ -2708,76 +2706,6 @@ between 0 and {\tt arclength p},
 $$ \hbox{\tt arctime a of p} $$
 gives the time~{\tt t} such that
 $$ \hbox{\tt arclength subpath (0,t) of p} = {\tt a}. $$
-
-The above mentioned operators all operate on points that lay \emph{on}
-paths.  There's one important path property that involves point that in
-general do not lay on a path: the control points of a path's B\'ezier
-segments.  MetaPost provides two operators for evaluating the control
-points of a path:
-\begin{eqnarray*}
-  && \verb|precontrol|\, \descr{numeric expression}\, \verb|of|\,
-  \descr{path}\index{precontrol?\texttt{precontrol}}\label{Dprecontrol}\\
-\end{eqnarray*}
-that work as follows: Consider a \emph{non-cyclic} path $p = z_0\ .\,.\
-z_1\ .\,.\ \descr{etc.}\ .\,.\ z_i\ .\,.\ z_{i+1}\ .\,.\ \descr{etc.}\
-.\,.\ z_{n-1}\ .\,.\ z_n$ of length~$n$.  The following rules apply:
-
-\begin{eqnarray}
-  \label{eq:cptnoncyc}
-  \hbox{\verb|postcontrol t of p|} & = & \left\{
-    \begin{array}{ll}
-      \hbox{first control point in \verb|subpath (t,n) of p|} & \hbox{,
-        if $t<n$,}\\
-      z_n & \hbox{, if $t\ge n$}.
-    \end{array}
-    \right.\\
-  \hbox{\verb|precontrol t of p|} & = & \left\{
-    \begin{array}{ll}
-      \hbox{last control point in \verb|subpath (0,t) of p|} & \hbox{,
-        if $t>0$,}\\
-      z_0 & \hbox{, if $t\le 0$}.
-    \end{array}
-    \right.\\
-\end{eqnarray}
-
-For cyclic paths $q = p\ .\,.\ \hbox{cycle}$ 
-
-cycletime values $t<n$,
-\verb|postcontrol t of p| is the first control point in
-\verb|subpath (t,n) of p|.  For $t\ge n$, $z_n$ is returned.
-
-
-
-For cardinal time values~$i$ and $i+1$, the expressions
-\verb|postcontrol i of p| and \verb|precontrol i+1 of p| return the two
-control points, that determine the shape of the $i$th cubic B\'ezier
-segment $z_i\ .\,.\ z_{i+1}$ of $p$.  For fractional time values the
-following
-
-
-
-For the end points of a path the following rules apply:
-
-\begin{eqnarray}
-  \hbox{\verb|precontrol 0 of p|} & = & \left\{
-    \begin{array}{ll}
-      z_0 & \hbox{, if $p$ is non-cyclic}\\
-      \hbox{\verb|precontrol|}\ z_n & \hbox{, if $p$ is cyclic}\\
-    \end{array}
-  \right.\\
-  \hbox{\verb|postcontrol n of p|} & = & \left\{
-    \begin{array}{ll}
-      z_n & \hbox{, if $p$ is non-cyclic}\\
-      \hbox{\verb|postcontrol|}\ z_0 & \hbox{, if $p$ is cyclic}\\
-    \end{array}
-  \right.
-\end{eqnarray}
-
-The operators \verb|postcontrol| and \verb|precontrol| are defined for
-fractional time values, too.  A general definition of 
-
-
-
 
 \subsection{Affine Transformations}
 \label{transsec}

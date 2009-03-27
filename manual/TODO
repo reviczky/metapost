@@ -39,8 +39,6 @@ mpman.tex
 * Describe environment variables.
 * Describe internal string variables.
 * Add note on postcontrol and precontrol when discussing control points.
-* Add description of message, ermessage and errhelp.
-* Add description of interaction mode commands.
 
 
 
