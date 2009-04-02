@@ -40,6 +40,7 @@ mpman.tex
 * Add note on postcontrol and precontrol when discussing control points.
 * Add description of message, ermessage and errhelp.
 * Add description of interaction mode commands.
+* Fix: Replace MAKEMPX by MPXCOMMAND.
 
 
 
