@@ -770,51 +770,51 @@ All switches are prefixed by one or two dashes.  Both forms have the
 same meaning.  An exemplary call to MetaPost that compiles file
 \texttt{foo.mp}, but immediately exits after encountering the first
 error without user-interaction would look like:
-$$ \hbox{\tt mpost -{}-halt-on-error foo} $$
+$$ \hbox{\tt mpost -halt-on-error foo} $$
 
 Here's a summary of the command-line switches understood by
 \texttt{mpost}:
 
 \begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
-  \cmdindex{-{}-ini}
+  \cmdindex{-ini}
   & Be the INI variant of the program.\\
-  \cmdindex{-{}-debug}
+  \cmdindex{-debug}
   & Don't delete intermediate files.\\
-  \cmdindex{-{}-kpathsea-debug}=$\descr{number}$
+  \cmdindex{-kpathsea-debug}=$\descr{number}$
   & Set debugging flags for path searching.\\
-  \cmdindex{-{}-mem}=$\descr{string}$
+  \cmdindex{-mem}=$\descr{string}$
   & Use $\descr{string}$ as memory dump name (same as
   \texttt{\&$\descr{string}$})\\
-  \cmdindex{-{}-jobname}=$\descr{jobname}$
+  \cmdindex{-jobname}=$\descr{jobname}$
   & Set the name of the job (affects output file names).\\
-  \cmdindex{-{}-progname}=$\descr{string}$
+  \cmdindex{-progname}=$\descr{string}$
   & Pretend to be the $\descr{string}$ executable.\\
-  \cmdindex{-{}-troff}, \cmdindex{-{}-T}
+  \cmdindex{-troff}, \cmdindex{-T}
   & Output \textit{troff} compatible PostScript files.\\
-  \cmdindex{-{}-recorder}
+  \cmdindex{-recorder}
   & Write a list of all opened disk files to
   \texttt{$\descr{jobname}$.fls}.  (This functionality is provided by
   \textit{kpathsea}.)\\
-  \cmdindex{-{}-tex}=$\descr{texprogram}$
+  \cmdindex{-tex}=$\descr{texprogram}$
   & Load format $\descr{texprogram}$ for rendering \TeX\ material.\\
-  \cmdindex{-{}-interaction}=$\descr{string}$
+  \cmdindex{-interaction}=$\descr{string}$
   & Set interaction mode to one of \texttt{batchmode, nonstopmode,
     scrollmode, errorstopmode}.\\
-  \cmdindex{-{}-no-kpathsea}
+  \cmdindex{-no-kpathsea}
   & Do not use \textit{kpathsea} to find files.  All files have to be in
   the current directory or specified via a full path.\\
-  \cmdindex{-{}-file-line-error}
+  \cmdindex{-file-line-error}
   & Start error messages with \texttt{filename:lineno:} instead of
   \texttt{!}.\\
-  \cmdindex{-{}-no-file-line-error}
+  \cmdindex{-no-file-line-error}
   & Enable normal MetaPost and \TeX\ style error messages.\\
-  \cmdindex{-{}-help}
+  \cmdindex{-help}
   & Show help on command-line switches.\\
-  \cmdindex{-{}-version}
+  \cmdindex{-version}
   & Print version information and exit.\\
-  \cmdindex{-{}-halt-on-error}
+  \cmdindex{-halt-on-error}
   & Immediately exit after the first error occurred.\\
-  \cmdindex{-{}-dvitomp}
+  \cmdindex{-dvitomp}
   & Act as the \textit{dvitomp} executable (see
   section~\ref{refman:dvitomp}).\\
 \end{longtable}
@@ -823,19 +823,19 @@ The following command-line switches are silently ignored in
 \textit{mplib}-based MetaPost (v1.100 or later), because they are always
 `on':
 \begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
-  \cmdindex{-{}-8bit}
+  \cmdindex{-8bit}
   & \\
-  \cmdindex{-{}-parse-first-line}
+  \cmdindex{-parse-first-line}
   & \\
 \end{longtable}
 
 The following command-line switches are ignored, but trigger a warning:
 \begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
-  \cmdindex{-{}-translate-file}=$\descr{string}$
+  \cmdindex{-translate-file}=$\descr{string}$
   & \\
-  \cmdindex{-{}-output-directory}=$\descr{string}$
+  \cmdindex{-output-directory}=$\descr{string}$
   & \\
-  \cmdindex{-{}-no-parse-first-line}
+  \cmdindex{-no-parse-first-line}
   & \\
 \end{longtable}
 
@@ -863,7 +863,7 @@ is handled internally by the \texttt{mpost} executable.  The
 \emph{mpware} tools are therefore obsolete and no longer part of the
 MetaPost distribution.  The \texttt{dvitomp} executable is actually a
 wrapper, calling \texttt{mpost} as
-$$ \hbox{\verb|mpost --dvitomp|}\ \descr{infile}\
+$$ \hbox{\verb|mpost -dvitomp|}\ \descr{infile}\
 \descr{outfile}\qquad\hbox{.} $$
 
 \endgroup
