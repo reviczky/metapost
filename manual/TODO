@@ -35,7 +35,6 @@ mpman.tex
 * Describe new outputtemplate syntax.
 * Describe glyph primitive.
 * Describe -D switch for mpost.
-* Describe dvitomp command-line.
 * Describe environment variables.
 * Describe internal string variables.
 * Add note on postcontrol and precontrol when discussing control points.
