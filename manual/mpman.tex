@@ -569,7 +569,8 @@ $$ \verb|\includegraphics{|\descr{filename}\verb|}|%
 When the \ttt{dvips} driver is chosen, the \ttt{graphics} package
 assumes all files with an unknown file extension to be in the EPS
 format.  MetaPost files with a numeric default file extension are
-therefore handled correctly -- even if only in a fall-back procedure.
+therefore handled correctly -- even if only in a fall-back procedure
+(see~\cite{reckdahl:epslatex} for more information).
 
 For the pdf\TeX\ driver, the situation is a bit different.  Only files
 with file extension \texttt{.mps} are recognized as purified EPS and can
@@ -578,7 +579,7 @@ for including MetaPost graphics into \LaTeX\ documents compiled with the
 pdf\TeX\ engine should be obvious: change MetaPost's output file naming
 scheme to write files ending \texttt{.mps} via
 \verb|outputtemplate|\index{outputtemplate?\texttt{outputtemplate}} (see
-section~\ref{Doutputtemplate}).  In the \LaTeX\ document include the
+p.~\pageref{Doutputtemplate}).  In the \LaTeX\ document include the
 graphic files with full name, e.g.,
 $$\begin{verbatim}
 \includegraphics{fig-1.mps}
