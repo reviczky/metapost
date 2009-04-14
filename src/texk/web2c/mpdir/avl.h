@@ -11,6 +11,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define avl_del mp_avl_del
+#define avl_ins mp_avl_ins
+#define avl_tree mp_avl_tree
+#define avl_entry mp_avl_entry
+#define avl_find mp_avl_find
+#define avl_probe mp_avl_probe
+#define avl_create mp_avl_create
+#define avl_destroy mp_avl_destroy
+
 typedef enum
 { avl_false, avl_true } avl_bool_t;
 

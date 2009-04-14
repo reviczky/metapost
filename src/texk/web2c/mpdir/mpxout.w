@@ -114,8 +114,8 @@ extern void *avl_probe (avl_tree t, void *p);
 
 @ Data types
 
-From the Pascal code of DVItoMP two implicit types are inherited: |boolean| and
-|integer|. 
+From the Pascal code of DVItoMP two implicit types are inherited: |web_boolean| and
+|web_integer|. 
 
 The more complex datatypes are defined in the following sections. 
 
@@ -123,8 +123,8 @@ The more complex datatypes are defined in the following sections.
 @d false 0
 
 @c
-typedef signed int integer;
-typedef signed int boolean;
+typedef signed int web_integer;
+typedef signed int web_boolean;
 @<C Data Types@>
 @<Declarations@>
 
@@ -750,7 +750,7 @@ static void mpx_open_dvi_file (MPX mpx) {
 
 @ Prepares to read packed bytes in |tfm_file|
 @c 
-static boolean mpx_open_tfm_file (MPX mpx) { 
+static web_boolean mpx_open_tfm_file (MPX mpx) { 
   mpx->tfm_file = mpx_fsearch(mpx, mpx->cur_name, mpx_tfm_format);
   if (mpx->tfm_file == NULL)
 	  mpx_abort(mpx,"Cannot find TFM %s", mpx->cur_name);
@@ -762,7 +762,7 @@ static boolean mpx_open_tfm_file (MPX mpx) {
 It's ok if the \.{VF} file doesn't exist.
 
 @c 
-static boolean mpx_open_vf_file (MPX mpx) {
+static web_boolean mpx_open_vf_file (MPX mpx) {
   mpx->vf_file = mpx_fsearch(mpx, mpx->cur_name, mpx_vf_format);
   if (mpx->vf_file) {
     free (mpx->cur_name);
@@ -805,7 +805,7 @@ Otherwise, input can either come directly from |dvi_file| or from a buffer
 |cmd_buf|.  The latter case applies whenever |buf_ptr<virtual_space|.
 
 @<Glob...@>=
-boolean vf_reading; /* should input come from |vf_file|? */
+web_boolean vf_reading; /* should input come from |vf_file|? */
 unsigned char cmd_buf[(virtual_space+1)]; /* commands for virtual characters */
 unsigned int buf_ptr; /* |cmd_buf| index for the next byte */
 
@@ -818,26 +818,26 @@ current input source. There are seven possibilities, each of which is treated
 as a separate function in order to minimize the overhead for subroutine calls.
 
 @c 
-static integer mpx_get_byte (MPX mpx) { /* returns the next byte, unsigned */
+static web_integer mpx_get_byte (MPX mpx) { /* returns the next byte, unsigned */
   unsigned char b;
   @<Read one byte into |b|@>;
   return b;
 }
 
-static integer mpx_signed_byte (MPX mpx) { /* returns the next byte, signed */ 
+static web_integer mpx_signed_byte (MPX mpx) { /* returns the next byte, signed */ 
   unsigned char b;
   @<Read one byte into |b|@>;
   return ( b<128 ? b : (b-256));
 }
 
-static integer mpx_get_two_bytes (MPX mpx) { /* returns the next two bytes, unsigned */
+static web_integer mpx_get_two_bytes (MPX mpx) { /* returns the next two bytes, unsigned */
   unsigned char a,b;
   a=0; b=0; /* for compiler warnings */
   @<Read two bytes into |a| and |b|@>;
   return (a*(int)(256)+b);
 }
 
-static integer mpx_signed_pair (MPX mpx) { /* returns the next two bytes, signed */
+static web_integer mpx_signed_pair (MPX mpx) { /* returns the next two bytes, signed */
   unsigned char a,b;
   a=0; b=0; /* for compiler warnings */
   @<Read two bytes into |a| and |b|@>;
@@ -845,14 +845,14 @@ static integer mpx_signed_pair (MPX mpx) { /* returns the next two bytes, signed
   else return ((a-256)*256+b);
 }
 
-static integer mpx_get_three_bytes (MPX mpx) { /* returns the next three bytes, unsigned */
+static web_integer mpx_get_three_bytes (MPX mpx) { /* returns the next three bytes, unsigned */
   unsigned char a,b,c;
   a=0; b=0; c=0; /* for compiler warnings */
   @<Read three bytes into |a|, |b|, and~|c|@>;
   return ((a*(int)(256)+b)*256+c);
 }
 
-static integer mpx_signed_trio (MPX mpx) { /* returns the next three bytes, signed */
+static web_integer mpx_signed_trio (MPX mpx) { /* returns the next three bytes, signed */
   unsigned char a,b,c;
   a=0; b=0; c=0; /* for compiler warnings */
   @<Read three bytes into |a|, |b|, and~|c|@>;
@@ -860,7 +860,7 @@ static integer mpx_signed_trio (MPX mpx) { /* returns the next three bytes, sign
   else  return (((a-(int)(256))*256+b)*256+c);
 }
 
-static integer mpx_signed_quad (MPX mpx) { /* returns the next four bytes, signed */
+static web_integer mpx_signed_quad (MPX mpx) { /* returns the next four bytes, signed */
   unsigned char a,b,c,d;
   a=0; b=0; c=0; d=0; /* for compiler warnings */
   @<Read four bytes into |a|, |b|, |c|, and~|d|@>;
@@ -980,21 +980,21 @@ values are ignored in this case.
 @d start_cmd(A,B) mpx->cmd_ptr[mpx->info_base[(A)]+(B)]
 
 @<Glob...@>=
-integer font_num[(max_fnums+1)]; /* external font numbers */
-integer internal_num[(max_fnums+1)]; /* internal font numbers */
-boolean local_only[(max_fnums+1)]; /* |font_num| meaningless? */
+web_integer font_num[(max_fnums+1)]; /* external font numbers */
+web_integer internal_num[(max_fnums+1)]; /* internal font numbers */
+web_boolean local_only[(max_fnums+1)]; /* |font_num| meaningless? */
 char *font_name[(max_fonts+1)]; /* starting positions of external font names */
 double font_scaled_size[(max_fonts+1)]; /* scale factors over $2^{20}$ */
 double font_design_size[(max_fonts+1)]; /* design sizes over $2^{20}$ */
-integer font_check_sum[(max_fonts+1)];  /* check sum from the |font_def| */
-integer font_bc[(max_fonts+1)]; /* beginning characters in fonts */
-integer font_ec[(max_fonts+1)]; /* ending characters in fonts */
-integer info_base[(max_fonts+1)]; /* index into |width| and |cmd_ptr| tables */
-integer width[(max_widths+1)];
+web_integer font_check_sum[(max_fonts+1)];  /* check sum from the |font_def| */
+web_integer font_bc[(max_fonts+1)]; /* beginning characters in fonts */
+web_integer font_ec[(max_fonts+1)]; /* ending characters in fonts */
+web_integer info_base[(max_fonts+1)]; /* index into |width| and |cmd_ptr| tables */
+web_integer width[(max_widths+1)];
   /* character widths, in units $2^{-20}$ of design size */
-integer fbase[(max_fonts+1)]; /* index into |font_num| for local fonts */
-integer ftop[(max_fonts+1)];  /* |font_num| index where local fonts stop */
-integer cmd_ptr[(max_widths+1)]; /* starting positions in |cmd_buf| */
+web_integer fbase[(max_fonts+1)]; /* index into |font_num| for local fonts */
+web_integer ftop[(max_fonts+1)];  /* |font_num| index where local fonts stop */
+web_integer cmd_ptr[(max_widths+1)]; /* starting positions in |cmd_buf| */
 unsigned int nfonts; /* the number of known fonts */
 unsigned int vf_ptr;  /* next |font_num| entry for virtual font font tables */
 unsigned int info_ptr; /* allocation pointer for |width| and |cmd_ptr| tables */
@@ -1011,7 +1011,7 @@ mpx->cur_fbase=0; mpx->cur_ftop=0;
 is needed to actually send an |ASCII_code| to the \.{MPX} file.
 
 @c @<Declare subroutines for printing strings@>@;
-static void mpx_print_font (MPX mpx, integer f) { /* |f| is an internal font number */
+static void mpx_print_font (MPX mpx, web_integer f) { /* |f| is an internal font number */
   if ( (f<0)||(f>=(int)mpx->nfonts) ) {
     bad_dvi("Undefined font");
   } else { 
@@ -1040,11 +1040,11 @@ is encountered in the \.{DVI} file or in a \.{VF} file.  It assumes that the
 first argument has already been parsed and is given by the parameter~|e|.
 
 @c @<Declare a function called |match_font|@>@;
-static void mpx_define_font (MPX mpx, integer e) { /* |e| is an external font number */
+static void mpx_define_font (MPX mpx, web_integer e) { /* |e| is an external font number */
   unsigned i; /* index into |font_num| and |internal_num| */
-  integer n; /* length of the font name and area */
-  integer k; /* general purpose loop counter */
-  integer x;  /* a temporary value for scaled size computation */
+  web_integer n; /* length of the font name and area */
+  web_integer k; /* general purpose loop counter */
+  web_integer x;  /* a temporary value for scaled size computation */
   if ( mpx->nfonts==max_fonts ) 
     mpx_abort(mpx,"DVItoMP capacity exceeded (max fonts=%d)!", max_fonts);
 @.DVItoMP capacity exceeded...@>
@@ -1105,7 +1105,7 @@ size need not match but the font found must be already loaded, not just
 defined.
 
 @<Declare a function called |match_font|@>=
-static integer mpx_match_font (MPX mpx, unsigned ff, boolean  exact) {
+static web_integer mpx_match_font (MPX mpx, unsigned ff, web_boolean  exact) {
   unsigned f; /* font number being tested */
   for (f=0; f<mpx->nfonts ; f++) {
     if ( f!=ff ) {
@@ -1129,7 +1129,7 @@ static integer mpx_match_font (MPX mpx, unsigned ff, boolean  exact) {
   if ( f<mpx->nfonts ) {
     @<Make sure fonts |f| and |ff| have matching design sizes and checksums@>;
   }
-  return (integer)f;
+  return (web_integer)f;
 }
 
 @ @<Compare the names of fonts |f| and |ff|; |continue| if they differ@>=
@@ -1151,8 +1151,8 @@ input. The global variable |tfm_check_sum| is set to the check sum that
 appears in the current \.{TFM} file.
 
 @<Glob...@>=
-integer in_width[256]; /* \.{TFM} width data in \.{DVI} units */
-integer tfm_check_sum; /* check sum found in |tfm_file| */
+web_integer in_width[256]; /* \.{TFM} width data in \.{DVI} units */
+web_integer tfm_check_sum; /* check sum found in |tfm_file| */
 
 @ Here is a procedure that absorbs the necessary information from a
 \.{TFM} file, assuming that the file has just been successfully reset
@@ -1164,9 +1164,9 @@ wrong with a \.{TFM} file that proves to be invalid. The procedure simply
 aborts the program if it detects anything amiss in the \.{TFM} data.
 
 @c 
-static void mpx_in_TFM (MPX mpx,integer f) {
+static void mpx_in_TFM (MPX mpx,web_integer f) {
   /* input \.{TFM} data for font |f| or abort */
-  integer k; /* index for loops */
+  web_integer k; /* index for loops */
   int lh; /* length of the header data, in four-byte words */
   int nw; /* number of words in the width table */
   unsigned wp; /* new value of |info_ptr| after successful input */
@@ -1267,13 +1267,13 @@ wrong with the \.{VF} file.
 
 @c 
 @<Declare a function called |first_par|@>@;
-static void mpx_in_VF (MPX mpx, integer f) {
+static void mpx_in_VF (MPX mpx, web_integer f) {
   /* read \.{VF} data for font |f| or abort */
-  integer p; /* a byte from the \.{VF} file */
+  web_integer p; /* a byte from the \.{VF} file */
   boolean was_vf_reading; /* old value of |vf_reading| */
-  integer c; /* the current character code */
-  integer limit; /* space limitations force character codes to be less than this */
-  integer w; /* a \.{TFM} width being read */
+  web_integer c; /* the current character code */
+  web_integer limit; /* space limitations force character codes to be less than this */
+  web_integer w; /* a \.{TFM} width being read */
   was_vf_reading=mpx->vf_reading; mpx->vf_reading=true;
   @<Start reading the preamble from a \.{VF} file@>;@/
   @<Initialize the data structures for the virtual font@>;@/
@@ -1312,12 +1312,12 @@ mpx->tfm_check_sum=mpx_signed_quad(mpx);
 (void)mpx_signed_quad(mpx); /* skip over the design size */
 
 @ @<Initialize the data structures for the virtual font@>=
-mpx->ftop[f]=(integer)mpx->vf_ptr;
+mpx->ftop[f]=(web_integer)mpx->vf_ptr;
 if ( mpx->vf_ptr==mpx->nfonts ) 
   mpx_abort(mpx,"DVItoMP capacity exceeded (max font numbers=%d)", max_fnums);
 @.DVItoMP capacity exceeded...@>
 decr(mpx->vf_ptr);
-mpx->info_base[f]=(integer)mpx->info_ptr;
+mpx->info_base[f]=(web_integer)mpx->info_ptr;
 limit=max_widths-mpx->info_base[f];@/
 mpx->font_bc[f]=limit; mpx->font_ec[f]=0
 
@@ -1340,7 +1340,7 @@ char_width(f,c)=w
 if ( mpx->n_cmds+p>=virtual_space )
   mpx_abort(mpx,"DVItoMP capacity exceeded (virtual font space=%d)",virtual_space);
 @.DVItoMP capacity exceeded...@>
-start_cmd(f,c)=(integer)mpx->n_cmds;
+start_cmd(f,c)=(web_integer)mpx->n_cmds;
 while ( p>0 ) { 
   mpx->cmd_buf[mpx->n_cmds]=(unsigned char)mpx_get_byte(mpx);
   incr(mpx->n_cmds); decr(p);
@@ -1352,7 +1352,7 @@ incr(mpx->n_cmds)
 worthwhile to slide everything down just to save a little space.
 
 @<Finish setting up the data structures for the new virtual font@>=
-mpx->fbase[f]=(integer)(mpx->vf_ptr+1);
+mpx->fbase[f]=(web_integer)(mpx->vf_ptr+1);
 mpx->info_ptr=(unsigned int)(mpx->info_base[f]+mpx->font_ec[f]+1)
 
 
@@ -1366,10 +1366,10 @@ function that takes an external font number~|e| and returns the corresponding
 internal font number with the width information loaded.
 
 @c 
-static integer mpx_select_font (MPX mpx, integer e) {
+static web_integer mpx_select_font (MPX mpx, web_integer e) {
   int f; /* the internal font number */
   int ff; /* internal font number for an existing version */
-  integer k; /* general purpose loop counter */
+  web_integer k; /* general purpose loop counter */
   @<Set |f| to the internal font number that corresponds to |e|,
     or |abort| if there is none@>;
   if ( mpx->info_base[f]==max_widths ) {
@@ -1398,7 +1398,7 @@ static integer mpx_select_font (MPX mpx, integer e) {
 if ( mpx->cur_ftop<=mpx->nfonts ) 
   mpx->cur_ftop=mpx->nfonts;
 mpx->font_num[mpx->cur_ftop]=e;
-k=(integer)mpx->cur_fbase;
+k=(web_integer)mpx->cur_fbase;
 while ((mpx->font_num[k]!=e)|| mpx->local_only[k] ) incr(k);
 if ( k==(int)mpx->cur_ftop ) 
   mpx_abort(mpx,"Undefined font selected");
@@ -1466,7 +1466,7 @@ mpx->print_col = 0;		/* there are at most this many characters on the current li
 
 @<Declare subroutines for printing strings@>=
 static void mpx_print_char (MPX mpx, unsigned char c) {
-  integer l; /* number of characters to print |c| or the \.{char} expression */  
+  web_integer l; /* number of characters to print |c| or the \.{char} expression */  
   if ( printable(c) ) l=1;
   else if ( c<10 ) l=5;
   else if ( c<100 ) l=6;
@@ -1511,7 +1511,7 @@ else
 that there is room for |l| more characters on the output line.
 
 @<Declare subroutines for printing strings@>=
-static void mpx_end_char_string (MPX mpx,integer l) { 
+static void mpx_end_char_string (MPX mpx,web_integer l) { 
   while ( mpx->state>special ){ 
     fprintf(mpx->mpxfile,"\"");
     incr(mpx->print_col);
@@ -1540,13 +1540,13 @@ generated variables names must not collide with formal parameters in such
 cases.
 
 @<Glob...@>=
-integer h;
-integer v; /* the current position in \.{DVI} units */
+web_integer h;
+web_integer v; /* the current position in \.{DVI} units */
 double conv; /* converts \.{DVI} units to \MP\ points */
 double mag; /* magnification factor times 1000 */
 
 @ @c @<Declare a procedure called |finish_last_char|@>@;
-static void mpx_do_set_char (MPX mpx,integer f, integer c) {
+static void mpx_do_set_char (MPX mpx,web_integer f, web_integer c) {
   if ( (c<mpx->font_bc[f])||(c>mpx->font_ec[f]) )
     mpx_abort(mpx,"attempt to typeset invalid character %d",c);
 @.attempt to typeset...@>
@@ -1564,17 +1564,17 @@ static void mpx_do_set_char (MPX mpx,integer f, integer c) {
     mpx->str_v=mpx->v; mpx->str_h1=mpx->h;
   }
   mpx_print_char(mpx, (unsigned char)c);
-  mpx->str_h2=(integer)(mpx->h+@<Width of character |c| in font |f|@>);
+  mpx->str_h2=(web_integer)(mpx->h+@<Width of character |c| in font |f|@>);
 }
 
 @ @<Glob...@>=
 boolean font_used[(max_fonts+1)]; /* has this font been used on this page? */
 boolean fonts_used; /* has any font been used on this page? */
 boolean rules_used; /* has any rules been set on this page? */
-integer str_h1;
-integer str_v; /* starting position for current output string */
-integer str_h2; /* where the current output string ends */
-integer str_f; /* internal font number for the current output string */
+web_integer str_h1;
+web_integer str_v; /* starting position for current output string */
+web_integer str_h2; /* where the current output string ends */
+web_integer str_f; /* internal font number for the current output string */
 double str_scale; /* value of |dvi_scale| for the current output string */
 
 
@@ -1666,7 +1666,7 @@ static void mpx_finish_last_char (MPX mpx) {
 @ Setting rules is fairly simple.
 
 @c 
-static void mpx_do_set_rule (MPX mpx,integer ht, integer wd) {
+static void mpx_do_set_rule (MPX mpx,web_integer ht, web_integer wd) {
   double xx1,yy1,xx2,yy2,ww;
   /* \MP\ coordinates of lower-left and upper-right corners */
   if ( wd==1 ) {
@@ -1721,7 +1721,7 @@ dimension-determining rule is the last one in the picture.
 }
 
 @ @<Glob...@>=
-integer pic_dp; integer pic_ht; integer pic_wd; /* picture dimensions from special rule */
+web_integer pic_dp; web_integer pic_ht; web_integer pic_wd; /* picture dimensions from special rule */
 
 @ The following  initialization and clean-up is required.  We do a little more
 initialization than is absolutely necessary since some compilers might complain
@@ -1772,22 +1772,22 @@ commands.  It is also capable of executing the typesetting commands for
 a character in a virtual font.
 
 @ The definition of \.{DVI} files refers to six registers,
-$(h,v,w,x,y,z)$, which hold integer values in \.{DVI} units.
+$(h,v,w,x,y,z)$, which hold web_integer values in \.{DVI} units.
 These units come directly from the input file except they need to be
 rescaled when typesetting characters from a virtual font.
 The stack of $(h,v,w,x,y,z)$ values is represented by six arrays
 called |hstack|, \dots, |zstack|.
 
 @<Glob...@>=
-integer w;integer x;integer y;integer z;
+web_integer w;web_integer x;web_integer y;web_integer z;
   /* current state values (|h| and |v| have already been declared) */
-integer hstack[(stack_size+1)];
-integer vstack[(stack_size+1)];
-integer wstack[(stack_size+1)];
-integer xstack[(stack_size+1)];
-integer ystack[(stack_size+1)];
-integer zstack[(stack_size+1)]; /* pushed down values in \.{DVI} units */
-integer stk_siz; /* the current stack size */
+web_integer hstack[(stack_size+1)];
+web_integer vstack[(stack_size+1)];
+web_integer wstack[(stack_size+1)];
+web_integer xstack[(stack_size+1)];
+web_integer ystack[(stack_size+1)];
+web_integer zstack[(stack_size+1)]; /* pushed down values in \.{DVI} units */
+web_integer stk_siz; /* the current stack size */
 double dvi_scale; /* converts units of current input source to \.{DVI} units */
 
 @ @<Do initialization required before starting a new page@>=
@@ -1830,7 +1830,7 @@ typesetting commands for a character in a virtual font.
 
 @c 
 static void mpx_do_dvi_commands (MPX mpx);
-static void mpx_set_virtual_char (MPX mpx,integer f, integer c) {
+static void mpx_set_virtual_char (MPX mpx,web_integer f, web_integer c) {
   double old_scale; /* original value of |dvi_scale| */
   unsigned old_buf_ptr; /* original value of the input pointer |buf_ptr| */
   unsigned old_fbase,old_ftop; /* originally applicable part of the |font_num| table */
@@ -1865,11 +1865,11 @@ opcode.
 @d sixty_four_cases(A) thirty_two_cases((A)): case thirty_two_cases((A)+32)
 
 @<Declare a function called |first_par|@>=
-static integer mpx_first_par (MPX mpx, unsigned int o) { 
+static web_integer mpx_first_par (MPX mpx, unsigned int o) { 
   switch (o) {
   case sixty_four_cases(set_char_0):
   case sixty_four_cases(set_char_0+64):
-    return (integer)(o-set_char_0);
+    return (web_integer)(o-set_char_0);
     break;
   case set1: case put1: case fnt1: case xxx1: case fnt_def1: 
     return mpx_get_byte(mpx);
@@ -1903,7 +1903,7 @@ static integer mpx_first_par (MPX mpx, unsigned int o) {
   case y0: return mpx->y; break;
   case z0: return mpx->z; break;
   case sixty_four_cases(fnt_num_0): 
-    return (integer)(o-fnt_num_0);
+    return (web_integer)(o-fnt_num_0);
     break;
   }
   return 0; /* compiler warning */
@@ -1914,8 +1914,8 @@ static integer mpx_first_par (MPX mpx, unsigned int o) {
 @c 
 static void mpx_do_dvi_commands (MPX mpx) {
   unsigned int o; /* operation code of the current command */
-  integer p,q; /* parameters of the current command */
-  integer cur_font; /* current internal font number */
+  web_integer p,q; /* parameters of the current command */
+  web_integer cur_font; /* current internal font number */
   if ( (mpx->cur_fbase<mpx->cur_ftop) && (mpx->buf_ptr<virtual_space) )
     cur_font=mpx_select_font(mpx, mpx->font_num[mpx->cur_ftop-1]); /* select first local font */
   else 
@@ -1952,13 +1952,13 @@ of each command; the one in |do_dvi_commands| is organized by the semantics.
       mpx_set_virtual_char(mpx, cur_font, p);
       break;
     case set_rule: 
-      q=(integer)trunc(mpx_signed_quad(mpx)*mpx->dvi_scale);
-      mpx_do_set_rule(mpx, (integer)trunc(p*mpx->dvi_scale),q);
+      q=(web_integer)trunc(mpx_signed_quad(mpx)*mpx->dvi_scale);
+      mpx_do_set_rule(mpx, (web_integer)trunc(p*mpx->dvi_scale),q);
       mpx->h += q;
       break;
     case put_rule: 
-      q=(integer)trunc(mpx_signed_quad(mpx)*mpx->dvi_scale);
-      mpx_do_set_rule(mpx, (integer)trunc(p*mpx->dvi_scale),q);
+      q=(web_integer)trunc(mpx_signed_quad(mpx)*mpx->dvi_scale);
+      mpx_do_set_rule(mpx, (web_integer)trunc(p*mpx->dvi_scale),q);
       break;
     @<Additional cases for translating \.{DVI} command |o| with
        first parameter |p|@>@;
@@ -2001,19 +2001,19 @@ case four_cases(right1):
   mpx->h += trunc(p*mpx->dvi_scale);
   break;
 case w0: case four_cases(w1): 
-  mpx->w = (integer)trunc(p*mpx->dvi_scale); mpx->h += mpx->w;
+  mpx->w = (web_integer)trunc(p*mpx->dvi_scale); mpx->h += mpx->w;
   break;
 case x0: case four_cases(x1): 
-  mpx->x = (integer)trunc(p*mpx->dvi_scale); mpx->h += mpx->x;
+  mpx->x = (web_integer)trunc(p*mpx->dvi_scale); mpx->h += mpx->x;
   break;
 case four_cases(down1):
   mpx->v += trunc(p*mpx->dvi_scale);
   break;
 case y0: case four_cases(y1): 
-  mpx->y = (integer)trunc(p*mpx->dvi_scale); mpx->v += mpx->y;
+  mpx->y = (web_integer)trunc(p*mpx->dvi_scale); mpx->v += mpx->y;
   break;
 case z0: case four_cases(z1): 
-  mpx->z = (integer)trunc(p*mpx->dvi_scale); mpx->v += mpx->z;
+  mpx->z = (web_integer)trunc(p*mpx->dvi_scale); mpx->v += mpx->z;
   break;
 
 @ @<Additional cases for translating \.{DVI} command |o|...@>=
@@ -2061,8 +2061,8 @@ static int mpx_dvitomp (MPX mpx, char *dviname) {
 @ The main program needs a few global variables in order to do its work.
 
 @<Glob...@>=
-integer k;integer p; /* general purpose registers */
-integer numerator;integer denominator; /* stated conversion ratio */
+web_integer k;web_integer p; /* general purpose registers */
+web_integer numerator;web_integer denominator; /* stated conversion ratio */
 
 @ @<Process the preamble@>=
 {
@@ -2145,7 +2145,7 @@ typedef struct named_color_record {
 @<Globals@>=
 named_color_record named_colors[(max_named_colors+1)];
   /* stores information about named colors, in sorted order by name */
-integer num_named_colors; /* number of elements of |named_colors| that are valid */
+web_integer num_named_colors; /* number of elements of |named_colors| that are valid */
 
 @ This function, used only during initialization, defines a named color.
 
@@ -2248,10 +2248,10 @@ trivial and should leave the exit status zero.
 @d XXX_BUF 256
 
 @<Declare procedures to handle color commands@>=
-static void mpx_do_xxx (MPX mpx, integer p)
+static void mpx_do_xxx (MPX mpx, web_integer p)
 {
   unsigned char buf[(XXX_BUF+1)]; /* FIXME: Fixed size buffer. */
-  integer l, r, m, k, len;
+  web_integer l, r, m, k, len;
   boolean  found;
   int bufsiz = XXX_BUF;
   len = 0;
@@ -2310,7 +2310,7 @@ global variable to hold that stack.
 @ Here's the actual stack variables.
 
 @<Globals@>=
-integer color_stack_depth; /* current depth of saved color stack */
+web_integer color_stack_depth; /* current depth of saved color stack */
 char *color_stack[(max_color_stack_depth+1)]; /* saved color stack */
 
 @ Initialize the stack to empty.
@@ -2639,7 +2639,7 @@ static int mpx_get_int(MPX mpx, char *s) {
 }
 
 @ GROFF font description files use octal character codes
-|groff_font(5)|: The code can be any integer.  If it starts with
+|groff_font(5)|: The code can be any web_integer.  If it starts with
 a 0 it will be interpreted as octal; if it starts with  0x
 or 0X it will be intepreted as hexadecimal.
 
@@ -2657,10 +2657,10 @@ BAD:
   return 0;
 }
 
-@ Troff output files contain few if any non-integers, but this program is
+@ Troff output files contain few if any non-web_integers, but this program is
 prepared to read floats whenever they seem reasonable; i.e., when the
 number is not being used for character positioning.  (For non-PostScript
-applications h and v are usually in pixels and should be integers.)
+applications h and v are usually in pixels and should be web_integers.)
 
 @c 
 static float mpx_get_float(MPX mpx, char *s) {
@@ -2699,7 +2699,7 @@ static float mpx_get_float(MPX mpx, char *s) {
 }
 
 @ GROFF font description files have metrics field
-of comma-separated integers. Traditional troff
+of comma-separated web_integers. Traditional troff
 have a float in this position. The value is not
 used anyway - thus just skip the value,
  eat all non-space chars.
@@ -2902,7 +2902,7 @@ in |groff_font(5)|.  In order to allow parsing of groff's font files,
 this function needs to be rewritten as follows:
 
 \item{1.}The `metrics' field parsed by |mpx_get_float(lin);| may include
-   a comma-separated list of up to six decimal integers rather
+   a comma-separated list of up to six decimal web_integers rather
    than just a single floating-point number.
 
 \item{2.}The `charcode' field parsed by |lastcode = mpx_get_int(arg_tail);|
@@ -3065,7 +3065,7 @@ static void mpx_set_string(MPX mpx, char *cname) {
 	  mpx_print_char(mpx,(unsigned char)*cname);
 	  hh += char_width(mpx->curfont,(int)*cname);
     }
-    mpx->h = (integer)floor(hh+0.5);
+    mpx->h = (web_integer)floor(hh+0.5);
     mpx_finish_last_char(mpx);
 }
 
