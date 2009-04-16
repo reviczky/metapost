@@ -1,0 +1,20 @@
+
+--This line, and those below, will be ignored--
+
+A    texk/ac
+A    texk/ac/withenable.ac
+A    texk/dummy
+AM   texk/dummy/configure
+A    texk/dummy/Makefile.in
+A    texk/dummy/configure.ac
+A    texk/dummy/autom4te.cache
+A    texk/dummy/autom4te.cache/traces.0
+A    texk/dummy/autom4te.cache/output.1
+A    texk/dummy/autom4te.cache/traces.1
+A    texk/dummy/autom4te.cache/requests
+A    texk/dummy/autom4te.cache/output.0
+A    texk/dummy/Makefile.am
+A    texk/dummy/README
+A    texk/dummy/aclocal.m4
+A    texk/am
+A    texk/am/man.am
