@@ -48,7 +48,7 @@ while [ "$1" != "" ] ; do
 done
 #
 STRIP=strip
-MPOSTEXE=newmpost
+MPOSTEXE=mpost
 
 if [ `uname` = "Darwin" ] ; 
 then
@@ -62,7 +62,7 @@ if [ "$MINGWCROSS" = "TRUE" ]
 then
   B=build-windows
   STRIP=mingw32-strip
-  MPOSTEXE=newmpost.exe
+  MPOSTEXE=mpost.exe
   OLDPATH=$PATH
   PATH=/usr/mingw32/bin:$PATH
   CONFHOST="--host=mingw32 --build=i686-linux-gnu "
