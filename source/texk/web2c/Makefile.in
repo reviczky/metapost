@@ -34,10 +34,10 @@ build_triplet = @build@
 host_triplet = @host@
 @OMFONTS_TRUE@am__append_1 = omegafonts
 EXTRA_PROGRAMS = $(am__EXEEXT_1) tex$(EXEEXT) mf$(EXEEXT) \
-	mf-nowin$(EXEEXT) newmpost$(EXEEXT)
+	mf-nowin$(EXEEXT) mpost$(EXEEXT)
 bin_PROGRAMS = tangle$(EXEEXT) ctangle$(EXEEXT) $(am__EXEEXT_2) \
 	ctie$(EXEEXT) cweave$(EXEEXT) tie$(EXEEXT) $(am__EXEEXT_3) \
-	$(am__EXEEXT_4) $(am__EXEEXT_5) newmpost$(EXEEXT)
+	$(am__EXEEXT_4) $(am__EXEEXT_5) mpost$(EXEEXT)
 noinst_PROGRAMS = tangleboot$(EXEEXT) ctangleboot$(EXEEXT)
 check_PROGRAMS = md5main$(EXEEXT)
 DIST_COMMON = README $(am__configure_deps) $(dist_check_SCRIPTS) \
@@ -193,9 +193,9 @@ nodist_mft_OBJECTS = mft.$(OBJEXT)
 mft_OBJECTS = $(nodist_mft_OBJECTS)
 mft_LDADD = $(LDADD)
 mft_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
-am__objects_4 = newmpost-mpost.$(OBJEXT) newmpost-mpxout.$(OBJEXT)
-am_newmpost_OBJECTS = $(am__objects_4)
-newmpost_OBJECTS = $(am_newmpost_OBJECTS)
+am__objects_4 = mpost-mpost.$(OBJEXT) mpost-mpxout.$(OBJEXT)
+am_mpost_OBJECTS = $(am__objects_4)
+mpost_OBJECTS = $(am_mpost_OBJECTS)
 nodist_patgen_OBJECTS = patgen.$(OBJEXT)
 patgen_OBJECTS = $(nodist_patgen_OBJECTS)
 patgen_LDADD = $(LDADD)
@@ -271,7 +271,7 @@ SOURCES = $(libmd5_a_SOURCES) $(nodist_libmf_a_SOURCES) \
 	$(nodist_gftodvi_SOURCES) $(nodist_gftopk_SOURCES) \
 	$(nodist_gftype_SOURCES) $(md5main_SOURCES) \
 	$(nodist_mf_SOURCES) $(nodist_mf_nowin_SOURCES) \
-	$(nodist_mft_SOURCES) $(newmpost_SOURCES) \
+	$(nodist_mft_SOURCES) $(mpost_SOURCES) \
 	$(nodist_patgen_SOURCES) $(nodist_pktogf_SOURCES) \
 	$(nodist_pktype_SOURCES) $(nodist_pltotf_SOURCES) \
 	$(nodist_pooltype_SOURCES) $(nodist_tangle_SOURCES) \
@@ -280,7 +280,7 @@ SOURCES = $(libmd5_a_SOURCES) $(nodist_libmf_a_SOURCES) \
 	$(nodist_vftovp_SOURCES) $(nodist_vptovf_SOURCES) \
 	$(nodist_weave_SOURCES)
 DIST_SOURCES = $(libmd5_a_SOURCES) $(libmplib_a_SOURCES) \
-	$(gftodvi_SOURCES) $(md5main_SOURCES) $(newmpost_SOURCES)
+	$(gftodvi_SOURCES) $(md5main_SOURCES) $(mpost_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -492,7 +492,7 @@ DISTCLEANFILES = $(EXTRA_LIBRARIES) tangle.c tangle.h tangle.p \
 	$(web_programs:=-web2c) ctie.c cweave.c tie.c tie.outc \
 	tie.outm $(nodist_tex_SOURCES) tex-final.ch tex-web2c tex.p \
 	tex.pool tex-tangle $(nodist_libmf_a_SOURCES) mfextra.c \
-	mf-final.ch mf-web2c mf.p mf.pool mf-tangle $(newmpost_c_h) \
+	mf-final.ch mf-web2c mf.p mf.pool mf-tangle $(mpost_c_h) \
 	mpost-ctangle $(libmplib_c_h) mplib-ctangle
 CLEANFILES = 
 web2c = srcdir=$(srcdir) $(SHELL) $(srcdir)/web2c/convert
@@ -560,12 +560,12 @@ mf_x_libs = $(X_LIBS) $(x_tool_libs) $(X_PRE_LIBS) $(x_ext_lib) $(wlibs) $(X_EXT
 mf_c_h = mfini.c mf0.c mf1.c mfcoerce.h mfd.h
 nodist_libmf_a_SOURCES = $(mf_c_h) mf-pool.c
 libmf_a_CPPFLAGS = -DMETA_FONT
-newmpost_c_h = mpost.c mpxout.c
-newmpost_web = mplibdir/mpost.w mplibdir/mpxout.w
-newmpost_CPPFLAGS = -I. -I$(srcdir)/mplibdir
-newmpost_DEPENDENCIES = libmplib.a
-newmpost_LDADD = libmplib.a $(KPATHSEA_LIBS) -lm
-newmpost_SOURCES = $(newmpost_c_h)
+mpost_c_h = mpost.c mpxout.c
+mpost_web = mplibdir/mpost.w mplibdir/mpxout.w
+mpost_CPPFLAGS = -I. -I$(srcdir)/mplibdir
+mpost_DEPENDENCIES = libmplib.a
+mpost_LDADD = libmplib.a $(KPATHSEA_LIBS) -lm
+mpost_SOURCES = $(mpost_c_h)
 libmplib_c_h = mp.c mplib.h mpmp.h mppsout.h psout.c mplibps.h svgout.c memio.c tfmin.c
 libmplib_true_c = mplibdir/avl.h mplibdir/avl.c 
 libmplib_web = $(libmplib_true_c) mplibdir/mp.w mplibdir/psout.w \
@@ -746,9 +746,9 @@ mf-nowin$(EXEEXT): $(mf_nowin_OBJECTS) $(mf_nowin_DEPENDENCIES)
 mft$(EXEEXT): $(mft_OBJECTS) $(mft_DEPENDENCIES) 
 	@rm -f mft$(EXEEXT)
 	$(LINK) $(mft_OBJECTS) $(mft_LDADD) $(LIBS)
-newmpost$(EXEEXT): $(newmpost_OBJECTS) $(newmpost_DEPENDENCIES) 
-	@rm -f newmpost$(EXEEXT)
-	$(LINK) $(newmpost_OBJECTS) $(newmpost_LDADD) $(LIBS)
+mpost$(EXEEXT): $(mpost_OBJECTS) $(mpost_DEPENDENCIES) 
+	@rm -f mpost$(EXEEXT)
+	$(LINK) $(mpost_OBJECTS) $(mpost_LDADD) $(LIBS)
 patgen$(EXEEXT): $(patgen_OBJECTS) $(patgen_DEPENDENCIES) 
 	@rm -f patgen$(EXEEXT)
 	$(LINK) $(patgen_OBJECTS) $(patgen_LDADD) $(LIBS)
@@ -823,8 +823,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mf-mfextra.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mf_nowin-mfextra.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mft.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/newmpost-mpost.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/newmpost-mpxout.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mpost-mpost.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mpost-mpxout.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/patgen.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pktogf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pktype.Po@am__quote@
@@ -1061,33 +1061,33 @@ mf_nowin-mfextra.obj: mfextra.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mf_nowin_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mf_nowin-mfextra.obj `if test -f 'mfextra.c'; then $(CYGPATH_W) 'mfextra.c'; else $(CYGPATH_W) '$(srcdir)/mfextra.c'; fi`
 
-newmpost-mpost.o: mpost.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(newmpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT newmpost-mpost.o -MD -MP -MF $(DEPDIR)/newmpost-mpost.Tpo -c -o newmpost-mpost.o `test -f 'mpost.c' || echo '$(srcdir)/'`mpost.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/newmpost-mpost.Tpo $(DEPDIR)/newmpost-mpost.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mpost.c' object='newmpost-mpost.o' libtool=no @AMDEPBACKSLASH@
+mpost-mpost.o: mpost.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mpost-mpost.o -MD -MP -MF $(DEPDIR)/mpost-mpost.Tpo -c -o mpost-mpost.o `test -f 'mpost.c' || echo '$(srcdir)/'`mpost.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/mpost-mpost.Tpo $(DEPDIR)/mpost-mpost.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mpost.c' object='mpost-mpost.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(newmpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o newmpost-mpost.o `test -f 'mpost.c' || echo '$(srcdir)/'`mpost.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mpost-mpost.o `test -f 'mpost.c' || echo '$(srcdir)/'`mpost.c
 
-newmpost-mpost.obj: mpost.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(newmpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT newmpost-mpost.obj -MD -MP -MF $(DEPDIR)/newmpost-mpost.Tpo -c -o newmpost-mpost.obj `if test -f 'mpost.c'; then $(CYGPATH_W) 'mpost.c'; else $(CYGPATH_W) '$(srcdir)/mpost.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/newmpost-mpost.Tpo $(DEPDIR)/newmpost-mpost.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mpost.c' object='newmpost-mpost.obj' libtool=no @AMDEPBACKSLASH@
+mpost-mpost.obj: mpost.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mpost-mpost.obj -MD -MP -MF $(DEPDIR)/mpost-mpost.Tpo -c -o mpost-mpost.obj `if test -f 'mpost.c'; then $(CYGPATH_W) 'mpost.c'; else $(CYGPATH_W) '$(srcdir)/mpost.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/mpost-mpost.Tpo $(DEPDIR)/mpost-mpost.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mpost.c' object='mpost-mpost.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(newmpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o newmpost-mpost.obj `if test -f 'mpost.c'; then $(CYGPATH_W) 'mpost.c'; else $(CYGPATH_W) '$(srcdir)/mpost.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mpost-mpost.obj `if test -f 'mpost.c'; then $(CYGPATH_W) 'mpost.c'; else $(CYGPATH_W) '$(srcdir)/mpost.c'; fi`
 
-newmpost-mpxout.o: mpxout.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(newmpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT newmpost-mpxout.o -MD -MP -MF $(DEPDIR)/newmpost-mpxout.Tpo -c -o newmpost-mpxout.o `test -f 'mpxout.c' || echo '$(srcdir)/'`mpxout.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/newmpost-mpxout.Tpo $(DEPDIR)/newmpost-mpxout.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mpxout.c' object='newmpost-mpxout.o' libtool=no @AMDEPBACKSLASH@
+mpost-mpxout.o: mpxout.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mpost-mpxout.o -MD -MP -MF $(DEPDIR)/mpost-mpxout.Tpo -c -o mpost-mpxout.o `test -f 'mpxout.c' || echo '$(srcdir)/'`mpxout.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/mpost-mpxout.Tpo $(DEPDIR)/mpost-mpxout.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mpxout.c' object='mpost-mpxout.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(newmpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o newmpost-mpxout.o `test -f 'mpxout.c' || echo '$(srcdir)/'`mpxout.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mpost-mpxout.o `test -f 'mpxout.c' || echo '$(srcdir)/'`mpxout.c
 
-newmpost-mpxout.obj: mpxout.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(newmpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT newmpost-mpxout.obj -MD -MP -MF $(DEPDIR)/newmpost-mpxout.Tpo -c -o newmpost-mpxout.obj `if test -f 'mpxout.c'; then $(CYGPATH_W) 'mpxout.c'; else $(CYGPATH_W) '$(srcdir)/mpxout.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/newmpost-mpxout.Tpo $(DEPDIR)/newmpost-mpxout.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mpxout.c' object='newmpost-mpxout.obj' libtool=no @AMDEPBACKSLASH@
+mpost-mpxout.obj: mpxout.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mpost-mpxout.obj -MD -MP -MF $(DEPDIR)/mpost-mpxout.Tpo -c -o mpost-mpxout.obj `if test -f 'mpxout.c'; then $(CYGPATH_W) 'mpxout.c'; else $(CYGPATH_W) '$(srcdir)/mpxout.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/mpost-mpxout.Tpo $(DEPDIR)/mpost-mpxout.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mpxout.c' object='mpost-mpxout.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(newmpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o newmpost-mpxout.obj `if test -f 'mpxout.c'; then $(CYGPATH_W) 'mpxout.c'; else $(CYGPATH_W) '$(srcdir)/mpxout.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(mpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o mpost-mpxout.obj `if test -f 'mpxout.c'; then $(CYGPATH_W) 'mpxout.c'; else $(CYGPATH_W) '$(srcdir)/mpxout.c'; fi`
 
 tex-texini.o: texini.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(tex_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tex-texini.o -MD -MP -MF $(DEPDIR)/tex-texini.Tpo -c -o tex-texini.o `test -f 'texini.c' || echo '$(srcdir)/'`texini.c
@@ -1960,12 +1960,12 @@ mf-final.ch: $(TIE) mf.web mf.ch mf-binpool.ch
 mf-pool.c: mf.pool $(makecpool) tmf-pool.h
 	$(makecpool) mf.pool $(srcdir)/tmf-pool.h >$@ || rm -f $@
 
-$(newmpost_c_h): mpost-ctangle libmplib.a
-mpost-ctangle: ctangle$(EXEEXT) $(newmpost_web)
+$(mpost_c_h): mpost-ctangle libmplib.a
+mpost-ctangle: ctangle$(EXEEXT) $(mpost_web)
 	CWEBINPUTS=$(srcdir)/mplibdir $(ctangle) mpost.w
 	CWEBINPUTS=$(srcdir)/mplibdir $(ctangle) mpxout.w
 	echo timestamp >$@
-	touch $(newmpost_c_h)
+	touch $(mpost_c_h)
 
 $(libmplib_c_h): mplib-ctangle  $(libmplib_true_c)
 mplib-ctangle: ctangle$(EXEEXT) $(libmplib_web)

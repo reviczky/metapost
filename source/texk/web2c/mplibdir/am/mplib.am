@@ -2,28 +2,28 @@
 
 ## metapost
 ##
-bin_PROGRAMS += newmpost
+bin_PROGRAMS += mpost
 
-EXTRA_PROGRAMS += newmpost
+EXTRA_PROGRAMS += mpost
 
 EXTRA_LIBRARIES += libmplib.a
 
-newmpost_c_h = mpost.c mpxout.c
-newmpost_web = mplibdir/mpost.w mplibdir/mpxout.w
+mpost_c_h = mpost.c mpxout.c
+mpost_web = mplibdir/mpost.w mplibdir/mpxout.w
 
-newmpost_CPPFLAGS = -I. -I$(srcdir)/mplibdir
-newmpost_DEPENDENCIES = libmplib.a
-newmpost_LDADD = libmplib.a $(KPATHSEA_LIBS) -lm
-newmpost_SOURCES = $(newmpost_c_h)
+mpost_CPPFLAGS = -I. -I$(srcdir)/mplibdir
+mpost_DEPENDENCIES = libmplib.a
+mpost_LDADD = libmplib.a $(KPATHSEA_LIBS) -lm
+mpost_SOURCES = $(mpost_c_h)
 
-$(newmpost_c_h): mpost-ctangle libmplib.a
-mpost-ctangle: ctangle$(EXEEXT) $(newmpost_web)
+$(mpost_c_h): mpost-ctangle libmplib.a
+mpost-ctangle: ctangle$(EXEEXT) $(mpost_web)
 	CWEBINPUTS=$(srcdir)/mplibdir $(ctangle) mpost.w
 	CWEBINPUTS=$(srcdir)/mplibdir $(ctangle) mpxout.w
 	echo timestamp >$@
-	touch $(newmpost_c_h)
+	touch $(mpost_c_h)
 
-DISTCLEANFILES += $(newmpost_c_h) mpost-ctangle
+DISTCLEANFILES += $(mpost_c_h) mpost-ctangle
 
 ## These files are mutually dependent
 libmplib_c_h =  mp.c mplib.h mpmp.h mppsout.h psout.c mplibps.h svgout.c memio.c tfmin.c
