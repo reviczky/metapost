@@ -738,7 +738,6 @@ static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
       mp_svg_trans_pair_out(mp, pen,gr_x_coord(q),gr_y_coord(q));
     } else if ( q!=h ){ 
       append_char('L');
-      mp_svg_print(mp, "L ");
       mp_svg_trans_pair_out(mp, pen,gr_x_coord(q),gr_y_coord(q));
    }
     p=q;
