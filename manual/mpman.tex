@@ -152,15 +152,6 @@ is really a programming language for generating graphics, especially
 figures for \TeX\footnote{\TeX\ is a trademark of the American
 Mathematical Society.}\index{TeX?\TeX} and troff\index{troff} documents.
 
-It seems advisable to point out, that despite the fact, vector graphics
-can be scaled without quality degradation, they, too, are best created
-at nearly target size.  Otherwise the visual character of a drawing
-might change at different scales.  This is, because certain properties
-of a drawing do not scale proportionally, e.g., line width or arrow
-size.  On the other hand, while outline fonts do scale proportionally,
-this is not always desired, e.g., when a font is available in optical
-sizes, like the Computer Modern font family.
-
 This document introduces the MetaPost language, beginning with the
 features that are easiest to use and most important for simple
 applications.  The first few sections describe the language as it
@@ -281,6 +272,15 @@ $$
 \caption{MetaPost commands and the resulting output}
 \label{fig1}
 \end{figure}
+
+At this point, it seems advisable to point out, that it is good style to
+create vector graphics at nearly target size.  While vector graphics
+\emph{can} be scaled without quality degradation, the visual character
+of a drawing might change unintentionally at large scale factors,
+because certain properties of a drawing do not scale proportionally,
+e.g., line width or arrow size.  Additionally, while outline fonts do
+scale proportionally, this is not always desired, e.g., when a font is
+available in optical sizes, like the Computer Modern font family.
 
 
 \section{The MetaPost workflow}
