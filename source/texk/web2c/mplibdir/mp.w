@@ -4894,7 +4894,6 @@ values they test for.
 @d false_code 31 /* operation code for \.{false} */
 @d null_picture_code 32 /* operation code for \.{nullpicture} */
 @d null_pen_code 33 /* operation code for \.{nullpen} */
-@d job_name_op 34 /* operation code for \.{jobname} */
 @d read_string_op 35 /* operation code for \.{readstring} */
 @d pen_circle 36 /* operation code for \.{pencircle} */
 @d normal_deviate 37 /* operation code for \.{normaldeviate} */
@@ -5002,7 +5001,6 @@ values they test for.
     case false_code:mp_print(mp, "false"); break;
     case null_picture_code:mp_print(mp, "nullpicture"); break;
     case null_pen_code:mp_print(mp, "nullpen"); break;
-    case job_name_op:mp_print(mp, "jobname"); break;
     case read_string_op:mp_print(mp, "readstring"); break;
     case pen_circle:mp_print(mp, "pencircle"); break;
     case normal_deviate:mp_print(mp, "normaldeviate"); break;
@@ -5110,6 +5108,8 @@ fuss with. Every such parameter has an identifying code number, defined here.
 enum mp_given_internal {
   mp_output_template=1, /* a string set up by \&{outputtemplate} */
   mp_output_format, /* the output format set up by \&{outputformat} */
+  mp_job_name, /* the perceived jobname, as set up from the options stucture, 
+                  the name of the input file, or by \&{jobname}  */
   mp_tracing_titles, /* show titles online when they appear */
   mp_tracing_equations, /* show each variable when it becomes known */
   mp_tracing_capsules, /* show capsules too */
@@ -5126,6 +5126,8 @@ enum mp_given_internal {
   mp_month, /* the current month (e.g., 3 $\equiv$ March) */
   mp_day, /* the current day of the month */
   mp_time, /* the number of minutes past midnight when this job started */
+  mp_hour, /* the number of hours past midnight when this job started */
+  mp_minute, /* the number of minutes in that hour when this job started */
   mp_char_code, /* the number of the next character to be output */
   mp_char_ext, /* the extension code of the next character to be output */
   mp_char_wd, /* the width of the next character to be output */
@@ -5227,6 +5229,10 @@ mp_primitive(mp, "day",internal_quantity,mp_day);
 @:mp_day_}{\&{day} primitive@>
 mp_primitive(mp, "time",internal_quantity,mp_time);
 @:time_}{\&{time} primitive@>
+mp_primitive(mp, "hour",internal_quantity,mp_hour);
+@:hour_}{\&{hour} primitive@>
+mp_primitive(mp, "minute",internal_quantity,mp_minute);
+@:minute_}{\&{minute} primitive@>
 mp_primitive(mp, "charcode",internal_quantity,mp_char_code);
 @:mp_char_code_}{\&{charcode} primitive@>
 mp_primitive(mp, "charext",internal_quantity,mp_char_ext);
@@ -5273,6 +5279,8 @@ mp_primitive(mp, "outputtemplate",internal_quantity,mp_output_template);
 @:mp_output_template_}{\&{outputtemplate} primitive@>
 mp_primitive(mp, "outputformat",internal_quantity,mp_output_format);
 @:mp_output_format_}{\&{outputformat} primitive@>
+mp_primitive(mp, "jobname",internal_quantity,mp_job_name);
+@:mp_job_name_}{\&{jobname} primitive@>
 
 @ Colors can be specified in four color models. In the special
 case of |no_model|, MetaPost does not output any color operator to
@@ -5322,6 +5330,8 @@ mp->int_name[mp_year]=xstrdup("year");
 mp->int_name[mp_month]=xstrdup("month");
 mp->int_name[mp_day]=xstrdup("day");
 mp->int_name[mp_time]=xstrdup("time");
+mp->int_name[mp_hour]=xstrdup("hour");
+mp->int_name[mp_minute]=xstrdup("minute");
 mp->int_name[mp_char_code]=xstrdup("charcode");
 mp->int_name[mp_char_ext]=xstrdup("charext");
 mp->int_name[mp_char_wd]=xstrdup("charwd");
@@ -5345,6 +5355,7 @@ mp->int_name[mp_gtroffmode]=xstrdup("troffmode");
 mp->int_name[mp_restore_clip_color]=xstrdup("restoreclipcolor");
 mp->int_name[mp_output_template]=xstrdup("outputtemplate");
 mp->int_name[mp_output_format]=xstrdup("outputformat");
+mp->int_name[mp_job_name]=xstrdup("jobname");
 
 @ The following procedure, which is called just before \MP\ initializes its
 input and output, establishes the initial values of the date and time.
@@ -5359,6 +5370,8 @@ static void mp_fix_date_and_time (MP mp) {
   struct tm *tmptr = localtime (&aclock);
   mp->internal[mp_time]=
       (tmptr->tm_hour*60+tmptr->tm_min)*unity; /* minutes since midnight */
+  mp->internal[mp_hour]= (tmptr->tm_hour)*unity; /* hours since midnight */
+  mp->internal[mp_minute]= (tmptr->tm_min)*unity; /* minutes since the hour */
   mp->internal[mp_day]=(tmptr->tm_mday)*unity; /* fourth day of the month */
   mp->internal[mp_month]=(tmptr->tm_mon+1)*unity; /* seventh month of the year */
   mp->internal[mp_year]=(tmptr->tm_year+1900)*unity; /* Anno Domini */
@@ -16309,9 +16322,11 @@ void mp_ptr_scan_file (MP mp,  char *s) {
 }
 
 
-@ The global variable |job_name| contains the file name that was first
-\&{input} by the user. This name is extended by `\.{.log}' and `\.{ps}' and
-`\.{.mem}' and `\.{.tfm}' in order to make the names of \MP's output files.
+@ The option variable |job_name| contains the file name that was first
+\&{input} by the user. This name is used to initialize the |job_name| global
+as well as the |mp_job_name| internal, and is extended by `\.{.log}' and 
+`\.{ps}' and `\.{.mem}' and `\.{.tfm}' in order to make the names of \MP's 
+output files.
 
 @<Glob...@>=
 boolean log_opened; /* has the transcript file been opened? */
@@ -16338,6 +16353,7 @@ if (opt->noninteractive && opt->ini_version) {
     }
   }
 }
+mp->internal[mp_job_name]=mp_rts(mp,mp->job_name);
 mp->log_opened=false;
 
 @ @<Dealloc variables@>=
@@ -16428,6 +16444,9 @@ it catch up to what has previously been printed on the terminal.
   old_setting=mp->selector;
   if ( mp->job_name==NULL ) {
      mp->job_name=xstrdup("mpout");
+     if (mp->internal[mp_job_name]!=0)
+	delete_str_ref(mp->internal[mp_job_name]);
+     mp->internal[mp_job_name]=mp_rts(mp, mp->job_name);
   }
   mp_pack_job_name(mp,".log");
   while ( ! mp_a_open_out(mp, &mp->log_file, mp_filetype_log) ) {
@@ -16482,8 +16501,9 @@ this file.
   mp_print_char(mp, xord(' ')); 
   mp_print_int(mp, mp_round_unscaled(mp, mp->internal[mp_year])); 
   mp_print_char(mp, xord(' '));
-  m=mp_round_unscaled(mp, mp->internal[mp_time]);
-  mp_print_dd(mp, m / 60); mp_print_char(mp, xord(':')); mp_print_dd(mp, m % 60);
+  mp_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_hour]));
+  mp_print_char(mp, xord(':')); 
+  mp_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_minute]));
 }
 
 @ The |try_extension| function tries to open an input file determined by
@@ -16526,6 +16546,9 @@ when an `\.{input}' command is being processed.
   fname = xstrdup(mp->name_of_file);
   if ( mp->job_name==NULL ) {
     mp->job_name=xstrdup(mp->cur_name); 
+    if (mp->internal[mp_job_name]!=0)
+       delete_str_ref(mp->internal[mp_job_name]);
+    mp->internal[mp_job_name]=mp_rts(mp, mp->job_name);
     mp_open_log_file(mp);
   } /* |open_log_file| doesn't |show_context|, so |limit|
         and |loc| needn't be set to meaningful values yet */
@@ -18723,8 +18746,6 @@ mp_primitive(mp, "nullpicture",nullary,null_picture_code);
 @:null_picture_}{\&{nullpicture} primitive@>
 mp_primitive(mp, "nullpen",nullary,null_pen_code);
 @:null_pen_}{\&{nullpen} primitive@>
-mp_primitive(mp, "jobname",nullary,job_name_op);
-@:job_name_}{\&{jobname} primitive@>
 mp_primitive(mp, "readstring",nullary,read_string_op);
 @:read_string_}{\&{readstring} primitive@>
 mp_primitive(mp, "pencircle",nullary,pen_circle);
@@ -18956,10 +18977,6 @@ static void mp_do_nullary (MP mp,quarterword c) {
     break;
   case pen_circle: 
     mp->cur_type=mp_pen_type; mp->cur_exp=mp_get_pen_circle(mp, unity);
-    break;
-  case job_name_op:  
-    if ( mp->job_name==NULL ) mp_open_log_file(mp);
-    mp->cur_type=mp_string_type; mp->cur_exp=rts(mp->job_name);
     break;
   case mp_version: 
     mp->cur_type=mp_string_type; 
@@ -25595,6 +25612,8 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     ss = xstrdup(mp->name_of_file);
   } else { /* initializations */
     str_number s, n; /* a file extension derived from |c| */
+    scaled saved_char_code = mp->internal[mp_char_code];
+    mp->internal[mp_char_code] = c;
     old_setting=mp->selector; 
     mp->selector=new_string;
     f = 0;
@@ -25606,12 +25625,16 @@ static char *mp_set_output_file_name (MP mp, integer c) {
         incr(i);
         if ( i<str_stop(mp->internal[mp_output_template]) ) {
           if ( mp->str_pool[i]=='j' ) {
-            mp_print(mp, mp->job_name);
+             { char *ss;
+               ss = str(mp->internal[mp_job_name]);
+               mp_print(mp, ss);
+               mp_xfree(ss);
+             }
           } else if ( mp->str_pool[i]=='o' ) {
-             { char *s;
-               s = str(mp->internal[mp_output_format]);
-               mp_print(mp, s);
-               mp_xfree(s);
+             { char *ss;
+               ss = str(mp->internal[mp_output_format]);
+               mp_print(mp, ss);
+               mp_xfree(ss);
              }
           } else if ( mp->str_pool[i]=='d' ) {
              cc= mp_round_unscaled(mp, mp->internal[mp_day]);
@@ -25623,14 +25646,14 @@ static char *mp_set_output_file_name (MP mp, integer c) {
              cc= mp_round_unscaled(mp, mp->internal[mp_year]);
              print_with_leading_zeroes(cc);
           } else if ( mp->str_pool[i]=='H' ) {
-             cc= mp_round_unscaled(mp, mp->internal[mp_time]) / 60;
+             cc= mp_round_unscaled(mp, mp->internal[mp_hour]);
              print_with_leading_zeroes(cc);
           }  else if ( mp->str_pool[i]=='M' ) {
-             cc= mp_round_unscaled(mp, mp->internal[mp_time]) % 60;
+             cc= mp_round_unscaled(mp, mp->internal[mp_minute]);
              print_with_leading_zeroes(cc);
           } else if ( mp->str_pool[i]=='c' ) {
-            if ( c<0 ) mp_print(mp, "ps");
-            else print_with_leading_zeroes(c);
+             cc= mp_round_unscaled(mp, mp->internal[mp_char_code]);
+             print_with_leading_zeroes(c);
           } else if ( (mp->str_pool[i]>='0') && 
                       (mp->str_pool[i]<='9') ) {
             if ( (f<10)  )
@@ -25649,6 +25672,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
       incr(i);
     }
     s = mp_make_string(mp);
+    mp->internal[mp_char_code] = saved_char_code;
     mp->selector= old_setting;
     if (length(n)==0) {
        n=s;
