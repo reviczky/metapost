@@ -16480,7 +16480,7 @@ it catch up to what has previously been printed on the terminal.
   if ( mp->job_name==NULL ) {
      mp->job_name=xstrdup("mpout");
      if (mp->internal[mp_job_name]!=0)
-	delete_str_ref(mp->internal[mp_job_name]);
+       delete_str_ref(mp->internal[mp_job_name]);
      mp->internal[mp_job_name]=mp_rts(mp, mp->job_name);
   }
   mp_pack_job_name(mp,".log");
@@ -17820,6 +17820,8 @@ of the save stack, as described earlier.)
     mp_back_input(mp);
   }
   mp->cur_exp=mp->internal[q];
+  if (mp->int_type[q]==mp_string_type)
+    add_str_ref(mp->cur_exp);
   mp->cur_type=mp->int_type[q];
 }
 
