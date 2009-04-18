@@ -1482,6 +1482,21 @@ static boolean mp_str_eq_buf (MP mp,str_number s, integer k) {
   return true;
 }
 
+@ This routine compares a pool string with a sequence of characters
+of equal length.
+
+@c 
+static boolean mp_str_eq_cstr (MP mp,str_number s, char *k) {
+  /* test equality of strings */
+  pool_pointer j; /* running index */
+  j=mp->str_start[s];
+  while ( j<str_stop(s) ) { 
+    if ( mp->str_pool[j++]!=*k++ ) 
+      return false;
+  }
+  return true;
+}
+
 @ Here is a similar routine, but it compares two strings in the string pool,
 and it does not assume that they have the same length. If the first string
 is lexicographically greater than, less than, or equal to the second,
@@ -4022,6 +4037,13 @@ void mp_do_snprintf (char *str, int size, const char *format, ...) {
            }
          }
          break;
+       case 'c':
+         {
+           int s = va_arg(ap, int);
+           *res = s;
+           if (size-->0) res++;
+         }
+         break;
        case 'i':
        case 'd':
          {
@@ -5180,6 +5202,7 @@ memset(mp->int_type,0,(mp->max_internal+1) * sizeof(int));
 }
 mp->int_type[mp_output_format]=mp_string_type;
 mp->int_type[mp_output_template]=mp_string_type;
+mp->int_type[mp_job_name]=mp_string_type;
 mp->troff_mode=(opt->troff_mode>0 ? true : false);
 
 @ @<Exported function ...@>=
@@ -5601,6 +5624,24 @@ eq_type(frozen_right_delimiter)=right_delimiter;
 @ @<Check the ``constant'' values...@>=
 if ( hash_end+mp->max_internal>max_halfword ) mp->bad=17;
 
+@ The value of |hash_prime| should be roughly 85\pct! of |hash_size|, and it
+should be a prime number.  The theory of hashing tells us to expect fewer
+than two table probes, on the average, when the search is successful.
+[See J.~S. Vitter, {\sl Journal of the ACM\/ \bf30} (1983), 231--258.]
+@^Vitter, Jeffrey Scott@>
+
+@c
+static integer mp_compute_hash (MP mp, const char *s, int l) {
+  integer k;
+  integer h = *s;
+  for (k=1;k<l;k++){ 
+    h=h+h+(*(s+k));
+    while ( h>=mp->hash_prime ) h=h-mp->hash_prime;
+  }
+  return h;
+}
+
+
 @ Here is the subroutine that searches the hash table for an identifier
 that matches a given string of length~|l| appearing in |buffer[j..
 (j+l-1)]|. If the identifier is not found, it is inserted; hence it
@@ -5655,19 +5696,9 @@ incr(mp->st_count);
 break;
 }
 
+@  @<Compute the hash code |h|@>=
+h=mp_compute_hash(mp, (char *)mp->buffer+j, l)
 
-@ The value of |hash_prime| should be roughly 85\pct! of |hash_size|, and it
-should be a prime number.  The theory of hashing tells us to expect fewer
-than two table probes, on the average, when the search is successful.
-[See J.~S. Vitter, {\sl Journal of the ACM\/ \bf30} (1983), 231--258.]
-@^Vitter, Jeffrey Scott@>
-
-@<Compute the hash code |h|@>=
-h=mp->buffer[j];
-for (k=j+1;k<j+l;k++){ 
-  h=h+h+mp->buffer[k];
-  while ( h>=mp->hash_prime ) h=h-mp->hash_prime;
-}
 
 @ @<Search |eqtb| for equivalents equal to |p|@>=
 for (q=1;q<=hash_end;q++) { 
@@ -16398,7 +16429,11 @@ void mp_prompt_file_name (MP mp, const char * s, const char * e) ;
 	print_err("I can\'t write on file `");
 @.I can't write on file x@>
   }
-  mp_print_file_name(mp, mp->cur_name,mp->cur_area,mp->cur_ext); 
+  if (strcmp(s,"file name for output")==0) {
+    mp_print(mp, mp->output_file); 
+  } else {
+    mp_print_file_name(mp, mp->cur_name,mp->cur_area,mp->cur_ext); 
+  }
   mp_print(mp, "'.");
   if (strcmp(e,"")==0) 
 	mp_show_context(mp);
@@ -23837,7 +23872,9 @@ mp->start_sym=0;
 @d err_message_code 1
 @d err_help_code 2
 @d filename_template_code 3
-@d print_with_leading_zeroes(A)  g = mp->pool_ptr;
+@d print_with_leading_zeroes(A,B)  do {
+              integer g = mp->pool_ptr;
+              integer f = (B);
               mp_print_int(mp, (A)); g = mp->pool_ptr-g;
               if ( f>g ) {
                 mp->pool_ptr = mp->pool_ptr - g;
@@ -23847,7 +23884,8 @@ mp->start_sym=0;
                   };
                 mp_print_int(mp, (A));
               };
-              f = 0
+              f = 0;
+          } while (0)
 
 @<Put each...@>=
 mp_primitive(mp, "message",message_command,message_code);
@@ -25593,13 +25631,22 @@ etcetera to make it worthwile to move the code to |psout.w|.
 void mp_open_output_file (MP mp) ;
 
 @ @c 
+static void mp_append_to_template (MP mp, integer ff, integer c) {
+  if (mp->int_type[c]==mp_string_type) {
+    char *ss = str(mp->internal[c]);
+    mp_print(mp,ss);
+    mp_xfree(ss);
+  } else if (mp->int_type[c]==mp_known) {
+    integer cc = mp_round_unscaled(mp, mp->internal[c]);
+    print_with_leading_zeroes(cc, ff);
+  }
+}
 static char *mp_set_output_file_name (MP mp, integer c) {
   char *ss = NULL; /* filename extension proposal */  
   char *nn = NULL; /* temp string  for str() */
   unsigned old_setting; /* previous |selector| setting */
   pool_pointer i; /*  indexes into |filename_template|  */
-  integer cc; /* a temporary integer for template building  */
-  integer f,g=0; /* field widths */
+  integer f; /* field width */
   if ( mp->job_name==NULL ) mp_open_log_file(mp);
   if ( mp->internal[mp_output_template]==0) { 
     char *s; /* a file extension derived from |c| */
@@ -25613,53 +25660,103 @@ static char *mp_set_output_file_name (MP mp, integer c) {
   } else { /* initializations */
     str_number s, n; /* a file extension derived from |c| */
     scaled saved_char_code = mp->internal[mp_char_code];
-    mp->internal[mp_char_code] = c;
+    mp->internal[mp_char_code] = (c*unity);
+    if (mp->internal[mp_job_name]==0)
+      mp->internal[mp_job_name]=mp_rts(mp,mp->job_name);
     old_setting=mp->selector; 
     mp->selector=new_string;
-    f = 0;
     i = mp->str_start[mp->internal[mp_output_template]];
     n = null_str; /* initialize */
     while ( i<str_stop(mp->internal[mp_output_template]) ) {
+       f=0;
        if ( mp->str_pool[i]=='%' ) {
       CONTINUE:
         incr(i);
         if ( i<str_stop(mp->internal[mp_output_template]) ) {
-          if ( mp->str_pool[i]=='j' ) {
-             { char *ss;
-               ss = str(mp->internal[mp_job_name]);
-               mp_print(mp, ss);
-               mp_xfree(ss);
-             }
-          } else if ( mp->str_pool[i]=='o' ) {
-             { char *ss;
-               ss = str(mp->internal[mp_output_format]);
-               mp_print(mp, ss);
-               mp_xfree(ss);
-             }
-          } else if ( mp->str_pool[i]=='d' ) {
-             cc= mp_round_unscaled(mp, mp->internal[mp_day]);
-             print_with_leading_zeroes(cc);
-          } else if ( mp->str_pool[i]=='m' ) {
-             cc= mp_round_unscaled(mp, mp->internal[mp_month]);
-             print_with_leading_zeroes(cc);
-          } else if ( mp->str_pool[i]=='y' ) {
-             cc= mp_round_unscaled(mp, mp->internal[mp_year]);
-             print_with_leading_zeroes(cc);
-          } else if ( mp->str_pool[i]=='H' ) {
-             cc= mp_round_unscaled(mp, mp->internal[mp_hour]);
-             print_with_leading_zeroes(cc);
-          }  else if ( mp->str_pool[i]=='M' ) {
-             cc= mp_round_unscaled(mp, mp->internal[mp_minute]);
-             print_with_leading_zeroes(cc);
-          } else if ( mp->str_pool[i]=='c' ) {
-             cc= mp_round_unscaled(mp, mp->internal[mp_char_code]);
-             print_with_leading_zeroes(c);
-          } else if ( (mp->str_pool[i]>='0') && 
-                      (mp->str_pool[i]<='9') ) {
+          switch (mp->str_pool[i]) {
+	  case 'j':
+ 	    mp_append_to_template(mp,f,mp_job_name); 
+	    break;
+	  case 'c': 
+	    mp_append_to_template(mp,f,mp_char_code); 
+            break;
+	  case 'o': 
+	    mp_append_to_template(mp,f,mp_output_format); 
+            break;
+	  case 'd': 
+	    mp_append_to_template(mp,f,mp_day); 
+            break;
+	  case 'm': 
+	    mp_append_to_template(mp,f,mp_month); 
+            break;
+	  case 'y': 
+	    mp_append_to_template(mp,f,mp_year); 
+            break;
+	  case 'H': 
+	    mp_append_to_template(mp,f,mp_hour); 
+            break;
+	  case 'M': 
+	    mp_append_to_template(mp,f,mp_minute); 
+            break;
+          case '{':
+	    {
+	      /* look up a name */
+              integer l=0;
+              integer frst = i+1;
+	      while ( i<str_stop(mp->internal[mp_output_template]) ) {
+                i++;
+	        if (mp->str_pool[i] == '}')
+                  break;
+                l++;
+              }
+              if (l>0) {
+                integer h = mp_compute_hash(mp, (char *)(mp->str_pool+frst),l);
+                pointer p=h+hash_base; /* we start searching here */
+	        char *id = xmalloc(mp, (l+1));
+                strncpy(id,(char *)(mp->str_pool+frst),l);
+	        *(id+l)=0;
+	        while (true)  { 
+	     	  if (text(p)>0 && length(text(p))==l && 
+	              mp_str_eq_cstr(mp, text(p),id)) {
+                    if (eq_type(p)==internal_quantity) {
+         	      mp_append_to_template(mp,f,equiv(p)); 
+                    } else {
+		      char err[256];
+                      mp_snprintf(err,256,
+                       "requested identifier (%s) in outputtemplate is not an internal.",id);
+                      mp_warn(mp,err);
+                    }
+                    break;
+                  }
+                  if ( mp_next(p)==0 ) {
+                    char err[256];
+                    mp_snprintf(err,256,
+                      "requested identifier (%s) in outputtemplate not found.",id);
+                    mp_warn(mp,err);
+                    break;
+                  }
+                  p=mp_next(p);
+                }
+                free(id);
+              }
+            }
+	    break;
+	  case '0': case '1': case '2': case '3': case '4': 
+	  case '5': case '6': case '7': case '8': case '9':
             if ( (f<10)  )
               f = (f*10) + mp->str_pool[i]-'0';
             goto CONTINUE;
-          } else {
+	    break;
+          case '%':
+            mp_print_str(mp, mp->str_pool[i]);
+	    break;
+          default:
+            {
+              char err[256];
+              mp_snprintf(err,256,
+                "requested format (%c) in outputtemplate is unknown.",mp->str_pool[i]);
+              mp_warn(mp,err);
+            }
             mp_print_str(mp, mp->str_pool[i]);
           }
         }
