@@ -273,15 +273,6 @@ $$
 \label{fig1}
 \end{figure}
 
-At this point, it seems advisable to point out, that it is good style to
-create vector graphics at nearly target size.  While vector graphics
-\emph{can} be scaled without quality degradation, the visual character
-of a drawing might change unintentionally at large scale factors,
-because certain properties of a drawing do not scale proportionally,
-e.g., line width or arrow size.  Additionally, while outline fonts do
-scale proportionally, this is not always desired, e.g., when a font is
-available in optical sizes, like the Computer Modern font family.
-
 
 \section{The MetaPost workflow}
 \label{workflow}
@@ -472,6 +463,16 @@ an XML descendant (Extensible Meta Language), is more aiming at
 automated data processing/interchanging and is widely used for web
 applications.  The next sections deal with the import of MetaPost
 graphics into third-party applications.
+
+At this point, it seems advisable to point out, that it is good style to
+create MetaPost graphics at nearly target size.  While vector graphics
+\emph{can} be scaled without quality degradation, the visual character
+of a drawing might change unintentionally at large post-processing scale
+factors, because certain properties of a drawing do not scale
+proportionally, e.g., line width or arrow size.  Additionally, while
+outline fonts do scale proportionally, this is not always desired, e.g.,
+when a font is available in optical sizes, like the Computer Modern font
+family.
 
 \subsection{Previewing MetaPost graphics}
 \label{previewing}
