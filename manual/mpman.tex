@@ -4862,6 +4862,27 @@ Among the possible responses to a {\tt ?} prompt are the following:
         {\tt ?} prompt.
 \end{description}
 
+This interactive mode is not only entered when MetaPost finds an error
+in the code.  It can be explicitly entered by the \ttindex{errmessage}
+command.  The \ttindex{message}\label{Dmessage} command writes a string
+argument to a new line on the terminal.  The
+\ttindex{errmessage}\label{Derrmessage} command is similar, but the
+string argument is preceded by \verb|"! "| and followed by~\verb|"."|.
+Additionally, some lines of context are appended as in MetaPost's normal
+error messages.  If the user now types ``h'', the most recent
+\ttindex{errhelp}\label{Derrhelp} string will be shown (unless it was
+empty).
+
+\begin{figure}[htp]
+\begin{ctabbing}
+$\tt \descr{message command} \rightarrow errhelp \descr{string expression}$\\
+$\tt \qquad \;|\; errmessage \descr{string expression}$\\
+$\tt \qquad \;|\; message \descr{string expression}$
+\end{ctabbing}
+\caption{The syntax for message commands}
+\label{symsg}
+\end{figure}
+
 Error messages and responses to {\tt show} commands are also written
 into the transcript\index{files!transcript} file whose name is obtained
 from the name of the main input file by changing ``{\tt .mp}'' to ``{\tt
