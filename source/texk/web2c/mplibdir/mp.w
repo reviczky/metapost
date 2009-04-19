@@ -282,6 +282,7 @@ MP mp_initialize (MP_options *opt) {
   } else {
     mp->history=mp_spotless;
   }
+  @<Fix up |mp->internal[mp_job_name]|@>;
   return mp;
 }
 
@@ -16384,8 +16385,18 @@ if (opt->noninteractive && opt->ini_version) {
     }
   }
 }
-mp->internal[mp_job_name]=mp_rts(mp,mp->job_name);
 mp->log_opened=false;
+
+@ Cannot do this earlier because at the |@<Allocate or ...@>|, the string
+pool is not yet initialized.
+
+@<Fix up |mp->internal[mp_job_name]|@>=
+if (mp->job_name != NULL) {
+  if (mp->internal[mp_job_name]!=0)
+    delete_str_ref(mp->internal[mp_job_name]);
+  mp->internal[mp_job_name]=mp_rts(mp,mp->job_name);
+}
+
 
 @ @<Dealloc variables@>=
 xfree(mp->job_name);
@@ -16479,9 +16490,7 @@ it catch up to what has previously been printed on the terminal.
   old_setting=mp->selector;
   if ( mp->job_name==NULL ) {
      mp->job_name=xstrdup("mpout");
-     if (mp->internal[mp_job_name]!=0)
-       delete_str_ref(mp->internal[mp_job_name]);
-     mp->internal[mp_job_name]=mp_rts(mp, mp->job_name);
+     @<Fix up |mp->internal[mp_job_name]|@>;
   }
   mp_pack_job_name(mp,".log");
   while ( ! mp_a_open_out(mp, &mp->log_file, mp_filetype_log) ) {
@@ -16496,7 +16505,7 @@ it catch up to what has previously been printed on the terminal.
     mp_print_nl(mp, "**");
 @.**@>
     l=mp->input_stack[0].limit_field-1; /* last position of first line */
-    for (k=0;k<=l;k++) mp_print_str(mp, mp->buffer[k]);
+    for (k=1;k<=l;k++) mp_print_str(mp, mp->buffer[k]);
     mp_print_ln(mp); /* now the transcript file contains the first line of input */
   }
   mp->selector=old_setting+2; /* |log_only| or |term_and_log| */
@@ -16581,9 +16590,7 @@ when an `\.{input}' command is being processed.
   fname = xstrdup(mp->name_of_file);
   if ( mp->job_name==NULL ) {
     mp->job_name=xstrdup(mp->cur_name); 
-    if (mp->internal[mp_job_name]!=0)
-       delete_str_ref(mp->internal[mp_job_name]);
-    mp->internal[mp_job_name]=mp_rts(mp, mp->job_name);
+    @<Fix up |mp->internal[mp_job_name]|@>;
     mp_open_log_file(mp);
   } /* |open_log_file| doesn't |show_context|, so |limit|
         and |loc| needn't be set to meaningful values yet */
@@ -25663,8 +25670,12 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     str_number s, n; /* a file extension derived from |c| */
     scaled saved_char_code = mp->internal[mp_char_code];
     mp->internal[mp_char_code] = (c*unity);
-    if (mp->internal[mp_job_name]==0)
-      mp->internal[mp_job_name]=mp_rts(mp,mp->job_name);
+    if (mp->internal[mp_job_name]==0) {
+      if ( mp->job_name==NULL ) {
+         mp->job_name=xstrdup("mpout");
+      }
+      @<Fix up |mp->internal[mp_job_name]|@>;
+    }
     old_setting=mp->selector; 
     mp->selector=new_string;
     i = mp->str_start[mp->internal[mp_output_template]];
