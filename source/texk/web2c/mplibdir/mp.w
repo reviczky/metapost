@@ -22233,6 +22233,66 @@ int mp_run (MP mp) {
   return mp->history;
 }
 
+@ This function allows setting of internals from an external
+source (like the command line or a controlling application).
+
+It accepts two |char *|'s, even for numeric assignments when
+it calls |atoi| to get an integer from the start of the string.
+
+@c
+void mp_set_internal (MP mp, char *n, char *v, int isstring) {
+  integer l = strlen(n);
+  char err[256];
+  char *errid = NULL;
+  if (l>0) {
+    integer h = mp_compute_hash(mp, n,l);
+    pointer p = h+hash_base; /* we start searching here */
+    while (true) { 
+      if (text(p)>0 && length(text(p))==l && 
+	  mp_str_eq_cstr(mp, text(p),n)) {
+        if (eq_type(p)==internal_quantity) {
+          if (mp->int_type[equiv(p)]==mp_internal_type) {
+            mp->int_type[equiv(p)] = (isstring ? mp_string_type : mp_known);
+          }
+	  if ((mp->int_type[equiv(p)]==mp_string_type) && (isstring)) {
+            mp->internal[equiv(p)] = mp_rts(mp,v);
+          } else if ((mp->int_type[equiv(p)]==mp_known) && (!isstring)) {
+            scaled test = (scaled)atoi(v);
+            if (test>16383 ) {
+               errid = "value is too large";
+            } else if (test<-16383) {
+               errid = "value is too small";
+            } else {
+               mp->internal[equiv(p)] =  test*unity;
+            }
+          } else {
+            errid = "value has the wrong type";
+          }
+        } else {
+          errid = "variable is not an internal";
+        }
+        break;
+      }
+      if ( mp_next(p)==0 ) {
+        errid = "variable does not exist";
+        break;
+      }
+      p=mp_next(p);
+    }
+  }
+  if (errid != NULL) {
+    if (isstring) {
+      mp_snprintf(err,256,"%s=\"%s\": %s, assignment ignored.",n,v, errid);
+    } else {
+      mp_snprintf(err,256,"%s=%d: %s, assignment ignored.",n,atoi(v),errid);
+    }
+    mp_warn(mp,err);
+  }
+}
+
+@ @<Exported function headers@>=
+void mp_set_internal (MP mp, char *n, char *v, int isstring);
+
 @ For |mp_execute|, we need to define a structure to store the
 redirected input and output. This structure holds the five relevant
 streams: the three informational output streams, the PostScript
