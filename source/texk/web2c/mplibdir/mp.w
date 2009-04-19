@@ -4012,10 +4012,12 @@ void mp_do_snprintf (char *str, int size, const char *format, ...) {
      if (*fmt=='%') {
        fw=0;
        pad=0;
+     RESTART:
        fmt++;
        switch(*fmt) {
        case '0':
          pad=1;
+         goto RESTART;
          break;
        case '1':
        case '2':
@@ -4026,9 +4028,10 @@ void mp_do_snprintf (char *str, int size, const char *format, ...) {
        case '7':
        case '8':
        case '9':
-          assert(fw==0);
-          fw = *fmt-'0';
-          break;
+         assert(fw==0);
+         fw = *fmt-'0';
+         goto RESTART;
+         break;
        case 's':
          {
            char *s = va_arg(ap, char *);
