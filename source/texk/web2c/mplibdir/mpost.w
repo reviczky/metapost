@@ -573,7 +573,11 @@ if (!nokpse)
     } else if (option_is("dvitomp")) {
       dvitomp_only = 1;
     } else if (option_is("help")) {
-      @<Show help and exit@>;
+      if (dvitomp_only) {
+        @<Show short help and exit@>;
+      } else {
+        @<Show help and exit@>;
+      }
     } else if (option_is("version")) {
       @<Show version and exit@>;
     } else if (option_is("8bit") ||
@@ -596,6 +600,40 @@ if (!nokpse)
 }
 
 @ 
+@<Read and set dvitomp command line options@>=
+{
+  char *mpost_optarg;
+  boolean ini_version_test = false;
+  while (++a<argc) {
+    mpost_optarg = strstr(argv[a],"=") ;
+    if (mpost_optarg!=NULL) {
+      mpost_optarg++;
+      if (*mpost_optarg == '\0')  mpost_optarg=NULL;
+    }
+    if (option_is("debug")) {
+      debug = 1;
+    } else if (option_is ("kpathsea-debug")) {
+      if (mpost_optarg!=NULL)
+        kpathsea_debug |= atoi (mpost_optarg);
+    } else if (option_is ("progname")) {
+      user_progname = mpost_optarg;
+    } else if (option_is("no-kpathsea")) {
+      nokpse=true;
+    } else if (option_is("help")) {
+      @<Show short help and exit@>;
+    } else if (option_is("version")) {
+      @<Show version and exit@>;
+    } else if (option_is("")) {
+      fprintf(stdout,"fatal error: %s: unknown option %s\n", argv[0], argv[a]);
+      exit(EXIT_FAILURE);
+    } else {
+      break;
+    }
+  }
+  options->ini_version = (int)ini_version_test;
+}
+
+@ 
 @<Show help...@>=
 {
 fprintf(stdout,
@@ -607,7 +645,8 @@ fprintf(stdout,
 "  MPNAME.tfm), where NNN are the character numbers generated.\n"
 "  Any remaining COMMANDS are processed as MetaPost input,\n"
 "  after MPNAME is read.\n\n"
-"  With a --dvitomp argument, MetaPost acts as DVI-to-MPX converter only.\n\n");
+"  With a --dvitomp argument, MetaPost acts as DVI-to-MPX converter only.\n"
+"  Call MetaPost with --dvitomp --help for option explanations.\n\n");
 fprintf(stdout,
 "  -ini                      be inimpost, for dumping mem files\n"
 "  -interaction=STRING       set interaction mode (STRING=batchmode/nonstopmode/\n"
@@ -632,12 +671,35 @@ fprintf(stdout,
 }
 
 @ 
+@<Show short help...@>=
+{
+fprintf(stdout,
+"\n"
+"Usage: dvitomp DVINAME[.dvi] [MPXNAME[.mpx]]\n"
+"       mpost --dvitomp DVINAME[.dvi] [MPXNAME[.mpx]]\n"
+"\n"
+"  Convert a TeX DVI file to a MetaPost MPX file.\n\n");
+fprintf(stdout,
+"  -progname=STRING          set program name to STRING\n"
+"  -kpathsea-debug=NUMBER    set path searching debugging flags according to\n"
+"                            the bits of NUMBER\n"
+"  -help                     display this help and exit\n"
+"  -version                  output version information and exit\n"
+"\n"
+"Email bug reports to mp-implementors@@tug.org.\n"
+"\n");
+  exit(EXIT_SUCCESS);
+}
+
+@ 
 @<Show version...@>=
 {
   char *s = mp_metapost_version();
+if (dvitomp_only)
+  fprintf(stdout, "\n" "dvitomp %s\n", s);
+else
+  fprintf(stdout, "\n" "MetaPost %s\n", s);
 fprintf(stdout, 
-"\n"
-"MetaPost %s\n"
 "Copyright 2008 AT&T Bell Laboratories.\n"
 "There is NO warranty.  Redistribution of this software is\n"
 "covered by the terms of both the MetaPost copyright and\n"
@@ -646,7 +708,7 @@ fprintf(stdout,
 "named COPYING, COPYING.LESSER and the MetaPost source.\n"
 "Primary author of MetaPost: John Hobby.\n"
 "Current maintainer of MetaPost: Taco Hoekwater.\n"
-"\n", s);
+"\n");
   mpost_xfree(s);
   exit(EXIT_SUCCESS);
 }
@@ -883,7 +945,12 @@ int main (int argc, char **argv) { /* |start_here| */
   options = mp_options();
   options->ini_version       = (int)false;
   options->print_found_names = (int)true;
-  @<Read and set command line options@>;
+  if (strstr(argv[0], "dvitomp") != NULL) {
+    dvitomp_only=1;
+    @<Read and set dvitomp command line options@>;
+  } else {
+    @<Read and set command line options@>;
+  }
   if (dvitomp_only) {
     char *mpx = NULL, *dvi = NULL;
     if (a==argc) {
@@ -894,9 +961,13 @@ int main (int argc, char **argv) { /* |start_here| */
         mpx = argv[a++];
       }
     }
-    if (!nokpse)
-      kpse_set_program_name("dvitomp", user_progname);  
-    exit (mpost_run_dvitomp(dvi, mpx));
+    if (dvi == NULL) {
+      @<Show short help and exit@>;
+    } else {
+      if (!nokpse)
+        kpse_set_program_name("dvitomp", user_progname);  
+      exit (mpost_run_dvitomp(dvi, mpx));
+    }
   }
 
   @= /*@@-nullpass@@*/ @> 
