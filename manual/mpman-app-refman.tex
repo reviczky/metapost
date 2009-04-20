@@ -779,11 +779,10 @@ $\tt \descr{suffix list} \rightarrow \descr{suffix} \;|\; \descr{suffix list}\hb
 
 \begingroup
 \renewcommand*{\arraystretch}{1.25}% Give command-line switch tables air.
-\newcommand*{\cmdindex}[1]{\index{command-line!\texttt{#1}}\texttt{#1}}
+\newcommand*{\cmdindex}[1]{\index{command-line!\texttt{mpost}!\texttt{#1}}\texttt{#1}}
 
 \subsubsection*{The \texttt{mpost} program}
 \label{refman:mpost}
-\index{command-line!\texttt{mpost}}
 
 The command-line syntax of the MetaPost executable is
 $$ {\tt mpost}\ \descr{switches}\ \descr{file}
@@ -874,19 +873,31 @@ The following command-line switches are ignored, but trigger a warning:
   & \\
 \end{longtable}
 
+\renewcommand*{\cmdindex}[1]{\index{command-line!\texttt{dvitomp}!\texttt{#1}}\texttt{#1}}
+
 \subsubsection*{The \texttt{dvitomp} program}
 \label{refman:dvitomp}
-\index{command-line!\texttt{dvitomp}}
 
 The \ttindex{dvitomp}\label{Ddvitomp} program converts DVI files into
 low-level MetaPost code.  The command-line syntax of the executable is
-$$ \hbox{\verb|dvitomp|}\ \descr{infile}\ \descr{outfile}
+$$ \hbox{\verb|dvitomp|}\ \descr{switches}\ \descr{infile}\ \descr{outfile}
 $$
 where $\descr{infile}$ is the DVI file to convert and $\descr{outfile}$
 contains the equivalent MetaPost code.  MetaPost uses the
 \texttt{dvitomp} program when typesetting \verb|btex| \verb|...|
 \verb|etex| labels by \TeX\ for the final conversion back into MetaPost
-code.  Files generated that way end with \texttt{.mpx}.
+code.  Files generated that way end with \texttt{.mpx}.  The following
+command-line switches are accepted:
+\begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
+  \cmdindex{-progname}=$\descr{string}$
+  & Pretend to be the $\descr{string}$ executable.\\
+  \cmdindex{-kpathsea-debug}=$\descr{number}$
+  & Set debugging flags for path searching.\\
+  \cmdindex{-help}
+  & Show help on command-line switches.\\
+  \cmdindex{-version}
+  & Print version information and exit.\\
+\end{longtable}
 
 The \texttt{dvitomp} program used to be part of a set of external tools,
 called \emph{mpware}\index{mpware tools}\footnote{\texttt{makempx},
