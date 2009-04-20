@@ -1,9 +1,9 @@
 % Figures for MetaPost manual, by John Hobby.  Public domain.
 
-if scantokens(mpversion) > 1.005:
-  outputtemplate :=
-else:
+if scantokens(mpversion) < 1.200:
   filenametemplate
+else:
+  outputtemplate :=
 fi
 "%j-%c.mps";
 
