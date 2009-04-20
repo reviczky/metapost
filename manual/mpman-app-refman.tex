@@ -158,6 +158,24 @@ $$
 
 
 \begin{table}[htp]
+\caption{Internal string variables}
+$$\begin{tabular}{|l|r|l|}
+\hline
+\multicolumn1{|c}{Name}&  \multicolumn1{|c}{Page}&  \multicolumn1{|c|}{Explanation}\\
+\hline
+\hline
+\tt     outputformat&    \pageref{Doutputformat}&
+        Output backend to be used\\\hline
+\tt     outputtemplate&    \pageref{Doutputtemplate}&
+        Output filename template\\\hline
+\end{tabular}
+$$
+\label{isvartab}
+\index{jobname?\texttt{jobname}}
+\end{table}
+
+
+\begin{table}[htp]
 \caption{Other Predefined Variables}
 $$\begin{tabular}{|l|l|r|l|}
 \hline
@@ -179,11 +197,6 @@ $$\begin{tabular}{|l|l|r|l|}
         Commands for {\tt beginfig} to scan\\\hline
 \pl\tt  extra\_endfig&  string& \pageref{Dxefig}&
         Commands for {\tt endfig} to scan\\\hline
-\tt     outputformat&    string& \pageref{Doutputformat}&
-        Output backend to be used\\\hline
-\tt     outputtemplate&    string& \pageref{Doutputtemplate}&
-        Output filename template\\\hline
-
 \end{tabular}
 $$
 \label{pvartab}
