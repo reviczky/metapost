@@ -2,10 +2,10 @@
 
 input graph
 
-if scantokens(mpversion) > 1.005:
-  outputtemplate :=
-else:
+if scantokens(mpversion) < 1.200:
   filenametemplate
+else:
+  outputtemplate :=
 fi
 "%j-%c.mps";
 
