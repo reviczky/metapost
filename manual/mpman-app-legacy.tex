@@ -302,9 +302,11 @@ generated automatically.
 The output file naming template mechanism introduced in MetaPost
 version~1.000 originally used a primitive called
 \ttindex{filenametemplate}, as opposed to the internal string variable
-\ttindex{outputtemplate} described in section~\ref{Doutputtemplate}.
-This primitive took a string argument with the same syntax as
-\ttindex{outputtemplate}, e.g.,
+\ttt{outputtemplate}\index{outputtemplate?\texttt{outputtemplate}}
+described in section~\ref{Doutputtemplate}.  This primitive took a
+string argument with the same syntax as \ttt{outputtemplate}, except
+that it didn't know about the \verb|%{...}| escape sequence for
+evaluating internal variables, e.g.,:
 
 $$\begin{verbatim}
 filenametemplate "%j-%c.mps";
@@ -313,7 +315,19 @@ $$
 
 The \verb|filenametemplate| primitive has been deprecated since the
 introduction of \verb|outputtemplate| (version~1.200), but is still
-supported.
+supported.  If you happen to need writing future-proof source files,
+that at the same time are backwards compatible to MetaPost versions
+prior v1.200, this output filename template declaration might help:
+
+$$\begin{verbatim}
+if scantokens(mpversion) < 1.200:
+  filenametemplate
+else:
+  outputtemplate :=
+fi
+"%j-%c.mps";
+\end{verbatim}
+$$
 
 
 %%% Local Variables: 
