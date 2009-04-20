@@ -32,7 +32,6 @@ mp-implementors list or alternatively the metapost list.
 *****************************
 
 mpman.tex
-* Describe new outputtemplate syntax.
 * Describe glyph primitive.
 * Describe environment variables.
 * Describe internal string variables.

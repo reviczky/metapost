@@ -406,23 +406,41 @@ $$
 it will create the output file \ttt{fig-001.mps} instead of \ttt{fig.1}.
 The file extension \texttt{.mps} is conventionally chosen for MetaPost's
 PostScript output (see section~\ref{teximport}).  For SVG output one
-would want to use \texttt{.svg} instead.
+would want to use \texttt{.svg} instead.  A more general approach is to
+evaluate variable \verb|outputformat| within \verb|outputtemplate| via
+the \verb|%{...}| escape sequence:
+
+$$\begin{verbatim}
+outputformat := "mps";
+% outputformat := "svg";
+outputtemplate := "%j-%3c.%{outputformat}";
+...
+\end{verbatim}
+$$
+Now, one can switch between PostScript and SVG output by uncommenting
+the line with the proper assignment to \verb|outputformat| and have the
+correct file extension added automatically.
 
 %\suppressfloats[t]
 \begin{table}
   \def\d{$\langle$0-9$\rangle$}
   \centering
-  \begin{tabular}{|>{\ttfamily}l|l|}
+  \begin{tabular}{|>{\ttfamily}l|>{\ttfamily}l|l|}
     \hline
-    \multicolumn1{|c|}{Escape sequence} & \multicolumn1{c|}{Meaning}\\\hline
-    \%\%   & percent sign \\
-    \%j    & current jobname\\
-    \%\d c & charcode value (\verb|beginfig| argument)\\
-    \%\d y & current year\\
-    \%\d m & month (numeric)\\
-    \%\d d & day of the month\\
-    \%\d H & hour\\
-    \%\d M & minute\\
+    \multicolumn1{|c|}{Escape sequence} & \multicolumn1{c|}{Equivalent}
+    & \multicolumn1{c|}{Meaning}\\\hline
+    \%\%\index{\%\%?\texttt{\%\%}}   & & percent sign\\
+    \%\d\{$\descr{internal
+      variable}$\}\index{\%\{...\}?\texttt{\%\{\ldots\}}} & & evaluate
+    internal variable\\
+    \%j\index{\%j?\texttt{\%j}} & \%\{jobname\} & current jobname\\
+    \%\d c\index{\%c?\texttt{\%c}} & \%\d\{charcode\} & charcode value (\verb|beginfig|
+    argument)\\ 
+    \%\d y\index{\%y?\texttt{\%y}} & \%\d\{year\} & current year\\
+    \%\d m\index{\%m?\texttt{\%m}} & \%\d\{month\} & month (numeric)\\
+    \%\d d\index{\%d?\texttt{\%d}} & \%\d\{day\} & day of the month\\
+    \%\d H\index{\%H?\texttt{\%H}} & \%\d\{hour\} & hour\\
+    \%\d M\index{\%M?\texttt{\%M}} & \%\d\{minute\} & minute\\
     \hline
   \end{tabular}
   \caption{Allowed escape sequences for \ttt{outputtemplate}}
