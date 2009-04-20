@@ -816,10 +816,11 @@ Here's a summary of the command-line switches understood by
   \cmdindex{-s}$\descr{key}$=$\descr{value}$ \textrm{or}\newline
   -s $\descr{key}$=$\descr{value}$
   & Set internal variable $\descr{key}$ to $\descr{value}$.  The
-  assignment is applied just before the input file is read-in.  String
-  values have to be put into double quotes.  Double quotes are stripped,
-  but no other string processing takes place.  This switch can be
-  applied multiple times on the command-line.\newline
+  assignment is applied just before the input file is read-in.  This
+  switch can be applied multiple times on the command-line.\newline
+  $\descr{value}$ can be an integer between -16383 and 16383 or a string
+  in double quotes.  For strings, double quotes are stripped, but no
+  other processing takes place.\newline
   Example: \verb|-soutputformat="svg" -sprologues=3|\newline
   Use SVG backend converting font shapes to paths.\\
   \cmdindex{-progname}=$\descr{string}$
