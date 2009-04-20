@@ -814,10 +814,15 @@ Here's a summary of the command-line switches understood by
   \texttt{\&$\descr{string}$})\\
   \cmdindex{-jobname}=$\descr{jobname}$
   & Set the name of the job (affects output file names).\\
-  \cmdindex{-s}$\descr{key}$=$\descr{value}$
-  & Set internal variable $\descr{key}$ to $\descr{value}$.\\
-  & Example: \verb|-soutputformat="svg" -sprologues=3|\\
-  & Use SVG backend converting font shapes to paths.\\
+  \cmdindex{-s}$\descr{key}$=$\descr{value}$ \textrm{or}\newline
+  -s $\descr{key}$=$\descr{value}$
+  & Set internal variable $\descr{key}$ to $\descr{value}$.  The
+  assignment is applied just before the input file is read-in.  String
+  values have to be put into double quotes.  Double quotes are stripped,
+  but no other string processing takes place.  This switch can be
+  applied multiple times on the command-line.\newline
+  Example: \verb|-soutputformat="svg" -sprologues=3|\newline
+  Use SVG backend converting font shapes to paths.\\
   \cmdindex{-progname}=$\descr{string}$
   & Pretend to be the $\descr{string}$ executable.\\
   \cmdindex{-troff}, \cmdindex{-T}
