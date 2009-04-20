@@ -34,7 +34,6 @@ mp-implementors list or alternatively the metapost list.
 mpman.tex
 * Describe new outputtemplate syntax.
 * Describe glyph primitive.
-* Describe -D switch for mpost.
 * Describe environment variables.
 * Describe internal string variables.
 * Add note on postcontrol and precontrol when discussing control points.
