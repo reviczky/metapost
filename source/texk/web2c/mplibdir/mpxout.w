@@ -2929,8 +2929,11 @@ static int mpx_scan_desc_line(MPX mpx, int f, char *lin) {
     t = lin;
     while (*lin != ' ' && *lin != '\t' && *lin != '\0')
 	  lin++;
+    if (lin==t)
+      return 1;
     s = xmalloc((size_t)(lin-t+1),1);
     strncpy(s,t,(size_t)(lin-t));
+    *(s+(lin-t)) = '\0';
     while (*lin == ' ' || *lin == '\t')
 	  lin++;
     if (*lin == '"') {
@@ -3034,7 +3037,7 @@ static void mpx_set_num_char(MPX mpx, int f, int c) {
 
     hh = (float)mpx->h;
     vv = (float)mpx->v;
-    for (i = mpx->shiftbase[f]; mpx->shiftchar[i] >= 0; i++)
+    for (i = mpx->shiftbase[f]; mpx->shiftchar[i] >= 0 && i < SHIFTS; i++)
 	if (mpx->shiftchar[i] == c) {
 	    hh += (mpx->cursize / mpx->unit) * mpx->shifth[i];
 	    vv += (mpx->cursize / mpx->unit) * mpx->shiftv[i];
