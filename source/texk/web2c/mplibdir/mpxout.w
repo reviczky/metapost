@@ -2745,25 +2745,28 @@ static void mpx_read_fmap(MPX mpx, char *dbase) {
     while ((buf = mpx_getline(mpx,fin)) != NULL) {
 	  if (mpx->nfonts == (max_fnums+1))
 	    mpx_abort(mpx,"Need to increase max_fnums");
-       nam = buf;    
-       while (*buf && *buf != '\t')
-         buf++;
+      nam = buf;    
+      while (*buf && *buf != '\t')
+        buf++;
+      if (nam==buf)
+        continue;
       tmp = xmalloc(sizeof(avl_entry),1);
-      tmp->name = nam;
+      tmp->name = xmalloc (1,(buf-nam)+1);
+      strncpy(tmp->name,nam,(buf-nam));
+      tmp->name[(buf-nam)] = '\0';
       tmp->num = (int)mpx->nfonts++;
       assert(avl_ins (tmp, mpx->trfonts, avl_false) > 0);
       if (*buf) {
-        *buf = 0; buf++;
-	    do buf++; while (*buf == '\t');
-        while (*buf && *buf != '\t'); buf++; /* skip over psname */
-        do buf++;  while (*buf == '\t');
+        buf++;
+	    while (*buf == '\t') buf++;
+        while (*buf && *buf != '\t') buf++; /* skip over psname */
+        while (*buf == '\t') buf++;
         if (*buf)
           nam = buf;
-        while (*buf); buf++; 
+        while (*buf) buf++; 
       }
       mpx->font_name[tmp->num] = xstrdup(nam);
 	  mpx->font_num[tmp->num] = -1;	/* indicate font is not mounted */
-	  mpx->nfonts++;
     }
     mpx_fclose(mpx,fin);
 }
@@ -3218,7 +3221,7 @@ static void mpx_do_font_def(MPX mpx, int n, char *nam) {
   if (p==NULL)
     mpx_abort(mpx, "Font %s was not in map file", nam);
   f = p->num;
-  if ( mpx->info_base[f]==max_widths ) {
+  if ( mpx->charcodes[f] == NULL) {
     mpx_read_fontdesc(mpx, nam);
     mpx->cur_name = xstrdup(mpx->font_name[f]);
     if (! mpx_open_tfm_file(mpx) )
@@ -3704,13 +3707,13 @@ static int mpx_do_page (MPX mpx, FILE *trf) {
 static int mpx_dmp(MPX mpx, char *infile) {
     int more;
     FILE *trf = mpx_xfopen(mpx,infile, "r");
-    mpx_open_mpxfile(mpx);
-    if (mpx->banner != NULL)
-      fprintf (mpx->mpxfile,"%s\n",mpx->banner);
     mpx_read_desc(mpx);
     mpx_read_fmap(mpx,dbname);
     if (!mpx->gflag)
 	  mpx_read_char_adj(mpx,adjname);
+    mpx_open_mpxfile(mpx);
+    if (mpx->banner != NULL)
+      fprintf (mpx->mpxfile,"%s\n",mpx->banner);
     if (mpx_do_page(mpx, trf)) {
 	  do {
         @<Do initialization required before starting a new page@>;
@@ -4250,6 +4253,7 @@ that to the command line.
 
   /* split the command in bits */
   cmdbitlength = split_pipes(mpx->maincmd, cmdbits);
+  cmdline = NULL;
 
   for (i = 0; i < cmdbitlength; i++) {
     if (cmdline!=NULL) free(cmdline);
@@ -4268,11 +4272,11 @@ that to the command line.
         cur_in = tmp_b;
         cur_out = tmp_a;
 	  }
-      strcpy(infile,cur_in);
     }
   }
-  if (tmp_a!=infile) { remove(tmp_a); }
-  if (tmp_b!=infile) { remove(tmp_b); }
+  if (tmp_a!=cur_out) { remove(tmp_a); }
+  if (tmp_b!=cur_out) { remove(tmp_b); }
+  strcpy(infile,cur_out);
 }
 
 @ If MPX file is up-to-date or if MP file does not exist, do nothing. 
