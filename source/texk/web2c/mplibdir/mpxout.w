@@ -258,6 +258,8 @@ jmp_buf jump_buf;
 static void mpx_abort(MPX mpx, char *msg, ...) {
   va_list ap;
   va_start(ap, msg);
+  fprintf(stderr, "fatal: ");
+  (void)vfprintf(stderr, msg, ap);
   mpx_printf(mpx, "fatal", msg, ap);
   va_end(ap);
   mpx->history=mpx_fatal_error;
@@ -2557,7 +2559,7 @@ typedef struct {
 @ @c
 static int mpx_comp_name (void *p, const void *pa, const void *pb) {
     (void)p;
-    return strcmp (((const avl_entry *) pa)->name,
+    return strcmp  (((const avl_entry *) pa)->name,
                    ((const avl_entry *) pb)->name);
 }
 static void *destroy_avl_entry (void *pa) {
