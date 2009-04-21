@@ -3724,7 +3724,6 @@ static int mpx_dmp(MPX mpx, char *infile) {
 	  } while (more);
     }
     mpx_fclose(mpx,trf);
-    mpx_fclose(mpx,mpx->mpxfile);
     if ( mpx->history<=mpx_cksum_trouble )
       return 0;
     else 
