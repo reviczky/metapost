@@ -1662,7 +1662,7 @@ static void mpx_finish_last_char (MPX mpx) {
         mpx_end_char_string(mpx,47);
       }
       fprintf(mpx->mpxfile, "), _n%d", mpx->str_f);
-      fprintf(mpx->mpxfile, ",%.5f,%.4f,%.4f)", (m*1.00375), x, y);
+      fprintf(mpx->mpxfile, ",%.5f,%.4f,%.4f)", (m*1.00375), (x/100.0), y);
       mpx_slant_and_ht(mpx);
       fprintf(mpx->mpxfile, ";\n");
     }
@@ -3207,7 +3207,7 @@ OUT_LABEL:
 	fprintf(mpx->mpxfile, "_s(%s(_n%d)", sp->mac,f);
 	fprintf(mpx->mpxfile, ",%.5f,%.4f,%.4f)",
 		(mpx->cursize/mpx->font_design_size[f])*1.00375, 
-         (double)(mpx->h*mpx->unit), YCORR-mpx->v*mpx->unit);
+         (double)((mpx->h*mpx->unit)/100.0), YCORR-mpx->v*mpx->unit);
 	mpx_slant_and_ht(mpx);
 	fprintf(mpx->mpxfile, ";\n");
   }
