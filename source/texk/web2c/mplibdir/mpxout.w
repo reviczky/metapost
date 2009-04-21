@@ -108,7 +108,6 @@ in order to prevent name clashes.
 #define PI  3.14159265358979323846
 #endif
 #include "avl.h"
-extern void *avl_probe (avl_tree t, void *p);
 #include "mpxout.h"
 @h
 
@@ -2598,12 +2597,12 @@ calls where needed, but it is wise to have a wrapper around |avl_probe|
 to check for memory errors.
 
 @c
-static avl_entry * mpx_avl_probe(MPX mpx, avl_tree tab, avl_entry *p) {
-    avl_entry *r  = (avl_entry *)avl_probe(tab,p);
-    if (r==NULL)
-      mpx_abort(mpx,"Memory allocation failure");
-    return r;
-
+static void mpx_avl_probe(MPX mpx, avl_tree tab, avl_entry *p) {
+    avl_entry *r  = (avl_entry *)avl_find(p, tab);
+    if (r==NULL) {
+      if (avl_ins (p, tab, avl_false)<0)
+        mpx_abort(mpx,"Memory allocation failure");
+    }
 }
 
 
@@ -2750,7 +2749,7 @@ static void mpx_read_fmap(MPX mpx, char *dbase) {
       tmp = xmalloc(sizeof(avl_entry),1);
       tmp->name = nam;
       tmp->num = (int)mpx->nfonts++;
-      (void)mpx_avl_probe (mpx,mpx->trfonts, tmp) ;
+      assert(avl_ins (tmp, mpx->trfonts, avl_false) > 0);
       if (*buf) {
         *buf = 0; buf++;
 	    do buf++; while (*buf == '\t');
@@ -2928,7 +2927,7 @@ static int mpx_scan_desc_line(MPX mpx, int f, char *lin) {
         tmp = xmalloc(sizeof(avl_entry),1);
         tmp->name = s ;
         tmp->num = lastcode;
-        (void)mpx_avl_probe (mpx, mpx->charcodes[f],tmp);
+        mpx_avl_probe (mpx, mpx->charcodes[f],tmp);
       }
     } else {
 	  (void) mpx_get_float_map(mpx,lin);
@@ -2940,7 +2939,7 @@ static int mpx_scan_desc_line(MPX mpx, int f, char *lin) {
         tmp = xmalloc(sizeof(avl_entry),1);
         tmp->name = s ;
         tmp->num = lastcode;
-        (void)mpx_avl_probe (mpx, mpx->charcodes[f],tmp);
+        mpx_avl_probe (mpx, mpx->charcodes[f],tmp);
       }
     }
     return 1;
@@ -3184,9 +3183,13 @@ OUT_LABEL:
     sp = xmalloc(sizeof(spec_entry),1);
     sp->name = cname;
     sp->mac = NULL;
-    sp  = (spec_entry *)avl_probe(mpx->spec_tab,sp);
-    if (sp==NULL)
-      mpx_abort(mpx,"Memory allocation failure");
+    {
+      spec_entry *r  = (spec_entry *)avl_find(sp, mpx->spec_tab);
+      if (r==NULL) {
+        if (avl_ins (sp, mpx->spec_tab, avl_false)<0)
+          mpx_abort(mpx,"Memory allocation failure");
+      }
+    }
 	if (sp->mac == NULL) {
       sp->mac = mpx_copy_spec_char(mpx, cname);	/* this won't be NULL */
     }

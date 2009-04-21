@@ -96,26 +96,6 @@ typedef struct psout_data_struct {
 } psout_data_struct ;
 @<Exported function headers@>
 
-@ 
-@c
-void *avl_probe (avl_tree t, void *p) {
-  void *pp = avl_find (p, t);
-  if (pp==NULL) {
-    int ret = avl_ins(p, t, false);
-    if (ret < 0) {
-      return NULL;
-    } else {
-      return p;
-    }
-  } else {
-    return p;
-  }
-}
-
-@ @<Exported...@>=
-void *avl_probe (avl_tree t, void *p) ;
-
-
 @ @c
 static boolean mp_isdigit (int a) {
   return (a>='0'&&a<='9');
@@ -1550,7 +1530,6 @@ void mp_read_psname_table (MP mp) {
     }
   }
   mp->last_ps_fnum=mp->last_fnum;
-  mp_xfree(s);
 }
 
 
