@@ -1205,6 +1205,11 @@ for (k=1;k<=3+lh;k++) {
     else 
       mpx->tfm_check_sum=(((mpx->b0-256)*(int)(256)+mpx->b1)*256+mpx->b2)*256+mpx->b3;
   }
+  if ( k==5 ) {
+    if (mpx->mode == mpx_troff_mode) {
+      mpx->font_design_size[f]=(((mpx->b0*(int)(256)+mpx->b1)*256+mpx->b2)*256+mpx->b3)/(65536.0*16);
+    }
+  }
 }
 
 @ @<Store character-width indices...@>=
