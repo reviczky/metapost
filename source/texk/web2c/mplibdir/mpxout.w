@@ -1647,7 +1647,7 @@ static void mpx_finish_last_char (MPX mpx) {
       @<Print a \.{withcolor} specifier if appropriate@>@/
       fprintf(mpx->mpxfile,");\n");
     } else {
-      m = mpx->str_size / mpx->font_design_size[mpx->str_f];
+      m = mpx->str_size / 10.0;
       x = mpx->dmp_str_h1 * mpx->unit;
       y = YCORR - mpx->dmp_str_v * mpx->unit;
       if (fabs(x) >= 4096.0 || fabs(y) >= 4096.0 || m >= 4096.0 || m < 0) {
@@ -1656,9 +1656,10 @@ static void mpx_finish_last_char (MPX mpx) {
       } else {
         mpx_end_char_string(mpx,47);
       }
-      fprintf(mpx->mpxfile, ")infont n%d", mpx->font_num[mpx->str_f]);
+      fprintf(mpx->mpxfile, "), _n%d", mpx->str_f);
+      fprintf(mpx->mpxfile, ",%.5f,%.4f,%.4f)", (m*1.00375), x, y);
       mpx_slant_and_ht(mpx);
-      fprintf(mpx->mpxfile, ",%.5f,%.4f,%.4f);\n", (m*1.00375), x, y);
+      fprintf(mpx->mpxfile, ";\n");
     }
     mpx->str_f=-1;
   }
@@ -3006,6 +3007,7 @@ static void mpx_slant_and_ht(MPX mpx);
 @ @c
 static void mpx_slant_and_ht(MPX mpx) {
  int i = 0;
+  fprintf(mpx->mpxfile, "(");
  if (mpx->Xslant != 0.0) {
 	fprintf(mpx->mpxfile, " slanted%.5f", mpx->Xslant);
 	i++;
@@ -3014,8 +3016,7 @@ static void mpx_slant_and_ht(MPX mpx) {
 	fprintf(mpx->mpxfile, " yscaled%.4f", mpx->Xheight / mpx->cursize);
 	i++;
   }
-  if (i > 0)
-	fprintf(mpx->mpxfile, "\n ");
+  fprintf(mpx->mpxfile, ")");
 }
 
 
@@ -3198,11 +3199,12 @@ OUT_LABEL:
 	if (sp->mac == NULL) {
       sp->mac = mpx_copy_spec_char(mpx, cname);	/* this won't be NULL */
     }
-	fprintf(mpx->mpxfile, "_s(%s(n%d)", sp->mac, mpx->font_num[f]);
-	mpx_slant_and_ht(mpx);
-	fprintf(mpx->mpxfile, ",%.5f,%.4f,%.4f);\n",
-		(mpx->cursize/mpx->font_design_size[f])*1.00375, 
+	fprintf(mpx->mpxfile, "_s(%s(_n%d)", sp->mac,f);
+	fprintf(mpx->mpxfile, ",%.5f,%.4f,%.4f)",
+		(mpx->cursize/10.0)*1.00375, 
          (double)(mpx->h*mpx->unit), YCORR-mpx->v*mpx->unit);
+	mpx_slant_and_ht(mpx);
+	fprintf(mpx->mpxfile, ";\n");
   }
 }
 
