@@ -664,6 +664,9 @@ int file_line_error_style; /* configuration parameter */
 mp->file_line_error_style = (opt->file_line_error_style>0 ? true : false);
 mp->long_name = NULL;
 
+@ @<Dealloc variables@>=
+mp_xfree(mp->long_name);
+
 @ \MP's file-opening procedures return |false| if no file identified by
 |name_of_file| could be opened.
 
@@ -4051,7 +4054,8 @@ void mp_do_snprintf (char *str, int size, const char *format, ...) {
        case 'i':
        case 'd':
          {
-           char *s = mp_itoa(va_arg(ap, int));
+           char *sstart, *s = mp_itoa(va_arg(ap, int));
+           sstart = s;
            if (fw) {
               int ffw = fw-strlen(s);
               while (ffw-->0) {
@@ -4064,12 +4068,14 @@ void mp_do_snprintf (char *str, int size, const char *format, ...) {
                *res = *s++;
                if (size-->0) res++;
              }
+             mp_xfree(sstart);
            }
          }
          break;
        case 'u':
          {
-           char *s = mp_utoa(va_arg(ap, unsigned));
+           char *sstart, *s = mp_utoa(va_arg(ap, unsigned));
+           sstart = s;
            if (fw) {
               int ffw = fw-strlen(s);
               while (ffw-->0) {
@@ -4082,6 +4088,7 @@ void mp_do_snprintf (char *str, int size, const char *format, ...) {
                *res = *s++;
                if (size-->0) res++;
              }
+             mp_xfree(sstart);
            }
          }
          break;
@@ -5017,6 +5024,7 @@ values they test for.
 @d arc_time_of 128 /* operation code for \.{arctime} */
 @d mp_version 129 /* operation code for \.{mpversion} */
 @d envelope_of 130 /* operation code for \.{envelope} */
+@d glyph_infont 131 /* operation code for \.{glyph} */
 
 @c static void mp_print_op (MP mp,quarterword c) { 
   if (c<=mp_numeric_type ) {
@@ -5122,6 +5130,7 @@ values they test for.
     case arc_time_of:mp_print(mp, "arctime"); break;
     case mp_version:mp_print(mp, "mpversion"); break;
     case envelope_of:mp_print(mp, "envelope"); break;
+    case glyph_infont:mp_print(mp, "glyph"); break;
     default: mp_print(mp, ".."); break;
     }
   }
@@ -7320,6 +7329,22 @@ static mp_knot *mp_export_knot (MP mp,pointer p) {
   gr_originator(q) = (unsigned char)mp_originator(p);
   return q;
 }
+static pointer mp_import_knot (MP mp, mp_knot *q) {
+  pointer p; /* the copy */
+  if (q==NULL)
+     return null;
+  p=mp_get_node(mp, knot_node_size);
+  mp_left_type(p) =  gr_left_type(q);
+  mp_right_type(p) = gr_right_type(q);
+  mp_x_coord(p) =    gr_x_coord(q);
+  mp_y_coord(p) =    gr_y_coord(q);
+  mp_left_x(p) =     gr_left_x(q);
+  mp_left_y(p) =     gr_left_y(q);
+  mp_right_x(p) =    gr_right_x(q);
+  mp_right_y(p) =    gr_right_y(q);
+  mp_originator(p) = gr_originator(q);
+  return p;
+}
 
 @ The |export_knot_list| routine therefore also makes a clone 
 of a given path.
@@ -7339,6 +7364,21 @@ static mp_knot *mp_export_knot_list (MP mp, pointer p) {
   }
   gr_next_knot(qq)=q;
   return q;
+}
+static pointer mp_import_knot_list (MP mp, mp_knot *q) {
+  mp_knot *qq; /* for list manipulation */
+  pointer p, pp; /* for list manipulation */
+  if (q==NULL)
+     return null;
+  p=mp_import_knot(mp, q);
+  pp=p; qq=gr_link(q);
+  while ( qq!=q ) { 
+    mp_link(pp)=mp_import_knot(mp, qq);
+    qq=gr_next_knot(qq);
+    pp=mp_link(pp);
+  }
+  mp_link(pp)=p;
+  return p;
 }
 
 
@@ -16700,7 +16740,7 @@ int mp_run_make_mpx (MP mp, char *origname, char *mtxname) {
 origname = mp_xstrdup(mp,mp->name_of_file);
 *(origname+strlen(origname)-1)=0; /* drop the x */
 if (!(mp->run_make_mpx)(mp, origname, mp->name_of_file))
-  goto NOT_FOUND 
+  goto NOT_FOUND
 
 @ @<Explain that the \.{MPX} file can't be read and |succumb|@>=
 if ( mp->interaction==mp_error_stop_mode ) wake_up_terminal;
@@ -16713,6 +16753,7 @@ help4("The two files given above are one of your source files",
   "and an auxiliary file I need to read to find out what your",
   "btex..etex blocks mean. If you don't know why I had trouble,",
   "try running it manually through MPtoTeX, TeX, and DVItoMP");
+xfree(origname);
 succumb;
 
 @ The last file-opening commands are for files accessed via the \&{readfrom}
@@ -18983,6 +19024,8 @@ mp_primitive(mp, "intersectiontimes",tertiary_binary,intersect);
 @:intersection_times_}{\&{intersectiontimes} primitive@>
 mp_primitive(mp, "envelope",primary_binary,envelope_of);
 @:envelope_}{\&{envelope} primitive@>
+mp_primitive(mp, "glyph",primary_binary,glyph_infont);
+@:glyph_infont_}{\&{envelope} primitive@>
 
 @ @<Cases of |print_cmd...@>=
 case nullary:
@@ -21466,6 +21509,14 @@ case envelope_of:
   else
     mp_set_up_envelope(mp, p);
   break;
+case glyph_infont:
+  if ( (mp_type(p) != mp_string_type &&
+        mp_type(p) != mp_known) || (mp->cur_type != mp_string_type) )
+    mp_bad_binary(mp, p,glyph_infont);
+  else
+    mp_set_up_glyph_infont(mp, p);
+  break;
+  break;
 
 @ @<Declare binary action...@>=
 static void mp_set_up_offset (MP mp,pointer p) { 
@@ -21499,6 +21550,44 @@ static void mp_set_up_envelope (MP mp,pointer p) {
     miterlim=mp->internal[mp_miterlimit];
   mp->cur_exp = mp_make_envelope(mp, q, value(p), ljoin,lcap,miterlim);
   mp->cur_type = mp_path_type;
+}
+
+
+@ This is pretty straightfoward. The one silly thing is that
+the output of |mp_ps_do_font_charstring| has to be un-exported.
+
+@<Declare binary action...@>=
+static void mp_set_up_glyph_infont (MP mp, pointer p) {
+  mp_edge_object *h = NULL;
+  mp_ps_font *f = NULL;
+  char *n = mp_str(mp, mp->cur_exp);
+  f = mp_ps_font_parse(mp, mp_find_font(mp, n));
+  if (f!=NULL) {
+    if (mp_type(p) == mp_known) {
+      int v = mp_round_unscaled(mp,value(p));
+      if (v<0 || v>255) {
+        print_err ("glyph index too high (");
+        mp_print_int(mp,v);
+        mp_print(mp,")");
+        mp_error(mp);
+      } else {
+        h = mp_ps_font_charstring (mp,f,v);
+      }
+    } else {
+      n = mp_str(mp, value(p));
+      delete_str_ref(value(p));
+      h = mp_ps_do_font_charstring (mp,f,n);
+      free(n);
+    }
+    mp_ps_font_free(mp,f);
+  }
+  if (h!=NULL) {
+    mp->cur_exp=mp_gr_unexport(mp, h); 
+  } else {
+    mp->cur_exp=mp_get_node(mp, edge_header_size); 
+    mp_init_edges(mp, mp->cur_exp); 
+  }
+  mp->cur_type=mp_picture_type;
 }
 
 @ @<Declare binary action...@>=
@@ -21570,7 +21659,7 @@ case intersect:
 
 @ @<Additional cases of bin...@>=
 case in_font:
-  if ( (mp->cur_type!=mp_string_type)||(mp_type(p)!=mp_string_type)) 
+  if ( (mp->cur_type!=mp_string_type)||mp_type(p)!=mp_string_type) 
     mp_bad_binary(mp, p,in_font);
   else { mp_do_infont(mp, p); binary_return; }
   break;
@@ -25854,7 +25943,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     ss = str(s);
     nn = str(n);
     mp_pack_file_name(mp, nn,"",ss);
-    free(nn);
+    mp_xfree(nn);
     delete_str_ref(n);
     delete_str_ref(s);
   }
@@ -25865,7 +25954,7 @@ static char * mp_get_output_file_name (MP mp) {
   char *f;
   char *saved_name;  /* saved |name_of_file| */
   saved_name = xstrdup(mp->name_of_file);
-  f = xstrdup(mp_set_output_file_name(mp, mp_round_unscaled(mp, mp->internal[mp_char_code])));
+  f = mp_set_output_file_name(mp, mp_round_unscaled(mp, mp->internal[mp_char_code]));
   mp_pack_file_name(mp, saved_name,NULL,NULL);
   free(saved_name);
   return f;
@@ -26177,8 +26266,56 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   return hh;
 }
 
+@ This function is only used for the |glyph| operator, so 
+it takes quite a few shortcuts for cases that cannot appear
+in the output of |mp_ps_font_charstring|.
+
+@c
+pointer mp_gr_unexport(MP mp, struct mp_edge_object *hh) {
+  pointer h; /* the edge object */
+  pointer ph, pn; /* for adding items */
+  mp_graphic_object *p; /* the current graphical object */
+  h = mp_get_node(mp, edge_header_size);
+  mp_init_edges(mp, h);
+  ph = dummy_loc(h); 
+  p = hh->body;
+  minx_val(h) = hh->minx;
+  miny_val(h) = hh->miny;
+  maxx_val(h) = hh->maxx;
+  maxy_val(h) = hh->maxy;
+  while ( p!=NULL ) { 
+    switch (gr_type(p)) {
+    case mp_fill_code: 
+      if ( gr_pen_p((mp_fill_object *)p)==NULL ) {
+        pn = mp_new_fill_node (mp, null);
+  	    mp_path_p(pn) = mp_import_knot_list(mp,gr_path_p((mp_fill_object *)p));
+        if (mp_new_turn_cycles(mp, mp_path_p(pn))<0) {
+          mp_color_model(pn)=mp_grey_model;
+          grey_val(pn) = unity;
+        }
+        mp_link(ph) = pn;
+        ph = mp_link(ph);
+      }
+      break;
+    case mp_stroked_code:
+    case mp_text_code: 
+    case mp_start_clip_code: 
+    case mp_stop_clip_code: 
+    case mp_start_bounds_code:
+    case mp_stop_bounds_code:
+    case mp_special_code:  
+      break;
+    } /* all cases are enumerated */
+    p=p->next;
+  }
+  mp_gr_toss_objects(hh);
+  return h;
+}
+
+
 @ @<Declarations@>=
-static struct mp_edge_object *mp_gr_export(MP mp, int h);
+static struct mp_edge_object *mp_gr_export(MP mp, pointer h);
+static pointer mp_gr_unexport(MP mp, struct mp_edge_object *h);
 
 @ This function is now nearly trivial.
 
@@ -26215,6 +26352,7 @@ void mp_shipout_backend (MP mp, pointer h) {
                  (mp->internal[mp_procset]/65536), 
                  false);
   }
+  mp_xfree(s);
   mp_gr_toss_objects(hh);
 }
 
