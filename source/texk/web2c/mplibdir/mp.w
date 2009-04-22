@@ -17869,6 +17869,9 @@ of the save stack, as described earlier.)
       goto DONE;
     }
     mp_back_input(mp);
+  } else {
+    if (mp->int_type[q]==mp_internal_type)
+      mp->int_type[q] = mp_known;
   }
   mp->cur_exp=mp->internal[q];
   if (mp->int_type[q]==mp_string_type)
