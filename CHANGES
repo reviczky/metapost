@@ -2,6 +2,180 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.200:
+----------------------------------------------------------------------
+
+New features:
+
+* It is now possible to get the actual path drawing routines from a 
+  font glyph. The syntax is :
+
+    q := glyph 113 of "cmr10";
+    q := glyph "one.oldstyle" of "lmr10";
+
+  "glyph" is a primary binary operator (like "subpath") that accepts
+  a string or number and a string, and the result is a picture.
+
+  The second argument is a tfm name. This will be combined with
+  a fontmap entry to find the font's PostScript source file.
+
+  If the first argument is a string, then it should be a Charstring
+  name in the postscript font source. If the first argument is
+  an integer, it is an index into the encoding of the font, and
+  the Charstring that is mapped to that index is taken (it follows
+  that numeric values have to be integers between 0 and 255).
+
+  The returned picture can be empty (if the tfm or the pfb or the
+  encoding or the Charstring was not found), otherwise it consists
+  of a list of 'fill' objects that use the the 'grey' color model.
+  Counterclockwise paths receive the grey value matching 'white',
+  clockwise paths 'black'.
+
+* MetaPost now supports string valued internal variables. Three of 
+  these are predefined ("jobname", "outputformat", "outputtemplate"), 
+  you can add more of them via "newinternal". 
+  
+    newinternal s;
+    s := "hello";
+  
+  The type of a new internal becomes permanently fixed at its first 
+  reference or assignment, and defaults to numeric (this is for backward 
+  compatibility with older versions of MetaPost). 
+ 
+* MetaPost now has a second backend that generates Scalable Vector
+  Graphics output. This new backend was requested by Dave Crossland, who 
+  also provided the funding to make it possible.  Dave, thank you again!
+
+  The default value of "outputformat" is "eps"; when you assign "svg" 
+  you will get SVG output.
+
+  If you use text labels with SVG, you will probably also want to set
+
+    prologues:=3;
+
+  With this setting, MetaPost will convert the font into curves
+  (of course you also need a correct font map line, just as for
+  PostScript output).
+
+  With any other value of "prologues" you will simply get the SVG
+  default text font in a system-dependant encoding. This is unlikely
+  to be what you want!
+
+  A simple example:
+
+    outputformat := "svg";
+    outputtemplate := "%j-%c.svg";
+    beginfig(1);
+    fill fullcircle scaled 100 withcolor .4red;
+    endfig;
+    end.
+
+  In the lua bindings, there is the new figure method "svg()", that 
+  gives back the SVG output string. This is subtly different from the
+  direct file output: the lua method does not prepend an XML declaration
+  (this makes embedded use of the generated XML easier).
+
+* The new internal string variable "outputtemplate" replaces
+  "filenametemplate". The big difference is that "outputtemplate"
+  is a true 'internal', so that you need a proper assignment.
+  On the positive side, this means that you can use its current 
+  value with e.g. show and message.
+
+* "outputtemplate" has a new type of replacement: internal variable
+  names. Instead of the short "%j.%c", you could write:
+
+     outputtemplate := "%{jobname}.%{charcode}" ;
+  
+  this type of replacement works for all internal variables, 
+  including those defined via "newinternal". 
+   
+* There are two new numeric internals: "hour" and "minute".
+  (these are a consequence of the outputtemplate change)
+
+* The primitive "jobname" is now a string internal instead of a 
+  special case. This implies you can assign to "jobname", but
+  such an assignment will only affect the picture output. The
+  job name for the purposes of log and mem file names is fixed
+  permanently at startup time and cannot be altered.
+
+* "mpost" can now pretend to be dvitomp. Either copy the executable
+  to the name "dvitomp", or pass the switch --dvitomp on the command
+  line. 
+
+* The command line option --halt-on-error has been reinstated.
+
+* There is a new -s<internal>=<value> command line switch that can
+  be used to setup run time values. Such assignment will be executed
+  after initialization is complete (i.e. after mem file loading) but
+  before any other code is executed.
+
+  This works for all internal variables, including one defined 
+  that may have been defined in the mem file via "newinternal". 
+
+* "tracingstats:=1;" now prints the highest and total input levels.
+
+Bug fixes:
+
+* The parsing of command line arguments with options was broken.
+
+* Reading of files with 8-bit names has been fixed.
+
+* A patch by Melissa O'Neill fixes inclusion of some special Type1
+  formats.
+
+* There was a bug where, when "prologues:=3;", the lists of the 
+  DocumentResources/DocumentSuppliedResources could appear in the eps
+  output partially uncommented.
+
+* Troff labels were completely broken in all MPlib-based versions.
+
+Other changes:
+
+* Many, many improvements to the manual and the tutorial. Sorry 
+  Stephan, I don't know enough to list them all!
+
+* The old executable build system has been replaced by the new build 
+  system from the TeXLive 2009 repository.
+
+* The MetaPost (and mplib) source code is now released under LGPL 
+  instead of GPL, and uses a derivative of PyAvl instead of GNU libavl.
+
+* The web2c 'mktexfmt' feature is enabled for the program "mpost" once 
+  again.
+
+
+----------------------------------------------------------------------
+What is new in MetaPost version 1.102:
+----------------------------------------------------------------------
+
+* Printing of 8-bit string characters has been fixed.
+
+* In previous versions, TFM files and PFB fonts would not be read
+  properly on big-endian machines (e.g. powerpc)
+
+* The MetaPost distribution now contains "A Beginner's Guide to
+  MetaPost for Creating High-Quality Graphics" by Troy Henderson
+  and Stephan Hennig. This tutorial replaces Hobby's mpintro.tex.
+
+----------------------------------------------------------------------
+What is new in MetaPost version 1.101:
+----------------------------------------------------------------------
+
+This is just a bugfix release. The following bugs / problem areas in
+MetaPost 1.100 have been fixed / improved:
+
+* TFM file generation was completely broken.
+
+* The job name discovery on the commandline has been improved.
+
+* Under some (rare) conditions MetaPost forgot to create a log file.
+
+* Labels containing char0 were exported to PostScript incorrectly.
+
+* On Windows, the DVI file that is the result from the internal call
+  to TeX for btex .. etex lables was not deleted automatically.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.100:
 ----------------------------------------------------------------------
 
