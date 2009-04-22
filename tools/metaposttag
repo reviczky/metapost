@@ -11,9 +11,8 @@ if  test -d $a ; then
   cd metapost-$a
   ./build.sh "$@"
   ./build.sh --mingw "$@"
-  zip -j $svndir/metapost-$a-win32-mingw.zip build-windows/texk/web2c/mpdir/mpost.exe
-  cd build/texk/web2c/mpdir
-  strip mpost
+  zip -j $svndir/metapost-$a-win32-mingw.zip build-windows/texk/web2c/mpost.exe
+  cd build/texk/web2c
   tar cjvf $svndir/metapost-$a-linux2.6-i386.tar.bz2 mpost
   cd $svndir/tags
   rm -rf $a/build $a/build-win
