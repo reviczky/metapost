@@ -17867,6 +17867,9 @@ of the save stack, as described earlier.)
       mp->cur_exp=mp_get_avail(mp);
       mp_info(mp->cur_exp)=q+hash_end; mp->cur_type=mp_token_list; 
       goto DONE;
+    } else {
+      if (mp->int_type[q]==mp_internal_type)
+        mp->int_type[q] = mp_known;
     }
     mp_back_input(mp);
   } else {
