@@ -37,7 +37,7 @@ EXTRA_PROGRAMS = $(am__EXEEXT_1) tex$(EXEEXT) mf$(EXEEXT) \
 	mf-nowin$(EXEEXT) mpost$(EXEEXT)
 bin_PROGRAMS = tangle$(EXEEXT) ctangle$(EXEEXT) $(am__EXEEXT_2) \
 	ctie$(EXEEXT) cweave$(EXEEXT) tie$(EXEEXT) $(am__EXEEXT_3) \
-	$(am__EXEEXT_4) $(am__EXEEXT_5) mpost$(EXEEXT)
+	$(am__EXEEXT_4) $(am__EXEEXT_5) $(am__EXEEXT_6)
 noinst_PROGRAMS = tangleboot$(EXEEXT) ctangleboot$(EXEEXT)
 check_PROGRAMS = md5main$(EXEEXT)
 DIST_COMMON = README $(am__configure_deps) $(dist_check_SCRIPTS) \
@@ -51,13 +51,25 @@ DIST_COMMON = README $(am__configure_deps) $(dist_check_SCRIPTS) \
 	$(srcdir)/am/bootstrap.am $(srcdir)/am/cweb.am \
 	$(srcdir)/am/texmf.am $(srcdir)/am/web.am $(srcdir)/c-auto.in \
 	$(srcdir)/etexdir/am/etex.am $(srcdir)/libmd5/am/md5.am \
-	$(srcdir)/luatexdir/am/luatex.am \
+	$(srcdir)/luatexdir/am/liblua51.am \
+	$(srcdir)/luatexdir/am/libluatex.am \
+	$(srcdir)/luatexdir/am/libzzip.am \
+	$(srcdir)/luatexdir/am/luafontforge.am \
+	$(srcdir)/luatexdir/am/luamisc.am \
+	$(srcdir)/luatexdir/am/luasocket.am \
+	$(srcdir)/luatexdir/am/luatangle.am \
+	$(srcdir)/luatexdir/am/luatex.am $(srcdir)/mpdir/am/mp.am \
+	$(srcdir)/mplibdir/am/libmplib.am \
 	$(srcdir)/mplibdir/am/mplib.am \
 	$(srcdir)/omegaware/am/omegaware.am \
+	$(srcdir)/pdftexdir/am/libpdftex.am \
 	$(srcdir)/pdftexdir/am/pdftex.am \
+	$(srcdir)/pdftexdir/am/pdftosrc.am \
+	$(srcdir)/pdftexdir/am/ttf2afm.am \
 	$(srcdir)/synctexdir/am/synctex.am \
 	$(srcdir)/xetexdir/am/xetex.am $(top_srcdir)/configure \
 	$(top_srcdir)/luatexdir/luafontloader/ff-config.in \
+	$(top_srcdir)/mpware/Makefile.in \
 	$(top_srcdir)/omegafonts/Makefile.in \
 	$(top_srcdir)/otps/Makefile.in \
 	$(top_srcdir)/window/Makefile.in ../../build-aux/config.guess \
@@ -69,17 +81,24 @@ DIST_COMMON = README $(am__configure_deps) $(dist_check_SCRIPTS) \
 @TEX_TRUE@am__append_3 = tex
 @MF_TRUE@am__append_4 = mf
 @MFN_TRUE@@MF_TRUE@am__append_5 = mf-nowin
+@MP_TRUE@am__append_6 = mpost
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/../../m4/kpse-asm.m4 \
 	$(top_srcdir)/../../m4/kpse-common.m4 \
 	$(top_srcdir)/../../m4/kpse-cross.m4 \
 	$(top_srcdir)/../../m4/kpse-cxx-hack.m4 \
+	$(top_srcdir)/../../m4/kpse-fontconfig-flags.m4 \
+	$(top_srcdir)/../../m4/kpse-freetype2-flags.m4 \
+	$(top_srcdir)/../../m4/kpse-graphite-flags.m4 \
+	$(top_srcdir)/../../m4/kpse-icu-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-kpathsea-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-lex.m4 \
 	$(top_srcdir)/../../m4/kpse-libpng-flags.m4 \
+	$(top_srcdir)/../../m4/kpse-macos-framework.m4 \
 	$(top_srcdir)/../../m4/kpse-obsdcompat-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-socket-libs.m4 \
+	$(top_srcdir)/../../m4/kpse-teckit-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-web2c.m4 \
 	$(top_srcdir)/../../m4/kpse-win32.m4 \
 	$(top_srcdir)/../../m4/kpse-xpdf-flags.m4 \
@@ -96,7 +115,8 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = c-auto.h ff-config.h
-CONFIG_CLEAN_FILES = omegafonts/Makefile otps/Makefile window/Makefile
+CONFIG_CLEAN_FILES = mpware/Makefile omegafonts/Makefile otps/Makefile \
+	window/Makefile
 ARFLAGS = cru
 libmd5_a_AR = $(AR) $(ARFLAGS)
 libmd5_a_LIBADD =
@@ -110,12 +130,15 @@ nodist_libmf_a_OBJECTS = $(am__objects_1) libmf_a-mf-pool.$(OBJEXT)
 libmf_a_OBJECTS = $(nodist_libmf_a_OBJECTS)
 libmplib_a_AR = $(AR) $(ARFLAGS)
 libmplib_a_LIBADD =
-am__objects_2 = libmplib_a-mp.$(OBJEXT) libmplib_a-psout.$(OBJEXT) \
-	libmplib_a-svgout.$(OBJEXT) libmplib_a-memio.$(OBJEXT) \
-	libmplib_a-tfmin.$(OBJEXT)
-am__objects_3 = libmplib_a-avl.$(OBJEXT)
-am_libmplib_a_OBJECTS = $(am__objects_2) $(am__objects_3)
-libmplib_a_OBJECTS = $(am_libmplib_a_OBJECTS)
+am_libmplib_a_OBJECTS = libmplib_a-avl.$(OBJEXT)
+am__objects_2 = libmplib_a-mp.$(OBJEXT)
+am__objects_3 = libmplib_a-psout.$(OBJEXT)
+am__objects_4 = libmplib_a-svgout.$(OBJEXT)
+nodist_libmplib_a_OBJECTS = libmplib_a-memio.$(OBJEXT) \
+	libmplib_a-tfmin.$(OBJEXT) $(am__objects_2) $(am__objects_3) \
+	$(am__objects_4)
+libmplib_a_OBJECTS = $(am_libmplib_a_OBJECTS) \
+	$(nodist_libmplib_a_OBJECTS)
 am__EXEEXT_1 = bibtex$(EXEEXT) dvicopy$(EXEEXT) dvitomp$(EXEEXT) \
 	dvitype$(EXEEXT) gftodvi$(EXEEXT) gftopk$(EXEEXT) \
 	gftype$(EXEEXT) mft$(EXEEXT) patgen$(EXEEXT) pktogf$(EXEEXT) \
@@ -125,6 +148,7 @@ am__EXEEXT_1 = bibtex$(EXEEXT) dvicopy$(EXEEXT) dvitomp$(EXEEXT) \
 @TEX_TRUE@am__EXEEXT_3 = tex$(EXEEXT)
 @MF_TRUE@am__EXEEXT_4 = mf$(EXEEXT)
 @MFN_TRUE@@MF_TRUE@am__EXEEXT_5 = mf-nowin$(EXEEXT)
+@MP_TRUE@am__EXEEXT_6 = mpost$(EXEEXT)
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(man1dir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
@@ -193,9 +217,9 @@ nodist_mft_OBJECTS = mft.$(OBJEXT)
 mft_OBJECTS = $(nodist_mft_OBJECTS)
 mft_LDADD = $(LDADD)
 mft_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
-am__objects_4 = mpost-mpost.$(OBJEXT) mpost-mpxout.$(OBJEXT)
-am_mpost_OBJECTS = $(am__objects_4)
-mpost_OBJECTS = $(am_mpost_OBJECTS)
+am__objects_5 = mpost-mpxout.$(OBJEXT)
+nodist_mpost_OBJECTS = mpost-mpost.$(OBJEXT) $(am__objects_5)
+mpost_OBJECTS = $(nodist_mpost_OBJECTS)
 nodist_patgen_OBJECTS = patgen.$(OBJEXT)
 patgen_OBJECTS = $(nodist_patgen_OBJECTS)
 patgen_LDADD = $(LDADD)
@@ -224,9 +248,9 @@ nodist_tangleboot_OBJECTS = tangleboot.$(OBJEXT)
 tangleboot_OBJECTS = $(nodist_tangleboot_OBJECTS)
 tangleboot_LDADD = $(LDADD)
 tangleboot_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
-am__objects_5 = tex-texini.$(OBJEXT) tex-tex0.$(OBJEXT) \
+am__objects_6 = tex-texini.$(OBJEXT) tex-tex0.$(OBJEXT) \
 	tex-tex1.$(OBJEXT) tex-tex2.$(OBJEXT)
-nodist_tex_OBJECTS = $(am__objects_5) tex-tex-pool.$(OBJEXT) \
+nodist_tex_OBJECTS = $(am__objects_6) tex-tex-pool.$(OBJEXT) \
 	tex-texextra.$(OBJEXT)
 tex_OBJECTS = $(nodist_tex_OBJECTS)
 tex_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1)
@@ -263,24 +287,24 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(libmd5_a_SOURCES) $(nodist_libmf_a_SOURCES) \
-	$(libmplib_a_SOURCES) $(nodist_bibtex_SOURCES) \
-	$(nodist_ctangle_SOURCES) $(nodist_ctangleboot_SOURCES) \
-	$(nodist_ctie_SOURCES) $(nodist_cweave_SOURCES) \
-	$(nodist_dvicopy_SOURCES) $(nodist_dvitomp_SOURCES) \
-	$(nodist_dvitype_SOURCES) $(gftodvi_SOURCES) \
-	$(nodist_gftodvi_SOURCES) $(nodist_gftopk_SOURCES) \
-	$(nodist_gftype_SOURCES) $(md5main_SOURCES) \
-	$(nodist_mf_SOURCES) $(nodist_mf_nowin_SOURCES) \
-	$(nodist_mft_SOURCES) $(mpost_SOURCES) \
-	$(nodist_patgen_SOURCES) $(nodist_pktogf_SOURCES) \
-	$(nodist_pktype_SOURCES) $(nodist_pltotf_SOURCES) \
-	$(nodist_pooltype_SOURCES) $(nodist_tangle_SOURCES) \
-	$(nodist_tangleboot_SOURCES) $(nodist_tex_SOURCES) \
-	$(nodist_tftopl_SOURCES) $(nodist_tie_SOURCES) \
-	$(nodist_vftovp_SOURCES) $(nodist_vptovf_SOURCES) \
-	$(nodist_weave_SOURCES)
+	$(libmplib_a_SOURCES) $(nodist_libmplib_a_SOURCES) \
+	$(nodist_bibtex_SOURCES) $(nodist_ctangle_SOURCES) \
+	$(nodist_ctangleboot_SOURCES) $(nodist_ctie_SOURCES) \
+	$(nodist_cweave_SOURCES) $(nodist_dvicopy_SOURCES) \
+	$(nodist_dvitomp_SOURCES) $(nodist_dvitype_SOURCES) \
+	$(gftodvi_SOURCES) $(nodist_gftodvi_SOURCES) \
+	$(nodist_gftopk_SOURCES) $(nodist_gftype_SOURCES) \
+	$(md5main_SOURCES) $(nodist_mf_SOURCES) \
+	$(nodist_mf_nowin_SOURCES) $(nodist_mft_SOURCES) \
+	$(nodist_mpost_SOURCES) $(nodist_patgen_SOURCES) \
+	$(nodist_pktogf_SOURCES) $(nodist_pktype_SOURCES) \
+	$(nodist_pltotf_SOURCES) $(nodist_pooltype_SOURCES) \
+	$(nodist_tangle_SOURCES) $(nodist_tangleboot_SOURCES) \
+	$(nodist_tex_SOURCES) $(nodist_tftopl_SOURCES) \
+	$(nodist_tie_SOURCES) $(nodist_vftovp_SOURCES) \
+	$(nodist_vptovf_SOURCES) $(nodist_weave_SOURCES)
 DIST_SOURCES = $(libmd5_a_SOURCES) $(libmplib_a_SOURCES) \
-	$(gftodvi_SOURCES) $(md5main_SOURCES) $(mpost_SOURCES)
+	$(gftodvi_SOURCES) $(md5main_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -295,7 +319,7 @@ RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = doc lib man web2c . window omegafonts otps
+DIST_SUBDIRS = doc lib man mpware web2c . window omegafonts otps
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -339,7 +363,18 @@ ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
+FONTCONFIG_INCLUDES = @FONTCONFIG_INCLUDES@
+FONTCONFIG_LIBS = @FONTCONFIG_LIBS@
+FREETYPE2_DEPEND = @FREETYPE2_DEPEND@
+FREETYPE2_INCLUDES = @FREETYPE2_INCLUDES@
+FREETYPE2_LIBS = @FREETYPE2_LIBS@
+GRAPHITE_DEPEND = @GRAPHITE_DEPEND@
+GRAPHITE_INCLUDES = @GRAPHITE_INCLUDES@
+GRAPHITE_LIBS = @GRAPHITE_LIBS@
 GREP = @GREP@
+ICU_DEPEND = @ICU_DEPEND@
+ICU_INCLUDES = @ICU_INCLUDES@
+ICU_LIBS = @ICU_LIBS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -391,6 +426,9 @@ SHELL = @SHELL@
 STRIP = @STRIP@
 TANGLE = @TANGLE@
 TANGLEBOOT = @TANGLEBOOT@
+TECKIT_DEPEND = @TECKIT_DEPEND@
+TECKIT_INCLUDES = @TECKIT_INCLUDES@
+TECKIT_LIBS = @TECKIT_LIBS@
 TIE = @TIE@
 VERSION = @VERSION@
 WEB2CVERSION = @WEB2CVERSION@
@@ -440,6 +478,7 @@ htmldir = @htmldir@
 includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
+ipc_socketlibs = @ipc_socketlibs@
 libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
@@ -468,23 +507,21 @@ x_tool_libs = @x_tool_libs@
 ACLOCAL_AMFLAGS = -I ../../m4
 INCLUDES = -I$(top_builddir)/.. $(KPATHSEA_INCLUDES)
 version = $(WEB2CVERSION)
-SUBDIRS = doc lib man web2c . window $(am__append_1) otps
+SUBDIRS = doc lib man mpware web2c . window $(am__append_1) otps
 proglib = lib/lib.a
 dist_man_MANS = 
 nodist_man_MANS = ctiedir/ctie.1 tiedir/tie.1
 dist_check_SCRIPTS = tangle.test libmd5/md5.test
 TESTS = tangle.test tiedir/tie.test libmd5/md5.test
 EXTRA_LIBRARIES = libmf.a libmplib.a libmd5.a
-
-# only used by luatex, perhaps should not be mentioned here
 EXTRA_DIST = PROJECTS cftests config.h cpascal.h help.h tangle.web \
 	tangle.ch tangleboot.p cwebdir ctangleboot.c cwebboot.c \
 	$(web_programs:=.web) $(web_programs:=.ch) ctiedir tiedir \
 	lib/mfmpi386.asm lib/mfmpw32.c lib/texmfmp.c texmfmem.h \
 	texmfmp-help.h texmfmp.h $(tex_ch_srcs) lib/texmfmp.c \
 	tmf-pool.h mf.web mf-binpool.ch mf.ch mftalk.h lib/texmfmp.c \
-	tmf-pool.h $(libmplib_web) mplibdir/lmplib.c fmtutil.in \
-	Makefile.in.orig configure.in.orig
+	tmf-pool.h $(mpost_web) $(libmplib_web) mplibdir/lmplib.c \
+	fmtutil.in Makefile.in.orig configure.in.orig
 DISTCLEANFILES = $(EXTRA_LIBRARIES) tangle.c tangle.h tangle.p \
 	tangle-web2c stamp-tangle tangleboot.c tangleboot.h ctangle.c \
 	cweb.c stamp-ctangle cftest.p $(web_programs:=.c) \
@@ -492,8 +529,10 @@ DISTCLEANFILES = $(EXTRA_LIBRARIES) tangle.c tangle.h tangle.p \
 	$(web_programs:=-web2c) ctie.c cweave.c tie.c tie.outc \
 	tie.outm $(nodist_tex_SOURCES) tex-final.ch tex-web2c tex.p \
 	tex.pool tex-tangle $(nodist_libmf_a_SOURCES) mfextra.c \
-	mf-final.ch mf-web2c mf.p mf.pool mf-tangle $(mpost_c_h) \
-	mpost-ctangle $(libmplib_c_h) mplib-ctangle
+	mf-final.ch mf-web2c mf.p mf.pool mf-tangle \
+	$(nodist_mpost_SOURCES) mpxout-ctangle \
+	$(nodist_libmplib_a_SOURCES) mp-ctangle psout-ctangle \
+	svgout-ctangle
 CLEANFILES = 
 web2c = srcdir=$(srcdir) $(SHELL) $(srcdir)/web2c/convert
 makecpool = ./web2c/makecpool
@@ -540,7 +579,7 @@ nodist_ctie_SOURCES = ctie.c
 nodist_cweave_SOURCES = cweave.c cweb.c
 nodist_tie_SOURCES = tie.c
 tex_CPPFLAGS = 
-tex_LDADD = $(LDADD) $(socketlibs)
+tex_LDADD = $(LDADD) $(ipc_socketlibs)
 tex_c_h = texini.c tex0.c tex1.c tex2.c texcoerce.h texd.h
 nodist_tex_SOURCES = $(tex_c_h) tex-pool.c texextra.c
 tex_ch_srcs = \
@@ -560,18 +599,22 @@ mf_x_libs = $(X_LIBS) $(x_tool_libs) $(X_PRE_LIBS) $(x_ext_lib) $(wlibs) $(X_EXT
 mf_c_h = mfini.c mf0.c mf1.c mfcoerce.h mfd.h
 nodist_libmf_a_SOURCES = $(mf_c_h) mf-pool.c
 libmf_a_CPPFLAGS = -DMETA_FONT
-mpost_c_h = mpost.c mpxout.c
-mpost_web = mplibdir/mpost.w mplibdir/mpxout.w
-mpost_CPPFLAGS = -I. -I$(srcdir)/mplibdir
+mp_ctangle = CWEBINPUTS=$(srcdir)/mplibdir $(ctangle)
+mpost_CPPFLAGS = -I$(srcdir)/mplibdir
 mpost_DEPENDENCIES = libmplib.a
 mpost_LDADD = libmplib.a $(KPATHSEA_LIBS) -lm
-mpost_SOURCES = $(mpost_c_h)
-libmplib_c_h = mp.c mplib.h mpmp.h mppsout.h psout.c mplibps.h svgout.c memio.c tfmin.c
-libmplib_true_c = mplibdir/avl.h mplibdir/avl.c 
-libmplib_web = $(libmplib_true_c) mplibdir/mp.w mplibdir/psout.w \
-	mplibdir/svgout.w mplibdir/memio.w mplibdir/tfmin.w
-libmplib_a_CPPFLAGS = -I. -I$(srcdir)/mplibdir
-libmplib_a_SOURCES = $(libmplib_c_h) $(libmplib_true_c)
+nodist_mpost_SOURCES = mpost.c $(mpxout_c_h)
+mpxout_c_h = mpxout.c mpxout.h
+mpost_web = mplibdir/mpost.w mplibdir/mpxout.w
+libmplib_a_CPPFLAGS = -I$(srcdir)/mplibdir
+libmplib_a_SOURCES = mplibdir/avl.h mplibdir/avl.c
+nodist_libmplib_a_SOURCES = memio.c tfmin.c $(mp_c_h) $(psout_c_h) \
+	$(svgout_c_h)
+mp_c_h = mp.c mplib.h mpmp.h
+psout_c_h = mppsout.h psout.c mplibps.h
+svgout_c_h = mplibsvg.h mpsvgout.h svgout.c
+libmplib_web = mplibdir/mp.w mplibdir/psout.w mplibdir/svgout.w \
+	mplibdir/memio.w mplibdir/tfmin.w
 libmd5_a_CPPFLAGS = -I$(srcdir)/libmd5
 libmd5_a_SOURCES = libmd5/md5.c libmd5/md5.h
 md5main_CPPFLAGS = -I$(srcdir)/libmd5
@@ -584,7 +627,7 @@ all: c-auto.h ff-config.h
 .SUFFIXES: .c .lo .o .obj
 am--refresh:
 	@:
-$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(am__configure_deps)
+$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mpdir/am/mp.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/luatangle.am $(srcdir)/luatexdir/am/liblua51.am $(srcdir)/luatexdir/am/libzzip.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -641,6 +684,8 @@ stamp-h2: $(top_srcdir)/luatexdir/luafontloader/ff-config.in $(top_builddir)/con
 
 distclean-hdr:
 	-rm -f c-auto.h stamp-h1 ff-config.h stamp-h2
+mpware/Makefile: $(top_builddir)/config.status $(top_srcdir)/mpware/Makefile.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
 omegafonts/Makefile: $(top_builddir)/config.status $(top_srcdir)/omegafonts/Makefile.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 otps/Makefile: $(top_builddir)/config.status $(top_srcdir)/otps/Makefile.in
@@ -935,6 +980,48 @@ libmf_a-mf-pool.obj: mf-pool.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmf_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmf_a-mf-pool.obj `if test -f 'mf-pool.c'; then $(CYGPATH_W) 'mf-pool.c'; else $(CYGPATH_W) '$(srcdir)/mf-pool.c'; fi`
 
+libmplib_a-avl.o: mplibdir/avl.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-avl.o -MD -MP -MF $(DEPDIR)/libmplib_a-avl.Tpo -c -o libmplib_a-avl.o `test -f 'mplibdir/avl.c' || echo '$(srcdir)/'`mplibdir/avl.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-avl.Tpo $(DEPDIR)/libmplib_a-avl.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mplibdir/avl.c' object='libmplib_a-avl.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-avl.o `test -f 'mplibdir/avl.c' || echo '$(srcdir)/'`mplibdir/avl.c
+
+libmplib_a-avl.obj: mplibdir/avl.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-avl.obj -MD -MP -MF $(DEPDIR)/libmplib_a-avl.Tpo -c -o libmplib_a-avl.obj `if test -f 'mplibdir/avl.c'; then $(CYGPATH_W) 'mplibdir/avl.c'; else $(CYGPATH_W) '$(srcdir)/mplibdir/avl.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-avl.Tpo $(DEPDIR)/libmplib_a-avl.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mplibdir/avl.c' object='libmplib_a-avl.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-avl.obj `if test -f 'mplibdir/avl.c'; then $(CYGPATH_W) 'mplibdir/avl.c'; else $(CYGPATH_W) '$(srcdir)/mplibdir/avl.c'; fi`
+
+libmplib_a-memio.o: memio.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-memio.o -MD -MP -MF $(DEPDIR)/libmplib_a-memio.Tpo -c -o libmplib_a-memio.o `test -f 'memio.c' || echo '$(srcdir)/'`memio.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-memio.Tpo $(DEPDIR)/libmplib_a-memio.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='memio.c' object='libmplib_a-memio.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-memio.o `test -f 'memio.c' || echo '$(srcdir)/'`memio.c
+
+libmplib_a-memio.obj: memio.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-memio.obj -MD -MP -MF $(DEPDIR)/libmplib_a-memio.Tpo -c -o libmplib_a-memio.obj `if test -f 'memio.c'; then $(CYGPATH_W) 'memio.c'; else $(CYGPATH_W) '$(srcdir)/memio.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-memio.Tpo $(DEPDIR)/libmplib_a-memio.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='memio.c' object='libmplib_a-memio.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-memio.obj `if test -f 'memio.c'; then $(CYGPATH_W) 'memio.c'; else $(CYGPATH_W) '$(srcdir)/memio.c'; fi`
+
+libmplib_a-tfmin.o: tfmin.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-tfmin.o -MD -MP -MF $(DEPDIR)/libmplib_a-tfmin.Tpo -c -o libmplib_a-tfmin.o `test -f 'tfmin.c' || echo '$(srcdir)/'`tfmin.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-tfmin.Tpo $(DEPDIR)/libmplib_a-tfmin.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tfmin.c' object='libmplib_a-tfmin.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-tfmin.o `test -f 'tfmin.c' || echo '$(srcdir)/'`tfmin.c
+
+libmplib_a-tfmin.obj: tfmin.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-tfmin.obj -MD -MP -MF $(DEPDIR)/libmplib_a-tfmin.Tpo -c -o libmplib_a-tfmin.obj `if test -f 'tfmin.c'; then $(CYGPATH_W) 'tfmin.c'; else $(CYGPATH_W) '$(srcdir)/tfmin.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-tfmin.Tpo $(DEPDIR)/libmplib_a-tfmin.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tfmin.c' object='libmplib_a-tfmin.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-tfmin.obj `if test -f 'tfmin.c'; then $(CYGPATH_W) 'tfmin.c'; else $(CYGPATH_W) '$(srcdir)/tfmin.c'; fi`
+
 libmplib_a-mp.o: mp.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-mp.o -MD -MP -MF $(DEPDIR)/libmplib_a-mp.Tpo -c -o libmplib_a-mp.o `test -f 'mp.c' || echo '$(srcdir)/'`mp.c
 @am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-mp.Tpo $(DEPDIR)/libmplib_a-mp.Po
@@ -976,48 +1063,6 @@ libmplib_a-svgout.obj: svgout.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='svgout.c' object='libmplib_a-svgout.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-svgout.obj `if test -f 'svgout.c'; then $(CYGPATH_W) 'svgout.c'; else $(CYGPATH_W) '$(srcdir)/svgout.c'; fi`
-
-libmplib_a-memio.o: memio.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-memio.o -MD -MP -MF $(DEPDIR)/libmplib_a-memio.Tpo -c -o libmplib_a-memio.o `test -f 'memio.c' || echo '$(srcdir)/'`memio.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-memio.Tpo $(DEPDIR)/libmplib_a-memio.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='memio.c' object='libmplib_a-memio.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-memio.o `test -f 'memio.c' || echo '$(srcdir)/'`memio.c
-
-libmplib_a-memio.obj: memio.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-memio.obj -MD -MP -MF $(DEPDIR)/libmplib_a-memio.Tpo -c -o libmplib_a-memio.obj `if test -f 'memio.c'; then $(CYGPATH_W) 'memio.c'; else $(CYGPATH_W) '$(srcdir)/memio.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-memio.Tpo $(DEPDIR)/libmplib_a-memio.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='memio.c' object='libmplib_a-memio.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-memio.obj `if test -f 'memio.c'; then $(CYGPATH_W) 'memio.c'; else $(CYGPATH_W) '$(srcdir)/memio.c'; fi`
-
-libmplib_a-tfmin.o: tfmin.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-tfmin.o -MD -MP -MF $(DEPDIR)/libmplib_a-tfmin.Tpo -c -o libmplib_a-tfmin.o `test -f 'tfmin.c' || echo '$(srcdir)/'`tfmin.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-tfmin.Tpo $(DEPDIR)/libmplib_a-tfmin.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tfmin.c' object='libmplib_a-tfmin.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-tfmin.o `test -f 'tfmin.c' || echo '$(srcdir)/'`tfmin.c
-
-libmplib_a-tfmin.obj: tfmin.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-tfmin.obj -MD -MP -MF $(DEPDIR)/libmplib_a-tfmin.Tpo -c -o libmplib_a-tfmin.obj `if test -f 'tfmin.c'; then $(CYGPATH_W) 'tfmin.c'; else $(CYGPATH_W) '$(srcdir)/tfmin.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-tfmin.Tpo $(DEPDIR)/libmplib_a-tfmin.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tfmin.c' object='libmplib_a-tfmin.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-tfmin.obj `if test -f 'tfmin.c'; then $(CYGPATH_W) 'tfmin.c'; else $(CYGPATH_W) '$(srcdir)/tfmin.c'; fi`
-
-libmplib_a-avl.o: mplibdir/avl.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-avl.o -MD -MP -MF $(DEPDIR)/libmplib_a-avl.Tpo -c -o libmplib_a-avl.o `test -f 'mplibdir/avl.c' || echo '$(srcdir)/'`mplibdir/avl.c
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-avl.Tpo $(DEPDIR)/libmplib_a-avl.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mplibdir/avl.c' object='libmplib_a-avl.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-avl.o `test -f 'mplibdir/avl.c' || echo '$(srcdir)/'`mplibdir/avl.c
-
-libmplib_a-avl.obj: mplibdir/avl.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-avl.obj -MD -MP -MF $(DEPDIR)/libmplib_a-avl.Tpo -c -o libmplib_a-avl.obj `if test -f 'mplibdir/avl.c'; then $(CYGPATH_W) 'mplibdir/avl.c'; else $(CYGPATH_W) '$(srcdir)/mplibdir/avl.c'; fi`
-@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/libmplib_a-avl.Tpo $(DEPDIR)/libmplib_a-avl.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mplibdir/avl.c' object='libmplib_a-avl.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-avl.obj `if test -f 'mplibdir/avl.c'; then $(CYGPATH_W) 'mplibdir/avl.c'; else $(CYGPATH_W) '$(srcdir)/mplibdir/avl.c'; fi`
 
 md5main-md5main.o: libmd5/md5main.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(md5main_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT md5main-md5main.o -MD -MP -MF $(DEPDIR)/md5main-md5main.Tpo -c -o md5main-md5main.o `test -f 'libmd5/md5main.c' || echo '$(srcdir)/'`libmd5/md5main.c
@@ -1739,6 +1784,10 @@ $(web2c_programs): $(web2c_common) ${srcdir}/web2c/*.[chly]
 @LIBPNG_RULE@
 @XPDF_RULE@
 @OBSDCOMPAT_RULE@
+@GRAPHITE_RULE@
+@FREETYPE2_RULE@
+@TECKIT_RULE@
+@ICU_RULE@
 
 .PRECIOUS: %.ch %.p %.c
 tangle.c tangle.h: tangle-web2c
@@ -1960,22 +2009,42 @@ mf-final.ch: $(TIE) mf.web mf.ch mf-binpool.ch
 mf-pool.c: mf.pool $(makecpool) tmf-pool.h
 	$(makecpool) mf.pool $(srcdir)/tmf-pool.h >$@ || rm -f $@
 
-$(mpost_c_h): mpost-ctangle libmplib.a
-mpost-ctangle: ctangle$(EXEEXT) $(mpost_web)
-	CWEBINPUTS=$(srcdir)/mplibdir $(ctangle) mpost.w
-	CWEBINPUTS=$(srcdir)/mplibdir $(ctangle) mpxout.w
-	echo timestamp >$@
-	touch $(mpost_c_h)
+mpost.c: ctangle$(EXEEXT) mplibdir/mpost.w
+	$(mp_ctangle) mpost.w
 
-$(libmplib_c_h): mplib-ctangle  $(libmplib_true_c)
-mplib-ctangle: ctangle$(EXEEXT) $(libmplib_web)
-	CWEBINPUTS=$(srcdir)/mplibdir $(ctangle) mp.w
-	CWEBINPUTS=$(srcdir)/mplibdir $(ctangle) psout.w
-	CWEBINPUTS=$(srcdir)/mplibdir $(ctangle) svgout.w
-	CWEBINPUTS=$(srcdir)/mplibdir $(ctangle) tfmin.w
-	CWEBINPUTS=$(srcdir)/mplibdir $(ctangle) memio.w
+$(mpxout_c_h): mpxout-ctangle
+mpxout-ctangle: ctangle$(EXEEXT) mplibdir/mpxout.w
+	$(mp_ctangle) mpxout.w
 	echo timestamp >$@
-	touch $(libmplib_c_h)
+	touch $(mpxout_c_h)
+
+$(mpost_OBJECTS): $(nodist_mpost_SOURCES) libmplib.a
+
+memio.c: ctangle$(EXEEXT) mplibdir/memio.w
+	$(mp_ctangle) memio.w
+
+tfmin.c: ctangle$(EXEEXT) mplibdir/tfmin.w
+	$(mp_ctangle) tfmin.w
+
+$(mp_c_h): mp-ctangle
+mp-ctangle: ctangle$(EXEEXT) mplibdir/mp.w
+	$(mp_ctangle) mp.w
+	echo timestamp >$@
+	touch $(mp_c_h)
+
+$(psout_c_h): psout-ctangle
+psout-ctangle: ctangle$(EXEEXT) mplibdir/psout.w
+	$(mp_ctangle) psout.w
+	echo timestamp >$@
+	touch $(psout_c_h)
+
+$(svgout_c_h): svgout-ctangle
+svgout-ctangle: ctangle$(EXEEXT) mplibdir/svgout.w
+	$(mp_ctangle) svgout.w
+	echo timestamp >$@
+	touch $(svgout_c_h)
+
+$(libmplib_a_OBJECTS): $(nodist_libmplib_a_SOURCES)
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

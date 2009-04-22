@@ -5,7 +5,7 @@ INCLUDES = -I$(top_builddir)/.. $(KPATHSEA_INCLUDES)
 
 version = $(WEB2CVERSION)
 
-SUBDIRS = doc lib man web2c . window
+SUBDIRS = doc lib man mpware web2c . window
 if OMFONTS
 SUBDIRS += omegafonts
 endif OMFONTS
@@ -69,6 +69,14 @@ $(web2c_programs): $(web2c_common) ${srcdir}/web2c/*.[chly]
 @XPDF_RULE@
 ## Rebuild libopenbsd-compat
 @OBSDCOMPAT_RULE@
+## Rebuild libgraphite
+@GRAPHITE_RULE@
+## Rebuild libfreetype
+@FREETYPE2_RULE@
+## Rebuild libTEXkit
+@TECKIT_RULE@
+## Rebuild libsicuxxx
+@ICU_RULE@
 
 ## The environment for building.
 buildenv = TEXMFCNF=$(srcdir)/../kpathsea
@@ -106,17 +114,33 @@ include $(srcdir)/am/cweb.am
 ## TeX and MF
 include $(srcdir)/am/texmf.am
 
-## new MetaPost, also used for by luaTeX
+## old MetaPost
+include $(srcdir)/mpdir/am/mp.am
+
+## MetaPost
 include $(srcdir)/mplibdir/am/mplib.am
+
+## libmplib, used by MetaPost and luaTeX
+include $(srcdir)/mplibdir/am/libmplib.am
 
 ## e-TeX
 include $(srcdir)/etexdir/am/etex.am
 
 ## pdfTeX
 include $(srcdir)/pdftexdir/am/pdftex.am
+include $(srcdir)/pdftexdir/am/libpdftex.am
+include $(srcdir)/pdftexdir/am/ttf2afm.am
+include $(srcdir)/pdftexdir/am/pdftosrc.am
 
 ## luaTeX
 include $(srcdir)/luatexdir/am/luatex.am
+include $(srcdir)/luatexdir/am/luatangle.am
+include $(srcdir)/luatexdir/am/liblua51.am
+include $(srcdir)/luatexdir/am/libzzip.am
+include $(srcdir)/luatexdir/am/luasocket.am
+include $(srcdir)/luatexdir/am/luamisc.am
+include $(srcdir)/luatexdir/am/luafontforge.am
+include $(srcdir)/luatexdir/am/libluatex.am
 
 ## XeTeX
 include $(srcdir)/xetexdir/am/xetex.am
@@ -127,7 +151,7 @@ include $(srcdir)/omegaware/am/omegaware.am
 ## Aleph
 include $(srcdir)/alephdir/am/aleph.am
 
-## SyncTeX
+## SyncTeX, must come after all TeX-like engines
 include $(srcdir)/synctexdir/am/synctex.am
 
 ## libmd5

@@ -1,3 +1,34 @@
+2008-08-13  Karl Berry  <karl@tug.org>
+
+	* paths.mk (man5dir): new defn for synctex.5.
+
+2008-05-29  Karl Berry  <karl@tug.org>
+
+	* tkpathsea.mk: no more texmf.in, use texmf.cnf instead.
+
+2008-03-05  Karl Berry  <karl@tug.org>
+
+	* makevars.mk: pass sysconfdir, localstatedir, libexecdir.
+	* paths.mk: define them.
+	From Patrice Dumas, 3 Mar 2008 00:41:09.
+
+2008-03-04  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* config.mk: update maintainer rules.
+
+2008-02-29  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* config.mk: update and reactivate maintainer rules.
+
+2008-02-25  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* config.mk: temporarily disable maintainer rules, they need to
+	be updated for Autoconf 2.59+.
+
+2008-02-02  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* paths.mk: Add datarootdir for Autoconf 2.60+.
+
 2007-07-29  Karl Berry  <karl@tug.org>
 
 	* rdepend.mk: replace all texk/kpathsea, not just first.
