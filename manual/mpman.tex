@@ -1735,16 +1735,38 @@ the internal variables discussed in this manual are predefined and do
 not have to be declared at all, but there is a way to declare that a
 variable should behave like a newly-created internal variable.  The
 declaration is {\tt
-newinternal}\index{newinternal?\texttt{newinternal}}\label{Dnewint}
-followed by a list of symbolic tokens.  For example,
-$$ \hbox{\tt newinternal a, b, c;} $$
-causes {\tt a}, {\tt b}, and {\tt c} to behave like internal variables.
-Such variables always have known numeric values, and these values can
-only be changed by using the assignment\index{assignment} operator
-{\tt:=}\index{:=?\texttt{:=}}.  Internal variables are initially zero
-except that the Plain\index{Plain macros} macro package gives some of
-them nonzero initial values.  (The Plain macros are normally preloaded
-automatically as explained in Section~\ref{intro}.)
+  newinternal}\index{newinternal?\texttt{newinternal}}\label{Dnewint}
+followed by an optional type specifier \texttt{numeric}\index{internal
+  variables!\texttt{numeric}}\index{variables!internal!\texttt{numeric}}
+or \texttt{string}\index{internal
+  variables!\texttt{string}}\index{variables!internal!\texttt{string}}
+and a list of symbolic tokens.  For example,
+$$\begin{verbatim}
+newinternal numeric n, m;
+newinternal string s, t;
+newinternal num;
+\end{verbatim}
+$$
+are valid declarations that declare three internal numeric variables
+\texttt{n}, \texttt{m}, and~\texttt{num} and two internal string
+variables \texttt{s} and~\texttt{t}.
+
+Internal variables always have known values, and these values can only
+be changed by using the assignment\index{assignment} operator
+{\tt:=}\index{:=?\texttt{:=}}.  Internal numeric variables are initially
+zero and internal string variables are initially the empty
+string~\verb|""|, except that the Plain\index{Plain macros} macro
+package gives some of the variables different initial values.  (The
+Plain macros are normally preloaded automatically as explained in
+Section~\ref{intro}.)
+
+Internal string variables have been introduced in MetaPost
+version~1.200.  For backwards compatibility, if the type specifier is
+missing, internal variables default to a \texttt{numeric}\index{internal
+  variables!\texttt{numeric}}\index{variables!internal!\texttt{numeric}}
+type, as in the last example.  The declarations \texttt{newinternal
+  numeric;} and \texttt{newinternal string;} are invalid and throw an
+error.
 
 
 \section{Integrating Text and Graphics}
@@ -3906,7 +3928,7 @@ internal variable\index{internal variables}\index{variables!internal}
 gives it a new value without forgetting that {\tt linecap} is an internal
 variable.  The general syntax is
 $$ {\tt interim}\, \descr{internal variable} \mathrel{\hbox{\tt:=}}
-        \descr{numeric expression}
+        \descr{numeric expression} \;|\; \descr{string expression}
 $$
 
 

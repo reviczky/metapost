@@ -550,6 +550,7 @@ $\tt \qquad \;|\; uniformdeviate \;|\; unitvector \;|\; unknown \;|\; urcorner \
 $\tt \qquad \;|\; xypart \;|\; yellowpart \;|\; ypart \;|\; yxpart \;|\; yypart$\\
 $\tt \descr{type} \rightarrow boolean \;|\; cmykcolor \;|\; color \;|\; numeric \;|\; pair$\\
 $\tt \qquad \;|\; path \;|\; pen \;|\; picture \;|\; rgbcolor \;|\; string \;|\; transform$\\
+$\tt \descr{internal type} \rightarrow numeric \;|\; string$\\
 $\tt \descr{primary binop} \rightarrow \hbox{\tt *} \;|\; \hbox{\tt /} \;|\; \hbox{\tt **} \;|\; and$\\
 $\tt \qquad \;|\; dotprod \;|\; div \;|\; infont \;|\; mod$\\
 $\tt \descr{secondary binop} \rightarrow + \;|\; - \;|\; ++ \;|\; +-+ \;|\; or$\\
@@ -690,7 +691,6 @@ $\tt \descr{label suffix} \rightarrow \descr{empty} \;|\; lft \;|\; rt \;|\; top
 $\tt \descr{command} \rightarrow clip \descr{picture variable} to \descr{path expression}$\\
 $\tt \qquad \;|\; interim \descr{internal variable} \hbox{\tt :=} \descr{right-hand side}$\\
 $\tt \qquad \;|\; let \descr{symbolic token} \hbox{\tt =} \descr{symbolic token}$\\
-$\tt \qquad \;|\; newinternal \descr{symbolic token list}$\\
 $\tt \qquad \;|\; pickup \descr{expression}$\\
 $\tt \qquad \;|\; randomseed \hbox{\tt :=} \descr{numeric expression}$\\
 $\tt \qquad \;|\; save \descr{symbolic token list}$\\
@@ -701,6 +701,7 @@ $\tt \qquad \;|\; write \descr{string expression} to \descr{string expression}$\
 $\tt \qquad \;|\; \descr{addto command}$\\
 $\tt \qquad \;|\; \descr{drawing command}$\\
 $\tt \qquad \;|\; \descr{font metric command}$\\
+$\tt \qquad \;|\; \descr{newinternal command}$\\
 $\tt \qquad \;|\; \descr{message command}$\\
 $\tt \qquad \;|\; \descr{show command}$\\
 $\tt \qquad \;|\; \descr{tracing command}$\\
@@ -729,6 +730,9 @@ $\tt \descr{drawing command} \rightarrow draw \descr{picture expression} \descr{
 $\tt \qquad \;|\; \descr{fill type} \descr{path expression} \descr{option list}$\\
 $\tt \descr{fill type} \rightarrow fill \;|\; draw \;|\; filldraw \;|\; unfill \;|\; undraw \;|\; unfilldraw$\\
 $\tt \qquad \;|\; drawarrow \;|\; drawdblarrow \;|\; cutdraw$\\
+$\tt $\\
+$\tt \descr{newinternal command} \rightarrow newinternal \descr{internal type} \descr{symbolic token list}$\\
+$\tt \qquad \;|\; newinternal \descr{symbolic token list}$\\
 $\tt $\\
 $\tt \descr{message command} \rightarrow errhelp \descr{string expression}$\\
 $\tt \qquad \;|\; errmessage \descr{string expression}$\\

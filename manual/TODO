@@ -34,7 +34,6 @@ mp-implementors list or alternatively the metapost list.
 mpman.tex
 * Describe glyph primitive.
 * Describe environment variables.
-* Describe internal string variables.
 * Add note on postcontrol and precontrol when discussing control points.
 * Add description of interaction mode commands.
 * Add "SVG" keyword to PDF metadata.
