@@ -7,6 +7,7 @@ pdflatex = pdflatex
 dvips = dvips
 bibtex = bibtex
 mpost = mpost -tex=tex
+mkindex = makeindex -s mpman.ist
 
 all: pdf
 pdf: mpman.pdf mpgraph.pdf mpboxes.pdf
@@ -17,7 +18,7 @@ mpboxes.pdf: mpboxes.tex mpboxes.bib mpboxes.mp
 	$(pdflatex) mpboxes
 	$(bibtex) mpboxes
 	$(pdflatex) mpboxes
-	makeindex -s mpman.ist mpboxes
+	$(mkindex) mpboxes
 	$(pdflatex) mpboxes
 
 mpgraph.pdf: mpgraph.tex mpgraph.bib mpgraph.mp
@@ -33,7 +34,7 @@ mpman.pdf: mpman.tex mpman-app-legacy.tex mpman-app-optab.tex mpman-app-refman.t
 	$(bibtex) mpman
 	$(pdflatex) mpman
 	$(pdflatex) mpman
-	makeindex -s mpman.ist mpman
+	$(mkindex) mpman
 	$(pdflatex) mpman
 
 mpboxes.ps: mpboxes.tex mpboxes.bib mpboxes.mp
@@ -42,7 +43,7 @@ mpboxes.ps: mpboxes.tex mpboxes.bib mpboxes.mp
 	$(bibtex) mpboxes
 	$(latex) mpboxes
 	$(latex) mpboxes
-	makeindex -s mpman.ist mpboxes
+	$(mkindex) mpboxes
 	$(latex) mpboxes
 	$(dvips) mpboxes
 
@@ -60,7 +61,7 @@ mpman.ps: mpman.tex mpman-app-legacy.tex mpman-app-optab.tex mpman-app-refman.te
 	$(bibtex) mpman
 	$(latex) mpman
 	$(latex) mpman
-	makeindex -s mpman.ist mpman
+	$(mkindex) mpman
 	$(latex) mpman
 	$(dvips) mpman
 
