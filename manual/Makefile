@@ -7,7 +7,7 @@ pdflatex = pdflatex
 dvips = dvips
 bibtex = bibtex
 mpost = mpost -tex=tex
-mkindex = makeindex -s mpman.ist
+mkindex = makeindex -c -s mpman.ist
 
 all: pdf
 pdf: mpman.pdf mpgraph.pdf mpboxes.pdf
