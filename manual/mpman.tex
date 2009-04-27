@@ -375,7 +375,8 @@ $$
 
 Any other value makes MetaPost fall back to PostScript output.  Variable
 \verb|outputformat| is case-sensitive, so assigning it the string
-\verb|"SVG"| enables PostScript output, too.
+\verb|"SVG"| enables PostScript output, too.  Default value of variable
+\verb|outputformat| is \verb|"eps"|.
 
 \paragraph{Output file names}
 \label{outputfilenames}
@@ -406,20 +407,7 @@ $$
 it will create the output file \ttt{fig-001.mps} instead of \ttt{fig.1}.
 The file extension \texttt{.mps} is conventionally chosen for MetaPost's
 PostScript output (see section~\ref{teximport}).  For SVG output one
-would want to use \texttt{.svg} instead.  A more general approach is to
-evaluate variable \verb|outputformat| within \verb|outputtemplate| via
-the \verb|%{...}| escape sequence:
-
-$$\begin{verbatim}
-outputformat := "mps";
-% outputformat := "svg";
-outputtemplate := "%j-%3c.%{outputformat}";
-...
-\end{verbatim}
-$$
-Now, one can switch between PostScript and SVG output by uncommenting
-the line with the proper assignment to \verb|outputformat| and have the
-correct file extension added automatically.
+would want to use \texttt{.svg} instead.
 
 %\suppressfloats[t]
 \begin{table}
