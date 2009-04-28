@@ -913,7 +913,8 @@ MetaPost for processing \verb|btex| \verb|...| \verb|etex| labels.
 Since MetaPost version~1.100, the label conversion is handled internally
 by the \texttt{mpost} executable.  The \emph{mpware} tools are therefore
 obsolete and no longer part of the MetaPost distribution.  Nowadays, the
-\texttt{dvitomp} executable is actually a wrapper, calling
+\texttt{dvitomp} executable is either a copy of the \texttt{mpost}
+executable with the name \texttt{dvitomp} or a wrapper, calling
 \texttt{mpost} as
 $$ \hbox{\verb|mpost -dvitomp|}\ \descr{infile}\
 \descr{outfile}\qquad\hbox{.} $$
