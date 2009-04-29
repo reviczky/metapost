@@ -19708,7 +19708,7 @@ moves at the actual points.
 @d bezier_error (720*(256*256*16))+1
 @d mp_sign(v) ((v)>0 ? 1 : ((v)<0 ? -1 : 0 ))
 @d mp_out(A) (double)((A)/(256*256*16))
-@d divisor (256*256)
+@d divisor (256.0*256.0)
 @d double2angle(a) (int)mp_floor(a*256.0*256.0*16.0)
 
 @<Declare unary action...@>=
