@@ -2301,7 +2301,9 @@ example, the {\tt fill} statement in Figure~\ref{fig20} builds a closed
 path by extending the roughly semicircular path~{\tt p}.  This path has
 a counter-clockwise orientation, but that does not matter because the
 {\tt fill} statement uses PostScript's\index{PostScript} non-zero
-winding\index{winding number} number rule~\cite{ad:red2}.
+winding\index{winding number} number rule\index{non-zero fill
+  rule}\index{fill rule!non-zero}\index{PostScript!fill
+  rule}~\cite{ad:red2}.
 
 \begin{figure}[htp]
 $$ \begin{verbatim}
@@ -3835,9 +3837,10 @@ glyph \emph{visually}\footnote{Plain contours already carry enough
   MetaPost has a
   \texttt{turningnumber}\index{turningnumber?\texttt{turningnumber}}\label{Dturningnumber}
   primitive to do that.}, since MetaPost doesn't implement PostScript's
-even-odd fill rule.  As a side effect, erasing contours are opaque in
-the returned picture, while they were transparent in the original glyph.
-Finally, the picture is scaled by a factor of
+even-odd fill rule\index{even-odd fill rule}\index{fill
+  rule!even-odd}\index{PostScript!fill rule}.  As a side effect, erasing
+contours are opaque in the returned picture, while they were transparent
+in the original glyph.  Finally, the picture is scaled by a factor of
 $\frac{1\,\mbox{\scriptsize pt}}{\mbox{\scriptsize font design unit}}$.
 
 The \verb|glyph|\index{glyph?\texttt{glyph}} operator accepts another,
