@@ -3771,6 +3771,95 @@ To summarize the discussion of mismatching part operators:
 \index{greypart?\texttt{greypart}|)}
 
 
+\subsection{Decomposing the glyphs of a font}
+\label{glyphs}
+
+MetaPost provides a primitive to convert a glyph of a PostScript
+font\index{PostScript!fonts}\index{font!PostScript} into its constituent
+filled paths---the strokes---and store them in a picture variable.  A
+character\index{character}\index{font!character} is a certain
+slot\index{slot} (index) in a font with an associated meaning, e.g., the
+capital letter~``M'' or the exclamation mark.  The meaning of a slot is
+defined by the font encoding\index{encoding}\index{font!encoding}.  A
+glyph\index{font!glyph} is the visual representation of a character in a
+font.  In general, the same character is represented by different glyphs
+in different fonts.  Figure~\ref{glyphsample} shows some glyphs for the
+character at slot~103 in the T1 encoding, i.e., the lower-case
+letter~``g''.  All glyphs are at the same nominal size.  Note, how
+glyphs may extend beyond their bounding box.
+\begin{figure}[htp]
+  \centering
+  \setlength{\fboxsep}{0pt}
+  \setlength{\fboxrule}{.125pt}
+  \fontsize{56pt}{56pt}\selectfont
+  \newcommand*{\showglyph}[4]{% a glyph with its bounding box
+    \fbox{\strut\usefont{#1}{#2}{#3}{#4}g}%
+  }
+  \makebox[0pt][c]{% base line
+    \rule{.7\textwidth}{.125pt}%
+  }%
+  \makebox[0pt][c]{% glyphs
+    \showglyph{T1}{lmr}{m}{n}\hspace{.3em}
+    \showglyph{T1}{qag}{m}{n}\hspace{.3em}
+    \showglyph{T1}{qpl}{m}{it}\hspace{.3em}
+    \showglyph{T1}{qzc}{m}{n}%
+  }
+  \caption{Different glyphs representing the same character.}
+  \label{glyphsample}
+\end{figure}
+
+To save the strokes of a glyph in a picture, the
+\verb|glyph|\index{glyph?\texttt{glyph}}\label{Dglyph} operator can be
+used as follows:
+$$ \verb|glyph|\, \descr{numeric expression}\, \verb|of|\,
+\descr{string expression}
+$$
+where the first argument is a slot number between 0 and~255 and the
+second argument is a string containing a font name (section~\ref{text}
+has more on font names).
+
+MetaPost then looks-up the font name in the font map to determine the
+encoding and to find the font's
+PostScript\index{PostScript!fonts}\index{font!PostScript} source file
+(see section~\ref{Sfontmapfile}).  The glyphs of a PostScript font are
+composed of two types of contours: Clockwise oriented contours add to
+the shape of a glyph and are drawn in black ink.  Counter-clockwise
+oriented contours erase parts of other contours, i.e., make them
+transparent again.  The \verb|glyph| operator returns a picture
+consisting of these contour lines explicitly colored black and white in
+the greyscale color model according to the rules laid out above.  The
+coloring is necessary for the picture to resembles the corresponding
+glyph \emph{visually}\footnote{Plain contours already carry enough
+  information to completely reconstruct a glyph, since the orientation
+  of a contour can be computed from its cardinal and control points.
+  MetaPost has a
+  \texttt{turningnumber}\index{turningnumber?\texttt{turningnumber}}\label{Dturningnumber}
+  primitive to do that.}, since MetaPost doesn't implement PostScript's
+even-odd fill rule.  As a side effect, erasing contours are opaque in
+the returned picture, while they were transparent in the original glyph.
+Finally, the picture is scaled by a factor of
+$\frac{1\,\mbox{\scriptsize pt}}{\mbox{\scriptsize font design unit}}$.
+
+The \verb|glyph|\index{glyph?\texttt{glyph}} operator accepts another,
+more low-level, syntax:
+$$ \verb|glyph|\, \descr{string expression}\, \verb|of|\, \descr{string
+  expression}
+$$
+Here, the first argument is not a slot number, but a string containing a
+CharString name\index{CharString name} in the PostScript font's source
+file.  A CharString name is a unique text label for a glyph in a font.
+A font encoding actually maps CharStrings to slots.  This second syntax
+can be used to address glyphs without having to think about font
+encodings.
+
+Converting a text into plain curves is part of a process oftentimes
+called ``flattening\index{flattening} a document.''  When flattening
+text, all hinting information in fonts are lost.  Hinting information
+aid a rendering application in aligning certain parts of a glyph on a
+low-resolution output device.  A flattened text may therefore look
+deranged on screen.
+
+
 \section{Macros}
 \label{macros}
 
