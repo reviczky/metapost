@@ -3779,13 +3779,14 @@ To summarize the discussion of mismatching part operators:
 MetaPost provides a primitive to convert a glyph of a PostScript
 font\index{PostScript!fonts}\index{font!PostScript} into its constituent
 filled paths---the strokes---and store them in a picture variable.  A
-character\index{character}\index{font!character} is a certain
+glyph\index{font!glyph} is the visual representation of a character in a
+font.  A character\index{character}\index{font!character} is a certain
 slot\index{slot} (index) in a font with an associated meaning, e.g., the
 capital letter~``M'' or the exclamation mark.  The meaning of a slot is
-defined by the font encoding\index{encoding}\index{font!encoding}.  A
-glyph\index{font!glyph} is the visual representation of a character in a
-font.  In general, the same character is represented by different glyphs
-in different fonts.  Figure~\ref{glyphsample} shows some glyphs for the
+defined by the font encoding\index{encoding}\index{font!encoding}.
+
+In general, the same character is represented by different glyphs in
+different fonts.  Figure~\ref{glyphsample} shows some glyphs for the
 character at slot~103 in the T1 encoding, i.e., the lower-case
 letter~``g''.  All glyphs are at the same nominal size.  Note, how
 glyphs may extend beyond their bounding box.
