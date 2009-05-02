@@ -828,6 +828,7 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
             if (mp_chars[k][l] == 1) {
                if (f == NULL) {
                   f = mp_ps_font_parse(mp, k);
+                  if (f == NULL) continue;
                   if (f->extend != 0) {
                     dx = scaled_from_double(((double)f->extend / 1000.0) * scale);
                   }
