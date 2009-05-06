@@ -3841,13 +3841,31 @@ resembles the corresponding glyph \emph{visually}\footnote{Plain
 even-odd fill rule\index{even-odd fill rule}\index{fill
   rule!even-odd}\index{PostScript!fill rule}.  As a side effect, erasing
 contours are opaque in the returned picture, while they were transparent
-in the original glyph.  Finally, the picture is scaled by a factor of
-$\frac{1\,\mbox{\scriptsize pt}}{\mbox{\scriptsize font design unit}}$.
+in the original glyph.  Finally, the picture is scaled such that one
+point equals one font design unit.  For instance, the following code
+saves the strokes of the glyph at slot~103 of the OT1 encoded\index{OT1
+  encoding}\index{encoding!OT1} Computer Modern Roman\index{Computer
+  Modern Roman} font, i.e., the lower case letter~``g,'' in a picture
+variable:
+
+$$\begin{verbatim}
+fontmapline "cmr10 CMR10 <cmr10.pfb";
+...
+picture g;
+g := glyph 103 of "cmr10";
+\end{verbatim}
+$$
+
 The \verb|glyph| operator returns an empty picture, if the
 \texttt{.tfm}\index{tfm file?{\tt tfm} file}\index{files!tfm?{\tt tfm}}
 or \texttt{.pfb}\index{pfb file?{\tt pfb} file}\index{files!pfb?{\tt
     pfb}} file or the encoding cannot be found or the slot number is not
-covered by the encoding.
+covered by the encoding.  Note, while \verb|btex| \ldots\ \verb|etex|
+blocks and \verb|infont| delegate the actual font handling to third
+party programs---a rendering application---, the \verb|glyph| operator
+directly operates on font ressources.  For that reason, a font map entry
+is required for the font in question, given either by \verb|fontmapline|
+or \verb|fontmapfile| (see section~\ref{Sfontmapfile}).
 
 Another, more low-level, syntax is possible for the
 \verb|glyph|\index{glyph?\texttt{glyph}} operator:
@@ -3860,14 +3878,27 @@ file.  A CharString name is a unique text label for a glyph in a font.
 A font encoding actually maps CharStrings to slots.  This second syntax
 can be used to address glyphs without having to think about font
 encodings.  If the CharString name cannot be found, the \verb|glyph|
-operator returns an empty picture.
+operator returns an empty picture.  For instance, the following code
+saves the strokes of the glyph with CharString name ``Rcaron'' of the
+Cork encoded\index{Cork encoding}\index{T1
+  encoding}\index{encoding!Cork}\index{encoding!T1} Latin Modern
+Roman\index{Latin Modern Roman} font, i.e., the upper case
+letter~``\v{R},'' in a picture variable:
+
+$$\begin{verbatim}
+fontmapfile "lm-ec.map";
+...
+picture r;
+r := glyph "Rcaron" of "ec-lmr10";
+\end{verbatim}
+$$
 
 Converting a text into plain curves is part of a process oftentimes
 called ``flattening\index{flattening} a document.''  When flattening
 text, all hinting information in fonts are lost.  Hinting information
 aid a rendering application in aligning certain parts of a glyph on a
 low-resolution output device.  A flattened text may therefore look
-deranged on screen.
+distorted on screen.
 
 
 \section{Macros}
