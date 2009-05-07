@@ -3813,9 +3813,9 @@ glyphs may extend beyond their bounding box.
 The glyphs of a PostScript font
 \index{PostScript!fonts}\index{font!PostScript} are composed of two
 types of contours: Clockwise oriented contours add to the shape of a
-glyph and are drawn in black ink.  Counter-clockwise oriented contours
-erase parts of other contours, i.e., make them transparent again.  To
-save the strokes of a glyph in a picture, the
+glyph and are filled with black ink.  Counter-clockwise oriented
+contours erase\index{erasing} parts of other contours, i.e., make them
+transparent again.  To save the strokes of a glyph in a picture, the
 \verb|glyph|\index{glyph?\texttt{glyph}}\label{Dglyph} operator can be
 used as follows:
 $$ \verb|glyph|\, \descr{numeric expression}\, \verb|of|\,
@@ -3839,33 +3839,34 @@ resembles the corresponding glyph \emph{visually}\footnote{Plain
   \texttt{turningnumber}\index{turningnumber?\texttt{turningnumber}}\label{Dturningnumber}
   primitive to do that.}, since MetaPost doesn't implement PostScript's
 even-odd fill rule\index{even-odd fill rule}\index{fill
-  rule!even-odd}\index{PostScript!fill rule}.  As a side effect, erasing
-contours are opaque in the returned picture, while they were transparent
-in the original glyph.  Finally, the picture is scaled such that one
+  rule!even-odd}\index{PostScript!fill rule}.  As a side effect, the
+interiors of the erasing\index{erasing} contours are an opaque white in
+the returned picture, while they were transparent in the original glyph.
+One can think of erasing contours to be unfilled (see
+p.~\pageref{Dunfill}).  Finally, the picture is scaled such that one
 point equals one font design unit.  For instance, the following code
-saves the strokes of the glyph at slot~103 of the OT1 encoded\index{OT1
-  encoding}\index{encoding!OT1} Computer Modern Roman\index{Computer
-  Modern Roman} font, i.e., the lower case letter~``g,'' in a picture
-variable:
+saves the strokes of the lower case letter~``g'' in the Computer Modern
+Roman\index{Computer Modern Roman} font in a picture variable.  The
+glyph~``g'' is bound to slot~103 in the OT1 encoding\index{OT1
+  encoding}\index{encoding!OT1}:
 
 $$\begin{verbatim}
 fontmapline "cmr10 CMR10 <cmr10.pfb";
-...
 picture g;
 g := glyph 103 of "cmr10";
 \end{verbatim}
 $$
 
-The \verb|glyph| operator returns an empty picture, if the
-\texttt{.tfm}\index{tfm file?{\tt tfm} file}\index{files!tfm?{\tt tfm}}
-or \texttt{.pfb}\index{pfb file?{\tt pfb} file}\index{files!pfb?{\tt
-    pfb}} file or the encoding cannot be found or the slot number is not
-covered by the encoding.  Note, while \verb|btex| \ldots\ \verb|etex|
-blocks and \verb|infont| delegate the actual font handling to third
-party programs---a rendering application---, the \verb|glyph| operator
-directly operates on font ressources.  For that reason, a font map entry
-is required for the font in question, given either by \verb|fontmapline|
-or \verb|fontmapfile| (see section~\ref{Sfontmapfile}).
+Note, while MetaPost delegates the actual font handling to a rendering
+application for \verb|infont| and \verb|btex| \ldots\ \verb|etex|
+blocks, the \verb|glyph| operator directly operates on font ressources.
+For that reason, a font map entry is mandatory for the font in question,
+given either by \verb|fontmapline| or \verb|fontmapfile| (see
+section~\ref{Sfontmapfile}).  The \verb|glyph| operator returns an empty
+picture, if the \texttt{.tfm}\index{tfm file?{\tt tfm}
+  file}\index{files!tfm?{\tt tfm}} or \texttt{.pfb}\index{pfb file?{\tt
+    pfb} file}\index{files!pfb?{\tt pfb}} file or the encoding cannot be
+found or the slot number is not covered by the encoding.
 
 Another, more low-level, syntax is possible for the
 \verb|glyph|\index{glyph?\texttt{glyph}} operator:
@@ -3879,15 +3880,12 @@ A font encoding actually maps CharStrings to slots.  This second syntax
 can be used to address glyphs without having to think about font
 encodings.  If the CharString name cannot be found, the \verb|glyph|
 operator returns an empty picture.  For instance, the following code
-saves the strokes of the glyph with CharString name ``Rcaron'' of the
-Cork encoded\index{Cork encoding}\index{T1
-  encoding}\index{encoding!Cork}\index{encoding!T1} Latin Modern
-Roman\index{Latin Modern Roman} font, i.e., the upper case
-letter~``\v{R},'' in a picture variable:
+saves the strokes of the upper case letter~``\v{R}'' in the Latin Modern
+Roman\index{Latin Modern Roman} font in a picture variable.  The
+CharString name of the glyph~``\v{R}'' is ``Rcaron''\index{Rcaron}:
 
 $$\begin{verbatim}
 fontmapfile "lm-ec.map";
-...
 picture r;
 r := glyph "Rcaron" of "ec-lmr10";
 \end{verbatim}
