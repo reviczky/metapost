@@ -3776,8 +3776,9 @@ To summarize the discussion of mismatching part operators:
 \subsection{Decomposing the glyphs of a font}
 \label{glyphs}
 
-MetaPost provides a primitive to convert a glyph of a PostScript
-font\index{PostScript!fonts}\index{font!PostScript} into its constituent
+MetaPost provides a primitive to convert a glyph of a font in the Adobe
+Type~1 Font\index{PostScript!fonts}\index{font!PostScript}\index{Adobe
+  Type~1 Font}\index{font!Adobe Type~1} format into its constituent
 filled paths---the strokes---and store them in a picture variable.  A
 glyph\index{font!glyph} is the visual representation of a character in a
 font.  A character\index{character}\index{font!character} is a certain
@@ -3810,12 +3811,13 @@ glyphs may extend beyond their bounding box.
   \label{glyphsample}
 \end{figure}
 
-The glyphs of a PostScript font
-\index{PostScript!fonts}\index{font!PostScript} are composed of two
-types of contours: Clockwise oriented contours add to the shape of a
-glyph and are filled with black ink.  Counter-clockwise oriented
-contours erase\index{erasing} parts of other contours, i.e., make them
-transparent again.  To save the strokes of a glyph in a picture, the
+The glyphs of an Adobe Type~1 font
+\index{PostScript!fonts}\index{font!PostScript}\index{Adobe Type~1
+  Font}\index{font!Adobe Type~1} are composed of two types of contours:
+Clockwise oriented contours add to the shape of a glyph and are filled
+with black ink.  Counter-clockwise oriented contours
+erase\index{erasing} parts of other contours, i.e., make them
+transparent again.  To save the contours of a glyph in a picture, the
 \verb|glyph|\index{glyph?\texttt{glyph}}\label{Dglyph} operator can be
 used as follows:
 $$ \verb|glyph|\, \descr{numeric expression}\, \verb|of|\,
@@ -3830,8 +3832,8 @@ an error.
 The \verb|glyph| operator looks-up the font name in the font map to
 determine the encoding and to find the font's PostScript source file.
 It returns a picture consisting of the glyph's contour lines, explicitly
-colored black and white in the greyscale color model according to the
-rules laid out above.  The coloring is necessary for the picture to
+filled black and white in the greyscale color model according to the
+rules laid out above.  The filling is necessary for the picture to
 resembles the corresponding glyph \emph{visually}\footnote{Plain
   contours already carry enough information to completely reconstruct a
   glyph, the orientation of a contour can be computed from its cardinal
@@ -3845,7 +3847,7 @@ the returned picture, while they were transparent in the original glyph.
 One can think of erasing contours to be unfilled (see
 p.~\pageref{Dunfill}).  Finally, the picture is scaled such that one
 point equals one font design unit.  For instance, the following code
-saves the strokes of the lower case letter~``g'' in the Computer Modern
+saves the contours of the lower case letter~``g'' in the Computer Modern
 Roman\index{Computer Modern Roman} font in a picture variable.  The
 glyph~``g'' is bound to slot~103 in the OT1 encoding\index{OT1
   encoding}\index{encoding!OT1}:
@@ -3857,16 +3859,16 @@ g := glyph 103 of "cmr10";
 \end{verbatim}
 $$
 
-Note, while MetaPost delegates the actual font handling to a rendering
-application for \verb|infont| and \verb|btex| \ldots\ \verb|etex|
-blocks, the \verb|glyph| operator directly operates on font ressources.
-For that reason, a font map entry is mandatory for the font in question,
-given either by \verb|fontmapline| or \verb|fontmapfile| (see
-section~\ref{Sfontmapfile}).  The \verb|glyph| operator returns an empty
-picture, if the \texttt{.tfm}\index{tfm file?{\tt tfm}
-  file}\index{files!tfm?{\tt tfm}} or \texttt{.pfb}\index{pfb file?{\tt
-    pfb} file}\index{files!pfb?{\tt pfb}} file or the encoding cannot be
-found or the slot number is not covered by the encoding.
+The \verb|glyph| operator returns an empty picture, if the
+\texttt{.tfm}\index{tfm file?{\tt tfm} file}\index{files!tfm?{\tt tfm}}
+or \texttt{.pfb}\index{pfb file?{\tt pfb} file}\index{files!pfb?{\tt
+    pfb}} file or the encoding cannot be found or the slot number is not
+covered by the encoding.  Note, while MetaPost delegates the actual font
+handling to a rendering application for \verb|infont| and \verb|btex|
+\ldots\ \verb|etex| blocks, the \verb|glyph| operator directly operates
+on font ressources.  For that reason, a font map entry is mandatory for
+the font in question, given either by \verb|fontmapline| or
+\verb|fontmapfile| (see section~\ref{Sfontmapfile}).
 
 Another, more low-level, syntax is possible for the
 \verb|glyph|\index{glyph?\texttt{glyph}} operator:
@@ -3879,17 +3881,46 @@ file.  A CharString name is a unique text label for a glyph in a font.
 A font encoding actually maps CharStrings to slots.  This second syntax
 can be used to address glyphs without having to think about font
 encodings.  If the CharString name cannot be found, the \verb|glyph|
-operator returns an empty picture.  For instance, the following code
-saves the strokes of the upper case letter~``\v{R}'' in the Latin Modern
-Roman\index{Latin Modern Roman} font in a picture variable.  The
-CharString name of the glyph~``\v{R}'' is ``Rcaron''\index{Rcaron}:
+operator returns an empty picture.  In Figure~\ref{fig56}, the contours
+of the upper case letter~``\v{D}'' in the Latin Modern Roman\index{Latin
+  Modern Roman} font are saved in a picture variable.  The glyph is
+identified by its CharString name ``Dcaron''\index{Dcaron}.  The code
+then iterates over all contours and draws them together with their
+cardinal (black) and control points (red).  As it turns out, many of the
+control points coincide with cardinal points in this glyph.
 
+\begin{figure}[htbp]
 $$\begin{verbatim}
-fontmapfile "lm-ec.map";
-picture r;
-r := glyph "Rcaron" of "ec-lmr10";
+fontmapfile "=lm-ec.map";
+beginfig(56);
+  picture q;
+  path p;
+  q := glyph "Dcaron" of "ec-lmr10" scaled .2;
+  for i within q:
+    p := pathpart i;
+    draw p withcolor (.6,.9,.6)
+        withpen pencircle scaled 1.5;
+    for j=0 upto length p:
+      pickup pencircle scaled .7;
+      draw (point j of p -- precontrol j of p)
+          dashed evenly withcolor blue;
+      draw (point j of p -- postcontrol j of p)
+          dashed evenly withcolor blue;
+      pickup pencircle scaled 3;
+      draw precontrol j of p withcolor red;
+      draw postcontrol j of p withcolor red;
+      pickup pencircle scaled 2;
+      draw point j of p withcolor black;
+    endfor
+  endfor
+endfig;
 \end{verbatim}
+\qquad
+\mathcenter{\includegraphics{mpman-56.mps}}
 $$
+\caption{Iterating over the contours of a glyph}
+\label{fig56}
+\end{figure}
 
 Converting a text into plain curves is part of a process oftentimes
 called ``flattening\index{flattening} a document.''  When flattening
