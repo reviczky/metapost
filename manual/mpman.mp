@@ -820,6 +820,32 @@ path body;
     withpen currentpen scaled 4 withcolor .7white;
 endfig;
 
+
+fontmapfile "=lm-ec.map";
+beginfig(56);
+  picture q;
+  path p;
+  q := glyph "Dcaron" of "ec-lmr10" scaled .2;
+  for i within q:
+    p := pathpart i;
+    draw p withcolor (.6,.9,.6)
+        withpen pencircle scaled 1.5;
+    for j=0 upto length p:
+      pickup pencircle scaled .7;
+      draw (point j of p -- precontrol j of p)
+          dashed evenly withcolor blue;
+      draw (point j of p -- postcontrol j of p)
+          dashed evenly withcolor blue;
+      pickup pencircle scaled 3;
+      draw precontrol j of p withcolor red;
+      draw postcontrol j of p withcolor red;
+      pickup pencircle scaled 2;
+      draw point j of p withcolor black;
+    endfor
+  endfor
+endfig;
+
+
 %%% Title page rule.
 beginfig(60);
   pickup pencircle scaled 1.1bp;
