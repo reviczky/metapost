@@ -117,6 +117,10 @@ New features:
 
 Bug fixes:
 
+* The turningnumber calculation had a rounding error in the internal
+  arithmetic that could cause incorrect numbers to be calculated
+  (typically resulting in a 'turning numbers do not match' error).
+
 * The parsing of command line arguments with options was broken.
 
 * Reading of files with 8-bit names has been fixed.
