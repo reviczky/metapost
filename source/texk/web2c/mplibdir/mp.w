@@ -26293,9 +26293,9 @@ pointer mp_gr_unexport(MP mp, struct mp_edge_object *hh) {
     case mp_fill_code: 
       if ( gr_pen_p((mp_fill_object *)p)==NULL ) {
         pn = mp_new_fill_node (mp, null);
-  	    mp_path_p(pn) = mp_import_knot_list(mp,gr_path_p((mp_fill_object *)p));
+        mp_path_p(pn) = mp_import_knot_list(mp,gr_path_p((mp_fill_object *)p));
+        mp_color_model(pn)=mp_grey_model;
         if (mp_new_turn_cycles(mp, mp_path_p(pn))<0) {
-          mp_color_model(pn)=mp_grey_model;
           grey_val(pn) = unity;
         }
         mp_link(ph) = pn;
