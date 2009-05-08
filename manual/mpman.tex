@@ -2121,7 +2121,7 @@ most distributions, and is available online at
 formats.
 
 \subsection{Font map files}
-\label{Sfontmapfile}\label{Sfontmapline}
+\label{fontmap}
 
 If \ttt{prologues} is set to~2, any used fonts in the output file are
 automatically re-encoded, and the encoding vector file specified in
@@ -2130,11 +2130,12 @@ the fontmap entry will be embedded in the output file. If
 (a subset of) the used PostScript\index{PostScript!fonts} fonts. For
 this to work, it needs to acquire font map information. 
 
-The code is based on the font library used by pdf\TeX. Following in
-the footsteps of pdf\TeX, there are two new associated primitives:
-\ttindex{fontmapfile} and \ttindex{fontmapline}. Here is a simple
-example, specifying the map file for Latin Modern fonts in YandY
-(\LaTeX\ LY1) encoding:
+The code is based on the font library used by pdf\TeX. Following in the
+footsteps of pdf\TeX, there are two new associated primitives:
+\ttindex{fontmapfile}\label{Dfontmapfile} and
+\ttindex{fontmapline}\label{Dfontmapline}. Here is a simple example,
+specifying the map file for Latin Modern fonts in YandY (\LaTeX\ LY1)
+encoding:
 \begin{center}\begin{tabular}{l}
 \verb|prologues:=2;|\\
 \verb|fontmapfile "texnansi-lm.map";|\\
@@ -3868,7 +3869,7 @@ handling to a rendering application for \verb|infont| and \verb|btex|
 \ldots\ \verb|etex| blocks, the \verb|glyph| operator directly operates
 on font ressources.  For that reason, a font map entry is mandatory for
 the font in question, given either by \verb|fontmapline| or
-\verb|fontmapfile| (see section~\ref{Sfontmapfile}).
+\verb|fontmapfile| (see section~\ref{Dfontmapline}).
 
 Another, more low-level, syntax is possible for the
 \verb|glyph|\index{glyph?\texttt{glyph}} operator:
