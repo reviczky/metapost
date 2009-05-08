@@ -35,12 +35,13 @@ New features:
   these are predefined ("jobname", "outputformat", "outputtemplate"), 
   you can add more of them via "newinternal". 
   
-    newinternal s;
+    newinternal string s;
     s := "hello";
   
-  The type of a new internal becomes permanently fixed at its first 
-  reference or assignment, and defaults to numeric (this is for backward 
-  compatibility with older versions of MetaPost). 
+  The type of a new internal is either 'string' or 'numeric',
+  and defaults to numeric (this is for backward compatibility with
+  older versions of MetaPost). String internals are initialized to
+  the empty string, numeric internals are initialized to zero.
  
 * MetaPost now has a second backend that generates Scalable Vector
   Graphics output. This new backend was requested by Dave Crossland, who 
