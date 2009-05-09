@@ -3509,6 +3509,19 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
       q->next = f->p;
     }
   }
+  if (f->p!=NULL) {
+    mp_knot *r, *rr;
+    r = gr_path_p((mp_fill_object *)f->p); 
+    rr = r;
+    if (r && r->x_coord == f->pp->x_coord &&  r->y_coord == f->pp->y_coord ) {
+      while ( rr->next != f->pp) 
+        rr = rr->next;
+      rr->next = r;
+      r->left_x = f->pp->left_x;
+      r->left_y = f->pp->left_y;
+      mp_xfree(f->pp);
+    }
+  }
   f->p = NULL;
   f->pp = NULL;
 } while (0)
