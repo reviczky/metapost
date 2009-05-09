@@ -26278,11 +26278,12 @@ in the output of |mp_ps_font_charstring|.
 @c
 pointer mp_gr_unexport(MP mp, struct mp_edge_object *hh) {
   pointer h; /* the edge object */
-  pointer ph, pn; /* for adding items */
+  pointer ph, pn, pt; /* for adding items */
   mp_graphic_object *p; /* the current graphical object */
   h = mp_get_node(mp, edge_header_size);
   mp_init_edges(mp, h);
   ph = dummy_loc(h); 
+  pt = ph;
   p = hh->body;
   minx_val(h) = hh->minx;
   miny_val(h) = hh->miny;
@@ -26297,9 +26298,12 @@ pointer mp_gr_unexport(MP mp, struct mp_edge_object *hh) {
         mp_color_model(pn)=mp_grey_model;
         if (mp_new_turn_cycles(mp, mp_path_p(pn))<0) {
           grey_val(pn) = unity;
+          mp_link(pt) = pn;
+          pt = mp_link(pt);
+        } else {
+          mp_link(pn) = mp_link(ph);
+          mp_link(ph) = pn;
         }
-        mp_link(ph) = pn;
-        ph = mp_link(ph);
       }
       break;
     case mp_stroked_code:
