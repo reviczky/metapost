@@ -1307,7 +1307,7 @@ static int check_fm_entry (MP mp, fm_entry * fm, boolean warn) {
             mp->selector = save_selector;
             mp->ps->fm_file = NULL;
         }
-        mp_xfree(n);
+        /* mp_xfree(n); */
         break;
     case MAPLINE:
         fm_scan_line (mp);
