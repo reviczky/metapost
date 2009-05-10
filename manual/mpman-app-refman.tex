@@ -706,6 +706,7 @@ $\tt \qquad \;|\; \descr{drawing command}$\\
 $\tt \qquad \;|\; \descr{font metric command}$\\
 $\tt \qquad \;|\; \descr{newinternal command}$\\
 $\tt \qquad \;|\; \descr{message command}$\\
+$\tt \qquad \;|\; \descr{mode command}$\\
 $\tt \qquad \;|\; \descr{show command}$\\
 $\tt \qquad \;|\; \descr{special command}$\\
 $\tt \qquad \;|\; \descr{tracing command}$\\
@@ -756,6 +757,9 @@ $\tt \qquad \;|\; message \descr{string expression}$
 
 \begin{figure}[htp]
 \begin{ctabbing}
+$\tt \descr{mode command} \rightarrow batchmode \;|\; nonstopmode$\\
+$\tt \qquad \;|\; scrollmode \;|\; errorstopmode$\\
+$\tt $\\
 $\tt \descr{special command} \rightarrow fontmapfile \descr{string expression}$\\
 $\tt \qquad \;|\; fontmapline \descr{string expression}$\\
 $\tt \qquad \;|\; special \descr{string expression}$\\
@@ -763,6 +767,7 @@ $\tt $\\
 $\tt \descr{tracing command} \rightarrow tracingall \;|\; loggingall \;|\; tracingnone$
 \end{ctabbing}
 \caption{Part 2 of the syntax for commands}
+\index{batchmode?\texttt{batchmode}}\index{nonstopmode?\texttt{nonstopmode}}\index{scrollmode?\texttt{scrollmode}}\index{errorstopmode?\texttt{errorstopmode}}%
 \label{sycmds2}
 \end{figure}
 
