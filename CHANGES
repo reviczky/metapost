@@ -35,13 +35,12 @@ New features:
   these are predefined ("jobname", "outputformat", "outputtemplate"), 
   you can add more of them via "newinternal". 
   
-    newinternal string s;
+    newinternal s;
     s := "hello";
   
-  The type of a new internal is either 'string' or 'numeric',
-  and defaults to numeric (this is for backward compatibility with
-  older versions of MetaPost). String internals are initialized to
-  the empty string, numeric internals are initialized to zero.
+  The type of a new internal becomes permanently fixed at its first 
+  reference or assignment, and defaults to numeric (this is for backward 
+  compatibility with older versions of MetaPost). 
  
 * MetaPost now has a second backend that generates Scalable Vector
   Graphics output. This new backend was requested by Dave Crossland, who 
@@ -116,10 +115,6 @@ New features:
 * "tracingstats:=1;" now prints the highest and total input levels.
 
 Bug fixes:
-
-* The turningnumber calculation had a rounding error in the internal
-  arithmetic that could cause incorrect numbers to be calculated
-  (typically resulting in a 'turning numbers do not match' error).
 
 * The parsing of command line arguments with options was broken.
 

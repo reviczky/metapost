@@ -54,13 +54,13 @@ The simplicity of the productions in Figure~\ref{sytypexpr} is due to this
 lack of type information.  Type information
 can be found in Tables \ref{ivartab}--\ref{pseudotab}.
 
-Figures \ref{syprog}, \ref{sycmds1} and~\ref{sycmds2} give the syntax
-for MetaPost programs, including statements and commands.  They do not
-mention loops\index{loops} and {\tt if}\index{if?\texttt{if}} tests
-because these constructions do not behave like statements.  The syntax
-given in Figures \ref{syexpr1}--\ref{sycondloop} applies to the result
-of expanding all conditionals and loops.  Conditionals and loops do have
-a syntax, but they deal with almost arbitrary sequences of tokens.
+Figures \ref{syprog} and \ref{sycmds} give the syntax for MetaPost programs,
+including statements and commands.  They do not mention loops\index{loops}
+and {\tt if}\index{if?\texttt{if}}
+tests because these constructions do not behave like statements.  The syntax
+given in Figures \ref{syexpr1}--\ref{sycondloop} applies to the result of
+expanding all conditionals and loops.  Conditionals and loops do have a
+syntax, but they deal with almost arbitrary sequences of tokens.
 Figure~\ref{sycondloop} specifies conditionals in terms of
 \tdescr{balanced tokens} and loops in terms of \tdescr{loop text}, where
 \tdescr{balanced tokens} is any sequence of tokens balanced with respect
@@ -345,10 +345,6 @@ $$\begin{tabular}{|l|r|l|}
         Fill inside a cyclic path\\\hline
 \pl\tt \verb|filldraw|& \pageref{Dfildrw}&
         Draw a cyclic path and fill inside it\\\hline
-\tt \verb|fontmapfile|&     \pageref{Dfontmapfile}&
-        read font map entries from file\\\hline
-\tt \verb|fontmapline|&     \pageref{Dfontmapline}&
-        declare a font map entry\\\hline
 \tt \verb|interim|&     \pageref{Dinterm}&
         Make a local change to an internal variable\\\hline
 \tt \verb|let|& --&
@@ -554,7 +550,6 @@ $\tt \qquad \;|\; uniformdeviate \;|\; unitvector \;|\; unknown \;|\; urcorner \
 $\tt \qquad \;|\; xypart \;|\; yellowpart \;|\; ypart \;|\; yxpart \;|\; yypart$\\
 $\tt \descr{type} \rightarrow boolean \;|\; cmykcolor \;|\; color \;|\; numeric \;|\; pair$\\
 $\tt \qquad \;|\; path \;|\; pen \;|\; picture \;|\; rgbcolor \;|\; string \;|\; transform$\\
-$\tt \descr{internal type} \rightarrow numeric \;|\; string$\\
 $\tt \descr{primary binop} \rightarrow \hbox{\tt *} \;|\; \hbox{\tt /} \;|\; \hbox{\tt **} \;|\; and$\\
 $\tt \qquad \;|\; dotprod \;|\; div \;|\; infont \;|\; mod$\\
 $\tt \descr{secondary binop} \rightarrow + \;|\; - \;|\; ++ \;|\; +-+ \;|\; or$\\
@@ -562,8 +557,8 @@ $\tt \qquad \;|\; intersectionpoint \;|\; intersectiontimes$\\
 $\tt \descr{tertiary binop} \rightarrow \hbox{\tt \&} \;|\; \hbox{\verb|<|} \;|\; \hbox{\verb|<=|} \;|\; \hbox{\verb|<>|} \;|\; \hbox{\tt =} \;|\; \hbox{\verb|>|} \;|\; \hbox{\verb|>=|}$\\
 $\tt \qquad \;|\; cutafter \;|\; cutbefore$\\
 $\tt \descr{of operator} \rightarrow arctime \;|\; direction \;|\; directiontime \;|\; directionpoint$\\
-$\tt \qquad \;|\; glyph \;|\; penoffset \;|\; point \;|\; postcontrol \;|\; precontrol$\\
-$\tt \qquad \;|\; subpath \;|\; substring$\\
+$\tt \qquad \;|\; penoffset \;|\; point \;|\; postcontrol \;|\; precontrol \;|\; subpath$\\
+$\tt \qquad \;|\; substring$\\
 $\tt $\\
 $\tt \descr{variable} \rightarrow \descr{tag}\descr{suffix}$\\
 $\tt \descr{suffix} \rightarrow \descr{empty} \;|\; \descr{suffix}\descr{subscript} \;|\; \descr{suffix}\descr{tag}$\\
@@ -695,20 +690,19 @@ $\tt \descr{label suffix} \rightarrow \descr{empty} \;|\; lft \;|\; rt \;|\; top
 $\tt \descr{command} \rightarrow clip \descr{picture variable} to \descr{path expression}$\\
 $\tt \qquad \;|\; interim \descr{internal variable} \hbox{\tt :=} \descr{right-hand side}$\\
 $\tt \qquad \;|\; let \descr{symbolic token} \hbox{\tt =} \descr{symbolic token}$\\
+$\tt \qquad \;|\; newinternal \descr{symbolic token list}$\\
 $\tt \qquad \;|\; pickup \descr{expression}$\\
 $\tt \qquad \;|\; randomseed \hbox{\tt :=} \descr{numeric expression}$\\
 $\tt \qquad \;|\; save \descr{symbolic token list}$\\
 $\tt \qquad \;|\; setbounds \descr{picture variable} to \descr{path expression}$\\
 $\tt \qquad \;|\; shipout \descr{picture expression}$\\
+$\tt \qquad \;|\; special \descr{string expression}$\\
 $\tt \qquad \;|\; write \descr{string expression} to \descr{string expression}$\\
 $\tt \qquad \;|\; \descr{addto command}$\\
 $\tt \qquad \;|\; \descr{drawing command}$\\
 $\tt \qquad \;|\; \descr{font metric command}$\\
-$\tt \qquad \;|\; \descr{newinternal command}$\\
 $\tt \qquad \;|\; \descr{message command}$\\
-$\tt \qquad \;|\; \descr{mode command}$\\
 $\tt \qquad \;|\; \descr{show command}$\\
-$\tt \qquad \;|\; \descr{special command}$\\
 $\tt \qquad \;|\; \descr{tracing command}$\\
 $\tt $\\
 $\tt \descr{show command} \rightarrow show \descr{expression list}$\\
@@ -736,39 +730,22 @@ $\tt \qquad \;|\; \descr{fill type} \descr{path expression} \descr{option list}$
 $\tt \descr{fill type} \rightarrow fill \;|\; draw \;|\; filldraw \;|\; unfill \;|\; undraw \;|\; unfilldraw$\\
 $\tt \qquad \;|\; drawarrow \;|\; drawdblarrow \;|\; cutdraw$\\
 $\tt $\\
-$\tt \descr{newinternal command} \rightarrow newinternal \descr{internal type} \descr{symbolic token list}$\\
-$\tt \qquad \;|\; newinternal \descr{symbolic token list}$\\
-$\tt $\\
 $\tt \descr{message command} \rightarrow errhelp \descr{string expression}$\\
 $\tt \qquad \;|\; errmessage \descr{string expression}$\\
 $\tt \qquad \;|\; filenametemplate \descr{string expression}$\\
-$\tt \qquad \;|\; message \descr{string expression}$
+$\tt \qquad \;|\; message \descr{string expression}$\\
+$\tt $\\
+$\tt \descr{tracing command} \rightarrow tracingall \;|\; loggingall \;|\; tracingnone$
 \end{ctabbing}
-\caption{Part 1 of the syntax for commands}
+\caption{The syntax for commands}
 \index{option list?\tdescr{option list}}\index{picture variable?\tdescr{picture variable}}%
-\label{sycmds1}
+\label{sycmds}
 
 % is this really true?  in practice, in real implementations?
 %\bigskip
 %By the way, the default for \ttindex{randomseed} is, in effect,
 %$\textsl{day} + \textsl{time}*\epsilon$.  Unfortunately, \textsl{time}
 %is in minutes.
-\end{figure}
-
-\begin{figure}[htp]
-\begin{ctabbing}
-$\tt \descr{mode command} \rightarrow batchmode \;|\; nonstopmode$\\
-$\tt \qquad \;|\; scrollmode \;|\; errorstopmode$\\
-$\tt $\\
-$\tt \descr{special command} \rightarrow fontmapfile \descr{string expression}$\\
-$\tt \qquad \;|\; fontmapline \descr{string expression}$\\
-$\tt \qquad \;|\; special \descr{string expression}$\\
-$\tt $\\
-$\tt \descr{tracing command} \rightarrow tracingall \;|\; loggingall \;|\; tracingnone$
-\end{ctabbing}
-\caption{Part 2 of the syntax for commands}
-\index{batchmode?\texttt{batchmode}}\index{nonstopmode?\texttt{nonstopmode}}\index{scrollmode?\texttt{scrollmode}}\index{errorstopmode?\texttt{errorstopmode}}%
-\label{sycmds2}
 \end{figure}
 
 \begin{figure}[htp]
@@ -932,8 +909,7 @@ MetaPost for processing \verb|btex| \verb|...| \verb|etex| labels.
 Since MetaPost version~1.100, the label conversion is handled internally
 by the \texttt{mpost} executable.  The \emph{mpware} tools are therefore
 obsolete and no longer part of the MetaPost distribution.  Nowadays, the
-\texttt{dvitomp} executable is either a copy of the \texttt{mpost}
-executable with the name \texttt{dvitomp} or a wrapper, calling
+\texttt{dvitomp} executable is actually a wrapper, calling
 \texttt{mpost} as
 $$ \hbox{\verb|mpost -dvitomp|}\ \descr{infile}\
 \descr{outfile}\qquad\hbox{.} $$
