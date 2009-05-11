@@ -26303,6 +26303,8 @@ pointer mp_gr_unexport(MP mp, struct mp_edge_object *hh) {
         } else {
           mp_link(pn) = mp_link(ph);
           mp_link(ph) = pn;
+          if (ph==pt)
+            pt=pn;
         }
       }
       break;
