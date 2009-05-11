@@ -513,14 +513,17 @@ static void mpx_copy_mpto (MPX mpx, FILE *outfile) {
     if (mpx_getbta(mpx, mpx->aa) && *(mpx->tt) == 'e') {
       s = mpx->tt;
     } else {
-      if (mpx->tt == NULL)
+      if (mpx->tt == NULL) {
         mpx_error(mpx,"btex section does not end"); 
-      else if (*(mpx->tt) == 'b')
+        return;
+      } else if (*(mpx->tt) == 'b') {
         mpx_error(mpx,"btex in TeX mode");
-      else if (*(mpx->tt) == 'v')
+        return;
+      } else if (*(mpx->tt) == 'v') {
         mpx_error(mpx,"verbatimtex in TeX mode");
+        return;
+      }
       s = mpx->aa;
-      return;
     }
     c = *s;
     *s = 0;
