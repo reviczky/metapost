@@ -295,7 +295,8 @@ giving a command of the form\index{mpost?\texttt{mpost}}
 $$ {\tt mpost}\, \descr{filename} $$
 on the command-line.  The syntax and program name itself are
 system-dependent; sometimes it is named \texttt{mp}.  MetaPost input
-files\index{files!input} normally have names ending \texttt{.mp} but
+files\index{files!input} normally have names ending
+\texttt{.mp}\index{mp file?{\tt mp} file}\index{files!mp?{\tt mp}} but
 this part of the name can be omitted when invoking MetaPost.  The
 command-line options provided by MetaPost are summarized in
 appendix~\ref{refman:commandline}.
@@ -330,8 +331,9 @@ declaration for enhanced text rendering.
 
 Any terminal I/O is summarized in a
 transcript\index{files!transcript}\index{transcript file} file called
-$\descr{filename}{\tt.log}$.  This includes error messages and any
-MetaPost commands entered interactively.\footnote{A {\tt
+$\descr{filename}{\tt.log}$\index{log file?{\tt log}
+  file}\index{files!log?{\tt log}}.  This includes error messages and
+any MetaPost commands entered interactively.\footnote{A {\tt
     *}\index{*?\texttt{*}} prompt is used for interactive input and a
   {\tt **}\index{**?\texttt{**}} prompt indicates that an input file
   name is expected.  This can be avoided by invoking MetaPost on a file
@@ -408,9 +410,11 @@ endfig;
 \end{verbatim}
 $$
 it will create the output file \ttt{fig-001.mps} instead of \ttt{fig.1}.
-The file extension \texttt{.mps} is conventionally chosen for MetaPost's
-PostScript output (see section~\ref{teximport}).  For SVG output one
-would want to use \texttt{.svg} instead.
+The file extension \texttt{.mps}\index{mps file?{\tt mps}
+  file}\index{files!mps?{\tt mps}} is conventionally chosen for
+MetaPost's PostScript output (see section~\ref{teximport}).  For SVG
+output one would want to use \texttt{.svg}\index{svg file?{\tt svg}
+  file}\index{files!svg?{\tt svg}} instead.
 
 %\suppressfloats[t]
 \begin{table}
@@ -583,11 +587,12 @@ therefore handled correctly -- even if only in a fall-back procedure
 (see~\cite{reckdahl:epslatex} for more information).
 
 For the pdf\TeX\ driver, the situation is a bit different.  Only files
-with file extension \texttt{.mps} are recognized as purified EPS and can
-be converted to PDF\index{PDF} on-the-fly.  The recommended procedure
-for including MetaPost graphics into \LaTeX\ documents compiled with the
-pdf\TeX\ engine should be obvious: change MetaPost's output file naming
-scheme to write files ending \texttt{.mps} via
+with file extension \texttt{.mps}\index{mps file?{\tt mps}
+  file}\index{files!mps?{\tt mps}} are recognized as purified EPS and
+can be converted to PDF\index{PDF} on-the-fly.  The recommended
+procedure for including MetaPost graphics into \LaTeX\ documents
+compiled with the pdf\TeX\ engine should be obvious: change MetaPost's
+output file naming scheme to write files ending \texttt{.mps} via
 \verb|outputtemplate|\index{outputtemplate?\texttt{outputtemplate}} (see
 p.~\pageref{Doutputtemplate}).  In the \LaTeX\ document include the
 graphic files with full name, e.g.,
@@ -1999,13 +2004,14 @@ the {\tt btex} \ldots\ {\tt etex} blocks.  If the main file is {\tt
 fig.mp}, the translated \TeX\ material is placed in a file named {\tt
 fig.mpx}\index{files!mpx?{\tt mpx}}.
 
-The conversion normally runs silently without any user intervention
-but it could fail, for instance if one of the {\tt btex} \ldots {\tt
-etex} blocks contains an erroneous
-\TeX\index{TeX?\TeX!errors} command.  In that case, the \TeX\ input is
-saved in the file {\tt mpxerr.tex}\index{mpxerr.tex?\texttt{mpxerr.tex}}
-and the \TeX\ error messages appear in {\tt
-mpxerr.log}\index{mpxerr.log?\texttt{mpxerr.log}}.
+The conversion normally runs silently without any user intervention but
+it could fail, for instance if one of the {\tt btex} \ldots {\tt etex}
+blocks contains an erroneous \TeX\index{TeX?\TeX!errors} command.  In
+that case, the \TeX\ input is saved in the file {\tt
+  mpxerr.tex}\index{mpxerr.tex?\texttt{mpxerr.tex}} and the \TeX\ error
+messages appear in {\tt
+  mpxerr.log}\index{mpxerr.log?\texttt{mpxerr.log}}\index{log file?{\tt
+    log} file}\index{files!log?{\tt log}}.
 
 The DVI to MetaPost conversion route {\it does\/} understand virtual
 fonts, so you can use your normal \TeX\ font switching commands inside
@@ -5112,10 +5118,12 @@ $\tt \qquad \;|\; message \descr{string expression}$
 
 Error messages and responses to {\tt show} commands are also written
 into the transcript\index{files!transcript} file whose name is obtained
-from the name of the main input file by changing ``{\tt .mp}'' to ``{\tt
-.log}''. When the internal variable\index{internal
-variables}\index{variables!internal} {\tt
-tracingonline}\index{tracingonline?\texttt{tracingonline}} is at its
+from the name of the main input file by changing ``{\tt .mp}''\index{mp
+  file?{\tt mp} file}\index{files!mp?{\tt mp}} to ``{\tt
+  .log}''\index{log file?{\tt log} file}\index{files!log?{\tt
+    log}}. When the internal variable\index{internal
+  variables}\index{variables!internal} {\tt
+  tracingonline}\index{tracingonline?\texttt{tracingonline}} is at its
 default value of zero, some {\tt show} commands print their results in
 full detail only in the transcript file.
 
