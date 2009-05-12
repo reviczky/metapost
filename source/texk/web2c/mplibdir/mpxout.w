@@ -595,9 +595,12 @@ static void mpx_mpto(MPX mpx, char *tmpname, char *mptexpre) {
     if (mode==mpx_tex_mode) {
       FILE *fr;
       if ((fr = fopen(mptexpre, "r"))!= NULL) {
-	    while (mpx_getline(mpx, fr) != NULL)
-	      fputs(mpx->buf, outfile);
- 	    mpx_fclose(mpx,fr);
+           size_t i;
+  	   char buf[512];
+           while ((i=fread((void *)buf, 1, 512 , fr))>0) {
+	      fwrite((void *)buf,1, i, outfile);
+           }
+ 	   mpx_fclose(mpx,fr);
       }
     }
     mpx->mpfile   = mpx_xfopen(mpx,mpname, "r");
