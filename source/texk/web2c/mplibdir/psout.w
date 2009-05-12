@@ -4379,7 +4379,7 @@ static void mp_mark_string_chars (MP mp,font_number f, char *s, size_t l) ;
 void mp_mark_string_chars (MP mp,font_number f, char *s, size_t l) {
   integer b; /* |char_base[f]| */
   int bc,ec; /* only characters between these bounds are marked */
-  char *k; /* an index into string |s| */
+  unsigned char *k; /* an index into string |s| */
   b=mp->char_base[f];
   bc=(int)mp->font_bc[f];
   ec=(int)mp->font_ec[f];
