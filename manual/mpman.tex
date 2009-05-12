@@ -3820,15 +3820,25 @@ with black ink.  Counter-clockwise oriented contours
 erase\index{erasing} parts of other contours, i.e., make them
 transparent again.  To save the contours of a glyph in a picture, the
 \verb|glyph|\index{glyph?\texttt{glyph}}\label{Dglyph} operator can be
-used as follows:
-$$ \verb|glyph|\, \descr{numeric expression}\, \verb|of|\,
-\descr{string expression}
-$$
-where the first argument is a slot number between 0 and~255 and the
-second argument is a string containing a font name (section~\ref{text}
-has more on font names).  Fractional slot numbers are rounded to the
+used.  There are two ways to identify a glyph in a font:
+\begin{eqnarray*}
+  & \verb|glyph|\, \descr{numeric expression}\, \verb|of|\,
+  \descr{string expression}\\
+  \noalign{\hbox{and}}
+  & \verb|glyph|\, \descr{string expression}\, \verb|of|\,
+  \descr{string expression}\rlap{\quad\mbox{.}}
+\end{eqnarray*}
+
+If the first argument is a numeric expression, it has to be a slot
+number between 0 and~255.  Fractional slot numbers are rounded to the
 nearest integer value.  Slot numbers outside the allowed range trigger
-an error.
+an error.  If the first argument is string, it has to be a CharString
+name\index{CharString name} in the PostScript font's source file.  A
+CharString name is a unique text label for a glyph in a font (a font
+encoding actually maps CharStrings to slots).  This second syntax can be
+used to address glyphs without having to think about font encodings.
+The second argument to the \verb|glyph| operator is a string containing
+a font name (section~\ref{text} has more on font names).
 
 The \verb|glyph| operator looks-up the font name in the font map to
 determine the encoding and to find the font's PostScript source file.
@@ -3848,16 +3858,10 @@ even-odd fill rule\index{even-odd fill rule}\index{fill
 interiors of the erasing\index{erasing} contours are an opaque white in
 the returned picture, while they were transparent in the original glyph.
 One can think of erasing contours to be unfilled (see
-p.~\pageref{Dunfill}).  Finally, the picture is scaled such that one
-font design unit\index{font!design unit} equals one PostScript
-point\index{point!PostScript}\index{PostScript!point} (bp).  Typically,
-a font design unit is a thousandth part of the font design
-size\index{font!design size}.  So, the picture returned by the glyph
-operator will often have a height of around 1000\,bp.  For instance, the
-following code saves the contours of the lower case letter~``g'' in the
-Computer Modern Roman\index{Computer Modern Roman} font in a picture
-variable.  The glyph~``g'' is bound to slot~103 in the OT1
-encoding\index{OT1 encoding}\index{encoding!OT1}:
+p.~\pageref{Dunfill}).  For instance, the following code saves the
+contours of the lower case letter~``g'', bound to slot~103 in the OT1
+encoding\index{OT1 encoding}\index{encoding!OT1}, in the Computer Modern
+Roman\index{Computer Modern Roman} font in a picture variable:
 
 $$\begin{verbatim}
 fontmapline "cmr10 CMR10 <cmr10.pfb";
@@ -3869,32 +3873,23 @@ $$
 The \verb|glyph| operator returns an empty picture, if the
 \texttt{.tfm}\index{tfm file?{\tt tfm} file}\index{files!tfm?{\tt tfm}}
 or \texttt{.pfb}\index{pfb file?{\tt pfb} file}\index{files!pfb?{\tt
-    pfb}} file or the encoding cannot be found or the slot number is not
-covered by the encoding.  Note, while MetaPost delegates the actual font
-handling to a rendering application for \verb|infont| and \verb|btex|
-\ldots\ \verb|etex| blocks, the \verb|glyph| operator directly operates
-on font ressources.  For that reason, a font map entry is mandatory for
-the font in question, given either by \verb|fontmapline| or
-\verb|fontmapfile| (see section~\ref{Dfontmapline}).
+    pfb}} file cannot be found, if the encoding given in the font map
+cannot be found or the slot number is not covered by the encoding or if
+the CharString name cannot be found.  Note, while MetaPost delegates the
+actual font handling to a rendering application for \verb|infont| and
+\verb|btex| \ldots\ \verb|etex| blocks, the \verb|glyph| operator
+directly operates on font ressources.  For that reason, a font map entry
+is mandatory for the font in question, given either by
+\verb|fontmapline| or \verb|fontmapfile| (see
+section~\ref{Dfontmapline}).
 
-Another, more low-level, syntax is possible for the
-\verb|glyph|\index{glyph?\texttt{glyph}} operator:
-$$ \verb|glyph|\, \descr{string expression}\, \verb|of|\, \descr{string
-  expression}
-$$
-Here, the first argument is not a slot number, but a string containing a
-CharString name\index{CharString name} in the PostScript font's source
-file.  A CharString name is a unique text label for a glyph in a font.
-A font encoding actually maps CharStrings to slots.  This second syntax
-can be used to address glyphs without having to think about font
-encodings.  If the CharString name cannot be found, the \verb|glyph|
-operator returns an empty picture.  In Figure~\ref{fig56}, the contours
-of the upper case letter~``\v{D}'' in the Latin Modern Roman\index{Latin
-  Modern Roman} font are saved in a picture variable.  The glyph is
-identified by its CharString name ``Dcaron''\index{Dcaron}.  The code
-then iterates over all contours and draws them together with their
-cardinal (black) and control points (red).  As it turns out, many of the
-control points coincide with cardinal points in this glyph.
+In Figure~\ref{fig56}, the contours of the upper case letter~``\v{D}''
+in the Latin Modern Roman\index{Latin Modern Roman} font are saved in a
+picture variable.  The glyph is identified by its CharString name
+``Dcaron''\index{Dcaron}.  The code then iterates over all contours and
+draws them together with their cardinal (black) and control points
+(red).  As it turns out, many of the control points coincide with
+cardinal points in this glyph.
 
 \begin{figure}[htb]
 $$\begin{verbatim}
@@ -3929,12 +3924,17 @@ $$
 \label{fig56}
 \end{figure}
 
-For font experts, here's another implementation detail: PostScript's
-\verb|closepath| operator\index{PostScript!\texttt{closepath} operator}
-closes paths with a straight line, like
+The contours in the picture are no raw copies of the contours found in
+the font sources, but the \verb|glyph| operator applies some
+transformations.  First, the direction of all contours is reversed, so
+that contours filled black become counter-clockwise oriented
+(mathematically positive) and contours filled white become clockwise
+oriented (mathematically negative).  Second, the \verb|closepath|
+operator\index{PostScript!\texttt{closepath} operator} of the PostScript
+language closes paths with a straight line, like
 \verb|--cycle|\index{cycle?\texttt{cycle}} in MetaPost.  Therefore, for
-paths that end with a curved path segment, the last point has to match
-the starting point of the path, so that the closing line segment has a
+paths that end with a curved path segment, the last point matches the
+starting point of the path, so that the closing line segment has a
 length of zero.  The MetaPost representation of such a path would be:
 $$
 z_1\verb|..|\mbox{\itshape controls}\verb|..|z_2\verb|..| \cdots
@@ -3946,9 +3946,14 @@ $$
 z_1\verb|..|\mbox{\itshape controls}\verb|..|z_2\verb|..| \cdots
 \verb|..|z_n\verb|..|\mbox{\itshape controls}\verb|..cycle|
 $$
-MetaPost's glyph operator transforms paths into the latter
+MetaPost's \verb|glyph| operator transforms paths into the latter
 representation, whenever it finds a contour with identical start and end
-points.
+points.  Finally, the picture returned by the \verb|glyph| operator is
+scaled such that one font design unit\index{font!design unit} equals one
+PostScript point\index{point!PostScript}\index{PostScript!point} (bp).
+Usually, a font design unit is a thousandth part of the font design
+size\index{font!design size}.  So, the picture returned by the glyph
+operator will typically have a height of around 1000\,bp.
 
 Converting a text into plain curves is part of a process oftentimes
 called ``flattening\index{flattening} a document.''  When flattening
