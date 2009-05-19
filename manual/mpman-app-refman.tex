@@ -814,13 +814,14 @@ $$ {\tt mpost}\ \descr{switches}\ \descr{file}
 $$\label{Dmpost}
 where $\descr{file}$ is a text file containing statements in the
 MetaPost language.  Typically, MetaPost input files have file extension
-\texttt{.mp}, e.g., \texttt{foo.mp}.  This extension can then be omitted
-in the \texttt{mpost} call.  There exist a number of command-line
-switches to control the run-time behavior of the MetaPost executable.
-Switches can prefixed by one or two dashes.  Both forms have the same
-meaning.  An exemplary call to MetaPost that compiles file
-\texttt{foo.mp}, but immediately exits after encountering the first
-error without user-interaction would look like:
+\texttt{.mp}\index{mp file?{\tt mp} file}\index{files!mp?{\tt mp}},
+e.g., \texttt{foo.mp}.  This extension can then be omitted in the
+\texttt{mpost} call.  There exist a number of command-line switches to
+control the run-time behavior of the MetaPost executable.  Switches can
+prefixed by one or two dashes.  Both forms have the same meaning.  An
+exemplary call to MetaPost that compiles file \texttt{foo.mp}, but
+immediately exits after encountering the first error without
+user-interaction would look like:
 $$ \hbox{\tt mpost -halt-on-error foo} $$
 
 Here's a summary of the command-line switches understood by
@@ -905,15 +906,17 @@ The following command-line switches are ignored, but trigger a warning:
 \subsubsection*{The \texttt{dvitomp} program}
 \label{refman:dvitomp}
 
-The \ttindex{dvitomp}\label{Ddvitomp} program converts DVI files into
-low-level MetaPost code.  The command-line syntax of the executable is
+The \ttindex{dvitomp}\label{Ddvitomp} program converts DVI\index{dvi
+  file?{\tt dvi} file}\index{files!dvi?{\tt dvi}} files into low-level
+MetaPost code.  The command-line syntax of the executable is
 $$ \hbox{\verb|dvitomp|}\ \descr{switches}\ \descr{infile}\ \descr{outfile}
 $$
 where $\descr{infile}$ is the DVI file to convert and $\descr{outfile}$
 contains the equivalent MetaPost code.  MetaPost uses the
 \texttt{dvitomp} program when typesetting \verb|btex| \verb|...|
 \verb|etex| labels by \TeX\ for the final conversion back into MetaPost
-code.  Files generated that way end with \texttt{.mpx}.  The following
+code.  Files generated that way end with \texttt{.mpx}\index{mpx
+  file?{\tt mpx} file}\index{files!mpx?{\tt mpx}}.  The following
 command-line switches are accepted:
 \begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
   \cmdindex{-help}

@@ -1998,11 +1998,12 @@ use this to include \LaTeX\ preambles, for instance.  The \ttt{TEX}
 macro described on p.\ \pageref{dTEX} provides another way to handle
 this.
 
-Once the \TeX\ run is finished, MetaPost translates the resulting DVI
-file into low level MetaPost commands that are then read instead of
-the {\tt btex} \ldots\ {\tt etex} blocks.  If the main file is {\tt
-fig.mp}, the translated \TeX\ material is placed in a file named {\tt
-fig.mpx}\index{files!mpx?{\tt mpx}}.
+Once the \TeX\ run is finished, MetaPost translates the resulting
+DVI\index{dvi file?{\tt dvi} file}\index{files!dvi?{\tt dvi}} file into
+low level MetaPost commands that are then read instead of the {\tt btex}
+\ldots\ {\tt etex} blocks.  If the main file is {\tt fig.mp}, the
+translated \TeX\ material is placed in a file named {\tt
+  fig.mpx}\index{mpx file?{\tt mpx} file}\index{files!mpx?{\tt mpx}}.
 
 The conversion normally runs silently without any user intervention but
 it could fail, for instance if one of the {\tt btex} \ldots {\tt etex}
@@ -5030,7 +5031,8 @@ or just a one-off run.
 writes a proof sheet for MetaPost output.  Call it like this:
 
 $$\hbox{\tt tex mproof {\sl MetaPost-output-filename}}$$
-Then process the resulting \texttt{dvi} file as usual.
+Then process the resulting \texttt{.dvi}\index{dvi file?{\tt dvi}
+  file}\index{files!dvi?{\tt dvi}} file as usual.
 
 \section{Debugging}
 
