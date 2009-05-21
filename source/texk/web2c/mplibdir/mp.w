@@ -25889,7 +25889,14 @@ static char *mp_set_output_file_name (MP mp, integer c) {
 	     	  if (text(p)>0 && length(text(p))==l && 
 	              mp_str_eq_cstr(mp, text(p),id)) {
                     if (eq_type(p)==internal_quantity) {
-         	      mp_append_to_template(mp,f,equiv(p)); 
+		      if (equiv(p)==mp_output_template) {
+    		        char err[256];
+                        mp_snprintf(err,256,
+                           "The appearance of outputtemplate inside outputtemplate is ignored.");
+                        mp_warn(mp,err);
+                      } else {
+	         	mp_append_to_template(mp,f,equiv(p)); 
+	              }
                     } else {
 		      char err[256];
                       mp_snprintf(err,256,
