@@ -14925,6 +14925,36 @@ static void mp_begin_iteration (MP mp);
 static void mp_resume_iteration (MP mp);
 static void mp_stop_iteration (MP mp);
 
+@ A recursion depth counter is used to discover infinite recursions.
+(Near) infinite recursion is a problem because it translates into 
+C function calls that eat up the available call stack. A better solution
+would be to depend on signal trapping, but that is problematic when
+Metapost is used as a library. 
+
+@<Global...@>=
+int expand_depth_count; /* current expansion depth */
+int expand_depth; /* current expansion depth */
+
+@ The limit is set at |10000|, which should be enough to allow 
+normal usages of metapost while preventing the most obvious 
+crashes on most all operating systems, but the value can be
+raised if the runtime system allows a larger C stack.
+@^system dependencies@>
+
+@<Set initial...@>=
+mp->expand_depth=10000;
+
+@ Even better would be if the system allows
+discovery of the amount of space available on the call stack.
+@^system dependencies@>
+
+@c
+static void mp_check_expansion_depth (MP mp ){
+  if (mp->expand_depth_count>=mp->expand_depth) {
+    mp_overflow(mp, "expansion depth", mp->expand_depth);
+  }
+}
+
 @ An auxiliary subroutine called |expand| is used by |get_x_next|
 when it has to do exotic expansion commands.
 
@@ -14933,6 +14963,8 @@ static void mp_expand (MP mp) {
   pointer p; /* for list manipulation */
   size_t k; /* something that we hope is |<=buf_size| */
   pool_pointer j; /* index into |str_pool| */
+  mp->expand_depth_count++;
+  mp_check_expansion_depth(mp);
   if ( mp->internal[mp_tracing_commands]>unity ) 
     if ( mp->cur_cmd!=defined_macro )
       show_cur_cmd_mod;
@@ -14971,6 +15003,7 @@ static void mp_expand (MP mp) {
    mp_macro_call(mp, mp->cur_mod,null,mp->cur_sym);
    break;
   }; /* there are no other cases */
+  mp->expand_depth_count--;
 }
 
 @ @<Scold the user...@>=
