@@ -3935,28 +3935,37 @@ static char *mpx_print_command (MPX mpx, int cmdlength, char **cmdline) {
 systems.
 
 @c
-static int do_spawn (MPX mpx, char *cmd, char **options) {
+static int do_spawn (MPX mpx, char *icmd, char **options) {
 #ifndef WIN32
-   int retcode = -1;
-   pid_t child;
-   child = fork();
-   if (child < 0) 
-     mpx_abort(mpx, "fork failed: %s", strerror(errno));
-   if (child == 0) {
-	 if(execvp(cmd, options))
-       mpx_abort(mpx, "exec failed: %s", strerror(errno));
-   } else {
-  	 if (wait(&retcode)==child) {
-       retcode = (WIFEXITED(retcode) ? WEXITSTATUS(retcode) : -1);
-     } else {
-       mpx_abort(mpx, "wait failed: %s", strerror(errno));
-     }  
-   }
-   return retcode;
-#else
-   (void)mpx;
-   return spawnvp(P_WAIT, cmd, (const char **)options);
+  pid_t child;
 #endif
+  int retcode = -1;
+  char * cmd = xmalloc(strlen(icmd)+1,1);
+  if (icmd[0] != '"') {
+    strcpy(cmd,icmd);
+  } else {
+    strncpy(cmd,icmd+1,strlen(icmd)-2);
+    cmd[strlen(icmd)-2] = 0;
+  }
+#ifndef WIN32
+  child = fork();
+  if (child < 0) 
+    mpx_abort(mpx, "fork failed: %s", strerror(errno));
+  if (child == 0) {
+    if(execvp(cmd, options))
+      mpx_abort(mpx, "exec failed: %s", strerror(errno));
+  } else {
+    if (wait(&retcode)==child) {
+      retcode = (WIFEXITED(retcode) ? WEXITSTATUS(retcode) : -1);
+    } else {
+      mpx_abort(mpx, "wait failed: %s", strerror(errno));
+    }  
+  }
+#else
+  retcode = spawnvp(P_WAIT, cmd, (const char **)options);
+#endif
+  xfree(cmd);
+  return retcode;
 }
 
 @ @c
