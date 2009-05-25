@@ -1,4 +1,5 @@
-# Private macro for the TeX Live (TL) tree.
+# Private macro for the teTeX / TeX Live (TL) tree.
+# by Peter Breitenlohner, April 15, 1996.
 # Copyright (C) 1996 - 2009 Peter Breitenlohner <tex-live@tug.org>
 #
 # This file is free software; the copyright holder

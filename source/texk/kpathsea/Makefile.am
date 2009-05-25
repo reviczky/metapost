@@ -1,7 +1,3 @@
-## Makefile.am for the TeX Live subdirectory texk/kpathsea/
-##
-## Copyright (C) 2009 Peter Breitenlohner <tex-live@tug.org>
-## You may freely use, modify and/or distribute this file.
 ##
 ACLOCAL_AMFLAGS = -I ../../m4
 
@@ -182,7 +178,8 @@ $(kpseinclude_HEADERS): paths.h
 ## We also replace all semicolons with colons in the paths.
 ## The path-splitting code should be changed to understand both.
 #
-paths.h: stamp-paths
+paths.h:
+	$(MAKE) $(AM_MAKE_FLAGS) stamp-paths
 stamp-paths: texmf.cnf
 	echo "/* paths.h: Generated from texmf.cnf. */" >paths.tmp
 	sed -e 's/%.*//' -e 's/^[ 	]*//' -e 's/[ 	]*$$//' $< \
