@@ -16560,6 +16560,8 @@ it catch up to what has previously been printed on the terminal.
   integer m; /* the current month */
   const char *months="JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC"; 
     /* abbreviations of month names */
+  if (mp->log_opened)
+    return;
   old_setting=mp->selector;
   if ( mp->job_name==NULL ) {
      mp->job_name=xstrdup("mpout");
@@ -16664,6 +16666,8 @@ when an `\.{input}' command is being processed.
   if ( mp->job_name==NULL ) {
     mp->job_name=xstrdup(mp->cur_name); 
     @<Fix up |mp->internal[mp_job_name]|@>;
+  }
+  if (!mp->log_opened) {
     mp_open_log_file(mp);
   } /* |open_log_file| doesn't |show_context|, so |limit|
         and |loc| needn't be set to meaningful values yet */
