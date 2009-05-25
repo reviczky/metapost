@@ -39,19 +39,24 @@ bin_PROGRAMS = tangle$(EXEEXT) ctangle$(EXEEXT) $(am__EXEEXT_2) \
 	ctie$(EXEEXT) cweave$(EXEEXT) tie$(EXEEXT) $(am__EXEEXT_3) \
 	$(am__EXEEXT_4) $(am__EXEEXT_5) $(am__EXEEXT_6)
 noinst_PROGRAMS = tangleboot$(EXEEXT) ctangleboot$(EXEEXT)
-check_PROGRAMS = md5main$(EXEEXT)
-DIST_COMMON = README $(am__configure_deps) $(dist_check_SCRIPTS) \
-	$(dist_man_MANS) $(srcdir)/../../build-aux/config.guess \
+check_PROGRAMS = $(am__EXEEXT_7) $(am__EXEEXT_8) $(am__EXEEXT_9) \
+	md5main$(EXEEXT)
+TESTS = tangle.test $(am__EXEEXT_12) ctiedir/ctie.test \
+	cwebdir/cweave.test tiedir/tie.test $(am__append_5) \
+	$(am__append_9) $(am__append_12) libmd5/md5.test
+DIST_COMMON = README $(am__configure_deps) $(dist_man_MANS) \
+	$(srcdir)/../../build-aux/config.guess \
 	$(srcdir)/../../build-aux/config.sub \
 	$(srcdir)/../../build-aux/depcomp \
 	$(srcdir)/../../build-aux/install-sh \
 	$(srcdir)/../../build-aux/ltmain.sh \
-	$(srcdir)/../../build-aux/missing $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(srcdir)/alephdir/am/aleph.am \
-	$(srcdir)/am/bootstrap.am $(srcdir)/am/cweb.am \
-	$(srcdir)/am/texmf.am $(srcdir)/am/web.am $(srcdir)/c-auto.in \
-	$(srcdir)/etexdir/am/etex.am $(srcdir)/libmd5/am/md5.am \
-	$(srcdir)/luatexdir/am/liblua51.am \
+	$(srcdir)/../../build-aux/missing \
+	$(srcdir)/../../build-aux/mkinstalldirs $(srcdir)/Makefile.am \
+	$(srcdir)/Makefile.in $(srcdir)/README \
+	$(srcdir)/alephdir/am/aleph.am $(srcdir)/am/bootstrap.am \
+	$(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/am/web.am \
+	$(srcdir)/c-auto.in $(srcdir)/etexdir/am/etex.am \
+	$(srcdir)/libmd5/am/md5.am $(srcdir)/luatexdir/am/liblua51.am \
 	$(srcdir)/luatexdir/am/libluatex.am \
 	$(srcdir)/luatexdir/am/libzzip.am \
 	$(srcdir)/luatexdir/am/luafontforge.am \
@@ -75,13 +80,21 @@ DIST_COMMON = README $(am__configure_deps) $(dist_check_SCRIPTS) \
 	$(top_srcdir)/window/Makefile.in ../../build-aux/config.guess \
 	../../build-aux/config.sub ../../build-aux/depcomp \
 	../../build-aux/install-sh ../../build-aux/ltmain.sh \
-	../../build-aux/missing ../../build-aux/texinfo.tex \
-	../../build-aux/ylwrap AUTHORS ChangeLog INSTALL NEWS
+	../../build-aux/missing ../../build-aux/mkinstalldirs \
+	../../build-aux/texinfo.tex ../../build-aux/ylwrap AUTHORS \
+	ChangeLog INSTALL NEWS
 @WEB_TRUE@am__append_2 = $(web_programs)
-@TEX_TRUE@am__append_3 = tex
-@MF_TRUE@am__append_4 = mf
-@MFN_TRUE@@MF_TRUE@am__append_5 = mf-nowin
-@MP_TRUE@am__append_6 = mpost
+@WEB_TRUE@am__append_3 = $(web_tests)
+@TEX_TRUE@am__append_4 = tex
+@TEX_TRUE@am__append_5 = $(tex_tests)
+@TEX_TRUE@am__append_6 = dvitype pltotf tftopl
+@MF_TRUE@am__append_7 = mf
+@MFN_TRUE@@MF_TRUE@am__append_8 = mf-nowin
+@MF_TRUE@am__append_9 = $(mf_tests)
+@MF_TRUE@am__append_10 = gftype tftopl
+@MP_TRUE@am__append_11 = mpost
+@MP_TRUE@am__append_12 = $(mp_tests)
+@MP_TRUE@am__append_13 = pltotf tftopl
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/../../m4/kpse-asm.m4 \
@@ -113,10 +126,10 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
-mkinstalldirs = $(install_sh) -d
+mkinstalldirs = $(SHELL) $(top_srcdir)/../../build-aux/mkinstalldirs
 CONFIG_HEADER = c-auto.h ff-config.h
-CONFIG_CLEAN_FILES = mpware/Makefile omegafonts/Makefile otps/Makefile \
-	window/Makefile
+CONFIG_CLEAN_FILES = CXXLD.sh mpware/Makefile omegafonts/Makefile \
+	otps/Makefile window/Makefile
 ARFLAGS = cru
 libmd5_a_AR = $(AR) $(ARFLAGS)
 libmd5_a_LIBADD =
@@ -151,6 +164,10 @@ am__EXEEXT_1 = bibtex$(EXEEXT) dvicopy$(EXEEXT) dvitomp$(EXEEXT) \
 @MP_TRUE@am__EXEEXT_6 = mpost$(EXEEXT)
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(man1dir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
+@TEX_TRUE@am__EXEEXT_7 = dvitype$(EXEEXT) pltotf$(EXEEXT) \
+@TEX_TRUE@	tftopl$(EXEEXT)
+@MF_TRUE@am__EXEEXT_8 = gftype$(EXEEXT) tftopl$(EXEEXT)
+@MP_TRUE@am__EXEEXT_9 = pltotf$(EXEEXT) tftopl$(EXEEXT)
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
 nodist_bibtex_OBJECTS = bibtex.$(OBJEXT)
 bibtex_OBJECTS = $(nodist_bibtex_OBJECTS)
@@ -319,6 +336,12 @@ RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 ETAGS = etags
 CTAGS = ctags
+am__EXEEXT_10 = bibtex.test dvicopy.test dvitomp.test dvitype.test \
+	gftodvi.test gftopk.test gftype.test mft.test patgen.test \
+	pktogf.test pktype.test pltotf.test pooltype.test tftopl.test \
+	vftovp.test vptovf.test weave.test
+am__EXEEXT_11 = $(am__EXEEXT_10)
+@WEB_TRUE@am__EXEEXT_12 = $(am__EXEEXT_11)
 DIST_SUBDIRS = doc lib man mpware web2c . window omegafonts otps
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
@@ -368,6 +391,7 @@ FONTCONFIG_LIBS = @FONTCONFIG_LIBS@
 FREETYPE2_DEPEND = @FREETYPE2_DEPEND@
 FREETYPE2_INCLUDES = @FREETYPE2_INCLUDES@
 FREETYPE2_LIBS = @FREETYPE2_LIBS@
+FT2_CONFIG = @FT2_CONFIG@
 GRAPHITE_DEPEND = @GRAPHITE_DEPEND@
 GRAPHITE_INCLUDES = @GRAPHITE_INCLUDES@
 GRAPHITE_LIBS = @GRAPHITE_LIBS@
@@ -384,6 +408,7 @@ KPATHSEA_DEPEND = @KPATHSEA_DEPEND@
 KPATHSEA_INCLUDES = @KPATHSEA_INCLUDES@
 KPATHSEA_LIBS = @KPATHSEA_LIBS@
 KPATHSEA_PATHS_H = @KPATHSEA_PATHS_H@
+KPSEWHICH = @KPSEWHICH@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 LEX = @LEX@
@@ -419,6 +444,7 @@ PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
@@ -484,6 +510,7 @@ libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
 lt_ECHO = @lt_ECHO@
+lua_socketlibs = @lua_socketlibs@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -493,7 +520,6 @@ program_transform_name = @program_transform_name@
 psdir = @psdir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
-socketlibs = @socketlibs@
 srcdir = @srcdir@
 subdirs = @subdirs@
 sysconfdir = @sysconfdir@
@@ -511,36 +537,83 @@ SUBDIRS = doc lib man mpware web2c . window $(am__append_1) otps
 proglib = lib/lib.a
 dist_man_MANS = 
 nodist_man_MANS = ctiedir/ctie.1 tiedir/tie.1
-dist_check_SCRIPTS = tangle.test libmd5/md5.test
-TESTS = tangle.test tiedir/tie.test libmd5/md5.test
 EXTRA_LIBRARIES = libmf.a libmplib.a libmd5.a
 EXTRA_DIST = PROJECTS cftests config.h cpascal.h help.h tangle.web \
 	tangle.ch tangleboot.p cwebdir ctangleboot.c cwebboot.c \
-	$(web_programs:=.web) $(web_programs:=.ch) ctiedir tiedir \
+	tangle.test $(web_programs:=.web) $(web_programs:=.ch) \
+	$(web_tests) tests/allbib.aux tests/allbib.tex \
+	tests/apalike.bst tests/batch.tex tests/check.log \
+	tests/cmr10.600gf tests/cmr10.pk tests/cmr10.pl \
+	tests/cmr10.tfm tests/cmr7.tfm tests/cmr8.tfm tests/cmti10.tfm \
+	tests/cmtt10.tfm tests/cmtt8.tfm tests/dict tests/eight.tex \
+	tests/end.tex tests/exampl.aux tests/exampl.tex tests/gray.tfm \
+	tests/hello.tex tests/io.mf tests/just.texi tests/label.mp \
+	tests/label.mpx tests/logo8.tfm tests/longtfm.tex \
+	tests/magic.tex tests/memtest.tex tests/mltextst.tex \
+	tests/mptest.mp tests/mptest.mpx tests/one.two.mf \
+	tests/one.two.mp tests/one.two.tex tests/online.mf \
+	tests/openout.mp tests/openout.tex tests/pagenum.dvi \
+	tests/pagenum.tex tests/patgen.in tests/patterns \
+	tests/plain.mft tests/pplr.dvi tests/pplr.tfm tests/ptmr.dvi \
+	tests/ptmr.tfm tests/ptmr.vf tests/ptmr.vpl tests/rpsyr.tfm \
+	tests/rptmr.tfm tests/story.dvi tests/testex.err \
+	tests/testex.mp tests/testex.tex tests/translate tests/uno.dos \
+	tests/write18.tex tests/xampl.bib ctiedir tiedir \
 	lib/mfmpi386.asm lib/mfmpw32.c lib/texmfmp.c texmfmem.h \
 	texmfmp-help.h texmfmp.h $(tex_ch_srcs) lib/texmfmp.c \
-	tmf-pool.h mf.web mf-binpool.ch mf.ch mftalk.h lib/texmfmp.c \
-	tmf-pool.h $(mpost_web) $(libmplib_web) mplibdir/lmplib.c \
-	fmtutil.in Makefile.in.orig configure.in.orig
+	tmf-pool.h $(tex_tests) mf.web mf-binpool.ch mf.ch mftalk.h \
+	lib/texmfmp.c tmf-pool.h $(mf_tests) triptrap/README \
+	triptrap/mftrap.diffs triptrap/mftrap.fot triptrap/mftrap.log \
+	triptrap/mftrap.pl triptrap/mftrap1.in triptrap/mftrap2.in \
+	triptrap/mftrapin.log triptrap/mptrap.diffs \
+	triptrap/mptrap.fot triptrap/mptrap.log triptrap/mptrap.pl \
+	triptrap/mptrap.readme triptrap/mptrap1.in triptrap/mptrap2.in \
+	triptrap/mptrapin.log triptrap/mtrap.0 triptrap/mtrap.1 \
+	triptrap/mtrap.log triptrap/mtrap.mp triptrap/texmf.cnf \
+	triptrap/trap.148 triptrap/trap.149 triptrap/trap.150 \
+	triptrap/trap.151 triptrap/trap.197 triptrap/trap.200 \
+	triptrap/trap.5 triptrap/trap.6 triptrap/trap.mf \
+	triptrap/trap.mp triptrap/trap.mpx triptrap/trap.typ \
+	triptrap/trapf.pl triptrap/trapman.tex triptrap/trip.diffs \
+	triptrap/trip.fot triptrap/trip.log triptrap/trip.pl \
+	triptrap/trip.tex triptrap/trip.typ triptrap/trip1.in \
+	triptrap/trip2.in triptrap/tripin.log triptrap/tripman.tex \
+	triptrap/tripos.tex triptrap/writeo triptrap/writeo.2 \
+	mplibdir/ChangeLog $(mpost_web) $(mp_tests) $(libmplib_web) \
+	mplibdir/lmplib.c libmd5/md5.test fmtutil.in Makefile.in.orig \
+	configure.in.orig
 DISTCLEANFILES = $(EXTRA_LIBRARIES) tangle.c tangle.h tangle.p \
 	tangle-web2c stamp-tangle tangleboot.c tangleboot.h ctangle.c \
 	cweb.c stamp-ctangle cftest.p $(web_programs:=.c) \
 	$(web_programs:=.h) $(web_programs:=.p) \
-	$(web_programs:=-web2c) ctie.c cweave.c tie.c tie.outc \
-	tie.outm $(nodist_tex_SOURCES) tex-final.ch tex-web2c tex.p \
-	tex.pool tex-tangle $(nodist_libmf_a_SOURCES) mfextra.c \
+	$(web_programs:=-web2c) tests/xexampl.aux tests/xexampl.bbl \
+	tests/xexampl.blg tests/xstory.dvi tests/xpplr.dvi ptmr.mpx \
+	tests/xptmr.mpx tests/xstory.mpx tests/xstory.dvityp \
+	tests/xpagenum.typ cmr10.dvi tests/xcmr10.dvi cmr10.pk \
+	tests/xcmr10.pk tests/xcmr10.gft1 tests/xcmr10.gft2 io.tex \
+	tests/io.tex tests/xpatout pattmp.4 cmr10.gf \
+	tests/xcmr10.600gf tests/xcmr10.pktyp tests/xcmr10.tfm \
+	tests/xtexpool.typ tests/xcmr10.pl tests/xptmr.vpl \
+	tests/xptmr.tfm tests/xptmr.vf pooltype.tex ctie.c cweave.c \
+	tie.c ctie.outc ctie.outm common.tex common.scn common.idx \
+	tie.outc tie.outm $(nodist_tex_SOURCES) tex-final.ch tex-web2c \
+	tex.p tex.pool tex-tangle $(nodist_libmf_a_SOURCES) mfextra.c \
 	mf-final.ch mf-web2c mf.p mf.pool mf-tangle \
 	$(nodist_mpost_SOURCES) mpxout-ctangle \
 	$(nodist_libmplib_a_SOURCES) mp-ctangle psout-ctangle \
 	svgout-ctangle
 CLEANFILES = 
 web2c = srcdir=$(srcdir) $(SHELL) $(srcdir)/web2c/convert
-makecpool = ./web2c/makecpool
-web2c_common = web2c/convert web2c/common.defines
-web2c_programs = web2c/fixwrites web2c/splitup web2c/web2c $(makecpool)
-web2c_texmf = $(web2c_common) $(web2c_programs) \
-              web2c/texmf.defines web2c/coerce.h
+makecpool = web2c/makecpool
 
+# Additional dependencies:
+web2c_common = web2c/convert web2c/common.defines
+# When cross-compiling, EXEEXT for the build and hosts system may differ.
+# Thus we depend on the auxiliary files web2c/stamp-*.
+web2c_stamps = web2c/stamp-fixwrites web2c/stamp-splitup web2c/stamp-web2c
+makecpool_stamp = web2c/stamp-makecpool
+web2c_depend = $(web2c_common) $(web2c_stamps)
+web2c_texmf = $(web2c_depend) web2c/texmf.defines web2c/coerce.h
 LDADD = $(proglib) $(KPATHSEA_LIBS)
 buildenv = TEXMFCNF=$(srcdir)/../kpathsea
 tangle = WEBINPUTS=.:$(srcdir) $(buildenv) $(TANGLE)
@@ -549,6 +622,9 @@ otangle = WEBINPUTS=.:$(srcdir) $(buildenv) $(OTANGLE)
 ctangle = $(buildenv) $(CTANGLE)
 ctangleboot = $(buildenv) $(CTANGLEBOOT)
 tie = WEBINPUTS=.:$(srcdir) $(buildenv) $(TIE)
+DIFF = diff
+DIFFFLAGS = 
+TESTS_ENVIRONMENT = DIFF='$(DIFF)' DIFFFLAGS='$(DIFFFLAGS)' LN_S='$(LN_S)' KPSEWHICH='$(KPSEWHICH)'
 dumpenv = TEXMFCNF=../kpathsea
 nodist_tangle_SOURCES = tangle.c tangle.h
 nodist_tangleboot_SOURCES = tangleboot.c tangleboot.h
@@ -575,11 +651,16 @@ nodist_tftopl_SOURCES = tftopl.c tftopl.h
 nodist_vftovp_SOURCES = vftovp.c vftovp.h
 nodist_vptovf_SOURCES = vptovf.c vptovf.h
 nodist_weave_SOURCES = weave.c weave.h
+web_tests = $(web_programs:=.test)
 nodist_ctie_SOURCES = ctie.c
 nodist_cweave_SOURCES = cweave.c cweb.c
 nodist_tie_SOURCES = tie.c
 tex_CPPFLAGS = 
+
+# With --enable-ipc, TeX may need to link with -lsocket.
 tex_LDADD = $(LDADD) $(ipc_socketlibs)
+
+# TeX C sources
 tex_c_h = texini.c tex0.c tex1.c tex2.c texcoerce.h texd.h
 nodist_tex_SOURCES = $(tex_c_h) tex-pool.c texextra.c
 tex_ch_srcs = \
@@ -588,6 +669,7 @@ tex_ch_srcs = \
 	$(tex_ch_synctex) \
 	tex-binpool.ch
 
+tex_tests = trip.test
 nodist_mf_SOURCES = mfextra.c
 mf_CPPFLAGS = $(X_CFLAGS)
 mf_LDADD = libmf.a $(LDADD) $(windowlib) $(mf_x_libs)
@@ -596,9 +678,12 @@ mf_LDADD = libmf.a $(LDADD) $(windowlib) $(mf_x_libs)
 @MFN_TRUE@mf_nowin_LDADD = libmf.a $(LDADD) $(windowlib)
 windowlib = window/libwindow.a
 mf_x_libs = $(X_LIBS) $(x_tool_libs) $(X_PRE_LIBS) $(x_ext_lib) $(wlibs) $(X_EXTRA_LIBS)
+
+# Metafont C sources
 mf_c_h = mfini.c mf0.c mf1.c mfcoerce.h mfd.h
 nodist_libmf_a_SOURCES = $(mf_c_h) mf-pool.c
 libmf_a_CPPFLAGS = -DMETA_FONT
+mf_tests = trap.test
 mp_ctangle = CWEBINPUTS=$(srcdir)/mplibdir $(ctangle)
 mpost_CPPFLAGS = -I$(srcdir)/mplibdir
 mpost_DEPENDENCIES = libmplib.a
@@ -606,6 +691,7 @@ mpost_LDADD = libmplib.a $(KPATHSEA_LIBS) -lm
 nodist_mpost_SOURCES = mpost.c $(mpxout_c_h)
 mpxout_c_h = mpxout.c mpxout.h
 mpost_web = mplibdir/mpost.w mplibdir/mpxout.w
+mp_tests = mplibdir/mptrap.test
 libmplib_a_CPPFLAGS = -I$(srcdir)/mplibdir
 libmplib_a_SOURCES = mplibdir/avl.h mplibdir/avl.c
 nodist_libmplib_a_SOURCES = memio.c tfmin.c $(mp_c_h) $(psout_c_h) \
@@ -684,6 +770,8 @@ stamp-h2: $(top_srcdir)/luatexdir/luafontloader/ff-config.in $(top_builddir)/con
 
 distclean-hdr:
 	-rm -f c-auto.h stamp-h1 ff-config.h stamp-h2
+CXXLD.sh: $(top_builddir)/config.status $(srcdir)/README
+	cd $(top_builddir) && $(SHELL) ./config.status $@
 mpware/Makefile: $(top_builddir)/config.status $(top_srcdir)/mpware/Makefile.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 omegafonts/Makefile: $(top_builddir)/config.status $(top_srcdir)/omegafonts/Makefile.in
@@ -1646,8 +1734,7 @@ distcleancheck: distclean
 	       $(distcleancheck_listfiles) ; \
 	       exit 1; } >&2
 check-am: all-am
-	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS) \
-	  $(dist_check_SCRIPTS)
+	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
 	$(MAKE) $(AM_MAKEFLAGS) check-TESTS
 check: check-recursive
 all-am: Makefile $(PROGRAMS) $(MANS) c-auto.h ff-config.h
@@ -1685,7 +1772,7 @@ maintainer-clean-generic:
 clean: clean-recursive
 
 clean-am: clean-binPROGRAMS clean-checkPROGRAMS clean-generic \
-	clean-libtool clean-noinstPROGRAMS mostlyclean-am
+	clean-libtool clean-local clean-noinstPROGRAMS mostlyclean-am
 
 distclean: distclean-recursive
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
@@ -1752,10 +1839,10 @@ uninstall-man: uninstall-man1
 .PHONY: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) CTAGS GTAGS \
 	all all-am am--refresh check check-TESTS check-am clean \
 	clean-binPROGRAMS clean-checkPROGRAMS clean-generic \
-	clean-libtool clean-noinstPROGRAMS ctags ctags-recursive dist \
-	dist-all dist-bzip2 dist-gzip dist-hook dist-lzma dist-shar \
-	dist-tarZ dist-xz dist-zip distcheck distclean \
-	distclean-compile distclean-generic distclean-hdr \
+	clean-libtool clean-local clean-noinstPROGRAMS ctags \
+	ctags-recursive dist dist-all dist-bzip2 dist-gzip dist-hook \
+	dist-lzma dist-shar dist-tarZ dist-xz dist-zip distcheck \
+	distclean distclean-compile distclean-generic distclean-hdr \
 	distclean-libtool distclean-tags distcleancheck distdir \
 	distuninstallcheck dvi dvi-am html html-am info info-am \
 	install install-am install-binPROGRAMS install-data \
@@ -1770,14 +1857,23 @@ uninstall-man: uninstall-man1
 	uninstall-binPROGRAMS uninstall-man uninstall-man1
 
 
+# in case of an SVN repository
 dist-hook:
 	rm -rf `find $(distdir) -name .svn`
 
+# Rebuild $(proglib)
 $(proglib): $(KPATHSEA_DEPEND) ${srcdir}/lib/*.c
 	cd lib && $(MAKE) $(AM_MAKEFLAGS)
 
-$(web2c_programs): $(web2c_common) ${srcdir}/web2c/*.[chly]
-	cd web2c && $(MAKE) $(AM_MAKEFLAGS)
+# Rebuild Web2C programs
+web2c/stamp-fixwrites: $(web2c_common) ${srcdir}/web2c/*.[chly]
+	cd web2c && $(MAKE) $(AM_MAKEFLAGS) stamp-fixwrites
+web2c/stamp-splitup: $(web2c_common) ${srcdir}/web2c/*.[chly]
+	cd web2c && $(MAKE) $(AM_MAKEFLAGS) stamp-splitup
+web2c/stamp-web2c: $(web2c_common) ${srcdir}/web2c/*.[chly]
+	cd web2c && $(MAKE) $(AM_MAKEFLAGS) stamp-web2c
+web2c/stamp-makecpool: $(web2c_common) ${srcdir}/web2c/makecpool.c
+	cd web2c && $(MAKE) $(AM_MAKEFLAGS) stamp-makecpool
 
 @KPATHSEA_RULE@
 @ZLIB_RULE@
@@ -1795,6 +1891,10 @@ tangle-web2c: tangle.p
 	$(web2c) tangle
 	echo timestamp >$@
 	touch tangle.c tangle.h
+# tangle.p is a special case, since it is needed to compile itself.  We
+# convert and compile the (distributed) tangleboot.p to make a tangle
+# which we use to make the other programs.  We depend on tangleboot, even
+# though we might not use it.
 tangle.p: tangleboot$(EXEEXT) tangle.web tangle.ch
 	WEBINPUTS=.:$(srcdir) $(tangleboot) tangle tangle
 tangle.web:
@@ -1807,10 +1907,14 @@ tangle.web:
 	@echo "In any case, you can get it from" >&2
 	@echo "ftp://ftp.tug.org/tex/web.tar.gz." >&2
 	false
-tangleboot.c tangleboot.h: stamp-tangle $(web2c_programs) $(web2c_common)
+tangleboot.c tangleboot.h: stamp-tangle $(web2c_depend)
 	$(web2c) tangleboot
+# tangleboot.p is in the distribution
 stamp-tangle: tangleboot.p
 	date >stamp-tangle
+# This is not run unless tangle.web or tangle.ch is changed.
+# Only try to run ./tangle if it actually exists, otherwise
+# just touch tangleboot.p and build tangle.
 tangleboot.p: tangle.web tangle.ch
 	if [ -r $(TANGLE) ] || [ -r $(TANGLE).exe ]; then \
 	  $(tangle) tangle tangle; \
@@ -1822,12 +1926,19 @@ tangleboot.p: tangle.web tangle.ch
 	fi
 	date >stamp-tangle
 	$(MAKE) $(AM_MAKEFLAGS) tangle$(EXEEXT)
+# ctangle.c is a special case, since it is needed to compile itself.
+# We depend on ctangleboot, even though we might not use it.
 ctangle.c: ctangleboot$(EXEEXT) cwebdir/ctangle.w cwebdir/ctang-w2c.ch
 	CWEBINPUTS=$(srcdir)/cwebdir $(ctangleboot) ctangle ctang-w2c
 cweb.c: ctangleboot$(EXEEXT) cwebdir/common.w cwebdir/comm-w2c.ch
 	CWEBINPUTS=$(srcdir)/cwebdir $(ctangleboot) common comm-w2c cweb.c
+# ctangleboot.c and cwebboot.c are in the distribution
 stamp-ctangle: ctangleboot.c cwebboot.c
 	date >stamp-ctangle
+# This is not run unless one of the cwebdir/* files is changed.
+# Only try to run ./ctangle if it actually exists, otherwise
+# just touch ctangleboot.c and/or cwebboot.c and build ctangle.
+# We must serialize this.
 ctangleboot.c: cwebboot.c cwebdir/ctangle.w cwebdir/ctang-w2c.ch
 	if [ -r $(CTANGLE) ] || [ -r $(CTANGLE).exe ]; then \
 	  CWEBINPUTS=$(srcdir)/cwebdir $(ctangle) ctangle ctang-w2c; \
@@ -1849,119 +1960,119 @@ cwebboot.c: cwebdir/common.w cwebdir/comm-w2c.ch
 	  cp $(srcdir)/cwebboot.c .; \
 	fi
 bibtex.c bibtex.h: bibtex-web2c
-bibtex-web2c: $(web2c_common) $(web2c_programs) web2c/cvtbib.sed bibtex.p
+bibtex-web2c: $(web2c_depend) web2c/cvtbib.sed bibtex.p
 	$(web2c) bibtex
 	echo timestamp >$@
 	touch bibtex.c bibtex.h
 bibtex.p: tangle$(EXEEXT) bibtex.web bibtex.ch
 	$(tangle) bibtex bibtex
 dvicopy.c dvicopy.h: dvicopy-web2c
-dvicopy-web2c: $(web2c_common) $(web2c_programs) dvicopy.p
+dvicopy-web2c: $(web2c_depend) dvicopy.p
 	$(web2c) dvicopy
 	echo timestamp >$@
 	touch dvicopy.c dvicopy.h
 dvicopy.p: tangle$(EXEEXT) dvicopy.web dvicopy.ch
 	$(tangle) dvicopy dvicopy
 dvitomp.c dvitomp.h: dvitomp-web2c
-dvitomp-web2c: $(web2c_common) $(web2c_programs) dvitomp.p
+dvitomp-web2c: $(web2c_depend) dvitomp.p
 	$(web2c) dvitomp
 	echo timestamp >$@
 	touch dvitomp.c dvitomp.h
 dvitomp.p: tangle$(EXEEXT) dvitomp.web dvitomp.ch
 	$(tangle) dvitomp dvitomp
 dvitype.c dvitype.h: dvitype-web2c
-dvitype-web2c: $(web2c_common) $(web2c_programs) dvitype.p
+dvitype-web2c: $(web2c_depend) dvitype.p
 	$(web2c) dvitype
 	echo timestamp >$@
 	touch dvitype.c dvitype.h
 dvitype.p: tangle$(EXEEXT) dvitype.web dvitype.ch
 	$(tangle) dvitype dvitype
 gftodvi.c gftodvi.h: gftodvi-web2c
-gftodvi-web2c: $(web2c_common) $(web2c_programs) gftodvi.p
+gftodvi-web2c: $(web2c_depend) gftodvi.p
 	$(web2c) gftodvi
 	echo timestamp >$@
 	touch gftodvi.c gftodvi.h
 gftodvi.p: tangle$(EXEEXT) gftodvi.web gftodvi.ch
 	$(tangle) gftodvi gftodvi
 gftopk.c gftopk.h: gftopk-web2c
-gftopk-web2c: $(web2c_common) $(web2c_programs) gftopk.p
+gftopk-web2c: $(web2c_depend) gftopk.p
 	$(web2c) gftopk
 	echo timestamp >$@
 	touch gftopk.c gftopk.h
 gftopk.p: tangle$(EXEEXT) gftopk.web gftopk.ch
 	$(tangle) gftopk gftopk
 gftype.c gftype.h: gftype-web2c
-gftype-web2c: $(web2c_common) $(web2c_programs) gftype.p
+gftype-web2c: $(web2c_depend) gftype.p
 	$(web2c) gftype
 	echo timestamp >$@
 	touch gftype.c gftype.h
 gftype.p: tangle$(EXEEXT) gftype.web gftype.ch
 	$(tangle) gftype gftype
 mft.c mft.h: mft-web2c
-mft-web2c: $(web2c_common) $(web2c_programs) mft.p
+mft-web2c: $(web2c_depend) mft.p
 	$(web2c) mft
 	echo timestamp >$@
 	touch mft.c mft.h
 mft.p: tangle$(EXEEXT) mft.web mft.ch
 	$(tangle) mft mft
 patgen.c patgen.h: patgen-web2c
-patgen-web2c: $(web2c_common) $(web2c_programs) patgen.p
+patgen-web2c: $(web2c_depend) patgen.p
 	$(web2c) patgen
 	echo timestamp >$@
 	touch patgen.c patgen.h
 patgen.p: tangle$(EXEEXT) patgen.web patgen.ch
 	$(tangle) patgen patgen
 pktogf.c pktogf.h: pktogf-web2c
-pktogf-web2c: $(web2c_common) $(web2c_programs) pktogf.p
+pktogf-web2c: $(web2c_depend) pktogf.p
 	$(web2c) pktogf
 	echo timestamp >$@
 	touch pktogf.c pktogf.h
 pktogf.p: tangle$(EXEEXT) pktogf.web pktogf.ch
 	$(tangle) pktogf pktogf
 pktype.c pktype.h: pktype-web2c
-pktype-web2c: $(web2c_common) $(web2c_programs) pktype.p
+pktype-web2c: $(web2c_depend) pktype.p
 	$(web2c) pktype
 	echo timestamp >$@
 	touch pktype.c pktype.h
 pktype.p: tangle$(EXEEXT) pktype.web pktype.ch
 	$(tangle) pktype pktype
 pltotf.c pltotf.h: pltotf-web2c
-pltotf-web2c: $(web2c_common) $(web2c_programs) pltotf.p
+pltotf-web2c: $(web2c_depend) pltotf.p
 	$(web2c) pltotf
 	echo timestamp >$@
 	touch pltotf.c pltotf.h
 pltotf.p: tangle$(EXEEXT) pltotf.web pltotf.ch
 	$(tangle) pltotf pltotf
 pooltype.c pooltype.h: pooltype-web2c
-pooltype-web2c: $(web2c_common) $(web2c_programs) pooltype.p
+pooltype-web2c: $(web2c_depend) pooltype.p
 	$(web2c) pooltype
 	echo timestamp >$@
 	touch pooltype.c pooltype.h
 pooltype.p: tangle$(EXEEXT) pooltype.web pooltype.ch
 	$(tangle) pooltype pooltype
 tftopl.c tftopl.h: tftopl-web2c
-tftopl-web2c: $(web2c_common) $(web2c_programs) tftopl.p
+tftopl-web2c: $(web2c_depend) tftopl.p
 	$(web2c) tftopl
 	echo timestamp >$@
 	touch tftopl.c tftopl.h
 tftopl.p: tangle$(EXEEXT) tftopl.web tftopl.ch
 	$(tangle) tftopl tftopl
 vftovp.c vftovp.h: vftovp-web2c
-vftovp-web2c: $(web2c_common) $(web2c_programs) vftovp.p
+vftovp-web2c: $(web2c_depend) vftovp.p
 	$(web2c) vftovp
 	echo timestamp >$@
 	touch vftovp.c vftovp.h
 vftovp.p: tangle$(EXEEXT) vftovp.web vftovp.ch
 	$(tangle) vftovp vftovp
 vptovf.c vptovf.h: vptovf-web2c
-vptovf-web2c: $(web2c_common) $(web2c_programs) vptovf.p
+vptovf-web2c: $(web2c_depend) vptovf.p
 	$(web2c) vptovf
 	echo timestamp >$@
 	touch vptovf.c vptovf.h
 vptovf.p: tangle$(EXEEXT) vptovf.web vptovf.ch
 	$(tangle) vptovf vptovf
 weave.c weave.h: weave-web2c
-weave-web2c: $(web2c_common) $(web2c_programs) weave.p
+weave-web2c: $(web2c_depend) weave.p
 	$(web2c) weave
 	echo timestamp >$@
 	touch weave.c weave.h
@@ -1973,41 +2084,75 @@ cweave.c: ctangle$(EXEEXT) cwebdir/cweave.w cwebdir/cweav-w2c.ch
 	CWEBINPUTS=$(srcdir)/cwebdir $(ctangle) cweave cweav-w2c
 tie.c: ctangle$(EXEEXT) tiedir/tie.w tiedir/tie-w2c.ch
 	CWEBINPUTS=$(srcdir)/tiedir $(ctangle) tie.w tie-w2c.ch
+
+# We must create texd.h before building the tex_OBJECTS.
+$(tex_OBJECTS): texd.h
+
 $(tex_c_h): tex-web2c
 tex-web2c: tex.p $(web2c_texmf)
 	$(web2c) tex
 	: $(synctex_convert_tex)
 	echo timestamp >$@
 	touch $(tex_c_h)
+
+tex-pool.c: tex.pool $(makecpool_stamp) tmf-pool.h
+	$(makecpool) tex.pool $(srcdir)/tmf-pool.h >$@ || rm -f $@
+
 texextra.c: lib/texmfmp.c texd.h
 	sed s/TEX-OR-MF-OR-MP/tex/ $(srcdir)/lib/texmfmp.c >$@
+
+# Tangling TeX
 tex.p tex.pool: tex-tangle
-tex-tangle: $(TANGLE) tex.web tex-final.ch
+tex-tangle: tangle$(EXEEXT) tex.web tex-final.ch
 	$(tangle) tex.web tex-final.ch
 	echo timestamp >$@
 	touch tex.p tex.pool
-tex-pool.c: tex.pool $(makecpool) tmf-pool.h
-	$(makecpool) tex.pool $(srcdir)/tmf-pool.h >$@ || rm -f $@
-tex-final.ch: $(TIE) $(tex_ch_srcs)
+
+tex-final.ch: tie$(EXEEXT) $(tex_ch_srcs)
 	$(tie) -c $@ $(tex_ch_srcs)
+
+.PHONY: trip-clean
+clean-local:: trip-clean
+trip-clean:
+	rm -f trip.tfm trip.pl trip.tex trip.fmt tripin.fot tripin.log
+	rm -f trip.fot trip.log trip.dvi trip.typ tripos.tex 8terminal.tex
+	rm -rf tfm
 $(windowlib): mfd.h $(srcdir)/window/*.c
 	cd window && $(MAKE) $(AM_MAKEFLAGS) libwindow.a
+
+# We must create mfd.h before building the libmf_a_OBJECTS.
+$(libmf_a_OBJECTS): mfd.h
+
 $(mf_c_h): mf-web2c
 mf-web2c: mf.p $(web2c_texmf) web2c/cvtmf1.sed web2c/cvtmf2.sed
 	$(web2c) mf
 	echo timestamp >$@
 	touch $(mf_c_h)
+
+mf-pool.c: mf.pool $(makecpool_stamp) tmf-pool.h
+	$(makecpool) mf.pool $(srcdir)/tmf-pool.h >$@ || rm -f $@
+
 mfextra.c: lib/texmfmp.c mfd.h
 	sed s/TEX-OR-MF-OR-MP/mf/ $(srcdir)/lib/texmfmp.c >$@
+
+# Tangling Metafont
 mf.p mf.pool: mf-tangle
-mf-tangle: $(TANGLE) mf.web mf-final.ch
+mf-tangle: tangle$(EXEEXT) mf.web mf-final.ch
 	$(tangle) mf.web mf-final.ch
 	echo timestamp >$@
 	touch mf.p mf.pool
-mf-final.ch: $(TIE) mf.web mf.ch mf-binpool.ch
+
+# Generate mf-final.ch
+mf-final.ch: tie$(EXEEXT) mf.web mf.ch mf-binpool.ch
 	$(tie) -c $@ mf.web mf.ch mf-binpool.ch
-mf-pool.c: mf.pool $(makecpool) tmf-pool.h
-	$(makecpool) mf.pool $(srcdir)/tmf-pool.h >$@ || rm -f $@
+
+.PHONY: trap-clean
+clean-local:: trap-clean
+trap-clean:
+	rm -f trap.mf trap.base
+	rm -f mftrapin.fot mftrapin.log
+	rm -f mftrap.fot mftrap.log mftrap.tfm
+	rm -f mftrap.pl trap.72270gf trap.typ
 
 mpost.c: ctangle$(EXEEXT) mplibdir/mpost.w
 	$(mp_ctangle) mpost.w
@@ -2019,6 +2164,19 @@ mpxout-ctangle: ctangle$(EXEEXT) mplibdir/mpxout.w
 	touch $(mpxout_c_h)
 
 $(mpost_OBJECTS): $(nodist_mpost_SOURCES) libmplib.a
+
+.PHONY: mptrap-clean
+clean-local:: mptrap-clean
+mptrap-clean:
+	rm -f mtrap.mp mtrap.mem trapf.tfm
+	rm -f mtrap.log mtrap.0 mtrap.1 writeo writeo.log writeo.2
+	rm -f trap.mp trap.mpx mptrapin.fot mptrapin.log
+	rm -f mptrap.fot mptrap.log mptrap.tfm
+	rm -f trap.ps trap.mem trap.0 trap.5 trap.6 trap.95 trap.96 trap.97
+	rm -f trap.98 trap.99 trap.100 trap.101 trap.102 trap.103 trap.104
+	rm -f trap.105 trap.106 trap.107 trap.108 trap.109 trap.148
+	rm -f trap.149 trap.150 trap.151 trap.197 trap.200
+	rm -f mptrap.pl
 
 memio.c: ctangle$(EXEEXT) mplibdir/memio.w
 	$(mp_ctangle) memio.w
