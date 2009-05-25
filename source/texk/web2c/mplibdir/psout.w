@@ -4383,7 +4383,7 @@ void mp_mark_string_chars (MP mp,font_number f, char *s, size_t l) {
   b=mp->char_base[f];
   bc=(int)mp->font_bc[f];
   ec=(int)mp->font_ec[f];
-  k=s;
+  k=(unsigned char *)s;
   while (l-->0){ 
     if ( (*k>=bc)&&(*k<=ec) )
       mp->font_info[b+*k].qqqq.b3=mp_used;
