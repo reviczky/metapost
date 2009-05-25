@@ -1,4 +1,4 @@
-# Public macros for the teTeX / TeX Live (TL) tree.
+# Public macros for the TeX Live (TL) tree.
 # Copyright (C) 2002 Olaf Weber <olaf@infovore.xs4all.nl>
 # Copyright (C) 2009 Peter Breitenlohner <tex-live@tug.org>
 #
@@ -41,7 +41,7 @@ if test "x$kpse_cv_cxx_hack" = xok; then
 set -- $CXX \"\$[]@\" $CXX_HACK_LIBS
 echo \"\$[]0:\" \"\$[]@\"
 exec \"\$[]@\""
-  AC_CONFIG_FILES([CXXLD.sh:Makefile.in],
+  AC_CONFIG_FILES([CXXLD.sh:README],
                   [echo "$cxxld_sh" >CXXLD.sh; chmod +x CXXLD.sh],
                   [cxxld_sh='$cxxld_sh'])
 else
@@ -67,9 +67,13 @@ using namespace std;
 #include <iostream.h>
 #endif]],
                                      [[cout <<"worksok\n";]])])
-  flags_try0='-nodefaultlibs -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm'
-  flags_try1='-lgcc_eh -lgcc -lc -lgcc_eh -lgcc'
-  flags_try2='-lgcc -lc -lgcc'
+  case $host in
+  *cygwin*)  flags_try0='-static -static-libgcc';
+             flags_try1='-lstdc++'; flags_try2=$flags_try1;;
+  *)  flags_try0='-nodefaultlibs -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm'
+      flags_try1='-lgcc_eh -lgcc -lc -lgcc_eh -lgcc'
+      flags_try2='-lgcc -lc -lgcc';;
+  esac
   kpse_save_LIBS=$LIBS
   cpp_link_hack=false
   for flags in "$flags_try1" "$flags_try2"; do

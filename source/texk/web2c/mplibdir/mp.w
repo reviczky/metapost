@@ -1,6 +1,6 @@
 % $Id$
 %
-% Copyright 2008 Taco Hoekwater.
+% Copyright 2008-2009 Taco Hoekwater.
 %
 % This program is free software: you can redistribute it and/or modify
 % it under the terms of the GNU Lesser General Public License as published by
@@ -89,13 +89,13 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.200" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.201" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @(mpmp.h@>=
-#define metapost_version "1.200"
-#define metapost_magic (('M'*256) + 'P')*65536 + 1200
+#define metapost_version "1.201"
+#define metapost_magic (('M'*256) + 'P')*65536 + 1201
 #define metapost_old_magic (('M'*256) + 'P')*65536 + 1080
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
@@ -877,7 +877,6 @@ static boolean mp_input_ln (MP mp, void *f ) {
       }
     }
     memcpy((mp->buffer+mp->first),s,size);
-    /* while ( mp->buffer[mp->last]==' ' ) mp->last--; */
   } 
   free(s);
   return true;
@@ -13805,7 +13804,7 @@ actions.
 { mp->input_ptr=0; mp->max_in_stack=0;
   mp->in_open=0; mp->open_parens=0; mp->max_buf_stack=0;
   mp->param_ptr=0; mp->max_param_stack=0;
-  mp->first=1;
+  mp->first=0;
   start=1; iindex=0; line=0; name=is_term;
   mp->mpx_name[0]=absent;
   mp->force_eof=false;
@@ -14926,6 +14925,36 @@ static void mp_begin_iteration (MP mp);
 static void mp_resume_iteration (MP mp);
 static void mp_stop_iteration (MP mp);
 
+@ A recursion depth counter is used to discover infinite recursions.
+(Near) infinite recursion is a problem because it translates into 
+C function calls that eat up the available call stack. A better solution
+would be to depend on signal trapping, but that is problematic when
+Metapost is used as a library. 
+
+@<Global...@>=
+int expand_depth_count; /* current expansion depth */
+int expand_depth; /* current expansion depth */
+
+@ The limit is set at |10000|, which should be enough to allow 
+normal usages of metapost while preventing the most obvious 
+crashes on most all operating systems, but the value can be
+raised if the runtime system allows a larger C stack.
+@^system dependencies@>
+
+@<Set initial...@>=
+mp->expand_depth=10000;
+
+@ Even better would be if the system allows
+discovery of the amount of space available on the call stack.
+@^system dependencies@>
+
+@c
+static void mp_check_expansion_depth (MP mp ){
+  if (mp->expand_depth_count>=mp->expand_depth) {
+    mp_overflow(mp, "expansion depth", mp->expand_depth);
+  }
+}
+
 @ An auxiliary subroutine called |expand| is used by |get_x_next|
 when it has to do exotic expansion commands.
 
@@ -14934,6 +14963,8 @@ static void mp_expand (MP mp) {
   pointer p; /* for list manipulation */
   size_t k; /* something that we hope is |<=buf_size| */
   pool_pointer j; /* index into |str_pool| */
+  mp->expand_depth_count++;
+  mp_check_expansion_depth(mp);
   if ( mp->internal[mp_tracing_commands]>unity ) 
     if ( mp->cur_cmd!=defined_macro )
       show_cur_cmd_mod;
@@ -14972,6 +15003,7 @@ static void mp_expand (MP mp) {
    mp_macro_call(mp, mp->cur_mod,null,mp->cur_sym);
    break;
   }; /* there are no other cases */
+  mp->expand_depth_count--;
 }
 
 @ @<Scold the user...@>=
@@ -16546,7 +16578,7 @@ it catch up to what has previously been printed on the terminal.
     mp_print_nl(mp, "**");
 @.**@>
     l=mp->input_stack[0].limit_field-1; /* last position of first line */
-    for (k=1;k<=l;k++) mp_print_str(mp, mp->buffer[k]);
+    for (k=0;k<=l;k++) mp_print_str(mp, mp->buffer[k]);
     mp_print_ln(mp); /* now the transcript file contains the first line of input */
   }
   mp->selector=old_setting+2; /* |log_only| or |term_and_log| */
@@ -25889,7 +25921,14 @@ static char *mp_set_output_file_name (MP mp, integer c) {
 	     	  if (text(p)>0 && length(text(p))==l && 
 	              mp_str_eq_cstr(mp, text(p),id)) {
                     if (eq_type(p)==internal_quantity) {
-         	      mp_append_to_template(mp,f,equiv(p)); 
+		      if (equiv(p)==mp_output_template) {
+    		        char err[256];
+                        mp_snprintf(err,256,
+                           "The appearance of outputtemplate inside outputtemplate is ignored.");
+                        mp_warn(mp,err);
+                      } else {
+	         	mp_append_to_template(mp,f,equiv(p)); 
+	              }
                     } else {
 		      char err[256];
                       mp_snprintf(err,256,
@@ -26303,6 +26342,8 @@ pointer mp_gr_unexport(MP mp, struct mp_edge_object *hh) {
         } else {
           mp_link(pn) = mp_link(ph);
           mp_link(ph) = pn;
+          if (ph==pt)
+            pt=pn;
         }
       }
       break;

@@ -814,30 +814,55 @@ $$ {\tt mpost}\ \descr{switches}\ \descr{file}
 $$\label{Dmpost}
 where $\descr{file}$ is a text file containing statements in the
 MetaPost language.  Typically, MetaPost input files have file extension
-\texttt{.mp}, e.g., \texttt{foo.mp}.  This extension can then be omitted
-in the \texttt{mpost} call.  There exist a number of command-line
-switches to control the run-time behavior of the MetaPost executable.
-Switches can prefixed by one or two dashes.  Both forms have the same
-meaning.  An exemplary call to MetaPost that compiles file
-\texttt{foo.mp}, but immediately exits after encountering the first
-error without user-interaction would look like:
+\texttt{.mp}\index{mp file?{\tt mp} file}\index{files!mp?{\tt mp}},
+e.g., \texttt{foo.mp}.  This extension can then be omitted in the
+\texttt{mpost} call.  There exist a number of command-line switches to
+control the run-time behavior of the MetaPost executable.  Switches can
+prefixed by one or two dashes.  Both forms have the same meaning.  An
+exemplary call to MetaPost that compiles file \texttt{foo.mp}, but
+immediately exits after encountering the first error without
+user-interaction would look like:
 $$ \hbox{\tt mpost -halt-on-error foo} $$
 
 Here's a summary of the command-line switches understood by
 \texttt{mpost}:
 
 \begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
-  \cmdindex{-ini}
-  & Be the INI variant of the program.\\
   \cmdindex{-debug}
   & Don't delete intermediate files.\\
+  \cmdindex{-dvitomp}
+  & Act as the \textit{dvitomp} executable (see below).\\
+  \cmdindex{-file-line-error}
+  & Start error messages with \texttt{filename:lineno:} instead of
+  \texttt{!}.\\
+  \cmdindex{-halt-on-error}
+  & Immediately exit after the first error occurred.\\
+  \cmdindex{-help}
+  & Show help on command-line switches.\\
+  \cmdindex{-ini}
+  & Be the INI variant of the program.\\
+  \cmdindex{-interaction}=$\descr{string}$
+  & Set interaction mode to one of \texttt{batchmode, nonstopmode,
+    scrollmode, errorstopmode}.\\
+  \cmdindex{-jobname}=$\descr{jobname}$
+  & Set the name of the job (affects output file names).\\
   \cmdindex{-kpathsea-debug}=$\descr{number}$
   & Set debugging flags for path searching.\\
   \cmdindex{-mem}=$\descr{string}$
   & Use $\descr{string}$ as memory dump name (same as
   \texttt{\&$\descr{string}$})\\
-  \cmdindex{-jobname}=$\descr{jobname}$
-  & Set the name of the job (affects output file names).\\
+  \cmdindex{-no-file-line-error}
+  & Enable normal MetaPost and \TeX\ style error messages.\\
+  \cmdindex{-no-kpathsea}
+  & Do not use \textit{kpathsea} to find files.  All files have to be in
+  the current directory or specified via a full path.\\
+  \cmdindex{-progname}=$\descr{string}$
+  & Pretend to be the $\descr{string}$ executable.\\
+  \cmdindex{-recorder}
+  & Write a list of all opened disk files to
+  \texttt{$\descr{jobname}$.fls}\index{fls file?{\tt fls}
+    file}\index{files!fls?{\tt fls}}.  (This functionality is provided
+  by \textit{kpathsea}.)\\ 
   \cmdindex{-s}$\descr{key}$=$\descr{value}$ \textrm{or}\newline
   -s $\descr{key}$=$\descr{value}$
   & Set internal variable $\descr{key}$ to $\descr{value}$.  The
@@ -848,35 +873,12 @@ Here's a summary of the command-line switches understood by
   other processing takes place.\newline
   Example: \verb|-soutputformat="svg" -sprologues=3|\newline
   Use SVG backend converting font shapes to paths.\\
-  \cmdindex{-progname}=$\descr{string}$
-  & Pretend to be the $\descr{string}$ executable.\\
-  \cmdindex{-troff}, \cmdindex{-T}
-  & Output \textit{troff} compatible PostScript files.\\
-  \cmdindex{-recorder}
-  & Write a list of all opened disk files to
-  \texttt{$\descr{jobname}$.fls}.  (This functionality is provided by
-  \textit{kpathsea}.)\\
   \cmdindex{-tex}=$\descr{texprogram}$
   & Load format $\descr{texprogram}$ for rendering \TeX\ material.\\
-  \cmdindex{-interaction}=$\descr{string}$
-  & Set interaction mode to one of \texttt{batchmode, nonstopmode,
-    scrollmode, errorstopmode}.\\
-  \cmdindex{-no-kpathsea}
-  & Do not use \textit{kpathsea} to find files.  All files have to be in
-  the current directory or specified via a full path.\\
-  \cmdindex{-file-line-error}
-  & Start error messages with \texttt{filename:lineno:} instead of
-  \texttt{!}.\\
-  \cmdindex{-no-file-line-error}
-  & Enable normal MetaPost and \TeX\ style error messages.\\
-  \cmdindex{-help}
-  & Show help on command-line switches.\\
+  \cmdindex{-troff}, \cmdindex{-T}
+  & Output \textit{troff} compatible PostScript files.\\
   \cmdindex{-version}
   & Print version information and exit.\\
-  \cmdindex{-halt-on-error}
-  & Immediately exit after the first error occurred.\\
-  \cmdindex{-dvitomp}
-  & Act as the \textit{dvitomp} executable (see below).\\
 \end{longtable}
 
 The following command-line switches are silently ignored in
@@ -891,11 +893,11 @@ The following command-line switches are silently ignored in
 
 The following command-line switches are ignored, but trigger a warning:
 \begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
-  \cmdindex{-translate-file}=$\descr{string}$
+  \cmdindex{-no-parse-first-line}
   & \\
   \cmdindex{-output-directory}=$\descr{string}$
   & \\
-  \cmdindex{-no-parse-first-line}
+  \cmdindex{-translate-file}=$\descr{string}$
   & \\
 \end{longtable}
 
@@ -904,23 +906,25 @@ The following command-line switches are ignored, but trigger a warning:
 \subsubsection*{The \texttt{dvitomp} program}
 \label{refman:dvitomp}
 
-The \ttindex{dvitomp}\label{Ddvitomp} program converts DVI files into
-low-level MetaPost code.  The command-line syntax of the executable is
+The \ttindex{dvitomp}\label{Ddvitomp} program converts DVI\index{dvi
+  file?{\tt dvi} file}\index{files!dvi?{\tt dvi}} files into low-level
+MetaPost code.  The command-line syntax of the executable is
 $$ \hbox{\verb|dvitomp|}\ \descr{switches}\ \descr{infile}\ \descr{outfile}
 $$
 where $\descr{infile}$ is the DVI file to convert and $\descr{outfile}$
 contains the equivalent MetaPost code.  MetaPost uses the
 \texttt{dvitomp} program when typesetting \verb|btex| \verb|...|
 \verb|etex| labels by \TeX\ for the final conversion back into MetaPost
-code.  Files generated that way end with \texttt{.mpx}.  The following
+code.  Files generated that way end with \texttt{.mpx}\index{mpx
+  file?{\tt mpx} file}\index{files!mpx?{\tt mpx}}.  The following
 command-line switches are accepted:
 \begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
-  \cmdindex{-progname}=$\descr{string}$
-  & Pretend to be the $\descr{string}$ executable.\\
-  \cmdindex{-kpathsea-debug}=$\descr{number}$
-  & Set debugging flags for path searching.\\
   \cmdindex{-help}
   & Show help on command-line switches.\\
+  \cmdindex{-kpathsea-debug}=$\descr{number}$
+  & Set debugging flags for path searching.\\
+  \cmdindex{-progname}=$\descr{string}$
+  & Pretend to be the $\descr{string}$ executable.\\
   \cmdindex{-version}
   & Print version information and exit.\\
 \end{longtable}
