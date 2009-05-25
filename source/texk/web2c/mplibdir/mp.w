@@ -19338,13 +19338,19 @@ static void mp_pair_to_path (MP mp) {
   mp->cur_type=mp_path_type;
 }
 
-@ 
-@d pict_color_type(A) ((mp_link(dummy_loc(mp->cur_exp))!=null) &&
-         (has_color(mp_link(dummy_loc(mp->cur_exp)))) &&
-         ((mp_color_model(mp_link(dummy_loc(mp->cur_exp)))==A)
-         ||
-         ((mp_color_model(mp_link(dummy_loc(mp->cur_exp)))==mp_uninitialized_model) &&
-         (mp->internal[mp_default_color_model]/unity)==(A))))
+@ This complicated if test makes sure that any |bounds| or |clip|
+picture objects that get passed into \&{within} do not raise an 
+error when queried using the color part primitives (this is needed
+for backward compatibility) .
+
+@d cur_pic_item mp_link(dummy_loc(mp->cur_exp))
+@d pict_color_type(A) ((cur_pic_item!=null) &&
+         ((!has_color(cur_pic_item)) 
+          ||
+         (((mp_color_model(cur_pic_item)==A)
+          ||
+          ((mp_color_model(cur_pic_item)==mp_uninitialized_model) &&
+           (mp->internal[mp_default_color_model]/unity)==(A))))))
 
 @<Additional cases of unary operators@>=
 case x_part:
