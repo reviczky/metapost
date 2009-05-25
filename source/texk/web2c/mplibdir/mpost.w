@@ -1,6 +1,6 @@
 % $Id$
 %
-% Copyright 2008 Taco Hoekwater.
+% Copyright 2008-2009 Taco Hoekwater.
 %
 % This program is free software: you can redistribute it and/or modify
 % it under the terms of the GNU Lesser General Public License as published by
@@ -797,7 +797,7 @@ if (dvitomp_only)
 else
   fprintf(stdout, "\n" "MetaPost %s\n", s);
 fprintf(stdout, 
-"Copyright 2008 AT&T Bell Laboratories.\n"
+"Copyright 2009 AT&T Bell Laboratories.\n"
 "There is NO warranty.  Redistribution of this software is\n"
 "covered by the terms of both the MetaPost copyright and\n"
 "the Lesser GNU Lesser General Public License.\n"

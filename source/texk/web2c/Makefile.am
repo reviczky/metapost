@@ -1,3 +1,7 @@
+## Makefile.am for the TeX Live subdirectory texk/web2c/
+##
+## Copyright (C) 2009 Peter Breitenlohner <tex-live@tug.org>
+## You may freely use, modify and/or distribute this file.
 ##
 ACLOCAL_AMFLAGS = -I ../../m4
 
@@ -20,29 +24,31 @@ noinst_PROGRAMS =
 dist_man_MANS =
 nodist_man_MANS =
 check_PROGRAMS =
-dist_check_SCRIPTS =
 TESTS =
 EXTRA_LIBRARIES =
 EXTRA_DIST = PROJECTS cftests config.h cpascal.h help.h
 DISTCLEANFILES = $(EXTRA_LIBRARIES)
 CLEANFILES =
 
-## in case of an SVN repository
+# in case of an SVN repository
 dist-hook:
 	rm -rf `find $(distdir) -name .svn`
 
 ## The sh script that does the conversion.
 web2c = srcdir=$(srcdir) $(SHELL) $(srcdir)/web2c/convert
 
-## We put this in the web2c directory for lack of a better place, but it
+## We put this in the web2c directory because it runs on the build system, it
 ## is separate from (and simpler than) the actual web-to-C conversion programs.
-makecpool = ./web2c/makecpool
+makecpool = web2c/makecpool
 
-## Additional dependencies:
+# Additional dependencies:
 web2c_common = web2c/convert web2c/common.defines
-web2c_programs = web2c/fixwrites web2c/splitup web2c/web2c $(makecpool)
-web2c_texmf = $(web2c_common) $(web2c_programs) \
-              web2c/texmf.defines web2c/coerce.h
+# When cross-compiling, EXEEXT for the build and hosts system may differ.
+# Thus we depend on the auxiliary files web2c/stamp-*.
+web2c_stamps = web2c/stamp-fixwrites web2c/stamp-splitup web2c/stamp-web2c
+makecpool_stamp = web2c/stamp-makecpool
+web2c_depend = $(web2c_common) $(web2c_stamps)
+web2c_texmf = $(web2c_depend) web2c/texmf.defines web2c/coerce.h
 
 ## This is right for most Web2C programs
 LDADD = $(proglib) $(KPATHSEA_LIBS)
@@ -51,13 +57,19 @@ LDADD = $(proglib) $(KPATHSEA_LIBS)
 ## This does not work for the configure substitution  $(KPATHSEA_LIBS),
 ## thus we let $(proglib) artificially depend on $(KPATHSEA_LIBS).
 
-## Rebuild $(proglib)
+# Rebuild $(proglib)
 $(proglib): $(KPATHSEA_DEPEND) ${srcdir}/lib/*.c
 	cd lib && $(MAKE) $(AM_MAKEFLAGS)
 
-## Rebuild $(web2c_programs)
-$(web2c_programs): $(web2c_common) ${srcdir}/web2c/*.[chly]
-	cd web2c && $(MAKE) $(AM_MAKEFLAGS)
+# Rebuild Web2C programs
+web2c/stamp-fixwrites: $(web2c_common) ${srcdir}/web2c/*.[chly]
+	cd web2c && $(MAKE) $(AM_MAKEFLAGS) stamp-fixwrites
+web2c/stamp-splitup: $(web2c_common) ${srcdir}/web2c/*.[chly]
+	cd web2c && $(MAKE) $(AM_MAKEFLAGS) stamp-splitup
+web2c/stamp-web2c: $(web2c_common) ${srcdir}/web2c/*.[chly]
+	cd web2c && $(MAKE) $(AM_MAKEFLAGS) stamp-web2c
+web2c/stamp-makecpool: $(web2c_common) ${srcdir}/web2c/makecpool.c
+	cd web2c && $(MAKE) $(AM_MAKEFLAGS) stamp-makecpool
 
 ## Rebuild libkpathsea
 @KPATHSEA_RULE@
@@ -88,6 +100,11 @@ otangle = WEBINPUTS=.:$(srcdir) $(buildenv) $(OTANGLE)
 ctangle = $(buildenv) $(CTANGLE)
 ctangleboot = $(buildenv) $(CTANGLEBOOT)
 tie = WEBINPUTS=.:$(srcdir) $(buildenv) $(TIE)
+
+## For trip, trap, and other tests
+DIFF = diff
+DIFFFLAGS =
+TESTS_ENVIRONMENT = DIFF='$(DIFF)' DIFFFLAGS='$(DIFFFLAGS)' LN_S='$(LN_S)' KPSEWHICH='$(KPSEWHICH)'
 
 ## The environment for making dumps.
 ## No need to specify TEXMF, as ../kpathsea/texmf.cnf should contain

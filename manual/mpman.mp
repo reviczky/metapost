@@ -825,10 +825,12 @@ fontmapfile "=lm-ec.map";
 beginfig(56);
   picture q;
   path p;
+  interim ahlength := 12bp;
+  interim ahangle := 25;
   q := glyph "Dcaron" of "ec-lmr10" scaled .2;
-  for i within q:
-    p := pathpart i;
-    draw p withcolor (.6,.9,.6)
+  for item within q:
+    p := pathpart item;
+    drawarrow p withcolor (.6,.9,.6)
         withpen pencircle scaled 1.5;
     for j=0 upto length p:
       pickup pencircle scaled .7;
