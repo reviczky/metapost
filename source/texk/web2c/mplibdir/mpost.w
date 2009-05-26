@@ -1071,7 +1071,7 @@ int main (int argc, char **argv) { /* |start_here| */
   if (!nokpse) {
     kpse_set_program_enabled (kpse_mem_format, MAKE_TEX_FMT_BY_DEFAULT,
                               kpse_src_compile);
-    kpse_set_program_name("mpost", user_progname);  
+    kpse_set_program_name(argv[0], user_progname);  
   }
   @= /*@@=nullpass@@*/ @> 
   if(putenv((char *)"engine=metapost"))
