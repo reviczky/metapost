@@ -13805,7 +13805,7 @@ actions.
   mp->in_open=0; mp->open_parens=0; mp->max_buf_stack=0;
   mp->param_ptr=0; mp->max_param_stack=0;
   mp->first=0;
-  start=1; iindex=0; line=0; name=is_term;
+  start=0; iindex=0; line=0; name=is_term;
   mp->mpx_name[0]=absent;
   mp->force_eof=false;
   if ( ! mp_init_terminal(mp) ) mp_jump_out(mp);
