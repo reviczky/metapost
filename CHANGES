@@ -2,6 +2,59 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.201:
+----------------------------------------------------------------------
+
+Bug fixes:
+
+* There was a bug where sometimes the outer contour of a glyph that was
+  asked for via 'glyph X of' was missing from te output, depending on 
+  the path drawing order inside the Type1 font.
+
+* Handling of MPTEXPRE label prefix files was broken.
+
+* Font subsetting for 8-bit characters in Type1 fonts was broken.
+
+* The use of "%{outputtemplate}" inside "outputtemplate" now generates
+  an error.
+
+* The first letter of the input file name was swallowed in the log file.
+
+* There is some rudimentary support for infinite recursion trapping now,
+  to help prevent segfaults&crashes due to C call stack exhaustion.
+
+* An unlucky change in glibc made compilation fail on new GNU/Linux
+  systems due to multiple incompatible definitions of 'getline()'.
+
+* There was a bug in the handling of quoted external commands for 
+  MPXCOMMAND | MPXMAINCMD | TEX.
+
+* The main input file's opening brace and filename were not shown in 
+  the log file output.
+
+* Non-colored picture objects (clipping and setbounds paths) are now 
+  ignored when the color part is asked from within "within", for 
+  backward compatibility reasons.
+
+* The trip and trap files are now part of the distribution and the 
+  mptrap files have been updated.
+
+* The standard web2c argv[0] mem file mimicri was broken: 1.200 was 
+  always looking for "mpost.mem" even when called under another name.
+
+* The manual pages for "mpost" and "dvitomp" have been updated, and the 
+  old "mp" manual page has been removed. 
+
+* The first letter of any missing input file name was not shown in the 
+  terminal error message.
+
+* Output files are now once again written in the current directory even
+  if an explicit source directory is given. This includes the creation
+  of mpx files, but some trickery is used so that up-to-date existing 
+  mpx files from the source directory take precedence.
+
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.200:
 ----------------------------------------------------------------------
 

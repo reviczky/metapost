@@ -351,7 +351,7 @@ static int mpx_newer(char *source, char *target) {
 #if HAVE_ST_MTIM
     if (source_stat.st_mtim.tv_sec > target_stat.st_mtim.tv_sec || 
          (source_stat.st_mtim.tv_sec  == target_stat.st_mtim.tv_sec && 
-          source_stat.st_mtim.tv_nsec >+ target_stat.st_mtim.tv_nsec))
+          source_stat.st_mtim.tv_nsec >= target_stat.st_mtim.tv_nsec))
   	  return 0;
 #else
     if (source_stat.st_mtime >= target_stat.st_mtime)

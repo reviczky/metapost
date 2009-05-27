@@ -13805,7 +13805,7 @@ actions.
   mp->in_open=0; mp->open_parens=0; mp->max_buf_stack=0;
   mp->param_ptr=0; mp->max_param_stack=0;
   mp->first=0;
-  start=1; iindex=0; line=0; name=is_term;
+  start=0; iindex=0; line=0; name=is_term;
   mp->mpx_name[0]=absent;
   mp->force_eof=false;
   if ( ! mp_init_terminal(mp) ) mp_jump_out(mp);
@@ -16560,6 +16560,8 @@ it catch up to what has previously been printed on the terminal.
   integer m; /* the current month */
   const char *months="JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC"; 
     /* abbreviations of month names */
+  if (mp->log_opened)
+    return;
   old_setting=mp->selector;
   if ( mp->job_name==NULL ) {
      mp->job_name=xstrdup("mpout");
@@ -16664,6 +16666,8 @@ when an `\.{input}' command is being processed.
   if ( mp->job_name==NULL ) {
     mp->job_name=xstrdup(mp->cur_name); 
     @<Fix up |mp->internal[mp_job_name]|@>;
+  }
+  if (!mp->log_opened) {
     mp_open_log_file(mp);
   } /* |open_log_file| doesn't |show_context|, so |limit|
         and |loc| needn't be set to meaningful values yet */
@@ -16718,7 +16722,7 @@ with the current input file.
 
 @c void mp_start_mpx_input (MP mp) {
   char *origname = NULL; /* a copy of nameoffile */
-  mp_pack_file_name(mp, in_name, in_area, ".mpx");
+  mp_pack_file_name(mp, in_name, "", ".mpx");
   @<Try to make sure |name_of_file| refers to a valid \.{MPX} file and
     |goto not_found| if there is a problem@>;
   mp_begin_file_reading(mp);
@@ -19334,13 +19338,19 @@ static void mp_pair_to_path (MP mp) {
   mp->cur_type=mp_path_type;
 }
 
-@ 
-@d pict_color_type(A) ((mp_link(dummy_loc(mp->cur_exp))!=null) &&
-         (has_color(mp_link(dummy_loc(mp->cur_exp)))) &&
-         ((mp_color_model(mp_link(dummy_loc(mp->cur_exp)))==A)
-         ||
-         ((mp_color_model(mp_link(dummy_loc(mp->cur_exp)))==mp_uninitialized_model) &&
-         (mp->internal[mp_default_color_model]/unity)==(A))))
+@ This complicated if test makes sure that any |bounds| or |clip|
+picture objects that get passed into \&{within} do not raise an 
+error when queried using the color part primitives (this is needed
+for backward compatibility) .
+
+@d cur_pic_item mp_link(dummy_loc(mp->cur_exp))
+@d pict_color_type(A) ((cur_pic_item!=null) &&
+         ((!has_color(cur_pic_item)) 
+          ||
+         (((mp_color_model(cur_pic_item)==A)
+          ||
+          ((mp_color_model(cur_pic_item)==mp_uninitialized_model) &&
+           (mp->internal[mp_default_color_model]/unity)==(A))))))
 
 @<Additional cases of unary operators@>=
 case x_part:
