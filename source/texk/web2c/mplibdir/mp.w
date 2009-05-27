@@ -16722,7 +16722,7 @@ with the current input file.
 
 @c void mp_start_mpx_input (MP mp) {
   char *origname = NULL; /* a copy of nameoffile */
-  mp_pack_file_name(mp, in_name, in_area, ".mpx");
+  mp_pack_file_name(mp, in_name, "", ".mpx");
   @<Try to make sure |name_of_file| refers to a valid \.{MPX} file and
     |goto not_found| if there is a problem@>;
   mp_begin_file_reading(mp);
