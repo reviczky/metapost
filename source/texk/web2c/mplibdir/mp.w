@@ -19390,7 +19390,7 @@ case black_part:
   else mp_bad_unary(mp, c);
   break;
 case grey_part: 
-  if ( mp->cur_type==mp_known ) mp->cur_exp=value(c);
+  if ( mp->cur_type==mp_known ) ; /* mp->cur_exp=mp->cur_exp */
   else if ( mp->cur_type==mp_picture_type ) {
     if pict_color_type(mp_grey_model) mp_take_pict_part(mp, c);
     else mp_bad_color_part(mp, c);
