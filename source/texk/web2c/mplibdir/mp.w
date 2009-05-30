@@ -23669,7 +23669,9 @@ else if ( mp->cur_type==mp_cmykcolor_type )
 else if ( mp->cur_type==mp_known )
    @<Transfer a greyscale from the current expression to object~|cp|@>
 else if ( mp->cur_exp==false_code )
-   @<Transfer a noncolor from the current expression to object~|cp|@>;
+   @<Transfer a noncolor from the current expression to object~|cp|@>
+else if ( mp->cur_exp==true_code )
+   @<Transfer no color from the current expression to object~|cp|@>;
 }
 
 @ @<Transfer a rgbcolor from the current expression to object~|cp|@>=
@@ -23727,6 +23729,16 @@ yellow_val(cp)=0;
 black_val(cp)=0;
 grey_val(cp)=0;
 mp_color_model(cp)=mp_no_model;
+}
+
+@ @<Transfer no color from the current expression to object~|cp|@>=
+{
+cyan_val(cp)=0;
+magenta_val(cp)=0;
+yellow_val(cp)=0;
+black_val(cp)=0;
+grey_val(cp)=0;
+mp_color_model(cp)=mp_uninitialized_model;
 }
 
 @ @<Make |cp| a colored object in object list~|p|@>=
