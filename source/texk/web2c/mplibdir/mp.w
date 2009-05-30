@@ -16325,7 +16325,9 @@ boolean mp_open_mem_file (MP mp) {
     return true;
   if (mp_xstrcmp(mp->mem_name, "plain")) {
     wake_up_terminal;
-    wterm_ln("Sorry, I can\'t find that mem file; will try PLAIN.");
+    wterm_ln("Sorry, I can\'t find the '");
+    wterm(mp->mem_name);
+    wterm("' mem file; will try 'plain'.");
 @.Sorry, I can't find...@>
     update_terminal;
     /* now pull out all the stops: try for the system \.{plain} file */
@@ -16335,7 +16337,7 @@ boolean mp_open_mem_file (MP mp) {
       return true;
   }
   wake_up_terminal;
-  wterm_ln("I can\'t find the PLAIN mem file!\n");
+  wterm_ln("I can't find the 'plain' mem file!\n");
 @.I can't find PLAIN...@>
 @.plain@>
   return false;
