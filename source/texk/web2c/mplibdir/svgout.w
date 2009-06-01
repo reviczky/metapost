@@ -800,11 +800,10 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
   mp_ps_font *f = NULL; 
   mp_edge_object *ch;
   p = h->body;
-  while ( p!=NULL ) { 
-    l = gr_text_l(p);
+  while ( p!=NULL ) {
     if ((gr_type(p) == mp_text_code) &&
         (gr_font_n(p)!=null_font) && 
-        (l>0) ) {
+        ((l = gr_text_l(p))>0) ) {
       char *s = gr_text_p(p);
       while (l-->0) {
         do_mark(gr_font_n(p), *s);
