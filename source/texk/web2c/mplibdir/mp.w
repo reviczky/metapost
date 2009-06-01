@@ -1,4 +1,4 @@
-% $Id$
+ $Id$
 %
 % Copyright 2008-2009 Taco Hoekwater.
 %
@@ -838,7 +838,7 @@ static void mp_reallocate_buffer(MP mp, size_t l) {
     mp_confusion(mp,"buffer size"); /* can't happen (I hope) */
   }
   buffer = xmalloc((l+1),sizeof(ASCII_code));
-  memcpy(buffer,mp->buffer,(mp->buf_size+1));
+  (void)memcpy(buffer,mp->buffer,(mp->buf_size+1));
   xfree(mp->buffer);
   mp->buffer = buffer ;
   mp->buf_size = l;
@@ -876,7 +876,7 @@ static boolean mp_input_ln (MP mp, void *f ) {
         mp_reallocate_buffer(mp,(mp->buf_size+(mp->buf_size>>2)));
       }
     }
-    memcpy((mp->buffer+mp->first),s,size);
+    (void)memcpy((mp->buffer+mp->first),s,size);
   } 
   free(s);
   return true;
@@ -908,7 +908,7 @@ initialization.
     mp->term_in = (mp->open_file)(mp,"terminal", "r", mp_filetype_terminal);
     if (mp->command_line!=NULL) {
       mp->last = strlen(mp->command_line);
-      strncpy((char *)mp->buffer,mp->command_line,mp->last);
+      (void)memcpy((void *)mp->buffer,(void *)mp->command_line,mp->last);
       xfree(mp->command_line);
     } else {
 	  mp->last = 0;
@@ -1114,7 +1114,7 @@ char * mp_str (MP mp, str_number ss) {
   } else {
     len = (size_t)length(ss);
     s = xmalloc(len+1,sizeof(char));
-    strncpy(s,(char *)(mp->str_pool+(mp->str_start[ss])),len);
+    (void)memcpy(s,(char *)(mp->str_pool+(mp->str_start[ss])),len);
     s[len] = 0;
     return (char *)s;
   }
@@ -4501,7 +4501,7 @@ void mp_check_mem (MP mp,boolean print_locs ) {
   if ( print_locs ) {
     @<Print newly busy locations@>;
   }
-  memcpy(mp->was_free,mp->free, sizeof(char)*(mp->mem_end+1));
+  (void)memcpy(mp->was_free,mp->free, sizeof(char)*(mp->mem_end+1));
   mp->was_mem_end=mp->mem_end; 
   mp->was_lo_max=mp->lo_mem_max; 
   mp->was_hi_min=mp->hi_mem_min;
@@ -16190,7 +16190,7 @@ boolean mp_more_name (MP mp, ASCII_code c) {
 
 @d copy_pool_segment(A,B,C) { 
       A = xmalloc(C+1,sizeof(char)); 
-      strncpy(A,(char *)(mp->str_pool+B),C);  
+      (void)memcpy(A,(char *)(mp->str_pool+B),C);  
       A[C] = 0;}
 
 @c
@@ -21408,10 +21408,10 @@ static void mp_cat (MP mp,pointer p) {
     }
     mp->max_pool_ptr=needed; 
   }
-  memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[a],(size_t)k);
+  (void)memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[a],(size_t)k);
   mp->pool_ptr+=k; 
   k=length(b);
-  memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[b],(size_t)k);
+  (void)memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[b],(size_t)k);
   mp->pool_ptr+=k;
   mp->cur_exp=mp_make_string(mp); delete_str_ref(b);
 }
@@ -24974,7 +24974,7 @@ do {
     size_t l = (size_t)(mp->header_size + (mp->header_size/4));
     char *t = xmalloc(l,1);
     memset(t,0,l); 
-    memcpy(t,mp->header_byte,(size_t)mp->header_size);
+    (void)memcpy(t,mp->header_byte,(size_t)mp->header_size);
     xfree (mp->header_byte);
     mp->header_byte = t;
     mp->header_size = (int)l;
@@ -25939,7 +25939,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
                 integer h = mp_compute_hash(mp, (char *)(mp->str_pool+frst),l);
                 pointer p=h+hash_base; /* we start searching here */
 	        char *id = xmalloc(mp, (l+1));
-                strncpy(id,(char *)(mp->str_pool+frst),l);
+                (void)memcpy(id,(char *)(mp->str_pool+frst),l);
 	        *(id+l)=0;
 	        while (true)  { 
 	     	  if (text(p)>0 && length(text(p))==l && 
