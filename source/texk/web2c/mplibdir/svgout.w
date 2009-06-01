@@ -804,7 +804,7 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
     if ((gr_type(p) == mp_text_code) &&
         (gr_font_n(p)!=null_font) && 
         ((l = gr_text_l(p))>0) ) {
-      char *s = gr_text_p(p);
+      unsigned char *s = (unsigned char *)gr_text_p(p);
       while (l-->0) {
         do_mark(gr_font_n(p), *s);
         s++;
