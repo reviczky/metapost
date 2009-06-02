@@ -25904,7 +25904,11 @@ static char *mp_set_output_file_name (MP mp, integer c) {
  	    mp_append_to_template(mp,f,mp_job_name); 
 	    break;
 	  case 'c': 
-	    mp_append_to_template(mp,f,mp_char_code); 
+            if (mp->internal[mp_char_code]<0) {
+                mp_print(mp,"ps");
+            } else {
+                mp_append_to_template(mp,f,mp_char_code); 
+            }
             break;
 	  case 'o': 
 	    mp_append_to_template(mp,f,mp_output_format); 
