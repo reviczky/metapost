@@ -3153,8 +3153,12 @@ and truncation operations.
 
 @<Internal library declarations@>=
 #define mp_floor_scaled(M,i) ((i)&(-65536))
-#define mp_round_unscaled(M,i) (i>0 ? (((i/32768)+1)/2) : (((i/32768)-1)/2))
-#define mp_round_fraction(M,i) (i>0 ? (((i/2048)+1)/2) : (((i/2048)-1)/2))
+
+#define mp_round_unscaled(M,x) (x>=0100000 ? 1+((x-0100000) / 0200000) \
+  : ( x>=-0100000 ? 0 : -(1+((-(x+1)-0100000) / 0200000))))
+
+#define mp_round_fraction(M,x) (x>=2048 ? 1+((x-2048) / 4096) \
+  : ( x>=-2048 ? 0 : -(1+((-(x+1)-2048) / 4096))))
 
 
 @* \[8] Algebraic and transcendental functions.
@@ -4850,7 +4854,7 @@ static void mp_print_type (MP mp,quarterword t) ;
 @ @<Basic printing procedures@>=
 void mp_print_type (MP mp,quarterword t) { 
   switch (t) {
-  case mp_vacuous:mp_print(mp, "mp_vacuous"); break;
+  case mp_vacuous:mp_print(mp, "vacuous"); break;
   case mp_boolean_type:mp_print(mp, "boolean"); break;
   case mp_unknown_boolean:mp_print(mp, "unknown boolean"); break;
   case mp_string_type:mp_print(mp, "string"); break;
@@ -17134,7 +17138,7 @@ void mp_print_exp (MP mp,pointer p, quarterword verbosity) {
 
 @ @<Print an abbreviated value of |v| with format depending on |t|@>=
 switch (t) {
-case mp_vacuous:mp_print(mp, "mp_vacuous"); break;
+case mp_vacuous:mp_print(mp, "vacuous"); break;
 case mp_boolean_type:
   if ( v==true_code ) mp_print(mp, "true"); else mp_print(mp, "false");
   break;
