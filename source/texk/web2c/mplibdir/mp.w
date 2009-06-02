@@ -19994,7 +19994,7 @@ static scaled mp_turn_cycles_wrapper (MP mp,pointer c) {
   } else {
     nval = mp_new_turn_cycles(mp, c);
     oval = mp_turn_cycles(mp, c);
-    if ( nval!=oval ) {
+    if ( nval!=oval && mp->internal[mp_tracing_choices]>(2*unity)) {
       saved_t_o=mp->internal[mp_tracing_online];
       mp->internal[mp_tracing_online]=unity;
       mp_begin_diagnostic(mp);
