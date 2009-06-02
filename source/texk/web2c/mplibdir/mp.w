@@ -24978,6 +24978,7 @@ We may need to cancel skips that span more than 127 lig/kern steps.
 @ The header could contain ASCII zeroes, so can't use |strdup|.
 
 @<Store a list of header bytes@>=
+j--;
 do {  
   if ( j>=mp->header_size ) {
     size_t l = (size_t)(mp->header_size + (mp->header_size/4));
