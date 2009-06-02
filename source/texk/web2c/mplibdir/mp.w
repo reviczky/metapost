@@ -21192,12 +21192,15 @@ since the \ps\ output procedures will try to compensate for the transformation
 we are applying to |mp_pen_p(q)|.  Since this compensation is based on the square
 root of the determinant, |sqdet| is the appropriate factor.
 
+We pass the mptrap test only if |dash_scale| is not adjusted, nowadays
+(backend is changed?)
+
 @<Transform |mp_pen_p(q)|, making sure...@>=
 if ( mp_pen_p(q)!=null ) {
   sx=mp->tx; sy=mp->ty;
   mp->tx=0; mp->ty=0;
   mp_do_pen_trans(mp, mp_pen_p(q));
-  if ( ((mp_type(q)==mp_stroked_code)&&(mp_dash_p(q)!=null)) )
+  if ( sqdet !=0 && ((mp_type(q)==mp_stroked_code)&&(mp_dash_p(q)!=null)) )
     dash_scale(q)=mp_take_scaled(mp, dash_scale(q),sqdet);
   if ( ! pen_is_elliptical(mp_pen_p(q)) )
     if ( sgndet<0 )
