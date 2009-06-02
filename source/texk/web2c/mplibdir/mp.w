@@ -8819,6 +8819,8 @@ if ( arc>0 ) {
   n = arc / (arc0 - arc);
   arc = arc - n*(arc0 - arc);
   if ( t_tot > (el_gordo / (n+1)) ) { 
+        mp->arith_error = true;
+        check_arith;
 	return el_gordo;
   }
   t_tot = (n + 1)*t_tot;
