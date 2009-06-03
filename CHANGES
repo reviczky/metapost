@@ -2,6 +2,45 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.202:
+----------------------------------------------------------------------
+
+Bug fixes:
+
+* Fix greypart <numeric> (always returned 0).
+
+* Make 'withcolor true' explicitly reset the color model to uninitialized.
+
+* Report which mem file can't be found, and use 'plain' instead of PLAIN 
+  in the mem search warning messages.
+
+* Fix a crash on subsetting of some Type1 fonts because of a temporary
+  buffer overrun.
+
+* Correct a crash on SVG text output when the 8th bit is set.
+
+* Fix the use (reference) of 8-bit glyphs in SVG mode when prologues:=3.
+
+* Fix the output of text strings that reference the character at index 0.
+  
+* Use ".ps" as file extension for negative charcodes (backward compatility).
+
+* Metapost sometimes printed "mp_vacuous" instead of "vacuous".
+
+* Fix rounding of negative scaled and fraction values.
+
+* Restore the error for 'arctime' out-of-bounds.
+
+* Moved the "turningnumber algorithms do not agree" message out of reach
+  (now only printed if tracingchoices>2 )
+
+* Fix a problem with dash scaling during picture copying.
+
+* TFM header bytes were written out with an offset of one.
+
+* Updated the mptrap files.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.201:
 ----------------------------------------------------------------------
 
