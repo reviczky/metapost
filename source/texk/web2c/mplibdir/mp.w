@@ -279,10 +279,10 @@ MP mp_initialize (MP_options *opt) {
     @<Initialize the output routines@>;
     @<Get the first line of input and prepare to start@>;
     @<Initializations after first line is read@>;
+    @<Fix up |mp->internal[mp_job_name]|@>;
   } else {
     mp->history=mp_spotless;
   }
-  @<Fix up |mp->internal[mp_job_name]|@>;
   return mp;
 }
 
@@ -22813,6 +22813,7 @@ if (mp->troff_mode) {
   mp->internal[mp_gtroffmode]=unity; 
   mp->internal[mp_prologues]=unity; 
 }
+@<Fix up |mp->internal[mp_job_name]|@>;
 if ( mp->start_sym>0 ) { /* insert the `\&{everyjob}' symbol */
   mp->cur_sym=mp->start_sym; mp_back_input(mp);
 }
@@ -26036,7 +26037,8 @@ static char * mp_get_output_file_name (MP mp) {
   char *f;
   char *saved_name;  /* saved |name_of_file| */
   saved_name = xstrdup(mp->name_of_file);
-  f = mp_set_output_file_name(mp, mp_round_unscaled(mp, mp->internal[mp_char_code]));
+  (void)mp_set_output_file_name(mp, mp_round_unscaled(mp, mp->internal[mp_char_code]));
+  f = xstrdup(mp->name_of_file);
   mp_pack_file_name(mp, saved_name,NULL,NULL);
   free(saved_name);
   return f;
