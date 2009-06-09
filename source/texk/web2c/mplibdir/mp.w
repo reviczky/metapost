@@ -15899,6 +15899,23 @@ text(frozen_repeat_loop)=intern(" ENDFOR");
     }
     mp->cur_type=mp_known; q=mp_stash_cur_exp(mp); /* make |q| an \&{expr} argument */
     value(p)=mp->cur_exp+step_size(p); /* set |value(p)| for the next iteration */
+    /* detect numeric overflow */
+    if ((step_size(p)>0) && (value(p)<mp->cur_exp)) {
+       if (final_value(p)>0) {
+         value(p)=final_value(p);
+         final_value(p) = final_value(p) - 1;
+       } else {
+         value(p)=final_value(p)+1;
+       }
+    } else if ((step_size(p)<0) && (value(p)>mp->cur_exp)) {
+       if (final_value(p)<0) {
+         value(p)=final_value(p);
+         final_value(p) = final_value(p)+1;
+       } else {
+         value(p)=final_value(p)-1;
+       }
+    }
+    
   } else if ( p==null ) { 
     p=loop_list(mp->loop_ptr);
     if ( p==null ) {
