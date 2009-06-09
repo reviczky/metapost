@@ -2,6 +2,25 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.203:
+----------------------------------------------------------------------
+
+Bug fixes:
+
+* Building version 1.202 for source required X11 headers to be installed.
+
+* Another infinite recursion trap added, now for erroneous vardefs
+  with suffixes (reported by Nicola Vitacolonna).
+
+* Fix infinite loop recursion on integer overflow (reported by Nicola 
+  Vitacolonna, fix based on a hint from Dan Luecking).
+
+* In version 1.202, setting "job_name" from lua code caused a crash.
+
+* The "filename" field on the lua figure object in 1.202 was just the
+  extension, instead of the whole file name.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.202:
 ----------------------------------------------------------------------
 
