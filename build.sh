@@ -160,6 +160,7 @@ then
     --without-system-t1lib \
     --disable-shared    \
     --disable-largefile \
+    --without-mf-x-toolkit --without-x \
     || exit 1 
 fi
 
