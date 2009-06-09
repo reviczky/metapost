@@ -18420,6 +18420,8 @@ static void mp_scan_expression (MP mp) {
   int t; /* knot type following a path join */
   t=0; y=0; x=0;
   my_var_flag=mp->var_flag; mac_name=null;
+  mp->expand_depth_count++;
+  mp_check_expansion_depth(mp);
 RESTART:
   if ((mp->cur_cmd<min_primary_command)||
       (mp->cur_cmd>max_primary_command) )
@@ -18451,6 +18453,7 @@ CONTINUE:
         goto CONTINUE;
      }
   }
+  mp->expand_depth_count--;
 }
 
 @ The reader should review the data structure conventions for paths before
