@@ -2,6 +2,16 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.204:
+----------------------------------------------------------------------
+
+Bug fixes:
+
+* Metapost could go into an endless output loop when characters in 
+  bitmap fonts where used, because it tried to limit the %*Font output
+  line to a specific number of bytes.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.203:
 ----------------------------------------------------------------------
 
