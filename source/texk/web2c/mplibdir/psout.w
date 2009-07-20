@@ -3486,8 +3486,8 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
   assert(f->pp == NULL);
   assert(f->p == NULL);
   f->pp = mp_xmalloc(mp, 1, sizeof (mp_knot));
-  f->pp->left_type = mp_explicit;
-  f->pp->right_type = mp_explicit;
+  f->pp->data.types.left_type = mp_explicit;
+  f->pp->data.types.right_type = mp_explicit;
   f->pp->x_coord = scaled_from_double(f->cur_x + dx);
   f->pp->y_coord = scaled_from_double(f->cur_y + dy);
   f->pp->left_x = f->pp->right_x = f->pp->x_coord;
@@ -3530,8 +3530,8 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
 @d add_line_segment(f,dx,dy) do {
    assert(f->pp != NULL);
    n = mp_xmalloc(mp,1, sizeof (mp_knot));
-   n->left_type = mp_explicit;
-   n->right_type = mp_explicit;
+   n->data.types.left_type = mp_explicit;
+   n->data.types.right_type = mp_explicit;
    n->next = gr_path_p((mp_fill_object *)f->p); /* loop */  
    n->x_coord = scaled_from_double(f->cur_x + dx);
    n->y_coord = scaled_from_double(f->cur_y + dy);
@@ -3547,8 +3547,8 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
 
 @d add_curve_segment(f,dx1,dy1,dx2,dy2,dx3,dy3) do {
    n = mp_xmalloc(mp, 1, sizeof (mp_knot));
-   n->left_type = mp_explicit;
-   n->right_type = mp_explicit; 
+   n->data.types.left_type = mp_explicit;
+   n->data.types.right_type = mp_explicit; 
    n->next = gr_path_p((mp_fill_object *)f->p); /* loop */  
    n->x_coord = scaled_from_double(f->cur_x + dx1 + dx2 + dx3);
    n->y_coord = scaled_from_double(f->cur_y + dy1 + dy2 + dy3);
@@ -4860,22 +4860,10 @@ void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues) {
 a \MP\ path.
 
 @(mplibps.h@>=
-typedef struct mp_knot {
-  unsigned short left_type;
-  unsigned short right_type;
-  signed int x_coord;
-  signed int y_coord;
-  signed int left_x;
-  signed int left_y;
-  signed int right_x;
-  signed int right_y;
-  struct mp_knot * next;
-  unsigned char originator;
-} mp_knot;
 
 @ @<Types...@>=
-#define gr_left_type(A)  (A)->left_type
-#define gr_right_type(A) (A)->right_type
+#define gr_left_type(A)  (A)->data.types.left_type
+#define gr_right_type(A) (A)->data.types.right_type
 #define gr_x_coord(A)    (A)->x_coord
 #define gr_y_coord(A)    (A)->y_coord  
 #define gr_left_x(A)     (A)->left_x
@@ -4913,43 +4901,6 @@ static mp_knot *mp_gr_copy_path (MP mp,  mp_knot *p) {
   }
   gr_next_knot(qq)=q;
   return q;
-}
-
-@ Similarly, there's a way to copy the {\sl reverse\/} of a path. This procedure
-returns a pointer to the first node of the copy, if the path is a cycle,
-but to the final node of a non-cyclic copy. The global
-variable |path_tail| will point to the final node of the original path;
-this trick makes it easier to implement `\&{doublepath}'.
-
-All node types are assumed to be |endpoint| or |explicit| only.
-
-This function is currenly unused.
-
-@c 
-mp_knot * mp_gr_htap_ypoc (MP mp,  mp_knot *p) {
-  mp_knot *q, *pp, *qq, *rr; /* for list manipulation */
-  q=mp_xmalloc(mp, 1, sizeof (mp_knot)); /* this will correspond to |p| */
-  qq=q; pp=p;
-  while (1) { 
-    gr_right_type(qq)=gr_left_type(pp); 
-    gr_left_type(qq)=gr_right_type(pp);
-    gr_x_coord(qq)=gr_x_coord(pp); 
-    gr_y_coord(qq)=gr_y_coord(pp);
-    gr_right_x(qq)=gr_left_x(pp); 
-    gr_right_y(qq)=gr_left_y(pp);
-    gr_left_x(qq)=gr_right_x(pp); 
-    gr_left_y(qq)=gr_right_y(pp);
-    gr_originator(qq)=gr_originator(pp);
-    if ( gr_next_knot(pp)==p ) { 
-      gr_next_knot(q)=qq; 
-      /* |mp->path_tail=pp;| */ /* ? */
-      return q;
-    }
-    rr=mp_xmalloc(mp, 1, sizeof (mp_knot));
-    gr_next_knot(rr)=qq; 
-    qq=rr; 
-    pp=gr_next_knot(pp);
-  }
 }
 
 @ When a cyclic list of knot nodes is no longer needed, it can be recycled by
