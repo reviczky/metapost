@@ -1828,14 +1828,31 @@ void mp_print (MP mp, const char *ss) {
   if (ss==NULL) return;
   mp_do_print(mp, ss,strlen(ss));
 }
+
+@ This function is somewhat less trivial than expected
+because it is not safe to directly print data in the
+string pool since |mp_do_print()| can potentially reallocate 
+the whole lot.
+
+@<Basic print...@>=
 void mp_print_str (MP mp, str_number s) {
   pool_pointer j; /* current character code position */
+  char *ss; /* a temporary C string */
+  size_t len; /* its length */
   if ( (s<0)||(s>mp->max_str_ptr) ) {
      mp_do_print(mp,"???",3); /* this can't happen */
 @.???@>
   }
   j=mp->str_start[s];
-  mp_do_print(mp, (char *)(mp->str_pool+j), (size_t)(str_stop(s)-j));
+  len = (str_stop(s)-j);
+  ss = xmalloc(len+1, sizeof(char));
+  if (len > 0) {
+    /* the man page doesnt say whether 0 is allowed */
+    memcpy(ss,(char *)(mp->str_pool+j),len);
+  }
+  ss[len] = '\0';
+  mp_do_print(mp, ss, len);
+  mp_xfree(ss);
 }
 
 
