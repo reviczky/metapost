@@ -2,6 +2,20 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.206:
+----------------------------------------------------------------------
+
+Bug fixes:
+
+* Many of the commands in the MP language cause strings in the string
+  pool to be printed to new strings that are also built up in the 
+  string pool. This could cause crashes when the new string wouldn't 
+  fit in the memory allocated.
+
+* Failure to initialize the jobname in the MP_options struct could 
+  cause crashes in library mode.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.205:
 ----------------------------------------------------------------------
 
