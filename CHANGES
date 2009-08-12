@@ -2,6 +2,14 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.207:
+----------------------------------------------------------------------
+
+* With the -file-line-error commandline option, MetaPost 1.20x always
+  reported the name of the most recently 'input' file instead of the
+  name of the actual current file.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.206:
 ----------------------------------------------------------------------
 
