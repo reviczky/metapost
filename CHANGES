@@ -2,6 +2,13 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.208:
+----------------------------------------------------------------------
+
+* Previous versions of MetaPost 1.20x were overeager to remove file
+  extensions from the end of the jobname.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.207:
 ----------------------------------------------------------------------
 
