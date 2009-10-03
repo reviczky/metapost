@@ -1646,7 +1646,7 @@ to the end of the line are ignored.
 
 Another special character is the period.  Two or more periods together
 form a symbolic token, but a single period is ignored, and a period
-preceded or followed by digits is part of a number Thus {\tt ..}  and
+preceded or followed by digits is part of a number.  Thus {\tt ..}  and
 {\tt ...} are symbolic tokens while {\tt a.b} is just two tokens {\tt a}
 and {\tt b}.  It is conventional to use periods to separate tokens in
 this fashion when naming a variable that is more than one token long.
@@ -4746,10 +4746,10 @@ $$ {\tt for}\, \descr{symbolic token}\, \hbox{\tt =}\,
 $$
 It is equally simple to construct a loop that counts downward: just
 replace {\tt upto} by {\tt
-downto}\index{downto?\texttt{downto}}\label{Ddwnto} make the second
-\tdescr{expression} smaller than the first.  This section covers more
-complicated types of progressions, loops where the loop counter behaves
-like a suffix parameter, and ways of exiting from a loop.
+  downto}\index{downto?\texttt{downto}}\label{Ddwnto} and make the
+second \tdescr{expression} smaller than the first.  This section covers
+more complicated types of progressions, loops where the loop counter
+behaves like a suffix parameter, and ways of exiting from a loop.
 
 The first generalization is suggested by the fact that {\tt
 upto}\index{upto?\texttt{upto}} is a predefined macro
