@@ -1644,12 +1644,12 @@ one or two.  The percent sign is very special because it introduces
 comments\index{comments}.  The percent sign and everything after it up
 to the end of the line are ignored.
 
-Another special character is the period.  Two or more periods
-together form a symbolic token, but a single period is ignored, and a period
-preceded or followed by digits is part of a number  Thus {\tt ..}
-and {\tt ...} are symbolic tokens while {\tt a.b} is just two tokens {\tt a}
-and {\tt b}.  It conventional to use periods to separate tokens in this fashion
-when naming a variable that is more than one token long.
+Another special character is the period.  Two or more periods together
+form a symbolic token, but a single period is ignored, and a period
+preceded or followed by digits is part of a number Thus {\tt ..}  and
+{\tt ...} are symbolic tokens while {\tt a.b} is just two tokens {\tt a}
+and {\tt b}.  It is conventional to use periods to separate tokens in
+this fashion when naming a variable that is more than one token long.
 
 \subsection{Variable Declarations}
 \label{vardecl}
@@ -4779,7 +4779,7 @@ and~\ref{fig40}.
 
 Alternatively, the values to iterate over can be given explicitly.  Any
 sequence of zero or more expressions separated by commas can be used in
-place of {\tt a step b upto c}.  In fact, the expressions need not all
+place of {\tt a step b until c}.  In fact, the expressions need not all
 be the same type and they need not have known values.  Thus
 $$ \hbox{\tt for t=3.14, 2.78, (a,2a), "hello": show t; endfor} $$
 shows the four values listed.
