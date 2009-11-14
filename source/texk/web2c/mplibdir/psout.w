@@ -5722,6 +5722,7 @@ static void mp_gr_stroke_ellipse (MP mp,  mp_graphic_object *h, boolean fill_als
       mp_ps_pair_out(mp, txy,tyy);
       mp_ps_print(mp, "0 0] t");
     } else if ((txx!=unity)||(tyy!=unity) )  {
+      mp_ps_print(mp, " ");
       mp_ps_pair_out(mp,txx,tyy);
       mp_ps_print(mp, " s");
     };
