@@ -4671,7 +4671,7 @@ void mp_print_prologue (MP mp, mp_edge_object *h, int prologues, int procset) {
   font_number ldf ;
   ldf = mp_print_font_comments (mp, h, prologues);
   mp_ps_print_ln(mp);
-  if ( (prologues==1) && (mp->last_ps_fnum<mp->last_fnum) )
+  if ( (prologues==1) && mp->ps->tfm_tree == NULL && (mp->last_ps_fnum<mp->last_fnum) )
     mp_read_psname_table(mp);
   mp_ps_print(mp, "%%BeginProlog"); mp_ps_print_ln(mp);
   if ( (prologues>0)||(procset>0) ) {
