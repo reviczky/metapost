@@ -813,6 +813,12 @@ if (!nokpse)
 @ 
 @<Show help...@>=
 {
+char *s = mp_metapost_version();
+if (dvitomp_only)
+  fprintf(stdout, "\n" "This is dvitomp %s\n", s);
+else
+  fprintf(stdout, "\n" "This is MetaPost %s\n", s);
+mpost_xfree(s);
 fprintf(stdout,
 "\n"
 "Usage: mpost [OPTION] [&MEMNAME] [MPNAME[.mp]] [COMMANDS]\n"
@@ -834,6 +840,7 @@ fprintf(stdout,
 "  [-no]-file-line-error     disable/enable file:line:error style messages\n"
 );
 fprintf(stdout,
+"  -debug                    print debugging info and leave temporary files in place\n"
 "  -kpathsea-debug=NUMBER    set path searching debugging flags according to\n"
 "                            the bits of NUMBER\n"
 "  -mem=MEMNAME or &MEMNAME  use MEMNAME instead of program name or a %%& line\n"
@@ -852,6 +859,12 @@ fprintf(stdout,
 @ 
 @<Show short help...@>=
 {
+char *s = mp_metapost_version();
+if (dvitomp_only)
+  fprintf(stdout, "\n" "This is dvitomp %s\n", s);
+else
+  fprintf(stdout, "\n" "This is MetaPost %s\n", s);
+mpost_xfree(s);
 fprintf(stdout,
 "\n"
 "Usage: dvitomp DVINAME[.dvi] [MPXNAME[.mpx]]\n"
@@ -860,6 +873,7 @@ fprintf(stdout,
 "  Convert a TeX DVI file to a MetaPost MPX file.\n\n");
 fprintf(stdout,
 "  -progname=STRING          set program name to STRING\n"
+"  -debug                    print debugging info and leave temporary files in place\n"
 "  -kpathsea-debug=NUMBER    set path searching debugging flags according to\n"
 "                            the bits of NUMBER\n"
 "  -help                     display this help and exit\n"
