@@ -21677,7 +21677,6 @@ static void mp_set_up_glyph_infont (MP mp, pointer p) {
       }
     } else {
       n = mp_str(mp, value(p));
-      delete_str_ref(value(p));
       h = mp_ps_do_font_charstring (mp,f,n);
       free(n);
     }
