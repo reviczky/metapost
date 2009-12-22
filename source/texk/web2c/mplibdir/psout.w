@@ -3695,20 +3695,31 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
         break;
       case CS_HMOVETO: /* |- dx HMOVETO  |- */
         cs_debug(CS_HMOVETO);
-        finish_subpath();
-        start_subpath(f,cc_get(-1),0);
+	/* treating in-line moves as 'line segments' work better than attempting 
+           to split the path up in two separate sections, at least for now. */
+        if (f->pp == NULL) { /* this is the first */
+           start_subpath(f,cc_get(-1),0);
+        } else {  
+           add_line_segment(f,cc_get(-1),0);
+        }
         cc_clear ();
         break;
       case CS_RMOVETO:  /* |- dx dy RMOVETO |- */
         cs_debug(CS_RMOVETO);
-        finish_subpath();
-        start_subpath(f,cc_get(-2),cc_get(-1));
+        if (f->pp == NULL) { /* this is the first */
+           start_subpath(f,cc_get(-2),cc_get(-1));
+        } else {  
+           add_line_segment(f,cc_get(-2),cc_get(-1));
+        }
         cc_clear ();
         break;
       case CS_VMOVETO: /* |- dy VMOVETO |- */
         cs_debug(CS_VMOVETO);
-        finish_subpath();
-        start_subpath(f,0,cc_get(-1));
+        if (f->pp == NULL) { /* this is the first */
+           start_subpath(f,0,cc_get(-1));
+        } else {  
+           add_line_segment(f,0,cc_get(-1));
+        }
         cc_clear ();
         break;
         /* hinting commands */
@@ -3812,9 +3823,7 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
         break;
       case CS_SETCURRENTPOINT: /* |- x y SETCURRENTPOINT |- */
         cs_debug(CS_SETCURRENTPOINT);
-        f->cur_x = cc_get(-2);
-        f->cur_y = cc_get(-1);
-        f->pp = NULL;
+	/* totally ignoring setcurrentpoint actually works better for most fonts ? */
         cc_clear ();
         break;
       default:
