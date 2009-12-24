@@ -260,6 +260,8 @@ static void mpx_abort(MPX mpx, char *msg, ...) {
   va_start(ap, msg);
   fprintf(stderr, "fatal: ");
   (void)vfprintf(stderr, msg, ap);
+  va_end(ap);
+  va_start(ap, msg);
   mpx_printf(mpx, "fatal", msg, ap);
   va_end(ap);
   mpx->history=mpx_fatal_error;
