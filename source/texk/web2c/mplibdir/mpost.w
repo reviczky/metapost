@@ -1153,12 +1153,9 @@ if (options->job_name != NULL) {
   if (tmp_job == NULL) {
     tmp_job = mpost_xstrdup("mpout");
   } else {
-    size_t i = strlen(tmp_job);
-    if (i>3
-        && *(tmp_job+i-3)=='.' 
-        && *(tmp_job+i-2)=='m' 
-        && *(tmp_job+i-1)=='p')
-    *(tmp_job+i-3)='\0';
+    char *ext = strrchr(tmp_job,'.');
+    if (ext != NULL)
+	*ext = '\0';
   }
 }
 /* now split |tmp_job| into |job_area| and |job_name| */
