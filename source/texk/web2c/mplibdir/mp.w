@@ -14795,6 +14795,11 @@ case param_type:
 and \&{vardef}. When the following procedure is called, |cur_mod|
 should be either |start_def| or |var_def|.
 
+Note that although the macro scanner allows |def = := enddef| and
+|def := = enddef|; |def = = enddef| and |def := := enddef| will generate
+an error because by the time the second of the two identical tokens is 
+seen, its meaning has already become undefined.
+
 @c 
 static void mp_scan_def (MP mp) {
   int m; /* the type of definition */
