@@ -552,27 +552,40 @@ static void *destroy_enc_entry (void *pa) {
     mp_xfree (p);
     return NULL;
 }
+
+@ Not having an |mp| instance here means that lots of |malloc| and 
+|strdup| checks are needed. Spotted by Peter Breitenlohner.
+
+@c
 static void *copy_enc_entry (const void *pa) {
     enc_entry *p, *q;
     int i;
     p = (enc_entry *) pa;
     q = malloc (sizeof (enc_entry));
-    memset(q,0,sizeof(enc_entry));
     if (q!=NULL) {
-        if (p->enc_name!=NULL)
-          q->enc_name = strdup (p->enc_name);
+        memset(q,0,sizeof(enc_entry));
+        if (p->enc_name!=NULL) {
+            q->enc_name = strdup (p->enc_name);
+	    if (q->enc_name == NULL)
+	        return NULL;
+	}
         q->loaded = p->loaded;
         q->file_name = strdup (p->file_name);
+	if (q->file_name == NULL)
+	    return NULL;
         q->objnum = p->objnum;
         q->tounicode = p->tounicode;
         q->glyph_names = malloc (256 * sizeof (char *));
         if (p->glyph_names == NULL)
             return NULL;
         for (i = 0; i < 256; i++) {
-           if (p->glyph_names[i]!=notdef)
-              q->glyph_names[i] = strdup(p->glyph_names[i]);
-           else
-              q->glyph_names[i] = (char *)notdef;
+            if (p->glyph_names[i]!=notdef) {
+                q->glyph_names[i] = strdup(p->glyph_names[i]);
+	        if (q->glyph_names[i] == NULL)
+	            return NULL;
+            } else {
+                q->glyph_names[i] = (char *)notdef;
+            }
         }
     }
     return (void *)q;
