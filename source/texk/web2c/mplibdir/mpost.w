@@ -362,7 +362,7 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
       mpxopt->mpxname = qmpxname;
       mpxopt->find_file = makempx_find_file;
       {
-        char *banner = "% Written by metapost version ";
+        const char *banner = "% Written by metapost version ";
         mpxopt->banner = mpost_xmalloc(strlen(mpversion)+strlen(banner)+1);
         strcpy (mpxopt->banner, banner);
         strcat (mpxopt->banner, mpversion);
@@ -383,7 +383,8 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
 }
 
 static int mpost_run_dvitomp (char *dviname, char *mpxname) {
-    int i, ret;
+    int ret;
+    size_t i;
     char *m, *d;
     mpx_options * mpxopt;
     char *mpversion = mp_metapost_version () ;
@@ -428,7 +429,7 @@ static int mpost_run_dvitomp (char *dviname, char *mpxname) {
 
     mpxopt->find_file = makempx_find_file;
     {
-      char *banner = "% Written by dvitomp version ";
+      const char *banner = "% Written by dvitomp version ";
       mpxopt->banner = mpost_xmalloc(strlen(mpversion)+strlen(banner)+1);
       strcpy (mpxopt->banner, banner);
       strcat (mpxopt->banner, mpversion);
@@ -596,7 +597,7 @@ void internal_set_option(const char *opt) {
    s = mpost_xstrdup(opt) ;
    v = strstr(s,"=") ;
    if (v==NULL) {
-     v="1";
+     v = xstrdup("1");
    } else {
      *v='\0'; /* terminates |s| */
      v++;
@@ -1231,7 +1232,7 @@ int main (int argc, char **argv) { /* |start_here| */
     kpse_set_program_name(argv[0], user_progname);  
   }
   @= /*@@=nullpass@@*/ @> 
-  if(putenv((char *)"engine=metapost"))
+  if(putenv(xstrdup("engine=metapost")))
     fprintf(stdout,"warning: could not set up $engine\n");
   options->main_memory       = setup_var (50000,"main_memory",nokpse);
   options->hash_size         = (unsigned)setup_var (16384,"hash_size",nokpse);
