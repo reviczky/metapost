@@ -16634,17 +16634,18 @@ boolean mp_open_mem_name (MP mp) {
     size_t l = strlen(mp->mem_name);
     char *s = xstrdup (mp->mem_name);
     if (l>4) {
-      char *test = strstr(s,".mem");
+      char *test = strstr(s,".mp");
       if (test == NULL || test != s+l-4) {
         s = xrealloc (s, l+5, 1);       
-        strcat (s, ".mem");
+        strcat (s, ".mp");
       }
     } else {
       s = xrealloc (s, l+5, 1);
-      strcat (s, ".mem");
+      strcat (s, ".mp");
     }
-    mp->mem_file = (mp->open_file)(mp,s, "r", mp_filetype_memfile);
-    xfree(s);
+    mp->mem_file = (mp->open_file)(mp,s, "r", mp_filetype_program);
+    strncpy(mp->name_of_file,s,file_name_size);
+    free(s);
     if ( mp->mem_file ) return true;
   }
   return false;
@@ -16658,7 +16659,7 @@ boolean mp_open_mem_file (MP mp) {
     wake_up_terminal;
     wterm_ln("Sorry, I can\'t find the '");
     wterm(mp->mem_name);
-    wterm("' mem file; will try 'plain'.");
+    wterm("' preload file; will try 'plain'.");
 @.Sorry, I can't find...@>
     update_terminal;
     /* now pull out all the stops: try for the system \.{plain} file */
@@ -16668,7 +16669,7 @@ boolean mp_open_mem_file (MP mp) {
       return true;
   }
   wake_up_terminal;
-  wterm_ln("I can't find the 'plain' mem file!\n");
+  wterm_ln("I can't find the 'plain' preload file!\n");
 @.I can't find PLAIN...@>
 @.plain@>
   return false;
@@ -23530,12 +23531,10 @@ mp->force_eof=false;
 t_open_in; 
 mp->scanner_status=normal;
 if (mp->mem_ident==NULL) {
-  if ( ! mp_load_mem_file(mp) ) {
-    (mp->close_file)(mp, mp->mem_file); 
+  if ( ! mp_load_preload_file(mp) ) {
      mp->history  = mp_fatal_error_stop;
      return mp->history;
   }
-  (mp->close_file)(mp, mp->mem_file);
 }
 mp_fix_date_and_time(mp);
 if (mp->random_seed==0)
@@ -23598,7 +23597,7 @@ int mp_execute (MP mp, char *s, size_t l) {
     mp->buffer[limit]=xord('%');
     mp->first=(size_t)(limit+1); 
     loc=start;
-	do {  
+    do {  
       mp_do_statement(mp);
     } while (mp->cur_cmd!=stop);
     mp_final_cleanup(mp); 
@@ -23649,8 +23648,8 @@ mp_primitive(mp, "dump",stop,1);
 
 @ @<Cases of |print_cmd...@>=
 case stop:
-  if ( m==0 ) mp_print(mp, "end");
-  else mp_print(mp, "dump");
+  if (mp->cur_mod==0) mp_print(mp, "end");
+  else  mp_print(mp, "dump");
   break;
 
 @* \[41] Commands.
@@ -26910,6 +26909,7 @@ if ( mp->total_shipped>0 ) {
       mp_print(mp, " .. ");
       mp_print(mp, mp->last_file_name);
     }
+    mp_print_nl(mp, "");
   }
 }
 
@@ -27279,11 +27279,11 @@ void * mem_file; /* for input or output of mem information */
 mp->mem_ident=NULL;
 
 @ @<Initialize table entries...@>=
-mp->mem_ident=xstrdup(" (INIMP)");
+mp->mem_ident=NULL;
 
 @ @<Declarations@>=
 extern void mp_store_mem_file (MP mp) ;
-extern boolean mp_load_mem_file (MP mp);
+extern boolean mp_load_preload_file (MP mp);
 extern int mp_undump_constants (MP mp);
 
 @ @<Dealloc variables@>=
@@ -27321,7 +27321,7 @@ a mem file pre-loaded.
 int ini_version; /* are we iniMP? */
 
 @ @<Set |ini_version|@>=
-mp->ini_version = (opt->ini_version ? true : false);
+mp->ini_version = (opt->ini_version ? true : true);
 
 @ The code below make the final chosen hash size the next larger
 multiple of 2 from the requested size, and this array is a list of
@@ -27339,7 +27339,13 @@ static int mp_prime_choices[] =
     50331653, 100663319  };
 
 @ @<Find constant sizes@>=
-if (mp->ini_version) {
+if (mp->mem_name != NULL) {
+  if (!mp_open_mem_file(mp)) {
+    mp->history = mp_fatal_error_stop;
+    mp_jump_out(mp);
+   }
+}
+{
   unsigned i = 14;
   set_value(mp->mem_top,opt->main_memory,5000);
   mp->mem_max = mp->mem_top;
@@ -27361,31 +27367,7 @@ if (mp->ini_version) {
   if (mp->hash_size>0x8000000) 
     mp->hash_size=0x8000000;
   mp->hash_prime=mp_prime_choices[(i-14)];
-} else {
-  int i = -1;
-  if (mp->mem_name == NULL) {
-    mp->mem_name = mp_xstrdup(mp,"plain");
-  }
-  if (mp_open_mem_file(mp)) {
-    i = mp_undump_constants(mp);
-    if (i != metapost_magic)
-      goto OFF_BASE;    
-    set_value(mp->mem_max,opt->main_memory,mp->mem_top);
-    goto DONE;
-OFF_BASE:
-    wterm_ln("(Fatal mem file error; ");
-    wterm((mp->find_file)(mp, mp->mem_name, "r", mp_filetype_memfile));
-    if (i>metapost_old_magic && i<metapost_magic) {
-      wterm(" was written by an older version)\n");
-    } else {
-      wterm(" appears not to be a mem file)\n");
-    }
-  } 
-  mp->history = mp_fatal_error_stop;
-  mp_jump_out(mp);
 }
-DONE:
-
 
 @ Here we do whatever is needed to complete \MP's job gracefully on the
 local operating system. The code here might come into play after a fatal
@@ -27583,7 +27565,7 @@ void mp_final_cleanup (MP mp) {
   }
   if ( c==1 ) {
     if (mp->ini_version) {
-      mp_store_mem_file(mp); return;
+      return;
     }
     mp_print_nl(mp, "(dump is performed only by INIMP)"); return;
 @.dump...only by INIMP@>
@@ -27616,12 +27598,10 @@ But when we finish this part of the program, \MP\ is ready to call on the
 { 
   @<Initialize the input routines@>;
   if (mp->mem_ident==NULL) {
-    if ( ! mp_load_mem_file(mp) ) {
-      (mp->close_file)(mp, mp->mem_file); 
+    if ( ! mp_load_preload_file(mp) ) {
        mp->history = mp_fatal_error_stop;
        return mp;
     }
-    (mp->close_file)(mp, mp->mem_file);
   }
   @<Initializations following first line@>;
 }
@@ -27657,6 +27637,52 @@ But when we finish this part of the program, \MP\ is ready to call on the
     mp->internal[mp_output_template]=mp->cur_exp.i; 
     add_str_ref(mp->internal[mp_output_template]);
   }
+}
+
+@ @c 
+boolean mp_load_preload_file (MP mp) {
+  int k;
+  char *fname = xstrdup(mp->name_of_file);	
+  int saved_loc = loc;
+  int saved_limit = limit;
+  int saved_start = start;
+  pool_pointer l = (pool_pointer)strlen(fname);
+  str_room(l);
+  for (k=0;k<l;k++) {
+    append_char(xord((ASCII_code)fname[k]));
+  }
+  name = mp_make_string(mp);
+
+  if (!mp->log_opened) {
+    mp_open_log_file(mp);
+  } /* |open_log_file| doesn't |show_context|, so |limit|
+        and |loc| needn't be set to meaningful values yet */
+  if ( ((int)mp->term_offset+(int)strlen(fname)) > (mp->max_print_line-2)) mp_print_ln(mp);
+  else if ( (mp->term_offset>0)||(mp->file_offset>0) ) mp_print_char(mp, xord(' '));
+  mp_print_char(mp, xord('(')); incr(mp->open_parens); mp_print(mp, fname); 
+  mp->mem_ident = fname;
+  update_terminal;
+  { 
+    line=1;
+    start = loc = limit + 1;
+    cur_file = mp->mem_file;
+    (void)mp_input_ln(mp, cur_file ); 
+    mp_firm_up_the_line(mp);
+    mp->buffer[limit]=xord('%');
+    mp->first=(size_t)(limit+1); 
+    loc=start;
+  }
+  do {  
+    mp_do_statement(mp);
+  } while (!(mp->cur_cmd==stop)); /* "dump" */
+  mp_print_char(mp, xord(')')); decr(mp->open_parens); 
+  /* TODO: copy back mp->buffer */
+  fclose(mp->mem_file);
+  cur_file = NULL;
+  start = saved_start;
+  loc = saved_loc;
+  limit = saved_limit;
+  return true;
 }
 
 @* \[47] Debugging.

@@ -1240,9 +1240,7 @@ int main (int argc, char **argv) { /* |start_here| */
   options->max_print_line    = setup_var (100,"max_print_line",nokpse);
   @<Set up the banner line@>;
   @<Copy the rest of the command line@>;
-  if (options->ini_version!=(int)true) {
-    @<Discover the mem name@>;
-  }
+  @<Discover the mem name@>;
   @<Discover the job name@>;
   @<Register the callback routines@>;
   mp = mp_initialize(options);
