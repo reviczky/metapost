@@ -2,6 +2,41 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.209:
+----------------------------------------------------------------------
+
+* Previous 1.20X mem files were architecture-dependent.
+
+* Metapost now uses getopt once again, which makes the commandline
+  handling compatible with pre-1.20X versions. However, the syntax
+  -sprologues=1 is now no longer supported (the space between -s
+  prologues is now mandatory).
+
+* On some systems, metapost would crash inside the function that prints
+  the 'fatal error' message.
+
+* The 'glyph infont' operator would sometimes cause crashes, and in 
+  other cases it generated bad output.
+
+* There was a space missing in the generated output when mpprocset
+  was set. This was still legal PostScript, but it confused mptopdf.
+
+* In previous 1.20X versions, the font map file was read for each 
+  figure that contained a label, resulting in lots of harmless
+  but scary warnings being reported.
+
+* The --debug switch is now documented in the command-line help.
+
+* The help text now mentions the metapost version.
+
+----------------------------------------------------------------------
+What is new in MetaPost version 1.208:
+----------------------------------------------------------------------
+
+* Previous versions of MetaPost 1.20x were overeager to remove file
+  extensions from the end of the jobname.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.207:
 ----------------------------------------------------------------------
 
