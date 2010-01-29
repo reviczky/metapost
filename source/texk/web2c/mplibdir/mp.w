@@ -19116,10 +19116,10 @@ the value of |mp_right_type(q)| in cases such as
 { 
   t=mp_scan_direction(mp);
   if ( t!=mp_open ) {
-    mp_right_type(path_q)=(quarterword)t; 
+    mp_right_type(path_q)=(unsigned short)t; 
     right_given(path_q)=mp->cur_exp.i;
     if ( mp_left_type(path_q)==mp_open ) {
-      mp_left_type(path_q)=(quarterword)t; 
+      mp_left_type(path_q)=(unsigned short)t; 
       left_given(path_q)=mp->cur_exp.i;
     } /* note that |left_given(q)=left_curl(q)| */
   }
@@ -19268,7 +19268,7 @@ if ( d==ampersand ) {
   @<Plug an opening in |mp_right_type(q)|, if possible@>;
   mp_next_knot(path_q)=pp; 
   mp_left_y(pp)=y;
-  if ( t!=mp_open ) { mp_left_x(pp)=x; mp_left_type(pp)=(quarterword)t;  };
+  if ( t!=mp_open ) { mp_left_x(pp)=x; mp_left_type(pp)=(unsigned short)t;  };
 }
 path_q=qq;
 }
@@ -19285,7 +19285,7 @@ if ( mp_right_type(path_q)==mp_open ) {
 @ @<Plug an opening in |mp_right_type(pp)|...@>=
 if ( mp_right_type(pp)==mp_open ) {
   if ( (t==mp_curl)||(t==mp_given) ) {
-    mp_right_type(pp)=(quarterword)t; right_given(pp)=x;
+    mp_right_type(pp)=(unsigned short)t; right_given(pp)=x;
   }
 }
 
