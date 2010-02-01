@@ -16711,14 +16711,6 @@ if (mp->job_name != NULL) {
 if (opt->noninteractive) {
   if (mp->job_name == NULL)
     mp->job_name=mp_xstrdup(mp,mp->mem_name); 
-  if (mp->job_name != NULL) {
-    size_t l = strlen(mp->job_name);
-    if (l>4) {
-      char *test = strstr(mp->job_name,".mem");
-      if (test == mp->job_name+l-4)
-        *test = 0;
-    }
-  }
 }
 mp->log_opened=false;
 
