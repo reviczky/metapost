@@ -176,7 +176,6 @@ MP_options *mp_options (void) {
   opt = malloc(l);
   if (opt!=NULL) {
     memset (opt,0,l);
-    opt->ini_version = true;
   }
   return opt;
 } 
@@ -232,7 +231,6 @@ MP mp_initialize (MP_options *opt) {
   if (mp == NULL)
     return NULL;
   mp->userdata=opt->userdata;
-  @<Set |ini_version|@>;
   mp->noninteractive=opt->noninteractive;
   set_callback_option(find_file);
   set_callback_option(open_file);
@@ -272,9 +270,7 @@ MP mp_initialize (MP_options *opt) {
     return mp;
   }
   mp_do_initialize(mp); /* erase preloaded mem */
-  if (mp->ini_version) {
-    @<Run inimpost commands@>;
-  }
+  @<Run inimpost commands@>;
   if (!mp->noninteractive) {
     @<Initialize the output routines@>;
     @<Get the first line of input and prepare to start@>;
@@ -328,18 +324,8 @@ when system wizards are fooling around with \MP\ without quite knowing
 what they are doing. Such code will not normally be compiled; it is
 delimited by the preprocessor test `|#ifdef DEBUG .. #endif|'.
 
-@ This program has two important variations: (1) There is a long and slow
-version called \.{INIMP}, which does the extra calculations needed to
-@.INIMP@>
-initialize \MP's internal tables; and (2)~there is a shorter and faster
-production version, which cuts the initialization to a bare minimum.
-
-Which is which is decided at runtime.
-
 @ The following parameters can be changed at compile time to extend or
-reduce \MP's capacity. They may have different values in \.{INIMP} and
-in production versions of \MP.
-@.INIMP@>
+reduce \MP's capacity. 
 @^system dependencies@>
 
 @<Constants...@>=
@@ -348,13 +334,7 @@ in production versions of \MP.
   should probably be left at this value */
 
 @ Like the preceding parameters, the following quantities can be changed
-to extend or reduce \MP's capacity. But if they are changed,
-it is necessary to rerun the initialization program \.{INIMP}
-@.INIMP@>
-to generate new tables for the production \MP\ program.
-One can't simply make helter-skelter changes to the following constants,
-since certain rather complex initialization
-numbers are computed from them. 
+to extend or reduce \MP's capacity. 
 
 @ @<Glob...@>=
 int max_strings; /* maximum number of strings; must not exceed |max_halfword| */
@@ -362,10 +342,7 @@ int pool_size; /* maximum number of characters in strings, including all
   error messages and help texts, and the names of all identifiers */
 int old_pool_size; /* a helper used by |mp_cat| */
 int mem_max; /* greatest index in \MP's internal |mem| array;
-  must be strictly less than |max_halfword|;
-  must be equal to |mem_top| in \.{INIMP}, otherwise |>=mem_top| */
-int mem_top; /* largest index in the |mem| array dumped by \.{INIMP};
-  must not be greater than |mem_max| */
+  must be strictly less than |max_halfword| */
 int hash_prime; /* a prime number equal to about 85\pct! of |hash_size| */
 
 @ @<Option variables@>=
@@ -379,9 +356,10 @@ unsigned hash_size; /* maximum number of symbolic tokens,
 int param_size; /* maximum number of simultaneous macro parameters */
 int max_in_open; /* maximum number of input files and error insertions that
   can be going on simultaneously */
-int main_memory; /* only for options, to set up |mem_max| and |mem_top| */
+int main_memory; /* only for options, to set up |mem_max| */
 void *userdata; /* this allows the calling application to setup local */
 char *banner; /* the banner that is printed to the screen and log */
+int ini_version; /* no longer used, but kept for compatibility, for now */
 
 @ @<Dealloc variables@>=
 xfree(mp->banner);
@@ -419,7 +397,6 @@ with checking at assignment time.
 
 @<Check the ``constant'' values for consistency@>=
 mp->bad=0;
-if ( mp->mem_top<=1100 ) mp->bad=4;
 
 @ Some |goto| labels are used by the following definitions. The label
 `|restart|' is occasionally used at the very beginning of a procedure; and
@@ -894,9 +871,7 @@ void * err_out; /* the terminal as an output file */
 @ Here is how to open the terminal files. In the default configuration,
 nothing happens except that the command line (if there is one) is copied
 to the input buffer.  The variable |command_line| will be filled by the 
-|main| procedure. The copying can not be done earlier in the program 
-logic because in the |INI| version, the |buffer| is also used for primitive 
-initialization.
+|main| procedure. 
 
 @d t_open_out  do {/* open the terminal for text output */
     mp->term_out = (mp->open_file)(mp,"terminal", "w", mp_filetype_terminal);
@@ -1522,9 +1497,7 @@ static integer mp_str_vs_str (MP mp, str_number s, str_number t) {
 }
 
 @ The initial values of |str_pool|, |str_start|, |pool_ptr|,
-and |str_ptr| are computed by the \.{INIMP} program, based in part
-on the information that \.{WEB} has output while processing \MP.
-@.INIMP@>
+and |str_ptr| are set up here.
 @^string pool@>
 
 @c 
@@ -3783,11 +3756,6 @@ assumptions about the relative positions of the fields within a word.
 must satisfy (or rather, the inequalities that they mustn't satisfy):
 
 @<Check the ``constant''...@>=
-if (mp->ini_version) {
-  if ( mp->mem_max!=mp->mem_top ) mp->bad=8;
-} else {
-  if ( mp->mem_max<mp->mem_top ) mp->bad=8;
-}
 if ( mp->mem_max>=max_halfword ) mp->bad=12;
 if ( mp->max_strings>max_halfword ) mp->bad=13;
 
@@ -3890,15 +3858,8 @@ relevant size when a node is freed. Locations greater than or equal to
 |hi_mem_min| are used for storing one-word records; a conventional
 \.{AVAIL} stack is used for allocation in this region.
 
-Locations of |mem| between |0| and |mem_top| may be dumped as part
-of preloaded mem files, by the \.{INIMP} preprocessor.
-@.INIMP@>
-Production versions of \MP\ may extend the memory at the top end in order to
-provide more space; these locations, between |mem_top| and |mem_max|,
-are always used for single-word nodes.
-
 The key pointers that govern |mem| allocation have a prescribed order:
-$$\hbox{|null=0<lo_mem_max<hi_mem_min<mem_top<=mem_end<=mem_max|.}$$
+$$\hbox{|null=0<lo_mem_max<hi_mem_min<=mem_end<=mem_max|.}$$
 
 @<Glob...@>=
 memory_word *mem; /* the big dynamic storage area */
@@ -4379,14 +4340,14 @@ two-word dummy token whose second word is zero.
 The following macro definitions accomplish the static allocation by giving
 symbolic names to the fixed positions. Static variable-size nodes appear
 in locations |0| through |lo_mem_stat_max|, and static single-word nodes
-appear in locations |hi_mem_stat_min| through |mem_top|, inclusive.
+appear in locations |hi_mem_stat_min| through |mem_max|, inclusive.
 
-@d sentinel mp->mem_top /* end of sorted lists */
-@d temp_head (mp->mem_top-1) /* head of a temporary list of some kind */
-@d hold_head (mp->mem_top-2) /* head of a temporary list of another kind */
+@d sentinel mp->mem_max /* end of sorted lists */
+@d temp_head (mp->mem_max-1) /* head of a temporary list of some kind */
+@d hold_head (mp->mem_max-2) /* head of a temporary list of another kind */
 
 @(mpmp.h@>=
-#define spec_head (mp->mem_top-3) /* head of a list of unprocessed \&{special} items */
+#define spec_head (mp->mem_max-3) /* head of a list of unprocessed \&{special} items */
 #define null_dash (2) /* the first two words are reserved for a null value */
 #define dep_head (null_dash+3) /* we will define |dash_node_size=3| */
 #define zero_val (dep_head+2) /* two words for a permanently zero value */
@@ -4396,7 +4357,7 @@ appear in locations |hi_mem_stat_min| through |mem_top|, inclusive.
 #define bad_vardef (inf_val+2) /* two words for \&{vardef} error recovery */
 #define lo_mem_stat_max (bad_vardef+1)  /* largest statically
   allocated word in the variable-size |mem| */
-#define hi_mem_stat_min (mp->mem_top-3) /* smallest statically allocated word in
+#define hi_mem_stat_min (mp->mem_max-3) /* smallest statically allocated word in
   the one-word |mem| */
 
 @ The following code gets the dynamic part of |mem| off to a good start,
@@ -4409,13 +4370,13 @@ node_size(mp->rover)=1000; /* which is a 1000-word available node */
 lmp_link(mp->rover)=mp->rover; rmp_link(mp->rover)=mp->rover;
 mp->lo_mem_max=mp->rover+1000; 
 mp_link(mp->lo_mem_max)=null; mp_info(mp->lo_mem_max)=null;
-for (k=hi_mem_stat_min;k<=(int)mp->mem_top;k++) {
+for (k=hi_mem_stat_min;k<=(int)mp->mem_max;k++) {
   mp->mem[k]=mp->mem[mp->lo_mem_max]; /* clear list heads */
 }
-mp->avail=null; mp->mem_end=mp->mem_top;
+mp->avail=null; mp->mem_end=mp->mem_max;
 mp->hi_mem_min=hi_mem_stat_min; /* initialize the one-word memory */
 mp->var_used=lo_mem_stat_max+1; 
-mp->dyn_used=mp->mem_top+1-(hi_mem_stat_min);  /* initialize statistics */
+mp->dyn_used=mp->mem_max+1-(hi_mem_stat_min);  /* initialize statistics */
 
 @ The procedure |flush_list(p)| frees an entire linked list of one-word
 nodes that starts at a given position, until coming to |sentinel| or a
@@ -4498,8 +4459,6 @@ static void mp_reallocate_memory(MP mp, int l) {
      memset(mp->mem,0,(size_t)(sizeof(memory_word)*(unsigned)(l+1)));
    }
    mp->mem_max = l;
-   if (mp->ini_version) 
-     mp->mem_top = l;
 }
 
 
@@ -4651,46 +4610,6 @@ void mp_search_mem (MP mp, pointer p) { /* look for pointers to |p| */
   }
   @<Search |eqtb| for equivalents equal to |p|@>;
 }
-
-@ Just before \.{INIMP} writes out the memory, it sorts the doubly linked
-available space list. The list is probably very short at such times, so a
-simple insertion sort is used. The smallest available location will be
-pointed to by |rover|, the next-smallest by |rmp_link(rover)|, etc.
-
-@<Internal library ...@>=
-void mp_sort_avail (MP mp);
-
-@ @c 
-void mp_sort_avail (MP mp) { /* sorts the available variable-size nodes
-  by location */
-  pointer p,q,r; /* indices into |mem| */
-  pointer old_rover; /* initial |rover| setting */
-  p=mp_get_node(mp, 010000000000); /* merge adjacent free areas */
-  p=rmp_link(mp->rover); rmp_link(mp->rover)=max_halfword; old_rover=mp->rover;
-  while ( p!=old_rover ) {
-    @<Sort |p| into the list starting at |rover|
-     and advance |p| to |rmp_link(p)|@>;
-  }
-  p=mp->rover;
-  while ( rmp_link(p)!=max_halfword ) { 
-    lmp_link(rmp_link(p))=p; p=rmp_link(p);
-  };
-  rmp_link(p)=mp->rover; lmp_link(mp->rover)=p;
-}
-
-@ The following |while| loop is guaranteed to
-terminate, since the list that starts at
-|rover| ends with |max_halfword| during the sorting procedure.
-
-@<Sort |p|...@>=
-if ( p<mp->rover ) { 
-  q=p; p=rmp_link(q); rmp_link(q)=mp->rover; mp->rover=q;
-} else  { 
-  q=mp->rover;
-  while ( rmp_link(q)<p ) q=rmp_link(q);
-  r=rmp_link(p); rmp_link(p)=rmp_link(q); rmp_link(q)=p; p=r;
-}
-
 
 @* \[12] The command codes.
 Before we can go much further, we need to define symbolic names for the internal
@@ -16789,7 +16708,7 @@ if (mp->job_name != NULL) {
      s--;
   }
 }
-if (opt->noninteractive && opt->ini_version) {
+if (opt->noninteractive) {
   if (mp->job_name == NULL)
     mp->job_name=mp_xstrdup(mp,mp->mem_name); 
   if (mp->job_name != NULL) {
@@ -27301,28 +27220,6 @@ have been forgotten.
 @c @<Declare the basic parsing subroutines@>
 @<Declare miscellaneous procedures that were declared |forward|@>
 
-@ We've noted that there are two versions of \MP. One, called \.{INIMP},
-@.INIMP@>
-has to be run first; it initializes everything from scratch, without
-reading a mem file, and it has the capability of dumping a mem file.
-The other one is called `\.{VIRMP}'; it is a ``virgin'' program that needs
-@.VIRMP@>
-to input a mem file in order to get started. \.{VIRMP} typically has
-a bit more memory capacity than \.{INIMP}, because it does not need the
-space consumed by the dumping/undumping routines and the numerous calls on
-|primitive|, etc.
-
-The \.{VIRMP} program cannot read a mem file instantaneously, of course;
-the best implementations therefore allow for production versions of \MP\ that
-not only avoid the loading routine for object code, they also have
-a mem file pre-loaded. 
-
-@ @<Option variables@>=
-int ini_version; /* are we iniMP? */
-
-@ @<Set |ini_version|@>=
-mp->ini_version = (opt->ini_version ? true : true);
-
 @ The code below make the final chosen hash size the next larger
 multiple of 2 from the requested size, and this array is a list of
 suitable prime numbers to go with such values. 
@@ -27347,8 +27244,7 @@ if (mp->mem_name != NULL) {
 }
 {
   unsigned i = 14;
-  set_value(mp->mem_top,opt->main_memory,5000);
-  mp->mem_max = mp->mem_top;
+  set_value(mp->mem_max,opt->main_memory,5000);
   set_value(mp->param_size,opt->param_size,150);
   set_value(mp->max_in_open,opt->max_in_open,10);
   if (opt->hash_size>0x8000000) 
@@ -27562,13 +27458,6 @@ void mp_final_cleanup (MP mp) {
     mp_print_nl(mp, "(see the transcript file for additional information)");
 @.see the transcript file...@>
     mp->selector=term_and_log;
-  }
-  if ( c==1 ) {
-    if (mp->ini_version) {
-      return;
-    }
-    mp_print_nl(mp, "(dump is performed only by INIMP)"); return;
-@.dump...only by INIMP@>
   }
 }
 
