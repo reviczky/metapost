@@ -27265,8 +27265,6 @@ cannot produce error messages. For example, it would be a mistake to call
 might lead to an infinite loop.
 @^system dependencies@>
 
-This program doesn't bother to close the input files that may still be open.
-
 @ @c
 void mp_close_files_and_terminate (MP mp) {
   integer k; /* all-purpose index */
