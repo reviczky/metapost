@@ -11,14 +11,11 @@ libmplib_a_CPPFLAGS = -I$(srcdir)/mplibdir
 
 ## libmplib C sources
 libmplib_a_SOURCES = mplibdir/avl.h mplibdir/avl.c
-nodist_libmplib_a_SOURCES = memio.c tfmin.c
+nodist_libmplib_a_SOURCES = tfmin.c
 nodist_libmplib_a_SOURCES += $(mp_c_h) $(psout_c_h) $(svgout_c_h)
 mp_c_h =  mp.c mplib.h mpmp.h
 psout_c_h = mppsout.h psout.c mplibps.h
 svgout_c_h = mplibsvg.h mpsvgout.h svgout.c
-
-memio.c: ctangle$(EXEEXT) mplibdir/memio.w
-	$(mp_ctangle) memio.w
 
 tfmin.c: ctangle$(EXEEXT) mplibdir/tfmin.w
 	$(mp_ctangle) tfmin.w
@@ -43,7 +40,7 @@ svgout-ctangle: ctangle$(EXEEXT) mplibdir/svgout.w
 
 ## libmplib CWeb sources
 libmplib_web = mplibdir/mp.w mplibdir/psout.w mplibdir/svgout.w
-libmplib_web += mplibdir/memio.w mplibdir/tfmin.w
+libmplib_web += mplibdir/tfmin.w
 
 $(libmplib_a_OBJECTS): $(nodist_libmplib_a_SOURCES)
 
