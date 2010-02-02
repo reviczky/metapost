@@ -534,7 +534,7 @@ enum mp_filetype {
   mp_filetype_program , /* \MP\ language input */
   mp_filetype_log,  /* the log file */
   mp_filetype_postscript, /* the postscript output */
-  mp_filetype_memfile, /* memory dumps */
+  mp_filetype_memfile, /* memory dumps, obsolete */
   mp_filetype_metrics, /* TeX font metric files */
   mp_filetype_fontmap, /* PostScript font mapping files */
   mp_filetype_font, /*  PostScript type1 font programs */
@@ -677,12 +677,6 @@ static boolean mp_a_open_in (MP mp, void **f, int ftype) {
   OPEN_FILE("r");
 }
 @#
-boolean mp_w_open_in (MP mp, void **f) {
-  /* open a word file for input */
-  *f = (mp->open_file)(mp,mp->name_of_file,"r",mp_filetype_memfile); 
-  return (*f ? true : false);
-}
-@#
 static boolean mp_a_open_out (MP mp, void **f, int ftype) {
   /* open a text file for output */
   OPEN_FILE("w");
@@ -692,15 +686,6 @@ static boolean mp_b_open_out (MP mp, void **f, int ftype) {
   /* open a binary file for output */
   OPEN_FILE("w");
 }
-@#
-boolean mp_w_open_out (MP mp, void **f) {
-  /* open a word file for output */
-  int ftype = mp_filetype_memfile;
-  OPEN_FILE("w");
-}
-
-@ @<Internal library ...@>=
-boolean mp_w_open_out (MP mp, void **f);
 
 @ @c
 static char *mp_read_ascii_file (MP mp, void *ff, size_t *size) {
@@ -1468,12 +1453,14 @@ use an array |wr_file| that will be declared later.
 @<Internal library ...@>=
 void mp_print (MP mp, const char *s);
 void mp_print_ln (MP mp);
-void mp_print_visible_char (MP mp, ASCII_code s); 
 void mp_print_char (MP mp, ASCII_code k);
 void mp_print_str (MP mp, str_number s);
 void mp_print_nl (MP mp, const char *s);
 void mp_print_two (MP mp,scaled x, scaled y) ;
 void mp_print_scaled (MP mp,scaled s);
+
+@ @<Declarations@>=
+static void mp_print_visible_char (MP mp, ASCII_code s); 
 
 @ @<Basic print...@>=
 void mp_print_ln (MP mp) { /* prints an end-of-line */
@@ -1507,7 +1494,7 @@ But we must make an exception for the \ps\ output file since it is not safe
 to cut up lines arbitrarily in \ps.
 
 @<Basic printing...@>=
-void mp_print_visible_char (MP mp, ASCII_code s) { /* prints a single character */
+static void mp_print_visible_char (MP mp, ASCII_code s) { /* prints a single character */
   switch (mp->selector) {
   case term_and_log: 
     wterm_chr(xchr(s)); wlog_chr(xchr(s));
@@ -16307,7 +16294,9 @@ void mp_pack_file_name (MP mp, const char *n, const char *a, const char *e) ;
 @ @<Option variables@>=
 char *mem_name; /* for commandline */
 
-@ @<Find constant sizes@>=
+@ Stripping a |.mem| extension here is for backward compatibility.
+
+@<Find constant sizes@>=
 mp->mem_name = xstrdup(opt->mem_name);
 if (mp->mem_name) {
   size_t l = strlen(mp->mem_name);
@@ -16318,7 +16307,6 @@ if (mp->mem_name) {
     }
   }
 }
-
 
 @ @<Dealloc variables@>=
 xfree(mp->mem_name);
@@ -16388,8 +16376,6 @@ most recently opened, if it is possible to do this.
 
 @<Declarations@>=
 #define mp_a_make_name_string(A,B)  mp_make_name_string(A)
-#define mp_b_make_name_string(A,B)  mp_make_name_string(A)
-#define mp_w_make_name_string(A,B)  mp_make_name_string(A)
 
 @ @c 
 static str_number mp_make_name_string (MP mp) {
@@ -26509,7 +26495,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
             goto CONTINUE;
 	    break;
           case '%':
-            mp_print_visible_char(mp, '%');
+            mp_print_char(mp, '%');
 	    break;
           default:
             {
@@ -26518,14 +26504,14 @@ static char *mp_set_output_file_name (MP mp, integer c) {
                 "requested format (%c) in outputtemplate is unknown.",*(template->str+i));
               mp_warn(mp,err);
             }
-            mp_print_visible_char(mp, *(template->str+i));
+            mp_print_char(mp, *(template->str+i));
           }
         }
       } else {
         if ( *(template->str+i)=='.' )
           if (length(n)==0)
             n = mp_make_string(mp);
-        mp_print_visible_char(mp, *(template->str+i));
+        mp_print_char(mp, *(template->str+i));
       };
       incr(i);
     }
