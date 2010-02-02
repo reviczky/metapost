@@ -2058,17 +2058,7 @@ static boolean str_suffix (const char *begin_buf, const char *end_buf,
     }
 } while (0)
 
-@d out_eexec_char(A)      t1_outhex(mp,(A))
- 
 @c
-static void t1_outhex (MP mp, byte b)
-{
-    static const char *hexdigits = "0123456789ABCDEF";
-    t1_putchar (hexdigits[b / 16]);
-    t1_putchar (hexdigits[b % 16]);
-    mp->ps->hexline_length += 2;
-    end_hexline (mp);
-}
 static void t1_getline (MP mp) {
     int c, l, eexec_scan;
     char *p;
@@ -2129,16 +2119,40 @@ static void t1_getline (MP mp) {
 
 static void t1_putline (MP mp)
 {
+    char ss[256];
+    int ss_cur = 0;
+    static const char *hexdigits = "0123456789ABCDEF";
     char *p = mp->ps->t1_line_array;
     if (mp->ps->t1_line_ptr - mp->ps->t1_line_array <= 1)
         return;
     if (mp->ps->t1_eexec_encrypt) {
-        while (p < mp->ps->t1_line_ptr)
-            out_eexec_char (eencrypt (mp,(byte)*p++));
+        while (p < mp->ps->t1_line_ptr) {
+            byte b = eencrypt (mp,(byte)*p++);
+	    if (ss_cur>=253) {
+               ss[ss_cur] = '\0';
+               (mp->write_ascii_file)(mp,mp->output_file,(char *)ss); 
+               ss_cur = 0;
+            }
+            ss[ss_cur++] = hexdigits[b / 16];
+            ss[ss_cur++] = hexdigits[b % 16];
+            mp->ps->hexline_length += 2;
+            if (mp->ps->hexline_length >= HEXLINE_WIDTH) {
+                ss[ss_cur++] = '\n';
+                mp->ps->hexline_length = 0;
+            }
+        }
     } else {
-        while (p < mp->ps->t1_line_ptr)
-            t1_putchar (*p++);
+        while (p < mp->ps->t1_line_ptr) {
+	    if (ss_cur>=255) {
+               ss[ss_cur] = '\0';
+               (mp->write_ascii_file)(mp,mp->output_file,(char *)ss); 
+               ss_cur = 0;
+            }
+            ss[ss_cur++] = (char)(*p++);
 	}
+    }
+    ss[ss_cur] = '\0';
+    (mp->write_ascii_file)(mp,mp->output_file,(char *)ss); 
 }
 
 static void t1_puts (MP mp, const char *s)
