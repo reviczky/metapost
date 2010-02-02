@@ -122,6 +122,7 @@ The variables from |MP_options| are included inside the |MP_instance|
 wholesale.
 
 @(mpmp.h@>=
+#include "avl.h"
 #include <setjmp.h>
 typedef struct psout_data_struct * psout_data;
 typedef struct svgout_data_struct * svgout_data;
@@ -265,7 +266,7 @@ MP mp_initialize (MP_options *opt) {
 	char ss[256];
     mp_snprintf(ss,256,"Ouch---my internal constants have been clobbered!\n"
                    "---case %i",(int)mp->bad);
-    do_fprintf(mp->err_out,(char *)ss);
+    do_putsf(mp->err_out,(char *)ss);
 @.Ouch...clobbered@>
     return mp;
   }
@@ -288,8 +289,8 @@ mp_set_job_id(mp);
 mp_init_map_file(mp, mp->troff_mode);
 mp->history=mp_spotless; /* ready to go! */
 if (mp->troff_mode) {
-  mp->internal[mp_gtroffmode]=unity; 
-  mp->internal[mp_prologues]=unity; 
+  internal_value(mp_gtroffmode)=unity; 
+  internal_value(mp_prologues)=unity; 
 }
 if ( mp->start_sym>0 ) { /* insert the `\&{everyjob}' symbol */
   mp->cur_sym=mp->start_sym; mp_back_input(mp);
@@ -337,7 +338,6 @@ reduce \MP's capacity.
 to extend or reduce \MP's capacity. 
 
 @ @<Glob...@>=
-int max_strings; /* maximum number of strings; must not exceed |max_halfword| */
 int pool_size; /* maximum number of characters in strings, including all
   error messages and help texts, and the names of all identifiers */
 int old_pool_size; /* a helper used by |mp_cat| */
@@ -359,7 +359,7 @@ int max_in_open; /* maximum number of input files and error insertions that
 int main_memory; /* only for options, to set up |mem_max| */
 void *userdata; /* this allows the calling application to setup local */
 char *banner; /* the banner that is printed to the screen and log */
-int ini_version; /* no longer used, but kept for compatibility, for now */
+int ini_version;
 
 @ @<Dealloc variables@>=
 xfree(mp->banner);
@@ -368,7 +368,6 @@ xfree(mp->banner);
 @d set_value(a,b,c) do { a=c; if (b>c) a=b; } while (0)
 
 @<Allocate or ...@>=
-mp->max_strings=500;
 mp->pool_size=10000;
 mp->old_pool_size=10000;
 set_value(mp->error_line,opt->error_line,79);
@@ -378,6 +377,7 @@ if (mp->half_error_line>mp->error_line-15 )
 mp->max_print_line=100;
 set_value(mp->max_print_line,opt->max_print_line,79);
 mp->halt_on_error = (opt->halt_on_error ? true : false);
+mp->ini_version = (opt->ini_version ? true : false);
 
 @ In case somebody has inadvertently made bad settings of the ``constants,''
 \MP\ checks them using a global variable called |bad|.
@@ -965,11 +965,11 @@ boolean mp_init_terminal (MP mp) { /* gets the terminal input started */
   }
   while (1) { 
     if (!mp->noninteractive) {
-	  wake_up_terminal; do_fprintf(mp->term_out,"**"); update_terminal;
+	  wake_up_terminal; do_putsf(mp->term_out,"**"); update_terminal;
 @.**@>
     }
     if ( ! mp_input_ln(mp, mp->term_in ) ) { /* this shouldn't happen */
-      do_fprintf(mp->term_out,"\n! End of file on the terminal... why?");
+      do_putsf(mp->term_out,"\n! End of file on the terminal... why?");
 @.End of file on the terminal@>
       return false;
     }
@@ -980,7 +980,7 @@ boolean mp_init_terminal (MP mp) { /* gets the terminal input started */
       return true; /* return unless the line was all blank */
     }
     if (!mp->noninteractive) {
-	  do_fprintf(mp->term_out,"Please type the name of your input file.\n");
+	  do_putsf(mp->term_out,"Please type the name of your input file.\n");
     }
   }
 }
@@ -998,63 +998,112 @@ language, and these have to be interned.
 
 \MP\ uses strings more extensively than \MF\ does, but the necessary
 operations can still be handled with a fairly simple data structure.
-The array |str_pool| contains all of the (eight-bit) ASCII codes in all
-of the strings, and the array |str_start| contains indices of the starting
-points of each string. Strings are referred to by integer numbers, so that
-string number |s| comprises the characters |str_pool[j]| for
-|str_start[s]<=j<str_start[ss]| where |ss=next_str[s]|.  The string pool
-is allocated sequentially and |str_pool[pool_ptr]| is the next unused
-location.  The first string number not currently in use is |str_ptr|
-and |next_str[str_ptr]| begins a list of free string numbers.  String
-pool entries |str_start[str_ptr]| up to |pool_ptr| are reserved for a
-string currently being constructed.
+The avl tree |strings| contains all of the known string structures.
 
-String numbers 0 to 255 are reserved for strings that correspond to single
-ASCII characters. This is in accordance with the conventions of \.{WEB},
-@.WEB@>
-which converts single-character strings into the ASCII code number of the
-single character involved, while it converts other strings into integers
-and builds a string pool file. Thus, when the string constant \.{"."} appears
-in the program below, \.{WEB} converts it into the integer 46, which is the
-ASCII code for a period, while \.{WEB} will convert a string like \.{"hello"}
-into some integer greater than~255. String number 46 will presumably be the
-single character `\..'\thinspace; but some ASCII codes have no standard visible
-representation, and \MP\ may need to be able to print an arbitrary
-ASCII character, so the first 256 strings are used to specify exactly what
-should be printed for each of the 256 possibilities.
+Each structure contains an |unsigned char| pointer containing the eight-bit
+data, a |size_t| that holds the length of that data, and an |int| that 
+indicates how often this string is referenced (this will be explained below).
+Such strings are referred to by structure pointers called |str_number|.
 
-@<Types...@>=
-typedef int pool_pointer; /* for variables that point into |str_pool| */
-typedef int str_number; /* for variables that point into |str_start| */
+Besides the avl tree, there is a set of three variables called |cur_string|,
+|cur_length| and |cur_string_size| that are used for strings while they are
+being built.
+
+@<Exported types...@>=
+typedef struct {
+    unsigned char *str;       /* the string value */
+    size_t len;               /* its length */
+    int refs;                 /* number of references */
+} mp_lstring;
+typedef mp_lstring *str_number; /* for pointers to string values */
 
 @ @<Glob...@>=
-ASCII_code *str_pool; /* the characters */
-pool_pointer *str_start; /* the starting pointers */
-str_number *next_str; /* for linking strings in order */
-pool_pointer pool_ptr; /* first unused position in |str_pool| */
-str_number str_ptr; /* number of the current string being created */
-pool_pointer init_pool_ptr; /* the starting value of |pool_ptr| */
-str_number init_str_use; /* the initial number of strings in use */
-pool_pointer max_pool_ptr; /* the maximum so far of |pool_ptr| */
-str_number max_str_ptr; /* the maximum so far of |str_ptr| */
+avl_tree strings;             /* string avl tree */
+unsigned char *cur_string;    /*  current string buffer */
+size_t cur_length;            /* current index in that buffer */
+size_t cur_string_size;       /*  malloced size of |cur_string| */
+
+@ Here are the functions needed for the avl construction.
+
+@<Declarations@>=
+static int comp_strings_entry (void *p, const void *pa, const void *pb);
+static void *copy_strings_entry (const void *p) ;
+static void * delete_strings_entry (void *p);
+
+@ @c 
+static int comp_strings_entry (void *p, const void *pa, const void *pb) {
+    (void)p;
+    const mp_lstring *a = (const mp_lstring *) pa;
+    const mp_lstring *b = (const mp_lstring *) pb;
+    if (a->len != b->len) {
+        return (a->len > b->len ? 1 : -1 );
+    }
+    if (a->str==NULL && b->str==NULL) 
+        return 0;
+    if (a->str==NULL)
+        return -1;
+    if (b->str==NULL)
+        return 1;
+    return strncmp ((const char *)a->str, (const char *)b->str, a->len);
+}
+static void *copy_strings_entry (const void *p) {
+    str_number ff;
+    const mp_lstring *fp;
+    fp = (const mp_lstring *)p;
+    ff = malloc (sizeof(mp_lstring));
+    if (ff == NULL) 
+        return NULL;
+    ff->str = malloc(fp->len + 1);
+    if (ff->str == NULL) {
+	return NULL;
+    }
+    strncpy((char *)ff->str,(char *)fp->str,fp->len + 1);
+    ff->len = fp->len;
+    ff->refs = 0;
+    return ff;
+}
+static void * delete_strings_entry (void *p) {
+    str_number ff = (str_number)p;
+    mp_xfree (ff->str);
+    mp_xfree (ff);
+    return NULL;
+}
 
 @ @<Allocate or initialize ...@>=
-mp->str_pool  = xmalloc ((mp->pool_size +1),sizeof(ASCII_code));
-mp->str_start = xmalloc ((mp->max_strings+1),sizeof(pool_pointer));
-mp->next_str  = xmalloc ((mp->max_strings+1),sizeof(str_number));
+mp->strings   =  avl_create (comp_strings_entry, 
+                	     copy_strings_entry,
+                             delete_strings_entry,
+                             malloc, free, NULL);
+mp->cur_string = NULL;
+mp->cur_length = 0;
+mp->cur_string_size = 0;
 
 @ @<Dealloc variables@>=
-xfree(mp->str_pool);
-xfree(mp->str_start);
-xfree(mp->next_str);
+if (mp->strings != NULL)
+      avl_destroy (mp->strings);
+xfree(mp->cur_string);
+
+@ Actually creating strings is done by |make_string|, but in order to
+do so it needs a way to create a new, empty string structure.
+
+@<Declarations@>=
+static str_number new_strings_entry (MP mp) ;
+
+@ @c 
+static str_number new_strings_entry (MP mp) {
+    str_number ff;
+    ff = mp_xmalloc (mp,1,sizeof(mp_lstring));
+    ff->str = NULL;
+    ff->len = 0;
+    ff->refs = 0;
+    return ff;
+}
 
 @ Most printing is done from |char *|s, but sometimes not. Here are
 functions that convert an internal string into a |char *| for use
 by the printing routines, and vice versa.
 
-@d str(A) mp_str(mp,A)
-@d rts(A) mp_rts(mp,A)
-@d null_str rts("")
+@d null_str mp_rts(mp,"")
 
 @<Internal ...@>=
 int mp_xstrcmp (const char *a, const char *b);
@@ -1064,72 +1113,47 @@ char * mp_str (MP mp, str_number s);
 static str_number mp_rts (MP mp, const char *s);
 static str_number mp_make_string (MP mp);
 
-@ @c 
+@ @c
 int mp_xstrcmp (const char *a, const char *b) {
-	if (a==NULL && b==NULL) 
-	  return 0;
+    if (a==NULL && b==NULL) 
+	return 0;
     if (a==NULL)
-      return -1;
+        return -1;
     if (b==NULL)
-      return 1;
+        return 1;
     return strcmp(a,b);
 }
 
-@ The attempt to catch interrupted strings that is in |mp_rts|, is not 
-very good: it does not handle nesting over more than one level.
-
-@c
+@ @c
 char * mp_str (MP mp, str_number ss) {
-  char *s;
-  size_t len;
-  if (ss==mp->str_ptr) {
-    return NULL;
-  } else {
-    len = (size_t)length(ss);
-    s = xmalloc(len+1,sizeof(char));
-    (void)memcpy(s,(char *)(mp->str_pool+(mp->str_start[ss])),len);
-    s[len] = 0;
-    return (char *)s;
-  }
+  (void)mp;
+  return (char *)ss->str;
 }
 str_number mp_rts (MP mp, const char *s) {
-  int r; /* the new string */ 
-  int old; /* a possible string in progress */
-  int i=0;
-  if (strlen(s)==0) {
-    return 256;
-  } else if (strlen(s)==1) {
-    return s[0];
-  } else {
-   old=0;
-   str_room((integer)strlen(s));
-   if (mp->str_start[mp->str_ptr]<mp->pool_ptr)
-     old = mp_make_string(mp);
-   while (*s) {
-     append_char(*s);
-     s++;
-   }
-   r = mp_make_string(mp);
-   if (old!=0) {
-      str_room(length(old));
-      while (i<length(old)) {
-        append_char((mp->str_start[old]+i));
-      } 
-      mp_flush_string(mp,old);
+    str_number str;
+    mp_lstring tmp;
+    tmp.str = (unsigned char *)xstrdup(s);
+    tmp.len = strlen(s);
+    str = (str_number) avl_find (&tmp, mp->strings);
+    if (str == NULL) { /* not yet known */
+        str = new_strings_entry (mp);
+        str->str = (unsigned char *)mp_xstrdup (mp, s);
+        str->len = tmp.len;
+        assert(avl_ins (str, mp->strings, avl_false)>0);
+	xfree(str->str);
+	xfree(str); 
+       str = (str_number) avl_find (&tmp, mp->strings);
     }
-    return r;
-  }
+    free (tmp.str);
+    return str;
 }
 
-@ Except for |strs_used_up|, the following string statistics are only
-maintained when code between |stat| $\ldots$ |tats| delimiters is not
-commented out:
+@ The next four variables for keeping track of string pool usage.
 
 @<Glob...@>=
-integer strs_used_up; /* strings in use or unused but not reclaimed */
-integer pool_in_use; /* total number of cells of |str_pool| actually in use */
-integer strs_in_use; /* total number of strings actually in use */
+integer pool_in_use; /* total number of string bytes actually in use */
 integer max_pl_used; /* maximum |pool_in_use| so far */
+integer strs_in_use; /* total number of strings actually in use */
 integer max_strs_used; /* maximum |strs_in_use| so far */
 
 @ Several of the elementary string operations are performed using \.{WEB}
@@ -1139,77 +1163,78 @@ overhead of procedure calls. For example, here is
 a simple macro that computes the length of a string.
 @.WEB@>
 
-@d str_stop(A) mp->str_start[mp->next_str[(A)]] /* one cell past the end of string \# */
-@d length(A) (str_stop((A))-mp->str_start[(A)]) /* the number of characters in string \# */
+@d length(A) (A->len) /* the number of characters in string \# */
 
-@ The length of the current string is called |cur_length|.  If we decide that
-the current string is not needed, |flush_cur_string| resets |pool_ptr| so that
-|cur_length| becomes zero.
-
-@d cur_length   (mp->pool_ptr - mp->str_start[mp->str_ptr])
-@d flush_cur_string   mp->pool_ptr=mp->str_start[mp->str_ptr]
-
-@ Strings are created by appending character codes to |str_pool|.
+@ Strings are created by appending character codes to |cur_string|.
 The |append_char| macro, defined here, does not check to see if the
-value of |pool_ptr| has gotten too high; this test is supposed to be
+buffer overflows; this test is supposed to be
 made before |append_char| is used.
 
-To test if there is room to append |l| more characters to |str_pool|,
+To test if there is room to append |l| more characters to |cur_string|,
 we shall write |str_room(l)|, which tries to make sure there is enough room
-by compacting the string pool if necessary.  If this does not work,
-|do_compaction| aborts \MP\ and gives an apologetic error message.
+in the |cur_string|.
 
-@d append_char(A)   /* put |ASCII_code| \# at the end of |str_pool| */
-{ mp->str_pool[mp->pool_ptr]=(ASCII_code)(A); incr(mp->pool_ptr);
-}
-@d str_room(A)   /* make sure that the pool hasn't overflowed */
-  { if ( mp->pool_ptr+(A) > mp->max_pool_ptr ) {
-    if ( mp->pool_ptr+(A) > mp->pool_size ) mp_do_compaction(mp, (A));
-    else mp->max_pool_ptr=mp->pool_ptr+(A); }
-  }
+@d EXTRA_STRING 500
 
-@ The following routine is similar to |str_room(1)| but it uses the
-argument |mp->pool_size| to prevent |do_compaction| from aborting when
-string space is exhausted.
+@d append_char(A) do {
+    if (mp->cur_string==NULL) reset_cur_string(mp);
+    else str_room(1);
+    *(mp->cur_string+mp->cur_length)=(unsigned char)(A);
+    mp->cur_length++;
+} while (0)
+
+@d str_room(wsize) do {
+    size_t nsize;
+    if ((mp->cur_length+(size_t)wsize) > mp->cur_string_size) {
+        nsize = mp->cur_string_size + mp->cur_string_size / 5 + EXTRA_STRING;
+        if (nsize < (size_t)(wsize)) {
+            nsize = (size_t)wsize + EXTRA_STRING;
+        }
+        mp->cur_string = (unsigned char *) xrealloc(mp->cur_string, (unsigned)nsize, sizeof(unsigned char));
+        memset (mp->cur_string+mp->cur_length,0,(nsize-mp->cur_length));
+        mp->cur_string_size = nsize;
+    }
+} while (0)
+
+
+@ At the very start of the metapost run and each time after |make_string| has stored a new string 
+in the avl tree, the |cur_string| variable has to be prepared so that it will be ready to start 
+creating a new string. The initial size is fairly arbitrary, but setting it a little higher than
+expected helps prevent |reallocs|
 
 @<Declarations@>=
-static void mp_unit_str_room (MP mp);
+void reset_cur_string(MP mp);
 
-@ @c
-void mp_unit_str_room (MP mp) { 
-  if ( mp->pool_ptr>=mp->pool_size ) mp_do_compaction(mp, mp->pool_size);
-  if ( mp->pool_ptr>=mp->max_pool_ptr ) mp->max_pool_ptr=mp->pool_ptr+1;
+@ @c void reset_cur_string(MP mp)
+{
+    xfree(mp->cur_string);
+    mp->cur_length = 0;
+    mp->cur_string_size = 63;
+    mp->cur_string = (unsigned char *) xmalloc(64, sizeof (unsigned char));
+    memset(mp->cur_string, 0, 64);
 }
 
+
 @ \MP's string expressions are implemented in a brute-force way: Every
-new string or substring that is needed is simply copied into the string pool.
-Space is eventually reclaimed by a procedure called |do_compaction| with
-the aid of a simple system system of reference counts.
+new string or substring that is needed is simply stored into the string pool.
+Space is eventually reclaimed using the aid of a simple system system 
+of reference counts.
 @^reference counts@>
 
-The number of references to string number |s| will be |str_ref[s]|. The
-special value |str_ref[s]=max_str_ref=127| is used to denote an unknown
+The number of references to string number |s| will be |s->refs|. The
+special value |s->refs=max_str_ref=127| is used to denote an unknown
 positive number of references; such strings will never be recycled. If
 a string is ever referred to more than 126 times, simultaneously, we
-put it in this category. Hence a single byte suffices to store each |str_ref|.
+put it in this category.
 
 @d max_str_ref 127 /* ``infinite'' number of references */
-@d add_str_ref(A) { if ( mp->str_ref[(A)]<max_str_ref ) incr(mp->str_ref[(A)]); }
-
-@<Glob...@>=
-int *str_ref;
-
-@ @<Allocate or initialize ...@>=
-mp->str_ref = xmalloc ((mp->max_strings+1),sizeof(int));
-
-@ @<Dealloc variables@>=
-xfree(mp->str_ref);
+@d add_str_ref(A) { if ( (A)->refs < max_str_ref ) incr((A)->refs); }
 
 @ Here's what we do when a string reference disappears:
 
 @d delete_str_ref(A)  { 
-    if ( mp->str_ref[(A)]<max_str_ref ) {
-       if ( mp->str_ref[(A)]>1 ) decr(mp->str_ref[(A)]); 
+    if ( (A)->refs < max_str_ref ) {
+       if ( (A)->refs > 1 ) decr((A)->refs); 
        else mp_flush_string(mp, (A));
     }
   }
@@ -1217,34 +1242,26 @@ xfree(mp->str_ref);
 @<Declarations@>=
 static void mp_flush_string (MP mp,str_number s) ;
 
-@ We can't flush the first set of static strings at all, so there 
-is no point in trying
-
-@c
+@ @c
 void mp_flush_string (MP mp,str_number s) { 
-  if (length(s)>1) {
-    mp->pool_in_use=mp->pool_in_use-length(s);
+  if (s->refs == 0) {
     decr(mp->strs_in_use);
-    if ( mp->next_str[s]!=mp->str_ptr ) {
-      mp->str_ref[s]=0;
-    } else { 
-      mp->str_ptr=s;
-      decr(mp->strs_used_up);
-    }
-    mp->pool_ptr=mp->str_start[mp->str_ptr];
+    mp->pool_in_use=mp->pool_in_use-(integer)length(s);
+   (void) avl_del (s,mp->strings,NULL);
   }
 }
 
-@ C literals cannot be simply added, they need to be set so they can't
-be flushed.
-
-@d intern(A) mp_intern(mp,(A))
+@ C literals cannot be simply added, their reference count has to be set such 
+that they can not be flushed.
 
 @c
 str_number mp_intern (MP mp, const char *s) {
   str_number r ;
-  r = rts(s);
-  mp->str_ref[r] = max_str_ref;
+  r = mp_rts(mp, s);
+  /* these strings are fixed, no need to keep them in the stats */
+  mp->pool_in_use=mp->pool_in_use-(integer)strlen(s);
+  decr(mp->strs_in_use);
+  r->refs = max_str_ref;
   return r;
 }
 
@@ -1252,225 +1269,68 @@ str_number mp_intern (MP mp, const char *s) {
 static str_number mp_intern (MP mp, const char *s);
 
 
-@ Once a sequence of characters has been appended to |str_pool|, it
+@ Once a sequence of characters has been appended to |cur_string|, it
 officially becomes a string when the function |make_string| is called.
-This function returns the identification number of the new string as its
-value.
-
-When getting the next unused string number from the linked list, we pretend
-that
-$$ \hbox{|max_str_ptr+1|, |max_str_ptr+2|, $\ldots$, |mp->max_strings|} $$
-are linked sequentially even though the |next_str| entries have not been
-initialized yet.  We never allow |str_ptr| to reach |mp->max_strings|;
-|do_compaction| is responsible for making sure of this.
+This function returns a pointer to the new string as its value.
 
 @<Declarations@>=
 static str_number mp_make_string (MP mp);
 
 @ @c 
 str_number mp_make_string (MP mp) { /* current string enters the pool */
-  str_number s; /* the new string */
-RESTART: 
-  s=mp->str_ptr;
-  mp->str_ptr=mp->next_str[s];
-  if ( mp->str_ptr>mp->max_str_ptr ) {
-    if ( mp->str_ptr==mp->max_strings ) { 
-      mp->str_ptr=s;
-      mp_do_compaction(mp, 0);
-      goto RESTART;
-    } else {
-      mp->max_str_ptr=mp->str_ptr;
-      mp->next_str[mp->str_ptr]=mp->max_str_ptr+1;
+    str_number str;
+    mp_lstring tmp;
+    tmp.str = mp->cur_string;
+    tmp.len = mp->cur_length;
+    str = (str_number) avl_find (&tmp, mp->strings);
+    if (str == NULL) { /* not yet known */
+        str = xmalloc(1, sizeof(mp_lstring));
+        str->str = mp->cur_string;
+        str->len = tmp.len;
+        assert(avl_ins (str, mp->strings, avl_false)>0);
+        str = (str_number) avl_find (&tmp, mp->strings);
+        mp->pool_in_use=mp->pool_in_use+(integer)length(str);
+        if (mp->pool_in_use>mp->max_pl_used ) 
+            mp->max_pl_used=mp->pool_in_use;
+        incr(mp->strs_in_use);
+        if (mp->strs_in_use>mp->max_strs_used ) 
+            mp->max_strs_used=mp->strs_in_use;
+        str->refs=1;
     }
-  }
-  mp->str_ref[s]=1;
-  mp->str_start[mp->str_ptr]=mp->pool_ptr;
-  incr(mp->strs_used_up);
-  incr(mp->strs_in_use);
-  mp->pool_in_use=mp->pool_in_use+length(s);
-  if ( mp->pool_in_use>mp->max_pl_used ) 
-    mp->max_pl_used=mp->pool_in_use;
-  if ( mp->strs_in_use>mp->max_strs_used ) 
-    mp->max_strs_used=mp->strs_in_use;
-  return s;
+    reset_cur_string(mp);
+    return str;
 }
-
-@ The most interesting string operation is string pool compaction.  The idea
-is to recover unused space in the |str_pool| array by recopying the strings
-to close the gaps created when some strings become unused.  All string
-numbers~$k$ where |str_ref[k]=0| are to be linked into the list of free string
-numbers after |str_ptr|.  If this fails to free enough pool space we issue an
-|overflow| error unless |needed=mp->pool_size|.  Calling |do_compaction|
-with |needed=mp->pool_size| supresses all overflow tests.
-
-The compaction process starts with |last_fixed_str| because all lower numbered
-strings are permanently allocated with |max_str_ref| in their |str_ref| entries.
-
-@<Glob...@>=
-str_number last_fixed_str; /* last permanently allocated string */
-str_number fixed_str_use; /* number of permanently allocated strings */
-
-@ @<Internal library ...@>=
-void mp_do_compaction (MP mp, pool_pointer needed) ;
-
-@ @c
-void mp_do_compaction (MP mp, pool_pointer needed) {
-  str_number str_use; /* a count of strings in use */
-  str_number r,s,t; /* strings being manipulated */
-  pool_pointer p,q; /* destination and source for copying string characters */
-  @<Advance |last_fixed_str| as far as possible and set |str_use|@>;
-  r=mp->last_fixed_str;
-  s=mp->next_str[r];
-  p=mp->str_start[s];
-  while ( s!=mp->str_ptr ) { 
-    while ( mp->str_ref[s]==0 ) {
-      @<Advance |s| and add the old |s| to the list of free string numbers;
-        then |break| if |s=str_ptr|@>;
-    }
-    r=s; s=mp->next_str[s];
-    incr(str_use);
-    @<Move string |r| back so that |str_start[r]=p|; make |p| the location
-     after the end of the string@>;
-  }
-DONE:   
-  @<Move the current string back so that it starts at |p|@>;
-  if ( needed<mp->pool_size ) {
-    @<Make sure that there is room for another string with |needed| characters@>;
-  }
-  @<Account for the compaction and make sure the statistics agree with the
-     global versions@>;
-  mp->strs_used_up=str_use;
-}
-
-@ @<Advance |last_fixed_str| as far as possible and set |str_use|@>=
-t=mp->next_str[mp->last_fixed_str];
-while (t!=mp->str_ptr && mp->str_ref[t]==max_str_ref) {
-  incr(mp->fixed_str_use);
-  mp->last_fixed_str=t;
-  t=mp->next_str[t];
-}
-str_use=mp->fixed_str_use
-
-@ Because of the way |flush_string| has been written, it should never be
-necessary to |break| here.  The extra line of code seems worthwhile to
-preserve the generality of |do_compaction|.
-
-@<Advance |s| and add the old |s| to the list of free string numbers;...@>=
-{
-t=s;
-s=mp->next_str[s];
-mp->next_str[r]=s;
-mp->next_str[t]=mp->next_str[mp->str_ptr];
-mp->next_str[mp->str_ptr]=t;
-if ( s==mp->str_ptr ) goto DONE;
-}
-
-@ The string currently starts at |str_start[r]| and ends just before
-|str_start[s]|.  We don't change |str_start[s]| because it might be needed
-to locate the next string.
-
-@<Move string |r| back so that |str_start[r]=p|; make |p| the location...@>=
-q=mp->str_start[r];
-mp->str_start[r]=p;
-while ( q<mp->str_start[s] ) { 
-  mp->str_pool[p]=mp->str_pool[q];
-  incr(p); incr(q);
-}
-
-@ Pointers |str_start[str_ptr]| and |pool_ptr| have not been updated.  When
-we do this, anything between them should be moved.
-
-@ @<Move the current string back so that it starts at |p|@>=
-q=mp->str_start[mp->str_ptr];
-mp->str_start[mp->str_ptr]=p;
-while ( q<mp->pool_ptr ) { 
-  mp->str_pool[p]=mp->str_pool[q];
-  incr(p); incr(q);
-}
-mp->pool_ptr=p
-
-@ We must remember that |str_ptr| is not allowed to reach |mp->max_strings|.
-
-@<Make sure that there is room for another string with |needed| char...@>=
-if ( str_use>=mp->max_strings-1 )
-  mp_reallocate_strings (mp,str_use);
-if ( mp->pool_ptr+needed>mp->max_pool_ptr ) {
-  mp_reallocate_pool(mp, mp->pool_ptr+needed);
-  mp->max_pool_ptr=mp->pool_ptr+needed;
-}
-
-@ @<Internal library ...@>=
-void mp_reallocate_strings (MP mp, str_number str_use) ;
-void mp_reallocate_pool(MP mp, pool_pointer needed) ;
-
-@ @c 
-void mp_reallocate_strings (MP mp, str_number str_use) { 
-  while ( str_use>=mp->max_strings-1 ) {
-    int l = mp->max_strings + (mp->max_strings/4);
-    XREALLOC (mp->str_ref,   l, int);
-    XREALLOC (mp->str_start, l, pool_pointer);
-    XREALLOC (mp->next_str,  l, str_number);
-    mp->max_strings = l;
-  }
-}
-void mp_reallocate_pool(MP mp, pool_pointer needed) {
-  while ( needed>mp->pool_size ) {
-    int l = mp->pool_size + (mp->pool_size/4);
- 	XREALLOC (mp->str_pool, l, ASCII_code);
-    mp->pool_size = l;
-  }
-}
-
-@ @<Account for the compaction and make sure the statistics agree with...@>=
-if ( (mp->str_start[mp->str_ptr]!=mp->pool_in_use)||(str_use!=mp->strs_in_use) )
-  mp_confusion(mp, "string");
-@:this can't happen string}{\quad string@>
-incr(mp->pact_count);
-mp->pact_chars=mp->pact_chars+mp->pool_ptr-str_stop(mp->last_fixed_str);
-mp->pact_strs=mp->pact_strs+str_use-mp->fixed_str_use;
-
-@ A few more global variables are needed to keep track of statistics when
-|stat| $\ldots$ |tats| blocks are not commented out.
-
-@<Glob...@>=
-integer pact_count; /* number of string pool compactions so far */
-integer pact_chars; /* total number of characters moved during compactions */
-integer pact_strs; /* total number of strings moved during compactions */
-
-@ @<Initialize compaction statistics@>=
-mp->pact_count=0;
-mp->pact_chars=0;
-mp->pact_strs=0;
 
 @ The following subroutine compares string |s| with another string of the
 same length that appears in |buffer| starting at position |k|;
 the result is |true| if and only if the strings are equal.
 
 @c 
-static boolean mp_str_eq_buf (MP mp,str_number s, integer k) {
-  /* test equality of strings */
-  pool_pointer j; /* running index */
-  j=mp->str_start[s];
-  while ( j<str_stop(s) ) { 
-    if ( mp->str_pool[j++]!=mp->buffer[k++] ) 
-      return false;
-  }
-  return true;
+static boolean mp_str_eq_buf (MP mp, str_number s, integer k) {
+    /* test equality of strings */
+    size_t j = 0; /* running index */
+    while ( j<length(s) ) { 
+        if ( *(s->str+j)!=mp->buffer[k] ) 
+            return false;
+        j++; k++;
+    }
+    return true;
 }
 
 @ This routine compares a pool string with a sequence of characters
 of equal length.
 
 @c 
-static boolean mp_str_eq_cstr (MP mp,str_number s, char *k) {
-  /* test equality of strings */
-  pool_pointer j; /* running index */
-  j=mp->str_start[s];
-  while ( j<str_stop(s) ) { 
-    if ( mp->str_pool[j++]!=*k++ ) 
-      return false;
-  }
-  return true;
+static boolean mp_str_eq_cstr (MP mp, str_number s, char *k) {
+    /* test equality of strings */
+    size_t j = 0; /* running index */
+    (void)mp;
+    while ( j<length(s) ) { 
+        if ( *(s->str+j)!=*k ) 
+            return false;
+        j++; k++;
+    }
+    return true;
 }
 
 @ Here is a similar routine, but it compares two strings in the string pool,
@@ -1480,57 +1340,8 @@ the result is respectively positive, negative, or zero.
 
 @c 
 static integer mp_str_vs_str (MP mp, str_number s, str_number t) {
-  /* test equality of strings */
-  pool_pointer j,k; /* running indices */
-  integer ls,lt; /* lengths */
-  integer l; /* length remaining to test */
-  ls=length(s); lt=length(t);
-  if ( ls<=lt ) l=ls; else l=lt;
-  j=mp->str_start[s]; k=mp->str_start[t];
-  while ( l-->0 ) { 
-    if ( mp->str_pool[j]!=mp->str_pool[k] ) {
-       return (mp->str_pool[j]-mp->str_pool[k]); 
-    }
-    j++; k++;
-  }
-  return (ls-lt);
-}
-
-@ The initial values of |str_pool|, |str_start|, |pool_ptr|,
-and |str_ptr| are set up here.
-@^string pool@>
-
-@c 
-void mp_get_strings_started (MP mp) { 
-  /* initializes the string pool,
-    but returns |false| if something goes wrong */
-  int k; /* small indices or counters */
-  str_number g; /* a new string */
-  mp->pool_ptr=0; mp->str_ptr=0; mp->max_pool_ptr=0; mp->max_str_ptr=0;
-  mp->str_start[0]=0;
-  mp->next_str[0]=1;
-  mp->pool_in_use=0; mp->strs_in_use=0;
-  mp->max_pl_used=0; mp->max_strs_used=0;
-  @<Initialize compaction statistics@>;
-  mp->strs_used_up=0;
-  @<Make the first 256 strings@>;
-  g=mp_make_string(mp); /* string 256 == "" */
-  mp->str_ref[g]=max_str_ref;
-  mp->last_fixed_str=mp->str_ptr-1;
-  mp->fixed_str_use=mp->str_ptr;
-  return;
-}
-
-@ @<Declarations@>=
-static void mp_get_strings_started (MP mp);
-
-@ The first 256 strings will consist of a single character only.
-
-@<Make the first 256...@>=
-for (k=0;k<=255;k++) { 
-  append_char(k);
-  g=mp_make_string(mp); 
-  mp->str_ref[g]=max_str_ref;
+  (void)mp;
+  return comp_strings_entry (NULL, (const void *)s, (const void *)t);
 }
 
 @ The first 128 strings will contain 95 standard ASCII characters, and the
@@ -1638,15 +1449,15 @@ by changing |wterm|, |wterm_ln|, and |wterm_cr| here.
 @^system dependencies@>
 
 @(mpmp.h@>=
-#define do_fprintf(f,b) (mp->write_ascii_file)(mp,f,b)
-#define wterm(A)     do_fprintf(mp->term_out,(A))
+#define do_putsf(f,b) (mp->write_ascii_file)(mp,f,b)
+#define wterm(A)     do_putsf(mp->term_out,(A))
 #define wterm_chr(A) { unsigned char ss[2]; ss[0]=(A); ss[1]='\0'; wterm((char *)ss);}
-#define wterm_cr     do_fprintf(mp->term_out,"\n")
-#define wterm_ln(A)  { wterm_cr; do_fprintf(mp->term_out,(A)); }
-#define wlog(A)        do_fprintf(mp->log_file,(A))
+#define wterm_cr     do_putsf(mp->term_out,"\n")
+#define wterm_ln(A)  { wterm_cr; do_putsf(mp->term_out,(A)); }
+#define wlog(A)        do_putsf(mp->log_file,(A))
 #define wlog_chr(A)  { unsigned char ss[2]; ss[0]=(A); ss[1]='\0'; wlog((char *)ss);}
-#define wlog_cr      do_fprintf(mp->log_file, "\n")
-#define wlog_ln(A)   { wlog_cr; do_fprintf(mp->log_file,(A)); }
+#define wlog_cr      do_putsf(mp->log_file, "\n")
+#define wlog_ln(A)   { wlog_cr; do_putsf(mp->log_file,(A)); }
 
 
 @ To end a line of text output, we call |print_ln|.  Cases |0..max_write_files|
@@ -1682,7 +1493,7 @@ void mp_print_ln (MP mp) { /* prints an end-of-line */
   case new_string: 
     break;
   default: 
-    do_fprintf(mp->wr_file[(mp->selector-write_file)],"\n");
+    do_putsf(mp->wr_file[(mp->selector-write_file)],"\n");
   }
 } /* note that |tally| is not affected */
 
@@ -1694,10 +1505,6 @@ a visible ASCII character.)  All printing comes through |print_ln| or
 routines are the ones that limit lines to at most |max_print_line| characters.
 But we must make an exception for the \ps\ output file since it is not safe
 to cut up lines arbitrarily in \ps.
-
-Procedure |unit_str_room| needs to be declared |forward| here because it calls
-|do_compaction| and |do_compaction| can call the error routines.  Actually,
-|unit_str_room| avoids |overflow| errors but it can call |confusion|.
 
 @<Basic printing...@>=
 void mp_print_visible_char (MP mp, ASCII_code s) { /* prints a single character */
@@ -1727,19 +1534,13 @@ void mp_print_visible_char (MP mp, ASCII_code s) { /* prints a single character 
       mp->trick_buf[mp->tally % mp->error_line]=s;
     break;
   case new_string: 
-    if (mp->pool_ptr>=mp->pool_size || mp->pool_ptr>=mp->max_pool_ptr ) { 
-      mp_unit_str_room(mp);
-      if ( mp->pool_ptr>=mp->pool_size ) 
-        goto DONE; /* drop characters if string space is full */
-    };
     append_char(s);
     break;
   default:
     { text_char ss[2]; ss[0] = xchr(s); ss[1]=0;
-      do_fprintf(mp->wr_file[(mp->selector-write_file)],(char *)ss);
+      do_putsf(mp->wr_file[(mp->selector-write_file)],(char *)ss);
     }
   }
-DONE:
   incr(mp->tally);
 }
 
@@ -1785,7 +1586,7 @@ assumes that it is always safe to print a visible ASCII character.)
 static void mp_do_print (MP mp, const char *ss, size_t len) { /* prints string |s| */
   size_t j = 0;
   if (mp->selector == new_string) {
-    str_room((integer)(len*4));
+    str_room((len*4));
   }
   while ( j<len ){ 
     /* this was |xord((int)ss[j])| but that doesnt work */
@@ -1799,31 +1600,9 @@ void mp_print (MP mp, const char *ss) {
   if (ss==NULL) return;
   mp_do_print(mp, ss,strlen(ss));
 }
-
-@ This function is somewhat less trivial than expected
-because it is not safe to directly print data in the
-string pool since |mp_do_print()| can potentially reallocate 
-the whole lot.
-
-@<Basic print...@>=
 void mp_print_str (MP mp, str_number s) {
-  pool_pointer j; /* current character code position */
-  char *ss; /* a temporary C string */
-  size_t len; /* its length */
-  if ( (s<0)||(s>mp->max_str_ptr) ) {
-     mp_do_print(mp,"???",3); /* this can't happen */
-@.???@>
-  }
-  j=mp->str_start[s];
-  len = (size_t)(str_stop(s)-j);
-  ss = xmalloc(len+1, sizeof(char));
-  if (len > 0) {
-    /* the man page doesnt say whether 0 is allowed */
-    memcpy(ss,(char *)(mp->str_pool+j),len);
-  }
-  ss[len] = '\0';
-  mp_do_print(mp, ss, len);
-  mp_xfree(ss);
+  assert (s!=NULL); /* todo: this should never happen */
+  mp_do_print(mp, (const char *)s->str, s->len);
 }
 
 
@@ -2137,7 +1916,6 @@ static void mp_jump_out (MP mp) {
 void mp_error (MP mp) { /* completes the job of error reporting */
   ASCII_code c; /* what the user types */
   integer s1,s2,s3; /* used to save global variables when deleting tokens */
-  pool_pointer j; /* character position being printed */
   if ( mp->history<mp_error_message_issued ) 
 	mp->history=mp_error_message_issued;
   mp_print_char(mp, xord('.')); mp_show_context(mp);
@@ -2226,7 +2004,7 @@ case 'E':
     mp->interaction=mp_scroll_mode; 
     mp_close_files_and_terminate(mp);
     (mp->run_editor)(mp, 
-                     str(mp->input_stack[mp->file_ptr].name_field), 
+                     mp_str(mp,mp->input_stack[mp->file_ptr].name_field), 
                      mp_true_line(mp));
     mp_jump_out(mp);
   }
@@ -2338,14 +2116,16 @@ to be familiar with \MP's input stacks.
 }
 
 @ @<Print the string |err_help|, possibly on several lines@>=
-j=mp->str_start[mp->err_help];
-while ( j<str_stop(mp->err_help) ) { 
-  if ( mp->str_pool[j]!='%' ) mp_print_str(mp, mp->str_pool[j]);
-  else if ( j+1==str_stop(mp->err_help) ) mp_print_ln(mp);
-  else if ( mp->str_pool[j+1]!='%' ) mp_print_ln(mp);
+{ size_t j=0;
+while ( j<length(mp->err_help) ) { 
+  if ( *(mp->err_help->str+j)!='%' ) mp_print(mp, (const char *)(mp->err_help->str+j));
+  else if ( j+1==length(mp->err_help) ) mp_print_ln(mp);
+  else if ( *(mp->err_help->str+j)!='%' ) mp_print_ln(mp);
   else  { j++; mp_print_char(mp, xord('%')); };
   j++;
 }
+}
+
 
 @ @<Put help message on the transcript file@>=
 if ( mp->interaction>mp_batch_mode ) decr(mp->selector); /* avoid terminal output */
@@ -2356,10 +2136,10 @@ if ( mp->use_err_help ) {
   while ( mp->help_ptr>0 ){ 
     decr(mp->help_ptr); mp_print_nl(mp, mp->help_line[mp->help_ptr]);
   };
+  mp_print_ln(mp);
+  if ( mp->interaction>mp_batch_mode ) incr(mp->selector); /* re-enable terminal output */
+  mp_print_ln(mp);
 }
-mp_print_ln(mp);
-if ( mp->interaction>mp_batch_mode ) incr(mp->selector); /* re-enable terminal output */
-mp_print_ln(mp)
 
 @ In anomalous cases, the print selector might be in an unknown state;
 the following subroutine is called to fix things just enough to keep
@@ -3757,7 +3537,6 @@ must satisfy (or rather, the inequalities that they mustn't satisfy):
 
 @<Check the ``constant''...@>=
 if ( mp->mem_max>=max_halfword ) mp->bad=12;
-if ( mp->max_strings>max_halfword ) mp->bad=13;
 
 @ The macros |qi| and |qo| are used for input to and output 
 from quarterwords. These are legacy macros.
@@ -3781,6 +3560,10 @@ typedef union {
   struct {
     halfword RH, LH;
   } v;
+  struct {
+    str_number str2;
+    str_number str;
+  } s;
   struct { /* Make B0,B1 overlap the most significant bytes of LH.  */
     halfword junk;
     quarterword B0, B1;
@@ -3908,12 +3691,12 @@ void mp_xfree (void *x) {
 void  *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) {
   void *w ; 
   if ((max_size_test/size)<nmem) {
-    do_fprintf(mp->err_out,"Memory size overflow!\n");
+    do_putsf(mp->err_out,"Memory size overflow!\n");
     mp->history =mp_fatal_error_stop;    mp_jump_out(mp);
   }
   w = realloc (p,(nmem*size));
   if (w==NULL) {
-    do_fprintf(mp->err_out,"Out of memory!\n");
+    do_putsf(mp->err_out,"Out of memory!\n");
     mp->history =mp_system_error_stop;    mp_jump_out(mp);
   }
   return w;
@@ -3921,12 +3704,12 @@ void  *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) {
 void  *mp_xmalloc (MP mp, size_t nmem, size_t size) {
   void *w;
   if ((max_size_test/size)<nmem) {
-    do_fprintf(mp->err_out,"Memory size overflow!\n");
+    do_putsf(mp->err_out,"Memory size overflow!\n");
     mp->history =mp_fatal_error_stop;    mp_jump_out(mp);
   }
   w = malloc (nmem*size);
   if (w==NULL) {
-    do_fprintf(mp->err_out,"Out of memory!\n");
+    do_putsf(mp->err_out,"Out of memory!\n");
     mp->history =mp_system_error_stop;    mp_jump_out(mp);
   }
   return w;
@@ -3937,7 +3720,7 @@ char *mp_xstrldup(MP mp, const char *s, size_t l) {
     return NULL;
   w = mp_strldup(s, l);
   if (w==NULL) {
-    do_fprintf(mp->err_out,"Out of memory!\n");
+    do_putsf(mp->err_out,"Out of memory!\n");
     mp->history =mp_system_error_stop;    mp_jump_out(mp);
   }
   return w;
@@ -5125,13 +4908,22 @@ enum mp_given_internal {
   mp_procset, /* wether or not create PostScript command shortcuts */
   mp_gtroffmode  /* whether the user specified |-troff| on the command line */
 };
+typedef struct {
+   str_number str;
+   scaled val;
+} mp_internal;
+
+
+@ @(mpmp.h@>=
+#define internal_value(A) mp->internal[(A)].val
+#define internal_string(A) mp->internal[(A)].str
 
 @
 
 @d max_given_internal mp_gtroffmode
 
 @<Glob...@>=
-scaled *internal;  /* the values of internal quantities */
+mp_internal *internal;  /* the values of internal quantities */
 int *int_type;    /* their types */
 char **int_name;  /* their names */
 int int_ptr;  /* the maximum internal quantity defined so far */
@@ -5142,8 +4934,8 @@ int troff_mode;
 
 @ @<Allocate or initialize ...@>=
 mp->max_internal=2*max_given_internal;
-mp->internal = xmalloc ((mp->max_internal+1), sizeof(scaled));
-memset(mp->internal,0,(size_t)(mp->max_internal+1)* sizeof(scaled));
+mp->internal = xmalloc ((mp->max_internal+1), sizeof(mp_internal));
+memset(mp->internal,0,(size_t)(mp->max_internal+1)* sizeof(mp_internal));
 mp->int_name = xmalloc ((mp->max_internal+1), sizeof(char *));
 memset(mp->int_name,0,(size_t)(mp->max_internal+1) * sizeof(char *));
 mp->int_type = xmalloc ((mp->max_internal+1), sizeof(int));
@@ -5281,10 +5073,10 @@ enum mp_color_model {
 
 
 @ @<Initialize table entries (done by \.{INIMP} only)@>=
-mp->internal[mp_default_color_model]=(mp_rgb_model*unity);
-mp->internal[mp_restore_clip_color]=unity;
-mp->internal[mp_output_template]=intern("%j.%c");
-mp->internal[mp_output_format]=intern("eps");
+internal_value(mp_default_color_model)=(mp_rgb_model*unity);
+internal_value(mp_restore_clip_color)=unity;
+internal_string(mp_output_template)=mp_intern(mp,"%j.%c");
+internal_string(mp_output_format)=mp_intern(mp,"eps");
 
 @ Well, we do have to list the names one more time, for use in symbolic
 printouts.
@@ -5344,13 +5136,13 @@ be used after the year 32767.
 static void mp_fix_date_and_time (MP mp) { 
   time_t aclock = time ((time_t *) 0);
   struct tm *tmptr = localtime (&aclock);
-  mp->internal[mp_time]=
+  internal_value(mp_time)=
       (tmptr->tm_hour*60+tmptr->tm_min)*unity; /* minutes since midnight */
-  mp->internal[mp_hour]= (tmptr->tm_hour)*unity; /* hours since midnight */
-  mp->internal[mp_minute]= (tmptr->tm_min)*unity; /* minutes since the hour */
-  mp->internal[mp_day]=(tmptr->tm_mday)*unity; /* fourth day of the month */
-  mp->internal[mp_month]=(tmptr->tm_mon+1)*unity; /* seventh month of the year */
-  mp->internal[mp_year]=(tmptr->tm_year+1900)*unity; /* Anno Domini */
+  internal_value(mp_hour)= (tmptr->tm_hour)*unity; /* hours since midnight */
+  internal_value(mp_minute)= (tmptr->tm_min)*unity; /* minutes since the hour */
+  internal_value(mp_day)=(tmptr->tm_mday)*unity; /* fourth day of the month */
+  internal_value(mp_month)=(tmptr->tm_mon+1)*unity; /* seventh month of the year */
+  internal_value(mp_year)=(tmptr->tm_year+1900)*unity; /* Anno Domini */
 }
 
 @ @<Declarations@>=
@@ -5369,7 +5161,7 @@ static void mp_print_diagnostic (MP mp, const char *s, const char *t, boolean nu
 @ @<Basic printing...@>=
 void mp_begin_diagnostic (MP mp) { /* prepare to do some tracing */
   mp->old_setting=mp->selector;
-  if ((mp->internal[mp_tracing_online]<=0)&&(mp->selector==term_and_log)){ 
+  if ((internal_value(mp_tracing_online)<=0)&&(mp->selector==term_and_log)){ 
     decr(mp->selector);
     if ( mp->history==mp_spotless ) mp->history=mp_warning_issued;
   }
@@ -5503,12 +5295,12 @@ two halfwords called |eq_type| (a command code) and |equiv| (a secondary
 piece of information that qualifies the |eq_type|).
 
 @d eq_type(A)   mp->eqtb[(A)].lh /* the current ``meaning'' of a symbolic token */
-@d equiv(A)   mp->eqtb[(A)].rh /* parametric part of a token's meaning */
-@d hash_is_full   (mp->hash_used==hash_base) /* are all positions occupied? */
+@d equiv(A)     mp->eqtb[(A)].rh /* parametric part of a token's meaning */
+@d hash_is_full (mp->hash_used==hash_base) /* are all positions occupied? */
 
 @(mpmp.h@>=
 #define mp_next(A)   mp->hash[(A)].lh /* link for coalesced lists */
-#define text(A)   mp->hash[(A)].rh /* string number for symbolic token name */
+#define text(A)      mp->hash[(A)].s.str /* string number for symbolic token name */
 #define hash_base 257 /* hashing actually starts here */
 
 @ @<Glob...@>=
@@ -5559,19 +5351,19 @@ for (k=2;k<=hash_end;k++)  {
 @ @<Initialize table entries...@>=
 mp->hash_used=frozen_inaccessible; /* nothing is used */
 mp->st_count=0;
-text(frozen_bad_vardef)=intern("a bad variable");
-text(frozen_etex)=intern("etex");
-text(frozen_mpx_break)=intern("mpxbreak");
-text(frozen_fi)=intern("fi");
-text(frozen_end_group)=intern("endgroup");
-text(frozen_end_def)=intern("enddef");
-text(frozen_end_for)=intern("endfor");
-text(frozen_semicolon)=intern(";");
-text(frozen_colon)=intern(":");
-text(frozen_slash)=intern("/");
-text(frozen_left_bracket)=intern("[");
-text(frozen_right_delimiter)=intern(")");
-text(frozen_inaccessible)=intern(" INACCESSIBLE");
+text(frozen_bad_vardef)=mp_intern(mp,"a bad variable");
+text(frozen_etex)=mp_intern(mp,"etex");
+text(frozen_mpx_break)=mp_intern(mp,"mpxbreak");
+text(frozen_fi)=mp_intern(mp,"fi");
+text(frozen_end_group)=mp_intern(mp,"endgroup");
+text(frozen_end_def)=mp_intern(mp,"enddef");
+text(frozen_end_for)=mp_intern(mp,"endfor");
+text(frozen_semicolon)=mp_intern(mp,";");
+text(frozen_colon)=mp_intern(mp,":");
+text(frozen_slash)=mp_intern(mp,"/");
+text(frozen_left_bracket)=mp_intern(mp,"[");
+text(frozen_right_delimiter)=mp_intern(mp,")");
+text(frozen_inaccessible)=mp_intern(mp," INACCESSIBLE");
 eq_type(frozen_right_delimiter)=right_delimiter;
 
 @ @<Check the ``constant'' values...@>=
@@ -5606,13 +5398,10 @@ static pointer mp_id_lookup (MP mp,integer j, integer l) { /* search the hash ta
   integer h; /* hash code */
   pointer p; /* index in |hash| array */
   pointer k; /* index in |buffer| array */
-  if (l==1) {
-    @<Treat special case of length 1 and |break|@>;
-  }
   @<Compute the hash code |h|@>;
   p=h+hash_base; /* we start searching here; note that |0<=h<hash_prime| */
   while (true)  { 
-	if (text(p)>0 && length(text(p))==l && mp_str_eq_buf(mp, text(p),j)) 
+    if (text(p)!=NULL && length(text(p))==(size_t)l && mp_str_eq_buf(mp, text(p),j)) 
       break;
     if ( mp_next(p)==0 ) {
       @<Insert a new symbolic token after |p|, then
@@ -5623,13 +5412,9 @@ static pointer mp_id_lookup (MP mp,integer j, integer l) { /* search the hash ta
   return p;
 }
 
-@ @<Treat special case of length 1...@>=
- p=mp->buffer[j]+1; text(p)=p-1; return p;
-
-
 @ @<Insert a new symbolic...@>=
 {
-if ( text(p)>0 ) { 
+if ( text(p) != NULL ) { 
   do {  
     if ( hash_is_full )
       mp_overflow(mp, "hash size",(integer)mp->hash_size);
@@ -5644,7 +5429,7 @@ for (k=j;k<j+l;k++) {
   append_char(mp->buffer[k]);
 }
 text(p)=mp_make_string(mp); 
-mp->str_ref[text(p)]=max_str_ref;
+text(p)->refs=max_str_ref;
 incr(mp->st_count);
 break;
 }
@@ -5670,20 +5455,16 @@ contains the new |eqtb| pointer after |primitive| has acted.
 
 @c 
 static void mp_primitive (MP mp, const char *ss, halfword c, halfword o) {
-  pool_pointer k; /* index into |str_pool| */
-  quarterword j; /* index into |buffer| */
-  quarterword l; /* length of the string */
+  size_t l; /* length of the string */
+  size_t j; /* index into |buffer| */
   str_number s;
-  s = intern(ss);
-  k=mp->str_start[s]; l=(quarterword)(str_stop(s)-k);
+  s = mp_intern(mp,ss);
+  l = length(s);
   /* we will move |s| into the (empty) |buffer| */
   for (j=0;j<=l-1;j++) {
-    mp->buffer[j]=mp->str_pool[k+j];
+    mp->buffer[j]=*(s->str+j);
   }
-  mp->cur_sym=mp_id_lookup(mp, 0,l);
-  if ( s>=256 ) { /* we don't want to have the string twice */
-    mp_flush_string(mp, text(mp->cur_sym)); text(mp->cur_sym)=s;
-  };
+  mp->cur_sym=mp_id_lookup(mp, 0, (integer)l);
   eq_type(mp->cur_sym)=c; 
   equiv(mp->cur_sym)=o;
 }
@@ -5870,6 +5651,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 @d token_node_size 2 /* the number of words in a large token node */
 @d value_loc(A) ((A)+1) /* the word that contains the |value| field */
 @d value(A) mp->mem[value_loc((A))].cint /* the value stored in a large token node */
+@d str_value(A) mp->mem[value_loc((A))].hh.s.str /* the value stored in a large token node */
 @d knot_value(A) mp->mem[value_loc((A))].hh.p.P /* the value stored in a large token node */
 @d expr_base (hash_end+1) /* code for the zeroth \&{expr} parameter */
 @d suffix_base (expr_base+mp->param_size) /* code for the zeroth \&{suffix} parameter */
@@ -5909,7 +5691,7 @@ of a token list when it is no longer needed.
       case mp_vacuous: case mp_boolean_type: case mp_known:
         break;
       case mp_string_type:
-        delete_str_ref(value(q));
+        delete_str_ref(str_value(q));
         break;
       case unknown_types: case mp_pen_type: case mp_path_type: 
       case mp_picture_type: case mp_pair_type: case mp_color_type:
@@ -5994,8 +5776,8 @@ if ( p<mp->hi_mem_min ) {
 @.IMPOSSIBLE@>
       }
     } else { 
-      r=text(r);
-      if ( (r<0)||(r>mp->max_str_ptr) ) {
+      str_number rr= text(r);
+      if ( rr == NULL ) {
         mp_print(mp, " NONEXISTENT");
 @.NONEXISTENT@>
       } else {
@@ -6015,7 +5797,7 @@ if ( mp_name_type(p)==mp_token ) {
 @.BAD@>
   } else { 
     mp_print_char(mp, xord('"'));
-    mp_print_str(mp, value(p));
+    mp_print_str(mp, str_value(p));
     mp_print_char(mp, xord('"'));
     c=string_class;
   }
@@ -6068,7 +5850,7 @@ mp_print_int(mp, r); mp_print_char(mp, xord(')')); c=right_paren_class;
 
 @ @<Print string |r| as a symbolic token...@>=
 { 
-c=(quarterword)mp->char_class[mp->str_pool[mp->str_start[r]]];
+c=(quarterword)mp->char_class[(rr->str[0])];
 if ( c==class ) {
   switch (c) {
   case letter_class:mp_print_char(mp, xord('.')); break;
@@ -6076,7 +5858,7 @@ if ( c==class ) {
   default: mp_print_char(mp, xord(' ')); break;
   }
 }
-mp_print_str(mp, r);
+mp_print_str(mp, rr);
 }
 
 @ @<Declarations@>=
@@ -6488,7 +6270,7 @@ in a capsule, or if the user wants to trace capsules.
 @c 
 static boolean mp_interesting (MP mp,pointer p) {
   quarterword t; /* a |name_type| */
-  if ( mp->internal[mp_tracing_capsules]>0 ) {
+  if ( internal_value(mp_tracing_capsules)>0 ) {
     return true;
   } else { 
     t=mp_name_type(p);
@@ -6899,7 +6681,7 @@ static void mp_save_internal (MP mp,halfword q) {
      p=mp_get_node(mp, save_node_size);
      mp_info(p)=hash_end+q;
      mp_link(p)=mp->save_ptr; 
-     value(p)=mp->internal[q];
+     value(p)=internal_value(q);
      mp->save_ptr=p;
   }
 }
@@ -6915,7 +6697,7 @@ static void mp_unsave (MP mp) {
   while ( mp_info(mp->save_ptr)!=0 ) {
     q=mp_info(mp->save_ptr);
     if ( q>hash_end ) {
-      if ( mp->internal[mp_tracing_restores]>0 ) {
+      if ( internal_value(mp_tracing_restores)>0 ) {
         mp_begin_diagnostic(mp);
         mp_print_nl(mp, "{restoring ");
         mp_print(mp, mp->int_name[q-(hash_end)]);
@@ -6923,18 +6705,17 @@ static void mp_unsave (MP mp) {
         if (mp->int_type[q-(hash_end)]==mp_known) {
            mp_print_scaled(mp, value(mp->save_ptr));
         } else if (mp->int_type[q-(hash_end)]==mp_string_type) {
-           char *s = mp_str(mp, value(mp->save_ptr));
+           char *s = mp_str(mp, str_value(mp->save_ptr));
            mp_print(mp, s);
-           free(s);
         } else {
            mp_confusion(mp,"internal_restore");
         }
         mp_print_char(mp, xord('}'));
         mp_end_diagnostic(mp, false);
       }
-      mp->internal[q-(hash_end)]=value(mp->save_ptr);
+      internal_value(q-(hash_end))=value(mp->save_ptr);
     } else { 
-      if ( mp->internal[mp_tracing_restores]>0 ) {
+      if ( internal_value(mp_tracing_restores)>0 ) {
         mp_begin_diagnostic(mp); 
         mp_print_nl(mp, "{restoring ");
         mp_print_text(q); 
@@ -7379,7 +7160,7 @@ static void mp_make_choices (MP mp, mp_knot *knots) {
   mp_knot *p, *q; /* consecutive breakpoints being processed */
   @<Other local variables for |make_choices|@>;
   check_arith; /* make sure that |arith_error=false| */
-  if ( mp->internal[mp_tracing_choices]>0 )
+  if ( internal_value(mp_tracing_choices)>0 )
     mp_print_path(mp, knots,", before choices",true);
   @<If consecutive knots are equal, join them explicitly@>;
   @<Find the first breakpoint, |h|, on the path;
@@ -7389,7 +7170,7 @@ static void mp_make_choices (MP mp, mp_knot *knots) {
     @<Fill in the control points between |p| and the next breakpoint,
       then advance |p| to that breakpoint@>;
   } while (p!=h);
-  if ( mp->internal[mp_tracing_choices]>0 )
+  if ( internal_value(mp_tracing_choices)>0 )
     mp_print_path(mp, knots,", after choices",true);
   if ( mp->arith_error ) {
     @<Report an unexpected problem during the choice-making@>;
@@ -8304,13 +8085,13 @@ if ( x>mp->bbmax[c] ) mp->bbmax[c]=x
 @ @<Check the control points against the bounding box and set...@>=
 wavy=true;
 if (c==mp_x_code) {
-  if ( mp->bbmin[c]<=mp_x_coord(p) )
+  if ( mp->bbmin[c]<=mp_right_x(p) )
     if ( mp_right_x(p)<=mp->bbmax[c] )
       if ( mp->bbmin[c]<=mp_left_x(q) )
         if ( mp_left_x(q)<=mp->bbmax[c] )
           wavy=false;
 } else {
-  if ( mp->bbmin[c]<=mp_y_coord(p) )
+  if ( mp->bbmin[c]<=mp_right_y(p) )
     if ( mp_right_y(p)<=mp->bbmax[c] )
       if ( mp->bbmin[c]<=mp_left_y(q) )
         if ( mp_left_y(q)<=mp->bbmax[c] )
@@ -9371,8 +9152,8 @@ give the relevant information.
 @:mp_miterlimit_}{\&{miterlimit} primitive@>
 @d obj_color_part(A) mp->mem[(A)+3-red_part].sc
   /* interpret an object pointer that has been offset by |red_part..blue_part| */
-@d mp_pre_script(A) mp->mem[(A)+8].hh.lh
-@d mp_post_script(A) mp->mem[(A)+8].hh.rh
+@d mp_pre_script(A) mp->mem[(A)+8].hh.s.str
+@d mp_post_script(A) mp->mem[(A)+8].hh.s.str2
 @d fill_node_size 9
 
 @ @<Graphical object codes@>=
@@ -9398,13 +9179,13 @@ static pointer mp_new_fill_node (MP mp, mp_knot *p) {
 }
 
 @ @<Set the |ljoin_val| and |miterlim_val| fields in object |t|@>=
-if ( mp->internal[mp_linejoin]>unity ) ljoin_val(t)=2;
-else if ( mp->internal[mp_linejoin]>0 ) ljoin_val(t)=1;
+if ( internal_value(mp_linejoin)>unity ) ljoin_val(t)=2;
+else if ( internal_value(mp_linejoin)>0 ) ljoin_val(t)=1;
 else ljoin_val(t)=0;
-if ( mp->internal[mp_miterlimit]<unity )
+if ( internal_value(mp_miterlimit)<unity )
   miterlim_val(t)=unity;
 else
-  miterlim_val(t)=mp->internal[mp_miterlimit]
+  miterlim_val(t)=internal_value(mp_miterlimit)
 
 @ A stroked path is represented by an eight-word node that is like a filled
 contour node except that it contains the current \&{linecap} value, a scale
@@ -9441,8 +9222,8 @@ static pointer mp_new_stroked_node (MP mp, mp_knot *p) {
   mp_pre_script(t)=null;
   mp_post_script(t)=null;
   @<Set the |ljoin_val| and |miterlim_val| fields in object |t|@>;
-  if ( mp->internal[mp_linecap]>unity ) lcap_val(t)=2;
-  else if ( mp->internal[mp_linecap]>0 ) lcap_val(t)=1;
+  if ( internal_value(mp_linecap)>unity ) lcap_val(t)=2;
+  else if ( internal_value(mp_linecap)>0 ) lcap_val(t)=1;
   else lcap_val(t)=0;
   return t;
 }
@@ -9498,7 +9279,7 @@ words give a transformation to be applied to the text.  The |new_text_node|
 function initializes everything to default values so that the text comes out
 black with its reference point at the origin.
 
-@d mp_text_p(A) mp_link((A)+1)  /* a string pointer for the text to display */
+@d mp_text_p(A) mp->mem[(A)+1].hh.s.str  /* a string pointer for the text to display */
 @d mp_font_n(A) mp_info((A)+1)  /* the font number */
 @d width_val(A) mp->mem[(A)+7].sc  /* unscaled width of the text */
 @d height_val(A) mp->mem[(A)+9].sc  /* unscaled height of the text */
@@ -10536,10 +10317,10 @@ switch (bbtype(h)) {
 case no_bounds: 
   break;
 case bounds_set: 
-  if ( mp->internal[mp_true_corners]>0 ) mp_init_bbox(mp, h);
+  if ( internal_value(mp_true_corners)>0 ) mp_init_bbox(mp, h);
   break;
 case bounds_unset: 
-  if ( mp->internal[mp_true_corners]<=0 ) mp_init_bbox(mp, h);
+  if ( internal_value(mp_true_corners)<=0 ) mp_init_bbox(mp, h);
   break;
 } /* there are no other cases */
 
@@ -10560,7 +10341,7 @@ case mp_fill_code:
 
 @ @<Other cases for updating the bounding box...@>=
 case mp_start_bounds_code: 
-  if ( mp->internal[mp_true_corners]>0 ) {
+  if ( internal_value(mp_true_corners)>0 ) {
     bbtype(h)=bounds_unset;
   } else { 
     bbtype(h)=bounds_set;
@@ -10571,7 +10352,7 @@ case mp_start_bounds_code:
   }
   break;
 case mp_stop_bounds_code: 
-  if ( mp->internal[mp_true_corners]<=0 ) mp_confusion(mp, "bbox2");
+  if ( internal_value(mp_true_corners)<=0 ) mp_confusion(mp, "bbox2");
 @:this can't happen bbox2}{\quad bbox2@>
   break;
 
@@ -11410,7 +11191,7 @@ static mp_knot *mp_make_envelope (MP mp, mp_knot *c, mp_knot *h, quarterword ljo
 
 @ @<Use |offset_prep| to compute the envelope spec then walk |h| around to...@>=
 c=mp_offset_prep(mp, c,h);
-if ( mp->internal[mp_tracing_specs]>0 ) 
+if ( internal_value(mp_tracing_specs)>0 ) 
   mp_print_spec(mp, c,h,"");
 h=mp_pen_walk(mp, h,mp->spec_offset)
 
@@ -12759,7 +12540,7 @@ has just received a known value that's out of the required range.
 static void mp_val_too_big (MP mp,scaled x) ;
 
 @ @c void mp_val_too_big (MP mp,scaled x) { 
-  if ( mp->internal[mp_warning_check]>0 ) { 
+  if ( internal_value(mp_warning_check)>0 ) { 
     print_err("Value is too large ("); mp_print_scaled(mp, x); mp_print_char(mp, xord(')'));
 @.Value is too large@>
     help4("The equation I just processed has given some variable",
@@ -12785,7 +12566,7 @@ static void mp_make_known (MP mp,pointer p, pointer q) ;
   value(p)=value(q); 
   mp_free_node(mp, q,dep_node_size);
   if ( abs(value(p))>=fraction_one ) mp_val_too_big(mp, value(p));
-  if (( mp->internal[mp_tracing_equations]>0) && mp_interesting(mp, p) ) {
+  if (( internal_value(mp_tracing_equations)>0) && mp_interesting(mp, p) ) {
     mp_begin_diagnostic(mp); mp_print_nl(mp, "#### ");
 @:]]]\#\#\#\#_}{\.{\#\#\#\#}@>
     mp_print_variable_name(mp, p); 
@@ -12942,7 +12723,7 @@ static void mp_linear_eq (MP mp, pointer p, quarterword t) {
   x=mp_info(q); 
   n=value(x) % s_scale;
   @<Divide list |p| by |-v|, removing node |q|@>;
-  if ( mp->internal[mp_tracing_equations]>0 ) {
+  if ( internal_value(mp_tracing_equations)>0 ) {
     @<Display the new dependency@>;
   }
   @<Simplify all existing dependencies by substituting for |x|@>;
@@ -13129,7 +12910,8 @@ value, it will soon be recycled.
 static void mp_nonlinear_eq (MP mp, mp_expr_data v, pointer p, boolean flush_p) {
   quarterword t; /* the type of ring |p| */
   pointer q,r; /* link manipulation registers */
-  t=(quarterword)(mp_type(p)-unknown_tag); q=value(p);
+  t=(quarterword)(mp_type(p)-unknown_tag); 
+  q=value(p);
   if ( flush_p ) mp_type(p)=mp_vacuous; else p=q;
   do {  
     r=value(q); 
@@ -13139,8 +12921,8 @@ static void mp_nonlinear_eq (MP mp, mp_expr_data v, pointer p, boolean flush_p) 
       value(q)=v.i; 
       break;
     case mp_string_type: 
-      value(q)=v.i; 
-      add_str_ref(v.i); 
+      str_value(q)=v.s; 
+      add_str_ref(v.s); 
       break;
     case mp_pen_type: 
       knot_value(q)=copy_pen(v.p); 
@@ -13230,6 +13012,7 @@ recursive process, but the |get_next| procedure is not recursive.
 @<Glob...@>=
 integer cur_cmd; /* current command set by |get_next| */
 integer cur_mod; /* operand of current command */
+str_number cur_mod_str; /* string operand, if any */
 halfword cur_sym; /* hash address of current symbol */
 
 @ The |print_cmd_mod| routine prints a symbolic interpretation of a
@@ -13273,7 +13056,8 @@ elements of the stack appear in an array. Hence the stack is declared thus:
 @<Types...@>=
 typedef struct {
   char *long_name_field;
-  halfword start_field, loc_field, limit_field, name_field;
+  halfword start_field, loc_field, limit_field;
+  str_number name_field;
   quarterword index_field;
 } in_state_record;
 
@@ -13324,9 +13108,9 @@ The |name| variable is a string number that designates the name of
 the current file, if we are reading an ordinary text file.  Special codes
 |is_term..max_spec_src| indicate other sources of input text.
 
-@d is_term 0 /* |name| value when reading from the terminal for normal input */
-@d is_read 1 /* |name| value when executing a \&{readstring} or \&{readfrom} */
-@d is_scantok 2 /* |name| value when reading text generated by \&{scantokens} */
+@d is_term (str_number)0 /* |name| value when reading from the terminal for normal input */
+@d is_read (str_number)1 /* |name| value when executing a \&{readstring} or \&{readfrom} */
+@d is_scantok (str_number)2 /* |name| value when reading text generated by \&{scantokens} */
 @d max_spec_src is_scantok
 
 @ Additional information about the current line is available via the
@@ -13378,7 +13162,7 @@ by analogy with |line_stack|.
 @d in_ext mp->inext_stack[iindex] /* a string used to construct \.{MPX} file names */
 @d in_name mp->iname_stack[iindex] /* a string used to construct \.{MPX} file names */
 @d in_area mp->iarea_stack[iindex] /* another string for naming \.{MPX} files */
-@d absent 1 /* |name_field| value for unused |mpx_in_stack| entries */
+@d absent (str_number)1 /* |name_field| value for unused |mpx_in_stack| entries */
 @d mpx_reading (mp->mpx_name[iindex]>absent)
   /* when reading a file, is it an \.{MPX} file? */
 @d mpx_finished 0
@@ -13393,7 +13177,7 @@ integer *line_stack ; /* the line number for each file */
 char *  *inext_stack; /* used for naming \.{MPX} files */
 char *  *iname_stack; /* used for naming \.{MPX} files */
 char *  *iarea_stack; /* used for naming \.{MPX} files */
-halfword*mpx_name  ;
+str_number *mpx_name  ;
 
 @ @<Allocate or ...@>=
 mp->input_file  = xmalloc((mp->max_in_open+1),sizeof(void *));
@@ -13401,7 +13185,7 @@ mp->line_stack  = xmalloc((mp->max_in_open+1),sizeof(integer));
 mp->inext_stack = xmalloc((mp->max_in_open+1),sizeof(char *));
 mp->iname_stack = xmalloc((mp->max_in_open+1),sizeof(char *));
 mp->iarea_stack = xmalloc((mp->max_in_open+1),sizeof(char *));
-mp->mpx_name    = xmalloc((mp->max_in_open+1),sizeof(halfword));
+mp->mpx_name    = xmalloc((mp->max_in_open+1),sizeof(str_number));
 {
   int k;
   for (k=0;k<=mp->max_in_open;k++) {
@@ -13618,7 +13402,7 @@ a constant expression.
     mp_print_nl(mp, "<inserted text> ");
   } else if (token_type==macro) {
     mp_print_ln(mp);
-    if ( name!=null ) mp_print_text(name);
+    if ( name != NULL ) mp_print_str(mp, name);
     else @<Print the name of a \&{vardef}'d macro@>;
     mp_print(mp, "->");
   } else {
@@ -13746,7 +13530,7 @@ begin_pseudoprint;
 if ( limit>0 ) {
   for (i=start;i<=limit-1;i++) {
     if ( i==loc ) set_trick_count;
-    mp_print_str(mp, mp->buffer[i]);
+    mp_print_char(mp, mp->buffer[i]);
   }
 }
 
@@ -13846,10 +13630,14 @@ static pointer mp_cur_tok (MP mp) {
       mp->cur_exp.i=save_exp;
     } else { 
       p=mp_get_node(mp, token_node_size);
-      value(p)=mp->cur_mod; 
       mp_name_type(p)=mp_token;
-      if ( mp->cur_cmd==numeric_token ) mp_type(p)=mp_known;
-      else mp_type(p)=mp_string_type;
+      if ( mp->cur_cmd==numeric_token ) {
+        value(p)=mp->cur_mod; 
+	mp_type(p)=mp_known;
+      } else {
+        str_value(p)=mp->cur_mod_str; 
+	mp_type(p)=mp_string_type;
+      }
     }
   } else { 
     fast_get_avail(p); mp_info(p)=mp->cur_sym;
@@ -14230,7 +14018,8 @@ is increased by |outer_tag|.
 @^inner loop@>
 
 @<Finish getting the symbolic token in |cur_sym|...@>=
-mp->cur_cmd=eq_type(mp->cur_sym); mp->cur_mod=equiv(mp->cur_sym);
+mp->cur_cmd=eq_type(mp->cur_sym); 
+mp->cur_mod=equiv(mp->cur_sym);
 if ( mp->cur_cmd>=outer_tag ) {
   if ( mp_check_outer_validity(mp) ) 
     mp->cur_cmd=mp->cur_cmd-outer_tag;
@@ -14310,7 +14099,7 @@ FOUND:
 @ @<Get a string token and |return|@>=
 { 
   if ( mp->buffer[loc]=='"' ) {
-    mp->cur_mod=null_str;
+    mp->cur_mod_str=null_str;
   } else { 
     k=loc; mp->buffer[limit+1]=xord('"');
     do {  
@@ -14319,15 +14108,11 @@ FOUND:
     if ( loc>limit ) {
       @<Decry the missing string delimiter and |goto restart|@>;
     }
-    if ( loc==k+1 ) {
-      mp->cur_mod=mp->buffer[k];
-    } else { 
-      str_room(loc-k);
-      do {  
-        append_char(mp->buffer[k]); incr(k);
-      } while (k!=loc);
-      mp->cur_mod=mp_make_string(mp);
-    }
+    str_room((size_t)(loc-k));
+    do {  
+      append_char(mp->buffer[k]); incr(k);
+    } while (k!=loc);
+    mp->cur_mod_str=mp_make_string(mp);
   }
   incr(loc); mp->cur_cmd=string_token; 
   return;
@@ -14393,7 +14178,7 @@ mp->cur_cmd=numeric_token; return
 { 
   mp->cur_mod=n*unity+f;
   if ( mp->cur_mod>=fraction_one ) {
-    if ( (mp->internal[mp_warning_check]>0) &&
+    if ( (internal_value(mp_warning_check)>0) &&
          (mp->scanner_status!=tex_flushing) ) {
       print_err("Number is too large (");
       mp_print_scaled(mp, mp->cur_mod);
@@ -14440,15 +14225,18 @@ if ( loc>=mp->hi_mem_min ) { /* one-word token */
 @ @<Get a stored numeric or string or capsule token...@>=
 { 
   if ( mp_name_type(loc)==mp_token ) {
-    mp->cur_mod=value(loc);
     if ( mp_type(loc)==mp_known ) {
+      mp->cur_mod=value(loc);
       mp->cur_cmd=numeric_token;
     } else { 
-      mp->cur_cmd=string_token; add_str_ref(mp->cur_mod);
+      mp->cur_mod_str=str_value(loc);
+      mp->cur_cmd=string_token; 
+      add_str_ref(mp->cur_mod_str);
     }
   } else { 
-    mp->cur_mod=loc; mp->cur_cmd=capsule_token;
-  };
+    mp->cur_mod=loc;
+    mp->cur_cmd=capsule_token;
+  }
   loc=mp_link(loc); return;
 }
 
@@ -14556,12 +14344,12 @@ used instead of the line in the file.
   size_t k; /* an index into |buffer| */
   limit=(halfword)mp->last;
   if ((!mp->noninteractive)   
-      && (mp->internal[mp_pausing]>0 )
+      && (internal_value(mp_pausing)>0 )
       && (mp->interaction>mp_nonstop_mode )) {
     wake_up_terminal; mp_print_ln(mp);
     if ( start<limit ) {
       for (k=(size_t)start;k<(size_t)limit;k++) {
-        mp_print_str(mp, mp->buffer[k]);
+        mp_print_char(mp, mp->buffer[k]);
       } 
     }
     mp->first=(size_t)limit; prompt_input("=>"); /* wait for user response */
@@ -14875,7 +14663,7 @@ RESTART:
     if ( mp->cur_sym>0 )
       mp->help_line[2]="Sorry: You can\'t redefine my error-recovery tokens.";
     else if ( mp->cur_cmd==string_token ) 
-      delete_str_ref(mp->cur_mod);
+      delete_str_ref(mp->cur_mod_str);
     mp->cur_sym=frozen_inaccessible; mp_ins_error(mp); goto RESTART;
   }
 }
@@ -15177,10 +14965,10 @@ when it has to do exotic expansion commands.
 static void mp_expand (MP mp) {
   pointer p; /* for list manipulation */
   size_t k; /* something that we hope is |<=buf_size| */
-  pool_pointer j; /* index into |str_pool| */
+  size_t j; /* index into |str_pool| */
   mp->expand_depth_count++;
   mp_check_expansion_depth(mp);
-  if ( mp->internal[mp_tracing_commands]>unity ) 
+  if ( internal_value(mp_tracing_commands)>unity ) 
     if ( mp->cur_cmd!=defined_macro )
       show_cur_cmd_mod;
   switch (mp->cur_cmd)  {
@@ -15269,7 +15057,7 @@ that will be |null| if no loop is in progress.
 
 @ @<Exit a loop if the proper time has come@>=
 { mp_get_boolean(mp);
-  if ( mp->internal[mp_tracing_commands]>unity ) 
+  if ( internal_value(mp_tracing_commands)>unity ) 
     mp_show_cmd_mod(mp, nullary,mp->cur_exp.i);
   if ( mp->cur_exp.i==true_code ) {
     if ( mp->loop_ptr==null ) {
@@ -15319,6 +15107,7 @@ is less than |loop_text|.
   if ( mp->cur_type!=mp_string_type ) {
     mp_expr_data new_expr;
     new_expr.i = 0;
+    new_expr.s = NULL;
     mp_disp_err(mp, null,"Not a string");
 @.Not a string@>
     help2("I'm going to flush this expression, since",
@@ -15326,7 +15115,7 @@ is less than |loop_text|.
     mp_put_get_flush_error(mp, new_expr);
   } else { 
     mp_back_input(mp);
-    if ( length(mp->cur_exp.i)>0 )
+    if ( length(mp->cur_exp.s)>0 )
        @<Pretend we're reading a new one-line file@>;
   }
 }
@@ -15337,17 +15126,17 @@ is less than |loop_text|.
   new_expr.i = 0;
   mp_begin_file_reading(mp); 
   name=is_scantok;
-  k=mp->first+(size_t)length(mp->cur_exp.i);
+  k=mp->first+(size_t)length(mp->cur_exp.s);
   if ( k>=mp->max_buf_stack ) {
     while ( k>=mp->buf_size ) {
       mp_reallocate_buffer(mp,(mp->buf_size+(mp->buf_size/4)));
     }
     mp->max_buf_stack=k+1;
   }
-  j=mp->str_start[mp->cur_exp.i]; limit=(halfword)k;
+  j=0; limit=(halfword)k;
   while ( mp->first<(size_t)limit ) {
-    mp->buffer[mp->first]=mp->str_pool[j]; 
-    incr(j); 
+    mp->buffer[mp->first]= *(mp->cur_exp.s->str+j); 
+    j++; 
     incr(mp->first);
   }
   mp->buffer[limit]=xord('%'); 
@@ -15434,7 +15223,7 @@ void mp_macro_call (MP mp,pointer def_ref, pointer arg_list,
    @<Determine the number |n| of arguments already supplied,
     and set |tail| to the tail of |arg_list|@>;
   }
-  if ( mp->internal[mp_tracing_macros]>0 ) {
+  if ( internal_value(mp_tracing_macros)>0 ) {
     @<Show the text of the macro being expanded, and the existing arguments@>;
   }
   @<Scan the remaining arguments, if any; set |r| to the first token
@@ -15569,7 +15358,7 @@ if ( (mp->cur_cmd!=right_delimiter)||(mp->cur_mod!=l_delim) ) {
       "You might want to delete some tokens before continuing.");
     mp_back_error(mp); mp->cur_cmd=comma;
   } else { 
-    mp_missing_err(mp, str(text(r_delim)));
+    mp_missing_err(mp, mp_str(mp,text(r_delim)));
 @.Missing `)'@>
     help2("I've gotten to the end of the macro parameter list.",
           "You might want to delete some tokens before continuing.");
@@ -15586,7 +15375,7 @@ a token list pointed to by |cur_exp|, in which case we will have
   p=mp_get_avail(mp);
   if ( mp->cur_type==mp_token_list ) mp_info(p)=mp->cur_exp.i;
   else mp_info(p)=mp_stash_cur_exp(mp);
-  if ( mp->internal[mp_tracing_macros]>0 ) {
+  if ( internal_value(mp_tracing_macros)>0 ) {
     mp_begin_diagnostic(mp); mp_print_arg(mp, mp_info(p),n,mp_info(r)); 
     mp_end_diagnostic(mp, false);
   }
@@ -15677,7 +15466,7 @@ if ( end_of_statement ) { /* |cur_cmd=semicolon|, |end_group|, or |stop| */
 @ @<Scan an expression followed by `\&{of} $\langle$primary$\rangle$'@>=
 { 
   mp_scan_expression(mp); p=mp_get_avail(mp); mp_info(p)=mp_stash_cur_exp(mp);
-  if ( mp->internal[mp_tracing_macros]>0 ) { 
+  if ( internal_value(mp_tracing_macros)>0 ) { 
     mp_begin_diagnostic(mp); mp_print_arg(mp, mp_info(p),n,0); 
     mp_end_diagnostic(mp, false);
   }
@@ -15703,7 +15492,7 @@ if ( end_of_statement ) { /* |cur_cmd=semicolon|, |end_group|, or |stop| */
   mp_scan_suffix(mp);
   if ( l_delim!=null ) {
     if ((mp->cur_cmd!=right_delimiter)||(mp->cur_mod!=l_delim) ) {
-      mp_missing_err(mp, str(text(r_delim)));
+      mp_missing_err(mp, mp_str(mp,text(r_delim)));
 @.Missing `)'@>
       help2("I've gotten to the end of the macro parameter list.",
             "You might want to delete some tokens before continuing.");
@@ -15725,7 +15514,9 @@ if ( mp->param_ptr+n>mp->max_param_stack ) {
     mp_overflow(mp, "parameter stack size",mp->param_size);
 @:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
 }
-mp_begin_token_list(mp, def_ref, (quarterword)macro); name=macro_name; loc=r;
+mp_begin_token_list(mp, def_ref, (quarterword)macro); 
+name=text(macro_name); 
+loc=r;
 if ( n>0 ) {
   p=arg_list;
   do {  
@@ -15834,7 +15625,7 @@ void mp_pass_text (MP mp) {
 }
 
 @ @<Decrease the string reference count...@>=
-if ( mp->cur_cmd==string_token ) { delete_str_ref(mp->cur_mod); }
+if ( mp->cur_cmd==string_token ) { delete_str_ref(mp->cur_mod_str); }
 
 @ When we begin to process a new \&{if}, we set |if_limit:=if_code|; then
 if \&{elseif} or \&{else} or \&{fi} occurs before the current \&{if}
@@ -15903,7 +15694,7 @@ void mp_conditional (MP mp) {
   save_cond_ptr=mp->cond_ptr;
 RESWITCH: 
   mp_get_boolean(mp); new_if_limit=else_if_code;
-  if ( mp->internal[mp_tracing_commands]>unity ) {
+  if ( internal_value(mp_tracing_commands)>unity ) {
     @<Display the boolean value of |cur_exp|@>;
   }
 FOUND: 
@@ -16103,7 +15894,7 @@ mp_link(s)=mp->loop_ptr; mp->loop_ptr=s
 
 @ @<Initialize table...@>=
 eq_type(frozen_repeat_loop)=repeat_loop+outer_tag;
-text(frozen_repeat_loop)=intern(" ENDFOR");
+text(frozen_repeat_loop)=mp_intern(mp," ENDFOR");
 
 @ The loop text is inserted into \MP's scanning apparatus by the
 |resume_iteration| routine.
@@ -16153,7 +15944,7 @@ text(frozen_repeat_loop)=intern(" ENDFOR");
   }
   mp_begin_token_list(mp, mp_info(mp->loop_ptr), (quarterword)loop_text);
   mp_stack_argument(mp, q);
-  if ( mp->internal[mp_tracing_commands]>unity ) {
+  if ( internal_value(mp_tracing_commands)>unity ) {
      @<Trace the start of a loop@>;
   }
   return;
@@ -16377,9 +16168,7 @@ remaining `\..' to the end, otherwise the file extension is null.
 @^system dependencies@>
 
 We can scan such file names easily by using two global variables that keep track
-of the occurrences of area and extension delimiters.  Note that these variables
-cannot be of type |pool_pointer| because a string pool compaction could occur
-while scanning a file name.
+of the occurrences of area and extension delimiters.  
 
 @<Glob...@>=
 integer area_delimiter;
@@ -16425,10 +16214,10 @@ boolean mp_more_name (MP mp, ASCII_code c) {
     return false;
   } else {
     if (IS_DIR_SEP (c)) {
-      mp->area_delimiter=mp->pool_ptr; 
+      mp->area_delimiter=(integer)mp->cur_length; 
       mp->ext_delimiter=-1;
     } else if ( c=='.' ) {
-      mp->ext_delimiter=mp->pool_ptr;
+      mp->ext_delimiter=(integer)mp->cur_length;
     }
     append_char(c); /* contribute |c| to the current string */
   }
@@ -16440,31 +16229,30 @@ boolean mp_more_name (MP mp, ASCII_code c) {
 
 @d copy_pool_segment(A,B,C) { 
       A = xmalloc(C+1,sizeof(char)); 
-      (void)memcpy(A,(char *)(mp->str_pool+B),C);  
+      (void)memcpy(A,(char *)(mp->cur_string+B),C);  
       A[C] = 0;}
 
 @c
 void mp_end_name (MP mp) {
-  pool_pointer s; /* length of area, name, and extension */
-  unsigned int len;
+  size_t s = 0; /* length of area, name, and extension */
+  size_t len;
   /* "my/w.mp" */
-  s = mp->str_start[mp->str_ptr];
   if ( mp->area_delimiter<0 ) {    
     mp->cur_area=xstrdup("");
   } else {
-    len = (unsigned)(mp->area_delimiter-s+1); 
+    len = (size_t)mp->area_delimiter-s+1; 
     copy_pool_segment(mp->cur_area,s,len);
-    s += (pool_pointer)len;
+    s += len;
   }
   if ( mp->ext_delimiter<0 ) {
     mp->cur_ext=xstrdup("");
-    len = (unsigned)(mp->pool_ptr-s); 
+    len = (unsigned)(mp->cur_length-s); 
   } else {
-    copy_pool_segment(mp->cur_ext,mp->ext_delimiter,(size_t)(mp->pool_ptr-mp->ext_delimiter));
-    len = (unsigned)(mp->ext_delimiter-s);
+    copy_pool_segment(mp->cur_ext,mp->ext_delimiter,(mp->cur_length-(size_t)mp->ext_delimiter));
+    len = (size_t)mp->ext_delimiter-s;
   }
   copy_pool_segment(mp->cur_name,s,len);
-  mp->pool_ptr=s; /* don't need this partial string */
+  reset_cur_string(mp);
 }
 
 @ Conversely, here is a routine that takes three strings and prints a file
@@ -16652,11 +16440,11 @@ void mp_str_scan_file (MP mp,  str_number s) ;
 
 @ @c
 void mp_str_scan_file (MP mp,  str_number s) {
-  pool_pointer p,q; /* current position and stopping point */
+  size_t p,q; /* current position and stopping point */
   mp_begin_name(mp);
-  p=mp->str_start[s]; q=str_stop(s);
+  p=0; q = length(s);
   while ( p<q ){ 
-    if ( ! mp_more_name(mp, mp->str_pool[p]) ) break;
+    if ( ! mp_more_name(mp, *(s->str+p)) ) break;
     incr(p);
   }
   mp_end_name(mp);
@@ -16673,7 +16461,7 @@ void mp_ptr_scan_file (MP mp,  char *s) {
   mp_begin_name(mp);
   p=s; q=p+strlen(s);
   while ( p<q ){ 
-    if ( ! mp_more_name(mp, xord((ASCII_code)(*p)))) break;
+    if ( ! mp_more_name(mp, (ASCII_code)(*p))) break;
     p++;
   }
   mp_end_name(mp);
@@ -16719,9 +16507,9 @@ pool is not yet initialized.
 
 @<Fix up |mp->internal[mp_job_name]|@>=
 if (mp->job_name != NULL) {
-  if (mp->internal[mp_job_name]!=0)
-    delete_str_ref(mp->internal[mp_job_name]);
-  mp->internal[mp_job_name]=mp_rts(mp,mp->job_name);
+  if (internal_string(mp_job_name)!=0)
+    delete_str_ref(internal_string(mp_job_name));
+  internal_string(mp_job_name)=mp_rts(mp,mp->job_name);
 }
 
 
@@ -16834,7 +16622,7 @@ it catch up to what has previously been printed on the terminal.
     mp_print_nl(mp, "**");
 @.**@>
     l=mp->input_stack[0].limit_field-1; /* last position of first line */
-    for (k=0;k<=l;k++) mp_print_str(mp, mp->buffer[k]);
+    for (k=0;k<=l;k++) mp_print_char(mp, mp->buffer[k]);
     mp_print_ln(mp); /* now the transcript file contains the first line of input */
   }
   mp->selector=old_setting+2; /* |log_only| or |term_and_log| */
@@ -16867,16 +16655,16 @@ this file.
 { 
   wlog(mp->banner);
   mp_print(mp, mp->mem_ident); mp_print(mp, "  ");
-  mp_print_int(mp, mp_round_unscaled(mp, mp->internal[mp_day])); 
+  mp_print_int(mp, mp_round_unscaled(mp, internal_value(mp_day))); 
   mp_print_char(mp, xord(' '));
-  m=mp_round_unscaled(mp, mp->internal[mp_month]);
+  m=mp_round_unscaled(mp, internal_value(mp_month));
   for (k=3*m-3;k<3*m;k++) { wlog_chr((unsigned char)months[k]); }
   mp_print_char(mp, xord(' ')); 
-  mp_print_int(mp, mp_round_unscaled(mp, mp->internal[mp_year])); 
+  mp_print_int(mp, mp_round_unscaled(mp, internal_value(mp_year))); 
   mp_print_char(mp, xord(' '));
-  mp_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_hour]));
+  mp_print_dd(mp, mp_round_unscaled(mp, internal_value(mp_hour)));
   mp_print_char(mp, xord(':')); 
-  mp_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_minute]));
+  mp_print_dd(mp, mp_round_unscaled(mp, internal_value(mp_minute)));
 }
 
 @ The |try_extension| function tries to open an input file determined by
@@ -16941,7 +16729,7 @@ than just a copy of its argument and the full file name is needed for opening
 @^system dependencies@>
 
 @<Flush |name| and replace it with |cur_name| if it won't be needed@>=
-mp_flush_string(mp, name); name=rts(mp->cur_name); xfree(mp->cur_name)
+mp_flush_string(mp, name); name=mp_rts(mp,mp->cur_name); xfree(mp->cur_name)
 
 @ If the file is empty, it is considered to contain a single blank line,
 so there is no need to test the return value.
@@ -17130,6 +16918,7 @@ recovery.
 @<Exported types...@>=
 typedef union mp_expr_data {
   integer i;
+  str_number s;
   struct mp_knot *p;
 } mp_expr_data;
 
@@ -17139,6 +16928,8 @@ mp_expr_data cur_exp; /* the value of the expression just found */
 
 @ @<Set init...@>=
 mp->cur_exp.i=0;
+mp->cur_exp.s=NULL;
+mp->cur_exp.p=NULL;
 
 @ Many different kinds of expressions are possible, so it is wise to have
 precise descriptions of what |cur_type| and |cur_exp| mean in all cases:
@@ -17308,6 +17099,12 @@ static pointer mp_stash_cur_exp (MP mp) {
     mp_type(p)=mp->cur_type; 
     knot_value(p)=mp->cur_exp.p;
     break;
+  case mp_string_type: 
+    p=mp_get_node(mp, value_node_size); 
+    mp_name_type(p)=mp_capsule;
+    mp_type(p)=mp->cur_type; 
+    str_value(p)=mp->cur_exp.s;
+    break;
   default: 
     p=mp_get_node(mp, value_node_size); 
     mp_name_type(p)=mp_capsule;
@@ -17360,6 +17157,10 @@ void mp_unstash_cur_exp (MP mp,pointer p) {
   case mp_path_type:
   case mp_pen_type: 
     mp->cur_exp.p=knot_value(p);
+    mp_free_node(mp, p,value_node_size);
+    break;
+  case mp_string_type: 
+    mp->cur_exp.s=str_value(p);
     mp_free_node(mp, p,value_node_size);
     break;
   default:
@@ -17420,7 +17221,7 @@ case mp_numeric_type:
   break;
 case mp_string_type:
   mp_print_char(mp, xord('"')); 
-  mp_print_str(mp, v); 
+  mp_print_str(mp, str_value(p)); 
   mp_print_char(mp, xord('"'));
   break;
 case mp_pen_type: 
@@ -17466,7 +17267,7 @@ if ( verbosity<=1 ) {
   mp_print_type(mp, t);
 } else { 
   if ( mp->selector==term_and_log )
-   if ( mp->internal[mp_tracing_online]<=0 ) {
+   if ( internal_value(mp_tracing_online)<=0 ) {
     mp->selector=term_only;
     mp_print_type(mp, t); 
     mp_print(mp, " (see the transcript file)");
@@ -17541,7 +17342,7 @@ static void mp_flush_cur_exp (MP mp, mp_expr_data v) {
     mp_free_node(mp, mp->cur_exp.i,value_node_size);
     break;
   case mp_string_type:
-    delete_str_ref(mp->cur_exp.i); 
+    delete_str_ref(mp->cur_exp.s); 
     break;
   case mp_pen_type: 
   case mp_path_type: 
@@ -17578,7 +17379,7 @@ static void mp_recycle_value (MP mp,pointer p) {
   case unknown_types:
     mp_ring_delete(mp, p); break;
   case mp_string_type:
-    delete_str_ref(v); break;
+    delete_str_ref(str_value(p)); break;
   case mp_path_type: 
   case mp_pen_type:
     mp_toss_knot_list(mp, knot_value(p)); 
@@ -17738,7 +17539,7 @@ mp_link(prev_dep(pp))=q;
 new_indep(pp);
 if ( mp->cur_exp.i==pp ) if ( mp->cur_type==t ) 
   mp->cur_type=mp_independent;
-if ( mp->internal[mp_tracing_equations]>0 ) { 
+if ( internal_value(mp_tracing_equations)>0 ) { 
   @<Show the transformed dependency@>; 
 }
 
@@ -18082,7 +17883,7 @@ integer group_line; /* where a group began */
 @ @<Scan a grouped primary@>=
 { 
   group_line=mp_true_line(mp);
-  if ( mp->internal[mp_tracing_commands]>0 ) show_cur_cmd_mod;
+  if ( internal_value(mp_tracing_commands)>0 ) show_cur_cmd_mod;
   save_boundary_item(p);
   do {  
     mp_do_statement(mp); /* ends with |cur_cmd>=semicolon| */
@@ -18098,12 +17899,13 @@ integer group_line; /* where a group began */
   }
   mp_unsave(mp); 
     /* this might change |cur_type|, if independent variables are recycled */
-  if ( mp->internal[mp_tracing_commands]>0 ) show_cur_cmd_mod;
+  if ( internal_value(mp_tracing_commands)>0 ) show_cur_cmd_mod;
 }
 
 @ @<Scan a string constant@>=
 { 
-  mp->cur_type=mp_string_type; mp->cur_exp.i=mp->cur_mod;
+  mp->cur_type=mp_string_type; 
+  mp->cur_exp.s=mp->cur_mod_str;
 }
 
 @ Later we'll come to procedures that perform actual operations like
@@ -18196,11 +17998,14 @@ scaled num,denom; /* for primaries that are fractions, like `1/2' */
 
 @ @<Convert a suffix to a string@>=
 { 
-  mp_get_x_next(mp); mp_scan_suffix(mp); 
-  mp->old_setting=mp->selector; mp->selector=new_string;
+  mp_get_x_next(mp); 
+  mp_scan_suffix(mp); 
+  mp->old_setting=mp->selector; 
+  mp->selector=new_string;
   mp_show_token_list(mp, mp->cur_exp.i,null,100000,0); 
   mp_flush_token_list(mp, mp->cur_exp.i);
-  mp->cur_exp.i=mp_make_string(mp); mp->selector=mp->old_setting; 
+  mp->cur_exp.s=mp_make_string(mp); 
+  mp->selector=mp->old_setting; 
   mp->cur_type=mp_string_type;
   goto DONE;
 }
@@ -18222,9 +18027,12 @@ of the save stack, as described earlier.)
     }
     mp_back_input(mp);
   }
-  mp->cur_exp.i=mp->internal[q];
-  if (mp->int_type[q]==mp_string_type)
-    add_str_ref(mp->cur_exp.i);
+  if (mp->int_type[q]==mp_string_type) {
+    mp->cur_exp.s=internal_string(q);
+    add_str_ref(mp->cur_exp.s);
+  } else {
+    mp->cur_exp.i=internal_value(q);
+  }
   mp->cur_type=(quarterword)mp->int_type[q];
 }
 
@@ -18463,8 +18271,8 @@ RESTART:
     mp->cur_exp.i=mp_new_ring_entry(mp, p);
     break;
   case mp_string_type: 
-    mp->cur_exp.i=value(p); 
-    add_str_ref(mp->cur_exp.i);
+    mp->cur_exp.s=str_value(p); 
+    add_str_ref(mp->cur_exp.s);
     break;
   case mp_picture_type:
     mp->cur_exp.i=value(p);
@@ -19498,7 +19306,7 @@ case and_command:
 @c @<Declare nullary action procedure@>
 static void mp_do_nullary (MP mp,quarterword c) { 
   check_arith;
-  if ( mp->internal[mp_tracing_commands]>two )
+  if ( internal_value(mp_tracing_commands)>two )
     mp_show_cmd_mod(mp, nullary,c);
   switch (c) {
   case true_code: case false_code: 
@@ -19524,7 +19332,7 @@ static void mp_do_nullary (MP mp,quarterword c) {
     break;
   case mp_version: 
     mp->cur_type=mp_string_type; 
-    mp->cur_exp.i=intern(metapost_version) ;
+    mp->cur_exp.s=mp_intern(mp,metapost_version) ;
     break;
   case read_string_op:
     @<Read a string from the terminal@>;
@@ -19545,12 +19353,12 @@ static void mp_do_nullary (MP mp,quarterword c) {
 @ @<Declare nullary action procedure@>=
 static void mp_finish_read (MP mp) { /* copy |buffer| line to |cur_exp| */
   size_t k;
-  str_room((int)mp->last-start);
+  str_room(((int)mp->last-(int)start));
   for (k=(size_t)start;k<mp->last;k++) {
    append_char(mp->buffer[k]);
   }
   mp_end_file_reading(mp); mp->cur_type=mp_string_type; 
-  mp->cur_exp.i=mp_make_string(mp);
+  mp->cur_exp.s=mp_make_string(mp);
 }
 
 @ Things get a bit more interesting when there's an operand. The
@@ -19562,7 +19370,7 @@ static void mp_do_unary (MP mp,quarterword c) {
   integer x; /* a temporary register */
   mp_expr_data new_expr;
   check_arith;
-  if ( mp->internal[mp_tracing_commands]>two )
+  if ( internal_value(mp_tracing_commands)>two )
     @<Trace the current unary operation@>;
   switch (c) {
   case plus:
@@ -19778,7 +19586,7 @@ for backward compatibility) .
          (((mp_color_model(cur_pic_item)==A)
           ||
           ((mp_color_model(cur_pic_item)==mp_uninitialized_model) &&
-           (mp->internal[mp_default_color_model]/unity)==(A))))))
+           (internal_value(mp_default_color_model)/unity)==(A))))))
 
 @<Additional cases of unary operators@>=
 case x_part:
@@ -19935,7 +19743,7 @@ static void mp_take_pict_part (MP mp,quarterword c) {
     case color_model_part:
       if ( has_color(p) ) {
         if ( mp_color_model(p)==mp_uninitialized_model )
-          new_expr.i = mp->internal[mp_default_color_model];
+          new_expr.i = internal_value(mp_default_color_model);
         else
           new_expr.i = mp_color_model(p)*unity;
         mp_flush_cur_exp(mp, new_expr);
@@ -19954,18 +19762,18 @@ NOT_FOUND:
 case text_part: 
   if ( mp_type(p)!=mp_text_code ) goto NOT_FOUND;
   else { 
-    new_expr.i = mp_text_p(p);
+    new_expr.s = mp_text_p(p);
     mp_flush_cur_exp(mp, new_expr);
-    add_str_ref(mp->cur_exp.i);
+    add_str_ref(mp->cur_exp.s);
     mp->cur_type=mp_string_type;
     };
   break;
 case font_part: 
   if ( mp_type(p)!=mp_text_code ) goto NOT_FOUND;
   else { 
-    new_expr.i = rts(mp->font_name[mp_font_n(p)]);
+    new_expr.s = mp_rts(mp,mp->font_name[mp_font_n(p)]);
     mp_flush_cur_exp(mp, new_expr); 
-    add_str_ref(mp->cur_exp.i);
+    add_str_ref(mp->cur_exp.s);
     mp->cur_type=mp_string_type;
   };
   break;
@@ -20017,7 +19825,7 @@ scaled se_sf;  /* the scale factor argument to |scale_edges| */
 @ @<Convert the current expression to a null value appropriate...@>=
 switch (c) {
 case text_part: case font_part: 
-  new_expr.i = null_str;
+  new_expr.s = null_str;
   mp_flush_cur_exp(mp, new_expr);
   mp->cur_type=mp_string_type;
   break;
@@ -20057,6 +19865,11 @@ case char_op:
     mp->cur_exp.i=mp_round_unscaled(mp, mp->cur_exp.i) % 256; 
     mp->cur_type=mp_string_type;
     if ( mp->cur_exp.i<0 ) mp->cur_exp.i=mp->cur_exp.i+256;
+    { 
+      unsigned char ss[2];
+      ss[0] = (unsigned char)mp->cur_exp.i; ss[1] = '\0';
+      mp->cur_exp.s=mp_rts(mp,(char *)ss);
+    }
   }
   break;
 case decimal: 
@@ -20065,7 +19878,7 @@ case decimal:
   } else { 
     mp->old_setting=mp->selector; mp->selector=new_string;
     mp_print_scaled(mp, mp->cur_exp.i); 
-    mp->cur_exp.i=mp_make_string(mp);
+    mp->cur_exp.s = mp_make_string(mp);
     mp->selector=mp->old_setting; mp->cur_type=mp_string_type;
   }
   break;
@@ -20084,18 +19897,18 @@ case font_size:
 static void mp_str_to_num (MP mp,quarterword c) { /* converts a string to a number */
   integer n; /* accumulator */
   ASCII_code m; /* current character */
-  pool_pointer k; /* index into |str_pool| */
+  unsigned k; /* index into |str_pool| */
   int b; /* radix of conversion */
   boolean bad_char; /* did the string contain an invalid digit? */
   mp_expr_data new_expr;
   if ( c==ASCII_op ) {
-    if ( length(mp->cur_exp.i)==0 ) n=-1;
-    else n=mp->str_pool[mp->str_start[mp->cur_exp.i]];
+    if ( length(mp->cur_exp.s)==0 ) n=-1;
+    else n=mp->cur_exp.s->str[0];
   } else { 
     if ( c==oct_op ) b=8; else b=16;
     n=0; bad_char=false;
-    for (k=mp->str_start[mp->cur_exp.i];k<str_stop(mp->cur_exp.i);k++) {
-      m=mp->str_pool[k];
+    for (k=0;k<length(mp->cur_exp.s);k++) {
+      m = (ASCII_code)(*(mp->cur_exp.s->str+k));
       if ( (m>='0')&&(m<='9') ) m=(ASCII_code)(m-'0');
       else if ( (m>='A')&&(m<='F') ) m=(ASCII_code)(m-'A'+10);
       else if ( (m>='a')&&(m<='f') ) m=(ASCII_code)(m-'a'+10);
@@ -20121,7 +19934,7 @@ if ( bad_char ) {
   mp_put_get_error(mp);
 }
 if ( (n>4095) ) {
-  if ( mp->internal[mp_warning_check]>0 ) {
+  if ( internal_value(mp_warning_check)>0 ) {
     print_err("Number too large ("); 
     mp_print_int(mp, n); mp_print_char(mp, xord(')'));
 @.Number too large@>
@@ -20138,7 +19951,7 @@ of different types of operands.
 case length_op: 
   switch (mp->cur_type) {
   case mp_string_type: 
-    new_expr.i = length(mp->cur_exp.i)*unity;
+    new_expr.i = (integer)(length(mp->cur_exp.s)*unity);
     mp_flush_cur_exp(mp, new_expr); 
     break;
   case mp_path_type: 
@@ -20335,7 +20148,7 @@ static scaled mp_new_turn_cycles (MP mp, mp_knot *c) {
   p=c;
   old_setting = mp->selector; 
   mp->selector=term_only;
-  if ( mp->internal[mp_tracing_commands]>unity ) {
+  if ( internal_value(mp_tracing_commands)>unity ) {
     mp_begin_diagnostic(mp);
     mp_print_nl(mp, "");
     mp_end_diagnostic(mp, false);
@@ -20471,9 +20284,9 @@ static scaled mp_turn_cycles_wrapper (MP mp, mp_knot *c) {
   } else {
     nval = mp_new_turn_cycles(mp, c);
     oval = mp_turn_cycles(mp, c);
-    if ( nval!=oval && mp->internal[mp_tracing_choices]>(2*unity)) {
-      saved_t_o=mp->internal[mp_tracing_online];
-      mp->internal[mp_tracing_online]=unity;
+    if ( nval!=oval && internal_value(mp_tracing_choices)>(2*unity)) {
+      saved_t_o=internal_value(mp_tracing_online);
+      internal_value(mp_tracing_online)=unity;
       mp_begin_diagnostic(mp);
       mp_print_nl (mp, "Warning: the turningnumber algorithms do not agree."
                        " The current computed value is ");
@@ -20481,7 +20294,7 @@ static scaled mp_turn_cycles_wrapper (MP mp, mp_knot *c) {
       mp_print(mp, ", but the 'connect-the-dots' algorithm returned ");
       mp_print_scaled(mp, oval);
       mp_end_diagnostic(mp, false);
-      mp->internal[mp_tracing_online]=saved_t_o;
+      internal_value(mp_tracing_online)=saved_t_o;
     }
     return nval;
   }
@@ -20746,7 +20559,7 @@ FOUND:
   char *fn;
   n=mp->read_files;
   n0=mp->read_files;
-  fn = str(mp->cur_exp.i);
+  fn = mp_xstrdup(mp, mp_str(mp,mp->cur_exp.s));
   while (mp_xstrcmp(fn,mp->rd_fname[n])!=0) { 
     if ( n>0 ) {
       decr(n);
@@ -20799,7 +20612,7 @@ if ( n==mp->read_files-1 ) mp->read_files=n;
 if ( c==close_from_op ) 
   goto CLOSE_FILE;
 {
-  new_expr.i = mp->eof_line;
+  new_expr.s = mp->eof_line;
   mp_flush_cur_exp(mp, new_expr);
 }
 mp->cur_type=mp_string_type
@@ -20828,7 +20641,7 @@ static void mp_do_binary (MP mp,pointer p, integer c) {
   integer v; /* for numeric manipulation */
   mp_expr_data new_expr;
   check_arith;
-  if ( mp->internal[mp_tracing_commands]>two ) {
+  if ( internal_value(mp_tracing_commands)>two ) {
     @<Trace the current binary operation@>;
   }
   @<Sidestep |independent| cases in capsule |p|@>;
@@ -21095,7 +20908,7 @@ case greater_or_equal: case equal_to: case unequal_to:
   } else if ( mp->cur_type!=mp_type(p) ) {
     mp_bad_binary(mp, p, (quarterword)c); goto DONE; 
   } else if ( mp->cur_type==mp_string_type ) {
-    new_expr.i = mp_str_vs_str(mp, value(p),mp->cur_exp.i);
+    new_expr.i = mp_str_vs_str(mp, str_value(p),mp->cur_exp.s);
     mp_flush_cur_exp(mp, new_expr);
   } else if ((mp->cur_type==mp_unknown_string)||
            (mp->cur_type==mp_unknown_boolean) ) {
@@ -21254,7 +21067,7 @@ static void mp_frac_mult (MP mp,scaled n, scaled d) {
   pointer p; /* a pair node */
   pointer old_exp; /* a capsule to recycle */
   fraction v; /* |n/d| */
-  if ( mp->internal[mp_tracing_commands]>two ) {
+  if ( internal_value(mp_tracing_commands)>two ) {
     @<Trace the fraction multiplication@>;
   }
   switch (mp->cur_type) {
@@ -21973,27 +21786,26 @@ case subpath_of:
 @ @<Declare binary action...@>=
 static void mp_cat (MP mp,pointer p) {
   str_number a,b; /* the strings being concatenated */
-  integer k; /* run length */
-  integer needed;
-  a=value(p); b=mp->cur_exp.i; k=length(a);
-  needed=mp->pool_ptr+k+length(b);
-  /* this will free some memory, hopefully */
-  if (mp->pool_ptr>(11*mp->old_pool_size)/10) {
-      mp->old_pool_size = mp->pool_ptr;
-      mp_do_compaction(mp, mp->pool_size);
-  }
-  if ( needed > mp->max_pool_ptr ) {
-    if ( needed > mp->pool_size ) {
-      mp_reallocate_pool(mp,needed);
-    }
-    mp->max_pool_ptr=needed; 
-  }
-  (void)memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[a],(size_t)k);
-  mp->pool_ptr+=k; 
-  k=length(b);
-  (void)memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[b],(size_t)k);
-  mp->pool_ptr+=k;
-  mp->cur_exp.i=mp_make_string(mp); delete_str_ref(b);
+  size_t needed;
+  size_t saved_cur_length = mp->cur_length;
+  unsigned char * saved_cur_string = mp->cur_string;
+  size_t saved_cur_string_size = mp->cur_string_size;
+  mp->cur_length = 0;
+  mp->cur_string = NULL;
+  mp->cur_string_size = 0;
+  a=str_value(p); 
+  b=mp->cur_exp.s; 
+  needed=length(a)+length(b);
+  str_room(needed);
+  (void)memcpy(mp->cur_string, a->str,a->len);
+  (void)memcpy(mp->cur_string+a->len, b->str, b->len);
+  mp->cur_length = needed;
+  mp->cur_string[needed] = '\0';
+  mp->cur_exp.s = mp_make_string(mp); 
+  delete_str_ref(b);
+  mp->cur_length = saved_cur_length;
+  mp->cur_string = saved_cur_string;
+  mp->cur_string_size = saved_cur_string_size;
 }
 
 @ @<Declare binary action...@>=
@@ -22007,7 +21819,7 @@ static void mp_chop_string (MP mp,pointer p) {
   b=mp_round_unscaled(mp, value(y_part_loc(p)));
   if ( a<=b ) reversed=false;
   else  { reversed=true; k=a; a=b; b=k; };
-  s=mp->cur_exp.i; l=length(s);
+  s=mp->cur_exp.s; l=(integer)length(s);
   if ( a<0 ) { 
     a=0;
     if ( b<0 ) b=0;
@@ -22016,17 +21828,18 @@ static void mp_chop_string (MP mp,pointer p) {
     b=l;
     if ( a>l ) a=l;
   }
-  str_room(b-a);
+  str_room((size_t)(b-a));
   if ( reversed ) {
-    for (k=mp->str_start[s]+b-1;k>=mp->str_start[s]+a;k--)  {
-      append_char(mp->str_pool[k]);
+    for (k=b-1;k>=a;k--)  {
+      append_char(*(s->str+k));
     }
   } else  {
-    for (k=mp->str_start[s]+a;k<mp->str_start[s]+b;k++)  {
-      append_char(mp->str_pool[k]);
+    for (k=a;k<b;k++)  {
+      append_char(*(s->str+k));
     }
   }
-  mp->cur_exp.i=mp_make_string(mp); delete_str_ref(s);
+  mp->cur_exp.s=mp_make_string(mp); 
+  delete_str_ref(s);
 }
 
 @ @<Declare binary action...@>=
@@ -22186,16 +21999,16 @@ static void mp_set_up_envelope (MP mp,pointer p) {
     mp->cur_type = mp_path_type;
     return;
   }
-  if ( mp->internal[mp_linejoin]>unity ) ljoin=2;
-  else if ( mp->internal[mp_linejoin]>0 ) ljoin=1;
+  if ( internal_value(mp_linejoin)>unity ) ljoin=2;
+  else if ( internal_value(mp_linejoin)>0 ) ljoin=1;
   else ljoin=0;
-  if ( mp->internal[mp_linecap]>unity ) lcap=2;
-  else if ( mp->internal[mp_linecap]>0 ) lcap=1;
+  if ( internal_value(mp_linecap)>unity ) lcap=2;
+  else if ( internal_value(mp_linecap)>0 ) lcap=1;
   else lcap=0;
-  if ( mp->internal[mp_miterlimit]<unity )
+  if ( internal_value(mp_miterlimit)<unity )
     miterlim=unity;
   else
-    miterlim=mp->internal[mp_miterlimit];
+    miterlim=internal_value(mp_miterlimit);
   mp->cur_exp.p = mp_make_envelope(mp, q, knot_value(p), ljoin,lcap,miterlim);
   mp->cur_type = mp_path_type;
 }
@@ -22208,7 +22021,7 @@ the output of |mp_ps_do_font_charstring| has to be un-exported.
 static void mp_set_up_glyph_infont (MP mp, pointer p) {
   mp_edge_object *h = NULL;
   mp_ps_font *f = NULL;
-  char *n = mp_str(mp, mp->cur_exp.i);
+  char *n = mp_str(mp, mp->cur_exp.s);
   f = mp_ps_font_parse(mp, (int)mp_find_font(mp, n));
   if (f!=NULL) {
     if (mp_type(p) == mp_known) {
@@ -22222,9 +22035,8 @@ static void mp_set_up_glyph_infont (MP mp, pointer p) {
         h = mp_ps_font_charstring (mp,f,v);
       }
     } else {
-      n = mp_str(mp, value(p));
+      n = mp_str(mp, str_value(p));
       h = mp_ps_do_font_charstring (mp,f,n);
-      free(n);
     }
     mp_ps_font_free(mp,f);
   }
@@ -22343,7 +22155,7 @@ static void mp_do_infont (MP mp,pointer p) {
   mp_expr_data new_expr;
   q=mp_get_node(mp, edge_header_size);
   mp_init_edges(mp, q);
-  mp_link(obj_tail(q))=mp_new_text_node(mp,str(mp->cur_exp.i),value(p));
+  mp_link(obj_tail(q))=mp_new_text_node(mp,mp_str(mp,mp->cur_exp.s),str_value(p));
   obj_tail(q)=mp_link(obj_tail(q));
   mp_free_node(mp, p,value_node_size);
   new_expr.i = q;
@@ -22445,7 +22257,7 @@ expression.
 
 @<Do a statement that doesn't...@>=
 { 
-  if ( mp->internal[mp_tracing_commands]>0 ) 
+  if ( internal_value(mp_tracing_commands)>0 ) 
     show_cur_cmd_mod;
   switch (mp->cur_cmd ) {
   case type_name:mp_do_type_declaration(mp); break;
@@ -22483,8 +22295,10 @@ expression.
 
 @ @<Do a title@>=
 { 
-  if ( mp->internal[mp_tracing_titles]>0 ) {
-    mp_print_nl(mp, "");  mp_print_str(mp, mp->cur_exp.i); update_terminal;
+  if ( internal_value(mp_tracing_titles)>0 ) {
+    mp_print_nl(mp, "");  
+    mp_print_str(mp, mp->cur_exp.s); 
+    update_terminal;
   }
 }
 
@@ -22509,7 +22323,7 @@ void mp_do_equation (MP mp) {
   mp->var_flag=assignment; mp_scan_expression(mp);
   if ( mp->cur_cmd==equals ) mp_do_equation(mp);
   else if ( mp->cur_cmd==assignment ) mp_do_assignment(mp);
-  if ( mp->internal[mp_tracing_commands]>two ) 
+  if ( internal_value(mp_tracing_commands)>two ) 
     @<Trace the current equation@>;
   if ( mp->cur_type==mp_unknown_path ) if ( mp_type(lhs)==mp_pair_type ) {
     p=mp_stash_cur_exp(mp); mp_unstash_cur_exp(mp, lhs); lhs=p;
@@ -22543,7 +22357,7 @@ void mp_do_assignment (MP mp) {
       mp_do_equation(mp);
     else if ( mp->cur_cmd==assignment ) 
       mp_do_assignment(mp);
-    if ( mp->internal[mp_tracing_commands]>two ) 
+    if ( internal_value(mp_tracing_commands)>two ) 
       @<Trace the current assignment@>;
     if ( mp_info(lhs)>hash_end ) {
       @<Assign the current expression to an internal variable@>;
@@ -22588,8 +22402,8 @@ if ( mp->cur_type==mp_known || mp->cur_type==mp_string_type )  {
              "numeric value, so I'll have to ignore this assignment.");
       mp_put_get_error(mp);
     } else {
-      add_str_ref(mp->cur_exp.i);
-      mp->internal[mp_info(lhs)-(hash_end)]=mp->cur_exp.i;
+      add_str_ref(mp->cur_exp.s);
+      internal_string(mp_info(lhs)-(hash_end))=mp->cur_exp.s;
     }
   } else { /* mp_known */
     if (mp->int_type[mp_info(lhs)-(hash_end)]!=mp->cur_type) {
@@ -22601,7 +22415,7 @@ if ( mp->cur_type==mp_known || mp->cur_type==mp_string_type )  {
              "string, so I'll have to ignore this assignment.");
       mp_put_get_error(mp);
     } else {
-      mp->internal[mp_info(lhs)-(hash_end)]=mp->cur_exp.i;
+      internal_value(mp_info(lhs)-(hash_end))=mp->cur_exp.i;
     }
   }
 } else { 
@@ -22715,10 +22529,10 @@ case mp_vacuous:
 { 
   if ( mp->cur_type<=mp_string_type ) {
     if ( mp->cur_type==mp_string_type ) {
-      if ( mp_str_vs_str(mp, v,mp->cur_exp.i)!=0 ) {
+      if ( mp_str_vs_str(mp, str_value(lhs), mp->cur_exp.s)!=0 ) {
         goto NOT_FOUND;
       }
-    } else if ( v!=mp->cur_exp.i ) {
+    } else if ( v != mp->cur_exp.i ) {
       goto NOT_FOUND;
     }
     @<Exclaim about a redundant equation@>; goto DONE;
@@ -23036,11 +22850,11 @@ void mp_set_internal (MP mp, char *n, char *v, int isstring) {
     integer h = mp_compute_hash(mp, n, (int)l);
     pointer p = h+hash_base; /* we start searching here */
     while (true) { 
-      if (text(p)>0 && length(text(p))==(int)l && 
+      if (text(p)!=NULL && length(text(p))==l && 
 	  mp_str_eq_cstr(mp, text(p),n)) {
         if (eq_type(p)==internal_quantity) {
      	  if ((mp->int_type[equiv(p)]==mp_string_type) && (isstring)) {
-            mp->internal[equiv(p)] = mp_rts(mp,v);
+            internal_string(equiv(p)) = mp_rts(mp,v);
           } else if ((mp->int_type[equiv(p)]==mp_known) && (!isstring)) {
             scaled test = (scaled)atoi(v);
             if (test>16383 ) {
@@ -23048,7 +22862,7 @@ void mp_set_internal (MP mp, char *n, char *v, int isstring) {
             } else if (test<-16383) {
                errid = "value is too small";
             } else {
-               mp->internal[equiv(p)] =  test*unity;
+               internal_value(equiv(p)) =  test*unity;
             }
           } else {
             errid = "value has the wrong type";
@@ -23441,7 +23255,7 @@ mp->mpx_name[0]=absent;
 mp->force_eof=false;
 t_open_in; 
 mp->scanner_status=normal;
-if (mp->mem_ident==NULL) {
+if (mp->mem_ident==NULL && !mp->ini_version) {
   if ( ! mp_load_preload_file(mp) ) {
      mp->history  = mp_fatal_error_stop;
      return mp->history;
@@ -23449,7 +23263,7 @@ if (mp->mem_ident==NULL) {
 }
 mp_fix_date_and_time(mp);
 if (mp->random_seed==0)
-  mp->random_seed = (mp->internal[mp_time] / unity)+mp->internal[mp_day];
+  mp->random_seed = (internal_value(mp_time) / unity)+internal_value(mp_day);
 mp_init_randoms(mp, mp->random_seed);
 @<Initialize the print |selector|...@>;
 mp_open_log_file(mp);
@@ -23457,8 +23271,8 @@ mp_set_job_id(mp);
 mp_init_map_file(mp, mp->troff_mode);
 mp->history=mp_spotless; /* ready to go! */
 if (mp->troff_mode) {
-  mp->internal[mp_gtroffmode]=unity; 
-  mp->internal[mp_prologues]=unity; 
+  internal_value(mp_gtroffmode)=unity; 
+  internal_value(mp_prologues)=unity; 
 }
 @<Fix up |mp->internal[mp_job_name]|@>;
 if ( mp->start_sym>0 ) { /* insert the `\&{everyjob}' symbol */
@@ -23710,7 +23524,7 @@ void mp_check_delimiter (MP mp,pointer l_delim, pointer r_delim) {
     if ( mp->cur_mod==l_delim ) 
       return;
   if ( mp->cur_sym!=r_delim ) {
-     mp_missing_err(mp, str(text(r_delim)));
+     mp_missing_err(mp, mp_str(mp,text(r_delim)));
 @.Missing `)'@>
     help2("I found no right delimiter to match a left one. So I've",
           "put one in, behind the scenes; this may fix the problem.");
@@ -23798,7 +23612,7 @@ void mp_grow_internals (MP mp, int l);
 
 @ @c
 void mp_grow_internals (MP mp, int l) {
-  scaled *internal;
+  mp_internal *internal;
   char * *int_name; 
   int    *int_type; 
   int k;
@@ -23807,14 +23621,16 @@ void mp_grow_internals (MP mp, int l) {
   }
   int_name = xmalloc ((l+1),sizeof(char *));
   int_type = xmalloc ((l+1),sizeof(int));
-  internal = xmalloc ((l+1),sizeof(scaled));
+  internal = xmalloc ((l+1),sizeof(mp_internal));
   for (k=0;k<=l; k++ ) { 
     if (k<=mp->max_internal) {
-      internal[k]=mp->internal[k]; 
+      internal[k].val=internal_value(k); 
+      internal[k].str=internal_string(k); 
       int_name[k]=mp->int_name[k]; 
       int_type[k]=mp->int_type[k]; 
     } else {
-      internal[k]=0; 
+      internal[k].val=0; 
+      internal[k].str=NULL; 
       int_name[k]=NULL; 
       int_type[k]=0; 
     }
@@ -23845,11 +23661,11 @@ void mp_do_new_internal (MP mp) {
     equiv(mp->cur_sym)=mp->int_ptr;
     if(mp->int_name[mp->int_ptr]!=NULL)
       xfree(mp->int_name[mp->int_ptr]);
-    mp->int_name[mp->int_ptr]=str(text(mp->cur_sym)); 
+    mp->int_name[mp->int_ptr]=mp_xstrdup(mp, mp_str(mp,text(mp->cur_sym))); 
     if (the_type==mp_string_type) {
-      mp->internal[mp->int_ptr]=null_str;
+      internal_string(mp->int_ptr)=null_str;
     } else {
-      mp->internal[mp->int_ptr]=0;
+      internal_value(mp->int_ptr)=0;
     }
     mp->int_type[mp->int_ptr]=the_type;
     mp_get_x_next(mp);
@@ -23947,8 +23763,9 @@ static void mp_disp_token (MP mp) ;
     mp_print_capsule(mp,mp->cur_mod);
   } else  { 
     mp_print_char(mp, xord('"')); 
-    mp_print_str(mp, mp->cur_mod); mp_print_char(mp, xord('"'));
-    delete_str_ref(mp->cur_mod);
+    mp_print_str(mp, mp->cur_mod_str); 
+    mp_print_char(mp, xord('"'));
+    delete_str_ref(mp->cur_mod_str);
   }
 }
 
@@ -24005,12 +23822,9 @@ static void mp_do_show_stats (MP mp) ;
   mp_print(mp, " ("); mp_print_int(mp, mp->hi_mem_min-mp->lo_mem_max-1);
   mp_print(mp, " still untouched)"); mp_print_ln(mp);
   mp_print_nl(mp, "String usage ");
-  mp_print_int(mp, mp->strs_in_use-mp->init_str_use);
-  mp_print_char(mp, xord('&')); mp_print_int(mp, mp->pool_in_use-mp->init_pool_ptr);
-  mp_print(mp, " (");
-  mp_print_int(mp, mp->max_strings-1-mp->strs_used_up); mp_print_char(mp, xord('&'));
-  mp_print_int(mp, mp->pool_size-mp->pool_ptr); 
-  mp_print(mp, " now untouched)"); mp_print_ln(mp);
+  mp_print_int(mp, (int)mp->strs_in_use);
+  mp_print_char(mp, xord('&')); mp_print_int(mp, (int)mp->pool_in_use);
+  mp_print_ln(mp);
   mp_get_x_next(mp);
 }
 
@@ -24106,7 +23920,7 @@ static void mp_do_show_whatever (MP mp) ;
   case show_var_code:mp_do_show_var(mp); break;
   case show_dependencies_code:mp_do_show_dependencies(mp); break;
   } /* there are no other cases */
-  if ( mp->internal[mp_showstopping]>0 ){ 
+  if ( internal_value(mp_showstopping)>0 ){ 
     print_err("OK");
 @.OK@>
     if ( mp->interaction<mp_error_stop_mode ) { 
@@ -24252,15 +24066,15 @@ static void mp_scan_with_list (MP mp,pointer p) ;
           s=mp_pre_script(ap);
           old_setting=mp->selector;
 	      mp->selector=new_string;
-          str_room(length(mp_pre_script(ap))+length(mp->cur_exp.i)+2);
-	      mp_print_str(mp, mp->cur_exp.i);
+          str_room(length(mp_pre_script(ap))+length(mp->cur_exp.s)+2);
+	      mp_print_str(mp, mp->cur_exp.s);
           append_char(13);  /* a forced \ps\ newline  */
           mp_print_str(mp, mp_pre_script(ap));
           mp_pre_script(ap)=mp_make_string(mp);
           delete_str_ref(s);
           mp->selector=old_setting;
         } else {
-          mp_pre_script(ap)=mp->cur_exp.i;
+          mp_pre_script(ap)=mp->cur_exp.s;
         }
         mp->cur_type=mp_vacuous;
       }
@@ -24277,15 +24091,15 @@ static void mp_scan_with_list (MP mp,pointer p) ;
            s=mp_post_script(bp);
            old_setting=mp->selector;
 	       mp->selector=new_string;
-           str_room(length(mp_post_script(bp))+length(mp->cur_exp.i)+2);
+           str_room(length(mp_post_script(bp))+length(mp->cur_exp.s)+2);
            mp_print_str(mp, mp_post_script(bp));
            append_char(13); /* a forced \ps\ newline  */
-      	   mp_print_str(mp, mp->cur_exp.i);
+      	   mp_print_str(mp, mp->cur_exp.s);
            mp_post_script(bp)=mp_make_string(mp);
            delete_str_ref(s);
            mp->selector=old_setting;
          } else {
-           mp_post_script(bp)=mp->cur_exp.i;
+           mp_post_script(bp)=mp->cur_exp.s;
          }
          mp->cur_type=mp_vacuous;
        }
@@ -24739,7 +24553,7 @@ static void mp_do_ship_out (MP mp) ;
   if ( mp->cur_type!=mp_picture_type ) {
     @<Complain that it's not a known picture@>;
   } else { 
-    c=mp_round_unscaled(mp, mp->internal[mp_char_code]) % 256;
+    c=mp_round_unscaled(mp, internal_value(mp_char_code)) % 256;
     if ( c<0 ) c=c+256;
     @<Store the width information for character code~|c|@>;
     mp_ship_out(mp, mp->cur_exp.i);
@@ -24779,15 +24593,16 @@ mp->start_sym=0;
 @d err_help_code 2
 @d filename_template_code 3
 @d print_with_leading_zeroes(A,B)  do {
-              integer g = mp->pool_ptr;
-              integer f = (B);
-              mp_print_int(mp, (A)); g = mp->pool_ptr-g;
+              size_t g = mp->cur_length;
+              size_t f = (size_t)(B);
+              mp_print_int(mp, (A)); 
+              g = mp->cur_length - g;
               if ( f>g ) {
-                mp->pool_ptr = mp->pool_ptr - g;
+                mp->cur_length = mp->cur_length - g;
                 while ( f>g ) {
                   mp_print_char(mp, xord('0'));
                   decr(f);
-                  };
+                };
                 mp_print_int(mp, (A));
               };
               f = 0;
@@ -24828,7 +24643,7 @@ static void mp_do_message (MP mp) ;
   else {
     switch (m) {
     case message_code: 
-      mp_print_nl(mp, ""); mp_print_str(mp, mp->cur_exp.i);
+      mp_print_nl(mp, ""); mp_print_str(mp, mp->cur_exp.s);
       break;
     case err_message_code:
       @<Print string |cur_exp| as an error message@>;
@@ -24858,9 +24673,9 @@ given an empty help string, or if none has ever been given.
 
 @<Save string |cur_exp| as the |err_help|@>=
 { 
-  if ( mp->err_help!=0 ) delete_str_ref(mp->err_help);
-  if ( length(mp->cur_exp.i)==0 ) mp->err_help=0;
-  else  { mp->err_help=mp->cur_exp.i; add_str_ref(mp->err_help); }
+  if ( mp->err_help!=NULL ) delete_str_ref(mp->err_help);
+  if ( length(mp->cur_exp.s)==0 ) mp->err_help=NULL;
+  else  { mp->err_help=mp->cur_exp.s; add_str_ref(mp->err_help); }
 }
 
 @ If \&{errmessage} occurs often in |mp_scroll_mode|, without user-defined
@@ -24874,8 +24689,8 @@ boolean long_help_seen; /* has the long \.{\\errmessage} help been used? */
 
 @ @<Print string |cur_exp| as an error message@>=
 { 
-  print_err(""); mp_print_str(mp, mp->cur_exp.i);
-  if ( mp->err_help!=0 ) {
+  print_err(""); mp_print_str(mp, mp->cur_exp.s);
+  if ( mp->err_help != NULL ) {
     mp->use_err_help=true;
   } else if ( mp->long_help_seen ) { 
     help1("(That was another `errmessage'.)") ; 
@@ -24910,7 +24725,7 @@ static void mp_do_write (MP mp) ;
     help1("A write command should end with `to <filename>'");
     mp_put_get_error(mp);
   } else { 
-    t=mp->cur_exp.i; mp->cur_type=mp_vacuous;
+    t=mp->cur_exp.s; mp->cur_type=mp_vacuous;
     mp_get_x_next(mp);
     mp_scan_expression(mp);
     if ( mp->cur_type!=mp_string_type )
@@ -24940,7 +24755,7 @@ static void mp_do_write (MP mp) ;
 
 @ @<Find |n| where |wr_fname[n]=cur_exp| and call |open_write_file| if...@>=
 {
-  char *fn = str(mp->cur_exp.i);
+  char *fn = mp_str(mp,mp->cur_exp.s);
   n=mp->write_files;
   n0=mp->write_files;
   while (mp_xstrcmp(fn,mp->wr_fname[n])!=0) { 
@@ -25313,7 +25128,7 @@ for (k=0;k<= 255;k++ ) {
 }
 memset(mp->header_byte,0,(size_t)mp->header_size);
 mp->bc=255; mp->ec=0; mp->nl=0; mp->nk=0; mp->ne=0; mp->np=0;
-mp->internal[mp_boundary_char]=-unity;
+internal_value(mp_boundary_char)=-unity;
 mp->bch_label=undefined_label;
 mp->label_loc[0]=-1; mp->label_ptr=0;
 
@@ -25322,7 +25137,7 @@ static scaled mp_tfm_check (MP mp,quarterword m) ;
 
 @ @c
 static scaled mp_tfm_check (MP mp,quarterword m) {
-  if ( abs(mp->internal[m])>=fraction_half ) {
+  if ( abs(internal_value(m))>=fraction_half ) {
     print_err("Enormous "); mp_print(mp, mp->int_name[m]);
 @.Enormous charwd...@>
 @.Enormous chardp...@>
@@ -25332,10 +25147,10 @@ static scaled mp_tfm_check (MP mp,quarterword m) {
     mp_print(mp, " has been reduced");
     help1("Font metric dimensions must be less than 2048pt.");
     mp_put_get_error(mp);
-    if ( mp->internal[m]>0 ) return (fraction_half-1);
+    if ( internal_value(m)>0 ) return (fraction_half-1);
     else return (1-fraction_half);
   } else {
-    return mp->internal[m];
+    return internal_value(m);
   }
 }
 
@@ -25394,8 +25209,8 @@ static eight_bits mp_get_code (MP mp) ;
     c=mp_round_unscaled(mp, mp->cur_exp.i);
     if ( c>=0 ) if ( c<256 ) return (eight_bits)c;
   } else if ( mp->cur_type==mp_string_type ) {
-    if ( length(mp->cur_exp.i)==1 )  { 
-      c=mp->str_pool[mp->str_start[mp->cur_exp.i]];
+    if ( length(mp->cur_exp.s)==1 )  { 
+      c = (integer)(*(mp->cur_exp.s->str));
       return (eight_bits)c;
     }
   }
@@ -25915,7 +25730,7 @@ Error messages are not allowed at the time this procedure is called,
 so a warning is printed instead.
 
 The value of |max_tfm_dimen| is calculated so that
-$$\hbox{|make_scaled(16*max_tfm_dimen,internal[mp_design_size])|}
+$$\hbox{|make_scaled(16*max_tfm_dimen,internal_value(mp_design_size))|}
  < \\{three\_bytes}.$$
 
 @d three_bytes 0100000000 /* $2^{24}$ */
@@ -25923,12 +25738,12 @@ $$\hbox{|make_scaled(16*max_tfm_dimen,internal[mp_design_size])|}
 @c 
 static void mp_fix_design_size (MP mp) {
   scaled d; /* the design size */
-  d=mp->internal[mp_design_size];
+  d=internal_value(mp_design_size);
   if ( (d<unity)||(d>=fraction_half) ) {
     if ( d!=0 )
       mp_print_nl(mp, "(illegal design size has been changed to 128pt)");
 @.illegal design size...@>
-    d=040000000; mp->internal[mp_design_size]=d;
+    d=040000000; internal_value(mp_design_size)=d;
   }
   if ( mp->header_byte[4]==0 && mp->header_byte[5]==0 &&
        mp->header_byte[6]==0 && mp->header_byte[7]==0 ) {
@@ -25937,7 +25752,7 @@ static void mp_fix_design_size (MP mp) {
      mp->header_byte[6]=(char)((d / 16) % 256);
      mp->header_byte[7]=(char)((d % 16)*16);
   }
-  mp->max_tfm_dimen=16*mp->internal[mp_design_size]-1-mp->internal[mp_design_size] / 010000000;
+  mp->max_tfm_dimen=16*internal_value(mp_design_size)-1-internal_value(mp_design_size) / 010000000;
   if ( mp->max_tfm_dimen>=fraction_half ) mp->max_tfm_dimen=fraction_half-1;
 }
 
@@ -25951,7 +25766,7 @@ static integer mp_dimen_out (MP mp,scaled x) {
     incr(mp->tfm_changed);
     if ( x>0 ) x=mp->max_tfm_dimen; else x=-mp->max_tfm_dimen;
   }
-  x=mp_make_scaled(mp, x*16,mp->internal[mp_design_size]);
+  x=mp_make_scaled(mp, x*16,internal_value(mp_design_size));
   return x;
 }
 
@@ -26030,7 +25845,7 @@ mp->metric_file_name=xstrdup(mp->name_of_file);
   output the dimensions themselves@>;
 @<Output the ligature/kern program@>;
 @<Output the extensible character recipes and the font metric parameters@>;
-  if ( mp->internal[mp_tracing_stats]>0 )
+  if ( internal_value(mp_tracing_stats)>0 )
   @<Log the subfile sizes of the \.{TFM} file@>;
 mp_print_nl(mp, "Font metrics written on "); 
 mp_print(mp, mp->metric_file_name); mp_print_char(mp, xord('.'));
@@ -26086,7 +25901,7 @@ starting addresses; we have $-1=|label_loc|[0]<|label_loc|[1]\le\cdots
 \le|label_loc|[|label_ptr]|$.
 
 @<Compute the ligature/kern program offset...@>=
-mp->bchar=mp_round_unscaled(mp, mp->internal[mp_boundary_char]);
+mp->bchar=mp_round_unscaled(mp, internal_value(mp_boundary_char));
 if ((mp->bchar<0)||(mp->bchar>255)) { 
   mp->bchar=-1; mp->lk_started=false; lk_offset=0; 
 } else { 
@@ -26298,8 +26113,12 @@ mp->depth_base[null_font]=0;
 mp->next_fmem=0;
 mp->last_fnum=null_font;
 mp->last_ps_fnum=null_font;
-mp->font_name[null_font]=mp_xstrdup(mp,"nullfont");
-mp->font_ps_name[null_font]=mp_xstrdup(mp,"");
+{ 
+  static char nullfont_name[] = "nullfont";
+  static char nullfont_psname[] = "";
+  mp->font_name[null_font]=nullfont_name;
+  mp->font_ps_name[null_font]=nullfont_psname;
+}
 mp->font_ps_name_fixed[null_font] = false;
 mp->font_enc_name[null_font]=NULL;
 mp->font_sizes[null_font]=null;
@@ -26333,12 +26152,10 @@ font_number mp_find_font (MP mp, char *f) {
   font_number n;
   for (n=0;n<=mp->last_fnum;n++) {
     if (mp_xstrcmp(f,mp->font_name[n])==0 ) {
-      mp_xfree(f);
       return n;
     }
   }
   n = mp_read_font_info(mp, f);
-  mp_xfree(f);
   return n;
 }
 
@@ -26379,7 +26196,7 @@ operator that gets the design size for a given font name.
 
 @<Find the design size of the font whose name is |cur_exp|@>=
 {
-  new_expr.i =(mp->font_dsize[mp_find_font(mp, str(mp->cur_exp.i))]+8) / 16;
+  new_expr.i =(mp->font_dsize[mp_find_font(mp, mp_str(mp,mp->cur_exp.s))]+8) / 16;
   mp_flush_cur_exp(mp, new_expr);
 }
 
@@ -26388,16 +26205,16 @@ from the bounding box computation and expect the \ps\ interpreter to drop it.
 This routine issues a warning message if the user has asked for it.
 
 @<Declarations@>=
-static void mp_lost_warning (MP mp,font_number f, pool_pointer k);
+static void mp_lost_warning (MP mp,font_number f, int k);
 
 @ @c 
-void mp_lost_warning (MP mp,font_number f, pool_pointer k) { 
-  if ( mp->internal[mp_tracing_lost_chars]>0 ) { 
+void mp_lost_warning (MP mp,font_number f, int k) { 
+  if ( internal_value(mp_tracing_lost_chars)>0 ) { 
     mp_begin_diagnostic(mp);
     if ( mp->selector==log_only ) incr(mp->selector);
     mp_print_nl(mp, "Missing character: There is no ");
 @.Missing character@>
-    mp_print_str(mp, mp->str_pool[k]); 
+    mp_print_int(mp, k); 
     mp_print(mp, " in font ");
     mp_print(mp, mp->font_name[f]); mp_print_char(mp, xord('!')); 
     mp_end_diagnostic(mp, false);
@@ -26415,7 +26232,7 @@ static void mp_set_text_box (MP mp,pointer p);
 void mp_set_text_box (MP mp,pointer p) {
   font_number f; /* |mp_font_n(p)| */
   ASCII_code bc,ec; /* range of valid characters for font |f| */
-  pool_pointer k,kk; /* current character and character to stop at */
+  size_t k,kk; /* current character and character to stop at */
   four_quarters cc; /* the |char_info| for the current character */
   scaled h,d; /* dimensions of the current character */
   width_val(p)=0;
@@ -26424,8 +26241,8 @@ void mp_set_text_box (MP mp,pointer p) {
   f=(font_number)mp_font_n(p);
   bc=mp->font_bc[f];
   ec=mp->font_ec[f];
-  kk=str_stop(mp_text_p(p));
-  k=mp->str_start[mp_text_p(p)];
+  kk=length(mp_text_p(p));
+  k=0;
   while ( k<kk ) {
     @<Adjust |p|'s bounding box to contain |str_pool[k]|; advance |k|@>;
   }
@@ -26434,12 +26251,12 @@ void mp_set_text_box (MP mp,pointer p) {
 
 @ @<Adjust |p|'s bounding box to contain |str_pool[k]|; advance |k|@>=
 { 
-  if ( (mp->str_pool[k]<bc)||(mp->str_pool[k]>ec) ) {
-    mp_lost_warning(mp, f,k);
+  if ( (*(mp_text_p(p)->str+k)<bc)||(*(mp_text_p(p)->str+k)>ec) ) {
+    mp_lost_warning(mp, f, *(mp_text_p(p)->str+k));
   } else { 
-    cc=char_mp_info(f,mp->str_pool[k]);
+    cc=char_mp_info(f,*(mp_text_p(p)->str+k));
     if ( ! ichar_exists(cc) ) {
-      mp_lost_warning(mp, f,k);
+      mp_lost_warning(mp, f, *(mp_text_p(p)->str+k));
     } else { 
       width_val(p)=width_val(p)+char_width(f,cc);
       h=char_height(f,cc);
@@ -26472,7 +26289,7 @@ static void mp_do_mapfile (MP mp) {
   if ( mp->cur_type!=mp_string_type ) {
     @<Complain about improper map operation@>;
   } else {
-    mp_map_file(mp,mp->cur_exp.i);
+    mp_map_file(mp,mp->cur_exp.s);
   }
 }
 static void mp_do_mapline (MP mp) { 
@@ -26480,7 +26297,7 @@ static void mp_do_mapline (MP mp) {
   if ( mp->cur_type!=mp_string_type ) {
      @<Complain about improper map operation@>;
   } else { 
-     mp_map_line(mp,mp->cur_exp.i);
+     mp_map_line(mp,mp->cur_exp.s);
   }
 }
 
@@ -26554,11 +26371,10 @@ void mp_open_output_file (MP mp) ;
 @ @c 
 static void mp_append_to_template (MP mp, integer ff, integer c) {
   if (mp->int_type[c]==mp_string_type) {
-    char *ss = str(mp->internal[c]);
+    char *ss = mp_str(mp,internal_string(c));
     mp_print(mp,ss);
-    mp_xfree(ss);
   } else if (mp->int_type[c]==mp_known) {
-    integer cc = mp_round_unscaled(mp, mp->internal[c]);
+    integer cc = mp_round_unscaled(mp, internal_value(c));
     print_with_leading_zeroes(cc, ff);
   }
 }
@@ -26566,10 +26382,10 @@ static char *mp_set_output_file_name (MP mp, integer c) {
   char *ss = NULL; /* filename extension proposal */  
   char *nn = NULL; /* temp string  for str() */
   unsigned old_setting; /* previous |selector| setting */
-  pool_pointer i; /*  indexes into |filename_template|  */
+  size_t i; /*  indexes into |filename_template|  */
   integer f; /* field width */
   if ( mp->job_name==NULL ) mp_open_log_file(mp);
-  if ( mp->internal[mp_output_template]==0) { 
+  if ( internal_string(mp_output_template)==NULL) { 
     char *s; /* a file extension derived from |c| */
     if ( c<0 ) 
       s=xstrdup(".ps");
@@ -26579,10 +26395,10 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     free(s);
     ss = xstrdup(mp->name_of_file);
   } else { /* initializations */
-    str_number s, n; /* a file extension derived from |c| */
-    scaled saved_char_code = mp->internal[mp_char_code];
-    mp->internal[mp_char_code] = (c*unity);
-    if (mp->internal[mp_job_name]==0) {
+    str_number s, n, template; /* a file extension derived from |c| */
+    scaled saved_char_code = internal_value(mp_char_code);
+    internal_value(mp_char_code) = (c*unity);
+    if (internal_string(mp_job_name)==NULL) {
       if ( mp->job_name==NULL ) {
          mp->job_name=xstrdup("mpout");
       }
@@ -26590,20 +26406,21 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     }
     old_setting=mp->selector; 
     mp->selector=new_string;
-    i = mp->str_start[mp->internal[mp_output_template]];
+    i = 0;
     n = null_str; /* initialize */
-    while ( i<str_stop(mp->internal[mp_output_template]) ) {
+    template = internal_string(mp_output_template);
+    while ( i<length(template) ) {
        f=0;
-       if ( mp->str_pool[i]=='%' ) {
+       if ( *(template->str+i)=='%' ) {
       CONTINUE:
         incr(i);
-        if ( i<str_stop(mp->internal[mp_output_template]) ) {
-          switch (mp->str_pool[i]) {
+        if ( i<length(template) ) {
+          switch (*(template->str+i)) {
 	  case 'j':
  	    mp_append_to_template(mp,f,mp_job_name); 
 	    break;
 	  case 'c': 
-            if (mp->internal[mp_char_code]<0) {
+            if (internal_value(mp_char_code)<0) {
                 mp_print(mp,"ps");
             } else {
                 mp_append_to_template(mp,f,mp_char_code); 
@@ -26630,22 +26447,22 @@ static char *mp_set_output_file_name (MP mp, integer c) {
           case '{':
 	    {
 	      /* look up a name */
-              integer l=0;
-              integer frst = i+1;
-	      while ( i<str_stop(mp->internal[mp_output_template]) ) {
+              size_t l = 0;
+              size_t frst = i+1;
+	      while ( i<length(template) ) {
                 i++;
-	        if (mp->str_pool[i] == '}')
+	        if (*(template->str+i) == '}')
                   break;
                 l++;
               }
               if (l>0) {
-                integer h = mp_compute_hash(mp, (char *)(mp->str_pool+frst),l);
+                integer h = mp_compute_hash(mp, (char *)(template->str+frst),(int)l);
                 pointer p=h+hash_base; /* we start searching here */
 	        char *id = xmalloc(mp, (size_t)(l+1));
-                (void)memcpy(id,(char *)(mp->str_pool+frst),(size_t)l);
-	        *(id+l)=0;
+                (void)memcpy(id,(char *)(template->str+frst),(size_t)l);
+	        *(id+l)='\0';
 	        while (true)  { 
-	     	  if (text(p)>0 && length(text(p))==l && 
+	     	  if (text(p)!=NULL && length(text(p))==l && 
 	              mp_str_eq_cstr(mp, text(p),id)) {
                     if (eq_type(p)==internal_quantity) {
 		      if (equiv(p)==mp_output_template) {
@@ -26680,41 +26497,40 @@ static char *mp_set_output_file_name (MP mp, integer c) {
 	  case '0': case '1': case '2': case '3': case '4': 
 	  case '5': case '6': case '7': case '8': case '9':
             if ( (f<10)  )
-              f = (f*10) + mp->str_pool[i]-'0';
+              f = (f*10) + template->str[i]-'0';
             goto CONTINUE;
 	    break;
           case '%':
-            mp_print_str(mp, mp->str_pool[i]);
+            mp_print_visible_char(mp, '%');
 	    break;
           default:
             {
               char err[256];
               mp_snprintf(err,256,
-                "requested format (%c) in outputtemplate is unknown.",mp->str_pool[i]);
+                "requested format (%c) in outputtemplate is unknown.",*(template->str+i));
               mp_warn(mp,err);
             }
-            mp_print_str(mp, mp->str_pool[i]);
+            mp_print_visible_char(mp, *(template->str+i));
           }
         }
       } else {
-        if ( mp->str_pool[i]=='.' )
+        if ( *(template->str+i)=='.' )
           if (length(n)==0)
             n = mp_make_string(mp);
-        mp_print_str(mp, mp->str_pool[i]);
+        mp_print_visible_char(mp, *(template->str+i));
       };
       incr(i);
     }
     s = mp_make_string(mp);
-    mp->internal[mp_char_code] = saved_char_code;
+    internal_value(mp_char_code) = saved_char_code;
     mp->selector= old_setting;
     if (length(n)==0) {
        n=s;
        s=null_str;
     }
-    ss = str(s);
-    nn = str(n);
+    ss = mp_str(mp,s);
+    nn = mp_str(mp,n);
     mp_pack_file_name(mp, nn,"",ss);
-    mp_xfree(nn);
     delete_str_ref(n);
     delete_str_ref(s);
   }
@@ -26725,7 +26541,7 @@ static char * mp_get_output_file_name (MP mp) {
   char *f;
   char *saved_name;  /* saved |name_of_file| */
   saved_name = xstrdup(mp->name_of_file);
-  (void)mp_set_output_file_name(mp, mp_round_unscaled(mp, mp->internal[mp_char_code]));
+  (void)mp_set_output_file_name(mp, mp_round_unscaled(mp, internal_value(mp_char_code)));
   f = xstrdup(mp->name_of_file);
   mp_pack_file_name(mp, saved_name,NULL,NULL);
   free(saved_name);
@@ -26735,11 +26551,10 @@ static char * mp_get_output_file_name (MP mp) {
 void mp_open_output_file (MP mp) {
   char *ss; /* filename extension proposal */
   integer c; /* \&{charcode} rounded to the nearest integer */
-  c=mp_round_unscaled(mp, mp->internal[mp_char_code]);
+  c=mp_round_unscaled(mp, internal_value(mp_char_code));
   ss = mp_set_output_file_name(mp, c);
   while ( ! mp_a_open_out(mp, (void *)&mp->output_file, mp_filetype_postscript) )
     mp_prompt_file_name(mp, "file name for output",ss);
-  xfree(ss);
   @<Store the true output file name if appropriate@>;
 }
 
@@ -26879,7 +26694,7 @@ p=mp_link(spec_head);
 while ( p!=null ) {
   mp_special_object *tp;
   tp = (mp_special_object *)mp_new_graphic_object(mp,mp_special_code);  
-  gr_pre_script(tp)  = str(value(p));
+  gr_pre_script(tp)  = mp_str(mp,str_value(p));
   if (hh->body==NULL) hh->body = (mp_graphic_object *)tp; 
   else gr_link(hp) = (mp_graphic_object *)tp;
   hp = (mp_graphic_object *)tp;
@@ -26899,7 +26714,7 @@ static void mp_ship_out (MP mp, pointer h) ;
 
 @d export_color(q,p) 
   if ( mp_color_model(p)==mp_uninitialized_model ) {
-    gr_color_model(q)  = (unsigned char)(mp->internal[mp_default_color_model]/65536);
+    gr_color_model(q)  = (unsigned char)(internal_value(mp_default_color_model)/65536);
     gr_cyan_val(q)     = 0;
 	gr_magenta_val(q)  = 0;
 	gr_yellow_val(q)   = 0;
@@ -26913,8 +26728,8 @@ static void mp_ship_out (MP mp, pointer h) ;
   }
 
 @d export_scripts(q,p)
-  if (mp_pre_script(p)!=null)  gr_pre_script(q)   = str(mp_pre_script(p));
-  if (mp_post_script(p)!=null) gr_post_script(q)  = str(mp_post_script(p));
+  if (mp_pre_script(p)!=null)  gr_pre_script(q)   = mp_xstrdup(mp, mp_str(mp,mp_pre_script(p)));
+  if (mp_post_script(p)!=null) gr_post_script(q)  = mp_xstrdup(mp, mp_str(mp,mp_post_script(p)));
 
 @c
 struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
@@ -26939,13 +26754,13 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   hh->miny = miny_val(h);
   hh->maxx = maxx_val(h);
   hh->maxy = maxy_val(h);
-  hh->filename = mp_get_output_file_name(mp);
-  c = mp_round_unscaled(mp,mp->internal[mp_char_code]);
+  hh->filename = mp_xstrdup(mp, mp_get_output_file_name(mp));
+  c = mp_round_unscaled(mp,internal_value(mp_char_code));
   hh->charcode = c;
-  hh->width = mp->internal[mp_char_wd];
-  hh->height = mp->internal[mp_char_ht];
-  hh->depth = mp->internal[mp_char_dp];
-  hh->ital_corr = mp->internal[mp_char_ic];
+  hh->width = internal_value(mp_char_wd);
+  hh->height = internal_value(mp_char_ht);
+  hh->depth = internal_value(mp_char_dp);
+  hh->ital_corr = internal_value(mp_char_ic);
   @<Export pending specials@>;
   p=mp_link(dummy_loc(h));
   while ( p!=null ) { 
@@ -27002,7 +26817,7 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
       break;
     case mp_text_code:
       tt = (mp_text_object *)hq;
-      gr_text_p(tt)       = str(mp_text_p(p));
+      gr_text_p(tt)       = mp_xstrdup(mp, mp_str(mp,mp_text_p(p)));
       gr_text_l(tt)       = (size_t)length(mp_text_p(p));
       gr_font_n(tt)       = (unsigned int)mp_font_n(p);
       gr_font_name(tt)    = mp_xstrdup(mp,mp->font_name[mp_font_n(p)]);
@@ -27101,11 +26916,11 @@ static pointer mp_gr_unexport(MP mp, struct mp_edge_object *h);
 @c
 void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
   integer c; /* \&{charcode} rounded to the nearest integer */
-  c=mp_round_unscaled(mp, mp->internal[mp_char_code]);
+  c=mp_round_unscaled(mp, internal_value(mp_char_code));
   @<Begin the progress report for the output of picture~|c|@>;
   (mp->shipout_backend) (mp, h);
   @<End progress report@>;
-  if ( mp->internal[mp_tracing_output]>0 ) 
+  if ( internal_value(mp_tracing_output)>0 ) 
    mp_print_edges(mp, h," (just shipped out)",true);
 }
 
@@ -27119,19 +26934,18 @@ void mp_shipout_backend (MP mp, pointer h) {
   mp_edge_object *hh; /* the first graphical object */
   hh = mp_gr_export(mp,h);
   s = NULL;
-  if (mp->internal[mp_output_format]>0)
-    s =  str(mp->internal[mp_output_format]);
+  if (internal_string(mp_output_format) != NULL)
+    s =  mp_str(mp,internal_string(mp_output_format));
   if (s && strcmp(s,"svg")==0) {
     (void)mp_svg_gr_ship_out (hh,
-                 (mp->internal[mp_prologues]/65536),
+                 (internal_value(mp_prologues)/65536),
                  false);
   } else {
     (void)mp_gr_ship_out (hh,
-                 (mp->internal[mp_prologues]/65536),
-                 (mp->internal[mp_procset]/65536), 
+                 (internal_value(mp_prologues)/65536),
+                 (internal_value(mp_procset)/65536), 
                  false);
   }
-  mp_xfree(s);
   mp_gr_toss_objects(hh);
 }
 
@@ -27274,7 +27088,7 @@ void mp_close_files_and_terminate (MP mp) {
   if (mp->finished) 
     return;
   @<Close all open files in the |rd_file| and |wr_file| arrays@>;
-  if ( mp->internal[mp_tracing_stats]>0 )
+  if ( internal_value(mp_tracing_stats)>0 )
     @<Output statistics about this job@>;
   wake_up_terminal; 
   @<Do all the finishing work on the \.{TFM} file@>;
@@ -27340,12 +27154,12 @@ there is no chance of another memory overflow after the memory capacity
 has already been exceeded.
 
 @<Do all the finishing work on the \.{TFM} file@>=
-if ( mp->internal[mp_fontmaking]>0 ) {
+if ( internal_value(mp_fontmaking)>0 ) {
   @<Make the dynamic memory into one big available node@>;
   @<Massage the \.{TFM} widths@>;
   mp_fix_design_size(mp); mp_fix_check_sum(mp);
   @<Massage the \.{TFM} heights, depths, and italic corrections@>;
-  mp->internal[mp_fontmaking]=0; /* avoid loop in case of fatal error */
+  internal_value(mp_fontmaking)=0; /* avoid loop in case of fatal error */
   @<Finish the \.{TFM} file@>;
 }
 
@@ -27366,13 +27180,9 @@ if ( mp->log_opened ) {
   wlog_ln(" ");
   wlog_ln("Here is how much of MetaPost's memory you used:");
 @.Here is how much...@>
-  mp_snprintf(s,128," %i string%s out of %i",(int)mp->max_strs_used-mp->init_str_use,
-          (mp->max_strs_used!=mp->init_str_use+1 ? "s" : ""),
-          (int)(mp->max_strings-1-mp->init_str_use));
-  wlog_ln(s);
-  mp_snprintf(s,128," %i string characters out of %i",
-           (int)mp->max_pl_used-mp->init_pool_ptr,
-           (int)mp->pool_size-mp->init_pool_ptr);
+  mp_snprintf(s,128," %i string%s using %i character%s",(int)mp->max_strs_used,
+           (mp->max_strs_used!=1 ? "s" : ""), (int)mp->max_pl_used,
+       	   (mp->max_pl_used!=1 ? "s" : ""));
   wlog_ln(s);
   mp_snprintf(s,128," %i words of memory out of %i",
            (int)mp->lo_mem_max+mp->mem_end-mp->hi_mem_min+2,
@@ -27385,9 +27195,6 @@ if ( mp->log_opened ) {
            (int)mp->max_param_stack,(int)mp->max_buf_stack+1,(int)mp->in_open_max,
            (int)mp->stack_size,(int)mp->max_internal,(int)mp->param_size,
 	   (int)mp->buf_size,(int)mp->max_in_open);
-  wlog_ln(s);
-  mp_snprintf(s,128," %i string compactions (moved %i characters, %i strings)",
-          (int)mp->pact_count,(int)mp->pact_chars,(int)mp->pact_strs);
   wlog_ln(s);
 }
 
@@ -27477,10 +27284,14 @@ But when we finish this part of the program, \MP\ is ready to call on the
 { 
   @<Initialize the input routines@>;
   if (mp->mem_ident==NULL) {
-    if ( ! mp_load_preload_file(mp) ) {
-       mp->history = mp_fatal_error_stop;
-       return mp;
-    }
+     if ( ! mp->ini_version) {
+        if ( ! mp_load_preload_file(mp) ) {
+           mp->history = mp_fatal_error_stop;
+           return mp;
+        }
+     } else {
+        mp->mem_ident = mp_xstrdup(mp, " (INIMP)");
+     }
   }
   @<Initializations following first line@>;
 }
@@ -27489,19 +27300,17 @@ But when we finish this part of the program, \MP\ is ready to call on the
   mp->buffer[limit]=(ASCII_code)'%';
   mp_fix_date_and_time(mp);
   if (mp->random_seed==0)
-    mp->random_seed = (mp->internal[mp_time] / unity)+mp->internal[mp_day];
+    mp->random_seed = (internal_value(mp_time) / unity)+internal_value(mp_day);
   mp_init_randoms(mp, mp->random_seed);
   @<Initialize the print |selector|...@>;
+  mp_normalize_selector(mp); 
   if ( loc<limit ) if ( mp->buffer[loc]!='\\' ) 
     mp_start_input(mp); /* \&{input} assumed */
 
 @ @<Run inimpost commands@>=
 {
-  mp_get_strings_started(mp);
   mp_init_tab(mp); /* initialize the tables */
   mp_init_prim(mp); /* call |primitive| for each primitive */
-  mp->init_str_use=mp->max_str_ptr=mp->str_ptr;
-  mp->init_pool_ptr=mp->max_pool_ptr=mp->pool_ptr;
   mp_fix_date_and_time(mp);
 }
 
@@ -27509,26 +27318,26 @@ But when we finish this part of the program, \MP\ is ready to call on the
 
 @<Save the filename template@>=
 { 
-  delete_str_ref(mp->internal[mp_output_template]);
-  if ( length(mp->cur_exp.i)==0 ) {
-    mp->internal[mp_output_template] = rts("%j.%c");
+  delete_str_ref(internal_string(mp_output_template));
+  if ( length(mp->cur_exp.s)==0 ) {
+    internal_string(mp_output_template) = mp_rts(mp,"%j.%c");
   } else { 
-    mp->internal[mp_output_template]=mp->cur_exp.i; 
-    add_str_ref(mp->internal[mp_output_template]);
+    internal_string(mp_output_template) = mp->cur_exp.s; 
+    add_str_ref(internal_string(mp_output_template));
   }
 }
 
 @ @c 
 boolean mp_load_preload_file (MP mp) {
-  int k;
+  size_t k;
   char *fname = xstrdup(mp->name_of_file);	
   int saved_loc = loc;
   int saved_limit = limit;
   int saved_start = start;
-  pool_pointer l = (pool_pointer)strlen(fname);
+  size_t l = strlen(fname);
   str_room(l);
   for (k=0;k<l;k++) {
-    append_char(xord((ASCII_code)fname[k]));
+    append_char(*(fname+k));
   }
   name = mp_make_string(mp);
 
