@@ -271,7 +271,9 @@ MP mp_initialize (MP_options *opt) {
     return mp;
   }
   mp_do_initialize(mp); /* erase preloaded mem */
-  @<Run inimpost commands@>;
+  mp_init_tab(mp); /* initialize the tables */
+  mp_init_prim(mp); /* call |primitive| for each primitive */
+  mp_fix_date_and_time(mp);
   if (!mp->noninteractive) {
     @<Initialize the output routines@>;
     @<Get the first line of input and prepare to start@>;
@@ -647,8 +649,6 @@ mp->file_line_error_style = (opt->file_line_error_style>0 ? true : false);
 |name_of_file| could be opened.
 
 The |OPEN_FILE| macro takes care of the |print_found_names| parameter.
-It is not used for opening a mem file for read, because that file name 
-is never printed.
 
 @d OPEN_FILE(A) do {
   if (mp->print_found_names || mp->file_line_error_style) {
@@ -4143,10 +4143,9 @@ appear in locations |hi_mem_stat_min| through |mem_max|, inclusive.
 #define hi_mem_stat_min (mp->mem_max-3) /* smallest statically allocated word in
   the one-word |mem| */
 
-@ The following code gets the dynamic part of |mem| off to a good start,
-when \MP\ is initializing itself the slow way.
+@ The following code gets the dynamic part of |mem| off to a good start.
 
-@<Initialize table entries (done by \.{INIMP} only)@>=
+@<Initialize table entries@>=
 mp->rover=lo_mem_stat_max+1; /* initialize the dynamic memory */
 mp_link(mp->rover)=empty_flag;
 node_size(mp->rover)=1000; /* which is a 1000-word available node */
@@ -5072,7 +5071,7 @@ enum mp_color_model {
 };
 
 
-@ @<Initialize table entries (done by \.{INIMP} only)@>=
+@ @<Initialize table entries@>=
 internal_value(mp_default_color_model)=(mp_rgb_model*unity);
 internal_value(mp_restore_clip_color)=unity;
 internal_string(mp_output_template)=mp_intern(mp,"%j.%c");
@@ -5348,7 +5347,7 @@ for (k=2;k<=hash_end;k++)  {
   mp->hash[k]=mp->hash[1]; mp->eqtb[k]=mp->eqtb[1];
 }
 
-@ @<Initialize table entries...@>=
+@ @<Initialize table entries@>=
 mp->hash_used=frozen_inaccessible; /* nothing is used */
 mp->st_count=0;
 text(frozen_bad_vardef)=mp_intern(mp,"a bad variable");
@@ -5663,7 +5662,7 @@ if ( text_base+mp->param_size>max_halfword ) mp->bad=18;
 @ We have set aside a two word node beginning at |null| so that we can have
 |value(null)=0|.  We will make use of this coincidence later.
 
-@<Initialize table entries...@>=
+@<Initialize table entries@>=
 mp_link(null)=null; value(null)=0;
 
 @ A numeric token is created by the following trivial routine.
@@ -12176,7 +12175,7 @@ variable (say~|r|); and we have |prev_dep(r)=q|, etc.
   /* the other half; makes a doubly linked list */
 @d dep_node_size 2 /* the number of words per dependency node */
 
-@<Initialize table entries...@>= mp->serial_no=0;
+@<Initialize table entries@>= mp->serial_no=0;
 mp_link(dep_head)=dep_head; prev_dep(dep_head)=dep_head;
 mp_info(dep_head)=null; dep_list(dep_head)=null;
 
@@ -14841,7 +14840,7 @@ if ( m==start_def ) {
   mp_error(mp); mp->warning_info=bad_vardef;
 }
 
-@ @<Initialize table entries...@>=
+@ @<Initialize table entries@>=
 mp_name_type(bad_vardef)=mp_root; mp_link(bad_vardef)=frozen_bad_vardef;
 equiv(frozen_bad_vardef)=bad_vardef; eq_type(frozen_bad_vardef)=tag_token;
 
@@ -16097,8 +16096,7 @@ system.  The extension of an input file is assumed to be
 `\.{.mp}' unless otherwise specified; it is `\.{.log}' on the
 transcript file that records each run of \MP; it is `\.{.tfm}' on the font
 metric files that describe characters in any fonts created by \MP; it is
-`\.{.ps}' or `.{\it nnn}' for some number {\it nnn} on the \ps\ output files;
-and it is `\.{.mem}' on the mem files written by \.{INIMP} to initialize \MP.
+`\.{.ps}' or `.{\it nnn}' for some number {\it nnn} on the \ps\ output files.
 The file area can be arbitrary on input files, but files are usually
 output to the user's current area.  If an input file cannot be
 found on the specified area, \MP\ will look for it on a special system
@@ -16326,10 +16324,9 @@ if (mp->mem_name) {
 xfree(mp->mem_name);
 
 @ This part of the program becomes active when a ``virgin'' \MP\ is
-trying to get going, just after the preliminary initialization, or
-when the user is substituting another mem file by typing `\.\&' after
-the initial `\.{**}' prompt.  The buffer contains the first line of
-input in |buffer[loc..(last-1)]|, where |loc<last| and |buffer[loc]<>""|.
+trying to get going, just after the preliminary initialization.  
+The buffer contains the first line of input in |buffer[loc..(last-1)]|, 
+where |loc<last| and |buffer[loc]<>""|.
 
 @<Declarations@>=
 static boolean mp_open_mem_name (MP mp) ;
@@ -19684,7 +19681,7 @@ static void mp_take_part (MP mp,quarterword c) {
   mp_recycle_value(mp, temp_val);
 }
 
-@ @<Initialize table entries...@>=
+@ @<Initialize table entries@>=
 mp_name_type(temp_val)=mp_capsule;
 
 @ @<Additional cases of unary operators@>=
@@ -24660,6 +24657,17 @@ static void mp_do_message (MP mp) ;
   mp_flush_cur_exp(mp, new_expr);
 }
 
+@ @<Save the filename template@>=
+{ 
+  delete_str_ref(internal_string(mp_output_template));
+  if ( length(mp->cur_exp.s)==0 ) {
+    internal_string(mp_output_template) = mp_rts(mp,"%j.%c");
+  } else { 
+    internal_string(mp_output_template) = mp->cur_exp.s; 
+    add_str_ref(internal_string(mp_output_template));
+  }
+}
+
 @ @<Declare a procedure called |no_string_err|@>=
 static void mp_no_string_err (MP mp, const char *s) { 
    exp_err("Not a string");
@@ -25524,7 +25532,7 @@ then the list of sorted values is perturbed, if necessary.
 The sorting operation is facilitated by having a special node of
 essentially infinite |value| at the end of the current list.
 
-@<Initialize table entries...@>=
+@<Initialize table entries@>=
 value(inf_val)=fraction_four;
 
 @ Straight linear insertion is good enough for sorting, since the lists
@@ -25719,7 +25727,7 @@ for (k=mp->bc;k<=mp->ec;k++) {
 mp->ni=(short)(mp_skimp(mp, 63)+1); mp->dimen_head[4]=mp_link(temp_head);
 if ( mp->perturbation>=010000 ) mp_tfm_warning(mp, mp_char_ic)
 
-@ @<Initialize table entries...@>=
+@ @<Initialize table entries@>=
 value(zero_val)=0; mp_info(zero_val)=0;
 
 @ Bytes 5--8 of the header are set to the design size, unless the user has
@@ -26980,40 +26988,83 @@ mp_svg_backend_free(mp);
 
 
 @* \[45] Dumping and undumping the tables.
-After \.{INIMP} has seen a collection of macros, it
-can write all the necessary information on an auxiliary file so
-that production versions of \MP\ are able to initialize their
-memory at high speed. The present section of the program takes
-care of such output and input. We shall consider simultaneously
-the processes of storing and restoring,
-so that the inverse relation between them is clear.
-@.INIMP@>
 
-The global variable |mem_ident| is a string that is printed right
-after the |banner| line when \MP\ is ready to start. For \.{INIMP} this
-string says simply `\.{(INIMP)}'; for other versions of \MP\ it says,
-for example, `\.{(mem=plain 1990.4.14)}', showing the year,
-month, and day that the mem file was created. We have |mem_ident=0|
-before \MP's tables are loaded.
+When \.{MP} is started, it is possible to preload a macro file
+containing definitions that will be usable in the main input
+file. This action even takes place automatically, based on the
+name of the executable (\.{mpost} will attempt to preload the
+macros in the file \.{mpost.mp}). If such a preload is not 
+desired, the option variable |ini_version| has to be set |true|.
+
+The global variable |mem_ident| will be set to `\.{ (INIMP)}' 
+when |ini_version| is true; otherwise it will contain the filename 
+of the macro file being preloaded. 
+
+The variable |mem_file| holds the open file pointer.
 
 @<Glob...@>=
 char * mem_ident;
-void * mem_file; /* for input or output of mem information */
+void * mem_file; /* file for input or preloaded macros */
 
 @ @<Set init...@>=
 mp->mem_ident=NULL;
 
-@ @<Initialize table entries...@>=
-mp->mem_ident=NULL;
-
-@ @<Declarations@>=
-extern void mp_store_mem_file (MP mp) ;
-extern boolean mp_load_preload_file (MP mp);
-extern int mp_undump_constants (MP mp);
-
 @ @<Dealloc variables@>=
 xfree(mp->mem_ident);
 
+@ @<Declarations@>=
+extern boolean mp_load_preload_file (MP mp);
+
+@ Preloading a file is a lot like |mp_run| itself, except that
+\MP\ should not exit and that a bit of trickery is needed with
+the input buffer to make sure that the preloading does not
+interfere with the actual job.
+
+@c 
+boolean mp_load_preload_file (MP mp) {
+  size_t k;
+  char *fname = xstrdup(mp->name_of_file);	
+  int saved_loc = loc;
+  int saved_limit = limit;
+  int saved_start = start;
+  size_t l = strlen(fname);
+  str_room(l);
+  for (k=0;k<l;k++) {
+    append_char(*(fname+k));
+  }
+  name = mp_make_string(mp);
+
+  if (!mp->log_opened) {
+    mp_open_log_file(mp);
+  } /* |open_log_file| doesn't |show_context|, so |limit|
+        and |loc| needn't be set to meaningful values yet */
+  if ( ((int)mp->term_offset+(int)strlen(fname)) > (mp->max_print_line-2)) mp_print_ln(mp);
+  else if ( (mp->term_offset>0)||(mp->file_offset>0) ) mp_print_char(mp, xord(' '));
+  mp_print_char(mp, xord('(')); incr(mp->open_parens); mp_print(mp, fname); 
+  mp->mem_ident = fname;
+  update_terminal;
+  { 
+    line=1;
+    start = loc = limit + 1;
+    cur_file = mp->mem_file;
+    (void)mp_input_ln(mp, cur_file ); 
+    mp_firm_up_the_line(mp);
+    mp->buffer[limit]=xord('%');
+    mp->first=(size_t)(limit+1); 
+    loc=start;
+  }
+  do {  
+    mp_do_statement(mp);
+  } while (!(mp->cur_cmd==stop)); /* "dump" or "end" or EOF */
+  mp_print_char(mp, xord(')')); decr(mp->open_parens); 
+
+  fclose(mp->mem_file);
+  cur_file = NULL;
+  start = saved_start;
+  loc = saved_loc;
+  limit = saved_limit;
+  return true;
+}
 
 @* \[46] The main program.
 This is it: the part of \MP\ that executes all those procedures we have
@@ -27270,7 +27321,7 @@ void mp_init_prim (MP mp) { /* initialize all the primitives */
 @#
 void mp_init_tab (MP mp) { /* initialize other tables */
   integer k; /* all-purpose index */
-  @<Initialize table entries (done by \.{INIMP} only)@>;
+  @<Initialize table entries@>;
 }
 
 
@@ -27306,72 +27357,6 @@ But when we finish this part of the program, \MP\ is ready to call on the
   mp_normalize_selector(mp); 
   if ( loc<limit ) if ( mp->buffer[loc]!='\\' ) 
     mp_start_input(mp); /* \&{input} assumed */
-
-@ @<Run inimpost commands@>=
-{
-  mp_init_tab(mp); /* initialize the tables */
-  mp_init_prim(mp); /* call |primitive| for each primitive */
-  mp_fix_date_and_time(mp);
-}
-
-@ Saving the filename template
-
-@<Save the filename template@>=
-{ 
-  delete_str_ref(internal_string(mp_output_template));
-  if ( length(mp->cur_exp.s)==0 ) {
-    internal_string(mp_output_template) = mp_rts(mp,"%j.%c");
-  } else { 
-    internal_string(mp_output_template) = mp->cur_exp.s; 
-    add_str_ref(internal_string(mp_output_template));
-  }
-}
-
-@ @c 
-boolean mp_load_preload_file (MP mp) {
-  size_t k;
-  char *fname = xstrdup(mp->name_of_file);	
-  int saved_loc = loc;
-  int saved_limit = limit;
-  int saved_start = start;
-  size_t l = strlen(fname);
-  str_room(l);
-  for (k=0;k<l;k++) {
-    append_char(*(fname+k));
-  }
-  name = mp_make_string(mp);
-
-  if (!mp->log_opened) {
-    mp_open_log_file(mp);
-  } /* |open_log_file| doesn't |show_context|, so |limit|
-        and |loc| needn't be set to meaningful values yet */
-  if ( ((int)mp->term_offset+(int)strlen(fname)) > (mp->max_print_line-2)) mp_print_ln(mp);
-  else if ( (mp->term_offset>0)||(mp->file_offset>0) ) mp_print_char(mp, xord(' '));
-  mp_print_char(mp, xord('(')); incr(mp->open_parens); mp_print(mp, fname); 
-  mp->mem_ident = fname;
-  update_terminal;
-  { 
-    line=1;
-    start = loc = limit + 1;
-    cur_file = mp->mem_file;
-    (void)mp_input_ln(mp, cur_file ); 
-    mp_firm_up_the_line(mp);
-    mp->buffer[limit]=xord('%');
-    mp->first=(size_t)(limit+1); 
-    loc=start;
-  }
-  do {  
-    mp_do_statement(mp);
-  } while (!(mp->cur_cmd==stop)); /* "dump" */
-  mp_print_char(mp, xord(')')); decr(mp->open_parens); 
-  /* TODO: copy back mp->buffer */
-  fclose(mp->mem_file);
-  cur_file = NULL;
-  start = saved_start;
-  loc = saved_loc;
-  limit = saved_limit;
-  return true;
-}
 
 @* \[47] Debugging.
 
