@@ -478,13 +478,13 @@ void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
   mp_svg_print(mp, s);
   mp_xfree(s);
   mp_svg_print(mp, " on ");
-  mp_svg_store_int(mp, mp_round_unscaled(mp, mp->internal[mp_year])); 
+  mp_svg_store_int(mp, mp_round_unscaled(mp, internal_value(mp_year))); 
   append_char('.');
-  mp_svg_store_dd(mp, mp_round_unscaled(mp, mp->internal[mp_month])); 
+  mp_svg_store_dd(mp, mp_round_unscaled(mp, internal_value(mp_month))); 
   append_char('.');
-  mp_svg_store_dd(mp, mp_round_unscaled(mp, mp->internal[mp_day])); 
+  mp_svg_store_dd(mp, mp_round_unscaled(mp, internal_value(mp_day))); 
   append_char(':');
-  t=mp_round_unscaled(mp, mp->internal[mp_time]);
+  t=mp_round_unscaled(mp, internal_value(mp_time));
   mp_svg_store_dd(mp, t / 60); 
   mp_svg_store_dd(mp, t % 60);
   mp_svg_print_buf(mp);

@@ -1,4 +1,4 @@
-% $Id$
+ $Id$
 %
 % Copyright 2008-2009 Taco Hoekwater.
 %
@@ -527,7 +527,7 @@ avl_tree enc_tree;
 @
 
 @<Static variables in the outer block@>=
-static const char notdef[] = ".notdef";
+static char notdef[] = ".notdef";
 
 @ @<Set initial...@>=
 mp->ps->enc_tree = NULL;
@@ -1466,13 +1466,11 @@ void mp_map_file (MP mp, str_number t) {
   char *ss = mp_str (mp,t);
   char *s = mp_xstrdup(mp, ss);
   mp_process_map_item (mp, s, MAPFILE);
-  mp_xfree(ss);
 }
 void mp_map_line (MP mp, str_number t) {
   char *ss = mp_str (mp,t);
   char *s = mp_xstrdup(mp,ss);
   mp_process_map_item (mp, s, MAPLINE);
-  mp_xfree(ss);
   mp_xfree(s);
 }
 
@@ -1590,11 +1588,11 @@ void mp_set_job_id (MP mp) {
     s = mp_xmalloc (mp,slen, sizeof (char));
     @= /*@@-bufferoverflowhigh@@*/ @>
     sprintf (s,"%.4u/%.2u/%.2u %.2u:%.2u %s %s",
-               ((unsigned)mp->internal[mp_year]>>16),
-               ((unsigned)mp->internal[mp_month]>>16), 
-               ((unsigned)mp->internal[mp_day]>>16), 
-               ((unsigned)mp->internal[mp_time]>>16) / 60, 
-               ((unsigned)mp->internal[mp_time]>>16) % 60,
+               ((unsigned)internal_value(mp_year)>>16),
+               ((unsigned)internal_value(mp_month)>>16), 
+               ((unsigned)internal_value(mp_day)>>16), 
+               ((unsigned)internal_value(mp_time)>>16) / 60, 
+               ((unsigned)internal_value(mp_time)>>16) % 60,
                 name_string, format_string);
     @= /*@@=bufferoverflowhigh@@*/ @>
     mp->ps->job_id_string = mp_xstrdup (mp,s);
@@ -1718,30 +1716,40 @@ char *cur_enc_name;
 unsigned char *grid;
 char *ext_glyph_names[256];
 char print_buf[PRINTF_BUF_SIZE];
-int t1_byte_waiting;
+size_t t1_byte_waiting;
+size_t t1_byte_length;
+unsigned char *t1_bytes;
 
 @ @<Set initial ...@>=
 mp->ps->dvips_extra_charset=NULL;
 mp->ps->t1_byte_waiting=0;
+mp->ps->t1_byte_length=0;
+mp->ps->t1_bytes=NULL;
 
 @
-@d t1_ungetchar(A) mp->ps->t1_byte_waiting=(int)(A)
-@d t1_eof()        (mp->eof_file)(mp,mp->ps->t1_file)
-@d t1_close()      (mp->close_file)(mp,mp->ps->t1_file)
+@d t1_ungetchar()  mp->ps->t1_byte_waiting--
+@d t1_eof()        (mp->ps->t1_byte_waiting>mp->ps->t1_byte_length)
+@d t1_close()      do { 
+   (mp->close_file)(mp,mp->ps->t1_file);
+   mp_xfree(mp->ps->t1_bytes);
+   mp->ps->t1_bytes = NULL;
+   mp->ps->t1_byte_waiting=0;
+   mp->ps->t1_byte_length=0;
+} while (0)
 @d valid_code(c)   (c >= 0 && c < 256)
 
 @c
 static int t1_getchar (MP mp) {
-  size_t len = 1;
-  unsigned char abyte=0;
-  void *byte_ptr = &abyte;  
-  if (mp->ps->t1_byte_waiting) {
-    abyte = (unsigned char)mp->ps->t1_byte_waiting;
-    mp->ps->t1_byte_waiting = 0;
-  } else {
-    (mp->read_binary_file)(mp,mp->ps->t1_file,&byte_ptr,&len);
-  }
-  return (int)abyte;
+  if (mp->ps->t1_bytes == NULL) {
+    void *byte_ptr ;
+    (void)fseek(mp->ps->t1_file,0,SEEK_END);
+    mp->ps->t1_byte_length = (size_t)ftell(mp->ps->t1_file);
+    (void)fseek(mp->ps->t1_file,0,SEEK_SET);
+    mp->ps->t1_bytes = mp_xmalloc(mp, mp->ps->t1_byte_length, 1);
+    byte_ptr = (void *)mp->ps->t1_bytes;
+    (mp->read_binary_file)(mp,mp->ps->t1_file,&byte_ptr,&mp->ps->t1_byte_length);
+  } 
+  return *(mp->ps->t1_bytes+mp->ps->t1_byte_waiting++);
 }
 
 @ @<Static variables in the outer block@>=
@@ -1921,7 +1929,7 @@ static void end_hexline (MP mp) {
 static void t1_check_pfa (MP mp) {
     const int c = t1_getchar (mp);
     mp->ps->t1_pfa = (c != 128) ? true : false;
-    t1_ungetchar (c);
+    t1_ungetchar ();
 }
 static int t1_getbyte (MP mp)
 {
@@ -3314,7 +3322,7 @@ static void  t1_free (MP mp) {
   for (k=0;k<=255;k++) {
     if (mp->ps->t1_builtin_glyph_names[k] != notdef)
        mp_xfree(mp->ps->t1_builtin_glyph_names[k]);
-    mp->ps->t1_builtin_glyph_names[k] = mp_xstrdup(mp, notdef);
+    mp->ps->t1_builtin_glyph_names[k] = notdef; 
   }
 }
 
@@ -4756,7 +4764,7 @@ static void mp_ps_pair_out (MP mp,scaled x, scaled y) ;
 
 @ @c
 void mp_ps_print_cmd (MP mp, const char *l, const char *s) {
-  if ( mp->internal[mp_procset]>0 ) { ps_room(strlen(s)); mp_ps_print(mp,s); }
+  if ( internal_value(mp_procset)>0 ) { ps_room(strlen(s)); mp_ps_print(mp,s); }
   else { ps_room(strlen(l)); mp_ps_print(mp, l); };
 }
 
@@ -4867,13 +4875,13 @@ void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues) {
   mp_ps_print(mp, s);
   mp_xfree(s);
   mp_ps_print_nl(mp, "%%CreationDate: ");
-  mp_ps_print_int(mp, mp_round_unscaled(mp, mp->internal[mp_year])); 
+  mp_ps_print_int(mp, mp_round_unscaled(mp, internal_value(mp_year))); 
   mp_ps_print_char(mp, '.');
-  mp_ps_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_month])); 
+  mp_ps_print_dd(mp, mp_round_unscaled(mp, internal_value(mp_month))); 
   mp_ps_print_char(mp, '.');
-  mp_ps_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_day])); 
+  mp_ps_print_dd(mp, mp_round_unscaled(mp, internal_value(mp_day))); 
   mp_ps_print_char(mp, ':');
-  t=mp_round_unscaled(mp, mp->internal[mp_time]);
+  t=mp_round_unscaled(mp, internal_value(mp_time));
   mp_ps_print_dd(mp, t / 60); 
   mp_ps_print_dd(mp, t % 60);
   mp_ps_print_nl(mp, "%%Pages: 1");
@@ -5487,7 +5495,7 @@ if ( (ww!=gs_width) || (adj_wx!=gs_adj_wx) ) {
     mp_ps_print_cmd(mp, 
       " 0 dtransform exch truncate exch idtransform pop setlinewidth"," hlw");
   } else {
-    if ( mp->internal[mp_procset]>0 ) {
+    if ( internal_value(mp_procset)>0 ) {
       ps_room(13);
       mp_ps_print_char(mp, ' ');
       mp_ps_print_scaled(mp, ww);
@@ -5683,7 +5691,7 @@ static void mp_gr_stroke_ellipse (MP mp,  mp_graphic_object *h, boolean fill_als
   } else {
     mp_gr_ps_path_out(mp, gr_path_p((mp_stroked_object *)h));
   }
-  if ( mp->internal[mp_procset]==0 ) {
+  if ( internal_value(mp_procset)==0 ) {
     if ( fill_also ) mp_ps_print_nl(mp, "gsave fill grestore");
     @<Issue \ps\ commands to transform the coordinate system@>;
     mp_ps_print(mp, " stroke");
@@ -6005,11 +6013,11 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standal
   }
   if (mp->history >= mp_fatal_error_stop ) return 1;
   if (qprologues<0) 
-	prologues = (int)((unsigned)mp->internal[mp_prologues]>>16);
+	prologues = (int)((unsigned)internal_value(mp_prologues)>>16);
   else
    prologues=qprologues;
   if (qprocset<0) 
-	procset = (int)((unsigned)mp->internal[mp_procset]>>16);
+	procset = (int)((unsigned)internal_value(mp_procset)>>16);
   else
     procset=qprocset;
   mp_open_output_file(mp);
@@ -6081,13 +6089,13 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standal
       mp_gr_ps_path_out(mp, gr_path_p((mp_clip_object *)p));
       mp_ps_print_cmd(mp, " clip"," W");
       mp_ps_print_ln(mp);
-      if ( mp->internal[mp_restore_clip_color]>0 )
+      if ( internal_value(mp_restore_clip_color)>0 )
         mp_gs_unknown_graphics_state(mp, 1);
       break;
     case mp_stop_clip_code: 
       mp_ps_print_nl(mp, ""); mp_ps_print_cmd(mp, "grestore","Q");
       mp_ps_print_ln(mp);
-      if ( mp->internal[mp_restore_clip_color]>0 )
+      if ( internal_value(mp_restore_clip_color)>0 )
         mp_gs_unknown_graphics_state(mp, 2);
       else
         mp_gs_unknown_graphics_state(mp, -1);
