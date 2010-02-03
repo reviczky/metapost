@@ -180,8 +180,23 @@ static void mp_ps_print_char (MP mp, int s) { /* prints a single character */
 @ @c
 static void mp_ps_do_print (MP mp, const char *ss, size_t len) { /* prints string |s| */
   size_t j = 0;
-  while ( j<len ){ 
-    mp_ps_print_char(mp, ss[j]); incr(j);
+  if (len>255) {
+     while ( j<len ){
+       mp_ps_print_char(mp, ss[j]); incr(j);
+     }
+  } else {
+    static char outbuf[256];
+    strncpy(outbuf, ss, len+1);
+    while ( j<len ){ 
+      if ( *(outbuf+j) == 13 ) {
+        *(outbuf+j) = '\n';
+        mp->ps->ps_offset=0;
+      } else {
+        mp->ps->ps_offset++;
+      }
+      j++;
+    }
+    (mp->write_ascii_file)(mp,mp->output_file,outbuf);
   }
 }
 
@@ -219,10 +234,13 @@ static void mp_ps_print_nl (MP mp, const char *s) { /* prints string |s| at begi
 
 @c
 static void mp_ps_print_the_digs (MP mp, int k) {
-  /* prints |dig[k-1]|$\,\ldots\,$|dig[0]| */
+  int l = 0; 
+  char outbuf [24]; /* dig[23], plus terminating \0 */
   while ( k-->0 ){ 
-    mp_ps_print_char(mp, '0'+mp->dig[k]);
+    outbuf[l++] = (char)('0'+mp->dig[k]);
   }
+  outbuf[l] = '\0';
+  (mp->write_ascii_file)(mp,mp->output_file,outbuf);
 }
 
 @ The following procedure, which prints out the decimal representation of a
