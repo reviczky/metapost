@@ -1148,7 +1148,7 @@ overhead of procedure calls. For example, here is
 a simple macro that computes the length of a string.
 @.WEB@>
 
-@d length(A) (A->len) /* the number of characters in string \# */
+@d length(A) ((A)->len) /* the number of characters in string \# */
 
 @ Strings are created by appending character codes to |cur_string|.
 The |append_char| macro, defined here, does not check to see if the
@@ -3546,11 +3546,9 @@ typedef union {
   } p;
   struct {
     halfword RH, LH;
-  } v;
-  struct {
-    str_number str2;
     str_number str;
-  } s;
+    str_number str2;
+  } v;
   struct { /* Make B0,B1 overlap the most significant bytes of LH.  */
     halfword junk;
     quarterword B0, B1;
@@ -5286,7 +5284,7 @@ piece of information that qualifies the |eq_type|).
 
 @(mpmp.h@>=
 #define mp_next(A)   mp->hash[(A)].lh /* link for coalesced lists */
-#define text(A)      mp->hash[(A)].s.str /* string number for symbolic token name */
+#define text(A)      mp->hash[(A)].v.str /* string number for symbolic token name */
 #define hash_base 257 /* hashing actually starts here */
 
 @ @<Glob...@>=
@@ -5387,7 +5385,8 @@ static pointer mp_id_lookup (MP mp,integer j, integer l) { /* search the hash ta
   @<Compute the hash code |h|@>;
   p=h+hash_base; /* we start searching here; note that |0<=h<hash_prime| */
   while (true)  { 
-    if (text(p)!=NULL && length(text(p))==(size_t)l && mp_str_eq_buf(mp, text(p),j)) 
+    str_number thestr = text(p);
+    if (thestr != NULL && length(thestr)==(size_t)l && mp_str_eq_buf(mp, thestr, j))
       break;
     if ( mp_next(p)==0 ) {
       @<Insert a new symbolic token after |p|, then
@@ -5406,7 +5405,7 @@ if ( text(p) != NULL ) {
       mp_overflow(mp, "hash size",(integer)mp->hash_size);
 @:MetaPost capacity exceeded hash size}{\quad hash size@>
     decr(mp->hash_used);
-  } while (text(mp->hash_used)!=0); /* search for an empty location in |hash| */
+  } while (text(mp->hash_used) != NULL); /* search for an empty location in |hash| */
   mp_next(p)=mp->hash_used; 
   p=mp->hash_used;
 }
@@ -5637,7 +5636,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 @d token_node_size 2 /* the number of words in a large token node */
 @d value_loc(A) ((A)+1) /* the word that contains the |value| field */
 @d value(A) mp->mem[value_loc((A))].cint /* the value stored in a large token node */
-@d str_value(A) mp->mem[value_loc((A))].hh.s.str /* the value stored in a large token node */
+@d str_value(A) mp->mem[value_loc((A))].hh.v.str /* the value stored in a large token node */
 @d knot_value(A) mp->mem[value_loc((A))].hh.p.P /* the value stored in a large token node */
 @d expr_base (hash_end+1) /* code for the zeroth \&{expr} parameter */
 @d suffix_base (expr_base+mp->param_size) /* code for the zeroth \&{suffix} parameter */
@@ -9138,8 +9137,8 @@ give the relevant information.
 @:mp_miterlimit_}{\&{miterlimit} primitive@>
 @d obj_color_part(A) mp->mem[(A)+3-red_part].sc
   /* interpret an object pointer that has been offset by |red_part..blue_part| */
-@d mp_pre_script(A) mp->mem[(A)+8].hh.s.str
-@d mp_post_script(A) mp->mem[(A)+8].hh.s.str2
+@d mp_pre_script(A) mp->mem[(A)+8].hh.v.str
+@d mp_post_script(A) mp->mem[(A)+8].hh.v.str2
 @d fill_node_size 9
 
 @ @<Graphical object codes@>=
@@ -9265,7 +9264,7 @@ words give a transformation to be applied to the text.  The |new_text_node|
 function initializes everything to default values so that the text comes out
 black with its reference point at the origin.
 
-@d mp_text_p(A) mp->mem[(A)+1].hh.s.str  /* a string pointer for the text to display */
+@d mp_text_p(A) mp->mem[(A)+1].hh.v.str  /* a string pointer for the text to display */
 @d mp_font_n(A) mp_info((A)+1)  /* the font number */
 @d width_val(A) mp->mem[(A)+7].sc  /* unscaled width of the text */
 @d height_val(A) mp->mem[(A)+9].sc  /* unscaled height of the text */
