@@ -1728,7 +1728,7 @@ mp->ps->t1_bytes=NULL;
 
 @
 @d t1_ungetchar()  mp->ps->t1_byte_waiting--
-@d t1_eof()        (mp->ps->t1_byte_waiting>mp->ps->t1_byte_length)
+@d t1_eof()        (mp->ps->t1_byte_waiting>=mp->ps->t1_byte_length)
 @d t1_close()      do { 
    (mp->close_file)(mp,mp->ps->t1_file);
    mp_xfree(mp->ps->t1_bytes);
