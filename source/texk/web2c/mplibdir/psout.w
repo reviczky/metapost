@@ -698,22 +698,43 @@ static void mp_font_encodings (MP mp, font_number lastfnum, boolean encodings_on
 
 @<Glob...@>=
 void * fm_file;
+size_t fm_byte_waiting;
+size_t fm_byte_length;
+unsigned char *fm_bytes;
+
+@ This is comparable to t1 font loading (see below) but because the first
+thing done is not calling |fm_getchar()| but |fm_eof()|, the initial value
+of length has to be one more than waiting.
+
+@<Set initial ...@>=
+mp->ps->fm_byte_waiting=0;
+mp->ps->fm_byte_length=1;
+mp->ps->fm_bytes=NULL;
 
 @
-@d fm_close()      (mp->close_file)(mp,mp->ps->fm_file)
-@d fm_eof()        (mp->eof_file)(mp,mp->ps->fm_file)
+@d fm_eof()        (mp->ps->fm_byte_waiting>=mp->ps->fm_byte_length)
+@d fm_close()      do { 
+   (mp->close_file)(mp,mp->ps->fm_file);
+   mp_xfree(mp->ps->fm_bytes);
+   mp->ps->fm_bytes = NULL;
+   mp->ps->fm_byte_waiting=0;
+   mp->ps->fm_byte_length=1;
+} while (0)
+@d valid_code(c)   (c >= 0 && c < 256)
 
 @c
-static int fm_getchar(MP mp) {
-  size_t len = 1;
-  unsigned char abyte=0;
-  void *byte_ptr = &abyte;  
-  (mp->read_binary_file)(mp,mp->ps->fm_file,&byte_ptr,&len);
-  if (len==0)
-    return EOF;
-  return abyte;
+static int fm_getchar (MP mp) {
+  if (mp->ps->fm_bytes == NULL) {
+    void *byte_ptr ;
+    (void)fseek(mp->ps->fm_file,0,SEEK_END);
+    mp->ps->fm_byte_length = (size_t)ftell(mp->ps->fm_file);
+    (void)fseek(mp->ps->fm_file,0,SEEK_SET);
+    mp->ps->fm_bytes = mp_xmalloc(mp, mp->ps->fm_byte_length, 1);
+    byte_ptr = (void *)mp->ps->fm_bytes;
+    (mp->read_binary_file)(mp,mp->ps->fm_file,&byte_ptr,&mp->ps->fm_byte_length);
+  } 
+  return *(mp->ps->fm_bytes+mp->ps->fm_byte_waiting++);
 }
-
 
 @ @<Types...@>=
 enum _mode { FM_DUPIGNORE, FM_REPLACE, FM_DELETE };
