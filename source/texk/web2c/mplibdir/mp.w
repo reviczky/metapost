@@ -5271,8 +5271,6 @@ way that all locations |p>=hash_used| are nonempty. The global variable
 |st_count| tells how many symbolic tokens have been defined, if statistics
 are being kept.
 
-The first 256 locations of |hash| are reserved for symbols of length one.
-
 There's a parallel array called |eqtb| that contains the current equivalent
 values of each symbolic token. The entries of this array consist of
 two halfwords called |eq_type| (a command code) and |equiv| (a secondary
@@ -5285,7 +5283,7 @@ piece of information that qualifies the |eq_type|).
 @(mpmp.h@>=
 #define mp_next(A)   mp->hash[(A)].lh /* link for coalesced lists */
 #define text(A)      mp->hash[(A)].v.str /* string number for symbolic token name */
-#define hash_base 257 /* hashing actually starts here */
+#define hash_base 1 /* hashing actually starts here */
 
 @ @<Glob...@>=
 pointer hash_used; /* allocation pointer for |hash| */
