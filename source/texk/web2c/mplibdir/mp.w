@@ -4880,12 +4880,16 @@ enum mp_given_internal {
 typedef struct {
    str_number str;
    scaled val;
+   int type;
+   char *intname;
 } mp_internal;
 
 
 @ @(mpmp.h@>=
 #define internal_value(A) mp->internal[(A)].val
 #define internal_string(A) mp->internal[(A)].str
+#define internal_name(A) mp->internal[(A)].intname
+#define internal_type(A) mp->internal[(A)].type
 
 @
 
@@ -4893,8 +4897,6 @@ typedef struct {
 
 @<Glob...@>=
 mp_internal *internal;  /* the values of internal quantities */
-int *int_type;    /* their types */
-char **int_name;  /* their names */
 int int_ptr;  /* the maximum internal quantity defined so far */
 int max_internal; /* current maximum number of internal quantities */
 
@@ -4905,18 +4907,14 @@ int troff_mode;
 mp->max_internal=2*max_given_internal;
 mp->internal = xmalloc ((mp->max_internal+1), sizeof(mp_internal));
 memset(mp->internal,0,(size_t)(mp->max_internal+1)* sizeof(mp_internal));
-mp->int_name = xmalloc ((mp->max_internal+1), sizeof(char *));
-memset(mp->int_name,0,(size_t)(mp->max_internal+1) * sizeof(char *));
-mp->int_type = xmalloc ((mp->max_internal+1), sizeof(int));
-memset(mp->int_type,0,(size_t)(mp->max_internal+1) * sizeof(int));
 {
   int i;
   for (i=1;i<=max_given_internal;i++)
-    mp->int_type[i]=mp_known;
+    internal_type(i)=mp_known;
 }
-mp->int_type[mp_output_format]=mp_string_type;
-mp->int_type[mp_output_template]=mp_string_type;
-mp->int_type[mp_job_name]=mp_string_type;
+internal_type(mp_output_format)=mp_string_type;
+internal_type(mp_output_template)=mp_string_type;
+internal_type(mp_job_name)=mp_string_type;
 mp->troff_mode=(opt->troff_mode>0 ? true : false);
 
 @ @<Exported function ...@>=
@@ -5051,48 +5049,48 @@ internal_string(mp_output_format)=mp_intern(mp,"eps");
 printouts.
 
 @<Initialize table...@>=
-mp->int_name[mp_tracing_titles]=xstrdup("tracingtitles");
-mp->int_name[mp_tracing_equations]=xstrdup("tracingequations");
-mp->int_name[mp_tracing_capsules]=xstrdup("tracingcapsules");
-mp->int_name[mp_tracing_choices]=xstrdup("tracingchoices");
-mp->int_name[mp_tracing_specs]=xstrdup("tracingspecs");
-mp->int_name[mp_tracing_commands]=xstrdup("tracingcommands");
-mp->int_name[mp_tracing_restores]=xstrdup("tracingrestores");
-mp->int_name[mp_tracing_macros]=xstrdup("tracingmacros");
-mp->int_name[mp_tracing_output]=xstrdup("tracingoutput");
-mp->int_name[mp_tracing_stats]=xstrdup("tracingstats");
-mp->int_name[mp_tracing_lost_chars]=xstrdup("tracinglostchars");
-mp->int_name[mp_tracing_online]=xstrdup("tracingonline");
-mp->int_name[mp_year]=xstrdup("year");
-mp->int_name[mp_month]=xstrdup("month");
-mp->int_name[mp_day]=xstrdup("day");
-mp->int_name[mp_time]=xstrdup("time");
-mp->int_name[mp_hour]=xstrdup("hour");
-mp->int_name[mp_minute]=xstrdup("minute");
-mp->int_name[mp_char_code]=xstrdup("charcode");
-mp->int_name[mp_char_ext]=xstrdup("charext");
-mp->int_name[mp_char_wd]=xstrdup("charwd");
-mp->int_name[mp_char_ht]=xstrdup("charht");
-mp->int_name[mp_char_dp]=xstrdup("chardp");
-mp->int_name[mp_char_ic]=xstrdup("charic");
-mp->int_name[mp_design_size]=xstrdup("designsize");
-mp->int_name[mp_pausing]=xstrdup("pausing");
-mp->int_name[mp_showstopping]=xstrdup("showstopping");
-mp->int_name[mp_fontmaking]=xstrdup("fontmaking");
-mp->int_name[mp_linejoin]=xstrdup("linejoin");
-mp->int_name[mp_linecap]=xstrdup("linecap");
-mp->int_name[mp_miterlimit]=xstrdup("miterlimit");
-mp->int_name[mp_warning_check]=xstrdup("warningcheck");
-mp->int_name[mp_boundary_char]=xstrdup("boundarychar");
-mp->int_name[mp_prologues]=xstrdup("prologues");
-mp->int_name[mp_true_corners]=xstrdup("truecorners");
-mp->int_name[mp_default_color_model]=xstrdup("defaultcolormodel");
-mp->int_name[mp_procset]=xstrdup("mpprocset");
-mp->int_name[mp_gtroffmode]=xstrdup("troffmode");
-mp->int_name[mp_restore_clip_color]=xstrdup("restoreclipcolor");
-mp->int_name[mp_output_template]=xstrdup("outputtemplate");
-mp->int_name[mp_output_format]=xstrdup("outputformat");
-mp->int_name[mp_job_name]=xstrdup("jobname");
+internal_name(mp_tracing_titles)=xstrdup("tracingtitles");
+internal_name(mp_tracing_equations)=xstrdup("tracingequations");
+internal_name(mp_tracing_capsules)=xstrdup("tracingcapsules");
+internal_name(mp_tracing_choices)=xstrdup("tracingchoices");
+internal_name(mp_tracing_specs)=xstrdup("tracingspecs");
+internal_name(mp_tracing_commands)=xstrdup("tracingcommands");
+internal_name(mp_tracing_restores)=xstrdup("tracingrestores");
+internal_name(mp_tracing_macros)=xstrdup("tracingmacros");
+internal_name(mp_tracing_output)=xstrdup("tracingoutput");
+internal_name(mp_tracing_stats)=xstrdup("tracingstats");
+internal_name(mp_tracing_lost_chars)=xstrdup("tracinglostchars");
+internal_name(mp_tracing_online)=xstrdup("tracingonline");
+internal_name(mp_year)=xstrdup("year");
+internal_name(mp_month)=xstrdup("month");
+internal_name(mp_day)=xstrdup("day");
+internal_name(mp_time)=xstrdup("time");
+internal_name(mp_hour)=xstrdup("hour");
+internal_name(mp_minute)=xstrdup("minute");
+internal_name(mp_char_code)=xstrdup("charcode");
+internal_name(mp_char_ext)=xstrdup("charext");
+internal_name(mp_char_wd)=xstrdup("charwd");
+internal_name(mp_char_ht)=xstrdup("charht");
+internal_name(mp_char_dp)=xstrdup("chardp");
+internal_name(mp_char_ic)=xstrdup("charic");
+internal_name(mp_design_size)=xstrdup("designsize");
+internal_name(mp_pausing)=xstrdup("pausing");
+internal_name(mp_showstopping)=xstrdup("showstopping");
+internal_name(mp_fontmaking)=xstrdup("fontmaking");
+internal_name(mp_linejoin)=xstrdup("linejoin");
+internal_name(mp_linecap)=xstrdup("linecap");
+internal_name(mp_miterlimit)=xstrdup("miterlimit");
+internal_name(mp_warning_check)=xstrdup("warningcheck");
+internal_name(mp_boundary_char)=xstrdup("boundarychar");
+internal_name(mp_prologues)=xstrdup("prologues");
+internal_name(mp_true_corners)=xstrdup("truecorners");
+internal_name(mp_default_color_model)=xstrdup("defaultcolormodel");
+internal_name(mp_procset)=xstrdup("mpprocset");
+internal_name(mp_gtroffmode)=xstrdup("troffmode");
+internal_name(mp_restore_clip_color)=xstrdup("restoreclipcolor");
+internal_name(mp_output_template)=xstrdup("outputtemplate");
+internal_name(mp_output_format)=xstrdup("outputformat");
+internal_name(mp_job_name)=xstrdup("jobname");
 
 @ The following procedure, which is called just before \MP\ initializes its
 input and output, establishes the initial values of the date and time.
@@ -5272,8 +5270,12 @@ piece of information that qualifies the |eq_type|).
 
 @ @<Types...@>=
 typedef struct {
-  halfword eqtype;
-  halfword eqval;
+  halfword type;
+  halfword v_type;
+  union {
+    halfword val;
+    str_number str;
+  } v;
   str_number text;
 } mp_symbol_entry;
 typedef mp_symbol_entry *mp_sym;
@@ -5334,8 +5336,12 @@ static void *copy_symbols_entry (const void *p) {
     ff->text = copy_strings_entry(fp->text);
     if (ff->text == NULL) 
         return NULL;
-    ff->eqval  = fp->eqval;    
-    ff->eqtype = fp->eqtype;    
+    if (fp->v_type == mp_string_type) {
+      ff->v.str  = copy_strings_entry(fp->v.str); 
+    } else {
+      ff->v.val  = fp->v.val;    
+    }
+    ff->type = fp->type;    
     return ff;
 }
 static void * delete_symbols_entry (void *p) {
@@ -5374,8 +5380,9 @@ static mp_sym new_symbols_entry (MP mp, unsigned char *nam,  size_t len) {
     ff->text = new_strings_entry(mp);
     ff->text->str = nam;
     ff->text->len = len;
-    ff->eqtype = tag_token;
-    ff->eqval = null;
+    ff->type = tag_token;
+    ff->v_type = mp_known;
+    ff->v.val = null;
     return ff;
 }
 
@@ -5542,8 +5549,8 @@ static mp_sym mp_frozen_primitive (MP mp, const char *ss, halfword c, halfword o
         assert(avl_ins (s, mp->frozen_symbols, avl_false)>0);
         str = (mp_sym) avl_find (s, mp->frozen_symbols);
     }
-    str->eqtype = c;
-    str->eqval = o;
+    str->type = c;
+    str->v.val = o;
     return str;
 }
 
@@ -5560,8 +5567,8 @@ by the user.  But for now, it will at least allow compilation of
 static halfword mp_get_frozen_primitive (MP mp, mp_sym sym) {
    halfword temp;
    temp = mp_id_lookup (mp, (char *)sym->text->str, (integer)sym->text->len);
-   equiv(temp) = sym->eqval;
-   eq_type(temp) = sym->eqtype;
+   equiv(temp) = sym->v.val;
+   eq_type(temp) = sym->type;
    return temp;
 }
 
@@ -6721,8 +6728,8 @@ static void mp_clear_symbol (MP mp,pointer p, boolean saving) {
   default:
     break;
   }
-  equiv(p) = mp->frozen_undefined->eqval;
-  eq_type(p) = mp->frozen_undefined->eqtype;
+  equiv(p) = mp->frozen_undefined->v.val;
+  eq_type(p) = mp->frozen_undefined->type;
 }
 
 @* \[16] Saving and restoring equivalents.
@@ -6814,11 +6821,11 @@ static void mp_unsave (MP mp) {
       if ( internal_value(mp_tracing_restores)>0 ) {
         mp_begin_diagnostic(mp);
         mp_print_nl(mp, "{restoring ");
-        mp_print(mp, mp->int_name[q-(hash_end)]);
+        mp_print(mp, internal_name(q-(hash_end)));
         mp_print_char(mp, xord('='));
-        if (mp->int_type[q-(hash_end)]==mp_known) {
+        if (internal_type(q-(hash_end))==mp_known) {
            mp_print_scaled(mp, value(mp->save_ptr));
-        } else if (mp->int_type[q-(hash_end)]==mp_string_type) {
+        } else if (internal_type(q-(hash_end))==mp_string_type) {
            char *s = mp_str(mp, str_value(mp->save_ptr));
            mp_print(mp, s);
         } else {
@@ -18149,13 +18156,13 @@ of the save stack, as described earlier.)
     }
     mp_back_input(mp);
   }
-  if (mp->int_type[q]==mp_string_type) {
+  if (internal_type(q)==mp_string_type) {
     mp->cur_exp.s=internal_string(q);
     add_str_ref(mp->cur_exp.s);
   } else {
     mp->cur_exp.i=internal_value(q);
   }
-  mp->cur_type=(quarterword)mp->int_type[q];
+  mp->cur_type=(quarterword)internal_type(q);
 }
 
 @ The most difficult part of |scan_primary| has been saved for last, since
@@ -22507,7 +22514,7 @@ void mp_do_assignment (MP mp) {
 { 
   mp_begin_diagnostic(mp); mp_print_nl(mp, "{");
   if ( mp_info(lhs)>hash_end ) 
-     mp_print(mp, mp->int_name[mp_info(lhs)-(hash_end)]);
+     mp_print(mp, internal_name(mp_info(lhs)-(hash_end)));
   else 
      mp_show_token_list(mp, lhs,null,1000,0);
   mp_print(mp, ":="); mp_print_exp(mp, null,0); 
@@ -22517,10 +22524,10 @@ void mp_do_assignment (MP mp) {
 @ @<Assign the current expression to an internal variable@>=
 if ( mp->cur_type==mp_known || mp->cur_type==mp_string_type )  {
   if (mp->cur_type==mp_string_type) {
-    if (mp->int_type[mp_info(lhs)-(hash_end)]!=mp->cur_type) {
+    if (internal_type(mp_info(lhs)-(hash_end))!=mp->cur_type) {
        exp_err("Internal quantity `");
 @.Internal quantity...@>
-       mp_print(mp, mp->int_name[mp_info(lhs)-(hash_end)]);
+       mp_print(mp, internal_name(mp_info(lhs)-(hash_end)));
        mp_print(mp, "' must receive a known numeric value");
        help2("I can\'t set this internal quantity to anything but a known",
              "numeric value, so I'll have to ignore this assignment.");
@@ -22530,10 +22537,10 @@ if ( mp->cur_type==mp_known || mp->cur_type==mp_string_type )  {
       internal_string(mp_info(lhs)-(hash_end))=mp->cur_exp.s;
     }
   } else { /* mp_known */
-    if (mp->int_type[mp_info(lhs)-(hash_end)]!=mp->cur_type) {
+    if (internal_type(mp_info(lhs)-(hash_end))!=mp->cur_type) {
        exp_err("Internal quantity `");
 @.Internal quantity...@>
-       mp_print(mp, mp->int_name[mp_info(lhs)-(hash_end)]);
+       mp_print(mp, internal_name(mp_info(lhs)-(hash_end)));
        mp_print(mp, "' must receive a known string");
        help2("I can\'t set this internal quantity to anything but a known",
              "string, so I'll have to ignore this assignment.");
@@ -22545,7 +22552,7 @@ if ( mp->cur_type==mp_known || mp->cur_type==mp_string_type )  {
 } else { 
   exp_err("Internal quantity `");
 @.Internal quantity...@>
-  mp_print(mp, mp->int_name[mp_info(lhs)-(hash_end)]);
+  mp_print(mp, internal_name(mp_info(lhs)-(hash_end)));
   mp_print(mp, "' must receive a known numeric or string");
   help2("I can\'t set an internal quantity to anything but a known string",
         "or known numeric value, so I'll have to ignore this assignment.");
@@ -22977,9 +22984,9 @@ void mp_set_internal (MP mp, char *n, char *v, int isstring) {
       if (text(p)!=NULL && length(text(p))==l && 
 	  mp_str_eq_cstr(mp, text(p),n)) {
         if (eq_type(p)==internal_quantity) {
-     	  if ((mp->int_type[equiv(p)]==mp_string_type) && (isstring)) {
+     	  if ((internal_type(equiv(p))==mp_string_type) && (isstring)) {
             internal_string(equiv(p)) = mp_rts(mp,v);
-          } else if ((mp->int_type[equiv(p)]==mp_known) && (!isstring)) {
+          } else if ((internal_type(equiv(p))==mp_known) && (!isstring)) {
             scaled test = (scaled)atoi(v);
             if (test>16383 ) {
                errid = "value is too large";
@@ -23737,31 +23744,19 @@ void mp_grow_internals (MP mp, int l);
 @ @c
 void mp_grow_internals (MP mp, int l) {
   mp_internal *internal;
-  char * *int_name; 
-  int    *int_type; 
   int k;
   if ( hash_end+l>max_halfword ) {
     mp_confusion(mp, "out of memory space"); /* can't be reached */
   }
-  int_name = xmalloc ((l+1),sizeof(char *));
-  int_type = xmalloc ((l+1),sizeof(int));
   internal = xmalloc ((l+1),sizeof(mp_internal));
   for (k=0;k<=l; k++ ) { 
     if (k<=mp->max_internal) {
-      internal[k].val=internal_value(k); 
-      internal[k].str=internal_string(k); 
-      int_name[k]=mp->int_name[k]; 
-      int_type[k]=mp->int_type[k]; 
+      memcpy(internal+k,mp->internal+k,sizeof(mp_internal));
     } else {
-      internal[k].val=0; 
-      internal[k].str=NULL; 
-      int_name[k]=NULL; 
-      int_type[k]=0; 
+      memset(internal+k,0,sizeof(mp_internal));
     }
   }
-  xfree(mp->internal); xfree(mp->int_name); xfree(mp->int_type);
-  mp->int_type = int_type;
-  mp->int_name = int_name;
+  xfree(mp->internal);
   mp->internal = internal;
   mp->max_internal = l;
 }
@@ -23783,26 +23778,24 @@ void mp_do_new_internal (MP mp) {
     mp_get_clear_symbol(mp); incr(mp->int_ptr);
     eq_type(mp->cur_sym)=internal_quantity; 
     equiv(mp->cur_sym)=mp->int_ptr;
-    if(mp->int_name[mp->int_ptr]!=NULL)
-      xfree(mp->int_name[mp->int_ptr]);
-    mp->int_name[mp->int_ptr]=mp_xstrdup(mp, mp_str(mp,text(mp->cur_sym))); 
+    if(internal_name(mp->int_ptr)!=NULL)
+      xfree(internal_name(mp->int_ptr));
+    internal_name(mp->int_ptr)=mp_xstrdup(mp, mp_str(mp,text(mp->cur_sym))); 
     if (the_type==mp_string_type) {
       internal_string(mp->int_ptr)=null_str;
     } else {
       internal_value(mp->int_ptr)=0;
     }
-    mp->int_type[mp->int_ptr]=the_type;
+    internal_type(mp->int_ptr)=the_type;
     mp_get_x_next(mp);
   } while (mp->cur_cmd==comma);
 }
 
 @ @<Dealloc variables@>=
 for (k=0;k<=mp->max_internal;k++) {
-   xfree(mp->int_name[k]);
+   xfree(internal_name(k));
 }
 xfree(mp->internal); 
-xfree(mp->int_name); 
-xfree(mp->int_type); 
 
 
 @ The various `\&{show}' commands are distinguished by modifier fields
@@ -23923,7 +23916,7 @@ case repeat_loop:
   mp_print(mp, "[repeat the loop]");
   break;
 case internal_quantity:
-  mp_print(mp, mp->int_name[m]);
+  mp_print(mp, internal_name(m));
   break;
 
 @ @<Declare action procedures for use by |do_statement|@>=
@@ -25273,7 +25266,7 @@ static scaled mp_tfm_check (MP mp,quarterword m) ;
 @ @c
 static scaled mp_tfm_check (MP mp,quarterword m) {
   if ( abs(internal_value(m))>=fraction_half ) {
-    print_err("Enormous "); mp_print(mp, mp->int_name[m]);
+    print_err("Enormous "); mp_print(mp, internal_name(m));
 @.Enormous charwd...@>
 @.Enormous chardp...@>
 @.Enormous charht...@>
@@ -25791,7 +25784,7 @@ more than 1/16\thinspace pt.
 @c 
 static void mp_tfm_warning (MP mp,quarterword m) { 
   mp_print_nl(mp, "(some "); 
-  mp_print(mp, mp->int_name[m]);
+  mp_print(mp, internal_name(m));
 @.some charwds...@>
 @.some chardps...@>
 @.some charhts...@>
@@ -26505,10 +26498,10 @@ void mp_open_output_file (MP mp) ;
 
 @ @c 
 static void mp_append_to_template (MP mp, integer ff, integer c) {
-  if (mp->int_type[c]==mp_string_type) {
+  if (internal_type(c)==mp_string_type) {
     char *ss = mp_str(mp,internal_string(c));
     mp_print(mp,ss);
-  } else if (mp->int_type[c]==mp_known) {
+  } else if (internal_type(c)==mp_known) {
     integer cc = mp_round_unscaled(mp, internal_value(c));
     print_with_leading_zeroes(cc, ff);
   }
