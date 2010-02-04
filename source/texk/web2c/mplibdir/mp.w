@@ -149,7 +149,7 @@ typedef struct MP_instance {
 #include <stdarg.h>
 #include <assert.h>
 #ifdef HAVE_UNISTD_H
-#include <unistd.h> /* for access() */
+#include <unistd.h> /* for access */
 #endif
 #include <time.h> /* for struct tm \& co */
 #include "mplib.h"
@@ -1284,22 +1284,6 @@ str_number mp_make_string (MP mp) { /* current string enters the pool */
     }
     reset_cur_string(mp);
     return str;
-}
-
-@ The following subroutine compares string |s| with another string of the
-same length that appears in |buffer| starting at position |k|;
-the result is |true| if and only if the strings are equal.
-
-@c 
-static boolean mp_str_eq_buf (MP mp, str_number s, integer k) {
-    /* test equality of strings */
-    size_t j = 0; /* running index */
-    while ( j<length(s) ) { 
-        if ( *(s->str+j)!=mp->buffer[k] ) 
-            return false;
-        j++; k++;
-    }
-    return true;
 }
 
 @ This routine compares a pool string with a sequence of characters
@@ -4507,6 +4491,7 @@ At any rate, here is the list, for future reference.
 @d stop 84 /* end a job (\&{end}, \&{dump}), must be |end_group+1| */
 @d max_command_code stop
 @d outer_tag (max_command_code+1) /* protection code added to command code */
+@d undefined_cs (max_command_code+2) /* protection code added to command code */
 
 @<Types...@>=
 typedef int command_code;
@@ -5285,31 +5270,121 @@ piece of information that qualifies the |eq_type|).
 #define text(A)      mp->hash[(A)].v.str /* string number for symbolic token name */
 #define hash_base 1 /* hashing actually starts here */
 
+@ @<Types...@>=
+typedef struct {
+  halfword eqtype;
+  halfword eqval;
+  str_number text;
+} mp_symbol_entry;
+typedef mp_symbol_entry *mp_sym;
+
 @ @<Glob...@>=
 pointer hash_used; /* allocation pointer for |hash| */
 integer st_count; /* total number of known identifiers */
+avl_tree symbols; /* avl tree of symbolic tokens */
+avl_tree frozen_symbols; /* avl tree of frozen symbolic tokens */
+mp_sym frozen_bad_vardef;
+mp_sym frozen_colon;
+mp_sym frozen_end_def;
+mp_sym frozen_end_for;
+mp_sym frozen_end_group;
+mp_sym frozen_etex;
+mp_sym frozen_fi;
+mp_sym frozen_inaccessible;
+mp_sym frozen_left_bracket;
+mp_sym frozen_mpx_break;
+mp_sym frozen_repeat_loop;
+mp_sym frozen_right_delimiter;
+mp_sym frozen_semicolon;
+mp_sym frozen_slash;
+mp_sym frozen_undefined;
+
+
+@ Here are the functions needed for the avl construction.
+
+@<Declarations@>=
+static int comp_symbols_entry (void *p, const void *pa, const void *pb);
+static void *copy_symbols_entry (const void *p) ;
+static void * delete_symbols_entry (void *p); 
+
+
+@ @c 
+static int comp_symbols_entry (void *p, const void *pa, const void *pb) {
+    (void)p;
+    const mp_symbol_entry *a = (const mp_symbol_entry *) pa;
+    const mp_symbol_entry *b = (const mp_symbol_entry *) pb;
+    if (a->text->len != b->text->len) {
+        return (a->text->len > b->text->len ? 1 : -1 );
+    }
+    if (a->text->str==NULL && b->text->str==NULL) 
+        return 0;
+    if (a->text->str==NULL)
+        return -1;
+    if (b->text->str==NULL)
+        return 1;
+    return strncmp ((const char *)a->text->str, (const char *)b->text->str, a->text->len);
+}
+static void *copy_symbols_entry (const void *p) {
+    mp_sym ff;
+    const mp_symbol_entry *fp;
+    fp = (const mp_symbol_entry *)p;
+    ff = malloc (sizeof(mp_symbol_entry));
+    if (ff == NULL) 
+        return NULL;
+    ff->text = copy_strings_entry(fp->text);
+    if (ff->text == NULL) 
+        return NULL;
+    ff->eqval  = fp->eqval;    
+    ff->eqtype = fp->eqtype;    
+    return ff;
+}
+static void * delete_symbols_entry (void *p) {
+    mp_sym ff = (mp_sym)p;
+    delete_strings_entry (ff->text);
+    mp_xfree (ff);
+    return NULL;
+}
+
+@ @<Allocate or initialize ...@>=
+mp->symbols   =  avl_create (comp_symbols_entry, 
+                             copy_symbols_entry,
+                             delete_symbols_entry,
+                             malloc, free, NULL);
+mp->frozen_symbols   =  avl_create (comp_symbols_entry, 
+                                 copy_symbols_entry,
+                                 delete_symbols_entry,
+                                 malloc, free, NULL);
+
+@ @<Dealloc variables@>=
+if (mp->symbols != NULL)
+      avl_destroy (mp->symbols);
+if (mp->frozen_symbols != NULL)
+      avl_destroy (mp->frozen_symbols);
+
+@ Actually creating symbols is done by |id_lookup|, but in order to
+do so it needs a way to create a new, empty symbol structure.
+
+@<Declarations@>=
+static mp_sym new_symbols_entry (MP mp, unsigned char *nam,  size_t len) ;
+
+@ @c 
+static mp_sym new_symbols_entry (MP mp, unsigned char *nam,  size_t len) {
+    mp_sym ff;
+    ff = mp_xmalloc(mp,1,sizeof(mp_symbol_entry));
+    ff->text = new_strings_entry(mp);
+    ff->text->str = nam;
+    ff->text->len = len;
+    ff->eqtype = tag_token;
+    ff->eqval = null;
+    return ff;
+}
 
 @ Certain entries in the hash table are ``frozen'' and not redefinable,
 since they are used in error recovery.
 
 @(mpmp.h@>=
 #define hash_top (integer)(hash_base+mp->hash_size) /* the first location of the frozen area */
-#define frozen_inaccessible hash_top /* |hash| location to protect the frozen area */
-#define frozen_repeat_loop (hash_top+1) /* |hash| location of a loop-repeat token */
-#define frozen_right_delimiter (hash_top+2) /* |hash| location of a permanent `\.)' */
-#define frozen_left_bracket (hash_top+3) /* |hash| location of a permanent `\.[' */
-#define frozen_slash (hash_top+4) /* |hash| location of a permanent `\./' */
-#define frozen_colon (hash_top+5) /* |hash| location of a permanent `\.:' */
-#define frozen_semicolon (hash_top+6) /* |hash| location of a permanent `\.;' */
-#define frozen_end_for (hash_top+7) /* |hash| location of a permanent \&{endfor} */
-#define frozen_end_def (hash_top+8) /* |hash| location of a permanent \&{enddef} */
-#define frozen_fi (hash_top+9) /* |hash| location of a permanent \&{fi} */
-#define frozen_end_group (hash_top+10) /* |hash| location of a permanent `\.{endgroup}' */
-#define frozen_etex (hash_top+11) /* |hash| location of a permanent \&{etex} */
-#define frozen_mpx_break (hash_top+12) /* |hash| location of a permanent \&{mpxbreak} */
-#define frozen_bad_vardef (hash_top+13) /* |hash| location of `\.{a bad variable}' */
-#define frozen_undefined (hash_top+14) /* |hash| location that never gets defined */
-#define hash_end (integer)(hash_top+14) /* the actual size of the |hash| and |eqtb| arrays */
+#define hash_end (integer)(hash_top) /* the actual size of the |hash| and |eqtb| arrays */
 
 
 @ @<Glob...@>=
@@ -5331,22 +5406,12 @@ for (k=2;k<=hash_end;k++)  {
 }
 
 @ @<Initialize table entries@>=
-mp->hash_used=frozen_inaccessible; /* nothing is used */
 mp->st_count=0;
-text(frozen_bad_vardef)=mp_intern(mp,"a bad variable");
-text(frozen_etex)=mp_intern(mp,"etex");
-text(frozen_mpx_break)=mp_intern(mp,"mpxbreak");
-text(frozen_fi)=mp_intern(mp,"fi");
-text(frozen_end_group)=mp_intern(mp,"endgroup");
-text(frozen_end_def)=mp_intern(mp,"enddef");
-text(frozen_end_for)=mp_intern(mp,"endfor");
-text(frozen_semicolon)=mp_intern(mp,";");
-text(frozen_colon)=mp_intern(mp,":");
-text(frozen_slash)=mp_intern(mp,"/");
-text(frozen_left_bracket)=mp_intern(mp,"[");
-text(frozen_right_delimiter)=mp_intern(mp,")");
-text(frozen_inaccessible)=mp_intern(mp," INACCESSIBLE");
-eq_type(frozen_right_delimiter)=right_delimiter;
+mp->hash_used=hash_end; /* nothing is used */
+mp->frozen_bad_vardef = mp_frozen_primitive(mp, "a bad variable", tag_token, bad_vardef);
+mp->frozen_right_delimiter = mp_frozen_primitive(mp, ")", right_delimiter, 0);
+mp->frozen_inaccessible = mp_frozen_primitive(mp, " INACCESSIBLE", undefined_cs, 0);
+mp->frozen_undefined = mp_frozen_primitive(mp, " UNDEFINED", tag_token, 0);
 
 @ @<Check the ``constant'' values...@>=
 if ( hash_end+mp->max_internal>max_halfword ) mp->bad=17;
@@ -5376,21 +5441,34 @@ will always be found, and the corresponding hash table address
 will be returned.
 
 @c 
-static pointer mp_id_lookup (MP mp,integer j, integer l) { /* search the hash table */
+static pointer mp_id_lookup (MP mp, char *j, integer l) { /* search the hash table */
   integer h; /* hash code */
   pointer p; /* index in |hash| array */
-  pointer k; /* index in |buffer| array */
-  @<Compute the hash code |h|@>;
+  char *k; /* index in |buffer| array */
+  h=mp_compute_hash(mp, j, l);
   p=h+hash_base; /* we start searching here; note that |0<=h<hash_prime| */
   while (true)  { 
     str_number thestr = text(p);
-    if (thestr != NULL && length(thestr)==(size_t)l && mp_str_eq_buf(mp, thestr, j))
+    if (thestr != NULL && length(thestr)==(size_t)l && mp_str_eq_cstr(mp, thestr, j))
       break;
     if ( mp_next(p)==0 ) {
       @<Insert a new symbolic token after |p|, then
         make |p| point to it and |break|@>;
     }
     p=mp_next(p);
+  }
+  /* new code */
+  {
+     mp_sym s, str;
+     unsigned char *nam = mp_xmalloc(mp,1,(size_t)(l+1));
+     memcpy(nam,j,(size_t)l);
+     *(nam+l) = '\0';
+     s = new_symbols_entry (mp, nam, (size_t)l) ;
+     str = (mp_sym) avl_find (s, mp->symbols);
+     if (str == NULL) { 
+        assert(avl_ins (s, mp->symbols, avl_false)>0);
+        str = (mp_sym) avl_find (s, mp->symbols);
+    }
   }
   return p;
 }
@@ -5409,17 +5487,13 @@ if ( text(p) != NULL ) {
 }
 str_room(l);
 for (k=j;k<j+l;k++) {
-  append_char(mp->buffer[k]);
+  append_char(*k);
 }
 text(p)=mp_make_string(mp); 
 text(p)->refs=max_str_ref;
 incr(mp->st_count);
 break;
 }
-
-@  @<Compute the hash code |h|@>=
-h=mp_compute_hash(mp, (char *)mp->buffer+j, l)
-
 
 @ @<Search |eqtb| for equivalents equal to |p|@>=
 for (q=1;q<=hash_end;q++) { 
@@ -5447,10 +5521,51 @@ static void mp_primitive (MP mp, const char *ss, halfword c, halfword o) {
   for (j=0;j<=l-1;j++) {
     mp->buffer[j]=*(s->str+j);
   }
-  mp->cur_sym=mp_id_lookup(mp, 0, (integer)l);
+  mp->cur_sym=mp_id_lookup(mp, (char *)mp->buffer, (integer)l);
   eq_type(mp->cur_sym)=c; 
   equiv(mp->cur_sym)=o;
 }
+
+
+@ Some other symbolc tokens only exist for error recovery.
+
+@c
+static mp_sym mp_frozen_primitive (MP mp, const char *ss, halfword c, halfword o) {
+     mp_sym s, str;
+     size_t l = strlen(ss);
+     unsigned char *nam = mp_xmalloc(mp,1,(l+1));
+     memcpy(nam,ss,l);
+     *(nam+l) = '\0';
+     s = new_symbols_entry (mp, nam, l) ;
+     str = (mp_sym) avl_find (s, mp->frozen_symbols);
+     if (str == NULL) { 
+        assert(avl_ins (s, mp->frozen_symbols, avl_false)>0);
+        str = (mp_sym) avl_find (s, mp->frozen_symbols);
+    }
+    str->eqtype = c;
+    str->eqval = o;
+    return str;
+}
+
+@ This is just a quick hack to map |mp_sym| values to |halfword|s. 
+
+TODO: This is dangerous, because it trashes the current value of the
+symbol: after the call |mp_get_frozen_primitive (mp, mp_frozen_fi)|, 
+for example, \.{fi} will once again be defined as the command 
+|fi_or_else| with equiv |fi_code|, even if the symbol was redefined 
+by the user.  But for now, it will at least allow compilation of
+(most) correct input files.
+
+@c 
+static halfword mp_get_frozen_primitive (MP mp, mp_sym sym) {
+   halfword temp;
+   temp = mp_id_lookup (mp, (char *)sym->text->str, (integer)sym->text->len);
+   equiv(temp) = sym->eqval;
+   eq_type(temp) = sym->eqtype;
+   return temp;
+}
+
+
 
 
 @ Many of \MP's primitives need no |equiv|, since they are identifiable
@@ -5460,7 +5575,8 @@ as follows:
 @<Put each of \MP's primitives into the hash table@>=
 mp_primitive(mp, "..",path_join,0);
 @:.._}{\.{..} primitive@>
-mp_primitive(mp, "[",left_bracket,0); mp->eqtb[frozen_left_bracket]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "[",left_bracket,0); 
+mp->frozen_left_bracket = mp_frozen_primitive(mp,"[",left_bracket,0);
 @:[ }{\.{[} primitive@>
 mp_primitive(mp, "]",right_bracket,0);
 @:] }{\.{]} primitive@>
@@ -5468,7 +5584,8 @@ mp_primitive(mp, "}",right_brace,0);
 @:]]}{\.{\char`\}} primitive@>
 mp_primitive(mp, "{",left_brace,0);
 @:][}{\.{\char`\{} primitive@>
-mp_primitive(mp, ":",colon,0); mp->eqtb[frozen_colon]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, ":",colon,0);
+mp->frozen_colon = mp_frozen_primitive(mp, ":",colon,0);
 @:: }{\.{:} primitive@>
 mp_primitive(mp, "::",double_colon,0);
 @::: }{\.{::} primitive@>
@@ -5478,7 +5595,8 @@ mp_primitive(mp, ":=",assignment,0);
 @::=_}{\.{:=} primitive@>
 mp_primitive(mp, ",",comma,0);
 @:, }{\., primitive@>
-mp_primitive(mp, ";",semicolon,0); mp->eqtb[frozen_semicolon]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, ";",semicolon,0);
+mp->frozen_semicolon = mp_frozen_primitive(mp, ";", semicolon, 0);
 @:; }{\.; primitive@>
 mp_primitive(mp, "\\",relax,0);
 @:]]\\}{\.{\char`\\} primitive@>
@@ -5495,8 +5613,8 @@ mp_primitive(mp, "curl",curl_command,0);
 @:curl_}{\&{curl} primitive@>
 mp_primitive(mp, "delimiters",delimiters,0);
 @:delimiters_}{\&{delimiters} primitive@>
-mp_primitive(mp, "endgroup",end_group,0);
- mp->eqtb[frozen_end_group]=mp->eqtb[mp->cur_sym]; mp->eg_loc=mp->cur_sym;
+mp_primitive(mp, "endgroup",end_group,0);  mp->eg_loc=mp->cur_sym;
+mp->frozen_end_group = mp_frozen_primitive(mp, "endgroup", end_group, 0);
 @:endgroup_}{\&{endgroup} primitive@>
 mp_primitive(mp, "everyjob",every_job_command,0);
 @:every_job_}{\&{everyjob} primitive@>
@@ -6591,7 +6709,8 @@ static void mp_clear_symbol (MP mp,pointer p, boolean saving) {
   default:
     break;
   }
-  mp->eqtb[p]=mp->eqtb[frozen_undefined];
+  equiv(p) = mp->frozen_undefined->eqval;
+  eq_type(p) = mp->frozen_undefined->eqtype;
 }
 
 @* \[16] Saving and restoring equivalents.
@@ -13849,7 +13968,8 @@ static boolean mp_check_outer_validity (MP mp) {
         "the matching `fi'. I've inserted a `fi'; this might work.");
       if ( mp->cur_sym==0 ) 
         mp->help_line[2]="The file ended while I was skipping conditional text.";
-      mp->cur_sym=frozen_fi; mp_ins_error(mp);
+      mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_fi);
+      mp_ins_error(mp);
     }
     mp->deletions_allowed=true; 
 	return false;
@@ -13865,7 +13985,7 @@ if ( mp->cur_sym!=0 ) {
   mp_print_int(mp, mp->warning_info);
   help2("The file ended while I was looking for the `etex' to",
         "finish this TeX material.  I've inserted `etex' now.");
-  mp->cur_sym = frozen_etex;
+  mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_etex);
   mp_ins_error(mp);
   mp->deletions_allowed=true;
   return false;
@@ -13907,16 +14027,16 @@ points to the string that might be changed.
 case flushing: 
   mp_print(mp, "to the end of the statement");
   mp->help_line[3]="A previous error seems to have propagated,";
-  mp->cur_sym=frozen_semicolon;
+  mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_semicolon);  
   break;
 case absorbing: 
   mp_print(mp, "a text argument");
   mp->help_line[3]="It seems that a right delimiter was left out,";
   if ( mp->warning_info==0 ) {
-    mp->cur_sym=frozen_end_group;
+    mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_end_group);  
   } else { 
-    mp->cur_sym=frozen_right_delimiter;
-    equiv(frozen_right_delimiter)=mp->warning_info;
+    mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_right_delimiter);  
+    mp->frozen_right_delimiter->eqval=mp->warning_info; /* todo: huh? */
   }
   break;
 case var_defining:
@@ -13926,14 +14046,14 @@ case op_defining:
      mp_print_text(mp->warning_info);
   else 
      mp_print_variable_name(mp, mp->warning_info);
-  mp->cur_sym=frozen_end_def;
+  mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_end_def);  
   break;
 case loop_defining: 
   mp_print(mp, "the text of a "); 
   mp_print_text(mp->warning_info);
   mp_print(mp, " loop");
   mp->help_line[3]="I suspect you have forgotten an `endfor',";
-  mp->cur_sym=frozen_end_for;
+  mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_end_for);  
   break;
 
 @ The |runaway| procedure displays the first part of the text that occurred
@@ -14062,7 +14182,7 @@ FIN_NUMERIC_TOKEN:
   @<Pack the numeric and fraction parts of a numeric token
     and |return|@>;
 FOUND: 
-  mp->cur_sym=mp_id_lookup(mp, k,loc-k);
+  mp->cur_sym=mp_id_lookup(mp, (char *)(mp->buffer+k),loc-k);
 }
 
 @ We go to |restart| instead of to |SWITCH|, because we might enter
@@ -14279,7 +14399,7 @@ when an error condition causes us to |goto restart| without calling
     decr(loc);
     if ( mpx_reading ) {
       @<Complain that the \.{MPX} file ended unexpectly; then set
-        |cur_sym:=frozen_mpx_break| and |goto comon_ending|@>;
+        |cur_sym:=mp->frozen_mpx_break| and |goto comon_ending|@>;
     } else { 
       mp_print_char(mp, xord(')')); decr(mp->open_parens);
       update_terminal; /* show user that file has been read */
@@ -14304,7 +14424,8 @@ files should have an \&{mpxbreak} after the translation of the last
     "but this one got messed up.  You might want to insert a",
     "picture expression now.");
   mp->deletions_allowed=false; mp_error(mp); mp->deletions_allowed=true;
-  mp->cur_sym=frozen_mpx_break; goto COMMON_ENDING;
+  mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_mpx_break);  
+  goto COMMON_ENDING;
 }
 
 @ Sometimes we want to make it look as though we have just read a blank line
@@ -14368,9 +14489,11 @@ mp_primitive(mp, "btex",start_tex,btex_code);
 @:btex_}{\&{btex} primitive@>
 mp_primitive(mp, "verbatimtex",start_tex,verbatim_code);
 @:verbatimtex_}{\&{verbatimtex} primitive@>
-mp_primitive(mp, "etex",etex_marker,0); mp->eqtb[frozen_etex]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "etex",etex_marker,0); 
+mp->frozen_etex = mp_frozen_primitive(mp, "etex",etex_marker,0); 
 @:etex_}{\&{etex} primitive@>
-mp_primitive(mp, "mpxbreak",mpx_break,0); mp->eqtb[frozen_mpx_break]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "mpxbreak",mpx_break,0);
+mp->frozen_mpx_break = mp_frozen_primitive(mp, "mpxbreak",mpx_break,0);
 @:mpx_break_}{\&{mpxbreak} primitive@>
 
 @ @<Cases of |print_cmd...@>=
@@ -14491,7 +14614,8 @@ mp_primitive(mp, "secondarydef",macro_def,tertiary_secondary_macro);
 @:secondary_def_}{\&{secondarydef} primitive@>
 mp_primitive(mp, "tertiarydef",macro_def,expression_tertiary_macro);
 @:tertiary_def_}{\&{tertiarydef} primitive@>
-mp_primitive(mp, "enddef",macro_def,end_def); mp->eqtb[frozen_end_def]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "enddef",macro_def,end_def); 
+mp->frozen_end_def = mp_frozen_primitive(mp, "enddef",macro_def,end_def); 
 @:end_def_}{\&{enddef} primitive@>
 @#
 mp_primitive(mp, "for",iteration,expr_base);
@@ -14500,7 +14624,8 @@ mp_primitive(mp, "forsuffixes",iteration,suffix_base);
 @:for_suffixes_}{\&{forsuffixes} primitive@>
 mp_primitive(mp, "forever",iteration,start_forever);
 @:forever_}{\&{forever} primitive@>
-mp_primitive(mp, "endfor",iteration,end_for); mp->eqtb[frozen_end_for]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "endfor",iteration,end_for); 
+mp->frozen_end_for = mp_frozen_primitive(mp, "endfor",iteration,end_for); 
 @:end_for_}{\&{endfor} primitive@>
 
 @ @<Cases of |print_cmd...@>=
@@ -14630,14 +14755,16 @@ case macro_special:
 }
 
 @ Here is a routine that's used whenever a token will be redefined. If
-the user's token is unredefinable, the `|frozen_inaccessible|' token is
+the user's token is unredefinable, the `|mp->frozen_inaccessible|' token is
 substituted; the latter is redefinable but essentially impossible to use,
 hence \MP's tables won't get fouled up.
 
 @c static void mp_get_symbol (MP mp) { /* sets |cur_sym| to a safe symbol */
 RESTART: 
   get_t_next;
-  if ( (mp->cur_sym==0)||(mp->cur_sym>(integer)frozen_inaccessible) ) {
+  if ( (mp->cur_sym==0)||
+       (mp->cur_sym>(integer)mp->frozen_inaccessible)  /* todo */
+      ) {
     print_err("Missing symbolic token inserted");
 @.Missing symbolic token...@>
     help3("Sorry: You can\'t redefine a number, string, or expr.",
@@ -14647,7 +14774,8 @@ RESTART:
       mp->help_line[2]="Sorry: You can\'t redefine my error-recovery tokens.";
     else if ( mp->cur_cmd==string_token ) 
       delete_str_ref(mp->cur_mod_str);
-    mp->cur_sym=frozen_inaccessible; mp_ins_error(mp); goto RESTART;
+    mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_inaccessible);  
+    mp_ins_error(mp); goto RESTART;
   }
 }
 
@@ -14779,7 +14907,7 @@ static void mp_scan_def (MP mp) {
   mp->scanner_status=normal; mp_get_x_next(mp);
 }
 
-@ We don't put `|frozen_end_group|' into the replacement text of
+@ We don't put `|mp->frozen_end_group|' into the replacement text of
 a \&{vardef}, because the user may want to redefine `\.{endgroup}'.
 
 @<Attach the replacement text to the tail of node |p|@>=
@@ -14825,8 +14953,8 @@ if ( m==start_def ) {
 }
 
 @ @<Initialize table entries@>=
-mp_name_type(bad_vardef)=mp_root; mp_link(bad_vardef)=frozen_bad_vardef;
-equiv(frozen_bad_vardef)=bad_vardef; eq_type(frozen_bad_vardef)=tag_token;
+mp_name_type(bad_vardef)=mp_root; 
+mp_link(bad_vardef) = mp_get_frozen_primitive(mp, mp->frozen_bad_vardef);  
 
 @ @<Absorb delimited parameters, putting them into lists |q| and |r|@>=
 do {  
@@ -15559,7 +15687,8 @@ mp->cond_ptr=null; mp->if_limit=normal; mp->cur_if=0; mp->if_line=0;
 @ @<Put each...@>=
 mp_primitive(mp, "if",if_test,if_code);
 @:if_}{\&{if} primitive@>
-mp_primitive(mp, "fi",fi_or_else,fi_code); mp->eqtb[frozen_fi]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "fi",fi_or_else,fi_code); 
+mp->frozen_fi = mp_frozen_primitive(mp, "fi",fi_or_else,fi_code); 
 @:fi_}{\&{fi} primitive@>
 mp_primitive(mp, "else",fi_or_else,else_code);
 @:else_}{\&{else} primitive@>
@@ -15728,7 +15857,9 @@ if ( mp->cur_mod>mp->if_limit ) {
   if ( mp->if_limit==if_code ) { /* condition not yet evaluated */
     mp_missing_err(mp, ":");
 @.Missing `:'@>
-    mp_back_input(mp); mp->cur_sym=frozen_colon; mp_ins_error(mp);
+    mp_back_input(mp); 
+    mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_colon);  
+    mp_ins_error(mp);
   } else  { 
     print_err("Extra "); mp_print_cmd_mod(mp, fi_or_else,mp->cur_mod);
 @.Extra else@>
@@ -15860,24 +15991,24 @@ if ( mp->cur_cmd!=colon ) {
   mp_back_error(mp);
 }
 
-@ We append a special |frozen_repeat_loop| token in place of the
+@ We append a special |mp->frozen_repeat_loop| token in place of the
 `\&{endfor}' at the end of the loop. This will come through \MP's scanner
 at the proper time to cause the loop to be repeated.
 
 (If the user tries some shenanigan like `\&{for} $\ldots$ \&{let} \&{endfor}',
 he will be foiled by the |get_symbol| routine, which keeps frozen
-tokens unchanged. Furthermore the |frozen_repeat_loop| is an \&{outer}
+tokens unchanged. Furthermore the |mp->frozen_repeat_loop| is an \&{outer}
 token, so it won't be lost accidentally.)
 
 @ @<Scan the loop text...@>=
-q=mp_get_avail(mp); mp_info(q)=frozen_repeat_loop;
+q=mp_get_avail(mp); 
+mp_info(q) = mp_get_frozen_primitive(mp, mp->frozen_repeat_loop);  
 mp->scanner_status=loop_defining; mp->warning_info=n;
 mp_info(s)=mp_scan_toks(mp, iteration,p,q,0); mp->scanner_status=normal;
 mp_link(s)=mp->loop_ptr; mp->loop_ptr=s
 
 @ @<Initialize table...@>=
-eq_type(frozen_repeat_loop)=repeat_loop+outer_tag;
-text(frozen_repeat_loop)=mp_intern(mp," ENDFOR");
+mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_tag, null);
 
 @ The loop text is inserted into \MP's scanning apparatus by the
 |resume_iteration| routine.
@@ -17933,7 +18064,8 @@ scaled num,denom; /* for primaries that are fractions, like `1/2' */
     mp_get_x_next(mp);
     if ( mp->cur_cmd!=numeric_token ) { 
       mp_back_input(mp);
-      mp->cur_cmd=slash; mp->cur_mod=over; mp->cur_sym=frozen_slash;
+      mp->cur_cmd=slash; mp->cur_mod=over; 
+      mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_slash);  
       goto DONE;
     }
     num=mp->cur_exp.i; denom=mp->cur_mod;
@@ -18097,7 +18229,8 @@ so as to avoid any embarrassment about our incorrect assumption.
 { 
   mp_back_input(mp); /* that was the token following the current expression */
   mp_back_expr(mp); mp->cur_cmd=left_bracket; 
-  mp->cur_mod=0; mp->cur_sym=frozen_left_bracket;
+  mp->cur_mod=0; 
+  mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_left_bracket);  
 }
 
 @ Here's a routine that puts the current expression back to be read again.
@@ -19198,7 +19331,8 @@ mp_primitive(mp, "-",plus_or_minus,minus);
 @:- }{\.{-} primitive@>
 mp_primitive(mp, "*",secondary_binary,times);
 @:* }{\.{*} primitive@>
-mp_primitive(mp, "/",slash,over); mp->eqtb[frozen_slash]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "/",slash,over); 
+mp->frozen_slash = mp_frozen_primitive(mp, "/",slash,over); 
 @:/ }{\.{/} primitive@>
 mp_primitive(mp, "++",tertiary_binary,pythag_add);
 @:++_}{\.{++} primitive@>
