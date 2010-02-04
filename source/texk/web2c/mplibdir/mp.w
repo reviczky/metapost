@@ -5410,7 +5410,7 @@ mp->st_count=0;
 mp->hash_used=hash_end; /* nothing is used */
 mp->frozen_bad_vardef = mp_frozen_primitive(mp, "a bad variable", tag_token, bad_vardef);
 mp->frozen_right_delimiter = mp_frozen_primitive(mp, ")", right_delimiter, 0);
-mp->frozen_inaccessible = mp_frozen_primitive(mp, " INACCESSIBLE", undefined_cs, 0);
+mp->frozen_inaccessible = mp_frozen_primitive(mp, " INACCESSIBLE", tag_token, 0);
 mp->frozen_undefined = mp_frozen_primitive(mp, " UNDEFINED", tag_token, 0);
 
 @ @<Check the ``constant'' values...@>=
@@ -5565,6 +5565,18 @@ static halfword mp_get_frozen_primitive (MP mp, mp_sym sym) {
    return temp;
 }
 
+@ This routine returns |true| if the current symbol is un-redefinable
+because it is one of the error recovery tokens. 
+
+At the moment this always returns false, which is safe, because
+the |mp->frozen_symbols| entries are never accessed directly.
+
+@c
+static boolean mp_is_frozen (MP mp, halfword symbol) {
+   (void)mp;
+   (void)symbol;
+   return false;
+}
 
 
 
@@ -14036,7 +14048,7 @@ case absorbing:
     mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_end_group);  
   } else { 
     mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_right_delimiter);  
-    mp->frozen_right_delimiter->eqval=mp->warning_info; /* todo: huh? */
+    equiv(mp->cur_sym)=mp->warning_info;
   }
   break;
 case var_defining:
@@ -14762,9 +14774,7 @@ hence \MP's tables won't get fouled up.
 @c static void mp_get_symbol (MP mp) { /* sets |cur_sym| to a safe symbol */
 RESTART: 
   get_t_next;
-  if ( (mp->cur_sym==0)||
-       (mp->cur_sym>(integer)mp->frozen_inaccessible)  /* todo */
-      ) {
+  if ( (mp->cur_sym==0)|| mp_is_frozen(mp, mp->cur_sym) ) {
     print_err("Missing symbolic token inserted");
 @.Missing symbolic token...@>
     help3("Sorry: You can\'t redefine a number, string, or expr.",
