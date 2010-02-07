@@ -3575,50 +3575,6 @@ void mp_print_word (MP mp,memory_word w) {
   mp_print_int(mp, w.qqqq.b3);
 }
 
-
-@* \[10] Dynamic memory allocation.
-
-The \MP\ system does nearly all of its own memory allocation, so that it
-can readily be transported into environments that do not have automatic
-facilities for strings, garbage collection, etc., and so that it can be in
-control of what error messages the user receives. The dynamic storage
-requirements of \MP\ are handled by providing a large array |mem| in
-which consecutive blocks of words are used as nodes by the \MP\ routines.
-
-Pointer variables are indices into this array, or into another array
-called |eqtb| that will be explained later. A pointer variable might
-also be a special flag that lies outside the bounds of |mem|, so we
-allow pointers to assume any |halfword| value. The minimum memory
-index represents a null pointer.
-
-@d null 0 /* the null pointer */
-@d mp_void (null+1) /* a null pointer different from |null| */
-
-
-@<Types...@>=
-typedef halfword pointer; /* a flag or a location in |mem| or |eqtb| */
-
-@ The |mem| array is divided into two regions that are allocated separately,
-but the dividing line between these two regions is not fixed; they grow
-together until finding their ``natural'' size in a particular job.
-Locations less than or equal to |lo_mem_max| are used for storing
-variable-length records consisting of two or more words each. This region
-is maintained using an algorithm similar to the one described in exercise
-2.5--19 of {\sl The Art of Computer Programming}. However, no size field
-appears in the allocated nodes; the program is responsible for knowing the
-relevant size when a node is freed. Locations greater than or equal to
-|hi_mem_min| are used for storing one-word records; a conventional
-\.{AVAIL} stack is used for allocation in this region.
-
-The key pointers that govern |mem| allocation have a prescribed order:
-$$\hbox{|null=0<lo_mem_max<hi_mem_min<=mem_end<=mem_max|.}$$
-
-@<Glob...@>=
-memory_word *mem; /* the big dynamic storage area */
-pointer lo_mem_max; /* the largest location of variable-size memory in use */
-pointer hi_mem_min; /* the smallest location of one-word memory in use */
-
-
 @ 
 @d xfree(A) do { mp_xfree(A); A=NULL; } while (0)
 @d xrealloc(P,A,B) mp_xrealloc(mp,P,(size_t)A,B)
@@ -3845,6 +3801,49 @@ void mp_do_snprintf (char *str, int size, const char *format, ...) {
   *res = '\0';
   va_end(ap);
 }
+
+
+@* \[10] Dynamic memory allocation.
+
+The \MP\ system does nearly all of its own memory allocation, so that it
+can readily be transported into environments that do not have automatic
+facilities for strings, garbage collection, etc., and so that it can be in
+control of what error messages the user receives. The dynamic storage
+requirements of \MP\ are handled by providing a large array |mem| in
+which consecutive blocks of words are used as nodes by the \MP\ routines.
+
+Pointer variables are indices into this array, or into another array
+called |eqtb| that will be explained later. A pointer variable might
+also be a special flag that lies outside the bounds of |mem|, so we
+allow pointers to assume any |halfword| value. The minimum memory
+index represents a null pointer.
+
+@d null 0 /* the null pointer */
+@d mp_void (null+1) /* a null pointer different from |null| */
+
+
+@<Types...@>=
+typedef halfword pointer; /* a flag or a location in |mem| or |eqtb| */
+
+@ The |mem| array is divided into two regions that are allocated separately,
+but the dividing line between these two regions is not fixed; they grow
+together until finding their ``natural'' size in a particular job.
+Locations less than or equal to |lo_mem_max| are used for storing
+variable-length records consisting of two or more words each. This region
+is maintained using an algorithm similar to the one described in exercise
+2.5--19 of {\sl The Art of Computer Programming}. However, no size field
+appears in the allocated nodes; the program is responsible for knowing the
+relevant size when a node is freed. Locations greater than or equal to
+|hi_mem_min| are used for storing one-word records; a conventional
+\.{AVAIL} stack is used for allocation in this region.
+
+The key pointers that govern |mem| allocation have a prescribed order:
+$$\hbox{|null=0<lo_mem_max<hi_mem_min<=mem_end<=mem_max|.}$$
+
+@<Glob...@>=
+memory_word *mem; /* the big dynamic storage area */
+pointer lo_mem_max; /* the largest location of variable-size memory in use */
+pointer hi_mem_min; /* the smallest location of one-word memory in use */
 
 @ 
 @<Allocate or initialize ...@>=
