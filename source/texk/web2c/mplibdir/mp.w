@@ -15221,7 +15221,7 @@ is less than |loop_text|.
       mp_end_token_list(mp);
     }
   } while (p==null);
-  if ( p!=mp_info(mp->loop_ptr) ) mp_fatal_error(mp, "*** (loop confusion)");
+  if ( p!=mp->loop_ptr->info ) mp_fatal_error(mp, "*** (loop confusion)");
 @.loop confusion@>
   mp_stop_iteration(mp); /* this procedure is in Part 34 below */
 }
@@ -15899,48 +15899,51 @@ To bring our treatment of |get_x_next| to a close, we need to consider what
 \MP\ does when it sees \&{for}, \&{forsuffixes}, and \&{forever}.
 
 There's a global variable |loop_ptr| that keeps track of the \&{for} loops
-that are currently active. If |loop_ptr=null|, no loops are in progress;
-otherwise |mp_info(loop_ptr)| points to the iterative text of the current
-(innermost) loop, and |mp_link(loop_ptr)| points to the data for any other
+that are currently active. If |loop_ptr=NULL|, no loops are in progress;
+otherwise |loop_ptr.info| points to the iterative text of the current
+(innermost) loop, and |loop_ptr.link| points to the data for any other
 loops that enclose the current one.
 
-A loop-control node also has two other fields, called |loop_type| and
-|loop_list|, whose contents depend on the type of loop:
+A loop-control node also has two other fields, called |type| and
+|list|, whose contents depend on the type of loop:
 
-\yskip\indent|loop_type(loop_ptr)=null| means that |loop_list(loop_ptr)|
+\yskip\indent|loop_ptr.type=null| means that the link of |loop_ptr.list|
 points to a list of one-word nodes whose |info| fields point to the
 remaining argument values of a suffix list and expression list.
+In this case, an extra field |loop_ptr.start_list| is needed to
+make sure that |resume_operation| skips ahead.
 
-\yskip\indent|loop_type(loop_ptr)=mp_void| means that the current loop is
+\yskip\indent|loop_ptr.type=mp_void| means that the current loop is
 `\&{forever}'.
 
-\yskip\indent|loop_type(loop_ptr)=progression_flag| means that
-|p=loop_list(loop_ptr)| points to a ``progression node'' and |value(p)|,
-|step_size(p)|, and |final_value(p)| contain the data for an arithmetic
-progression.
+\yskip\indent|loop_ptr.type=progression_flag| means that
+|loop_ptr.value|, |loop_ptr.step_size|, and |loop_ptr.final_value| 
+contain the data for an arithmetic progression.
 
-\yskip\indent|loop_type(loop_ptr)=p>mp_void| means that |p| points to an edge
-header and |loop_list(loop_ptr)| points into the graphical object list for
+\yskip\indent|loop_ptr.type=p>mp_void| means that |p| points to an edge
+header and |loop_ptr.list| points into the graphical object list for
 that edge header.
 
-\yskip\noindent In the case of a progression node, the first word is not used
-because the link field of words in the dynamic memory area cannot be arbitrary.
-
-@d loop_list_loc(A) ((A)+1) /* where the |loop_list| field resides */
-@d loop_type(A) mp_info(loop_list_loc((A))) /* the type of \&{for} loop */
-@d loop_list(A) mp_link(loop_list_loc((A))) /* the remaining list elements */
-@d loop_node_size 2 /* the number of words in a loop control node */
-@d progression_node_size 4 /* the number of words in a progression node */
-@d step_size(A) mp->mem[(A)+2].sc /* the step size in an arithmetic progression */
-@d final_value(A) mp->mem[(A)+3].sc /* the final value in an arithmetic progression */
 @d progression_flag (null+2)
   /* |loop_type| value when |loop_list| points to a progression node */
 
-@<Glob...@>=
-pointer loop_ptr; /* top of the loop-control-node stack */
+@<Types...@>=
+typedef struct mp_loop_data {
+  pointer info;  /* iterative text of this loop */
+  halfword type; /* the special type of this loop, or a pointer into mem */
+  pointer list;  /* the remaining list elements */
+  pointer list_start;  /* head fo the list of elements */
+  scaled value; /* current arithmetic value */
+  scaled step_size; /* arithmetic step size */
+  scaled final_value; /* end arithmetic value */
+  struct mp_loop_data *link; /* the enclosing loop, if any */
+} mp_loop_data;
+
+@ @<Glob...@>=
+mp_loop_data *loop_ptr; /* top of the loop-control-node stack */
 
 @ @<Set init...@>=
-mp->loop_ptr=null;
+mp->loop_ptr=NULL;
 
 @ If the expressions that define an arithmetic progression in
 a \&{for} loop don't have known numeric values, the |bad_for|
@@ -15969,16 +15972,23 @@ didn't write it until later. The reader may wish to come back to it.)
 @c void mp_begin_iteration (MP mp) {
   halfword m; /* |expr_base| (\&{for}) or |suffix_base| (\&{forsuffixes}) */
   halfword n; /* hash address of the current symbol */
-  pointer s; /* the new loop-control node */
+  mp_loop_data *s; /* the new loop-control node */
   pointer p; /* substitution list for |scan_toks| */
   pointer q;  /* link manipulation register */
-  pointer pp; /* a new progression node */
-  m=mp->cur_mod; n=mp->cur_sym; s=mp_get_node(mp, loop_node_size);
+  m=mp->cur_mod; 
+  n=mp->cur_sym; 
+  s=xmalloc(1, sizeof(mp_loop_data));
+  s->type = s->list = s->info = s->list_start = null;
+  s->link = NULL;
   if ( m==start_forever ){ 
-    loop_type(s)=mp_void; p=null; mp_get_x_next(mp);
+    s->type=mp_void; 
+    p=null; 
+    mp_get_x_next(mp);
   } else { 
-    mp_get_symbol(mp); p=mp_get_node(mp, token_node_size);
-    mp_info(p)=mp->cur_sym; value(p)=m;
+    mp_get_symbol(mp); 
+    p=mp_get_node(mp, token_node_size);
+    mp_info(p)=mp->cur_sym; 
+    value(p)=m;
     mp_get_x_next(mp);
     if ( mp->cur_cmd==within_token ) {
       @<Set up a picture iteration@>;
@@ -16024,9 +16034,11 @@ token, so it won't be lost accidentally.)
 @ @<Scan the loop text...@>=
 q=mp_get_avail(mp); 
 mp_info(q) = mp_get_frozen_primitive(mp, mp->frozen_repeat_loop);  
-mp->scanner_status=loop_defining; mp->warning_info=n;
-mp_info(s)=mp_scan_toks(mp, iteration,p,q,0); mp->scanner_status=normal;
-mp_link(s)=mp->loop_ptr; mp->loop_ptr=s
+mp->scanner_status=loop_defining; 
+mp->warning_info=n;
+s->info=mp_scan_toks(mp, iteration,p,q,0); 
+mp->scanner_status=normal;
+s->link=mp->loop_ptr; mp->loop_ptr=s
 
 @ @<Initialize table...@>=
 mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_tag, null);
@@ -16036,48 +16048,55 @@ mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_ta
 
 @c void mp_resume_iteration (MP mp) {
   pointer p,q; /* link registers */
-  p=loop_type(mp->loop_ptr);
+  p=mp->loop_ptr->type;
   if ( p==progression_flag ) { 
-    p=loop_list(mp->loop_ptr); /* now |p| points to a progression node */
-    mp->cur_exp.data.val=value(p);
+    mp->cur_exp.data.val=mp->loop_ptr->value;
     if ( @<The arithmetic progression has ended@> ) {
       mp_stop_iteration(mp);
       return;
     }
     mp->cur_exp.type=mp_known; 
     q=mp_stash_cur_exp(mp); /* make |q| an \&{expr} argument */
-    value(p)=mp->cur_exp.data.val+step_size(p); /* set |value(p)| for the next iteration */
+    mp->loop_ptr->value=mp->cur_exp.data.val+mp->loop_ptr->step_size; /* set |value(p)| for the next iteration */
     /* detect numeric overflow */
-    if ((step_size(p)>0) && (value(p)<mp->cur_exp.data.val)) {
-       if (final_value(p)>0) {
-         value(p)=final_value(p);
-         final_value(p) = final_value(p) - 1;
+    if ((mp->loop_ptr->step_size>0) && (mp->loop_ptr->value<mp->cur_exp.data.val)) {
+       if (mp->loop_ptr->final_value>0) {
+         mp->loop_ptr->value=mp->loop_ptr->final_value;
+         mp->loop_ptr->final_value--;
        } else {
-         value(p)=final_value(p)+1;
+         mp->loop_ptr->value=mp->loop_ptr->final_value+1;
        }
-    } else if ((step_size(p)<0) && (value(p)>mp->cur_exp.data.val)) {
-       if (final_value(p)<0) {
-         value(p)=final_value(p);
-         final_value(p) = final_value(p)+1;
+    } else if ((mp->loop_ptr->step_size<0) && (mp->loop_ptr->value>mp->cur_exp.data.val)) {
+       if (mp->loop_ptr->final_value<0) {
+         mp->loop_ptr->value=mp->loop_ptr->final_value;
+         mp->loop_ptr->final_value ++;
        } else {
-         value(p)=final_value(p)-1;
+         mp->loop_ptr->value=mp->loop_ptr->final_value-1;
        }
     }
     
   } else if ( p==null ) { 
-    p=loop_list(mp->loop_ptr);
+    p=mp->loop_ptr->list;
     if ( p==null ) {
       mp_stop_iteration(mp);
       return;
     }
-    loop_list(mp->loop_ptr)=mp_link(p); q=mp_info(p); free_avail(p);
+    if (p == mp->loop_ptr->list_start) {
+       q = p; 
+       p = mp_link(p);
+       free_avail(q);
+    }
+    mp->loop_ptr->list=mp_link(p); 
+    q=mp_info(p); 
+    free_avail(p);
   } else if ( p==mp_void ) { 
-    mp_begin_token_list(mp, mp_info(mp->loop_ptr), (quarterword)forever_text); return;
+    mp_begin_token_list(mp, mp->loop_ptr->info, (quarterword)forever_text); 
+    return;
   } else {
     @<Make |q| a capsule containing the next picture component from
       |loop_list(loop_ptr)| or |goto not_found|@>;
   }
-  mp_begin_token_list(mp, mp_info(mp->loop_ptr), (quarterword)loop_text);
+  mp_begin_token_list(mp, mp->loop_ptr->info, (quarterword)loop_text);
   mp_stack_argument(mp, q);
   if ( internal_value(mp_tracing_commands)>unity ) {
      @<Trace the start of a loop@>;
@@ -16088,26 +16107,31 @@ NOT_FOUND:
 }
 
 @ @<The arithmetic progression has ended@>=
-((step_size(p)>0)&&(mp->cur_exp.data.val>final_value(p)))||
- ((step_size(p)<0)&&(mp->cur_exp.data.val<final_value(p)))
+((mp->loop_ptr->step_size>0)&&(mp->cur_exp.data.val>mp->loop_ptr->final_value))||
+ ((mp->loop_ptr->step_size<0)&&(mp->cur_exp.data.val<mp->loop_ptr->final_value))
 
 @ @<Trace the start of a loop@>=
 { 
-  mp_begin_diagnostic(mp); mp_print_nl(mp, "{loop value=");
+  mp_begin_diagnostic(mp); 
+  mp_print_nl(mp, "{loop value=");
 @.loop value=n@>
-  if ( (q!=null)&&(mp_link(q)==mp_void) ) mp_print_exp(mp, q,1);
-  else mp_show_token_list(mp, q,null,50,0);
-  mp_print_char(mp, xord('}')); mp_end_diagnostic(mp, false);
+  if ( (q!=null)&&(mp_link(q)==mp_void) ) 
+    mp_print_exp(mp, q,1);
+  else 
+    mp_show_token_list(mp, q,null,50,0);
+  mp_print_char(mp, xord('}')); 
+  mp_end_diagnostic(mp, false);
 }
 
 @ @<Make |q| a capsule containing the next picture component from...@>=
-{ q=loop_list(mp->loop_ptr);
-  if ( q==null ) goto NOT_FOUND;
+{ q=mp->loop_ptr->list;
+  if ( q==null ) 
+    goto NOT_FOUND;
   skip_component(q) goto NOT_FOUND;
-  mp->cur_exp.data.val=mp_copy_objects(mp, loop_list(mp->loop_ptr),q);
+  mp->cur_exp.data.val=mp_copy_objects(mp, mp->loop_ptr->list,q);
   mp_init_bbox(mp, mp->cur_exp.data.val);
   mp->cur_exp.type=mp_picture_type;
-  loop_list(mp->loop_ptr)=q;
+  mp->loop_ptr->list=q;
   q=mp_stash_cur_exp(mp);
 }
 
@@ -16117,11 +16141,12 @@ from the input stack.
 
 @c void mp_stop_iteration (MP mp) {
   pointer p,q; /* the usual */
-  p=loop_type(mp->loop_ptr);
+  mp_loop_data *tmp; /* for free() */
+  p=mp->loop_ptr->type;
   if ( p==progression_flag )  {
-    mp_free_node(mp, loop_list(mp->loop_ptr),progression_node_size);
+    ;
   } else if ( p==null ){ 
-    q=loop_list(mp->loop_ptr);
+    q=mp->loop_ptr->list;
     while ( q!=null ) {
       p=mp_info(q);
       if ( p!=null ) {
@@ -16132,13 +16157,17 @@ from the input stack.
           mp_flush_token_list(mp, p); /* it's a \&{suffix} or \&{text} parameter */
         }
       }
-      p=q; q=mp_link(q); free_avail(p);
+      p=q; 
+      q=mp_link(q); 
+      free_avail(p);
     }
   } else if ( p>progression_flag ) {
     delete_edge_ref(p);
   }
-  p=mp->loop_ptr; mp->loop_ptr=mp_link(p); mp_flush_token_list(mp, mp_info(p));
-  mp_free_node(mp, p,loop_node_size);
+  tmp=mp->loop_ptr; 
+  mp->loop_ptr=tmp->link; 
+  mp_flush_token_list(mp, tmp->info);
+  xfree(tmp);
 }
 
 @ Now that we know all about loop control, we can finish up
@@ -16149,7 +16178,10 @@ a \&{for} construction (if |m=expr_base|) or a \&{forsuffixes} construction
 (if |m=suffix_base|).
 
 @<Scan the values to be used in the loop@>=
-loop_type(s)=null; q=loop_list_loc(s); mp_link(q)=null; /* |mp_link(q)=loop_list(s)| */
+s->type = null; 
+s->list = mp_get_avail(mp);
+s->list_start = s->list;
+q = s->list;
 do {  
   mp_get_x_next(mp);
   if ( m!=expr_base ) {
@@ -16158,13 +16190,15 @@ do {
     if ( mp->cur_cmd>=colon ) if ( mp->cur_cmd<=comma ) 
 	  goto CONTINUE;
     mp_scan_expression(mp);
-    if ( mp->cur_cmd==step_token ) if ( q==loop_list_loc(s) ) {
+    if ( mp->cur_cmd==step_token ) if ( q==s->list ) {
       @<Prepare for step-until construction and |break|@>;
     }
     mp->cur_exp.data.val=mp_stash_cur_exp(mp);
   }
-  mp_link(q)=mp_get_avail(mp); q=mp_link(q); 
-  mp_info(q)=mp->cur_exp.data.val; mp->cur_exp.type=mp_vacuous;
+  mp_link(q)=mp_get_avail(mp); 
+  q=mp_link(q); 
+  mp_info(q)=mp->cur_exp.data.val; 
+  mp->cur_exp.type=mp_vacuous;
 CONTINUE:
   ;
 } while (mp->cur_cmd==comma)
@@ -16172,11 +16206,11 @@ CONTINUE:
 @ @<Prepare for step-until construction and |break|@>=
 { 
   if ( mp->cur_exp.type!=mp_known ) mp_bad_for(mp, "initial value");
-  pp=mp_get_node(mp, progression_node_size); 
-  value(pp)=mp->cur_exp.data.val;
-  mp_get_x_next(mp); mp_scan_expression(mp);
+  s->value=mp->cur_exp.data.val;
+  mp_get_x_next(mp); 
+  mp_scan_expression(mp);
   if ( mp->cur_exp.type!=mp_known ) mp_bad_for(mp, "step size");
-  step_size(pp)=mp->cur_exp.data.val;
+  s->step_size=mp->cur_exp.data.val;
   if ( mp->cur_cmd!=until_token ) { 
     mp_missing_err(mp, "until");
 @.Missing `until'@>
@@ -16184,10 +16218,11 @@ CONTINUE:
           "So I'll look for the final value and colon next.");
     mp_back_error(mp);
   }
-  mp_get_x_next(mp); mp_scan_expression(mp);
+  mp_get_x_next(mp); 
+  mp_scan_expression(mp);
   if ( mp->cur_exp.type!=mp_known ) mp_bad_for(mp, "final value");
-  final_value(pp)=mp->cur_exp.data.val; loop_list(s)=pp;
-  loop_type(s)=progression_flag; 
+  s->final_value=mp->cur_exp.data.val; 
+  s->type=progression_flag; 
   break;
 }
 
@@ -16198,12 +16233,13 @@ parse a picture expression and prepare to iterate over it.
 { mp_get_x_next(mp);
   mp_scan_expression(mp);
   @<Make sure the current expression is a known picture@>;
-  loop_type(s)=mp->cur_exp.data.val; mp->cur_exp.type=mp_vacuous;
+  s->type=mp->cur_exp.data.val; 
+  mp->cur_exp.type=mp_vacuous;
   q=mp_link(dummy_loc(mp->cur_exp.data.val));
   if ( q!= null ) 
     if ( is_start_or_stop(q) )
       if ( mp_skip_1component(mp, q)==null ) q=mp_link(q);
-  loop_list(s)=q;
+  s->list=q;
 }
 
 @ @<Make sure the current expression is a known picture@>=
