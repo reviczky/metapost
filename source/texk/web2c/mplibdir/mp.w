@@ -6768,14 +6768,31 @@ The global variable |save_ptr| points to the top item on the save stack.
 
 @d save_node_size 2 /* number of words per non-boundary save-stack node */
 @d saved_equiv(A) mp->mem[(A)+1].hh /* where an |eqtb| entry gets saved */
-@d save_boundary_item(A) { (A)=mp_get_avail(mp); mp_info((A))=0;
-  mp_link((A))=mp->save_ptr; mp->save_ptr=(A);
-  }
 
-@<Glob...@>=
-pointer save_ptr; /* the most recently saved item */
+@<Types...@>=
+typedef struct mp_save_data {
+  halfword info;
+  mp_internal value;
+  two_halves equiv;
+  struct mp_save_data *link;
+} mp_save_data;
 
-@ @<Set init...@>=mp->save_ptr=null;
+@ @<Glob...@>=
+mp_save_data *save_ptr; /* the most recently saved item */
+
+@ @<Set init...@>=
+mp->save_ptr=NULL;
+
+@ Saving a boundary item
+@c
+static void mp_save_boundary (MP mp ) {
+  mp_save_data *p; /* temporary register */
+  p = xmalloc(1, sizeof(mp_save_data));
+  p->info = 0; 
+  p->link = mp->save_ptr;
+  mp->save_ptr = p;
+}
+
 
 @ The |save_variable| routine is given a hash address |q|; it salts this
 address in the save stack, together with its current equivalent,
@@ -6787,12 +6804,15 @@ no point in wasting the space.
 
 @c 
 static void mp_save_variable (MP mp,pointer q) {
-  pointer p; /* temporary register */
-  if ( mp->save_ptr!=null ){ 
-    p=mp_get_node(mp, save_node_size); mp_info(p)=q; mp_link(p)=mp->save_ptr;
-    saved_equiv(p)=mp->eqtb[q]; mp->save_ptr=p;
+  mp_save_data *p; /* temporary register */
+  if ( mp->save_ptr != NULL ){ 
+    p = xmalloc(1, sizeof(mp_save_data));
+    p->info = q; 
+    p->link = mp->save_ptr;
+    p->equiv = mp->eqtb[q]; 
+    mp->save_ptr = p;
   }
-  mp_clear_symbol(mp, q,(mp->save_ptr!=null));
+  mp_clear_symbol(mp, q,(mp->save_ptr!=NULL));
 }
 
 @ Similarly, |save_internal| is given the location |q| of an internal
@@ -6801,13 +6821,13 @@ third kind.
 
 @c 
 static void mp_save_internal (MP mp,halfword q) {
-  pointer p; /* new item for the save stack */
-  if ( mp->save_ptr!=null ){ 
-     p=mp_get_node(mp, save_node_size);
-     mp_info(p)=hash_end+q;
-     mp_link(p)=mp->save_ptr; 
-     value(p)=internal_value(q);
-     mp->save_ptr=p;
+  mp_save_data *p; /* new item for the save stack */
+  if ( mp->save_ptr!=NULL ){ 
+    p = xmalloc(1, sizeof(mp_save_data));
+    p->info = hash_end+q; 
+    p->link = mp->save_ptr; 
+    p->value = mp->internal[(q)];
+    mp->save_ptr = p;
   }
 }
 
@@ -6818,9 +6838,9 @@ is at least one boundary item on the save stack.
 @c 
 static void mp_unsave (MP mp) {
   pointer q; /* index to saved item */
-  pointer p; /* temporary register */
-  while ( mp_info(mp->save_ptr)!=0 ) {
-    q=mp_info(mp->save_ptr);
+  mp_save_data *p; /* saved item */
+  while ( mp->save_ptr->info != 0 ) {
+    q = mp->save_ptr->info;
     if ( q>hash_end ) {
       if ( internal_value(mp_tracing_restores)>0 ) {
         mp_begin_diagnostic(mp);
@@ -6828,9 +6848,9 @@ static void mp_unsave (MP mp) {
         mp_print(mp, internal_name(q-(hash_end)));
         mp_print_char(mp, xord('='));
         if (internal_type(q-(hash_end))==mp_known) {
-           mp_print_scaled(mp, value(mp->save_ptr));
+           mp_print_scaled(mp, mp->save_ptr->value.val);
         } else if (internal_type(q-(hash_end))==mp_string_type) {
-           char *s = mp_str(mp, str_value(mp->save_ptr));
+           char *s = mp_str(mp, mp->save_ptr->value.str);
            mp_print(mp, s);
         } else {
            mp_confusion(mp,"internal_restore");
@@ -6838,7 +6858,7 @@ static void mp_unsave (MP mp) {
         mp_print_char(mp, xord('}'));
         mp_end_diagnostic(mp, false);
       }
-      internal_value(q-(hash_end))=value(mp->save_ptr);
+      mp->internal[(q-(hash_end))]=mp->save_ptr->value;
     } else { 
       if ( internal_value(mp_tracing_restores)>0 ) {
         mp_begin_diagnostic(mp); 
@@ -6848,16 +6868,19 @@ static void mp_unsave (MP mp) {
         mp_end_diagnostic(mp, false);
       }
       mp_clear_symbol(mp, q,false);
-      mp->eqtb[q]=saved_equiv(mp->save_ptr);
+      mp->eqtb[q] = mp->save_ptr->equiv;
       if ( eq_type(q) % outer_tag==tag_token ) {
-        p=equiv(q);
-        if ( p!=null ) mp_name_type(p)=mp_root;
+        pointer pp=equiv(q);
+        if ( pp!=null ) mp_name_type(pp)=mp_root;
       }
     }
-    p=mp_link(mp->save_ptr); 
-    mp_free_node(mp, mp->save_ptr,save_node_size); mp->save_ptr=p;
+    p=mp->save_ptr->link; 
+    xfree(mp->save_ptr); 
+    mp->save_ptr=p;
   }
-  p=mp_link(mp->save_ptr); free_avail(mp->save_ptr); mp->save_ptr=p;
+  p=mp->save_ptr->link; 
+  xfree(mp->save_ptr); 
+  mp->save_ptr=p;
 }
 
 @* \[17] Data structures for paths.
@@ -18043,8 +18066,9 @@ integer group_line; /* where a group began */
 @ @<Scan a grouped primary@>=
 { 
   group_line=mp_true_line(mp);
-  if ( internal_value(mp_tracing_commands)>0 ) show_cur_cmd_mod;
-  save_boundary_item(p);
+  if ( internal_value(mp_tracing_commands)>0 ) 
+    show_cur_cmd_mod;
+  mp_save_boundary(mp);
   do {  
     mp_do_statement(mp); /* ends with |cur_cmd>=semicolon| */
   } while (mp->cur_cmd==semicolon);
