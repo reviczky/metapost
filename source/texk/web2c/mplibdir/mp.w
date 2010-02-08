@@ -3838,7 +3838,7 @@ relevant size when a node is freed. Locations greater than or equal to
 \.{AVAIL} stack is used for allocation in this region.
 
 The key pointers that govern |mem| allocation have a prescribed order:
-$$\hbox{|null=0<lo_mem_max<hi_mem_min<=mem_end<=mem_max|.}$$
+$$\hbox{|null=0<lo_mem_max<hi_mem_min<=mem_max|.}$$
 
 @<Glob...@>=
 memory_word *mem; /* the big dynamic storage area */
@@ -3863,9 +3863,9 @@ report these statistics when |mp_tracing_stats| is positive.
 integer var_used; integer dyn_used; /* how much memory is in use */
 
 @ Let's consider the one-word memory region first, since it's the
-simplest. The pointer variable |mem_end| holds the highest-numbered location
-of |mem| that has ever been used. The free locations of |mem| that
-occur between |hi_mem_min| and |mem_end|, inclusive, are of type
+simplest. The pointer variable |mem_max| holds the highest-numbered location
+of |mem|. The free locations of |mem| that
+occur between |hi_mem_min| and |mem_max|, inclusive, are of type
 |two_halves|, and we write |info(p)| and |mp_link(p)| for the |lh|
 and |rh| fields of |mem[p]| when it is of this type. The single-word
 free locations form a linked list
@@ -3878,7 +3878,6 @@ terminated by |null|.
 
 @<Glob...@>=
 pointer avail; /* head of the list of available one-word nodes */
-pointer mem_end; /* the last one-word node used in |mem| */
 
 @ If one-word memory is exhausted, it might mean that the user has forgotten
 a token like `\&{enddef}' or `\&{endfor}'. We will define some procedures
@@ -3894,8 +3893,6 @@ static pointer mp_get_avail (MP mp) { /* single-word node allocation */
   p=mp->avail; /* get top location in the |avail| stack */
   if ( p!=null ) {
     mp->avail=mp_link(mp->avail); /* and pop it off */
-  } else if ( mp->mem_end<mp->mem_max ) { /* or go into virgin territory */
-    incr(mp->mem_end); p=mp->mem_end;
   } else { 
     decr(mp->hi_mem_min); p=mp->hi_mem_min;
     if ( mp->hi_mem_min<=mp->lo_mem_max ) { 
@@ -4123,7 +4120,7 @@ set_mp_info(mp->lo_mem_max,null);
 for (k=hi_mem_stat_min;k<=(int)mp->mem_max;k++) {
   mp->mem[k]=mp->mem[mp->lo_mem_max]; /* clear list heads */
 }
-mp->avail=null; mp->mem_end=mp->mem_max;
+mp->avail=null;
 mp->hi_mem_min=hi_mem_stat_min; /* initialize the one-word memory */
 mp->var_used=lo_mem_stat_max+1; 
 mp->dyn_used=mp->mem_max+1-(hi_mem_stat_min);  /* initialize statistics */
@@ -4177,8 +4174,8 @@ unsigned chars here.
 @<Glob...@>=
 unsigned char *free; /* free cells */
 unsigned char *was_free; /* previously free cells */
-pointer was_mem_end; pointer was_lo_max; pointer was_hi_min;
-  /* previous |mem_end|, |lo_mem_max|,and |hi_mem_min| */
+pointer was_lo_max; pointer was_hi_min;
+  /* previous |lo_mem_max| and |hi_mem_min| */
 boolean panicking; /* do we want to check memory constantly? */
 
 @ @<Allocate or initialize ...@>=
@@ -4224,7 +4221,7 @@ void mp_check_mem (MP mp,boolean print_locs ) {
   for (p=0;p<=mp->lo_mem_max;p++) {
     mp->free[p]=false; /* you can probably do this faster */
   }
-  for (p=mp->hi_mem_min;p<= mp->mem_end;p++) {
+  for (p=mp->hi_mem_min;p<= mp->mem_max;p++) {
     mp->free[p]=false; /* ditto */
   }
   @<Check single-word |avail| list@>;
@@ -4234,8 +4231,7 @@ void mp_check_mem (MP mp,boolean print_locs ) {
   if ( print_locs ) {
     @<Print newly busy locations@>;
   }
-  (void)memcpy(mp->was_free, mp->free, (size_t)(sizeof(char)*(unsigned)(mp->mem_end+1)));
-  mp->was_mem_end=mp->mem_end; 
+  (void)memcpy(mp->was_free, mp->free, (size_t)(sizeof(char)*(unsigned)(mp->mem_max+1)));
   mp->was_lo_max=mp->lo_mem_max; 
   mp->was_hi_min=mp->hi_mem_min;
 }
@@ -4243,7 +4239,7 @@ void mp_check_mem (MP mp,boolean print_locs ) {
 @ @<Check single-word...@>=
 p=mp->avail; q=null; clobbered=false;
 while ( p!=null ) { 
-  if ( (p>mp->mem_end)||(p<mp->hi_mem_min) ) clobbered=true;
+  if ( (p>mp->mem_max)||(p<mp->hi_mem_min) ) clobbered=true;
   else if ( mp->free[p] ) clobbered=true;
   if ( clobbered ) { 
     mp_print_nl(mp, "AVAIL list clobbered at ");
@@ -4298,9 +4294,9 @@ while ( p<=mp->lo_mem_max ) { /* node |p| should not be empty */
       @<Indicate that |p| is a new busy location@>;
     }
   }
-  for (p=mp->hi_mem_min;p<=mp->mem_end;p++ ) {
+  for (p=mp->hi_mem_min;p<=mp->mem_max;p++ ) {
     if ( ! mp->free[p] &&
-        ((p<mp->was_hi_min) || (p>mp->was_mem_end) || mp->was_free[p]) ) {
+        ((p<mp->was_hi_min) || mp->was_free[p]) ) {
       @<Indicate that |p| is a new busy location@>;
     }
   }
@@ -4350,7 +4346,7 @@ void mp_search_mem (MP mp, pointer p) { /* look for pointers to |p| */
       mp_print_nl(mp, "INFO("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
     }
   }
-  for (q=mp->hi_mem_min;q<=mp->mem_end;q++) {
+  for (q=mp->hi_mem_min;q<=mp->mem_max;q++) {
     if ( mp_link(q)==p ) {
       mp_print_nl(mp, "LINK("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
     }
@@ -5881,7 +5877,7 @@ void mp_show_token_list (MP mp, integer p, integer q, integer l,
 
 @ @<Display token |p| and set |c| to its class...@>=
 c=letter_class; /* the default */
-if ( (p<0)||(p>mp->mem_end) ) { 
+if ( (p<0)||(p>mp->mem_max) ) { 
   mp_print(mp, " CLOBBERED"); return;
 @.CLOBBERED@>
 }
@@ -27461,8 +27457,8 @@ if ( mp->log_opened ) {
        	   (mp->max_pl_used!=1 ? "s" : ""));
   wlog_ln(s);
   mp_snprintf(s,128," %i words of memory out of %i",
-           (int)mp->lo_mem_max+mp->mem_end-mp->hi_mem_min+2,
-           (int)mp->mem_end);
+           (int)mp->lo_mem_max+mp->mem_max-mp->hi_mem_min+2,
+           (int)mp->mem_max);
   wlog_ln(s);
   mp_snprintf(s,128," %i symbolic tokens out of %i", (int)mp->st_count, (int)mp->hash_size);
   wlog_ln(s);
@@ -27484,7 +27480,7 @@ int mp_open_usage (MP mp );
 
 @ @c
 int mp_memory_usage (MP mp ) {
-	return (int)mp->lo_mem_max+mp->mem_end-mp->hi_mem_min+2;
+	return (int)mp->lo_mem_max+mp->mem_max-mp->hi_mem_min+2;
 }
 int mp_hash_usage (MP mp ) {
   return (int)mp->st_count;
