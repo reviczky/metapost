@@ -1095,6 +1095,7 @@ int mp_xstrcmp (const char *a, const char *b);
 char * mp_str (MP mp, str_number s);
 
 @ @<Declarations@>=
+static str_number mp_rtsl (MP mp, const char *s, size_t l);
 static str_number mp_rts (MP mp, const char *s);
 static str_number mp_make_string (MP mp);
 
@@ -1114,11 +1115,11 @@ char * mp_str (MP mp, str_number ss) {
   (void)mp;
   return (char *)ss->str;
 }
-str_number mp_rts (MP mp, const char *s) {
+str_number mp_rtsl (MP mp, const char *s, size_t l) {
     str_number str;
     mp_lstring tmp;
     tmp.str = (unsigned char *)xstrdup(s);
-    tmp.len = strlen(s);
+    tmp.len = l;
     str = (str_number) avl_find (&tmp, mp->strings);
     if (str == NULL) { /* not yet known */
         str = new_strings_entry (mp);
@@ -1130,7 +1131,11 @@ str_number mp_rts (MP mp, const char *s) {
        str = (str_number) avl_find (&tmp, mp->strings);
     }
     free (tmp.str);
+    str->refs = 1;
     return str;
+}
+str_number mp_rts (MP mp, const char *s) {
+  return mp_rtsl (mp, s, strlen(s));
 }
 
 @ The next four variables for keeping track of string pool usage.
@@ -3873,11 +3878,37 @@ $$|avail|,\;\hbox{|mp_link(avail)|},\;\hbox{|mp_link(mp_link(avail))|},\;\ldots$
 terminated by |null|.
 
 @d mp_link(A)   mp->mem[(A)].hh.rh /* the |link| field of a memory word */
-@d mp_info(A)   mp->mem[(A)].hh.lh /* the |info| field of a memory word */
-@d set_mp_info(A,B) mp->mem[(A)].hh.lh=(B) /* set the |info| field of a memory word */
+@d old_mp_info(A)   mp->mem[(A)].hh.lh /* the |info| field of a memory word */
+@d old_set_mp_info(A,B) mp->mem[(A)].hh.lh=(B) /* set the |info| field of a memory word */
 
 @<Glob...@>=
 pointer avail; /* head of the list of available one-word nodes */
+
+@ A few debugging trick functions
+
+@d mp_sym_info(A) get_mp_sym_info(mp,(A))
+@d mp_info(A) get_mp_info(mp,(A))
+
+@d set_mp_sym_info(A,B) do {
+  assert ((A)>=mp->hi_mem_min && ((A)+1)<=mp->mem_max);
+  mp->mem[(A)+1].hh.lh=(B);
+} while (0)
+
+@d set_mp_info(A,B) do {
+  assert ((A)>=0 && (A)<mp->lo_mem_max);
+  mp->mem[(A)].hh.lh=(B);
+} while (0)
+
+@c
+halfword get_mp_info (MP mp, pointer p) {
+  assert (p>=0 && p<mp->lo_mem_max);
+  return mp->mem[p].hh.lh;
+}
+static halfword get_mp_sym_info (MP mp, pointer p) {
+  assert (p>=mp->hi_mem_min && p<=mp->mem_max);
+  assert (p>=mp->hi_mem_min && ((p)+1)<=mp->mem_max);
+  return mp->mem[(p+1)].hh.lh;
+}
 
 @ If one-word memory is exhausted, it might mean that the user has forgotten
 a token like `\&{enddef}' or `\&{endfor}'. We will define some procedures
@@ -3894,7 +3925,8 @@ static pointer mp_get_avail (MP mp) { /* single-word node allocation */
   if ( p!=null ) {
     mp->avail=mp_link(mp->avail); /* and pop it off */
   } else { 
-    decr(mp->hi_mem_min); p=mp->hi_mem_min;
+    mp->hi_mem_min -= 2; 
+    p=mp->hi_mem_min;
     if ( mp->hi_mem_min<=mp->lo_mem_max ) { 
       mp_runaway(mp); /* if memory is exhausted, display possible runaway text */
       mp_overflow(mp, "main memory size",mp->mem_max);
@@ -3943,9 +3975,9 @@ when |max_halfword| appears in the |link| field of a nonempty node.)
 @d is_empty(A)   (mp_link((A))==empty_flag) /* tests for empty node */
 
 @(mpmp.h@>=
-#define node_size   mp_info /* the size field in empty variable-size nodes */
-#define lmp_link(A)   mp_info((A)+1) /* left link in doubly-linked list of empty nodes */
-#define rmp_link(A)   mp_link((A)+1) /* right link in doubly-linked list of empty nodes */
+#define node_size(A)  mp->mem[(A)].hh.lh /* the size field in empty variable-size nodes */
+#define lmp_link(A)   mp->mem[((A)+1)].hh.lh /* left link in doubly-linked list of empty nodes */
+#define rmp_link(A)   mp->mem[((A)+1)].hh.rh /* right link in doubly-linked list of empty nodes */
 
 @ @<Glob...@>=
 pointer rover; /* points to some node in the list of empties */
@@ -4020,7 +4052,7 @@ implemented on ``virtual memory'' systems.
   rmp_link(q)=mp->rover; lmp_link(q)=p; mp_link(q)=empty_flag; 
   node_size(q)=t-mp->lo_mem_max;
   mp->lo_mem_max=t; mp_link(mp->lo_mem_max)=null; 
-  set_mp_info(mp->lo_mem_max,null);
+  mp->mem[mp->lo_mem_max].hh.lh = null;
   mp->rover=q; 
   goto RESTART;
 }
@@ -4090,11 +4122,11 @@ in locations |0| through |lo_mem_stat_max|, and static single-word nodes
 appear in locations |hi_mem_stat_min| through |mem_max|, inclusive.
 
 @d sentinel mp->mem_max /* end of sorted lists */
-@d temp_head (mp->mem_max-1) /* head of a temporary list of some kind */
-@d hold_head (mp->mem_max-2) /* head of a temporary list of another kind */
+@d temp_head (mp->mem_max-2) /* head of a temporary list of some kind */
+@d hold_head (mp->mem_max-4) /* head of a temporary list of another kind */
 
 @(mpmp.h@>=
-#define spec_head (mp->mem_max-3) /* head of a list of unprocessed \&{special} items */
+#define spec_head (mp->mem_max-6) /* head of a list of unprocessed \&{special} items */
 #define null_dash (2) /* the first two words are reserved for a null value */
 #define dep_head (null_dash+3) /* we will define |dash_node_size=3| */
 #define zero_val (dep_head+2) /* two words for a permanently zero value */
@@ -4104,7 +4136,7 @@ appear in locations |hi_mem_stat_min| through |mem_max|, inclusive.
 #define bad_vardef (inf_val+2) /* two words for \&{vardef} error recovery */
 #define lo_mem_stat_max (bad_vardef+1)  /* largest statically
   allocated word in the variable-size |mem| */
-#define hi_mem_stat_min (mp->mem_max-3) /* smallest statically allocated word in
+#define hi_mem_stat_min (mp->mem_max-6) /* smallest statically allocated word in
   the one-word |mem| */
 
 @ The following code gets the dynamic part of |mem| off to a good start.
@@ -4115,8 +4147,8 @@ mp_link(mp->rover)=empty_flag;
 node_size(mp->rover)=1000; /* which is a 1000-word available node */
 lmp_link(mp->rover)=mp->rover; rmp_link(mp->rover)=mp->rover;
 mp->lo_mem_max=mp->rover+1000; 
-mp_link(mp->lo_mem_max)=null; 
-set_mp_info(mp->lo_mem_max,null);
+mp->mem[mp->lo_mem_max].hh.rh = null; 
+mp->mem[mp->lo_mem_max].hh.lh = null;
 for (k=hi_mem_stat_min;k<=(int)mp->mem_max;k++) {
   mp->mem[k]=mp->mem[mp->lo_mem_max]; /* clear list heads */
 }
@@ -5884,7 +5916,7 @@ if ( (p<0)||(p>mp->mem_max) ) {
 if ( p<mp->hi_mem_min ) { 
   @<Display two-word token@>;
 } else { 
-  r=mp_info(p);
+  r=mp_sym_info(p);
   if ( r>=expr_base ) {
      @<Display a parameter token@>;
   } else {
@@ -6030,19 +6062,19 @@ reference count.
 static void mp_show_macro (MP mp, pointer p, integer q, integer l) {
   pointer r; /* temporary storage */
   p=mp_link(p); /* bypass the reference count */
-  while ( mp_info(p)>text_macro ){ 
+  while ( mp_sym_info(p)>text_macro ){ 
     r=mp_link(p); mp_link(p)=null;
     mp_show_token_list(mp, p,null,l,0); mp_link(p)=r; p=r;
     if ( l>0 ) l=l-mp->tally; else return;
   } /* control printing of `\.{ETC.}' */
 @.ETC@>
   mp->tally=0;
-  switch(mp_info(p)) {
+  switch(mp_sym_info(p)) {
   case general_macro:mp_print(mp, "->"); break;
 @.->@>
   case primary_macro: case secondary_macro: case tertiary_macro:
     mp_print_char(mp, xord('<'));
-    mp_print_cmd_mod(mp, param_type,mp_info(p)); 
+    mp_print_cmd_mod(mp, param_type,mp_sym_info(p)); 
     mp_print(mp, ">->");
     break;
   case expr_macro:mp_print(mp, "<expr>->"); break;
@@ -6338,7 +6370,7 @@ void mp_print_variable_name (MP mp, pointer p) {
    Have to prepend a token to |q| for |show_token_list|. 
   */
   r=mp_get_avail(mp); 
-  set_mp_info(r,mp_link(p));
+  set_mp_sym_info(r,mp_link(p));
   mp_link(r)=q;
   if ( mp_name_type(p)==mp_saved_root ) 
     mp_print(mp, "(SAVED)");
@@ -6362,7 +6394,7 @@ void mp_print_variable_name (MP mp, pointer p) {
       mp_confusion(mp, "var");
 @:this can't happen var}{\quad var@>
     r=mp_get_avail(mp); 
-    set_mp_info(r,attr_loc(p)); /* the hash address */
+    set_mp_sym_info(r,attr_loc(p)); /* the hash address */
   }
   mp_link(r)=q; q=r;
 FOUND:  
@@ -6500,7 +6532,7 @@ static pointer mp_find_variable (MP mp,pointer t) {
   integer n; /* subscript or attribute */
   memory_word save_word; /* temporary storage for a word of |mem| */
 @^inner loop@>
-  p=mp_info(t); t=mp_link(t);
+  p=mp_sym_info(t); t=mp_link(t);
   if ( (eq_type(p) % outer_tag) != tag_token ) abort_find;
   if ( equiv(p)==null ) mp_new_root(mp, p);
   p=equiv(p); pp=p;
@@ -6568,7 +6600,7 @@ subscript list, even though that word isn't part of a subscript node.
 
 @ @<Descend one level for the attribute |mp_info(t)|@>=
 { 
-  n=mp_info(t);
+  n=mp_sym_info(t);
   ss=attr_head(pp);
   do {  
     rr=ss; ss=mp_link(ss);
@@ -6624,7 +6656,7 @@ static void mp_flush_variable (MP mp,pointer p, pointer t, boolean discard_suffi
   halfword n; /* attribute to match */
   while ( t!=null ) { 
     if ( mp_type(p)!=mp_structured ) return;
-    n=mp_info(t); 
+    n=mp_sym_info(t); 
     t=mp_link(t);
     if ( n==collective_subscript ) { 
       r=subscr_head_loc(p); q=mp_link(r); /* |q=subscr_head(p)| */
@@ -10153,8 +10185,10 @@ help3("When you say `dashed p', every path in p should be monotone",
 mp_put_get_error(mp);
 }
 
-@ We stash |p| in |mp_info(d)| if |mp_dash_p(p)<>0| so that subsequent processing can
+@ We stash |p| in |mp_dash_info(d)| if |mp_dash_p(p)<>0| so that subsequent processing can
 handle the case where the pen stroke |p| is itself dashed.
+
+@d mp_dash_info(A) mp->mem[(A)].hh.lh
 
 @<Make |d| point to a new dash node created from stroke |p| and path...@>=
 @<Make sure |p| and |p0| are the same color and |goto not_found| if there is
@@ -10170,9 +10204,9 @@ if ( mp_next_knot(pp)!=pp ) {
 }
 d=mp_get_node(mp, dash_node_size);
 if ( mp_dash_p(p)==0 ) 
-  set_mp_info(d,0);  
+  mp_dash_info(d)=0;  
 else 
-  set_mp_info(d,p);
+  mp_dash_info(d)=p;
 if ( mp_x_coord(pp)<mp_x_coord(rr) ) { 
   start_x(d)=mp_x_coord(pp);
   stop_x(d)=mp_x_coord(rr);
@@ -10259,7 +10293,7 @@ smaller dashes.
 @<Scan |dash_list(h)| and deal with any dashes that are themselves dashed@>=
 d=h;  /* now |mp_link(d)=dash_list(h)| */
 while ( mp_link(d)!=null_dash ) {
-  ds=mp_info(mp_link(d));
+  ds=mp_dash_info(mp_link(d));
   if ( ds==null ) { 
     d=mp_link(d);
   } else {
@@ -13798,7 +13832,7 @@ static pointer mp_cur_tok (MP mp) {
     }
   } else { 
     fast_get_avail(p); 
-    set_mp_info(p,mp->cur_sym);
+    set_mp_sym_info(p,mp->cur_sym);
   }
   return p;
 }
@@ -13873,7 +13907,6 @@ off the file stack.
   if ( iindex!=mp->in_open ) mp_confusion(mp, "endinput");
   if ( name>max_spec_src ) {
     (mp->close_file)(mp,cur_file);
-    delete_str_ref(name);
     xfree(in_ext); 
     xfree(in_name); 
     xfree(in_area);
@@ -14050,7 +14083,7 @@ if ( mp->cur_sym!=0 ) {
 @ @<Back up an outer symbolic token so that it can be reread@>=
 if ( mp->cur_sym!=0 ) {
   p=mp_get_avail(mp); 
-  set_mp_info(p,mp->cur_sym);
+  set_mp_sym_info(p,mp->cur_sym);
   back_list(p); /* prepare to read the symbolic token again */
 }
 
@@ -14356,7 +14389,7 @@ mp->cur_cmd=numeric_token; return
 
 @<Input from token list;...@>=
 if ( loc>=mp->hi_mem_min ) { /* one-word token */
-  mp->cur_sym=mp_info(loc); 
+  mp->cur_sym=mp_sym_info(loc); 
   loc=mp_link(loc); /* move to next */
   if ( mp->cur_sym>=expr_base ) {
     if ( mp->cur_sym>=suffix_base ) {
@@ -14886,7 +14919,7 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1} (i.e.,
   ref_count(q)=null;
   r=mp_get_avail(mp); 
   mp_link(q)=r; 
-  set_mp_info(r,general_macro);
+  set_mp_sym_info(r,general_macro);
   mp_link(r)=mp_scan_toks(mp, macro_def,p,null,0);
   mp->scanner_status=normal; 
   eq_type(mp->warning_info)=m;
@@ -14959,7 +14992,7 @@ static void mp_scan_def (MP mp) {
   }
   mp_check_equals(mp);
   p=mp_get_avail(mp); 
-  set_mp_info(p,c); 
+  set_mp_sym_info(p,c); 
   mp_link(q)=p;
   @<Attach the replacement text to the tail of node |p|@>;
   mp->scanner_status=normal; mp_get_x_next(mp);
@@ -14973,10 +15006,10 @@ if ( m==start_def ) {
   mp_link(p)=mp_scan_toks(mp, macro_def,r,null, (quarterword)n);
 } else { 
   q=mp_get_avail(mp); 
-  set_mp_info(q,mp->bg_loc);
+  set_mp_sym_info(q,mp->bg_loc);
   mp_link(p)=q;
   p=mp_get_avail(mp); 
-  set_mp_info(p,mp->eg_loc);
+  set_mp_sym_info(p,mp->eg_loc);
   mp_link(q)=mp_scan_toks(mp, macro_def,r,p, (quarterword)n);
 }
 if ( mp->warning_info==bad_vardef ) 
@@ -14993,7 +15026,7 @@ if ( m==start_def ) {
   eq_type(mp->warning_info)=defined_macro; equiv(mp->warning_info)=q;
 } else { 
   p=mp_scan_declared_variable(mp);
-  mp_flush_variable(mp, equiv(mp_info(p)),mp_link(p),true);
+  mp_flush_variable(mp, equiv(mp_sym_info(p)),mp_link(p),true);
   mp->warning_info=mp_find_variable(mp, p); mp_flush_list(mp, p);
   if ( mp->warning_info==null ) @<Change to `\.{a bad variable}'@>;
   mp->scanner_status=var_defining; n=2;
@@ -15037,7 +15070,7 @@ do {
 do { 
   mp_link(q)=mp_get_avail(mp);
   q=mp_link(q);
-  set_mp_info(q,base+k);
+  set_mp_sym_info(q,base+k);
   mp_get_symbol(mp);
   p=mp_get_node(mp, token_node_size); 
   value(p)=base+k;
@@ -15419,7 +15452,7 @@ mp_show_macro(mp, def_ref,null,100000);
 if ( arg_list!=null ) {
   n=0; p=arg_list;
   do {  
-    q=mp_info(p);
+    q=mp_sym_info(p);
     mp_print_arg(mp, q,n,0);
     incr(n); p=mp_link(p);
   } while (p!=null);
@@ -15436,13 +15469,13 @@ void mp_print_macro_name (MP mp,pointer a, pointer n) {
   if ( n!=null ) {
     mp_print_text(n);
   } else  { 
-    p=mp_info(a);
+    p=mp_sym_info(a);
     if ( p==null ) {
-      mp_print_text(mp_info(mp_info(mp_link(a))));
+      mp_print_text(mp_sym_info(mp_sym_info(mp_link(a))));
     } else { 
       q=p;
       while ( mp_link(q)!=null ) q=mp_link(q);
-      mp_link(q)=mp_info(mp_link(a));
+      mp_link(q)=mp_sym_info(mp_link(a));
       mp_show_token_list(mp, p,null,1000,0);
       mp_link(q)=null;
     }
@@ -15472,7 +15505,7 @@ void mp_print_arg (MP mp,pointer q, integer n, pointer b) {
 
 @ @<Scan the remaining arguments, if any; set |r|...@>=
 mp->cur_cmd=comma+1; /* anything |<>comma| will do */
-while ( mp_info(r)>=expr_base ) { 
+while ( mp_sym_info(r)>=expr_base ) { 
   @<Scan the delimited argument represented by |mp_info(r)|@>;
   r=mp_link(r);
 }
@@ -15488,7 +15521,7 @@ if ( mp->cur_cmd==comma ) {
    "You might want to delete some tokens before continuing.");
   mp_error(mp);
 }
-if ( mp_info(r)!=general_macro ) {
+if ( mp_sym_info(r)!=general_macro ) {
   @<Scan undelimited argument(s)@>;
 }
 r=mp_link(r)
@@ -15512,7 +15545,7 @@ if ( mp->cur_cmd!=comma ) {
     help3("That macro has more parameters than you thought.",
      "I'll continue by pretending that each missing argument",
      "is either zero or null.");
-    if ( mp_info(r)>=suffix_base ) {
+    if ( mp_sym_info(r)>=suffix_base ) {
       mp->cur_exp.data.val=null; mp->cur_exp.type=mp_token_list;
     } else { 
       mp->cur_exp.data.val=0; mp->cur_exp.type=mp_known;
@@ -15530,7 +15563,7 @@ FOUND:
 
 @ @<Check that the proper right delim...@>=
 if ( (mp->cur_cmd!=right_delimiter)||(mp->cur_mod!=l_delim) ) {
-  if ( mp_info(mp_link(r))>=expr_base ) {
+  if ( mp_sym_info(mp_link(r))>=expr_base ) {
     mp_missing_err(mp, ",");
 @.Missing `,'@>
     help3("I've finished reading a macro argument and am about to",
@@ -15554,11 +15587,11 @@ a token list pointed to by |cur_exp|, in which case we will have
 { 
   p=mp_get_avail(mp);
   if ( mp->cur_exp.type==mp_token_list ) 
-    set_mp_info(p,mp->cur_exp.data.val);
+    set_mp_sym_info(p,mp->cur_exp.data.val);
   else 
-    set_mp_info(p,mp_stash_cur_exp(mp));
+    set_mp_sym_info(p,mp_stash_cur_exp(mp));
   if ( internal_value(mp_tracing_macros)>0 ) {
-    mp_begin_diagnostic(mp); mp_print_arg(mp, mp_info(p),n,mp_info(r)); 
+    mp_begin_diagnostic(mp); mp_print_arg(mp, mp_sym_info(p),n,mp_sym_info(r)); 
     mp_end_diagnostic(mp, false);
   }
   if ( arg_list==null ) arg_list=p;
@@ -15567,11 +15600,11 @@ a token list pointed to by |cur_exp|, in which case we will have
 }
 
 @ @<Scan the argument represented by |mp_info(r)|@>=
-if ( mp_info(r)>=text_base ) {
+if ( mp_sym_info(r)>=text_base ) {
   mp_scan_text_arg(mp, l_delim,r_delim);
 } else { 
   mp_get_x_next(mp);
-  if ( mp_info(r)>=suffix_base ) mp_scan_suffix(mp);
+  if ( mp_sym_info(r)>=suffix_base ) mp_scan_suffix(mp);
   else mp_scan_expression(mp);
 }
 
@@ -15622,13 +15655,13 @@ if ( end_of_statement ) { /* |cur_cmd=semicolon|, |end_group|, or |stop| */
 
 @ @<Scan undelimited argument(s)@>=
 { 
-  if ( mp_info(r)<text_macro ) {
+  if ( mp_sym_info(r)<text_macro ) {
     mp_get_x_next(mp);
-    if ( mp_info(r)!=suffix_macro ) {
+    if ( mp_sym_info(r)!=suffix_macro ) {
       if ( (mp->cur_cmd==equals)||(mp->cur_cmd==assignment) ) mp_get_x_next(mp);
     }
   }
-  switch (mp_info(r)) {
+  switch (mp_sym_info(r)) {
   case primary_macro:mp_scan_primary(mp); break;
   case secondary_macro:mp_scan_secondary(mp); break;
   case tertiary_macro:mp_scan_tertiary(mp); break;
@@ -15649,9 +15682,9 @@ if ( end_of_statement ) { /* |cur_cmd=semicolon|, |end_group|, or |stop| */
 { 
   mp_scan_expression(mp);
   p=mp_get_avail(mp);
-  set_mp_info(p,mp_stash_cur_exp(mp));
+  set_mp_sym_info(p,mp_stash_cur_exp(mp));
   if ( internal_value(mp_tracing_macros)>0 ) { 
-    mp_begin_diagnostic(mp); mp_print_arg(mp, mp_info(p),n,0); 
+    mp_begin_diagnostic(mp); mp_print_arg(mp, mp_sym_info(p),n,0); 
     mp_end_diagnostic(mp, false);
   }
   if ( arg_list==null ) arg_list=p; else mp_link(tail)=p;
@@ -15704,7 +15737,8 @@ loc=r;
 if ( n>0 ) {
   p=arg_list;
   do {  
-   mp->param_stack[mp->param_ptr]=mp_info(p); incr(mp->param_ptr); p=mp_link(p);
+   mp->param_stack[mp->param_ptr]=mp_sym_info(p); 
+   incr(mp->param_ptr); p=mp_link(p);
   } while (p!=null);
   mp_flush_list(mp, arg_list);
 }
@@ -16085,7 +16119,8 @@ token, so it won't be lost accidentally.)
 
 @ @<Scan the loop text...@>=
 q=mp_get_avail(mp); 
-set_mp_info(q, mp_get_frozen_primitive(mp, mp->frozen_repeat_loop));
+set_mp_sym_info(q, 
+mp_get_frozen_primitive(mp, mp->frozen_repeat_loop));
 mp->scanner_status=loop_defining; 
 mp->warning_info=n;
 s->info=mp_scan_toks(mp, iteration,p,q,0); 
@@ -16139,7 +16174,7 @@ mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_ta
        free_avail(q);
     }
     mp->loop_ptr->list=mp_link(p); 
-    q=mp_info(p); 
+    q=mp_sym_info(p); 
     free_avail(p);
   } else if ( p==mp_void ) { 
     mp_begin_token_list(mp, mp->loop_ptr->info, (quarterword)forever_text); 
@@ -16200,7 +16235,7 @@ from the input stack.
   } else if ( p==null ){ 
     q=mp->loop_ptr->list;
     while ( q!=null ) {
-      p=mp_info(q);
+      p=mp_sym_info(q);
       if ( p!=null ) {
         if ( mp_link(p)==mp_void ) { /* it's an \&{expr} parameter */
           mp_recycle_value(mp, p); 
@@ -16249,7 +16284,7 @@ do {
   }
   mp_link(q)=mp_get_avail(mp); 
   q=mp_link(q); 
-  set_mp_info(q, mp->cur_exp.data.val);
+  set_mp_sym_info(q, mp->cur_exp.data.val);
   mp->cur_exp.type=mp_vacuous;
 CONTINUE:
   ;
@@ -17591,7 +17626,8 @@ static void mp_recycle_value (MP mp,pointer p) {
   case unknown_types:
     mp_ring_delete(mp, p); break;
   case mp_string_type:
-    delete_str_ref(str_value(p)); break;
+    delete_str_ref(str_value(p)); 
+    break;
   case mp_path_type: 
   case mp_pen_type:
     mp_toss_knot_list(mp, knot_value(p)); 
@@ -18238,7 +18274,7 @@ of the save stack, as described earlier.)
     mp_get_x_next(mp);
     if ( mp->cur_cmd==assignment ) {
       mp->cur_exp.data.val=mp_get_avail(mp);
-      set_mp_info(mp->cur_exp.data.val,q+hash_end); 
+      set_mp_sym_info(mp->cur_exp.data.val,q+hash_end); 
       mp->cur_exp.type=mp_token_list; 
       goto DONE;
     }
@@ -18367,7 +18403,9 @@ into the variable structure; we need to start searching from the root each time.
 @<Find the approximate type |tt| and corresponding~|q|@>=
 @^inner loop@>
 { 
-  p=mp_link(pre_head); q=mp_info(p); tt=undefined;
+  p=mp_link(pre_head); 
+  q=mp_sym_info(p); 
+  tt=undefined;
   if ( eq_type(q) % outer_tag==tag_token ) {
     q=equiv(q);
     if ( q==null ) goto DONE2;
@@ -18379,8 +18417,8 @@ into the variable structure; we need to start searching from the root each time.
       if ( mp_type(q)!=mp_structured ) goto DONE2;
       q=mp_link(attr_head(q)); /* the |collective_subscript| attribute */
       if ( p>=mp->hi_mem_min ) { /* it's not a subscript */
-        do {  q=mp_link(q); } while (! (attr_loc(q)>=mp_info(p)));
-        if ( attr_loc(q)>mp_info(p) ) goto DONE2;
+        do {  q=mp_link(q); } while (! (attr_loc(q)>=mp_sym_info(p)));
+        if ( attr_loc(q)>mp_sym_info(p) ) goto DONE2;
       }
     }
   }
@@ -18450,9 +18488,9 @@ and ``at'' parameters must be packaged in an appropriate list of lists.
 @<Set up unsuffixed macro call and |goto restart|@>=
 { 
   p=mp_get_avail(mp); 
-  set_mp_info(pre_head,mp_link(pre_head)); 
+  set_mp_sym_info(pre_head,mp_link(pre_head)); 
   mp_link(pre_head)=p;
-  set_mp_info(p,t); 
+  set_mp_sym_info(p,t); 
   mp_macro_call(mp, value(q),pre_head,null);
   mp_get_x_next(mp); 
   goto RESTART;
@@ -18465,11 +18503,11 @@ token list.
 @<Set up suffixed macro call and |goto restart|@>=
 { 
   mp_back_input(mp); p=mp_get_avail(mp); q=mp_link(post_head);
-  set_mp_info(pre_head,mp_link(pre_head)); 
+  set_mp_sym_info(pre_head,mp_link(pre_head)); 
   mp_link(pre_head)=post_head;
-  set_mp_info(post_head,q); 
+  set_mp_sym_info(post_head,q); 
   mp_link(post_head)=p; 
-  set_mp_info(p,mp_link(q)); 
+  set_mp_sym_info(p,mp_link(q)); 
   mp_link(q)=null;
   mp_macro_call(mp, macro_ref,pre_head,null); decr(ref_count(macro_ref));
   mp_get_x_next(mp); goto RESTART;
@@ -18636,7 +18674,7 @@ static void mp_scan_suffix (MP mp) {
       p=mp_new_num_tok(mp, mp->cur_mod);
     } else if ((mp->cur_cmd==tag_token)||(mp->cur_cmd==internal_quantity) ) {
        p=mp_get_avail(mp); 
-       set_mp_info(p,mp->cur_sym);
+       set_mp_sym_info(p,mp->cur_sym);
     } else {
       break;
     }
@@ -18714,8 +18752,8 @@ CONTINUE:
 static void mp_binary_mac (MP mp,pointer p, pointer c, pointer n) {
   pointer q,r; /* nodes in the parameter list */
   q=mp_get_avail(mp); r=mp_get_avail(mp); mp_link(q)=r;
-  set_mp_info(q,p); 
-  set_mp_info(r,mp_stash_cur_exp(mp));
+  set_mp_sym_info(q,p); 
+  set_mp_sym_info(r,mp_stash_cur_exp(mp));
   mp_macro_call(mp, c,q,n);
 }
 
@@ -19988,8 +20026,8 @@ case text_part:
   if ( mp_type(p)!=mp_text_code ) goto NOT_FOUND;
   else { 
     new_expr.data.str = mp_text_p(p);
+    add_str_ref(new_expr.data.str);
     mp_flush_cur_exp(mp, new_expr);
-    add_str_ref(mp->cur_exp.data.str);
     mp->cur_exp.type=mp_string_type;
     };
   break;
@@ -19997,8 +20035,8 @@ case font_part:
   if ( mp_type(p)!=mp_text_code ) goto NOT_FOUND;
   else { 
     new_expr.data.str = mp_rts(mp,mp->font_name[mp_font_n(p)]);
+    add_str_ref(new_expr.data.str);
     mp_flush_cur_exp(mp, new_expr); 
-    add_str_ref(mp->cur_exp.data.str);
     mp->cur_exp.type=mp_string_type;
   };
   break;
@@ -20838,17 +20876,20 @@ if ( c==close_from_op )
   goto CLOSE_FILE;
 {
   new_expr.data.str = mp->eof_line;
+  add_str_ref(new_expr.data.str);
   mp_flush_cur_exp(mp, new_expr);
 }
 mp->cur_exp.type=mp_string_type
 
-@ The string denoting end-of-file is a one-byte string at position zero, by definition
+@ The string denoting end-of-file is a one-byte string at position zero, by definition.
+I have to cheat a little here because 
 
 @<Glob...@>=
 str_number eof_line;
 
 @ @<Set init...@>=
-mp->eof_line=0;
+mp->eof_line=mp_rtsl(mp,"\0",2);
+mp->eof_line->refs = max_str_ref;
 
 @ Finally, we have the operations that combine a capsule~|p|
 with the current expression.
@@ -22584,7 +22625,7 @@ void mp_do_assignment (MP mp) {
       mp_do_assignment(mp);
     if ( internal_value(mp_tracing_commands)>two ) 
       @<Trace the current assignment@>;
-    if ( mp_info(lhs)>hash_end ) {
+    if ( mp_sym_info(lhs)>hash_end ) {
       @<Assign the current expression to an internal variable@>;
     } else  {
       @<Assign the current expression to the variable |lhs|@>;
@@ -22607,8 +22648,8 @@ void mp_do_assignment (MP mp) {
 @ @<Trace the current assignment@>=
 { 
   mp_begin_diagnostic(mp); mp_print_nl(mp, "{");
-  if ( mp_info(lhs)>hash_end ) 
-     mp_print(mp, internal_name(mp_info(lhs)-(hash_end)));
+  if ( mp_sym_info(lhs)>hash_end ) 
+     mp_print(mp, internal_name(mp_sym_info(lhs)-(hash_end)));
   else 
      mp_show_token_list(mp, lhs,null,1000,0);
   mp_print(mp, ":="); mp_print_exp(mp, null,0); 
@@ -22618,35 +22659,35 @@ void mp_do_assignment (MP mp) {
 @ @<Assign the current expression to an internal variable@>=
 if ( mp->cur_exp.type==mp_known || mp->cur_exp.type==mp_string_type )  {
   if (mp->cur_exp.type==mp_string_type) {
-    if (internal_type(mp_info(lhs)-(hash_end))!=mp->cur_exp.type) {
+    if (internal_type(mp_sym_info(lhs)-(hash_end))!=mp->cur_exp.type) {
        exp_err("Internal quantity `");
 @.Internal quantity...@>
-       mp_print(mp, internal_name(mp_info(lhs)-(hash_end)));
+       mp_print(mp, internal_name(mp_sym_info(lhs)-(hash_end)));
        mp_print(mp, "' must receive a known numeric value");
        help2("I can\'t set this internal quantity to anything but a known",
              "numeric value, so I'll have to ignore this assignment.");
       mp_put_get_error(mp);
     } else {
       add_str_ref(mp->cur_exp.data.str);
-      internal_string(mp_info(lhs)-(hash_end))=mp->cur_exp.data.str;
+      internal_string(mp_sym_info(lhs)-(hash_end))=mp->cur_exp.data.str;
     }
   } else { /* mp_known */
-    if (internal_type(mp_info(lhs)-(hash_end))!=mp->cur_exp.type) {
+    if (internal_type(mp_sym_info(lhs)-(hash_end))!=mp->cur_exp.type) {
        exp_err("Internal quantity `");
 @.Internal quantity...@>
-       mp_print(mp, internal_name(mp_info(lhs)-(hash_end)));
+       mp_print(mp, internal_name(mp_sym_info(lhs)-(hash_end)));
        mp_print(mp, "' must receive a known string");
        help2("I can\'t set this internal quantity to anything but a known",
              "string, so I'll have to ignore this assignment.");
       mp_put_get_error(mp);
     } else {
-      internal_value(mp_info(lhs)-(hash_end))=mp->cur_exp.data.val;
+      internal_value(mp_sym_info(lhs)-(hash_end))=mp->cur_exp.data.val;
     }
   }
 } else { 
   exp_err("Internal quantity `");
 @.Internal quantity...@>
-  mp_print(mp, internal_name(mp_info(lhs)-(hash_end)));
+  mp_print(mp, internal_name(mp_sym_info(lhs)-(hash_end)));
   mp_print(mp, "' must receive a known numeric or string");
   help2("I can\'t set an internal quantity to anything but a known string",
         "or known numeric value, so I'll have to ignore this assignment.");
@@ -22910,7 +22951,7 @@ pointer mp_scan_declared_variable (MP mp) {
   mp_get_symbol(mp); x=mp->cur_sym;
   if ( mp->cur_cmd!=tag_token ) mp_clear_symbol(mp, x,false);
   h=mp_get_avail(mp); 
-  set_mp_info(h,x);
+  set_mp_sym_info(h,x);
   t=h;
   while (1) { 
     mp_get_x_next(mp);
@@ -22923,7 +22964,7 @@ pointer mp_scan_declared_variable (MP mp) {
       }
     }
     mp_link(t)=mp_get_avail(mp); t=mp_link(t); 
-    set_mp_info(t,mp->cur_sym);
+    set_mp_sym_info(t,mp->cur_sym);
   }
   if ( (eq_type(x)%outer_tag)!=tag_token ) mp_clear_symbol(mp, x,false);
   if ( equiv(x)==null ) mp_new_root(mp, x);
@@ -22989,7 +23030,7 @@ void mp_do_type_declaration (MP mp) {
     t=(quarterword)(mp->cur_mod+unknown_tag);
   do {  
     p=mp_scan_declared_variable(mp);
-    mp_flush_variable(mp, equiv(mp_info(p)),mp_link(p),false);
+    mp_flush_variable(mp, equiv(mp_sym_info(p)),mp_link(p),false);
     q=mp_find_variable(mp, p);
     if ( q!=null ) { 
       mp_type(q)=t; 
@@ -24958,7 +24999,7 @@ static void mp_do_write (MP mp) ;
     else {
       @<Write |t| to the file named by |cur_exp|@>;
     }
-    delete_str_ref(t);
+    /* delete_str_ref(t); */
   }
   new_expr.data.val = 0;
   mp_flush_cur_exp(mp, new_expr);
@@ -26759,8 +26800,8 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     ss = mp_str(mp,s);
     nn = mp_str(mp,n);
     mp_pack_file_name(mp, nn,"",ss);
-    delete_str_ref(n);
-    delete_str_ref(s);
+    delete_str_ref(n); 
+    delete_str_ref(s); 
   }
   return ss;
 }
