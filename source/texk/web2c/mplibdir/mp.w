@@ -3872,13 +3872,10 @@ free locations form a linked list
 $$|avail|,\;\hbox{|mp_link(avail)|},\;\hbox{|mp_link(mp_link(avail))|},\;\ldots$$
 terminated by |null|.
 
-@(mpmp.h@>=
-#define mp_link(A)   mp->mem[(A)].hh.rh /* the |link| field of a memory word */
-#define mp_info(A)   mp->mem[(A)].hh.lh /* the |info| field of a memory word */
-#define mp_r_knot(A)  mp->mem[(A)].hh.p.Q /* the second |mp_knot| pointer */
-#define mp_l_knot(A)  mp->mem[(A)].hh.p.P /* the first |mp_knot| pointer */
+@d mp_link(A)   mp->mem[(A)].hh.rh /* the |link| field of a memory word */
+@d mp_info(A)   mp->mem[(A)].hh.lh /* the |info| field of a memory word */
 
-@ @<Glob...@>=
+@<Glob...@>=
 pointer avail; /* head of the list of available one-word nodes */
 pointer mem_end; /* the last one-word node used in |mem| */
 
@@ -6006,7 +6003,7 @@ The next node or nodes after the reference count serve to describe the
 formal parameters. They consist of zero or more parameter tokens followed
 by a code for the type of macro.
 
-@d ref_count mp_info
+@d ref_count(A) mp->mem[(A)].hh.lh
   /* reference count preceding a macro definition or picture header */
 @d add_mac_ref(A) incr(ref_count((A))) /* make a new reference to a macro list */
 @d general_macro 0 /* preface to a macro defined with a parameter list */
@@ -6089,8 +6086,8 @@ and |subscr_head|. Those fields point to additional nodes that
 contain structural information, as we shall see.
 
 @d subscr_head_loc(A)   (A)+1 /* where |value|, |subscr_head| and |attr_head| are */
-@d attr_head(A)   mp_info(subscr_head_loc((A))) /* pointer to attribute info */
-@d subscr_head(A)   mp_link(subscr_head_loc((A))) /* pointer to subscript info */
+@d attr_head(A)   mp->mem[(subscr_head_loc((A)))].hh.lh /* pointer to attribute info */
+@d subscr_head(A)   mp->mem[(subscr_head_loc((A)))].hh.rh /* pointer to subscript info */
 @d value_node_size 2 /* the number of words in a value node */
 
 @ An attribute node is three words long. Two of these words contain |type|
@@ -6183,8 +6180,8 @@ branches of the structure below subscript nodes do not carry significant
 information in their collective subscript attributes.
 
 @d attr_loc_loc(A) ((A)+2) /* where the |attr_loc| and |parent| fields are */
-@d attr_loc(A) mp_info(attr_loc_loc((A))) /* hash address of this attribute */
-@d parent(A) mp_link(attr_loc_loc((A))) /* pointer to |mp_structured| variable */
+@d attr_loc(A) mp->mem[(attr_loc_loc((A)))].hh.lh /* hash address of this attribute */
+@d parent(A) mp->mem[(attr_loc_loc((A)))].hh.rh /* pointer to |mp_structured| variable */
 @d subscript_loc(A) ((A)+2) /* where the |subscript| field lives */
 @d subscript(A) mp->mem[subscript_loc((A))].sc /* subscript of this variable */
 @d attr_node_size 3 /* the number of words in an attribute node */
@@ -6337,8 +6334,15 @@ void mp_print_variable_name (MP mp, pointer p) {
     @<Ascend one level, pushing a token onto list |q|
      and replacing |p| by its parent@>;
   }
-  r=mp_get_avail(mp); mp_info(r)=mp_link(p); mp_link(r)=q;
-  if ( mp_name_type(p)==mp_saved_root ) mp_print(mp, "(SAVED)");
+  /* now |link(p)| is the hash address of |p|, and
+   |name_type(p)| is either |root| or |saved_root|. 
+   Have to prepend a token to |q| for |show_token_list|. 
+  */
+  r=mp_get_avail(mp); 
+  mp_info(r)=mp_link(p);
+  mp_link(r)=q;
+  if ( mp_name_type(p)==mp_saved_root ) 
+    mp_print(mp, "(SAVED)");
 @.SAVED@>
   mp_show_token_list(mp, r,null,el_gordo,mp->tally); 
   mp_flush_token_list(mp, r);
@@ -6352,11 +6356,14 @@ void mp_print_variable_name (MP mp, pointer p) {
       p=mp_link(p);
     } while (mp_name_type(p)!=mp_attr);
   } else if ( mp_name_type(p)==mp_structured_root ) {
-    p=mp_link(p); goto FOUND;
+    p=mp_link(p); 
+    goto FOUND;
   } else { 
-    if ( mp_name_type(p)!=mp_attr ) mp_confusion(mp, "var");
+    if ( mp_name_type(p)!=mp_attr ) 
+      mp_confusion(mp, "var");
 @:this can't happen var}{\quad var@>
-    r=mp_get_avail(mp); mp_info(r)=attr_loc(p);
+    r=mp_get_avail(mp); 
+    mp_info(r)=attr_loc(p); /* the hash address */
   }
   mp_link(r)=q; q=r;
 FOUND:  
@@ -6618,7 +6625,8 @@ static void mp_flush_variable (MP mp,pointer p, pointer t, boolean discard_suffi
   halfword n; /* attribute to match */
   while ( t!=null ) { 
     if ( mp_type(p)!=mp_structured ) return;
-    n=mp_info(t); t=mp_link(t);
+    n=mp_info(t); 
+    t=mp_link(t);
     if ( n==collective_subscript ) { 
       r=subscr_head_loc(p); q=mp_link(r); /* |q=subscr_head(p)| */
       while ( mp_name_type(q)==mp_subscr ){ 
@@ -9271,9 +9279,9 @@ pointer to a cyclic path and the value to use for \ps' \&{currentrgbcolor}
 parameter.  If a pen is used for filling |pen_p|, |ljoin_val| and |miterlim_val|
 give the relevant information.
 
-@d mp_path_p(A) mp_r_knot((A)+1)
+@d mp_path_p(A) mp->mem[(A)+1].hh.p.Q
   /* a pointer to the path that needs filling */
-@d mp_pen_p(A) mp_l_knot((A)+1)
+@d mp_pen_p(A) mp->mem[(A)+1].hh.p.P 
   /* a pointer to the pen to fill or stroke with */
 @d mp_color_model(A) mp_type((A)+2) /*  the color model  */
 @d obj_red_loc(A) ((A)+3)  /* the first of three locations for the color */
@@ -9338,7 +9346,7 @@ factor for the dash pattern, and a pointer that is non-null if the stroke
 is to be dashed.  The purpose of the scale factor is to allow a picture to
 be transformed without touching the picture that |dash_p| points to.
 
-@d mp_dash_p(A) mp_link((A)+9)
+@d mp_dash_p(A) mp->mem[((A)+9)].hh.rh
   /* a pointer to the edge structure that gives the dash pattern */
 @d lcap_val(A) mp_type((A)+9)
   /* the value of \&{linecap} */
@@ -9425,7 +9433,7 @@ function initializes everything to default values so that the text comes out
 black with its reference point at the origin.
 
 @d mp_text_p(A) mp->mem[(A)+1].hh.v.str  /* a string pointer for the text to display */
-@d mp_font_n(A) mp_info((A)+1)  /* the font number */
+@d mp_font_n(A) mp->mem[(A)+1].hh.lh  /* the font number */
 @d width_val(A) mp->mem[(A)+7].sc  /* unscaled width of the text */
 @d height_val(A) mp->mem[(A)+9].sc  /* unscaled height of the text */
 @d depth_val(A) mp->mem[(A)+10].sc  /* unscaled depth of the text */
@@ -9571,8 +9579,8 @@ field is needed to keep track of this.
 @d miny_val(A) mp->mem[(A)+3].sc
 @d maxx_val(A) mp->mem[(A)+4].sc
 @d maxy_val(A) mp->mem[(A)+5].sc
-@d bblast(A) mp_link((A)+6)  /* last item considered in bounding box computation */
-@d bbtype(A) mp_info((A)+6)  /* tells how bounding box data depends on \&{truecorners} */
+@d bblast(A) mp->mem[(A)+6].hh.rh  /* last item considered in bounding box computation */
+@d bbtype(A) mp->mem[(A)+6].hh.lh  /* tells how bounding box data depends on \&{truecorners} */
 @d dummy_loc(A) ((A)+7)  /* where the object list begins in an edge header */
 @d no_bounds 0
   /* |bbtype| value when bounding box data is valid for all \&{truecorners} values */
@@ -9595,7 +9603,7 @@ static void mp_init_bbox (MP mp,pointer h) {
 @ The only other entries in an edge header are a reference count in the first
 word and a pointer to the tail of the object list in the last word.
 
-@d obj_tail(A) mp_info((A)+7)  /* points to the last entry in the object list */
+@d obj_tail(A) mp->mem[(A)+7].hh.lh  /* points to the last entry in the object list */
 @d edge_header_size 8
 
 @c 
@@ -12315,9 +12323,9 @@ points to its dependency list. If the final link of that dependency list
 occurs in location~|q|, then |mp_link(q)| points to the next dependent
 variable (say~|r|); and we have |prev_dep(r)=q|, etc.
 
-@d dep_list(A) mp_link(value_loc((A)))
+@d dep_list(A) mp->mem[(value_loc((A)))].hh.rh
   /* half of the |value| field in a |dependent| variable */
-@d prev_dep(A) mp_info(value_loc((A)))
+@d prev_dep(A) mp->mem[(value_loc((A)))].hh.lh
   /* the other half; makes a doubly linked list */
 @d dep_node_size 2 /* the number of words per dependency node */
 
@@ -12765,8 +12773,10 @@ while (1) {
   if ( x==null ) break;
   if ( mp_type(x)<=independent_being_fixed ) {
     if ( mp_type(x)<independent_being_fixed ) {
-      p=mp_get_avail(mp); mp_link(p)=s; s=p;
-      mp_info(s)=x; mp_type(x)=independent_being_fixed;
+      p=mp_get_avail(mp); 
+      mp_link(p)=s; s=p;
+      mp_info(s)=x; 
+      mp_type(x)=independent_being_fixed;
     }
     value(q)=value(q) / 4;
     if ( value(q)==0 ) {
@@ -13785,7 +13795,8 @@ static pointer mp_cur_tok (MP mp) {
       }
     }
   } else { 
-    fast_get_avail(p); mp_info(p)=mp->cur_sym;
+    fast_get_avail(p); 
+    mp_info(p)=mp->cur_sym;
   }
   return p;
 }
@@ -14036,7 +14047,8 @@ if ( mp->cur_sym!=0 ) {
 
 @ @<Back up an outer symbolic token so that it can be reread@>=
 if ( mp->cur_sym!=0 ) {
-  p=mp_get_avail(mp); mp_info(p)=mp->cur_sym;
+  p=mp_get_avail(mp); 
+  mp_info(p)=mp->cur_sym;
   back_list(p); /* prepare to read the symbolic token again */
 }
 
@@ -14342,7 +14354,8 @@ mp->cur_cmd=numeric_token; return
 
 @<Input from token list;...@>=
 if ( loc>=mp->hi_mem_min ) { /* one-word token */
-  mp->cur_sym=mp_info(loc); loc=mp_link(loc); /* move to next */
+  mp->cur_sym=mp_info(loc); 
+  loc=mp_link(loc); /* move to next */
   if ( mp->cur_sym>=expr_base ) {
     if ( mp->cur_sym>=suffix_base ) {
       @<Insert a suffix or text parameter and |goto restart|@>;
@@ -14943,7 +14956,9 @@ static void mp_scan_def (MP mp) {
     @<Absorb undelimited parameters, putting them into list |r|@>;
   }
   mp_check_equals(mp);
-  p=mp_get_avail(mp); mp_info(p)=c; mp_link(q)=p;
+  p=mp_get_avail(mp); 
+  mp_info(p)=c; 
+  mp_link(q)=p;
   @<Attach the replacement text to the tail of node |p|@>;
   mp->scanner_status=normal; mp_get_x_next(mp);
 }
@@ -14955,8 +14970,11 @@ a \&{vardef}, because the user may want to redefine `\.{endgroup}'.
 if ( m==start_def ) {
   mp_link(p)=mp_scan_toks(mp, macro_def,r,null, (quarterword)n);
 } else { 
-  q=mp_get_avail(mp); mp_info(q)=mp->bg_loc; mp_link(p)=q;
-  p=mp_get_avail(mp); mp_info(p)=mp->eg_loc;
+  q=mp_get_avail(mp); 
+  mp_info(q)=mp->bg_loc; 
+  mp_link(p)=q;
+  p=mp_get_avail(mp); 
+  mp_info(p)=mp->eg_loc;
   mp_link(q)=mp_scan_toks(mp, macro_def,r,p, (quarterword)n);
 }
 if ( mp->warning_info==bad_vardef ) 
