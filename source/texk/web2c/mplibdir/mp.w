@@ -7294,7 +7294,7 @@ static mp_knot *mp_htap_ypoc (MP mp, mp_knot *p) {
     mp_originator(qq)=mp_originator(pp);
     if ( mp_next_knot(pp)==p ) { 
       mp_next_knot(q)=qq; 
-      /* |mp->path_tail=pp;| */ /* ? */
+      mp->path_tail=pp;
       return q;
     }
     rr=mp_new_knot(mp);
