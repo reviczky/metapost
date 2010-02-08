@@ -1130,8 +1130,8 @@ str_number mp_rtsl (MP mp, const char *s, size_t l) {
 	xfree(str); 
        str = (str_number) avl_find (&tmp, mp->strings);
     }
+    str->refs++;
     free (tmp.str);
-    str->refs = 1;
     return str;
 }
 str_number mp_rts (MP mp, const char *s) {
