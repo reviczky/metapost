@@ -1042,7 +1042,7 @@ static void *copy_strings_entry (const void *p) {
     if (ff->str == NULL) {
 	return NULL;
     }
-    strncpy((char *)ff->str,(char *)fp->str,fp->len + 1);
+    memcpy((char *)ff->str,(char *)fp->str,fp->len + 1);
     ff->len = fp->len;
     ff->refs = 0;
     return ff;
@@ -1118,12 +1118,14 @@ char * mp_str (MP mp, str_number ss) {
 str_number mp_rtsl (MP mp, const char *s, size_t l) {
     str_number str;
     mp_lstring tmp;
-    tmp.str = (unsigned char *)xstrdup(s);
+    tmp.str = xmalloc(l+1,1);
+    memcpy(tmp.str, s, (l+1));
     tmp.len = l;
     str = (str_number) avl_find (&tmp, mp->strings);
     if (str == NULL) { /* not yet known */
         str = new_strings_entry (mp);
-        str->str = (unsigned char *)mp_xstrdup (mp, s);
+    	str->str = xmalloc(l+1,1);
+	memcpy(str->str, s, (l+1));
         str->len = tmp.len;
         assert(avl_ins (str, mp->strings, avl_false)>0);
 	xfree(str->str);
@@ -16174,7 +16176,10 @@ mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_ta
        free_avail(q);
     }
     mp->loop_ptr->list=mp_link(p); 
-    q=mp_sym_info(p); 
+    if (p>=mp->hi_mem_min) 
+      q=mp_sym_info(p); 
+    else
+      q=mp_info(p); 
     free_avail(p);
   } else if ( p==mp_void ) { 
     mp_begin_token_list(mp, mp->loop_ptr->info, (quarterword)forever_text); 
@@ -20888,7 +20893,7 @@ I have to cheat a little here because
 str_number eof_line;
 
 @ @<Set init...@>=
-mp->eof_line=mp_rtsl(mp,"\0",2);
+mp->eof_line=mp_rtsl(mp,"\0",1);
 mp->eof_line->refs = max_str_ref;
 
 @ Finally, we have the operations that combine a capsule~|p|
