@@ -24389,6 +24389,8 @@ static void mp_scan_with_list (MP mp,pointer p) ;
   cp=mp_void; pp=mp_void; dp=mp_void; ap=mp_void; bp=mp_void;
   k=0;
   new_expr.data.val = 0;
+  if (p==29810)
+    printf("with list: %d\n", p);
   while ( mp->cur_cmd==with_option ){ 
     t=(quarterword)mp->cur_mod;
     mp_get_x_next(mp);
@@ -24630,7 +24632,9 @@ mp_color_model(cp)=mp_uninitialized_model;
 }
 
 @ @<Copy the information from objects |cp|, |pp|, and |dp| into...@>=
-@<Copy |cp|'s color into the colored objects linked to~|cp|@>;
+if ( cp>mp_void ) {
+  @<Copy |cp|'s color into the colored objects linked to~|cp|@>;
+}
 if ( pp>mp_void ) {
   @<Copy |mp_pen_p(pp)| into stroked and filled nodes linked to |pp|@>;
 }
@@ -24640,7 +24644,8 @@ if ( dp>mp_void ) {
 
 
 @ @<Copy |cp|'s color into the colored objects linked to~|cp|@>=
-{ q=mp_link(cp);
+{
+  q=mp_link(cp);
   while ( q!=null ) { 
     if ( has_color(q) ) {
       red_val(q)=red_val(cp);
@@ -24654,7 +24659,8 @@ if ( dp>mp_void ) {
 }
 
 @ @<Copy |mp_pen_p(pp)| into stroked and filled nodes linked to |pp|@>=
-{ q=mp_link(pp);
+{
+  q=mp_link(pp);
   while ( q!=null ) {
     if ( has_pen(q) ) {
       if ( mp_pen_p(q)!=null ) mp_toss_knot_list(mp, mp_pen_p(q));
