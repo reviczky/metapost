@@ -24389,8 +24389,6 @@ static void mp_scan_with_list (MP mp,pointer p) ;
   cp=mp_void; pp=mp_void; dp=mp_void; ap=mp_void; bp=mp_void;
   k=0;
   new_expr.data.val = 0;
-  if (p==29810)
-    printf("with list: %d\n", p);
   while ( mp->cur_cmd==with_option ){ 
     t=(quarterword)mp->cur_mod;
     mp_get_x_next(mp);
