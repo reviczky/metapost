@@ -20257,7 +20257,7 @@ case char_op:
     { 
       unsigned char ss[2];
       ss[0] = (unsigned char)mp->cur_exp.data.val; ss[1] = '\0';
-      mp->cur_exp.data.str=mp_rts(mp,(char *)ss);
+      mp->cur_exp.data.str=mp_rtsl(mp,(char *)ss, 1);
     }
   }
   break;
