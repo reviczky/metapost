@@ -3899,13 +3899,13 @@ static halfword get_mp_info (MP mp, pointer p);
 
 @d set_mp_info(A,B) do {
   assert ((A)>=0 && (A)<mp->lo_mem_max);
-  mp->mem[(A)].hh.lh=(B);
+  mp->mem[(A)+2].hh.lh=(B);
 } while (0)
 
 @c
 halfword get_mp_info (MP mp, pointer p) {
   assert (p>=0 && p<mp->lo_mem_max);
-  return mp->mem[p].hh.lh;
+  return mp->mem[p+2].hh.lh;
 }
 static halfword get_mp_sym_info (MP mp, pointer p) {
   assert (p>=mp->hi_mem_min && p<=mp->mem_max);
@@ -4130,14 +4130,14 @@ appear in locations |hi_mem_stat_min| through |mem_max|, inclusive.
 
 @(mpmp.h@>=
 #define spec_head (mp->mem_max-6) /* head of a list of unprocessed \&{special} items */
-#define null_dash (2) /* the first two words are reserved for a null value */
+#define null_dash (3) /* the first two words are reserved for a null value */
 #define dep_head (null_dash+3) /* we will define |dash_node_size=3| */
-#define zero_val (dep_head+2) /* two words for a permanently zero value */
-#define temp_val (zero_val+2) /* two words for a temporary value node */
+#define zero_val (dep_head+3) /* two words for a permanently zero value */
+#define temp_val (zero_val+3) /* two words for a temporary value node */
 #define end_attr temp_val /* we use |end_attr+2| only */
-#define inf_val (end_attr+2) /* and |inf_val+1| only */
-#define bad_vardef (inf_val+2) /* two words for \&{vardef} error recovery */
-#define lo_mem_stat_max (bad_vardef+1)  /* largest statically
+#define inf_val (end_attr+3) /* and |inf_val+1| only */
+#define bad_vardef (inf_val+3) /* two words for \&{vardef} error recovery */
+#define lo_mem_stat_max (bad_vardef+2)  /* largest statically
   allocated word in the variable-size |mem| */
 #define hi_mem_stat_min (mp->mem_max-6) /* smallest statically allocated word in
   the one-word |mem| */
@@ -4187,7 +4187,7 @@ static void mp_flush_node_list (MP mp,pointer p) {
   while ( p!=null ){ 
     q=p; p=mp_link(p);
     if ( q<mp->hi_mem_min ) 
-      mp_free_node(mp, q,2);
+      mp_free_node(mp, q, 3);
     else 
       free_avail(q);
   }
@@ -5803,7 +5803,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 
 @d mp_type(A)     mp->mem[(A)].hh.b0 /* identifies what kind of value this is */
 @d mp_name_type(A)   mp->mem[(A)].hh.b1 /* a clue to the name of this value */
-@d token_node_size 2 /* the number of words in a large token node */
+@d token_node_size 3 /* the number of words in a large token node */
 @d value_loc(A) ((A)+1) /* the word that contains the |value| field */
 @d value(A) mp->mem[value_loc((A))].cint /* the value stored in a large token node */
 @d str_value(A) mp->mem[value_loc((A))].hh.v.str /* the value stored in a large token node */
@@ -6122,7 +6122,7 @@ contain structural information, as we shall see.
 @d subscr_head_loc(A)   (A)+1 /* where |value|, |subscr_head| and |attr_head| are */
 @d attr_head(A)   mp->mem[(subscr_head_loc((A)))].hh.lh /* pointer to attribute info */
 @d subscr_head(A)   mp->mem[(subscr_head_loc((A)))].hh.rh /* pointer to subscript info */
-@d value_node_size 2 /* the number of words in a value node */
+@d value_node_size 3 /* the number of words in a value node */
 
 @ An attribute node is three words long. Two of these words contain |type|
 and |value| fields as described above, and the third word contains
@@ -12363,7 +12363,7 @@ variable (say~|r|); and we have |prev_dep(r)=q|, etc.
   /* half of the |value| field in a |dependent| variable */
 @d prev_dep(A) mp->mem[(value_loc((A)))].hh.lh
   /* the other half; makes a doubly linked list */
-@d dep_node_size 2 /* the number of words per dependency node */
+@d dep_node_size 3 /* the number of words per dependency node */
 
 @<Initialize table entries@>= mp->serial_no=0;
 mp_link(dep_head)=dep_head; prev_dep(dep_head)=dep_head;
@@ -15778,7 +15778,7 @@ Otherwise |cond_ptr| points to a two-word node; the |type|, |name_type|, and
 |cond_ptr| at the next level, and the second word contains the
 corresponding |if_line|.
 
-@d if_node_size 2 /* number of words in stack entry for conditionals */
+@d if_node_size 3 /* number of words in stack entry for conditionals */
 @d if_line_field(A) mp->mem[(A)+1].cint
 @d if_code 1 /* code for \&{if} being evaluated */
 @d fi_code 2 /* code for \&{fi} */
