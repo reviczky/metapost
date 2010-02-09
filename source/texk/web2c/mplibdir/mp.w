@@ -4542,7 +4542,7 @@ void mp_print_type (MP mp,quarterword t) {
     mp_print(mp, "unknown");
 }
 
-@ Values inside \MP\ are stored in two-word nodes that have a |name_type|
+@ Values inside \MP\ are stored in non-symbolic nodes that have a |name_type|
 as well as a |type|. The possibilities for |name_type| are defined
 here; they will be explained in more detail later.
 
@@ -5718,17 +5718,17 @@ a macro parameter or capsule; so there are five corresponding ways to encode it
 internally: (1)~A symbolic token whose hash code is~|p|
 is represented by the number |p|, in the |info| field of a symbolic
 node in~|mem|. (2)~A numeric token whose |scaled| value is~|v| is
-represented in a two-word node of~|mem|; the |type| field is |known|,
+represented in a non-symbolic node of~|mem|; the |type| field is |known|,
 the |name_type| field is |token|, and the |value| field holds~|v|.
-The fact that this token appears in a two-word node rather than a
-one-word node is, of course, clear from the node address.
-(3)~A string token is also represented in a two-word node; the |type|
+The fact that this token appears in a non-symbolic node rather than a
+symbolic node is, of course, clear from the node address.
+(3)~A string token is also represented in a non-symbolic node; the |type|
 field is |mp_string_type|, the |name_type| field is |token|, and the
 |value| field holds the corresponding |str_number|.  (4)~Capsules have
 |name_type=capsule|, and their |type| and |value| fields represent
 arbitrary values (in ways to be explained later).  (5)~Macro parameters
 are like symbolic tokens in that they appear in |info| fields of
-one-word nodes. The $k$th parameter is represented by |expr_base+k| if it
+symbolic nodes. The $k$th parameter is represented by |expr_base+k| if it
 is of type \&{expr}, or by |suffix_base+k| if it is of type \&{suffix}, or
 by |text_base+k| if it is of type \&{text}.  (Here |0<=k<param_size|.)
 Actual values of these parameters are kept in a separate stack, as we will
@@ -5864,7 +5864,7 @@ if ( (p<0)||(p>mp->mem_max) ) {
 @.CLOBBERED@>
 }
 if ( mp_type(p) != mp_symbol_node ) { 
-  @<Display two-word token@>;
+  @<Display non-symbolic token@>;
 } else { 
   r=mp_sym_info(p);
   if ( r>=expr_base ) {
@@ -5890,7 +5890,7 @@ if ( mp_type(p) != mp_symbol_node ) {
   }
 }
 
-@ @<Display two-word token@>=
+@ @<Display non-symbolic token@>=
 if ( mp_name_type(p)==mp_token ) {
   if ( mp_type(p)==mp_known ) {
     @<Display a numeric token@>;
@@ -5972,7 +5972,7 @@ void mp_print_capsule (MP mp, pointer p) {
 }
 
 @ Macro definitions are kept in \MP's memory in the form of token lists
-that have a few extra one-word nodes at the beginning.
+that have a few extra symbolic nodes at the beginning.
 
 The first node contains a reference count that is used to tell when the
 list is no longer needed. To emphasize the fact that a reference count is
@@ -6042,8 +6042,8 @@ A \MP\ user assigns a type to a variable like \.{x20a.b} by saying, for
 example, `\.{boolean} \.{x[]a.b}'. It's time for us to study how such
 things are represented inside of the computer.
 
-Each variable value occupies two consecutive words, either in a two-word
-node called a value node, or as a two-word subfield of a larger node.  One
+Each variable value occupies two consecutive words, either in a non-symbolic
+node called a value node, or as a non-symbolic subfield of a larger node.  One
 of those two words is called the |value| field; it is an integer,
 containing either a |scaled| numeric value or the representation of some
 other type of quantity. (It might also be subdivided into halfwords, in
@@ -6124,7 +6124,7 @@ Suppose that `\.x' and `\.{x.a}' and `\.{x[]b}' and `\.{x5}'
 and `\.{x20b}' have been mentioned in a user's program, where
 \.{x[]b} has been declared to be of \&{boolean} type. Let |h(x)|, |h(a)|,
 and |h(b)| be the hash addresses of \.x, \.a, and~\.b. Then
-|eq_type(h(x))=name| and |equiv(h(x))=p|, where |p|~is a two-word value
+|eq_type(h(x))=name| and |equiv(h(x))=p|, where |p|~is a non-symbolic value
 node with |mp_name_type(p)=root| and |mp_link(p)=h(x)|. We have |type(p)=mp_structured|,
 |attr_head(p)=q|, and |subscr_head(p)=r|, where |q| points to a value
 node and |r| to a subscript node. (Are you still following this? Use
@@ -6391,7 +6391,7 @@ static void mp_new_root (MP mp,pointer x) {
 
 @ These conventions for variable representation are illustrated by the
 |print_variable_name| routine, which displays the full name of a
-variable given only a pointer to its two-word value packet.
+variable given only a pointer to its non-symbolic value packet.
 
 @<Declarations@>=
 static void mp_print_variable_name (MP mp, pointer p);
@@ -6554,7 +6554,7 @@ node~|p|, so we must change both of them.
 }
 
 @ The |find_variable| routine is given a pointer~|t| to a nonempty token
-list of suffixes; it returns a pointer to the corresponding two-word
+list of suffixes; it returns a pointer to the corresponding non-symbolic
 value. For example, if |t| points to token \.x followed by a numeric
 token containing the value~7, |find_variable| finds where the value of
 \.{x7} is stored in memory. This may seem a simple task, and it
@@ -6688,7 +6688,7 @@ to handle such examples is to use recursion; so that's what we~do.
 @^recursion@>
 
 Parameter |p| points to the root information of the variable;
-parameter |t| points to a list of one-word nodes that represent
+parameter |t| points to a list of symbolic nodes that represent
 suffixes, with |info=collective_subscript| for subscripts.
 
 @<Declarations@>=
@@ -9555,8 +9555,8 @@ are clipping paths and \&{setbounds} paths.  These are slightly more difficult
 to implement because we must keep track of exactly what is being clipped or
 bounded when pictures get merged together.  For this reason, each clipping or
 \&{setbounds} operation is represented by a pair of nodes:  first comes a
-two-word node whose |path_p| gives the relevant path, then there is the list
-of objects to clip or bound followed by a two-word node whose second word is
+non-symbolic node whose |path_p| gives the relevant path, then there is the list
+of objects to clip or bound followed by a non-symbolic node whose second word is
 unused.
 
 Using at least two words for each graphical object node allows them all to be
@@ -14475,7 +14475,7 @@ mp->cur_cmd=numeric_token; return
 @^inner loop@>
 
 @<Input from token list;...@>=
-if ( mp_type(loc) == mp_symbol_node ) { /* one-word token */
+if ( mp_type(loc) == mp_symbol_node ) { /* symbolic token */
   mp->cur_sym=mp_sym_info(loc); 
   loc=mp_link(loc); /* move to next */
   if ( mp->cur_sym>=expr_base ) {
@@ -14842,7 +14842,7 @@ The first parameter to |scan_toks| is the command code that will
 terminate scanning (either |macro_def| or |iteration|).
 
 The second parameter, |subst_list|, points to a (possibly empty) list
-of two-word nodes whose |info| and |value| fields specify symbol tokens
+of non-symbolic nodes whose |info| and |value| fields specify symbol tokens
 before and after replacement. The list will be returned to free storage
 by |scan_toks|.
 
@@ -15485,7 +15485,7 @@ is |null|, the macro was defined by \&{vardef}, so its name can be
 reconstructed from the prefix and ``at'' arguments found within the
 second parameter.
 
-What is this second parameter? It's simply a linked list of one-word items,
+What is this second parameter? It's simply a linked list of symbolic items,
 whose |info| fields point to the arguments. In other words, if |arg_list=null|,
 no arguments have been scanned yet; otherwise |mp_info(arg_list)| points to
 the first scanned argument, and |mp_link(arg_list)| points to the list of
@@ -15857,7 +15857,7 @@ and |if_line| is the line number at which the current conditional began.
 
 If no conditions are currently in progress, the condition stack has the
 special state |cond_ptr=null|, |if_limit=normal|, |cur_if=0|, |if_line=0|.
-Otherwise |cond_ptr| points to a two-word node; the |type|, |name_type|, and
+Otherwise |cond_ptr| points to a non-symbolic node; the |type|, |name_type|, and
 |link| fields of the first word contain |if_limit|, |cur_if|, and
 |cond_ptr| at the next level, and the second word contains the
 corresponding |if_line|.
@@ -16092,7 +16092,7 @@ A loop-control node also has two other fields, called |type| and
 |list|, whose contents depend on the type of loop:
 
 \yskip\indent|loop_ptr.type=null| means that the link of |loop_ptr.list|
-points to a list of one-word nodes whose |info| fields point to the
+points to a list of symbolic nodes whose |info| fields point to the
 remaining argument values of a suffix list and expression list.
 In this case, an extra field |loop_ptr.start_list| is needed to
 make sure that |resume_operation| skips ahead.
@@ -17391,7 +17391,7 @@ numerical order. Notice that |cur_type| will never be |mp_numeric_type| or
 are allowed.  Conversely, \MP\ has no variables of type |mp_vacuous| or
 |token_list|.
 
-@ Capsules are two-word nodes that have a similar meaning
+@ Capsules are non-symbolic nodes that have a similar meaning
 to |cur_type| and |cur_exp|. Such nodes have |name_type=capsule|,
 and their |type| field is one of the possibilities for |cur_type| listed above.
 Also |link<=void| in capsules that aren't part of a token list.
@@ -17707,7 +17707,7 @@ static void mp_flush_cur_exp (MP mp, mp_value v) {
 }
 
 @ There's a much more general procedure that is capable of releasing
-the storage associated with any two-word value packet.
+the storage associated with any non-symbolic value packet.
 
 @<Declarations@>=
 static void mp_recycle_value (MP mp,pointer p) ;
@@ -17831,7 +17831,7 @@ proto-dependent cases.
   }
 }
 
-@ The code for independency removal makes use of three two-word arrays.
+@ The code for independency removal makes use of three non-symbolic arrays.
 
 @<Glob...@>=
 integer max_c[mp_proto_dependent+1];  /* max coefficient magnitude */
@@ -22029,7 +22029,7 @@ static void mp_big_trans (MP mp,pointer p, quarterword c) {
   return;
 }
 
-@ Let |p| point to a two-word value field inside a big node of |cur_exp|,
+@ Let |p| point to a value field inside a big node of |cur_exp|,
 and let |q| point to a another value field. The |bilin1| procedure
 replaces |p| by $p\cdot t+q\cdot u+\delta$.
 
