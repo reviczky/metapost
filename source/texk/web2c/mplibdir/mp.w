@@ -3832,25 +3832,18 @@ index represents a null pointer.
 @<Types...@>=
 typedef halfword pointer; /* a flag or a location in |mem| or |eqtb| */
 
-@ The |mem| array is divided into two regions that are allocated separately,
-but the dividing line between these two regions is not fixed; they grow
-together until finding their ``natural'' size in a particular job.
-Locations less than or equal to |lo_mem_max| are used for storing
-variable-length records consisting of two or more words each. This region
-is maintained using an algorithm similar to the one described in exercise
+@ The |mem| array is used for storing records consisting of two or more words each. 
+This heap is maintained using an algorithm similar to the one described in exercise
 2.5--19 of {\sl The Art of Computer Programming}. However, no size field
 appears in the allocated nodes; the program is responsible for knowing the
-relevant size when a node is freed. Locations greater than or equal to
-|hi_mem_min| are used for storing one-word records; a conventional
-\.{AVAIL} stack is used for allocation in this region.
+relevant size when a node is freed. 
 
 The key pointers that govern |mem| allocation have a prescribed order:
-$$\hbox{|null=0<lo_mem_max<hi_mem_min<=mem_max|.}$$
+$$\hbox{|null=0<lo_mem_max<=mem_max|.}$$
 
 @<Glob...@>=
 memory_word *mem; /* the big dynamic storage area */
-pointer lo_mem_max; /* the largest location of variable-size memory in use */
-pointer hi_mem_min; /* the smallest location of one-word memory in use */
+pointer lo_mem_max; /* the largest location of memory in use */
 
 @ 
 @<Allocate or initialize ...@>=
@@ -3861,28 +3854,13 @@ memset(mp->mem,0,(size_t)(mp->mem_max+1)*sizeof (memory_word));
 xfree(mp->mem);
 
 @ Users who wish to study the memory requirements of particular applications can
-can use optional special features that keep track of current and
-maximum memory usage. When code between the delimiters |stat| $\ldots$
-|tats| is not ``commented out,'' \MP\ will run a bit slower but it will
-report these statistics when |mp_tracing_stats| is positive.
-
-@<Glob...@>=
-integer var_used; integer dyn_used; /* how much memory is in use */
-
-@ Let's consider the one-word memory region first, since it's the
-simplest. The pointer variable |mem_max| holds the highest-numbered location
-of |mem|. The free locations of |mem| that
-occur between |hi_mem_min| and |mem_max|, inclusive, are of type
-|two_halves|, and we write |mp_sym_info(p)| and |mp_link(p)| for the |lh|
-and |rh| fields of |mem[p]| when it is of this type. The single-word
-free locations form a linked list
-$$|avail|,\;\hbox{|mp_link(avail)|},\;\hbox{|mp_link(mp_link(avail))|},\;\ldots$$
-terminated by |null|.
+can use the special features that keep track of current and maximum memory usage. 
+\MP\ will report these statistics when |mp_tracing_stats| is positive.
 
 @d mp_link(A)   mp->mem[(A)].hh.rh /* the |link| field of a memory word */
 
 @<Glob...@>=
-pointer avail; /* head of the list of available one-word nodes */
+integer var_used; /* how much memory is in use */
 
 @ @<Declarations@>=
 static halfword get_mp_info (MP mp, pointer p);
@@ -3893,74 +3871,44 @@ static halfword get_mp_info (MP mp, pointer p);
 @d mp_info(A) get_mp_info(mp,(A))
 
 @d set_mp_sym_info(A,B) do {
-  assert ((A)>=mp->hi_mem_min && ((A)+1)<=mp->mem_max);
+  assert(mp_type((A))==mp_symbol_node);
   mp->mem[(A)+1].hh.lh=(B);
 } while (0)
 
 @d set_mp_info(A,B) do {
-  assert ((A)>=0 && (A)<mp->lo_mem_max);
+  assert(mp_type((A))!=mp_symbol_node);
   mp->mem[(A)+2].hh.lh=(B);
 } while (0)
 
 @c
 halfword get_mp_info (MP mp, pointer p) {
-  assert (p>=0 && p<mp->lo_mem_max);
+  assert(mp_type(p)!=mp_symbol_node);
   return mp->mem[p+2].hh.lh;
 }
 static halfword get_mp_sym_info (MP mp, pointer p) {
-  assert (p>=mp->hi_mem_min && p<=mp->mem_max);
-  assert (p>=mp->hi_mem_min && ((p)+1)<=mp->mem_max);
+  assert(mp_type(p)==mp_symbol_node);
   return mp->mem[(p+1)].hh.lh;
 }
 
-@ If one-word memory is exhausted, it might mean that the user has forgotten
-a token like `\&{enddef}' or `\&{endfor}'. We will define some procedures
-later that try to help pinpoint the trouble.
-
-@ The function |get_avail| returns a pointer to a new one-word node whose
+@ The function |get_symbolic_node| returns a pointer to a new symbolic node whose
 |link| field is null. However, \MP\ will halt if there is no more room left.
 @^inner loop@>
 
 @c 
-static pointer mp_get_avail (MP mp) { /* single-word node allocation */
-  pointer p; /* the new node being got */
-  p=mp->avail; /* get top location in the |avail| stack */
-  if ( p!=null ) {
-    mp->avail=mp_link(mp->avail); /* and pop it off */
-  } else { 
-    mp->hi_mem_min -= 2; 
-    p=mp->hi_mem_min;
-    if ( mp->hi_mem_min<=mp->lo_mem_max ) { 
-      mp_runaway(mp); /* if memory is exhausted, display possible runaway text */
-      mp_overflow(mp, "main memory size",mp->mem_max);
-      /* quit; all one-word nodes are busy */
-@:MetaPost capacity exceeded main memory size}{\quad main memory size@>
-    }
-  }
-  mp_link(p)=null; /* provide an oft-desired initialization of the new node */
-  incr(mp->dyn_used);/* maintain statistics */
-  return p;
+static pointer mp_get_symbolic_node (MP mp) {
+   pointer p = mp_get_node(mp,2);
+   mp_type(p) = mp_symbol_node;
+   return p;
 }
 
-@ Conversely, a one-word node is recycled by calling |free_avail|.
+@ Conversely, a symbolic node is recycled by calling |free_symbolic_node|.
 
-@d free_avail(A)  /* single-word node liberation */
-  { mp_link((A))=mp->avail; mp->avail=(A); decr(mp->dyn_used);  }
+@d mp_free_symbolic_node(mp, A)  /* symbolic node liberation */
+  { mp_free_node(mp, (A), 2); }
 
-@ There's also a |fast_get_avail| routine, which saves the procedure-call
-overhead at the expense of extra programming. This macro is used in
-the places that would otherwise account for the most calls of |get_avail|.
-@^inner loop@>
-
-@d fast_get_avail(A) { 
-  (A)=mp->avail; /* avoid |get_avail| if possible, to save time */
-  if ( (A)==null ) { (A)=mp_get_avail(mp); } 
-  else { mp->avail=mp_link((A)); mp_link((A))=null;  incr(mp->dyn_used); }
-  }
-
-@ The available-space list that keeps track of the variable-size portion
-of |mem| is a nonempty, doubly-linked circular list of empty nodes,
-pointed to by the roving pointer |rover|.
+@ The available-space list that keeps track of |mem| is a nonempty, 
+doubly-linked circular list of empty nodes, pointed to by the roving 
+pointer |rover|.
 
 Each empty node has size 2 or more; the first word contains the special
 value |max_halfword| in its |link| field and the size in its |info| field;
@@ -3968,17 +3916,18 @@ the second word contains the two pointers for double linking.
 
 Each nonempty node also has size 2 or more. Its first word is of type
 |two_halves|\kern-1pt, and its |link| field is never equal to |max_halfword|.
+Its |mp_type| field keeps track of the node type.
 Otherwise there is complete flexibility with respect to the contents
 of its other fields and its other words.
 
 (We require |mem_max<max_halfword| because terrible things can happen
 when |max_halfword| appears in the |link| field of a nonempty node.)
 
-@d empty_flag   max_halfword /* the |link| of an empty variable-size node */
+@d empty_flag   max_halfword /* the |link| of an empty node */
 @d is_empty(A)   (mp_link((A))==empty_flag) /* tests for empty node */
 
 @(mpmp.h@>=
-#define node_size(A)  mp->mem[(A)].hh.lh /* the size field in empty variable-size nodes */
+#define node_size(A)  mp->mem[(A)].hh.lh /* the size field in empty nodes */
 #define lmp_link(A)   mp->mem[((A)+1)].hh.lh /* left link in doubly-linked list of empty nodes */
 #define rmp_link(A)   mp->mem[((A)+1)].hh.rh /* right link in doubly-linked list of empty nodes */
 
@@ -4021,7 +3970,7 @@ pointer mp_get_node (MP mp,integer s) { /* variable-size node allocation */
   if ( s==010000000000 ) { 
     return max_halfword;
   };
-  if ( mp->lo_mem_max+2<mp->hi_mem_min ) {
+  if ( mp->lo_mem_max+2<mp->mem_max ) {
     if ( mp->lo_mem_max+2<=max_halfword ) {
       @<Grow more variable-size memory and |goto restart|@>;
     }
@@ -4035,7 +3984,7 @@ FOUND:
   return r;
 }
 
-@ The lower part of |mem| grows by 1000 words at a time, unless
+@ The used part of |mem| grows by 1000 words at a time, unless
 we are very close to going under. When it grows, we simply link
 a new node into the available-space list. This method of controlled
 growth helps to keep the |mem| usage consecutive when \MP\ is
@@ -4044,11 +3993,10 @@ implemented on ``virtual memory'' systems.
 
 @<Grow more variable-size memory and |goto restart|@>=
 { 
-  if ( mp->hi_mem_min-mp->lo_mem_max>=1998 ) {
+  if ( mp->mem_max-mp->lo_mem_max>=1998 ) {
     t=mp->lo_mem_max+1000;
   } else {
-    t=mp->lo_mem_max+1+(mp->hi_mem_min-mp->lo_mem_max) / 2; 
-    /* |lo_mem_max+2<=t<hi_mem_min| */
+    t=mp->lo_mem_max+1+(mp->mem_max-mp->lo_mem_max) / 2; 
   }
   if ( t>max_halfword ) t=max_halfword;
   p=lmp_link(mp->rover); q=mp->lo_mem_max; rmp_link(p)=q; lmp_link(mp->rover)=q;
@@ -4096,7 +4044,7 @@ node_size(p)=q-p /* reset the size in case it grew */
   goto FOUND;
 }
 
-@ Conversely, when some variable-size node |p| of size |s| is no longer needed,
+@ Conversely, when some node |p| of size |s| is no longer needed,
 the operation |free_node(p,s)| will make its words available, by inserting
 |p| as a new empty node just before where |rover| now points.
 
@@ -4115,34 +4063,30 @@ void mp_free_node (MP mp, pointer p, halfword s) { /* variable-size node
 }
 
 @* \[11] Memory layout.
-Some areas of |mem| are dedicated to fixed usage, since static allocation is
+The lowest areas of |mem| are dedicated to fixed usage, since static allocation is
 more efficient than dynamic allocation when we can get away with it. For
-example, locations |0| to |1| are always used to store a
-two-word dummy token whose second word is zero.
+example, locations |0| to |1| are always used to store a dummy token whose 
+second word is zero.
 The following macro definitions accomplish the static allocation by giving
-symbolic names to the fixed positions. Static variable-size nodes appear
-in locations |0| through |lo_mem_stat_max|, and static single-word nodes
-appear in locations |hi_mem_stat_min| through |mem_max|, inclusive.
+symbolic names to the fixed positions. Static nodes appear
+in locations |0| through |lo_mem_stat_max|.
 
 @d sentinel mp->mem_max /* end of sorted lists */
-@d temp_head (mp->mem_max-2) /* head of a temporary list of some kind */
-@d hold_head (mp->mem_max-4) /* head of a temporary list of another kind */
 
 @(mpmp.h@>=
-#define spec_head (mp->mem_max-6) /* head of a list of unprocessed \&{special} items */
-#define null_dash (3) /* the first two words are reserved for a null value */
+#define null_dash (3) /* the first words are reserved for a null value */
 #define dep_head (null_dash+3) /* we will define |dash_node_size=3| */
-#define zero_val (dep_head+3) /* two words for a permanently zero value */
-#define temp_val (zero_val+3) /* two words for a temporary value node */
-#define end_attr temp_val /* we use |end_attr+2| only */
-#define inf_val (end_attr+3) /* and |inf_val+1| only */
-#define bad_vardef (inf_val+3) /* two words for \&{vardef} error recovery */
-#define lo_mem_stat_max (bad_vardef+2)  /* largest statically
-  allocated word in the variable-size |mem| */
-#define hi_mem_stat_min (mp->mem_max-6) /* smallest statically allocated word in
-  the one-word |mem| */
+#define zero_val (dep_head+3) /* three words for a permanently zero value */
+#define temp_val (zero_val+3) /* three words for a temporary value node */
+#define end_attr temp_val     /* we use |end_attr+2| only */
+#define spec_head (end_attr+4)
+#define hold_head (spec_head+2)
+#define temp_head (hold_head+2)
+#define inf_val (temp_head+3) /* and |inf_val+1| only */
+#define bad_vardef (inf_val+3) /* three words for \&{vardef} error recovery */
+#define lo_mem_stat_max (bad_vardef+2)  /* largest statically allocated word in |mem| */
 
-@ The following code gets the dynamic part of |mem| off to a good start.
+@ The following code gets |mem| off to a good start.
 
 @<Initialize table entries@>=
 mp->rover=lo_mem_stat_max+1; /* initialize the dynamic memory */
@@ -4152,44 +4096,25 @@ lmp_link(mp->rover)=mp->rover; rmp_link(mp->rover)=mp->rover;
 mp->lo_mem_max=mp->rover+1000; 
 mp->mem[mp->lo_mem_max].hh.rh = null; 
 mp->mem[mp->lo_mem_max].hh.lh = null;
-for (k=hi_mem_stat_min;k<=(int)mp->mem_max;k++) {
-  mp->mem[k]=mp->mem[mp->lo_mem_max]; /* clear list heads */
-}
-mp->avail=null;
-mp->hi_mem_min=hi_mem_stat_min; /* initialize the one-word memory */
+mp->mem[spec_head+1].hh.lh = mp_symbol_node; 
+mp->mem[temp_head+1].hh.lh = mp_symbol_node; 
+mp->mem[hold_head+1].hh.lh = mp_symbol_node; 
 mp->var_used=lo_mem_stat_max+1; 
-mp->dyn_used=mp->mem_max+1-(hi_mem_stat_min);  /* initialize statistics */
 
-@ The procedure |flush_list(p)| frees an entire linked list of one-word
-nodes that starts at a given position, until coming to |sentinel| or a
-pointer that is not in the one-word region. Another procedure,
-|flush_node_list|, frees an entire linked list of one-word and two-word
-nodes, until coming to a |null| pointer.
+
+@ The procedure |flush_node_list(p)| frees an entire linked list of 
+nodes that starts at a given position, until coming to a |null| pointer.
 @^inner loop@>
 
-@c 
-static void mp_flush_list (MP mp,pointer p) { /* makes list of single-word nodes  available */
-  pointer q,r; /* list traversers */
-  if ( p>=mp->hi_mem_min ) if ( p!=sentinel ) { 
-    r=p;
-    do {  
-      q=r; r=mp_link(r); 
-      decr(mp->dyn_used);
-      if ( r<mp->hi_mem_min ) break;
-    } while (r!=sentinel);
-  /* now |q| is the last node on the list */
-    mp_link(q)=mp->avail; mp->avail=p;
-  }
-}
-@#
+@c
 static void mp_flush_node_list (MP mp,pointer p) {
   pointer q; /* the node being recycled */
   while ( p!=null ){ 
     q=p; p=mp_link(p);
-    if ( q<mp->hi_mem_min ) 
+    if ( mp_type(q) != mp_symbol_node ) 
       mp_free_node(mp, q, 3);
     else 
-      free_avail(q);
+      mp_free_symbolic_node(mp,q);
   }
 }
 
@@ -4209,8 +4134,7 @@ unsigned chars here.
 @<Glob...@>=
 unsigned char *free; /* free cells */
 unsigned char *was_free; /* previously free cells */
-pointer was_lo_max; pointer was_hi_min;
-  /* previous |lo_mem_max| and |hi_mem_min| */
+pointer was_lo_max; /* previous |lo_mem_max|| */
 boolean panicking; /* do we want to check memory constantly? */
 
 @ @<Allocate or initialize ...@>=
@@ -4222,7 +4146,6 @@ xfree(mp->free);
 xfree(mp->was_free);
 
 @ @<Allocate or ...@>=
-mp->was_hi_min=mp->mem_max;
 mp->panicking=false;
 
 @ @<Declarations@>=
@@ -4253,13 +4176,9 @@ that are reserved now but were free the last time this procedure was called.
 void mp_check_mem (MP mp,boolean print_locs ) {
   pointer p,q,r; /* current locations of interest in |mem| */
   boolean clobbered; /* is something amiss? */
-  for (p=0;p<=mp->lo_mem_max;p++) {
+  for (p=0;p<=mp->mem_max;p++) {
     mp->free[p]=false; /* you can probably do this faster */
   }
-  for (p=mp->hi_mem_min;p<= mp->mem_max;p++) {
-    mp->free[p]=false; /* ditto */
-  }
-  @<Check single-word |avail| list@>;
   @<Check variable-size |avail| list@>;
   @<Check flags of unavailable nodes@>;
   @<Check the list of linear dependencies@>;
@@ -4267,21 +4186,6 @@ void mp_check_mem (MP mp,boolean print_locs ) {
     @<Print newly busy locations@>;
   }
   (void)memcpy(mp->was_free, mp->free, (size_t)(sizeof(char)*(unsigned)(mp->mem_max+1)));
-  mp->was_lo_max=mp->lo_mem_max; 
-  mp->was_hi_min=mp->hi_mem_min;
-}
-
-@ @<Check single-word...@>=
-p=mp->avail; q=null; clobbered=false;
-while ( p!=null ) { 
-  if ( (p>mp->mem_max)||(p<mp->hi_mem_min) ) clobbered=true;
-  else if ( mp->free[p] ) clobbered=true;
-  if ( clobbered ) { 
-    mp_print_nl(mp, "AVAIL list clobbered at ");
-@.AVAIL list clobbered...@>
-    mp_print_int(mp, q); break;
-  }
-  mp->free[p]=true; q=p; p=mp_link(q);
 }
 
 @ @<Check variable-size...@>=
@@ -4329,12 +4233,6 @@ while ( p<=mp->lo_mem_max ) { /* node |p| should not be empty */
       @<Indicate that |p| is a new busy location@>;
     }
   }
-  for (p=mp->hi_mem_min;p<=mp->mem_max;p++ ) {
-    if ( ! mp->free[p] &&
-        ((p<mp->was_hi_min) || mp->was_free[p]) ) {
-      @<Indicate that |p| is a new busy location@>;
-    }
-  }
   @<Finish printing new busy locations@>;
 }
 
@@ -4373,20 +4271,18 @@ drops are tolerable.
 @c
 void mp_search_mem (MP mp, pointer p) { /* look for pointers to |p| */
   integer q; /* current position being searched */
-  for (q=0;q<=mp->lo_mem_max;q++) { 
+  for (q=0;q<=mp->mem_max;q++) { 
     if ( mp_link(q)==p ){ 
       mp_print_nl(mp, "LINK("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
     }
-    if ( mp_info(q)==p ) { 
-      mp_print_nl(mp, "INFO("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
-    }
-  }
-  for (q=mp->hi_mem_min;q<=mp->mem_max;q++) {
-    if ( mp_link(q)==p ) {
-      mp_print_nl(mp, "LINK("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
-    }
-    if ( mp_sym_info(q)==p ) {
-      mp_print_nl(mp, "INFO("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
+    if (mp_type(q) == mp_symbol_node) {
+      if ( mp_sym_info(q)==p ) { 
+        mp_print_nl(mp, "INFO("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
+      }
+    } else  {
+      if ( mp_info(q)==p ) { 
+        mp_print_nl(mp, "INFO("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
+      }
     }
   }
   @<Search |eqtb| for equivalents equal to |p|@>;
@@ -4568,6 +4464,7 @@ mp_structured, /* variable with subscripts and attributes */
 mp_unsuffixed_macro, /* variable defined with \&{vardef} but no \.{\AT!\#} */
 mp_suffixed_macro, /* variable defined with \&{vardef} and \.{\AT!\#} */
 /* here are some generic node types */
+mp_symbol_node,
 mp_token_node,
 mp_value_node,
 mp_attr_node,
@@ -4618,6 +4515,7 @@ static const char *mp_type_string (quarterword t) {
   case mp_structured:s = "mp_structured"; break;
   case mp_unsuffixed_macro:s = "unsuffixed macro"; break;
   case mp_suffixed_macro:s = "suffixed macro"; break;
+  case mp_symbol_node: s = "symbol node"; break;
   case mp_token_node: s = "token node"; break;
   case mp_value_node: s = "value node"; break;
   case mp_attr_node: s = "attribute node"; break;
@@ -5818,7 +5716,7 @@ A \MP\ token is either symbolic or numeric or a string, or it denotes
 a macro parameter or capsule; so there are five corresponding ways to encode it
 @^token@>
 internally: (1)~A symbolic token whose hash code is~|p|
-is represented by the number |p|, in the |info| field of a single-word
+is represented by the number |p|, in the |info| field of a symbolic
 node in~|mem|. (2)~A numeric token whose |scaled| value is~|v| is
 represented in a two-word node of~|mem|; the |type| field is |known|,
 the |name_type| field is |token|, and the |value| field holds~|v|.
@@ -5888,8 +5786,8 @@ of a token list when it is no longer needed.
   pointer q; /* the node being recycled */
   while ( p!=null ) { 
     q=p; p=mp_link(p);
-    if ( q>=mp->hi_mem_min ) {
-     free_avail(q);
+    if ( mp_type(q) == mp_symbol_node ) {
+     mp_free_symbolic_node(mp,q);
     } else { 
       switch (mp_type(q)) {
       case mp_vacuous: case mp_boolean_type: case mp_known:
@@ -5965,7 +5863,7 @@ if ( (p<0)||(p>mp->mem_max) ) {
   mp_print(mp, " CLOBBERED"); return;
 @.CLOBBERED@>
 }
-if ( p<mp->hi_mem_min ) { 
+if ( mp_type(p) != mp_symbol_node ) { 
   @<Display two-word token@>;
 } else { 
   r=mp_sym_info(p);
@@ -6515,7 +6413,7 @@ void mp_print_variable_name (MP mp, pointer p) {
    |name_type(p)| is either |root| or |saved_root|. 
    Have to prepend a token to |q| for |show_token_list|. 
   */
-  r=mp_get_avail(mp); 
+  r=mp_get_symbolic_node(mp); 
   set_mp_sym_info(r,mp_link(p));
   mp_link(r)=q;
   if ( mp_name_type(p)==mp_saved_root ) 
@@ -6539,7 +6437,7 @@ void mp_print_variable_name (MP mp, pointer p) {
     if ( mp_name_type(p)!=mp_attr ) 
       mp_confusion(mp, "var");
 @:this can't happen var}{\quad var@>
-    r=mp_get_avail(mp); 
+    r=mp_get_symbolic_node(mp); 
     set_mp_sym_info(r,attr_loc(p)); /* the hash address */
   }
   mp_link(r)=q; q=r;
@@ -6684,7 +6582,7 @@ static pointer mp_find_variable (MP mp,pointer t) {
   p=equiv(p); pp=p;
   while ( t!=null ) { 
     @<Make sure that both nodes |p| and |pp| are of |mp_structured| type@>;
-    if ( t<mp->hi_mem_min ) {
+    if ( mp_type(t) != mp_symbol_node ) {
       @<Descend one level for the subscript |value(t)|@>
     } else {
       @<Descend one level for the attribute |mp_sym_info(t)|@>;
@@ -12981,7 +12879,7 @@ static void mp_fix_dependencies (MP mp) {
     if ( q==dep_list(t) ) mp_make_known(mp, t,q);
   }
   while ( s!=null ) { 
-    p=mp_link(s); x=mp_info(s); free_avail(s); s=p;
+    p=mp_link(s); x=mp_info(s); mp_free_symbolic_node(mp,s); s=p;
     mp_type(x)=mp_independent; 
     value(x)=value(x)+2;
   }
@@ -12997,7 +12895,7 @@ while (1) {
   if ( x==null ) break;
   if ( mp_type(x)<=independent_being_fixed ) {
     if ( mp_type(x)<independent_being_fixed ) {
-      p=mp_get_avail(mp); 
+      p=mp_get_symbolic_node(mp); 
       mp_link(p)=s; s=p;
       set_mp_info(s,x); 
       mp_type(x)=independent_being_fixed;
@@ -14020,7 +13918,7 @@ static pointer mp_cur_tok (MP mp) {
       }
     }
   } else { 
-    fast_get_avail(p); 
+    p = mp_get_symbolic_node(mp); 
     set_mp_sym_info(p,mp->cur_sym);
   }
   return p;
@@ -14271,7 +14169,7 @@ if ( mp->cur_sym!=0 ) {
 
 @ @<Back up an outer symbolic token so that it can be reread@>=
 if ( mp->cur_sym!=0 ) {
-  p=mp_get_avail(mp); 
+  p=mp_get_symbolic_node(mp); 
   set_mp_sym_info(p,mp->cur_sym);
   back_list(p); /* prepare to read the symbolic token again */
 }
@@ -14577,7 +14475,7 @@ mp->cur_cmd=numeric_token; return
 @^inner loop@>
 
 @<Input from token list;...@>=
-if ( loc>=mp->hi_mem_min ) { /* one-word token */
+if ( mp_type(loc) == mp_symbol_node ) { /* one-word token */
   mp->cur_sym=mp_sym_info(loc); 
   loc=mp_link(loc); /* move to next */
   if ( mp->cur_sym>=expr_base ) {
@@ -15104,9 +15002,9 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1} (i.e.,
   get_t_next; 
   mp_check_equals(mp);
   mp->scanner_status=op_defining; 
-  q=mp_get_avail(mp); 
+  q=mp_get_symbolic_node(mp); 
   ref_count(q)=null;
-  r=mp_get_avail(mp); 
+  r=mp_get_symbolic_node(mp); 
   mp_link(q)=r; 
   set_mp_sym_info(r,general_macro);
   mp_link(r)=mp_scan_toks(mp, macro_def,p,null,0);
@@ -15169,7 +15067,7 @@ static void mp_scan_def (MP mp) {
   halfword base; /* |expr_base|, |suffix_base|, or |text_base| */
   pointer l_delim,r_delim; /* matching delimiters */
   m=mp->cur_mod; c=general_macro; mp_link(hold_head)=null;
-  q=mp_get_avail(mp); ref_count(q)=null; r=null;
+  q=mp_get_symbolic_node(mp); ref_count(q)=null; r=null;
   @<Scan the token or variable to be defined;
     set |n|, |scanner_status|, and |warning_info|@>;
   k=n;
@@ -15180,7 +15078,7 @@ static void mp_scan_def (MP mp) {
     @<Absorb undelimited parameters, putting them into list |r|@>;
   }
   mp_check_equals(mp);
-  p=mp_get_avail(mp); 
+  p=mp_get_symbolic_node(mp); 
   set_mp_sym_info(p,c); 
   mp_link(q)=p;
   @<Attach the replacement text to the tail of node |p|@>;
@@ -15194,10 +15092,10 @@ a \&{vardef}, because the user may want to redefine `\.{endgroup}'.
 if ( m==start_def ) {
   mp_link(p)=mp_scan_toks(mp, macro_def,r,null, (quarterword)n);
 } else { 
-  q=mp_get_avail(mp); 
+  q=mp_get_symbolic_node(mp); 
   set_mp_sym_info(q,mp->bg_loc);
   mp_link(p)=q;
-  p=mp_get_avail(mp); 
+  p=mp_get_symbolic_node(mp); 
   set_mp_sym_info(p,mp->eg_loc);
   mp_link(q)=mp_scan_toks(mp, macro_def,r,p, (quarterword)n);
 }
@@ -15216,7 +15114,7 @@ if ( m==start_def ) {
 } else { 
   p=mp_scan_declared_variable(mp);
   mp_flush_variable(mp, equiv(mp_sym_info(p)),mp_link(p),true);
-  mp->warning_info=mp_find_variable(mp, p); mp_flush_list(mp, p);
+  mp->warning_info=mp_find_variable(mp, p); mp_flush_node_list(mp, p);
   if ( mp->warning_info==null ) @<Change to `\.{a bad variable}'@>;
   mp->scanner_status=var_defining; n=2;
   if ( mp->cur_cmd==macro_special ) if ( mp->cur_mod==macro_suffix ) {/* \.{\AT!\#} */
@@ -15257,7 +15155,7 @@ do {
 
 @ @<Absorb parameter tokens for type |base|@>=
 do { 
-  mp_link(q)=mp_get_avail(mp);
+  mp_link(q)=mp_get_symbolic_node(mp);
   q=mp_link(q);
   set_mp_sym_info(q,base+k);
   mp_get_symbol(mp);
@@ -15774,7 +15672,7 @@ a token list pointed to by |cur_exp|, in which case we will have
 
 @<Append the current expression to |arg_list|@>=
 { 
-  p=mp_get_avail(mp);
+  p=mp_get_symbolic_node(mp);
   if ( mp->cur_exp.type==mp_token_list ) 
     set_mp_sym_info(p,mp->cur_exp.data.val);
   else 
@@ -15870,7 +15768,7 @@ if ( end_of_statement ) { /* |cur_cmd=semicolon|, |end_group|, or |stop| */
 @ @<Scan an expression followed by `\&{of} $\langle$primary$\rangle$'@>=
 { 
   mp_scan_expression(mp);
-  p=mp_get_avail(mp);
+  p=mp_get_symbolic_node(mp);
   set_mp_sym_info(p,mp_stash_cur_exp(mp));
   if ( internal_value(mp_tracing_macros)>0 ) { 
     mp_begin_diagnostic(mp); mp_print_arg(mp, mp_sym_info(p),n,0); 
@@ -15929,7 +15827,7 @@ if ( n>0 ) {
    mp->param_stack[mp->param_ptr]=mp_sym_info(p); 
    incr(mp->param_ptr); p=mp_link(p);
   } while (p!=null);
-  mp_flush_list(mp, arg_list);
+  mp_flush_node_list(mp, arg_list);
 }
 
 @ It's sometimes necessary to put a single argument onto |param_stack|.
@@ -16318,7 +16216,7 @@ tokens unchanged. Furthermore the |mp->frozen_repeat_loop| is an \&{outer}
 token, so it won't be lost accidentally.)
 
 @ @<Scan the loop text...@>=
-q=mp_get_avail(mp); 
+q=mp_get_symbolic_node(mp); 
 set_mp_sym_info(q, 
 mp_get_frozen_primitive(mp, mp->frozen_repeat_loop));
 mp->scanner_status=loop_defining; 
@@ -16371,14 +16269,14 @@ mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_ta
     if (p == mp->loop_ptr->list_start) {
        q = p; 
        p = mp_link(p);
-       free_avail(q);
+       mp_free_symbolic_node(mp,q);
     }
     mp->loop_ptr->list=mp_link(p); 
-    if (p>=mp->hi_mem_min) 
+    if ( mp_type(p) == mp_symbol_node ) 
       q=mp_sym_info(p); 
     else
       q=mp_info(p); 
-    free_avail(p);
+    mp_free_symbolic_node(mp,p);
   } else if ( p==mp_void ) { 
     mp_begin_token_list(mp, mp->loop_ptr->info, (quarterword)forever_text); 
     return;
@@ -16449,7 +16347,7 @@ from the input stack.
       }
       p=q; 
       q=mp_link(q); 
-      free_avail(p);
+      mp_free_symbolic_node(mp,p);
     }
   } else if ( p>progression_flag ) {
     delete_edge_ref(p);
@@ -16469,7 +16367,7 @@ a \&{for} construction (if |m=expr_base|) or a \&{forsuffixes} construction
 
 @<Scan the values to be used in the loop@>=
 s->type = null; 
-s->list = mp_get_avail(mp);
+s->list = mp_get_symbolic_node(mp);
 s->list_start = s->list;
 q = s->list;
 do {  
@@ -16485,7 +16383,7 @@ do {
     }
     mp->cur_exp.data.val=mp_stash_cur_exp(mp);
   }
-  mp_link(q)=mp_get_avail(mp); 
+  mp_link(q)=mp_get_symbolic_node(mp); 
   q=mp_link(q); 
   set_mp_sym_info(q, mp->cur_exp.data.val);
   mp->cur_exp.type=mp_vacuous;
@@ -18477,7 +18375,7 @@ of the save stack, as described earlier.)
   if ( my_var_flag==assignment ) {
     mp_get_x_next(mp);
     if ( mp->cur_cmd==assignment ) {
-      mp->cur_exp.data.val=mp_get_avail(mp);
+      mp->cur_exp.data.val=mp_get_symbolic_node(mp);
       set_mp_sym_info(mp->cur_exp.data.val,q+hash_end); 
       mp->cur_exp.type=mp_token_list; 
       goto DONE;
@@ -18521,7 +18419,7 @@ pointer macro_ref = 0; /* reference count for a suffixed macro */
 
 @ @<Scan a variable primary...@>=
 { 
-  fast_get_avail(pre_head); tail=pre_head; post_head=null; tt=mp_vacuous;
+  pre_head = mp_get_symbolic_node(mp); tail=pre_head; post_head=null; tt=mp_vacuous;
   while (1) { 
     t=mp_cur_tok(mp); mp_link(tail)=t;
     if ( tt!=undefined ) {
@@ -18547,7 +18445,7 @@ pointer macro_ref = 0; /* reference count for a suffixed macro */
 { 
   mp_link(tail)=null;
   if ( tt>mp_unsuffixed_macro ) { /* |tt=mp_suffixed_macro| */
-    post_head=mp_get_avail(mp); tail=post_head; mp_link(tail)=t;
+    post_head=mp_get_symbolic_node(mp); tail=post_head; mp_link(tail)=t;
     tt=undefined; macro_ref=value(q); add_mac_ref(macro_ref);
   } else {
     @<Set up unsuffixed macro call and |goto restart|@>;
@@ -18620,7 +18518,7 @@ into the variable structure; we need to start searching from the root each time.
       };
       if ( mp_type(q)!=mp_structured ) goto DONE2;
       q=mp_link(attr_head(q)); /* the |collective_subscript| attribute */
-      if ( p>=mp->hi_mem_min ) { /* it's not a subscript */
+      if ( mp_type(p) == mp_symbol_node ) { /* it's not a subscript */
         do {  q=mp_link(q); } while (! (attr_loc(q)>=mp_sym_info(p)));
         if ( attr_loc(q)>mp_sym_info(p) ) goto DONE2;
       }
@@ -18668,7 +18566,7 @@ variable has, indeed, been scanned.
 if ( post_head!=null ) {
   @<Set up suffixed macro call and |goto restart|@>;
 }
-q=mp_link(pre_head); free_avail(pre_head);
+q=mp_link(pre_head); mp_free_symbolic_node(mp,pre_head);
 if ( mp->cur_cmd==my_var_flag ) { 
   mp->cur_exp.type=mp_token_list; mp->cur_exp.data.val=q; goto DONE;
 }
@@ -18691,7 +18589,7 @@ and ``at'' parameters must be packaged in an appropriate list of lists.
 
 @<Set up unsuffixed macro call and |goto restart|@>=
 { 
-  p=mp_get_avail(mp); 
+  p=mp_get_symbolic_node(mp); 
   set_mp_sym_info(pre_head,mp_link(pre_head)); 
   mp_link(pre_head)=p;
   set_mp_sym_info(p,t); 
@@ -18706,7 +18604,7 @@ token list.
 
 @<Set up suffixed macro call and |goto restart|@>=
 { 
-  mp_back_input(mp); p=mp_get_avail(mp); q=mp_link(post_head);
+  mp_back_input(mp); p=mp_get_symbolic_node(mp); q=mp_link(post_head);
   set_mp_sym_info(pre_head,mp_link(pre_head)); 
   mp_link(pre_head)=post_head;
   set_mp_sym_info(post_head,q); 
@@ -18893,7 +18791,7 @@ provided that \.a is numeric.
 static void mp_scan_suffix (MP mp) {
   pointer h,t; /* head and tail of the list being built */
   pointer p; /* temporary register */
-  h=mp_get_avail(mp); t=h;
+  h=mp_get_symbolic_node(mp); t=h;
   while (1) { 
     if ( mp->cur_cmd==left_bracket ) {
       @<Scan a bracketed subscript and set |cur_cmd:=numeric_token|@>;
@@ -18901,14 +18799,14 @@ static void mp_scan_suffix (MP mp) {
     if ( mp->cur_cmd==numeric_token ) {
       p=mp_new_num_tok(mp, mp->cur_mod);
     } else if ((mp->cur_cmd==tag_token)||(mp->cur_cmd==internal_quantity) ) {
-       p=mp_get_avail(mp); 
+       p=mp_get_symbolic_node(mp); 
        set_mp_sym_info(p,mp->cur_sym);
     } else {
       break;
     }
     mp_link(t)=p; t=p; mp_get_x_next(mp);
   }
-  mp->cur_exp.data.val=mp_link(h); free_avail(h); mp->cur_exp.type=mp_token_list;
+  mp->cur_exp.data.val=mp_link(h); mp_free_symbolic_node(mp,h); mp->cur_exp.type=mp_token_list;
 }
 
 @ @<Scan a bracketed subscript and set |cur_cmd:=numeric_token|@>=
@@ -18979,7 +18877,7 @@ CONTINUE:
 @c 
 static void mp_binary_mac (MP mp,pointer p, pointer c, pointer n) {
   pointer q,r; /* nodes in the parameter list */
-  q=mp_get_avail(mp); r=mp_get_avail(mp); mp_link(q)=r;
+  q=mp_get_symbolic_node(mp); r=mp_get_symbolic_node(mp); mp_link(q)=r;
   set_mp_sym_info(q,p); 
   set_mp_sym_info(r,mp_stash_cur_exp(mp));
   mp_macro_call(mp, c,q,n);
@@ -23177,7 +23075,7 @@ pointer mp_scan_declared_variable (MP mp) {
   pointer l; /* hash address of left bracket */
   mp_get_symbol(mp); x=mp->cur_sym;
   if ( mp->cur_cmd!=tag_token ) mp_clear_symbol(mp, x,false);
-  h=mp_get_avail(mp); 
+  h=mp_get_symbolic_node(mp); 
   set_mp_sym_info(h,x);
   t=h;
   while (1) { 
@@ -23190,7 +23088,7 @@ pointer mp_scan_declared_variable (MP mp) {
         break;
       }
     }
-    mp_link(t)=mp_get_avail(mp); t=mp_link(t); 
+    mp_link(t)=mp_get_symbolic_node(mp); t=mp_link(t); 
     set_mp_sym_info(t,mp->cur_sym);
   }
   if ( (eq_type(x)%outer_tag)!=tag_token ) mp_clear_symbol(mp, x,false);
@@ -23272,7 +23170,7 @@ void mp_do_type_declaration (MP mp) {
             "Proceed, and I'll ignore the illegal redeclaration.");
       mp_put_get_error(mp);
     }
-    mp_flush_list(mp, p);
+    mp_flush_node_list(mp, p);
     if ( mp->cur_cmd<comma ) {
       @<Flush spurious symbols after the declared variable@>;
     }
@@ -24300,8 +24198,8 @@ static void mp_do_show_stats (MP mp) ;
 @ @c void mp_do_show_stats (MP mp) { 
   mp_print_nl(mp, "Memory usage ");
 @.Memory usage...@>
-  mp_print_int(mp, mp->var_used); mp_print_char(mp, xord('&')); mp_print_int(mp, mp->dyn_used);
-  mp_print(mp, " ("); mp_print_int(mp, mp->hi_mem_min-mp->lo_mem_max-1);
+  mp_print_int(mp, mp->var_used);
+  mp_print(mp, " ("); mp_print_int(mp, mp->mem_max-mp->lo_mem_max-1);
   mp_print(mp, " still untouched)"); mp_print_ln(mp);
   mp_print_nl(mp, "String usage ");
   mp_print_int(mp, (int)mp->strs_in_use);
@@ -27708,7 +27606,7 @@ if ( internal_value(mp_fontmaking)>0 ) {
 }
 
 @ @<Make the dynamic memory into one big available node@>=
-mp->rover=lo_mem_stat_max+1; mp_link(mp->rover)=empty_flag; mp->lo_mem_max=mp->hi_mem_min-1;
+mp->rover=lo_mem_stat_max+1; mp_link(mp->rover)=empty_flag; mp->lo_mem_max=mp->mem_max-1;
 if ( mp->lo_mem_max-mp->rover>max_halfword ) mp->lo_mem_max=max_halfword+mp->rover;
 node_size(mp->rover)=mp->lo_mem_max-mp->rover; 
 lmp_link(mp->rover)=mp->rover; rmp_link(mp->rover)=mp->rover;
@@ -27730,7 +27628,7 @@ if ( mp->log_opened ) {
        	   (mp->max_pl_used!=1 ? "s" : ""));
   wlog_ln(s);
   mp_snprintf(s,128," %i words of memory out of %i",
-           (int)mp->lo_mem_max+mp->mem_max-mp->hi_mem_min+2,
+           (int)mp->lo_mem_max+mp->mem_max-mp->mem_max+2,
            (int)mp->mem_max);
   wlog_ln(s);
   mp_snprintf(s,128," %i symbolic tokens out of %i", (int)mp->st_count, (int)mp->hash_size);
@@ -27753,7 +27651,7 @@ int mp_open_usage (MP mp );
 
 @ @c
 int mp_memory_usage (MP mp ) {
-	return (int)mp->lo_mem_max+mp->mem_max-mp->hi_mem_min+2;
+	return (int)mp->lo_mem_max;
 }
 int mp_hash_usage (MP mp ) {
   return (int)mp->st_count;
@@ -27814,7 +27712,6 @@ void mp_init_prim (MP mp) { /* initialize all the primitives */
 }
 @#
 void mp_init_tab (MP mp) { /* initialize other tables */
-  integer k; /* all-purpose index */
   @<Initialize table entries@>;
 }
 
