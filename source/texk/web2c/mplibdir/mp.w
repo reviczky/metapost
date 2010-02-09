@@ -3970,8 +3970,8 @@ pointer mp_get_node (MP mp,integer s) { /* variable-size node allocation */
   if ( s==010000000000 ) { 
     return max_halfword;
   };
-  if ( mp->lo_mem_max+2<mp->mem_max ) {
-    if ( mp->lo_mem_max+2<=max_halfword ) {
+  if ( mp->lo_mem_max+3<mp->mem_max ) {
+    if ( mp->lo_mem_max+3<=max_halfword ) {
       @<Grow more variable-size memory and |goto restart|@>;
     }
   }
@@ -3993,7 +3993,7 @@ implemented on ``virtual memory'' systems.
 
 @<Grow more variable-size memory and |goto restart|@>=
 { 
-  if ( mp->mem_max-mp->lo_mem_max>=1998 ) {
+  if ( mp->mem_max-mp->lo_mem_max>=1996 ) {
     t=mp->lo_mem_max+1000;
   } else {
     t=mp->lo_mem_max+1+(mp->mem_max-mp->lo_mem_max) / 2; 
@@ -4074,17 +4074,17 @@ in locations |0| through |lo_mem_stat_max|.
 @d sentinel mp->mem_max /* end of sorted lists */
 
 @(mpmp.h@>=
-#define null_dash (3) /* the first words are reserved for a null value */
+#define null_dash (2) /* the first words are reserved for a null value */
 #define dep_head (null_dash+3) /* we will define |dash_node_size=3| */
 #define zero_val (dep_head+3) /* three words for a permanently zero value */
 #define temp_val (zero_val+3) /* three words for a temporary value node */
 #define end_attr temp_val     /* we use |end_attr+2| only */
-#define spec_head (end_attr+4)
-#define hold_head (spec_head+2)
-#define temp_head (hold_head+2)
-#define inf_val (temp_head+3) /* and |inf_val+1| only */
+#define inf_val (end_attr+3) /* and |inf_val+1| only */
 #define bad_vardef (inf_val+3) /* three words for \&{vardef} error recovery */
-#define lo_mem_stat_max (bad_vardef+2)  /* largest statically allocated word in |mem| */
+#define temp_head (bad_vardef+3)
+#define hold_head (temp_head+2)
+#define spec_head (hold_head+2)
+#define lo_mem_stat_max (spec_head+2)  /* largest statically allocated word in |mem| */
 
 @ The following code gets |mem| off to a good start.
 
