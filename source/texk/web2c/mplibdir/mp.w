@@ -3886,7 +3886,10 @@ halfword get_mp_info (MP mp, pointer p) {
   return mp->mem[p+2].hh.lh;
 }
 static halfword get_mp_sym_info (MP mp, pointer p) {
-  assert(mp_type(p)==mp_symbol_node);
+  if (mp_type(p)!=mp_symbol_node) {
+    printf("actual type: %s\n", mp_type_string(mp_type(p)));
+    assert(mp_type(p)==mp_symbol_node);
+  }
   return mp->mem[(p+1)].hh.lh;
 }
 
@@ -16272,11 +16275,14 @@ mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_ta
        mp_free_symbolic_node(mp,q);
     }
     mp->loop_ptr->list=mp_link(p); 
-    if ( mp_type(p) == mp_symbol_node ) 
+    /* todo: check this if-else, it is probably wrong */
+    if ( mp_type(p) == mp_symbol_node ) {
       q=mp_sym_info(p); 
-    else
+      mp_free_symbolic_node(mp,p);
+    } else { 
       q=mp_info(p); 
-    mp_free_symbolic_node(mp,p);
+      mp_free_node(mp, p, value_node_size);
+    }
   } else if ( p==mp_void ) { 
     mp_begin_token_list(mp, mp->loop_ptr->info, (quarterword)forever_text); 
     return;
