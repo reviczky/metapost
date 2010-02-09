@@ -3873,18 +3873,19 @@ integer var_used; integer dyn_used; /* how much memory is in use */
 simplest. The pointer variable |mem_max| holds the highest-numbered location
 of |mem|. The free locations of |mem| that
 occur between |hi_mem_min| and |mem_max|, inclusive, are of type
-|two_halves|, and we write |info(p)| and |mp_link(p)| for the |lh|
+|two_halves|, and we write |mp_sym_info(p)| and |mp_link(p)| for the |lh|
 and |rh| fields of |mem[p]| when it is of this type. The single-word
 free locations form a linked list
 $$|avail|,\;\hbox{|mp_link(avail)|},\;\hbox{|mp_link(mp_link(avail))|},\;\ldots$$
 terminated by |null|.
 
 @d mp_link(A)   mp->mem[(A)].hh.rh /* the |link| field of a memory word */
-@d old_mp_info(A)   mp->mem[(A)].hh.lh /* the |info| field of a memory word */
-@d old_set_mp_info(A,B) mp->mem[(A)].hh.lh=(B) /* set the |info| field of a memory word */
 
 @<Glob...@>=
 pointer avail; /* head of the list of available one-word nodes */
+
+@ @<Declarations@>=
+static halfword get_mp_info (MP mp, pointer p);
 
 @ A few debugging trick functions
 
@@ -4384,7 +4385,7 @@ void mp_search_mem (MP mp, pointer p) { /* look for pointers to |p| */
     if ( mp_link(q)==p ) {
       mp_print_nl(mp, "LINK("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
     }
-    if ( mp_info(q)==p ) {
+    if ( mp_sym_info(q)==p ) {
       mp_print_nl(mp, "INFO("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
     }
   }
@@ -6543,7 +6544,7 @@ static pointer mp_find_variable (MP mp,pointer t) {
     if ( t<mp->hi_mem_min ) {
       @<Descend one level for the subscript |value(t)|@>
     } else {
-      @<Descend one level for the attribute |mp_info(t)|@>;
+      @<Descend one level for the attribute |mp_sym_info(t)|@>;
     }
     t=mp_link(t);
   }
@@ -6600,7 +6601,7 @@ subscript list, even though that word isn't part of a subscript node.
   mp->mem[subscript_loc(q)]=save_word;
 }
 
-@ @<Descend one level for the attribute |mp_info(t)|@>=
+@ @<Descend one level for the attribute |mp_sym_info(t)|@>=
 { 
   n=mp_sym_info(t);
   ss=attr_head(pp);
@@ -10682,7 +10683,7 @@ static mp_knot *mp_offset_prep (MP mp, mp_knot *c, mp_knot *h) {
     @<Advance |p| to node |q|, removing any ``dead'' cubics that
       might have been introduced by the splitting process@>;
   } while (q!=c);
-  @<Fix the offset change in |mp_info(c)| and set |c| to the return value of
+  @<Fix the offset change in |mp_knot_info(c)| and set |c| to the return value of
     |offset_prep|@>;
   return c;
 }
@@ -10798,7 +10799,7 @@ void mp_split_cubic (MP mp, mp_knot *p, fraction t) { /* splits the cubic after 
   mp_y_coord(r)=t_of_the_way(mp_left_y(r),mp_right_y(r));
 }
 
-@ This does not set |mp_info(p)| or |mp_right_type(p)|.
+@ This does not set |mp_knot_info(p)| or |mp_right_type(p)|.
 
 @<Declarations@>=
 static void mp_remove_cubic (MP mp, mp_knot *p) ; 
@@ -10833,7 +10834,7 @@ k_needed=0;
 @<Prepare for derivative computations;
   |goto not_found| if the current cubic is dead@>;
 @<Find the initial direction |(dx,dy)|@>;
-@<Update |mp_info(p)| and find the offset $w_k$ such that
+@<Update |mp_knot_info(p)| and find the offset $w_k$ such that
   $d_{k-1}\preceq(\\{dx},\\{dy})\prec d_k$; also advance |w0| for
   the direction change at |p|@>;
 @<Find the final direction |(dxin,dyin)|@>;
@@ -11061,7 +11062,7 @@ counter-clockwise in order to make \&{doublepath} envelopes come out
 @:double_path_}{\&{doublepath} primitive@>
 right.) This code depends on |w0| being the offset for |(dxin,dyin)|.
 
-@<Update |mp_info(p)| and find the offset $w_k$ such that...@>=
+@<Update |mp_knot_info(p)| and find the offset $w_k$ such that...@>=
 turn_amt=mp_get_turn_amt(mp,w0,dx,dy,(mp_ab_vs_cd(mp, dy,dxin,dx,dyin)>=0));
 w=mp_pen_walk(mp, w0, turn_amt);
 w0=w;
@@ -11115,7 +11116,7 @@ of~|h|.
 
 @d fix_by(A) mp_knot_info(c)=mp_knot_info(c)+(A)
 
-@<Fix the offset change in |mp_info(c)| and set |c| to the return value of...@>=
+@<Fix the offset change in |mp_knot_info(c)| and set |c| to the return value of...@>=
 mp->spec_offset=mp_knot_info(c)-zero_off;
 if ( mp_next_knot(c)==c ) {
   mp_knot_info(c)=zero_off+n;
@@ -11291,14 +11292,14 @@ static void mp_print_spec (MP mp, mp_knot *cur_spec, mp_knot *cur_pen, const cha
     	break;
     }
     if ( mp_knot_info(p)!=zero_off ) {
-      @<Update |w| as indicated by |mp_info(p)| and print an explanation@>;
+      @<Update |w| as indicated by |mp_knot_info(p)| and print an explanation@>;
     }
   } while (p!=cur_spec);
   mp_print_nl(mp, " & cycle");
   mp_end_diagnostic(mp, true);
 }
 
-@ @<Update |w| as indicated by |mp_info(p)| and print an explanation@>=
+@ @<Update |w| as indicated by |mp_knot_info(p)| and print an explanation@>=
 { 
   w=mp_pen_walk(mp, w, (mp_knot_info(p)-zero_off));
   mp_print(mp, " % ");
@@ -15508,7 +15509,7 @@ void mp_print_arg (MP mp,pointer q, integer n, pointer b) {
 @ @<Scan the remaining arguments, if any; set |r|...@>=
 mp->cur_cmd=comma+1; /* anything |<>comma| will do */
 while ( mp_sym_info(r)>=expr_base ) { 
-  @<Scan the delimited argument represented by |mp_info(r)|@>;
+  @<Scan the delimited argument represented by |mp_sym_info(r)|@>;
   r=mp_link(r);
 }
 if ( mp->cur_cmd==comma ) {
@@ -15537,7 +15538,7 @@ aspects of the following program on faith; we will explain |cur_type|
 and |cur_exp| later. (Several things in this program depend on each other,
 and it's necessary to jump into the circle somewhere.)
 
-@<Scan the delimited argument represented by |mp_info(r)|@>=
+@<Scan the delimited argument represented by |mp_sym_info(r)|@>=
 if ( mp->cur_cmd!=comma ) {
   mp_get_x_next(mp);
   if ( mp->cur_cmd!=left_delimiter ) {
@@ -15557,7 +15558,7 @@ if ( mp->cur_cmd!=comma ) {
   }
   l_delim=mp->cur_sym; r_delim=mp->cur_mod;
 }
-@<Scan the argument represented by |mp_info(r)|@>;
+@<Scan the argument represented by |mp_sym_info(r)|@>;
 if ( mp->cur_cmd!=comma ) 
   @<Check that the proper right delimiter was present@>;
 FOUND:  
@@ -15601,7 +15602,7 @@ a token list pointed to by |cur_exp|, in which case we will have
   tail=p; incr(n);
 }
 
-@ @<Scan the argument represented by |mp_info(r)|@>=
+@ @<Scan the argument represented by |mp_sym_info(r)|@>=
 if ( mp_sym_info(r)>=text_base ) {
   mp_scan_text_arg(mp, l_delim,r_delim);
 } else { 
@@ -23378,7 +23379,7 @@ static void mp_append_string (MP mp, mp_stream *a,const char *b) {
         a->size += 256+(a->size)/5+l;
         a->data = xrealloc(a->data,a->size,1);
     }
-    (void)strcpy(a->data+a->used,b);
+    memcpy(a->data+a->used,b,l);
     a->used += l;
 }
 
