@@ -6005,6 +6005,9 @@ by a code for the type of macro.
   undelimited `\&{expr} |x| \&{of}~|y|' parameters */
 @d suffix_macro 6 /* preface to a macro with an undelimited \&{suffix} parameter */
 @d text_macro 7 /* preface to a macro with an undelimited \&{text} parameter */
+@d expr_param 8
+@d suffix_param 9
+@d text_param 10
 
 @c 
 static void mp_delete_mac_ref (MP mp,pointer p) {
@@ -14791,6 +14794,8 @@ like \&{enddef} and \&{endfor}.
 @d var_def 2 /* command modifier for \&{vardef} */
 @d end_def 0 /* command modifier for \&{enddef} */
 @d start_forever 1 /* command modifier for \&{forever} */
+@d start_for 2 /* command modifier for \&{forever} */
+@d start_forsuffixes 3 /* command modifier for \&{forever} */
 @d end_for 0 /* command modifier for \&{endfor} */
 
 @<Put each...@>=
@@ -14808,9 +14813,9 @@ mp_primitive(mp, "enddef",macro_def,end_def);
 mp->frozen_end_def = mp_frozen_primitive(mp, "enddef",macro_def,end_def); 
 @:end_def_}{\&{enddef} primitive@>
 @#
-mp_primitive(mp, "for",iteration,expr_base);
+mp_primitive(mp, "for",iteration, start_for);
 @:for_}{\&{for} primitive@>
-mp_primitive(mp, "forsuffixes",iteration,suffix_base);
+mp_primitive(mp, "forsuffixes",iteration, start_forsuffixes);
 @:for_suffixes_}{\&{forsuffixes} primitive@>
 mp_primitive(mp, "forever",iteration,start_forever);
 @:forever_}{\&{forever} primitive@>
@@ -14833,14 +14838,10 @@ case macro_def:
   }
   break;
 case iteration: 
-  if ( m<=start_forever ) {
-    if ( m==start_forever ) mp_print(mp, "forever"); 
-    else mp_print(mp, "endfor");
-  } else if ( m==expr_base ) {
-    mp_print(mp, "for"); 
-  } else { 
-    mp_print(mp, "forsuffixes");
-  }
+  if ( m==start_forever ) mp_print(mp, "forever"); 
+  else if (m==end_for) mp_print(mp, "endfor");
+  else if ( m==start_for ) mp_print(mp, "for"); 
+  else  mp_print(mp, "forsuffixes");
   break;
 
 @ Different macro-absorbing operations have different syntaxes, but they
@@ -15030,11 +15031,11 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1} (i.e.,
 \&{suffix}, \&{text}, \&{primary}, \&{secondary}, and \&{tertiary}.
 
 @<Put each...@>=
-mp_primitive(mp, "expr",param_type,expr_base);
+mp_primitive(mp, "expr",param_type,expr_param);
 @:expr_}{\&{expr} primitive@>
-mp_primitive(mp, "suffix",param_type,suffix_base);
+mp_primitive(mp, "suffix",param_type,suffix_param);
 @:suffix_}{\&{suffix} primitive@>
-mp_primitive(mp, "text",param_type,text_base);
+mp_primitive(mp, "text",param_type,text_param);
 @:text_}{\&{text} primitive@>
 mp_primitive(mp, "primary",param_type,primary_macro);
 @:primary_}{\&{primary} primitive@>
@@ -15045,17 +15046,12 @@ mp_primitive(mp, "tertiary",param_type,tertiary_macro);
 
 @ @<Cases of |print_cmd...@>=
 case param_type:
-  if ( m>=expr_base ) {
-    if ( m==expr_base ) mp_print(mp, "expr");
-    else if ( m==suffix_base ) mp_print(mp, "suffix");
-    else mp_print(mp, "text");
-  } else if ( m<secondary_macro ) {
-    mp_print(mp, "primary");
-  } else if ( m==secondary_macro ) {
-    mp_print(mp, "secondary");
-  } else {
-    mp_print(mp, "tertiary");
-  }
+  if ( m==expr_param ) mp_print(mp, "expr");
+  else if ( m==suffix_param ) mp_print(mp, "suffix");
+  else if ( m==text_param ) mp_print(mp, "text");
+  else if ( m==primary_macro ) mp_print(mp, "primary");
+  else if ( m==secondary_macro )  mp_print(mp, "secondary");
+  else  mp_print(mp, "tertiary");
   break;
 
 @ Let's turn next to the more complex processing associated with \&{def}
@@ -15152,8 +15148,12 @@ mp_link(bad_vardef) = mp_get_frozen_primitive(mp, mp->frozen_bad_vardef);
 @ @<Absorb delimited parameters, putting them into lists |q| and |r|@>=
 do {  
   l_delim=mp->cur_sym; r_delim=mp->cur_mod; get_t_next;
-  if ( (mp->cur_cmd==param_type)&&(mp->cur_mod>=expr_base) ) {
-   base=mp->cur_mod;
+  if ( (mp->cur_cmd==param_type)&&(mp->cur_mod==expr_param) ) {
+    base=expr_base;
+  } else if ( (mp->cur_cmd==param_type)&&(mp->cur_mod==suffix_param) ) {
+    base=suffix_base;
+  } else if ( (mp->cur_cmd==param_type)&&(mp->cur_mod==text_param) ) {
+    base=text_base;
   } else { 
     print_err("Missing parameter type; `expr' will be assumed");
 @.Missing parameter type@>
@@ -15182,13 +15182,18 @@ do {
 @ @<Absorb undelimited parameters, putting them into list |r|@>=
 { 
   p=mp_get_token_node(mp);
-  if ( mp->cur_mod<expr_base ) {
-    c=mp->cur_mod; value(p)=expr_base+k;
-  } else { 
-    value(p)=mp->cur_mod+k;
-    if ( mp->cur_mod==expr_base ) c=expr_macro;
-    else if ( mp->cur_mod==suffix_base ) c=suffix_macro;
-    else c=text_macro;
+  if ( mp->cur_mod==expr_param ) {
+    value(p)=expr_base+k;
+    c=expr_macro;
+  } else if ( mp->cur_mod==suffix_param ) {
+    value(p)=suffix_base+k;
+    c=suffix_macro;
+  } else if ( mp->cur_mod==text_param ) {
+    value(p)=text_base+k;
+    c=text_macro;
+  } else {
+    c=mp->cur_mod; 
+    value(p)=expr_base+k;
   }
   if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
   incr(k); mp_get_symbol(mp);
@@ -16171,7 +16176,12 @@ didn't write it until later. The reader may wish to come back to it.)
   mp_loop_data *s; /* the new loop-control node */
   pointer p; /* substitution list for |scan_toks| */
   pointer q;  /* link manipulation register */
-  m=mp->cur_mod; 
+  if (mp->cur_mod == start_for)
+    m=expr_base; 
+  else if (mp->cur_mod == start_forsuffixes)
+    m=suffix_base; 
+  else
+    m=mp->cur_mod;
   n=mp->cur_sym; 
   s=xmalloc(1, sizeof(mp_loop_data));
   s->type = s->list = s->info = s->list_start = null;
