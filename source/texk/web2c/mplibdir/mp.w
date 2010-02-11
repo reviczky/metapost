@@ -14946,11 +14946,11 @@ When such parameters are present, they are called \.{(SUFFIX0)},
   q=subst_list;
   while ( q!=null ) {
     if ( mp_info(q)==mp->cur_sym ) {
-      if (value_mod(q) == expr_base) 
+      if (value_mod(q) == mp_expr_sym) 
         mp->cur_sym=value(q)+expr_base; 
-      else if (value_mod(q) == text_base)
+      else if (value_mod(q) == mp_text_sym)
         mp->cur_sym=value(q)+text_base; 
-      else if (value_mod(q) == suffix_base)
+      else if (value_mod(q) == mp_suffix_sym)
         mp->cur_sym=value(q)+suffix_base; 
       else
         mp->cur_sym=value(q); 
@@ -15058,14 +15058,14 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1}.
   q=mp_get_token_node(mp);
   set_mp_info(q,mp->cur_sym);
   set_value(q,0);
-  set_value_mod(q,expr_base);
+  set_value_mod(q,mp_expr_sym);
   mp_get_clear_symbol(mp); 
   mp->warning_info=mp->cur_sym;
   mp_get_symbol(mp); 
   p=mp_get_token_node(mp);
   set_mp_info(p,mp->cur_sym);
   set_value(p,1); 
-  set_value_mod(p,expr_base);
+  set_value_mod(p,mp_expr_sym);
   mp_link(p)=q;
   get_t_next; 
   mp_check_equals(mp);
@@ -15247,11 +15247,11 @@ do {
   p=mp_get_token_node(mp); 
   set_value(p, k);
   if (sym_type==mp_expr_sym)
-    set_value_mod(p,expr_base);
+    set_value_mod(p,mp_expr_sym);
   else if (sym_type==mp_suffix_sym)
-    set_value_mod(p,suffix_base);
+    set_value_mod(p,mp_suffix_sym);
   else if (sym_type==mp_text_sym)
-    set_value_mod(p,text_base);
+    set_value_mod(p,mp_text_sym);
   set_mp_info(p,mp->cur_sym);
   if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
 @:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
@@ -15266,17 +15266,17 @@ do {
   p=mp_get_token_node(mp);
   set_value(p,k);
   if ( mp->cur_mod==expr_param ) {
-    set_value_mod(p,expr_base);
+    set_value_mod(p,mp_expr_sym);
     c=expr_macro;
   } else if ( mp->cur_mod==suffix_param ) {
-    set_value_mod(p,suffix_base);
+    set_value_mod(p,mp_suffix_sym);
     c=suffix_macro;
   } else if ( mp->cur_mod==text_param ) {
-    set_value_mod(p,text_base);
+    set_value_mod(p,mp_text_sym);
     c=text_macro;
   } else {
     c=mp->cur_mod; 
-    set_value_mod(p,expr_base);
+    set_value_mod(p,mp_expr_sym);
   }
   if ( k==mp->param_size ) 
     mp_overflow(mp, "parameter stack size",mp->param_size);
@@ -15292,7 +15292,7 @@ do {
     if ( k==mp->param_size ) 
       mp_overflow(mp, "parameter stack size",mp->param_size);
     set_value(p,k);
-    set_value_mod(p,expr_base);
+    set_value_mod(p,mp_expr_sym);
     mp_get_symbol(mp);
     set_mp_info(p,mp->cur_sym);
     mp_link(p)=r; 
@@ -16292,9 +16292,9 @@ didn't write it until later. The reader may wish to come back to it.)
     set_mp_info(p,mp->cur_sym); 
     set_value(p,0);
     if (m==start_for) {
-      set_value_mod(p,expr_base);
+      set_value_mod(p,mp_expr_sym);
     } else { /* |start_forsuffixes| */
-      set_value_mod(p,suffix_base);
+      set_value_mod(p,mp_suffix_sym);
     }
     mp_get_x_next(mp);
     if ( mp->cur_cmd==within_token ) {
