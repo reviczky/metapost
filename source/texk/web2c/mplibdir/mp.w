@@ -295,7 +295,8 @@ if (mp->troff_mode) {
   internal_value(mp_prologues)=unity; 
 }
 if ( mp->start_sym>0 ) { /* insert the `\&{everyjob}' symbol */
-  mp->cur_sym=mp->start_sym; mp_back_input(mp);
+  mp->cur_sym=mp->start_sym; 
+  mp_back_input(mp);
 }
 
 @ @<Exported function headers@>=
@@ -2055,7 +2056,10 @@ to be familiar with \MP's input stacks.
 
 @<Delete |c-"0"| tokens...@>=
 { 
-  s1=mp->cur_cmd; s2=mp->cur_mod; s3=mp->cur_sym; mp->OK_to_interrupt=false;
+  s1=mp->cur_cmd;
+  s2=mp->cur_mod;
+  s3=mp->cur_sym; 
+  mp->OK_to_interrupt=false;
   if ( (mp->last>mp->first+1) && (mp->buffer[mp->first+1]>='0')&&(mp->buffer[mp->first+1]<='9') )
     c=xord(c*10+mp->buffer[mp->first+1]-'0'*11);
   else 
@@ -2065,7 +2069,10 @@ to be familiar with \MP's input stacks.
     @<Decrease the string reference count, if the current token is a string@>;
     c--;
   };
-  mp->cur_cmd=s1; mp->cur_mod=s2; mp->cur_sym=s3; mp->OK_to_interrupt=true;
+  mp->cur_cmd=s1;
+  mp->cur_mod=s2;
+  mp->cur_sym=s3;
+  mp->OK_to_interrupt=true;
   help2("I have just deleted some text, as you asked.",
        "You can now delete more, or insert, or whatever.");
   mp_show_context(mp); 
@@ -3881,6 +3888,7 @@ static void do_set_mp_sym_info(MP mp, pointer A, halfword B);
 @c
 static void do_set_mp_sym_info(MP mp, pointer A, halfword B) {
   assert(mp_type(A)==mp_symbol_node);
+  assert ((B)>=0);
   assert (B<expr_base);
   mp->mem[(A)+1].hh.lh=B;
 }
@@ -5766,8 +5774,12 @@ printer's sense. It's curious that the same word is used in such different ways.
 @d mp_name_type(A)   mp->mem[(A)].hh.b1 /* a clue to the name of this value */
 @d token_node_size 3 /* the number of words in a large token node */
 @d value_loc(A) ((A)+1) /* the word that contains the |value| field */
-@d value(A) mp->mem[value_loc((A))].cint /* the value stored in a large token node */
-@d set_value(A,B) mp->mem[value_loc((A))].cint=(B) /* store the value in a large token node */
+@d value(A) mp->mem[value_loc((A))].hh.lh /* the value stored in a large token node */
+@d value_mod(A) mp->mem[value_loc((A))].hh.rh /* a hint at the meaning of value */
+@d set_value(A,B) do {
+  mp->mem[value_loc((A))].hh.lh=(B); /* store the value in a large token node */
+} while (0)
+@d set_value_mod(A,B) mp->mem[value_loc((A))].hh.rh=(B) /* store the value hint */
 @d str_value(A) mp->mem[value_loc((A))].hh.v.str /* the value stored in a large token node */
 @d knot_value(A) mp->mem[value_loc((A))].hh.p.P /* the value stored in a large token node */
 @d expr_base (hash_end+1) /* code for the zeroth \&{expr} parameter */
@@ -5790,6 +5802,7 @@ static pointer mp_get_token_node (MP mp) {
   pointer p = mp_get_node(mp, token_node_size);
   mp_type(p) = mp_token_node;
   mp_name_type(p) = 0; /* altered later */
+  value_mod(p) = 0;
   return p;
 }
  
@@ -13326,7 +13339,8 @@ recursive process, but the |get_next| procedure is not recursive.
 integer cur_cmd; /* current command set by |get_next| */
 integer cur_mod; /* operand of current command */
 str_number cur_mod_str; /* string operand, if any */
-halfword cur_sym; /* hash address of current symbol, or a param_stack pointer for an expr */
+halfword cur_sym; /* hash address of current symbol, or a |param_stack| pointer for an expr */
+quarterword cur_sym_mod; /* extra info for these |param_stack| cases */
 
 @ The |print_cmd_mod| routine prints a symbolic interpretation of a
 command code and its modifier.
@@ -13950,13 +13964,13 @@ static pointer mp_cur_tok (MP mp) {
     }
   } else { 
     p = mp_get_symbolic_node(mp); 
-    if (mp->cur_sym>=text_base) { 
+    if (mp->cur_sym>=text_base) {
       set_mp_sym_info(p,mp->cur_sym-text_base);
       mp_name_type(p) = mp_text_sym;
-    } else if (mp->cur_sym>=suffix_base) { 
+    } else if (mp->cur_sym>=suffix_base) {
       set_mp_sym_info(p,mp->cur_sym-suffix_base);
       mp_name_type(p) = mp_suffix_sym;
-    } else if (mp->cur_sym>=expr_base) { 
+    } else if (mp->cur_sym>=expr_base) {
       set_mp_sym_info(p,mp->cur_sym-expr_base);
       mp_name_type(p) = mp_expr_sym;
     } else {
@@ -14212,7 +14226,18 @@ if ( mp->cur_sym!=0 ) {
 @ @<Back up an outer symbolic token so that it can be reread@>=
 if ( mp->cur_sym!=0 ) {
   p=mp_get_symbolic_node(mp); 
-  set_mp_sym_info(p,mp->cur_sym);
+  if (mp->cur_sym>=text_base) {
+    set_mp_sym_info(p,mp->cur_sym-text_base);
+    mp_name_type(p) = mp_text_sym;
+  } else if (mp->cur_sym>=suffix_base) {
+    set_mp_sym_info(p,mp->cur_sym-suffix_base);
+    mp_name_type(p) = mp_suffix_sym;
+  } else if (mp->cur_sym>=expr_base) {
+    set_mp_sym_info(p,mp->cur_sym-expr_base);
+    mp_name_type(p) = mp_expr_sym;
+  } else {
+    set_mp_sym_info(p,mp->cur_sym);
+  }
   back_list(p); /* prepare to read the symbolic token again */
 }
 
@@ -14554,7 +14579,8 @@ if ( mp_type(loc) == mp_symbol_node ) { /* symbolic token */
     mp->cur_mod=loc;
     mp->cur_cmd=capsule_token;
   }
-  loc=mp_link(loc); return;
+  loc=mp_link(loc); 
+  return;
 }
 
 @ All of the easy branches of |get_next| have now been taken care of.
@@ -14907,9 +14933,11 @@ When such parameters are present, they are called \.{(SUFFIX0)},
         }
       }
     }
-    mp_link(p)=mp_cur_tok(mp); p=mp_link(p);
+    mp_link(p)=mp_cur_tok(mp);
+    p=mp_link(p);
   }
-  mp_link(p)=tail_end; mp_flush_node_list(mp, subst_list);
+  mp_link(p)=tail_end; 
+  mp_flush_node_list(mp, subst_list);
   return mp_link(hold_head);
 }
 
@@ -14918,7 +14946,14 @@ When such parameters are present, they are called \.{(SUFFIX0)},
   q=subst_list;
   while ( q!=null ) {
     if ( mp_info(q)==mp->cur_sym ) {
-      mp->cur_sym=value(q); 
+      if (value_mod(q) == expr_base) 
+        mp->cur_sym=value(q)+expr_base; 
+      else if (value_mod(q) == text_base)
+        mp->cur_sym=value(q)+text_base; 
+      else if (value_mod(q) == suffix_base)
+        mp->cur_sym=value(q)+suffix_base; 
+      else
+        mp->cur_sym=value(q); 
       mp->cur_cmd=relax; 
       break;
     }
@@ -15013,8 +15048,7 @@ or assignment sign comes along at the proper place in a macro definition.
 
 @ A \&{primarydef}, \&{secondarydef}, or \&{tertiarydef} is rather easily
 handled now that we have |scan_toks|.  In this case there are
-two parameters, which will be \.{EXPR0} and \.{EXPR1} (i.e.,
-|expr_base| and |expr_base+1|).
+two parameters, which will be \.{EXPR0} and \.{EXPR1}.
 
 @c static void mp_make_op_def (MP mp) {
   command_code m; /* the type of definition */
@@ -15023,13 +15057,15 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1} (i.e.,
   mp_get_symbol(mp); 
   q=mp_get_token_node(mp);
   set_mp_info(q,mp->cur_sym);
-  set_value(q,expr_base);
+  set_value(q,0);
+  set_value_mod(q,expr_base);
   mp_get_clear_symbol(mp); 
   mp->warning_info=mp->cur_sym;
   mp_get_symbol(mp); 
   p=mp_get_token_node(mp);
   set_mp_info(p,mp->cur_sym);
-  set_value(p,expr_base+1); 
+  set_value(p,1); 
+  set_value_mod(p,expr_base);
   mp_link(p)=q;
   get_t_next; 
   mp_check_equals(mp);
@@ -15209,13 +15245,13 @@ do {
   set_mp_sym_info(q,k);
   mp_get_symbol(mp);
   p=mp_get_token_node(mp); 
-  if (sym_type == mp_expr_sym) {
-    set_value(p,expr_base+k);
-  } else if (sym_type == mp_suffix_sym) {
-    set_value(p,suffix_base+k);
-  } else { /* |text_sym| */
-    set_value(p,text_base+k);
-  } 
+  set_value(p, k);
+  if (sym_type==mp_expr_sym)
+    set_value_mod(p,expr_base);
+  else if (sym_type==mp_suffix_sym)
+    set_value_mod(p,suffix_base);
+  else if (sym_type==mp_text_sym)
+    set_value_mod(p,text_base);
   set_mp_info(p,mp->cur_sym);
   if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
 @:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
@@ -15228,18 +15264,19 @@ do {
 @ @<Absorb undelimited parameters, putting them into list |r|@>=
 { 
   p=mp_get_token_node(mp);
+  set_value(p,k);
   if ( mp->cur_mod==expr_param ) {
-    set_value(p,expr_base+k);
+    set_value_mod(p,expr_base);
     c=expr_macro;
   } else if ( mp->cur_mod==suffix_param ) {
-    set_value(p,suffix_base+k);
+    set_value_mod(p,suffix_base);
     c=suffix_macro;
   } else if ( mp->cur_mod==text_param ) {
-    set_value(p,text_base+k);
+    set_value_mod(p,text_base);
     c=text_macro;
   } else {
     c=mp->cur_mod; 
-    set_value(p,expr_base+k);
+    set_value_mod(p,expr_base);
   }
   if ( k==mp->param_size ) 
     mp_overflow(mp, "parameter stack size",mp->param_size);
@@ -15254,7 +15291,8 @@ do {
     p=mp_get_token_node(mp);
     if ( k==mp->param_size ) 
       mp_overflow(mp, "parameter stack size",mp->param_size);
-    set_value(p,expr_base+k);
+    set_value(p,k);
+    set_value_mod(p,expr_base);
     mp_get_symbol(mp);
     set_mp_info(p,mp->cur_sym);
     mp_link(p)=r; 
@@ -16252,10 +16290,12 @@ didn't write it until later. The reader may wish to come back to it.)
     mp_get_symbol(mp); 
     p=mp_get_token_node(mp);
     set_mp_info(p,mp->cur_sym); 
-    if (m==start_for)
-      set_value(p,expr_base);
-    else /* |start_forsuffixes| */
-      set_value(p,suffix_base);
+    set_value(p,0);
+    if (m==start_for) {
+      set_value_mod(p,expr_base);
+    } else { /* |start_forsuffixes| */
+      set_value_mod(p,suffix_base);
+    }
     mp_get_x_next(mp);
     if ( mp->cur_cmd==within_token ) {
       @<Set up a picture iteration@>;
