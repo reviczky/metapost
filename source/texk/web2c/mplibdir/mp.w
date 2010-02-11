@@ -3864,16 +3864,14 @@ integer var_used; /* how much memory is in use */
 
 @ @<Declarations@>=
 static halfword get_mp_info (MP mp, pointer p);
+static void do_set_mp_sym_info(MP mp, pointer A, halfword B);
 
 @ A few debugging trick functions
 
 @d mp_sym_info(A) get_mp_sym_info(mp,(A))
 @d mp_info(A) get_mp_info(mp,(A))
 
-@d set_mp_sym_info(A,B) do {
-  assert(mp_type((A))==mp_symbol_node);
-  mp->mem[(A)+1].hh.lh=(B);
-} while (0)
+@d set_mp_sym_info(A,B) do_set_mp_sym_info(mp,(A),(B))
 
 @d set_mp_info(A,B) do {
   assert(mp_type((A))!=mp_symbol_node);
@@ -3881,6 +3879,12 @@ static halfword get_mp_info (MP mp, pointer p);
 } while (0)
 
 @c
+static void do_set_mp_sym_info(MP mp, pointer A, halfword B) {
+  assert(mp_type(A)==mp_symbol_node);
+  assert (B<expr_base);
+  mp->mem[(A)+1].hh.lh=B;
+}
+
 halfword get_mp_info (MP mp, pointer p) {
   assert(mp_type(p)!=mp_symbol_node);
   return mp->mem[p+2].hh.lh;
@@ -3898,7 +3902,11 @@ static halfword get_mp_sym_info (MP mp, pointer p) {
 @<Types...@>=
 enum {
   mp_normal_sym = 0,
-  mp_internal_sym,
+  mp_internal_sym, /* for values of internals */
+  mp_macro_sym,    /* for macro names */
+  mp_expr_sym,     /* for macro parameters if type |expr| */
+  mp_suffix_sym,   /* for macro parameters if type |suffix| */
+  mp_text_sym,     /* for macro parameters if type |text| */
 } mp_sym_name_types;
 
 @ The function |get_symbolic_node| returns a pointer to a new symbolic node whose
@@ -5724,22 +5732,26 @@ section where |"def"| entered |eqtb| is listed under `\&{def} primitive'.
 A \MP\ token is either symbolic or numeric or a string, or it denotes
 a macro parameter or capsule; so there are five corresponding ways to encode it
 @^token@>
-internally: (1)~A symbolic token whose hash code is~|p|
-is represented by the number |p|, in the |info| field of a symbolic
-node in~|mem|. (2)~A numeric token whose |scaled| value is~|v| is
+internally: 
+(1)~A symbolic token whose hash code is~|p| is represented by the number |p|, 
+in the |sym_info| field of a symbolic node in~|mem|. 
+
+(2)~A numeric token whose |scaled| value is~|v| is
 represented in a non-symbolic node of~|mem|; the |type| field is |known|,
 the |name_type| field is |token|, and the |value| field holds~|v|.
-The fact that this token appears in a non-symbolic node rather than a
-symbolic node is, of course, clear from the node address.
+
 (3)~A string token is also represented in a non-symbolic node; the |type|
 field is |mp_string_type|, the |name_type| field is |token|, and the
-|value| field holds the corresponding |str_number|.  (4)~Capsules have
-|name_type=capsule|, and their |type| and |value| fields represent
-arbitrary values (in ways to be explained later).  (5)~Macro parameters
-are like symbolic tokens in that they appear in |info| fields of
-symbolic nodes. The $k$th parameter is represented by |expr_base+k| if it
-is of type \&{expr}, or by |suffix_base+k| if it is of type \&{suffix}, or
+|value| field holds the corresponding |str_number|.  
+
+(4)~Capsules have |name_type=capsule|, and their |type| and |value| fields 
+represent arbitrary values (in ways to be explained later).  
+
+(5)~Macro parameters are like symbolic tokens in that they appear in |sym_info| 
+fields of symbolic nodes. The $k$th parameter is represented by |expr_base+k| 
+if it is of type \&{expr}, or by |suffix_base+k| if it is of type \&{suffix}, or
 by |text_base+k| if it is of type \&{text}.  (Here |0<=k<param_size|.)
+
 Actual values of these parameters are kept in a separate stack, as we will
 see later.  The constants |expr_base|, |suffix_base|, and |text_base| are,
 of course, chosen so that there will be no confusion between symbolic
@@ -5775,6 +5787,7 @@ mp_link(null)=null; value(null)=0;
 static pointer mp_get_token_node (MP mp) {
   pointer p = mp_get_node(mp, token_node_size);
   mp_type(p) = mp_token_node;
+  mp_name_type(p) = 0; /* altered later */
   return p;
 }
  
@@ -5876,8 +5889,22 @@ if ( mp_type(p) != mp_symbol_node ) {
   @<Display non-symbolic token@>;
 } else { 
   r=mp_sym_info(p);
-  if ( r>=expr_base ) {
-     @<Display a parameter token@>;
+  if ( mp_name_type(p)==mp_expr_sym ||
+       mp_name_type(p)==mp_suffix_sym ||
+       mp_name_type(p)==mp_text_sym ) {
+    if ( mp_name_type(p)==mp_expr_sym ) { 
+      mp_print(mp, "(EXPR");
+@.EXPR@>
+    } else if ( mp_name_type(p)==mp_suffix_sym ) { 
+      mp_print(mp, "(SUFFIX");
+@.SUFFIX@>
+    } else { 
+      mp_print(mp, "(TEXT");
+@.TEXT@>
+    }
+    mp_print_int(mp, r);
+    mp_print_char(mp, xord(')'));
+    c=right_paren_class;
   } else {
     if ( r<1 ) {
       if ( r==0 ) { 
@@ -5942,22 +5969,6 @@ if ( class==left_bracket_class )
   mp_print_char(mp, xord(' '));
 mp_print(mp, "[]"); c=right_bracket_class;
 }
-
-@ @<Display a parameter token@>=
-{
-if ( r<suffix_base ) { 
-  mp_print(mp, "(EXPR"); r=r-(expr_base);
-@.EXPR@>
-} else if ( r<text_base ) { 
-  mp_print(mp, "(SUFFIX"); r=r-(suffix_base);
-@.SUFFIX@>
-} else { 
-  mp_print(mp, "(TEXT"); r=r-(text_base);
-@.TEXT@>
-}
-mp_print_int(mp, r); mp_print_char(mp, xord(')')); c=right_paren_class;
-}
-
 
 @ @<Print string |r| as a symbolic token...@>=
 { 
@@ -6024,9 +6035,12 @@ reference count.
 static void mp_show_macro (MP mp, pointer p, integer q, integer l) {
   pointer r; /* temporary storage */
   p=mp_link(p); /* bypass the reference count */
-  while ( mp_sym_info(p)>text_macro ){ 
-    r=mp_link(p); mp_link(p)=null;
-    mp_show_token_list(mp, p,null,l,0); mp_link(p)=r; p=r;
+  while ( mp_name_type(p) != mp_macro_sym){ 
+    r=mp_link(p); 
+    mp_link(p)=null;
+    mp_show_token_list(mp, p,null,l,0); 
+    mp_link(p)=r; 
+    p=r;
     if ( l>0 ) l=l-mp->tally; else return;
   } /* control printing of `\.{ETC.}' */
 @.ETC@>
@@ -13306,7 +13320,7 @@ recursive process, but the |get_next| procedure is not recursive.
 integer cur_cmd; /* current command set by |get_next| */
 integer cur_mod; /* operand of current command */
 str_number cur_mod_str; /* string operand, if any */
-halfword cur_sym; /* hash address of current symbol */
+halfword cur_sym; /* hash address of current symbol, or a param_stack pointer for an expr */
 
 @ The |print_cmd_mod| routine prints a symbolic interpretation of a
 command code and its modifier.
@@ -13934,7 +13948,18 @@ static pointer mp_cur_tok (MP mp) {
     }
   } else { 
     p = mp_get_symbolic_node(mp); 
-    set_mp_sym_info(p,mp->cur_sym);
+    if (mp->cur_sym>=text_base) { 
+      set_mp_sym_info(p,mp->cur_sym-text_base);
+      mp_name_type(p) = mp_text_sym;
+    } else if (mp->cur_sym>=suffix_base) { 
+      set_mp_sym_info(p,mp->cur_sym-suffix_base);
+      mp_name_type(p) = mp_suffix_sym;
+    } else if (mp->cur_sym>=expr_base) { 
+      set_mp_sym_info(p,mp->cur_sym-expr_base);
+      mp_name_type(p) = mp_expr_sym;
+    } else {
+      set_mp_sym_info(p,mp->cur_sym);
+    }
   }
   return p;
 }
@@ -14491,31 +14516,25 @@ mp->cur_cmd=numeric_token; return
 
 @<Input from token list;...@>=
 if ( mp_type(loc) == mp_symbol_node ) { /* symbolic token */
+  quarterword cur_mod_type = mp_name_type(loc);
   mp->cur_sym=mp_sym_info(loc); 
   loc=mp_link(loc); /* move to next */
-  if ( mp->cur_sym>=expr_base ) {
-    if ( mp->cur_sym>=suffix_base ) {
-      @<Insert a suffix or text parameter and |goto restart|@>;
-    } else { 
-      mp->cur_cmd=capsule_token;
-      mp->cur_mod=mp->param_stack[param_start+mp->cur_sym-(expr_base)];
-      mp->cur_sym=0; return;
-    }
+  if ( cur_mod_type==mp_expr_sym) {
+     mp->cur_cmd=capsule_token;
+     mp->cur_mod=mp->param_stack[param_start+mp->cur_sym];
+     mp->cur_sym=0; 
+     return;
+  } else if (cur_mod_type==mp_suffix_sym ||
+             cur_mod_type==mp_text_sym ) {
+     mp_begin_token_list(mp,
+                         mp->param_stack[param_start+mp->cur_sym],
+                         (quarterword)parameter);
+      goto RESTART;
   }
 } else if ( loc>null ) {
   @<Get a stored numeric or string or capsule token and |return|@>
 } else { /* we are done with this token list */
   mp_end_token_list(mp); goto RESTART; /* resume previous level */
-}
-
-@ @<Insert a suffix or text parameter...@>=
-{ 
-  if ( mp->cur_sym>=text_base ) mp->cur_sym=mp->cur_sym-mp->param_size;
-  /* |param_size=text_base-suffix_base| */
-  mp_begin_token_list(mp,
-                      mp->param_stack[param_start+mp->cur_sym-(suffix_base)],
-                      (quarterword)parameter);
-  goto RESTART;
 }
 
 @ @<Get a stored numeric or string or capsule token...@>=
@@ -15020,6 +15039,7 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1} (i.e.,
   r=mp_get_symbolic_node(mp); 
   mp_link(q)=r; 
   set_mp_sym_info(r,general_macro);
+  mp_name_type(r) = mp_macro_sym;
   mp_link(r)=mp_scan_toks(mp, macro_def,p,null,0);
   mp->scanner_status=normal; 
   eq_type(mp->warning_info)=m;
@@ -15074,8 +15094,12 @@ static void mp_scan_def (MP mp) {
   pointer p; /* temporary storage */
   halfword base; /* |expr_base|, |suffix_base|, or |text_base| */
   pointer l_delim,r_delim; /* matching delimiters */
-  m=mp->cur_mod; c=general_macro; mp_link(hold_head)=null;
-  q=mp_get_symbolic_node(mp); ref_count(q)=null; r=null;
+  m=mp->cur_mod; 
+  c=general_macro;
+  mp_link(hold_head)=null;
+  q=mp_get_symbolic_node(mp);
+  ref_count(q)=null; 
+  r=null;
   @<Scan the token or variable to be defined;
     set |n|, |scanner_status|, and |warning_info|@>;
   k=n;
@@ -15088,9 +15112,11 @@ static void mp_scan_def (MP mp) {
   mp_check_equals(mp);
   p=mp_get_symbolic_node(mp); 
   set_mp_sym_info(p,c); 
+  mp_name_type(p) = mp_macro_sym;
   mp_link(q)=p;
   @<Attach the replacement text to the tail of node |p|@>;
-  mp->scanner_status=normal; mp_get_x_next(mp);
+  mp->scanner_status=normal; 
+  mp_get_x_next(mp);
 }
 
 @ We don't put `|mp->frozen_end_group|' into the replacement text of
@@ -15116,21 +15142,29 @@ int eg_loc; /* hash addresses of `\.{begingroup}' and `\.{endgroup}' */
 
 @ @<Scan the token or variable to be defined;...@>=
 if ( m==start_def ) {
-  mp_get_clear_symbol(mp); mp->warning_info=mp->cur_sym; get_t_next;
+  mp_get_clear_symbol(mp);
+  mp->warning_info=mp->cur_sym; 
+  get_t_next;
   mp->scanner_status=op_defining; n=0;
-  eq_type(mp->warning_info)=defined_macro; equiv(mp->warning_info)=q;
+  eq_type(mp->warning_info)=defined_macro;
+  equiv(mp->warning_info)=q;
 } else { 
   p=mp_scan_declared_variable(mp);
   mp_flush_variable(mp, equiv(mp_sym_info(p)),mp_link(p),true);
-  mp->warning_info=mp_find_variable(mp, p); mp_flush_node_list(mp, p);
-  if ( mp->warning_info==null ) @<Change to `\.{a bad variable}'@>;
-  mp->scanner_status=var_defining; n=2;
-  if ( mp->cur_cmd==macro_special ) if ( mp->cur_mod==macro_suffix ) {/* \.{\AT!\#} */
-    n=3; get_t_next;
+  mp->warning_info=mp_find_variable(mp, p); 
+  mp_flush_node_list(mp, p);
+  if ( mp->warning_info==null ) 
+    @<Change to `\.{a bad variable}'@>;
+  mp->scanner_status=var_defining; 
+  n=2;
+  if ( mp->cur_cmd==macro_special && mp->cur_mod==macro_suffix ) { /* \.{\AT!\#} */
+    n=3; 
+    get_t_next;
   }
   mp_type(mp->warning_info)=(quarterword)(mp_unsuffixed_macro-2+n); 
+  /* |mp_suffixed_macro=mp_unsuffixed_macro+1| */
   value(mp->warning_info)=q;
-} /* |mp_suffixed_macro=mp_unsuffixed_macro+1| */
+} 
 
 @ @<Change to `\.{a bad variable}'@>=
 { 
@@ -15147,7 +15181,9 @@ mp_link(bad_vardef) = mp_get_frozen_primitive(mp, mp->frozen_bad_vardef);
 
 @ @<Absorb delimited parameters, putting them into lists |q| and |r|@>=
 do {  
-  l_delim=mp->cur_sym; r_delim=mp->cur_mod; get_t_next;
+  l_delim=mp->cur_sym; 
+  r_delim=mp->cur_mod; 
+  get_t_next;
   if ( (mp->cur_cmd==param_type)&&(mp->cur_mod==expr_param) ) {
     base=expr_base;
   } else if ( (mp->cur_cmd==param_type)&&(mp->cur_mod==suffix_param) ) {
@@ -15169,14 +15205,24 @@ do {
 do { 
   mp_link(q)=mp_get_symbolic_node(mp);
   q=mp_link(q);
-  set_mp_sym_info(q,base+k);
+  if (base == expr_base) {
+    mp_name_type(q) = mp_expr_sym;
+  } else if (base == suffix_base) {
+    mp_name_type(q) = mp_suffix_sym;
+  } else if (base == text_base) {
+    mp_name_type(q) = mp_text_sym;
+  } 
+  set_mp_sym_info(q,k);
   mp_get_symbol(mp);
   p=mp_get_token_node(mp); 
   value(p)=base+k;
   set_mp_info(p,mp->cur_sym);
   if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
 @:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
-  incr(k); mp_link(p)=r; r=p; get_t_next;
+  incr(k); 
+  mp_link(p)=r; 
+  r=p; 
+  get_t_next;
 } while (mp->cur_cmd==comma)
 
 @ @<Absorb undelimited parameters, putting them into list |r|@>=
@@ -15195,17 +15241,25 @@ do {
     c=mp->cur_mod; 
     value(p)=expr_base+k;
   }
-  if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
-  incr(k); mp_get_symbol(mp);
+  if ( k==mp->param_size ) 
+    mp_overflow(mp, "parameter stack size",mp->param_size);
+  incr(k); 
+  mp_get_symbol(mp);
   set_mp_info(p,mp->cur_sym);
-  mp_link(p)=r; r=p; get_t_next;
+  mp_link(p)=r; 
+  r=p; 
+  get_t_next;
   if ( c==expr_macro ) if ( mp->cur_cmd==of_token ) {
-    c=of_macro; p=mp_get_token_node(mp);
-    if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
+    c=of_macro; 
+    p=mp_get_token_node(mp);
+    if ( k==mp->param_size ) 
+      mp_overflow(mp, "parameter stack size",mp->param_size);
     value(p)=expr_base+k;
     mp_get_symbol(mp);
     set_mp_info(p,mp->cur_sym);
-    mp_link(p)=r; r=p; get_t_next;
+    mp_link(p)=r; 
+    r=p; 
+    get_t_next;
   }
 }
 
@@ -15557,7 +15611,7 @@ if ( arg_list!=null ) {
   n=0; p=arg_list;
   do {  
     q=mp_sym_info(p);
-    mp_print_arg(mp, q,n,0);
+    mp_print_arg(mp, q,n,0,0);
     incr(n); p=mp_link(p);
   } while (p!=null);
 }
@@ -15587,12 +15641,12 @@ void mp_print_macro_name (MP mp,pointer a, pointer n) {
 }
 
 @ @<Declarations@>=
-static void mp_print_arg (MP mp,pointer q, integer n, pointer b) ;
+static void mp_print_arg (MP mp,pointer q, integer n, pointer b, quarterword bb) ;
 
 @ @c
-void mp_print_arg (MP mp,pointer q, integer n, pointer b) {
+void mp_print_arg (MP mp,pointer q, integer n, pointer b, quarterword bb) {
   if ( mp_link(q)==mp_void ) mp_print_nl(mp, "(EXPR");
-  else if ( (b<text_base)&&(b!=text_macro) ) mp_print_nl(mp, "(SUFFIX");
+  else if ( (bb!=mp_text_sym)&&(b!=text_macro) ) mp_print_nl(mp, "(SUFFIX");
   else mp_print_nl(mp, "(TEXT");
   mp_print_int(mp, n); mp_print(mp, ")<-");
   if ( mp_link(q)==mp_void ) mp_print_exp(mp, q,1);
@@ -15609,7 +15663,9 @@ void mp_print_arg (MP mp,pointer q, integer n, pointer b) {
 
 @ @<Scan the remaining arguments, if any; set |r|...@>=
 mp->cur_cmd=comma+1; /* anything |<>comma| will do */
-while ( mp_sym_info(r)>=expr_base ) { 
+while ( mp_name_type(r) == mp_expr_sym ||
+        mp_name_type(r) == mp_suffix_sym ||
+        mp_name_type(r) == mp_text_sym ) { 
   @<Scan the delimited argument represented by |mp_sym_info(r)|@>;
   r=mp_link(r);
 }
@@ -15649,15 +15705,20 @@ if ( mp->cur_cmd!=comma ) {
     help3("That macro has more parameters than you thought.",
      "I'll continue by pretending that each missing argument",
      "is either zero or null.");
-    if ( mp_sym_info(r)>=suffix_base ) {
-      mp->cur_exp.data.val=null; mp->cur_exp.type=mp_token_list;
+    if ( mp_name_type(r) == mp_suffix_sym ||
+         mp_name_type(r) == mp_text_sym ) {
+      mp->cur_exp.data.val=null; 
+      mp->cur_exp.type=mp_token_list;
     } else { 
-      mp->cur_exp.data.val=0; mp->cur_exp.type=mp_known;
+      mp->cur_exp.data.val=0; 
+      mp->cur_exp.type=mp_known;
     }
-    mp_back_error(mp); mp->cur_cmd=right_delimiter; 
+    mp_back_error(mp); 
+    mp->cur_cmd=right_delimiter; 
     goto FOUND;
   }
-  l_delim=mp->cur_sym; r_delim=mp->cur_mod;
+  l_delim=mp->cur_sym; 
+  r_delim=mp->cur_mod;
 }
 @<Scan the argument represented by |mp_sym_info(r)|@>;
 if ( mp->cur_cmd!=comma ) 
@@ -15667,7 +15728,9 @@ FOUND:
 
 @ @<Check that the proper right delim...@>=
 if ( (mp->cur_cmd!=right_delimiter)||(mp->cur_mod!=l_delim) ) {
-  if ( mp_sym_info(mp_link(r))>=expr_base ) {
+  if ( mp_name_type(mp_link(r)) == mp_expr_sym ||
+       mp_name_type(mp_link(r)) == mp_suffix_sym ||
+       mp_name_type(mp_link(r)) == mp_text_sym ) {
     mp_missing_err(mp, ",");
 @.Missing `,'@>
     help3("I've finished reading a macro argument and am about to",
@@ -15695,7 +15758,7 @@ a token list pointed to by |cur_exp|, in which case we will have
   else 
     set_mp_sym_info(p,mp_stash_cur_exp(mp));
   if ( internal_value(mp_tracing_macros)>0 ) {
-    mp_begin_diagnostic(mp); mp_print_arg(mp, mp_sym_info(p),n,mp_sym_info(r)); 
+    mp_begin_diagnostic(mp); mp_print_arg(mp, mp_sym_info(p),n,mp_sym_info(r),mp_name_type(r)); 
     mp_end_diagnostic(mp, false);
   }
   if ( arg_list==null ) arg_list=p;
@@ -15704,11 +15767,11 @@ a token list pointed to by |cur_exp|, in which case we will have
 }
 
 @ @<Scan the argument represented by |mp_sym_info(r)|@>=
-if ( mp_sym_info(r)>=text_base ) {
+if ( mp_name_type(r) == mp_text_sym ) {
   mp_scan_text_arg(mp, l_delim,r_delim);
 } else { 
   mp_get_x_next(mp);
-  if ( mp_sym_info(r)>=suffix_base ) mp_scan_suffix(mp);
+  if (mp_name_type(r) == mp_suffix_sym ) mp_scan_suffix(mp);
   else mp_scan_expression(mp);
 }
 
@@ -15788,7 +15851,7 @@ if ( end_of_statement ) { /* |cur_cmd=semicolon|, |end_group|, or |stop| */
   p=mp_get_symbolic_node(mp);
   set_mp_sym_info(p,mp_stash_cur_exp(mp));
   if ( internal_value(mp_tracing_macros)>0 ) { 
-    mp_begin_diagnostic(mp); mp_print_arg(mp, mp_sym_info(p),n,0); 
+    mp_begin_diagnostic(mp); mp_print_arg(mp, mp_sym_info(p),n,0,0); 
     mp_end_diagnostic(mp, false);
   }
   if ( arg_list==null ) arg_list=p; else mp_link(tail)=p;
@@ -16239,8 +16302,7 @@ token, so it won't be lost accidentally.)
 
 @ @<Scan the loop text...@>=
 q=mp_get_symbolic_node(mp); 
-set_mp_sym_info(q, 
-mp_get_frozen_primitive(mp, mp->frozen_repeat_loop));
+set_mp_sym_info(q, mp_get_frozen_primitive(mp, mp->frozen_repeat_loop));
 mp->scanner_status=loop_defining; 
 mp->warning_info=n;
 s->info=mp_scan_toks(mp, iteration,p,q,0); 
@@ -16295,7 +16357,7 @@ mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_ta
       return;
     }
     mp->loop_ptr->list=mp_link(p); 
-    q=mp_sym_info(p); 
+    q=mp_sym_info(p);
     mp_free_symbolic_node(mp,p);
   } else if ( p==mp_void ) { 
     mp_begin_token_list(mp, mp->loop_ptr->info, (quarterword)forever_text); 
@@ -16406,6 +16468,10 @@ do {
   mp_link(q)=mp_get_symbolic_node(mp); 
   q=mp_link(q); 
   set_mp_sym_info(q, mp->cur_exp.data.val);
+  if (m==expr_base)
+     mp_name_type(q) = mp_expr_sym;
+   else if (m==suffix_base)
+     mp_name_type(q) = mp_suffix_sym;
   mp->cur_exp.type=mp_vacuous;
 CONTINUE:
   ;
