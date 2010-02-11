@@ -367,17 +367,17 @@ int ini_version;
 xfree(mp->banner);
 
 @ 
-@d set_value(a,b,c) do { a=c; if (b>c) a=b; } while (0)
+@d set_lower_limited_value(a,b,c) do { a=c; if (b>c) a=b; } while (0)
 
 @<Allocate or ...@>=
 mp->pool_size=10000;
 mp->old_pool_size=10000;
-set_value(mp->error_line,opt->error_line,79);
-set_value(mp->half_error_line,opt->half_error_line,50);
+set_lower_limited_value(mp->error_line,opt->error_line,79);
+set_lower_limited_value(mp->half_error_line,opt->half_error_line,50);
 if (mp->half_error_line>mp->error_line-15 ) 
   mp->half_error_line = mp->error_line-15;
 mp->max_print_line=100;
-set_value(mp->max_print_line,opt->max_print_line,79);
+set_lower_limited_value(mp->max_print_line,opt->max_print_line,79);
 mp->halt_on_error = (opt->halt_on_error ? true : false);
 mp->ini_version = (opt->ini_version ? true : false);
 
@@ -5767,6 +5767,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 @d token_node_size 3 /* the number of words in a large token node */
 @d value_loc(A) ((A)+1) /* the word that contains the |value| field */
 @d value(A) mp->mem[value_loc((A))].cint /* the value stored in a large token node */
+@d set_value(A,B) mp->mem[value_loc((A))].cint=(B) /* store the value in a large token node */
 @d str_value(A) mp->mem[value_loc((A))].hh.v.str /* the value stored in a large token node */
 @d knot_value(A) mp->mem[value_loc((A))].hh.p.P /* the value stored in a large token node */
 @d expr_base (hash_end+1) /* code for the zeroth \&{expr} parameter */
@@ -5780,7 +5781,7 @@ if ( text_base+mp->param_size>max_halfword ) mp->bad=18;
 |value(null)=0|.  We will make use of this coincidence later.
 
 @<Initialize table entries@>=
-mp_link(null)=null; value(null)=0;
+mp_link(null)=null; set_value(null,0);
 
 @ A numeric token is created by the following trivial routine.
 
@@ -5795,7 +5796,7 @@ static pointer mp_get_token_node (MP mp) {
 static pointer mp_new_num_tok (MP mp,scaled v) {
   pointer p; /* the new node */
   p=mp_get_token_node(mp);
-  value(p)=v;
+  set_value(p,v);
   mp_type(p)=mp_known;
   mp_name_type(p)=mp_token; 
   return p;
@@ -6300,7 +6301,7 @@ static void mp_init_pair_node (MP mp,pointer p) {
   mp_link(q+2)=null;
 
   mp_link(q)=p; 
-  value(p)=q;
+  set_value(p,q);
 }
 static void mp_init_color_node (MP mp,pointer p) {
   pointer q; /* the new node */
@@ -6320,7 +6321,7 @@ static void mp_init_color_node (MP mp,pointer p) {
   mp_link(q+4)=null;
 
   mp_link(q)=p; 
-  value(p)=q;
+  set_value(p,q);
 }
 static void mp_init_cmykcolor_node (MP mp,pointer p) {
   pointer q; /* the new node */
@@ -6344,7 +6345,7 @@ static void mp_init_cmykcolor_node (MP mp,pointer p) {
   mp_link(q+6)=null;
 
   mp_link(q)=p; 
-  value(p)=q;
+  set_value(p,q);
 }
 
 static void mp_init_transform_node (MP mp,pointer p) {
@@ -6377,7 +6378,7 @@ static void mp_init_transform_node (MP mp,pointer p) {
   mp_link(q+10)=null;
 
   mp_link(q)=p; 
-  value(p)=q;
+  set_value(p,q);
 }
 
 
@@ -6391,17 +6392,17 @@ static pointer mp_id_transform (MP mp) {
   pointer p,q,r; /* list manipulation registers */
   p=mp_get_value_node(mp); 
   mp_name_type(p)=mp_capsule; 
-  value(p)=null; 
+  set_value(p,null); 
   mp_init_transform_node(mp, p); 
   q=value(p);
   r=q+transform_node_size;
   do {  
     r=r-2;
     mp_type(r)=mp_known; 
-    value(r)=0;
+    set_value(r,0);
   } while (r!=q);
-  value(xx_part_loc(q))=unity; 
-  value(yy_part_loc(q))=unity;
+  set_value(xx_part_loc(q),unity); 
+  set_value(yy_part_loc(q),unity);
   return p;
 }
 
@@ -6623,10 +6624,10 @@ static pointer mp_find_variable (MP mp,pointer t) {
   if ( mp_type(p)==undefined ) { 
     if ( mp_type(pp)==undefined ) { 
        mp_type(pp)=mp_numeric_type; 
-       value(pp)=null; 
+       set_value(pp,null);
     }
     mp_type(p)=mp_type(pp); 
-    value(p)=null;
+    set_value(p,null);
   };
   return p;
 }
@@ -12429,7 +12430,7 @@ numbers. Diagnosed and patched by Thorsten Dahlheimer.
   { if ( mp->serial_no>el_gordo-s_scale )
     mp_fatal_error(mp, "variable instance identifiers exhausted");
   mp_type((A))=mp_independent; mp->serial_no=mp->serial_no+s_scale;
-  value((A))=mp->serial_no;
+  set_value((A),mp->serial_no);
   }
 
 @<Glob...@>=
@@ -12626,9 +12627,9 @@ pointer mp_p_plus_fq ( MP mp, pointer p, integer f,
     }
   }
   if ( t==mp_dependent )
-    value(p)=mp_slow_add(mp, value(p),mp_take_fraction(mp, value(q),f));
+    set_value(p,mp_slow_add(mp, value(p),mp_take_fraction(mp, value(q),f)));
   else  
-    value(p)=mp_slow_add(mp, value(p),mp_take_scaled(mp, value(q),f));
+    set_value(p,mp_slow_add(mp, value(p),mp_take_scaled(mp, value(q),f)));
   mp_link(r)=p; mp->dep_final=p; 
   return mp_link(temp_head);
 }
@@ -12637,7 +12638,8 @@ pointer mp_p_plus_fq ( MP mp, pointer p, integer f,
 { 
   if ( tt==mp_dependent ) v=value(p)+mp_take_fraction(mp, f,value(q));
   else v=value(p)+mp_take_scaled(mp, f,value(q));
-  value(p)=v; s=p; p=mp_link(p);
+  set_value(p,v);
+  s=p; p=mp_link(p);
   if ( abs(v)<threshold ) {
     mp_free_node(mp, s,dep_node_size);
   } else {
@@ -12656,7 +12658,7 @@ pointer mp_p_plus_fq ( MP mp, pointer p, integer f,
   if ( abs(v)>halfp(threshold) ) { 
     s=mp_get_dep_node(mp);
     set_mp_info(s,qq);
-    value(s)=v;
+    set_value(s,v);
     if ( (abs(v)>=coef_bound) && mp->watch_coefs ) { 
       mp_type(qq)=independent_needing_fix; mp->fix_needed=true;
     }
@@ -12687,10 +12689,10 @@ static pointer mp_p_plus_q (MP mp,pointer p, pointer q, quarterword t) {
           corresponding term from |q|@>
       }
     } else { 
-	  if ( value(pp)<value(qq) ) {
+     if ( value(pp)<value(qq) ) {
         s=mp_get_dep_node(mp); 
         set_mp_info(s,qq); 
-        value(s)=value(q);
+        set_value(s,value(q));
         q=mp_link(q); 
         qq=mp_info(q); 
         mp_link(r)=s; 
@@ -12703,7 +12705,7 @@ static pointer mp_p_plus_q (MP mp,pointer p, pointer q, quarterword t) {
       }
     }
   }
-  value(p)=mp_slow_add(mp, value(p),value(q));
+  set_value(p,mp_slow_add(mp, value(p),value(q)));
   mp_link(r)=p; 
   mp->dep_final=p; 
   return mp_link(temp_head);
@@ -12712,7 +12714,8 @@ static pointer mp_p_plus_q (MP mp,pointer p, pointer q, quarterword t) {
 @ @<Contribute a term from |p|, plus the...@>=
 { 
   v=value(p)+value(q);
-  value(p)=v; s=p; p=mp_link(p); pp=mp_info(p);
+  set_value(p,v); 
+  s=p; p=mp_link(p); pp=mp_info(p);
   if ( abs(v)<threshold ) {
     mp_free_node(mp, s,dep_node_size);
   } else { 
@@ -12755,13 +12758,13 @@ static pointer mp_p_times_v (MP mp,pointer p, integer v, quarterword t0,
       }
       mp_link(r)=p; 
       r=p; 
-      value(p)=w; 
+      set_value(p,w); 
       p=mp_link(p);
     }
   }
   mp_link(r)=p;
-  if ( v_is_scaled ) value(p)=mp_take_scaled(mp, value(p),v);
-  else value(p)=mp_take_fraction(mp, value(p),v);
+  if ( v_is_scaled ) set_value(p,mp_take_scaled(mp, value(p),v));
+  else set_value(p,mp_take_fraction(mp, value(p),v));
   return mp_link(temp_head);
 }
 
@@ -12801,12 +12804,12 @@ pointer mp_p_over_v (MP mp,pointer p, scaled v, quarterword
       }
       mp_link(r)=p; 
       r=p; 
-      value(p)=w; 
+      set_value(p,w); 
       p=mp_link(p);
     }
   }
   mp_link(r)=p; 
-  value(p)=mp_make_scaled(mp, value(p),v);
+  set_value(p,mp_make_scaled(mp, value(p),v));
   return mp_link(temp_head);
 }
 
@@ -12868,7 +12871,7 @@ static void mp_make_known (MP mp,pointer p, pointer q) ;
   prev_dep(mp_link(q))=prev_dep(p);
   mp_link(prev_dep(p))=mp_link(q); t=mp_type(p);
   mp_type(p)=mp_known; 
-  value(p)=value(q); 
+  set_value(p,value(q));
   mp_free_node(mp, q,dep_node_size);
   if ( abs(value(p))>=fraction_one ) mp_val_too_big(mp, value(p));
   if (( internal_value(mp_tracing_equations)>0) && mp_interesting(mp, p) ) {
@@ -12911,7 +12914,7 @@ static void mp_fix_dependencies (MP mp) {
   while ( s!=null ) { 
     p=mp_link(s); x=mp_info(s); mp_free_symbolic_node(mp,s); s=p;
     mp_type(x)=mp_independent; 
-    value(x)=value(x)+2;
+    set_value(x,value(x)+2);
   }
   mp->fix_needed=false;
 }
@@ -12930,7 +12933,7 @@ while (1) {
       set_mp_info(s,x); 
       mp_type(x)=independent_being_fixed;
     }
-    value(q)=value(q) / 4;
+    set_value(q,value(q) / 4);
     if ( value(q)==0 ) {
       mp_link(r)=mp_link(q); 
       mp_free_node(mp, q,dep_node_size); 
@@ -12959,7 +12962,7 @@ a constant term.
 
 @c static pointer mp_const_dependency (MP mp, scaled v) {
   mp->dep_final=mp_get_dep_node(mp);
-  value(mp->dep_final)=v; 
+  set_value(mp->dep_final,v); 
   set_mp_info(mp->dep_final,null);
   return mp->dep_final;
 }
@@ -12984,7 +12987,7 @@ static pointer mp_single_dependency (MP mp,pointer p) {
     return mp_const_dependency(mp, 0);
   } else { 
     q=mp_get_dep_node(mp);
-    value(q)=(integer)two_to_the(28-m); 
+    set_value(q,(integer)two_to_the(28-m)); 
     set_mp_info(q,p);
     mp_link(q)=mp_const_dependency(mp, 0);
     return q;
@@ -13000,7 +13003,7 @@ static pointer mp_copy_dep_list (MP mp,pointer p) {
   mp->dep_final=q;
   while (1) { 
     set_mp_info(mp->dep_final,mp_info(p));
-    value(mp->dep_final)=value(p);
+    set_value(mp->dep_final,value(p));
     if ( mp_info(mp->dep_final)==null ) break;
     mp_link(mp->dep_final)=mp_get_dep_node(mp);
     mp->dep_final=mp_link(mp->dep_final); p=mp_link(p);
@@ -13060,15 +13063,16 @@ do {
     if ( abs(w)<=half_fraction_threshold ) {
       mp_link(s)=mp_link(r); mp_free_node(mp, r,dep_node_size);
     } else { 
-      value(r)=-w; s=r;
+      set_value(r,-w); 
+      s=r;
     }
   }
   r=mp_link(s);
 } while (mp_info(r)!=null);
 if ( t==mp_proto_dependent ) {
-  value(r)=-mp_make_scaled(mp, value(r),v);
+  set_value(r,-mp_make_scaled(mp, value(r),v));
 } else if ( v!=-fraction_one ) {
-  value(r)=-mp_make_fraction(mp, value(r),v);
+  set_value(r,-mp_make_fraction(mp, value(r),v));
 }
 final_node=r; p=mp_link(temp_head)
 
@@ -13101,7 +13105,7 @@ while ( r!=dep_head ) {
 if ( n>0 ) @<Divide list |p| by $2^n$@>;
 if ( mp_info(p)==null ) {
   mp_type(x)=mp_known;
-  value(x)=value(p);
+  set_value(x,value(p));
   if ( abs(value(x))>=fraction_one ) mp_val_too_big(mp, value(x));
   mp_free_node(mp, p,dep_node_size);
   if ( mp->cur_exp.data.val==x ) if ( mp->cur_exp.type==mp_independent ) {
@@ -13123,7 +13127,8 @@ if ( mp_info(p)==null ) {
       mp_link(s)=mp_link(r);
       mp_free_node(mp, r,dep_node_size);
     } else { 
-      value(r)=w; s=r;
+      set_value(r,w); 
+      s=r;
     }
     r=mp_link(s);
   } while (mp_info(s)!=null);
@@ -13185,8 +13190,8 @@ static pointer mp_new_ring_entry (MP mp,pointer p) {
   pointer q; /* the new capsule node */
   q=mp_get_value_node(mp); mp_name_type(q)=mp_capsule;
   mp_type(q)=mp_type(p);
-  if ( value(p)==null ) value(q)=p; else value(q)=value(p);
-  value(p)=q;
+  if ( value(p)==null ) set_value(q,p); else set_value(q,value(p));
+  set_value(p,q);
   return q;
 }
 
@@ -13203,7 +13208,7 @@ void mp_ring_delete (MP mp,pointer p) {
   q=value(p);
   if ( q!=null ) if ( q!=p ){ 
     while ( value(q)!=p ) q=value(q);
-    value(q)=value(p);
+    set_value(q,value(p));
   }
 }
 
@@ -13226,7 +13231,7 @@ static void mp_nonlinear_eq (MP mp, mp_value v, pointer p, boolean flush_p) {
     mp_type(q)=t;
     switch (t) {
     case mp_boolean_type: 
-      value(q)=v.data.val; 
+      set_value(q,v.data.val); 
       break;
     case mp_string_type: 
       str_value(q)=v.data.str; 
@@ -13239,7 +13244,7 @@ static void mp_nonlinear_eq (MP mp, mp_value v, pointer p, boolean flush_p) {
       knot_value(q)=mp_copy_path(mp, v.data.p); 
       break;
     case mp_picture_type: 
-      value(q)=v.data.val; 
+      set_value(q,v.data.val);
       add_edge_ref(v.data.val); 
       break;
     } /* there ain't no more cases */
@@ -13262,8 +13267,8 @@ static void mp_ring_merge (MP mp,pointer p, pointer q) {
     r=value(r);
   }
   r=value(p); 
-  value(p)=value(q); 
-  value(q)=r;
+  set_value(p,value(q)); 
+  set_value(q,r);
 }
 
 @ @<Exclaim about a redundant equation@>=
@@ -13936,7 +13941,7 @@ static pointer mp_cur_tok (MP mp) {
       p=mp_get_token_node(mp);
       mp_name_type(p)=mp_token;
       if ( mp->cur_cmd==numeric_token ) {
-        value(p)=mp->cur_mod; 
+        set_value(p,mp->cur_mod); 
 	mp_type(p)=mp_known;
       } else {
         str_value(p)=mp->cur_mod_str; 
@@ -14894,7 +14899,12 @@ When such parameters are present, they are called \.{(SUFFIX0)},
       if ( mp->cur_cmd==terminator ) {
         @<Adjust the balance; |break| if it's zero@>;
       } else if ( mp->cur_cmd==macro_special ) {
-        @<Handle quoted symbols, \.{\#\AT!}, \.{\AT!}, or \.{\AT!\#}@>;
+        /* Handle quoted symbols, \.{\#\AT!}, \.{\AT!}, or \.{\AT!\#} */
+	if ( mp->cur_mod==quote ) { 
+          get_t_next; 
+        } else if ( mp->cur_mod<=suffix_count ) {
+          mp->cur_sym=suffix_base-1+mp->cur_mod;
+        }
       }
     }
     mp_link(p)=mp_cur_tok(mp); p=mp_link(p);
@@ -14953,13 +14963,6 @@ case macro_special:
   default: mp_print(mp, "quote"); break;
   }
   break;
-
-@ @<Handle quoted...@>=
-{ 
-  if ( mp->cur_mod==quote ) { get_t_next; } 
-  else if ( mp->cur_mod<=suffix_count ) 
-    mp->cur_sym=suffix_base-1+mp->cur_mod;
-}
 
 @ Here is a routine that's used whenever a token will be redefined. If
 the user's token is unredefinable, the `|mp->frozen_inaccessible|' token is
@@ -15020,13 +15023,13 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1} (i.e.,
   mp_get_symbol(mp); 
   q=mp_get_token_node(mp);
   set_mp_info(q,mp->cur_sym);
-  value(q)=expr_base;
+  set_value(q,expr_base);
   mp_get_clear_symbol(mp); 
   mp->warning_info=mp->cur_sym;
   mp_get_symbol(mp); 
   p=mp_get_token_node(mp);
   set_mp_info(p,mp->cur_sym);
-  value(p)=expr_base+1; 
+  set_value(p,expr_base+1); 
   mp_link(p)=q;
   get_t_next; 
   mp_check_equals(mp);
@@ -15160,7 +15163,7 @@ if ( m==start_def ) {
   }
   mp_type(mp->warning_info)=(quarterword)(mp_unsuffixed_macro-2+n); 
   /* |mp_suffixed_macro=mp_unsuffixed_macro+1| */
-  value(mp->warning_info)=q;
+  set_value(mp->warning_info,q);
 } 
 
 @ @<Change to `\.{a bad variable}'@>=
@@ -15207,11 +15210,11 @@ do {
   mp_get_symbol(mp);
   p=mp_get_token_node(mp); 
   if (sym_type == mp_expr_sym) {
-    value(p)=expr_base+k;
+    set_value(p,expr_base+k);
   } else if (sym_type == mp_suffix_sym) {
-    value(p)=suffix_base+k;
+    set_value(p,suffix_base+k);
   } else { /* |text_sym| */
-    value(p)=text_base+k;
+    set_value(p,text_base+k);
   } 
   set_mp_info(p,mp->cur_sym);
   if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
@@ -15226,17 +15229,17 @@ do {
 { 
   p=mp_get_token_node(mp);
   if ( mp->cur_mod==expr_param ) {
-    value(p)=expr_base+k;
+    set_value(p,expr_base+k);
     c=expr_macro;
   } else if ( mp->cur_mod==suffix_param ) {
-    value(p)=suffix_base+k;
+    set_value(p,suffix_base+k);
     c=suffix_macro;
   } else if ( mp->cur_mod==text_param ) {
-    value(p)=text_base+k;
+    set_value(p,text_base+k);
     c=text_macro;
   } else {
     c=mp->cur_mod; 
-    value(p)=expr_base+k;
+    set_value(p,expr_base+k);
   }
   if ( k==mp->param_size ) 
     mp_overflow(mp, "parameter stack size",mp->param_size);
@@ -15251,7 +15254,7 @@ do {
     p=mp_get_token_node(mp);
     if ( k==mp->param_size ) 
       mp_overflow(mp, "parameter stack size",mp->param_size);
-    value(p)=expr_base+k;
+    set_value(p,expr_base+k);
     mp_get_symbol(mp);
     set_mp_info(p,mp->cur_sym);
     mp_link(p)=r; 
@@ -16250,9 +16253,9 @@ didn't write it until later. The reader may wish to come back to it.)
     p=mp_get_token_node(mp);
     set_mp_info(p,mp->cur_sym); 
     if (m==start_for)
-      value(p)=expr_base;
+      set_value(p,expr_base);
     else /* |start_forsuffixes| */
-      value(p)=suffix_base;
+      set_value(p,suffix_base);
     mp_get_x_next(mp);
     if ( mp->cur_cmd==within_token ) {
       @<Set up a picture iteration@>;
@@ -17538,7 +17541,7 @@ static pointer mp_stash_cur_exp (MP mp) {
     p=mp_get_value_node(mp); 
     mp_name_type(p)=mp_capsule;
     mp_type(p)=mp->cur_exp.type; 
-    value(p)=mp->cur_exp.data.val;
+    set_value(p,mp->cur_exp.data.val);
     break;
   }
   mp->cur_exp.type=mp_vacuous;
@@ -17959,8 +17962,8 @@ list.
 s=mp->max_ptr[t]; 
 pp=mp_info(s); 
 v=value(s);
-if ( t==mp_dependent ) value(s)=-fraction_one; 
-else value(s)=-unity;
+if ( t==mp_dependent ) set_value(s,-fraction_one); 
+else set_value(s,-unity);
 r=dep_list(pp); 
 mp_link(s)=r;
 while ( mp_info(r)!=null ) r=mp_link(r);
@@ -17988,7 +17991,7 @@ if ( mp_interesting(mp, p) ) {
   if ( vv!=unity ) mp_print_scaled(mp, vv);
   mp_print_variable_name(mp, p);
   while ( value(p) % s_scale>0 ) {
-    mp_print(mp, "*4"); value(p)=value(p)-2;
+    mp_print(mp, "*4"); set_value(p,value(p)-2);
   }
   if ( t==mp_dependent ) mp_print_char(mp, xord('=')); else mp_print(mp, " = ");
   mp_print_dependency(mp, s,t);
@@ -18021,7 +18024,7 @@ for (t=mp_dependent;t<=mp_proto_dependent;t++) {
       dep_list(q)=mp_p_over_v(mp, dep_list(q),unity,
          mp_dependent,mp_proto_dependent);
       mp_type(q)=mp_proto_dependent; 
-      value(r)=mp_round_fraction(mp, value(r));
+      set_value(r,mp_round_fraction(mp, value(r)));
     }
     dep_list(q)=mp_p_plus_fq(mp, dep_list(q),
        mp_make_scaled(mp, value(r),-v),s,
@@ -18191,7 +18194,7 @@ static void mp_stash_in (MP mp,pointer p) {
   pointer q; /* temporary register */
   mp_type(p)=mp->cur_exp.type;
   if ( mp->cur_exp.type==mp_known ) {
-    value(p)=mp->cur_exp.data.val;
+    set_value(p,mp->cur_exp.data.val);
   } else { 
     if ( mp->cur_exp.type==mp_independent ) {
       @<Stash an independent |cur_exp| into a big node@>;
@@ -18215,7 +18218,7 @@ we copy it, then recycle it.
   q=mp_single_dependency(mp, mp->cur_exp.data.val);
   if ( q==mp->dep_final ){ 
     mp_type(p)=mp_known; 
-    value(p)=0; 
+    set_value(p,0); 
     mp_free_node(mp, q,dep_node_size);
   } else { 
     mp_type(p)=mp_dependent; 
@@ -18250,11 +18253,11 @@ if ( mp->cur_cmd==comma ) {
   mp_init_cmykcolor_node(mp, q); 
   t=value(q);
   mp->mem[cyan_part_loc(t)]=mp->mem[red_part_loc(r)];
-  value(cyan_part_loc(t))=value(red_part_loc(r));
+  set_value(cyan_part_loc(t),value(red_part_loc(r)));
   mp->mem[magenta_part_loc(t)]=mp->mem[green_part_loc(r)];
-  value(magenta_part_loc(t))=value(green_part_loc(r));
+  set_value(magenta_part_loc(t),value(green_part_loc(r)));
   mp->mem[yellow_part_loc(t)]=mp->mem[blue_part_loc(r)];
-  value(yellow_part_loc(t))=value(blue_part_loc(r));
+  set_value(yellow_part_loc(t),value(blue_part_loc(r)));
   mp_recycle_value(mp, r);
   r=t;
   @<Scan the last of a quartet of numerics@>;
@@ -18822,13 +18825,13 @@ a big node that will be part of a capsule.
 static void mp_install (MP mp,pointer r, pointer q) {
   pointer p; /* temporary register */
   if ( mp_type(q)==mp_known ){ 
-    value(r)=value(q); 
+    set_value(r,value(q)); 
     mp_type(r)=mp_known;
   } else  if ( mp_type(q)==mp_independent ) {
     p=mp_single_dependency(mp, q);
     if ( p==mp->dep_final ) {
       mp_type(r)=mp_known; 
-      value(r)=0; 
+      set_value(r,0); 
       mp_free_node(mp, p,dep_node_size);
     } else  { 
       mp_type(r)=mp_dependent; 
@@ -20147,7 +20150,7 @@ a big node. We want to delete all but one part of the big node.
 static void mp_take_part (MP mp,quarterword c) {
   pointer p; /* the big node */
   p=value(mp->cur_exp.data.val); 
-  value(temp_val)=p; 
+  set_value(temp_val,p); 
   mp_type(temp_val)=mp->cur_exp.type;
   mp_link(p)=temp_val; 
   mp_free_node(mp, mp->cur_exp.data.val,value_node_size);
@@ -20934,9 +20937,9 @@ static void mp_pair_value (MP mp,scaled x, scaled y) {
   mp_init_pair_node(mp, p);
   p=value(p);
   mp_type(x_part_loc(p))=mp_known; 
-  value(x_part_loc(p))=x;
+  set_value(x_part_loc(p),x);
   mp_type(y_part_loc(p))=mp_known; 
-  value(y_part_loc(p))=y;
+  set_value(y_part_loc(p),y);
 }
 
 @ @<Additional cases of unary operators@>=
@@ -21280,7 +21283,7 @@ static void mp_add_or_subtract (MP mp,pointer p, pointer q, quarterword c) {
     if ( c==minus ) negate(v);
     if ( mp_type(p)==mp_known ) {
       v=mp_slow_add(mp, value(p),v);
-      if ( q==null ) mp->cur_exp.data.val=v; else value(q)=v;
+      if ( q==null ) mp->cur_exp.data.val=v; else set_value(q,v);
       return;
     }
     @<Add a known value to the constant term of |dep_list(p)|@>;
@@ -21293,7 +21296,7 @@ static void mp_add_or_subtract (MP mp,pointer p, pointer q, quarterword c) {
 @ @<Add a known value to the constant term of |dep_list(p)|@>=
 r=dep_list(p);
 while ( mp_info(r)!=null ) r=mp_link(r);
-value(r)=mp_slow_add(mp, value(r),v);
+set_value(r,mp_slow_add(mp, value(r),v));
 if ( q==null ) {
   q=mp_get_value_node(mp); mp->cur_exp.data.val=q; mp->cur_exp.type=mp_type(p);
   mp_name_type(q)=mp_capsule;
@@ -21329,7 +21332,7 @@ if ( mp_type(p)==mp_known ) {
 @ @<Add the known |value(p)| to the constant term of |v|@>=
 { 
   while ( mp_info(v)!=null ) v=mp_link(v);
-  value(v)=mp_slow_add(mp, value(p),value(v));
+  set_value(v,mp_slow_add(mp, value(p),value(v)));
 }
 
 @ @<Output the answer, |v| (which might have become |known|)@>=
@@ -21361,7 +21364,7 @@ static void mp_dep_finish (MP mp, pointer v, pointer q, quarterword t) {
     } else  { 
       mp_recycle_value(mp, p); 
       mp_type(q)=mp_known; 
-      value(q)=vv; 
+      set_value(q,vv); 
     }
   } else if ( q==null ) {
     mp->cur_exp.type=t;
@@ -21515,9 +21518,9 @@ static void mp_dep_mult (MP mp,pointer p, integer v, boolean v_is_scaled) {
     q=p;
   } else { 
     if ( v_is_scaled ) 
-      value(p)=mp_take_scaled(mp, value(p),v);
+      set_value(p,mp_take_scaled(mp, value(p),v));
     else 
-      value(p)=mp_take_fraction(mp, value(p),v);
+      set_value(p,mp_take_fraction(mp, value(p),v));
     return;
   };
   t=mp_type(q); 
@@ -21648,9 +21651,14 @@ case over:
 static void mp_dep_div (MP mp,pointer p, scaled v) {
   pointer q; /* the dependency list being divided by |v| */
   quarterword s,t; /* its type, before and after */
-  if ( p==null ) q=mp->cur_exp.data.val;
-  else if ( mp_type(p)!=mp_known ) q=p;
-  else { value(p)=mp_make_scaled(mp, value(p),v); return; };
+  if ( p==null ) 
+    q=mp->cur_exp.data.val;
+  else if ( mp_type(p)!=mp_known )
+    q=p;
+  else { 
+    set_value(p,mp_make_scaled(mp, value(p),v)); 
+    return; 
+  }
   t=mp_type(q); q=dep_list(q); s=t;
   if ( t==mp_dependent )
     if ( mp_ab_vs_cd(mp, mp_max_coef(mp,q),unity,coef_bound-1,abs(v))>=0 ) 
@@ -21814,10 +21822,10 @@ case transformed_by:
 
 @ @<Install sines and cosines, then |goto done|@>=
 { mp_n_sin_cos(mp, (value(p) % three_sixty_units)*16);
-  value(xx_part_loc(q))=mp_round_fraction(mp, mp->n_cos);
-  value(yx_part_loc(q))=mp_round_fraction(mp, mp->n_sin);
-  value(xy_part_loc(q))=-value(yx_part_loc(q));
-  value(yy_part_loc(q))=value(xx_part_loc(q));
+  set_value(xx_part_loc(q),mp_round_fraction(mp, mp->n_cos));
+  set_value(yx_part_loc(q),mp_round_fraction(mp, mp->n_sin));
+  set_value(xy_part_loc(q),-value(yx_part_loc(q)));
+  set_value(yy_part_loc(q),value(xx_part_loc(q)));
   goto DONE;
 }
 
@@ -21948,7 +21956,7 @@ static pointer mp_edges_trans (MP mp, pointer h) {
 }
 static void mp_do_edges_trans (MP mp,pointer p, quarterword c) { 
   mp_set_up_known_trans(mp, c);
-  value(p)=mp_edges_trans(mp, value(p));
+  set_value(p,mp_edges_trans(mp, value(p)));
   mp_unstash_cur_exp(mp, p);
 }
 static void mp_scale_edges (MP mp) { 
@@ -22130,13 +22138,17 @@ static void mp_bilin1 (MP mp, pointer p, scaled t, pointer q,
     }
   }
   if ( mp_type(p)==mp_known ) {
-    value(p)+=delta;
+    set_value(p, value(p)+delta);
   } else {
     r=dep_list(p);
     while ( mp_info(r)!=null ) r=mp_link(r);
     delta+=value(r);
-    if ( r!=dep_list(p) ) value(r)=delta;
-    else { mp_recycle_value(mp, p); mp_type(p)=mp_known; value(p)=delta; };
+    if ( r!=dep_list(p) ) set_value(r,delta);
+    else { 
+      mp_recycle_value(mp, p); 
+      mp_type(p)=mp_known; 
+      set_value(p,delta);
+    }
   }
   if ( mp->fix_needed ) mp_fix_dependencies(mp);
 }
@@ -22182,7 +22194,7 @@ numeric quantity to~|p|.
 @<Declare subroutines needed by |big_trans|@>=
 static void mp_add_mult_dep (MP mp,pointer p, scaled v, pointer r) { 
   if ( mp_type(r)==mp_known ) {
-    value(mp->dep_final)+=mp_take_scaled(mp, value(r),v);
+    set_value(mp->dep_final, value(mp->dep_final)+mp_take_scaled(mp, value(r),v));
   } else  { 
     dep_list(p)=mp_p_plus_fq(mp, dep_list(p),v,dep_list(r),
 							 mp_proto_dependent,mp_type(r));
@@ -22209,7 +22221,8 @@ static void mp_bilin2 (MP mp,pointer p, pointer t, scaled v,
   if ( q!=null ) mp_add_mult_dep(mp, p,unity,q);
   if ( dep_list(p)==mp->dep_final ) {
     vv=value(mp->dep_final); mp_recycle_value(mp, p);
-    mp_type(p)=mp_known; value(p)=vv;
+    mp_type(p)=mp_known; 
+    set_value(p,vv);
   }
 }
 
@@ -22235,8 +22248,10 @@ static void mp_bilin3 (MP mp,pointer p, scaled t,
     delta+=mp_take_scaled(mp, value(p),t);
   else 
     delta+=value(p);
-  if ( u!=0 ) value(p)=delta+mp_take_scaled(mp, v,u);
-  else value(p)=delta;
+  if ( u!=0 ) 
+    set_value(p,delta+mp_take_scaled(mp, v,u));
+  else 
+    set_value(p,delta);
 }
 
 @ @<Additional cases of binary operators@>=
@@ -22909,7 +22924,7 @@ if ( mp->cur_exp.type==mp_known || mp->cur_exp.type==mp_string_type )  {
     mp->cur_exp.type=mp_und_type(mp, p); 
     mp_recycle_value(mp, p);
     mp_type(p)=mp->cur_exp.type; 
-    value(p)=null; 
+    set_value(p,null); 
     mp_make_exp_copy(mp, p);
     p=mp_stash_cur_exp(mp); 
     mp_unstash_cur_exp(mp, q); 
@@ -23104,7 +23119,8 @@ if ( t==mp_known ) {
 @ @<Add the right operand to list |p|@>=
 if ( r==null ) {
   if ( mp->cur_exp.type==mp_known ) {
-    value(q)=value(q)+mp->cur_exp.data.val; goto DONE1;
+    set_value(q,value(q)+mp->cur_exp.data.val); 
+    goto DONE1;
   } else { 
     tt=mp->cur_exp.type;
     if ( tt==mp_independent ) pp=mp_single_dependency(mp, mp->cur_exp.data.val);
@@ -23112,7 +23128,8 @@ if ( r==null ) {
   } 
 } else {
   if ( mp_type(r)==mp_known ) {
-    value(q)=value(q)+value(r); goto DONE1;
+    set_value(q,value(q)+value(r)); 
+    goto DONE1;
   } else { 
     tt=mp_type(r);
     if ( tt==mp_independent ) pp=mp_single_dependency(mp, r);
@@ -23134,7 +23151,8 @@ if ( t==tt ) {
 } else { 
   q=p;
   while ( mp_info(q)!=null ) {
-    value(q)=mp_round_fraction(mp, value(q)); q=mp_link(q);
+    set_value(q,mp_round_fraction(mp, value(q))); 
+    q=mp_link(q);
   }
   t=mp_proto_dependent; p=mp_p_plus_q(mp, p, pp, (quarterword)t);
 }
@@ -23244,7 +23262,7 @@ void mp_do_type_declaration (MP mp) {
       if (t == mp_pen_type || t == mp_path_type)
         knot_value(q)=NULL; 
       else
-        value(q)=null; 
+        set_value(q,null); 
     } else  { 
       print_err("Declared variable conflicts with previous vardef");
 @.Declared variable conflicts...@>
@@ -24786,7 +24804,7 @@ static pointer mp_find_edges_var (MP mp, pointer t) ;
           "So I'll not change anything just now."); 
     mp_put_get_error(mp);
   } else { 
-    value(p)=mp_private_edges(mp, value(p));
+    set_value(p,mp_private_edges(mp, value(p)));
     cur_edges=value(p);
   }
   mp_flush_node_list(mp, t);
@@ -26007,7 +26025,7 @@ The sorting operation is facilitated by having a special node of
 essentially infinite |value| at the end of the current list.
 
 @<Initialize table entries@>=
-value(inf_val)=fraction_four;
+set_value(inf_val,fraction_four);
 
 @ Straight linear insertion is good enough for sorting, since the lists
 are usually not terribly long. As we work on the data, the current list
@@ -26034,7 +26052,9 @@ static pointer mp_sort_in (MP mp,scaled v) {
     p=q;
   }
   if ( v<value(q) ) {
-    r=mp_get_value_node(mp); value(r)=v; mp_link(r)=q; mp_link(p)=r;
+    r=mp_get_value_node(mp); 
+    set_value(r,v); 
+    mp_link(r)=q; mp_link(p)=r;
   }
   return mp_link(p);
 }
@@ -26129,7 +26149,8 @@ static integer mp_skimp (MP mp,integer m) {
     mp->perturbation=value(p)-v;
   r=q;
   do {  
-    r=mp_link(r); value(r)=v;
+    r=mp_link(r);
+    set_value(r,v);
   } while (r!=p);
   mp_link(q)=p; /* remove duplicate values from the current list */
 }
@@ -26204,7 +26225,7 @@ mp->ni=(short)(mp_skimp(mp, 63)+1); mp->dimen_head[4]=mp_link(temp_head);
 if ( mp->perturbation>=010000 ) mp_tfm_warning(mp, mp_char_ic)
 
 @ @<Initialize table entries@>=
-value(zero_val)=0;
+set_value(zero_val,0);
 set_mp_info(zero_val,0);
 
 @ Bytes 5--8 of the header are set to the design size, unless the user has
@@ -27578,13 +27599,13 @@ if (mp->mem_name != NULL) {
 }
 {
   unsigned i = 14;
-  set_value(mp->mem_max,opt->main_memory,5000);
-  set_value(mp->param_size,opt->param_size,150);
-  set_value(mp->max_in_open,opt->max_in_open,10);
+  set_lower_limited_value(mp->mem_max,opt->main_memory,5000);
+  set_lower_limited_value(mp->param_size,opt->param_size,150);
+  set_lower_limited_value(mp->max_in_open,opt->max_in_open,10);
   if (opt->hash_size>0x8000000) 
     opt->hash_size=0x8000000;
   if (opt->hash_size>0) {
-    set_value(mp->hash_size,(2*opt->hash_size-1),16384);
+    set_lower_limited_value(mp->hash_size,(2*opt->hash_size-1),16384);
   } else {
     mp->hash_size = 16384;
   }
