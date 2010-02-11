@@ -13925,17 +13925,13 @@ token by the |cur_tok| routine.
 @c @<Declare the procedure called |make_exp_copy|@>
 static pointer mp_cur_tok (MP mp) {
   pointer p; /* a new token node */
-  quarterword save_type; /* |cur_type| to be restored */
-  integer save_exp; /* |cur_exp| to be restored */
   if ( mp->cur_sym==0 ) {
     if ( mp->cur_cmd==capsule_token ) {
-      save_type=mp->cur_exp.type; 
-      save_exp=mp->cur_exp.data.val;
+      mp_value save_exp = mp->cur_exp; /* |cur_exp| to be restored */
       mp_make_exp_copy(mp, mp->cur_mod); 
       p=mp_stash_cur_exp(mp); 
       mp_link(p)=null;
-      mp->cur_exp.type=save_type; 
-      mp->cur_exp.data.val=save_exp;
+      mp->cur_exp=save_exp;
     } else { 
       p=mp_get_token_node(mp);
       mp_name_type(p)=mp_token;
