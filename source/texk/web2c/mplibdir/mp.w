@@ -5734,7 +5734,11 @@ a macro parameter or capsule; so there are five corresponding ways to encode it
 @^token@>
 internally: 
 (1)~A symbolic token whose hash code is~|p| is represented by the number |p|, 
-in the |sym_info| field of a symbolic node in~|mem|. 
+in the |sym_info| field of a symbolic node in~|mem|. It has a |name_type|
+to differentiate various subtypes of symbolic tokens, which is usually
+|normal_sym|, but |macro_sym| for macro names (there are three more name
+types for macro parameters, as explained below, and |internal_sym| 
+for the representation of internals).
 
 (2)~A numeric token whose |scaled| value is~|v| is
 represented in a non-symbolic node of~|mem|; the |type| field is |known|,
@@ -5748,17 +5752,14 @@ field is |mp_string_type|, the |name_type| field is |token|, and the
 represent arbitrary values (in ways to be explained later).  
 
 (5)~Macro parameters are like symbolic tokens in that they appear in |sym_info| 
-fields of symbolic nodes. The $k$th parameter is represented by |expr_base+k| 
-if it is of type \&{expr}, or by |suffix_base+k| if it is of type \&{suffix}, or
-by |text_base+k| if it is of type \&{text}.  (Here |0<=k<param_size|.)
+fields of symbolic nodes. The $k$th parameter is represented by |k| in |sym_info|;
+and |expr_sym| in |name_type|, if it is of type \&{expr}, or |suffix_sym| if it 
+is of type \&{suffix}, or by |text_sym| if it is of type \&{text}. 
 
 Actual values of these parameters are kept in a separate stack, as we will
-see later.  The constants |expr_base|, |suffix_base|, and |text_base| are,
-of course, chosen so that there will be no confusion between symbolic
-tokens and parameters of various types.
+see later. 
 
-Note that
-the `\\{type}' field of a node has nothing to do with ``type'' in a
+Note that the `\\{type}' field of a node has nothing to do with ``type'' in a
 printer's sense. It's curious that the same word is used in such different ways.
 
 @d mp_type(A)     mp->mem[(A)].hh.b0 /* identifies what kind of value this is */
