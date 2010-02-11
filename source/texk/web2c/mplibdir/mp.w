@@ -15246,12 +15246,7 @@ do {
   mp_get_symbol(mp);
   p=mp_get_token_node(mp); 
   set_value(p, k);
-  if (sym_type==mp_expr_sym)
-    set_value_mod(p,mp_expr_sym);
-  else if (sym_type==mp_suffix_sym)
-    set_value_mod(p,mp_suffix_sym);
-  else if (sym_type==mp_text_sym)
-    set_value_mod(p,mp_text_sym);
+  set_value_mod(p,sym_type);
   set_mp_info(p,mp->cur_sym);
   if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
 @:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
