@@ -15089,7 +15089,7 @@ static void mp_scan_def (MP mp) {
   pointer r; /* parameter-substitution list */
   pointer q; /* tail of the macro token list */
   pointer p; /* temporary storage */
-  halfword base; /* |expr_base|, |suffix_base|, or |text_base| */
+  quarterword sym_type; /* |expr_sym|, |suffix_sym|, or |text_sym| */
   pointer l_delim,r_delim; /* matching delimiters */
   m=mp->cur_mod; 
   c=general_macro;
@@ -15182,37 +15182,37 @@ do {
   r_delim=mp->cur_mod; 
   get_t_next;
   if ( (mp->cur_cmd==param_type)&&(mp->cur_mod==expr_param) ) {
-    base=expr_base;
+    sym_type=mp_expr_sym;
   } else if ( (mp->cur_cmd==param_type)&&(mp->cur_mod==suffix_param) ) {
-    base=suffix_base;
+    sym_type=mp_suffix_sym;
   } else if ( (mp->cur_cmd==param_type)&&(mp->cur_mod==text_param) ) {
-    base=text_base;
+    sym_type=mp_text_sym;
   } else { 
     print_err("Missing parameter type; `expr' will be assumed");
 @.Missing parameter type@>
     help1("You should've had `expr' or `suffix' or `text' here.");
-    mp_back_error(mp); base=expr_base;
+    mp_back_error(mp); sym_type=mp_expr_sym;
   }
-  @<Absorb parameter tokens for type |base|@>;
+  @<Absorb parameter tokens for type |sym_type|@>;
   mp_check_delimiter(mp, l_delim,r_delim);
   get_t_next;
 } while (mp->cur_cmd==left_delimiter)
 
-@ @<Absorb parameter tokens for type |base|@>=
+@ @<Absorb parameter tokens for type |sym_type|@>=
 do { 
   mp_link(q)=mp_get_symbolic_node(mp);
   q=mp_link(q);
-  if (base == expr_base) {
-    mp_name_type(q) = mp_expr_sym;
-  } else if (base == suffix_base) {
-    mp_name_type(q) = mp_suffix_sym;
-  } else if (base == text_base) {
-    mp_name_type(q) = mp_text_sym;
-  } 
+  mp_name_type(q) = sym_type;
   set_mp_sym_info(q,k);
   mp_get_symbol(mp);
   p=mp_get_token_node(mp); 
-  value(p)=base+k;
+  if (sym_type == mp_expr_sym) {
+    value(p)=expr_base+k;
+  } else if (sym_type == mp_suffix_sym) {
+    value(p)=suffix_base+k;
+  } else { /* |text_sym| */
+    value(p)=text_base+k;
+  } 
   set_mp_info(p,mp->cur_sym);
   if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
 @:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
@@ -16231,17 +16231,12 @@ to belong in the present part of the program, even though the original author
 didn't write it until later. The reader may wish to come back to it.)
 
 @c void mp_begin_iteration (MP mp) {
-  halfword m; /* |expr_base| (\&{for}) or |suffix_base| (\&{forsuffixes}) */
+  halfword m; /* |start_for| (\&{for}) or |start_forsuffixes| (\&{forsuffixes}) */
   halfword n; /* hash address of the current symbol */
   mp_loop_data *s; /* the new loop-control node */
   pointer p; /* substitution list for |scan_toks| */
   pointer q;  /* link manipulation register */
-  if (mp->cur_mod == start_for)
-    m=expr_base; 
-  else if (mp->cur_mod == start_forsuffixes)
-    m=suffix_base; 
-  else
-    m=mp->cur_mod;
+  m=mp->cur_mod;
   n=mp->cur_sym; 
   s=xmalloc(1, sizeof(mp_loop_data));
   s->type = s->list = s->info = s->list_start = null;
@@ -16254,7 +16249,10 @@ didn't write it until later. The reader may wish to come back to it.)
     mp_get_symbol(mp); 
     p=mp_get_token_node(mp);
     set_mp_info(p,mp->cur_sym); 
-    value(p)=m;
+    if (m==start_for)
+      value(p)=expr_base;
+    else /* |start_forsuffixes| */
+      value(p)=suffix_base;
     mp_get_x_next(mp);
     if ( mp->cur_cmd==within_token ) {
       @<Set up a picture iteration@>;
@@ -16441,8 +16439,8 @@ from the input stack.
 the missing portion of |begin_iteration| and we'll be done.
 
 The following code is performed after the `\.=' has been scanned in
-a \&{for} construction (if |m=expr_base|) or a \&{forsuffixes} construction
-(if |m=suffix_base|).
+a \&{for} construction (if |m=start_for|) or a \&{forsuffixes} construction
+(if |m=start_forsuffixes|).
 
 @<Scan the values to be used in the loop@>=
 s->type = null; 
@@ -16451,7 +16449,7 @@ s->list_start = s->list;
 q = s->list;
 do {  
   mp_get_x_next(mp);
-  if ( m!=expr_base ) {
+  if ( m!=start_for ) {
     mp_scan_suffix(mp);
   } else { 
     if ( mp->cur_cmd>=colon ) if ( mp->cur_cmd<=comma ) 
@@ -16465,9 +16463,9 @@ do {
   mp_link(q)=mp_get_symbolic_node(mp); 
   q=mp_link(q); 
   set_mp_sym_info(q, mp->cur_exp.data.val);
-  if (m==expr_base)
+  if (m==start_for)
      mp_name_type(q) = mp_expr_sym;
-   else if (m==suffix_base)
+   else if (m==start_forsuffixes)
      mp_name_type(q) = mp_suffix_sym;
   mp->cur_exp.type=mp_vacuous;
 CONTINUE:
