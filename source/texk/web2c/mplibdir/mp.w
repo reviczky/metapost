@@ -3888,8 +3888,6 @@ static void do_set_mp_sym_info(MP mp, pointer A, halfword B);
 @c
 static void do_set_mp_sym_info(MP mp, pointer A, halfword B) {
   assert(mp_type(A)==mp_symbol_node);
-  assert ((B)>=0);
-  assert (B<expr_base);
   mp->mem[(A)+1].hh.lh=B;
 }
 
@@ -3898,10 +3896,7 @@ halfword get_mp_info (MP mp, pointer p) {
   return mp->mem[p+2].hh.lh;
 }
 static halfword get_mp_sym_info (MP mp, pointer p) {
-  if (mp_type(p)!=mp_symbol_node) {
-    printf("actual type: %s\n", mp_type_string(mp_type(p)));
-    assert(mp_type(p)==mp_symbol_node);
-  }
+  assert(mp_type(p)==mp_symbol_node);
   return mp->mem[(p+1)].hh.lh;
 }
 
@@ -5782,12 +5777,6 @@ printer's sense. It's curious that the same word is used in such different ways.
 @d set_info_mod(A,B) info_mod((A))=(B) /* store the value hint */
 @d str_value(A) mp->mem[value_loc((A))].hh.v.str /* the value stored in a large token node */
 @d knot_value(A) mp->mem[value_loc((A))].hh.p.P /* the value stored in a large token node */
-@d expr_base (hash_end+1) /* code for the zeroth \&{expr} parameter */
-@d suffix_base (expr_base+mp->param_size) /* code for the zeroth \&{suffix} parameter */
-@d text_base (suffix_base+mp->param_size) /* code for the zeroth \&{text} parameter */
-
-@<Check the ``constant''...@>=
-if ( text_base+mp->param_size>max_halfword ) mp->bad=18;
 
 @ We have set aside a two word node beginning at |null| so that we can have
 |value(null)=0|.  We will make use of this coincidence later.
@@ -5803,6 +5792,7 @@ static pointer mp_get_token_node (MP mp) {
   mp_type(p) = mp_token_node;
   mp_name_type(p) = 0; /* altered later */
   value_mod(p) = 0;
+  info_mod(p) = 0;
   return p;
 }
  
@@ -13944,7 +13934,7 @@ token by the |cur_tok| routine.
 @c @<Declare the procedure called |make_exp_copy|@>
 static pointer mp_cur_tok (MP mp) {
   pointer p; /* a new token node */
-  if ( mp->cur_sym==0 ) {
+  if ( mp->cur_sym==0 && mp->cur_sym_mod==0) {
     if ( mp->cur_cmd==capsule_token ) {
       mp_value save_exp = mp->cur_exp; /* |cur_exp| to be restored */
       mp_make_exp_copy(mp, mp->cur_mod); 
@@ -13964,18 +13954,8 @@ static pointer mp_cur_tok (MP mp) {
     }
   } else { 
     p = mp_get_symbolic_node(mp); 
-    if (mp->cur_sym>=text_base) {
-      set_mp_sym_info(p,mp->cur_sym-text_base);
-      mp_name_type(p) = mp_text_sym;
-    } else if (mp->cur_sym>=suffix_base) {
-      set_mp_sym_info(p,mp->cur_sym-suffix_base);
-      mp_name_type(p) = mp_suffix_sym;
-    } else if (mp->cur_sym>=expr_base) {
-      set_mp_sym_info(p,mp->cur_sym-expr_base);
-      mp_name_type(p) = mp_expr_sym;
-    } else {
-      set_mp_sym_info(p,mp->cur_sym);
-    }
+    set_mp_sym_info(p,mp->cur_sym);
+    mp_name_type(p) = mp->cur_sym_mod;    
   }
   return p;
 }
@@ -14226,18 +14206,8 @@ if ( mp->cur_sym!=0 ) {
 @ @<Back up an outer symbolic token so that it can be reread@>=
 if ( mp->cur_sym!=0 ) {
   p=mp_get_symbolic_node(mp); 
-  if (mp->cur_sym>=text_base) {
-    set_mp_sym_info(p,mp->cur_sym-text_base);
-    mp_name_type(p) = mp_text_sym;
-  } else if (mp->cur_sym>=suffix_base) {
-    set_mp_sym_info(p,mp->cur_sym-suffix_base);
-    mp_name_type(p) = mp_suffix_sym;
-  } else if (mp->cur_sym>=expr_base) {
-    set_mp_sym_info(p,mp->cur_sym-expr_base);
-    mp_name_type(p) = mp_expr_sym;
-  } else {
-    set_mp_sym_info(p,mp->cur_sym);
-  }
+  set_mp_sym_info(p,mp->cur_sym);
+  mp_name_type(p) = mp->cur_sym_mod;
   back_list(p); /* prepare to read the symbolic token again */
 }
 
@@ -14544,16 +14514,17 @@ mp->cur_cmd=numeric_token; return
 
 @<Input from token list;...@>=
 if ( mp_type(loc) == mp_symbol_node ) { /* symbolic token */
-  quarterword cur_mod_type = mp_name_type(loc);
   mp->cur_sym=mp_sym_info(loc); 
+  mp->cur_sym_mod = mp_name_type(loc);
   loc=mp_link(loc); /* move to next */
-  if ( cur_mod_type==mp_expr_sym) {
+  if ( mp->cur_sym_mod==mp_expr_sym) {
      mp->cur_cmd=capsule_token;
      mp->cur_mod=mp->param_stack[param_start+mp->cur_sym];
+     mp->cur_sym_mod=0;
      mp->cur_sym=0; 
      return;
-  } else if (cur_mod_type==mp_suffix_sym ||
-             cur_mod_type==mp_text_sym ) {
+  } else if (mp->cur_sym_mod==mp_suffix_sym ||
+             mp->cur_sym_mod==mp_text_sym ) {
      mp_begin_token_list(mp,
                          mp->param_stack[param_start+mp->cur_sym],
                          (quarterword)parameter);
@@ -14930,7 +14901,8 @@ When such parameters are present, they are called \.{(SUFFIX0)},
 	if ( mp->cur_mod==quote ) { 
           get_t_next; 
         } else if ( mp->cur_mod<=suffix_count ) {
-          mp->cur_sym=suffix_base-1+mp->cur_mod;
+          mp->cur_sym=mp->cur_mod-1;
+          mp->cur_sym_mod=mp_suffix_sym;
         }
       }
     }
@@ -14946,15 +14918,9 @@ When such parameters are present, they are called \.{(SUFFIX0)},
 { 
   q=subst_list;
   while ( q!=null ) {
-    if ( mp_info(q)==mp->cur_sym ) {
-      if (value_mod(q) == mp_expr_sym) 
-        mp->cur_sym=value(q)+expr_base; 
-      else if (value_mod(q) == mp_text_sym)
-        mp->cur_sym=value(q)+text_base; 
-      else if (value_mod(q) == mp_suffix_sym)
-        mp->cur_sym=value(q)+suffix_base; 
-      else
-        mp->cur_sym=value(q); 
+    if ( mp_info(q)==mp->cur_sym && info_mod(q) == mp->cur_sym_mod ) {
+      mp->cur_sym=value(q);
+      mp->cur_sym_mod = value_mod(q);
       mp->cur_cmd=relax; 
       break;
     }
@@ -15058,6 +15024,7 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1}.
   mp_get_symbol(mp); 
   q=mp_get_token_node(mp);
   set_mp_info(q,mp->cur_sym);
+  set_info_mod(q,mp->cur_sym_mod);  
   set_value(q,0);
   set_value_mod(q,mp_expr_sym);
   mp_get_clear_symbol(mp); 
@@ -15065,6 +15032,7 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1}.
   mp_get_symbol(mp); 
   p=mp_get_token_node(mp);
   set_mp_info(p,mp->cur_sym);
+  set_info_mod(p,mp->cur_sym_mod);  
   set_value(p,1); 
   set_value_mod(p,mp_expr_sym);
   mp_link(p)=q;
@@ -15249,6 +15217,7 @@ do {
   set_value(p, k);
   set_value_mod(p,sym_type);
   set_mp_info(p,mp->cur_sym);
+  set_info_mod(p,mp->cur_sym_mod);  
   if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
 @:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
   incr(k); 
@@ -15279,6 +15248,7 @@ do {
   incr(k); 
   mp_get_symbol(mp);
   set_mp_info(p,mp->cur_sym);
+  set_info_mod(p,mp->cur_sym_mod);
   mp_link(p)=r; 
   r=p; 
   get_t_next;
@@ -15291,6 +15261,7 @@ do {
     set_value_mod(p,mp_expr_sym);
     mp_get_symbol(mp);
     set_mp_info(p,mp->cur_sym);
+    set_info_mod(p,mp->cur_sym_mod);
     mp_link(p)=r; 
     r=p; 
     get_t_next;
@@ -16286,6 +16257,7 @@ didn't write it until later. The reader may wish to come back to it.)
     mp_get_symbol(mp); 
     p=mp_get_token_node(mp);
     set_mp_info(p,mp->cur_sym); 
+    set_info_mod(p,mp->cur_sym_mod);
     set_value(p,0);
     if (m==start_for) {
       set_value_mod(p,mp_expr_sym);
@@ -18922,6 +18894,7 @@ static void mp_scan_suffix (MP mp) {
     } else if ((mp->cur_cmd==tag_token)||(mp->cur_cmd==internal_quantity) ) {
        p=mp_get_symbolic_node(mp); 
        set_mp_sym_info(p,mp->cur_sym);
+       mp_name_type(p) = mp->cur_sym_mod;
     } else {
       break;
     }
@@ -23226,6 +23199,7 @@ pointer mp_scan_declared_variable (MP mp) {
     }
     mp_link(t)=mp_get_symbolic_node(mp); t=mp_link(t); 
     set_mp_sym_info(t,mp->cur_sym);
+    mp_name_type(t) = mp->cur_sym_mod;
   }
   if ( (eq_type(x)%outer_tag)!=tag_token ) mp_clear_symbol(mp, x,false);
   if ( equiv(x)==null ) mp_new_root(mp, x);
@@ -24391,7 +24365,7 @@ static void mp_do_show_var (MP mp) ;
 @ @c void mp_do_show_var (MP mp) { 
   do {  
     get_t_next;
-    if ( mp->cur_sym>0 ) if ( mp->cur_sym<=hash_end )
+    if ( mp->cur_sym>0 ) if ( mp->cur_sym_mod == 0 )
       if ( mp->cur_cmd==tag_token ) if ( mp->cur_mod!=null ) {
       mp_disp_var(mp, mp->cur_mod); goto DONE;
     }
