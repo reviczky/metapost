@@ -5774,12 +5774,12 @@ printer's sense. It's curious that the same word is used in such different ways.
 @d mp_name_type(A)   mp->mem[(A)].hh.b1 /* a clue to the name of this value */
 @d token_node_size 3 /* the number of words in a large token node */
 @d value_loc(A) ((A)+1) /* the word that contains the |value| field */
-@d value(A) mp->mem[value_loc((A))].hh.lh /* the value stored in a large token node */
-@d value_mod(A) mp->mem[value_loc((A))].hh.rh /* a hint at the meaning of value */
+@d value(A) mp->mem[value_loc((A))].hh.rh /* the value stored in a large token node */
+@d value_mod(A) mp->mem[value_loc((A))].hh.b0 /* a hint at the meaning of value */
 @d set_value(A,B) do {
-  mp->mem[value_loc((A))].hh.lh=(B); /* store the value in a large token node */
+  value(A)=(B); /* store the value in a large token node */
 } while (0)
-@d set_value_mod(A,B) mp->mem[value_loc((A))].hh.rh=(B) /* store the value hint */
+@d set_value_mod(A,B) value_mod((A))=(B) /* store the value hint */
 @d str_value(A) mp->mem[value_loc((A))].hh.v.str /* the value stored in a large token node */
 @d knot_value(A) mp->mem[value_loc((A))].hh.p.P /* the value stored in a large token node */
 @d expr_base (hash_end+1) /* code for the zeroth \&{expr} parameter */
