@@ -5776,10 +5776,10 @@ printer's sense. It's curious that the same word is used in such different ways.
 @d value_loc(A) ((A)+1) /* the word that contains the |value| field */
 @d value(A) mp->mem[value_loc((A))].hh.rh /* the value stored in a large token node */
 @d value_mod(A) mp->mem[value_loc((A))].hh.b0 /* a hint at the meaning of value */
-@d set_value(A,B) do {
-  value(A)=(B); /* store the value in a large token node */
-} while (0)
+@d info_mod(A) mp->mem[value_loc((A))].hh.b1 /* a hint at the meaning of value */
+@d set_value(A,B) value(A)=(B) /* store the value in a large token node */
 @d set_value_mod(A,B) value_mod((A))=(B) /* store the value hint */
+@d set_info_mod(A,B) info_mod((A))=(B) /* store the value hint */
 @d str_value(A) mp->mem[value_loc((A))].hh.v.str /* the value stored in a large token node */
 @d knot_value(A) mp->mem[value_loc((A))].hh.p.P /* the value stored in a large token node */
 @d expr_base (hash_end+1) /* code for the zeroth \&{expr} parameter */
@@ -14347,6 +14347,7 @@ void mp_get_next (MP mp) {
   integer n,f; /* registers for decimal-to-binary conversion */
 RESTART: 
   mp->cur_sym=0;
+  mp->cur_sym_mod=0;
   if ( file_state ) {
     @<Input from external file; |goto restart| if no input found,
     or |return| if a non-symbolic token is found@>;
