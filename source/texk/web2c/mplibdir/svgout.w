@@ -560,7 +560,7 @@ typedef struct mp_pen_info {
 @ (Re)discover the characteristics of an elliptical pen
 
 @<Declarations@>=
-mp_pen_info *mp_svg_pen_info(MP mp, mp_knot *pp, mp_knot *p);
+mp_pen_info *mp_svg_pen_info(MP mp, mp_knot pp, mp_knot p);
 
 @ The next two constants come from the original web source. 
 Together with the two helper functions, they will tell whether 
@@ -570,10 +570,10 @@ the |x| or the |y| direction of the path is the most important
 @d aspect_default 1
 
 @c
-static scaled coord_range_x (mp_knot *h, scaled dz) {
+static scaled coord_range_x (mp_knot h, scaled dz) {
   scaled z;
   scaled zlo = 0, zhi = 0;
-  mp_knot *f = h; 
+  mp_knot f = h; 
   while (h != NULL) {
     z = gr_x_coord(h);
     if (z < zlo) zlo = z; else if (z > zhi) zhi = z;
@@ -587,10 +587,10 @@ static scaled coord_range_x (mp_knot *h, scaled dz) {
   }
   return (zhi - zlo <= dz ? aspect_bound : aspect_default);
 }
-static scaled coord_range_y (mp_knot *h, scaled dz) {
+static scaled coord_range_y (mp_knot h, scaled dz) {
   scaled z;
   scaled zlo = 0, zhi = 0;
-  mp_knot *f = h; 
+  mp_knot f = h; 
   while (h != NULL) {
     z = gr_y_coord(h);
     if (z < zlo) zlo = z; else if (z > zhi) zhi = z;
@@ -607,7 +607,7 @@ static scaled coord_range_y (mp_knot *h, scaled dz) {
 
 @ 
 @c
-mp_pen_info *mp_svg_pen_info(MP mp, mp_knot *pp, mp_knot *p) {
+mp_pen_info *mp_svg_pen_info(MP mp, mp_knot pp, mp_knot p) {
   scaled wx, wy; /* temporary pen widths, in either direction */
   struct mp_pen_info *pen; /* return structure */
   if (p == NULL)
@@ -657,14 +657,14 @@ cubics with zero initial and final velocity as created by |make_path| or
 as created by |make_choices|.
 
 @<Declarations@>=
-static boolean mp_is_curved(mp_knot *p, mp_knot *q) ;
+static boolean mp_is_curved(mp_knot p, mp_knot q) ;
 
 
 @ 
 @d bend_tolerance 131 /* allow rounding error of $2\cdot10^{-3}$ */
 
 @c 
-boolean mp_is_curved(mp_knot *p, mp_knot *q) {
+boolean mp_is_curved(mp_knot p, mp_knot q) {
   scaled d; /* a temporary value */
   if ( gr_right_x(p)==gr_x_coord(p) )
     if ( gr_right_y(p)==gr_y_coord(p) )
@@ -684,8 +684,8 @@ boolean mp_is_curved(mp_knot *p, mp_knot *q) {
 
 
 @ @c
-static void mp_svg_path_out (MP mp, mp_knot *h) {
-  mp_knot *p, *q; /* for scanning the path */
+static void mp_svg_path_out (MP mp, mp_knot h) {
+  mp_knot p, q; /* for scanning the path */
   append_char('M');
   mp_svg_pair_out(mp, gr_x_coord(h),gr_y_coord(h));
   p=h;
@@ -715,8 +715,8 @@ static void mp_svg_path_out (MP mp, mp_knot *h) {
 }
 
 @ @c
-static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
-  mp_knot *p, *q; /* for scanning the path */
+static void mp_svg_path_trans_out (MP mp, mp_knot h, mp_pen_info *pen) {
+  mp_knot p, q; /* for scanning the path */
   append_char('M');
   mp_svg_trans_pair_out(mp, pen, gr_x_coord(h),gr_y_coord(h));
   p=h;
@@ -747,8 +747,8 @@ static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
 
 
 @ @c
-static void mp_svg_font_path_out (MP mp, mp_knot *h) {
-  mp_knot *p, *q; /* for scanning the path */
+static void mp_svg_font_path_out (MP mp, mp_knot h) {
+  mp_knot p, q; /* for scanning the path */
   append_char('M');
   mp_svg_font_pair_out(mp, gr_x_coord(h),gr_y_coord(h));
   p=h;
@@ -1118,10 +1118,10 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
 @ Here is a simple routine that just fills a cycle.
 
 @<Declarations@>=
-static void mp_svg_fill_out (MP mp, mp_knot *p, mp_graphic_object *h);
+static void mp_svg_fill_out (MP mp, mp_knot p, mp_graphic_object *h);
 
 @ @c
-void mp_svg_fill_out (MP mp, mp_knot *p, mp_graphic_object *h) {
+void mp_svg_fill_out (MP mp, mp_knot p, mp_graphic_object *h) {
   mp_svg_open_starttag(mp, "path");
   mp_svg_path_out(mp, p);
   mp_svg_attribute(mp, "d", mp->svg->buf);

@@ -154,10 +154,10 @@ if (mp->last_fnum==mp->font_max)
   mp_reallocate_fonts(mp,(mp->font_max+(mp->font_max/4)));
 while (mp->next_fmem+whd_size>=mp->font_mem_size) {
   size_t l = mp->font_mem_size+(mp->font_mem_size/4);
-  memory_word *font_info;
-  font_info = mp_xmalloc (mp,(l+1),sizeof(memory_word));
-  memset (font_info,0,sizeof(memory_word)*(l+1));
-  memcpy (font_info,mp->font_info,sizeof(memory_word)*(mp->font_mem_size+1));
+  fmemory_word *font_info;
+  font_info = mp_xmalloc (mp,(l+1),sizeof(fmemory_word));
+  memset (font_info,0,sizeof(fmemory_word)*(l+1));
+  memcpy (font_info,mp->font_info,sizeof(fmemory_word)*(mp->font_mem_size+1));
   mp_xfree(mp->font_info);
   mp->font_info = font_info;
   mp->font_mem_size = l;

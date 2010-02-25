@@ -3506,7 +3506,7 @@ double cur_x, cur_y; /* current point */
 double orig_x, orig_y; /* origin (for seac) */
 mp_edge_object *h; /* the whole picture */
 mp_graphic_object *p; /* the current subpath in the picture */
-mp_knot *pp; /* the last known knot in the subpath */
+mp_knot pp; /* the last known knot in the subpath */
 
 
 @ @c
@@ -3585,7 +3585,7 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
     }
   }
   if (f->p!=NULL) {
-    mp_knot *r, *rr;
+    mp_knot r, rr;
     r = gr_path_p((mp_fill_object *)f->p); 
     rr = r;
     if (r && r->x_coord == f->pp->x_coord &&  r->y_coord == f->pp->y_coord ) {
@@ -3664,7 +3664,7 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
 
   cs_entry *ptr;
   cc_entry *cc;
-  mp_knot *n;
+  mp_knot n;
 
   if (cs_name == NULL) {
      ptr = f->subr_tab + subr;
@@ -4432,7 +4432,7 @@ do {
           }
         }
       }
-      cur_fsize[f]=link(cur_fsize[f]);
+      cur_fsize[f]=mp_link(cur_fsize[f]);
       if ( cur_fsize[f]!=null ) { mp_unmark_font(mp, f); done_fonts=false; }
     }
   }
@@ -4495,10 +4495,10 @@ static void mp_print_improved_prologue (MP mp, mp_edge_object *h, int p1, int pr
 @ @c
 void mp_print_improved_prologue (MP mp, mp_edge_object *h, int prologues, int procset) {
   quarterword next_size; /* the size index for fonts being listed */
-  pointer *cur_fsize; /* current positions in |font_sizes| */
+  mp_node *cur_fsize; /* current positions in |font_sizes| */
   boolean done_fonts; /* have we finished listing the fonts in the header? */
   font_number f; /* a font number for loops */
-  cur_fsize = mp_xmalloc(mp,(size_t)(mp->font_max+1),sizeof(pointer));
+  cur_fsize = mp_xmalloc(mp,(size_t)(mp->font_max+1),sizeof(mp_node));
   mp_list_used_resources(mp, prologues, procset);
   mp_list_supplied_resources(mp, prologues, procset);
   mp_list_needed_resources(mp, prologues);
@@ -4558,13 +4558,13 @@ static font_number mp_print_font_comments (MP mp , mp_edge_object *h, int prolog
 @c 
 static font_number mp_print_font_comments (MP mp , mp_edge_object *h, int prologues) {
   quarterword next_size; /* the size index for fonts being listed */
-  pointer *cur_fsize; /* current positions in |font_sizes| */
+  mp_node *cur_fsize; /* current positions in |font_sizes| */
   int ff; /* a loop counter */
   boolean done_fonts; /* have we finished listing the fonts in the header? */
   font_number f; /* a font number for loops */
   scaled ds; /* design size and scale factor for a text node */
   int ldf=0; /* the last \.{DocumentFont} listed (otherwise |null_font|) */
-  cur_fsize = mp_xmalloc(mp,(size_t)(mp->font_max+1),sizeof(pointer));
+  cur_fsize = mp_xmalloc(mp,(size_t)(mp->font_max+1),sizeof(mp_node));
   if ( prologues>0 ) {
     @<Give a \.{DocumentFonts} comment listing all fonts with non-null
       |font_sizes| and eliminate duplicates@>;
@@ -4707,8 +4707,8 @@ static boolean mp_check_ps_marks (MP mp,font_number f) {
 it was believed that processing programs might not know how to deal with
 long lines. Nowadays (1.204), we trust backends to do the right thing.
 
-@d link(A)   mp->mem[(A)].hh.rh /* the |link| field of a memory word */
-@d sc_factor(A) mp->mem[(A)+1].cint /* the scale factor stored in a font size node */
+@d mp_link(A)   (A)->link /* the |link| field of a memory word */
+@d sc_factor(A) ((mp_font_size_node)(A))->sc_factor_ /* the scale factor stored in a font size node */
 
 @<Print the \.{\%*Font} comment for font |f| and advance |cur_fsize[f]|@>=
 { 
@@ -4722,7 +4722,7 @@ long lines. Nowadays (1.204), we trust backends to do the right thing.
     mp_ps_print_scaled(mp, ds);
     mp_ps_marks_out(mp, f );
   }
-  cur_fsize[f]=link(cur_fsize[f]);
+  cur_fsize[f]=mp_link(cur_fsize[f]);
 }
 
 @ @<Print the procset@>=
@@ -4960,8 +4960,8 @@ a \MP\ path.
 @ If we want to duplicate a knot node, we can say |copy_knot|:
 
 @c 
-static mp_knot *mp_gr_copy_knot (MP mp,  mp_knot *p) {
-  mp_knot *q; /* the copy */
+static mp_knot mp_gr_copy_knot (MP mp,  mp_knot p) {
+  mp_knot q; /* the copy */
   q = mp_xmalloc(mp, 1, sizeof (mp_knot));
   memcpy(q,p,sizeof (mp_knot));
   gr_next_knot(q)=NULL;
@@ -4971,8 +4971,8 @@ static mp_knot *mp_gr_copy_knot (MP mp,  mp_knot *p) {
 @ The |copy_path| routine makes a clone of a given path.
 
 @c 
-static mp_knot *mp_gr_copy_path (MP mp,  mp_knot *p) {
-  mp_knot *q, *pp, *qq; /* for list manipulation */
+static mp_knot mp_gr_copy_path (MP mp,  mp_knot p) {
+  mp_knot q, pp, qq; /* for list manipulation */
   if (p==NULL) 
     return NULL;
   q=mp_gr_copy_knot(mp, p);
@@ -4991,15 +4991,15 @@ static mp_knot *mp_gr_copy_path (MP mp,  mp_knot *p) {
 calling the following subroutine.
 
 @<Declarations@>=
-static void mp_do_gr_toss_knot_list (mp_knot *p) ;
+static void mp_do_gr_toss_knot_list (mp_knot p) ;
 
 @ 
 @d mp_gr_toss_knot_list(B,A) mp_do_gr_toss_knot_list(A)
 
 @c
-void mp_do_gr_toss_knot_list (mp_knot * p) {
-  mp_knot *q; /* the node being freed */
-  mp_knot *r; /* the next node */
+void mp_do_gr_toss_knot_list (mp_knot p) {
+  mp_knot q; /* the node being freed */
+  mp_knot r; /* the next node */
   if (p==NULL)
     return;
   q=p;
@@ -5012,8 +5012,8 @@ void mp_do_gr_toss_knot_list (mp_knot * p) {
 
 
 @ @c
-static void mp_gr_ps_path_out (MP mp, mp_knot *h) {
-  mp_knot *p, *q; /* for scanning the path */
+static void mp_gr_ps_path_out (MP mp, mp_knot h) {
+  mp_knot p, q; /* for scanning the path */
   scaled d; /* a temporary value */
   boolean curved; /* |true| unless the cubic is almost straight */
   ps_room(40);
@@ -5201,9 +5201,9 @@ typedef struct mp_fill_object {
   mp_color color;
   unsigned char color_model;
   unsigned char ljoin ;   
-  mp_knot * path_p;
-  mp_knot * htap_p;
-  mp_knot * pen_p;
+  mp_knot path_p;
+  mp_knot htap_p;
+  mp_knot pen_p;
   int miterlim ;
 } mp_fill_object;
 
@@ -5215,20 +5215,20 @@ typedef struct mp_stroked_object {
   unsigned char color_model;
   unsigned char ljoin ;   
   unsigned char lcap ;   
-  mp_knot * path_p;
-  mp_knot * pen_p;
+  mp_knot path_p;
+  mp_knot pen_p;
   int miterlim ;
   mp_dash_object *dash_p;
 } mp_stroked_object;
 
 typedef struct mp_clip_object {
   GRAPHIC_BODY;
-  mp_knot * path_p;
+  mp_knot path_p;
 } mp_clip_object;
 
 typedef struct mp_bounds_object {
   GRAPHIC_BODY;
-  mp_knot * path_p;
+  mp_knot path_p;
 } mp_bounds_object;
 
 typedef struct mp_special_object {
@@ -5330,7 +5330,7 @@ should be black so that the translation of an all-black picture will have no
 Hence we use |c=0| when initializing the graphics state and we use |c<0|
 to recover from a situation where we have lost track of the graphics state.
 
-@d mp_void (null+1) /* a null pointer different from |null| */
+@d mp_void (mp_node)(null+1) /* a null pointer different from |null| */
 
 @c static void mp_gs_unknown_graphics_state (MP mp,scaled c) {
   struct _gs_state *p; /* to shift graphic states around */
@@ -5375,7 +5375,7 @@ static void mp_gr_fix_graphics_state (MP mp, mp_graphic_object *p) ;
 @ @c 
 void mp_gr_fix_graphics_state (MP mp, mp_graphic_object *p) {
   /* get ready to output graphical object |p| */
-  mp_knot *pp, *path_p; /* for list manipulation */
+  mp_knot pp, path_p; /* for list manipulation */
   mp_dash_object *hh;
   scaled wx,wy,ww; /* dimensions of pen bounding box */
   quarterword adj_wx; /* whether pixel rounding should be based on |wx| or |wy| */
@@ -5596,13 +5596,13 @@ allowable range for $x$ or~$y$.  We do not need and cannot afford a full
 bounding-box computation.
 
 @<Declarations@>=
-static boolean mp_gr_coord_rangeOK (mp_knot *h, 
+static boolean mp_gr_coord_rangeOK (mp_knot h, 
                           quarterword  zoff, scaled dz);
 
 @ @c
-boolean mp_gr_coord_rangeOK (mp_knot *h, 
+boolean mp_gr_coord_rangeOK (mp_knot h, 
                           quarterword  zoff, scaled dz) {
-  mp_knot *p; /* for scanning the path form |h| */
+  mp_knot p; /* for scanning the path form |h| */
   scaled zlo,zhi; /* coordinate range so far */
   scaled z; /* coordinate currently being tested */
   if (zoff==do_x_loc) {
@@ -5731,7 +5731,7 @@ static void mp_gr_stroke_ellipse (MP mp,  mp_graphic_object *h, boolean fill_als
 @c void mp_gr_stroke_ellipse (MP mp,  mp_graphic_object *h, boolean fill_also) {
   /* generate an elliptical pen stroke from object |h| */
   scaled txx,txy,tyx,tyy; /* transformation parameters */
-  mp_knot *p; /* the pen to stroke with */
+  mp_knot p; /* the pen to stroke with */
   scaled d1,det; /* for tweaking transformation parameters */
   integer s; /* also for tweaking transformation paramters */
   boolean transformed; /* keeps track of whether gsave/grestore are needed */
@@ -5853,10 +5853,10 @@ if ( abs(det)<d1 ) {
 @ Here is a simple routine that just fills a cycle.
 
 @<Declarations@>=
-static void mp_gr_ps_fill_out (MP mp, mp_knot *p);
+static void mp_gr_ps_fill_out (MP mp, mp_knot p);
 
 @ @c
-void mp_gr_ps_fill_out (MP mp, mp_knot *p) { /* fill cyclic path~|p| */
+void mp_gr_ps_fill_out (MP mp, mp_knot p) { /* fill cyclic path~|p| */
   mp_gr_ps_path_out(mp, p);
   mp_ps_print_cmd(mp, " fill"," F");
   mp_ps_print_ln(mp);
@@ -5901,7 +5901,7 @@ static quarterword mp_size_index (MP mp, font_number f, scaled s) ;
 
 @ @c
 quarterword mp_size_index (MP mp, font_number f, scaled s) {
-  pointer p,q; /* the previous and current font size nodes */
+  mp_node p,q; /* the previous and current font size nodes */
   int i; /* the size index for |q| */
   q=mp->font_sizes[f];
   i=0;
@@ -5909,14 +5909,15 @@ quarterword mp_size_index (MP mp, font_number f, scaled s) {
     if ( abs(s-sc_factor(q))<=fscale_tolerance ) 
       return (quarterword)i;
     else 
-      { p=q; q=link(q); incr(i); };
+      { p=q; q=mp_link(q); incr(i); };
     if ( i==max_quarterword )
       mp_overflow(mp, "sizes per font",max_quarterword);
 @:MetaPost capacity exceeded sizes per font}{\quad sizes per font@>
   }
-  q=mp_get_node(mp, font_size_size);
+  q=(mp_node)mp_xmalloc(mp, 1, font_size_size);
+  mp_link(q) = NULL;
   sc_factor(q)=s;
-  if ( i==0 ) mp->font_sizes[f]=q;  else link(p)=q;
+  if ( i==0 ) mp->font_sizes[f]=q;  else mp_link(p)=q;
   return (quarterword)i;
 }
 
@@ -5925,13 +5926,13 @@ static scaled mp_indexed_size (MP mp,font_number f, quarterword j);
 
 @ @c
 scaled mp_indexed_size (MP mp,font_number f, quarterword j) {
-  pointer p; /* a font size node */
+  mp_node p; /* a font size node */
   int i; /* the size index for |p| */
   p=mp->font_sizes[f];
   i=0;
   if ( p==null ) mp_confusion(mp, "size");
   while ( (i!=j) ) { 
-    incr(i); p=link(p);
+    incr(i); p=mp_link(p);
     if ( p==null ) mp_confusion(mp, "size");
   }
   return sc_factor(p);
@@ -5942,11 +5943,11 @@ static void mp_clear_sizes (MP mp) ;
 
 @ @c void mp_clear_sizes (MP mp) {
   font_number f;  /* the font whose size list is being cleared */
-  pointer p;  /* current font size nodes */
+  mp_node p;  /* current font size nodes */
   for (f=null_font+1;f<=mp->last_fnum;f++) {
     while ( mp->font_sizes[f]!=null ) {
       p=mp->font_sizes[f];
-      mp->font_sizes[f]=link(p);
+      mp->font_sizes[f]=mp_link(p);
       mp_free_node(mp, p,font_size_size);
     }
   }
@@ -5984,7 +5985,14 @@ characters used for each size.  This is done by keeping a linked list of
 sizes for each font with a counter in each text node giving the appropriate
 position in the size list for its font.
 
-@d font_size_size 2 /* size of a font size node */
+@d font_size_size sizeof(struct mp_font_size_node_data) /* size of a font size node */
+
+@<Types...@>=
+typedef struct mp_font_size_node_data {
+  NODE_BODY;
+  scaled sc_factor_;
+} mp_font_size_node_data;
+typedef struct mp_font_size_node_data* mp_font_size_node;
 
 
 @ @<Declarations@>=
