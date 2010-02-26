@@ -6647,11 +6647,15 @@ subscript list, even though that word isn't part of a subscript node.
     p=s;
   } else { 
     mp_subscr_node pp = mp_get_subscr_node(mp); 
-    mp_link(r)=(mp_node)pp; 
+    if (r==mp->temp_head)
+      subscr_head(p)=(mp_node)pp; 
+    else
+      mp_link(r)=(mp_node)pp; 
     mp_link(pp)=s;
     subscript(pp)=n; 
     mp_name_type(pp)=mp_subscr; 
     mp_type(pp)=undefined;
+    p=(mp_node)pp;
   }
   subscript((mp_subscr_node)q)=save_subscript;
 }
@@ -18059,9 +18063,10 @@ void mp_print_exp (MP mp, mp_node p, quarterword verbosity) {
   }
   t=mp_type(p);
   if ( t<mp_dependent ) { /* no dep list, could be a capsule */
-    /* if (t != mp_known && value_node(p)!=NULL) */
+    if (t != mp_known && value_node(p)!=NULL)
       v=value_node(p);
-    /* else  vv=value(p); */
+    else  
+      vv=value(p); 
   } else if ( t<mp_independent ) {
     v=(mp_node)dep_list((mp_dep_node)p);
   }
