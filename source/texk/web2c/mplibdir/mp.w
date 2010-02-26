@@ -16014,13 +16014,18 @@ void mp_print_macro_name (MP mp,mp_node a, pointer n) {
 }
 
 @ @<Declarations@>=
-static void mp_print_arg (MP mp,mp_node q, integer n, mp_node b, quarterword bb) ;
+static void mp_print_arg (MP mp,mp_node q, integer n, halfword b, quarterword bb) ;
 
 @ @c
-void mp_print_arg (MP mp,mp_node q, integer n, mp_node b, quarterword bb) {
-  if ( q && mp_link(q)==mp_void ) mp_print_nl(mp, "(EXPR");
-  else if ( (bb!=mp_text_sym)&&(!b || mp_type(b)!=text_macro) ) mp_print_nl(mp, "(SUFFIX");
-  else mp_print_nl(mp, "(TEXT");
+void mp_print_arg (MP mp,mp_node q, integer n, halfword b, quarterword bb) {
+  if ( q && mp_link(q)==mp_void ) {
+    mp_print_nl(mp, "(EXPR"); 
+  } else {
+    if ( (bb<mp_text_sym)  && (b != text_macro)) 
+      mp_print_nl(mp, "(SUFFIX");
+    else 
+      mp_print_nl(mp, "(TEXT");
+  }
   mp_print_int(mp, n); mp_print(mp, ")<-");
   if ( q && mp_link(q)==mp_void ) mp_print_exp(mp, q,1);
   else mp_show_token_list(mp, q,null,1000,0);
@@ -16134,7 +16139,7 @@ a token list pointed to by |cur_exp|, in which case we will have
     set_mp_sym_node(p,mp_stash_cur_exp(mp));
   if ( internal_value(mp_tracing_macros)>0 ) {
     mp_begin_diagnostic(mp); 
-    mp_print_arg(mp, mp_sym_node(p),n,mp_sym_node(r),mp_name_type(r)); 
+    mp_print_arg(mp, mp_sym_node(p),n,mp_sym_info(r),mp_name_type(r)); 
     mp_end_diagnostic(mp, false);
   }
   if ( arg_list==null ) arg_list=p;
