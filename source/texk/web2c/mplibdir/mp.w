@@ -3541,18 +3541,13 @@ typedef struct mp_dep_node_data* mp_dep_node;
 typedef struct mp_node_data *mp_node;
 typedef short quarterword; /* 1/4 of a word */
 typedef int halfword; /* 1/2 of a word */
-typedef union {
-  struct {
-    halfword RH, LH;
+typedef struct {
+    halfword rh, lh;
     str_number str;
     mp_node node;
     mp_knot P;
-  } v;
 } two_halves;
-typedef union {
-  two_halves hh;
-  integer cint;
-} memory_word;
+typedef two_halves memory_word;
 typedef struct {
   struct {
     quarterword B2, B3, B0, B1;
@@ -3566,8 +3561,6 @@ typedef union {
 #define	b1 u.B1
 #define	b2 u.B2
 #define	b3 u.B3
-#define rh v.RH
-#define lh v.LH
 
 @ 
 @d xfree(A) do { mp_xfree(A); A=NULL; } while (0)
@@ -4963,12 +4956,12 @@ piece of information that qualifies the |eq_type|).
 
 @d eq_type(A)    mp->eqtb[(A)].lh /* the current ``meaning'' of a symbolic token */
 @d equiv(A)      mp->eqtb[(A)].rh /* parametric part of a token's meaning */
-@d equiv_node(A) mp->eqtb[(A)].v.node /* parametric part of a token's meaning */
+@d equiv_node(A) mp->eqtb[(A)].node /* parametric part of a token's meaning */
 @d hash_is_full (mp->hash_used==hash_base) /* are all positions occupied? */
 
 @(mpmp.h@>=
 #define mp_next(A)   mp->hash[(A)].lh /* link for coalesced lists */
-#define text(A)      mp->hash[(A)].v.str /* string number for symbolic token name */
+#define text(A)      mp->hash[(A)].str /* string number for symbolic token name */
 #define hash_base 1 /* hashing actually starts here */
 
 @ @<Types...@>=
@@ -5471,7 +5464,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 
 @d token_node_size sizeof(mp_token_node_data) /* the number of words in a large token node */
 
-@d value(A)       ((mp_token_node)(A))->value_.hh.rh /* the value stored in a large token node */
+@d value(A)       ((mp_token_node)(A))->value_.rh /* the value stored in a large token node */
 
 @d set_value(A,B) do {  /* store the value in a large token node */
    knot_value(A)=NULL;
@@ -5480,7 +5473,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    value(A)=(B); 
  } while (0)
 
-@d value_node(A)   ((mp_token_node)(A))->value_.hh.v.node /* the value stored in a large token node */
+@d value_node(A)   ((mp_token_node)(A))->value_.node /* the value stored in a large token node */
 
 @d set_value_node(A,B) do { /* store the value in a large token node */
    knot_value(A)=NULL;
@@ -5489,7 +5482,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    value(A)=0;
  } while (0) 
 
-@d str_value(A)   ((mp_token_node)(A))->value_.hh.v.str /* the value stored in a large token node */
+@d str_value(A)   ((mp_token_node)(A))->value_.str /* the value stored in a large token node */
 
 @d set_str_value(A,B) do { /* store the value in a large token node */
    knot_value(A)=NULL;
@@ -5498,7 +5491,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    value(A)=0;
  } while (0) 
 
-@d knot_value(A)  ((mp_token_node)(A))->value_.hh.v.P /* the value stored in a large token node */
+@d knot_value(A)  ((mp_token_node)(A))->value_.P /* the value stored in a large token node */
 
 @d set_knot_value(A,B) do { /* store the value in a large token node */
    knot_value(A)=(B);
@@ -13439,17 +13432,20 @@ if ( dep_info(p)==null ) {
   if ( abs(value(x))>=fraction_one )
     mp_val_too_big(mp, value(x));
   mp_free_dep_node(mp, p);
-  if ( cur_exp_node()==(mp_node)x && mp->cur_exp.type==mp_independent ) {
+  if ( cur_exp_node()==x && mp->cur_exp.type==mp_independent ) {
     set_cur_exp_value(value(x)); 
     mp->cur_exp.type=mp_known;
     mp_free_node(mp, x, value_node_size);
   }
 } else { 
+  mp_node xx  = x;
   mp_type(x)=mp_dependent; 
   mp->dep_final=final_node; 
   mp_new_dep(mp, &x, p);
-  if ( cur_exp_node()==x && mp->cur_exp.type==mp_independent ) 
+  if ( cur_exp_node()==xx && mp->cur_exp.type==mp_independent ) {
+    cur_exp_node()=x;
     mp->cur_exp.type=mp_dependent;
+  }
 }
 
 @ @<Divide list |p| by $2^n$@>=
@@ -15544,7 +15540,7 @@ if ( m==start_def ) {
 @ @<Initialize table entries@>=
 mp->bad_vardef = mp_get_value_node(mp);
 mp_name_type(mp->bad_vardef)=mp_root; 
-((mp_value_node)mp->bad_vardef)->value_.hh.lh = mp_get_frozen_primitive(mp, mp->frozen_bad_vardef);
+((mp_value_node)mp->bad_vardef)->value_.lh = mp_get_frozen_primitive(mp, mp->frozen_bad_vardef);
 
 @ @<Absorb delimited parameters, putting them into lists |q| and |r|@>=
 do {  
