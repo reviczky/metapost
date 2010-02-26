@@ -12837,13 +12837,13 @@ static mp_dep_node mp_p_plus_fq ( MP mp, mp_dep_node p, integer f,
   mp_node pp,qq; /* |dep_info(p)| and |dep_info(q)|, respectively */
   mp_dep_node r,s; /* for list manipulation */
   integer threshold; /* defines a neighborhood of zero */
-  integer v; /* temporary register */
+  integer v, vv; /* temporary registers */
   if ( t==mp_dependent ) threshold=fraction_threshold;
   else threshold=scaled_threshold;
   r=(mp_dep_node)mp->temp_head;
   pp=dep_info(p); 
   qq=dep_info(q);
-  while (qq) {
+  while (1) {
     if ( pp==qq ) {
       if ( pp==null ) {
        break;
@@ -12853,7 +12853,8 @@ static mp_dep_node mp_p_plus_fq ( MP mp, mp_dep_node p, integer f,
       }
     } else {
       v  = ( pp==NULL ? 0 : value(pp) );
-      if ( v<value(qq) ) {
+      vv = ( qq==NULL ? 0 : value(qq) );
+      if ( v<vv ) {
         @<Contribute a term from |q|, multiplied by~|f|@>
       } else { 
         mp_link(r)=p; 
@@ -12927,7 +12928,7 @@ static mp_dep_node mp_p_plus_q (MP mp, mp_dep_node p, mp_dep_node q, mp_variable
   mp_dep_node s; /* for list manipulation */
   mp_dep_node r; /* for list manipulation */
   integer threshold; /* defines a neighborhood of zero */
-  integer v; /* temporary register */
+  integer v, vv; /* temporary register */
   if ( t==mp_dependent ) 
     threshold=fraction_threshold;
   else 
@@ -12935,7 +12936,7 @@ static mp_dep_node mp_p_plus_q (MP mp, mp_dep_node p, mp_dep_node q, mp_variable
   r=(mp_dep_node)mp->temp_head; 
   pp=dep_info(p); 
   qq=dep_info(q);
-  while (qq) {
+  while (1) {
     if ( pp==qq ) {
       if ( pp==null ) {
         break;
@@ -12945,7 +12946,8 @@ static mp_dep_node mp_p_plus_q (MP mp, mp_dep_node p, mp_dep_node q, mp_variable
       }
     } else { 
      v  = ( pp==NULL ? 0 : value(pp) );
-     if ( v<value(qq) ) {
+     vv = ( qq==NULL ? 0 : value(qq) );
+     if ( v<vv ) {
         s=mp_get_dep_node(mp); 
         dep_info(s)=qq; 
         dep_value(s)=dep_value(q);
