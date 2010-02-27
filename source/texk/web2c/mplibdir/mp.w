@@ -3935,12 +3935,10 @@ void mp_free_node (MP mp, mp_node p, size_t siz) ;
 @c
 static void do_set_mp_info(MP mp, mp_node p, halfword v) {
   (void)mp;
-  assert(p->type!=mp_symbol_node);
   p->info=v;
 }
 halfword get_mp_info (MP mp, mp_node p) {
   (void)mp;
-  assert(p->type!=mp_symbol_node);
   return p->info;
 }
 
@@ -5464,6 +5462,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 
 @d token_node_size sizeof(mp_token_node_data) /* the number of words in a large token node */
 
+@d value_info(A)  ((mp_token_node)(A))->value_.lh /* the info stored in a large token node */
 @d value(A)       ((mp_token_node)(A))->value_.rh /* the value stored in a large token node */
 
 @d set_value(A,B) do {  /* store the value in a large token node */
@@ -6321,7 +6320,7 @@ static void mp_new_root (MP mp, pointer x) {
   p=mp_get_value_node(mp);
   mp_type(p)=undefined;
   mp_name_type(p)=mp_root;
-  mp_link(p)=x;
+  value_info(p) = x;
   equiv_node(x)=p;
 }
 
@@ -6350,7 +6349,7 @@ void mp_print_variable_name (MP mp, mp_node p) {
    Have to prepend a token to |q| for |show_token_list|. 
   */
   r=mp_get_symbolic_node(mp); 
-  set_mp_sym_info(r, mp_link(p));
+  set_mp_sym_info(r, value_info(p));
   mp_link(r)=q;
   if ( mp_name_type(p)==mp_saved_root ) 
     mp_print(mp, "(SAVED)");
@@ -6460,7 +6459,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
   switch (mp_name_type(p)) {
   case mp_root: 
     {
-      pointer qq = (pointer)mp_link(p); 
+      pointer qq = value_info(p); 
       r=mp_get_value_node(mp);
       equiv_node(qq) = r;
     }
@@ -6477,6 +6476,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
     break;
   }
   mp_link(r)=mp_link(p); 
+  value_info(r) = value_info(p);
   mp_type(r)=mp_structured; 
   mp_name_type(r)=mp_name_type(p);
   attr_head(r)=p; 
