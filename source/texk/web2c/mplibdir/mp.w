@@ -3814,6 +3814,11 @@ typedef halfword pointer; /* a flag or a location in |mem| or |eqtb| */
 @ New-style dynamic memory allocation.
 
 @d mp_link(A)      (A)->link /* the |link| field of a node */
+@d set_mp_link(A,B) do {
+   mp_node d = (B);
+   /* printf("set link    of %p to %p on line %d\n", (A), d, __LINE__);*/
+   mp_link((A)) = d;
+ } while (0)
 @d mp_type(A)      (A)->type /* identifies what kind of value this is */
 @d mp_name_type(A) (A)->name_type /* a clue to the name of this value */
 
@@ -5860,13 +5865,23 @@ and the second word is broken into two pointer fields called |attr_head|
 and |subscr_head|. Those fields point to additional nodes that
 contain structural information, as we shall see.
 
+Sometimes |attr_node|s pretend to be values, so value nodes need the
+|attr_loc| and |parent| field as well.
+
 @d attr_head(A)   ((mp_value_node)(A))->attr_head_ /* pointer to attribute info */
+@d set_attr_head(A,B) do {
+   mp_node d = (B);
+   /* printf("set attrhead of %p to %p on %d\n",A,d,__LINE__); */
+   attr_head((A)) = d;
+} while (0)
 @d subscr_head(A)   ((mp_value_node)(A))->subscr_head_ /* pointer to subscript info */
 
 @(mpmp.h@>=
 typedef struct mp_value_node_data {
   NODE_BODY;
   memory_word value_;
+  halfword attr_loc_;
+  mp_node parent_;
   mp_node attr_head_;
   mp_node subscr_head_;
 } mp_value_node_data;
@@ -5977,6 +5992,11 @@ branches of the structure below subscript nodes do not carry significant
 information in their collective subscript attributes.
 
 @d attr_loc(A) ((mp_attr_node)(A))->attr_loc_ /* hash address of this attribute */
+@d set_attr_loc(A,B) do {
+  halfword d = (B);
+  /* printf ("set attrloc of %p to %d on %d\n", (A), d, __LINE__); */
+  ((mp_attr_node)(A))->attr_loc_ = d;
+  } while (0)
 @d parent(A) (A)->parent_ /* pointer to |mp_structured| variable */
 
 @(mpmp.h@>=
@@ -6002,7 +6022,7 @@ static mp_attr_node mp_get_attr_node (MP mp) {
 
 @ @<Initialize table...@>=
 mp->end_attr = (mp_node)mp_get_attr_node(mp);
-attr_loc(mp->end_attr)=hash_end+1;
+set_attr_loc(mp->end_attr,hash_end+1);
 parent((mp_attr_node)mp->end_attr)=NULL;
 
 
@@ -6375,7 +6395,7 @@ void mp_print_variable_name (MP mp, mp_node p) {
     r=mp_get_symbolic_node(mp); 
     set_mp_sym_info(r,attr_loc(p)); /* the hash address */
   }
-  mp_link(r)=q;
+  set_mp_link(r,q);
   q=r;
 FOUND:  
   p=parent((mp_attr_node)p);
@@ -6456,10 +6476,11 @@ place in the structure. Node~|p| itself does not move, nor are its
 @c 
 static mp_node mp_new_structure (MP mp, mp_node p) {
   mp_node q, r=NULL; /* list manipulation registers */
+  pointer qq = 0;
   switch (mp_name_type(p)) {
   case mp_root: 
     {
-      pointer qq = value_info(p); 
+      qq = value_info(p); 
       r=mp_get_value_node(mp);
       equiv_node(qq) = r;
     }
@@ -6475,21 +6496,21 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
 @:this can't happen struct}{\quad struct@>
     break;
   }
-  mp_link(r)=mp_link(p); 
+  set_mp_link(r,mp_link(p)); 
   value_info(r) = value_info(p);
   mp_type(r)=mp_structured; 
   mp_name_type(r)=mp_name_type(p);
-  attr_head(r)=p; 
+  set_attr_head(r,p); 
   mp_name_type(p)=mp_structured_root;
   {
-    mp_attr_node qq = mp_get_attr_node(mp); 
-    mp_link(p)=(mp_node)qq; 
-    subscr_head(r)=(mp_node)qq;
-    parent(qq)=r; 
-    mp_type(qq)=undefined; 
-    mp_name_type(qq)=mp_attr; 
-    mp_link(qq)=mp->end_attr;
-    attr_loc(qq)=collective_subscript; 
+    mp_attr_node qqr = mp_get_attr_node(mp); 
+    set_mp_link(p,(mp_node)qqr);
+    subscr_head(r)=(mp_node)qqr;
+    parent(qqr)=r; 
+    mp_type(qqr)=undefined; 
+    mp_name_type(qqr)=mp_attr; 
+    set_mp_link(qqr,mp->end_attr);
+    set_attr_loc(qqr,collective_subscript); 
   }
   return r;
 }
@@ -6502,13 +6523,13 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
   } while (mp_name_type(q)!=mp_attr);
   q=parent((mp_attr_node)q); 
   r = mp->temp_head;
-  mp_link(r)=subscr_head(q);
+  set_mp_link(r,subscr_head(q));
   do {  
     q=r;
     r = mp_link(r);
   } while (r!=p);
   r=(mp_node)mp_get_subscr_node(mp);
-  mp_link(q)=r; 
+  set_mp_link(q,r); 
   subscript((mp_subscr_node)r)=subscript((mp_subscr_node)p);
 }
 
@@ -6524,15 +6545,17 @@ node~|p|, so we must change both of them.
     q=r; r=mp_link(r);
   } while (r!=p);
   rr=mp_get_attr_node(mp); 
-  mp_link(q)=(mp_node)rr;
-  attr_loc(rr) = attr_loc(p);
+  r = (mp_node)rr;
+  set_mp_link(q,(mp_node)rr);
+  set_attr_loc(rr, attr_loc(p));
   parent(rr) = parent((mp_attr_node)p);
   if ( attr_loc(p)==collective_subscript ) { 
     q = mp->temp_head;
-    mp_link(q)=subscr_head(parent((mp_attr_node)p));
+    set_mp_link(q,subscr_head(parent((mp_attr_node)p)));
     while ( mp_link(q)!=p ) 
       q=mp_link(q);
-    mp_link(q)=(mp_node)rr;
+    assert(q!=mp->temp_head);
+    set_mp_link(q,(mp_node)rr);
   }
 }
 
@@ -6629,7 +6652,7 @@ subscript list, even though that word isn't part of a subscript node.
   save_subscript=subscript((mp_subscr_node)q);
   subscript((mp_subscr_node)q)=el_gordo; 
   s = mp->temp_head;
-  mp_link(s)=subscr_head(p);
+  set_mp_link(s,subscr_head(p));
   do {  
     r=s; 
     s=mp_link(s);
@@ -6641,8 +6664,8 @@ subscript list, even though that word isn't part of a subscript node.
     if (r==mp->temp_head)
       subscr_head(p)=(mp_node)pp; 
     else
-      mp_link(r)=(mp_node)pp; 
-    mp_link(pp)=s;
+      set_mp_link(r,(mp_node)pp);
+    set_mp_link(pp,s);
     subscript(pp)=n; 
     mp_name_type(pp)=mp_subscr; 
     mp_type(pp)=undefined;
@@ -6661,9 +6684,9 @@ subscript list, even though that word isn't part of a subscript node.
   } while (n>attr_loc(ss));
   if ( n<attr_loc(ss) ) { 
     qq=(mp_node)mp_get_attr_node(mp); 
-    mp_link(rr)=qq; 
-    mp_link(qq)=ss;
-    attr_loc(qq)=n; 
+    set_mp_link(rr,qq); 
+    set_mp_link(qq,ss);
+    set_attr_loc(qq,n); 
     mp_name_type(qq)=mp_attr; 
     mp_type(qq)=undefined;
     parent((mp_attr_node)qq)=pp; 
@@ -6675,17 +6698,19 @@ subscript list, even though that word isn't part of a subscript node.
   } else { 
     pp=ss; 
     s=attr_head(p);
+    /* printf("attr_loc(s)=%d\n",attr_loc(s)); */
     do {  
       r=s; 
       s=mp_link(s);
+      /* printf("attr_loc(s)=%d\n",attr_loc(s)); */
     } while (n>attr_loc(s));
     if ( n==attr_loc(s) ) {
       p=s;
     } else { 
       q=(mp_node)mp_get_attr_node(mp); 
-      mp_link(r)=q; 
-      mp_link(q)=s;
-      attr_loc(q)=n; 
+      set_mp_link(r,q); 
+      set_mp_link(q,s);
+      set_attr_loc(q,n) ;
       mp_name_type(q)=mp_attr; 
       mp_type(q)=undefined;
       parent((mp_attr_node)q)=p; 
@@ -6734,7 +6759,7 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t, boolean discard_suff
           if ( mp_type(q)==mp_structured ) {
             r=q;
           } else { 
-            mp_link(r)=mp_link(q); 
+            set_mp_link(r,mp_link(q)); 
             mp_free_node(mp, q,subscr_node_size);   
           }
         } else {
@@ -6869,6 +6894,7 @@ static void mp_clear_symbol (MP mp, pointer p, boolean saving) {
     break;
   }
   equiv(p) = mp->frozen_undefined->v.data.val;
+  equiv_node(p) = NULL;
   eq_type(p) = mp->frozen_undefined->type;
 }
 
@@ -7008,7 +7034,7 @@ static void mp_unsave (MP mp) {
       if ( eq_type(q) % outer_tag==tag_token ) {
         mp_node pp=equiv_node(q);
         if ( pp!=NULL ) mp_name_type(pp)=mp_root;
-      }
+      }	
     }
     p=mp->save_ptr->link; 
     xfree(mp->save_ptr); 
@@ -12663,8 +12689,23 @@ structures have to match.
 
 @d dep_value(A) ((mp_value_node)(A))->value_.rh  /* half of the |value| field in a |dependent| variable */
 @d dep_info(A) ((mp_value_node)(A))->value_.node  /* half of the |value| field in a |dependent| variable */
+@d set_dep_info(A,B) do {
+   mp_value_node d = (mp_value_node)(B);
+   /* printf("set depinfo of %p to %p on %d\n",A,d,__LINE__); */
+   dep_info((A)) = (mp_node)d;
+} while (0)
 @d dep_list(A) ((mp_value_node)(A))->attr_head_  /* half of the |value| field in a |dependent| variable */
+@d set_dep_list(A,B) do {
+   mp_value_node d = (mp_value_node)(B);
+   /* printf("set deplist of %p to %p on %d\n",A,d,__LINE__);  */
+   dep_list((A)) = (mp_node)d;
+} while (0)
 @d prev_dep(A) ((mp_value_node)(A))->subscr_head_ /* the other half; makes a doubly linked list */
+@d set_prev_dep(A,B) do {
+   mp_value_node d = (mp_value_node)(B);
+   /* printf("set prevdep of %p to %p on %d\n",A,d,__LINE__);  */
+   prev_dep((A)) = (mp_node)d;
+} while (0)
 
 @ 
 
@@ -12686,10 +12727,10 @@ static void mp_free_dep_node(MP mp, mp_value_node p) {
 @ @<Initialize table entries@>= 
 mp->serial_no=0;
 mp->dep_head = mp_get_dep_node(mp);
-mp_link(mp->dep_head)=(mp_node)mp->dep_head; 
-prev_dep(mp->dep_head)=(mp_node)mp->dep_head;
-dep_info(mp->dep_head)=NULL;
-dep_list(mp->dep_head)=NULL;
+set_mp_link(mp->dep_head,(mp_node)mp->dep_head);
+set_prev_dep(mp->dep_head,(mp_node)mp->dep_head);
+set_dep_info(mp->dep_head,NULL);
+set_dep_list(mp->dep_head,NULL);
 
 
 @ Actually the description above contains a little white lie. There's
@@ -12717,26 +12758,36 @@ void mp_print_dependency (MP mp, mp_value_node p, quarterword t) {
     q=dep_info(p);
     if ( q==null ) { /* the constant term */
       if ( (v!=0)||(p==pp) ) {
-         if ( dep_value(p)>0 ) if ( p!=pp ) mp_print_char(mp, xord('+'));
-         mp_print_scaled(mp, dep_value(p));
+        if ( dep_value(p)>0 ) 
+          if ( p!=pp ) 
+            mp_print_char(mp, xord('+'));
+        mp_print_scaled(mp, dep_value(p));
       }
       return;
     }
     @<Print the coefficient, unless it's $\pm1.0$@>;
-    if ( mp_type(q)!=mp_independent ) mp_confusion(mp, "dep");
+    if ( mp_type(q)!=mp_independent ) 
+      mp_confusion(mp, "dep");
 @:this can't happen dep}{\quad dep@>
     mp_print_variable_name(mp, q); 
     v=value(q) % s_scale;
-    while ( v>0 ) { mp_print(mp, "*4"); v=v-2; }
+    while ( v>0 ) { 
+      mp_print(mp, "*4"); 
+      v=v-2; 
+    }
     p=(mp_value_node)mp_link(p);
   }
 }
 
 @ @<Print the coefficient, unless it's $\pm1.0$@>=
-if ( dep_value(p)<0 ) mp_print_char(mp, xord('-'));
-else if ( p!=pp ) mp_print_char(mp, xord('+'));
-if ( t==mp_dependent ) v=mp_round_fraction(mp, v);
-if ( v!=unity ) mp_print_scaled(mp, v)
+if ( dep_value(p)<0 ) 
+  mp_print_char(mp, xord('-'));
+else if ( p!=pp ) 
+  mp_print_char(mp, xord('+'));
+if ( t==mp_dependent ) 
+  v=mp_round_fraction(mp, v);
+if ( v!=unity ) 
+  mp_print_scaled(mp, v)
 
 @ The maximum absolute value of a coefficient in a given dependency list
 is returned by the following simple function.
@@ -12747,7 +12798,8 @@ static fraction mp_max_coef (MP mp, mp_value_node p) {
   (void)mp;
   x=0;
   while ( dep_info(p)!=null ) {
-    if ( abs(dep_value(p))>x ) x=abs(dep_value(p));
+    if ( abs(dep_value(p))>x ) 
+      x=abs(dep_value(p));
     p=(mp_value_node)mp_link(p);
   }
   return x;
@@ -12838,7 +12890,7 @@ static mp_value_node mp_p_plus_fq ( MP mp, mp_value_node p, integer f,
       if ( v<vv ) {
         @<Contribute a term from |q|, multiplied by~|f|@>
       } else { 
-        mp_link(r)=(mp_node)p; 
+        set_mp_link(r,(mp_node)p); 
         r=p; 
         p=(mp_value_node)mp_link(p); 
         pp=dep_info(p);
@@ -12849,7 +12901,7 @@ static mp_value_node mp_p_plus_fq ( MP mp, mp_value_node p, integer f,
     dep_value(p)=mp_slow_add(mp, dep_value(p),mp_take_fraction(mp, dep_value(q), f));
   else  
     dep_value(p)=mp_slow_add(mp, dep_value(p),mp_take_scaled(mp, dep_value(q),f));
-  mp_link(r)=(mp_node)p; 
+  set_mp_link(r,(mp_node)p); 
   mp->dep_final=p; 
   return (mp_value_node)mp_link(mp->temp_head);
 }
@@ -12870,7 +12922,7 @@ static mp_value_node mp_p_plus_fq ( MP mp, mp_value_node p, integer f,
       mp_type(qq)=independent_needing_fix;
       mp->fix_needed=true;
     }
-    mp_link(r)=(mp_node)s; 
+    set_mp_link(r,(mp_node)s); 
     r=s;
   }
   pp=dep_info(p); 
@@ -12886,13 +12938,13 @@ static mp_value_node mp_p_plus_fq ( MP mp, mp_value_node p, integer f,
     v=mp_take_scaled(mp, f,dep_value(q));
   if ( abs(v)>halfp(threshold) ) { 
     s=mp_get_dep_node(mp);
-    dep_info(s)=qq;
+    set_dep_info(s,qq);
     dep_value(s)=v;
     if ( (abs(v)>=coef_bound) && mp->watch_coefs ) { 
       mp_type(qq)=independent_needing_fix;
       mp->fix_needed=true;
     }
-    mp_link(r)=(mp_node)s; 
+    set_mp_link(r,(mp_node)s);
     r=s;
   }
   q=(mp_value_node)mp_link(q); 
@@ -12930,14 +12982,14 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q, mp_va
      vv = ( qq==NULL ? 0 : value(qq) );
      if ( v<vv ) {
         s=mp_get_dep_node(mp); 
-        dep_info(s)=qq; 
+        set_dep_info(s,qq); 
         dep_value(s)=dep_value(q);
         q=(mp_value_node)mp_link(q); 
         qq=dep_info(q); 
-        mp_link(r)=(mp_node)s; 
+        set_mp_link(r,(mp_node)s); 
         r=s;
       } else { 
-        mp_link(r)=(mp_node)p; 
+        set_mp_link(r,(mp_node)p); 
         r=p; 
         p=(mp_value_node)mp_link(p); 
         pp=dep_info(p);
@@ -12945,7 +12997,7 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q, mp_va
     }
   }
   dep_value(p)=mp_slow_add(mp, dep_value(p),dep_value(q));
-  mp_link(r)=(mp_node)p; 
+  set_mp_link(r,(mp_node)p); 
   mp->dep_final=p; 
   return (mp_value_node)mp_link(mp->temp_head);
 }
@@ -12964,7 +13016,8 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q, mp_va
       mp_type(qq)=independent_needing_fix;
       mp->fix_needed=true;
     }
-    mp_link(r)=(mp_node)s; r=s;
+    set_mp_link(r,(mp_node)s);
+    r=s;
   }
   q=(mp_value_node)mp_link(q); 
   qq=dep_info(q);
@@ -13008,13 +13061,13 @@ static mp_value_node mp_p_times_v (MP mp, mp_value_node p, integer v, quarterwor
         mp->fix_needed=true; 
         mp_type(dep_info(p))=independent_needing_fix;
       }
-      mp_link(r)=(mp_node)p; 
+      set_mp_link(r,(mp_node)p); 
       r=p; 
       dep_value(p)=w;
       p=(mp_value_node)mp_link(p);
     }
   }
-  mp_link(r)=(mp_node)p;
+  set_mp_link(r,(mp_node)p);
   if ( v_is_scaled ) 
     dep_value(p)=mp_take_scaled(mp, dep_value(p),v);
   else 
@@ -13063,13 +13116,13 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, scaled v, quarterword
         mp->fix_needed=true; 
         mp_type(dep_info(p))=independent_needing_fix;
       }
-      mp_link(r)=(mp_node)p; 
+      set_mp_link(r,(mp_node)p); 
       r=p; 
       dep_value(p)=w; 
       p=(mp_value_node)mp_link(p);
     }
   }
-  mp_link(r)=(mp_node)p; 
+  set_mp_link(r,(mp_node)p); 
   dep_value(p)=mp_make_scaled(mp, dep_value(p),v);
   return (mp_value_node)mp_link(mp->temp_head);
 }
@@ -13101,8 +13154,8 @@ static mp_value_node mp_p_with_x_becoming_q (MP mp, mp_value_node p,
   if ( dep_info(s)!=x ) { 
     return p;
   } else { 
-    mp_link(mp->temp_head)=(mp_node)p; 
-    mp_link(r)=mp_link(s); 
+    set_mp_link(mp->temp_head,(mp_node)p); 
+    set_mp_link(r,mp_link(s)); 
     v=dep_value(s);
     mp_free_dep_node(mp, s);
     return mp_p_plus_fq(mp, (mp_value_node)mp_link(mp->temp_head),v,(mp_value_node)q,t,mp_dependent);
@@ -13138,8 +13191,8 @@ static void mp_make_known (MP mp, mp_value_node p, mp_value_node q) ;
 
 @ @c void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
   mp_variable_type t; /* the previous type */
-  prev_dep(mp_link(q))=prev_dep(p);
-  mp_link(prev_dep(p))=mp_link(q); 
+  set_prev_dep(mp_link(q),prev_dep(p));
+  set_mp_link(prev_dep(p),mp_link(q)); 
   t=mp_type(p);
   mp_type(p)=mp_known; 
   set_value(p,dep_value(q));
@@ -13199,7 +13252,7 @@ static void mp_fix_dependencies (MP mp) {
 @ @d independent_being_fixed 1 /* this variable already appears in |s| */
 
 @<Run through the dependency list for variable |t|...@>=
-mp_link(r)=dep_list(t); /* todo, check this: was |r=value_loc(t)| */
+set_mp_link(r,dep_list(t)); /* todo, check this: was |r=value_loc(t)| */
 while (1) { 
   q=(mp_value_node)mp_link(r); 
   x=dep_info(q);
@@ -13207,14 +13260,14 @@ while (1) {
   if ( mp_type(x)<=independent_being_fixed ) {
     if ( mp_type(x)<independent_being_fixed ) {
       p=mp_get_dep_node(mp); 
-      mp_link(p)=(mp_node)s;
+      set_mp_link(p,(mp_node)s);
       s=p;
-      dep_info(s)=x; 
+      set_dep_info(s,x); 
       mp_type(x)=independent_being_fixed;
     }
     dep_value(q) = dep_value(q) / 4;
-    if ( value(q)==0 ) {
-      mp_link(r)=mp_link(q); 
+    if ( dep_value(q)==0 ) {
+      set_mp_link(r,mp_link(q)); 
       mp_free_dep_node(mp, q); 
       q=r;
     }
@@ -13228,14 +13281,15 @@ linking it into the list of all known dependencies. It replaces |q| with the new
 dependency node. We assume that |dep_final| points to the final node of list~|p|.
 
 @c 
-static void mp_new_dep (MP mp, mp_node q, mp_value_node p) {
+static void mp_new_dep (MP mp, mp_node q, mp_variable_type newtype, mp_value_node p) {
   mp_node r; /* what used to be the first dependency */
-  dep_list(q)=(mp_node)p; 
-  prev_dep(q)=(mp_node)mp->dep_head;
+  mp_type(q)=newtype;
+  set_dep_list(q,(mp_node)p); 
+  set_prev_dep(q,(mp_node)mp->dep_head);
   r=mp_link(mp->dep_head); 
-  mp_link(mp->dep_final)=r; 
-  prev_dep(r)=(mp_node)mp->dep_final;
-  mp_link(mp->dep_head)=q;
+  set_mp_link(mp->dep_final,r); 
+  set_prev_dep(r,(mp_node)mp->dep_final);
+  set_mp_link(mp->dep_head,q);
 }
 
 @ Here is one of the ways a dependency list gets started.
@@ -13245,7 +13299,7 @@ a constant term.
 @c static mp_value_node mp_const_dependency (MP mp, scaled v) {
   mp->dep_final=mp_get_dep_node(mp);
   dep_value(mp->dep_final)=v; 
-  dep_info(mp->dep_final)=null;
+  set_dep_info(mp->dep_final,NULL);
   return mp->dep_final;
 }
 
@@ -13262,7 +13316,7 @@ recognized by testing that the returned list pointer is equal to
 
 @c 
 static mp_value_node mp_single_dependency (MP mp, mp_node p) {
-  mp_value_node q; /* the new dependency list */
+  mp_value_node q, rr; /* the new dependency list */
   integer m; /* the number of doublings */
   m=value(p) % s_scale;
   if ( m>28 ) {
@@ -13270,8 +13324,9 @@ static mp_value_node mp_single_dependency (MP mp, mp_node p) {
   } else { 
     q=mp_get_dep_node(mp);
     dep_value(q)=(integer)two_to_the(28-m); 
-    dep_info(q)=p;
-    mp_link(q)=(mp_node)mp_const_dependency(mp, 0);
+    set_dep_info(q,p);
+    rr = mp_const_dependency(mp, 0);
+    set_mp_link(q,(mp_node)rr);
     return q;
   }
 }
@@ -13284,12 +13339,10 @@ static mp_value_node mp_copy_dep_list (MP mp, mp_value_node p) {
   q=mp_get_dep_node(mp); 
   mp->dep_final=q;
   while (1) { 
-    dep_info(mp->dep_final) = dep_info(p);
+    set_dep_info(mp->dep_final, dep_info(p));
     dep_value(mp->dep_final) = dep_value(p);
-    dep_list(mp->dep_final) = dep_list(p);
-    prev_dep(mp->dep_final) = prev_dep(p);
-    if ( dep_info(mp->dep_final)==null ) break;
-    mp_link(mp->dep_final)=(mp_node)mp_get_dep_node(mp);
+    if ( dep_info(mp->dep_final)==NULL ) break;
+    set_mp_link(mp->dep_final,(mp_node)mp_get_dep_node(mp));
     mp->dep_final=(mp_value_node)mp_link(mp->dep_final); 
     p=(mp_value_node)mp_link(p);
   }
@@ -13346,16 +13399,16 @@ like `\.{x=3.14}', we will have |v=-fraction_one|, |q=p|, and |t=mp_dependent|.
 
 @<Divide list |p| by |-v|, removing node |q|@>=
 s=(mp_value_node)mp->temp_head; 
-mp_link(s)=(mp_node)p; 
+set_mp_link(s,(mp_node)p); 
 r=p;
 do { 
   if ( r==q ) {
-    mp_link(s)=mp_link(r); 
+    set_mp_link(s,mp_link(r)); 
     mp_free_dep_node(mp, r);
   } else  { 
     w=mp_make_fraction(mp, dep_value(r),v);
     if ( abs(w)<=half_fraction_threshold ) {
-      mp_link(s)=mp_link(r); 
+      set_mp_link(s,mp_link(r)); 
       mp_free_dep_node(mp, r);
     } else { 
       dep_value(r)=-w; 
@@ -13397,7 +13450,7 @@ while ( r!=mp->dep_head ) {
   if ( dep_info(q)==null ) {
     mp_make_known(mp, r, q);
   } else { 
-    dep_list(r)=(mp_node)q;
+    set_dep_list(r,(mp_node)q);
     do {  
       q=(mp_value_node)mp_link(q); 
     } while (dep_info(q)!=null);
@@ -13420,9 +13473,8 @@ if ( dep_info(p)==null ) {
     mp_free_node(mp, x, value_node_size);
   }
 } else { 
-  mp_type(x)=mp_dependent; 
   mp->dep_final=final_node; 
-  mp_new_dep(mp, x, p);
+  mp_new_dep(mp, x, mp_dependent, p);
   if ( cur_exp_node()==x && mp->cur_exp.type==mp_independent ) {
     mp->cur_exp.type=mp_dependent;
   }
@@ -13431,13 +13483,13 @@ if ( dep_info(p)==null ) {
 @ @<Divide list |p| by $2^n$@>=
 { 
   s=(mp_value_node)mp->temp_head; 
-  mp_link(mp->temp_head)=(mp_node)p; 
+  set_mp_link(mp->temp_head,(mp_node)p); 
   r=p;
   do {  
     if ( n>30 ) w=0;
     else w=dep_value(r) / two_to_the(n);
     if ( (abs(w)<=half_fraction_threshold)&&(dep_info(r)!=null) ) {
-      mp_link(s)=mp_link(r);
+      set_mp_link(s,mp_link(r));
       mp_free_dep_node(mp, r);
     } else { 
       dep_value(r)=w; 
@@ -18226,8 +18278,10 @@ static void mp_print_dp (MP mp, quarterword t, mp_value_node p,
                   quarterword verbosity)  {
   mp_value_node q; /* the node following |p| */
   q=(mp_value_node)mp_link(p);
-  if ( (dep_info(q)==null) || (verbosity>0) ) mp_print_dependency(mp, p,t);
-  else mp_print(mp, "linearform");
+  if ( (dep_info(q)==null) || (verbosity>0) ) 
+    mp_print_dependency(mp, p,t);
+  else 
+   mp_print(mp, "linearform");
 }
 
 @ The displayed name of a variable in a ring will not be a capsule unless
@@ -18377,9 +18431,9 @@ static void mp_recycle_value (MP mp, mp_node p) {
 { 
   mp_value_node qq=(mp_value_node)dep_list((mp_value_node)p);
   while ( dep_info(qq)!=null ) qq=(mp_value_node)mp_link(qq);
-  mp_link(prev_dep((mp_value_node)p))=mp_link(qq);
-  prev_dep(mp_link(qq))=prev_dep((mp_value_node)p);
-  mp_link(qq)=null; 
+  set_mp_link(prev_dep((mp_value_node)p),mp_link(qq));
+  set_prev_dep(mp_link(qq),prev_dep((mp_value_node)p));
+  set_mp_link(qq,NULL); 
   mp_flush_node_list(mp, (mp_node)dep_list((mp_value_node)p));
 }
 
@@ -18414,40 +18468,44 @@ proto-dependent cases.
 
 @<Recycle an independent variable@>=
 { 
-  mp_value_node qq, rr, ss;
+  mp_value_node q, r, s;
   mp->max_c[mp_dependent]=0;
   mp->max_c[mp_proto_dependent]=0;
-  mp->max_link[mp_dependent]=null;
-  mp->max_link[mp_proto_dependent]=null;
-  qq=(mp_value_node)mp_link(mp->dep_head);
-  while ( qq!=mp->dep_head ) {
-    ss = (mp_value_node)mp->temp_head;
-    mp_link(ss)=dep_list(qq);
+  mp->max_link[mp_dependent]=NULL;
+  mp->max_link[mp_proto_dependent]=NULL;
+  q=(mp_value_node)mp_link(mp->dep_head);
+  while ( q!=mp->dep_head ) {
+    s = (mp_value_node)mp->temp_head;
+    set_mp_link(s,dep_list(q));
     while (1) { 
-      rr=(mp_value_node)mp_link(ss);
-      if ( dep_info(rr)==null ) break;
-      if ( dep_info(rr)!=p ) { 
-        ss=rr;
+      r=(mp_value_node)mp_link(s);
+      /* printf ("r=%p, depinfo=%p, link=%p\n", r, dep_info(r), mp_link(r)); */
+      if ( dep_info(r)==null ) break;
+      if ( dep_info(r)!=p ) { 
+        s=r;
       } else  { 
-        t=mp_type(qq);
-        mp_link(ss)=mp_link(rr); 
-        dep_info(rr)=(mp_node)qq;
-        if ( abs(dep_value(rr))>mp->max_c[t] ) {
+        t=mp_type(q);
+        if (mp_link(s)==dep_list(q)) {
+	   set_dep_list(q,mp_link(r)); 
+        } 
+        set_mp_link(s,mp_link(r)); 
+        set_dep_info(r,(mp_node)q);
+        if ( abs(dep_value(r))>mp->max_c[t] ) {
           /* Record a new maximum coefficient of type |t| */
           if ( mp->max_c[t]>0 ) {
-            mp_link(mp->max_ptr[t])=(mp_node)mp->max_link[t]; 
+            set_mp_link(mp->max_ptr[t],(mp_node)mp->max_link[t]); 
             mp->max_link[t]=mp->max_ptr[t];
           }
-          mp->max_c[t]=abs(dep_value(rr)); 
-          mp->max_ptr[t]=rr;
+          mp->max_c[t]=abs(dep_value(r)); 
+          mp->max_ptr[t]=r;
 
         } else { 
-          mp_link(rr)=(mp_node)mp->max_link[t]; 
-          mp->max_link[t]=rr;
+          set_mp_link(r,(mp_node)mp->max_link[t]); 
+          mp->max_link[t]=r;
         }
       }
     } 
-    qq=(mp_value_node)mp_link(rr);
+    q=(mp_value_node)mp_link(r);
   }
   if ( (mp->max_c[mp_dependent]>0)||(mp->max_c[mp_proto_dependent]>0) ) {
     @<Choose a dependent variable to take the place of the disappearing
@@ -18473,7 +18531,7 @@ mp_value_node max_link[mp_proto_dependent+1]; /* other occurrences of |p| */
     variable~|p|@>;
   t=(quarterword)(mp_dependent+mp_proto_dependent-t); /* complement |t| */
   if ( mp->max_c[t]>0 ) { /* we need to pick up an unchosen dependency */ 
-    mp_link(mp->max_ptr[t])=(mp_node)mp->max_link[t]; 
+    set_mp_link(mp->max_ptr[t],(mp_node)mp->max_link[t]); 
     mp->max_link[t]=mp->max_ptr[t];
   }
   if ( t!=mp_dependent ) { 
@@ -18481,7 +18539,7 @@ mp_value_node max_link[mp_proto_dependent+1]; /* other occurrences of |p| */
   } else { 
     @<Substitute new proto-dependencies in place of |p|@>;
   }
-  mp_flush_node_list(mp, (mp_node)ss);
+  mp_flush_node_list(mp, (mp_node)s);
   if ( mp->fix_needed ) 
     mp_fix_dependencies(mp);
   check_arith;
@@ -18496,21 +18554,22 @@ number than any other variable, we can put node |s| at the head of the
 list.
 
 @<Determine the dep...@>=
-ss=mp->max_ptr[t]; 
-pp=(mp_node)dep_info(ss); 
-v=dep_value(ss);
+s=mp->max_ptr[t];
+pp=(mp_node)dep_info(s); 
+/* printf ("s=%p, pp=%p, r=%p\n",s, pp, dep_list((mp_value_node)pp)); */
+v=dep_value(s);
 if ( t==mp_dependent ) 
-  dep_value(ss)=-fraction_one; 
+  dep_value(s)=-fraction_one; 
 else 
-  dep_value(ss)=-unity;
-rr=(mp_value_node)dep_list((mp_value_node)pp); 
-mp_link(ss)=(mp_node)rr;
-while ( dep_info(rr)!=null ) 
-  rr=(mp_value_node)mp_link(rr);
-qq=(mp_value_node)mp_link(rr); 
-mp_link(rr)=null;
-prev_dep(qq)=prev_dep((mp_value_node)pp); 
-mp_link(prev_dep((mp_value_node)pp))=(mp_node)qq;
+  dep_value(s)=-unity;
+r=(mp_value_node)dep_list((mp_value_node)pp); 
+set_mp_link(s,(mp_node)r);
+while (dep_info(r)!=NULL) 
+   r = (mp_value_node)mp_link(r);
+q = (mp_value_node)mp_link(r);
+set_mp_link(r,NULL);
+set_prev_dep(q,prev_dep((mp_value_node)pp)); 
+set_mp_link(prev_dep((mp_value_node)pp),(mp_node)q);
 new_indep((mp_value_node)pp);
 if ( cur_exp_node()==pp && mp->cur_exp.type==t ) 
   mp->cur_exp.type=mp_independent;
@@ -18542,7 +18601,7 @@ if ( mp_interesting(mp, p) ) {
     mp_print_char(mp, xord('=')); 
   else 
     mp_print(mp, " = ");
-  mp_print_dependency(mp, ss,t);
+  mp_print_dependency(mp, s,t);
   mp_end_diagnostic(mp, false);
 }
 
@@ -18551,40 +18610,40 @@ dependency lists must be brought up to date.
 
 @<Substitute new dependencies...@>=
 for (t=mp_dependent;t<=mp_proto_dependent;t++){ 
-  rr=mp->max_link[t];
-  while ( rr!=null ) {
-    qq=(mp_value_node)dep_info(rr);
-    dep_list(qq)=(mp_node)mp_p_plus_fq(mp, (mp_value_node)dep_list(qq),
-      mp_make_fraction(mp, dep_value(rr),-v),ss,t,mp_dependent);
-    if ( dep_list(qq)==(mp_node)mp->dep_final ) 
-      mp_make_known(mp, qq, mp->dep_final);
-    qq=rr; 
-    rr=(mp_value_node)mp_link(rr); 
-    mp_free_dep_node(mp, qq);
+  r=mp->max_link[t];
+  while ( r!=null ) {
+    q=(mp_value_node)dep_info(r);
+    set_dep_list(q,(mp_node)mp_p_plus_fq(mp, (mp_value_node)dep_list(q),
+      mp_make_fraction(mp, dep_value(r),-v),s,t,mp_dependent));
+    if ( dep_list(q)==(mp_node)mp->dep_final ) 
+      mp_make_known(mp, q, mp->dep_final);
+    q=r; 
+    r=(mp_value_node)mp_link(r); 
+    mp_free_dep_node(mp, q);
   }
 }
 
 @ @<Substitute new proto...@>=
 for (t=mp_dependent;t<=mp_proto_dependent;t++) {
-  rr=mp->max_link[t];
-  while ( rr!=null ) {
-    qq=(mp_value_node)dep_info(rr);
+  r=mp->max_link[t];
+  while ( r!=null ) {
+    q=(mp_value_node)dep_info(r);
     if ( t==mp_dependent ) { /* for safety's sake, we change |q| to |mp_proto_dependent| */
-      if ( cur_exp_node()==(mp_node)qq && mp->cur_exp.type==mp_dependent )
+      if ( cur_exp_node()==(mp_node)q && mp->cur_exp.type==mp_dependent )
         mp->cur_exp.type=mp_proto_dependent;
-      dep_list(qq)=(mp_node)mp_p_over_v(mp, (mp_value_node)dep_list(qq),unity,
-         mp_dependent,mp_proto_dependent);
-      mp_type(qq)=mp_proto_dependent; 
-      dep_value(rr)=mp_round_fraction(mp, dep_value(rr));
+      set_dep_list(q,(mp_node)mp_p_over_v(mp, (mp_value_node)dep_list(q),unity,
+         mp_dependent,mp_proto_dependent));
+      mp_type(q)=mp_proto_dependent; 
+      dep_value(r)=mp_round_fraction(mp, dep_value(r));
     }
-    dep_list(qq)=(mp_node)mp_p_plus_fq(mp, (mp_value_node)dep_list(qq),
-       mp_make_scaled(mp, dep_value(rr),-v),ss,
-       mp_proto_dependent,mp_proto_dependent);
-    if ( dep_list(qq)==(mp_node)mp->dep_final ) 
-       mp_make_known(mp, qq, mp->dep_final);
-    qq=rr;
-    rr=(mp_value_node)mp_link(rr); 
-    mp_free_dep_node(mp, qq);
+    set_dep_list(q,(mp_node)mp_p_plus_fq(mp, (mp_value_node)dep_list(q),
+       mp_make_scaled(mp, dep_value(r),-v),s,
+       mp_proto_dependent,mp_proto_dependent));
+    if ( dep_list(q)==(mp_node)mp->dep_final ) 
+       mp_make_known(mp, q, mp->dep_final);
+    q=r;
+    r=(mp_value_node)mp_link(r); 
+    mp_free_dep_node(mp, q);
   }
 }
 
@@ -18753,9 +18812,9 @@ static void mp_stash_in (MP mp, mp_node p) {
       @<Stash an independent |cur_exp| into a big node@>;
       mp_free_node(mp, cur_exp_node(),value_node_size);
     } else { 
-      dep_list((mp_value_node)p)=dep_list((mp_value_node)cur_exp_node());
-      prev_dep((mp_value_node)p)=prev_dep((mp_value_node)cur_exp_node());
-      mp_link(prev_dep((mp_value_node)p))=p;
+      set_dep_list((mp_value_node)p,dep_list((mp_value_node)cur_exp_node()));
+      set_prev_dep((mp_value_node)p,prev_dep((mp_value_node)cur_exp_node()));
+      set_mp_link(prev_dep((mp_value_node)p),p);
       mp_free_dep_node(mp, (mp_value_node)cur_exp_node());
     }
   }
@@ -18775,8 +18834,7 @@ we copy it, then recycle it.
     set_value(p,0); 
     mp_free_dep_node(mp, q);
   } else { 
-    mp_type(p)=mp_dependent; 
-    mp_new_dep(mp,p,q);
+    mp_new_dep(mp,p,mp_dependent, q);
   }
   mp_recycle_value(mp, cur_exp_node());
 }
@@ -19349,10 +19407,9 @@ tail of dependency list~|p|.
 @<Declare subroutines needed by |make_exp_copy|@>=
 static void mp_encapsulate (MP mp, mp_value_node p) { 
   mp_node q=mp_get_value_node(mp); 
-  mp_type(q)=mp->cur_exp.type;
   mp_name_type(q)=mp_capsule; 
-  mp_new_dep(mp, q, p);
-  set_cur_exp_node(q); 
+  mp_new_dep(mp, q, mp->cur_exp.type, p);
+  set_cur_exp_node(q);
 }
 
 @ The most tedious case arises when the user refers to a
@@ -19432,12 +19489,10 @@ static void mp_install (MP mp, mp_node r, mp_node q) {
       set_value(r,0); 
       mp_free_dep_node(mp, p);
     } else  { 
-      mp_type(r)=mp_dependent; 
-      mp_new_dep(mp, r, p);
+      mp_new_dep(mp, r, mp_dependent, p);
     }
   } else {
-    mp_type(r)=mp_type(q); 
-    mp_new_dep(mp, r,mp_copy_dep_list(mp, (mp_value_node)dep_list((mp_value_node)q)));
+    mp_new_dep(mp, r, mp_type(q), mp_copy_dep_list(mp, (mp_value_node)dep_list((mp_value_node)q)));
   }
 }
 
@@ -22183,9 +22238,9 @@ static void mp_add_or_subtract (MP mp,mp_node p, mp_node q, quarterword c) {
       mp_name_type(qq)=mp_capsule; 
       q = (mp_node)qq;
     }
-    dep_list(qq)=dep_list((mp_value_node)p); 
+    set_dep_list(qq,dep_list((mp_value_node)p)); 
     mp_type(qq)=mp_type(p);
-    prev_dep(qq)=prev_dep((mp_value_node)p); 
+    set_prev_dep(qq,prev_dep((mp_value_node)p)); 
     mp_link(prev_dep((mp_value_node)p))=(mp_node)qq;
     mp_type(p)=mp_known; /* this will keep the recycler from collecting non-garbage */
 
@@ -22248,7 +22303,7 @@ static void mp_dep_finish (MP mp, mp_value_node v, mp_value_node q, quarterword 
     p=(mp_value_node)cur_exp_node(); 
   else 
     p=q;
-  dep_list(p)=(mp_node)v; 
+  set_dep_list(p,(mp_node)v);
   mp_type(p)=t;
   if ( dep_info(v)==null ) { 
     vv=value(v);
@@ -22590,54 +22645,44 @@ static void mp_hard_times (MP mp,mp_node p) {
   } /* now |cur_type=mp_pair_type| or |cur_type=mp_color_type| or |cur_type=mp_cmykcolor_type| */
   pp=(mp_value_node)p;
   if ( mp->cur_exp.type==mp_pair_type) {
-    /*todo: this is likely wrong */
 
-    r = x_part_loc(cur_exp_node());
+    r = x_part_loc(value_node(cur_exp_node()));
     v = value(r);
-    mp_type(r) = mp_type(pp);
-    mp_new_dep(mp, r, mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
     mp_dep_mult(mp, (mp_value_node)r,v,true);
-    r = y_part_loc(cur_exp_node());
+    r = y_part_loc(value_node(cur_exp_node()));
     v = value(r);
-    mp_type(r) = mp_type(pp);
-    mp_new_dep(mp, r,mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
     mp_dep_mult(mp, (mp_value_node)r,v,true);
   } else if ( mp->cur_exp.type==mp_color_type) {
-    r = red_part_loc(cur_exp_node());
+    r = red_part_loc(value_node(cur_exp_node()));
     v = value(r);
-    mp_type(r) = mp_type(pp);
-    mp_new_dep(mp, r,mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
     mp_dep_mult(mp, (mp_value_node)r,v,true);
-    r = green_part_loc(cur_exp_node());
+    r = green_part_loc(value_node(cur_exp_node()));
     v = value(r);
-    mp_type(r) = mp_type(pp);
-    mp_new_dep(mp, r,mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
     mp_dep_mult(mp, (mp_value_node)r,v,true);
-    r = blue_part_loc(cur_exp_node());
+    r = blue_part_loc(value_node(cur_exp_node()));
     v = value(r);
-    mp_type(r) = mp_type(pp);
-    mp_new_dep(mp, r,mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
     mp_dep_mult(mp, (mp_value_node)r,v,true);
   } else if (mp->cur_exp.type==mp_cmykcolor_type) {
-    r = cyan_part_loc(cur_exp_node());
+    r = cyan_part_loc(value_node(cur_exp_node()));
     v = value(r);
-    mp_type(r) = mp_type(pp);
-    mp_new_dep(mp, r,mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
     mp_dep_mult(mp, (mp_value_node)r,v,true);
-    r = yellow_part_loc(cur_exp_node());
+    r = yellow_part_loc(value_node(cur_exp_node()));
     v = value(r);
-    mp_type(r) = mp_type(pp);
-    mp_new_dep(mp, r,mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
     mp_dep_mult(mp, (mp_value_node)r,v,true);
-    r = magenta_part_loc(cur_exp_node());
+    r = magenta_part_loc(value_node(cur_exp_node()));
     v = value(r);
-    mp_type(r) = mp_type(pp);
-    mp_new_dep(mp, r,mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
     mp_dep_mult(mp, (mp_value_node)r,v,true);
-    r = black_part_loc(cur_exp_node());
+    r = black_part_loc(value_node(cur_exp_node()));
     v = value(r);
-    mp_type(r) = mp_type(pp);
-    mp_new_dep(mp, r,mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
     mp_dep_mult(mp, (mp_value_node)r,v,true);
   }
   mp_free_dep_node(mp, pp);
@@ -23189,7 +23234,7 @@ static void mp_bilin1 (MP mp, mp_node p, scaled t, mp_node q,
       /* Ensure that |type(p)=mp_proto_dependent| */
       if ( mp_type(p)!=mp_proto_dependent ) {
         if ( mp_type(p)==mp_known ) {
-          mp_new_dep(mp, p, mp_const_dependency(mp, value(p)));
+          mp_new_dep(mp, p, mp_type(p), mp_const_dependency(mp, value(p)));
         } else {
           dep_list((mp_value_node)p)=(mp_node)mp_p_times_v(mp, (mp_value_node)dep_list((mp_value_node)p),unity,mp_dependent,
                              mp_proto_dependent,true);
@@ -23265,8 +23310,7 @@ static void mp_bilin2 (MP mp, mp_node p, mp_node t, scaled v,
                 mp_node u, mp_node q) {
   scaled vv; /* temporary storage for |value(p)| */
   vv=value(p);
-  mp_type(p)=mp_proto_dependent;
-  mp_new_dep(mp, p, mp_const_dependency(mp, 0)); /* this sets |dep_final| */
+  mp_new_dep(mp, p, mp_proto_dependent, mp_const_dependency(mp, 0)); /* this sets |dep_final| */
   if ( vv!=0 ) 
     mp_add_mult_dep(mp, (mp_value_node)p, vv, t); /* |dep_final| doesn't change */
   if ( v!=0 ) mp_add_mult_dep(mp, (mp_value_node)p, v, u);
@@ -24198,7 +24242,7 @@ if ( t==mp_known ) {
     q=(mp_value_node)mp_link(q);
   }
   mp_link(prev_dep(ll))=mp_link(q);
-  prev_dep((mp_value_node)mp_link(q))=prev_dep(ll);
+  set_prev_dep((mp_value_node)mp_link(q),prev_dep(ll));
   mp_type(ll)=mp_known;
 }
 
