@@ -6005,6 +6005,9 @@ typedef struct mp_attr_node_data {
   memory_word value_;
   halfword attr_loc_;
   mp_node parent_;
+  /* todo next two fields can be caused by mutation ? */
+  mp_node attr_head_;
+  mp_node subscr_head_;
 } mp_attr_node_data;
 typedef struct mp_attr_node_data* mp_attr_node;
 
@@ -6037,6 +6040,10 @@ typedef struct mp_subscr_node_data {
   NODE_BODY;
   memory_word value_;
   scaled subscript_;
+  /* todo next three fields can be caused by mutation ? */
+  mp_node parent_;
+  mp_node attr_head_;
+  mp_node subscr_head_;
 } mp_subscr_node_data;
 typedef struct mp_subscr_node_data* mp_subscr_node;
 
@@ -10235,6 +10242,7 @@ void mp_print_edges (MP mp, mp_node h, const char *s, boolean nuline) {
   p=dummy_loc(h);
   while ( mp_link(p)!=null ) { 
     p=mp_link(p);
+    mp_print_ln(mp);
     switch (mp_type(p)) {
       @<Cases for printing graphical object node |p|@>;
     default: 
@@ -22638,7 +22646,7 @@ static void mp_hard_times (MP mp,mp_node p) {
   mp_value_node pp; /* for typecasting p */
   mp_node r; /* a component of the big node for the nice color or pair */
   scaled v; /* the known value for |r| */
-  if ( mp_type(pp)<=mp_pair_type ) { 
+  if ( mp_type(p)<=mp_pair_type ) { 
      q=(mp_value_node)mp_stash_cur_exp(mp); 
      mp_unstash_cur_exp(mp, p); 
      p=(mp_node)q;
@@ -22685,7 +22693,7 @@ static void mp_hard_times (MP mp,mp_node p) {
     mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
     mp_dep_mult(mp, (mp_value_node)r,v,true);
   }
-  mp_free_dep_node(mp, pp);
+  /* mp_free_dep_node(mp, pp); */ /* todo why not do this? */
 }
 
 @ @<Additional cases of binary operators@>=
