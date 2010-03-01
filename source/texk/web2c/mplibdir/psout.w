@@ -4432,7 +4432,10 @@ do {
           }
         }
       }
-      cur_fsize[f]=mp_link(cur_fsize[f]);
+      if (cur_fsize[f]==mp_void)
+        cur_fsize[f]=null;
+      else
+        cur_fsize[f]=mp_link(cur_fsize[f]);
       if ( cur_fsize[f]!=null ) { mp_unmark_font(mp, f); done_fonts=false; }
     }
   }
