@@ -10233,18 +10233,18 @@ void mp_print_edges (MP mp, mp_node h, const char *s, boolean nuline) {
   boolean ok_to_dash;  /* |false| for polygonal pen strokes */
   mp_print_diagnostic(mp, "Edge structure",s,nuline);
   p=dummy_loc(h);
-  while (p!=NULL) { 
-    mp_print_ln(mp);
+  while ( mp_link(p)!=null ) { 
+    p=mp_link(p);
     switch (mp_type(p)) {
       @<Cases for printing graphical object node |p|@>;
     default: 
 	  mp_print(mp, "[unknown object type!]");
 	  break;
     }
-    p=mp_link(p);
   }
   mp_print_nl(mp, "End edges");
-  if ( p!=obj_tail(h) ) mp_print(mp, "?");
+  if ( p!=obj_tail(h) )
+    mp_print(mp, "?");
 @.End edges?@>
   mp_end_diagnostic(mp, true);
 }
