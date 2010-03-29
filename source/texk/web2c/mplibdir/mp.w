@@ -7028,7 +7028,7 @@ $$\eqalign{z(t)&=B(z_k,z_k^+,z_{k+1}^-,z_{k+1};t)\cr
 &=(1-t)^3z_k+3(1-t)^2tz_k^++3(1-t)t^2z_{k+1}^-+t^3z_{k+1}\cr}$$
 for |0<=t<=1|.
 
-There is a 8-word node for each knot $z_k$, containing one word of
+There is an 8-word node for each knot $z_k$, containing one word of
 control information and six words for the |x| and |y| coordinates of
 $z_k^-$ and $z_k$ and~$z_k^+$. The control information appears in the
 |mp_left_type| and |mp_right_type| fields, which each occupy a quarter of
@@ -16790,9 +16790,9 @@ with the current input file.
 
 @c void mp_start_mpx_input (MP mp) {
   char *origname = NULL; /* a copy of nameoffile */
-  mp_pack_file_name(mp, in_name, "", in_ext);
+  mp_pack_file_name(mp, in_name, in_area, in_ext);
   origname = xstrdup(mp->name_of_file);
-  mp_pack_file_name(mp, in_name, "", ".mpx");
+  mp_pack_file_name(mp, in_name, in_area, ".mpx");
   if (!(mp->run_make_mpx)(mp, origname, mp->name_of_file))
     goto NOT_FOUND;
   mp_begin_file_reading(mp);
