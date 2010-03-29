@@ -2,6 +2,19 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.210:
+----------------------------------------------------------------------
+
+* In previous 1.20X versions, btex ... etex handling forgot to take 
+  the passed directory location of input-ed files into account.
+
+* verbatimtex ... etex is now copied as is. Whitespace stripping
+  and appending of % no longer happen. 
+
+* The mpost executable now always strips exactly one extension from 
+  the jobname (unless explicit --jobname was given)
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.209:
 ----------------------------------------------------------------------
 
