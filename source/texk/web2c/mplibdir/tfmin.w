@@ -49,13 +49,17 @@
 #include <string.h>
 #include "mplib.h"
 #include "mpmp.h" /* internal header */
+#include "mptfmin.h" /* internal header */
 @h
 
 @ The |font_ps_name| for a built-in font should be what PostScript expects.
 A preliminary name is obtained here from the \.{TFM} name as given in the
 |fname| argument.  This gets updated later from an external table if necessary.
 
-@c
+@(mptfmin.h@>=
+extern font_number mp_read_font_info (MP mp, char *fname);
+
+@ @c
 font_number mp_read_font_info (MP mp, char *fname) {
   boolean file_opened; /* has |tfm_infile| been opened? */
   font_number n; /* the number to return */
@@ -138,7 +142,7 @@ tfget; read_two(nw);
 tfget; read_two(nh);
 tfget; read_two(nd);
 whd_size=(size_t)((ec+1-bc)+nw+nh+nd);
-if ( lf<(int)(6+tfm_lh+whd_size) ) goto BAD_TFM;
+if ( lf<(int)(6+(size_t)tfm_lh+whd_size) ) goto BAD_TFM;
 tf_ignore(10)
 
 @ Offsets are added to |char_base[n]| and |width_base[n]| so that is not
@@ -166,8 +170,8 @@ mp->last_fnum++;
 n=mp->last_fnum;
 mp->font_bc[n]=(eight_bits)bc;
 mp->font_ec[n]=(eight_bits)ec;
-mp->char_base[n]=(int)(mp->next_fmem-bc);
-mp->width_base[n]=(int)(mp->next_fmem+ec-bc+1);
+mp->char_base[n]=(int)(mp->next_fmem-(size_t)bc);
+mp->width_base[n]=(int)(mp->next_fmem+(size_t)(ec-bc)+1);
 mp->height_base[n]=mp->width_base[n]+nw;
 mp->depth_base[n]=mp->height_base[n]+nh;
 mp->next_fmem=mp->next_fmem+whd_size;
