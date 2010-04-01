@@ -1,5 +1,5 @@
 %{
-/* web2c.l -- lexical analysis for Tangle output.  Public domain. */
+/* web2c-lexer.l -- lexical analysis for Tangle output.  Public domain. */
 
 #include "web2c.h"
 #include "web2c-parser.h"
@@ -24,8 +24,8 @@ extern boolean doing_statements;
    giving it ourselves avoids the need to find -lfl or -ll at link time.
    This is a good thing, since libfl.a is often installed somewhere that
    the linker doesn't search by default.  */
-int
-yywrap P1H(void)
+static int
+yywrap (void)
 {
   return 1;
 }
@@ -133,6 +133,7 @@ HHB1		("hh"{WW}"."{WW}"b1")
 "if"		return last_tok=if_tok;
 "label"		return last_tok=label_tok;
 "mod"		return last_tok=mod_tok;
+"noreturn"	return last_tok=noreturn_tok;
 "not"		return last_tok=not_tok;
 "of"		return last_tok=of_tok;
 "or"		return last_tok=or_tok;
@@ -150,7 +151,7 @@ HHB1		("hh"{WW}"."{WW}"b1")
 "while"		return last_tok=while_tok;
 "others"	return last_tok=others_tok;
 
-{REAL}		{		
+{REAL}		{
 		  sprintf (temp, "%s%s", negbuf, yytext);
 		  negbuf[0] = '\0';
 		  return last_tok=r_num_tok;
@@ -186,7 +187,7 @@ HHB1		("hh"{WW}"."{WW}"b1")
 		  int c;
 		  while ((c = webinput()) == ' ' || c == '\t')
                     ;
-  		  unput(c);
+		  unput(c);
 		  if (c < '0' || c > '9') {
 			return last_tok = unary_minus_tok;
 		  }
@@ -227,7 +228,7 @@ HHB1		("hh"{WW}"."{WW}"b1")
    to yytext outside of this file.  Which means we can omit one of the more
    troublesome autoconf tests. */
 void
-get_string_literal P1C(char *, s)
+get_string_literal (char *s)
 {
     int i, j;
     j = 1;
@@ -244,7 +245,7 @@ get_string_literal P1C(char *, s)
 }
 
 void
-get_single_char P1C(char *, s)
+get_single_char (char *s)
 {
     s[0]='\'';
     if (yytext[1] == '\\' || yytext[1] == '\'') {
@@ -260,7 +261,7 @@ get_single_char P1C(char *, s)
 }
 
 void
-get_result_type P1C(char *, s)
+get_result_type (char *s)
 {
     strcpy(s, yytext);
 }
@@ -270,7 +271,7 @@ get_result_type P1C(char *, s)
    bad status.  */
 
 int
-yyerror P1C(string, s)
+yyerror (const_string s)
 {
   /* This is so the convert script can delete the output file on error.  */
   puts ("@error@");

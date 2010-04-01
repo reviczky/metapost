@@ -97,7 +97,7 @@ cd "$B"
 
 if [ "$ONLY_MAKE" = "FALSE" ]
 then
-../source/configure  $CONFHOST \
+env TL_MAKE=$MAKE ../source/configure  $CONFHOST \
     --enable-cxx-runtime-hack \
     --disable-afm2pl    \
     --disable-aleph  \
@@ -151,6 +151,7 @@ then
     --disable-web-progs \
     --disable-xdv2pdf \
     --disable-xdvipdfmx \
+    --disable-xetex \
     --without-system-kpathsea \
     --without-system-freetype2 \
     --without-system-gd \
