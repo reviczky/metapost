@@ -2,6 +2,16 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.211:
+----------------------------------------------------------------------
+
+* In previous 1.20X versions, the 'glyph infont' operator did not handle
+  fonts with seac (old-style composite characters) properly.
+
+* Incorporated the latest versions of kpathsea and the build system
+  from TeXLive.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.210:
 ----------------------------------------------------------------------
 
