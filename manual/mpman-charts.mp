@@ -66,41 +66,23 @@ verbatimtex
 etex
 
 beginfig(2);
-% Store human face in picture variables.
-  picture unituserLeft, unituserRight;
-  unituserLeft := image(
-		path face;
-	  face :=
-			(3, 0)..% chin
-			{up}(0, 30){dir 195}..% bottom nose onset
-			(-10, 30)..% somewhere along the nose
-			{dir -80}(0, 41.5){up}..% top nose onset
-			(3, 65);% forehead
-		draw face;% face
-		draw (point 0.5 of face){right}..(22, 20);% mouth
-		draw fullcircle scaled 7 shifted (12, 55);% eye
-		) scaled 1/65;
-	unituserLeft := unituserLeft shifted (-llcorner unituserLeft -.5urcorner unituserLeft);
-	unituserRight := unituserLeft reflectedabout ((0,0), (0,1));
-
-% The size of the user icon.
-	usersize := 32bp;
-
 % Pre-define workflow segment parameters.
-	wfsegments := 5;% counter
+	wfsegments := 6;% counter
   wfsegangle = 360/wfsegments;% angle
-	wfstart := 90 + .5wfsegangle;% angle
+	wfstart := 90 + wfsegangle;% angle
 	wfdiam := 200bp;% dimension
 	wfthick := 48bp;% dimension
-	wfgap := 10;% angle
-	wfarrowangle := 10;% angle
+	wfgap := 8;% angle
+	wfarrowangle := 8;% angle
 
 % Pre-define colors of some graphic elements.
 	color wf_col, appl_col, ext_col, user_col;
 	wf_col = .9white;
 	appl_col = (.1, .1, .7);
 	ext_col = 0white;
-	user_col = (1, 0.7, 0);
+
+% The size of the user icon.
+	usersize := 20bp;
 
 % Construct a workflow segment.
 %
@@ -137,6 +119,64 @@ beginfig(2);
 		..{dir(wfang2)}     0.5dir(wfang2)*wfscale3 {dir(wfang2-90)}
 		..{dir(wfang0-90)}  cycle;
 
+% Store user icon in picture variable.
+  picture unituserLeft, unituserRight;
+  unituserRight := image(
+% This clip-art has been taken from the Open Clip-Art Library
+% at <URL:http://www.openclipart.org/about> (Public Domain).
+% The original clip-art has been contributed by 'yyycatch' and
+%	can be found at <URL:http://www.openclipart.org/detail/18601>.
+	path p[];
+	p1 =
+		(39.387, 60.034) .. controls (17.117, 59.401) and (-0.352, 22.932)
+		.. (7.887, 10.565) .. controls (16.125, -1.802) and (64.465, -1.802)
+		.. (72.34, 10.565) .. controls (80.215, 22.932) and (62.383, 60.686)
+		.. cycle;
+	p2 =
+		(22.809, 52.588)
+		-- (59.93, 52.588) .. controls (59.93, 52.588) and (60.523, 15.705)
+		.. (47.293, 15.705) .. controls (34.852, 15.705) and (22.809, 52.588)
+		.. cycle;
+	p3 =
+		(69.125, 67.963) .. controls (69.125, 50.881) and (56.723, 37.037)
+		.. (41.422, 37.037) .. controls (26.125, 37.037) and (13.723, 50.881)
+		.. (13.723, 67.963) .. controls (13.723, 85.045) and (26.125, 98.893)
+		.. (41.422, 98.893) .. controls (56.633, 98.893) and (69, 85.198)
+		.. cycle;
+	p4 =
+		(31.047, 76.764) .. controls (31.047, 76.764) and (43.93, 63.147)
+		.. (57.152, 64.209) .. controls (70.398, 65.276) and (79.316, 71.444)
+		.. (79.316, 71.444) .. controls (79.316, 71.444) and (72.488, 108.674)
+		.. (41.977, 109.291) .. controls (18.086, 109.791) and (6.324, 86.862)
+		.. (2.84, 71.444) .. controls (-0.691, 55.83) and (4.152, 55.889)
+		.. (9.313, 57.221) .. controls (14.477, 58.549) and (31.047, 76.764)
+		.. cycle;
+	p5 =
+		(84.211, 30.416) .. controls (87.586, 25.877) and (85.977, 18.955)
+		.. (80.617, 14.967) .. controls (75.258, 10.979) and (68.164, 11.428)
+		.. (64.785, 15.971)
+		-- (64.734, 16.037) .. controls (62.766, 18.741) and (62.41, 30.342)
+		.. (65.918, 32.764) .. controls (69.781, 35.428) and (80.832, 34.955)
+		.. cycle;
+	pickup pencircle scaled 2.577288;
+ 	interim linecap := butt;
+	interim linejoin := mitered;
+	fill p1 withcolor (1, 0.501961, 0.501961);
+	draw p1 withcolor 0.219608 withpen pencircle scaled 2.577288;
+	fill p2 withcolor 1;
+	draw p2 withcolor 0.219608 withpen pencircle scaled 2.782928;
+	fill p3 withcolor (1, 0.8, 0.666667);
+	draw p3 withcolor 0.219608 withpen pencircle scaled 3.31912;
+	fill p4 withcolor (0.827451, 0.552941, 0.372549);
+	draw p4 withcolor 0.219608 withpen pencircle scaled 3.262816;
+	fill p5 withcolor (1, 0.8, 0.666667);
+	draw p5 withcolor 0.219608 withpen pencircle scaled 2.4;
+	);
+% Normalize user icon.
+  unituserRight := unituserRight shifted (-llcorner unituserRight -.5urcorner unituserRight);
+  unituserRight := unituserRight scaled (.5/ypart urcorner unituserRight);
+	unituserLeft := unituserRight reflectedabout ((0,0), (0,1));
+
 % Helper function: transform location on workflow circle in
 % degrees into cartesian coordinates.
 	def degtoxy(expr d) =
@@ -149,18 +189,13 @@ beginfig(2);
 	endfor
 
 % Fill-in workflow segment descriptions.
-	label(btex \appl{Editor} etex, degtoxy(wfstart+wfsegangle*0+5)) withcolor appl_col;
+	label(btex \appl{Editor} etex, degtoxy(wfstart+wfsegangle*0)) withcolor appl_col;
 	label(btex \ext{fig.mp} etex, degtoxy(wfstart+wfsegangle*1)) withcolor ext_col;
 	label(btex \appl{MetaPost} etex, degtoxy(wfstart+wfsegangle*2)) withcolor appl_col;
 	label(btex \ext{fig.1} etex, degtoxy(wfstart+wfsegangle*3+10)) withcolor ext_col;
 	label(btex {\extfontvii fig.log} etex, degtoxy(wfstart+wfsegangle*3-10)) withcolor ext_col;
-	label(btex \appl{Previewer} etex, degtoxy(wfstart+wfsegangle*4-5)) withcolor appl_col;
-
-% Draw users.
-	label(unituserLeft scaled usersize rotated 14, degtoxy(wfstart+wfsegangle*0-15))
-		withpen pencircle scaled 1.25bp withcolor user_col;% editor user
-	label(unituserRight scaled usersize rotated -14, degtoxy(wfstart+wfsegangle*4+15))
-		withpen pencircle scaled 1.25bp withcolor user_col;% previewer user
+	label(btex \appl{Previewer} etex, degtoxy(wfstart+wfsegangle*4)) withcolor appl_col;
+	label(unituserLeft scaled usersize, degtoxy(wfstart+wfsegangle*5));
 endfig;
 
 end
