@@ -8,7 +8,7 @@ etex
 
 % Use the boxes package for drawing charts.
 input boxes
-input mpchart
+input charts
 %prologues:=3;
 
 if scantokens(mpversion) < 1.200:

@@ -24,6 +24,7 @@ README
 TODO
 agepop91.d
 agepopm.d
+charts.mp
 cm2lm.map
 countries.d
 ctabbing.sty
@@ -44,7 +45,6 @@ mp.1
 mpboxes.bib
 mpboxes.mp
 mpboxes.tex
-mpchart.mp
 mpgraph.bib
 mpgraph.mp
 mpgraph.tex
