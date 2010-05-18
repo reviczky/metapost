@@ -291,7 +291,20 @@ application.  Alternatively, \emph{mplib} can be embedded by third-party
 applications, like e.g. Lua\TeX.  The communication between MetaPost and
 third-party applications depends on how MetaPost is invoked.  In this
 manual, we'll assume a stand-alone executable of the MetaPost compiler
-is used.
+is used.  Appendix~\ref{mpimport} briefly discusses using the
+\emph{mplib} library built-into Lua\TeX.  For more information, please
+refer to the documentation of the embedding application.
+
+The basic MetaPost workflow is depicted in figure~\ref{fig:mpworkflow}.
+Being a graphics description language, creating MetaPost graphics
+follows the \emph{edit-compile-debug} paradigm known from other
+programming languages.
+
+\begin{figure}[htp]
+$$ \includegraphics{mpman-charts-2.mps} $$
+\caption{The basic MetaPost workflow}
+\label{fig:mpworkflow}
+\end{figure}
 
 To create graphics with MetaPost, you prepare a text file containing
 code in the MetaPost language and then invoke the compiler, usually by
@@ -360,7 +373,7 @@ $$
 it will create the output file \ttt{fig-001.mps} instead of \ttt{fig.1}.
 The file extension \texttt{.mps}\index{mps file?{\tt mps}
   file}\index{files!mps?{\tt mps}} is conventionally chosen for
-MetaPost's PostScript output (see section~\ref{teximport}).  For SVG
+MetaPost's PostScript output (see section~\ref{mpimport}).  For SVG
 output one would want to use \texttt{.svg}\index{svg file?{\tt svg}
   file}\index{files!svg?{\tt svg}} instead.
 
@@ -445,8 +458,8 @@ perfectly suitable for inclusion into documents created by
 \TeX\index{TeX?\TeX} or \emph{troff}\index{troff}.  The SVG format, as
 an XML descendant (Extensible Meta Language), is more aiming at
 automated data processing/interchanging and is widely used for web
-applications.  Appendix~\ref{teximport} deals with the import of
-MetaPost graphics into third-party applications.
+applications.  Appendix~\ref{mpimport} deals with the import of MetaPost
+graphics into third-party applications.
 
 \paragraph{Log file and version number}
 \label{logfile}
@@ -1971,7 +1984,7 @@ handle those.
 The details on how to include PostScript figures in a paper
 done in \TeX\ or troff are system-dependent.  They can generally be found
 in manual pages and other on-line documentation, but have a look at
-section~\ref{teximport} of this manual for some brief instructions that
+section~\ref{mpimport} of this manual for some brief instructions that
 in many cases should work.  The manual for the
 widely-used Dvips processor is in a file \ttt{dvips.texi}, included in
 most distributions, and is available online at
