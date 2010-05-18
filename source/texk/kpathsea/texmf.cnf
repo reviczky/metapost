@@ -58,9 +58,6 @@ TEXMFMAIN = $SELFAUTOPARENT/texmf
 % The main distribution tree:
 TEXMFDIST = $SELFAUTOPARENT/texmf-dist
 
-% Our documentation-only tree, arranged by language:
-TEXMFDOC = $SELFAUTOPARENT/texmf-doc
-
 % A place for local additions to a "standard" texmf tree.
 % This tree is not used for local configuration maintained by
 % texconfig, it uses TEXMFCONFIG below.
@@ -92,7 +89,7 @@ TEXMFHOME = ~/texmf
 %   TEXMFVAR = $TEXMFMAIN
 % For using a separate tree:
 %   TEXMFVAR = ~/.texmf-var  # teTeX 3.0 default
-TEXMFVAR = ~/.texlive2008/texmf-var
+TEXMFVAR = ~/.texlive2009/texmf-var
 
 % TEXMFCONFIG, where texconfig stores configuration data.
 % With teTeX-3.0 or later, this must be set.
@@ -102,7 +99,7 @@ TEXMFVAR = ~/.texlive2008/texmf-var
 %   TEXMFCONFIG = ~/.texmf-config  # teTeX 3.0 default
 % For using a separate tree:
 %   TEXMFCONFIG = $SELFAUTOPARENT/texmf-config
-TEXMFCONFIG = ~/.texlive2008/texmf-config
+TEXMFCONFIG = ~/.texlive2009/texmf-config
 
 % Now, list all the texmf trees. If you have multiple trees you can
 % use shell brace notation, like this:
@@ -112,7 +109,7 @@ TEXMFCONFIG = ~/.texlive2008/texmf-config
 % For texconfig to work properly, TEXMFCONFIG and TEXMFVAR should be named
 % explicitly and before all other trees.
 % 
-% TEXMFLOCAL follows TEXMFMAIN (and precedes TEXMFDIST) because the only
+% TEXMFLOCAL follows TEXMFMAIN (and precedes TEXMFDIST) because the
 % files in TEXMFMAIN are tightly coupled with the particular version of
 % the distribution, such as format files.  Overriding them would be more
 % likely to cause trouble than help.  On the other hand, all the
@@ -121,6 +118,14 @@ TEXMFCONFIG = ~/.texlive2008/texmf-config
 % source of confusion to have different versions of a package installed,
 % whatever the trees, so try to avoid it).
 TEXMF = {$TEXMFCONFIG,$TEXMFVAR,$TEXMFHOME,!!$TEXMFSYSCONFIG,!!$TEXMFSYSVAR,!!$TEXMFMAIN,!!$TEXMFLOCAL,!!$TEXMFDIST}
+
+% Where to look for ls-R files.  There need not be an ls-R in the
+% directories in this path, but if there is one, Kpathsea will use it.
+% By default, this is only the !! elements of TEXMF, so that mktexlsr
+% does not create ls-R files in the non-!! elements -- because if an
+% ls-R is present, it will be used, and the disk will not be searched.
+% This is arguably a bug in kpathsea.
+TEXMFDBS = {!!$TEXMFSYSCONFIG,!!$TEXMFSYSVAR,!!$TEXMFMAIN,!!$TEXMFLOCAL,!!$TEXMFDIST}
 
 % The system trees.  These are the trees that are shared by all the users.
 % If a tree appears in this list, the mktex* scripts will use
@@ -133,20 +138,10 @@ SYSTEXMF = $TEXMFSYSVAR;$TEXMFMAIN;$TEXMFLOCAL;$TEXMFDIST
 % varfonts feature was enabled in MT_FEATURES in mktex.cnf.
 VARTEXFONTS = $TEXMFVAR/fonts
 
-% Where to look for ls-R files.  There need not be an ls-R in the
-% directories in this path, but if there is one, Kpathsea will use it.
-% By default, this is only the !! elements of TEXMF, plus texmf-doc, so
-% that mktexlsr does not create ls-R files in the non-!! elements --
-% because if an ls-R is present, it will be used, and the disk will not
-% be searched.  This is arguably a bug in kpathsea, but we will not
-% think about it now.
-%
-TEXMFDBS = {!!$TEXMFSYSCONFIG,!!$TEXMFSYSVAR,!!$TEXMFMAIN,!!$TEXMFLOCAL,!!$TEXMFDIST,!!$TEXMFDOC}
-
 % On some systems, there will be a system tree which contains all the font
 % files that may be created as well as the formats.  For example
 %   TEXMFVAR = /var/lib/texmf
-% is used on many Linux systems.  In this case, set VARTEXFONTS like this
+% is used in many distros.  In this case, set VARTEXFONTS like this
 % VARTEXFONTS = $TEXMFVAR/fonts
 % and do not mention it in TEXMFDBS (but _do_ mention TEXMFVAR).
 %
@@ -178,7 +173,6 @@ TEXINPUTS.amstex        = .;$TEXMF/tex/{amstex,plain,generic,}//
 TEXINPUTS.csplain       = .;$TEXMF/tex/{csplain,plain,generic,}//
 TEXINPUTS.eplain        = .;$TEXMF/tex/{eplain,plain,generic,}//
 TEXINPUTS.ftex          = .;$TEXMF/tex/{formate,plain,generic,}//
-TEXINPUTS.jadetex       = .;$TEXMF/tex/{jadetex,plain,generic,}//
 TEXINPUTS.mex           = .;$TEXMF/tex/{mex,plain,generic,}//
 TEXINPUTS.texinfo       = .;$TEXMF/tex/{texinfo,plain,generic,}//
 
@@ -204,7 +198,6 @@ TEXINPUTS.etex          = .;$TEXMF/tex/{plain,generic,}//
 % pdfTeX.
 TEXINPUTS.pdfcslatex    = .;$TEXMF/tex/{cslatex,csplain,latex,generic,}//
 TEXINPUTS.pdfcsplain    = .;$TEXMF/tex/{csplain,plain,generic,}//
-TEXINPUTS.pdfjadetex    = .;$TEXMF/tex/{jadetex,plain,generic,}//
 TEXINPUTS.pdflatex      = .;$TEXMF/tex/{latex,generic,}//
 TEXINPUTS.pdfmex        = .;$TEXMF/tex/{mex,plain,generic,}//
 TEXINPUTS.utf8mex       = .;$TEXMF/tex/{mex,plain,generic,}//
@@ -243,6 +236,10 @@ TEXINPUTS.omega         = .;$TEXMF/tex/{plain,generic,}//
 % ConTeXt.
 TEXINPUTS.context       = .;$TEXMF/tex/{context,plain,generic,}//
 
+% jadetex
+TEXINPUTS.jadetex       = .;$TEXMF/tex/{jadetex,latex,generic,}//
+TEXINPUTS.pdfjadetex    = .;$TEXMF/tex/{jadetex,latex,generic,}//
+
 % XMLTeX.
 TEXINPUTS.xmltex        = .;$TEXMF/tex/{xmltex,latex,generic,}//
 TEXINPUTS.pdfxmltex     = .;$TEXMF/tex/{xmltex,latex,generic,}//
@@ -263,13 +260,6 @@ TTF2TFMINPUTS =                 .;$TEXMF/ttf2pk//
 MFINPUTS = .;$TEXMF/metafont//;{$TEXMF/fonts,$VARTEXFONTS}/source//
 MPINPUTS = .;$TEXMF/metapost//
 
-% The following are not needed any more here. 
-% Moved to texdoc.cnf (and hard-coded default), see the texdoc manual.
-% See texdoc's source too if you need to allow compressed documentation.
-% TEXDOCSSUFFIX   = ;.pdf;.ps;.dvi;.html;.txt;.tex
-% TEXDOCSCOMPRESS = ;.gz;.bz2;.zip;.Z
-% TEXDOCEXT       = {$TEXDOCSSUFFIX}{$TEXDOCSCOMPRESS}
-
 % Dump files (fmt/base/mem) for vir{tex,mf,mp} to read.
 % We want to find the engine-specific file, e.g., cont-en.fmt can
 % exist under both pdftex/ and xetex/.  But just in case some formats
@@ -282,8 +272,7 @@ MFBASES = .;$TEXMF/web2c{/$engine,}
 MPMEMS = .;$TEXMF/web2c{/$engine,}
 %
 % As of 2008, pool files don't exist any more (the strings are compiled
-% into the binaries), but just in case something expects to find these
-% settings:
+% into the binaries), but just in case something expects to find these:
 TEXPOOL = .;$TEXMF/web2c
 MFPOOL = ${TEXPOOL}
 MPPOOL = ${TEXPOOL}
@@ -320,12 +309,13 @@ MISCFONTS = .;$TEXMF/fonts/misc//
 % map file syntax the definition can be simplified again.
 TEXFONTMAPS = .;$TEXMF/fonts/map/{$progname,pdftex,dvips,}//
 
-% BibTeX bibliographies and style files.
+% BibTeX bibliographies and style files.  bibtex8 also uses these.
 BIBINPUTS = .;$TEXMF/bibtex/bib//
 BSTINPUTS = .;$TEXMF/bibtex/{bst,csf}//
-% For bibtex8. Do we really need to repeat the BIBINPUTS setting?
-BIBINPUTS.bibtex8 =             .;$TEXMF/bibtex/{bib,}//
-BSTINPUTS.bibtex8 =             .;$TEXMF/bibtex/{bst,csf,}//
+
+% MlBibTeX.
+MLBIBINPUTS = .;$TEXMF/bibtex/bib/{mlbib,}//
+MLBSTINPUTS = .;$TEXMF/bibtex/{mlbst,bst}//
 
 % MFT style files.
 MFTINPUTS = .;$TEXMF/mft//
@@ -395,19 +385,14 @@ MPSUPPORT = .;$TEXMF/metapost/support
 MIMELIBDIR = $SELFAUTOPARENT/etc
 MAILCAPLIBDIR = $SELFAUTOPARENT/etc
 
-% Default settings for fontconfig library, used by Win32 versions of
-% xetex/xdvipdfmx (note that fontconfig on Linux/Unix-like systems
-% will ignore settings in this file)
+% Default settings for fontconfig library, used by Windows versions of
+% xetex/xdvipdfmx.  On Unixish systems, fontconfig ignores this.
 FONTCONFIG_FILE=fonts.conf
 FONTCONFIG_PATH=$TEXMFSYSVAR/fonts/conf
 FC_CACHEDIR=$TEXMFSYSVAR/fonts/cache
 
-% TeX documentation and source files, for use with kpsewhich (and texdoc).
-% TeX Live has a separate hierarchy with just documentation, texmf-doc,
-% in addition to the doc files in the other hierarchies.
-% Find non-man pages first, better than random in case of conflict.
-TEXMFDOCDIR = $TEXMFDOC/doc
-TEXDOCS = .;$TEXMF/doc{,/man}//;$TEXMFDOCDIR//
+% TeX documentation and source files, for use with texdoc and kpsewhich.
+TEXDOCS = $TEXMF/doc//
 TEXSOURCES = .;$TEXMF/source//
 
 % Web and CWeb input paths.
@@ -431,13 +416,20 @@ T4HTINPUTS   = .;$TEXMF/tex4ht//
 TEX4HTFONTSET=alias,iso8859,unicode
 TEX4HTINPUTS = .;$TEXMF/tex4ht/base//;$TEXMF/tex4ht/ht-fonts/{$TEX4HTFONTSET}//
 
+% TeXworks editor configuration and settings
+TW_LIBPATH = $TEXMFCONFIG/texworks
+TW_INIPATH = $TW_LIBPATH
+
 % Find scripts that are distributed/installed in the texmf tree.
 
 % Lua needs to look in TEXINPUTS for lua scripts distributed with packages.
 LUAINPUTS = .;$TEXMF/scripts/{$progname,$engine,}/lua//;$TEXINPUTS
 
+% Lua needs to look for binary lua libraries distributed with packages.
+CLUAINPUTS = .;$SELFAUTOLOC/lib/{$progname,$engine,}/lua//
+
 % Architecture independent executables.
-TEXMFSCRIPTS = $TEXMF/scripts/{$engine,$progname,}//
+TEXMFSCRIPTS = $TEXMF/scripts/{$progname,$engine,}//
 
 % Other languages.
 JAVAINPUTS   = .;$TEXMF/scripts/{$progname,$engine,}/java//
@@ -492,21 +484,50 @@ engine = unsetengine
 try_std_extension_first = t
 
 % Enable system commands via \write18{...}.  When enabled fully (set to
-% 1), obviously insecure.  When enabled partially (set to p), only the
+% t), obviously insecure.  When enabled partially (set to p), only the
 % commands listed in shell_escape_commands are allowed.  Although this
 % is not fully secure either, it is much better, and so useful that we
 % enable it for everything but bare tex.
-shell_escape = p
+shell_escape = f
 
-% No spaces in this command list.
+% No spaces in this command list.  These programs either do not write
+% any output files, respect openout_any, or have hard-coded restrictions similar
+% or higher to openout_any=p.  And have no features (nor, to the best of our
+% knowledge, obvious security holes) to invoke arbitrary other programs.
+% 
+% Unfortunately we found too many problems with shell_escape=p, so it
+% should be treated as though it were just as dangerous as shell_escape=t.
 shell_escape_commands = \
-bibtex,convert,dvips,epstopdf,epspdf,etex,fc-match,gnuplot,\
-kpsewhich,latex,luatex,lualatex,makeindex,mpost,\
-pdfcrop,pdflatex,pdfluatex,ps2pdf,ps4pdf,pstopdf,pygmentize,\
-tex,texexec,texmfstart,ulqda\
+false
+
+% These programs are our first goal when we can enable it.
+%kpsewhich,fc-match,\
+%repstopdf,\
+
+% we'd like to allow:
+% dvips - but external commands can be executed, need at least -R1.
+% epspdf, ps2pdf, pstopdf - need to respect openout_any,
+%   and we need to make sure -dSAFER is used and no injection is possible.
+% (img)convert (ImageMagick) - delegates.mgk possible misconfig, besides,
+%   without Unix convert it hardly seems worth it, and Windows convert
+%   is something completely different that destroys filesystems, so
+%   skip it.
+% pygmentize - but is the filter feature insecure?
+% ps4pdf - but it calls an unrestricted latex.
+% texindy,xindy - but is the module feature insecure?
+% ulqda - but requires optional SHA1.pm, so why bother.
+% tex, latex, etc. - but need to forbid --shell-escape, and inherit openout_any
+% 
+% repstopdf, rpdfcrop - maybe ok
+% bibtex,bibtex8,makeindex - maybe ok
 
 % plain TeX should remain unenhanced.
 shell_escape.tex = f
+
+% This is used by the Windows script wrapper for restricting searching
+% for the purportedly safe shell_escape_commands above to system
+% directories.
+TEXMF_RESTRICTED_SCRIPTS = {!!$TEXMFMAIN,!!$TEXMFLOCAL,!!$TEXMFDIST}/scripts/{$progname,$engine,}//
 
 % Allow TeX \openin, \openout, or \input on filenames starting with `.'
 % (e.g., .rhosts) or outside the current tree (e.g., /etc/passwd)?
@@ -531,7 +552,7 @@ MISSFONT_LOG = missfont.log
 % To suppress nothing, use TEX_HUSH = none or do not set the variable at all.
 TEX_HUSH = none
 
-% Allow TeX, MF, and MP to parse the first line of an input file for
+% Allow TeX, and MF to parse the first line of an input file for
 % the %&format construct.
 parse_first_line = t
 
@@ -561,10 +582,6 @@ file_line_error_style = f
 % MKOCP = 0
 % MKOFM = 0
 
-% What MetaPost runs to make MPX files.  This is passed an option -troff
-% if MP is in troff mode.  Set to `0' to disable this feature.
-MPXCOMMAND = makempx
-
 % Used by makempx to run TeX.  We use "etex" because MetaPost is
 % expecting DVI, and not "tex" because we want first line parsing.
 TEX = etex
@@ -577,7 +594,11 @@ TEX = etex
 %MFEDIT = ${TEXEDIT}
 %MPEDIT = ${TEXEDIT}
 
-%  Part 3: Array and other sizes for TeX (and Metafont and MetaPost).
+% The default `codepage and sort order' file for BibTeX8, when none is
+% given as command line option or environment variable.
+BIBTEX_CSFILE = 88591lat.csf
+
+%  Part 3: Array and other sizes for TeX (and Metafont).
 %
 % If you want to change some of these sizes only for a certain TeX
 % variant, the usual dot notation works, e.g.,
@@ -615,12 +636,12 @@ font_mem_size = 3000000
 font_max = 9000
 
 % Extra space for the hash table of control sequences.
-hash_extra = 50000
+hash_extra = 200000
 
 % Max number of characters in all strings, including all error messages,
-% help texts, font names, control sequences.  These values apply to TeX and MP.
-pool_size = 1250000
-% Minimum pool space after TeX/MP's own strings; must be at least
+% help texts, font names, control sequences.  These values apply to TeX.
+pool_size = 3250000
+% Minimum pool space after TeX's own strings; must be at least
 % 25000 less than pool_size, but doesn't need to be nearly that large.
 string_vacancies = 90000
 % Maximum number of strings.
@@ -644,8 +665,9 @@ trie_size = 700000
 hyph_size = 8191        % prime number of hyphenation exceptions, >610, <32767.
                         % http://primes.utm.edu/curios/page.php/8191.html
 nest_size = 500         % simultaneous semantic levels (e.g., groups)
-max_in_open = 15        % simultaneous input files and error insertions
-param_size = 10000      % simultaneous macro parameters
+max_in_open = 15        % simultaneous input files and error insertions, 
+                        % also applies to MetaPost
+param_size = 10000      % simultaneous macro parameters, also applies to MP
 save_size = 50000       % for saving values outside current group
 stack_size = 5000       % simultaneous input sources
 
@@ -653,11 +675,6 @@ stack_size = 5000       % simultaneous input sources
 ocp_buf_size = 500000   % character buffers for ocp filters.
 ocp_stack_size = 10000  % stacks for ocp computations.
 ocp_list_size = 1000    % control for multiple ocps.
-
-% Parameter specific to MetaPost.
-% Maximum number of knots between breakpoints of a path.
-% Set to 2000 by default.
-% path_size.mpost = 10000
 
 % These work best if they are the same as the I/O buffer size, but it
 % doesn't matter much.  Must be a multiple of 8.
@@ -672,3 +689,19 @@ gf_buf_size = 16384  % MF
 error_line = 79
 half_error_line = 50
 max_print_line = 79
+
+% Metafont only.
+screen_width.mf = 1664
+screen_depth.mf = 1200
+
+% BibTeX only (max_strings also determines hash_size and hash_prime).
+ent_str_size =  250
+glob_str_size = 5000
+max_strings.bibtex = 35307
+max_strings.bibtex8 = 35307
+max_strings.bibtexu = 35307
+
+% GFtype only.
+line_length.gftype = 500
+max_rows.gftype = 8191
+max_cols.gftype = 8191

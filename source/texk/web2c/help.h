@@ -10,9 +10,9 @@
    thing, the messages have a lot in common, so it's nice to have them
    in one place.)
 
-Copyright 1995, 1996 Karl Berry.
-Copyright 2001, 2003, 2004 Olaf Weber.
+Copyright 1995, 1996, 2009 Karl Berry.
 Copyright 2008 Taco Hoekwater.
+Copyright 2001, 2003, 2004 Olaf Weber.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -36,7 +36,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.  */
 #ifdef BIBTEX
 const_string BIBTEXHELP[] = {
     "Usage: bibtex [OPTION]... AUXFILE[.aux]",
-    "  Write bibliography for entries in AUXFILE to AUXFILE.bbl.",
+    "  Write bibliography for entries in AUXFILE to AUXFILE.bbl,",
+    "  along with a log file AUXFILE.blg."
     "",
     "-min-crossrefs=NUMBER  include item after NUMBER cross-refs; default 2",
     "-terse                 do not print progress reports",
@@ -100,18 +101,6 @@ const_string DVICOPYHELP[] = {
 };
 #endif /* DVICOPY */
 
-#ifdef DVITOMP
-const_string DVITOMPHELP[] = {
-    "Usage: dvitomp [OPTION]... DVIFILE[.dvi] [MPXFILE[.mpx]]",
-    "  Translate DVIFILE to the MetaPost MPXFILE.",
-    "  Default MPXFILE is basename of DVIFILE extended with `.mpx'.",
-    "",
-    "-help                  display this help and exit",
-    "-version               output version information and exit",
-    NULL
-};
-#endif /* DVITOMP */
-
 #ifdef DVITYPE
 const_string DVITYPEHELP[] = {
     "Usage: dvitype [OPTION]... DVIFILE[.dvi]",
@@ -170,6 +159,20 @@ const_string GFTYPEHELP[] = {
     NULL
 };
 #endif /* GFTYPE */
+
+#if defined (LUATANGLE) || defined (LUATANGLEBOOT)
+const_string LUATANGLEHELP[] = {
+    "Usage: luatangle [OPTION]... WEBFILE[.web] [CHANGEFILE[.ch]]",
+    "  Tangle WEBFILE with CHANGEFILE into a Pascal program.",
+    "  Default CHANGEFILE is /dev/null;",
+    "  Pascal output goes to the basename of WEBFILE extended with `.p',",
+    "  and a string pool file, if necessary, to the same extended with `.pool'.",
+    "",
+    "-help       display this help and exit",
+    "-version    output version information and exit",
+    NULL
+};
+#endif /* LUATANGLE */
 
 #ifdef MFT
 const_string MFTHELP[] = {
@@ -264,20 +267,6 @@ const_string OTANGLEHELP[] = {
 };
 #endif /* OTANGLE */
 
-#if defined (LUATANGLE) || defined (LUATANGLEBOOT)
-const_string LUATANGLEHELP[] = {
-    "Usage: luatangle [OPTION]... WEBFILE[.web] [CHANGEFILE[.ch]]",
-    "  Tangle WEBFILE with CHANGEFILE into a Pascal program.",
-    "  Default CHANGEFILE is /dev/null;",
-    "  Pascal output goes to the basename of WEBFILE extended with `.p',",
-    "  and a string pool file, if necessary, to the same extended with `.pool'.",
-    "",
-    "-help       display this help and exit",
-    "-version    output version information and exit",
-    NULL
-};
-#endif /* LUATANGLE */
-
 #ifdef OVF2OVP
 const_string OVF2OVPHELP[] = {
     "Usage: ovf2ovp [OPTION]... OVFNAME[.ovf] [OFMNAME[.ofm] [OVPFILE[.ovp]]]",
@@ -300,7 +289,7 @@ const_string OVP2OVFHELP[] = {
     "Usage: ovp2ovf [OPTION]... OVPFILE[.ovp] [OVFFILE[.ovf] [OFMFILE[.ofm]]]",
     "  Translate OVPFILE to OVFFILE and companion OFMFILE.",
     "  Default OVFFILE is basename of OVPFILE extended with `.ovf'.",
-    "  Default OFMFILE is OVFFILE extended with `.ofm'.",
+    "  Default OFMFILE is basename of OVFFILE extended with `.ofm'.",
     "",
     "-help                  display this help and exit",
     "-verbose               display progress reports",
@@ -432,7 +421,7 @@ const_string VPTOVFHELP[] = {
     "Usage: vptovf [OPTION]... VPLFILE[.vpl] [VFFILE[.vf] [TFMFILE[.tfm]]]",
     "  Translate VPLFILE to VFFILE and companion TFMFILE.",
     "  Default VFFILE is basename of VPLFILE extended with `.vf'.",
-    "  Default TFMFILE is VFFILE extended with `.tfm'.",
+    "  Default TFMFILE is basename of VFFILE extended with `.tfm'.",
     "",
     "-help                  display this help and exit",
     "-verbose               display progress reports",

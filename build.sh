@@ -65,7 +65,7 @@ then
   MPOSTEXE=mpost.exe
   OLDPATH=$PATH
   PATH=/usr/mingw32/bin:$PATH
-  CONFHOST="--host=i686-pc-mingw32 --build=i686-linux-gnu "
+  CONFHOST="--host=mingw32 --build=i686-linux-gnu "
 fi
 
 if [ "$PPCCROSS" = "TRUE" ]
@@ -97,7 +97,7 @@ cd "$B"
 
 if [ "$ONLY_MAKE" = "FALSE" ]
 then
-../source/configure  $CONFHOST \
+env TL_MAKE=$MAKE ../source/configure  $CONFHOST \
     --enable-cxx-runtime-hack \
     --disable-afm2pl    \
     --disable-aleph  \
@@ -151,6 +151,7 @@ then
     --disable-web-progs \
     --disable-xdv2pdf \
     --disable-xdvipdfmx \
+    --disable-xetex \
     --without-system-kpathsea \
     --without-system-freetype2 \
     --without-system-gd \
