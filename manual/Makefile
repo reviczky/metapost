@@ -28,8 +28,9 @@ mpgraph.pdf: mpgraph.tex mpgraph.bib mpgraph.mp
 	$(pdflatex) mpgraph
 	$(pdflatex) mpgraph
 
-mpman.pdf: mpman.tex mpman-app-legacy.tex mpman-app-optab.tex mpman-app-refman.tex mpman.bib mpman.ist mpman.mp
+mpman.pdf: mpman.tex mpman-app-legacy.tex mpman-app-optab.tex mpman-app-refman.tex mpman.bib mpman.ist mpman.mp mpcharts.mp mpman-charts.mp
 	$(mpost) mpman
+	$(mpost) mpman-charts
 	$(pdflatex) mpman
 	$(bibtex) mpman
 	$(pdflatex) mpman
@@ -55,8 +56,9 @@ mpgraph.ps: mpgraph.tex mpgraph.bib mpgraph.mp
 	$(latex) mpgraph
 	$(dvips) mpgraph
 
-mpman.ps: mpman.tex mpman-app-legacy.tex mpman-app-optab.tex mpman-app-refman.tex mpman.bib mpman.ist mpman.mp
+mpman.ps: mpman.tex mpman-app-legacy.tex mpman-app-optab.tex mpman-app-refman.tex mpman.bib mpman.ist mpman.mp mpcharts.mp mpman-charts.mp
 	$(mpost) mpman
+	$(mpost) mpman-charts
 	$(latex) mpman
 	$(bibtex) mpman
 	$(latex) mpman
