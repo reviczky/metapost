@@ -88,7 +88,8 @@ beginfig(2);
 
 % Pre-define workflow segment parameters.
 	wfsegments := 5;% counter
-	wfstart := 90;% angle
+  wfsegangle = 360/wfsegments;% angle
+	wfstart := 90 + .5wfsegangle;% angle
 	wfdiam := 200bp;% dimension
 	wfthick := 48bp;% dimension
 	wfgap := 10;% angle
@@ -120,11 +121,10 @@ beginfig(2);
 %     2---------1
   numeric wfang[], wfscale[];
   path wfseg;
-  wfsegangle = 360/wfsegments;
-	wfang0 = .5wfgap - .5wfarrowangle;
-	wfang1 = .5wfgap + .5wfarrowangle;                    
-	wfang2 = wfsegangle - .5wfgap - .5wfarrowangle;
-  wfang3 = wfsegangle - .5wfgap + .5wfarrowangle;
+  wfang0 = .5(-wfsegangle + wfgap - wfarrowangle);
+  wfang1 = .5(-wfsegangle + wfgap + wfarrowangle);
+  wfang2 = .5( wfsegangle - wfgap - wfarrowangle);
+  wfang3 = .5( wfsegangle - wfgap + wfarrowangle);
 	wfscale[0] = 1 + wfthick/wfdiam;
 	wfscale[1] = 1 - wfthick/wfdiam;
 	wfscale[2] = 1 - 1.0*wfthick/wfdiam;
@@ -149,17 +149,17 @@ beginfig(2);
 	endfor
 
 % Fill-in workflow segment descriptions.
-	label(btex \appl{Editor} etex, degtoxy(wfstart+wfsegangle*0.5+5)) withcolor appl_col;
-	label(btex \ext{fig.mp} etex, degtoxy(wfstart+wfsegangle*1.5)) withcolor ext_col;
-	label(btex \appl{MetaPost} etex, degtoxy(wfstart+wfsegangle*2.5)) withcolor appl_col;
-	label(btex \ext{fig.1} etex, degtoxy(wfstart+wfsegangle*3.5+10)) withcolor ext_col;
-	label(btex {\extfontvii fig.log} etex, degtoxy(wfstart+wfsegangle*3.5-10)) withcolor ext_col;
-	label(btex \appl{Previewer} etex, degtoxy(wfstart+wfsegangle*4.5-5)) withcolor appl_col;
+	label(btex \appl{Editor} etex, degtoxy(wfstart+wfsegangle*0+5)) withcolor appl_col;
+	label(btex \ext{fig.mp} etex, degtoxy(wfstart+wfsegangle*1)) withcolor ext_col;
+	label(btex \appl{MetaPost} etex, degtoxy(wfstart+wfsegangle*2)) withcolor appl_col;
+	label(btex \ext{fig.1} etex, degtoxy(wfstart+wfsegangle*3+10)) withcolor ext_col;
+	label(btex {\extfontvii fig.log} etex, degtoxy(wfstart+wfsegangle*3-10)) withcolor ext_col;
+	label(btex \appl{Previewer} etex, degtoxy(wfstart+wfsegangle*4-5)) withcolor appl_col;
 
 % Draw users.
-	label(unituserLeft scaled usersize rotated 14, degtoxy(wfstart+wfsegangle*0.5-15))
+	label(unituserLeft scaled usersize rotated 14, degtoxy(wfstart+wfsegangle*0-15))
 		withpen pencircle scaled 1.25bp withcolor user_col;% editor user
-	label(unituserRight scaled usersize rotated -14, degtoxy(wfstart+wfsegangle*4.5+15))
+	label(unituserRight scaled usersize rotated -14, degtoxy(wfstart+wfsegangle*4+15))
 		withpen pencircle scaled 1.25bp withcolor user_col;% previewer user
 endfig;
 
