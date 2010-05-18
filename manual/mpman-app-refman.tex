@@ -864,7 +864,7 @@ Here's a summary of the command-line switches understood by
   \texttt{$\descr{jobname}$.fls}\index{fls file?{\tt fls}
     file}\index{files!fls?{\tt fls}}.  (This functionality is provided
   by \textit{kpathsea}.)\\ 
-  \cmdindex{-s}$\descr{key}$=$\descr{value}$ \textrm{or}\newline
+  \cmdindex{-s}=$\descr{key}$=$\descr{value}$ \textrm{or}\newline
   -s $\descr{key}$=$\descr{value}$
   & Set internal variable $\descr{key}$ to $\descr{value}$.  The
   assignment is applied just before the input file is read-in.  This
@@ -872,7 +872,7 @@ Here's a summary of the command-line switches understood by
   $\descr{value}$ can be an integer between -16383 and 16383 or a string
   in double quotes.  For strings, double quotes are stripped, but no
   other processing takes place.\newline
-  Example: \verb|-soutputformat="svg" -sprologues=3|\newline
+  Example: \verb|-s=outputformat="svg" -s=prologues=3|\newline
   Use SVG backend converting font shapes to paths.\\
   \cmdindex{-tex}=$\descr{texprogram}$
   & Load format $\descr{texprogram}$ for rendering \TeX\ material.\\
