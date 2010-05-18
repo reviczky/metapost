@@ -1,0 +1,150 @@
+\svnInfo $Id$
+\section{Importing MetaPost graphics in \TeX\ documents}
+\label{teximport}
+\index{TeX?\TeX!importing MetaPost files}
+\index{LaTeX?\LaTeX!importing MetaPost files}
+\index{pdfLaTeX?pdf\LaTeX!importing MetaPost files}
+\index{pdfTeX?pdf\TeX!importing MetaPost files}
+\index{ConTeXt?Con\TeX t!importing MetaPost files}
+
+MetaPost graphics in the PostScript format can be easily integreated
+into documents prepared with \TeX\ and friends.  MetaPost's PostScript
+output is a low-featured dialect of the Postscript language, called
+\emph{purified EPS}, that can be converted into the Portable Document
+Format (PDF\index{PDF}) language on-the-fly.  For that reason, MetaPost
+graphics can be handled by both engines, the traditional \TeX\ with an
+external output driver and the newer pdf\TeX, that contains a built-in
+PDF output driver.
+
+Figure~\ref{fig0} shows the process of including a MetaPost graphic into
+a plain \TeX\ or \LaTeX\ document.  In the \TeX\ document a ``magic
+macro'' provided by the format or an external package is used for
+including a graphic file.  During the typesetting stage, the macro only
+reads bounding box information off the PostScript file and reserves the
+required space on the page via an empty box.  The file reference is
+passed-on to the output driver and only then, finally, the file is
+embedded into the document.  The freely available program
+\ttindex{dvips} is used as an output driver in this
+example.\footnote{The C source for \ttt{dvips} comes with the web2c
+  \TeX\ distribution.  Similar programs are available from other
+  sources.}  The next paragraphs give brief information on some popular
+combinations of formats and engines.
+
+\begin{figure}[htp]
+$$ \includegraphics{mpman-charts-1.mps} $$
+\caption[A diagram of the processing for a document with MetaPost figures]
+        {A diagram of the processing for a \TeX\ document with figures
+        in MetaPost}
+\label{fig0}
+\end{figure}
+
+\paragraph{Plain \TeX\ with \TeX}
+For users of \TeX\ with traditional DVI output the
+\ttt{epsf}\index{epsf.tex?\texttt{epsf.tex}} package provides the
+``magic macro''
+$$ \verb|\epsfbox{|\descr{filename}\verb|}|%
+\index{epsfbox?\texttt{\string\epsfbox}} $$
+for embedding graphics, e.g., \verb|\epsfbox{fig.1}|.
+
+\paragraph{Plain \TeX\ with pdf\TeX}
+Users of Plain \TeX\ and pdf\TeX\ should refer to the standalone macros
+of the \ttindex{mptopdf} bundle, that can be found at
+\url{http://context.aanhet.net/mptopdf.htm}.
+
+\paragraph{\LaTeX\ format}
+For \LaTeX\ documents the well-known \ttindex{graphics} (or
+\ttindex{graphicx}) package aids in external graphics inclusion.  The
+package supports different engines and can handle several graphic
+formats.  The ``magic macro'' is
+$$ \verb|\includegraphics{|\descr{filename}\verb|}|%
+\index{includegraphics?\texttt{\string\includegraphics}} $$
+
+When the \ttt{dvips} driver is chosen, the \ttt{graphics} package
+assumes all files with an unknown file extension to be in the EPS
+format.  MetaPost files with a numeric default file extension are
+therefore handled correctly -- even if only in a fall-back procedure
+(see~\cite{reckdahl:epslatex} for more information).
+
+For the pdf\TeX\ driver, the situation is a bit different.  Only files
+with file extension \texttt{.mps}\index{mps file?{\tt mps}
+  file}\index{files!mps?{\tt mps}} are recognized as purified EPS and
+can be converted to PDF\index{PDF} on-the-fly.  The recommended
+procedure for including MetaPost graphics into \LaTeX\ documents
+compiled with the pdf\TeX\ engine should be obvious: change MetaPost's
+output file naming scheme to write files ending \texttt{.mps} via
+\verb|outputtemplate|\index{outputtemplate?\texttt{outputtemplate}} (see
+p.~\pageref{Doutputtemplate}).  In the \LaTeX\ document include the
+graphic files with full name, e.g.,
+$$\begin{verbatim}
+\includegraphics{fig-1.mps}
+\end{verbatim}
+$$
+
+Note, the latter approach works with the \ttt{dvips} driver, too.  Even
+though, again, this time \ttt{.mps} is an unknown file extension and
+triggers EPS file handling in the fall-back procedure.  This property of
+the \ttt{graphics} package, that comes in handy for MetaPost files, is
+the reason many MetaPost source files start with the line
+$$\begin{verbatim}
+outputtemplate := "%j-%c.mps";
+\end{verbatim}
+$$
+
+\paragraph{Con\TeX t}
+In Con\TeX t\index{ConTeXt?Con\TeX t} support of MetaPost is integrated
+in the kernel. Apart from inline graphics (see MetaFun\index{MetaFun}
+manual), one can embed graphics explictely with the
+\verb+\externalfigure+%
+\index{externalfigure?\texttt{\string\externalfigure}} command.
+Numbered graphics are recognized automatically, as are graphics with the
+\ttt{mps} suffix.  Special features like shading, transparency, image
+inclusion, color spaces and such are handled automatically.  In practice
+Con\TeX t users will probably define MetaPost graphics in the document
+source which has some advantages, like a more natural interfacing with
+document properties, font support, and automatic processing.  Support
+for MetaPost inclusion is present in the versions MkII as well as MkIV,
+but the used methods are slightly different.  Future versions of MkIV
+will support an even more tight integration.
+
+\subsection{Importing MetaPost graphics in \emph{troff} documents}
+\label{troffimport}
+\index{troff!importing MetaPost files}
+
+It is also possible to include MetaPost output in a GNU \emph{troff}
+document.  The procedure is similar to Figure~\ref{fig0}: the
+\ttt{grops} output processor includes PostScript files when they are
+requested via \emph{troff}'s \ttt{\string\X} command.  The
+\ttt{-mpspic}\index{mpspic?\texttt{-mpspic}} macro package provides a
+command \verb|.PSPIC|\index{PSPIC?\texttt{.PSPIC}}, that does just that
+when including an encapsulated PostScript file in the source code.  For
+instance, the \emph{troff} command
+$$ \hbox{\verb|.PSPIC fig.1|} $$
+includes \ttt{fig.1}, using the natural height and width of the
+image as given in the file's bounding box.
+
+\subsection{Handling SVG files}
+\label{svgimport}
+\index{SVG!third-party applications}
+
+SVG graphics can be easily embedded into HTML\index{HTML} documents with
+the following code snippet:
+
+$$\begin{verbatim}
+<p>
+  <object data="foo.svg" type="image/svg+xml" width="300" height="200">
+  </object>
+</p>
+\end{verbatim}
+$$
+
+SVG files can also be imported by various interactive graphics editing
+programs, for example GIMP\index{GIMP} or Inkscape\index{Inkscape}.  See
+section~\ref{Dprologues} for information on font handling in SVG
+graphics.
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-PDF-mode: t
+%%% TeX-master: "mpman"
+%%% End: 
