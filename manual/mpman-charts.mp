@@ -158,7 +158,6 @@ beginfig(2);
 		-- (64.734, 16.037) .. controls (62.766, 18.741) and (62.41, 30.342)
 		.. (65.918, 32.764) .. controls (69.781, 35.428) and (80.832, 34.955)
 		.. cycle;
-	pickup pencircle scaled 2.577288;
  	interim linecap := butt;
 	interim linejoin := mitered;
 	fill p1 withcolor (1, 0.501961, 0.501961);
