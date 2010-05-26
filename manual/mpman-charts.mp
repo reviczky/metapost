@@ -75,7 +75,7 @@ beginfig(2);
   wfdiam := 200bp;% dimension
   wfthick := 48bp;% dimension
   wfgap := 8;% angle
-  wfarrowangle := 8;% angle
+  wfinset := 8;% angle
 
 % Pre-define colors of some graphic elements.
   color wf_col, appl_col, ext_col, user_col;
@@ -88,27 +88,32 @@ beginfig(2);
 
 % Construct a workflow segment.
 %
-% wfang[] stores the angle on a circle corresponding to a
-% vertex of a workflow segment.  The mapping of indices to
-% vertices is:
+% * The anchor point of a workflow segment is at its center.
+%
+% * Array wfang[] stores the angle on a circle corresponding
+%   to a vertex of a workflow segment.  The mapping of indices
+%   to vertices is:
+%
 %     2---------0
 %    /         /
 %   3         1
 %    \         \
 %     2---------0
 %
-% For wfscale[] the mapping is:
+% * For array wfscale[] the mapping is:
+%
 %     3---------0
 %    /         /
 %   <         <
 %    \         \
 %     2---------1
+%
   numeric wfang[], wfscale[];
   path wfseg;
-  wfang0 = .5(-wfsegangle + wfgap - wfarrowangle);
-  wfang1 = .5(-wfsegangle + wfgap + wfarrowangle);
-  wfang2 = .5( wfsegangle - wfgap - wfarrowangle);
-  wfang3 = .5( wfsegangle - wfgap + wfarrowangle);
+  wfang0 = .5(-wfsegangle + wfgap - wfinset);
+  wfang1 = .5(-wfsegangle + wfgap + wfinset);
+  wfang2 = .5( wfsegangle - wfgap - wfinset);
+  wfang3 = .5( wfsegangle - wfgap + wfinset);
   wfscale[0] = 1 + wfthick/wfdiam;
   wfscale[1] = 1 - wfthick/wfdiam;
   wfscale[2] = 1 - 1.0*wfthick/wfdiam;
