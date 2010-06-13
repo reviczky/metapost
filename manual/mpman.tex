@@ -517,7 +517,7 @@ a Perl script that automates the process outlined above.
 PDF.}
 
 However, with MetaPost version~1.000 the situation changed.  Since that
-version MetaPost is able to produce self-contained EPS files, that can
+version MetaPost is able to produce self-contained EPS files that can
 reliably be previewed, whether they contain text or not.  The new
 behaviour can be triggered by setting MetaPost's internal variable
 \ttt{prologues}\index{prologues?\texttt{prologues}} to~3.  See
@@ -2063,12 +2063,12 @@ statement. Again, this is for backward compatibility only.
 Regardless of whether you use \TeX\ or troff, all the real work of
 adding text to pictures is done by a MetaPost primitive operator called
 {\tt infont}\index{infont?\texttt{infont}}.  It is a \tdescr{primary
-binop}\index{primary binop?\tdescr{primary binop}} that takes a
+  binop}\index{primary binop?\tdescr{primary binop}} that takes a
 \tdescr{string secondary} as its left argument and a \tdescr{string
-primary} as its right argument.  The left argument is text, and the
+  primary} as its right argument.  The left argument is text, and the
 right argument is a font name.  The result of the operation is a
-\tdescr{picture secondary} that can then be transformed in various ways.
-One possibility is enlargement by a given factor via the
+\tdescr{picture secondary}, which can then be transformed in various
+ways.  One possibility is enlargement by a given factor via the
 syntax\index{scaled?\texttt{scaled}}
 $$ \descr{picture secondary}\, \hbox{\tt scaled}\, \descr{numeric primary} $$
 Thus {\tt label("text",z0)} is equivalent to

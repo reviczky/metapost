@@ -23,12 +23,12 @@ applications.
 MetaPost graphics in the PostScript\index{PostScript} format can be
 easily integrated into documents prepared with \TeX\ and friends.
 MetaPost's PostScript output is a low-featured dialect of the Postscript
-language, called \emph{purified EPS}\index{EPS!purified}, that can be
+language, called \emph{purified EPS}\index{EPS!purified}, which can be
 converted into the Portable Document Format (PDF\index{PDF}) language
 on-the-fly.  For that reason, external MetaPost graphics can be used on
 both routes: a) using the traditional \TeX\ engine together with an
 external PostScript output driver and b) using newer \TeX\ engines, like
-pdf\TeX\ or its successor Lua\TeX, that contain a built-in PDF output
+pdf\TeX\ or its successor Lua\TeX, which contain a built-in PDF output
 driver.  Lua\TeX\ can additionally process embedded MetaPost code
 natively, falling back to the built-in \emph{mplib} library.
 
@@ -68,7 +68,7 @@ $$ \verb|\epsfbox{|\descr{filename}\verb|}|%
 for embedding graphics, e.g., \verb|\epsfbox{fig.1}|.
 
 Users of the pdf\TeX\ engine\index{pdfTeX?pdf\TeX!engine} should refer
-to the standalone macros of the \ttindex{mptopdf} bundle, that can be
+to the standalone macros of the \ttindex{mptopdf} bundle, which can be
 found at \url{http://context.aanhet.net/mptopdf.htm}.
 
 With the Lua\TeX\ engine\index{LuaTeX?Lua\TeX!engine}, importing
@@ -130,9 +130,9 @@ $$
 
 Note, the latter approach works with the \ttindex{dvips} driver, too.
 Even though, again, this time \ttt{.mps} is an unknown file extension,
-that triggers EPS file handling in a fall-back procedure.  This property
-of the \ttt{graphics} package, that comes in handy for MetaPost files,
-is the reason many MetaPost source files start with the line
+triggering EPS file handling in a fall-back procedure.  This property of
+the \ttt{graphics} package, which comes in handy for MetaPost files, is
+the reason many MetaPost source files start with the line
 $$\begin{verbatim}
 outputtemplate := "%j-%c.mps";
 \end{verbatim}
@@ -189,7 +189,7 @@ document.  The procedure is similar to Figure~\ref{fig:teximport}: the
 \ttt{grops} output processor includes PostScript files when they are
 requested via \emph{troff}'s \ttt{\string\X} command.  The
 \ttt{-mpspic}\index{mpspic?\texttt{-mpspic}} macro package provides a
-command \verb|.PSPIC|\index{PSPIC?\texttt{.PSPIC}}, that does just that
+command \verb|.PSPIC|\index{PSPIC?\texttt{.PSPIC}}, which does just that
 when including an encapsulated PostScript file in the source code.  For
 instance, the \emph{troff} command
 $$ \hbox{\verb|.PSPIC fig.1|} $$
