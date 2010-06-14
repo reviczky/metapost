@@ -165,20 +165,36 @@ $$
 \label{contextformat}
 \index{ConTeXt?Con\TeX t!format!importing MetaPost files}
 
-In Con\TeX t\index{ConTeXt?Con\TeX t} support of MetaPost is integrated
-in the kernel. Apart from inline graphics (see MetaFun\index{MetaFun}
-manual), one can embed graphics explictely with the
-\verb+\externalfigure+%
-\index{externalfigure?\texttt{\string\externalfigure}} command.
-Numbered graphics are recognized automatically, as are graphics with the
-\ttt{mps} suffix.  Special features like shading, transparency, image
-inclusion, color spaces and such are handled automatically.  In practice
-Con\TeX t users will probably define MetaPost graphics in the document
+In Con\TeX t\index{ConTeXt?Con\TeX t} graphics support is integrated in
+the kernel, covering advanced features like shading, transparency, color
+spaces or image inclusion.  The ``magic macro'' for embedding external
+graphics is
+$$ \verb|\externalfigure[|\descr{filename}\verb|]|%
+\index{externalfigure?\texttt{\string\externalfigure}} $$
+%
+The macro can handle numbered files as well as files with the \ttt{mps}
+suffix.
+
+Alternatively, Con\TeX t users can inline MetaPost code in the document
 source which has some advantages, like a more natural interfacing with
-document properties, font support, and automatic processing.  Support
-for MetaPost inclusion is present in the versions MkII as well as MkIV,
-but the used methods are slightly different.  Future versions of MkIV
-will support an even more tight integration.
+document properties, font support, and automatic
+processing~\cite{hagen:metafun}.  Here is an example of a MetaPost
+graphic inlined into a Con\TeX t document.
+
+$$\begin{verbatim}[commandchars=|\[\], codes={\catcode`$=3}]
+\starttext
+\startuseMPgraphic{$|descr[name]$}
+  ...
+\stopuseMPgraphic
+\useMPgraphic{$|descr[name]$}
+\stoptext
+\end{verbatim}
+$$
+
+Con\TeX t MkIV, being based on the Lua\TeX\ engine, provides a much
+tighter integration of MetaPost than older versions, since it can
+fall-back to the built-in \emph{mplib}\index{mplib?\emph{mplib}}
+library.
 
 \subsection{\emph{troff}}
 \label{troffimport}
