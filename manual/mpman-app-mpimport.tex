@@ -48,9 +48,8 @@ popular combinations of \TeX\ formats and engines.
 
 \begin{figure}[htp]
 $$ \includegraphics{mpman-charts-1.mps} $$
-\caption[A diagram of the processing for a document with MetaPost figures]
-        {A diagram of the processing for a \TeX\ document with figures
-        in MetaPost}
+\caption{A diagram of the processing for a \TeX\ document embedding
+  MetaPost figures}
 \label{fig:teximport}
 \end{figure}
 
@@ -71,14 +70,14 @@ Users of the pdf\TeX\ engine\index{pdfTeX?pdf\TeX!engine} should refer
 to the standalone macros of the \ttindex{mptopdf} bundle, which can be
 found at \url{http://context.aanhet.net/mptopdf.htm}.
 
-With the Lua\TeX\ engine\index{LuaTeX?Lua\TeX!engine}, importing
+With the Lua\TeX\ engine\index{LuaTeX?Lua\TeX!engine}, embedding
 external graphics works the same as with pdf\TeX.  Additionally,
-Lua\TeX\ users can embed MetaPost code directly into Plain \TeX\
+Lua\TeX\ users can inline MetaPost code directly into Plain \TeX\
 documents.  Lua\TeX\ is able to process such MetaPost code snippets,
 falling back to the built-in \emph{mplib}\index{mplib?\emph{mplib}}
 library.  Note, \emph{mplib} doesn't support \texttt{verbatimtex/btex
   .. etex} constructs, currently.  Here is an example of a MetaPost
-graphic embedded into a Plain \TeX\ document.  For more information,
+graphic inlined into a Plain \TeX\ document.  For more information,
 please refer to the Lua\TeX\ and \ttindex{luamplib} documentation.
 
 $$\begin{verbatim}
@@ -117,7 +116,7 @@ When using the pdf\TeX\ engine with a built-in PDF output driver, the
 situation is a bit different.  Only files with file extension
 \texttt{.mps}\index{mps file?{\tt mps} file}\index{files!mps?{\tt mps}}
 are recognized as purified EPS\index{EPS!purified} and can be converted
-to PDF\index{PDF} on-the-fly.  The recommended procedure for including
+to PDF\index{PDF} on-the-fly.  The recommended procedure for embedding
 MetaPost graphics into \LaTeX\ documents compiled with pdf\TeX\ is
 therefore to change MetaPost's output file name extension via
 \verb|outputtemplate|\index{outputtemplate?\texttt{outputtemplate}} (see
@@ -138,15 +137,15 @@ outputtemplate := "%j-%c.mps";
 \end{verbatim}
 $$
 
-With the Lua\TeX\ engine\index{LuaTeX?Lua\TeX!engine}, importing
+With the Lua\TeX\ engine\index{LuaTeX?Lua\TeX!engine}, embedding
 external graphics works the same as with pdf\TeX.  Additionally,
-Lua\TeX\ users can embed MetaPost code directly into La\TeX\ documents.
+Lua\TeX\ users can inline MetaPost code directly into La\TeX\ documents.
 Lua\TeX\ is able to process such MetaPost code snippets, falling back to
 the built-in \emph{mplib}\index{mplib?\emph{mplib}} library.  Note,
 \emph{mplib} doesn't support \texttt{verbatimtex/btex .. etex}
-constructs, currently.  Here is an example of a MetaPost graphic
-embedded into a \LaTeX\ document.  For more information, please refer to
-the Lua\TeX\ and \ttindex{luamplib} documentation.
+constructs, currently.  Here is an example of a MetaPost graphic inlined
+into a \LaTeX\ document.  For more information, please refer to the
+Lua\TeX\ and \ttindex{luamplib} documentation.
 
 $$\begin{verbatim}
 \documentclass{article}
