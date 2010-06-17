@@ -625,6 +625,9 @@ draw (0,0)..controls (26.8,-1.8) and (51.4,14.6)
 \end{verbatim}
 $$
 
+For a way to request the control points of a path segment, given by the
+user or calculated by MetaPost, see section~\ref{Dprepostctrl}.
+
 \begin{figure}[htp]
 $$ \includegraphics{mpman-5.mps}
 $$
@@ -2537,6 +2540,31 @@ applying {\tt cutbefore} with time reversed along its first argument.
 Thus
 $$ p_1\ {\tt cutafter}\ p_2 $$
 tries to cut off the part of $p_1$ after its last intersection with $p_2$.
+
+The control points of a path can be requested by the two operators
+\index{precontrol of?\texttt{precontrol of}}
+\index{postcontrol of?\texttt{postcontrol of}}
+\label{Dprepostctrl}
+\begin{eqnarray*}
+  {\tt precontrol}\, \descr{numeric expression}\, {\tt of}\, \descr{path primary},\\
+  {\tt postcontrol}\, \descr{numeric expression}\, {\tt of}\, \descr{path primary}.
+\end{eqnarray*}
+
+For integer time values~$t$, these operators return the control points
+before and after a cardinal point of a path.  A segment
+$z_{t-1}\verb|..|z_t$ of a path~$p$ has therefore control points
+$$ {\tt postcontrol}\ t-1\ {\tt of}\ p
+$$
+and
+$$ {\tt precontrol}\ t\ {\tt of}\ p.
+$$
+
+For decimal time values, {\tt precontrol of} returns the last control
+point of sub-path $(0, t)$ and {\tt postcontrol of} returns the first
+control point of sub-path $(t, \infty)$ of a path.  In other words, the
+control points at fractional time values correspond to a virtual
+cardinal point inserted at the given time value without modifying path
+shape.
 
 Another operator\index{direction of?\texttt{direction of}}\label{Ddirof}
 $$ {\tt direction}\, \descr{numeric expression}\, {\tt of}\, \descr{path primary}
