@@ -78,7 +78,7 @@ beginfig(2);
   wfinset := 8;% angle
 
 % Pre-define colors of some graphic elements.
-  color wf_col, appl_col, ext_col, user_col;
+  color wf_col, appl_col, ext_col;
   wf_col = .9white;
   appl_col = (.1, .1, .7);
   ext_col = 0white;
@@ -193,7 +193,7 @@ beginfig(2);
   enddef;
 
 % Draw workflow segments.
-  for i=0 upto wfsegments:
+  for i=0 upto wfsegments-1:
     fill wfseg scaled wfdiam rotated (wfstart+i*wfsegangle) withcolor wf_col;
   endfor
 
