@@ -5865,8 +5865,27 @@ and the second word is broken into two pointer fields called |attr_head|
 and |subscr_head|. Those fields point to additional nodes that
 contain structural information, as we shall see.
 
-Sometimes |attr_node|s pretend to be values, so value nodes need the
-|attr_loc| and |parent| field as well.
+TH Note: DEK and JDH had a nice theoretical split between |value|,
+|attr| and |subscr| nodes, as documented above and further
+below. However, all three types had a bad habit of transmuting into
+each other in practice while pointers to them still lived on
+elsewhere, so using three different C structures is simply not
+workable. All three are now represented as a single C structure called
+|mp_value_node|.
+
+There is a union in this structure in the interest of space
+saving: |subscript_| and |hashloc_| are mutually exclusive.
+
+Actually, so are |attr_head_| + |subscr_head_| on one side and and
+|value_| on the other, but because of all the access macros that are
+used in the code base to get at values, those cannot be folded into a
+union (yet); this would have required creating a similar union in
+|mp_token_node| where it would only serve to confuse things.
+
+Finally, |parent_| only applies in |attr| nodes (the ones that have
+|hashloc_|), but creating an extra substructure inside the union just
+for that does not save space and the extra complication in the
+structure is not worth the minimal extra code clarification.
 
 @d attr_head(A)   ((mp_value_node)(A))->attr_head_ /* pointer to attribute info */
 @d set_attr_head(A,B) do {
@@ -5880,7 +5899,10 @@ Sometimes |attr_node|s pretend to be values, so value nodes need the
 typedef struct mp_value_node_data {
   NODE_BODY;
   memory_word value_;
-  halfword attr_loc_;
+  union {
+    scaled subscript_;
+    halfword hashloc_;
+  } v;
   mp_node parent_;
   mp_node attr_head_;
   mp_node subscr_head_;
@@ -5889,29 +5911,32 @@ typedef struct mp_value_node_data {
 @ @<Declarations@>=
 static mp_node mp_get_value_node (MP mp);
 
-@ 
+@ It would have been nicer to make |mp_get_value_node| return
+|mp_value_node| variables, but with |eqtb| as it stands that 
+became messy: lots of typecasts. So, it returns a simple
+|mp_node| for now.
 
 @d value_node_size sizeof(struct mp_value_node_data) /* the number of words in a value node */
 
 @c
 static mp_node mp_get_value_node (MP mp) {
-  mp_value_node p = (mp_value_node)xmalloc(1, value_node_size);
+  mp_node p = xmalloc(1, value_node_size);
   mp->var_used += value_node_size;
   memset(p,0,value_node_size);
   mp_type(p) = mp_value_node_type;
-  return (mp_node)p;
+  return p;
 }
 
 @ An attribute node is three words long. Two of these words contain |type|
 and |value| fields as described above, and the third word contains
-additional information:  There is an |attr_loc| field, which contains the
+additional information:  There is an |hashloc| field, which contains the
 hash address of the token that names this attribute; and there's also a
 |parent| field, which points to the value node of |mp_structured| type at the
 next higher level (i.e., at the level to which this attribute is
 subsidiary).  The |name_type| in an attribute node is `|attr|'.  The
 |link| field points to the next attribute with the same parent; these are
-arranged in increasing order, so that |attr_loc(mp_link(p))>attr_loc(p)|. The
-final attribute node links to the constant |end_attr|, whose |attr_loc|
+arranged in increasing order, so that |hashloc(mp_link(p))>hashloc(p)|. The
+final attribute node links to the constant |end_attr|, whose |hashloc|
 field is greater than any legal hash address. The |attr_head| in the
 parent points to a node whose |name_type| is |mp_structured_root|; this
 node represents the null attribute, i.e., the variable that is relevant
@@ -5921,7 +5946,7 @@ a value node, a subscript node, or an attribute node, depending on what
 the parent would be if it were not structured; but the subscript and
 attribute fields are ignored, so it effectively contains only the data of
 a value node. The |link| field in this special node points to an attribute
-node whose |attr_loc| field is zero; the latter node represents a collective
+node whose |hashloc| field is zero; the latter node represents a collective
 subscript `\.{[]}' attached to the parent, and its |link| field points to
 the first non-special attribute node (or to |end_attr| if there are none).
 
@@ -5953,18 +5978,18 @@ a pencil to draw a diagram.) The lone variable `\.x' is represented by
 |type(q)| and |value(q)|; furthermore
 |mp_name_type(q)=mp_structured_root| and |mp_link(q)=q1|, where |q1| points
 to an attribute node representing `\.{x[]}'. Thus |mp_name_type(q1)=attr|,
-|attr_loc(q1)=collective_subscript=0|, |parent(q1)=p|,
+|hashloc(q1)=collective_subscript=0|, |parent(q1)=p|,
 |type(q1)=mp_structured|, |attr_head(q1)=qq|, and |subscr_head(q1)=qq1|;
 |qq| is a  three-word ``attribute-as-value'' node with |type(qq)=numeric_type|
 (assuming that \.{x5} is numeric, because |qq| represents `\.{x[]}' 
 with no further attributes), |mp_name_type(qq)=structured_root|, 
-|attr_loc(qq)=0|, |parent(qq)=p|, and
+|hashloc(qq)=0|, |parent(qq)=p|, and
 |mp_link(qq)=qq1|. (Now pay attention to the next part.) Node |qq1| is
 an attribute node representing `\.{x[][]}', which has never yet
 occurred; its |type| field is |undefined|, and its |value| field is
-undefined. We have |mp_name_type(qq1)=attr|, |attr_loc(qq1)=collective_subscript|,
+undefined. We have |mp_name_type(qq1)=attr|, |hashloc(qq1)=collective_subscript|,
 |parent(qq1)=q1|, and |mp_link(qq1)=qq2|. Since |qq2| represents
-`\.{x[]b}', |type(qq2)=mp_unknown_boolean|; also |attr_loc(qq2)=h(b)|,
+`\.{x[]b}', |type(qq2)=mp_unknown_boolean|; also |hashloc(qq2)=h(b)|,
 |parent(qq2)=q1|, |mp_name_type(qq2)=attr|, |mp_link(qq2)=end_attr|.
 (Maybe colored lines will help untangle your picture.)
  Node |r| is a subscript node with |type| and |value|
@@ -5991,70 +6016,38 @@ subscript attributes do not carry actual values except for macro identifiers;
 branches of the structure below subscript nodes do not carry significant
 information in their collective subscript attributes.
 
-@d attr_loc(A) ((mp_attr_node)(A))->attr_loc_ /* hash address of this attribute */
-@d set_attr_loc(A,B) do {
+@d hashloc(A) ((mp_value_node)(A))->v.hashloc_ /* hash address of this attribute */
+@d set_hashloc(A,B) do {
   halfword d = (B);
   /* printf ("set attrloc of %p to %d on %d\n", (A), d, __LINE__); */
-  ((mp_attr_node)(A))->attr_loc_ = d;
+  ((mp_value_node)(A))->v.hashloc_ = d;
   } while (0)
 @d parent(A) (A)->parent_ /* pointer to |mp_structured| variable */
 
-@(mpmp.h@>=
-typedef struct mp_attr_node_data {
-  NODE_BODY;
-  memory_word value_;
-  halfword attr_loc_;
-  mp_node parent_;
-  /* todo next two fields can be caused by mutation ? */
-  mp_node attr_head_;
-  mp_node subscr_head_;
-} mp_attr_node_data;
-typedef struct mp_attr_node_data* mp_attr_node;
-
 @ 
-@d attr_node_size sizeof(struct mp_attr_node_data) /* the number of words in an attribute node */
-
 @c
-static mp_attr_node mp_get_attr_node (MP mp) {
-  mp_attr_node p = (mp_attr_node)xmalloc(1,attr_node_size);
-  mp->var_used += attr_node_size;
-  memset(p,0,attr_node_size);
+static mp_value_node mp_get_attr_node (MP mp) {
+  mp_value_node p = (mp_value_node)mp_get_value_node(mp);
   mp_type(p) = mp_attr_node_type;
   return p;
 }
 
 @ @<Initialize table...@>=
 mp->end_attr = (mp_node)mp_get_attr_node(mp);
-set_attr_loc(mp->end_attr,hash_end+1);
-parent((mp_attr_node)mp->end_attr)=NULL;
+set_hashloc(mp->end_attr,hash_end+1);
+parent((mp_value_node)mp->end_attr)=NULL;
 
 
 @
 
 @d collective_subscript 0 /* code for the attribute `\.{[]}' */
 
-@d subscript(A) (A)->subscript_ /* subscript of this variable */
-
-@(mpmp.h@>=
-typedef struct mp_subscr_node_data {
-  NODE_BODY;
-  memory_word value_;
-  scaled subscript_;
-  /* todo next three fields can be caused by mutation ? */
-  mp_node parent_;
-  mp_node attr_head_;
-  mp_node subscr_head_;
-} mp_subscr_node_data;
-typedef struct mp_subscr_node_data* mp_subscr_node;
+@d subscript(A) ((mp_value_node)(A))->v.subscript_ /* subscript of this variable */
 
 @
-@d subscr_node_size sizeof(struct mp_subscr_node_data) /* the number of words in a subscript node */
-
 @c 
-static mp_subscr_node mp_get_subscr_node (MP mp) {
-  mp_subscr_node p = (mp_subscr_node)xmalloc(1, subscr_node_size);
-  mp->var_used += subscr_node_size;
-  memset(p,0,subscr_node_size);
+static mp_value_node mp_get_subscr_node (MP mp) {
+  mp_value_node p = (mp_value_node)mp_get_value_node(mp);
   mp_type(p) = mp_subscr_node_type;
   return p;
 }
@@ -6388,7 +6381,7 @@ void mp_print_variable_name (MP mp, mp_node p) {
 @ @<Ascend one level, pushing a token onto list |q|...@>=
 { 
   if ( mp_name_type(p)==mp_subscr ) { 
-    r=mp_new_num_tok(mp, subscript((mp_subscr_node)p));
+    r=mp_new_num_tok(mp, subscript(p));
     do {  
       p=mp_link(p);
     } while (mp_name_type(p)!=mp_attr);
@@ -6400,12 +6393,12 @@ void mp_print_variable_name (MP mp, mp_node p) {
       mp_confusion(mp, "var");
 @:this can't happen var}{\quad var@>
     r=mp_get_symbolic_node(mp); 
-    set_mp_sym_info(r,attr_loc(p)); /* the hash address */
+    set_mp_sym_info(r,hashloc(p)); /* the hash address */
   }
   set_mp_link(r,q);
   q=r;
 FOUND:  
-  p=parent((mp_attr_node)p);
+  p=parent((mp_value_node)p);
 }
 
 @ @<Preface the output with a part specifier...@>=
@@ -6510,14 +6503,14 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
   set_attr_head(r,p); 
   mp_name_type(p)=mp_structured_root;
   {
-    mp_attr_node qqr = mp_get_attr_node(mp); 
+    mp_value_node qqr = mp_get_attr_node(mp); 
     set_mp_link(p,(mp_node)qqr);
     subscr_head(r)=(mp_node)qqr;
     parent(qqr)=r; 
     mp_type(qqr)=undefined; 
     mp_name_type(qqr)=mp_attr; 
     set_mp_link(qqr,mp->end_attr);
-    set_attr_loc(qqr,collective_subscript); 
+    set_hashloc(qqr,collective_subscript); 
   }
   return r;
 }
@@ -6528,7 +6521,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
   do {  
     q=mp_link(q);
   } while (mp_name_type(q)!=mp_attr);
-  q=parent((mp_attr_node)q); 
+  q=parent((mp_value_node)q); 
   r = mp->temp_head;
   set_mp_link(r,subscr_head(q));
   do {  
@@ -6537,7 +6530,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
   } while (r!=p);
   r=(mp_node)mp_get_subscr_node(mp);
   set_mp_link(q,r); 
-  subscript((mp_subscr_node)r)=subscript((mp_subscr_node)p);
+  subscript(r)=subscript(p);
 }
 
 @ If the attribute is |collective_subscript|, there are two pointers to
@@ -6545,8 +6538,8 @@ node~|p|, so we must change both of them.
 
 @<Link a new attribute node |r| in place of node |p|@>=
 { 
-  mp_attr_node rr;
-  q=parent((mp_attr_node)p); 
+  mp_value_node rr;
+  q=parent((mp_value_node)p); 
   r=attr_head(q);
   do {  
     q=r; r=mp_link(r);
@@ -6554,11 +6547,11 @@ node~|p|, so we must change both of them.
   rr=mp_get_attr_node(mp); 
   r = (mp_node)rr;
   set_mp_link(q,(mp_node)rr);
-  set_attr_loc(rr, attr_loc(p));
-  parent(rr) = parent((mp_attr_node)p);
-  if ( attr_loc(p)==collective_subscript ) { 
+  set_hashloc(rr, hashloc(p));
+  parent(rr) = parent((mp_value_node)p);
+  if ( hashloc(p)==collective_subscript ) { 
     q = mp->temp_head;
-    set_mp_link(q,subscr_head(parent((mp_attr_node)p)));
+    set_mp_link(q,subscr_head(parent((mp_value_node)p)));
     while ( mp_link(q)!=p ) 
       q=mp_link(q);
     assert(q!=mp->temp_head);
@@ -6654,20 +6647,20 @@ subscript list, even though that word isn't part of a subscript node.
 { 
   halfword save_subscript; /* temporary storage */
   n=value(t);
-  pp=mp_link(attr_head(pp)); /* now |attr_loc(pp)=collective_subscript| */
+  pp=mp_link(attr_head(pp)); /* now |hashloc(pp)=collective_subscript| */
   q=mp_link(attr_head(p)); 
-  save_subscript=subscript((mp_subscr_node)q);
-  subscript((mp_subscr_node)q)=el_gordo; 
+  save_subscript=subscript(q);
+  subscript(q)=el_gordo; 
   s = mp->temp_head;
   set_mp_link(s,subscr_head(p));
   do {  
     r=s; 
     s=mp_link(s);
-  } while (n>subscript((mp_subscr_node)s));
-  if ( n==subscript((mp_subscr_node)s) ) {
+  } while (n>subscript(s));
+  if (n==subscript(s) ) {
     p=s;
   } else { 
-    mp_subscr_node pp = mp_get_subscr_node(mp); 
+    mp_value_node pp = mp_get_subscr_node(mp); 
     if (r==mp->temp_head)
       subscr_head(p)=(mp_node)pp; 
     else
@@ -6678,7 +6671,7 @@ subscript list, even though that word isn't part of a subscript node.
     mp_type(pp)=undefined;
     p=(mp_node)pp;
   }
-  subscript((mp_subscr_node)q)=save_subscript;
+  subscript(q)=save_subscript;
 }
 
 @ @<Descend one level for the attribute |mp_sym_info(t)|@>=
@@ -6688,15 +6681,15 @@ subscript list, even though that word isn't part of a subscript node.
   do {  
     rr=ss; 
     ss=mp_link(ss);
-  } while (n>attr_loc(ss));
-  if ( n<attr_loc(ss) ) { 
+  } while (n>hashloc(ss));
+  if ( n<hashloc(ss) ) { 
     qq=(mp_node)mp_get_attr_node(mp); 
     set_mp_link(rr,qq); 
     set_mp_link(qq,ss);
-    set_attr_loc(qq,n); 
+    set_hashloc(qq,n); 
     mp_name_type(qq)=mp_attr; 
     mp_type(qq)=undefined;
-    parent((mp_attr_node)qq)=pp; 
+    parent((mp_value_node)qq)=pp; 
     ss=qq;
   }
   if ( p==pp ) { 
@@ -6705,22 +6698,22 @@ subscript list, even though that word isn't part of a subscript node.
   } else { 
     pp=ss; 
     s=attr_head(p);
-    /* printf("attr_loc(s)=%d\n",attr_loc(s)); */
+    /* printf("hashloc(s)=%d\n",hashloc(s)); */
     do {  
       r=s; 
       s=mp_link(s);
-      /* printf("attr_loc(s)=%d\n",attr_loc(s)); */
-    } while (n>attr_loc(s));
-    if ( n==attr_loc(s) ) {
+      /* printf("hashloc(s)=%d\n",hashloc(s)); */
+    } while (n>hashloc(s));
+    if ( n==hashloc(s) ) {
       p=s;
     } else { 
       q=(mp_node)mp_get_attr_node(mp); 
       set_mp_link(r,q); 
       set_mp_link(q,s);
-      set_attr_loc(q,n) ;
+      set_hashloc(q,n) ;
       mp_name_type(q)=mp_attr; 
       mp_type(q)=undefined;
-      parent((mp_attr_node)q)=p; 
+      parent((mp_value_node)q)=p; 
       p=q;
     }
   }
@@ -6758,8 +6751,9 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t, boolean discard_suff
     n=mp_sym_info(t); 
     t=mp_link(t);
     if ( n==collective_subscript ) { 
-      r=subscr_head(p); 
-      q=r; /* todo check this |q=subscr_head(p)| */
+      r=mp->temp_head;
+      mp_link(r)=subscr_head(p); 
+      q=mp_link(r);
       while ( mp_name_type(q)==mp_subscr ){ 
         mp_flush_variable(mp, q,t,discard_suffixes);
         if ( t==null ) {
@@ -6767,7 +6761,7 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t, boolean discard_suff
             r=q;
           } else { 
             set_mp_link(r,mp_link(q)); 
-            mp_free_node(mp, q,subscr_node_size);   
+            mp_free_node(mp, q,value_node_size);   
           }
         } else {
           r=q;
@@ -6779,8 +6773,8 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t, boolean discard_suff
     do {  
       r=p; 
       p=mp_link(p);
-    } while (attr_loc(p)<n);
-    if ( attr_loc(p)!=n ) 
+    } while (hashloc(p)<n);
+    if ( hashloc(p)!=n ) 
       return;
   }
   if ( discard_suffixes ) {
@@ -6809,19 +6803,17 @@ void mp_flush_below_variable (MP mp, mp_node p) {
       mp_flush_below_variable(mp, q); 
       r=q; 
       q=mp_link(q);
-      mp_free_node(mp, r,subscr_node_size);
+      mp_free_node(mp, r,value_node_size);
     }
     r=attr_head(p); 
     q=mp_link(r); 
     mp_recycle_value(mp, r);
-    if ( mp_name_type(p)<=mp_saved_root ) mp_free_node(mp, r,value_node_size);
-    else mp_free_node(mp, r,subscr_node_size);
-    /* we assume that |subscr_node_size=attr_node_size| */
+    mp_free_node(mp, r,value_node_size);
     do {  
       mp_flush_below_variable(mp, q); 
       r=q; 
       q=mp_link(q); 
-      mp_free_node(mp, r,attr_node_size);
+      mp_free_node(mp, r,value_node_size);
     } while (q!=mp->end_attr);
     mp_type(p)=undefined;
   }
@@ -17810,10 +17802,10 @@ recovery.
 @d cur_exp_knot() mp->cur_exp.data.p
 
 @d set_cur_exp_value(A) do {
+    cur_exp_value() = (A);
     cur_exp_node() = NULL;
     cur_exp_str() = NULL;
     cur_exp_knot() = NULL;
-    cur_exp_value() = (A);
   } while (0)
 @d set_cur_exp_node(A) do {
     cur_exp_node() = A;
@@ -17822,15 +17814,15 @@ recovery.
     cur_exp_value() = 0;
   } while (0)
 @d set_cur_exp_str(A) do {
-    cur_exp_node() = NULL;
     cur_exp_str() = A;
+    cur_exp_node() = NULL;
     cur_exp_knot() = NULL;
     cur_exp_value() = 0;
   } while (0)
 @d set_cur_exp_knot(A) do {
+    cur_exp_knot() = A;
     cur_exp_node() = NULL;
     cur_exp_str() = NULL;
-    cur_exp_knot() = A;
     cur_exp_value() = 0;
   } while (0)
   
@@ -19242,8 +19234,8 @@ into the variable structure; we need to start searching from the root each time.
       if ( mp_type(p) == mp_symbol_node ) { /* it's not a subscript */
         do {  
            q=mp_link(q); 
-        } while (! (attr_loc(q)>=mp_sym_info(p)));
-        if ( attr_loc(q)>mp_sym_info(p) ) 
+        } while (! (hashloc(q)>=mp_sym_info(p)));
+        if ( hashloc(q)>mp_sym_info(p) ) 
           goto DONE2;
       }
     }
