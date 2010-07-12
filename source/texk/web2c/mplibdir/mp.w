@@ -5894,6 +5894,11 @@ structure is not worth the minimal extra code clarification.
    attr_head((A)) = d;
 } while (0)
 @d subscr_head(A)   ((mp_value_node)(A))->subscr_head_ /* pointer to subscript info */
+@d set_subscr_head(A,B) do {
+   mp_node d = (B);
+   /* printf("set subcrhead of %p to %p on %d\n",A,d,__LINE__); */
+   subscr_head((A)) = d;
+} while (0)
 
 @(mpmp.h@>=
 typedef struct mp_value_node_data {
@@ -6505,7 +6510,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
   {
     mp_value_node qqr = mp_get_attr_node(mp); 
     set_mp_link(p,(mp_node)qqr);
-    subscr_head(r)=(mp_node)qqr;
+    set_subscr_head(r,(mp_node)qqr);
     parent(qqr)=r; 
     mp_type(qqr)=undefined; 
     mp_name_type(qqr)=mp_attr; 
@@ -6517,6 +6522,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
 
 @ @<Link a new subscript node |r| in place of node |p|@>=
 { 
+  mp_node q_new;
   q=p;
   do {  
     q=mp_link(q);
@@ -6525,11 +6531,15 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
   r = mp->temp_head;
   set_mp_link(r,subscr_head(q));
   do {  
-    q=r;
+    q_new = r;
     r = mp_link(r);
   } while (r!=p);
   r=(mp_node)mp_get_subscr_node(mp);
-  set_mp_link(q,r); 
+  if (q_new==mp->temp_head) {
+    subscr_head(q)=r; 
+  } else {
+    set_mp_link(q,r); 
+  }
   subscript(r)=subscript(p);
 }
 
@@ -6542,7 +6552,8 @@ node~|p|, so we must change both of them.
   q=parent((mp_value_node)p); 
   r=attr_head(q);
   do {  
-    q=r; r=mp_link(r);
+    q=r; 
+    r=mp_link(r);
   } while (r!=p);
   rr=mp_get_attr_node(mp); 
   r = (mp_node)rr;
@@ -6662,7 +6673,7 @@ subscript list, even though that word isn't part of a subscript node.
   } else { 
     mp_value_node pp = mp_get_subscr_node(mp); 
     if (r==mp->temp_head)
-      subscr_head(p)=(mp_node)pp; 
+      set_subscr_head(p,(mp_node)pp);
     else
       set_mp_link(r,(mp_node)pp);
     set_mp_link(pp,s);
@@ -6768,6 +6779,7 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t, boolean discard_suff
         }
         q=mp_link(r);
       }
+      set_subscr_head(p,q); 
     }
     p=attr_head(p);
     do {  
