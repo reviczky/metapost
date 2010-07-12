@@ -22609,17 +22609,17 @@ static void mp_frac_mult (MP mp,scaled n, scaled d) {
   if ( mp->cur_exp.type==mp_known ) {
     set_cur_exp_value(mp_take_fraction(mp, cur_exp_value(),v));
   } else if ( mp->cur_exp.type==mp_pair_type) {
-    mp_dep_mult(mp, (mp_value_node)x_part_loc(cur_exp_node()),v,false);
-    mp_dep_mult(mp, (mp_value_node)y_part_loc(cur_exp_node()),v,false);
+    mp_dep_mult(mp, (mp_value_node)x_part_loc(value_node(cur_exp_node())),v,false);
+    mp_dep_mult(mp, (mp_value_node)y_part_loc(value_node(cur_exp_node())),v,false);
   } else if ( mp->cur_exp.type==mp_color_type) {
-    mp_dep_mult(mp, (mp_value_node)red_part_loc(cur_exp_node()),v,false);
-    mp_dep_mult(mp, (mp_value_node)green_part_loc(cur_exp_node()),v,false);
-    mp_dep_mult(mp, (mp_value_node)blue_part_loc(cur_exp_node()),v,false);
+    mp_dep_mult(mp, (mp_value_node)red_part_loc(value_node(cur_exp_node())),v,false);
+    mp_dep_mult(mp, (mp_value_node)green_part_loc(value_node(cur_exp_node())),v,false);
+    mp_dep_mult(mp, (mp_value_node)blue_part_loc(value_node(cur_exp_node())),v,false);
   } else if (mp->cur_exp.type==mp_cmykcolor_type) {
-    mp_dep_mult(mp, (mp_value_node)cyan_part_loc(cur_exp_node()),v,false);
-    mp_dep_mult(mp, (mp_value_node)magenta_part_loc(cur_exp_node()),v,false);
-    mp_dep_mult(mp, (mp_value_node)yellow_part_loc(cur_exp_node()),v,false);
-    mp_dep_mult(mp, (mp_value_node)black_part_loc(cur_exp_node()),v,false);
+    mp_dep_mult(mp, (mp_value_node)cyan_part_loc(value_node(cur_exp_node())),v,false);
+    mp_dep_mult(mp, (mp_value_node)magenta_part_loc(value_node(cur_exp_node())),v,false);
+    mp_dep_mult(mp, (mp_value_node)yellow_part_loc(value_node(cur_exp_node())),v,false);
+    mp_dep_mult(mp, (mp_value_node)black_part_loc(value_node(cur_exp_node())),v,false);
   } else {
     mp_dep_mult(mp, null,v,false);
   }
@@ -22712,17 +22712,17 @@ case over:
       if ( mp->cur_exp.type==mp_known ) {
         set_cur_exp_value(mp_make_scaled(mp, cur_exp_value(),v));
       } else if ( mp->cur_exp.type==mp_pair_type ) { 
-        mp_dep_div(mp, (mp_value_node)x_part_loc(cur_exp_node()),v);
-        mp_dep_div(mp, (mp_value_node)y_part_loc(cur_exp_node()),v);
+        mp_dep_div(mp, (mp_value_node)x_part_loc(value_node(cur_exp_node())),v);
+        mp_dep_div(mp, (mp_value_node)y_part_loc(value_node(cur_exp_node())),v);
       } else if ( mp->cur_exp.type==mp_color_type ) { 
-        mp_dep_div(mp, (mp_value_node)red_part_loc(cur_exp_node()),v);
-        mp_dep_div(mp, (mp_value_node)green_part_loc(cur_exp_node()),v);
-        mp_dep_div(mp, (mp_value_node)blue_part_loc(cur_exp_node()),v);
+        mp_dep_div(mp, (mp_value_node)red_part_loc(value_node(cur_exp_node())),v);
+        mp_dep_div(mp, (mp_value_node)green_part_loc(value_node(cur_exp_node())),v);
+        mp_dep_div(mp, (mp_value_node)blue_part_loc(value_node(cur_exp_node())),v);
       } else if ( mp->cur_exp.type==mp_cmykcolor_type ) { 
-        mp_dep_div(mp, (mp_value_node)cyan_part_loc(cur_exp_node()),v);
-        mp_dep_div(mp, (mp_value_node)magenta_part_loc(cur_exp_node()),v);
-        mp_dep_div(mp, (mp_value_node)yellow_part_loc(cur_exp_node()),v);
-        mp_dep_div(mp, (mp_value_node)black_part_loc(cur_exp_node()),v);
+        mp_dep_div(mp, (mp_value_node)cyan_part_loc(value_node(cur_exp_node())),v);
+        mp_dep_div(mp, (mp_value_node)magenta_part_loc(value_node(cur_exp_node())),v);
+        mp_dep_div(mp, (mp_value_node)yellow_part_loc(value_node(cur_exp_node())),v);
+        mp_dep_div(mp, (mp_value_node)black_part_loc(value_node(cur_exp_node())),v);
       } else {
         mp_dep_div(mp, null,v);
       }
