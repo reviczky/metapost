@@ -18109,7 +18109,7 @@ void mp_print_exp (MP mp, mp_node p, quarterword verbosity) {
   }
   t=mp_type(p);
   if ( t<mp_dependent ) { /* no dep list, could be a capsule */
-    if (t != mp_known && value_node(p)!=NULL)
+    if (t != mp_vacuous &&  t != mp_known && value_node(p)!=NULL)
       v=value_node(p);
     else  
       vv=value(p); 
@@ -21074,7 +21074,8 @@ case path_part:
   if ( mp_type(p)==mp_text_node_type ) goto NOT_FOUND;
   else if ( is_stop(p) ) mp_confusion(mp, "pict");
 @:this can't happen pict}{\quad pict@>
-  else { 
+  else {
+    new_expr.data.node = NULL; 
     switch (mp_type(p)) {
     case mp_fill_node_type:
       new_expr.data.p = mp_copy_path(mp, mp_path_p((mp_fill_node)p));
