@@ -4741,7 +4741,6 @@ internal_value(mp_tracing_macros)=3*unity;
 internal_value(mp_tracing_output)=3*unity;
 internal_value(mp_tracing_stats)=3*unity;
 internal_value(mp_tracing_lost_chars)=3*unity;
-internal_value(mp_tracing_online)=3*unity;
 
 @ Well, we do have to list the names one more time, for use in symbolic
 printouts.
