@@ -353,8 +353,7 @@ int half_error_line; /* width of first lines of contexts in terminal
   error messages; should be between 30 and |error_line-15| */
 int halt_on_error; /* do we quit at the first error? */
 int max_print_line; /* width of longest text lines output; should be at least 60 */
-unsigned hash_size; /* maximum number of symbolic tokens,
-  must be less than |max_halfword-3*param_size| */
+unsigned hash_size; /* maximum number of symbolic tokens, must be less than |max_halfword| */
 int param_size; /* maximum number of simultaneous macro parameters */
 int max_in_open; /* maximum number of input files and error insertions that
   can be going on simultaneously */
@@ -13964,7 +13963,8 @@ macro|.
 
 @ The |param_stack| is an auxiliary array used to hold pointers to the token
 lists for parameters at the current level and subsidiary levels of input.
-This stack grows at a different rate from the others.
+This stack grows at a different rate from the others, and is dynamically reallocated
+when needed.
 
 @<Glob...@>=
 mp_node *param_stack;  /* token list pointers for parameters */
@@ -13973,6 +13973,14 @@ integer max_param_stack;  /* largest value of |param_ptr| */
 
 @ @<Allocate or initialize ...@>=
 mp->param_stack = xmalloc((mp->param_size+1),sizeof(mp_node));
+
+@ @c
+static void mp_check_param_size (MP mp, int k) {
+  while ( k>=mp->param_size ) {    
+     XREALLOC(mp->param_stack, (k+k/4+1), mp_node);
+     mp->param_size = k+k/4;
+  }
+}
 
 @ @<Dealloc variables@>=
 xfree(mp->param_stack);
@@ -15620,8 +15628,7 @@ do {
   rp->value_mod = sym_type;
   rp->info = mp->cur_sym;
   rp->info_mod = mp->cur_sym_mod;
-  if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
-@:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
+  mp_check_param_size(mp, k);
   incr(k); 
   rp->link=r; 
   r=rp; 
@@ -15646,8 +15653,7 @@ do {
     c=mp->cur_mod; 
     rp->value_mod = mp_expr_sym;
   }
-  if ( k==mp->param_size ) 
-    mp_overflow(mp, "parameter stack size",mp->param_size);
+  mp_check_param_size(mp, k);
   incr(k); 
   mp_get_symbol(mp);
   rp->info = mp->cur_sym;
@@ -15659,8 +15665,7 @@ do {
     c=of_macro; 
     rp = xmalloc(1, sizeof(mp_subst_list_item));
     rp->link = NULL;
-    if ( k==mp->param_size ) 
-      mp_overflow(mp, "parameter stack size",mp->param_size);
+    mp_check_param_size(mp, k);
     rp->value = k;
     rp->value_mod = mp_expr_sym;
     mp_get_symbol(mp);
@@ -16322,8 +16327,7 @@ with a call to itself will not require unbounded stack space.
 while ( token_state &&(nloc==null) ) mp_end_token_list(mp); /* conserve stack space */
 if ( mp->param_ptr+n>mp->max_param_stack ) {
   mp->max_param_stack=mp->param_ptr+n;
-  if ( mp->max_param_stack>mp->param_size )
-    mp_overflow(mp, "parameter stack size",mp->param_size);
+  mp_check_param_size(mp, mp->max_param_stack);
 @:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
 }
 mp_begin_token_list(mp, def_ref, (quarterword)macro); 
@@ -16346,9 +16350,7 @@ The |stack_argument| subroutine does this.
 static void mp_stack_argument (MP mp,mp_node p) { 
   if ( mp->param_ptr==mp->max_param_stack ) {
     incr(mp->max_param_stack);
-    if ( mp->max_param_stack>mp->param_size )
-      mp_overflow(mp, "parameter stack size",mp->param_size);
-@:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
+    mp_check_param_size(mp, mp->max_param_stack);
   }
   mp->param_stack[mp->param_ptr]=p; incr(mp->param_ptr);
 }
@@ -28810,7 +28812,7 @@ if (mp->mem_name != NULL) {
 {
   unsigned i = 14;
   set_lower_limited_value(mp->mem_max,opt->main_memory,5000);
-  set_lower_limited_value(mp->param_size,opt->param_size,150);
+  mp->param_size = 128;
   set_lower_limited_value(mp->max_in_open,opt->max_in_open,10);
   if (opt->hash_size>0x8000000) 
     opt->hash_size=0x8000000;
