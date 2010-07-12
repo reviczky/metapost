@@ -6538,7 +6538,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
   if (q_new==mp->temp_head) {
     subscr_head(q)=r; 
   } else {
-    set_mp_link(q,r); 
+    set_mp_link(q_new,r); 
   }
   subscript(r)=subscript(p);
 }
