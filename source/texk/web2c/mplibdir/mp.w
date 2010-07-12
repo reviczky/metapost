@@ -10945,7 +10945,7 @@ type |mp_stop_clip_node| that matches |p|.
 
 @<Other cases for updating the bounding box...@>=
 case mp_start_clip_node_type: 
-  mp_path_bbox(mp, mp_path_p((mp_fill_node)p));
+  mp_path_bbox(mp, mp_path_p((mp_start_clip_node)p));
   x0=mp_minx; y0=mp_miny;
   x1=mp_maxx; y1=mp_maxy;
   sminx=minx_val(h); sminy=miny_val(h);
