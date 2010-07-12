@@ -3559,7 +3559,7 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
 @d start_subpath(f,dx,dy) do {  
   assert(f->pp == NULL);
   assert(f->p == NULL);
-  f->pp = mp_xmalloc(mp, 1, sizeof (mp_knot));
+  f->pp = mp_xmalloc(mp, 1, sizeof (struct mp_knot_data));
   f->pp->data.types.left_type = mp_explicit;
   f->pp->data.types.right_type = mp_explicit;
   f->pp->x_coord = scaled_from_double(f->cur_x + dx);
@@ -3603,7 +3603,7 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
 
 @d add_line_segment(f,dx,dy) do {
    assert(f->pp != NULL);
-   n = mp_xmalloc(mp,1, sizeof (mp_knot));
+   n = mp_xmalloc(mp,1, sizeof (struct mp_knot_data));
    n->data.types.left_type = mp_explicit;
    n->data.types.right_type = mp_explicit;
    n->next = gr_path_p((mp_fill_object *)f->p); /* loop */  
@@ -3620,7 +3620,7 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
 } while (0)
 
 @d add_curve_segment(f,dx1,dy1,dx2,dy2,dx3,dy3) do {
-   n = mp_xmalloc(mp, 1, sizeof (mp_knot));
+   n = mp_xmalloc(mp, 1, sizeof (struct mp_knot_data));
    n->data.types.left_type = mp_explicit;
    n->data.types.right_type = mp_explicit; 
    n->next = gr_path_p((mp_fill_object *)f->p); /* loop */  
@@ -4965,8 +4965,8 @@ a \MP\ path.
 @c 
 static mp_knot mp_gr_copy_knot (MP mp,  mp_knot p) {
   mp_knot q; /* the copy */
-  q = mp_xmalloc(mp, 1, sizeof (mp_knot));
-  memcpy(q,p,sizeof (mp_knot));
+  q = mp_xmalloc(mp, 1, sizeof (struct mp_knot_data));
+  memcpy(q,p,sizeof (struct mp_knot_data));
   gr_next_knot(q)=NULL;
   return q;
 }
