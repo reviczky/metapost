@@ -343,8 +343,6 @@ to extend or reduce \MP's capacity.
 int pool_size; /* maximum number of characters in strings, including all
   error messages and help texts, and the names of all identifiers */
 int old_pool_size; /* a helper used by |mp_cat| */
-int mem_max; /* greatest index in \MP's internal |mem| array;
-  must be strictly less than |max_halfword| */
 int hash_prime; /* a prime number equal to about 85\pct! of |hash_size| */
 
 @ @<Option variables@>=
@@ -357,7 +355,7 @@ unsigned hash_size; /* maximum number of symbolic tokens, must be less than |max
 int param_size; /* maximum number of simultaneous macro parameters */
 int max_in_open; /* maximum number of input files and error insertions that
   can be going on simultaneously */
-int main_memory; /* only for options, to set up |mem_max| */
+int main_memory; /* only for options, backward compat */
 void *userdata; /* this allows the calling application to setup local */
 char *banner; /* the banner that is printed to the screen and log */
 int ini_version;
@@ -389,10 +387,10 @@ defined.
 @<Glob...@>=
 integer bad; /* is some ``constant'' wrong? */
 
-@ Later on we will say `\ignorespaces|if (mem_max>=max_halfword) bad=10;|',
-or something similar. (We can't do that until |max_halfword| has been defined.)
+@ Later on we will say `|if ( int_packets+17*int_increment>bistack_size )mp->bad=19;|',
+or something similar.
 
-In case you are wondering about the non-consequtive values of |bad|: some
+In case you are wondering about the non-consequtive values of |bad|: most
 of the things that used to be WEB constants are now runtime variables
 with checking at assignment time.
 
@@ -3517,12 +3515,6 @@ assumptions about the relative positions of the fields within a word.
 @d max_quarterword 0x3FFF /* largest allowable value in a |quarterword| */
 @d max_halfword 0xFFFFFFF /* largest allowable value in a |halfword| */
 
-@ Here are the inequalities that the quarterword and halfword values
-must satisfy (or rather, the inequalities that they mustn't satisfy):
-
-@<Check the ``constant''...@>=
-if ( mp->mem_max>=max_halfword ) mp->bad=12;
-
 @ The macros |qi| and |qo| are used for input to and output 
 from quarterwords. These are legacy macros.
 @^system dependencies@>
@@ -3794,15 +3786,7 @@ void mp_do_snprintf (char *str, int size, const char *format, ...) {
 The \MP\ system does nearly all of its own memory allocation, so that it
 can readily be transported into environments that do not have automatic
 facilities for strings, garbage collection, etc., and so that it can be in
-control of what error messages the user receives. The dynamic storage
-requirements of \MP\ are handled by providing a large array |mem| in
-which consecutive blocks of words are used as nodes by the \MP\ routines.
-
-Pointer variables are indices into this array, or into another array
-called |eqtb| that will be explained later. A pointer variable might
-also be a special flag that lies outside the bounds of |mem|, so we
-allow pointers to assume any |halfword| value. The minimum memory
-index represents a null pointer.
+control of what error messages the user receives. 
 
 @d null 0 /* the null pointer */
 @d mp_void (mp_node)(null+1) /* a null pointer different from |null| */
@@ -3952,16 +3936,8 @@ static void do_set_mp_info(MP mp, mp_node p, halfword v) ;
 
 
 @* \[11] Memory layout.
-The lowest areas of |mem| are dedicated to fixed usage, since static allocation is
-more efficient than dynamic allocation when we can get away with it. For
-example, locations |0| to |1| are always used to store a dummy token whose 
-second word is zero.
-The following macro definitions accomplish the static allocation by giving
-symbolic names to the fixed positions. Static nodes appear
-in locations |0| through |lo_mem_stat_max|.
-
-@d sentinel 0x7FFFFFFE /* end of sorted lists, todo check this */
-@d BAD_VARDEF 0x7FFFFFFE /* |frozen_bad_vardef|'s equiv, todo: check this */
+Some nodes are created statically, since static allocation is
+more efficient than dynamic allocation when we can get away with it. 
 
 @<Glob...@>=
 mp_node null_node; /* todo: name changed */
@@ -5115,10 +5091,12 @@ for (k=2;k<=hash_end;k++)  {
   mp->hash[k]=mp->hash[1]; mp->eqtb[k]=mp->eqtb[1];
 }
 
-@ @<Initialize table entries@>=
+@ 
+
+@<Initialize table entries@>=
 mp->st_count=0;
 mp->hash_used=hash_end; /* nothing is used */
-mp->frozen_bad_vardef = mp_frozen_primitive(mp, "a bad variable", tag_token, BAD_VARDEF);
+mp->frozen_bad_vardef = mp_frozen_primitive(mp, "a bad variable", tag_token, 0);
 mp->frozen_right_delimiter = mp_frozen_primitive(mp, ")", right_delimiter, 0);
 mp->frozen_inaccessible = mp_frozen_primitive(mp, " INACCESSIBLE", tag_token, 0);
 mp->frozen_undefined = mp_frozen_primitive(mp, " UNDEFINED", tag_token, 0);
@@ -28835,7 +28813,6 @@ if (mp->mem_name != NULL) {
 }
 {
   unsigned i = 14;
-  set_lower_limited_value(mp->mem_max,opt->main_memory,5000);
   mp->param_size = 128;
   mp->max_in_open = 0;
   if (opt->hash_size>0x8000000) 
