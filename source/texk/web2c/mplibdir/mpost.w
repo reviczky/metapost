@@ -728,7 +728,7 @@ static struct option mpost_options[]
     }
 
     if (ARGUMENT_IS ("kpathsea-debug")) {
-      kpathsea_debug |= atoi (optarg);
+      kpathsea_debug |= (unsigned)atoi (optarg);
 
     } else if (ARGUMENT_IS("jobname")) {
       if (optarg!=NULL) {
@@ -831,7 +831,7 @@ static struct option dvitomp_options[]
     }
     if (option_is ("kpathsea-debug")) {
       if (optarg!=NULL)
-        kpathsea_debug |= atoi (optarg);
+        kpathsea_debug |= (unsigned)atoi (optarg);
     } else if (option_is ("progname")) {
       user_progname = optarg;
     } else if (option_is("help")) {
