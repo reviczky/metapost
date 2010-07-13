@@ -13862,21 +13862,31 @@ char *  *iname_stack; /* used for naming \.{MPX} files */
 char *  *iarea_stack; /* used for naming \.{MPX} files */
 str_number *mpx_name  ;
 
-@ @<Allocate or ...@>=
-mp->input_file  = xmalloc((mp->max_in_open+1),sizeof(void *));
-mp->line_stack  = xmalloc((mp->max_in_open+1),sizeof(integer));
-mp->inext_stack = xmalloc((mp->max_in_open+1),sizeof(char *));
-mp->iname_stack = xmalloc((mp->max_in_open+1),sizeof(char *));
-mp->iarea_stack = xmalloc((mp->max_in_open+1),sizeof(char *));
-mp->mpx_name    = xmalloc((mp->max_in_open+1),sizeof(str_number));
-{
+@ @<Declarations@>=
+static void mp_reallocate_input_stack (MP mp, int newsize);
+
+@ @c
+static void mp_reallocate_input_stack (MP mp, int newsize) {
   int k;
-  for (k=0;k<=mp->max_in_open;k++) {
-    mp->inext_stack[k] =NULL;
-    mp->iname_stack[k] =NULL;
-    mp->iarea_stack[k] =NULL;
+  XREALLOC(mp->input_file , newsize, void *);
+  XREALLOC(mp->line_stack , newsize, integer);
+  XREALLOC(mp->inext_stack, newsize, char *);
+  XREALLOC(mp->iname_stack, newsize, char *);
+  XREALLOC(mp->iarea_stack, newsize, char *);
+  XREALLOC(mp->mpx_name   , newsize, str_number);
+  for (k=mp->max_in_open;k<=newsize;k++) {
+    mp->input_file[k]  = NULL;
+    mp->line_stack[k]  = 0;
+    mp->inext_stack[k] = NULL;
+    mp->iname_stack[k] = NULL;
+    mp->iarea_stack[k] = NULL;
+    mp->mpx_name[k]    = NULL;
   }
+  mp->max_in_open = newsize;
 }
+
+@ @<Allocate or ...@>=
+mp_reallocate_input_stack (mp, 10);
 
 @ @<Dealloc variables@>=
 {
@@ -13951,15 +13961,16 @@ macro|.
 @d nstart mp->cur_input.nstart_field /* location of next node node */
 
 @d token_type iindex /* type of current token list */
-@d token_state (iindex>(int)mp->max_in_open) /* are we scanning a token list? */
-@d file_state (iindex<=(int)mp->max_in_open) /* are we scanning a file line? */
+@d token_state (iindex<=macro) /* are we scanning a token list? */
+@d file_state (iindex>macro) /* are we scanning a file line? */
 @d param_start limit /* base of macro parameters in |param_stack| */
-@d forever_text (mp->max_in_open+1) /* |token_type| code for loop texts */
-@d loop_text (mp->max_in_open+2) /* |token_type| code for loop texts */
-@d parameter (mp->max_in_open+3) /* |token_type| code for parameter texts */
-@d backed_up (mp->max_in_open+4) /* |token_type| code for texts to be reread */
-@d inserted (mp->max_in_open+5) /* |token_type| code for inserted texts */
-@d macro (mp->max_in_open+6) /* |token_type| code for macro replacement texts */
+@d forever_text 0 /* |token_type| code for loop texts */
+@d loop_text 1 /* |token_type| code for loop texts */
+@d parameter 2 /* |token_type| code for parameter texts */
+@d backed_up 3 /* |token_type| code for texts to be reread */
+@d inserted 4 /* |token_type| code for inserted texts */
+@d macro 5 /* |token_type| code for macro replacement texts */
+@d file_bottom 6 /* lowest file code */
 
 @ The |param_stack| is an auxiliary array used to hold pointers to the token
 lists for parameters at the current level and subsidiary levels of input.
@@ -14003,7 +14014,7 @@ integer mp_true_line (MP mp) {
   } else { 
     k=mp->input_ptr;
     while ((k>0) &&
-           ((mp->input_stack[(k-1)].index_field>mp->max_in_open)||
+           ((mp->input_stack[(k-1)].index_field<file_bottom)||
             (mp->input_stack[(k-1)].name_field<=max_spec_src))) {
       decr(k);
     }
@@ -14381,11 +14392,11 @@ or |limit| or |line|.
 @^system dependencies@>
 
 @c void mp_begin_file_reading (MP mp) { 
+
   if ( mp->in_open==mp->max_in_open ) 
-    mp_overflow(mp, "text input levels",mp->max_in_open);
-@:MetaPost capacity exceeded text input levels}{\quad text input levels@>
+    mp_reallocate_input_stack(mp, (mp->max_in_open+mp->max_in_open/4));
   if ( mp->first==mp->buf_size ) 
-    mp_reallocate_buffer(mp,(mp->buf_size+(mp->buf_size/4)));
+    mp_reallocate_buffer(mp,(mp->buf_size+mp->buf_size/4));
   mp->in_open++; push_input; iindex=(quarterword)mp->in_open;
   if (mp->in_open_max<mp->in_open)
     mp->in_open_max=mp->in_open;
@@ -14399,6 +14410,15 @@ is finished.  Any associated \.{MPX} file must also be closed and popped
 off the file stack.
 
 @c static void mp_end_file_reading (MP mp) { 
+  if (mp->in_open<=file_bottom) {
+	print_err("Attempt to close the bottom level file!");
+  help3("You attempted to close the bottommost file input level.",
+       "The most likely cause of this error is that your preload",
+       "file did not end with 'dump' or 'end'. MP will exit now.");
+	mp_error(mp); 
+	mp->history =mp_fatal_error_stop;
+	mp_jump_out(mp);
+  }
   if ( mp->in_open>iindex ) {
     if ( (mp->mpx_name[mp->in_open]==absent)||(name<=max_spec_src) ) {
       mp_confusion(mp, "endinput");
@@ -14480,15 +14500,23 @@ error-inserted lines from memory.
 actions.
 
 @<Initialize the input routines@>=
-{ mp->input_ptr=0; mp->max_in_stack=0;
-  mp->in_open=0; mp->open_parens=0; mp->max_buf_stack=0;
-  mp->param_ptr=0; mp->max_param_stack=0;
+{ mp->input_ptr=0;
+  mp->max_in_stack=file_bottom;
+  mp->in_open=file_bottom;
+  mp->open_parens=0;
+  mp->max_buf_stack=0;
+  mp->param_ptr=0;
+  mp->max_param_stack=0;
   mp->first=0;
-  start=0; iindex=0; line=0; name=is_term;
-  mp->mpx_name[0]=absent;
+  start=0;
+  iindex=file_bottom;
+  line=0;
+  name=is_term;
+  mp->mpx_name[file_bottom]=absent;
   mp->force_eof=false;
   if ( ! mp_init_terminal(mp) ) mp_jump_out(mp);
-  limit=(halfword)mp->last; mp->first=mp->last+1; 
+  limit=(halfword)mp->last;
+  mp->first=mp->last+1; 
   /* |init_terminal| has set |loc| and |last| */
 }
 
@@ -17443,14 +17471,14 @@ void mp_prompt_file_name (MP mp, const char * s, const char * e) ;
   if ( mp->interaction==mp_scroll_mode ) 
 	wake_up_terminal;
   if (strcmp(s,"input file name")==0) {
-	print_err("I can\'t find file `");
+	print_err("I can\'t open file `");
 @.I can't find file x@>
   } else {
 	print_err("I can\'t write on file `");
 @.I can't write on file x@>
   }
   if (strcmp(s,"file name for output")==0) {
-    mp_print(mp, mp->output_file); 
+    mp_print(mp, mp->name_of_file); 
   } else {
     mp_print_file_name(mp, mp->cur_name,mp->cur_area,mp->cur_ext); 
   }
@@ -28733,10 +28761,8 @@ interfere with the actual job.
 @c 
 boolean mp_load_preload_file (MP mp) {
   size_t k;
+  in_state_record old_state = mp->cur_input;
   char *fname = xstrdup(mp->name_of_file);	
-  int saved_loc = loc;
-  int saved_limit = limit;
-  int saved_start = start;
   size_t l = strlen(fname);
   str_room(l);
   for (k=0;k<l;k++) {
@@ -28770,9 +28796,7 @@ boolean mp_load_preload_file (MP mp) {
 
   fclose(mp->mem_file);
   cur_file = NULL;
-  start = saved_start;
-  loc = saved_loc;
-  limit = saved_limit;
+  mp->cur_input = old_state;
   return true;
 }
 
@@ -28813,7 +28837,7 @@ if (mp->mem_name != NULL) {
   unsigned i = 14;
   set_lower_limited_value(mp->mem_max,opt->main_memory,5000);
   mp->param_size = 128;
-  set_lower_limited_value(mp->max_in_open,opt->max_in_open,10);
+  mp->max_in_open = 0;
   if (opt->hash_size>0x8000000) 
     opt->hash_size=0x8000000;
   if (opt->hash_size>0) {
@@ -28943,7 +28967,7 @@ if ( mp->log_opened ) {
   wlog_ln(s);
   mp_snprintf(s,128," %ii,%in,%ip,%ib,%if stack positions out of %ii,%in,%ip,%ib,%if",
            (int)mp->max_in_stack,(int)mp->int_ptr,
-           (int)mp->max_param_stack,(int)mp->max_buf_stack+1,(int)mp->in_open_max,
+           (int)mp->max_param_stack,(int)mp->max_buf_stack+1,(int)mp->in_open_max-file_bottom,
            (int)mp->stack_size,(int)mp->max_internal,(int)mp->param_size,
 	   (int)mp->buf_size,(int)mp->max_in_open);
   wlog_ln(s);
