@@ -9,23 +9,23 @@
    to be the program name. */
 
 void
-usage (const_string str)
+usage P1C(const_string, str)
 {
   fprintf (stderr, "Try `%s --help' for more information.\n", str);
   uexit (1);
 }
 
 /* Call usage if the program exits by printing the help message.
-   MESSAGE is a NULL-terminated array of strings which make up the
+   MESSAGE is an NULL-terminated array or strings which make up the
    help message.  Each string is printed on a separate line.
    We use arrays instead of a single string to work around compiler
    limitations (sigh).
 */
 void
-usagehelp (const_string *message, const_string bug_email)
+usagehelp P2C(const_string*, message, const_string,bug_email)
 {
     if (!bug_email)
-        bug_email = "tex-k@tug.org";
+        bug_email = "tex-k@mail.tug.org";
     while (*message) {
         printf("%s\n", *message);
         ++message;

@@ -1,6 +1,6 @@
 /* xcalloc.c: calloc with error checking.
 
-   Copyright 1992, 1993, 2008, 2010 Karl Berry.
+   Copyright 1992, 1993, 2008 Karl Berry.
    Copyright 2005 Olaf Weber.
 
    This library is free software; you can redistribute it and/or
@@ -20,14 +20,14 @@
 
 
 void *
-xcalloc (size_t nelem,  size_t elsize)
+xcalloc (unsigned nelem,  unsigned elsize)
 {
-    void *new_mem = (void*)calloc(nelem ? nelem : 1, elsize ? elsize : 1);
+    void *new_mem = (void*)calloc(nelem, elsize);
   
     if (new_mem == NULL) {
         fprintf(stderr,
-                "xcalloc: request for %lu elements of size %lu failed.\n",
-                (unsigned long)nelem, (unsigned long)elsize);
+                "xcalloc: request for %u elements of size %u failed.\n",
+                nelem, elsize);
         exit(EXIT_FAILURE);
     }
   

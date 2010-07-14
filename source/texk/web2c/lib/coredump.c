@@ -17,7 +17,7 @@
 #include <sys/wait.h>
 
 void
-funny_core_dump (void)
+funny_core_dump P1H(void)
 {
 #ifdef __EMX__
   {

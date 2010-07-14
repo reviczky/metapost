@@ -30,7 +30,7 @@ extern KPSEDLL string kpathsea_selfdir (kpathsea kpse, const_string argv0);
 /* Set the first two variables above (if they're not predefined) to a copy
    of ARGV0 and everything in ARGV0 after the last directory separator,
    respectively.  Set kpse_program_name to a copy of PROGNAME or the
-   value of program_invocation_short_name if PROGNAME is NULL.
+   or the value of program_invocation_short_name if PROGNAME is NULL.
    This function also determines the AUTO* variables. */
 
 extern KPSEDLL void kpathsea_set_program_name (kpathsea kpse,
@@ -49,9 +49,7 @@ extern KPSEDLL string kpse_selfdir (const_string argv0);
 extern KPSEDLL void kpse_set_program_name (const_string argv0,
                                       const_string progname);
 
-#ifdef MAKE_KPSE_DLL /* libkpathsea internal only */
-
-/* DEPRECATED since 1998 -- To be removed in Version 6.0.0.
+/* DEPRECATED
    Set first two variables above (if they're not predefined) to a copy of
    ARGV0 and everything in ARGV0 after the last directory separator,
    respectively.  kpse_program_name is _always_ set to a copy of everything
@@ -59,8 +57,6 @@ extern KPSEDLL void kpse_set_program_name (const_string argv0,
 
 extern KPSEDLL void kpse_set_progname (const_string argv0);
 
-#endif /* MAKE_KPSE_DLL */
-
-#endif /* KPSE_COMPAT_API */
+#endif
 
 #endif /* not KPATHSEA_PROGNAME_H */

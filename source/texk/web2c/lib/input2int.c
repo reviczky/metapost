@@ -2,7 +2,6 @@
    routines are only used in patgen.  Public domain. */
 
 #include "config.h"
-#include "lib.h"
 
 #ifdef INTEGER_IS_INT
 #define SCAN2INT "%d %d"
@@ -15,7 +14,7 @@
 /* Read two integers from stdin.  */
 
 void
-zinput2ints (integer *a,  integer *b)
+zinput2ints P2C(integer *, a,  integer *, b)
 {
   int ch;
 
@@ -33,7 +32,7 @@ zinput2ints (integer *a,  integer *b)
 /* Read three integers from stdin.  */
 
 void
-zinput3ints (integer *a,  integer *b,  integer *c)
+zinput3ints P3C(integer *, a,  integer *, b,  integer *, c)
 {
   int ch;
 

@@ -4,7 +4,6 @@
 Written in 1994 by Karl Berry.  Public domain.  */
 
 #include "config.h"
-#include "lib.h"
 
 /* This is needed because web2c turns the Pascal construct 'x' into the
    C character constant 'x', not the string "x". And we need to keep it
@@ -14,7 +13,7 @@ Written in 1994 by Karl Berry.  Public domain.  */
    malloc overhead) here, but it doesn't matter.  */
 
 string
-chartostring (char ch)
+chartostring P1C(char, ch)
 {
   string str = (string)xmalloc (2);
   str[0] = ch;

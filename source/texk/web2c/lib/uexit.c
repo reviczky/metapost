@@ -5,7 +5,7 @@
 #include "config.h"
 
 void
-uexit (int unix_code)
+uexit P1C(int, unix_code)
 {
   int final_code;
   

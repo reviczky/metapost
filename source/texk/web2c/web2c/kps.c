@@ -30,7 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #undef fclose
 
 string
-uppercasify (const_string s)
+uppercasify P1C(const_string, s)
 {
   string target;
   string ret = malloc (strlen(s) + 1);
@@ -50,7 +50,7 @@ uppercasify (const_string s)
    routines and abort if an error happens.  */
 
 FILE *
-xfopen (const_string filename,  const_string mode)
+xfopen P2C(const_string, filename,  const_string, mode)
 {
   FILE *f;
 
@@ -67,7 +67,7 @@ xfopen (const_string filename,  const_string mode)
 
 
 void
-xfclose (FILE *f,  const_string filename)
+xfclose P2C(FILE *, f,  const_string, filename)
 {
   assert (f);
 

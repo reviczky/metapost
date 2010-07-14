@@ -3,11 +3,11 @@
 /* The entry point: set up for reading the command line, which will
    happen in `topenin', then call the main body.  Public domain. */
 
-extern TEXDLL void mainbody (void);
-extern TEXDLL void maininit (int, string *);
+extern TEXDLL void mainbody P1H(void);
+extern TEXDLL void maininit P2H(int, string *);
 
 int
-main (int ac, string *av)
+main P2C(int, ac,  string *, av)
 {
 #ifdef __EMX__
   _wildcard (&ac, &av);

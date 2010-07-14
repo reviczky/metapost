@@ -53,7 +53,7 @@ FILE *out;
 FILE *coerce;
 int pf_count = 1;
 
-const char *std_header = "null.h";	/* Default include filename */
+char *std_header = "null.h";	/* Default include filename */
 
 char strings[max_strings];
 int hash_list[hash_prime];
@@ -62,8 +62,13 @@ struct sym_entry sym_table[sym_table_size];
 int next_sym_free = -1, next_string_free = 0;
 int mark_sym_free, mark_string_free;
 
+int argc;
+char **gargv;
+
+extern int yyleng;
+
 void
-find_next_temp (void)
+find_next_temp P1H(void)
 {
   next_temp[4]++;
   if (next_temp[4] > 'z')
@@ -74,13 +79,13 @@ find_next_temp (void)
 }
 
 void
-normal (void)
+normal P1H(void)
 {
   out = stdout;
 }
 
 void
-new_line (void)
+new_line P1H(void)
 {
   if (!out)
     return;
@@ -95,7 +100,7 @@ new_line (void)
 /* Output the string S to the file `out'.  */
 
 void
-my_output (const_string s)
+my_output P1C(string, s)
 {
   int len = strlen (s);
   int less_indent = 0;
@@ -127,7 +132,7 @@ my_output (const_string s)
 }
 
 void
-semicolon (void)
+semicolon P1H(void)
 {
   if (!last_brace) {
     my_output (";");
@@ -136,8 +141,8 @@ semicolon (void)
   }
 }
 
-static int
-hash (const_string id)
+int
+hash P1C(const_string, id)
 {
   register int i = 0, j;
   for (j = 0; id[j] != 0; j++)
@@ -146,7 +151,7 @@ hash (const_string id)
 }
 
 int
-search_table (const_string id)
+search_table P1C(const_string, id)
 {
   int ptr;
   ptr = hash_list[hash (id)];
@@ -164,7 +169,7 @@ search_table (const_string id)
 /* Add ID to the symbol table.  Leave it up to the caller to assign to
    the `typ' field.  Return the index into the `sym_table' array.  */
 int
-add_to_table (string id)
+add_to_table P1C(string, id)
 {
   int h, ptr;
   h = hash (id);
@@ -181,7 +186,7 @@ add_to_table (string id)
 }
 
 void
-remove_locals (void)
+remove_locals P1H(void)
 {
   int h, ptr;
   for (h = 0; h < hash_prime; h++)
@@ -197,7 +202,7 @@ remove_locals (void)
 }
 
 void
-mark (void)
+mark P1H(void)
 {
   mark_sym_free = next_sym_free;
   mark_string_free = next_string_free;
@@ -206,7 +211,7 @@ mark (void)
 
 
 void
-initialize (void)
+initialize P1H(void)
 {
   register int i;
 
@@ -219,7 +224,7 @@ initialize (void)
 }
 
 int
-main (int argc, string *argv)
+main P2C(int, argc, string *, argv)
 {
   int error, i;
 

@@ -4,6 +4,9 @@
 #include "config.h"
 #include <kpathsea/c-pathmx.h>
 
+int argc;
+char **gargv;
+
 char buf[BUFSIZ], filename[PATH_MAX], args[100];
 char *file, *argp, *as, *cmd;
 
@@ -12,7 +15,7 @@ int tex = false;
 /* Replace the last (should be only) newline in S with a null.  */
 
 static void
-remove_newline (string s)
+remove_newline P1C(string, s)
 {
   char *temp = strrchr (s, '\n');
   if (temp == NULL)
@@ -28,7 +31,7 @@ remove_newline (string s)
 
 
 static char *
-insert_long (string cp)
+insert_long P1C(string, cp)
 {
   char tbuf[BUFSIZ];
   register int i;
@@ -43,7 +46,7 @@ insert_long (string cp)
 
 
 static void
-join (string cp)
+join P1C(string, cp)
 {
   char temp[BUFSIZ], *tp;
 
@@ -60,7 +63,7 @@ join (string cp)
 
 
 static void
-do_blanks (int indent)
+do_blanks P1C(int, indent)
 {
   register int i;
 
@@ -75,7 +78,7 @@ do_blanks (int indent)
 /* Return true if we have a whole write/writeln statement.  We determine
    this by matching parens, ignoring those within strings.  */
 static int
-whole (string cp)
+whole P1C(string, cp)
 {
   register int depth = 0;
 
@@ -109,7 +112,7 @@ whole (string cp)
 /* Skips to the next , or ), skipping over balanced paren pairs.  */
 
 static char *
-skip_balanced (string cp)
+skip_balanced P1C(string, cp)
 {
   register int depth = 0;
 
@@ -133,7 +136,7 @@ skip_balanced (string cp)
 /* Return true if c appears, except inside a quoted string */
 
 static int
-bare (string cp,  char c)
+bare P2C(string, cp,  char, c)
 {
   for (; *cp && *cp != c; ++cp)
     {
@@ -166,8 +169,8 @@ bare (string cp,  char c)
    errors.  Ensures that it is the matching bracket that is replaced,
    not the first one.  */
 
-static char *
-advance_cp (char *cp, int lefts)
+char *
+advance_cp P2C(char *, cp, int, lefts)
 {
   char *cp1;
   char *cp2;
@@ -182,11 +185,11 @@ advance_cp (char *cp, int lefts)
 }
 
 int
-main (int argc,  string *argv)
+main P2C(int, argc,  string *, argv)
 {
   register char *cp;
   int blanks_done, indent, i;
-  const char *program_name = "";
+  char *program_name = "";
 
   for (i = 1; i < argc; i++)
     {
@@ -358,7 +361,7 @@ main (int argc,  string *argv)
                   && (STREQ (program_name, "vptovf")
                       || STREQ (program_name, "pltotf")
                       || STREQ (program_name, "ovp2ovf")
-                      || STREQ (program_name, "opl2ofm")))
+                      || STREQ (program_name, "ofm2opl")))
               || (((strncmp (cp, "buf", 3) == 0
 		    || strncmp (cp, "xdig", 4) == 0
 		    || strncmp (cp, "xext", 4) == 0
@@ -437,7 +440,7 @@ main (int argc,  string *argv)
 	  *as = '\0';
 	  printf ("putc (%s, %s);\n", argp, filename);
 	}
-      else if (strcmp (args, "%s") == 0)
+      else if (STREQ (args, "%s"))
         printf ("Fputs (%s, %s\n", filename, argp);
       else
         printf ("fprintf (%s, \"%s\", %s\n", filename, args, argp);

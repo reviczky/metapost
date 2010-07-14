@@ -89,13 +89,13 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.211" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.500" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @(mpmp.h@>=
-#define metapost_version "1.211"
-#define metapost_magic (('M'*256) + 'P')*65536 + 1211
+#define metapost_version "1.500"
+#define metapost_magic (('M'*256) + 'P')*65536 + 1500
 #define metapost_old_magic (('M'*256) + 'P')*65536 + 1080
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
@@ -122,6 +122,7 @@ The variables from |MP_options| are included inside the |MP_instance|
 wholesale.
 
 @(mpmp.h@>=
+#include "avl.h"
 #include <setjmp.h>
 typedef struct psout_data_struct * psout_data;
 typedef struct svgout_data_struct * svgout_data;
@@ -148,7 +149,7 @@ typedef struct MP_instance {
 #include <stdarg.h>
 #include <assert.h>
 #ifdef HAVE_UNISTD_H
-#include <unistd.h> /* for access() */
+#include <unistd.h> /* for access */
 #endif
 #include <time.h> /* for struct tm \& co */
 #include "mplib.h"
@@ -157,8 +158,7 @@ typedef struct MP_instance {
 #include "mpmp.h" /* internal header */
 #include "mppsout.h" /* internal header */
 #include "mpsvgout.h" /* internal header */
-#include "mptfmin.h" /* internal header */
-#include "mpmemio.h" /* internal header */
+extern font_number mp_read_font_info (MP mp, char *fname); /* tfmin.w */
 @h
 @<Declarations@>
 @<Basic printing procedures@>
@@ -177,7 +177,6 @@ MP_options *mp_options (void) {
   opt = malloc(l);
   if (opt!=NULL) {
     memset (opt,0,l);
-    opt->ini_version = true;
   }
   return opt;
 } 
@@ -213,6 +212,7 @@ static void mp_free (MP mp) {
     @<Finish non-interactive use@>;
   }
   xfree(mp->jump_buf);
+  @<Free table entries@>;
   xfree(mp);
 }
 
@@ -233,7 +233,6 @@ MP mp_initialize (MP_options *opt) {
   if (mp == NULL)
     return NULL;
   mp->userdata=opt->userdata;
-  @<Set |ini_version|@>;
   mp->noninteractive=opt->noninteractive;
   set_callback_option(find_file);
   set_callback_option(open_file);
@@ -259,7 +258,6 @@ MP mp_initialize (MP_options *opt) {
   t_open_out; 
   @<Find constant sizes@>;
   @<Allocate or initialize variables@>
-  mp_reallocate_memory(mp,mp->mem_max);
   mp_reallocate_paths(mp,1000);
   mp_reallocate_fonts(mp,8);
   mp->history=mp_fatal_error_stop; /* in case we quit during initialization */
@@ -268,14 +266,14 @@ MP mp_initialize (MP_options *opt) {
 	char ss[256];
     mp_snprintf(ss,256,"Ouch---my internal constants have been clobbered!\n"
                    "---case %i",(int)mp->bad);
-    do_fprintf(mp->err_out,(char *)ss);
+    do_putsf(mp->err_out,(char *)ss);
 @.Ouch...clobbered@>
     return mp;
   }
   mp_do_initialize(mp); /* erase preloaded mem */
-  if (mp->ini_version) {
-    @<Run inimpost commands@>;
-  }
+  mp_init_tab(mp); /* initialize the tables */
+  mp_init_prim(mp); /* call |primitive| for each primitive */
+  mp_fix_date_and_time(mp);
   if (!mp->noninteractive) {
     @<Initialize the output routines@>;
     @<Get the first line of input and prepare to start@>;
@@ -293,11 +291,12 @@ mp_set_job_id(mp);
 mp_init_map_file(mp, mp->troff_mode);
 mp->history=mp_spotless; /* ready to go! */
 if (mp->troff_mode) {
-  mp->internal[mp_gtroffmode]=unity; 
-  mp->internal[mp_prologues]=unity; 
+  internal_value(mp_gtroffmode)=unity; 
+  internal_value(mp_prologues)=unity; 
 }
-if ( mp->start_sym>0 ) { /* insert the `\&{everyjob}' symbol */
-  mp->cur_sym=mp->start_sym; mp_back_input(mp);
+if ( mp->start_sym!=NULL ) { /* insert the `\&{everyjob}' symbol */
+  mp->cur_sym=mp->start_sym; 
+  mp_back_input(mp);
 }
 
 @ @<Exported function headers@>=
@@ -329,18 +328,8 @@ when system wizards are fooling around with \MP\ without quite knowing
 what they are doing. Such code will not normally be compiled; it is
 delimited by the preprocessor test `|#ifdef DEBUG .. #endif|'.
 
-@ This program has two important variations: (1) There is a long and slow
-version called \.{INIMP}, which does the extra calculations needed to
-@.INIMP@>
-initialize \MP's internal tables; and (2)~there is a shorter and faster
-production version, which cuts the initialization to a bare minimum.
-
-Which is which is decided at runtime.
-
 @ The following parameters can be changed at compile time to extend or
-reduce \MP's capacity. They may have different values in \.{INIMP} and
-in production versions of \MP.
-@.INIMP@>
+reduce \MP's capacity. 
 @^system dependencies@>
 
 @<Constants...@>=
@@ -349,25 +338,15 @@ in production versions of \MP.
   should probably be left at this value */
 
 @ Like the preceding parameters, the following quantities can be changed
-to extend or reduce \MP's capacity. But if they are changed,
-it is necessary to rerun the initialization program \.{INIMP}
-@.INIMP@>
-to generate new tables for the production \MP\ program.
-One can't simply make helter-skelter changes to the following constants,
-since certain rather complex initialization
-numbers are computed from them. 
+to extend or reduce \MP's capacity. 
 
 @ @<Glob...@>=
-int max_strings; /* maximum number of strings; must not exceed |max_halfword| */
 int pool_size; /* maximum number of characters in strings, including all
   error messages and help texts, and the names of all identifiers */
 int old_pool_size; /* a helper used by |mp_cat| */
-int mem_max; /* greatest index in \MP's internal |mem| array;
-  must be strictly less than |max_halfword|;
-  must be equal to |mem_top| in \.{INIMP}, otherwise |>=mem_top| */
-int mem_top; /* largest index in the |mem| array dumped by \.{INIMP};
-  must not be greater than |mem_max| */
-int hash_prime; /* a prime number equal to about 85\pct! of |hash_size| */
+int max_in_open; /* maximum number of input files and error insertions that
+  can be going on simultaneously */
+int param_size; /* maximum number of simultaneous macro parameters */
 
 @ @<Option variables@>=
 int error_line; /* width of context lines on terminal error messages */
@@ -375,32 +354,27 @@ int half_error_line; /* width of first lines of contexts in terminal
   error messages; should be between 30 and |error_line-15| */
 int halt_on_error; /* do we quit at the first error? */
 int max_print_line; /* width of longest text lines output; should be at least 60 */
-unsigned hash_size; /* maximum number of symbolic tokens,
-  must be less than |max_halfword-3*param_size| */
-int param_size; /* maximum number of simultaneous macro parameters */
-int max_in_open; /* maximum number of input files and error insertions that
-  can be going on simultaneously */
-int main_memory; /* only for options, to set up |mem_max| and |mem_top| */
 void *userdata; /* this allows the calling application to setup local */
 char *banner; /* the banner that is printed to the screen and log */
+int ini_version;
 
 @ @<Dealloc variables@>=
 xfree(mp->banner);
 
 @ 
-@d set_value(a,b,c) do { a=c; if (b>c) a=b; } while (0)
+@d set_lower_limited_value(a,b,c) do { a=c; if (b>c) a=b; } while (0)
 
 @<Allocate or ...@>=
-mp->max_strings=500;
 mp->pool_size=10000;
 mp->old_pool_size=10000;
-set_value(mp->error_line,opt->error_line,79);
-set_value(mp->half_error_line,opt->half_error_line,50);
+set_lower_limited_value(mp->error_line,opt->error_line,79);
+set_lower_limited_value(mp->half_error_line,opt->half_error_line,50);
 if (mp->half_error_line>mp->error_line-15 ) 
   mp->half_error_line = mp->error_line-15;
 mp->max_print_line=100;
-set_value(mp->max_print_line,opt->max_print_line,79);
+set_lower_limited_value(mp->max_print_line,opt->max_print_line,79);
 mp->halt_on_error = (opt->halt_on_error ? true : false);
+mp->ini_version = (opt->ini_version ? true : false);
 
 @ In case somebody has inadvertently made bad settings of the ``constants,''
 \MP\ checks them using a global variable called |bad|.
@@ -411,16 +385,15 @@ defined.
 @<Glob...@>=
 integer bad; /* is some ``constant'' wrong? */
 
-@ Later on we will say `\ignorespaces|if (mem_max>=max_halfword) bad=10;|',
-or something similar. (We can't do that until |max_halfword| has been defined.)
+@ Later on we will say `|if ( int_packets+17*int_increment>bistack_size )mp->bad=19;|',
+or something similar.
 
-In case you are wondering about the non-consequtive values of |bad|: some
+In case you are wondering about the non-consequtive values of |bad|: most
 of the things that used to be WEB constants are now runtime variables
 with checking at assignment time.
 
 @<Check the ``constant'' values for consistency@>=
 mp->bad=0;
-if ( mp->mem_top<=1100 ) mp->bad=4;
 
 @ Some |goto| labels are used by the following definitions. The label
 `|restart|' is occasionally used at the very beginning of a procedure; and
@@ -556,7 +529,7 @@ enum mp_filetype {
   mp_filetype_program , /* \MP\ language input */
   mp_filetype_log,  /* the log file */
   mp_filetype_postscript, /* the postscript output */
-  mp_filetype_memfile, /* memory dumps */
+  mp_filetype_memfile, /* memory dumps, obsolete */
   mp_filetype_metrics, /* TeX font metric files */
   mp_filetype_fontmap, /* PostScript font mapping files */
   mp_filetype_font, /*  PostScript type1 font programs */
@@ -671,8 +644,6 @@ mp->file_line_error_style = (opt->file_line_error_style>0 ? true : false);
 |name_of_file| could be opened.
 
 The |OPEN_FILE| macro takes care of the |print_found_names| parameter.
-It is not used for opening a mem file for read, because that file name 
-is never printed.
 
 @d OPEN_FILE(A) do {
   if (mp->print_found_names || mp->file_line_error_style) {
@@ -701,14 +672,6 @@ static boolean mp_a_open_in (MP mp, void **f, int ftype) {
   OPEN_FILE("r");
 }
 @#
-#if 0
-boolean mp_w_open_in (MP mp, void **f) {
-  /* open a word file for input */
-  *f = (mp->open_file)(mp,mp->name_of_file,"r",mp_filetype_memfile); 
-  return (*f ? true : false);
-}
-#endif
-@#
 static boolean mp_a_open_out (MP mp, void **f, int ftype) {
   /* open a text file for output */
   OPEN_FILE("w");
@@ -718,15 +681,6 @@ static boolean mp_b_open_out (MP mp, void **f, int ftype) {
   /* open a binary file for output */
   OPEN_FILE("w");
 }
-@#
-boolean mp_w_open_out (MP mp, void **f) {
-  /* open a word file for output */
-  int ftype = mp_filetype_memfile;
-  OPEN_FILE("w");
-}
-
-@ @<Internal library ...@>=
-boolean mp_w_open_out (MP mp, void **f);
 
 @ @c
 static char *mp_read_ascii_file (MP mp, void *ff, size_t *size) {
@@ -897,9 +851,7 @@ void * err_out; /* the terminal as an output file */
 @ Here is how to open the terminal files. In the default configuration,
 nothing happens except that the command line (if there is one) is copied
 to the input buffer.  The variable |command_line| will be filled by the 
-|main| procedure. The copying can not be done earlier in the program 
-logic because in the |INI| version, the |buffer| is also used for primitive 
-initialization.
+|main| procedure. 
 
 @d t_open_out  do {/* open the terminal for text output */
     mp->term_out = (mp->open_file)(mp,"terminal", "w", mp_filetype_terminal);
@@ -989,15 +941,17 @@ boolean mp_init_terminal (MP mp) { /* gets the terminal input started */
   t_open_in; 
   if (mp->last!=0) {
     loc = 0; mp->first = 0;
-	return true;
+    return true;
   }
   while (1) { 
     if (!mp->noninteractive) {
-	  wake_up_terminal; do_fprintf(mp->term_out,"**"); update_terminal;
+      wake_up_terminal;
+      do_putsf(mp->term_out,"**");
 @.**@>
+      update_terminal;
     }
     if ( ! mp_input_ln(mp, mp->term_in ) ) { /* this shouldn't happen */
-      do_fprintf(mp->term_out,"\n! End of file on the terminal... why?");
+      do_putsf(mp->term_out,"\n! End of file on the terminal... why?");
 @.End of file on the terminal@>
       return false;
     }
@@ -1008,7 +962,7 @@ boolean mp_init_terminal (MP mp) { /* gets the terminal input started */
       return true; /* return unless the line was all blank */
     }
     if (!mp->noninteractive) {
-	  do_fprintf(mp->term_out,"Please type the name of your input file.\n");
+      do_putsf(mp->term_out,"Please type the name of your input file.\n");
     }
   }
 }
@@ -1026,138 +980,169 @@ language, and these have to be interned.
 
 \MP\ uses strings more extensively than \MF\ does, but the necessary
 operations can still be handled with a fairly simple data structure.
-The array |str_pool| contains all of the (eight-bit) ASCII codes in all
-of the strings, and the array |str_start| contains indices of the starting
-points of each string. Strings are referred to by integer numbers, so that
-string number |s| comprises the characters |str_pool[j]| for
-|str_start[s]<=j<str_start[ss]| where |ss=next_str[s]|.  The string pool
-is allocated sequentially and |str_pool[pool_ptr]| is the next unused
-location.  The first string number not currently in use is |str_ptr|
-and |next_str[str_ptr]| begins a list of free string numbers.  String
-pool entries |str_start[str_ptr]| up to |pool_ptr| are reserved for a
-string currently being constructed.
+The avl tree |strings| contains all of the known string structures.
 
-String numbers 0 to 255 are reserved for strings that correspond to single
-ASCII characters. This is in accordance with the conventions of \.{WEB},
-@.WEB@>
-which converts single-character strings into the ASCII code number of the
-single character involved, while it converts other strings into integers
-and builds a string pool file. Thus, when the string constant \.{"."} appears
-in the program below, \.{WEB} converts it into the integer 46, which is the
-ASCII code for a period, while \.{WEB} will convert a string like \.{"hello"}
-into some integer greater than~255. String number 46 will presumably be the
-single character `\..'\thinspace; but some ASCII codes have no standard visible
-representation, and \MP\ may need to be able to print an arbitrary
-ASCII character, so the first 256 strings are used to specify exactly what
-should be printed for each of the 256 possibilities.
+Each structure contains an |unsigned char| pointer containing the eight-bit
+data, a |size_t| that holds the length of that data, and an |int| that 
+indicates how often this string is referenced (this will be explained below).
+Such strings are referred to by structure pointers called |str_number|.
 
-@<Types...@>=
-typedef int pool_pointer; /* for variables that point into |str_pool| */
-typedef int str_number; /* for variables that point into |str_start| */
+Besides the avl tree, there is a set of three variables called |cur_string|,
+|cur_length| and |cur_string_size| that are used for strings while they are
+being built.
+
+@<Exported types...@>=
+typedef struct {
+  unsigned char *str;       /* the string value */
+  size_t len;               /* its length */
+  int refs;                 /* number of references */
+} mp_lstring;
+typedef mp_lstring *str_number; /* for pointers to string values */
 
 @ @<Glob...@>=
-ASCII_code *str_pool; /* the characters */
-pool_pointer *str_start; /* the starting pointers */
-str_number *next_str; /* for linking strings in order */
-pool_pointer pool_ptr; /* first unused position in |str_pool| */
-str_number str_ptr; /* number of the current string being created */
-pool_pointer init_pool_ptr; /* the starting value of |pool_ptr| */
-str_number init_str_use; /* the initial number of strings in use */
-pool_pointer max_pool_ptr; /* the maximum so far of |pool_ptr| */
-str_number max_str_ptr; /* the maximum so far of |str_ptr| */
+avl_tree strings;             /* string avl tree */
+unsigned char *cur_string;    /*  current string buffer */
+size_t cur_length;            /* current index in that buffer */
+size_t cur_string_size;       /*  malloced size of |cur_string| */
+
+@ Here are the functions needed for the avl construction.
+
+@<Declarations@>=
+static int comp_strings_entry (void *p, const void *pa, const void *pb);
+static void *copy_strings_entry (const void *p) ;
+static void * delete_strings_entry (void *p);
+
+@ @c 
+static int comp_strings_entry (void *p, const void *pa, const void *pb) {
+    (void)p;
+    const mp_lstring *a = (const mp_lstring *) pa;
+    const mp_lstring *b = (const mp_lstring *) pb;
+    if (a->len != b->len) {
+        return (a->len > b->len ? 1 : -1 );
+    }
+    if (a->str==NULL && b->str==NULL) 
+        return 0;
+    if (a->str==NULL)
+        return -1;
+    if (b->str==NULL)
+        return 1;
+    return strncmp ((const char *)a->str, (const char *)b->str, a->len);
+}
+static void *copy_strings_entry (const void *p) {
+    str_number ff;
+    const mp_lstring *fp;
+    fp = (const mp_lstring *)p;
+    ff = malloc (sizeof(mp_lstring));
+    if (ff == NULL) 
+        return NULL;
+    ff->str = malloc(fp->len + 1);
+    if (ff->str == NULL) {
+	return NULL;
+    }
+    memcpy((char *)ff->str,(char *)fp->str,fp->len + 1);
+    ff->len = fp->len;
+    ff->refs = 0;
+    return ff;
+}
+static void * delete_strings_entry (void *p) {
+    str_number ff = (str_number)p;
+    mp_xfree (ff->str);
+    mp_xfree (ff);
+    return NULL;
+}
 
 @ @<Allocate or initialize ...@>=
-mp->str_pool  = xmalloc ((mp->pool_size +1),sizeof(ASCII_code));
-mp->str_start = xmalloc ((mp->max_strings+1),sizeof(pool_pointer));
-mp->next_str  = xmalloc ((mp->max_strings+1),sizeof(str_number));
+mp->strings   =  avl_create (comp_strings_entry, 
+                	     copy_strings_entry,
+                             delete_strings_entry,
+                             malloc, free, NULL);
+mp->cur_string = NULL;
+mp->cur_length = 0;
+mp->cur_string_size = 0;
 
 @ @<Dealloc variables@>=
-xfree(mp->str_pool);
-xfree(mp->str_start);
-xfree(mp->next_str);
+if (mp->strings != NULL)
+      avl_destroy (mp->strings);
+xfree(mp->cur_string);
+
+@ Actually creating strings is done by |make_string|, but in order to
+do so it needs a way to create a new, empty string structure.
+
+@<Declarations@>=
+static str_number new_strings_entry (MP mp) ;
+
+@ @c 
+static str_number new_strings_entry (MP mp) {
+    str_number ff;
+    ff = mp_xmalloc (mp,1,sizeof(mp_lstring));
+    ff->str = NULL;
+    ff->len = 0;
+    ff->refs = 0;
+    return ff;
+}
 
 @ Most printing is done from |char *|s, but sometimes not. Here are
 functions that convert an internal string into a |char *| for use
 by the printing routines, and vice versa.
 
-@d str(A) mp_str(mp,A)
-@d rts(A) mp_rts(mp,A)
-@d null_str rts("")
+@d null_str mp_rts(mp,"")
 
 @<Internal ...@>=
 int mp_xstrcmp (const char *a, const char *b);
 char * mp_str (MP mp, str_number s);
 
 @ @<Declarations@>=
+static str_number mp_rtsl (MP mp, const char *s, size_t l);
 static str_number mp_rts (MP mp, const char *s);
 static str_number mp_make_string (MP mp);
 
-@ @c 
+@ @c
 int mp_xstrcmp (const char *a, const char *b) {
-	if (a==NULL && b==NULL) 
-	  return 0;
+    if (a==NULL && b==NULL) 
+	return 0;
     if (a==NULL)
-      return -1;
+        return -1;
     if (b==NULL)
-      return 1;
+        return 1;
     return strcmp(a,b);
 }
 
-@ The attempt to catch interrupted strings that is in |mp_rts|, is not 
-very good: it does not handle nesting over more than one level.
-
-@c
+@ @c
 char * mp_str (MP mp, str_number ss) {
-  char *s;
-  size_t len;
-  if (ss==mp->str_ptr) {
-    return NULL;
-  } else {
-    len = (size_t)length(ss);
-    s = xmalloc(len+1,sizeof(char));
-    (void)memcpy(s,(char *)(mp->str_pool+(mp->str_start[ss])),len);
-    s[len] = 0;
-    return (char *)s;
-  }
+  (void)mp;
+  return (char *)ss->str;
+}
+str_number mp_rtsl (MP mp, const char *s, size_t l) {
+    str_number str;
+    mp_lstring tmp;
+    tmp.str = xmalloc(l+1,1);
+    memcpy(tmp.str, s, (l+1));
+    tmp.len = l;
+    str = (str_number) avl_find (&tmp, mp->strings);
+    if (str == NULL) { /* not yet known */
+        str = new_strings_entry (mp);
+    	str->str = xmalloc(l+1,1);
+	memcpy(str->str, s, (l+1));
+        str->len = tmp.len;
+        assert(avl_ins (str, mp->strings, avl_false)>0);
+	xfree(str->str);
+	xfree(str); 
+       str = (str_number) avl_find (&tmp, mp->strings);
+    }
+    str->refs++;
+    free (tmp.str);
+    return str;
 }
 str_number mp_rts (MP mp, const char *s) {
-  int r; /* the new string */ 
-  int old; /* a possible string in progress */
-  int i=0;
-  if (strlen(s)==0) {
-    return 256;
-  } else if (strlen(s)==1) {
-    return s[0];
-  } else {
-   old=0;
-   str_room((integer)strlen(s));
-   if (mp->str_start[mp->str_ptr]<mp->pool_ptr)
-     old = mp_make_string(mp);
-   while (*s) {
-     append_char(*s);
-     s++;
-   }
-   r = mp_make_string(mp);
-   if (old!=0) {
-      str_room(length(old));
-      while (i<length(old)) {
-        append_char((mp->str_start[old]+i));
-      } 
-      mp_flush_string(mp,old);
-    }
-    return r;
-  }
+  return mp_rtsl (mp, s, strlen(s));
 }
 
-@ Except for |strs_used_up|, the following string statistics are only
-maintained when code between |stat| $\ldots$ |tats| delimiters is not
-commented out:
+@ The next four variables for keeping track of string pool usage.
 
 @<Glob...@>=
-integer strs_used_up; /* strings in use or unused but not reclaimed */
-integer pool_in_use; /* total number of cells of |str_pool| actually in use */
-integer strs_in_use; /* total number of strings actually in use */
+integer pool_in_use; /* total number of string bytes actually in use */
 integer max_pl_used; /* maximum |pool_in_use| so far */
+integer strs_in_use; /* total number of strings actually in use */
 integer max_strs_used; /* maximum |strs_in_use| so far */
 
 @ Several of the elementary string operations are performed using \.{WEB}
@@ -1167,77 +1152,78 @@ overhead of procedure calls. For example, here is
 a simple macro that computes the length of a string.
 @.WEB@>
 
-@d str_stop(A) mp->str_start[mp->next_str[(A)]] /* one cell past the end of string \# */
-@d length(A) (str_stop((A))-mp->str_start[(A)]) /* the number of characters in string \# */
+@d length(A) ((A)->len) /* the number of characters in string \# */
 
-@ The length of the current string is called |cur_length|.  If we decide that
-the current string is not needed, |flush_cur_string| resets |pool_ptr| so that
-|cur_length| becomes zero.
-
-@d cur_length   (mp->pool_ptr - mp->str_start[mp->str_ptr])
-@d flush_cur_string   mp->pool_ptr=mp->str_start[mp->str_ptr]
-
-@ Strings are created by appending character codes to |str_pool|.
+@ Strings are created by appending character codes to |cur_string|.
 The |append_char| macro, defined here, does not check to see if the
-value of |pool_ptr| has gotten too high; this test is supposed to be
+buffer overflows; this test is supposed to be
 made before |append_char| is used.
 
-To test if there is room to append |l| more characters to |str_pool|,
+To test if there is room to append |l| more characters to |cur_string|,
 we shall write |str_room(l)|, which tries to make sure there is enough room
-by compacting the string pool if necessary.  If this does not work,
-|do_compaction| aborts \MP\ and gives an apologetic error message.
+in the |cur_string|.
 
-@d append_char(A)   /* put |ASCII_code| \# at the end of |str_pool| */
-{ mp->str_pool[mp->pool_ptr]=(ASCII_code)(A); incr(mp->pool_ptr);
-}
-@d str_room(A)   /* make sure that the pool hasn't overflowed */
-  { if ( mp->pool_ptr+(A) > mp->max_pool_ptr ) {
-    if ( mp->pool_ptr+(A) > mp->pool_size ) mp_do_compaction(mp, (A));
-    else mp->max_pool_ptr=mp->pool_ptr+(A); }
-  }
+@d EXTRA_STRING 500
 
-@ The following routine is similar to |str_room(1)| but it uses the
-argument |mp->pool_size| to prevent |do_compaction| from aborting when
-string space is exhausted.
+@d append_char(A) do {
+    if (mp->cur_string==NULL) reset_cur_string(mp);
+    else str_room(1);
+    *(mp->cur_string+mp->cur_length)=(unsigned char)(A);
+    mp->cur_length++;
+} while (0)
+
+@d str_room(wsize) do {
+    size_t nsize;
+    if ((mp->cur_length+(size_t)wsize) > mp->cur_string_size) {
+        nsize = mp->cur_string_size + mp->cur_string_size / 5 + EXTRA_STRING;
+        if (nsize < (size_t)(wsize)) {
+            nsize = (size_t)wsize + EXTRA_STRING;
+        }
+        mp->cur_string = (unsigned char *) xrealloc(mp->cur_string, (unsigned)nsize, sizeof(unsigned char));
+        memset (mp->cur_string+mp->cur_length,0,(nsize-mp->cur_length));
+        mp->cur_string_size = nsize;
+    }
+} while (0)
+
+
+@ At the very start of the metapost run and each time after |make_string| has stored a new string 
+in the avl tree, the |cur_string| variable has to be prepared so that it will be ready to start 
+creating a new string. The initial size is fairly arbitrary, but setting it a little higher than
+expected helps prevent |reallocs|
 
 @<Declarations@>=
-static void mp_unit_str_room (MP mp);
+void reset_cur_string(MP mp);
 
-@ @c
-void mp_unit_str_room (MP mp) { 
-  if ( mp->pool_ptr>=mp->pool_size ) mp_do_compaction(mp, mp->pool_size);
-  if ( mp->pool_ptr>=mp->max_pool_ptr ) mp->max_pool_ptr=mp->pool_ptr+1;
+@ @c void reset_cur_string(MP mp)
+{
+    xfree(mp->cur_string);
+    mp->cur_length = 0;
+    mp->cur_string_size = 63;
+    mp->cur_string = (unsigned char *) xmalloc(64, sizeof (unsigned char));
+    memset(mp->cur_string, 0, 64);
 }
 
+
 @ \MP's string expressions are implemented in a brute-force way: Every
-new string or substring that is needed is simply copied into the string pool.
-Space is eventually reclaimed by a procedure called |do_compaction| with
-the aid of a simple system system of reference counts.
+new string or substring that is needed is simply stored into the string pool.
+Space is eventually reclaimed using the aid of a simple system system 
+of reference counts.
 @^reference counts@>
 
-The number of references to string number |s| will be |str_ref[s]|. The
-special value |str_ref[s]=max_str_ref=127| is used to denote an unknown
+The number of references to string number |s| will be |s->refs|. The
+special value |s->refs=max_str_ref=127| is used to denote an unknown
 positive number of references; such strings will never be recycled. If
 a string is ever referred to more than 126 times, simultaneously, we
-put it in this category. Hence a single byte suffices to store each |str_ref|.
+put it in this category.
 
 @d max_str_ref 127 /* ``infinite'' number of references */
-@d add_str_ref(A) { if ( mp->str_ref[(A)]<max_str_ref ) incr(mp->str_ref[(A)]); }
-
-@<Glob...@>=
-int *str_ref;
-
-@ @<Allocate or initialize ...@>=
-mp->str_ref = xmalloc ((mp->max_strings+1),sizeof(int));
-
-@ @<Dealloc variables@>=
-xfree(mp->str_ref);
+@d add_str_ref(A) { if ( (A)->refs < max_str_ref ) incr((A)->refs); }
 
 @ Here's what we do when a string reference disappears:
 
 @d delete_str_ref(A)  { 
-    if ( mp->str_ref[(A)]<max_str_ref ) {
-       if ( mp->str_ref[(A)]>1 ) decr(mp->str_ref[(A)]); 
+    if ( (A)->refs < max_str_ref ) {
+       if ( (A)->refs > 1 ) decr((A)->refs); 
        else mp_flush_string(mp, (A));
     }
   }
@@ -1245,34 +1231,23 @@ xfree(mp->str_ref);
 @<Declarations@>=
 static void mp_flush_string (MP mp,str_number s) ;
 
-@ We can't flush the first set of static strings at all, so there 
-is no point in trying
-
-@c
+@ @c
 void mp_flush_string (MP mp,str_number s) { 
-  if (length(s)>1) {
-    mp->pool_in_use=mp->pool_in_use-length(s);
+  if (s->refs == 0) {
     decr(mp->strs_in_use);
-    if ( mp->next_str[s]!=mp->str_ptr ) {
-      mp->str_ref[s]=0;
-    } else { 
-      mp->str_ptr=s;
-      decr(mp->strs_used_up);
-    }
-    mp->pool_ptr=mp->str_start[mp->str_ptr];
+    mp->pool_in_use=mp->pool_in_use-(integer)length(s);
+   (void) avl_del (s,mp->strings,NULL);
   }
 }
 
-@ C literals cannot be simply added, they need to be set so they can't
-be flushed.
-
-@d intern(A) mp_intern(mp,(A))
+@ C literals cannot be simply added, their reference count has to be set such 
+that they can not be flushed.
 
 @c
 str_number mp_intern (MP mp, const char *s) {
   str_number r ;
-  r = rts(s);
-  mp->str_ref[r] = max_str_ref;
+  r = mp_rts(mp, s);
+  r->refs = max_str_ref;
   return r;
 }
 
@@ -1280,225 +1255,36 @@ str_number mp_intern (MP mp, const char *s) {
 static str_number mp_intern (MP mp, const char *s);
 
 
-@ Once a sequence of characters has been appended to |str_pool|, it
+@ Once a sequence of characters has been appended to |cur_string|, it
 officially becomes a string when the function |make_string| is called.
-This function returns the identification number of the new string as its
-value.
-
-When getting the next unused string number from the linked list, we pretend
-that
-$$ \hbox{|max_str_ptr+1|, |max_str_ptr+2|, $\ldots$, |mp->max_strings|} $$
-are linked sequentially even though the |next_str| entries have not been
-initialized yet.  We never allow |str_ptr| to reach |mp->max_strings|;
-|do_compaction| is responsible for making sure of this.
+This function returns a pointer to the new string as its value.
 
 @<Declarations@>=
 static str_number mp_make_string (MP mp);
 
 @ @c 
 str_number mp_make_string (MP mp) { /* current string enters the pool */
-  str_number s; /* the new string */
-RESTART: 
-  s=mp->str_ptr;
-  mp->str_ptr=mp->next_str[s];
-  if ( mp->str_ptr>mp->max_str_ptr ) {
-    if ( mp->str_ptr==mp->max_strings ) { 
-      mp->str_ptr=s;
-      mp_do_compaction(mp, 0);
-      goto RESTART;
-    } else {
-      mp->max_str_ptr=mp->str_ptr;
-      mp->next_str[mp->str_ptr]=mp->max_str_ptr+1;
+    str_number str;
+    mp_lstring tmp;
+    tmp.str = mp->cur_string;
+    tmp.len = mp->cur_length;
+    str = (str_number) avl_find (&tmp, mp->strings);
+    if (str == NULL) { /* not yet known */
+        str = xmalloc(1, sizeof(mp_lstring));
+        str->str = mp->cur_string;
+        str->len = tmp.len;
+        assert(avl_ins (str, mp->strings, avl_false)>0);
+        str = (str_number) avl_find (&tmp, mp->strings);
+        mp->pool_in_use=mp->pool_in_use+(integer)length(str);
+        if (mp->pool_in_use>mp->max_pl_used ) 
+            mp->max_pl_used=mp->pool_in_use;
+        incr(mp->strs_in_use);
+        if (mp->strs_in_use>mp->max_strs_used ) 
+            mp->max_strs_used=mp->strs_in_use;
+        str->refs=1;
     }
-  }
-  mp->str_ref[s]=1;
-  mp->str_start[mp->str_ptr]=mp->pool_ptr;
-  incr(mp->strs_used_up);
-  incr(mp->strs_in_use);
-  mp->pool_in_use=mp->pool_in_use+length(s);
-  if ( mp->pool_in_use>mp->max_pl_used ) 
-    mp->max_pl_used=mp->pool_in_use;
-  if ( mp->strs_in_use>mp->max_strs_used ) 
-    mp->max_strs_used=mp->strs_in_use;
-  return s;
-}
-
-@ The most interesting string operation is string pool compaction.  The idea
-is to recover unused space in the |str_pool| array by recopying the strings
-to close the gaps created when some strings become unused.  All string
-numbers~$k$ where |str_ref[k]=0| are to be linked into the list of free string
-numbers after |str_ptr|.  If this fails to free enough pool space we issue an
-|overflow| error unless |needed=mp->pool_size|.  Calling |do_compaction|
-with |needed=mp->pool_size| supresses all overflow tests.
-
-The compaction process starts with |last_fixed_str| because all lower numbered
-strings are permanently allocated with |max_str_ref| in their |str_ref| entries.
-
-@<Glob...@>=
-str_number last_fixed_str; /* last permanently allocated string */
-str_number fixed_str_use; /* number of permanently allocated strings */
-
-@ @<Internal library ...@>=
-void mp_do_compaction (MP mp, pool_pointer needed) ;
-
-@ @c
-void mp_do_compaction (MP mp, pool_pointer needed) {
-  str_number str_use; /* a count of strings in use */
-  str_number r,s,t; /* strings being manipulated */
-  pool_pointer p,q; /* destination and source for copying string characters */
-  @<Advance |last_fixed_str| as far as possible and set |str_use|@>;
-  r=mp->last_fixed_str;
-  s=mp->next_str[r];
-  p=mp->str_start[s];
-  while ( s!=mp->str_ptr ) { 
-    while ( mp->str_ref[s]==0 ) {
-      @<Advance |s| and add the old |s| to the list of free string numbers;
-        then |break| if |s=str_ptr|@>;
-    }
-    r=s; s=mp->next_str[s];
-    incr(str_use);
-    @<Move string |r| back so that |str_start[r]=p|; make |p| the location
-     after the end of the string@>;
-  }
-DONE:   
-  @<Move the current string back so that it starts at |p|@>;
-  if ( needed<mp->pool_size ) {
-    @<Make sure that there is room for another string with |needed| characters@>;
-  }
-  @<Account for the compaction and make sure the statistics agree with the
-     global versions@>;
-  mp->strs_used_up=str_use;
-}
-
-@ @<Advance |last_fixed_str| as far as possible and set |str_use|@>=
-t=mp->next_str[mp->last_fixed_str];
-while (t!=mp->str_ptr && mp->str_ref[t]==max_str_ref) {
-  incr(mp->fixed_str_use);
-  mp->last_fixed_str=t;
-  t=mp->next_str[t];
-}
-str_use=mp->fixed_str_use
-
-@ Because of the way |flush_string| has been written, it should never be
-necessary to |break| here.  The extra line of code seems worthwhile to
-preserve the generality of |do_compaction|.
-
-@<Advance |s| and add the old |s| to the list of free string numbers;...@>=
-{
-t=s;
-s=mp->next_str[s];
-mp->next_str[r]=s;
-mp->next_str[t]=mp->next_str[mp->str_ptr];
-mp->next_str[mp->str_ptr]=t;
-if ( s==mp->str_ptr ) goto DONE;
-}
-
-@ The string currently starts at |str_start[r]| and ends just before
-|str_start[s]|.  We don't change |str_start[s]| because it might be needed
-to locate the next string.
-
-@<Move string |r| back so that |str_start[r]=p|; make |p| the location...@>=
-q=mp->str_start[r];
-mp->str_start[r]=p;
-while ( q<mp->str_start[s] ) { 
-  mp->str_pool[p]=mp->str_pool[q];
-  incr(p); incr(q);
-}
-
-@ Pointers |str_start[str_ptr]| and |pool_ptr| have not been updated.  When
-we do this, anything between them should be moved.
-
-@ @<Move the current string back so that it starts at |p|@>=
-q=mp->str_start[mp->str_ptr];
-mp->str_start[mp->str_ptr]=p;
-while ( q<mp->pool_ptr ) { 
-  mp->str_pool[p]=mp->str_pool[q];
-  incr(p); incr(q);
-}
-mp->pool_ptr=p
-
-@ We must remember that |str_ptr| is not allowed to reach |mp->max_strings|.
-
-@<Make sure that there is room for another string with |needed| char...@>=
-if ( str_use>=mp->max_strings-1 )
-  mp_reallocate_strings (mp,str_use);
-if ( mp->pool_ptr+needed>mp->max_pool_ptr ) {
-  mp_reallocate_pool(mp, mp->pool_ptr+needed);
-  mp->max_pool_ptr=mp->pool_ptr+needed;
-}
-
-@ @<Internal library ...@>=
-void mp_reallocate_strings (MP mp, str_number str_use) ;
-void mp_reallocate_pool(MP mp, pool_pointer needed) ;
-
-@ @c 
-void mp_reallocate_strings (MP mp, str_number str_use) { 
-  while ( str_use>=mp->max_strings-1 ) {
-    int l = mp->max_strings + (mp->max_strings/4);
-    XREALLOC (mp->str_ref,   l, int);
-    XREALLOC (mp->str_start, l, pool_pointer);
-    XREALLOC (mp->next_str,  l, str_number);
-    mp->max_strings = l;
-  }
-}
-void mp_reallocate_pool(MP mp, pool_pointer needed) {
-  while ( needed>mp->pool_size ) {
-    int l = mp->pool_size + (mp->pool_size/4);
- 	XREALLOC (mp->str_pool, l, ASCII_code);
-    mp->pool_size = l;
-  }
-}
-
-@ @<Account for the compaction and make sure the statistics agree with...@>=
-if ( (mp->str_start[mp->str_ptr]!=mp->pool_in_use)||(str_use!=mp->strs_in_use) )
-  mp_confusion(mp, "string");
-@:this can't happen string}{\quad string@>
-incr(mp->pact_count);
-mp->pact_chars=mp->pact_chars+mp->pool_ptr-str_stop(mp->last_fixed_str);
-mp->pact_strs=mp->pact_strs+str_use-mp->fixed_str_use;
-
-@ A few more global variables are needed to keep track of statistics when
-|stat| $\ldots$ |tats| blocks are not commented out.
-
-@<Glob...@>=
-integer pact_count; /* number of string pool compactions so far */
-integer pact_chars; /* total number of characters moved during compactions */
-integer pact_strs; /* total number of strings moved during compactions */
-
-@ @<Initialize compaction statistics@>=
-mp->pact_count=0;
-mp->pact_chars=0;
-mp->pact_strs=0;
-
-@ The following subroutine compares string |s| with another string of the
-same length that appears in |buffer| starting at position |k|;
-the result is |true| if and only if the strings are equal.
-
-@c 
-static boolean mp_str_eq_buf (MP mp,str_number s, integer k) {
-  /* test equality of strings */
-  pool_pointer j; /* running index */
-  j=mp->str_start[s];
-  while ( j<str_stop(s) ) { 
-    if ( mp->str_pool[j++]!=mp->buffer[k++] ) 
-      return false;
-  }
-  return true;
-}
-
-@ This routine compares a pool string with a sequence of characters
-of equal length.
-
-@c 
-static boolean mp_str_eq_cstr (MP mp,str_number s, char *k) {
-  /* test equality of strings */
-  pool_pointer j; /* running index */
-  j=mp->str_start[s];
-  while ( j<str_stop(s) ) { 
-    if ( mp->str_pool[j++]!=*k++ ) 
-      return false;
-  }
-  return true;
+    reset_cur_string(mp);
+    return str;
 }
 
 @ Here is a similar routine, but it compares two strings in the string pool,
@@ -1508,59 +1294,8 @@ the result is respectively positive, negative, or zero.
 
 @c 
 static integer mp_str_vs_str (MP mp, str_number s, str_number t) {
-  /* test equality of strings */
-  pool_pointer j,k; /* running indices */
-  integer ls,lt; /* lengths */
-  integer l; /* length remaining to test */
-  ls=length(s); lt=length(t);
-  if ( ls<=lt ) l=ls; else l=lt;
-  j=mp->str_start[s]; k=mp->str_start[t];
-  while ( l-->0 ) { 
-    if ( mp->str_pool[j]!=mp->str_pool[k] ) {
-       return (mp->str_pool[j]-mp->str_pool[k]); 
-    }
-    j++; k++;
-  }
-  return (ls-lt);
-}
-
-@ The initial values of |str_pool|, |str_start|, |pool_ptr|,
-and |str_ptr| are computed by the \.{INIMP} program, based in part
-on the information that \.{WEB} has output while processing \MP.
-@.INIMP@>
-@^string pool@>
-
-@c 
-void mp_get_strings_started (MP mp) { 
-  /* initializes the string pool,
-    but returns |false| if something goes wrong */
-  int k; /* small indices or counters */
-  str_number g; /* a new string */
-  mp->pool_ptr=0; mp->str_ptr=0; mp->max_pool_ptr=0; mp->max_str_ptr=0;
-  mp->str_start[0]=0;
-  mp->next_str[0]=1;
-  mp->pool_in_use=0; mp->strs_in_use=0;
-  mp->max_pl_used=0; mp->max_strs_used=0;
-  @<Initialize compaction statistics@>;
-  mp->strs_used_up=0;
-  @<Make the first 256 strings@>;
-  g=mp_make_string(mp); /* string 256 == "" */
-  mp->str_ref[g]=max_str_ref;
-  mp->last_fixed_str=mp->str_ptr-1;
-  mp->fixed_str_use=mp->str_ptr;
-  return;
-}
-
-@ @<Declarations@>=
-static void mp_get_strings_started (MP mp);
-
-@ The first 256 strings will consist of a single character only.
-
-@<Make the first 256...@>=
-for (k=0;k<=255;k++) { 
-  append_char(k);
-  g=mp_make_string(mp); 
-  mp->str_ref[g]=max_str_ref;
+  (void)mp;
+  return comp_strings_entry (NULL, (const void *)s, (const void *)t);
 }
 
 @ The first 128 strings will contain 95 standard ASCII characters, and the
@@ -1668,15 +1403,15 @@ by changing |wterm|, |wterm_ln|, and |wterm_cr| here.
 @^system dependencies@>
 
 @(mpmp.h@>=
-#define do_fprintf(f,b) (mp->write_ascii_file)(mp,f,b)
-#define wterm(A)     do_fprintf(mp->term_out,(A))
+#define do_putsf(f,b) (mp->write_ascii_file)(mp,f,b)
+#define wterm(A)     do_putsf(mp->term_out,(A))
 #define wterm_chr(A) { unsigned char ss[2]; ss[0]=(A); ss[1]='\0'; wterm((char *)ss);}
-#define wterm_cr     do_fprintf(mp->term_out,"\n")
-#define wterm_ln(A)  { wterm_cr; do_fprintf(mp->term_out,(A)); }
-#define wlog(A)        do_fprintf(mp->log_file,(A))
+#define wterm_cr     do_putsf(mp->term_out,"\n")
+#define wterm_ln(A)  { wterm_cr; do_putsf(mp->term_out,(A)); }
+#define wlog(A)        do_putsf(mp->log_file,(A))
 #define wlog_chr(A)  { unsigned char ss[2]; ss[0]=(A); ss[1]='\0'; wlog((char *)ss);}
-#define wlog_cr      do_fprintf(mp->log_file, "\n")
-#define wlog_ln(A)   { wlog_cr; do_fprintf(mp->log_file,(A)); }
+#define wlog_cr      do_putsf(mp->log_file, "\n")
+#define wlog_ln(A)   { wlog_cr; do_putsf(mp->log_file,(A)); }
 
 
 @ To end a line of text output, we call |print_ln|.  Cases |0..max_write_files|
@@ -1687,12 +1422,14 @@ use an array |wr_file| that will be declared later.
 @<Internal library ...@>=
 void mp_print (MP mp, const char *s);
 void mp_print_ln (MP mp);
-void mp_print_visible_char (MP mp, ASCII_code s); 
 void mp_print_char (MP mp, ASCII_code k);
 void mp_print_str (MP mp, str_number s);
 void mp_print_nl (MP mp, const char *s);
 void mp_print_two (MP mp,scaled x, scaled y) ;
 void mp_print_scaled (MP mp,scaled s);
+
+@ @<Declarations@>=
+static void mp_print_visible_char (MP mp, ASCII_code s); 
 
 @ @<Basic print...@>=
 void mp_print_ln (MP mp) { /* prints an end-of-line */
@@ -1712,7 +1449,7 @@ void mp_print_ln (MP mp) { /* prints an end-of-line */
   case new_string: 
     break;
   default: 
-    do_fprintf(mp->wr_file[(mp->selector-write_file)],"\n");
+    do_putsf(mp->wr_file[(mp->selector-write_file)],"\n");
   }
 } /* note that |tally| is not affected */
 
@@ -1725,12 +1462,8 @@ routines are the ones that limit lines to at most |max_print_line| characters.
 But we must make an exception for the \ps\ output file since it is not safe
 to cut up lines arbitrarily in \ps.
 
-Procedure |unit_str_room| needs to be declared |forward| here because it calls
-|do_compaction| and |do_compaction| can call the error routines.  Actually,
-|unit_str_room| avoids |overflow| errors but it can call |confusion|.
-
 @<Basic printing...@>=
-void mp_print_visible_char (MP mp, ASCII_code s) { /* prints a single character */
+static void mp_print_visible_char (MP mp, ASCII_code s) { /* prints a single character */
   switch (mp->selector) {
   case term_and_log: 
     wterm_chr(xchr(s)); wlog_chr(xchr(s));
@@ -1757,19 +1490,13 @@ void mp_print_visible_char (MP mp, ASCII_code s) { /* prints a single character 
       mp->trick_buf[mp->tally % mp->error_line]=s;
     break;
   case new_string: 
-    if (mp->pool_ptr>=mp->pool_size || mp->pool_ptr>=mp->max_pool_ptr ) { 
-      mp_unit_str_room(mp);
-      if ( mp->pool_ptr>=mp->pool_size ) 
-        goto DONE; /* drop characters if string space is full */
-    };
     append_char(s);
     break;
   default:
     { text_char ss[2]; ss[0] = xchr(s); ss[1]=0;
-      do_fprintf(mp->wr_file[(mp->selector-write_file)],(char *)ss);
+      do_putsf(mp->wr_file[(mp->selector-write_file)],(char *)ss);
     }
   }
-DONE:
   incr(mp->tally);
 }
 
@@ -1815,7 +1542,7 @@ assumes that it is always safe to print a visible ASCII character.)
 static void mp_do_print (MP mp, const char *ss, size_t len) { /* prints string |s| */
   size_t j = 0;
   if (mp->selector == new_string) {
-    str_room((integer)(len*4));
+    str_room((len*4));
   }
   while ( j<len ){ 
     /* this was |xord((int)ss[j])| but that doesnt work */
@@ -1829,31 +1556,9 @@ void mp_print (MP mp, const char *ss) {
   if (ss==NULL) return;
   mp_do_print(mp, ss,strlen(ss));
 }
-
-@ This function is somewhat less trivial than expected
-because it is not safe to directly print data in the
-string pool since |mp_do_print()| can potentially reallocate 
-the whole lot.
-
-@<Basic print...@>=
 void mp_print_str (MP mp, str_number s) {
-  pool_pointer j; /* current character code position */
-  char *ss; /* a temporary C string */
-  size_t len; /* its length */
-  if ( (s<0)||(s>mp->max_str_ptr) ) {
-     mp_do_print(mp,"???",3); /* this can't happen */
-@.???@>
-  }
-  j=mp->str_start[s];
-  len = (size_t)(str_stop(s)-j);
-  ss = xmalloc(len+1, sizeof(char));
-  if (len > 0) {
-    /* the man page doesnt say whether 0 is allowed */
-    memcpy(ss,(char *)(mp->str_pool+j),len);
-  }
-  ss[len] = '\0';
-  mp_do_print(mp, ss, len);
-  mp_xfree(ss);
+  assert (s!=NULL); /* todo: this should never happen */
+  mp_do_print(mp, (const char *)s->str, s->len);
 }
 
 
@@ -2166,8 +1871,8 @@ static void mp_jump_out (MP mp) {
 @<Error hand...@>=
 void mp_error (MP mp) { /* completes the job of error reporting */
   ASCII_code c; /* what the user types */
-  integer s1,s2,s3; /* used to save global variables when deleting tokens */
-  pool_pointer j; /* character position being printed */
+  integer s1,s2; /* used to save global variables when deleting tokens */
+  mp_sym s3; /* likewise */
   if ( mp->history<mp_error_message_issued ) 
 	mp->history=mp_error_message_issued;
   mp_print_char(mp, xord('.')); mp_show_context(mp);
@@ -2256,7 +1961,7 @@ case 'E':
     mp->interaction=mp_scroll_mode; 
     mp_close_files_and_terminate(mp);
     (mp->run_editor)(mp, 
-                     str(mp->input_stack[mp->file_ptr].name_field), 
+                     mp_str(mp,mp->input_stack[mp->file_ptr].name_field), 
                      mp_true_line(mp));
     mp_jump_out(mp);
   }
@@ -2329,7 +2034,10 @@ to be familiar with \MP's input stacks.
 
 @<Delete |c-"0"| tokens...@>=
 { 
-  s1=mp->cur_cmd; s2=mp->cur_mod; s3=mp->cur_sym; mp->OK_to_interrupt=false;
+  s1=mp->cur_cmd;
+  s2=mp->cur_mod;
+  s3=mp->cur_sym; 
+  mp->OK_to_interrupt=false;
   if ( (mp->last>mp->first+1) && (mp->buffer[mp->first+1]>='0')&&(mp->buffer[mp->first+1]<='9') )
     c=xord(c*10+mp->buffer[mp->first+1]-'0'*11);
   else 
@@ -2339,7 +2047,10 @@ to be familiar with \MP's input stacks.
     @<Decrease the string reference count, if the current token is a string@>;
     c--;
   };
-  mp->cur_cmd=s1; mp->cur_mod=s2; mp->cur_sym=s3; mp->OK_to_interrupt=true;
+  mp->cur_cmd=s1;
+  mp->cur_mod=s2;
+  mp->cur_sym=s3;
+  mp->OK_to_interrupt=true;
   help2("I have just deleted some text, as you asked.",
        "You can now delete more, or insert, or whatever.");
   mp_show_context(mp); 
@@ -2368,14 +2079,16 @@ to be familiar with \MP's input stacks.
 }
 
 @ @<Print the string |err_help|, possibly on several lines@>=
-j=mp->str_start[mp->err_help];
-while ( j<str_stop(mp->err_help) ) { 
-  if ( mp->str_pool[j]!='%' ) mp_print_str(mp, mp->str_pool[j]);
-  else if ( j+1==str_stop(mp->err_help) ) mp_print_ln(mp);
-  else if ( mp->str_pool[j+1]!='%' ) mp_print_ln(mp);
+{ size_t j=0;
+while ( j<length(mp->err_help) ) { 
+  if ( *(mp->err_help->str+j)!='%' ) mp_print(mp, (const char *)(mp->err_help->str+j));
+  else if ( j+1==length(mp->err_help) ) mp_print_ln(mp);
+  else if ( *(mp->err_help->str+j)!='%' ) mp_print_ln(mp);
   else  { j++; mp_print_char(mp, xord('%')); };
   j++;
 }
+}
+
 
 @ @<Put help message on the transcript file@>=
 if ( mp->interaction>mp_batch_mode ) decr(mp->selector); /* avoid terminal output */
@@ -2386,10 +2099,10 @@ if ( mp->use_err_help ) {
   while ( mp->help_ptr>0 ){ 
     decr(mp->help_ptr); mp_print_nl(mp, mp->help_line[mp->help_ptr]);
   };
+  mp_print_ln(mp);
+  if ( mp->interaction>mp_batch_mode ) incr(mp->selector); /* re-enable terminal output */
+  mp_print_ln(mp);
 }
-mp_print_ln(mp);
-if ( mp->interaction>mp_batch_mode ) incr(mp->selector); /* re-enable terminal output */
-mp_print_ln(mp)
 
 @ In anomalous cases, the print selector might be in an unknown state;
 the following subroutine is called to fix things just enough to keep
@@ -2621,7 +2334,7 @@ positions from the right end of a binary computer word.
 @d two   0400000 /* $2^{17}$, represents 2.00000 */
 @d three   0600000 /* $2^{17}+2^{16}$, represents 3.00000 */
 
-@<Types...@>=
+@<Exported types...@>=
 typedef integer scaled; /* this type is used for scaled integers */
 
 @ The following function is used to create a scaled integer from a given decimal
@@ -3782,18 +3495,6 @@ assumptions about the relative positions of the fields within a word.
 @d max_quarterword 0x3FFF /* largest allowable value in a |quarterword| */
 @d max_halfword 0xFFFFFFF /* largest allowable value in a |halfword| */
 
-@ Here are the inequalities that the quarterword and halfword values
-must satisfy (or rather, the inequalities that they mustn't satisfy):
-
-@<Check the ``constant''...@>=
-if (mp->ini_version) {
-  if ( mp->mem_max!=mp->mem_top ) mp->bad=8;
-} else {
-  if ( mp->mem_max<mp->mem_top ) mp->bad=8;
-}
-if ( mp->mem_max>=max_halfword ) mp->bad=12;
-if ( mp->max_strings>max_halfword ) mp->bad=13;
-
 @ The macros |qi| and |qo| are used for input to and output 
 from quarterwords. These are legacy macros.
 @^system dependencies@>
@@ -3807,105 +3508,32 @@ from quarterwords. These are legacy macros.
 @d sc cint /* |scaled| data is equivalent to |integer| */
 
 @<Types...@>=
+typedef struct mp_value_node_data *mp_value_node;
+typedef struct mp_node_data *mp_node;
+typedef struct mp_symbol_entry *mp_sym;
 typedef short quarterword; /* 1/4 of a word */
 typedef int halfword; /* 1/2 of a word */
-typedef union {
-  struct {
-    halfword RH, LH;
-  } v;
-  struct { /* Make B0,B1 overlap the most significant bytes of LH.  */
-    halfword junk;
-    quarterword B0, B1;
-  } u;
+typedef struct {
+    halfword rh, lh;
+    str_number str;
+    mp_sym sym;
+    mp_node node;
+    mp_knot P;
 } two_halves;
+typedef two_halves memory_word;
 typedef struct {
   struct {
     quarterword B2, B3, B0, B1;
   } u;
 } four_quarters;
 typedef union {
-  two_halves hh;
   integer cint;
   four_quarters qqqq;
-} memory_word;
+} fmemory_word;
 #define	b0 u.B0
 #define	b1 u.B1
 #define	b2 u.B2
 #define	b3 u.B3
-#define rh v.RH
-#define lh v.LH
-
-@ When debugging, we may want to print a |memory_word| without knowing
-what type it is; so we print it in all modes.
-@^debugging@>
-
-@c 
-#if 0
-void mp_print_word (MP mp,memory_word w) {
-  /* prints |w| in all ways */
-  mp_print_int(mp, w.cint); mp_print_char(mp, xord(' '));
-  mp_print_scaled(mp, w.sc); mp_print_char(mp, xord(' ')); 
-  mp_print_scaled(mp, w.sc / 010000); mp_print_ln(mp);
-  mp_print_int(mp, w.hh.lh); mp_print_char(mp, xord('=')); 
-  mp_print_int(mp, w.hh.b0); mp_print_char(mp, xord(':'));
-  mp_print_int(mp, w.hh.b1); mp_print_char(mp, xord(';')); 
-  mp_print_int(mp, w.hh.rh); mp_print_char(mp, xord(' '));
-  mp_print_int(mp, w.qqqq.b0); mp_print_char(mp, xord(':')); 
-  mp_print_int(mp, w.qqqq.b1); mp_print_char(mp, xord(':'));
-  mp_print_int(mp, w.qqqq.b2); mp_print_char(mp, xord(':')); 
-  mp_print_int(mp, w.qqqq.b3);
-}
-#endif
-
-@* \[10] Dynamic memory allocation.
-
-The \MP\ system does nearly all of its own memory allocation, so that it
-can readily be transported into environments that do not have automatic
-facilities for strings, garbage collection, etc., and so that it can be in
-control of what error messages the user receives. The dynamic storage
-requirements of \MP\ are handled by providing a large array |mem| in
-which consecutive blocks of words are used as nodes by the \MP\ routines.
-
-Pointer variables are indices into this array, or into another array
-called |eqtb| that will be explained later. A pointer variable might
-also be a special flag that lies outside the bounds of |mem|, so we
-allow pointers to assume any |halfword| value. The minimum memory
-index represents a null pointer.
-
-@d null 0 /* the null pointer */
-@d mp_void (null+1) /* a null pointer different from |null| */
-
-
-@<Types...@>=
-typedef halfword pointer; /* a flag or a location in |mem| or |eqtb| */
-
-@ The |mem| array is divided into two regions that are allocated separately,
-but the dividing line between these two regions is not fixed; they grow
-together until finding their ``natural'' size in a particular job.
-Locations less than or equal to |lo_mem_max| are used for storing
-variable-length records consisting of two or more words each. This region
-is maintained using an algorithm similar to the one described in exercise
-2.5--19 of {\sl The Art of Computer Programming}. However, no size field
-appears in the allocated nodes; the program is responsible for knowing the
-relevant size when a node is freed. Locations greater than or equal to
-|hi_mem_min| are used for storing one-word records; a conventional
-\.{AVAIL} stack is used for allocation in this region.
-
-Locations of |mem| between |0| and |mem_top| may be dumped as part
-of preloaded mem files, by the \.{INIMP} preprocessor.
-@.INIMP@>
-Production versions of \MP\ may extend the memory at the top end in order to
-provide more space; these locations, between |mem_top| and |mem_max|,
-are always used for single-word nodes.
-
-The key pointers that govern |mem| allocation have a prescribed order:
-$$\hbox{|null=0<lo_mem_max<hi_mem_min<mem_top<=mem_end<=mem_max|.}$$
-
-@<Glob...@>=
-memory_word *mem; /* the big dynamic storage area */
-pointer lo_mem_max; /* the largest location of variable-size memory in use */
-pointer hi_mem_min; /* the smallest location of one-word memory in use */
-
 
 @ 
 @d xfree(A) do { mp_xfree(A); A=NULL; } while (0)
@@ -3922,9 +3550,7 @@ extern @= /*@@only@@*/ @> void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t
 extern @= /*@@only@@*/ @> void *mp_xmalloc (MP mp, size_t nmem, size_t size) ;
 extern @= /*@@only@@*/ @> char *mp_xstrdup(MP mp, const char *s);
 extern @= /*@@only@@*/ @> char *mp_xstrldup(MP mp, const char *s, size_t l);
-#ifndef HAVE_SNPRINTF
 extern void mp_do_snprintf(char *str, int size, const char *fmt, ...);
-#endif
 
 @ The |max_size_test| guards against overflow, on the assumption that
 |size_t| is at least 31bits wide.
@@ -3950,12 +3576,12 @@ void mp_xfree (void *x) {
 void  *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) {
   void *w ; 
   if ((max_size_test/size)<nmem) {
-    do_fprintf(mp->err_out,"Memory size overflow!\n");
+    do_putsf(mp->err_out,"Memory size overflow!\n");
     mp->history =mp_fatal_error_stop;    mp_jump_out(mp);
   }
   w = realloc (p,(nmem*size));
   if (w==NULL) {
-    do_fprintf(mp->err_out,"Out of memory!\n");
+    do_putsf(mp->err_out,"Out of memory!\n");
     mp->history =mp_system_error_stop;    mp_jump_out(mp);
   }
   return w;
@@ -3963,12 +3589,12 @@ void  *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) {
 void  *mp_xmalloc (MP mp, size_t nmem, size_t size) {
   void *w;
   if ((max_size_test/size)<nmem) {
-    do_fprintf(mp->err_out,"Memory size overflow!\n");
+    do_putsf(mp->err_out,"Memory size overflow!\n");
     mp->history =mp_fatal_error_stop;    mp_jump_out(mp);
   }
   w = malloc (nmem*size);
   if (w==NULL) {
-    do_fprintf(mp->err_out,"Out of memory!\n");
+    do_putsf(mp->err_out,"Out of memory!\n");
     mp->history =mp_system_error_stop;    mp_jump_out(mp);
   }
   return w;
@@ -3979,7 +3605,7 @@ char *mp_xstrldup(MP mp, const char *s, size_t l) {
     return NULL;
   w = mp_strldup(s, l);
   if (w==NULL) {
-    do_fprintf(mp->err_out,"Out of memory!\n");
+    do_putsf(mp->err_out,"Out of memory!\n");
     mp->history =mp_system_error_stop;    mp_jump_out(mp);
   }
   return w;
@@ -4000,7 +3626,6 @@ char *mp_xstrdup(MP mp, const char *s) {
 @ This internal version is rather stupid, but good enough for its purpose.
 
 @c
-#ifndef HAVE_SNPRINTF
 static char *mp_itoa (int i) {
   char res[32] ;
   unsigned idx = 30;
@@ -4136,568 +3761,235 @@ void mp_do_snprintf (char *str, int size, const char *format, ...) {
   *res = '\0';
   va_end(ap);
 }
-#endif
 
-@ 
-@<Allocate or initialize ...@>=
-mp->mem = xmalloc ((mp->mem_max+1),sizeof (memory_word));
-memset(mp->mem,0,(size_t)(mp->mem_max+1)*sizeof (memory_word));
 
-@ @<Dealloc variables@>=
-xfree(mp->mem);
+@* \[10] Dynamic memory allocation.
+
+The \MP\ system does nearly all of its own memory allocation, so that it
+can readily be transported into environments that do not have automatic
+facilities for strings, garbage collection, etc., and so that it can be in
+control of what error messages the user receives. 
+
+@d null 0 /* the null pointer */
+@d mp_void (mp_node)(null+1) /* a null pointer different from |null| */
+
+@<Types...@>=
+typedef halfword pointer; /* a flag or a location in |mem| or |eqtb| */
+
+@ New-style dynamic memory allocation.
+
+@d mp_link(A)      (A)->link /* the |link| field of a node */
+@d set_mp_link(A,B) do {
+   mp_node d = (B);
+   /* printf("set link    of %p to %p on line %d\n", (A), d, __LINE__);*/
+   mp_link((A)) = d;
+ } while (0)
+@d mp_type(A)      (A)->type /* identifies what kind of value this is */
+@d mp_name_type(A) (A)->name_type /* a clue to the name of this value */
+
+@ @(mpmp.h@>=
+#define NODE_BODY                       \
+  mp_variable_type type;                \
+  quarterword name_type;                \
+  halfword info;                        \
+  struct mp_node_data *link
+
+typedef struct mp_node_data {
+  NODE_BODY;
+} mp_node_data;
+
+typedef struct mp_symbolic_node_data {
+  NODE_BODY;
+  mp_node node;
+  mp_sym sym;
+} mp_symbolic_node_data;
+typedef struct mp_symbolic_node_data* mp_symbolic_node;
 
 @ Users who wish to study the memory requirements of particular applications can
-can use optional special features that keep track of current and
-maximum memory usage. When code between the delimiters |stat| $\ldots$
-|tats| is not ``commented out,'' \MP\ will run a bit slower but it will
-report these statistics when |mp_tracing_stats| is positive.
+can use the special features that keep track of current and maximum memory usage. 
+\MP\ will report these statistics when |mp_tracing_stats| is positive.
+
+@d add_var_used(a) do {
+   mp->var_used+=(a);
+   if (mp->var_used>mp->var_used_max) mp->var_used_max=mp->var_used;
+} while (0)
 
 @<Glob...@>=
-integer var_used; integer dyn_used; /* how much memory is in use */
+size_t var_used; /* how much memory is in use */
+size_t var_used_max; /* how much memory was in use max */
 
-@ Let's consider the one-word memory region first, since it's the
-simplest. The pointer variable |mem_end| holds the highest-numbered location
-of |mem| that has ever been used. The free locations of |mem| that
-occur between |hi_mem_min| and |mem_end|, inclusive, are of type
-|two_halves|, and we write |info(p)| and |mp_link(p)| for the |lh|
-and |rh| fields of |mem[p]| when it is of this type. The single-word
-free locations form a linked list
-$$|avail|,\;\hbox{|mp_link(avail)|},\;\hbox{|mp_link(mp_link(avail))|},\;\ldots$$
-terminated by |null|.
+@ These redirect to function to aid in debugging.
 
-@(mpmp.h@>=
-#define mp_link(A)   mp->mem[(A)].hh.rh /* the |link| field of a memory word */
-#define mp_info(A)   mp->mem[(A)].hh.lh /* the |info| field of a memory word */
+@d mp_sym_info(A) get_mp_sym_info(mp,(A))
+@d set_mp_sym_info(A,B) do_set_mp_sym_info(mp,(A),(B))
 
-@ @<Glob...@>=
-pointer avail; /* head of the list of available one-word nodes */
-pointer mem_end; /* the last one-word node used in |mem| */
+@c
+static void do_set_mp_sym_info(MP mp, mp_node p, halfword v) {
+  (void)mp;
+  assert(p->type==mp_symbol_node);
+  p->info=v;
+}
+static halfword get_mp_sym_info (MP mp, mp_node p) {
+  (void)mp;
+  assert(p->type==mp_symbol_node);
+  return p->info;
+}
 
-@ If one-word memory is exhausted, it might mean that the user has forgotten
-a token like `\&{enddef}' or `\&{endfor}'. We will define some procedures
-later that try to help pinpoint the trouble.
+@ These redirect to function to aid in debugging.
 
-@ The function |get_avail| returns a pointer to a new one-word node whose
-|link| field is null. However, \MP\ will halt if there is no more room left.
+@d mp_sym_sym(A) get_mp_sym_sym(mp,(A))
+@d set_mp_sym_sym(A,B) do_set_mp_sym_sym(mp,(A),(B))
+
+@c
+static void do_set_mp_sym_sym(MP mp, mp_node p, mp_sym v) {
+  mp_symbolic_node pp = (mp_symbolic_node) p;
+  (void)mp;
+  assert(pp->type==mp_symbol_node);
+  pp->sym=v;
+}
+static mp_sym get_mp_sym_sym (MP mp, mp_node p) {
+  mp_symbolic_node pp = (mp_symbolic_node) p;
+  (void)mp;
+  assert(pp->type==mp_symbol_node);
+  return pp->sym;
+}
+
+@ These redirect to function to aid in debugging.
+
+@d mp_sym_node(A) get_mp_sym_node(mp,(A))
+@d set_mp_sym_node(A,B) do_set_mp_sym_node(mp,(A),(B))
+
+@c
+static void do_set_mp_sym_node(MP mp, mp_node p, mp_node v) {
+  mp_symbolic_node pp = (mp_symbolic_node) p;
+  (void)mp;
+  assert(p->type==mp_symbol_node);
+  pp->node=v;
+}
+static mp_node get_mp_sym_node (MP mp, mp_node p) {
+  mp_symbolic_node pp = (mp_symbolic_node) p;
+  (void)mp;
+  assert(p->type==mp_symbol_node);
+  return pp->node;
+}
+
+@ @<Declarations@>=
+static void do_set_mp_sym_info(MP mp, mp_node A, halfword B);
+static halfword get_mp_sym_info(MP mp, mp_node p) ;
+static void do_set_mp_sym_sym(MP mp, mp_node A, mp_sym B);
+static mp_sym get_mp_sym_sym(MP mp, mp_node p) ;
+static void do_set_mp_sym_node(MP mp, mp_node A, mp_node B);
+static mp_node get_mp_sym_node(MP mp, mp_node p) ;
+
+@ Symbolic nodes also have |name_type|, which is a short enumeration
+
+@<Types...@>=
+enum {
+  mp_normal_sym = 0,
+  mp_internal_sym, /* for values of internals */
+  mp_macro_sym,    /* for macro names */
+  mp_expr_sym,     /* for macro parameters if type |expr| */
+  mp_suffix_sym,   /* for macro parameters if type |suffix| */
+  mp_text_sym,     /* for macro parameters if type |text| */
+} mp_sym_name_types;
+
+@ The function |get_symbolic_node| returns a pointer to a new symbolic node whose
+|link| field is null.
 @^inner loop@>
 
+@d symbolic_node_size sizeof(mp_symbolic_node_data)
 @c 
-static pointer mp_get_avail (MP mp) { /* single-word node allocation */
-  pointer p; /* the new node being got */
-  p=mp->avail; /* get top location in the |avail| stack */
-  if ( p!=null ) {
-    mp->avail=mp_link(mp->avail); /* and pop it off */
-  } else if ( mp->mem_end<mp->mem_max ) { /* or go into virgin territory */
-    incr(mp->mem_end); p=mp->mem_end;
-  } else { 
-    decr(mp->hi_mem_min); p=mp->hi_mem_min;
-    if ( mp->hi_mem_min<=mp->lo_mem_max ) { 
-      mp_runaway(mp); /* if memory is exhausted, display possible runaway text */
-      mp_overflow(mp, "main memory size",mp->mem_max);
-      /* quit; all one-word nodes are busy */
-@:MetaPost capacity exceeded main memory size}{\quad main memory size@>
-    }
-  }
-  mp_link(p)=null; /* provide an oft-desired initialization of the new node */
-  incr(mp->dyn_used);/* maintain statistics */
-  return p;
+static mp_node mp_get_symbolic_node (MP mp) {
+   mp_symbolic_node p = xmalloc(1, symbolic_node_size);
+   add_var_used(symbolic_node_size);
+   memset(p,0,symbolic_node_size);
+   p->type = mp_symbol_node;
+   p->name_type = mp_normal_sym;
+   return (mp_node)p;
 }
 
-@ Conversely, a one-word node is recycled by calling |free_avail|.
-
-@d free_avail(A)  /* single-word node liberation */
-  { mp_link((A))=mp->avail; mp->avail=(A); decr(mp->dyn_used);  }
-
-@ There's also a |fast_get_avail| routine, which saves the procedure-call
-overhead at the expense of extra programming. This macro is used in
-the places that would otherwise account for the most calls of |get_avail|.
-@^inner loop@>
-
-@d fast_get_avail(A) { 
-  (A)=mp->avail; /* avoid |get_avail| if possible, to save time */
-  if ( (A)==null ) { (A)=mp_get_avail(mp); } 
-  else { mp->avail=mp_link((A)); mp_link((A))=null;  incr(mp->dyn_used); }
-  }
-
-@ The available-space list that keeps track of the variable-size portion
-of |mem| is a nonempty, doubly-linked circular list of empty nodes,
-pointed to by the roving pointer |rover|.
-
-Each empty node has size 2 or more; the first word contains the special
-value |max_halfword| in its |link| field and the size in its |info| field;
-the second word contains the two pointers for double linking.
-
-Each nonempty node also has size 2 or more. Its first word is of type
-|two_halves|\kern-1pt, and its |link| field is never equal to |max_halfword|.
-Otherwise there is complete flexibility with respect to the contents
-of its other fields and its other words.
-
-(We require |mem_max<max_halfword| because terrible things can happen
-when |max_halfword| appears in the |link| field of a nonempty node.)
-
-@d empty_flag   max_halfword /* the |link| of an empty variable-size node */
-@d is_empty(A)   (mp_link((A))==empty_flag) /* tests for empty node */
-
-@(mpmp.h@>=
-#define node_size   mp_info /* the size field in empty variable-size nodes */
-#define lmp_link(A)   mp_info((A)+1) /* left link in doubly-linked list of empty nodes */
-#define rmp_link(A)   mp_link((A)+1) /* right link in doubly-linked list of empty nodes */
-
-@ @<Glob...@>=
-pointer rover; /* points to some node in the list of empties */
-
-@ A call to |get_node| with argument |s| returns a pointer to a new node
-of size~|s|, which must be 2~or more. The |link| field of the first word
-of this new node is set to null. An overflow stop occurs if no suitable
-space exists.
-
-If |get_node| is called with $s=2^{30}$, it simply merges adjacent free
-areas and returns the value |max_halfword|.
-
-@<Internal library declarations@>=
-pointer mp_get_node (MP mp,integer s) ;
-
-@ @c 
-pointer mp_get_node (MP mp,integer s) { /* variable-size node allocation */
-  pointer p; /* the node currently under inspection */
-  pointer q;  /* the node physically after node |p| */
-  integer r; /* the newly allocated node, or a candidate for this honor */
-  integer t,tt; /* temporary registers */
-@^inner loop@>
- RESTART: 
-  p=mp->rover; /* start at some free node in the ring */
-  do {  
-    @<Try to allocate within node |p| and its physical successors,
-     and |goto found| if allocation was possible@>;
-    if (rmp_link(p)==null || (rmp_link(p)==p && p!=mp->rover)) {
-      print_err("Free list garbled");
-      help3("I found an entry in the list of free nodes that links",
-       "badly. I will try to ignore the broken link, but something",
-       "is seriously amiss. It is wise to warn the maintainers.")
-	  mp_error(mp);
-      rmp_link(p)=mp->rover;
-    }
-	p=rmp_link(p); /* move to the next node in the ring */
-  } while (p!=mp->rover); /* repeat until the whole list has been traversed */
-  if ( s==010000000000 ) { 
-    return max_halfword;
-  };
-  if ( mp->lo_mem_max+2<mp->hi_mem_min ) {
-    if ( mp->lo_mem_max+2<=max_halfword ) {
-      @<Grow more variable-size memory and |goto restart|@>;
-    }
-  }
-  mp_overflow(mp, "main memory size",mp->mem_max);
-  /* sorry, nothing satisfactory is left */
-@:MetaPost capacity exceeded main memory size}{\quad main memory size@>
-FOUND: 
-  mp_link(r)=null; /* this node is now nonempty */
-  mp->var_used+=s; /* maintain usage statistics */
-  return r;
-}
-
-@ The lower part of |mem| grows by 1000 words at a time, unless
-we are very close to going under. When it grows, we simply link
-a new node into the available-space list. This method of controlled
-growth helps to keep the |mem| usage consecutive when \MP\ is
-implemented on ``virtual memory'' systems.
-@^virtual memory@>
-
-@<Grow more variable-size memory and |goto restart|@>=
-{ 
-  if ( mp->hi_mem_min-mp->lo_mem_max>=1998 ) {
-    t=mp->lo_mem_max+1000;
-  } else {
-    t=mp->lo_mem_max+1+(mp->hi_mem_min-mp->lo_mem_max) / 2; 
-    /* |lo_mem_max+2<=t<hi_mem_min| */
-  }
-  if ( t>max_halfword ) t=max_halfword;
-  p=lmp_link(mp->rover); q=mp->lo_mem_max; rmp_link(p)=q; lmp_link(mp->rover)=q;
-  rmp_link(q)=mp->rover; lmp_link(q)=p; mp_link(q)=empty_flag; 
-  node_size(q)=t-mp->lo_mem_max;
-  mp->lo_mem_max=t; mp_link(mp->lo_mem_max)=null; mp_info(mp->lo_mem_max)=null;
-  mp->rover=q; 
-  goto RESTART;
-}
-
-@ @<Try to allocate...@>=
-q=p+node_size(p); /* find the physical successor */
-while ( is_empty(q) ) { /* merge node |p| with node |q| */
-  t=rmp_link(q); tt=lmp_link(q);
-@^inner loop@>
-  if ( q==mp->rover ) mp->rover=t;
-  lmp_link(t)=tt; rmp_link(tt)=t;
-  q=q+node_size(q);
-}
-r=q-s;
-if ( r>p+1 ) {
-  @<Allocate from the top of node |p| and |goto found|@>;
-}
-if ( r==p ) { 
-  if ( rmp_link(p)!=p ) {
-    @<Allocate entire node |p| and |goto found|@>;
-  }
-}
-node_size(p)=q-p /* reset the size in case it grew */
-
-@ @<Allocate from the top...@>=
-{ 
-  node_size(p)=r-p; /* store the remaining size */
-  mp->rover=p; /* start searching here next time */
-  goto FOUND;
-}
-
-@ Here we delete node |p| from the ring, and let |rover| rove around.
-
-@<Allocate entire...@>=
-{ 
-  mp->rover=rmp_link(p); t=lmp_link(p);
-  lmp_link(mp->rover)=t; rmp_link(t)=mp->rover;
-  goto FOUND;
-}
-
-@ Conversely, when some variable-size node |p| of size |s| is no longer needed,
+@ Conversely, when some node |p| of size |s| is no longer needed,
 the operation |free_node(p,s)| will make its words available, by inserting
 |p| as a new empty node just before where |rover| now points.
 
-@<Internal library declarations@>=
-void mp_free_node (MP mp, pointer p, halfword s) ;
+A symbolic node is recycled by calling |free_symbolic_node|.
 
-@ @c 
-void mp_free_node (MP mp, pointer p, halfword s) { /* variable-size node
-  liberation */
-  pointer q; /* |lmp_link(rover)| */
-  node_size(p)=s; mp_link(p)=empty_flag;
-@^inner loop@>
-  q=lmp_link(mp->rover); lmp_link(p)=q; rmp_link(p)=mp->rover; /* set both links */
-  lmp_link(mp->rover)=p; rmp_link(q)=p; /* insert |p| into the ring */
-  mp->var_used-=s; /* maintain statistics */
-}
-
-@* \[11] Memory layout.
-Some areas of |mem| are dedicated to fixed usage, since static allocation is
-more efficient than dynamic allocation when we can get away with it. For
-example, locations |0| to |1| are always used to store a
-two-word dummy token whose second word is zero.
-The following macro definitions accomplish the static allocation by giving
-symbolic names to the fixed positions. Static variable-size nodes appear
-in locations |0| through |lo_mem_stat_max|, and static single-word nodes
-appear in locations |hi_mem_stat_min| through |mem_top|, inclusive.
-
-@d sentinel mp->mem_top /* end of sorted lists */
-@d temp_head (mp->mem_top-1) /* head of a temporary list of some kind */
-@d hold_head (mp->mem_top-2) /* head of a temporary list of another kind */
-
-@(mpmp.h@>=
-#define spec_head (mp->mem_top-3) /* head of a list of unprocessed \&{special} items */
-#define null_dash (2) /* the first two words are reserved for a null value */
-#define dep_head (null_dash+3) /* we will define |dash_node_size=3| */
-#define zero_val (dep_head+2) /* two words for a permanently zero value */
-#define temp_val (zero_val+2) /* two words for a temporary value node */
-#define end_attr temp_val /* we use |end_attr+2| only */
-#define inf_val (end_attr+2) /* and |inf_val+1| only */
-#define bad_vardef (inf_val+2) /* two words for \&{vardef} error recovery */
-#define lo_mem_stat_max (bad_vardef+1)  /* largest statically
-  allocated word in the variable-size |mem| */
-#define hi_mem_stat_min (mp->mem_top-3) /* smallest statically allocated word in
-  the one-word |mem| */
-
-@ The following code gets the dynamic part of |mem| off to a good start,
-when \MP\ is initializing itself the slow way.
-
-@<Initialize table entries (done by \.{INIMP} only)@>=
-mp->rover=lo_mem_stat_max+1; /* initialize the dynamic memory */
-mp_link(mp->rover)=empty_flag;
-node_size(mp->rover)=1000; /* which is a 1000-word available node */
-lmp_link(mp->rover)=mp->rover; rmp_link(mp->rover)=mp->rover;
-mp->lo_mem_max=mp->rover+1000; 
-mp_link(mp->lo_mem_max)=null; mp_info(mp->lo_mem_max)=null;
-for (k=hi_mem_stat_min;k<=(int)mp->mem_top;k++) {
-  mp->mem[k]=mp->mem[mp->lo_mem_max]; /* clear list heads */
-}
-mp->avail=null; mp->mem_end=mp->mem_top;
-mp->hi_mem_min=hi_mem_stat_min; /* initialize the one-word memory */
-mp->var_used=lo_mem_stat_max+1; 
-mp->dyn_used=mp->mem_top+1-(hi_mem_stat_min);  /* initialize statistics */
-
-@ The procedure |flush_list(p)| frees an entire linked list of one-word
-nodes that starts at a given position, until coming to |sentinel| or a
-pointer that is not in the one-word region. Another procedure,
-|flush_node_list|, frees an entire linked list of one-word and two-word
-nodes, until coming to a |null| pointer.
-@^inner loop@>
+@d mp_free_symbolic_node(mp, A) mp_free_node(mp, (A), symbolic_node_size)
 
 @c 
-static void mp_flush_list (MP mp,pointer p) { /* makes list of single-word nodes  available */
-  pointer q,r; /* list traversers */
-  if ( p>=mp->hi_mem_min ) if ( p!=sentinel ) { 
-    r=p;
-    do {  
-      q=r; r=mp_link(r); 
-      decr(mp->dyn_used);
-      if ( r<mp->hi_mem_min ) break;
-    } while (r!=sentinel);
-  /* now |q| is the last node on the list */
-    mp_link(q)=mp->avail; mp->avail=p;
-  }
-}
-@#
-static void mp_flush_node_list (MP mp,pointer p) {
-  pointer q; /* the node being recycled */
-  while ( p!=null ){ 
-    q=p; p=mp_link(p);
-    if ( q<mp->hi_mem_min ) 
-      mp_free_node(mp, q,2);
-    else 
-      free_avail(q);
-  }
+void mp_free_node (MP mp, mp_node p, size_t siz) { /* node liberation */
+   mp->var_used -= siz;
+   xfree(p); /* do more later */
 }
 
-@ If \MP\ is extended improperly, the |mem| array might get screwed up.
-For example, some pointers might be wrong, or some ``dead'' nodes might not
-have been freed when the last reference to them disappeared. Procedures
-|check_mem| and |search_mem| are available to help diagnose such
-problems. These procedures make use of two arrays called |free| and
-|was_free| that are present only if \MP's debugging routines have
-been included. (You may want to decrease the size of |mem| while you
-@^debugging@>
-are debugging.)
+@ @<Internal library declarations@>=
+void mp_free_node (MP mp, mp_node p, size_t siz) ;
 
-Because |boolean|s are typedef-d as ints, it is better to use
-unsigned chars here.
+@ Same redirection trick as above
 
-@<Glob...@>=
-unsigned char *free; /* free cells */
-unsigned char *was_free; /* previously free cells */
-pointer was_mem_end; pointer was_lo_max; pointer was_hi_min;
-  /* previous |mem_end|, |lo_mem_max|,and |hi_mem_min| */
-boolean panicking; /* do we want to check memory constantly? */
-
-@ @<Allocate or initialize ...@>=
-mp->free = xmalloc ((mp->mem_max+1),sizeof (unsigned char));
-mp->was_free = xmalloc ((mp->mem_max+1), sizeof (unsigned char));
-
-@ @<Dealloc variables@>=
-xfree(mp->free);
-xfree(mp->was_free);
-
-@ @<Allocate or ...@>=
-mp->was_hi_min=mp->mem_max;
-mp->panicking=false;
-
-@ @<Declarations@>=
-static void mp_reallocate_memory(MP mp, int l) ;
-
-@ @c
-static void mp_reallocate_memory(MP mp, int l) {
-   XREALLOC(mp->free,     l, unsigned char);
-   XREALLOC(mp->was_free, l, unsigned char);
-   if (mp->mem) {
-	 int newarea = l-mp->mem_max;
-     XREALLOC(mp->mem,      l, memory_word);
-     memset (mp->mem+(mp->mem_max+1),0,(size_t)(sizeof(memory_word)*((unsigned)newarea)));
-   } else {
-     XREALLOC(mp->mem,      l, memory_word);
-     memset(mp->mem,0,(size_t)(sizeof(memory_word)*(unsigned)(l+1)));
-   }
-   mp->mem_max = l;
-   if (mp->ini_version) 
-     mp->mem_top = l;
-}
-
-
-
-@ Procedure |check_mem| makes sure that the available space lists of
-|mem| are well formed, and it optionally prints out all locations
-that are reserved now but were free the last time this procedure was called.
-
-@c 
-#if 0
-static void mp_check_mem (MP mp,boolean print_locs ) {
-  pointer p,q,r; /* current locations of interest in |mem| */
-  boolean clobbered; /* is something amiss? */
-  for (p=0;p<=mp->lo_mem_max;p++) {
-    mp->free[p]=false; /* you can probably do this faster */
-  }
-  for (p=mp->hi_mem_min;p<= mp->mem_end;p++) {
-    mp->free[p]=false; /* ditto */
-  }
-  @<Check single-word |avail| list@>;
-  @<Check variable-size |avail| list@>;
-  @<Check flags of unavailable nodes@>;
-  @<Check the list of linear dependencies@>;
-  if ( print_locs ) {
-    @<Print newly busy locations@>;
-  }
-  (void)memcpy(mp->was_free, mp->free, (size_t)(sizeof(char)*(unsigned)(mp->mem_end+1)));
-  mp->was_mem_end=mp->mem_end; 
-  mp->was_lo_max=mp->lo_mem_max; 
-  mp->was_hi_min=mp->hi_mem_min;
-}
-#endif
-
-@ @<Check single-word...@>=
-p=mp->avail; q=null; clobbered=false;
-while ( p!=null ) { 
-  if ( (p>mp->mem_end)||(p<mp->hi_mem_min) ) clobbered=true;
-  else if ( mp->free[p] ) clobbered=true;
-  if ( clobbered ) { 
-    mp_print_nl(mp, "AVAIL list clobbered at ");
-@.AVAIL list clobbered...@>
-    mp_print_int(mp, q); break;
-  }
-  mp->free[p]=true; q=p; p=mp_link(q);
-}
-
-@ @<Check variable-size...@>=
-p=mp->rover; q=null; clobbered=false;
-do {  
-  if ( (p>=mp->lo_mem_max)||(p<0) ) clobbered=true;
-  else if ( (rmp_link(p)>=mp->lo_mem_max)||(rmp_link(p)<0) ) clobbered=true;
-  else if (  !(is_empty(p))||(node_size(p)<2)||
-   (p+node_size(p)>mp->lo_mem_max)|| (lmp_link(rmp_link(p))!=p) ) clobbered=true;
-  if ( clobbered ) { 
-    mp_print_nl(mp, "Double-AVAIL list clobbered at ");
-@.Double-AVAIL list clobbered...@>
-    mp_print_int(mp, q); break;
-  }
-  for (q=p;q<=p+node_size(p)-1;q++) { /* mark all locations free */
-    if ( mp->free[q] ) { 
-      mp_print_nl(mp, "Doubly free location at ");
-@.Doubly free location...@>
-      mp_print_int(mp, q); break;
-    }
-    mp->free[q]=true;
-  }
-  q=p; p=rmp_link(p);
-} while (p!=mp->rover)
-
-
-@ @<Check flags...@>=
-p=0;
-while ( p<=mp->lo_mem_max ) { /* node |p| should not be empty */
-  if ( is_empty(p) ) {
-    mp_print_nl(mp, "Bad flag at "); mp_print_int(mp, p);
-@.Bad flag...@>
-  }
-  while ( (p<=mp->lo_mem_max) && ! mp->free[p] ) p++;
-  while ( (p<=mp->lo_mem_max) && mp->free[p] ) p++;
-}
-
-@ @<Print newly busy...@>=
-{ 
-  @<Do intialization required before printing new busy locations@>;
-  mp_print_nl(mp, "New busy locs:");
-@.New busy locs@>
-  for (p=0;p<= mp->lo_mem_max;p++ ) {
-    if ( ! mp->free[p] && ((p>mp->was_lo_max) || mp->was_free[p]) ) {
-      @<Indicate that |p| is a new busy location@>;
-    }
-  }
-  for (p=mp->hi_mem_min;p<=mp->mem_end;p++ ) {
-    if ( ! mp->free[p] &&
-        ((p<mp->was_hi_min) || (p>mp->was_mem_end) || mp->was_free[p]) ) {
-      @<Indicate that |p| is a new busy location@>;
-    }
-  }
-  @<Finish printing new busy locations@>;
-}
-
-@ There might be many new busy locations so we are careful to print contiguous
-blocks compactly.  During this operation |q| is the last new busy location and
-|r| is the start of the block containing |q|.
-
-@<Indicate that |p| is a new busy location@>=
-{ 
-  if ( p>q+1 ) { 
-    if ( q>r ) { 
-      mp_print(mp, ".."); mp_print_int(mp, q);
-    }
-    mp_print_char(mp, xord(' ')); mp_print_int(mp, p);
-    r=p;
-  }
-  q=p;
-}
-
-@ @<Do intialization required before printing new busy locations@>=
-q=mp->mem_max; r=mp->mem_max
-
-@ @<Finish printing new busy locations@>=
-if ( q>r ) { 
-  mp_print(mp, ".."); mp_print_int(mp, q);
-}
-
-@ The |search_mem| procedure attempts to answer the question ``Who points
-to node~|p|?'' In doing so, it fetches |link| and |info| fields of |mem|
-that might not be of type |two_halves|. Strictly speaking, this is
-undefined, and it can lead to ``false drops'' (words that seem to
-point to |p| purely by coincidence). But for debugging purposes, we want
-to rule out the places that do {\sl not\/} point to |p|, so a few false
-drops are tolerable.
+@d mp_info(A) get_mp_info(mp,(A))
+@d set_mp_info(A,B) do_set_mp_info(mp,(A),(B))
 
 @c
-#if 0
-void mp_search_mem (MP mp, pointer p) { /* look for pointers to |p| */
-  integer q; /* current position being searched */
-  for (q=0;q<=mp->lo_mem_max;q++) { 
-    if ( mp_link(q)==p ){ 
-      mp_print_nl(mp, "LINK("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
-    }
-    if ( mp_info(q)==p ) { 
-      mp_print_nl(mp, "INFO("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
-    }
-  }
-  for (q=mp->hi_mem_min;q<=mp->mem_end;q++) {
-    if ( mp_link(q)==p ) {
-      mp_print_nl(mp, "LINK("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
-    }
-    if ( mp_info(q)==p ) {
-      mp_print_nl(mp, "INFO("); mp_print_int(mp, q); mp_print_char(mp, xord(')'));
-    }
-  }
-  @<Search |eqtb| for equivalents equal to |p|@>;
+static void do_set_mp_info(MP mp, mp_node p, halfword v) {
+  (void)mp;
+  p->info=v;
 }
-#endif
-
-@ Just before \.{INIMP} writes out the memory, it sorts the doubly linked
-available space list. The list is probably very short at such times, so a
-simple insertion sort is used. The smallest available location will be
-pointed to by |rover|, the next-smallest by |rmp_link(rover)|, etc.
-
-@<Internal library ...@>=
-void mp_sort_avail (MP mp);
-
-@ @c 
-void mp_sort_avail (MP mp) { /* sorts the available variable-size nodes
-  by location */
-  pointer p,q,r; /* indices into |mem| */
-  pointer old_rover; /* initial |rover| setting */
-  p=mp_get_node(mp, 010000000000); /* merge adjacent free areas */
-  p=rmp_link(mp->rover); rmp_link(mp->rover)=max_halfword; old_rover=mp->rover;
-  while ( p!=old_rover ) {
-    @<Sort |p| into the list starting at |rover|
-     and advance |p| to |rmp_link(p)|@>;
-  }
-  p=mp->rover;
-  while ( rmp_link(p)!=max_halfword ) { 
-    lmp_link(rmp_link(p))=p; p=rmp_link(p);
-  };
-  rmp_link(p)=mp->rover; lmp_link(mp->rover)=p;
+halfword get_mp_info (MP mp, mp_node p) {
+  (void)mp;
+  return p->info;
 }
 
-@ The following |while| loop is guaranteed to
-terminate, since the list that starts at
-|rover| ends with |max_halfword| during the sorting procedure.
+@ @<Declarations@>=
+static halfword get_mp_info (MP mp, mp_node p);
+static void do_set_mp_info(MP mp, mp_node p, halfword v) ;
 
-@<Sort |p|...@>=
-if ( p<mp->rover ) { 
-  q=p; p=rmp_link(q); rmp_link(q)=mp->rover; mp->rover=q;
-} else  { 
-  q=mp->rover;
-  while ( rmp_link(q)<p ) q=rmp_link(q);
-  r=rmp_link(p); rmp_link(p)=rmp_link(q); rmp_link(q)=p; p=r;
+
+@* \[11] Memory layout.
+Some nodes are created statically, since static allocation is
+more efficient than dynamic allocation when we can get away with it. 
+
+@<Glob...@>=
+mp_node null_node; /* todo: name changed */
+mp_node null_dash;
+mp_value_node dep_head;
+mp_node inf_val;
+mp_node zero_val;
+mp_node temp_val;
+mp_node end_attr;
+mp_node bad_vardef;
+mp_node temp_head;
+mp_node hold_head;
+mp_node spec_head;
+
+@ The following code gets the memory off to a good start.
+
+@<Initialize table entries@>=
+mp->spec_head = mp_get_symbolic_node(mp);
+mp->temp_head = mp_get_symbolic_node(mp);
+mp->hold_head = mp_get_symbolic_node(mp);
+
+@ @<Free table entries@>=
+mp_free_symbolic_node(mp,mp->spec_head);
+mp_free_symbolic_node(mp,mp->temp_head);
+mp_free_symbolic_node(mp,mp->hold_head);
+
+@ The procedure |flush_node_list(p)| frees an entire linked list of 
+nodes that starts at a given position, until coming to a |null| pointer.
+@^inner loop@>
+
+@c
+static void mp_flush_node_list (MP mp, mp_node p) {
+  mp_node q; /* the node being recycled */
+  while ( p!=NULL ){ 
+    q=p; 
+    p=p->link;
+    if ( q->type != mp_symbol_node ) 
+      mp_free_node(mp, q, token_node_size);
+    else 
+      mp_free_symbolic_node(mp,q);
+  }
 }
-
 
 @* \[12] The command codes.
 Before we can go much further, we need to define symbolic names for the internal
@@ -4828,6 +4120,7 @@ At any rate, here is the list, for future reference.
 @d stop 84 /* end a job (\&{end}, \&{dump}), must be |end_group+1| */
 @d max_command_code stop
 @d outer_tag (max_command_code+1) /* protection code added to command code */
+@d undefined_cs (max_command_code+2) /* protection code added to command code */
 
 @<Types...@>=
 typedef int command_code;
@@ -4841,14 +4134,14 @@ parts must have types between |transform_type| and |pair_type|;
 all other types must be smaller than |transform_type|; and among the types
 that are not unknown or vacuous, the smallest two must be |boolean_type|
 and |string_type| in that order.
- 
+
 @d undefined 0 /* no type has been declared */
 @d unknown_tag 1 /* this constant is added to certain type codes below */
 @d unknown_types mp_unknown_boolean: case mp_unknown_string:
   case mp_unknown_pen: case mp_unknown_picture: case mp_unknown_path
 
 @<Types...@>=
-enum mp_variable_type {
+typedef enum {
 mp_vacuous = 1, /* no expression was present */
 mp_boolean_type, /* \&{boolean} with a known value */
 mp_unknown_boolean,
@@ -4872,44 +4165,91 @@ mp_independent, /* \&{numeric} with unknown value */
 mp_token_list, /* variable name or suffix argument or text argument */
 mp_structured, /* variable with subscripts and attributes */
 mp_unsuffixed_macro, /* variable defined with \&{vardef} but no \.{\AT!\#} */
-mp_suffixed_macro /* variable defined with \&{vardef} and \.{\AT!\#} */
-} ;
+mp_suffixed_macro, /* variable defined with \&{vardef} and \.{\AT!\#} */
+/* here are some generic node types */
+mp_symbol_node,
+mp_token_node_type,
+mp_value_node_type,
+mp_attr_node_type,
+mp_subscr_node_type,
+mp_pair_node_type,
+mp_transform_node_type,
+mp_color_node_type,
+mp_cmykcolor_node_type,
+/* it is important that the next 7 items remain in this order, for export */
+mp_fill_node_type,
+mp_stroked_node_type,
+mp_text_node_type,
+mp_start_clip_node_type,
+mp_start_bounds_node_type,
+mp_stop_clip_node_type,
+mp_stop_bounds_node_type,
+mp_dash_node_type,
+mp_dep_node_type,
+mp_if_node_type,
+mp_edge_header_node_type,
+} mp_variable_type;
 
 @ @<Declarations@>=
 static void mp_print_type (MP mp,quarterword t) ;
 
 @ @<Basic printing procedures@>=
-void mp_print_type (MP mp,quarterword t) { 
+static const char *mp_type_string (quarterword t) { 
+  const char *s = NULL;
   switch (t) {
-  case mp_vacuous:mp_print(mp, "vacuous"); break;
-  case mp_boolean_type:mp_print(mp, "boolean"); break;
-  case mp_unknown_boolean:mp_print(mp, "unknown boolean"); break;
-  case mp_string_type:mp_print(mp, "string"); break;
-  case mp_unknown_string:mp_print(mp, "unknown string"); break;
-  case mp_pen_type:mp_print(mp, "pen"); break;
-  case mp_unknown_pen:mp_print(mp, "unknown pen"); break;
-  case mp_path_type:mp_print(mp, "path"); break;
-  case mp_unknown_path:mp_print(mp, "unknown path"); break;
-  case mp_picture_type:mp_print(mp, "picture"); break;
-  case mp_unknown_picture:mp_print(mp, "unknown picture"); break;
-  case mp_transform_type:mp_print(mp, "transform"); break;
-  case mp_color_type:mp_print(mp, "color"); break;
-  case mp_cmykcolor_type:mp_print(mp, "cmykcolor"); break;
-  case mp_pair_type:mp_print(mp, "pair"); break;
-  case mp_known:mp_print(mp, "known numeric"); break;
-  case mp_dependent:mp_print(mp, "dependent"); break;
-  case mp_proto_dependent:mp_print(mp, "proto-dependent"); break;
-  case mp_numeric_type:mp_print(mp, "numeric"); break;
-  case mp_independent:mp_print(mp, "independent"); break;
-  case mp_token_list:mp_print(mp, "token list"); break;
-  case mp_structured:mp_print(mp, "mp_structured"); break;
-  case mp_unsuffixed_macro:mp_print(mp, "unsuffixed macro"); break;
-  case mp_suffixed_macro:mp_print(mp, "suffixed macro"); break;
-  default: mp_print(mp, "undefined"); break;
+  case undefined:s = "undefined"; break;
+  case mp_vacuous:s = "vacuous"; break;
+  case mp_boolean_type:s = "boolean"; break;
+  case mp_unknown_boolean:s = "unknown boolean"; break;
+  case mp_string_type:s = "string"; break;
+  case mp_unknown_string:s = "unknown string"; break;
+  case mp_pen_type:s = "pen"; break;
+  case mp_unknown_pen:s = "unknown pen"; break;
+  case mp_path_type:s = "path"; break;
+  case mp_unknown_path:s = "unknown path"; break;
+  case mp_picture_type:s = "picture"; break;
+  case mp_unknown_picture:s = "unknown picture"; break;
+  case mp_transform_type:s = "transform"; break;
+  case mp_color_type:s = "color"; break;
+  case mp_cmykcolor_type:s = "cmykcolor"; break;
+  case mp_pair_type:s = "pair"; break;
+  case mp_known:s = "known numeric"; break;
+  case mp_dependent:s = "dependent"; break;
+  case mp_proto_dependent:s = "proto-dependent"; break;
+  case mp_numeric_type:s = "numeric"; break;
+  case mp_independent:s = "independent"; break;
+  case mp_token_list:s = "token list"; break;
+  case mp_structured:s = "mp_structured"; break;
+  case mp_unsuffixed_macro:s = "unsuffixed macro"; break;
+  case mp_suffixed_macro:s = "suffixed macro"; break;
+  case mp_symbol_node: s = "symbol node"; break;
+  case mp_token_node_type: s = "token node"; break;
+  case mp_value_node_type: s = "value node"; break;
+  case mp_attr_node_type: s = "attribute node"; break;
+  case mp_subscr_node_type: s = "subscript node"; break;
+  case mp_fill_node_type: s = "fill node"; break;
+  case mp_stroked_node_type: s = "stroked node"; break;
+  case mp_text_node_type: s = "text node"; break;
+  case mp_start_clip_node_type: s = "start clip node"; break;
+  case mp_start_bounds_node_type: s = "start bounds node"; break;
+  case mp_stop_clip_node_type: s = "stop clip node"; break;
+  case mp_stop_bounds_node_type: s = "stop bounds node"; break;
+  case mp_dash_node_type: s = "dash node"; break;
+  case mp_dep_node_type: s = "dependency node"; break;
+  case mp_if_node_type: s = "if node"; break;
+  case mp_edge_header_node_type: s = "edge header node"; break;
+  default: assert(0); break;
   }
+  return s;
+}
+void mp_print_type (MP mp,quarterword t) { 
+  if (t>=0 && t<= mp_edge_header_node_type)
+    mp_print(mp, mp_type_string(t));
+  else
+    mp_print(mp, "unknown");
 }
 
-@ Values inside \MP\ are stored in two-word nodes that have a |name_type|
+@ Values inside \MP\ are stored in non-symbolic nodes that have a |name_type|
 as well as a |type|. The possibilities for |name_type| are defined
 here; they will be explained in more detail later.
 
@@ -5213,15 +4553,26 @@ enum mp_given_internal {
   mp_procset, /* wether or not create PostScript command shortcuts */
   mp_gtroffmode  /* whether the user specified |-troff| on the command line */
 };
+typedef struct {
+   str_number str;
+   scaled val;
+   mp_variable_type type;
+   char *intname;
+} mp_internal;
+
+
+@ @(mpmp.h@>=
+#define internal_value(A) mp->internal[(A)].val
+#define internal_string(A) mp->internal[(A)].str
+#define internal_name(A) mp->internal[(A)].intname
+#define internal_type(A) mp->internal[(A)].type
 
 @
 
 @d max_given_internal mp_gtroffmode
 
 @<Glob...@>=
-scaled *internal;  /* the values of internal quantities */
-int *int_type;    /* their types */
-char **int_name;  /* their names */
+mp_internal *internal;  /* the values of internal quantities */
 int int_ptr;  /* the maximum internal quantity defined so far */
 int max_internal; /* current maximum number of internal quantities */
 
@@ -5230,20 +4581,16 @@ int troff_mode;
 
 @ @<Allocate or initialize ...@>=
 mp->max_internal=2*max_given_internal;
-mp->internal = xmalloc ((mp->max_internal+1), sizeof(scaled));
-memset(mp->internal,0,(size_t)(mp->max_internal+1)* sizeof(scaled));
-mp->int_name = xmalloc ((mp->max_internal+1), sizeof(char *));
-memset(mp->int_name,0,(size_t)(mp->max_internal+1) * sizeof(char *));
-mp->int_type = xmalloc ((mp->max_internal+1), sizeof(int));
-memset(mp->int_type,0,(size_t)(mp->max_internal+1) * sizeof(int));
+mp->internal = xmalloc ((mp->max_internal+1), sizeof(mp_internal));
+memset(mp->internal,0,(size_t)(mp->max_internal+1)* sizeof(mp_internal));
 {
   int i;
   for (i=1;i<=max_given_internal;i++)
-    mp->int_type[i]=mp_known;
+    internal_type(i)=mp_known;
 }
-mp->int_type[mp_output_format]=mp_string_type;
-mp->int_type[mp_output_template]=mp_string_type;
-mp->int_type[mp_job_name]=mp_string_type;
+internal_type(mp_output_format)=mp_string_type;
+internal_type(mp_output_template)=mp_string_type;
+internal_type(mp_job_name)=mp_string_type;
 mp->troff_mode=(opt->troff_mode>0 ? true : false);
 
 @ @<Exported function ...@>=
@@ -5368,58 +4715,69 @@ enum mp_color_model {
 };
 
 
-@ @<Initialize table entries (done by \.{INIMP} only)@>=
-mp->internal[mp_default_color_model]=(mp_rgb_model*unity);
-mp->internal[mp_restore_clip_color]=unity;
-mp->internal[mp_output_template]=intern("%j.%c");
-mp->internal[mp_output_format]=intern("eps");
+@ @<Initialize table entries@>=
+internal_value(mp_default_color_model)=(mp_rgb_model*unity);
+internal_value(mp_restore_clip_color)=unity;
+internal_string(mp_output_template)=mp_intern(mp,"%j.%c");
+internal_string(mp_output_format)=mp_intern(mp,"eps");
+internal_value(mp_tracing_titles)=3*unity;
+internal_value(mp_tracing_equations)=3*unity;
+internal_value(mp_tracing_capsules)=3*unity;
+internal_value(mp_tracing_choices)=3*unity;
+internal_value(mp_tracing_specs)=3*unity;
+internal_value(mp_tracing_commands)=3*unity;
+internal_value(mp_tracing_restores)=3*unity;
+internal_value(mp_tracing_macros)=3*unity;
+internal_value(mp_tracing_output)=3*unity;
+internal_value(mp_tracing_stats)=3*unity;
+internal_value(mp_tracing_lost_chars)=3*unity;
 
 @ Well, we do have to list the names one more time, for use in symbolic
 printouts.
 
 @<Initialize table...@>=
-mp->int_name[mp_tracing_titles]=xstrdup("tracingtitles");
-mp->int_name[mp_tracing_equations]=xstrdup("tracingequations");
-mp->int_name[mp_tracing_capsules]=xstrdup("tracingcapsules");
-mp->int_name[mp_tracing_choices]=xstrdup("tracingchoices");
-mp->int_name[mp_tracing_specs]=xstrdup("tracingspecs");
-mp->int_name[mp_tracing_commands]=xstrdup("tracingcommands");
-mp->int_name[mp_tracing_restores]=xstrdup("tracingrestores");
-mp->int_name[mp_tracing_macros]=xstrdup("tracingmacros");
-mp->int_name[mp_tracing_output]=xstrdup("tracingoutput");
-mp->int_name[mp_tracing_stats]=xstrdup("tracingstats");
-mp->int_name[mp_tracing_lost_chars]=xstrdup("tracinglostchars");
-mp->int_name[mp_tracing_online]=xstrdup("tracingonline");
-mp->int_name[mp_year]=xstrdup("year");
-mp->int_name[mp_month]=xstrdup("month");
-mp->int_name[mp_day]=xstrdup("day");
-mp->int_name[mp_time]=xstrdup("time");
-mp->int_name[mp_hour]=xstrdup("hour");
-mp->int_name[mp_minute]=xstrdup("minute");
-mp->int_name[mp_char_code]=xstrdup("charcode");
-mp->int_name[mp_char_ext]=xstrdup("charext");
-mp->int_name[mp_char_wd]=xstrdup("charwd");
-mp->int_name[mp_char_ht]=xstrdup("charht");
-mp->int_name[mp_char_dp]=xstrdup("chardp");
-mp->int_name[mp_char_ic]=xstrdup("charic");
-mp->int_name[mp_design_size]=xstrdup("designsize");
-mp->int_name[mp_pausing]=xstrdup("pausing");
-mp->int_name[mp_showstopping]=xstrdup("showstopping");
-mp->int_name[mp_fontmaking]=xstrdup("fontmaking");
-mp->int_name[mp_linejoin]=xstrdup("linejoin");
-mp->int_name[mp_linecap]=xstrdup("linecap");
-mp->int_name[mp_miterlimit]=xstrdup("miterlimit");
-mp->int_name[mp_warning_check]=xstrdup("warningcheck");
-mp->int_name[mp_boundary_char]=xstrdup("boundarychar");
-mp->int_name[mp_prologues]=xstrdup("prologues");
-mp->int_name[mp_true_corners]=xstrdup("truecorners");
-mp->int_name[mp_default_color_model]=xstrdup("defaultcolormodel");
-mp->int_name[mp_procset]=xstrdup("mpprocset");
-mp->int_name[mp_gtroffmode]=xstrdup("troffmode");
-mp->int_name[mp_restore_clip_color]=xstrdup("restoreclipcolor");
-mp->int_name[mp_output_template]=xstrdup("outputtemplate");
-mp->int_name[mp_output_format]=xstrdup("outputformat");
-mp->int_name[mp_job_name]=xstrdup("jobname");
+internal_name(mp_tracing_titles)=xstrdup("tracingtitles");
+internal_name(mp_tracing_equations)=xstrdup("tracingequations");
+internal_name(mp_tracing_capsules)=xstrdup("tracingcapsules");
+internal_name(mp_tracing_choices)=xstrdup("tracingchoices");
+internal_name(mp_tracing_specs)=xstrdup("tracingspecs");
+internal_name(mp_tracing_commands)=xstrdup("tracingcommands");
+internal_name(mp_tracing_restores)=xstrdup("tracingrestores");
+internal_name(mp_tracing_macros)=xstrdup("tracingmacros");
+internal_name(mp_tracing_output)=xstrdup("tracingoutput");
+internal_name(mp_tracing_stats)=xstrdup("tracingstats");
+internal_name(mp_tracing_lost_chars)=xstrdup("tracinglostchars");
+internal_name(mp_tracing_online)=xstrdup("tracingonline");
+internal_name(mp_year)=xstrdup("year");
+internal_name(mp_month)=xstrdup("month");
+internal_name(mp_day)=xstrdup("day");
+internal_name(mp_time)=xstrdup("time");
+internal_name(mp_hour)=xstrdup("hour");
+internal_name(mp_minute)=xstrdup("minute");
+internal_name(mp_char_code)=xstrdup("charcode");
+internal_name(mp_char_ext)=xstrdup("charext");
+internal_name(mp_char_wd)=xstrdup("charwd");
+internal_name(mp_char_ht)=xstrdup("charht");
+internal_name(mp_char_dp)=xstrdup("chardp");
+internal_name(mp_char_ic)=xstrdup("charic");
+internal_name(mp_design_size)=xstrdup("designsize");
+internal_name(mp_pausing)=xstrdup("pausing");
+internal_name(mp_showstopping)=xstrdup("showstopping");
+internal_name(mp_fontmaking)=xstrdup("fontmaking");
+internal_name(mp_linejoin)=xstrdup("linejoin");
+internal_name(mp_linecap)=xstrdup("linecap");
+internal_name(mp_miterlimit)=xstrdup("miterlimit");
+internal_name(mp_warning_check)=xstrdup("warningcheck");
+internal_name(mp_boundary_char)=xstrdup("boundarychar");
+internal_name(mp_prologues)=xstrdup("prologues");
+internal_name(mp_true_corners)=xstrdup("truecorners");
+internal_name(mp_default_color_model)=xstrdup("defaultcolormodel");
+internal_name(mp_procset)=xstrdup("mpprocset");
+internal_name(mp_gtroffmode)=xstrdup("troffmode");
+internal_name(mp_restore_clip_color)=xstrdup("restoreclipcolor");
+internal_name(mp_output_template)=xstrdup("outputtemplate");
+internal_name(mp_output_format)=xstrdup("outputformat");
+internal_name(mp_job_name)=xstrdup("jobname");
 
 @ The following procedure, which is called just before \MP\ initializes its
 input and output, establishes the initial values of the date and time.
@@ -5432,13 +4790,13 @@ be used after the year 32767.
 static void mp_fix_date_and_time (MP mp) { 
   time_t aclock = time ((time_t *) 0);
   struct tm *tmptr = localtime (&aclock);
-  mp->internal[mp_time]=
+  internal_value(mp_time)=
       (tmptr->tm_hour*60+tmptr->tm_min)*unity; /* minutes since midnight */
-  mp->internal[mp_hour]= (tmptr->tm_hour)*unity; /* hours since midnight */
-  mp->internal[mp_minute]= (tmptr->tm_min)*unity; /* minutes since the hour */
-  mp->internal[mp_day]=(tmptr->tm_mday)*unity; /* fourth day of the month */
-  mp->internal[mp_month]=(tmptr->tm_mon+1)*unity; /* seventh month of the year */
-  mp->internal[mp_year]=(tmptr->tm_year+1900)*unity; /* Anno Domini */
+  internal_value(mp_hour)= (tmptr->tm_hour)*unity; /* hours since midnight */
+  internal_value(mp_minute)= (tmptr->tm_min)*unity; /* minutes since the hour */
+  internal_value(mp_day)=(tmptr->tm_mday)*unity; /* fourth day of the month */
+  internal_value(mp_month)=(tmptr->tm_mon+1)*unity; /* seventh month of the year */
+  internal_value(mp_year)=(tmptr->tm_year+1900)*unity; /* Anno Domini */
 }
 
 @ @<Declarations@>=
@@ -5457,7 +4815,7 @@ static void mp_print_diagnostic (MP mp, const char *s, const char *t, boolean nu
 @ @<Basic printing...@>=
 void mp_begin_diagnostic (MP mp) { /* prepare to do some tracing */
   mp->old_setting=mp->selector;
-  if ((mp->internal[mp_tracing_online]<=0)&&(mp->selector==term_and_log)){ 
+  if ((internal_value(mp_tracing_online)<=0)&&(mp->selector==term_and_log)){ 
     decr(mp->selector);
     if ( mp->history==mp_spotless ) mp->history=mp_warning_issued;
   }
@@ -5578,110 +4936,151 @@ and the other, called |text(p)|, points to the |str_start| entry for
 |text(p)=0|; if position |p| is either empty or the end of a coalesced
 hash list, we have |mp_next(p)=0|.
 
-An auxiliary pointer variable called |hash_used| is maintained in such a
-way that all locations |p>=hash_used| are nonempty. The global variable
-|st_count| tells how many symbolic tokens have been defined, if statistics
-are being kept.
-
-The first 256 locations of |hash| are reserved for symbols of length one.
-
 There's a parallel array called |eqtb| that contains the current equivalent
 values of each symbolic token. The entries of this array consist of
 two halfwords called |eq_type| (a command code) and |equiv| (a secondary
 piece of information that qualifies the |eq_type|).
 
-@d eq_type(A)   mp->eqtb[(A)].lh /* the current ``meaning'' of a symbolic token */
-@d equiv(A)   mp->eqtb[(A)].rh /* parametric part of a token's meaning */
-@d hash_is_full   (mp->hash_used==hash_base) /* are all positions occupied? */
+@d eq_type(A)    (A)->type /* the current ``meaning'' of a symbolic token */
+@d equiv(A)      (A)->v.data.val /* parametric part of a token's meaning */
+@d equiv_node(A) (A)->v.data.node /* parametric part of a token's meaning */
+@d equiv_sym(A)  (A)->v.data.sym /* parametric part of a token's meaning */
+@d text(A)       (A)->text /* string number for symbolic token name */
 
-@(mpmp.h@>=
-#define mp_next(A)   mp->hash[(A)].lh /* link for coalesced lists */
-#define text(A)   mp->hash[(A)].rh /* string number for symbolic token name */
-#define hash_base 257 /* hashing actually starts here */
+@ @<Types...@>=
+typedef struct {
+  halfword val;
+  mp_node node;
+  str_number str;
+  mp_sym sym;
+  mp_knot p;
+} mp_value_data;
+typedef struct {
+  mp_variable_type type;
+  mp_value_data data;
+} mp_value;
+typedef struct mp_symbol_entry {
+  halfword type;
+  mp_value v;
+  str_number text;
+} mp_symbol_entry;
 
 @ @<Glob...@>=
-pointer hash_used; /* allocation pointer for |hash| */
 integer st_count; /* total number of known identifiers */
+avl_tree symbols; /* avl tree of symbolic tokens */
+avl_tree frozen_symbols; /* avl tree of frozen symbolic tokens */
+mp_sym frozen_bad_vardef;
+mp_sym frozen_colon;
+mp_sym frozen_end_def;
+mp_sym frozen_end_for;
+mp_sym frozen_end_group;
+mp_sym frozen_etex;
+mp_sym frozen_fi;
+mp_sym frozen_inaccessible;
+mp_sym frozen_left_bracket;
+mp_sym frozen_mpx_break;
+mp_sym frozen_repeat_loop;
+mp_sym frozen_right_delimiter;
+mp_sym frozen_semicolon;
+mp_sym frozen_slash;
+mp_sym frozen_undefined;
+
+
+@ Here are the functions needed for the avl construction.
+
+@<Declarations@>=
+static int comp_symbols_entry (void *p, const void *pa, const void *pb);
+static void *copy_symbols_entry (const void *p) ;
+static void * delete_symbols_entry (void *p); 
+
+
+@ @c 
+static int comp_symbols_entry (void *p, const void *pa, const void *pb) {
+    (void)p;
+    const mp_symbol_entry *a = (const mp_symbol_entry *) pa;
+    const mp_symbol_entry *b = (const mp_symbol_entry *) pb;
+    if (a->text->len != b->text->len) {
+        return (a->text->len > b->text->len ? 1 : -1 );
+    }
+    if (a->text->str==NULL && b->text->str==NULL) 
+        return 0;
+    if (a->text->str==NULL)
+        return -1;
+    if (b->text->str==NULL)
+        return 1;
+    return strncmp ((const char *)a->text->str, (const char *)b->text->str, a->text->len);
+}
+static void *copy_symbols_entry (const void *p) {
+    mp_sym ff;
+    const mp_symbol_entry *fp;
+    fp = (const mp_symbol_entry *)p;
+    ff = malloc (sizeof(mp_symbol_entry));
+    if (ff == NULL) 
+        return NULL;
+    ff->text = copy_strings_entry(fp->text);
+    if (ff->text == NULL) 
+        return NULL;
+    if (fp->v.type == mp_string_type) {
+      ff->v.data.str  = copy_strings_entry(fp->v.data.str); 
+    } else {
+      ff->v.data.val  = fp->v.data.val;    
+      ff->v.data.node  = fp->v.data.node;
+    }
+    ff->v.data.sym  = fp->v.data.sym;
+    ff->type = fp->type;    
+    return ff;
+}
+static void * delete_symbols_entry (void *p) {
+    mp_sym ff = (mp_sym)p;
+    delete_strings_entry (ff->text);
+    mp_xfree (ff);
+    return NULL;
+}
+
+@ @<Allocate or initialize ...@>=
+mp->symbols   =  avl_create (comp_symbols_entry, 
+                             copy_symbols_entry,
+                             delete_symbols_entry,
+                             malloc, free, NULL);
+mp->frozen_symbols   =  avl_create (comp_symbols_entry, 
+                                 copy_symbols_entry,
+                                 delete_symbols_entry,
+                                 malloc, free, NULL);
+
+@ @<Dealloc variables@>=
+if (mp->symbols != NULL)
+      avl_destroy (mp->symbols);
+if (mp->frozen_symbols != NULL)
+      avl_destroy (mp->frozen_symbols);
+
+@ Actually creating symbols is done by |id_lookup|, but in order to
+do so it needs a way to create a new, empty symbol structure.
+
+@<Declarations@>=
+static mp_sym new_symbols_entry (MP mp, unsigned char *nam,  size_t len) ;
+
+@ @c 
+static mp_sym new_symbols_entry (MP mp, unsigned char *nam,  size_t len) {
+    mp_sym ff;
+    ff = mp_xmalloc(mp,1,sizeof(mp_symbol_entry));
+    memset(ff,0,sizeof(mp_symbol_entry));
+    ff->text = new_strings_entry(mp);
+    ff->text->str = nam;
+    ff->text->len = len;
+    ff->type = tag_token;
+    ff->v.type = mp_known;
+    return ff;
+}
 
 @ Certain entries in the hash table are ``frozen'' and not redefinable,
 since they are used in error recovery.
 
-@(mpmp.h@>=
-#define hash_top (integer)(hash_base+mp->hash_size) /* the first location of the frozen area */
-#define frozen_inaccessible hash_top /* |hash| location to protect the frozen area */
-#define frozen_repeat_loop (hash_top+1) /* |hash| location of a loop-repeat token */
-#define frozen_right_delimiter (hash_top+2) /* |hash| location of a permanent `\.)' */
-#define frozen_left_bracket (hash_top+3) /* |hash| location of a permanent `\.[' */
-#define frozen_slash (hash_top+4) /* |hash| location of a permanent `\./' */
-#define frozen_colon (hash_top+5) /* |hash| location of a permanent `\.:' */
-#define frozen_semicolon (hash_top+6) /* |hash| location of a permanent `\.;' */
-#define frozen_end_for (hash_top+7) /* |hash| location of a permanent \&{endfor} */
-#define frozen_end_def (hash_top+8) /* |hash| location of a permanent \&{enddef} */
-#define frozen_fi (hash_top+9) /* |hash| location of a permanent \&{fi} */
-#define frozen_end_group (hash_top+10) /* |hash| location of a permanent `\.{endgroup}' */
-#define frozen_etex (hash_top+11) /* |hash| location of a permanent \&{etex} */
-#define frozen_mpx_break (hash_top+12) /* |hash| location of a permanent \&{mpxbreak} */
-#define frozen_bad_vardef (hash_top+13) /* |hash| location of `\.{a bad variable}' */
-#define frozen_undefined (hash_top+14) /* |hash| location that never gets defined */
-#define hash_end (integer)(hash_top+14) /* the actual size of the |hash| and |eqtb| arrays */
-
-
-@ @<Glob...@>=
-two_halves *hash; /* the hash table */
-two_halves *eqtb; /* the equivalents */
-
-@ @<Allocate or initialize ...@>=
-mp->hash = xmalloc((hash_end+1),sizeof(two_halves));
-mp->eqtb = xmalloc((hash_end+1),sizeof(two_halves));
-
-@ @<Dealloc variables@>=
-xfree(mp->hash);
-xfree(mp->eqtb);
-
-@ @<Set init...@>=
-mp_next(1)=0; text(1)=0; eq_type(1)=tag_token; equiv(1)=null;
-for (k=2;k<=hash_end;k++)  { 
-  mp->hash[k]=mp->hash[1]; mp->eqtb[k]=mp->eqtb[1];
-}
-
-@ @<Initialize table entries...@>=
-mp->hash_used=frozen_inaccessible; /* nothing is used */
+@<Initialize table entries@>=
 mp->st_count=0;
-text(frozen_bad_vardef)=intern("a bad variable");
-text(frozen_etex)=intern("etex");
-text(frozen_mpx_break)=intern("mpxbreak");
-text(frozen_fi)=intern("fi");
-text(frozen_end_group)=intern("endgroup");
-text(frozen_end_def)=intern("enddef");
-text(frozen_end_for)=intern("endfor");
-text(frozen_semicolon)=intern(";");
-text(frozen_colon)=intern(":");
-text(frozen_slash)=intern("/");
-text(frozen_left_bracket)=intern("[");
-text(frozen_right_delimiter)=intern(")");
-text(frozen_inaccessible)=intern(" INACCESSIBLE");
-eq_type(frozen_right_delimiter)=right_delimiter;
-
-@ @<Check the ``constant'' values...@>=
-if ( hash_end+mp->max_internal>max_halfword ) mp->bad=17;
-
-@ The value of |hash_prime| should be roughly 85\pct! of |hash_size|, and it
-should be a prime number.  The theory of hashing tells us to expect fewer
-than two table probes, on the average, when the search is successful.
-[See J.~S. Vitter, {\sl Journal of the ACM\/ \bf30} (1983), 231--258.]
-@^Vitter, Jeffrey Scott@>
-
-@c
-static integer mp_compute_hash (MP mp, const char *s, int l) {
-  integer k;
-  integer h = *s;
-  for (k=1;k<l;k++){ 
-    h=h+h+(*(s+k));
-    while ( h>=mp->hash_prime ) h=h-mp->hash_prime;
-  }
-  return h;
-}
-
+mp->frozen_bad_vardef = mp_frozen_primitive(mp, "a bad variable", tag_token, 0);
+mp->frozen_right_delimiter = mp_frozen_primitive(mp, ")", right_delimiter, 0);
+mp->frozen_inaccessible = mp_frozen_primitive(mp, " INACCESSIBLE", tag_token, 0);
+mp->frozen_undefined = mp_frozen_primitive(mp, " UNDEFINED", tag_token, 0);
 
 @ Here is the subroutine that searches the hash table for an identifier
 that matches a given string of length~|l| appearing in |buffer[j..
@@ -5690,64 +5089,20 @@ will always be found, and the corresponding hash table address
 will be returned.
 
 @c 
-static pointer mp_id_lookup (MP mp,integer j, integer l) { /* search the hash table */
-  integer h; /* hash code */
-  pointer p; /* index in |hash| array */
-  pointer k; /* index in |buffer| array */
-  if (l==1) {
-    @<Treat special case of length 1 and |break|@>;
+static mp_sym mp_id_lookup (MP mp, char *j, integer l, boolean insert_new) { /* search the hash table */
+  mp_sym s, str;
+  unsigned char *nam = mp_xmalloc(mp,1,(size_t)(l+1));
+  memcpy(nam,j,(size_t)l);
+  *(nam+l) = '\0';
+  s = new_symbols_entry (mp, nam, (size_t)l) ;
+  str = (mp_sym) avl_find (s, mp->symbols);
+  if (str == NULL && insert_new) {
+    mp->st_count++;
+    assert(avl_ins (s, mp->symbols, avl_false)>0);
+    str = (mp_sym) avl_find (s, mp->symbols);
   }
-  @<Compute the hash code |h|@>;
-  p=h+hash_base; /* we start searching here; note that |0<=h<hash_prime| */
-  while (true)  { 
-	if (text(p)>0 && length(text(p))==l && mp_str_eq_buf(mp, text(p),j)) 
-      break;
-    if ( mp_next(p)==0 ) {
-      @<Insert a new symbolic token after |p|, then
-        make |p| point to it and |break|@>;
-    }
-    p=mp_next(p);
-  }
-  return p;
-}
-
-@ @<Treat special case of length 1...@>=
- p=mp->buffer[j]+1; text(p)=p-1; return p;
-
-
-@ @<Insert a new symbolic...@>=
-{
-if ( text(p)>0 ) { 
-  do {  
-    if ( hash_is_full )
-      mp_overflow(mp, "hash size",(integer)mp->hash_size);
-@:MetaPost capacity exceeded hash size}{\quad hash size@>
-    decr(mp->hash_used);
-  } while (text(mp->hash_used)!=0); /* search for an empty location in |hash| */
-  mp_next(p)=mp->hash_used; 
-  p=mp->hash_used;
-}
-str_room(l);
-for (k=j;k<j+l;k++) {
-  append_char(mp->buffer[k]);
-}
-text(p)=mp_make_string(mp); 
-mp->str_ref[text(p)]=max_str_ref;
-incr(mp->st_count);
-break;
-}
-
-@  @<Compute the hash code |h|@>=
-h=mp_compute_hash(mp, (char *)mp->buffer+j, l)
-
-
-@ @<Search |eqtb| for equivalents equal to |p|@>=
-for (q=1;q<=hash_end;q++) { 
-  if ( equiv(q)==p ) { 
-    mp_print_nl(mp, "EQUIV("); 
-    mp_print_int(mp, q); 
-    mp_print_char(mp, xord(')'));
-  }
+  delete_symbols_entry(s);
+  return str;
 }
 
 @ We need to put \MP's ``primitive'' symbolic tokens into the hash
@@ -5758,23 +5113,73 @@ contains the new |eqtb| pointer after |primitive| has acted.
 
 @c 
 static void mp_primitive (MP mp, const char *ss, halfword c, halfword o) {
-  pool_pointer k; /* index into |str_pool| */
-  quarterword j; /* index into |buffer| */
-  quarterword l; /* length of the string */
+  size_t l; /* length of the string */
+  size_t j; /* index into |buffer| */
   str_number s;
-  s = intern(ss);
-  k=mp->str_start[s]; l=(quarterword)(str_stop(s)-k);
+  s = mp_intern(mp,ss);
+  l = length(s);
   /* we will move |s| into the (empty) |buffer| */
   for (j=0;j<=l-1;j++) {
-    mp->buffer[j]=mp->str_pool[k+j];
+    mp->buffer[j]=*(s->str+j);
   }
-  mp->cur_sym=mp_id_lookup(mp, 0,l);
-  if ( s>=256 ) { /* we don't want to have the string twice */
-    mp_flush_string(mp, text(mp->cur_sym)); text(mp->cur_sym)=s;
-  };
+  mp->cur_sym=mp_id_lookup(mp, (char *)mp->buffer, (integer)l, true);
   eq_type(mp->cur_sym)=c; 
   equiv(mp->cur_sym)=o;
 }
+
+
+@ Some other symbolc tokens only exist for error recovery.
+
+@c
+static mp_sym mp_frozen_primitive (MP mp, const char *ss, halfword c, halfword o) {
+     mp_sym s, str;
+     size_t l = strlen(ss);
+     unsigned char *nam = mp_xmalloc(mp,1,(l+1));
+     memcpy(nam,ss,l);
+     *(nam+l) = '\0';
+     s = new_symbols_entry (mp, nam, l) ;
+     str = (mp_sym) avl_find (s, mp->frozen_symbols);
+     if (str == NULL) { 
+        assert(avl_ins (s, mp->frozen_symbols, avl_false)>0);
+        str = (mp_sym) avl_find (s, mp->frozen_symbols);
+    }
+    delete_symbols_entry(s);
+    str->type = c;
+    str->v.data.val = o;
+    return str;
+}
+
+@ This is just a quick hack to map |mp_sym| values to |halfword|s. 
+
+TODO: This is dangerous, because it trashes the current value of the
+symbol: after the call |mp_get_frozen_primitive (mp, mp_frozen_fi)|, 
+for example, \.{fi} will once again be defined as the command 
+|fi_or_else| with equiv |fi_code|, even if the symbol was redefined 
+by the user.  But for now, it will at least allow compilation of
+(most) correct input files.
+
+@c 
+static mp_sym mp_get_frozen_primitive (MP mp, mp_sym sym) {
+   mp_sym temp;
+   temp = mp_id_lookup (mp, (char *)sym->text->str, (integer)sym->text->len, true);
+   equiv(temp) = sym->v.data.val;
+   eq_type(temp) = sym->type;
+   return temp;
+}
+
+@ This routine returns |true| if the current symbol is un-redefinable
+because it is one of the error recovery tokens. 
+
+At the moment this always returns false, which is safe, because
+the |mp->frozen_symbols| entries are never accessed directly.
+
+@c
+static boolean mp_is_frozen (MP mp, mp_sym symbol) {
+   (void)mp;
+   (void)symbol;
+   return false;
+}
+
 
 
 @ Many of \MP's primitives need no |equiv|, since they are identifiable
@@ -5784,7 +5189,8 @@ as follows:
 @<Put each of \MP's primitives into the hash table@>=
 mp_primitive(mp, "..",path_join,0);
 @:.._}{\.{..} primitive@>
-mp_primitive(mp, "[",left_bracket,0); mp->eqtb[frozen_left_bracket]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "[",left_bracket,0); 
+mp->frozen_left_bracket = mp_frozen_primitive(mp,"[",left_bracket,0);
 @:[ }{\.{[} primitive@>
 mp_primitive(mp, "]",right_bracket,0);
 @:] }{\.{]} primitive@>
@@ -5792,7 +5198,8 @@ mp_primitive(mp, "}",right_brace,0);
 @:]]}{\.{\char`\}} primitive@>
 mp_primitive(mp, "{",left_brace,0);
 @:][}{\.{\char`\{} primitive@>
-mp_primitive(mp, ":",colon,0); mp->eqtb[frozen_colon]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, ":",colon,0);
+mp->frozen_colon = mp_frozen_primitive(mp, ":",colon,0);
 @:: }{\.{:} primitive@>
 mp_primitive(mp, "::",double_colon,0);
 @::: }{\.{::} primitive@>
@@ -5802,7 +5209,8 @@ mp_primitive(mp, ":=",assignment,0);
 @::=_}{\.{:=} primitive@>
 mp_primitive(mp, ",",comma,0);
 @:, }{\., primitive@>
-mp_primitive(mp, ";",semicolon,0); mp->eqtb[frozen_semicolon]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, ";",semicolon,0);
+mp->frozen_semicolon = mp_frozen_primitive(mp, ";", semicolon, 0);
 @:; }{\.; primitive@>
 mp_primitive(mp, "\\",relax,0);
 @:]]\\}{\.{\char`\\} primitive@>
@@ -5819,8 +5227,8 @@ mp_primitive(mp, "curl",curl_command,0);
 @:curl_}{\&{curl} primitive@>
 mp_primitive(mp, "delimiters",delimiters,0);
 @:delimiters_}{\&{delimiters} primitive@>
-mp_primitive(mp, "endgroup",end_group,0);
- mp->eqtb[frozen_end_group]=mp->eqtb[mp->cur_sym]; mp->eg_loc=mp->cur_sym;
+mp_primitive(mp, "endgroup",end_group,0);  mp->eg_loc=mp->cur_sym;
+mp->frozen_end_group = mp_frozen_primitive(mp, "endgroup", end_group, 0);
 @:endgroup_}{\&{endgroup} primitive@>
 mp_primitive(mp, "everyjob",every_job_command,0);
 @:every_job_}{\&{everyjob} primitive@>
@@ -5928,56 +5336,113 @@ section where |"def"| entered |eqtb| is listed under `\&{def} primitive'.
 A \MP\ token is either symbolic or numeric or a string, or it denotes
 a macro parameter or capsule; so there are five corresponding ways to encode it
 @^token@>
-internally: (1)~A symbolic token whose hash code is~|p|
-is represented by the number |p|, in the |info| field of a single-word
-node in~|mem|. (2)~A numeric token whose |scaled| value is~|v| is
-represented in a two-word node of~|mem|; the |type| field is |known|,
-the |name_type| field is |token|, and the |value| field holds~|v|.
-The fact that this token appears in a two-word node rather than a
-one-word node is, of course, clear from the node address.
-(3)~A string token is also represented in a two-word node; the |type|
-field is |mp_string_type|, the |name_type| field is |token|, and the
-|value| field holds the corresponding |str_number|.  (4)~Capsules have
-|name_type=capsule|, and their |type| and |value| fields represent
-arbitrary values (in ways to be explained later).  (5)~Macro parameters
-are like symbolic tokens in that they appear in |info| fields of
-one-word nodes. The $k$th parameter is represented by |expr_base+k| if it
-is of type \&{expr}, or by |suffix_base+k| if it is of type \&{suffix}, or
-by |text_base+k| if it is of type \&{text}.  (Here |0<=k<param_size|.)
-Actual values of these parameters are kept in a separate stack, as we will
-see later.  The constants |expr_base|, |suffix_base|, and |text_base| are,
-of course, chosen so that there will be no confusion between symbolic
-tokens and parameters of various types.
+internally: 
 
-Note that
-the `\\{type}' field of a node has nothing to do with ``type'' in a
+(1)~A symbolic token whose hash code is~|p| is represented by the number |p|, 
+in the |sym_sym| field of a symbolic node in~|mem|. It has a |name_type|
+to differentiate various subtypes of symbolic tokens, which is usually
+|normal_sym|, but |macro_sym| for macro names (there are three more name
+types for macro parameters, as explained below, and |internal_sym| 
+for the representation of internals).
+
+(2)~A numeric token whose |scaled| value is~|v| is
+represented in a non-symbolic node of~|mem|; the |type| field is |known|,
+the |name_type| field is |token|, and the |value| field holds~|v|.
+
+(3)~A string token is also represented in a non-symbolic node; the |type|
+field is |mp_string_type|, the |name_type| field is |token|, and the
+|value| field holds the corresponding |str_number|.  
+
+(4)~Capsules have |name_type=capsule|, and their |type| and |value| fields 
+represent arbitrary values (in ways to be explained later).  
+
+(5)~Macro parameters are like symbolic tokens in that they appear in |sym_info| 
+fields of symbolic nodes. The $k$th parameter is represented by |k| in |sym_info|;
+and |expr_sym| in |name_type|, if it is of type \&{expr}, or |suffix_sym| if it 
+is of type \&{suffix}, or by |text_sym| if it is of type \&{text}. 
+
+Actual values of these parameters are kept in a separate stack, as we will
+see later. 
+
+Note that the `\\{type}' field of a node has nothing to do with ``type'' in a
 printer's sense. It's curious that the same word is used in such different ways.
 
-@d mp_type(A)     mp->mem[(A)].hh.b0 /* identifies what kind of value this is */
-@d mp_name_type(A)   mp->mem[(A)].hh.b1 /* a clue to the name of this value */
-@d token_node_size 2 /* the number of words in a large token node */
-@d value_loc(A) ((A)+1) /* the word that contains the |value| field */
-@d value(A) mp->mem[value_loc((A))].cint /* the value stored in a large token node */
-@d expr_base (hash_end+1) /* code for the zeroth \&{expr} parameter */
-@d suffix_base (expr_base+mp->param_size) /* code for the zeroth \&{suffix} parameter */
-@d text_base (suffix_base+mp->param_size) /* code for the zeroth \&{text} parameter */
+@d token_node_size sizeof(mp_token_node_data) /* the number of words in a large token node */
 
-@<Check the ``constant''...@>=
-if ( text_base+mp->param_size>max_halfword ) mp->bad=18;
+@d value_sym(A)   ((mp_token_node)(A))->value_.sym /* the sym stored in a large token node */
+@d value(A)       ((mp_token_node)(A))->value_.rh /* the value stored in a large token node */
 
-@ We have set aside a two word node beginning at |null| so that we can have
+@d set_value(A,B) do {  /* store the value in a large token node */
+   knot_value(A)=NULL;
+   str_value(A)=NULL;
+   value_node(A)=NULL;
+   value(A)=(B); 
+ } while (0)
+
+@d value_node(A)   ((mp_token_node)(A))->value_.node /* the value stored in a large token node */
+
+@d set_value_node(A,B) do { /* store the value in a large token node */
+   knot_value(A)=NULL;
+   str_value(A)=NULL;
+   value_node(A)=(B);
+   value(A)=0;
+ } while (0) 
+
+@d str_value(A)   ((mp_token_node)(A))->value_.str /* the value stored in a large token node */
+
+@d set_str_value(A,B) do { /* store the value in a large token node */
+   knot_value(A)=NULL;
+   str_value(A)=(B);
+   value_node(A)=NULL;
+   value(A)=0;
+ } while (0) 
+
+@d knot_value(A)  ((mp_token_node)(A))->value_.P /* the value stored in a large token node */
+
+@d set_knot_value(A,B) do { /* store the value in a large token node */
+   knot_value(A)=(B);
+   str_value(A)=NULL;
+   value_node(A)=NULL;
+   value(A)=0;
+ } while (0) 
+
+
+@(mpmp.h@>=
+typedef struct mp_token_node_data {
+  NODE_BODY;
+  memory_word value_;
+} mp_token_node_data;
+typedef struct mp_token_node_data* mp_token_node;
+
+@
+@c
+static mp_node mp_get_token_node (MP mp) {
+  mp_token_node p = (mp_token_node)xmalloc(1, token_node_size);
+  add_var_used(token_node_size);
+  memset(p,0,token_node_size);
+  p->type = mp_token_node_type;
+  return (mp_node)p;
+}
+ 
+@ We have set aside a two word node so that we can have
 |value(null)=0|.  We will make use of this coincidence later.
 
-@<Initialize table entries...@>=
-mp_link(null)=null; value(null)=0;
+@<Initialize table entries@>=
+mp->null_node = mp_get_token_node (mp);
+set_value(mp->null_node,0);
+
+@ @<Free table entries@>=
+mp_free_value_node(mp,mp->null_node);
 
 @ A numeric token is created by the following trivial routine.
 
-@c 
-static pointer mp_new_num_tok (MP mp,scaled v) {
-  pointer p; /* the new node */
-  p=mp_get_node(mp, token_node_size); value(p)=v;
-  mp_type(p)=mp_known; mp_name_type(p)=mp_token; 
+@c
+static mp_node mp_new_num_tok (MP mp, scaled v) {
+  mp_node p; /* the new node */
+  p=mp_get_token_node(mp);
+  set_value(p,v);
+  p->type=mp_known;
+  p->name_type=mp_token; 
   return p;
 }
 
@@ -5985,26 +5450,37 @@ static pointer mp_new_num_tok (MP mp,scaled v) {
 each node contains a token and a link.  Here's a subroutine that gets rid
 of a token list when it is no longer needed.
 
-@c static void mp_flush_token_list (MP mp,pointer p) {
-  pointer q; /* the node being recycled */
-  while ( p!=null ) { 
-    q=p; p=mp_link(p);
-    if ( q>=mp->hi_mem_min ) {
-     free_avail(q);
+@c static void mp_flush_token_list (MP mp, mp_node p) {
+  mp_node q; /* the node being recycled */
+  while ( p != NULL ) { 
+    q=p; 
+    p=mp_link(p);
+    if ( mp_type(q) == mp_symbol_node ) {
+      mp_free_symbolic_node(mp,q);
     } else { 
       switch (mp_type(q)) {
-      case mp_vacuous: case mp_boolean_type: case mp_known:
+      case mp_vacuous:
+      case mp_boolean_type:
+      case mp_known:
         break;
       case mp_string_type:
-        delete_str_ref(value(q));
+        delete_str_ref(str_value(q));
         break;
-      case unknown_types: case mp_pen_type: case mp_path_type: 
-      case mp_picture_type: case mp_pair_type: case mp_color_type:
-      case mp_cmykcolor_type: case mp_transform_type: case mp_dependent:
-      case mp_proto_dependent: case mp_independent:
+      case unknown_types:
+      case mp_pen_type:
+      case mp_path_type: 
+      case mp_picture_type:
+      case mp_pair_type:
+      case mp_color_type:
+      case mp_cmykcolor_type:
+      case mp_transform_type:
+      case mp_dependent:
+      case mp_proto_dependent:
+      case mp_independent:
         mp_recycle_value(mp,q);
         break;
-      default: mp_confusion(mp, "token");
+      default: 
+        mp_confusion(mp, "token");
 @:this can't happen token}{\quad token@>
       }
       mp_free_node(mp, q,token_node_size);
@@ -6015,11 +5491,9 @@ of a token list when it is no longer needed.
 @ The procedure |show_token_list|, which prints a symbolic form of
 the token list that starts at a given node |p|, illustrates these
 conventions. The token list being displayed should not begin with a reference
-count. However, the procedure is intended to be fairly robust, so that if the
-memory links are awry or if |p| is not really a pointer to a token list,
-almost nothing catastrophic can happen.
+count. 
 
-An additional parameter |q| is also given; this parameter is either null
+An additional parameter |q| is also given; this parameter is either NULL
 or it points to a node in the token list where a certain magic computation
 takes place that will be explained later. (Basically, |q| is non-null when
 we are printing the two-line context information at the time of an error
@@ -6037,17 +5511,17 @@ Unusual entries are printed in the form of all-caps tokens
 preceded by a space, e.g., `\.{\char`\ BAD}'.
 
 @<Declarations@>=
-static void mp_show_token_list (MP mp, integer p, integer q, integer l,
+static void mp_show_token_list (MP mp, mp_node p, mp_node q, integer l,
                          integer null_tally) ;
 
 @ @c
-void mp_show_token_list (MP mp, integer p, integer q, integer l,
+void mp_show_token_list (MP mp, mp_node p, mp_node q, integer l,
                          integer null_tally) {
   quarterword class,c; /* the |char_class| of previous and new tokens */
   integer r,v; /* temporary registers */
   class=percent_class;
   mp->tally=null_tally;
-  while ( (p!=null) && (mp->tally<l) ) { 
+  while ( (p != NULL) && (mp->tally<l) ) { 
     if ( p==q ) 
       @<Do magic computation@>;
     @<Display token |p| and set |c| to its class;
@@ -6062,27 +5536,33 @@ void mp_show_token_list (MP mp, integer p, integer q, integer l,
 
 @ @<Display token |p| and set |c| to its class...@>=
 c=letter_class; /* the default */
-if ( (p<0)||(p>mp->mem_end) ) { 
-  mp_print(mp, " CLOBBERED"); return;
-@.CLOBBERED@>
-}
-if ( p<mp->hi_mem_min ) { 
-  @<Display two-word token@>;
+if ( mp_type(p) != mp_symbol_node ) { 
+  @<Display non-symbolic token@>;
 } else { 
-  r=mp_info(p);
-  if ( r>=expr_base ) {
-     @<Display a parameter token@>;
-  } else {
-    if ( r<1 ) {
-      if ( r==0 ) { 
-        @<Display a collective subscript@>
-      } else {
-        mp_print(mp, " IMPOSSIBLE");
-@.IMPOSSIBLE@>
-      }
+  if ( mp_name_type(p)==mp_expr_sym ||
+       mp_name_type(p)==mp_suffix_sym ||
+       mp_name_type(p)==mp_text_sym ) {
+    r=mp_sym_info(p);
+    if ( mp_name_type(p)==mp_expr_sym ) { 
+      mp_print(mp, "(EXPR");
+@.EXPR@>
+    } else if ( mp_name_type(p)==mp_suffix_sym ) { 
+      mp_print(mp, "(SUFFIX");
+@.SUFFIX@>
     } else { 
-      r=text(r);
-      if ( (r<0)||(r>mp->max_str_ptr) ) {
+      mp_print(mp, "(TEXT");
+@.TEXT@>
+    }
+    mp_print_int(mp, r);
+    mp_print_char(mp, xord(')'));
+    c=right_paren_class;
+  } else {
+    mp_sym sr=mp_sym_sym(p);
+    if ( sr==0 ) { 
+      @<Display a collective subscript@>
+    } else { 
+      str_number rr= text(sr);
+      if ( rr == NULL ) {
         mp_print(mp, " NONEXISTENT");
 @.NONEXISTENT@>
       } else {
@@ -6093,7 +5573,7 @@ if ( p<mp->hi_mem_min ) {
   }
 }
 
-@ @<Display two-word token@>=
+@ @<Display non-symbolic token@>=
 if ( mp_name_type(p)==mp_token ) {
   if ( mp_type(p)==mp_known ) {
     @<Display a numeric token@>;
@@ -6101,13 +5581,16 @@ if ( mp_name_type(p)==mp_token ) {
     mp_print(mp, " BAD");
 @.BAD@>
   } else { 
-    mp_print_char(mp, xord('"')); mp_print_str(mp, value(p)); mp_print_char(mp, xord('"'));
+    mp_print_char(mp, xord('"'));
+    mp_print_str(mp, str_value(p));
+    mp_print_char(mp, xord('"'));
     c=string_class;
   }
 } else if ((mp_name_type(p)!=mp_capsule)||(mp_type(p)<mp_vacuous)||(mp_type(p)>mp_independent) ) {
   mp_print(mp, " BAD");
 } else { 
-  mp_print_capsule(mp,p); c=right_paren_class;
+  mp_print_capsule(mp,p);
+  c=right_paren_class;
 }
 
 @ @<Display a numeric token@>=
@@ -6117,10 +5600,13 @@ v=value(p);
 if ( v<0 ){ 
   if ( class==left_bracket_class ) 
     mp_print_char(mp, xord(' '));
-  mp_print_char(mp, xord('[')); mp_print_scaled(mp, v); mp_print_char(mp, xord(']'));
+  mp_print_char(mp, xord('[')); 
+  mp_print_scaled(mp, v); 
+  mp_print_char(mp, xord(']'));
   c=right_bracket_class;
 } else { 
-  mp_print_scaled(mp, v); c=digit_class;
+  mp_print_scaled(mp, v);
+  c=digit_class;
 }
 
 
@@ -6132,52 +5618,44 @@ it is convenient to let |mp_info(p)=0| stand for `\.{[]}'.
 {
 if ( class==left_bracket_class ) 
   mp_print_char(mp, xord(' '));
-mp_print(mp, "[]"); c=right_bracket_class;
+mp_print(mp, "[]"); 
+c=right_bracket_class;
 }
-
-@ @<Display a parameter token@>=
-{
-if ( r<suffix_base ) { 
-  mp_print(mp, "(EXPR"); r=r-(expr_base);
-@.EXPR@>
-} else if ( r<text_base ) { 
-  mp_print(mp, "(SUFFIX"); r=r-(suffix_base);
-@.SUFFIX@>
-} else { 
-  mp_print(mp, "(TEXT"); r=r-(text_base);
-@.TEXT@>
-}
-mp_print_int(mp, r); mp_print_char(mp, xord(')')); c=right_paren_class;
-}
-
 
 @ @<Print string |r| as a symbolic token...@>=
 { 
-c=(quarterword)mp->char_class[mp->str_pool[mp->str_start[r]]];
-if ( c==class ) {
-  switch (c) {
-  case letter_class:mp_print_char(mp, xord('.')); break;
-  case isolated_classes: break;
-  default: mp_print_char(mp, xord(' ')); break;
+  c=(quarterword)mp->char_class[(rr->str[0])];
+  if ( c==class ) {
+    switch (c) {
+    case letter_class:
+      mp_print_char(mp, xord('.')); 
+      break;
+    case isolated_classes: 
+      break;
+    default: 
+      mp_print_char(mp, xord(' ')); 
+      break;
+    }
   }
-}
-mp_print_str(mp, r);
+  mp_print_str(mp, rr);
 }
 
 @ @<Declarations@>=
-static void mp_print_capsule (MP mp, pointer p);
+static void mp_print_capsule (MP mp, mp_node p);
 
 @ @<Declare miscellaneous procedures that were declared |forward|@>=
-void mp_print_capsule (MP mp, pointer p) { 
-  mp_print_char(mp, xord('(')); mp_print_exp(mp,p,0); mp_print_char(mp, xord(')'));
+void mp_print_capsule (MP mp, mp_node p) { 
+  mp_print_char(mp, xord('(')); 
+  mp_print_exp(mp,p,0); 
+  mp_print_char(mp, xord(')'));
 }
 
 @ Macro definitions are kept in \MP's memory in the form of token lists
-that have a few extra one-word nodes at the beginning.
+that have a few extra symbolic nodes at the beginning.
 
 The first node contains a reference count that is used to tell when the
 list is no longer needed. To emphasize the fact that a reference count is
-present, we shall refer to the |info| field of this special node as the
+present, we shall refer to the |sym_info| field of this special node as the
 |ref_count| field.
 @^reference counts@>
 
@@ -6185,9 +5663,10 @@ The next node or nodes after the reference count serve to describe the
 formal parameters. They consist of zero or more parameter tokens followed
 by a code for the type of macro.
 
-@d ref_count mp_info
+@d ref_count(A) mp_sym_info(A)
   /* reference count preceding a macro definition or picture header */
-@d add_mac_ref(A) incr(ref_count((A))) /* make a new reference to a macro list */
+@d add_mac_ref(A)  set_mp_sym_info((A),ref_count((A))+1) /* make a new reference to a macro list */
+@d decr_mac_ref(A) set_mp_sym_info((A),ref_count((A))-1) /* remove a reference to a macro list */
 @d general_macro 0 /* preface to a macro defined with a parameter list */
 @d primary_macro 1 /* preface to a macro with a \&{primary} parameter */
 @d secondary_macro 2 /* preface to a macro with a \&{secondary} parameter */
@@ -6197,41 +5676,61 @@ by a code for the type of macro.
   undelimited `\&{expr} |x| \&{of}~|y|' parameters */
 @d suffix_macro 6 /* preface to a macro with an undelimited \&{suffix} parameter */
 @d text_macro 7 /* preface to a macro with an undelimited \&{text} parameter */
+@d expr_param 8
+@d suffix_param 9
+@d text_param 10
 
 @c 
-static void mp_delete_mac_ref (MP mp,pointer p) {
+static void mp_delete_mac_ref (MP mp, mp_node p) {
   /* |p| points to the reference count of a macro list that is
     losing one reference */
-  if ( ref_count(p)==null ) mp_flush_token_list(mp, p);
-  else decr(ref_count(p));
+  if ( ref_count(p) == 0 ) 
+    mp_flush_token_list(mp, p);
+  else 
+    decr_mac_ref(p);
 }
 
 @ The following subroutine displays a macro, given a pointer to its
 reference count.
 
 @c 
-static void mp_show_macro (MP mp, pointer p, integer q, integer l) {
-  pointer r; /* temporary storage */
+static void mp_show_macro (MP mp, mp_node p, mp_node q, integer l) {
+  mp_node r; /* temporary storage */
   p=mp_link(p); /* bypass the reference count */
-  while ( mp_info(p)>text_macro ){ 
-    r=mp_link(p); mp_link(p)=null;
-    mp_show_token_list(mp, p,null,l,0); mp_link(p)=r; p=r;
+  while ( mp_name_type(p) != mp_macro_sym){ 
+    r = mp_link(p); 
+    mp_link(p)=null;
+    mp_show_token_list(mp, p,null,l,0); 
+    mp_link(p)=r; 
+    p=r;
     if ( l>0 ) l=l-mp->tally; else return;
   } /* control printing of `\.{ETC.}' */
 @.ETC@>
   mp->tally=0;
-  switch(mp_info(p)) {
-  case general_macro:mp_print(mp, "->"); break;
+  switch(mp_sym_info(p)) {
+  case general_macro:
+    mp_print(mp, "->"); 
+    break;
 @.->@>
-  case primary_macro: case secondary_macro: case tertiary_macro:
+  case primary_macro: 
+  case secondary_macro: 
+  case tertiary_macro:
     mp_print_char(mp, xord('<'));
-    mp_print_cmd_mod(mp, param_type,mp_info(p)); 
+    mp_print_cmd_mod(mp, param_type, mp_sym_info(p)); 
     mp_print(mp, ">->");
     break;
-  case expr_macro:mp_print(mp, "<expr>->"); break;
-  case of_macro:mp_print(mp, "<expr>of<primary>->"); break;
-  case suffix_macro:mp_print(mp, "<suffix>->"); break;
-  case text_macro:mp_print(mp, "<text>->"); break;
+  case expr_macro:
+    mp_print(mp, "<expr>->"); 
+    break;
+  case of_macro:
+    mp_print(mp, "<expr>of<primary>->"); 
+    break;
+  case suffix_macro:
+    mp_print(mp, "<suffix>->"); 
+    break;
+  case text_macro:
+    mp_print(mp, "<text>->"); 
+    break;
   } /* there are no other cases */
   mp_show_token_list(mp, mp_link(p),q,l-mp->tally,0);
 }
@@ -6243,8 +5742,8 @@ A \MP\ user assigns a type to a variable like \.{x20a.b} by saying, for
 example, `\.{boolean} \.{x[]a.b}'. It's time for us to study how such
 things are represented inside of the computer.
 
-Each variable value occupies two consecutive words, either in a two-word
-node called a value node, or as a two-word subfield of a larger node.  One
+Each variable value occupies two consecutive words, either in a non-symbolic
+node called a value node, or as a non-symbolic subfield of a larger node.  One
 of those two words is called the |value| field; it is an integer,
 containing either a |scaled| numeric value or the representation of some
 other type of quantity. (It might also be subdivided into halfwords, in
@@ -6267,21 +5766,84 @@ and the second word is broken into two pointer fields called |attr_head|
 and |subscr_head|. Those fields point to additional nodes that
 contain structural information, as we shall see.
 
-@d subscr_head_loc(A)   (A)+1 /* where |value|, |subscr_head| and |attr_head| are */
-@d attr_head(A)   mp_info(subscr_head_loc((A))) /* pointer to attribute info */
-@d subscr_head(A)   mp_link(subscr_head_loc((A))) /* pointer to subscript info */
-@d value_node_size 2 /* the number of words in a value node */
+TH Note: DEK and JDH had a nice theoretical split between |value|,
+|attr| and |subscr| nodes, as documented above and further
+below. However, all three types had a bad habit of transmuting into
+each other in practice while pointers to them still lived on
+elsewhere, so using three different C structures is simply not
+workable. All three are now represented as a single C structure called
+|mp_value_node|.
+
+There is a union in this structure in the interest of space
+saving: |subscript_| and |hashloc_| are mutually exclusive.
+
+Actually, so are |attr_head_| + |subscr_head_| on one side and and
+|value_| on the other, but because of all the access macros that are
+used in the code base to get at values, those cannot be folded into a
+union (yet); this would have required creating a similar union in
+|mp_token_node| where it would only serve to confuse things.
+
+Finally, |parent_| only applies in |attr| nodes (the ones that have
+|hashloc_|), but creating an extra substructure inside the union just
+for that does not save space and the extra complication in the
+structure is not worth the minimal extra code clarification.
+
+@d attr_head(A)   ((mp_value_node)(A))->attr_head_ /* pointer to attribute info */
+@d set_attr_head(A,B) do {
+   mp_node d = (B);
+   /* printf("set attrhead of %p to %p on %d\n",A,d,__LINE__); */
+   attr_head((A)) = d;
+} while (0)
+@d subscr_head(A)   ((mp_value_node)(A))->subscr_head_ /* pointer to subscript info */
+@d set_subscr_head(A,B) do {
+   mp_node d = (B);
+   /* printf("set subcrhead of %p to %p on %d\n",A,d,__LINE__); */
+   subscr_head((A)) = d;
+} while (0)
+
+@(mpmp.h@>=
+typedef struct mp_value_node_data {
+  NODE_BODY;
+  memory_word value_;
+  union {
+    scaled subscript_;
+    mp_sym hashloc_;
+  } v;
+  mp_node parent_;
+  mp_node attr_head_;
+  mp_node subscr_head_;
+} mp_value_node_data;
+
+@ @<Declarations@>=
+static mp_node mp_get_value_node (MP mp);
+
+@ It would have been nicer to make |mp_get_value_node| return
+|mp_value_node| variables, but with |eqtb| as it stands that 
+became messy: lots of typecasts. So, it returns a simple
+|mp_node| for now.
+
+@d value_node_size sizeof(struct mp_value_node_data) /* the number of words in a value node */
+@d mp_free_value_node(a,b) mp_free_node(a,b,value_node_size)
+
+@c
+static mp_node mp_get_value_node (MP mp) {
+  mp_node p = xmalloc(1, value_node_size);
+  add_var_used(value_node_size);
+  memset(p,0,value_node_size);
+  mp_type(p) = mp_value_node_type;
+  return p;
+}
 
 @ An attribute node is three words long. Two of these words contain |type|
 and |value| fields as described above, and the third word contains
-additional information:  There is an |attr_loc| field, which contains the
+additional information:  There is an |hashloc| field, which contains the
 hash address of the token that names this attribute; and there's also a
 |parent| field, which points to the value node of |mp_structured| type at the
 next higher level (i.e., at the level to which this attribute is
 subsidiary).  The |name_type| in an attribute node is `|attr|'.  The
 |link| field points to the next attribute with the same parent; these are
-arranged in increasing order, so that |attr_loc(mp_link(p))>attr_loc(p)|. The
-final attribute node links to the constant |end_attr|, whose |attr_loc|
+arranged in increasing order, so that |hashloc(mp_link(p))>hashloc(p)|. The
+final attribute node links to the constant |end_attr|, whose |hashloc|
 field is greater than any legal hash address. The |attr_head| in the
 parent points to a node whose |name_type| is |mp_structured_root|; this
 node represents the null attribute, i.e., the variable that is relevant
@@ -6291,7 +5853,7 @@ a value node, a subscript node, or an attribute node, depending on what
 the parent would be if it were not structured; but the subscript and
 attribute fields are ignored, so it effectively contains only the data of
 a value node. The |link| field in this special node points to an attribute
-node whose |attr_loc| field is zero; the latter node represents a collective
+node whose |hashloc| field is zero; the latter node represents a collective
 subscript `\.{[]}' attached to the parent, and its |link| field points to
 the first non-special attribute node (or to |end_attr| if there are none).
 
@@ -6315,7 +5877,7 @@ Suppose that `\.x' and `\.{x.a}' and `\.{x[]b}' and `\.{x5}'
 and `\.{x20b}' have been mentioned in a user's program, where
 \.{x[]b} has been declared to be of \&{boolean} type. Let |h(x)|, |h(a)|,
 and |h(b)| be the hash addresses of \.x, \.a, and~\.b. Then
-|eq_type(h(x))=name| and |equiv(h(x))=p|, where |p|~is a two-word value
+|eq_type(h(x))=name| and |equiv(h(x))=p|, where |p|~is a non-symbolic value
 node with |mp_name_type(p)=root| and |mp_link(p)=h(x)|. We have |type(p)=mp_structured|,
 |attr_head(p)=q|, and |subscr_head(p)=r|, where |q| points to a value
 node and |r| to a subscript node. (Are you still following this? Use
@@ -6323,18 +5885,18 @@ a pencil to draw a diagram.) The lone variable `\.x' is represented by
 |type(q)| and |value(q)|; furthermore
 |mp_name_type(q)=mp_structured_root| and |mp_link(q)=q1|, where |q1| points
 to an attribute node representing `\.{x[]}'. Thus |mp_name_type(q1)=attr|,
-|attr_loc(q1)=collective_subscript=0|, |parent(q1)=p|,
+|hashloc(q1)=collective_subscript=0|, |parent(q1)=p|,
 |type(q1)=mp_structured|, |attr_head(q1)=qq|, and |subscr_head(q1)=qq1|;
 |qq| is a  three-word ``attribute-as-value'' node with |type(qq)=numeric_type|
 (assuming that \.{x5} is numeric, because |qq| represents `\.{x[]}' 
 with no further attributes), |mp_name_type(qq)=structured_root|, 
-|attr_loc(qq)=0|, |parent(qq)=p|, and
+|hashloc(qq)=0|, |parent(qq)=p|, and
 |mp_link(qq)=qq1|. (Now pay attention to the next part.) Node |qq1| is
 an attribute node representing `\.{x[][]}', which has never yet
 occurred; its |type| field is |undefined|, and its |value| field is
-undefined. We have |mp_name_type(qq1)=attr|, |attr_loc(qq1)=collective_subscript|,
+undefined. We have |mp_name_type(qq1)=attr|, |hashloc(qq1)=collective_subscript|,
 |parent(qq1)=q1|, and |mp_link(qq1)=qq2|. Since |qq2| represents
-`\.{x[]b}', |type(qq2)=mp_unknown_boolean|; also |attr_loc(qq2)=h(b)|,
+`\.{x[]b}', |type(qq2)=mp_unknown_boolean|; also |hashloc(qq2)=h(b)|,
 |parent(qq2)=q1|, |mp_name_type(qq2)=attr|, |mp_link(qq2)=end_attr|.
 (Maybe colored lines will help untangle your picture.)
  Node |r| is a subscript node with |type| and |value|
@@ -6361,17 +5923,44 @@ subscript attributes do not carry actual values except for macro identifiers;
 branches of the structure below subscript nodes do not carry significant
 information in their collective subscript attributes.
 
-@d attr_loc_loc(A) ((A)+2) /* where the |attr_loc| and |parent| fields are */
-@d attr_loc(A) mp_info(attr_loc_loc((A))) /* hash address of this attribute */
-@d parent(A) mp_link(attr_loc_loc((A))) /* pointer to |mp_structured| variable */
-@d subscript_loc(A) ((A)+2) /* where the |subscript| field lives */
-@d subscript(A) mp->mem[subscript_loc((A))].sc /* subscript of this variable */
-@d attr_node_size 3 /* the number of words in an attribute node */
-@d subscr_node_size 3 /* the number of words in a subscript node */
+@d hashloc(A) ((mp_value_node)(A))->v.hashloc_ /* hash address of this attribute */
+@d set_hashloc(A,B) do {
+  /* printf ("set attrloc of %p to %d on %d\n", (A), d, __LINE__); */
+  ((mp_value_node)(A))->v.hashloc_ = (mp_sym)(B);
+  } while (0)
+@d parent(A) (A)->parent_ /* pointer to |mp_structured| variable */
+
+@ 
+@d mp_free_attr_node(a,b) mp_free_node(a,b,value_node_size)
+
+@c
+static mp_value_node mp_get_attr_node (MP mp) {
+  mp_value_node p = (mp_value_node)mp_get_value_node(mp);
+  mp_type(p) = mp_attr_node_type;
+  return p;
+}
+
+@ @<Initialize table...@>=
+mp->end_attr = (mp_node)mp_get_attr_node(mp);
+set_hashloc(mp->end_attr,-1);
+parent((mp_value_node)mp->end_attr)=NULL;
+
+@ @<Free table...@>=
+mp_free_attr_node(mp, mp->end_attr);
+
+@
+
 @d collective_subscript 0 /* code for the attribute `\.{[]}' */
 
-@<Initialize table...@>=
-attr_loc(end_attr)=hash_end+1; parent(end_attr)=null;
+@d subscript(A) ((mp_value_node)(A))->v.subscript_ /* subscript of this variable */
+
+@
+@c 
+static mp_value_node mp_get_subscr_node (MP mp) {
+  mp_value_node p = (mp_value_node)mp_get_value_node(mp);
+  mp_type(p) = mp_subscr_node_type;
+  return p;
+}
 
 @ Variables of type \&{pair} will have values that point to four-word
 nodes containing two numeric values. The first of these values has
@@ -6379,103 +5968,275 @@ nodes containing two numeric values. The first of these values has
 the |link| in the first points back to the node whose |value| points
 to this four-word node.
 
+@d x_part_loc(A) ((mp_pair_node)(A))->x_part_ /* where the \&{xpart} is found in a pair node */
+@d y_part_loc(A) ((mp_pair_node)(A))->y_part_ /* where the \&{ypart} is found in a pair node */
+
+@(mpmp.h@>=
+typedef struct mp_pair_node_data {
+  NODE_BODY;
+  mp_node x_part_;
+  mp_node y_part_;
+} mp_pair_node_data;
+typedef struct mp_pair_node_data* mp_pair_node;
+
+@
+@d pair_node_size sizeof(struct mp_pair_node_data) /* the number of words in a subscript node */
+
+@c 
+static mp_node mp_get_pair_node (MP mp) {
+  mp_pair_node p = (mp_pair_node)xmalloc(1, pair_node_size);
+  add_var_used(pair_node_size);
+  memset(p,0,pair_node_size);
+  mp_type(p) = mp_pair_node_type;
+  return (mp_node)p;
+}
+
+@ If |type(p)=mp_pair_type| or if |value(p)=null|, the procedure call |init_pair_node(p) will 
+allocate a pair node for~|p|.  The individual parts of such nodes are  initially of type 
+|mp_independent|.
+
+@c 
+static void mp_init_pair_node (MP mp, mp_node p) {
+  mp_node q; /* the new node */
+  mp_type(p)=mp_pair_type;
+  q=mp_get_pair_node(mp);
+
+  y_part_loc(q) = mp_get_value_node(mp);
+  new_indep(y_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(y_part_loc(q))=(quarterword)(mp_y_part_sector); 
+  mp_link(y_part_loc(q))=p; 
+
+  x_part_loc(q) = mp_get_value_node(mp);
+  new_indep(x_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(x_part_loc(q))=(quarterword)(mp_x_part_sector); 
+  mp_link(x_part_loc(q))=p;
+
+  set_value_node(p,q);
+}
+
+@ 
 Variables of type \&{transform} are similar, but in this case their
 |value| points to a 12-word node containing six values, identified by
 |x_part_sector|, |y_part_sector|, |mp_xx_part_sector|, |mp_xy_part_sector|,
 |mp_yx_part_sector|, and |mp_yy_part_sector|.
-Finally, variables of type \&{color} have 3~values in 6~words
-identified by |mp_red_part_sector|, |mp_green_part_sector|, and |mp_blue_part_sector|.
 
-When an entire structured variable is saved, the |root| indication
+@d tx_part_loc(A) ((mp_transform_node)(A))->tx_part_ /* where the \&{xpart} is found in a transform node */
+@d ty_part_loc(A) ((mp_transform_node)(A))->ty_part_ /* where the \&{ypart} is found in a transform node */
+@d xx_part_loc(A) ((mp_transform_node)(A))->xx_part_ /* where the \&{xxpart} is found in a transform node */
+@d xy_part_loc(A) ((mp_transform_node)(A))->xy_part_ /* where the \&{xypart} is found in a transform node */
+@d yx_part_loc(A) ((mp_transform_node)(A))->yx_part_ /* where the \&{yxpart} is found in a transform node */
+@d yy_part_loc(A) ((mp_transform_node)(A))->yy_part_ /* where the \&{yypart} is found in a transform node */
+
+@(mpmp.h@>=
+typedef struct mp_transform_node_data {
+  NODE_BODY;
+  mp_node tx_part_;
+  mp_node ty_part_;
+  mp_node xx_part_;
+  mp_node yx_part_;
+  mp_node xy_part_;
+  mp_node yy_part_;
+} mp_transform_node_data;
+typedef struct mp_transform_node_data* mp_transform_node;
+
+@
+@d transform_node_size sizeof(struct mp_transform_node_data) /* the number of words in a subscript node */
+
+@c 
+static mp_node mp_get_transform_node (MP mp) {
+  mp_transform_node p = (mp_transform_node)xmalloc(1, transform_node_size);
+  add_var_used(transform_node_size);
+  memset(p,0,transform_node_size);
+  mp_type(p) = mp_transform_node_type;
+  return (mp_node)p;
+}
+
+@ @c
+static void mp_init_transform_node (MP mp, mp_node p) {
+  mp_node q; /* the new node */
+  mp_type(p)=mp_transform_type;
+  q=mp_get_transform_node(mp); /* big node */
+
+  yy_part_loc(q) = mp_get_value_node(mp);
+  new_indep(yy_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(yy_part_loc(q))=(quarterword)(mp_yy_part_sector); 
+  mp_link(yy_part_loc(q))=p; 
+
+  yx_part_loc(q) = mp_get_value_node(mp);
+  new_indep(yx_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(yx_part_loc(q))=(quarterword)(mp_yx_part_sector); 
+  mp_link(yx_part_loc(q))=p; 
+
+  xy_part_loc(q) = mp_get_value_node(mp);
+  new_indep(xy_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(xy_part_loc(q))=(quarterword)(mp_xy_part_sector); 
+  mp_link(xy_part_loc(q))=p; 
+
+  xx_part_loc(q) = mp_get_value_node(mp);
+  new_indep(xx_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(xx_part_loc(q))=(quarterword)(mp_xx_part_sector); 
+  mp_link(xx_part_loc(q))=p; 
+
+  ty_part_loc(q) = mp_get_value_node(mp);
+  new_indep(ty_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(ty_part_loc(q))=(quarterword)(mp_y_part_sector); 
+  mp_link(ty_part_loc(q))=p; 
+
+  tx_part_loc(q) = mp_get_value_node(mp);
+  new_indep(tx_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(tx_part_loc(q))=(quarterword)(mp_x_part_sector); 
+  mp_link(tx_part_loc(q))=p; 
+
+  set_value_node(p,q);
+}
+
+@
+Variables of type \&{color} have 3~values in 6~words identified by |mp_red_part_sector|, 
+|mp_green_part_sector|, and |mp_blue_part_sector|.
+
+@d red_part_loc(A) ((mp_color_node)(A))->red_part_ /* where the \&{redpart} is found in a color node */
+@d green_part_loc(A) ((mp_color_node)(A))->green_part_ /* where the \&{greenpart} is found in a color node */
+@d blue_part_loc(A) ((mp_color_node)(A))->blue_part_ /* where the \&{bluepart} is found in a color node */
+
+@d grey_part_loc(A) red_part_loc(A) /* where the \&{greypart} is found in a color node */
+
+@(mpmp.h@>=
+typedef struct mp_color_node_data {
+  NODE_BODY;
+  mp_node red_part_;
+  mp_node green_part_;
+  mp_node blue_part_;
+} mp_color_node_data;
+typedef struct mp_color_node_data* mp_color_node;
+
+@
+@d color_node_size sizeof(struct mp_color_node_data) /* the number of words in a subscript node */
+
+@c 
+static mp_node mp_get_color_node (MP mp) {
+  mp_color_node p = (mp_color_node)xmalloc(1, color_node_size);
+  add_var_used(color_node_size);
+  memset(p,0,color_node_size);
+  mp_type(p) = mp_color_node_type;
+  p->link = NULL;
+  return (mp_node)p;
+}
+
+@ 
+@c 
+static void mp_init_color_node (MP mp, mp_node p) {
+  mp_node q; /* the new node */
+  mp_type(p)=mp_color_type;
+  q=mp_get_color_node(mp); /* big node */
+
+  blue_part_loc(q) = mp_get_value_node(mp);
+  new_indep(blue_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(blue_part_loc(q))=(quarterword)(mp_blue_part_sector); 
+  mp_link(blue_part_loc(q))  = p;
+
+  green_part_loc(q) = mp_get_value_node(mp);
+  new_indep(green_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(y_part_loc(q))=(quarterword)(mp_green_part_sector); 
+  mp_link(green_part_loc(q))  = p;
+
+  red_part_loc(q) = mp_get_value_node(mp);
+  new_indep(red_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(red_part_loc(q))=(quarterword)(mp_red_part_sector); 
+  mp_link(red_part_loc(q))  = p;
+
+  set_value_node(p,q);
+}
+
+
+@ Finally, variables of type |cmykcolor|.
+
+@d cyan_part_loc(A)    ((mp_cmykcolor_node)(A))->cyan_part_ /* where the \&{cyanpart} is found in a color node */
+@d magenta_part_loc(A) ((mp_cmykcolor_node)(A))->magenta_part_ /* where the \&{magentapart} is found in a color node */
+@d yellow_part_loc(A)  ((mp_cmykcolor_node)(A))->yellow_part_ /* where the \&{yellowpart} is found in a color node */
+@d black_part_loc(A)   ((mp_cmykcolor_node)(A))->black_part_ /* where the \&{blackpart} is found in a color node */
+
+@(mpmp.h@>=
+typedef struct mp_cmykcolor_node_data {
+  NODE_BODY;
+  mp_node cyan_part_;
+  mp_node magenta_part_;
+  mp_node yellow_part_;
+  mp_node black_part_;
+} mp_cmykcolor_node_data;
+typedef struct mp_cmykcolor_node_data* mp_cmykcolor_node;
+
+@
+@d cmykcolor_node_size sizeof(struct mp_cmykcolor_node_data) /* the number of words in a subscript node */
+
+@c 
+static mp_node mp_get_cmykcolor_node (MP mp) {
+  mp_cmykcolor_node p = (mp_cmykcolor_node)xmalloc(1, cmykcolor_node_size);
+  add_var_used(cmykcolor_node_size);
+  memset(p,0,cmykcolor_node_size);
+  mp_type(p) = mp_cmykcolor_node_type;
+  p->link = NULL;
+  return (mp_node)p;
+}
+
+@
+@c
+static void mp_init_cmykcolor_node (MP mp, mp_node p) {
+  mp_node q; /* the new node */
+  mp_type(p)=mp_cmykcolor_type;
+  q=mp_get_cmykcolor_node(mp); /* big node */
+
+  black_part_loc(q) = mp_get_value_node(mp);
+  new_indep(black_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(black_part_loc(q))=(quarterword)(mp_black_part_sector); 
+  mp_link(black_part_loc(q))  = p;
+
+  yellow_part_loc(q) = mp_get_value_node(mp);
+  new_indep(yellow_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(yellow_part_loc(q))=(quarterword)(mp_yellow_part_sector); 
+  mp_link(yellow_part_loc(q))  = p;
+
+  magenta_part_loc(q) = mp_get_value_node(mp);
+  new_indep(magenta_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(magenta_part_loc(q))=(quarterword)(mp_magenta_part_sector); 
+  mp_link(magenta_part_loc(q))  = p;
+
+  cyan_part_loc(q) = mp_get_value_node(mp);
+  new_indep(cyan_part_loc(q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type(cyan_part_loc(q))=(quarterword)(mp_cyan_part_sector); 
+  mp_link(cyan_part_loc(q))  = p;
+
+  set_value_node(p,q);
+}
+
+@ When an entire structured variable is saved, the |root| indication
 is temporarily replaced by |saved_root|.
 
 Some variables have no name; they just are used for temporary storage
 while expressions are being evaluated. We call them {\sl capsules}.
 
-@d x_part_loc(A) (A) /* where the \&{xpart} is found in a pair or transform node */
-@d y_part_loc(A) ((A)+2) /* where the \&{ypart} is found in a pair or transform node */
-@d xx_part_loc(A) ((A)+4) /* where the \&{xxpart} is found in a transform node */
-@d xy_part_loc(A) ((A)+6) /* where the \&{xypart} is found in a transform node */
-@d yx_part_loc(A) ((A)+8) /* where the \&{yxpart} is found in a transform node */
-@d yy_part_loc(A) ((A)+10) /* where the \&{yypart} is found in a transform node */
-@d red_part_loc(A) (A) /* where the \&{redpart} is found in a color node */
-@d green_part_loc(A) ((A)+2) /* where the \&{greenpart} is found in a color node */
-@d blue_part_loc(A) ((A)+4) /* where the \&{bluepart} is found in a color node */
-@d cyan_part_loc(A) (A) /* where the \&{cyanpart} is found in a color node */
-@d magenta_part_loc(A) ((A)+2) /* where the \&{magentapart} is found in a color node */
-@d yellow_part_loc(A) ((A)+4) /* where the \&{yellowpart} is found in a color node */
-@d black_part_loc(A) ((A)+6) /* where the \&{blackpart} is found in a color node */
-@d grey_part_loc(A) (A) /* where the \&{greypart} is found in a color node */
-@#
-@d pair_node_size 4 /* the number of words in a pair node */
-@d transform_node_size 12 /* the number of words in a transform node */
-@d color_node_size 6 /* the number of words in a color node */
-@d cmykcolor_node_size 8 /* the number of words in a color node */
-
-@<Glob...@>=
-quarterword big_node_size[mp_pair_type+1];
-quarterword sector0[mp_pair_type+1];
-quarterword sector_offset[mp_black_part_sector+1];
-
-@ The |sector0| array gives for each big node type, |name_type| values
-for its first subfield; the |sector_offset| array gives for each
-|name_type| value, the offset from the first subfield in words;
-and the |big_node_size| array gives the size in words for each type of
-big node.
-
-@<Set init...@>=
-mp->big_node_size[mp_transform_type]=transform_node_size;
-mp->big_node_size[mp_pair_type]=pair_node_size;
-mp->big_node_size[mp_color_type]=color_node_size;
-mp->big_node_size[mp_cmykcolor_type]=cmykcolor_node_size;
-mp->sector0[mp_transform_type]=mp_x_part_sector;
-mp->sector0[mp_pair_type]=mp_x_part_sector;
-mp->sector0[mp_color_type]=mp_red_part_sector;
-mp->sector0[mp_cmykcolor_type]=mp_cyan_part_sector;
-for (k=mp_x_part_sector;k<= mp_yy_part_sector;k++ ) {
-  mp->sector_offset[k]=(quarterword)(2*(k-mp_x_part_sector));
-}
-for (k=mp_red_part_sector;k<= mp_blue_part_sector ; k++) {
-  mp->sector_offset[k]=(quarterword)(2*(k-mp_red_part_sector));
-}
-for (k=mp_cyan_part_sector;k<= mp_black_part_sector;k++ ) {
-  mp->sector_offset[k]=(quarterword)(2*(k-mp_cyan_part_sector));
-}
-
-@ If |type(p)=mp_pair_type| or |mp_transform_type| and if |value(p)=null|, the
-procedure call |init_big_node(p)| will allocate a pair or transform node
-for~|p|.  The individual parts of such nodes are initially of type
-|mp_independent|.
-
-@c 
-static void mp_init_big_node (MP mp,pointer p) {
-  pointer q; /* the new node */
-  quarterword s; /* its size */
-  s=mp->big_node_size[mp_type(p)]; q=mp_get_node(mp, s);
-  do {  
-    s=(quarterword)(s-2); 
-    @<Make variable |q+s| newly independent@>;
-    mp_name_type(q+s)=(quarterword)(halfp(s)+mp->sector0[mp_type(p)]); 
-    mp_link(q+s)=null;
-  } while (s!=0);
-  mp_link(q)=p; value(p)=q;
-}
-
 @ The |id_transform| function creates a capsule for the
 identity transformation.
 
 @c 
-static pointer mp_id_transform (MP mp) {
-  pointer p,q,r; /* list manipulation registers */
-  p=mp_get_node(mp, value_node_size); mp_type(p)=mp_transform_type;
-  mp_name_type(p)=mp_capsule; value(p)=null; mp_init_big_node(mp, p); q=value(p);
-  r=q+transform_node_size;
-  do {  
-    r=r-2;
-    mp_type(r)=mp_known; value(r)=0;
-  } while (r!=q);
-  value(xx_part_loc(q))=unity; 
-  value(yy_part_loc(q))=unity;
+static mp_node mp_id_transform (MP mp) {
+  mp_node p,q; /* list manipulation registers */
+  p=mp_get_value_node(mp); 
+  mp_name_type(p)=mp_capsule; 
+  set_value(p,null); 
+  mp_init_transform_node(mp, p); 
+  q=value_node(p);
+  mp_type  (tx_part_loc(q)) = mp_known; 
+  set_value(tx_part_loc(q),0); 
+  mp_type  (ty_part_loc(q)) = mp_known; 
+  set_value(ty_part_loc(q),0); 
+  mp_type  (xy_part_loc(q)) = mp_known; 
+  set_value(xy_part_loc(q),0); 
+  mp_type  (yx_part_loc(q)) = mp_known; 
+  set_value(yx_part_loc(q),0); 
+  mp_type  (xx_part_loc(q)) = mp_known; 
+  set_value(xx_part_loc(q),unity); 
+  mp_type  (yy_part_loc(q)) = mp_known; 
+  set_value(yy_part_loc(q),unity);
   return p;
 }
 
@@ -6484,34 +6245,44 @@ to |null| until they are first used as the root of a variable.
 The following subroutine establishes the root node on such grand occasions.
 
 @c 
-static void mp_new_root (MP mp,pointer x) {
-  pointer p; /* the new node */
-  p=mp_get_node(mp, value_node_size); mp_type(p)=undefined; mp_name_type(p)=mp_root;
-  mp_link(p)=x; equiv(x)=p;
+static void mp_new_root (MP mp, mp_sym x) {
+  mp_node p; /* the new node */
+  p=mp_get_value_node(mp);
+  mp_type(p)=undefined;
+  mp_name_type(p)=mp_root;
+  value_sym(p) = x;
+  equiv_node(x)=p;
 }
 
 @ These conventions for variable representation are illustrated by the
 |print_variable_name| routine, which displays the full name of a
-variable given only a pointer to its two-word value packet.
+variable given only a pointer to its value.
 
 @<Declarations@>=
-static void mp_print_variable_name (MP mp, pointer p);
+static void mp_print_variable_name (MP mp, mp_node p);
 
 @ @c 
-void mp_print_variable_name (MP mp, pointer p) {
-  pointer q; /* a token list that will name the variable's suffix */
-  pointer r; /* temporary for token list creation */
+void mp_print_variable_name (MP mp, mp_node p) {
+  mp_node q; /* a token list that will name the variable's suffix */
+  mp_node r; /* temporary for token list creation */
   while ( mp_name_type(p)>=mp_x_part_sector ) {
     @<Preface the output with a part specifier; |return| in the
       case of a capsule@>;
   }
-  q=null;
+  q=NULL;
   while ( mp_name_type(p)>mp_saved_root ) {
     @<Ascend one level, pushing a token onto list |q|
      and replacing |p| by its parent@>;
   }
-  r=mp_get_avail(mp); mp_info(r)=mp_link(p); mp_link(r)=q;
-  if ( mp_name_type(p)==mp_saved_root ) mp_print(mp, "(SAVED)");
+  /* now |link(p)| is the hash address of |p|, and
+   |name_type(p)| is either |root| or |saved_root|. 
+   Have to prepend a token to |q| for |show_token_list|. 
+  */
+  r=mp_get_symbolic_node(mp); 
+  set_mp_sym_sym(r, value_sym(p));
+  mp_link(r)=q;
+  if ( mp_name_type(p)==mp_saved_root ) 
+    mp_print(mp, "(SAVED)");
 @.SAVED@>
   mp_show_token_list(mp, r,null,el_gordo,mp->tally); 
   mp_flush_token_list(mp, r);
@@ -6525,21 +6296,25 @@ void mp_print_variable_name (MP mp, pointer p) {
       p=mp_link(p);
     } while (mp_name_type(p)!=mp_attr);
   } else if ( mp_name_type(p)==mp_structured_root ) {
-    p=mp_link(p); goto FOUND;
+    p=mp_link(p); 
+    goto FOUND;
   } else { 
-    if ( mp_name_type(p)!=mp_attr ) mp_confusion(mp, "var");
+    if ( mp_name_type(p)!=mp_attr ) 
+      mp_confusion(mp, "var");
 @:this can't happen var}{\quad var@>
-    r=mp_get_avail(mp); mp_info(r)=attr_loc(p);
+    r=mp_get_symbolic_node(mp); 
+    set_mp_sym_sym(r,hashloc(p)); /* the hash address */
   }
-  mp_link(r)=q; q=r;
+  set_mp_link(r,q);
+  q=r;
 FOUND:  
-  p=parent(p);
+  p=parent((mp_value_node)p);
 }
 
 @ @<Preface the output with a part specifier...@>=
 { switch (mp_name_type(p)) {
-  case mp_x_part_sector: mp_print_char(mp, xord('x')); break;
-  case mp_y_part_sector: mp_print_char(mp, xord('y')); break;
+  case mp_x_part_sector: mp_print(mp, "x"); break;
+  case mp_y_part_sector: mp_print(mp, "y"); break;
   case mp_xx_part_sector: mp_print(mp, "xx"); break;
   case mp_xy_part_sector: mp_print(mp, "xy"); break;
   case mp_yx_part_sector: mp_print(mp, "yx"); break;
@@ -6553,28 +6328,50 @@ FOUND:
   case mp_black_part_sector: mp_print(mp, "black"); break;
   case mp_grey_part_sector: mp_print(mp, "grey"); break;
   case mp_capsule: 
-    mp_print(mp, "%CAPSULE"); mp_print_int(mp, p-null); return;
+    {
+      char pval[19]; /* allow 64bit pointers, + "0x" */
+      mp_print(mp, "%CAPSULE"); 
+      sprintf(pval,"%p", p);
+      mp_print(mp, pval); 
+      return;
+    }
     break;
 @.CAPSULE@>
   } /* there are no other cases */
   mp_print(mp, "part "); 
-  p=mp_link(p-mp->sector_offset[mp_name_type(p)]);
+  p=mp_link(p);
 }
 
 @ The |interesting| function returns |true| if a given variable is not
 in a capsule, or if the user wants to trace capsules.
 
 @c 
-static boolean mp_interesting (MP mp,pointer p) {
+static boolean mp_interesting (MP mp, mp_node p) {
   quarterword t; /* a |name_type| */
-  if ( mp->internal[mp_tracing_capsules]>0 ) {
+  if ( internal_value(mp_tracing_capsules)>0 ) {
     return true;
-  } else { 
+  } else {
     t=mp_name_type(p);
-    if ( t>=mp_x_part_sector ) if ( t!=mp_capsule )
-      t=mp_name_type(mp_link(p-mp->sector_offset[t]));
-    return (t!=mp_capsule);
+    if ( t>=mp_x_part_sector && t!=mp_capsule ) {
+      switch(t) {
+      case mp_x_part_sector:       t=mp_name_type(mp_link(x_part_loc(p))); break;
+      case mp_y_part_sector:       t=mp_name_type(mp_link(y_part_loc(p))); break;
+      case mp_xx_part_sector:      t=mp_name_type(mp_link(xx_part_loc(p))); break;
+      case mp_xy_part_sector:      t=mp_name_type(mp_link(xy_part_loc(p))); break;
+      case mp_yx_part_sector:      t=mp_name_type(mp_link(yx_part_loc(p))); break;
+      case mp_yy_part_sector:      t=mp_name_type(mp_link(yy_part_loc(p))); break;
+      case mp_red_part_sector:     t=mp_name_type(mp_link(red_part_loc(p))); break;
+      case mp_green_part_sector:   t=mp_name_type(mp_link(green_part_loc(p))); break;
+      case mp_blue_part_sector:    t=mp_name_type(mp_link(blue_part_loc(p))); break;
+      case mp_cyan_part_sector:    t=mp_name_type(mp_link(cyan_part_loc(p))); break;
+      case mp_magenta_part_sector: t=mp_name_type(mp_link(magenta_part_loc(p))); break;
+      case mp_yellow_part_sector:  t=mp_name_type(mp_link(yellow_part_loc(p))); break;
+      case mp_black_part_sector:   t=mp_name_type(mp_link(black_part_loc(p))); break;
+      case mp_grey_part_sector:    t=mp_name_type(mp_link(grey_part_loc(p))); break;
+      }
+    }
   }
+  return (t!=mp_capsule);
 }
 
 @ Now here is a subroutine that converts an unstructured type into an
@@ -6587,11 +6384,16 @@ place in the structure. Node~|p| itself does not move, nor are its
 |value| or |type| fields changed in any way.
 
 @c 
-static pointer mp_new_structure (MP mp,pointer p) {
-  pointer q,r=0; /* list manipulation registers */
+static mp_node mp_new_structure (MP mp, mp_node p) {
+  mp_node q, r=NULL; /* list manipulation registers */
+  mp_sym qq = NULL;
   switch (mp_name_type(p)) {
   case mp_root: 
-    q=mp_link(p); r=mp_get_node(mp, value_node_size); equiv(q)=r;
+    {
+      qq = value_sym(p); 
+      r=mp_get_value_node(mp);
+      equiv_node(qq) = r;
+    }
     break;
   case mp_subscr: 
     @<Link a new subscript node |r| in place of node |p|@>;
@@ -6604,26 +6406,46 @@ static pointer mp_new_structure (MP mp,pointer p) {
 @:this can't happen struct}{\quad struct@>
     break;
   }
-  mp_link(r)=mp_link(p); mp_type(r)=mp_structured; mp_name_type(r)=mp_name_type(p);
-  attr_head(r)=p; mp_name_type(p)=mp_structured_root;
-  q=mp_get_node(mp, attr_node_size); mp_link(p)=q; subscr_head(r)=q;
-  parent(q)=r; mp_type(q)=undefined; mp_name_type(q)=mp_attr; mp_link(q)=end_attr;
-  attr_loc(q)=collective_subscript; 
+  set_mp_link(r,mp_link(p)); 
+  value_sym(r) = value_sym(p);
+  mp_type(r)=mp_structured; 
+  mp_name_type(r)=mp_name_type(p);
+  set_attr_head(r,p); 
+  mp_name_type(p)=mp_structured_root;
+  {
+    mp_value_node qqr = mp_get_attr_node(mp); 
+    set_mp_link(p,(mp_node)qqr);
+    set_subscr_head(r,(mp_node)qqr);
+    parent(qqr)=r; 
+    mp_type(qqr)=undefined; 
+    mp_name_type(qqr)=mp_attr; 
+    set_mp_link(qqr,mp->end_attr);
+    set_hashloc(qqr,collective_subscript); 
+  }
   return r;
 }
 
 @ @<Link a new subscript node |r| in place of node |p|@>=
 { 
+  mp_node q_new;
   q=p;
   do {  
     q=mp_link(q);
   } while (mp_name_type(q)!=mp_attr);
-  q=parent(q); r=subscr_head_loc(q); /* |mp_link(r)=subscr_head(q)| */
+  q=parent((mp_value_node)q); 
+  r = mp->temp_head;
+  set_mp_link(r,subscr_head(q));
   do {  
-    q=r; r=mp_link(r);
+    q_new = r;
+    r = mp_link(r);
   } while (r!=p);
-  r=mp_get_node(mp, subscr_node_size);
-  mp_link(q)=r; subscript(r)=subscript(p);
+  r=(mp_node)mp_get_subscr_node(mp);
+  if (q_new==mp->temp_head) {
+    subscr_head(q)=r; 
+  } else {
+    set_mp_link(q_new,r); 
+  }
+  subscript(r)=subscript(p);
 }
 
 @ If the attribute is |collective_subscript|, there are two pointers to
@@ -6631,21 +6453,32 @@ node~|p|, so we must change both of them.
 
 @<Link a new attribute node |r| in place of node |p|@>=
 { 
-  q=parent(p); r=attr_head(q);
+  mp_value_node rr;
+  q=parent((mp_value_node)p); 
+  r=attr_head(q);
   do {  
-    q=r; r=mp_link(r);
+    q=r; 
+    r=mp_link(r);
   } while (r!=p);
-  r=mp_get_node(mp, attr_node_size); mp_link(q)=r;
-  mp->mem[attr_loc_loc(r)]=mp->mem[attr_loc_loc(p)]; /* copy |attr_loc| and |parent| */
-  if ( attr_loc(p)==collective_subscript ) { 
-    q=subscr_head_loc(parent(p));
-    while ( mp_link(q)!=p ) q=mp_link(q);
-    mp_link(q)=r;
+  rr=mp_get_attr_node(mp); 
+  r = (mp_node)rr;
+  set_mp_link(q,(mp_node)rr);
+  set_hashloc(rr, hashloc(p));
+  parent(rr) = parent((mp_value_node)p);
+  if ( hashloc(p)==collective_subscript ) { 
+    q = mp->temp_head;
+    set_mp_link(q,subscr_head(parent((mp_value_node)p)));
+    while ( mp_link(q)!=p ) 
+      q=mp_link(q);
+    if (q==mp->temp_head)
+      subscr_head(parent((mp_value_node)p)) = (mp_node)rr;
+    else
+      set_mp_link(q,(mp_node)rr);
   }
 }
 
 @ The |find_variable| routine is given a pointer~|t| to a nonempty token
-list of suffixes; it returns a pointer to the corresponding two-word
+list of suffixes; it returns a pointer to the corresponding non-symbolic
 value. For example, if |t| points to token \.x followed by a numeric
 token containing the value~7, |find_variable| finds where the value of
 \.{x7} is stored in memory. This may seem a simple task, and it
@@ -6658,36 +6491,48 @@ item on |t| isn't a |tag_token|, the value |null| is returned.
 Otherwise |p| will be a non-null pointer to a node such that
 |undefined<type(p)<mp_structured|.
 
-@d abort_find { return null; }
+@d abort_find { return NULL; }
 
 @c 
-static pointer mp_find_variable (MP mp,pointer t) {
-  pointer p,q,r,s; /* nodes in the ``value'' line */
-  pointer pp,qq,rr,ss; /* nodes in the ``collective'' line */
+static mp_node mp_find_variable (MP mp, mp_node t) {
+  mp_node p,q,r,s; /* nodes in the ``value'' line */
+  mp_sym p_sym;
+  mp_node pp,qq,rr,ss; /* nodes in the ``collective'' line */
   integer n; /* subscript or attribute */
-  memory_word save_word; /* temporary storage for a word of |mem| */
 @^inner loop@>
-  p=mp_info(t); t=mp_link(t);
-  if ( (eq_type(p) % outer_tag) != tag_token ) abort_find;
-  if ( equiv(p)==null ) mp_new_root(mp, p);
-  p=equiv(p); pp=p;
+  p_sym = mp_sym_sym(t); 
+  t = mp_link(t);
+  if ( (eq_type(p_sym) % outer_tag) != tag_token ) 
+    abort_find;
+  if ( equiv_node(p_sym) == NULL ) 
+    mp_new_root(mp, p_sym);
+  p=equiv_node(p_sym); 
+  pp=p;
   while ( t!=null ) { 
     @<Make sure that both nodes |p| and |pp| are of |mp_structured| type@>;
-    if ( t<mp->hi_mem_min ) {
+    if ( mp_type(t) != mp_symbol_node ) {
       @<Descend one level for the subscript |value(t)|@>
     } else {
-      @<Descend one level for the attribute |mp_info(t)|@>;
+      @<Descend one level for the attribute |mp_sym_info(t)|@>;
     }
     t=mp_link(t);
   }
   if ( mp_type(pp)>=mp_structured ) {
-    if ( mp_type(pp)==mp_structured ) pp=attr_head(pp); else abort_find;
+    if ( mp_type(pp)==mp_structured ) 
+      pp=attr_head(pp); 
+    else 
+      abort_find;
   }
-  if ( mp_type(p)==mp_structured ) p=attr_head(p);
+  if ( mp_type(p)==mp_structured ) 
+    p=attr_head(p);
   if ( mp_type(p)==undefined ) { 
-    if ( mp_type(pp)==undefined ) { mp_type(pp)=mp_numeric_type; value(pp)=null; };
-    mp_type(p)=mp_type(pp); value(p)=null;
-  };
+    if ( mp_type(pp)==undefined ) { 
+       mp_type(pp)=mp_numeric_type; 
+       set_value(pp,null);
+    }
+    mp_type(p)=mp_type(pp); 
+    set_value(p,null);
+  }
   return p;
 }
 
@@ -6696,14 +6541,19 @@ static pointer mp_find_variable (MP mp,pointer t) {
 values.
 
 @<Make sure that both nodes |p| and |pp|...@>=
-if ( mp_type(pp)!=mp_structured ) { 
-  if ( mp_type(pp)>mp_structured ) abort_find;
-  ss=mp_new_structure(mp, pp);
-  if ( p==pp ) p=ss;
-  pp=ss;
-}; /* now |type(pp)=mp_structured| */
-if ( mp_type(p)!=mp_structured ) /* it cannot be |>mp_structured| */
-  p=mp_new_structure(mp, p) /* now |type(p)=mp_structured| */
+{ if ( mp_type(pp)!=mp_structured ) { 
+    if ( mp_type(pp)>mp_structured ) 
+      abort_find;
+    ss=mp_new_structure(mp, pp);
+    if ( p==pp ) 
+      p=ss;
+    pp=ss;
+  } /* now |type(pp)=mp_structured| */
+  if ( mp_type(p)!=mp_structured ) {/* it cannot be |>mp_structured| */
+    p=mp_new_structure(mp, p); /* now |type(p)=mp_structured| */
+  }
+}
+
 
 @ We want this part of the program to be reasonably fast, in case there are
 @^inner loop@>
@@ -6713,47 +6563,76 @@ subscript list, even though that word isn't part of a subscript node.
 
 @<Descend one level for the subscript |value(t)|@>=
 { 
+  halfword save_subscript; /* temporary storage */
   n=value(t);
-  pp=mp_link(attr_head(pp)); /* now |attr_loc(pp)=collective_subscript| */
-  q=mp_link(attr_head(p)); save_word=mp->mem[subscript_loc(q)];
-  subscript(q)=el_gordo; s=subscr_head_loc(p); /* |mp_link(s)=subscr_head(p)| */
+  pp=mp_link(attr_head(pp)); /* now |hashloc(pp)=collective_subscript| */
+  q=mp_link(attr_head(p)); 
+  save_subscript=subscript(q);
+  subscript(q)=el_gordo; 
+  s = mp->temp_head;
+  set_mp_link(s,subscr_head(p));
   do {  
-    r=s; s=mp_link(s);
+    r=s; 
+    s=mp_link(s);
   } while (n>subscript(s));
-  if ( n==subscript(s) ) {
+  if (n==subscript(s) ) {
     p=s;
   } else { 
-    p=mp_get_node(mp, subscr_node_size); mp_link(r)=p; mp_link(p)=s;
-    subscript(p)=n; mp_name_type(p)=mp_subscr; mp_type(p)=undefined;
+    mp_value_node pp = mp_get_subscr_node(mp); 
+    if (r==mp->temp_head)
+      set_subscr_head(p,(mp_node)pp);
+    else
+      set_mp_link(r,(mp_node)pp);
+    set_mp_link(pp,s);
+    subscript(pp)=n; 
+    mp_name_type(pp)=mp_subscr; 
+    mp_type(pp)=undefined;
+    p=(mp_node)pp;
   }
-  mp->mem[subscript_loc(q)]=save_word;
+  subscript(q)=save_subscript;
 }
 
-@ @<Descend one level for the attribute |mp_info(t)|@>=
+@ @<Descend one level for the attribute |mp_sym_info(t)|@>=
 { 
-  n=mp_info(t);
+  mp_sym nn = mp_sym_sym(t);
   ss=attr_head(pp);
   do {  
-    rr=ss; ss=mp_link(ss);
-  } while (n>attr_loc(ss));
-  if ( n<attr_loc(ss) ) { 
-    qq=mp_get_node(mp, attr_node_size); mp_link(rr)=qq; mp_link(qq)=ss;
-    attr_loc(qq)=n; mp_name_type(qq)=mp_attr; mp_type(qq)=undefined;
-    parent(qq)=pp; ss=qq;
+    rr=ss; 
+    ss=mp_link(ss);
+  } while (nn>hashloc(ss));
+  if ( nn<hashloc(ss) ) { 
+    qq=(mp_node)mp_get_attr_node(mp); 
+    set_mp_link(rr,qq); 
+    set_mp_link(qq,ss);
+    set_hashloc(qq,nn); 
+    mp_name_type(qq)=mp_attr; 
+    mp_type(qq)=undefined;
+    parent((mp_value_node)qq)=pp; 
+    ss=qq;
   }
   if ( p==pp ) { 
-    p=ss; pp=ss;
+    p=ss; 
+    pp=ss;
   } else { 
-    pp=ss; s=attr_head(p);
+    pp=ss; 
+    s=attr_head(p);
+    /* printf("hashloc(s)=%d\n",hashloc(s)); */
     do {  
-      r=s; s=mp_link(s);
-    } while (n>attr_loc(s));
-    if ( n==attr_loc(s) ) {
+      r=s; 
+      s=mp_link(s);
+      /* printf("hashloc(s)=%d\n",hashloc(s)); */
+    } while (nn>hashloc(s));
+    if ( nn==hashloc(s) ) {
       p=s;
     } else { 
-      q=mp_get_node(mp, attr_node_size); mp_link(r)=q; mp_link(q)=s;
-      attr_loc(q)=n; mp_name_type(q)=mp_attr; mp_type(q)=undefined;
-      parent(q)=p; p=q;
+      q=(mp_node)mp_get_attr_node(mp); 
+      set_mp_link(r,q); 
+      set_mp_link(q,s);
+      set_hashloc(q,nn) ;
+      mp_name_type(q)=mp_attr; 
+      mp_type(q)=undefined;
+      parent((mp_value_node)q)=p; 
+      p=q;
     }
   }
 }
@@ -6775,42 +6654,53 @@ to handle such examples is to use recursion; so that's what we~do.
 @^recursion@>
 
 Parameter |p| points to the root information of the variable;
-parameter |t| points to a list of one-word nodes that represent
+parameter |t| points to a list of symbolic nodes that represent
 suffixes, with |info=collective_subscript| for subscripts.
 
 @<Declarations@>=
-static void mp_flush_cur_exp (MP mp,scaled v) ;
+static void mp_flush_cur_exp (MP mp, mp_value v) ;
 
 @ @c 
-static void mp_flush_variable (MP mp,pointer p, pointer t, boolean discard_suffixes) {
-  pointer q,r; /* list manipulation */
-  halfword n; /* attribute to match */
+static void mp_flush_variable (MP mp, mp_node p, mp_node t, boolean discard_suffixes) {
+  mp_node q,r; /* list manipulation */
+  mp_sym n; /* attribute to match */
   while ( t!=null ) { 
     if ( mp_type(p)!=mp_structured ) return;
-    n=mp_info(t); t=mp_link(t);
+    n=mp_sym_sym(t); 
+    t=mp_link(t);
     if ( n==collective_subscript ) { 
-      r=subscr_head_loc(p); q=mp_link(r); /* |q=subscr_head(p)| */
+      r=mp->temp_head;
+      mp_link(r)=subscr_head(p); 
+      q=mp_link(r);
       while ( mp_name_type(q)==mp_subscr ){ 
         mp_flush_variable(mp, q,t,discard_suffixes);
         if ( t==null ) {
-          if ( mp_type(q)==mp_structured ) r=q;
-          else  { mp_link(r)=mp_link(q); mp_free_node(mp, q,subscr_node_size);   }
+          if ( mp_type(q)==mp_structured ) {
+            r=q;
+          } else { 
+            set_mp_link(r,mp_link(q)); 
+            mp_free_node(mp, q,value_node_size);   
+          }
         } else {
           r=q;
         }
         q=mp_link(r);
       }
+      set_subscr_head(p,q); 
     }
     p=attr_head(p);
     do {  
-      r=p; p=mp_link(p);
-    } while (attr_loc(p)<n);
-    if ( attr_loc(p)!=n ) return;
+      r=p; 
+      p=mp_link(p);
+    } while (hashloc(p)<n);
+    if ( hashloc(p)!=n ) 
+      return;
   }
   if ( discard_suffixes ) {
     mp_flush_below_variable(mp, p);
   } else { 
-    if ( mp_type(p)==mp_structured ) p=attr_head(p);
+    if ( mp_type(p)==mp_structured ) 
+      p=attr_head(p);
     mp_recycle_value(mp, p);
   }
 }
@@ -6819,26 +6709,31 @@ static void mp_flush_variable (MP mp,pointer p, pointer t, boolean discard_suffi
 which becomes undefined.
 
 @<Declarations@>=
-static void mp_flush_below_variable (MP mp, pointer p);
+static void mp_flush_below_variable (MP mp, mp_node p);
 
 @ @c
-void mp_flush_below_variable (MP mp,pointer p) {
-   pointer q,r; /* list manipulation registers */
+void mp_flush_below_variable (MP mp, mp_node p) {
+  mp_node q,r; /* list manipulation registers */
   if ( mp_type(p)!=mp_structured ) {
     mp_recycle_value(mp, p); /* this sets |type(p)=undefined| */
   } else { 
     q=subscr_head(p);
     while ( mp_name_type(q)==mp_subscr ) { 
-      mp_flush_below_variable(mp, q); r=q; q=mp_link(q);
-      mp_free_node(mp, r,subscr_node_size);
+      mp_flush_below_variable(mp, q); 
+      r=q; 
+      q=mp_link(q);
+      mp_free_node(mp, r,value_node_size);
     }
-    r=attr_head(p); q=mp_link(r); mp_recycle_value(mp, r);
-    if ( mp_name_type(p)<=mp_saved_root ) mp_free_node(mp, r,value_node_size);
-    else mp_free_node(mp, r,subscr_node_size);
-    /* we assume that |subscr_node_size=attr_node_size| */
+    r=attr_head(p); 
+    q=mp_link(r); 
+    mp_recycle_value(mp, r);
+    mp_free_node(mp, r,value_node_size);
     do {  
-      mp_flush_below_variable(mp, q); r=q; q=mp_link(q); mp_free_node(mp, r,attr_node_size);
-    } while (q!=end_attr);
+      mp_flush_below_variable(mp, q); 
+      r=q; 
+      q=mp_link(q); 
+      mp_free_node(mp, r,value_node_size);
+    } while (q!=mp->end_attr);
     mp_type(p)=undefined;
   }
 }
@@ -6849,26 +6744,41 @@ determines what type of undefined value should be given, based on
 the current type before recycling.
 
 @c 
-static quarterword mp_und_type (MP mp,pointer p) { 
+static quarterword mp_und_type (MP mp, mp_node p) { 
+  (void)mp;
   switch (mp_type(p)) {
-  case undefined: case mp_vacuous:
+  case undefined: 
+  case mp_vacuous:
     return undefined;
-  case mp_boolean_type: case mp_unknown_boolean:
+  case mp_boolean_type: 
+  case mp_unknown_boolean:
     return mp_unknown_boolean;
-  case mp_string_type: case mp_unknown_string:
+  case mp_string_type: 
+  case mp_unknown_string:
     return mp_unknown_string;
-  case mp_pen_type: case mp_unknown_pen:
+  case mp_pen_type: 
+  case mp_unknown_pen:
     return mp_unknown_pen;
-  case mp_path_type: case mp_unknown_path:
+  case mp_path_type: 
+  case mp_unknown_path:
     return mp_unknown_path;
-  case mp_picture_type: case mp_unknown_picture:
+  case mp_picture_type: 
+  case mp_unknown_picture:
     return mp_unknown_picture;
-  case mp_transform_type: case mp_color_type: case mp_cmykcolor_type:
-  case mp_pair_type: case mp_numeric_type: 
+  case mp_transform_type: 
+  case mp_color_type: 
+  case mp_cmykcolor_type:
+  case mp_pair_type: 
+  case mp_numeric_type: 
     return mp_type(p);
-  case mp_known: case mp_dependent: case mp_proto_dependent: case mp_independent:
+  case mp_known: 
+  case mp_dependent: 
+  case mp_proto_dependent: 
+  case mp_independent:
     return mp_numeric_type;
-  } /* there are no other cases */
+  default:  /* there are no other valid cases, but please the compiler */
+    return 0;
+  }
   return 0;
 }
 
@@ -6878,9 +6788,9 @@ definition that is currently attached to that symbol. If the |saving|
 parameter is true, a subsidiary structure is saved instead of destroyed.
 
 @c 
-static void mp_clear_symbol (MP mp,pointer p, boolean saving) {
-  pointer q; /* |equiv(p)| */
-  q=equiv(p);
+static void mp_clear_symbol (MP mp, mp_sym p, boolean saving) {
+  mp_node q; /* |equiv(p)| */
+  q=equiv_node(p);
   switch (eq_type(p) % outer_tag)  {
   case defined_macro:
   case secondary_primary_macro:
@@ -6889,19 +6799,21 @@ static void mp_clear_symbol (MP mp,pointer p, boolean saving) {
     if ( ! saving ) mp_delete_mac_ref(mp, q);
     break;
   case tag_token:
-    if ( q!=null ) {
+    if ( q!=NULL ) {
       if ( saving ) {
         mp_name_type(q)=mp_saved_root;
       } else { 
         mp_flush_below_variable(mp, q); 
-	    mp_free_node(mp,q,value_node_size); 
+	mp_free_node(mp,q,value_node_size); 
       }
     }
     break;
   default:
     break;
   }
-  mp->eqtb[p]=mp->eqtb[frozen_undefined];
+  equiv(p) = mp->frozen_undefined->v.data.val;
+  equiv_node(p) = NULL;
+  eq_type(p) = mp->frozen_undefined->type;
 }
 
 @* \[16] Saving and restoring equivalents.
@@ -6917,50 +6829,75 @@ distinguished by their |info| fields. If |p| points to a saved item,
 then
 
 \smallskip\hang
-|mp_info(p)=0| stands for a group boundary; each \&{begingroup} contributes
+|p->info=0| stands for a group boundary; each \&{begingroup} contributes
 such an item to the save stack and each \&{endgroup} cuts back the stack
 until the most recent such entry has been removed.
 
 \smallskip\hang
-|mp_info(p)=q|, where |1<=q<=hash_end|, means that |mem[p+1]| holds the former
+|p->type=mp_normal_sym| and |p->info=q|, means that |p->equiv| holds the former
 contents of |eqtb[q]|. Such save stack entries are generated by \&{save}
 commands.
 
 \smallskip\hang
-|mp_info(p)=hash_end+q|, where |q>0|, means that |value(p)| is a |scaled|
-integer to be restored to internal parameter number~|q|. Such entries
+|p->type=mp_internal_sym| and |p->info=q|, where |q>0|, means that |p->value| is a |mp_internal|
+to be restored to internal parameter number~|q|. Such entries
 are generated by \&{interim} commands.
 
 \smallskip\noindent
 The global variable |save_ptr| points to the top item on the save stack.
 
-@d save_node_size 2 /* number of words per non-boundary save-stack node */
-@d saved_equiv(A) mp->mem[(A)+1].hh /* where an |eqtb| entry gets saved */
-@d save_boundary_item(A) { (A)=mp_get_avail(mp); mp_info((A))=0;
-  mp_link((A))=mp->save_ptr; mp->save_ptr=(A);
-  }
+@<Types...@>=
+typedef struct mp_save_data {
+  halfword info;
+  mp_sym sym;
+  quarterword type;
+  mp_internal value;
+  halfword equiv;
+  halfword eq_type;
+  mp_node equiv_n;
+  struct mp_save_data *link;
+} mp_save_data;
 
-@<Glob...@>=
-pointer save_ptr; /* the most recently saved item */
+@ @<Glob...@>=
+mp_save_data *save_ptr; /* the most recently saved item */
 
-@ @<Set init...@>=mp->save_ptr=null;
+@ @<Set init...@>=
+mp->save_ptr=NULL;
+
+@ Saving a boundary item
+@c
+static void mp_save_boundary (MP mp ) {
+  mp_save_data *p; /* temporary register */
+  p = xmalloc(1, sizeof(mp_save_data));
+  p->info = 0; 
+  p->link = mp->save_ptr;
+  mp->save_ptr = p;
+}
+
 
 @ The |save_variable| routine is given a hash address |q|; it salts this
 address in the save stack, together with its current equivalent,
 then makes token~|q| behave as though it were brand new.
 
-Nothing is stacked when |save_ptr=null|, however; there's no way to remove
+Nothing is stacked when |save_ptr=NULL|, however; there's no way to remove
 things from the stack when the program is not inside a group, so there's
 no point in wasting the space.
 
 @c 
-static void mp_save_variable (MP mp,pointer q) {
-  pointer p; /* temporary register */
-  if ( mp->save_ptr!=null ){ 
-    p=mp_get_node(mp, save_node_size); mp_info(p)=q; mp_link(p)=mp->save_ptr;
-    saved_equiv(p)=mp->eqtb[q]; mp->save_ptr=p;
+static void mp_save_variable (MP mp, mp_sym q) {
+  mp_save_data *p; /* temporary register */
+  if ( mp->save_ptr != NULL ){ 
+    p = xmalloc(1, sizeof(mp_save_data));
+    p->info = 1; 
+    p->sym = q;
+    p->type = mp_normal_sym;
+    p->link = mp->save_ptr;
+    p->equiv = equiv(q); 
+    p->eq_type = eq_type(q); 
+    p->equiv_n = equiv_node(q); 
+    mp->save_ptr = p;
   }
-  mp_clear_symbol(mp, q,(mp->save_ptr!=null));
+  mp_clear_symbol(mp, q,(mp->save_ptr!=NULL));
 }
 
 @ Similarly, |save_internal| is given the location |q| of an internal
@@ -6969,13 +6906,14 @@ third kind.
 
 @c 
 static void mp_save_internal (MP mp,halfword q) {
-  pointer p; /* new item for the save stack */
-  if ( mp->save_ptr!=null ){ 
-     p=mp_get_node(mp, save_node_size);
-     mp_info(p)=hash_end+q;
-     mp_link(p)=mp->save_ptr; 
-     value(p)=mp->internal[q];
-     mp->save_ptr=p;
+  mp_save_data *p; /* new item for the save stack */
+  if ( mp->save_ptr!=NULL ){ 
+    p = xmalloc(1, sizeof(mp_save_data));
+    p->info = q; 
+    p->type = mp_internal_sym;
+    p->link = mp->save_ptr; 
+    p->value = mp->internal[q];
+    mp->save_ptr = p;
   }
 }
 
@@ -6985,31 +6923,30 @@ is at least one boundary item on the save stack.
 
 @c 
 static void mp_unsave (MP mp) {
-  pointer q; /* index to saved item */
-  pointer p; /* temporary register */
-  while ( mp_info(mp->save_ptr)!=0 ) {
-    q=mp_info(mp->save_ptr);
-    if ( q>hash_end ) {
-      if ( mp->internal[mp_tracing_restores]>0 ) {
+  mp_save_data *p; /* saved item */
+  while ( mp->save_ptr->info != 0 ) {
+    pointer q = mp->save_ptr->info;
+    if ( mp->save_ptr->type == mp_internal_sym ) {
+      if ( internal_value(mp_tracing_restores)>0 ) {
         mp_begin_diagnostic(mp);
         mp_print_nl(mp, "{restoring ");
-        mp_print(mp, mp->int_name[q-(hash_end)]);
+        mp_print(mp, internal_name(q));
         mp_print_char(mp, xord('='));
-        if (mp->int_type[q-(hash_end)]==mp_known) {
-           mp_print_scaled(mp, value(mp->save_ptr));
-        } else if (mp->int_type[q-(hash_end)]==mp_string_type) {
-           char *s = mp_str(mp, value(mp->save_ptr));
+        if (internal_type(q)==mp_known) {
+           mp_print_scaled(mp, mp->save_ptr->value.val);
+        } else if (internal_type(q)==mp_string_type) {
+           char *s = mp_str(mp, mp->save_ptr->value.str);
            mp_print(mp, s);
-           free(s);
         } else {
            mp_confusion(mp,"internal_restore");
         }
         mp_print_char(mp, xord('}'));
         mp_end_diagnostic(mp, false);
       }
-      mp->internal[q-(hash_end)]=value(mp->save_ptr);
-    } else { 
-      if ( mp->internal[mp_tracing_restores]>0 ) {
+      mp->internal[q]=mp->save_ptr->value;
+    } else {  
+      mp_sym q = mp->save_ptr->sym;
+      if ( internal_value(mp_tracing_restores)>0 ) {
         mp_begin_diagnostic(mp); 
         mp_print_nl(mp, "{restoring ");
         mp_print_text(q); 
@@ -7017,16 +6954,21 @@ static void mp_unsave (MP mp) {
         mp_end_diagnostic(mp, false);
       }
       mp_clear_symbol(mp, q,false);
-      mp->eqtb[q]=saved_equiv(mp->save_ptr);
+      equiv(q) = mp->save_ptr->equiv;
+      eq_type(q) = mp->save_ptr->eq_type;
+      equiv_node(q) = mp->save_ptr->equiv_n;
       if ( eq_type(q) % outer_tag==tag_token ) {
-        p=equiv(q);
-        if ( p!=null ) mp_name_type(p)=mp_root;
-      }
+        mp_node pp=equiv_node(q);
+        if ( pp!=NULL ) mp_name_type(pp)=mp_root;
+      }	
     }
-    p=mp_link(mp->save_ptr); 
-    mp_free_node(mp, mp->save_ptr,save_node_size); mp->save_ptr=p;
+    p=mp->save_ptr->link; 
+    xfree(mp->save_ptr); 
+    mp->save_ptr=p;
   }
-  p=mp_link(mp->save_ptr); free_avail(mp->save_ptr); mp->save_ptr=p;
+  p=mp->save_ptr->link; 
+  xfree(mp->save_ptr); 
+  mp->save_ptr=p;
 }
 
 @* \[17] Data structures for paths.
@@ -7040,7 +6982,7 @@ $$\eqalign{z(t)&=B(z_k,z_k^+,z_{k+1}^-,z_{k+1};t)\cr
 &=(1-t)^3z_k+3(1-t)^2tz_k^++3(1-t)t^2z_{k+1}^-+t^3z_{k+1}\cr}$$
 for |0<=t<=1|.
 
-There is an 8-word node for each knot $z_k$, containing one word of
+There is a 8-word node for each knot $z_k$, containing one word of
 control information and six words for the |x| and |y| coordinates of
 $z_k^-$ and $z_k$ and~$z_k^+$. The control information appears in the
 |mp_left_type| and |mp_right_type| fields, which each occupy a quarter of
@@ -7055,24 +6997,41 @@ is not closed, the |mp_left_type| of knot~0 and the |mp_right_type| of knot~|n|
 are equal to |endpoint|. In the latter case the |link| in knot~|n| points
 to knot~0, and the control points $z_0^-$ and $z_n^+$ are not used.
 
-@d mp_left_type(A)   mp->mem[(A)].hh.b0 /* characterizes the path entering this knot */
-@d mp_right_type(A)   mp->mem[(A)].hh.b1 /* characterizes the path leaving this knot */
-@d mp_x_coord(A)   mp->mem[(A)+1].sc /* the |x| coordinate of this knot */ 
-@d mp_y_coord(A)   mp->mem[(A)+2].sc /* the |y| coordinate of this knot */
-@d mp_left_x(A)   mp->mem[(A)+3].sc /* the |x| coordinate of previous control point */
-@d mp_left_y(A)   mp->mem[(A)+4].sc /* the |y| coordinate of previous control point */
-@d mp_right_x(A)   mp->mem[(A)+5].sc /* the |x| coordinate of next control point */
-@d mp_right_y(A)   mp->mem[(A)+6].sc /* the |y| coordinate of next control point */
-@d x_loc(A)   ((A)+1) /* where the |x| coordinate is stored in a knot */
-@d y_loc(A)   ((A)+2) /* where the |y| coordinate is stored in a knot */
-@d knot_coord(A)   mp->mem[(A)].sc /* |x| or |y| coordinate given |x_loc| or |y_loc| */
-@d left_coord(A)   mp->mem[(A)+2].sc
-  /* coordinate of previous control point given |x_loc| or |y_loc| */
-@d right_coord(A)   mp->mem[(A)+4].sc
-  /* coordinate of next control point given |x_loc| or |y_loc| */
-@d knot_node_size 8 /* number of words in a knot node */
+@d mp_x_coord(A)     (A)->x_coord /* the |x| coordinate of this knot */ 
+@d mp_y_coord(A)     (A)->y_coord   /* the |y| coordinate of this knot */
+@d mp_left_x(A)      (A)->left_x /* the |x| coordinate of previous control point */
+@d mp_left_y(A)      (A)->left_y /* the |y| coordinate of previous control point */
+@d mp_right_x(A)     (A)->right_x /* the |x| coordinate of next control point */
+@d mp_right_y(A)     (A)->right_y /* the |y| coordinate of next control point */
+@d mp_next_knot(A)   (A)->next /* the next knot in this list */
+@d mp_left_type(A)   (A)->data.types.left_type /* characterizes the path entering this knot */
+@d mp_right_type(A)  (A)->data.types.right_type /* characterizes the path leaving this knot */
+@d mp_prev_knot(A)   (A)->data.prev /* the previous knot in this list (only for pens) */
+@d mp_knot_info(A)   (A)->data.info /* temporary info, used during splitting */
 
-@(mplib.h@>=
+@<Exported types...@>=
+typedef struct mp_knot_data* mp_knot;
+typedef struct mp_knot_data {
+  scaled x_coord;
+  scaled y_coord;
+  scaled left_x;
+  scaled left_y;
+  scaled right_x;
+  scaled right_y;
+  mp_knot next;
+  union {
+    struct {
+      unsigned short left_type;
+      unsigned short right_type;
+    } types;
+    mp_knot prev;
+    signed int info;
+  } data;
+  unsigned char originator;
+} mp_knot_data;
+
+
+@ @(mplib.h@>=
 enum mp_knot_type {
  mp_endpoint=0, /* |mp_left_type| at path beginning and |mp_right_type| at path end */
  mp_explicit, /* |mp_left_type| or |mp_right_type| when control points are known */
@@ -7157,7 +7116,7 @@ one knot from another, we will set |originator(p):=mp_metapost_user| when
 it appeared in the actual metapost program, and
 |originator(p):=mp_program_code| in all other cases.
 
-@d mp_originator(A)   mp->mem[(A)+7].hh.b0 /* the creator of this knot */
+@d mp_originator(A)   (A)->originator /* the creator of this knot */
 
 @<Exported types@>=
 enum mp_knot_originator {
@@ -7170,15 +7129,15 @@ in symbolic form. It illustrates the conventions discussed above,
 and checks for anomalies that might arise while \MP\ is being debugged.
 
 @<Declarations@>=
-static void mp_pr_path (MP mp,pointer h);
+static void mp_pr_path (MP mp, mp_knot h);
 
 @ @c
-void mp_pr_path (MP mp,pointer h) {
-  pointer p,q; /* for list traversal */
+void mp_pr_path (MP mp, mp_knot h) {
+  mp_knot p, q; /* for list traversal */
   p=h;
   do {  
-    q=mp_link(p);
-    if ( (p==null)||(q==null) ) { 
+    q=mp_next_knot(p);
+    if ( (p==NULL)||(q==NULL) ) { 
       mp_print_nl(mp, "???"); return; /* this won't happen */
 @.???@>
     }
@@ -7199,7 +7158,7 @@ switch (mp_right_type(p)) {
 case mp_endpoint: 
   if ( mp_left_type(p)==mp_open ) mp_print(mp, "{open?}"); /* can't happen */
 @.open?@>
-  if ( (mp_left_type(q)!=mp_endpoint)||(q!=h) ) q=null; /* force an error */
+  if ( (mp_left_type(q)!=mp_endpoint)||(q!=h) ) q=NULL; /* force an error */
   goto DONE1;
   break;
 case mp_explicit: 
@@ -7294,121 +7253,74 @@ if ( (mp_left_type(p)!=mp_explicit)&&(mp_left_type(p)!=mp_open) ) {
 as a diagnostic message.
 
 @<Declarations@>=
-static void mp_print_path (MP mp,pointer h, const char *s, boolean nuline) ;
+static void mp_print_path (MP mp, mp_knot h, const char *s, boolean nuline) ;
 
 @ @c
-void mp_print_path (MP mp,pointer h, const char *s, boolean nuline) { 
+void mp_print_path (MP mp, mp_knot h, const char *s, boolean nuline) { 
   mp_print_diagnostic(mp, "Path", s, nuline); mp_print_ln(mp);
 @.Path at line...@>
   mp_pr_path(mp, h);
   mp_end_diagnostic(mp, true);
 }
 
+@ @<Declarations@>=
+static mp_knot mp_new_knot (MP mp);
+
+@ @c
+static mp_knot mp_new_knot (MP mp) {
+  return mp_xmalloc(mp, 1, sizeof (struct mp_knot_data));
+}
+
 @ If we want to duplicate a knot node, we can say |copy_knot|:
 
 @c 
-static pointer mp_copy_knot (MP mp,pointer p) {
-  pointer q; /* the copy */
-  int k; /* runs through the words of a knot node */
-  q=mp_get_node(mp, knot_node_size);
-  for (k=0;k<knot_node_size;k++) {
-    mp->mem[q+k]=mp->mem[p+k];
-  }
-  mp_originator(q)=mp_originator(p);
+static mp_knot mp_copy_knot (MP mp, mp_knot p) {
+  mp_knot q; /* the copy */
+  q = mp_new_knot(mp);
+  memcpy(q,p,sizeof (struct mp_knot_data));
+  mp_next_knot(q)=NULL;
   return q;
 }
 
 @ The |copy_path| routine makes a clone of a given path.
 
 @c 
-static pointer mp_copy_path (MP mp, pointer p) {
-  pointer q,pp,qq; /* for list manipulation */
+static mp_knot mp_copy_path (MP mp, mp_knot p) {
+  mp_knot q, pp, qq; /* for list manipulation */
+  if (p==NULL) 
+    return NULL;
   q=mp_copy_knot(mp, p);
-  qq=q; pp=mp_link(p);
+  qq=q; 
+  pp=mp_next_knot(p);
   while ( pp!=p ) { 
-    mp_link(qq)=mp_copy_knot(mp, pp);
-    qq=mp_link(qq);
-    pp=mp_link(pp);
+    mp_next_knot(qq)=mp_copy_knot(mp, pp);
+    qq=mp_next_knot(qq);
+    pp=mp_next_knot(pp);
   }
-  mp_link(qq)=q;
+  mp_next_knot(qq)=q;
   return q;
 }
-
 
 @ Just before |ship_out|, knot lists are exported for printing.
-
-The |gr_XXXX| macros are defined in |mppsout.h|.
-
-@c 
-static mp_knot *mp_export_knot (MP mp,pointer p) {
-  mp_knot *q; /* the copy */
-  if (p==null)
-     return NULL;
-  q = xmalloc(1, sizeof (mp_knot));
-  memset(q,0,sizeof (mp_knot));
-  gr_left_type(q)  = (unsigned short)mp_left_type(p);
-  gr_right_type(q) = (unsigned short)mp_right_type(p);
-  gr_x_coord(q)    = mp_x_coord(p);
-  gr_y_coord(q)    = mp_y_coord(p);
-  gr_left_x(q)     = mp_left_x(p);
-  gr_left_y(q)     = mp_left_y(p);
-  gr_right_x(q)    = mp_right_x(p);
-  gr_right_y(q)    = mp_right_y(p);
-  gr_originator(q) = (unsigned char)mp_originator(p);
-  return q;
-}
-static pointer mp_import_knot (MP mp, mp_knot *q) {
-  pointer p; /* the copy */
-  if (q==NULL)
-     return null;
-  p=mp_get_node(mp, knot_node_size);
-  mp_left_type(p) =  (quarterword)gr_left_type(q);
-  mp_right_type(p) = (quarterword)gr_right_type(q);
-  mp_x_coord(p) =    gr_x_coord(q);
-  mp_y_coord(p) =    gr_y_coord(q);
-  mp_left_x(p) =     gr_left_x(q);
-  mp_left_y(p) =     gr_left_y(q);
-  mp_right_x(p) =    gr_right_x(q);
-  mp_right_y(p) =    gr_right_y(q);
-  mp_originator(p) = gr_originator(q);
-  return p;
-}
 
 @ The |export_knot_list| routine therefore also makes a clone 
 of a given path.
 
 @c 
-static mp_knot *mp_export_knot_list (MP mp, pointer p) {
-  mp_knot *q, *qq; /* for list manipulation */
-  pointer pp; /* for list manipulation */
-  if (p==null)
+static mp_knot mp_export_knot_list (MP mp, mp_knot p) {
+  mp_knot q; /* the exported copy */
+  if (p==NULL)
      return NULL;
-  q=mp_export_knot(mp, p);
-  qq=q; pp=mp_link(p);
-  while ( pp!=p ) { 
-    gr_next_knot(qq)=mp_export_knot(mp, pp);
-    qq=gr_next_knot(qq);
-    pp=mp_link(pp);
-  }
-  gr_next_knot(qq)=q;
+  q=mp_copy_path(mp, p);
   return q;
 }
-static pointer mp_import_knot_list (MP mp, mp_knot *q) {
-  mp_knot *qq; /* for list manipulation */
-  pointer p, pp; /* for list manipulation */
+static mp_knot mp_import_knot_list (MP mp, mp_knot q) {
+  mp_knot p; /* the imported copy */
   if (q==NULL)
-     return null;
-  p=mp_import_knot(mp, q);
-  pp=p; qq=gr_link(q);
-  while ( qq!=q ) { 
-    mp_link(pp)=mp_import_knot(mp, qq);
-    qq=gr_next_knot(qq);
-    pp=mp_link(pp);
-  }
-  mp_link(pp)=p;
+     return NULL;
+  p=mp_copy_path(mp, q);
   return p;
 }
-
 
 @ Similarly, there's a way to copy the {\sl reverse\/} of a path. This procedure
 returns a pointer to the first node of the copy, if the path is a cycle,
@@ -7419,40 +7331,52 @@ this trick makes it easier to implement `\&{doublepath}'.
 All node types are assumed to be |endpoint| or |explicit| only.
 
 @c 
-static pointer mp_htap_ypoc (MP mp,pointer p) {
-  pointer q,pp,qq,rr; /* for list manipulation */
-  q=mp_get_node(mp, knot_node_size); /* this will correspond to |p| */
+static mp_knot mp_htap_ypoc (MP mp, mp_knot p) {
+  mp_knot q, pp, qq, rr; /* for list manipulation */
+  q=mp_new_knot(mp); /* this will correspond to |p| */
   qq=q; pp=p;
   while (1) { 
-    mp_right_type(qq)=mp_left_type(pp); mp_left_type(qq)=mp_right_type(pp);
-    mp_x_coord(qq)=mp_x_coord(pp); mp_y_coord(qq)=mp_y_coord(pp);
-    mp_right_x(qq)=mp_left_x(pp); mp_right_y(qq)=mp_left_y(pp);
-    mp_left_x(qq)=mp_right_x(pp); mp_left_y(qq)=mp_right_y(pp);
+    mp_right_type(qq)=mp_left_type(pp); 
+    mp_left_type(qq)=mp_right_type(pp);
+    mp_x_coord(qq)=mp_x_coord(pp); 
+    mp_y_coord(qq)=mp_y_coord(pp);
+    mp_right_x(qq)=mp_left_x(pp); 
+    mp_right_y(qq)=mp_left_y(pp);
+    mp_left_x(qq)=mp_right_x(pp); 
+    mp_left_y(qq)=mp_right_y(pp);
     mp_originator(qq)=mp_originator(pp);
-    if ( mp_link(pp)==p ) { 
-      mp_link(q)=qq; mp->path_tail=pp; return q;
+    if ( mp_next_knot(pp)==p ) { 
+      mp_next_knot(q)=qq; 
+      mp->path_tail=pp;
+      return q;
     }
-    rr=mp_get_node(mp, knot_node_size); mp_link(rr)=qq; qq=rr; pp=mp_link(pp);
+    rr=mp_new_knot(mp);
+    mp_next_knot(rr)=qq; 
+    qq=rr; 
+    pp=mp_next_knot(pp);
   }
 }
 
 @ @<Glob...@>=
-pointer path_tail; /* the node that links to the beginning of a path */
+mp_knot path_tail; /* the node that links to the beginning of a path */
 
 @ When a cyclic list of knot nodes is no longer needed, it can be recycled by
 calling the following subroutine.
 
 @<Declarations@>=
-static void mp_toss_knot_list (MP mp,pointer p) ;
+static void mp_toss_knot_list (MP mp, mp_knot p) ;
 
 @ @c
-void mp_toss_knot_list (MP mp,pointer p) {
-  pointer q; /* the node being freed */
-  pointer r; /* the next node */
+void mp_toss_knot_list (MP mp, mp_knot p) {
+  mp_knot q; /* the node being freed */
+  mp_knot r; /* the next node */
+  (void)mp;
+  if (p==NULL)
+    return;
   q=p;
   do {  
-    r=mp_link(q); 
-    mp_free_node(mp, q,knot_node_size); q=r;
+    r=mp_next_knot(q); 
+    mp_xfree(q); q=r;
   } while (q!=p);
 }
 
@@ -7468,12 +7392,12 @@ which are knots whose left and right angles are both prespecified in
 some way (i.e., their |mp_left_type| and |mp_right_type| aren't both open).
 
 @c 
-static void mp_make_choices (MP mp,pointer knots) {
-  pointer h; /* the first breakpoint */
-  pointer p,q; /* consecutive breakpoints being processed */
+static void mp_make_choices (MP mp, mp_knot knots) {
+  mp_knot h; /* the first breakpoint */
+  mp_knot p, q; /* consecutive breakpoints being processed */
   @<Other local variables for |make_choices|@>;
   check_arith; /* make sure that |arith_error=false| */
-  if ( mp->internal[mp_tracing_choices]>0 )
+  if ( internal_value(mp_tracing_choices)>0 )
     mp_print_path(mp, knots,", before choices",true);
   @<If consecutive knots are equal, join them explicitly@>;
   @<Find the first breakpoint, |h|, on the path;
@@ -7483,7 +7407,7 @@ static void mp_make_choices (MP mp,pointer knots) {
     @<Fill in the control points between |p| and the next breakpoint,
       then advance |p| to that breakpoint@>;
   } while (p!=h);
-  if ( mp->internal[mp_tracing_choices]>0 )
+  if ( internal_value(mp_tracing_choices)>0 )
     mp_print_path(mp, knots,", after choices",true);
   if ( mp->arith_error ) {
     @<Report an unexpected problem during the choice-making@>;
@@ -7506,7 +7430,7 @@ knots.
 @<If consecutive knots are equal, join them explicitly@>=
 p=knots;
 do {  
-  q=mp_link(p);
+  q=mp_next_knot(p);
   if ( mp_x_coord(p)==mp_x_coord(q) && 
        mp_y_coord(p)==mp_y_coord(q) && mp_right_type(p)>mp_explicit ) { 
     mp_right_type(p)=mp_explicit;
@@ -7532,7 +7456,7 @@ h=knots;
 while (1) { 
   if ( mp_left_type(h)!=mp_open ) break;
   if ( mp_right_type(h)!=mp_open ) break;
-  h=mp_link(h);
+  h=mp_next_knot(h);
   if ( h==knots ) { 
     mp_left_type(h)=mp_end_cycle; break;
   }
@@ -7542,9 +7466,9 @@ while (1) {
 |mp_right_type(p)=mp_left_type(q)=mp_explicit| or |endpoint|.
 
 @<Fill in the control points between |p| and the next breakpoint...@>=
-q=mp_link(p);
+q=mp_next_knot(p);
 if ( mp_right_type(p)>=mp_given ) { 
-  while ( (mp_left_type(q)==mp_open)&&(mp_right_type(q)==mp_open) ) q=mp_link(q);
+  while ( (mp_left_type(q)==mp_open)&&(mp_right_type(q)==mp_open) ) q=mp_next_knot(q);
   @<Fill in the control information between
     consecutive breakpoints |p| and |q|@>;
 } else if ( mp_right_type(p)==mp_endpoint ) {
@@ -7678,7 +7602,7 @@ called |solve_choices|, which has been introduced to keep
 @<Calculate the turning angles $\psi_k$ and the distances $d_{k,k+1}$;
   set $n$ to the length of the path@>;
 @<Remove |open| types at the breakpoints@>;
-mp_solve_choices(mp, p,q,n)
+mp_solve_choices(mp, p, q, n)
 
 @ It's convenient to precompute quantities that will be needed several
 times later. The values of |delta_x[k]| and |delta_y[k]| will be the
@@ -7701,7 +7625,7 @@ xfree(mp->psi);
 
 @ @<Other local variables for |make_choices|@>=
   int k,n; /* current and final knot numbers */
-  pointer s,t; /* registers for list traversal */
+  mp_knot s, t; /* registers for list traversal */
   scaled delx,dely; /* directions where |open| meets |explicit| */
   fraction sine,cosine; /* trig functions of various angles */
 
@@ -7710,7 +7634,7 @@ xfree(mp->psi);
 RESTART:
   k=0; s=p; n=mp->path_size;
   do {  
-    t=mp_link(s);
+    t=mp_next_knot(s);
     mp->delta_x[k]=mp_x_coord(t)-mp_x_coord(s);
     mp->delta_y[k]=mp_y_coord(t)-mp_y_coord(s);
     mp->delta[k]=mp_pyth_add(mp, mp->delta_x[k],mp->delta_y[k]);
@@ -7827,16 +7751,16 @@ first equation or by realizing that no equations are needed, and to fit
 this initialization into a framework suitable for the overall computation.
 
 @<Declarations@>=
-static void mp_solve_choices (MP mp,pointer p, pointer q, halfword n) ;
+static void mp_solve_choices (MP mp, mp_knot p, mp_knot q, halfword n) ;
 
 @ @c
-void mp_solve_choices (MP mp,pointer p, pointer q, halfword n) {
+void mp_solve_choices (MP mp, mp_knot p, mp_knot q, halfword n) {
   int k; /* current knot number */
-  pointer r,s,t; /* registers for list traversal */
+  mp_knot r, s, t; /* registers for list traversal */
   @<Other local variables for |solve_choices|@>;
   k=0; s=p; r=0;
   while (1) { 
-    t=mp_link(s);
+    t=mp_next_knot(s);
     if ( k==0 ) {
       @<Get the linear equations started; or |return|
         with the control points in place, if linear equations
@@ -8093,13 +8017,19 @@ fraction mp_curl_ratio (MP mp,scaled gamma, scaled a_tension,
 for (k=n-1;k>=0;k--) {
   mp->theta[k]=mp->vv[k]-mp_take_fraction(mp,mp->theta[k+1],mp->uu[k]);
 }
-s=p; k=0;
+s=p; 
+k=0;
 do {  
-  t=mp_link(s);
-  mp_n_sin_cos(mp, mp->theta[k]); mp->st=mp->n_sin; mp->ct=mp->n_cos;
-  mp_n_sin_cos(mp, -mp->psi[k+1]-mp->theta[k+1]); mp->sf=mp->n_sin; mp->cf=mp->n_cos;
+  t=mp_next_knot(s);
+  mp_n_sin_cos(mp, mp->theta[k]); 
+  mp->st=mp->n_sin; 
+  mp->ct=mp->n_cos;
+  mp_n_sin_cos(mp, -mp->psi[k+1]-mp->theta[k+1]);
+  mp->sf=mp->n_sin;
+  mp->cf=mp->n_cos;
   mp_set_controls(mp, s,t,k);
-  incr(k); s=t;
+  incr(k); 
+  s=t;
 } while (k!=n)
 
 @ The |set_controls| routine actually puts the control points into
@@ -8114,10 +8044,10 @@ fraction sf;
 fraction cf; /* sines and cosines */
 
 @ @<Declarations@>=
-static void mp_set_controls (MP mp,pointer p, pointer q, integer k);
+static void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k);
 
 @ @c
-void mp_set_controls (MP mp,pointer p, pointer q, integer k) {
+void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   fraction rr,ss; /* velocities, divided by thrice the tension */
   scaled lt,rt; /* tensions */
   fraction sine; /* $\sin(\theta+\phi)$ */
@@ -8306,11 +8236,17 @@ It is convenient to define a \.{WEB} macro |t_of_the_way| such that
 
 @d t_of_the_way(A,B) ((A)-mp_take_fraction(mp,((A)-(B)),t))
 
-@c static scaled mp_eval_cubic (MP mp,pointer p, pointer q, fraction t) {
+@c static scaled mp_eval_cubic (MP mp, mp_knot p, mp_knot q, quarterword c, fraction t) {
   scaled x1,x2,x3; /* intermediate values */
-  x1=t_of_the_way(knot_coord(p),right_coord(p));
-  x2=t_of_the_way(right_coord(p),left_coord(q));
-  x3=t_of_the_way(left_coord(q),knot_coord(q));
+  if (c==mp_x_code) {
+    x1=t_of_the_way(mp_x_coord(p),mp_right_x(p));
+    x2=t_of_the_way(mp_right_x(p),mp_left_x(q));
+    x3=t_of_the_way(mp_left_x(q), mp_x_coord(q));
+  } else {
+    x1=t_of_the_way(mp_y_coord(p),mp_right_y(p));
+    x2=t_of_the_way(mp_right_y(p),mp_left_y(q));
+    x3=t_of_the_way(mp_left_y(q), mp_y_coord(q));
+  }
   x1=t_of_the_way(x1,x2);
   x2=t_of_the_way(x2,x3);
   return t_of_the_way(x1,x2);
@@ -8347,20 +8283,26 @@ for $0<t\le1$.  In other words, the procedure adjusts the bounds to
 accommodate |knot_coord(q)| and any extremes over the range $0<t<1$.
 The |c| parameter is |x_code| or |y_code|.
 
-@c static void mp_bound_cubic (MP mp,pointer p, pointer q, quarterword c) {
+@c static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
   boolean wavy; /* whether we need to look for extremes */
   scaled del1,del2,del3,del,dmax; /* proportional to the control
      points of a quadratic derived from a cubic */
   fraction t,tt; /* where a quadratic crosses zero */
   scaled x; /* a value that |bbmin[c]| and |bbmax[c]| must accommodate */
-  x=knot_coord(q);
+  x = (c==mp_x_code ? mp_x_coord(q) : mp_y_coord(q));
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
   @<Check the control points against the bounding box and set |wavy:=true|
     if any of them lie outside@>;
   if ( wavy ) {
-    del1=right_coord(p)-knot_coord(p);
-    del2=left_coord(q)-right_coord(p);
-    del3=knot_coord(q)-left_coord(q);
+    if (c==mp_x_code) {
+      del1=mp_right_x(p)-mp_x_coord(p);
+      del2=mp_left_x(q)-mp_right_x(p);
+      del3=mp_x_coord(q)-mp_left_x(q);
+    } else {
+      del1=mp_right_y(p)-mp_y_coord(p);
+      del2=mp_left_y(q)-mp_right_y(p);
+      del3=mp_y_coord(q)-mp_left_y(q);
+    }
     @<Scale up |del1|, |del2|, and |del3| for greater accuracy;
       also set |del| to the first nonzero element of |(del1,del2,del3)|@>;
     if ( del<0 ) {
@@ -8379,11 +8321,20 @@ if ( x>mp->bbmax[c] ) mp->bbmax[c]=x
 
 @ @<Check the control points against the bounding box and set...@>=
 wavy=true;
-if ( mp->bbmin[c]<=right_coord(p) )
-  if ( right_coord(p)<=mp->bbmax[c] )
-    if ( mp->bbmin[c]<=left_coord(q) )
-      if ( left_coord(q)<=mp->bbmax[c] )
-        wavy=false
+if (c==mp_x_code) {
+  if ( mp->bbmin[c]<=mp_right_x(p) )
+    if ( mp_right_x(p)<=mp->bbmax[c] )
+      if ( mp->bbmin[c]<=mp_left_x(q) )
+        if ( mp_left_x(q)<=mp->bbmax[c] )
+          wavy=false;
+} else {
+  if ( mp->bbmin[c]<=mp_right_y(p) )
+    if ( mp_right_y(p)<=mp->bbmax[c] )
+      if ( mp->bbmin[c]<=mp_left_y(q) )
+        if ( mp_left_y(q)<=mp->bbmax[c] )
+          wavy=false;
+}
+
 
 @ If |del1=del2=del3=0|, it's impossible to obey the title of this
 section. We just set |del=0| in that case.
@@ -8409,7 +8360,7 @@ must cut it to zero to avoid confusion.
 
 @<Test the extremes of the cubic against the bounding box@>=
 { 
-  x=mp_eval_cubic(mp, p,q,t);
+  x=mp_eval_cubic(mp, p,q,c,t);
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
   del2=t_of_the_way(del2,del3);
     /* now |0,del2,del3| represent the derivative on the remaining interval */
@@ -8422,23 +8373,25 @@ must cut it to zero to avoid confusion.
 
 @ @<Test the second extreme against the bounding box@>=
 {
-   x=mp_eval_cubic(mp, p,q,t_of_the_way(tt,fraction_one));
+   x=mp_eval_cubic(mp, p,q,c,t_of_the_way(tt,fraction_one));
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
 }
 
 @ Finding the bounding box of a path is basically a matter of applying
 |bound_cubic| twice for each pair of adjacent knots.
 
-@c static void mp_path_bbox (MP mp,pointer h) {
-  pointer p,q; /* a pair of adjacent knots */
-  mp_minx=mp_x_coord(h); mp_miny=mp_y_coord(h);
-  mp_maxx=mp_minx; mp_maxy=mp_miny;
+@c static void mp_path_bbox (MP mp, mp_knot h) {
+  mp_knot p, q; /* a pair of adjacent knots */
+  mp_minx=mp_x_coord(h);
+  mp_miny=mp_y_coord(h);
+  mp_maxx=mp_minx;
+  mp_maxy=mp_miny;
   p=h;
   do {  
     if ( mp_right_type(p)==mp_endpoint ) return;
-    q=mp_link(p);
-    mp_bound_cubic(mp, x_loc(p),x_loc(q),mp_x_code);
-    mp_bound_cubic(mp, y_loc(p),y_loc(q),mp_y_code);
+    q=mp_next_knot(p);
+    mp_bound_cubic(mp, p, q, mp_x_code);
+    mp_bound_cubic(mp, p, q, mp_y_code);
     p=q;
   } while (p!=h);
 }
@@ -8766,13 +8719,13 @@ length less than |fraction_four|.
 
 @ Now it is easy to find the arc length of an entire path.
 
-@c static scaled mp_get_arc_length (MP mp,pointer h) {
-  pointer p,q; /* for traversing the path */
+@c static scaled mp_get_arc_length (MP mp, mp_knot h) {
+  mp_knot p, q; /* for traversing the path */
   scaled a,a_tot; /* current and total arc lengths */
   a_tot = 0;
   p = h;
   while ( mp_right_type(p)!=mp_endpoint ){ 
-    q = mp_link(p);
+    q = mp_next_knot(p);
     a = mp_do_arc_test(mp, mp_right_x(p)-mp_x_coord(p), mp_right_y(p)-mp_y_coord(p),
       mp_left_x(q)-mp_right_x(p), mp_left_y(q)-mp_right_y(p),
       mp_x_coord(q)-mp_left_x(q), mp_y_coord(q)-mp_left_y(q), el_gordo);
@@ -8794,8 +8747,8 @@ time value greater than the length of the path.  Since it could be much greater,
 we must be prepared to compute the arc length of path~|h| and divide this into
 |arc0| to find how many multiples of the length of path~|h| to add.
 
-@c static scaled mp_get_arc_time (MP mp,pointer h, scaled  arc0) {
-  pointer p,q; /* for traversing the path */
+@c static scaled mp_get_arc_time (MP mp, mp_knot h, scaled  arc0) {
+  mp_knot p, q; /* for traversing the path */
   scaled t_tot; /* accumulator for the result */
   scaled t; /* the result of |do_arc_test| */
   scaled arc; /* portion of |arc0| not used up so far */
@@ -8808,7 +8761,7 @@ we must be prepared to compute the arc length of path~|h| and divide this into
   arc = arc0;
   p = h;
   while ( (mp_right_type(p)!=mp_endpoint) && (arc>0) ) {
-    q = mp_link(p);
+    q = mp_next_knot(p);
     t = mp_do_arc_test(mp, mp_right_x(p)-mp_x_coord(p), mp_right_y(p)-mp_y_coord(p),
       mp_left_x(q)-mp_right_x(p), mp_left_y(q)-mp_right_y(p),
       mp_x_coord(q)-mp_left_x(q), mp_y_coord(q)-mp_left_y(q), arc);
@@ -8876,11 +8829,8 @@ room for the extra back pointer because we do not need the
 so that certain procedures can operate on both pens and paths.  In particular,
 pens can be copied using |copy_path| and recycled using |toss_knot_list|.
 
-@d knil mp_info
-  /* this replaces the |mp_left_type| and |mp_right_type| fields in a pen knot */
-
 @ The |make_pen| procedure turns a path into a pen by initializing
-the |knil| pointers and making sure the knots form a convex polygon.
+the |prev_knot| pointers and making sure the knots form a convex polygon.
 Thus each cubic in the given path becomes a straight line and the control
 points are ignored.  If the path is not cyclic, the ends are connected by a
 straight line.
@@ -8888,12 +8838,13 @@ straight line.
 @d copy_pen(A) mp_make_pen(mp, mp_copy_path(mp, (A)),false)
 
 @c 
-static pointer mp_make_pen (MP mp,pointer h, boolean need_hull) {
-  pointer p,q; /* two consecutive knots */
+static mp_knot mp_make_pen (MP mp, mp_knot h, boolean need_hull) {
+  mp_knot p, q; /* two consecutive knots */
   q=h;
   do {  
-    p=q; q=mp_link(q);
-    knil(q)=p;
+    p=q; 
+    q=mp_next_knot(q);
+    mp_prev_knot(q)=p;
   } while (q!=h);
   if ( need_hull ){ 
     h=mp_convex_hull(mp, h);
@@ -8909,17 +8860,21 @@ Since it suffices to keep track of how the three points $(0,0)$, $(1,0)$,
 and $(0,1)$ are transformed, an elliptical pen can be stored in a single
 knot node and transformed as if it were a path.
 
-@d pen_is_elliptical(A) ((A)==mp_link((A)))
+@d pen_is_elliptical(A) ((A)==mp_next_knot((A)))
 
 @c 
-static pointer mp_get_pen_circle (MP mp,scaled diam) {
-  pointer h; /* the knot node to return */
-  h=mp_get_node(mp, knot_node_size);
-  mp_link(h)=h; knil(h)=h;
+static mp_knot mp_get_pen_circle (MP mp,scaled diam) {
+  mp_knot h; /* the knot node to return */
+  h = mp_new_knot(mp);
+  mp_next_knot(h)=h;
+  mp_prev_knot(h)=h;
   mp_originator(h)=mp_program_code;
-  mp_x_coord(h)=0; mp_y_coord(h)=0;
-  mp_left_x(h)=diam; mp_left_y(h)=0;
-  mp_right_x(h)=0; mp_right_y(h)=diam;
+  mp_x_coord(h)=0; 
+  mp_y_coord(h)=0;
+  mp_left_x(h)=diam; 
+  mp_left_y(h)=0;
+  mp_right_x(h)=0; 
+  mp_right_y(h)=diam;
   return h;
 }
 
@@ -8930,18 +8885,20 @@ initialize the |mp_left_x|, |mp_left_y|, |mp_right_x|, and |mp_right_y| fields.
 
 @<Make sure |h| isn't confused with an elliptical pen@>=
 if ( pen_is_elliptical( h) ){ 
-  mp_left_x(h)=mp_x_coord(h); mp_left_y(h)=mp_y_coord(h);
-  mp_right_x(h)=mp_x_coord(h); mp_right_y(h)=mp_y_coord(h);
+  mp_left_x(h)=mp_x_coord(h); 
+  mp_left_y(h)=mp_y_coord(h);
+  mp_right_x(h)=mp_x_coord(h); 
+  mp_right_y(h)=mp_y_coord(h);
 }
 
 @ Printing a polygonal pen is very much like printing a path
 
 @<Declarations@>=
-static void mp_pr_pen (MP mp,pointer h) ;
+static void mp_pr_pen (MP mp, mp_knot h) ;
 
 @ @c
-void mp_pr_pen (MP mp,pointer h) {
-  pointer p,q; /* for list traversal */
+void mp_pr_pen (MP mp, mp_knot h) {
+  mp_knot p, q; /* for list traversal */
   if ( pen_is_elliptical(h) ) {
     @<Print the elliptical pen |h|@>;
   } else { 
@@ -8957,8 +8914,8 @@ void mp_pr_pen (MP mp,pointer h) {
 }
 
 @ @<Advance |p| making sure the links are OK and |return| if there is...@>=
-q=mp_link(p);
-if ( (q==null) || (knil(q)!=p) ) { 
+q=mp_next_knot(p);
+if ( (q==NULL) || (mp_prev_knot(q)!=p) ) { 
   mp_print_nl(mp, "???"); return; /* this won't happen */
 @.???@>
 }
@@ -8985,10 +8942,10 @@ mp_print_char(mp, xord(')'));
 message.
 
 @<Declarations@>=
-static void mp_print_pen (MP mp,pointer h, const char *s, boolean nuline) ;
+static void mp_print_pen (MP mp, mp_knot h, const char *s, boolean nuline) ;
 
 @ @c
-void mp_print_pen (MP mp,pointer h, const char *s, boolean nuline) { 
+void mp_print_pen (MP mp, mp_knot h, const char *s, boolean nuline) { 
   mp_print_diagnostic(mp, "Pen",s,nuline); mp_print_ln(mp);
 @.Pen at line...@>
   mp_pr_pen(mp, h);
@@ -9000,8 +8957,8 @@ void mp_print_pen (MP mp,pointer h, const char *s, boolean nuline) {
 path.
 
 @c 
-static void mp_make_path (MP mp,pointer h) {
-  pointer p; /* for traversing the knot list */
+static void mp_make_path (MP mp, mp_knot h) {
+  mp_knot p; /* for traversing the knot list */
   quarterword k; /* a loop counter */
   @<Other local variables in |make_path|@>;
   if ( pen_is_elliptical(h) ) {
@@ -9012,7 +8969,7 @@ static void mp_make_path (MP mp,pointer h) {
       mp_left_type(p)=mp_explicit;
       mp_right_type(p)=mp_explicit;
       @<copy the coordinates of knot |p| into its control points@>;
-       p=mp_link(p);
+       p=mp_next_knot(p);
     } while (p!=h);
   }
 }
@@ -9032,8 +8989,8 @@ mp_right_y(p)=mp_y_coord(p)
   for (k=0;k<=7;k++ ) { 
     @<Initialize |p| as the |k|th knot of a circle of unit diameter,
       transforming it appropriately@>;
-    if ( k==7 ) mp_link(p)=h;  else mp_link(p)=mp_get_node(mp, knot_node_size);
-    p=mp_link(p);
+    if ( k==7 ) mp_next_knot(p)=h;  else mp_next_knot(p)=mp_new_knot(mp);
+    p=mp_next_knot(p);
   }
 }
 
@@ -9109,13 +9066,13 @@ The convex hull algorithm used here is described by F.~P. Preparata and
 M.~I. Shamos [{\sl Computational Geometry}, Springer-Verlag, 1985].
 
 @<Declarations@>=
-static pointer mp_convex_hull (MP mp,pointer h);
+static mp_knot mp_convex_hull (MP mp, mp_knot h);
 
 @ @c
-pointer mp_convex_hull (MP mp,pointer h) { /* Make a polygonal pen convex */
-  pointer l,r; /* the leftmost and rightmost knots */
-  pointer p,q; /* knots being scanned */
-  pointer s; /* the starting point for an upcoming scan */
+mp_knot mp_convex_hull (MP mp, mp_knot h) { /* Make a polygonal pen convex */
+  mp_knot l, r; /* the leftmost and rightmost knots */
+  mp_knot p, q; /* knots being scanned */
+  mp_knot s; /* the starting point for an upcoming scan */
   scaled dx,dy; /* a temporary pointer */
   if ( pen_is_elliptical(h) ) {
      return h;
@@ -9123,7 +9080,7 @@ pointer mp_convex_hull (MP mp,pointer h) { /* Make a polygonal pen convex */
     @<Set |l| to the leftmost knot in polygon~|h|@>;
     @<Set |r| to the rightmost knot in polygon~|h|@>;
     if ( l!=r ) { 
-      s=mp_link(r);
+      s=mp_next_knot(r);
       @<Find any knots on the path from |l| to |r| above the |l|-|r| line and
         move them past~|r|@>;
       @<Find any knots on the path from |s| to |l| below the |l|-|r| line and
@@ -9131,7 +9088,7 @@ pointer mp_convex_hull (MP mp,pointer h) { /* Make a polygonal pen convex */
       @<Sort the path from |l| to |r| by increasing $x$@>;
       @<Sort the path from |r| to |l| by decreasing $x$@>;
     }
-    if ( l!=mp_link(l) ) {
+    if ( l!=mp_next_knot(l) ) {
       @<Do a Gramm scan and remove vertices where there is no left turn@>;
     }
     return l;
@@ -9142,30 +9099,30 @@ pointer mp_convex_hull (MP mp,pointer h) { /* Make a polygonal pen convex */
 
 @<Set |l| to the leftmost knot in polygon~|h|@>=
 l=h;
-p=mp_link(h);
+p=mp_next_knot(h);
 while ( p!=h ) { 
   if ( mp_x_coord(p)<=mp_x_coord(l) )
     if ( (mp_x_coord(p)<mp_x_coord(l)) || (mp_y_coord(p)<mp_y_coord(l)) )
       l=p;
-  p=mp_link(p);
+  p=mp_next_knot(p);
 }
 
 @ @<Set |r| to the rightmost knot in polygon~|h|@>=
 r=h;
-p=mp_link(h);
+p=mp_next_knot(h);
 while ( p!=h ) { 
   if ( mp_x_coord(p)>=mp_x_coord(r) )
     if ( (mp_x_coord(p)>mp_x_coord(r)) || (mp_y_coord(p)>mp_y_coord(r)) )
       r=p;
-  p=mp_link(p);
+  p=mp_next_knot(p);
 }
 
 @ @<Find any knots on the path from |l| to |r| above the |l|-|r| line...@>=
 dx=mp_x_coord(r)-mp_x_coord(l);
 dy=mp_y_coord(r)-mp_y_coord(l);
-p=mp_link(l);
+p=mp_next_knot(l);
 while ( p!=r ) { 
-  q=mp_link(p);
+  q=mp_next_knot(p);
   if ( mp_ab_vs_cd(mp, dx,mp_y_coord(p)-mp_y_coord(l),dy,mp_x_coord(p)-mp_x_coord(l))>0 )
     mp_move_knot(mp, p, r);
   p=q;
@@ -9175,22 +9132,23 @@ while ( p!=r ) {
 it after |q|.
 
 @ @<Declarations@>=
-static void mp_move_knot (MP mp,pointer p, pointer q) ;
+static void mp_move_knot (MP mp, mp_knot p, mp_knot q) ;
 
 @ @c
-void mp_move_knot (MP mp,pointer p, pointer q) { 
-  mp_link(knil(p))=mp_link(p);
-  knil(mp_link(p))=knil(p);
-  knil(p)=q;
-  mp_link(p)=mp_link(q);
-  mp_link(q)=p;
-  knil(mp_link(p))=p;
+void mp_move_knot (MP mp, mp_knot p, mp_knot q) { 
+  (void)mp;
+  mp_next_knot(mp_prev_knot(p))=mp_next_knot(p);
+  mp_prev_knot(mp_next_knot(p))=mp_prev_knot(p);
+  mp_prev_knot(p)=q;
+  mp_next_knot(p)=mp_next_knot(q);
+  mp_next_knot(q)=p;
+  mp_prev_knot(mp_next_knot(p))=p;
 }
 
 @ @<Find any knots on the path from |s| to |l| below the |l|-|r| line...@>=
 p=s;
 while ( p!=l ) { 
-  q=mp_link(p);
+  q=mp_next_knot(p);
   if ( mp_ab_vs_cd(mp, dx,mp_y_coord(p)-mp_y_coord(l),dy,mp_x_coord(p)-mp_x_coord(l))<0 )
     mp_move_knot(mp, p,l);
   p=q;
@@ -9201,27 +9159,43 @@ Secondary comparisons on $y$ ensure that the sort is consistent with the
 choice of |l| and |r|.
 
 @<Sort the path from |l| to |r| by increasing $x$@>=
-p=mp_link(l);
+p=mp_next_knot(l);
 while ( p!=r ) { 
-  q=knil(p);
-  while ( mp_x_coord(q)>mp_x_coord(p) ) q=knil(q);
+  q=mp_prev_knot(p);
+  while ( mp_x_coord(q)>mp_x_coord(p) ) 
+    q=mp_prev_knot(q);
   while ( mp_x_coord(q)==mp_x_coord(p) ) {
-    if ( mp_y_coord(q)>mp_y_coord(p) ) q=knil(q); else break;
+    if ( mp_y_coord(q)>mp_y_coord(p) ) 
+      q=mp_prev_knot(q); 
+    else 
+      break;
   }
-  if ( q==knil(p) ) p=mp_link(p);
-  else { p=mp_link(p); mp_move_knot(mp, knil(p),q); };
+  if ( q==mp_prev_knot(p) ) {
+    p=mp_next_knot(p);
+  } else { 
+    p=mp_next_knot(p); 
+    mp_move_knot(mp, mp_prev_knot(p),q); 
+  }
 }
 
 @ @<Sort the path from |r| to |l| by decreasing $x$@>=
-p=mp_link(r);
+p=mp_next_knot(r);
 while ( p!=l ){ 
-  q=knil(p);
-  while ( mp_x_coord(q)<mp_x_coord(p) ) q=knil(q);
+  q=mp_prev_knot(p);
+  while ( mp_x_coord(q)<mp_x_coord(p) ) 
+    q=mp_prev_knot(q);
   while ( mp_x_coord(q)==mp_x_coord(p) ) {
-    if ( mp_y_coord(q)<mp_y_coord(p) ) q=knil(q); else break;
+    if ( mp_y_coord(q)<mp_y_coord(p) ) 
+      q=mp_prev_knot(q); 
+    else 
+      break;
   }
-  if ( q==knil(p) ) p=mp_link(p);
-  else { p=mp_link(p); mp_move_knot(mp, knil(p),q); };
+  if ( q==mp_prev_knot(p) ) {
+     p=mp_next_knot(p);
+  } else {
+     p=mp_next_knot(p); 
+     mp_move_knot(mp, mp_prev_knot(p),q); 
+  }
 }
 
 @ The condition involving |ab_vs_cd| tests if there is not a left turn
@@ -9230,12 +9204,15 @@ where the |then| clause is not executed.
 
 @<Do a Gramm scan and remove vertices where there...@>=
 { 
-p=l; q=mp_link(l);
+p=l; 
+q=mp_next_knot(l);
 while (1) { 
   dx=mp_x_coord(q)-mp_x_coord(p);
   dy=mp_y_coord(q)-mp_y_coord(p);
-  p=q; q=mp_link(q);
-  if ( p==l ) break;
+  p=q; 
+  q=mp_next_knot(q);
+  if ( p==l ) 
+    break;
   if ( p!=r )
     if ( mp_ab_vs_cd(mp, dx,mp_y_coord(q)-mp_y_coord(p),dy,mp_x_coord(q)-mp_x_coord(p))<=0 ) {
       @<Remove knot |p| and back up |p| and |q| but don't go past |l|@>;
@@ -9245,11 +9222,16 @@ while (1) {
 
 @ @<Remove knot |p| and back up |p| and |q| but don't go past |l|@>=
 { 
-s=knil(p);
-mp_free_node(mp, p,knot_node_size);
-mp_link(s)=q; knil(q)=s;
-if ( s==l ) p=s;
-else { p=knil(s); q=s; };
+  s=mp_prev_knot(p);
+  mp_xfree(p);
+  mp_next_knot(s)=q; 
+  mp_prev_knot(q)=s;
+  if ( s==l ) {
+    p=s;
+  } else { 
+    p=mp_prev_knot(s); 
+    q=s; 
+  }
 }
 
 @ The |find_offset| procedure sets global variables |(cur_x,cur_y)| to the
@@ -9257,8 +9239,8 @@ offset associated with the given direction |(x,y)|.  If two different offsets
 apply, it chooses one of them.
 
 @c 
-static void mp_find_offset (MP mp,scaled x, scaled y, pointer h) {
-  pointer p,q; /* consecutive knots */
+static void mp_find_offset (MP mp,scaled x, scaled y, mp_knot h) {
+  mp_knot p, q; /* consecutive knots */
   scaled wx,wy,hx,hy;
   /* the transformation matrix for an elliptical pen */
   fraction xx,yy; /* untransformed offset for an elliptical pen */
@@ -9268,10 +9250,12 @@ static void mp_find_offset (MP mp,scaled x, scaled y, pointer h) {
   } else { 
     q=h;
     do {  
-      p=q; q=mp_link(q);
+      p=q; 
+      q=mp_next_knot(q);
     } while (!(mp_ab_vs_cd(mp, mp_x_coord(q)-mp_x_coord(p),y, mp_y_coord(q)-mp_y_coord(p),x)>=0));
     do {  
-      p=q; q=mp_link(q);
+      p=q; 
+      q=mp_next_knot(q);
     } while (!(mp_ab_vs_cd(mp, mp_x_coord(q)-mp_x_coord(p),y, mp_y_coord(q)-mp_y_coord(p),x)<=0));
     mp->cur_x=mp_x_coord(p);
     mp->cur_y=mp_y_coord(p);
@@ -9284,7 +9268,8 @@ scaled cur_y; /* all-purpose return value registers */
 
 @ @<Find the offset for |(x,y)| on the elliptical pen~|h|@>=
 if ( (x==0) && (y==0) ) {
-  mp->cur_x=mp_x_coord(h); mp->cur_y=mp_y_coord(h);  
+  mp->cur_x=mp_x_coord(h); 
+  mp->cur_y=mp_y_coord(h);  
 } else { 
   @<Find the non-constant part of the transformation for |h|@>;
   while ( (abs(x)<fraction_half) && (abs(y)<fraction_half) ){ 
@@ -9316,20 +9301,26 @@ But we can handle that case by just calling |find_offset| twice.  The answer
 is stored in the global variables |minx|, |maxx|, |miny|, and |maxy|.
 
 @c 
-static void mp_pen_bbox (MP mp,pointer h) {
-  pointer p; /* for scanning the knot list */
+static void mp_pen_bbox (MP mp, mp_knot h) {
+  mp_knot p; /* for scanning the knot list */
   if ( pen_is_elliptical(h) ) {
     @<Find the bounding box of an elliptical pen@>;
   } else { 
-    mp_minx=mp_x_coord(h); mp_maxx=mp_minx;
-    mp_miny=mp_y_coord(h); mp_maxy=mp_miny;
-    p=mp_link(h);
+    mp_minx=mp_x_coord(h); 
+    mp_maxx=mp_minx;
+    mp_miny=mp_y_coord(h); 
+    mp_maxy=mp_miny;
+    p=mp_next_knot(h);
     while ( p!=h ) {
-      if ( mp_x_coord(p)<mp_minx ) mp_minx=mp_x_coord(p);
-      if ( mp_y_coord(p)<mp_miny ) mp_miny=mp_y_coord(p);
-      if ( mp_x_coord(p)>mp_maxx ) mp_maxx=mp_x_coord(p);
-      if ( mp_y_coord(p)>mp_maxy ) mp_maxy=mp_y_coord(p);
-      p=mp_link(p);
+      if ( mp_x_coord(p)<mp_minx ) 
+        mp_minx=mp_x_coord(p);
+      if ( mp_y_coord(p)<mp_miny )
+        mp_miny=mp_y_coord(p);
+      if ( mp_x_coord(p)>mp_maxx )
+        mp_maxx=mp_x_coord(p);
+      if ( mp_y_coord(p)>mp_maxy )
+        mp_maxy=mp_y_coord(p);
+      p=mp_next_knot(p);
     }
   }
 }
@@ -9372,66 +9363,76 @@ pointer to a cyclic path and the value to use for \ps' \&{currentrgbcolor}
 parameter.  If a pen is used for filling |pen_p|, |ljoin_val| and |miterlim_val|
 give the relevant information.
 
-@d mp_path_p(A) mp_link((A)+1)
-  /* a pointer to the path that needs filling */
-@d mp_pen_p(A) mp_info((A)+1)
-  /* a pointer to the pen to fill or stroke with */
-@d mp_color_model(A) mp_type((A)+2) /*  the color model  */
-@d obj_red_loc(A) ((A)+3)  /* the first of three locations for the color */
-@d obj_cyan_loc obj_red_loc  /* the first of four locations for the color */
-@d obj_grey_loc obj_red_loc  /* the location for the color */
-@d red_val(A) mp->mem[(A)+3].sc
-  /* the red component of the color in the range $0\ldots1$ */
+@d mp_path_p(A) (A)->path_p_  /* a pointer to the path that needs filling */
+@d mp_pen_p(A) (A)->pen_p_  /* a pointer to the pen to fill or stroke with */
+@d mp_color_model(A) ((mp_fill_node)(A))->color_model_ /*  the color model  */
+@d red_val(A) ((mp_fill_node)(A))->red_val_  /* the red component of the color in the range $0\ldots1$ */
 @d cyan_val red_val
 @d grey_val red_val
-@d green_val(A) mp->mem[(A)+4].sc
-  /* the green component of the color in the range $0\ldots1$ */
+@d green_val(A) ((mp_fill_node)(A))->green_val_  /* the green component of the color in the range $0\ldots1$ */
 @d magenta_val green_val
-@d blue_val(A) mp->mem[(A)+5].sc
-  /* the blue component of the color in the range $0\ldots1$ */
+@d blue_val(A) ((mp_fill_node)(A))->blue_val_    /* the blue component of the color in the range $0\ldots1$ */
 @d yellow_val blue_val
-@d black_val(A) mp->mem[(A)+6].sc
-  /* the blue component of the color in the range $0\ldots1$ */
-@d ljoin_val(A) mp_name_type((A))  /* the value of \&{linejoin} */
+@d black_val(A) ((mp_fill_node)(A))->black_val_  /* the black component of the color in the range $0\ldots1$ */
+@d ljoin_val(A) ((mp_fill_node)(A))->ljoin_val_  /* the value of \&{linejoin} */
 @:mp_linejoin_}{\&{linejoin} primitive@>
-@d miterlim_val(A) mp->mem[(A)+7].sc  /* the value of \&{miterlimit} */
+@d miterlim_val(A) ((mp_fill_node)(A))->miterlim_val_  /* the value of \&{miterlimit} */
 @:mp_miterlimit_}{\&{miterlimit} primitive@>
-@d obj_color_part(A) mp->mem[(A)+3-red_part].sc
-  /* interpret an object pointer that has been offset by |red_part..blue_part| */
-@d mp_pre_script(A) mp->mem[(A)+8].hh.lh
-@d mp_post_script(A) mp->mem[(A)+8].hh.rh
-@d fill_node_size 9
+@d mp_pre_script(A) ((mp_fill_node)(A))->pre_script_
+@d mp_post_script(A) ((mp_fill_node)(A))->post_script_
+
+@(mpmp.h@>=
+typedef struct mp_fill_node_data {
+  NODE_BODY;
+  halfword color_model_;
+  scaled red_val_;
+  scaled green_val_;
+  scaled blue_val_;
+  scaled black_val_;
+  str_number pre_script_;
+  str_number post_script_;
+  mp_knot path_p_;
+  mp_knot pen_p_;
+  quarterword ljoin_val_;
+  halfword miterlim_val_;
+} mp_fill_node_data;
+typedef struct mp_fill_node_data* mp_fill_node;
 
 @ @<Graphical object codes@>=
 mp_fill_code=1,
 
-@ @c 
-static pointer mp_new_fill_node (MP mp,pointer p) {
-  /* make a fill node for cyclic path |p| and color black */
-  pointer t; /* the new node */
-  t=mp_get_node(mp, fill_node_size);
-  mp_type(t)=mp_fill_code;
-  mp_path_p(t)=p;
-  mp_pen_p(t)=null; /* |null| means don't use a pen */
+
+@ Make a fill node for cyclic path |p| and color black.
+
+@d fill_node_size sizeof(struct mp_fill_node_data)
+
+@c 
+static mp_node mp_new_fill_node (MP mp, mp_knot p) {
+  mp_fill_node t = xmalloc(1, fill_node_size);
+  add_var_used(fill_node_size);
+  memset(t,0,fill_node_size);
+  mp_type(t)=mp_fill_node_type;
+  mp_path_p(t) = p;
+  mp_pen_p(t)=NULL; /* |NULL| means don't use a pen */
   red_val(t)=0;
   green_val(t)=0;
   blue_val(t)=0;
   black_val(t)=0;
   mp_color_model(t)=mp_uninitialized_model;
-  mp_pre_script(t)=null;
-  mp_post_script(t)=null;
+  mp_pre_script(t)=NULL;
+  mp_post_script(t)=NULL;
   @<Set the |ljoin_val| and |miterlim_val| fields in object |t|@>;
-  return t;
+  return (mp_node)t;
 }
 
 @ @<Set the |ljoin_val| and |miterlim_val| fields in object |t|@>=
-if ( mp->internal[mp_linejoin]>unity ) ljoin_val(t)=2;
-else if ( mp->internal[mp_linejoin]>0 ) ljoin_val(t)=1;
+if ( internal_value(mp_linejoin)>unity ) ljoin_val(t)=2;
+else if ( internal_value(mp_linejoin)>0 ) ljoin_val(t)=1;
 else ljoin_val(t)=0;
-if ( mp->internal[mp_miterlimit]<unity )
+if ( internal_value(mp_miterlimit)<unity )
   miterlim_val(t)=unity;
 else
-  miterlim_val(t)=mp->internal[mp_miterlimit]
+  miterlim_val(t)=internal_value(mp_miterlimit)
 
 @ A stroked path is represented by an eight-word node that is like a filled
 contour node except that it contains the current \&{linecap} value, a scale
@@ -9439,38 +9440,61 @@ factor for the dash pattern, and a pointer that is non-null if the stroke
 is to be dashed.  The purpose of the scale factor is to allow a picture to
 be transformed without touching the picture that |dash_p| points to.
 
-@d mp_dash_p(A) mp_link((A)+9)
-  /* a pointer to the edge structure that gives the dash pattern */
-@d lcap_val(A) mp_type((A)+9)
-  /* the value of \&{linecap} */
+@d mp_dash_p(A) ((mp_stroked_node)(A))->dash_p_  /* a pointer to the edge structure that gives the dash pattern */
+@d lcap_val(A) ((mp_stroked_node)(A))->lcap_val_  /* the value of \&{linecap} */
 @:mp_linecap_}{\&{linecap} primitive@>
-@d dash_scale(A) mp->mem[(A)+10].sc /* dash lengths are scaled by this factor */
-@d stroked_node_size 11
+@d dash_scale(A) ((mp_stroked_node)(A))->dash_scale_ /* dash lengths are scaled by this factor */
+
+@(mpmp.h@>=
+typedef struct mp_stroked_node_data {
+  NODE_BODY;
+  halfword color_model_;
+  scaled red_val_;
+  scaled green_val_;
+  scaled blue_val_;
+  scaled black_val_;
+  str_number pre_script_;
+  str_number post_script_;
+  mp_knot path_p_;
+  mp_knot pen_p_;
+  quarterword ljoin_val_;
+  halfword miterlim_val_;
+  quarterword lcap_val_;
+  mp_node dash_p_;
+  scaled dash_scale_;
+} mp_stroked_node_data;
+typedef struct mp_stroked_node_data* mp_stroked_node;
+
 
 @ @<Graphical object codes@>=
 mp_stroked_code=2,
 
-@ @c 
-static pointer mp_new_stroked_node (MP mp,pointer p) {
-  /* make a stroked node for path |p| with |mp_pen_p(p)| temporarily |null| */
-  pointer t; /* the new node */
-  t=mp_get_node(mp, stroked_node_size);
-  mp_type(t)=mp_stroked_code;
-  mp_path_p(t)=p; mp_pen_p(t)=null;
-  mp_dash_p(t)=null;
+@  Make a stroked node for path |p| with |mp_pen_p(p)| temporarily |null|.
+
+@d stroked_node_size sizeof(struct mp_stroked_node_data)
+
+@c 
+static mp_node mp_new_stroked_node (MP mp, mp_knot p) {
+  mp_stroked_node t = (mp_stroked_node)xmalloc(1, stroked_node_size);
+  add_var_used(stroked_node_size);
+  memset(t,0,stroked_node_size);
+  mp_type(t)=mp_stroked_node_type;
+  mp_path_p(t)=p; 
+  mp_pen_p(t)=NULL;
+  mp_dash_p(t)=NULL;
   dash_scale(t)=unity;
   red_val(t)=0;
   green_val(t)=0;
   blue_val(t)=0;
   black_val(t)=0;
   mp_color_model(t)=mp_uninitialized_model;
-  mp_pre_script(t)=null;
-  mp_post_script(t)=null;
+  mp_pre_script(t)=NULL;
+  mp_post_script(t)=NULL;
   @<Set the |ljoin_val| and |miterlim_val| fields in object |t|@>;
-  if ( mp->internal[mp_linecap]>unity ) lcap_val(t)=2;
-  else if ( mp->internal[mp_linecap]>0 ) lcap_val(t)=1;
+  if ( internal_value(mp_linecap)>unity ) lcap_val(t)=2;
+  else if ( internal_value(mp_linecap)>0 ) lcap_val(t)=1;
   else lcap_val(t)=0;
-  return t;
+  return (mp_node)t;
 }
 
 @ When a dashed line is computed in a transformed coordinate system, the dash
@@ -9495,7 +9519,9 @@ scaled mp_sqrt_det (MP mp,scaled a, scaled b, scaled c, scaled d) {
   return (scaled)(s*(unsigned)mp_square_rt(mp, abs(mp_take_fraction(mp, a,d)-mp_take_fraction(mp, b,c))));
 }
 @#
-static scaled mp_get_pen_scale (MP mp,pointer p) { 
+static scaled mp_get_pen_scale (MP mp, mp_knot p) {
+  if (p==NULL)
+    return 0;
   return mp_sqrt_det(mp, 
     mp_left_x(p)-mp_x_coord(p), mp_right_x(p)-mp_x_coord(p),
     mp_left_y(p)-mp_y_coord(p), mp_right_y(p)-mp_y_coord(p));
@@ -9522,32 +9548,56 @@ words give a transformation to be applied to the text.  The |new_text_node|
 function initializes everything to default values so that the text comes out
 black with its reference point at the origin.
 
-@d mp_text_p(A) mp_link((A)+1)  /* a string pointer for the text to display */
-@d mp_font_n(A) mp_info((A)+1)  /* the font number */
-@d width_val(A) mp->mem[(A)+7].sc  /* unscaled width of the text */
-@d height_val(A) mp->mem[(A)+9].sc  /* unscaled height of the text */
-@d depth_val(A) mp->mem[(A)+10].sc  /* unscaled depth of the text */
-@d text_tx_loc(A) ((A)+11)
-  /* the first of six locations for transformation parameters */
-@d tx_val(A) mp->mem[(A)+11].sc  /* $x$ shift amount */
-@d ty_val(A) mp->mem[(A)+12].sc  /* $y$ shift amount */
-@d txx_val(A) mp->mem[(A)+13].sc  /* |txx| transformation parameter */
-@d txy_val(A) mp->mem[(A)+14].sc  /* |txy| transformation parameter */
-@d tyx_val(A) mp->mem[(A)+15].sc  /* |tyx| transformation parameter */
-@d tyy_val(A) mp->mem[(A)+16].sc  /* |tyy| transformation parameter */
-@d text_trans_part(A) mp->mem[(A)+11-x_part].sc
-    /* interpret a text node pointer that has been offset by |x_part..yy_part| */
-@d text_node_size 17
+@d mp_text_p(A) ((mp_text_node)(A))->text_p_  /* a string pointer for the text to display */
+@d mp_font_n(A) ((mp_text_node)(A))->font_n_ /* the font number */
+@d width_val(A) ((mp_text_node)(A))->width_val_  /* unscaled width of the text */
+@d height_val(A) ((mp_text_node)(A))->height_val_  /* unscaled height of the text */
+@d depth_val(A) ((mp_text_node)(A))->depth_val_  /* unscaled depth of the text */
+@d tx_val(A)  ((mp_text_node)(A))->tx_val_   /* $x$ shift amount */
+@d ty_val(A)  ((mp_text_node)(A))->ty_val_   /* $y$ shift amount */
+@d txx_val(A) ((mp_text_node)(A))->txx_val_  /* |txx| transformation parameter */
+@d txy_val(A) ((mp_text_node)(A))->txy_val_  /* |txy| transformation parameter */
+@d tyx_val(A) ((mp_text_node)(A))->tyx_val_  /* |tyx| transformation parameter */
+@d tyy_val(A) ((mp_text_node)(A))->tyy_val_  /* |tyy| transformation parameter */
+
+@(mpmp.h@>=
+typedef struct mp_text_node_data {
+  NODE_BODY;
+  halfword color_model_;
+  scaled red_val_;
+  scaled green_val_;
+  scaled blue_val_;
+  scaled black_val_;
+  str_number pre_script_;
+  str_number post_script_;
+  str_number text_p_;
+  halfword font_n_;
+  scaled width_val_;
+  scaled height_val_;
+  scaled depth_val_;
+  scaled tx_val_;
+  scaled ty_val_;
+  scaled txx_val_;
+  scaled txy_val_;
+  scaled tyx_val_;
+  scaled tyy_val_;
+} mp_text_node_data;
+typedef struct mp_text_node_data* mp_text_node;
 
 @ @<Graphical object codes@>=
 mp_text_code=3,
 
-@ @c
-static pointer mp_new_text_node (MP mp,char *f,str_number s) {
-  /* make a text node for font |f| and text string |s| */
-  pointer t; /* the new node */
-  t=mp_get_node(mp, text_node_size);
-  mp_type(t)=mp_text_code;
+ 
+@  Make a text node for font |f| and text string |s|.
+
+@d text_node_size sizeof(struct mp_text_node_data)
+
+@c
+static mp_node mp_new_text_node (MP mp,char *f,str_number s) {
+  mp_text_node t = (mp_text_node)xmalloc(1, text_node_size);
+  add_var_used(text_node_size);
+  memset(t,0,text_node_size);
+  mp_type(t)=mp_text_node_type;
   mp_text_p(t)=s;
   mp_font_n(t)=(halfword)mp_find_font(mp, f); /* this identifies the font */
   red_val(t)=0;
@@ -9555,13 +9605,16 @@ static pointer mp_new_text_node (MP mp,char *f,str_number s) {
   blue_val(t)=0;
   black_val(t)=0;
   mp_color_model(t)=mp_uninitialized_model;
-  mp_pre_script(t)=null;
-  mp_post_script(t)=null;
-  tx_val(t)=0; ty_val(t)=0;
-  txx_val(t)=unity; txy_val(t)=0;
-  tyx_val(t)=0; tyy_val(t)=unity;
-  mp_set_text_box(mp, t); /* this finds the bounding box */
-  return t;
+  mp_pre_script(t)=NULL;
+  mp_post_script(t)=NULL;
+  tx_val(t)=0; 
+  ty_val(t)=0;
+  txx_val(t)=unity; 
+  txy_val(t)=0;
+  tyx_val(t)=0; 
+  tyy_val(t)=unity;
+  mp_set_text_box(mp, (mp_node)t); /* this finds the bounding box */
+  return (mp_node)t;
 }
 
 @ The last two types of graphical objects that can occur in an edge structure
@@ -9570,27 +9623,39 @@ are clipping paths and \&{setbounds} paths.  These are slightly more difficult
 to implement because we must keep track of exactly what is being clipped or
 bounded when pictures get merged together.  For this reason, each clipping or
 \&{setbounds} operation is represented by a pair of nodes:  first comes a
-two-word node whose |path_p| gives the relevant path, then there is the list
-of objects to clip or bound followed by a two-word node whose second word is
-unused.
+node whose |path_p| gives the relevant path, then there is the list
+of objects to clip or bound followed by a closing node.
 
-Using at least two words for each graphical object node allows them all to be
-allocated and deallocated similarly with a global array |gr_object_size| to
-give the size in words for each object type.
-
-@d start_clip_size 2
-@d start_bounds_size 2
-@d stop_clip_size 2 /* the second word is not used here */
-@d stop_bounds_size 2 /* the second word is not used here */
-@#
-@d stop_type(A) ((A)+2)
-  /* matching |type| for |start_clip_code| or |start_bounds_code| */
-@d has_color(A) (mp_type((A))<mp_start_clip_code)
+@d has_color(A) (mp_type((A))<mp_start_clip_node_type)
   /* does a graphical object have color fields? */
-@d has_pen(A) (mp_type((A))<mp_text_code)
+@d has_pen(A) (mp_type((A))<mp_text_node_type)
   /* does a graphical object have a |mp_pen_p| field? */
-@d is_start_or_stop(A) (mp_type((A))>=mp_start_clip_code)
-@d is_stop(A) (mp_type((A))>=mp_stop_clip_code)
+@d is_start_or_stop(A) (mp_type((A))>=mp_start_clip_node_type)
+@d is_stop(A) (mp_type((A))>=mp_stop_clip_node_type)
+
+@(mpmp.h@>=
+typedef struct mp_start_clip_node_data {
+  NODE_BODY;
+  mp_knot path_p_;
+} mp_start_clip_node_data;
+typedef struct mp_start_clip_node_data* mp_start_clip_node;
+
+typedef struct mp_start_bounds_node_data {
+  NODE_BODY;
+  mp_knot path_p_;
+} mp_start_bounds_node_data;
+typedef struct mp_start_bounds_node_data* mp_start_bounds_node;
+
+typedef struct mp_stop_clip_node_data {
+  NODE_BODY;
+} mp_stop_clip_node_data;
+typedef struct mp_stop_clip_node_data* mp_stop_clip_node;
+
+typedef struct mp_stop_bounds_node_data {
+  NODE_BODY;
+} mp_stop_bounds_node_data;
+typedef struct mp_stop_bounds_node_data* mp_stop_bounds_node;
+
 
 @ @<Graphical object codes@>=
 mp_start_clip_code=4, /* |type| of a node that starts clipping */
@@ -9598,29 +9663,47 @@ mp_start_bounds_code=5, /* |type| of a node that gives a \&{setbounds} path */
 mp_stop_clip_code=6, /* |type| of a node that stops clipping */
 mp_stop_bounds_code=7, /* |type| of a node that stops \&{setbounds} */
 
-@ @c 
-static pointer mp_new_bounds_node (MP mp,pointer p, quarterword  c) {
+@ 
+
+@d start_clip_size sizeof(struct mp_start_clip_node_data)
+@d stop_clip_size sizeof(struct mp_stop_clip_node_data)
+@d start_bounds_size sizeof(struct mp_start_bounds_node_data)
+@d stop_bounds_size sizeof(struct mp_stop_bounds_node_data)
+
+@c 
+static mp_node mp_new_bounds_node (MP mp, mp_knot p, quarterword  c) {
   /* make a node of type |c| where |p| is the clipping or \&{setbounds} path */
-  pointer t; /* the new node */
-  t=mp_get_node(mp, mp->gr_object_size[c]);
-  mp_type(t)=c;
-  mp_path_p(t)=p;
-  return t;
+  if (c==mp_start_clip_node_type) {
+    mp_start_clip_node t; /* the new node */
+    t = (mp_start_clip_node) xmalloc(1, start_clip_size);
+    t->path_p_=p;
+    mp_type(t)=c;
+    t->link = NULL;
+    return (mp_node)t;
+  } else if (c==mp_start_bounds_node_type) {
+    mp_start_bounds_node t; /* the new node */
+    t = (mp_start_bounds_node) xmalloc(1, start_bounds_size);
+    t->path_p_=p;
+    mp_type(t)=c;
+    t->link = NULL;
+    return (mp_node)t;
+  } else if (c==mp_stop_clip_node_type) {
+    mp_stop_clip_node t; /* the new node */
+    t = (mp_stop_clip_node) xmalloc(1, stop_clip_size);
+    mp_type(t)=c;
+    t->link = NULL;
+    return (mp_node)t;
+  } else if (c==mp_stop_bounds_node_type) {
+    mp_stop_bounds_node t; /* the new node */
+    t = (mp_stop_bounds_node) xmalloc(1, stop_bounds_size);
+    mp_type(t)=c;
+    t->link = NULL;
+    return (mp_node)t;
+  } else {
+    assert(0);
+  }
+  return NULL;
 }
-
-@ We need an array to keep track of the sizes of graphical objects.
-
-@<Glob...@>=
-quarterword gr_object_size[mp_stop_bounds_code+1];
-
-@ @<Set init...@>=
-mp->gr_object_size[mp_fill_code]=fill_node_size;
-mp->gr_object_size[mp_stroked_code]=stroked_node_size;
-mp->gr_object_size[mp_text_code]=text_node_size;
-mp->gr_object_size[mp_start_clip_code]=start_clip_size;
-mp->gr_object_size[mp_stop_clip_code]=stop_clip_size;
-mp->gr_object_size[mp_start_bounds_code]=start_bounds_size;
-mp->gr_object_size[mp_stop_bounds_code]=stop_bounds_size;
 
 @ All the essential information in an edge structure is encoded as a linked list
 of graphical objects as we have just seen, but it is helpful to add some
@@ -9638,12 +9721,40 @@ dashes).  Since the $y$~coordinate of the dash pattern is needed to determine
 the period of repetition, this needs to be stored in the edge header along
 with a pointer to the list of dash nodes.
 
-@d start_x(A) mp->mem[(A)+1].sc  /* the starting $x$~coordinate in a dash node */
-@d stop_x(A) mp->mem[(A)+2].sc  /* the ending $x$~coordinate in a dash node */
-@d dash_node_size 3
-@d dash_list mp_link
-  /* in an edge header this points to the first dash node */
-@d dash_y(A) mp->mem[(A)+1].sc  /* $y$ value for the dash list in an edge header */
+The |dash_info| is explained below.
+
+@d dash_list(A) ((mp_dash_node)(A))->link  /* in an edge header this points to the first dash node */
+@d start_x(A) ((mp_dash_node)(A))->start_x_  /* the starting $x$~coordinate in a dash node */
+@d stop_x(A) ((mp_dash_node)(A))->stop_x_  /* the ending $x$~coordinate in a dash node */
+@d dash_y(A) ((mp_dash_node)(A))->dash_y_  /* $y$ value for the dash list in an edge header */
+
+@(mpmp.h@>=
+typedef struct mp_dash_node_data {
+  NODE_BODY;
+  scaled start_x_;
+  scaled stop_x_;
+  scaled dash_y_;
+  mp_node dash_info_;
+} mp_dash_node_data;
+typedef struct mp_dash_node_data* mp_dash_node;
+
+@ @<Initialize table entries@>=
+mp->null_dash = mp_get_dash_node(mp);
+
+@ @<Free table entries@>=
+mp_free_node(mp, mp->null_dash,dash_node_size);
+
+@ 
+@d dash_node_size sizeof(struct mp_dash_node_data)
+
+@c
+static mp_node mp_get_dash_node (MP mp) {
+  mp_dash_node p = (mp_dash_node)xmalloc(1, dash_node_size);
+  add_var_used(dash_node_size);
+  memset(p,0,dash_node_size);
+  mp_type(p) = mp_dash_node_type;
+  return (mp_node)p;
+}
 
 @ It is also convenient for an edge header to contain the bounding
 box information needed by the \&{llcorner} and \&{urcorner} operators
@@ -9660,28 +9771,47 @@ and |miny_val| fields contain |el_gordo| and the |maxx_val| and |maxy_val|
 fields contain |-el_gordo|.
 
 Since the bounding box of pictures containing objects of type
-|mp_start_bounds_code| depends on the value of \&{truecorners}, the bounding box
+|mp_start_bounds_node| depends on the value of \&{truecorners}, the bounding box
 @:mp_true_corners_}{\&{truecorners} primitive@>
 data might not be valid for all values of this parameter.  Hence, the |bbtype|
 field is needed to keep track of this.
 
-@d minx_val(A) mp->mem[(A)+2].sc
-@d miny_val(A) mp->mem[(A)+3].sc
-@d maxx_val(A) mp->mem[(A)+4].sc
-@d maxy_val(A) mp->mem[(A)+5].sc
-@d bblast(A) mp_link((A)+6)  /* last item considered in bounding box computation */
-@d bbtype(A) mp_info((A)+6)  /* tells how bounding box data depends on \&{truecorners} */
-@d dummy_loc(A) ((A)+7)  /* where the object list begins in an edge header */
-@d no_bounds 0
-  /* |bbtype| value when bounding box data is valid for all \&{truecorners} values */
-@d bounds_set 1
-  /* |bbtype| value when bounding box data is for \&{truecorners}${}\le 0$ */
-@d bounds_unset 2
-  /* |bbtype| value when bounding box data is for \&{truecorners}${}>0$ */
+@d minx_val(A) ((mp_edge_header_node)(A))->minx_val_
+@d miny_val(A) ((mp_edge_header_node)(A))->miny_val_
+@d maxx_val(A) ((mp_edge_header_node)(A))->maxx_val_
+@d maxy_val(A) ((mp_edge_header_node)(A))->maxy_val_
+@d bblast(A) ((mp_edge_header_node)(A))->bblast_  /* last item considered in bounding box computation */
+@d bbtype(A) ((mp_edge_header_node)(A))->bbtype_ /* tells how bounding box data depends on \&{truecorners} */
+@d dummy_loc(A)  ((mp_edge_header_node)(A))->dummy_ /* where the object list begins in an edge header */
 
+@(mpmp.h@>=
+typedef struct mp_edge_header_node_data {
+  NODE_BODY;
+  scaled start_x_;
+  scaled stop_x_;
+  scaled dash_y_;
+  mp_node dash_info_;
+  scaled minx_val_;
+  scaled miny_val_;
+  scaled maxx_val_;
+  scaled maxy_val_;
+  mp_node bblast_;
+  halfword bbtype_;
+  mp_node dummy_;
+  mp_node obj_tail_; /* explained below */
+  halfword ref_count_; /* explained below */
+} mp_edge_header_node_data;
+typedef struct mp_edge_header_node_data* mp_edge_header_node;
+
+@
+@d no_bounds 0  /* |bbtype| value when bounding box data is valid for all \&{truecorners} values */
+@d bounds_set 1  /* |bbtype| value when bounding box data is for \&{truecorners}${}\le 0$ */
+@d bounds_unset 2  /* |bbtype| value when bounding box data is for \&{truecorners}${}>0$ */
 @c 
-static void mp_init_bbox (MP mp,pointer h) {
+
+static void mp_init_bbox (MP mp, mp_node h) {
   /* Initialize the bounding box information in edge structure |h| */
+  (void)mp;
   bblast(h)=dummy_loc(h);
   bbtype(h)=no_bounds;
   minx_val(h)=el_gordo;
@@ -9693,16 +9823,25 @@ static void mp_init_bbox (MP mp,pointer h) {
 @ The only other entries in an edge header are a reference count in the first
 word and a pointer to the tail of the object list in the last word.
 
-@d obj_tail(A) mp_info((A)+7)  /* points to the last entry in the object list */
-@d edge_header_size 8
+@d obj_tail(A) ((mp_edge_header_node)(A))->obj_tail_  /* points to the last entry in the object list */
+@d edge_ref_count(A) ((mp_edge_header_node)(A))->ref_count_
+
+@d edge_header_size sizeof(struct mp_edge_header_node_data)
 
 @c 
-static void mp_init_edges (MP mp,pointer h) {
+static mp_node mp_get_edge_header_node (MP mp) {
+  mp_edge_header_node p = (mp_edge_header_node)xmalloc(1, edge_header_size);
+  memset(p, 0, edge_header_size);
+  mp_type(p) = mp_edge_header_node_type;
+  p->dummy_ = mp_get_token_node(mp); /* or whatever, just a need a link handle */
+  return (mp_node)p;
+}
+static void mp_init_edges (MP mp, mp_node h) {
   /* initialize an edge header to null values */
-  dash_list(h)=null_dash;
+  dash_list(h)=mp->null_dash;
   obj_tail(h)=dummy_loc(h);
-  mp_link(dummy_loc(h))=null;
-  ref_count(h)=null;
+  mp_link(dummy_loc(h))=NULL;
+  edge_ref_count(h)=0;
   mp_init_bbox(mp, h);
 }
 
@@ -9710,77 +9849,90 @@ static void mp_init_edges (MP mp,pointer h) {
 of the need to dereference edge structures that are used as dash patterns.
 @^recursion@>
 
-@d add_edge_ref(A) incr(ref_count(A))
+@d add_edge_ref(A) incr(edge_ref_count((A)))
 @d delete_edge_ref(A) { 
-   if ( ref_count((A))==null ) 
-     mp_toss_edges(mp, A);
+   if ( edge_ref_count((A))==0 ) 
+     mp_toss_edges(mp, (A));
    else 
-     decr(ref_count(A)); 
+     decr(edge_ref_count((A))); 
    }
 
 @<Declarations@>=
-static void mp_flush_dash_list (MP mp,pointer h);
-static pointer mp_toss_gr_object (MP mp,pointer p) ;
-static void mp_toss_edges (MP mp,pointer h) ;
+static void mp_flush_dash_list (MP mp, mp_node h);
+static mp_node mp_toss_gr_object (MP mp, mp_node p) ;
+static void mp_toss_edges (MP mp, mp_node h) ;
 
-@ @c void mp_toss_edges (MP mp,pointer h) {
-  pointer p,q;  /* pointers that scan the list being recycled */
-  pointer r; /* an edge structure that object |p| refers to */
+@ @c void mp_toss_edges (MP mp, mp_node h) {
+  mp_node p,q;  /* pointers that scan the list being recycled */
+  mp_node r; /* an edge structure that object |p| refers to */
+  return; /* todo: freeing causes segfaults. refcount off? */
   mp_flush_dash_list(mp, h);
   q=mp_link(dummy_loc(h));
-  while ( (q!=null) ) { 
-    p=q; q=mp_link(q);
+  while ( (q!=NULL) ) { 
+    p=q; 
+    q=mp_link(q);
     r=mp_toss_gr_object(mp, p);
-    if ( r!=null ) delete_edge_ref(r);
+    if ( r!=NULL ) 
+      delete_edge_ref(r);
   }
   mp_free_node(mp, h,edge_header_size);
 }
-void mp_flush_dash_list (MP mp,pointer h) {
-  pointer p,q;  /* pointers that scan the list being recycled */
+void mp_flush_dash_list (MP mp, mp_node h) {
+  mp_node p,q;  /* pointers that scan the list being recycled */
   q=dash_list(h);
-  while ( q!=null_dash ) { 
-    p=q; q=mp_link(q);
+  while ( q!=mp->null_dash ) { 
+    p=q; 
+    q=mp_link(q);
     mp_free_node(mp, p,dash_node_size);
   }
-  dash_list(h)=null_dash;
+  dash_list(h)=mp->null_dash;
 }
-pointer mp_toss_gr_object (MP mp,pointer p) {
+mp_node mp_toss_gr_object (MP mp, mp_node p) {
   /* returns an edge structure that needs to be dereferenced */
-  pointer e; /* the edge structure to return */
-  e=null;
-  @<Prepare to recycle graphical object |p|@>;
-  mp_free_node(mp, p,mp->gr_object_size[mp_type(p)]);
+  mp_node e = NULL; /* the edge structure to return */
+  switch (mp_type(p)) {
+  case mp_fill_node_type: 
+    mp_toss_knot_list(mp, mp_path_p((mp_fill_node)p));
+    if ( mp_pen_p((mp_fill_node)p)!=NULL ) mp_toss_knot_list(mp, mp_pen_p((mp_fill_node)p));
+    if ( mp_pre_script(p)!=NULL ) delete_str_ref(mp_pre_script(p));
+    if ( mp_post_script(p)!=NULL ) delete_str_ref(mp_post_script(p));
+    mp_free_node(mp, p, fill_node_size);
+    break;
+  case mp_stroked_node_type: 
+    mp_toss_knot_list(mp, mp_path_p((mp_stroked_node)p));
+    if ( mp_pen_p((mp_stroked_node)p)!=NULL ) mp_toss_knot_list(mp, mp_pen_p((mp_stroked_node)p));
+    if ( mp_pre_script(p)!=NULL ) delete_str_ref(mp_pre_script(p));
+    if ( mp_post_script(p)!=NULL ) delete_str_ref(mp_post_script(p));
+    e=mp_dash_p(p);
+    mp_free_node(mp, p, stroked_node_size);
+    break;
+  case mp_text_node_type: 
+    delete_str_ref(mp_text_p(p));
+    if ( mp_pre_script(p)!=NULL ) delete_str_ref(mp_pre_script(p));
+    if ( mp_post_script(p)!=NULL ) delete_str_ref(mp_post_script(p));
+    mp_free_node(mp, p, text_node_size);
+    break;
+  case mp_start_clip_node_type:
+    mp_toss_knot_list(mp, mp_path_p((mp_start_clip_node)p));
+    mp_free_node(mp, p, start_clip_size);
+    break;
+  case mp_start_bounds_node_type: 
+    mp_toss_knot_list(mp, mp_path_p((mp_start_bounds_node)p));
+    mp_free_node(mp, p, start_bounds_size);
+    break;
+  case mp_stop_clip_node_type:
+    mp_free_node(mp, p, stop_clip_size);
+    break;
+  case mp_stop_bounds_node_type: 
+    mp_free_node(mp, p, stop_bounds_size);
+    break;
+  default:  /* there are no other valid cases, but please the compiler */
+    return e;
+  }
   return e;
 }
 
 @ @<Prepare to recycle graphical object |p|@>=
-switch (mp_type(p)) {
-case mp_fill_code: 
-  mp_toss_knot_list(mp, mp_path_p(p));
-  if ( mp_pen_p(p)!=null ) mp_toss_knot_list(mp, mp_pen_p(p));
-  if ( mp_pre_script(p)!=null ) delete_str_ref(mp_pre_script(p));
-  if ( mp_post_script(p)!=null ) delete_str_ref(mp_post_script(p));
-  break;
-case mp_stroked_code: 
-  mp_toss_knot_list(mp, mp_path_p(p));
-  if ( mp_pen_p(p)!=null ) mp_toss_knot_list(mp, mp_pen_p(p));
-  if ( mp_pre_script(p)!=null ) delete_str_ref(mp_pre_script(p));
-  if ( mp_post_script(p)!=null ) delete_str_ref(mp_post_script(p));
-  e=mp_dash_p(p);
-  break;
-case mp_text_code: 
-  delete_str_ref(mp_text_p(p));
-  if ( mp_pre_script(p)!=null ) delete_str_ref(mp_pre_script(p));
-  if ( mp_post_script(p)!=null ) delete_str_ref(mp_post_script(p));
-  break;
-case mp_start_clip_code:
-case mp_start_bounds_code: 
-  mp_toss_knot_list(mp, mp_path_p(p));
-  break;
-case mp_stop_clip_code:
-case mp_stop_bounds_code: 
-  break;
-} /* there are no other cases */
 
 @ If we use |add_edge_ref| to ``copy'' edge structures, the real copying needs
 to be done before making a significant change to an edge structure.  Much of
@@ -9788,15 +9940,16 @@ the work is done in a separate routine |copy_objects| that copies a list of
 graphical objects into a new edge header.
 
 @c
-static pointer mp_private_edges (MP mp,pointer h) {
+static mp_node mp_private_edges (MP mp, mp_node h) {
   /* make a private copy of the edge structure headed by |h| */
-  pointer hh;  /* the edge header for the new copy */
-  pointer p,pp;  /* pointers for copying the dash list */
-  if ( ref_count(h)==null ) {
+  mp_node hh;  /* the edge header for the new copy */
+  mp_node p, pp;  /* pointers for copying the dash list */
+  assert(mp_type(h)==mp_edge_header_node_type);
+  if ( edge_ref_count(h)==0 ) {
     return h;
   } else { 
-    decr(ref_count(h));
-    hh=mp_copy_objects(mp, mp_link(dummy_loc(h)),null);
+    decr(edge_ref_count(h));
+    hh = mp_copy_objects(mp, mp_link(dummy_loc(h)),NULL);
     @<Copy the dash list from |h| to |hh|@>;
     @<Copy the bounding box information from |h| to |hh| and make |bblast(hh)|
       point into the new object list@>;
@@ -9808,29 +9961,30 @@ static pointer mp_private_edges (MP mp,pointer h) {
 @^data structure assumptions@>
 
 @<Copy the dash list from |h| to |hh|@>=
-pp=hh; p=dash_list(h);
-while ( (p!=null_dash) ) { 
-  mp_link(pp)=mp_get_node(mp, dash_node_size);
+pp=hh; 
+p=dash_list(h);
+while ( (p!=mp->null_dash) ) { 
+  mp_link(pp)=mp_get_dash_node(mp);
   pp=mp_link(pp);
   start_x(pp)=start_x(p);
   stop_x(pp)=stop_x(p);
   p=mp_link(p);
 }
-mp_link(pp)=null_dash;
+mp_link(pp)=mp->null_dash;
 dash_y(hh)=dash_y(h)
 
 
 @ |h| is an edge structure
 
 @c
-static mp_dash_object *mp_export_dashes (MP mp, pointer q, scaled *w) {
+static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, scaled *w) {
   mp_dash_object *d;
-  pointer p, h;
+  mp_node p, h;
   scaled scf; /* scale factor */
   int *dashes = NULL;
   int num_dashes = 1;
   h = mp_dash_p(q);
-  if (h==null ||  dash_list(h)==null_dash) 
+  if (h==NULL ||  dash_list(h)==mp->null_dash) 
 	return NULL;
   p = dash_list(h);
   scf=mp_get_pen_scale(mp, mp_pen_p(q));
@@ -9842,13 +9996,11 @@ static mp_dash_object *mp_export_dashes (MP mp, pointer q, scaled *w) {
   }
   *w = scf;
   d = xmalloc(1,sizeof(mp_dash_object));
-  start_x(null_dash)=start_x(p)+dash_y(h);
-  while (p != null_dash) { 
+  start_x(mp->null_dash)=start_x(p)+dash_y(h);
+  while (p != mp->null_dash) { 
 	dashes = xrealloc(dashes, (num_dashes+2), sizeof(scaled));
-	dashes[(num_dashes-1)] = 
-      mp_take_scaled(mp,(stop_x(p)-start_x(p)),scf);
-	dashes[(num_dashes)]   = 
-      mp_take_scaled(mp,(start_x(mp_link(p))-stop_x(p)),scf);
+	dashes[(num_dashes-1)] = mp_take_scaled(mp,(stop_x(p)-start_x(p)),scf);
+	dashes[(num_dashes)]   = mp_take_scaled(mp,(start_x(mp_link(p))-stop_x(p)),scf);
 	dashes[(num_dashes+1)] = -1; /* terminus */
 	num_dashes+=2;
     p=mp_link(p);
@@ -9868,9 +10020,10 @@ maxy_val(hh)=maxy_val(h);
 bbtype(hh)=bbtype(h);
 p=dummy_loc(h); pp=dummy_loc(hh);
 while ((p!=bblast(h)) ) { 
-  if ( p==null ) mp_confusion(mp, "bblast");
+  if ( p==NULL ) mp_confusion(mp, "bblast");
 @:this can't happen bblast}{\quad bblast@>
-  p=mp_link(p); pp=mp_link(pp);
+  p=mp_link(p); 
+  pp=mp_link(pp);
 }
 bblast(hh)=pp
 
@@ -9880,30 +10033,56 @@ If |q| is null, it copies the entire sublist headed at |p|.  The resulting edge
 structure requires further initialization by |init_bbox|.
 
 @<Declarations@>=
-static pointer mp_copy_objects (MP mp, pointer p, pointer q);
+static mp_node mp_copy_objects (MP mp, mp_node p, mp_node q);
 
 @ @c
-pointer mp_copy_objects (MP mp, pointer p, pointer q) {
-  pointer hh;  /* the new edge header */
-  pointer pp;  /* the last newly copied object */
+mp_node mp_copy_objects (MP mp, mp_node p, mp_node q) {
+  mp_node hh;  /* the new edge header */
+  mp_node pp;  /* the last newly copied object */
   quarterword k;  /* temporary register */
-  hh=mp_get_node(mp, edge_header_size);
-  dash_list(hh)=null_dash;
-  ref_count(hh)=null;
+  hh=mp_get_edge_header_node(mp);
+  dash_list(hh)=mp->null_dash;
+  edge_ref_count(hh)=0;
   pp=dummy_loc(hh);
-  while ( (p!=q) ) {
+  while ( p != q ) {
     @<Make |mp_link(pp)| point to a copy of object |p|, and update |p| and |pp|@>;
   }
   obj_tail(hh)=pp;
-  mp_link(pp)=null;
+  mp_link(pp)=NULL;
   return hh;
 }
 
 @ @<Make |mp_link(pp)| point to a copy of object |p|, and update |p| and |pp|@>=
-{ k=mp->gr_object_size[mp_type(p)];
-  mp_link(pp)=mp_get_node(mp, k);
+{ 
+  switch (mp_type(p)) {
+  case mp_start_clip_node_type:
+    k = start_clip_size;
+    break;
+  case mp_start_bounds_node_type: 
+    k = start_bounds_size;
+    break;
+  case mp_fill_node_type: 
+    k = fill_node_size;
+    break;
+  case mp_stroked_node_type: 
+    k = stroked_node_size;
+    break;
+  case mp_text_node_type: 
+    k = text_node_size;
+    break;
+  case mp_stop_clip_node_type:
+    k = stop_clip_size;
+    break;
+  case mp_stop_bounds_node_type: 
+    k = stop_bounds_size;
+    break;
+  default:  /* there are no other valid cases, but please the compiler */
+    break;
+  }
+  mp_link(pp)=xmalloc(1, (size_t)k); /* |gr_object| */
   pp=mp_link(pp);
-  while ( (k>0) ) { k--; mp->mem[pp+k]=mp->mem[p+k];  };
+  memcpy(pp,p,(size_t)k);
+  pp->link = NULL;
   @<Fix anything in graphical object |pp| that should differ from the
     corresponding field in |p|@>;
   p=mp_link(p);
@@ -9911,32 +10090,36 @@ pointer mp_copy_objects (MP mp, pointer p, pointer q) {
 
 @ @<Fix anything in graphical object |pp| that should differ from the...@>=
 switch (mp_type(p)) {
-case mp_start_clip_code:
-case mp_start_bounds_code: 
-  mp_path_p(pp)=mp_copy_path(mp, mp_path_p(p));
+case mp_start_clip_node_type:
+  mp_path_p((mp_start_clip_node)pp)=mp_copy_path(mp, mp_path_p((mp_start_clip_node)p));
   break;
-case mp_fill_code: 
-  mp_path_p(pp)=mp_copy_path(mp, mp_path_p(p));
+case mp_start_bounds_node_type: 
+  mp_path_p((mp_start_bounds_node)pp)=mp_copy_path(mp, mp_path_p((mp_start_bounds_node)p));
+  break;
+case mp_fill_node_type: 
+  mp_path_p((mp_fill_node)pp)=mp_copy_path(mp, mp_path_p((mp_fill_node)p));
   if ( mp_pre_script(p)!=null )  add_str_ref(mp_pre_script(p));
   if ( mp_post_script(p)!=null ) add_str_ref(mp_post_script(p));
-  if ( mp_pen_p(p)!=null ) mp_pen_p(pp)=copy_pen(mp_pen_p(p));
+  if ( mp_pen_p((mp_fill_node)p)!=null ) mp_pen_p((mp_fill_node)pp)=copy_pen(mp_pen_p((mp_fill_node)p));
   break;
-case mp_stroked_code: 
+case mp_stroked_node_type: 
   if ( mp_pre_script(p)!=null )  add_str_ref(mp_pre_script(p));
   if ( mp_post_script(p)!=null ) add_str_ref(mp_post_script(p));
-  mp_path_p(pp)=mp_copy_path(mp, mp_path_p(p));
-  mp_pen_p(pp)=copy_pen(mp_pen_p(p));
+  mp_path_p((mp_stroked_node)pp)=mp_copy_path(mp, mp_path_p((mp_stroked_node)p));
+  mp_pen_p((mp_stroked_node)pp)=copy_pen(mp_pen_p((mp_stroked_node)p));
   if ( mp_dash_p(p)!=null ) add_edge_ref(mp_dash_p(pp));
   break;
-case mp_text_code: 
+case mp_text_node_type: 
   if ( mp_pre_script(p)!=null )  add_str_ref(mp_pre_script(p));
   if ( mp_post_script(p)!=null ) add_str_ref(mp_post_script(p));
   add_str_ref(mp_text_p(pp));
   break;
-case mp_stop_clip_code:
-case mp_stop_bounds_code: 
+case mp_stop_clip_node_type:
+case mp_stop_bounds_node_type: 
   break;
-}  /* there are no other cases */
+default:  /* there are no other valid cases, but please the compiler */
+  break;
+}
 
 @ Here is one way to find an acceptable value for the second argument to
 |copy_objects|.  Given a non-null graphical object list, |skip_1component|
@@ -9953,9 +10136,10 @@ unless |p| points to a stop bounds or stop clip node, in which case it executes
     else 
 
 @c 
-static pointer mp_skip_1component (MP mp,pointer p) {
+static mp_node mp_skip_1component (MP mp, mp_node p) {
   integer lev; /* current nesting level */
   lev=0;
+  (void)mp;
   do {  
    if ( is_start_or_stop(p) ) {
      if ( is_stop(p) ) decr(lev);  else incr(lev);
@@ -9968,12 +10152,12 @@ static pointer mp_skip_1component (MP mp,pointer p) {
 @ Here is a diagnostic routine for printing an edge structure in symbolic form.
 
 @<Declarations@>=
-static void mp_print_edges (MP mp,pointer h, const char *s, boolean nuline) ;
+static void mp_print_edges (MP mp, mp_node h, const char *s, boolean nuline) ;
 
 @ @c
-void mp_print_edges (MP mp,pointer h, const char *s, boolean nuline) {
-  pointer p;  /* a graphical object to be printed */
-  pointer hh,pp;  /* temporary pointers */
+void mp_print_edges (MP mp, mp_node h, const char *s, boolean nuline) {
+  mp_node p;  /* a graphical object to be printed */
+  mp_node hh,pp;  /* temporary pointers */
   scaled scf;  /* a scale factor for the dash pattern */
   boolean ok_to_dash;  /* |false| for polygonal pen strokes */
   mp_print_diagnostic(mp, "Edge structure",s,nuline);
@@ -9989,21 +10173,22 @@ void mp_print_edges (MP mp,pointer h, const char *s, boolean nuline) {
     }
   }
   mp_print_nl(mp, "End edges");
-  if ( p!=obj_tail(h) ) mp_print(mp, "?");
+  if ( p!=obj_tail(h) )
+    mp_print(mp, "?");
 @.End edges?@>
   mp_end_diagnostic(mp, true);
 }
 
 @ @<Cases for printing graphical object node |p|@>=
-case mp_fill_code: 
+case mp_fill_node_type: 
   mp_print(mp, "Filled contour ");
   mp_print_obj_color(mp, p);
   mp_print_char(mp, xord(':')); mp_print_ln(mp);
-  mp_pr_path(mp, mp_path_p(p)); mp_print_ln(mp);
-  if ( (mp_pen_p(p)!=null) ) {
+  mp_pr_path(mp, mp_path_p((mp_fill_node)p)); mp_print_ln(mp);
+  if ( (mp_pen_p((mp_fill_node)p)!=null) ) {
     @<Print join type for graphical object |p|@>;
     mp_print(mp, " with pen"); mp_print_ln(mp);
-    mp_pr_pen(mp, mp_pen_p(p));
+    mp_pr_pen(mp, mp_pen_p((mp_fill_node)p));
   }
   break;
 
@@ -10042,54 +10227,51 @@ mp_print(mp, " ends, ");
 black (the default color).
 
 @<Declarations@>=
-static void mp_print_obj_color (MP mp,pointer p) ;
+static void mp_print_obj_color (MP mp, mp_node p) ;
 
 @ @c
-void mp_print_obj_color (MP mp,pointer p) { 
+void mp_print_obj_color (MP mp, mp_node p) { 
   if ( mp_color_model(p)==mp_grey_model ) {
     if ( grey_val(p)>0 ) { 
       mp_print(mp, "greyed ");
-      mp_print_compact_node(mp, obj_grey_loc(p),1);
+      mp_print_char(mp, xord('('));
+      mp_print_scaled(mp, grey_val(p));
+      mp_print_char(mp, xord(')'));
     };
   } else if ( mp_color_model(p)==mp_cmyk_model ) {
     if ( (cyan_val(p)>0) || (magenta_val(p)>0) || 
          (yellow_val(p)>0) || (black_val(p)>0) ) { 
       mp_print(mp, "processcolored ");
-      mp_print_compact_node(mp, obj_cyan_loc(p),4);
+      mp_print_char(mp, xord('('));
+      mp_print_scaled(mp, cyan_val(p));
+      mp_print_char(mp, xord(','));
+      mp_print_scaled(mp, magenta_val(p));
+      mp_print_char(mp, xord(','));
+      mp_print_scaled(mp, yellow_val(p));
+      mp_print_char(mp, xord(','));
+      mp_print_scaled(mp, black_val(p));
+      mp_print_char(mp, xord(')'));
     };
   } else if ( mp_color_model(p)==mp_rgb_model ) {
     if ( (red_val(p)>0) || (green_val(p)>0) || (blue_val(p)>0) ) { 
       mp_print(mp, "colored "); 
-      mp_print_compact_node(mp, obj_red_loc(p),3);
+      mp_print_char(mp, xord('('));
+      mp_print_scaled(mp, red_val(p));
+      mp_print_char(mp, xord(','));
+      mp_print_scaled(mp, green_val(p));
+      mp_print_char(mp, xord(','));
+      mp_print_scaled(mp, blue_val(p));
+      mp_print_char(mp, xord(')'));
     };
   }
 }
 
-@ We also need a procedure for printing consecutive scaled values as if they
-were a known big node.
-
-@<Declarations@>=
-static void mp_print_compact_node (MP mp,pointer p, quarterword k) ;
-
-@ @c
-void mp_print_compact_node (MP mp,pointer p, quarterword k) {
-  pointer q;  /* last location to print */
-  q=p+k-1;
-  mp_print_char(mp, xord('('));
-  while ( p<=q ){ 
-    mp_print_scaled(mp, mp->mem[p].sc);
-    if ( p<q ) mp_print_char(mp, xord(','));
-    incr(p);
-  }
-  mp_print_char(mp, xord(')'));
-}
-
 @ @<Cases for printing graphical object node |p|@>=
-case mp_stroked_code: 
+case mp_stroked_node_type:
   mp_print(mp, "Filled pen stroke ");
   mp_print_obj_color(mp, p);
   mp_print_char(mp, xord(':')); mp_print_ln(mp);
-  mp_pr_path(mp, mp_path_p(p));
+  mp_pr_path(mp, mp_path_p((mp_stroked_node)p));
   if ( mp_dash_p(p)!=null ) { 
     mp_print_nl(mp, "dashed (");
     @<Finish printing the dash pattern that |p| refers to@>;
@@ -10097,9 +10279,9 @@ case mp_stroked_code:
   mp_print_ln(mp);
   @<Print join and cap types for stroked node |p|@>;
   mp_print(mp, " with pen"); mp_print_ln(mp);
-  if ( mp_pen_p(p)==null ) mp_print(mp, "???"); /* shouldn't happen */
+  if ( mp_pen_p((mp_stroked_node)p)==null ) mp_print(mp, "???"); /* shouldn't happen */
 @.???@>
-  else mp_pr_pen(mp, mp_pen_p(p));
+  else mp_pr_pen(mp, mp_pen_p((mp_stroked_node)p));
   break;
 
 @ Normally, the  |dash_list| field in an edge header is set to |null_dash|
@@ -10109,20 +10291,20 @@ Note that memory is allocated for |start_x(null_dash)| and we are free to
 give it any convenient value.
 
 @<Finish printing the dash pattern that |p| refers to@>=
-ok_to_dash=pen_is_elliptical(mp_pen_p(p));
+ok_to_dash=pen_is_elliptical(mp_pen_p((mp_stroked_node)p));
 if ( ! ok_to_dash ) scf=unity; else scf=dash_scale(p);
 hh=mp_dash_p(p);
 pp=dash_list(hh);
-if ( (pp==null_dash) || (dash_y(hh)<0) ) {
+if ( (pp==mp->null_dash) || (dash_y(hh)<0) ) {
   mp_print(mp, " ??");
-} else { start_x(null_dash)=start_x(pp)+dash_y(hh);
-  while ( pp!=null_dash ) { 
+} else { start_x(mp->null_dash)=start_x(pp)+dash_y(hh);
+  while ( pp!=mp->null_dash ) { 
     mp_print(mp, "on ");
     mp_print_scaled(mp, mp_take_scaled(mp, stop_x(pp)-start_x(pp),scf));
     mp_print(mp, " off ");
     mp_print_scaled(mp, mp_take_scaled(mp, start_x(mp_link(pp))-stop_x(pp),scf));
     pp = mp_link(pp);
-    if ( pp!=null_dash ) mp_print_char(mp, xord(' '));
+    if ( pp!=mp->null_dash ) mp_print_char(mp, xord(' '));
   }
   mp_print(mp, ") shifted ");
   mp_print_scaled(mp, -mp_take_scaled(mp, mp_dash_offset(mp, hh),scf));
@@ -10130,12 +10312,12 @@ if ( (pp==null_dash) || (dash_y(hh)<0) ) {
 }
 
 @ @<Declarations@>=
-static scaled mp_dash_offset (MP mp,pointer h) ;
+static scaled mp_dash_offset (MP mp, mp_node h) ;
 
 @ @c
-scaled mp_dash_offset (MP mp,pointer h) {
+scaled mp_dash_offset (MP mp, mp_node h) {
   scaled x;  /* the answer */
-  if (dash_list(h)==null_dash || dash_y(h)<0) mp_confusion(mp, "dash0");
+  if (dash_list(h)==mp->null_dash || dash_y(h)<0) mp_confusion(mp, "dash0");
 @:this can't happen dash0}{\quad dash0@>
   if ( dash_y(h)==0 ) {
     x=0; 
@@ -10147,32 +10329,44 @@ scaled mp_dash_offset (MP mp,pointer h) {
 }
 
 @ @<Cases for printing graphical object node |p|@>=
-case mp_text_code: 
+case mp_text_node_type: 
   mp_print_char(mp, xord('"')); mp_print_str(mp,mp_text_p(p));
   mp_print(mp, "\" infont \""); mp_print(mp, mp->font_name[mp_font_n(p)]);
   mp_print_char(mp, xord('"')); mp_print_ln(mp);
   mp_print_obj_color(mp, p);
   mp_print(mp, "transformed ");
-  mp_print_compact_node(mp, text_tx_loc(p),6);
+  mp_print_char(mp, xord('('));
+  mp_print_scaled(mp, tx_val(p));
+  mp_print_char(mp, xord(','));
+  mp_print_scaled(mp, ty_val(p));
+  mp_print_char(mp, xord(','));
+  mp_print_scaled(mp, txx_val(p));
+  mp_print_char(mp, xord(','));
+  mp_print_scaled(mp, txy_val(p));
+  mp_print_char(mp, xord(','));
+  mp_print_scaled(mp, tyx_val(p));
+  mp_print_char(mp, xord(','));
+  mp_print_scaled(mp, tyy_val(p));
+  mp_print_char(mp, xord(')'));
   break;
 
 @ @<Cases for printing graphical object node |p|@>=
-case mp_start_clip_code: 
+case mp_start_clip_node_type: 
   mp_print(mp, "clipping path:");
   mp_print_ln(mp);
-  mp_pr_path(mp, mp_path_p(p));
+  mp_pr_path(mp, mp_path_p((mp_start_clip_node)p));
   break;
-case mp_stop_clip_code: 
+case mp_stop_clip_node_type: 
   mp_print(mp, "stop clipping");
   break;
 
 @ @<Cases for printing graphical object node |p|@>=
-case mp_start_bounds_code: 
+case mp_start_bounds_node_type: 
   mp_print(mp, "setbounds path:");
   mp_print_ln(mp);
-  mp_pr_path(mp, mp_path_p(p));
+  mp_pr_path(mp, mp_path_p((mp_start_bounds_node)p));
   break;
-case mp_stop_bounds_code: 
+case mp_stop_bounds_node_type: 
   mp_print(mp, "end of setbounds");
   break;
 
@@ -10187,31 +10381,34 @@ length $\Delta x$, we set |dash_y(h)| to the length of the dash pattern by
 finding the maximum of $\Delta x$ and the absolute value of~$y_0$.
 
 @c 
-static pointer mp_make_dashes (MP mp,pointer h) { /* returns |h| or |null| */
-  pointer p;  /* this scans the stroked nodes in the object list */
-  pointer p0;  /* if not |null| this points to the first stroked node */
-  pointer pp,qq,rr;  /* pointers into |mp_path_p(p)| */
-  pointer d,dd;  /* pointers used to create the dash list */
+static mp_node mp_make_dashes (MP mp, mp_node h) { /* returns |h| or |null| */
+  mp_node p;  /* this scans the stroked nodes in the object list */
+  mp_node p0;  /* if not |null| this points to the first stroked node */
+  mp_knot pp, qq, rr;  /* pointers into |mp_path_p(p)| */
+  mp_node d,dd;  /* pointers used to create the dash list */
   scaled y0;
   @<Other local variables in |make_dashes|@>;
   y0=0;  /* the initial $y$ coordinate */
-  if ( dash_list(h)!=null_dash ) 
-	return h;
-  p0=null;
+  if ( dash_list(h)!=mp->null_dash ) 
+    return h;
+  p0=NULL;
   p=mp_link(dummy_loc(h));
-  while ( p!=null ) { 
-    if ( mp_type(p)!=mp_stroked_code ) {
+  while ( p!=NULL ) { 
+    if ( mp_type(p)!=mp_stroked_node_type ) {
       @<Compain that the edge structure contains a node of the wrong type
         and |goto not_found|@>;
     }
-    pp=mp_path_p(p);
-    if ( p0==null ){ p0=p; y0=mp_y_coord(pp);  };
+    pp=mp_path_p((mp_stroked_node)p);
+    if ( p0==NULL ){ 
+       p0=p; 
+       y0=mp_y_coord(pp);  
+    }
     @<Make |d| point to a new dash node created from stroke |p| and path |pp|
       or |goto not_found| if there is an error@>;
     @<Insert |d| into the dash list and |goto not_found| if there is an error@>;
     p=mp_link(p);
   }
-  if ( dash_list(h)==null_dash ) 
+  if ( dash_list(h)==mp->null_dash ) 
     goto NOT_FOUND; /* No error message */
   @<Scan |dash_list(h)| and deal with any dashes that are themselves dashed@>;
   @<Set |dash_y(h)| and merge the first and last dashes if necessary@>;
@@ -10244,22 +10441,28 @@ help3("When you say `dashed p', every path in p should be monotone",
 mp_put_get_error(mp);
 }
 
-@ We stash |p| in |mp_info(d)| if |mp_dash_p(p)<>0| so that subsequent processing can
+@ We stash |p| in |dash_info(d)| if |mp_dash_p(p)<>0| so that subsequent processing can
 handle the case where the pen stroke |p| is itself dashed.
+
+@d dash_info(A) ((mp_dash_node)(A))->dash_info_  /* in an edge header this points to the first dash node */
 
 @<Make |d| point to a new dash node created from stroke |p| and path...@>=
 @<Make sure |p| and |p0| are the same color and |goto not_found| if there is
   an error@>;
 rr=pp;
-if ( mp_link(pp)!=pp ) {
+if ( mp_next_knot(pp)!=pp ) {
   do {  
-    qq=rr; rr=mp_link(rr);
+    qq=rr; 
+    rr=mp_next_knot(rr);
     @<Check for retracing between knots |qq| and |rr| and |goto not_found|
       if there is a problem@>;
   } while (mp_right_type(rr)!=mp_endpoint);
 }
-d=mp_get_node(mp, dash_node_size);
-if ( mp_dash_p(p)==0 ) mp_info(d)=0;  else mp_info(d)=p;
+d=mp_get_dash_node(mp);
+if ( mp_dash_p(p)==NULL ) 
+  dash_info(d)=NULL;  
+else 
+  dash_info(d)=p;
 if ( mp_x_coord(pp)<mp_x_coord(rr) ) { 
   start_x(d)=mp_x_coord(pp);
   stop_x(d)=mp_x_coord(rr);
@@ -10304,7 +10507,7 @@ if ( (red_val(p)!=red_val(p0)) || (black_val(p)!=black_val(p0)) ||
 }
 
 @ @<Insert |d| into the dash list and |goto not_found| if there is an error@>=
-start_x(null_dash)=stop_x(d);
+start_x(mp->null_dash)=stop_x(d);
 dd=h; /* this makes |mp_link(dd)=dash_list(h)| */
 while ( start_x(mp_link(dd))<stop_x(d) )
   dd=mp_link(dd);
@@ -10317,7 +10520,7 @@ mp_link(dd)=d
 
 @ @<Set |dash_y(h)| and merge the first and last dashes if necessary@>=
 d=dash_list(h);
-while ( (mp_link(d)!=null_dash) )
+while ( (mp_link(d)!=mp->null_dash) )
   d=mp_link(d);
 dd=dash_list(h);
 dash_y(h)=stop_x(d)-start_x(dd);
@@ -10345,9 +10548,9 @@ smaller dashes.
 
 @<Scan |dash_list(h)| and deal with any dashes that are themselves dashed@>=
 d=h;  /* now |mp_link(d)=dash_list(h)| */
-while ( mp_link(d)!=null_dash ) {
-  ds=mp_info(mp_link(d));
-  if ( ds==null ) { 
+while ( mp_link(d)!=mp->null_dash ) {
+  ds=dash_info(mp_link(d));
+  if ( ds==NULL ) { 
     d=mp_link(d);
   } else {
     hh=mp_dash_p(ds);
@@ -10366,10 +10569,10 @@ while ( mp_link(d)!=null_dash ) {
 }
 
 @ @<Other local variables in |make_dashes|@>=
-pointer dln;  /* |mp_link(d)| */
-pointer hh;  /* an edge header that tells how to break up |dln| */
+mp_node dln;  /* |mp_link(d)| */
+mp_node hh;  /* an edge header that tells how to break up |dln| */
 scaled hsf;  /* the dash pattern from |hh| gets scaled by this */
-pointer ds;  /* the stroked node from which |hh| and |hsf| are derived */
+mp_node ds;  /* the stroked node from which |hh| and |hsf| are derived */
 scaled xoff;  /* added to $x$ values in |dash_list(hh)| to match |dln| */
 
 @ @<Replace |mp_link(d)| by a dashed version as determined by edge header...@>=
@@ -10377,9 +10580,9 @@ dln=mp_link(d);
 dd=dash_list(hh);
 xoff=start_x(dln)-mp_take_scaled(mp, hsf,start_x(dd))-
         mp_take_scaled(mp, hsf,mp_dash_offset(mp, hh));
-start_x(null_dash)=mp_take_scaled(mp, hsf,start_x(dd))
+start_x(mp->null_dash)=mp_take_scaled(mp, hsf,start_x(dd))
                    +mp_take_scaled(mp, hsf,dash_y(hh));
-stop_x(null_dash)=start_x(null_dash);
+stop_x(mp->null_dash)=start_x(mp->null_dash);
 @<Advance |dd| until finding the first dash that overlaps |dln| when
   offset by |xoff|@>;
 while ( start_x(dln)<=stop_x(dln) ) {
@@ -10403,7 +10606,7 @@ while ( xoff+mp_take_scaled(mp, hsf,stop_x(dd))<start_x(dln) ) {
 }
 
 @ @<If |dd| has `fallen off the end', back up to the beginning and fix...@>=
-if ( dd==null_dash ) { 
+if ( dd==mp->null_dash ) { 
   dd=dash_list(hh);
   xoff=xoff+mp_take_scaled(mp, hsf,dash_y(hh));
 }
@@ -10413,7 +10616,7 @@ if ( dd==null_dash ) {
 
 @<Insert a dash between |d| and |dln| for the overlap with the offset...@>=
 if ( (xoff+mp_take_scaled(mp, hsf,start_x(dd)))<=stop_x(dln) ) {
-  mp_link(d)=mp_get_node(mp, dash_node_size);
+  mp_link(d)=mp_get_dash_node(mp);
   d=mp_link(d);
   mp_link(d)=dln;
   if ( start_x(dln)>(xoff+mp_take_scaled(mp, hsf,start_x(dd))))
@@ -10432,7 +10635,7 @@ header's bounding box to accommodate the box computed by |path_bbox| or
 |pen_bbox|. (This is stored in global variables |minx|, |miny|, |maxx|, and
 |maxy|.)
 
-@c static void mp_adjust_bbox (MP mp,pointer h) { 
+@c static void mp_adjust_bbox (MP mp, mp_node h) { 
   if ( mp_minx<minx_val(h) ) minx_val(h)=mp_minx;
   if ( mp_miny<miny_val(h) ) miny_val(h)=mp_miny;
   if ( mp_maxx>maxx_val(h) ) maxx_val(h)=mp_maxx;
@@ -10443,15 +10646,15 @@ header's bounding box to accommodate the box computed by |path_bbox| or
 edge header~|h| to account for the squared-off ends of a non-cyclic path~|p|
 that is to be stroked with the pen~|pp|.
 
-@c static void mp_box_ends (MP mp, pointer p, pointer pp, pointer h) {
-  pointer q;  /* a knot node adjacent to knot |p| */
+@c static void mp_box_ends (MP mp, mp_knot p, mp_knot pp, mp_node h) {
+  mp_knot q;  /* a knot node adjacent to knot |p| */
   fraction dx,dy;  /* a unit vector in the direction out of the path at~|p| */
   scaled d;  /* a factor for adjusting the length of |(dx,dy)| */
   scaled z;  /* a coordinate being tested against the bounding box */
   scaled xx,yy;  /* the extreme pen vertex in the |(dx,dy)| direction */
   integer i; /* a loop counter */
   if ( mp_right_type(p)!=mp_endpoint ) { 
-    q=mp_link(p);
+    q=mp_next_knot(p);
     while (1) { 
       @<Make |(dx,dy)| the final direction for the path segment from
         |q| to~|p|; set~|d|@>;
@@ -10474,7 +10677,7 @@ that is to be stroked with the pen~|pp|.
 }
 
 @ @<Make |(dx,dy)| the final direction for the path segment from...@>=
-if ( q==mp_link(p) ) { 
+if ( q==mp_next_knot(p) ) { 
   dx=mp_x_coord(p)-mp_right_x(p);
   dy=mp_y_coord(p)-mp_right_y(p);
   if ( (dx==0)&&(dy==0) ) {
@@ -10514,7 +10717,7 @@ if ( z>maxy_val(h) ) maxy_val(h)=z
 @ @<Advance |p| to the end of the path and make |q| the previous knot@>=
 do {  
   q=p;
-  p=mp_link(p);
+  p=mp_next_knot(p);
 } while (mp_right_type(p)!=mp_endpoint)
 
 @ The major difficulty in finding the bounding box of an edge structure is the
@@ -10526,50 +10729,54 @@ the objects to be clipped.  Such calls are distinguished by the fact that the
 boolean parameter |top_level| is false.
 
 @c 
-void mp_set_bbox (MP mp,pointer h, boolean top_level) {
-  pointer p;  /* a graphical object being considered */
+void mp_set_bbox (MP mp, mp_node h, boolean top_level) {
+  mp_node p;  /* a graphical object being considered */
   scaled sminx,sminy,smaxx,smaxy;
   /* for saving the bounding box during recursive calls */
   scaled x0,x1,y0,y1;  /* temporary registers */
-  integer lev;  /* nesting level for |mp_start_bounds_code| nodes */
+  integer lev;  /* nesting level for |mp_start_bounds_node| nodes */
   @<Wipe out any existing bounding box information if |bbtype(h)| is
   incompatible with |internal[mp_true_corners]|@>;
-  while ( mp_link(bblast(h))!=null ) { 
+  while ( mp_link(bblast(h))!=NULL ) { 
     p=mp_link(bblast(h));
     bblast(h)=p;
     switch (mp_type(p)) {
-    case mp_stop_clip_code: 
+    case mp_stop_clip_node_type: 
       if ( top_level ) mp_confusion(mp, "bbox");  else return;
 @:this can't happen bbox}{\quad bbox@>
       break;
     @<Other cases for updating the bounding box based on the type of object |p|@>;
-    } /* all cases are enumerated above */
+    default:  /* there are no other valid cases, but please the compiler */
+      break;
+    }
   }
   if ( ! top_level ) mp_confusion(mp, "bbox");
 }
 
 @ @<Declarations@>=
-static void mp_set_bbox (MP mp,pointer h, boolean top_level);
+static void mp_set_bbox (MP mp, mp_node h, boolean top_level);
 
 @ @<Wipe out any existing bounding box information if |bbtype(h)| is...@>=
 switch (bbtype(h)) {
 case no_bounds: 
   break;
 case bounds_set: 
-  if ( mp->internal[mp_true_corners]>0 ) mp_init_bbox(mp, h);
+  if ( internal_value(mp_true_corners)>0 ) mp_init_bbox(mp, h);
   break;
 case bounds_unset: 
-  if ( mp->internal[mp_true_corners]<=0 ) mp_init_bbox(mp, h);
+  if ( internal_value(mp_true_corners)<=0 ) mp_init_bbox(mp, h);
   break;
 } /* there are no other cases */
 
 @ @<Other cases for updating the bounding box...@>=
-case mp_fill_code: 
-  mp_path_bbox(mp, mp_path_p(p));
-  if ( mp_pen_p(p)!=null ) { 
-    x0=mp_minx; y0=mp_miny;
-    x1=mp_maxx; y1=mp_maxy;
-    mp_pen_bbox(mp, mp_pen_p(p));
+case mp_fill_node_type: 
+  mp_path_bbox(mp, mp_path_p((mp_fill_node)p));
+  if ( mp_pen_p((mp_fill_node)p)!=null ) { 
+    x0=mp_minx; 
+    y0=mp_miny;
+    x1=mp_maxx; 
+    y1=mp_maxy;
+    mp_pen_bbox(mp, mp_pen_p((mp_fill_node)p));
     mp_minx=mp_minx+x0;
     mp_miny=mp_miny+y0;
     mp_maxx=mp_maxx+x1;
@@ -10579,30 +10786,30 @@ case mp_fill_code:
   break;
 
 @ @<Other cases for updating the bounding box...@>=
-case mp_start_bounds_code: 
-  if ( mp->internal[mp_true_corners]>0 ) {
+case mp_start_bounds_node_type: 
+  if ( internal_value(mp_true_corners)>0 ) {
     bbtype(h)=bounds_unset;
   } else { 
     bbtype(h)=bounds_set;
-    mp_path_bbox(mp, mp_path_p(p));
+    mp_path_bbox(mp, mp_path_p((mp_start_bounds_node)p));
     mp_adjust_bbox(mp, h);
-    @<Scan to the matching |mp_stop_bounds_code| node and update |p| and
+    @<Scan to the matching |mp_stop_bounds_node| node and update |p| and
       |bblast(h)|@>;
   }
   break;
-case mp_stop_bounds_code: 
-  if ( mp->internal[mp_true_corners]<=0 ) mp_confusion(mp, "bbox2");
+case mp_stop_bounds_node_type: 
+  if ( internal_value(mp_true_corners)<=0 ) mp_confusion(mp, "bbox2");
 @:this can't happen bbox2}{\quad bbox2@>
   break;
 
-@ @<Scan to the matching |mp_stop_bounds_code| node and update |p| and...@>=
+@ @<Scan to the matching |mp_stop_bounds_node| node and update |p| and...@>=
 lev=1;
 while ( lev!=0 ) { 
   if ( mp_link(p)==null ) mp_confusion(mp, "bbox2");
 @:this can't happen bbox2}{\quad bbox2@>
   p=mp_link(p);
-  if ( mp_type(p)==mp_start_bounds_code ) incr(lev);
-  else if ( mp_type(p)==mp_stop_bounds_code ) decr(lev);
+  if ( mp_type(p)==mp_start_bounds_node_type ) incr(lev);
+  else if ( mp_type(p)==mp_stop_bounds_node_type ) decr(lev);
 }
 bblast(h)=p
 
@@ -10612,18 +10819,18 @@ when using butt end caps.  The basic computation is for round end caps and
 |box_ends| augments it for square end caps.
 
 @<Other cases for updating the bounding box...@>=
-case mp_stroked_code: 
-  mp_path_bbox(mp, mp_path_p(p));
+case mp_stroked_node_type: 
+  mp_path_bbox(mp, mp_path_p((mp_stroked_node)p));
   x0=mp_minx; y0=mp_miny;
   x1=mp_maxx; y1=mp_maxy;
-  mp_pen_bbox(mp, mp_pen_p(p));
+  mp_pen_bbox(mp, mp_pen_p((mp_stroked_node)p));
   mp_minx=mp_minx+x0;
   mp_miny=mp_miny+y0;
   mp_maxx=mp_maxx+x1;
   mp_maxy=mp_maxy+y1;
   mp_adjust_bbox(mp, h);
-  if ( (mp_left_type(mp_path_p(p))==mp_endpoint)&&(lcap_val(p)==2) )
-    mp_box_ends(mp, mp_path_p(p), mp_pen_p(p), h);
+  if ( (mp_left_type(mp_path_p((mp_stroked_node)p))==mp_endpoint)&&(lcap_val(p)==2) )
+    mp_box_ends(mp, mp_path_p((mp_stroked_node)p), mp_pen_p((mp_stroked_node)p), h);
   break;
 
 @ The height width and depth information stored in a text node determines a
@@ -10631,7 +10838,7 @@ rectangle that needs to be transformed according to the transformation
 parameters stored in the text node.
 
 @<Other cases for updating the bounding box...@>=
-case mp_text_code: 
+case mp_text_node_type: 
   x1=mp_take_scaled(mp, txx_val(p),width_val(p));
   y0=mp_take_scaled(mp, txy_val(p),-depth_val(p));
   y1=mp_take_scaled(mp, txy_val(p),height_val(p));
@@ -10652,11 +10859,11 @@ case mp_text_code:
   break;
 
 @ This case involves a recursive call that advances |bblast(h)| to the node of
-type |mp_stop_clip_code| that matches |p|.
+type |mp_stop_clip_node| that matches |p|.
 
 @<Other cases for updating the bounding box...@>=
-case mp_start_clip_code: 
-  mp_path_bbox(mp, mp_path_p(p));
+case mp_start_clip_node_type: 
+  mp_path_bbox(mp, mp_path_p((mp_start_clip_node)p));
   x0=mp_minx; y0=mp_miny;
   x1=mp_maxx; y1=mp_maxy;
   sminx=minx_val(h); sminy=miny_val(h);
@@ -10712,11 +10919,11 @@ Since an envelope spec only determines relative changes in pen offsets,
 integer spec_offset; /* number of pen edges between |h| and the initial offset */
 
 @ @c
-static pointer mp_offset_prep (MP mp,pointer c, pointer h) {
+static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h) {
   halfword n; /* the number of vertices in the pen polygon */
-  pointer c0,p,q,q0,r,w, ww; /* for list manipulation */
+  mp_knot c0, p, q, q0, r, w, ww; /* for list manipulation */
   integer k_needed; /* amount to be added to |mp_info(p)| when it is computed */
-  pointer w0; /* a pointer to pen offset to use just before |p| */
+  mp_knot w0; /* a pointer to pen offset to use just before |p| */
   scaled dxin,dyin; /* the direction into knot |p| */
   integer turn_amt; /* change in pen offsets for the current cubic */
   @<Other local variables for |offset_prep|@>;
@@ -10725,7 +10932,7 @@ static pointer mp_offset_prep (MP mp,pointer c, pointer h) {
   @<Initialize the incoming direction and pen offset at |c|@>;
   p=c; c0=c; k_needed=0;
   do {  
-    q=mp_link(p);
+    q=mp_next_knot(p);
     @<Split the cubic between |p| and |q|, if necessary, into cubics
       associated with single offsets, after which |q| should
       point to the end of the final such cubic@>;
@@ -10733,7 +10940,7 @@ static pointer mp_offset_prep (MP mp,pointer c, pointer h) {
     @<Advance |p| to node |q|, removing any ``dead'' cubics that
       might have been introduced by the splitting process@>;
   } while (q!=c);
-  @<Fix the offset change in |mp_info(c)| and set |c| to the return value of
+  @<Fix the offset change in |mp_knot_info(c)| and set |c| to the return value of
     |offset_prep|@>;
   return c;
 }
@@ -10744,17 +10951,18 @@ knot nodes because some nodes are deleted while removing dead cubics.  Thus
 |offset_prep| updates the following pointers
 
 @<Glob...@>=
-pointer spec_p1;
-pointer spec_p2; /* pointers to distinguished knots */
+mp_knot spec_p1;
+mp_knot spec_p2; /* pointers to distinguished knots */
 
 @ @<Set init...@>=
-mp->spec_p1=null; mp->spec_p2=null;
+mp->spec_p1=NULL; 
+mp->spec_p2=NULL;
 
 @ @<Initialize the pen size~|n|@>=
 n=0; p=h;
 do {  
   incr(n);
-  p=mp_link(p);
+  p=mp_next_knot(p);
 } while (p!=h)
 
 @ Since the true incoming direction isn't known yet, we just pick a direction
@@ -10762,11 +10970,11 @@ consistent with the pen offset~|h|.  If this is wrong, it can be corrected
 later.
 
 @<Initialize the incoming direction and pen offset at |c|@>=
-dxin=mp_x_coord(mp_link(h))-mp_x_coord(knil(h));
-dyin=mp_y_coord(mp_link(h))-mp_y_coord(knil(h));
+dxin=mp_x_coord(mp_next_knot(h))-mp_x_coord(mp_prev_knot(h));
+dyin=mp_y_coord(mp_next_knot(h))-mp_y_coord(mp_prev_knot(h));
 if ( (dxin==0)&&(dyin==0) ) {
-  dxin=mp_y_coord(knil(h))-mp_y_coord(h);
-  dyin=mp_x_coord(h)-mp_x_coord(knil(h));
+  dxin=mp_y_coord(mp_prev_knot(h))-mp_y_coord(h);
+  dyin=mp_x_coord(h)-mp_x_coord(mp_prev_knot(h));
 }
 w0=h
 
@@ -10783,7 +10991,7 @@ on Sarovar.)
 @<Advance |p| to node |q|, removing any ``dead'' cubics...@>=
 q0=q;
 do { 
-  r=mp_link(p);
+  r=mp_next_knot(p);
   if ( mp_x_coord(p)==mp_right_x(p) && mp_y_coord(p)==mp_right_y(p) &&
        mp_x_coord(p)==mp_left_x(r)  && mp_y_coord(p)==mp_left_y(r) &&
        mp_x_coord(p)==mp_x_coord(r) && mp_y_coord(p)==mp_y_coord(r) &&
@@ -10795,19 +11003,25 @@ do {
 } while (p!=q);
 /* Check if we removed too much */
 if ((q!=q0)&&(q!=c||c==c0))
-  q = mp_link(q)
+  q = mp_next_knot(q)
 
 @ @<Remove the cubic following |p| and update the data structures...@>=
-{ k_needed=mp_info(p)-zero_off;
+{ 
+  k_needed=mp_knot_info(p)-zero_off;
   if ( r==q ) { 
     q=p;
   } else { 
-    mp_info(p)=k_needed+mp_info(r);
+    mp_knot_info(p)=k_needed+mp_knot_info(r);
     k_needed=0;
-  };
-  if ( r==c ) { mp_info(p)=mp_info(c); c=p; };
-  if ( r==mp->spec_p1 ) mp->spec_p1=p;
-  if ( r==mp->spec_p2 ) mp->spec_p2=p;
+  }
+  if ( r==c ) { 
+    mp_next_knot(p)=mp_next_knot(c); 
+    c=p; 
+  }
+  if ( r==mp->spec_p1 ) 
+    mp->spec_p1=p;
+  if ( r==mp->spec_p2 ) 
+    mp->spec_p2=p;
   r=p; mp_remove_cubic(mp, p);
 }
 
@@ -10815,15 +11029,19 @@ if ((q!=q0)&&(q!=c||c==c0))
 routine to work for paths.
 
 @<Declarations@>=
-static void mp_split_cubic (MP mp,pointer p, fraction t) ;
+static void mp_split_cubic (MP mp, mp_knot p, fraction t) ;
 
 @ @c
-void mp_split_cubic (MP mp,pointer p, fraction t) { /* splits the cubic after |p| */
+void mp_split_cubic (MP mp, mp_knot p, fraction t) { /* splits the cubic after |p| */
   scaled v; /* an intermediate value */
-  pointer q,r; /* for list manipulation */
-  q=mp_link(p); r=mp_get_node(mp, knot_node_size); mp_link(p)=r; mp_link(r)=q;
+  mp_knot q, r; /* for list manipulation */
+  q=mp_next_knot(p); 
+  r=mp_new_knot(mp); 
+  mp_next_knot(p)=r; 
+  mp_next_knot(r)=q;
   mp_originator(r)=mp_program_code;
-  mp_left_type(r)=mp_explicit; mp_right_type(r)=mp_explicit;
+  mp_left_type(r)=mp_explicit; 
+  mp_right_type(r)=mp_explicit;
   v=t_of_the_way(mp_right_x(p),mp_left_x(q));
   mp_right_x(p)=t_of_the_way(mp_x_coord(p),mp_right_x(p));
   mp_left_x(q)=t_of_the_way(mp_left_x(q),mp_x_coord(q));
@@ -10838,17 +11056,20 @@ void mp_split_cubic (MP mp,pointer p, fraction t) { /* splits the cubic after |p
   mp_y_coord(r)=t_of_the_way(mp_left_y(r),mp_right_y(r));
 }
 
-@ This does not set |mp_info(p)| or |mp_right_type(p)|.
+@ This does not set |mp_knot_info(p)| or |mp_right_type(p)|.
 
 @<Declarations@>=
-static void mp_remove_cubic (MP mp,pointer p) ; 
+static void mp_remove_cubic (MP mp, mp_knot p) ; 
 
 @ @c
-void mp_remove_cubic (MP mp,pointer p) { /* removes the dead cubic following~|p| */
-  pointer q; /* the node that disappears */
-  q=mp_link(p); mp_link(p)=mp_link(q);
-  mp_right_x(p)=mp_right_x(q); mp_right_y(p)=mp_right_y(q);
-  mp_free_node(mp, q,knot_node_size);
+void mp_remove_cubic (MP mp, mp_knot p) { /* removes the dead cubic following~|p| */
+  mp_knot q; /* the node that disappears */
+  (void)mp;
+  q=mp_next_knot(p); 
+  mp_next_knot(p)=mp_next_knot(q);
+  mp_right_x(p)=mp_right_x(q); 
+  mp_right_y(p)=mp_right_y(q);
+  mp_xfree(q);
 }
 
 @ Let $d\prec d'$ mean that the counter-clockwise angle from $d$ to~$d'$ is
@@ -10865,12 +11086,12 @@ We may have to split a cubic into many pieces before each
 piece corresponds to a unique offset.
 
 @<Split the cubic between |p| and |q|, if necessary, into cubics...@>=
-mp_info(p)=zero_off+k_needed;
+mp_knot_info(p)=zero_off+k_needed;
 k_needed=0;
 @<Prepare for derivative computations;
   |goto not_found| if the current cubic is dead@>;
 @<Find the initial direction |(dx,dy)|@>;
-@<Update |mp_info(p)| and find the offset $w_k$ such that
+@<Update |mp_knot_info(p)| and find the offset $w_k$ such that
   $d_{k-1}\preceq(\\{dx},\\{dy})\prec d_k$; also advance |w0| for
   the direction change at |p|@>;
 @<Find the final direction |(dxin,dyin)|@>;
@@ -10879,13 +11100,20 @@ k_needed=0;
 w0=mp_pen_walk(mp, w0,turn_amt)
 
 @ @<Declarations@>=
-static pointer mp_pen_walk (MP mp,pointer w, integer k) ;
+static mp_knot mp_pen_walk (MP mp, mp_knot w, integer k) ;
 
 @ @c
-pointer mp_pen_walk (MP mp,pointer w, integer k) {
+mp_knot mp_pen_walk (MP mp, mp_knot w, integer k) {
   /* walk |k| steps around a pen from |w| */
-  while ( k>0 ) { w=mp_link(w); decr(k);  };
-  while ( k<0 ) { w=knil(w); incr(k);  };
+  (void)mp;
+  while ( k>0 ) { 
+    w=mp_next_knot(w); 
+    decr(k);  
+  }
+  while ( k<0 ) { 
+    w=mp_prev_knot(w); 
+    incr(k);  
+  }
   return w;
 }
 
@@ -10956,30 +11184,35 @@ be set properly.  The |turn_amt| parameter gives the absolute value of the
 overall net change in pen offsets.
 
 @<Declarations@>=
-static void mp_fin_offset_prep (MP mp,pointer p, pointer w, integer 
+static void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, integer 
   x0,integer x1, integer x2, integer y0, integer y1, integer y2, 
   integer rise, integer turn_amt) ;
 
 @ @c
-void mp_fin_offset_prep (MP mp,pointer p, pointer w, integer 
+void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, integer 
   x0,integer x1, integer x2, integer y0, integer y1, integer y2, 
   integer rise, integer turn_amt)  {
-  pointer ww; /* for list manipulation */
+  mp_knot ww; /* for list manipulation */
   scaled du,dv; /* for slope calculation */
   integer t0,t1,t2; /* test coefficients */
   fraction t; /* place where the derivative passes a critical slope */
   fraction s; /* slope or reciprocal slope */
   integer v; /* intermediate value for updating |x0..y2| */
-  pointer q; /* original |mp_link(p)| */
-  q=mp_link(p);
+  mp_knot q; /* original |mp_next_knot(p)| */
+  q=mp_next_knot(p);
   while (1)  { 
-    if ( rise>0 ) ww=mp_link(w); /* a pointer to $w\k$ */
-    else  ww=knil(w); /* a pointer to $w_{k-1}$ */
+    if ( rise>0 ) 
+      ww=mp_next_knot(w); /* a pointer to $w\k$ */
+    else  
+      ww=mp_prev_knot(w); /* a pointer to $w_{k-1}$ */
     @<Compute test coefficients |(t0,t1,t2)|
       for $d(t)$ versus $d_k$ or $d_{k-1}$@>;
     t=mp_crossing_point(mp, t0,t1,t2);
     if ( t>=fraction_one ) {
-      if ( turn_amt>0 ) t=fraction_one;  else return;
+      if ( turn_amt>0 ) 
+        t=fraction_one;
+      else 
+        return;
     }
     @<Split the cubic at $t$,
       and split off another cubic if the derivative crosses back@>;
@@ -10993,19 +11226,24 @@ function cross from positive to negative when $d_{k-1}\preceq d(t)\preceq d_k$
 begins to fail.
 
 @<Compute test coefficients |(t0,t1,t2)| for $d(t)$ versus...@>=
-du=mp_x_coord(ww)-mp_x_coord(w); dv=mp_y_coord(ww)-mp_y_coord(w);
+du=mp_x_coord(ww)-mp_x_coord(w);
+dv=mp_y_coord(ww)-mp_y_coord(w);
 if ( abs(du)>=abs(dv) ) {
   s=mp_make_fraction(mp, dv,du);
   t0=mp_take_fraction(mp, x0,s)-y0;
   t1=mp_take_fraction(mp, x1,s)-y1;
   t2=mp_take_fraction(mp, x2,s)-y2;
-  if ( du<0 ) { negate(t0); negate(t1); negate(t2);  }
+  if ( du<0 ) { 
+    negate(t0); negate(t1); negate(t2);
+  }
 } else { 
   s=mp_make_fraction(mp, du,dv);
   t0=x0-mp_take_fraction(mp, y0,s);
   t1=x1-mp_take_fraction(mp, y1,s);
   t2=x2-mp_take_fraction(mp, y2,s);
-  if ( dv<0 ) { negate(t0); negate(t1); negate(t2);  }
+  if ( dv<0 ) {
+    negate(t0); negate(t1); negate(t2);
+  }
 }
 if ( t0<0 ) t0=0 /* should be positive without rounding error */
 
@@ -11015,11 +11253,15 @@ respectively, yielding another solution of $(*)$.
 
 @<Split the cubic at $t$, and split off another...@>=
 { 
-mp_split_cubic(mp, p,t); p=mp_link(p); mp_info(p)=zero_off+rise;
+mp_split_cubic(mp, p,t); 
+p=mp_next_knot(p); 
+mp_knot_info(p)=zero_off+rise;
 decr(turn_amt);
-v=t_of_the_way(x0,x1); x1=t_of_the_way(x1,x2);
+v=t_of_the_way(x0,x1); 
+x1=t_of_the_way(x1,x2);
 x0=t_of_the_way(v,x1);
-v=t_of_the_way(y0,y1); y1=t_of_the_way(y1,y2);
+v=t_of_the_way(y0,y1); 
+y1=t_of_the_way(y1,y2);
 y0=t_of_the_way(v,y1);
 if ( turn_amt<0 ) {
   t1=t_of_the_way(t1,t2);
@@ -11027,13 +11269,16 @@ if ( turn_amt<0 ) {
   t=mp_crossing_point(mp, 0,-t1,-t2);
   if ( t>fraction_one ) t=fraction_one;
   incr(turn_amt);
-  if ( (t==fraction_one)&&(mp_link(p)!=q) ) {
-    mp_info(mp_link(p))=mp_info(mp_link(p))-rise;
+  if ( (t==fraction_one)&&(mp_next_knot(p)!=q) ) {
+    mp_knot_info(mp_next_knot(p))=mp_knot_info(mp_next_knot(p))-rise;
   } else { 
-    mp_split_cubic(mp, p,t); mp_info(mp_link(p))=zero_off-rise;
-    v=t_of_the_way(x1,x2); x1=t_of_the_way(x0,x1);
+    mp_split_cubic(mp, p,t); 
+    mp_knot_info(mp_next_knot(p))=zero_off-rise;
+    v=t_of_the_way(x1,x2); 
+    x1=t_of_the_way(x0,x1);
     x2=t_of_the_way(x1,v);
-    v=t_of_the_way(y1,y2); y1=t_of_the_way(y0,y1);
+    v=t_of_the_way(y1,y2); 
+    y1=t_of_the_way(y0,y1);
     y2=t_of_the_way(y1,v);
   }
 }
@@ -11074,11 +11319,11 @@ counter-clockwise in order to make \&{doublepath} envelopes come out
 @:double_path_}{\&{doublepath} primitive@>
 right.) This code depends on |w0| being the offset for |(dxin,dyin)|.
 
-@<Update |mp_info(p)| and find the offset $w_k$ such that...@>=
+@<Update |mp_knot_info(p)| and find the offset $w_k$ such that...@>=
 turn_amt=mp_get_turn_amt(mp,w0,dx,dy,(mp_ab_vs_cd(mp, dy,dxin,dx,dyin)>=0));
 w=mp_pen_walk(mp, w0, turn_amt);
 w0=w;
-mp_info(p)=mp_info(p)+turn_amt
+mp_knot_info(p)=mp_knot_info(p)+turn_amt
 
 @ Decide how many pen offsets to go away from |w| in order to find the offset
 for |(dx,dy)|, going counterclockwise if |ccw| is |true|.  This assumes that
@@ -11090,31 +11335,32 @@ to |(dx,dy)|.  In this case, we must be careful to stop after crossing the first
 such edge in order to avoid an infinite loop.
 
 @<Declarations@>=
-static integer mp_get_turn_amt (MP mp,pointer w, scaled  dx,
+static integer mp_get_turn_amt (MP mp, mp_knot w, scaled  dx,
                          scaled dy, boolean  ccw);
 
 @ @c
-integer mp_get_turn_amt (MP mp,pointer w, scaled  dx,
+integer mp_get_turn_amt (MP mp, mp_knot w, scaled  dx,
                          scaled dy, boolean  ccw) {
-  pointer ww; /* a neighbor of knot~|w| */
+  mp_knot ww; /* a neighbor of knot~|w| */
   integer s; /* turn amount so far */
   integer t; /* |ab_vs_cd| result */
   s=0;
+  (void)mp;
   if ( ccw ) { 
-    ww=mp_link(w);
+    ww=mp_next_knot(w);
     do {  
       t=mp_ab_vs_cd(mp, dy,(mp_x_coord(ww)-mp_x_coord(w)),
                         dx,(mp_y_coord(ww)-mp_y_coord(w)));
       if ( t<0 ) break;
       incr(s);
-      w=ww; ww=mp_link(ww);
+      w=ww; ww=mp_next_knot(ww);
     } while (t>0);
   } else { 
-    ww=knil(w);
+    ww=mp_prev_knot(w);
     while ( mp_ab_vs_cd(mp, dy,(mp_x_coord(w)-mp_x_coord(ww)),
                             dx,(mp_y_coord(w)-mp_y_coord(ww))) < 0) { 
       decr(s);
-      w=ww; ww=knil(ww);
+      w=ww; ww=mp_prev_knot(ww);
     }
   }
   return s;
@@ -11125,18 +11371,24 @@ is |(dxin,dyin)|.  With this knowledge of the incoming direction at |c|, we
 can correct |mp_info(c)| which was erroneously based on an incoming offset
 of~|h|.
 
-@d fix_by(A) mp_info(c)=mp_info(c)+(A)
+@d fix_by(A) mp_knot_info(c)=mp_knot_info(c)+(A)
 
-@<Fix the offset change in |mp_info(c)| and set |c| to the return value of...@>=
-mp->spec_offset=mp_info(c)-zero_off;
-if ( mp_link(c)==c ) {
-  mp_info(c)=zero_off+n;
+@<Fix the offset change in |mp_knot_info(c)| and set |c| to the return value of...@>=
+mp->spec_offset=mp_knot_info(c)-zero_off;
+if ( mp_next_knot(c)==c ) {
+  mp_knot_info(c)=zero_off+n;
 } else { 
   fix_by(k_needed);
-  while ( w0!=h ) { fix_by(1); w0=mp_link(w0);  };
-  while ( mp_info(c)<=zero_off-n ) fix_by(n);
-  while ( mp_info(c)>zero_off ) fix_by(-n);
-  if ( (mp_info(c)!=zero_off)&&(mp_ab_vs_cd(mp, dy0,dxin,dx0,dyin)>=0) ) fix_by(n);
+  while ( w0!=h ) { 
+    fix_by(1); 
+    w0=mp_next_knot(w0);
+  }
+  while ( mp_knot_info(c)<=zero_off-n ) 
+    fix_by(n);
+  while ( mp_knot_info(c)>zero_off ) 
+    fix_by(-n);
+  if ( (mp_knot_info(c)!=zero_off)&&(mp_ab_vs_cd(mp, dy0,dxin,dx0,dyin)>=0) ) 
+    fix_by(n);
 }
 
 @ Finally we want to reduce the general problem to situations that
@@ -11144,20 +11396,23 @@ if ( mp_link(c)==c ) {
 with respect to $d_{k-1}$, and apply |fin_offset_prep| to each part.
 
 @<Complete the offset splitting process@>=
-ww=knil(w);
+ww=mp_prev_knot(w);
 @<Compute test coeff...@>;
 @<Find the first |t| where $d(t)$ crosses $d_{k-1}$ or set
   |t:=fraction_one+1|@>;
 if ( t>fraction_one ) {
   mp_fin_offset_prep(mp, p,w,x0,x1,x2,y0,y1,y2,1,turn_amt);
 } else {
-  mp_split_cubic(mp, p,t); r=mp_link(p);
-  x1a=t_of_the_way(x0,x1); x1=t_of_the_way(x1,x2);
+  mp_split_cubic(mp, p,t);
+  r=mp_next_knot(p);
+  x1a=t_of_the_way(x0,x1); 
+  x1=t_of_the_way(x1,x2);
   x2a=t_of_the_way(x1a,x1);
-  y1a=t_of_the_way(y0,y1); y1=t_of_the_way(y1,y2);
+  y1a=t_of_the_way(y0,y1); 
+  y1=t_of_the_way(y1,y2);
   y2a=t_of_the_way(y1a,y1);
   mp_fin_offset_prep(mp, p,w,x0,x1a,x2a,y0,y1a,y2a,1,0); x0=x2a; y0=y2a;
-  mp_info(r)=zero_off-1;
+  mp_knot_info(r)=zero_off-1;
   if ( turn_amt>=0 ) {
     t1=t_of_the_way(t1,t2);
     if ( t1>0 ) t1=0;
@@ -11171,12 +11426,13 @@ if ( t>fraction_one ) {
 }
 
 @ @<Split off another rising cubic for |fin_offset_prep|@>=
-mp_split_cubic(mp, r,t); mp_info(mp_link(r))=zero_off+1;
+mp_split_cubic(mp, r,t); 
+mp_knot_info(mp_next_knot(r))=zero_off+1;
 x1a=t_of_the_way(x1,x2); x1=t_of_the_way(x0,x1);
 x0a=t_of_the_way(x1,x1a);
 y1a=t_of_the_way(y1,y2); y1=t_of_the_way(y0,y1);
 y0a=t_of_the_way(y1,y1a);
-mp_fin_offset_prep(mp, mp_link(r),w,x0a,x1a,x2,y0a,y1a,y2,1,turn_amt);
+mp_fin_offset_prep(mp, mp_next_knot(r),w,x0a,x1a,x2,y0a,y1a,y2,1,turn_amt);
 x2=x0a; y2=y0a
 
 @ At this point, the direction of the incoming pen edge is |(-du,-dv)|.
@@ -11274,36 +11530,38 @@ ss=mp_take_fraction(mp, (x0+x2),t_of_the_way(u0,u1))+
 that the |cur_pen| has not been walked around to the first offset.
 
 @c 
-static void mp_print_spec (MP mp,pointer cur_spec, pointer cur_pen, const char *s) {
-  pointer p,q; /* list traversal */
-  pointer w; /* the current pen offset */
+static void mp_print_spec (MP mp, mp_knot cur_spec, mp_knot cur_pen, const char *s) {
+  mp_knot p, q; /* list traversal */
+  mp_knot w; /* the current pen offset */
   mp_print_diagnostic(mp, "Envelope spec",s,true);
-  p=cur_spec; w=mp_pen_walk(mp, cur_pen,mp->spec_offset);
+  p=cur_spec; 
+  w=mp_pen_walk(mp, cur_pen,mp->spec_offset);
   mp_print_ln(mp);
   mp_print_two(mp, mp_x_coord(cur_spec),mp_y_coord(cur_spec));
   mp_print(mp, " % beginning with offset ");
   mp_print_two(mp, mp_x_coord(w),mp_y_coord(w));
   do { 
     while (1) {  
-      q=mp_link(p);
+      q=mp_next_knot(p);
       @<Print the cubic between |p| and |q|@>;
       p=q;
-	  if ((p==cur_spec) || (mp_info(p)!=zero_off)) 
+	  if ((p==cur_spec) || (mp_knot_info(p)!=zero_off)) 
     	break;
     }
-    if ( mp_info(p)!=zero_off ) {
-      @<Update |w| as indicated by |mp_info(p)| and print an explanation@>;
+    if ( mp_knot_info(p)!=zero_off ) {
+      @<Update |w| as indicated by |mp_knot_info(p)| and print an explanation@>;
     }
   } while (p!=cur_spec);
   mp_print_nl(mp, " & cycle");
   mp_end_diagnostic(mp, true);
 }
 
-@ @<Update |w| as indicated by |mp_info(p)| and print an explanation@>=
+@ @<Update |w| as indicated by |mp_knot_info(p)| and print an explanation@>=
 { 
-  w=mp_pen_walk(mp, w, (mp_info(p)-zero_off));
+  w=mp_pen_walk(mp, w, (mp_knot_info(p)-zero_off));
   mp_print(mp, " % ");
-  if ( mp_info(p)>zero_off ) mp_print(mp, "counter");
+  if ( mp_knot_info(p)>zero_off ) 
+    mp_print(mp, "counter");
   mp_print(mp, "clockwise to offset ");
   mp_print_two(mp, mp_x_coord(w),mp_y_coord(w));
 }
@@ -11337,13 +11595,13 @@ has retrograde lines.  In such cases we use a simple connect-the-endpoints
 approach that is achieved by setting |join_type:=2|.
 
 @c
-static pointer mp_make_envelope (MP mp,pointer c, pointer h, quarterword ljoin,
+static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
   quarterword lcap, scaled miterlim) {
-  pointer p,q,r,q0; /* for manipulating the path */
-  int join_type=0; /* codes |0..3| for mitered, round, beveled, or square */
-  pointer w,w0; /* the pen knot for the current offset */
+  mp_knot p, q, r, q0; /* for manipulating the path */
+  mp_knot w, w0; /* the pen knot for the current offset */
   scaled qx,qy; /* unshifted coordinates of |q| */
   halfword k,k0; /* controls pen edge insertion */
+  int join_type=0; /* codes |0..3| for mitered, round, beveled, or square */
   @<Other local variables for |make_envelope|@>;
   dxin=0; dyin=0; dxout=0; dyout=0;
   mp->spec_p1=null; mp->spec_p2=null;
@@ -11353,9 +11611,11 @@ static pointer mp_make_envelope (MP mp,pointer c, pointer h, quarterword ljoin,
   w=h;
   p=c;
   do {  
-    q=mp_link(p); q0=q;
-    qx=mp_x_coord(q); qy=mp_y_coord(q);
-    k=mp_info(q);
+    q=mp_next_knot(p); 
+    q0=q;
+    qx=mp_x_coord(q); 
+    qy=mp_y_coord(q);
+    k=mp_knot_info(q);
     k0=k; w0=w;
     if ( k!=zero_off ) {
       @<Set |join_type| to indicate how to handle offset changes at~|q|@>;
@@ -11366,7 +11626,7 @@ static pointer mp_make_envelope (MP mp,pointer c, pointer h, quarterword ljoin,
       if ( (join_type==1)||(k==zero_off) )
          q=mp_insert_knot(mp, q,qx+mp_x_coord(w),qy+mp_y_coord(w));
     };
-    if ( q!=mp_link(p) ) {
+    if ( q!=mp_next_knot(p) ) {
       @<Set |p=mp_link(p)| and add knots between |p| and |q| as
         required by |join_type|@>;
     }
@@ -11377,7 +11637,7 @@ static pointer mp_make_envelope (MP mp,pointer c, pointer h, quarterword ljoin,
 
 @ @<Use |offset_prep| to compute the envelope spec then walk |h| around to...@>=
 c=mp_offset_prep(mp, c,h);
-if ( mp->internal[mp_tracing_specs]>0 ) 
+if ( internal_value(mp_tracing_specs)>0 ) 
   mp_print_spec(mp, c,h,"");
 h=mp_pen_walk(mp, h,mp->spec_offset)
 
@@ -11391,9 +11651,12 @@ envelope degenerate as well.
 if ( k<zero_off ) {
   join_type=2;
 } else {
-  if ( (q!=mp->spec_p1)&&(q!=mp->spec_p2) ) join_type=ljoin;
-  else if ( lcap==2 ) join_type=3;
-  else join_type=2-lcap;
+  if ( (q!=mp->spec_p1)&&(q!=mp->spec_p2) ) 
+    join_type=ljoin;
+  else if ( lcap==2 ) 
+    join_type=3;
+  else 
+    join_type=2-lcap;
   if ( (join_type==0)||(join_type==3) ) {
     @<Set the incoming and outgoing directions at |q|; in case of
       degeneracy set |join_type:=2|@>;
@@ -11409,7 +11672,8 @@ if ( k<zero_off ) {
   tmp=mp_take_fraction(mp, miterlim,fraction_half+
       half(mp_take_fraction(mp, dxin,dxout)+mp_take_fraction(mp, dyin,dyout)));
   if ( tmp<unity )
-    if ( mp_take_scaled(mp, miterlim,tmp)<unity ) join_type=2;
+    if ( mp_take_scaled(mp, miterlim,tmp)<unity ) 
+      join_type=2;
 }
 
 @ @<Other local variables for |make_envelope|@>=
@@ -11430,22 +11694,28 @@ mp_left_type(q)=mp_explicit;
 mp_right_type(q)=mp_explicit
 
 @ @<Step |w| and move |k| one step closer to |zero_off|@>=
-if ( k>zero_off ){ w=mp_link(w); decr(k);  }
-else { w=knil(w); incr(k);  }
+if ( k>zero_off ){ 
+  w=mp_next_knot(w); 
+  decr(k);  
+} else { 
+  w=mp_prev_knot(w); 
+  incr(k);  
+}
 
 @ The cubic from |q| to the new knot at |(x,y)| becomes a line segment and
 the |mp_right_x| and |mp_right_y| fields of |r| are set from |q|.  This is done in
 case the cubic containing these control points is ``yet to be examined.''
 
 @<Declarations@>=
-static pointer mp_insert_knot (MP mp,pointer q, scaled x, scaled y);
+static mp_knot mp_insert_knot (MP mp, mp_knot q, scaled x, scaled y);
 
 @ @c
-pointer mp_insert_knot (MP mp,pointer q, scaled x, scaled y) {
+mp_knot mp_insert_knot (MP mp, mp_knot q, scaled x, scaled y) {
   /* returns the inserted knot */
-  pointer r; /* the new knot */
-  r=mp_get_node(mp, knot_node_size);
-  mp_link(r)=mp_link(q); mp_link(q)=r;
+  mp_knot r; /* the new knot */
+  r=mp_new_knot(mp);
+  mp_next_knot(r)=mp_next_knot(q); 
+  mp_next_knot(q)=r;
   mp_right_x(r)=mp_right_x(q);
   mp_right_y(r)=mp_right_y(q);
   mp_x_coord(r)=x;
@@ -11464,7 +11734,7 @@ pointer mp_insert_knot (MP mp,pointer q, scaled x, scaled y) {
 
 @<Set |p=mp_link(p)| and add knots between |p| and |q| as...@>=
 { 
-  p=mp_link(p);
+  p=mp_next_knot(p);
   if ( (join_type==0)||(join_type==3) ) {
     if ( join_type==0 ) {
       @<Insert a new knot |r| between |p| and |q| as required for a mitered join@>
@@ -11522,7 +11792,7 @@ fraction det; /* a determinant used for mitered join calculations */
 fraction ht_x,ht_y; /* perpendicular to the segment from |p| to |q| */
 scaled max_ht; /* maximum height of the pen polygon above the |w0|-|w| line */
 halfword kk; /* keeps track of the pen vertices being scanned */
-pointer ww; /* the pen vertex being tested */
+mp_knot ww; /* the pen vertex being tested */
 
 @ The dot product of the vector from |w0| to |ww| with |(ht_x,ht_y)| ranges
 from zero to |max_ht|.
@@ -11541,19 +11811,24 @@ while (1)  {
 
 
 @ @<Step |ww| and move |kk| one step closer to |k0|@>=
-if ( kk>k0 ) { ww=mp_link(ww); decr(kk);  }
-else { ww=knil(ww); incr(kk);  }
+if ( kk>k0 ) { 
+  ww=mp_next_knot(ww); 
+  decr(kk);  
+} else { 
+  ww=mp_prev_knot(ww); 
+  incr(kk);  
+}
 
 @ @<If endpoint, double the path |c|, and set |spec_p1| and |spec_p2|@>=
 if ( mp_left_type(c)==mp_endpoint ) { 
   mp->spec_p1=mp_htap_ypoc(mp, c);
   mp->spec_p2=mp->path_tail;
   mp_originator(mp->spec_p1)=mp_program_code;
-  mp_link(mp->spec_p2)=mp_link(mp->spec_p1);
-  mp_link(mp->spec_p1)=c;
+  mp_next_knot(mp->spec_p2)=mp_next_knot(mp->spec_p1);
+  mp_next_knot(mp->spec_p1)=c;
   mp_remove_cubic(mp, mp->spec_p1);
   c=mp->spec_p1;
-  if ( c!=mp_link(c) ) {
+  if ( c!=mp_next_knot(c) ) {
     mp_originator(mp->spec_p2)=mp_program_code;
     mp_remove_cubic(mp, mp->spec_p2);
   } else {
@@ -11563,9 +11838,12 @@ if ( mp_left_type(c)==mp_endpoint ) {
 
 @ @<Make |c| look like a cycle of length one@>=
 { 
-  mp_left_type(c)=mp_explicit; mp_right_type(c)=mp_explicit;
-  mp_left_x(c)=mp_x_coord(c); mp_left_y(c)=mp_y_coord(c);
-  mp_right_x(c)=mp_x_coord(c); mp_right_y(c)=mp_y_coord(c);
+  mp_left_type(c)=mp_explicit; 
+  mp_right_type(c)=mp_explicit;
+  mp_left_x(c)=mp_x_coord(c); 
+  mp_left_y(c)=mp_y_coord(c);
+  mp_right_x(c)=mp_x_coord(c); 
+  mp_right_y(c)=mp_y_coord(c);
 }
 
 @ In degenerate situations we might have to look at the knot preceding~|q|.
@@ -11602,7 +11880,7 @@ and~|r| have already been offset by |h|.
 dxout=mp_right_x(q)-mp_x_coord(q);
 dyout=mp_right_y(q)-mp_y_coord(q);
 if ( (dxout==0)&&(dyout==0) ) {
-  r=mp_link(q);
+  r=mp_next_knot(q);
   dxout=mp_left_x(r)-mp_x_coord(q);
   dyout=mp_left_y(r)-mp_y_coord(q);
   if ( (dxout==0)&&(dyout==0) ) {
@@ -11643,9 +11921,9 @@ and the given direction so that |(x,y)=(1,0)|; i.e., the main task will be
 to find when a given path first travels ``due east.''
 
 @c 
-static scaled mp_find_direction_time (MP mp,scaled x, scaled y, pointer h) {
+static scaled mp_find_direction_time (MP mp,scaled x, scaled y, mp_knot h) {
   scaled max; /* $\max\bigl(\vert x\vert,\vert y\vert\bigr)$ */
-  pointer p,q; /* for list traversal */
+  mp_knot p, q; /* for list traversal */
   scaled n; /* the direction time at knot |p| */
   scaled tt; /* the direction time within a cubic */
   @<Other local variables for |find_direction_time|@>;
@@ -11653,12 +11931,14 @@ static scaled mp_find_direction_time (MP mp,scaled x, scaled y, pointer h) {
     but |return| with zero result if it's zero@>;
   n=0; p=h; phi=0;
   while (1) { 
-    if ( mp_right_type(p)==mp_endpoint ) break;
-    q=mp_link(p);
+    if ( mp_right_type(p)==mp_endpoint ) 
+      break;
+    q=mp_next_knot(p);
     @<Rotate the cubic between |p| and |q|; then
       |goto found| if the rotated cubic travels due east at some time |tt|;
       but |break| if an entire cyclic path has been traversed@>;
-    p=q; n=n+unity;
+    p=q; 
+    n=n+unity;
   }
   return (-unity);
 FOUND: 
@@ -12025,8 +12305,8 @@ $B(z_0,z_1,z_2,z_3;t)$ are specified in adjacent knot nodes |(p,mp_link(p))|
 and |(pp,mp_link(pp))|, respectively.
 
 @c 
-static void mp_cubic_intersection (MP mp,pointer p, pointer pp) {
-  pointer q,qq; /* |mp_link(p)|, |mp_link(pp)| */
+static void mp_cubic_intersection (MP mp, mp_knot p, mp_knot pp) {
+  mp_knot q, qq; /* |mp_link(p)|, |mp_link(pp)| */
   mp->time_to_go=max_patience; mp->max_t=2;
   @<Initialize for intersections at level zero@>;
 CONTINUE:
@@ -12064,52 +12344,83 @@ CONTINUE:
 split |cubic_intersection| up into two procedures.
 
 @<Glob...@>=
-integer delx;integer dely; /* the components of $\Delta=2^l(w_0-z_0)$ */
+integer delx;
+integer dely; /* the components of $\Delta=2^l(w_0-z_0)$ */
 integer tol; /* bound on the uncertainty in the overlap test */
 integer uv;
 integer xy; /* pointers to the current packets of interest */
 integer three_l; /* |tol_step| times the bisection level */
-integer appr_t;integer appr_tt; /* best approximations known to the answers */
+integer appr_t;
+integer appr_tt; /* best approximations known to the answers */
 
 @ We shall assume that the coordinates are sufficiently non-extreme that
 integer overflow will not occur.
 @^overflow in arithmetic@>
 
 @<Initialize for intersections at level zero@>=
-q=mp_link(p); qq=mp_link(pp); mp->bisect_ptr=int_packets;
-u1r=mp_right_x(p)-mp_x_coord(p); u2r=mp_left_x(q)-mp_right_x(p);
-u3r=mp_x_coord(q)-mp_left_x(q); set_min_max(ur_packet);
-v1r=mp_right_y(p)-mp_y_coord(p); v2r=mp_left_y(q)-mp_right_y(p);
-v3r=mp_y_coord(q)-mp_left_y(q); set_min_max(vr_packet);
-x1r=mp_right_x(pp)-mp_x_coord(pp); x2r=mp_left_x(qq)-mp_right_x(pp);
-x3r=mp_x_coord(qq)-mp_left_x(qq); set_min_max(xr_packet);
-y1r=mp_right_y(pp)-mp_y_coord(pp); y2r=mp_left_y(qq)-mp_right_y(pp);
-y3r=mp_y_coord(qq)-mp_left_y(qq); set_min_max(yr_packet);
-mp->delx=mp_x_coord(p)-mp_x_coord(pp); mp->dely=mp_y_coord(p)-mp_y_coord(pp);
-mp->tol=0; mp->uv=r_packets; mp->xy=r_packets; 
-mp->three_l=0; mp->cur_t=1; mp->cur_tt=1
+q=mp_next_knot(p); 
+qq=mp_next_knot(pp); 
+mp->bisect_ptr=int_packets;
+u1r=mp_right_x(p)-mp_x_coord(p); 
+u2r=mp_left_x(q)-mp_right_x(p);
+u3r=mp_x_coord(q)-mp_left_x(q); 
+set_min_max(ur_packet);
+v1r=mp_right_y(p)-mp_y_coord(p); 
+v2r=mp_left_y(q)-mp_right_y(p);
+v3r=mp_y_coord(q)-mp_left_y(q); 
+set_min_max(vr_packet);
+x1r=mp_right_x(pp)-mp_x_coord(pp); 
+x2r=mp_left_x(qq)-mp_right_x(pp);
+x3r=mp_x_coord(qq)-mp_left_x(qq); 
+set_min_max(xr_packet);
+y1r=mp_right_y(pp)-mp_y_coord(pp); 
+y2r=mp_left_y(qq)-mp_right_y(pp);
+y3r=mp_y_coord(qq)-mp_left_y(qq); 
+set_min_max(yr_packet);
+mp->delx=mp_x_coord(p)-mp_x_coord(pp); 
+mp->dely=mp_y_coord(p)-mp_y_coord(pp);
+mp->tol=0; 
+mp->uv=r_packets; 
+mp->xy=r_packets; 
+mp->three_l=0; 
+mp->cur_t=1; 
+mp->cur_tt=1
 
 @ @<Subdivide for a new level of intersection@>=
-stack_dx=mp->delx; stack_dy=mp->dely; stack_tol=mp->tol; 
-stack_uv=mp->uv; stack_xy=mp->xy;
+stack_dx=mp->delx; 
+stack_dy=mp->dely; 
+stack_tol=mp->tol; 
+stack_uv=mp->uv; 
+stack_xy=mp->xy;
 mp->bisect_ptr=mp->bisect_ptr+int_increment;
-mp->cur_t+=mp->cur_t; mp->cur_tt+=mp->cur_tt;
-u1l=stack_1(u_packet(mp->uv)); u3r=stack_3(u_packet(mp->uv));
+mp->cur_t+=mp->cur_t; 
+mp->cur_tt+=mp->cur_tt;
+u1l=stack_1(u_packet(mp->uv)); 
+u3r=stack_3(u_packet(mp->uv));
 u2l=half(u1l+stack_2(u_packet(mp->uv)));
 u2r=half(u3r+stack_2(u_packet(mp->uv)));
-u3l=half(u2l+u2r); u1r=u3l;
-set_min_max(ul_packet); set_min_max(ur_packet);
-v1l=stack_1(v_packet(mp->uv)); v3r=stack_3(v_packet(mp->uv));
+u3l=half(u2l+u2r); 
+u1r=u3l;
+set_min_max(ul_packet); 
+set_min_max(ur_packet);
+v1l=stack_1(v_packet(mp->uv)); 
+v3r=stack_3(v_packet(mp->uv));
 v2l=half(v1l+stack_2(v_packet(mp->uv)));
 v2r=half(v3r+stack_2(v_packet(mp->uv)));
-v3l=half(v2l+v2r); v1r=v3l;
-set_min_max(vl_packet); set_min_max(vr_packet);
-x1l=stack_1(x_packet(mp->xy)); x3r=stack_3(x_packet(mp->xy));
+v3l=half(v2l+v2r); 
+v1r=v3l;
+set_min_max(vl_packet); 
+set_min_max(vr_packet);
+x1l=stack_1(x_packet(mp->xy)); 
+x3r=stack_3(x_packet(mp->xy));
 x2l=half(x1l+stack_2(x_packet(mp->xy)));
 x2r=half(x3r+stack_2(x_packet(mp->xy)));
-x3l=half(x2l+x2r); x1r=x3l;
-set_min_max(xl_packet); set_min_max(xr_packet);
-y1l=stack_1(y_packet(mp->xy)); y3r=stack_3(y_packet(mp->xy));
+x3l=half(x2l+x2r); 
+x1r=x3l;
+set_min_max(xl_packet); 
+set_min_max(xr_packet);
+y1l=stack_1(y_packet(mp->xy)); 
+y3r=stack_3(y_packet(mp->xy));
 y2l=half(y1l+stack_2(y_packet(mp->xy)));
 y2r=half(y3r+stack_2(y_packet(mp->xy)));
 y3l=half(y2l+y2r); y1r=y3l;
@@ -12149,12 +12460,16 @@ if ( odd(mp->cur_tt) ) {
 
 @ @<Descend to the previous level...@>=
 { 
-  mp->cur_t=halfp(mp->cur_t); mp->cur_tt=halfp(mp->cur_tt);
+  mp->cur_t=halfp(mp->cur_t); 
+  mp->cur_tt=halfp(mp->cur_tt);
   if ( mp->cur_t==0 ) return;
   mp->bisect_ptr -= int_increment; 
   mp->three_l -= (integer)mp->tol_step;
-  mp->delx=stack_dx; mp->dely=stack_dy; mp->tol=stack_tol; 
-  mp->uv=stack_uv; mp->xy=stack_xy;
+  mp->delx=stack_dx;
+  mp->dely=stack_dy; 
+  mp->tol=stack_tol; 
+  mp->uv=stack_uv; 
+  mp->xy=stack_xy;
   goto NOT_FOUND;
 }
 
@@ -12164,42 +12479,54 @@ pair of cubics that intersect. The final intersection times are placed in
 |cur_t| and~|cur_tt|.
 
 @c 
-static void mp_path_intersection (MP mp,pointer h, pointer hh) {
-  pointer p,pp; /* link registers that traverse the given paths */
+static void mp_path_intersection (MP mp,mp_knot h, mp_knot hh) {
+  mp_knot p, pp; /* link registers that traverse the given paths */
   integer n,nn; /* integer parts of intersection times, minus |unity| */
   @<Change one-point paths into dead cycles@>;
   mp->tol_step=0;
   do {  
-    n=-unity; p=h;
+    n=-unity; 
+    p=h;
     do {  
       if ( mp_right_type(p)!=mp_endpoint ) { 
-        nn=-unity; pp=hh;
+        nn=-unity;
+        pp=hh;
         do {  
           if ( mp_right_type(pp)!=mp_endpoint )  { 
             mp_cubic_intersection(mp, p,pp);
             if ( mp->cur_t>0 ) { 
-              mp->cur_t=mp->cur_t+n; mp->cur_tt=mp->cur_tt+nn; 
+              mp->cur_t=mp->cur_t+n; 
+              mp->cur_tt=mp->cur_tt+nn; 
               return;
             }
           }
-          nn=nn+unity; pp=mp_link(pp);
+          nn=nn+unity; 
+          pp=mp_next_knot(pp);
         } while (pp!=hh);
       }
-      n=n+unity; p=mp_link(p);
+      n=n+unity; 
+      p=mp_next_knot(p);
     } while (p!=h);
     mp->tol_step=mp->tol_step+3;
   } while (mp->tol_step<=3);
-  mp->cur_t=-unity; mp->cur_tt=-unity;
+  mp->cur_t=-unity; 
+  mp->cur_tt=-unity;
 }
 
 @ @<Change one-point paths...@>=
 if ( mp_right_type(h)==mp_endpoint ) {
-  mp_right_x(h)=mp_x_coord(h); mp_left_x(h)=mp_x_coord(h);
-  mp_right_y(h)=mp_y_coord(h); mp_left_y(h)=mp_y_coord(h); mp_right_type(h)=mp_explicit;
+  mp_right_x(h)=mp_x_coord(h); 
+  mp_left_x(h)=mp_x_coord(h);
+  mp_right_y(h)=mp_y_coord(h); 
+  mp_left_y(h)=mp_y_coord(h); 
+  mp_right_type(h)=mp_explicit;
 }
 if ( mp_right_type(hh)==mp_endpoint ) {
-  mp_right_x(hh)=mp_x_coord(hh); mp_left_x(hh)=mp_x_coord(hh);
-  mp_right_y(hh)=mp_y_coord(hh); mp_left_y(hh)=mp_y_coord(hh); mp_right_type(hh)=mp_explicit;
+  mp_right_x(hh)=mp_x_coord(hh); 
+  mp_left_x(hh)=mp_x_coord(hh);
+  mp_right_y(hh)=mp_y_coord(hh); 
+  mp_left_y(hh)=mp_y_coord(hh); 
+  mp_right_type(hh)=mp_explicit;
 }
 
 @* \[24] Dynamic linear equations.
@@ -12254,21 +12581,19 @@ numbers. Diagnosed and patched by Thorsten Dahlheimer.
   { if ( mp->serial_no>el_gordo-s_scale )
     mp_fatal_error(mp, "variable instance identifiers exhausted");
   mp_type((A))=mp_independent; mp->serial_no=mp->serial_no+s_scale;
-  value((A))=mp->serial_no;
+  set_value((A),mp->serial_no);
   }
 
 @<Glob...@>=
 integer serial_no; /* the most recent serial number, times |s_scale| */
 
-@ @<Make variable |q+s| newly independent@>=new_indep(q+s)
-
 @ But how are dependency lists represented? It's simple: The linear combination
 $\alpha_1v_1+\cdots+\alpha_kv_k+\beta$ appears in |k+1| value nodes. If
-|q=dep_list(p)| points to this list, and if |k>0|, then |value(q)=
-@t$\alpha_1$@>| (which is a |fraction|); |mp_info(q)| points to the location
+|q=dep_list(p)| points to this list, and if |k>0|, then |dep_value(q)=
+@t$\alpha_1$@>| (which is a |fraction|); |dep_info(q)| points to the location
 of $\alpha_1$; and |mp_link(p)| points to the dependency list
 $\alpha_2v_2+\cdots+\alpha_kv_k+\beta$. On the other hand if |k=0|,
-then |value(q)=@t$\beta$@>| (which is |scaled|) and |mp_info(q)=null|.
+then |dep_e(q)=@t$\beta$@>| (which is |scaled|) and |mp_info(q)=null|.
 The independent variables $v_1$, \dots,~$v_k$ have been sorted so that
 they appear in decreasing order of their |value| fields (i.e., of
 their serial numbers). \ (It is convenient to use decreasing order,
@@ -12289,15 +12614,58 @@ points to its dependency list. If the final link of that dependency list
 occurs in location~|q|, then |mp_link(q)| points to the next dependent
 variable (say~|r|); and we have |prev_dep(r)=q|, etc.
 
-@d dep_list(A) mp_link(value_loc((A)))
-  /* half of the |value| field in a |dependent| variable */
-@d prev_dep(A) mp_info(value_loc((A)))
-  /* the other half; makes a doubly linked list */
-@d dep_node_size 2 /* the number of words per dependency node */
+Dependency nodes sometimes mutate into value nodes and vice versa, so their
+structures have to match.
 
-@<Initialize table entries...@>= mp->serial_no=0;
-mp_link(dep_head)=dep_head; prev_dep(dep_head)=dep_head;
-mp_info(dep_head)=null; dep_list(dep_head)=null;
+@d dep_value(A) ((mp_value_node)(A))->value_.rh  /* half of the |value| field in a |dependent| variable */
+@d dep_info(A) ((mp_value_node)(A))->value_.node  /* half of the |value| field in a |dependent| variable */
+@d set_dep_info(A,B) do {
+   mp_value_node d = (mp_value_node)(B);
+   /* printf("set depinfo of %p to %p on %d\n",A,d,__LINE__); */
+   dep_info((A)) = (mp_node)d;
+} while (0)
+@d dep_list(A) ((mp_value_node)(A))->attr_head_  /* half of the |value| field in a |dependent| variable */
+@d set_dep_list(A,B) do {
+   mp_value_node d = (mp_value_node)(B);
+   /* printf("set deplist of %p to %p on %d\n",A,d,__LINE__);  */
+   dep_list((A)) = (mp_node)d;
+} while (0)
+@d prev_dep(A) ((mp_value_node)(A))->subscr_head_ /* the other half; makes a doubly linked list */
+@d set_prev_dep(A,B) do {
+   mp_value_node d = (mp_value_node)(B);
+   /* printf("set prevdep of %p to %p on %d\n",A,d,__LINE__);  */
+   prev_dep((A)) = (mp_node)d;
+} while (0)
+
+@ 
+
+@d dep_node_size value_node_size /* the number of words per dependency node */
+
+@c
+static mp_value_node mp_get_dep_node (MP mp) {
+  mp_value_node p = (mp_value_node)xmalloc(1, dep_node_size);
+  add_var_used(dep_node_size);
+  memset(p,0,dep_node_size);
+  mp_type(p) = mp_dep_node_type;
+  return p;
+}
+static void mp_free_dep_node(MP mp, mp_value_node p) {
+  mp_free_node(mp, (mp_node)p, dep_node_size);
+}
+
+@ @<Declarations...@>=
+static void mp_free_dep_node(MP mp, mp_value_node p);
+
+@ @<Initialize table entries@>= 
+mp->serial_no=0;
+mp->dep_head = mp_get_dep_node(mp);
+set_mp_link(mp->dep_head,(mp_node)mp->dep_head);
+set_prev_dep(mp->dep_head,(mp_node)mp->dep_head);
+set_dep_info(mp->dep_head,NULL);
+set_dep_list(mp->dep_head,NULL);
+
+@ @<Free table entries@>= 
+mp_free_dep_node(mp, mp->dep_head);
 
 @ Actually the description above contains a little white lie. There's
 another kind of variable called |mp_proto_dependent|, which is
@@ -12311,47 +12679,62 @@ The second parameter should be either |dependent| or |mp_proto_dependent|,
 to indicate the scaling of the coefficients.
 
 @<Declarations@>=
-static void mp_print_dependency (MP mp,pointer p, quarterword t);
+static void mp_print_dependency (MP mp, mp_value_node p, quarterword t);
 
 @ @c
-void mp_print_dependency (MP mp,pointer p, quarterword t) {
+void mp_print_dependency (MP mp, mp_value_node p, quarterword t) {
   integer v; /* a coefficient */
-  pointer pp,q; /* for list manipulation */
+  mp_value_node pp; /* for list manipulation */
+  mp_node q;
   pp=p;
-  while (true) { 
-    v=abs(value(p)); q=mp_info(p);
+  while (true) {
+    v=abs(dep_value(p));
+    q=dep_info(p);
     if ( q==null ) { /* the constant term */
       if ( (v!=0)||(p==pp) ) {
-         if ( value(p)>0 ) if ( p!=pp ) mp_print_char(mp, xord('+'));
-         mp_print_scaled(mp, value(p));
+        if ( dep_value(p)>0 ) 
+          if ( p!=pp ) 
+            mp_print_char(mp, xord('+'));
+        mp_print_scaled(mp, dep_value(p));
       }
       return;
     }
     @<Print the coefficient, unless it's $\pm1.0$@>;
-    if ( mp_type(q)!=mp_independent ) mp_confusion(mp, "dep");
+    if ( mp_type(q)!=mp_independent ) 
+      mp_confusion(mp, "dep");
 @:this can't happen dep}{\quad dep@>
-    mp_print_variable_name(mp, q); v=value(q) % s_scale;
-    while ( v>0 ) { mp_print(mp, "*4"); v=v-2; }
-    p=mp_link(p);
+    mp_print_variable_name(mp, q); 
+    v=value(q) % s_scale;
+    while ( v>0 ) { 
+      mp_print(mp, "*4"); 
+      v=v-2; 
+    }
+    p=(mp_value_node)mp_link(p);
   }
 }
 
 @ @<Print the coefficient, unless it's $\pm1.0$@>=
-if ( value(p)<0 ) mp_print_char(mp, xord('-'));
-else if ( p!=pp ) mp_print_char(mp, xord('+'));
-if ( t==mp_dependent ) v=mp_round_fraction(mp, v);
-if ( v!=unity ) mp_print_scaled(mp, v)
+if ( dep_value(p)<0 ) 
+  mp_print_char(mp, xord('-'));
+else if ( p!=pp ) 
+  mp_print_char(mp, xord('+'));
+if ( t==mp_dependent ) 
+  v=mp_round_fraction(mp, v);
+if ( v!=unity ) 
+  mp_print_scaled(mp, v)
 
 @ The maximum absolute value of a coefficient in a given dependency list
 is returned by the following simple function.
 
 @c 
-static fraction mp_max_coef (MP mp,pointer p) {
+static fraction mp_max_coef (MP mp, mp_value_node p) {
   fraction x; /* the maximum so far */
+  (void)mp;
   x=0;
-  while ( mp_info(p)!=null ) {
-    if ( abs(value(p))>x ) x=abs(value(p));
-    p=mp_link(p);
+  while ( dep_info(p)!=null ) {
+    if ( abs(dep_value(p))>x ) 
+      x=abs(dep_value(p));
+    p=(mp_value_node)mp_link(p);
   }
   return x;
 }
@@ -12383,7 +12766,7 @@ the dependency list that they produce.
 @<Glob...@>=
 boolean fix_needed; /* does at least one |independent| variable need scaling? */
 boolean watch_coefs; /* should we scale coefficients that exceed |coef_bound|? */
-pointer dep_final; /* location of the constant term and final link */
+mp_value_node dep_final; /* location of the constant term and final link */
 
 @ @<Set init...@>=
 mp->fix_needed=false; mp->watch_coefs=true;
@@ -12412,19 +12795,21 @@ proto-dependencies.
 @d half_scaled_threshold 4 /* half of |scaled_threshold| */
 
 @<Declarations@>=
-static pointer mp_p_plus_fq ( MP mp, pointer p, integer f, 
-                      pointer q, quarterword t, quarterword tt) ;
+static mp_value_node mp_p_plus_fq ( MP mp, mp_value_node p, integer f, 
+                      mp_value_node q, mp_variable_type t, mp_variable_type tt) ;
 
 @ @c
-pointer mp_p_plus_fq ( MP mp, pointer p, integer f, 
-                      pointer q, quarterword t, quarterword tt) {
-  pointer pp,qq; /* |mp_info(p)| and |mp_info(q)|, respectively */
-  pointer r,s; /* for list manipulation */
+static mp_value_node mp_p_plus_fq ( MP mp, mp_value_node p, integer f, 
+                      mp_value_node q, mp_variable_type t, mp_variable_type tt) {
+  mp_node pp,qq; /* |dep_info(p)| and |dep_info(q)|, respectively */
+  mp_value_node r,s; /* for list manipulation */
   integer threshold; /* defines a neighborhood of zero */
-  integer v; /* temporary register */
+  integer v, vv; /* temporary registers */
   if ( t==mp_dependent ) threshold=fraction_threshold;
   else threshold=scaled_threshold;
-  r=temp_head; pp=mp_info(p); qq=mp_info(q);
+  r=(mp_value_node)mp->temp_head;
+  pp=dep_info(p); 
+  qq=dep_info(q);
   while (1) {
     if ( pp==qq ) {
       if ( pp==null ) {
@@ -12433,48 +12818,71 @@ pointer mp_p_plus_fq ( MP mp, pointer p, integer f,
         @<Contribute a term from |p|, plus |f| times the
           corresponding term from |q|@>
       }
-    } else if ( value(pp)<value(qq) ) {
-      @<Contribute a term from |q|, multiplied by~|f|@>
-    } else { 
-     mp_link(r)=p; r=p; p=mp_link(p); pp=mp_info(p);
+    } else {
+      v  = ( pp==NULL ? 0 : value(pp) );
+      vv = ( qq==NULL ? 0 : value(qq) );
+      if ( v<vv ) {
+        @<Contribute a term from |q|, multiplied by~|f|@>
+      } else { 
+        set_mp_link(r,(mp_node)p); 
+        r=p; 
+        p=(mp_value_node)mp_link(p); 
+        pp=dep_info(p);
+      }
     }
   }
   if ( t==mp_dependent )
-    value(p)=mp_slow_add(mp, value(p),mp_take_fraction(mp, value(q),f));
+    dep_value(p)=mp_slow_add(mp, dep_value(p),mp_take_fraction(mp, dep_value(q), f));
   else  
-    value(p)=mp_slow_add(mp, value(p),mp_take_scaled(mp, value(q),f));
-  mp_link(r)=p; mp->dep_final=p; 
-  return mp_link(temp_head);
+    dep_value(p)=mp_slow_add(mp, dep_value(p),mp_take_scaled(mp, dep_value(q),f));
+  set_mp_link(r,(mp_node)p); 
+  mp->dep_final=p; 
+  return (mp_value_node)mp_link(mp->temp_head);
 }
 
 @ @<Contribute a term from |p|, plus |f|...@>=
 { 
-  if ( tt==mp_dependent ) v=value(p)+mp_take_fraction(mp, f,value(q));
-  else v=value(p)+mp_take_scaled(mp, f,value(q));
-  value(p)=v; s=p; p=mp_link(p);
+  if ( tt==mp_dependent ) 
+    v=dep_value(p)+mp_take_fraction(mp, f, dep_value(q));
+  else 
+    v=dep_value(p)+mp_take_scaled(mp, f, dep_value(q));
+  dep_value(p)=v;
+  s=p; 
+  p=(mp_value_node)mp_link(p);
   if ( abs(v)<threshold ) {
-    mp_free_node(mp, s,dep_node_size);
+    mp_free_dep_node(mp, s);
   } else {
     if ( (abs(v)>=coef_bound)  && mp->watch_coefs ) { 
-      mp_type(qq)=independent_needing_fix; mp->fix_needed=true;
+      mp_type(qq)=independent_needing_fix;
+      mp->fix_needed=true;
     }
-    mp_link(r)=s; r=s;
-  };
-  pp=mp_info(p); q=mp_link(q); qq=mp_info(q);
+    set_mp_link(r,(mp_node)s); 
+    r=s;
+  }
+  pp=dep_info(p); 
+  q=(mp_value_node)mp_link(q); 
+  qq=dep_info(q);
 }
 
 @ @<Contribute a term from |q|, multiplied by~|f|@>=
 { 
-  if ( tt==mp_dependent ) v=mp_take_fraction(mp, f,value(q));
-  else v=mp_take_scaled(mp, f,value(q));
+  if ( tt==mp_dependent )
+    v=mp_take_fraction(mp, f,dep_value(q));
+  else 
+    v=mp_take_scaled(mp, f,dep_value(q));
   if ( abs(v)>halfp(threshold) ) { 
-    s=mp_get_node(mp, dep_node_size); mp_info(s)=qq; value(s)=v;
+    s=mp_get_dep_node(mp);
+    set_dep_info(s,qq);
+    dep_value(s)=v;
     if ( (abs(v)>=coef_bound) && mp->watch_coefs ) { 
-      mp_type(qq)=independent_needing_fix; mp->fix_needed=true;
+      mp_type(qq)=independent_needing_fix;
+      mp->fix_needed=true;
     }
-    mp_link(r)=s; r=s;
+    set_mp_link(r,(mp_node)s);
+    r=s;
   }
-  q=mp_link(q); qq=mp_info(q);
+  q=(mp_value_node)mp_link(q); 
+  qq=dep_info(q);
 }
 
 @ It is convenient to have another subroutine for the special case
@@ -12482,14 +12890,19 @@ of |p_plus_fq| when |f=1.0|. In this routine lists |p| and |q| are
 both of the same type~|t| (either |dependent| or |mp_proto_dependent|).
 
 @c 
-static pointer mp_p_plus_q (MP mp,pointer p, pointer q, quarterword t) {
-  pointer pp,qq; /* |mp_info(p)| and |mp_info(q)|, respectively */
-  pointer r,s; /* for list manipulation */
+static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q, mp_variable_type t) {
+  mp_node pp,qq; /* |dep_info(p)| and |dep_info(q)|, respectively */
+  mp_value_node s; /* for list manipulation */
+  mp_value_node r; /* for list manipulation */
   integer threshold; /* defines a neighborhood of zero */
-  integer v; /* temporary register */
-  if ( t==mp_dependent ) threshold=fraction_threshold;
-  else threshold=scaled_threshold;
-  r=temp_head; pp=mp_info(p); qq=mp_info(q);
+  integer v, vv; /* temporary register */
+  if ( t==mp_dependent ) 
+    threshold=fraction_threshold;
+  else 
+    threshold=scaled_threshold;
+  r=(mp_value_node)mp->temp_head; 
+  pp=dep_info(p); 
+  qq=dep_info(q);
   while (1) {
     if ( pp==qq ) {
       if ( pp==null ) {
@@ -12499,32 +12912,49 @@ static pointer mp_p_plus_q (MP mp,pointer p, pointer q, quarterword t) {
           corresponding term from |q|@>
       }
     } else { 
-	  if ( value(pp)<value(qq) ) {
-        s=mp_get_node(mp, dep_node_size); mp_info(s)=qq; value(s)=value(q);
-        q=mp_link(q); qq=mp_info(q); mp_link(r)=s; r=s;
+     v  = ( pp==NULL ? 0 : value(pp) );
+     vv = ( qq==NULL ? 0 : value(qq) );
+     if ( v<vv ) {
+        s=mp_get_dep_node(mp); 
+        set_dep_info(s,qq); 
+        dep_value(s)=dep_value(q);
+        q=(mp_value_node)mp_link(q); 
+        qq=dep_info(q); 
+        set_mp_link(r,(mp_node)s); 
+        r=s;
       } else { 
-        mp_link(r)=p; r=p; p=mp_link(p); pp=mp_info(p);
+        set_mp_link(r,(mp_node)p); 
+        r=p; 
+        p=(mp_value_node)mp_link(p); 
+        pp=dep_info(p);
       }
     }
   }
-  value(p)=mp_slow_add(mp, value(p),value(q));
-  mp_link(r)=p; mp->dep_final=p; 
-  return mp_link(temp_head);
+  dep_value(p)=mp_slow_add(mp, dep_value(p),dep_value(q));
+  set_mp_link(r,(mp_node)p); 
+  mp->dep_final=p; 
+  return (mp_value_node)mp_link(mp->temp_head);
 }
 
 @ @<Contribute a term from |p|, plus the...@>=
 { 
-  v=value(p)+value(q);
-  value(p)=v; s=p; p=mp_link(p); pp=mp_info(p);
+  v=dep_value(p)+dep_value(q);
+  dep_value(p)=v; 
+  s=p; 
+  p=(mp_value_node)mp_link(p); 
+  pp=dep_info(p);
   if ( abs(v)<threshold ) {
-    mp_free_node(mp, s,dep_node_size);
+    mp_free_dep_node(mp, s);
   } else { 
     if ( (abs(v)>=coef_bound ) && mp->watch_coefs ) {
-      mp_type(qq)=independent_needing_fix; mp->fix_needed=true;
+      mp_type(qq)=independent_needing_fix;
+      mp->fix_needed=true;
     }
-    mp_link(r)=s; r=s;
+    set_mp_link(r,(mp_node)s);
+    r=s;
   }
-  q=mp_link(q); qq=mp_info(q);
+  q=(mp_value_node)mp_link(q); 
+  qq=dep_info(q);
 }
 
 @ A somewhat simpler routine will multiply a dependency list
@@ -12536,70 +12966,99 @@ they should agree unless |t0=mp_dependent| and |t1=mp_proto_dependent|
 and |v_is_scaled=true|.
 
 @c 
-static pointer mp_p_times_v (MP mp,pointer p, integer v, quarterword t0,
+static mp_value_node mp_p_times_v (MP mp, mp_value_node p, integer v, quarterword t0,
                          quarterword t1, boolean v_is_scaled) {
-  pointer r,s; /* for list manipulation */
+  mp_value_node r,s; /* for list manipulation */
   integer w; /* tentative coefficient */
   integer threshold;
   boolean scaling_down;
-  if ( t0!=t1 ) scaling_down=true; else scaling_down=(!v_is_scaled);
-  if ( t1==mp_dependent ) threshold=half_fraction_threshold;
-  else threshold=half_scaled_threshold;
-  r=temp_head;
-  while ( mp_info(p)!=null ) {    
-    if ( scaling_down ) w=mp_take_fraction(mp, v,value(p));
-    else w=mp_take_scaled(mp, v,value(p));
+  if ( t0!=t1 ) 
+    scaling_down=true; 
+  else 
+    scaling_down=(!v_is_scaled);
+  if ( t1==mp_dependent ) 
+    threshold=half_fraction_threshold;
+  else 
+    threshold=half_scaled_threshold;
+  r=(mp_value_node)mp->temp_head;
+  while ( dep_info(p)!=null ) {    
+    if ( scaling_down ) 
+      w=mp_take_fraction(mp, v,dep_value(p));
+    else 
+      w=mp_take_scaled(mp, v,dep_value(p));
     if ( abs(w)<=threshold ) { 
-      s=mp_link(p); mp_free_node(mp, p,dep_node_size); p=s;
+      s=(mp_value_node)mp_link(p); 
+      mp_free_dep_node(mp, p); 
+      p=s;
     } else {
       if ( abs(w)>=coef_bound ) { 
-        mp->fix_needed=true; mp_type(mp_info(p))=independent_needing_fix;
+        mp->fix_needed=true; 
+        mp_type(dep_info(p))=independent_needing_fix;
       }
-      mp_link(r)=p; r=p; value(p)=w; p=mp_link(p);
+      set_mp_link(r,(mp_node)p); 
+      r=p; 
+      dep_value(p)=w;
+      p=(mp_value_node)mp_link(p);
     }
   }
-  mp_link(r)=p;
-  if ( v_is_scaled ) value(p)=mp_take_scaled(mp, value(p),v);
-  else value(p)=mp_take_fraction(mp, value(p),v);
-  return mp_link(temp_head);
+  set_mp_link(r,(mp_node)p);
+  if ( v_is_scaled ) 
+    dep_value(p)=mp_take_scaled(mp, dep_value(p),v);
+  else 
+    dep_value(p)=mp_take_fraction(mp, dep_value(p),v);
+  return (mp_value_node)mp_link(mp->temp_head);
 }
 
 @ Similarly, we sometimes need to divide a dependency list
 by a given |scaled| constant.
 
 @<Declarations@>=
-static pointer mp_p_over_v (MP mp,pointer p, scaled v, quarterword 
+static mp_value_node mp_p_over_v (MP mp, mp_value_node p, scaled v, quarterword 
   t0, quarterword t1) ;
 
 @ @c
-pointer mp_p_over_v (MP mp,pointer p, scaled v, quarterword 
+mp_value_node mp_p_over_v (MP mp, mp_value_node p, scaled v, quarterword 
   t0, quarterword t1) {
-  pointer r,s; /* for list manipulation */
+  mp_value_node r,s; /* for list manipulation */
   integer w; /* tentative coefficient */
   integer threshold;
   boolean scaling_down;
-  if ( t0!=t1 ) scaling_down=true; else scaling_down=false;
-  if ( t1==mp_dependent ) threshold=half_fraction_threshold;
-  else threshold=half_scaled_threshold;
-  r=temp_head;
-  while ( mp_info( p)!=null ) {
+  if ( t0!=t1 ) 
+    scaling_down=true; 
+  else 
+    scaling_down=false;
+  if ( t1==mp_dependent ) 
+    threshold=half_fraction_threshold;
+  else 
+    threshold=half_scaled_threshold;
+  r=(mp_value_node)mp->temp_head;
+  while ( dep_info( p)!=null ) {
     if ( scaling_down ) {
-      if ( abs(v)<02000000 ) w=mp_make_scaled(mp, value(p),v*010000);
-      else w=mp_make_scaled(mp, mp_round_fraction(mp, value(p)),v);
+      if ( abs(v)<02000000 ) 
+        w=mp_make_scaled(mp, dep_value(p),v*010000);
+      else 
+        w=mp_make_scaled(mp, mp_round_fraction(mp, dep_value(p)),v);
     } else {
-      w=mp_make_scaled(mp, value(p),v);
+      w=mp_make_scaled(mp, dep_value(p),v);
     }
     if ( abs(w)<=threshold ) {
-      s=mp_link(p); mp_free_node(mp, p,dep_node_size); p=s;
+      s=(mp_value_node)mp_link(p); 
+      mp_free_dep_node(mp, p);
+      p=s;
     } else { 
       if ( abs(w)>=coef_bound ) {
-         mp->fix_needed=true; mp_type(mp_info(p))=independent_needing_fix;
+        mp->fix_needed=true; 
+        mp_type(dep_info(p))=independent_needing_fix;
       }
-      mp_link(r)=p; r=p; value(p)=w; p=mp_link(p);
+      set_mp_link(r,(mp_node)p); 
+      r=p; 
+      dep_value(p)=w; 
+      p=(mp_value_node)mp_link(p);
     }
   }
-  mp_link(r)=p; value(p)=mp_make_scaled(mp, value(p),v);
-  return mp_link(temp_head);
+  set_mp_link(r,(mp_node)p); 
+  dep_value(p)=mp_make_scaled(mp, dep_value(p),v);
+  return (mp_value_node)mp_link(mp->temp_head);
 }
 
 @ Here's another utility routine for dependency lists. When an independent
@@ -12614,19 +13073,26 @@ or not |p| is |mp_proto_dependent|. However, the global variable |dep_final|
 is not altered if |x| does not occur in list~|p|.
 
 @c 
-static pointer mp_p_with_x_becoming_q (MP mp,pointer p,
-           pointer x, pointer q, quarterword t) {
-  pointer r,s; /* for list manipulation */
+static mp_value_node mp_p_with_x_becoming_q (MP mp, mp_value_node p,
+           mp_node x, mp_node q, quarterword t) {
+  mp_value_node r,s; /* for list manipulation */
   integer v; /* coefficient of |x| */
   integer sx; /* serial number of |x| */
-  s=p; r=temp_head; sx=value(x);
-  while ( value(mp_info(s))>sx ) { r=s; s=mp_link(s); };
-  if ( mp_info(s)!=x ) { 
+  s=p; 
+  r=(mp_value_node)mp->temp_head; 
+  sx=value(x);
+  while ( dep_info(s)!=NULL && value(dep_info(s))>sx ) { 
+    r=s; 
+    s=(mp_value_node)mp_link(s);
+  }
+  if ( dep_info(s)!=x ) { 
     return p;
   } else { 
-    mp_link(temp_head)=p; mp_link(r)=mp_link(s); v=value(s);
-    mp_free_node(mp, s,dep_node_size);
-    return mp_p_plus_fq(mp, mp_link(temp_head),v,q,t,mp_dependent);
+    set_mp_link(mp->temp_head,(mp_node)p); 
+    set_mp_link(r,mp_link(s)); 
+    v=dep_value(s);
+    mp_free_dep_node(mp, s);
+    return mp_p_plus_fq(mp, (mp_value_node)mp_link(mp->temp_head),v,(mp_value_node)q,t,mp_dependent);
   }
 }
 
@@ -12637,8 +13103,10 @@ has just received a known value that's out of the required range.
 static void mp_val_too_big (MP mp,scaled x) ;
 
 @ @c void mp_val_too_big (MP mp,scaled x) { 
-  if ( mp->internal[mp_warning_check]>0 ) { 
-    print_err("Value is too large ("); mp_print_scaled(mp, x); mp_print_char(mp, xord(')'));
+  if ( internal_value(mp_warning_check)>0 ) { 
+    print_err("Value is too large (");
+    mp_print_scaled(mp, x);
+    mp_print_char(mp, xord(')'));
 @.Value is too large@>
     help4("The equation I just processed has given some variable",
       "a value of 4096 or more. Continue and I'll try to cope",
@@ -12653,24 +13121,30 @@ removes its dependency list. Here |p| points to the variable, and
 |q| points to the dependency list (which is one node long).
 
 @<Declarations@>=
-static void mp_make_known (MP mp,pointer p, pointer q) ;
+static void mp_make_known (MP mp, mp_value_node p, mp_value_node q) ;
 
-@ @c void mp_make_known (MP mp,pointer p, pointer q) {
-  int t; /* the previous type */
-  prev_dep(mp_link(q))=prev_dep(p);
-  mp_link(prev_dep(p))=mp_link(q); t=mp_type(p);
-  mp_type(p)=mp_known; value(p)=value(q); mp_free_node(mp, q,dep_node_size);
-  if ( abs(value(p))>=fraction_one ) mp_val_too_big(mp, value(p));
-  if (( mp->internal[mp_tracing_equations]>0) && mp_interesting(mp, p) ) {
+@ @c void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
+  mp_variable_type t; /* the previous type */
+  set_prev_dep(mp_link(q),prev_dep(p));
+  set_mp_link(prev_dep(p),mp_link(q)); 
+  t=mp_type(p);
+  mp_type(p)=mp_known; 
+  set_value(p,dep_value(q));
+  mp_free_dep_node(mp, q);
+  if ( abs(value(p))>=fraction_one ) 
+    mp_val_too_big(mp, value(p));
+  if (( internal_value(mp_tracing_equations)>0) && mp_interesting(mp, (mp_node)p) ) {
     mp_begin_diagnostic(mp); mp_print_nl(mp, "#### ");
 @:]]]\#\#\#\#_}{\.{\#\#\#\#}@>
-    mp_print_variable_name(mp, p); 
-    mp_print_char(mp, xord('=')); mp_print_scaled(mp, value(p));
+    mp_print_variable_name(mp, (mp_node)p); 
+    mp_print_char(mp, xord('=')); 
+    mp_print_scaled(mp, value(p));
     mp_end_diagnostic(mp, false);
   }
-  if (( mp->cur_exp==p ) && mp->cur_type==t ) {
-    mp->cur_type=mp_known; mp->cur_exp=value(p);
-    mp_free_node(mp, p,value_node_size);
+  if (cur_exp_node()==(mp_node)p && mp->cur_exp.type==t ) {
+    mp->cur_exp.type=mp_known; 
+    set_cur_exp_value(value(p));
+    mp_free_node(mp, (mp_node)p, value_node_size);
   }
 }
 
@@ -12686,19 +13160,25 @@ static void mp_fix_dependencies (MP mp);
 
 @ @c 
 static void mp_fix_dependencies (MP mp) {
-  pointer p,q,r,s,t; /* list manipulation registers */
-  pointer x; /* an independent variable */
-  r=mp_link(dep_head); s=null;
-  while ( r!=dep_head ){ 
+  mp_value_node p,q,r,s,t; /* list manipulation registers */
+  mp_node x; /* an independent variable */
+  r=(mp_value_node)mp_link(mp->dep_head); 
+  s=null;
+  while ( r!=mp->dep_head ){ 
     t=r;
     @<Run through the dependency list for variable |t|, fixing
       all nodes, and ending with final link~|q|@>;
-    r=mp_link(q);
-    if ( q==dep_list(t) ) mp_make_known(mp, t,q);
+    r=(mp_value_node)mp_link(q);
+    if ( q==(mp_value_node)dep_list(t) ) 
+      mp_make_known(mp, t, q);
   }
   while ( s!=null ) { 
-    p=mp_link(s); x=mp_info(s); free_avail(s); s=p;
-    mp_type(x)=mp_independent; value(x)=value(x)+2;
+    p=(mp_value_node)mp_link(s); 
+    x=dep_info(s); 
+    mp_free_dep_node(mp, s); 
+    s=p;
+    mp_type(x)=mp_independent; 
+    set_value(x,value(x)+2);
   }
   mp->fix_needed=false;
 }
@@ -12706,43 +13186,54 @@ static void mp_fix_dependencies (MP mp) {
 @ @d independent_being_fixed 1 /* this variable already appears in |s| */
 
 @<Run through the dependency list for variable |t|...@>=
-r=value_loc(t); /* |mp_link(r)=dep_list(t)| */
+set_mp_link(r,dep_list(t)); /* todo, check this: was |r=value_loc(t)| */
 while (1) { 
-  q=mp_link(r); x=mp_info(q);
+  q=(mp_value_node)mp_link(r); 
+  x=dep_info(q);
   if ( x==null ) break;
   if ( mp_type(x)<=independent_being_fixed ) {
     if ( mp_type(x)<independent_being_fixed ) {
-      p=mp_get_avail(mp); mp_link(p)=s; s=p;
-      mp_info(s)=x; mp_type(x)=independent_being_fixed;
+      p=mp_get_dep_node(mp); 
+      set_mp_link(p,(mp_node)s);
+      s=p;
+      set_dep_info(s,x); 
+      mp_type(x)=independent_being_fixed;
     }
-    value(q)=value(q) / 4;
-    if ( value(q)==0 ) {
-      mp_link(r)=mp_link(q); mp_free_node(mp, q,dep_node_size); q=r;
+    dep_value(q) = dep_value(q) / 4;
+    if ( dep_value(q)==0 ) {
+      set_mp_link(r,mp_link(q)); 
+      mp_free_dep_node(mp, q); 
+      q=r;
     }
   }
   r=q;
 }
 
 
-@ The |new_dep| routine installs a dependency list~|p| into the value node~|q|,
-linking it into the list of all known dependencies. We assume that
-|dep_final| points to the final node of list~|p|.
+@ The |new_dep| routine installs a dependency list~|p| based on the value node~|q|,
+linking it into the list of all known dependencies. It replaces |q| with the new
+dependency node. We assume that |dep_final| points to the final node of list~|p|.
 
 @c 
-static void mp_new_dep (MP mp,pointer q, pointer p) {
-  pointer r; /* what used to be the first dependency */
-  dep_list(q)=p; prev_dep(q)=dep_head;
-  r=mp_link(dep_head); mp_link(mp->dep_final)=r; prev_dep(r)=mp->dep_final;
-  mp_link(dep_head)=q;
+static void mp_new_dep (MP mp, mp_node q, mp_variable_type newtype, mp_value_node p) {
+  mp_node r; /* what used to be the first dependency */
+  mp_type(q)=newtype;
+  set_dep_list(q,(mp_node)p); 
+  set_prev_dep(q,(mp_node)mp->dep_head);
+  r=mp_link(mp->dep_head); 
+  set_mp_link(mp->dep_final,r); 
+  set_prev_dep(r,(mp_node)mp->dep_final);
+  set_mp_link(mp->dep_head,q);
 }
 
 @ Here is one of the ways a dependency list gets started.
 The |const_dependency| routine produces a list that has nothing but
 a constant term.
 
-@c static pointer mp_const_dependency (MP mp, scaled v) {
-  mp->dep_final=mp_get_node(mp, dep_node_size);
-  value(mp->dep_final)=v; mp_info(mp->dep_final)=null;
+@c static mp_value_node mp_const_dependency (MP mp, scaled v) {
+  mp->dep_final=mp_get_dep_node(mp);
+  dep_value(mp->dep_final)=v; 
+  set_dep_info(mp->dep_final,NULL);
   return mp->dep_final;
 }
 
@@ -12758,16 +13249,18 @@ recognized by testing that the returned list pointer is equal to
 |dep_final|.
 
 @c 
-static pointer mp_single_dependency (MP mp,pointer p) {
-  pointer q; /* the new dependency list */
+static mp_value_node mp_single_dependency (MP mp, mp_node p) {
+  mp_value_node q, rr; /* the new dependency list */
   integer m; /* the number of doublings */
   m=value(p) % s_scale;
   if ( m>28 ) {
     return mp_const_dependency(mp, 0);
   } else { 
-    q=mp_get_node(mp, dep_node_size);
-    value(q)=(integer)two_to_the(28-m); mp_info(q)=p;
-    mp_link(q)=mp_const_dependency(mp, 0);
+    q=mp_get_dep_node(mp);
+    dep_value(q)=(integer)two_to_the(28-m); 
+    set_dep_info(q,p);
+    rr = mp_const_dependency(mp, 0);
+    set_mp_link(q,(mp_node)rr);
     return q;
   }
 }
@@ -12775,14 +13268,17 @@ static pointer mp_single_dependency (MP mp,pointer p) {
 @ We sometimes need to make an exact copy of a dependency list.
 
 @c 
-static pointer mp_copy_dep_list (MP mp,pointer p) {
-  pointer q; /* the new dependency list */
-  q=mp_get_node(mp, dep_node_size); mp->dep_final=q;
+static mp_value_node mp_copy_dep_list (MP mp, mp_value_node p) {
+  mp_value_node q; /* the new dependency list */
+  q=mp_get_dep_node(mp); 
+  mp->dep_final=q;
   while (1) { 
-    mp_info(mp->dep_final)=mp_info(p); value(mp->dep_final)=value(p);
-    if ( mp_info(mp->dep_final)==null ) break;
-    mp_link(mp->dep_final)=mp_get_node(mp, dep_node_size);
-    mp->dep_final=mp_link(mp->dep_final); p=mp_link(p);
+    set_dep_info(mp->dep_final, dep_info(p));
+    dep_value(mp->dep_final) = dep_value(p);
+    if ( dep_info(mp->dep_final)==NULL ) break;
+    set_mp_link(mp->dep_final,(mp_node)mp_get_dep_node(mp));
+    mp->dep_final=(mp_value_node)mp_link(mp->dep_final); 
+    p=(mp_value_node)mp_link(p);
   }
   return q;
 }
@@ -12798,18 +13294,20 @@ thereby possibly making other dependent variables known.
 The given list |p| is, of course, totally destroyed by all this processing.
 
 @c 
-static void mp_linear_eq (MP mp, pointer p, quarterword t) {
-  pointer q,r,s; /* for link manipulation */
-  pointer x; /* the variable that loses its independence */
+static void mp_linear_eq (MP mp, mp_value_node p, quarterword t) {
+  mp_value_node q,r; /* for link manipulation */
+  mp_value_node s;
+  mp_node x; /* the variable that loses its independence */
   integer n; /* the number of times |x| had been halved */
   integer v; /* the coefficient of |x| in list |p| */
-  pointer prev_r; /* lags one step behind |r| */
-  pointer final_node; /* the constant term of the new dependency list */
+  mp_value_node prev_r; /* lags one step behind |r| */
+  mp_value_node final_node; /* the constant term of the new dependency list */
   integer w; /* a tentative coefficient */
    @<Find a node |q| in list |p| whose coefficient |v| is largest@>;
-  x=mp_info(q); n=value(x) % s_scale;
+  x=dep_info(q); 
+  n=value(x) % s_scale;
   @<Divide list |p| by |-v|, removing node |q|@>;
-  if ( mp->internal[mp_tracing_equations]>0 ) {
+  if ( internal_value(mp_tracing_equations)>0 ) {
     @<Display the new dependency@>;
   }
   @<Simplify all existing dependencies by substituting for |x|@>;
@@ -12818,10 +13316,15 @@ static void mp_linear_eq (MP mp, pointer p, quarterword t) {
 }
 
 @ @<Find a node |q| in list |p| whose coefficient |v| is largest@>=
-q=p; r=mp_link(p); v=value(q);
-while ( mp_info(r)!=null ) { 
-  if ( abs(value(r))>abs(v) ) { q=r; v=value(r); };
-  r=mp_link(r);
+q=p; 
+r=(mp_value_node)mp_link(p); 
+v=dep_value(q);
+while ( dep_info(r)!=null ) { 
+  if ( abs(dep_value(r))>abs(v) ) { 
+    q=r; 
+    v=dep_value(r); 
+  }
+  r=(mp_value_node)mp_link(r);
 }
 
 @ Here we want to change the coefficients from |scaled| to |fraction|,
@@ -12829,104 +13332,106 @@ except in the constant term. In the common case of a trivial equation
 like `\.{x=3.14}', we will have |v=-fraction_one|, |q=p|, and |t=mp_dependent|.
 
 @<Divide list |p| by |-v|, removing node |q|@>=
-s=temp_head; mp_link(s)=p; r=p;
+s=(mp_value_node)mp->temp_head; 
+set_mp_link(s,(mp_node)p); 
+r=p;
 do { 
   if ( r==q ) {
-    mp_link(s)=mp_link(r); mp_free_node(mp, r,dep_node_size);
+    set_mp_link(s,mp_link(r)); 
+    mp_free_dep_node(mp, r);
   } else  { 
-    w=mp_make_fraction(mp, value(r),v);
+    w=mp_make_fraction(mp, dep_value(r),v);
     if ( abs(w)<=half_fraction_threshold ) {
-      mp_link(s)=mp_link(r); mp_free_node(mp, r,dep_node_size);
+      set_mp_link(s,mp_link(r)); 
+      mp_free_dep_node(mp, r);
     } else { 
-      value(r)=-w; s=r;
+      dep_value(r)=-w; 
+      s=r;
     }
   }
-  r=mp_link(s);
-} while (mp_info(r)!=null);
+  r=(mp_value_node)mp_link(s);
+} while (dep_info(r)!=null);
 if ( t==mp_proto_dependent ) {
-  value(r)=-mp_make_scaled(mp, value(r),v);
+  dep_value(r)=(-mp_make_scaled(mp, dep_value(r),v));
 } else if ( v!=-fraction_one ) {
-  value(r)=-mp_make_fraction(mp, value(r),v);
+  dep_value(r)=(-mp_make_fraction(mp, dep_value(r),v));
 }
-final_node=r; p=mp_link(temp_head)
+final_node=r; 
+p=(mp_value_node)mp_link(mp->temp_head)
 
 @ @<Display the new dependency@>=
-if ( mp_interesting(mp, x) ) {
-  mp_begin_diagnostic(mp); mp_print_nl(mp, "## "); 
-  mp_print_variable_name(mp, x);
+if ( mp_interesting(mp, (mp_node)x) ) {
+  mp_begin_diagnostic(mp); 
+  mp_print_nl(mp, "## "); 
+  mp_print_variable_name(mp, (mp_node)x);
 @:]]]\#\#_}{\.{\#\#}@>
   w=n;
-  while ( w>0 ) { mp_print(mp, "*4"); w=w-2;  };
-  mp_print_char(mp, xord('=')); mp_print_dependency(mp, p,mp_dependent); 
+  while ( w>0 ) { 
+    mp_print(mp, "*4"); 
+    w=w-2;  
+  }
+  mp_print_char(mp, xord('=')); 
+  mp_print_dependency(mp, p,mp_dependent); 
   mp_end_diagnostic(mp, false);
 }
 
 @ @<Simplify all existing dependencies by substituting for |x|@>=
-prev_r=dep_head; r=mp_link(dep_head);
-while ( r!=dep_head ) {
-  s=dep_list(r); q=mp_p_with_x_becoming_q(mp, s,x,p,mp_type(r));
-  if ( mp_info(q)==null ) {
-    mp_make_known(mp, r,q);
+prev_r=(mp_value_node)mp->dep_head;
+r=(mp_value_node)mp_link(mp->dep_head);
+while ( r!=mp->dep_head ) {
+  s=(mp_value_node)dep_list(r); 
+  q=mp_p_with_x_becoming_q(mp, s, x,(mp_node)p,mp_type(r));
+  if ( dep_info(q)==null ) {
+    mp_make_known(mp, r, q);
   } else { 
-    dep_list(r)=q;
-    do {  q=mp_link(q); } while (mp_info(q)!=null);
+    set_dep_list(r,(mp_node)q);
+    do {  
+      q=(mp_value_node)mp_link(q); 
+    } while (dep_info(q)!=null);
     prev_r=q;
   }
-  r=mp_link(prev_r);
+  r=(mp_value_node)mp_link(prev_r);
 }
 
 @ @<Change variable |x| from |independent| to |dependent| or |known|@>=
 if ( n>0 ) @<Divide list |p| by $2^n$@>;
-if ( mp_info(p)==null ) {
+if ( dep_info(p)==null ) {
   mp_type(x)=mp_known;
-  value(x)=value(p);
-  if ( abs(value(x))>=fraction_one ) mp_val_too_big(mp, value(x));
-  mp_free_node(mp, p,dep_node_size);
-  if ( mp->cur_exp==x ) if ( mp->cur_type==mp_independent ) {
-    mp->cur_exp=value(x); mp->cur_type=mp_known;
-    mp_free_node(mp, x,value_node_size);
+  set_value(x,dep_value(p));
+  if ( abs(value(x))>=fraction_one )
+    mp_val_too_big(mp, value(x));
+  mp_free_dep_node(mp, p);
+  if ( cur_exp_node()==x && mp->cur_exp.type==mp_independent ) {
+    set_cur_exp_value(value(x)); 
+    mp->cur_exp.type=mp_known;
+    mp_free_node(mp, x, value_node_size);
   }
 } else { 
-  mp_type(x)=mp_dependent; mp->dep_final=final_node; mp_new_dep(mp, x,p);
-  if ( mp->cur_exp==x ) if ( mp->cur_type==mp_independent ) mp->cur_type=mp_dependent;
+  mp->dep_final=final_node; 
+  mp_new_dep(mp, x, mp_dependent, p);
+  if ( cur_exp_node()==x && mp->cur_exp.type==mp_independent ) {
+    mp->cur_exp.type=mp_dependent;
+  }
 }
 
 @ @<Divide list |p| by $2^n$@>=
 { 
-  s=temp_head; mp_link(temp_head)=p; r=p;
+  s=(mp_value_node)mp->temp_head; 
+  set_mp_link(mp->temp_head,(mp_node)p); 
+  r=p;
   do {  
     if ( n>30 ) w=0;
-    else w=value(r) / two_to_the(n);
-    if ( (abs(w)<=half_fraction_threshold)&&(mp_info(r)!=null) ) {
-      mp_link(s)=mp_link(r);
-      mp_free_node(mp, r,dep_node_size);
+    else w=dep_value(r) / two_to_the(n);
+    if ( (abs(w)<=half_fraction_threshold)&&(dep_info(r)!=null) ) {
+      set_mp_link(s,mp_link(r));
+      mp_free_dep_node(mp, r);
     } else { 
-      value(r)=w; s=r;
+      dep_value(r)=w; 
+      s=r;
     }
-    r=mp_link(s);
-  } while (mp_info(s)!=null);
-  p=mp_link(temp_head);
-}
-
-@ The |check_mem| procedure, which is used only when \MP\ is being
-debugged, makes sure that the current dependency lists are well formed.
-
-@<Check the list of linear dependencies@>=
-q=dep_head; p=mp_link(q);
-while ( p!=dep_head ) {
-  if ( prev_dep(p)!=q ) {
-    mp_print_nl(mp, "Bad PREVDEP at "); mp_print_int(mp, p);
-@.Bad PREVDEP...@>
-  }
-  p=dep_list(p);
-  while (1) {
-    r=mp_info(p); q=p; p=mp_link(q);
-    if ( r==null ) break;
-    if ( value(mp_info(p))>=value(r) ) {
-      mp_print_nl(mp, "Out of order at "); mp_print_int(mp, p);
-@.Out of order...@>
-    }
-  }
+    r=(mp_value_node)mp_link(s);
+  } while (dep_info(s)!=null);
+  p=(mp_value_node)mp_link(mp->temp_head);
 }
 
 @* \[25] Dynamic nonlinear equations.
@@ -12959,12 +13464,16 @@ lots of memory space.
 added to a ring (e.g., when an unknown variable is mentioned in an expression).
 
 @c 
-static pointer mp_new_ring_entry (MP mp,pointer p) {
-  pointer q; /* the new capsule node */
-  q=mp_get_node(mp, value_node_size); mp_name_type(q)=mp_capsule;
+static mp_node mp_new_ring_entry (MP mp, mp_node p) {
+  mp_node q; /* the new capsule node */
+  q=mp_get_value_node(mp); 
+  mp_name_type(q)=mp_capsule;
   mp_type(q)=mp_type(p);
-  if ( value(p)==null ) value(q)=p; else value(q)=value(p);
-  value(p)=q;
+  if ( value_node(p)==null ) 
+    set_value_node(q,p); 
+  else 
+    set_value_node(q,value_node(p));
+  set_value_node(p,q);
   return q;
 }
 
@@ -12973,15 +13482,17 @@ The following procedure simply detaches a quantity from its ring,
 without recycling the storage.
 
 @<Declarations@>=
-static void mp_ring_delete (MP mp,pointer p);
+static void mp_ring_delete (MP mp, mp_node p);
 
 @ @c
-void mp_ring_delete (MP mp,pointer p) {
-  pointer q; 
-  q=value(p);
-  if ( q!=null ) if ( q!=p ){ 
-    while ( value(q)!=p ) q=value(q);
-    value(q)=value(p);
+void mp_ring_delete (MP mp, mp_node p) {
+  mp_node q; 
+  (void)mp;
+  q=value_node(p);
+  if ( q!=null && q!=p ){ 
+    while ( value_node(q)!=p ) 
+      q=value_node(q);
+    set_value_node(q,value_node(p));
   }
 }
 
@@ -12993,19 +13504,38 @@ If the parameter |flush_p| is |true|, node |p| itself needn't receive a
 value, it will soon be recycled.
 
 @c 
-static void mp_nonlinear_eq (MP mp,integer v, pointer p, boolean flush_p) {
-  quarterword t; /* the type of ring |p| */
-  pointer q,r; /* link manipulation registers */
-  t=(quarterword)(mp_type(p)-unknown_tag); q=value(p);
-  if ( flush_p ) mp_type(p)=mp_vacuous; else p=q;
+static void mp_nonlinear_eq (MP mp, mp_value v, mp_node p, boolean flush_p) {
+  mp_variable_type t; /* the type of ring |p| */
+  mp_node q,r; /* link manipulation registers */
+  t=(mp_type(p)-unknown_tag); 
+  q=value_node(p);
+  if ( flush_p ) 
+    mp_type(p)=mp_vacuous; 
+  else 
+    p=q;
   do {  
-    r=value(q); mp_type(q)=t;
+    r=value_node(q); 
+    mp_type(q)=t;
     switch (t) {
-    case mp_boolean_type: value(q)=v; break;
-    case mp_string_type: value(q)=v; add_str_ref(v); break;
-    case mp_pen_type: value(q)=copy_pen(v); break;
-    case mp_path_type: value(q)=mp_copy_path(mp, v); break;
-    case mp_picture_type: value(q)=v; add_edge_ref(v); break;
+    case mp_boolean_type: 
+      set_value(q,v.data.val); 
+      break;
+    case mp_string_type: 
+      set_str_value(q,v.data.str);
+      add_str_ref(v.data.str); 
+      break;
+    case mp_pen_type: 
+      set_knot_value(q,copy_pen(v.data.p));
+      break;
+    case mp_path_type: 
+      set_knot_value(q,mp_copy_path(mp, v.data.p));
+      break;
+    case mp_picture_type: 
+      set_value_node(q,v.data.node);
+      add_edge_ref(v.data.node);
+      break;
+    default:
+      break;
     } /* there ain't no more cases */
     q=r;
   } while (q!=p);
@@ -13015,17 +13545,19 @@ static void mp_nonlinear_eq (MP mp,integer v, pointer p, boolean flush_p) {
 the |ring_merge| procedure is called on to make them equivalent.
 
 @c 
-static void mp_ring_merge (MP mp,pointer p, pointer q) {
-  pointer r; /* traverses one list */
-  r=value(p);
+static void mp_ring_merge (MP mp, mp_node p, mp_node q) {
+  mp_node r; /* traverses one list */
+  r=value_node(p);
   while ( r!=p ) {
     if ( r==q ) {
       @<Exclaim about a redundant equation@>;
       return;
     };
-    r=value(r);
+    r=value_node(r);
   }
-  r=value(p); value(p)=value(q); value(q)=r;
+  r=value_node(p); 
+  set_value_node(p,value_node(q)); 
+  set_value_node(q,r);
 }
 
 @ @<Exclaim about a redundant equation@>=
@@ -13082,7 +13614,11 @@ recursive process, but the |get_next| procedure is not recursive.
 @<Glob...@>=
 integer cur_cmd; /* current command set by |get_next| */
 integer cur_mod; /* operand of current command */
-halfword cur_sym; /* hash address of current symbol */
+mp_node cur_mod_node; /* operand of current command */
+mp_sym cur_mod_sym; /* operand of current command */
+str_number cur_mod_str; /* string operand, if any */
+mp_sym cur_sym; /* hash address of current symbol, or a |param_stack| pointer for an expr */
+quarterword cur_sym_mod; /* extra info for these |param_stack| cases */
 
 @ The |print_cmd_mod| routine prints a symbolic interpretation of a
 command code and its modifier.
@@ -13110,8 +13646,10 @@ user's transcript file.
 
 @c 
 static void mp_show_cmd_mod (MP mp,integer c, integer m) { 
-  mp_begin_diagnostic(mp); mp_print_nl(mp, "{");
-  mp_print_cmd_mod(mp, c,m); mp_print_char(mp, xord('}'));
+  mp_begin_diagnostic(mp); 
+  mp_print_nl(mp, "{");
+  mp_print_cmd_mod(mp, c,m); 
+  mp_print_char(mp, xord('}'));
   mp_end_diagnostic(mp, false);
 }
 
@@ -13125,7 +13663,9 @@ elements of the stack appear in an array. Hence the stack is declared thus:
 @<Types...@>=
 typedef struct {
   char *long_name_field;
-  halfword start_field, loc_field, limit_field, name_field;
+  halfword start_field, loc_field, limit_field;
+  mp_node nstart_field, nloc_field;
+  str_number name_field;
   quarterword index_field;
 } in_state_record;
 
@@ -13137,7 +13677,7 @@ in_state_record cur_input; /* the ``top'' input state */
 int stack_size; /* maximum number of simultaneous input sources */
 
 @ @<Allocate or initialize ...@>=
-mp->stack_size = 300;
+mp->stack_size = 16;
 mp->input_stack = xmalloc((mp->stack_size+1),sizeof(in_state_record));
 
 @ @<Dealloc variables@>=
@@ -13176,9 +13716,9 @@ The |name| variable is a string number that designates the name of
 the current file, if we are reading an ordinary text file.  Special codes
 |is_term..max_spec_src| indicate other sources of input text.
 
-@d is_term 0 /* |name| value when reading from the terminal for normal input */
-@d is_read 1 /* |name| value when executing a \&{readstring} or \&{readfrom} */
-@d is_scantok 2 /* |name| value when reading text generated by \&{scantokens} */
+@d is_term (str_number)0 /* |name| value when reading from the terminal for normal input */
+@d is_read (str_number)1 /* |name| value when executing a \&{readstring} or \&{readfrom} */
+@d is_scantok (str_number)2 /* |name| value when reading text generated by \&{scantokens} */
 @d max_spec_src is_scantok
 
 @ Additional information about the current line is available via the
@@ -13230,7 +13770,7 @@ by analogy with |line_stack|.
 @d in_ext mp->inext_stack[iindex] /* a string used to construct \.{MPX} file names */
 @d in_name mp->iname_stack[iindex] /* a string used to construct \.{MPX} file names */
 @d in_area mp->iarea_stack[iindex] /* another string for naming \.{MPX} files */
-@d absent 1 /* |name_field| value for unused |mpx_in_stack| entries */
+@d absent (str_number)1 /* |name_field| value for unused |mpx_in_stack| entries */
 @d mpx_reading (mp->mpx_name[iindex]>absent)
   /* when reading a file, is it an \.{MPX} file? */
 @d mpx_finished 0
@@ -13245,23 +13785,33 @@ integer *line_stack ; /* the line number for each file */
 char *  *inext_stack; /* used for naming \.{MPX} files */
 char *  *iname_stack; /* used for naming \.{MPX} files */
 char *  *iarea_stack; /* used for naming \.{MPX} files */
-halfword*mpx_name  ;
+str_number *mpx_name  ;
+
+@ @<Declarations@>=
+static void mp_reallocate_input_stack (MP mp, int newsize);
+
+@ @c
+static void mp_reallocate_input_stack (MP mp, int newsize) {
+  int k;
+  XREALLOC(mp->input_file , newsize, void *);
+  XREALLOC(mp->line_stack , newsize, integer);
+  XREALLOC(mp->inext_stack, newsize, char *);
+  XREALLOC(mp->iname_stack, newsize, char *);
+  XREALLOC(mp->iarea_stack, newsize, char *);
+  XREALLOC(mp->mpx_name   , newsize, str_number);
+  for (k=mp->max_in_open;k<=newsize;k++) {
+    mp->input_file[k]  = NULL;
+    mp->line_stack[k]  = 0;
+    mp->inext_stack[k] = NULL;
+    mp->iname_stack[k] = NULL;
+    mp->iarea_stack[k] = NULL;
+    mp->mpx_name[k]    = NULL;
+  }
+  mp->max_in_open = newsize;
+}
 
 @ @<Allocate or ...@>=
-mp->input_file  = xmalloc((mp->max_in_open+1),sizeof(void *));
-mp->line_stack  = xmalloc((mp->max_in_open+1),sizeof(integer));
-mp->inext_stack = xmalloc((mp->max_in_open+1),sizeof(char *));
-mp->iname_stack = xmalloc((mp->max_in_open+1),sizeof(char *));
-mp->iarea_stack = xmalloc((mp->max_in_open+1),sizeof(char *));
-mp->mpx_name    = xmalloc((mp->max_in_open+1),sizeof(halfword));
-{
-  int k;
-  for (k=0;k<=mp->max_in_open;k++) {
-    mp->inext_stack[k] =NULL;
-    mp->iname_stack[k] =NULL;
-    mp->iarea_stack[k] =NULL;
-  }
-}
+mp_reallocate_input_stack (mp, 10);
 
 @ @<Dealloc variables@>=
 {
@@ -13286,8 +13836,8 @@ namely when we are currently getting input from a token list. In this case
 |iindex>max_in_open|, and the conventions about the other state variables
 are different:
 
-\yskip\hang|loc| is a pointer to the current node in the token list, i.e.,
-the node that will be read next. If |loc=null|, the token list has been
+\yskip\hang|nloc| is a pointer to the current node in the token list, i.e.,
+the node that will be read next. If |nloc=null|, the token list has been
 fully read.
 
 \yskip\hang|start| points to the first node of the token list; this node
@@ -13332,28 +13882,41 @@ The token list begins with a reference count if and only if |token_type=
 macro|.
 @^reference counts@>
 
+@d nloc mp->cur_input.nloc_field /* location of next node node */
+@d nstart mp->cur_input.nstart_field /* location of next node node */
+
 @d token_type iindex /* type of current token list */
-@d token_state (iindex>(int)mp->max_in_open) /* are we scanning a token list? */
-@d file_state (iindex<=(int)mp->max_in_open) /* are we scanning a file line? */
+@d token_state (iindex<=macro) /* are we scanning a token list? */
+@d file_state (iindex>macro) /* are we scanning a file line? */
 @d param_start limit /* base of macro parameters in |param_stack| */
-@d forever_text (mp->max_in_open+1) /* |token_type| code for loop texts */
-@d loop_text (mp->max_in_open+2) /* |token_type| code for loop texts */
-@d parameter (mp->max_in_open+3) /* |token_type| code for parameter texts */
-@d backed_up (mp->max_in_open+4) /* |token_type| code for texts to be reread */
-@d inserted (mp->max_in_open+5) /* |token_type| code for inserted texts */
-@d macro (mp->max_in_open+6) /* |token_type| code for macro replacement texts */
+@d forever_text 0 /* |token_type| code for loop texts */
+@d loop_text 1 /* |token_type| code for loop texts */
+@d parameter 2 /* |token_type| code for parameter texts */
+@d backed_up 3 /* |token_type| code for texts to be reread */
+@d inserted 4 /* |token_type| code for inserted texts */
+@d macro 5 /* |token_type| code for macro replacement texts */
+@d file_bottom 6 /* lowest file code */
 
 @ The |param_stack| is an auxiliary array used to hold pointers to the token
 lists for parameters at the current level and subsidiary levels of input.
-This stack grows at a different rate from the others.
+This stack grows at a different rate from the others, and is dynamically reallocated
+when needed.
 
 @<Glob...@>=
-pointer *param_stack;  /* token list pointers for parameters */
+mp_node *param_stack;  /* token list pointers for parameters */
 integer param_ptr; /* first unused entry in |param_stack| */
 integer max_param_stack;  /* largest value of |param_ptr| */
 
 @ @<Allocate or initialize ...@>=
-mp->param_stack = xmalloc((mp->param_size+1),sizeof(pointer));
+mp->param_stack = xmalloc((mp->param_size+1),sizeof(mp_node));
+
+@ @c
+static void mp_check_param_size (MP mp, int k) {
+  while ( k>=mp->param_size ) {    
+     XREALLOC(mp->param_stack, (k+k/4+1), mp_node);
+     mp->param_size = k+k/4;
+  }
+}
 
 @ @<Dealloc variables@>=
 xfree(mp->param_stack);
@@ -13376,11 +13939,11 @@ integer mp_true_line (MP mp) {
   } else { 
     k=mp->input_ptr;
     while ((k>0) &&
-           ((mp->input_stack[(k-1)].index_field>mp->max_in_open)||
+           ((mp->input_stack[(k-1)].index_field<file_bottom)||
             (mp->input_stack[(k-1)].name_field<=max_spec_src))) {
       decr(k);
     }
-    return (k>0 ? mp->line_stack[(k-1)] : 0 );
+    return (k>0 ? mp->line_stack[(k-1)+file_bottom] : 0 );
   }
 }
 
@@ -13419,7 +13982,7 @@ at most |error_line|. Non-current input levels whose |token_type| is
 
 @ @<Display the current context@>=
 if ( (mp->file_ptr==mp->input_ptr) || file_state ||
-   (token_type!=backed_up) || (loc!=null) ) {
+   (token_type!=backed_up) || (nloc!=null) ) {
     /* we omit backed-up token lists that have already been read */
   mp->tally=0; /* get ready to count characters */
   old_setting=mp->selector;
@@ -13464,13 +14027,13 @@ a constant expression.
   } else if (token_type==parameter) {
     mp_print_nl(mp, "<argument> "); 
   } else if (token_type==backed_up) { 
-    if ( loc==null ) mp_print_nl(mp, "<recently read> ");
+    if ( nloc==null ) mp_print_nl(mp, "<recently read> ");
     else mp_print_nl(mp, "<to be read again> ");
   } else if (token_type==inserted) {
     mp_print_nl(mp, "<inserted text> ");
   } else if (token_type==macro) {
     mp_print_ln(mp);
-    if ( name!=null ) mp_print_text(name);
+    if ( name != NULL ) mp_print_str(mp, name);
     else @<Print the name of a \&{vardef}'d macro@>;
     mp_print(mp, "->");
   } else {
@@ -13486,10 +14049,14 @@ the |link| field in a capsule parameter is |void| and that
 |print_exp(p,0)| displays the value of capsule~|p| in abbreviated form.
 
 @<Print the current loop value@>=
-{ mp_print_nl(mp, "<for("); p=mp->param_stack[param_start];
-  if ( p!=null ) {
-    if ( mp_link(p)==mp_void ) mp_print_exp(mp, p,0); /* we're in a \&{for} loop */
-    else mp_show_token_list(mp, p,null,20,mp->tally);
+{ mp_node pp;
+  mp_print_nl(mp, "<for("); 
+  pp=mp->param_stack[param_start];
+  if ( pp!=null ) {
+    if ( mp_link(pp)==mp_void ) 
+      mp_print_exp(mp, pp,0); /* we're in a \&{for} loop */
+    else 
+      mp_show_token_list(mp, pp, null, 20, mp->tally);
   }
   mp_print(mp, ")> ");
 }
@@ -13499,15 +14066,16 @@ lists representing the macro's prefix and ``at point.'' By putting these
 together, we get the macro's full name.
 
 @<Print the name of a \&{vardef}'d macro@>=
-{ p=mp->param_stack[param_start];
-  if ( p==null ) {
+{ 
+  mp_node pp=mp->param_stack[param_start];
+  if ( pp==null ) {
     mp_show_token_list(mp, mp->param_stack[param_start+1],null,20,mp->tally);
   } else { 
-    q=p;
-    while ( mp_link(q)!=null ) q=mp_link(q);
-    mp_link(q)=mp->param_stack[param_start+1];
-    mp_show_token_list(mp, p,null,20,mp->tally);
-    mp_link(q)=null;
+    mp_node qq=pp;
+    while ( mp_link(qq)!=null ) qq=mp_link(qq);
+    mp_link(qq)=mp->param_stack[param_start+1];
+    mp_show_token_list(mp, pp,null,20,mp->tally);
+    mp_link(qq)=null;
   }
 }
 
@@ -13598,14 +14166,14 @@ begin_pseudoprint;
 if ( limit>0 ) {
   for (i=start;i<=limit-1;i++) {
     if ( i==loc ) set_trick_count;
-    mp_print_str(mp, mp->buffer[i]);
+    mp_print_char(mp, mp->buffer[i]);
   }
 }
 
 @ @<Pseudoprint the token list@>=
 begin_pseudoprint;
-if ( token_type!=macro ) mp_show_token_list(mp, start,loc,100000,0);
-else mp_show_macro(mp, start,loc,100000)
+if ( token_type!=macro ) mp_show_token_list(mp, nstart,nloc,100000,0);
+else mp_show_macro(mp, nstart,nloc,100000)
 
 @ Here is the missing piece of |show_token_list| that is activated when the
 token beginning line~2 is about to be shown:
@@ -13644,9 +14212,9 @@ set |name|, reset~|loc|, and increase the macro's reference count.
 @d back_list(A) mp_begin_token_list(mp, (A), (quarterword)backed_up) /* backs up a simple token list */
 
 @c 
-static void mp_begin_token_list (MP mp,pointer p, quarterword t)  { 
-  push_input; start=p; token_type=t;
-  param_start=mp->param_ptr; loc=p;
+static void mp_begin_token_list (MP mp, mp_node p, quarterword t)  { 
+  push_input; nstart=p; token_type=t;
+  param_start=mp->param_ptr; nloc=p;
 }
 
 @ When a token list has been fully scanned, the following computations
@@ -13655,12 +14223,12 @@ should be done as we leave that level of input.
 
 @c 
 static void mp_end_token_list (MP mp) { /* leave a token-list input level */
-  pointer p; /* temporary register */
+  mp_node p; /* temporary register */
   if ( token_type>=backed_up ) { /* token list to be deleted */
     if ( token_type<=inserted ) { 
-      mp_flush_token_list(mp, start); goto DONE;
+      mp_flush_token_list(mp, nstart); goto DONE;
     } else {
-      mp_delete_mac_ref(mp, start); /* update reference count */
+      mp_delete_mac_ref(mp, nstart); /* update reference count */
     }
   }
   while ( mp->param_ptr>param_start ) { /* parameters must be flushed */
@@ -13683,23 +14251,30 @@ token by the |cur_tok| routine.
 @^inner loop@>
 
 @c @<Declare the procedure called |make_exp_copy|@>
-static pointer mp_cur_tok (MP mp) {
-  pointer p; /* a new token node */
-  quarterword save_type; /* |cur_type| to be restored */
-  integer save_exp; /* |cur_exp| to be restored */
-  if ( mp->cur_sym==0 ) {
+static mp_node mp_cur_tok (MP mp) {
+  mp_node p; /* a new token node */
+  if ( mp->cur_sym==NULL && mp->cur_sym_mod==0) {
     if ( mp->cur_cmd==capsule_token ) {
-      save_type=mp->cur_type; save_exp=mp->cur_exp;
-      mp_make_exp_copy(mp, mp->cur_mod); p=mp_stash_cur_exp(mp); mp_link(p)=null;
-      mp->cur_type=save_type; mp->cur_exp=save_exp;
+      mp_value save_exp = mp->cur_exp; /* |cur_exp| to be restored */
+      mp_make_exp_copy(mp, mp->cur_mod_node); 
+      p=mp_stash_cur_exp(mp); 
+      mp_link(p)=null;
+      mp->cur_exp=save_exp;
     } else { 
-      p=mp_get_node(mp, token_node_size);
-      value(p)=mp->cur_mod; mp_name_type(p)=mp_token;
-      if ( mp->cur_cmd==numeric_token ) mp_type(p)=mp_known;
-      else mp_type(p)=mp_string_type;
+      p=mp_get_token_node(mp);
+      mp_name_type(p)=mp_token;
+      if ( mp->cur_cmd==numeric_token ) {
+        set_value(p,mp->cur_mod); 
+	mp_type(p)=mp_known;
+      } else {
+        set_str_value(p,mp->cur_mod_str); 
+	mp_type(p)=mp_string_type;
+      }
     }
   } else { 
-    fast_get_avail(p); mp_info(p)=mp->cur_sym;
+    p = mp_get_symbolic_node(mp); 
+    set_mp_sym_sym(p,mp->cur_sym);
+    mp_name_type(p) = mp->cur_sym_mod;    
   }
   return p;
 }
@@ -13713,9 +14288,9 @@ If |cur_sym<>0|, the values of |cur_cmd| and |cur_mod| are irrelevant.
 static void mp_back_input (MP mp);
 
 @ @c void mp_back_input (MP mp) {/* undoes one token of input */
-  pointer p; /* a token list of length one */
+  mp_node p; /* a token list of length one */
   p=mp_cur_tok(mp);
-  while ( token_state &&(loc==null) ) 
+  while ( token_state &&(nloc==null) ) 
     mp_end_token_list(mp); /* conserve stack space */
   back_list(p);
 }
@@ -13742,11 +14317,11 @@ or |limit| or |line|.
 @^system dependencies@>
 
 @c void mp_begin_file_reading (MP mp) { 
+
   if ( mp->in_open==mp->max_in_open ) 
-    mp_overflow(mp, "text input levels",mp->max_in_open);
-@:MetaPost capacity exceeded text input levels}{\quad text input levels@>
+    mp_reallocate_input_stack(mp, (mp->max_in_open+mp->max_in_open/4));
   if ( mp->first==mp->buf_size ) 
-    mp_reallocate_buffer(mp,(mp->buf_size+(mp->buf_size/4)));
+    mp_reallocate_buffer(mp,(mp->buf_size+mp->buf_size/4));
   mp->in_open++; push_input; iindex=(quarterword)mp->in_open;
   if (mp->in_open_max<mp->in_open)
     mp->in_open_max=mp->in_open;
@@ -13760,6 +14335,15 @@ is finished.  Any associated \.{MPX} file must also be closed and popped
 off the file stack.
 
 @c static void mp_end_file_reading (MP mp) { 
+  if (mp->in_open<=file_bottom) {
+	print_err("Attempt to close the bottom level file!");
+  help3("You attempted to close the bottommost file input level.",
+       "The most likely cause of this error is that your preload",
+       "file did not end with 'dump' or 'end'. MP will exit now.");
+	mp_error(mp); 
+	mp->history =mp_fatal_error_stop;
+	mp_jump_out(mp);
+  }
   if ( mp->in_open>iindex ) {
     if ( (mp->mpx_name[mp->in_open]==absent)||(name<=max_spec_src) ) {
       mp_confusion(mp, "endinput");
@@ -13774,7 +14358,6 @@ off the file stack.
   if ( iindex!=mp->in_open ) mp_confusion(mp, "endinput");
   if ( name>max_spec_src ) {
     (mp->close_file)(mp,cur_file);
-    delete_str_ref(name);
     xfree(in_ext); 
     xfree(in_name); 
     xfree(in_area);
@@ -13842,15 +14425,23 @@ error-inserted lines from memory.
 actions.
 
 @<Initialize the input routines@>=
-{ mp->input_ptr=0; mp->max_in_stack=0;
-  mp->in_open=0; mp->open_parens=0; mp->max_buf_stack=0;
-  mp->param_ptr=0; mp->max_param_stack=0;
+{ mp->input_ptr=0;
+  mp->max_in_stack=file_bottom;
+  mp->in_open=file_bottom;
+  mp->open_parens=0;
+  mp->max_buf_stack=0;
+  mp->param_ptr=0;
+  mp->max_param_stack=0;
   mp->first=0;
-  start=0; iindex=0; line=0; name=is_term;
-  mp->mpx_name[0]=absent;
+  start=0;
+  iindex=file_bottom;
+  line=0;
+  name=is_term;
+  mp->mpx_name[file_bottom]=absent;
   mp->force_eof=false;
   if ( ! mp_init_terminal(mp) ) mp_jump_out(mp);
-  limit=(halfword)mp->last; mp->first=mp->last+1; 
+  limit=(halfword)mp->last;
+  mp->first=mp->last+1; 
   /* |init_terminal| has set |loc| and |last| */
 }
 
@@ -13892,8 +14483,10 @@ name of a macro whose replacement text is being scanned.
 
 @<Glob...@>=
 integer scanner_status; /* are we scanning at high speed? */
-integer warning_info; /* if so, what else do we need to know,
+mp_sym warning_info; /* if so, what else do we need to know,
     in case an error occurs? */
+integer warning_info_line;
+mp_node warning_info_node;
 
 @ @<Initialize the input routines@>=
 mp->scanner_status=normal;
@@ -13905,7 +14498,7 @@ by |cur_sym|, which is zero at the end of a file.
 
 @c
 static boolean mp_check_outer_validity (MP mp) {
-  pointer p; /* points to inserted token list */
+  mp_node p; /* points to inserted token list */
   if ( mp->scanner_status==normal ) {
     return true;
   } else if ( mp->scanner_status==tex_flushing ) {
@@ -13919,13 +14512,14 @@ static boolean mp_check_outer_validity (MP mp) {
     } else { 
       print_err("Incomplete if; all text was ignored after line ");
 @.Incomplete if...@>
-      mp_print_int(mp, mp->warning_info);
+      mp_print_int(mp, mp->warning_info_line);
       help3("A forbidden `outer' token occurred in skipped text.",
         "This kind of error happens when you say `if...' and forget",
         "the matching `fi'. I've inserted a `fi'; this might work.");
-      if ( mp->cur_sym==0 ) 
+      if ( mp->cur_sym==NULL ) 
         mp->help_line[2]="The file ended while I was skipping conditional text.";
-      mp->cur_sym=frozen_fi; mp_ins_error(mp);
+      mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_fi);
+      mp_ins_error(mp);
     }
     mp->deletions_allowed=true; 
 	return false;
@@ -13933,30 +14527,32 @@ static boolean mp_check_outer_validity (MP mp) {
 }
 
 @ @<Check if the file has ended while flushing \TeX\ material and set...@>=
-if ( mp->cur_sym!=0 ) { 
+if ( mp->cur_sym!=NULL ) { 
    return true;
 } else { 
   mp->deletions_allowed=false;
   print_err("TeX mode didn't end; all text was ignored after line ");
-  mp_print_int(mp, mp->warning_info);
+  mp_print_int(mp, mp->warning_info_line);
   help2("The file ended while I was looking for the `etex' to",
         "finish this TeX material.  I've inserted `etex' now.");
-  mp->cur_sym = frozen_etex;
+  mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_etex);
   mp_ins_error(mp);
   mp->deletions_allowed=true;
   return false;
 }
 
 @ @<Back up an outer symbolic token so that it can be reread@>=
-if ( mp->cur_sym!=0 ) {
-  p=mp_get_avail(mp); mp_info(p)=mp->cur_sym;
+if ( mp->cur_sym!=NULL ) {
+  p=mp_get_symbolic_node(mp); 
+  set_mp_sym_sym(p,mp->cur_sym);
+  mp_name_type(p) = mp->cur_sym_mod;
   back_list(p); /* prepare to read the symbolic token again */
 }
 
 @ @<Tell the user what has run away...@>=
 { 
   mp_runaway(mp); /* print the definition-so-far */
-  if ( mp->cur_sym==0 ) {
+  if ( mp->cur_sym==NULL ) {
     print_err("File ended");
 @.File ended while scanning...@>
   } else { 
@@ -13983,16 +14579,16 @@ points to the string that might be changed.
 case flushing: 
   mp_print(mp, "to the end of the statement");
   mp->help_line[3]="A previous error seems to have propagated,";
-  mp->cur_sym=frozen_semicolon;
+  mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_semicolon);  
   break;
 case absorbing: 
   mp_print(mp, "a text argument");
   mp->help_line[3]="It seems that a right delimiter was left out,";
-  if ( mp->warning_info==0 ) {
-    mp->cur_sym=frozen_end_group;
+  if ( mp->warning_info==null ) {
+    mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_end_group);  
   } else { 
-    mp->cur_sym=frozen_right_delimiter;
-    equiv(frozen_right_delimiter)=mp->warning_info;
+    mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_right_delimiter);  
+    equiv_sym(mp->cur_sym)=mp->warning_info;
   }
   break;
 case var_defining:
@@ -14001,15 +14597,15 @@ case op_defining:
   if ( mp->scanner_status==op_defining ) 
      mp_print_text(mp->warning_info);
   else 
-     mp_print_variable_name(mp, mp->warning_info);
-  mp->cur_sym=frozen_end_def;
+     mp_print_variable_name(mp, mp->warning_info_node);
+  mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_end_def);  
   break;
 case loop_defining: 
   mp_print(mp, "the text of a "); 
   mp_print_text(mp->warning_info);
   mp_print(mp, " loop");
   mp->help_line[3]="I suspect you have forgotten an `endfor',";
-  mp->cur_sym=frozen_end_for;
+  mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_end_for);  
   break;
 
 @ The |runaway| procedure displays the first part of the text that occurred
@@ -14029,7 +14625,7 @@ void mp_runaway (MP mp) {
      case loop_defining: mp_print(mp, "loop?"); break;
      } /* there are no other cases */
      mp_print_ln(mp); 
-     mp_show_token_list(mp, mp_link(hold_head),null,mp->error_line-10,0);
+     mp_show_token_list(mp, mp_link(mp->hold_head),null,mp->error_line-10,0);
   }
 }
 
@@ -14059,6 +14655,7 @@ void mp_get_next (MP mp) {
   integer n,f; /* registers for decimal-to-binary conversion */
 RESTART: 
   mp->cur_sym=0;
+  mp->cur_sym_mod=0;
   if ( file_state ) {
     @<Input from external file; |goto restart| if no input found,
     or |return| if a non-symbolic token is found@>;
@@ -14077,7 +14674,10 @@ is increased by |outer_tag|.
 @^inner loop@>
 
 @<Finish getting the symbolic token in |cur_sym|...@>=
-mp->cur_cmd=eq_type(mp->cur_sym); mp->cur_mod=equiv(mp->cur_sym);
+mp->cur_cmd=eq_type(mp->cur_sym); 
+mp->cur_mod=equiv(mp->cur_sym);
+mp->cur_mod_node=equiv_node(mp->cur_sym);
+mp->cur_mod_sym=equiv_sym(mp->cur_sym);
 if ( mp->cur_cmd>=outer_tag ) {
   if ( mp_check_outer_validity(mp) ) 
     mp->cur_cmd=mp->cur_cmd-outer_tag;
@@ -14137,7 +14737,7 @@ FIN_NUMERIC_TOKEN:
   @<Pack the numeric and fraction parts of a numeric token
     and |return|@>;
 FOUND: 
-  mp->cur_sym=mp_id_lookup(mp, k,loc-k);
+  mp->cur_sym=mp_id_lookup(mp, (char *)(mp->buffer+k),loc-k, true);
 }
 
 @ We go to |restart| instead of to |SWITCH|, because we might enter
@@ -14157,7 +14757,7 @@ FOUND:
 @ @<Get a string token and |return|@>=
 { 
   if ( mp->buffer[loc]=='"' ) {
-    mp->cur_mod=null_str;
+    mp->cur_mod_str=null_str;
   } else { 
     k=loc; mp->buffer[limit+1]=xord('"');
     do {  
@@ -14166,15 +14766,11 @@ FOUND:
     if ( loc>limit ) {
       @<Decry the missing string delimiter and |goto restart|@>;
     }
-    if ( loc==k+1 ) {
-      mp->cur_mod=mp->buffer[k];
-    } else { 
-      str_room(loc-k);
-      do {  
-        append_char(mp->buffer[k]); incr(k);
-      } while (k!=loc);
-      mp->cur_mod=mp_make_string(mp);
-    }
+    str_room((size_t)(loc-k));
+    do {  
+      append_char(mp->buffer[k]); incr(k);
+    } while (k!=loc);
+    mp->cur_mod_str=mp_make_string(mp);
   }
   incr(loc); mp->cur_cmd=string_token; 
   return;
@@ -14240,7 +14836,7 @@ mp->cur_cmd=numeric_token; return
 { 
   mp->cur_mod=n*unity+f;
   if ( mp->cur_mod>=fraction_one ) {
-    if ( (mp->internal[mp_warning_check]>0) &&
+    if ( (internal_value(mp_warning_check)>0) &&
          (mp->scanner_status!=tex_flushing) ) {
       print_err("Number is too large (");
       mp_print_scaled(mp, mp->cur_mod);
@@ -14257,46 +14853,48 @@ mp->cur_cmd=numeric_token; return
 @^inner loop@>
 
 @<Input from token list;...@>=
-if ( loc>=mp->hi_mem_min ) { /* one-word token */
-  mp->cur_sym=mp_info(loc); loc=mp_link(loc); /* move to next */
-  if ( mp->cur_sym>=expr_base ) {
-    if ( mp->cur_sym>=suffix_base ) {
-      @<Insert a suffix or text parameter and |goto restart|@>;
-    } else { 
-      mp->cur_cmd=capsule_token;
-      mp->cur_mod=mp->param_stack[param_start+mp->cur_sym-(expr_base)];
-      mp->cur_sym=0; return;
-    }
+if ( nloc!=NULL && mp_type(nloc) == mp_symbol_node ) { /* symbolic token */
+  halfword cur_info=mp_sym_info(nloc); 
+  mp->cur_sym = mp_sym_sym(nloc);
+  mp->cur_sym_mod = mp_name_type(nloc);
+  nloc=mp_link(nloc); /* move to next */
+  if ( mp->cur_sym_mod==mp_expr_sym) {
+     mp->cur_cmd=capsule_token;
+     mp->cur_mod_node=mp->param_stack[param_start+cur_info];
+     mp->cur_sym_mod=0;
+     mp->cur_sym=0; 
+     return;
+  } else if (mp->cur_sym_mod==mp_suffix_sym ||
+             mp->cur_sym_mod==mp_text_sym ) {
+     mp_begin_token_list(mp,
+                         mp->param_stack[param_start+cur_info],
+                         (quarterword)parameter);
+      goto RESTART;
   }
-} else if ( loc>null ) {
+} else if ( nloc!=NULL ) {
   @<Get a stored numeric or string or capsule token and |return|@>
 } else { /* we are done with this token list */
   mp_end_token_list(mp); goto RESTART; /* resume previous level */
 }
 
-@ @<Insert a suffix or text parameter...@>=
-{ 
-  if ( mp->cur_sym>=text_base ) mp->cur_sym=mp->cur_sym-mp->param_size;
-  /* |param_size=text_base-suffix_base| */
-  mp_begin_token_list(mp,
-                      mp->param_stack[param_start+mp->cur_sym-(suffix_base)],
-                      (quarterword)parameter);
-  goto RESTART;
-}
-
 @ @<Get a stored numeric or string or capsule token...@>=
 { 
-  if ( mp_name_type(loc)==mp_token ) {
-    mp->cur_mod=value(loc);
-    if ( mp_type(loc)==mp_known ) {
+  if ( mp_name_type(nloc)==mp_token ) {
+    if ( mp_type(nloc)==mp_known ) {
+      mp->cur_mod=value(nloc);
       mp->cur_cmd=numeric_token;
     } else { 
-      mp->cur_cmd=string_token; add_str_ref(mp->cur_mod);
+      mp->cur_mod_str=str_value(nloc);
+      mp->cur_cmd=string_token; 
+      add_str_ref(mp->cur_mod_str);
     }
   } else { 
-    mp->cur_mod=loc; mp->cur_cmd=capsule_token;
-  };
-  loc=mp_link(loc); return;
+    mp->cur_mod_node=nloc;
+    mp->cur_mod_sym=NULL;    
+    mp->cur_cmd=capsule_token;
+  }
+  nloc=mp_link(nloc); 
+  return;
 }
 
 @ All of the easy branches of |get_next| have now been taken care of.
@@ -14355,7 +14953,7 @@ when an error condition causes us to |goto restart| without calling
     decr(loc);
     if ( mpx_reading ) {
       @<Complain that the \.{MPX} file ended unexpectly; then set
-        |cur_sym:=frozen_mpx_break| and |goto comon_ending|@>;
+        |cur_sym:=mp->frozen_mpx_break| and |goto comon_ending|@>;
     } else { 
       mp_print_char(mp, xord(')')); decr(mp->open_parens);
       update_terminal; /* show user that file has been read */
@@ -14380,7 +14978,8 @@ files should have an \&{mpxbreak} after the translation of the last
     "but this one got messed up.  You might want to insert a",
     "picture expression now.");
   mp->deletions_allowed=false; mp_error(mp); mp->deletions_allowed=true;
-  mp->cur_sym=frozen_mpx_break; goto COMMON_ENDING;
+  mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_mpx_break);  
+  goto COMMON_ENDING;
 }
 
 @ Sometimes we want to make it look as though we have just read a blank line
@@ -14403,12 +15002,12 @@ used instead of the line in the file.
   size_t k; /* an index into |buffer| */
   limit=(halfword)mp->last;
   if ((!mp->noninteractive)   
-      && (mp->internal[mp_pausing]>0 )
+      && (internal_value(mp_pausing)>0 )
       && (mp->interaction>mp_nonstop_mode )) {
     wake_up_terminal; mp_print_ln(mp);
     if ( start<limit ) {
       for (k=(size_t)start;k<(size_t)limit;k++) {
-        mp_print_str(mp, mp->buffer[k]);
+        mp_print_char(mp, mp->buffer[k]);
       } 
     }
     mp->first=(size_t)limit; prompt_input("=>"); /* wait for user response */
@@ -14444,9 +15043,11 @@ mp_primitive(mp, "btex",start_tex,btex_code);
 @:btex_}{\&{btex} primitive@>
 mp_primitive(mp, "verbatimtex",start_tex,verbatim_code);
 @:verbatimtex_}{\&{verbatimtex} primitive@>
-mp_primitive(mp, "etex",etex_marker,0); mp->eqtb[frozen_etex]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "etex",etex_marker,0); 
+mp->frozen_etex = mp_frozen_primitive(mp, "etex",etex_marker,0); 
 @:etex_}{\&{etex} primitive@>
-mp_primitive(mp, "mpxbreak",mpx_break,0); mp->eqtb[frozen_mpx_break]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "mpxbreak",mpx_break,0);
+mp->frozen_mpx_break = mp_frozen_primitive(mp, "mpxbreak",mpx_break,0);
 @:mpx_break_}{\&{mpxbreak} primitive@>
 
 @ @<Cases of |print_cmd...@>=
@@ -14504,12 +15105,12 @@ text when \TeX\ material is encountered, so we must be careful to save the
 
 @<Flush the \TeX\ material@>=
 old_status=mp->scanner_status;
-old_info=mp->warning_info;
+old_info=mp->warning_info_line;
 mp->scanner_status=tex_flushing;
-mp->warning_info=line;
+mp->warning_info_line=line;
 do {  mp_get_next(mp); } while (mp->cur_cmd!=etex_marker);
 mp->scanner_status=old_status;
-mp->warning_info=old_info
+mp->warning_info_line=old_info
 
 @ @<Complain that \.{MPX} files cannot contain \TeX\ material@>=
 { print_err("An mpx file cannot contain btex or verbatimtex blocks");
@@ -14554,6 +15155,8 @@ like \&{enddef} and \&{endfor}.
 @d var_def 2 /* command modifier for \&{vardef} */
 @d end_def 0 /* command modifier for \&{enddef} */
 @d start_forever 1 /* command modifier for \&{forever} */
+@d start_for 2 /* command modifier for \&{forever} */
+@d start_forsuffixes 3 /* command modifier for \&{forever} */
 @d end_for 0 /* command modifier for \&{endfor} */
 
 @<Put each...@>=
@@ -14567,16 +15170,18 @@ mp_primitive(mp, "secondarydef",macro_def,tertiary_secondary_macro);
 @:secondary_def_}{\&{secondarydef} primitive@>
 mp_primitive(mp, "tertiarydef",macro_def,expression_tertiary_macro);
 @:tertiary_def_}{\&{tertiarydef} primitive@>
-mp_primitive(mp, "enddef",macro_def,end_def); mp->eqtb[frozen_end_def]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "enddef",macro_def,end_def); 
+mp->frozen_end_def = mp_frozen_primitive(mp, "enddef",macro_def,end_def); 
 @:end_def_}{\&{enddef} primitive@>
 @#
-mp_primitive(mp, "for",iteration,expr_base);
+mp_primitive(mp, "for",iteration, start_for);
 @:for_}{\&{for} primitive@>
-mp_primitive(mp, "forsuffixes",iteration,suffix_base);
+mp_primitive(mp, "forsuffixes",iteration, start_forsuffixes);
 @:for_suffixes_}{\&{forsuffixes} primitive@>
 mp_primitive(mp, "forever",iteration,start_forever);
 @:forever_}{\&{forever} primitive@>
-mp_primitive(mp, "endfor",iteration,end_for); mp->eqtb[frozen_end_for]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "endfor",iteration,end_for); 
+mp->frozen_end_for = mp_frozen_primitive(mp, "endfor",iteration,end_for); 
 @:end_for_}{\&{endfor} primitive@>
 
 @ @<Cases of |print_cmd...@>=
@@ -14594,14 +15199,10 @@ case macro_def:
   }
   break;
 case iteration: 
-  if ( m<=start_forever ) {
-    if ( m==start_forever ) mp_print(mp, "forever"); 
-    else mp_print(mp, "endfor");
-  } else if ( m==expr_base ) {
-    mp_print(mp, "for"); 
-  } else { 
-    mp_print(mp, "forsuffixes");
-  }
+  if ( m==start_forever ) mp_print(mp, "forever"); 
+  else if (m==end_for) mp_print(mp, "endfor");
+  else if ( m==start_for ) mp_print(mp, "for"); 
+  else  mp_print(mp, "forsuffixes");
   break;
 
 @ Different macro-absorbing operations have different syntaxes, but they
@@ -14615,7 +15216,7 @@ The first parameter to |scan_toks| is the command code that will
 terminate scanning (either |macro_def| or |iteration|).
 
 The second parameter, |subst_list|, points to a (possibly empty) list
-of two-word nodes whose |info| and |value| fields specify symbol tokens
+of non-symbolic nodes whose |info| and |value| fields specify symbol tokens
 before and after replacement. The list will be returned to free storage
 by |scan_toks|.
 
@@ -14625,36 +15226,73 @@ And the final parameter tells how many of the special operations
 When such parameters are present, they are called \.{(SUFFIX0)},
 \.{(SUFFIX1)}, and \.{(SUFFIX2)}.
 
-@c static pointer mp_scan_toks (MP mp,command_code terminator, pointer 
-  subst_list, pointer tail_end, quarterword suffix_count) {
-  pointer p; /* tail of the token list being built */
-  pointer q; /* temporary for link management */
+@<Types...@>=
+typedef struct mp_subst_list_item {
+  quarterword info_mod;
+  quarterword value_mod;
+  mp_sym info;
+  halfword value_data;
+  halfword value_sym;
+  struct mp_subst_list_item *link;
+} mp_subst_list_item;
+
+@
+@c static mp_node mp_scan_toks (MP mp,command_code terminator,
+  mp_subst_list_item *subst_list, mp_node tail_end, quarterword suffix_count) {
+  mp_node p; /* tail of the token list being built */
+  mp_subst_list_item *q = NULL; /* temporary for link management */
   integer balance; /* left delimiters minus right delimiters */
-  p=hold_head; balance=1; mp_link(hold_head)=null;
+  halfword cur_data;
+  p=mp->hold_head; 
+  balance=1; 
+  mp_link(mp->hold_head)=null;
   while (1) { 
     get_t_next;
-    if ( mp->cur_sym>0 ) {
+    cur_data = -1;
+    if ( mp->cur_sym!=NULL ) {
       @<Substitute for |cur_sym|, if it's on the |subst_list|@>;
       if ( mp->cur_cmd==terminator ) {
         @<Adjust the balance; |break| if it's zero@>;
       } else if ( mp->cur_cmd==macro_special ) {
-        @<Handle quoted symbols, \.{\#\AT!}, \.{\AT!}, or \.{\AT!\#}@>;
+        /* Handle quoted symbols, \.{\#\AT!}, \.{\AT!}, or \.{\AT!\#} */
+	if ( mp->cur_mod==quote ) { 
+          get_t_next; 
+        } else if ( mp->cur_mod<=suffix_count ) {
+          cur_data=mp->cur_mod-1;
+          mp->cur_sym_mod=mp_suffix_sym;
+        }
       }
     }
-    mp_link(p)=mp_cur_tok(mp); p=mp_link(p);
+    if ( cur_data != -1) {
+       mp_node pp = mp_get_symbolic_node(mp); 
+       set_mp_sym_info(pp,cur_data);
+       mp_name_type(pp) = mp->cur_sym_mod;    
+       mp_link(p)=pp;
+    } else {
+      mp_link(p)=mp_cur_tok(mp);
+    }
+    p=mp_link(p);
   }
-  mp_link(p)=tail_end; mp_flush_node_list(mp, subst_list);
-  return mp_link(hold_head);
+  mp_link(p)=tail_end; 
+  while (subst_list) {
+    q = subst_list->link;
+    xfree(subst_list);
+    subst_list = q;
+  }
+  return mp_link(mp->hold_head);
 }
 
 @ @<Substitute for |cur_sym|...@>=
 { 
   q=subst_list;
-  while ( q!=null ) {
-    if ( mp_info(q)==mp->cur_sym ) {
-      mp->cur_sym=value(q); mp->cur_cmd=relax; break;
+  while ( q != NULL ) {
+    if ( q->info==mp->cur_sym && q->info_mod == mp->cur_sym_mod ) {
+      cur_data = q->value_data;
+      mp->cur_sym_mod = q->value_mod;
+      mp->cur_cmd=relax; 
+      break;
     }
-    q=mp_link(q);
+    q=q->link;
   }
 }
 
@@ -14696,32 +15334,26 @@ case macro_special:
   }
   break;
 
-@ @<Handle quoted...@>=
-{ 
-  if ( mp->cur_mod==quote ) { get_t_next; } 
-  else if ( mp->cur_mod<=suffix_count ) 
-    mp->cur_sym=suffix_base-1+mp->cur_mod;
-}
-
 @ Here is a routine that's used whenever a token will be redefined. If
-the user's token is unredefinable, the `|frozen_inaccessible|' token is
+the user's token is unredefinable, the `|mp->frozen_inaccessible|' token is
 substituted; the latter is redefinable but essentially impossible to use,
 hence \MP's tables won't get fouled up.
 
 @c static void mp_get_symbol (MP mp) { /* sets |cur_sym| to a safe symbol */
 RESTART: 
   get_t_next;
-  if ( (mp->cur_sym==0)||(mp->cur_sym>(integer)frozen_inaccessible) ) {
+  if ( (mp->cur_sym==NULL )|| mp_is_frozen(mp, mp->cur_sym) ) {
     print_err("Missing symbolic token inserted");
 @.Missing symbolic token...@>
     help3("Sorry: You can\'t redefine a number, string, or expr.",
       "I've inserted an inaccessible symbol so that your",
       "definition will be completed without mixing me up too badly.");
-    if ( mp->cur_sym>0 )
+    if ( mp->cur_sym!=NULL )
       mp->help_line[2]="Sorry: You can\'t redefine my error-recovery tokens.";
     else if ( mp->cur_cmd==string_token ) 
-      delete_str_ref(mp->cur_mod);
-    mp->cur_sym=frozen_inaccessible; mp_ins_error(mp); goto RESTART;
+      delete_str_ref(mp->cur_mod_str);
+    mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_inaccessible);  
+    mp_ins_error(mp); goto RESTART;
   }
 }
 
@@ -14751,35 +15383,58 @@ or assignment sign comes along at the proper place in a macro definition.
 
 @ A \&{primarydef}, \&{secondarydef}, or \&{tertiarydef} is rather easily
 handled now that we have |scan_toks|.  In this case there are
-two parameters, which will be \.{EXPR0} and \.{EXPR1} (i.e.,
-|expr_base| and |expr_base+1|).
+two parameters, which will be \.{EXPR0} and \.{EXPR1}.
 
 @c static void mp_make_op_def (MP mp) {
   command_code m; /* the type of definition */
-  pointer p,q,r; /* for list manipulation */
+  mp_node q,r; /* for list manipulation */
+  mp_subst_list_item *qm = NULL, *qn = NULL;
   m=mp->cur_mod;
-  mp_get_symbol(mp); q=mp_get_node(mp, token_node_size);
-  mp_info(q)=mp->cur_sym; value(q)=expr_base;
-  mp_get_clear_symbol(mp); mp->warning_info=mp->cur_sym;
-  mp_get_symbol(mp); p=mp_get_node(mp, token_node_size);
-  mp_info(p)=mp->cur_sym; value(p)=expr_base+1; mp_link(p)=q;
-  get_t_next; mp_check_equals(mp);
-  mp->scanner_status=op_defining; q=mp_get_avail(mp); ref_count(q)=null;
-  r=mp_get_avail(mp); mp_link(q)=r; mp_info(r)=general_macro;
-  mp_link(r)=mp_scan_toks(mp, macro_def,p,null,0);
-  mp->scanner_status=normal; eq_type(mp->warning_info)=m;
-  equiv(mp->warning_info)=q; mp_get_x_next(mp);
+  mp_get_symbol(mp); 
+
+  qm = xmalloc(1, sizeof(mp_subst_list_item));
+  qm->link = NULL;
+  qm->info = mp->cur_sym;
+  qm->info_mod = mp->cur_sym_mod;  
+  qm->value_data = 0;
+  qm->value_mod = mp_expr_sym;
+
+  mp_get_clear_symbol(mp); 
+  mp->warning_info=mp->cur_sym;
+  mp_get_symbol(mp); 
+
+  qn = xmalloc(1, sizeof(mp_subst_list_item));
+  qn->link=qm;
+  qn->info = mp->cur_sym;
+  qn->info_mod = mp->cur_sym_mod;  
+  qn->value_data = 1;
+  qn->value_mod = mp_expr_sym;
+
+  get_t_next; 
+  mp_check_equals(mp);
+  mp->scanner_status=op_defining; 
+  q=mp_get_symbolic_node(mp); 
+  set_mp_sym_info(q, 0); /* ref_count(q)=null; */
+  r=mp_get_symbolic_node(mp); 
+  mp_link(q)=r; 
+  set_mp_sym_info(r,general_macro);
+  mp_name_type(r) = mp_macro_sym;
+  mp_link(r)=mp_scan_toks(mp, macro_def,qn,null,0);
+  mp->scanner_status=normal; 
+  eq_type(mp->warning_info)=m;
+  equiv_node(mp->warning_info)=q; 
+  mp_get_x_next(mp);
 }
 
 @ Parameters to macros are introduced by the keywords \&{expr},
 \&{suffix}, \&{text}, \&{primary}, \&{secondary}, and \&{tertiary}.
 
 @<Put each...@>=
-mp_primitive(mp, "expr",param_type,expr_base);
+mp_primitive(mp, "expr",param_type,expr_param);
 @:expr_}{\&{expr} primitive@>
-mp_primitive(mp, "suffix",param_type,suffix_base);
+mp_primitive(mp, "suffix",param_type,suffix_param);
 @:suffix_}{\&{suffix} primitive@>
-mp_primitive(mp, "text",param_type,text_base);
+mp_primitive(mp, "text",param_type,text_param);
 @:text_}{\&{text} primitive@>
 mp_primitive(mp, "primary",param_type,primary_macro);
 @:primary_}{\&{primary} primitive@>
@@ -14790,17 +15445,12 @@ mp_primitive(mp, "tertiary",param_type,tertiary_macro);
 
 @ @<Cases of |print_cmd...@>=
 case param_type:
-  if ( m>=expr_base ) {
-    if ( m==expr_base ) mp_print(mp, "expr");
-    else if ( m==suffix_base ) mp_print(mp, "suffix");
-    else mp_print(mp, "text");
-  } else if ( m<secondary_macro ) {
-    mp_print(mp, "primary");
-  } else if ( m==secondary_macro ) {
-    mp_print(mp, "secondary");
-  } else {
-    mp_print(mp, "tertiary");
-  }
+  if ( m==expr_param ) mp_print(mp, "expr");
+  else if ( m==suffix_param ) mp_print(mp, "suffix");
+  else if ( m==text_param ) mp_print(mp, "text");
+  else if ( m==primary_macro ) mp_print(mp, "primary");
+  else if ( m==secondary_macro )  mp_print(mp, "secondary");
+  else  mp_print(mp, "tertiary");
   break;
 
 @ Let's turn next to the more complex processing associated with \&{def}
@@ -14818,13 +15468,17 @@ static void mp_scan_def (MP mp) {
   int n; /* the number of special suffix parameters */
   int k; /* the total number of parameters */
   int c; /* the kind of macro we're defining */
-  pointer r; /* parameter-substitution list */
-  pointer q; /* tail of the macro token list */
-  pointer p; /* temporary storage */
-  halfword base; /* |expr_base|, |suffix_base|, or |text_base| */
-  pointer l_delim,r_delim; /* matching delimiters */
-  m=mp->cur_mod; c=general_macro; mp_link(hold_head)=null;
-  q=mp_get_avail(mp); ref_count(q)=null; r=null;
+  mp_subst_list_item *r = NULL, *rp = NULL; /* parameter-substitution list */
+  mp_node q; /* tail of the macro token list */
+  mp_node p; /* temporary storage */
+  quarterword sym_type; /* |expr_sym|, |suffix_sym|, or |text_sym| */
+  mp_sym l_delim,r_delim; /* matching delimiters */
+  m=mp->cur_mod; 
+  c=general_macro;
+  mp_link(mp->hold_head)=null;
+  q=mp_get_symbolic_node(mp);
+  set_mp_sym_info(q, 0); /* ref_count(q)=null; */
+  r=null;
   @<Scan the token or variable to be defined;
     set |n|, |scanner_status|, and |warning_info|@>;
   k=n;
@@ -14835,46 +15489,61 @@ static void mp_scan_def (MP mp) {
     @<Absorb undelimited parameters, putting them into list |r|@>;
   }
   mp_check_equals(mp);
-  p=mp_get_avail(mp); mp_info(p)=c; mp_link(q)=p;
+  p=mp_get_symbolic_node(mp); 
+  set_mp_sym_info(p,c); 
+  mp_name_type(p) = mp_macro_sym;
+  mp_link(q)=p;
   @<Attach the replacement text to the tail of node |p|@>;
-  mp->scanner_status=normal; mp_get_x_next(mp);
+  mp->scanner_status=normal; 
+  mp_get_x_next(mp);
 }
 
-@ We don't put `|frozen_end_group|' into the replacement text of
+@ We don't put `|mp->frozen_end_group|' into the replacement text of
 a \&{vardef}, because the user may want to redefine `\.{endgroup}'.
 
 @<Attach the replacement text to the tail of node |p|@>=
 if ( m==start_def ) {
   mp_link(p)=mp_scan_toks(mp, macro_def,r,null, (quarterword)n);
 } else { 
-  q=mp_get_avail(mp); mp_info(q)=mp->bg_loc; mp_link(p)=q;
-  p=mp_get_avail(mp); mp_info(p)=mp->eg_loc;
+  q=mp_get_symbolic_node(mp); 
+  set_mp_sym_sym(q,mp->bg_loc);
+  mp_link(p)=q;
+  p=mp_get_symbolic_node(mp); 
+  set_mp_sym_sym(p,mp->eg_loc);
   mp_link(q)=mp_scan_toks(mp, macro_def,r,p, (quarterword)n);
 }
-if ( mp->warning_info==bad_vardef ) 
-  mp_flush_token_list(mp, value(bad_vardef))
+if ( mp->warning_info_node==mp->bad_vardef ) 
+  mp_flush_token_list(mp, value_node(mp->bad_vardef))
 
 @ @<Glob...@>=
-int bg_loc;
-int eg_loc; /* hash addresses of `\.{begingroup}' and `\.{endgroup}' */
+mp_sym bg_loc;
+mp_sym eg_loc; /* hash addresses of `\.{begingroup}' and `\.{endgroup}' */
 
 @ @<Scan the token or variable to be defined;...@>=
 if ( m==start_def ) {
-  mp_get_clear_symbol(mp); mp->warning_info=mp->cur_sym; get_t_next;
+  mp_get_clear_symbol(mp);
+  mp->warning_info=mp->cur_sym; 
+  get_t_next;
   mp->scanner_status=op_defining; n=0;
-  eq_type(mp->warning_info)=defined_macro; equiv(mp->warning_info)=q;
+  eq_type(mp->warning_info)=defined_macro;
+  equiv_node(mp->warning_info)=q;
 } else { 
   p=mp_scan_declared_variable(mp);
-  mp_flush_variable(mp, equiv(mp_info(p)),mp_link(p),true);
-  mp->warning_info=mp_find_variable(mp, p); mp_flush_list(mp, p);
-  if ( mp->warning_info==null ) @<Change to `\.{a bad variable}'@>;
-  mp->scanner_status=var_defining; n=2;
-  if ( mp->cur_cmd==macro_special ) if ( mp->cur_mod==macro_suffix ) {/* \.{\AT!\#} */
-    n=3; get_t_next;
+  mp_flush_variable(mp, equiv_node(mp_sym_sym(p)),mp_link(p),true);
+  mp->warning_info_node=mp_find_variable(mp, p); 
+  mp_flush_node_list(mp, p);
+  if ( mp->warning_info_node==null ) 
+    @<Change to `\.{a bad variable}'@>;
+  mp->scanner_status=var_defining; 
+  n=2;
+  if ( mp->cur_cmd==macro_special && mp->cur_mod==macro_suffix ) { /* \.{\AT!\#} */
+    n=3; 
+    get_t_next;
   }
-  mp_type(mp->warning_info)=(quarterword)(mp_unsuffixed_macro-2+n); 
-  value(mp->warning_info)=q;
-} /* |mp_suffixed_macro=mp_unsuffixed_macro+1| */
+  mp_type(mp->warning_info_node)=(quarterword)(mp_unsuffixed_macro-2+n); 
+  /* |mp_suffixed_macro=mp_unsuffixed_macro+1| */
+  set_value_node(mp->warning_info_node,q);
+} 
 
 @ @<Change to `\.{a bad variable}'@>=
 { 
@@ -14882,57 +15551,99 @@ if ( m==start_def ) {
 @.This variable already...@>
   help2("After `vardef a' you can\'t say `vardef a.b'.",
         "So I'll have to discard this definition.");
-  mp_error(mp); mp->warning_info=bad_vardef;
+  mp_error(mp); mp->warning_info_node=mp->bad_vardef;
 }
 
-@ @<Initialize table entries...@>=
-mp_name_type(bad_vardef)=mp_root; mp_link(bad_vardef)=frozen_bad_vardef;
-equiv(frozen_bad_vardef)=bad_vardef; eq_type(frozen_bad_vardef)=tag_token;
+@ @<Initialize table entries@>=
+mp->bad_vardef = mp_get_value_node(mp);
+mp_name_type(mp->bad_vardef)=mp_root; 
+value_sym(mp->bad_vardef) = mp_get_frozen_primitive(mp, mp->frozen_bad_vardef); /* todo: check this */
+
+@ @<Free table entries@>=
+mp_free_value_node(mp,mp->bad_vardef);
+
 
 @ @<Absorb delimited parameters, putting them into lists |q| and |r|@>=
 do {  
-  l_delim=mp->cur_sym; r_delim=mp->cur_mod; get_t_next;
-  if ( (mp->cur_cmd==param_type)&&(mp->cur_mod>=expr_base) ) {
-   base=mp->cur_mod;
+  l_delim=mp->cur_sym; 
+  r_delim=mp->cur_mod_sym; 
+  get_t_next;
+  if ( (mp->cur_cmd==param_type)&&(mp->cur_mod==expr_param) ) {
+    sym_type=mp_expr_sym;
+  } else if ( (mp->cur_cmd==param_type)&&(mp->cur_mod==suffix_param) ) {
+    sym_type=mp_suffix_sym;
+  } else if ( (mp->cur_cmd==param_type)&&(mp->cur_mod==text_param) ) {
+    sym_type=mp_text_sym;
   } else { 
     print_err("Missing parameter type; `expr' will be assumed");
 @.Missing parameter type@>
     help1("You should've had `expr' or `suffix' or `text' here.");
-    mp_back_error(mp); base=expr_base;
+    mp_back_error(mp); sym_type=mp_expr_sym;
   }
-  @<Absorb parameter tokens for type |base|@>;
+  @<Absorb parameter tokens for type |sym_type|@>;
   mp_check_delimiter(mp, l_delim,r_delim);
   get_t_next;
 } while (mp->cur_cmd==left_delimiter)
 
-@ @<Absorb parameter tokens for type |base|@>=
+@ @<Absorb parameter tokens for type |sym_type|@>=
 do { 
-  mp_link(q)=mp_get_avail(mp); q=mp_link(q); mp_info(q)=base+k;
-  mp_get_symbol(mp); p=mp_get_node(mp, token_node_size); 
-  value(p)=base+k; mp_info(p)=mp->cur_sym;
-  if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
-@:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
-  incr(k); mp_link(p)=r; r=p; get_t_next;
+  mp_link(q)=mp_get_symbolic_node(mp);
+  q=mp_link(q);
+  mp_name_type(q) = sym_type;
+  set_mp_sym_info(q,k);
+  mp_get_symbol(mp);
+  rp = xmalloc(1, sizeof(mp_subst_list_item));
+  rp->link = NULL;
+  rp->value_data = k;
+  rp->value_mod = sym_type;
+  rp->info = mp->cur_sym;
+  rp->info_mod = mp->cur_sym_mod;
+  mp_check_param_size(mp, k);
+  incr(k); 
+  rp->link=r; 
+  r=rp; 
+  get_t_next;
 } while (mp->cur_cmd==comma)
 
 @ @<Absorb undelimited parameters, putting them into list |r|@>=
 { 
-  p=mp_get_node(mp, token_node_size);
-  if ( mp->cur_mod<expr_base ) {
-    c=mp->cur_mod; value(p)=expr_base+k;
-  } else { 
-    value(p)=mp->cur_mod+k;
-    if ( mp->cur_mod==expr_base ) c=expr_macro;
-    else if ( mp->cur_mod==suffix_base ) c=suffix_macro;
-    else c=text_macro;
+  rp = xmalloc(1, sizeof(mp_subst_list_item));
+  rp->link = NULL;
+  rp->value_data = k;
+  if ( mp->cur_mod==expr_param ) {
+    rp->value_mod = mp_expr_sym;
+    c=expr_macro;
+  } else if ( mp->cur_mod==suffix_param ) {
+    rp->value_mod = mp_suffix_sym;
+    c=suffix_macro;
+  } else if ( mp->cur_mod==text_param ) {
+    rp->value_mod = mp_text_sym;
+    c=text_macro;
+  } else {
+    c=mp->cur_mod; 
+    rp->value_mod = mp_expr_sym;
   }
-  if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
-  incr(k); mp_get_symbol(mp); mp_info(p)=mp->cur_sym; mp_link(p)=r; r=p; get_t_next;
+  mp_check_param_size(mp, k);
+  incr(k); 
+  mp_get_symbol(mp);
+  rp->info = mp->cur_sym;
+  rp->info_mod = mp->cur_sym_mod;
+  rp->link=r; 
+  r=rp; 
+  get_t_next;
   if ( c==expr_macro ) if ( mp->cur_cmd==of_token ) {
-    c=of_macro; p=mp_get_node(mp, token_node_size);
-    if ( k==mp->param_size ) mp_overflow(mp, "parameter stack size",mp->param_size);
-    value(p)=expr_base+k; mp_get_symbol(mp); mp_info(p)=mp->cur_sym;
-    mp_link(p)=r; r=p; get_t_next;
+    c=of_macro; 
+    rp = xmalloc(1, sizeof(mp_subst_list_item));
+    rp->link = NULL;
+    mp_check_param_size(mp, k);
+    rp->value_data = k;
+    rp->value_mod = mp_expr_sym;
+    mp_get_symbol(mp);
+    rp->info = mp->cur_sym;
+    rp->info_mod = mp->cur_sym_mod;
+    rp->link=r; 
+    r=rp; 
+    get_t_next;
   }
 }
 
@@ -15007,12 +15718,11 @@ when it has to do exotic expansion commands.
 
 @c 
 static void mp_expand (MP mp) {
-  pointer p; /* for list manipulation */
   size_t k; /* something that we hope is |<=buf_size| */
-  pool_pointer j; /* index into |str_pool| */
+  size_t j; /* index into |str_pool| */
   mp->expand_depth_count++;
   mp_check_expansion_depth(mp);
-  if ( mp->internal[mp_tracing_commands]>unity ) 
+  if ( internal_value(mp_tracing_commands)>unity ) 
     if ( mp->cur_cmd!=defined_macro )
       show_cur_cmd_mod;
   switch (mp->cur_cmd)  {
@@ -15047,7 +15757,7 @@ static void mp_expand (MP mp) {
     @<Put a string into the input buffer@>;
     break;
   case defined_macro:
-   mp_macro_call(mp, mp->cur_mod,null,mp->cur_sym);
+   mp_macro_call(mp, mp->cur_mod_node,null,mp->cur_sym);
    break;
   }; /* there are no other cases */
   mp->expand_depth_count--;
@@ -15086,7 +15796,7 @@ it suffices to know that there's a global variable called |loop_ptr|
 that will be |null| if no loop is in progress.
 
 @<Repeat a loop@>=
-{ while ( token_state &&(loc==null) ) 
+{ while ( token_state &&(nloc==null) ) 
     mp_end_token_list(mp); /* conserve stack space */
   if ( mp->loop_ptr==null ) {
     print_err("Lost loop");
@@ -15101,9 +15811,9 @@ that will be |null| if no loop is in progress.
 
 @ @<Exit a loop if the proper time has come@>=
 { mp_get_boolean(mp);
-  if ( mp->internal[mp_tracing_commands]>unity ) 
-    mp_show_cmd_mod(mp, nullary,mp->cur_exp);
-  if ( mp->cur_exp==true_code ) {
+  if ( internal_value(mp_tracing_commands)>unity ) 
+    mp_show_cmd_mod(mp, nullary,cur_exp_value());
+  if ( cur_exp_value()==true_code ) {
     if ( mp->loop_ptr==null ) {
       print_err("No loop is in progress");
 @.No loop is in progress@>
@@ -15124,22 +15834,23 @@ that will be |null| if no loop is in progress.
 is less than |loop_text|.
 
 @<Exit prematurely...@>=
-{ p=null;
+{ mp_node p=null;
   do {  
     if ( file_state ) {
       mp_end_file_reading(mp);
     } else { 
-      if ( token_type<=loop_text ) p=start;
+      if ( token_type<=loop_text ) p=nstart;
       mp_end_token_list(mp);
     }
   } while (p==null);
-  if ( p!=mp_info(mp->loop_ptr) ) mp_fatal_error(mp, "*** (loop confusion)");
+  if ( p!=mp->loop_ptr->info ) mp_fatal_error(mp, "*** (loop confusion)");
 @.loop confusion@>
   mp_stop_iteration(mp); /* this procedure is in Part 34 below */
 }
 
 @ @<Expand the token after the next token@>=
-{ get_t_next;
+{ mp_node p;
+  get_t_next;
   p=mp_cur_tok(mp); get_t_next;
   if ( mp->cur_cmd<min_command ) mp_expand(mp); 
   else mp_back_input(mp);
@@ -15148,34 +15859,45 @@ is less than |loop_text|.
 
 @ @<Put a string into the input buffer@>=
 { mp_get_x_next(mp); mp_scan_primary(mp);
-  if ( mp->cur_type!=mp_string_type ) {
+  if ( mp->cur_exp.type!=mp_string_type ) {
+    mp_value new_expr;
+    new_expr.data.val = 0;
+    new_expr.data.str = NULL;
     mp_disp_err(mp, null,"Not a string");
 @.Not a string@>
     help2("I'm going to flush this expression, since",
           "scantokens should be followed by a known string.");
-    mp_put_get_flush_error(mp, 0);
+    mp_put_get_flush_error(mp, new_expr);
   } else { 
     mp_back_input(mp);
-    if ( length(mp->cur_exp)>0 )
+    if ( length(cur_exp_str())>0 )
        @<Pretend we're reading a new one-line file@>;
   }
 }
 
 @ @<Pretend we're reading a new one-line file@>=
-{ mp_begin_file_reading(mp); name=is_scantok;
-  k=mp->first+(size_t)length(mp->cur_exp);
+{
+  mp_value new_expr;
+  new_expr.data.val = 0;
+  mp_begin_file_reading(mp); 
+  name=is_scantok;
+  k=mp->first+(size_t)length(cur_exp_str());
   if ( k>=mp->max_buf_stack ) {
     while ( k>=mp->buf_size ) {
       mp_reallocate_buffer(mp,(mp->buf_size+(mp->buf_size/4)));
     }
     mp->max_buf_stack=k+1;
   }
-  j=mp->str_start[mp->cur_exp]; limit=(halfword)k;
+  j=0; limit=(halfword)k;
   while ( mp->first<(size_t)limit ) {
-    mp->buffer[mp->first]=mp->str_pool[j]; incr(j); incr(mp->first);
+    mp->buffer[mp->first]= *(cur_exp_str()->str+j); 
+    j++; 
+    incr(mp->first);
   }
-  mp->buffer[limit]=xord('%'); mp->first=(size_t)(limit+1); loc=start; 
-  mp_flush_cur_exp(mp, 0);
+  mp->buffer[limit]=xord('%'); 
+  mp->first=(size_t)(limit+1); 
+  loc=start; 
+  mp_flush_cur_exp(mp, new_expr);
 }
 
 @ Here finally is |get_x_next|.
@@ -15190,13 +15912,13 @@ macros are being expanded.
 static void mp_get_x_next (MP mp);
 
 @ @c void mp_get_x_next (MP mp) {
-  pointer save_exp; /* a capsule to save |cur_type| and |cur_exp| */
+  mp_node save_exp; /* a capsule to save |cur_type| and |cur_exp| */
   get_t_next;
   if ( mp->cur_cmd<min_command ) {
     save_exp=mp_stash_cur_exp(mp);
     do {  
       if ( mp->cur_cmd==defined_macro ) 
-        mp_macro_call(mp, mp->cur_mod,null,mp->cur_sym);
+        mp_macro_call(mp, mp->cur_mod_node,null,mp->cur_sym);
       else 
         mp_expand(mp);
       get_t_next;
@@ -15218,7 +15940,7 @@ is |null|, the macro was defined by \&{vardef}, so its name can be
 reconstructed from the prefix and ``at'' arguments found within the
 second parameter.
 
-What is this second parameter? It's simply a linked list of one-word items,
+What is this second parameter? It's simply a linked list of symbolic items,
 whose |info| fields point to the arguments. In other words, if |arg_list=null|,
 no arguments have been scanned yet; otherwise |mp_info(arg_list)| points to
 the first scanned argument, and |mp_link(arg_list)| points to the list of
@@ -15237,26 +15959,27 @@ the replacement text of the macro is placed at the top of the \MP's
 input stack, so that |get_t_next| will proceed to read it next.
 
 @<Declarations@>=
-static void mp_macro_call (MP mp,pointer def_ref, pointer arg_list, 
-                    pointer macro_name) ;
+static void mp_macro_call (MP mp,mp_node def_ref, mp_node arg_list, 
+                    mp_sym macro_name) ;
 
 @ @c
-void mp_macro_call (MP mp,pointer def_ref, pointer arg_list, 
-                    pointer macro_name) {
+void mp_macro_call (MP mp,mp_node def_ref, mp_node arg_list, 
+                    mp_sym macro_name) {
   /* invokes a user-defined control sequence */
-  pointer r; /* current node in the macro's token list */
-  pointer p,q; /* for list manipulation */
+  mp_node r; /* current node in the macro's token list */
+  mp_node p,q; /* for list manipulation */
   integer n; /* the number of arguments */
-  pointer tail = 0; /* tail of the argument list */
-  pointer l_delim=0,r_delim=0; /* a delimiter pair */
-  r=mp_link(def_ref); add_mac_ref(def_ref);
+  mp_node tail = 0; /* tail of the argument list */
+  mp_sym l_delim=NULL,r_delim=NULL; /* a delimiter pair */
+  r=mp_link(def_ref); 
+  add_mac_ref(def_ref);
   if ( arg_list==null ) {
     n=0;
   } else {
    @<Determine the number |n| of arguments already supplied,
     and set |tail| to the tail of |arg_list|@>;
   }
-  if ( mp->internal[mp_tracing_macros]>0 ) {
+  if ( internal_value(mp_tracing_macros)>0 ) {
     @<Show the text of the macro being expanded, and the existing arguments@>;
   }
   @<Scan the remaining arguments, if any; set |r| to the first token
@@ -15265,37 +15988,41 @@ void mp_macro_call (MP mp,pointer def_ref, pointer arg_list,
 }
 
 @ @<Show the text of the macro...@>=
-mp_begin_diagnostic(mp); mp_print_ln(mp); 
+mp_begin_diagnostic(mp);
+mp_print_ln(mp); 
 mp_print_macro_name(mp, arg_list,macro_name);
-if ( n==3 ) mp_print(mp, "@@#"); /* indicate a suffixed macro */
+if ( n==3 ) 
+  mp_print(mp, "@@#"); /* indicate a suffixed macro */
 mp_show_macro(mp, def_ref,null,100000);
 if ( arg_list!=null ) {
-  n=0; p=arg_list;
+  n=0; 
+  p=arg_list;
   do {  
-    q=mp_info(p);
-    mp_print_arg(mp, q,n,0);
-    incr(n); p=mp_link(p);
+    q=mp_sym_node(p);
+    mp_print_arg(mp, q,n,0,0);
+    incr(n); 
+    p=mp_link(p);
   } while (p!=null);
 }
 mp_end_diagnostic(mp, false)
 
 
 @ @<Declarations@>=
-static void mp_print_macro_name (MP mp,pointer a, pointer n);
+static void mp_print_macro_name (MP mp,mp_node a, mp_sym n);
 
 @ @c
-void mp_print_macro_name (MP mp,pointer a, pointer n) {
-  pointer p,q; /* they traverse the first part of |a| */
-  if ( n!=null ) {
+void mp_print_macro_name (MP mp,mp_node a, mp_sym n) {
+  mp_node p,q; /* they traverse the first part of |a| */
+  if ( n!=NULL ) {
     mp_print_text(n);
   } else  { 
-    p=mp_info(a);
+    p=mp_sym_node(a);
     if ( p==null ) {
-      mp_print_text(mp_info(mp_info(mp_link(a))));
+      mp_print_text(mp_sym_sym(mp_sym_node(mp_link(a))));
     } else { 
       q=p;
       while ( mp_link(q)!=null ) q=mp_link(q);
-      mp_link(q)=mp_info(mp_link(a));
+      mp_link(q)=mp_sym_node(mp_link(a));
       mp_show_token_list(mp, p,null,1000,0);
       mp_link(q)=null;
     }
@@ -15303,30 +16030,39 @@ void mp_print_macro_name (MP mp,pointer a, pointer n) {
 }
 
 @ @<Declarations@>=
-static void mp_print_arg (MP mp,pointer q, integer n, pointer b) ;
+static void mp_print_arg (MP mp,mp_node q, integer n, halfword b, quarterword bb) ;
 
 @ @c
-void mp_print_arg (MP mp,pointer q, integer n, pointer b) {
-  if ( mp_link(q)==mp_void ) mp_print_nl(mp, "(EXPR");
-  else if ( (b<text_base)&&(b!=text_macro) ) mp_print_nl(mp, "(SUFFIX");
-  else mp_print_nl(mp, "(TEXT");
+void mp_print_arg (MP mp,mp_node q, integer n, halfword b, quarterword bb) {
+  if ( q && mp_link(q)==mp_void ) {
+    mp_print_nl(mp, "(EXPR"); 
+  } else {
+    if ( (bb<mp_text_sym)  && (b != text_macro)) 
+      mp_print_nl(mp, "(SUFFIX");
+    else 
+      mp_print_nl(mp, "(TEXT");
+  }
   mp_print_int(mp, n); mp_print(mp, ")<-");
-  if ( mp_link(q)==mp_void ) mp_print_exp(mp, q,1);
+  if ( q && mp_link(q)==mp_void ) mp_print_exp(mp, q,1);
   else mp_show_token_list(mp, q,null,1000,0);
 }
 
 @ @<Determine the number |n| of arguments already supplied...@>=
 {  
-  n=1; tail=arg_list;
+  n=1; 
+  tail=arg_list;
   while ( mp_link(tail)!=null ) { 
-    incr(n); tail=mp_link(tail);
+    incr(n); 
+    tail=mp_link(tail);
   }
 }
 
 @ @<Scan the remaining arguments, if any; set |r|...@>=
 mp->cur_cmd=comma+1; /* anything |<>comma| will do */
-while ( mp_info(r)>=expr_base ) { 
-  @<Scan the delimited argument represented by |mp_info(r)|@>;
+while ( mp_name_type(r) == mp_expr_sym ||
+        mp_name_type(r) == mp_suffix_sym ||
+        mp_name_type(r) == mp_text_sym ) { 
+  @<Scan the delimited argument represented by |mp_sym_info(r)|@>;
   r=mp_link(r);
 }
 if ( mp->cur_cmd==comma ) {
@@ -15341,7 +16077,7 @@ if ( mp->cur_cmd==comma ) {
    "You might want to delete some tokens before continuing.");
   mp_error(mp);
 }
-if ( mp_info(r)!=general_macro ) {
+if ( mp_sym_info(r)!=general_macro ) {
   @<Scan undelimited argument(s)@>;
 }
 r=mp_link(r)
@@ -15355,7 +16091,7 @@ aspects of the following program on faith; we will explain |cur_type|
 and |cur_exp| later. (Several things in this program depend on each other,
 and it's necessary to jump into the circle somewhere.)
 
-@<Scan the delimited argument represented by |mp_info(r)|@>=
+@<Scan the delimited argument represented by |mp_sym_info(r)|@>=
 if ( mp->cur_cmd!=comma ) {
   mp_get_x_next(mp);
   if ( mp->cur_cmd!=left_delimiter ) {
@@ -15365,25 +16101,32 @@ if ( mp->cur_cmd!=comma ) {
     help3("That macro has more parameters than you thought.",
      "I'll continue by pretending that each missing argument",
      "is either zero or null.");
-    if ( mp_info(r)>=suffix_base ) {
-      mp->cur_exp=null; mp->cur_type=mp_token_list;
+    if ( mp_name_type(r) == mp_suffix_sym ||
+         mp_name_type(r) == mp_text_sym ) {
+      set_cur_exp_value(null); 
+      mp->cur_exp.type=mp_token_list;
     } else { 
-      mp->cur_exp=0; mp->cur_type=mp_known;
+      set_cur_exp_value(0);
+      mp->cur_exp.type=mp_known;
     }
-    mp_back_error(mp); mp->cur_cmd=right_delimiter; 
+    mp_back_error(mp); 
+    mp->cur_cmd=right_delimiter; 
     goto FOUND;
   }
-  l_delim=mp->cur_sym; r_delim=mp->cur_mod;
+  l_delim=mp->cur_sym; 
+  r_delim=mp->cur_mod_sym;
 }
-@<Scan the argument represented by |mp_info(r)|@>;
+@<Scan the argument represented by |mp_sym_info(r)|@>;
 if ( mp->cur_cmd!=comma ) 
   @<Check that the proper right delimiter was present@>;
 FOUND:  
 @<Append the current expression to |arg_list|@>
 
 @ @<Check that the proper right delim...@>=
-if ( (mp->cur_cmd!=right_delimiter)||(mp->cur_mod!=l_delim) ) {
-  if ( mp_info(mp_link(r))>=expr_base ) {
+if ( (mp->cur_cmd!=right_delimiter)||(mp->cur_mod_sym!=l_delim) ) {
+  if ( mp_name_type(mp_link(r)) == mp_expr_sym ||
+       mp_name_type(mp_link(r)) == mp_suffix_sym ||
+       mp_name_type(mp_link(r)) == mp_text_sym ) {
     mp_missing_err(mp, ",");
 @.Missing `,'@>
     help3("I've finished reading a macro argument and am about to",
@@ -15391,7 +16134,7 @@ if ( (mp->cur_cmd!=right_delimiter)||(mp->cur_mod!=l_delim) ) {
       "You might want to delete some tokens before continuing.");
     mp_back_error(mp); mp->cur_cmd=comma;
   } else { 
-    mp_missing_err(mp, str(text(r_delim)));
+    mp_missing_err(mp, mp_str(mp,text(r_delim)));
 @.Missing `)'@>
     help2("I've gotten to the end of the macro parameter list.",
           "You might want to delete some tokens before continuing.");
@@ -15405,11 +16148,14 @@ a token list pointed to by |cur_exp|, in which case we will have
 
 @<Append the current expression to |arg_list|@>=
 { 
-  p=mp_get_avail(mp);
-  if ( mp->cur_type==mp_token_list ) mp_info(p)=mp->cur_exp;
-  else mp_info(p)=mp_stash_cur_exp(mp);
-  if ( mp->internal[mp_tracing_macros]>0 ) {
-    mp_begin_diagnostic(mp); mp_print_arg(mp, mp_info(p),n,mp_info(r)); 
+  p=mp_get_symbolic_node(mp);
+  if ( mp->cur_exp.type==mp_token_list ) 
+    set_mp_sym_node(p,mp->cur_exp.data.node);
+  else 
+    set_mp_sym_node(p,mp_stash_cur_exp(mp));
+  if ( internal_value(mp_tracing_macros)>0 ) {
+    mp_begin_diagnostic(mp); 
+    mp_print_arg(mp, mp_sym_node(p),n,mp_sym_info(r),mp_name_type(r)); 
     mp_end_diagnostic(mp, false);
   }
   if ( arg_list==null ) arg_list=p;
@@ -15417,12 +16163,12 @@ a token list pointed to by |cur_exp|, in which case we will have
   tail=p; incr(n);
 }
 
-@ @<Scan the argument represented by |mp_info(r)|@>=
-if ( mp_info(r)>=text_base ) {
+@ @<Scan the argument represented by |mp_sym_info(r)|@>=
+if ( mp_name_type(r) == mp_text_sym ) {
   mp_scan_text_arg(mp, l_delim,r_delim);
 } else { 
   mp_get_x_next(mp);
-  if ( mp_info(r)>=suffix_base ) mp_scan_suffix(mp);
+  if (mp_name_type(r) == mp_suffix_sym ) mp_scan_suffix(mp);
   else mp_scan_expression(mp);
 }
 
@@ -15432,35 +16178,40 @@ end with the first semicolon or \&{endgroup} or \&{end} that is not
 contained in a group.
 
 @<Declarations@>=
-static void mp_scan_text_arg (MP mp,pointer l_delim, pointer r_delim) ;
+static void mp_scan_text_arg (MP mp, mp_sym l_delim, mp_sym r_delim) ;
 
 @ @c
-void mp_scan_text_arg (MP mp,pointer l_delim, pointer r_delim) {
+void mp_scan_text_arg (MP mp, mp_sym l_delim, mp_sym r_delim) {
   integer balance; /* excess of |l_delim| over |r_delim| */
-  pointer p; /* list tail */
-  mp->warning_info=l_delim; mp->scanner_status=absorbing;
-  p=hold_head; balance=1; mp_link(hold_head)=null;
+  mp_node p; /* list tail */
+  mp->warning_info=l_delim; 
+  mp->scanner_status=absorbing;
+  p=mp->hold_head; 
+  balance=1; 
+  mp_link(mp->hold_head)=null;
   while (1)  { 
     get_t_next;
-    if ( l_delim==0 ) {
+    if ( l_delim==NULL ) {
       @<Adjust the balance for an undelimited argument; |break| if done@>;
     } else {
- 	  @<Adjust the balance for a delimited argument; |break| if done@>;
+      @<Adjust the balance for a delimited argument; |break| if done@>;
     }
-    mp_link(p)=mp_cur_tok(mp); p=mp_link(p);
+    mp_link(p)=mp_cur_tok(mp); 
+    p=mp_link(p);
   }
-  mp->cur_exp=mp_link(hold_head); mp->cur_type=mp_token_list;
+  set_cur_exp_node(mp_link(mp->hold_head)); 
+  mp->cur_exp.type=mp_token_list;
   mp->scanner_status=normal;
 }
 
 @ @<Adjust the balance for a delimited argument...@>=
 if ( mp->cur_cmd==right_delimiter ) { 
-  if ( mp->cur_mod==l_delim ) { 
+  if ( mp->cur_mod_sym==l_delim ) { 
     decr(balance);
     if ( balance==0 ) break;
   }
 } else if ( mp->cur_cmd==left_delimiter ) {
-  if ( mp->cur_mod==r_delim ) incr(balance);
+  if ( mp->cur_mod_sym==r_delim ) incr(balance);
 }
 
 @ @<Adjust the balance for an undelimited...@>=
@@ -15473,13 +16224,13 @@ if ( end_of_statement ) { /* |cur_cmd=semicolon|, |end_group|, or |stop| */
 
 @ @<Scan undelimited argument(s)@>=
 { 
-  if ( mp_info(r)<text_macro ) {
+  if ( mp_sym_info(r)<text_macro ) {
     mp_get_x_next(mp);
-    if ( mp_info(r)!=suffix_macro ) {
+    if ( mp_sym_info(r)!=suffix_macro ) {
       if ( (mp->cur_cmd==equals)||(mp->cur_cmd==assignment) ) mp_get_x_next(mp);
     }
   }
-  switch (mp_info(r)) {
+  switch (mp_sym_info(r)) {
   case primary_macro:mp_scan_primary(mp); break;
   case secondary_macro:mp_scan_secondary(mp); break;
   case tertiary_macro:mp_scan_tertiary(mp); break;
@@ -15490,7 +16241,7 @@ if ( end_of_statement ) { /* |cur_cmd=semicolon|, |end_group|, or |stop| */
   case suffix_macro:
     @<Scan a suffix with optional delimiters@>;
     break;
-  case text_macro:mp_scan_text_arg(mp, 0,0); break;
+  case text_macro:mp_scan_text_arg(mp, NULL, NULL); break;
   } /* there are no other cases */
   mp_back_input(mp); 
   @<Append the current expression to |arg_list|@>;
@@ -15498,9 +16249,12 @@ if ( end_of_statement ) { /* |cur_cmd=semicolon|, |end_group|, or |stop| */
 
 @ @<Scan an expression followed by `\&{of} $\langle$primary$\rangle$'@>=
 { 
-  mp_scan_expression(mp); p=mp_get_avail(mp); mp_info(p)=mp_stash_cur_exp(mp);
-  if ( mp->internal[mp_tracing_macros]>0 ) { 
-    mp_begin_diagnostic(mp); mp_print_arg(mp, mp_info(p),n,0); 
+  mp_scan_expression(mp);
+  p=mp_get_symbolic_node(mp);
+  set_mp_sym_node(p,mp_stash_cur_exp(mp));
+  if ( internal_value(mp_tracing_macros)>0 ) { 
+    mp_begin_diagnostic(mp); 
+    mp_print_arg(mp, mp_sym_node(p),n,0,0); 
     mp_end_diagnostic(mp, false);
   }
   if ( arg_list==null ) arg_list=p; else mp_link(tail)=p;
@@ -15518,14 +16272,16 @@ if ( end_of_statement ) { /* |cur_cmd=semicolon|, |end_group|, or |stop| */
 @ @<Scan a suffix with optional delimiters@>=
 { 
   if ( mp->cur_cmd!=left_delimiter ) {
-    l_delim=null;
+    l_delim=NULL;
   } else { 
-    l_delim=mp->cur_sym; r_delim=mp->cur_mod; mp_get_x_next(mp);
-  };
+    l_delim=mp->cur_sym; 
+    r_delim=mp->cur_mod_sym; 
+    mp_get_x_next(mp);
+  }
   mp_scan_suffix(mp);
   if ( l_delim!=null ) {
-    if ((mp->cur_cmd!=right_delimiter)||(mp->cur_mod!=l_delim) ) {
-      mp_missing_err(mp, str(text(r_delim)));
+    if ((mp->cur_cmd!=right_delimiter)||(mp->cur_mod_sym!=l_delim) ) {
+      mp_missing_err(mp, mp_str(mp,text(r_delim)));
 @.Missing `)'@>
       help2("I've gotten to the end of the macro parameter list.",
             "You might want to delete some tokens before continuing.");
@@ -15540,32 +16296,33 @@ all token lists that have recently been depleted. Then a user macro that ends
 with a call to itself will not require unbounded stack space.
 
 @<Feed the arguments and replacement text to the scanner@>=
-while ( token_state &&(loc==null) ) mp_end_token_list(mp); /* conserve stack space */
+while ( token_state &&(nloc==null) ) mp_end_token_list(mp); /* conserve stack space */
 if ( mp->param_ptr+n>mp->max_param_stack ) {
   mp->max_param_stack=mp->param_ptr+n;
-  if ( mp->max_param_stack>mp->param_size )
-    mp_overflow(mp, "parameter stack size",mp->param_size);
+  mp_check_param_size(mp, mp->max_param_stack);
 @:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
 }
-mp_begin_token_list(mp, def_ref, (quarterword)macro); name=macro_name; loc=r;
+mp_begin_token_list(mp, def_ref, (quarterword)macro); 
+if (macro_name) name=text(macro_name); 
+nloc=r;
 if ( n>0 ) {
   p=arg_list;
   do {  
-   mp->param_stack[mp->param_ptr]=mp_info(p); incr(mp->param_ptr); p=mp_link(p);
+    mp->param_stack[mp->param_ptr]=mp_sym_node(p); 
+    incr(mp->param_ptr); 
+    p=mp_link(p);
   } while (p!=null);
-  mp_flush_list(mp, arg_list);
+  mp_flush_node_list(mp, arg_list);
 }
 
 @ It's sometimes necessary to put a single argument onto |param_stack|.
 The |stack_argument| subroutine does this.
 
 @c 
-static void mp_stack_argument (MP mp,pointer p) { 
+static void mp_stack_argument (MP mp,mp_node p) { 
   if ( mp->param_ptr==mp->max_param_stack ) {
     incr(mp->max_param_stack);
-    if ( mp->max_param_stack>mp->param_size )
-      mp_overflow(mp, "parameter stack size",mp->param_size);
-@:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
+    mp_check_param_size(mp, mp->max_param_stack);
   }
   mp->param_stack[mp->param_ptr]=p; incr(mp->param_ptr);
 }
@@ -15583,31 +16340,53 @@ and |if_line| is the line number at which the current conditional began.
 
 If no conditions are currently in progress, the condition stack has the
 special state |cond_ptr=null|, |if_limit=normal|, |cur_if=0|, |if_line=0|.
-Otherwise |cond_ptr| points to a two-word node; the |type|, |name_type|, and
+Otherwise |cond_ptr| points to a non-symbolic node; the |type|, |name_type|, and
 |link| fields of the first word contain |if_limit|, |cur_if|, and
 |cond_ptr| at the next level, and the second word contains the
 corresponding |if_line|.
 
-@d if_node_size 2 /* number of words in stack entry for conditionals */
-@d if_line_field(A) mp->mem[(A)+1].cint
+@d if_line_field(A) ((mp_if_node)(A))->if_line_field_
 @d if_code 1 /* code for \&{if} being evaluated */
 @d fi_code 2 /* code for \&{fi} */
 @d else_code 3 /* code for \&{else} */
 @d else_if_code 4 /* code for \&{elseif} */
 
-@<Glob...@>=
-pointer cond_ptr; /* top of the condition stack */
+@(mpmp.h@>=
+typedef struct mp_if_node_data {
+  NODE_BODY;
+  int if_line_field_;
+} mp_if_node_data;
+typedef struct mp_if_node_data* mp_if_node;
+
+@
+@d if_node_size sizeof(struct mp_if_node_data) /* number of words in stack entry for conditionals */
+
+@c
+static mp_node mp_get_if_node (MP mp) {
+  mp_if_node p = (mp_if_node)xmalloc(1, if_node_size);
+  add_var_used(if_node_size);
+  memset(p,0,if_node_size);
+  mp_type(p) = mp_if_node_type;
+  return (mp_node)p;
+}
+
+@ @<Glob...@>=
+mp_node cond_ptr; /* top of the condition stack */
 integer if_limit; /* upper bound on |fi_or_else| codes */
 quarterword cur_if; /* type of conditional being worked on */
 integer if_line; /* line where that conditional began */
 
 @ @<Set init...@>=
-mp->cond_ptr=null; mp->if_limit=normal; mp->cur_if=0; mp->if_line=0;
+mp->cond_ptr=NULL; 
+mp->if_limit=normal; 
+mp->cur_if=0; 
+mp->if_line=0;
 
 @ @<Put each...@>=
 mp_primitive(mp, "if",if_test,if_code);
 @:if_}{\&{if} primitive@>
-mp_primitive(mp, "fi",fi_or_else,fi_code); mp->eqtb[frozen_fi]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "fi",fi_or_else,fi_code); 
+mp->frozen_fi = mp_frozen_primitive(mp, "fi",fi_or_else,fi_code); 
 @:fi_}{\&{fi} primitive@>
 mp_primitive(mp, "else",fi_or_else,else_code);
 @:else_}{\&{else} primitive@>
@@ -15637,7 +16416,7 @@ makes the skipping process a bit simpler.
 void mp_pass_text (MP mp) {
   integer l = 0;
   mp->scanner_status=skipping;
-  mp->warning_info=mp_true_line(mp);
+  mp->warning_info_line=mp_true_line(mp);
   while (1)  { 
     get_t_next;
     if ( mp->cur_cmd<=fi_or_else ) {
@@ -15656,7 +16435,7 @@ void mp_pass_text (MP mp) {
 }
 
 @ @<Decrease the string reference count...@>=
-if ( mp->cur_cmd==string_token ) { delete_str_ref(mp->cur_mod); }
+if ( mp->cur_cmd==string_token ) { delete_str_ref(mp->cur_mod_str); }
 
 @ When we begin to process a new \&{if}, we set |if_limit:=if_code|; then
 if \&{elseif} or \&{else} or \&{fi} occurs before the current \&{if}
@@ -15664,15 +16443,23 @@ condition has been evaluated, a colon will be inserted.
 A construction like `\.{if fi}' would otherwise get \MP\ confused.
 
 @<Push the condition stack@>=
-{ p=mp_get_node(mp, if_node_size); mp_link(p)=mp->cond_ptr; mp_type(p)=(quarterword)mp->if_limit;
-  mp_name_type(p)=mp->cur_if; if_line_field(p)=mp->if_line;
-  mp->cond_ptr=p; mp->if_limit=if_code; mp->if_line=mp_true_line(mp); 
+{ p=mp_get_if_node(mp); 
+  mp_link(p)=mp->cond_ptr; 
+  mp_type(p)=(quarterword)mp->if_limit;
+  mp_name_type(p)=mp->cur_if; 
+  if_line_field(p)=mp->if_line;
+  mp->cond_ptr=p;
+  mp->if_limit=if_code;
+  mp->if_line=mp_true_line(mp); 
   mp->cur_if=if_code;
 }
 
 @ @<Pop the condition stack@>=
-{ p=mp->cond_ptr; mp->if_line=if_line_field(p);
-  mp->cur_if=mp_name_type(p); mp->if_limit=mp_type(p); mp->cond_ptr=mp_link(p);
+{ mp_node p=mp->cond_ptr; 
+  mp->if_line=if_line_field(p);
+  mp->cur_if=mp_name_type(p); 
+  mp->if_limit=mp_type(p); 
+  mp->cond_ptr=mp_link(p);
   mp_free_node(mp, p,if_node_size);
 }
 
@@ -15680,8 +16467,8 @@ A construction like `\.{if fi}' would otherwise get \MP\ confused.
 a given value of |cond_ptr|.
 
 @c 
-static void mp_change_if_limit (MP mp,quarterword l, pointer p) {
-  pointer q;
+static void mp_change_if_limit (MP mp,quarterword l, mp_node p) {
+  mp_node q;
   if ( p==mp->cond_ptr ) {
     mp->if_limit=l; /* that's the easy case */
   } else  { 
@@ -15718,19 +16505,19 @@ which is a recursive procedure.
 
 @c 
 void mp_conditional (MP mp) {
-  pointer save_cond_ptr; /* |cond_ptr| corresponding to this conditional */
+  mp_node save_cond_ptr; /* |cond_ptr| corresponding to this conditional */
   int new_if_limit; /* future value of |if_limit| */
-  pointer p; /* temporary register */
+  mp_node p; /* temporary register */
   @<Push the condition stack@>; 
   save_cond_ptr=mp->cond_ptr;
 RESWITCH: 
   mp_get_boolean(mp); new_if_limit=else_if_code;
-  if ( mp->internal[mp_tracing_commands]>unity ) {
+  if ( internal_value(mp_tracing_commands)>unity ) {
     @<Display the boolean value of |cur_exp|@>;
   }
 FOUND: 
   mp_check_colon(mp);
-  if ( mp->cur_exp==true_code ) {
+  if ( cur_exp_value()==true_code ) {
     mp_change_if_limit(mp, (quarterword)new_if_limit, save_cond_ptr);
     return; /* wait for \&{elseif}, \&{else}, or \&{fi} */
   };
@@ -15742,7 +16529,8 @@ DONE:
   } else if ( mp->cur_mod==else_if_code ) {
     goto RESWITCH;
   } else  { 
-    mp->cur_exp=true_code; new_if_limit=fi_code; mp_get_x_next(mp); 
+    set_cur_exp_value(true_code); 
+    new_if_limit=fi_code; mp_get_x_next(mp); 
     goto FOUND;
   }
 }
@@ -15762,7 +16550,7 @@ while (1) {
 
 @ @<Display the boolean value...@>=
 { mp_begin_diagnostic(mp);
-  if ( mp->cur_exp==true_code ) mp_print(mp, "{true}");
+  if ( cur_exp_value()==true_code ) mp_print(mp, "{true}");
   else mp_print(mp, "{false}");
   mp_end_diagnostic(mp, false);
 }
@@ -15776,7 +16564,9 @@ if ( mp->cur_mod>mp->if_limit ) {
   if ( mp->if_limit==if_code ) { /* condition not yet evaluated */
     mp_missing_err(mp, ":");
 @.Missing `:'@>
-    mp_back_input(mp); mp->cur_sym=frozen_colon; mp_ins_error(mp);
+    mp_back_input(mp); 
+    mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_colon);  
+    mp_ins_error(mp);
   } else  { 
     print_err("Extra "); mp_print_cmd_mod(mp, fi_or_else,mp->cur_mod);
 @.Extra else@>
@@ -15795,48 +16585,51 @@ To bring our treatment of |get_x_next| to a close, we need to consider what
 \MP\ does when it sees \&{for}, \&{forsuffixes}, and \&{forever}.
 
 There's a global variable |loop_ptr| that keeps track of the \&{for} loops
-that are currently active. If |loop_ptr=null|, no loops are in progress;
-otherwise |mp_info(loop_ptr)| points to the iterative text of the current
-(innermost) loop, and |mp_link(loop_ptr)| points to the data for any other
+that are currently active. If |loop_ptr=NULL|, no loops are in progress;
+otherwise |loop_ptr.info| points to the iterative text of the current
+(innermost) loop, and |loop_ptr.link| points to the data for any other
 loops that enclose the current one.
 
-A loop-control node also has two other fields, called |loop_type| and
-|loop_list|, whose contents depend on the type of loop:
+A loop-control node also has two other fields, called |type| and
+|list|, whose contents depend on the type of loop:
 
-\yskip\indent|loop_type(loop_ptr)=null| means that |loop_list(loop_ptr)|
-points to a list of one-word nodes whose |info| fields point to the
+\yskip\indent|loop_ptr.type=null| means that the link of |loop_ptr.list|
+points to a list of symbolic nodes whose |info| fields point to the
 remaining argument values of a suffix list and expression list.
+In this case, an extra field |loop_ptr.start_list| is needed to
+make sure that |resume_operation| skips ahead.
 
-\yskip\indent|loop_type(loop_ptr)=mp_void| means that the current loop is
+\yskip\indent|loop_ptr.type=mp_void| means that the current loop is
 `\&{forever}'.
 
-\yskip\indent|loop_type(loop_ptr)=progression_flag| means that
-|p=loop_list(loop_ptr)| points to a ``progression node'' and |value(p)|,
-|step_size(p)|, and |final_value(p)| contain the data for an arithmetic
-progression.
+\yskip\indent|loop_ptr.type=progression_flag| means that
+|loop_ptr.value|, |loop_ptr.step_size|, and |loop_ptr.final_value| 
+contain the data for an arithmetic progression.
 
-\yskip\indent|loop_type(loop_ptr)=p>mp_void| means that |p| points to an edge
-header and |loop_list(loop_ptr)| points into the graphical object list for
+\yskip\indent|loop_ptr.type=p>mp_void| means that |p| points to an edge
+header and |loop_ptr.list| points into the graphical object list for
 that edge header.
 
-\yskip\noindent In the case of a progression node, the first word is not used
-because the link field of words in the dynamic memory area cannot be arbitrary.
-
-@d loop_list_loc(A) ((A)+1) /* where the |loop_list| field resides */
-@d loop_type(A) mp_info(loop_list_loc((A))) /* the type of \&{for} loop */
-@d loop_list(A) mp_link(loop_list_loc((A))) /* the remaining list elements */
-@d loop_node_size 2 /* the number of words in a loop control node */
-@d progression_node_size 4 /* the number of words in a progression node */
-@d step_size(A) mp->mem[(A)+2].sc /* the step size in an arithmetic progression */
-@d final_value(A) mp->mem[(A)+3].sc /* the final value in an arithmetic progression */
-@d progression_flag (null+2)
+@d progression_flag (mp_node)(null+2)
   /* |loop_type| value when |loop_list| points to a progression node */
 
-@<Glob...@>=
-pointer loop_ptr; /* top of the loop-control-node stack */
+@<Types...@>=
+typedef struct mp_loop_data {
+  mp_node info;  /* iterative text of this loop */
+  mp_node type; /* the special type of this loop, or a pointer into mem */
+  mp_node list;  /* the remaining list elements */
+  mp_node list_start;  /* head fo the list of elements */
+  scaled value; /* current arithmetic value */
+  scaled step_size; /* arithmetic step size */
+  scaled final_value; /* end arithmetic value */
+  struct mp_loop_data *link; /* the enclosing loop, if any */
+} mp_loop_data;
+
+@ @<Glob...@>=
+mp_loop_data *loop_ptr; /* top of the loop-control-node stack */
 
 @ @<Set init...@>=
-mp->loop_ptr=null;
+mp->loop_ptr=NULL;
 
 @ If the expressions that define an arithmetic progression in
 a \&{for} loop don't have known numeric values, the |bad_for|
@@ -15844,6 +16637,8 @@ subroutine screams at the user.
 
 @c 
 static void mp_bad_for (MP mp, const char * s) {
+  mp_value new_expr;
+  new_expr.data.val = 0;
   mp_disp_err(mp, null,"Improper "); /* show the bad expression above the message */
 @.Improper...replaced by 0@>
   mp_print(mp, s); mp_print(mp, " has been replaced by 0");
@@ -15851,7 +16646,7 @@ static void mp_bad_for (MP mp, const char * s) {
     "the initial value `a' and the step size `b'",
     "and the final value `c' must have known numeric values.",
     "I'm zeroing this one. Proceed, with fingers crossed.");
-  mp_put_get_flush_error(mp, 0);
+  mp_put_get_flush_error(mp, new_expr);
 }
 
 @ Here's what \MP\ does when \&{for}, \&{forsuffixes}, or \&{forever}
@@ -15861,18 +16656,32 @@ to belong in the present part of the program, even though the original author
 didn't write it until later. The reader may wish to come back to it.)
 
 @c void mp_begin_iteration (MP mp) {
-  halfword m; /* |expr_base| (\&{for}) or |suffix_base| (\&{forsuffixes}) */
-  halfword n; /* hash address of the current symbol */
-  pointer s; /* the new loop-control node */
-  pointer p; /* substitution list for |scan_toks| */
-  pointer q;  /* link manipulation register */
-  pointer pp; /* a new progression node */
-  m=mp->cur_mod; n=mp->cur_sym; s=mp_get_node(mp, loop_node_size);
+  halfword m; /* |start_for| (\&{for}) or |start_forsuffixes| (\&{forsuffixes}) */
+  mp_sym n; /* hash address of the current symbol */
+  mp_loop_data *s; /* the new loop-control node */
+  mp_subst_list_item *p = NULL; /* substitution list for |scan_toks| */
+  mp_node q;  /* link manipulation register */
+  m=mp->cur_mod;
+  n=mp->cur_sym; 
+  s=xmalloc(1, sizeof(mp_loop_data));
+  s->type = s->list = s->info = s->list_start = null;
+  s->link = NULL;
   if ( m==start_forever ){ 
-    loop_type(s)=mp_void; p=null; mp_get_x_next(mp);
+    s->type=mp_void; 
+    p=null; 
+    mp_get_x_next(mp);
   } else { 
-    mp_get_symbol(mp); p=mp_get_node(mp, token_node_size);
-    mp_info(p)=mp->cur_sym; value(p)=m;
+    mp_get_symbol(mp); 
+    p = xmalloc(1, sizeof(mp_subst_list_item));
+    p->link = NULL;
+    p->info = mp->cur_sym; 
+    p->info_mod = mp->cur_sym_mod;
+    p->value_data = 0;
+    if (m==start_for) {
+      p->value_mod = mp_expr_sym;
+    } else { /* |start_forsuffixes| */
+      p->value_mod = mp_suffix_sym;
+    }
     mp_get_x_next(mp);
     if ( mp->cur_cmd==within_token ) {
       @<Set up a picture iteration@>;
@@ -15906,73 +16715,84 @@ if ( mp->cur_cmd!=colon ) {
   mp_back_error(mp);
 }
 
-@ We append a special |frozen_repeat_loop| token in place of the
+@ We append a special |mp->frozen_repeat_loop| token in place of the
 `\&{endfor}' at the end of the loop. This will come through \MP's scanner
 at the proper time to cause the loop to be repeated.
 
 (If the user tries some shenanigan like `\&{for} $\ldots$ \&{let} \&{endfor}',
 he will be foiled by the |get_symbol| routine, which keeps frozen
-tokens unchanged. Furthermore the |frozen_repeat_loop| is an \&{outer}
+tokens unchanged. Furthermore the |mp->frozen_repeat_loop| is an \&{outer}
 token, so it won't be lost accidentally.)
 
 @ @<Scan the loop text...@>=
-q=mp_get_avail(mp); mp_info(q)=frozen_repeat_loop;
-mp->scanner_status=loop_defining; mp->warning_info=n;
-mp_info(s)=mp_scan_toks(mp, iteration,p,q,0); mp->scanner_status=normal;
-mp_link(s)=mp->loop_ptr; mp->loop_ptr=s
+q=mp_get_symbolic_node(mp); 
+set_mp_sym_sym(q, mp_get_frozen_primitive(mp, mp->frozen_repeat_loop));
+mp->scanner_status=loop_defining; 
+mp->warning_info=n;
+s->info=mp_scan_toks(mp, iteration,p,q,0); 
+mp->scanner_status=normal;
+s->link=mp->loop_ptr; mp->loop_ptr=s
 
 @ @<Initialize table...@>=
-eq_type(frozen_repeat_loop)=repeat_loop+outer_tag;
-text(frozen_repeat_loop)=intern(" ENDFOR");
+mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_tag, null);
 
 @ The loop text is inserted into \MP's scanning apparatus by the
 |resume_iteration| routine.
 
 @c void mp_resume_iteration (MP mp) {
-  pointer p,q; /* link registers */
-  p=loop_type(mp->loop_ptr);
+  mp_node p,q; /* link registers */
+  p=mp->loop_ptr->type;
   if ( p==progression_flag ) { 
-    p=loop_list(mp->loop_ptr); /* now |p| points to a progression node */
-    mp->cur_exp=value(p);
+    set_cur_exp_value(mp->loop_ptr->value);
     if ( @<The arithmetic progression has ended@> ) {
       mp_stop_iteration(mp);
       return;
     }
-    mp->cur_type=mp_known; q=mp_stash_cur_exp(mp); /* make |q| an \&{expr} argument */
-    value(p)=mp->cur_exp+step_size(p); /* set |value(p)| for the next iteration */
+    mp->cur_exp.type=mp_known; 
+    q=mp_stash_cur_exp(mp); /* make |q| an \&{expr} argument */
+    mp->loop_ptr->value=cur_exp_value()+mp->loop_ptr->step_size; /* set |value(p)| for the next iteration */
     /* detect numeric overflow */
-    if ((step_size(p)>0) && (value(p)<mp->cur_exp)) {
-       if (final_value(p)>0) {
-         value(p)=final_value(p);
-         final_value(p) = final_value(p) - 1;
+    if ((mp->loop_ptr->step_size>0) && (mp->loop_ptr->value<cur_exp_value())) {
+       if (mp->loop_ptr->final_value>0) {
+         mp->loop_ptr->value=mp->loop_ptr->final_value;
+         mp->loop_ptr->final_value--;
        } else {
-         value(p)=final_value(p)+1;
+         mp->loop_ptr->value=mp->loop_ptr->final_value+1;
        }
-    } else if ((step_size(p)<0) && (value(p)>mp->cur_exp)) {
-       if (final_value(p)<0) {
-         value(p)=final_value(p);
-         final_value(p) = final_value(p)+1;
+    } else if ((mp->loop_ptr->step_size<0) && (mp->loop_ptr->value>cur_exp_value())) {
+       if (mp->loop_ptr->final_value<0) {
+         mp->loop_ptr->value=mp->loop_ptr->final_value;
+         mp->loop_ptr->final_value ++;
        } else {
-         value(p)=final_value(p)-1;
+         mp->loop_ptr->value=mp->loop_ptr->final_value-1;
        }
     }
     
   } else if ( p==null ) { 
-    p=loop_list(mp->loop_ptr);
+    p=mp->loop_ptr->list;
+    if (p != null && p == mp->loop_ptr->list_start) {
+       q = p; 
+       p = mp_link(p);
+       mp_free_symbolic_node(mp,q);
+       mp->loop_ptr->list=p; 
+    }
     if ( p==null ) {
       mp_stop_iteration(mp);
       return;
     }
-    loop_list(mp->loop_ptr)=mp_link(p); q=mp_info(p); free_avail(p);
+    mp->loop_ptr->list=mp_link(p); 
+    q=mp_sym_node(p);
+    mp_free_symbolic_node(mp,p);
   } else if ( p==mp_void ) { 
-    mp_begin_token_list(mp, mp_info(mp->loop_ptr), (quarterword)forever_text); return;
+    mp_begin_token_list(mp, mp->loop_ptr->info, (quarterword)forever_text); 
+    return;
   } else {
     @<Make |q| a capsule containing the next picture component from
       |loop_list(loop_ptr)| or |goto not_found|@>;
   }
-  mp_begin_token_list(mp, mp_info(mp->loop_ptr), (quarterword)loop_text);
+  mp_begin_token_list(mp, mp->loop_ptr->info, (quarterword)loop_text);
   mp_stack_argument(mp, q);
-  if ( mp->internal[mp_tracing_commands]>unity ) {
+  if ( internal_value(mp_tracing_commands)>unity ) {
      @<Trace the start of a loop@>;
   }
   return;
@@ -15981,26 +16801,31 @@ NOT_FOUND:
 }
 
 @ @<The arithmetic progression has ended@>=
-((step_size(p)>0)&&(mp->cur_exp>final_value(p)))||
- ((step_size(p)<0)&&(mp->cur_exp<final_value(p)))
+((mp->loop_ptr->step_size>0)&&(cur_exp_value()>mp->loop_ptr->final_value))||
+ ((mp->loop_ptr->step_size<0)&&(cur_exp_value()<mp->loop_ptr->final_value))
 
 @ @<Trace the start of a loop@>=
 { 
-  mp_begin_diagnostic(mp); mp_print_nl(mp, "{loop value=");
+  mp_begin_diagnostic(mp); 
+  mp_print_nl(mp, "{loop value=");
 @.loop value=n@>
-  if ( (q!=null)&&(mp_link(q)==mp_void) ) mp_print_exp(mp, q,1);
-  else mp_show_token_list(mp, q,null,50,0);
-  mp_print_char(mp, xord('}')); mp_end_diagnostic(mp, false);
+  if ( (q!=null)&&(mp_link(q)==mp_void) ) 
+    mp_print_exp(mp, q,1);
+  else 
+    mp_show_token_list(mp, q,null,50,0);
+  mp_print_char(mp, xord('}')); 
+  mp_end_diagnostic(mp, false);
 }
 
 @ @<Make |q| a capsule containing the next picture component from...@>=
-{ q=loop_list(mp->loop_ptr);
-  if ( q==null ) goto NOT_FOUND;
+{ q=mp->loop_ptr->list;
+  if ( q==null ) 
+    goto NOT_FOUND;
   skip_component(q) goto NOT_FOUND;
-  mp->cur_exp=mp_copy_objects(mp, loop_list(mp->loop_ptr),q);
-  mp_init_bbox(mp, mp->cur_exp);
-  mp->cur_type=mp_picture_type;
-  loop_list(mp->loop_ptr)=q;
+  set_cur_exp_node(mp_copy_objects(mp, mp->loop_ptr->list,q));
+  mp_init_bbox(mp, cur_exp_node());
+  mp->cur_exp.type=mp_picture_type;
+  mp->loop_ptr->list=q;
   q=mp_stash_cur_exp(mp);
 }
 
@@ -16009,65 +16834,81 @@ not to resume, or when an \&{exitif} construction has removed the loop text
 from the input stack.
 
 @c void mp_stop_iteration (MP mp) {
-  pointer p,q; /* the usual */
-  p=loop_type(mp->loop_ptr);
+  mp_node p,q; /* the usual */
+  mp_loop_data *tmp; /* for free() */
+  p=mp->loop_ptr->type;
   if ( p==progression_flag )  {
-    mp_free_node(mp, loop_list(mp->loop_ptr),progression_node_size);
+    ;
   } else if ( p==null ){ 
-    q=loop_list(mp->loop_ptr);
+    q=mp->loop_ptr->list;
     while ( q!=null ) {
-      p=mp_info(q);
+      p=mp_sym_node(q);
       if ( p!=null ) {
         if ( mp_link(p)==mp_void ) { /* it's an \&{expr} parameter */
-          mp_recycle_value(mp, p); mp_free_node(mp, p,value_node_size);
+          mp_recycle_value(mp, p); 
+          mp_free_node(mp, p,value_node_size);
         } else {
           mp_flush_token_list(mp, p); /* it's a \&{suffix} or \&{text} parameter */
         }
       }
-      p=q; q=mp_link(q); free_avail(p);
+      p=q; 
+      q=mp_link(q); 
+      mp_free_symbolic_node(mp,p);
     }
   } else if ( p>progression_flag ) {
     delete_edge_ref(p);
   }
-  p=mp->loop_ptr; mp->loop_ptr=mp_link(p); mp_flush_token_list(mp, mp_info(p));
-  mp_free_node(mp, p,loop_node_size);
+  tmp=mp->loop_ptr; 
+  mp->loop_ptr=tmp->link; 
+  mp_flush_token_list(mp, tmp->info);
+  xfree(tmp);
 }
 
 @ Now that we know all about loop control, we can finish up
 the missing portion of |begin_iteration| and we'll be done.
 
 The following code is performed after the `\.=' has been scanned in
-a \&{for} construction (if |m=expr_base|) or a \&{forsuffixes} construction
-(if |m=suffix_base|).
+a \&{for} construction (if |m=start_for|) or a \&{forsuffixes} construction
+(if |m=start_forsuffixes|).
 
 @<Scan the values to be used in the loop@>=
-loop_type(s)=null; q=loop_list_loc(s); mp_link(q)=null; /* |mp_link(q)=loop_list(s)| */
+s->type = null; 
+s->list = mp_get_symbolic_node(mp);
+s->list_start = s->list;
+q = s->list;
 do {  
   mp_get_x_next(mp);
-  if ( m!=expr_base ) {
+  if ( m!=start_for ) {
     mp_scan_suffix(mp);
   } else { 
     if ( mp->cur_cmd>=colon ) if ( mp->cur_cmd<=comma ) 
 	  goto CONTINUE;
     mp_scan_expression(mp);
-    if ( mp->cur_cmd==step_token ) if ( q==loop_list_loc(s) ) {
+    if ( mp->cur_cmd==step_token ) if ( q==s->list ) {
       @<Prepare for step-until construction and |break|@>;
     }
-    mp->cur_exp=mp_stash_cur_exp(mp);
+    set_cur_exp_node(mp_stash_cur_exp(mp));
   }
-  mp_link(q)=mp_get_avail(mp); q=mp_link(q); 
-  mp_info(q)=mp->cur_exp; mp->cur_type=mp_vacuous;
+  mp_link(q)=mp_get_symbolic_node(mp); 
+  q=mp_link(q); 
+  set_mp_sym_node(q, mp->cur_exp.data.node);
+  if (m==start_for)
+     mp_name_type(q) = mp_expr_sym;
+   else if (m==start_forsuffixes)
+     mp_name_type(q) = mp_suffix_sym;
+  mp->cur_exp.type=mp_vacuous;
 CONTINUE:
   ;
 } while (mp->cur_cmd==comma)
 
 @ @<Prepare for step-until construction and |break|@>=
 { 
-  if ( mp->cur_type!=mp_known ) mp_bad_for(mp, "initial value");
-  pp=mp_get_node(mp, progression_node_size); value(pp)=mp->cur_exp;
-  mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_known ) mp_bad_for(mp, "step size");
-  step_size(pp)=mp->cur_exp;
+  if ( mp->cur_exp.type!=mp_known ) mp_bad_for(mp, "initial value");
+  s->value=cur_exp_value();
+  mp_get_x_next(mp); 
+  mp_scan_expression(mp);
+  if ( mp->cur_exp.type!=mp_known ) mp_bad_for(mp, "step size");
+  s->step_size=cur_exp_value();
   if ( mp->cur_cmd!=until_token ) { 
     mp_missing_err(mp, "until");
 @.Missing `until'@>
@@ -16075,10 +16916,11 @@ CONTINUE:
           "So I'll look for the final value and colon next.");
     mp_back_error(mp);
   }
-  mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_known ) mp_bad_for(mp, "final value");
-  final_value(pp)=mp->cur_exp; loop_list(s)=pp;
-  loop_type(s)=progression_flag; 
+  mp_get_x_next(mp); 
+  mp_scan_expression(mp);
+  if ( mp->cur_exp.type!=mp_known ) mp_bad_for(mp, "final value");
+  s->final_value=cur_exp_value(); 
+  s->type=progression_flag; 
   break;
 }
 
@@ -16089,20 +16931,24 @@ parse a picture expression and prepare to iterate over it.
 { mp_get_x_next(mp);
   mp_scan_expression(mp);
   @<Make sure the current expression is a known picture@>;
-  loop_type(s)=mp->cur_exp; mp->cur_type=mp_vacuous;
-  q=mp_link(dummy_loc(mp->cur_exp));
+  s->type=mp->cur_exp.data.node; 
+  mp->cur_exp.type=mp_vacuous;
+  q=mp_link(dummy_loc(mp->cur_exp.data.node));
   if ( q!= null ) 
     if ( is_start_or_stop(q) )
       if ( mp_skip_1component(mp, q)==null ) q=mp_link(q);
-  loop_list(s)=q;
+  s->list=q;
 }
 
 @ @<Make sure the current expression is a known picture@>=
-if ( mp->cur_type!=mp_picture_type ) {
+if ( mp->cur_exp.type!=mp_picture_type ) {
+  mp_value new_expr;
+  new_expr.data.node = mp_get_edge_header_node(mp);
   mp_disp_err(mp, null,"Improper iteration spec has been replaced by nullpicture");
   help1("When you say `for x in p', p must be a known picture.");
-  mp_put_get_flush_error(mp, mp_get_node(mp, edge_header_size));
-  mp_init_edges(mp, mp->cur_exp); mp->cur_type=mp_picture_type;
+  mp_put_get_flush_error(mp, new_expr);
+  mp_init_edges(mp, mp->cur_exp.data.node); 
+  mp->cur_exp.type=mp_picture_type;
 }
 
 @* \[35] File names.
@@ -16120,8 +16966,7 @@ system.  The extension of an input file is assumed to be
 `\.{.mp}' unless otherwise specified; it is `\.{.log}' on the
 transcript file that records each run of \MP; it is `\.{.tfm}' on the font
 metric files that describe characters in any fonts created by \MP; it is
-`\.{.ps}' or `.{\it nnn}' for some number {\it nnn} on the \ps\ output files;
-and it is `\.{.mem}' on the mem files written by \.{INIMP} to initialize \MP.
+`\.{.ps}' or `.{\it nnn}' for some number {\it nnn} on the \ps\ output files.
 The file area can be arbitrary on input files, but files are usually
 output to the user's current area.  If an input file cannot be
 found on the specified area, \MP\ will look for it on a special system
@@ -16191,9 +17036,7 @@ remaining `\..' to the end, otherwise the file extension is null.
 @^system dependencies@>
 
 We can scan such file names easily by using two global variables that keep track
-of the occurrences of area and extension delimiters.  Note that these variables
-cannot be of type |pool_pointer| because a string pool compaction could occur
-while scanning a file name.
+of the occurrences of area and extension delimiters.  
 
 @<Glob...@>=
 integer area_delimiter;
@@ -16239,10 +17082,10 @@ boolean mp_more_name (MP mp, ASCII_code c) {
     return false;
   } else {
     if (IS_DIR_SEP (c)) {
-      mp->area_delimiter=mp->pool_ptr; 
+      mp->area_delimiter=(integer)mp->cur_length; 
       mp->ext_delimiter=-1;
     } else if ( c=='.' ) {
-      mp->ext_delimiter=mp->pool_ptr;
+      mp->ext_delimiter=(integer)mp->cur_length;
     }
     append_char(c); /* contribute |c| to the current string */
   }
@@ -16254,31 +17097,30 @@ boolean mp_more_name (MP mp, ASCII_code c) {
 
 @d copy_pool_segment(A,B,C) { 
       A = xmalloc(C+1,sizeof(char)); 
-      (void)memcpy(A,(char *)(mp->str_pool+B),C);  
+      (void)memcpy(A,(char *)(mp->cur_string+B),C);  
       A[C] = 0;}
 
 @c
 void mp_end_name (MP mp) {
-  pool_pointer s; /* length of area, name, and extension */
-  unsigned int len;
+  size_t s = 0; /* length of area, name, and extension */
+  size_t len;
   /* "my/w.mp" */
-  s = mp->str_start[mp->str_ptr];
   if ( mp->area_delimiter<0 ) {    
     mp->cur_area=xstrdup("");
   } else {
-    len = (unsigned)(mp->area_delimiter-s+1); 
+    len = (size_t)mp->area_delimiter-s+1; 
     copy_pool_segment(mp->cur_area,s,len);
-    s += (pool_pointer)len;
+    s += len;
   }
   if ( mp->ext_delimiter<0 ) {
     mp->cur_ext=xstrdup("");
-    len = (unsigned)(mp->pool_ptr-s); 
+    len = (unsigned)(mp->cur_length-s); 
   } else {
-    copy_pool_segment(mp->cur_ext,mp->ext_delimiter,(size_t)(mp->pool_ptr-mp->ext_delimiter));
-    len = (unsigned)(mp->ext_delimiter-s);
+    copy_pool_segment(mp->cur_ext,mp->ext_delimiter,(mp->cur_length-(size_t)mp->ext_delimiter));
+    len = (size_t)mp->ext_delimiter-s;
   }
   copy_pool_segment(mp->cur_name,s,len);
-  mp->pool_ptr=s; /* don't need this partial string */
+  reset_cur_string(mp);
 }
 
 @ Conversely, here is a routine that takes three strings and prints a file
@@ -16335,7 +17177,9 @@ void mp_pack_file_name (MP mp, const char *n, const char *a, const char *e) ;
 @ @<Option variables@>=
 char *mem_name; /* for commandline */
 
-@ @<Find constant sizes@>=
+@ Stripping a |.mem| extension here is for backward compatibility.
+
+@<Find constant sizes@>=
 mp->mem_name = xstrdup(opt->mem_name);
 if (mp->mem_name) {
   size_t l = strlen(mp->mem_name);
@@ -16347,15 +17191,13 @@ if (mp->mem_name) {
   }
 }
 
-
 @ @<Dealloc variables@>=
 xfree(mp->mem_name);
 
 @ This part of the program becomes active when a ``virgin'' \MP\ is
-trying to get going, just after the preliminary initialization, or
-when the user is substituting another mem file by typing `\.\&' after
-the initial `\.{**}' prompt.  The buffer contains the first line of
-input in |buffer[loc..(last-1)]|, where |loc<last| and |buffer[loc]<>""|.
+trying to get going, just after the preliminary initialization.  
+The buffer contains the first line of input in |buffer[loc..(last-1)]|, 
+where |loc<last| and |buffer[loc]<>""|.
 
 @<Declarations@>=
 static boolean mp_open_mem_name (MP mp) ;
@@ -16367,17 +17209,18 @@ boolean mp_open_mem_name (MP mp) {
     size_t l = strlen(mp->mem_name);
     char *s = xstrdup (mp->mem_name);
     if (l>4) {
-      char *test = strstr(s,".mem");
+      char *test = strstr(s,".mp");
       if (test == NULL || test != s+l-4) {
         s = xrealloc (s, l+5, 1);       
-        strcat (s, ".mem");
+        strcat (s, ".mp");
       }
     } else {
       s = xrealloc (s, l+5, 1);
-      strcat (s, ".mem");
+      strcat (s, ".mp");
     }
-    mp->mem_file = (mp->open_file)(mp,s, "r", mp_filetype_memfile);
-    xfree(s);
+    mp->mem_file = (mp->open_file)(mp,s, "r", mp_filetype_program);
+    strncpy(mp->name_of_file,s,file_name_size);
+    free(s);
     if ( mp->mem_file ) return true;
   }
   return false;
@@ -16391,7 +17234,7 @@ boolean mp_open_mem_file (MP mp) {
     wake_up_terminal;
     wterm_ln("Sorry, I can\'t find the '");
     wterm(mp->mem_name);
-    wterm("' mem file; will try 'plain'.");
+    wterm("' preload file; will try 'plain'.");
 @.Sorry, I can't find...@>
     update_terminal;
     /* now pull out all the stops: try for the system \.{plain} file */
@@ -16401,7 +17244,7 @@ boolean mp_open_mem_file (MP mp) {
       return true;
   }
   wake_up_terminal;
-  wterm_ln("I can't find the 'plain' mem file!\n");
+  wterm_ln("I can't find the 'plain' preload file!\n");
 @.I can't find PLAIN...@>
 @.plain@>
   return false;
@@ -16416,8 +17259,6 @@ most recently opened, if it is possible to do this.
 
 @<Declarations@>=
 #define mp_a_make_name_string(A,B)  mp_make_name_string(A)
-#define mp_b_make_name_string(A,B)  mp_make_name_string(A)
-#define mp_w_make_name_string(A,B)  mp_make_name_string(A)
 
 @ @c 
 static str_number mp_make_name_string (MP mp) {
@@ -16465,11 +17306,11 @@ void mp_str_scan_file (MP mp,  str_number s) ;
 
 @ @c
 void mp_str_scan_file (MP mp,  str_number s) {
-  pool_pointer p,q; /* current position and stopping point */
+  size_t p,q; /* current position and stopping point */
   mp_begin_name(mp);
-  p=mp->str_start[s]; q=str_stop(s);
+  p=0; q = length(s);
   while ( p<q ){ 
-    if ( ! mp_more_name(mp, mp->str_pool[p]) ) break;
+    if ( ! mp_more_name(mp, *(s->str+p)) ) break;
     incr(p);
   }
   mp_end_name(mp);
@@ -16486,7 +17327,7 @@ void mp_ptr_scan_file (MP mp,  char *s) {
   mp_begin_name(mp);
   p=s; q=p+strlen(s);
   while ( p<q ){ 
-    if ( ! mp_more_name(mp, xord((ASCII_code)(*p)))) break;
+    if ( ! mp_more_name(mp, (ASCII_code)(*p))) break;
     p++;
   }
   mp_end_name(mp);
@@ -16516,26 +17357,14 @@ if (mp->job_name != NULL) {
   char *s = mp->job_name+strlen(mp->job_name);
   while (s>mp->job_name) {
      if (*s == '.') {
-         if(strcasecmp(s, ".mp") == 0 || strcasecmp(s, ".mem") == 0 ||
-            strcasecmp(s, ".mf") == 0) {
- 	         *s = '\0';
-	         break;
-	     }
+	*s = '\0';
      }
      s--;
   }
 }
-if (opt->noninteractive && opt->ini_version) {
+if (opt->noninteractive) {
   if (mp->job_name == NULL)
     mp->job_name=mp_xstrdup(mp,mp->mem_name); 
-  if (mp->job_name != NULL) {
-    size_t l = strlen(mp->job_name);
-    if (l>4) {
-      char *test = strstr(mp->job_name,".mem");
-      if (test == mp->job_name+l-4)
-        *test = 0;
-    }
-  }
 }
 mp->log_opened=false;
 
@@ -16544,9 +17373,9 @@ pool is not yet initialized.
 
 @<Fix up |mp->internal[mp_job_name]|@>=
 if (mp->job_name != NULL) {
-  if (mp->internal[mp_job_name]!=0)
-    delete_str_ref(mp->internal[mp_job_name]);
-  mp->internal[mp_job_name]=mp_rts(mp,mp->job_name);
+  if (internal_string(mp_job_name)!=0)
+    delete_str_ref(internal_string(mp_job_name));
+  internal_string(mp_job_name)=mp_rts(mp,mp->job_name);
 }
 
 
@@ -16586,14 +17415,14 @@ void mp_prompt_file_name (MP mp, const char * s, const char * e) ;
   if ( mp->interaction==mp_scroll_mode ) 
 	wake_up_terminal;
   if (strcmp(s,"input file name")==0) {
-	print_err("I can\'t find file `");
+	print_err("I can\'t open file `");
 @.I can't find file x@>
   } else {
 	print_err("I can\'t write on file `");
 @.I can't write on file x@>
   }
   if (strcmp(s,"file name for output")==0) {
-    mp_print(mp, mp->output_file); 
+    mp_print(mp, mp->name_of_file); 
   } else {
     mp_print_file_name(mp, mp->cur_name,mp->cur_area,mp->cur_ext); 
   }
@@ -16659,7 +17488,7 @@ it catch up to what has previously been printed on the terminal.
     mp_print_nl(mp, "**");
 @.**@>
     l=mp->input_stack[0].limit_field-1; /* last position of first line */
-    for (k=0;k<=l;k++) mp_print_str(mp, mp->buffer[k]);
+    for (k=0;k<=l;k++) mp_print_char(mp, mp->buffer[k]);
     mp_print_ln(mp); /* now the transcript file contains the first line of input */
   }
   mp->selector=old_setting+2; /* |log_only| or |term_and_log| */
@@ -16692,16 +17521,16 @@ this file.
 { 
   wlog(mp->banner);
   mp_print(mp, mp->mem_ident); mp_print(mp, "  ");
-  mp_print_int(mp, mp_round_unscaled(mp, mp->internal[mp_day])); 
+  mp_print_int(mp, mp_round_unscaled(mp, internal_value(mp_day))); 
   mp_print_char(mp, xord(' '));
-  m=mp_round_unscaled(mp, mp->internal[mp_month]);
+  m=mp_round_unscaled(mp, internal_value(mp_month));
   for (k=3*m-3;k<3*m;k++) { wlog_chr((unsigned char)months[k]); }
   mp_print_char(mp, xord(' ')); 
-  mp_print_int(mp, mp_round_unscaled(mp, mp->internal[mp_year])); 
+  mp_print_int(mp, mp_round_unscaled(mp, internal_value(mp_year))); 
   mp_print_char(mp, xord(' '));
-  mp_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_hour]));
+  mp_print_dd(mp, mp_round_unscaled(mp, internal_value(mp_hour)));
   mp_print_char(mp, xord(':')); 
-  mp_print_dd(mp, mp_round_unscaled(mp, mp->internal[mp_minute]));
+  mp_print_dd(mp, mp_round_unscaled(mp, internal_value(mp_minute)));
 }
 
 @ The |try_extension| function tries to open an input file determined by
@@ -16766,7 +17595,7 @@ than just a copy of its argument and the full file name is needed for opening
 @^system dependencies@>
 
 @<Flush |name| and replace it with |cur_name| if it won't be needed@>=
-mp_flush_string(mp, name); name=rts(mp->cur_name); xfree(mp->cur_name)
+mp_flush_string(mp, name); name=mp_rts(mp,mp->cur_name); xfree(mp->cur_name)
 
 @ If the file is empty, it is considered to contain a single blank line,
 so there is no need to test the return value.
@@ -16780,7 +17609,7 @@ so there is no need to test the return value.
 }
 
 @ @<Put the desired file name in |(cur_name,cur_ext,cur_area)|@>=
-while ( token_state &&(loc==null) ) mp_end_token_list(mp);
+while ( token_state &&(nloc==null) ) mp_end_token_list(mp);
 if ( token_state ) { 
   print_err("File names can't appear within macros");
 @.File names can't...@>
@@ -16802,9 +17631,9 @@ with the current input file.
 
 @c void mp_start_mpx_input (MP mp) {
   char *origname = NULL; /* a copy of nameoffile */
-  mp_pack_file_name(mp, in_name, in_area, in_ext);
+  mp_pack_file_name(mp, in_name, "", in_ext);
   origname = xstrdup(mp->name_of_file);
-  mp_pack_file_name(mp, in_name, in_area, ".mpx");
+  mp_pack_file_name(mp, in_name, "", ".mpx");
   if (!(mp->run_make_mpx)(mp, origname, mp->name_of_file))
     goto NOT_FOUND;
   mp_begin_file_reading(mp);
@@ -16952,12 +17781,42 @@ Technically speaking, the parsing algorithms are ``LL(1),'' more or less;
 backup mechanisms have been added in order to provide reasonable error
 recovery.
 
-@<Glob...@>=
-quarterword cur_type; /* the type of the expression just found */
-integer cur_exp; /* the value of the expression just found */
+@d cur_exp_value() mp->cur_exp.data.val
+@d cur_exp_node() mp->cur_exp.data.node
+@d cur_exp_str() mp->cur_exp.data.str
+@d cur_exp_knot() mp->cur_exp.data.p
+
+@d set_cur_exp_value(A) do {
+    cur_exp_value() = (A);
+    cur_exp_node() = NULL;
+    cur_exp_str() = NULL;
+    cur_exp_knot() = NULL;
+  } while (0)
+@d set_cur_exp_node(A) do {
+    cur_exp_node() = A;
+    cur_exp_str() = NULL;
+    cur_exp_knot() = NULL;
+    cur_exp_value() = 0;
+  } while (0)
+@d set_cur_exp_str(A) do {
+    cur_exp_str() = A;
+    cur_exp_node() = NULL;
+    cur_exp_knot() = NULL;
+    cur_exp_value() = 0;
+  } while (0)
+@d set_cur_exp_knot(A) do {
+    cur_exp_knot() = A;
+    cur_exp_node() = NULL;
+    cur_exp_str() = NULL;
+    cur_exp_value() = 0;
+  } while (0)
+  
+
+@ @<Glob...@>=
+mp_value cur_exp; /* the value of the expression just found */
 
 @ @<Set init...@>=
-mp->cur_exp=0;
+memset(&mp->cur_exp.data,0,sizeof(mp_value));
 
 @ Many different kinds of expressions are possible, so it is wise to have
 precise descriptions of what |cur_type| and |cur_exp| mean in all cases:
@@ -17071,7 +17930,7 @@ numerical order. Notice that |cur_type| will never be |mp_numeric_type| or
 are allowed.  Conversely, \MP\ has no variables of type |mp_vacuous| or
 |token_list|.
 
-@ Capsules are two-word nodes that have a similar meaning
+@ Capsules are non-symbolic nodes that have a similar meaning
 to |cur_type| and |cur_exp|. Such nodes have |name_type=capsule|,
 and their |type| field is one of the possibilities for |cur_type| listed above.
 Also |link<=void| in capsules that aren't part of a token list.
@@ -17107,9 +17966,10 @@ The special link |mp_void| is put on the capsule returned by
 that must be easily distinguishable from token lists.
 
 @<Declare the stashing/unstashing routines@>=
-static pointer mp_stash_cur_exp (MP mp) {
-  pointer p; /* the capsule that will be returned */
-  switch (mp->cur_type) {
+static mp_node mp_stash_cur_exp (MP mp) {
+  mp_node p; /* the capsule that will be returned */
+  mp_variable_type exp_type = mp->cur_exp.type;
+  switch (exp_type) {
   case unknown_types:
   case mp_transform_type:
   case mp_color_type:
@@ -17118,14 +17978,21 @@ static pointer mp_stash_cur_exp (MP mp) {
   case mp_proto_dependent:
   case mp_independent: 
   case mp_cmykcolor_type:
-    p=mp->cur_exp;
+    p=cur_exp_node();
     break;
+  /* case mp_path_type: case mp_pen_type: case mp_string_type: */
   default: 
-    p=mp_get_node(mp, value_node_size); mp_name_type(p)=mp_capsule;
-    mp_type(p)=mp->cur_type; value(p)=mp->cur_exp;
+    p=mp_get_value_node(mp); 
+    mp_name_type(p)=mp_capsule;
+    mp_type(p)=mp->cur_exp.type; 
+    set_value(p,cur_exp_value()); /* this also resets the rest to 0/NULL */
+    str_value(p)=cur_exp_str();
+    knot_value(p)=cur_exp_knot();
+    value_node(p)=cur_exp_node();
     break;
   }
-  mp->cur_type=mp_vacuous; mp_link(p)=mp_void; 
+  mp->cur_exp.type=mp_vacuous;
+  mp_link(p)=mp_void; 
   return p;
 }
 
@@ -17150,12 +18017,12 @@ are alive or dormant. The \\{unstash} procedure assumes that they are
 dead or dormant; it resuscitates them.
 
 @<Declare the stashing/unstashing...@>=
-static void mp_unstash_cur_exp (MP mp,pointer p) ;
+static void mp_unstash_cur_exp (MP mp,mp_node p) ;
 
 @ @c
-void mp_unstash_cur_exp (MP mp,pointer p) { 
-  mp->cur_type=mp_type(p);
-  switch (mp->cur_type) {
+void mp_unstash_cur_exp (MP mp,mp_node p) { 
+  mp->cur_exp.type=mp_type(p);
+  switch (mp->cur_exp.type) {
   case unknown_types:
   case mp_transform_type:
   case mp_color_type:
@@ -17164,10 +18031,23 @@ void mp_unstash_cur_exp (MP mp,pointer p) {
   case mp_proto_dependent:
   case mp_independent:
   case mp_cmykcolor_type: 
-    mp->cur_exp=p;
+    set_cur_exp_node(p);
+    break;
+  case mp_path_type:
+  case mp_pen_type: 
+    set_cur_exp_knot(knot_value(p));
+    mp_free_node(mp, p,value_node_size);
+    break;
+  case mp_string_type: 
+    set_cur_exp_str(str_value(p));
+    mp_free_node(mp, p,value_node_size);
+    break;
+  case mp_picture_type: 
+    set_cur_exp_node(value_node(p));
+    mp_free_node(mp, p,value_node_size);
     break;
   default:
-    mp->cur_exp=value(p);
+    set_cur_exp_value(value(p));
     mp_free_node(mp, p,value_node_size);
     break;
   }
@@ -17186,63 +18066,165 @@ in full.
 @<Declarations@>=
 @<Declare the procedure called |print_dp|@>
 @<Declare the stashing/unstashing routines@>
-static void mp_print_exp (MP mp,pointer p, quarterword verbosity) ;
+static void mp_print_exp (MP mp, mp_node p, quarterword verbosity) ;
 
 @ @c
-void mp_print_exp (MP mp,pointer p, quarterword verbosity) {
+void mp_print_exp (MP mp, mp_node p, quarterword verbosity) {
   boolean restore_cur_exp; /* should |cur_exp| be restored? */
-  quarterword t; /* the type of the expression */
-  pointer q; /* a big node being displayed */
-  integer v=0; /* the value of the expression */
+  mp_variable_type t; /* the type of the expression */
+
+  integer vv=0; /* the value of the expression */
+  mp_node v=NULL;
   if ( p!=null ) {
     restore_cur_exp=false;
   } else { 
-    p=mp_stash_cur_exp(mp); restore_cur_exp=true;
+    p=mp_stash_cur_exp(mp); 
+    restore_cur_exp=true;
   }
   t=mp_type(p);
-  if ( t<mp_dependent ) v=value(p); else if ( t<mp_independent ) v=dep_list(p);
-  @<Print an abbreviated value of |v| with format depending on |t|@>;
-  if ( restore_cur_exp ) mp_unstash_cur_exp(mp, p);
+  if ( t<mp_dependent ) { /* no dep list, could be a capsule */
+    if (t != mp_vacuous &&  t != mp_known && value_node(p)!=NULL)
+      v=value_node(p);
+    else  
+      vv=value(p); 
+  } else if ( t<mp_independent ) {
+    v=(mp_node)dep_list((mp_value_node)p);
+  }
+  @<Print an abbreviated value of |v| or |vv| with format depending on |t|@>;
+  if ( restore_cur_exp ) 
+    mp_unstash_cur_exp(mp, p);
 }
 
-@ @<Print an abbreviated value of |v| with format depending on |t|@>=
+@ @<Print an abbreviated value of |v| or |vv| with format depending on |t|@>=
 switch (t) {
-case mp_vacuous:mp_print(mp, "vacuous"); break;
-case mp_boolean_type:
-  if ( v==true_code ) mp_print(mp, "true"); else mp_print(mp, "false");
+case mp_vacuous:
+  mp_print(mp, "vacuous"); 
   break;
-case unknown_types: case mp_numeric_type:
+case mp_boolean_type:
+  if ( vv==true_code ) mp_print(mp, "true"); 
+  else mp_print(mp, "false");
+  break;
+case unknown_types: 
+case mp_numeric_type:
   @<Display a variable that's been declared but not defined@>;
   break;
 case mp_string_type:
-  mp_print_char(mp, xord('"')); mp_print_str(mp, v); mp_print_char(mp, xord('"'));
+  mp_print_char(mp, xord('"')); 
+  mp_print_str(mp, str_value(p)); 
+  mp_print_char(mp, xord('"'));
   break;
-case mp_pen_type: case mp_path_type: case mp_picture_type:
+case mp_pen_type: 
+case mp_path_type: 
+case mp_picture_type:
   @<Display a complex type@>;
   break;
-case mp_transform_type: case mp_color_type: case mp_pair_type: case mp_cmykcolor_type:
-  if ( v==null ) mp_print_type(mp, t);
-  else @<Display a big node@>;
+case mp_transform_type: 
+  if ( vv==0 && v==NULL ) mp_print_type(mp, t);
+  else @<Display a transform node@>;
   break;
-case mp_known:mp_print_scaled(mp, v); break;
-case mp_dependent: case mp_proto_dependent:
-  mp_print_dp(mp, t,v,verbosity);
+case mp_color_type: 
+  if ( vv==0 && v==NULL ) mp_print_type(mp, t);
+  else @<Display a color node@>;
   break;
-case mp_independent:mp_print_variable_name(mp, p); break;
-default: mp_confusion(mp, "exp"); break;
+case mp_pair_type: 
+  if ( vv==0 && v==NULL ) mp_print_type(mp, t);
+  else @<Display a pair node@>;
+  break;
+case mp_cmykcolor_type:
+  if ( vv==0 && v==NULL ) mp_print_type(mp, t);
+  else @<Display a cmykcolor node@>;
+  break;
+case mp_known:
+  mp_print_scaled(mp, vv); 
+  break;
+case mp_dependent: 
+case mp_proto_dependent:
+  mp_print_dp(mp, t, (mp_value_node)v,verbosity);
+  break;
+case mp_independent:
+  mp_print_variable_name(mp, p); 
+  break;
+default: 
+  mp_confusion(mp, "exp"); 
+  break;
 @:this can't happen exp}{\quad exp@>
 }
 
-@ @<Display a big node@>=
+@ @<Display big node item |v|@>=
+{
+  if ( mp_type(v)==mp_known ) mp_print_scaled(mp, value(v));
+  else if ( mp_type(v)==mp_independent ) mp_print_variable_name(mp, v);
+  else mp_print_dp(mp, mp_type(v),(mp_value_node)dep_list((mp_value_node)v),verbosity);
+}
+
+@ In these cases, |v| starts as the big node.
+
+@<Display a pair node@>=
 { 
-  mp_print_char(mp, xord('(')); q=v+mp->big_node_size[t];
-  do {  
-    if ( mp_type(v)==mp_known ) mp_print_scaled(mp, value(v));
-    else if ( mp_type(v)==mp_independent ) mp_print_variable_name(mp, v);
-    else mp_print_dp(mp, mp_type(v),dep_list(v),verbosity);
-    v=v+2;
-    if ( v!=q ) mp_print_char(mp, xord(','));
-  } while (v!=q);
+  mp_node vvv = v;
+  mp_print_char(mp, xord('(')); 
+  v = x_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(','));
+  v = y_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(')'));
+}
+
+@ @<Display a transform node@>=
+{ 
+  mp_node vvv = v;
+  mp_print_char(mp, xord('(')); 
+  v = tx_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(','));
+  v = ty_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(','));
+  v = xx_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(','));
+  v = xy_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(','));
+  v = yx_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(','));
+  v = yy_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(')'));
+}
+
+@ @<Display a color node@>=
+{ 
+  mp_node vvv = v;
+  mp_print_char(mp, xord('(')); 
+  v = red_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(','));
+  v = green_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(','));
+  v = blue_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(')'));
+}
+
+@ @<Display a cmykcolor node@>=
+{ 
+  mp_node vvv = v;
+  mp_print_char(mp, xord('(')); 
+  v = cyan_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(','));
+  v = magenta_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(','));
+  v = yellow_part_loc(vvv);
+  @<Display big node item |v|@>
+  mp_print_char(mp, xord(','));
+  v = black_part_loc(vvv);
+  @<Display big node item |v|@>
   mp_print_char(mp, xord(')'));
 }
 
@@ -17255,25 +18237,36 @@ if ( verbosity<=1 ) {
   mp_print_type(mp, t);
 } else { 
   if ( mp->selector==term_and_log )
-   if ( mp->internal[mp_tracing_online]<=0 ) {
+   if ( internal_value(mp_tracing_online)<=0 ) {
     mp->selector=term_only;
-    mp_print_type(mp, t); mp_print(mp, " (see the transcript file)");
+    mp_print_type(mp, t); 
+    mp_print(mp, " (see the transcript file)");
     mp->selector=term_and_log;
   };
   switch (t) {
-  case mp_pen_type:mp_print_pen(mp, v,"",false); break;
-  case mp_path_type:mp_print_path(mp, v,"",false); break;
-  case mp_picture_type:mp_print_edges(mp, v,"",false); break;
-  } /* there are no other cases */
+  case mp_pen_type:
+    mp_print_pen(mp, knot_value(p),"",false); 
+    break;
+  case mp_path_type:
+    mp_print_path(mp, knot_value(p),"",false); 
+    break;
+  case mp_picture_type:
+    mp_print_edges(mp, v,"",false); 
+    break;
+  default:
+    break;
+  }
 }
 
 @ @<Declare the procedure called |print_dp|@>=
-static void mp_print_dp (MP mp, quarterword t, pointer p, 
+static void mp_print_dp (MP mp, quarterword t, mp_value_node p, 
                   quarterword verbosity)  {
-  pointer q; /* the node following |p| */
-  q=mp_link(p);
-  if ( (mp_info(q)==null) || (verbosity>0) ) mp_print_dependency(mp, p,t);
-  else mp_print(mp, "linearform");
+  mp_value_node q; /* the node following |p| */
+  q=(mp_value_node)mp_link(p);
+  if ( (dep_info(q)==null) || (verbosity>0) ) 
+    mp_print_dependency(mp, p,t);
+  else 
+   mp_print(mp, "linearform");
 }
 
 @ The displayed name of a variable in a ring will not be a capsule unless
@@ -17283,7 +18276,7 @@ the ring consists entirely of capsules.
 { mp_print_type(mp, t);
 if ( v!=null )
   { mp_print_char(mp, xord(' '));
-    while ( (mp_name_type(v)==mp_capsule) && (v!=p) ) v=value(v);
+    while ( (mp_name_type(v)==mp_capsule) && (v!=p) ) v=value_node(v);
     mp_print_variable_name(mp, v);
   };
 }
@@ -17295,10 +18288,10 @@ or |disp_err| instead of |print_err|.
 @d exp_err(A) mp_disp_err(mp, null,(A)) /* displays the current expression */
 
 @<Declarations@>=
-static void mp_disp_err (MP mp,pointer p, const char *s) ;
+static void mp_disp_err (MP mp,mp_node p, const char *s) ;
 
 @ @c
-void mp_disp_err (MP mp,pointer p, const char *s) { 
+void mp_disp_err (MP mp,mp_node p, const char *s) { 
   if ( mp->interaction==mp_error_stop_mode ) wake_up_terminal;
   mp_print_nl(mp, ">> ");
 @.>>@>
@@ -17315,36 +18308,41 @@ and |cur_exp| as either alive or dormant after this has been done,
 because |cur_exp| will not contain a pointer value.
 
 @ @c 
-static void mp_flush_cur_exp (MP mp,scaled v) { 
-  switch (mp->cur_type) {
+static void mp_flush_cur_exp (MP mp, mp_value v) { 
+  switch (mp->cur_exp.type) {
   case unknown_types: case mp_transform_type: case mp_color_type: case mp_pair_type:
   case mp_dependent: case mp_proto_dependent: case mp_independent: case mp_cmykcolor_type:
-    mp_recycle_value(mp, mp->cur_exp); 
-    mp_free_node(mp, mp->cur_exp,value_node_size);
+    mp_recycle_value(mp, cur_exp_node()); 
+    mp_free_node(mp, cur_exp_node(),value_node_size);
     break;
   case mp_string_type:
-    delete_str_ref(mp->cur_exp); break;
-  case mp_pen_type: case mp_path_type: 
-    mp_toss_knot_list(mp, mp->cur_exp); break;
+    delete_str_ref(cur_exp_str()); 
+    break;
+  case mp_pen_type: 
+  case mp_path_type: 
+    mp_toss_knot_list(mp, cur_exp_knot()); 
+    break;
   case mp_picture_type:
-    delete_edge_ref(mp->cur_exp); break;
+    delete_edge_ref(cur_exp_node()); 
+    break;
   default: 
     break;
   }
-  mp->cur_type=mp_known; mp->cur_exp=v;
+  mp->cur_exp=v;
+  mp->cur_exp.type=mp_known; 
 }
 
 @ There's a much more general procedure that is capable of releasing
-the storage associated with any two-word value packet.
+the storage associated with any non-symbolic value packet.
 
 @<Declarations@>=
-static void mp_recycle_value (MP mp,pointer p) ;
+static void mp_recycle_value (MP mp, mp_node p) ;
 
 @ @c 
-static void mp_recycle_value (MP mp,pointer p) {
-  quarterword t; /* a type code */
+static void mp_recycle_value (MP mp, mp_node p) {
+  mp_variable_type t; /* a type code */
   integer vv; /* another value */
-  pointer q,r,s,pp; /* link manipulation registers */
+  mp_node pp; /* link manipulation register */
   integer v=0; /* a value */
   t=mp_type(p);
   if ( t<mp_dependent ) v=value(p);
@@ -17355,14 +18353,65 @@ static void mp_recycle_value (MP mp,pointer p) {
   case unknown_types:
     mp_ring_delete(mp, p); break;
   case mp_string_type:
-    delete_str_ref(v); break;
-  case mp_path_type: case mp_pen_type:
-    mp_toss_knot_list(mp, v); break;
+    delete_str_ref(str_value(p)); 
+    break;
+  case mp_path_type: 
+  case mp_pen_type:
+    mp_toss_knot_list(mp, knot_value(p)); 
+    break;
   case mp_picture_type:
-    delete_edge_ref(v); break;
-  case mp_cmykcolor_type: case mp_pair_type: case mp_color_type:
+    delete_edge_ref(value_node(p));
+    break;
+  case mp_cmykcolor_type: 
+    if (value_node(p)!=NULL) {
+      mp_recycle_value(mp, cyan_part_loc(value_node(p)));
+      mp_recycle_value(mp, magenta_part_loc(value_node(p)));
+      mp_recycle_value(mp, yellow_part_loc(value_node(p)));
+      mp_recycle_value(mp, black_part_loc(value_node(p)));
+      mp_free_node(mp, cyan_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, magenta_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, black_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, yellow_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, value_node(p), cmykcolor_node_size);
+    }
+    break;
+  case mp_pair_type: 
+    if (value_node(p)!=NULL) {
+      mp_recycle_value(mp, x_part_loc(value_node(p)));
+      mp_recycle_value(mp, y_part_loc(value_node(p)));
+      mp_free_node(mp, x_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, y_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, value_node(p), pair_node_size);
+    }
+    break;
+  case mp_color_type:
+    if (value_node(p)!=NULL) {
+      mp_recycle_value(mp, red_part_loc(value_node(p)));
+      mp_recycle_value(mp, green_part_loc(value_node(p)));
+      mp_recycle_value(mp, blue_part_loc(value_node(p)));
+      mp_free_node(mp, red_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, green_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, blue_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, value_node(p), color_node_size);
+    }
+    break;
   case mp_transform_type:
-    @<Recycle a big node@>; break; 
+    if (value_node(p)!=NULL) {
+      mp_recycle_value(mp, tx_part_loc(value_node(p)));
+      mp_recycle_value(mp, ty_part_loc(value_node(p)));
+      mp_recycle_value(mp, xx_part_loc(value_node(p)));
+      mp_recycle_value(mp, xy_part_loc(value_node(p)));
+      mp_recycle_value(mp, yx_part_loc(value_node(p)));
+      mp_recycle_value(mp, yy_part_loc(value_node(p)));
+      mp_free_node(mp, tx_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, ty_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, xx_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, xy_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, yx_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, yy_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, value_node(p), transform_node_size);
+    }
+    break; 
   case mp_dependent: case mp_proto_dependent:
     @<Recycle a dependency list@>; break;
   case mp_independent:
@@ -17371,27 +18420,21 @@ static void mp_recycle_value (MP mp,pointer p) {
     mp_confusion(mp, "recycle"); break;
 @:this can't happen recycle}{\quad recycle@>
   case mp_unsuffixed_macro: case mp_suffixed_macro:
-    mp_delete_mac_ref(mp, value(p)); break;
-  } /* there are no other cases */
+    mp_delete_mac_ref(mp, value_node(p)); break;
+  default:  /* there are no other valid cases, but please the compiler */
+    break;
+ } /* there are no other cases */
   mp_type(p)=undefined;
-}
-
-@ @<Recycle a big node@>=
-if ( v!=null ){ 
-  q=v+mp->big_node_size[t];
-  do {  
-    q=q-2; mp_recycle_value(mp, q);
-  } while (q!=v);
-  mp_free_node(mp, v,mp->big_node_size[t]);
 }
 
 @ @<Recycle a dependency list@>=
 { 
-  q=dep_list(p);
-  while ( mp_info(q)!=null ) q=mp_link(q);
-  mp_link(prev_dep(p))=mp_link(q);
-  prev_dep(mp_link(q))=prev_dep(p);
-  mp_link(q)=null; mp_flush_node_list(mp, dep_list(p));
+  mp_value_node qq=(mp_value_node)dep_list((mp_value_node)p);
+  while ( dep_info(qq)!=null ) qq=(mp_value_node)mp_link(qq);
+  set_mp_link(prev_dep((mp_value_node)p),mp_link(qq));
+  set_prev_dep(mp_link(qq),prev_dep((mp_value_node)p));
+  set_mp_link(qq,NULL); 
+  mp_flush_node_list(mp, (mp_node)dep_list((mp_value_node)p));
 }
 
 @ When an independent variable disappears, it simply fades away, unless
@@ -17425,26 +18468,44 @@ proto-dependent cases.
 
 @<Recycle an independent variable@>=
 { 
-  mp->max_c[mp_dependent]=0; mp->max_c[mp_proto_dependent]=0;
-  mp->max_link[mp_dependent]=null; mp->max_link[mp_proto_dependent]=null;
-  q=mp_link(dep_head);
-  while ( q!=dep_head ) { 
-    s=value_loc(q); /* now |mp_link(s)=dep_list(q)| */
+  mp_value_node q, r, s;
+  mp->max_c[mp_dependent]=0;
+  mp->max_c[mp_proto_dependent]=0;
+  mp->max_link[mp_dependent]=NULL;
+  mp->max_link[mp_proto_dependent]=NULL;
+  q=(mp_value_node)mp_link(mp->dep_head);
+  while ( q!=mp->dep_head ) {
+    s = (mp_value_node)mp->temp_head;
+    set_mp_link(s,dep_list(q));
     while (1) { 
-      r=mp_link(s);
-      if ( mp_info(r)==null ) break;
-      if ( mp_info(r)!=p ) { 
+      r=(mp_value_node)mp_link(s);
+      /* printf ("r=%p, depinfo=%p, link=%p\n", r, dep_info(r), mp_link(r)); */
+      if ( dep_info(r)==null ) break;
+      if ( dep_info(r)!=p ) { 
         s=r;
       } else  { 
-        t=mp_type(q); mp_link(s)=mp_link(r); mp_info(r)=q;
-        if ( abs(value(r))>mp->max_c[t] ) {
-          @<Record a new maximum coefficient of type |t|@>;
+        t=mp_type(q);
+        if (mp_link(s)==dep_list(q)) {
+	   set_dep_list(q,mp_link(r)); 
+        } 
+        set_mp_link(s,mp_link(r)); 
+        set_dep_info(r,(mp_node)q);
+        if ( abs(dep_value(r))>mp->max_c[t] ) {
+          /* Record a new maximum coefficient of type |t| */
+          if ( mp->max_c[t]>0 ) {
+            set_mp_link(mp->max_ptr[t],(mp_node)mp->max_link[t]); 
+            mp->max_link[t]=mp->max_ptr[t];
+          }
+          mp->max_c[t]=abs(dep_value(r)); 
+          mp->max_ptr[t]=r;
+
         } else { 
-          mp_link(r)=mp->max_link[t]; mp->max_link[t]=r;
+          set_mp_link(r,(mp_node)mp->max_link[t]); 
+          mp->max_link[t]=r;
         }
       }
     } 
-    q=mp_link(r);
+    q=(mp_value_node)mp_link(r);
   }
   if ( (mp->max_c[mp_dependent]>0)||(mp->max_c[mp_proto_dependent]>0) ) {
     @<Choose a dependent variable to take the place of the disappearing
@@ -17453,20 +18514,12 @@ proto-dependent cases.
   }
 }
 
-@ The code for independency removal makes use of three two-word arrays.
+@ The code for independency removal makes use of three non-symbolic arrays.
 
 @<Glob...@>=
 integer max_c[mp_proto_dependent+1];  /* max coefficient magnitude */
-pointer max_ptr[mp_proto_dependent+1]; /* where |p| occurs with |max_c| */
-pointer max_link[mp_proto_dependent+1]; /* other occurrences of |p| */
-
-@ @<Record a new maximum coefficient...@>=
-{ 
-  if ( mp->max_c[t]>0 ) {
-    mp_link(mp->max_ptr[t])=mp->max_link[t]; mp->max_link[t]=mp->max_ptr[t];
-  }
-  mp->max_c[t]=abs(value(r)); mp->max_ptr[t]=r;
-}
+mp_value_node max_ptr[mp_proto_dependent+1]; /* where |p| occurs with |max_c| */
+mp_value_node max_link[mp_proto_dependent+1]; /* other occurrences of |p| */
 
 @ @<Choose a dependent...@>=
 { 
@@ -17478,12 +18531,19 @@ pointer max_link[mp_proto_dependent+1]; /* other occurrences of |p| */
     variable~|p|@>;
   t=(quarterword)(mp_dependent+mp_proto_dependent-t); /* complement |t| */
   if ( mp->max_c[t]>0 ) { /* we need to pick up an unchosen dependency */ 
-    mp_link(mp->max_ptr[t])=mp->max_link[t]; mp->max_link[t]=mp->max_ptr[t];
+    set_mp_link(mp->max_ptr[t],(mp_node)mp->max_link[t]); 
+    mp->max_link[t]=mp->max_ptr[t];
   }
-  if ( t!=mp_dependent ) { @<Substitute new dependencies in place of |p|@>; }
-  else { @<Substitute new proto-dependencies in place of |p|@>;}
-  mp_flush_node_list(mp, s);
-  if ( mp->fix_needed ) mp_fix_dependencies(mp);
+  if ( t!=mp_dependent ) { 
+    @<Substitute new dependencies in place of |p|@>; 
+  } else { 
+    @<Substitute new proto-dependencies in place of |p|@>;
+  }
+  /* todo: free-ing |s| here caused corruption, but not freeing creates a (small) leak.
+     the corruption problem probably starts elsewhere, |s| is supposed to be freeable here */
+  /* mp_flush_node_list(mp, (mp_node)s); */
+  if ( mp->fix_needed ) 
+    mp_fix_dependencies(mp);
   check_arith;
 }
 
@@ -17496,15 +18556,26 @@ number than any other variable, we can put node |s| at the head of the
 list.
 
 @<Determine the dep...@>=
-s=mp->max_ptr[t]; pp=mp_info(s); v=value(s);
-if ( t==mp_dependent ) value(s)=-fraction_one; else value(s)=-unity;
-r=dep_list(pp); mp_link(s)=r;
-while ( mp_info(r)!=null ) r=mp_link(r);
-q=mp_link(r); mp_link(r)=null;
-prev_dep(q)=prev_dep(pp); mp_link(prev_dep(pp))=q;
-new_indep(pp);
-if ( mp->cur_exp==pp ) if ( mp->cur_type==t ) mp->cur_type=mp_independent;
-if ( mp->internal[mp_tracing_equations]>0 ) { 
+s=mp->max_ptr[t];
+pp=(mp_node)dep_info(s); 
+/* printf ("s=%p, pp=%p, r=%p\n",s, pp, dep_list((mp_value_node)pp)); */
+v=dep_value(s);
+if ( t==mp_dependent ) 
+  dep_value(s)=-fraction_one; 
+else 
+  dep_value(s)=-unity;
+r=(mp_value_node)dep_list((mp_value_node)pp); 
+set_mp_link(s,(mp_node)r);
+while (dep_info(r)!=NULL) 
+   r = (mp_value_node)mp_link(r);
+q = (mp_value_node)mp_link(r);
+set_mp_link(r,NULL);
+set_prev_dep(q,prev_dep((mp_value_node)pp)); 
+set_mp_link(prev_dep((mp_value_node)pp),(mp_node)q);
+new_indep((mp_value_node)pp);
+if ( cur_exp_node()==pp && mp->cur_exp.type==t ) 
+  mp->cur_exp.type=mp_independent;
+if ( internal_value(mp_tracing_equations)>0 ) { 
   @<Show the transformed dependency@>; 
 }
 
@@ -17513,17 +18584,25 @@ by the dependency list~|s|.
 
 @<Show the transformed...@>=
 if ( mp_interesting(mp, p) ) {
-  mp_begin_diagnostic(mp); mp_print_nl(mp, "### ");
+  mp_begin_diagnostic(mp); 
+  mp_print_nl(mp, "### ");
 @:]]]\#\#\#_}{\.{\#\#\#}@>
   if ( v>0 ) mp_print_char(mp, xord('-'));
-  if ( t==mp_dependent ) vv=mp_round_fraction(mp, mp->max_c[mp_dependent]);
-  else vv=mp->max_c[mp_proto_dependent];
-  if ( vv!=unity ) mp_print_scaled(mp, vv);
+  if ( t==mp_dependent ) 
+    vv=mp_round_fraction(mp, mp->max_c[mp_dependent]);
+  else 
+    vv=mp->max_c[mp_proto_dependent];
+  if ( vv!=unity ) 
+    mp_print_scaled(mp, vv);
   mp_print_variable_name(mp, p);
   while ( value(p) % s_scale>0 ) {
-    mp_print(mp, "*4"); value(p)=value(p)-2;
+    mp_print(mp, "*4"); 
+    set_value(p,value(p)-2);
   }
-  if ( t==mp_dependent ) mp_print_char(mp, xord('=')); else mp_print(mp, " = ");
+  if ( t==mp_dependent ) 
+    mp_print_char(mp, xord('=')); 
+  else 
+    mp_print(mp, " = ");
   mp_print_dependency(mp, s,t);
   mp_end_diagnostic(mp, false);
 }
@@ -17535,11 +18614,14 @@ dependency lists must be brought up to date.
 for (t=mp_dependent;t<=mp_proto_dependent;t++){ 
   r=mp->max_link[t];
   while ( r!=null ) {
-    q=mp_info(r);
-    dep_list(q)=mp_p_plus_fq(mp, dep_list(q),
-     mp_make_fraction(mp, value(r),-v),s,t,mp_dependent);
-    if ( dep_list(q)==mp->dep_final ) mp_make_known(mp, q,mp->dep_final);
-    q=r; r=mp_link(r); mp_free_node(mp, q,dep_node_size);
+    q=(mp_value_node)dep_info(r);
+    set_dep_list(q,(mp_node)mp_p_plus_fq(mp, (mp_value_node)dep_list(q),
+      mp_make_fraction(mp, dep_value(r),-v),s,t,mp_dependent));
+    if ( dep_list(q)==(mp_node)mp->dep_final ) 
+      mp_make_known(mp, q, mp->dep_final);
+    q=r; 
+    r=(mp_value_node)mp_link(r); 
+    mp_free_dep_node(mp, q);
   }
 }
 
@@ -17547,21 +18629,23 @@ for (t=mp_dependent;t<=mp_proto_dependent;t++){
 for (t=mp_dependent;t<=mp_proto_dependent;t++) {
   r=mp->max_link[t];
   while ( r!=null ) {
-    q=mp_info(r);
+    q=(mp_value_node)dep_info(r);
     if ( t==mp_dependent ) { /* for safety's sake, we change |q| to |mp_proto_dependent| */
-      if ( mp->cur_exp==q ) if ( mp->cur_type==mp_dependent )
-        mp->cur_type=mp_proto_dependent;
-      dep_list(q)=mp_p_over_v(mp, dep_list(q),unity,
-         mp_dependent,mp_proto_dependent);
+      if ( cur_exp_node()==(mp_node)q && mp->cur_exp.type==mp_dependent )
+        mp->cur_exp.type=mp_proto_dependent;
+      set_dep_list(q,(mp_node)mp_p_over_v(mp, (mp_value_node)dep_list(q),unity,
+         mp_dependent,mp_proto_dependent));
       mp_type(q)=mp_proto_dependent; 
-      value(r)=mp_round_fraction(mp, value(r));
+      dep_value(r)=mp_round_fraction(mp, dep_value(r));
     }
-    dep_list(q)=mp_p_plus_fq(mp, dep_list(q),
-       mp_make_scaled(mp, value(r),-v),s,
-       mp_proto_dependent,mp_proto_dependent);
-    if ( dep_list(q)==mp->dep_final ) 
-       mp_make_known(mp, q,mp->dep_final);
-    q=r; r=mp_link(r); mp_free_node(mp, q,dep_node_size);
+    set_dep_list(q,(mp_node)mp_p_plus_fq(mp, (mp_value_node)dep_list(q),
+       mp_make_scaled(mp, dep_value(r),-v),s,
+       mp_proto_dependent,mp_proto_dependent));
+    if ( dep_list(q)==(mp_node)mp->dep_final ) 
+       mp_make_known(mp, q, mp->dep_final);
+    q=r;
+    r=(mp_value_node)mp_link(r); 
+    mp_free_dep_node(mp, q);
   }
 }
 
@@ -17576,18 +18660,18 @@ then they get it back again. (Or perhaps they get another token, if
 the user has changed things.)
 
 @<Declarations@>=
-static void mp_flush_error (MP mp,scaled v);
+static void mp_flush_error (MP mp, mp_value v);
 static void mp_put_get_error (MP mp);
-static void mp_put_get_flush_error (MP mp,scaled v) ;
+static void mp_put_get_flush_error (MP mp, mp_value v) ;
 
 @ @c
-void mp_flush_error (MP mp,scaled v) { 
+void mp_flush_error (MP mp, mp_value v) { 
   mp_error(mp); mp_flush_cur_exp(mp, v); 
 }
 void mp_put_get_error (MP mp) { 
   mp_back_error(mp); mp_get_x_next(mp); 
 }
-void mp_put_get_flush_error (MP mp,scaled v) { 
+void mp_put_get_flush_error (MP mp, mp_value v) { 
   mp_put_get_error(mp);
   mp_flush_cur_exp(mp, v); 
 }
@@ -17630,10 +18714,11 @@ earlier. If |cur_cmd| is not between |min_primary_command| and
 
 @<Declare the basic parsing subroutines@>=
 void mp_scan_primary (MP mp) {
-  pointer p,q,r; /* for list manipulation */
+  mp_node p,q,r; /* for list manipulation */
   quarterword c; /* a primitive operation code */
   int my_var_flag; /* initial value of |my_var_flag| */
-  pointer l_delim,r_delim; /* hash addresses of a delimiter pair */
+  mp_sym l_delim,r_delim; /* hash addresses of a delimiter pair */
+  mp_value new_expr;
   @<Other local variables for |scan_primary|@>;
   my_var_flag=mp->var_flag; mp->var_flag=0;
 RESTART:
@@ -17659,7 +18744,7 @@ RESTART:
   case internal_quantity:
     @<Scan an internal numeric quantity@>; break;
   case capsule_token:
-    mp_make_exp_copy(mp, mp->cur_mod); break;
+    mp_make_exp_copy(mp, mp->cur_mod_node); break;
   case tag_token:
     @<Scan a variable primary; |goto restart| if it turns out to be a macro@>; break;
   default: 
@@ -17669,7 +18754,7 @@ RESTART:
   mp_get_x_next(mp); /* the routines |goto done| if they don't want this */
 DONE: 
   if ( mp->cur_cmd==left_bracket ) {
-    if ( mp->cur_type>=mp_known ) {
+    if ( mp->cur_exp.type>=mp_known ) {
       @<Scan a mediation construction@>;
     }
   }
@@ -17706,9 +18791,10 @@ if ( mp->interrupt!=0 ) if ( mp->OK_to_interrupt ) {
 
 @ @<Scan a delimited primary@>=
 { 
-  l_delim=mp->cur_sym; r_delim=mp->cur_mod; 
+  l_delim=mp->cur_sym; 
+  r_delim=mp->cur_mod_sym; 
   mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( (mp->cur_cmd==comma) && (mp->cur_type>=mp_known) ) {
+  if ( (mp->cur_cmd==comma) && (mp->cur_exp.type>=mp_known) ) {
     @<Scan the rest of a delimited set of numerics@>;
   } else {
     mp_check_delimiter(mp, l_delim,r_delim);
@@ -17719,22 +18805,23 @@ if ( mp->interrupt!=0 ) if ( mp->OK_to_interrupt ) {
 within a ``big node.''
 
 @c 
-static void mp_stash_in (MP mp,pointer p) {
-  pointer q; /* temporary register */
-  mp_type(p)=mp->cur_type;
-  if ( mp->cur_type==mp_known ) {
-    value(p)=mp->cur_exp;
+static void mp_stash_in (MP mp, mp_node p) {
+  mp_value_node q; /* temporary register */
+  mp_type(p)=mp->cur_exp.type;
+  if ( mp->cur_exp.type==mp_known ) {
+    set_value(p,cur_exp_value());
   } else { 
-    if ( mp->cur_type==mp_independent ) {
+    if ( mp->cur_exp.type==mp_independent ) {
       @<Stash an independent |cur_exp| into a big node@>;
+      mp_free_node(mp, cur_exp_node(),value_node_size);
     } else { 
-      mp->mem[value_loc(p)]=mp->mem[value_loc(mp->cur_exp)];
-      /* |dep_list(p):=dep_list(cur_exp)| and |prev_dep(p):=prev_dep(cur_exp)| */
-      mp_link(prev_dep(p))=p;
+      set_dep_list((mp_value_node)p,dep_list((mp_value_node)cur_exp_node()));
+      set_prev_dep((mp_value_node)p,prev_dep((mp_value_node)cur_exp_node()));
+      set_mp_link(prev_dep((mp_value_node)p),p);
+      mp_free_dep_node(mp, (mp_value_node)cur_exp_node());
     }
-    mp_free_node(mp, mp->cur_exp,value_node_size);
   }
-  mp->cur_type=mp_vacuous;
+  mp->cur_exp.type=mp_vacuous;
 }
 
 @ In rare cases the current expression can become |independent|. There
@@ -17744,13 +18831,15 @@ we copy it, then recycle it.
 
 @ @<Stash an independent |cur_exp|...@>=
 { 
-  q=mp_single_dependency(mp, mp->cur_exp);
+  q=mp_single_dependency(mp, cur_exp_node());
   if ( q==mp->dep_final ){ 
-    mp_type(p)=mp_known; value(p)=0; mp_free_node(mp, q,dep_node_size);
+    mp_type(p)=mp_known; 
+    set_value(p,0); 
+    mp_free_dep_node(mp, q);
   } else { 
-    mp_type(p)=mp_dependent; mp_new_dep(mp, p,q);
+    mp_new_dep(mp,p,mp_dependent, q);
   }
-  mp_recycle_value(mp, mp->cur_exp);
+  mp_recycle_value(mp, cur_exp_node());
 }
 
 @ This code uses the fact that |red_part_loc| and |green_part_loc|
@@ -17761,55 +18850,63 @@ are synonymous with |x_part_loc| and |y_part_loc|.
 p=mp_stash_cur_exp(mp);
 mp_get_x_next(mp); mp_scan_expression(mp);
 @<Make sure the second part of a pair or color has a numeric type@>;
-q=mp_get_node(mp, value_node_size); mp_name_type(q)=mp_capsule;
-if ( mp->cur_cmd==comma ) mp_type(q)=mp_color_type;
-else mp_type(q)=mp_pair_type;
-mp_init_big_node(mp, q); r=value(q);
-mp_stash_in(mp, y_part_loc(r));
-mp_unstash_cur_exp(mp, p);
-mp_stash_in(mp, x_part_loc(r));
+q=mp_get_value_node(mp); 
+mp_name_type(q)=mp_capsule;
 if ( mp->cur_cmd==comma ) {
+  mp_init_color_node(mp, q); 
+  r=value_node(q);
+  mp_stash_in(mp, y_part_loc(r));
+  mp_unstash_cur_exp(mp, p);
+  mp_stash_in(mp, x_part_loc(r));
   @<Scan the last of a triplet of numerics@>;
-}
-if ( mp->cur_cmd==comma ) {
-  mp_type(q)=mp_cmykcolor_type;
-  mp_init_big_node(mp, q); t=value(q);
-  mp->mem[cyan_part_loc(t)]=mp->mem[red_part_loc(r)];
-  value(cyan_part_loc(t))=value(red_part_loc(r));
-  mp->mem[magenta_part_loc(t)]=mp->mem[green_part_loc(r)];
-  value(magenta_part_loc(t))=value(green_part_loc(r));
-  mp->mem[yellow_part_loc(t)]=mp->mem[blue_part_loc(r)];
-  value(yellow_part_loc(t))=value(blue_part_loc(r));
-  mp_recycle_value(mp, r);
-  r=t;
-  @<Scan the last of a quartet of numerics@>;
+  if ( mp->cur_cmd==comma ) {
+    mp_init_cmykcolor_node(mp, q);
+    t=value_node(q);
+    mp_type(cyan_part_loc(t)) = mp_type(red_part_loc(r));
+    set_value(cyan_part_loc(t),value(red_part_loc(r)));
+    mp_type(magenta_part_loc(t)) = mp_type(green_part_loc(r));
+    set_value(magenta_part_loc(t),value(green_part_loc(r)));
+    mp_type(yellow_part_loc(t)) = mp_type(blue_part_loc(r));
+    set_value(yellow_part_loc(t),value(blue_part_loc(r)));
+    mp_recycle_value(mp, r);
+    r=t;
+    @<Scan the last of a quartet of numerics@>;
+  }
+} else {
+  mp_init_pair_node(mp, q); 
+  r=value_node(q);
+  mp_stash_in(mp, y_part_loc(r));
+  mp_unstash_cur_exp(mp, p);
+  mp_stash_in(mp, x_part_loc(r));
 }
 mp_check_delimiter(mp, l_delim,r_delim);
-mp->cur_type=mp_type(q);
-mp->cur_exp=q;
+mp->cur_exp.type=mp_type(q);
+set_cur_exp_node(q);
 }
 
 @ @<Make sure the second part of a pair or color has a numeric type@>=
-if ( mp->cur_type<mp_known ) {
+if ( mp->cur_exp.type<mp_known ) {
   exp_err("Nonnumeric ypart has been replaced by 0");
 @.Nonnumeric...replaced by 0@>
   help4("I've started to scan a pair `(a,b)' or a color `(a,b,c)';",
     "but after finding a nice `a' I found a `b' that isn't",
     "of numeric type. So I've changed that part to zero.",
     "(The b that I didn't like appears above the error message.)");
-  mp_put_get_flush_error(mp, 0);
+  new_expr.data.val = 0;
+  mp_put_get_flush_error(mp, new_expr);
 }
 
 @ @<Scan the last of a triplet of numerics@>=
 { 
   mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type<mp_known ) {
+  if ( mp->cur_exp.type<mp_known ) {
     exp_err("Nonnumeric third part has been replaced by 0");
 @.Nonnumeric...replaced by 0@>
     help3("I've just scanned a color `(a,b,c)' or cmykcolor(a,b,c,d); but the `c'",
       "isn't of numeric type. So I've changed that part to zero.",
       "(The c that I didn't like appears above the error message.)");
-    mp_put_get_flush_error(mp, 0);
+    new_expr.data.val = 0;
+    mp_put_get_flush_error(mp, new_expr);
   }
   mp_stash_in(mp, blue_part_loc(r));
 }
@@ -17817,13 +18914,14 @@ if ( mp->cur_type<mp_known ) {
 @ @<Scan the last of a quartet of numerics@>=
 { 
   mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type<mp_known ) {
+  if ( mp->cur_exp.type<mp_known ) {
     exp_err("Nonnumeric blackpart has been replaced by 0");
 @.Nonnumeric...replaced by 0@>
     help3("I've just scanned a cmykcolor `(c,m,y,k)'; but the `k' isn't",
       "of numeric type. So I've changed that part to zero.",
       "(The k that I didn't like appears above the error message.)");
-    mp_put_get_flush_error(mp, 0);
+    new_expr.data.val = 0;
+    mp_put_get_flush_error(mp, new_expr);
   }
   mp_stash_in(mp, black_part_loc(r));
 }
@@ -17838,8 +18936,9 @@ integer group_line; /* where a group began */
 @ @<Scan a grouped primary@>=
 { 
   group_line=mp_true_line(mp);
-  if ( mp->internal[mp_tracing_commands]>0 ) show_cur_cmd_mod;
-  save_boundary_item(p);
+  if ( internal_value(mp_tracing_commands)>0 ) 
+    show_cur_cmd_mod;
+  mp_save_boundary(mp);
   do {  
     mp_do_statement(mp); /* ends with |cur_cmd>=semicolon| */
   } while (mp->cur_cmd==semicolon);
@@ -17854,12 +18953,13 @@ integer group_line; /* where a group began */
   }
   mp_unsave(mp); 
     /* this might change |cur_type|, if independent variables are recycled */
-  if ( mp->internal[mp_tracing_commands]>0 ) show_cur_cmd_mod;
+  if ( internal_value(mp_tracing_commands)>0 ) show_cur_cmd_mod;
 }
 
 @ @<Scan a string constant@>=
 { 
-  mp->cur_type=mp_string_type; mp->cur_exp=mp->cur_mod;
+  mp->cur_exp.type=mp_string_type; 
+  set_cur_exp_str(mp->cur_mod_str);
 }
 
 @ Later we'll come to procedures that perform actual operations like
@@ -17900,25 +19000,28 @@ scaled num,denom; /* for primaries that are fractions, like `1/2' */
 
 @ @<Scan a primary that starts with a numeric token@>=
 { 
-  mp->cur_exp=mp->cur_mod; mp->cur_type=mp_known; mp_get_x_next(mp);
+  set_cur_exp_value(mp->cur_mod); 
+  mp->cur_exp.type=mp_known;
+  mp_get_x_next(mp);
   if ( mp->cur_cmd!=slash ) { 
     num=0; denom=0;
   } else { 
     mp_get_x_next(mp);
     if ( mp->cur_cmd!=numeric_token ) { 
       mp_back_input(mp);
-      mp->cur_cmd=slash; mp->cur_mod=over; mp->cur_sym=frozen_slash;
+      mp->cur_cmd=slash; mp->cur_mod=over; 
+      mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_slash);  
       goto DONE;
     }
-    num=mp->cur_exp; denom=mp->cur_mod;
+    num=cur_exp_value(); denom=mp->cur_mod;
     if ( denom==0 ) { @<Protest division by zero@>; }
-    else { mp->cur_exp=mp_make_scaled(mp, num,denom); }
+    else { set_cur_exp_value(mp_make_scaled(mp, num,denom)); }
     check_arith; mp_get_x_next(mp);
   }
   if ( mp->cur_cmd>=min_primary_command ) {
    if ( mp->cur_cmd<numeric_token ) { /* in particular, |cur_cmd<>plus_or_minus| */
      p=mp_stash_cur_exp(mp); mp_scan_primary(mp);
-     if ( (abs(num)>=abs(denom))||(mp->cur_type<mp_color_type) ) {
+     if ( (abs(num)>=abs(denom))||(mp->cur_exp.type<mp_color_type) ) {
        mp_do_binary(mp, p,times);
      } else {
        mp_frac_mult(mp, num,denom);
@@ -17952,36 +19055,44 @@ scaled num,denom; /* for primaries that are fractions, like `1/2' */
 
 @ @<Convert a suffix to a string@>=
 { 
-  mp_get_x_next(mp); mp_scan_suffix(mp); 
-  mp->old_setting=mp->selector; mp->selector=new_string;
-  mp_show_token_list(mp, mp->cur_exp,null,100000,0); 
-  mp_flush_token_list(mp, mp->cur_exp);
-  mp->cur_exp=mp_make_string(mp); mp->selector=mp->old_setting; 
-  mp->cur_type=mp_string_type;
+  mp_get_x_next(mp); 
+  mp_scan_suffix(mp); 
+  mp->old_setting=mp->selector; 
+  mp->selector=new_string;
+  mp_show_token_list(mp, cur_exp_node(),null,100000,0); 
+  mp_flush_token_list(mp, cur_exp_node());
+  set_cur_exp_str(mp_make_string(mp)); 
+  mp->selector=mp->old_setting; 
+  mp->cur_exp.type=mp_string_type;
   goto DONE;
 }
 
 @ If an internal quantity appears all by itself on the left of an
 assignment, we return a token list of length one, containing the address
-of the internal quantity plus |hash_end|. (This accords with the conventions
-of the save stack, as described earlier.)
+of the internal quantity, with |name_type| equal to |mp_internal_sym|. 
+(This accords with the conventions of the save stack, as described earlier.)
 
 @<Scan an internal...@>=
 { 
-  q=mp->cur_mod;
+  pointer qq=mp->cur_mod;
   if ( my_var_flag==assignment ) {
     mp_get_x_next(mp);
     if ( mp->cur_cmd==assignment ) {
-      mp->cur_exp=mp_get_avail(mp);
-      mp_info(mp->cur_exp)=q+hash_end; mp->cur_type=mp_token_list; 
+      set_cur_exp_node(mp_get_symbolic_node(mp));
+      set_mp_sym_info(cur_exp_node(),qq); 
+      mp_name_type(cur_exp_node()) = mp_internal_sym;
+      mp->cur_exp.type=mp_token_list; 
       goto DONE;
     }
     mp_back_input(mp);
   }
-  mp->cur_exp=mp->internal[q];
-  if (mp->int_type[q]==mp_string_type)
-    add_str_ref(mp->cur_exp);
-  mp->cur_type=(quarterword)mp->int_type[q];
+  if (internal_type(qq)==mp_string_type) {
+    set_cur_exp_str(internal_string(qq));
+    add_str_ref(cur_exp_str());
+  } else {
+    set_cur_exp_value(internal_value(qq));
+  }
+  mp->cur_exp.type=(mp_variable_type)internal_type(qq);
 }
 
 @ The most difficult part of |scan_primary| has been saved for last, since
@@ -18004,17 +19115,21 @@ doesn't bother to update its information about type. And if
 |undefined<tt<mp_unsuffixed_macro|, the precise value of |tt| isn't critical.
 
 @ @<Other local variables for |scan_primary|@>=
-pointer pre_head,post_head,tail;
+mp_node pre_head,post_head,tail;
   /* prefix and suffix list variables */
 quarterword tt; /* approximation to the type of the variable-so-far */
-pointer t; /* a token */
-pointer macro_ref = 0; /* reference count for a suffixed macro */
+mp_node t; /* a token */
+mp_node macro_ref = 0; /* reference count for a suffixed macro */
 
 @ @<Scan a variable primary...@>=
 { 
-  fast_get_avail(pre_head); tail=pre_head; post_head=null; tt=mp_vacuous;
+  pre_head = mp_get_symbolic_node(mp);
+  tail=pre_head; 
+  post_head=null; 
+  tt=mp_vacuous;
   while (1) { 
-    t=mp_cur_tok(mp); mp_link(tail)=t;
+    t=mp_cur_tok(mp); 
+    mp_link(tail)=t;
     if ( tt!=undefined ) {
        @<Find the approximate type |tt| and corresponding~|q|@>;
       if ( tt>=mp_unsuffixed_macro ) {
@@ -18038,8 +19153,12 @@ pointer macro_ref = 0; /* reference count for a suffixed macro */
 { 
   mp_link(tail)=null;
   if ( tt>mp_unsuffixed_macro ) { /* |tt=mp_suffixed_macro| */
-    post_head=mp_get_avail(mp); tail=post_head; mp_link(tail)=t;
-    tt=undefined; macro_ref=value(q); add_mac_ref(macro_ref);
+    post_head=mp_get_symbolic_node(mp); 
+    tail=post_head; 
+    mp_link(tail)=t;
+    tt=undefined; 
+    macro_ref=value_node(q); 
+    add_mac_ref(macro_ref);
   } else {
     @<Set up unsuffixed macro call and |goto restart|@>;
   }
@@ -18051,8 +19170,8 @@ pointer macro_ref = 0; /* reference count for a suffixed macro */
   if ( mp->cur_cmd!=right_bracket ) {
     @<Put the left bracket and the expression back to be rescanned@>;
   } else { 
-    if ( mp->cur_type!=mp_known ) mp_bad_subscript(mp);
-    mp->cur_cmd=numeric_token; mp->cur_mod=mp->cur_exp; mp->cur_sym=0;
+    if ( mp->cur_exp.type!=mp_known ) mp_bad_subscript(mp);
+    mp->cur_cmd=numeric_token; mp->cur_mod=cur_exp_value(); mp->cur_sym=0;
   }
 }
 
@@ -18065,14 +19184,15 @@ so as to avoid any embarrassment about our incorrect assumption.
 { 
   mp_back_input(mp); /* that was the token following the current expression */
   mp_back_expr(mp); mp->cur_cmd=left_bracket; 
-  mp->cur_mod=0; mp->cur_sym=frozen_left_bracket;
+  mp->cur_mod=0; 
+  mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_left_bracket);  
 }
 
 @ Here's a routine that puts the current expression back to be read again.
 
 @c 
 static void mp_back_expr (MP mp) {
-  pointer p; /* capsule token */
+  mp_node p; /* capsule token */
   p=mp_stash_cur_exp(mp); mp_link(p)=null; back_list(p);
 }
 
@@ -18080,12 +19200,14 @@ static void mp_back_expr (MP mp) {
 
 @c 
 static void mp_bad_subscript (MP mp) { 
+  mp_value new_expr;
+  new_expr.data.val = 0;
   exp_err("Improper subscript has been replaced by zero");
 @.Improper subscript...@>
   help3("A bracketed subscript must have a known numeric value;",
     "unfortunately, what I found was the value that appears just",
     "above this error message. So I'll try a zero subscript.");
-  mp_flush_error(mp, 0);
+  mp_flush_error(mp, new_expr);
 }
 
 @ Every time we call |get_x_next|, there's a chance that the variable we've
@@ -18095,20 +19217,29 @@ into the variable structure; we need to start searching from the root each time.
 @<Find the approximate type |tt| and corresponding~|q|@>=
 @^inner loop@>
 { 
-  p=mp_link(pre_head); q=mp_info(p); tt=undefined;
-  if ( eq_type(q) % outer_tag==tag_token ) {
-    q=equiv(q);
-    if ( q==null ) goto DONE2;
+  mp_sym qq; 
+  p=mp_link(pre_head); 
+  qq=mp_sym_sym(p); 
+  tt=undefined;
+  if ( eq_type(qq) % outer_tag==tag_token ) {
+    q=equiv_node(qq);
+    if ( q==null ) 
+      goto DONE2;
     while (1) { 
       p=mp_link(p);
       if ( p==null ) {
-        tt=mp_type(q); goto DONE2;
-      };
-      if ( mp_type(q)!=mp_structured ) goto DONE2;
+        tt=mp_type(q); 
+        goto DONE2;
+      }
+      if ( mp_type(q)!=mp_structured ) 
+        goto DONE2;
       q=mp_link(attr_head(q)); /* the |collective_subscript| attribute */
-      if ( p>=mp->hi_mem_min ) { /* it's not a subscript */
-        do {  q=mp_link(q); } while (! (attr_loc(q)>=mp_info(p)));
-        if ( attr_loc(q)>mp_info(p) ) goto DONE2;
+      if ( mp_type(p) == mp_symbol_node ) { /* it's not a subscript */
+        do {  
+           q=mp_link(q); 
+        } while (! (hashloc(q)>=mp_sym_sym(p)));
+        if ( hashloc(q)>mp_sym_sym(p) ) 
+          goto DONE2;
       }
     }
   }
@@ -18135,7 +19266,7 @@ unexpectedly disappears. Its help message isn't quite right for
 our present purposes, but we'll be able to fix that up.
 
 @c 
-static void mp_obliterated (MP mp,pointer q) { 
+static void mp_obliterated (MP mp,mp_node q) { 
   print_err("Variable "); mp_show_token_list(mp, q,null,1000,0);
   mp_print(mp, " has been obliterated");
 @.Variable...obliterated@>
@@ -18154,9 +19285,11 @@ variable has, indeed, been scanned.
 if ( post_head!=null ) {
   @<Set up suffixed macro call and |goto restart|@>;
 }
-q=mp_link(pre_head); free_avail(pre_head);
+q=mp_link(pre_head); mp_free_symbolic_node(mp,pre_head);
 if ( mp->cur_cmd==my_var_flag ) { 
-  mp->cur_type=mp_token_list; mp->cur_exp=q; goto DONE;
+  mp->cur_exp.type=mp_token_list; 
+  set_cur_exp_node(q); 
+  goto DONE;
 }
 p=mp_find_variable(mp, q);
 if ( p!=null ) {
@@ -18166,7 +19299,8 @@ if ( p!=null ) {
   mp->help_line[2]="While I was evaluating the suffix of this variable,";
   mp->help_line[1]="something was redefined, and it's no longer a variable!";
   mp->help_line[0]="In order to get back on my feet, I've inserted `0' instead.";
-  mp_put_get_flush_error(mp, 0);
+  new_expr.data.val = 0;
+  mp_put_get_flush_error(mp, new_expr);
 }
 mp_flush_node_list(mp, q); 
 goto DONE
@@ -18176,8 +19310,11 @@ and ``at'' parameters must be packaged in an appropriate list of lists.
 
 @<Set up unsuffixed macro call and |goto restart|@>=
 { 
-  p=mp_get_avail(mp); mp_info(pre_head)=mp_link(pre_head); mp_link(pre_head)=p;
-  mp_info(p)=t; mp_macro_call(mp, value(q),pre_head,null);
+  p=mp_get_symbolic_node(mp); 
+  set_mp_sym_node(pre_head,mp_link(pre_head)); 
+  mp_link(pre_head)=p;
+  set_mp_sym_node(p,t); 
+  mp_macro_call(mp, value_node(q),pre_head,NULL);
   mp_get_x_next(mp); 
   goto RESTART;
 }
@@ -18188,10 +19325,15 @@ token list.
 
 @<Set up suffixed macro call and |goto restart|@>=
 { 
-  mp_back_input(mp); p=mp_get_avail(mp); q=mp_link(post_head);
-  mp_info(pre_head)=mp_link(pre_head); mp_link(pre_head)=post_head;
-  mp_info(post_head)=q; mp_link(post_head)=p; mp_info(p)=mp_link(q); mp_link(q)=null;
-  mp_macro_call(mp, macro_ref,pre_head,null); decr(ref_count(macro_ref));
+  mp_back_input(mp); p=mp_get_symbolic_node(mp); q=mp_link(post_head);
+  set_mp_sym_node(pre_head,mp_link(pre_head)); 
+  mp_link(pre_head)=post_head;
+  set_mp_sym_node(post_head,q); 
+  mp_link(post_head)=p; 
+  set_mp_sym_node(p,mp_link(q)); 
+  mp_link(q)=null;
+  mp_macro_call(mp, macro_ref,pre_head,NULL); 
+  decr_mac_ref(macro_ref);
   mp_get_x_next(mp); goto RESTART;
 }
 
@@ -18201,44 +19343,58 @@ because of the multiplicity of possible cases.
 
 @<Declare the procedure called |make_exp_copy|@>=
 @<Declare subroutines needed by |make_exp_copy|@>
-static void mp_make_exp_copy (MP mp,pointer p) {
-  pointer q,r,t; /* registers for list manipulation */
+static void mp_make_exp_copy (MP mp, mp_node p) {
+  mp_node t; /* register(s) for list manipulation */
+  mp_value_node q;
 RESTART: 
-  mp->cur_type=mp_type(p);
-  switch (mp->cur_type) {
-  case mp_vacuous: case mp_boolean_type: case mp_known:
-    mp->cur_exp=value(p); break;
+  mp->cur_exp.type=mp_type(p);
+  switch (mp->cur_exp.type) {
+  case mp_vacuous: 
+  case mp_boolean_type: 
+  case mp_known:
+    set_cur_exp_value(value(p)); 
+    break;
   case unknown_types:
-    mp->cur_exp=mp_new_ring_entry(mp, p);
+    t = mp_new_ring_entry(mp, p);
+    set_cur_exp_node(t);
     break;
   case mp_string_type: 
-    mp->cur_exp=value(p); add_str_ref(mp->cur_exp);
+    set_cur_exp_str(str_value(p)); 
+    add_str_ref(cur_exp_str());
     break;
   case mp_picture_type:
-    mp->cur_exp=value(p);add_edge_ref(mp->cur_exp);
+    set_cur_exp_node(value_node(p));
+    add_edge_ref(cur_exp_node());
     break;
   case mp_pen_type:
-    mp->cur_exp=copy_pen(value(p));
+    set_cur_exp_knot(copy_pen(knot_value(p)));
     break; 
   case mp_path_type:
-    mp->cur_exp=mp_copy_path(mp, value(p));
+    set_cur_exp_knot(mp_copy_path(mp, knot_value(p)));
     break;
-  case mp_transform_type: case mp_color_type: 
-  case mp_cmykcolor_type: case mp_pair_type:
+  case mp_transform_type: 
+  case mp_color_type: 
+  case mp_cmykcolor_type: 
+  case mp_pair_type:
     @<Copy the big node |p|@>;
     break;
-  case mp_dependent: case mp_proto_dependent:
-    mp_encapsulate(mp, mp_copy_dep_list(mp, dep_list(p)));
+  case mp_dependent: 
+  case mp_proto_dependent:
+    mp_encapsulate(mp, mp_copy_dep_list(mp, (mp_value_node)dep_list((mp_value_node)p)));
     break;
   case mp_numeric_type: 
-    new_indep(p); goto RESTART;
+    new_indep(p); 
+    goto RESTART;
     break;
   case mp_independent: 
     q=mp_single_dependency(mp, p);
     if ( q==mp->dep_final ){ 
-      mp->cur_type=mp_known; mp->cur_exp=0; mp_free_node(mp, q,dep_node_size);
+      mp->cur_exp.type=mp_known; 
+      set_cur_exp_value(0); 
+      mp_free_dep_node(mp, q);
     } else { 
-      mp->cur_type=mp_dependent; mp_encapsulate(mp, q);
+      mp->cur_exp.type=mp_dependent; 
+      mp_encapsulate(mp, q);
     }
     break;
   default: 
@@ -18252,9 +19408,11 @@ RESTART:
 tail of dependency list~|p|.
 
 @<Declare subroutines needed by |make_exp_copy|@>=
-static void mp_encapsulate (MP mp,pointer p) { 
-  mp->cur_exp=mp_get_node(mp, value_node_size); mp_type(mp->cur_exp)=mp->cur_type;
-  mp_name_type(mp->cur_exp)=mp_capsule; mp_new_dep(mp, mp->cur_exp,p);
+static void mp_encapsulate (MP mp, mp_value_node p) { 
+  mp_node q=mp_get_value_node(mp); 
+  mp_name_type(q)=mp_capsule; 
+  mp_new_dep(mp, q, mp->cur_exp.type, p);
+  set_cur_exp_node(q);
 }
 
 @ The most tedious case arises when the user refers to a
@@ -18264,35 +19422,80 @@ or |known|.
 
 @<Copy the big node |p|@>=
 { 
-  if ( value(p)==null ) 
-    mp_init_big_node(mp, p);
-  t=mp_get_node(mp, value_node_size); mp_name_type(t)=mp_capsule; mp_type(t)=mp->cur_type;
-  mp_init_big_node(mp, t);
-  q=value(p)+mp->big_node_size[mp->cur_type]; 
-  r=value(t)+mp->big_node_size[mp->cur_type];
-  do {  
-    q=q-2; r=r-2; mp_install(mp, r,q);
-  } while (q!=value(p));
-  mp->cur_exp=t;
+  if ( value_node(p)==null ) {
+    switch(mp_type(p)) {
+    case mp_pair_type: 
+      mp_init_pair_node(mp, p); 
+      break;
+    case mp_color_type: 
+      mp_init_color_node(mp, p); 
+      break;
+    case mp_cmykcolor_type: 
+      mp_init_cmykcolor_node(mp, p); 
+      break;
+    case mp_transform_type: 
+      mp_init_transform_node(mp, p); 
+      break;
+    default:  /* there are no other valid cases, but please the compiler */
+      break;
+    }
+  }
+  t=mp_get_value_node(mp); 
+  mp_name_type(t)=mp_capsule; 
+  switch(mp->cur_exp.type) {
+    case mp_pair_type: 
+      mp_init_pair_node(mp, t); 
+      mp_install(mp, x_part_loc(value_node(t)), x_part_loc(value_node(p)));
+      mp_install(mp, y_part_loc(value_node(t)), y_part_loc(value_node(p)));
+      break;
+    case mp_color_type: 
+      mp_init_color_node(mp, t); 
+      mp_install(mp, red_part_loc(value_node(t)), red_part_loc(value_node(p)));
+      mp_install(mp, green_part_loc(value_node(t)), green_part_loc(value_node(p)));
+      mp_install(mp, blue_part_loc(value_node(t)), blue_part_loc(value_node(p)));
+      break;
+    case mp_cmykcolor_type: 
+      mp_init_cmykcolor_node(mp, t); 
+      mp_install(mp, cyan_part_loc(value_node(t)), cyan_part_loc(value_node(p)));
+      mp_install(mp, magenta_part_loc(value_node(t)), magenta_part_loc(value_node(p)));
+      mp_install(mp, yellow_part_loc(value_node(t)), yellow_part_loc(value_node(p)));
+      mp_install(mp, black_part_loc(value_node(t)), black_part_loc(value_node(p)));
+      break;
+    case mp_transform_type: 
+      mp_init_transform_node(mp, t); 
+      mp_install(mp, tx_part_loc(value_node(t)), tx_part_loc(value_node(p)));
+      mp_install(mp, ty_part_loc(value_node(t)), ty_part_loc(value_node(p)));
+      mp_install(mp, xx_part_loc(value_node(t)), xx_part_loc(value_node(p)));
+      mp_install(mp, xy_part_loc(value_node(t)), xy_part_loc(value_node(p)));
+      mp_install(mp, yx_part_loc(value_node(t)), yx_part_loc(value_node(p)));
+      mp_install(mp, yy_part_loc(value_node(t)), yy_part_loc(value_node(p)));
+      break;
+    default:  /* there are no other valid cases, but please the compiler */
+      break;
+  }
+  set_cur_exp_node(t);
 }
 
 @ The |install| procedure copies a numeric field~|q| into field~|r| of
 a big node that will be part of a capsule.
 
 @<Declare subroutines needed by |make_exp_copy|@>=
-static void mp_install (MP mp,pointer r, pointer q) {
-  pointer p; /* temporary register */
+static void mp_install (MP mp, mp_node r, mp_node q) {
+  mp_value_node p; /* temporary register */
   if ( mp_type(q)==mp_known ){ 
-    value(r)=value(q); mp_type(r)=mp_known;
+    set_value(r,value(q)); 
+    mp_type(r)=mp_known;
   } else  if ( mp_type(q)==mp_independent ) {
     p=mp_single_dependency(mp, q);
     if ( p==mp->dep_final ) {
-      mp_type(r)=mp_known; value(r)=0; mp_free_node(mp, p,dep_node_size);
+      mp_type(r)=mp_known; 
+      set_value(r,0); 
+      mp_free_dep_node(mp, p);
     } else  { 
-      mp_type(r)=mp_dependent; mp_new_dep(mp, r,p);
+      mp_new_dep(mp, r, mp_dependent, p);
     }
   } else {
-    mp_type(r)=mp_type(q); mp_new_dep(mp, r,mp_copy_dep_list(mp, dep_list(q)));
+    mp_new_dep(mp, r, mp_type(q), mp_copy_dep_list(mp, (mp_value_node)dep_list((mp_value_node)q)));
   }
 }
 
@@ -18302,12 +19505,16 @@ provided that \.a is numeric.
 
 @<Scan a mediation...@>=
 { 
-  p=mp_stash_cur_exp(mp); mp_get_x_next(mp); mp_scan_expression(mp);
+  p=mp_stash_cur_exp(mp);
+  mp_get_x_next(mp);
+  mp_scan_expression(mp);
   if ( mp->cur_cmd!=comma ) {
     @<Put the left bracket and the expression back...@>;
     mp_unstash_cur_exp(mp, p);
   } else { 
-    q=mp_stash_cur_exp(mp); mp_get_x_next(mp); mp_scan_expression(mp);
+    q=mp_stash_cur_exp(mp);
+    mp_get_x_next(mp);
+    mp_scan_expression(mp);
     if ( mp->cur_cmd!=right_bracket ) {
       mp_missing_err(mp, "]");
 @.Missing `]'@>
@@ -18316,9 +19523,12 @@ provided that \.a is numeric.
       "I shall pretend that one was there.");
       mp_back_error(mp);
     }
-    r=mp_stash_cur_exp(mp); mp_make_exp_copy(mp, q);
-    mp_do_binary(mp, r,minus); mp_do_binary(mp, p,times); 
-    mp_do_binary(mp, q,plus); mp_get_x_next(mp);
+    r=mp_stash_cur_exp(mp);
+    mp_make_exp_copy(mp, q);
+    mp_do_binary(mp, r,minus);
+    mp_do_binary(mp, p,times); 
+    mp_do_binary(mp, q,plus);
+    mp_get_x_next(mp);
   }
 }
 
@@ -18327,9 +19537,10 @@ provided that \.a is numeric.
 
 @<Declare the basic parsing subroutines@>=
 static void mp_scan_suffix (MP mp) {
-  pointer h,t; /* head and tail of the list being built */
-  pointer p; /* temporary register */
-  h=mp_get_avail(mp); t=h;
+  mp_node h,t; /* head and tail of the list being built */
+  mp_node p; /* temporary register */
+  h=mp_get_symbolic_node(mp); 
+  t=h;
   while (1) { 
     if ( mp->cur_cmd==left_bracket ) {
       @<Scan a bracketed subscript and set |cur_cmd:=numeric_token|@>;
@@ -18337,19 +19548,24 @@ static void mp_scan_suffix (MP mp) {
     if ( mp->cur_cmd==numeric_token ) {
       p=mp_new_num_tok(mp, mp->cur_mod);
     } else if ((mp->cur_cmd==tag_token)||(mp->cur_cmd==internal_quantity) ) {
-       p=mp_get_avail(mp); mp_info(p)=mp->cur_sym;
+       p=mp_get_symbolic_node(mp); 
+       set_mp_sym_sym(p,mp->cur_sym);
+       mp_name_type(p) = mp->cur_sym_mod;
     } else {
       break;
     }
     mp_link(t)=p; t=p; mp_get_x_next(mp);
   }
-  mp->cur_exp=mp_link(h); free_avail(h); mp->cur_type=mp_token_list;
+  set_cur_exp_node(mp_link(h)); 
+  mp_free_symbolic_node(mp,h); 
+  mp->cur_exp.type=mp_token_list;
 }
 
 @ @<Scan a bracketed subscript and set |cur_cmd:=numeric_token|@>=
 { 
-  mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_known ) mp_bad_subscript(mp);
+  mp_get_x_next(mp); 
+  mp_scan_expression(mp);
+  if ( mp->cur_exp.type!=mp_known ) mp_bad_subscript(mp);
   if ( mp->cur_cmd!=right_bracket ) {
      mp_missing_err(mp, "]");
 @.Missing `]'@>
@@ -18358,7 +19574,8 @@ static void mp_scan_suffix (MP mp) {
       "I shall pretend that one was there.");
     mp_back_error(mp);
   }
-  mp->cur_cmd=numeric_token; mp->cur_mod=mp->cur_exp;
+  mp->cur_cmd=numeric_token; 
+  mp->cur_mod=cur_exp_value();
 }
 
 @* \[38] Parsing secondary and higher expressions.
@@ -18375,9 +19592,10 @@ list, so that the macro can be called even after it has been clobbered.
 
 @<Declare the basic parsing subroutines@>=
 static void mp_scan_secondary (MP mp) {
-  pointer p; /* for list manipulation */
+  mp_node p; /* for list manipulation */
   halfword c,d; /* operation codes or modifiers */
-  pointer mac_name; /* token defined with \&{primarydef} */
+  mp_node cc = NULL;
+  mp_sym mac_name; /* token defined with \&{primarydef} */
 RESTART:
   if ((mp->cur_cmd<min_primary_command)||
       (mp->cur_cmd>max_primary_command) )
@@ -18388,10 +19606,12 @@ CONTINUE:
   if ( mp->cur_cmd<=max_secondary_command &&
        mp->cur_cmd>=min_secondary_command ) {
     p=mp_stash_cur_exp(mp); 
-    c=mp->cur_mod; d=mp->cur_cmd;
+    d=mp->cur_cmd;
+    c=mp->cur_mod; 
     if ( d==secondary_primary_macro ) { 
+      cc=mp->cur_mod_node;
       mac_name=mp->cur_sym; 
-      add_mac_ref(c);
+      add_mac_ref(cc);
     }
     mp_get_x_next(mp); 
     mp_scan_primary(mp);
@@ -18399,8 +19619,8 @@ CONTINUE:
       mp_do_binary(mp, p,c);
     } else { 
       mp_back_input(mp); 
-      mp_binary_mac(mp, p,c,mac_name);
-      decr(ref_count(c)); 
+      mp_binary_mac(mp, p,cc,mac_name);
+      decr_mac_ref(cc);
       mp_get_x_next(mp); 
       goto RESTART;
     }
@@ -18412,10 +19632,13 @@ CONTINUE:
 |p| and |cur_exp|.
 
 @c 
-static void mp_binary_mac (MP mp,pointer p, pointer c, pointer n) {
-  pointer q,r; /* nodes in the parameter list */
-  q=mp_get_avail(mp); r=mp_get_avail(mp); mp_link(q)=r;
-  mp_info(q)=p; mp_info(r)=mp_stash_cur_exp(mp);
+static void mp_binary_mac (MP mp, mp_node p, mp_node c, mp_sym n) {
+  mp_node q,r; /* nodes in the parameter list */
+  q=mp_get_symbolic_node(mp);
+  r=mp_get_symbolic_node(mp);
+  mp_link(q)=r;
+  set_mp_sym_node(q,p); 
+  set_mp_sym_node(r,mp_stash_cur_exp(mp));
   mp_macro_call(mp, c,q,n);
 }
 
@@ -18423,9 +19646,10 @@ static void mp_binary_mac (MP mp,pointer p, pointer c, pointer n) {
 
 @<Declare the basic parsing subroutines@>=
 static void mp_scan_tertiary (MP mp) {
-  pointer p; /* for list manipulation */
+  mp_node p; /* for list manipulation */
   halfword c,d; /* operation codes or modifiers */
-  pointer mac_name; /* token defined with \&{secondarydef} */
+  mp_node cc;
+  mp_sym mac_name; /* token defined with \&{secondarydef} */
 RESTART:
   if ((mp->cur_cmd<min_primary_command)||
       (mp->cur_cmd>max_primary_command) )
@@ -18435,16 +19659,23 @@ RESTART:
 CONTINUE: 
   if ( mp->cur_cmd<=max_tertiary_command ) {
     if ( mp->cur_cmd>=min_tertiary_command ) {
-      p=mp_stash_cur_exp(mp); c=mp->cur_mod; d=mp->cur_cmd;
+      p=mp_stash_cur_exp(mp); 
+      c=mp->cur_mod; 
+      d=mp->cur_cmd;
       if ( d==tertiary_secondary_macro ) { 
-        mac_name=mp->cur_sym; add_mac_ref(c);
-      };
-      mp_get_x_next(mp); mp_scan_secondary(mp);
+        cc=mp->cur_mod_node; 
+        mac_name=mp->cur_sym; 
+        add_mac_ref(cc);
+      }
+      mp_get_x_next(mp); 
+      mp_scan_secondary(mp);
       if ( d!=tertiary_secondary_macro ) {
         mp_do_binary(mp, p,c);
       } else { 
-        mp_back_input(mp); mp_binary_mac(mp, p,c,mac_name);
-        decr(ref_count(c)); mp_get_x_next(mp); 
+        mp_back_input(mp); 
+        mp_binary_mac(mp, p,cc,mac_name);
+        decr_mac_ref(cc);
+        mp_get_x_next(mp); 
         goto RESTART;
       }
       goto CONTINUE;
@@ -18461,15 +19692,20 @@ paths, which materialize here.
 
 @<Declare the basic parsing subroutines@>=
 static void mp_scan_expression (MP mp) {
-  pointer p,q,r,pp,qq; /* for list manipulation */
+  mp_node p; /* for list manipulation */
+  mp_knot path_p, path_q, r;
+  mp_knot pp, qq;
   halfword c,d; /* operation codes or modifiers */
+  mp_node cc;
   int my_var_flag; /* initial value of |var_flag| */
-  pointer mac_name; /* token defined with \&{tertiarydef} */
+  mp_sym mac_name; /* token defined with \&{tertiarydef} */
   boolean cycle_hit; /* did a path expression just end with `\&{cycle}'? */
   scaled x,y; /* explicit coordinates or tension at a path join */
   int t; /* knot type following a path join */
+  mp_value new_expr;
   t=0; y=0; x=0;
-  my_var_flag=mp->var_flag; mac_name=null;
+  my_var_flag=mp->var_flag; 
+  mac_name=NULL;
   mp->expand_depth_count++;
   mp_check_expansion_depth(mp);
 RESTART:
@@ -18482,21 +19718,28 @@ CONTINUE:
   if ( mp->cur_cmd<=max_expression_command )
     if ( mp->cur_cmd>=min_expression_command ) {
       if ( (mp->cur_cmd!=equals)||(my_var_flag!=assignment) ) {
-        p=mp_stash_cur_exp(mp); c=mp->cur_mod; d=mp->cur_cmd;
+        p=mp_stash_cur_exp(mp); 
+        d=mp->cur_cmd;
+        c=mp->cur_mod; 
         if ( d==expression_tertiary_macro ) {
-          mac_name=mp->cur_sym; add_mac_ref(c);
+          cc=mp->cur_mod_node; 
+          mac_name=mp->cur_sym; 
+          add_mac_ref(cc);
         }
         if ( (d<ampersand)||((d==ampersand)&&
              ((mp_type(p)==mp_pair_type)||(mp_type(p)==mp_path_type))) ) {
           @<Scan a path construction operation;
             but |return| if |p| has the wrong type@>;
         } else { 
-          mp_get_x_next(mp); mp_scan_tertiary(mp);
+          mp_get_x_next(mp); 
+          mp_scan_tertiary(mp);
           if ( d!=expression_tertiary_macro ) {
             mp_do_binary(mp, p,c);
           } else  { 
-            mp_back_input(mp); mp_binary_mac(mp, p,c,mac_name);
-            decr(ref_count(c)); mp_get_x_next(mp); 
+            mp_back_input(mp); 
+            mp_binary_mac(mp, p,cc,mac_name);
+            decr_mac_ref(cc);
+            mp_get_x_next(mp); 
             goto RESTART;
           }
         }
@@ -18535,26 +19778,39 @@ FINISH_PATH:
 @ @<Convert the left operand, |p|, into a partial path ending at~|q|...@>=
 { 
   mp_unstash_cur_exp(mp, p);
-  if ( mp->cur_type==mp_pair_type ) p=mp_new_knot(mp);
-  else if ( mp->cur_type==mp_path_type ) p=mp->cur_exp;
-  else return;
-  q=p;
-  while ( mp_link(q)!=p ) q=mp_link(q);
-  if ( mp_left_type(p)!=mp_endpoint ) { /* open up a cycle */
-    r=mp_copy_knot(mp, p); mp_link(q)=r; q=r;
+  if ( mp->cur_exp.type==mp_pair_type ) 
+    path_p=mp_pair_to_knot(mp);
+  else if ( mp->cur_exp.type==mp_path_type )
+    path_p=cur_exp_knot();
+  else 
+    return;
+  path_q=path_p;
+  while ( mp_next_knot(path_q) != path_p ) 
+    path_q = mp_next_knot(path_q);
+  if ( mp_left_type(path_p)!=mp_endpoint ) { /* open up a cycle */
+    r=mp_copy_knot(mp, path_p); 
+    mp_next_knot(path_q)=r; 
+    path_q=r;
   }
-  mp_left_type(p)=mp_open; mp_right_type(q)=mp_open;
+  mp_left_type(path_p)=mp_open; 
+  mp_right_type(path_q)=mp_open;
 }
 
 @ A pair of numeric values is changed into a knot node for a one-point path
 when \MP\ discovers that the pair is part of a path.
 
 @c 
-static pointer mp_new_knot (MP mp) { /* convert a pair to a knot with two endpoints */
-  pointer q; /* the new node */
-  q=mp_get_node(mp, knot_node_size); mp_left_type(q)=mp_endpoint;
-  mp_right_type(q)=mp_endpoint; mp_originator(q)=mp_metapost_user; mp_link(q)=q;
-  mp_known_pair(mp); mp_x_coord(q)=mp->cur_x; mp_y_coord(q)=mp->cur_y;
+static mp_knot mp_pair_to_knot (MP mp) { /* convert a pair to a knot with two endpoints */
+  mp_knot q; /* the new node */
+  q = xmalloc(1, sizeof (struct mp_knot_data));
+  memset(q,0,sizeof (struct mp_knot_data));
+  mp_left_type(q)=mp_endpoint;
+  mp_right_type(q)=mp_endpoint; 
+  mp_originator(q)=mp_metapost_user; 
+  mp_next_knot(q)=q;
+  mp_known_pair(mp); 
+  mp_x_coord(q)=mp->cur_x; 
+  mp_y_coord(q)=mp->cur_y;
   return q;
 }
 
@@ -18568,8 +19824,10 @@ static void mp_known_pair (MP mp);
 
 @ @c
 void mp_known_pair (MP mp) {
-  pointer p; /* the pair node */
-  if ( mp->cur_type!=mp_pair_type ) {
+  mp_value new_expr;
+  new_expr.data.val = 0;
+  mp_node p; /* the pair node */
+  if ( mp->cur_exp.type!=mp_pair_type ) {
     exp_err("Undefined coordinates have been replaced by (0,0)");
 @.Undefined coordinates...@>
     help5("I need x and y numbers for this part of the path.",
@@ -18578,12 +19836,14 @@ void mp_known_pair (MP mp) {
        "(Chapter 27 of The METAFONTbook explains that",
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
        "you might want to type `I ??" "?' now.)");
-    mp_put_get_flush_error(mp, 0); mp->cur_x=0; mp->cur_y=0;
+    mp_put_get_flush_error(mp, new_expr); 
+    mp->cur_x=0; 
+    mp->cur_y=0;
   } else { 
-    p=value(mp->cur_exp);
+    p=value_node(cur_exp_node());
      @<Make sure that both |x| and |y| parts of |p| are known;
        copy them into |cur_x| and |cur_y|@>;
-    mp_flush_cur_exp(mp, 0);
+    mp_flush_cur_exp(mp, new_expr);
   }
 }
 
@@ -18630,7 +19890,7 @@ if ( d==path_join ) {
 mp_get_x_next(mp);
 if ( mp->cur_cmd==left_brace ) {
   @<Put the post-join direction information into |x| and |t|@>;
-} else if ( mp_right_type(q)!=mp_explicit ) {
+} else if ( mp_right_type(path_q)!=mp_explicit ) {
   t=mp_open; x=0;
 }
 
@@ -18668,29 +19928,36 @@ static quarterword mp_scan_direction (MP mp) {
 
 @ @<Scan a curl specification@>=
 { mp_get_x_next(mp); mp_scan_expression(mp);
-if ( (mp->cur_type!=mp_known)||(mp->cur_exp<0) ){ 
+if ( (mp->cur_exp.type!=mp_known)||(cur_exp_value()<0) ){ 
+  mp_value new_expr;
+  new_expr.data.val = unity;
   exp_err("Improper curl has been replaced by 1");
 @.Improper curl@>
   help1("A curl must be a known, nonnegative number.");
-  mp_put_get_flush_error(mp, unity);
+  mp_put_get_flush_error(mp, new_expr);
 }
 t=mp_curl;
 }
 
 @ @<Scan a given direction@>=
 { mp_scan_expression(mp);
-  if ( mp->cur_type>mp_pair_type ) {
+  if ( mp->cur_exp.type>mp_pair_type ) {
     @<Get given directions separated by commas@>;
   } else {
     mp_known_pair(mp);
   }
   if ( (mp->cur_x==0)&&(mp->cur_y==0) )  t=mp_open;
-  else  { t=mp_given; mp->cur_exp=mp_n_arg(mp, mp->cur_x,mp->cur_y);}
+  else  { 
+    t=mp_given; 
+    set_cur_exp_value(mp_n_arg(mp, mp->cur_x,mp->cur_y));
+  }
 }
 
 @ @<Get given directions separated by commas@>=
 { 
-  if ( mp->cur_type!=mp_known ) {
+  if ( mp->cur_exp.type!=mp_known ) {
+    mp_value new_expr;
+    new_expr.data.val = 0;
     exp_err("Undefined x coordinate has been replaced by 0");
 @.Undefined coordinates...@>
     help5("I need a `known' x value for this part of the path.",
@@ -18699,9 +19966,9 @@ t=mp_curl;
       "(Chapter 27 of The METAFONTbook explains that",
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
       "you might want to type `I ??" "?' now.)");
-    mp_put_get_flush_error(mp, 0);
+    mp_put_get_flush_error(mp, new_expr);
   }
-  x=mp->cur_exp;
+  x=cur_exp_value();
   if ( mp->cur_cmd!=comma ) {
     mp_missing_err(mp, ",");
 @.Missing `,'@>
@@ -18710,16 +19977,19 @@ t=mp_curl;
     mp_back_error(mp);
   }
   mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_known ) {
-     exp_err("Undefined y coordinate has been replaced by 0");
+  if ( mp->cur_exp.type!=mp_known ) {
+    mp_value new_expr;
+    new_expr.data.val = 0;
+    exp_err("Undefined y coordinate has been replaced by 0");
     help5("I need a `known' y value for this part of the path.",
       "The value I found (see above) was no good;",
       "so I'll try to keep going by using zero instead.",
       "(Chapter 27 of The METAFONTbook explains that",
       "you might want to type `I ??" "?' now.)");
-    mp_put_get_flush_error(mp, 0);
+    mp_put_get_flush_error(mp, new_expr);
   }
-  mp->cur_y=mp->cur_exp; mp->cur_x=x;
+  mp->cur_y=cur_exp_value();
+  mp->cur_x=x;
 }
 
 @ At this point |mp_right_type(q)| is usually |open|, but it may have been
@@ -18731,9 +20001,11 @@ the value of |mp_right_type(q)| in cases such as
 { 
   t=mp_scan_direction(mp);
   if ( t!=mp_open ) {
-    mp_right_type(q)=(quarterword)t; right_given(q)=mp->cur_exp;
-    if ( mp_left_type(q)==mp_open ) {
-      mp_left_type(q)=(quarterword)t; left_given(q)=mp->cur_exp;
+    mp_right_type(path_q)=(unsigned short)t; 
+    right_given(path_q)=cur_exp_value();
+    if ( mp_left_type(path_q)==mp_open ) {
+      mp_left_type(path_q)=(unsigned short)t; 
+      left_given(path_q)=cur_exp_value();
     } /* note that |left_given(q)=left_curl(q)| */
   }
 }
@@ -18746,7 +20018,7 @@ there are no explicit control points.
 @<Put the post-join...@>=
 { 
   t=mp_scan_direction(mp);
-  if ( mp_right_type(q)!=mp_explicit ) x=mp->cur_exp;
+  if ( mp_right_type(path_q)!=mp_explicit ) x=cur_exp_value();
   else t=mp_explicit; /* the direction information is superfluous */
 }
 
@@ -18758,7 +20030,9 @@ there are no explicit control points.
   } else if ( mp->cur_cmd==controls ) {
     @<Set explicit control points@>;
   } else  { 
-    right_tension(q)=unity; y=unity; mp_back_input(mp); /* default tension */
+    right_tension(path_q)=unity; 
+    y=unity; 
+    mp_back_input(mp); /* default tension */
     goto DONE;
   };
   if ( mp->cur_cmd!=path_join ) {
@@ -18777,50 +20051,68 @@ DONE:
   if ( mp->cur_cmd==at_least ) mp_get_x_next(mp);
   mp_scan_primary(mp);
   @<Make sure that the current expression is a valid tension setting@>;
-  if ( y==at_least ) negate(mp->cur_exp);
-  right_tension(q)=mp->cur_exp;
+  if ( y==at_least ) negate(cur_exp_value());
+  right_tension(path_q)=cur_exp_value();
   if ( mp->cur_cmd==and_command ) {
-    mp_get_x_next(mp); y=mp->cur_cmd;
-    if ( mp->cur_cmd==at_least ) mp_get_x_next(mp);
+    mp_get_x_next(mp); 
+    y=mp->cur_cmd;
+    if ( mp->cur_cmd==at_least ) 
+      mp_get_x_next(mp);
     mp_scan_primary(mp);
     @<Make sure that the current expression is a valid tension setting@>;
-    if ( y==at_least ) negate(mp->cur_exp);
+    if ( y==at_least ) negate(cur_exp_value());
   }
-  y=mp->cur_exp;
+  y=cur_exp_value();
 }
 
 @ @d min_tension three_quarter_unit
 
 @<Make sure that the current expression is a valid tension setting@>=
-if ( (mp->cur_type!=mp_known)||(mp->cur_exp<min_tension) ) {
+if ( (mp->cur_exp.type!=mp_known)||(cur_exp_value()<min_tension) ) {
   exp_err("Improper tension has been set to 1");
 @.Improper tension@>
   help1("The expression above should have been a number >=3/4.");
-  mp_put_get_flush_error(mp, unity);
+  new_expr.data.val = unity;
+  mp_put_get_flush_error(mp, new_expr);
 }
 
 @ @<Set explicit control points@>=
 { 
-  mp_right_type(q)=mp_explicit; t=mp_explicit; mp_get_x_next(mp); mp_scan_primary(mp);
-  mp_known_pair(mp); mp_right_x(q)=mp->cur_x; mp_right_y(q)=mp->cur_y;
+  mp_right_type(path_q)=mp_explicit; 
+  t=mp_explicit; 
+  mp_get_x_next(mp); 
+  mp_scan_primary(mp);
+  mp_known_pair(mp); 
+  mp_right_x(path_q)=mp->cur_x; 
+  mp_right_y(path_q)=mp->cur_y;
   if ( mp->cur_cmd!=and_command ) {
-    x=mp_right_x(q); y=mp_right_y(q);
+    x=mp_right_x(path_q); 
+    y=mp_right_y(path_q);
   } else { 
-    mp_get_x_next(mp); mp_scan_primary(mp);
-    mp_known_pair(mp); x=mp->cur_x; y=mp->cur_y;
+    mp_get_x_next(mp); 
+    mp_scan_primary(mp);
+    mp_known_pair(mp); 
+    x=mp->cur_x; 
+    y=mp->cur_y;
   }
 }
 
 @ @<Convert the right operand, |cur_exp|, into a partial path...@>=
 { 
-  if ( mp->cur_type!=mp_path_type ) pp=mp_new_knot(mp);
-  else pp=mp->cur_exp;
+  if ( mp->cur_exp.type!=mp_path_type ) 
+    pp=mp_pair_to_knot(mp);
+  else 
+    pp=cur_exp_knot();
   qq=pp;
-  while ( mp_link(qq)!=pp ) qq=mp_link(qq);
+  while ( mp_next_knot(qq)!=pp ) 
+    qq=mp_next_knot(qq);
   if ( mp_left_type(pp)!=mp_endpoint ) { /* open up a cycle */
-    r=mp_copy_knot(mp, pp); mp_link(qq)=r; qq=r;
+    r=mp_copy_knot(mp, pp); 
+    mp_next_knot(qq)=r; 
+    qq=r;
   }
-  mp_left_type(pp)=mp_open; mp_right_type(qq)=mp_open;
+  mp_left_type(pp)=mp_open; 
+  mp_right_type(qq)=mp_open;
 }
 
 @ If a person tries to define an entire path by saying `\.{(x,y)\&cycle}',
@@ -18829,22 +20121,29 @@ shouldn't have length zero.
 
 @<Get ready to close a cycle@>=
 { 
-  cycle_hit=true; mp_get_x_next(mp); pp=p; qq=p;
-  if ( d==ampersand ) if ( p==q ) {
-    d=path_join; right_tension(q)=unity; y=unity;
+  cycle_hit=true; 
+  mp_get_x_next(mp); 
+  pp=path_p; 
+  qq=path_p;
+  if ( d==ampersand ) if ( path_p==path_q ) {
+    d=path_join; 
+    right_tension(path_q)=unity; 
+    y=unity;
   }
 }
 
 @ @<Join the partial paths and reset |p| and |q|...@>=
 { 
 if ( d==ampersand ) {
-  if ( (mp_x_coord(q)!=mp_x_coord(pp))||(mp_y_coord(q)!=mp_y_coord(pp)) ) {
+  if ( (mp_x_coord(path_q)!=mp_x_coord(pp))||
+       (mp_y_coord(path_q)!=mp_y_coord(pp)) ) {
     print_err("Paths don't touch; `&' will be changed to `..'");
 @.Paths don't touch@>
     help3("When you join paths `p&q', the ending point of p",
       "must be exactly equal to the starting point of q.",
       "So I'm going to pretend that you said `p..q' instead.");
-    mp_put_get_error(mp); d=path_join; right_tension(q)=unity; y=unity;
+    mp_put_get_error(mp); d=path_join; 
+    right_tension(path_q)=unity; y=unity;
   }
 }
 @<Plug an opening in |mp_right_type(pp)|, if possible@>;
@@ -18852,69 +20151,83 @@ if ( d==ampersand ) {
   @<Splice independent paths together@>;
 } else  { 
   @<Plug an opening in |mp_right_type(q)|, if possible@>;
-  mp_link(q)=pp; mp_left_y(pp)=y;
-  if ( t!=mp_open ) { mp_left_x(pp)=x; mp_left_type(pp)=(quarterword)t;  };
+  mp_next_knot(path_q)=pp; 
+  mp_left_y(pp)=y;
+  if ( t!=mp_open ) { mp_left_x(pp)=x; mp_left_type(pp)=(unsigned short)t;  };
 }
-q=qq;
+path_q=qq;
 }
 
 @ @<Plug an opening in |mp_right_type(q)|...@>=
-if ( mp_right_type(q)==mp_open ) {
-  if ( (mp_left_type(q)==mp_curl)||(mp_left_type(q)==mp_given) ) {
-    mp_right_type(q)=mp_left_type(q); right_given(q)=left_given(q);
+if ( mp_right_type(path_q)==mp_open ) {
+  if ( (mp_left_type(path_q)==mp_curl)||
+       (mp_left_type(path_q)==mp_given) ) {
+    mp_right_type(path_q)=mp_left_type(path_q); 
+    right_given(path_q)=left_given(path_q);
   }
 }
 
 @ @<Plug an opening in |mp_right_type(pp)|...@>=
 if ( mp_right_type(pp)==mp_open ) {
   if ( (t==mp_curl)||(t==mp_given) ) {
-    mp_right_type(pp)=(quarterword)t; right_given(pp)=x;
+    mp_right_type(pp)=(unsigned short)t; right_given(pp)=x;
   }
 }
 
 @ @<Splice independent paths together@>=
 { 
-  if ( mp_left_type(q)==mp_open ) if ( mp_right_type(q)==mp_open ) {
-    mp_left_type(q)=mp_curl; left_curl(q)=unity;
+  if ( mp_left_type(path_q)==mp_open ) if ( mp_right_type(path_q)==mp_open ) {
+    mp_left_type(path_q)=mp_curl; left_curl(path_q)=unity;
   }
   if ( mp_right_type(pp)==mp_open ) if ( t==mp_open ) {
-    mp_right_type(pp)=mp_curl; right_curl(pp)=unity;
+    mp_right_type(pp)=mp_curl;
+    right_curl(pp)=unity;
   }
-  mp_right_type(q)=mp_right_type(pp); mp_link(q)=mp_link(pp);
-  mp_right_x(q)=mp_right_x(pp); mp_right_y(q)=mp_right_y(pp);
-  mp_free_node(mp, pp,knot_node_size);
-  if ( qq==pp ) qq=q;
+  mp_right_type(path_q)=mp_right_type(pp); 
+  mp_next_knot(path_q)=mp_next_knot(pp);
+  mp_right_x(path_q)=mp_right_x(pp); 
+  mp_right_y(path_q)=mp_right_y(pp);
+  mp_xfree(pp);
+  if ( qq==pp ) 
+    qq=path_q;
 }
 
 @ @<Choose control points for the path...@>=
 if ( cycle_hit ) { 
-  if ( d==ampersand ) p=q;
+  if ( d==ampersand ) path_p=path_q;
 } else  { 
-  mp_left_type(p)=mp_endpoint;
-  if ( mp_right_type(p)==mp_open ) { 
-    mp_right_type(p)=mp_curl; right_curl(p)=unity;
+  mp_left_type(path_p)=mp_endpoint;
+  if ( mp_right_type(path_p)==mp_open ) { 
+    mp_right_type(path_p)=mp_curl; 
+    right_curl(path_p)=unity;
   }
-  mp_right_type(q)=mp_endpoint;
-  if ( mp_left_type(q)==mp_open ) { 
-    mp_left_type(q)=mp_curl; left_curl(q)=unity;
+  mp_right_type(path_q)=mp_endpoint;
+  if ( mp_left_type(path_q)==mp_open ) { 
+    mp_left_type(path_q)=mp_curl; 
+    left_curl(path_q)=unity;
   }
-  mp_link(q)=p;
+  mp_next_knot(path_q)=path_p;
 }
-mp_make_choices(mp, p);
-mp->cur_type=mp_path_type; mp->cur_exp=p
+mp_make_choices(mp, path_p);
+mp->cur_exp.type=mp_path_type; 
+set_cur_exp_knot(path_p)
 
 @ Finally, we sometimes need to scan an expression whose value is
 supposed to be either |true_code| or |false_code|.
 
 @<Declare the basic parsing subroutines@>=
 static void mp_get_boolean (MP mp) { 
-  mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_boolean_type ) {
+  mp_value new_expr;
+  mp_get_x_next(mp); 
+  mp_scan_expression(mp);
+  if ( mp->cur_exp.type!=mp_boolean_type ) {
     exp_err("Undefined condition will be treated as `false'");
 @.Undefined condition...@>
     help2("The expression shown above should have had a definite",
           "true-or-false value. I'm changing it to `false'.");
-    mp_put_get_flush_error(mp, false_code); mp->cur_type=mp_boolean_type;
+    new_expr.data.val = false_code;
+    mp_put_get_flush_error(mp, new_expr);
+    mp->cur_exp.type=mp_boolean_type;
   }
 }
 
@@ -19071,7 +20384,8 @@ mp_primitive(mp, "-",plus_or_minus,minus);
 @:- }{\.{-} primitive@>
 mp_primitive(mp, "*",secondary_binary,times);
 @:* }{\.{*} primitive@>
-mp_primitive(mp, "/",slash,over); mp->eqtb[frozen_slash]=mp->eqtb[mp->cur_sym];
+mp_primitive(mp, "/",slash,over); 
+mp->frozen_slash = mp_frozen_primitive(mp, "/",slash,over); 
 @:/ }{\.{/} primitive@>
 mp_primitive(mp, "++",tertiary_binary,pythag_add);
 @:++_}{\.{++} primitive@>
@@ -19159,29 +20473,33 @@ case and_command:
 @c @<Declare nullary action procedure@>
 static void mp_do_nullary (MP mp,quarterword c) { 
   check_arith;
-  if ( mp->internal[mp_tracing_commands]>two )
+  if ( internal_value(mp_tracing_commands)>two )
     mp_show_cmd_mod(mp, nullary,c);
   switch (c) {
   case true_code: case false_code: 
-    mp->cur_type=mp_boolean_type; mp->cur_exp=c;
+    mp->cur_exp.type=mp_boolean_type; 
+    set_cur_exp_value(c);
     break;
   case null_picture_code: 
-    mp->cur_type=mp_picture_type;
-    mp->cur_exp=mp_get_node(mp, edge_header_size); 
-    mp_init_edges(mp, mp->cur_exp);
+    mp->cur_exp.type=mp_picture_type;
+    set_cur_exp_node(mp_get_edge_header_node(mp)); 
+    mp_init_edges(mp, cur_exp_node());
     break;
   case null_pen_code: 
-    mp->cur_type=mp_pen_type; mp->cur_exp=mp_get_pen_circle(mp, 0);
+    mp->cur_exp.type=mp_pen_type; 
+    set_cur_exp_knot(mp_get_pen_circle(mp, 0));
     break;
   case normal_deviate: 
-    mp->cur_type=mp_known; mp->cur_exp=mp_norm_rand(mp);
+    mp->cur_exp.type=mp_known; 
+    set_cur_exp_value(mp_norm_rand(mp));
     break;
   case pen_circle: 
-    mp->cur_type=mp_pen_type; mp->cur_exp=mp_get_pen_circle(mp, unity);
+    mp->cur_exp.type=mp_pen_type; 
+    set_cur_exp_knot(mp_get_pen_circle(mp, unity));
     break;
   case mp_version: 
-    mp->cur_type=mp_string_type; 
-    mp->cur_exp=intern(metapost_version) ;
+    mp->cur_exp.type=mp_string_type; 
+    set_cur_exp_str(mp_intern(mp,metapost_version));
     break;
   case read_string_op:
     @<Read a string from the terminal@>;
@@ -19202,12 +20520,12 @@ static void mp_do_nullary (MP mp,quarterword c) {
 @ @<Declare nullary action procedure@>=
 static void mp_finish_read (MP mp) { /* copy |buffer| line to |cur_exp| */
   size_t k;
-  str_room((int)mp->last-start);
+  str_room(((int)mp->last-(int)start));
   for (k=(size_t)start;k<mp->last;k++) {
    append_char(mp->buffer[k]);
   }
-  mp_end_file_reading(mp); mp->cur_type=mp_string_type; 
-  mp->cur_exp=mp_make_string(mp);
+  mp_end_file_reading(mp); mp->cur_exp.type=mp_string_type; 
+  set_cur_exp_str(mp_make_string(mp));
 }
 
 @ Things get a bit more interesting when there's an operand. The
@@ -19215,14 +20533,16 @@ operand to |do_unary| appears in |cur_type| and |cur_exp|.
 
 @c @<Declare unary action procedures@>
 static void mp_do_unary (MP mp,quarterword c) {
-  pointer p,q,r; /* for list manipulation */
+  mp_node p,q,r; /* for list manipulation */
   integer x; /* a temporary register */
+  halfword vv; /* a temporary place for |cur_exp_value| */
+  mp_value new_expr;
   check_arith;
-  if ( mp->internal[mp_tracing_commands]>two )
+  if ( internal_value(mp_tracing_commands)>two )
     @<Trace the current unary operation@>;
   switch (c) {
   case plus:
-    if ( mp->cur_type<mp_color_type ) mp_bad_unary(mp, plus);
+    if ( mp->cur_exp.type<mp_color_type ) mp_bad_unary(mp, plus);
     break;
   case minus:
     @<Negate the current expression@>;
@@ -19236,9 +20556,10 @@ static void mp_do_unary (MP mp,quarterword c) {
 are known.
 
 @<Declare unary action procedures@>=
-static boolean mp_nice_pair (MP mp,integer p, quarterword t) { 
+static boolean mp_nice_pair (MP mp, mp_node p, quarterword t) { 
+  (void)mp;
   if ( t==mp_pair_type ) {
-    p=value(p);
+    p=value_node(p);
     if ( mp_type(x_part_loc(p))==mp_known )
       if ( mp_type(y_part_loc(p))==mp_known )
         return true;
@@ -19250,28 +20571,42 @@ static boolean mp_nice_pair (MP mp,integer p, quarterword t) {
 fully known colors.
 
 @<Declare unary action procedures@>=
-static boolean mp_nice_color_or_pair (MP mp,integer p, quarterword t) {
-  pointer q,r; /* for scanning the big node */
-  if ( (t!=mp_pair_type)&&(t!=mp_color_type)&&(t!=mp_cmykcolor_type) ) {
-    return false;
-  } else { 
-    q=value(p);
-    r=q+mp->big_node_size[mp_type(p)];
-    do {  
-      r=r-2;
-      if ( mp_type(r)!=mp_known )
-        return false;
-    } while (r!=q);
-    return true;
+static boolean mp_nice_color_or_pair (MP mp, mp_node p, quarterword t) {
+  mp_node q;
+  (void)mp;
+  switch (t) {
+  case mp_pair_type:
+    q=value_node(p);
+    if ( mp_type(x_part_loc(q))==mp_known )
+      if ( mp_type(y_part_loc(q))==mp_known )
+        return true;
+    break;
+  case mp_color_type:
+    q=value_node(p);
+    if ( mp_type(red_part_loc(q))==mp_known )
+      if ( mp_type(green_part_loc(q))==mp_known )
+        if ( mp_type(blue_part_loc(q))==mp_known )
+          return true;
+    break;
+  case mp_cmykcolor_type:
+    q=value_node(p);
+    if ( mp_type(cyan_part_loc(q))==mp_known )
+      if ( mp_type(magenta_part_loc(q))==mp_known )
+        if ( mp_type(yellow_part_loc(q))==mp_known )
+          if ( mp_type(black_part_loc(q))==mp_known )
+            return true;
+    break;
   }
+
+  return false;
 }
 
 @ @<Declare unary action...@>=
-static void mp_print_known_or_unknown_type (MP mp,quarterword t, integer v) { 
+static void mp_print_known_or_unknown_type (MP mp,quarterword t, mp_node v) { 
   mp_print_char(mp, xord('('));
   if ( t>mp_known ) mp_print(mp, "unknown numeric");
   else { if ( (t==mp_pair_type)||(t==mp_color_type)||(t==mp_cmykcolor_type) )
-    if ( ! mp_nice_color_or_pair(mp, v,t) ) mp_print(mp, "unknown ");
+    if ( ! mp_nice_color_or_pair(mp, v, t) ) mp_print(mp, "unknown ");
     mp_print_type(mp, t);
   }
   mp_print_char(mp, xord(')'));
@@ -19281,7 +20616,7 @@ static void mp_print_known_or_unknown_type (MP mp,quarterword t, integer v) {
 static void mp_bad_unary (MP mp,quarterword c) { 
   exp_err("Not implemented: "); mp_print_op(mp, c);
 @.Not implemented...@>
-  mp_print_known_or_unknown_type(mp, mp->cur_type,mp->cur_exp);
+  mp_print_known_or_unknown_type(mp, mp->cur_exp.type,cur_exp_node());
   help3("I'm afraid I don't know how to apply that operation to that",
     "particular type. Continue, and I'll simply return the",
     "argument (shown above) as the result of the operation.");
@@ -19290,10 +20625,13 @@ static void mp_bad_unary (MP mp,quarterword c) {
 
 @ @<Trace the current unary operation@>=
 { 
-  mp_begin_diagnostic(mp); mp_print_nl(mp, "{"); 
-  mp_print_op(mp, c); mp_print_char(mp, xord('('));
+  mp_begin_diagnostic(mp); 
+  mp_print_nl(mp, "{"); 
+  mp_print_op(mp, c); 
+  mp_print_char(mp, xord('('));
   mp_print_exp(mp, null,0); /* show the operand, but not verbosely */
-  mp_print(mp, ")}"); mp_end_diagnostic(mp, false);
+  mp_print(mp, ")}");
+  mp_end_diagnostic(mp, false);
 }
 
 @ Negation is easy except when the current expression
@@ -19310,31 +20648,65 @@ Instead, we work around the problem by copying the current expression
 and recycling it afterwards (cf.~the |stash_in| routine).
 
 @<Negate the current expression@>=
-switch (mp->cur_type) {
+switch (mp->cur_exp.type) {
 case mp_color_type:
 case mp_cmykcolor_type:
 case mp_pair_type:
 case mp_independent: 
-  q=mp->cur_exp; mp_make_exp_copy(mp, q);
-  if ( mp->cur_type==mp_dependent ) {
-    mp_negate_dep_list(mp, dep_list(mp->cur_exp));
-  } else if ( mp->cur_type<=mp_pair_type ) { /* |mp_color_type| or |mp_pair_type| */
-    p=value(mp->cur_exp);
-    r=p+mp->big_node_size[mp->cur_type];
-    do {  
-      r=r-2;
+  q=cur_exp_node(); 
+  mp_make_exp_copy(mp, q);
+  if ( mp->cur_exp.type==mp_dependent ) {
+    mp_negate_dep_list(mp, (mp_value_node)dep_list((mp_value_node)cur_exp_node()));
+  } else if ( mp->cur_exp.type<=mp_pair_type ) { 
+    /* |mp_color_type| |mp_cmykcolor_type|, or |mp_pair_type| */
+    p=value_node(cur_exp_node());
+    switch (mp->cur_exp.type) {
+    case mp_pair_type:
+      r=x_part_loc(p);
       if ( mp_type(r)==mp_known ) negate(value(r));
-      else mp_negate_dep_list(mp, dep_list(r));
-    } while (r!=p);
+      else mp_negate_dep_list(mp, (mp_value_node)dep_list((mp_value_node)r));
+      r=y_part_loc(p);
+      if ( mp_type(r)==mp_known ) negate(value(r));
+      else mp_negate_dep_list(mp, (mp_value_node)dep_list((mp_value_node)r));
+      break;
+    case mp_color_type:
+      r=red_part_loc(p);
+      if ( mp_type(r)==mp_known ) negate(value(r));
+      else mp_negate_dep_list(mp, (mp_value_node)dep_list((mp_value_node)r));
+      r=green_part_loc(p);
+      if ( mp_type(r)==mp_known ) negate(value(r));
+      else mp_negate_dep_list(mp, (mp_value_node)dep_list((mp_value_node)r));
+      r=blue_part_loc(p);
+      if ( mp_type(r)==mp_known ) negate(value(r));
+      else mp_negate_dep_list(mp, (mp_value_node)dep_list((mp_value_node)r));
+      break;
+    case mp_cmykcolor_type:
+      r=cyan_part_loc(p);
+      if ( mp_type(r)==mp_known ) negate(value(r));
+      else mp_negate_dep_list(mp, (mp_value_node)dep_list((mp_value_node)r));
+      r=magenta_part_loc(p);
+      if ( mp_type(r)==mp_known ) negate(value(r));
+      else mp_negate_dep_list(mp, (mp_value_node)dep_list((mp_value_node)r));
+      r=yellow_part_loc(p);
+      if ( mp_type(r)==mp_known ) negate(value(r));
+      else mp_negate_dep_list(mp, (mp_value_node)dep_list((mp_value_node)r));
+      r=black_part_loc(p);
+      if ( mp_type(r)==mp_known ) negate(value(r));
+      else mp_negate_dep_list(mp, (mp_value_node)dep_list((mp_value_node)r));
+      break;
+    default:  /* there are no other valid cases, but please the compiler */
+      break;
+    }
   } /* if |cur_type=mp_known| then |cur_exp=0| */
-  mp_recycle_value(mp, q); mp_free_node(mp, q,value_node_size);
+  mp_recycle_value(mp, q); 
+  mp_free_node(mp, q,value_node_size);
   break;
 case mp_dependent:
 case mp_proto_dependent:
-  mp_negate_dep_list(mp, dep_list(mp->cur_exp));
+  mp_negate_dep_list(mp, (mp_value_node)dep_list((mp_value_node)cur_exp_node()));
   break;
 case mp_known:
-  negate(mp->cur_exp);
+  negate(cur_exp_value());
   break;
 default:
   mp_bad_unary(mp, minus);
@@ -19342,22 +20714,27 @@ default:
 }
 
 @ @<Declare unary action...@>=
-static void mp_negate_dep_list (MP mp,pointer p) { 
+static void mp_negate_dep_list (MP mp, mp_value_node p) { 
+  (void)mp;
   while (1) { 
-    negate(value(p));
-    if ( mp_info(p)==null ) return;
-    p=mp_link(p);
+    negate(dep_value(p));
+    if ( dep_info(p)==null ) return;
+    p=(mp_value_node)mp_link(p);
   }
 }
 
 @ @<Additional cases of unary operators@>=
 case not_op: 
-  if ( mp->cur_type!=mp_boolean_type ) mp_bad_unary(mp, not_op);
-  else mp->cur_exp=true_code+false_code-mp->cur_exp;
+  if ( mp->cur_exp.type!=mp_boolean_type ) {
+    mp_bad_unary(mp, not_op);
+  } else {
+    halfword bb = true_code+false_code-cur_exp_value();
+    set_cur_exp_value(bb);
+  }
   break;
 
 @ @d three_sixty_units 23592960 /* that's |360*unity| */
-@d boolean_reset(A) if ( (A) ) mp->cur_exp=true_code; else mp->cur_exp=false_code
+@d boolean_reset(A) if ( (A) ) set_cur_exp_value(true_code); else set_cur_exp_value(false_code)
 
 @<Additional cases of unary operators@>=
 case sqrt_op:
@@ -19369,24 +20746,42 @@ case floor_op:
 case  uniform_deviate:
 case odd_op:
 case char_exists_op:
-  if ( mp->cur_type!=mp_known ) {
+  if ( mp->cur_exp.type!=mp_known ) {
     mp_bad_unary(mp, c);
   } else {
     switch (c) {
-    case sqrt_op:mp->cur_exp=mp_square_rt(mp, mp->cur_exp);break;
-    case mp_m_exp_op:mp->cur_exp=mp_m_exp(mp, mp->cur_exp);break;
-    case mp_m_log_op:mp->cur_exp=mp_m_log(mp, mp->cur_exp);break;
+    case sqrt_op:
+      vv = mp_square_rt(mp, cur_exp_value()) ;
+      set_cur_exp_value(vv);
+      break;
+    case mp_m_exp_op:
+      vv = mp_m_exp(mp, cur_exp_value());
+      set_cur_exp_value(vv);
+      break;
+    case mp_m_log_op:
+      vv =mp_m_log(mp, cur_exp_value());
+      set_cur_exp_value(vv);
+      break;
     case sin_d_op:
     case cos_d_op:
-      mp_n_sin_cos(mp, (mp->cur_exp % three_sixty_units)*16);
-      if ( c==sin_d_op ) mp->cur_exp=mp_round_fraction(mp, mp->n_sin);
-      else mp->cur_exp=mp_round_fraction(mp, mp->n_cos);
+      mp_n_sin_cos(mp, (cur_exp_value() % three_sixty_units)*16);
+      if ( c==sin_d_op ) 
+        set_cur_exp_value(mp_round_fraction(mp, mp->n_sin));
+      else 
+        set_cur_exp_value(mp_round_fraction(mp, mp->n_cos));
       break;
-    case floor_op:mp->cur_exp=mp_floor_scaled(mp, mp->cur_exp);break;
-    case uniform_deviate:mp->cur_exp=mp_unif_rand(mp, mp->cur_exp);break;
+    case floor_op:
+      vv=mp_floor_scaled(mp, cur_exp_value());
+      set_cur_exp_value(vv);
+      break;
+    case uniform_deviate:
+      vv=mp_unif_rand(mp, cur_exp_value());
+      set_cur_exp_value(vv);
+      break;
     case odd_op: 
-      boolean_reset(odd(mp_round_unscaled(mp, mp->cur_exp)));
-      mp->cur_type=mp_boolean_type;
+      vv = odd(mp_round_unscaled(mp, cur_exp_value()));
+      boolean_reset(vv);
+      mp->cur_exp.type=mp_boolean_type;
       break;
     case char_exists_op:
       @<Determine if a character has been shipped out@>;
@@ -19397,11 +20792,14 @@ case char_exists_op:
 
 @ @<Additional cases of unary operators@>=
 case angle_op:
-  if ( mp_nice_pair(mp, mp->cur_exp,mp->cur_type) ) {
-    p=value(mp->cur_exp);
+  if ( mp_nice_pair(mp, cur_exp_node(), mp->cur_exp.type) ) {
+    p=value_node(cur_exp_node());
     x=mp_n_arg(mp, value(x_part_loc(p)),value(y_part_loc(p)));
-    if ( x>=0 ) mp_flush_cur_exp(mp, (x+8)/ 16);
-    else mp_flush_cur_exp(mp, -((-x+8)/ 16));
+    if ( x>=0 ) 
+      new_expr.data.val = (x+8)/ 16;
+    else
+      new_expr.data.val = -((-x+8)/ 16);
+    mp_flush_cur_exp(mp, new_expr);
   } else {
     mp_bad_unary(mp, angle_op);
   }
@@ -19412,8 +20810,8 @@ be a path, we call |pair_to_path|.
 
 @<Declare unary action...@>=
 static void mp_pair_to_path (MP mp) { 
-  mp->cur_exp=mp_new_knot(mp); 
-  mp->cur_type=mp_path_type;
+  set_cur_exp_knot(mp_pair_to_knot(mp));
+  mp->cur_exp.type=mp_path_type;
 }
 
 @ This complicated if test makes sure that any |bounds| or |clip|
@@ -19421,36 +20819,36 @@ picture objects that get passed into \&{within} do not raise an
 error when queried using the color part primitives (this is needed
 for backward compatibility) .
 
-@d cur_pic_item mp_link(dummy_loc(mp->cur_exp))
+@d cur_pic_item mp_link(dummy_loc(cur_exp_node()))
 @d pict_color_type(A) ((cur_pic_item!=null) &&
          ((!has_color(cur_pic_item)) 
           ||
          (((mp_color_model(cur_pic_item)==A)
           ||
           ((mp_color_model(cur_pic_item)==mp_uninitialized_model) &&
-           (mp->internal[mp_default_color_model]/unity)==(A))))))
+           (internal_value(mp_default_color_model)/unity)==(A))))))
 
 @<Additional cases of unary operators@>=
 case x_part:
 case y_part:
-  if ( (mp->cur_type==mp_pair_type)||(mp->cur_type==mp_transform_type) )
+  if ( (mp->cur_exp.type==mp_pair_type)||(mp->cur_exp.type==mp_transform_type) )
     mp_take_part(mp, c);
-  else if ( mp->cur_type==mp_picture_type ) mp_take_pict_part(mp, c);
+  else if ( mp->cur_exp.type==mp_picture_type ) mp_take_pict_part(mp, c);
   else mp_bad_unary(mp, c);
   break;
 case xx_part:
 case xy_part:
 case yx_part:
 case yy_part: 
-  if ( mp->cur_type==mp_transform_type ) mp_take_part(mp, c);
-  else if ( mp->cur_type==mp_picture_type ) mp_take_pict_part(mp, c);
+  if ( mp->cur_exp.type==mp_transform_type ) mp_take_part(mp, c);
+  else if ( mp->cur_exp.type==mp_picture_type ) mp_take_pict_part(mp, c);
   else mp_bad_unary(mp, c);
   break;
 case red_part:
 case green_part:
 case blue_part: 
-  if ( mp->cur_type==mp_color_type ) mp_take_part(mp, c);
-  else if ( mp->cur_type==mp_picture_type ) {
+  if ( mp->cur_exp.type==mp_color_type ) mp_take_part(mp, c);
+  else if ( mp->cur_exp.type==mp_picture_type ) {
     if pict_color_type(mp_rgb_model) mp_take_pict_part(mp, c);
     else mp_bad_color_part(mp, c);
   }
@@ -19460,23 +20858,23 @@ case cyan_part:
 case magenta_part:
 case yellow_part:
 case black_part: 
-  if ( mp->cur_type==mp_cmykcolor_type) mp_take_part(mp, c); 
-  else if ( mp->cur_type==mp_picture_type ) {
+  if ( mp->cur_exp.type==mp_cmykcolor_type) mp_take_part(mp, c); 
+  else if ( mp->cur_exp.type==mp_picture_type ) {
     if pict_color_type(mp_cmyk_model) mp_take_pict_part(mp, c);
     else mp_bad_color_part(mp, c);
   }
   else mp_bad_unary(mp, c);
   break;
 case grey_part: 
-  if ( mp->cur_type==mp_known ) ; /* mp->cur_exp=mp->cur_exp */
-  else if ( mp->cur_type==mp_picture_type ) {
+  if ( mp->cur_exp.type==mp_known ) ; /* cur_exp_value()=cur_exp_value() */
+  else if ( mp->cur_exp.type==mp_picture_type ) {
     if pict_color_type(mp_grey_model) mp_take_pict_part(mp, c);
     else mp_bad_color_part(mp, c);
   }
   else mp_bad_unary(mp, c);
   break;
 case color_model_part: 
-  if ( mp->cur_type==mp_picture_type ) mp_take_pict_part(mp, c);
+  if ( mp->cur_exp.type==mp_picture_type ) mp_take_pict_part(mp, c);
   else mp_bad_unary(mp, c);
   break;
 
@@ -19485,8 +20883,9 @@ static void mp_bad_color_part(MP mp, quarterword c);
 
 @ @c
 static void mp_bad_color_part(MP mp, quarterword c) {
-  pointer p; /* the big node */
-  p=mp_link(dummy_loc(mp->cur_exp));
+  mp_node p; /* the big node */
+  mp_value new_expr;
+  p=mp_link(dummy_loc(cur_exp_node()));
   exp_err("Wrong picture color model: "); mp_print_op(mp, c);
 @.Wrong picture color model...@>
   if (mp_color_model(p)==mp_grey_model)
@@ -19504,9 +20903,10 @@ static void mp_bad_color_part(MP mp, quarterword c) {
     "or the greypart of a grey object. No mixing and matching, please.");
   mp_error(mp);
   if (c==black_part)
-    mp_flush_cur_exp(mp,unity);
+    new_expr.data.val = unity;
   else
-    mp_flush_cur_exp(mp,0);
+    new_expr.data.val = 0;
+  mp_flush_cur_exp(mp,new_expr);
 }
 
 @ In the following procedure, |cur_exp| points to a capsule, which points to
@@ -19514,15 +20914,47 @@ a big node. We want to delete all but one part of the big node.
 
 @<Declare unary action...@>=
 static void mp_take_part (MP mp,quarterword c) {
-  pointer p; /* the big node */
-  p=value(mp->cur_exp); value(temp_val)=p; mp_type(temp_val)=mp->cur_type;
-  mp_link(p)=temp_val; mp_free_node(mp, mp->cur_exp,value_node_size);
-  mp_make_exp_copy(mp, p+mp->sector_offset[c+mp_x_part_sector-x_part]);
-  mp_recycle_value(mp, temp_val);
+  mp_node p; /* the big node */
+  p=value_node(cur_exp_node()); 
+  set_value_node(mp->temp_val,p); 
+  mp_type(mp->temp_val)=mp->cur_exp.type;
+  mp_link(p)=mp->temp_val; 
+  mp_free_node(mp, cur_exp_node(),value_node_size);
+  switch (c) {
+  case x_part:       
+    if ( mp->cur_exp.type==mp_pair_type) 
+      mp_make_exp_copy(mp, x_part_loc(p));
+    else 
+      mp_make_exp_copy(mp, tx_part_loc(p));
+    break;
+  case y_part:
+    if ( mp->cur_exp.type==mp_pair_type) 
+      mp_make_exp_copy(mp, y_part_loc(p));
+    else 
+      mp_make_exp_copy(mp, ty_part_loc(p));
+    break;
+  case xx_part:      mp_make_exp_copy(mp, xx_part_loc(p));      break;
+  case xy_part:      mp_make_exp_copy(mp, xy_part_loc(p));      break;
+  case yx_part:      mp_make_exp_copy(mp, yx_part_loc(p));      break;
+  case yy_part:      mp_make_exp_copy(mp, yy_part_loc(p));      break;
+  case red_part:     mp_make_exp_copy(mp, red_part_loc(p));     break;
+  case green_part:   mp_make_exp_copy(mp, green_part_loc(p));   break;
+  case blue_part:    mp_make_exp_copy(mp, blue_part_loc(p));    break;
+  case cyan_part:    mp_make_exp_copy(mp, cyan_part_loc(p));    break;
+  case magenta_part: mp_make_exp_copy(mp, magenta_part_loc(p)); break;
+  case yellow_part:  mp_make_exp_copy(mp, yellow_part_loc(p));  break;
+  case black_part:   mp_make_exp_copy(mp, black_part_loc(p));   break;
+  }
+  mp_recycle_value(mp, mp->temp_val);
 }
 
-@ @<Initialize table entries...@>=
-mp_name_type(temp_val)=mp_capsule;
+@ @<Initialize table entries@>=
+mp->temp_val = mp_get_value_node(mp);
+mp_name_type(mp->temp_val)=mp_capsule;
+
+@ @<Free table entries@>=
+mp_free_value_node(mp,mp->temp_val);
+
 
 @ @<Additional cases of unary operators@>=
 case font_part:
@@ -19530,7 +20962,7 @@ case text_part:
 case path_part:
 case pen_part:
 case dash_part:
-  if ( mp->cur_type==mp_picture_type ) mp_take_pict_part(mp, c);
+  if ( mp->cur_exp.type==mp_picture_type ) mp_take_pict_part(mp, c);
   else mp_bad_unary(mp, c);
   break;
 
@@ -19539,39 +20971,71 @@ static void mp_scale_edges (MP mp);
 
 @ @<Declare unary action...@>=
 static void mp_take_pict_part (MP mp,quarterword c) {
-  pointer p; /* first graphical object in |cur_exp| */
-  p=mp_link(dummy_loc(mp->cur_exp));
+  mp_node p; /* first graphical object in |cur_exp| */
+  mp_value new_expr;
+  p=mp_link(dummy_loc(cur_exp_node()));
   if ( p!=null ) {
     switch (c) {
     case x_part: case y_part: case xx_part:
     case xy_part: case yx_part: case yy_part:
-      if ( mp_type(p)==mp_text_code ) mp_flush_cur_exp(mp, text_trans_part(p+c));
+      if ( mp_type(p)==mp_text_node_type ) {
+        switch (c) {
+        case x_part:  new_expr.data.val = tx_val(p);  break;
+        case y_part:  new_expr.data.val = ty_val(p);  break;
+        case xx_part: new_expr.data.val = txx_val(p);  break;
+        case xy_part: new_expr.data.val = txy_val(p);  break;
+        case yx_part: new_expr.data.val = tyx_val(p);  break;
+        case yy_part: new_expr.data.val = tyy_val(p);  break;
+        }
+        mp_flush_cur_exp(mp, new_expr);
+      }
       else goto NOT_FOUND;
       break;
-    case red_part: case green_part: case blue_part:
-      if ( has_color(p) ) mp_flush_cur_exp(mp, obj_color_part(p+c));
+    case red_part:
+    case green_part:
+    case blue_part:
+      if ( has_color(p) ) {
+        switch (c) {
+        case red_part:   new_expr.data.val = red_val(p);   break;
+        case green_part: new_expr.data.val = green_val(p); break;
+        case blue_part:  new_expr.data.val = blue_val(p);  break;
+        }
+        mp_flush_cur_exp(mp, new_expr);
+      }
       else goto NOT_FOUND;
       break;
-    case cyan_part: case magenta_part: case yellow_part:
+    case cyan_part: 
+    case magenta_part: 
+    case yellow_part:
     case black_part:
       if ( has_color(p) ) {
-        if ( mp_color_model(p)==mp_uninitialized_model && c==black_part)
-          mp_flush_cur_exp(mp, unity);
-        else
-          mp_flush_cur_exp(mp, obj_color_part(p+c+(red_part-cyan_part)));
+        if ( mp_color_model(p)==mp_uninitialized_model && c==black_part) {
+          new_expr.data.val = unity;
+        } else {
+          switch (c) {
+          case cyan_part:    new_expr.data.val = cyan_val(p);  break;
+          case magenta_part: new_expr.data.val = magenta_val(p);  break;
+          case yellow_part:  new_expr.data.val = yellow_val(p);  break;
+          case black_part:   new_expr.data.val = black_val(p);  break;
+          }
+        }
+        mp_flush_cur_exp(mp, new_expr);
       } else goto NOT_FOUND;
       break;
     case grey_part:
-      if ( has_color(p) )
-          mp_flush_cur_exp(mp, obj_color_part(p+c+(red_part-grey_part)));
+      if ( has_color(p) ) {
+          new_expr.data.val = grey_val(p);
+          mp_flush_cur_exp(mp, new_expr);
+      }
       else goto NOT_FOUND;
       break;
     case color_model_part:
       if ( has_color(p) ) {
         if ( mp_color_model(p)==mp_uninitialized_model )
-          mp_flush_cur_exp(mp, mp->internal[mp_default_color_model]);
+          new_expr.data.val = internal_value(mp_default_color_model);
         else
-          mp_flush_cur_exp(mp, mp_color_model(p)*unity);
+          new_expr.data.val = mp_color_model(p)*unity;
+        mp_flush_cur_exp(mp, new_expr);
       } else goto NOT_FOUND;
       break;
     @<Handle other cases in |take_pict_part| or |goto not_found|@>;
@@ -19585,49 +21049,89 @@ NOT_FOUND:
 
 @ @<Handle other cases in |take_pict_part| or |goto not_found|@>=
 case text_part: 
-  if ( mp_type(p)!=mp_text_code ) goto NOT_FOUND;
+  if ( mp_type(p)!=mp_text_node_type ) goto NOT_FOUND;
   else { 
-    mp_flush_cur_exp(mp, mp_text_p(p));
-    add_str_ref(mp->cur_exp);
-    mp->cur_type=mp_string_type;
+    new_expr.data.str = mp_text_p(p);
+    add_str_ref(new_expr.data.str);
+    mp_flush_cur_exp(mp, new_expr);
+    mp->cur_exp.type=mp_string_type;
     };
   break;
 case font_part: 
-  if ( mp_type(p)!=mp_text_code ) goto NOT_FOUND;
+  if ( mp_type(p)!=mp_text_node_type ) goto NOT_FOUND;
   else { 
-    mp_flush_cur_exp(mp, rts(mp->font_name[mp_font_n(p)])); 
-    add_str_ref(mp->cur_exp);
-    mp->cur_type=mp_string_type;
+    new_expr.data.str = mp_rts(mp,mp->font_name[mp_font_n(p)]);
+    add_str_ref(new_expr.data.str);
+    mp_flush_cur_exp(mp, new_expr); 
+    mp->cur_exp.type=mp_string_type;
   };
   break;
 case path_part:
-  if ( mp_type(p)==mp_text_code ) goto NOT_FOUND;
+  if ( mp_type(p)==mp_text_node_type ) goto NOT_FOUND;
   else if ( is_stop(p) ) mp_confusion(mp, "pict");
 @:this can't happen pict}{\quad pict@>
-  else { 
-    mp_flush_cur_exp(mp, mp_copy_path(mp, mp_path_p(p)));
-    mp->cur_type=mp_path_type;
+  else {
+    new_expr.data.node = NULL; 
+    switch (mp_type(p)) {
+    case mp_fill_node_type:
+      new_expr.data.p = mp_copy_path(mp, mp_path_p((mp_fill_node)p));
+      break;
+    case mp_stroked_node_type:
+      new_expr.data.p = mp_copy_path(mp, mp_path_p((mp_stroked_node)p));
+      break;
+    case mp_start_bounds_node_type:
+      new_expr.data.p = mp_copy_path(mp, mp_path_p((mp_start_bounds_node)p));
+      break;
+    case mp_start_clip_node_type:
+      new_expr.data.p = mp_copy_path(mp, mp_path_p((mp_start_clip_node)p));
+      break;
+    default:
+      assert(0);
+      break;
+    }
+    mp_flush_cur_exp(mp, new_expr);
+    mp->cur_exp.type=mp_path_type;
   }
   break;
 case pen_part: 
   if ( ! has_pen(p) ) goto NOT_FOUND;
   else {
-    if ( mp_pen_p(p)==null ) goto NOT_FOUND;
-    else { mp_flush_cur_exp(mp, copy_pen(mp_pen_p(p)));
-      mp->cur_type=mp_pen_type;
-    };
+    switch (mp_type(p)) {
+    case mp_fill_node_type:
+      if ( mp_pen_p((mp_fill_node)p)==null ) goto NOT_FOUND;
+      else { 
+        new_expr.data.p = copy_pen(mp_pen_p((mp_fill_node)p));
+        mp_flush_cur_exp(mp, new_expr);
+        mp->cur_exp.type=mp_pen_type;
+      }
+      break;
+    case mp_stroked_node_type:
+      if ( mp_pen_p((mp_stroked_node)p)==null ) goto NOT_FOUND;
+      else { 
+        new_expr.data.p = copy_pen(mp_pen_p((mp_stroked_node)p));
+        mp_flush_cur_exp(mp, new_expr);
+        mp->cur_exp.type=mp_pen_type;
+      }
+      break;
+    default:
+      assert(0);
+      break;
+    }
   }
   break;
 case dash_part: 
-  if ( mp_type(p)!=mp_stroked_code ) goto NOT_FOUND;
-  else { if ( mp_dash_p(p)==null ) goto NOT_FOUND;
-    else { add_edge_ref(mp_dash_p(p));
+  if ( mp_type(p)!=mp_stroked_node_type ) goto NOT_FOUND;
+  else { 
+    if ( mp_dash_p(p)==null ) goto NOT_FOUND;
+    else { 
+    add_edge_ref(mp_dash_p(p));
     mp->se_sf=dash_scale(p);
     mp->se_pic=mp_dash_p(p);
     mp_scale_edges(mp);
-    mp_flush_cur_exp(mp, mp->se_pic);
-    mp->cur_type=mp_picture_type;
-    };
+    set_cur_exp_node(mp->se_pic);
+    mp_flush_cur_exp(mp, new_expr);
+    mp->cur_exp.type=mp_picture_type;
+    }
   }
   break;
 
@@ -19636,66 +21140,82 @@ parameterless procedure even though it really takes two arguments and updates
 one of them.  Hence the following globals are needed.
 
 @<Global...@>=
-pointer se_pic;  /* edge header used and updated by |scale_edges| */
+mp_node se_pic;  /* edge header used and updated by |scale_edges| */
 scaled se_sf;  /* the scale factor argument to |scale_edges| */
 
 @ @<Convert the current expression to a null value appropriate...@>=
 switch (c) {
 case text_part: case font_part: 
-  mp_flush_cur_exp(mp, null_str);
-  mp->cur_type=mp_string_type;
+  new_expr.data.str = null_str;
+  mp_flush_cur_exp(mp, new_expr);
+  mp->cur_exp.type=mp_string_type;
   break;
 case path_part: 
-  mp_flush_cur_exp(mp, mp_get_node(mp, knot_node_size));
-  mp_left_type(mp->cur_exp)=mp_endpoint;
-  mp_right_type(mp->cur_exp)=mp_endpoint;
-  mp_link(mp->cur_exp)=mp->cur_exp;
-  mp_x_coord(mp->cur_exp)=0;
-  mp_y_coord(mp->cur_exp)=0;
-  mp_originator(mp->cur_exp)=mp_metapost_user;
-  mp->cur_type=mp_path_type;
+  new_expr.data.p = mp_new_knot(mp);
+  mp_flush_cur_exp(mp, new_expr);
+  mp_left_type(cur_exp_knot())=mp_endpoint;
+  mp_right_type(cur_exp_knot())=mp_endpoint;
+  mp_next_knot(cur_exp_knot())=cur_exp_knot();
+  mp_x_coord(cur_exp_knot())=0;
+  mp_y_coord(cur_exp_knot())=0;
+  mp_originator(cur_exp_knot())=mp_metapost_user;
+  mp->cur_exp.type=mp_path_type;
   break;
 case pen_part: 
-  mp_flush_cur_exp(mp, mp_get_pen_circle(mp, 0));
-  mp->cur_type=mp_pen_type;
+  new_expr.data.p = mp_get_pen_circle(mp, 0);
+  mp_flush_cur_exp(mp, new_expr);
+  mp->cur_exp.type=mp_pen_type;
   break;
 case dash_part: 
-  mp_flush_cur_exp(mp, mp_get_node(mp, edge_header_size));
-  mp_init_edges(mp, mp->cur_exp);
-  mp->cur_type=mp_picture_type;
+  set_cur_exp_node(mp_get_edge_header_node(mp));
+  mp_flush_cur_exp(mp, new_expr);
+  mp_init_edges(mp, cur_exp_node());
+  mp->cur_exp.type=mp_picture_type;
   break;
 default: 
-   mp_flush_cur_exp(mp, 0);
+  new_expr.data.val = 0;
+  mp_flush_cur_exp(mp, new_expr);
   break;
 }
 
 @ @<Additional cases of unary...@>=
 case char_op: 
-  if ( mp->cur_type!=mp_known ) { 
+  if ( mp->cur_exp.type!=mp_known ) { 
     mp_bad_unary(mp, char_op);
   } else { 
-    mp->cur_exp=mp_round_unscaled(mp, mp->cur_exp) % 256; 
-    mp->cur_type=mp_string_type;
-    if ( mp->cur_exp<0 ) mp->cur_exp=mp->cur_exp+256;
+    vv = mp_round_unscaled(mp, cur_exp_value()) % 256;
+    set_cur_exp_value(vv); 
+    mp->cur_exp.type=mp_string_type;
+    if ( cur_exp_value()<0 ) {
+      vv =cur_exp_value()+256;
+      set_cur_exp_value(vv);
+    }
+    { 
+      unsigned char ss[2];
+      ss[0] = (unsigned char)cur_exp_value(); 
+      ss[1] = '\0';
+      set_cur_exp_str(mp_rtsl(mp,(char *)ss, 1));
+    }
   }
   break;
 case decimal: 
-  if ( mp->cur_type!=mp_known ) {
+  if ( mp->cur_exp.type!=mp_known ) {
      mp_bad_unary(mp, decimal);
   } else { 
     mp->old_setting=mp->selector; mp->selector=new_string;
-    mp_print_scaled(mp, mp->cur_exp); mp->cur_exp=mp_make_string(mp);
-    mp->selector=mp->old_setting; mp->cur_type=mp_string_type;
+    mp_print_scaled(mp, cur_exp_value()); 
+    set_cur_exp_str(mp_make_string(mp));
+    mp->selector=mp->old_setting; mp->cur_exp.type=mp_string_type;
   }
   break;
 case oct_op:
 case hex_op:
 case ASCII_op: 
-  if ( mp->cur_type!=mp_string_type ) mp_bad_unary(mp, c);
+  if ( mp->cur_exp.type!=mp_string_type ) mp_bad_unary(mp, c);
   else mp_str_to_num(mp, c);
   break;
 case font_size: 
-  if ( mp->cur_type!=mp_string_type ) mp_bad_unary(mp, font_size);
+  if ( mp->cur_exp.type!=mp_string_type ) mp_bad_unary(mp, font_size);
   else @<Find the design size of the font whose name is |cur_exp|@>;
   break;
 
@@ -19703,17 +21223,18 @@ case font_size:
 static void mp_str_to_num (MP mp,quarterword c) { /* converts a string to a number */
   integer n; /* accumulator */
   ASCII_code m; /* current character */
-  pool_pointer k; /* index into |str_pool| */
+  unsigned k; /* index into |str_pool| */
   int b; /* radix of conversion */
   boolean bad_char; /* did the string contain an invalid digit? */
+  mp_value new_expr;
   if ( c==ASCII_op ) {
-    if ( length(mp->cur_exp)==0 ) n=-1;
-    else n=mp->str_pool[mp->str_start[mp->cur_exp]];
+    if ( length(cur_exp_str())==0 ) n=-1;
+    else n=cur_exp_str()->str[0];
   } else { 
     if ( c==oct_op ) b=8; else b=16;
     n=0; bad_char=false;
-    for (k=mp->str_start[mp->cur_exp];k<str_stop(mp->cur_exp);k++) {
-      m=mp->str_pool[k];
+    for (k=0;k<length(cur_exp_str());k++) {
+      m = (ASCII_code)(*(cur_exp_str()->str+k));
       if ( (m>='0')&&(m<='9') ) m=(ASCII_code)(m-'0');
       else if ( (m>='A')&&(m<='F') ) m=(ASCII_code)(m-'A'+10);
       else if ( (m>='a')&&(m<='f') ) m=(ASCII_code)(m-'a'+10);
@@ -19723,7 +21244,8 @@ static void mp_str_to_num (MP mp,quarterword c) { /* converts a string to a numb
     }
     @<Give error messages if |bad_char| or |n>=4096|@>;
   }
-  mp_flush_cur_exp(mp, n*unity);
+  new_expr.data.val = n*unity;
+  mp_flush_cur_exp(mp, new_expr);
 }
 
 @ @<Give error messages if |bad_char|...@>=
@@ -19738,7 +21260,7 @@ if ( bad_char ) {
   mp_put_get_error(mp);
 }
 if ( (n>4095) ) {
-  if ( mp->internal[mp_warning_check]>0 ) {
+  if ( internal_value(mp_warning_check)>0 ) {
     print_err("Number too large ("); 
     mp_print_int(mp, n); mp_print_char(mp, xord(')'));
 @.Number too large@>
@@ -19753,17 +21275,30 @@ of different types of operands.
 
 @<Additional cases of unary...@>=
 case length_op: 
-  switch (mp->cur_type) {
-  case mp_string_type: mp_flush_cur_exp(mp, length(mp->cur_exp)*unity); break;
-  case mp_path_type: mp_flush_cur_exp(mp, mp_path_length(mp)); break;
-  case mp_known: mp->cur_exp=abs(mp->cur_exp); break;
-  case mp_picture_type: mp_flush_cur_exp(mp, mp_pict_length(mp)); break;
+  switch (mp->cur_exp.type) {
+  case mp_string_type: 
+    new_expr.data.val = (integer)(length(cur_exp_str())*unity);
+    mp_flush_cur_exp(mp, new_expr); 
+    break;
+  case mp_path_type: 
+    new_expr.data.val = mp_path_length(mp);
+    mp_flush_cur_exp(mp, new_expr); 
+    break;
+  case mp_known: 
+    vv = abs(cur_exp_value());
+    set_cur_exp_value(vv); 
+    break;
+  case mp_picture_type: 
+    new_expr.data.val = mp_pict_length(mp);
+    mp_flush_cur_exp(mp, new_expr); 
+    break;
   default: 
-    if ( mp_nice_pair(mp, mp->cur_exp,mp->cur_type) )
-      mp_flush_cur_exp(mp, mp_pyth_add(mp, 
-        value(x_part_loc(value(mp->cur_exp))),
-        value(y_part_loc(value(mp->cur_exp)))));
-    else mp_bad_unary(mp, c);
+    if ( mp_nice_pair(mp, cur_exp_node(),mp->cur_exp.type) ) {
+      new_expr.data.val = mp_pyth_add(mp, 
+        value(x_part_loc(value_node(cur_exp_node()))),
+        value(y_part_loc(value_node(cur_exp_node()))));
+      mp_flush_cur_exp(mp, new_expr);
+    } else mp_bad_unary(mp, c);
     break;
   }
   break;
@@ -19771,10 +21306,14 @@ case length_op:
 @ @<Declare unary action...@>=
 static scaled mp_path_length (MP mp) { /* computes the length of the current path */
   scaled n; /* the path length so far */
-  pointer p; /* traverser */
-  p=mp->cur_exp;
-  if ( mp_left_type(p)==mp_endpoint ) n=-unity; else n=0;
-  do {  p=mp_link(p); n=n+unity; } while (p!=mp->cur_exp);
+  mp_knot p; /* traverser */
+  p = cur_exp_knot();
+  if ( mp_left_type(p)==mp_endpoint ) n=-unity; 
+  else n=0;
+  do {  
+    p=mp_next_knot(p); 
+    n=n+unity; 
+  } while (p!=cur_exp_knot());
   return n;
 }
 
@@ -19782,9 +21321,9 @@ static scaled mp_path_length (MP mp) { /* computes the length of the current pat
 static scaled mp_pict_length (MP mp) { 
   /* counts interior components in picture |cur_exp| */
   scaled n; /* the count so far */
-  pointer p; /* traverser */
+  mp_node p; /* traverser */
   n=0;
-  p=mp_link(dummy_loc(mp->cur_exp));
+  p=mp_link(dummy_loc(cur_exp_node()));
   if ( p!=null ) {
     if ( is_start_or_stop(p) )
       if ( mp_skip_1component(mp, p)==null ) p=mp_link(p);
@@ -19800,12 +21339,18 @@ static scaled mp_pict_length (MP mp) {
 
 @<Additional cases of unary...@>=
 case turning_op:
-  if ( mp->cur_type==mp_pair_type ) mp_flush_cur_exp(mp, 0);
-  else if ( mp->cur_type!=mp_path_type ) mp_bad_unary(mp, turning_op);
-  else if ( mp_left_type(mp->cur_exp)==mp_endpoint )
-     mp_flush_cur_exp(mp, 0); /* not a cyclic path */
-  else
-    mp_flush_cur_exp(mp, mp_turn_cycles_wrapper(mp, mp->cur_exp));
+  if ( mp->cur_exp.type==mp_pair_type ) {
+    new_expr.data.val = 0;
+    mp_flush_cur_exp(mp, new_expr);
+  } else if ( mp->cur_exp.type!=mp_path_type ) {
+    mp_bad_unary(mp, turning_op);
+  } else if ( mp_left_type(cur_exp_knot())==mp_endpoint ) {
+     new_expr.data.p = NULL;
+     mp_flush_cur_exp(mp, new_expr); /* not a cyclic path */
+  } else {
+    new_expr.data.val = mp_turn_cycles_wrapper(mp, cur_exp_knot());
+    mp_flush_cur_exp(mp, new_expr);
+  }
   break;
 
 @ The function |an_angle| returns the value of the |angle| primitive, or $0$ if the
@@ -19912,15 +21457,15 @@ static angle mp_bezier_slope(MP mp, integer AX,integer AY,integer BX,integer BY,
 }
 
 @
-@d p_nextnext mp_link(mp_link(p))
-@d p_next mp_link(p)
+@d p_nextnext mp_next_knot(mp_next_knot(p))
+@d p_next mp_next_knot(p)
 @d seven_twenty_deg 05500000000 /* $720\cdot2^{20}$, represents $720^\circ$ */
 
 @<Declare unary action...@>=
-static scaled mp_new_turn_cycles (MP mp,pointer c) {
+static scaled mp_new_turn_cycles (MP mp, mp_knot c) {
   angle res,ang; /*  the angles of intermediate results  */
   scaled turns;  /*  the turn counter  */
-  pointer p;     /*  for running around the path  */
+  mp_knot p;     /*  for running around the path  */
   integer xp,yp;   /*  coordinates of next point  */
   integer x,y;   /*  helper coordinates  */
   angle in_angle,out_angle;     /*  helper angles */
@@ -19928,14 +21473,16 @@ static scaled mp_new_turn_cycles (MP mp,pointer c) {
   res=0;
   turns= 0;
   p=c;
-  old_setting = mp->selector; mp->selector=term_only;
-  if ( mp->internal[mp_tracing_commands]>unity ) {
+  old_setting = mp->selector; 
+  mp->selector=term_only;
+  if ( internal_value(mp_tracing_commands)>unity ) {
     mp_begin_diagnostic(mp);
     mp_print_nl(mp, "");
     mp_end_diagnostic(mp, false);
   }
   do { 
-    xp = mp_x_coord(p_next); yp = mp_y_coord(p_next);
+    xp = mp_x_coord(p_next); 
+    yp = mp_y_coord(p_next);
     ang  = mp_bezier_slope(mp,mp_x_coord(p), mp_y_coord(p), mp_right_x(p), mp_right_y(p),
              mp_left_x(p_next), mp_left_y(p_next), xp, yp);
     if ( ang>seven_twenty_deg ) {
@@ -19976,7 +21523,7 @@ static scaled mp_new_turn_cycles (MP mp,pointer c) {
         turns = turns - unity;
       };
     };
-    p = mp_link(p);
+    p = mp_next_knot(p);
   } while (p!=c);
   mp->selector=old_setting;
   return turns;
@@ -20022,15 +21569,15 @@ at than the pascal code, because it could use |point -1 of p|. In
 pascal, the fastest way to loop around the path is not to look
 backward once, but forward twice. These defines help hide the trick.
 
-@d p_to mp_link(mp_link(p))
-@d p_here mp_link(p)
+@d p_to mp_next_knot(mp_next_knot(p))
+@d p_here mp_next_knot(p)
 @d p_from p
 
 @<Declare unary action...@>=
-static scaled mp_turn_cycles (MP mp,pointer c) {
+static scaled mp_turn_cycles (MP mp, mp_knot c) {
   angle res,ang; /*  the angles of intermediate results  */
   scaled turns;  /*  the turn counter  */
-  pointer p;     /*  for running around the path  */
+  mp_knot p;     /*  for running around the path  */
   res=0;  turns= 0; p=c;
   do { 
     ang  = mp_an_angle (mp, mp_x_coord(p_to) - mp_x_coord(p_here), 
@@ -20047,16 +21594,16 @@ static scaled mp_turn_cycles (MP mp,pointer c) {
       res = res + three_sixty_deg;
       turns = turns - unity;
     };
-    p = mp_link(p);
+    p = mp_next_knot(p);
   } while (p!=c);
   return turns;
 }
 
 @ @<Declare unary action...@>=
-static scaled mp_turn_cycles_wrapper (MP mp,pointer c) {
+static scaled mp_turn_cycles_wrapper (MP mp, mp_knot c) {
   scaled nval,oval;
   scaled saved_t_o; /* tracing\_online saved  */
-  if ( (mp_link(c)==c)||(mp_link(mp_link(c))==c) ) {
+  if ( (mp_next_knot(c)==c)||(mp_next_knot(mp_next_knot(c))==c) ) {
     if ( mp_an_angle (mp, mp_x_coord(c) - mp_right_x(c),  mp_y_coord(c) - mp_right_y(c)) > 0 )
       return unity;
     else
@@ -20064,9 +21611,9 @@ static scaled mp_turn_cycles_wrapper (MP mp,pointer c) {
   } else {
     nval = mp_new_turn_cycles(mp, c);
     oval = mp_turn_cycles(mp, c);
-    if ( nval!=oval && mp->internal[mp_tracing_choices]>(2*unity)) {
-      saved_t_o=mp->internal[mp_tracing_online];
-      mp->internal[mp_tracing_online]=unity;
+    if ( nval!=oval && internal_value(mp_tracing_choices)>(2*unity)) {
+      saved_t_o=internal_value(mp_tracing_online);
+      internal_value(mp_tracing_online)=unity;
       mp_begin_diagnostic(mp);
       mp_print_nl (mp, "Warning: the turningnumber algorithms do not agree."
                        " The current computed value is ");
@@ -20074,22 +21621,27 @@ static scaled mp_turn_cycles_wrapper (MP mp,pointer c) {
       mp_print(mp, ", but the 'connect-the-dots' algorithm returned ");
       mp_print_scaled(mp, oval);
       mp_end_diagnostic(mp, false);
-      mp->internal[mp_tracing_online]=saved_t_o;
+      internal_value(mp_tracing_online)=saved_t_o;
     }
     return nval;
   }
 }
 
 @ @d type_range(A,B) { 
-  if ( (mp->cur_type>=(A)) && (mp->cur_type<=(B)) ) 
-    mp_flush_cur_exp(mp, true_code);
-  else mp_flush_cur_exp(mp, false_code);
-  mp->cur_type=mp_boolean_type;
+  if ( (mp->cur_exp.type>=(A)) && (mp->cur_exp.type<=(B)) ) 
+    new_expr.data.val = true_code;
+  else 
+    new_expr.data.val = false_code;
+  mp_flush_cur_exp(mp, new_expr);
+  mp->cur_exp.type=mp_boolean_type;
   }
 @d type_test(A) { 
-  if ( mp->cur_type==(A) ) mp_flush_cur_exp(mp, true_code);
-  else mp_flush_cur_exp(mp, false_code);
-  mp->cur_type=mp_boolean_type;
+  if ( mp->cur_exp.type==(mp_variable_type)(A) ) 
+    new_expr.data.val = true_code;
+  else 
+    new_expr.data.val = false_code;
+  mp_flush_cur_exp(mp, new_expr);
+  mp->cur_exp.type=mp_boolean_type;
   }
 
 @<Additional cases of unary operators@>=
@@ -20114,47 +21666,79 @@ case known_op: case unknown_op:
 @ @<Declare unary action procedures@>=
 static void mp_test_known (MP mp,quarterword c) {
   int b; /* is the current expression known? */
-  pointer p,q; /* locations in a big node */
+  mp_node p; /* location in a big node */
+  mp_value new_expr;
   b=false_code;
-  switch (mp->cur_type) {
+  switch (mp->cur_exp.type) {
   case mp_vacuous: case mp_boolean_type: case mp_string_type:
   case mp_pen_type: case mp_path_type: case mp_picture_type:
   case mp_known: 
     b=true_code;
     break;
   case mp_transform_type:
-  case mp_color_type: case mp_cmykcolor_type: case mp_pair_type: 
-    p=value(mp->cur_exp);
-    q=p+mp->big_node_size[mp->cur_type];
-    do {  
-      q=q-2;
-      if ( mp_type(q)!=mp_known ) 
-       goto DONE;
-    } while (q!=p);
+    p=value_node(cur_exp_node());
+    if ( mp_type(tx_part_loc(p))!=mp_known ) break;
+    if ( mp_type(ty_part_loc(p))!=mp_known ) break;
+    if ( mp_type(xx_part_loc(p))!=mp_known ) break;
+    if ( mp_type(xy_part_loc(p))!=mp_known ) break;
+    if ( mp_type(yx_part_loc(p))!=mp_known ) break;
+    if ( mp_type(yy_part_loc(p))!=mp_known ) break;
     b=true_code;
-  DONE:  
+    break;
+  case mp_color_type:
+    p=value_node(cur_exp_node());
+    if ( mp_type(red_part_loc(p))!=mp_known ) break;
+    if ( mp_type(green_part_loc(p))!=mp_known ) break;
+    if ( mp_type(blue_part_loc(p))!=mp_known ) break;
+    b=true_code;
+    break;
+  case mp_cmykcolor_type:
+    p=value_node(cur_exp_node());
+    if ( mp_type(cyan_part_loc(p))!=mp_known ) break;
+    if ( mp_type(magenta_part_loc(p))!=mp_known ) break;
+    if ( mp_type(yellow_part_loc(p))!=mp_known ) break;
+    if ( mp_type(black_part_loc(p))!=mp_known ) break;
+    b=true_code;
+    break;
+  case mp_pair_type: 
+    p=value_node(cur_exp_node());
+    if ( mp_type(x_part_loc(p))!=mp_known ) break;
+    if ( mp_type(y_part_loc(p))!=mp_known ) break;
+    b=true_code;
     break;
   default: 
     break;
   }
-  if ( c==known_op ) mp_flush_cur_exp(mp, b);
-  else mp_flush_cur_exp(mp, true_code+false_code-b);
-  mp->cur_type=mp_boolean_type;
+  if ( c==known_op ) 
+     new_expr.data.val = b;
+  else 
+     new_expr.data.val = true_code+false_code-b;
+  mp_flush_cur_exp(mp, new_expr);
+  cur_exp_node()=NULL;
+  mp->cur_exp.type=mp_boolean_type;
 }
 
 @ @<Additional cases of unary operators@>=
 case cycle_op: 
-  if ( mp->cur_type!=mp_path_type ) mp_flush_cur_exp(mp, false_code);
-  else if ( mp_left_type(mp->cur_exp)!=mp_endpoint ) mp_flush_cur_exp(mp, true_code);
-  else mp_flush_cur_exp(mp, false_code);
-  mp->cur_type=mp_boolean_type;
+  if ( mp->cur_exp.type!=mp_path_type ) 
+    new_expr.data.val = false_code;
+  else if ( mp_left_type(cur_exp_knot())!=mp_endpoint ) 
+    new_expr.data.val = true_code;
+  else 
+    new_expr.data.val = false_code;
+  mp_flush_cur_exp(mp, new_expr);
+  mp->cur_exp.type=mp_boolean_type;
   break;
 
 @ @<Additional cases of unary operators@>=
 case arc_length: 
-  if ( mp->cur_type==mp_pair_type ) mp_pair_to_path(mp);
-  if ( mp->cur_type!=mp_path_type ) mp_bad_unary(mp, arc_length);
-  else mp_flush_cur_exp(mp, mp_get_arc_length(mp, mp->cur_exp));
+  if ( mp->cur_exp.type==mp_pair_type ) mp_pair_to_path(mp);
+  if ( mp->cur_exp.type!=mp_path_type ) {
+    mp_bad_unary(mp, arc_length);
+  } else {
+    new_expr.data.val = mp_get_arc_length(mp, cur_exp_knot());
+    mp_flush_cur_exp(mp, new_expr);
+  }
   break;
 
 @ Here we use the fact that |c-filled_op+fill_code| is the desired graphical
@@ -20167,37 +21751,48 @@ case stroked_op:
 case textual_op:
 case clipped_op:
 case bounded_op:
-  if ( mp->cur_type!=mp_picture_type ) mp_flush_cur_exp(mp, false_code);
-  else if ( mp_link(dummy_loc(mp->cur_exp))==null ) mp_flush_cur_exp(mp, false_code);
-  else if ( mp_type(mp_link(dummy_loc(mp->cur_exp)))==c+mp_fill_code-filled_op )
-    mp_flush_cur_exp(mp, true_code);
-  else mp_flush_cur_exp(mp, false_code);
-  mp->cur_type=mp_boolean_type;
+  if ( mp->cur_exp.type!=mp_picture_type ) {
+    new_expr.data.val = false_code;
+  } else if ( mp_link(dummy_loc(cur_exp_node()))==null ) {
+    new_expr.data.val = false_code;
+  } else if ( mp_type(mp_link(dummy_loc(cur_exp_node())))==(mp_variable_type)(c+mp_fill_node_type-filled_op) ) {
+    new_expr.data.val = true_code;
+  } else {
+    new_expr.data.val = false_code;
+  }
+  mp_flush_cur_exp(mp, new_expr);
+  mp->cur_exp.type=mp_boolean_type;
   break;
 
 @ @<Additional cases of unary operators@>=
 case make_pen_op: 
-  if ( mp->cur_type==mp_pair_type ) mp_pair_to_path(mp);
-  if ( mp->cur_type!=mp_path_type ) mp_bad_unary(mp, make_pen_op);
+  if ( mp->cur_exp.type==mp_pair_type ) mp_pair_to_path(mp);
+  if ( mp->cur_exp.type!=mp_path_type ) mp_bad_unary(mp, make_pen_op);
   else { 
-    mp->cur_type=mp_pen_type;
-    mp->cur_exp=mp_make_pen(mp, mp->cur_exp,true);
-  };
+    mp->cur_exp.type=mp_pen_type;
+    set_cur_exp_knot(mp_make_pen(mp, cur_exp_knot(),true));
+  }
   break;
 case make_path_op: 
-  if ( mp->cur_type!=mp_pen_type ) mp_bad_unary(mp, make_path_op);
-  else  { 
-    mp->cur_type=mp_path_type;
-    mp_make_path(mp, mp->cur_exp);
-  };
+  if ( mp->cur_exp.type!=mp_pen_type ) {
+   mp_bad_unary(mp, make_path_op);
+  } else { 
+    mp->cur_exp.type=mp_path_type;
+    mp_make_path(mp, cur_exp_knot());
+  }
   break;
 case reverse: 
-  if ( mp->cur_type==mp_path_type ) {
-    p=mp_htap_ypoc(mp, mp->cur_exp);
-    if ( mp_right_type(p)==mp_endpoint ) p=mp_link(p);
-    mp_toss_knot_list(mp, mp->cur_exp); mp->cur_exp=p;
-  } else if ( mp->cur_type==mp_pair_type ) mp_pair_to_path(mp);
-  else mp_bad_unary(mp, reverse);
+  if ( mp->cur_exp.type==mp_path_type ) {
+    mp_knot pk=mp_htap_ypoc(mp, cur_exp_knot());
+    if ( mp_right_type(pk)==mp_endpoint ) 
+      pk=mp_next_knot(pk);
+    mp_toss_knot_list(mp, cur_exp_knot()); 
+    set_cur_exp_knot(pk);
+  } else if ( mp->cur_exp.type==mp_pair_type ) {
+    mp_pair_to_path(mp);
+  } else {
+    mp_bad_unary(mp, reverse);
+  }
   break;
 
 @ The |pair_value| routine changes the current expression to a
@@ -20205,13 +21800,20 @@ given ordered pair of values.
 
 @<Declare unary action procedures@>=
 static void mp_pair_value (MP mp,scaled x, scaled y) {
-  pointer p; /* a pair node */
-  p=mp_get_node(mp, value_node_size); 
-  mp_flush_cur_exp(mp, p); mp->cur_type=mp_pair_type;
-  mp_type(p)=mp_pair_type; mp_name_type(p)=mp_capsule; mp_init_big_node(mp, p);
-  p=value(p);
-  mp_type(x_part_loc(p))=mp_known; value(x_part_loc(p))=x;
-  mp_type(y_part_loc(p))=mp_known; value(y_part_loc(p))=y;
+  mp_node p; /* a pair node */
+  mp_value new_expr;
+  p=mp_get_value_node(mp); 
+  new_expr.type = mp_type(p);
+  new_expr.data.node = p;
+  mp_flush_cur_exp(mp, new_expr); 
+  mp->cur_exp.type=mp_pair_type;
+  mp_name_type(p)=mp_capsule; 
+  mp_init_pair_node(mp, p);
+  p=value_node(p);
+  mp_type(x_part_loc(p))=mp_known; 
+  set_value(x_part_loc(p),x);
+  mp_type(y_part_loc(p))=mp_known; 
+  set_value(y_part_loc(p),y);
 }
 
 @ @<Additional cases of unary operators@>=
@@ -20238,23 +21840,23 @@ has the wrong type.
 
 @<Declare unary action procedures@>=
 static boolean mp_get_cur_bbox (MP mp) { 
-  switch (mp->cur_type) {
+  switch (mp->cur_exp.type) {
   case mp_picture_type: 
-    mp_set_bbox(mp, mp->cur_exp,true);
-    if ( minx_val(mp->cur_exp)>maxx_val(mp->cur_exp) ) {
+    mp_set_bbox(mp, cur_exp_node(),true);
+    if ( minx_val(cur_exp_node())>maxx_val(cur_exp_node()) ) {
       mp_minx=0; mp_maxx=0; mp_miny=0; mp_maxy=0;
     } else { 
-      mp_minx=minx_val(mp->cur_exp);
-      mp_maxx=maxx_val(mp->cur_exp);
-      mp_miny=miny_val(mp->cur_exp);
-      mp_maxy=maxy_val(mp->cur_exp);
+      mp_minx=minx_val(cur_exp_node());
+      mp_maxx=maxx_val(cur_exp_node());
+      mp_miny=miny_val(cur_exp_node());
+      mp_maxy=maxy_val(cur_exp_node());
     }
     break;
   case mp_path_type: 
-    mp_path_bbox(mp, mp->cur_exp);
+    mp_path_bbox(mp, cur_exp_knot());
     break;
   case mp_pen_type: 
-    mp_pen_bbox(mp, mp->cur_exp);
+    mp_pen_bbox(mp, cur_exp_knot());
     break;
   default: 
     return false;
@@ -20265,7 +21867,7 @@ static boolean mp_get_cur_bbox (MP mp) {
 @ @<Additional cases of unary operators@>=
 case read_from_op:
 case close_from_op: 
-  if ( mp->cur_type!=mp_string_type ) mp_bad_unary(mp, c);
+  if ( mp->cur_exp.type!=mp_string_type ) mp_bad_unary(mp, c);
   else mp_do_read_or_close(mp,c);
   break;
 
@@ -20274,6 +21876,8 @@ a line from the file or to close the file.
 
 @<Declare unary action procedures@>=
 static void mp_do_read_or_close (MP mp,quarterword c) {
+  mp_value new_expr;
+  new_expr.data.val = 0;
   readf_index n,n0; /* indices for searching |rd_fname| */
   @<Find the |n| where |rd_fname[n]=cur_exp|; if |cur_exp| must be inserted,
     call |start_read_input| and |goto found| or |not_found|@>;
@@ -20286,10 +21890,11 @@ NOT_FOUND:
   @<Record the end of file and set |cur_exp| to a dummy value@>;
   return;
 CLOSE_FILE:
-  mp_flush_cur_exp(mp, 0); mp->cur_type=mp_vacuous; 
+  mp_flush_cur_exp(mp, new_expr); 
+  mp->cur_exp.type=mp_vacuous; 
   return;
 FOUND:
-  mp_flush_cur_exp(mp, 0);
+  mp_flush_cur_exp(mp, new_expr);
   mp_finish_read(mp);
 }
 
@@ -20301,7 +21906,7 @@ FOUND:
   char *fn;
   n=mp->read_files;
   n0=mp->read_files;
-  fn = str(mp->cur_exp);
+  fn = mp_xstrdup(mp, mp_str(mp,cur_exp_str()));
   while (mp_xstrcmp(fn,mp->rd_fname[n])!=0) { 
     if ( n>0 ) {
       decr(n);
@@ -20353,16 +21958,22 @@ mp->rd_fname[n]=NULL;
 if ( n==mp->read_files-1 ) mp->read_files=n;
 if ( c==close_from_op ) 
   goto CLOSE_FILE;
-mp_flush_cur_exp(mp, mp->eof_line);
-mp->cur_type=mp_string_type
+{
+  new_expr.data.str = mp->eof_line;
+  add_str_ref(new_expr.data.str);
+  mp_flush_cur_exp(mp, new_expr);
+}
+mp->cur_exp.type=mp_string_type
 
-@ The string denoting end-of-file is a one-byte string at position zero, by definition
+@ The string denoting end-of-file is a one-byte string at position zero, by definition.
+I have to cheat a little here because 
 
 @<Glob...@>=
 str_number eof_line;
 
 @ @<Set init...@>=
-mp->eof_line=0;
+mp->eof_line=mp_rtsl(mp,"\0",1);
+mp->eof_line->refs = max_str_ref;
 
 @ Finally, we have the operations that combine a capsule~|p|
 with the current expression.
@@ -20370,16 +21981,17 @@ with the current expression.
 @d binary_return  { mp_finish_binary(mp, old_p, old_exp); return; }
 
 @c @<Declare binary action procedures@>
-static void mp_finish_binary (MP mp, pointer old_p, pointer old_exp ){
+static void mp_finish_binary (MP mp, mp_node old_p, mp_node old_exp ){
   check_arith; 
   @<Recycle any sidestepped |independent| capsules@>;
 }
-static void mp_do_binary (MP mp,pointer p, integer c) {
-  pointer q,r,rr; /* for list manipulation */
-  pointer old_p,old_exp; /* capsules to recycle */
+static void mp_do_binary (MP mp,mp_node p, integer c) {
+  mp_node q,r,rr; /* for list manipulation */
+  mp_node old_p,old_exp; /* capsules to recycle */
   integer v; /* for numeric manipulation */
+  mp_value new_expr;
   check_arith;
-  if ( mp->internal[mp_tracing_commands]>two ) {
+  if ( internal_value(mp_tracing_commands)>two ) {
     @<Trace the current binary operation@>;
   }
   @<Sidestep |independent| cases in capsule |p|@>;
@@ -20396,14 +22008,14 @@ static void mp_do_binary (MP mp,pointer p, integer c) {
 }
 
 @ @<Declare binary action...@>=
-static void mp_bad_binary (MP mp,pointer p, quarterword c) { 
+static void mp_bad_binary (MP mp,mp_node p, quarterword c) { 
   mp_disp_err(mp, p,"");
   exp_err("Not implemented: ");
 @.Not implemented...@>
   if ( c>=min_of ) mp_print_op(mp, c);
   mp_print_known_or_unknown_type(mp, mp_type(p),p);
   if ( c>=min_of ) mp_print(mp, "of"); else mp_print_op(mp, c);
-  mp_print_known_or_unknown_type(mp, mp->cur_type,mp->cur_exp);
+  mp_print_known_or_unknown_type(mp, mp->cur_exp.type, cur_exp_node());
   help3("I'm afraid I don't know how to apply that operation to that",
        "combination of types. Continue, and I'll return the second",
        "argument (see above) as the result of the operation.");
@@ -20421,11 +22033,14 @@ static void mp_bad_envelope_pen (MP mp) {
 
 @ @<Trace the current binary operation@>=
 { 
-  mp_begin_diagnostic(mp); mp_print_nl(mp, "{(");
+  mp_begin_diagnostic(mp);
+  mp_print_nl(mp, "{(");
   mp_print_exp(mp,p,0); /* show the operand, but not verbosely */
-  mp_print_char(mp,xord(')')); mp_print_op(mp, (quarterword)c); 
+  mp_print_char(mp,xord(')'));
+  mp_print_op(mp, (quarterword)c); 
   mp_print_char(mp,xord('('));
-  mp_print_exp(mp,null,0); mp_print(mp,")}"); 
+  mp_print_exp(mp,null,0);
+  mp_print(mp,")}"); 
   mp_end_diagnostic(mp, false);
 }
 
@@ -20440,10 +22055,12 @@ recycled after the binary operation has been safely carried out.
 
 @<Recycle any sidestepped |independent| capsules@>=
 if ( old_p!=null ) { 
-  mp_recycle_value(mp, old_p); mp_free_node(mp, old_p,value_node_size);
+  mp_recycle_value(mp, old_p); 
+  mp_free_node(mp, old_p,value_node_size);
 }
 if ( old_exp!=null ) {
-  mp_recycle_value(mp, old_exp); mp_free_node(mp, old_exp,value_node_size);
+  mp_recycle_value(mp, old_exp); 
+  mp_free_node(mp, old_exp,value_node_size);
 }
 
 @ A big node is considered to be ``tarnished'' if it contains at least one
@@ -20467,47 +22084,109 @@ if ( old_p!=null ) {
 }
 
 @ @<Sidestep |independent| cases in the current expression@>=
-switch (mp->cur_type) {
+switch (mp->cur_exp.type) {
 case mp_transform_type:
 case mp_color_type:
 case mp_cmykcolor_type:
 case mp_pair_type: 
-  old_exp=mp_tarnished(mp, mp->cur_exp);
+  old_exp=mp_tarnished(mp, cur_exp_node());
   break;
 case mp_independent:old_exp=mp_void; break;
 default: old_exp=null; break;
 }
 if ( old_exp!=null ) {
-  old_exp=mp->cur_exp; mp_make_exp_copy(mp, old_exp);
+  old_exp=cur_exp_node(); mp_make_exp_copy(mp, old_exp);
 }
 
 @ @<Declare binary action...@>=
-static pointer mp_tarnished (MP mp,pointer p) {
-  pointer q; /* beginning of the big node */
-  pointer r; /* current position in the big node */
-  q=value(p); r=q+mp->big_node_size[mp_type(p)];
-  do {  
-   r=r-2;
-   if ( mp_type(r)==mp_independent ) return mp_void; 
-  } while (r!=q);
+static mp_node mp_tarnished (MP mp,mp_node p) {
+  mp_node q; /* beginning of the big node */
+  mp_node r; /* moving value node pointer */
+  (void)mp;
+  q=value_node(p);
+  switch (mp_type(p)) {
+  case mp_pair_node_type:
+    r = x_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    r = y_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    break;
+  case mp_color_node_type:
+    r = red_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    r = green_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    r = blue_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    break;
+  case mp_cmykcolor_node_type:
+    r = cyan_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    r = magenta_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    r = yellow_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    r = black_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    break;
+  case mp_transform_node_type:
+    r = tx_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    r = ty_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    r = xx_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    r = xy_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    r = yx_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    r = yy_part_loc(q);
+    if ( mp_type(r)==mp_independent ) return mp_void; 
+    break;
+  default:  /* there are no other valid cases, but please the compiler */
+    break;
+  }
   return null;
 }
 
 @ @<Add or subtract the current expression from |p|@>=
-if ( (mp->cur_type<mp_color_type)||(mp_type(p)<mp_color_type) ) {
+if ( (mp->cur_exp.type<mp_color_type)||(mp_type(p)<mp_color_type) ) {
   mp_bad_binary(mp, p, (quarterword)c);
 } else  {
-  if ((mp->cur_type>mp_pair_type)&&(mp_type(p)>mp_pair_type) ) {
+  if ((mp->cur_exp.type>mp_pair_type)&&(mp_type(p)>mp_pair_type) ) {
     mp_add_or_subtract(mp, p,null, (quarterword)c);
   } else {
-    if ( mp->cur_type!=mp_type(p) )  {
+    if ( mp->cur_exp.type!=mp_type(p) )  {
       mp_bad_binary(mp, p, (quarterword)c);
     } else { 
-      q=value(p); r=value(mp->cur_exp);
-      rr=r+mp->big_node_size[mp->cur_type];
-      while ( r<rr ) { 
-        mp_add_or_subtract(mp, q, r, (quarterword)c);
-        q=q+2; r=r+2;
+      q=value_node(p); 
+      r=value_node(cur_exp_node());
+      switch (mp->cur_exp.type) {
+      case mp_pair_type:
+        mp_add_or_subtract(mp, x_part_loc(q), x_part_loc(r), (quarterword)c);
+        mp_add_or_subtract(mp, y_part_loc(q), y_part_loc(r), (quarterword)c);
+        break;
+      case mp_color_type:
+        mp_add_or_subtract(mp, red_part_loc(q), red_part_loc(r), (quarterword)c);
+        mp_add_or_subtract(mp, green_part_loc(q), green_part_loc(r), (quarterword)c);
+        mp_add_or_subtract(mp, blue_part_loc(q), blue_part_loc(r), (quarterword)c);
+        break;
+      case mp_cmykcolor_type:
+        mp_add_or_subtract(mp, cyan_part_loc(q), cyan_part_loc(r), (quarterword)c);
+        mp_add_or_subtract(mp, magenta_part_loc(q), magenta_part_loc(r), (quarterword)c);
+        mp_add_or_subtract(mp, yellow_part_loc(q), yellow_part_loc(r), (quarterword)c);
+        mp_add_or_subtract(mp, black_part_loc(q), black_part_loc(r), (quarterword)c);
+        break;
+      case mp_transform_type:
+        mp_add_or_subtract(mp, tx_part_loc(q), tx_part_loc(r), (quarterword)c);
+        mp_add_or_subtract(mp, ty_part_loc(q), ty_part_loc(r), (quarterword)c);
+        mp_add_or_subtract(mp, xx_part_loc(q), xx_part_loc(r), (quarterword)c);
+        mp_add_or_subtract(mp, xy_part_loc(q), xy_part_loc(r), (quarterword)c);
+        mp_add_or_subtract(mp, yx_part_loc(q), yx_part_loc(r), (quarterword)c);
+        mp_add_or_subtract(mp, yy_part_loc(q), yy_part_loc(r), (quarterword)c);
+        break;
+      default:  /* there are no other valid cases, but please the compiler */
+        break;
       }
     }
   }
@@ -20526,42 +22205,60 @@ be monkeying around with really big values.
 
 @<Declare binary action...@>=
 @<Declare the procedure called |dep_finish|@>
-static void mp_add_or_subtract (MP mp,pointer p, pointer q, quarterword c) {
-  quarterword s,t; /* operand types */
-  pointer r; /* list traverser */
-  integer v; /* second operand value */
+static void mp_add_or_subtract (MP mp,mp_node p, mp_node q, quarterword c) {
+  mp_variable_type s, t; /* operand types */
+  mp_value_node r; /* dependency list traverser */
+  mp_value_node v = null; /* second operand value for dep lists */
+  integer vv = 0; /* second operand value for known values */
   if ( q==null ) { 
-    t=mp->cur_type;
-    if ( t<mp_dependent ) v=mp->cur_exp; else v=dep_list(mp->cur_exp);
+    t=mp->cur_exp.type;
+    if ( t<mp_dependent ) 
+      vv=cur_exp_value(); 
+    else 
+      v=(mp_value_node)dep_list((mp_value_node)cur_exp_node());
   } else { 
     t=mp_type(q);
-    if ( t<mp_dependent ) v=value(q); else v=dep_list(q);
+    if ( t<mp_dependent ) 
+      vv=value(q); 
+    else 
+      v=(mp_value_node)dep_list((mp_value_node)q);
   }
   if ( t==mp_known ) {
-    if ( c==minus ) negate(v);
+    mp_value_node qq = (mp_value_node)q;
+    if ( c==minus ) 
+      negate(vv);
     if ( mp_type(p)==mp_known ) {
-      v=mp_slow_add(mp, value(p),v);
-      if ( q==null ) mp->cur_exp=v; else value(q)=v;
+      vv=mp_slow_add(mp, value(p),vv);
+      if ( q==null ) 
+        set_cur_exp_value(vv); 
+      else 
+        set_value(q,vv);
       return;
     }
-    @<Add a known value to the constant term of |dep_list(p)|@>;
+    /* Add a known value to the constant term of |dep_list(p)| */
+    r = (mp_value_node)dep_list((mp_value_node)p);
+    while ( dep_info(r)!=null ) 
+      r=(mp_value_node)mp_link(r);
+    dep_value(r)=mp_slow_add(mp, dep_value(r),vv);
+    if ( qq==null ) {
+      qq = mp_get_dep_node(mp);
+      set_cur_exp_node((mp_node)qq); 
+      mp->cur_exp.type=mp_type(p);
+      mp_name_type(qq)=mp_capsule; 
+      q = (mp_node)qq;
+    }
+    set_dep_list(qq,dep_list((mp_value_node)p)); 
+    mp_type(qq)=mp_type(p);
+    set_prev_dep(qq,prev_dep((mp_value_node)p)); 
+    mp_link(prev_dep((mp_value_node)p))=(mp_node)qq;
+    mp_type(p)=mp_known; /* this will keep the recycler from collecting non-garbage */
+
   } else  { 
-    if ( c==minus ) mp_negate_dep_list(mp, v);
+    if ( c==minus ) 
+      mp_negate_dep_list(mp, v);
     @<Add operand |p| to the dependency list |v|@>;
   }
 }
-
-@ @<Add a known value to the constant term of |dep_list(p)|@>=
-r=dep_list(p);
-while ( mp_info(r)!=null ) r=mp_link(r);
-value(r)=mp_slow_add(mp, value(r),v);
-if ( q==null ) {
-  q=mp_get_node(mp, value_node_size); mp->cur_exp=q; mp->cur_type=mp_type(p);
-  mp_name_type(q)=mp_capsule;
-}
-dep_list(q)=dep_list(p); mp_type(q)=mp_type(p);
-prev_dep(q)=prev_dep(p); mp_link(prev_dep(p))=q;
-mp_type(p)=mp_known; /* this will keep the recycler from collecting non-garbage */
 
 @ We prefer |dependent| lists to |mp_proto_dependent| ones, because it is
 nice to retain the extra accuracy of |fraction| coefficients.
@@ -20569,33 +22266,36 @@ But we have to handle both kinds, and mixtures too.
 
 @<Add operand |p| to the dependency list |v|@>=
 if ( mp_type(p)==mp_known ) {
-  @<Add the known |value(p)| to the constant term of |v|@>;
+  /* Add the known |value(p)| to the constant term of |v| */
+  while ( dep_info(v)!=null ) 
+    v=(mp_value_node)mp_link(v);
+  dep_value(v)=mp_slow_add(mp, value(p),dep_value(v));
 } else { 
-  s=mp_type(p); r=dep_list(p);
+  s=mp_type(p); 
+  r=(mp_value_node)dep_list((mp_value_node)p);
   if ( t==mp_dependent ) {
     if ( s==mp_dependent ) {
       if ( mp_max_coef(mp, r)+mp_max_coef(mp, v)<coef_bound ) {
-          v=mp_p_plus_q(mp, v,r,mp_dependent); goto DONE;
-        } 
-      } /* |fix_needed| will necessarily be false */
+        v=mp_p_plus_q(mp, v,r,mp_dependent); 
+        goto DONE;
+      } 
+    } /* |fix_needed| will necessarily be false */
     t=mp_proto_dependent; 
     v=mp_p_over_v(mp, v,unity,mp_dependent,mp_proto_dependent);
   }
-  if ( s==mp_proto_dependent ) v=mp_p_plus_q(mp, v,r,mp_proto_dependent);
-  else v=mp_p_plus_fq(mp, v,unity,r,mp_proto_dependent,mp_dependent);
+  if ( s==mp_proto_dependent ) 
+    v=mp_p_plus_q(mp, v,r,mp_proto_dependent);
+  else 
+    v=mp_p_plus_fq(mp, v,unity,r,mp_proto_dependent,mp_dependent);
  DONE:  
-  @<Output the answer, |v| (which might have become |known|)@>;
+  /* Output the answer, |v| (which might have become |known|) */
+  if ( q!=null ) {
+    mp_dep_finish(mp, v, (mp_value_node)q,t);
+  } else { 
+    mp->cur_exp.type=t; 
+    mp_dep_finish(mp, v,null,t); 
+  }
 }
-
-@ @<Add the known |value(p)| to the constant term of |v|@>=
-{ 
-  while ( mp_info(v)!=null ) v=mp_link(v);
-  value(v)=mp_slow_add(mp, value(p),value(v));
-}
-
-@ @<Output the answer, |v| (which might have become |known|)@>=
-if ( q!=null ) mp_dep_finish(mp, v,q,t);
-else  { mp->cur_type=t; mp_dep_finish(mp, v,null,t); }
 
 @ Here's the current situation: The dependency list |v| of type |t|
 should either be put into the current expression (if |q=null|) or
@@ -20604,22 +22304,31 @@ or |q|) formerly held a dependency list with the same
 final pointer as the list |v|.
 
 @<Declare the procedure called |dep_finish|@>=
-static void mp_dep_finish (MP mp, pointer v, pointer q, quarterword t) {
-  pointer p; /* the destination */
+static void mp_dep_finish (MP mp, mp_value_node v, mp_value_node q, quarterword t) {
+  mp_value_node p; /* the destination */
   scaled vv; /* the value, if it is |known| */
-  if ( q==null ) p=mp->cur_exp; else p=q;
-  dep_list(p)=v; mp_type(p)=t;
-  if ( mp_info(v)==null ) { 
+  mp_value new_expr;
+  if ( q==null ) 
+    p=(mp_value_node)cur_exp_node(); 
+  else 
+    p=q;
+  set_dep_list(p,(mp_node)v);
+  mp_type(p)=t;
+  if ( dep_info(v)==null ) { 
     vv=value(v);
-    if ( q==null ) { 
-      mp_flush_cur_exp(mp, vv);
+    if ( q==null ) {
+      new_expr.data.val = vv;
+      mp_flush_cur_exp(mp, new_expr);
     } else  { 
-      mp_recycle_value(mp, p); mp_type(q)=mp_known; value(q)=vv; 
+      mp_recycle_value(mp, (mp_node)p); 
+      mp_type(q)=mp_known; 
+      set_value(q,vv); 
     }
   } else if ( q==null ) {
-    mp->cur_type=t;
+    mp->cur_exp.type=t;
   }
-  if ( mp->fix_needed ) mp_fix_dependencies(mp);
+  if ( mp->fix_needed ) 
+    mp_fix_dependencies(mp);
 }
 
 @ Let's turn now to the six basic relations of comparison.
@@ -20628,19 +22337,21 @@ static void mp_dep_finish (MP mp, pointer v, pointer q, quarterword t) {
 case less_than: case less_or_equal: case greater_than:
 case greater_or_equal: case equal_to: case unequal_to:
   check_arith; /* at this point |arith_error| should be |false|? */
-  if ( (mp->cur_type>mp_pair_type)&&(mp_type(p)>mp_pair_type) ) {
+  if ( (mp->cur_exp.type>mp_pair_type)&&(mp_type(p)>mp_pair_type) ) {
     mp_add_or_subtract(mp, p,null,minus); /* |cur_exp:=(p)-cur_exp| */
-  } else if ( mp->cur_type!=mp_type(p) ) {
+  } else if ( mp->cur_exp.type!=mp_type(p) ) {
     mp_bad_binary(mp, p, (quarterword)c); goto DONE; 
-  } else if ( mp->cur_type==mp_string_type ) {
-    mp_flush_cur_exp(mp, mp_str_vs_str(mp, value(p),mp->cur_exp));
-  } else if ((mp->cur_type==mp_unknown_string)||
-           (mp->cur_type==mp_unknown_boolean) ) {
+  } else if ( mp->cur_exp.type==mp_string_type ) {
+    new_expr.data.val = mp_str_vs_str(mp, str_value(p),cur_exp_str());
+    mp_flush_cur_exp(mp, new_expr);
+  } else if ((mp->cur_exp.type==mp_unknown_string)||
+           (mp->cur_exp.type==mp_unknown_boolean) ) {
     @<Check if unknowns have been equated@>;
-  } else if ( (mp->cur_type<=mp_pair_type)&&(mp->cur_type>=mp_transform_type)) {
+  } else if ( (mp->cur_exp.type<=mp_pair_type)&&(mp->cur_exp.type>=mp_transform_type)) {
     @<Reduce comparison of big nodes to comparison of scalars@>;
-  } else if ( mp->cur_type==mp_boolean_type ) {
-    mp_flush_cur_exp(mp, mp->cur_exp-value(p));
+  } else if ( mp->cur_exp.type==mp_boolean_type ) {
+    new_expr.data.val = cur_exp_value()-value(p);
+    mp_flush_cur_exp(mp, new_expr);
   } else { 
     mp_bad_binary(mp, p, (quarterword)c); goto DONE;
   }
@@ -20650,8 +22361,8 @@ DONE:
   break;
 
 @ @<Compare the current expression with zero@>=
-if ( mp->cur_type!=mp_known ) {
-  if ( mp->cur_type<mp_known ) {
+if ( mp->cur_exp.type!=mp_known ) {
+  if ( mp->cur_exp.type<mp_known ) {
     mp_disp_err(mp, p,"");
     help1("The quantities shown above have not been equated.")
   } else  {
@@ -20660,18 +22371,19 @@ if ( mp->cur_type!=mp_known ) {
   }
   exp_err("Unknown relation will be considered false");
 @.Unknown relation...@>
-  mp_put_get_flush_error(mp, false_code);
+  new_expr.data.val = false_code;
+  mp_put_get_flush_error(mp, new_expr);
 } else {
   switch (c) {
-  case less_than: boolean_reset(mp->cur_exp<0); break;
-  case less_or_equal: boolean_reset(mp->cur_exp<=0); break;
-  case greater_than: boolean_reset(mp->cur_exp>0); break;
-  case greater_or_equal: boolean_reset(mp->cur_exp>=0); break;
-  case equal_to: boolean_reset(mp->cur_exp==0); break;
-  case unequal_to: boolean_reset(mp->cur_exp!=0); break;
+  case less_than: boolean_reset(cur_exp_value()<0); break;
+  case less_or_equal: boolean_reset(cur_exp_value()<=0); break;
+  case greater_than: boolean_reset(cur_exp_value()>0); break;
+  case greater_or_equal: boolean_reset(cur_exp_value()>=0); break;
+  case equal_to: boolean_reset(cur_exp_value()==0); break;
+  case unequal_to: boolean_reset(cur_exp_value()!=0); break;
   }; /* there are no other cases */
 }
-mp->cur_type=mp_boolean_type
+mp->cur_exp.type=mp_boolean_type
 
 @ When two unknown strings are in the same ring, we know that they are
 equal. Otherwise, we don't know whether they are equal or not, so we
@@ -20679,22 +22391,104 @@ make no change.
 
 @<Check if unknowns have been equated@>=
 { 
-  q=value(mp->cur_exp);
-  while ( (q!=mp->cur_exp)&&(q!=p) ) q=value(q);
-  if ( q==p ) mp_flush_cur_exp(mp, 0);
+  q=value_node(cur_exp_node());
+  while ( (q!=cur_exp_node())&&(q!=p) ) q=value_node(q);
+  if ( q==p ) {
+    set_cur_exp_node(NULL);
+    mp_flush_cur_exp(mp, new_expr);
+  }
 }
 
 @ @<Reduce comparison of big nodes to comparison of scalars@>=
 { 
-  q=value(p); r=value(mp->cur_exp);
-  rr=r+mp->big_node_size[mp->cur_type]-2;
-  while (1) { mp_add_or_subtract(mp, q,r,minus);
-    if ( mp_type(r)!=mp_known ) break;
-    if ( value(r)!=0 ) break;
-    if ( r==rr ) break;
-    q=q+2; r=r+2;
+  q=value_node(p); 
+  r=value_node(cur_exp_node());
+  switch(mp->cur_exp.type) {
+  case mp_pair_node_type:
+    while (1) {
+      rr = x_part_loc(r);
+      mp_add_or_subtract(mp, x_part_loc(q),x_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+      rr = y_part_loc(r);
+      mp_add_or_subtract(mp, y_part_loc(q),y_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+    }
+    mp_take_part(mp, (quarterword)value(rr));
+    break;
+  case mp_color_node_type:
+    while (1) {
+      rr = red_part_loc(r);
+      mp_add_or_subtract(mp, red_part_loc(q),red_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+      rr = green_part_loc(r);
+      mp_add_or_subtract(mp, green_part_loc(q),green_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+      rr = blue_part_loc(r);
+      mp_add_or_subtract(mp, blue_part_loc(q),blue_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+    }
+    mp_take_part(mp, (quarterword)value(rr));
+    break;
+  case mp_cmykcolor_node_type:
+    while (1) {
+      rr = cyan_part_loc(r);
+      mp_add_or_subtract(mp, cyan_part_loc(q),cyan_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+      rr = magenta_part_loc(r);
+      mp_add_or_subtract(mp, magenta_part_loc(q),magenta_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+      rr = yellow_part_loc(r);
+      mp_add_or_subtract(mp, yellow_part_loc(q),yellow_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+      rr = black_part_loc(r);
+      mp_add_or_subtract(mp, black_part_loc(q),black_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+    }
+    mp_take_part(mp, (quarterword)value(rr));
+    break;
+  case mp_transform_node_type:
+    while (1) {
+      rr = tx_part_loc(r);
+      mp_add_or_subtract(mp, tx_part_loc(q),tx_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+      rr = ty_part_loc(r);
+      mp_add_or_subtract(mp, ty_part_loc(q),ty_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+      rr = xx_part_loc(r);
+      mp_add_or_subtract(mp, xx_part_loc(q),xx_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+      rr = xy_part_loc(r);
+      mp_add_or_subtract(mp, xy_part_loc(q),xy_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+      rr = yx_part_loc(r);
+      mp_add_or_subtract(mp, yx_part_loc(q),yx_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+      rr = yy_part_loc(r);
+      mp_add_or_subtract(mp, yy_part_loc(q),yy_part_loc(r),minus);
+      if ( mp_type(r)!=mp_known) break;
+      if (value(r)!=0 ) break;
+    }
+    mp_take_part(mp, (quarterword)value(rr));
+    break;
+  default:
+    assert(0); /* todo: |mp->cur_exp.type>mp_transform_node_type| ? */ 
+    break;
   }
-  mp_take_part(mp, (quarterword)(mp_name_type(r)+x_part-mp_x_part_sector));
+
 }
 
 @ Here we use the sneaky fact that |and_op-false_code=or_op-true_code|.
@@ -20702,19 +22496,20 @@ make no change.
 @<Additional cases of binary operators@>=
 case and_op:
 case or_op: 
-  if ( (mp_type(p)!=mp_boolean_type)||(mp->cur_type!=mp_boolean_type) )
+  if ( (mp_type(p)!=mp_boolean_type)||(mp->cur_exp.type!=mp_boolean_type) )
     mp_bad_binary(mp, p, (quarterword)c);
-  else if ( value(p)==c+false_code-and_op ) mp->cur_exp=value(p);
+  else if ( value(p)==c+false_code-and_op ) 
+    set_cur_exp_value(value(p));
   break;
 
 @ @<Additional cases of binary operators@>=
 case times: 
-  if ( (mp->cur_type<mp_color_type)||(mp_type(p)<mp_color_type) ) {
-   mp_bad_binary(mp, p, times);
-  } else if ( (mp->cur_type==mp_known)||(mp_type(p)==mp_known) ) {
+  if ( (mp->cur_exp.type<mp_color_type)||(mp_type(p)<mp_color_type) ) {
+    mp_bad_binary(mp, p, times);
+  } else if ( (mp->cur_exp.type==mp_known)||(mp_type(p)==mp_known) ) {
     @<Multiply when at least one operand is known@>;
-  } else if ( (mp_nice_color_or_pair(mp, p,mp_type(p))&&(mp->cur_type>mp_pair_type))
-      ||(mp_nice_color_or_pair(mp, mp->cur_exp,mp->cur_type)&&
+  } else if ( (mp_nice_color_or_pair(mp, p,mp_type(p))&&(mp->cur_exp.type>mp_pair_type))
+      ||(mp_nice_color_or_pair(mp, cur_exp_node(), mp->cur_exp.type)&&
           (mp_type(p)>mp_pair_type)) ) {
     mp_hard_times(mp, p); 
     binary_return;
@@ -20726,19 +22521,26 @@ case times:
 @ @<Multiply when at least one operand is known@>=
 { 
   if ( mp_type(p)==mp_known ) {
-    v=value(p); mp_free_node(mp, p,value_node_size); 
+    v=value(p); 
+    mp_free_node(mp, p,value_node_size); 
   } else {
-    v=mp->cur_exp; mp_unstash_cur_exp(mp, p);
+    v=cur_exp_value(); 
+    mp_unstash_cur_exp(mp, p);
   }
-  if ( mp->cur_type==mp_known ) {
-    mp->cur_exp=mp_take_scaled(mp, mp->cur_exp,v);
-  } else if ( (mp->cur_type==mp_pair_type)||
-              (mp->cur_type==mp_color_type)||
-              (mp->cur_type==mp_cmykcolor_type) ) {
-    p=value(mp->cur_exp)+mp->big_node_size[mp->cur_type];
-    do {  
-       p=p-2; mp_dep_mult(mp, p,v,true);
-    } while (p!=value(mp->cur_exp));
+  if ( mp->cur_exp.type==mp_known ) {
+    set_cur_exp_value(mp_take_scaled(mp, cur_exp_value(),v));
+  } else if ( mp->cur_exp.type==mp_pair_type) {
+    mp_dep_mult(mp, (mp_value_node)x_part_loc(value_node(cur_exp_node())),v,true);
+    mp_dep_mult(mp, (mp_value_node)y_part_loc(value_node(cur_exp_node())),v,true);
+  } else if ( mp->cur_exp.type==mp_color_type) {
+    mp_dep_mult(mp, (mp_value_node)red_part_loc(value_node(cur_exp_node())),v,true);
+    mp_dep_mult(mp, (mp_value_node)green_part_loc(value_node(cur_exp_node())),v,true);
+    mp_dep_mult(mp, (mp_value_node)blue_part_loc(value_node(cur_exp_node())),v,true);
+  } else if (mp->cur_exp.type==mp_cmykcolor_type) {
+    mp_dep_mult(mp, (mp_value_node)cyan_part_loc(value_node(cur_exp_node())),v,true);
+    mp_dep_mult(mp, (mp_value_node)magenta_part_loc(value_node(cur_exp_node())),v,true);
+    mp_dep_mult(mp, (mp_value_node)yellow_part_loc(value_node(cur_exp_node())),v,true);
+    mp_dep_mult(mp, (mp_value_node)black_part_loc(value_node(cur_exp_node())),v,true);
   } else {
     mp_dep_mult(mp, null,v,true);
   }
@@ -20746,19 +22548,23 @@ case times:
 }
 
 @ @<Declare binary action...@>=
-static void mp_dep_mult (MP mp,pointer p, integer v, boolean v_is_scaled) {
-  pointer q; /* the dependency list being multiplied by |v| */
+static void mp_dep_mult (MP mp,mp_value_node p, integer v, boolean v_is_scaled) {
+  mp_value_node q; /* the dependency list being multiplied by |v| */
   quarterword s,t; /* its type, before and after */
   if ( p==null ) {
-    q=mp->cur_exp;
+    q=(mp_value_node)cur_exp_node();
   } else if ( mp_type(p)!=mp_known ) {
     q=p;
   } else { 
-    if ( v_is_scaled ) value(p)=mp_take_scaled(mp, value(p),v);
-    else value(p)=mp_take_fraction(mp, value(p),v);
+    if ( v_is_scaled ) 
+      dep_value(p)=mp_take_scaled(mp, dep_value(p),v);
+    else 
+      dep_value(p)=mp_take_fraction(mp, dep_value(p),v);
     return;
   };
-  t=mp_type(q); q=dep_list(q); s=t;
+  t=mp_type(q); 
+  q=(mp_value_node)dep_list(q); 
+  s=t;
   if ( t==mp_dependent ) if ( v_is_scaled )
     if (mp_ab_vs_cd(mp, mp_max_coef(mp,q),abs(v),coef_bound-1,unity)>=0 ) 
       t=mp_proto_dependent;
@@ -20773,34 +22579,44 @@ and when |cur_type>=mp_color_type|.
 @c 
 static void mp_frac_mult (MP mp,scaled n, scaled d) {
   /* multiplies |cur_exp| by |n/d| */
-  pointer p; /* a pair node */
-  pointer old_exp; /* a capsule to recycle */
+  mp_node old_exp; /* a capsule to recycle */
   fraction v; /* |n/d| */
-  if ( mp->internal[mp_tracing_commands]>two ) {
+  if ( internal_value(mp_tracing_commands)>two ) {
     @<Trace the fraction multiplication@>;
   }
-  switch (mp->cur_type) {
+  switch (mp->cur_exp.type) {
   case mp_transform_type:
   case mp_color_type:
   case mp_cmykcolor_type:
   case mp_pair_type:
-   old_exp=mp_tarnished(mp, mp->cur_exp);
-   break;
-  case mp_independent: old_exp=mp_void; break;
-  default: old_exp=null; break;
+    old_exp=mp_tarnished(mp, cur_exp_node());
+    break;
+  case mp_independent: 
+    old_exp=mp_void; 
+    break;
+  default: 
+    old_exp=null; 
+    break;
   }
   if ( old_exp!=null ) { 
-     old_exp=mp->cur_exp; mp_make_exp_copy(mp, old_exp);
+    old_exp=cur_exp_node(); 
+    mp_make_exp_copy(mp, old_exp);
   }
   v=mp_make_fraction(mp, n,d);
-  if ( mp->cur_type==mp_known ) {
-    mp->cur_exp=mp_take_fraction(mp, mp->cur_exp,v);
-  } else if ( mp->cur_type<=mp_pair_type ) { 
-    p=value(mp->cur_exp)+mp->big_node_size[mp->cur_type];
-    do {  
-      p=p-2;
-      mp_dep_mult(mp, p,v,false);
-    } while (p!=value(mp->cur_exp));
+  if ( mp->cur_exp.type==mp_known ) {
+    set_cur_exp_value(mp_take_fraction(mp, cur_exp_value(),v));
+  } else if ( mp->cur_exp.type==mp_pair_type) {
+    mp_dep_mult(mp, (mp_value_node)x_part_loc(value_node(cur_exp_node())),v,false);
+    mp_dep_mult(mp, (mp_value_node)y_part_loc(value_node(cur_exp_node())),v,false);
+  } else if ( mp->cur_exp.type==mp_color_type) {
+    mp_dep_mult(mp, (mp_value_node)red_part_loc(value_node(cur_exp_node())),v,false);
+    mp_dep_mult(mp, (mp_value_node)green_part_loc(value_node(cur_exp_node())),v,false);
+    mp_dep_mult(mp, (mp_value_node)blue_part_loc(value_node(cur_exp_node())),v,false);
+  } else if (mp->cur_exp.type==mp_cmykcolor_type) {
+    mp_dep_mult(mp, (mp_value_node)cyan_part_loc(value_node(cur_exp_node())),v,false);
+    mp_dep_mult(mp, (mp_value_node)magenta_part_loc(value_node(cur_exp_node())),v,false);
+    mp_dep_mult(mp, (mp_value_node)yellow_part_loc(value_node(cur_exp_node())),v,false);
+    mp_dep_mult(mp, (mp_value_node)black_part_loc(value_node(cur_exp_node())),v,false);
   } else {
     mp_dep_mult(mp, null,v,false);
   }
@@ -20813,8 +22629,12 @@ static void mp_frac_mult (MP mp,scaled n, scaled d) {
 @ @<Trace the fraction multiplication@>=
 { 
   mp_begin_diagnostic(mp); 
-  mp_print_nl(mp, "{("); mp_print_scaled(mp,n); mp_print_char(mp,xord('/'));
-  mp_print_scaled(mp,d); mp_print(mp,")*("); mp_print_exp(mp,null,0); 
+  mp_print_nl(mp, "{("); 
+  mp_print_scaled(mp,n); 
+  mp_print_char(mp,xord('/'));
+  mp_print_scaled(mp,d); 
+  mp_print(mp,")*("); 
+  mp_print_exp(mp,null,0); 
   mp_print(mp,")}");
   mp_end_diagnostic(mp, false);
 }
@@ -20822,45 +22642,84 @@ static void mp_frac_mult (MP mp,scaled n, scaled d) {
 @ The |hard_times| routine multiplies a nice color or pair by a dependency list.
 
 @<Declare binary action procedures@>=
-static void mp_hard_times (MP mp,pointer p) {
-  pointer q; /* a copy of the dependent variable |p| */
-  pointer r; /* a component of the big node for the nice color or pair */
+static void mp_hard_times (MP mp,mp_node p) {
+  mp_value_node q; /* a copy of the dependent variable |p| */
+  mp_value_node pp; /* for typecasting p */
+  mp_node r; /* a component of the big node for the nice color or pair */
   scaled v; /* the known value for |r| */
   if ( mp_type(p)<=mp_pair_type ) { 
-     q=mp_stash_cur_exp(mp); mp_unstash_cur_exp(mp, p); p=q;
-  }; /* now |cur_type=mp_pair_type| or |cur_type=mp_color_type| */
-  r=value(mp->cur_exp)+mp->big_node_size[mp->cur_type];
-  while (1) { 
-    r=r-2;
-    v=value(r);
-    mp_type(r)=mp_type(p);
-    if ( r==value(mp->cur_exp) ) 
-      break;
-    mp_new_dep(mp, r,mp_copy_dep_list(mp, dep_list(p)));
-    mp_dep_mult(mp, r,v,true);
+     q=(mp_value_node)mp_stash_cur_exp(mp); 
+     mp_unstash_cur_exp(mp, p); 
+     p=(mp_node)q;
+  } /* now |cur_type=mp_pair_type| or |cur_type=mp_color_type| or |cur_type=mp_cmykcolor_type| */
+  pp=(mp_value_node)p;
+  if ( mp->cur_exp.type==mp_pair_type) {
+
+    r = x_part_loc(value_node(cur_exp_node()));
+    v = value(r);
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_dep_mult(mp, (mp_value_node)r,v,true);
+    r = y_part_loc(value_node(cur_exp_node()));
+    v = value(r);
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_dep_mult(mp, (mp_value_node)r,v,true);
+  } else if ( mp->cur_exp.type==mp_color_type) {
+    r = red_part_loc(value_node(cur_exp_node()));
+    v = value(r);
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_dep_mult(mp, (mp_value_node)r,v,true);
+    r = green_part_loc(value_node(cur_exp_node()));
+    v = value(r);
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_dep_mult(mp, (mp_value_node)r,v,true);
+    r = blue_part_loc(value_node(cur_exp_node()));
+    v = value(r);
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_dep_mult(mp, (mp_value_node)r,v,true);
+  } else if (mp->cur_exp.type==mp_cmykcolor_type) {
+    r = cyan_part_loc(value_node(cur_exp_node()));
+    v = value(r);
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_dep_mult(mp, (mp_value_node)r,v,true);
+    r = yellow_part_loc(value_node(cur_exp_node()));
+    v = value(r);
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_dep_mult(mp, (mp_value_node)r,v,true);
+    r = magenta_part_loc(value_node(cur_exp_node()));
+    v = value(r);
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_dep_mult(mp, (mp_value_node)r,v,true);
+    r = black_part_loc(value_node(cur_exp_node()));
+    v = value(r);
+    mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
+    mp_dep_mult(mp, (mp_value_node)r,v,true);
   }
-  mp->mem[value_loc(r)]=mp->mem[value_loc(p)];
-  mp_link(prev_dep(p))=r;
-  mp_free_node(mp, p,value_node_size);
-  mp_dep_mult(mp, r,v,true);
+  /* mp_free_dep_node(mp, pp); */ /* todo why not do this? */
 }
 
 @ @<Additional cases of binary operators@>=
 case over: 
-  if ( (mp->cur_type!=mp_known)||(mp_type(p)<mp_color_type) ) {
+  if ( (mp->cur_exp.type!=mp_known)||(mp_type(p)<mp_color_type) ) {
     mp_bad_binary(mp, p,over);
   } else { 
-    v=mp->cur_exp; mp_unstash_cur_exp(mp, p);
+    v=cur_exp_value(); mp_unstash_cur_exp(mp, p);
     if ( v==0 ) {
       @<Squeal about division by zero@>;
     } else { 
-      if ( mp->cur_type==mp_known ) {
-        mp->cur_exp=mp_make_scaled(mp, mp->cur_exp,v);
-      } else if ( mp->cur_type<=mp_pair_type ) { 
-        p=value(mp->cur_exp)+mp->big_node_size[mp->cur_type];
-        do {  
-          p=p-2;  mp_dep_div(mp, p,v);
-        } while (p!=value(mp->cur_exp));
+      if ( mp->cur_exp.type==mp_known ) {
+        set_cur_exp_value(mp_make_scaled(mp, cur_exp_value(),v));
+      } else if ( mp->cur_exp.type==mp_pair_type ) { 
+        mp_dep_div(mp, (mp_value_node)x_part_loc(value_node(cur_exp_node())),v);
+        mp_dep_div(mp, (mp_value_node)y_part_loc(value_node(cur_exp_node())),v);
+      } else if ( mp->cur_exp.type==mp_color_type ) { 
+        mp_dep_div(mp, (mp_value_node)red_part_loc(value_node(cur_exp_node())),v);
+        mp_dep_div(mp, (mp_value_node)green_part_loc(value_node(cur_exp_node())),v);
+        mp_dep_div(mp, (mp_value_node)blue_part_loc(value_node(cur_exp_node())),v);
+      } else if ( mp->cur_exp.type==mp_cmykcolor_type ) { 
+        mp_dep_div(mp, (mp_value_node)cyan_part_loc(value_node(cur_exp_node())),v);
+        mp_dep_div(mp, (mp_value_node)magenta_part_loc(value_node(cur_exp_node())),v);
+        mp_dep_div(mp, (mp_value_node)yellow_part_loc(value_node(cur_exp_node())),v);
+        mp_dep_div(mp, (mp_value_node)black_part_loc(value_node(cur_exp_node())),v);
       } else {
         mp_dep_div(mp, null,v);
       }
@@ -20870,13 +22729,20 @@ case over:
   break;
 
 @ @<Declare binary action...@>=
-static void mp_dep_div (MP mp,pointer p, scaled v) {
-  pointer q; /* the dependency list being divided by |v| */
+static void mp_dep_div (MP mp, mp_value_node p, scaled v) {
+  mp_value_node q; /* the dependency list being divided by |v| */
   quarterword s,t; /* its type, before and after */
-  if ( p==null ) q=mp->cur_exp;
-  else if ( mp_type(p)!=mp_known ) q=p;
-  else { value(p)=mp_make_scaled(mp, value(p),v); return; };
-  t=mp_type(q); q=dep_list(q); s=t;
+  if ( p==null ) 
+    q=(mp_value_node)cur_exp_node();
+  else if ( mp_type(p)!=mp_known )
+    q=p;
+  else { 
+    set_value(p,mp_make_scaled(mp, value(p),v)); 
+    return; 
+  }
+  t=mp_type(q); 
+  q=(mp_value_node)dep_list(q); 
+  s=t;
   if ( t==mp_dependent )
     if ( mp_ab_vs_cd(mp, mp_max_coef(mp,q),unity,coef_bound-1,abs(v))>=0 ) 
       t=mp_proto_dependent;
@@ -20896,9 +22762,9 @@ static void mp_dep_div (MP mp,pointer p, scaled v) {
 @ @<Additional cases of binary operators@>=
 case pythag_add:
 case pythag_sub: 
-   if ( (mp->cur_type==mp_known)&&(mp_type(p)==mp_known) ) {
-     if ( c==pythag_add ) mp->cur_exp=mp_pyth_add(mp, value(p),mp->cur_exp);
-     else mp->cur_exp=mp_pyth_sub(mp, value(p),mp->cur_exp);
+   if ( (mp->cur_exp.type==mp_known)&&(mp_type(p)==mp_known) ) {
+     if ( c==pythag_add ) set_cur_exp_value(mp_pyth_add(mp, value(p),cur_exp_value()));
+     else set_cur_exp_value(mp_pyth_sub(mp, value(p),cur_exp_value()));
    } else mp_bad_binary(mp, p, (quarterword)c);
    break;
 
@@ -20913,7 +22779,7 @@ case x_scaled: case y_scaled: case z_scaled:
     path_trans((quarterword)c, p); binary_return;
   } else if ( mp_type(p)==mp_pen_type ) { 
     pen_trans((quarterword)c, p);
-    mp->cur_exp=mp_convex_hull(mp, mp->cur_exp); 
+    set_cur_exp_knot(mp_convex_hull(mp, cur_exp_knot())); 
       /* rounding error could destroy convexity */
     binary_return;
   } else if ( (mp_type(p)==mp_pair_type)||(mp_type(p)==mp_transform_type) ) {
@@ -20936,8 +22802,9 @@ and |cur_exp| is changed to the known value zero.
 
 @<Declare binary action...@>=
 static void mp_set_up_trans (MP mp,quarterword c) {
-  pointer p,q,r; /* list manipulation registers */
-  if ( (c!=transformed_by)||(mp->cur_type!=mp_transform_type) ) {
+  mp_node p,q,r; /* list manipulation registers */
+  mp_value new_expr;
+  if ( (c!=transformed_by)||(mp->cur_exp.type!=mp_transform_type) ) {
     @<Put the current transform into |cur_exp|@>;
   }
   @<If the current transform is entirely known, stash it in global variables;
@@ -20955,9 +22822,9 @@ scaled ty; /* current transform coefficients */
 @ @<Put the current transform...@>=
 { 
   p=mp_stash_cur_exp(mp); 
-  mp->cur_exp=mp_id_transform(mp); 
-  mp->cur_type=mp_transform_type;
-  q=value(mp->cur_exp);
+  set_cur_exp_node(mp_id_transform(mp)); 
+  mp->cur_exp.type=mp_transform_type;
+  q=value_node(cur_exp_node());
   switch (c) {
   @<For each of the eight cases, change the relevant fields of |cur_exp|
     and |goto done|;
@@ -20975,18 +22842,21 @@ DONE:
 }
 
 @ @<If the current transform is entirely known, ...@>=
-q=value(mp->cur_exp); r=q+transform_node_size;
-do {  
-  r=r-2;
-  if ( mp_type(r)!=mp_known ) return;
-} while (r!=q);
+q=value_node(cur_exp_node());
+if ( mp_type(tx_part_loc(q))!=mp_known ) return;
+if ( mp_type(ty_part_loc(q))!=mp_known ) return;
+if ( mp_type(xx_part_loc(q))!=mp_known ) return;
+if ( mp_type(xy_part_loc(q))!=mp_known ) return;
+if ( mp_type(yx_part_loc(q))!=mp_known ) return;
+if ( mp_type(yy_part_loc(q))!=mp_known ) return;
 mp->txx=value(xx_part_loc(q));
 mp->txy=value(xy_part_loc(q));
 mp->tyx=value(yx_part_loc(q));
 mp->tyy=value(yy_part_loc(q));
-mp->tx=value(x_part_loc(q));
-mp->ty=value(y_part_loc(q));
-mp_flush_cur_exp(mp, 0)
+mp->tx=value(tx_part_loc(q));
+mp->ty=value(ty_part_loc(q));
+new_expr.data.val = 0;
+mp_flush_cur_exp(mp, new_expr)
 
 @ @<For each of the eight cases...@>=
 case rotated_by:
@@ -20995,30 +22865,36 @@ case rotated_by:
   break;
 case slanted_by:
   if ( mp_type(p)>mp_pair_type ) { 
-   mp_install(mp, xy_part_loc(q),p); goto DONE;
-  };
+    mp_install(mp, xy_part_loc(q),p); 
+    goto DONE;
+  }
   break;
 case scaled_by:
   if ( mp_type(p)>mp_pair_type ) { 
-    mp_install(mp, xx_part_loc(q),p); mp_install(mp, yy_part_loc(q),p); 
+    mp_install(mp, xx_part_loc(q),p); 
+    mp_install(mp, yy_part_loc(q),p); 
     goto DONE;
-  };
+  }
   break;
 case shifted_by:
   if ( mp_type(p)==mp_pair_type ) {
-    r=value(p); mp_install(mp, x_part_loc(q),x_part_loc(r));
-    mp_install(mp, y_part_loc(q),y_part_loc(r)); goto DONE;
-  };
+    r=value_node(p); 
+    mp_install(mp, tx_part_loc(q),x_part_loc(r));
+    mp_install(mp, ty_part_loc(q),y_part_loc(r)); 
+    goto DONE;
+  }
   break;
 case x_scaled:
   if ( mp_type(p)>mp_pair_type ) {
-    mp_install(mp, xx_part_loc(q),p); goto DONE;
-  };
+    mp_install(mp, xx_part_loc(q),p); 
+    goto DONE;
+  }
   break;
 case y_scaled:
   if ( mp_type(p)>mp_pair_type ) {
-    mp_install(mp, yy_part_loc(q),p); goto DONE;
-  };
+    mp_install(mp, yy_part_loc(q),p);
+    goto DONE;
+  }
   break;
 case z_scaled:
   if ( mp_type(p)==mp_pair_type )
@@ -21030,21 +22906,21 @@ case transformed_by:
 
 @ @<Install sines and cosines, then |goto done|@>=
 { mp_n_sin_cos(mp, (value(p) % three_sixty_units)*16);
-  value(xx_part_loc(q))=mp_round_fraction(mp, mp->n_cos);
-  value(yx_part_loc(q))=mp_round_fraction(mp, mp->n_sin);
-  value(xy_part_loc(q))=-value(yx_part_loc(q));
-  value(yy_part_loc(q))=value(xx_part_loc(q));
+  set_value(xx_part_loc(q),mp_round_fraction(mp, mp->n_cos));
+  set_value(yx_part_loc(q),mp_round_fraction(mp, mp->n_sin));
+  set_value(xy_part_loc(q),-value(yx_part_loc(q)));
+  set_value(yy_part_loc(q),value(xx_part_loc(q)));
   goto DONE;
 }
 
 @ @<Install a complex multiplier, then |goto done|@>=
 { 
-  r=value(p);
+  r=value_node(p);
   mp_install(mp, xx_part_loc(q),x_part_loc(r));
   mp_install(mp, yy_part_loc(q),x_part_loc(r));
   mp_install(mp, yx_part_loc(q),y_part_loc(r));
   if ( mp_type(y_part_loc(r))==mp_known ) negate(value(y_part_loc(r)));
-  else mp_negate_dep_list(mp, dep_list(y_part_loc(r)));
+  else mp_negate_dep_list(mp, (mp_value_node)dep_list((mp_value_node)y_part_loc(r)));
   mp_install(mp, xy_part_loc(q),y_part_loc(r));
   goto DONE;
 }
@@ -21053,17 +22929,23 @@ case transformed_by:
 insists that the transformation be entirely known.
 
 @<Declare binary action...@>=
-static void mp_set_up_known_trans (MP mp,quarterword c) { 
+static void mp_set_up_known_trans (MP mp, quarterword c) { 
+  mp_value new_expr;
   mp_set_up_trans(mp, c);
-  if ( mp->cur_type!=mp_known ) {
+  if ( mp->cur_exp.type!=mp_known ) {
     exp_err("Transform components aren't all known");
 @.Transform components...@>
     help3("I'm unable to apply a partially specified transformation",
       "except to a fully known pair or transform.",
       "Proceed, and I'll omit the transformation.");
-    mp_put_get_flush_error(mp, 0);
-    mp->txx=unity; mp->txy=0; mp->tyx=0; mp->tyy=unity; 
-    mp->tx=0; mp->ty=0;
+    new_expr.data.val = 0;
+    mp_put_get_flush_error(mp, new_expr);
+    mp->txx=unity; 
+    mp->txy=0; 
+    mp->tyx=0; 
+    mp->tyy=unity; 
+    mp->tx=0; 
+    mp->ty=0;
   }
 }
 
@@ -21071,13 +22953,13 @@ static void mp_set_up_known_trans (MP mp,quarterword c) {
 coordinates in locations |p| and~|q|.
 
 @<Declare binary action...@>= 
-static void mp_trans (MP mp,pointer p, pointer q) {
+static void mp_trans (MP mp, scaled *p, scaled *q) {
   scaled v; /* the new |x| value */
-  v=mp_take_scaled(mp, mp->mem[p].sc,mp->txx)+
-  mp_take_scaled(mp, mp->mem[q].sc,mp->txy)+mp->tx;
-  mp->mem[q].sc=mp_take_scaled(mp, mp->mem[p].sc,mp->tyx)+
-  mp_take_scaled(mp, mp->mem[q].sc,mp->tyy)+mp->ty;
-  mp->mem[p].sc=v;
+  v = mp_take_scaled(mp, *p,mp->txx)+
+      mp_take_scaled(mp, *q, mp->txy)+mp->tx;
+  *q = mp_take_scaled(mp, *p, mp->tyx)+
+       mp_take_scaled(mp, *q, mp->tyy)+mp->ty;
+  *p=v;
 }
 
 @ The simplest transformation procedure applies a transform to all
@@ -21087,20 +22969,19 @@ to the path~|p|.
 
 @d path_trans(A,B) { mp_set_up_known_trans(mp, (A)); 
                      mp_unstash_cur_exp(mp, (B)); 
-                     mp_do_path_trans(mp, mp->cur_exp); }
+                     mp_do_path_trans(mp, cur_exp_knot()); }
 
 @<Declare binary action...@>=
-static void mp_do_path_trans (MP mp,pointer p) {
-  pointer q; /* list traverser */
+static void mp_do_path_trans (MP mp, mp_knot p) {
+  mp_knot q; /* list traverser */
   q=p;
   do { 
     if ( mp_left_type(q)!=mp_endpoint ) 
-      mp_trans(mp, q+3,q+4); /* that's |mp_left_x| and |mp_left_y| */
-    mp_trans(mp, q+1,q+2); /* that's |mp_x_coord| and |mp_y_coord| */
+      mp_trans(mp, &mp_left_x(q),&mp_left_y(q));
+    mp_trans(mp, &mp_x_coord(q),&mp_y_coord(q));
     if ( mp_right_type(q)!=mp_endpoint ) 
-      mp_trans(mp, q+5,q+6); /* that's |mp_right_x| and |mp_right_y| */
-@^data structure assumptions@>
-    q=mp_link(q);
+      mp_trans(mp, &mp_right_x(q), &mp_right_y(q));
+    q=mp_next_knot(q);
   } while (q!=p);
 }
 
@@ -21109,20 +22990,19 @@ and |mp_right_type| fields.
 
 @d pen_trans(A,B) { mp_set_up_known_trans(mp, (A)); 
                     mp_unstash_cur_exp(mp, (B)); 
-                    mp_do_pen_trans(mp, mp->cur_exp); }
+                    mp_do_pen_trans(mp, cur_exp_knot()); }
 
 @<Declare binary action...@>=
-static void mp_do_pen_trans (MP mp,pointer p) {
-  pointer q; /* list traverser */
+static void mp_do_pen_trans (MP mp, mp_knot p) {
+  mp_knot q; /* list traverser */
   if ( pen_is_elliptical(p) ) {
-    mp_trans(mp, p+3,p+4); /* that's |mp_left_x| and |mp_left_y| */
-    mp_trans(mp, p+5,p+6); /* that's |mp_right_x| and |mp_right_y| */
-  };
+    mp_trans(mp, &mp_left_x(p), &mp_left_y(p));
+    mp_trans(mp, &mp_right_x(p), &mp_right_y(p));
+  }
   q=p;
   do { 
-    mp_trans(mp, q+1,q+2); /* that's |mp_x_coord| and |mp_y_coord| */
-@^data structure assumptions@>
-    q=mp_link(q);
+    mp_trans(mp, &mp_x_coord(q), &mp_y_coord(q));
+    q=mp_next_knot(q);
   } while (q!=p);
 }
 
@@ -21136,9 +23016,9 @@ that they have to return a (possibly new) structure because of the need to call
 |private_edges|.
 
 @<Declare binary action...@>=
-static pointer mp_edges_trans (MP mp, pointer h) {
-  pointer q; /* the object being transformed */
-  pointer r,s; /* for list manipulation */
+static mp_node mp_edges_trans (MP mp, mp_node h) {
+  mp_node q; /* the object being transformed */
+  mp_node r,s; /* for list manipulation */
   scaled sx,sy; /* saved transformation parameters */
   scaled sqdet; /* square root of determinant for |dash_scale| */
   integer sgndet; /* sign of the determinant */
@@ -21146,7 +23026,7 @@ static pointer mp_edges_trans (MP mp, pointer h) {
   h=mp_private_edges(mp, h);
   sqdet=mp_sqrt_det(mp, mp->txx,mp->txy,mp->tyx,mp->tyy);
   sgndet=mp_ab_vs_cd(mp, mp->txx,mp->tyy,mp->txy,mp->tyx);
-  if ( dash_list(h)!=null_dash ) {
+  if ( dash_list(h)!=mp->null_dash ) {
     @<Try to transform the dash list of |h|@>;
   }
   @<Make the bounding box of |h| unknown if it can't be updated properly
@@ -21158,9 +23038,9 @@ static pointer mp_edges_trans (MP mp, pointer h) {
   }
   return h;
 }
-static void mp_do_edges_trans (MP mp,pointer p, quarterword c) { 
+static void mp_do_edges_trans (MP mp,mp_node p, quarterword c) { 
   mp_set_up_known_trans(mp, c);
-  value(p)=mp_edges_trans(mp, value(p));
+  set_value_node(p,mp_edges_trans(mp, value_node(p)));
   mp_unstash_cur_exp(mp, p);
 }
 static void mp_scale_edges (MP mp) { 
@@ -21182,8 +23062,8 @@ if ( (mp->txy!=0)||(mp->tyx!=0)||
 @ @<Reverse the dash list of |h|@>=
 { 
   r=dash_list(h);
-  dash_list(h)=null_dash;
-  while ( r!=null_dash ) {
+  dash_list(h)=mp->null_dash;
+  while ( r!=mp->null_dash ) {
     s=r; r=mp_link(r);
     v=start_x(s); start_x(s)=stop_x(s); stop_x(s)=v;
     mp_link(s)=dash_list(h);
@@ -21193,7 +23073,7 @@ if ( (mp->txy!=0)||(mp->tyx!=0)||
 
 @ @<Scale the dash list by |txx| and shift it by |tx|@>=
 r=dash_list(h);
-while ( r!=null_dash ) {
+while ( r!=mp->null_dash ) {
   start_x(r)=mp_take_scaled(mp, start_x(r),mp->txx)+mp->tx;
   stop_x(r)=mp_take_scaled(mp, stop_x(r),mp->txx)+mp->tx;
   r=mp_link(r);
@@ -21242,20 +23122,34 @@ structure~|h|.
 
 @<Transform graphical object |q|@>=
 switch (mp_type(q)) {
-case mp_fill_code: case mp_stroked_code: 
-  mp_do_path_trans(mp, mp_path_p(q));
-  @<Transform |mp_pen_p(q)|, making sure polygonal pens stay counter-clockwise@>;
+case mp_fill_node_type: 
+  {
+    mp_fill_node qq = (mp_fill_node)q;
+    mp_do_path_trans(mp, mp_path_p(qq));
+    @<Transform |mp_pen_p(qq)|, making sure polygonal pens stay counter-clockwise@>;
+  }
   break;
-case mp_start_clip_code: case mp_start_bounds_code: 
-  mp_do_path_trans(mp, mp_path_p(q));
+case mp_stroked_node_type: 
+  {
+    mp_stroked_node qq = (mp_stroked_node)q;
+    mp_do_path_trans(mp, mp_path_p(qq));
+    @<Transform |mp_pen_p(qq)|, making sure polygonal pens stay counter-clockwise@>;
+  }
   break;
-case mp_text_code: 
-  r=text_tx_loc(q);
-  @<Transform the compact transformation starting at |r|@>;
+case mp_start_clip_node_type: 
+  mp_do_path_trans(mp, mp_path_p((mp_start_clip_node)q));
   break;
-case mp_stop_clip_code: case mp_stop_bounds_code: 
+case mp_start_bounds_node_type: 
+  mp_do_path_trans(mp, mp_path_p((mp_start_bounds_node)q));
   break;
-} /* there are no other cases */
+case mp_text_node_type: 
+  @<Transform the compact transformation@>;
+  break;
+case mp_stop_clip_node_type: case mp_stop_bounds_node_type: 
+  break;
+default:  /* there are no other valid cases, but please the compiler */
+  break;
+}
 
 @ Note that the shift parameters |(tx,ty)| apply only to the path being stroked.
 The |dash_scale| has to be adjusted  to scale the dash lengths in |mp_dash_p(q)|
@@ -21266,55 +23160,63 @@ root of the determinant, |sqdet| is the appropriate factor.
 We pass the mptrap test only if |dash_scale| is not adjusted, nowadays
 (backend is changed?)
 
-@<Transform |mp_pen_p(q)|, making sure...@>=
-if ( mp_pen_p(q)!=null ) {
+@<Transform |mp_pen_p(qq)|, making sure...@>=
+if ( mp_pen_p(qq)!=null ) {
   sx=mp->tx; sy=mp->ty;
   mp->tx=0; mp->ty=0;
-  mp_do_pen_trans(mp, mp_pen_p(q));
-  if ( sqdet !=0 && ((mp_type(q)==mp_stroked_code)&&(mp_dash_p(q)!=null)) )
+  mp_do_pen_trans(mp, mp_pen_p(qq));
+  if ( sqdet !=0 && ((mp_type(q)==mp_stroked_node_type)&&(mp_dash_p(q)!=null)) )
     dash_scale(q)=mp_take_scaled(mp, dash_scale(q),sqdet);
-  if ( ! pen_is_elliptical(mp_pen_p(q)) )
+  if ( ! pen_is_elliptical(mp_pen_p(qq)) )
     if ( sgndet<0 )
-      mp_pen_p(q)=mp_make_pen(mp, mp_copy_path(mp, mp_pen_p(q)),true); 
+      mp_pen_p(qq)=mp_make_pen(mp, mp_copy_path(mp, mp_pen_p(qq)),true); 
          /* this unreverses the pen */
   mp->tx=sx; mp->ty=sy;
 }
 
-@ This uses the fact that transformations are stored in the order
-|(tx,ty,txx,txy,tyx,tyy)|.
-@^data structure assumptions@>
-
-@<Transform the compact transformation starting at |r|@>=
-mp_trans(mp, r,r+1);
-sx=mp->tx; sy=mp->ty;
-mp->tx=0; mp->ty=0;
-mp_trans(mp, r+2,r+4);
-mp_trans(mp, r+3,r+5);
-mp->tx=sx; mp->ty=sy
+@ @<Transform the compact transformation@>=
+mp_trans(mp, &tx_val(q), &ty_val(q));
+sx=mp->tx; 
+sy=mp->ty;
+mp->tx=0; 
+mp->ty=0;
+mp_trans(mp, &txx_val(q), &tyx_val(q));
+mp_trans(mp, &txy_val(q), &tyy_val(q));
+mp->tx=sx; 
+mp->ty=sy
 
 @ The hard cases of transformation occur when big nodes are involved,
 and when some of their components are unknown.
 
 @<Declare binary action...@>=
 @<Declare subroutines needed by |big_trans|@>
-static void mp_big_trans (MP mp,pointer p, quarterword c) {
-  pointer q,r,pp,qq; /* list manipulation registers */
-  quarterword s; /* size of a big node */
-  s=mp->big_node_size[mp_type(p)]; q=value(p); r=q+s;
-  do {  
-    r=r-2;
-    if ( mp_type(r)!=mp_known ) {
+static void mp_big_trans (MP mp,mp_node p, quarterword c) {
+  mp_node q,r,pp,qq; /* list manipulation registers */
+  q = value_node(p);
+  if (mp_type(q) == mp_pair_node_type) {
+    if ( mp_type(x_part_loc(q))!=mp_known || 
+         mp_type(y_part_loc(q))!=mp_known ) {
       @<Transform an unknown big node and |return|@>;
     }
-  } while (r!=q);
+  } else { /* |mp_transform_type| */
+    if ( mp_type(tx_part_loc(q))!=mp_known ||
+         mp_type(ty_part_loc(q))!=mp_known ||
+         mp_type(xx_part_loc(q))!=mp_known ||
+         mp_type(xy_part_loc(q))!=mp_known ||
+         mp_type(yx_part_loc(q))!=mp_known ||
+         mp_type(yy_part_loc(q))!=mp_known ) {
+      @<Transform an unknown big node and |return|@>;
+    }
+  }
   @<Transform a known big node@>;
 } /* node |p| will now be recycled by |do_binary| */
 
 @ @<Transform an unknown big node and |return|@>=
 { 
-  mp_set_up_known_trans(mp, c); mp_make_exp_copy(mp, p); 
-  r=value(mp->cur_exp);
-  if ( mp->cur_type==mp_transform_type ) {
+  mp_set_up_known_trans(mp, c); 
+  mp_make_exp_copy(mp, p); 
+  r=value_node(cur_exp_node());
+  if ( mp->cur_exp.type==mp_transform_type ) {
     mp_bilin1(mp, yy_part_loc(r),mp->tyy,xy_part_loc(q),mp->tyx,0);
     mp_bilin1(mp, yx_part_loc(r),mp->tyy,xx_part_loc(q),mp->tyx,0);
     mp_bilin1(mp, xy_part_loc(r),mp->txx,yy_part_loc(q),mp->txy,0);
@@ -21325,68 +23227,69 @@ static void mp_big_trans (MP mp,pointer p, quarterword c) {
   return;
 }
 
-@ Let |p| point to a two-word value field inside a big node of |cur_exp|,
+@ Let |p| point to a value field inside a big node of |cur_exp|,
 and let |q| point to a another value field. The |bilin1| procedure
 replaces |p| by $p\cdot t+q\cdot u+\delta$.
 
 @<Declare subroutines needed by |big_trans|@>=
-static void mp_bilin1 (MP mp, pointer p, scaled t, pointer q, 
+static void mp_bilin1 (MP mp, mp_node p, scaled t, mp_node q, 
                 scaled u, scaled delta) {
-  pointer r; /* list traverser */
-  if ( t!=unity ) mp_dep_mult(mp, p,t,true);
+
+  if ( t!=unity ) mp_dep_mult(mp, (mp_value_node)p,t,true);
   if ( u!=0 ) {
     if ( mp_type(q)==mp_known ) {
       delta+=mp_take_scaled(mp, value(q),u);
     } else { 
-      @<Ensure that |type(p)=mp_proto_dependent|@>;
-      dep_list(p)=mp_p_plus_fq(mp, dep_list(p),u,dep_list(q),
+      /* Ensure that |type(p)=mp_proto_dependent| */
+      if ( mp_type(p)!=mp_proto_dependent ) {
+        if ( mp_type(p)==mp_known ) {
+          mp_new_dep(mp, p, mp_type(p), mp_const_dependency(mp, value(p)));
+        } else {
+          dep_list((mp_value_node)p)=(mp_node)mp_p_times_v(mp, (mp_value_node)dep_list((mp_value_node)p),unity,mp_dependent,
+                             mp_proto_dependent,true);
+        }
+        mp_type(p)=mp_proto_dependent;
+      }
+      dep_list((mp_value_node)p)=(mp_node)mp_p_plus_fq(mp, (mp_value_node)dep_list((mp_value_node)p),u,(mp_value_node)dep_list((mp_value_node)q),
                                mp_proto_dependent,mp_type(q));
     }
   }
   if ( mp_type(p)==mp_known ) {
-    value(p)+=delta;
+    set_value(p, value(p)+delta);
   } else {
-    r=dep_list(p);
-    while ( mp_info(r)!=null ) r=mp_link(r);
+    mp_value_node r; /* list traverser */
+    r=(mp_value_node)dep_list((mp_value_node)p);
+    while ( dep_info(r)!=null ) r=(mp_value_node)mp_link(r);
     delta+=value(r);
-    if ( r!=dep_list(p) ) value(r)=delta;
-    else { mp_recycle_value(mp, p); mp_type(p)=mp_known; value(p)=delta; };
+    if ( r!=(mp_value_node)dep_list((mp_value_node)p) ) set_value(r,delta);
+    else { 
+      mp_recycle_value(mp, p); 
+      mp_type(p)=mp_known; 
+      set_value(p,delta);
+    }
   }
   if ( mp->fix_needed ) mp_fix_dependencies(mp);
 }
 
-@ @<Ensure that |type(p)=mp_proto_dependent|@>=
-if ( mp_type(p)!=mp_proto_dependent ) {
-  if ( mp_type(p)==mp_known ) 
-    mp_new_dep(mp, p,mp_const_dependency(mp, value(p)));
-  else 
-    dep_list(p)=mp_p_times_v(mp, dep_list(p),unity,mp_dependent,
-                             mp_proto_dependent,true);
-  mp_type(p)=mp_proto_dependent;
-}
-
 @ @<Transform a known big node@>=
 mp_set_up_trans(mp, c);
-if ( mp->cur_type==mp_known ) {
+if ( mp->cur_exp.type==mp_known ) {
   @<Transform known by known@>;
 } else { 
-  pp=mp_stash_cur_exp(mp); qq=value(pp);
-  mp_make_exp_copy(mp, p); r=value(mp->cur_exp);
-  if ( mp->cur_type==mp_transform_type ) {
-    mp_bilin2(mp, yy_part_loc(r),yy_part_loc(qq),
-      value(xy_part_loc(q)),yx_part_loc(qq),null);
-    mp_bilin2(mp, yx_part_loc(r),yy_part_loc(qq),
-      value(xx_part_loc(q)),yx_part_loc(qq),null);
-    mp_bilin2(mp, xy_part_loc(r),xx_part_loc(qq),
-      value(yy_part_loc(q)),xy_part_loc(qq),null);
-    mp_bilin2(mp, xx_part_loc(r),xx_part_loc(qq),
-      value(yx_part_loc(q)),xy_part_loc(qq),null);
-  };
-  mp_bilin2(mp, y_part_loc(r),yy_part_loc(qq),
-    value(x_part_loc(q)),yx_part_loc(qq),y_part_loc(qq));
-  mp_bilin2(mp, x_part_loc(r),xx_part_loc(qq),
-    value(y_part_loc(q)),xy_part_loc(qq),x_part_loc(qq));
-  mp_recycle_value(mp, pp); mp_free_node(mp, pp,value_node_size);
+  pp=mp_stash_cur_exp(mp);
+  qq=value_node(pp);
+  mp_make_exp_copy(mp, p); 
+  r=value_node(cur_exp_node());
+  if ( mp->cur_exp.type==mp_transform_type ) {
+    mp_bilin2(mp, yy_part_loc(r),yy_part_loc(qq),value(xy_part_loc(q)),yx_part_loc(qq),null);
+    mp_bilin2(mp, yx_part_loc(r),yy_part_loc(qq),value(xx_part_loc(q)),yx_part_loc(qq),null);
+    mp_bilin2(mp, xy_part_loc(r),xx_part_loc(qq),value(yy_part_loc(q)),xy_part_loc(qq),null);
+    mp_bilin2(mp, xx_part_loc(r),xx_part_loc(qq),value(yx_part_loc(q)),xy_part_loc(qq),null);
+  }
+  mp_bilin2(mp, y_part_loc(r),yy_part_loc(qq),value(x_part_loc(q)),yx_part_loc(qq),y_part_loc(qq));
+  mp_bilin2(mp, x_part_loc(r),xx_part_loc(qq),value(y_part_loc(q)),xy_part_loc(qq),x_part_loc(qq));
+  mp_recycle_value(mp, pp); 
+  mp_free_node(mp, pp,value_node_size);
 }
 
 @ Let |p| be a |mp_proto_dependent| value whose dependency list ends
@@ -21394,11 +23297,11 @@ at |dep_final|. The following procedure adds |v| times another
 numeric quantity to~|p|.
 
 @<Declare subroutines needed by |big_trans|@>=
-static void mp_add_mult_dep (MP mp,pointer p, scaled v, pointer r) { 
+static void mp_add_mult_dep (MP mp,mp_value_node p, scaled v, mp_node r) { 
   if ( mp_type(r)==mp_known ) {
-    value(mp->dep_final)+=mp_take_scaled(mp, value(r),v);
+    dep_value(mp->dep_final) = dep_value(mp->dep_final)+mp_take_scaled(mp, value(r),v);
   } else  { 
-    dep_list(p)=mp_p_plus_fq(mp, dep_list(p),v,dep_list(r),
+    dep_list(p)=(mp_node)mp_p_plus_fq(mp, (mp_value_node)dep_list(p),v,(mp_value_node)dep_list((mp_value_node)r),
 							 mp_proto_dependent,mp_type(r));
     if ( mp->fix_needed ) mp_fix_dependencies(mp);
   }
@@ -21412,25 +23315,27 @@ unless it is |null| (which stands for zero). Location~|p| will be
 replaced by $p\cdot t+v\cdot u+q$.
 
 @<Declare subroutines needed by |big_trans|@>=
-static void mp_bilin2 (MP mp,pointer p, pointer t, scaled v, 
-                pointer u, pointer q) {
+static void mp_bilin2 (MP mp, mp_node p, mp_node t, scaled v, 
+                mp_node u, mp_node q) {
   scaled vv; /* temporary storage for |value(p)| */
-  vv=value(p); mp_type(p)=mp_proto_dependent;
-  mp_new_dep(mp, p,mp_const_dependency(mp, 0)); /* this sets |dep_final| */
+  vv=value(p);
+  mp_new_dep(mp, p, mp_proto_dependent, mp_const_dependency(mp, 0)); /* this sets |dep_final| */
   if ( vv!=0 ) 
-    mp_add_mult_dep(mp, p,vv,t); /* |dep_final| doesn't change */
-  if ( v!=0 ) mp_add_mult_dep(mp, p,v,u);
-  if ( q!=null ) mp_add_mult_dep(mp, p,unity,q);
-  if ( dep_list(p)==mp->dep_final ) {
-    vv=value(mp->dep_final); mp_recycle_value(mp, p);
-    mp_type(p)=mp_known; value(p)=vv;
+    mp_add_mult_dep(mp, (mp_value_node)p, vv, t); /* |dep_final| doesn't change */
+  if ( v!=0 ) mp_add_mult_dep(mp, (mp_value_node)p, v, u);
+  if ( q!=null ) mp_add_mult_dep(mp, (mp_value_node)p, unity, q);
+  if ( dep_list((mp_value_node)p)==(mp_node)mp->dep_final ) {
+    vv=dep_value(mp->dep_final); 
+    mp_recycle_value(mp, p);
+    mp_type(p)=mp_known; 
+    set_value(p,vv);
   }
 }
 
 @ @<Transform known by known@>=
 { 
-  mp_make_exp_copy(mp, p); r=value(mp->cur_exp);
-  if ( mp->cur_type==mp_transform_type ) {
+  mp_make_exp_copy(mp, p); r=value_node(cur_exp_node());
+  if ( mp->cur_exp.type==mp_transform_type ) {
     mp_bilin3(mp, yy_part_loc(r),mp->tyy,value(xy_part_loc(q)),mp->tyx,0);
     mp_bilin3(mp, yx_part_loc(r),mp->tyy,value(xx_part_loc(q)),mp->tyx,0);
     mp_bilin3(mp, xy_part_loc(r),mp->txx,value(yy_part_loc(q)),mp->txy,0);
@@ -21443,61 +23348,62 @@ static void mp_bilin2 (MP mp,pointer p, pointer t, scaled v,
 @ Finally, in |bilin3| everything is |known|.
 
 @<Declare subroutines needed by |big_trans|@>=
-static void mp_bilin3 (MP mp,pointer p, scaled t, 
+static void mp_bilin3 (MP mp,mp_node p, scaled t, 
                scaled v, scaled u, scaled delta) { 
   if ( t!=unity )
     delta+=mp_take_scaled(mp, value(p),t);
   else 
     delta+=value(p);
-  if ( u!=0 ) value(p)=delta+mp_take_scaled(mp, v,u);
-  else value(p)=delta;
+  if ( u!=0 ) 
+    set_value(p,delta+mp_take_scaled(mp, v,u));
+  else 
+    set_value(p,delta);
 }
 
 @ @<Additional cases of binary operators@>=
 case concatenate: 
-  if ( (mp->cur_type==mp_string_type)&&(mp_type(p)==mp_string_type) ) mp_cat(mp, p);
+  if ( (mp->cur_exp.type==mp_string_type)&&(mp_type(p)==mp_string_type) ) mp_cat(mp, p);
   else mp_bad_binary(mp, p,concatenate);
   break;
 case substring_of: 
-  if ( mp_nice_pair(mp, p,mp_type(p))&&(mp->cur_type==mp_string_type) )
-    mp_chop_string(mp, value(p));
+  if ( mp_nice_pair(mp, p,mp_type(p))&&(mp->cur_exp.type==mp_string_type) )
+    mp_chop_string(mp, value_node(p));
   else mp_bad_binary(mp, p,substring_of);
   break;
 case subpath_of: 
-  if ( mp->cur_type==mp_pair_type ) mp_pair_to_path(mp);
-  if ( mp_nice_pair(mp, p,mp_type(p))&&(mp->cur_type==mp_path_type) )
-    mp_chop_path(mp, value(p));
+  if ( mp->cur_exp.type==mp_pair_type ) mp_pair_to_path(mp);
+  if ( mp_nice_pair(mp, p,mp_type(p))&&(mp->cur_exp.type==mp_path_type) )
+    mp_chop_path(mp, value_node(p));
   else mp_bad_binary(mp, p,subpath_of);
   break;
 
 @ @<Declare binary action...@>=
-static void mp_cat (MP mp,pointer p) {
+static void mp_cat (MP mp,mp_node p) {
   str_number a,b; /* the strings being concatenated */
-  integer k; /* run length */
-  integer needed;
-  a=value(p); b=mp->cur_exp; k=length(a);
-  needed=mp->pool_ptr+k+length(b);
-  /* this will free some memory, hopefully */
-  if (mp->pool_ptr>(11*mp->old_pool_size)/10) {
-      mp->old_pool_size = mp->pool_ptr;
-      mp_do_compaction(mp, mp->pool_size);
-  }
-  if ( needed > mp->max_pool_ptr ) {
-    if ( needed > mp->pool_size ) {
-      mp_reallocate_pool(mp,needed);
-    }
-    mp->max_pool_ptr=needed; 
-  }
-  (void)memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[a],(size_t)k);
-  mp->pool_ptr+=k; 
-  k=length(b);
-  (void)memcpy(mp->str_pool+mp->pool_ptr, mp->str_pool+mp->str_start[b],(size_t)k);
-  mp->pool_ptr+=k;
-  mp->cur_exp=mp_make_string(mp); delete_str_ref(b);
+  size_t needed;
+  size_t saved_cur_length = mp->cur_length;
+  unsigned char * saved_cur_string = mp->cur_string;
+  size_t saved_cur_string_size = mp->cur_string_size;
+  mp->cur_length = 0;
+  mp->cur_string = NULL;
+  mp->cur_string_size = 0;
+  a=str_value(p); 
+  b=cur_exp_str(); 
+  needed=length(a)+length(b);
+  str_room(needed);
+  (void)memcpy(mp->cur_string, a->str,a->len);
+  (void)memcpy(mp->cur_string+a->len, b->str, b->len);
+  mp->cur_length = needed;
+  mp->cur_string[needed] = '\0';
+  set_cur_exp_str(mp_make_string(mp)); 
+  delete_str_ref(b);
+  mp->cur_length = saved_cur_length;
+  mp->cur_string = saved_cur_string;
+  mp->cur_string_size = saved_cur_string_size;
 }
 
 @ @<Declare binary action...@>=
-static void mp_chop_string (MP mp,pointer p) {
+static void mp_chop_string (MP mp,mp_node p) {
   integer a, b; /* start and stop points */
   integer l; /* length of the original string */
   integer k; /* runs from |a| to |b| */
@@ -21507,7 +23413,8 @@ static void mp_chop_string (MP mp,pointer p) {
   b=mp_round_unscaled(mp, value(y_part_loc(p)));
   if ( a<=b ) reversed=false;
   else  { reversed=true; k=a; a=b; b=k; };
-  s=mp->cur_exp; l=length(s);
+  s=cur_exp_str(); 
+  l=(integer)length(s);
   if ( a<0 ) { 
     a=0;
     if ( b<0 ) b=0;
@@ -21516,57 +23423,71 @@ static void mp_chop_string (MP mp,pointer p) {
     b=l;
     if ( a>l ) a=l;
   }
-  str_room(b-a);
+  str_room((size_t)(b-a));
   if ( reversed ) {
-    for (k=mp->str_start[s]+b-1;k>=mp->str_start[s]+a;k--)  {
-      append_char(mp->str_pool[k]);
+    for (k=b-1;k>=a;k--)  {
+      append_char(*(s->str+k));
     }
   } else  {
-    for (k=mp->str_start[s]+a;k<mp->str_start[s]+b;k++)  {
-      append_char(mp->str_pool[k]);
+    for (k=a;k<b;k++)  {
+      append_char(*(s->str+k));
     }
   }
-  mp->cur_exp=mp_make_string(mp); delete_str_ref(s);
+  set_cur_exp_str(mp_make_string(mp)); 
+  delete_str_ref(s);
 }
 
 @ @<Declare binary action...@>=
-static void mp_chop_path (MP mp,pointer p) {
-  pointer q; /* a knot in the original path */
-  pointer pp,qq,rr,ss; /* link variables for copies of path nodes */
+static void mp_chop_path (MP mp, mp_node p) {
+  mp_knot q; /* a knot in the original path */
+  mp_knot pp, qq, rr, ss; /* link variables for copies of path nodes */
   scaled a,b,k,l; /* indices for chopping */
   boolean reversed; /* was |a>b|? */
-  l=mp_path_length(mp); a=value(x_part_loc(p)); b=value(y_part_loc(p));
-  if ( a<=b ) reversed=false;
-  else  { reversed=true; k=a; a=b; b=k; };
+  l=mp_path_length(mp); 
+  a=value(x_part_loc(p)); 
+  b=value(y_part_loc(p));
+  if ( a<=b ) {
+    reversed=false;
+  } else { 
+    reversed=true;
+    k=a; 
+    a=b; 
+    b=k; 
+  }
   @<Dispense with the cases |a<0| and/or |b>l|@>;
-  q=mp->cur_exp;
+  q=cur_exp_knot();
   while ( a>=unity ) {
-    q=mp_link(q); a=a-unity; b=b-unity;
+    q=mp_next_knot(q); 
+    a=a-unity; 
+    b=b-unity;
   }
   if ( b==a ) {
     @<Construct a path from |pp| to |qq| of length zero@>; 
   } else { 
     @<Construct a path from |pp| to |qq| of length $\lceil b\rceil$@>; 
   }
-  mp_left_type(pp)=mp_endpoint; mp_right_type(qq)=mp_endpoint; mp_link(qq)=pp;
-  mp_toss_knot_list(mp, mp->cur_exp);
+  mp_left_type(pp)=mp_endpoint; 
+  mp_right_type(qq)=mp_endpoint; 
+  mp_next_knot(qq)=pp;
+  mp_toss_knot_list(mp, cur_exp_knot());
   if ( reversed ) {
-    mp->cur_exp=mp_link(mp_htap_ypoc(mp, pp)); mp_toss_knot_list(mp, pp);
+    set_cur_exp_knot(mp_next_knot(mp_htap_ypoc(mp, pp))); 
+    mp_toss_knot_list(mp, pp);
   } else {
-    mp->cur_exp=pp;
+    set_cur_exp_knot(pp);
   }
 }
 
 @ @<Dispense with the cases |a<0| and/or |b>l|@>=
 if ( a<0 ) {
-  if ( mp_left_type(mp->cur_exp)==mp_endpoint ) {
+  if ( mp_left_type(cur_exp_knot())==mp_endpoint ) {
     a=0; if ( b<0 ) b=0;
   } else  {
     do {  a=a+l; b=b+l; } while (a<0); /* a cycle always has length |l>0| */
   }
 }
 if ( b>l ) {
-  if ( mp_left_type(mp->cur_exp)==mp_endpoint ) {
+  if ( mp_left_type(cur_exp_knot())==mp_endpoint ) {
     b=l; if ( a>l ) a=l;
   } else {
     while ( a>=l ) { 
@@ -21577,62 +23498,74 @@ if ( b>l ) {
 
 @ @<Construct a path from |pp| to |qq| of length $\lceil b\rceil$@>=
 { 
-  pp=mp_copy_knot(mp, q); qq=pp;
+  pp=mp_copy_knot(mp, q);
+  qq=pp;
   do {  
-    q=mp_link(q); rr=qq; qq=mp_copy_knot(mp, q); mp_link(rr)=qq; b=b-unity;
+    q=mp_next_knot(q); 
+    rr=qq; 
+    qq=mp_copy_knot(mp, q); 
+    mp_next_knot(rr)=qq; 
+    b=b-unity;
   } while (b>0);
   if ( a>0 ) {
-    ss=pp; pp=mp_link(pp);
-    mp_split_cubic(mp, ss,a*010000); pp=mp_link(ss);
-    mp_free_node(mp, ss,knot_node_size);
+    ss=pp; 
+    pp=mp_next_knot(pp);
+    mp_split_cubic(mp, ss,a*010000); 
+    pp=mp_next_knot(ss);
+    mp_xfree(ss);
     if ( rr==ss ) {
-      b=mp_make_scaled(mp, b,unity-a); rr=pp;
+      b=mp_make_scaled(mp, b,unity-a); 
+      rr=pp;
     }
   }
   if ( b<0 ) {
     mp_split_cubic(mp, rr,(b+unity)*010000);
-    mp_free_node(mp, qq,knot_node_size);
-    qq=mp_link(rr);
+    mp_xfree(qq);
+    qq=mp_next_knot(rr);
   }
 }
 
 @ @<Construct a path from |pp| to |qq| of length zero@>=
 { 
-  if ( a>0 ) { mp_split_cubic(mp, q,a*010000); q=mp_link(q); };
-  pp=mp_copy_knot(mp, q); qq=pp;
+  if ( a>0 ) { 
+    mp_split_cubic(mp, q,a*010000); 
+    q=mp_next_knot(q); 
+  }
+  pp=mp_copy_knot(mp, q); 
+  qq=pp;
 }
 
 @ @<Additional cases of binary operators@>=
 case point_of: case precontrol_of: case postcontrol_of: 
-  if ( mp->cur_type==mp_pair_type )
+  if ( mp->cur_exp.type==mp_pair_type )
      mp_pair_to_path(mp);
-  if ( (mp->cur_type==mp_path_type)&&(mp_type(p)==mp_known) )
+  if ( (mp->cur_exp.type==mp_path_type)&&(mp_type(p)==mp_known) )
     mp_find_point(mp, value(p), (quarterword)c);
   else 
     mp_bad_binary(mp, p, (quarterword)c);
   break;
 case pen_offset_of: 
-  if ( (mp->cur_type==mp_pen_type)&& mp_nice_pair(mp, p,mp_type(p)) )
-    mp_set_up_offset(mp, value(p));
+  if ( (mp->cur_exp.type==mp_pen_type)&& mp_nice_pair(mp, p,mp_type(p)) )
+    mp_set_up_offset(mp, value_node(p));
   else 
     mp_bad_binary(mp, p,pen_offset_of);
   break;
 case direction_time_of: 
-  if ( mp->cur_type==mp_pair_type ) mp_pair_to_path(mp);
-  if ( (mp->cur_type==mp_path_type)&& mp_nice_pair(mp, p,mp_type(p)) )
-    mp_set_up_direction_time(mp, value(p));
+  if ( mp->cur_exp.type==mp_pair_type ) mp_pair_to_path(mp);
+  if ( (mp->cur_exp.type==mp_path_type)&& mp_nice_pair(mp, p,mp_type(p)) )
+    mp_set_up_direction_time(mp, value_node(p));
   else 
     mp_bad_binary(mp, p,direction_time_of);
   break;
 case envelope_of:
-  if ( (mp_type(p) != mp_pen_type) || (mp->cur_type != mp_path_type) )
+  if ( (mp_type(p) != mp_pen_type) || (mp->cur_exp.type != mp_path_type) )
     mp_bad_binary(mp, p,envelope_of);
   else
     mp_set_up_envelope(mp, p);
   break;
 case glyph_infont:
   if ( (mp_type(p) != mp_string_type &&
-        mp_type(p) != mp_known) || (mp->cur_type != mp_string_type) )
+        mp_type(p) != mp_known) || (mp->cur_exp.type != mp_string_type) )
     mp_bad_binary(mp, p,glyph_infont);
   else
     mp_set_up_glyph_infont(mp, p);
@@ -21640,37 +23573,39 @@ case glyph_infont:
   break;
 
 @ @<Declare binary action...@>=
-static void mp_set_up_offset (MP mp,pointer p) { 
-  mp_find_offset(mp, value(x_part_loc(p)),value(y_part_loc(p)),mp->cur_exp);
+static void mp_set_up_offset (MP mp,mp_node p) { 
+  mp_find_offset(mp, value(x_part_loc(p)),value(y_part_loc(p)),cur_exp_knot());
   mp_pair_value(mp, mp->cur_x,mp->cur_y);
 }
-static void mp_set_up_direction_time (MP mp,pointer p) { 
-  mp_flush_cur_exp(mp, mp_find_direction_time(mp, value(x_part_loc(p)),
-  value(y_part_loc(p)),mp->cur_exp));
+static void mp_set_up_direction_time (MP mp,mp_node p) { 
+  mp_value new_expr;
+  new_expr.data.val = mp_find_direction_time(mp, value(x_part_loc(p)),
+                   value(y_part_loc(p)),cur_exp_knot());
+  mp_flush_cur_exp(mp, new_expr);
 }
-static void mp_set_up_envelope (MP mp,pointer p) {
+static void mp_set_up_envelope (MP mp,mp_node p) {
   quarterword ljoin, lcap;
   scaled miterlim;
-  pointer q = mp_copy_path(mp, mp->cur_exp); /* the original path */
+  mp_knot q = mp_copy_path(mp, cur_exp_knot()); /* the original path */
   /* TODO: accept elliptical pens for straight paths */
-  if (pen_is_elliptical(value(p))) {
+  if (pen_is_elliptical(knot_value(p))) {
     mp_bad_envelope_pen(mp);
-    mp->cur_exp = q;
-    mp->cur_type = mp_path_type;
+    set_cur_exp_knot(q);
+    mp->cur_exp.type = mp_path_type;
     return;
   }
-  if ( mp->internal[mp_linejoin]>unity ) ljoin=2;
-  else if ( mp->internal[mp_linejoin]>0 ) ljoin=1;
+  if ( internal_value(mp_linejoin)>unity ) ljoin=2;
+  else if ( internal_value(mp_linejoin)>0 ) ljoin=1;
   else ljoin=0;
-  if ( mp->internal[mp_linecap]>unity ) lcap=2;
-  else if ( mp->internal[mp_linecap]>0 ) lcap=1;
+  if ( internal_value(mp_linecap)>unity ) lcap=2;
+  else if ( internal_value(mp_linecap)>0 ) lcap=1;
   else lcap=0;
-  if ( mp->internal[mp_miterlimit]<unity )
+  if ( internal_value(mp_miterlimit)<unity )
     miterlim=unity;
   else
-    miterlim=mp->internal[mp_miterlimit];
-  mp->cur_exp = mp_make_envelope(mp, q, value(p), ljoin,lcap,miterlim);
-  mp->cur_type = mp_path_type;
+    miterlim=internal_value(mp_miterlimit);
+  set_cur_exp_knot(mp_make_envelope(mp, q, knot_value(p), ljoin,lcap,miterlim));
+  mp->cur_exp.type = mp_path_type;
 }
 
 
@@ -21678,10 +23613,10 @@ static void mp_set_up_envelope (MP mp,pointer p) {
 the output of |mp_ps_do_font_charstring| has to be un-exported.
 
 @<Declare binary action...@>=
-static void mp_set_up_glyph_infont (MP mp, pointer p) {
+static void mp_set_up_glyph_infont (MP mp, mp_node p) {
   mp_edge_object *h = NULL;
   mp_ps_font *f = NULL;
-  char *n = mp_str(mp, mp->cur_exp);
+  char *n = mp_str(mp, cur_exp_str());
   f = mp_ps_font_parse(mp, (int)mp_find_font(mp, n));
   if (f!=NULL) {
     if (mp_type(p) == mp_known) {
@@ -21695,28 +23630,31 @@ static void mp_set_up_glyph_infont (MP mp, pointer p) {
         h = mp_ps_font_charstring (mp,f,v);
       }
     } else {
-      n = mp_str(mp, value(p));
+      n = mp_str(mp, str_value(p));
       h = mp_ps_do_font_charstring (mp,f,n);
-      free(n);
     }
     mp_ps_font_free(mp,f);
   }
   if (h!=NULL) {
-    mp->cur_exp=mp_gr_unexport(mp, h); 
+    set_cur_exp_node(mp_gr_unexport(mp, h)); 
   } else {
-    mp->cur_exp=mp_get_node(mp, edge_header_size); 
-    mp_init_edges(mp, mp->cur_exp); 
+    set_cur_exp_node(mp_get_edge_header_node(mp)); 
+    mp_init_edges(mp, cur_exp_node()); 
   }
-  mp->cur_type=mp_picture_type;
+  mp->cur_exp.type=mp_picture_type;
 }
 
 @ @<Declare binary action...@>=
 static void mp_find_point (MP mp,scaled v, quarterword c) {
-  pointer p; /* the path */
+  mp_knot p; /* the path */
   scaled n; /* its length */
-  p=mp->cur_exp;
-  if ( mp_left_type(p)==mp_endpoint ) n=-unity; else n=0;
-  do {  p=mp_link(p); n=n+unity; } while (p!=mp->cur_exp);
+  p=cur_exp_knot();
+  if ( mp_left_type(p)==mp_endpoint ) n=-unity;
+  else n=0;
+  do { 
+    p=mp_next_knot(p);
+    n=n+unity; 
+  } while (p != cur_exp_knot());
   if ( n==0 ) { 
     v=0; 
   } else if ( v<0 ) {
@@ -21726,8 +23664,11 @@ static void mp_find_point (MP mp,scaled v, quarterword c) {
     if ( mp_left_type(p)==mp_endpoint ) v=n;
     else v=v % n;
   }
-  p=mp->cur_exp;
-  while ( v>=unity ) { p=mp_link(p); v=v-unity;  };
+  p=cur_exp_knot();
+  while ( v>=unity ) { 
+    p=mp_next_knot(p); 
+    v=v-unity;  
+  }
   if ( v!=0 ) {
      @<Insert a fractional node by splitting the cubic@>;
   }
@@ -21735,7 +23676,10 @@ static void mp_find_point (MP mp,scaled v, quarterword c) {
 }
 
 @ @<Insert a fractional node...@>=
-{ mp_split_cubic(mp, p,v*010000); p=mp_link(p); }
+{ 
+  mp_split_cubic(mp, p,v*010000); 
+  p=mp_next_knot(p); 
+}
 
 @ @<Set the current expression to the desired path coordinates...@>=
 switch (c) {
@@ -21743,34 +23687,44 @@ case point_of:
   mp_pair_value(mp, mp_x_coord(p),mp_y_coord(p));
   break;
 case precontrol_of: 
-  if ( mp_left_type(p)==mp_endpoint ) mp_pair_value(mp, mp_x_coord(p),mp_y_coord(p));
-  else mp_pair_value(mp, mp_left_x(p),mp_left_y(p));
+  if ( mp_left_type(p)==mp_endpoint ) 
+    mp_pair_value(mp, mp_x_coord(p),mp_y_coord(p));
+  else 
+    mp_pair_value(mp, mp_left_x(p),mp_left_y(p));
   break;
 case postcontrol_of: 
-  if ( mp_right_type(p)==mp_endpoint ) mp_pair_value(mp, mp_x_coord(p),mp_y_coord(p));
-  else mp_pair_value(mp, mp_right_x(p),mp_right_y(p));
+  if ( mp_right_type(p)==mp_endpoint ) 
+    mp_pair_value(mp, mp_x_coord(p),mp_y_coord(p));
+  else 
+    mp_pair_value(mp, mp_right_x(p),mp_right_y(p));
   break;
 } /* there are no other cases */
 
 @ @<Additional cases of binary operators@>=
 case arc_time_of: 
-  if ( mp->cur_type==mp_pair_type )
+  if ( mp->cur_exp.type==mp_pair_type )
      mp_pair_to_path(mp);
-  if ( (mp->cur_type==mp_path_type)&&(mp_type(p)==mp_known) )
-    mp_flush_cur_exp(mp, mp_get_arc_time(mp, mp->cur_exp,value(p)));
-  else 
+  if ( (mp->cur_exp.type==mp_path_type)&&(mp_type(p)==mp_known) ) {
+    new_expr.data.val = mp_get_arc_time(mp, cur_exp_knot(),value(p));
+    mp_flush_cur_exp(mp, new_expr);
+  } else {
     mp_bad_binary(mp, p, (quarterword)c);
+  }
   break;
 
 @ @<Additional cases of bin...@>=
 case intersect: 
   if ( mp_type(p)==mp_pair_type ) {
-    q=mp_stash_cur_exp(mp); mp_unstash_cur_exp(mp, p);
-    mp_pair_to_path(mp); p=mp_stash_cur_exp(mp); mp_unstash_cur_exp(mp, q);
-  };
-  if ( mp->cur_type==mp_pair_type ) mp_pair_to_path(mp);
-  if ( (mp->cur_type==mp_path_type)&&(mp_type(p)==mp_path_type) ) {
-    mp_path_intersection(mp, value(p),mp->cur_exp);
+    q=mp_stash_cur_exp(mp); 
+    mp_unstash_cur_exp(mp, p);
+    mp_pair_to_path(mp); 
+    p=mp_stash_cur_exp(mp); 
+    mp_unstash_cur_exp(mp, q);
+  }
+  if ( mp->cur_exp.type==mp_pair_type ) 
+    mp_pair_to_path(mp);
+  if ( (mp->cur_exp.type==mp_path_type)&&(mp_type(p)==mp_path_type) ) {
+    mp_path_intersection(mp, knot_value(p), cur_exp_knot());
     mp_pair_value(mp, mp->cur_t,mp->cur_tt);
   } else {
     mp_bad_binary(mp, p,intersect);
@@ -21779,24 +23733,29 @@ case intersect:
 
 @ @<Additional cases of bin...@>=
 case in_font:
-  if ( (mp->cur_type!=mp_string_type)||mp_type(p)!=mp_string_type) 
+  if ( (mp->cur_exp.type!=mp_string_type)||mp_type(p)!=mp_string_type) {
     mp_bad_binary(mp, p,in_font);
-  else { mp_do_infont(mp, p); binary_return; }
+  } else { 
+    mp_do_infont(mp, p);
+    binary_return; 
+  }
   break;
 
 @ Function |new_text_node| owns the reference count for its second argument
 (the text string) but not its first (the font name).
 
 @<Declare binary action...@>=
-static void mp_do_infont (MP mp,pointer p) {
-  pointer q;
-  q=mp_get_node(mp, edge_header_size);
+static void mp_do_infont (MP mp,mp_node p) {
+  mp_node q;
+  mp_value new_expr;
+  q=mp_get_edge_header_node(mp);
   mp_init_edges(mp, q);
-  mp_link(obj_tail(q))=mp_new_text_node(mp,str(mp->cur_exp),value(p));
+  mp_link(obj_tail(q))=mp_new_text_node(mp,mp_str(mp,cur_exp_str()),str_value(p));
   obj_tail(q)=mp_link(obj_tail(q));
   mp_free_node(mp, p,value_node_size);
-  mp_flush_cur_exp(mp, q);
-  mp->cur_type=mp_picture_type;
+  new_expr.data.node = q;
+  mp_flush_cur_exp(mp, new_expr);
+  mp->cur_exp.type=mp_picture_type;
 }
 
 @* \[40] Statements and commands.
@@ -21824,7 +23783,9 @@ to interpret a statement that starts with, e.g., `\&{string}',
 as a type declaration rather than a boolean expression.
 
 @c void mp_do_statement (MP mp) { /* governs \MP's activities */
-  mp->cur_type=mp_vacuous; mp_get_x_next(mp);
+  mp_value new_expr;
+  mp->cur_exp.type=mp_vacuous;
+  mp_get_x_next(mp);
   if ( mp->cur_cmd>max_primary_command ) {
     @<Worry about bad statement@>;
   } else if ( mp->cur_cmd>max_statement_command ) {
@@ -21891,7 +23852,7 @@ expression.
 
 @<Do a statement that doesn't...@>=
 { 
-  if ( mp->internal[mp_tracing_commands]>0 ) 
+  if ( internal_value(mp_tracing_commands)>0 ) 
     show_cur_cmd_mod;
   switch (mp->cur_cmd ) {
   case type_name:mp_do_type_declaration(mp); break;
@@ -21901,19 +23862,20 @@ expression.
      break;
   @<Cases of |do_statement| that invoke particular commands@>;
   } /* there are no other cases */
-  mp->cur_type=mp_vacuous;
+  mp->cur_exp.type=mp_vacuous;
 }
 
 @ The most important statements begin with expressions.
 
 @<Do an equation, assignment, title, or...@>=
 { 
-  mp->var_flag=assignment; mp_scan_expression(mp);
+  mp->var_flag=assignment; 
+  mp_scan_expression(mp);
   if ( mp->cur_cmd<end_group ) {
     if ( mp->cur_cmd==equals ) mp_do_equation(mp);
     else if ( mp->cur_cmd==assignment ) mp_do_assignment(mp);
-    else if ( mp->cur_type==mp_string_type ) {@<Do a title@> ; }
-    else if ( mp->cur_type!=mp_vacuous ){ 
+    else if ( mp->cur_exp.type==mp_string_type ) {@<Do a title@> ; }
+    else if ( mp->cur_exp.type!=mp_vacuous ){ 
       exp_err("Isolated expression");
 @.Isolated expression@>
       help3("I couldn't find an `=' or `:=' after the",
@@ -21921,14 +23883,18 @@ expression.
         "so I guess I'll just ignore it and carry on.");
       mp_put_get_error(mp);
     }
-    mp_flush_cur_exp(mp, 0); mp->cur_type=mp_vacuous;
+    new_expr.data.val = 0;
+    mp_flush_cur_exp(mp, new_expr); 
+    mp->cur_exp.type=mp_vacuous;
   }
 }
 
 @ @<Do a title@>=
 { 
-  if ( mp->internal[mp_tracing_titles]>0 ) {
-    mp_print_nl(mp, "");  mp_print_str(mp, mp->cur_exp); update_terminal;
+  if ( internal_value(mp_tracing_titles)>0 ) {
+    mp_print_nl(mp, "");  
+    mp_print_str(mp, cur_exp_str()); 
+    update_terminal;
   }
 }
 
@@ -21947,15 +23913,15 @@ static void mp_do_equation (MP mp) ;
 
 @ @c
 void mp_do_equation (MP mp) {
-  pointer lhs; /* capsule for the left-hand side */
-  pointer p; /* temporary register */
+  mp_node lhs; /* capsule for the left-hand side */
+  mp_node p; /* temporary register */
   lhs=mp_stash_cur_exp(mp); mp_get_x_next(mp); 
   mp->var_flag=assignment; mp_scan_expression(mp);
   if ( mp->cur_cmd==equals ) mp_do_equation(mp);
   else if ( mp->cur_cmd==assignment ) mp_do_assignment(mp);
-  if ( mp->internal[mp_tracing_commands]>two ) 
+  if ( internal_value(mp_tracing_commands)>two ) 
     @<Trace the current equation@>;
-  if ( mp->cur_type==mp_unknown_path ) if ( mp_type(lhs)==mp_pair_type ) {
+  if ( mp->cur_exp.type==mp_unknown_path ) if ( mp_type(lhs)==mp_pair_type ) {
     p=mp_stash_cur_exp(mp); mp_unstash_cur_exp(mp, lhs); lhs=p;
   }; /* in this case |make_eq| will change the pair to a path */
   mp_make_eq(mp, lhs); /* equate |lhs| to |(cur_type,cur_exp)| */
@@ -21968,23 +23934,28 @@ static void mp_do_assignment (MP mp);
 
 @ @c
 void mp_do_assignment (MP mp) {
-  pointer lhs; /* token list for the left-hand side */
-  pointer p; /* where the left-hand value is stored */
-  pointer q; /* temporary capsule for the right-hand value */
-  if ( mp->cur_type!=mp_token_list ) { 
+  mp_node lhs; /* token list for the left-hand side */
+  mp_node p; /* where the left-hand value is stored */
+  mp_node q; /* temporary capsule for the right-hand value */
+  if ( mp->cur_exp.type!=mp_token_list ) { 
     exp_err("Improper `:=' will be changed to `='");
 @.Improper `:='@>
     help2("I didn't find a variable name at the left of the `:=',",
           "so I'm going to pretend that you said `=' instead.");
     mp_error(mp); mp_do_equation(mp);
   } else { 
-    lhs=mp->cur_exp; mp->cur_type=mp_vacuous;
-    mp_get_x_next(mp); mp->var_flag=assignment; mp_scan_expression(mp);
-    if ( mp->cur_cmd==equals ) mp_do_equation(mp);
-    else if ( mp->cur_cmd==assignment ) mp_do_assignment(mp);
-    if ( mp->internal[mp_tracing_commands]>two ) 
+    lhs=cur_exp_node(); 
+    mp->cur_exp.type=mp_vacuous;
+    mp_get_x_next(mp); 
+    mp->var_flag=assignment; 
+    mp_scan_expression(mp);
+    if ( mp->cur_cmd==equals ) 
+      mp_do_equation(mp);
+    else if ( mp->cur_cmd==assignment ) 
+      mp_do_assignment(mp);
+    if ( internal_value(mp_tracing_commands)>two ) 
       @<Trace the current assignment@>;
-    if ( mp_info(lhs)>hash_end ) {
+    if ( mp_name_type(lhs) == mp_internal_sym ) {
       @<Assign the current expression to an internal variable@>;
     } else  {
       @<Assign the current expression to the variable |lhs|@>;
@@ -21995,54 +23966,61 @@ void mp_do_assignment (MP mp) {
 
 @ @<Trace the current equation@>=
 { 
-  mp_begin_diagnostic(mp); mp_print_nl(mp, "{("); mp_print_exp(mp,lhs,0);
-  mp_print(mp,")=("); mp_print_exp(mp,null,0); 
-  mp_print(mp,")}"); mp_end_diagnostic(mp, false);
+  mp_begin_diagnostic(mp); 
+  mp_print_nl(mp, "{("); 
+  mp_print_exp(mp,lhs,0);
+  mp_print(mp,")=("); 
+  mp_print_exp(mp,null,0); 
+  mp_print(mp,")}"); 
+  mp_end_diagnostic(mp, false);
 }
 
 @ @<Trace the current assignment@>=
 { 
-  mp_begin_diagnostic(mp); mp_print_nl(mp, "{");
-  if ( mp_info(lhs)>hash_end ) 
-     mp_print(mp, mp->int_name[mp_info(lhs)-(hash_end)]);
+  mp_begin_diagnostic(mp);
+  mp_print_nl(mp, "{");
+  if ( mp_name_type(lhs) == mp_internal_sym ) 
+     mp_print(mp, internal_name(mp_sym_info(lhs)));
   else 
      mp_show_token_list(mp, lhs,null,1000,0);
-  mp_print(mp, ":="); mp_print_exp(mp, null,0); 
-  mp_print_char(mp, xord('}')); mp_end_diagnostic(mp, false);
+  mp_print(mp, ":=");
+  mp_print_exp(mp, null,0); 
+  mp_print_char(mp, xord('}'));
+  mp_end_diagnostic(mp, false);
 }
 
 @ @<Assign the current expression to an internal variable@>=
-if ( mp->cur_type==mp_known || mp->cur_type==mp_string_type )  {
-  if (mp->cur_type==mp_string_type) {
-    if (mp->int_type[mp_info(lhs)-(hash_end)]!=mp->cur_type) {
+if ( mp->cur_exp.type==mp_known || mp->cur_exp.type==mp_string_type )  {
+  if (mp->cur_exp.type==mp_string_type) {
+    if (internal_type(mp_sym_info(lhs))!=mp->cur_exp.type) {
        exp_err("Internal quantity `");
 @.Internal quantity...@>
-       mp_print(mp, mp->int_name[mp_info(lhs)-(hash_end)]);
+       mp_print(mp, internal_name(mp_sym_info(lhs)));
        mp_print(mp, "' must receive a known numeric value");
        help2("I can\'t set this internal quantity to anything but a known",
              "numeric value, so I'll have to ignore this assignment.");
       mp_put_get_error(mp);
     } else {
-      add_str_ref(mp->cur_exp);
-      mp->internal[mp_info(lhs)-(hash_end)]=mp->cur_exp;
+      add_str_ref(cur_exp_str());
+      internal_string(mp_sym_info(lhs))=cur_exp_str();
     }
   } else { /* mp_known */
-    if (mp->int_type[mp_info(lhs)-(hash_end)]!=mp->cur_type) {
+    if (internal_type(mp_sym_info(lhs))!=mp->cur_exp.type) {
        exp_err("Internal quantity `");
 @.Internal quantity...@>
-       mp_print(mp, mp->int_name[mp_info(lhs)-(hash_end)]);
+       mp_print(mp, internal_name(mp_sym_info(lhs)));
        mp_print(mp, "' must receive a known string");
        help2("I can\'t set this internal quantity to anything but a known",
              "string, so I'll have to ignore this assignment.");
       mp_put_get_error(mp);
     } else {
-      mp->internal[mp_info(lhs)-(hash_end)]=mp->cur_exp;
+      internal_value(mp_sym_info(lhs))=cur_exp_value();
     }
   }
 } else { 
   exp_err("Internal quantity `");
 @.Internal quantity...@>
-  mp_print(mp, mp->int_name[mp_info(lhs)-(hash_end)]);
+  mp_print(mp, internal_name(mp_sym_info(lhs)));
   mp_print(mp, "' must receive a known numeric or string");
   help2("I can\'t set an internal quantity to anything but a known string",
         "or known numeric value, so I'll have to ignore this assignment.");
@@ -22053,12 +24031,18 @@ if ( mp->cur_type==mp_known || mp->cur_type==mp_string_type )  {
 { 
   p=mp_find_variable(mp, lhs);
   if ( p!=null ) {
-    q=mp_stash_cur_exp(mp); mp->cur_type=mp_und_type(mp, p); 
+    q=mp_stash_cur_exp(mp); 
+    mp->cur_exp.type=mp_und_type(mp, p); 
     mp_recycle_value(mp, p);
-    mp_type(p)=mp->cur_type; value(p)=null; mp_make_exp_copy(mp, p);
-    p=mp_stash_cur_exp(mp); mp_unstash_cur_exp(mp, q); mp_make_eq(mp, p);
+    mp_type(p)=mp->cur_exp.type; 
+    set_value(p,null); 
+    mp_make_exp_copy(mp, p);
+    p=mp_stash_cur_exp(mp); 
+    mp_unstash_cur_exp(mp, q); 
+    mp_make_eq(mp, p);
   } else  { 
-    mp_obliterated(mp, lhs); mp_put_get_error(mp);
+    mp_obliterated(mp, lhs); 
+    mp_put_get_error(mp);
   }
 }
 
@@ -22067,13 +24051,14 @@ if ( mp->cur_type==mp_known || mp->cur_type==mp_string_type )  {
 a pointer to a capsule that is to be equated to the current expression.
 
 @<Declare the procedure called |make_eq|@>=
-static void mp_make_eq (MP mp,pointer lhs) ;
+static void mp_make_eq (MP mp,mp_node lhs) ;
 
 
 @ 
-@c void mp_make_eq (MP mp,pointer lhs) {
-  quarterword t; /* type of the left-hand side */
-  pointer p,q; /* pointers inside of big nodes */
+@c void mp_make_eq (MP mp,mp_node lhs) {
+  mp_value new_expr;
+  mp_variable_type t; /* type of the left-hand side */
+  mp_node p; /* pointer inside of big nodes */
   integer v=0; /* value of the left-hand side */
 RESTART: 
   t=mp_type(lhs);
@@ -22081,7 +24066,9 @@ RESTART:
   switch (t) {
   @<For each type |t|, make an equation and |goto done| unless |cur_type|
     is incompatible with~|t|@>;
-  } /* all cases have been listed */
+  default:  /* there are no other valid cases, but please the compiler */
+    break;
+  } /* all valid cases have been listed */
   @<Announce that the equation cannot be performed@>;
 DONE:
   check_arith; mp_recycle_value(mp, lhs); 
@@ -22095,7 +24082,7 @@ exp_err("Equation cannot be performed (");
 if ( mp_type(lhs)<=mp_pair_type ) mp_print_type(mp, mp_type(lhs));
 else mp_print(mp, "numeric");
 mp_print_char(mp, xord('='));
-if ( mp->cur_type<=mp_pair_type ) mp_print_type(mp, mp->cur_type);
+if ( mp->cur_exp.type<=mp_pair_type ) mp_print_type(mp, mp->cur_exp.type);
 else mp_print(mp, "numeric");
 mp_print_char(mp, xord(')'));
 help2("I'm sorry, but I don't know how to make such things equal.",
@@ -22103,49 +24090,60 @@ help2("I'm sorry, but I don't know how to make such things equal.",
 mp_put_get_error(mp)
 
 @ @<For each type |t|, make an equation and |goto done| unless...@>=
-case mp_boolean_type: case mp_string_type: case mp_pen_type:
-case mp_path_type: case mp_picture_type:
-  if ( mp->cur_type==t+unknown_tag ) { 
-    mp_nonlinear_eq(mp, v,mp->cur_exp,false); 
-    mp_unstash_cur_exp(mp, mp->cur_exp); goto DONE;
-  } else if ( mp->cur_type==t ) {
+case mp_boolean_type:
+case mp_string_type:
+case mp_pen_type:
+case mp_path_type:
+case mp_picture_type:
+  if ( mp->cur_exp.type==t+unknown_tag ) { 
+    new_expr.data.val = v;
+    mp_nonlinear_eq(mp, new_expr, cur_exp_node(), false); 
+    mp_unstash_cur_exp(mp, cur_exp_node()); 
+    goto DONE;
+  } else if ( mp->cur_exp.type==t ) {
     @<Report redundant or inconsistent equation and |goto done|@>;
   }
   break;
 case unknown_types:
-  if ( mp->cur_type==t-unknown_tag ) { 
-    mp_nonlinear_eq(mp, mp->cur_exp,lhs,true); goto DONE;
-  } else if ( mp->cur_type==t ) { 
-    mp_ring_merge(mp, lhs,mp->cur_exp); goto DONE;
-  } else if ( mp->cur_type==mp_pair_type ) {
+  if ( mp->cur_exp.type==t-unknown_tag ) { 
+    mp_nonlinear_eq(mp, mp->cur_exp,lhs,true); 
+    goto DONE;
+  } else if ( mp->cur_exp.type==t ) { 
+    mp_ring_merge(mp, lhs,cur_exp_node()); 
+    goto DONE;
+  } else if ( mp->cur_exp.type==mp_pair_type ) {
     if ( t==mp_unknown_path ) { 
-     mp_pair_to_path(mp); goto RESTART;
-    };
+      mp_pair_to_path(mp); 
+      goto RESTART;
+    }
   }
   break;
-case mp_transform_type: case mp_color_type:
-case mp_cmykcolor_type: case mp_pair_type:
-  if ( mp->cur_type==t ) {
+case mp_transform_type: 
+case mp_color_type:
+case mp_cmykcolor_type: 
+case mp_pair_type:
+  if ( mp->cur_exp.type==t ) {
     @<Do multiple equations and |goto done|@>;
   }
   break;
 case mp_known: case mp_dependent:
 case mp_proto_dependent: case mp_independent:
-  if ( mp->cur_type>=mp_known ) { 
-    mp_try_eq(mp, lhs,null); goto DONE;
-  };
+  if ( mp->cur_exp.type>=mp_known ) { 
+    mp_try_eq(mp, lhs,null);
+    goto DONE;
+  }
   break;
 case mp_vacuous:
   break;
 
 @ @<Report redundant or inconsistent equation and |goto done|@>=
 { 
-  if ( mp->cur_type<=mp_string_type ) {
-    if ( mp->cur_type==mp_string_type ) {
-      if ( mp_str_vs_str(mp, v,mp->cur_exp)!=0 ) {
+  if ( mp->cur_exp.type<=mp_string_type ) {
+    if ( mp->cur_exp.type==mp_string_type ) {
+      if ( mp_str_vs_str(mp, str_value(lhs), cur_exp_str())!=0 ) {
         goto NOT_FOUND;
       }
-    } else if ( v!=mp->cur_exp ) {
+    } else if ( v != cur_exp_value() ) {
       goto NOT_FOUND;
     }
     @<Exclaim about a redundant equation@>; goto DONE;
@@ -22165,11 +24163,34 @@ NOT_FOUND:
 
 @ @<Do multiple equations and |goto done|@>=
 { 
-  p=v+mp->big_node_size[t]; 
-  q=value(mp->cur_exp)+mp->big_node_size[t];
-  do {  
-    p=p-2; q=q-2; mp_try_eq(mp, p,q);
-  } while (p!=v);
+  p = value_node(lhs);
+  switch(t) {
+  case mp_transform_type: 
+    mp_try_eq(mp, yy_part_loc(p), yy_part_loc(value_node(cur_exp_node())));
+    mp_try_eq(mp, yx_part_loc(p), yx_part_loc(value_node(cur_exp_node())));
+    mp_try_eq(mp, xy_part_loc(p), xy_part_loc(value_node(cur_exp_node())));
+    mp_try_eq(mp, xx_part_loc(p), xx_part_loc(value_node(cur_exp_node())));
+    mp_try_eq(mp, ty_part_loc(p), ty_part_loc(value_node(cur_exp_node())));
+    mp_try_eq(mp, tx_part_loc(p), tx_part_loc(value_node(cur_exp_node())));
+    break;
+  case mp_color_type:
+    mp_try_eq(mp, blue_part_loc(p), blue_part_loc(value_node(cur_exp_node())));
+    mp_try_eq(mp, green_part_loc(p), green_part_loc(value_node(cur_exp_node())));
+    mp_try_eq(mp, red_part_loc(p), red_part_loc(value_node(cur_exp_node())));
+    break;
+  case mp_cmykcolor_type: 
+    mp_try_eq(mp, black_part_loc(p), black_part_loc(value_node(cur_exp_node())));
+    mp_try_eq(mp, yellow_part_loc(p), yellow_part_loc(value_node(cur_exp_node())));
+    mp_try_eq(mp, magenta_part_loc(p), magenta_part_loc(value_node(cur_exp_node())));
+    mp_try_eq(mp, cyan_part_loc(p), cyan_part_loc(value_node(cur_exp_node())));
+    break;
+  case mp_pair_type:
+    mp_try_eq(mp, y_part_loc(p), y_part_loc(value_node(cur_exp_node())));
+    mp_try_eq(mp, x_part_loc(p), x_part_loc(value_node(cur_exp_node())));
+    break;
+  default:  /* there are no other valid cases, but please the compiler */
+    break;
+  }
   goto DONE;
 }
 
@@ -22181,27 +24202,29 @@ serves as the second argument). The idea is to leave |cur_exp| unchanged,
 but to equate the two operands.
 
 @<Declarations@>=
-static void mp_try_eq (MP mp,pointer l, pointer r) ;
+static void mp_try_eq (MP mp,mp_node l, mp_node r) ;
 
 @ 
-@c void mp_try_eq (MP mp,pointer l, pointer r) {
-  pointer p; /* dependency list for right operand minus left operand */
-  int t; /* the type of list |p| */
-  pointer q; /* the constant term of |p| is here */
-  pointer pp; /* dependency list for right operand */
-  int tt; /* the type of list |pp| */
+@c void mp_try_eq (MP mp,mp_node l, mp_node r) {
+  mp_value_node p; /* dependency list for right operand minus left operand */
+  mp_variable_type t; /* the type of list |p| */
+  mp_value_node q; /* the constant term of |p| is here */
+  mp_value_node pp; /* dependency list for right operand */
+  mp_variable_type tt; /* the type of list |pp| */
   boolean copied; /* have we copied a list that ought to be recycled? */
   @<Remove the left operand from its container, negate it, and
     put it into dependency list~|p| with constant term~|q|@>;
   @<Add the right operand to list |p|@>;
-  if ( mp_info(p)==null ) {
+  if ( dep_info(p)==null ) {
     @<Deal with redundant or inconsistent equation@>;
   } else { 
     mp_linear_eq(mp, p, (quarterword)t);
-    if ( r==null ) if ( mp->cur_type!=mp_known ) {
-      if ( mp_type(mp->cur_exp)==mp_known ) {
-        pp=mp->cur_exp; mp->cur_exp=value(mp->cur_exp); mp->cur_type=mp_known;
-        mp_free_node(mp, pp,value_node_size);
+    if ( r==null && mp->cur_exp.type!=mp_known ) {
+      if ( mp_type(cur_exp_node())==mp_known ) {
+        mp_node pp=cur_exp_node();
+        set_cur_exp_value(value(pp));
+        mp->cur_exp.type=mp_known;
+        mp_free_node(mp, pp, value_node_size);
       }
     }
   }
@@ -22210,19 +24233,26 @@ static void mp_try_eq (MP mp,pointer l, pointer r) ;
 @ @<Remove the left operand from its container, negate it, and...@>=
 t=mp_type(l);
 if ( t==mp_known ) { 
-  t=mp_dependent; p=mp_const_dependency(mp, -value(l)); q=p;
+  t=mp_dependent;
+  p=mp_const_dependency(mp, -value(l));
+  q=p;
 } else if ( t==mp_independent ) {
-  t=mp_dependent; p=mp_single_dependency(mp, l); negate(value(p));
+  t=mp_dependent;
+  p=mp_single_dependency(mp, l);
+  negate(dep_value(p));
   q=mp->dep_final;
 } else { 
-  p=dep_list(l); q=p;
+  mp_value_node ll = (mp_value_node)l;
+  p=(mp_value_node)dep_list(ll);
+  q=p;
   while (1) { 
-    negate(value(q));
-    if ( mp_info(q)==null ) break;
-    q=mp_link(q);
+    negate(dep_value(q));
+    if ( dep_info(q)==null ) break;
+    q=(mp_value_node)mp_link(q);
   }
-  mp_link(prev_dep(l))=mp_link(q); prev_dep(mp_link(q))=prev_dep(l);
-  mp_type(l)=mp_known;
+  mp_link(prev_dep(ll))=mp_link(q);
+  set_prev_dep((mp_value_node)mp_link(q),prev_dep(ll));
+  mp_type(ll)=mp_known;
 }
 
 @ @<Deal with redundant or inconsistent equation@>=
@@ -22230,7 +24260,8 @@ if ( t==mp_known ) {
   if ( abs(value(p))>64 ) { /* off by .001 or more */
     print_err("Inconsistent equation");
 @.Inconsistent equation@>
-    mp_print(mp, " (off by "); mp_print_scaled(mp, value(p)); 
+    mp_print(mp, " (off by ");
+    mp_print_scaled(mp, value(p)); 
     mp_print_char(mp, xord(')'));
     help2("The equation I just read contradicts what was said before.",
           "But don't worry; continue and I'll just ignore it.");
@@ -22238,31 +24269,42 @@ if ( t==mp_known ) {
   } else if ( r==null ) {
     @<Exclaim about a redundant equation@>;
   }
-  mp_free_node(mp, p,dep_node_size);
+  mp_free_dep_node(mp, p);
 }
 
 @ @<Add the right operand to list |p|@>=
 if ( r==null ) {
-  if ( mp->cur_type==mp_known ) {
-    value(q)=value(q)+mp->cur_exp; goto DONE1;
+  if ( mp->cur_exp.type==mp_known ) {
+    set_value(q,value(q)+cur_exp_value()); 
+    goto DONE1;
   } else { 
-    tt=mp->cur_type;
-    if ( tt==mp_independent ) pp=mp_single_dependency(mp, mp->cur_exp);
-    else pp=dep_list(mp->cur_exp);
+    tt=mp->cur_exp.type;
+    if ( tt==mp_independent )
+      pp=mp_single_dependency(mp, cur_exp_node());
+    else
+      pp=(mp_value_node)dep_list((mp_value_node)cur_exp_node());
   } 
 } else {
   if ( mp_type(r)==mp_known ) {
-    value(q)=value(q)+value(r); goto DONE1;
+    dep_value(q)=dep_value(q)+value(r); 
+    goto DONE1;
   } else { 
     tt=mp_type(r);
-    if ( tt==mp_independent ) pp=mp_single_dependency(mp, r);
-    else pp=dep_list(r);
+    if ( tt==mp_independent )
+      pp=mp_single_dependency(mp, r);
+    else
+      pp=(mp_value_node)dep_list((mp_value_node)r);
   }
 }
-if ( tt!=mp_independent ) copied=false;
-else  { copied=true; tt=mp_dependent; };
+if ( tt!=mp_independent ) {
+  copied=false;
+} else { 
+  copied=true; 
+  tt=mp_dependent; 
+}
 @<Add dependency list |pp| of type |tt| to dependency list~|p| of type~|t|@>;
-if ( copied ) mp_flush_node_list(mp, pp);
+if ( copied )
+  mp_flush_node_list(mp, (mp_node)pp);
 DONE1:
 
 @ @<Add dependency list |pp| of type |tt| to dependency list~|p| of type~|t|@>=
@@ -22273,10 +24315,12 @@ if ( t==tt ) {
   p=mp_p_plus_fq(mp, p,unity,pp,mp_proto_dependent,mp_dependent);
 } else { 
   q=p;
-  while ( mp_info(q)!=null ) {
-    value(q)=mp_round_fraction(mp, value(q)); q=mp_link(q);
+  while ( dep_info(q)!=null ) {
+    dep_value(q) = mp_round_fraction(mp, dep_value(q)); 
+    q=(mp_value_node)mp_link(q);
   }
-  t=mp_proto_dependent; p=mp_p_plus_q(mp, p, pp, (quarterword)t);
+  t=mp_proto_dependent;
+  p=mp_p_plus_q(mp, p, pp, (quarterword)t);
 }
 mp->watch_coefs=true;
 
@@ -22288,19 +24332,20 @@ will have been scanned, so it will appear in |cur_cmd|, |cur_mod|,
 and~|cur_sym|.
 
 @<Declarations@>=
-static pointer mp_scan_declared_variable (MP mp) ;
+static mp_node mp_scan_declared_variable (MP mp) ;
 
 @ @c
-pointer mp_scan_declared_variable (MP mp) {
-  pointer x; /* hash address of the variable's root */
-  pointer h,t; /* head and tail of the token list to be returned */
-  pointer l; /* hash address of left bracket */
+mp_node mp_scan_declared_variable (MP mp) {
+  mp_sym x; /* hash address of the variable's root */
+  mp_node h,t; /* head and tail of the token list to be returned */
   mp_get_symbol(mp); x=mp->cur_sym;
   if ( mp->cur_cmd!=tag_token ) mp_clear_symbol(mp, x,false);
-  h=mp_get_avail(mp); mp_info(h)=x; t=h;
+  h=mp_get_symbolic_node(mp); 
+  set_mp_sym_sym(h,x);
+  t=h;
   while (1) { 
     mp_get_x_next(mp);
-    if ( mp->cur_sym==0 ) break;
+    if ( mp->cur_sym==NULL ) break;
     if ( mp->cur_cmd!=tag_token ) if ( mp->cur_cmd!=internal_quantity)  {
       if ( mp->cur_cmd==left_bracket ) {
         @<Descend past a collective subscript@>;
@@ -22308,10 +24353,12 @@ pointer mp_scan_declared_variable (MP mp) {
         break;
       }
     }
-    mp_link(t)=mp_get_avail(mp); t=mp_link(t); mp_info(t)=mp->cur_sym;
+    mp_link(t)=mp_get_symbolic_node(mp); t=mp_link(t); 
+    set_mp_sym_sym(t,mp->cur_sym);
+    mp_name_type(t) = mp->cur_sym_mod;
   }
   if ( (eq_type(x)%outer_tag)!=tag_token ) mp_clear_symbol(mp, x,false);
-  if ( equiv(x)==null ) mp_new_root(mp, x);
+  if ( equiv_node(x)==NULL ) mp_new_root(mp, x);
   return h;
 }
 
@@ -22320,9 +24367,12 @@ declared variable.
 
 @<Descend past a collective subscript@>=
 { 
-  l=mp->cur_sym; mp_get_x_next(mp);
+  mp_sym ll=mp->cur_sym;  /* hash address of left bracket */
+  mp_get_x_next(mp);
   if ( mp->cur_cmd!=right_bracket ) {
-    mp_back_input(mp); mp->cur_sym=l; mp->cur_cmd=left_bracket; break;
+    mp_back_input(mp); 
+    mp->cur_sym=ll; 
+    mp->cur_cmd=left_bracket; break;
   } else {
     mp->cur_sym=collective_subscript;
   }
@@ -22366,18 +24416,19 @@ static void mp_do_type_declaration (MP mp) ;
 @ @c
 void mp_do_type_declaration (MP mp) {
   quarterword t; /* the type being declared */
-  pointer p; /* token list for a declared variable */
-  pointer q; /* value node for the variable */
+  mp_node p; /* token list for a declared variable */
+  mp_node q; /* value node for the variable */
   if ( mp->cur_mod>=mp_transform_type ) 
     t=(quarterword)mp->cur_mod;
   else 
     t=(quarterword)(mp->cur_mod+unknown_tag);
   do {  
     p=mp_scan_declared_variable(mp);
-    mp_flush_variable(mp, equiv(mp_info(p)),mp_link(p),false);
+    mp_flush_variable(mp, equiv_node(mp_sym_sym(p)),mp_link(p),false);
     q=mp_find_variable(mp, p);
     if ( q!=null ) { 
-      mp_type(q)=t; value(q)=null; 
+      mp_type(q)=t; 
+      set_value(q,null); 
     } else  { 
       print_err("Declared variable conflicts with previous vardef");
 @.Declared variable conflicts...@>
@@ -22385,7 +24436,7 @@ void mp_do_type_declaration (MP mp) {
             "Proceed, and I'll ignore the illegal redeclaration.");
       mp_put_get_error(mp);
     }
-    mp_flush_list(mp, p);
+    mp_flush_node_list(mp, p);
     if ( mp->cur_cmd<comma ) {
       @<Flush spurious symbols after the declared variable@>;
     }
@@ -22418,6 +24469,8 @@ Each execution of |do_statement| concludes with
 
 @c 
 static void mp_main_control (MP mp) { 
+  mp_value new_expr;
+  new_expr.data.val = 0;
   do {  
     mp_do_statement(mp);
     if ( mp->cur_cmd==end_group ) {
@@ -22425,7 +24478,7 @@ static void mp_main_control (MP mp) {
 @.Extra `endgroup'@>
       help2("I'm not currently working on a `begingroup',",
             "so I had better not try to end anything.");
-      mp_flush_error(mp, 0);
+      mp_flush_error(mp, new_expr);
     }
   } while (mp->cur_cmd!=stop);
 }
@@ -22454,36 +24507,28 @@ void mp_set_internal (MP mp, char *n, char *v, int isstring) {
   char err[256];
   const char *errid = NULL;
   if (l>0) {
-    integer h = mp_compute_hash(mp, n, (int)l);
-    pointer p = h+hash_base; /* we start searching here */
-    while (true) { 
-      if (text(p)>0 && length(text(p))==(int)l && 
-	  mp_str_eq_cstr(mp, text(p),n)) {
-        if (eq_type(p)==internal_quantity) {
-     	  if ((mp->int_type[equiv(p)]==mp_string_type) && (isstring)) {
-            mp->internal[equiv(p)] = mp_rts(mp,v);
-          } else if ((mp->int_type[equiv(p)]==mp_known) && (!isstring)) {
-            scaled test = (scaled)atoi(v);
-            if (test>16383 ) {
-               errid = "value is too large";
-            } else if (test<-16383) {
-               errid = "value is too small";
-            } else {
-               mp->internal[equiv(p)] =  test*unity;
-            }
+    mp_sym p = mp_id_lookup(mp, n,(int)l, false);
+    if ( p==NULL ) {
+      errid = "variable does not exist";
+    } else {
+      if (eq_type(p)==internal_quantity) {
+        if ((internal_type(equiv(p))==mp_string_type) && (isstring)) {
+          internal_string(equiv(p)) = mp_rts(mp,v);
+        } else if ((internal_type(equiv(p))==mp_known) && (!isstring)) {
+          scaled test = (scaled)atoi(v);
+          if (test>16383 ) {
+             errid = "value is too large";
+          } else if (test<-16383) {
+             errid = "value is too small";
           } else {
-            errid = "value has the wrong type";
+             internal_value(equiv(p)) =  test*unity;
           }
         } else {
-          errid = "variable is not an internal";
+          errid = "value has the wrong type";
         }
-        break;
+      } else {
+        errid = "variable is not an internal";
       }
-      if ( mp_next(p)==0 ) {
-        errid = "variable does not exist";
-        break;
-      }
-      p=mp_next(p);
     }
   }
   if (errid != NULL) {
@@ -22582,7 +24627,7 @@ static void mplib_write_binary_file(MP mp, void *ff, void *s, size_t size);
 static void mplib_close_file(MP mp, void *ff);
 static int mplib_eof_file(MP mp, void *ff);
 static void mplib_flush_file(MP mp, void *ff);
-static void mplib_shipout_backend(MP mp, int h);
+static void mplib_shipout_backend(MP mp, void *h);
 
 @ The |xmalloc(1,1)| calls make sure the stored indirection values are unique.
 
@@ -22711,7 +24756,7 @@ static void mp_append_string (MP mp, mp_stream *a,const char *b) {
         a->size += 256+(a->size)/5+l;
         a->data = xrealloc(a->data,a->size,1);
     }
-    (void)strcpy(a->data+a->used,b);
+    memcpy(a->data+a->used,b,l);
     a->used += l;
 }
 
@@ -22799,8 +24844,9 @@ static void mplib_flush_file(MP mp, void *ff)
     return;
 }
 
-static void mplib_shipout_backend(MP mp, int h)
+static void mplib_shipout_backend(MP mp, void *voidh)
 {
+    mp_node h = (mp_node)voidh;
     mp_edge_object *hh = mp_gr_export(mp, h);
     if (hh) {
         mp_run_data *run = mp_rundata(mp);
@@ -22856,23 +24902,21 @@ xfree(mp->err_out);
 mp->input_ptr=0; mp->max_in_stack=0;
 mp->in_open=0; mp->open_parens=0; mp->max_buf_stack=0;
 mp->param_ptr=0; mp->max_param_stack=0;
-start = loc = iindex = 0; mp->first = 0;
+start = loc = iindex = 0; nloc=nstart=null; mp->first = 0;
 line=0; name=is_term;
 mp->mpx_name[0]=absent;
 mp->force_eof=false;
 t_open_in; 
 mp->scanner_status=normal;
-if (mp->mem_ident==NULL) {
-  if ( ! mp_load_mem_file(mp) ) {
-    (mp->close_file)(mp, mp->mem_file); 
+if (mp->mem_ident==NULL && !mp->ini_version) {
+  if ( ! mp_load_preload_file(mp) ) {
      mp->history  = mp_fatal_error_stop;
      return mp->history;
   }
-  (mp->close_file)(mp, mp->mem_file);
 }
 mp_fix_date_and_time(mp);
 if (mp->random_seed==0)
-  mp->random_seed = (mp->internal[mp_time] / unity)+mp->internal[mp_day];
+  mp->random_seed = (internal_value(mp_time) / unity)+internal_value(mp_day);
 mp_init_randoms(mp, mp->random_seed);
 @<Initialize the print |selector|...@>;
 mp_open_log_file(mp);
@@ -22880,16 +24924,17 @@ mp_set_job_id(mp);
 mp_init_map_file(mp, mp->troff_mode);
 mp->history=mp_spotless; /* ready to go! */
 if (mp->troff_mode) {
-  mp->internal[mp_gtroffmode]=unity; 
-  mp->internal[mp_prologues]=unity; 
+  internal_value(mp_gtroffmode)=unity; 
+  internal_value(mp_prologues)=unity; 
 }
 @<Fix up |mp->internal[mp_job_name]|@>;
-if ( mp->start_sym>0 ) { /* insert the `\&{everyjob}' symbol */
-  mp->cur_sym=mp->start_sym; mp_back_input(mp);
+if ( mp->start_sym!=NULL ) { /* insert the `\&{everyjob}' symbol */
+  mp->cur_sym=mp->start_sym; 
+  mp_back_input(mp);
 }
 
 @ @c
-int mp_execute (MP mp, const char *s, size_t l) {
+int mp_execute (MP mp, char *s, size_t l) {
   mp_reset_stream(&(mp->run_data.term_out));
   mp_reset_stream(&(mp->run_data.log_out));
   mp_reset_stream(&(mp->run_data.error_out));
@@ -22931,7 +24976,7 @@ int mp_execute (MP mp, const char *s, size_t l) {
     mp->buffer[limit]=xord('%');
     mp->first=(size_t)(limit+1); 
     loc=start;
-	do {  
+    do {  
       mp_do_statement(mp);
     } while (mp->cur_cmd!=stop);
     mp_final_cleanup(mp); 
@@ -22970,7 +25015,7 @@ char * mp_metapost_version (void) {
 
 @ @<Exported function headers@>=
 int mp_run (MP mp);
-int mp_execute (MP mp, const char *s, size_t l);
+int mp_execute (MP mp, char *s, size_t l);
 int mp_finish (MP mp);
 char * mp_metapost_version (void);
 
@@ -22982,8 +25027,8 @@ mp_primitive(mp, "dump",stop,1);
 
 @ @<Cases of |print_cmd...@>=
 case stop:
-  if ( m==0 ) mp_print(mp, "end");
-  else mp_print(mp, "dump");
+  if (mp->cur_mod==0) mp_print(mp, "end");
+  else  mp_print(mp, "dump");
   break;
 
 @* \[41] Commands.
@@ -23001,6 +25046,8 @@ case mp_random_seed: mp_do_random_seed(mp);  break;
 static void mp_do_random_seed (MP mp) ;
 
 @ @c void mp_do_random_seed (MP mp) { 
+  mp_value new_expr;
+  new_expr.data.val = 0;
   mp_get_x_next(mp);
   if ( mp->cur_cmd!=assignment ) {
     mp_missing_err(mp, ":=");
@@ -23009,12 +25056,12 @@ static void mp_do_random_seed (MP mp) ;
     mp_back_error(mp);
   };
   mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_known ) {
+  if ( mp->cur_exp.type!=mp_known ) {
     exp_err("Unknown value will be ignored");
 @.Unknown value...ignored@>
     help2("Your expression was too random for me to handle,",
           "so I won't change the random seed just now.");
-    mp_put_get_flush_error(mp, 0);
+    mp_put_get_flush_error(mp, new_expr);
   } else {
    @<Initialize the random seed to |cur_exp|@>;
   }
@@ -23022,11 +25069,11 @@ static void mp_do_random_seed (MP mp) ;
 
 @ @<Initialize the random seed to |cur_exp|@>=
 { 
-  mp_init_randoms(mp, mp->cur_exp);
+  mp_init_randoms(mp, cur_exp_value());
   if ( mp->selector>=log_only && mp->selector<write_file) {
     mp->old_setting=mp->selector; mp->selector=log_only;
     mp_print_nl(mp, "{randomseed:="); 
-    mp_print_scaled(mp, mp->cur_exp); 
+    mp_print_scaled(mp, cur_exp_value()); 
     mp_print_char(mp, xord('}'));
     mp_print_nl(mp, ""); mp->selector=mp->old_setting;
   }
@@ -23111,11 +25158,11 @@ case delimiters: mp_def_delims(mp); break;
 static void mp_def_delims (MP mp) ;
 
 @ @c void mp_def_delims (MP mp) {
-  pointer l_delim,r_delim; /* the new delimiter pair */
+  mp_sym l_delim,r_delim; /* the new delimiter pair */
   mp_get_clear_symbol(mp); l_delim=mp->cur_sym;
   mp_get_clear_symbol(mp); r_delim=mp->cur_sym;
-  eq_type(l_delim)=left_delimiter; equiv(l_delim)=r_delim;
-  eq_type(r_delim)=right_delimiter; equiv(r_delim)=l_delim;
+  eq_type(l_delim)=left_delimiter; equiv_sym(l_delim)=r_delim;
+  eq_type(r_delim)=right_delimiter; equiv_sym(r_delim)=l_delim;
   mp_get_x_next(mp);
 }
 
@@ -23123,15 +25170,15 @@ static void mp_def_delims (MP mp) ;
 where some right delimiter is mandatory.
 
 @<Declarations@>=
-static void mp_check_delimiter (MP mp,pointer l_delim, pointer r_delim);
+static void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim);
 
 @ @c
-void mp_check_delimiter (MP mp,pointer l_delim, pointer r_delim) {
+void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim) {
   if ( mp->cur_cmd==right_delimiter ) 
-    if ( mp->cur_mod==l_delim ) 
+    if ( mp->cur_mod_sym==l_delim ) 
       return;
   if ( mp->cur_sym!=r_delim ) {
-     mp_missing_err(mp, str(text(r_delim)));
+     mp_missing_err(mp, mp_str(mp,text(r_delim)));
 @.Missing `)'@>
     help2("I found no right delimiter to match a left one. So I've",
           "put one in, behind the scenes; this may fix the problem.");
@@ -23168,7 +25215,7 @@ static void mp_do_interim (MP mp);
   if ( mp->cur_cmd!=internal_quantity ) {
      print_err("The token `");
 @.The token...quantity@>
-    if ( mp->cur_sym==0 ) mp_print(mp, "(%CAPSULE)");
+    if ( mp->cur_sym==NULL ) mp_print(mp, "(%CAPSULE)");
     else mp_print_text(mp->cur_sym);
     mp_print(mp, "' isn't an internal quantity");
     help1("Something like `tracingonline' should follow `interim'.");
@@ -23186,9 +25233,11 @@ too soon, lest commands like `{\tt let x=x}' have a surprising effect.
 static void mp_do_let (MP mp) ;
 
 @ @c void mp_do_let (MP mp) {
-  pointer l; /* hash location of the left-hand symbol */
-  mp_get_symbol(mp); l=mp->cur_sym; mp_get_x_next(mp);
-  if ( mp->cur_cmd!=equals ) if ( mp->cur_cmd!=assignment ) {
+  mp_sym l; /* hash location of the left-hand symbol */
+  mp_get_symbol(mp); 
+  l=mp->cur_sym; 
+  mp_get_x_next(mp);
+  if ( mp->cur_cmd!=equals && mp->cur_cmd!=assignment ) {
      mp_missing_err(mp, "=");
 @.Missing `='@>
     help3("You should have said `let symbol = something'.",
@@ -23198,16 +25247,26 @@ static void mp_do_let (MP mp) ;
   }
   mp_get_symbol(mp);
   switch (mp->cur_cmd) {
-  case defined_macro: case secondary_primary_macro:
-  case tertiary_secondary_macro: case expression_tertiary_macro: 
-    add_mac_ref(mp->cur_mod);
+  case defined_macro:
+  case secondary_primary_macro:
+  case tertiary_secondary_macro:
+  case expression_tertiary_macro: 
+    add_mac_ref(mp->cur_mod_node);
     break;
   default: 
     break;
   }
-  mp_clear_symbol(mp, l,false); eq_type(l)=mp->cur_cmd;
-  if ( mp->cur_cmd==tag_token ) equiv(l)=null;
-  else equiv(l)=mp->cur_mod;
+  mp_clear_symbol(mp, l,false);
+  eq_type(l)=mp->cur_cmd;
+  if ( mp->cur_cmd==tag_token ) 
+    equiv(l)=null;
+  else if ( mp->cur_cmd==defined_macro ||
+	    mp->cur_cmd==secondary_primary_macro ||
+            mp->cur_cmd==tertiary_secondary_macro ||
+            mp->cur_cmd==expression_tertiary_macro ) 
+    equiv_node(l)=mp->cur_mod_node;
+  else
+    equiv(l)=mp->cur_mod;
   mp_get_x_next(mp);
 }
 
@@ -23219,30 +25278,20 @@ void mp_grow_internals (MP mp, int l);
 
 @ @c
 void mp_grow_internals (MP mp, int l) {
-  scaled *internal;
-  char * *int_name; 
-  int    *int_type; 
+  mp_internal *internal;
   int k;
-  if ( hash_end+l>max_halfword ) {
+  if ( l>max_halfword ) {
     mp_confusion(mp, "out of memory space"); /* can't be reached */
   }
-  int_name = xmalloc ((l+1),sizeof(char *));
-  int_type = xmalloc ((l+1),sizeof(int));
-  internal = xmalloc ((l+1),sizeof(scaled));
+  internal = xmalloc ((l+1),sizeof(mp_internal));
   for (k=0;k<=l; k++ ) { 
     if (k<=mp->max_internal) {
-      internal[k]=mp->internal[k]; 
-      int_name[k]=mp->int_name[k]; 
-      int_type[k]=mp->int_type[k]; 
+      memcpy(internal+k,mp->internal+k,sizeof(mp_internal));
     } else {
-      internal[k]=0; 
-      int_name[k]=NULL; 
-      int_type[k]=0; 
+      memset(internal+k,0,sizeof(mp_internal));
     }
   }
-  xfree(mp->internal); xfree(mp->int_name); xfree(mp->int_type);
-  mp->int_type = int_type;
-  mp->int_name = int_name;
+  xfree(mp->internal);
   mp->internal = internal;
   mp->max_internal = l;
 }
@@ -23264,26 +25313,24 @@ void mp_do_new_internal (MP mp) {
     mp_get_clear_symbol(mp); incr(mp->int_ptr);
     eq_type(mp->cur_sym)=internal_quantity; 
     equiv(mp->cur_sym)=mp->int_ptr;
-    if(mp->int_name[mp->int_ptr]!=NULL)
-      xfree(mp->int_name[mp->int_ptr]);
-    mp->int_name[mp->int_ptr]=str(text(mp->cur_sym)); 
+    if(internal_name(mp->int_ptr)!=NULL)
+      xfree(internal_name(mp->int_ptr));
+    internal_name(mp->int_ptr)=mp_xstrdup(mp, mp_str(mp,text(mp->cur_sym))); 
     if (the_type==mp_string_type) {
-      mp->internal[mp->int_ptr]=null_str;
+      internal_string(mp->int_ptr)=null_str;
     } else {
-      mp->internal[mp->int_ptr]=0;
+      internal_value(mp->int_ptr)=0;
     }
-    mp->int_type[mp->int_ptr]=the_type;
+    internal_type(mp->int_ptr)=the_type;
     mp_get_x_next(mp);
   } while (mp->cur_cmd==comma);
 }
 
 @ @<Dealloc variables@>=
 for (k=0;k<=mp->max_internal;k++) {
-   xfree(mp->int_name[k]);
+   xfree(internal_name(k));
 }
 xfree(mp->internal); 
-xfree(mp->int_name); 
-xfree(mp->int_type); 
 
 
 @ The various `\&{show}' commands are distinguished by modifier fields
@@ -23329,11 +25376,15 @@ they aren't.
 static void mp_do_show (MP mp) ;
 
 @ @c void mp_do_show (MP mp) { 
+  mp_value new_expr;
+  new_expr.data.val = 0;
   do {  
-    mp_get_x_next(mp); mp_scan_expression(mp);
+    mp_get_x_next(mp); 
+    mp_scan_expression(mp);
     mp_print_nl(mp, ">> ");
 @.>>@>
-    mp_print_exp(mp, null,2); mp_flush_cur_exp(mp, 0);
+    mp_print_exp(mp, null,2); 
+    mp_flush_cur_exp(mp, new_expr);
   } while (mp->cur_cmd==comma);
 }
 
@@ -23343,14 +25394,14 @@ static void mp_disp_token (MP mp) ;
 @ @c void mp_disp_token (MP mp) { 
   mp_print_nl(mp, "> ");
 @.>\relax@>
-  if ( mp->cur_sym==0 ) {
+  if ( mp->cur_sym==NULL ) {
     @<Show a numeric or string or capsule token@>;
   } else { 
     mp_print_text(mp->cur_sym); mp_print_char(mp, xord('='));
     if ( eq_type(mp->cur_sym)>=outer_tag ) mp_print(mp, "(outer) ");
     mp_print_cmd_mod(mp, mp->cur_cmd,mp->cur_mod);
     if ( mp->cur_cmd==defined_macro ) {
-      mp_print_ln(mp); mp_show_macro(mp, mp->cur_mod,null,100000);
+      mp_print_ln(mp); mp_show_macro(mp, mp->cur_mod_node,null,100000);
     } /* this avoids recursion between |show_macro| and |print_cmd_mod| */
 @^recursion@>
   }
@@ -23361,11 +25412,12 @@ static void mp_disp_token (MP mp) ;
   if ( mp->cur_cmd==numeric_token ) {
     mp_print_scaled(mp, mp->cur_mod);
   } else if ( mp->cur_cmd==capsule_token ) {
-    mp_print_capsule(mp,mp->cur_mod);
+    mp_print_capsule(mp,mp->cur_mod_node);
   } else  { 
     mp_print_char(mp, xord('"')); 
-    mp_print_str(mp, mp->cur_mod); mp_print_char(mp, xord('"'));
-    delete_str_ref(mp->cur_mod);
+    mp_print_str(mp, mp->cur_mod_str); 
+    mp_print_char(mp, xord('"'));
+    delete_str_ref(mp->cur_mod_str);
   }
 }
 
@@ -23378,8 +25430,12 @@ case left_delimiter:
 case right_delimiter: 
   if ( c==left_delimiter ) mp_print(mp, "left");
   else mp_print(mp, "right");
+#if 0
   mp_print(mp, " delimiter that matches "); 
   mp_print_text(m);
+#else
+  mp_print(mp, " delimiter"); 
+#endif
   break;
 case tag_token:
   if ( m==null ) mp_print(mp, "tag");
@@ -23388,19 +25444,13 @@ case tag_token:
 case defined_macro: 
    mp_print(mp, "macro:");
    break;
-case secondary_primary_macro:
-case tertiary_secondary_macro:
-case expression_tertiary_macro:
-  mp_print_cmd_mod(mp, macro_def,c); 
-  mp_print(mp, "'d macro:");
-  mp_print_ln(mp); mp_show_token_list(mp, mp_link(mp_link(m)),null,1000,0);
-  break;
 case repeat_loop:
   mp_print(mp, "[repeat the loop]");
   break;
 case internal_quantity:
-  mp_print(mp, mp->int_name[m]);
+  mp_print(mp, internal_name(m));
   break;
+
 
 @ @<Declare action procedures for use by |do_statement|@>=
 static void mp_do_show_token (MP mp) ;
@@ -23418,16 +25468,12 @@ static void mp_do_show_stats (MP mp) ;
 @ @c void mp_do_show_stats (MP mp) { 
   mp_print_nl(mp, "Memory usage ");
 @.Memory usage...@>
-  mp_print_int(mp, mp->var_used); mp_print_char(mp, xord('&')); mp_print_int(mp, mp->dyn_used);
-  mp_print(mp, " ("); mp_print_int(mp, mp->hi_mem_min-mp->lo_mem_max-1);
-  mp_print(mp, " still untouched)"); mp_print_ln(mp);
+  mp_print_int(mp, (integer)mp->var_used);
+  mp_print_ln(mp);
   mp_print_nl(mp, "String usage ");
-  mp_print_int(mp, mp->strs_in_use-mp->init_str_use);
-  mp_print_char(mp, xord('&')); mp_print_int(mp, mp->pool_in_use-mp->init_pool_ptr);
-  mp_print(mp, " (");
-  mp_print_int(mp, mp->max_strings-1-mp->strs_used_up); mp_print_char(mp, xord('&'));
-  mp_print_int(mp, mp->pool_size-mp->pool_ptr); 
-  mp_print(mp, " now untouched)"); mp_print_ln(mp);
+  mp_print_int(mp, (int)mp->strs_in_use);
+  mp_print_char(mp, xord('&')); mp_print_int(mp, (int)mp->pool_in_use);
+  mp_print_ln(mp);
   mp_get_x_next(mp);
 }
 
@@ -23435,10 +25481,10 @@ static void mp_do_show_stats (MP mp) ;
 of a variable, for use by |do_show_var|.
 
 @<Declare action procedures for use by |do_statement|@>=
-static void mp_disp_var (MP mp,pointer p) ;
+static void mp_disp_var (MP mp,mp_node p) ;
 
-@ @c void mp_disp_var (MP mp,pointer p) {
-  pointer q; /* traverses attributes and subscripts */
+@ @c void mp_disp_var (MP mp,mp_node p) {
+  mp_node q; /* traverses attributes and subscripts */
   int n; /* amount of macro text to show */
   if ( mp_type(p)==mp_structured )  {
     @<Descend the structure@>;
@@ -23454,7 +25500,7 @@ static void mp_disp_var (MP mp,pointer p) ;
 @ @<Descend the structure@>=
 { 
   q=attr_head(p);
-  do {  mp_disp_var(mp, q); q=mp_link(q); } while (q!=end_attr);
+  do {  mp_disp_var(mp, q); q=mp_link(q); } while (q!=mp->end_attr);
   q=subscr_head(p);
   while ( mp_name_type(q)==mp_subscr ) { 
     mp_disp_var(mp, q); q=mp_link(q);
@@ -23469,7 +25515,7 @@ static void mp_disp_var (MP mp,pointer p) ;
   mp_print(mp, "=macro:");
   if ( (int)mp->file_offset>=mp->max_print_line-20 ) n=5;
   else n=mp->max_print_line-(int)mp->file_offset-15;
-  mp_show_macro(mp, value(p),null,n);
+  mp_show_macro(mp, value_node(p),null,n);
 }
 
 @ @<Declare action procedures for use by |do_statement|@>=
@@ -23478,9 +25524,9 @@ static void mp_do_show_var (MP mp) ;
 @ @c void mp_do_show_var (MP mp) { 
   do {  
     get_t_next;
-    if ( mp->cur_sym>0 ) if ( mp->cur_sym<=hash_end )
+    if ( mp->cur_sym!=NULL ) if ( mp->cur_sym_mod == 0 )
       if ( mp->cur_cmd==tag_token ) if ( mp->cur_mod!=null ) {
-      mp_disp_var(mp, mp->cur_mod); goto DONE;
+      mp_disp_var(mp, mp->cur_mod_node); goto DONE;
     }
    mp_disp_token(mp);
   DONE:
@@ -23492,18 +25538,18 @@ static void mp_do_show_var (MP mp) ;
 static void mp_do_show_dependencies (MP mp) ;
 
 @ @c void mp_do_show_dependencies (MP mp) {
-  pointer p; /* link that runs through all dependencies */
-  p=mp_link(dep_head);
-  while ( p!=dep_head ) {
-    if ( mp_interesting(mp, p) ) {
-      mp_print_nl(mp, ""); mp_print_variable_name(mp, p);
+  mp_value_node p; /* link that runs through all dependencies */
+  p=(mp_value_node)mp_link(mp->dep_head);
+  while ( p!=mp->dep_head ) {
+    if ( mp_interesting(mp, (mp_node)p) ) {
+      mp_print_nl(mp, ""); mp_print_variable_name(mp, (mp_node)p);
       if ( mp_type(p)==mp_dependent ) mp_print_char(mp, xord('='));
       else mp_print(mp, " = "); /* extra spaces imply proto-dependency */
-      mp_print_dependency(mp, dep_list(p),mp_type(p));
+      mp_print_dependency(mp, (mp_value_node)dep_list(p),mp_type(p));
     }
-    p=dep_list(p);
-    while ( mp_info(p)!=null ) p=mp_link(p);
-    p=mp_link(p);
+    p=(mp_value_node)dep_list(p);
+    while ( dep_info(p)!=null ) p=(mp_value_node)mp_link(p);
+    p=(mp_value_node)mp_link(p);
   }
   mp_get_x_next(mp);
 }
@@ -23523,7 +25569,7 @@ static void mp_do_show_whatever (MP mp) ;
   case show_var_code:mp_do_show_var(mp); break;
   case show_dependencies_code:mp_do_show_dependencies(mp); break;
   } /* there are no other cases */
-  if ( mp->internal[mp_showstopping]>0 ){ 
+  if ( internal_value(mp_showstopping)>0 ){ 
     print_err("OK");
 @.OK@>
     if ( mp->interaction<mp_error_stop_mode ) { 
@@ -23598,53 +25644,55 @@ clause$\rangle$ updates all graphical objects whose |type| is compatible.
 Other objects are ignored.
 
 @<Declare action procedures for use by |do_statement|@>=
-static void mp_scan_with_list (MP mp,pointer p) ;
+static void mp_scan_with_list (MP mp,mp_node p) ;
 
-@ @c void mp_scan_with_list (MP mp,pointer p) {
-  quarterword t; /* |cur_mod| of the |with_option| (should match |cur_type|) */
-  pointer q; /* for list manipulation */
+@ @c void mp_scan_with_list (MP mp,mp_node p) {
+  mp_variable_type t; /* |cur_mod| of the |with_option| (should match |cur_type|) */
+  mp_node q; /* for list manipulation */
   unsigned old_setting; /* saved |selector| setting */
-  pointer k; /* for finding the near-last item in a list  */
+  mp_node k; /* for finding the near-last item in a list  */
   str_number s; /* for string cleanup after combining  */
-  pointer cp,pp,dp,ap,bp;
+  mp_value new_expr;
+  mp_node cp,pp,dp,ap,bp;
     /* objects being updated; |void| initially; |null| to suppress update */
   cp=mp_void; pp=mp_void; dp=mp_void; ap=mp_void; bp=mp_void;
   k=0;
+  new_expr.data.val = 0;
   while ( mp->cur_cmd==with_option ){ 
-    t=(quarterword)mp->cur_mod;
+    t=(mp_variable_type)mp->cur_mod;
     mp_get_x_next(mp);
     if ( t!=mp_no_model ) mp_scan_expression(mp);
-    if (((t==with_mp_pre_script)&&(mp->cur_type!=mp_string_type))||
-     ((t==with_mp_post_script)&&(mp->cur_type!=mp_string_type))||
+    if (((t==with_mp_pre_script)&&(mp->cur_exp.type!=mp_string_type))||
+     ((t==with_mp_post_script)&&(mp->cur_exp.type!=mp_string_type))||
      ((t==mp_uninitialized_model)&&
-        ((mp->cur_type!=mp_cmykcolor_type)&&(mp->cur_type!=mp_color_type)
-          &&(mp->cur_type!=mp_known)&&(mp->cur_type!=mp_boolean_type)))||
-     ((t==mp_cmyk_model)&&(mp->cur_type!=mp_cmykcolor_type))||
-     ((t==mp_rgb_model)&&(mp->cur_type!=mp_color_type))||
-     ((t==mp_grey_model)&&(mp->cur_type!=mp_known))||
-     ((t==mp_pen_type)&&(mp->cur_type!=t))||
-     ((t==mp_picture_type)&&(mp->cur_type!=t)) ) {
+        ((mp->cur_exp.type!=mp_cmykcolor_type)&&(mp->cur_exp.type!=mp_color_type)
+          &&(mp->cur_exp.type!=mp_known)&&(mp->cur_exp.type!=mp_boolean_type)))||
+     ((t==mp_cmyk_model)&&(mp->cur_exp.type!=mp_cmykcolor_type))||
+     ((t==mp_rgb_model)&&(mp->cur_exp.type!=mp_color_type))||
+     ((t==mp_grey_model)&&(mp->cur_exp.type!=mp_known))||
+     ((t==mp_pen_type)&&(mp->cur_exp.type!=t))||
+     ((t==mp_picture_type)&&(mp->cur_exp.type!=t)) ) {
       @<Complain about improper type@>;
     } else if ( t==mp_uninitialized_model ) {
       if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=null )
         @<Transfer a color from the current expression to object~|cp|@>;
-      mp_flush_cur_exp(mp, 0);
+      mp_flush_cur_exp(mp, new_expr);
     } else if ( t==mp_rgb_model ) {
       if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=null )
         @<Transfer a rgbcolor from the current expression to object~|cp|@>;
-      mp_flush_cur_exp(mp, 0);
+      mp_flush_cur_exp(mp, new_expr);
     } else if ( t==mp_cmyk_model ) {
       if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=null )
         @<Transfer a cmykcolor from the current expression to object~|cp|@>;
-      mp_flush_cur_exp(mp, 0);
+      mp_flush_cur_exp(mp, new_expr);
     } else if ( t==mp_grey_model ) {
       if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=null )
         @<Transfer a greyscale from the current expression to object~|cp|@>;
-      mp_flush_cur_exp(mp, 0);
+      mp_flush_cur_exp(mp, new_expr);
     } else if ( t==mp_no_model ) {
       if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=null )
@@ -23652,8 +25700,22 @@ static void mp_scan_with_list (MP mp,pointer p) ;
     } else if ( t==mp_pen_type ) {
       if ( pp==mp_void ) @<Make |pp| an object in list~|p| that needs a pen@>;
       if ( pp!=null ) {
-        if ( mp_pen_p(pp)!=null ) mp_toss_knot_list(mp, mp_pen_p(pp));
-        mp_pen_p(pp)=mp->cur_exp; mp->cur_type=mp_vacuous;
+        switch (mp_type(pp)) {
+        case mp_fill_node_type:
+          if ( mp_pen_p((mp_fill_node)pp)!=null ) 
+            mp_toss_knot_list(mp, mp_pen_p((mp_fill_node)pp));
+          mp_pen_p((mp_fill_node)pp)=cur_exp_knot(); 
+          break;         
+        case mp_stroked_node_type:
+          if ( mp_pen_p((mp_stroked_node)pp)!=null ) 
+            mp_toss_knot_list(mp, mp_pen_p((mp_stroked_node)pp));
+          mp_pen_p((mp_stroked_node)pp)=cur_exp_knot(); 
+          break;         
+        default:
+	  assert(0);
+          break;         
+        }
+        mp->cur_exp.type=mp_vacuous;
       }
     } else if ( t==with_mp_pre_script ) {
       if ( ap==mp_void )
@@ -23665,17 +25727,17 @@ static void mp_scan_with_list (MP mp,pointer p) ;
           s=mp_pre_script(ap);
           old_setting=mp->selector;
 	      mp->selector=new_string;
-          str_room(length(mp_pre_script(ap))+length(mp->cur_exp)+2);
-	      mp_print_str(mp, mp->cur_exp);
+          str_room(length(mp_pre_script(ap))+length(cur_exp_str())+2);
+	      mp_print_str(mp, cur_exp_str());
           append_char(13);  /* a forced \ps\ newline  */
           mp_print_str(mp, mp_pre_script(ap));
           mp_pre_script(ap)=mp_make_string(mp);
           delete_str_ref(s);
           mp->selector=old_setting;
         } else {
-          mp_pre_script(ap)=mp->cur_exp;
+          mp_pre_script(ap)=cur_exp_str();
         }
-        mp->cur_type=mp_vacuous;
+        mp->cur_exp.type=mp_vacuous;
       }
     } else if ( t==with_mp_post_script ) {
       if ( bp==mp_void )
@@ -23690,17 +25752,17 @@ static void mp_scan_with_list (MP mp,pointer p) ;
            s=mp_post_script(bp);
            old_setting=mp->selector;
 	       mp->selector=new_string;
-           str_room(length(mp_post_script(bp))+length(mp->cur_exp)+2);
+           str_room(length(mp_post_script(bp))+length(cur_exp_str())+2);
            mp_print_str(mp, mp_post_script(bp));
            append_char(13); /* a forced \ps\ newline  */
-	   mp_print_str(mp, mp->cur_exp);
+      	   mp_print_str(mp, cur_exp_str());
            mp_post_script(bp)=mp_make_string(mp);
            delete_str_ref(s);
            mp->selector=old_setting;
          } else {
-           mp_post_script(bp)=mp->cur_exp;
+           mp_post_script(bp)=cur_exp_str();
          }
-         mp->cur_type=mp_vacuous;
+         mp->cur_exp.type=mp_vacuous;
        }
     } else { 
       if ( dp==mp_void ) {
@@ -23708,9 +25770,9 @@ static void mp_scan_with_list (MP mp,pointer p) ;
       }
       if ( dp!=null ) {
         if ( mp_dash_p(dp)!=null ) delete_edge_ref(mp_dash_p(dp));
-        mp_dash_p(dp)=mp_make_dashes(mp, mp->cur_exp);
+        mp_dash_p(dp)=mp_make_dashes(mp, cur_exp_node());
         dash_scale(dp)=unity;
-        mp->cur_type=mp_vacuous;
+        mp->cur_exp.type=mp_vacuous;
       }
     }
   }
@@ -23719,7 +25781,8 @@ static void mp_scan_with_list (MP mp,pointer p) ;
 }
 
 @ @<Complain about improper type@>=
-{ exp_err("Improper type");
+{ 
+exp_err("Improper type");
 @.Improper type@>
 help2("Next time say `withpen <known pen expression>';",
       "I'll ignore the bad `with' clause and look for another.");
@@ -23737,27 +25800,27 @@ else if ( t==mp_cmyk_model )
   mp->help_line[1]="Next time say `withcmykcolor <known cmykcolor expression>';";
 else if ( t==mp_grey_model )
   mp->help_line[1]="Next time say `withgreyscale <known numeric expression>';";;
-mp_put_get_flush_error(mp, 0);
+mp_put_get_flush_error(mp, new_expr);
 }
 
 @ Forcing the color to be between |0| and |unity| here guarantees that no
 picture will ever contain a color outside the legal range for \ps\ graphics.
 
 @<Transfer a color from the current expression to object~|cp|@>=
-{ if ( mp->cur_type==mp_color_type )
+{ if ( mp->cur_exp.type==mp_color_type )
    @<Transfer a rgbcolor from the current expression to object~|cp|@>
-else if ( mp->cur_type==mp_cmykcolor_type )
+else if ( mp->cur_exp.type==mp_cmykcolor_type )
    @<Transfer a cmykcolor from the current expression to object~|cp|@>
-else if ( mp->cur_type==mp_known )
+else if ( mp->cur_exp.type==mp_known )
    @<Transfer a greyscale from the current expression to object~|cp|@>
-else if ( mp->cur_exp==false_code )
+else if ( cur_exp_value()==false_code )
    @<Transfer a noncolor from the current expression to object~|cp|@>
-else if ( mp->cur_exp==true_code )
+else if ( cur_exp_value()==true_code )
    @<Transfer no color from the current expression to object~|cp|@>;
 }
 
 @ @<Transfer a rgbcolor from the current expression to object~|cp|@>=
-{ q=value(mp->cur_exp);
+{ q=value_node(cur_exp_node());
 cyan_val(cp)=0;
 magenta_val(cp)=0;
 yellow_val(cp)=0;
@@ -23775,7 +25838,7 @@ if ( blue_val(cp)>unity ) blue_val(cp)=unity;
 }
 
 @ @<Transfer a cmykcolor from the current expression to object~|cp|@>=
-{ q=value(mp->cur_exp);
+{ q=value_node(cur_exp_node());
 cyan_val(cp)=value(cyan_part_loc(q));
 magenta_val(cp)=value(magenta_part_loc(q));
 yellow_val(cp)=value(yellow_part_loc(q));
@@ -23792,12 +25855,12 @@ if ( black_val(cp)>unity ) black_val(cp)=unity;
 }
 
 @ @<Transfer a greyscale from the current expression to object~|cp|@>=
-{ q=mp->cur_exp;
+{ scaled qq=cur_exp_value();
 cyan_val(cp)=0;
 magenta_val(cp)=0;
 yellow_val(cp)=0;
 black_val(cp)=0;
-grey_val(cp)=q;
+grey_val(cp)=qq;
 mp_color_model(cp)=mp_grey_model;
 if ( grey_val(cp)<0 ) grey_val(cp)=0;
 if ( grey_val(cp)>unity ) grey_val(cp)=unity;
@@ -23842,13 +25905,15 @@ mp_color_model(cp)=mp_uninitialized_model;
 @ @<Make |dp| a stroked node in list~|p|@>=
 { dp=p;
   while ( dp!=null ) {
-    if ( mp_type(dp)==mp_stroked_code ) break;
+    if ( mp_type(dp)==mp_stroked_node_type ) break;
     dp=mp_link(dp);
   }
 }
 
 @ @<Copy the information from objects |cp|, |pp|, and |dp| into...@>=
-@<Copy |cp|'s color into the colored objects linked to~|cp|@>;
+if ( cp>mp_void ) {
+  @<Copy |cp|'s color into the colored objects linked to~|cp|@>;
+}
 if ( pp>mp_void ) {
   @<Copy |mp_pen_p(pp)| into stroked and filled nodes linked to |pp|@>;
 }
@@ -23858,7 +25923,8 @@ if ( dp>mp_void ) {
 
 
 @ @<Copy |cp|'s color into the colored objects linked to~|cp|@>=
-{ q=mp_link(cp);
+{
+  q=mp_link(cp);
   while ( q!=null ) { 
     if ( has_color(q) ) {
       red_val(q)=red_val(cp);
@@ -23872,11 +25938,23 @@ if ( dp>mp_void ) {
 }
 
 @ @<Copy |mp_pen_p(pp)| into stroked and filled nodes linked to |pp|@>=
-{ q=mp_link(pp);
+{
+  q=mp_link(pp);
   while ( q!=null ) {
     if ( has_pen(q) ) {
-      if ( mp_pen_p(q)!=null ) mp_toss_knot_list(mp, mp_pen_p(q));
-      mp_pen_p(q)=copy_pen(mp_pen_p(pp));
+      switch (mp_type(q)) {
+      case mp_fill_node_type:
+        if ( mp_pen_p((mp_fill_node)q)!=null ) mp_toss_knot_list(mp, mp_pen_p((mp_fill_node)q));
+        mp_pen_p((mp_fill_node)q)=copy_pen(mp_pen_p((mp_fill_node)pp));
+        break;
+      case mp_stroked_node_type:
+        if ( mp_pen_p((mp_stroked_node)q)!=null ) mp_toss_knot_list(mp, mp_pen_p((mp_stroked_node)q));
+        mp_pen_p((mp_stroked_node)q)=copy_pen(mp_pen_p((mp_stroked_node)pp));
+        break;
+      default:
+        assert(0);
+        break;
+      }
     }
     q=mp_link(q);
   }
@@ -23885,7 +25963,7 @@ if ( dp>mp_void ) {
 @ @<Make stroked nodes linked to |dp| refer to |mp_dash_p(dp)|@>=
 { q=mp_link(dp);
   while ( q!=null ) {
-    if ( mp_type(q)==mp_stroked_code ) {
+    if ( mp_type(q)==mp_stroked_node_type ) {
       if ( mp_dash_p(q)!=null ) delete_edge_ref(mp_dash_p(q));
       mp_dash_p(q)=mp_dash_p(dp);
       dash_scale(q)=unity;
@@ -23901,11 +25979,11 @@ a token list for that variable.  Since the edge structure is about to be
 updated, we use |private_edges| to make sure that this is possible.
 
 @<Declare action procedures for use by |do_statement|@>=
-static pointer mp_find_edges_var (MP mp, pointer t) ;
+static mp_node mp_find_edges_var (MP mp, mp_node t) ;
 
-@ @c pointer mp_find_edges_var (MP mp, pointer t) {
-  pointer p;
-  pointer cur_edges; /* the return value */
+@ @c mp_node mp_find_edges_var (MP mp, mp_node t) {
+  mp_node p;
+  mp_node cur_edges; /* the return value */
   p=mp_find_variable(mp, t); cur_edges=null;
   if ( p==null ) { 
     mp_obliterated(mp, t); mp_put_get_error(mp);
@@ -23918,8 +25996,8 @@ static pointer mp_find_edges_var (MP mp, pointer t) ;
           "So I'll not change anything just now."); 
     mp_put_get_error(mp);
   } else { 
-    value(p)=mp_private_edges(mp, value(p));
-    cur_edges=value(p);
+    set_value_node(p,mp_private_edges(mp, value_node(p)));
+    cur_edges=value_node(p);
   }
   mp_flush_node_list(mp, t);
   return cur_edges;
@@ -23930,14 +26008,14 @@ case add_to_command: mp_do_add_to(mp); break;
 case bounds_command:mp_do_bounds(mp); break;
 
 @ @<Put each...@>=
-mp_primitive(mp, "clip",bounds_command,mp_start_clip_code);
+mp_primitive(mp, "clip",bounds_command,mp_start_clip_node_type);
 @:clip_}{\&{clip} primitive@>
-mp_primitive(mp, "setbounds",bounds_command,mp_start_bounds_code);
+mp_primitive(mp, "setbounds",bounds_command,mp_start_bounds_node_type);
 @:set_bounds_}{\&{setbounds} primitive@>
 
 @ @<Cases of |print_cmd...@>=
 case bounds_command: 
-  if ( m==mp_start_clip_code ) mp_print(mp, "clip");
+  if ( m==mp_start_clip_node_type ) mp_print(mp, "clip");
   else mp_print(mp, "setbounds");
   break;
 
@@ -23953,18 +26031,19 @@ quarterword last_add_type;
   /* command modifier that identifies the last \&{addto} command */
 
 @ @<Declare action procedures for use by |do_statement|@>=
-static pointer mp_start_draw_cmd (MP mp,quarterword sep) ;
+static mp_node mp_start_draw_cmd (MP mp,quarterword sep) ;
 
-@ @c pointer mp_start_draw_cmd (MP mp,quarterword sep) {
-  pointer lhv; /* variable to add to left */
+@ @c mp_node mp_start_draw_cmd (MP mp,quarterword sep) {
+  mp_node lhv; /* variable to add to left */
+  mp_value new_expr;
   quarterword add_type=0; /* value to be returned in |last_add_type| */
   lhv=null;
   mp_get_x_next(mp); mp->var_flag=sep; mp_scan_primary(mp);
-  if ( mp->cur_type!=mp_token_list ) {
+  if ( mp->cur_exp.type!=mp_token_list ) {
     @<Abandon edges command because there's no variable@>;
   } else  { 
-    lhv=mp->cur_exp; add_type=(quarterword)mp->cur_mod;
-    mp->cur_type=mp_vacuous; mp_get_x_next(mp); mp_scan_expression(mp);
+    lhv=cur_exp_node(); add_type=(quarterword)mp->cur_mod;
+    mp->cur_exp.type=mp_vacuous; mp_get_x_next(mp); mp_scan_expression(mp);
   }
   mp->last_add_type=add_type;
   return lhv;
@@ -23977,7 +26056,8 @@ static pointer mp_start_draw_cmd (MP mp,quarterword sep) ;
     "(Or perhaps you have indeed presented me with one; I might",
     "have missed it, if it wasn't followed by the proper token.)",
     "So I'll not change anything just now.");
-  mp_put_get_flush_error(mp, 0);
+  new_expr.data.val = 0;
+  mp_put_get_flush_error(mp, new_expr);
 }
 
 @ Here is an example of how to use |start_draw_cmd|.
@@ -23986,22 +26066,25 @@ static pointer mp_start_draw_cmd (MP mp,quarterword sep) ;
 static void mp_do_bounds (MP mp) ;
 
 @ @c void mp_do_bounds (MP mp) {
-  pointer lhv,lhe; /* variable on left, the corresponding edge structure */
-  pointer p; /* for list manipulation */
+  mp_node lhv,lhe; /* variable on left, the corresponding edge structure */
+  mp_node p; /* for list manipulation */
   integer m; /* initial value of |cur_mod| */
+  mp_value new_expr;
   m=mp->cur_mod;
   lhv=mp_start_draw_cmd(mp, to_token);
   if ( lhv!=null ) {
     lhe=mp_find_edges_var(mp, lhv);
     if ( lhe==null ) {
-      mp_flush_cur_exp(mp, 0);
-    } else if ( mp->cur_type!=mp_path_type ) {
+      new_expr.data.val = 0;
+      mp_flush_cur_exp(mp, new_expr);
+    } else if ( mp->cur_exp.type!=mp_path_type ) {
       exp_err("Improper `clip'");
 @.Improper `addto'@>
       help2("This expression should have specified a known path.",
             "So I'll not change anything just now."); 
-      mp_put_get_flush_error(mp, 0);
-    } else if ( mp_left_type(mp->cur_exp)==mp_endpoint ) {
+      new_expr.data.val = 0;
+      mp_put_get_flush_error(mp, new_expr);
+    } else if ( mp_left_type(cur_exp_knot())==mp_endpoint ) {
       @<Complain about a non-cycle@>;
     } else {
       @<Make |cur_exp| into a \&{setbounds} or clipping path and add it to |lhe|@>;
@@ -24013,16 +26096,20 @@ static void mp_do_bounds (MP mp) ;
 { print_err("Not a cycle");
 @.Not a cycle@>
   help2("That contour should have ended with `..cycle' or `&cycle'.",
-        "So I'll not change anything just now."); mp_put_get_error(mp);
+        "So I'll not change anything just now."); 
+  mp_put_get_error(mp);
 }
 
 @ @<Make |cur_exp| into a \&{setbounds} or clipping path and add...@>=
-{ p=mp_new_bounds_node(mp, mp->cur_exp, (quarterword)m);
+{ p=mp_new_bounds_node(mp, cur_exp_knot(), (quarterword)m);
   mp_link(p)=mp_link(dummy_loc(lhe));
   mp_link(dummy_loc(lhe))=p;
   if ( obj_tail(lhe)==dummy_loc(lhe) ) obj_tail(lhe)=p;
-  p=mp_get_node(mp, mp->gr_object_size[stop_type(m)]);
-  mp_type(p)=(quarterword)stop_type(m);
+  if (m==mp_start_clip_node_type) {
+    p=mp_new_bounds_node(mp, NULL, mp_stop_clip_node_type);
+  } else if (m==mp_start_bounds_node_type) {
+    p=mp_new_bounds_node(mp, NULL, mp_stop_bounds_node_type);
+  }
   mp_link(obj_tail(lhe))=p;
   obj_tail(lhe)=p;
   mp_init_bbox(mp, lhe);
@@ -24035,10 +26122,11 @@ cases to deal with.
 static void mp_do_add_to (MP mp) ;
 
 @ @c void mp_do_add_to (MP mp) {
-  pointer lhv,lhe; /* variable on left, the corresponding edge structure */
-  pointer p; /* the graphical object or list for |scan_with_list| to update */
-  pointer e; /* an edge structure to be merged */
+  mp_node lhv,lhe; /* variable on left, the corresponding edge structure */
+  mp_node p; /* the graphical object or list for |scan_with_list| to update */
+  mp_node e; /* an edge structure to be merged */
   quarterword add_type; /* |also_code|, |contour_code|, or |double_path_code| */
+  mp_value new_expr;
   lhv=mp_start_draw_cmd(mp, thing_to_add); add_type=mp->last_add_type;
   if ( lhv!=null ) {
     if ( add_type==also_code ) {
@@ -24059,14 +26147,16 @@ setting |e:=null| prevents anything from being added to |lhe|.
 @ @<Make sure the current expression is a suitable picture and set |e|...@>=
 { 
   p=null; e=null;
-  if ( mp->cur_type!=mp_picture_type ) {
+  if ( mp->cur_exp.type!=mp_picture_type ) {
     exp_err("Improper `addto'");
 @.Improper `addto'@>
     help2("This expression should have specified a known picture.",
           "So I'll not change anything just now."); 
-    mp_put_get_flush_error(mp, 0);
+    new_expr.data.val = 0;
+    mp_put_get_flush_error(mp, new_expr);
   } else { 
-    e=mp_private_edges(mp, mp->cur_exp); mp->cur_type=mp_vacuous;
+    e=mp_private_edges(mp, cur_exp_node()); 
+    mp->cur_exp.type=mp_vacuous;
     p=mp_link(dummy_loc(e));
   }
 }
@@ -24076,23 +26166,24 @@ attempts to add to the edge structure.
 
 @<Create a graphical object |p| based on |add_type| and the current...@>=
 { e=null; p=null;
-  if ( mp->cur_type==mp_pair_type ) mp_pair_to_path(mp);
-  if ( mp->cur_type!=mp_path_type ) {
+  if ( mp->cur_exp.type==mp_pair_type ) mp_pair_to_path(mp);
+  if ( mp->cur_exp.type!=mp_path_type ) {
     exp_err("Improper `addto'");
 @.Improper `addto'@>
     help2("This expression should have specified a known path.",
           "So I'll not change anything just now."); 
-    mp_put_get_flush_error(mp, 0);
+    new_expr.data.val = 0;
+    mp_put_get_flush_error(mp, new_expr);
   } else if ( add_type==contour_code ) {
-    if ( mp_left_type(mp->cur_exp)==mp_endpoint ) {
+    if ( mp_left_type(cur_exp_knot())==mp_endpoint ) {
       @<Complain about a non-cycle@>;
     } else { 
-      p=mp_new_fill_node(mp, mp->cur_exp);
-      mp->cur_type=mp_vacuous;
+      p=mp_new_fill_node(mp, cur_exp_knot());
+      mp->cur_exp.type=mp_vacuous;
     }
   } else { 
-    p=mp_new_stroked_node(mp, mp->cur_exp);
-    mp->cur_type=mp_vacuous;
+    p=mp_new_stroked_node(mp, cur_exp_knot());
+    mp->cur_exp.type=mp_vacuous;
   }
 }
 
@@ -24111,8 +26202,8 @@ if ( lhe==null ) {
   mp_link(obj_tail(lhe))=p;
   obj_tail(lhe)=p;
   if ( add_type==double_path_code )
-    if ( mp_pen_p(p)==null ) 
-      mp_pen_p(p)=mp_get_pen_circle(mp, 0);
+    if ( mp_pen_p((mp_stroked_node)p)==null ) 
+      mp_pen_p((mp_stroked_node)p)=mp_get_pen_circle(mp, 0);
 }
 
 @ @<Merge |e| into |lhe| and delete |e|@>=
@@ -24135,15 +26226,18 @@ static void mp_do_ship_out (MP mp) ;
 
 @ @c void mp_do_ship_out (MP mp) {
   integer c; /* the character code */
-  mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_picture_type ) {
+  mp_value new_expr;
+  mp_get_x_next(mp); 
+  mp_scan_expression(mp);
+  if ( mp->cur_exp.type!=mp_picture_type ) {
     @<Complain that it's not a known picture@>;
   } else { 
-    c=mp_round_unscaled(mp, mp->internal[mp_char_code]) % 256;
+    c=mp_round_unscaled(mp, internal_value(mp_char_code)) % 256;
     if ( c<0 ) c=c+256;
     @<Store the width information for character code~|c|@>;
-    mp_ship_out(mp, mp->cur_exp);
-    mp_flush_cur_exp(mp, 0);
+    mp_ship_out(mp, cur_exp_node());
+    new_expr.data.val = 0;
+    mp_flush_cur_exp(mp, new_expr);
   }
 }
 
@@ -24151,7 +26245,8 @@ static void mp_do_ship_out (MP mp) ;
 { 
   exp_err("Not a known picture");
   help1("I can only output known pictures.");
-  mp_put_get_flush_error(mp, 0);
+  new_expr.data.val = 0;
+  mp_put_get_flush_error(mp, new_expr);
 }
 
 @ The \&{everyjob} command simply assigns a nonzero value to the global variable
@@ -24159,14 +26254,16 @@ static void mp_do_ship_out (MP mp) ;
 
 @<Cases of |do_statement|...@>=
 case every_job_command: 
-  mp_get_symbol(mp); mp->start_sym=mp->cur_sym; mp_get_x_next(mp);
+  mp_get_symbol(mp); 
+  mp->start_sym=mp->cur_sym; 
+  mp_get_x_next(mp);
   break;
 
 @ @<Glob...@>=
-halfword start_sym; /* a symbolic token to insert at beginning of job */
+mp_sym start_sym; /* a symbolic token to insert at beginning of job */
 
 @ @<Set init...@>=
-mp->start_sym=0;
+mp->start_sym=NULL;
 
 @ Finally, we have only the ``message'' commands remaining.
 
@@ -24175,15 +26272,16 @@ mp->start_sym=0;
 @d err_help_code 2
 @d filename_template_code 3
 @d print_with_leading_zeroes(A,B)  do {
-              integer g = mp->pool_ptr;
-              integer f = (B);
-              mp_print_int(mp, (A)); g = mp->pool_ptr-g;
+              size_t g = mp->cur_length;
+              size_t f = (size_t)(B);
+              mp_print_int(mp, (A)); 
+              g = mp->cur_length - g;
               if ( f>g ) {
-                mp->pool_ptr = mp->pool_ptr - g;
+                mp->cur_length = mp->cur_length - g;
                 while ( f>g ) {
                   mp_print_char(mp, xord('0'));
                   decr(f);
-                  };
+                };
                 mp_print_int(mp, (A));
               };
               f = 0;
@@ -24217,13 +26315,14 @@ static void mp_do_message (MP mp) ;
 @ 
 @c void mp_do_message (MP mp) {
   int m; /* the type of message */
+  mp_value new_expr;
   m=mp->cur_mod; mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_string_type )
+  if ( mp->cur_exp.type!=mp_string_type )
     mp_no_string_err(mp, "A message should be a known string expression.");
   else {
     switch (m) {
     case message_code: 
-      mp_print_nl(mp, ""); mp_print_str(mp, mp->cur_exp);
+      mp_print_nl(mp, ""); mp_print_str(mp, cur_exp_str());
       break;
     case err_message_code:
       @<Print string |cur_exp| as an error message@>;
@@ -24236,7 +26335,19 @@ static void mp_do_message (MP mp) ;
       break;
     } /* there are no other cases */
   }
-  mp_flush_cur_exp(mp, 0);
+  new_expr.data.val = 0;
+  mp_flush_cur_exp(mp, new_expr);
+}
+
+@ @<Save the filename template@>=
+{ 
+  delete_str_ref(internal_string(mp_output_template));
+  if ( length(cur_exp_str())==0 ) {
+    internal_string(mp_output_template) = mp_rts(mp,"%j.%c");
+  } else { 
+    internal_string(mp_output_template) = cur_exp_str(); 
+    add_str_ref(internal_string(mp_output_template));
+  }
 }
 
 @ @<Declare a procedure called |no_string_err|@>=
@@ -24252,9 +26363,9 @@ given an empty help string, or if none has ever been given.
 
 @<Save string |cur_exp| as the |err_help|@>=
 { 
-  if ( mp->err_help!=0 ) delete_str_ref(mp->err_help);
-  if ( length(mp->cur_exp)==0 ) mp->err_help=0;
-  else  { mp->err_help=mp->cur_exp; add_str_ref(mp->err_help); }
+  if ( mp->err_help!=NULL ) delete_str_ref(mp->err_help);
+  if ( length(cur_exp_str())==0 ) mp->err_help=NULL;
+  else  { mp->err_help=cur_exp_str(); add_str_ref(mp->err_help); }
 }
 
 @ If \&{errmessage} occurs often in |mp_scroll_mode|, without user-defined
@@ -24268,8 +26379,8 @@ boolean long_help_seen; /* has the long \.{\\errmessage} help been used? */
 
 @ @<Print string |cur_exp| as an error message@>=
 { 
-  print_err(""); mp_print_str(mp, mp->cur_exp);
-  if ( mp->err_help!=0 ) {
+  print_err(""); mp_print_str(mp, cur_exp_str());
+  if ( mp->err_help != NULL ) {
     mp->use_err_help=true;
   } else if ( mp->long_help_seen ) { 
     help1("(That was another `errmessage'.)") ; 
@@ -24294,26 +26405,28 @@ static void mp_do_write (MP mp) ;
   str_number t; /* the line of text to be written */
   write_index n,n0; /* for searching |wr_fname| and |wr_file| arrays */
   unsigned old_setting; /* for saving |selector| during output */
+  mp_value new_expr;
   mp_get_x_next(mp);
   mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_string_type ) {
+  if ( mp->cur_exp.type!=mp_string_type ) {
     mp_no_string_err(mp, "The text to be written should be a known string expression");
   } else if ( mp->cur_cmd!=to_token ) { 
     print_err("Missing `to' clause");
     help1("A write command should end with `to <filename>'");
     mp_put_get_error(mp);
   } else { 
-    t=mp->cur_exp; mp->cur_type=mp_vacuous;
+    t=cur_exp_str(); mp->cur_exp.type=mp_vacuous;
     mp_get_x_next(mp);
     mp_scan_expression(mp);
-    if ( mp->cur_type!=mp_string_type )
+    if ( mp->cur_exp.type!=mp_string_type )
       mp_no_string_err(mp, "I can\'t write to that file name.  It isn't a known string");
     else {
       @<Write |t| to the file named by |cur_exp|@>;
     }
-    delete_str_ref(t);
+    /* delete_str_ref(t); */
   }
-  mp_flush_cur_exp(mp, 0);
+  new_expr.data.val = 0;
+  mp_flush_cur_exp(mp, new_expr);
 }
 
 @ @<Write |t| to the file named by |cur_exp|@>=
@@ -24332,7 +26445,7 @@ static void mp_do_write (MP mp) ;
 
 @ @<Find |n| where |wr_fname[n]=cur_exp| and call |open_write_file| if...@>=
 {
-  char *fn = str(mp->cur_exp);
+  char *fn = mp_str(mp,cur_exp_str());
   n=mp->write_files;
   n0=mp->write_files;
   while (mp_xstrcmp(fn,mp->wr_fname[n])!=0) { 
@@ -24658,10 +26771,10 @@ is kept in additional arrays called |header_byte|, |lig_kern|,
 #define TFM_ITEMS 257
 eight_bits bc;
 eight_bits ec; /* smallest and largest character codes shipped out */
-scaled tfm_width[TFM_ITEMS]; /* \&{charwd} values */
-scaled tfm_height[TFM_ITEMS]; /* \&{charht} values */
-scaled tfm_depth[TFM_ITEMS]; /* \&{chardp} values */
-scaled tfm_ital_corr[TFM_ITEMS]; /* \&{charic} values */
+mp_node tfm_width[TFM_ITEMS]; /* \&{charwd} values */
+mp_node tfm_height[TFM_ITEMS]; /* \&{charht} values */
+mp_node tfm_depth[TFM_ITEMS]; /* \&{chardp} values */
+mp_node tfm_ital_corr[TFM_ITEMS]; /* \&{charic} values */
 boolean char_exists[TFM_ITEMS]; /* has this code been shipped out? */
 int char_tag[TFM_ITEMS]; /* |remainder| category */
 int char_remainder[TFM_ITEMS]; /* the |remainder| byte */
@@ -24705,17 +26818,18 @@ for (k=0;k<= 255;k++ ) {
 }
 memset(mp->header_byte,0,(size_t)mp->header_size);
 mp->bc=255; mp->ec=0; mp->nl=0; mp->nk=0; mp->ne=0; mp->np=0;
-mp->internal[mp_boundary_char]=-unity;
+internal_value(mp_boundary_char)=-unity;
 mp->bch_label=undefined_label;
 mp->label_loc[0]=-1; mp->label_ptr=0;
 
 @ @<Declarations@>=
-static scaled mp_tfm_check (MP mp,quarterword m) ;
+static mp_node mp_tfm_check (MP mp,quarterword m) ;
 
 @ @c
-static scaled mp_tfm_check (MP mp,quarterword m) {
-  if ( abs(mp->internal[m])>=fraction_half ) {
-    print_err("Enormous "); mp_print(mp, mp->int_name[m]);
+static mp_node mp_tfm_check (MP mp,quarterword m) {
+  mp_node p = mp_get_value_node(mp);
+  if ( abs(internal_value(m))>=fraction_half ) {
+    print_err("Enormous "); mp_print(mp, internal_name(m));
 @.Enormous charwd...@>
 @.Enormous chardp...@>
 @.Enormous charht...@>
@@ -24724,11 +26838,12 @@ static scaled mp_tfm_check (MP mp,quarterword m) {
     mp_print(mp, " has been reduced");
     help1("Font metric dimensions must be less than 2048pt.");
     mp_put_get_error(mp);
-    if ( mp->internal[m]>0 ) return (fraction_half-1);
-    else return (1-fraction_half);
+    if ( internal_value(m)>0 ) set_value(p,(fraction_half-1));
+    else set_value(p,(1-fraction_half));
   } else {
-    return mp->internal[m];
+    set_value(p,internal_value(m));
   }
+  return p;
 }
 
 @ @<Store the width information for character code~|c|@>=
@@ -24779,13 +26894,15 @@ static eight_bits mp_get_code (MP mp) ;
 
 @ @c eight_bits mp_get_code (MP mp) { /* scans a character code value */
   integer c; /* the code value found */
-  mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type==mp_known ) { 
-    c=mp_round_unscaled(mp, mp->cur_exp);
+  mp_value new_expr;
+  mp_get_x_next(mp); 
+  mp_scan_expression(mp);
+  if ( mp->cur_exp.type==mp_known ) { 
+    c=mp_round_unscaled(mp, cur_exp_value());
     if ( c>=0 ) if ( c<256 ) return (eight_bits)c;
-  } else if ( mp->cur_type==mp_string_type ) {
-    if ( length(mp->cur_exp)==1 )  { 
-      c=mp->str_pool[mp->str_start[mp->cur_exp]];
+  } else if ( mp->cur_exp.type==mp_string_type ) {
+    if ( length(cur_exp_str())==1 )  { 
+      c = (integer)(*(cur_exp_str()->str));
       return (eight_bits)c;
     }
   }
@@ -24793,7 +26910,9 @@ static eight_bits mp_get_code (MP mp) ;
 @.Invalid code...@>
   help2("I was looking for a number between 0 and 255, or for a",
         "string of length 1. Didn't find it; will use 0 instead.");
-  mp_put_get_flush_error(mp, 0); c=0;
+  new_expr.data.val = 0;
+  mp_put_get_flush_error(mp, new_expr); 
+  c=0;
   return (eight_bits)c;
 }
 
@@ -24837,6 +26956,7 @@ static void mp_do_tfm_command (MP mp) ;
   int c,cc; /* character codes */
   int k; /* index into the |kern| array */
   int j; /* index into |header_byte| or |param| */
+  mp_value new_expr;
   switch (mp->cur_mod) {
   case char_list_code: 
     c=mp_get_code(mp);
@@ -24859,14 +26979,14 @@ static void mp_do_tfm_command (MP mp) ;
   case font_dimen_code: 
     c=mp->cur_mod; mp_get_x_next(mp);
     mp_scan_expression(mp);
-    if ( (mp->cur_type!=mp_known)||(mp->cur_exp<half_unit) ) {
+    if ( (mp->cur_exp.type!=mp_known)||(cur_exp_value()<half_unit) ) {
       exp_err("Improper location");
 @.Improper location@>
       help2("I was looking for a known, positive number.",
             "For safety's sake I'll ignore the present command.");
       mp_put_get_error(mp);
     } else  { 
-      j=mp_round_unscaled(mp, mp->cur_exp);
+      j=mp_round_unscaled(mp, cur_exp_value());
       if ( mp->cur_cmd!=colon ) {
         mp_missing_err(mp, ":");
 @.Missing `:'@>
@@ -25005,16 +27125,17 @@ We may need to cancel skips that span more than 127 lig/kern steps.
     op_byte(mp->nl)=qi(mp->cur_mod); rem_byte(mp->nl)=qi(mp_get_code(mp));
   } else { 
     mp_get_x_next(mp); mp_scan_expression(mp);
-    if ( mp->cur_type!=mp_known ) {
+    if ( mp->cur_exp.type!=mp_known ) {
       exp_err("Improper kern");
 @.Improper kern@>
       help2("The amount of kern should be a known numeric value.",
             "I'm zeroing this one. Proceed, with fingers crossed.");
-      mp_put_get_flush_error(mp, 0);
+      new_expr.data.val = 0;
+      mp_put_get_flush_error(mp, new_expr);
     }
-    mp->kern[mp->nk]=mp->cur_exp;
+    mp->kern[mp->nk]=cur_exp_value();
     k=0; 
-    while ( mp->kern[k]!=mp->cur_exp ) incr(k);
+    while ( mp->kern[k]!=cur_exp_value() ) incr(k);
     if ( k==mp->nk ) {
       if ( mp->nk==max_tfm_int ) mp_fatal_error(mp, "too many TFM kerns");
       mp->nk++;
@@ -25069,13 +27190,14 @@ do {
   if ( j>max_tfm_int ) mp_fatal_error(mp, "too many fontdimens");
   while ( j>mp->np ) { mp->np++; mp->param[mp->np]=0; };
   mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_known ){ 
+  if ( mp->cur_exp.type!=mp_known ){ 
     exp_err("Improper font parameter");
 @.Improper font parameter@>
     help1("I'm zeroing this one. Proceed, with fingers crossed.");
-    mp_put_get_flush_error(mp, 0);
+    new_expr.data.val = 0;
+    mp_put_get_flush_error(mp, new_expr);
   }
-  mp->param[j]=mp->cur_exp; incr(j);
+  mp->param[j]=cur_exp_value(); incr(j);
 } while (mp->cur_cmd==comma)
 
 @ OK: We've stored all the data that is needed for the \.{TFM} file.
@@ -25094,8 +27216,12 @@ then the list of sorted values is perturbed, if necessary.
 The sorting operation is facilitated by having a special node of
 essentially infinite |value| at the end of the current list.
 
-@<Initialize table entries...@>=
-value(inf_val)=fraction_four;
+@<Initialize table entries@>=
+mp->inf_val = mp_get_value_node(mp);
+set_value(mp->inf_val,fraction_four);
+
+@ @<Free table entries@>=
+mp_free_value_node(mp,mp->inf_val);
 
 @ Straight linear insertion is good enough for sorting, since the lists
 are usually not terribly long. As we work on the data, the current list
@@ -25110,19 +27236,21 @@ At the time we need to do these operations, most of \MP's work has been
 completed, so we will have plenty of memory to play with. The value nodes
 that are allocated for sorting will never be returned to free storage.
 
-@d clear_the_list mp_link(temp_head)=inf_val
+@d clear_the_list mp_link(mp->temp_head)=mp->inf_val
 
 @c 
-static pointer mp_sort_in (MP mp,scaled v) {
-  pointer p,q,r; /* list manipulation registers */
-  p=temp_head;
+static mp_node mp_sort_in (MP mp,scaled v) {
+  mp_node p,q,r; /* list manipulation registers */
+  p=mp->temp_head;
   while (1) { 
     q=mp_link(p);
     if ( v<=value(q) ) break;
     p=q;
   }
   if ( v<value(q) ) {
-    r=mp_get_node(mp, value_node_size); value(r)=v; mp_link(r)=q; mp_link(p)=r;
+    r=mp_get_value_node(mp); 
+    set_value(r,v); 
+    mp_link(r)=q; mp_link(p)=r;
   }
   return mp_link(p);
 }
@@ -25140,11 +27268,11 @@ adjacent values.
 
 @c 
 static integer mp_min_cover (MP mp,scaled d) {
-  pointer p; /* runs through the current list */
+  mp_node p; /* runs through the current list */
   scaled l; /* the least element covered by the current interval */
   integer m; /* lower bound on the size of the minimum cover */
-  m=0; p=mp_link(temp_head); mp->perturbation=el_gordo;
-  while ( p!=inf_val ){ 
+  m=0; p=mp_link(mp->temp_head); mp->perturbation=el_gordo;
+  while ( p!=mp->inf_val ){ 
     incr(m); l=value(p);
     do {  p=mp_link(p); } while (value(p)<=l+d);
     if ( value(p)-l<mp->perturbation ) 
@@ -25189,13 +27317,17 @@ value of |skimp|.
 @c 
 static integer mp_skimp (MP mp,integer m) {
   scaled d; /* the size of intervals being coalesced */
-  pointer p,q,r; /* list manipulation registers */
+  mp_node p,q,r; /* list manipulation registers */
   scaled l; /* the least value in the current interval */
   scaled v; /* a compromise value */
-  d=mp_threshold(mp, m); mp->perturbation=0;
-  q=temp_head; m=0; p=mp_link(temp_head);
-  while ( p!=inf_val ) {
-    incr(m); l=value(p); mp_info(p)=m;
+  d=mp_threshold(mp, m); 
+  mp->perturbation=0;
+  q=mp->temp_head; 
+  m=0; 
+  p=mp_link(mp->temp_head);
+  while ( p!=mp->inf_val ) {
+    incr(m); l=value(p); 
+    set_mp_info(p,m);
     if ( value(mp_link(p))<=l+d ) {
       @<Replace an interval of values by its midpoint@>;
     }
@@ -25207,7 +27339,8 @@ static integer mp_skimp (MP mp,integer m) {
 @ @<Replace an interval...@>=
 { 
   do {  
-    p=mp_link(p); mp_info(p)=m;
+    p=mp_link(p); 
+    set_mp_info(p,m);
     decr(mp->excess); if ( mp->excess==0 ) d=0;
   } while (value(mp_link(p))<=l+d);
   v=l+halfp(value(p)-l);
@@ -25215,7 +27348,8 @@ static integer mp_skimp (MP mp,integer m) {
     mp->perturbation=value(p)-v;
   r=q;
   do {  
-    r=mp_link(r); value(r)=v;
+    r=mp_link(r);
+    set_value(r,v);
   } while (r!=p);
   mp_link(q)=p; /* remove duplicate values from the current list */
 }
@@ -25226,7 +27360,7 @@ more than 1/16\thinspace pt.
 @c 
 static void mp_tfm_warning (MP mp,quarterword m) { 
   mp_print_nl(mp, "(some "); 
-  mp_print(mp, mp->int_name[m]);
+  mp_print(mp, internal_name(m));
 @.some charwds...@>
 @.some chardps...@>
 @.some charhts...@>
@@ -25248,13 +27382,15 @@ lists of dimensions.
 clear_the_list;
 for (k=mp->bc;k<=mp->ec;k++)  {
   if ( mp->char_exists[k] )
-    mp->tfm_width[k]=mp_sort_in(mp, mp->tfm_width[k]);
+    mp->tfm_width[k]=mp_sort_in(mp, value(mp->tfm_width[k]));
 }
-mp->nw=(short)(mp_skimp(mp, 255)+1); mp->dimen_head[1]=mp_link(temp_head);
-if ( mp->perturbation>=010000 ) mp_tfm_warning(mp, mp_char_wd)
+mp->nw=(short)(mp_skimp(mp, 255)+1); 
+mp->dimen_head[1]=mp_link(mp->temp_head);
+if ( mp->perturbation>=010000 ) 
+  mp_tfm_warning(mp, mp_char_wd)
 
 @ @<Glob...@>=
-pointer dimen_head[5]; /* lists of \.{TFM} dimensions */
+mp_node dimen_head[5]; /* lists of \.{TFM} dimensions */
 
 @ Heights, depths, and italic corrections are different from widths
 not only because their list length is more severely restricted, but
@@ -25264,33 +27400,38 @@ also because zero values do not need to be put into the lists.
 clear_the_list;
 for (k=mp->bc;k<=mp->ec;k++) {
   if ( mp->char_exists[k] ) {
-    if ( mp->tfm_height[k]==0 ) mp->tfm_height[k]=zero_val;
-    else mp->tfm_height[k]=mp_sort_in(mp, mp->tfm_height[k]);
+    if ( mp->tfm_height[k]==0 ) mp->tfm_height[k]=mp->zero_val;
+    else mp->tfm_height[k]=mp_sort_in(mp, value(mp->tfm_height[k]));
   }
 }
-mp->nh=(short)(mp_skimp(mp, 15)+1); mp->dimen_head[2]=mp_link(temp_head);
+mp->nh=(short)(mp_skimp(mp, 15)+1); mp->dimen_head[2]=mp_link(mp->temp_head);
 if ( mp->perturbation>=010000 ) mp_tfm_warning(mp, mp_char_ht);
 clear_the_list;
 for (k=mp->bc;k<=mp->ec;k++) {
   if ( mp->char_exists[k] ) {
-    if ( mp->tfm_depth[k]==0 ) mp->tfm_depth[k]=zero_val;
-    else mp->tfm_depth[k]=mp_sort_in(mp, mp->tfm_depth[k]);
+    if ( mp->tfm_depth[k]==0 ) mp->tfm_depth[k]=mp->zero_val;
+    else mp->tfm_depth[k]=mp_sort_in(mp, value(mp->tfm_depth[k]));
   }
 }
-mp->nd=(short)(mp_skimp(mp, 15)+1); mp->dimen_head[3]=mp_link(temp_head);
+mp->nd=(short)(mp_skimp(mp, 15)+1); mp->dimen_head[3]=mp_link(mp->temp_head);
 if ( mp->perturbation>=010000 ) mp_tfm_warning(mp, mp_char_dp);
 clear_the_list;
 for (k=mp->bc;k<=mp->ec;k++) {
   if ( mp->char_exists[k] ) {
-    if ( mp->tfm_ital_corr[k]==0 ) mp->tfm_ital_corr[k]=zero_val;
-    else mp->tfm_ital_corr[k]=mp_sort_in(mp, mp->tfm_ital_corr[k]);
+    if ( mp->tfm_ital_corr[k]==0 ) mp->tfm_ital_corr[k]=mp->zero_val;
+    else mp->tfm_ital_corr[k]=mp_sort_in(mp, value(mp->tfm_ital_corr[k]));
   }
 }
-mp->ni=(short)(mp_skimp(mp, 63)+1); mp->dimen_head[4]=mp_link(temp_head);
+mp->ni=(short)(mp_skimp(mp, 63)+1); mp->dimen_head[4]=mp_link(mp->temp_head);
 if ( mp->perturbation>=010000 ) mp_tfm_warning(mp, mp_char_ic)
 
-@ @<Initialize table entries...@>=
-value(zero_val)=0; mp_info(zero_val)=0;
+@ @<Initialize table entries@>=
+mp->zero_val = mp_get_value_node(mp);
+set_value(mp->zero_val,0);
+set_mp_info(mp->zero_val,0);
+
+@ @<Free table entries@>=
+mp_free_value_node(mp,mp->zero_val);
 
 @ Bytes 5--8 of the header are set to the design size, unless the user has
 some crazy reason for specifying them differently.
@@ -25300,7 +27441,7 @@ Error messages are not allowed at the time this procedure is called,
 so a warning is printed instead.
 
 The value of |max_tfm_dimen| is calculated so that
-$$\hbox{|make_scaled(16*max_tfm_dimen,internal[mp_design_size])|}
+$$\hbox{|make_scaled(16*max_tfm_dimen,internal_value(mp_design_size))|}
  < \\{three\_bytes}.$$
 
 @d three_bytes 0100000000 /* $2^{24}$ */
@@ -25308,12 +27449,12 @@ $$\hbox{|make_scaled(16*max_tfm_dimen,internal[mp_design_size])|}
 @c 
 static void mp_fix_design_size (MP mp) {
   scaled d; /* the design size */
-  d=mp->internal[mp_design_size];
+  d=internal_value(mp_design_size);
   if ( (d<unity)||(d>=fraction_half) ) {
     if ( d!=0 )
       mp_print_nl(mp, "(illegal design size has been changed to 128pt)");
 @.illegal design size...@>
-    d=040000000; mp->internal[mp_design_size]=d;
+    d=040000000; internal_value(mp_design_size)=d;
   }
   if ( mp->header_byte[4]==0 && mp->header_byte[5]==0 &&
        mp->header_byte[6]==0 && mp->header_byte[7]==0 ) {
@@ -25322,7 +27463,7 @@ static void mp_fix_design_size (MP mp) {
      mp->header_byte[6]=(char)((d / 16) % 256);
      mp->header_byte[7]=(char)((d % 16)*16);
   }
-  mp->max_tfm_dimen=16*mp->internal[mp_design_size]-1-mp->internal[mp_design_size] / 010000000;
+  mp->max_tfm_dimen=16*internal_value(mp_design_size)-1-internal_value(mp_design_size) / 010000000;
   if ( mp->max_tfm_dimen>=fraction_half ) mp->max_tfm_dimen=fraction_half-1;
 }
 
@@ -25336,7 +27477,7 @@ static integer mp_dimen_out (MP mp,scaled x) {
     incr(mp->tfm_changed);
     if ( x>0 ) x=mp->max_tfm_dimen; else x=-mp->max_tfm_dimen;
   }
-  x=mp_make_scaled(mp, x*16,mp->internal[mp_design_size]);
+  x=mp_make_scaled(mp, x*16,internal_value(mp_design_size));
   return x;
 }
 
@@ -25415,7 +27556,7 @@ mp->metric_file_name=xstrdup(mp->name_of_file);
   output the dimensions themselves@>;
 @<Output the ligature/kern program@>;
 @<Output the extensible character recipes and the font metric parameters@>;
-  if ( mp->internal[mp_tracing_stats]>0 )
+  if ( internal_value(mp_tracing_stats)>0 )
   @<Log the subfile sizes of the \.{TFM} file@>;
 mp_print_nl(mp, "Font metrics written on "); 
 mp_print(mp, mp->metric_file_name); mp_print_char(mp, xord('.'));
@@ -25457,7 +27598,7 @@ for (k=mp->bc;k<=mp->ec;k++) {
 mp->tfm_changed=0;
 for (k=1;k<=4;k++) { 
   mp_tfm_four(mp, 0); p=mp->dimen_head[k];
-  while ( p!=inf_val ) {
+  while ( p!=mp->inf_val ) {
     mp_tfm_four(mp, mp_dimen_out(mp, value(p))); p=mp_link(p);
   }
 }
@@ -25471,7 +27612,7 @@ starting addresses; we have $-1=|label_loc|[0]<|label_loc|[1]\le\cdots
 \le|label_loc|[|label_ptr]|$.
 
 @<Compute the ligature/kern program offset...@>=
-mp->bchar=mp_round_unscaled(mp, mp->internal[mp_boundary_char]);
+mp->bchar=mp_round_unscaled(mp, internal_value(mp_boundary_char));
 if ((mp->bchar<0)||(mp->bchar>255)) { 
   mp->bchar=-1; mp->lk_started=false; lk_offset=0; 
 } else { 
@@ -25592,7 +27733,7 @@ in |font_info[char_base[f]+c].qqqq|.
 @<Glob...@>=
 font_number font_max; /* maximum font number for included text fonts */
 size_t      font_mem_size; /* number of words for \.{TFM} information for text fonts */
-memory_word *font_info; /* height, width, and depth data */
+fmemory_word *font_info; /* height, width, and depth data */
 char        **font_enc_name; /* encoding names, if any */
 boolean     *font_ps_name_fixed; /* are the postscript names fixed already?  */
 size_t      next_fmem; /* next unused entry in |font_info| */
@@ -25607,12 +27748,12 @@ int         *char_base;  /* base address for |char_info| */
 int         *width_base; /* index for zeroth character width */
 int         *height_base; /* index for zeroth character height */
 int         *depth_base; /* index for zeroth character depth */
-pointer     *font_sizes;
+mp_node     *font_sizes;
 
 @ @<Allocate or initialize ...@>=
 mp->font_mem_size = 10000; 
-mp->font_info = xmalloc ((mp->font_mem_size+1),sizeof(memory_word));
-memset (mp->font_info,0,sizeof(memory_word)*(mp->font_mem_size+1));
+mp->font_info = xmalloc ((mp->font_mem_size+1),sizeof(fmemory_word));
+memset (mp->font_info,0,sizeof(fmemory_word)*(mp->font_mem_size+1));
 mp->last_fnum = null_font;
 
 @ @<Dealloc variables@>=
@@ -25650,7 +27791,7 @@ void mp_reallocate_fonts (MP mp, font_number l) {
   XREALLOC(mp->width_base,         l, int);
   XREALLOC(mp->height_base,        l, int);
   XREALLOC(mp->depth_base,         l, int);
-  XREALLOC(mp->font_sizes,         l, pointer);
+  XREALLOC(mp->font_sizes,         l, mp_node);
   for (f=(mp->last_fnum+1);f<=l;f++) {
     mp->font_enc_name[f]=NULL;
     mp->font_ps_name_fixed[f] = false;
@@ -25683,8 +27824,12 @@ mp->depth_base[null_font]=0;
 mp->next_fmem=0;
 mp->last_fnum=null_font;
 mp->last_ps_fnum=null_font;
-mp->font_name[null_font]=mp_xstrdup(mp,"nullfont");
-mp->font_ps_name[null_font]=mp_xstrdup(mp,"");
+{ 
+  static char nullfont_name[] = "nullfont";
+  static char nullfont_psname[] = "";
+  mp->font_name[null_font]=nullfont_name;
+  mp->font_ps_name[null_font]=nullfont_psname;
+}
 mp->font_ps_name_fixed[null_font] = false;
 mp->font_enc_name[null_font]=NULL;
 mp->font_sizes[null_font]=null;
@@ -25718,19 +27863,17 @@ font_number mp_find_font (MP mp, char *f) {
   font_number n;
   for (n=0;n<=mp->last_fnum;n++) {
     if (mp_xstrcmp(f,mp->font_name[n])==0 ) {
-      mp_xfree(f);
       return n;
     }
   }
   n = mp_read_font_info(mp, f);
-  mp_xfree(f);
   return n;
 }
 
 @ This is an interface function for getting the width of character,
 as a double in ps units
 
-@c double mp_get_char_dimension (MP mp, const char *fname, int c, int t) {
+@c double mp_get_char_dimension (MP mp, char *fname, int c, int t) {
   unsigned n;
   four_quarters cc;
   font_number f = 0;
@@ -25756,30 +27899,33 @@ as a double in ps units
 }
 
 @ @<Exported function ...@>=
-double mp_get_char_dimension (MP mp, const char *fname, int n, int t);
+double mp_get_char_dimension (MP mp, char *fname, int n, int t);
 
 
 @ One simple application of |find_font| is the implementation of the |font_size|
 operator that gets the design size for a given font name.
 
 @<Find the design size of the font whose name is |cur_exp|@>=
-mp_flush_cur_exp(mp, (mp->font_dsize[mp_find_font(mp, str(mp->cur_exp))]+8) / 16)
+{
+  new_expr.data.val =(mp->font_dsize[mp_find_font(mp, mp_str(mp,cur_exp_str()))]+8) / 16;
+  mp_flush_cur_exp(mp, new_expr);
+}
 
 @ If we discover that the font doesn't have a requested character, we omit it
 from the bounding box computation and expect the \ps\ interpreter to drop it.
 This routine issues a warning message if the user has asked for it.
 
 @<Declarations@>=
-static void mp_lost_warning (MP mp,font_number f, pool_pointer k);
+static void mp_lost_warning (MP mp,font_number f, int k);
 
 @ @c 
-void mp_lost_warning (MP mp,font_number f, pool_pointer k) { 
-  if ( mp->internal[mp_tracing_lost_chars]>0 ) { 
+void mp_lost_warning (MP mp,font_number f, int k) { 
+  if ( internal_value(mp_tracing_lost_chars)>0 ) { 
     mp_begin_diagnostic(mp);
     if ( mp->selector==log_only ) incr(mp->selector);
     mp_print_nl(mp, "Missing character: There is no ");
 @.Missing character@>
-    mp_print_str(mp, mp->str_pool[k]); 
+    mp_print_int(mp, k); 
     mp_print(mp, " in font ");
     mp_print(mp, mp->font_name[f]); mp_print_char(mp, xord('!')); 
     mp_end_diagnostic(mp, false);
@@ -25791,13 +27937,13 @@ able to find the bounding box of an item of text in an edge structure.  The
 |set_text_box| procedure takes a text node and adds this information.
 
 @<Declarations@>=
-static void mp_set_text_box (MP mp,pointer p); 
+static void mp_set_text_box (MP mp, mp_node p); 
 
 @ @c 
-void mp_set_text_box (MP mp,pointer p) {
+void mp_set_text_box (MP mp, mp_node p) {
   font_number f; /* |mp_font_n(p)| */
   ASCII_code bc,ec; /* range of valid characters for font |f| */
-  pool_pointer k,kk; /* current character and character to stop at */
+  size_t k,kk; /* current character and character to stop at */
   four_quarters cc; /* the |char_info| for the current character */
   scaled h,d; /* dimensions of the current character */
   width_val(p)=0;
@@ -25806,8 +27952,8 @@ void mp_set_text_box (MP mp,pointer p) {
   f=(font_number)mp_font_n(p);
   bc=mp->font_bc[f];
   ec=mp->font_ec[f];
-  kk=str_stop(mp_text_p(p));
-  k=mp->str_start[mp_text_p(p)];
+  kk=length(mp_text_p(p));
+  k=0;
   while ( k<kk ) {
     @<Adjust |p|'s bounding box to contain |str_pool[k]|; advance |k|@>;
   }
@@ -25816,12 +27962,12 @@ void mp_set_text_box (MP mp,pointer p) {
 
 @ @<Adjust |p|'s bounding box to contain |str_pool[k]|; advance |k|@>=
 { 
-  if ( (mp->str_pool[k]<bc)||(mp->str_pool[k]>ec) ) {
-    mp_lost_warning(mp, f,k);
+  if ( (*(mp_text_p(p)->str+k)<bc)||(*(mp_text_p(p)->str+k)>ec) ) {
+    mp_lost_warning(mp, f, *(mp_text_p(p)->str+k));
   } else { 
-    cc=char_mp_info(f,mp->str_pool[k]);
+    cc=char_mp_info(f,*(mp_text_p(p)->str+k));
     if ( ! ichar_exists(cc) ) {
-      mp_lost_warning(mp, f,k);
+      mp_lost_warning(mp, f, *(mp_text_p(p)->str+k));
     } else { 
       width_val(p)=width_val(p)+char_width(f,cc);
       h=char_height(f,cc);
@@ -25851,18 +27997,18 @@ static void mp_do_mapline (MP mp) ;
 @ @c 
 static void mp_do_mapfile (MP mp) { 
   mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_string_type ) {
+  if ( mp->cur_exp.type!=mp_string_type ) {
     @<Complain about improper map operation@>;
   } else {
-    mp_map_file(mp,mp->cur_exp);
+    mp_map_file(mp,cur_exp_str());
   }
 }
 static void mp_do_mapline (MP mp) { 
   mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_string_type ) {
+  if ( mp->cur_exp.type!=mp_string_type ) {
      @<Complain about improper map operation@>;
   } else { 
-     mp_map_line(mp,mp->cur_exp);
+     mp_map_line(mp,cur_exp_str());
   }
 }
 
@@ -25896,9 +28042,7 @@ for (i = 1;i<= 9; i++ ) {
 
 @ The following function divides |s| by |m|. |dd| is number of decimal digits.
 
-@c 
-#if 0
-scaled mp_divide_scaled (MP mp,scaled s, scaled m, integer  dd) {
+@c scaled mp_divide_scaled (MP mp,scaled s, scaled m, integer  dd) {
   scaled q,r;
   integer sign,i;
   sign = 1;
@@ -25918,7 +28062,6 @@ scaled mp_divide_scaled (MP mp,scaled s, scaled m, integer  dd) {
   mp->scaled_out = sign*(s - (r / mp->ten_pow[dd]));
   return (sign*q);
 }
-#endif
 
 @* \[44] Shipping pictures out.
 The |ship_out| procedure, to be described below, is given a pointer to
@@ -25938,12 +28081,11 @@ void mp_open_output_file (MP mp) ;
 
 @ @c 
 static void mp_append_to_template (MP mp, integer ff, integer c) {
-  if (mp->int_type[c]==mp_string_type) {
-    char *ss = str(mp->internal[c]);
+  if (internal_type(c)==mp_string_type) {
+    char *ss = mp_str(mp,internal_string(c));
     mp_print(mp,ss);
-    mp_xfree(ss);
-  } else if (mp->int_type[c]==mp_known) {
-    integer cc = mp_round_unscaled(mp, mp->internal[c]);
+  } else if (internal_type(c)==mp_known) {
+    integer cc = mp_round_unscaled(mp, internal_value(c));
     print_with_leading_zeroes(cc, ff);
   }
 }
@@ -25951,10 +28093,11 @@ static char *mp_set_output_file_name (MP mp, integer c) {
   char *ss = NULL; /* filename extension proposal */  
   char *nn = NULL; /* temp string  for str() */
   unsigned old_setting; /* previous |selector| setting */
-  pool_pointer i; /*  indexes into |filename_template|  */
+  size_t i; /*  indexes into |filename_template|  */
   integer f; /* field width */
+  str_room(1024);
   if ( mp->job_name==NULL ) mp_open_log_file(mp);
-  if ( mp->internal[mp_output_template]==0) { 
+  if ( internal_string(mp_output_template)==NULL) { 
     char *s; /* a file extension derived from |c| */
     if ( c<0 ) 
       s=xstrdup(".ps");
@@ -25964,10 +28107,10 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     free(s);
     ss = xstrdup(mp->name_of_file);
   } else { /* initializations */
-    str_number s, n; /* a file extension derived from |c| */
-    scaled saved_char_code = mp->internal[mp_char_code];
-    mp->internal[mp_char_code] = (c*unity);
-    if (mp->internal[mp_job_name]==0) {
+    str_number s, n, template; /* a file extension derived from |c| */
+    scaled saved_char_code = internal_value(mp_char_code);
+    internal_value(mp_char_code) = (c*unity);
+    if (internal_string(mp_job_name)==NULL) {
       if ( mp->job_name==NULL ) {
          mp->job_name=xstrdup("mpout");
       }
@@ -25975,20 +28118,21 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     }
     old_setting=mp->selector; 
     mp->selector=new_string;
-    i = mp->str_start[mp->internal[mp_output_template]];
+    i = 0;
     n = null_str; /* initialize */
-    while ( i<str_stop(mp->internal[mp_output_template]) ) {
+    template = internal_string(mp_output_template);
+    while ( i<length(template) ) {
        f=0;
-       if ( mp->str_pool[i]=='%' ) {
+       if ( *(template->str+i)=='%' ) {
       CONTINUE:
         incr(i);
-        if ( i<str_stop(mp->internal[mp_output_template]) ) {
-          switch (mp->str_pool[i]) {
+        if ( i<length(template) ) {
+          switch (*(template->str+i)) {
 	  case 'j':
  	    mp_append_to_template(mp,f,mp_job_name); 
 	    break;
 	  case 'c': 
-            if (mp->internal[mp_char_code]<0) {
+            if (internal_value(mp_char_code)<0) {
                 mp_print(mp,"ps");
             } else {
                 mp_append_to_template(mp,f,mp_char_code); 
@@ -26015,48 +28159,40 @@ static char *mp_set_output_file_name (MP mp, integer c) {
           case '{':
 	    {
 	      /* look up a name */
-              integer l=0;
-              integer frst = i+1;
-	      while ( i<str_stop(mp->internal[mp_output_template]) ) {
+              size_t l = 0;
+              size_t frst = i+1;
+	      while ( i<length(template) ) {
                 i++;
-	        if (mp->str_pool[i] == '}')
+	        if (*(template->str+i) == '}')
                   break;
                 l++;
               }
               if (l>0) {
-                integer h = mp_compute_hash(mp, (char *)(mp->str_pool+frst),l);
-                pointer p=h+hash_base; /* we start searching here */
+                mp_sym p = mp_id_lookup(mp, (char *)(template->str+frst),(int)l, false);
 	        char *id = xmalloc(mp, (size_t)(l+1));
-                (void)memcpy(id,(char *)(mp->str_pool+frst),(size_t)l);
-	        *(id+l)=0;
-	        while (true)  { 
-	     	  if (text(p)>0 && length(text(p))==l && 
-	              mp_str_eq_cstr(mp, text(p),id)) {
-                    if (eq_type(p)==internal_quantity) {
-		      if (equiv(p)==mp_output_template) {
-    		        char err[256];
-                        mp_snprintf(err,256,
-                           "The appearance of outputtemplate inside outputtemplate is ignored.");
-                        mp_warn(mp,err);
-                      } else {
-	         	mp_append_to_template(mp,f,equiv(p)); 
-	              }
-                    } else {
-		      char err[256];
+                (void)memcpy(id,(char *)(template->str+frst),(size_t)l);
+	        *(id+l)='\0';
+	        if ( p==NULL ) {
+                  char err[256];
+                  mp_snprintf(err,256,
+                    "requested identifier (%s) in outputtemplate not found.",id);
+                  mp_warn(mp,err);
+                } else {
+                  if (eq_type(p)==internal_quantity) {
+                    if (equiv(p)==mp_output_template) {
+    		      char err[256];
                       mp_snprintf(err,256,
-                       "requested identifier (%s) in outputtemplate is not an internal.",id);
+                         "The appearance of outputtemplate inside outputtemplate is ignored.");
                       mp_warn(mp,err);
-                    }
-                    break;
-                  }
-                  if ( mp_next(p)==0 ) {
-                    char err[256];
+                    } else {
+	              mp_append_to_template(mp,f,equiv(p)); 
+	            }
+                  } else {
+		    char err[256];
                     mp_snprintf(err,256,
-                      "requested identifier (%s) in outputtemplate not found.",id);
+                     "requested identifier (%s) in outputtemplate is not an internal.",id);
                     mp_warn(mp,err);
-                    break;
                   }
-                  p=mp_next(p);
                 }
                 free(id);
               }
@@ -26065,43 +28201,42 @@ static char *mp_set_output_file_name (MP mp, integer c) {
 	  case '0': case '1': case '2': case '3': case '4': 
 	  case '5': case '6': case '7': case '8': case '9':
             if ( (f<10)  )
-              f = (f*10) + mp->str_pool[i]-'0';
+              f = (f*10) + template->str[i]-'0';
             goto CONTINUE;
 	    break;
           case '%':
-            mp_print_str(mp, mp->str_pool[i]);
+            mp_print_char(mp, '%');
 	    break;
           default:
             {
               char err[256];
               mp_snprintf(err,256,
-                "requested format (%c) in outputtemplate is unknown.",mp->str_pool[i]);
+                "requested format (%c) in outputtemplate is unknown.",*(template->str+i));
               mp_warn(mp,err);
             }
-            mp_print_str(mp, mp->str_pool[i]);
+            mp_print_char(mp, *(template->str+i));
           }
         }
       } else {
-        if ( mp->str_pool[i]=='.' )
+        if ( *(template->str+i)=='.' )
           if (length(n)==0)
             n = mp_make_string(mp);
-        mp_print_str(mp, mp->str_pool[i]);
+        mp_print_char(mp, *(template->str+i));
       };
       incr(i);
     }
     s = mp_make_string(mp);
-    mp->internal[mp_char_code] = saved_char_code;
+    internal_value(mp_char_code) = saved_char_code;
     mp->selector= old_setting;
     if (length(n)==0) {
        n=s;
        s=null_str;
     }
-    ss = str(s);
-    nn = str(n);
+    ss = mp_str(mp,s);
+    nn = mp_str(mp,n);
     mp_pack_file_name(mp, nn,"",ss);
-    mp_xfree(nn);
-    delete_str_ref(n);
-    delete_str_ref(s);
+    delete_str_ref(n); 
+    delete_str_ref(s); 
   }
   return ss;
 }
@@ -26110,7 +28245,7 @@ static char * mp_get_output_file_name (MP mp) {
   char *f;
   char *saved_name;  /* saved |name_of_file| */
   saved_name = xstrdup(mp->name_of_file);
-  (void)mp_set_output_file_name(mp, mp_round_unscaled(mp, mp->internal[mp_char_code]));
+  (void)mp_set_output_file_name(mp, mp_round_unscaled(mp, internal_value(mp_char_code)));
   f = xstrdup(mp->name_of_file);
   mp_pack_file_name(mp, saved_name,NULL,NULL);
   free(saved_name);
@@ -26120,11 +28255,10 @@ static char * mp_get_output_file_name (MP mp) {
 void mp_open_output_file (MP mp) {
   char *ss; /* filename extension proposal */
   integer c; /* \&{charcode} rounded to the nearest integer */
-  c=mp_round_unscaled(mp, mp->internal[mp_char_code]);
+  c=mp_round_unscaled(mp, internal_value(mp_char_code));
   ss = mp_set_output_file_name(mp, c);
   while ( ! mp_a_open_out(mp, (void *)&mp->output_file, mp_filetype_postscript) )
     mp_prompt_file_name(mp, "file name for output",ss);
-  xfree(ss);
   @<Store the true output file name if appropriate@>;
 }
 
@@ -26205,6 +28339,7 @@ if ( mp->total_shipped>0 ) {
       mp_print(mp, " .. ");
       mp_print(mp, mp->last_file_name);
     }
+    mp_print_nl(mp, "");
   }
 }
 
@@ -26220,10 +28355,10 @@ boolean mp_has_font_size(MP mp, font_number f ) {
 |ship_out| operation.  The saved items are stored as a list of capsule tokens.
 
 @<Glob...@>=
-pointer last_pending; /* the last token in a list of pending specials */
+mp_node last_pending; /* the last token in a list of pending specials */
 
 @ @<Set init...@>=
-mp->last_pending=spec_head;
+mp->last_pending=mp->spec_head;
 
 @ @<Cases of |do_statement|...@>=
 case special_command: 
@@ -26237,7 +28372,7 @@ static void mp_do_special (MP mp) ;
 
 @ @c void mp_do_special (MP mp) { 
   mp_get_x_next(mp); mp_scan_expression(mp);
-  if ( mp->cur_type!=mp_string_type ) {
+  if ( mp->cur_exp.type!=mp_string_type ) {
     @<Complain about improper special operation@>;
   } else { 
     mp_link(mp->last_pending)=mp_stash_cur_exp(mp);
@@ -26259,31 +28394,31 @@ static void mp_do_special (MP mp) ;
 mp_special_code=8, 
 
 @ @<Export pending specials@>=
-p=mp_link(spec_head);
-while ( p!=null ) {
+p=mp_link(mp->spec_head);
+while ( p!=NULL ) {
   mp_special_object *tp;
   tp = (mp_special_object *)mp_new_graphic_object(mp,mp_special_code);  
-  gr_pre_script(tp)  = str(value(p));
+  gr_pre_script(tp)  = mp_str(mp,str_value(p));
   if (hh->body==NULL) hh->body = (mp_graphic_object *)tp; 
   else gr_link(hp) = (mp_graphic_object *)tp;
   hp = (mp_graphic_object *)tp;
   p=mp_link(p);
 }
-mp_flush_token_list(mp, mp_link(spec_head));
-mp_link(spec_head)=null;
-mp->last_pending=spec_head
+mp_flush_token_list(mp, mp_link(mp->spec_head));
+mp_link(mp->spec_head)=NULL;
+mp->last_pending=mp->spec_head
 
 @ We are now ready for the main output procedure.  Note that the |selector|
 setting is saved in a global variable so that |begin_diagnostic| can access it.
 
 @<Declare the \ps\ output procedures@>=
-static void mp_ship_out (MP mp, pointer h) ;
+static void mp_ship_out (MP mp, mp_node h) ;
 
 @ Once again, the |gr_XXXX| macros are defined in |mppsout.h|
 
 @d export_color(q,p) 
   if ( mp_color_model(p)==mp_uninitialized_model ) {
-    gr_color_model(q)  = (unsigned char)(mp->internal[mp_default_color_model]/65536);
+    gr_color_model(q)  = (unsigned char)(internal_value(mp_default_color_model)/65536);
     gr_cyan_val(q)     = 0;
 	gr_magenta_val(q)  = 0;
 	gr_yellow_val(q)   = 0;
@@ -26297,12 +28432,12 @@ static void mp_ship_out (MP mp, pointer h) ;
   }
 
 @d export_scripts(q,p)
-  if (mp_pre_script(p)!=null)  gr_pre_script(q)   = str(mp_pre_script(p));
-  if (mp_post_script(p)!=null) gr_post_script(q)  = str(mp_post_script(p));
+  if (mp_pre_script(p)!=null)  gr_pre_script(q)   = mp_xstrdup(mp, mp_str(mp,mp_pre_script(p)));
+  if (mp_post_script(p)!=null) gr_post_script(q)  = mp_xstrdup(mp, mp_str(mp,mp_post_script(p)));
 
 @c
-struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
-  pointer p; /* the current graphical object */
+struct mp_edge_object *mp_gr_export(MP mp, mp_node h) {
+  mp_node p; /* the current graphical object */
   integer t; /* a temporary value */
   integer c; /* a rounded charcode */
   scaled d_width; /* the current pen width */
@@ -26323,32 +28458,32 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
   hh->miny = miny_val(h);
   hh->maxx = maxx_val(h);
   hh->maxy = maxy_val(h);
-  hh->filename = mp_get_output_file_name(mp);
-  c = mp_round_unscaled(mp,mp->internal[mp_char_code]);
+  hh->filename = mp_xstrdup(mp, mp_get_output_file_name(mp));
+  c = mp_round_unscaled(mp,internal_value(mp_char_code));
   hh->charcode = c;
-  hh->width = mp->internal[mp_char_wd];
-  hh->height = mp->internal[mp_char_ht];
-  hh->depth = mp->internal[mp_char_dp];
-  hh->ital_corr = mp->internal[mp_char_ic];
+  hh->width = internal_value(mp_char_wd);
+  hh->height = internal_value(mp_char_ht);
+  hh->depth = internal_value(mp_char_dp);
+  hh->ital_corr = internal_value(mp_char_ic);
   @<Export pending specials@>;
   p=mp_link(dummy_loc(h));
   while ( p!=null ) { 
-    hq = mp_new_graphic_object(mp,mp_type(p));
+    hq = mp_new_graphic_object(mp,(int)((mp_type(p)-mp_fill_node_type)+1));
     switch (mp_type(p)) {
-    case mp_fill_code:
+    case mp_fill_node_type:
       tf = (mp_fill_object *)hq;
-      gr_pen_p(tf)        = mp_export_knot_list(mp,mp_pen_p(p));
-      d_width = mp_get_pen_scale(mp, mp_pen_p(p));
-      if ((mp_pen_p(p)==null) || pen_is_elliptical(mp_pen_p(p)))  {
-  	    gr_path_p(tf)       = mp_export_knot_list(mp,mp_path_p(p));
+      gr_pen_p(tf)        = mp_export_knot_list(mp,mp_pen_p((mp_fill_node)p));
+      d_width = mp_get_pen_scale(mp, mp_pen_p((mp_fill_node)p));
+      if ((mp_pen_p((mp_fill_node)p)==null) || pen_is_elliptical(mp_pen_p((mp_fill_node)p)))  {
+  	    gr_path_p(tf)       = mp_export_knot_list(mp,mp_path_p((mp_fill_node)p));
       } else {
-        pointer pc, pp;
-        pc = mp_copy_path(mp, mp_path_p(p));
-        pp = mp_make_envelope(mp, pc, mp_pen_p(p),ljoin_val(p),0,miterlim_val(p));
+        mp_knot pc, pp;
+        pc = mp_copy_path(mp, mp_path_p((mp_fill_node)p));
+        pp = mp_make_envelope(mp, pc, mp_pen_p((mp_fill_node)p),ljoin_val(p),0,miterlim_val(p));
         gr_path_p(tf)       = mp_export_knot_list(mp,pp);
         mp_toss_knot_list(mp, pp);
-        pc = mp_htap_ypoc(mp, mp_path_p(p));
-        pp = mp_make_envelope(mp, pc, mp_pen_p(p),ljoin_val(p),0,miterlim_val(p));
+        pc = mp_htap_ypoc(mp, mp_path_p((mp_fill_node)p));
+        pp = mp_make_envelope(mp, pc, mp_pen_p((mp_fill_node)p),ljoin_val(p),0,miterlim_val(p));
         gr_htap_p(tf)       = mp_export_knot_list(mp,pp);
         mp_toss_knot_list(mp, pp);
       }
@@ -26357,23 +28492,23 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
       gr_ljoin_val(tf)    = (unsigned char)ljoin_val(p);
       gr_miterlim_val(tf) = miterlim_val(p);
       break;
-    case mp_stroked_code:
+    case mp_stroked_node_type:
       ts = (mp_stroked_object *)hq;
-      gr_pen_p(ts)        = mp_export_knot_list(mp,mp_pen_p(p));
-      d_width = mp_get_pen_scale(mp, mp_pen_p(p));
-      if (pen_is_elliptical(mp_pen_p(p)))  {
-	      gr_path_p(ts)       = mp_export_knot_list(mp,mp_path_p(p));
+      gr_pen_p(ts)        = mp_export_knot_list(mp,mp_pen_p((mp_stroked_node)p));
+      d_width = mp_get_pen_scale(mp, mp_pen_p((mp_stroked_node)p));
+      if (pen_is_elliptical(mp_pen_p((mp_stroked_node)p)))  {
+	      gr_path_p(ts)       = mp_export_knot_list(mp,mp_path_p((mp_stroked_node)p));
       } else {
-        pointer pc;
-        pc=mp_copy_path(mp, mp_path_p(p));
+        mp_knot pc;
+        pc=mp_copy_path(mp, mp_path_p((mp_stroked_node)p));
         t=lcap_val(p);
         if ( mp_left_type(pc)!=mp_endpoint ) { 
           mp_left_type(mp_insert_knot(mp, pc,mp_x_coord(pc),mp_y_coord(pc)))=mp_endpoint;
           mp_right_type(pc)=mp_endpoint;
-          pc=mp_link(pc);
+          pc=mp_next_knot(pc);
           t=1;
         }
-        pc=mp_make_envelope(mp,pc,mp_pen_p(p),ljoin_val(p),(quarterword)t,miterlim_val(p));
+        pc=mp_make_envelope(mp,pc,mp_pen_p((mp_stroked_node)p),ljoin_val(p),(quarterword)t,miterlim_val(p));
         gr_path_p(ts)       = mp_export_knot_list(mp,pc);
         mp_toss_knot_list(mp, pc);
       }
@@ -26382,11 +28517,11 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
       gr_ljoin_val(ts)    = (unsigned char)ljoin_val(p);
       gr_miterlim_val(ts) = miterlim_val(p);
       gr_lcap_val(ts)     = (unsigned char)lcap_val(p);
-      gr_dash_p(ts)       = mp_export_dashes(mp,p,&d_width);
+      gr_dash_p(ts)       = mp_export_dashes(mp,(mp_stroked_node)p,&d_width);
       break;
-    case mp_text_code:
+    case mp_text_node_type:
       tt = (mp_text_object *)hq;
-      gr_text_p(tt)       = str(mp_text_p(p));
+      gr_text_p(tt)       = mp_xstrdup(mp, mp_str(mp,mp_text_p(p)));
       gr_text_l(tt)       = (size_t)length(mp_text_p(p));
       gr_font_n(tt)       = (unsigned int)mp_font_n(p);
       gr_font_name(tt)    = mp_xstrdup(mp,mp->font_name[mp_font_n(p)]);
@@ -26403,17 +28538,19 @@ struct mp_edge_object *mp_gr_export(MP mp, pointer h) {
       gr_tyx_val(tt)      = tyx_val(p);
       gr_tyy_val(tt)      = tyy_val(p);
       break;
-    case mp_start_clip_code: 
+    case mp_start_clip_node_type: 
       tc = (mp_clip_object *)hq;
-      gr_path_p(tc) = mp_export_knot_list(mp,mp_path_p(p));
+      gr_path_p(tc) = mp_export_knot_list(mp,mp_path_p((mp_start_clip_node)p));
       break;
-    case mp_start_bounds_code:
+    case mp_start_bounds_node_type:
       tb = (mp_bounds_object *)hq;
-      gr_path_p(tb) = mp_export_knot_list(mp,mp_path_p(p));
+      gr_path_p(tb) = mp_export_knot_list(mp,mp_path_p((mp_start_bounds_node)p));
       break;
-    case mp_stop_clip_code: 
-    case mp_stop_bounds_code:
+    case mp_stop_clip_node_type: 
+    case mp_stop_bounds_node_type:
       /* nothing to do here */
+      break;
+    default:  /* there are no other valid cases, but please the compiler */
       break;
     } 
     if (hh->body==NULL) hh->body=hq; else  gr_link(hp) = hq;
@@ -26428,11 +28565,11 @@ it takes quite a few shortcuts for cases that cannot appear
 in the output of |mp_ps_font_charstring|.
 
 @c
-pointer mp_gr_unexport(MP mp, struct mp_edge_object *hh) {
-  pointer h; /* the edge object */
-  pointer ph, pn, pt; /* for adding items */
+mp_node mp_gr_unexport(MP mp, struct mp_edge_object *hh) {
+  mp_node h; /* the edge object */
+  mp_node ph, pn, pt; /* for adding items */
   mp_graphic_object *p; /* the current graphical object */
-  h = mp_get_node(mp, edge_header_size);
+  h = mp_get_edge_header_node(mp);
   mp_init_edges(mp, h);
   ph = dummy_loc(h); 
   pt = ph;
@@ -26446,9 +28583,9 @@ pointer mp_gr_unexport(MP mp, struct mp_edge_object *hh) {
     case mp_fill_code: 
       if ( gr_pen_p((mp_fill_object *)p)==NULL ) {
         pn = mp_new_fill_node (mp, null);
-        mp_path_p(pn) = mp_import_knot_list(mp,gr_path_p((mp_fill_object *)p));
+        mp_path_p((mp_fill_node)pn) = mp_import_knot_list(mp,gr_path_p((mp_fill_object *)p));
         mp_color_model(pn)=mp_grey_model;
-        if (mp_new_turn_cycles(mp, mp_path_p(pn))<0) {
+        if (mp_new_turn_cycles(mp, mp_path_p((mp_fill_node)pn))<0) {
           grey_val(pn) = unity;
           mp_link(pt) = pn;
           pt = mp_link(pt);
@@ -26477,50 +28614,50 @@ pointer mp_gr_unexport(MP mp, struct mp_edge_object *hh) {
 
 
 @ @<Declarations@>=
-static struct mp_edge_object *mp_gr_export(MP mp, pointer h);
-static pointer mp_gr_unexport(MP mp, struct mp_edge_object *h);
+static struct mp_edge_object *mp_gr_export(MP mp, mp_node h);
+static mp_node mp_gr_unexport(MP mp, struct mp_edge_object *h);
 
 @ This function is now nearly trivial.
 
 @c
-void mp_ship_out (MP mp, pointer h) { /* output edge structure |h| */
+void mp_ship_out (MP mp, mp_node h) { /* output edge structure |h| */
   integer c; /* \&{charcode} rounded to the nearest integer */
-  c=mp_round_unscaled(mp, mp->internal[mp_char_code]);
+  c=mp_round_unscaled(mp, internal_value(mp_char_code));
   @<Begin the progress report for the output of picture~|c|@>;
   (mp->shipout_backend) (mp, h);
   @<End progress report@>;
-  if ( mp->internal[mp_tracing_output]>0 ) 
+  if ( internal_value(mp_tracing_output)>0 ) 
    mp_print_edges(mp, h," (just shipped out)",true);
 }
 
 @ @<Declarations@>=
-static void mp_shipout_backend (MP mp, pointer h);
+static void mp_shipout_backend (MP mp, void *h);
 
 @ 
 @c
-void mp_shipout_backend (MP mp, pointer h) {
+void mp_shipout_backend (MP mp, void *voidh) {
   char *s;
   mp_edge_object *hh; /* the first graphical object */
+  mp_node h = (mp_node)voidh;
   hh = mp_gr_export(mp,h);
   s = NULL;
-  if (mp->internal[mp_output_format]>0)
-    s =  str(mp->internal[mp_output_format]);
+  if (internal_string(mp_output_format) != NULL)
+    s =  mp_str(mp,internal_string(mp_output_format));
   if (s && strcmp(s,"svg")==0) {
     (void)mp_svg_gr_ship_out (hh,
-                 (mp->internal[mp_prologues]/65536),
+                 (internal_value(mp_prologues)/65536),
                  false);
   } else {
     (void)mp_gr_ship_out (hh,
-                 (mp->internal[mp_prologues]/65536),
-                 (mp->internal[mp_procset]/65536), 
+                 (internal_value(mp_prologues)/65536),
+                 (internal_value(mp_procset)/65536), 
                  false);
   }
-  mp_xfree(s);
   mp_gr_toss_objects(hh);
 }
 
 @ @<Exported types@>=
-typedef void (*mp_backend_writer)(MP, int);
+typedef void (*mp_backend_writer)(MP, void *);
 
 @ @<Option variables@>=
 mp_backend_writer shipout_backend;
@@ -26530,10 +28667,14 @@ by which a user can send things to the \.{GF} file.
 
 @ @<Determine if a character has been shipped out@>=
 { 
-  mp->cur_exp=mp_round_unscaled(mp, mp->cur_exp) % 256;
-  if ( mp->cur_exp<0 ) mp->cur_exp=mp->cur_exp+256;
-  boolean_reset(mp->char_exists[mp->cur_exp]);
-  mp->cur_type=mp_boolean_type;
+  halfword vv = cur_exp_value();
+  set_cur_exp_value(mp_round_unscaled(mp, vv) % 256);
+  if ( cur_exp_value()<0 ) {
+    vv = cur_exp_value();
+    set_cur_exp_value(vv+256);
+  }
+  boolean_reset(mp->char_exists[cur_exp_value()]);
+  mp->cur_exp.type=mp_boolean_type;
 }
 
 @ @<Glob...@>=
@@ -26550,35 +28691,79 @@ mp_svg_backend_free(mp);
 
 
 @* \[45] Dumping and undumping the tables.
-After \.{INIMP} has seen a collection of macros, it
-can write all the necessary information on an auxiliary file so
-that production versions of \MP\ are able to initialize their
-memory at high speed. The present section of the program takes
-care of such output and input. We shall consider simultaneously
-the processes of storing and restoring,
-so that the inverse relation between them is clear.
-@.INIMP@>
 
-The global variable |mem_ident| is a string that is printed right
-after the |banner| line when \MP\ is ready to start. For \.{INIMP} this
-string says simply `\.{(INIMP)}'; for other versions of \MP\ it says,
-for example, `\.{(mem=plain 1990.4.14)}', showing the year,
-month, and day that the mem file was created. We have |mem_ident=0|
-before \MP's tables are loaded.
+When \.{MP} is started, it is possible to preload a macro file
+containing definitions that will be usable in the main input
+file. This action even takes place automatically, based on the
+name of the executable (\.{mpost} will attempt to preload the
+macros in the file \.{mpost.mp}). If such a preload is not 
+desired, the option variable |ini_version| has to be set |true|.
+
+The global variable |mem_ident| will be set to `\.{ (INIMP)}' 
+when |ini_version| is true; otherwise it will contain the filename 
+of the macro file being preloaded. 
+
+The variable |mem_file| holds the open file pointer.
 
 @<Glob...@>=
 char * mem_ident;
-void * mem_file; /* for input or output of mem information */
+void * mem_file; /* file for input or preloaded macros */
 
 @ @<Set init...@>=
 mp->mem_ident=NULL;
 
-@ @<Initialize table entries...@>=
-mp->mem_ident=xstrdup(" (INIMP)");
-
 @ @<Dealloc variables@>=
 xfree(mp->mem_ident);
 
+@ @<Declarations@>=
+extern boolean mp_load_preload_file (MP mp);
+
+@ Preloading a file is a lot like |mp_run| itself, except that
+\MP\ should not exit and that a bit of trickery is needed with
+the input buffer to make sure that the preloading does not
+interfere with the actual job.
+
+@c 
+boolean mp_load_preload_file (MP mp) {
+  size_t k;
+  in_state_record old_state = mp->cur_input;
+  char *fname = xstrdup(mp->name_of_file);	
+  size_t l = strlen(fname);
+  str_room(l);
+  for (k=0;k<l;k++) {
+    append_char(*(fname+k));
+  }
+  name = mp_make_string(mp);
+
+  if (!mp->log_opened) {
+    mp_open_log_file(mp);
+  } /* |open_log_file| doesn't |show_context|, so |limit|
+        and |loc| needn't be set to meaningful values yet */
+  if ( ((int)mp->term_offset+(int)strlen(fname)) > (mp->max_print_line-2)) mp_print_ln(mp);
+  else if ( (mp->term_offset>0)||(mp->file_offset>0) ) mp_print_char(mp, xord(' '));
+  mp_print_char(mp, xord('(')); incr(mp->open_parens); mp_print(mp, fname); 
+  mp->mem_ident = fname;
+  update_terminal;
+  { 
+    line=1;
+    start = loc = limit + 1;
+    cur_file = mp->mem_file;
+    (void)mp_input_ln(mp, cur_file ); 
+    mp_firm_up_the_line(mp);
+    mp->buffer[limit]=xord('%');
+    mp->first=(size_t)(limit+1); 
+    loc=start;
+  }
+  do {  
+    mp_do_statement(mp);
+  } while (!(mp->cur_cmd==stop)); /* "dump" or "end" or EOF */
+  mp_print_char(mp, xord(')')); decr(mp->open_parens); 
+
+  fclose(mp->mem_file);
+  cur_file = NULL;
+  mp->cur_input = old_state;
+  return true;
+}
 
 @* \[46] The main program.
 This is it: the part of \MP\ that executes all those procedures we have
@@ -26591,91 +28776,17 @@ have been forgotten.
 @c @<Declare the basic parsing subroutines@>
 @<Declare miscellaneous procedures that were declared |forward|@>
 
-@ We've noted that there are two versions of \MP. One, called \.{INIMP},
-@.INIMP@>
-has to be run first; it initializes everything from scratch, without
-reading a mem file, and it has the capability of dumping a mem file.
-The other one is called `\.{VIRMP}'; it is a ``virgin'' program that needs
-@.VIRMP@>
-to input a mem file in order to get started. \.{VIRMP} typically has
-a bit more memory capacity than \.{INIMP}, because it does not need the
-space consumed by the dumping/undumping routines and the numerous calls on
-|primitive|, etc.
-
-The \.{VIRMP} program cannot read a mem file instantaneously, of course;
-the best implementations therefore allow for production versions of \MP\ that
-not only avoid the loading routine for object code, they also have
-a mem file pre-loaded. 
-
-@ @<Option variables@>=
-int ini_version; /* are we iniMP? */
-
-@ @<Set |ini_version|@>=
-mp->ini_version = (opt->ini_version ? true : false);
-
-@ The code below make the final chosen hash size the next larger
-multiple of 2 from the requested size, and this array is a list of
-suitable prime numbers to go with such values. 
-
-The top limit is chosen such that it is definately lower than
-|max_halfword-3*param_size|, because |param_size| cannot be larger
-than |max_halfword/sizeof(pointer)|.
-
-@<Declarations@>=
-static int mp_prime_choices[] = 
-  { 12289,        24593,    49157,    98317,
-    196613,      393241,   786433,  1572869,
-    3145739,    6291469, 12582917, 25165843,
-    50331653, 100663319  };
-
 @ @<Find constant sizes@>=
-if (mp->ini_version) {
-  unsigned i = 14;
-  set_value(mp->mem_top,opt->main_memory,5000);
-  mp->mem_max = mp->mem_top;
-  set_value(mp->param_size,opt->param_size,150);
-  set_value(mp->max_in_open,opt->max_in_open,10);
-  if (opt->hash_size>0x8000000) 
-    opt->hash_size=0x8000000;
-  if (opt->hash_size>0) {
-    set_value(mp->hash_size,(2*opt->hash_size-1),16384);
-  } else {
-    mp->hash_size = 16384;
-  }
-  mp->hash_size = mp->hash_size>>i;
-  while (mp->hash_size>=2) {
-    mp->hash_size /= 2;
-    i++;
-  }
-  mp->hash_size = mp->hash_size << i;
-  if (mp->hash_size>0x8000000) 
-    mp->hash_size=0x8000000;
-  mp->hash_prime=mp_prime_choices[(i-14)];
-} else {
-  int i = -1;
-  if (mp->mem_name == NULL) {
-    mp->mem_name = mp_xstrdup(mp,"plain");
-  }
-  if (mp_open_mem_file(mp)) {
-    i = mp_undump_constants(mp);
-    if (i != metapost_magic)
-      goto OFF_BASE;    
-    set_value(mp->mem_max,opt->main_memory,mp->mem_top);
-    goto DONE;
-OFF_BASE:
-    wterm_ln("(Fatal mem file error; ");
-    wterm((mp->find_file)(mp, mp->mem_name, "r", mp_filetype_memfile));
-    if (i>metapost_old_magic && i<metapost_magic) {
-      wterm(" was written by an older version)\n");
-    } else {
-      wterm(" appears not to be a mem file)\n");
-    }
-  } 
-  mp->history = mp_fatal_error_stop;
-  mp_jump_out(mp);
+if (mp->mem_name != NULL) {
+  if (!mp_open_mem_file(mp)) {
+    mp->history = mp_fatal_error_stop;
+    mp_jump_out(mp);
+   }
 }
-DONE:
-
+{
+  mp->param_size = 4;
+  mp->max_in_open = 0;
+}
 
 @ Here we do whatever is needed to complete \MP's job gracefully on the
 local operating system. The code here might come into play after a fatal
@@ -26685,18 +28796,16 @@ cannot produce error messages. For example, it would be a mistake to call
 might lead to an infinite loop.
 @^system dependencies@>
 
-This program doesn't bother to close the input files that may still be open.
-
 @ @c
 void mp_close_files_and_terminate (MP mp) {
   integer k; /* all-purpose index */
   integer LH; /* the length of the \.{TFM} header, in words */
   int lk_offset; /* extra words inserted at beginning of |lig_kern| array */
-  pointer p; /* runs through a list of \.{TFM} dimensions */
+  mp_node p; /* runs through a list of \.{TFM} dimensions */
   if (mp->finished) 
     return;
   @<Close all open files in the |rd_file| and |wr_file| arrays@>;
-  if ( mp->internal[mp_tracing_stats]>0 )
+  if ( internal_value(mp_tracing_stats)>0 )
     @<Output statistics about this job@>;
   wake_up_terminal; 
   @<Do all the finishing work on the \.{TFM} file@>;
@@ -26762,21 +28871,13 @@ there is no chance of another memory overflow after the memory capacity
 has already been exceeded.
 
 @<Do all the finishing work on the \.{TFM} file@>=
-if ( mp->internal[mp_fontmaking]>0 ) {
-  @<Make the dynamic memory into one big available node@>;
+if ( internal_value(mp_fontmaking)>0 ) {
   @<Massage the \.{TFM} widths@>;
   mp_fix_design_size(mp); mp_fix_check_sum(mp);
   @<Massage the \.{TFM} heights, depths, and italic corrections@>;
-  mp->internal[mp_fontmaking]=0; /* avoid loop in case of fatal error */
+  internal_value(mp_fontmaking)=0; /* avoid loop in case of fatal error */
   @<Finish the \.{TFM} file@>;
 }
-
-@ @<Make the dynamic memory into one big available node@>=
-mp->rover=lo_mem_stat_max+1; mp_link(mp->rover)=empty_flag; mp->lo_mem_max=mp->hi_mem_min-1;
-if ( mp->lo_mem_max-mp->rover>max_halfword ) mp->lo_mem_max=max_halfword+mp->rover;
-node_size(mp->rover)=mp->lo_mem_max-mp->rover; 
-lmp_link(mp->rover)=mp->rover; rmp_link(mp->rover)=mp->rover;
-mp_link(mp->lo_mem_max)=null; mp_info(mp->lo_mem_max)=null
 
 @ The present section goes directly to the log file instead of using
 |print| commands, because there's no need for these strings to take
@@ -26788,28 +28889,19 @@ if ( mp->log_opened ) {
   wlog_ln(" ");
   wlog_ln("Here is how much of MetaPost's memory you used:");
 @.Here is how much...@>
-  mp_snprintf(s,128," %i string%s out of %i",(int)mp->max_strs_used-mp->init_str_use,
-          (mp->max_strs_used!=mp->init_str_use+1 ? "s" : ""),
-          (int)(mp->max_strings-1-mp->init_str_use));
+  mp_snprintf(s,128," %i string%s using %i character%s",(int)mp->max_strs_used,
+           (mp->max_strs_used!=1 ? "s" : ""), (int)mp->max_pl_used,
+       	   (mp->max_pl_used!=1 ? "s" : ""));
   wlog_ln(s);
-  mp_snprintf(s,128," %i string characters out of %i",
-           (int)mp->max_pl_used-mp->init_pool_ptr,
-           (int)mp->pool_size-mp->init_pool_ptr);
+  mp_snprintf(s,128," %i bytes of node memory", (int)mp->var_used_max);
   wlog_ln(s);
-  mp_snprintf(s,128," %i words of memory out of %i",
-           (int)mp->lo_mem_max+mp->mem_end-mp->hi_mem_min+2,
-           (int)mp->mem_end);
-  wlog_ln(s);
-  mp_snprintf(s,128," %i symbolic tokens out of %i", (int)mp->st_count, (int)mp->hash_size);
+  mp_snprintf(s,128," %i symbolic tokens", (int)mp->st_count);
   wlog_ln(s);
   mp_snprintf(s,128," %ii,%in,%ip,%ib,%if stack positions out of %ii,%in,%ip,%ib,%if",
            (int)mp->max_in_stack,(int)mp->int_ptr,
-           (int)mp->max_param_stack,(int)mp->max_buf_stack+1,(int)mp->in_open_max,
+           (int)mp->max_param_stack,(int)mp->max_buf_stack+1,(int)mp->in_open_max-file_bottom,
            (int)mp->stack_size,(int)mp->max_internal,(int)mp->param_size,
-	   (int)mp->buf_size,(int)mp->max_in_open);
-  wlog_ln(s);
-  mp_snprintf(s,128," %i string compactions (moved %i characters, %i strings)",
-          (int)mp->pact_count,(int)mp->pact_chars,(int)mp->pact_strs);
+	   (int)mp->buf_size,(int)mp->max_in_open-file_bottom);
   wlog_ln(s);
 }
 
@@ -26823,7 +28915,7 @@ int mp_open_usage (MP mp );
 
 @ @c
 int mp_memory_usage (MP mp ) {
-	return (int)mp->lo_mem_max+mp->mem_end-mp->hi_mem_min+2;
+	return (int)mp->var_used;
 }
 int mp_hash_usage (MP mp ) {
   return (int)mp->st_count;
@@ -26871,13 +28963,6 @@ void mp_final_cleanup (MP mp) {
 @.see the transcript file...@>
     mp->selector=term_and_log;
   }
-  if ( c==1 ) {
-    if (mp->ini_version) {
-      mp_store_mem_file(mp); return;
-    }
-    mp_print_nl(mp, "(dump is performed only by INIMP)"); return;
-@.dump...only by INIMP@>
-  }
 }
 
 @ @<Declarations@>=
@@ -26891,8 +28976,7 @@ void mp_init_prim (MP mp) { /* initialize all the primitives */
 }
 @#
 void mp_init_tab (MP mp) { /* initialize other tables */
-  integer k; /* all-purpose index */
-  @<Initialize table entries (done by \.{INIMP} only)@>;
+  @<Initialize table entries@>;
 }
 
 
@@ -26906,12 +28990,14 @@ But when we finish this part of the program, \MP\ is ready to call on the
 { 
   @<Initialize the input routines@>;
   if (mp->mem_ident==NULL) {
-    if ( ! mp_load_mem_file(mp) ) {
-      (mp->close_file)(mp, mp->mem_file); 
-       mp->history = mp_fatal_error_stop;
-       return mp;
-    }
-    (mp->close_file)(mp, mp->mem_file);
+     if ( ! mp->ini_version) {
+        if ( ! mp_load_preload_file(mp) ) {
+           mp->history = mp_fatal_error_stop;
+           return mp;
+        }
+     } else {
+        mp->mem_ident = mp_xstrdup(mp, " (INIMP)");
+     }
   }
   @<Initializations following first line@>;
 }
@@ -26920,34 +29006,12 @@ But when we finish this part of the program, \MP\ is ready to call on the
   mp->buffer[limit]=(ASCII_code)'%';
   mp_fix_date_and_time(mp);
   if (mp->random_seed==0)
-    mp->random_seed = (mp->internal[mp_time] / unity)+mp->internal[mp_day];
+    mp->random_seed = (internal_value(mp_time) / unity)+internal_value(mp_day);
   mp_init_randoms(mp, mp->random_seed);
   @<Initialize the print |selector|...@>;
+  mp_normalize_selector(mp); 
   if ( loc<limit ) if ( mp->buffer[loc]!='\\' ) 
     mp_start_input(mp); /* \&{input} assumed */
-
-@ @<Run inimpost commands@>=
-{
-  mp_get_strings_started(mp);
-  mp_init_tab(mp); /* initialize the tables */
-  mp_init_prim(mp); /* call |primitive| for each primitive */
-  mp->init_str_use=mp->max_str_ptr=mp->str_ptr;
-  mp->init_pool_ptr=mp->max_pool_ptr=mp->pool_ptr;
-  mp_fix_date_and_time(mp);
-}
-
-@ Saving the filename template
-
-@<Save the filename template@>=
-{ 
-  delete_str_ref(mp->internal[mp_output_template]);
-  if ( length(mp->cur_exp)==0 ) {
-    mp->internal[mp_output_template] = rts("%j.%c");
-  } else { 
-    mp->internal[mp_output_template]=mp->cur_exp; 
-    add_str_ref(mp->internal[mp_output_template]);
-  }
-}
 
 @* \[47] Debugging.
 

@@ -1,5 +1,5 @@
 # Private macros for the TeX Live (TL) tree.
-# Copyright (C) 2009, 2010 Peter Breitenlohner <tex-live@tug.org>
+# Copyright (C) 2009 Peter Breitenlohner <tex-live@tug.org>
 #
 # This file is free software; the copyright holder
 # gives unlimited permission to copy and/or distribute it,
@@ -23,7 +23,6 @@ AC_DEFUN([KPSE_LIBS_PKGS],
 icu
 teckit
 graphite
-zziplib
 xpdf
 gd
 freetype2
@@ -49,9 +48,7 @@ AC_REQUIRE([KPSE_GD_SYSTEM_FLAGS])[]dnl
 AC_REQUIRE([KPSE_XPDF_SYSTEM_FLAGS])[]dnl
 AC_REQUIRE([KPSE_GRAPHITE_SYSTEM_FLAGS])[]dnl
 AC_REQUIRE([KPSE_TECKIT_SYSTEM_FLAGS])[]dnl
-AC_REQUIRE([KPSE_ICU_SYSTEM_FLAGS])[]dnl
 AC_REQUIRE([KPSE_KPATHSEA_SYSTEM_FLAGS])[]dnl
-AC_REQUIRE([KPSE_ZZIPLIB_SYSTEM_FLAGS])[]dnl
 ]) # KPSE_ALL_SYSTEM_FLAGS
 
 # KPSE_UTILS_PKGS()
@@ -66,7 +63,6 @@ psutils
 t1utils
 tpic2pdftex
 vlna
-xindy-new
 xindy
 ])]) # KPSE_UTILS_PKGS
 
@@ -79,7 +75,6 @@ AC_DEFUN([KPSE_TEXK_PKGS],
 web2c
 afm2pl
 bibtex8
-bibtexu
 cjkutils
 detex
 devnag
@@ -87,11 +82,11 @@ dtl
 dvi2tty
 dvidvi
 dviljk
+dvipdfm
 dvipdfmx
 dvipng
 dvipos
 dvipsk
-dvisvgm
 gsftopk
 lacheck
 lcdf-typetools

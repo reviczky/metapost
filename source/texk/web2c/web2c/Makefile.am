@@ -7,15 +7,10 @@ ACLOCAL_AMFLAGS = -I ../../../m4
 
 INCLUDES =  -Inative -I$(srcdir)/native -I$(srcdir)/.. -I$(srcdir)/../..
 AM_YFLAGS = -d -v
-AM_CFLAGS = $(WARNING_CFLAGS)
 
 noinst_PROGRAMS = web2c fixwrites splitup makecpool
 
-BUILT_SOURCES = native/config.h
-
-DISTCLEANFILES = native/config.h
-
-# Include <kpathsea/c-auto.h> instead of <web2c/c-auto.h>
+## Include <kpathsea/c-auto.h> instead of <web2c/c-auto.h>
 native/config.h: ../config.h
 	sed -e 's,web2c/c-auto,kpathsea/c-auto,' $(srcdir)/../config.h >$@
 
@@ -32,15 +27,14 @@ dist_noinst_DATA = \
 	texmf.defines
 
 web2c_SOURCES = \
+	native/config.h \
 	web2c-parser.y \
 	web2c-lexer.l \
 	kps.c \
 	main.c \
 	web2c.h
 
-$(web2c_OBJECTS): web2c-parser.h
-
-DISTCLEANFILES += web2c-parser.output
+DISTCLEANFILES = web2c-parser.output
 
 fixwrites_SOURCES = \
 	fixwrites.c \
@@ -68,3 +62,8 @@ stamp-makecpool: makecpool$(EXEEXT)
 	echo timestamp >$@
 
 CLEANFILES = $(nodist_noinst_DATA)
+
+## Obsolete ??
+##
+EXTRA_DIST = convert.bat
+

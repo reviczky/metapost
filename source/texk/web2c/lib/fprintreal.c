@@ -2,10 +2,9 @@
    file F.  Public domain. */
 
 #include "config.h"
-#include "lib.h"
 
 void
-fprintreal (FILE *f, double r, int n, int m)
+fprintreal P4C(FILE*, f, double, r, int, n, int, m)
 {
   char fmt[50];  /* Surely enough, since N and M won't be more than 25
                     digits each!  */

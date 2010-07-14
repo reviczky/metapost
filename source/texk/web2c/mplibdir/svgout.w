@@ -57,7 +57,6 @@
 #include <string.h>
 #include "mplib.h"
 #include "mplibps.h" /* external header */
-#include "mplibsvg.h" /* external header */
 #include "mpmp.h" /* internal header */
 #include "mppsout.h" /* internal header */
 #include "mpsvgout.h" /* internal header */
@@ -389,7 +388,7 @@ void mp_svg_pair_out (MP mp,scaled x, scaled y) {
 }
 
 @ @c
-static void mp_svg_font_pair_out (MP mp,scaled x, scaled y) { 
+void mp_svg_font_pair_out (MP mp,scaled x, scaled y) { 
   mp_svg_store_scaled(mp, (x));
   append_char(' ');
   mp_svg_store_scaled(mp, -(y));
@@ -407,7 +406,7 @@ have a specific helper to write such distorted pairs of coordinates out.
 @d double_from_scaled(a) (double)((a)/65536.0)
 
 @c 
-static void mp_svg_trans_pair_out (MP mp, mp_pen_info *pen, scaled x, scaled y) { 
+void mp_svg_trans_pair_out (MP mp, mp_pen_info *pen, scaled x, scaled y) { 
   double sx,sy, rx,ry, px, py, retval, divider;
   sx = double_from_scaled(pen->sx);
   sy = double_from_scaled(pen->sy);
@@ -479,13 +478,13 @@ void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
   mp_svg_print(mp, s);
   mp_xfree(s);
   mp_svg_print(mp, " on ");
-  mp_svg_store_int(mp, mp_round_unscaled(mp, mp->internal[mp_year])); 
+  mp_svg_store_int(mp, mp_round_unscaled(mp, internal_value(mp_year))); 
   append_char('.');
-  mp_svg_store_dd(mp, mp_round_unscaled(mp, mp->internal[mp_month])); 
+  mp_svg_store_dd(mp, mp_round_unscaled(mp, internal_value(mp_month))); 
   append_char('.');
-  mp_svg_store_dd(mp, mp_round_unscaled(mp, mp->internal[mp_day])); 
+  mp_svg_store_dd(mp, mp_round_unscaled(mp, internal_value(mp_day))); 
   append_char(':');
-  t=mp_round_unscaled(mp, mp->internal[mp_time]);
+  t=mp_round_unscaled(mp, internal_value(mp_time));
   mp_svg_store_dd(mp, t / 60); 
   mp_svg_store_dd(mp, t % 60);
   mp_svg_print_buf(mp);
@@ -561,7 +560,7 @@ typedef struct mp_pen_info {
 @ (Re)discover the characteristics of an elliptical pen
 
 @<Declarations@>=
-mp_pen_info *mp_svg_pen_info(MP mp, mp_knot *pp, mp_knot *p);
+mp_pen_info *mp_svg_pen_info(MP mp, mp_knot pp, mp_knot p);
 
 @ The next two constants come from the original web source. 
 Together with the two helper functions, they will tell whether 
@@ -571,10 +570,10 @@ the |x| or the |y| direction of the path is the most important
 @d aspect_default 1
 
 @c
-static scaled coord_range_x (mp_knot *h, scaled dz) {
+static scaled coord_range_x (mp_knot h, scaled dz) {
   scaled z;
   scaled zlo = 0, zhi = 0;
-  mp_knot *f = h; 
+  mp_knot f = h; 
   while (h != NULL) {
     z = gr_x_coord(h);
     if (z < zlo) zlo = z; else if (z > zhi) zhi = z;
@@ -588,10 +587,10 @@ static scaled coord_range_x (mp_knot *h, scaled dz) {
   }
   return (zhi - zlo <= dz ? aspect_bound : aspect_default);
 }
-static scaled coord_range_y (mp_knot *h, scaled dz) {
+static scaled coord_range_y (mp_knot h, scaled dz) {
   scaled z;
   scaled zlo = 0, zhi = 0;
-  mp_knot *f = h; 
+  mp_knot f = h; 
   while (h != NULL) {
     z = gr_y_coord(h);
     if (z < zlo) zlo = z; else if (z > zhi) zhi = z;
@@ -608,7 +607,7 @@ static scaled coord_range_y (mp_knot *h, scaled dz) {
 
 @ 
 @c
-mp_pen_info *mp_svg_pen_info(MP mp, mp_knot *pp, mp_knot *p) {
+mp_pen_info *mp_svg_pen_info(MP mp, mp_knot pp, mp_knot p) {
   scaled wx, wy; /* temporary pen widths, in either direction */
   struct mp_pen_info *pen; /* return structure */
   if (p == NULL)
@@ -658,14 +657,14 @@ cubics with zero initial and final velocity as created by |make_path| or
 as created by |make_choices|.
 
 @<Declarations@>=
-static boolean mp_is_curved(mp_knot *p, mp_knot *q) ;
+static boolean mp_is_curved(mp_knot p, mp_knot q) ;
 
 
 @ 
 @d bend_tolerance 131 /* allow rounding error of $2\cdot10^{-3}$ */
 
 @c 
-boolean mp_is_curved(mp_knot *p, mp_knot *q) {
+boolean mp_is_curved(mp_knot p, mp_knot q) {
   scaled d; /* a temporary value */
   if ( gr_right_x(p)==gr_x_coord(p) )
     if ( gr_right_y(p)==gr_y_coord(p) )
@@ -685,8 +684,8 @@ boolean mp_is_curved(mp_knot *p, mp_knot *q) {
 
 
 @ @c
-static void mp_svg_path_out (MP mp, mp_knot *h) {
-  mp_knot *p, *q; /* for scanning the path */
+static void mp_svg_path_out (MP mp, mp_knot h) {
+  mp_knot p, q; /* for scanning the path */
   append_char('M');
   mp_svg_pair_out(mp, gr_x_coord(h),gr_y_coord(h));
   p=h;
@@ -716,8 +715,8 @@ static void mp_svg_path_out (MP mp, mp_knot *h) {
 }
 
 @ @c
-static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
-  mp_knot *p, *q; /* for scanning the path */
+static void mp_svg_path_trans_out (MP mp, mp_knot h, mp_pen_info *pen) {
+  mp_knot p, q; /* for scanning the path */
   append_char('M');
   mp_svg_trans_pair_out(mp, pen, gr_x_coord(h),gr_y_coord(h));
   p=h;
@@ -748,8 +747,8 @@ static void mp_svg_path_trans_out (MP mp, mp_knot *h, mp_pen_info *pen) {
 
 
 @ @c
-static void mp_svg_font_path_out (MP mp, mp_knot *h) {
-  mp_knot *p, *q; /* for scanning the path */
+static void mp_svg_font_path_out (MP mp, mp_knot h) {
+  mp_knot p, q; /* for scanning the path */
   append_char('M');
   mp_svg_font_pair_out(mp, gr_x_coord(h),gr_y_coord(h));
   p=h;
@@ -794,7 +793,7 @@ static void mp_svg_font_path_out (MP mp, mp_knot *h) {
 } while (0)
 
 @c
-static void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
+void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
   mp_graphic_object *p; /* object index */
   int k; /* general purpose index */
   size_t l; /* a string length */
@@ -1119,10 +1118,10 @@ void mp_svg_stroke_out (MP mp,  mp_graphic_object *h,
 @ Here is a simple routine that just fills a cycle.
 
 @<Declarations@>=
-static void mp_svg_fill_out (MP mp, mp_knot *p, mp_graphic_object *h);
+static void mp_svg_fill_out (MP mp, mp_knot p, mp_graphic_object *h);
 
 @ @c
-void mp_svg_fill_out (MP mp, mp_knot *p, mp_graphic_object *h) {
+void mp_svg_fill_out (MP mp, mp_knot p, mp_graphic_object *h) {
   mp_svg_open_starttag(mp, "path");
   mp_svg_path_out(mp, p);
   mp_svg_attribute(mp, "d", mp->svg->buf);
@@ -1203,7 +1202,7 @@ int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
   }
   if (mp->history >= mp_fatal_error_stop ) return 1;
   mp_open_output_file(mp);
-  if ( (qprologues>=1) && mp->ps->tfm_tree == NULL && (mp->last_ps_fnum<mp->last_fnum) )
+  if ( (qprologues>=1) && (mp->last_ps_fnum<mp->last_fnum) )
     mp_read_psname_table(mp);
   /* The next seems counterintuitive, but calls from |mp_svg_ship_out|
    * set standalone to true, and because embedded use is likely, it is 

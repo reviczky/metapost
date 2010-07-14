@@ -2,13 +2,13 @@
    testing.  Public domain. */
 
 #include "config.h"
-#include "lib.h"
+
 
 /* Return true if we're at the end of FILE, else false.  This implements
    Pascal's `eof' builtin.  */
 
 boolean
-eof (FILE *file)
+eof P1C(FILE *, file)
 {
   register int c;
 
@@ -36,7 +36,7 @@ eof (FILE *file)
 /* Accept both CR and LF as end-of-line. */
 
 boolean
-eoln (FILE *file)
+eoln P1C(FILE*, file)
 {
   register int c;
 
@@ -55,7 +55,7 @@ eoln (FILE *file)
 /* Handle CRLF as a single end-of-line. */
 
 void
-readln (FILE *f)
+readln P1C(FILE*, f)
 {
     int c;
     while ((c = getc (f)) != '\n' && c != '\r' && c != EOF)

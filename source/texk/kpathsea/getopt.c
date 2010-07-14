@@ -1,7 +1,7 @@
 /* Getopt for GNU.
 
-   Copyright 2008, 2009, 2010 Karl Berry.
-   Copyright (C) 1987, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 2000, 2010
+   Copyright 2008 Karl Berry.
+   Copyright (C) 1987, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 2000
    	Free Software Foundation, Inc.
 
    The original version of this file was part of the GNU C Library.
@@ -31,6 +31,14 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
+
+#if !defined (__STDC__) || !__STDC__
+/* This is a separate conditional since some stdc systems
+   reject `defined (const)'.  */
+#ifndef const
+#define const
+#endif
 #endif
 
 #include <stdio.h>
@@ -641,7 +649,6 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
 	      else
 		{
 		  if (opterr)
-		   {
 		   if (argv[optind - 1][1] == '-')
 		    /* --option */
 		    fprintf (stderr,
@@ -652,7 +659,6 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
 		    fprintf (stderr,
 		     _("%s: option `%c%s' doesn't allow an argument\n"),
 		     argv[0], argv[optind - 1][0], pfound->name);
-		   }
 
 		  nextchar += strlen (nextchar);
 

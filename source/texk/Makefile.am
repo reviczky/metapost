@@ -1,20 +1,23 @@
 ## Makefile.am for the TeX Live subdirectory texk/
 ##
-## Copyright (C) 2009, 2010 Peter Breitenlohner <tex-live@tug.org>
+## Copyright (C) 2009 Peter Breitenlohner <tex-live@tug.org>
 ## You may freely use, modify and/or distribute this file.
 ##
 ## Use 'aclocal --force' (for "computed m4_sinclude")
 ##
 ACLOCAL_AMFLAGS = -I ../m4 --force
 
-SUBDIRS = . $(SUBTEXK)
-DIST_SUBDIRS = $(DIST_SUBTEXK)
+SUBDIRS = dummy . $(SUBTEXK)
+DIST_SUBDIRS = dummy $(DIST_SUBTEXK)
 
 # just in case a subdirectory has added directories
 dist-hook:
 	rm -rf `find $(distdir) -name .svn`
 
-CONFIG_AUX = ../subsubdir-conf.cmd
+SUBTEXK_AUX = subtexkdir-configure subtexkdir-conf.args
+noinst_DATA = $(SUBTEXK_AUX)
+
+DISTCLEANFILES = $(noinst_DATA)
 
 all-local: subtexk
 
@@ -26,8 +29,8 @@ all-local: subtexk
 #
 # Sequentially configure and optionally build all texk subdirs;
 # code inspired by automake's way to handle recursive targets.
-subtexk: $(CONFIG_AUX)
-	@fail= failcom='exit 1'; \
+subtexk: $(noinst_DATA)
+	@failcom='exit 1'; \
 	for f in x $$MAKEFLAGS; do \
 	  case $$f in \
 	    *=* | --[!k]*);; \
@@ -37,16 +40,14 @@ subtexk: $(CONFIG_AUX)
 	list='$(DIST_SUBTEXK)'; for subtexk in $$list; do \
 	  if test ! -f $$subtexk/Makefile; then \
 	    test -d $$subtexk || $(MKDIR_P) $$subtexk; \
-	    cmd=`cat $(CONFIG_AUX) | sed "s,auxdir/auxsub,texk/$$subtexk,g"`; \
+	    cmd=`cat $(SUBTEXK_AUX) | sed "s,SUBTEXKDIR,$$subtexk,g"`; \
 	    case " $(SUBTEXK) " in \
 	      *" $$subtexk "*) skip=;; \
 	      *) skip=' --disable-build';; \
 	    esac; \
 	    (cd $$subtexk && echo "=== configuring in $$subtexk (`pwd`)" && \
 	      echo "make: running $(SHELL) $$cmd$$skip" && \
-	      CONFIG_SHELL=$(SHELL) && export CONFIG_SHELL && \
-	      eval $(SHELL) $$cmd$$skip || \
-	        { echo "=== configuring in $$subtexk failed"; exit 1; }) && \
+	      eval $(SHELL) $$cmd$$skip) && \
 	    if test "x$$skip" = x; then \
 	      echo "Making all in $$subtexk" && \
 	      (cd $$subtexk && $(MAKE) $(AM_MAKEFLAGS) all); \
@@ -54,16 +55,11 @@ subtexk: $(CONFIG_AUX)
 	  fi; \
 	done; test -z "$$fail"
 
-../subsubdir-conf.cmd:
-	@echo "configure in ../auxdir/auxsub failed to create the file $@"
+subtexkdir-configure:
+	@echo "make in ./dummy failed to create the file $@"
 	exit 1
 
-# Common infrastructure for tests
-EXTRA_DIST = tests
+subtexkdir-conf.args:
+	@echo "configure in ./dummy failed to create the file $@"
+	exit 1
 
-# Special target to run TRIP and TRAP tests and create diffs.
-.PHONY: triptrap
-triptrap: web2c/Makefile
-	cd web2c && $(MAKE) $(AM_MAKEFLAGS) $@
-web2c/Makefile:
-	$(MAKE) $(AM_MAKEFLAGS) DIST_SUBTEXK=web2c subtexk
