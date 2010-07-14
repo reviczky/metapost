@@ -9836,7 +9836,7 @@ static void mp_toss_edges (MP mp, mp_node h) ;
 @ @c void mp_toss_edges (MP mp, mp_node h) {
   mp_node p,q;  /* pointers that scan the list being recycled */
   mp_node r; /* an edge structure that object |p| refers to */
-  return; /* todo: freeing causes segfaults. refcount off? */
+  /* todo: freeing causes segfaults. refcount off? */
   mp_flush_dash_list(mp, h);
   q=mp_link(dummy_loc(h));
   while ( (q!=NULL) ) { 
