@@ -9836,7 +9836,6 @@ static void mp_toss_edges (MP mp, mp_node h) ;
 @ @c void mp_toss_edges (MP mp, mp_node h) {
   mp_node p,q;  /* pointers that scan the list being recycled */
   mp_node r; /* an edge structure that object |p| refers to */
-  /* todo: freeing causes segfaults. refcount off? */
   mp_flush_dash_list(mp, h);
   q=mp_link(dummy_loc(h));
   while ( (q!=NULL) ) { 
@@ -13158,7 +13157,7 @@ static void mp_fix_dependencies (MP mp) {
 @ @d independent_being_fixed 1 /* this variable already appears in |s| */
 
 @<Run through the dependency list for variable |t|...@>=
-set_mp_link(r,dep_list(t)); /* todo, check this: was |r=value_loc(t)| */
+set_mp_link(r,dep_list(t)); /* that the dep_list */
 while (1) { 
   q=(mp_value_node)mp_link(r); 
   x=dep_info(q);
