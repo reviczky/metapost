@@ -6470,8 +6470,10 @@ node~|p|, so we must change both of them.
     set_mp_link(q,subscr_head(parent((mp_value_node)p)));
     while ( mp_link(q)!=p ) 
       q=mp_link(q);
-    assert(q!=mp->temp_head);
-    set_mp_link(q,(mp_node)rr);
+    if (q==mp->temp_head)
+      subscr_head(parent((mp_value_node)p)) = (mp_node)rr;
+    else
+      set_mp_link(q,(mp_node)rr);
   }
 }
 
@@ -21712,6 +21714,7 @@ static void mp_test_known (MP mp,quarterword c) {
   else 
      new_expr.data.val = true_code+false_code-b;
   mp_flush_cur_exp(mp, new_expr);
+  cur_exp_node()=NULL;
   mp->cur_exp.type=mp_boolean_type;
 }
 
