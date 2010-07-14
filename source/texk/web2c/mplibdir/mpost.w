@@ -1231,10 +1231,6 @@ int main (int argc, char **argv) { /* |start_here| */
   @= /*@@=nullpass@@*/ @> 
   if(putenv(xstrdup("engine=metapost")))
     fprintf(stdout,"warning: could not set up $engine\n");
-  options->main_memory       = setup_var (50000,"main_memory",nokpse);
-  options->hash_size         = (unsigned)setup_var (16384,"hash_size",nokpse);
-  options->max_in_open       = setup_var (25,"max_in_open",nokpse);
-  options->param_size        = setup_var (1500,"param_size",nokpse);
   options->error_line        = setup_var (79,"error_line",nokpse);
   options->half_error_line   = setup_var (50,"half_error_line",nokpse);
   options->max_print_line    = setup_var (100,"max_print_line",nokpse);
