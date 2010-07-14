@@ -2,6 +2,41 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.500:
+----------------------------------------------------------------------
+
+* Actual memory dump files do not exist any more. --mem=<MEM> and
+  all other methods of supplying a MEM file are now interpreted 
+  somewhat like this pseudo-metapost-code:
+
+    begingroup;
+    let dump = end;
+    input MEM[.mp];
+    endgroup;
+
+  this process is supposed to be transparent besides the facto that 
+  there is some extra terminal output and logging.
+
+* All memory is now allocated and freed dynamically. There are only
+  two remaining overflow errors(1):
+
+  "expansion depth" : this is a guard against infinite recursion,
+                      the value is 10000.
+  "sizes per font"  : this is maxed out for data-structure reasons, 
+                      the value is 32767.
+
+  from texmf.cnf, now only the "error_line", "half_error_line" and
+  "print_line settings" are used.
+
+  (1) but now you can reach the operating system limits, of course.
+
+* As this is an alpha release containing lots and lots of new code,
+  MetaPost starts up with the internal equivalent of 'loggingall;' 
+  in effect. This results in log files that can help in debugging.
+
+* Expect bugs and (minor) memory leaks.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.211:
 ----------------------------------------------------------------------
 
