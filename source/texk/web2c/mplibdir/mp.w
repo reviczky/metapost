@@ -28095,6 +28095,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
   unsigned old_setting; /* previous |selector| setting */
   size_t i; /*  indexes into |filename_template|  */
   integer f; /* field width */
+  str_room(1024);
   if ( mp->job_name==NULL ) mp_open_log_file(mp);
   if ( internal_string(mp_output_template)==NULL) { 
     char *s; /* a file extension derived from |c| */
