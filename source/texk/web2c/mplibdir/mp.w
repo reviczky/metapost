@@ -1557,7 +1557,7 @@ void mp_print (MP mp, const char *ss) {
   mp_do_print(mp, ss,strlen(ss));
 }
 void mp_print_str (MP mp, str_number s) {
-  assert (s!=NULL); /* todo: this should never happen */
+  assert (s!=NULL);
   mp_do_print(mp, (const char *)s->str, s->len);
 }
 
@@ -3950,7 +3950,6 @@ Some nodes are created statically, since static allocation is
 more efficient than dynamic allocation when we can get away with it. 
 
 @<Glob...@>=
-mp_node null_node; /* todo: name changed */
 mp_node null_dash;
 mp_value_node dep_head;
 mp_node inf_val;
@@ -5089,20 +5088,29 @@ will always be found, and the corresponding hash table address
 will be returned.
 
 @c 
-static mp_sym mp_id_lookup (MP mp, char *j, integer l, boolean insert_new) { /* search the hash table */
+static mp_sym mp_do_id_lookup (MP mp, avl_tree symbols, const char *j, integer l, boolean insert_new) { /* search the hash table */
+
   mp_sym s, str;
   unsigned char *nam = mp_xmalloc(mp,1,(size_t)(l+1));
   memcpy(nam,j,(size_t)l);
   *(nam+l) = '\0';
   s = new_symbols_entry (mp, nam, (size_t)l) ;
-  str = (mp_sym) avl_find (s, mp->symbols);
+  str = (mp_sym) avl_find (s, symbols);
   if (str == NULL && insert_new) {
     mp->st_count++;
-    assert(avl_ins (s, mp->symbols, avl_false)>0);
-    str = (mp_sym) avl_find (s, mp->symbols);
+    assert(avl_ins (s, symbols, avl_false)>0);
+    str = (mp_sym) avl_find (s, symbols);
   }
   delete_symbols_entry(s);
   return str;
+}
+static mp_sym mp_id_lookup (MP mp, char *j, integer l, boolean insert_new) { 
+  /* search the normal symbol table */
+  return mp_do_id_lookup (mp, mp->symbols, j, l, insert_new);
+}
+static mp_sym mp_frozen_id_lookup (MP mp, const char *j, integer l, boolean insert_new) { 
+  /* search the error recovery symbol table */
+  return mp_do_id_lookup (mp, mp->frozen_symbols, j, l, insert_new);
 }
 
 @ We need to put \MP's ``primitive'' symbolic tokens into the hash
@@ -5128,59 +5136,32 @@ static void mp_primitive (MP mp, const char *ss, halfword c, halfword o) {
 }
 
 
-@ Some other symbolc tokens only exist for error recovery.
+@ Some other symbolic tokens only exist for error recovery.
 
 @c
 static mp_sym mp_frozen_primitive (MP mp, const char *ss, halfword c, halfword o) {
-     mp_sym s, str;
-     size_t l = strlen(ss);
-     unsigned char *nam = mp_xmalloc(mp,1,(l+1));
-     memcpy(nam,ss,l);
-     *(nam+l) = '\0';
-     s = new_symbols_entry (mp, nam, l) ;
-     str = (mp_sym) avl_find (s, mp->frozen_symbols);
-     if (str == NULL) { 
-        assert(avl_ins (s, mp->frozen_symbols, avl_false)>0);
-        str = (mp_sym) avl_find (s, mp->frozen_symbols);
-    }
-    delete_symbols_entry(s);
+    mp_sym str = mp_frozen_id_lookup(mp, ss, strlen(ss), true);
     str->type = c;
     str->v.data.val = o;
     return str;
 }
 
-@ This is just a quick hack to map |mp_sym| values to |halfword|s. 
-
-TODO: This is dangerous, because it trashes the current value of the
-symbol: after the call |mp_get_frozen_primitive (mp, mp_frozen_fi)|, 
-for example, \.{fi} will once again be defined as the command 
-|fi_or_else| with equiv |fi_code|, even if the symbol was redefined 
-by the user.  But for now, it will at least allow compilation of
-(most) correct input files.
+@ How to get back a frozen primitive. This function is only ever
+called with existing primitives, so there is no need to be careful.
 
 @c 
 static mp_sym mp_get_frozen_primitive (MP mp, mp_sym sym) {
-   mp_sym temp;
-   temp = mp_id_lookup (mp, (char *)sym->text->str, (integer)sym->text->len, true);
-   equiv(temp) = sym->v.data.val;
-   eq_type(temp) = sym->type;
-   return temp;
+   return mp_frozen_id_lookup (mp, (char *)sym->text->str, (integer)sym->text->len, false);
 }
 
 @ This routine returns |true| if the current symbol is un-redefinable
 because it is one of the error recovery tokens. 
 
-At the moment this always returns false, which is safe, because
-the |mp->frozen_symbols| entries are never accessed directly.
-
 @c
 static boolean mp_is_frozen (MP mp, mp_sym symbol) {
-   (void)mp;
-   (void)symbol;
-   return false;
+   mp_sym temp = mp_get_frozen_primitive (mp, symbol);
+   return (temp==symbol);
 }
-
-
 
 @ Many of \MP's primitives need no |equiv|, since they are identifiable
 by their |eq_type| alone. These primitives are loaded into the hash table
@@ -5424,16 +5405,6 @@ static mp_node mp_get_token_node (MP mp) {
   return (mp_node)p;
 }
  
-@ We have set aside a two word node so that we can have
-|value(null)=0|.  We will make use of this coincidence later.
-
-@<Initialize table entries@>=
-mp->null_node = mp_get_token_node (mp);
-set_value(mp->null_node,0);
-
-@ @<Free table entries@>=
-mp_free_value_node(mp,mp->null_node);
-
 @ A numeric token is created by the following trivial routine.
 
 @c
@@ -12617,7 +12588,8 @@ variable (say~|r|); and we have |prev_dep(r)=q|, etc.
 Dependency nodes sometimes mutate into value nodes and vice versa, so their
 structures have to match.
 
-@d dep_value(A) ((mp_value_node)(A))->value_.rh  /* half of the |value| field in a |dependent| variable */
+@d dep_value(A) ((A!=NULL)? ((mp_value_node)(A))->value_.rh : 0) /* half of the |value| field in a |dependent| variable */
+@d set_dep_value(A,B) ((mp_value_node)(A))->value_.rh=(B)  /* half of the |value| field in a |dependent| variable */
 @d dep_info(A) ((mp_value_node)(A))->value_.node  /* half of the |value| field in a |dependent| variable */
 @d set_dep_info(A,B) do {
    mp_value_node d = (mp_value_node)(B);
@@ -12832,9 +12804,9 @@ static mp_value_node mp_p_plus_fq ( MP mp, mp_value_node p, integer f,
     }
   }
   if ( t==mp_dependent )
-    dep_value(p)=mp_slow_add(mp, dep_value(p),mp_take_fraction(mp, dep_value(q), f));
+    set_dep_value(p,mp_slow_add(mp, dep_value(p),mp_take_fraction(mp, dep_value(q), f)));
   else  
-    dep_value(p)=mp_slow_add(mp, dep_value(p),mp_take_scaled(mp, dep_value(q),f));
+    set_dep_value(p,mp_slow_add(mp, dep_value(p),mp_take_scaled(mp, dep_value(q),f)));
   set_mp_link(r,(mp_node)p); 
   mp->dep_final=p; 
   return (mp_value_node)mp_link(mp->temp_head);
@@ -12846,7 +12818,7 @@ static mp_value_node mp_p_plus_fq ( MP mp, mp_value_node p, integer f,
     v=dep_value(p)+mp_take_fraction(mp, f, dep_value(q));
   else 
     v=dep_value(p)+mp_take_scaled(mp, f, dep_value(q));
-  dep_value(p)=v;
+  set_dep_value(p,v);
   s=p; 
   p=(mp_value_node)mp_link(p);
   if ( abs(v)<threshold ) {
@@ -12873,7 +12845,7 @@ static mp_value_node mp_p_plus_fq ( MP mp, mp_value_node p, integer f,
   if ( abs(v)>halfp(threshold) ) { 
     s=mp_get_dep_node(mp);
     set_dep_info(s,qq);
-    dep_value(s)=v;
+    set_dep_value(s,v);
     if ( (abs(v)>=coef_bound) && mp->watch_coefs ) { 
       mp_type(qq)=independent_needing_fix;
       mp->fix_needed=true;
@@ -12917,7 +12889,7 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q, mp_va
      if ( v<vv ) {
         s=mp_get_dep_node(mp); 
         set_dep_info(s,qq); 
-        dep_value(s)=dep_value(q);
+        set_dep_value(s,dep_value(q));
         q=(mp_value_node)mp_link(q); 
         qq=dep_info(q); 
         set_mp_link(r,(mp_node)s); 
@@ -12930,7 +12902,7 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q, mp_va
       }
     }
   }
-  dep_value(p)=mp_slow_add(mp, dep_value(p),dep_value(q));
+  set_dep_value(p,mp_slow_add(mp, dep_value(p),dep_value(q)));
   set_mp_link(r,(mp_node)p); 
   mp->dep_final=p; 
   return (mp_value_node)mp_link(mp->temp_head);
@@ -12939,7 +12911,7 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q, mp_va
 @ @<Contribute a term from |p|, plus the...@>=
 { 
   v=dep_value(p)+dep_value(q);
-  dep_value(p)=v; 
+  set_dep_value(p,v); 
   s=p; 
   p=(mp_value_node)mp_link(p); 
   pp=dep_info(p);
@@ -12997,15 +12969,15 @@ static mp_value_node mp_p_times_v (MP mp, mp_value_node p, integer v, quarterwor
       }
       set_mp_link(r,(mp_node)p); 
       r=p; 
-      dep_value(p)=w;
+      set_dep_value(p,w);
       p=(mp_value_node)mp_link(p);
     }
   }
   set_mp_link(r,(mp_node)p);
   if ( v_is_scaled ) 
-    dep_value(p)=mp_take_scaled(mp, dep_value(p),v);
+    set_dep_value(p,mp_take_scaled(mp, dep_value(p),v));
   else 
-    dep_value(p)=mp_take_fraction(mp, dep_value(p),v);
+    set_dep_value(p,mp_take_fraction(mp, dep_value(p),v));
   return (mp_value_node)mp_link(mp->temp_head);
 }
 
@@ -13052,12 +13024,12 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, scaled v, quarterword
       }
       set_mp_link(r,(mp_node)p); 
       r=p; 
-      dep_value(p)=w; 
+      set_dep_value(p,w); 
       p=(mp_value_node)mp_link(p);
     }
   }
   set_mp_link(r,(mp_node)p); 
-  dep_value(p)=mp_make_scaled(mp, dep_value(p),v);
+  set_dep_value(p,mp_make_scaled(mp, dep_value(p),v));
   return (mp_value_node)mp_link(mp->temp_head);
 }
 
@@ -13199,7 +13171,7 @@ while (1) {
       set_dep_info(s,x); 
       mp_type(x)=independent_being_fixed;
     }
-    dep_value(q) = dep_value(q) / 4;
+    set_dep_value(q,dep_value(q) / 4);
     if ( dep_value(q)==0 ) {
       set_mp_link(r,mp_link(q)); 
       mp_free_dep_node(mp, q); 
@@ -13232,7 +13204,7 @@ a constant term.
 
 @c static mp_value_node mp_const_dependency (MP mp, scaled v) {
   mp->dep_final=mp_get_dep_node(mp);
-  dep_value(mp->dep_final)=v; 
+  set_dep_value(mp->dep_final,v); 
   set_dep_info(mp->dep_final,NULL);
   return mp->dep_final;
 }
@@ -13257,7 +13229,7 @@ static mp_value_node mp_single_dependency (MP mp, mp_node p) {
     return mp_const_dependency(mp, 0);
   } else { 
     q=mp_get_dep_node(mp);
-    dep_value(q)=(integer)two_to_the(28-m); 
+    set_dep_value(q,(integer)two_to_the(28-m)); 
     set_dep_info(q,p);
     rr = mp_const_dependency(mp, 0);
     set_mp_link(q,(mp_node)rr);
@@ -13274,7 +13246,7 @@ static mp_value_node mp_copy_dep_list (MP mp, mp_value_node p) {
   mp->dep_final=q;
   while (1) { 
     set_dep_info(mp->dep_final, dep_info(p));
-    dep_value(mp->dep_final) = dep_value(p);
+    set_dep_value(mp->dep_final,dep_value(p));
     if ( dep_info(mp->dep_final)==NULL ) break;
     set_mp_link(mp->dep_final,(mp_node)mp_get_dep_node(mp));
     mp->dep_final=(mp_value_node)mp_link(mp->dep_final); 
@@ -13345,16 +13317,16 @@ do {
       set_mp_link(s,mp_link(r)); 
       mp_free_dep_node(mp, r);
     } else { 
-      dep_value(r)=-w; 
+      set_dep_value(r,-w); 
       s=r;
     }
   }
   r=(mp_value_node)mp_link(s);
 } while (dep_info(r)!=null);
 if ( t==mp_proto_dependent ) {
-  dep_value(r)=(-mp_make_scaled(mp, dep_value(r),v));
+  set_dep_value(r,(-mp_make_scaled(mp, dep_value(r),v)));
 } else if ( v!=-fraction_one ) {
-  dep_value(r)=(-mp_make_fraction(mp, dep_value(r),v));
+  set_dep_value(r,(-mp_make_fraction(mp, dep_value(r),v)));
 }
 final_node=r; 
 p=(mp_value_node)mp_link(mp->temp_head)
@@ -13426,7 +13398,7 @@ if ( dep_info(p)==null ) {
       set_mp_link(s,mp_link(r));
       mp_free_dep_node(mp, r);
     } else { 
-      dep_value(r)=w; 
+      set_dep_value(r,w); 
       s=r;
     }
     r=(mp_value_node)mp_link(s);
@@ -15557,7 +15529,7 @@ if ( m==start_def ) {
 @ @<Initialize table entries@>=
 mp->bad_vardef = mp_get_value_node(mp);
 mp_name_type(mp->bad_vardef)=mp_root; 
-value_sym(mp->bad_vardef) = mp_get_frozen_primitive(mp, mp->frozen_bad_vardef); /* todo: check this */
+value_sym(mp->bad_vardef) = mp_get_frozen_primitive(mp, mp->frozen_bad_vardef);
 
 @ @<Free table entries@>=
 mp_free_value_node(mp,mp->bad_vardef);
@@ -18561,9 +18533,9 @@ pp=(mp_node)dep_info(s);
 /* printf ("s=%p, pp=%p, r=%p\n",s, pp, dep_list((mp_value_node)pp)); */
 v=dep_value(s);
 if ( t==mp_dependent ) 
-  dep_value(s)=-fraction_one; 
+  set_dep_value(s,-fraction_one); 
 else 
-  dep_value(s)=-unity;
+  set_dep_value(s,-unity);
 r=(mp_value_node)dep_list((mp_value_node)pp); 
 set_mp_link(s,(mp_node)r);
 while (dep_info(r)!=NULL) 
@@ -18636,7 +18608,7 @@ for (t=mp_dependent;t<=mp_proto_dependent;t++) {
       set_dep_list(q,(mp_node)mp_p_over_v(mp, (mp_value_node)dep_list(q),unity,
          mp_dependent,mp_proto_dependent));
       mp_type(q)=mp_proto_dependent; 
-      dep_value(r)=mp_round_fraction(mp, dep_value(r));
+      set_dep_value(r,mp_round_fraction(mp, dep_value(r)));
     }
     set_dep_list(q,(mp_node)mp_p_plus_fq(mp, (mp_value_node)dep_list(q),
        mp_make_scaled(mp, dep_value(r),-v),s,
@@ -20717,7 +20689,7 @@ default:
 static void mp_negate_dep_list (MP mp, mp_value_node p) { 
   (void)mp;
   while (1) { 
-    negate(dep_value(p));
+    set_dep_value(p,-dep_value(p));
     if ( dep_info(p)==null ) return;
     p=(mp_value_node)mp_link(p);
   }
@@ -22239,7 +22211,7 @@ static void mp_add_or_subtract (MP mp,mp_node p, mp_node q, quarterword c) {
     r = (mp_value_node)dep_list((mp_value_node)p);
     while ( dep_info(r)!=null ) 
       r=(mp_value_node)mp_link(r);
-    dep_value(r)=mp_slow_add(mp, dep_value(r),vv);
+    set_dep_value(r,mp_slow_add(mp, dep_value(r),vv));
     if ( qq==null ) {
       qq = mp_get_dep_node(mp);
       set_cur_exp_node((mp_node)qq); 
@@ -22269,7 +22241,7 @@ if ( mp_type(p)==mp_known ) {
   /* Add the known |value(p)| to the constant term of |v| */
   while ( dep_info(v)!=null ) 
     v=(mp_value_node)mp_link(v);
-  dep_value(v)=mp_slow_add(mp, value(p),dep_value(v));
+  set_dep_value(v,mp_slow_add(mp, value(p),dep_value(v)));
 } else { 
   s=mp_type(p); 
   r=(mp_value_node)dep_list((mp_value_node)p);
@@ -22557,9 +22529,9 @@ static void mp_dep_mult (MP mp,mp_value_node p, integer v, boolean v_is_scaled) 
     q=p;
   } else { 
     if ( v_is_scaled ) 
-      dep_value(p)=mp_take_scaled(mp, dep_value(p),v);
+      set_dep_value(p,mp_take_scaled(mp, dep_value(p),v));
     else 
-      dep_value(p)=mp_take_fraction(mp, dep_value(p),v);
+      set_dep_value(p,mp_take_fraction(mp, dep_value(p),v));
     return;
   };
   t=mp_type(q); 
@@ -23299,7 +23271,7 @@ numeric quantity to~|p|.
 @<Declare subroutines needed by |big_trans|@>=
 static void mp_add_mult_dep (MP mp,mp_value_node p, scaled v, mp_node r) { 
   if ( mp_type(r)==mp_known ) {
-    dep_value(mp->dep_final) = dep_value(mp->dep_final)+mp_take_scaled(mp, value(r),v);
+    set_dep_value(mp->dep_final,dep_value(mp->dep_final)+mp_take_scaled(mp, value(r),v));
   } else  { 
     dep_list(p)=(mp_node)mp_p_plus_fq(mp, (mp_value_node)dep_list(p),v,(mp_value_node)dep_list((mp_value_node)r),
 							 mp_proto_dependent,mp_type(r));
@@ -24239,14 +24211,14 @@ if ( t==mp_known ) {
 } else if ( t==mp_independent ) {
   t=mp_dependent;
   p=mp_single_dependency(mp, l);
-  negate(dep_value(p));
+  set_dep_value(p,-dep_value(p));
   q=mp->dep_final;
 } else { 
   mp_value_node ll = (mp_value_node)l;
   p=(mp_value_node)dep_list(ll);
   q=p;
   while (1) { 
-    negate(dep_value(q));
+    set_dep_value(q,-dep_value(q));
     if ( dep_info(q)==null ) break;
     q=(mp_value_node)mp_link(q);
   }
@@ -24286,7 +24258,7 @@ if ( r==null ) {
   } 
 } else {
   if ( mp_type(r)==mp_known ) {
-    dep_value(q)=dep_value(q)+value(r); 
+    set_dep_value(q,dep_value(q)+value(r)); 
     goto DONE1;
   } else { 
     tt=mp_type(r);
@@ -24316,7 +24288,7 @@ if ( t==tt ) {
 } else { 
   q=p;
   while ( dep_info(q)!=null ) {
-    dep_value(q) = mp_round_fraction(mp, dep_value(q)); 
+    set_dep_value(q, mp_round_fraction(mp, dep_value(q))); 
     q=(mp_value_node)mp_link(q);
   }
   t=mp_proto_dependent;
