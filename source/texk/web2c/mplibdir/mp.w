@@ -212,6 +212,7 @@ static void mp_free (MP mp) {
     @<Finish non-interactive use@>;
   }
   xfree(mp->jump_buf);
+  @<Free table entries@>;
   xfree(mp);
 }
 
@@ -293,7 +294,7 @@ if (mp->troff_mode) {
   internal_value(mp_gtroffmode)=unity; 
   internal_value(mp_prologues)=unity; 
 }
-if ( mp->start_sym>0 ) { /* insert the `\&{everyjob}' symbol */
+if ( mp->start_sym!=NULL ) { /* insert the `\&{everyjob}' symbol */
   mp->cur_sym=mp->start_sym; 
   mp_back_input(mp);
 }
@@ -343,7 +344,9 @@ to extend or reduce \MP's capacity.
 int pool_size; /* maximum number of characters in strings, including all
   error messages and help texts, and the names of all identifiers */
 int old_pool_size; /* a helper used by |mp_cat| */
-int hash_prime; /* a prime number equal to about 85\pct! of |hash_size| */
+int max_in_open; /* maximum number of input files and error insertions that
+  can be going on simultaneously */
+int param_size; /* maximum number of simultaneous macro parameters */
 
 @ @<Option variables@>=
 int error_line; /* width of context lines on terminal error messages */
@@ -351,11 +354,6 @@ int half_error_line; /* width of first lines of contexts in terminal
   error messages; should be between 30 and |error_line-15| */
 int halt_on_error; /* do we quit at the first error? */
 int max_print_line; /* width of longest text lines output; should be at least 60 */
-unsigned hash_size; /* maximum number of symbolic tokens, must be less than |max_halfword| */
-int param_size; /* maximum number of simultaneous macro parameters */
-int max_in_open; /* maximum number of input files and error insertions that
-  can be going on simultaneously */
-int main_memory; /* only for options, backward compat */
 void *userdata; /* this allows the calling application to setup local */
 char *banner; /* the banner that is printed to the screen and log */
 int ini_version;
@@ -1249,9 +1247,6 @@ that they can not be flushed.
 str_number mp_intern (MP mp, const char *s) {
   str_number r ;
   r = mp_rts(mp, s);
-  /* these strings are fixed, no need to keep them in the stats */
-  mp->pool_in_use=mp->pool_in_use-(integer)strlen(s);
-  decr(mp->strs_in_use);
   r->refs = max_str_ref;
   return r;
 }
@@ -1290,22 +1285,6 @@ str_number mp_make_string (MP mp) { /* current string enters the pool */
     }
     reset_cur_string(mp);
     return str;
-}
-
-@ This routine compares a pool string with a sequence of characters
-of equal length.
-
-@c 
-static boolean mp_str_eq_cstr (MP mp, str_number s, char *k) {
-    /* test equality of strings */
-    size_t j = 0; /* running index */
-    (void)mp;
-    while ( j<length(s) ) { 
-        if ( *(s->str+j)!=*k ) 
-            return false;
-        j++; k++;
-    }
-    return true;
 }
 
 @ Here is a similar routine, but it compares two strings in the string pool,
@@ -1892,7 +1871,8 @@ static void mp_jump_out (MP mp) {
 @<Error hand...@>=
 void mp_error (MP mp) { /* completes the job of error reporting */
   ASCII_code c; /* what the user types */
-  integer s1,s2,s3; /* used to save global variables when deleting tokens */
+  integer s1,s2; /* used to save global variables when deleting tokens */
+  mp_sym s3; /* likewise */
   if ( mp->history<mp_error_message_issued ) 
 	mp->history=mp_error_message_issued;
   mp_print_char(mp, xord('.')); mp_show_context(mp);
@@ -3530,11 +3510,13 @@ from quarterwords. These are legacy macros.
 @<Types...@>=
 typedef struct mp_value_node_data *mp_value_node;
 typedef struct mp_node_data *mp_node;
+typedef struct mp_symbol_entry *mp_sym;
 typedef short quarterword; /* 1/4 of a word */
 typedef int halfword; /* 1/2 of a word */
 typedef struct {
     halfword rh, lh;
     str_number str;
+    mp_sym sym;
     mp_node node;
     mp_knot P;
 } two_halves;
@@ -3819,6 +3801,7 @@ typedef struct mp_node_data {
 typedef struct mp_symbolic_node_data {
   NODE_BODY;
   mp_node node;
+  mp_sym sym;
 } mp_symbolic_node_data;
 typedef struct mp_symbolic_node_data* mp_symbolic_node;
 
@@ -3826,8 +3809,14 @@ typedef struct mp_symbolic_node_data* mp_symbolic_node;
 can use the special features that keep track of current and maximum memory usage. 
 \MP\ will report these statistics when |mp_tracing_stats| is positive.
 
+@d add_var_used(a) do {
+   mp->var_used+=(a);
+   if (mp->var_used>mp->var_used_max) mp->var_used_max=mp->var_used;
+} while (0)
+
 @<Glob...@>=
 size_t var_used; /* how much memory is in use */
+size_t var_used_max; /* how much memory was in use max */
 
 @ These redirect to function to aid in debugging.
 
@@ -3844,6 +3833,25 @@ static halfword get_mp_sym_info (MP mp, mp_node p) {
   (void)mp;
   assert(p->type==mp_symbol_node);
   return p->info;
+}
+
+@ These redirect to function to aid in debugging.
+
+@d mp_sym_sym(A) get_mp_sym_sym(mp,(A))
+@d set_mp_sym_sym(A,B) do_set_mp_sym_sym(mp,(A),(B))
+
+@c
+static void do_set_mp_sym_sym(MP mp, mp_node p, mp_sym v) {
+  mp_symbolic_node pp = (mp_symbolic_node) p;
+  (void)mp;
+  assert(pp->type==mp_symbol_node);
+  pp->sym=v;
+}
+static mp_sym get_mp_sym_sym (MP mp, mp_node p) {
+  mp_symbolic_node pp = (mp_symbolic_node) p;
+  (void)mp;
+  assert(pp->type==mp_symbol_node);
+  return pp->sym;
 }
 
 @ These redirect to function to aid in debugging.
@@ -3868,6 +3876,8 @@ static mp_node get_mp_sym_node (MP mp, mp_node p) {
 @ @<Declarations@>=
 static void do_set_mp_sym_info(MP mp, mp_node A, halfword B);
 static halfword get_mp_sym_info(MP mp, mp_node p) ;
+static void do_set_mp_sym_sym(MP mp, mp_node A, mp_sym B);
+static mp_sym get_mp_sym_sym(MP mp, mp_node p) ;
 static void do_set_mp_sym_node(MP mp, mp_node A, mp_node B);
 static mp_node get_mp_sym_node(MP mp, mp_node p) ;
 
@@ -3891,7 +3901,7 @@ enum {
 @c 
 static mp_node mp_get_symbolic_node (MP mp) {
    mp_symbolic_node p = xmalloc(1, symbolic_node_size);
-   mp->var_used += symbolic_node_size;
+   add_var_used(symbolic_node_size);
    memset(p,0,symbolic_node_size);
    p->type = mp_symbol_node;
    p->name_type = mp_normal_sym;
@@ -3958,6 +3968,11 @@ mp_node spec_head;
 mp->spec_head = mp_get_symbolic_node(mp);
 mp->temp_head = mp_get_symbolic_node(mp);
 mp->hold_head = mp_get_symbolic_node(mp);
+
+@ @<Free table entries@>=
+mp_free_symbolic_node(mp,mp->spec_head);
+mp_free_symbolic_node(mp,mp->temp_head);
+mp_free_symbolic_node(mp,mp->hold_head);
 
 @ The procedure |flush_node_list(p)| frees an entire linked list of 
 nodes that starts at a given position, until coming to a |null| pointer.
@@ -4921,46 +4936,36 @@ and the other, called |text(p)|, points to the |str_start| entry for
 |text(p)=0|; if position |p| is either empty or the end of a coalesced
 hash list, we have |mp_next(p)=0|.
 
-An auxiliary pointer variable called |hash_used| is maintained in such a
-way that all locations |p>=hash_used| are nonempty. The global variable
-|st_count| tells how many symbolic tokens have been defined, if statistics
-are being kept.
-
 There's a parallel array called |eqtb| that contains the current equivalent
 values of each symbolic token. The entries of this array consist of
 two halfwords called |eq_type| (a command code) and |equiv| (a secondary
 piece of information that qualifies the |eq_type|).
 
-@d eq_type(A)    mp->eqtb[(A)].lh /* the current ``meaning'' of a symbolic token */
-@d equiv(A)      mp->eqtb[(A)].rh /* parametric part of a token's meaning */
-@d equiv_node(A) mp->eqtb[(A)].node /* parametric part of a token's meaning */
-@d hash_is_full (mp->hash_used==hash_base) /* are all positions occupied? */
-
-@(mpmp.h@>=
-#define mp_next(A)   mp->hash[(A)].lh /* link for coalesced lists */
-#define text(A)      mp->hash[(A)].str /* string number for symbolic token name */
-#define hash_base 1 /* hashing actually starts here */
+@d eq_type(A)    (A)->type /* the current ``meaning'' of a symbolic token */
+@d equiv(A)      (A)->v.data.val /* parametric part of a token's meaning */
+@d equiv_node(A) (A)->v.data.node /* parametric part of a token's meaning */
+@d equiv_sym(A)  (A)->v.data.sym /* parametric part of a token's meaning */
+@d text(A)       (A)->text /* string number for symbolic token name */
 
 @ @<Types...@>=
 typedef struct {
   halfword val;
   mp_node node;
   str_number str;
+  mp_sym sym;
   mp_knot p;
 } mp_value_data;
 typedef struct {
   mp_variable_type type;
   mp_value_data data;
 } mp_value;
-typedef struct {
+typedef struct mp_symbol_entry {
   halfword type;
   mp_value v;
   str_number text;
 } mp_symbol_entry;
-typedef mp_symbol_entry *mp_sym;
 
 @ @<Glob...@>=
-pointer hash_used; /* allocation pointer for |hash| */
 integer st_count; /* total number of known identifiers */
 avl_tree symbols; /* avl tree of symbolic tokens */
 avl_tree frozen_symbols; /* avl tree of frozen symbolic tokens */
@@ -5019,7 +5024,9 @@ static void *copy_symbols_entry (const void *p) {
       ff->v.data.str  = copy_strings_entry(fp->v.data.str); 
     } else {
       ff->v.data.val  = fp->v.data.val;    
+      ff->v.data.node  = fp->v.data.node;
     }
+    ff->v.data.sym  = fp->v.data.sym;
     ff->type = fp->type;    
     return ff;
 }
@@ -5056,68 +5063,24 @@ static mp_sym new_symbols_entry (MP mp, unsigned char *nam,  size_t len) ;
 static mp_sym new_symbols_entry (MP mp, unsigned char *nam,  size_t len) {
     mp_sym ff;
     ff = mp_xmalloc(mp,1,sizeof(mp_symbol_entry));
+    memset(ff,0,sizeof(mp_symbol_entry));
     ff->text = new_strings_entry(mp);
     ff->text->str = nam;
     ff->text->len = len;
     ff->type = tag_token;
     ff->v.type = mp_known;
-    ff->v.data.val = null;
     return ff;
 }
 
 @ Certain entries in the hash table are ``frozen'' and not redefinable,
 since they are used in error recovery.
 
-@(mpmp.h@>=
-#define hash_top (integer)(hash_base+mp->hash_size) /* the first location of the frozen area */
-#define hash_end (integer)(hash_top) /* the actual size of the |hash| and |eqtb| arrays */
-
-
-@ @<Glob...@>=
-two_halves *hash; /* the hash table */
-two_halves *eqtb; /* the equivalents */
-
-@ @<Allocate or initialize ...@>=
-mp->hash = xmalloc((hash_end+1),sizeof(two_halves));
-mp->eqtb = xmalloc((hash_end+1),sizeof(two_halves));
-
-@ @<Dealloc variables@>=
-xfree(mp->hash);
-xfree(mp->eqtb);
-
-@ @<Set init...@>=
-mp_next(1)=0; text(1)=0; eq_type(1)=tag_token; equiv(1)=null; equiv_node(1) = NULL;
-for (k=2;k<=hash_end;k++)  { 
-  mp->hash[k]=mp->hash[1]; mp->eqtb[k]=mp->eqtb[1];
-}
-
-@ 
-
 @<Initialize table entries@>=
 mp->st_count=0;
-mp->hash_used=hash_end; /* nothing is used */
 mp->frozen_bad_vardef = mp_frozen_primitive(mp, "a bad variable", tag_token, 0);
 mp->frozen_right_delimiter = mp_frozen_primitive(mp, ")", right_delimiter, 0);
 mp->frozen_inaccessible = mp_frozen_primitive(mp, " INACCESSIBLE", tag_token, 0);
 mp->frozen_undefined = mp_frozen_primitive(mp, " UNDEFINED", tag_token, 0);
-
-@ The value of |hash_prime| should be roughly 85\pct! of |hash_size|, and it
-should be a prime number.  The theory of hashing tells us to expect fewer
-than two table probes, on the average, when the search is successful.
-[See J.~S. Vitter, {\sl Journal of the ACM\/ \bf30} (1983), 231--258.]
-@^Vitter, Jeffrey Scott@>
-
-@c
-static integer mp_compute_hash (MP mp, const char *s, int l) {
-  integer k;
-  integer h = *s;
-  for (k=1;k<l;k++){ 
-    h=h+h+(*(s+k));
-    while ( h>=mp->hash_prime ) h=h-mp->hash_prime;
-  }
-  return h;
-}
-
 
 @ Here is the subroutine that searches the hash table for an identifier
 that matches a given string of length~|l| appearing in |buffer[j..
@@ -5126,58 +5089,20 @@ will always be found, and the corresponding hash table address
 will be returned.
 
 @c 
-static pointer mp_id_lookup (MP mp, char *j, integer l) { /* search the hash table */
-  integer h; /* hash code */
-  pointer p; /* index in |hash| array */
-  char *k; /* index in |buffer| array */
-  h=mp_compute_hash(mp, j, l);
-  p=h+hash_base; /* we start searching here; note that |0<=h<hash_prime| */
-  while (true)  { 
-    str_number thestr = text(p);
-    if (thestr != NULL && length(thestr)==(size_t)l && mp_str_eq_cstr(mp, thestr, j))
-      break;
-    if ( mp_next(p)==0 ) {
-      @<Insert a new symbolic token after |p|, then
-        make |p| point to it and |break|@>;
-    }
-    p=mp_next(p);
+static mp_sym mp_id_lookup (MP mp, char *j, integer l, boolean insert_new) { /* search the hash table */
+  mp_sym s, str;
+  unsigned char *nam = mp_xmalloc(mp,1,(size_t)(l+1));
+  memcpy(nam,j,(size_t)l);
+  *(nam+l) = '\0';
+  s = new_symbols_entry (mp, nam, (size_t)l) ;
+  str = (mp_sym) avl_find (s, mp->symbols);
+  if (str == NULL && insert_new) {
+    mp->st_count++;
+    assert(avl_ins (s, mp->symbols, avl_false)>0);
+    str = (mp_sym) avl_find (s, mp->symbols);
   }
-  /* new code */
-  {
-     mp_sym s, str;
-     unsigned char *nam = mp_xmalloc(mp,1,(size_t)(l+1));
-     memcpy(nam,j,(size_t)l);
-     *(nam+l) = '\0';
-     s = new_symbols_entry (mp, nam, (size_t)l) ;
-     str = (mp_sym) avl_find (s, mp->symbols);
-     if (str == NULL) { 
-        assert(avl_ins (s, mp->symbols, avl_false)>0);
-        str = (mp_sym) avl_find (s, mp->symbols);
-    }
-  }
-  return p;
-}
-
-@ @<Insert a new symbolic...@>=
-{
-if ( text(p) != NULL ) { 
-  do {  
-    if ( hash_is_full )
-      mp_overflow(mp, "hash size",(integer)mp->hash_size);
-@:MetaPost capacity exceeded hash size}{\quad hash size@>
-    decr(mp->hash_used);
-  } while (text(mp->hash_used) != NULL); /* search for an empty location in |hash| */
-  mp_next(p)=mp->hash_used; 
-  p=mp->hash_used;
-}
-str_room(l);
-for (k=j;k<j+l;k++) {
-  append_char(*k);
-}
-text(p)=mp_make_string(mp); 
-text(p)->refs=max_str_ref;
-incr(mp->st_count);
-break;
+  delete_symbols_entry(s);
+  return str;
 }
 
 @ We need to put \MP's ``primitive'' symbolic tokens into the hash
@@ -5197,7 +5122,7 @@ static void mp_primitive (MP mp, const char *ss, halfword c, halfword o) {
   for (j=0;j<=l-1;j++) {
     mp->buffer[j]=*(s->str+j);
   }
-  mp->cur_sym=mp_id_lookup(mp, (char *)mp->buffer, (integer)l);
+  mp->cur_sym=mp_id_lookup(mp, (char *)mp->buffer, (integer)l, true);
   eq_type(mp->cur_sym)=c; 
   equiv(mp->cur_sym)=o;
 }
@@ -5218,6 +5143,7 @@ static mp_sym mp_frozen_primitive (MP mp, const char *ss, halfword c, halfword o
         assert(avl_ins (s, mp->frozen_symbols, avl_false)>0);
         str = (mp_sym) avl_find (s, mp->frozen_symbols);
     }
+    delete_symbols_entry(s);
     str->type = c;
     str->v.data.val = o;
     return str;
@@ -5233,9 +5159,9 @@ by the user.  But for now, it will at least allow compilation of
 (most) correct input files.
 
 @c 
-static halfword mp_get_frozen_primitive (MP mp, mp_sym sym) {
-   halfword temp;
-   temp = mp_id_lookup (mp, (char *)sym->text->str, (integer)sym->text->len);
+static mp_sym mp_get_frozen_primitive (MP mp, mp_sym sym) {
+   mp_sym temp;
+   temp = mp_id_lookup (mp, (char *)sym->text->str, (integer)sym->text->len, true);
    equiv(temp) = sym->v.data.val;
    eq_type(temp) = sym->type;
    return temp;
@@ -5248,7 +5174,7 @@ At the moment this always returns false, which is safe, because
 the |mp->frozen_symbols| entries are never accessed directly.
 
 @c
-static boolean mp_is_frozen (MP mp, halfword symbol) {
+static boolean mp_is_frozen (MP mp, mp_sym symbol) {
    (void)mp;
    (void)symbol;
    return false;
@@ -5413,7 +5339,7 @@ a macro parameter or capsule; so there are five corresponding ways to encode it
 internally: 
 
 (1)~A symbolic token whose hash code is~|p| is represented by the number |p|, 
-in the |sym_info| field of a symbolic node in~|mem|. It has a |name_type|
+in the |sym_sym| field of a symbolic node in~|mem|. It has a |name_type|
 to differentiate various subtypes of symbolic tokens, which is usually
 |normal_sym|, but |macro_sym| for macro names (there are three more name
 types for macro parameters, as explained below, and |internal_sym| 
@@ -5443,7 +5369,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 
 @d token_node_size sizeof(mp_token_node_data) /* the number of words in a large token node */
 
-@d value_info(A)  ((mp_token_node)(A))->value_.lh /* the info stored in a large token node */
+@d value_sym(A)   ((mp_token_node)(A))->value_.sym /* the sym stored in a large token node */
 @d value(A)       ((mp_token_node)(A))->value_.rh /* the value stored in a large token node */
 
 @d set_value(A,B) do {  /* store the value in a large token node */
@@ -5492,7 +5418,7 @@ typedef struct mp_token_node_data* mp_token_node;
 @c
 static mp_node mp_get_token_node (MP mp) {
   mp_token_node p = (mp_token_node)xmalloc(1, token_node_size);
-  mp->var_used += token_node_size;
+  add_var_used(token_node_size);
   memset(p,0,token_node_size);
   p->type = mp_token_node_type;
   return (mp_node)p;
@@ -5504,6 +5430,9 @@ static mp_node mp_get_token_node (MP mp) {
 @<Initialize table entries@>=
 mp->null_node = mp_get_token_node (mp);
 set_value(mp->null_node,0);
+
+@ @<Free table entries@>=
+mp_free_value_node(mp,mp->null_node);
 
 @ A numeric token is created by the following trivial routine.
 
@@ -5610,10 +5539,10 @@ c=letter_class; /* the default */
 if ( mp_type(p) != mp_symbol_node ) { 
   @<Display non-symbolic token@>;
 } else { 
-  r=mp_sym_info(p);
   if ( mp_name_type(p)==mp_expr_sym ||
        mp_name_type(p)==mp_suffix_sym ||
        mp_name_type(p)==mp_text_sym ) {
+    r=mp_sym_info(p);
     if ( mp_name_type(p)==mp_expr_sym ) { 
       mp_print(mp, "(EXPR");
 @.EXPR@>
@@ -5628,15 +5557,11 @@ if ( mp_type(p) != mp_symbol_node ) {
     mp_print_char(mp, xord(')'));
     c=right_paren_class;
   } else {
-    if ( r<1 ) {
-      if ( r==0 ) { 
-        @<Display a collective subscript@>
-      } else {
-        mp_print(mp, " IMPOSSIBLE");
-@.IMPOSSIBLE@>
-      }
+    mp_sym sr=mp_sym_sym(p);
+    if ( sr==0 ) { 
+      @<Display a collective subscript@>
     } else { 
-      str_number rr= text(r);
+      str_number rr= text(sr);
       if ( rr == NULL ) {
         mp_print(mp, " NONEXISTENT");
 @.NONEXISTENT@>
@@ -5882,7 +5807,7 @@ typedef struct mp_value_node_data {
   memory_word value_;
   union {
     scaled subscript_;
-    halfword hashloc_;
+    mp_sym hashloc_;
   } v;
   mp_node parent_;
   mp_node attr_head_;
@@ -5898,11 +5823,12 @@ became messy: lots of typecasts. So, it returns a simple
 |mp_node| for now.
 
 @d value_node_size sizeof(struct mp_value_node_data) /* the number of words in a value node */
+@d mp_free_value_node(a,b) mp_free_node(a,b,value_node_size)
 
 @c
 static mp_node mp_get_value_node (MP mp) {
   mp_node p = xmalloc(1, value_node_size);
-  mp->var_used += value_node_size;
+  add_var_used(value_node_size);
   memset(p,0,value_node_size);
   mp_type(p) = mp_value_node_type;
   return p;
@@ -5999,13 +5925,14 @@ information in their collective subscript attributes.
 
 @d hashloc(A) ((mp_value_node)(A))->v.hashloc_ /* hash address of this attribute */
 @d set_hashloc(A,B) do {
-  halfword d = (B);
   /* printf ("set attrloc of %p to %d on %d\n", (A), d, __LINE__); */
-  ((mp_value_node)(A))->v.hashloc_ = d;
+  ((mp_value_node)(A))->v.hashloc_ = (mp_sym)(B);
   } while (0)
 @d parent(A) (A)->parent_ /* pointer to |mp_structured| variable */
 
 @ 
+@d mp_free_attr_node(a,b) mp_free_node(a,b,value_node_size)
+
 @c
 static mp_value_node mp_get_attr_node (MP mp) {
   mp_value_node p = (mp_value_node)mp_get_value_node(mp);
@@ -6015,9 +5942,11 @@ static mp_value_node mp_get_attr_node (MP mp) {
 
 @ @<Initialize table...@>=
 mp->end_attr = (mp_node)mp_get_attr_node(mp);
-set_hashloc(mp->end_attr,hash_end+1);
+set_hashloc(mp->end_attr,-1);
 parent((mp_value_node)mp->end_attr)=NULL;
 
+@ @<Free table...@>=
+mp_free_attr_node(mp, mp->end_attr);
 
 @
 
@@ -6056,7 +5985,7 @@ typedef struct mp_pair_node_data* mp_pair_node;
 @c 
 static mp_node mp_get_pair_node (MP mp) {
   mp_pair_node p = (mp_pair_node)xmalloc(1, pair_node_size);
-  mp->var_used += pair_node_size;
+  add_var_used(pair_node_size);
   memset(p,0,pair_node_size);
   mp_type(p) = mp_pair_node_type;
   return (mp_node)p;
@@ -6116,7 +6045,7 @@ typedef struct mp_transform_node_data* mp_transform_node;
 @c 
 static mp_node mp_get_transform_node (MP mp) {
   mp_transform_node p = (mp_transform_node)xmalloc(1, transform_node_size);
-  mp->var_used += transform_node_size;
+  add_var_used(transform_node_size);
   memset(p,0,transform_node_size);
   mp_type(p) = mp_transform_node_type;
   return (mp_node)p;
@@ -6186,7 +6115,7 @@ typedef struct mp_color_node_data* mp_color_node;
 @c 
 static mp_node mp_get_color_node (MP mp) {
   mp_color_node p = (mp_color_node)xmalloc(1, color_node_size);
-  mp->var_used += color_node_size;
+  add_var_used(color_node_size);
   memset(p,0,color_node_size);
   mp_type(p) = mp_color_node_type;
   p->link = NULL;
@@ -6242,7 +6171,7 @@ typedef struct mp_cmykcolor_node_data* mp_cmykcolor_node;
 @c 
 static mp_node mp_get_cmykcolor_node (MP mp) {
   mp_cmykcolor_node p = (mp_cmykcolor_node)xmalloc(1, cmykcolor_node_size);
-  mp->var_used += cmykcolor_node_size;
+  add_var_used(cmykcolor_node_size);
   memset(p,0,cmykcolor_node_size);
   mp_type(p) = mp_cmykcolor_node_type;
   p->link = NULL;
@@ -6316,12 +6245,12 @@ to |null| until they are first used as the root of a variable.
 The following subroutine establishes the root node on such grand occasions.
 
 @c 
-static void mp_new_root (MP mp, pointer x) {
+static void mp_new_root (MP mp, mp_sym x) {
   mp_node p; /* the new node */
   p=mp_get_value_node(mp);
   mp_type(p)=undefined;
   mp_name_type(p)=mp_root;
-  value_info(p) = x;
+  value_sym(p) = x;
   equiv_node(x)=p;
 }
 
@@ -6350,7 +6279,7 @@ void mp_print_variable_name (MP mp, mp_node p) {
    Have to prepend a token to |q| for |show_token_list|. 
   */
   r=mp_get_symbolic_node(mp); 
-  set_mp_sym_info(r, value_info(p));
+  set_mp_sym_sym(r, value_sym(p));
   mp_link(r)=q;
   if ( mp_name_type(p)==mp_saved_root ) 
     mp_print(mp, "(SAVED)");
@@ -6374,7 +6303,7 @@ void mp_print_variable_name (MP mp, mp_node p) {
       mp_confusion(mp, "var");
 @:this can't happen var}{\quad var@>
     r=mp_get_symbolic_node(mp); 
-    set_mp_sym_info(r,hashloc(p)); /* the hash address */
+    set_mp_sym_sym(r,hashloc(p)); /* the hash address */
   }
   set_mp_link(r,q);
   q=r;
@@ -6457,11 +6386,11 @@ place in the structure. Node~|p| itself does not move, nor are its
 @c 
 static mp_node mp_new_structure (MP mp, mp_node p) {
   mp_node q, r=NULL; /* list manipulation registers */
-  pointer qq = 0;
+  mp_sym qq = NULL;
   switch (mp_name_type(p)) {
   case mp_root: 
     {
-      qq = value_info(p); 
+      qq = value_sym(p); 
       r=mp_get_value_node(mp);
       equiv_node(qq) = r;
     }
@@ -6478,7 +6407,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
     break;
   }
   set_mp_link(r,mp_link(p)); 
-  value_info(r) = value_info(p);
+  value_sym(r) = value_sym(p);
   mp_type(r)=mp_structured; 
   mp_name_type(r)=mp_name_type(p);
   set_attr_head(r,p); 
@@ -6565,11 +6494,11 @@ Otherwise |p| will be a non-null pointer to a node such that
 @c 
 static mp_node mp_find_variable (MP mp, mp_node t) {
   mp_node p,q,r,s; /* nodes in the ``value'' line */
-  pointer p_sym;
+  mp_sym p_sym;
   mp_node pp,qq,rr,ss; /* nodes in the ``collective'' line */
   integer n; /* subscript or attribute */
 @^inner loop@>
-  p_sym = mp_sym_info(t); 
+  p_sym = mp_sym_sym(t); 
   t = mp_link(t);
   if ( (eq_type(p_sym) % outer_tag) != tag_token ) 
     abort_find;
@@ -6663,17 +6592,17 @@ subscript list, even though that word isn't part of a subscript node.
 
 @ @<Descend one level for the attribute |mp_sym_info(t)|@>=
 { 
-  n=mp_sym_info(t);
+  mp_sym nn = mp_sym_sym(t);
   ss=attr_head(pp);
   do {  
     rr=ss; 
     ss=mp_link(ss);
-  } while (n>hashloc(ss));
-  if ( n<hashloc(ss) ) { 
+  } while (nn>hashloc(ss));
+  if ( nn<hashloc(ss) ) { 
     qq=(mp_node)mp_get_attr_node(mp); 
     set_mp_link(rr,qq); 
     set_mp_link(qq,ss);
-    set_hashloc(qq,n); 
+    set_hashloc(qq,nn); 
     mp_name_type(qq)=mp_attr; 
     mp_type(qq)=undefined;
     parent((mp_value_node)qq)=pp; 
@@ -6690,14 +6619,14 @@ subscript list, even though that word isn't part of a subscript node.
       r=s; 
       s=mp_link(s);
       /* printf("hashloc(s)=%d\n",hashloc(s)); */
-    } while (n>hashloc(s));
-    if ( n==hashloc(s) ) {
+    } while (nn>hashloc(s));
+    if ( nn==hashloc(s) ) {
       p=s;
     } else { 
       q=(mp_node)mp_get_attr_node(mp); 
       set_mp_link(r,q); 
       set_mp_link(q,s);
-      set_hashloc(q,n) ;
+      set_hashloc(q,nn) ;
       mp_name_type(q)=mp_attr; 
       mp_type(q)=undefined;
       parent((mp_value_node)q)=p; 
@@ -6732,10 +6661,10 @@ static void mp_flush_cur_exp (MP mp, mp_value v) ;
 @ @c 
 static void mp_flush_variable (MP mp, mp_node p, mp_node t, boolean discard_suffixes) {
   mp_node q,r; /* list manipulation */
-  halfword n; /* attribute to match */
+  mp_sym n; /* attribute to match */
   while ( t!=null ) { 
     if ( mp_type(p)!=mp_structured ) return;
-    n=mp_sym_info(t); 
+    n=mp_sym_sym(t); 
     t=mp_link(t);
     if ( n==collective_subscript ) { 
       r=mp->temp_head;
@@ -6857,7 +6786,7 @@ definition that is currently attached to that symbol. If the |saving|
 parameter is true, a subsidiary structure is saved instead of destroyed.
 
 @c 
-static void mp_clear_symbol (MP mp, pointer p, boolean saving) {
+static void mp_clear_symbol (MP mp, mp_sym p, boolean saving) {
   mp_node q; /* |equiv(p)| */
   q=equiv_node(p);
   switch (eq_type(p) % outer_tag)  {
@@ -6903,7 +6832,7 @@ such an item to the save stack and each \&{endgroup} cuts back the stack
 until the most recent such entry has been removed.
 
 \smallskip\hang
-|p->type=mp_normal_sym| and |p->info=q|, where |1<=q<=hash_end|, means that |p->equiv| holds the former
+|p->type=mp_normal_sym| and |p->info=q|, means that |p->equiv| holds the former
 contents of |eqtb[q]|. Such save stack entries are generated by \&{save}
 commands.
 
@@ -6918,9 +6847,12 @@ The global variable |save_ptr| points to the top item on the save stack.
 @<Types...@>=
 typedef struct mp_save_data {
   halfword info;
+  mp_sym sym;
   quarterword type;
   mp_internal value;
-  two_halves equiv;
+  halfword equiv;
+  halfword eq_type;
+  mp_node equiv_n;
   struct mp_save_data *link;
 } mp_save_data;
 
@@ -6950,14 +6882,17 @@ things from the stack when the program is not inside a group, so there's
 no point in wasting the space.
 
 @c 
-static void mp_save_variable (MP mp,pointer q) {
+static void mp_save_variable (MP mp, mp_sym q) {
   mp_save_data *p; /* temporary register */
   if ( mp->save_ptr != NULL ){ 
     p = xmalloc(1, sizeof(mp_save_data));
-    p->info = q; 
+    p->info = 1; 
+    p->sym = q;
     p->type = mp_normal_sym;
     p->link = mp->save_ptr;
-    p->equiv = mp->eqtb[q]; 
+    p->equiv = equiv(q); 
+    p->eq_type = eq_type(q); 
+    p->equiv_n = equiv_node(q); 
     mp->save_ptr = p;
   }
   mp_clear_symbol(mp, q,(mp->save_ptr!=NULL));
@@ -6986,10 +6921,9 @@ is at least one boundary item on the save stack.
 
 @c 
 static void mp_unsave (MP mp) {
-  pointer q; /* index to saved item */
   mp_save_data *p; /* saved item */
   while ( mp->save_ptr->info != 0 ) {
-    q = mp->save_ptr->info;
+    pointer q = mp->save_ptr->info;
     if ( mp->save_ptr->type == mp_internal_sym ) {
       if ( internal_value(mp_tracing_restores)>0 ) {
         mp_begin_diagnostic(mp);
@@ -7008,7 +6942,8 @@ static void mp_unsave (MP mp) {
         mp_end_diagnostic(mp, false);
       }
       mp->internal[q]=mp->save_ptr->value;
-    } else { 
+    } else {  
+      mp_sym q = mp->save_ptr->sym;
       if ( internal_value(mp_tracing_restores)>0 ) {
         mp_begin_diagnostic(mp); 
         mp_print_nl(mp, "{restoring ");
@@ -7017,7 +6952,9 @@ static void mp_unsave (MP mp) {
         mp_end_diagnostic(mp, false);
       }
       mp_clear_symbol(mp, q,false);
-      mp->eqtb[q] = mp->save_ptr->equiv;
+      equiv(q) = mp->save_ptr->equiv;
+      eq_type(q) = mp->save_ptr->eq_type;
+      equiv_node(q) = mp->save_ptr->equiv_n;
       if ( eq_type(q) % outer_tag==tag_token ) {
         mp_node pp=equiv_node(q);
         if ( pp!=NULL ) mp_name_type(pp)=mp_root;
@@ -9470,7 +9407,7 @@ mp_fill_code=1,
 @c 
 static mp_node mp_new_fill_node (MP mp, mp_knot p) {
   mp_fill_node t = xmalloc(1, fill_node_size);
-  mp->var_used += fill_node_size;
+  add_var_used(fill_node_size);
   memset(t,0,fill_node_size);
   mp_type(t)=mp_fill_node_type;
   mp_path_p(t) = p;
@@ -9537,7 +9474,7 @@ mp_stroked_code=2,
 @c 
 static mp_node mp_new_stroked_node (MP mp, mp_knot p) {
   mp_stroked_node t = (mp_stroked_node)xmalloc(1, stroked_node_size);
-  mp->var_used += stroked_node_size;
+  add_var_used(stroked_node_size);
   memset(t,0,stroked_node_size);
   mp_type(t)=mp_stroked_node_type;
   mp_path_p(t)=p; 
@@ -9656,7 +9593,7 @@ mp_text_code=3,
 @c
 static mp_node mp_new_text_node (MP mp,char *f,str_number s) {
   mp_text_node t = (mp_text_node)xmalloc(1, text_node_size);
-  mp->var_used += text_node_size;
+  add_var_used(text_node_size);
   memset(t,0,text_node_size);
   mp_type(t)=mp_text_node_type;
   mp_text_p(t)=s;
@@ -9802,13 +9739,16 @@ typedef struct mp_dash_node_data* mp_dash_node;
 @ @<Initialize table entries@>=
 mp->null_dash = mp_get_dash_node(mp);
 
+@ @<Free table entries@>=
+mp_free_node(mp, mp->null_dash,dash_node_size);
+
 @ 
 @d dash_node_size sizeof(struct mp_dash_node_data)
 
 @c
 static mp_node mp_get_dash_node (MP mp) {
   mp_dash_node p = (mp_dash_node)xmalloc(1, dash_node_size);
-  mp->var_used += dash_node_size;
+  add_var_used(dash_node_size);
   memset(p,0,dash_node_size);
   mp_type(p) = mp_dash_node_type;
   return (mp_node)p;
@@ -12702,7 +12642,7 @@ structures have to match.
 @c
 static mp_value_node mp_get_dep_node (MP mp) {
   mp_value_node p = (mp_value_node)xmalloc(1, dep_node_size);
-  mp->var_used += dep_node_size;
+  add_var_used(dep_node_size);
   memset(p,0,dep_node_size);
   mp_type(p) = mp_dep_node_type;
   return p;
@@ -12711,6 +12651,8 @@ static void mp_free_dep_node(MP mp, mp_value_node p) {
   mp_free_node(mp, (mp_node)p, dep_node_size);
 }
 
+@ @<Declarations...@>=
+static void mp_free_dep_node(MP mp, mp_value_node p);
 
 @ @<Initialize table entries@>= 
 mp->serial_no=0;
@@ -12720,6 +12662,8 @@ set_prev_dep(mp->dep_head,(mp_node)mp->dep_head);
 set_dep_info(mp->dep_head,NULL);
 set_dep_list(mp->dep_head,NULL);
 
+@ @<Free table entries@>= 
+mp_free_dep_node(mp, mp->dep_head);
 
 @ Actually the description above contains a little white lie. There's
 another kind of variable called |mp_proto_dependent|, which is
@@ -13586,7 +13530,7 @@ static void mp_nonlinear_eq (MP mp, mp_value v, mp_node p, boolean flush_p) {
       break;
     case mp_picture_type: 
       set_value_node(q,v.data.node);
-      add_edge_ref(v.data.node); 
+      add_edge_ref(v.data.node);
       break;
     default:
       break;
@@ -13669,8 +13613,9 @@ recursive process, but the |get_next| procedure is not recursive.
 integer cur_cmd; /* current command set by |get_next| */
 integer cur_mod; /* operand of current command */
 mp_node cur_mod_node; /* operand of current command */
+mp_sym cur_mod_sym; /* operand of current command */
 str_number cur_mod_str; /* string operand, if any */
-halfword cur_sym; /* hash address of current symbol, or a |param_stack| pointer for an expr */
+mp_sym cur_sym; /* hash address of current symbol, or a |param_stack| pointer for an expr */
 quarterword cur_sym_mod; /* extra info for these |param_stack| cases */
 
 @ The |print_cmd_mod| routine prints a symbolic interpretation of a
@@ -13730,7 +13675,7 @@ in_state_record cur_input; /* the ``top'' input state */
 int stack_size; /* maximum number of simultaneous input sources */
 
 @ @<Allocate or initialize ...@>=
-mp->stack_size = 300;
+mp->stack_size = 16;
 mp->input_stack = xmalloc((mp->stack_size+1),sizeof(in_state_record));
 
 @ @<Dealloc variables@>=
@@ -13996,7 +13941,7 @@ integer mp_true_line (MP mp) {
             (mp->input_stack[(k-1)].name_field<=max_spec_src))) {
       decr(k);
     }
-    return (k>0 ? mp->line_stack[(k-1)] : 0 );
+    return (k>0 ? mp->line_stack[(k-1)+file_bottom] : 0 );
   }
 }
 
@@ -14306,7 +14251,7 @@ token by the |cur_tok| routine.
 @c @<Declare the procedure called |make_exp_copy|@>
 static mp_node mp_cur_tok (MP mp) {
   mp_node p; /* a new token node */
-  if ( mp->cur_sym==0 && mp->cur_sym_mod==0) {
+  if ( mp->cur_sym==NULL && mp->cur_sym_mod==0) {
     if ( mp->cur_cmd==capsule_token ) {
       mp_value save_exp = mp->cur_exp; /* |cur_exp| to be restored */
       mp_make_exp_copy(mp, mp->cur_mod_node); 
@@ -14326,7 +14271,7 @@ static mp_node mp_cur_tok (MP mp) {
     }
   } else { 
     p = mp_get_symbolic_node(mp); 
-    set_mp_sym_info(p,mp->cur_sym);
+    set_mp_sym_sym(p,mp->cur_sym);
     mp_name_type(p) = mp->cur_sym_mod;    
   }
   return p;
@@ -14536,7 +14481,7 @@ name of a macro whose replacement text is being scanned.
 
 @<Glob...@>=
 integer scanner_status; /* are we scanning at high speed? */
-pointer warning_info; /* if so, what else do we need to know,
+mp_sym warning_info; /* if so, what else do we need to know,
     in case an error occurs? */
 integer warning_info_line;
 mp_node warning_info_node;
@@ -14569,7 +14514,7 @@ static boolean mp_check_outer_validity (MP mp) {
       help3("A forbidden `outer' token occurred in skipped text.",
         "This kind of error happens when you say `if...' and forget",
         "the matching `fi'. I've inserted a `fi'; this might work.");
-      if ( mp->cur_sym==0 ) 
+      if ( mp->cur_sym==NULL ) 
         mp->help_line[2]="The file ended while I was skipping conditional text.";
       mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_fi);
       mp_ins_error(mp);
@@ -14580,7 +14525,7 @@ static boolean mp_check_outer_validity (MP mp) {
 }
 
 @ @<Check if the file has ended while flushing \TeX\ material and set...@>=
-if ( mp->cur_sym!=0 ) { 
+if ( mp->cur_sym!=NULL ) { 
    return true;
 } else { 
   mp->deletions_allowed=false;
@@ -14595,9 +14540,9 @@ if ( mp->cur_sym!=0 ) {
 }
 
 @ @<Back up an outer symbolic token so that it can be reread@>=
-if ( mp->cur_sym!=0 ) {
+if ( mp->cur_sym!=NULL ) {
   p=mp_get_symbolic_node(mp); 
-  set_mp_sym_info(p,mp->cur_sym);
+  set_mp_sym_sym(p,mp->cur_sym);
   mp_name_type(p) = mp->cur_sym_mod;
   back_list(p); /* prepare to read the symbolic token again */
 }
@@ -14605,7 +14550,7 @@ if ( mp->cur_sym!=0 ) {
 @ @<Tell the user what has run away...@>=
 { 
   mp_runaway(mp); /* print the definition-so-far */
-  if ( mp->cur_sym==0 ) {
+  if ( mp->cur_sym==NULL ) {
     print_err("File ended");
 @.File ended while scanning...@>
   } else { 
@@ -14641,7 +14586,7 @@ case absorbing:
     mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_end_group);  
   } else { 
     mp->cur_sym = mp_get_frozen_primitive(mp, mp->frozen_right_delimiter);  
-    equiv(mp->cur_sym)=mp->warning_info;
+    equiv_sym(mp->cur_sym)=mp->warning_info;
   }
   break;
 case var_defining:
@@ -14730,6 +14675,7 @@ is increased by |outer_tag|.
 mp->cur_cmd=eq_type(mp->cur_sym); 
 mp->cur_mod=equiv(mp->cur_sym);
 mp->cur_mod_node=equiv_node(mp->cur_sym);
+mp->cur_mod_sym=equiv_sym(mp->cur_sym);
 if ( mp->cur_cmd>=outer_tag ) {
   if ( mp_check_outer_validity(mp) ) 
     mp->cur_cmd=mp->cur_cmd-outer_tag;
@@ -14789,7 +14735,7 @@ FIN_NUMERIC_TOKEN:
   @<Pack the numeric and fraction parts of a numeric token
     and |return|@>;
 FOUND: 
-  mp->cur_sym=mp_id_lookup(mp, (char *)(mp->buffer+k),loc-k);
+  mp->cur_sym=mp_id_lookup(mp, (char *)(mp->buffer+k),loc-k, true);
 }
 
 @ We go to |restart| instead of to |SWITCH|, because we might enter
@@ -14906,19 +14852,20 @@ mp->cur_cmd=numeric_token; return
 
 @<Input from token list;...@>=
 if ( nloc!=NULL && mp_type(nloc) == mp_symbol_node ) { /* symbolic token */
-  mp->cur_sym=mp_sym_info(nloc); 
+  halfword cur_info=mp_sym_info(nloc); 
+  mp->cur_sym = mp_sym_sym(nloc);
   mp->cur_sym_mod = mp_name_type(nloc);
   nloc=mp_link(nloc); /* move to next */
   if ( mp->cur_sym_mod==mp_expr_sym) {
      mp->cur_cmd=capsule_token;
-     mp->cur_mod_node=mp->param_stack[param_start+mp->cur_sym];
+     mp->cur_mod_node=mp->param_stack[param_start+cur_info];
      mp->cur_sym_mod=0;
      mp->cur_sym=0; 
      return;
   } else if (mp->cur_sym_mod==mp_suffix_sym ||
              mp->cur_sym_mod==mp_text_sym ) {
      mp_begin_token_list(mp,
-                         mp->param_stack[param_start+mp->cur_sym],
+                         mp->param_stack[param_start+cur_info],
                          (quarterword)parameter);
       goto RESTART;
   }
@@ -14941,6 +14888,7 @@ if ( nloc!=NULL && mp_type(nloc) == mp_symbol_node ) { /* symbolic token */
     }
   } else { 
     mp->cur_mod_node=nloc;
+    mp->cur_mod_sym=NULL;    
     mp->cur_cmd=capsule_token;
   }
   nloc=mp_link(nloc); 
@@ -15280,8 +15228,9 @@ When such parameters are present, they are called \.{(SUFFIX0)},
 typedef struct mp_subst_list_item {
   quarterword info_mod;
   quarterword value_mod;
-  halfword info;
-  halfword value;
+  mp_sym info;
+  halfword value_data;
+  halfword value_sym;
   struct mp_subst_list_item *link;
 } mp_subst_list_item;
 
@@ -15291,12 +15240,14 @@ typedef struct mp_subst_list_item {
   mp_node p; /* tail of the token list being built */
   mp_subst_list_item *q = NULL; /* temporary for link management */
   integer balance; /* left delimiters minus right delimiters */
+  halfword cur_data;
   p=mp->hold_head; 
   balance=1; 
   mp_link(mp->hold_head)=null;
   while (1) { 
     get_t_next;
-    if ( mp->cur_sym>0 ) {
+    cur_data = -1;
+    if ( mp->cur_sym!=NULL ) {
       @<Substitute for |cur_sym|, if it's on the |subst_list|@>;
       if ( mp->cur_cmd==terminator ) {
         @<Adjust the balance; |break| if it's zero@>;
@@ -15305,12 +15256,19 @@ typedef struct mp_subst_list_item {
 	if ( mp->cur_mod==quote ) { 
           get_t_next; 
         } else if ( mp->cur_mod<=suffix_count ) {
-          mp->cur_sym=mp->cur_mod-1;
+          cur_data=mp->cur_mod-1;
           mp->cur_sym_mod=mp_suffix_sym;
         }
       }
     }
-    mp_link(p)=mp_cur_tok(mp);
+    if ( cur_data != -1) {
+       mp_node pp = mp_get_symbolic_node(mp); 
+       set_mp_sym_info(pp,cur_data);
+       mp_name_type(pp) = mp->cur_sym_mod;    
+       mp_link(p)=pp;
+    } else {
+      mp_link(p)=mp_cur_tok(mp);
+    }
     p=mp_link(p);
   }
   mp_link(p)=tail_end; 
@@ -15327,7 +15285,7 @@ typedef struct mp_subst_list_item {
   q=subst_list;
   while ( q != NULL ) {
     if ( q->info==mp->cur_sym && q->info_mod == mp->cur_sym_mod ) {
-      mp->cur_sym=q->value;
+      cur_data = q->value_data;
       mp->cur_sym_mod = q->value_mod;
       mp->cur_cmd=relax; 
       break;
@@ -15382,13 +15340,13 @@ hence \MP's tables won't get fouled up.
 @c static void mp_get_symbol (MP mp) { /* sets |cur_sym| to a safe symbol */
 RESTART: 
   get_t_next;
-  if ( (mp->cur_sym==0)|| mp_is_frozen(mp, mp->cur_sym) ) {
+  if ( (mp->cur_sym==NULL )|| mp_is_frozen(mp, mp->cur_sym) ) {
     print_err("Missing symbolic token inserted");
 @.Missing symbolic token...@>
     help3("Sorry: You can\'t redefine a number, string, or expr.",
       "I've inserted an inaccessible symbol so that your",
       "definition will be completed without mixing me up too badly.");
-    if ( mp->cur_sym>0 )
+    if ( mp->cur_sym!=NULL )
       mp->help_line[2]="Sorry: You can\'t redefine my error-recovery tokens.";
     else if ( mp->cur_cmd==string_token ) 
       delete_str_ref(mp->cur_mod_str);
@@ -15436,7 +15394,7 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1}.
   qm->link = NULL;
   qm->info = mp->cur_sym;
   qm->info_mod = mp->cur_sym_mod;  
-  qm->value = 0;
+  qm->value_data = 0;
   qm->value_mod = mp_expr_sym;
 
   mp_get_clear_symbol(mp); 
@@ -15447,7 +15405,7 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1}.
   qn->link=qm;
   qn->info = mp->cur_sym;
   qn->info_mod = mp->cur_sym_mod;  
-  qn->value = 1;
+  qn->value_data = 1;
   qn->value_mod = mp_expr_sym;
 
   get_t_next; 
@@ -15512,7 +15470,7 @@ static void mp_scan_def (MP mp) {
   mp_node q; /* tail of the macro token list */
   mp_node p; /* temporary storage */
   quarterword sym_type; /* |expr_sym|, |suffix_sym|, or |text_sym| */
-  pointer l_delim,r_delim; /* matching delimiters */
+  mp_sym l_delim,r_delim; /* matching delimiters */
   m=mp->cur_mod; 
   c=general_macro;
   mp_link(mp->hold_head)=null;
@@ -15546,18 +15504,18 @@ if ( m==start_def ) {
   mp_link(p)=mp_scan_toks(mp, macro_def,r,null, (quarterword)n);
 } else { 
   q=mp_get_symbolic_node(mp); 
-  set_mp_sym_info(q,mp->bg_loc);
+  set_mp_sym_sym(q,mp->bg_loc);
   mp_link(p)=q;
   p=mp_get_symbolic_node(mp); 
-  set_mp_sym_info(p,mp->eg_loc);
+  set_mp_sym_sym(p,mp->eg_loc);
   mp_link(q)=mp_scan_toks(mp, macro_def,r,p, (quarterword)n);
 }
 if ( mp->warning_info_node==mp->bad_vardef ) 
   mp_flush_token_list(mp, value_node(mp->bad_vardef))
 
 @ @<Glob...@>=
-int bg_loc;
-int eg_loc; /* hash addresses of `\.{begingroup}' and `\.{endgroup}' */
+mp_sym bg_loc;
+mp_sym eg_loc; /* hash addresses of `\.{begingroup}' and `\.{endgroup}' */
 
 @ @<Scan the token or variable to be defined;...@>=
 if ( m==start_def ) {
@@ -15569,7 +15527,7 @@ if ( m==start_def ) {
   equiv_node(mp->warning_info)=q;
 } else { 
   p=mp_scan_declared_variable(mp);
-  mp_flush_variable(mp, equiv_node(mp_sym_info(p)),mp_link(p),true);
+  mp_flush_variable(mp, equiv_node(mp_sym_sym(p)),mp_link(p),true);
   mp->warning_info_node=mp_find_variable(mp, p); 
   mp_flush_node_list(mp, p);
   if ( mp->warning_info_node==null ) 
@@ -15597,12 +15555,16 @@ if ( m==start_def ) {
 @ @<Initialize table entries@>=
 mp->bad_vardef = mp_get_value_node(mp);
 mp_name_type(mp->bad_vardef)=mp_root; 
-((mp_value_node)mp->bad_vardef)->value_.lh = mp_get_frozen_primitive(mp, mp->frozen_bad_vardef);
+value_sym(mp->bad_vardef) = mp_get_frozen_primitive(mp, mp->frozen_bad_vardef); /* todo: check this */
+
+@ @<Free table entries@>=
+mp_free_value_node(mp,mp->bad_vardef);
+
 
 @ @<Absorb delimited parameters, putting them into lists |q| and |r|@>=
 do {  
   l_delim=mp->cur_sym; 
-  r_delim=mp->cur_mod; 
+  r_delim=mp->cur_mod_sym; 
   get_t_next;
   if ( (mp->cur_cmd==param_type)&&(mp->cur_mod==expr_param) ) {
     sym_type=mp_expr_sym;
@@ -15630,7 +15592,7 @@ do {
   mp_get_symbol(mp);
   rp = xmalloc(1, sizeof(mp_subst_list_item));
   rp->link = NULL;
-  rp->value = k;
+  rp->value_data = k;
   rp->value_mod = sym_type;
   rp->info = mp->cur_sym;
   rp->info_mod = mp->cur_sym_mod;
@@ -15645,7 +15607,7 @@ do {
 { 
   rp = xmalloc(1, sizeof(mp_subst_list_item));
   rp->link = NULL;
-  rp->value = k;
+  rp->value_data = k;
   if ( mp->cur_mod==expr_param ) {
     rp->value_mod = mp_expr_sym;
     c=expr_macro;
@@ -15672,7 +15634,7 @@ do {
     rp = xmalloc(1, sizeof(mp_subst_list_item));
     rp->link = NULL;
     mp_check_param_size(mp, k);
-    rp->value = k;
+    rp->value_data = k;
     rp->value_mod = mp_expr_sym;
     mp_get_symbol(mp);
     rp->info = mp->cur_sym;
@@ -15996,17 +15958,17 @@ input stack, so that |get_t_next| will proceed to read it next.
 
 @<Declarations@>=
 static void mp_macro_call (MP mp,mp_node def_ref, mp_node arg_list, 
-                    pointer macro_name) ;
+                    mp_sym macro_name) ;
 
 @ @c
 void mp_macro_call (MP mp,mp_node def_ref, mp_node arg_list, 
-                    pointer macro_name) {
+                    mp_sym macro_name) {
   /* invokes a user-defined control sequence */
   mp_node r; /* current node in the macro's token list */
   mp_node p,q; /* for list manipulation */
   integer n; /* the number of arguments */
   mp_node tail = 0; /* tail of the argument list */
-  pointer l_delim=0,r_delim=0; /* a delimiter pair */
+  mp_sym l_delim=NULL,r_delim=NULL; /* a delimiter pair */
   r=mp_link(def_ref); 
   add_mac_ref(def_ref);
   if ( arg_list==null ) {
@@ -16044,17 +16006,17 @@ mp_end_diagnostic(mp, false)
 
 
 @ @<Declarations@>=
-static void mp_print_macro_name (MP mp,mp_node a, pointer n);
+static void mp_print_macro_name (MP mp,mp_node a, mp_sym n);
 
 @ @c
-void mp_print_macro_name (MP mp,mp_node a, pointer n) {
+void mp_print_macro_name (MP mp,mp_node a, mp_sym n) {
   mp_node p,q; /* they traverse the first part of |a| */
-  if ( n!=null ) {
+  if ( n!=NULL ) {
     mp_print_text(n);
   } else  { 
     p=mp_sym_node(a);
     if ( p==null ) {
-      mp_print_text(mp_sym_info(mp_sym_node(mp_link(a))));
+      mp_print_text(mp_sym_sym(mp_sym_node(mp_link(a))));
     } else { 
       q=p;
       while ( mp_link(q)!=null ) q=mp_link(q);
@@ -16150,7 +16112,7 @@ if ( mp->cur_cmd!=comma ) {
     goto FOUND;
   }
   l_delim=mp->cur_sym; 
-  r_delim=mp->cur_mod;
+  r_delim=mp->cur_mod_sym;
 }
 @<Scan the argument represented by |mp_sym_info(r)|@>;
 if ( mp->cur_cmd!=comma ) 
@@ -16159,7 +16121,7 @@ FOUND:
 @<Append the current expression to |arg_list|@>
 
 @ @<Check that the proper right delim...@>=
-if ( (mp->cur_cmd!=right_delimiter)||(mp->cur_mod!=l_delim) ) {
+if ( (mp->cur_cmd!=right_delimiter)||(mp->cur_mod_sym!=l_delim) ) {
   if ( mp_name_type(mp_link(r)) == mp_expr_sym ||
        mp_name_type(mp_link(r)) == mp_suffix_sym ||
        mp_name_type(mp_link(r)) == mp_text_sym ) {
@@ -16214,10 +16176,10 @@ end with the first semicolon or \&{endgroup} or \&{end} that is not
 contained in a group.
 
 @<Declarations@>=
-static void mp_scan_text_arg (MP mp, pointer l_delim, pointer r_delim) ;
+static void mp_scan_text_arg (MP mp, mp_sym l_delim, mp_sym r_delim) ;
 
 @ @c
-void mp_scan_text_arg (MP mp, pointer l_delim, pointer r_delim) {
+void mp_scan_text_arg (MP mp, mp_sym l_delim, mp_sym r_delim) {
   integer balance; /* excess of |l_delim| over |r_delim| */
   mp_node p; /* list tail */
   mp->warning_info=l_delim; 
@@ -16227,7 +16189,7 @@ void mp_scan_text_arg (MP mp, pointer l_delim, pointer r_delim) {
   mp_link(mp->hold_head)=null;
   while (1)  { 
     get_t_next;
-    if ( l_delim==0 ) {
+    if ( l_delim==NULL ) {
       @<Adjust the balance for an undelimited argument; |break| if done@>;
     } else {
       @<Adjust the balance for a delimited argument; |break| if done@>;
@@ -16242,12 +16204,12 @@ void mp_scan_text_arg (MP mp, pointer l_delim, pointer r_delim) {
 
 @ @<Adjust the balance for a delimited argument...@>=
 if ( mp->cur_cmd==right_delimiter ) { 
-  if ( mp->cur_mod==l_delim ) { 
+  if ( mp->cur_mod_sym==l_delim ) { 
     decr(balance);
     if ( balance==0 ) break;
   }
 } else if ( mp->cur_cmd==left_delimiter ) {
-  if ( mp->cur_mod==r_delim ) incr(balance);
+  if ( mp->cur_mod_sym==r_delim ) incr(balance);
 }
 
 @ @<Adjust the balance for an undelimited...@>=
@@ -16277,7 +16239,7 @@ if ( end_of_statement ) { /* |cur_cmd=semicolon|, |end_group|, or |stop| */
   case suffix_macro:
     @<Scan a suffix with optional delimiters@>;
     break;
-  case text_macro:mp_scan_text_arg(mp, 0,0); break;
+  case text_macro:mp_scan_text_arg(mp, NULL, NULL); break;
   } /* there are no other cases */
   mp_back_input(mp); 
   @<Append the current expression to |arg_list|@>;
@@ -16308,13 +16270,15 @@ if ( end_of_statement ) { /* |cur_cmd=semicolon|, |end_group|, or |stop| */
 @ @<Scan a suffix with optional delimiters@>=
 { 
   if ( mp->cur_cmd!=left_delimiter ) {
-    l_delim=null;
+    l_delim=NULL;
   } else { 
-    l_delim=mp->cur_sym; r_delim=mp->cur_mod; mp_get_x_next(mp);
-  };
+    l_delim=mp->cur_sym; 
+    r_delim=mp->cur_mod_sym; 
+    mp_get_x_next(mp);
+  }
   mp_scan_suffix(mp);
   if ( l_delim!=null ) {
-    if ((mp->cur_cmd!=right_delimiter)||(mp->cur_mod!=l_delim) ) {
+    if ((mp->cur_cmd!=right_delimiter)||(mp->cur_mod_sym!=l_delim) ) {
       mp_missing_err(mp, mp_str(mp,text(r_delim)));
 @.Missing `)'@>
       help2("I've gotten to the end of the macro parameter list.",
@@ -16337,7 +16301,7 @@ if ( mp->param_ptr+n>mp->max_param_stack ) {
 @:MetaPost capacity exceeded parameter stack size}{\quad parameter stack size@>
 }
 mp_begin_token_list(mp, def_ref, (quarterword)macro); 
-name=text(macro_name); 
+if (macro_name) name=text(macro_name); 
 nloc=r;
 if ( n>0 ) {
   p=arg_list;
@@ -16398,7 +16362,7 @@ typedef struct mp_if_node_data* mp_if_node;
 @c
 static mp_node mp_get_if_node (MP mp) {
   mp_if_node p = (mp_if_node)xmalloc(1, if_node_size);
-  mp->var_used += if_node_size;
+  add_var_used(if_node_size);
   memset(p,0,if_node_size);
   mp_type(p) = mp_if_node_type;
   return (mp_node)p;
@@ -16450,7 +16414,7 @@ makes the skipping process a bit simpler.
 void mp_pass_text (MP mp) {
   integer l = 0;
   mp->scanner_status=skipping;
-  mp->warning_info=mp_true_line(mp);
+  mp->warning_info_line=mp_true_line(mp);
   while (1)  { 
     get_t_next;
     if ( mp->cur_cmd<=fi_or_else ) {
@@ -16691,7 +16655,7 @@ didn't write it until later. The reader may wish to come back to it.)
 
 @c void mp_begin_iteration (MP mp) {
   halfword m; /* |start_for| (\&{for}) or |start_forsuffixes| (\&{forsuffixes}) */
-  halfword n; /* hash address of the current symbol */
+  mp_sym n; /* hash address of the current symbol */
   mp_loop_data *s; /* the new loop-control node */
   mp_subst_list_item *p = NULL; /* substitution list for |scan_toks| */
   mp_node q;  /* link manipulation register */
@@ -16710,7 +16674,7 @@ didn't write it until later. The reader may wish to come back to it.)
     p->link = NULL;
     p->info = mp->cur_sym; 
     p->info_mod = mp->cur_sym_mod;
-    p->value = 0;
+    p->value_data = 0;
     if (m==start_for) {
       p->value_mod = mp_expr_sym;
     } else { /* |start_forsuffixes| */
@@ -16760,7 +16724,7 @@ token, so it won't be lost accidentally.)
 
 @ @<Scan the loop text...@>=
 q=mp_get_symbolic_node(mp); 
-set_mp_sym_info(q, mp_get_frozen_primitive(mp, mp->frozen_repeat_loop));
+set_mp_sym_sym(q, mp_get_frozen_primitive(mp, mp->frozen_repeat_loop));
 mp->scanner_status=loop_defining; 
 mp->warning_info=n;
 s->info=mp_scan_toks(mp, iteration,p,q,0); 
@@ -18402,6 +18366,10 @@ static void mp_recycle_value (MP mp, mp_node p) {
       mp_recycle_value(mp, magenta_part_loc(value_node(p)));
       mp_recycle_value(mp, yellow_part_loc(value_node(p)));
       mp_recycle_value(mp, black_part_loc(value_node(p)));
+      mp_free_node(mp, cyan_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, magenta_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, black_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, yellow_part_loc(value_node(p)), value_node_size);
       mp_free_node(mp, value_node(p), cmykcolor_node_size);
     }
     break;
@@ -18409,6 +18377,8 @@ static void mp_recycle_value (MP mp, mp_node p) {
     if (value_node(p)!=NULL) {
       mp_recycle_value(mp, x_part_loc(value_node(p)));
       mp_recycle_value(mp, y_part_loc(value_node(p)));
+      mp_free_node(mp, x_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, y_part_loc(value_node(p)), value_node_size);
       mp_free_node(mp, value_node(p), pair_node_size);
     }
     break;
@@ -18417,6 +18387,9 @@ static void mp_recycle_value (MP mp, mp_node p) {
       mp_recycle_value(mp, red_part_loc(value_node(p)));
       mp_recycle_value(mp, green_part_loc(value_node(p)));
       mp_recycle_value(mp, blue_part_loc(value_node(p)));
+      mp_free_node(mp, red_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, green_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, blue_part_loc(value_node(p)), value_node_size);
       mp_free_node(mp, value_node(p), color_node_size);
     }
     break;
@@ -18428,6 +18401,12 @@ static void mp_recycle_value (MP mp, mp_node p) {
       mp_recycle_value(mp, xy_part_loc(value_node(p)));
       mp_recycle_value(mp, yx_part_loc(value_node(p)));
       mp_recycle_value(mp, yy_part_loc(value_node(p)));
+      mp_free_node(mp, tx_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, ty_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, xx_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, xy_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, yx_part_loc(value_node(p)), value_node_size);
+      mp_free_node(mp, yy_part_loc(value_node(p)), value_node_size);
       mp_free_node(mp, value_node(p), transform_node_size);
     }
     break; 
@@ -18558,7 +18537,9 @@ mp_value_node max_link[mp_proto_dependent+1]; /* other occurrences of |p| */
   } else { 
     @<Substitute new proto-dependencies in place of |p|@>;
   }
-  mp_flush_node_list(mp, (mp_node)s);
+  /* todo: free-ing |s| here caused corruption, but not freeing creates a (small) leak.
+     the corruption problem probably starts elsewhere, |s| is supposed to be freeable here */
+  /* mp_flush_node_list(mp, (mp_node)s); */
   if ( mp->fix_needed ) 
     mp_fix_dependencies(mp);
   check_arith;
@@ -18734,7 +18715,7 @@ void mp_scan_primary (MP mp) {
   mp_node p,q,r; /* for list manipulation */
   quarterword c; /* a primitive operation code */
   int my_var_flag; /* initial value of |my_var_flag| */
-  pointer l_delim,r_delim; /* hash addresses of a delimiter pair */
+  mp_sym l_delim,r_delim; /* hash addresses of a delimiter pair */
   mp_value new_expr;
   @<Other local variables for |scan_primary|@>;
   my_var_flag=mp->var_flag; mp->var_flag=0;
@@ -18808,7 +18789,8 @@ if ( mp->interrupt!=0 ) if ( mp->OK_to_interrupt ) {
 
 @ @<Scan a delimited primary@>=
 { 
-  l_delim=mp->cur_sym; r_delim=mp->cur_mod; 
+  l_delim=mp->cur_sym; 
+  r_delim=mp->cur_mod_sym; 
   mp_get_x_next(mp); mp_scan_expression(mp);
   if ( (mp->cur_cmd==comma) && (mp->cur_exp.type>=mp_known) ) {
     @<Scan the rest of a delimited set of numerics@>;
@@ -19233,9 +19215,9 @@ into the variable structure; we need to start searching from the root each time.
 @<Find the approximate type |tt| and corresponding~|q|@>=
 @^inner loop@>
 { 
-  pointer qq; 
+  mp_sym qq; 
   p=mp_link(pre_head); 
-  qq=mp_sym_info(p); 
+  qq=mp_sym_sym(p); 
   tt=undefined;
   if ( eq_type(qq) % outer_tag==tag_token ) {
     q=equiv_node(qq);
@@ -19253,8 +19235,8 @@ into the variable structure; we need to start searching from the root each time.
       if ( mp_type(p) == mp_symbol_node ) { /* it's not a subscript */
         do {  
            q=mp_link(q); 
-        } while (! (hashloc(q)>=mp_sym_info(p)));
-        if ( hashloc(q)>mp_sym_info(p) ) 
+        } while (! (hashloc(q)>=mp_sym_sym(p)));
+        if ( hashloc(q)>mp_sym_sym(p) ) 
           goto DONE2;
       }
     }
@@ -19330,7 +19312,7 @@ and ``at'' parameters must be packaged in an appropriate list of lists.
   set_mp_sym_node(pre_head,mp_link(pre_head)); 
   mp_link(pre_head)=p;
   set_mp_sym_node(p,t); 
-  mp_macro_call(mp, value_node(q),pre_head,null);
+  mp_macro_call(mp, value_node(q),pre_head,NULL);
   mp_get_x_next(mp); 
   goto RESTART;
 }
@@ -19348,7 +19330,7 @@ token list.
   mp_link(post_head)=p; 
   set_mp_sym_node(p,mp_link(q)); 
   mp_link(q)=null;
-  mp_macro_call(mp, macro_ref,pre_head,null); 
+  mp_macro_call(mp, macro_ref,pre_head,NULL); 
   decr_mac_ref(macro_ref);
   mp_get_x_next(mp); goto RESTART;
 }
@@ -19565,7 +19547,7 @@ static void mp_scan_suffix (MP mp) {
       p=mp_new_num_tok(mp, mp->cur_mod);
     } else if ((mp->cur_cmd==tag_token)||(mp->cur_cmd==internal_quantity) ) {
        p=mp_get_symbolic_node(mp); 
-       set_mp_sym_info(p,mp->cur_sym);
+       set_mp_sym_sym(p,mp->cur_sym);
        mp_name_type(p) = mp->cur_sym_mod;
     } else {
       break;
@@ -19611,7 +19593,7 @@ static void mp_scan_secondary (MP mp) {
   mp_node p; /* for list manipulation */
   halfword c,d; /* operation codes or modifiers */
   mp_node cc = NULL;
-  pointer mac_name; /* token defined with \&{primarydef} */
+  mp_sym mac_name; /* token defined with \&{primarydef} */
 RESTART:
   if ((mp->cur_cmd<min_primary_command)||
       (mp->cur_cmd>max_primary_command) )
@@ -19648,7 +19630,7 @@ CONTINUE:
 |p| and |cur_exp|.
 
 @c 
-static void mp_binary_mac (MP mp, mp_node p, mp_node c, pointer n) {
+static void mp_binary_mac (MP mp, mp_node p, mp_node c, mp_sym n) {
   mp_node q,r; /* nodes in the parameter list */
   q=mp_get_symbolic_node(mp);
   r=mp_get_symbolic_node(mp);
@@ -19665,7 +19647,7 @@ static void mp_scan_tertiary (MP mp) {
   mp_node p; /* for list manipulation */
   halfword c,d; /* operation codes or modifiers */
   mp_node cc;
-  pointer mac_name; /* token defined with \&{secondarydef} */
+  mp_sym mac_name; /* token defined with \&{secondarydef} */
 RESTART:
   if ((mp->cur_cmd<min_primary_command)||
       (mp->cur_cmd>max_primary_command) )
@@ -19714,14 +19696,14 @@ static void mp_scan_expression (MP mp) {
   halfword c,d; /* operation codes or modifiers */
   mp_node cc;
   int my_var_flag; /* initial value of |var_flag| */
-  pointer mac_name; /* token defined with \&{tertiarydef} */
+  mp_sym mac_name; /* token defined with \&{tertiarydef} */
   boolean cycle_hit; /* did a path expression just end with `\&{cycle}'? */
   scaled x,y; /* explicit coordinates or tension at a path join */
   int t; /* knot type following a path join */
   mp_value new_expr;
   t=0; y=0; x=0;
   my_var_flag=mp->var_flag; 
-  mac_name=null;
+  mac_name=NULL;
   mp->expand_depth_count++;
   mp_check_expansion_depth(mp);
 RESTART:
@@ -20967,6 +20949,10 @@ static void mp_take_part (MP mp,quarterword c) {
 @ @<Initialize table entries@>=
 mp->temp_val = mp_get_value_node(mp);
 mp_name_type(mp->temp_val)=mp_capsule;
+
+@ @<Free table entries@>=
+mp_free_value_node(mp,mp->temp_val);
+
 
 @ @<Additional cases of unary operators@>=
 case font_part:
@@ -24347,17 +24333,16 @@ static mp_node mp_scan_declared_variable (MP mp) ;
 
 @ @c
 mp_node mp_scan_declared_variable (MP mp) {
-  pointer x; /* hash address of the variable's root */
+  mp_sym x; /* hash address of the variable's root */
   mp_node h,t; /* head and tail of the token list to be returned */
-  pointer l; /* hash address of left bracket */
   mp_get_symbol(mp); x=mp->cur_sym;
   if ( mp->cur_cmd!=tag_token ) mp_clear_symbol(mp, x,false);
   h=mp_get_symbolic_node(mp); 
-  set_mp_sym_info(h,x);
+  set_mp_sym_sym(h,x);
   t=h;
   while (1) { 
     mp_get_x_next(mp);
-    if ( mp->cur_sym==0 ) break;
+    if ( mp->cur_sym==NULL ) break;
     if ( mp->cur_cmd!=tag_token ) if ( mp->cur_cmd!=internal_quantity)  {
       if ( mp->cur_cmd==left_bracket ) {
         @<Descend past a collective subscript@>;
@@ -24366,11 +24351,11 @@ mp_node mp_scan_declared_variable (MP mp) {
       }
     }
     mp_link(t)=mp_get_symbolic_node(mp); t=mp_link(t); 
-    set_mp_sym_info(t,mp->cur_sym);
+    set_mp_sym_sym(t,mp->cur_sym);
     mp_name_type(t) = mp->cur_sym_mod;
   }
   if ( (eq_type(x)%outer_tag)!=tag_token ) mp_clear_symbol(mp, x,false);
-  if ( equiv_node(x)==null ) mp_new_root(mp, x);
+  if ( equiv_node(x)==NULL ) mp_new_root(mp, x);
   return h;
 }
 
@@ -24379,9 +24364,12 @@ declared variable.
 
 @<Descend past a collective subscript@>=
 { 
-  l=mp->cur_sym; mp_get_x_next(mp);
+  mp_sym ll=mp->cur_sym;  /* hash address of left bracket */
+  mp_get_x_next(mp);
   if ( mp->cur_cmd!=right_bracket ) {
-    mp_back_input(mp); mp->cur_sym=l; mp->cur_cmd=left_bracket; break;
+    mp_back_input(mp); 
+    mp->cur_sym=ll; 
+    mp->cur_cmd=left_bracket; break;
   } else {
     mp->cur_sym=collective_subscript;
   }
@@ -24433,7 +24421,7 @@ void mp_do_type_declaration (MP mp) {
     t=(quarterword)(mp->cur_mod+unknown_tag);
   do {  
     p=mp_scan_declared_variable(mp);
-    mp_flush_variable(mp, equiv_node(mp_sym_info(p)),mp_link(p),false);
+    mp_flush_variable(mp, equiv_node(mp_sym_sym(p)),mp_link(p),false);
     q=mp_find_variable(mp, p);
     if ( q!=null ) { 
       mp_type(q)=t; 
@@ -24516,36 +24504,28 @@ void mp_set_internal (MP mp, char *n, char *v, int isstring) {
   char err[256];
   const char *errid = NULL;
   if (l>0) {
-    integer h = mp_compute_hash(mp, n, (int)l);
-    pointer p = h+hash_base; /* we start searching here */
-    while (true) { 
-      if (text(p)!=NULL && length(text(p))==l && 
-	  mp_str_eq_cstr(mp, text(p),n)) {
-        if (eq_type(p)==internal_quantity) {
-     	  if ((internal_type(equiv(p))==mp_string_type) && (isstring)) {
-            internal_string(equiv(p)) = mp_rts(mp,v);
-          } else if ((internal_type(equiv(p))==mp_known) && (!isstring)) {
-            scaled test = (scaled)atoi(v);
-            if (test>16383 ) {
-               errid = "value is too large";
-            } else if (test<-16383) {
-               errid = "value is too small";
-            } else {
-               internal_value(equiv(p)) =  test*unity;
-            }
+    mp_sym p = mp_id_lookup(mp, n,(int)l, false);
+    if ( p==NULL ) {
+      errid = "variable does not exist";
+    } else {
+      if (eq_type(p)==internal_quantity) {
+        if ((internal_type(equiv(p))==mp_string_type) && (isstring)) {
+          internal_string(equiv(p)) = mp_rts(mp,v);
+        } else if ((internal_type(equiv(p))==mp_known) && (!isstring)) {
+          scaled test = (scaled)atoi(v);
+          if (test>16383 ) {
+             errid = "value is too large";
+          } else if (test<-16383) {
+             errid = "value is too small";
           } else {
-            errid = "value has the wrong type";
+             internal_value(equiv(p)) =  test*unity;
           }
         } else {
-          errid = "variable is not an internal";
+          errid = "value has the wrong type";
         }
-        break;
+      } else {
+        errid = "variable is not an internal";
       }
-      if ( mp_next(p)==0 ) {
-        errid = "variable does not exist";
-        break;
-      }
-      p=mp_next(p);
     }
   }
   if (errid != NULL) {
@@ -24945,8 +24925,9 @@ if (mp->troff_mode) {
   internal_value(mp_prologues)=unity; 
 }
 @<Fix up |mp->internal[mp_job_name]|@>;
-if ( mp->start_sym>0 ) { /* insert the `\&{everyjob}' symbol */
-  mp->cur_sym=mp->start_sym; mp_back_input(mp);
+if ( mp->start_sym!=NULL ) { /* insert the `\&{everyjob}' symbol */
+  mp->cur_sym=mp->start_sym; 
+  mp_back_input(mp);
 }
 
 @ @c
@@ -25174,11 +25155,11 @@ case delimiters: mp_def_delims(mp); break;
 static void mp_def_delims (MP mp) ;
 
 @ @c void mp_def_delims (MP mp) {
-  pointer l_delim,r_delim; /* the new delimiter pair */
+  mp_sym l_delim,r_delim; /* the new delimiter pair */
   mp_get_clear_symbol(mp); l_delim=mp->cur_sym;
   mp_get_clear_symbol(mp); r_delim=mp->cur_sym;
-  eq_type(l_delim)=left_delimiter; equiv(l_delim)=r_delim;
-  eq_type(r_delim)=right_delimiter; equiv(r_delim)=l_delim;
+  eq_type(l_delim)=left_delimiter; equiv_sym(l_delim)=r_delim;
+  eq_type(r_delim)=right_delimiter; equiv_sym(r_delim)=l_delim;
   mp_get_x_next(mp);
 }
 
@@ -25186,12 +25167,12 @@ static void mp_def_delims (MP mp) ;
 where some right delimiter is mandatory.
 
 @<Declarations@>=
-static void mp_check_delimiter (MP mp,pointer l_delim, pointer r_delim);
+static void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim);
 
 @ @c
-void mp_check_delimiter (MP mp,pointer l_delim, pointer r_delim) {
+void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim) {
   if ( mp->cur_cmd==right_delimiter ) 
-    if ( mp->cur_mod==l_delim ) 
+    if ( mp->cur_mod_sym==l_delim ) 
       return;
   if ( mp->cur_sym!=r_delim ) {
      mp_missing_err(mp, mp_str(mp,text(r_delim)));
@@ -25231,7 +25212,7 @@ static void mp_do_interim (MP mp);
   if ( mp->cur_cmd!=internal_quantity ) {
      print_err("The token `");
 @.The token...quantity@>
-    if ( mp->cur_sym==0 ) mp_print(mp, "(%CAPSULE)");
+    if ( mp->cur_sym==NULL ) mp_print(mp, "(%CAPSULE)");
     else mp_print_text(mp->cur_sym);
     mp_print(mp, "' isn't an internal quantity");
     help1("Something like `tracingonline' should follow `interim'.");
@@ -25249,7 +25230,7 @@ too soon, lest commands like `{\tt let x=x}' have a surprising effect.
 static void mp_do_let (MP mp) ;
 
 @ @c void mp_do_let (MP mp) {
-  pointer l; /* hash location of the left-hand symbol */
+  mp_sym l; /* hash location of the left-hand symbol */
   mp_get_symbol(mp); 
   l=mp->cur_sym; 
   mp_get_x_next(mp);
@@ -25410,7 +25391,7 @@ static void mp_disp_token (MP mp) ;
 @ @c void mp_disp_token (MP mp) { 
   mp_print_nl(mp, "> ");
 @.>\relax@>
-  if ( mp->cur_sym==0 ) {
+  if ( mp->cur_sym==NULL ) {
     @<Show a numeric or string or capsule token@>;
   } else { 
     mp_print_text(mp->cur_sym); mp_print_char(mp, xord('='));
@@ -25446,8 +25427,12 @@ case left_delimiter:
 case right_delimiter: 
   if ( c==left_delimiter ) mp_print(mp, "left");
   else mp_print(mp, "right");
+#if 0
   mp_print(mp, " delimiter that matches "); 
   mp_print_text(m);
+#else
+  mp_print(mp, " delimiter"); 
+#endif
   break;
 case tag_token:
   if ( m==null ) mp_print(mp, "tag");
@@ -25536,7 +25521,7 @@ static void mp_do_show_var (MP mp) ;
 @ @c void mp_do_show_var (MP mp) { 
   do {  
     get_t_next;
-    if ( mp->cur_sym>0 ) if ( mp->cur_sym_mod == 0 )
+    if ( mp->cur_sym!=NULL ) if ( mp->cur_sym_mod == 0 )
       if ( mp->cur_cmd==tag_token ) if ( mp->cur_mod!=null ) {
       mp_disp_var(mp, mp->cur_mod_node); goto DONE;
     }
@@ -26272,10 +26257,10 @@ case every_job_command:
   break;
 
 @ @<Glob...@>=
-halfword start_sym; /* a symbolic token to insert at beginning of job */
+mp_sym start_sym; /* a symbolic token to insert at beginning of job */
 
 @ @<Set init...@>=
-mp->start_sym=0;
+mp->start_sym=NULL;
 
 @ Finally, we have only the ``message'' commands remaining.
 
@@ -27232,6 +27217,9 @@ essentially infinite |value| at the end of the current list.
 mp->inf_val = mp_get_value_node(mp);
 set_value(mp->inf_val,fraction_four);
 
+@ @<Free table entries@>=
+mp_free_value_node(mp,mp->inf_val);
+
 @ Straight linear insertion is good enough for sorting, since the lists
 are usually not terribly long. As we work on the data, the current list
 will start at |mp_link(temp_head)| and end at |inf_val|; the nodes in this
@@ -27438,6 +27426,9 @@ if ( mp->perturbation>=010000 ) mp_tfm_warning(mp, mp_char_ic)
 mp->zero_val = mp_get_value_node(mp);
 set_value(mp->zero_val,0);
 set_mp_info(mp->zero_val,0);
+
+@ @<Free table entries@>=
+mp_free_value_node(mp,mp->zero_val);
 
 @ Bytes 5--8 of the header are set to the design size, unless the user has
 some crazy reason for specifying them differently.
@@ -28173,39 +28164,31 @@ static char *mp_set_output_file_name (MP mp, integer c) {
                 l++;
               }
               if (l>0) {
-                integer h = mp_compute_hash(mp, (char *)(template->str+frst),(int)l);
-                pointer p=h+hash_base; /* we start searching here */
+                mp_sym p = mp_id_lookup(mp, (char *)(template->str+frst),(int)l, false);
 	        char *id = xmalloc(mp, (size_t)(l+1));
                 (void)memcpy(id,(char *)(template->str+frst),(size_t)l);
 	        *(id+l)='\0';
-	        while (true)  { 
-	     	  if (text(p)!=NULL && length(text(p))==l && 
-	              mp_str_eq_cstr(mp, text(p),id)) {
-                    if (eq_type(p)==internal_quantity) {
-		      if (equiv(p)==mp_output_template) {
-    		        char err[256];
-                        mp_snprintf(err,256,
-                           "The appearance of outputtemplate inside outputtemplate is ignored.");
-                        mp_warn(mp,err);
-                      } else {
-	         	mp_append_to_template(mp,f,equiv(p)); 
-	              }
-                    } else {
-		      char err[256];
+	        if ( p==NULL ) {
+                  char err[256];
+                  mp_snprintf(err,256,
+                    "requested identifier (%s) in outputtemplate not found.",id);
+                  mp_warn(mp,err);
+                } else {
+                  if (eq_type(p)==internal_quantity) {
+                    if (equiv(p)==mp_output_template) {
+    		      char err[256];
                       mp_snprintf(err,256,
-                       "requested identifier (%s) in outputtemplate is not an internal.",id);
+                         "The appearance of outputtemplate inside outputtemplate is ignored.");
                       mp_warn(mp,err);
-                    }
-                    break;
-                  }
-                  if ( mp_next(p)==0 ) {
-                    char err[256];
+                    } else {
+	              mp_append_to_template(mp,f,equiv(p)); 
+	            }
+                  } else {
+		    char err[256];
                     mp_snprintf(err,256,
-                      "requested identifier (%s) in outputtemplate not found.",id);
+                     "requested identifier (%s) in outputtemplate is not an internal.",id);
                     mp_warn(mp,err);
-                    break;
                   }
-                  p=mp_next(p);
                 }
                 free(id);
               }
@@ -28789,21 +28772,6 @@ have been forgotten.
 @c @<Declare the basic parsing subroutines@>
 @<Declare miscellaneous procedures that were declared |forward|@>
 
-@ The code below make the final chosen hash size the next larger
-multiple of 2 from the requested size, and this array is a list of
-suitable prime numbers to go with such values. 
-
-The top limit is chosen such that it is definately lower than
-|max_halfword-3*param_size|, because |param_size| cannot be larger
-than |max_halfword/sizeof(pointer)|.
-
-@<Declarations@>=
-static int mp_prime_choices[] = 
-  { 12289,        24593,    49157,    98317,
-    196613,      393241,   786433,  1572869,
-    3145739,    6291469, 12582917, 25165843,
-    50331653, 100663319  };
-
 @ @<Find constant sizes@>=
 if (mp->mem_name != NULL) {
   if (!mp_open_mem_file(mp)) {
@@ -28812,25 +28780,8 @@ if (mp->mem_name != NULL) {
    }
 }
 {
-  unsigned i = 14;
-  mp->param_size = 128;
+  mp->param_size = 4;
   mp->max_in_open = 0;
-  if (opt->hash_size>0x8000000) 
-    opt->hash_size=0x8000000;
-  if (opt->hash_size>0) {
-    set_lower_limited_value(mp->hash_size,(2*opt->hash_size-1),16384);
-  } else {
-    mp->hash_size = 16384;
-  }
-  mp->hash_size = mp->hash_size>>i;
-  while (mp->hash_size>=2) {
-    mp->hash_size /= 2;
-    i++;
-  }
-  mp->hash_size = mp->hash_size << i;
-  if (mp->hash_size>0x8000000) 
-    mp->hash_size=0x8000000;
-  mp->hash_prime=mp_prime_choices[(i-14)];
 }
 
 @ Here we do whatever is needed to complete \MP's job gracefully on the
@@ -28938,15 +28889,15 @@ if ( mp->log_opened ) {
            (mp->max_strs_used!=1 ? "s" : ""), (int)mp->max_pl_used,
        	   (mp->max_pl_used!=1 ? "s" : ""));
   wlog_ln(s);
-  mp_snprintf(s,128," %i words of node memory", (int)mp->var_used);
+  mp_snprintf(s,128," %i bytes of node memory", (int)mp->var_used_max);
   wlog_ln(s);
-  mp_snprintf(s,128," %i symbolic tokens out of %i", (int)mp->st_count, (int)mp->hash_size);
+  mp_snprintf(s,128," %i symbolic tokens", (int)mp->st_count);
   wlog_ln(s);
   mp_snprintf(s,128," %ii,%in,%ip,%ib,%if stack positions out of %ii,%in,%ip,%ib,%if",
            (int)mp->max_in_stack,(int)mp->int_ptr,
            (int)mp->max_param_stack,(int)mp->max_buf_stack+1,(int)mp->in_open_max-file_bottom,
            (int)mp->stack_size,(int)mp->max_internal,(int)mp->param_size,
-	   (int)mp->buf_size,(int)mp->max_in_open);
+	   (int)mp->buf_size,(int)mp->max_in_open-file_bottom);
   wlog_ln(s);
 }
 
