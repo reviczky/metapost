@@ -333,7 +333,6 @@ reduce \MP's capacity.
 @^system dependencies@>
 
 @<Constants...@>=
-#define file_name_size 255 /* file names shouldn't be longer than this */
 #define bistack_size 1500 /* size of stack for bisection algorithms;
   should probably be left at this value */
 
@@ -605,12 +604,10 @@ void *mp_open_file(MP mp, const char *fname, const char *fmode, int ftype)  {
   return NULL;
 }
 
-@ This is a legacy interface: (almost) all file names pass through |name_of_file|.
+@ (Almost) all file names pass through |name_of_file|.
 
 @<Glob...@>=
-char name_of_file[file_name_size+1]; /* the name of a system file */
-int name_length;/* this many characters are actually
-  relevant in |name_of_file| (the rest are blank) */
+char *name_of_file; /* the name of a system file */
 
 @ If this parameter is true, the terminal and log will report the found
 file names for input files instead of the requested ones. 
@@ -627,7 +624,7 @@ standard compiler error message format instead of the Knuthian
 exclamation mark. It needs the actual version of the current input 
 file name, that will be saved by |a_open_in| in the |long_name|.
 
-TODO: currently these strings cause memory leaks, because they cannot
+TODO: currently these long strings cause memory leaks, because they cannot
 be safely freed as they may appear in the |input_stack| multiple times.
 In fact, the current implementation is just a quick hack in response 
 to a bug report for metapost 1.205.
@@ -651,7 +648,8 @@ The |OPEN_FILE| macro takes care of the |print_found_names| parameter.
     if (s!=NULL) {
       *f = (mp->open_file)(mp,mp->name_of_file,A, ftype); 
       if (mp->print_found_names) {
-        strncpy(mp->name_of_file,s,file_name_size);
+        xfree(mp->name_of_file);
+        mp->name_of_file = xstrdup(s);
       }
       if ((*(A) == 'r') && (ftype == mp_filetype_program)) {
         long_name = xstrdup(s);
@@ -17018,12 +17016,6 @@ boolean quoted_filename; /* whether the filename is wrapped in " markers */
 @ Here now is the first of the system-dependent routines for file name scanning.
 @^system dependencies@>
 
-The file name length is limited to |file_name_size|. That is good, because
-in the current configuration we cannot call |mp_do_compaction| while a name 
-is being scanned, |mp->area_delimiter| and |mp->ext_delimiter| are direct
-offsets into |mp->str_pool|. I am not in a great hurry to fix this, because 
-calling |str_room()| just once is more efficient anyway. TODO.
-
 @<Declarations@>=
 static void mp_begin_name (MP mp);
 static boolean mp_more_name (MP mp, ASCII_code c);
@@ -17037,7 +17029,6 @@ void mp_begin_name (MP mp) {
   mp->area_delimiter=-1; 
   mp->ext_delimiter=-1;
   mp->quoted_filename=false;
-  str_room(file_name_size); 
 }
 
 @ And here's the second.
@@ -17117,20 +17108,21 @@ to the |name_of_file| value that is used to open files. The present code
 allows both lowercase and uppercase letters in the file name.
 @^system dependencies@>
 
-@d append_to_name(A) { c=xord((ASCII_code)(A));
-  if ( k<file_name_size ) {
-    mp->name_of_file[k]=(char)xchr(c);
-    incr(k);
-  }
-}
+@d append_to_name(A) { mp->name_of_file[k++]=(char)xchr(xord((ASCII_code)(A))); }
 
 @ @c
 void mp_pack_file_name (MP mp, const char *n, const char *a, const char *e) {
   integer k; /* number of positions filled in |name_of_file| */
   ASCII_code c; /* character being packed */
   const char *j; /* a character  index */
+  int slen;
   k=0;
   assert(n!=NULL);
+  xfree(mp->name_of_file);
+  slen = strlen(n)+1;
+  if (a!=NULL) slen += strlen(a);
+  if (e!=NULL) slen += strlen(e);
+  mp->name_of_file = xmalloc(slen,1);
   if (a!=NULL) {
     for (j=a;*j!='\0';j++) { append_to_name(*j); }
   }
@@ -17139,7 +17131,6 @@ void mp_pack_file_name (MP mp, const char *n, const char *a, const char *e) {
     for (j=e;*j!='\0';j++) { append_to_name(*j); }
   }
   mp->name_of_file[k]=0;
-  mp->name_length=k; 
 }
 
 @ @<Internal library declarations@>=
@@ -17190,7 +17181,8 @@ boolean mp_open_mem_name (MP mp) {
       strcat (s, ".mp");
     }
     mp->mem_file = (mp->open_file)(mp,s, "r", mp_filetype_program);
-    strncpy(mp->name_of_file,s,file_name_size);
+    xfree(mp->name_of_file);
+    mp->name_of_file = xstrdup(s);
     free(s);
     if ( mp->mem_file ) return true;
   }
@@ -17234,8 +17226,9 @@ most recently opened, if it is possible to do this.
 @ @c 
 static str_number mp_make_name_string (MP mp) {
   int k; /* index into |name_of_file| */
-  str_room(mp->name_length);
-  for (k=0;k<mp->name_length;k++) {
+  int name_length = (int)strlen(mp->name_of_file);
+  str_room(name_length);
+  for (k=0;k<name_length;k++) {
     append_char(xord((ASCII_code)mp->name_of_file[k]));
   }
   return mp_make_string(mp);
