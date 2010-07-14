@@ -65,7 +65,7 @@ then
   MPOSTEXE=mpost.exe
   OLDPATH=$PATH
   PATH=/usr/mingw32/bin:$PATH
-  CONFHOST="--host=i686-pc-mingw32 --build=i686-linux-gnu "
+  CONFHOST="--host=i586-pc-mingw32 --build=i586-linux-gnu "
 fi
 
 if [ "$PPCCROSS" = "TRUE" ]
