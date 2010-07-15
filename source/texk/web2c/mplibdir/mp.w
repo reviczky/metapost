@@ -1208,18 +1208,18 @@ of reference counts.
 @^reference counts@>
 
 The number of references to string number |s| will be |s->refs|. The
-special value |s->refs=max_str_ref=127| is used to denote an unknown
+special value |s->refs=MAX_STR_REF=127| is used to denote an unknown
 positive number of references; such strings will never be recycled. If
 a string is ever referred to more than 126 times, simultaneously, we
 put it in this category.
 
-@d max_str_ref 127 /* ``infinite'' number of references */
-@d add_str_ref(A) { if ( (A)->refs < max_str_ref ) incr((A)->refs); }
+@d MAX_STR_REF 127 /* ``infinite'' number of references */
+@d add_str_ref(A) { if ( (A)->refs < MAX_STR_REF ) incr((A)->refs); }
 
 @ Here's what we do when a string reference disappears:
 
 @d delete_str_ref(A)  { 
-    if ( (A)->refs < max_str_ref ) {
+    if ( (A)->refs < MAX_STR_REF ) {
        if ( (A)->refs > 1 ) decr((A)->refs); 
        else mp_flush_string(mp, (A));
     }
@@ -1244,7 +1244,7 @@ that they can not be flushed.
 str_number mp_intern (MP mp, const char *s) {
   str_number r ;
   r = mp_rts(mp, s);
-  r->refs = max_str_ref;
+  r->refs = MAX_STR_REF;
   return r;
 }
 
@@ -2251,7 +2251,7 @@ language is being used properly.  The \TeX\ processor has been defined
 carefully so that both varieties of arithmetic will produce identical
 output, but it would be too inefficient to constrain \MP\ in a similar way.
 
-@d el_gordo   0x7fffffff /* $2^{31}-1$, the largest value that \MP\ likes */
+@d EL_GORDO   0x7fffffff /* $2^{31}-1$, the largest value that \MP\ likes */
 
 
 @ One of \MP's most common operations is the calculation of
@@ -2306,17 +2306,17 @@ is used.
 
 @c static integer mp_slow_add (MP mp,integer x, integer y) { 
   if ( x>=0 )  {
-    if ( y<=el_gordo-x ) { 
+    if ( y<=EL_GORDO-x ) { 
       return x+y;
     } else  { 
       mp->arith_error=true; 
-	  return el_gordo;
+	  return EL_GORDO;
     }
-  } else  if ( -y<=el_gordo+x ) {
+  } else  if ( -y<=EL_GORDO+x ) {
     return x+y;
   } else { 
     mp->arith_error=true; 
-	return -el_gordo;
+	return -EL_GORDO;
   }
 }
 
@@ -2467,7 +2467,7 @@ integer mp_take_scaled (MP mp,integer q, scaled f) ;
 @ @<Declarations@>=
 static fraction mp_make_fraction (MP mp,integer p, integer q);
 
-@ If FIXPT is not defined, we need these preprocessor values
+@ We need these preprocessor values
 
 @d TWEXP31  2147483648.0
 @d TWEXP28  268435456.0
@@ -2481,76 +2481,24 @@ fraction mp_make_fraction (MP mp,integer p, integer q) {
   fraction i;
   if ( q==0 ) mp_confusion(mp, "/");
 @:this can't happen /}{\quad \./@>
-#ifdef FIXPT
-{
-  integer f; /* the fraction bits, with a leading 1 bit */
-  integer n; /* the integer part of $\vert p/q\vert$ */
-  boolean negative = false; /* should the result be negated? */
-  if ( p<0 ) {
-    negate(p); negative=true;
-  }
-  if ( q<0 ) { 
-    negate(q); negative = ! negative;
-  }
-  n=p / q; p=p % q;
-  if ( n>=8 ){ 
-    mp->arith_error=true;
-    i= ( negative ? -el_gordo : el_gordo);
-  } else { 
-    n=(n-1)*fraction_one;
-    @<Compute $f=\lfloor 2^{28}(1+p/q)+{1\over2}\rfloor$@>;
-    i = (negative ? (-(f+n)) : (f+n));
-  }
-}
-#else /* FIXPT */
   {
     register double d;
 	d = TWEXP28 * (double)p /(double)q;
 	if ((p^q) >= 0) {
 		d += 0.5;
-		if (d>=TWEXP31) {mp->arith_error=true; return el_gordo;}
+		if (d>=TWEXP31) {mp->arith_error=true; return EL_GORDO;}
 		i = (integer) d;
 		if (d==(double)i && ( ((q>0 ? -q : q)&077777)
 				* (((i&037777)<<1)-1) & 04000)!=0) --i;
 	} else {
 		d -= 0.5;
-		if (d<= -TWEXP31) {mp->arith_error=true; return -el_gordo;}
+		if (d<= -TWEXP31) {mp->arith_error=true; return -EL_GORDO;}
 		i = (integer) d;
 		if (d==(double)i && ( ((q>0 ? q : -q)&077777)
 				* (((i&037777)<<1)+1) & 04000)!=0) ++i;
 	}
   }
-#endif /* FIXPT */
   return i;
-}
-
-@ The |repeat| loop here preserves the following invariant relations
-between |f|, |p|, and~|q|:
-(i)~|0<=p<q|; (ii)~$fq+p=2^k(q+p_0)$, where $k$ is an integer and
-$p_0$ is the original value of~$p$.
-
-Notice that the computation specifies
-|(p-q)+p| instead of |(p+p)-q|, because the latter could overflow.
-Let us hope that optimizing compilers do not miss this point; a
-special variable |be_careful| is used to emphasize the necessary
-order of computation. Optimizing compilers should keep |be_careful|
-in a register, not store it in memory.
-@^inner loop@>
-
-@<Compute $f=\lfloor 2^{28}(1+p/q)+{1\over2}\rfloor$@>=
-{
-  integer be_careful; /* disables certain compiler optimizations */
-  f=1;
-  do {  
-    be_careful=p-q; p=be_careful+p;
-    if ( p>=0 ) { 
-      f=f+f+1;
-    } else  { 
-      f+=f; p=p+q;
-    }
-  } while (f<fraction_one);
-  be_careful=p-q;
-  if ( be_careful+p>=0 ) incr(f);
 }
 
 @ The dual of |make_fraction| is |take_fraction|, which multiplies a
@@ -2567,34 +2515,6 @@ time during typical jobs, so a machine-language substitute is advisable.
 integer mp_take_fraction (MP mp,integer q, fraction f) ;
 
 @ @c 
-#ifdef FIXPT
-integer mp_take_fraction (MP mp,integer q, fraction f) {
-  integer p; /* the fraction so far */
-  boolean negative; /* should the result be negated? */
-  integer n; /* additional multiple of $q$ */
-  integer be_careful; /* disables certain compiler optimizations */
-  @<Reduce to the case that |f>=0| and |q>=0|@>;
-  if ( f<fraction_one ) { 
-    n=0;
-  } else { 
-    n=f / fraction_one; f=f % fraction_one;
-    if ( q<=el_gordo / n ) { 
-      n=n*q ; 
-    } else { 
-      mp->arith_error=true; n=el_gordo;
-    }
-  }
-  f=f+fraction_one;
-  @<Compute $p=\lfloor qf/2^{28}+{1\over2}\rfloor-q$@>;
-  be_careful=n-el_gordo;
-  if ( be_careful+p>0 ){ 
-    mp->arith_error=true; n=el_gordo-p;
-  }
-  if ( negative ) 
-	return (-(n+p));
-  else 
-    return (n+p);
-#else /* FIXPT */
 integer mp_take_fraction (MP mp,integer p, fraction q) {
     register double d;
 	register integer i;
@@ -2604,7 +2524,7 @@ integer mp_take_fraction (MP mp,integer p, fraction q) {
 		if (d>=TWEXP31) {
 			if (d!=TWEXP31 || (((p&077777)*(q&077777))&040000)==0)
 				mp->arith_error = true;
-			return el_gordo;
+			return EL_GORDO;
 		}
 		i = (integer) d;
 		if (d==(double)i && (((p&077777)*(q&077777))&040000)!=0) --i;
@@ -2613,44 +2533,13 @@ integer mp_take_fraction (MP mp,integer p, fraction q) {
 		if (d<= -TWEXP31) {
 			if (d!= -TWEXP31 || ((-(p&077777)*(q&077777))&040000)==0)
 				mp->arith_error = true;
-			return -el_gordo;
+			return -EL_GORDO;
 		}
 		i = (integer) d;
 		if (d==(double)i && ((-(p&077777)*(q&077777))&040000)!=0) ++i;
 	}
 	return i;
-#endif /* FIXPT */
 }
-
-@ @<Reduce to the case that |f>=0| and |q>=0|@>=
-if ( f>=0 ) {
-  negative=false;
-} else { 
-  negate( f); negative=true;
-}
-if ( q<0 ) { 
-  negate(q); negative=! negative;
-}
-
-@ The invariant relations in this case are (i)~$\lfloor(qf+p)/2^k\rfloor
-=\lfloor qf_0/2^{28}+{1\over2}\rfloor$, where $k$ is an integer and
-$f_0$ is the original value of~$f$; (ii)~$2^k\L f<2^{k+1}$.
-@^inner loop@>
-
-@<Compute $p=\lfloor qf/2^{28}+{1\over2}\rfloor-q$@>=
-p=fraction_half; /* that's $2^{27}$; the invariants hold now with $k=28$ */
-if ( q<fraction_four ) {
-  do {  
-    if ( odd(f) ) p=halfp(p+q); else p=halfp(p);
-    f=halfp(f);
-  } while (f!=1);
-} else  {
-  do {  
-    if ( odd(f) ) p=p+halfp(q-p); else p=halfp(p);
-    f=halfp(f);
-  } while (f!=1);
-}
-
 
 @ When we want to multiply something by a |scaled| quantity, we use a scheme
 analogous to |take_fraction| but with a different scaling.
@@ -2663,31 +2552,6 @@ when the Computer Modern fonts are being generated.
 @^inner loop@>
 
 @c 
-#ifdef FIXPT
-integer mp_take_scaled (MP mp,integer q, scaled f) {
-  integer p; /* the fraction so far */
-  boolean negative; /* should the result be negated? */
-  integer n; /* additional multiple of $q$ */
-  integer be_careful; /* disables certain compiler optimizations */
-  @<Reduce to the case that |f>=0| and |q>=0|@>;
-  if ( f<unity ) { 
-    n=0;
-  } else  { 
-    n=f / unity; f=f % unity;
-    if ( q<=el_gordo / n ) {
-      n=n*q;
-    } else  { 
-      mp->arith_error=true; n=el_gordo;
-    }
-  }
-  f=f+unity;
-  @<Compute $p=\lfloor qf/2^{16}+{1\over2}\rfloor-q$@>;
-  be_careful=n-el_gordo;
-  if ( be_careful+p>0 ) { 
-    mp->arith_error=true; n=el_gordo-p;
-  }
-  return ( negative ?(-(n+p)) :(n+p));
-#else /* FIXPT */
 integer mp_take_scaled (MP mp,integer p, scaled q) {
     register double d;
 	register integer i;
@@ -2697,7 +2561,7 @@ integer mp_take_scaled (MP mp,integer p, scaled q) {
 		if (d>=TWEXP31) {
 			if (d!=TWEXP31 || (((p&077777)*(q&077777))&040000)==0)
 				mp->arith_error = true;
-			return el_gordo;
+			return EL_GORDO;
 		}
 		i = (integer) d;
 		if (d==(double)i && (((p&077777)*(q&077777))&040000)!=0) --i;
@@ -2706,28 +2570,12 @@ integer mp_take_scaled (MP mp,integer p, scaled q) {
 		if (d<= -TWEXP31) {
 			if (d!= -TWEXP31 || ((-(p&077777)*(q&077777))&040000)==0)
 				mp->arith_error = true;
-			return -el_gordo;
+			return -EL_GORDO;
 		}
 		i = (integer) d;
 		if (d==(double)i && ((-(p&077777)*(q&077777))&040000)!=0) ++i;
 	}
 	return i;
-#endif /* FIXPT */
-}
-
-@ @<Compute $p=\lfloor qf/2^{16}+{1\over2}\rfloor-q$@>=
-p=half_unit; /* that's $2^{15}$; the invariants hold now with $k=16$ */
-@^inner loop@>
-if ( q<fraction_four ) {
-  do {  
-    p = (odd(f) ? halfp(p+q) : halfp(p));
-    f=halfp(f);
-  } while (f!=1);
-} else {
-  do {  
-    p = (odd(f) ? p+halfp(q-p) : halfp(p));
-    f=halfp(f);
-  } while (f!=1);
 }
 
 @ For completeness, there's also |make_scaled|, which computes a
@@ -2745,55 +2593,24 @@ scaled mp_make_scaled (MP mp,integer p, integer q) {
   if ( q==0 ) mp_confusion(mp, "/");
 @:this can't happen /}{\quad \./@>
   {
-#ifdef FIXPT 
-    integer f; /* the fraction bits, with a leading 1 bit */
-    integer n; /* the integer part of $\vert p/q\vert$ */
-    boolean negative; /* should the result be negated? */
-    integer be_careful; /* disables certain compiler optimizations */
-    if ( p>=0 ) negative=false;
-    else  { negate(p); negative=true; };
-    if ( q<0 ) { 
-      negate(q); negative=! negative;
-    }
-    n=p / q; p=p % q;
-    if ( n>=0100000 ) { 
-      mp->arith_error=true;
-      return (negative ? (-el_gordo) : el_gordo);
-    } else  { 
-      n=(n-1)*unity;
-      @<Compute $f=\lfloor 2^{16}(1+p/q)+{1\over2}\rfloor$@>;
-      i = (negative ? (-(f+n)) :(f+n));
-    }
-#else /* FIXPT */
     register double d;
 	d = TWEXP16 * (double)p /(double)q;
 	if ((p^q) >= 0) {
 		d += 0.5;
-		if (d>=TWEXP31) {mp->arith_error=true; return el_gordo;}
+		if (d>=TWEXP31) {mp->arith_error=true; return EL_GORDO;}
 		i = (integer) d;
 		if (d==(double)i && ( ((q>0 ? -q : q)&077777)
 				* (((i&037777)<<1)-1) & 04000)!=0) --i;
 	} else {
 		d -= 0.5;
-		if (d<= -TWEXP31) {mp->arith_error=true; return -el_gordo;}
+		if (d<= -TWEXP31) {mp->arith_error=true; return -EL_GORDO;}
 		i = (integer) d;
 		if (d==(double)i && ( ((q>0 ? q : -q)&077777)
 				* (((i&037777)<<1)+1) & 04000)!=0) ++i;
 	}
-#endif /* FIXPT */
   }
   return i;
 }
-
-@ @<Compute $f=\lfloor 2^{16}(1+p/q)+{1\over2}\rfloor$@>=
-f=1;
-do {  
-  be_careful=p-q; p=be_careful+p;
-  if ( p>=0 ) f=f+f+1;
-  else  { f+=f; p=p+q; };
-} while (f<unity);
-be_careful=p-q;
-if ( be_careful+p>=0 ) incr(f)
 
 @ Here is a typical example of how the routines above can be used.
 It computes the function
@@ -2979,7 +2796,7 @@ integer mp_pyth_add (MP mp,integer a, integer b) {
       if ( a<fraction_two ) {
         a=a+a+a+a;
       } else  { 
-        mp->arith_error=true; a=el_gordo;
+        mp->arith_error=true; a=EL_GORDO;
       };
     }
   }
@@ -3127,7 +2944,7 @@ static scaled mp_m_exp (MP mp,scaled x) {
   if ( x>174436200 ) {
     /* $2^{24}\ln((2^{31}-1)/2^{16})\approx 174436199.51$ */
     mp->arith_error=true; 
-    return el_gordo;
+    return EL_GORDO;
   } else if ( x<-197694359 ) {
 	/* $2^{24}\ln(2^{-1}/2^{16})\approx-197694359.45$ */
     return 0;
@@ -3141,7 +2958,7 @@ static scaled mp_m_exp (MP mp,scaled x) {
       } else {
        z=8*(174436200-x); /* |z| is always nonnegative */
       }
-      y=el_gordo;
+      y=EL_GORDO;
     };
     @<Multiply |y| by $\exp(-z/2^{27})$@>;
     if ( x<=127919879 ) 
@@ -3765,12 +3582,12 @@ can readily be transported into environments that do not have automatic
 facilities for strings, garbage collection, etc., and so that it can be in
 control of what error messages the user receives. 
 
-@d mp_void (mp_node)(1) /* |NULL+1|, a |NULL| pointer different from |NULL| */
+@d VOID (mp_node)(1) /* |NULL+1|, a |NULL| pointer different from |NULL| */
 
 @d mp_link(A)      (A)->link /* the |link| field of a node */
 @d set_mp_link(A,B) do {
    mp_node d = (B);
-   /* printf("set link    of %p to %p on line %d\n", (A), d, __LINE__);*/
+   /* |printf("set link    of %p to %p on line %d\n", (A), d, __LINE__);| */
    mp_link((A)) = d;
  } while (0)
 @d mp_type(A)      (A)->type /* identifies what kind of value this is */
@@ -5751,13 +5568,13 @@ structure is not worth the minimal extra code clarification.
 @d attr_head(A)   ((mp_value_node)(A))->attr_head_ /* pointer to attribute info */
 @d set_attr_head(A,B) do {
    mp_node d = (B);
-   /* printf("set attrhead of %p to %p on %d\n",A,d,__LINE__); */
+   /* |printf("set attrhead of %p to %p on %d\n",A,d,__LINE__);| */
    attr_head((A)) = d;
 } while (0)
 @d subscr_head(A)   ((mp_value_node)(A))->subscr_head_ /* pointer to subscript info */
 @d set_subscr_head(A,B) do {
    mp_node d = (B);
-   /* printf("set subcrhead of %p to %p on %d\n",A,d,__LINE__); */
+   /* |printf("set subcrhead of %p to %p on %d\n",A,d,__LINE__);| */
    subscr_head((A)) = d;
 } while (0)
 
@@ -5885,7 +5702,7 @@ information in their collective subscript attributes.
 
 @d hashloc(A) ((mp_value_node)(A))->v.hashloc_ /* hash address of this attribute */
 @d set_hashloc(A,B) do {
-  /* printf ("set attrloc of %p to %d on %d\n", (A), d, __LINE__); */
+  /* |printf ("set attrloc of %p to %d on %d\n", (A), d, __LINE__);| */
   ((mp_value_node)(A))->v.hashloc_ = (mp_sym)(B);
   } while (0)
 @d parent(A) (A)->parent_ /* pointer to |mp_structured| variable */
@@ -5955,7 +5772,7 @@ static mp_node mp_get_pair_node (MP mp) {
   return (mp_node)p;
 }
 
-@ If |type(p)=mp_pair_type| or if |value(p)=NULL|, the procedure call |init_pair_node(p) will 
+@ If |type(p)=mp_pair_type| or if |value(p)=NULL|, the procedure call |init_pair_node(p)| will 
 allocate a pair node for~|p|.  The individual parts of such nodes are  initially of type 
 |mp_independent|.
 
@@ -6248,7 +6065,7 @@ void mp_print_variable_name (MP mp, mp_node p) {
   if ( mp_name_type(p)==mp_saved_root ) 
     mp_print(mp, "(SAVED)");
 @.SAVED@>
-  mp_show_token_list(mp, r,NULL,el_gordo,mp->tally); 
+  mp_show_token_list(mp, r,NULL,EL_GORDO,mp->tally); 
   mp_flush_token_list(mp, r);
 }
 
@@ -6532,7 +6349,7 @@ subscript list, even though that word isn't part of a subscript node.
   pp=mp_link(attr_head(pp)); /* now |hashloc(pp)=collective_subscript| */
   q=mp_link(attr_head(p)); 
   save_subscript=subscript(q);
-  subscript(q)=el_gordo; 
+  subscript(q)=EL_GORDO; 
   s = mp->temp_head;
   set_mp_link(s,subscr_head(p));
   do {  
@@ -6580,11 +6397,9 @@ subscript list, even though that word isn't part of a subscript node.
   } else { 
     pp=ss; 
     s=attr_head(p);
-    /* printf("hashloc(s)=%d\n",hashloc(s)); */
     do {  
       r=s; 
       s=mp_link(s);
-      /* printf("hashloc(s)=%d\n",hashloc(s)); */
     } while (nn>hashloc(s));
     if ( nn==hashloc(s) ) {
       p=s;
@@ -8411,7 +8226,7 @@ Thus the return value is either an arc length less than |a_goal| or, if the
 arc length would be at least |a_goal|, it returns a time value decreased by
 |two|.  This allows the caller to use the sign of the result to distinguish
 between arc lengths and time values.  On certain types of overflow, it is
-possible for |a_goal| and the result of |arc_test| both to be |el_gordo|.
+possible for |a_goal| and the result of |arc_test| both to be |EL_GORDO|.
 Otherwise, the result is always less than |a_goal|.
 
 Rather than halving the control point coordinates on each recursive call to
@@ -8486,10 +8301,10 @@ scaled a,b; /* results of recursive calls */
 scaled a_new,a_aux; /* the sum of these gives the |a_goal| */
 
 @ @<Set |a_new| and |a_aux| so their sum is |2*a_goal| and |a_new| is...@>=
-a_aux = el_gordo - a_goal;
+a_aux = EL_GORDO - a_goal;
 if ( a_goal > a_aux ) {
   a_aux = a_goal - a_aux;
-  a_new = el_gordo;
+  a_new = EL_GORDO;
 } else { 
   a_new = a_goal + a_goal;
   a_aux = 0;
@@ -8518,8 +8333,8 @@ dy01 = half(dy0 + dy1);
 dy12 = half(dy1 + dy2);
 dy02 = half(dy01 + dy12)
 
-@ We should be careful to keep |arc<el_gordo| so that calling |arc_test| with
-|a_goal=el_gordo| is guaranteed to yield the arc length.
+@ We should be careful to keep |arc<EL_GORDO| so that calling |arc_test| with
+|a_goal=EL_GORDO| is guaranteed to yield the arc length.
 
 @<Initialize |v002|, |v022|, and the arc length estimate |arc|;...@>=
 v002 = mp_pyth_add(mp, dx01+half(dx0+dx02), dy01+half(dy0+dy02));
@@ -8527,11 +8342,11 @@ v022 = mp_pyth_add(mp, dx12+half(dx02+dx2), dy12+half(dy02+dy2));
 tmp = halfp(v02+2);
 arc1 = v002 + half(halfp(v0+tmp) - v002);
 arc = v022 + half(halfp(v2+tmp) - v022);
-if ( (arc < el_gordo-arc1) )  {
+if ( (arc < EL_GORDO-arc1) )  {
   arc = arc+arc1;
 } else { 
   mp->arith_error = true;
-  if ( a_goal==el_gordo )  return (el_gordo);
+  if ( a_goal==EL_GORDO )  return (EL_GORDO);
   else return (-two);
 }
 
@@ -8630,7 +8445,7 @@ scaled mp_solve_rising_cubic (MP mp,scaled a, scaled b,  scaled c, scaled x) {
   } else { 
     t = 1;
     @<Rescale if necessary to make sure |a|, |b|, and |c| are all less than
-      |el_gordo div 3|@>;
+      |EL_GORDO div 3|@>;
     do {  
       t+=t;
       @<Subdivide the B\'ezier quadratic defined by |a|, |b|, |c|@>;
@@ -8647,10 +8462,10 @@ ab = half(a+b);
 bc = half(b+c);
 ac = half(ab+bc)
 
-@ @d one_third_el_gordo 05252525252 /* upper bound on |a|, |b|, and |c| */
+@ @d one_third_EL_GORDO 05252525252 /* upper bound on |a|, |b|, and |c| */
 
 @<Rescale if necessary to make sure |a|, |b|, and |c| are all less than...@>=
-while ((a>one_third_el_gordo)||(b>one_third_el_gordo)||(c>one_third_el_gordo)) { 
+while ((a>one_third_EL_GORDO)||(b>one_third_EL_GORDO)||(c>one_third_EL_GORDO)) { 
   a = halfp(a);
   b = half(b);
   c = halfp(c);
@@ -8672,7 +8487,7 @@ length less than |fraction_four|.
   v2 = mp_pyth_add(mp, dx2,dy2);
   if ( (v0>=fraction_four) || (v1>=fraction_four) || (v2>=fraction_four) ) { 
     mp->arith_error = true;
-    if ( a_goal==el_gordo )  return el_gordo;
+    if ( a_goal==EL_GORDO )  return EL_GORDO;
     else return (-two);
   } else { 
     v02 = mp_pyth_add(mp, dx1+half(dx0+dx2), dy1+half(dy0+dy2));
@@ -8692,7 +8507,7 @@ length less than |fraction_four|.
     q = mp_next_knot(p);
     a = mp_do_arc_test(mp, mp_right_x(p)-mp_x_coord(p), mp_right_y(p)-mp_y_coord(p),
       mp_left_x(q)-mp_right_x(p), mp_left_y(q)-mp_right_y(p),
-      mp_x_coord(q)-mp_left_x(q), mp_y_coord(q)-mp_left_y(q), el_gordo);
+      mp_x_coord(q)-mp_left_x(q), mp_y_coord(q)-mp_left_y(q), EL_GORDO);
     a_tot = mp_slow_add(mp, a, a_tot);
     if ( q==h ) break;  else p=q;
   }
@@ -8720,7 +8535,7 @@ we must be prepared to compute the arc length of path~|h| and divide this into
   if ( arc0<0 ) {
     @<Deal with a negative |arc0| value and |return|@>;
   }
-  if ( arc0==el_gordo ) decr(arc0);
+  if ( arc0==EL_GORDO ) decr(arc0);
   t_tot = 0;
   arc = arc0;
   p = h;
@@ -8762,10 +8577,10 @@ else { t_tot = t_tot + unity;  arc = arc - t;  }
 if ( arc>0 ) { 
   n = arc / (arc0 - arc);
   arc = arc - n*(arc0 - arc);
-  if ( t_tot > (el_gordo / (n+1)) ) { 
+  if ( t_tot > (EL_GORDO / (n+1)) ) { 
         mp->arith_error = true;
         check_arith;
-	return el_gordo;
+	return EL_GORDO;
   }
   t_tot = (n + 1)*t_tot;
 }
@@ -9731,8 +9546,8 @@ the additional text.
 
 When the bounding box has not been computed, the |bblast| pointer points
 to a dummy link at the head of the graphical object list while the |minx_val|
-and |miny_val| fields contain |el_gordo| and the |maxx_val| and |maxy_val|
-fields contain |-el_gordo|.
+and |miny_val| fields contain |EL_GORDO| and the |maxx_val| and |maxy_val|
+fields contain |-EL_GORDO|.
 
 Since the bounding box of pictures containing objects of type
 |mp_start_bounds_node| depends on the value of \&{truecorners}, the bounding box
@@ -9778,10 +9593,10 @@ static void mp_init_bbox (MP mp, mp_node h) {
   (void)mp;
   bblast(h)=dummy_loc(h);
   bbtype(h)=no_bounds;
-  minx_val(h)=el_gordo;
-  miny_val(h)=el_gordo;
-  maxx_val(h)=-el_gordo;
-  maxy_val(h)=-el_gordo;
+  minx_val(h)=EL_GORDO;
+  miny_val(h)=EL_GORDO;
+  maxx_val(h)=-EL_GORDO;
+  maxy_val(h)=-EL_GORDO;
 }
 
 @ The only other entries in an edge header are a reference count in the first
@@ -9894,8 +9709,6 @@ mp_node mp_toss_gr_object (MP mp, mp_node p) {
   }
   return e;
 }
-
-@ @<Prepare to recycle graphical object |p|@>=
 
 @ If we use |add_edge_ref| to ``copy'' edge structures, the real copying needs
 to be done before making a significant change to an edge structure.  Much of
@@ -10841,10 +10654,10 @@ case mp_start_clip_node_type:
   break;
 
 @ @<Reinitialize the bounding box in header |h| and call |set_bbox|...@>=
-minx_val(h)=el_gordo;
-miny_val(h)=el_gordo;
-maxx_val(h)=-el_gordo;
-maxy_val(h)=-el_gordo;
+minx_val(h)=EL_GORDO;
+miny_val(h)=EL_GORDO;
+maxx_val(h)=-EL_GORDO;
+maxy_val(h)=-EL_GORDO;
 mp_set_bbox(mp, h,false)
 
 @ @<Clip the bounding box in |h| to the rectangle given by |x0|, |x1|,...@>=
@@ -12541,7 +12354,7 @@ numbers. Diagnosed and patched by Thorsten Dahlheimer.
 
 @d s_scale 64 /* the serial numbers are multiplied by this factor */
 @d new_indep(A)  /* create a new independent variable */
-  { if ( mp->serial_no>el_gordo-s_scale )
+  { if ( mp->serial_no>EL_GORDO-s_scale )
     mp_fatal_error(mp, "variable instance identifiers exhausted");
   mp_type((A))=mp_independent; mp->serial_no=mp->serial_no+s_scale;
   set_value((A),mp->serial_no);
@@ -12585,19 +12398,19 @@ structures have to match.
 @d dep_info(A) ((mp_value_node)(A))->value_.node  /* half of the |value| field in a |dependent| variable */
 @d set_dep_info(A,B) do {
    mp_value_node d = (mp_value_node)(B);
-   /* printf("set depinfo of %p to %p on %d\n",A,d,__LINE__); */
+   /* |printf("set depinfo of %p to %p on %d\n",A,d,__LINE__);| */
    dep_info((A)) = (mp_node)d;
 } while (0)
 @d dep_list(A) ((mp_value_node)(A))->attr_head_  /* half of the |value| field in a |dependent| variable */
 @d set_dep_list(A,B) do {
    mp_value_node d = (mp_value_node)(B);
-   /* printf("set deplist of %p to %p on %d\n",A,d,__LINE__);  */
+   /* |printf("set deplist of %p to %p on %d\n",A,d,__LINE__);|  */
    dep_list((A)) = (mp_node)d;
 } while (0)
 @d prev_dep(A) ((mp_value_node)(A))->subscr_head_ /* the other half; makes a doubly linked list */
 @d set_prev_dep(A,B) do {
    mp_value_node d = (mp_value_node)(B);
-   /* printf("set prevdep of %p to %p on %d\n",A,d,__LINE__);  */
+   /* |printf("set prevdep of %p to %p on %d\n",A,d,__LINE__);|  */
    prev_dep((A)) = (mp_node)d;
 } while (0)
 
@@ -13150,7 +12963,7 @@ static void mp_fix_dependencies (MP mp) {
 @ @d independent_being_fixed 1 /* this variable already appears in |s| */
 
 @<Run through the dependency list for variable |t|...@>=
-set_mp_link(r,dep_list(t)); /* that the dep_list */
+set_mp_link(r,dep_list(t)); /* start off one item before the actual |dep_list| */
 while (1) { 
   q=(mp_value_node)mp_link(r); 
   x=dep_info(q);
@@ -14017,7 +13830,7 @@ the |link| field in a capsule parameter is |void| and that
   mp_print_nl(mp, "<for("); 
   pp=mp->param_stack[param_start];
   if ( pp!=NULL ) {
-    if ( mp_link(pp)==mp_void ) 
+    if ( mp_link(pp)==VOID ) 
       mp_print_exp(mp, pp,0); /* we're in a \&{for} loop */
     else 
       mp_show_token_list(mp, pp, NULL, 20, mp->tally);
@@ -14199,7 +14012,7 @@ static void mp_end_token_list (MP mp) { /* leave a token-list input level */
     decr(mp->param_ptr);
     p=mp->param_stack[mp->param_ptr];
     if ( p!=NULL ) {
-      if ( mp_link(p)==mp_void ) { /* it's an \&{expr} parameter */
+      if ( mp_link(p)==VOID ) { /* it's an \&{expr} parameter */
         mp_recycle_value(mp, p); mp_free_node(mp, p,value_node_size);
       } else {
         mp_flush_token_list(mp, p); /* it's a \&{suffix} or \&{text} parameter */
@@ -14792,7 +14605,7 @@ if ( n<32768 ) {
   help2("I can\'t handle numbers bigger than 32767.99998;",
         "so I've changed your constant to that maximum amount.");
   mp->deletions_allowed=false; mp_error(mp); mp->deletions_allowed=true;
-  mp->cur_mod=el_gordo;
+  mp->cur_mod=EL_GORDO;
 }
 mp->cur_cmd=numeric_token; return
 
@@ -15378,7 +15191,7 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1}.
   mp_check_equals(mp);
   mp->scanner_status=op_defining; 
   q=mp_get_symbolic_node(mp); 
-  set_mp_sym_info(q, 0); /* ref_count(q)=NULL; */
+  set_mp_sym_info(q, 0); /* |ref_count(q)=NULL;| */
   r=mp_get_symbolic_node(mp); 
   mp_link(q)=r; 
   set_mp_sym_info(r,general_macro);
@@ -15441,7 +15254,7 @@ static void mp_scan_def (MP mp) {
   c=general_macro;
   mp_link(mp->hold_head)=NULL;
   q=mp_get_symbolic_node(mp);
-  set_mp_sym_info(q, 0); /* ref_count(q)=NULL; */
+  set_mp_sym_info(q, 0); /* |ref_count(q)=NULL;| */
   r=NULL;
   @<Scan the token or variable to be defined;
     set |n|, |scanner_status|, and |warning_info|@>;
@@ -15998,7 +15811,7 @@ static void mp_print_arg (MP mp,mp_node q, integer n, halfword b, quarterword bb
 
 @ @c
 void mp_print_arg (MP mp,mp_node q, integer n, halfword b, quarterword bb) {
-  if ( q && mp_link(q)==mp_void ) {
+  if ( q && mp_link(q)==VOID ) {
     mp_print_nl(mp, "(EXPR"); 
   } else {
     if ( (bb<mp_text_sym)  && (b != text_macro)) 
@@ -16007,7 +15820,7 @@ void mp_print_arg (MP mp,mp_node q, integer n, halfword b, quarterword bb) {
       mp_print_nl(mp, "(TEXT");
   }
   mp_print_int(mp, n); mp_print(mp, ")<-");
-  if ( q && mp_link(q)==mp_void ) mp_print_exp(mp, q,1);
+  if ( q && mp_link(q)==VOID ) mp_print_exp(mp, q,1);
   else mp_show_token_list(mp, q,NULL,1000,0);
 }
 
@@ -16563,82 +16376,86 @@ remaining argument values of a suffix list and expression list.
 In this case, an extra field |loop_ptr.start_list| is needed to
 make sure that |resume_operation| skips ahead.
 
-\yskip\indent|loop_ptr.type=mp_void| means that the current loop is
+\yskip\indent|loop_ptr.type=VOID| means that the current loop is
 `\&{forever}'.
 
-\yskip\indent|loop_ptr.type=progression_flag| means that
-|loop_ptr.value|, |loop_ptr.step_size|, and |loop_ptr.final_value| 
+\yskip\indent|loop_ptr.type=PROGRESSION_FLAG| means that
+|loop_ptr.value|, |loop_ptr.step_size|, and |loop_ptr.final_value|
 contain the data for an arithmetic progression.
 
-\yskip\indent|loop_ptr.type=p>mp_void| means that |p| points to an edge
+\yskip\indent|loop_ptr.type=p>PROGRESSION_FLAG| means that |p| points to an edge
 header and |loop_ptr.list| points into the graphical object list for
 that edge header.
 
-@d progression_flag (mp_node)(2) /* |NULL+2| */
+@d PROGRESSION_FLAG (mp_node)(2) /* |NULL+2| */
   /* |loop_type| value when |loop_list| points to a progression node */
 
-@<Types...@>=
+@<Types...@>= 
 typedef struct mp_loop_data {
-  mp_node info;  /* iterative text of this loop */
-  mp_node type; /* the special type of this loop, or a pointer into mem */
-  mp_node list;  /* the remaining list elements */
-  mp_node list_start;  /* head fo the list of elements */
+  mp_node info; /* iterative text of this loop */
+  mp_node type; /* the special type of this loop, or a pointer into
+  mem */
+  mp_node list; /* the remaining list elements */
+  mp_node list_start; /* head fo the list of elements */
   scaled value; /* current arithmetic value */
   scaled step_size; /* arithmetic step size */
   scaled final_value; /* end arithmetic value */
-  struct mp_loop_data *link; /* the enclosing loop, if any */
+  struct mp_loop_data *link; /* the enclosing loop, if any */ 
 } mp_loop_data;
 
-@ @<Glob...@>=
+@ @<Glob...@>= 
 mp_loop_data *loop_ptr; /* top of the loop-control-node stack */
 
-@ @<Set init...@>=
+@ @<Set init...@>= 
 mp->loop_ptr=NULL;
 
-@ If the expressions that define an arithmetic progression in
-a \&{for} loop don't have known numeric values, the |bad_for|
-subroutine screams at the user.
+@ If the expressions that define an arithmetic progression in a
+\&{for} loop don't have known numeric values, the |bad_for| subroutine
+screams at the user.
 
 @c 
 static void mp_bad_for (MP mp, const char * s) {
   mp_value new_expr;
   new_expr.data.val = 0;
-  mp_disp_err(mp, NULL,"Improper "); /* show the bad expression above the message */
-@.Improper...replaced by 0@>
+  mp_disp_err(mp, NULL,"Improper "); /* show the bad expression above
+  the message */ @.Improper...replaced by 0@>
   mp_print(mp, s); mp_print(mp, " has been replaced by 0");
   help4("When you say `for x=a step b until c',",
     "the initial value `a' and the step size `b'",
     "and the final value `c' must have known numeric values.",
     "I'm zeroing this one. Proceed, with fingers crossed.");
-  mp_put_get_flush_error(mp, new_expr);
+  mp_put_get_flush_error(mp, new_expr); 
 }
 
 @ Here's what \MP\ does when \&{for}, \&{forsuffixes}, or \&{forever}
 has just been scanned. (This code requires slight familiarity with
-expression-parsing routines that we have not yet discussed; but it seems
-to belong in the present part of the program, even though the original author
-didn't write it until later. The reader may wish to come back to it.)
+expression-parsing routines that we have not yet discussed; but it
+seems to belong in the present part of the program, even though the
+original author didn't write it until later. The reader may wish to
+come back to it.)
 
 @c void mp_begin_iteration (MP mp) {
-  halfword m; /* |start_for| (\&{for}) or |start_forsuffixes| (\&{forsuffixes}) */
+  halfword m; /* |start_for| (\&{for}) or |start_forsuffixes|
+  (\&{forsuffixes}) */
   mp_sym n; /* hash address of the current symbol */
   mp_loop_data *s; /* the new loop-control node */
-  mp_subst_list_item *p = NULL; /* substitution list for |scan_toks| */
-  mp_node q;  /* link manipulation register */
+  mp_subst_list_item *p = NULL; /* substitution list for |scan_toks|
+  */
+  mp_node q; /* link manipulation register */
   m=mp->cur_mod;
-  n=mp->cur_sym; 
+  n=mp->cur_sym;
   s=xmalloc(1, sizeof(mp_loop_data));
   s->type = s->list = s->info = s->list_start = NULL;
   s->link = NULL;
-  if ( m==start_forever ){ 
-    s->type=mp_void; 
-    p=NULL; 
+  if ( m==start_forever ){
+    s->type=VOID;
+    p=NULL;
     mp_get_x_next(mp);
-  } else { 
-    mp_get_symbol(mp); 
+  } else {
+    mp_get_symbol(mp);
     p = xmalloc(1, sizeof(mp_subst_list_item));
     p->link = NULL;
-    p->info = mp->cur_sym; 
+    p->info = mp->cur_sym;
     p->info_mod = mp->cur_sym_mod;
     p->value_data = 0;
     if (m==start_for) {
@@ -16649,56 +16466,48 @@ didn't write it until later. The reader may wish to come back to it.)
     mp_get_x_next(mp);
     if ( mp->cur_cmd==within_token ) {
       @<Set up a picture iteration@>;
-    } else { 
+    } else {
       @<Check for the |"="| or |":="| in a loop header@>;
       @<Scan the values to be used in the loop@>;
     }
   }
   @<Check for the presence of a colon@>;
   @<Scan the loop text and put it on the loop control stack@>;
-  mp_resume_iteration(mp);
-}
+  mp_resume_iteration(mp); }
 
-@ @<Check for the |"="| or |":="| in a loop header@>=
-if ( (mp->cur_cmd!=equals)&&(mp->cur_cmd!=assignment) ) { 
-  mp_missing_err(mp, "=");
-@.Missing `='@>
+@ @<Check for the |"="| or |":="| in a loop header@>= if (
+(mp->cur_cmd!=equals)&&(mp->cur_cmd!=assignment) ) {
+  mp_missing_err(mp, "="); @.Missing `='@>
   help3("The next thing in this loop should have been `=' or `:='.",
     "But don't worry; I'll pretend that an equals sign",
     "was present, and I'll look for the values next.");
-  mp_back_error(mp);
-}
+  mp_back_error(mp); }
 
-@ @<Check for the presence of a colon@>=
-if ( mp->cur_cmd!=colon ) { 
-  mp_missing_err(mp, ":");
-@.Missing `:'@>
+@ @<Check for the presence of a colon@>= if ( mp->cur_cmd!=colon ) {
+  mp_missing_err(mp, ":"); @.Missing `:'@>
   help3("The next thing in this loop should have been a `:'.",
     "So I'll pretend that a colon was present;",
     "everything from here to `endfor' will be iterated.");
-  mp_back_error(mp);
-}
+  mp_back_error(mp); }
 
 @ We append a special |mp->frozen_repeat_loop| token in place of the
-`\&{endfor}' at the end of the loop. This will come through \MP's scanner
-at the proper time to cause the loop to be repeated.
+`\&{endfor}' at the end of the loop. This will come through \MP's
+scanner at the proper time to cause the loop to be repeated.
 
-(If the user tries some shenanigan like `\&{for} $\ldots$ \&{let} \&{endfor}',
-he will be foiled by the |get_symbol| routine, which keeps frozen
-tokens unchanged. Furthermore the |mp->frozen_repeat_loop| is an \&{outer}
-token, so it won't be lost accidentally.)
+(If the user tries some shenanigan like `\&{for} $\ldots$ \&{let}
+\&{endfor}', he will be foiled by the |get_symbol| routine, which
+keeps frozen tokens unchanged. Furthermore the
+|mp->frozen_repeat_loop| is an \&{outer} token, so it won't be lost
+accidentally.)
 
-@ @<Scan the loop text...@>=
-q=mp_get_symbolic_node(mp); 
-set_mp_sym_sym(q, mp_get_frozen_primitive(mp, mp->frozen_repeat_loop));
-mp->scanner_status=loop_defining; 
-mp->warning_info=n;
-s->info=mp_scan_toks(mp, iteration,p,q,0); 
-mp->scanner_status=normal;
-s->link=mp->loop_ptr; mp->loop_ptr=s
+@ @<Scan the loop text...@>= q=mp_get_symbolic_node(mp);
+set_mp_sym_sym(q, mp_get_frozen_primitive(mp,
+mp->frozen_repeat_loop)); mp->scanner_status=loop_defining;
+mp->warning_info=n; s->info=mp_scan_toks(mp, iteration,p,q,0);
+mp->scanner_status=normal; s->link=mp->loop_ptr; mp->loop_ptr=s
 
-@ @<Initialize table...@>=
-mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_tag, 0);
+@ @<Initialize table...@>= mp->frozen_repeat_loop =
+mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_tag, 0);
 
 @ The loop text is inserted into \MP's scanning apparatus by the
 |resume_iteration| routine.
@@ -16706,24 +16515,27 @@ mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_ta
 @c void mp_resume_iteration (MP mp) {
   mp_node p,q; /* link registers */
   p=mp->loop_ptr->type;
-  if ( p==progression_flag ) { 
+  if ( p==PROGRESSION_FLAG ) {
     set_cur_exp_value(mp->loop_ptr->value);
     if ( @<The arithmetic progression has ended@> ) {
       mp_stop_iteration(mp);
       return;
     }
-    mp->cur_exp.type=mp_known; 
+    mp->cur_exp.type=mp_known;
     q=mp_stash_cur_exp(mp); /* make |q| an \&{expr} argument */
-    mp->loop_ptr->value=cur_exp_value()+mp->loop_ptr->step_size; /* set |value(p)| for the next iteration */
+    mp->loop_ptr->value=cur_exp_value()+mp->loop_ptr->step_size; /*
+    set |value(p)| for the next iteration */
     /* detect numeric overflow */
-    if ((mp->loop_ptr->step_size>0) && (mp->loop_ptr->value<cur_exp_value())) {
+    if ((mp->loop_ptr->step_size>0) &&
+    (mp->loop_ptr->value<cur_exp_value())) {
        if (mp->loop_ptr->final_value>0) {
          mp->loop_ptr->value=mp->loop_ptr->final_value;
          mp->loop_ptr->final_value--;
        } else {
          mp->loop_ptr->value=mp->loop_ptr->final_value+1;
        }
-    } else if ((mp->loop_ptr->step_size<0) && (mp->loop_ptr->value>cur_exp_value())) {
+    } else if ((mp->loop_ptr->step_size<0) &&
+    (mp->loop_ptr->value>cur_exp_value())) {
        if (mp->loop_ptr->final_value<0) {
          mp->loop_ptr->value=mp->loop_ptr->final_value;
          mp->loop_ptr->final_value ++;
@@ -16732,23 +16544,24 @@ mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_ta
        }
     }
     
-  } else if ( p==NULL ) { 
+  } else if ( p==NULL ) {
     p=mp->loop_ptr->list;
     if (p != NULL && p == mp->loop_ptr->list_start) {
-       q = p; 
+       q = p;
        p = mp_link(p);
        mp_free_symbolic_node(mp,q);
-       mp->loop_ptr->list=p; 
+       mp->loop_ptr->list=p;
     }
     if ( p==NULL ) {
       mp_stop_iteration(mp);
       return;
     }
-    mp->loop_ptr->list=mp_link(p); 
+    mp->loop_ptr->list=mp_link(p);
     q=mp_sym_node(p);
     mp_free_symbolic_node(mp,p);
-  } else if ( p==mp_void ) { 
-    mp_begin_token_list(mp, mp->loop_ptr->info, (quarterword)forever_text); 
+  } else if ( p==VOID ) {
+    mp_begin_token_list(mp, mp->loop_ptr->info,
+    (quarterword)forever_text);
     return;
   } else {
     @<Make |q| a capsule containing the next picture component from
@@ -16759,93 +16572,83 @@ mp->frozen_repeat_loop = mp_frozen_primitive(mp, " ENDFOR", repeat_loop+outer_ta
   if ( internal_value(mp_tracing_commands)>unity ) {
      @<Trace the start of a loop@>;
   }
-  return;
-NOT_FOUND:
-  mp_stop_iteration(mp);
-}
+  return; NOT_FOUND:
+  mp_stop_iteration(mp); }
 
 @ @<The arithmetic progression has ended@>=
 ((mp->loop_ptr->step_size>0)&&(cur_exp_value()>mp->loop_ptr->final_value))||
  ((mp->loop_ptr->step_size<0)&&(cur_exp_value()<mp->loop_ptr->final_value))
 
-@ @<Trace the start of a loop@>=
-{ 
-  mp_begin_diagnostic(mp); 
-  mp_print_nl(mp, "{loop value=");
-@.loop value=n@>
-  if ( (q!=NULL)&&(mp_link(q)==mp_void) ) 
+@ @<Trace the start of a loop@>= {
+  mp_begin_diagnostic(mp);
+  mp_print_nl(mp, "{loop value="); @.loop value=n@>
+  if ( (q!=NULL)&&(mp_link(q)==VOID) )
     mp_print_exp(mp, q,1);
-  else 
+  else
     mp_show_token_list(mp, q,NULL,50,0);
-  mp_print_char(mp, xord('}')); 
-  mp_end_diagnostic(mp, false);
-}
+  mp_print_char(mp, xord('}'));
+  mp_end_diagnostic(mp, false); }
 
-@ @<Make |q| a capsule containing the next picture component from...@>=
-{ q=mp->loop_ptr->list;
-  if ( q==NULL ) 
+@ @<Make |q| a capsule containing the next picture component
+from...@>= { q=mp->loop_ptr->list;
+  if ( q==NULL )
     goto NOT_FOUND;
   skip_component(q) goto NOT_FOUND;
   set_cur_exp_node(mp_copy_objects(mp, mp->loop_ptr->list,q));
   mp_init_bbox(mp, cur_exp_node());
   mp->cur_exp.type=mp_picture_type;
   mp->loop_ptr->list=q;
-  q=mp_stash_cur_exp(mp);
-}
+  q=mp_stash_cur_exp(mp); }
 
-@ A level of loop control disappears when |resume_iteration| has decided
-not to resume, or when an \&{exitif} construction has removed the loop text
-from the input stack.
+@ A level of loop control disappears when |resume_iteration| has
+decided not to resume, or when an \&{exitif} construction has removed
+the loop text from the input stack.
 
 @c void mp_stop_iteration (MP mp) {
   mp_node p,q; /* the usual */
   mp_loop_data *tmp; /* for free() */
   p=mp->loop_ptr->type;
-  if ( p==progression_flag )  {
+  if ( p==PROGRESSION_FLAG ) {
     ;
-  } else if ( p==NULL ){ 
+  } else if ( p==NULL ){
     q=mp->loop_ptr->list;
     while ( q!=NULL ) {
       p=mp_sym_node(q);
       if ( p!=NULL ) {
-        if ( mp_link(p)==mp_void ) { /* it's an \&{expr} parameter */
-          mp_recycle_value(mp, p); 
+        if ( mp_link(p)==VOID ) { /* it's an \&{expr} parameter */
+          mp_recycle_value(mp, p);
           mp_free_node(mp, p,value_node_size);
         } else {
-          mp_flush_token_list(mp, p); /* it's a \&{suffix} or \&{text} parameter */
+          mp_flush_token_list(mp, p); /* it's a \&{suffix} or \&{text}
+          parameter */
         }
       }
-      p=q; 
-      q=mp_link(q); 
+      p=q;
+      q=mp_link(q);
       mp_free_symbolic_node(mp,p);
     }
-  } else if ( p>progression_flag ) {
+  } else if ( p>PROGRESSION_FLAG ) {
     delete_edge_ref(p);
   }
-  tmp=mp->loop_ptr; 
-  mp->loop_ptr=tmp->link; 
+  tmp=mp->loop_ptr;
+  mp->loop_ptr=tmp->link;
   mp_flush_token_list(mp, tmp->info);
-  xfree(tmp);
-}
+  xfree(tmp); }
 
-@ Now that we know all about loop control, we can finish up
-the missing portion of |begin_iteration| and we'll be done.
+@ Now that we know all about loop control, we can finish up the
+missing portion of |begin_iteration| and we'll be done.
 
-The following code is performed after the `\.=' has been scanned in
-a \&{for} construction (if |m=start_for|) or a \&{forsuffixes} construction
-(if |m=start_forsuffixes|).
+The following code is performed after the `\.=' has been scanned in a
+\&{for} construction (if |m=start_for|) or a \&{forsuffixes}
+construction (if |m=start_forsuffixes|).
 
-@<Scan the values to be used in the loop@>=
-s->type = NULL; 
-s->list = mp_get_symbolic_node(mp);
-s->list_start = s->list;
-q = s->list;
-do {  
+@<Scan the values to be used in the loop@>= s->type = NULL; s->list =
+mp_get_symbolic_node(mp); s->list_start = s->list; q = s->list; do {
   mp_get_x_next(mp);
   if ( m!=start_for ) {
     mp_scan_suffix(mp);
-  } else { 
-    if ( mp->cur_cmd>=colon ) if ( mp->cur_cmd<=comma ) 
+  } else {
+    if ( mp->cur_cmd>=colon ) if ( mp->cur_cmd<=comma )
 	  goto CONTINUE;
     mp_scan_expression(mp);
     if ( mp->cur_cmd==step_token ) if ( q==s->list ) {
@@ -16853,38 +16656,35 @@ do {
     }
     set_cur_exp_node(mp_stash_cur_exp(mp));
   }
-  mp_link(q)=mp_get_symbolic_node(mp); 
-  q=mp_link(q); 
+  mp_link(q)=mp_get_symbolic_node(mp);
+  q=mp_link(q);
   set_mp_sym_node(q, mp->cur_exp.data.node);
   if (m==start_for)
      mp_name_type(q) = mp_expr_sym;
    else if (m==start_forsuffixes)
      mp_name_type(q) = mp_suffix_sym;
-  mp->cur_exp.type=mp_vacuous;
-CONTINUE:
-  ;
-} while (mp->cur_cmd==comma)
+  mp->cur_exp.type=mp_vacuous; CONTINUE:
+  ; } while (mp->cur_cmd==comma)
 
-@ @<Prepare for step-until construction and |break|@>=
-{ 
+@ @<Prepare for step-until construction and |break|@>= {
   if ( mp->cur_exp.type!=mp_known ) mp_bad_for(mp, "initial value");
   s->value=cur_exp_value();
-  mp_get_x_next(mp); 
+  mp_get_x_next(mp);
   mp_scan_expression(mp);
   if ( mp->cur_exp.type!=mp_known ) mp_bad_for(mp, "step size");
   s->step_size=cur_exp_value();
-  if ( mp->cur_cmd!=until_token ) { 
-    mp_missing_err(mp, "until");
-@.Missing `until'@>
+  if ( mp->cur_cmd!=until_token ) {
+    mp_missing_err(mp, "until"); @.Missing `until'@>
     help2("I assume you meant to say `until' after `step'.",
           "So I'll look for the final value and colon next.");
     mp_back_error(mp);
   }
-  mp_get_x_next(mp); 
+  mp_get_x_next(mp);
   mp_scan_expression(mp);
   if ( mp->cur_exp.type!=mp_known ) mp_bad_for(mp, "final value");
-  s->final_value=cur_exp_value(); 
-  s->type=progression_flag; 
+  s->final_value=cur_exp_value();
+  s->type=PROGRESSION_FLAG
+; 
   break;
 }
 
@@ -17919,7 +17719,7 @@ capsule. It is not used when |cur_type=mp_token_list|.
 After the operation, |cur_type=mp_vacuous|; hence there is no need to
 copy path lists or to update reference counts, etc.
 
-The special link |mp_void| is put on the capsule returned by
+The special link |VOID| is put on the capsule returned by
 |stash_cur_exp|, because this procedure is used to store macro parameters
 that must be easily distinguishable from token lists.
 
@@ -17938,7 +17738,7 @@ static mp_node mp_stash_cur_exp (MP mp) {
   case mp_cmykcolor_type:
     p=cur_exp_node();
     break;
-  /* case mp_path_type: case mp_pen_type: case mp_string_type: */
+  /* |case mp_path_type: case mp_pen_type: case mp_string_type:| */
   default: 
     p=mp_get_value_node(mp); 
     mp_name_type(p)=mp_capsule;
@@ -17950,7 +17750,7 @@ static mp_node mp_stash_cur_exp (MP mp) {
     break;
   }
   mp->cur_exp.type=mp_vacuous;
-  mp_link(p)=mp_void; 
+  mp_link(p)=VOID; 
   return p;
 }
 
@@ -18437,7 +18237,7 @@ proto-dependent cases.
     set_mp_link(s,dep_list(q));
     while (1) { 
       r=(mp_value_node)mp_link(s);
-      /* printf ("r=%p, depinfo=%p, link=%p\n", r, dep_info(r), mp_link(r)); */
+      /* |printf ("r=%p, depinfo=%p, link=%p\n", r, dep_info(r), mp_link(r));| */
       if ( dep_info(r)==NULL ) break;
       if ( dep_info(r)!=p ) { 
         s=r;
@@ -18499,7 +18299,9 @@ mp_value_node max_link[mp_proto_dependent+1]; /* other occurrences of |p| */
   }
   /* todo: free-ing |s| here caused corruption, but not freeing creates a (small) leak.
      the corruption problem probably starts elsewhere, |s| is supposed to be freeable here */
-  /* mp_flush_node_list(mp, (mp_node)s); */
+#if 0
+  mp_flush_node_list(mp, (mp_node)s);
+#endif
   if ( mp->fix_needed ) 
     mp_fix_dependencies(mp);
   check_arith;
@@ -18516,7 +18318,7 @@ list.
 @<Determine the dep...@>=
 s=mp->max_ptr[t];
 pp=(mp_node)dep_info(s); 
-/* printf ("s=%p, pp=%p, r=%p\n",s, pp, dep_list((mp_value_node)pp)); */
+/* |printf ("s=%p, pp=%p, r=%p\n",s, pp, dep_list((mp_value_node)pp));| */
 v=dep_value(s);
 if ( t==mp_dependent ) 
   set_dep_value(s,-fraction_one); 
@@ -20824,7 +20626,7 @@ case black_part:
   else mp_bad_unary(mp, c);
   break;
 case grey_part: 
-  if ( mp->cur_exp.type==mp_known ) ; /* cur_exp_value()=cur_exp_value() */
+  if ( mp->cur_exp.type==mp_known ) ; /* |cur_exp_value()=cur_exp_value()| */
   else if ( mp->cur_exp.type==mp_picture_type ) {
     if pict_color_type(mp_grey_model) mp_take_pict_part(mp, c);
     else mp_bad_color_part(mp, c);
@@ -21931,7 +21733,7 @@ str_number eof_line;
 
 @ @<Set init...@>=
 mp->eof_line=mp_rtsl(mp,"\0",1);
-mp->eof_line->refs = max_str_ref;
+mp->eof_line->refs = MAX_STR_REF;
 
 @ Finally, we have the operations that combine a capsule~|p|
 with the current expression.
@@ -22033,7 +21835,7 @@ case mp_cmykcolor_type:
 case mp_pair_type: 
   old_p=mp_tarnished(mp, p);
   break;
-case mp_independent: old_p=mp_void; break;
+case mp_independent: old_p=VOID; break;
 default: old_p=NULL; break;
 }
 if ( old_p!=NULL ) {
@@ -22049,7 +21851,7 @@ case mp_cmykcolor_type:
 case mp_pair_type: 
   old_exp=mp_tarnished(mp, cur_exp_node());
   break;
-case mp_independent:old_exp=mp_void; break;
+case mp_independent:old_exp=VOID; break;
 default: old_exp=NULL; break;
 }
 if ( old_exp!=NULL ) {
@@ -22065,41 +21867,41 @@ static mp_node mp_tarnished (MP mp,mp_node p) {
   switch (mp_type(p)) {
   case mp_pair_node_type:
     r = x_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     r = y_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     break;
   case mp_color_node_type:
     r = red_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     r = green_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     r = blue_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     break;
   case mp_cmykcolor_node_type:
     r = cyan_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     r = magenta_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     r = yellow_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     r = black_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     break;
   case mp_transform_node_type:
     r = tx_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     r = ty_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     r = xx_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     r = xy_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     r = yx_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     r = yy_part_loc(q);
-    if ( mp_type(r)==mp_independent ) return mp_void; 
+    if ( mp_type(r)==mp_independent ) return VOID; 
     break;
   default:  /* there are no other valid cases, but please the compiler */
     break;
@@ -22550,7 +22352,7 @@ static void mp_frac_mult (MP mp,scaled n, scaled d) {
     old_exp=mp_tarnished(mp, cur_exp_node());
     break;
   case mp_independent: 
-    old_exp=mp_void; 
+    old_exp=VOID; 
     break;
   default: 
     old_exp=NULL; 
@@ -22652,7 +22454,9 @@ static void mp_hard_times (MP mp,mp_node p) {
     mp_new_dep(mp, r, mp_type(pp), mp_copy_dep_list(mp, (mp_value_node)dep_list(pp)));
     mp_dep_mult(mp, (mp_value_node)r,v,true);
   }
-  /* mp_free_dep_node(mp, pp); */ /* todo why not do this? */
+#if 0
+  mp_free_dep_node(mp, pp); /* todo why not do this? */
+#endif
 }
 
 @ @<Additional cases of binary operators@>=
@@ -23962,7 +23766,7 @@ if ( mp->cur_exp.type==mp_known || mp->cur_exp.type==mp_string_type )  {
       add_str_ref(cur_exp_str());
       internal_string(mp_sym_info(lhs))=cur_exp_str();
     }
-  } else { /* mp_known */
+  } else { /* |mp_known| */
     if (internal_type(mp_sym_info(lhs))!=mp->cur_exp.type) {
        exp_err("Internal quantity `");
 @.Internal quantity...@>
@@ -25614,7 +25418,7 @@ static void mp_scan_with_list (MP mp,mp_node p) ;
   mp_value new_expr;
   mp_node cp,pp,dp,ap,bp;
     /* objects being updated; |void| initially; |NULL| to suppress update */
-  cp=mp_void; pp=mp_void; dp=mp_void; ap=mp_void; bp=mp_void;
+  cp=VOID; pp=VOID; dp=VOID; ap=VOID; bp=VOID;
   k=0;
   new_expr.data.val = 0;
   while ( mp->cur_cmd==with_option ){ 
@@ -25633,31 +25437,31 @@ static void mp_scan_with_list (MP mp,mp_node p) ;
      ((t==mp_picture_type)&&(mp->cur_exp.type!=t)) ) {
       @<Complain about improper type@>;
     } else if ( t==mp_uninitialized_model ) {
-      if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
+      if ( cp==VOID ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=NULL )
         @<Transfer a color from the current expression to object~|cp|@>;
       mp_flush_cur_exp(mp, new_expr);
     } else if ( t==mp_rgb_model ) {
-      if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
+      if ( cp==VOID ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=NULL )
         @<Transfer a rgbcolor from the current expression to object~|cp|@>;
       mp_flush_cur_exp(mp, new_expr);
     } else if ( t==mp_cmyk_model ) {
-      if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
+      if ( cp==VOID ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=NULL )
         @<Transfer a cmykcolor from the current expression to object~|cp|@>;
       mp_flush_cur_exp(mp, new_expr);
     } else if ( t==mp_grey_model ) {
-      if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
+      if ( cp==VOID ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=NULL )
         @<Transfer a greyscale from the current expression to object~|cp|@>;
       mp_flush_cur_exp(mp, new_expr);
     } else if ( t==mp_no_model ) {
-      if ( cp==mp_void ) @<Make |cp| a colored object in object list~|p|@>;
+      if ( cp==VOID ) @<Make |cp| a colored object in object list~|p|@>;
       if ( cp!=NULL )
         @<Transfer a noncolor from the current expression to object~|cp|@>;
     } else if ( t==mp_pen_type ) {
-      if ( pp==mp_void ) @<Make |pp| an object in list~|p| that needs a pen@>;
+      if ( pp==VOID ) @<Make |pp| an object in list~|p| that needs a pen@>;
       if ( pp!=NULL ) {
         switch (mp_type(pp)) {
         case mp_fill_node_type:
@@ -25677,7 +25481,7 @@ static void mp_scan_with_list (MP mp,mp_node p) ;
         mp->cur_exp.type=mp_vacuous;
       }
     } else if ( t==with_mp_pre_script ) {
-      if ( ap==mp_void )
+      if ( ap==VOID )
         ap=p;
       while ( (ap!=NULL)&&(! has_color(ap)) )
          ap=mp_link(ap);
@@ -25699,7 +25503,7 @@ static void mp_scan_with_list (MP mp,mp_node p) ;
         mp->cur_exp.type=mp_vacuous;
       }
     } else if ( t==with_mp_post_script ) {
-      if ( bp==mp_void )
+      if ( bp==VOID )
         k=p; 
       bp=k;
       while ( mp_link(k)!=NULL ) {
@@ -25724,7 +25528,7 @@ static void mp_scan_with_list (MP mp,mp_node p) ;
          mp->cur_exp.type=mp_vacuous;
        }
     } else { 
-      if ( dp==mp_void ) {
+      if ( dp==VOID ) {
         @<Make |dp| a stroked node in list~|p|@>;
       }
       if ( dp!=NULL ) {
@@ -25870,13 +25674,13 @@ mp_color_model(cp)=mp_uninitialized_model;
 }
 
 @ @<Copy the information from objects |cp|, |pp|, and |dp| into...@>=
-if ( cp>mp_void ) {
+if ( cp>VOID ) {
   @<Copy |cp|'s color into the colored objects linked to~|cp|@>;
 }
-if ( pp>mp_void ) {
+if ( pp>VOID ) {
   @<Copy |mp_pen_p(pp)| into stroked and filled nodes linked to |pp|@>;
 }
-if ( dp>mp_void ) {
+if ( dp>VOID ) {
   @<Make stroked nodes linked to |dp| refer to |mp_dash_p(dp)|@>;
 }
 
@@ -26380,7 +26184,7 @@ static void mp_do_write (MP mp) ;
     else {
       @<Write |t| to the file named by |cur_exp|@>;
     }
-    /* delete_str_ref(t); */
+    /* |delete_str_ref(t);| */ /* todo: is this right? */
   }
   new_expr.data.val = 0;
   mp_flush_cur_exp(mp, new_expr);
@@ -27228,7 +27032,7 @@ static integer mp_min_cover (MP mp,scaled d) {
   mp_node p; /* runs through the current list */
   scaled l; /* the least element covered by the current interval */
   integer m; /* lower bound on the size of the minimum cover */
-  m=0; p=mp_link(mp->temp_head); mp->perturbation=el_gordo;
+  m=0; p=mp_link(mp->temp_head); mp->perturbation=EL_GORDO;
   while ( p!=mp->inf_val ){ 
     incr(m); l=value(p);
     do {  p=mp_link(p); } while (value(p)<=l+d);
@@ -27637,8 +27441,8 @@ for (k=1;k<=mp->np;k++) {
       mp_tfm_four(mp, mp->param[1]*16);
     } else  { 
       incr(mp->tfm_changed);
-      if ( mp->param[1]>0 ) mp_tfm_four(mp, el_gordo);
-      else mp_tfm_four(mp, -el_gordo);
+      if ( mp->param[1]>0 ) mp_tfm_four(mp, EL_GORDO);
+      else mp_tfm_four(mp, -EL_GORDO);
     }
   } else {
     mp_tfm_four(mp, mp_dimen_out(mp, mp->param[k]));
@@ -27678,7 +27482,7 @@ void * tfm_infile;
 |font_info|.  This array is allocated sequentially and each font is stored
 as a series of |char_info| words followed by the width, height, and depth
 tables.  Since |font_name| entries are permanent, their |str_ref| values are
-set to |max_str_ref|.
+set to |MAX_STR_REF|.
 
 @<Types...@>=
 typedef unsigned int font_number; /* |0..font_max| */
@@ -27904,8 +27708,8 @@ void mp_set_text_box (MP mp, mp_node p) {
   four_quarters cc; /* the |char_info| for the current character */
   scaled h,d; /* dimensions of the current character */
   width_val(p)=0;
-  height_val(p)=-el_gordo;
-  depth_val(p)=-el_gordo;
+  height_val(p)=-EL_GORDO;
+  depth_val(p)=-EL_GORDO;
   f=(font_number)mp_font_n(p);
   bc=mp->font_bc[f];
   ec=mp->font_ec[f];
