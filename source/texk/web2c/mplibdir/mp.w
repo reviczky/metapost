@@ -412,7 +412,6 @@ end up the same, the shared code may be gathered together at
 @d negate(A) (A)=-(A) /* change the sign of a variable */
 @d double(A) (A)=(A)+(A)
 @d odd(A)   ((A)%2==1)
-@d do_nothing   /* empty statement */
 
 @* \[2] The character set.
 In order to make \MP\ readily portable to a wide variety of
@@ -885,7 +884,7 @@ these operations can be specified:
 
 @(mpmp.h@>=
 #define update_terminal  (mp->flush_file)(mp,mp->term_out) /* empty the terminal output buffer */
-#define clear_terminal   do_nothing /* clear the terminal input buffer */
+#define clear_terminal    /* clear the terminal input buffer */
 #define wake_up_terminal (mp->flush_file)(mp,mp->term_out) 
                     /* cancel the user's cancellation of output */
 
@@ -3503,8 +3502,6 @@ from quarterwords. These are legacy macros.
 @ The reader should study the following definitions closely:
 @^system dependencies@>
 
-@d sc cint /* |scaled| data is equivalent to |integer| */
-
 @<Types...@>=
 typedef struct mp_value_node_data *mp_value_node;
 typedef struct mp_node_data *mp_node;
@@ -3525,7 +3522,7 @@ typedef struct {
   } u;
 } four_quarters;
 typedef union {
-  integer cint;
+  integer sc;
   four_quarters qqqq;
 } fmemory_word;
 #define	b0 u.B0
@@ -13880,7 +13877,7 @@ mp->param_stack = xmalloc((mp->param_size+1),sizeof(mp_node));
 @ @c
 static void mp_check_param_size (MP mp, int k) {
   while ( k>=mp->param_size ) {    
-     XREALLOC(mp->param_stack, (k+k/4+1), mp_node);
+     XREALLOC(mp->param_stack, (k+k/4), mp_node);
      mp->param_size = k+k/4;
   }
 }
@@ -17524,7 +17521,7 @@ when an `\.{input}' command is being processed.
       if ( mp_try_extension(mp, ".mp") ) break;
       else if ( mp_try_extension(mp, "") ) break;
       else if ( mp_try_extension(mp, ".mf") ) break;
-      /* |else do_nothing; | */
+
     } else if ( mp_try_extension(mp, mp->cur_ext) ) {
       break;
     }
@@ -26157,8 +26154,6 @@ if ( lhe==NULL ) {
 } else if ( add_type==also_code ) {
   if ( e!=NULL ) {
     @<Merge |e| into |lhe| and delete |e|@>;
-  } else { 
-    do_nothing;
   }
 } else if ( p!=NULL ) {
   mp_link(obj_tail(lhe))=p;
