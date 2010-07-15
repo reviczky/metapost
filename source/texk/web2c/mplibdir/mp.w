@@ -1285,7 +1285,7 @@ str_number mp_make_string (MP mp) { /* current string enters the pool */
     return str;
 }
 
-@ Here is a similar routine, but it compares two strings in the string pool,
+@ Here is a routine that compares two strings in the string pool,
 and it does not assume that they have the same length. If the first string
 is lexicographically greater than, less than, or equal to the second,
 the result is respectively positive, negative, or zero.
@@ -3770,11 +3770,6 @@ control of what error messages the user receives.
 
 @d mp_void (mp_node)(1) /* |NULL+1|, a |NULL| pointer different from |NULL| */
 
-@<Types...@>=
-typedef halfword pointer; /* a flag or a location in |mem| or |eqtb| */
-
-@ New-style dynamic memory allocation.
-
 @d mp_link(A)      (A)->link /* the |link| field of a node */
 @d set_mp_link(A,B) do {
    mp_node d = (B);
@@ -5908,7 +5903,14 @@ static mp_value_node mp_get_attr_node (MP mp) {
   return p;
 }
 
-@ @<Initialize table...@>=
+@ Setting the |hashloc| field of |end_attr| to a value greater than
+any legal hash address is done by assigning $-1$ typecasted to
+|mp_sym|, hopefully resulting in all bits being set. On systems that
+support negative pointer values or where typecasting $-1$ does not
+result in all bits in a pointer being set, something else needs to be done.  
+@^system dependencies@>
+
+@<Initialize table...@>=
 mp->end_attr = (mp_node)mp_get_attr_node(mp);
 set_hashloc(mp->end_attr,-1);
 parent((mp_value_node)mp->end_attr)=NULL;
@@ -5917,12 +5919,9 @@ parent((mp_value_node)mp->end_attr)=NULL;
 mp_free_attr_node(mp, mp->end_attr);
 
 @
-
 @d collective_subscript 0 /* code for the attribute `\.{[]}' */
-
 @d subscript(A) ((mp_value_node)(A))->v.subscript_ /* subscript of this variable */
 
-@
 @c 
 static mp_value_node mp_get_subscr_node (MP mp) {
   mp_value_node p = (mp_value_node)mp_get_value_node(mp);
@@ -6893,7 +6892,7 @@ is at least one boundary item on the save stack.
 static void mp_unsave (MP mp) {
   mp_save_data *p; /* saved item */
   while ( mp->save_ptr->info != 0 ) {
-    pointer q = mp->save_ptr->info;
+    halfword q = mp->save_ptr->info;
     if ( mp->save_ptr->type == mp_internal_sym ) {
       if ( internal_value(mp_tracing_restores)>0 ) {
         mp_begin_diagnostic(mp);
@@ -19036,7 +19035,7 @@ of the internal quantity, with |name_type| equal to |mp_internal_sym|.
 
 @<Scan an internal...@>=
 { 
-  pointer qq=mp->cur_mod;
+  halfword qq = mp->cur_mod;
   if ( my_var_flag==assignment ) {
     mp_get_x_next(mp);
     if ( mp->cur_cmd==assignment ) {
