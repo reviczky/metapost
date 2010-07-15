@@ -5138,7 +5138,7 @@ static void mp_primitive (MP mp, const char *ss, halfword c, halfword o) {
 
 @c
 static mp_sym mp_frozen_primitive (MP mp, const char *ss, halfword c, halfword o) {
-    mp_sym str = mp_frozen_id_lookup(mp, ss, strlen(ss), true);
+    mp_sym str = mp_frozen_id_lookup(mp, ss, (integer)strlen(ss), true);
     str->type = c;
     str->v.data.val = o;
     return str;
@@ -17113,9 +17113,8 @@ allows both lowercase and uppercase letters in the file name.
 @ @c
 void mp_pack_file_name (MP mp, const char *n, const char *a, const char *e) {
   integer k; /* number of positions filled in |name_of_file| */
-  ASCII_code c; /* character being packed */
   const char *j; /* a character  index */
-  int slen;
+  size_t slen;
   k=0;
   assert(n!=NULL);
   xfree(mp->name_of_file);
