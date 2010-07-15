@@ -213,7 +213,7 @@ if ( d>=0200 ) d=d-0400;
 tfget; d=d*0400+tfbyte;
 tfget; d=d*0400+tfbyte;
 tfget; d=d*0400+tfbyte;
-mp->font_info[i].cint=mp_take_fraction(mp, d*16,mp->font_dsize[n]);
+mp->font_info[i].sc=mp_take_fraction(mp, d*16,mp->font_dsize[n]);
 i++;
 }
 
