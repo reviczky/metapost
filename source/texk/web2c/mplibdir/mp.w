@@ -3282,26 +3282,6 @@ static scaled mp_norm_rand (MP mp) {
 }
 
 @* Packed data.
-In order to make efficient use of storage space, \MP\ bases its major data
-structures on a |memory_word|, which contains either a (signed) integer,
-possibly scaled, or a small number of fields that are one half or one
-quarter of the size used for storing integers.
-
-If |x| is a variable of type |memory_word|, it contains up to four
-fields that can be referred to as follows:
-$$\vbox{\halign{\hfil#&#\hfil&#\hfil\cr
-|x|&.|int|&(an |integer|)\cr
-|x|&.|sc|\qquad&(a |scaled| integer)\cr
-|x.hh.lh|, |x.hh|&.|rh|&(two halfword fields)\cr
-|x.hh.b0|, |x.hh.b1|, |x.hh|&.|rh|&(two quarterword fields, one halfword
-  field)\cr
-|x.qqqq.b0|, |x.qqqq.b1|, |x.qqqq|&.|b2|, |x.qqqq.b3|\hskip-100pt
-  &\qquad\qquad\qquad(four quarterword fields)\cr}}$$
-This is somewhat cumbersome to write, and not very readable either, but
-macros will be used to make the notation shorter and more transparent.
-The code below gives a formal definition of |memory_word| and
-its subsidiary types, using packed variant records. \MP\ makes no
-assumptions about the relative positions of the fields within a word.
 
 @d max_quarterword 0x3FFF /* largest allowable value in a |quarterword| */
 @d max_halfword 0xFFFFFFF /* largest allowable value in a |halfword| */
@@ -3327,8 +3307,8 @@ typedef struct {
     str_number str;
     mp_sym sym;
     mp_node node;
-    mp_knot P;
-} memory_word;
+    mp_knot p;
+} mp_value_data;
 typedef struct {
   quarterword b0,b1,b2,b3;
 } four_quarters;
@@ -4744,13 +4724,6 @@ piece of information that qualifies the |eq_type|).
 
 @ @<Types...@>=
 typedef struct {
-  halfword val;
-  mp_node node;
-  str_number str;
-  mp_sym sym;
-  mp_knot p;
-} mp_value_data;
-typedef struct {
   mp_variable_type type;
   mp_value_data data;
 } mp_value;
@@ -5174,7 +5147,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    value(A)=0;
  } while (0) 
 
-@d knot_value(A)  ((mp_token_node)(A))->value_.P /* the value stored in a large token node */
+@d knot_value(A)  ((mp_token_node)(A))->value_.p /* the value stored in a large token node */
 
 @d set_knot_value(A,B) do { /* store the value in a large token node */
    knot_value(A)=(B);
@@ -5187,7 +5160,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 @(mpmp.h@>=
 typedef struct mp_token_node_data {
   NODE_BODY;
-  memory_word value_;
+  mp_value_data value_;
 } mp_token_node_data;
 typedef struct mp_token_node_data* mp_token_node;
 
@@ -5571,7 +5544,7 @@ structure is not worth the minimal extra code clarification.
 @(mpmp.h@>=
 typedef struct mp_value_node_data {
   NODE_BODY;
-  memory_word value_;
+  mp_value_data value_;
   union {
     scaled subscript_;
     mp_sym hashloc_;
