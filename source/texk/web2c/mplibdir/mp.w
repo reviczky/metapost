@@ -1180,10 +1180,11 @@ in the |cur_string|.
 } while (0)
 
 
-@ At the very start of the metapost run and each time after |make_string| has stored a new string 
-in the avl tree, the |cur_string| variable has to be prepared so that it will be ready to start 
-creating a new string. The initial size is fairly arbitrary, but setting it a little higher than
-expected helps prevent |reallocs|
+@ At the very start of the metapost run and each time after
+|make_string| has stored a new string in the avl tree, the
+|cur_string| variable has to be prepared so that it will be ready to
+start creating a new string. The initial size is fairly arbitrary, but
+setting it a little higher than expected helps prevent |reallocs|
 
 @<Declarations@>=
 void reset_cur_string(MP mp);
@@ -1234,8 +1235,8 @@ void mp_flush_string (MP mp,str_number s) {
   }
 }
 
-@ C literals cannot be simply added, their reference count has to be set such 
-that they can not be flushed.
+@ Some C literals that are used as values cannot be simply added,
+their reference count has to be set such that they can not be flushed.
 
 @c
 str_number mp_intern (MP mp, const char *s) {
@@ -3334,24 +3335,31 @@ extern @= /*@@only@@*/ @> char *mp_xstrdup(MP mp, const char *s);
 extern @= /*@@only@@*/ @> char *mp_xstrldup(MP mp, const char *s, size_t l);
 extern void mp_do_snprintf(char *str, int size, const char *fmt, ...);
 
+@ Some care has to be taken while copying strings 
+
+@c
+char *mp_strldup(const char *p, size_t l) {
+  char *r, *s;
+  if (p==NULL) return NULL;
+  r = malloc ((size_t)(l*sizeof(char)+1));
+  if (r==NULL)
+    return NULL;
+  s = memcpy (r,p,(size_t)(l));
+  *(s+l) = '\0';
+  return s;
+  
+}
+char *mp_strdup(const char *p) {
+  if (p==NULL) return NULL;
+  return mp_strldup(p, strlen(p));
+}
+
 @ The |max_size_test| guards against overflow, on the assumption that
 |size_t| is at least 31bits wide.
 
 @d max_size_test 0x7FFFFFFF
 
 @c
-char *mp_strldup(const char *p, size_t l) {
-  char *r;
-  if (p==NULL) return NULL;
-  r = malloc ((size_t)(l*sizeof(char)+1));
-  if (r==NULL)
-    return NULL;
-  return memcpy (r,p,(size_t)(l+1));
-}
-char *mp_strdup(const char *p) {
-  if (p==NULL) return NULL;
-  return mp_strldup(p, strlen(p));
-}
 void mp_xfree (void *x) {
   if (x!=NULL) free(x);
 }
@@ -4696,31 +4704,20 @@ for (k=127;k<=255;k++)
   mp->char_class[k]=invalid_class;
 
 @* The hash table.
-Symbolic tokens are stored and retrieved by means of a fairly standard hash
-table algorithm called the method of ``coalescing lists'' (cf.\ Algorithm 6.4C
-in {\sl The Art of Computer Programming\/}). Once a symbolic token enters the
-table, it is never removed.
 
-The actual sequence of characters forming a symbolic token is
-stored in the |str_pool| array together with all the other strings. An
-auxiliary array |hash| consists of items with two halfword fields per
-word. The first of these, called |mp_next(p)|, points to the next identifier
-belonging to the same coalesced list as the identifier corresponding to~|p|;
-and the other, called |text(p)|, points to the |str_start| entry for
-|p|'s identifier. If position~|p| of the hash table is empty, we have
-|text(p)=0|; if position |p| is either empty or the end of a coalesced
-hash list, we have |mp_next(p)=0|.
+Symbolic tokens are stored in and retrieved from an AVL tree. This
+is not as fast as an actual hash table, but it is easily extensible.
 
-There's a parallel array called |eqtb| that contains the current equivalent
-values of each symbolic token. The entries of this array consist of
-two halfwords called |eq_type| (a command code) and |equiv| (a secondary
-piece of information that qualifies the |eq_type|).
+A symbolic token contains a pointer to the |str_number| that 
+contains the string representation of the symbol, a |halfword| 
+that holds the current command value of the token, and an 
+|mp_value| for the associated equivalent. 
 
+@d text(A)       (A)->text /* string number for symbolic token name */
 @d eq_type(A)    (A)->type /* the current ``meaning'' of a symbolic token */
 @d equiv(A)      (A)->v.data.val /* parametric part of a token's meaning */
 @d equiv_node(A) (A)->v.data.node /* parametric part of a token's meaning */
 @d equiv_sym(A)  (A)->v.data.sym /* parametric part of a token's meaning */
-@d text(A)       (A)->text /* string number for symbolic token name */
 
 @ @<Types...@>=
 typedef struct {
@@ -4762,7 +4759,10 @@ static void *copy_symbols_entry (const void *p) ;
 static void * delete_symbols_entry (void *p); 
 
 
-@ @c 
+@ The avl comparison function is a straightword version of |strcmp|,
+except that checks for the string lengths first.
+
+@c 
 static int comp_symbols_entry (void *p, const void *pa, const void *pb) {
     (void)p;
     const mp_symbol_entry *a = (const mp_symbol_entry *) pa;
@@ -4770,14 +4770,13 @@ static int comp_symbols_entry (void *p, const void *pa, const void *pb) {
     if (a->text->len != b->text->len) {
         return (a->text->len > b->text->len ? 1 : -1 );
     }
-    if (a->text->str==NULL && b->text->str==NULL) 
-        return 0;
-    if (a->text->str==NULL)
-        return -1;
-    if (b->text->str==NULL)
-        return 1;
     return strncmp ((const char *)a->text->str, (const char *)b->text->str, a->text->len);
 }
+
+@ Copying a symbol happens when an item is inserted into an AVL tree.
+The |text| needs to be deep copied, every thing else can be reassigned.
+
+@c
 static void *copy_symbols_entry (const void *p) {
     mp_sym ff;
     const mp_symbol_entry *fp;
@@ -4788,16 +4787,15 @@ static void *copy_symbols_entry (const void *p) {
     ff->text = copy_strings_entry(fp->text);
     if (ff->text == NULL) 
         return NULL;
-    if (fp->v.type == mp_string_type) {
-      ff->v.data.str  = copy_strings_entry(fp->v.data.str); 
-    } else {
-      ff->v.data.val  = fp->v.data.val;    
-      ff->v.data.node  = fp->v.data.node;
-    }
-    ff->v.data.sym  = fp->v.data.sym;
+    ff->v = fp->v; 
     ff->type = fp->type;    
     return ff;
 }
+
+@ In the current implementation, symbols are not freed until the
+end of the run.
+
+@c
 static void * delete_symbols_entry (void *p) {
     mp_sym ff = (mp_sym)p;
     delete_strings_entry (ff->text);
@@ -4840,8 +4838,9 @@ static mp_sym new_symbols_entry (MP mp, unsigned char *nam,  size_t len) {
     return ff;
 }
 
-@ Certain entries in the hash table are ``frozen'' and not redefinable,
-since they are used in error recovery.
+@ Certain symbols are ``frozen'' and not redefinable, since they are
+used
+in error recovery.
 
 @<Initialize table entries@>=
 mp->st_count=0;
@@ -4850,20 +4849,21 @@ mp->frozen_right_delimiter = mp_frozen_primitive(mp, ")", right_delimiter, 0);
 mp->frozen_inaccessible = mp_frozen_primitive(mp, " INACCESSIBLE", tag_token, 0);
 mp->frozen_undefined = mp_frozen_primitive(mp, " UNDEFINED", tag_token, 0);
 
-@ Here is the subroutine that searches the hash table for an identifier
+@ Here is the subroutine that searches the avl tree for an identifier
 that matches a given string of length~|l| appearing in |buffer[j..
-(j+l-1)]|. If the identifier is not found, it is inserted; hence it
-will always be found, and the corresponding hash table address
-will be returned.
+(j+l-1)]|. If the identifier is not found, it is inserted if
+|insert_new| is |true|, and the corresponding symbol will be returned.
+
+There are two variations on the lookup function: one for the normal
+symbol table, and one for the table of error recovery symbols.
 
 @c 
-static mp_sym mp_do_id_lookup (MP mp, avl_tree symbols, const char *j, integer l, boolean insert_new) { /* search the hash table */
-
+static mp_sym mp_do_id_lookup (MP mp, avl_tree symbols, const char *j,
+                               size_t l, boolean insert_new) { 
+  /* search an avl tree */
   mp_sym s, str;
-  unsigned char *nam = mp_xmalloc(mp,1,(size_t)(l+1));
-  memcpy(nam,j,(size_t)l);
-  *(nam+l) = '\0';
-  s = new_symbols_entry (mp, nam, (size_t)l) ;
+  unsigned char *nam = (unsigned char *)mp_xstrldup(mp,j,l);
+  s = new_symbols_entry (mp, nam, l) ;
   str = (mp_sym) avl_find (s, symbols);
   if (str == NULL && insert_new) {
     mp->st_count++;
@@ -4873,11 +4873,11 @@ static mp_sym mp_do_id_lookup (MP mp, avl_tree symbols, const char *j, integer l
   delete_symbols_entry(s);
   return str;
 }
-static mp_sym mp_id_lookup (MP mp, char *j, integer l, boolean insert_new) { 
+static mp_sym mp_id_lookup (MP mp, char *j, size_t l, boolean insert_new) { 
   /* search the normal symbol table */
   return mp_do_id_lookup (mp, mp->symbols, j, l, insert_new);
 }
-static mp_sym mp_frozen_id_lookup (MP mp, const char *j, integer l, boolean insert_new) { 
+static mp_sym mp_frozen_id_lookup (MP mp, const char *j, size_t l, boolean insert_new) { 
   /* search the error recovery symbol table */
   return mp_do_id_lookup (mp, mp->frozen_symbols, j, l, insert_new);
 }
@@ -4890,26 +4890,18 @@ contains the new |eqtb| pointer after |primitive| has acted.
 
 @c 
 static void mp_primitive (MP mp, const char *ss, halfword c, halfword o) {
-  size_t l; /* length of the string */
-  size_t j; /* index into |buffer| */
-  str_number s;
-  s = mp_intern(mp,ss);
-  l = length(s);
-  /* we will move |s| into the (empty) |buffer| */
-  for (j=0;j<=l-1;j++) {
-    mp->buffer[j]=*(s->str+j);
-  }
-  mp->cur_sym=mp_id_lookup(mp, (char *)mp->buffer, (integer)l, true);
+  char *s = mp_xstrdup(mp,ss);
+  mp->cur_sym=mp_id_lookup(mp, s, strlen(s), true);
+  mp_xfree(s);
   eq_type(mp->cur_sym)=c; 
   equiv(mp->cur_sym)=o;
 }
-
 
 @ Some other symbolic tokens only exist for error recovery.
 
 @c
 static mp_sym mp_frozen_primitive (MP mp, const char *ss, halfword c, halfword o) {
-    mp_sym str = mp_frozen_id_lookup(mp, ss, (integer)strlen(ss), true);
+    mp_sym str = mp_frozen_id_lookup(mp, ss, strlen(ss), true);
     str->type = c;
     str->v.data.val = o;
     return str;
@@ -4920,7 +4912,7 @@ called with existing primitives, so there is no need to be careful.
 
 @c 
 static mp_sym mp_get_frozen_primitive (MP mp, mp_sym sym) {
-   return mp_frozen_id_lookup (mp, (char *)sym->text->str, (integer)sym->text->len, false);
+   return mp_frozen_id_lookup (mp, (char *)sym->text->str, sym->text->len, false);
 }
 
 @ This routine returns |true| if the current symbol is un-redefinable
@@ -14477,7 +14469,7 @@ FIN_NUMERIC_TOKEN:
   @<Pack the numeric and fraction parts of a numeric token
     and |return|@>;
 FOUND: 
-  mp->cur_sym=mp_id_lookup(mp, (char *)(mp->buffer+k),loc-k, true);
+  mp->cur_sym=mp_id_lookup(mp, (char *)(mp->buffer+k),(size_t)(loc-k), true);
 }
 
 @ We go to |restart| instead of to |SWITCH|, because we might enter
@@ -24232,7 +24224,7 @@ void mp_set_internal (MP mp, char *n, char *v, int isstring) {
   char err[256];
   const char *errid = NULL;
   if (l>0) {
-    mp_sym p = mp_id_lookup(mp, n,(int)l, false);
+    mp_sym p = mp_id_lookup(mp, n,l, false);
     if ( p==NULL ) {
       errid = "variable does not exist";
     } else {
@@ -27892,7 +27884,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
                 l++;
               }
               if (l>0) {
-                mp_sym p = mp_id_lookup(mp, (char *)(template->str+frst),(int)l, false);
+                mp_sym p = mp_id_lookup(mp, (char *)(template->str+frst),l, false);
 	        char *id = xmalloc(mp, (size_t)(l+1));
                 (void)memcpy(id,(char *)(template->str+frst),(size_t)l);
 	        *(id+l)='\0';
