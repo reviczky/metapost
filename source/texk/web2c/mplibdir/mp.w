@@ -132,6 +132,7 @@ typedef int boolean;
 typedef int integer;
 #endif
 @<Declare helpers@>
+@<Enumeration types@>;
 @<Types in the outer block@>
 @<Constants in the outer block@>
 typedef struct MP_instance {
@@ -3311,6 +3312,10 @@ typedef struct {
     mp_knot p;
 } mp_value_data;
 typedef struct {
+  mp_variable_type type;
+  mp_value_data data;
+} mp_value;
+typedef struct {
   quarterword b0,b1,b2,b3;
 } four_quarters;
 typedef union {
@@ -3923,7 +3928,7 @@ and |string_type| in that order.
 @d unknown_types mp_unknown_boolean: case mp_unknown_string:
   case mp_unknown_pen: case mp_unknown_picture: case mp_unknown_path
 
-@<Types...@>=
+@<Enumeration types@>=
 typedef enum {
 mp_vacuous = 1, /* no expression was present */
 mp_boolean_type, /* \&{boolean} with a known value */
@@ -4337,18 +4342,16 @@ enum mp_given_internal {
   mp_gtroffmode  /* whether the user specified |-troff| on the command line */
 };
 typedef struct {
-   str_number str;
-   scaled val;
-   mp_variable_type type;
+   mp_value v;
    char *intname;
 } mp_internal;
 
 
 @ @(mpmp.h@>=
-#define internal_value(A) mp->internal[(A)].val
-#define internal_string(A) mp->internal[(A)].str
+#define internal_value(A) mp->internal[(A)].v.data.val
+#define internal_string(A) mp->internal[(A)].v.data.str
 #define internal_name(A) mp->internal[(A)].intname
-#define internal_type(A) mp->internal[(A)].type
+#define internal_type(A) mp->internal[(A)].v.type
 
 @
 
@@ -4720,10 +4723,6 @@ that holds the current command value of the token, and an
 @d equiv_sym(A)  (A)->v.data.sym /* parametric part of a token's meaning */
 
 @ @<Types...@>=
-typedef struct {
-  mp_variable_type type;
-  mp_value_data data;
-} mp_value;
 typedef struct mp_symbol_entry {
   halfword type;
   mp_value v;
@@ -6667,9 +6666,9 @@ static void mp_unsave (MP mp) {
         mp_print(mp, internal_name(q));
         mp_print_char(mp, xord('='));
         if (internal_type(q)==mp_known) {
-           mp_print_scaled(mp, mp->save_ptr->value.val);
+           mp_print_scaled(mp, mp->save_ptr->value.v.data.val);
         } else if (internal_type(q)==mp_string_type) {
-           char *s = mp_str(mp, mp->save_ptr->value.str);
+           char *s = mp_str(mp, mp->save_ptr->value.v.data.str);
            mp_print(mp, s);
         } else {
            mp_confusion(mp,"internal_restore");
