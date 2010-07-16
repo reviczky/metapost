@@ -30,7 +30,6 @@
 \font\logos=logosl10
 \def\MF{{\tenlogo META}\-{\tenlogo FONT}}
 \def\MP{{\tenlogo META}\-{\tenlogo POST}}
-\def\[#1]{\ignorespaces} % left over from pascal web
 \def\<#1>{$\langle#1\rangle$}
 \def\section{\mathhexbox278}
 \let\swap=\leftrightarrow
@@ -44,7 +43,7 @@
 \pdfoutput=1
 \pageno=3
 
-@* \[1] Introduction.
+@* Introduction.
 
 This is \MP\ by John Hobby, a graphics-language processor based on D. E. Knuth's \MF.
 
@@ -342,7 +341,6 @@ to extend or reduce \MP's capacity.
 @ @<Glob...@>=
 int pool_size; /* maximum number of characters in strings, including all
   error messages and help texts, and the names of all identifiers */
-int old_pool_size; /* a helper used by |mp_cat| */
 int max_in_open; /* maximum number of input files and error insertions that
   can be going on simultaneously */
 int param_size; /* maximum number of simultaneous macro parameters */
@@ -365,7 +363,6 @@ xfree(mp->banner);
 
 @<Allocate or ...@>=
 mp->pool_size=10000;
-mp->old_pool_size=10000;
 set_lower_limited_value(mp->error_line,opt->error_line,79);
 set_lower_limited_value(mp->half_error_line,opt->half_error_line,50);
 if (mp->half_error_line>mp->error_line-15 ) 
@@ -413,7 +410,7 @@ end up the same, the shared code may be gathered together at
 @d double(A) (A)=(A)+(A)
 @d odd(A)   ((A)%2==1)
 
-@* \[2] The character set.
+@* The character set.
 In order to make \MP\ readily portable to a wide variety of
 computers, all of its input text is converted to an internal eight-bit
 code that includes standard ASCII, the ``American Standard Code for
@@ -485,7 +482,7 @@ for (i=0;i<=255;i++) {
 for (i=0200;i<=0377;i++) { xord(xchr(i))=(ASCII_code)i;}
 for (i=0;i<=0176;i++) { xord(xchr(i))=(ASCII_code)i;}
 
-@* \[3] Input and output.
+@* Input and output.
 The bane of portability is the fact that different operating systems treat
 input and output quite differently, perhaps because computer scientists
 have not given sufficient attention to this problem. People have felt somehow
@@ -968,7 +965,7 @@ boolean mp_init_terminal (MP mp) { /* gets the terminal input started */
 static boolean mp_init_terminal (MP mp) ;
 
 
-@* \[4] String handling.
+@* String handling.
 Symbolic token names and diagnostic messages are variable-length strings
 of eight-bit characters. Many strings \MP\ uses are simply literals
 in the compiled source, like the error messages and the names of the
@@ -1318,7 +1315,7 @@ must be printable.
 @<Character |k| cannot be printed@>=
   (k<' ')||(k==127)
 
-@* \[5] On-line and off-line printing.
+@* On-line and off-line printing.
 Messages that are sent to a user's terminal and to the transcript-log file
 are produced by several `|print|' procedures. These procedures will
 direct their output to a variety of places, based on the setting of
@@ -1663,7 +1660,7 @@ void mp_term_input (MP mp) { /* gets a line from the terminal */
   }
 }
 
-@* \[6] Reporting errors.
+@* Reporting errors.
 When something anomalous is detected, \MP\ typically does something like this:
 $$\vbox{\halign{#\hfil\cr
 |print_err("Something anomalous has been detected");|\cr
@@ -2233,7 +2230,7 @@ static void mp_missing_err (MP mp, const char *s) {
   print_err(msg);
 }
 
-@* \[7] Arithmetic with scaled numbers.
+@* Arithmetic with scaled numbers.
 The principal computations performed by \MP\ are done entirely in terms of
 integers less than $2^{31}$ in magnitude; thus, the arithmetic specified in this
 program can be carried out in exactly the same way on a wide variety of
@@ -2706,7 +2703,7 @@ and truncation operations.
   : ( x>=-2048 ? 0 : -(1+((-(x+1)-2048) / 4096))))
 
 
-@* \[8] Algebraic and transcendental functions.
+@* Algebraic and transcendental functions.
 \MP\ computes all of the necessary special functions from scratch, without
 relying on |real| arithmetic or system subroutines for sines, cosines, etc.
 
@@ -3284,7 +3281,7 @@ static scaled mp_norm_rand (MP mp) {
   return x;
 }
 
-@* \[9] Packed data.
+@* Packed data.
 In order to make efficient use of storage space, \MP\ bases its major data
 structures on a |memory_word|, which contains either a (signed) integer,
 possibly scaled, or a small number of fields that are one half or one
@@ -3331,21 +3328,14 @@ typedef struct {
     mp_sym sym;
     mp_node node;
     mp_knot P;
-} two_halves;
-typedef two_halves memory_word;
+} memory_word;
 typedef struct {
-  struct {
-    quarterword B2, B3, B0, B1;
-  } u;
+  quarterword b0,b1,b2,b3;
 } four_quarters;
 typedef union {
   integer sc;
   four_quarters qqqq;
 } fmemory_word;
-#define	b0 u.B0
-#define	b1 u.B1
-#define	b2 u.B2
-#define	b3 u.B3
 
 @ 
 @d xfree(A) do { mp_xfree(A); A=NULL; } while (0)
@@ -3575,7 +3565,7 @@ void mp_do_snprintf (char *str, int size, const char *format, ...) {
 }
 
 
-@* \[10] Dynamic memory allocation.
+@* Dynamic memory allocation.
 
 The \MP\ system does nearly all of its own memory allocation, so that it
 can readily be transported into environments that do not have automatic
@@ -3751,7 +3741,7 @@ static halfword get_mp_info (MP mp, mp_node p);
 static void do_set_mp_info(MP mp, mp_node p, halfword v) ;
 
 
-@* \[11] Memory layout.
+@* Memory layout.
 Some nodes are created statically, since static allocation is
 more efficient than dynamic allocation when we can get away with it. 
 
@@ -3796,7 +3786,7 @@ static void mp_flush_node_list (MP mp, mp_node p) {
   }
 }
 
-@* \[12] The command codes.
+@* The command codes.
 Before we can go much further, we need to define symbolic names for the internal
 code numbers that represent the various commands obeyed by \MP. These codes
 are somewhat arbitrary, but not completely so. For example,
@@ -4725,7 +4715,7 @@ mp->char_class['\f']=space_class;
 for (k=127;k<=255;k++)
   mp->char_class[k]=invalid_class;
 
-@* \[13] The hash table.
+@* The hash table.
 Symbolic tokens are stored and retrieved by means of a fairly standard hash
 table algorithm called the method of ``coalescing lists'' (cf.\ Algorithm 6.4C
 in {\sl The Art of Computer Programming\/}). Once a symbolic token enters the
@@ -5119,7 +5109,7 @@ It is easy to find where each particular
 primitive was treated by looking in the index at the end; for example, the
 section where |"def"| entered |eqtb| is listed under `\&{def} primitive'.
 
-@* \[14] Token lists.
+@* Token lists.
 A \MP\ token is either symbolic or numeric or a string, or it denotes
 a macro parameter or capsule; so there are five corresponding ways to encode it
 @^token@>
@@ -5512,7 +5502,7 @@ static void mp_show_macro (MP mp, mp_node p, mp_node q, integer l) {
   mp_show_token_list(mp, mp_link(p),q,l-mp->tally,0);
 }
 
-@* \[15] Data structures for variables.
+@* Data structures for variables.
 The variables of \MP\ programs can be simple, like `\.x', or they can
 combine the structural properties of arrays and records, like `\.{x20a.b}'.
 A \MP\ user assigns a type to a variable like \.{x20a.b} by saying, for
@@ -6595,7 +6585,7 @@ static void mp_clear_symbol (MP mp, mp_sym p, boolean saving) {
   eq_type(p) = mp->frozen_undefined->type;
 }
 
-@* \[16] Saving and restoring equivalents.
+@* Saving and restoring equivalents.
 The nested structure given by \&{begingroup} and \&{endgroup}
 allows |eqtb| entries to be saved and restored, so that temporary changes
 can be made without difficulty.  When the user requests a current value to
@@ -6750,7 +6740,7 @@ static void mp_unsave (MP mp) {
   mp->save_ptr=p;
 }
 
-@* \[17] Data structures for paths.
+@* Data structures for paths.
 When a \MP\ user specifies a path, \MP\ will create a list of knots
 and control points for the associated cubic spline curves. If the
 knots are $z_0$, $z_1$, \dots, $z_n$, there are control points
@@ -7159,7 +7149,7 @@ void mp_toss_knot_list (MP mp, mp_knot p) {
   } while (q!=p);
 }
 
-@* \[18] Choosing control points.
+@* Choosing control points.
 Now we must actually delve into one of \MP's more difficult routines,
 the |make_choices| procedure that chooses angles and control points for
 the splines of a curve when the user has not specified them explicitly.
@@ -7909,7 +7899,7 @@ if (((mp->st>=0)&&(mp->sf>=0))||((mp->st<=0)&&(mp->sf<=0)) ) {
   return;
 }
 
-@* \[19] Measuring paths.
+@* Measuring paths.
 \MP's \&{llcorner}, \&{lrcorner}, \&{ulcorner}, and \&{urcorner} operators
 allow the user to measure the bounding box of anything that can go into a
 picture.  It's easy to get rough bounds on the $x$ and $y$ extent of a path
@@ -8585,7 +8575,7 @@ if ( arc>0 ) {
   t_tot = (n + 1)*t_tot;
 }
 
-@* \[20] Data structures for pens.
+@* Data structures for pens.
 A Pen in \MP\ can be either elliptical or polygonal.  Elliptical pens result
 in \ps\ \&{stroke} commands, while anything drawn with a polygonal pen is
 @:stroke}{\&{stroke} command@>
@@ -9114,7 +9104,7 @@ mp_maxy=mp->cur_y;
 mp_miny=2*mp_y_coord(h)-mp->cur_y;
 }
 
-@* \[21] Edge structures.
+@* Edge structures.
 Now we come to \MP's internal scheme for representing pictures.
 The representation is very different from \MF's edge structures
 because \MP\ pictures contain \ps\ graphics objects instead of pixel
@@ -10666,7 +10656,7 @@ if ( miny_val(h)<y0 ) miny_val(h)=y0;
 if ( maxx_val(h)>x1 ) maxx_val(h)=x1;
 if ( maxy_val(h)>y1 ) maxy_val(h)=y1
 
-@* \[22] Finding an envelope.
+@* Finding an envelope.
 When \MP\ has a path and a polygonal pen, it needs to express the desired
 shape in terms of things \ps\ can understand.  The present task is to compute
 a new path that describes the region to be filled.  It is convenient to
@@ -11674,7 +11664,7 @@ if ( tmp==0 ) mp_confusion(mp, "degenerate spec");
 dxout=mp_make_fraction(mp, dxout,tmp);
 dyout=mp_make_fraction(mp, dyout,tmp)
 
-@* \[23] Direction and intersection times.
+@* Direction and intersection times.
 A path of length $n$ is defined parametrically by functions $x(t)$ and
 $y(t)$, for |0<=t<=n|; we can regard $t$ as the ``time'' at which the path
 reaches the point $\bigl(x(t),y(t)\bigr)$.  In this section of the program
@@ -12305,7 +12295,7 @@ if ( mp_right_type(hh)==mp_endpoint ) {
   mp_right_type(hh)=mp_explicit;
 }
 
-@* \[24] Dynamic linear equations.
+@* Dynamic linear equations.
 \MP\ users define variables implicitly by stating equations that should be
 satisfied; the computer is supposed to be smart enough to solve those equations.
 And indeed, the computer tries valiantly to do so, by distinguishing five
@@ -13211,7 +13201,7 @@ if ( dep_info(p)==NULL ) {
   p=(mp_value_node)mp_link(mp->temp_head);
 }
 
-@* \[25] Dynamic nonlinear equations.
+@* Dynamic nonlinear equations.
 Variables of numeric type are maintained by the general scheme of
 independent, dependent, and known values that we have just studied;
 and the components of pair and transform variables are handled in the
@@ -13346,7 +13336,7 @@ static void mp_ring_merge (MP mp, mp_node p, mp_node q) {
   mp_put_get_error(mp);
 }
 
-@* \[26] Introduction to the syntactic routines.
+@* Introduction to the syntactic routines.
 Let's pause a moment now and try to look at the Big Picture.
 The \MP\ program consists of three main parts: syntactic routines,
 semantic routines, and output routines. The chief purpose of the
@@ -13430,7 +13420,7 @@ static void mp_show_cmd_mod (MP mp,integer c, integer m) {
   mp_end_diagnostic(mp, false);
 }
 
-@* \[27] Input stacks and states.
+@* Input stacks and states.
 The state of \MP's input mechanism appears in the input stack, whose
 entries are records with five fields, called |index|, |start|, |loc|,
 |limit|, and |name|. The top element of this stack is maintained in a
@@ -13957,7 +13947,7 @@ token beginning line~2 is about to be shown:
 
 @<Do magic computation@>=set_trick_count
 
-@* \[28] Maintaining the input stacks.
+@* Maintaining the input stacks.
 The following subroutines change the input status in commonly needed ways.
 
 First comes |push_input|, which stores the current state and creates a
@@ -14222,7 +14212,7 @@ actions.
   /* |init_terminal| has set |loc| and |last| */
 }
 
-@* \[29] Getting the next token.
+@* Getting the next token.
 The heart of \MP's input mechanism is the |get_next| procedure, which
 we shall develop in the next few sections of the program. Perhaps we
 shouldn't actually call it the ``heart,'' however; it really acts as \MP's
@@ -14798,7 +14788,7 @@ used instead of the line in the file.
   }
 }
 
-@* \[30] Dealing with \TeX\ material.
+@* Dealing with \TeX\ material.
 The \&{btex}$\,\ldots\,$\&{etex} and \&{verbatimtex}$\,\ldots\,$\&{etex}
 features need to be implemented at a low level in the scanning process
 so that \MP\ can stay in synch with the a preprocessor that treats
@@ -14919,7 +14909,7 @@ help1("There is no btex or verbatimtex for this to match");
 mp_error(mp);
 }
 
-@* \[31] Scanning macro definitions.
+@* Scanning macro definitions.
 \MP\ has a variety of ways to tuck tokens away into token lists for later
 use: Macros can be defined with \&{def}, \&{vardef}, \&{primarydef}, etc.;
 repeatable code can be defined with \&{for}, \&{forever}, \&{forsuffixes}.
@@ -15424,7 +15414,7 @@ do {
   }
 }
 
-@* \[32] Expanding the next token.
+@* Expanding the next token.
 Only a few command codes |<min_command| can possibly be returned by
 |get_t_next|; in increasing order, they are
 |if_test|, |fi_or_else|, |input|, |iteration|, |repeat_loop|,
@@ -16104,7 +16094,7 @@ static void mp_stack_argument (MP mp,mp_node p) {
   mp->param_stack[mp->param_ptr]=p; incr(mp->param_ptr);
 }
 
-@* \[33] Conditional processing.
+@* Conditional processing.
 Let's consider now the way \&{if} commands are handled.
 
 Conditions can be inside conditions, and this nesting has a stack
@@ -16357,7 +16347,7 @@ if ( mp->cur_mod>mp->if_limit ) {
   @<Pop the condition stack@>;
 }
 
-@* \[34] Iterations.
+@* Iterations.
 To bring our treatment of |get_x_next| to a close, we need to consider what
 \MP\ does when it sees \&{for}, \&{forsuffixes}, and \&{forever}.
 
@@ -16715,7 +16705,7 @@ if ( mp->cur_exp.type!=mp_picture_type ) {
   mp->cur_exp.type=mp_picture_type;
 }
 
-@* \[35] File names.
+@* File names.
 It's time now to fret about file names.  Besides the fact that different
 operating systems treat files in different ways, we must cope with the
 fact that completely different naming conventions are used by different
@@ -17518,7 +17508,7 @@ static void mp_open_write_file (MP mp, char *s, readf_index  n) ;
 }
 
 
-@* \[36] Introduction to the parsing routines.
+@* Introduction to the parsing routines.
 We come now to the central nervous system that sparks many of \MP's activities.
 By evaluating expressions, from their primary constituents to ever larger
 subexpressions, \MP\ builds the structures that ultimately define complete
@@ -18461,7 +18451,7 @@ int var_flag; /* command that wants a variable */
 @ @<Set init...@>=
 mp->var_flag=0;
 
-@* \[37] Parsing primary expressions.
+@* Parsing primary expressions.
 The first parsing routine, |scan_primary|, is also the most complicated one,
 since it involves so many different cases. But each case---with one
 exception---is fairly simple by itself.
@@ -19338,7 +19328,7 @@ static void mp_scan_suffix (MP mp) {
   mp->cur_mod=cur_exp_value();
 }
 
-@* \[38] Parsing secondary and higher expressions.
+@* Parsing secondary and higher expressions.
 
 After the intricacies of |scan_primary|\kern-1pt,
 the |scan_secondary| routine is
@@ -19991,7 +19981,7 @@ static void mp_get_boolean (MP mp) {
   }
 }
 
-@* \[39] Doing the operations.
+@* Doing the operations.
 The purpose of parsing is primarily to permit people to avoid piles of
 parentheses. But the real work is done after the structure of an expression
 has been recognized; that's when new expressions are generated. We
@@ -23520,7 +23510,7 @@ static void mp_do_infont (MP mp,mp_node p) {
   mp->cur_exp.type=mp_picture_type;
 }
 
-@* \[40] Statements and commands.
+@* Statements and commands.
 The chief executive of \MP\ is the |do_statement| routine, which
 contains the master switch that causes all the various pieces of \MP\
 to do their things, in the right order.
@@ -24793,7 +24783,7 @@ case stop:
   else  mp_print(mp, "dump");
   break;
 
-@* \[41] Commands.
+@* Commands.
 Let's turn now to statements that are classified as ``commands'' because
 of their imperative nature. We'll begin with simple ones, so that it
 will be clear how to hook command processing into the |do_statement| routine;
@@ -26252,7 +26242,7 @@ static void mp_do_write (MP mp) ;
 }
 
 
-@* \[42] Writing font metric data.
+@* Writing font metric data.
 \TeX\ gets its knowledge about fonts from font metric files, also called
 \.{TFM} files; the `\.T' in `\.{TFM}' stands for \TeX,
 but other programs know about them too. One of \MP's duties is to
@@ -27469,7 +27459,7 @@ if ( mp->tfm_changed>0 )  {
   wlog_ln(s);
 }
 
-@* \[43] Reading font metric data.
+@* Reading font metric data.
 
 \MP\ isn't a typesetting program but it does need to find the bounding box
 of a sequence of typeset characters.  Thus it needs to read \.{TFM} files as
@@ -27824,7 +27814,7 @@ for (i = 1;i<= 9; i++ ) {
   return (sign*q);
 }
 
-@* \[44] Shipping pictures out.
+@* Shipping pictures out.
 The |ship_out| procedure, to be described below, is given a pointer to
 an edge structure. Its mission is to output a file containing the \ps\
 description of an edge structure.
@@ -28451,7 +28441,7 @@ mp_ps_backend_free(mp);
 mp_svg_backend_free(mp);
 
 
-@* \[45] Dumping and undumping the tables.
+@* Dumping and undumping the tables.
 
 When \.{MP} is started, it is possible to preload a macro file
 containing definitions that will be usable in the main input
@@ -28526,7 +28516,7 @@ boolean mp_load_preload_file (MP mp) {
   return true;
 }
 
-@* \[46] The main program.
+@* The main program.
 This is it: the part of \MP\ that executes all those procedures we have
 written.
 
@@ -28774,10 +28764,10 @@ But when we finish this part of the program, \MP\ is ready to call on the
   if ( loc<limit ) if ( mp->buffer[loc]!='\\' ) 
     mp_start_input(mp); /* \&{input} assumed */
 
-@* \[47] Debugging.
+@* Debugging.
 
 
-@* \[48] System-dependent changes.
+@* System-dependent changes.
 This section should be replaced, if necessary, by any special
 modification of the program
 that are necessary to make \MP\ work at a particular installation.
@@ -28788,7 +28778,7 @@ which introduce new sections, can be inserted here; then only the index
 itself will get a new section number.
 @^system dependencies@>
 
-@* \[49] Index.
+@* Index.
 Here is where you can find all uses of each identifier in the program,
 with underlined entries pointing to where the identifier was defined.
 If the identifier is only one letter long, however, you get to see only
