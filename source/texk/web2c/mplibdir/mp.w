@@ -3323,7 +3323,7 @@ typedef struct mp_symbol_entry *mp_sym;
 typedef short quarterword; /* 1/4 of a word */
 typedef int halfword; /* 1/2 of a word */
 typedef struct {
-    halfword rh, lh;
+    halfword val;
     str_number str;
     mp_sym sym;
     mp_node node;
@@ -3335,7 +3335,7 @@ typedef struct {
 typedef union {
   integer sc;
   four_quarters qqqq;
-} fmemory_word;
+} font_data;
 
 @ 
 @d xfree(A) do { mp_xfree(A); A=NULL; } while (0)
@@ -5147,7 +5147,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 @d token_node_size sizeof(mp_token_node_data) /* the number of words in a large token node */
 
 @d value_sym(A)   ((mp_token_node)(A))->value_.sym /* the sym stored in a large token node */
-@d value(A)       ((mp_token_node)(A))->value_.rh /* the value stored in a large token node */
+@d value(A)       ((mp_token_node)(A))->value_.val /* the value stored in a large token node */
 
 @d set_value(A,B) do {  /* store the value in a large token node */
    knot_value(A)=NULL;
@@ -12383,8 +12383,8 @@ variable (say~|r|); and we have |prev_dep(r)=q|, etc.
 Dependency nodes sometimes mutate into value nodes and vice versa, so their
 structures have to match.
 
-@d dep_value(A) ((A!=NULL)? ((mp_value_node)(A))->value_.rh : 0) /* half of the |value| field in a |dependent| variable */
-@d set_dep_value(A,B) ((mp_value_node)(A))->value_.rh=(B)  /* half of the |value| field in a |dependent| variable */
+@d dep_value(A) ((A!=NULL)? ((mp_value_node)(A))->value_.val : 0) /* half of the |value| field in a |dependent| variable */
+@d set_dep_value(A,B) ((mp_value_node)(A))->value_.val=(B)  /* half of the |value| field in a |dependent| variable */
 @d dep_info(A) ((mp_value_node)(A))->value_.node  /* half of the |value| field in a |dependent| variable */
 @d set_dep_info(A,B) do {
    mp_value_node d = (mp_value_node)(B);
@@ -27484,7 +27484,7 @@ in |font_info[char_base[f]+c].qqqq|.
 @<Glob...@>=
 font_number font_max; /* maximum font number for included text fonts */
 size_t      font_mem_size; /* number of words for \.{TFM} information for text fonts */
-fmemory_word *font_info; /* height, width, and depth data */
+font_data   *font_info; /* height, width, and depth data */
 char        **font_enc_name; /* encoding names, if any */
 boolean     *font_ps_name_fixed; /* are the postscript names fixed already?  */
 size_t      next_fmem; /* next unused entry in |font_info| */
@@ -27503,8 +27503,8 @@ mp_node     *font_sizes;
 
 @ @<Allocate or initialize ...@>=
 mp->font_mem_size = 10000; 
-mp->font_info = xmalloc ((mp->font_mem_size+1),sizeof(fmemory_word));
-memset (mp->font_info,0,sizeof(fmemory_word)*(mp->font_mem_size+1));
+mp->font_info = xmalloc ((mp->font_mem_size+1),sizeof(font_data));
+memset (mp->font_info,0,sizeof(font_data)*(mp->font_mem_size+1));
 mp->last_fnum = null_font;
 
 @ @<Dealloc variables@>=
