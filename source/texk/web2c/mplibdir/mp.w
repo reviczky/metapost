@@ -5119,8 +5119,8 @@ printer's sense. It's curious that the same word is used in such different ways.
 
 @d token_node_size sizeof(mp_token_node_data) /* the number of words in a large token node */
 
-@d value_sym(A)   ((mp_token_node)(A))->value_.sym /* the sym stored in a large token node */
-@d value(A)       ((mp_token_node)(A))->value_.val /* the value stored in a large token node */
+@d value_sym(A)   ((mp_token_node)(A))->data.sym /* the sym stored in a large token node */
+@d value(A)       ((mp_token_node)(A))->data.val /* the value stored in a large token node */
 
 @d set_value(A,B) do {  /* store the value in a large token node */
    knot_value(A)=NULL;
@@ -5129,7 +5129,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    value(A)=(B); 
  } while (0)
 
-@d value_node(A)   ((mp_token_node)(A))->value_.node /* the value stored in a large token node */
+@d value_node(A)   ((mp_token_node)(A))->data.node /* the value stored in a large token node */
 
 @d set_value_node(A,B) do { /* store the value in a large token node */
    knot_value(A)=NULL;
@@ -5138,7 +5138,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    value(A)=0;
  } while (0) 
 
-@d str_value(A)   ((mp_token_node)(A))->value_.str /* the value stored in a large token node */
+@d str_value(A)   ((mp_token_node)(A))->data.str /* the value stored in a large token node */
 
 @d set_str_value(A,B) do { /* store the value in a large token node */
    knot_value(A)=NULL;
@@ -5147,7 +5147,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    value(A)=0;
  } while (0) 
 
-@d knot_value(A)  ((mp_token_node)(A))->value_.p /* the value stored in a large token node */
+@d knot_value(A)  ((mp_token_node)(A))->data.p /* the value stored in a large token node */
 
 @d set_knot_value(A,B) do { /* store the value in a large token node */
    knot_value(A)=(B);
@@ -5160,7 +5160,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 @(mpmp.h@>=
 typedef struct mp_token_node_data {
   NODE_BODY;
-  mp_value_data value_;
+  mp_value_data data;
 } mp_token_node_data;
 typedef struct mp_token_node_data* mp_token_node;
 
@@ -5544,7 +5544,7 @@ structure is not worth the minimal extra code clarification.
 @(mpmp.h@>=
 typedef struct mp_value_node_data {
   NODE_BODY;
-  mp_value_data value_;
+  mp_value_data data;
   union {
     scaled subscript_;
     mp_sym hashloc_;
@@ -12356,9 +12356,9 @@ variable (say~|r|); and we have |prev_dep(r)=q|, etc.
 Dependency nodes sometimes mutate into value nodes and vice versa, so their
 structures have to match.
 
-@d dep_value(A) ((A!=NULL)? ((mp_value_node)(A))->value_.val : 0) /* half of the |value| field in a |dependent| variable */
-@d set_dep_value(A,B) ((mp_value_node)(A))->value_.val=(B)  /* half of the |value| field in a |dependent| variable */
-@d dep_info(A) ((mp_value_node)(A))->value_.node  /* half of the |value| field in a |dependent| variable */
+@d dep_value(A) ((A!=NULL)? ((mp_value_node)(A))->data.val : 0) /* half of the |value| field in a |dependent| variable */
+@d set_dep_value(A,B) ((mp_value_node)(A))->data.val=(B)  /* half of the |value| field in a |dependent| variable */
+@d dep_info(A) ((mp_value_node)(A))->data.node  /* half of the |value| field in a |dependent| variable */
 @d set_dep_info(A,B) do {
    mp_value_node d = (mp_value_node)(B);
    /* |printf("set depinfo of %p to %p on %d\n",A,d,__LINE__);| */
