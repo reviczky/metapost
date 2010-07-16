@@ -14963,7 +14963,6 @@ typedef struct mp_subst_list_item {
   quarterword value_mod;
   mp_sym info;
   halfword value_data;
-  halfword value_sym;
   struct mp_subst_list_item *link;
 } mp_subst_list_item;
 
@@ -14974,6 +14973,7 @@ typedef struct mp_subst_list_item {
   mp_subst_list_item *q = NULL; /* temporary for link management */
   integer balance; /* left delimiters minus right delimiters */
   halfword cur_data;
+  quarterword cur_data_mod;
   p=mp->hold_head; 
   balance=1; 
   mp_link(mp->hold_head)=NULL;
@@ -14986,18 +14986,18 @@ typedef struct mp_subst_list_item {
         @<Adjust the balance; |break| if it's zero@>;
       } else if ( mp->cur_cmd==macro_special ) {
         /* Handle quoted symbols, \.{\#\AT!}, \.{\AT!}, or \.{\AT!\#} */
-	if ( mp->cur_mod==quote ) { 
+	    if ( mp->cur_mod==quote ) { 
           get_t_next; 
         } else if ( mp->cur_mod<=suffix_count ) {
           cur_data=mp->cur_mod-1;
-          mp->cur_sym_mod=mp_suffix_sym;
+          cur_data_mod=mp_suffix_sym;
         }
       }
     }
     if ( cur_data != -1) {
        mp_node pp = mp_get_symbolic_node(mp); 
        set_mp_sym_info(pp,cur_data);
-       mp_name_type(pp) = mp->cur_sym_mod;    
+       mp_name_type(pp) = cur_data_mod;    
        mp_link(p)=pp;
     } else {
       mp_link(p)=mp_cur_tok(mp);
@@ -15019,7 +15019,7 @@ typedef struct mp_subst_list_item {
   while ( q != NULL ) {
     if ( q->info==mp->cur_sym && q->info_mod == mp->cur_sym_mod ) {
       cur_data = q->value_data;
-      mp->cur_sym_mod = q->value_mod;
+      cur_data_mod = q->value_mod;
       mp->cur_cmd=relax; 
       break;
     }
