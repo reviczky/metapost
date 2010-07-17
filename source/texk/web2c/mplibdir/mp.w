@@ -10779,6 +10779,7 @@ void mp_toss_edges (MP mp, mp_node h) {
     if (r != NULL)
       delete_edge_ref (r);
   }
+  mp_free_node (mp, ((mp_edge_header_node)h)->dummy_, token_node_size);
   mp_free_node (mp, h, edge_header_size);
 }
 void mp_flush_dash_list (MP mp, mp_node h) {
@@ -29794,9 +29795,13 @@ if (c < mp->bc)
 if (c > mp->ec)
   mp->ec = (eight_bits) c;
 mp->char_exists[c] = true;
+mp_xfree(mp->tfm_width[c]);
 mp->tfm_width[c] = mp_tfm_check (mp, mp_char_wd);
+mp_xfree(mp->tfm_height[c]);
 mp->tfm_height[c] = mp_tfm_check (mp, mp_char_ht);
+mp_xfree(mp->tfm_depth[c]);
 mp->tfm_depth[c] = mp_tfm_check (mp, mp_char_dp);
+mp_xfree(mp->tfm_ital_corr[c]);
 mp->tfm_ital_corr[c] = mp_tfm_check (mp, mp_char_ic)
  
 
@@ -30901,6 +30906,12 @@ for (k = 1; k <= (int) mp->last_fnum; k++) {
   xfree (mp->font_enc_name[k]);
   xfree (mp->font_name[k]);
   xfree (mp->font_ps_name[k]);
+}
+for (k=0;k<TFM_ITEMS;k++) {
+  mp_xfree(mp->tfm_width[k]);
+  mp_xfree(mp->tfm_height[k]);
+  mp_xfree(mp->tfm_depth[k]);
+  mp_xfree(mp->tfm_ital_corr[k]);
 }
 xfree (mp->font_info);
 xfree (mp->font_enc_name);
