@@ -94,8 +94,6 @@ undergoes any modifications, so that it will be clear which version of
 
 @(mpmp.h@>=
 #define metapost_version "1.500"
-#define metapost_magic (('M'*256) + 'P')*65536 + 1500
-#define metapost_old_magic (('M'*256) + 'P')*65536 + 1080
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
 few typedefs and the header defintions for the externally used
