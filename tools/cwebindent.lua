@@ -161,7 +161,7 @@ function main ()
      webmodules[a] = disect_module(_)
      webmodules[a].nr = a-1 
      parse_module(webmodules[a])
-     if webmodules[a].doc and #webmodules[a].doc and string.sub(webmodules[a].doc,1,2) == "@*" then
+     if webmodules[a].doc and #webmodules[a].doc and string.sub(webmodules[a].doc,1,3) == "\n@*" then
         io.write("*" .. tonumber(n))
       	io.flush()
      end
@@ -173,7 +173,7 @@ function main ()
   n = 0
   for a,_ in pairs(webmodules) do
      write_cweb(cweb,_)
-     if _.doc and #_.doc and string.sub(_.doc,1,2) == "@*" then
+     if _.doc and #_.doc and string.sub(_.doc,1,3) == "\n@*" then
         io.write("*" .. tonumber(n))
 	    io.flush()
      end
