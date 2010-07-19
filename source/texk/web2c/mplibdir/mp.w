@@ -94,6 +94,11 @@ undergoes any modifications, so that it will be clear which version of
 
 @(mpmp.h@>=
 #define metapost_version "1.500"
+#ifdef DEBUG
+#  define FUNCTION_TRACE(s,args...) do { printf("FTRACE: " s,##args); usleep(10000); } while(0)
+#else
+#  define FUNCTION_TRACE(s,args...)
+#endif
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
 few typedefs and the header defintions for the externally used
@@ -105,10 +110,10 @@ large |MP_instance| structure.
  
 @(mplib.h@>=
 typedef struct MP_instance *MP;
-@<Exported types@>
-     typedef struct MP_options {
-       @<Option variables@>
-     } MP_options;
+@<Exported types@>;
+typedef struct MP_options {
+  @<Option variables@>
+} MP_options;
 @<Exported function headers@>
  
 
@@ -130,14 +135,14 @@ typedef int boolean;
 #ifndef INTEGER_TYPE
 typedef int integer;
 #endif
-@<Declare helpers@>
-  @<Enumeration types@>;
-@<Types in the outer block@>
-  @<Constants in the outer block@>
-     typedef struct MP_instance {
-       @<Option variables@>
-       @<Global variables@>
-     } MP_instance;
+@<Declare helpers@>;
+@<Enumeration types@>;
+@<Types in the outer block@>;
+@<Constants in the outer block@>;
+typedef struct MP_instance {
+  @<Option variables@>;
+  @<Global variables@>;
+} MP_instance;
 @<Internal library declarations@>
  
 
@@ -159,10 +164,10 @@ typedef int integer;
 #include "mppsout.h"            /* internal header */
 #include "mpsvgout.h"           /* internal header */
 extern font_number mp_read_font_info (MP mp, char *fname);      /* tfmin.w */
-@h
-@<Declarations@>
-@<Basic printing procedures@>
+@h @<Declarations@>;
+@<Basic printing procedures@>;
 @<Error handling procedures@>
+ 
 
 @ Here are the functions that set up the \MP\ instance.
 
@@ -210,8 +215,8 @@ static MP mp_do_new (jmp_buf * buf) {
 @ @c
 static void mp_free (MP mp) {
   int k;        /* loop variable */
-  @<Dealloc variables@>
-    if (mp->noninteractive) {
+  @<Dealloc variables@>;
+  if (mp->noninteractive) {
     @<Finish non-interactive use@>;
   }
   xfree (mp->jump_buf);
@@ -222,8 +227,8 @@ static void mp_free (MP mp) {
 
 @ @c
 static void mp_do_initialize (MP mp) {
-  @<Local variables for initialization@>
-    @<Set initial values of key variables@>
+  @<Local variables for initialization@>;
+  @<Set initial values of key variables@>;
 }
 
 
@@ -262,8 +267,8 @@ MP mp_initialize (MP_options * opt) {
   /* open the terminal for output */
   t_open_out;
   @<Find constant sizes@>;
-  @<Allocate or initialize variables@>
-    mp_reallocate_paths (mp, 1000);
+  @<Allocate or initialize variables@>;
+  mp_reallocate_paths (mp, 1000);
   mp_reallocate_fonts (mp, 8);
   mp->history = mp_fatal_error_stop;    /* in case we quit during initialization */
   @<Check the ``constant'' values...@>;
@@ -272,8 +277,8 @@ MP mp_initialize (MP_options * opt) {
     mp_snprintf (ss, 256, "Ouch---my internal constants have been clobbered!\n"
                  "---case %i", (int) mp->bad);
     do_putsf (mp->err_out, (char *) ss);
-@.Ouch...clobbered@>
-      return mp;
+@.Ouch...clobbered@>;
+    return mp;
   }
   mp_do_initialize (mp);        /* erase preloaded mem */
   mp_init_tab (mp);             /* initialize the tables */
@@ -979,13 +984,13 @@ boolean mp_init_terminal (MP mp) {                               /* gets the ter
     if (!mp->noninteractive) {
       wake_up_terminal;
       do_putsf (mp->term_out, "**");
-@.**@>
-        update_terminal;
+@.**@>;
+      update_terminal;
     }
     if (!mp_input_ln (mp, mp->term_in)) {       /* this shouldn't happen */
       do_putsf (mp->term_out, "\n! End of file on the terminal... why?");
-@.End of file on the terminal@>
-        return false;
+@.End of file on the terminal@>;
+      return false;
     }
     loc = (halfword) mp->first;
     while ((loc < (int) mp->last) && (mp->buffer[loc] == ' '))
@@ -1925,7 +1930,6 @@ whole program. It is used when there is no recovery from a particular error.
 The program uses a |jump_buf| to handle this, this is initialized at three
 spots: the start of |mp_new|, the start of |mp_initialize|, and the start 
 of |mp_run|. Those are the only library enty points.
-
 @^system dependencies@>
 
 @<Glob...@>=
@@ -1964,8 +1968,8 @@ void mp_error (MP mp) {                               /* completes the job of er
   incr (mp->error_count);
   if (mp->error_count == 100) {
     mp_print_nl (mp, "(That makes 100 errors; please try again.)");
-@.That makes 100 errors...@>
-      mp->history = mp_fatal_error_stop;
+@.That makes 100 errors...@>;
+    mp->history = mp_fatal_error_stop;
     mp_jump_out (mp);
   }
   @<Put help message on the transcript file@>;
@@ -1990,8 +1994,8 @@ while (true) {
 CONTINUE:
   mp_clear_for_error_prompt (mp);
   prompt_input ("? ");
-@.?\relax@>
-    if (mp->last == mp->first)
+@.?\relax@>;
+  if (mp->last == mp->first)
     return;
   c = mp->buffer[mp->first];
   if (c >= 'a')
@@ -2084,8 +2088,8 @@ default:
 @ @<Print the menu...@>=
 {
   mp_print (mp, "Type <return> to proceed, S to scroll future error messages,");
-@.Type <return> to proceed...@>
-    mp_print_nl (mp, "R to run without stopping, Q to run quietly,");
+@.Type <return> to proceed...@>;
+  mp_print_nl (mp, "R to run without stopping, Q to run quietly,");
   mp_print_nl (mp, "I to insert something, ");
   if (mp->file_ptr > 0)
     mp_print (mp, "E to edit your file,");
@@ -2140,7 +2144,7 @@ to be familiar with \MP's input stacks.
     prompt_input ("insert>");
     loc = (halfword) mp->first;
 @.insert>@>
-  };
+  }
   mp->first = mp->last + 1;
   mp->cur_input.limit_field = (halfword) mp->last;
   return;
@@ -2284,8 +2288,8 @@ void mp_overflow (MP mp, const char *s, integer n) {                            
   mp_normalize_selector (mp);
   mp_snprintf (msg, 256, "MetaPost capacity exceeded, sorry [%s=%d]", s,
                (int) n);
-@.MetaPost capacity exceeded ...@>
-    print_err (msg);
+@.MetaPost capacity exceeded ...@>;
+  print_err (msg);
   help2 ("If you really absolutely need more capacity,",
          "you can ask a wizard to enlarge me.");
   succumb;
@@ -2313,14 +2317,14 @@ void mp_confusion (MP mp, const char *s) {
   mp_normalize_selector (mp);
   if (mp->history < mp_error_message_issued) {
     mp_snprintf (msg, 256, "This can't happen (%s)", s);
-@.This can't happen@>
-      print_err (msg);
+@.This can't happen@>;
+    print_err (msg);
     help1 ("I'm broken. Please show this to someone who can fix can fix");
   } else {
     print_err ("I can\'t go on meeting you like this");
-@.I can't go on...@>
-      help2 ("One of your faux pas seems to have wounded me deeply...",
-             "in fact, I'm barely conscious. Please fix it and try again.");
+@.I can't go on...@>;
+    help2 ("One of your faux pas seems to have wounded me deeply...",
+           "in fact, I'm barely conscious. Please fix it and try again.");
   }
   succumb;
 }
@@ -2359,10 +2363,10 @@ static void mp_pause_for_instructions (MP mp) {
     if ((mp->selector == log_only) || (mp->selector == no_print))
       incr (mp->selector);
     print_err ("Interruption");
-@.Interruption@>
-      help3 ("You rang?",
-             "Try to insert some instructions for me (e.g.,`I show x'),",
-             "unless you just want to quit by typing `X'.");
+@.Interruption@>;
+    help3 ("You rang?",
+           "Try to insert some instructions for me (e.g.,`I show x'),",
+           "unless you just want to quit by typing `X'.");
     mp->deletions_allowed = false;
     mp_error (mp);
     mp->deletions_allowed = true;
@@ -2379,8 +2383,8 @@ by putting this common code into a subroutine.
 static void mp_missing_err (MP mp, const char *s) {
   char msg[256];
   mp_snprintf (msg, 256, "Missing `%s' has been inserted", s);
-@.Missing...inserted@>
-    print_err (msg);
+@.Missing...inserted@>;
+  print_err (msg);
 }
 
 
@@ -2442,11 +2446,11 @@ an arithmetic error has been detected.
 @c
 static void mp_clear_arith (MP mp) {
   print_err ("Arithmetic overflow");
-@.Arithmetic overflow@>
-    help4 ("Uh, oh. A little while ago one of the quantities that I was",
-           "computing got too large, so I'm afraid your answers will be",
-           "somewhat askew. You'll probably have to adopt different",
-           "tactics next time. But I shall try to carry on anyway.");
+@.Arithmetic overflow@>;
+  help4 ("Uh, oh. A little while ago one of the quantities that I was",
+         "computing got too large, so I'm afraid your answers will be",
+         "somewhat askew. You'll probably have to adopt different",
+         "tactics next time. But I shall try to carry on anyway.");
   mp_error (mp);
   mp->arith_error = false;
 }
@@ -2960,8 +2964,8 @@ scaled mp_square_rt (MP mp, scaled x) {
 {
   if (x < 0) {
     print_err ("Square root of ");
-@.Square root...replaced by 0@>
-      mp_print_scaled (mp, x);
+@.Square root...replaced by 0@>;
+    mp_print_scaled (mp, x);
     mp_print (mp, " has been replaced by 0");
     help2 ("Since I don't take square roots of negative numbers,",
            "I'm zeroing this one. Proceed, with fingers crossed.");
@@ -3101,9 +3105,9 @@ while (1) {
     mp_print (mp, "+-+");
     mp_print_scaled (mp, b);
     mp_print (mp, " has been replaced by 0");
-@.Pythagorean...@>
-      help2 ("Since I don't take square roots of negative numbers,",
-             "I'm zeroing this one. Proceed, with fingers crossed.");
+@.Pythagorean...@>;
+    help2 ("Since I don't take square roots of negative numbers,",
+           "I'm zeroing this one. Proceed, with fingers crossed.");
     mp_error (mp);
   }
   a = 0;
@@ -3185,8 +3189,8 @@ static scaled mp_m_log (MP mp, scaled x) {
 @ @<Handle non-positive logarithm@>=
 {
   print_err ("Logarithm of ");
-@.Logarithm...replaced by 0@>
-    mp_print_scaled (mp, x);
+@.Logarithm...replaced by 0@>;
+  mp_print_scaled (mp, x);
   mp_print (mp, " has been replaced by 0");
   help2 ("Since I don't take logs of non-positive numbers,",
          "I'm zeroing this one. Proceed, with fingers crossed.");
@@ -3319,9 +3323,9 @@ static angle mp_n_arg (MP mp, integer x, integer y) {
 @ @<Handle undefined arg@>=
 {
   print_err ("angle(0,0) is taken as zero");
-@.angle(0,0)...zero@>
-    help2 ("The `angle' between two identical points is undefined.",
-           "I'm zeroing this one. Proceed, with fingers crossed.");
+@.angle(0,0)...zero@>;
+  help2 ("The `angle' between two identical points is undefined.",
+         "I'm zeroing this one. Proceed, with fingers crossed.");
   mp_error (mp);
   return 0;
 }
@@ -3677,17 +3681,12 @@ typedef union {
 @<Declare helpers@>=
 extern char *mp_strdup (const char *p);
 extern char *mp_strldup (const char *p, size_t l);
-extern void mp_xfree (@= /*@@only@@*/ /*@@out@@*/ /*@@null@@*/ @>
-                      void *x);
-     extern @= /*@@only@@*/ @>
-     void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size);
-     extern @= /*@@only@@*/ @>
-     void *mp_xmalloc (MP mp, size_t nmem, size_t size);
-     extern @= /*@@only@@*/ @>
-     char *mp_xstrdup (MP mp, const char *s);
-     extern @= /*@@only@@*/ @>
-     char *mp_xstrldup (MP mp, const char *s, size_t l);
-     extern void mp_do_snprintf (char *str, int size, const char *fmt, ...);
+extern void mp_xfree (void *x);
+extern void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size);
+extern void *mp_xmalloc (MP mp, size_t nmem, size_t size);
+extern char *mp_xstrdup (MP mp, const char *s);
+extern char *mp_xstrldup (MP mp, const char *s, size_t l);
+extern void mp_do_snprintf (char *str, int size, const char *fmt, ...);
 
 @ Some care has to be taken while copying strings 
 
@@ -4063,6 +4062,7 @@ static mp_node mp_get_symbolic_node (MP mp) {
   memset (p, 0, symbolic_node_size);
   p->type = mp_symbol_node;
   p->name_type = mp_normal_sym;
+  FUNCTION_TRACE ("%p = mp_get_symbolic_node()\n", p);
   return (mp_node) p;
 }
 
@@ -4077,6 +4077,7 @@ A symbolic node is recycled by calling |free_symbolic_node|.
 
 @c
 void mp_free_node (MP mp, mp_node p, size_t siz) {                               /* node liberation */
+  FUNCTION_TRACE ("mp_free_node(%p,%d)\n", p, siz);
   mp->var_used -= siz;
   xfree (p);                    /* do more later */
 }
@@ -4141,6 +4142,7 @@ nodes that starts at a given position, until coming to a |NULL| pointer.
 @c
 static void mp_flush_node_list (MP mp, mp_node p) {
   mp_node q;    /* the node being recycled */
+  FUNCTION_TRACE ("mp_flush_node_list(%p)\n", p);
   while (p != NULL) {
     q = p;
     p = p->link;
@@ -5061,89 +5063,89 @@ anywhere else.
 
 @<Put each of \MP's primitives into the hash table@>=
 mp_primitive (mp, "tracingtitles", internal_quantity, mp_tracing_titles);
-@:tracingtitles_}{\&{tracingtitles} primitive@>
-  mp_primitive (mp, "tracingequations", internal_quantity, mp_tracing_equations);
-@:mp_tracing_equations_}{\&{tracingequations} primitive@>
-  mp_primitive (mp, "tracingcapsules", internal_quantity, mp_tracing_capsules);
-@:mp_tracing_capsules_}{\&{tracingcapsules} primitive@>
-  mp_primitive (mp, "tracingchoices", internal_quantity, mp_tracing_choices);
-@:mp_tracing_choices_}{\&{tracingchoices} primitive@>
-  mp_primitive (mp, "tracingspecs", internal_quantity, mp_tracing_specs);
-@:mp_tracing_specs_}{\&{tracingspecs} primitive@>
-  mp_primitive (mp, "tracingcommands", internal_quantity, mp_tracing_commands);
-@:mp_tracing_commands_}{\&{tracingcommands} primitive@>
-  mp_primitive (mp, "tracingrestores", internal_quantity, mp_tracing_restores);
-@:mp_tracing_restores_}{\&{tracingrestores} primitive@>
-  mp_primitive (mp, "tracingmacros", internal_quantity, mp_tracing_macros);
-@:mp_tracing_macros_}{\&{tracingmacros} primitive@>
-  mp_primitive (mp, "tracingoutput", internal_quantity, mp_tracing_output);
-@:mp_tracing_output_}{\&{tracingoutput} primitive@>
-  mp_primitive (mp, "tracingstats", internal_quantity, mp_tracing_stats);
-@:mp_tracing_stats_}{\&{tracingstats} primitive@>
-  mp_primitive (mp, "tracinglostchars", internal_quantity, mp_tracing_lost_chars);
-@:mp_tracing_lost_chars_}{\&{tracinglostchars} primitive@>
-  mp_primitive (mp, "tracingonline", internal_quantity, mp_tracing_online);
-@:mp_tracing_online_}{\&{tracingonline} primitive@>
-  mp_primitive (mp, "year", internal_quantity, mp_year);
-@:mp_year_}{\&{year} primitive@>
-  mp_primitive (mp, "month", internal_quantity, mp_month);
-@:mp_month_}{\&{month} primitive@>
-  mp_primitive (mp, "day", internal_quantity, mp_day);
-@:mp_day_}{\&{day} primitive@>
-  mp_primitive (mp, "time", internal_quantity, mp_time);
-@:time_}{\&{time} primitive@>
-  mp_primitive (mp, "hour", internal_quantity, mp_hour);
-@:hour_}{\&{hour} primitive@>
-  mp_primitive (mp, "minute", internal_quantity, mp_minute);
-@:minute_}{\&{minute} primitive@>
-  mp_primitive (mp, "charcode", internal_quantity, mp_char_code);
-@:mp_char_code_}{\&{charcode} primitive@>
-  mp_primitive (mp, "charext", internal_quantity, mp_char_ext);
-@:mp_char_ext_}{\&{charext} primitive@>
-  mp_primitive (mp, "charwd", internal_quantity, mp_char_wd);
-@:mp_char_wd_}{\&{charwd} primitive@>
-  mp_primitive (mp, "charht", internal_quantity, mp_char_ht);
-@:mp_char_ht_}{\&{charht} primitive@>
-  mp_primitive (mp, "chardp", internal_quantity, mp_char_dp);
-@:mp_char_dp_}{\&{chardp} primitive@>
-  mp_primitive (mp, "charic", internal_quantity, mp_char_ic);
-@:mp_char_ic_}{\&{charic} primitive@>
-  mp_primitive (mp, "designsize", internal_quantity, mp_design_size);
-@:mp_design_size_}{\&{designsize} primitive@>
-  mp_primitive (mp, "pausing", internal_quantity, mp_pausing);
-@:mp_pausing_}{\&{pausing} primitive@>
-  mp_primitive (mp, "showstopping", internal_quantity, mp_showstopping);
-@:mp_showstopping_}{\&{showstopping} primitive@>
-  mp_primitive (mp, "fontmaking", internal_quantity, mp_fontmaking);
-@:mp_fontmaking_}{\&{fontmaking} primitive@>
-  mp_primitive (mp, "linejoin", internal_quantity, mp_linejoin);
-@:mp_linejoin_}{\&{linejoin} primitive@>
-  mp_primitive (mp, "linecap", internal_quantity, mp_linecap);
-@:mp_linecap_}{\&{linecap} primitive@>
-  mp_primitive (mp, "miterlimit", internal_quantity, mp_miterlimit);
-@:mp_miterlimit_}{\&{miterlimit} primitive@>
-  mp_primitive (mp, "warningcheck", internal_quantity, mp_warning_check);
-@:mp_warning_check_}{\&{warningcheck} primitive@>
-  mp_primitive (mp, "boundarychar", internal_quantity, mp_boundary_char);
-@:mp_boundary_char_}{\&{boundarychar} primitive@>
-  mp_primitive (mp, "prologues", internal_quantity, mp_prologues);
-@:mp_prologues_}{\&{prologues} primitive@>
-  mp_primitive (mp, "truecorners", internal_quantity, mp_true_corners);
-@:mp_true_corners_}{\&{truecorners} primitive@>
-  mp_primitive (mp, "mpprocset", internal_quantity, mp_procset);
-@:mp_procset_}{\&{mpprocset} primitive@>
-  mp_primitive (mp, "troffmode", internal_quantity, mp_gtroffmode);
-@:troffmode_}{\&{troffmode} primitive@>
-  mp_primitive (mp, "defaultcolormodel", internal_quantity,
+@:tracingtitles_}{\&{tracingtitles} primitive@>;
+mp_primitive (mp, "tracingequations", internal_quantity, mp_tracing_equations);
+@:mp_tracing_equations_}{\&{tracingequations} primitive@>;
+mp_primitive (mp, "tracingcapsules", internal_quantity, mp_tracing_capsules);
+@:mp_tracing_capsules_}{\&{tracingcapsules} primitive@>;
+mp_primitive (mp, "tracingchoices", internal_quantity, mp_tracing_choices);
+@:mp_tracing_choices_}{\&{tracingchoices} primitive@>;
+mp_primitive (mp, "tracingspecs", internal_quantity, mp_tracing_specs);
+@:mp_tracing_specs_}{\&{tracingspecs} primitive@>;
+mp_primitive (mp, "tracingcommands", internal_quantity, mp_tracing_commands);
+@:mp_tracing_commands_}{\&{tracingcommands} primitive@>;
+mp_primitive (mp, "tracingrestores", internal_quantity, mp_tracing_restores);
+@:mp_tracing_restores_}{\&{tracingrestores} primitive@>;
+mp_primitive (mp, "tracingmacros", internal_quantity, mp_tracing_macros);
+@:mp_tracing_macros_}{\&{tracingmacros} primitive@>;
+mp_primitive (mp, "tracingoutput", internal_quantity, mp_tracing_output);
+@:mp_tracing_output_}{\&{tracingoutput} primitive@>;
+mp_primitive (mp, "tracingstats", internal_quantity, mp_tracing_stats);
+@:mp_tracing_stats_}{\&{tracingstats} primitive@>;
+mp_primitive (mp, "tracinglostchars", internal_quantity, mp_tracing_lost_chars);
+@:mp_tracing_lost_chars_}{\&{tracinglostchars} primitive@>;
+mp_primitive (mp, "tracingonline", internal_quantity, mp_tracing_online);
+@:mp_tracing_online_}{\&{tracingonline} primitive@>;
+mp_primitive (mp, "year", internal_quantity, mp_year);
+@:mp_year_}{\&{year} primitive@>;
+mp_primitive (mp, "month", internal_quantity, mp_month);
+@:mp_month_}{\&{month} primitive@>;
+mp_primitive (mp, "day", internal_quantity, mp_day);
+@:mp_day_}{\&{day} primitive@>;
+mp_primitive (mp, "time", internal_quantity, mp_time);
+@:time_}{\&{time} primitive@>;
+mp_primitive (mp, "hour", internal_quantity, mp_hour);
+@:hour_}{\&{hour} primitive@>;
+mp_primitive (mp, "minute", internal_quantity, mp_minute);
+@:minute_}{\&{minute} primitive@>;
+mp_primitive (mp, "charcode", internal_quantity, mp_char_code);
+@:mp_char_code_}{\&{charcode} primitive@>;
+mp_primitive (mp, "charext", internal_quantity, mp_char_ext);
+@:mp_char_ext_}{\&{charext} primitive@>;
+mp_primitive (mp, "charwd", internal_quantity, mp_char_wd);
+@:mp_char_wd_}{\&{charwd} primitive@>;
+mp_primitive (mp, "charht", internal_quantity, mp_char_ht);
+@:mp_char_ht_}{\&{charht} primitive@>;
+mp_primitive (mp, "chardp", internal_quantity, mp_char_dp);
+@:mp_char_dp_}{\&{chardp} primitive@>;
+mp_primitive (mp, "charic", internal_quantity, mp_char_ic);
+@:mp_char_ic_}{\&{charic} primitive@>;
+mp_primitive (mp, "designsize", internal_quantity, mp_design_size);
+@:mp_design_size_}{\&{designsize} primitive@>;
+mp_primitive (mp, "pausing", internal_quantity, mp_pausing);
+@:mp_pausing_}{\&{pausing} primitive@>;
+mp_primitive (mp, "showstopping", internal_quantity, mp_showstopping);
+@:mp_showstopping_}{\&{showstopping} primitive@>;
+mp_primitive (mp, "fontmaking", internal_quantity, mp_fontmaking);
+@:mp_fontmaking_}{\&{fontmaking} primitive@>;
+mp_primitive (mp, "linejoin", internal_quantity, mp_linejoin);
+@:mp_linejoin_}{\&{linejoin} primitive@>;
+mp_primitive (mp, "linecap", internal_quantity, mp_linecap);
+@:mp_linecap_}{\&{linecap} primitive@>;
+mp_primitive (mp, "miterlimit", internal_quantity, mp_miterlimit);
+@:mp_miterlimit_}{\&{miterlimit} primitive@>;
+mp_primitive (mp, "warningcheck", internal_quantity, mp_warning_check);
+@:mp_warning_check_}{\&{warningcheck} primitive@>;
+mp_primitive (mp, "boundarychar", internal_quantity, mp_boundary_char);
+@:mp_boundary_char_}{\&{boundarychar} primitive@>;
+mp_primitive (mp, "prologues", internal_quantity, mp_prologues);
+@:mp_prologues_}{\&{prologues} primitive@>;
+mp_primitive (mp, "truecorners", internal_quantity, mp_true_corners);
+@:mp_true_corners_}{\&{truecorners} primitive@>;
+mp_primitive (mp, "mpprocset", internal_quantity, mp_procset);
+@:mp_procset_}{\&{mpprocset} primitive@>;
+mp_primitive (mp, "troffmode", internal_quantity, mp_gtroffmode);
+@:troffmode_}{\&{troffmode} primitive@>;
+mp_primitive (mp, "defaultcolormodel", internal_quantity,
               mp_default_color_model);
-@:mp_default_color_model_}{\&{defaultcolormodel} primitive@>
-  mp_primitive (mp, "restoreclipcolor", internal_quantity, mp_restore_clip_color);
-@:mp_restore_clip_color_}{\&{restoreclipcolor} primitive@>
-  mp_primitive (mp, "outputtemplate", internal_quantity, mp_output_template);
-@:mp_output_template_}{\&{outputtemplate} primitive@>
-  mp_primitive (mp, "outputformat", internal_quantity, mp_output_format);
-@:mp_output_format_}{\&{outputformat} primitive@>
-  mp_primitive (mp, "jobname", internal_quantity, mp_job_name);
+@:mp_default_color_model_}{\&{defaultcolormodel} primitive@>;
+mp_primitive (mp, "restoreclipcolor", internal_quantity, mp_restore_clip_color);
+@:mp_restore_clip_color_}{\&{restoreclipcolor} primitive@>;
+mp_primitive (mp, "outputtemplate", internal_quantity, mp_output_template);
+@:mp_output_template_}{\&{outputtemplate} primitive@>;
+mp_primitive (mp, "outputformat", internal_quantity, mp_output_format);
+@:mp_output_format_}{\&{outputformat} primitive@>;
+mp_primitive (mp, "jobname", internal_quantity, mp_job_name);
 @:mp_job_name_}{\&{jobname} primitive@>
  
 
@@ -5514,6 +5516,7 @@ static mp_sym new_symbols_entry (MP mp, unsigned char *nam, size_t len) {
   ff->text->len = len;
   ff->type = tag_token;
   ff->v.type = mp_known;
+  FUNCTION_TRACE ("%p = new_symbols_entry(\"%s\",%d)\n", ff, nam, len);
   return ff;
 }
 
@@ -5620,93 +5623,92 @@ as follows:
 
 @<Put each of \MP's primitives into the hash table@>=
 mp_primitive (mp, "..", path_join, 0);
-@:.._}{\.{..} primitive@>
-  mp_primitive (mp, "[", left_bracket, 0);
+@:.._}{\.{..} primitive@>;
+mp_primitive (mp, "[", left_bracket, 0);
 mp->frozen_left_bracket = mp_frozen_primitive (mp, "[", left_bracket, 0);
-@:[ }{\.{[} primitive@>
-  mp_primitive (mp, "]", right_bracket, 0);
-@:] }{\.{]} primitive@>
-  mp_primitive (mp, "}", right_brace, 0);
-@:]]}{\.{\char`\}} primitive@>
-  mp_primitive (mp, "{", left_brace, 0);
-@:][}{\.{\char`\{} primitive@>
-  mp_primitive (mp, ":", colon, 0);
+@:[ }{\.{[} primitive@>;
+mp_primitive (mp, "]", right_bracket, 0);
+@:] }{\.{]} primitive@>;
+mp_primitive (mp, "}", right_brace, 0);
+@:]]}{\.{\char`\}} primitive@>;
+mp_primitive (mp, "{", left_brace, 0);
+@:][}{\.{\char`\{} primitive@>;
+mp_primitive (mp, ":", colon, 0);
 mp->frozen_colon = mp_frozen_primitive (mp, ":", colon, 0);
-@:: }{\.{:} primitive@>
-  mp_primitive (mp, "::", double_colon, 0);
-@::: }{\.{::} primitive@>
-  mp_primitive (mp, "||:", bchar_label, 0);
-@:::: }{\.{\char'174\char'174:} primitive@>
-  mp_primitive (mp, ":=", assignment, 0);
-@::=_}{\.{:=} primitive@>
-  mp_primitive (mp, ",", comma, 0);
-@:, }{\., primitive@>
-  mp_primitive (mp, ";", semicolon, 0);
+@:: }{\.{:} primitive@>;
+mp_primitive (mp, "::", double_colon, 0);
+@::: }{\.{::} primitive@>;
+mp_primitive (mp, "||:", bchar_label, 0);
+@:::: }{\.{\char'174\char'174:} primitive@>;
+mp_primitive (mp, ":=", assignment, 0);
+@::=_}{\.{:=} primitive@>;
+mp_primitive (mp, ",", comma, 0);
+@:, }{\., primitive@>;
+mp_primitive (mp, ";", semicolon, 0);
 mp->frozen_semicolon = mp_frozen_primitive (mp, ";", semicolon, 0);
-@:; }{\.; primitive@>
-  mp_primitive (mp, "\\", relax, 0);
-@:]]\\}{\.{\char`\\} primitive@>
-  @#
-  mp_primitive (mp, "addto", add_to_command, 0);
-@:add_to_}{\&{addto} primitive@>
-  mp_primitive (mp, "atleast", at_least, 0);
-@:at_least_}{\&{atleast} primitive@>
-  mp_primitive (mp, "begingroup", begin_group, 0);
+@:; }{\.; primitive@>;
+mp_primitive (mp, "\\", relax, 0);
+@:]]\\}{\.{\char`\\} primitive@>;
+mp_primitive (mp, "addto", add_to_command, 0);
+@:add_to_}{\&{addto} primitive@>;
+mp_primitive (mp, "atleast", at_least, 0);
+@:at_least_}{\&{atleast} primitive@>;
+mp_primitive (mp, "begingroup", begin_group, 0);
 mp->bg_loc = mp->cur_sym;
-@:begin_group_}{\&{begingroup} primitive@>
-  mp_primitive (mp, "controls", controls, 0);
-@:controls_}{\&{controls} primitive@>
-  mp_primitive (mp, "curl", curl_command, 0);
-@:curl_}{\&{curl} primitive@>
-  mp_primitive (mp, "delimiters", delimiters, 0);
-@:delimiters_}{\&{delimiters} primitive@>
-  mp_primitive (mp, "endgroup", end_group, 0);
+@:begin_group_}{\&{begingroup} primitive@>;
+mp_primitive (mp, "controls", controls, 0);
+@:controls_}{\&{controls} primitive@>;
+mp_primitive (mp, "curl", curl_command, 0);
+@:curl_}{\&{curl} primitive@>;
+mp_primitive (mp, "delimiters", delimiters, 0);
+@:delimiters_}{\&{delimiters} primitive@>;
+mp_primitive (mp, "endgroup", end_group, 0);
 mp->eg_loc = mp->cur_sym;
 mp->frozen_end_group = mp_frozen_primitive (mp, "endgroup", end_group, 0);
-@:endgroup_}{\&{endgroup} primitive@>
-  mp_primitive (mp, "everyjob", every_job_command, 0);
-@:every_job_}{\&{everyjob} primitive@>
-  mp_primitive (mp, "exitif", exit_test, 0);
-@:exit_if_}{\&{exitif} primitive@>
-  mp_primitive (mp, "expandafter", expand_after, 0);
-@:expand_after_}{\&{expandafter} primitive@>
-  mp_primitive (mp, "interim", interim_command, 0);
-@:interim_}{\&{interim} primitive@>
-  mp_primitive (mp, "let", let_command, 0);
-@:let_}{\&{let} primitive@>
-  mp_primitive (mp, "newinternal", new_internal, 0);
-@:new_internal_}{\&{newinternal} primitive@>
-  mp_primitive (mp, "of", of_token, 0);
-@:of_}{\&{of} primitive@>
-  mp_primitive (mp, "randomseed", mp_random_seed, 0);
-@:mp_random_seed_}{\&{randomseed} primitive@>
-  mp_primitive (mp, "save", save_command, 0);
-@:save_}{\&{save} primitive@>
-  mp_primitive (mp, "scantokens", scan_tokens, 0);
-@:scan_tokens_}{\&{scantokens} primitive@>
-  mp_primitive (mp, "shipout", ship_out_command, 0);
-@:ship_out_}{\&{shipout} primitive@>
-  mp_primitive (mp, "skipto", skip_to, 0);
-@:skip_to_}{\&{skipto} primitive@>
-  mp_primitive (mp, "special", special_command, 0);
-@:special}{\&{special} primitive@>
-  mp_primitive (mp, "fontmapfile", special_command, 1);
-@:fontmapfile}{\&{fontmapfile} primitive@>
-  mp_primitive (mp, "fontmapline", special_command, 2);
-@:fontmapline}{\&{fontmapline} primitive@>
-  mp_primitive (mp, "step", step_token, 0);
-@:step_}{\&{step} primitive@>
-  mp_primitive (mp, "str", str_op, 0);
-@:str_}{\&{str} primitive@>
-  mp_primitive (mp, "tension", tension, 0);
-@:tension_}{\&{tension} primitive@>
-  mp_primitive (mp, "to", to_token, 0);
-@:to_}{\&{to} primitive@>
-  mp_primitive (mp, "until", until_token, 0);
-@:until_}{\&{until} primitive@>
-  mp_primitive (mp, "within", within_token, 0);
-@:within_}{\&{within} primitive@>
-  mp_primitive (mp, "write", write_command, 0);
+@:endgroup_}{\&{endgroup} primitive@>;
+mp_primitive (mp, "everyjob", every_job_command, 0);
+@:every_job_}{\&{everyjob} primitive@>;
+mp_primitive (mp, "exitif", exit_test, 0);
+@:exit_if_}{\&{exitif} primitive@>;
+mp_primitive (mp, "expandafter", expand_after, 0);
+@:expand_after_}{\&{expandafter} primitive@>;
+mp_primitive (mp, "interim", interim_command, 0);
+@:interim_}{\&{interim} primitive@>;
+mp_primitive (mp, "let", let_command, 0);
+@:let_}{\&{let} primitive@>;
+mp_primitive (mp, "newinternal", new_internal, 0);
+@:new_internal_}{\&{newinternal} primitive@>;
+mp_primitive (mp, "of", of_token, 0);
+@:of_}{\&{of} primitive@>;
+mp_primitive (mp, "randomseed", mp_random_seed, 0);
+@:mp_random_seed_}{\&{randomseed} primitive@>;
+mp_primitive (mp, "save", save_command, 0);
+@:save_}{\&{save} primitive@>;
+mp_primitive (mp, "scantokens", scan_tokens, 0);
+@:scan_tokens_}{\&{scantokens} primitive@>;
+mp_primitive (mp, "shipout", ship_out_command, 0);
+@:ship_out_}{\&{shipout} primitive@>;
+mp_primitive (mp, "skipto", skip_to, 0);
+@:skip_to_}{\&{skipto} primitive@>;
+mp_primitive (mp, "special", special_command, 0);
+@:special}{\&{special} primitive@>;
+mp_primitive (mp, "fontmapfile", special_command, 1);
+@:fontmapfile}{\&{fontmapfile} primitive@>;
+mp_primitive (mp, "fontmapline", special_command, 2);
+@:fontmapline}{\&{fontmapline} primitive@>;
+mp_primitive (mp, "step", step_token, 0);
+@:step_}{\&{step} primitive@>;
+mp_primitive (mp, "str", str_op, 0);
+@:str_}{\&{str} primitive@>;
+mp_primitive (mp, "tension", tension, 0);
+@:tension_}{\&{tension} primitive@>;
+mp_primitive (mp, "to", to_token, 0);
+@:to_}{\&{to} primitive@>;
+mp_primitive (mp, "until", until_token, 0);
+@:until_}{\&{until} primitive@>;
+mp_primitive (mp, "within", within_token, 0);
+@:within_}{\&{within} primitive@>;
+mp_primitive (mp, "write", write_command, 0);
 @:write_}{\&{write} primitive@>
  
 
@@ -5937,6 +5939,7 @@ static mp_node mp_get_token_node (MP mp) {
   add_var_used (token_node_size);
   memset (p, 0, token_node_size);
   p->type = mp_token_node_type;
+  FUNCTION_TRACE ("%p = mp_get_token_node()\n", p);
   return (mp_node) p;
 }
 
@@ -5961,6 +5964,7 @@ of a token list when it is no longer needed.
 @c
 static void mp_flush_token_list (MP mp, mp_node p) {
   mp_node q;    /* the node being recycled */
+  FUNCTION_TRACE ("mp_flush_token_list(%p)\n", p);
   while (p != NULL) {
     q = p;
     p = mp_link (p);
@@ -5990,7 +5994,7 @@ static void mp_flush_token_list (MP mp, mp_node p) {
         break;
       default:
         mp_confusion (mp, "token");
-@:this can't happen token}{\quad token@>
+@:this can't happen token}{\quad token@>;
       }
       mp_free_node (mp, q, token_node_size);
     }
@@ -6041,8 +6045,8 @@ void mp_show_token_list (MP mp, mp_node p, mp_node q, integer l,
   }
   if (p != NULL)
     mp_print (mp, " ETC.");
-@.ETC@>
-    return;
+@.ETC@>;
+  return;
 }
 
 
@@ -6226,8 +6230,8 @@ static void mp_show_macro (MP mp, mp_node p, mp_node q, integer l) {
     else
       return;
   }                             /* control printing of `\.{ETC.}' */
-@.ETC@>
-    mp->tally = 0;
+@.ETC@>;
+  mp->tally = 0;
   switch (mp_sym_info (p)) {
   case general_macro:
     mp_print (mp, "->");
@@ -6353,6 +6357,7 @@ static mp_node mp_get_value_node (MP mp) {
   add_var_used (value_node_size);
   memset (p, 0, value_node_size);
   mp_type (p) = mp_value_node_type;
+  FUNCTION_TRACE ("%p = mp_get_value_node()\n", p);
   return p;
 }
 
@@ -6802,8 +6807,8 @@ void mp_print_variable_name (MP mp, mp_node p) {
   mp_link (r) = q;
   if (mp_name_type (p) == mp_saved_root)
     mp_print (mp, "(SAVED)");
-@.SAVED@>
-    mp_show_token_list (mp, r, NULL, EL_GORDO, mp->tally);
+@.SAVED@>;
+  mp_show_token_list (mp, r, NULL, EL_GORDO, mp->tally);
   mp_flush_token_list (mp, r);
 }
 
@@ -6821,8 +6826,8 @@ void mp_print_variable_name (MP mp, mp_node p) {
   } else {
     if (mp_name_type (p) != mp_attr)
       mp_confusion (mp, "var");
-@:this can't happen var}{\quad var@>
-      r = mp_get_symbolic_node (mp);
+@:this can't happen var}{\quad var@>;
+    r = mp_get_symbolic_node (mp);
     set_mp_sym_sym (r, hashloc (p));    /* the hash address */
   }
   set_mp_link (r, q);
@@ -6983,8 +6988,8 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
     break;
   default:
     mp_confusion (mp, "struct");
-@:this can't happen struct}{\quad struct@>
-      break;
+@:this can't happen struct}{\quad struct@>;
+    break;
   }
   set_mp_link (r, mp_link (p));
   value_sym (r) = value_sym (p);
@@ -7082,8 +7087,8 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
   mp_sym p_sym;
   mp_node pp, qq, rr, ss;       /* nodes in the ``collective'' line */
   integer n;    /* subscript or attribute */
-@^inner loop@>
-    p_sym = mp_sym_sym (t);
+@^inner loop@>;
+  p_sym = mp_sym_sym (t);
   t = mp_link (t);
   if ((eq_type (p_sym) % outer_tag) != tag_token)
     abort_find;
@@ -7302,6 +7307,7 @@ static void mp_flush_below_variable (MP mp, mp_node p);
 @ @c
 void mp_flush_below_variable (MP mp, mp_node p) {
   mp_node q, r; /* list manipulation registers */
+  FUNCTION_TRACE ("mp_flush_below_variable(%p)\n", p);
   if (mp_type (p) != mp_structured) {
     mp_recycle_value (mp, p);   /* this sets |type(p)=undefined| */
   } else {
@@ -7380,6 +7386,7 @@ parameter is true, a subsidiary structure is saved instead of destroyed.
 @c
 static void mp_clear_symbol (MP mp, mp_sym p, boolean saving) {
   mp_node q;    /* |equiv(p)| */
+  FUNCTION_TRACE ("mp_clear_symbol(%p,%d)\n", p, saving);
   q = equiv_node (p);
   switch (eq_type (p) % outer_tag) {
   case defined_macro:
@@ -7460,6 +7467,7 @@ mp->save_ptr = NULL;
 @c
 static void mp_save_boundary (MP mp) {
   mp_save_data *p;      /* temporary register */
+  FUNCTION_TRACE ("mp_save_boundary ()\n");
   p = xmalloc (1, sizeof (mp_save_data));
   p->info = 0;
   p->link = mp->save_ptr;
@@ -7478,6 +7486,7 @@ no point in wasting the space.
 @c
 static void mp_save_variable (MP mp, mp_sym q) {
   mp_save_data *p;      /* temporary register */
+  FUNCTION_TRACE ("mp_save_variable (%p)\n", q);
   if (mp->save_ptr != NULL) {
     p = xmalloc (1, sizeof (mp_save_data));
     p->info = 1;
@@ -7500,6 +7509,7 @@ third kind.
 @c
 static void mp_save_internal (MP mp, halfword q) {
   mp_save_data *p;      /* new item for the save stack */
+  FUNCTION_TRACE ("mp_save_internal (%p)\n", q);
   if (mp->save_ptr != NULL) {
     p = xmalloc (1, sizeof (mp_save_data));
     p->info = q;
@@ -7518,6 +7528,7 @@ is at least one boundary item on the save stack.
 @c
 static void mp_unsave (MP mp) {
   mp_save_data *p;      /* saved item */
+  FUNCTION_TRACE ("mp_unsave ()\n");
   while (mp->save_ptr->info != 0) {
     halfword q = mp->save_ptr->info;
     if (mp->save_ptr->type == mp_internal_sym) {
@@ -7756,8 +7767,8 @@ switch (mp_right_type (p)) {
 case mp_endpoint:
   if (mp_left_type (p) == mp_open)
     mp_print (mp, "{open?}");   /* can't happen */
-@.open?@>
-    if ((mp_left_type (q) != mp_endpoint) || (q != h))
+@.open?@>;
+  if ((mp_left_type (q) != mp_endpoint) || (q != h))
     q = NULL;                   /* force an error */
   goto DONE1;
   break;
@@ -7773,8 +7784,8 @@ case mp_given:
   break;
 default:
   mp_print (mp, "???");         /* can't happen */
-@.???@>
-    break;
+@.???@>;
+  break;
 }
 if (mp_left_type (q) <= mp_explicit) {
   mp_print (mp, "..control?");  /* can't happen */
@@ -7847,8 +7858,8 @@ if ((mp_left_type (p) != mp_explicit) && (mp_left_type (p) != mp_open)) {
 {
   if (mp_left_type (p) == mp_open)
     mp_print (mp, "??");        /* can't happen */
-@.??@>
-    if (mp_right_type (p) == mp_curl) {
+@.??@>;
+  if (mp_right_type (p) == mp_curl) {
     mp_print (mp, "{curl ");
     mp_print_scaled (mp, right_curl (p));
   } else {
@@ -7872,8 +7883,8 @@ static void mp_print_path (MP mp, mp_knot h, const char *s, boolean nuline);
 void mp_print_path (MP mp, mp_knot h, const char *s, boolean nuline) {
   mp_print_diagnostic (mp, "Path", s, nuline);
   mp_print_ln (mp);
-@.Path at line...@>
-    mp_pr_path (mp, h);
+@.Path at line...@>;
+  mp_pr_path (mp, h);
   mp_end_diagnostic (mp, true);
 }
 
@@ -8041,9 +8052,9 @@ static void mp_make_choices (MP mp, mp_knot knots) {
 @ @<Report an unexpected problem during the choice...@>=
 {
   print_err ("Some number got too big");
-@.Some number got too big@>
-    help2 ("The path that I just computed is out of range.",
-           "So it will probably look funny. Proceed, for a laugh.");
+@.Some number got too big@>;
+  help2 ("The path that I just computed is out of range.",
+         "So it will probably look funny. Proceed, for a laugh.");
   mp_put_get_error (mp);
   mp->arith_error = false;
 }
@@ -8762,16 +8773,14 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   }
   mp_right_x (p) = mp_x_coord (p) + mp_take_fraction (mp,
                                                       mp_take_fraction (mp,
-                                                                        mp->
-                                                                        delta_x
+                                                                        mp->delta_x
                                                                         [k],
-                                                                        mp->
-                                                                        ct) -
-                                                      mp_take_fraction (mp,
-                                                                        mp->
-                                                                        delta_y
-                                                                        [k],
-                                                                        mp->st),
+                                                                        mp->ct)
+                                                      - mp_take_fraction (mp,
+                                                                          mp->delta_y
+                                                                          [k],
+                                                                          mp->
+                                                                          st),
                                                       rr);
   mp_right_y (p) =
     mp_y_coord (p) + mp_take_fraction (mp,
@@ -9454,8 +9463,8 @@ scaled mp_solve_rising_cubic (MP mp, scaled a, scaled b, scaled c, scaled x) {
   integer xx;   /* temporary for updating |x| */
   if ((a < 0) || (c < 0))
     mp_confusion (mp, "rising?");
-@:this can't happen rising?}{\quad rising?@>
-    if (x <= 0) {
+@:this can't happen rising?}{\quad rising?@>;
+  if (x <= 0) {
     return 0;
   } else if (x >= a + b + c) {
     return unity;
@@ -9788,8 +9797,8 @@ static void mp_print_pen (MP mp, mp_knot h, const char *s, boolean nuline);
 void mp_print_pen (MP mp, mp_knot h, const char *s, boolean nuline) {
   mp_print_diagnostic (mp, "Pen", s, nuline);
   mp_print_ln (mp);
-@.Pen at line...@>
-    mp_pr_pen (mp, h);
+@.Pen at line...@>;
+  mp_pr_pen (mp, h);
   mp_end_diagnostic (mp, true);
 }
 
@@ -10779,7 +10788,7 @@ void mp_toss_edges (MP mp, mp_node h) {
     if (r != NULL)
       delete_edge_ref (r);
   }
-  mp_free_node (mp, ((mp_edge_header_node)h)->dummy_, token_node_size);
+  mp_free_node (mp, ((mp_edge_header_node) h)->dummy_, token_node_size);
   mp_free_node (mp, h, edge_header_size);
 }
 void mp_flush_dash_list (MP mp, mp_node h) {
@@ -10940,8 +10949,8 @@ pp = dummy_loc (hh);
 while ((p != bblast (h))) {
   if (p == NULL)
     mp_confusion (mp, "bblast");
-@:this can't happen bblast}{\quad bblast@>
-    p = mp_link (p);
+@:this can't happen bblast}{\quad bblast@>;
+  p = mp_link (p);
   pp = mp_link (pp);
 }
 bblast (hh) = pp
@@ -11113,8 +11122,8 @@ void mp_print_edges (MP mp, mp_node h, const char *s, boolean nuline) {
   mp_print_nl (mp, "End edges");
   if (p != obj_tail (h))
     mp_print (mp, "?");
-@.End edges?@>
-    mp_end_diagnostic (mp, true);
+@.End edges?@>;
+  mp_end_diagnostic (mp, true);
 }
 
 
@@ -11148,8 +11157,8 @@ case 2:
   break;
 default:
   mp_print (mp, "?? joins");
-@.??@>
-    break;
+@.??@>;
+  break;
 }
 
 
@@ -11234,11 +11243,12 @@ mp_print_ln (mp);
 @<Print join and cap types for stroked node |p|@>;
 mp_print (mp, " with pen");
 mp_print_ln (mp);
-if (mp_pen_p ((mp_stroked_node) p) == NULL)
+if (mp_pen_p ((mp_stroked_node) p) == NULL) {
   mp_print (mp, "???");         /* shouldn't happen */
 @.???@>
-  else
+} else {
   mp_pr_pen (mp, mp_pen_p ((mp_stroked_node) p));
+}
 break;
 
 @ Normally, the  |dash_list| field in an edge header is set to |null_dash|
@@ -11285,8 +11295,8 @@ scaled mp_dash_offset (MP mp, mp_node h) {
   scaled x;     /* the answer */
   if (dash_list (h) == mp->null_dash || dash_y (h) < 0)
     mp_confusion (mp, "dash0");
-@:this can't happen dash0}{\quad dash0@>
-    if (dash_y (h) == 0) {
+@:this can't happen dash0}{\quad dash0@>;
+  if (dash_y (h) == 0) {
     x = 0;
   } else {
     x = -(start_x (dash_list (h)) % dash_y (h));
@@ -11537,14 +11547,14 @@ while (mp_link (d) != mp->null_dash) {
     hsf = dash_scale (ds);
     if ((hh == NULL))
       mp_confusion (mp, "dash1");
-@:this can't happen dash0}{\quad dash1@>
-      if (dash_y (hh) == 0) {
+@:this can't happen dash0}{\quad dash1@>;
+    if (dash_y (hh) == 0) {
       d = mp_link (d);
     } else {
       if (dash_list (hh) == NULL)
         mp_confusion (mp, "dash1");
-@:this can't happen dash0}{\quad dash1@>
-        @<Replace |mp_link(d)| by a dashed version as determined by edge header
+@:this can't happen dash0}{\quad dash1@>;
+      @<Replace |mp_link(d)| by a dashed version as determined by edge header
           |hh| and scale factor |ds|@>;
     }
   }
@@ -11705,8 +11715,8 @@ mp_take_fraction (mp, xx - mp->cur_x, dx) + mp_take_fraction (mp,
                                                               dy);
 if (((d < 0) && (i == 1)) || ((d > 0) && (i == 2)))
   mp_confusion (mp, "box_ends");
-@:this can't happen box ends}{\quad\\{box\_ends}@>
-  z = mp_x_coord (p) + mp->cur_x + mp_take_fraction (mp, d, dx);
+@:this can't happen box ends}{\quad\\{box\_ends}@>;
+z = mp_x_coord (p) + mp->cur_x + mp_take_fraction (mp, d, dx);
 if (z < minx_val (h))
   minx_val (h) = z;
 if (z > maxx_val (h))
@@ -11749,8 +11759,8 @@ void mp_set_bbox (MP mp, mp_node h, boolean top_level) {
         mp_confusion (mp, "bbox");
       else
         return;
-@:this can't happen bbox}{\quad bbox@>
-        break;
+@:this can't happen bbox}{\quad bbox@>;
+      break;
       @<Other cases for updating the bounding box based on the type of object |p|@>;
     default:                   /* there are no other valid cases, but please the compiler */
       break;
@@ -11811,16 +11821,16 @@ break;
 case mp_stop_bounds_node_type:
 if (internal_value (mp_true_corners) <= 0)
   mp_confusion (mp, "bbox2");
-@:this can't happen bbox2}{\quad bbox2@>
-  break;
+@:this can't happen bbox2}{\quad bbox2@>;
+break;
 
 @ @<Scan to the matching |mp_stop_bounds_node| node and update |p| and...@>=
 lev = 1;
 while (lev != 0) {
   if (mp_link (p) == NULL)
     mp_confusion (mp, "bbox2");
-@:this can't happen bbox2}{\quad bbox2@>
-    p = mp_link (p);
+@:this can't happen bbox2}{\quad bbox2@>;
+  p = mp_link (p);
   if (mp_type (p) == mp_start_bounds_node_type)
     incr (lev);
   else if (mp_type (p) == mp_stop_bounds_node_type)
@@ -13039,8 +13049,8 @@ if (q == c) {
 tmp = mp_pyth_add (mp, dxout, dyout);
 if (tmp == 0)
   mp_confusion (mp, "degenerate spec");
-@:this can't happen degerate spec}{\quad degenerate spec@>
-  dxout = mp_make_fraction (mp, dxout, tmp);
+@:this can't happen degerate spec}{\quad degenerate spec@>;
+dxout = mp_make_fraction (mp, dxout, tmp);
 dyout = mp_make_fraction (mp, dyout, tmp)
  
 
@@ -13187,9 +13197,11 @@ y3 = mp_take_fraction (mp, y3, x) - mp_take_fraction (mp, t, y)
  
 
 @ @<Exit to |found| if an eastward direction occurs at knot |p|@>=
-theta=mp_n_arg(mp, x1,y1);
-if ( theta>=0 ) if ( phi<=0 ) if ( phi>=theta-one_eighty_deg ) goto FOUND;
-if ( theta<=0 ) if ( phi>=0 ) if ( phi<=theta+one_eighty_deg ) goto FOUND
+theta = mp_n_arg (mp, x1, y1);
+if (theta >= 0 && phi <= 0 && phi >= theta - one_eighty_deg)
+  goto FOUND;
+if (theta <= 0 && phi >= 0 && phi <= theta + one_eighty_deg)
+  goto FOUND;
 
 
 @ In this step we want to use the |crossing_point| routine to find the
@@ -13822,7 +13834,7 @@ $\alpha_1v_1+\cdots+\alpha_kv_k+\beta$ appears in |k+1| value nodes. If
 @t$\alpha_1$@>| (which is a |fraction|); |dep_info(q)| points to the location
 of $\alpha_1$; and |mp_link(p)| points to the dependency list
 $\alpha_2v_2+\cdots+\alpha_kv_k+\beta$. On the other hand if |k=0|,
-then |dep_e(q)=@t$\beta$@>| (which is |scaled|) and |mp_info(q)=NULL|.
+then |dep_value(q)=@t$\beta$@>| (which is |scaled|) and |dep_info(q)=NULL|.
 The independent variables $v_1$, \dots,~$v_k$ have been sorted so that
 they appear in decreasing order of their |value| fields (i.e., of
 their serial numbers). \ (It is convenient to use decreasing order,
@@ -13846,41 +13858,54 @@ variable (say~|r|); and we have |prev_dep(r)=q|, etc.
 Dependency nodes sometimes mutate into value nodes and vice versa, so their
 structures have to match.
 
-@d dep_value(A) ((A!=NULL)? ((mp_value_node)(A))->data.val : 0) /* half of the |value| field in a |dependent| variable */
-@d set_dep_value(A,B) ((mp_value_node)(A))->data.val=(B)  /* half of the |value| field in a |dependent| variable */
-@d dep_info(A) ((mp_value_node)(A))->data.node  /* half of the |value| field in a |dependent| variable */
+@d dep_value(A) ((mp_value_node)(A))->data.val /* half of the |value| field in a |dependent| variable */
+@d set_dep_value(A,B) do {
+  ((mp_value_node)(A))->data.val=(B);  /* half of the |value| field in a |dependent| variable */
+   FUNCTION_TRACE("set_dep_value(%p,%d) on %d\n",A,B,__LINE__);
+   set_dep_list((A), NULL);
+   set_prev_dep((A), NULL);
+ } while (0)
+@d dep_info get_dep_info
 @d set_dep_info(A,B) do {
    mp_value_node d = (mp_value_node)(B);
-   /* |printf("set depinfo of %p to %p on %d\n",A,d,__LINE__);| */
-   dep_info((A)) = (mp_node)d;
+   FUNCTION_TRACE("set_dep_info(%p,%p) on %d\n",A,d,__LINE__);
+  ((mp_value_node)(A))->parent_ = (mp_node)d;
 } while (0)
 @d dep_list(A) ((mp_value_node)(A))->attr_head_  /* half of the |value| field in a |dependent| variable */
 @d set_dep_list(A,B) do {
    mp_value_node d = (mp_value_node)(B);
-   /* |printf("set deplist of %p to %p on %d\n",A,d,__LINE__);|  */
+   FUNCTION_TRACE("set_dep_list(%p,%p) on %d\n",A,d,__LINE__);
    dep_list((A)) = (mp_node)d;
 } while (0)
 @d prev_dep(A) ((mp_value_node)(A))->subscr_head_ /* the other half; makes a doubly linked list */
 @d set_prev_dep(A,B) do {
    mp_value_node d = (mp_value_node)(B);
-   /* |printf("set prevdep of %p to %p on %d\n",A,d,__LINE__);|  */
+   FUNCTION_TRACE("set_prev_dep(%p,%p) on %d\n",A,d,__LINE__);
    prev_dep((A)) = (mp_node)d;
 } while (0)
 
-@ 
+@c
+static mp_node get_dep_info (mp_value_node p) {
+  mp_node d;
+  d = p->parent_;               /* half of the |value| field in a |dependent| variable */
+  FUNCTION_TRACE ("%p = dep_info(%p)\n", d, p);
+  return d;
+}
 
-@d dep_node_size value_node_size /* the number of words per dependency node */
+
+@ @<Declarations...@>=
+static mp_node get_dep_info (mp_value_node p);
+
+@ 
 
 @c
 static mp_value_node mp_get_dep_node (MP mp) {
-  mp_value_node p = (mp_value_node) xmalloc (1, dep_node_size);
-  add_var_used (dep_node_size);
-  memset (p, 0, dep_node_size);
+  mp_value_node p = (mp_value_node) mp_get_value_node (mp);
   mp_type (p) = mp_dep_node_type;
   return p;
 }
 static void mp_free_dep_node (MP mp, mp_value_node p) {
-  mp_free_node (mp, (mp_node) p, dep_node_size);
+  mp_free_node (mp, (mp_node) p, value_node_size);
 }
 
 
@@ -13933,8 +13958,8 @@ void mp_print_dependency (MP mp, mp_value_node p, quarterword t) {
     @<Print the coefficient, unless it's $\pm1.0$@>;
     if (mp_type (q) != mp_independent)
       mp_confusion (mp, "dep");
-@:this can't happen dep}{\quad dep@>
-      mp_print_variable_name (mp, q);
+@:this can't happen dep}{\quad dep@>;
+    mp_print_variable_name (mp, q);
     v = value (q) % s_scale;
     while (v > 0) {
       mp_print (mp, "*4");
@@ -14363,11 +14388,11 @@ void mp_val_too_big (MP mp, scaled x) {
     print_err ("Value is too large (");
     mp_print_scaled (mp, x);
     mp_print_char (mp, xord (')'));
-@.Value is too large@>
-      help4 ("The equation I just processed has given some variable",
-             "a value of 4096 or more. Continue and I'll try to cope",
-             "with that big value; but it might be dangerous.",
-             "(Set warningcheck:=0 to suppress this message.)");
+@.Value is too large@>;
+    help4 ("The equation I just processed has given some variable",
+           "a value of 4096 or more. Continue and I'll try to cope",
+           "with that big value; but it might be dangerous.",
+           "(Set warningcheck:=0 to suppress this message.)");
     mp_error (mp);
   }
 }
@@ -14395,8 +14420,8 @@ void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
       && mp_interesting (mp, (mp_node) p)) {
     mp_begin_diagnostic (mp);
     mp_print_nl (mp, "#### ");
-@:]]]\#\#\#\#_}{\.{\#\#\#\#}@>
-      mp_print_variable_name (mp, (mp_node) p);
+@:]]]\#\#\#\#_}{\.{\#\#\#\#}@>;
+    mp_print_variable_name (mp, (mp_node) p);
     mp_print_char (mp, xord ('='));
     mp_print_scaled (mp, value (p));
     mp_end_diagnostic (mp, false);
@@ -14481,6 +14506,7 @@ dependency node. We assume that |dep_final| points to the final node of list~|p|
 static void mp_new_dep (MP mp, mp_node q, mp_variable_type newtype,
                         mp_value_node p) {
   mp_node r;    /* what used to be the first dependency */
+  FUNCTION_TRACE ("mp_new_dep(%p,%d,%p)\n", q, newtype, p);
   mp_type (q) = newtype;
   set_dep_list (q, (mp_node) p);
   set_prev_dep (q, (mp_node) mp->dep_head);
@@ -14500,6 +14526,7 @@ static mp_value_node mp_const_dependency (MP mp, scaled v) {
   mp->dep_final = mp_get_dep_node (mp);
   set_dep_value (mp->dep_final, v);
   set_dep_info (mp->dep_final, NULL);
+  FUNCTION_TRACE ("%p = mp_const_dependency(%d)\n", mp->dep_final, v);
   return mp->dep_final;
 }
 
@@ -14521,15 +14548,16 @@ static mp_value_node mp_single_dependency (MP mp, mp_node p) {
   integer m;    /* the number of doublings */
   m = value (p) % s_scale;
   if (m > 28) {
-    return mp_const_dependency (mp, 0);
+    q = mp_const_dependency (mp, 0);
   } else {
     q = mp_get_dep_node (mp);
     set_dep_value (q, (integer) two_to_the (28 - m));
     set_dep_info (q, p);
     rr = mp_const_dependency (mp, 0);
     set_mp_link (q, (mp_node) rr);
-    return q;
   }
+  FUNCTION_TRACE ("%p = mp_single_dependency(%p)\n", q, p);
+  return q;
 }
 
 
@@ -14538,6 +14566,7 @@ static mp_value_node mp_single_dependency (MP mp, mp_node p) {
 @c
 static mp_value_node mp_copy_dep_list (MP mp, mp_value_node p) {
   mp_value_node q;      /* the new dependency list */
+  FUNCTION_TRACE ("mp_copy_dep_list(%p)\n", p);
   q = mp_get_dep_node (mp);
   mp->dep_final = q;
   while (1) {
@@ -14573,6 +14602,7 @@ static void mp_linear_eq (MP mp, mp_value_node p, quarterword t) {
   mp_value_node prev_r; /* lags one step behind |r| */
   mp_value_node final_node;     /* the constant term of the new dependency list */
   integer w;    /* a tentative coefficient */
+  FUNCTION_TRACE ("mp_linear_eq(%p,%d)\n", p, t);
   @<Find a node |q| in list |p| whose coefficient |v| is largest@>;
   x = dep_info (q);
   n = value (x) % s_scale;
@@ -14638,8 +14668,8 @@ if (mp_interesting (mp, (mp_node) x)) {
   mp_begin_diagnostic (mp);
   mp_print_nl (mp, "## ");
   mp_print_variable_name (mp, (mp_node) x);
-@:]]]\#\#_}{\.{\#\#}@>
-    w = n;
+@:]]]\#\#_}{\.{\#\#}@>;
+  w = n;
   while (w > 0) {
     mp_print (mp, "*4");
     w = w - 2;
@@ -14847,9 +14877,9 @@ static void mp_ring_merge (MP mp, mp_node p, mp_node q) {
 @ @<Exclaim about a redundant equation@>=
 {
   print_err ("Redundant equation");
-@.Redundant equation@>
-    help2 ("I already knew that this equation was true.",
-           "But perhaps no harm has been done; let's continue.");
+@.Redundant equation@>;
+  help2 ("I already knew that this equation was true.",
+         "But perhaps no harm has been done; let's continue.");
   mp_put_get_error (mp);
 }
 
@@ -15260,8 +15290,8 @@ at most |error_line|. Non-current input levels whose |token_type| is
 @c
 void mp_show_context (MP mp) {                               /* prints where the scanner is */
   unsigned old_setting; /* saved |selector| setting */
-  @<Local variables for formatting calculations@>
-    mp->file_ptr = mp->input_ptr;
+  @<Local variables for formatting calculations@>;
+  mp->file_ptr = mp->input_ptr;
   mp->input_stack[mp->file_ptr] = mp->cur_input;
   /* store current state */
   while (1) {
@@ -15583,8 +15613,8 @@ token by the |cur_tok| routine.
 @^inner loop@>
 
 @c
-@<Declare the procedure called |make_exp_copy|@>
-     static mp_node mp_cur_tok (MP mp) {
+@<Declare the procedure called |make_exp_copy|@>;
+static mp_node mp_cur_tok (MP mp) {
   mp_node p;    /* a new token node */
   if (mp->cur_sym == NULL && mp->cur_sym_mod == 0) {
     if (mp->cur_cmd == capsule_token) {
@@ -15692,7 +15722,7 @@ static void mp_end_file_reading (MP mp) {
   if (mp->in_open > iindex) {
     if ((mp->mpx_name[mp->in_open] == absent) || (name <= max_spec_src)) {
       mp_confusion (mp, "endinput");
-@:this can't happen endinput}{\quad endinput@>
+@:this can't happen endinput}{\quad endinput@>;
     } else {
       (mp->close_file) (mp, mp->input_file[mp->in_open]);       /* close an \.{MPX} file */
       delete_str_ref (mp->mpx_name[mp->in_open]);
@@ -15724,8 +15754,8 @@ static boolean mp_begin_mpx_reading (MP mp) {
   } else {
     if (mp->mpx_name[mp->in_open] <= absent)
       mp_confusion (mp, "mpx");
-@:this can't happen mpx}{\quad mpx@>
-      if (mp->first == mp->buf_size)
+@:this can't happen mpx}{\quad mpx@>;
+    if (mp->first == mp->buf_size)
       mp_reallocate_buffer (mp, (mp->buf_size + (mp->buf_size / 4)));
     push_input;
     iindex = (quarterword) mp->in_open;
@@ -15744,8 +15774,8 @@ static boolean mp_begin_mpx_reading (MP mp) {
 static void mp_end_mpx_reading (MP mp) {
   if (mp->in_open != iindex)
     mp_confusion (mp, "mpx");
-@:this can't happen mpx}{\quad mpx@>
-    if (loc < limit) {
+@:this can't happen mpx}{\quad mpx@>;
+  if (loc < limit) {
     @<Complain that we are not at the end of a line in the \.{MPX} file@>;
   }
   mp->first = (size_t) start;
@@ -15874,8 +15904,8 @@ static boolean mp_check_outer_validity (MP mp) {
       @<Tell the user what has run away and try to recover@>;
     } else {
       print_err ("Incomplete if; all text was ignored after line ");
-@.Incomplete if...@>
-        mp_print_int (mp, mp->warning_info_line);
+@.Incomplete if...@>;
+      mp_print_int (mp, mp->warning_info_line);
       help3 ("A forbidden `outer' token occurred in skipped text.",
              "This kind of error happens when you say `if...' and forget",
              "the matching `fi'. I've inserted a `fi'; this might work.");
@@ -16083,8 +16113,8 @@ SWITCH:
       n = 0;
       goto START_DECIMAL_TOKEN;
     }
-@:. }{\..\ token@>
-      break;
+@:. }{\..\ token@>;
+    break;
   case space_class:
     goto SWITCH;
     break;
@@ -16141,9 +16171,9 @@ FOUND:
 @<Decry the invalid...@>=
 {
   print_err ("Text line contains an invalid character");
-@.Text line contains...@>
-    help2 ("A funny symbol that I can\'t read has just been input.",
-           "Continue, and I'll forget that it ever happened.");
+@.Text line contains...@>;
+  help2 ("A funny symbol that I can\'t read has just been input.",
+         "Continue, and I'll forget that it ever happened.");
   mp->deletions_allowed = false;
   mp_error (mp);
   mp->deletions_allowed = true;
@@ -16185,10 +16215,10 @@ because the |clear_for_error_prompt| routine might have reinstated
 {
   loc = limit;                  /* the next character to be read on this line will be |"%"| */
   print_err ("Incomplete string token has been flushed");
-@.Incomplete string token...@>
-    help3 ("Strings should finish on the same line as they began.",
-           "I've deleted the partial string; you might want to",
-           "insert another by typing, e.g., `I\"new string\"'.");
+@.Incomplete string token...@>;
+  help3 ("Strings should finish on the same line as they began.",
+         "I've deleted the partial string; you might want to",
+         "insert another by typing, e.g., `I\"new string\"'.");
   mp->deletions_allowed = false;
   mp_error (mp);
   mp->deletions_allowed = true;
@@ -16231,9 +16261,9 @@ if (n < 32768) {
   @<Set |cur_mod:=n*unity+f| and check if it is uncomfortably large@>;
 } else if (mp->scanner_status != tex_flushing) {
   print_err ("Enormous number has been reduced");
-@.Enormous number...@>
-    help2 ("I can\'t handle numbers bigger than 32767.99998;",
-           "so I've changed your constant to that maximum amount.");
+@.Enormous number...@>;
+  help2 ("I can\'t handle numbers bigger than 32767.99998;",
+         "so I've changed your constant to that maximum amount.");
   mp->deletions_allowed = false;
   mp_error (mp);
   mp->deletions_allowed = true;
@@ -16329,20 +16359,20 @@ if (name > max_spec_src) {
   if (mp->interaction > mp_nonstop_mode) {
     if (limit == start)         /* previous line was empty */
       mp_print_nl (mp, "(Please type a command or say `end')");
-@.Please type...@>
-      mp_print_ln (mp);
+@.Please type...@>;
+    mp_print_ln (mp);
     mp->first = (size_t) start;
     prompt_input ("*");         /* input on-line into |buffer| */
-@.*\relax@>
-      limit = (halfword) mp->last;
+@.*\relax@>;
+    limit = (halfword) mp->last;
     mp->buffer[limit] = xord ('%');
     mp->first = (size_t) (limit + 1);
     loc = start;
   } else {
     mp_fatal_error (mp, "*** (job aborted, no legal end found)");
-@.job aborted@>
-      /* nonstop mode, which is intended for overnight batch processing,
-         never waits for on-line input */
+@.job aborted@>;
+    /* nonstop mode, which is intended for overnight batch processing,
+       never waits for on-line input */
   }
 }
 
@@ -16446,8 +16476,8 @@ void mp_firm_up_the_line (MP mp) {
     }
     mp->first = (size_t) limit;
     prompt_input ("=>");        /* wait for user response */
-@.=>@>
-      if (mp->last > mp->first) {
+@.=>@>;
+    if (mp->last > mp->first) {
       for (k = mp->first; k < mp->last; k++) {  /* move line down in buffer */
         mp->buffer[k + (size_t) start - mp->first] = mp->buffer[k];
       }
@@ -16476,13 +16506,13 @@ $\,\ldots\,$\&{etex} blocks, switching to the \.{MPX} file when it sees
 
 @ @<Put each...@>=
 mp_primitive (mp, "btex", start_tex, btex_code);
-@:btex_}{\&{btex} primitive@>
-  mp_primitive (mp, "verbatimtex", start_tex, verbatim_code);
-@:verbatimtex_}{\&{verbatimtex} primitive@>
-  mp_primitive (mp, "etex", etex_marker, 0);
+@:btex_}{\&{btex} primitive@>;
+mp_primitive (mp, "verbatimtex", start_tex, verbatim_code);
+@:verbatimtex_}{\&{verbatimtex} primitive@>;
+mp_primitive (mp, "etex", etex_marker, 0);
 mp->frozen_etex = mp_frozen_primitive (mp, "etex", etex_marker, 0);
-@:etex_}{\&{etex} primitive@>
-  mp_primitive (mp, "mpxbreak", mpx_break, 0);
+@:etex_}{\&{etex} primitive@>;
+mp_primitive (mp, "mpxbreak", mpx_break, 0);
 mp->frozen_mpx_break = mp_frozen_primitive (mp, "mpxbreak", mpx_break, 0);
 @:mpx_break_}{\&{mpxbreak} primitive@>
  
@@ -16505,9 +16535,17 @@ break;
 in the unusual case where \&{btex}, \&{verbatimtex}, \&{etex}, or \&{mpxbreak}
 is encountered.
 
-@d get_t_next {mp_get_next(mp); if ( mp->cur_cmd<=max_pre_command ) mp_t_next(mp); }
+@c
+static void get_t_next (MP mp) {
+  mp_get_next (mp);
+  if (mp->cur_cmd <= max_pre_command)
+    mp_t_next (mp);
+}
 
-@<Declarations@>=
+
+@ @<Declarations@>=
+static void get_t_next (MP mp);
+static void mp_t_next (MP mp);
 static void mp_start_mpx_input (MP mp);
 
 @ @c
@@ -16618,26 +16656,25 @@ like \&{enddef} and \&{endfor}.
 
 @<Put each...@>=
 mp_primitive (mp, "def", macro_def, start_def);
-@:def_}{\&{def} primitive@>
-  mp_primitive (mp, "vardef", macro_def, var_def);
-@:var_def_}{\&{vardef} primitive@>
-  mp_primitive (mp, "primarydef", macro_def, secondary_primary_macro);
-@:primary_def_}{\&{primarydef} primitive@>
-  mp_primitive (mp, "secondarydef", macro_def, tertiary_secondary_macro);
-@:secondary_def_}{\&{secondarydef} primitive@>
-  mp_primitive (mp, "tertiarydef", macro_def, expression_tertiary_macro);
-@:tertiary_def_}{\&{tertiarydef} primitive@>
-  mp_primitive (mp, "enddef", macro_def, end_def);
+@:def_}{\&{def} primitive@>;
+mp_primitive (mp, "vardef", macro_def, var_def);
+@:var_def_}{\&{vardef} primitive@>;
+mp_primitive (mp, "primarydef", macro_def, secondary_primary_macro);
+@:primary_def_}{\&{primarydef} primitive@>;
+mp_primitive (mp, "secondarydef", macro_def, tertiary_secondary_macro);
+@:secondary_def_}{\&{secondarydef} primitive@>;
+mp_primitive (mp, "tertiarydef", macro_def, expression_tertiary_macro);
+@:tertiary_def_}{\&{tertiarydef} primitive@>;
+mp_primitive (mp, "enddef", macro_def, end_def);
 mp->frozen_end_def = mp_frozen_primitive (mp, "enddef", macro_def, end_def);
-@:end_def_}{\&{enddef} primitive@>
-  @#
-  mp_primitive (mp, "for", iteration, start_for);
-@:for_}{\&{for} primitive@>
-  mp_primitive (mp, "forsuffixes", iteration, start_forsuffixes);
-@:for_suffixes_}{\&{forsuffixes} primitive@>
-  mp_primitive (mp, "forever", iteration, start_forever);
-@:forever_}{\&{forever} primitive@>
-  mp_primitive (mp, "endfor", iteration, end_for);
+@:end_def_}{\&{enddef} primitive@>;
+mp_primitive (mp, "for", iteration, start_for);
+@:for_}{\&{for} primitive@>;
+mp_primitive (mp, "forsuffixes", iteration, start_forsuffixes);
+@:for_suffixes_}{\&{forsuffixes} primitive@>;
+mp_primitive (mp, "forever", iteration, start_forever);
+@:forever_}{\&{forever} primitive@>;
+mp_primitive (mp, "endfor", iteration, end_for);
 mp->frozen_end_for = mp_frozen_primitive (mp, "endfor", iteration, end_for);
 @:end_for_}{\&{endfor} primitive@>
  
@@ -16714,7 +16751,7 @@ static mp_node mp_scan_toks (MP mp, command_code terminator,
   balance = 1;
   mp_link (mp->hold_head) = NULL;
   while (1) {
-    get_t_next;
+    get_t_next (mp);
     cur_data = -1;
     if (mp->cur_sym != NULL) {
       @<Substitute for |cur_sym|, if it's on the |subst_list|@>;
@@ -16723,7 +16760,7 @@ static mp_node mp_scan_toks (MP mp, command_code terminator,
       } else if (mp->cur_cmd == macro_special) {
         /* Handle quoted symbols, \.{\#\AT!}, \.{\AT!}, or \.{\AT!\#} */
         if (mp->cur_mod == quote) {
-          get_t_next;
+          get_t_next (mp);
         } else if (mp->cur_mod <= suffix_count) {
           cur_data = mp->cur_mod - 1;
           cur_data_mod = mp_suffix_sym;
@@ -16786,12 +16823,12 @@ code called |macro_special|.
 
 @<Put each...@>=
 mp_primitive (mp, "quote", macro_special, quote);
-@:quote_}{\&{quote} primitive@>
-  mp_primitive (mp, "#@@", macro_special, macro_prefix);
-@:]]]\#\AT!_}{\.{\#\AT!} primitive@>
-  mp_primitive (mp, "@@", macro_special, macro_at);
-@:]]]\AT!_}{\.{\AT!} primitive@>
-  mp_primitive (mp, "@@#", macro_special, macro_suffix);
+@:quote_}{\&{quote} primitive@>;
+mp_primitive (mp, "#@@", macro_special, macro_prefix);
+@:]]]\#\AT!_}{\.{\#\AT!} primitive@>;
+mp_primitive (mp, "@@", macro_special, macro_at);
+@:]]]\AT!_}{\.{\AT!} primitive@>;
+mp_primitive (mp, "@@#", macro_special, macro_suffix);
 @:]]]\AT!\#_}{\.{\AT!\#} primitive@>
  
 
@@ -16821,13 +16858,13 @@ hence \MP's tables won't get fouled up.
 @c
 static void mp_get_symbol (MP mp) {                               /* sets |cur_sym| to a safe symbol */
 RESTART:
-  get_t_next;
+  get_t_next (mp);
   if ((mp->cur_sym == NULL) || mp_is_frozen (mp, mp->cur_sym)) {
     print_err ("Missing symbolic token inserted");
-@.Missing symbolic token...@>
-      help3 ("Sorry: You can\'t redefine a number, string, or expr.",
-             "I've inserted an inaccessible symbol so that your",
-             "definition will be completed without mixing me up too badly.");
+@.Missing symbolic token...@>;
+    help3 ("Sorry: You can\'t redefine a number, string, or expr.",
+           "I've inserted an inaccessible symbol so that your",
+           "definition will be completed without mixing me up too badly.");
     if (mp->cur_sym != NULL)
       mp->help_line[2] = "Sorry: You can\'t redefine my error-recovery tokens.";
     else if (mp->cur_cmd == string_token)
@@ -16858,12 +16895,12 @@ static void mp_check_equals (MP mp) {
   if (mp->cur_cmd != equals)
     if (mp->cur_cmd != assignment) {
       mp_missing_err (mp, "=");
-@.Missing `='@>
-        help5 ("The next thing in this `def' should have been `=',",
-               "because I've already looked at the definition heading.",
-               "But don't worry; I'll pretend that an equals sign",
-               "was present. Everything from here to `enddef'",
-               "will be the replacement text of this macro.");
+@.Missing `='@>;
+      help5 ("The next thing in this `def' should have been `=',",
+             "because I've already looked at the definition heading.",
+             "But don't worry; I'll pretend that an equals sign",
+             "was present. Everything from here to `enddef'",
+             "will be the replacement text of this macro.");
       mp_back_error (mp);
     }
 }
@@ -16895,7 +16932,7 @@ static void mp_make_op_def (MP mp) {
   qn->info_mod = mp->cur_sym_mod;
   qn->value_data = 1;
   qn->value_mod = mp_expr_sym;
-  get_t_next;
+  get_t_next (mp);
   mp_check_equals (mp);
   mp->scanner_status = op_defining;
   q = mp_get_symbolic_node (mp);
@@ -16917,16 +16954,16 @@ static void mp_make_op_def (MP mp) {
 
 @<Put each...@>=
 mp_primitive (mp, "expr", param_type, expr_param);
-@:expr_}{\&{expr} primitive@>
-  mp_primitive (mp, "suffix", param_type, suffix_param);
-@:suffix_}{\&{suffix} primitive@>
-  mp_primitive (mp, "text", param_type, text_param);
-@:text_}{\&{text} primitive@>
-  mp_primitive (mp, "primary", param_type, primary_macro);
-@:primary_}{\&{primary} primitive@>
-  mp_primitive (mp, "secondary", param_type, secondary_macro);
-@:secondary_}{\&{secondary} primitive@>
-  mp_primitive (mp, "tertiary", param_type, tertiary_macro);
+@:expr_}{\&{expr} primitive@>;
+mp_primitive (mp, "suffix", param_type, suffix_param);
+@:suffix_}{\&{suffix} primitive@>;
+mp_primitive (mp, "text", param_type, text_param);
+@:text_}{\&{text} primitive@>;
+mp_primitive (mp, "primary", param_type, primary_macro);
+@:primary_}{\&{primary} primitive@>;
+mp_primitive (mp, "secondary", param_type, secondary_macro);
+@:secondary_}{\&{secondary} primitive@>;
+mp_primitive (mp, "tertiary", param_type, tertiary_macro);
 @:tertiary_}{\&{tertiary} primitive@>
  
 
@@ -17018,7 +17055,7 @@ mp_sym eg_loc;  /* hash addresses of `\.{begingroup}' and `\.{endgroup}' */
 if (m == start_def) {
   mp_get_clear_symbol (mp);
   mp->warning_info = mp->cur_sym;
-  get_t_next;
+  get_t_next (mp);
   mp->scanner_status = op_defining;
   n = 0;
   eq_type (mp->warning_info) = defined_macro;
@@ -17034,7 +17071,7 @@ if (m == start_def) {
   n = 2;
   if (mp->cur_cmd == macro_special && mp->cur_mod == macro_suffix) {    /* \.{\AT!\#} */
     n = 3;
-    get_t_next;
+    get_t_next (mp);
   }
   mp_type (mp->warning_info_node) = (quarterword) (mp_unsuffixed_macro - 2 + n);
   /* |mp_suffixed_macro=mp_unsuffixed_macro+1| */
@@ -17045,9 +17082,9 @@ if (m == start_def) {
 @ @<Change to `\.{a bad variable}'@>=
 {
   print_err ("This variable already starts with a macro");
-@.This variable already...@>
-    help2 ("After `vardef a' you can\'t say `vardef a.b'.",
-           "So I'll have to discard this definition.");
+@.This variable already...@>;
+  help2 ("After `vardef a' you can\'t say `vardef a.b'.",
+         "So I'll have to discard this definition.");
   mp_error (mp);
   mp->warning_info_node = mp->bad_vardef;
 }
@@ -17067,7 +17104,7 @@ mp_free_value_node (mp, mp->bad_vardef);
 do {
   l_delim = mp->cur_sym;
   r_delim = mp->cur_mod_sym;
-  get_t_next;
+  get_t_next (mp);
   if ((mp->cur_cmd == param_type) && (mp->cur_mod == expr_param)) {
     sym_type = mp_expr_sym;
   } else if ((mp->cur_cmd == param_type) && (mp->cur_mod == suffix_param)) {
@@ -17076,14 +17113,14 @@ do {
     sym_type = mp_text_sym;
   } else {
     print_err ("Missing parameter type; `expr' will be assumed");
-@.Missing parameter type@>
-      help1 ("You should've had `expr' or `suffix' or `text' here.");
+@.Missing parameter type@>;
+    help1 ("You should've had `expr' or `suffix' or `text' here.");
     mp_back_error (mp);
     sym_type = mp_expr_sym;
   }
   @<Absorb parameter tokens for type |sym_type|@>;
   mp_check_delimiter (mp, l_delim, r_delim);
-  get_t_next;
+  get_t_next (mp);
 } while (mp->cur_cmd == left_delimiter)
 
 @ @<Absorb parameter tokens for type |sym_type|@>=
@@ -17103,7 +17140,7 @@ do {
   incr (k);
   rp->link = r;
   r = rp;
-  get_t_next;
+  get_t_next (mp);
 } while (mp->cur_cmd == comma)
 
 @ @<Absorb undelimited parameters, putting them into list |r|@>=
@@ -17131,7 +17168,7 @@ do {
   rp->info_mod = mp->cur_sym_mod;
   rp->link = r;
   r = rp;
-  get_t_next;
+  get_t_next (mp);
   if (c == expr_macro)
     if (mp->cur_cmd == of_token) {
       c = of_macro;
@@ -17145,7 +17182,7 @@ do {
       rp->info_mod = mp->cur_sym_mod;
       rp->link = r;
       r = rp;
-      get_t_next;
+      get_t_next (mp);
     }
 }
 
@@ -17271,9 +17308,9 @@ static void mp_expand (MP mp) {
 @ @<Scold the user...@>=
 {
   print_err ("Extra `endfor'");
-@.Extra `endfor'@>
-    help2 ("I'm not currently working on a for loop,",
-           "so I had better not try to end anything.");
+@.Extra `endfor'@>;
+  help2 ("I'm not currently working on a for loop,",
+         "so I had better not try to end anything.");
   mp_error (mp);
 }
 
@@ -17283,8 +17320,8 @@ which will be declared later; the processing of \&{endinput} is trivial.
 
 @<Put each...@>=
 mp_primitive (mp, "input", input, 0);
-@:input_}{\&{input} primitive@>
-  mp_primitive (mp, "endinput", input, 1);
+@:input_}{\&{input} primitive@>;
+mp_primitive (mp, "endinput", input, 1);
 @:end_input_}{\&{endinput} primitive@>
  
 
@@ -17313,9 +17350,9 @@ that will be |NULL| if no loop is in progress.
     mp_end_token_list (mp);     /* conserve stack space */
   if (mp->loop_ptr == NULL) {
     print_err ("Lost loop");
-@.Lost loop@>
-      help2 ("I'm confused; after exiting from a loop, I still seem",
-             "to want to repeat it. I'll try to forget the problem.");
+@.Lost loop@>;
+    help2 ("I'm confused; after exiting from a loop, I still seem",
+           "to want to repeat it. I'll try to forget the problem.");
     mp_error (mp);
   } else {
     mp_resume_iteration (mp);   /* this procedure is in Part 37 below */
@@ -17331,8 +17368,8 @@ that will be |NULL| if no loop is in progress.
   if (cur_exp_value () == true_code) {
     if (mp->loop_ptr == NULL) {
       print_err ("No loop is in progress");
-@.No loop is in progress@>
-        help1 ("Why say `exitif' when there's nothing to exit from?");
+@.No loop is in progress@>;
+      help1 ("Why say `exitif' when there's nothing to exit from?");
       if (mp->cur_cmd == semicolon)
         mp_error (mp);
       else
@@ -17342,9 +17379,9 @@ that will be |NULL| if no loop is in progress.
     }
   } else if (mp->cur_cmd != semicolon) {
     mp_missing_err (mp, ";");
-@.Missing `;'@>
-      help2 ("After `exitif <boolean exp>' I expect to see a semicolon.",
-             "I shall pretend that one was there.");
+@.Missing `;'@>;
+    help2 ("After `exitif <boolean exp>' I expect to see a semicolon.",
+           "I shall pretend that one was there.");
     mp_back_error (mp);
   }
 }
@@ -17367,17 +17404,17 @@ is less than |loop_text|.
   } while (p == NULL);
   if (p != mp->loop_ptr->info)
     mp_fatal_error (mp, "*** (loop confusion)");
-@.loop confusion@>
-    mp_stop_iteration (mp);     /* this procedure is in Part 34 below */
+@.loop confusion@>;
+  mp_stop_iteration (mp);       /* this procedure is in Part 34 below */
 }
 
 
 @ @<Expand the token after the next token@>=
 {
   mp_node p;
-  get_t_next;
+  get_t_next (mp);
   p = mp_cur_tok (mp);
-  get_t_next;
+  get_t_next (mp);
   if (mp->cur_cmd < min_command)
     mp_expand (mp);
   else
@@ -17395,9 +17432,9 @@ is less than |loop_text|.
     new_expr.data.val = 0;
     new_expr.data.str = NULL;
     mp_disp_err (mp, NULL, "Not a string");
-@.Not a string@>
-      help2 ("I'm going to flush this expression, since",
-             "scantokens should be followed by a known string.");
+@.Not a string@>;
+    help2 ("I'm going to flush this expression, since",
+           "scantokens should be followed by a known string.");
     mp_put_get_flush_error (mp, new_expr);
   } else {
     mp_back_input (mp);
@@ -17448,7 +17485,7 @@ static void mp_get_x_next (MP mp);
 @ @c
 void mp_get_x_next (MP mp) {
   mp_node save_exp;     /* a capsule to save |cur_type| and |cur_exp| */
-  get_t_next;
+  get_t_next (mp);
   if (mp->cur_cmd < min_command) {
     save_exp = mp_stash_cur_exp (mp);
     do {
@@ -17456,7 +17493,7 @@ void mp_get_x_next (MP mp) {
         mp_macro_call (mp, mp->cur_mod_node, NULL, mp->cur_sym);
       else
         mp_expand (mp);
-      get_t_next;
+      get_t_next (mp);
     } while (mp->cur_cmd < min_command);
     mp_unstash_cur_exp (mp, save_exp);  /* that restores |cur_type| and |cur_exp| */
   }
@@ -17610,13 +17647,13 @@ while (mp_name_type (r) == mp_expr_sym ||
 }
 if (mp->cur_cmd == comma) {
   print_err ("Too many arguments to ");
-@.Too many arguments...@>
-    mp_print_macro_name (mp, arg_list, macro_name);
+@.Too many arguments...@>;
+  mp_print_macro_name (mp, arg_list, macro_name);
   mp_print_char (mp, xord (';'));
   mp_print_nl (mp, "  Missing `");
   mp_print_text (r_delim);
-@.Missing `)'...@>
-    mp_print (mp, "' has been inserted");
+@.Missing `)'...@>;
+  mp_print (mp, "' has been inserted");
   help3 ("I'm going to assume that the comma I just read was a",
          "right delimiter, and then I'll begin expanding the macro.",
          "You might want to delete some tokens before continuing.");
@@ -17642,8 +17679,8 @@ if (mp->cur_cmd != comma) {
   mp_get_x_next (mp);
   if (mp->cur_cmd != left_delimiter) {
     print_err ("Missing argument to ");
-@.Missing argument...@>
-      mp_print_macro_name (mp, arg_list, macro_name);
+@.Missing argument...@>;
+    mp_print_macro_name (mp, arg_list, macro_name);
     help3 ("That macro has more parameters than you thought.",
            "I'll continue by pretending that each missing argument",
            "is either zero or null.");
@@ -17674,17 +17711,17 @@ if ((mp->cur_cmd != right_delimiter) || (mp->cur_mod_sym != l_delim)) {
       mp_name_type (mp_link (r)) == mp_suffix_sym ||
       mp_name_type (mp_link (r)) == mp_text_sym) {
     mp_missing_err (mp, ",");
-@.Missing `,'@>
-      help3 ("I've finished reading a macro argument and am about to",
-             "read another; the arguments weren't delimited correctly.",
-             "You might want to delete some tokens before continuing.");
+@.Missing `,'@>;
+    help3 ("I've finished reading a macro argument and am about to",
+           "read another; the arguments weren't delimited correctly.",
+           "You might want to delete some tokens before continuing.");
     mp_back_error (mp);
     mp->cur_cmd = comma;
   } else {
     mp_missing_err (mp, mp_str (mp, text (r_delim)));
-@.Missing `)'@>
-      help2 ("I've gotten to the end of the macro parameter list.",
-             "You might want to delete some tokens before continuing.");
+@.Missing `)'@>;
+    help2 ("I've gotten to the end of the macro parameter list.",
+           "You might want to delete some tokens before continuing.");
     mp_back_error (mp);
   }
 }
@@ -17744,7 +17781,7 @@ void mp_scan_text_arg (MP mp, mp_sym l_delim, mp_sym r_delim) {
   balance = 1;
   mp_link (mp->hold_head) = NULL;
   while (1) {
-    get_t_next;
+    get_t_next (mp);
     if (l_delim == NULL) {
       @<Adjust the balance for an undelimited argument; |break| if done@>;
     } else {
@@ -17839,8 +17876,8 @@ if (end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop| *
   if (mp->cur_cmd != of_token) {
     mp_missing_err (mp, "of");
     mp_print (mp, " for ");
-@.Missing `of'@>
-      mp_print_macro_name (mp, arg_list, macro_name);
+@.Missing `of'@>;
+    mp_print_macro_name (mp, arg_list, macro_name);
     help1 ("I've got the first argument; will look now for the other.");
     mp_back_error (mp);
   }
@@ -17862,9 +17899,9 @@ if (end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop| *
   if (l_delim != NULL) {
     if ((mp->cur_cmd != right_delimiter) || (mp->cur_mod_sym != l_delim)) {
       mp_missing_err (mp, mp_str (mp, text (r_delim)));
-@.Missing `)'@>
-        help2 ("I've gotten to the end of the macro parameter list.",
-               "You might want to delete some tokens before continuing.");
+@.Missing `)'@>;
+      help2 ("I've gotten to the end of the macro parameter list.",
+             "You might want to delete some tokens before continuing.");
       mp_back_error (mp);
     }
     mp_get_x_next (mp);
@@ -17970,13 +18007,13 @@ mp->if_line = 0;
 
 @ @<Put each...@>=
 mp_primitive (mp, "if", if_test, if_code);
-@:if_}{\&{if} primitive@>
-  mp_primitive (mp, "fi", fi_or_else, fi_code);
+@:if_}{\&{if} primitive@>;
+mp_primitive (mp, "fi", fi_or_else, fi_code);
 mp->frozen_fi = mp_frozen_primitive (mp, "fi", fi_or_else, fi_code);
-@:fi_}{\&{fi} primitive@>
-  mp_primitive (mp, "else", fi_or_else, else_code);
-@:else_}{\&{else} primitive@>
-  mp_primitive (mp, "elseif", fi_or_else, else_if_code);
+@:fi_}{\&{fi} primitive@>;
+mp_primitive (mp, "else", fi_or_else, else_code);
+@:else_}{\&{else} primitive@>;
+mp_primitive (mp, "elseif", fi_or_else, else_if_code);
 @:else_if_}{\&{elseif} primitive@>
  
 
@@ -18013,7 +18050,7 @@ void mp_pass_text (MP mp) {
   mp->scanner_status = skipping;
   mp->warning_info_line = mp_true_line (mp);
   while (1) {
-    get_t_next;
+    get_t_next (mp);
     if (mp->cur_cmd <= fi_or_else) {
       if (mp->cur_cmd < fi_or_else) {
         incr (l);
@@ -18080,8 +18117,8 @@ static void mp_change_if_limit (MP mp, quarterword l, mp_node p) {
     while (1) {
       if (q == NULL)
         mp_confusion (mp, "if");
-@:this can't happen if}{\quad if@>
-        if (mp_link (q) == p) {
+@:this can't happen if}{\quad if@>;
+      if (mp_link (q) == p) {
         mp_type (q) = l;
         return;
       }
@@ -18098,9 +18135,9 @@ statements. Therefore, \MP\ has to check for their presence.
 static void mp_check_colon (MP mp) {
   if (mp->cur_cmd != colon) {
     mp_missing_err (mp, ":");
-@.Missing `:'@>
-      help2 ("There should've been a colon after the condition.",
-             "I shall pretend that one was there.");
+@.Missing `:'@>;
+    help2 ("There should've been a colon after the condition.",
+           "I shall pretend that one was there.");
     mp_back_error (mp);
   }
 }
@@ -18181,8 +18218,8 @@ code, which is actually part of |get_x_next|. It comes into play when
 if (mp->cur_mod > mp->if_limit) {
   if (mp->if_limit == if_code) {        /* condition not yet evaluated */
     mp_missing_err (mp, ":");
-@.Missing `:'@>
-      mp_back_input (mp);
+@.Missing `:'@>;
+    mp_back_input (mp);
     mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_colon);
     mp_ins_error (mp);
   } else {
@@ -18190,8 +18227,8 @@ if (mp->cur_mod > mp->if_limit) {
     mp_print_cmd_mod (mp, fi_or_else, mp->cur_mod);
 @.Extra else@>
 @.Extra elseif@>
-@.Extra fi@>
-      help1 ("I'm ignoring this; it doesn't match any if.");
+@.Extra fi@>;
+    help1 ("I'm ignoring this; it doesn't match any if.");
     mp_error (mp);
   }
 } else {
@@ -18263,8 +18300,8 @@ static void mp_bad_for (MP mp, const char *s) {
   new_expr.data.val = 0;
   mp_disp_err (mp, NULL, "Improper ");  /* show the bad expression above
                                            the message */
-@.Improper...replaced by 0@>
-    mp_print (mp, s);
+@.Improper...replaced by 0@>;
+  mp_print (mp, s);
   mp_print (mp, " has been replaced by 0");
   help4 ("When you say `for x=a step b until c',",
          "the initial value `a' and the step size `b'",
@@ -18328,20 +18365,20 @@ void mp_begin_iteration (MP mp) {
 @ @<Check for the assignment in a loop header@>=
 if ((mp->cur_cmd != equals) && (mp->cur_cmd != assignment)) {
   mp_missing_err (mp, "=");
-@.Missing `='@>
-    help3 ("The next thing in this loop should have been `=' or `:='.",
-           "But don't worry; I'll pretend that an equals sign",
-           "was present, and I'll look for the values next.");
+@.Missing `='@>;
+  help3 ("The next thing in this loop should have been `=' or `:='.",
+         "But don't worry; I'll pretend that an equals sign",
+         "was present, and I'll look for the values next.");
   mp_back_error (mp);
 }
 
 @ @<Check for the presence of a colon@>=
 if (mp->cur_cmd != colon) {
   mp_missing_err (mp, ":");
-@.Missing `:'@>
-    help3 ("The next thing in this loop should have been a `:'.",
-           "So I'll pretend that a colon was present;",
-           "everything from here to `endfor' will be iterated.");
+@.Missing `:'@>;
+  help3 ("The next thing in this loop should have been a `:'.",
+         "So I'll pretend that a colon was present;",
+         "everything from here to `endfor' will be iterated.");
   mp_back_error (mp);
 }
 
@@ -18440,15 +18477,16 @@ NOT_FOUND:
 @ @<The arithmetic progression has ended@>=
 ((mp->loop_ptr->step_size > 0)
  && (cur_exp_value () > mp->loop_ptr->final_value))
-|| ((mp->loop_ptr->step_size < 0) && (cur_exp_value () < mp->loop_ptr->final_value))
+  || ((mp->loop_ptr->step_size < 0)
+      && (cur_exp_value () < mp->loop_ptr->final_value))
  
 
 @ @<Trace the start of a loop@>=
 {
   mp_begin_diagnostic (mp);
   mp_print_nl (mp, "{loop value=");
-@.loop value=n@>
-    if ((q != NULL) && (mp_link (q) == VOID))
+@.loop value=n@>;
+  if ((q != NULL) && (mp_link (q) == VOID))
     mp_print_exp (mp, q, 1);
   else
     mp_show_token_list (mp, q, NULL, 50, 0);
@@ -18561,9 +18599,9 @@ CONTINUE:
   s->step_size = cur_exp_value ();
   if (mp->cur_cmd != until_token) {
     mp_missing_err (mp, "until");
-@.Missing `until'@>
-      help2 ("I assume you meant to say `until' after `step'.",
-             "So I'll look for the final value and colon next.");
+@.Missing `until'@>;
+    help2 ("I assume you meant to say `until' after `step'.",
+           "So I'll look for the final value and colon next.");
     mp_back_error (mp);
   }
   mp_get_x_next (mp);
@@ -18903,8 +18941,8 @@ boolean mp_open_mem_file (MP mp) {
     wterm_ln ("Sorry, I can\'t find the '");
     wterm (mp->mem_name);
     wterm ("' preload file; will try 'plain'.");
-@.Sorry, I can't find...@>
-      update_terminal;
+@.Sorry, I can't find...@>;
+    update_terminal;
     /* now pull out all the stops: try for the system \.{plain} file */
     xfree (mp->mem_name);
     mp->mem_name = xstrdup ("plain");
@@ -18914,8 +18952,8 @@ boolean mp_open_mem_file (MP mp) {
   wake_up_terminal;
   wterm_ln ("I can't find the 'plain' preload file!\n");
 @.I can't find PLAIN...@>
-@.plain@>
-    return false;
+@.plain@>;
+  return false;
 }
 
 
@@ -19115,11 +19153,11 @@ void mp_prompt_file_name (MP mp, const char *s, const char *e) {
     mp_show_context (mp);
   mp_print_nl (mp, "Please type another ");
   mp_print (mp, s);
-@.Please type...@>
-    if (mp->noninteractive || mp->interaction < mp_scroll_mode)
+@.Please type...@>;
+  if (mp->noninteractive || mp->interaction < mp_scroll_mode)
     mp_fatal_error (mp, "*** (job aborted, file error in nonstop mode)");
-@.job aborted, file error...@>
-    saved_cur_name = xstrdup (mp->cur_name);
+@.job aborted, file error...@>;
+  saved_cur_name = xstrdup (mp->cur_name);
   clear_terminal;
   prompt_input (": ");
   @<Scan file name in the buffer@>;
@@ -19181,8 +19219,8 @@ void mp_open_log_file (MP mp) {
   /* make sure bottom level is in memory */
   if (!mp->noninteractive) {
     mp_print_nl (mp, "**");
-@.**@>
-      l = mp->input_stack[0].limit_field - 1;   /* last position of first line */
+@.**@>;
+    l = mp->input_stack[0].limit_field - 1;     /* last position of first line */
     for (k = 0; k <= l; k++)
       mp_print_char (mp, mp->buffer[k]);
     mp_print_ln (mp);           /* now the transcript file contains the first line of input */
@@ -19330,10 +19368,10 @@ while (token_state && (nloc == NULL))
   mp_end_token_list (mp);
 if (token_state) {
   print_err ("File names can't appear within macros");
-@.File names can't...@>
-    help3 ("Sorry...I've converted what follows to tokens,",
-           "possibly garbaging the name you gave.",
-           "Please delete the tokens and insert the name again.");
+@.File names can't...@>;
+  help3 ("Sorry...I've converted what follows to tokens,",
+         "possibly garbaging the name you gave.",
+         "Please delete the tokens and insert the name again.");
   mp_error (mp);
 }
 if (file_state) {
@@ -19795,9 +19833,9 @@ in full.
 @.linearform@>
 
 @<Declarations@>=
-@<Declare the procedure called |print_dp|@>
-  @<Declare the stashing/unstashing routines@>
-     static void mp_print_exp (MP mp, mp_node p, quarterword verbosity);
+@<Declare the procedure called |print_dp|@>;
+@<Declare the stashing/unstashing routines@>;
+static void mp_print_exp (MP mp, mp_node p, quarterword verbosity);
 
 @ @c
 void mp_print_exp (MP mp, mp_node p, quarterword verbosity) {
@@ -19911,11 +19949,11 @@ default:
   mp_node vvv = v;
   mp_print_char (mp, xord ('('));
   v = x_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (','));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (','));
   v = y_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (')'));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (')'));
 }
 
 
@@ -19924,23 +19962,23 @@ default:
   mp_node vvv = v;
   mp_print_char (mp, xord ('('));
   v = tx_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (','));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (','));
   v = ty_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (','));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (','));
   v = xx_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (','));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (','));
   v = xy_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (','));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (','));
   v = yx_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (','));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (','));
   v = yy_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (')'));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (')'));
 }
 
 
@@ -19949,14 +19987,14 @@ default:
   mp_node vvv = v;
   mp_print_char (mp, xord ('('));
   v = red_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (','));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (','));
   v = green_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (','));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (','));
   v = blue_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (')'));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (')'));
 }
 
 
@@ -19965,17 +20003,17 @@ default:
   mp_node vvv = v;
   mp_print_char (mp, xord ('('));
   v = cyan_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (','));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (','));
   v = magenta_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (','));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (','));
   v = yellow_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (','));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (','));
   v = black_part_loc (vvv);
-  @<Display big node item |v|@>
-    mp_print_char (mp, xord (')'));
+  @<Display big node item |v|@>;
+  mp_print_char (mp, xord (')'));
 }
 
 
@@ -20051,8 +20089,8 @@ void mp_disp_err (MP mp, mp_node p, const char *s) {
   if (mp->interaction == mp_error_stop_mode)
     wake_up_terminal;
   mp_print_nl (mp, ">> ");
-@.>>@>
-    mp_print_exp (mp, p, 1);    /* ``medium verbose'' printing of the expression */
+@.>>@>;
+  mp_print_exp (mp, p, 1);      /* ``medium verbose'' printing of the expression */
   if (strlen (s) > 0) {
     print_err (s);
   }
@@ -20109,6 +20147,7 @@ static void mp_recycle_value (MP mp, mp_node p) {
   integer vv;   /* another value */
   mp_node pp;   /* link manipulation register */
   integer v = 0;        /* a value */
+  FUNCTION_TRACE ("mp_recycle_value(%p)\n", p);
   t = mp_type (p);
   if (t < mp_dependent)
     v = value (p);
@@ -20259,14 +20298,13 @@ proto-dependent cases.
     set_mp_link (s, dep_list (q));
     while (1) {
       r = (mp_value_node) mp_link (s);
-      /* |printf ("r=%p, depinfo=%p, link=%p\n", r, dep_info(r), mp_link(r));| */
       if (dep_info (r) == NULL)
         break;
       if (dep_info (r) != p) {
         s = r;
       } else {
         t = mp_type (q);
-        if (mp_link (s) == dep_list (q)) {
+        if (mp_link (s) == dep_list (q)) {      /* reset the |dep_list| */
           set_dep_list (q, mp_link (r));
         }
         set_mp_link (s, mp_link (r));
@@ -20320,11 +20358,7 @@ mp_value_node max_link[mp_proto_dependent + 1]; /* other occurrences of |p| */
   } else {
     @<Substitute new proto-dependencies in place of |p|@>;
   }
-  /* todo: free-ing |s| here caused corruption, but not freeing creates a (small) leak.
-     the corruption problem probably starts elsewhere, |s| is supposed to be freeable here */
-#if 0
   mp_flush_node_list (mp, (mp_node) s);
-#endif
   if (mp->fix_needed)
     mp_fix_dependencies (mp);
   check_arith;
@@ -20332,7 +20366,7 @@ mp_value_node max_link[mp_proto_dependent + 1]; /* other occurrences of |p| */
 
 
 @ Let |s=max_ptr[t]|. At this point we have $|value|(s)=\pm|max_c|[t]$,
-and |mp_info(s)| points to the dependent variable~|pp| of type~|t| from
+and |dep_info(s)| points to the dependent variable~|pp| of type~|t| from
 whose dependency list we have removed node~|s|. We must reinsert
 node~|s| into the dependency list, with coefficient $-1.0$, and with
 |pp| as the new independent variable. Since |pp| will have a larger serial
@@ -20370,8 +20404,8 @@ by the dependency list~|s|.
 if (mp_interesting (mp, p)) {
   mp_begin_diagnostic (mp);
   mp_print_nl (mp, "### ");
-@:]]]\#\#\#_}{\.{\#\#\#}@>
-    if (v > 0)
+@:]]]\#\#\#_}{\.{\#\#\#}@>;
+  if (v > 0)
     mp_print_char (mp, xord ('-'));
   if (t == mp_dependent)
     vv = mp_round_fraction (mp, mp->max_c[mp_dependent]);
@@ -20588,8 +20622,8 @@ static void mp_bad_exp (MP mp, const char *s) {
          "so I've tentatively inserted `0'. You may want to",
          "delete this zero and insert something else;",
          "see Chapter 27 of The METAFONTbook for an example.");
-@:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
-    mp_back_input (mp);
+@:METAFONTbook}{\sl The {\logos METAFONT\/}book@>;
+  mp_back_input (mp);
   mp->cur_sym = 0;
   mp->cur_cmd = numeric_token;
   mp->cur_mod = 0;
@@ -20719,11 +20753,11 @@ are synonymous with |x_part_loc| and |y_part_loc|.
 @ @<Make sure the second part of a pair or color has a numeric type@>=
 if (mp->cur_exp.type < mp_known) {
   exp_err ("Nonnumeric ypart has been replaced by 0");
-@.Nonnumeric...replaced by 0@>
-    help4 ("I've started to scan a pair `(a,b)' or a color `(a,b,c)';",
-           "but after finding a nice `a' I found a `b' that isn't",
-           "of numeric type. So I've changed that part to zero.",
-           "(The b that I didn't like appears above the error message.)");
+@.Nonnumeric...replaced by 0@>;
+  help4 ("I've started to scan a pair `(a,b)' or a color `(a,b,c)';",
+         "but after finding a nice `a' I found a `b' that isn't",
+         "of numeric type. So I've changed that part to zero.",
+         "(The b that I didn't like appears above the error message.)");
   new_expr.data.val = 0;
   mp_put_get_flush_error (mp, new_expr);
 }
@@ -20734,8 +20768,8 @@ if (mp->cur_exp.type < mp_known) {
   mp_scan_expression (mp);
   if (mp->cur_exp.type < mp_known) {
     exp_err ("Nonnumeric third part has been replaced by 0");
-@.Nonnumeric...replaced by 0@>
-      help3
+@.Nonnumeric...replaced by 0@>;
+    help3
       ("I've just scanned a color `(a,b,c)' or cmykcolor(a,b,c,d); but the `c'",
        "isn't of numeric type. So I've changed that part to zero.",
        "(The c that I didn't like appears above the error message.)");
@@ -20752,10 +20786,10 @@ if (mp->cur_exp.type < mp_known) {
   mp_scan_expression (mp);
   if (mp->cur_exp.type < mp_known) {
     exp_err ("Nonnumeric blackpart has been replaced by 0");
-@.Nonnumeric...replaced by 0@>
-      help3 ("I've just scanned a cmykcolor `(c,m,y,k)'; but the `k' isn't",
-             "of numeric type. So I've changed that part to zero.",
-             "(The k that I didn't like appears above the error message.)");
+@.Nonnumeric...replaced by 0@>;
+    help3 ("I've just scanned a cmykcolor `(c,m,y,k)'; but the `k' isn't",
+           "of numeric type. So I've changed that part to zero.",
+           "(The k that I didn't like appears above the error message.)");
     new_expr.data.val = 0;
     mp_put_get_flush_error (mp, new_expr);
   }
@@ -20781,8 +20815,8 @@ integer group_line;     /* where a group began */
   } while (mp->cur_cmd == semicolon);
   if (mp->cur_cmd != end_group) {
     print_err ("A group begun on line ");
-@.A group...never ended@>
-      mp_print_int (mp, group_line);
+@.A group...never ended@>;
+    mp_print_int (mp, group_line);
     mp_print (mp, " never ended");
     help2 ("I saw a `begingroup' back there that hasn't been matched",
            "by `endgroup'. So I've inserted `endgroup' now.");
@@ -20891,8 +20925,8 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
 @ @<Protest division...@>=
 {
   print_err ("Division by zero");
-@.Division by zero@>
-    help1 ("I'll pretend that you meant to divide by 1.");
+@.Division by zero@>;
+  help1 ("I'll pretend that you meant to divide by 1.");
   mp_error (mp);
 }
 
@@ -20906,8 +20940,8 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
     mp_missing_err (mp, "of");
     mp_print (mp, " for ");
     mp_print_cmd_mod (mp, primary_binary, c);
-@.Missing `of'@>
-      help1 ("I've got the first argument; will look now for the other.");
+@.Missing `of'@>;
+    help1 ("I've got the first argument; will look now for the other.");
     mp_back_error (mp);
   }
   p = mp_stash_cur_exp (mp);
@@ -21085,10 +21119,10 @@ static void mp_bad_subscript (MP mp) {
   mp_value new_expr;
   new_expr.data.val = 0;
   exp_err ("Improper subscript has been replaced by zero");
-@.Improper subscript...@>
-    help3 ("A bracketed subscript must have a known numeric value;",
-           "unfortunately, what I found was the value that appears just",
-           "above this error message. So I'll try a zero subscript.");
+@.Improper subscript...@>;
+  help3 ("A bracketed subscript must have a known numeric value;",
+         "unfortunately, what I found was the value that appears just",
+         "above this error message. So I'll try a zero subscript.");
   mp_flush_error (mp, new_expr);
 }
 
@@ -21154,12 +21188,12 @@ static void mp_obliterated (MP mp, mp_node q) {
   print_err ("Variable ");
   mp_show_token_list (mp, q, NULL, 1000, 0);
   mp_print (mp, " has been obliterated");
-@.Variable...obliterated@>
-    help5 ("It seems you did a nasty thing---probably by accident,",
-           "but nevertheless you nearly hornswoggled me...",
-           "While I was evaluating the right-hand side of this",
-           "command, something happened, and the left-hand side",
-           "is no longer a variable! So I won't change anything.");
+@.Variable...obliterated@>;
+  help5 ("It seems you did a nasty thing---probably by accident,",
+         "but nevertheless you nearly hornswoggled me...",
+         "While I was evaluating the right-hand side of this",
+         "command, something happened, and the left-hand side",
+         "is no longer a variable! So I won't change anything.");
 }
 
 
@@ -21235,8 +21269,8 @@ found. Some cases are harder than others, but complexity arises solely
 because of the multiplicity of possible cases.
 
 @<Declare the procedure called |make_exp_copy|@>=
-@<Declare subroutines needed by |make_exp_copy|@>
-     static void mp_make_exp_copy (MP mp, mp_node p) {
+@<Declare subroutines needed by |make_exp_copy|@>;
+static void mp_make_exp_copy (MP mp, mp_node p) {
   mp_node t;    /* register(s) for list manipulation */
   mp_value_node q;
 RESTART:
@@ -21295,8 +21329,8 @@ RESTART:
     break;
   default:
     mp_confusion (mp, "copy");
-@:this can't happen copy}{\quad copy@>
-      break;
+@:this can't happen copy}{\quad copy@>;
+    break;
   }
 }
 
@@ -21306,6 +21340,7 @@ tail of dependency list~|p|.
 
 @<Declare subroutines needed by |make_exp_copy|@>=
 static void mp_encapsulate (MP mp, mp_value_node p) {
+  FUNCTION_TRACE ("mp_encapsulate(%p)\n", p);
   mp_node q = mp_get_value_node (mp);
   mp_name_type (q) = mp_capsule;
   mp_new_dep (mp, q, mp->cur_exp.type, p);
@@ -21402,9 +21437,8 @@ static void mp_install (MP mp, mp_node r, mp_node q) {
     }
   } else {
     mp_new_dep (mp, r, mp_type (q),
-                mp_copy_dep_list (mp,
-                                  (mp_value_node) dep_list ((mp_value_node)
-                                                            q)));
+                mp_copy_dep_list (mp, (mp_value_node) dep_list ((mp_value_node)
+                                                                q)));
   }
 }
 
@@ -21427,10 +21461,10 @@ provided that \.a is numeric.
     mp_scan_expression (mp);
     if (mp->cur_cmd != right_bracket) {
       mp_missing_err (mp, "]");
-@.Missing `]'@>
-        help3 ("I've scanned an expression of the form `a[b,c',",
-               "so a right bracket should have come next.",
-               "I shall pretend that one was there.");
+@.Missing `]'@>;
+      help3 ("I've scanned an expression of the form `a[b,c',",
+             "so a right bracket should have come next.",
+             "I shall pretend that one was there.");
       mp_back_error (mp);
     }
     r = mp_stash_cur_exp (mp);
@@ -21483,10 +21517,10 @@ static void mp_scan_suffix (MP mp) {
     mp_bad_subscript (mp);
   if (mp->cur_cmd != right_bracket) {
     mp_missing_err (mp, "]");
-@.Missing `]'@>
-      help3 ("I've seen a `[' and a subscript value, in a suffix,",
-             "so a right bracket should have come next.",
-             "I shall pretend that one was there.");
+@.Missing `]'@>;
+    help3 ("I've seen a `[' and a subscript value, in a suffix,",
+           "so a right bracket should have come next.",
+           "I shall pretend that one was there.");
     mp_back_error (mp);
   }
   mp->cur_cmd = numeric_token;
@@ -21516,8 +21550,8 @@ RESTART:
   if ((mp->cur_cmd < min_primary_command) ||
       (mp->cur_cmd > max_primary_command))
     mp_bad_exp (mp, "A secondary");
-@.A secondary expression...@>
-    mp_scan_primary (mp);
+@.A secondary expression...@>;
+  mp_scan_primary (mp);
 CONTINUE:
   if (mp->cur_cmd <= max_secondary_command &&
       mp->cur_cmd >= min_secondary_command) {
@@ -21572,8 +21606,8 @@ RESTART:
   if ((mp->cur_cmd < min_primary_command) ||
       (mp->cur_cmd > max_primary_command))
     mp_bad_exp (mp, "A tertiary");
-@.A tertiary expression...@>
-    mp_scan_secondary (mp);
+@.A tertiary expression...@>;
+  mp_scan_secondary (mp);
 CONTINUE:
   if (mp->cur_cmd <= max_tertiary_command) {
     if (mp->cur_cmd >= min_tertiary_command) {
@@ -21633,8 +21667,8 @@ RESTART:
   if ((mp->cur_cmd < min_primary_command) ||
       (mp->cur_cmd > max_primary_command))
     mp_bad_exp (mp, "An");
-@.An expression...@>
-    mp_scan_tertiary (mp);
+@.An expression...@>;
+  mp_scan_tertiary (mp);
 CONTINUE:
   if (mp->cur_cmd <= max_expression_command)
     if (mp->cur_cmd >= min_expression_command) {
@@ -21757,13 +21791,13 @@ void mp_known_pair (MP mp) {
   mp_node p;    /* the pair node */
   if (mp->cur_exp.type != mp_pair_type) {
     exp_err ("Undefined coordinates have been replaced by (0,0)");
-@.Undefined coordinates...@>
-      help5 ("I need x and y numbers for this part of the path.",
-             "The value I found (see above) was no good;",
-             "so I'll try to keep going by using zero instead.",
-             "(Chapter 27 of The METAFONTbook explains that",
+@.Undefined coordinates...@>;
+    help5 ("I need x and y numbers for this part of the path.",
+           "The value I found (see above) was no good;",
+           "so I'll try to keep going by using zero instead.",
+           "(Chapter 27 of The METAFONTbook explains that",
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
-             "you might want to type `I ??" "?' now.)");
+           "you might want to type `I ??" "?' now.)");
     mp_put_get_flush_error (mp, new_expr);
     mp->cur_x = 0;
     mp->cur_y = 0;
@@ -21782,13 +21816,13 @@ if (mp_type (x_part_loc (p)) == mp_known) {
 } else {
   mp_disp_err (mp, x_part_loc (p),
                "Undefined x coordinate has been replaced by 0");
-@.Undefined coordinates...@>
-    help5 ("I need a `known' x value for this part of the path.",
-           "The value I found (see above) was no good;",
-           "so I'll try to keep going by using zero instead.",
-           "(Chapter 27 of The METAFONTbook explains that",
+@.Undefined coordinates...@>;
+  help5 ("I need a `known' x value for this part of the path.",
+         "The value I found (see above) was no good;",
+         "so I'll try to keep going by using zero instead.",
+         "(Chapter 27 of The METAFONTbook explains that",
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
-           "you might want to type `I ??" "?' now.)");
+         "you might want to type `I ??" "?' now.)");
   mp_put_get_error (mp);
   mp_recycle_value (mp, x_part_loc (p));
   mp->cur_x = 0;
@@ -21851,10 +21885,10 @@ static quarterword mp_scan_direction (MP mp) {
   }
   if (mp->cur_cmd != right_brace) {
     mp_missing_err (mp, "}");
-@.Missing `\char`\}'@>
-      help3 ("I've scanned a direction spec for part of a path,",
-             "so a right brace should have come next.",
-             "I shall pretend that one was there.");
+@.Missing `\char`\}'@>;
+    help3 ("I've scanned a direction spec for part of a path,",
+           "so a right brace should have come next.",
+           "I shall pretend that one was there.");
     mp_back_error (mp);
   }
   mp_get_x_next (mp);
@@ -21870,8 +21904,8 @@ static quarterword mp_scan_direction (MP mp) {
     mp_value new_expr;
     new_expr.data.val = unity;
     exp_err ("Improper curl has been replaced by 1");
-@.Improper curl@>
-      help1 ("A curl must be a known, nonnegative number.");
+@.Improper curl@>;
+    help1 ("A curl must be a known, nonnegative number.");
     mp_put_get_flush_error (mp, new_expr);
   }
   t = mp_curl;
@@ -21901,21 +21935,21 @@ static quarterword mp_scan_direction (MP mp) {
     mp_value new_expr;
     new_expr.data.val = 0;
     exp_err ("Undefined x coordinate has been replaced by 0");
-@.Undefined coordinates...@>
-      help5 ("I need a `known' x value for this part of the path.",
-             "The value I found (see above) was no good;",
-             "so I'll try to keep going by using zero instead.",
-             "(Chapter 27 of The METAFONTbook explains that",
+@.Undefined coordinates...@>;
+    help5 ("I need a `known' x value for this part of the path.",
+           "The value I found (see above) was no good;",
+           "so I'll try to keep going by using zero instead.",
+           "(Chapter 27 of The METAFONTbook explains that",
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
-             "you might want to type `I ??" "?' now.)");
+           "you might want to type `I ??" "?' now.)");
     mp_put_get_flush_error (mp, new_expr);
   }
   x = cur_exp_value ();
   if (mp->cur_cmd != comma) {
     mp_missing_err (mp, ",");
-@.Missing `,'@>
-      help2 ("I've got the x coordinate of a path direction;",
-             "will look for the y coordinate next.");
+@.Missing `,'@>;
+    help2 ("I've got the x coordinate of a path direction;",
+           "will look for the y coordinate next.");
     mp_back_error (mp);
   }
   mp_get_x_next (mp);
@@ -21985,8 +22019,8 @@ there are no explicit control points.
   };
   if (mp->cur_cmd != path_join) {
     mp_missing_err (mp, "..");
-@.Missing `..'@>
-      help1 ("A path join command should end with two dots.");
+@.Missing `..'@>;
+    help1 ("A path join command should end with two dots.");
     mp_back_error (mp);
   }
 DONE:
@@ -22024,8 +22058,8 @@ DONE:
 @<Make sure that the current expression is a valid tension setting@>=
 if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < min_tension)) {
   exp_err ("Improper tension has been set to 1");
-@.Improper tension@>
-    help1 ("The expression above should have been a number >=3/4.");
+@.Improper tension@>;
+  help1 ("The expression above should have been a number >=3/4.");
   new_expr.data.val = unity;
   mp_put_get_flush_error (mp, new_expr);
 }
@@ -22096,10 +22130,10 @@ shouldn't have length zero.
     if ((mp_x_coord (path_q) != mp_x_coord (pp)) ||
         (mp_y_coord (path_q) != mp_y_coord (pp))) {
       print_err ("Paths don't touch; `&' will be changed to `..'");
-@.Paths don't touch@>
-        help3 ("When you join paths `p&q', the ending point of p",
-               "must be exactly equal to the starting point of q.",
-               "So I'm going to pretend that you said `p..q' instead.");
+@.Paths don't touch@>;
+      help3 ("When you join paths `p&q', the ending point of p",
+             "must be exactly equal to the starting point of q.",
+             "So I'm going to pretend that you said `p..q' instead.");
       mp_put_get_error (mp);
       d = path_join;
       right_tension (path_q) = unity;
@@ -22192,9 +22226,9 @@ static void mp_get_boolean (MP mp) {
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_boolean_type) {
     exp_err ("Undefined condition will be treated as `false'");
-@.Undefined condition...@>
-      help2 ("The expression shown above should have had a definite",
-             "true-or-false value. I'm changing it to `false'.");
+@.Undefined condition...@>;
+    help2 ("The expression shown above should have had a definite",
+           "true-or-false value. I'm changing it to `false'.");
     new_expr.data.val = false_code;
     mp_put_get_flush_error (mp, new_expr);
     mp->cur_exp.type = mp_boolean_type;
@@ -22222,205 +22256,205 @@ operation it performs is a |primary_binary| or |secondary_binary|, etc.
 
 @<Put each...@>=
 mp_primitive (mp, "true", nullary, true_code);
-@:true_}{\&{true} primitive@>
-  mp_primitive (mp, "false", nullary, false_code);
-@:false_}{\&{false} primitive@>
-  mp_primitive (mp, "nullpicture", nullary, null_picture_code);
-@:null_picture_}{\&{nullpicture} primitive@>
-  mp_primitive (mp, "nullpen", nullary, null_pen_code);
-@:null_pen_}{\&{nullpen} primitive@>
-  mp_primitive (mp, "readstring", nullary, read_string_op);
-@:read_string_}{\&{readstring} primitive@>
-  mp_primitive (mp, "pencircle", nullary, pen_circle);
-@:pen_circle_}{\&{pencircle} primitive@>
-  mp_primitive (mp, "normaldeviate", nullary, normal_deviate);
-@:normal_deviate_}{\&{normaldeviate} primitive@>
-  mp_primitive (mp, "readfrom", unary, read_from_op);
-@:read_from_}{\&{readfrom} primitive@>
-  mp_primitive (mp, "closefrom", unary, close_from_op);
-@:close_from_}{\&{closefrom} primitive@>
-  mp_primitive (mp, "odd", unary, odd_op);
-@:odd_}{\&{odd} primitive@>
-  mp_primitive (mp, "known", unary, known_op);
-@:known_}{\&{known} primitive@>
-  mp_primitive (mp, "unknown", unary, unknown_op);
-@:unknown_}{\&{unknown} primitive@>
-  mp_primitive (mp, "not", unary, not_op);
-@:not_}{\&{not} primitive@>
-  mp_primitive (mp, "decimal", unary, decimal);
-@:decimal_}{\&{decimal} primitive@>
-  mp_primitive (mp, "reverse", unary, reverse);
-@:reverse_}{\&{reverse} primitive@>
-  mp_primitive (mp, "makepath", unary, make_path_op);
-@:make_path_}{\&{makepath} primitive@>
-  mp_primitive (mp, "makepen", unary, make_pen_op);
-@:make_pen_}{\&{makepen} primitive@>
-  mp_primitive (mp, "oct", unary, oct_op);
-@:oct_}{\&{oct} primitive@>
-  mp_primitive (mp, "hex", unary, hex_op);
-@:hex_}{\&{hex} primitive@>
-  mp_primitive (mp, "ASCII", unary, ASCII_op);
-@:ASCII_}{\&{ASCII} primitive@>
-  mp_primitive (mp, "char", unary, char_op);
-@:char_}{\&{char} primitive@>
-  mp_primitive (mp, "length", unary, length_op);
-@:length_}{\&{length} primitive@>
-  mp_primitive (mp, "turningnumber", unary, turning_op);
-@:turning_number_}{\&{turningnumber} primitive@>
-  mp_primitive (mp, "xpart", unary, x_part);
-@:x_part_}{\&{xpart} primitive@>
-  mp_primitive (mp, "ypart", unary, y_part);
-@:y_part_}{\&{ypart} primitive@>
-  mp_primitive (mp, "xxpart", unary, xx_part);
-@:xx_part_}{\&{xxpart} primitive@>
-  mp_primitive (mp, "xypart", unary, xy_part);
-@:xy_part_}{\&{xypart} primitive@>
-  mp_primitive (mp, "yxpart", unary, yx_part);
-@:yx_part_}{\&{yxpart} primitive@>
-  mp_primitive (mp, "yypart", unary, yy_part);
-@:yy_part_}{\&{yypart} primitive@>
-  mp_primitive (mp, "redpart", unary, red_part);
-@:red_part_}{\&{redpart} primitive@>
-  mp_primitive (mp, "greenpart", unary, green_part);
-@:green_part_}{\&{greenpart} primitive@>
-  mp_primitive (mp, "bluepart", unary, blue_part);
-@:blue_part_}{\&{bluepart} primitive@>
-  mp_primitive (mp, "cyanpart", unary, cyan_part);
-@:cyan_part_}{\&{cyanpart} primitive@>
-  mp_primitive (mp, "magentapart", unary, magenta_part);
-@:magenta_part_}{\&{magentapart} primitive@>
-  mp_primitive (mp, "yellowpart", unary, yellow_part);
-@:yellow_part_}{\&{yellowpart} primitive@>
-  mp_primitive (mp, "blackpart", unary, black_part);
-@:black_part_}{\&{blackpart} primitive@>
-  mp_primitive (mp, "greypart", unary, grey_part);
-@:grey_part_}{\&{greypart} primitive@>
-  mp_primitive (mp, "colormodel", unary, color_model_part);
-@:color_model_part_}{\&{colormodel} primitive@>
-  mp_primitive (mp, "fontpart", unary, font_part);
-@:font_part_}{\&{fontpart} primitive@>
-  mp_primitive (mp, "textpart", unary, text_part);
-@:text_part_}{\&{textpart} primitive@>
-  mp_primitive (mp, "pathpart", unary, path_part);
-@:path_part_}{\&{pathpart} primitive@>
-  mp_primitive (mp, "penpart", unary, pen_part);
-@:pen_part_}{\&{penpart} primitive@>
-  mp_primitive (mp, "dashpart", unary, dash_part);
-@:dash_part_}{\&{dashpart} primitive@>
-  mp_primitive (mp, "sqrt", unary, sqrt_op);
-@:sqrt_}{\&{sqrt} primitive@>
-  mp_primitive (mp, "mexp", unary, mp_m_exp_op);
-@:m_exp_}{\&{mexp} primitive@>
-  mp_primitive (mp, "mlog", unary, mp_m_log_op);
-@:m_log_}{\&{mlog} primitive@>
-  mp_primitive (mp, "sind", unary, sin_d_op);
-@:sin_d_}{\&{sind} primitive@>
-  mp_primitive (mp, "cosd", unary, cos_d_op);
-@:cos_d_}{\&{cosd} primitive@>
-  mp_primitive (mp, "floor", unary, floor_op);
-@:floor_}{\&{floor} primitive@>
-  mp_primitive (mp, "uniformdeviate", unary, uniform_deviate);
-@:uniform_deviate_}{\&{uniformdeviate} primitive@>
-  mp_primitive (mp, "charexists", unary, char_exists_op);
-@:char_exists_}{\&{charexists} primitive@>
-  mp_primitive (mp, "fontsize", unary, font_size);
-@:font_size_}{\&{fontsize} primitive@>
-  mp_primitive (mp, "llcorner", unary, ll_corner_op);
-@:ll_corner_}{\&{llcorner} primitive@>
-  mp_primitive (mp, "lrcorner", unary, lr_corner_op);
-@:lr_corner_}{\&{lrcorner} primitive@>
-  mp_primitive (mp, "ulcorner", unary, ul_corner_op);
-@:ul_corner_}{\&{ulcorner} primitive@>
-  mp_primitive (mp, "urcorner", unary, ur_corner_op);
-@:ur_corner_}{\&{urcorner} primitive@>
-  mp_primitive (mp, "arclength", unary, arc_length);
-@:arc_length_}{\&{arclength} primitive@>
-  mp_primitive (mp, "angle", unary, angle_op);
-@:angle_}{\&{angle} primitive@>
-  mp_primitive (mp, "cycle", cycle, cycle_op);
-@:cycle_}{\&{cycle} primitive@>
-  mp_primitive (mp, "stroked", unary, stroked_op);
-@:stroked_}{\&{stroked} primitive@>
-  mp_primitive (mp, "filled", unary, filled_op);
-@:filled_}{\&{filled} primitive@>
-  mp_primitive (mp, "textual", unary, textual_op);
-@:textual_}{\&{textual} primitive@>
-  mp_primitive (mp, "clipped", unary, clipped_op);
-@:clipped_}{\&{clipped} primitive@>
-  mp_primitive (mp, "bounded", unary, bounded_op);
-@:bounded_}{\&{bounded} primitive@>
-  mp_primitive (mp, "+", plus_or_minus, plus);
-@:+ }{\.{+} primitive@>
-  mp_primitive (mp, "-", plus_or_minus, minus);
-@:- }{\.{-} primitive@>
-  mp_primitive (mp, "*", secondary_binary, times);
-@:* }{\.{*} primitive@>
-  mp_primitive (mp, "/", slash, over);
+@:true_}{\&{true} primitive@>;
+mp_primitive (mp, "false", nullary, false_code);
+@:false_}{\&{false} primitive@>;
+mp_primitive (mp, "nullpicture", nullary, null_picture_code);
+@:null_picture_}{\&{nullpicture} primitive@>;
+mp_primitive (mp, "nullpen", nullary, null_pen_code);
+@:null_pen_}{\&{nullpen} primitive@>;
+mp_primitive (mp, "readstring", nullary, read_string_op);
+@:read_string_}{\&{readstring} primitive@>;
+mp_primitive (mp, "pencircle", nullary, pen_circle);
+@:pen_circle_}{\&{pencircle} primitive@>;
+mp_primitive (mp, "normaldeviate", nullary, normal_deviate);
+@:normal_deviate_}{\&{normaldeviate} primitive@>;
+mp_primitive (mp, "readfrom", unary, read_from_op);
+@:read_from_}{\&{readfrom} primitive@>;
+mp_primitive (mp, "closefrom", unary, close_from_op);
+@:close_from_}{\&{closefrom} primitive@>;
+mp_primitive (mp, "odd", unary, odd_op);
+@:odd_}{\&{odd} primitive@>;
+mp_primitive (mp, "known", unary, known_op);
+@:known_}{\&{known} primitive@>;
+mp_primitive (mp, "unknown", unary, unknown_op);
+@:unknown_}{\&{unknown} primitive@>;
+mp_primitive (mp, "not", unary, not_op);
+@:not_}{\&{not} primitive@>;
+mp_primitive (mp, "decimal", unary, decimal);
+@:decimal_}{\&{decimal} primitive@>;
+mp_primitive (mp, "reverse", unary, reverse);
+@:reverse_}{\&{reverse} primitive@>;
+mp_primitive (mp, "makepath", unary, make_path_op);
+@:make_path_}{\&{makepath} primitive@>;
+mp_primitive (mp, "makepen", unary, make_pen_op);
+@:make_pen_}{\&{makepen} primitive@>;
+mp_primitive (mp, "oct", unary, oct_op);
+@:oct_}{\&{oct} primitive@>;
+mp_primitive (mp, "hex", unary, hex_op);
+@:hex_}{\&{hex} primitive@>;
+mp_primitive (mp, "ASCII", unary, ASCII_op);
+@:ASCII_}{\&{ASCII} primitive@>;
+mp_primitive (mp, "char", unary, char_op);
+@:char_}{\&{char} primitive@>;
+mp_primitive (mp, "length", unary, length_op);
+@:length_}{\&{length} primitive@>;
+mp_primitive (mp, "turningnumber", unary, turning_op);
+@:turning_number_}{\&{turningnumber} primitive@>;
+mp_primitive (mp, "xpart", unary, x_part);
+@:x_part_}{\&{xpart} primitive@>;
+mp_primitive (mp, "ypart", unary, y_part);
+@:y_part_}{\&{ypart} primitive@>;
+mp_primitive (mp, "xxpart", unary, xx_part);
+@:xx_part_}{\&{xxpart} primitive@>;
+mp_primitive (mp, "xypart", unary, xy_part);
+@:xy_part_}{\&{xypart} primitive@>;
+mp_primitive (mp, "yxpart", unary, yx_part);
+@:yx_part_}{\&{yxpart} primitive@>;
+mp_primitive (mp, "yypart", unary, yy_part);
+@:yy_part_}{\&{yypart} primitive@>;
+mp_primitive (mp, "redpart", unary, red_part);
+@:red_part_}{\&{redpart} primitive@>;
+mp_primitive (mp, "greenpart", unary, green_part);
+@:green_part_}{\&{greenpart} primitive@>;
+mp_primitive (mp, "bluepart", unary, blue_part);
+@:blue_part_}{\&{bluepart} primitive@>;
+mp_primitive (mp, "cyanpart", unary, cyan_part);
+@:cyan_part_}{\&{cyanpart} primitive@>;
+mp_primitive (mp, "magentapart", unary, magenta_part);
+@:magenta_part_}{\&{magentapart} primitive@>;
+mp_primitive (mp, "yellowpart", unary, yellow_part);
+@:yellow_part_}{\&{yellowpart} primitive@>;
+mp_primitive (mp, "blackpart", unary, black_part);
+@:black_part_}{\&{blackpart} primitive@>;
+mp_primitive (mp, "greypart", unary, grey_part);
+@:grey_part_}{\&{greypart} primitive@>;
+mp_primitive (mp, "colormodel", unary, color_model_part);
+@:color_model_part_}{\&{colormodel} primitive@>;
+mp_primitive (mp, "fontpart", unary, font_part);
+@:font_part_}{\&{fontpart} primitive@>;
+mp_primitive (mp, "textpart", unary, text_part);
+@:text_part_}{\&{textpart} primitive@>;
+mp_primitive (mp, "pathpart", unary, path_part);
+@:path_part_}{\&{pathpart} primitive@>;
+mp_primitive (mp, "penpart", unary, pen_part);
+@:pen_part_}{\&{penpart} primitive@>;
+mp_primitive (mp, "dashpart", unary, dash_part);
+@:dash_part_}{\&{dashpart} primitive@>;
+mp_primitive (mp, "sqrt", unary, sqrt_op);
+@:sqrt_}{\&{sqrt} primitive@>;
+mp_primitive (mp, "mexp", unary, mp_m_exp_op);
+@:m_exp_}{\&{mexp} primitive@>;
+mp_primitive (mp, "mlog", unary, mp_m_log_op);
+@:m_log_}{\&{mlog} primitive@>;
+mp_primitive (mp, "sind", unary, sin_d_op);
+@:sin_d_}{\&{sind} primitive@>;
+mp_primitive (mp, "cosd", unary, cos_d_op);
+@:cos_d_}{\&{cosd} primitive@>;
+mp_primitive (mp, "floor", unary, floor_op);
+@:floor_}{\&{floor} primitive@>;
+mp_primitive (mp, "uniformdeviate", unary, uniform_deviate);
+@:uniform_deviate_}{\&{uniformdeviate} primitive@>;
+mp_primitive (mp, "charexists", unary, char_exists_op);
+@:char_exists_}{\&{charexists} primitive@>;
+mp_primitive (mp, "fontsize", unary, font_size);
+@:font_size_}{\&{fontsize} primitive@>;
+mp_primitive (mp, "llcorner", unary, ll_corner_op);
+@:ll_corner_}{\&{llcorner} primitive@>;
+mp_primitive (mp, "lrcorner", unary, lr_corner_op);
+@:lr_corner_}{\&{lrcorner} primitive@>;
+mp_primitive (mp, "ulcorner", unary, ul_corner_op);
+@:ul_corner_}{\&{ulcorner} primitive@>;
+mp_primitive (mp, "urcorner", unary, ur_corner_op);
+@:ur_corner_}{\&{urcorner} primitive@>;
+mp_primitive (mp, "arclength", unary, arc_length);
+@:arc_length_}{\&{arclength} primitive@>;
+mp_primitive (mp, "angle", unary, angle_op);
+@:angle_}{\&{angle} primitive@>;
+mp_primitive (mp, "cycle", cycle, cycle_op);
+@:cycle_}{\&{cycle} primitive@>;
+mp_primitive (mp, "stroked", unary, stroked_op);
+@:stroked_}{\&{stroked} primitive@>;
+mp_primitive (mp, "filled", unary, filled_op);
+@:filled_}{\&{filled} primitive@>;
+mp_primitive (mp, "textual", unary, textual_op);
+@:textual_}{\&{textual} primitive@>;
+mp_primitive (mp, "clipped", unary, clipped_op);
+@:clipped_}{\&{clipped} primitive@>;
+mp_primitive (mp, "bounded", unary, bounded_op);
+@:bounded_}{\&{bounded} primitive@>;
+mp_primitive (mp, "+", plus_or_minus, plus);
+@:+ }{\.{+} primitive@>;
+mp_primitive (mp, "-", plus_or_minus, minus);
+@:- }{\.{-} primitive@>;
+mp_primitive (mp, "*", secondary_binary, times);
+@:* }{\.{*} primitive@>;
+mp_primitive (mp, "/", slash, over);
 mp->frozen_slash = mp_frozen_primitive (mp, "/", slash, over);
-@:/ }{\.{/} primitive@>
-  mp_primitive (mp, "++", tertiary_binary, pythag_add);
-@:++_}{\.{++} primitive@>
-  mp_primitive (mp, "+-+", tertiary_binary, pythag_sub);
-@:+-+_}{\.{+-+} primitive@>
-  mp_primitive (mp, "or", tertiary_binary, or_op);
-@:or_}{\&{or} primitive@>
-  mp_primitive (mp, "and", and_command, and_op);
-@:and_}{\&{and} primitive@>
-  mp_primitive (mp, "<", expression_binary, less_than);
-@:< }{\.{<} primitive@>
-  mp_primitive (mp, "<=", expression_binary, less_or_equal);
-@:<=_}{\.{<=} primitive@>
-  mp_primitive (mp, ">", expression_binary, greater_than);
-@:> }{\.{>} primitive@>
-  mp_primitive (mp, ">=", expression_binary, greater_or_equal);
-@:>=_}{\.{>=} primitive@>
-  mp_primitive (mp, "=", equals, equal_to);
-@:= }{\.{=} primitive@>
-  mp_primitive (mp, "<>", expression_binary, unequal_to);
-@:<>_}{\.{<>} primitive@>
-  mp_primitive (mp, "substring", primary_binary, substring_of);
-@:substring_}{\&{substring} primitive@>
-  mp_primitive (mp, "subpath", primary_binary, subpath_of);
-@:subpath_}{\&{subpath} primitive@>
-  mp_primitive (mp, "directiontime", primary_binary, direction_time_of);
-@:direction_time_}{\&{directiontime} primitive@>
-  mp_primitive (mp, "point", primary_binary, point_of);
-@:point_}{\&{point} primitive@>
-  mp_primitive (mp, "precontrol", primary_binary, precontrol_of);
-@:precontrol_}{\&{precontrol} primitive@>
-  mp_primitive (mp, "postcontrol", primary_binary, postcontrol_of);
-@:postcontrol_}{\&{postcontrol} primitive@>
-  mp_primitive (mp, "penoffset", primary_binary, pen_offset_of);
-@:pen_offset_}{\&{penoffset} primitive@>
-  mp_primitive (mp, "arctime", primary_binary, arc_time_of);
-@:arc_time_of_}{\&{arctime} primitive@>
-  mp_primitive (mp, "mpversion", nullary, mp_version);
-@:mp_verison_}{\&{mpversion} primitive@>
-  mp_primitive (mp, "&", ampersand, concatenate);
-@:!!!}{\.{\&} primitive@>
-  mp_primitive (mp, "rotated", secondary_binary, rotated_by);
-@:rotated_}{\&{rotated} primitive@>
-  mp_primitive (mp, "slanted", secondary_binary, slanted_by);
-@:slanted_}{\&{slanted} primitive@>
-  mp_primitive (mp, "scaled", secondary_binary, scaled_by);
-@:scaled_}{\&{scaled} primitive@>
-  mp_primitive (mp, "shifted", secondary_binary, shifted_by);
-@:shifted_}{\&{shifted} primitive@>
-  mp_primitive (mp, "transformed", secondary_binary, transformed_by);
-@:transformed_}{\&{transformed} primitive@>
-  mp_primitive (mp, "xscaled", secondary_binary, x_scaled);
-@:x_scaled_}{\&{xscaled} primitive@>
-  mp_primitive (mp, "yscaled", secondary_binary, y_scaled);
-@:y_scaled_}{\&{yscaled} primitive@>
-  mp_primitive (mp, "zscaled", secondary_binary, z_scaled);
-@:z_scaled_}{\&{zscaled} primitive@>
-  mp_primitive (mp, "infont", secondary_binary, in_font);
-@:in_font_}{\&{infont} primitive@>
-  mp_primitive (mp, "intersectiontimes", tertiary_binary, intersect);
-@:intersection_times_}{\&{intersectiontimes} primitive@>
-  mp_primitive (mp, "envelope", primary_binary, envelope_of);
-@:envelope_}{\&{envelope} primitive@>
-  mp_primitive (mp, "glyph", primary_binary, glyph_infont);
+@:/ }{\.{/} primitive@>;
+mp_primitive (mp, "++", tertiary_binary, pythag_add);
+@:++_}{\.{++} primitive@>;
+mp_primitive (mp, "+-+", tertiary_binary, pythag_sub);
+@:+-+_}{\.{+-+} primitive@>;
+mp_primitive (mp, "or", tertiary_binary, or_op);
+@:or_}{\&{or} primitive@>;
+mp_primitive (mp, "and", and_command, and_op);
+@:and_}{\&{and} primitive@>;
+mp_primitive (mp, "<", expression_binary, less_than);
+@:< }{\.{<} primitive@>;
+mp_primitive (mp, "<=", expression_binary, less_or_equal);
+@:<=_}{\.{<=} primitive@>;
+mp_primitive (mp, ">", expression_binary, greater_than);
+@:> }{\.{>} primitive@>;
+mp_primitive (mp, ">=", expression_binary, greater_or_equal);
+@:>=_}{\.{>=} primitive@>;
+mp_primitive (mp, "=", equals, equal_to);
+@:= }{\.{=} primitive@>;
+mp_primitive (mp, "<>", expression_binary, unequal_to);
+@:<>_}{\.{<>} primitive@>;
+mp_primitive (mp, "substring", primary_binary, substring_of);
+@:substring_}{\&{substring} primitive@>;
+mp_primitive (mp, "subpath", primary_binary, subpath_of);
+@:subpath_}{\&{subpath} primitive@>;
+mp_primitive (mp, "directiontime", primary_binary, direction_time_of);
+@:direction_time_}{\&{directiontime} primitive@>;
+mp_primitive (mp, "point", primary_binary, point_of);
+@:point_}{\&{point} primitive@>;
+mp_primitive (mp, "precontrol", primary_binary, precontrol_of);
+@:precontrol_}{\&{precontrol} primitive@>;
+mp_primitive (mp, "postcontrol", primary_binary, postcontrol_of);
+@:postcontrol_}{\&{postcontrol} primitive@>;
+mp_primitive (mp, "penoffset", primary_binary, pen_offset_of);
+@:pen_offset_}{\&{penoffset} primitive@>;
+mp_primitive (mp, "arctime", primary_binary, arc_time_of);
+@:arc_time_of_}{\&{arctime} primitive@>;
+mp_primitive (mp, "mpversion", nullary, mp_version);
+@:mp_verison_}{\&{mpversion} primitive@>;
+mp_primitive (mp, "&", ampersand, concatenate);
+@:!!!}{\.{\&} primitive@>;
+mp_primitive (mp, "rotated", secondary_binary, rotated_by);
+@:rotated_}{\&{rotated} primitive@>;
+mp_primitive (mp, "slanted", secondary_binary, slanted_by);
+@:slanted_}{\&{slanted} primitive@>;
+mp_primitive (mp, "scaled", secondary_binary, scaled_by);
+@:scaled_}{\&{scaled} primitive@>;
+mp_primitive (mp, "shifted", secondary_binary, shifted_by);
+@:shifted_}{\&{shifted} primitive@>;
+mp_primitive (mp, "transformed", secondary_binary, transformed_by);
+@:transformed_}{\&{transformed} primitive@>;
+mp_primitive (mp, "xscaled", secondary_binary, x_scaled);
+@:x_scaled_}{\&{xscaled} primitive@>;
+mp_primitive (mp, "yscaled", secondary_binary, y_scaled);
+@:y_scaled_}{\&{yscaled} primitive@>;
+mp_primitive (mp, "zscaled", secondary_binary, z_scaled);
+@:z_scaled_}{\&{zscaled} primitive@>;
+mp_primitive (mp, "infont", secondary_binary, in_font);
+@:in_font_}{\&{infont} primitive@>;
+mp_primitive (mp, "intersectiontimes", tertiary_binary, intersect);
+@:intersection_times_}{\&{intersectiontimes} primitive@>;
+mp_primitive (mp, "envelope", primary_binary, envelope_of);
+@:envelope_}{\&{envelope} primitive@>;
+mp_primitive (mp, "glyph", primary_binary, glyph_infont);
 @:glyph_infont_}{\&{envelope} primitive@>
  
 
@@ -22443,8 +22477,8 @@ break;
 @ OK, let's look at the simplest \\{do} procedure first.
 
 @c
-@<Declare nullary action procedure@>
-     static void mp_do_nullary (MP mp, quarterword c) {
+@<Declare nullary action procedure@>;
+static void mp_do_nullary (MP mp, quarterword c) {
   check_arith;
   if (internal_value (mp_tracing_commands) > two)
     mp_show_cmd_mod (mp, nullary, c);
@@ -22512,8 +22546,8 @@ static void mp_finish_read (MP mp) {                               /* copy |buff
 operand to |do_unary| appears in |cur_type| and |cur_exp|.
 
 @c
-@<Declare unary action procedures@>
-     static void mp_do_unary (MP mp, quarterword c) {
+@<Declare unary action procedures@>;
+static void mp_do_unary (MP mp, quarterword c) {
   mp_node p, q, r;      /* for list manipulation */
   integer x;    /* a temporary register */
   halfword vv;  /* a temporary place for |cur_exp_value| */
@@ -22604,8 +22638,8 @@ static void mp_print_known_or_unknown_type (MP mp, quarterword t, mp_node v) {
 static void mp_bad_unary (MP mp, quarterword c) {
   exp_err ("Not implemented: ");
   mp_print_op (mp, c);
-@.Not implemented...@>
-    mp_print_known_or_unknown_type (mp, mp->cur_exp.type, cur_exp_node ());
+@.Not implemented...@>;
+  mp_print_known_or_unknown_type (mp, mp->cur_exp.type, cur_exp_node ());
   help3 ("I'm afraid I don't know how to apply that operation to that",
          "particular type. Continue, and I'll simply return the",
          "argument (shown above) as the result of the operation.");
@@ -22647,9 +22681,8 @@ case mp_independent:
   q = cur_exp_node ();
   mp_make_exp_copy (mp, q);
   if (mp->cur_exp.type == mp_dependent) {
-    mp_negate_dep_list (mp,
-                        (mp_value_node) dep_list ((mp_value_node)
-                                                  cur_exp_node ()));
+    mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node)
+                                                      cur_exp_node ()));
   } else if (mp->cur_exp.type <= mp_pair_type) {
     /* |mp_color_type| |mp_cmykcolor_type|, or |mp_pair_type| */
     p = value_node (cur_exp_node ());
@@ -22714,9 +22747,8 @@ case mp_independent:
   break;
 case mp_dependent:
 case mp_proto_dependent:
-  mp_negate_dep_list (mp,
-                      (mp_value_node) dep_list ((mp_value_node)
-                                                cur_exp_node ()));
+  mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node)
+                                                    cur_exp_node ()));
   break;
 case mp_known:
   negate (cur_exp_value ());
@@ -22921,8 +22953,8 @@ static void mp_bad_color_part (MP mp, quarterword c) {
   p = mp_link (dummy_loc (cur_exp_node ()));
   exp_err ("Wrong picture color model: ");
   mp_print_op (mp, c);
-@.Wrong picture color model...@>
-    if (mp_color_model (p) == mp_grey_model)
+@.Wrong picture color model...@>;
+  if (mp_color_model (p) == mp_grey_model)
     mp_print (mp, " of grey object");
   else if (mp_color_model (p) == mp_cmyk_model)
     mp_print (mp, " of cmyk object");
@@ -23381,8 +23413,8 @@ static void mp_str_to_num (MP mp, quarterword c) {                              
 @ @<Give error messages if |bad_char|...@>=
 if (bad_char) {
   exp_err ("String contains illegal digits");
-@.String contains illegal digits@>
-    if (c == oct_op) {
+@.String contains illegal digits@>;
+  if (c == oct_op) {
     help1 ("I zeroed out characters that weren't in the range 0..7.");
   } else {
     help1 ("I zeroed out characters that weren't hex digits.");
@@ -23394,9 +23426,9 @@ if ((n > 4095)) {
     print_err ("Number too large (");
     mp_print_int (mp, n);
     mp_print_char (mp, xord (')'));
-@.Number too large@>
-      help2 ("I have trouble with numbers greater than 4095; watch out.",
-             "(Set warningcheck:=0 to suppress this message.)");
+@.Number too large@>;
+    help2 ("I have trouble with numbers greater than 4095; watch out.",
+           "(Set warningcheck:=0 to suppress this message.)");
     mp_put_get_error (mp);
   }
 }
@@ -24215,8 +24247,8 @@ with the current expression.
 @d binary_return  { mp_finish_binary(mp, old_p, old_exp); return; }
 
 @c
-@<Declare binary action procedures@>
-     static void mp_finish_binary (MP mp, mp_node old_p, mp_node old_exp) {
+@<Declare binary action procedures@>;
+static void mp_finish_binary (MP mp, mp_node old_p, mp_node old_exp) {
   check_arith;
   @<Recycle any sidestepped |independent| capsules@>;
 }
@@ -24248,8 +24280,8 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
 static void mp_bad_binary (MP mp, mp_node p, quarterword c) {
   mp_disp_err (mp, p, "");
   exp_err ("Not implemented: ");
-@.Not implemented...@>
-    if (c >= min_of)
+@.Not implemented...@>;
+  if (c >= min_of)
     mp_print_op (mp, c);
   mp_print_known_or_unknown_type (mp, mp_type (p), p);
   if (c >= min_of)
@@ -24265,10 +24297,10 @@ static void mp_bad_binary (MP mp, mp_node p, quarterword c) {
 static void mp_bad_envelope_pen (MP mp) {
   mp_disp_err (mp, NULL, "");
   exp_err ("Not implemented: envelope(elliptical pen)of(path)");
-@.Not implemented...@>
-    help3 ("I'm afraid I don't know how to apply that operation to that",
-           "combination of types. Continue, and I'll return the second",
-           "argument (see above) as the result of the operation.");
+@.Not implemented...@>;
+  help3 ("I'm afraid I don't know how to apply that operation to that",
+         "combination of types. Continue, and I'll return the second",
+         "argument (see above) as the result of the operation.");
   mp_put_get_error (mp);
 }
 
@@ -24360,7 +24392,7 @@ static mp_node mp_tarnished (MP mp, mp_node p) {
   (void) mp;
   q = value_node (p);
   switch (mp_type (p)) {
-  case mp_pair_node_type:
+  case mp_pair_type:
     r = x_part_loc (q);
     if (mp_type (r) == mp_independent)
       return VOID;
@@ -24368,7 +24400,7 @@ static mp_node mp_tarnished (MP mp, mp_node p) {
     if (mp_type (r) == mp_independent)
       return VOID;
     break;
-  case mp_color_node_type:
+  case mp_color_type:
     r = red_part_loc (q);
     if (mp_type (r) == mp_independent)
       return VOID;
@@ -24379,7 +24411,7 @@ static mp_node mp_tarnished (MP mp, mp_node p) {
     if (mp_type (r) == mp_independent)
       return VOID;
     break;
-  case mp_cmykcolor_node_type:
+  case mp_cmykcolor_type:
     r = cyan_part_loc (q);
     if (mp_type (r) == mp_independent)
       return VOID;
@@ -24393,7 +24425,7 @@ static mp_node mp_tarnished (MP mp, mp_node p) {
     if (mp_type (r) == mp_independent)
       return VOID;
     break;
-  case mp_transform_node_type:
+  case mp_transform_type:
     r = tx_part_loc (q);
     if (mp_type (r) == mp_independent)
       return VOID;
@@ -24491,8 +24523,8 @@ be monkeying around with really big values.
 @^overflow in arithmetic@>
 
 @<Declare binary action...@>=
-@<Declare the procedure called |dep_finish|@>
-     static void mp_add_or_subtract (MP mp, mp_node p, mp_node q, quarterword c) {
+@<Declare the procedure called |dep_finish|@>;
+static void mp_add_or_subtract (MP mp, mp_node p, mp_node q, quarterword c) {
   mp_variable_type s, t;        /* operand types */
   mp_value_node r;      /* dependency list traverser */
   mp_value_node v = NULL;       /* second operand value for dep lists */
@@ -24667,8 +24699,8 @@ if (mp->cur_exp.type != mp_known) {
            "negative, or zero. So this comparison test won't be `true'.");
   }
   exp_err ("Unknown relation will be considered false");
-@.Unknown relation...@>
-    new_expr.data.val = false_code;
+@.Unknown relation...@>;
+  new_expr.data.val = false_code;
   mp_put_get_flush_error (mp, new_expr);
 } else {
   switch (c) {
@@ -24850,11 +24882,10 @@ if ((mp->cur_exp.type < mp_color_type) || (mp_type (p) < mp_color_type)) {
   mp_bad_binary (mp, p, times);
 } else if ((mp->cur_exp.type == mp_known) || (mp_type (p) == mp_known)) {
   @<Multiply when at least one operand is known@>;
-} else
-  if ((mp_nice_color_or_pair (mp, p, mp_type (p))
-       && (mp->cur_exp.type > mp_pair_type))
-      || (mp_nice_color_or_pair (mp, cur_exp_node (), mp->cur_exp.type)
-          && (mp_type (p) > mp_pair_type))) {
+} else if ((mp_nice_color_or_pair (mp, p, mp_type (p))
+            && (mp->cur_exp.type > mp_pair_type))
+           || (mp_nice_color_or_pair (mp, cur_exp_node (), mp->cur_exp.type)
+               && (mp_type (p) > mp_pair_type))) {
   mp_hard_times (mp, p);
   binary_return;
 } else {
@@ -24892,8 +24923,7 @@ break;
     mp_dep_mult (mp,
                  (mp_value_node) cyan_part_loc (value_node (cur_exp_node ())),
                  v, true);
-    mp_dep_mult (mp,
-                 (mp_value_node)
+    mp_dep_mult (mp, (mp_value_node)
                  magenta_part_loc (value_node (cur_exp_node ())), v, true);
     mp_dep_mult (mp,
                  (mp_value_node) yellow_part_loc (value_node (cur_exp_node ())),
@@ -24988,8 +25018,7 @@ static void mp_frac_mult (MP mp, scaled n, scaled d) {
     mp_dep_mult (mp,
                  (mp_value_node) cyan_part_loc (value_node (cur_exp_node ())),
                  v, false);
-    mp_dep_mult (mp,
-                 (mp_value_node)
+    mp_dep_mult (mp, (mp_value_node)
                  magenta_part_loc (value_node (cur_exp_node ())), v, false);
     mp_dep_mult (mp,
                  (mp_value_node) yellow_part_loc (value_node (cur_exp_node ())),
@@ -25084,9 +25113,6 @@ static void mp_hard_times (MP mp, mp_node p) {
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
   }
-#if 0
-  mp_free_dep_node (mp, pp);    /* todo why not do this? */
-#endif
 }
 
 
@@ -25121,11 +25147,9 @@ if ((mp->cur_exp.type != mp_known) || (mp_type (p) < mp_color_type)) {
       mp_dep_div (mp,
                   (mp_value_node) cyan_part_loc (value_node (cur_exp_node ())),
                   v);
-      mp_dep_div (mp,
-                  (mp_value_node)
+      mp_dep_div (mp, (mp_value_node)
                   magenta_part_loc (value_node (cur_exp_node ())), v);
-      mp_dep_div (mp,
-                  (mp_value_node)
+      mp_dep_div (mp, (mp_value_node)
                   yellow_part_loc (value_node (cur_exp_node ())), v);
       mp_dep_div (mp,
                   (mp_value_node) black_part_loc (value_node (cur_exp_node ())),
@@ -25165,9 +25189,9 @@ static void mp_dep_div (MP mp, mp_value_node p, scaled v) {
 @ @<Squeal about division by zero@>=
 {
   exp_err ("Division by zero");
-@.Division by zero@>
-    help2 ("You're trying to divide the quantity shown above the error",
-           "message by zero. I'm going to divide it by one instead.");
+@.Division by zero@>;
+  help2 ("You're trying to divide the quantity shown above the error",
+         "message by zero. I'm going to divide it by one instead.");
   mp_put_get_error (mp);
 }
 
@@ -25255,10 +25279,10 @@ scaled ty;      /* current transform coefficients */
     but do nothing if capsule |p| doesn't have the appropriate type@>;
   };                            /* there are no other cases */
   mp_disp_err (mp, p, "Improper transformation argument");
-@.Improper transformation argument@>
-    help3 ("The expression shown above has the wrong type,",
-           "so I can\'t transform anything using it.",
-           "Proceed, and I'll omit the transformation.");
+@.Improper transformation argument@>;
+  help3 ("The expression shown above has the wrong type,",
+         "so I can\'t transform anything using it.",
+         "Proceed, and I'll omit the transformation.");
   mp_put_get_error (mp);
 DONE:
   mp_recycle_value (mp, p);
@@ -25356,9 +25380,8 @@ break;
   if (mp_type (y_part_loc (r)) == mp_known)
     negate (value (y_part_loc (r)));
   else
-    mp_negate_dep_list (mp,
-                        (mp_value_node) dep_list ((mp_value_node)
-                                                  y_part_loc (r)));
+    mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node)
+                                                      y_part_loc (r)));
   mp_install (mp, xy_part_loc (q), y_part_loc (r));
   goto DONE;
 }
@@ -25373,10 +25396,10 @@ static void mp_set_up_known_trans (MP mp, quarterword c) {
   mp_set_up_trans (mp, c);
   if (mp->cur_exp.type != mp_known) {
     exp_err ("Transform components aren't all known");
-@.Transform components...@>
-      help3 ("I'm unable to apply a partially specified transformation",
-             "except to a fully known pair or transform.",
-             "Proceed, and I'll omit the transformation.");
+@.Transform components...@>;
+    help3 ("I'm unable to apply a partially specified transformation",
+           "except to a fully known pair or transform.",
+           "Proceed, and I'll omit the transformation.");
     new_expr.data.val = 0;
     mp_put_get_flush_error (mp, new_expr);
     mp->txx = unity;
@@ -25660,8 +25683,8 @@ mp->ty = sy
 and when some of their components are unknown.
 
 @<Declare binary action...@>=
-@<Declare subroutines needed by |big_trans|@>
-     static void mp_big_trans (MP mp, mp_node p, quarterword c) {
+@<Declare subroutines needed by |big_trans|@>;
+static void mp_big_trans (MP mp, mp_node p, quarterword c) {
   mp_node q, r, pp, qq; /* list manipulation registers */
   q = value_node (p);
   if (mp_type (q) == mp_pair_node_type) {
@@ -26371,16 +26394,16 @@ occur when the statement is null.
 {
   if (mp->cur_cmd < semicolon) {
     print_err ("A statement can't begin with `");
-@.A statement can't begin with x@>
-      mp_print_cmd_mod (mp, mp->cur_cmd, mp->cur_mod);
+@.A statement can't begin with x@>;
+    mp_print_cmd_mod (mp, mp->cur_cmd, mp->cur_mod);
     mp_print_char (mp, xord ('\''));
     help5 ("I was looking for the beginning of a new statement.",
            "If you just proceed without changing anything, I'll ignore",
            "everything up to the next `;'. Please insert a semicolon",
            "now in front of anything that you don't want me to delete.",
            "(See Chapter 27 of The METAFONTbook for an example.)");
-@:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
-      mp_back_error (mp);
+@:METAFONTbook}{\sl The {\logos METAFONT\/}book@>;
+    mp_back_error (mp);
     mp_get_x_next (mp);
   }
 }
@@ -26393,18 +26416,18 @@ also terminate a statement.
 @<Flush unparsable junk that was found after the statement@>=
 {
   print_err ("Extra tokens will be flushed");
-@.Extra tokens will be flushed@>
-    help6 ("I've just read as much of that statement as I could fathom,",
-           "so a semicolon should have been next. It's very puzzling...",
-           "but I'll try to get myself back together, by ignoring",
-           "everything up to the next `;'. Please insert a semicolon",
-           "now in front of anything that you don't want me to delete.",
-           "(See Chapter 27 of The METAFONTbook for an example.)");
-@:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
-    mp_back_error (mp);
+@.Extra tokens will be flushed@>;
+  help6 ("I've just read as much of that statement as I could fathom,",
+         "so a semicolon should have been next. It's very puzzling...",
+         "but I'll try to get myself back together, by ignoring",
+         "everything up to the next `;'. Please insert a semicolon",
+         "now in front of anything that you don't want me to delete.",
+         "(See Chapter 27 of The METAFONTbook for an example.)");
+@:METAFONTbook}{\sl The {\logos METAFONT\/}book@>;
+  mp_back_error (mp);
   mp->scanner_status = flushing;
   do {
-    get_t_next;
+    get_t_next (mp);
     @<Decrease the string reference count...@>;
   } while (!end_of_statement);  /* |cur_cmd=semicolon|, |end_group|, or |stop| */
   mp->scanner_status = normal;
@@ -26451,10 +26474,10 @@ expression.
       @<Do a title@>;
     } else if (mp->cur_exp.type != mp_vacuous) {
       exp_err ("Isolated expression");
-@.Isolated expression@>
-        help3 ("I couldn't find an `=' or `:=' after the",
-               "expression that is shown above this error message,",
-               "so I guess I'll just ignore it and carry on.");
+@.Isolated expression@>;
+      help3 ("I couldn't find an `=' or `:=' after the",
+             "expression that is shown above this error message,",
+             "so I guess I'll just ignore it and carry on.");
       mp_put_get_error (mp);
     }
     new_expr.data.val = 0;
@@ -26484,8 +26507,8 @@ will be equal to the right-hand side (which will normally be equal
 to the left-hand side).
 
 @<Declarations@>=
-@<Declare the procedure called |make_eq|@>
-     static void mp_do_equation (MP mp);
+@<Declare the procedure called |make_eq|@>;
+static void mp_do_equation (MP mp);
 
 @ @c
 void mp_do_equation (MP mp) {
@@ -26523,9 +26546,9 @@ void mp_do_assignment (MP mp) {
   mp_node q;    /* temporary capsule for the right-hand value */
   if (mp->cur_exp.type != mp_token_list) {
     exp_err ("Improper `:=' will be changed to `='");
-@.Improper `:='@>
-      help2 ("I didn't find a variable name at the left of the `:=',",
-             "so I'm going to pretend that you said `=' instead.");
+@.Improper `:='@>;
+    help2 ("I didn't find a variable name at the left of the `:=',",
+           "so I'm going to pretend that you said `=' instead.");
     mp_error (mp);
     mp_do_equation (mp);
   } else {
@@ -26582,8 +26605,8 @@ if (mp->cur_exp.type == mp_known || mp->cur_exp.type == mp_string_type) {
   if (mp->cur_exp.type == mp_string_type) {
     if (internal_type (mp_sym_info (lhs)) != mp->cur_exp.type) {
       exp_err ("Internal quantity `");
-@.Internal quantity...@>
-        mp_print (mp, internal_name (mp_sym_info (lhs)));
+@.Internal quantity...@>;
+      mp_print (mp, internal_name (mp_sym_info (lhs)));
       mp_print (mp, "' must receive a known numeric value");
       help2 ("I can\'t set this internal quantity to anything but a known",
              "numeric value, so I'll have to ignore this assignment.");
@@ -26595,8 +26618,8 @@ if (mp->cur_exp.type == mp_known || mp->cur_exp.type == mp_string_type) {
   } else {                      /* |mp_known| */
     if (internal_type (mp_sym_info (lhs)) != mp->cur_exp.type) {
       exp_err ("Internal quantity `");
-@.Internal quantity...@>
-        mp_print (mp, internal_name (mp_sym_info (lhs)));
+@.Internal quantity...@>;
+      mp_print (mp, internal_name (mp_sym_info (lhs)));
       mp_print (mp, "' must receive a known string");
       help2 ("I can\'t set this internal quantity to anything but a known",
              "string, so I'll have to ignore this assignment.");
@@ -26607,8 +26630,8 @@ if (mp->cur_exp.type == mp_known || mp->cur_exp.type == mp_string_type) {
   }
 } else {
   exp_err ("Internal quantity `");
-@.Internal quantity...@>
-    mp_print (mp, internal_name (mp_sym_info (lhs)));
+@.Internal quantity...@>;
+  mp_print (mp, internal_name (mp_sym_info (lhs)));
   mp_print (mp, "' must receive a known numeric or string");
   help2 ("I can\'t set an internal quantity to anything but a known string",
          "or known numeric value, so I'll have to ignore this assignment.");
@@ -26671,8 +26694,8 @@ DONE:
 @ @<Announce that the equation cannot be performed@>=
 mp_disp_err (mp, lhs, "");
 exp_err ("Equation cannot be performed (");
-@.Equation cannot be performed@>
-  if (mp_type (lhs) <= mp_pair_type)
+@.Equation cannot be performed@>;
+if (mp_type (lhs) <= mp_pair_type)
   mp_print_type (mp, mp_type (lhs));
 else
   mp_print (mp, "numeric");
@@ -26750,16 +26773,16 @@ break;
     goto DONE;
   }
   print_err ("Redundant or inconsistent equation");
-@.Redundant or inconsistent equation@>
-    help2 ("An equation between already-known quantities can't help.",
-           "But don't worry; continue and I'll just ignore it.");
+@.Redundant or inconsistent equation@>;
+  help2 ("An equation between already-known quantities can't help.",
+         "But don't worry; continue and I'll just ignore it.");
   mp_put_get_error (mp);
   goto DONE;
 NOT_FOUND:
   print_err ("Inconsistent equation");
-@.Inconsistent equation@>
-    help2 ("The equation I just read contradicts what was said before.",
-           "But don't worry; continue and I'll just ignore it.");
+@.Inconsistent equation@>;
+  help2 ("The equation I just read contradicts what was said before.",
+         "But don't worry; continue and I'll just ignore it.");
   mp_put_get_error (mp);
   goto DONE;
 }
@@ -26875,8 +26898,8 @@ if (t == mp_known) {
 {
   if (abs (value (p)) > 64) {   /* off by .001 or more */
     print_err ("Inconsistent equation");
-@.Inconsistent equation@>
-      mp_print (mp, " (off by ");
+@.Inconsistent equation@>;
+    mp_print (mp, " (off by ");
     mp_print_scaled (mp, value (p));
     mp_print_char (mp, xord (')'));
     help2 ("The equation I just read contradicts what was said before.",
@@ -27009,26 +27032,26 @@ declared variable.
 
 @<Put each...@>=
 mp_primitive (mp, "numeric", type_name, mp_numeric_type);
-@:numeric_}{\&{numeric} primitive@>
-  mp_primitive (mp, "string", type_name, mp_string_type);
-@:string_}{\&{string} primitive@>
-  mp_primitive (mp, "boolean", type_name, mp_boolean_type);
-@:boolean_}{\&{boolean} primitive@>
-  mp_primitive (mp, "path", type_name, mp_path_type);
-@:path_}{\&{path} primitive@>
-  mp_primitive (mp, "pen", type_name, mp_pen_type);
-@:pen_}{\&{pen} primitive@>
-  mp_primitive (mp, "picture", type_name, mp_picture_type);
-@:picture_}{\&{picture} primitive@>
-  mp_primitive (mp, "transform", type_name, mp_transform_type);
-@:transform_}{\&{transform} primitive@>
-  mp_primitive (mp, "color", type_name, mp_color_type);
-@:color_}{\&{color} primitive@>
-  mp_primitive (mp, "rgbcolor", type_name, mp_color_type);
-@:color_}{\&{rgbcolor} primitive@>
-  mp_primitive (mp, "cmykcolor", type_name, mp_cmykcolor_type);
-@:color_}{\&{cmykcolor} primitive@>
-  mp_primitive (mp, "pair", type_name, mp_pair_type);
+@:numeric_}{\&{numeric} primitive@>;
+mp_primitive (mp, "string", type_name, mp_string_type);
+@:string_}{\&{string} primitive@>;
+mp_primitive (mp, "boolean", type_name, mp_boolean_type);
+@:boolean_}{\&{boolean} primitive@>;
+mp_primitive (mp, "path", type_name, mp_path_type);
+@:path_}{\&{path} primitive@>;
+mp_primitive (mp, "pen", type_name, mp_pen_type);
+@:pen_}{\&{pen} primitive@>;
+mp_primitive (mp, "picture", type_name, mp_picture_type);
+@:picture_}{\&{picture} primitive@>;
+mp_primitive (mp, "transform", type_name, mp_transform_type);
+@:transform_}{\&{transform} primitive@>;
+mp_primitive (mp, "color", type_name, mp_color_type);
+@:color_}{\&{color} primitive@>;
+mp_primitive (mp, "rgbcolor", type_name, mp_color_type);
+@:color_}{\&{rgbcolor} primitive@>;
+mp_primitive (mp, "cmykcolor", type_name, mp_cmykcolor_type);
+@:color_}{\&{cmykcolor} primitive@>;
+mp_primitive (mp, "pair", type_name, mp_pair_type);
 @:pair_}{\&{pair} primitive@>
  
 
@@ -27061,9 +27084,9 @@ void mp_do_type_declaration (MP mp) {
       set_value (q, 0);         /* todo: this was |null| */
     } else {
       print_err ("Declared variable conflicts with previous vardef");
-@.Declared variable conflicts...@>
-        help2 ("You can't use, e.g., `numeric foo[]' after `vardef foo'.",
-               "Proceed, and I'll ignore the illegal redeclaration.");
+@.Declared variable conflicts...@>;
+      help2 ("You can't use, e.g., `numeric foo[]' after `vardef foo'.",
+             "Proceed, and I'll ignore the illegal redeclaration.");
       mp_put_get_error (mp);
     }
     mp_flush_node_list (mp, p);
@@ -27077,18 +27100,18 @@ void mp_do_type_declaration (MP mp) {
 @ @<Flush spurious symbols after the declared variable@>=
 {
   print_err ("Illegal suffix of declared variable will be flushed");
-@.Illegal suffix...flushed@>
-    help5 ("Variables in declarations must consist entirely of",
-           "names and collective subscripts, e.g., `x[]a'.",
-           "Are you trying to use a reserved word in a variable name?",
-           "I'm going to discard the junk I found here,",
-           "up to the next comma or the end of the declaration.");
+@.Illegal suffix...flushed@>;
+  help5 ("Variables in declarations must consist entirely of",
+         "names and collective subscripts, e.g., `x[]a'.",
+         "Are you trying to use a reserved word in a variable name?",
+         "I'm going to discard the junk I found here,",
+         "up to the next comma or the end of the declaration.");
   if (mp->cur_cmd == numeric_token)
     mp->help_line[2] = "Explicit subscripts like `x15a' aren't permitted.";
   mp_put_get_error (mp);
   mp->scanner_status = flushing;
   do {
-    get_t_next;
+    get_t_next (mp);
     @<Decrease the string reference count...@>;
   } while (mp->cur_cmd < comma);        /* either |end_of_statement| or |cur_cmd=comma| */
   mp->scanner_status = normal;
@@ -27108,9 +27131,9 @@ static void mp_main_control (MP mp) {
     mp_do_statement (mp);
     if (mp->cur_cmd == end_group) {
       print_err ("Extra `endgroup'");
-@.Extra `endgroup'@>
-        help2 ("I'm not currently working on a `begingroup',",
-               "so I had better not try to end anything.");
+@.Extra `endgroup'@>;
+      help2 ("I'm not currently working on a `begingroup',",
+             "so I had better not try to end anything.");
       mp_flush_error (mp, new_expr);
     }
   } while (mp->cur_cmd != stop);
@@ -27650,8 +27673,8 @@ char *mp_metapost_version (void);
 
 @ @<Put each...@>=
 mp_primitive (mp, "end", stop, 0);
-@:end_}{\&{end} primitive@>
-  mp_primitive (mp, "dump", stop, 1);
+@:end_}{\&{end} primitive@>;
+mp_primitive (mp, "dump", stop, 1);
 @:dump_}{\&{dump} primitive@>
  
 
@@ -27686,17 +27709,17 @@ void mp_do_random_seed (MP mp) {
   mp_get_x_next (mp);
   if (mp->cur_cmd != assignment) {
     mp_missing_err (mp, ":=");
-@.Missing `:='@>
-      help1 ("Always say `randomseed:=<numeric expression>'.");
+@.Missing `:='@>;
+    help1 ("Always say `randomseed:=<numeric expression>'.");
     mp_back_error (mp);
   };
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_known) {
     exp_err ("Unknown value will be ignored");
-@.Unknown value...ignored@>
-      help2 ("Your expression was too random for me to handle,",
-             "so I won't change the random seed just now.");
+@.Unknown value...ignored@>;
+    help2 ("Your expression was too random for me to handle,",
+           "so I won't change the random seed just now.");
     mp_put_get_flush_error (mp, new_expr);
   } else {
     @<Initialize the random seed to |cur_exp|@>;
@@ -27733,12 +27756,12 @@ break;
 
 @ @<Put each...@>=
 mp_primitive (mp, "batchmode", mode_command, mp_batch_mode);
-@:mp_batch_mode_}{\&{batchmode} primitive@>
-  mp_primitive (mp, "nonstopmode", mode_command, mp_nonstop_mode);
-@:mp_nonstop_mode_}{\&{nonstopmode} primitive@>
-  mp_primitive (mp, "scrollmode", mode_command, mp_scroll_mode);
-@:mp_scroll_mode_}{\&{scrollmode} primitive@>
-  mp_primitive (mp, "errorstopmode", mode_command, mp_error_stop_mode);
+@:mp_batch_mode_}{\&{batchmode} primitive@>;
+mp_primitive (mp, "nonstopmode", mode_command, mp_nonstop_mode);
+@:mp_nonstop_mode_}{\&{nonstopmode} primitive@>;
+mp_primitive (mp, "scrollmode", mode_command, mp_scroll_mode);
+@:mp_scroll_mode_}{\&{scrollmode} primitive@>;
+mp_primitive (mp, "errorstopmode", mode_command, mp_error_stop_mode);
 @:mp_error_stop_mode_}{\&{errorstopmode} primitive@>
  
 
@@ -27769,8 +27792,8 @@ break;
 
 @ @<Put each...@>=
 mp_primitive (mp, "inner", protection_command, 0);
-@:inner_}{\&{inner} primitive@>
-  mp_primitive (mp, "outer", protection_command, 1);
+@:inner_}{\&{inner} primitive@>;
+mp_primitive (mp, "outer", protection_command, 1);
 @:outer_}{\&{outer} primitive@>
  
 
@@ -27846,15 +27869,15 @@ void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim) {
       return;
   if (mp->cur_sym != r_delim) {
     mp_missing_err (mp, mp_str (mp, text (r_delim)));
-@.Missing `)'@>
-      help2 ("I found no right delimiter to match a left one. So I've",
-             "put one in, behind the scenes; this may fix the problem.");
+@.Missing `)'@>;
+    help2 ("I found no right delimiter to match a left one. So I've",
+           "put one in, behind the scenes; this may fix the problem.");
     mp_back_error (mp);
   } else {
     print_err ("The token `");
     mp_print_text (r_delim);
-@.The token...delimiter@>
-      mp_print (mp, "' is no longer a right delimiter");
+@.The token...delimiter@>;
+    mp_print (mp, "' is no longer a right delimiter");
     help3 ("Strange: This token has lost its former meaning!",
            "I'll read it as a right delimiter this time;",
            "but watch out, I'll probably miss it later.");
@@ -27892,8 +27915,8 @@ void mp_do_interim (MP mp) {
   mp_get_x_next (mp);
   if (mp->cur_cmd != internal_quantity) {
     print_err ("The token `");
-@.The token...quantity@>
-      if (mp->cur_sym == NULL)
+@.The token...quantity@>;
+    if (mp->cur_sym == NULL)
       mp_print (mp, "(%CAPSULE)");
     else
       mp_print_text (mp->cur_sym);
@@ -27922,10 +27945,10 @@ void mp_do_let (MP mp) {
   mp_get_x_next (mp);
   if (mp->cur_cmd != equals && mp->cur_cmd != assignment) {
     mp_missing_err (mp, "=");
-@.Missing `='@>
-      help3 ("You should have said `let symbol = something'.",
-             "But don't worry; I'll pretend that an equals sign",
-             "was present. The next token I read will be `something'.");
+@.Missing `='@>;
+    help3 ("You should have said `let symbol = something'.",
+           "But don't worry; I'll pretend that an equals sign",
+           "was present. The next token I read will be `something'.");
     mp_back_error (mp);
   }
   mp_get_symbol (mp);
@@ -28030,14 +28053,14 @@ in the usual way.
 
 @<Put each...@>=
 mp_primitive (mp, "showtoken", show_command, show_token_code);
-@:show_token_}{\&{showtoken} primitive@>
-  mp_primitive (mp, "showstats", show_command, show_stats_code);
-@:show_stats_}{\&{showstats} primitive@>
-  mp_primitive (mp, "show", show_command, show_code);
-@:show_}{\&{show} primitive@>
-  mp_primitive (mp, "showvariable", show_command, show_var_code);
-@:show_var_}{\&{showvariable} primitive@>
-  mp_primitive (mp, "showdependencies", show_command, show_dependencies_code);
+@:show_token_}{\&{showtoken} primitive@>;
+mp_primitive (mp, "showstats", show_command, show_stats_code);
+@:show_stats_}{\&{showstats} primitive@>;
+mp_primitive (mp, "show", show_command, show_code);
+@:show_}{\&{show} primitive@>;
+mp_primitive (mp, "showvariable", show_command, show_var_code);
+@:show_var_}{\&{showvariable} primitive@>;
+mp_primitive (mp, "showdependencies", show_command, show_dependencies_code);
 @:show_dependencies_}{\&{showdependencies} primitive@>
  
 
@@ -28082,8 +28105,8 @@ void mp_do_show (MP mp) {
     mp_get_x_next (mp);
     mp_scan_expression (mp);
     mp_print_nl (mp, ">> ");
-@.>>@>
-      mp_print_exp (mp, NULL, 2);
+@.>>@>;
+    mp_print_exp (mp, NULL, 2);
     mp_flush_cur_exp (mp, new_expr);
   } while (mp->cur_cmd == comma);
 }
@@ -28095,8 +28118,8 @@ static void mp_disp_token (MP mp);
 @ @c
 void mp_disp_token (MP mp) {
   mp_print_nl (mp, "> ");
-@.>\relax@>
-    if (mp->cur_sym == NULL) {
+@.>\relax@>;
+  if (mp->cur_sym == NULL) {
     @<Show a numeric or string or capsule token@>;
   } else {
     mp_print_text (mp->cur_sym);
@@ -28169,7 +28192,7 @@ static void mp_do_show_token (MP mp);
 @ @c
 void mp_do_show_token (MP mp) {
   do {
-    get_t_next;
+    get_t_next (mp);
     mp_disp_token (mp);
     mp_get_x_next (mp);
   } while (mp->cur_cmd == comma);
@@ -28182,8 +28205,8 @@ static void mp_do_show_stats (MP mp);
 @ @c
 void mp_do_show_stats (MP mp) {
   mp_print_nl (mp, "Memory usage ");
-@.Memory usage...@>
-    mp_print_int (mp, (integer) mp->var_used);
+@.Memory usage...@>;
+  mp_print_int (mp, (integer) mp->var_used);
   mp_print_ln (mp);
   mp_print_nl (mp, "String usage ");
   mp_print_int (mp, (int) mp->strs_in_use);
@@ -28253,7 +28276,7 @@ static void mp_do_show_var (MP mp);
 @ @c
 void mp_do_show_var (MP mp) {
   do {
-    get_t_next;
+    get_t_next (mp);
     if (mp->cur_sym != NULL)
       if (mp->cur_sym_mod == 0)
         if (mp->cur_cmd == tag_token)
@@ -28323,8 +28346,8 @@ void mp_do_show_whatever (MP mp) {
   }                             /* there are no other cases */
   if (internal_value (mp_showstopping) > 0) {
     print_err ("OK");
-@.OK@>
-      if (mp->interaction < mp_error_stop_mode) {
+@.OK@>;
+    if (mp->interaction < mp_error_stop_mode) {
       help0;
       decr (mp->error_count);
     } else {
@@ -28351,29 +28374,29 @@ void mp_do_show_whatever (MP mp) {
 
 @<Put each...@>=
 mp_primitive (mp, "doublepath", thing_to_add, double_path_code);
-@:double_path_}{\&{doublepath} primitive@>
-  mp_primitive (mp, "contour", thing_to_add, contour_code);
-@:contour_}{\&{contour} primitive@>
-  mp_primitive (mp, "also", thing_to_add, also_code);
-@:also_}{\&{also} primitive@>
-  mp_primitive (mp, "withpen", with_option, mp_pen_type);
-@:with_pen_}{\&{withpen} primitive@>
-  mp_primitive (mp, "dashed", with_option, mp_picture_type);
-@:dashed_}{\&{dashed} primitive@>
-  mp_primitive (mp, "withprescript", with_option, with_mp_pre_script);
-@:with_mp_pre_script_}{\&{withprescript} primitive@>
-  mp_primitive (mp, "withpostscript", with_option, with_mp_post_script);
-@:with_mp_post_script_}{\&{withpostscript} primitive@>
-  mp_primitive (mp, "withoutcolor", with_option, mp_no_model);
-@:with_color_}{\&{withoutcolor} primitive@>
-  mp_primitive (mp, "withgreyscale", with_option, mp_grey_model);
-@:with_color_}{\&{withgreyscale} primitive@>
-  mp_primitive (mp, "withcolor", with_option, mp_uninitialized_model);
+@:double_path_}{\&{doublepath} primitive@>;
+mp_primitive (mp, "contour", thing_to_add, contour_code);
+@:contour_}{\&{contour} primitive@>;
+mp_primitive (mp, "also", thing_to_add, also_code);
+@:also_}{\&{also} primitive@>;
+mp_primitive (mp, "withpen", with_option, mp_pen_type);
+@:with_pen_}{\&{withpen} primitive@>;
+mp_primitive (mp, "dashed", with_option, mp_picture_type);
+@:dashed_}{\&{dashed} primitive@>;
+mp_primitive (mp, "withprescript", with_option, with_mp_pre_script);
+@:with_mp_pre_script_}{\&{withprescript} primitive@>;
+mp_primitive (mp, "withpostscript", with_option, with_mp_post_script);
+@:with_mp_post_script_}{\&{withpostscript} primitive@>;
+mp_primitive (mp, "withoutcolor", with_option, mp_no_model);
+@:with_color_}{\&{withoutcolor} primitive@>;
+mp_primitive (mp, "withgreyscale", with_option, mp_grey_model);
+@:with_color_}{\&{withgreyscale} primitive@>;
+mp_primitive (mp, "withcolor", with_option, mp_uninitialized_model);
 @:with_color_}{\&{withcolor} primitive@>
 /*  \&{withrgbcolor} is an alias for \&{withcolor} */
   mp_primitive (mp, "withrgbcolor", with_option, mp_rgb_model);
-@:with_color_}{\&{withrgbcolor} primitive@>
-  mp_primitive (mp, "withcmykcolor", with_option, mp_cmyk_model);
+@:with_color_}{\&{withrgbcolor} primitive@>;
+mp_primitive (mp, "withcmykcolor", with_option, mp_cmyk_model);
 @:with_color_}{\&{withcmykcolor} primitive@>
  
 
@@ -28570,9 +28593,9 @@ void mp_scan_with_list (MP mp, mp_node p) {
 @ @<Complain about improper type@>=
 {
   exp_err ("Improper type");
-@.Improper type@>
-    help2 ("Next time say `withpen <known pen expression>';",
-           "I'll ignore the bad `with' clause and look for another.");
+@.Improper type@>;
+  help2 ("Next time say `withpen <known pen expression>';",
+         "I'll ignore the bad `with' clause and look for another.");
   if (t == with_mp_pre_script)
     mp->help_line[1] =
       "Next time say `withprescript <known string expression>';";
@@ -28600,20 +28623,17 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
 
 @<Transfer a color from the current expression to object~|cp|@>=
 {
-  if (mp->cur_exp.type == mp_color_type)
-    @<Transfer a rgbcolor from the current expression to object~|cp|@>
-      else
-  if (mp->cur_exp.type == mp_cmykcolor_type)
-    @<Transfer a cmykcolor from the current expression to object~|cp|@>
-      else
-  if (mp->cur_exp.type == mp_known)
-    @<Transfer a greyscale from the current expression to object~|cp|@>
-      else
-  if (cur_exp_value () == false_code)
-    @<Transfer a noncolor from the current expression to object~|cp|@>
-      else
-  if (cur_exp_value () == true_code)
+  if (mp->cur_exp.type == mp_color_type) {
+    @<Transfer a rgbcolor from the current expression to object~|cp|@>;
+  } else if (mp->cur_exp.type == mp_cmykcolor_type) {
+    @<Transfer a cmykcolor from the current expression to object~|cp|@>;
+  } else if (mp->cur_exp.type == mp_known) {
+    @<Transfer a greyscale from the current expression to object~|cp|@>;
+  } else if (cur_exp_value () == false_code) {
+    @<Transfer a noncolor from the current expression to object~|cp|@>;
+  } else if (cur_exp_value () == true_code) {
     @<Transfer no color from the current expression to object~|cp|@>;
+  }
 }
 
 
@@ -28832,8 +28852,8 @@ mp_node mp_find_edges_var (MP mp, mp_node t) {
   } else if (mp_type (p) != mp_picture_type) {
     print_err ("Variable ");
     mp_show_token_list (mp, t, NULL, 1000, 0);
-@.Variable x is the wrong type@>
-      mp_print (mp, " is the wrong type (");
+@.Variable x is the wrong type@>;
+    mp_print (mp, " is the wrong type (");
     mp_print_type (mp, mp_type (p));
     mp_print_char (mp, xord (')'));
     help2 ("I was looking for a \"known\" picture variable.",
@@ -28858,8 +28878,8 @@ break;
 
 @ @<Put each...@>=
 mp_primitive (mp, "clip", bounds_command, mp_start_clip_node_type);
-@:clip_}{\&{clip} primitive@>
-  mp_primitive (mp, "setbounds", bounds_command, mp_start_bounds_node_type);
+@:clip_}{\&{clip} primitive@>;
+mp_primitive (mp, "setbounds", bounds_command, mp_start_bounds_node_type);
 @:set_bounds_}{\&{setbounds} primitive@>
  
 
@@ -28911,11 +28931,11 @@ mp_node mp_start_draw_cmd (MP mp, quarterword sep) {
 @ @<Abandon edges command because there's no variable@>=
 {
   exp_err ("Not a suitable variable");
-@.Not a suitable variable@>
-    help4 ("At this point I needed to see the name of a picture variable.",
-           "(Or perhaps you have indeed presented me with one; I might",
-           "have missed it, if it wasn't followed by the proper token.)",
-           "So I'll not change anything just now.");
+@.Not a suitable variable@>;
+  help4 ("At this point I needed to see the name of a picture variable.",
+         "(Or perhaps you have indeed presented me with one; I might",
+         "have missed it, if it wasn't followed by the proper token.)",
+         "So I'll not change anything just now.");
   new_expr.data.val = 0;
   mp_put_get_flush_error (mp, new_expr);
 }
@@ -28941,9 +28961,9 @@ void mp_do_bounds (MP mp) {
       mp_flush_cur_exp (mp, new_expr);
     } else if (mp->cur_exp.type != mp_path_type) {
       exp_err ("Improper `clip'");
-@.Improper `addto'@>
-        help2 ("This expression should have specified a known path.",
-               "So I'll not change anything just now.");
+@.Improper `addto'@>;
+      help2 ("This expression should have specified a known path.",
+             "So I'll not change anything just now.");
       new_expr.data.val = 0;
       mp_put_get_flush_error (mp, new_expr);
     } else if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
@@ -28958,9 +28978,9 @@ void mp_do_bounds (MP mp) {
 @ @<Complain about a non-cycle@>=
 {
   print_err ("Not a cycle");
-@.Not a cycle@>
-    help2 ("That contour should have ended with `..cycle' or `&cycle'.",
-           "So I'll not change anything just now.");
+@.Not a cycle@>;
+  help2 ("That contour should have ended with `..cycle' or `&cycle'.",
+         "So I'll not change anything just now.");
   mp_put_get_error (mp);
 }
 
@@ -29021,9 +29041,9 @@ setting |e:=NULL| prevents anything from being added to |lhe|.
   e = NULL;
   if (mp->cur_exp.type != mp_picture_type) {
     exp_err ("Improper `addto'");
-@.Improper `addto'@>
-      help2 ("This expression should have specified a known picture.",
-             "So I'll not change anything just now.");
+@.Improper `addto'@>;
+    help2 ("This expression should have specified a known picture.",
+           "So I'll not change anything just now.");
     new_expr.data.val = 0;
     mp_put_get_flush_error (mp, new_expr);
   } else {
@@ -29045,9 +29065,9 @@ attempts to add to the edge structure.
     mp_pair_to_path (mp);
   if (mp->cur_exp.type != mp_path_type) {
     exp_err ("Improper `addto'");
-@.Improper `addto'@>
-      help2 ("This expression should have specified a known path.",
-             "So I'll not change anything just now.");
+@.Improper `addto'@>;
+    help2 ("This expression should have specified a known path.",
+           "So I'll not change anything just now.");
     new_expr.data.val = 0;
     mp_put_get_flush_error (mp, new_expr);
   } else if (add_type == contour_code) {
@@ -29102,8 +29122,8 @@ mp_do_ship_out (mp);
 break;
 
 @ @<Declare action procedures for use by |do_statement|@>=
-@<Declare the \ps\ output procedures@>
-     static void mp_do_ship_out (MP mp);
+@<Declare the \ps\ output procedures@>;
+static void mp_do_ship_out (MP mp);
 
 @ @c
 void mp_do_ship_out (MP mp) {
@@ -29174,12 +29194,12 @@ mp->start_sym = NULL;
 
 @<Put each...@>=
 mp_primitive (mp, "message", message_command, message_code);
-@:message_}{\&{message} primitive@>
-  mp_primitive (mp, "errmessage", message_command, err_message_code);
-@:err_message_}{\&{errmessage} primitive@>
-  mp_primitive (mp, "errhelp", message_command, err_help_code);
-@:err_help_}{\&{errhelp} primitive@>
-  mp_primitive (mp, "filenametemplate", message_command, filename_template_code);
+@:message_}{\&{message} primitive@>;
+mp_primitive (mp, "errmessage", message_command, err_message_code);
+@:err_message_}{\&{errmessage} primitive@>;
+mp_primitive (mp, "errhelp", message_command, err_help_code);
+@:err_help_}{\&{errhelp} primitive@>;
+mp_primitive (mp, "filenametemplate", message_command, filename_template_code);
 @:filename_template_}{\&{filenametemplate} primitive@>
  
 
@@ -29201,8 +29221,8 @@ mp_do_message (mp);
 break;
 
 @ @<Declare action procedures for use by |do_statement|@>=
-@<Declare a procedure called |no_string_err|@>
-     static void mp_do_message (MP mp);
+@<Declare a procedure called |no_string_err|@>;
+static void mp_do_message (MP mp);
 
 @ 
 @c
@@ -29251,8 +29271,8 @@ void mp_do_message (MP mp) {
 @ @<Declare a procedure called |no_string_err|@>=
 static void mp_no_string_err (MP mp, const char *s) {
   exp_err ("Not a string");
-@.Not a string@>
-    help1 (s);
+@.Not a string@>;
+  help1 (s);
   mp_put_get_error (mp);
 }
 
@@ -29774,8 +29794,8 @@ static mp_node mp_tfm_check (MP mp, quarterword m) {
 @.Enormous chardp...@>
 @.Enormous charht...@>
 @.Enormous charic...@>
-@.Enormous designsize...@>
-      mp_print (mp, " has been reduced");
+@.Enormous designsize...@>;
+    mp_print (mp, " has been reduced");
     help1 ("Font metric dimensions must be less than 2048pt.");
     mp_put_get_error (mp);
     if (internal_value (m) > 0)
@@ -29795,13 +29815,13 @@ if (c < mp->bc)
 if (c > mp->ec)
   mp->ec = (eight_bits) c;
 mp->char_exists[c] = true;
-mp_xfree(mp->tfm_width[c]);
+mp_xfree (mp->tfm_width[c]);
 mp->tfm_width[c] = mp_tfm_check (mp, mp_char_wd);
-mp_xfree(mp->tfm_height[c]);
+mp_xfree (mp->tfm_height[c]);
 mp->tfm_height[c] = mp_tfm_check (mp, mp_char_ht);
-mp_xfree(mp->tfm_depth[c]);
+mp_xfree (mp->tfm_depth[c]);
 mp->tfm_depth[c] = mp_tfm_check (mp, mp_char_dp);
-mp_xfree(mp->tfm_ital_corr[c]);
+mp_xfree (mp->tfm_ital_corr[c]);
 mp->tfm_ital_corr[c] = mp_tfm_check (mp, mp_char_ic)
  
 
@@ -29820,14 +29840,14 @@ break;
 
 @<Put each...@>=
 mp_primitive (mp, "charlist", tfm_command, char_list_code);
-@:char_list_}{\&{charlist} primitive@>
-  mp_primitive (mp, "ligtable", tfm_command, lig_table_code);
-@:lig_table_}{\&{ligtable} primitive@>
-  mp_primitive (mp, "extensible", tfm_command, extensible_code);
-@:extensible_}{\&{extensible} primitive@>
-  mp_primitive (mp, "headerbyte", tfm_command, header_byte_code);
-@:header_byte_}{\&{headerbyte} primitive@>
-  mp_primitive (mp, "fontdimen", tfm_command, font_dimen_code);
+@:char_list_}{\&{charlist} primitive@>;
+mp_primitive (mp, "ligtable", tfm_command, lig_table_code);
+@:lig_table_}{\&{ligtable} primitive@>;
+mp_primitive (mp, "extensible", tfm_command, extensible_code);
+@:extensible_}{\&{extensible} primitive@>;
+mp_primitive (mp, "headerbyte", tfm_command, header_byte_code);
+@:header_byte_}{\&{headerbyte} primitive@>;
+mp_primitive (mp, "fontdimen", tfm_command, font_dimen_code);
 @:font_dimen_}{\&{fontdimen} primitive@>
  
 
@@ -29873,9 +29893,9 @@ eight_bits mp_get_code (MP mp) {                               /* scans a charac
     }
   }
   exp_err ("Invalid code has been replaced by 0");
-@.Invalid code...@>
-    help2 ("I was looking for a number between 0 and 255, or for a",
-           "string of length 1. Didn't find it; will use 0 instead.");
+@.Invalid code...@>;
+  help2 ("I was looking for a number between 0 and 255, or for a",
+         "string of length 1. Didn't find it; will use 0 instead.");
   new_expr.data.val = 0;
   mp_put_get_flush_error (mp, new_expr);
   c = 0;
@@ -29914,8 +29934,8 @@ void mp_set_tag (MP mp, halfword c, quarterword t, halfword r) {
     mp_print_int (mp, c);
   };
   mp_print (mp, " is already ");
-@.Character c is already...@>
-    switch (mp->char_tag[c]) {
+@.Character c is already...@>;
+  switch (mp->char_tag[c]) {
   case lig_tag:
     mp_print (mp, "in a ligtable");
     break;
@@ -29968,16 +29988,16 @@ void mp_do_tfm_command (MP mp) {
     mp_scan_expression (mp);
     if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < half_unit)) {
       exp_err ("Improper location");
-@.Improper location@>
-        help2 ("I was looking for a known, positive number.",
-               "For safety's sake I'll ignore the present command.");
+@.Improper location@>;
+      help2 ("I was looking for a known, positive number.",
+             "For safety's sake I'll ignore the present command.");
       mp_put_get_error (mp);
     } else {
       j = mp_round_unscaled (mp, cur_exp_value ());
       if (mp->cur_cmd != colon) {
         mp_missing_err (mp, ":");
-@.Missing `:'@>
-          help1 ("A colon should follow a headerbyte or fontinfo location.");
+@.Missing `:'@>;
+        help1 ("A colon should follow a headerbyte or fontinfo location.");
         mp_back_error (mp);
       }
       if (c == header_byte_code) {
@@ -30014,8 +30034,8 @@ CONTINUE:
     @<Compile a ligature/kern command@>;
   } else {
     print_err ("Illegal ligtable step");
-@.Illegal ligtable step@>
-      help1 ("I was looking for `=:' or `kern' here.");
+@.Illegal ligtable step@>;
+    help1 ("I was looking for `=:' or `kern' here.");
     mp_back_error (mp);
     next_char (mp->nl) = qi (0);
     op_byte (mp->nl) = qi (0);
@@ -30034,22 +30054,22 @@ DONE:
 
 @ @<Put each...@>=
 mp_primitive (mp, "=:", lig_kern_token, 0);
-@:=:_}{\.{=:} primitive@>
-  mp_primitive (mp, "=:|", lig_kern_token, 1);
-@:=:/_}{\.{=:\char'174} primitive@>
-  mp_primitive (mp, "=:|>", lig_kern_token, 5);
-@:=:/>_}{\.{=:\char'174>} primitive@>
-  mp_primitive (mp, "|=:", lig_kern_token, 2);
-@:=:/_}{\.{\char'174=:} primitive@>
-  mp_primitive (mp, "|=:>", lig_kern_token, 6);
-@:=:/>_}{\.{\char'174=:>} primitive@>
-  mp_primitive (mp, "|=:|", lig_kern_token, 3);
-@:=:/_}{\.{\char'174=:\char'174} primitive@>
-  mp_primitive (mp, "|=:|>", lig_kern_token, 7);
-@:=:/>_}{\.{\char'174=:\char'174>} primitive@>
-  mp_primitive (mp, "|=:|>>", lig_kern_token, 11);
-@:=:/>_}{\.{\char'174=:\char'174>>} primitive@>
-  mp_primitive (mp, "kern", lig_kern_token, 128);
+@:=:_}{\.{=:} primitive@>;
+mp_primitive (mp, "=:|", lig_kern_token, 1);
+@:=:/_}{\.{=:\char'174} primitive@>;
+mp_primitive (mp, "=:|>", lig_kern_token, 5);
+@:=:/>_}{\.{=:\char'174>} primitive@>;
+mp_primitive (mp, "|=:", lig_kern_token, 2);
+@:=:/_}{\.{\char'174=:} primitive@>;
+mp_primitive (mp, "|=:>", lig_kern_token, 6);
+@:=:/>_}{\.{\char'174=:>} primitive@>;
+mp_primitive (mp, "|=:|", lig_kern_token, 3);
+@:=:/_}{\.{\char'174=:\char'174} primitive@>;
+mp_primitive (mp, "|=:|>", lig_kern_token, 7);
+@:=:/>_}{\.{\char'174=:\char'174>} primitive@>;
+mp_primitive (mp, "|=:|>>", lig_kern_token, 11);
+@:=:/>_}{\.{\char'174=:\char'174>>} primitive@>;
+mp_primitive (mp, "kern", lig_kern_token, 128);
 @:kern_}{\&{kern} primitive@>
  
 
@@ -30158,9 +30178,9 @@ We may need to cancel skips that span more than 127 lig/kern steps.
     mp_scan_expression (mp);
     if (mp->cur_exp.type != mp_known) {
       exp_err ("Improper kern");
-@.Improper kern@>
-        help2 ("The amount of kern should be a known numeric value.",
-               "I'm zeroing this one. Proceed, with fingers crossed.");
+@.Improper kern@>;
+      help2 ("The amount of kern should be a known numeric value.",
+             "I'm zeroing this one. Proceed, with fingers crossed.");
       new_expr.data.val = 0;
       mp_put_get_flush_error (mp, new_expr);
     }
@@ -30239,8 +30259,8 @@ do {
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_known) {
     exp_err ("Improper font parameter");
-@.Improper font parameter@>
-      help1 ("I'm zeroing this one. Proceed, with fingers crossed.");
+@.Improper font parameter@>;
+    help1 ("I'm zeroing this one. Proceed, with fingers crossed.");
     new_expr.data.val = 0;
     mp_put_get_flush_error (mp, new_expr);
   }
@@ -30428,8 +30448,8 @@ static void mp_tfm_warning (MP mp, quarterword m) {
 @.some charwds...@>
 @.some chardps...@>
 @.some charhts...@>
-@.some charics...@>
-    mp_print (mp, " values had to be adjusted by as much as ");
+@.some charics...@>;
+  mp_print (mp, " values had to be adjusted by as much as ");
   mp_print_scaled (mp, mp->perturbation);
   mp_print (mp, "pt)");
 }
@@ -30533,8 +30553,8 @@ static void mp_fix_design_size (MP mp) {
   if ((d < unity) || (d >= fraction_half)) {
     if (d != 0)
       mp_print_nl (mp, "(illegal design size has been changed to 128pt)");
-@.illegal design size...@>
-      d = 040000000;
+@.illegal design size...@>;
+    d = 040000000;
     internal_value (mp_design_size) = d;
   }
   if (mp->header_byte[4] == 0 && mp->header_byte[5] == 0 &&
@@ -30667,8 +30687,8 @@ if (internal_value (mp_tracing_stats) > 0)
 mp_print_nl (mp, "Font metrics written on ");
 mp_print (mp, mp->metric_file_name);
 mp_print_char (mp, xord ('.'));
-@.Font metrics written...@>
-  (mp->close_file) (mp, mp->tfm_file)
+@.Font metrics written...@>;
+(mp->close_file) (mp, mp->tfm_file)
  
 
 @ Integer variables |lh|, |k|, and |lk_offset| will be defined when we use
@@ -30779,8 +30799,8 @@ for (k = 0; k <= 255; k++) {
     mp_print_nl (mp, "(local label ");
     mp_print_int (mp, k);
     mp_print (mp, ":: was missing)");
-@.local label l:: was missing@>
-      cancel_skips (mp->skip_table[k]);
+@.local label l:: was missing@>;
+    cancel_skips (mp->skip_table[k]);
   }
 }
 if (mp->lk_started) {           /* |lk_offset=1| for the special |bchar| */
@@ -30828,14 +30848,14 @@ for (k = 1; k <= mp->np; k++) {
   }
 }
 if (mp->tfm_changed > 0) {
-  if (mp->tfm_changed == 1)
+  if (mp->tfm_changed == 1) {
     mp_print_nl (mp, "(a font metric dimension");
 @.a font metric dimension...@>
-    else {
+  } else {
     mp_print_nl (mp, "(");
     mp_print_int (mp, mp->tfm_changed);
-@.font metric dimensions...@>
-      mp_print (mp, " font metric dimensions");
+@.font metric dimensions...@>;
+    mp_print (mp, " font metric dimensions");
   }
   mp_print (mp, " had to be decreased)");
 }
@@ -30907,11 +30927,11 @@ for (k = 1; k <= (int) mp->last_fnum; k++) {
   xfree (mp->font_name[k]);
   xfree (mp->font_ps_name[k]);
 }
-for (k=0;k<TFM_ITEMS;k++) {
-  mp_xfree(mp->tfm_width[k]);
-  mp_xfree(mp->tfm_height[k]);
-  mp_xfree(mp->tfm_depth[k]);
-  mp_xfree(mp->tfm_ital_corr[k]);
+for (k = 0; k < TFM_ITEMS; k++) {
+  mp_xfree (mp->tfm_width[k]);
+  mp_xfree (mp->tfm_height[k]);
+  mp_xfree (mp->tfm_depth[k]);
+  mp_xfree (mp->tfm_ital_corr[k]);
 }
 xfree (mp->font_info);
 xfree (mp->font_enc_name);
@@ -31082,8 +31102,8 @@ void mp_lost_warning (MP mp, font_number f, int k) {
     if (mp->selector == log_only)
       incr (mp->selector);
     mp_print_nl (mp, "Missing character: There is no ");
-@.Missing character@>
-      mp_print_int (mp, k);
+@.Missing character@>;
+    mp_print_int (mp, k);
     mp_print (mp, " in font ");
     mp_print (mp, mp->font_name[f]);
     mp_print_char (mp, xord ('!'));
@@ -31491,8 +31511,8 @@ char *first_file_name;
 char *last_file_name;   /* full file names */
 integer first_output_code;
 integer last_output_code;       /* rounded \&{charcode} values */
-@:char_code_}{\&{charcode} primitive@>
-     integer total_shipped;     /* total number of |ship_out| operations completed */
+@:char_code_}{\&{charcode} primitive@>;
+integer total_shipped;  /* total number of |ship_out| operations completed */
 
 @ @<Set init...@>=
 mp->first_file_name = xstrdup ("");
@@ -32011,8 +32031,8 @@ program yet; and we'd better leave space for a few more routines that may
 have been forgotten.
 
 @c
-@<Declare the basic parsing subroutines@>
-  @<Declare miscellaneous procedures that were declared |forward|@>
+@<Declare the basic parsing subroutines@>;
+@<Declare miscellaneous procedures that were declared |forward|@>
  
 
 @ @<Find constant sizes@>=
@@ -32056,8 +32076,8 @@ void mp_close_files_and_terminate (MP mp) {
     mp->selector = mp->selector - 2;
     if (mp->selector == term_only) {
       mp_print_nl (mp, "Transcript written on ");
-@.Transcript written...@>
-        mp_print (mp, mp->log_name);
+@.Transcript written...@>;
+      mp_print (mp, mp->log_name);
       mp_print_char (mp, xord ('.'));
     }
   }
@@ -32131,10 +32151,10 @@ if (mp->log_opened) {
   char s[128];
   wlog_ln (" ");
   wlog_ln ("Here is how much of MetaPost's memory you used:");
-@.Here is how much...@>
-    mp_snprintf (s, 128, " %i string%s using %i character%s",
-                 (int) mp->max_strs_used, (mp->max_strs_used != 1 ? "s" : ""),
-                 (int) mp->max_pl_used, (mp->max_pl_used != 1 ? "s" : ""));
+@.Here is how much...@>;
+  mp_snprintf (s, 128, " %i string%s using %i character%s",
+               (int) mp->max_strs_used, (mp->max_strs_used != 1 ? "s" : ""),
+               (int) mp->max_pl_used, (mp->max_pl_used != 1 ? "s" : ""));
   wlog_ln (s);
   mp_snprintf (s, 128, " %i bytes of node memory", (int) mp->var_used_max);
   wlog_ln (s);
@@ -32196,8 +32216,8 @@ void mp_final_cleanup (MP mp) {
   };
   while (mp->cond_ptr != NULL) {
     mp_print_nl (mp, "(end occurred when ");
-@.end occurred...@>
-      mp_print_cmd_mod (mp, fi_or_else, mp->cur_if);
+@.end occurred...@>;
+    mp_print_cmd_mod (mp, fi_or_else, mp->cur_if);
     /* `\.{if}' or `\.{elseif}' or `\.{else}' */
     if (mp->if_line != 0) {
       mp_print (mp, " on line ");
@@ -32215,8 +32235,8 @@ void mp_final_cleanup (MP mp) {
         mp->selector = term_only;
         mp_print_nl (mp,
                      "(see the transcript file for additional information)");
-@.see the transcript file...@>
-          mp->selector = term_and_log;
+@.see the transcript file...@>;
+        mp->selector = term_and_log;
       }
 }
 
