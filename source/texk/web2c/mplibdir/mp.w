@@ -3957,7 +3957,6 @@ typedef struct mp_node_data {
 } mp_node_data;
 typedef struct mp_symbolic_node_data {
   NODE_BODY;
-  mp_node node;
   mp_sym sym;
 } mp_symbolic_node_data;
 typedef struct mp_symbolic_node_data *mp_symbolic_node;
@@ -3992,11 +3991,10 @@ static halfword get_mp_sym_info (MP mp, mp_node p) {
   return p->info;
 }
 
-
-@ These redirect to function to aid in debugging.
+@ Similarly, so do these redirect to functions.
 
 @d mp_sym_sym(A) get_mp_sym_sym(mp,(A))
-@d set_mp_sym_sym(A,B) do_set_mp_sym_sym(mp,(A),(B))
+@d set_mp_sym_sym(A,B) do_set_mp_sym_sym(mp,(A),(mp_sym)(B))
 
 @c
 static void do_set_mp_sym_sym (MP mp, mp_node p, mp_sym v) {
@@ -4012,34 +4010,11 @@ static mp_sym get_mp_sym_sym (MP mp, mp_node p) {
   return pp->sym;
 }
 
-
-@ These redirect to function to aid in debugging.
-
-@d mp_sym_node(A) get_mp_sym_node(mp,(A))
-@d set_mp_sym_node(A,B) do_set_mp_sym_node(mp,(A),(B))
-
-@c
-static void do_set_mp_sym_node (MP mp, mp_node p, mp_node v) {
-  mp_symbolic_node pp = (mp_symbolic_node) p;
-  (void) mp;
-  assert (p->type == mp_symbol_node);
-  pp->node = v;
-}
-static mp_node get_mp_sym_node (MP mp, mp_node p) {
-  mp_symbolic_node pp = (mp_symbolic_node) p;
-  (void) mp;
-  assert (p->type == mp_symbol_node);
-  return pp->node;
-}
-
-
 @ @<Declarations@>=
 static void do_set_mp_sym_info (MP mp, mp_node A, halfword B);
 static halfword get_mp_sym_info (MP mp, mp_node p);
 static void do_set_mp_sym_sym (MP mp, mp_node A, mp_sym B);
 static mp_sym get_mp_sym_sym (MP mp, mp_node p);
-static void do_set_mp_sym_node (MP mp, mp_node A, mp_node B);
-static mp_node get_mp_sym_node (MP mp, mp_node p);
 
 @ Symbolic nodes also have |name_type|, which is a short enumeration
 
@@ -5853,23 +5828,21 @@ break;
 @ We will deal with the other primitives later, at some point in the program
 where their |eq_type| and |equiv| values are more meaningful.  For example,
 the primitives for macro definitions will be loaded when we consider the
-routines that define macros.
-It is easy to find where each particular
+routines that define macros. It is easy to find where each particular
 primitive was treated by looking in the index at the end; for example, the
 section where |"def"| entered |eqtb| is listed under `\&{def} primitive'.
 
-@* Token lists.
-A \MP\ token is either symbolic or numeric or a string, or it denotes
-a macro parameter or capsule; so there are five corresponding ways to encode it
-@^token@>
-internally: 
+@* Token lists. 
 
-(1)~A symbolic token whose hash code is~|p| is represented by the number |p|, 
-in the |sym_sym| field of a symbolic node in~|mem|. It has a |name_type|
-to differentiate various subtypes of symbolic tokens, which is usually
-|normal_sym|, but |macro_sym| for macro names (there are three more name
-types for macro parameters, as explained below, and |internal_sym| 
-for the representation of internals).
+A \MP\ token is either symbolic or numeric or a string, or it denotes a macro 
+parameter or capsule or an internal; so there are six corresponding ways to 
+encode it internally:
+@^token@>
+
+(1)~A symbolic token for symbol |p| is represented by the pointer |p|, 
+in the |sym_sym| field of a symbolic node in~|mem|. The |type| field is |symbol_node|;
+and it has a |name_type| to differentiate various subtypes of symbolic tokens, 
+which is usually |normal_sym|, but |macro_sym| for macro names.
 
 (2)~A numeric token whose |scaled| value is~|v| is
 represented in a non-symbolic node of~|mem|; the |type| field is |known|,
@@ -5880,15 +5853,19 @@ field is |mp_string_type|, the |name_type| field is |token|, and the
 |value| field holds the corresponding |str_number|.  
 
 (4)~Capsules have |name_type=capsule|, and their |type| and |value| fields 
-represent arbitrary values (in ways to be explained later).  
+represent arbitrary values, with |type| different from |symbol_node| 
+(in ways to be explained later).  
 
-(5)~Macro parameters are like symbolic tokens in that they appear in |sym_info| 
-fields of symbolic nodes. The $k$th parameter is represented by |k| in |sym_info|;
+(5)~Macro parameters appear in |sym_info| fields of symbolic nodes.  The |type| 
+field is |symbol_node|; the $k$th parameter is represented by |k| in |sym_info|;
 and |expr_sym| in |name_type|, if it is of type \&{expr}, or |suffix_sym| if it 
 is of type \&{suffix}, or by |text_sym| if it is of type \&{text}. 
 
-Actual values of these parameters are kept in a separate stack, as we will
-see later. 
+(6)~The $k$th internal is also represented by |k| in |sym_info|; the |type| field is 
+|symbol_node| as for the other symbolic tokens; and |internal_sym| is its |name_type|;
+
+Actual values of the parameters and internals are kept in a separate
+stack, as we will see later.
 
 Note that the `\\{type}' field of a node has nothing to do with ``type'' in a
 printer's sense. It's curious that the same word is used in such different ways.
@@ -7902,7 +7879,8 @@ static mp_knot mp_new_knot (MP mp);
 
 @ @c
 static mp_knot mp_new_knot (MP mp) {
-  return mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
+  mp_knot q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
+  return q;
 }
 
 
@@ -10594,6 +10572,7 @@ static mp_node mp_new_bounds_node (MP mp, mp_knot p, quarterword c) {
   if (c == mp_start_clip_node_type) {
     mp_start_clip_node t;       /* the new node */
     t = (mp_start_clip_node) xmalloc (1, start_clip_size);
+    add_var_used (start_clip_size);
     t->path_p_ = p;
     mp_type (t) = c;
     t->link = NULL;
@@ -10601,6 +10580,7 @@ static mp_node mp_new_bounds_node (MP mp, mp_knot p, quarterword c) {
   } else if (c == mp_start_bounds_node_type) {
     mp_start_bounds_node t;     /* the new node */
     t = (mp_start_bounds_node) xmalloc (1, start_bounds_size);
+    add_var_used (start_bounds_size);
     t->path_p_ = p;
     mp_type (t) = c;
     t->link = NULL;
@@ -10608,12 +10588,14 @@ static mp_node mp_new_bounds_node (MP mp, mp_knot p, quarterword c) {
   } else if (c == mp_stop_clip_node_type) {
     mp_stop_clip_node t;        /* the new node */
     t = (mp_stop_clip_node) xmalloc (1, stop_clip_size);
+    add_var_used (stop_clip_size);
     mp_type (t) = c;
     t->link = NULL;
     return (mp_node) t;
   } else if (c == mp_stop_bounds_node_type) {
     mp_stop_bounds_node t;      /* the new node */
     t = (mp_stop_bounds_node) xmalloc (1, stop_bounds_size);
+    add_var_used (stop_bounds_size);
     mp_type (t) = c;
     t->link = NULL;
     return (mp_node) t;
@@ -10751,6 +10733,7 @@ word and a pointer to the tail of the object list in the last word.
 @c
 static mp_node mp_get_edge_header_node (MP mp) {
   mp_edge_header_node p = (mp_edge_header_node) xmalloc (1, edge_header_size);
+  add_var_used (edge_header_size);
   memset (p, 0, edge_header_size);
   mp_type (p) = mp_edge_header_node_type;
   p->dummy_ = mp_get_token_node (mp);   /* or whatever, just a need a link handle */
@@ -10929,6 +10912,7 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, scaled * w) {
   }
   *w = scf;
   d = xmalloc (1, sizeof (mp_dash_object));
+  add_var_used (sizeof (mp_dash_object));
   start_x (mp->null_dash) = start_x (p) + dash_y (h);
   while (p != mp->null_dash) {
     dashes = xrealloc (dashes, (num_dashes + 2), sizeof (scaled));
@@ -11017,6 +11001,7 @@ mp_node mp_copy_objects (MP mp, mp_node p, mp_node q) {
     break;
   }
   mp_link (pp) = xmalloc (1, (size_t) k);       /* |gr_object| */
+  add_var_used ((size_t)k);
   pp = mp_link (pp);
   memcpy (pp, p, (size_t) k);
   pp->link = NULL;
@@ -14937,11 +14922,11 @@ recursive process, but the |get_next| procedure is not recursive.
 @<Glob...@>=
 integer cur_cmd;        /* current command set by |get_next| */
 integer cur_mod;        /* operand of current command */
-mp_node cur_mod_node;   /* operand of current command */
-mp_sym cur_mod_sym;     /* operand of current command */
-str_number cur_mod_str; /* string operand, if any */
-mp_sym cur_sym; /* hash address of current symbol, or a |param_stack| pointer for an expr */
-quarterword cur_sym_mod;        /* extra info for these |param_stack| cases */
+mp_node cur_mod_node;   /* operand of current command, if it is a node */
+str_number cur_mod_str; /* operand of current command, if it is a string */
+mp_sym cur_sym;         /* the current symbol */
+mp_sym cur_sym2;        /* a secondary symbol, needed for use of \&{delimiters} */
+quarterword cur_sym_mod;  /* the |name_type| of |param_stack| cases of |cur_sym| */
 
 @ The |print_cmd_mod| routine prints a symbolic interpretation of a
 command code and its modifier.
@@ -16091,7 +16076,7 @@ is increased by |outer_tag|.
 mp->cur_cmd = eq_type (mp->cur_sym);
 mp->cur_mod = equiv (mp->cur_sym);
 mp->cur_mod_node = equiv_node (mp->cur_sym);
-mp->cur_mod_sym = equiv_sym (mp->cur_sym);
+mp->cur_sym2 = equiv_sym (mp->cur_sym);
 if (mp->cur_cmd >= outer_tag) {
   if (mp_check_outer_validity (mp))
     mp->cur_cmd = mp->cur_cmd - outer_tag;
@@ -16340,7 +16325,7 @@ if (nloc != NULL && mp_type (nloc) == mp_symbol_node) { /* symbolic token */
     }
   } else {
     mp->cur_mod_node = nloc;
-    mp->cur_mod_sym = NULL;
+    mp->cur_sym2 = NULL;
     mp->cur_cmd = capsule_token;
   }
   nloc = mp_link (nloc);
@@ -17112,7 +17097,7 @@ mp_free_value_node (mp, mp->bad_vardef);
 @ @<Absorb delimited parameters, putting them into lists |q| and |r|@>=
 do {
   l_delim = mp->cur_sym;
-  r_delim = mp->cur_mod_sym;
+  r_delim = mp->cur_sym2;
   get_t_next (mp);
   if ((mp->cur_cmd == param_type) && (mp->cur_mod == expr_param)) {
     sym_type = mp_expr_sym;
@@ -17579,7 +17564,7 @@ if (arg_list != NULL) {
   n = 0;
   p = arg_list;
   do {
-    q = mp_sym_node (p);
+    q = (mp_node)mp_sym_sym (p);
     mp_print_arg (mp, q, n, 0, 0);
     incr (n);
     p = mp_link (p);
@@ -17597,14 +17582,14 @@ void mp_print_macro_name (MP mp, mp_node a, mp_sym n) {
   if (n != NULL) {
     mp_print_text (n);
   } else {
-    p = mp_sym_node (a);
+    p = (mp_node)mp_sym_sym (a);
     if (p == NULL) {
-      mp_print_text (mp_sym_sym (mp_sym_node (mp_link (a))));
+      mp_print_text (mp_sym_sym ((mp_node)mp_sym_sym (mp_link (a))));
     } else {
       q = p;
       while (mp_link (q) != NULL)
         q = mp_link (q);
-      mp_link (q) = mp_sym_node (mp_link (a));
+      mp_link (q) = (mp_node)mp_sym_sym (mp_link (a));
       mp_show_token_list (mp, p, NULL, 1000, 0);
       mp_link (q) = NULL;
     }
@@ -17704,7 +17689,7 @@ if (mp->cur_cmd != comma) {
     goto FOUND;
   }
   l_delim = mp->cur_sym;
-  r_delim = mp->cur_mod_sym;
+  r_delim = mp->cur_sym2;
 }
 @<Scan the argument represented by |mp_sym_info(r)|@>;
 if (mp->cur_cmd != comma)
@@ -17714,7 +17699,7 @@ FOUND:
  
 
 @ @<Check that the proper right delim...@>=
-if ((mp->cur_cmd != right_delimiter) || (mp->cur_mod_sym != l_delim)) {
+if ((mp->cur_cmd != right_delimiter) || (mp->cur_sym2 != l_delim)) {
   if (mp_name_type (mp_link (r)) == mp_expr_sym ||
       mp_name_type (mp_link (r)) == mp_suffix_sym ||
       mp_name_type (mp_link (r)) == mp_text_sym) {
@@ -17742,12 +17727,12 @@ a token list pointed to by |cur_exp|, in which case we will have
 {
   p = mp_get_symbolic_node (mp);
   if (mp->cur_exp.type == mp_token_list)
-    set_mp_sym_node (p, mp->cur_exp.data.node);
+    set_mp_sym_sym (p, mp->cur_exp.data.node);
   else
-    set_mp_sym_node (p, mp_stash_cur_exp (mp));
+    set_mp_sym_sym (p, mp_stash_cur_exp (mp));
   if (internal_value (mp_tracing_macros) > 0) {
     mp_begin_diagnostic (mp);
-    mp_print_arg (mp, mp_sym_node (p), n, mp_sym_info (r), mp_name_type (r));
+    mp_print_arg (mp, (mp_node)mp_sym_sym (p), n, mp_sym_info (r), mp_name_type (r));
     mp_end_diagnostic (mp, false);
   }
   if (arg_list == NULL)
@@ -17806,13 +17791,13 @@ void mp_scan_text_arg (MP mp, mp_sym l_delim, mp_sym r_delim) {
 
 @ @<Adjust the balance for a delimited argument...@>=
 if (mp->cur_cmd == right_delimiter) {
-  if (mp->cur_mod_sym == l_delim) {
+  if (mp->cur_sym2 == l_delim) {
     decr (balance);
     if (balance == 0)
       break;
   }
 } else if (mp->cur_cmd == left_delimiter) {
-  if (mp->cur_mod_sym == r_delim)
+  if (mp->cur_sym2 == r_delim)
     incr (balance);
 }
 
@@ -17869,10 +17854,10 @@ if (end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop| *
 {
   mp_scan_expression (mp);
   p = mp_get_symbolic_node (mp);
-  set_mp_sym_node (p, mp_stash_cur_exp (mp));
+  set_mp_sym_sym (p, mp_stash_cur_exp (mp));
   if (internal_value (mp_tracing_macros) > 0) {
     mp_begin_diagnostic (mp);
-    mp_print_arg (mp, mp_sym_node (p), n, 0, 0);
+    mp_print_arg (mp, (mp_node)mp_sym_sym (p), n, 0, 0);
     mp_end_diagnostic (mp, false);
   }
   if (arg_list == NULL)
@@ -17900,12 +17885,12 @@ if (end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop| *
     l_delim = NULL;
   } else {
     l_delim = mp->cur_sym;
-    r_delim = mp->cur_mod_sym;
+    r_delim = mp->cur_sym2;
     mp_get_x_next (mp);
   }
   mp_scan_suffix (mp);
   if (l_delim != NULL) {
-    if ((mp->cur_cmd != right_delimiter) || (mp->cur_mod_sym != l_delim)) {
+    if ((mp->cur_cmd != right_delimiter) || (mp->cur_sym2 != l_delim)) {
       mp_missing_err (mp, mp_str (mp, text (r_delim)));
 @.Missing `)'@>;
       help2 ("I've gotten to the end of the macro parameter list.",
@@ -17936,7 +17921,7 @@ nloc = r;
 if (n > 0) {
   p = arg_list;
   do {
-    mp->param_stack[mp->param_ptr] = mp_sym_node (p);
+    mp->param_stack[mp->param_ptr] = (mp_node)mp_sym_sym (p);
     incr (mp->param_ptr);
     p = mp_link (p);
   } while (p != NULL);
@@ -18462,7 +18447,7 @@ void mp_resume_iteration (MP mp) {
       return;
     }
     mp->loop_ptr->list = mp_link (p);
-    q = mp_sym_node (p);
+    q = (mp_node)mp_sym_sym (p);
     mp_free_symbolic_node (mp, p);
   } else if (p == VOID) {
     mp_begin_token_list (mp, mp->loop_ptr->info, (quarterword) forever_text);
@@ -18532,7 +18517,7 @@ void mp_stop_iteration (MP mp) {
   } else if (p == NULL) {
     q = mp->loop_ptr->list;
     while (q != NULL) {
-      p = mp_sym_node (q);
+      p = (mp_node)mp_sym_sym (q);
       if (p != NULL) {
         if (mp_link (p) == VOID) {      /* it's an \&{expr} parameter */
           mp_recycle_value (mp, p);
@@ -18585,7 +18570,7 @@ do {
   }
   mp_link (q) = mp_get_symbolic_node (mp);
   q = mp_link (q);
-  set_mp_sym_node (q, mp->cur_exp.data.node);
+  set_mp_sym_sym (q, mp->cur_exp.data.node);
   if (m == start_for)
     mp_name_type (q) = mp_expr_sym;
   else if (m == start_forsuffixes)
@@ -20660,7 +20645,7 @@ if (mp->interrupt != 0)
 @ @<Scan a delimited primary@>=
 {
   l_delim = mp->cur_sym;
-  r_delim = mp->cur_mod_sym;
+  r_delim = mp->cur_sym2;
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if ((mp->cur_cmd == comma) && (mp->cur_exp.type >= mp_known)) {
@@ -21243,9 +21228,9 @@ and ``at'' parameters must be packaged in an appropriate list of lists.
 @<Set up unsuffixed macro call and |goto restart|@>=
 {
   p = mp_get_symbolic_node (mp);
-  set_mp_sym_node (pre_head, mp_link (pre_head));
+  set_mp_sym_sym (pre_head, mp_link (pre_head));
   mp_link (pre_head) = p;
-  set_mp_sym_node (p, t);
+  set_mp_sym_sym (p, t);
   mp_macro_call (mp, value_node (q), pre_head, NULL);
   mp_get_x_next (mp);
   goto RESTART;
@@ -21261,11 +21246,11 @@ token list.
   mp_back_input (mp);
   p = mp_get_symbolic_node (mp);
   q = mp_link (post_head);
-  set_mp_sym_node (pre_head, mp_link (pre_head));
+  set_mp_sym_sym (pre_head, mp_link (pre_head));
   mp_link (pre_head) = post_head;
-  set_mp_sym_node (post_head, q);
+  set_mp_sym_sym (post_head, q);
   mp_link (post_head) = p;
-  set_mp_sym_node (p, mp_link (q));
+  set_mp_sym_sym (p, mp_link (q));
   mp_link (q) = NULL;
   mp_macro_call (mp, macro_ref, pre_head, NULL);
   decr_mac_ref (macro_ref);
@@ -21598,8 +21583,8 @@ static void mp_binary_mac (MP mp, mp_node p, mp_node c, mp_sym n) {
   q = mp_get_symbolic_node (mp);
   r = mp_get_symbolic_node (mp);
   mp_link (q) = r;
-  set_mp_sym_node (q, p);
-  set_mp_sym_node (r, mp_stash_cur_exp (mp));
+  set_mp_sym_sym (q, p);
+  set_mp_sym_sym (r, mp_stash_cur_exp (mp));
   mp_macro_call (mp, c, q, n);
 }
 
@@ -27894,7 +27879,7 @@ static void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim);
 @ @c
 void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim) {
   if (mp->cur_cmd == right_delimiter)
-    if (mp->cur_mod_sym == l_delim)
+    if (mp->cur_sym2 == l_delim)
       return;
   if (mp->cur_sym != r_delim) {
     mp_missing_err (mp, mp_str (mp, text (r_delim)));
