@@ -5578,25 +5578,16 @@ static mp_sym mp_frozen_primitive (MP mp, const char *ss, halfword c,
 }
 
 
-@ How to get back a frozen primitive. This function is only ever
-called with existing primitives, so there is no need to be careful.
+@ This routine returns |true| if the argument is an un-redefinable symbol
+because it is one of the error recovery tokens (as explained elsewhere,
+|frozen_inaccessible| actuall is redefinable). 
 
 @c
-static mp_sym mp_get_frozen_primitive (MP mp, mp_sym sym) {
-  return mp_frozen_id_lookup (mp, (char *) sym->text->str, sym->text->len,
-                              false);
-}
-
-
-@ This routine returns |true| if the current symbol is un-redefinable
-because it is one of the error recovery tokens. 
-
-@c
-static boolean mp_is_frozen (MP mp, mp_sym symbol) {
-  mp_sym temp = mp_get_frozen_primitive (mp, symbol);
+static boolean mp_is_frozen (MP mp, mp_sym sym) {
+  mp_sym temp = mp_frozen_id_lookup (mp, (char *) sym->text->str, sym->text->len, false);
   if (temp==mp->frozen_inaccessible)
     return false;
-  return (temp == symbol);
+  return (temp == sym);
 }
 
 
@@ -15905,7 +15896,7 @@ static boolean mp_check_outer_validity (MP mp) {
       if (mp->cur_sym == NULL)
         mp->help_line[2] =
           "The file ended while I was skipping conditional text.";
-      mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_fi);
+      mp->cur_sym = mp->frozen_fi;
       mp_ins_error (mp);
     }
     mp->deletions_allowed = true;
@@ -15923,7 +15914,7 @@ if (mp->cur_sym != NULL) {
   mp_print_int (mp, mp->warning_info_line);
   help2 ("The file ended while I was looking for the `etex' to",
          "finish this TeX material.  I've inserted `etex' now.");
-  mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_etex);
+  mp->cur_sym = mp->frozen_etex;
   mp_ins_error (mp);
   mp->deletions_allowed = true;
   return false;
@@ -15969,15 +15960,17 @@ points to the string that might be changed.
 case flushing:
 mp_print (mp, "to the end of the statement");
 mp->help_line[3] = "A previous error seems to have propagated,";
-mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_semicolon);
+mp->cur_sym = mp->frozen_semicolon;
 break;
 case absorbing:
 mp_print (mp, "a text argument");
 mp->help_line[3] = "It seems that a right delimiter was left out,";
 if (mp->warning_info == NULL) {
-  mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_end_group);
+  mp->cur_sym = mp->frozen_end_group;
 } else {
-  mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_right_delimiter);
+  mp->cur_sym = mp->frozen_right_delimiter;
+  /* the next line makes sure that the inserted delimiter will
+    match the delimiter that already was read. */
   equiv_sym (mp->cur_sym) = mp->warning_info;
 }
 break;
@@ -15988,14 +15981,14 @@ if (mp->scanner_status == op_defining)
   mp_print_text (mp->warning_info);
 else
   mp_print_variable_name (mp, mp->warning_info_node);
-mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_end_def);
+mp->cur_sym = mp->frozen_end_def;
 break;
 case loop_defining:
 mp_print (mp, "the text of a ");
 mp_print_text (mp->warning_info);
 mp_print (mp, " loop");
 mp->help_line[3] = "I suspect you have forgotten an `endfor',";
-mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_end_for);
+mp->cur_sym = mp->frozen_end_for;
 break;
 
 @ The |runaway| procedure displays the first part of the text that occurred
@@ -16429,7 +16422,7 @@ files should have an \&{mpxbreak} after the translation of the last
   mp->deletions_allowed = false;
   mp_error (mp);
   mp->deletions_allowed = true;
-  mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_mpx_break);
+  mp->cur_sym = mp->frozen_mpx_break;
   goto COMMON_ENDING;
 }
 
@@ -17087,8 +17080,7 @@ if (m == start_def) {
 @ @<Initialize table entries@>=
 mp->bad_vardef = mp_get_value_node (mp);
 mp_name_type (mp->bad_vardef) = mp_root;
-value_sym (mp->bad_vardef) =
-mp_get_frozen_primitive (mp, mp->frozen_bad_vardef);
+value_sym (mp->bad_vardef) = mp->frozen_bad_vardef;
 
 @ @<Free table entries@>=
 mp_free_value_node (mp, mp->bad_vardef);
@@ -18213,7 +18205,7 @@ if (mp->cur_mod > mp->if_limit) {
     mp_missing_err (mp, ":");
 @.Missing `:'@>;
     mp_back_input (mp);
-    mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_colon);
+    mp->cur_sym = mp->frozen_colon;
     mp_ins_error (mp);
   } else {
     print_err ("Extra ");
@@ -18387,7 +18379,7 @@ accidentally.)
 
 @ @<Scan the loop text...@>=
 q = mp_get_symbolic_node (mp);
-set_mp_sym_sym (q, mp_get_frozen_primitive (mp, mp->frozen_repeat_loop));
+set_mp_sym_sym (q, mp->frozen_repeat_loop);
 mp->scanner_status = loop_defining;
 mp->warning_info = n;
 s->info = mp_scan_toks (mp, iteration, p, q, 0);
@@ -20888,7 +20880,7 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
       mp_back_input (mp);
       mp->cur_cmd = slash;
       mp->cur_mod = over;
-      mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_slash);
+      mp->cur_sym = mp->frozen_slash;
       goto DONE;
     }
     num = cur_exp_value ();
@@ -21092,7 +21084,7 @@ so as to avoid any embarrassment about our incorrect assumption.
   mp_back_expr (mp);
   mp->cur_cmd = left_bracket;
   mp->cur_mod = 0;
-  mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_left_bracket);
+  mp->cur_sym = mp->frozen_left_bracket;
 }
 
 
