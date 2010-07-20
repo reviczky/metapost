@@ -3657,6 +3657,7 @@ typedef short quarterword;      /* 1/4 of a word */
 typedef int halfword;   /* 1/2 of a word */
 typedef struct {
   halfword val;
+  integer scale;
   str_number str;
   mp_sym sym;
   mp_node node;
@@ -5154,6 +5155,7 @@ internal_value (mp_default_color_model) = (mp_rgb_model * unity);
 internal_value (mp_restore_clip_color) = unity;
 internal_string (mp_output_template) = mp_intern (mp, "%j.%c");
 internal_string (mp_output_format) = mp_intern (mp, "eps");
+#if 0
 internal_value (mp_tracing_titles) = 3 * unity;
 internal_value (mp_tracing_equations) = 3 * unity;
 internal_value (mp_tracing_capsules) = 3 * unity;
@@ -5165,7 +5167,6 @@ internal_value (mp_tracing_macros) = 3 * unity;
 internal_value (mp_tracing_output) = 3 * unity;
 internal_value (mp_tracing_stats) = 3 * unity;
 internal_value (mp_tracing_lost_chars) = 3 * unity;
-#if 0
 internal_value (mp_tracing_online) = 3 * unity;
 #endif
 
@@ -13771,10 +13772,10 @@ as a |scaled| number plus a sum of independent variables with |fraction|
 coefficients.
 
 \smallskip\hang
-|type(p)=mp_independent| means that |value(p)=64s+m|, where |s>0| is a ``serial
+|type(p)=mp_independent| means that |value(p)=s|, where |s>0| is a ``serial
 number'' reflecting the time this variable was first used in an equation;
-also |0<=m<64|, and each dependent variable
-that refers to this one is actually referring to the future value of
+and there is an extra field |indep_scale(p)=m|, with |0<=m<64|, each dependent 
+variable that refers to this one is actually referring to the future value of
 this variable times~$2^m$. (Usually |m=0|, but higher degrees of
 scaling are sometimes needed to keep the coefficients in dependency lists
 from getting too large. The value of~|m| will always be even.)
@@ -13797,20 +13798,19 @@ and start again). A backward step may, however, take place: Sometimes
 a |dependent| variable becomes |mp_independent| again, when one of the
 independent variables it depends on is reverting to |undefined|.
 
+@d indep_scale(A) ((mp_value_node)(A))->data.scale
+@d set_indep_scale(A,B) ((mp_value_node)(A))->data.scale=(B)
 
-The next patch detects overflow of independent-variable serial
-numbers. Diagnosed and patched by Thorsten Dahlheimer.
-
-@d s_scale 64 /* the serial numbers are multiplied by this factor */
 @d new_indep(A)  /* create a new independent variable */
-  { if ( mp->serial_no>EL_GORDO-s_scale )
+  { if ( mp->serial_no>=EL_GORDO )
     mp_fatal_error(mp, "variable instance identifiers exhausted");
-  mp_type((A))=mp_independent; mp->serial_no=mp->serial_no+s_scale;
+  mp_type((A))=mp_independent; mp->serial_no=mp->serial_no+1;
+  set_indep_scale((A),0);
   set_value((A),mp->serial_no);
   }
 
 @<Glob...@>=
-integer serial_no;      /* the most recent serial number, times |s_scale| */
+integer serial_no;      /* the most recent serial number */
 
 @ But how are dependency lists represented? It's simple: The linear combination
 $\alpha_1v_1+\cdots+\alpha_kv_k+\beta$ appears in |k+1| value nodes. If
@@ -13944,7 +13944,7 @@ void mp_print_dependency (MP mp, mp_value_node p, quarterword t) {
       mp_confusion (mp, "dep");
 @:this can't happen dep}{\quad dep@>;
     mp_print_variable_name (mp, q);
-    v = value (q) % s_scale;
+    v = indep_scale(q);
     while (v > 0) {
       mp_print (mp, "*4");
       v = v - 2;
@@ -14448,7 +14448,7 @@ static void mp_fix_dependencies (MP mp) {
     mp_free_dep_node (mp, s);
     s = p;
     mp_type (x) = mp_independent;
-    set_value (x, value (x) + 2);
+    set_indep_scale (x, indep_scale (x) + 2);
   }
   mp->fix_needed = false;
 }
@@ -14530,7 +14530,7 @@ recognized by testing that the returned list pointer is equal to
 static mp_value_node mp_single_dependency (MP mp, mp_node p) {
   mp_value_node q, rr;  /* the new dependency list */
   integer m;    /* the number of doublings */
-  m = value (p) % s_scale;
+  m = indep_scale (p);
   if (m > 28) {
     q = mp_const_dependency (mp, 0);
   } else {
@@ -14589,7 +14589,7 @@ static void mp_linear_eq (MP mp, mp_value_node p, quarterword t) {
   FUNCTION_TRACE ("mp_linear_eq(%p,%d)\n", p, t);
   @<Find a node |q| in list |p| whose coefficient |v| is largest@>;
   x = dep_info (q);
-  n = value (x) % s_scale;
+  n = indep_scale (x);
   @<Divide list |p| by |-v|, removing node |q|@>;
   if (internal_value (mp_tracing_equations) > 0) {
     @<Display the new dependency@>;
@@ -20400,9 +20400,9 @@ if (mp_interesting (mp, p)) {
   if (vv != unity)
     mp_print_scaled (mp, vv);
   mp_print_variable_name (mp, p);
-  while (value (p) % s_scale > 0) {
+  while (indep_scale (p) > 0) {
     mp_print (mp, "*4");
-    set_value (p, value (p) - 2);
+    set_indep_scale(p, indep_scale(p)-2);
   }
   if (t == mp_dependent)
     mp_print_char (mp, xord ('='));
