@@ -2441,7 +2441,10 @@ mp->arith_error = false;
 @ At crucial points the program will say |check_arith|, to test if
 an arithmetic error has been detected.
 
-@d check_arith { if ( mp->arith_error ) mp_clear_arith(mp); }
+@d check_arith do { 
+  if ( mp->arith_error ) 
+    mp_clear_arith(mp); 
+} while (0)
 
 @c
 static void mp_clear_arith (MP mp) {
@@ -5187,6 +5190,9 @@ internal_value (mp_tracing_macros) = 3 * unity;
 internal_value (mp_tracing_output) = 3 * unity;
 internal_value (mp_tracing_stats) = 3 * unity;
 internal_value (mp_tracing_lost_chars) = 3 * unity;
+#if 0
+internal_value (mp_tracing_online) = 3 * unity;
+#endif
 
 @ Well, we do have to list the names one more time, for use in symbolic
 printouts.
@@ -5613,6 +5619,8 @@ because it is one of the error recovery tokens.
 @c
 static boolean mp_is_frozen (MP mp, mp_sym symbol) {
   mp_sym temp = mp_get_frozen_primitive (mp, symbol);
+  if (temp==mp->frozen_inaccessible)
+    return false;
   return (temp == symbol);
 }
 
@@ -10794,7 +10802,7 @@ void mp_toss_edges (MP mp, mp_node h) {
 void mp_flush_dash_list (MP mp, mp_node h) {
   mp_node p, q; /* pointers that scan the list being recycled */
   q = dash_list (h);
-  while (q != mp->null_dash) {
+  while (q != mp->null_dash) { /* todo: NULL check should not be needed */
     p = q;
     q = mp_link (q);
     mp_free_node (mp, p, dash_node_size);
@@ -16859,7 +16867,8 @@ hence \MP's tables won't get fouled up.
 static void mp_get_symbol (MP mp) {                               /* sets |cur_sym| to a safe symbol */
 RESTART:
   get_t_next (mp);
-  if ((mp->cur_sym == NULL) || mp_is_frozen (mp, mp->cur_sym)) {
+  if ((mp->cur_sym == NULL) || 
+       mp_is_frozen(mp, mp->cur_sym)) {
     print_err ("Missing symbolic token inserted");
 @.Missing symbolic token...@>;
     help3 ("Sorry: You can\'t redefine a number, string, or expr.",
@@ -16869,7 +16878,7 @@ RESTART:
       mp->help_line[2] = "Sorry: You can\'t redefine my error-recovery tokens.";
     else if (mp->cur_cmd == string_token)
       delete_str_ref (mp->cur_mod_str);
-    mp->cur_sym = mp_get_frozen_primitive (mp, mp->frozen_inaccessible);
+    mp->cur_sym = mp->frozen_inaccessible;
     mp_ins_error (mp);
     goto RESTART;
   }
@@ -17429,8 +17438,7 @@ is less than |loop_text|.
   mp_scan_primary (mp);
   if (mp->cur_exp.type != mp_string_type) {
     mp_value new_expr;
-    new_expr.data.val = 0;
-    new_expr.data.str = NULL;
+    memset(&new_expr,0,sizeof(mp_value));
     mp_disp_err (mp, NULL, "Not a string");
 @.Not a string@>;
     help2 ("I'm going to flush this expression, since",
@@ -17447,7 +17455,7 @@ is less than |loop_text|.
 @ @<Pretend we're reading a new one-line file@>=
 {
   mp_value new_expr;
-  new_expr.data.val = 0;
+  memset(&new_expr,0,sizeof(mp_value));
   mp_begin_file_reading (mp);
   name = is_scantok;
   k = mp->first + (size_t) length (cur_exp_str ());
@@ -18297,7 +18305,7 @@ screams at the user.
 @c
 static void mp_bad_for (MP mp, const char *s) {
   mp_value new_expr;
-  new_expr.data.val = 0;
+  memset(&new_expr,0,sizeof(mp_value));
   mp_disp_err (mp, NULL, "Improper ");  /* show the bad expression above
                                            the message */
 @.Improper...replaced by 0@>;
@@ -18636,6 +18644,7 @@ parse a picture expression and prepare to iterate over it.
 @ @<Make sure the current expression is a known picture@>=
 if (mp->cur_exp.type != mp_picture_type) {
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   new_expr.data.node = mp_get_edge_header_node (mp);
   mp_disp_err (mp, NULL,
                "Improper iteration spec has been replaced by nullpicture");
@@ -20551,6 +20560,7 @@ void mp_scan_primary (MP mp) {
   mp_sym l_delim, r_delim;      /* hash addresses of a delimiter pair */
   mp_value new_expr;
   @<Other local variables for |scan_primary|@>;
+  memset(&new_expr,0,sizeof(mp_value));
   my_var_flag = mp->var_flag;
   mp->var_flag = 0;
 RESTART:
@@ -21117,7 +21127,7 @@ static void mp_back_expr (MP mp) {
 @c
 static void mp_bad_subscript (MP mp) {
   mp_value new_expr;
-  new_expr.data.val = 0;
+  memset(&new_expr,0,sizeof(mp_value));
   exp_err ("Improper subscript has been replaced by zero");
 @.Improper subscript...@>;
   help3 ("A bracketed subscript must have a known numeric value;",
@@ -21659,6 +21669,7 @@ static void mp_scan_expression (MP mp) {
   t = 0;
   y = 0;
   x = 0;
+  memset(&new_expr,0,sizeof(mp_value));
   my_var_flag = mp->var_flag;
   mac_name = NULL;
   mp->expand_depth_count++;
@@ -21787,7 +21798,7 @@ static void mp_known_pair (MP mp);
 @ @c
 void mp_known_pair (MP mp) {
   mp_value new_expr;
-  new_expr.data.val = 0;
+  memset(&new_expr,0,sizeof(mp_value));
   mp_node p;    /* the pair node */
   if (mp->cur_exp.type != mp_pair_type) {
     exp_err ("Undefined coordinates have been replaced by (0,0)");
@@ -21902,6 +21913,7 @@ static quarterword mp_scan_direction (MP mp) {
   mp_scan_expression (mp);
   if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < 0)) {
     mp_value new_expr;
+    memset(&new_expr,0,sizeof(mp_value));
     new_expr.data.val = unity;
     exp_err ("Improper curl has been replaced by 1");
 @.Improper curl@>;
@@ -21933,6 +21945,7 @@ static quarterword mp_scan_direction (MP mp) {
 {
   if (mp->cur_exp.type != mp_known) {
     mp_value new_expr;
+    memset(&new_expr,0,sizeof(mp_value));
     new_expr.data.val = 0;
     exp_err ("Undefined x coordinate has been replaced by 0");
 @.Undefined coordinates...@>;
@@ -21956,6 +21969,7 @@ static quarterword mp_scan_direction (MP mp) {
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_known) {
     mp_value new_expr;
+    memset(&new_expr,0,sizeof(mp_value));
     new_expr.data.val = 0;
     exp_err ("Undefined y coordinate has been replaced by 0");
     help5 ("I need a `known' y value for this part of the path.",
@@ -22222,6 +22236,7 @@ supposed to be either |true_code| or |false_code|.
 @<Declare the basic parsing subroutines@>=
 static void mp_get_boolean (MP mp) {
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_boolean_type) {
@@ -22553,6 +22568,7 @@ static void mp_do_unary (MP mp, quarterword c) {
   halfword vv;  /* a temporary place for |cur_exp_value| */
   mp_value new_expr;
   check_arith;
+  memset(&new_expr,0,sizeof(mp_value));
   if (internal_value (mp_tracing_commands) > two)
     @<Trace the current unary operation@>;
   switch (c) {
@@ -22950,6 +22966,7 @@ static void mp_bad_color_part (MP mp, quarterword c);
 static void mp_bad_color_part (MP mp, quarterword c) {
   mp_node p;    /* the big node */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   p = mp_link (dummy_loc (cur_exp_node ()));
   exp_err ("Wrong picture color model: ");
   mp_print_op (mp, c);
@@ -23066,6 +23083,7 @@ static void mp_scale_edges (MP mp);
 static void mp_take_pict_part (MP mp, quarterword c) {
   mp_node p;    /* first graphical object in |cur_exp| */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   p = mp_link (dummy_loc (cur_exp_node ()));
   if (p != NULL) {
     switch (c) {
@@ -23303,7 +23321,7 @@ case pen_part:
   mp->cur_exp.type = mp_pen_type;
   break;
 case dash_part:
-  set_cur_exp_node (mp_get_edge_header_node (mp));
+  new_expr.data.node = mp_get_edge_header_node (mp);
   mp_flush_cur_exp (mp, new_expr);
   mp_init_edges (mp, cur_exp_node ());
   mp->cur_exp.type = mp_picture_type;
@@ -23370,6 +23388,7 @@ static void mp_str_to_num (MP mp, quarterword c) {                              
   int b;        /* radix of conversion */
   boolean bad_char;     /* did the string contain an invalid digit? */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   if (c == ASCII_op) {
     if (length (cur_exp_str ()) == 0)
       n = -1;
@@ -23889,6 +23908,7 @@ static void mp_test_known (MP mp, quarterword c) {
   int b;        /* is the current expression known? */
   mp_node p;    /* location in a big node */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   b = false_code;
   switch (mp->cur_exp.type) {
   case mp_vacuous:
@@ -24047,6 +24067,7 @@ given ordered pair of values.
 static void mp_pair_value (MP mp, scaled x, scaled y) {
   mp_node p;    /* a pair node */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   p = mp_get_value_node (mp);
   new_expr.type = mp_type (p);
   new_expr.data.node = p;
@@ -24137,8 +24158,8 @@ a line from the file or to close the file.
 @<Declare unary action procedures@>=
 static void mp_do_read_or_close (MP mp, quarterword c) {
   mp_value new_expr;
-  new_expr.data.val = 0;
   readf_index n, n0;    /* indices for searching |rd_fname| */
+  memset(&new_expr,0,sizeof(mp_value));
   @<Find the |n| where |rd_fname[n]=cur_exp|; if |cur_exp| must be inserted,
     call |start_read_input| and |goto found| or |not_found|@>;
   mp_begin_file_reading (mp);
@@ -24257,6 +24278,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
   mp_node old_p, old_exp;       /* capsules to recycle */
   integer v;    /* for numeric manipulation */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   check_arith;
   if (internal_value (mp_tracing_commands) > two) {
     @<Trace the current binary operation@>;
@@ -24629,6 +24651,7 @@ static void mp_dep_finish (MP mp, mp_value_node v, mp_value_node q,
   mp_value_node p;      /* the destination */
   scaled vv;    /* the value, if it is |known| */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   if (q == NULL)
     p = (mp_value_node) cur_exp_node ();
   else
@@ -24747,7 +24770,7 @@ make no change.
   q = value_node (p);
   r = value_node (cur_exp_node ());
   switch (mp->cur_exp.type) {
-  case mp_pair_node_type:
+  case mp_pair_type:
     while (1) {
       rr = x_part_loc (r);
       mp_add_or_subtract (mp, x_part_loc (q), x_part_loc (r), minus);
@@ -24764,7 +24787,7 @@ make no change.
     }
     mp_take_part (mp, (quarterword) value (rr));
     break;
-  case mp_color_node_type:
+  case mp_color_type:
     while (1) {
       rr = red_part_loc (r);
       mp_add_or_subtract (mp, red_part_loc (q), red_part_loc (r), minus);
@@ -24787,7 +24810,7 @@ make no change.
     }
     mp_take_part (mp, (quarterword) value (rr));
     break;
-  case mp_cmykcolor_node_type:
+  case mp_cmykcolor_type:
     while (1) {
       rr = cyan_part_loc (r);
       mp_add_or_subtract (mp, cyan_part_loc (q), cyan_part_loc (r), minus);
@@ -24817,7 +24840,7 @@ make no change.
     }
     mp_take_part (mp, (quarterword) value (rr));
     break;
-  case mp_transform_node_type:
+  case mp_transform_type:
     while (1) {
       rr = tx_part_loc (r);
       mp_add_or_subtract (mp, tx_part_loc (q), tx_part_loc (r), minus);
@@ -25251,6 +25274,7 @@ and |cur_exp| is changed to the known value zero.
 static void mp_set_up_trans (MP mp, quarterword c) {
   mp_node p, q, r;      /* list manipulation registers */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   if ((c != transformed_by) || (mp->cur_exp.type != mp_transform_type)) {
     @<Put the current transform into |cur_exp|@>;
   }
@@ -25393,6 +25417,7 @@ insists that the transformation be entirely known.
 @<Declare binary action...@>=
 static void mp_set_up_known_trans (MP mp, quarterword c) {
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   mp_set_up_trans (mp, c);
   if (mp->cur_exp.type != mp_known) {
     exp_err ("Transform components aren't all known");
@@ -26140,6 +26165,7 @@ static void mp_set_up_offset (MP mp, mp_node p) {
 }
 static void mp_set_up_direction_time (MP mp, mp_node p) {
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   new_expr.data.val = mp_find_direction_time (mp, value (x_part_loc (p)),
                                               value (y_part_loc (p)),
                                               cur_exp_knot ());
@@ -26327,6 +26353,7 @@ break;
 static void mp_do_infont (MP mp, mp_node p) {
   mp_node q;
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   q = mp_get_edge_header_node (mp);
   mp_init_edges (mp, q);
   mp_link (obj_tail (q)) =
@@ -26366,6 +26393,7 @@ as a type declaration rather than a boolean expression.
 @c
 void mp_do_statement (MP mp) {                               /* governs \MP's activities */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   mp->cur_exp.type = mp_vacuous;
   mp_get_x_next (mp);
   if (mp->cur_cmd > max_primary_command) {
@@ -26673,6 +26701,7 @@ void mp_make_eq (MP mp, mp_node lhs) {
   mp_variable_type t;   /* type of the left-hand side */
   mp_node p;    /* pointer inside of big nodes */
   integer v = 0;        /* value of the left-hand side */
+  memset(&new_expr,0,sizeof(mp_value));
 RESTART:
   t = mp_type (lhs);
   if (t <= mp_pair_type)
@@ -27126,7 +27155,7 @@ Each execution of |do_statement| concludes with
 @c
 static void mp_main_control (MP mp) {
   mp_value new_expr;
-  new_expr.data.val = 0;
+  memset(&new_expr,0,sizeof(mp_value));
   do {
     mp_do_statement (mp);
     if (mp->cur_cmd == end_group) {
@@ -27705,7 +27734,7 @@ static void mp_do_random_seed (MP mp);
 @ @c
 void mp_do_random_seed (MP mp) {
   mp_value new_expr;
-  new_expr.data.val = 0;
+  memset(&new_expr,0,sizeof(mp_value));
   mp_get_x_next (mp);
   if (mp->cur_cmd != assignment) {
     mp_missing_err (mp, ":=");
@@ -28100,7 +28129,7 @@ static void mp_do_show (MP mp);
 @ @c
 void mp_do_show (MP mp) {
   mp_value new_expr;
-  new_expr.data.val = 0;
+  memset(&new_expr,0,sizeof(mp_value));
   do {
     mp_get_x_next (mp);
     mp_scan_expression (mp);
@@ -28454,7 +28483,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
   ap = VOID;
   bp = VOID;
   k = 0;
-  new_expr.data.val = 0;
+  memset(&new_expr,0,sizeof(mp_value));
   while (mp->cur_cmd == with_option) {
     t = (mp_variable_type) mp->cur_mod;
     mp_get_x_next (mp);
@@ -28911,6 +28940,7 @@ mp_node mp_start_draw_cmd (MP mp, quarterword sep) {
   mp_value new_expr;
   quarterword add_type = 0;     /* value to be returned in |last_add_type| */
   lhv = NULL;
+  memset(&new_expr,0,sizeof(mp_value));
   mp_get_x_next (mp);
   mp->var_flag = sep;
   mp_scan_primary (mp);
@@ -28952,6 +28982,7 @@ void mp_do_bounds (MP mp) {
   mp_node p;    /* for list manipulation */
   integer m;    /* initial value of |cur_mod| */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   m = mp->cur_mod;
   lhv = mp_start_draw_cmd (mp, to_token);
   if (lhv != NULL) {
@@ -29016,6 +29047,7 @@ void mp_do_add_to (MP mp) {
   mp_node e;    /* an edge structure to be merged */
   quarterword add_type; /* |also_code|, |contour_code|, or |double_path_code| */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   lhv = mp_start_draw_cmd (mp, thing_to_add);
   add_type = mp->last_add_type;
   if (lhv != NULL) {
@@ -29129,6 +29161,7 @@ static void mp_do_ship_out (MP mp);
 void mp_do_ship_out (MP mp) {
   integer c;    /* the character code */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_picture_type) {
@@ -29230,6 +29263,7 @@ void mp_do_message (MP mp) {
   int m;        /* the type of message */
   mp_value new_expr;
   m = mp->cur_mod;
+  memset(&new_expr,0,sizeof(mp_value));
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_string_type)
@@ -29339,6 +29373,7 @@ void mp_do_write (MP mp) {
   write_index n, n0;    /* for searching |wr_fname| and |wr_file| arrays */
   unsigned old_setting; /* for saving |selector| during output */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_string_type) {
@@ -29879,6 +29914,7 @@ static eight_bits mp_get_code (MP mp);
 eight_bits mp_get_code (MP mp) {                               /* scans a character code value */
   integer c;    /* the code value found */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type == mp_known) {
@@ -29961,6 +29997,7 @@ void mp_do_tfm_command (MP mp) {
   int k;        /* index into the |kern| array */
   int j;        /* index into |header_byte| or |param| */
   mp_value new_expr;
+  memset(&new_expr,0,sizeof(mp_value));
   switch (mp->cur_mod) {
   case char_list_code:
     c = mp_get_code (mp);
