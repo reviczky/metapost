@@ -20,12 +20,12 @@
 
 
 unsigned long
-xftell (FILE *f,  string filename)
+xftell (FILE *f,  const_string filename)
 {
     long where = ftello (f);
-    
+
     if (where < 0)
         FATAL_PERROR(filename);
-    
+
     return where;
 }

@@ -2,14 +2,14 @@
 @setfilename kpathsea.info
 @settitle Kpathsea: A library for path searching
 
-@set version 5.0.0
-@set month-year May 2009
+@set version 6.0.0
+@set month-year April 2010
 
 @copying
 This file documents the Kpathsea library for path searching.
 
 Copyright @copyright{} 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-2004, 2005, 2007, 2008, 2009 Karl Berry & Olaf Weber.
+2004, 2005, 2007, 2008, 2009, 2010 Karl Berry & Olaf Weber.
 
 Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
@@ -30,7 +30,7 @@ permission notice identical to this one.
 Permission is granted to copy and distribute translations of this manual
 into another language, under the above conditions for modified versions,
 except that this permission notice may be stated in a translation
-approved by the TeX Users Group.
+approved by the @TeX{} Users Group.
 @end copying
 
 @c Define new indices for commands, filenames, and options.
@@ -65,9 +65,10 @@ approved by the TeX Users Group.
 @title Kpathsea library
 @subtitle for version @value{version}
 @subtitle @value{month-year}
-@author Karl Berry (@email{kb@@mail.tug.org})
-@author Olaf Weber (@email{infovore@@xs4all.nl})
-@author Taco Hoekwater (@email{taco@@luatex.org})
+@author Karl Berry
+@author Olaf Weber
+@author Taco Hoekwater
+@author @url{http://tug.org/kpathsea}
 
 @page
 @vskip 0pt plus 1filll
@@ -143,8 +144,8 @@ We distribute the library under the GNU Library General Public License
 you must (offer to) distribute the source to the library, along with any
 changes you have made, and allow anyone to modify the library source and
 distribute their modifications.  It does not mean you have to distribute
-the source to your program, although we hope you will.  See the files
-@file{GPL} and @file{LGPL} for the text of the GNU licenses.
+the source to your program, although we hope you will.  See the
+accompanying files for the text of the GNU licenses.
 
 @cindex @TeX{} Users Group
 If you know enough about @TeX{} to be reading this manual, then you (or
@@ -1037,6 +1038,7 @@ perhaps in administrative scripts.  It is used heavily in the
 distributed @samp{mktex@dots{}} scripts.
 
 Synopsis:
+
 @example
 kpsewhich @var{option}@dots{} @var{filename}@dots{}
 @end example
@@ -1112,10 +1114,15 @@ sake of the shell.)
 Here's the current list of recognized names and the associated suffixes.
 @xref{Supported file formats}, for more information on each of these.
 
+The strings in parentheses are abbreviations recognized only by
+@code{kpsewhich} (not the underlying library calls).  They are
+provided when it would otherwise require an argument containing a
+space to specify the format, to simplify quoting of calls from shells.
+
 @example
 gf: gf
 pk: pk
-bitmap font:
+bitmap font (bitmapfont):
 tfm: .tfm
 afm: .afm
 base: .base
@@ -1131,42 +1138,45 @@ mfpool: .pool
 mft: .mft
 mp: .mp
 mppool: .pool
-MetaPost support:
+MetaPost support (mpsupport):
 ocp: .ocp
 ofm: .ofm .tfm
-opl: .opl
+opl: .opl  .pl
 otp: .otp
-ovf: .ovf
-ovp: .ovp
+ovf: .ovf .vf
+ovp: .ovp  .vpl
 graphic/figure:  .eps .epsi
 tex: .tex  .sty .cls .fd .aux .bbl .def .clo .ldf
-TeX system documentation:
+TeX system documentation (doc):
 texpool: .pool
-TeX system sources:  .dtx .ins
+TeX system sources (source):  .dtx .ins
 PostScript header:  .pro
-Troff fonts:
+Troff fonts (trofffont):
 type1 fonts: .pfa .pfb
 vf: .vf
-dvips config:
+dvips config (dvipsconfig):
 ist: .ist
 truetype fonts: .ttf .ttc .TTF .TTC
 type42 fonts: .t42 .T42
-web2c files:
-other text files:
-other binary files:
-misc fonts:
+web2c files (web2c):
+other text files (othertext):
+other binary files (otherbin):
+misc fonts (miscfont):
 web: .web  .ch
 cweb: .w .web  .ch
 enc files: .enc
-cmap files:
+cmap files (cmap):
 subfont definition files: .sfd
 opentype fonts: .otf
-pdftex config:
+pdftex config (pdftexconfig):
 lig files: .lig
 texmfscripts:
 lua: .luc .luctex .texluc .lua .luatex .texlua
 font feature files: .fea
 cid maps: .cid .cidmap
+mlbib: .mlbib .bib
+mlbst: .mlbst .bst
+clua: .dll .so
 @end example
 
 This option and @samp{--path} are mutually exclusive.
@@ -1177,14 +1187,15 @@ This option and @samp{--path} are mutually exclusive.
 After processing the command line, read additional filenames to look up
 from standard input.
 
-@item -mktex=@var{filetype}
-@itemx -no-mktex=@var{filetype}
-@opindex -mktex=@var{filetype}
-@opindex -no-mktex=@var{filetype}
+@item --mktex=@var{filetype}
+@itemx --no-mktex=@var{filetype}
+@opindex --mktex=@var{filetype}
+@opindex --no-mktex=@var{filetype}
 Turn on or off the @samp{mktex} script associated with @var{filetype}.
-The only values that make sense for @var{filetype} are @samp{pk},
-@samp{mf}, @samp{tex}, and @samp{tfm}. By default, all are off in
-Kpsewhich.  @xref{mktex scripts}.
+Usual values for @var{filetype} are @samp{pk}, @samp{mf}, @samp{tex},
+and @samp{tfm}.  By default, all are off in Kpsewhich, even if they
+are enabled for @TeX{}.  This option implies setting
+@code{--must-exist}.  @xref{mktex scripts}.
 
 @item --mode=@var{string}
 @opindex --mode=@var{string}
@@ -1195,8 +1206,8 @@ script arguments}.
 @item --must-exist
 @opindex --must-exist
 Do everything possible to find the files, notably including searching
-the disk.  By default, only the @file{ls-R} database is checked, in the
-interest of efficiency.
+the disk and running the @samp{mktex} scripts.  By default, only the
+@file{ls-R} database is checked, in the interest of efficiency.
 
 @item --path=@var{string}
 @opindex --path=@var{string}
@@ -1212,6 +1223,15 @@ directory expansion of a path, instead of doing a one-shot lookup, see
 Set the program name to @var{name}; default is @samp{kpsewhich}.  This
 can affect the search paths via the @samp{.@var{prognam}} feature in
 configuration files (@pxref{Config files}).
+
+@item --safe-in-name=@var{name}
+@itemx --safe-out-name=@var{name}
+@opindex --safe-in-name=@var{name}
+@opindex --safe-out-name=@var{name}
+Exit successfully if @var{name} is safe to open for reading or
+writing, respectively, else unsuccessfully.  No output is written.
+These tests take account of the related Kpathsea configuration
+settings (@pxref{Calling sequence}).
 
 @item --subdir=@var{string}
 @opindex --subdir=@var{string}
@@ -1293,9 +1313,8 @@ By specifying, say, @samp{--subdir=/pkg1}, you can be sure of getting
 the one you are interested in.
 
 We only match at the end because a site might happen to install @TeX{}
-in @file{/some/coincidental/pkg1/path/}, and we wouldn't want
-@file{texmf-dist/scripts/pkg2/} to match that when searching for
-@samp{/pkg1}.
+in @file{/some/coincidental/pkg1/path/}, and we wouldn't want to match
+@file{texmf-dist/scripts/pkg2/} that when searching for @samp{/pkg1}.
 
 @end table
 
@@ -1436,11 +1455,12 @@ Kpsewhich accepts the standard GNU options:
 @itemize @bullet
 @item
 @opindex --help
-@samp{--help} prints a help message on standard output and exits.
+@samp{--help} prints a help message on standard output and exits
+successfully.
 
 @item
 @opindex --version
-@samp{--version} prints the Kpathsea version number and exits.
+@samp{--version} prints the Kpathsea version number and exits successfully.
 @end itemize
 
 
@@ -1524,7 +1544,7 @@ suffix @samp{.bib}.
 @item bst
 @flindex .bst
 @vindex BSTINPUTS
-(Bib@TeX{} style file, @pxref{Basic BibTeX style files,, Basic Bib@TeX{}
+(Bib@TeX{} style, @pxref{Basic BibTeX style files,, Basic Bib@TeX{}
 style files, web2c, Web2c})
 @code{BSTINPUTS};
 suffix @samp{.bst}.
@@ -1674,6 +1694,23 @@ suffix @samp{.mft}.
 (font-related files that don't fit the other categories)
 @code{MISCFONTS}
 
+@item mlbib
+@flindex .mlbib
+@vindex MLBIBINPUTS
+@vindex BIBINPUTS
+@vindex TEXBIB
+(MlBib@TeX{} bibliography source)
+@code{MLBIBINPUTS}, @code{BIBINPUTS}, @code{TEXBIB};
+suffixes @samp{.mlbib}, @samp{.mlbib}.
+
+@item mlbst
+@flindex .mlbst
+@vindex MLBSTINPUTS
+@vindex BSTINPUTS
+(MlBib@TeX{} style)
+@code{MLBSTINPUTS}, @code{BSTINPUTS};
+suffixes @samp{.mlbst}, @samp{.bst}.
+
 @item mp
 @flindex .mp
 @vindex MPINPUTS
@@ -1791,7 +1828,7 @@ dynamic creation program: @code{mktextex}.
 
 @item texmfscripts
 @vindex TEXMFSCRIPTS
-(Architecture-independent executables distributed in the texmf tree)
+(Architecture-independent executables distributed in the texmf trees)
 @code{TEXMFSCRIPTS}.
 
 @item texpool
@@ -1952,7 +1989,8 @@ which *already* have an extension.  A name without an extension (e.g.,
 
 @flindex tex-file.c
 @findex kpathsea_find_file
-This algorithm is implemented in the routine @code{kpathsea_find_file} in
+This algorithm is implemented in the function
+@code{kpathsea_find_file} in the source file
 @file{kpathsea/tex-file.c}.  You can watch it in action with the
 debugging options (@pxref{Debugging}).
 
@@ -2377,6 +2415,33 @@ words, if you are looking up a VF or some other file that need not
 exist, don't use this.
 
 @item
+@findex kpathsea_out_name_ok
+@TeX{} can write output files, via the @code{\openout} primitive; this opens
+a security hole vulnerable to Trojan horse attack: an unwitting user could
+run a @TeX{} program that overwrites, say, @file{~/.rhosts}.  Analogous
+security holes exist for many other programs.  To alleviate this, there is a
+configuration variable @code{openout_any}, which selects one of three levels
+of security.  When it is set to @samp{a} (for ``any''), no restrictions are
+imposed.  When it is set to @samp{r} (for ``restricted''), filenames
+beginning with @samp{.} are disallowed (except @file{.tex} because @LaTeX{}
+needs it).  When it is set to @samp{p} (for ``paranoid'') additional
+restrictions are imposed: an absolute filename must refer to a file in (a
+subdirectory) of @code{TEXMFOUTPUT}, and any attempt to go up a directory
+level is forbidden (that is, paths may not contain a @samp{..} component). 
+The paranoid setting is the default.  (For backwards compatibility, @samp{y}
+and @samp{1} are synonyms of @samp{a}, while @samp{n} and @samp{0} are
+synonyms for @samp{r}.) The function @code{kpathsea_out_name_ok}, with a
+filename as second argument, returns @code{true} if that filename is
+acceptable to be opend for output or @code{false} otherwise.
+
+@item
+@findex kpathsea_in_name_ok
+Similarly, the function @code{kpathsea_in_name_ok}, with a filename as
+second argument, returns @code{true} if that filename is acceptable to be
+opend for input or @code{false} otherwise, depending on the value of the
+configuration variable @code{openin_any} (with @samp{a} as default).
+
+@item
 @findex kpathsea_finish
 To close the kpathsea library instance you are using, call
 @code{kpathsea_finish}.  This function closes any open log files and
@@ -2400,10 +2465,10 @@ separate library.)
 @flindex c-*.h
 @pindex autoconf@r{, recommended}
 The @file{c-*.h} header files can also help your program adapt to many
-different systems.  You will almost certainly want to use Autoconf for
-configuring your software if you use Kpathsea; I strongly recommend
-using Autoconf regardless.  It is available from
-@url{ftp://prep.ai.mit.edu/pub/gnu/}.
+different systems.  You will almost certainly want to use Autoconf and
+probably Automake for configuring and building your software if you use
+Kpathsea; I strongly recommend using Autoconf and Automake regardless.
+They are available from @url{ftp://ftp.gnu.og/pub/gnu/}.
 
 
 @node Program-specific files
@@ -2416,13 +2481,13 @@ Introduction, tds, A Directory Structure for @TeX{} files}), specifies
 that such files should go into a subdirectory named after the program,
 like @samp{texmf/ttf2pk}.
 
-Two special formats, @samp{kpse_program_text_format} and
-@samp{kpse_program_binary_format} exist, which use
-@code{.:$TEXMF/@var{program}//} as their compiled-in search path.  To
-override this default, you can use the variable
-@code{@var{PROGRAM}INPUTS} in the environment and/or @samp{texmf.cnf}.
-That is to say, the name of the variable is constructed by converting
-the name of the program to upper case, and appending @code{INPUTS}.
+Two formats, @samp{kpse_program_text_format} and
+@samp{kpse_program_binary_format}, use @code{.:$TEXMF/@var{program}//}
+as their compiled-in search path.  To override this default, you can
+use the variable @code{@var{PROGRAM}INPUTS} in the environment and/or
+@samp{texmf.cnf}.  That is to say, the name of the variable is
+constructed by converting the name of the program to upper case, and
+appending @code{INPUTS}.
 
 The only difference between these two formats is whether
 @code{kpathsea_open_file} will open the files it finds in text or binary

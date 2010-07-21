@@ -1,6 +1,6 @@
-/* elt-dirs.C: Translate a path element to its corresponding director{y,ies}.
+/* elt-dirs.c: Translate a path element to its corresponding director{y,ies}.
 
-   Copyright 1993, 1994, 1995, 1996, 1997, 2008 Karl Berry.
+   Copyright 1993, 1994, 1995, 1996, 1997, 2008, 2009, 2010 Karl Berry.
    Copyright 1997, 1998, 1999, 2000, 2005 Olaf Weber.
 
    This library is free software; you can redistribute it and/or
@@ -39,7 +39,7 @@ dir_list_add (str_llist_type *l,  const_string dir)
     = IS_DIR_SEP (last_char) || IS_DEVICE_SEP (last_char)
       ? xstrdup (dir)
       : concat (dir, DIR_SEP_STRING);
-  
+
   str_llist_add (l, saved_dir);
 }
 
@@ -81,13 +81,13 @@ static str_llist_type *
 cached (kpathsea kpse, const_string key)
 {
   unsigned p;
-  
+
   for (p = 0; p < kpse->cache_length; p++)
     {
       if (FILESTRCASEEQ (kpse->the_cache[p].key, key))
         return kpse->the_cache[p].value;
     }
-  
+
   return NULL;
 }
 
@@ -121,13 +121,13 @@ do_subdir (kpathsea kpse, str_llist_type *str_list_ptr,  const_string elt,
   struct dirent *e;
 #endif /* not WIN32 */
   fn_type name;
-  
+
   /* Some old compilers don't allow aggregate initialization.  */
   name = fn_copy0 (elt, elt_length);
-  
+
   assert (IS_DIR_SEP (elt[elt_length - 1])
           || IS_DEVICE_SEP (elt[elt_length - 1]));
-  
+
 #if defined (WIN32)
   strcpy(dirname, FN_STRING(name));
   strcat(dirname, "/*.*");         /* "*.*" or "*" -- seems equivalent. */
@@ -158,42 +158,42 @@ do_subdir (kpathsea kpse, str_llist_type *str_list_ptr,  const_string elt,
       fn_str_grow (&name, find_file_data.cFileName);
 
       /* Maybe we have cached the leafness of this directory.
-		 The function will return 0 if unknown, 
-		 else the actual (Unix-like) value. */
+                 The function will return 0 if unknown,
+                 else the actual (Unix-like) value. */
       links = kpathsea_dir_links (kpse, FN_STRING (name), 0);
 
       if (find_file_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-	unsigned potential_len = FN_LENGTH (name);
-	/* in any case, compute the leafness */
-	nlinks++;
+        unsigned potential_len = FN_LENGTH (name);
+        /* in any case, compute the leafness */
+        nlinks++;
 
-	/* It's a directory, so append the separator.  */
-	fn_str_grow (&name, DIR_SEP_STRING);
-        if (*post != 0) { 
+        /* It's a directory, so append the separator.  */
+        fn_str_grow (&name, DIR_SEP_STRING);
+        if (*post != 0) {
           fn_str_grow (&name, post);
           /* Unfortunately we can't check if the new element is
              a leaf directory, because we don't have a directory
              name here, we just have a path spec. This means we
              may descend into a leaf directory cm/pk, if the
              spec is ...fonts//pk//.  */
-                 expand_elt (kpse, str_list_ptr, FN_STRING (name), potential_len);
+          expand_elt (kpse, str_list_ptr, FN_STRING (name), potential_len);
           fn_shrink_to (&name, potential_len);
         }
-	/* Should we recurse?  To see if the subdirectory is a
-	   leaf, check if it has two links (one for . and one for
-	   ..).  This means that symbolic links to directories do
-	   not affect the leaf-ness.  This is arguably wrong, but
-	   the only alternative I know of is to stat every entry
-	   in the directory, and that is unacceptably slow. */
-	   
-	if (links == 0 || links > 2)
-	  /* All criteria are met; find subdirectories.  */
+        /* Should we recurse?  To see if the subdirectory is a
+           leaf, check if it has two links (one for . and one for
+           ..).  This means that symbolic links to directories do
+           not affect the leaf-ness.  This is arguably wrong, but
+           the only alternative I know of is to stat every entry
+           in the directory, and that is unacceptably slow. */
+
+        if (links == 0 || links > 2)
+          /* All criteria are met; find subdirectories.  */
         do_subdir (kpse, str_list_ptr, FN_STRING (name),
-		     potential_len, post);
-	else if (*post == 0)
-	  /* Nothing to match, no recursive subdirectories to
-	     look for: we're done with this branch.  Add it.  */
-	  dir_list_add (str_list_ptr, FN_STRING (name));
+                     potential_len, post);
+        else if (*post == 0)
+          /* Nothing to match, no recursive subdirectories to
+             look for: we're done with this branch.  Add it.  */
+          dir_list_add (str_list_ptr, FN_STRING (name));
       }
       fn_shrink_to (&name, elt_length);
     }
@@ -213,7 +213,7 @@ do_subdir (kpathsea kpse, str_llist_type *str_list_ptr,  const_string elt,
       fn_free (&name);
       return;
     }
-  
+
   /* Include top level before subdirectories, if nothing to match.  */
   if (*post == 0)
     dir_list_add (str_list_ptr, FN_STRING (name));
@@ -232,39 +232,40 @@ do_subdir (kpathsea kpse, str_llist_type *str_list_ptr,  const_string elt,
       if (e->d_name[0] != '.')
         {
           int links;
-          
+
           /* Construct the potential subdirectory name.  */
           fn_str_grow (&name, e->d_name);
-          
+
           /* If we can't stat it, or if it isn't a directory, continue.  */
           links = kpathsea_dir_links (kpse, FN_STRING (name), 0);
 
           if (links >= 0)
-            { 
+            {
               unsigned potential_len = FN_LENGTH (name);
 
               /* It's a directory, so append the separator.  */
               fn_str_grow (&name, DIR_SEP_STRING);
 
               if (*post != 0)
-                { 
+                {
                   fn_str_grow (&name, post);
                   /* Unfortunately we can't check if the new element is
                      a leaf directory, because we don't have a directory
                      name here, we just have a path spec. This means we
                      may descend into a leaf directory cm/pk, if the
                      spec is ...fonts//pk//.  */
-                  expand_elt (kpse, str_list_ptr, FN_STRING (name), potential_len);
+                  expand_elt (kpse, str_list_ptr, FN_STRING (name),
+                              potential_len);
                   fn_shrink_to (&name, potential_len);
                 }
-              
+
               /* Should we recurse?  To see if the subdirectory is a
                  leaf, check if it has two links (one for . and one for
                  ..).  This means that symbolic links to directories do
                  not affect the leaf-ness.  This is arguably wrong, but
                  the only alternative I know of is to stat every entry
                  in the directory, and that is unacceptably slow.
-                 
+
                  The #ifdef here makes all this configurable at
                  compile-time, so that if we're using VMS directories or
                  some such, we can still find subdirectories, even if it
@@ -292,7 +293,7 @@ do_subdir (kpathsea kpse, str_llist_type *str_list_ptr,  const_string elt,
           fn_shrink_to (&name, elt_length);
         }
     }
-  
+
   fn_free (&name);
   xclosedir (dir);
 #endif /* not WIN32 */
@@ -308,7 +309,7 @@ expand_elt (kpathsea kpse, str_llist_type * str_list_ptr,  const_string elt,
                unsigned start)
 {
   const_string dir = elt + start, post;
-  
+
   while (*dir != 0)
     {
       if (IS_DIR_SEP (*dir))
@@ -316,17 +317,17 @@ expand_elt (kpathsea kpse, str_llist_type * str_list_ptr,  const_string elt,
           /* If two or more consecutive /'s, find subdirectories.  */
           if (IS_DIR_SEP (dir[1]))
             {
-	      for (post = dir + 1; IS_DIR_SEP (*post); post++) ;
+              for (post = dir + 1; IS_DIR_SEP (*post); post++) ;
             do_subdir (kpse, str_list_ptr, elt, dir - elt + 1, post);
-	      return;
+              return;
             }
 
           /* No special stuff at this slash.  Keep going.  */
         }
-      
+
       dir++;
     }
-  
+
   /* When we reach the end of ELT, it will be a normal filename.  */
   checked_dir_list_add (kpse, str_list_ptr, elt);
 }
@@ -341,7 +342,7 @@ expand_elt (kpathsea kpse, str_llist_type * str_list_ptr,  const_string elt,
    - Always lower-case drive letters a-z, even those filesystem that
      preserve case in filenames do not care about the case of the drive
      letters.
-   - Remove unneeded double slashes. The problem is Windows does not 
+   - Remove unneeded double slashes. The problem is Windows does not
      handle well filenames like c://dir/foo. So canonicalize the names.
      The resulting name will always be shorter than the one passed, so no
      problem.
@@ -375,9 +376,11 @@ kpathsea_normalize_path (kpathsea kpse, string elt)
     for (ret = 0; IS_DIR_SEP(elt[ret]); ++ret)
       ;
   }
-  
+
+#ifdef KPSE_DEBUG
   if (KPATHSEA_DEBUG_P (KPSE_DEBUG_STAT) && ret != 1)
     DEBUGF2 ("kpse_normalize_path (%s) => %u\n", elt, ret);
+#endif /* KPSE_DEBUG */
 
   return ret;
 }
@@ -449,12 +452,12 @@ void
 print_element_dirs (const_string elt)
 {
   str_llist_type *dirs;
-  
+
   printf ("Directories of %s:\t", elt ? elt : "(nil)");
   fflush (stdout);
-  
+
   dirs = kpse_element_dirs (elt);
-  
+
   if (!dirs)
     printf ("(nil)");
   else
@@ -466,7 +469,7 @@ print_element_dirs (const_string elt)
           printf ("%s ", *d ? d : "`'");
         }
     }
-  
+
   putchar ('\n');
 }
 
@@ -475,25 +478,25 @@ main ()
 {
   /* DEBUG_SET (DEBUG_STAT); */
   /* All lists end with NULL.  */
-  print_element_dirs (NULL);	/* */
-  print_element_dirs ("");	/* ./ */
-  print_element_dirs ("/k");	/* */
-  print_element_dirs (".//");	/* ./ ./archive/ */
-  print_element_dirs (".//archive");	/* ./ ./archive/ */
+  print_element_dirs (NULL);    /* */
+  print_element_dirs ("");      /* ./ */
+  print_element_dirs ("/k");    /* */
+  print_element_dirs (".//");   /* ./ ./archive/ */
+  print_element_dirs (".//archive");    /* ./ ./archive/ */
 #ifdef AMIGA
   print_element_dirs ("TeXMF:AmiWeb2c/texmf/fonts//"); /* lots */
-  print_element_dirs ("TeXMF:AmiWeb2c/share/texmf/fonts//bakoma"); /* just one */
+  print_element_dirs ("TeXMF:AmiWeb2c/share/texmf/fonts//bakoma"); /*just one*/
   print_element_dirs ("TeXMF:AmiWeb2c/texmf/fonts//"); /* lots again [cache] */
-  print_element_dirs ("TeXMF:");	/* TeXMF: */
-  print_element_dirs ("TeXMF:/");	/* TeXMF: and all subdirs */
+  print_element_dirs ("TeXMF:");        /* TeXMF: */
+  print_element_dirs ("TeXMF:/");       /* TeXMF: and all subdirs */
 #else /* not AMIGA */
-  print_element_dirs ("/tmp/fonts//");	/* no need to stat anything */
+  print_element_dirs ("/tmp/fonts//");  /* no need to stat anything */
   print_element_dirs ("/usr/local/lib/tex/fonts//");      /* lots */
   print_element_dirs ("/usr/local/lib/tex/fonts//times"); /* just one */
   print_element_dirs ("/usr/local/lib/tex/fonts//"); /* lots again [cache] */
-  print_element_dirs ("~karl");		/* tilde expansion */
-  print_element_dirs ("$karl");		/* variable expansion */  
-  print_element_dirs ("~${LOGNAME}");	/* both */  
+  print_element_dirs ("~karl");         /* tilde expansion */
+  print_element_dirs ("$karl");         /* variable expansion */
+  print_element_dirs ("~${LOGNAME}");   /* both */
 #endif /* not AMIGA */
   return 0;
 }

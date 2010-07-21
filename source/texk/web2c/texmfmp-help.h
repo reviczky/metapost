@@ -137,67 +137,6 @@ const_string ETEXHELP[] = {
 };
 #endif /* eTeX */
 
-#ifdef luaTeX
-const_string LUATEXHELP[] = {
-    "Usage: luatex [OPTION]... [TEXNAME[.tex]] [COMMANDS]",
-    "   or: luatex [OPTION]... \\FIRST-LINE",
-    "   or: luatex [OPTION]... &FMT ARGS",
-    "  Run luaTeX on TEXNAME, usually creating TEXNAME.pdf.",
-    "  Any remaining COMMANDS are processed as luaTeX input, after TEXNAME is read.",
-    "  If the first line of TEXNAME is %&FMT, and FMT is an existing .fmt file,",
-    "  use it.  Else use `NAME.fmt', where NAME is the program invocation name,",
-    "  most commonly `luatex'.",
-    "",
-    "  Alternatively, if the first non-option argument begins with a backslash,",
-    "  interpret all non-option arguments as a line of luaTeX input.",
-    "",
-    "  Alternatively, if the first non-option argument begins with a &, the",
-    "  next word is taken as the FMT to read, overriding all else.  Any",
-    "  remaining arguments are processed as above.",
-    "",
-    "  If no arguments or options are specified, prompt for input.",
-    "",
-    "-enc                    enable encTeX extensions such as \\mubyte",
-    "-etex                   enable e-TeX extensions",
-    "[-no]-file-line-error   disable/enable file:line:error style messages",
-    "-fmt=FMTNAME            use FMTNAME instead of program name or a %& line",
-    "-halt-on-error          stop processing at the first error",
-    "-ini                    be luainitex, for dumping formats; this is implicitly",
-    "                          true if the program name is `luainitex'",
-    "-interaction=STRING     set interaction mode (STRING=batchmode/nonstopmode/",
-    "                          scrollmode/errorstopmode)",
-#ifdef IPC
-    "-ipc                    send DVI output to a socket as well as the usual",
-    "                          output file",
-    "-ipc-start              as -ipc, and also start the server at the other end",
-#endif /* IPC */
-    "-jobname=STRING         set the job name to STRING",
-    "-kpathsea-debug=NUMBER  set path searching debugging flags according to",
-    "                          the bits of NUMBER",
-    "[-no]-mktex=FMT         disable/enable mktexFMT generation (FMT=tex/tfm)",
-    "-mltex                  enable MLTeX extensions such as \\charsubdef",
-    "-output-comment=STRING  use STRING for DVI file comment instead of date",
-    "                          (no effect for PDF)",
-    "-output-directory=DIR   use DIR as the directory to write files to",
-    "-output-format=FORMAT   use FORMAT for job output; FORMAT is `dvi' or `pdf'",
-    "[-no]-parse-first-line  disable/enable parsing of the first line of the",
-    "                          input file",
-    "-progname=STRING        set program (and fmt) name to STRING",
-    "-recorder               enable filename recorder",
-    "[-no]-shell-escape      disable/enable \\write18{SHELL COMMAND}",
-    "-shell-restricted       enable restricted \\write18",
-    "-src-specials           insert source specials into the DVI file",
-    "-src-specials=WHERE     insert source specials in certain places of",
-    "                          the DVI file. WHERE is a comma-separated value",
-    "                          list: cr display hbox math par parend vbox",
-    "-translate-file=TCXNAME use the TCX file TCXNAME",
-    "-8bit                   make all characters printable by default",
-    "-help                   display this help and exit",
-    "-version                output version information and exit",
-    NULL
-};
-#endif /* luaTeX */
- 
 #ifdef MF
 const_string MFHELP[] = {
     "Usage: mf [OPTION]... [MFNAME[.mf]] [COMMANDS]",
@@ -244,52 +183,45 @@ const_string MFHELP[] = {
 };
 #endif /* MF */
 
-#ifdef MP
-const_string MPHELP[] = {
-    "Usage: mpost [OPTION]... [MPNAME[.mp]] [COMMANDS]",
-    "   or: mpost [OPTION]... \\FIRST-LINE",
-    "   or: mpost [OPTION]... &MEM ARGS",
-    "  Run MetaPost on MPNAME, usually creating MPNAME.NNN (and perhaps",
-    "  MPNAME.tfm), where NNN are the character numbers generated.",
-    "  Any remaining COMMANDS are processed as MetaPost input,",
-    "  after MPNAME is read.",
-    "  If the first line of MPNAME is %&MEM, and MEM is an existing .mem file,",
-    "  use it.  Else use `NAME.mem', where NAME is the program invocation name,",
-    "  most commonly `mpost'.",
+#ifdef pTeX
+const_string PTEXHELP[] = {
+    "Usage: ptex [option] texfile",
+    "     : ptex [option] &format texfile",
     "",
-    "  Alternatively, if the first non-option argument begins with a backslash,",
-    "  interpret all non-option arguments as a line of MetaPost input.",
-    "",
-    "  Alternatively, if the first non-option argument begins with a &, the",
-    "  next word is taken as the MEM to read, overriding all else.  Any",
-    "  remaining arguments are processed as above.",
-    "",
-    "  If no arguments or options are specified, prompt for input.",
-    "",
-    "[-no]-file-line-error   disable/enable file:line:error style messages",
+    "-fmt=NAME               use NAME instead of program name or %&format.",
     "-halt-on-error          stop processing at the first error",
-    "-ini                    be inimpost, for dumping mems; this is implicitly",
-    "                          true if the program name is `inimpost'",
-    "-interaction=STRING     set interaction mode (STRING=batchmode/nonstopmode/",
-    "                          scrollmode/errorstopmode)",
+    "[-no]-file-line-error   disable/enable file:line:error style messages",
+    "-ini                    be iniptex.",
+    "-interaction=STRING     set interaction mode (STRING=batchmode|nonstopmode|",
+    "                          scrollmode|errorstopmode)",
+#ifdef IPC
+    "-ipc                    send DVI output to a socket as well as the usual",
+    "                          output file",
+    "-ipc-start              as -ipc, and also start the server at the other end",
+#endif /* IPC */
     "-jobname=STRING         set the job name to STRING",
+    "-kanji=STRING           set Japanese encoding (STRING=euc|jis|sjis|utf8)",
     "-kpathsea-debug=NUMBER  set path searching debugging flags according to",
     "                          the bits of NUMBER",
-    "-mem=MEMNAME            use MEMNAME instead of program name or a %& line",
+    "[-no]-mktex=FMT         disable/enable mktexFMT generation (FMT=tex/tfm)",
+    "-mltex                  enable MLTeX extensions such as \\charsubdef",
+    "-output-comment=STRING  use STRING for DVI file comment instead of date",
     "-output-directory=DIR   use DIR as the directory to write files to",
     "[-no]-parse-first-line  disable/enable parsing of the first line of the",
     "                          input file",
-    "-progname=STRING        set program (and mem) name to STRING",
+    "-progname=STRING        set program (and fmt) name to STRING",
     "-recorder               enable filename recorder",
-    "-tex=TEXPROGRAM         use TEXPROGRAM for text labels.",
+    "[-no]-shell-escape      disable/enable \\write18{SHELL COMMAND}",
+    "-src-specials           insert source specials into the DVI file",
+    "-src-specials=WHERE     insert source specials in certain places of",
+    "                          the DVI file. WHERE is a comma-separated value",
+    "                          list: cr display hbox math par parend vbox",
     "-translate-file=TCXNAME use the TCX file TCXNAME",
-    "-8bit                   make all characters printable by default",
-    "-T, -troff              set the prologues variable, use `makempx -troff'",
-    "-help                   display this help and exit",
-    "-version                output version information and exit",
+    "-help                   print this message and exit.",
+    "-version                print version information and exit.",
     NULL
 };
-#endif /* MP */
+#endif /* pTeX */
 
 #ifdef pdfTeX
 const_string PDFTEXHELP[] = {

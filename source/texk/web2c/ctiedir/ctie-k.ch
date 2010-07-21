@@ -29,7 +29,7 @@
 main(argc, argv)
         int argc; string *argv;
 @y
-int main @,P2C(int, argc, string *, argv)
+int main (int argc, string *argv)
 @z
 
 @x l.105 Set up kpathsea stuff
@@ -78,7 +78,7 @@ mechanism that the \Kpathsea/ library provides.
 We set |kpse_program_name| to |"ctie"|.  This means if the variable
 |CWEBINPUTS.ctie| is present in \.{texmf.cnf} (or |CWEBINPUTS_ctie| in
 the environment) its value will be used as the search path for
-filenames.  This allows different flawors of \.{CTIE} to have
+filenames.  This allows different flavors of \.{CTIE} to have
 different search paths.
 
 @<Set up |PROGNAME| feature and initialize the search path mechanism@>=
@@ -140,7 +140,8 @@ too.
 boolean get_line(i, do_includes)
         file_index i; boolean do_includes;
 @y
-boolean get_line @,P2C(file_index, i, boolean, do_includes)
+static boolean
+get_line (file_index i, boolean do_includes)
 @z
 
 The next piece is simplified using the kpathsea kpse_find_file
@@ -220,40 +221,40 @@ variable) to search for this file.
 @x l.585
 void err_print();
 @y
-void err_print @,P2H(file_index, char *);
+void err_print (file_index, const char *);
 @z
 
 @x l.590
 void err_print(i, s) /* prints `\..' and location of error message */
 file_index i; char *s;
 @y
-void err_print @,P2C(file_index, i, char *, s)
+void err_print (file_index i, const char *s)
 /* prints `\..' and location of error message */
 @z
 
 @x l.664
 int wrap_up()
 @y
-int wrap_up @,P1H(void)
+int wrap_up (void)
 @z
 
 @x l.674
 int wrap_up();
 @y
-int wrap_up @,P1H(void);
+int wrap_up (void);
 @z
 
 @x l.697
 void pfatal_error();
 @y
-void pfatal_error @,P2H(char *, char *);
+void pfatal_error (const char *, const char *);
 @z
 
 @x l.700
 void pfatal_error(s, t)
 char *s, *t;
 @y
-void pfatal_error @,P2C(char *, s, char *, t)
+void pfatal_error (const char *s, const char *t)
 @z
 
 @x l.747 Use the kpathsea library to do this
@@ -339,64 +340,88 @@ the file.
 boolean lines_dont_match(i, j)
         file_index i, j;
 @y
-boolean lines_dont_match @,P2C(file_index, i, file_index, j)
+static boolean
+lines_dont_match (file_index i, file_index j)
 @z
 
 @x l.809
 void init_change_file(i)
         file_index i;
 @y
-void init_change_file @,P1C(file_index, i)
+static void
+init_change_file (file_index i)
 @z
 
 @x l.858
 void put_line(j)
        file_index j;
 @y
-void put_line @,P1C(file_index, j)
+static void
+put_line (file_index j)
 @z
 
 @x l.873
 boolean e_of_ch_module(i)
         file_index i;
 @y
-boolean e_of_ch_module @,P1C(file_index, i)
+static boolean
+e_of_ch_module (file_index i)
 @z
 
 @x l.894
 boolean e_of_ch_preamble(i)
         file_index i;
 @y
-boolean e_of_ch_preamble @,P1C(file_index, i)
+static boolean
+e_of_ch_preamble (file_index i)
 @z
 
 @x l.1106
 void usage_error()
+{
+    @<Print the banners@>;
+    fprintf(stderr, "Usage: ctie -[mc] outfile master changefile(s)\n");
 @y
-void usage_error @,P1H(void)
+static void
+usage_error (void)
+{
+    @<Print the banners@>;
+    fprintf(stderr, "Usage: ctie -m|-c outfile master changefile(s)\n");
 @z
 
 @x l.1119 Add Web2C version to banner string
 printf("%s\n", banner); /* print a ``banner line'' */
 @y
 {
-    extern KPSEDLL string kpathsea_version_string; /* from kpathsea/version.c */
     printf("%s (%s)\n", banner, kpathsea_version_string); /* print a ``banner line'' */
 }
+@z
+
+@x l.1218
+string CTIEHELP[] = {
+    "Usage: ctie -[mc] outfile master changefile(s)",
+@y
+const_string CTIEHELP[] = {
+    "Usage: ctie -m|-c outfile master changefile(s)",
 @z
 
 @x l.1233
 void usage_help();
 void print_version_and_exit();
 @y
-void usage_help @,P1H(void);
-void print_version_and_exit @,P2H(string, string);
+static void usage_help (void);
+static void print_version_and_exit (const_string, const_string);
 @z
 
 @x l.1238
 void usage_help()
+{
+    string *message=CTIEHELP;
 @y
-void usage_help @,P1H(void)
+static void
+usage_help (void)
+{
+    const_string *message=CTIEHELP;
 @z
 
 @x l.1253
@@ -413,9 +438,9 @@ void print_version_and_exit(name, version)
     exit (0);
 }
 @y
-void print_version_and_exit @,P2C(string, name, string, version)
+static void
+print_version_and_exit (const_string name, const_string version)
 {
-    extern KPSEDLL string kpathsea_version_string; /* from kpathsea/version.c */
     printf ("%s %s\n", name, version);
     puts (kpathsea_version_string);
 

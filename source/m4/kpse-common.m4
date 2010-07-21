@@ -1,6 +1,6 @@
 # Public macros for the TeX Live (TL) tree.
 # Copyright (C) 1995 - 2009 Karl Berry <tex-live@tug.org>
-# Copyright (C) 2009 Peter Breitenlohner <tex-live@tug.org>
+# Copyright (C) 2009, 2010 Peter Breitenlohner <tex-live@tug.org>
 #
 # This file is free software; the copyright holders
 # give unlimited permission to copy and/or distribute it,
@@ -55,6 +55,7 @@ AC_LANG(_AC_LANG)[]dnl
 #                 [REBUILD-SRC-DEPENDENCIES],
 #                 [REBUILD-BLD-DEPENDENCIES])
 # -----------------------------------------------
+# For generic libraries in libs/LIBDIR.
 # Provide the configure options '--with-system-LIBDIR' (if in the TL tree),
 # '--with-LIBDIR-includes', and '--with-LIBDIR-libdir'.
 # Options:
@@ -89,6 +90,15 @@ AC_SUBST(AS_TR_CPP($1)[_RULE])[]dnl
 m4_provide_if([AM_INIT_AUTOMAKE], [_AM_SUBST_NOTMAKE(AS_TR_CPP($1)[_RULE])])[]dnl
 ]) # _KPSE_LIB_FLAGS
 
+# _KPSE_TEXLIB_FLAGS(LIBDIR, LIBNAME, OPTIONS,
+#                    TL-INCLUDES, TL-LIBS, TL-EXTRA,
+#                    [REBUILD-SRC-DEPENDENCIES],
+#                    [REBUILD-BLD-DEPENDENCIES])
+# -----------------------------------------------
+# As above, but for TeX specific libraries in texk/LIBDIR.
+AC_DEFUN([_KPSE_TEXLIB_FLAGS],
+[m4_pushdef([Kpse_TeX_Lib], [])_KPSE_LIB_FLAGS($@)m4_popdef([Kpse_TeX_Lib])])
+
 # _KPSE_LIB_FLAGS_TL(LIBDIR, LIBNAME, OPTIONS,
 #                    TL-INCLUDES, TL-LIBS, TL-EXTRA,
 #                    [REBUILD-SRC-DEPENDENCIES],
@@ -110,23 +120,23 @@ else
   AS_TR_CPP($1)[_LIBS=`echo '$5' | sed \
     -e "s,BLD/,$kpse_BLD/,g"`
   $6]
-  m4_if([$1], [kpathsea],
+  m4_ifdef([Kpse_TeX_Lib],
   [AS_TR_CPP($1)[_DEPEND=`echo '$5' | sed \
     -e 's,BLD/texk/,${top_builddir}/../,g'`]
    AS_TR_CPP($1)[_RULE='# Rebuild lib$2
 $(]AS_TR_CPP($1)[_DEPEND):]m4_ifval([$7],
                                     [[ $7]])m4_ifval([$8], [[ $8
-	cd ${top_builddir}/../$1 && $(MAKE) $(AM_MAKEFLAGS)
+	cd ${top_builddir}/../$1 && $(MAKE) $(AM_MAKEFLAGS) rebuild
 $8:]])[
-	cd ${top_builddir}/../$1 && $(MAKE) $(AM_MAKEFLAGS)']],
+	cd ${top_builddir}/../$1 && $(MAKE) $(AM_MAKEFLAGS) rebuild']],
   [AS_TR_CPP($1)[_DEPEND=`echo '$5' | sed \
     -e 's,BLD/,${top_builddir}/../../,g'`]
    AS_TR_CPP($1)[_RULE='# Rebuild lib$2
 $(]AS_TR_CPP($1)[_DEPEND):]m4_ifval([$7],
                                     [[ $7]])m4_ifval([$8], [[ $8
-	cd ${top_builddir}/../../libs/$1 && $(MAKE) $(AM_MAKEFLAGS)
+	cd ${top_builddir}/../../libs/$1 && $(MAKE) $(AM_MAKEFLAGS) rebuild
 $8:]])[
-	cd ${top_builddir}/../../libs/$1 && $(MAKE) $(AM_MAKEFLAGS)']])
+	cd ${top_builddir}/../../libs/$1 && $(MAKE) $(AM_MAKEFLAGS) rebuild']])
 m4_if(m4_index([ $3 ], [ tree ]), [-1],
       [fi
 ])[]dnl m4_if
@@ -194,8 +204,8 @@ LIBS=$kpse_save_LIBS
 # Add flags for LIBDIR to values of CPPFLAGS and LIBS.
 AC_DEFUN([KPSE_ADD_FLAGS],
 [AC_REQUIRE([KPSE_SAVE_FLAGS])[]dnl
-CPPFLAGS="$CPPFLAGS $[]AS_TR_CPP($1)_INCLUDES"
-LIBS="$[]AS_TR_CPP($1)_LIBS $LIBS"
+eval CPPFLAGS=\"$[]AS_TR_CPP($1)_INCLUDES \$CPPFLAGS\"
+eval LIBS=\"$[]AS_TR_CPP($1)_LIBS \$LIBS\"
 ]) # KPSE_ADD_FLAGS
 
 # KPSE_COMMON(PACKAGE-NAME, [MORE-AUTOMAKE-OPTIONS])
@@ -203,16 +213,16 @@ LIBS="$[]AS_TR_CPP($1)_LIBS $LIBS"
 # Common Autoconf code for all programs using libkpathsea.
 # Originally written by Karl Berry as texk/kpathsea/common.ac.
 #
-# Initializtion of Automake and Libtool, some common tests.
+# Initialization of Automake and Libtool, some common tests.
 AC_DEFUN([KPSE_COMMON],
 [dnl Remember PACKAGE-NAME as Kpse_Package (for future messages)
 m4_define([Kpse_Package], [$1])
 dnl
-AM_INIT_AUTOMAKE([foreign dist-bzip2]m4_ifval([$2], [ $2]))
+AM_INIT_AUTOMAKE([foreign]m4_ifval([$2], [ $2]))
 AM_MAINTAINER_MODE
 dnl
 LT_PREREQ([2.2.6])
-LT_INIT
+LT_INIT([win32-dll])
 dnl
 AC_SYS_LARGEFILE
 AC_FUNC_FSEEKO
@@ -227,10 +237,11 @@ dnl Replacement functions that may be required on ancient broken system.
 AC_CHECK_FUNCS([putenv strcasecmp strtol strstr])
 dnl
 dnl More common functions
-AC_CHECK_FUNCS([bcmp bcopy bzero getcwd getwd index memcmp memcpy rindex strchr strrchr])
+AC_CHECK_FUNCS([bcmp bcopy bzero getcwd getwd index memcmp memcpy mkstemp mktemp rindex strchr strrchr])
 dnl
 AC_C_CONST
 AC_C_INLINE
+AC_TYPE_SIZE_T
 dnl
 dnl Check whether struct stat provides high-res time.
 AC_CHECK_MEMBERS([struct stat.st_mtim])
@@ -242,9 +253,8 @@ AC_CACHE_CHECK([whether the compiler accepts prototypes],
                                                 [[extern void foo(int i,...);]])],
                                [kb_cv_c_prototypes=yes],
                                [kb_cv_c_prototypes=no])])
-if test "$kb_cv_c_prototypes" = yes; then
-  AC_DEFINE([HAVE_PROTOTYPES], 1,
-            [Define to 1 if your compiler understands prototypes.])
+if test "x$kb_cv_c_prototypes" = xno; then
+  AC_MSG_ERROR([Sorry, your compiler does not understand prototypes.])
 fi
 dnl
 dnl This is a GNU libc invention.
@@ -255,28 +265,35 @@ AC_CACHE_CHECK([whether program_invocation_name is predefined],
                                                   program_invocation_name = "love";]])],
                                [kb_cv_var_program_inv_name=yes],
                                [kb_cv_var_program_inv_name=no])])
-if test "$kb_cv_var_program_inv_name" = yes; then
+if test "x$kb_cv_var_program_inv_name" = xyes; then
   AC_DEFINE([HAVE_PROGRAM_INVOCATION_NAME], 1,
             [Define to 1 if you are using GNU libc or otherwise have global variables
              `program_invocation_name' and `program_invocation_short_name'.])
 fi
+dnl
+dnl Enable flags for compiler warnings
+KPSE_COMPILER_WARNINGS
 ]) # KPSE_COMMON
 
-# KPSE_MSG_ERROR(PACKAGE, ERROR, [EXIT-STATUS = 1])
-# -------------------------------------------------
-# Same as AC_MSG_ERROR(ERROR, EXIT-STATUS), except when building this
-# package PACKAGE has been disabled.
-#
-# The new (2009) TL build system requires all directories to be configured
-# for the benefit of 'dist*' Make targets.  When building PACKAGE has been
-# disabled, configuring that package must not fail because building required
-# libraries from the TL tree has been disabled as a consequence.
-AC_DEFUN([KPSE_MSG_ERROR],
-[AS_IF([test "x$enable_build" = xno],
-       [AC_MSG_WARN([building $1 has been disabled and would fail because
-$2])],
-       [AC_MSG_ERROR([$2], m4_default([$3], 1))])
-]) # KPSE_MSG_ERROR
+# KPSE_MSG_WARN(PROBLEM)
+# ----------------------
+# Same as AC_MSG_WARN, but terminate if `--disable-missing' was given.
+AC_DEFUN([KPSE_MSG_WARN],
+[AC_REQUIRE([_KPSE_MSG_WARN_PREPARE])[]dnl
+AC_MSG_WARN([$1])
+AS_IF([test "x$enable_missing" = xno],
+      [AC_MSG_ERROR([terminating.])])
+]) # KPSE_MSG_WARN
+
+# _KPSE_MSG_WARN_PREPARE
+# ----------------------
+# Internal subroutine.
+AC_DEFUN([_KPSE_MSG_WARN_PREPARE],
+[AC_ARG_ENABLE([missing],
+               AS_HELP_STRING([--disable-missing],
+                              [terminate if a requested program or feature must
+                               be disabled, e.g., due to missing libraries]))[]dnl
+]) # _KPSE_MSG_WARN_PREPARE
 
 # _KPSE_CHECK_PKG_CONFIG
 # ----------------------
@@ -285,3 +302,14 @@ AC_DEFUN([_KPSE_CHECK_PKG_CONFIG],
 [AC_REQUIRE([AC_CANONICAL_HOST])[]dnl
 AC_CHECK_TOOL([PKG_CONFIG], [pkg-config], [false])[]dnl
 ]) # _KPSE_CHECK_PKG_CONFIG
+
+# KPSE_CANONICAL_HOST
+# -------------------
+# Require both --host and --build for cross compilations; set kpse_build_alias.
+AC_DEFUN([KPSE_CANONICAL_HOST],
+[AC_REQUIRE([AC_CANONICAL_HOST])[]dnl
+AS_IF([test "x$host_alias" != x && test "x$build_alias" = x],
+      [AC_MSG_ERROR([when cross-compiling you must specify both --host and --build.])])
+eval kpse_build_alias=\${build_alias-$build}
+]) # KPSE_CANONICAL_HOST
+

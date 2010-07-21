@@ -1,6 +1,6 @@
 /* tex-make.c: run external programs to make TeX-related files.
 
-   Copyright 1993, 1994, 1995, 1996, 1997, 2008 Karl Berry.
+   Copyright 1993, 1994, 1995, 1996, 1997, 2008, 2009, 2010 Karl Berry.
    Copyright 1997, 1998, 2001-05 Olaf Weber.
 
    This library is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@
 #include <kpathsea/tex-make.h>
 #include <kpathsea/variable.h>
 
-#if !defined (AMIGA) && !(defined (MSDOS) && !defined(DJGPP)) && !defined (WIN32)
+#if !defined (AMIGA) && !(defined (MSDOS) && !defined(__DJGPP__)) && !defined (WIN32)
 #include <sys/wait.h>
 #endif
 
@@ -47,11 +47,11 @@ set_maketex_mag (kpathsea kpse)
 
   /* If the environment variables aren't set, it's a bug.  */
   assert (dpi != 0 && bdpi != 0);
-  
+
   /* Fix up for roundoff error.  Hopefully the driver has already fixed
      up DPI, but may as well be safe, and also get the magstep number.  */
   (void) kpathsea_magstep_fix (kpse, dpi, bdpi, &m);
-  
+
   if (m == 0) {
       if (bdpi <= 4000) {
           sprintf(q, "%u+%u/%u", dpi / bdpi, dpi % bdpi, bdpi);
@@ -93,7 +93,7 @@ static void
 misstex (kpathsea kpse, kpse_file_format_type format,  string *args)
 {
   string *s;
-  
+
   /* If we weren't trying to make a font, do nothing.  Maybe should
      allow people to specify what they want recorded?  */
   if (format != kpse_gf_format
@@ -114,10 +114,11 @@ misstex (kpathsea kpse, kpse_file_format_type format,  string *args)
       missfont_name = NULL; /* user requested no missfont.log */
     } /* else use user's name */
 
-    kpse->missfont = missfont_name ? fopen (missfont_name, FOPEN_A_MODE) : NULL;
+    kpse->missfont
+      = missfont_name ? fopen (missfont_name, FOPEN_A_MODE) : NULL;
     if (!kpse->missfont && kpathsea_var_value (kpse, "TEXMFOUTPUT")) {
-      missfont_name = concat3 (kpathsea_var_value (kpse, "TEXMFOUTPUT"), DIR_SEP_STRING,
-                               missfont_name);
+      missfont_name = concat3 (kpathsea_var_value (kpse, "TEXMFOUTPUT"),
+                               DIR_SEP_STRING, missfont_name);
       kpse->missfont = fopen (missfont_name, FOPEN_A_MODE);
     }
 
@@ -125,7 +126,7 @@ misstex (kpathsea kpse, kpse_file_format_type format,  string *args)
       fprintf (stderr, "kpathsea: Appending font creation commands to %s.\n",
                missfont_name);
   }
-  
+
   /* Write the command if we have a log file.  */
   if (kpse->missfont) {
     fputs (args[0], kpse->missfont);
@@ -135,7 +136,7 @@ misstex (kpathsea kpse, kpse_file_format_type format,  string *args)
     }
     putc ('\n', kpse->missfont);
   }
-}  
+}
 
 
 /* Assume the script outputs the filename it creates (and nothing
@@ -149,9 +150,9 @@ maketex (kpathsea kpse, kpse_file_format_type format, string* args)
    */
   unsigned len;
   string *s;
-  string ret;
+  string ret = NULL;
   string fn;
-  
+
   if (!kpse->make_tex_discard_errors) {
     fprintf (stderr, "\nkpathsea: Running");
     for (s = &args[0]; *s != NULL; s++)
@@ -173,7 +174,7 @@ maketex (kpathsea kpse, kpse_file_format_type format, string* args)
     ret = system(cmd) == 0 ? getenv ("LAST_FONT_CREATED"): NULL;
     free (cmd);
   }
-#elif defined (MSDOS) && !defined(DJGPP)
+#elif defined (MSDOS) && !defined(__DJGPP__)
 #error Implement new MSDOS mktex call interface here
 #elif defined (WIN32)
 
@@ -198,10 +199,8 @@ maketex (kpathsea kpse, kpse_file_format_type format, string* args)
 #else
     int num;
 #endif
-    extern char *quote_args(char **argv);
 
     if (look_for_cmd(args[0], &app_name) == FALSE) {
-      ret = NULL;
       goto error_exit;
     }
 
@@ -271,7 +270,8 @@ maketex (kpathsea kpse, kpse_file_format_type format, string* args)
                       &si,      /* pointer to STARTUPINFO */
                       &pi               /* pointer to PROCESS_INFORMATION */
                       ) == 0) {
-      LIB_FATAL2("kpathsea: CreateProcess() failed for `%s' (Error %x)\n", new_cmd, GetLastError());
+      LIB_FATAL2 ("kpathsea: CreateProcess() failed for `%s' (Error %d)\n",
+                  new_cmd, (int)(GetLastError()));
     }
 
     CloseHandle(child_in);
@@ -287,7 +287,8 @@ maketex (kpathsea kpse, kpse_file_format_type format, string* args)
            && num > 0) {
       if (num <= 0) {
         if (GetLastError() != ERROR_BROKEN_PIPE) {
-          LIB_FATAL2("kpathsea: read() error code for `%s' (Error %d)", new_cmd, GetLastError());
+          LIB_FATAL2 ("kpathsea: read() error code for `%s' (Error %d)",
+                      new_cmd, (int)(GetLastError()));
           break;
         }
       } else {
@@ -302,8 +303,8 @@ maketex (kpathsea kpse, kpse_file_format_type format, string* args)
     CloseHandle(father_in);
 
     if (WaitForSingleObject(pi.hProcess, INFINITE) != WAIT_OBJECT_0) {
-      WARNING2("kpathsea: failed to wait for process termination: %s (Error %d)\n",
-               new_cmd, GetLastError());
+      WARNING2 ("kpathsea: process termination wait failed: %s (Error %d)\n",
+                new_cmd, (int)(GetLastError()));
     }
 
     CloseHandle(pi.hProcess);
@@ -320,7 +321,7 @@ maketex (kpathsea kpse, kpse_file_format_type format, string* args)
         len--;
       }
 
-      ret = len == 0 ? NULL : kpse_readable_file (fn);
+      ret = len == 0 ? NULL : kpathsea_readable_file (kpse, fn);
       if (!ret && len > 1) {
         WARNING2 ("kpathsea: %s output `%s' instead of a filename",
                   new_cmd, fn);
@@ -453,8 +454,6 @@ maketex (kpathsea kpse, kpse_file_format_type format, string* args)
       /* Free the name if we're not returning it.  */
       if (fn != ret)
         free (fn);
-    } else {
-      ret = NULL;
     }
   }
 #endif
@@ -463,7 +462,7 @@ maketex (kpathsea kpse, kpse_file_format_type format, string* args)
       misstex (kpse, format, args);
   else
       kpathsea_db_insert (kpse, ret);
-  
+
   return ret;
 }
 
@@ -472,11 +471,12 @@ maketex (kpathsea kpse, kpse_file_format_type format, string* args)
    return NULL.  */
 
 string
-kpathsea_make_tex (kpathsea kpse, kpse_file_format_type format,  const_string base)
+kpathsea_make_tex (kpathsea kpse, kpse_file_format_type format,
+                   const_string base)
 {
   kpse_format_info_type spec; /* some compilers lack struct initialization */
   string ret = NULL;
-  
+
   spec = kpse->format_info[format];
   if (!spec.type) { /* Not initialized yet? */
     kpathsea_init_format (kpse, format);
@@ -490,7 +490,7 @@ kpathsea_make_tex (kpathsea kpse, kpse_file_format_type format,  const_string ba
     /* Helpers */
     int argnum;
     int i;
-    
+
     /* FIXME
      * Check whether the name we were given is likely to be a problem.
      * Right now we err on the side of strictness:
@@ -566,7 +566,7 @@ void
 test_make_tex (kpathsea kpse, kpse_file_format_type fmt, const_string base)
 {
   string answer;
-  
+
   printf ("\nAttempting %s in format %d:\n", base, fmt);
 
   answer = kpathsea_make_tex (kpse, fmt, base);
@@ -587,10 +587,10 @@ main (int argc, char **argv)
   /* Fail with mktextfm.  */
   kpathsea_set_program_enabled(kpse, kpse_tfm_format, 1, kpse_src_env);
   test_make_tex (kpse, kpse_tfm_format, "foozler99");
-  
+
   /* Call something disabled.  */
   test_make_tex (kpse, kpse_bst_format, "no-way");
-  
+
   return 0;
 }
 

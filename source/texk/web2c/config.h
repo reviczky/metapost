@@ -1,6 +1,6 @@
 /* config.h: All .c files include this first.
 
-Copyright (C) 1995, 1996, 2006, 2007 Karl Berry.
+Copyright 1995, 1996, 2006, 2007, 2009 Karl Berry.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,20 +18,10 @@ along with this program; if not, see <http://www.gnu.org/licenses/.  */
 #ifndef WEB2C_CONFIG_H
 #define WEB2C_CONFIG_H
 
-#if defined (TEX_DLL) && (defined (WIN32) || defined (__CYGWIN__))
-#ifdef MAKE_TEX_DLL
-#define TEXDLL __declspec (dllexport)
-#else /* ! MAKE_TEX_DLL */
-#define TEXDLL __declspec (dllimport)
-#endif
-#else /* ! (TEX_DLL && (WIN32 || __CYGWIN__)) */
-#define TEXDLL
-#endif
-
 /* The stuff from the path searching library.  */
 #include <kpathsea/config.h>
-#include <web2c/c-auto.h>
-#include <kpathsea/c-vararg.h>
+#include <c-auto.h>
+#include <stdarg.h>
 
 /* How to open a binary file.  */
 #include <kpathsea/c-fopen.h>
@@ -105,15 +95,22 @@ typedef off_t longinteger;
 
 /* strtol.c */
 #ifndef HAVE_STRTOL
-extern long strtol P3H(const char *, char **, int);
+extern long strtol (const char *, char **, int);
+#endif
+
+#if defined __GNUC__ && __GNUC__ >=3
+#define WEB2C_NORETURN __attribute__((__noreturn__))
+#else
+#define WEB2C_NORETURN
 #endif
 
 /* From uexit.c.  This is here because the lib/ and web2c/ routines
    themselves can use it, but they don't need cpascal.h.  */
-extern void uexit P1H(int status);
+WEB2C_NORETURN
+extern void uexit (int status);
 
 /* usage.c */
-extern void usage P1H(const_string progname);
-extern void usagehelp P2H(const_string *message, const_string bug_email);
+extern void usage (const_string progname);
+extern void usagehelp (const_string *message, const_string bug_email);
 
 #endif /* not WEB2C_CONFIG_H */

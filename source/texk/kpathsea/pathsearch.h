@@ -1,6 +1,6 @@
 /* pathsearch.h: mostly-generic path searching.
 
-   Copyright 1993, 1994, 1996, 1997, 2007, 2008 Karl Berry.
+   Copyright 1993, 1994, 1996, 1997, 2007, 2008, 2009 Karl Berry.
    Copyright 1999-2005 Olaf Weber.
 
    This library is free software; you can redistribute it and/or
@@ -45,29 +45,30 @@ extern unsigned kpathsea_normalize_path (kpathsea kpse, string elt);
    of the corresponding (existing) directory or directories, with
    trailing slashes, or NULL.  If ELT is the empty string, check the
    current working directory.
-   
+
    It's up to the caller to expand ELT.  This is because this routine is
    most likely only useful to be called from `kpathsea_path_search', which
    has already assumed expansion has been done.  */
-extern KPSEDLL str_llist_type *kpathsea_element_dirs (kpathsea kpse, string elt);
+extern KPSEDLL str_llist_type *kpathsea_element_dirs (kpathsea kpse,
+                                                      string elt);
 
 
 /* Call `kpathsea_expand' on NAME.  If the result is an absolute or
    explicitly relative filename, check whether it is a readable
    (regular) file.
-   
+
    Otherwise, look in each of the directories specified in PATH (also do
    tilde and variable expansion on elements in PATH), using a prebuilt
    db (see db.h) if it's relevant for a given path element.
-   
+
    If the prebuilt db doesn't exist, or if MUST_EXIST is true and NAME
    isn't found in the prebuilt db, look on the filesystem.  (I.e., if
    MUST_EXIST is false, and NAME isn't found in the db, do *not* look on
    the filesystem.)
-   
+
    The caller must expand PATH. This is because it makes more sense to
    do this once, in advance, instead of for every search.
-   
+
    In any case, return a matching filename if found, otherwise NULL.
    If more than one file matches, which one gets returned is
    unspecified.  */
@@ -85,8 +86,8 @@ extern KPSEDLL string *kpathsea_all_path_search
 
 /* Search for any of the NAMES in PATH, and allow specifying both
    MUST_EXIST and ALL.  */
-extern KPSEDLL string *kpathsea_path_search_list_generic
-  (kpathsea kpse, const_string path, const_string* names, boolean must_exist, boolean all);
+extern KPSEDLL string *kpathsea_path_search_list_generic (kpathsea kpse,
+      const_string path, const_string* names, boolean must_exist, boolean all);
 
 /* Search for any of NAMES, with MUST_EXIST and ALL true.  */
 extern KPSEDLL string *kpathsea_all_path_search_list

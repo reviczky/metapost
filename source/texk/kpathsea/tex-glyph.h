@@ -1,6 +1,6 @@
 /* tex-glyph.h: look for a TeX glyph font (GF or PK).
 
-   Copyright 1993, 2008 Karl Berry.
+   Copyright 1993, 2008, 2009 Karl Berry.
    Copyright 1999, 2005 Olaf Weber.
 
    This library is free software; you can redistribute it and/or
@@ -35,11 +35,11 @@ typedef enum
 
 typedef struct
 {
-  string name;			/* font name found */
-  unsigned dpi;			/* size found, for glyphs */
-  kpse_file_format_type format;	/* glyph format found */
-  kpse_glyph_source_type source;	/* where we found it */
-} kpse_glyph_file_type;		
+  string name;                  /* font name found */
+  unsigned dpi;                 /* size found, for glyphs */
+  kpse_file_format_type format; /* glyph format found */
+  kpse_glyph_source_type source;        /* where we found it */
+} kpse_glyph_file_type;         
 
 #define KPSE_GLYPH_FILE_NAME(f) ((f).name)
 #define KPSE_GLYPH_FILE_DPI(f) ((f).dpi)
@@ -49,15 +49,16 @@ typedef struct
 
 /* Search first for the font named FONT_NAME at resolution DPI in the
    glyph format FORMAT (see `try_size' for details of format searching).
-   Then try resolutions within KPSE_BITMAP_TOLERANCE of DPI.  Then try
-   the resolutions in `kpse_fallback_sizes', then within the tolerance
-   of each of those.  Then if FONT_NAME is an alias defined in a
-   texfonts.map do all the above for its real name.  Then try the above
-   for kpse_fallback_name.  Then fail.  Return either the filename
-   found, or NULL.  Also return information about the file found in
+   Then try resolutions within KPSE_BITMAP_TOLERANCE of DPI.  Then if
+   FONT_NAME is an alias defined in a texfonts.map do all the above for
+   its real name.  If not an alias, try creating it on the fly with
+   mktexpk.  Then try the resolutions in `kpse_fallback_sizes', then
+   within the tolerance of each of those.  Then try the above for
+   kpse_fallback_name.  Then fail.  Return either the filename found, or
+   NULL.  Also return information about the file found in
    *GLYPH_FILE.  */
 extern KPSEDLL string kpathsea_find_glyph (kpathsea kpse,
-                                  const_string font_name, unsigned dpi, 
+                                  const_string font_name, unsigned dpi,
                                   kpse_file_format_type format,
                                   kpse_glyph_file_type *glyph_file);
 
@@ -68,12 +69,12 @@ extern KPSEDLL string kpathsea_find_glyph (kpathsea kpse,
 #define KPSE_BITMAP_TOLERANCE(r) ((r) / 500.0 + 1)
 
 /* Check whether DPI1 is within KPSE_BITMAP_TOLERANCE of DPI2. */
-extern KPSEDLL boolean kpathsea_bitmap_tolerance (kpathsea kpse, 
+extern KPSEDLL boolean kpathsea_bitmap_tolerance (kpathsea kpse,
                                   double dpi1, double dpi2);
 
 
 #if defined (KPSE_COMPAT_API)
-extern KPSEDLL string kpse_find_glyph (const_string font_name, unsigned dpi, 
+extern KPSEDLL string kpse_find_glyph (const_string font_name, unsigned dpi,
                                   kpse_file_format_type format,
                                   kpse_glyph_file_type *glyph_file);
 
