@@ -2459,94 +2459,18 @@ static void mp_clear_arith (MP mp) {
 }
 
 
-@ Addition is not always checked to make sure that it doesn't overflow,
-but in places where overflow isn't too unlikely the |slow_add| routine
-is used.
-
-@c
-static integer mp_slow_add (MP mp, integer x, integer y) {
-  if (x >= 0) {
-    if (y <= EL_GORDO - x) {
-      return x + y;
-    } else {
-      mp->arith_error = true;
-      return EL_GORDO;
-    }
-  } else if (-y <= EL_GORDO + x) {
-    return x + y;
-  } else {
-    mp->arith_error = true;
-    return -EL_GORDO;
-  }
-}
-
-
 @ Fixed-point arithmetic is done on {\sl scaled integers\/} that are multiples
 of $2^{-16}$. In other words, a binary point is assumed to be sixteen bit
 positions from the right end of a binary computer word.
 
-@d quarter_unit   040000 /* $2^{14}$, represents 0.250000 */
-@d half_unit   0100000 /* $2^{15}$, represents 0.50000 */
-@d three_quarter_unit   0140000 /* $3\cdot2^{14}$, represents 0.75000 */
 @d unity   0200000 /* $2^{16}$, represents 1.00000 */
-@d two   0400000 /* $2^{17}$, represents 2.00000 */
-@d three   0600000 /* $2^{17}+2^{16}$, represents 3.00000 */
+@d two (2*unity) /* $2^{17}$, represents 2.00000 */
+@d three (3*unity) /* $2^{17}+2^{16}$, represents 3.00000 */
+@d half_unit   (unity/2) /* $2^{15}$, represents 0.50000 */
+@d three_quarter_unit (3*(unity/4)) /* $3\cdot2^{14}$, represents 0.75000 */
 
 @<Exported types...@>=
 typedef integer scaled; /* this type is used for scaled integers */
-
-@ The following function is used to create a scaled integer from a given decimal
-fraction $(.d_0d_1\ldots d_{k-1})$, where |0<=k<=17|.
-
-@c
-static scaled mp_round_decimals (MP mp, unsigned char *b, quarterword k) {
-  /* converts a decimal fraction */
-  unsigned a = 0;       /* the accumulator */
-  int l = 0;
-  for ( l = k-1; l >= 0; l-- ) {
-    if (l<16)    /* digits for |k>=17| cannot affect the result */
-      a = (a + (unsigned) (*(b+l) - '0') * two) / 10;
-  }
-  return (scaled) halfp (a + 1);
-}
-
-
-@ Conversely, here is a procedure analogous to |print_int|. If the output
-of this procedure is subsequently read by \MP\ and converted by the
-|round_decimals| routine above, it turns out that the original value will
-be reproduced exactly. A decimal point is printed only if the value is
-not an integer. If there is more than one way to print the result with
-the optimum number of digits following the decimal point, the closest
-possible value is given.
-
-The invariant relation in the \&{repeat} loop is that a sequence of
-decimal digits yet to be printed will yield the original number if and only if
-they form a fraction~$f$ in the range $s-\delta\L10\cdot2^{16}f<s$.
-We can stop if and only if $f=0$ satisfies this condition; the loop will
-terminate before $s$ can possibly become zero.
-
-@<Basic printing...@>=
-void mp_print_scaled (MP mp, scaled s) {                               /* prints scaled real, rounded to five  digits */
-  scaled delta; /* amount of allowable inaccuracy */
-  if (s < 0) {
-    mp_print_char (mp, xord ('-'));
-    negate (s);                 /* print the sign, if negative */
-  }
-  mp_print_int (mp, s / unity); /* print the integer part */
-  s = 10 * (s % unity) + 5;
-  if (s != 5) {
-    delta = 10;
-    mp_print_char (mp, xord ('.'));
-    do {
-      if (delta > unity)
-        s = s + 0100000 - (delta / 2);  /* round the final digit */
-      mp_print_char (mp, xord ('0' + (s / unity)));
-      s = 10 * (s % unity);
-      delta = delta * 10;
-    } while (s > delta);
-  }
-}
-
 
 @ We often want to print two scaled quantities in parentheses,
 separated by a comma.
@@ -2580,720 +2504,14 @@ typedef integer fraction;       /* this type is used for scaled fractions */
 sufficient; \MP\ has yet another, used internally to keep track of angles
 in units of $2^{-20}$ degrees.
 
-@d forty_five_deg 0264000000 /* $45\cdot2^{20}$, represents $45^\circ$ */
-@d ninety_deg 0550000000 /* $90\cdot2^{20}$, represents $90^\circ$ */
 @d one_eighty_deg 01320000000 /* $180\cdot2^{20}$, represents $180^\circ$ */
 @d three_sixty_deg 02640000000 /* $360\cdot2^{20}$, represents $360^\circ$ */
 
 @<Types...@>=
 typedef integer angle;  /* this type is used for scaled angles */
 
-@ Here is a typical example of how the routines above can be used.
-It computes the function
-$${1\over3\tau}f(\theta,\phi)=
-{\tau^{-1}\bigl(2+\sqrt2\,(\sin\theta-{1\over16}\sin\phi)
- (\sin\phi-{1\over16}\sin\theta)(\cos\theta-\cos\phi)\bigr)\over
-3\,\bigl(1+{1\over2}(\sqrt5-1)\cos\theta+{1\over2}(3-\sqrt5\,)\cos\phi\bigr)},$$
-where $\tau$ is a |scaled| ``tension'' parameter. This is \MP's magic
-fudge factor for placing the first control point of a curve that starts
-at an angle $\theta$ and ends at an angle $\phi$ from the straight path.
-(Actually, if the stated quantity exceeds 4, \MP\ reduces it to~4.)
-
-The trigonometric quantity to be multiplied by $\sqrt2$ is less than $\sqrt2$.
-(It's a sum of eight terms whose absolute values can be bounded using
-relations such as $\sin\theta\cos\theta\L{1\over2}$.) Thus the numerator
-is positive; and since the tension $\tau$ is constrained to be at least
-$3\over4$, the numerator is less than $16\over3$. The denominator is
-nonnegative and at most~6.  Hence the fixed-point calculations below
-are guaranteed to stay within the bounds of a 32-bit computer word.
-
-The angles $\theta$ and $\phi$ are given implicitly in terms of |fraction|
-arguments |st|, |ct|, |sf|, and |cf|, representing $\sin\theta$, $\cos\theta$,
-$\sin\phi$, and $\cos\phi$, respectively.
-
-@c
-static fraction mp_velocity (MP mp, fraction st, fraction ct, fraction sf,
-                             fraction cf, scaled t) {
-  integer acc, num, denom;      /* registers for intermediate calculations */
-  acc = mp_take_fraction (mp, st - (sf / 16), sf - (st / 16));
-  acc = mp_take_fraction (mp, acc, ct - cf);
-  num = fraction_two + mp_take_fraction (mp, acc, 379625062);
-  /* $2^{28}\sqrt2\approx379625062.497$ */
-  denom =
-    fraction_three + mp_take_fraction (mp, ct,
-                                       497706707) + mp_take_fraction (mp, cf,
-                                                                      307599661);
-  /* $3\cdot2^{27}\cdot(\sqrt5-1)\approx497706706.78$ and
-     $3\cdot2^{27}\cdot(3-\sqrt5\,)\approx307599661.22$ */
-  if (t != unity)
-    num = mp_make_scaled (mp, num, t);
-  /* |make_scaled(fraction,scaled)=fraction| */
-  if (num / 4 >= denom)
-    return fraction_four;
-  else
-    return mp_make_fraction (mp, num, denom);
-}
-
-
-@ The following somewhat different subroutine tests rigorously if $ab$ is
-greater than, equal to, or less than~$cd$,
-given integers $(a,b,c,d)$. In most cases a quick decision is reached.
-The result is $+1$, 0, or~$-1$ in the three respective cases.
-
-@d mp_ab_vs_cd(M,A,B,C,D) mp_do_ab_vs_cd(A,B,C,D)
-
-@c
-static integer mp_do_ab_vs_cd (integer a, integer b, integer c, integer d) {
-  integer q, r; /* temporary registers */
-  @<Reduce to the case that |a,c>=0|, |b,d>0|@>;
-  while (1) {
-    q = a / d;
-    r = c / b;
-    if (q != r)
-      return (q > r ? 1 : -1);
-    q = a % d;
-    r = c % b;
-    if (r == 0)
-      return (q ? 1 : 0);
-    if (q == 0)
-      return -1;
-    a = b;
-    b = q;
-    c = d;
-    d = r;
-  }                             /* now |a>d>0| and |c>b>0| */
-}
-
-
-@ @<Reduce to the case that |a...@>=
-if (a < 0) {
-  negate (a);
-  negate (b);
-};
-if (c < 0) {
-  negate (c);
-  negate (d);
-};
-if (d <= 0) {
-  if (b >= 0) {
-    if ((a == 0 || b == 0) && (c == 0 || d == 0))
-      return 0;
-    else
-      return 1;
-  }
-  if (d == 0)
-    return (a == 0 ? 0 : -1);
-  q = a;
-  a = c;
-  c = q;
-  q = -b;
-  b = -d;
-  d = q;
-} else if (b <= 0) {
-  if (b < 0)
-    if (a > 0)
-      return -1;
-  return (c == 0 ? 0 : -1);
-}
-
-@ We conclude this set of elementary routines with some simple rounding
-and truncation operations.
-
-@<Internal library declarations@>=
-#define mp_floor_scaled(M,i) ((i)&(-65536))
-#define mp_round_unscaled(M,x) (x>=0100000 ? 1+((x-0100000) / 0200000) \
-  : ( x>=-0100000 ? 0 : -(1+((-(x+1)-0100000) / 0200000))))
-#define mp_round_fraction(M,x) (x>=2048 ? 1+((x-2048) / 4096) \
-  : ( x>=-2048 ? 0 : -(1+((-(x+1)-2048) / 4096))))
-
-
-@* Algebraic and transcendental functions.
-\MP\ computes all of the necessary special functions from scratch, without
-relying on |real| arithmetic or system subroutines for sines, cosines, etc.
-
-@ To get the square root of a |scaled| number |x|, we want to calculate
-$s=\lfloor 2^8\!\sqrt x +{1\over2}\rfloor$. If $x>0$, this is the unique
-integer such that $2^{16}x-s\L s^2<2^{16}x+s$. The following subroutine
-determines $s$ by an iterative method that maintains the invariant
-relations $x=2^{46-2k}x_0\bmod 2^{30}$, $0<y=\lfloor 2^{16-2k}x_0\rfloor
--s^2+s\L q=2s$, where $x_0$ is the initial value of $x$. The value of~$y$
-might, however, be zero at the start of the first iteration.
-
-@<Declarations@>=
-static scaled mp_square_rt (MP mp, scaled x);
-
-@ @c
-scaled mp_square_rt (MP mp, scaled x) {
-  quarterword k;        /* iteration control counter */
-  integer y;    /* register for intermediate calculations */
-  integer q;    /* register for intermediate calculations */
-  if (x <= 0) {
-    @<Handle square root of zero or negative argument@>;
-  } else {
-    k = 23;
-    q = 2;
-    while (x < fraction_two) {  /* i.e., |while x<@t$2^{29}$@>|\unskip */
-      k--;
-      x = x + x + x + x;
-    }
-    if (x < fraction_four)
-      y = 0;
-    else {
-      x = x - fraction_four;
-      y = 1;
-    };
-    do {
-      @<Decrease |k| by 1, maintaining the invariant
-      relations between |x|, |y|, and~|q|@>;
-    } while (k != 0);
-    return (scaled) (halfp (q));
-  }
-}
-
-
-@ @<Handle square root of zero...@>=
-{
-  if (x < 0) {
-    print_err ("Square root of ");
-@.Square root...replaced by 0@>;
-    mp_print_scaled (mp, x);
-    mp_print (mp, " has been replaced by 0");
-    help2 ("Since I don't take square roots of negative numbers,",
-           "I'm zeroing this one. Proceed, with fingers crossed.");
-    mp_error (mp);
-  };
-  return 0;
-}
-
-
-@ @<Decrease |k| by 1, maintaining...@>=
-x += x;
-y += y;
-if (x >= fraction_four) {       /* note that |fraction_four=@t$2^{30}$@>| */
-  x = x - fraction_four;
-  y++;
-};
-x += x;
-y = y + y - q;
-q += q;
-if (x >= fraction_four) {
-  x = x - fraction_four;
-  y++;
-};
-if (y > (int) q) {
-  y -= q;
-  q += 2;
-} else if (y <= 0) {
-  q -= 2;
-  y += q;
-};
-k--
-
-@ Pythagorean addition $\psqrt{a^2+b^2}$ is implemented by an elegant
-iterative scheme due to Cleve Moler and Donald Morrison [{\sl IBM Journal
-@^Moler, Cleve Barry@>
-@^Morrison, Donald Ross@>
-of Research and Development\/ \bf27} (1983), 577--581]. It modifies |a| and~|b|
-in such a way that their Pythagorean sum remains invariant, while the
-smaller argument decreases.
-
-@<Internal library ...@>=
-integer mp_pyth_add (MP mp, integer a, integer b);
-
-
-@ @c
-integer mp_pyth_add (MP mp, integer a, integer b) {
-  fraction r;   /* register used to transform |a| and |b| */
-  boolean big;  /* is the result dangerously near $2^{31}$? */
-  a = abs (a);
-  b = abs (b);
-  if (a < b) {
-    r = b;
-    b = a;
-    a = r;
-  };                            /* now |0<=b<=a| */
-  if (b > 0) {
-    if (a < fraction_two) {
-      big = false;
-    } else {
-      a = a / 4;
-      b = b / 4;
-      big = true;
-    };                          /* we reduced the precision to avoid arithmetic overflow */
-    @<Replace |a| by an approximation to $\psqrt{a^2+b^2}$@>;
-    if (big) {
-      if (a < fraction_two) {
-        a = a + a + a + a;
-      } else {
-        mp->arith_error = true;
-        a = EL_GORDO;
-      };
-    }
-  }
-  return a;
-}
-
-
-@ The key idea here is to reflect the vector $(a,b)$ about the
-line through $(a,b/2)$.
-
-@<Replace |a| by an approximation to $\psqrt{a^2+b^2}$@>=
-while (1) {
-  r = mp_make_fraction (mp, b, a);
-  r = mp_take_fraction (mp, r, r);      /* now $r\approx b^2/a^2$ */
-  if (r == 0)
-    break;
-  r = mp_make_fraction (mp, r, fraction_four + r);
-  a = a + mp_take_fraction (mp, a + a, r);
-  b = mp_take_fraction (mp, b, r);
-}
-
-
-@ Here is a similar algorithm for $\psqrt{a^2-b^2}$.
-It converges slowly when $b$ is near $a$, but otherwise it works fine.
-
-@c
-static integer mp_pyth_sub (MP mp, integer a, integer b) {
-  fraction r;   /* register used to transform |a| and |b| */
-  boolean big;  /* is the input dangerously near $2^{31}$? */
-  a = abs (a);
-  b = abs (b);
-  if (a <= b) {
-    @<Handle erroneous |pyth_sub| and set |a:=0|@>;
-  } else {
-    if (a < fraction_four) {
-      big = false;
-    } else {
-      a = (integer) halfp (a);
-      b = (integer) halfp (b);
-      big = true;
-    }
-    @<Replace |a| by an approximation to $\psqrt{a^2-b^2}$@>;
-    if (big)
-      double (a);
-  }
-  return a;
-}
-
-
-@ @<Replace |a| by an approximation to $\psqrt{a^2-b^2}$@>=
-while (1) {
-  r = mp_make_fraction (mp, b, a);
-  r = mp_take_fraction (mp, r, r);      /* now $r\approx b^2/a^2$ */
-  if (r == 0)
-    break;
-  r = mp_make_fraction (mp, r, fraction_four - r);
-  a = a - mp_take_fraction (mp, a + a, r);
-  b = mp_take_fraction (mp, b, r);
-}
-
-
-@ @<Handle erroneous |pyth_sub| and set |a:=0|@>=
-{
-  if (a < b) {
-    print_err ("Pythagorean subtraction ");
-    mp_print_scaled (mp, a);
-    mp_print (mp, "+-+");
-    mp_print_scaled (mp, b);
-    mp_print (mp, " has been replaced by 0");
-@.Pythagorean...@>;
-    help2 ("Since I don't take square roots of negative numbers,",
-           "I'm zeroing this one. Proceed, with fingers crossed.");
-    mp_error (mp);
-  }
-  a = 0;
-}
-
-
-@ The subroutines for logarithm and exponential involve two tables.
-The first is simple: |two_to_the[k]| equals $2^k$. The second involves
-a bit more calculation, which the author claims to have done correctly:
-|spec_log[k]| is $2^{27}$ times $\ln\bigl(1/(1-2^{-k})\bigr)=
-2^{-k}+{1\over2}2^{-2k}+{1\over3}2^{-3k}+\cdots\,$, rounded to the
-nearest integer.
-
-@d two_to_the(A) (1<<(unsigned)(A))
-
-@<Declarations@>=
-static const integer spec_log[29] = { 0,        /* special logarithms */
-  93032640, 38612034, 17922280, 8662214, 4261238, 2113709,
-  1052693, 525315, 262400, 131136, 65552, 32772, 16385,
-  8192, 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1, 1
-};
-
-
 @ @<Local variables for initialization@>=
 integer k;      /* all-purpose loop index */
-
-
-@ Here is the routine that calculates $2^8$ times the natural logarithm
-of a |scaled| quantity; it is an integer approximation to $2^{24}\ln(x/2^{16})$,
-when |x| is a given positive integer.
-
-The method is based on exercise 1.2.2--25 in {\sl The Art of Computer
-Programming\/}: During the main iteration we have $1\L 2^{-30}x<1/(1-2^{1-k})$,
-and the logarithm of $2^{30}x$ remains to be added to an accumulator
-register called~$y$. Three auxiliary bits of accuracy are retained in~$y$
-during the calculation, and sixteen auxiliary bits to extend |y| are
-kept in~|z| during the initial argument reduction. (We add
-$100\cdot2^{16}=6553600$ to~|z| and subtract 100 from~|y| so that |z| will
-not become negative; also, the actual amount subtracted from~|y| is~96,
-not~100, because we want to add~4 for rounding before the final division by~8.)
-
-@c
-static scaled mp_m_log (MP mp, scaled x) {
-  integer y, z; /* auxiliary registers */
-  integer k;    /* iteration counter */
-  if (x <= 0) {
-    @<Handle non-positive logarithm@>;
-  } else {
-    y = 1302456956 + 4 - 100;   /* $14\times2^{27}\ln2\approx1302456956.421063$ */
-    z = 27595 + 6553600;        /* and $2^{16}\times .421063\approx 27595$ */
-    while (x < fraction_four) {
-      double (x);
-      y -= 93032639;
-      z -= 48782;
-    }                           /* $2^{27}\ln2\approx 93032639.74436163$ and $2^{16}\times.74436163\approx 48782$ */
-    y = y + (z / unity);
-    k = 2;
-    while (x > fraction_four + 4) {
-      @<Increase |k| until |x| can be multiplied by a
-        factor of $2^{-k}$, and adjust $y$ accordingly@>;
-    }
-    return (y / 8);
-  }
-}
-
-
-@ @<Increase |k| until |x| can...@>=
-{
-  z = ((x - 1) / two_to_the (k)) + 1;   /* $z=\lceil x/2^k\rceil$ */
-  while (x < fraction_four + z) {
-    z = halfp (z + 1);
-    k++;
-  };
-  y += spec_log[k];
-  x -= z;
-}
-
-
-@ @<Handle non-positive logarithm@>=
-{
-  print_err ("Logarithm of ");
-@.Logarithm...replaced by 0@>;
-  mp_print_scaled (mp, x);
-  mp_print (mp, " has been replaced by 0");
-  help2 ("Since I don't take logs of non-positive numbers,",
-         "I'm zeroing this one. Proceed, with fingers crossed.");
-  mp_error (mp);
-  return 0;
-}
-
-
-@ Conversely, the exponential routine calculates $\exp(x/2^8)$,
-when |x| is |scaled|. The result is an integer approximation to
-$2^{16}\exp(x/2^{24})$, when |x| is regarded as an integer.
-
-@c
-static scaled mp_m_exp (MP mp, scaled x) {
-  quarterword k;        /* loop control index */
-  integer y, z; /* auxiliary registers */
-  if (x > 174436200) {
-    /* $2^{24}\ln((2^{31}-1)/2^{16})\approx 174436199.51$ */
-    mp->arith_error = true;
-    return EL_GORDO;
-  } else if (x < -197694359) {
-    /* $2^{24}\ln(2^{-1}/2^{16})\approx-197694359.45$ */
-    return 0;
-  } else {
-    if (x <= 0) {
-      z = -8 * x;
-      y = 04000000;             /* $y=2^{20}$ */
-    } else {
-      if (x <= 127919879) {
-        z = 1023359037 - 8 * x;
-        /* $2^{27}\ln((2^{31}-1)/2^{20})\approx 1023359037.125$ */
-      } else {
-        z = 8 * (174436200 - x);        /* |z| is always nonnegative */
-      }
-      y = EL_GORDO;
-    };
-    @<Multiply |y| by $\exp(-z/2^{27})$@>;
-    if (x <= 127919879)
-      return ((y + 8) / 16);
-    else
-      return y;
-  }
-}
-
-
-@ The idea here is that subtracting |spec_log[k]| from |z| corresponds
-to multiplying |y| by $1-2^{-k}$.
-
-A subtle point (which had to be checked) was that if $x=127919879$, the
-value of~|y| will decrease so that |y+8| doesn't overflow. In fact,
-$z$ will be 5 in this case, and |y| will decrease by~64 when |k=25|
-and by~16 when |k=27|.
-
-@<Multiply |y| by...@>=
-k = 1;
-while (z > 0) {
-  while (z >= spec_log[k]) {
-    z -= spec_log[k];
-    y = y - 1 - ((y - two_to_the (k - 1)) / two_to_the (k));
-  }
-  k++;
-}
-
-
-@ The trigonometric subroutines use an auxiliary table such that
-|spec_atan[k]| contains an approximation to the |angle| whose tangent
-is~$1/2^k$. $\arctan2^{-k}$ times $2^{20}\cdot180/\pi$ 
-
-@<Declarations@>=
-static const angle spec_atan[27] = { 0, 27855475, 14718068, 7471121, 3750058,
-  1876857, 938658, 469357, 234682, 117342, 58671, 29335, 14668, 7334, 3667,
-  1833, 917, 458, 229, 115, 57, 29, 14, 7, 4, 2, 1
-};
-
-
-@ Given integers |x| and |y|, not both zero, the |n_arg| function
-returns the |angle| whose tangent points in the direction $(x,y)$.
-This subroutine first determines the correct octant, then solves the
-problem for |0<=y<=x|, then converts the result appropriately to
-return an answer in the range |-one_eighty_deg<=@t$\theta$@><=one_eighty_deg|.
-(The answer is |+one_eighty_deg| if |y=0| and |x<0|, but an answer of
-|-one_eighty_deg| is possible if, for example, |y=-1| and $x=-2^{30}$.)
-
-The octants are represented in a ``Gray code,'' since that turns out
-to be computationally simplest.
-
-@d negate_x 1
-@d negate_y 2
-@d switch_x_and_y 4
-@d first_octant 1
-@d second_octant (first_octant+switch_x_and_y)
-@d third_octant (first_octant+switch_x_and_y+negate_x)
-@d fourth_octant (first_octant+negate_x)
-@d fifth_octant (first_octant+negate_x+negate_y)
-@d sixth_octant (first_octant+switch_x_and_y+negate_x+negate_y)
-@d seventh_octant (first_octant+switch_x_and_y+negate_y)
-@d eighth_octant (first_octant+negate_y)
-
-@c
-static angle mp_n_arg (MP mp, integer x, integer y) {
-  angle z;      /* auxiliary register */
-  integer t;    /* temporary storage */
-  quarterword k;        /* loop counter */
-  int octant;   /* octant code */
-  if (x >= 0) {
-    octant = first_octant;
-  } else {
-    negate (x);
-    octant = first_octant + negate_x;
-  }
-  if (y < 0) {
-    negate (y);
-    octant = octant + negate_y;
-  }
-  if (x < y) {
-    t = y;
-    y = x;
-    x = t;
-    octant = octant + switch_x_and_y;
-  }
-  if (x == 0) {
-    @<Handle undefined arg@>;
-  } else {
-    @<Set variable |z| to the arg of $(x,y)$@>;
-    @<Return an appropriate answer based on |z| and |octant|@>;
-  }
-}
-
-
-@ @<Handle undefined arg@>=
-{
-  print_err ("angle(0,0) is taken as zero");
-@.angle(0,0)...zero@>;
-  help2 ("The `angle' between two identical points is undefined.",
-         "I'm zeroing this one. Proceed, with fingers crossed.");
-  mp_error (mp);
-  return 0;
-}
-
-
-@ @<Return an appropriate answer...@>=
-switch (octant) {
-case first_octant:
-  return z;
-case second_octant:
-  return (ninety_deg - z);
-case third_octant:
-  return (ninety_deg + z);
-case fourth_octant:
-  return (one_eighty_deg - z);
-case fifth_octant:
-  return (z - one_eighty_deg);
-case sixth_octant:
-  return (-z - ninety_deg);
-case seventh_octant:
-  return (z - ninety_deg);
-case eighth_octant:
-  return (-z);
-};                              /* there are no other cases */
-return 0
-
-@ At this point we have |x>=y>=0|, and |x>0|. The numbers are scaled up
-or down until $2^{28}\L x<2^{29}$, so that accurate fixed-point calculations
-will be made.
-
-@<Set variable |z| to the arg...@>=
-while (x >= fraction_two) {
-  x = halfp (x);
-  y = halfp (y);
-}
-z = 0;
-if (y > 0) {
-  while (x < fraction_one) {
-    x += x;
-    y += y;
-  };
-  @<Increase |z| to the arg of $(x,y)$@>;
-}
-
-@ During the calculations of this section, variables |x| and~|y|
-represent actual coordinates $(x,2^{-k}y)$. We will maintain the
-condition |x>=y|, so that the tangent will be at most $2^{-k}$.
-If $x<2y$, the tangent is greater than $2^{-k-1}$. The transformation
-$(a,b)\mapsto(a+b\tan\phi,b-a\tan\phi)$ replaces $(a,b)$ by
-coordinates whose angle has decreased by~$\phi$; in the special case
-$a=x$, $b=2^{-k}y$, and $\tan\phi=2^{-k-1}$, this operation reduces
-to the particularly simple iteration shown here. [Cf.~John E. Meggitt,
-@^Meggitt, John E.@>
-{\sl IBM Journal of Research and Development\/ \bf6} (1962), 210--226.]
-
-The initial value of |x| will be multiplied by at most
-$(1+{1\over2})(1+{1\over8})(1+{1\over32})\cdots\approx 1.7584$; hence
-there is no chance of integer overflow.
-
-@<Increase |z|...@>=
-k = 0;
-do {
-  y += y;
-  k++;
-  if (y > x) {
-    z = z + spec_atan[k];
-    t = x;
-    x = x + (y / two_to_the (k + k));
-    y = y - t;
-  };
-} while (k != 15);
-do {
-  y += y;
-  k++;
-  if (y > x) {
-    z = z + spec_atan[k];
-    y = y - x;
-  };
-} while (k != 26)
-
-@ Conversely, the |n_sin_cos| routine takes an |angle| and produces the sine
-and cosine of that angle. The results of this routine are
-stored in global integer variables |n_sin| and |n_cos|.
-
-@<Glob...@>=
-fraction n_sin;
-fraction n_cos; /* results computed by |n_sin_cos| */
-
-@ Given an integer |z| that is $2^{20}$ times an angle $\theta$ in degrees,
-the purpose of |n_sin_cos(z)| is to set
-|x=@t$r\cos\theta$@>| and |y=@t$r\sin\theta$@>| (approximately),
-for some rather large number~|r|. The maximum of |x| and |y|
-will be between $2^{28}$ and $2^{30}$, so that there will be hardly
-any loss of accuracy. Then |x| and~|y| are divided by~|r|.
-
-@c
-static void mp_n_sin_cos (MP mp, angle z) {                               /* computes a multiple of the sine
-                                   and cosine */
-  quarterword k;        /* loop control variable */
-  int q;        /* specifies the quadrant */
-  fraction r;   /* magnitude of |(x,y)| */
-  integer x, y, t;      /* temporary registers */
-  while (z < 0)
-    z = z + three_sixty_deg;
-  z = z % three_sixty_deg;      /* now |0<=z<three_sixty_deg| */
-  q = z / forty_five_deg;
-  z = z % forty_five_deg;
-  x = fraction_one;
-  y = x;
-  if (!odd (q))
-    z = forty_five_deg - z;
-  @<Subtract angle |z| from |(x,y)|@>;
-  @<Convert |(x,y)| to the octant determined by~|q|@>;
-  r = mp_pyth_add (mp, x, y);
-  mp->n_cos = mp_make_fraction (mp, x, r);
-  mp->n_sin = mp_make_fraction (mp, y, r);
-}
-
-
-@ In this case the octants are numbered sequentially.
-
-@<Convert |(x,...@>=
-switch (q) {
-case 0:
-  break;
-case 1:
-  t = x;
-  x = y;
-  y = t;
-  break;
-case 2:
-  t = x;
-  x = -y;
-  y = t;
-  break;
-case 3:
-  negate (x);
-  break;
-case 4:
-  negate (x);
-  negate (y);
-  break;
-case 5:
-  t = x;
-  x = -y;
-  y = -t;
-  break;
-case 6:
-  t = x;
-  x = y;
-  y = -t;
-  break;
-case 7:
-  negate (y);
-  break;
-}                               /* there are no other cases */
-
-
-@ The main iteration of |n_sin_cos| is similar to that of |n_arg| but
-applied in reverse. The values of |spec_atan[k]| decrease slowly enough
-that this loop is guaranteed to terminate before the (nonexistent) value
-|spec_atan[27]| would be required.
-
-@<Subtract angle |z|...@>=
-k = 1;
-while (z > 0) {
-  if (z >= spec_atan[k]) {
-    z = z - spec_atan[k];
-    t = x;
-    x = t + y / two_to_the (k);
-    y = y - t / two_to_the (k);
-  }
-  k++;
-}
-if (y < 0)
-  y = 0                         /* this precaution may never be needed */
-    
 
 @ And now let's complete our collection of numeric utility routines
 by considering random number generation.
@@ -7564,13 +6782,15 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
 
 @<Print two dots...@>=
 {
+  fraction n_sin;
+  fraction n_cos;
   mp_print_nl (mp, " ..");
   if (mp_left_type (p) == mp_given) {
-    mp_n_sin_cos (mp, left_given (p));
+    mp_n_sin_cos (mp, left_given (p), &n_cos, &n_sin);
     mp_print_char (mp, xord ('{'));
-    mp_print_scaled (mp, mp->n_cos);
+    mp_print_scaled (mp, n_cos);
     mp_print_char (mp, xord (','));
-    mp_print_scaled (mp, mp->n_sin);
+    mp_print_scaled (mp, n_sin);
     mp_print_char (mp, xord ('}'));
   } else if (mp_left_type (p) == mp_curl) {
     mp_print (mp, "{curl ");
@@ -7628,11 +6848,13 @@ if ((mp_left_type (p) != mp_explicit) && (mp_left_type (p) != mp_open)) {
     mp_print (mp, "{curl ");
     mp_print_scaled (mp, right_curl (p));
   } else {
-    mp_n_sin_cos (mp, right_given (p));
+    fraction n_sin;
+    fraction n_cos;
+    mp_n_sin_cos (mp, right_given (p), &n_cos, &n_sin);
     mp_print_char (mp, xord ('{'));
-    mp_print_scaled (mp, mp->n_cos);
+    mp_print_scaled (mp, n_cos);
     mp_print_char (mp, xord (','));
-    mp_print_scaled (mp, mp->n_sin);
+    mp_print_scaled (mp, n_sin);
   }
   mp_print_char (mp, xord ('}'));
 }
@@ -8498,13 +7720,15 @@ for (k = n - 1; k >= 0; k--) {
 s = p;
 k = 0;
 do {
+  fraction n_sin;
+  fraction n_cos;
   t = mp_next_knot (s);
-  mp_n_sin_cos (mp, mp->theta[k]);
-  mp->st = mp->n_sin;
-  mp->ct = mp->n_cos;
-  mp_n_sin_cos (mp, -mp->psi[k + 1] - mp->theta[k + 1]);
-  mp->sf = mp->n_sin;
-  mp->cf = mp->n_cos;
+  mp_n_sin_cos (mp, mp->theta[k], &n_cos, &n_sin);
+  mp->st = n_sin;
+  mp->ct = n_cos;
+  mp_n_sin_cos (mp, -mp->psi[k + 1] - mp->theta[k + 1], &n_cos, &n_sin);
+  mp->sf = n_sin;
+  mp->cf = n_cos;
   mp_set_controls (mp, s, t, k);
   incr (k);
   s = t;
@@ -8595,13 +7819,15 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
 
 @<Reduce to simple case of two givens and |return|@>=
 {
+  fraction n_sin;
+  fraction n_cos;
   aa = mp_n_arg (mp, mp->delta_x[0], mp->delta_y[0]);
-  mp_n_sin_cos (mp, right_given (p) - aa);
-  mp->ct = mp->n_cos;
-  mp->st = mp->n_sin;
-  mp_n_sin_cos (mp, left_given (q) - aa);
-  mp->cf = mp->n_cos;
-  mp->sf = -mp->n_sin;
+  mp_n_sin_cos (mp, right_given (p) - aa, &n_cos, &n_sin);
+  mp->ct = n_cos;
+  mp->st = n_sin;
+  mp_n_sin_cos (mp, left_given (q) - aa, &n_cos, &n_sin);
+  mp->cf = n_cos;
+  mp->sf = -n_sin;
   mp_set_controls (mp, p, q, 0);
   return;
 }
@@ -14313,6 +13539,8 @@ often that we can't refer to it with a nonzero coefficient,
 |single_dependency| returns the simple list `0'.  This case can be
 recognized by testing that the returned list pointer is equal to
 |dep_final|.
+
+@d two_to_the(A) (1<<(unsigned)(A))
 
 @c
 static mp_value_node mp_single_dependency (MP mp, mp_node p) {
@@ -22590,11 +21818,15 @@ if (mp->cur_exp.type != mp_known) {
     break;
   case sin_d_op:
   case cos_d_op:
-    mp_n_sin_cos (mp, (cur_exp_value () % three_sixty_units) * 16);
-    if (c == sin_d_op)
-      set_cur_exp_value (mp_round_fraction (mp, mp->n_sin));
-    else
-      set_cur_exp_value (mp_round_fraction (mp, mp->n_cos));
+    {
+      fraction n_sin;
+      fraction n_cos; /* results computed by |n_sin_cos| */
+      mp_n_sin_cos (mp, (cur_exp_value () % three_sixty_units) * 16, &n_cos, &n_sin);
+      if (c == sin_d_op)
+        set_cur_exp_value (mp_round_fraction (mp, n_sin));
+      else
+        set_cur_exp_value (mp_round_fraction (mp, n_cos));
+    }
     break;
   case floor_op:
     vv = mp_floor_scaled (mp, cur_exp_value ());
@@ -25148,9 +24380,11 @@ break;
 
 @ @<Install sines and cosines, then |goto done|@>=
 {
-  mp_n_sin_cos (mp, (value (p) % three_sixty_units) * 16);
-  set_value (xx_part_loc (q), mp_round_fraction (mp, mp->n_cos));
-  set_value (yx_part_loc (q), mp_round_fraction (mp, mp->n_sin));
+  fraction n_sin;
+  fraction n_cos;
+  mp_n_sin_cos (mp, (value (p) % three_sixty_units) * 16, &n_cos, &n_sin);
+  set_value (xx_part_loc (q), mp_round_fraction (mp, n_cos));
+  set_value (yx_part_loc (q), mp_round_fraction (mp, n_sin));
   set_value (xy_part_loc (q), -value (yx_part_loc (q)));
   set_value (yy_part_loc (q), value (xx_part_loc (q)));
   goto DONE;
