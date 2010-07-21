@@ -57,9 +57,11 @@
 #include <string.h>
 #include "mplib.h"
 #include "mplibps.h" /* external header */
+#include "mplibsvg.h" /* external header */
 #include "mpmp.h" /* internal header */
 #include "mppsout.h" /* internal header */
 #include "mpsvgout.h" /* internal header */
+#include "mpmath.h" /* internal header */
 @h
 @<Types in the outer block@>
 @<Declarations@>
@@ -388,6 +390,9 @@ void mp_svg_pair_out (MP mp,scaled x, scaled y) {
   mp_svg_store_scaled(mp, (-(y+mp->svg->dy)));
 }
 
+@ @<Declarations@>=
+void mp_svg_font_pair_out (MP mp,scaled x, scaled y) ;
+
 @ @c
 void mp_svg_font_pair_out (MP mp,scaled x, scaled y) { 
   mp_svg_store_scaled(mp, (x));
@@ -406,7 +411,10 @@ have a specific helper to write such distorted pairs of coordinates out.
 @d scaled_from_double(a) (scaled)((a)*65536.0)
 @d double_from_scaled(a) (double)((a)/65536.0)
 
-@c 
+@<Declarations@>=
+void mp_svg_trans_pair_out (MP mp, mp_pen_info *pen, scaled x, scaled y) ;
+
+@ @c 
 void mp_svg_trans_pair_out (MP mp, mp_pen_info *pen, scaled x, scaled y) { 
   double sx,sy, rx,ry, px, py, retval, divider;
   sx = double_from_scaled(pen->sx);
@@ -793,7 +801,10 @@ static void mp_svg_font_path_out (MP mp, mp_knot h) {
    mp_chars[(A)][(int)(B)] = 1;
 } while (0)
 
-@c
+@<Declarations@>=
+void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h);
+
+@ @c
 void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
   mp_graphic_object *p; /* object index */
   int k; /* general purpose index */

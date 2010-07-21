@@ -69,6 +69,7 @@ static char *job_area = NULL;
 static int dvitomp_only = 0;
 static int ini_version_test = false;
 @<getopt structures@>;
+@<Declarations@>;
 
 @ Allocating a bit of memory, with error detection:
 
@@ -209,7 +210,10 @@ static string normalize_quotes (const char *name, const char *mesg) {
 
 @ Helpers for the filename recorder.
 
-@c
+@<Declarations@>=
+void recorder_start(char *jobname);
+
+@ @c
 void recorder_start(char *jobname) {
     char cwd[1024];
     if (jobname==NULL) {
@@ -588,7 +592,10 @@ processing takes place.
 As a special hidden feature, a missing right hand side is treated as if it
 was the integer value |1|. 
 
-@c
+@<Declarations@>=
+void internal_set_option(const char *opt);
+
+@ @c
 void internal_set_option(const char *opt) {
    struct set_list_item *itm;
    char *s, *v;
@@ -628,7 +635,10 @@ void internal_set_option(const char *opt) {
 runs thourgh the list of options and feeds them to the MPlib
 function |mp_set_internal|.
 
-@c
+@<Declarations@>=
+void run_set_list (MP mp);
+
+@ @c
 void run_set_list (MP mp) {
   struct set_list_item *itm;
   itm = set_list;

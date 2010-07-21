@@ -80,6 +80,7 @@
 #include "mplibps.h" /* external header */
 #include "mpmp.h" /* internal header */
 #include "mppsout.h" /* internal header */
+#include "mpmath.h" /* internal header */
 @h
 @<Declarations@>
 @<Static variables in the outer block@>
@@ -3636,8 +3637,10 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
 @d cs_no_debug(A) cs_do_debug(mp,f,A,#A)
 @d cs_debug(A) 
 
-@c 
+@<Declarations@>=
+void cs_do_debug (MP mp, mp_ps_font *f, int i, char *s);
 
+@ @c
 void cs_do_debug (MP mp, mp_ps_font *f, int i, char *s) {
    int n = cc_tab[i].nargs;
    (void)mp; /* for -Wall */

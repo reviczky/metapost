@@ -163,6 +163,7 @@ typedef struct MP_instance {
 #include "mpmp.h"               /* internal header */
 #include "mppsout.h"            /* internal header */
 #include "mpsvgout.h"           /* internal header */
+#include "mpmath.h"             /* internal header */
 extern font_number mp_read_font_info (MP mp, char *fname);      /* tfmin.w */
 @h @<Declarations@>;
 @<Basic printing procedures@>;
@@ -1052,9 +1053,9 @@ static void *delete_strings_entry (void *p);
 
 @ @c
 static int comp_strings_entry (void *p, const void *pa, const void *pb) {
-  (void) p;
   const mp_lstring *a = (const mp_lstring *) pa;
   const mp_lstring *b = (const mp_lstring *) pb;
+  (void) p;
   if (a->len != b->len) {
     return (a->len > b->len ? 1 : -1);
   }
@@ -2586,219 +2587,6 @@ in units of $2^{-20}$ degrees.
 
 @<Types...@>=
 typedef integer angle;  /* this type is used for scaled angles */
-
-@ The |make_fraction| routine produces the |fraction| equivalent of
-|p/q|, given integers |p| and~|q|; it computes the integer
-$f=\lfloor2^{28}p/q+{1\over2}\rfloor$, when $p$ and $q$ are
-positive. If |p| and |q| are both of the same scaled type |t|,
-the ``type relation'' |make_fraction(t,t)=fraction| is valid;
-and it's also possible to use the subroutine ``backwards,'' using
-the relation |make_fraction(t,fraction)=t| between scaled types.
-
-If the result would have magnitude $2^{31}$ or more, |make_fraction|
-sets |arith_error:=true|. Most of \MP's internal computations have
-been designed to avoid this sort of error.
-
-If this subroutine were programmed in assembly language on a typical
-machine, we could simply compute |(@t$2^{28}$@>*p)div q|, since a
-double-precision product can often be input to a fixed-point division
-instruction. But when we are restricted to int-eger arithmetic it
-is necessary either to resort to multiple-precision maneuvering
-or to use a simple but slow iteration. The multiple-precision technique
-would be about three times faster than the code adopted here, but it
-would be comparatively long and tricky, involving about sixteen
-additional multiplications and divisions.
-
-This operation is part of \MP's ``inner loop''; indeed, it will
-consume nearly 10\pct! of the running time (exclusive of input and output)
-if the code below is left unchanged. A machine-dependent recoding
-will therefore make \MP\ run faster. The present implementation
-is highly portable, but slow; it avoids multiplication and division
-except in the initial stage. System wizards should be careful to
-replace it with a routine that is guaranteed to produce identical
-results in all cases.
-@^system dependencies@>
-
-As noted below, a few more routines should also be replaced by machine-dependent
-code, for efficiency. But when a procedure is not part of the ``inner loop,''
-such changes aren't advisable; simplicity and robustness are
-preferable to trickery, unless the cost is too high.
-@^inner loop@>
-
-@<Internal library declarations@>=
-integer mp_take_scaled (MP mp, integer q, scaled f);
-
-@ @<Declarations@>=
-static fraction mp_make_fraction (MP mp, integer p, integer q);
-
-@ We need these preprocessor values
-
-@d TWEXP31  2147483648.0
-@d TWEXP28  268435456.0
-@d TWEXP16 65536.0
-@d TWEXP_16 (1.0/65536.0)
-@d TWEXP_28 (1.0/268435456.0)
-
-
-@c
-fraction mp_make_fraction (MP mp, integer p, integer q) {
-  fraction i;
-  if (q == 0)
-    mp_confusion (mp, "/");
-@:this can't happen /}{\quad \./@> {
-    register double d;
-    d = TWEXP28 * (double) p / (double) q;
-    if ((p ^ q) >= 0) {
-      d += 0.5;
-      if (d >= TWEXP31) {
-        mp->arith_error = true;
-        return EL_GORDO;
-      }
-      i = (integer) d;
-      if (d == (double) i && (((q > 0 ? -q : q) & 077777)
-                              * (((i & 037777) << 1) - 1) & 04000) != 0)
-        --i;
-    } else {
-      d -= 0.5;
-      if (d <= -TWEXP31) {
-        mp->arith_error = true;
-        return -EL_GORDO;
-      }
-      i = (integer) d;
-      if (d == (double) i && (((q > 0 ? q : -q) & 077777)
-                              * (((i & 037777) << 1) + 1) & 04000) != 0)
-        ++i;
-    }
-  }
-  return i;
-}
-
-
-@ The dual of |make_fraction| is |take_fraction|, which multiplies a
-given integer~|q| by a fraction~|f|. When the operands are positive, it
-computes $p=\lfloor qf/2^{28}+{1\over2}\rfloor$, a symmetric function
-of |q| and~|f|.
-
-This routine is even more ``inner loopy'' than |make_fraction|;
-the present implementation consumes almost 20\pct! of \MP's computation
-time during typical jobs, so a machine-language substitute is advisable.
-@^inner loop@> @^system dependencies@>
-
-@<Internal library declarations@>=
-integer mp_take_fraction (MP mp, integer q, fraction f);
-
-@ @c
-integer mp_take_fraction (MP mp, integer p, fraction q) {
-  register double d;
-  register integer i;
-  d = (double) p *(double) q *TWEXP_28;
-  if ((p ^ q) >= 0) {
-    d += 0.5;
-    if (d >= TWEXP31) {
-      if (d != TWEXP31 || (((p & 077777) * (q & 077777)) & 040000) == 0)
-        mp->arith_error = true;
-      return EL_GORDO;
-    }
-    i = (integer) d;
-    if (d == (double) i && (((p & 077777) * (q & 077777)) & 040000) != 0)
-      --i;
-  } else {
-    d -= 0.5;
-    if (d <= -TWEXP31) {
-      if (d != -TWEXP31 || ((-(p & 077777) * (q & 077777)) & 040000) == 0)
-        mp->arith_error = true;
-      return -EL_GORDO;
-    }
-    i = (integer) d;
-    if (d == (double) i && ((-(p & 077777) * (q & 077777)) & 040000) != 0)
-      ++i;
-  }
-  return i;
-}
-
-
-@ When we want to multiply something by a |scaled| quantity, we use a scheme
-analogous to |take_fraction| but with a different scaling.
-Given positive operands, |take_scaled|
-computes the quantity $p=\lfloor qf/2^{16}+{1\over2}\rfloor$.
-
-Once again it is a good idea to use a machine-language replacement if
-possible; otherwise |take_scaled| will use more than 2\pct! of the running time
-when the Computer Modern fonts are being generated.
-@^inner loop@>
-
-@c
-integer mp_take_scaled (MP mp, integer p, scaled q) {
-  register double d;
-  register integer i;
-  d = (double) p *(double) q *TWEXP_16;
-  if ((p ^ q) >= 0) {
-    d += 0.5;
-    if (d >= TWEXP31) {
-      if (d != TWEXP31 || (((p & 077777) * (q & 077777)) & 040000) == 0)
-        mp->arith_error = true;
-      return EL_GORDO;
-    }
-    i = (integer) d;
-    if (d == (double) i && (((p & 077777) * (q & 077777)) & 040000) != 0)
-      --i;
-  } else {
-    d -= 0.5;
-    if (d <= -TWEXP31) {
-      if (d != -TWEXP31 || ((-(p & 077777) * (q & 077777)) & 040000) == 0)
-        mp->arith_error = true;
-      return -EL_GORDO;
-    }
-    i = (integer) d;
-    if (d == (double) i && ((-(p & 077777) * (q & 077777)) & 040000) != 0)
-      ++i;
-  }
-  return i;
-}
-
-
-@ For completeness, there's also |make_scaled|, which computes a
-quotient as a |scaled| number instead of as a |fraction|.
-In other words, the result is $\lfloor2^{16}p/q+{1\over2}\rfloor$, if the
-operands are positive. \ (This procedure is not used especially often,
-so it is not part of \MP's inner loop.)
-
-@<Internal library ...@>=
-scaled mp_make_scaled (MP mp, integer p, integer q);
-
-@ @c
-scaled mp_make_scaled (MP mp, integer p, integer q) {
-  register integer i;
-  if (q == 0)
-    mp_confusion (mp, "/");
-@:this can't happen /}{\quad \./@> {
-    register double d;
-    d = TWEXP16 * (double) p / (double) q;
-    if ((p ^ q) >= 0) {
-      d += 0.5;
-      if (d >= TWEXP31) {
-        mp->arith_error = true;
-        return EL_GORDO;
-      }
-      i = (integer) d;
-      if (d == (double) i && (((q > 0 ? -q : q) & 077777)
-                              * (((i & 037777) << 1) - 1) & 04000) != 0)
-        --i;
-    } else {
-      d -= 0.5;
-      if (d <= -TWEXP31) {
-        mp->arith_error = true;
-        return -EL_GORDO;
-      }
-      i = (integer) d;
-      if (d == (double) i && (((q > 0 ? q : -q) & 077777)
-                              * (((i & 037777) << 1) + 1) & 04000) != 0)
-        ++i;
-    }
-  }
-  return i;
-}
-
 
 @ Here is a typical example of how the routines above can be used.
 It computes the function
@@ -5425,9 +5213,9 @@ except that checks for the string lengths first.
 
 @c
 static int comp_symbols_entry (void *p, const void *pa, const void *pb) {
-  (void) p;
   const mp_symbol_entry *a = (const mp_symbol_entry *) pa;
   const mp_symbol_entry *b = (const mp_symbol_entry *) pb;
+  (void) p;
   if (a->text->len != b->text->len) {
     return (a->text->len > b->text->len ? 1 : -1);
   }
@@ -21324,8 +21112,8 @@ tail of dependency list~|p|.
 
 @<Declare subroutines needed by |make_exp_copy|@>=
 static void mp_encapsulate (MP mp, mp_value_node p) {
-  FUNCTION_TRACE ("mp_encapsulate(%p)\n", p);
   mp_node q = mp_get_value_node (mp);
+  FUNCTION_TRACE ("mp_encapsulate(%p)\n", p);
   mp_name_type (q) = mp_capsule;
   mp_new_dep (mp, q, mp->cur_exp.type, p);
   set_cur_exp_node (q);
@@ -21772,8 +21560,8 @@ static void mp_known_pair (MP mp);
 @ @c
 void mp_known_pair (MP mp) {
   mp_value new_expr;
-  memset(&new_expr,0,sizeof(mp_value));
   mp_node p;    /* the pair node */
+  memset(&new_expr,0,sizeof(mp_value));
   if (mp->cur_exp.type != mp_pair_type) {
     exp_err ("Undefined coordinates have been replaced by (0,0)");
 @.Undefined coordinates...@>;
@@ -31237,40 +31025,6 @@ mp->one_hundred_inch = 473628672;
 mp->ten_pow[0] = 1;
 for (i = 1; i <= 9; i++) {
   mp->ten_pow[i] = 10 * mp->ten_pow[i - 1];
-}
-
-
-@ The following function divides |s| by |m|. |dd| is number of decimal digits.
-
-@c
-scaled mp_divide_scaled (MP mp, scaled s, scaled m, integer dd) {
-  scaled q, r;
-  integer sign, i;
-  sign = 1;
-  if (s < 0) {
-    sign = -sign;
-    s = -s;
-  }
-  if (m < 0) {
-    sign = -sign;
-    m = -m;
-  }
-  if (m == 0)
-    mp_confusion (mp, "arithmetic: divided by zero");
-  else if (m >= (max_integer / 10))
-    mp_confusion (mp, "arithmetic: number too big");
-  q = s / m;
-  r = s % m;
-  for (i = 1; i <= dd; i++) {
-    q = 10 * q + (10 * r) / m;
-    r = (10 * r) % m;
-  }
-  if (2 * r >= m) {
-    incr (q);
-    r = r - m;
-  }
-  mp->scaled_out = sign * (s - (r / mp->ten_pow[dd]));
-  return (sign * q);
 }
 
 
