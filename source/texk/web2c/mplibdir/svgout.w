@@ -213,6 +213,7 @@ it works properly if |n=0| or if |(-n)| would cause overflow.
 
 @c
 static void mp_svg_store_int (MP mp,integer n) {
+  unsigned char dig[23];  /* digits in a number, for rounding */
   integer m; /* used to negate |n| in possibly dangerous cases */
   int k = 0; /* index to current digit; we assume that $|n|<10^{23}$ */
   if ( n<0 ) { 
@@ -222,18 +223,18 @@ static void mp_svg_store_int (MP mp,integer n) {
     } else  { 
 	  m=-1-n; n=m / 10; m=(m % 10)+1; k=1;
       if ( m<10 ) {
-        mp->dig[0]=(unsigned char)m;
+        dig[0]=(unsigned char)m;
       } else { 
-        mp->dig[0]=0; incr(n);
+        dig[0]=0; incr(n);
       }
     }
   }
   do {  
-    mp->dig[k]=(unsigned char)(n % 10); n=n / 10; incr(k);
+    dig[k]=(unsigned char)(n % 10); n=n / 10; incr(k);
   } while (n!=0);
   /* print the digits */
   while ( k-->0 ){ 
-    append_char((char)('0'+mp->dig[k]));
+    append_char((char)('0'+dig[k]));
   }
 }
 

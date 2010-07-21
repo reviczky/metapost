@@ -1424,7 +1424,6 @@ to the terminal, the transcript file, or the \ps\ output file, respectively.
 void *log_file; /* transcript of \MP\ session */
 void *output_file;      /* the generic font output goes here */
 unsigned int selector;  /* where to print a message */
-unsigned char dig[23];  /* digits in a number, for rounding */
 integer tally;  /* the number of characters recently printed */
 unsigned int term_offset;
   /* the number of characters on the current terminal line */
@@ -2496,15 +2495,16 @@ positions from the right end of a binary computer word.
 typedef integer scaled; /* this type is used for scaled integers */
 
 @ The following function is used to create a scaled integer from a given decimal
-fraction $(.d_0d_1\ldots d_{k-1})$, where |0<=k<=17|. The digit $d_i$ is
-given in |dig[i]|, and the calculation produces a correctly rounded result.
+fraction $(.d_0d_1\ldots d_{k-1})$, where |0<=k<=17|.
 
 @c
-static scaled mp_round_decimals (MP mp, quarterword k) {
+static scaled mp_round_decimals (MP mp, unsigned char *b, quarterword k) {
   /* converts a decimal fraction */
   unsigned a = 0;       /* the accumulator */
-  while (k-- > 0) {
-    a = (a + (unsigned) mp->dig[k] * two) / 10;
+  int l = 0;
+  for ( l = k-1; l >= 0; l-- ) {
+    if (l<16)    /* digits for |k>=17| cannot affect the result */
+      a = (a + (unsigned) (*(b+l) - '0') * two) / 10;
   }
   return (scaled) halfp (a + 1);
 }
@@ -16230,13 +16230,10 @@ DONE:incr (loc)
 @ @<Get the fraction part |f| of a numeric token@>=
 k = 0;
 do {
-  if (k < 17) {                 /* digits for |k>=17| cannot affect the result */
-    mp->dig[k] = (unsigned char) (mp->buffer[loc] - '0');
-    incr (k);
-  }
+  incr (k);
   incr (loc);
 } while (mp->char_class[mp->buffer[loc]] == digit_class);
-f = mp_round_decimals (mp, (quarterword) k);
+f = mp_round_decimals (mp, (unsigned char *)(mp->buffer+loc-k), (quarterword) k);
 if (f == unity) {
   incr (n);
   f = 0;
