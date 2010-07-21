@@ -152,8 +152,10 @@ am_libmplib_a_OBJECTS = libmplib_a-avl.$(OBJEXT)
 am__objects_2 = libmplib_a-mp.$(OBJEXT)
 am__objects_3 = libmplib_a-psout.$(OBJEXT)
 am__objects_4 = libmplib_a-svgout.$(OBJEXT)
+am__objects_5 = libmplib_a-mpmath.$(OBJEXT)
 nodist_libmplib_a_OBJECTS = libmplib_a-tfmin.$(OBJEXT) \
-	$(am__objects_2) $(am__objects_3) $(am__objects_4)
+	$(am__objects_2) $(am__objects_3) $(am__objects_4) \
+	$(am__objects_5)
 libmplib_a_OBJECTS = $(am_libmplib_a_OBJECTS) \
 	$(nodist_libmplib_a_OBJECTS)
 am__EXEEXT_1 = bibtex$(EXEEXT) dvicopy$(EXEEXT) dvitype$(EXEEXT) \
@@ -252,8 +254,8 @@ nodist_mft_OBJECTS = mft.$(OBJEXT)
 mft_OBJECTS = $(nodist_mft_OBJECTS)
 mft_LDADD = $(LDADD)
 mft_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
-am__objects_5 = mpost-mpxout.$(OBJEXT)
-nodist_mpost_OBJECTS = mpost-mpost.$(OBJEXT) $(am__objects_5)
+am__objects_6 = mpost-mpxout.$(OBJEXT)
+nodist_mpost_OBJECTS = mpost-mpost.$(OBJEXT) $(am__objects_6)
 mpost_OBJECTS = $(nodist_mpost_OBJECTS)
 nodist_patgen_OBJECTS = patgen.$(OBJEXT)
 patgen_OBJECTS = $(nodist_patgen_OBJECTS)
@@ -282,8 +284,8 @@ tangle_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
 nodist_tangleboot_OBJECTS = tangleboot.$(OBJEXT)
 tangleboot_OBJECTS = $(nodist_tangleboot_OBJECTS)
 tangleboot_LDADD = $(LDADD)
-am__objects_6 = tex-texini.$(OBJEXT) tex-tex0.$(OBJEXT)
-nodist_tex_OBJECTS = $(am__objects_6) tex-tex-pool.$(OBJEXT) \
+am__objects_7 = tex-texini.$(OBJEXT) tex-tex0.$(OBJEXT)
+nodist_tex_OBJECTS = $(am__objects_7) tex-tex-pool.$(OBJEXT) \
 	tex-texextra.$(OBJEXT)
 tex_OBJECTS = $(nodist_tex_OBJECTS)
 tex_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1)
@@ -671,7 +673,7 @@ DISTCLEANFILES = $(EXTRA_LIBRARIES) tangle.c tangle.h tangle.p \
 	mfextra.c mf-final.ch mf-web2c mf.p mf.pool mf-tangle \
 	$(nodist_mpost_SOURCES) mpxout-ctangle ptmr.mpx \
 	tests/xptmr.mpx tests/xstory.mpx $(nodist_libmplib_a_SOURCES) \
-	mp-ctangle psout-ctangle svgout-ctangle
+	mp-ctangle psout-ctangle svgout-ctangle mpmath-ctangle
 CLEANFILES = 
 TRIPTRAP = $(am__append_6) $(am__append_9)
 web2c = $(SHELL) ./web2c-sh $@
@@ -818,12 +820,13 @@ mp_tests = mplibdir/dvitomp.test mplibdir/mptrap.test
 libmplib_a_CPPFLAGS = -I$(srcdir)/mplibdir
 libmplib_a_SOURCES = mplibdir/avl.h mplibdir/avl.c
 nodist_libmplib_a_SOURCES = tfmin.c $(mp_c_h) $(psout_c_h) \
-	$(svgout_c_h)
+	$(svgout_c_h) $(mpmath_c_h)
 mp_c_h = mp.c mplib.h mpmp.h
 psout_c_h = mppsout.h psout.c mplibps.h
 svgout_c_h = mplibsvg.h mpsvgout.h svgout.c
+mpmath_c_h = mpmath.h mpmath.c
 libmplib_web = mplibdir/mp.w mplibdir/psout.w mplibdir/svgout.w \
-	mplibdir/tfmin.w
+	mplibdir/tfmin.w mplibdir/mpmath.w
 libmd5_a_CPPFLAGS = -I$(srcdir)/libmd5
 libmd5_a_CFLAGS = $(WARNING_CFLAGS)
 libmd5_a_SOURCES = libmd5/md5.c libmd5/md5.h
@@ -1091,6 +1094,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmf_a-mfini.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplib_a-avl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplib_a-mp.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplib_a-mpmath.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplib_a-psout.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplib_a-svgout.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplib_a-tfmin.Po@am__quote@
@@ -1263,6 +1267,20 @@ libmplib_a-svgout.obj: svgout.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='svgout.c' object='libmplib_a-svgout.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-svgout.obj `if test -f 'svgout.c'; then $(CYGPATH_W) 'svgout.c'; else $(CYGPATH_W) '$(srcdir)/svgout.c'; fi`
+
+libmplib_a-mpmath.o: mpmath.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-mpmath.o -MD -MP -MF $(DEPDIR)/libmplib_a-mpmath.Tpo -c -o libmplib_a-mpmath.o `test -f 'mpmath.c' || echo '$(srcdir)/'`mpmath.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/libmplib_a-mpmath.Tpo $(DEPDIR)/libmplib_a-mpmath.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mpmath.c' object='libmplib_a-mpmath.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-mpmath.o `test -f 'mpmath.c' || echo '$(srcdir)/'`mpmath.c
+
+libmplib_a-mpmath.obj: mpmath.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-mpmath.obj -MD -MP -MF $(DEPDIR)/libmplib_a-mpmath.Tpo -c -o libmplib_a-mpmath.obj `if test -f 'mpmath.c'; then $(CYGPATH_W) 'mpmath.c'; else $(CYGPATH_W) '$(srcdir)/mpmath.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/libmplib_a-mpmath.Tpo $(DEPDIR)/libmplib_a-mpmath.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mpmath.c' object='libmplib_a-mpmath.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-mpmath.obj `if test -f 'mpmath.c'; then $(CYGPATH_W) 'mpmath.c'; else $(CYGPATH_W) '$(srcdir)/mpmath.c'; fi`
 
 ctangle-ctangle.o: ctangle.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(ctangle_CFLAGS) $(CFLAGS) -MT ctangle-ctangle.o -MD -MP -MF $(DEPDIR)/ctangle-ctangle.Tpo -c -o ctangle-ctangle.o `test -f 'ctangle.c' || echo '$(srcdir)/'`ctangle.c
@@ -2328,6 +2346,12 @@ svgout-ctangle: ctangle$(EXEEXT) mplibdir/svgout.w
 	$(mp_ctangle) svgout.w
 	echo timestamp >$@
 	touch $(svgout_c_h)
+
+$(mpmath_c_h): mpmath-ctangle
+mpmath-ctangle: ctangle$(EXEEXT) mplibdir/mpmath.w
+	$(mp_ctangle) mpmath.w
+	echo timestamp >$@
+	touch $(mpmath_c_h)
 
 $(libmplib_a_OBJECTS): $(nodist_libmplib_a_SOURCES)
 
