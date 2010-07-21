@@ -1,5 +1,5 @@
-$Id: README 13363 2009-05-22 00:09:24Z karl $
-Copyright 2006, 2007, 2008, 2009 TeX Users Group.
+$Id: README 18436 2010-05-23 18:09:12Z karl $
+Copyright 2006, 2007, 2008, 2009, 2010 TeX Users Group.
 You may freely use, modify and/or distribute this file.
 
 This TeX Live directory contains the programs that use the kpathsea
@@ -24,10 +24,14 @@ afm2pl 0.7.03 - checked 28apr08
 
 bibtex8 - ?
 
+bibtexu - ?
+  http://omega.enstb.org/yannis/bibtexu/
+
 cjkutils - Werner Lemberg
   ctan
 
-detex - ?
+detex 2.8 - checked 21may10
+  http://www.cs.purdue.edu/homes/trinkle/detex/
 
 devnag - from devnag package installed in texmf-dist.
 
@@ -42,26 +46,22 @@ dvidvi - ?
 
 dviljk - maintained here, by Joachim Schrod
 
-dvipdfm - checked 12apr09
-  http://gaspra.kettering.edu/dvipdfm/dvipdfm-0.13.2d.tar.gz
-  ftp://ftp.kettering.edu/pub/outgoing/mwicks/dvipdfm/dvipdfm-0.13.2d.tar.gz
-  (until dvipdfmx is a 100% replacement we cannot drop it.)
-
-dvipdfmx - checked 19may09
+dvipdfmx - checked 5apr10
   http://project.ktug.or.kr/dvipdfmx/snapshot/latest/
-  http://project.ktug.or.kr/dvipdfmx/snapshot/latest/dvipdfmx-20090506.tar.gz
-  dvipdfmx@project.ktug.or.kr (ChoF, Hirata, Matthias)
+  http://project.ktug.or.kr/dvipdfmx/snapshot/latest/dvipdfmx-20100328.tar.gz
+  dvipdfmx@project.ktug.or.kr (ChoF, Matthias, Hirata)
 
-dvipng - checked 12apr09
+dvipng - checked 18mar10
   http://www.ctan.org/tex-archive/dviware/dvipng/ (but maybe stale)
   http://savannah.nongnu.org/files/?group=dvipng
-  http://mirror.cinquix.com/pub/savannah/dvipng/dvipng-1.12.tar.gz
+  http://mirror.cinquix.com/pub/savannah/dvipng/dvipng-1.13.tar.gz
 
 dvipos - ?
 
 dvipsk - maintained here by Tom Rokicki, Karl Berry, Akira Kakuto, ...
 
-etc - random additional files
+dvisvgm - checked 13nov09
+  http://downloads.sourceforge.net/dvisvgm/dvisvgm-0.8.7.tar.gz
 
 gsftopk - from Paul Vojta's xdvi?
 
@@ -69,15 +69,11 @@ kpathsea - maintained here by Karl Berry, Akira Kakuto, ...
 
 lacheck - ?
 
-lcdf-typetools - checked 13apr09
+lcdf-typetools - checked 26apr10
   http://www.lcdf.org/type/
-  http://www.lcdf.org/type/lcdf-typetools-2.78.tar.gz
+  http://www.lcdf.org/type/lcdf-typetools-2.83.tar.gz
 
-m4 - maintained here, part of our build
-
-make - maintained here, part of our build
-
-makeindexk - maintained here (but should it be?)
+makeindexk - maintained here, by us
 
 musixflx - ?
 
@@ -90,8 +86,7 @@ tex4htk
 
 texlive - maintained here, scripts
 
-ttf2pk - 
-  http://ctan.org/fonts/utilities/ttf2pk
+ttf2pk - maintained here, by us
 
 ttfdump - ?
 

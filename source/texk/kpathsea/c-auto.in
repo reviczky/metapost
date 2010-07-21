@@ -2,7 +2,7 @@
 
 /* c-auto.h: defines for kpathsea, as determined by configure.
 
-   Copyright 1994-97, 2008, 2009 Karl Berry.
+   Copyright 1994-97, 2008, 2009, 2010 Karl Berry.
    Copyright 1997-99, 2002, 2005 Olaf Weber.
 
    This library is free software; you can redistribute it and/or
@@ -89,15 +89,18 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
+/* Define to 1 if you have the `mkstemp' function. */
+#undef HAVE_MKSTEMP
+
+/* Define to 1 if you have the `mktemp' function. */
+#undef HAVE_MKTEMP
+
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
 
 /* Define to 1 if you are using GNU libc or otherwise have global variables
    `program_invocation_name' and `program_invocation_short_name'. */
 #undef HAVE_PROGRAM_INVOCATION_NAME
-
-/* Define to 1 if your compiler understands prototypes. */
-#undef HAVE_PROTOTYPES
 
 /* Define to 1 if you have the `putenv' function. */
 #undef HAVE_PUTENV
@@ -135,7 +138,7 @@
 /* Define to 1 if you have the `strtol' function. */
 #undef HAVE_STRTOL
 
-/* Define to 1 if `st_mtim' is member of `struct stat'. */
+/* Define to 1 if `st_mtim' is a member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_MTIM
 
 /* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
@@ -205,6 +208,9 @@
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
@@ -231,5 +237,8 @@
 #ifndef __cplusplus
 #undef inline
 #endif
+
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+#undef size_t
 
 #endif /* !KPATHSEA_C_AUTO_H */

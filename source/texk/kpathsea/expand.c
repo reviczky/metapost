@@ -1,7 +1,7 @@
 /* expand.c: general expansion.
 
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 2005, 2008 Karl Berry &
-   Olaf Weber.
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 2005, 2008, 2009
+   Karl Berry & Olaf Weber.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -35,13 +35,13 @@ kpathsea_expand (kpathsea kpse, const_string s)
 {
   string var_expansion = kpathsea_var_expand (kpse, s);
   string tilde_expansion = kpathsea_tilde_expand (kpse, var_expansion);
-  
+
   /* `kpse_var_expand' always gives us new memory; `kpse_tilde_expand'
      doesn't, necessarily.  So be careful that we don't free what we are
      about to return.  */
   if (tilde_expansion != var_expansion)
     free (var_expansion);
-  
+
   return tilde_expansion;
 }
 
@@ -67,7 +67,7 @@ kpathsea_expand_kpse_dot (kpathsea kpse, string path)
 #ifdef MSDOS
   boolean malloced_kpse_dot = false;
 #endif
-  
+
   if (kpse_dot == NULL)
     return path;
   ret = (string)xmalloc(1);
@@ -87,13 +87,14 @@ kpathsea_expand_kpse_dot (kpathsea kpse, string path)
   }
 #endif
 
-  for (elt = kpathsea_path_element (kpse, path); elt; 
+  for (elt = kpathsea_path_element (kpse, path); elt;
        elt = kpathsea_path_element (kpse, NULL)) {
     string save_ret = ret;
     boolean ret_copied = true;
     /* We assume that the !! magic is only used on absolute components.
        Single "." gets special treatment, as does "./" or its equivalent. */
-    if (kpathsea_absolute_p (kpse, elt, false) || (elt[0] == '!' && elt[1] == '!')) {
+    if (kpathsea_absolute_p (kpse, elt, false)
+        || (elt[0] == '!' && elt[1] == '!')) {
       ret = concat3(ret, elt, ENV_SEP_STRING);
     } else if (elt[0] == '.' && elt[1] == 0) {
       ret = concat3 (ret, kpse_dot, ENV_SEP_STRING);
@@ -176,7 +177,7 @@ kpathsea_brace_expand (kpathsea kpse, const_string path)
   string ret = (string)xmalloc (1);
   *ret = 0;
 
-  for (elt = kpathsea_path_element (kpse, xpath); elt; 
+  for (elt = kpathsea_path_element (kpse, xpath); elt;
        elt = kpathsea_path_element (kpse, NULL)) {
     string save_ret = ret;
     /* Do brace expansion first, so tilde expansion happens in {~ka,~kb}.  */
@@ -221,12 +222,12 @@ kpathsea_path_expand (kpathsea kpse, const_string path)
   ret = (string)xmalloc (1);
   *ret = 0;
   len = 0;
-  
+
   /* Expand variables and braces first.  */
   xpath = kpathsea_brace_expand (kpse, path);
 
   /* Now expand each of the path elements, printing the results */
-  for (elt = kpathsea_path_element (kpse, xpath); elt; 
+  for (elt = kpathsea_path_element (kpse, xpath); elt;
        elt = kpathsea_path_element (kpse, NULL)) {
     str_llist_type *dirs;
 
@@ -236,7 +237,7 @@ kpathsea_path_expand (kpathsea kpse, const_string path)
 
     /* Search the disk for all dirs in the component specified.
        Be faster to check the database, but this is more reliable.  */
-    dirs = kpathsea_element_dirs (kpse, elt); 
+    dirs = kpathsea_element_dirs (kpse, elt);
     if (dirs && *dirs) {
       str_llist_elt_type *dir;
 
@@ -293,7 +294,7 @@ static void expand_append (str_list_type* partial,
     str_list_add(&tmp, new_string);
     str_list_concat_elements(partial, tmp);
 }
-                              
+
 
 
 static str_list_type
@@ -367,15 +368,15 @@ main (int argc, char **argv)
       fprintf (stderr, "brace_expand> ");
 
       if ((!fgets (example, 256, stdin)) ||
-	  (strncmp (example, "quit", 4) == 0))
-	break;
+          (strncmp (example, "quit", 4) == 0))
+        break;
 
       if (strlen (example))
-	example[strlen (example) - 1] = 0;
+        example[strlen (example) - 1] = 0;
 
       result = kpse_brace_expand (example);
 
-     	printf ("%s\n", result);
+        printf ("%s\n", result);
 
     }
 }

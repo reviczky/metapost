@@ -1,4 +1,4 @@
-.TH ALEPH 1 "5 April 2009" "Web2C @VERSION@"
+.TH ALEPH 1 "14 May 2010" "Web2C @VERSION@"
 .\"=====================================================================
 .if n .ds MF Metafont
 .if t .ds MF M\s-2ETAFONT\s0
@@ -19,12 +19,12 @@
 .if n .ds AY AmSLaTeX
 .\"=====================================================================
 .SH NAME
-aleph \- extended unicode TeX
+aleph \- extended Unicode TeX
 .SH SYNOPSIS
 .B aleph
 .RI [ options ]
-[\fB&\fR \fIformat\fR ]
-[ \fIfile\fR | \fB\e\fR \fIcommands\fR ]
+.RI [ \fB&\fPformat ]
+.RI [ file | \fB\e\fPcommands ]
 .\"=====================================================================
 .SH DESCRIPTION
 Run the Aleph typesetter on
@@ -38,37 +38,35 @@ With a
 .BI & format
 argument Aleph uses a different set of precompiled commands,
 contained in
-.IR format.fmt ;
+.IR format\fB.fmt\fP ;
 it is usually better to use the
 .B -fmt
 .I format
 option instead.
 .PP
 Aleph is a version of the \*(TX program modified for multilingual
-typesetting.  It uses unicode, and has additional primitives for
+typesetting.  It uses Unicode, and has additional primitives for
 (among other things) bidirectional typesetting.
-.PP
-The
-.B inialeph
-and
-.B viraleph
-commands are Aleph's analogues to the
-.B initex
-and
-.B virtex
-commands.  In this installation, they are symlinks to the
-.B aleph
-executable.
 .PP
 Aleph's command line options are similar to those of \*(TX.
 .PP
-Aleph is experimental software.
+Aleph is no longer being actively developed; see LuaTeX for current
+activity.
 .\"=====================================================================
 .SH OPTIONS
 Run aleph --help to see the complete list of options; this is not
 exhaustive.
 .TP
-.B -halt-on-error
+.BI --fmt \ format
+.rb
+Use
+.I format
+as the name of the format to be used, instead of the name by which
+Aleph was called or a
+.I %&
+line.
+.TP
+.B --halt-on-error
 .rb
 Exit with an error code when an error is encountered during processing.
 .TP
@@ -139,8 +137,9 @@ Use
 .I string
 for the DVI file comment instead of the date.
 .TP
-.BI -output-directory \ directory
-.rb Write output files in
+.BI --output-directory \ directory
+.rb
+Write output files in
 .I directory
 instead of the current directory.  Look up input files in
 .I directory
@@ -191,7 +190,7 @@ expanded, not taken as part of the filename.  Other programs, such as
 \*(MF, do not have this problem.
 .PP
 .TP
-TEXMFOUTPUT
+.B TEXMFOUTPUT
 Normally, Aleph puts its output files in the current directory.  If
 any output file cannot be opened there, it tries to open it in the
 directory specified in the environment variable TEXMFOUTPUT.
@@ -204,22 +203,25 @@ Aleph attempts to create
 .I /tmp/paper.log
 (and
 .IR /tmp/paper.dvi ,
-if any output is produced.)
+if any output is produced.)  TEXMFOUTPUT is also checked for input
+files, as \*(TX often generates files that need to be subsequently
+read; for input, no suffixes (such as ``.tex'') are added by default,
+the input name is simply checked as given.
 .TP
-TEXINPUTS
+.B TEXINPUTS
 Search path for
 .I \einput
 and
 .I \eopenin
 files.
-This should probably start with ``.'', so
+This should start with ``.'', so
 that user files are found before system files.  An empty path
 component will be replaced with the paths defined in the
 .I texmf.cnf
-file.  For example, set TEXINPUTS to ".:/home/usr/tex:" to prepend the
+file.  For example, set TEXINPUTS to ".:/home/user/tex:" to prepend the
 current direcory and ``/home/user/tex'' to the standard search path.
 .TP
-TEXEDIT
+.B TEXEDIT
 Command template for switching to editor.  The default, usually
 .BR vi ,
 is set when Aleph is compiled.

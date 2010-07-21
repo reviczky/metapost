@@ -1,6 +1,6 @@
 /* xopendir.c: opendir and closedir with error checking.
 
-   Copyright 1992, 1993, 1994, 1995, 1996, 2008 Karl Berry.
+   Copyright 1992, 1993, 1994, 1995, 1996, 2008, 2010 Karl Berry.
    Copyright 2005 Olaf Weber.
 
    This library is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
 
 #if !defined(WIN32) || defined(__MINGW32__)
 DIR *
-xopendir (string dirname)
+xopendir (const_string dirname)
 {
     DIR *d = opendir(dirname);
 
@@ -31,7 +31,6 @@ xopendir (string dirname)
 
     return d;
 }
-#endif /* not WIN32 */
 
 void
 xclosedir (DIR *d)
@@ -40,9 +39,9 @@ xclosedir (DIR *d)
     closedir (d);
 #else
     int ret = closedir(d);
-  
+
     if (ret != 0)
         FATAL("closedir failed");
 #endif
 }
-
+#endif /* not WIN32 || __MINGW32__ */

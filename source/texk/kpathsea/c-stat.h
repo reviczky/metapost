@@ -1,6 +1,6 @@
 /* c-stat.h: declarations for using stat(2).
 
-   Copyright 1993, 1996, 2008 Karl Berry.
+   Copyright 1993, 1996, 2008, 2010 Karl Berry.
    Copyright 1998, 2000, 2005 Olaf Weber.
 
    This library is free software; you can redistribute it and/or
@@ -22,32 +22,28 @@
 #include <kpathsea/systypes.h>
 #include <sys/stat.h>
 
-#if defined (WIN32) && !defined (__MINGW32__)
-#include <oldnames.h>
-#endif
-
 /* POSIX predicates for testing file attributes.  */
 
 #if !defined (S_ISBLK) && defined (S_IFBLK)
-#define	S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
+#define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
 #endif
 #if !defined (S_ISCHR) && defined (S_IFCHR)
-#define	S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
+#define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
 #endif
 #if !defined (S_ISDIR) && defined (S_IFDIR)
-#define	S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
 #if !defined (S_ISREG) && defined (S_IFREG)
-#define	S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 #endif
 #if !defined (S_ISFIFO) && defined (S_IFIFO)
-#define	S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+#define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
 #endif
 #if !defined (S_ISLNK) && defined (S_IFLNK)
-#define	S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+#define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
 #endif
 #if !defined (S_ISSOCK) && defined (S_IFSOCK)
-#define	S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+#define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
 #endif
 #if !defined (S_ISMPB) && defined (S_IFMPB) /* V7 */
 #define S_ISMPB(m) (((m) & S_IFMT) == S_IFMPB)

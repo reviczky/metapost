@@ -1,7 +1,7 @@
 /* config.h: master configuration file, included first by all compilable
    source files (not headers).
 
-   Copyright 1993, 1995, 1996, 1997, 2008 Karl Berry.
+   Copyright 1993, 1995, 1996, 1997, 2008, 2010 Karl Berry.
    Copyright 2000, 2003, 2004, 2005 Olaf Weber.
 
    This library is free software; you can redistribute it and/or
@@ -23,7 +23,7 @@
 /* System defines are for non-Unix systems only.  (Testing for all Unix
    variations should be done in configure.)  Presently the defines used
    are: AMIGA DOS OS2 WIN32.  I do not use any of these systems myself;
-   if you do, I'd be grateful for any changes. --olaf@infovore.xs4all.nl */
+   if you do, I'd be grateful for any changes.  */
 
 #if defined(DJGPP)    || defined(__DJGPP__)     || \
     defined(CYGWIN)   || defined(__CYGWIN__)    || \
@@ -33,8 +33,7 @@
 #endif
 
 /* If we have either DOS or OS2, we are DOSISH.  Cygwin pretends to be
- * unix, mostly, so don't include it here.
- */
+   Unix, mostly, so don't include it here.  */
 #if defined(OS2)     || \
     defined(MSDOS)   || defined(__MSDOS__) || defined(DOS)    || \
     defined(WIN32)   || defined(__WIN32__) || defined(_WIN32) || \
@@ -63,9 +62,9 @@
 #include <kpathsea/c-auto.h>
 
 #ifdef __DJGPP__
-#include <fcntl.h>	/* for long filenames' stuff */
-#include <dir.h>	/* for `getdisk' */
-#include <io.h>		/* for `setmode' */
+#include <fcntl.h>      /* for long filenames' stuff */
+#include <dir.h>        /* for `getdisk' */
+#include <io.h>         /* for `setmode' */
 #endif
 
 /* Some drivers have partially integrated kpathsea changes.  */
@@ -95,11 +94,11 @@
   This must be included after "c-proto.h"
   but before "lib.h". FP.
 */
-#ifdef WIN32
+#if defined (WIN32) || defined (_WIN32)
 #ifdef __MINGW32__
 #include <kpathsea/mingw32.h>
 #else
-#include <win32lib.h>
+#include <kpathsea/win32lib.h>
 #endif
 #endif
 
@@ -108,7 +107,7 @@
 #include <kpathsea/types.h>    /* <sys/types.h>, boolean, string, etc. */
 #include <kpathsea/progname.h> /* for program_invocation_*name */
 
-   
+
 /* If you want to find subdirectories in a directory with non-Unix
    semantics (specifically, if a directory with no subdirectories does
    not have exactly two links), define this.  */

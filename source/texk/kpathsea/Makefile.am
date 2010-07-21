@@ -1,21 +1,26 @@
 ## Makefile.am for the TeX Live subdirectory texk/kpathsea/
 ##
-## Copyright (C) 2009 Peter Breitenlohner <tex-live@tug.org>
+## Copyright (C) 2009, 2010 Peter Breitenlohner <tex-live@tug.org>
 ## You may freely use, modify and/or distribute this file.
 ##
 ACLOCAL_AMFLAGS = -I ../../m4
 
+# Rebuild
+.PHONY: rebuild
+rebuild: all
+
 SUBDIRS = . doc man
 
-EXTRA_DIST = BUGS HIER PROJECTS README.CONFIGURE
+EXTRA_DIST = BUGS PROJECTS
 
 INCLUDES = -I$(top_builddir)/.. -I$(top_srcdir)/..
+AM_CFLAGS = $(WARNING_CFLAGS)
 
 lib_LTLIBRARIES = libkpathsea.la
 
 libkpathsea_la_CPPFLAGS = -DMAKE_KPSE_DLL
 
-libkpathsea_la_LDFLAGS = -version-number $(KPSE_LT_VERSNUM)
+libkpathsea_la_LDFLAGS = -version-info $(KPSE_LT_VERSINFO)
 
 libkpathsea_la_LIBADD = $(LTLIBOBJS)
 
@@ -49,7 +54,6 @@ libkpathsea_la_SOURCES = \
 	line.c \
 	magstep.c \
 	make-suffix.c \
-	mingw32.c \
 	path-elt.c \
 	pathsearch.c \
 	proginit.c \
@@ -82,7 +86,11 @@ libkpathsea_la_SOURCES = \
 	xstat.c \
 	xstrdup.c
 
-$(libkpathsea_la_SOURCES): paths.h
+if MINGW32
+libkpathsea_la_SOURCES += mingw32.c
+endif MINGW32
+
+$(libkpathsea_la_OBJECTS): paths.h kpathsea.h
 
 EXTRA_DIST += \
 	putenv.c \
@@ -94,6 +102,7 @@ kpseincludedir = ${includedir}/kpathsea
 
 nodist_kpseinclude_HEADERS = \
 	c-auto.h \
+	kpathsea.h \
 	paths.h
 
 kpseinclude_HEADERS = \
@@ -112,7 +121,6 @@ kpseinclude_HEADERS = \
 	c-stat.h \
 	c-std.h \
 	c-unistd.h \
-	c-vararg.h \
 	cnf.h \
 	concatn.h \
 	config.h \
@@ -124,7 +132,6 @@ kpseinclude_HEADERS = \
 	fontmap.h \
 	getopt.h \
 	hash.h \
-	kpathsea.h \
 	lib.h \
 	line.h \
 	magstep.h \
@@ -145,47 +152,48 @@ kpseinclude_HEADERS = \
 	truncate.h \
 	types.h \
 	variable.h \
+	version.h \
+	win32lib.h \
 	xopendir.h \
 	xstat.h
 
-$(kpseinclude_HEADERS): paths.h
-
 ## First null out comments and leading/trailing whitespace, then remove
 ## lines that define invalid C identifiers, then remove blank lines and
-## lines that define lowercase values (those are never path values). Each
-## line remaining looks like
+## lines that define lowercase values (those are never path values).
+## Each line remaining looks like
 ## <name> = <value>
 ## (but = and surrounding spaces are optional, hence can't remove all spaces).
 ## Change this to #ifndef DEFAULT_name@#define DEFAULT_name "value"@#endif,
 ## then change the @'s to newlines (sed isn't good at multiline replacements).
-## 
+##
 ## No backslash-newline escapes in the long sed replacement because that
 ## will turn into a space in the output.
-## 
+##
 ## We replace the $TEXMF* references with nonexisting directories.  These
 ## are the compile-time defaults and are not useful in the native TL
 ## builds; we rely completely on the self-location.  (Previously, the
 ## random build-time paths would get included in the binaries, to
 ## consequent confusion.)
-## 
+##
 ## We preserve the $SELFAUTO* references, since the selfauto-using
 ## compile-time path for cnf files is how texmf.cnf gets found, which
 ## determines everything else.
-## 
+##
 ## The definition of DEFAULT_TEXMF (and other variables)
 ## that winds up in the final paths.h will not be used.
-#
+##
 ## We don't want to rewrite paths.h when we have only changed comments
 ## in texmf.cnf that have no effect on paths.h, since that would cause
 ## almost everything to be rebuilt.
-#
+##
 ## We also replace all semicolons with colons in the paths.
-## The path-splitting code should be changed to understand both.
-#
+## (The path-splitting code should be changed to understand both.)
+##
 paths.h: stamp-paths
-stamp-paths: texmf.cnf
+stamp-paths: texmf.cnf bsnl.awk
 	echo "/* paths.h: Generated from texmf.cnf. */" >paths.tmp
-	sed -e 's/%.*//' -e 's/^[ 	]*//' -e 's/[ 	]*$$//' $< \
+	awk -f $(srcdir)/bsnl.awk $(srcdir)/texmf.cnf \
+	| sed -e 's/%.*//' -e 's/^[ 	]*//' -e 's/[ 	]*$$//' \
 	| grep '^[ 	]*[A-Z0-9_]*[ 	=]' \
 	| sed '/^$$/d' \
 	| sed 's/^\([^ 	=]*\)[ 	]*=*[ 	]*\(.*\)/#ifndef DEFAULT_\1%#define DEFAULT_\1 "\2"%#endif/' \
@@ -209,9 +217,26 @@ stamp-paths: texmf.cnf
 	  cp paths.tmp paths.h; \
 	fi
 	rm -f paths.tmp
-	date >stamp-paths
+	date >$@
 
-DISTCLEANFILES = paths.h stamp-paths
+kpathsea.h: Makefile paths.h
+	rm -f $@
+	echo '/* This is a generated file */' >$@
+	echo '/* collecting all kpathsea headers. */' >>$@
+	echo '#include <kpathsea/config.h>' >>$@
+	echo '#include <kpathsea/c-auto.h>' >>$@
+	echo '#include <kpathsea/paths.h>' >>$@
+	(cd $(srcdir) && ls -1 *.h) \
+	| sed -e '/^config\.h/d' \
+	      -e '/^paths\.h/d' \
+	      -e '/^kpathsea\.h/d' \
+	      -e '/^mingw32\.h/d' \
+	      -e '/^win32lib\.h/d' \
+	      -e 's,^,#include <kpathsea/,' -e s',$$,>,' >>$@
+
+EXTRA_DIST += bsnl.awk
+
+DISTCLEANFILES = paths.h stamp-paths kpathsea.h
 
 ## The programs
 bin_PROGRAMS = kpseaccess kpsereadlink kpsestat kpsewhich
@@ -233,6 +258,10 @@ dist_noinst_SCRIPTS = mktexlsr mktexmf mktexpk mktextfm
 
 dist_noinst_DATA = texmf.cnf
 
+# Symlinks within $(bindir): FILE:LINK indicates LINK->FILE
+bin_links = \
+	mktexlsr:texhash
+
 install-exec-hook:
 	@for f in $(dist_noinst_SCRIPTS); do \
 	  if grep "original $$f --" "$(DESTDIR)$(bindir)/$$f" >/dev/null 2>&1 \
@@ -241,6 +270,15 @@ install-exec-hook:
 	    $(INSTALL_SCRIPT) "$(srcdir)/$$f" "$(DESTDIR)$(bindir)/$$f"; \
 	  else :; fi; \
 	done
+	@cd $(DESTDIR)$(bindir) && \
+	  for s in $(bin_links); do \
+	    link=`echo $$s | sed 's,.*:,,'`; \
+	    file=`echo $$s | sed 's,:.*,,'`; \
+	    rm -f $$link; \
+	    echo "creating link '$$link' -> '$$file'"; \
+	    $(LN_S) $$file $$link; \
+	  done
+
 
 install-data-hook:
 	@for f in $(dist_noinst_DATA); do \
@@ -259,6 +297,10 @@ uninstall-hook:
 	    rm -f "$(DESTDIR)$(bindir)/$$f"; \
 	  else :; fi; \
 	done
+	@for s in $(bin_links); do \
+	  link=`echo $$s | sed 's,.*:,,'`; \
+	  rm -f $(DESTDIR)$(bindir)/$$link; \
+	done
 	@for f in $(dist_noinst_DATA); do \
 	  if grep "original $$f --" "$(DESTDIR)$(web2cdir)/$$f" >/dev/null 2>&1 \
 	      || test ! -r "$(DESTDIR)$(web2cdir)/$$f"; then \
@@ -267,11 +309,16 @@ uninstall-hook:
 	  else :; fi; \
 	done
 
+## The tests
+TESTS = kpseaccess.test kpsereadlink.test kpsestat.test kpsewhich.test
+TESTS_ENVIRONMENT = LN_S='$(LN_S)' LT_OBJDIR='$(LT_OBJDIR)'
+EXTRA_DIST += $(TESTS)
+
 ## Not used
 ##
 EXTRA_DIST += mktex.cnf
 
 ## Eventually delete these files
 ##
-EXTRA_DIST += Makefile.in.orig common.ac.orig
+EXTRA_DIST += Makefile.in.orig common.ac.orig withenable.ac
 

@@ -1,6 +1,6 @@
 /* strcasecmp.c - case-insensitive strcmp
 
-   Copyright 2008 Karl Berry.
+   Copyright 2008, 2010 Karl Berry.
    Copyright 1991, 1992, 1995 Free Software Foundation, Inc.
    This file was part of the GNU C Library.
    Modified by Karl Berry for kpathsea.
@@ -20,14 +20,6 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
-
-#if !defined (__STDC__) || !__STDC__
-/* This is a separate conditional since some stdc systems
-   reject `defined (const)'.  */
-#ifndef const
-#define const
-#endif
 #endif
 
 #include <ctype.h>
@@ -52,7 +44,7 @@ strcasecmp (s1, s2)
       c1 = tolower (*p1++);
       c2 = tolower (*p2++);
       if (c1 == '\0')
-	break;
+        break;
     }
   while (c1 == c2);
 
@@ -77,7 +69,7 @@ strncasecmp (s1, s2, n)
       c1 = tolower (*p1++);
       c2 = tolower (*p2++);
       if (c1 == '\0' || c1 != c2)
-	return c1 - c2;
+        return c1 - c2;
     } while (--n > 0);
 
   return c1 - c2;
