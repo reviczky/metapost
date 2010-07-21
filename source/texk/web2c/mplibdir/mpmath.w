@@ -31,11 +31,97 @@
 
 @ Introduction.
 
+@
 @d hlp1(A) mp->help_line[0]=A; }
 @d hlp2(A,B) mp->help_line[1]=A; hlp1(B)
 @d help1  { mp->help_ptr=1; hlp1 /* use this with one help line */
 @d help2  { mp->help_ptr=2; hlp2 /* use this with two help lines */
 
+@ @c 
+#include "config.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "mplib.h"
+#include "mpmp.h" /* internal header */
+#include "mpmath.h" /* internal header */
+@h
+
+@ @c
+@<Declarations@>;
+
+@ @(mpmath.h@>=
+@<Types@>;
+@<Internal library declarations@>;
+
+@ Currently empty
+@<Declarations@>=
+
+@* Math initialization.
+
+@<Types@>=
+typedef struct math_data {
+  scaled max_scaled_;
+  scaled one_third_max_scaled_;
+  scaled unity_;
+  scaled two_;
+  scaled three_;
+  scaled half_unit_;
+  scaled three_quarter_unit_;
+  fraction fraction_one_;
+  fraction fraction_half_;
+  fraction fraction_two_;
+  fraction fraction_three_;
+  fraction fraction_four_;
+  angle ninety_deg_;
+  angle one_eighty_deg_;
+  angle three_sixty_deg_;
+} math_data;
+
+@ @<Internal library declarations@>=
+void * mp_initialize_math (MP mp);
+void mp_free_math (MP mp);
+
+@ @c
+void * mp_initialize_math (MP mp) {
+  math_data *math = (math_data *)mp_xmalloc(mp,1,sizeof(math_data));
+  /* here are the constants for |scaled| objects */
+  math->max_scaled_ = EL_GORDO;
+  math->one_third_max_scaled_ = one_third_EL_GORDO;
+  math->unity_ = unity;
+  math->two_  = two;
+  math->three_ = three;
+  math->half_unit_ = half_unit;
+  math->three_quarter_unit_ = three_quarter_unit;
+  /* |fractions| */
+  math->fraction_one_   = fraction_one;
+  math->fraction_half_  = fraction_half;
+  math->fraction_two_   = fraction_two;
+  math->fraction_three_ = fraction_three;
+  math->fraction_four_  = fraction_four;
+  /* |angles| */
+  math->ninety_deg_ = ninety_deg;
+  math->one_eighty_deg_ = one_eighty_deg;
+  math->three_sixty_deg_ = three_sixty_deg;
+  return (void *)math;
+}
+
+void mp_free_math (MP mp) {
+  free(mp->math);
+}
+
+@ Fixed-point arithmetic is done on {\sl scaled integers\/} that are multiples
+of $2^{-16}$. In other words, a binary point is assumed to be sixteen bit
+positions from the right end of a binary computer word.
+
+@d unity   0x10000 /* $2^{16}$, represents 1.00000 */
+@d two (2*unity) /* $2^{17}$, represents 2.00000 */
+@d three (3*unity) /* $2^{17}+2^{16}$, represents 3.00000 */
+@d half_unit   (unity/2) /* $2^{15}$, represents 0.50000 */
+@d three_quarter_unit (3*(unity/4)) /* $3\cdot2^{14}$, represents 0.75000 */
+
+@d EL_GORDO   0x7fffffff /* $2^{31}-1$, the largest value that \MP\ likes */
+@d one_third_EL_GORDO 05252525252
 
 @ One of \MP's most common operations is the calculation of
 $\lfloor{a+b\over2}\rfloor$,
@@ -51,40 +137,14 @@ only be trusted to work on positive numbers, there is also a macro |halfp|
 that is used only when the quantity being halved is known to be positive
 or zero.
 
-@d half(A) ((A) / 2)
-@d halfp(A) (integer)((unsigned)(A) >> 1)
+@<Internal library declarations@>=
+#define half(A) ((A) / 2)
+#define halfp(A) (integer)((unsigned)(A) >> 1)
 
+@ Todo: Here are some compilation tricks for problems to be sorted out later
 
-@ Fixed-point arithmetic is done on {\sl scaled integers\/} that are multiples
-of $2^{-16}$. In other words, a binary point is assumed to be sixteen bit
-positions from the right end of a binary computer word.
-
-@d unity   0x10000 /* $2^{16}$, represents 1.00000 */
-@d two (2*unity) /* $2^{17}$, represents 2.00000 */
-@d three (3*unity) /* $2^{17}+2^{16}$, represents 3.00000 */
-@d half_unit   (unity/2) /* $2^{15}$, represents 0.50000 */
-@d three_quarter_unit (3*(unity/4)) /* $3\cdot2^{14}$, represents 0.75000 */
-
-@d EL_GORDO   0x7fffffff /* $2^{31}-1$, the largest value that \MP\ likes */
-
-@c 
-#include "config.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "mplib.h"
-#include "mpmp.h" /* internal header */
-#include "mpmath.h" /* internal header */
-@h
-
-@ @c
-@<Declarations@>
-
-@ @(mpmath.h@>=
-@<Internal library declarations@>;
-
-@ Currently empty
-@<Declarations@>=
+@<Internal library declarations@>=
+#define integer_as_fraction(A) (fraction)(A)
 
 
 @ Here is a procedure analogous to |print_int|. If the output
@@ -101,7 +161,7 @@ they form a fraction~$f$ in the range $s-\delta\L10\cdot2^{16}f<s$.
 We can stop if and only if $f=0$ satisfies this condition; the loop will
 terminate before $s$ can possibly become zero.
 
-@<Internal library declarations@>;
+@<Internal library declarations@>=
 void mp_print_scaled (MP mp, scaled s);
 
 @ @c
@@ -417,7 +477,6 @@ scaled mp_round_decimals (MP mp, unsigned char *b, quarterword k) {
   return (scaled) halfp (a + 1);
 }
 
-
 @ The |scaled| quantities in \MP\ programs are generally supposed to be
 less than $2^{12}$ in absolute value, so \MP\ does much of its internal
 arithmetic with 28~significant bits of precision. A |fraction| denotes
@@ -547,10 +606,17 @@ if (d <= 0) {
 @ We conclude this set of elementary routines with some simple rounding
 and truncation operations.
 
+@ |floor_scaled| floors a |scaled|
 @<Internal library declarations@>=
 #define mp_floor_scaled(M,i) ((i)&(-65536))
+
+@ |round_unscaled| rounds a |scaled| and converts it to |int|
+@<Internal library declarations@>=
 #define mp_round_unscaled(M,x) (x>=0100000 ? 1+((x-0100000) / 0200000) \
   : ( x>=-0100000 ? 0 : -(1+((-(x+1)-0100000) / 0200000))))
+
+@ |round_fraction| rounds a |fraction| and converts it to |scaled|
+@<Internal library declarations@>=
 #define mp_round_fraction(M,x) (x>=2048 ? 1+((x-2048) / 4096) \
   : ( x>=-2048 ? 0 : -(1+((-(x+1)-2048) / 4096))))
 

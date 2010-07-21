@@ -68,7 +68,7 @@ font_number mp_read_font_info (MP mp, char *fname) {
   size_t whd_size; /* words needed for heights, widths, and depths */
   int i,ii; /* |font_info| indices */
   int jj; /* counts bytes to be ignored */
-  scaled z; /* used to compute the design size */
+  int z; /* used to compute the design size */
   fraction d; /* height, width, or depth as a fraction of design size times $2^{-8}$ */
   int h_and_d; /* height and depth indices being unpacked */
   int tfbyte = 0; /* a byte read from the file */
@@ -184,7 +184,7 @@ tf_ignore(4);
 tfget; read_two(z);
 tfget; z=z*0400+tfbyte;
 tfget; z=z*0400+tfbyte; /* now |z| is 16 times the design size */
-mp->font_dsize[n]=mp_take_fraction(mp, z,267432584);
+mp->font_dsize[n]=mp_take_fraction(mp, z,integer_as_fraction(267432584));
   /* times ${72\over72.27}2^{28}$ to convert from \TeX\ points */
 tf_ignore(4*(tfm_lh-2))
 
@@ -218,7 +218,7 @@ if ( d>=0200 ) d=d-0400;
 tfget; d=d*0400+tfbyte;
 tfget; d=d*0400+tfbyte;
 tfget; d=d*0400+tfbyte;
-mp->font_info[i].sc=mp_take_fraction(mp, d*16,mp->font_dsize[n]);
+mp->font_info[i].sc=mp_take_fraction(mp, d*16,integer_as_fraction(mp->font_dsize[n]));
 i++;
 }
 

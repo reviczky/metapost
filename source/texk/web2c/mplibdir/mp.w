@@ -222,6 +222,7 @@ static void mp_free (MP mp) {
   }
   xfree (mp->jump_buf);
   @<Free table entries@>;
+  mp_free_math(mp);
   xfree (mp);
 }
 
@@ -232,6 +233,10 @@ static void mp_do_initialize (MP mp) {
   @<Set initial values of key variables@>;
 }
 
+@ For the retargetable math library, we need to have a pointer, at least.
+
+@<Global variables@>=
+void *math;
 
 @ This procedure gets things started properly.
 @c
@@ -267,7 +272,8 @@ MP mp_initialize (MP_options * opt) {
   }
   /* open the terminal for output */
   t_open_out;
-  @<Find constant sizes@>;
+  mp->math = mp_initialize_math(mp);
+  @<Find and load preload file, if required@>;
   @<Allocate or initialize variables@>;
   mp_reallocate_paths (mp, 1000);
   mp_reallocate_fonts (mp, 8);
@@ -381,6 +387,8 @@ xfree (mp->banner);
 @d set_lower_limited_value(a,b,c) do { a=c; if (b>c) a=b; } while (0)
 
 @<Allocate or ...@>=
+mp->param_size = 4;
+mp->max_in_open = 0;
 mp->pool_size = 10000;
 set_lower_limited_value (mp->error_line, opt->error_line, 79);
 set_lower_limited_value (mp->half_error_line, opt->half_error_line, 50);
@@ -1476,7 +1484,6 @@ void mp_print_char (MP mp, ASCII_code k);
 void mp_print_str (MP mp, str_number s);
 void mp_print_nl (MP mp, const char *s);
 void mp_print_two (MP mp, scaled x, scaled y);
-void mp_print_scaled (MP mp, scaled s);
 
 @ @<Declarations@>=
 static void mp_print_visible_char (MP mp, ASCII_code s);
@@ -2406,25 +2413,7 @@ language is being used properly.  The \TeX\ processor has been defined
 carefully so that both varieties of arithmetic will produce identical
 output, but it would be too inefficient to constrain \MP\ in a similar way.
 
-@d EL_GORDO   0x7fffffff /* $2^{31}-1$, the largest value that \MP\ likes */
-
-
-@ One of \MP's most common operations is the calculation of
-$\lfloor{a+b\over2}\rfloor$,
-the midpoint of two given integers |a| and~|b|. The most decent way to do
-this is to write `|(a+b)/2|'; but on many machines it is more efficient 
-to calculate `|(a+b)>>1|'.
-
-Therefore the midpoint operation will always be denoted by `|half(a+b)|'
-in this program. If \MP\ is being implemented with languages that permit
-binary shifting, the |half| macro should be changed to make this operation
-as efficient as possible.  Since some systems have shift operators that can
-only be trusted to work on positive numbers, there is also a macro |halfp|
-that is used only when the quantity being halved is known to be positive
-or zero.
-
-@d half(A) ((A) / 2)
-@d halfp(A) (integer)((unsigned)(A) >> 1)
+@d EL_GORDO  ((math_data *)mp->math)->max_scaled_
 
 @ A single computation might use several subroutine calls, and it is
 desirable to avoid producing multiple error messages in case of arithmetic
@@ -2459,18 +2448,27 @@ static void mp_clear_arith (MP mp) {
 }
 
 
-@ Fixed-point arithmetic is done on {\sl scaled integers\/} that are multiples
-of $2^{-16}$. In other words, a binary point is assumed to be sixteen bit
-positions from the right end of a binary computer word.
+@ The definitions of these are set up by the math initialization.
 
-@d unity   0200000 /* $2^{16}$, represents 1.00000 */
-@d two (2*unity) /* $2^{17}$, represents 2.00000 */
-@d three (3*unity) /* $2^{17}+2^{16}$, represents 3.00000 */
-@d half_unit   (unity/2) /* $2^{15}$, represents 0.50000 */
-@d three_quarter_unit (3*(unity/4)) /* $3\cdot2^{14}$, represents 0.75000 */
+@d unity  ((math_data *)mp->math)->unity_
+@d two ((math_data *)mp->math)->two_
+@d three  ((math_data *)mp->math)->three_
+@d half_unit ((math_data *)mp->math)->half_unit_
+@d three_quarter_unit ((math_data *)mp->math)->three_quarter_unit_
+
+@ In fact, the two sorts of scaling discussed above aren't quite
+sufficient; \MP\ has yet another, used internally to keep track of angles.
 
 @<Exported types...@>=
-typedef integer scaled; /* this type is used for scaled integers */
+#if 1
+typedef int scaled; /* this type is used for scaled integers */
+#else
+typedef struct scaled {
+  int val;
+} scaled;
+#endif
+typedef int fraction;       /* this type is used for scaled fractions */
+typedef int angle;  /* this type is used for scaled angles */
 
 @ We often want to print two scaled quantities in parentheses,
 separated by a comma.
@@ -2485,30 +2483,16 @@ void mp_print_two (MP mp, scaled x, scaled y) {                               /*
 }
 
 
-@ The |scaled| quantities in \MP\ programs are generally supposed to be
-less than $2^{12}$ in absolute value, so \MP\ does much of its internal
-arithmetic with 28~significant bits of precision. A |fraction| denotes
-a scaled integer whose binary point is assumed to be 28 bit positions
-from the right.
+@ 
+@d fraction_one ((math_data *)mp->math)->fraction_one_
+@d fraction_half ((math_data *)mp->math)->fraction_half_
+@d fraction_two ((math_data *)mp->math)->fraction_two_
+@d fraction_three ((math_data *)mp->math)->fraction_three_
+@d fraction_four ((math_data *)mp->math)->fraction_four_
 
-@d fraction_half 01000000000 /* $2^{27}$, represents 0.50000000 */
-@d fraction_one 02000000000 /* $2^{28}$, represents 1.00000000 */
-@d fraction_two 04000000000 /* $2^{29}$, represents 2.00000000 */
-@d fraction_three 06000000000 /* $3\cdot2^{28}$, represents 3.00000000 */
-@d fraction_four 010000000000 /* $2^{30}$, represents 4.00000000 */
-
-@<Types...@>=
-typedef integer fraction;       /* this type is used for scaled fractions */
-
-@ In fact, the two sorts of scaling discussed above aren't quite
-sufficient; \MP\ has yet another, used internally to keep track of angles
-in units of $2^{-20}$ degrees.
-
-@d one_eighty_deg 01320000000 /* $180\cdot2^{20}$, represents $180^\circ$ */
-@d three_sixty_deg 02640000000 /* $360\cdot2^{20}$, represents $360^\circ$ */
-
-@<Types...@>=
-typedef integer angle;  /* this type is used for scaled angles */
+@d ninety_deg ((math_data *)mp->math)->ninety_deg_
+@d one_eighty_deg ((math_data *)mp->math)->one_eighty_deg_
+@d three_sixty_deg ((math_data *)mp->math)->three_sixty_deg_
 
 @ @<Local variables for initialization@>=
 integer k;      /* all-purpose loop index */
@@ -2540,7 +2524,7 @@ int j_random;   /* the number of unused |randoms| */
 int random_seed;        /* the default random seed */
 
 @ @<Allocate or initialize ...@>=
-mp->random_seed = (scaled) opt->random_seed;
+mp->random_seed = opt->random_seed;
 
 @ To consume a random fraction, the program below will say `|next_random|'
 and then it will fetch |randoms[j_random]|.
@@ -2569,12 +2553,12 @@ static void mp_new_randoms (MP mp) {
 
 
 @ @<Declarations@>=
-static void mp_init_randoms (MP mp, scaled seed);
+static void mp_init_randoms (MP mp, int seed);
 
 @ To initialize the |randoms| table, we call the following routine.
 
 @c
-void mp_init_randoms (MP mp, scaled seed) {
+void mp_init_randoms (MP mp, int seed) {
   fraction j, jj, k;    /* more or less random integers */
   int i;        /* index into |randoms| */
   j = abs (seed);
@@ -5791,7 +5775,7 @@ void mp_print_variable_name (MP mp, mp_node p) {
   if (mp_name_type (p) == mp_saved_root)
     mp_print (mp, "(SAVED)");
 @.SAVED@>;
-  mp_show_token_list (mp, r, NULL, EL_GORDO, mp->tally);
+  mp_show_token_list (mp, r, NULL, max_integer, mp->tally);
   mp_flush_token_list (mp, r);
 }
 
@@ -7909,10 +7893,9 @@ is already negative at |t=0|), |crossing_point| returns the value zero.
 @d no_crossing {  return (fraction_one+1); }
 @d one_crossing { return fraction_one; }
 @d zero_crossing { return 0; }
-@d mp_crossing_point(M,A,B,C) mp_do_crossing_point(A,B,C)
 
 @c
-static fraction mp_do_crossing_point (integer a, integer b, integer c) {
+static fraction mp_crossing_point (MP mp, integer a, integer b, integer c) {
   integer d;    /* recursive counter */
   integer x, xx, x0, x1, x2;    /* temporary registers for bisection */
   if (a < 0)
@@ -8490,7 +8473,9 @@ bc = half (b + c);
 ac = half (ab + bc)
  
 
-@ @d one_third_EL_GORDO 05252525252 /* upper bound on |a|, |b|, and |c| */
+@ The upper bound on |a|, |b|, and |c|:
+
+@d one_third_EL_GORDO  ((math_data *)mp->math)->one_third_max_scaled_
 
 @<Rescale if necessary to make sure |a|, |b|, and |c| are all less than...@>=
 while ((a > one_third_EL_GORDO) || (b > one_third_EL_GORDO)
@@ -12816,7 +12801,7 @@ independent variables it depends on is reverting to |undefined|.
 @d set_indep_scale(A,B) ((mp_value_node)(A))->data.scale=(B)
 
 @d new_indep(A)  /* create a new independent variable */
-  { if ( mp->serial_no>=EL_GORDO )
+  { if ( mp->serial_no>=max_integer )
     mp_fatal_error(mp, "variable instance identifiers exhausted");
   mp_type((A))=mp_independent; mp->serial_no=mp->serial_no+1;
   set_indep_scale((A),0);
@@ -17882,7 +17867,7 @@ char *mem_name; /* for commandline */
 
 @ Stripping a |.mem| extension here is for backward compatibility.
 
-@<Find constant sizes@>=
+@<Find and load preload file, if required@>=
 mp->mem_name = xstrdup (opt->mem_name);
 if (mp->mem_name) {
   size_t l = strlen (mp->mem_name);
@@ -17893,6 +17878,14 @@ if (mp->mem_name) {
     }
   }
 }
+if (mp->mem_name != NULL) {
+  if (!mp_open_mem_file (mp)) {
+    mp->history = mp_fatal_error_stop;
+    mp_jump_out (mp);
+  }
+}
+
+
 
 @ @<Dealloc variables@>=
 xfree (mp->mem_name);
@@ -29872,9 +29865,9 @@ for (k = 1; k <= mp->np; k++) {
     } else {
       incr (mp->tfm_changed);
       if (mp->param[1] > 0)
-        mp_tfm_four (mp, EL_GORDO);
+        mp_tfm_four (mp, max_integer);
       else
-        mp_tfm_four (mp, -EL_GORDO);
+        mp_tfm_four (mp, -max_integer);
     }
   } else {
     mp_tfm_four (mp, mp_dimen_out (mp, mp->param[k]));
@@ -29936,7 +29929,7 @@ char **font_enc_name;   /* encoding names, if any */
 boolean *font_ps_name_fixed;    /* are the postscript names fixed already?  */
 size_t next_fmem;       /* next unused entry in |font_info| */
 font_number last_fnum;  /* last font number used so far */
-scaled *font_dsize;     /* 16 times the ``design'' size in \ps\ points */
+integer *font_dsize;     /* 16 times the ``design'' size in \ps\ points */
 char **font_name;       /* name as specified in the \&{infont} command */
 char **font_ps_name;    /* PostScript name for use when |internal[mp_prologues]>0| */
 font_number last_ps_fnum;       /* last valid |font_ps_name| index */
@@ -29986,7 +29979,7 @@ void mp_reallocate_fonts (MP mp, font_number l) {
   font_number f;
   XREALLOC (mp->font_enc_name, l, char *);
   XREALLOC (mp->font_ps_name_fixed, l, boolean);
-  XREALLOC (mp->font_dsize, l, scaled);
+  XREALLOC (mp->font_dsize, l, integer);
   XREALLOC (mp->font_name, l, char *);
   XREALLOC (mp->font_ps_name, l, char *);
   XREALLOC (mp->font_bc, l, eight_bits);
@@ -30246,16 +30239,10 @@ accurary.
 @d max_integer   0x7FFFFFFF /* $2^{31}-1$ */
 
 @<Glob...@>=
-scaled one_bp;  /* scaled value corresponds to 1bp */
-scaled one_hundred_bp;  /* scaled value corresponds to 100bp */
-scaled one_hundred_inch;        /* scaled value corresponds to 100in */
 integer ten_pow[10];    /* $10^0..10^9$ */
 integer scaled_out;     /* amount of |scaled| that was taken out in |divide_scaled| */
 
 @ @<Set init...@>=
-mp->one_bp = 65782;             /* 65781.76 */
-mp->one_hundred_bp = 6578176;
-mp->one_hundred_inch = 473628672;
 mp->ten_pow[0] = 1;
 for (i = 1; i <= 9; i++) {
   mp->ten_pow[i] = 10 * mp->ten_pow[i - 1];
@@ -31033,19 +31020,6 @@ have been forgotten.
 @<Declare the basic parsing subroutines@>;
 @<Declare miscellaneous procedures that were declared |forward|@>
  
-
-@ @<Find constant sizes@>=
-if (mp->mem_name != NULL) {
-  if (!mp_open_mem_file (mp)) {
-    mp->history = mp_fatal_error_stop;
-    mp_jump_out (mp);
-  }
-}
-{
-  mp->param_size = 4;
-  mp->max_in_open = 0;
-}
-
 
 @ Here we do whatever is needed to complete \MP's job gracefully on the
 local operating system. The code here might come into play after a fatal
