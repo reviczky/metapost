@@ -230,19 +230,6 @@ static void mp_ps_print_nl (MP mp, const char *s) { /* prints string |s| at begi
   mp_ps_print(mp, s);
 }
 
-@ An array of digits in the range |0..9| is printed by |print_the_digs|.
-
-@c
-static void mp_ps_print_the_digs (MP mp, int k) {
-  int l = 0; 
-  char outbuf [24]; /* dig[23], plus terminating \0 */
-  while ( k-->0 ){ 
-    outbuf[l++] = (char)('0'+mp->dig[k]);
-  }
-  outbuf[l] = '\0';
-  (mp->write_ascii_file)(mp,mp->output_file,outbuf);
-}
-
 @ The following procedure, which prints out the decimal representation of a
 given integer |n|, has been written carefully so that it works properly
 if |n=0| or if |(-n)| would cause overflow. It does not apply |mod| or |div|
@@ -252,7 +239,10 @@ by all \PASCAL\ compilers.
 @c
 static void mp_ps_print_int (MP mp,integer n) { /* prints an integer in decimal form */
   integer m; /* used to negate |n| in possibly dangerous cases */
+  char outbuf [24]; /* dig[23], plus terminating \0 */
+  unsigned char dig[23];  /* digits in a number, for rounding */
   int k = 0; /* index to current digit; we assume that $|n|<10^{23}$ */
+  int l = 0; 
   if ( n<0 ) { 
     mp_ps_print_char(mp, '-');
     if ( n>-100000000 ) {
@@ -260,16 +250,21 @@ static void mp_ps_print_int (MP mp,integer n) { /* prints an integer in decimal 
     } else  { 
 	  m=-1-n; n=m / 10; m=(m % 10)+1; k=1;
       if ( m<10 ) {
-        mp->dig[0]=(unsigned char)m;
+        dig[0]=(unsigned char)m;
       } else { 
-        mp->dig[0]=0; incr(n);
+        dig[0]=0; incr(n);
       }
     }
   }
   do {  
-    mp->dig[k]=(unsigned char)(n % 10); n=n / 10; incr(k);
+    dig[k]=(unsigned char)(n % 10); n=n / 10; incr(k);
   } while (n!=0);
-  mp_ps_print_the_digs(mp, k);
+  /* print the digits */
+  while ( k-->0 ){ 
+    outbuf[l++] = (char)('0'+dig[k]);
+  }
+  outbuf[l] = '\0';
+  (mp->write_ascii_file)(mp,mp->output_file,outbuf);
 }
 
 @ \MP\ also makes use of a trivial procedure to print two digits. The
