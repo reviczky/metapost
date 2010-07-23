@@ -14115,8 +14115,9 @@ static void mp_reallocate_input_stack (MP mp, int newsize) {
 }
 
 
-@ @<Allocate or ...@>=
-mp_reallocate_input_stack (mp, 10);
+@ This has to be more than |file_bottom|, so:
+@<Allocate or ...@>=
+mp_reallocate_input_stack (mp, file_bottom+4);
 
 @ @<Dealloc variables@>=
 {
@@ -14674,7 +14675,7 @@ or |limit| or |line|.
 
 @c
 void mp_begin_file_reading (MP mp) {
-  if (mp->in_open == mp->max_in_open)
+  if (mp->in_open == (mp->max_in_open-1))
     mp_reallocate_input_stack (mp, (mp->max_in_open + mp->max_in_open / 4));
   if (mp->first == mp->buf_size)
     mp_reallocate_buffer (mp, (mp->buf_size + mp->buf_size / 4));
