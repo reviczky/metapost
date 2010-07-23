@@ -19,7 +19,7 @@ dnl get these features if you are willing to hack the sources. If not,
 dnl it'll take a good argument to convince me to invest the time to make
 dnl them configurable.
 dnl
-m4_define([web2_version], [2010/dev])
+m4_define([web2_version], [2010/pretest])
 AC_INIT([Web2C], web2_version(), [tex-k@tug.org])
 AC_PREREQ([2.65])
 dnl 
@@ -101,6 +101,14 @@ if test "x$kpse_cv_have_win32" = xno; then
   AC_SEARCH_LIBS([nanosleep], [rt])
   LIBS=$kpse_save_LIBS
   AC_SEARCH_LIBS([dlopen], [dl])
+  if test "x$ac_cv_search_dlopen" != xno; then
+    AC_CHECK_HEADERS([dlfcn.h])
+    if test "x$ac_cv_header_dlfcn_h" = xyes; then
+      if test "x$ac_cv_search_dlopen" != "xnone required"; then
+        lua_socketlibs="$lua_socketlibs $ac_cv_search_dlopen"
+      fi
+    fi
+  fi
   LIBS=$kpse_save_LIBS
   AS_CASE([$ac_cv_search_inet_aton],
           ["none required"], [],
@@ -220,9 +228,12 @@ if test `(uname) 2>/dev/null` = aux; then
 fi
 
 AC_CHECK_SIZEOF([int])
+if test $ac_cv_sizeof_int -lt 4; then
+  AC_MSG_ERROR([Sorry, need `int' with at least 4 bytes.])
+fi
 AC_CHECK_SIZEOF([long])
 AC_SEARCH_LIBS([pow], [m])
-AC_CHECK_FUNCS([access atoi fmax ftime gettimeofday mkdtemp setlocale snprintf stat64 strerror strlcat strlcpy])
+AC_CHECK_FUNCS([access atoi fmax ftime gettimeofday mkdtemp setlocale snprintf strerror strlcat strlcpy])
 AC_CHECK_HEADERS([errno.h langinfo.h locale.h sys/time.h sys/timeb.h sys/wait.h time.h])
 AC_TYPE_LONG_DOUBLE
 AC_TYPE_LONG_LONG_INT
@@ -234,6 +245,7 @@ dnl FIXME: obsolete
 AC_TYPE_SIGNAL
 
 KPSE_KPATHSEA_FLAGS
+KPSE_PTEXENC_FLAGS
 KPSE_ZLIB_FLAGS
 KPSE_LIBPNG_FLAGS
 KPSE_XPDF_FLAGS
@@ -266,7 +278,7 @@ AC_CONFIG_HEADERS([c-auto.h:c-auto.in],
 
 AH_TOP([/* c-auto.h: defines for web2c, as determined by configure.
 
-   Copyright 1994-97, 2008, 2009 Karl Berry.
+   Copyright 1994-97, 2008, 2009, 2010 Karl Berry.
    Copyright 1997-99, 2002, 2005 Olaf Weber.
 
    This program is free software: you can redistribute it and/or modify
@@ -305,8 +317,6 @@ KPSE_CROSS_PATH_PROG([CTANGLE],     [ctangle],   [./ctangle])
 KPSE_CROSS_PATH_PROG([TIE],         [tie],       [./tie])
 dnl Required for Aleph and XeTeX
 KPSE_CROSS_PATH_PROG([OTANGLE],     [otangle],   [./otangle])
-dnl Required for luaTeX
-KPSE_CROSS_PATH_PROG([LUATANGLE],   [luatangle], [./luatangle])
 
 if test "x$cross_compiling" = xyes; then
   AC_MSG_CHECKING([if your tie supports WEBINPUTS])
@@ -341,28 +351,13 @@ if test "x$cross_compiling" = xyes; then
     fi
     rm -f cftest.p
   fi
-  if test "x$enable_luatex" = xyes; then
-    AC_MSG_CHECKING([if your luatangle supports WEBINPUTS])
-    ( WEBINPUTS=$srcdir/cftests
-      export WEBINPUTS
-      $LUATANGLE cftest cftest ) >/dev/null 2>&1
-    if diff cftest.p $srcdir/cftests/lcftest.p >/dev/null 2>&1; then
-      tool_ok=yes
-    else
-      tool_ok=no
-    fi
-    AC_MSG_RESULT([$tool_ok])
-    if test "x$tool_ok" != xyes; then
-      AC_MSG_ERROR([Sorry, your $LUATANGLE is too old and does not support WEBINPUTS])
-    fi
-    rm -f cftest.p
-  fi
 fi
 
 AC_CONFIG_SUBDIRS([web2c])
 
 AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile man/Makefile
-                 omegafonts/Makefile otps/Makefile window/Makefile])
+                 omegafonts/Makefile otps/Makefile
+                 window/Makefile])
 AC_CONFIG_FILES([web2c-sh], [chmod +x web2c-sh])
 AC_CONFIG_FILES([tangle-sh], [chmod +x tangle-sh])
 AC_CONFIG_FILES([ctangleboot-sh], [chmod +x ctangleboot-sh])
