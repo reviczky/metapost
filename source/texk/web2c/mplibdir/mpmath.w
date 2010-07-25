@@ -38,7 +38,7 @@
 @d help2  { mp->help_ptr=2; hlp2 /* use this with two help lines */
 
 @ @c 
-#include "config.h"
+#include <w2c/config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -7,7 +7,8 @@
 ##
 EXTRA_LIBRARIES += libmplib.a
 
-libmplib_a_CPPFLAGS = -I$(srcdir)/mplibdir
+libmplib_a_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/mplibdir
+libmplib_a_CFLAGS = $(WARNING_CFLAGS)
 
 ## libmplib C sources
 libmplib_a_SOURCES = mplibdir/avl.h mplibdir/avl.c
