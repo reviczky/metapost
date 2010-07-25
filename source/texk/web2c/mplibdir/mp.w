@@ -140,14 +140,14 @@ typedef int integer;
 @<Types in the outer block@>;
 @<Constants in the outer block@>;
 typedef struct MP_instance {
-  @<Option variables@>;
-  @<Global variables@>;
+  @<Option variables@>
+  @<Global variables@>
 } MP_instance;
 @<Internal library declarations@>
  
 
 @ @c
-#include "config.h"
+#include <w2c/config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30498,7 +30498,7 @@ char *first_file_name;
 char *last_file_name;   /* full file names */
 integer first_output_code;
 integer last_output_code;       /* rounded \&{charcode} values */
-@:char_code_}{\&{charcode} primitive@>;
+@:char_code_}{\&{charcode} primitive@>
 integer total_shipped;  /* total number of |ship_out| operations completed */
 
 @ @<Set init...@>=
