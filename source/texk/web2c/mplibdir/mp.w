@@ -3096,6 +3096,7 @@ mp_node spec_head;
 
 @<Initialize table entries@>=
 mp->spec_head = mp_get_symbolic_node (mp);
+mp->last_pending = mp->spec_head;
 mp->temp_head = mp_get_symbolic_node (mp);
 mp->hold_head = mp_get_symbolic_node (mp);
 
@@ -30569,9 +30570,6 @@ boolean mp_has_font_size (MP mp, font_number f) {
 @<Glob...@>=
 mp_node last_pending;   /* the last token in a list of pending specials */
 
-@ @<Set init...@>=
-mp->last_pending = mp->spec_head;
-
 @ @<Cases of |do_statement|...@>=
 case special_command:
 if (mp->cur_mod == 0)
@@ -30617,7 +30615,7 @@ p = mp_link (mp->spec_head);
 while (p != NULL) {
   mp_special_object *tp;
   tp = (mp_special_object *) mp_new_graphic_object (mp, mp_special_code);
-  gr_pre_script (tp) = mp_str (mp, str_value (p));
+  gr_pre_script (tp) = mp_xstrdup(mp,mp_str (mp, str_value (p)));
   if (hh->body == NULL)
     hh->body = (mp_graphic_object *) tp;
   else
