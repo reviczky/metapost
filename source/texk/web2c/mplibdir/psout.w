@@ -6286,7 +6286,7 @@ void mp_gr_toss_object (mp_graphic_object *p) {
     case mp_stop_bounds_code:
 	  break;
     case mp_special_code: 
-      mp_xfree(gr_pre_script((mp_special_object *)p));
+          mp_xfree(gr_pre_script((mp_special_object *)p));
 	  break;
     } /* all cases are enumerated */
     mp_xfree(p);
