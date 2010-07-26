@@ -581,3 +581,5 @@ let bye = end; outer end,bye;
 clear_pen_memory;     % initialize the `savepen' mechanism
 mode_setup;           % establish proof mode as the default
 numeric mode,mag;     % but leave mode and mag undefined
+dump;
+
