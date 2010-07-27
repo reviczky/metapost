@@ -27010,6 +27010,9 @@ void mp_do_let (MP mp) {
            mp->cur_cmd == tertiary_secondary_macro ||
            mp->cur_cmd == expression_tertiary_macro)
     equiv_node (l) = mp->cur_mod_node;
+  else if (mp->cur_cmd == left_delimiter ||
+           mp->cur_cmd ==  right_delimiter)
+    equiv_sym (l) = mp->cur_sym2;
   else
     equiv (l) = mp->cur_mod;
   mp_get_x_next (mp);
