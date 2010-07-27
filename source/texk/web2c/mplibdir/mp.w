@@ -88,12 +88,12 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.501" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.502" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @(mpmp.h@>=
-#define metapost_version "1.501"
+#define metapost_version "1.502"
 #ifdef DEBUG
 #  define FUNCTION_TRACE(s,args...) do { printf("FTRACE: " s,##args); usleep(10000); } while(0)
 #else
