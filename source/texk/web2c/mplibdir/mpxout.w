@@ -516,6 +516,7 @@ static void mpx_copy_mpto (MPX mpx, FILE *outfile, int textype) {
     char *t;            /* for finding start of last line */
     char c;
     char *res = NULL;
+    t = NULL;
     do {
       if (mpx->aa == NULL || *mpx->aa == 0) {
         if ((mpx->aa = mpx_getline(mpx,mpx->mpfile)) == NULL) {
