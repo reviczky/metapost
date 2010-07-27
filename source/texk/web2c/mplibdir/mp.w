@@ -22271,7 +22271,7 @@ else {
     mp->se_sf = dash_scale (p);
     mp->se_pic = mp_dash_p (p);
     mp_scale_edges (mp);
-    set_cur_exp_node (mp->se_pic);
+    new_expr.data.node = mp->se_pic;
     mp_flush_cur_exp (mp, new_expr);
     mp->cur_exp.type = mp_picture_type;
   }
@@ -23755,7 +23755,10 @@ make no change.
 }
 
 
-@ @<Reduce comparison of big nodes to comparison of scalars@>=
+@ In the following, the |while| loops exist just so that |break| can be used,
+each loop runs exactly once.
+
+@<Reduce comparison of big nodes to comparison of scalars@>=
 {
   quarterword part_type;
   q = value_node (p);
@@ -23763,127 +23766,96 @@ make no change.
   part_type = 0;
   switch (mp->cur_exp.type) {
   case mp_pair_type:
-    while (1) {
+    while (part_type==0) {
       rr = x_part_loc (r);
       part_type = x_part;
-      mp_add_or_subtract (mp, x_part_loc (q), x_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, x_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
       rr = y_part_loc (r);
       part_type = y_part;
-      mp_add_or_subtract (mp, y_part_loc (q), y_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, y_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
     }
     mp_take_part (mp, part_type);
     break;
   case mp_color_type:
-    while (1) {
+    while (part_type==0) {
       rr = red_part_loc (r);
       part_type = red_part;
-      mp_add_or_subtract (mp, red_part_loc (q), red_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, red_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
       rr = green_part_loc (r);
       part_type = green_part;
-      mp_add_or_subtract (mp, green_part_loc (q), green_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, green_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
       rr = blue_part_loc (r);
       part_type = blue_part;
-      mp_add_or_subtract (mp, blue_part_loc (q), blue_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, blue_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
     }
     mp_take_part (mp, part_type);
     break;
   case mp_cmykcolor_type:
-    while (1) {
+    while (part_type==0) {
       rr = cyan_part_loc (r);
       part_type = cyan_part;
-      mp_add_or_subtract (mp, cyan_part_loc (q), cyan_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, cyan_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
       rr = magenta_part_loc (r);
       part_type = magenta_part;
-      mp_add_or_subtract (mp, magenta_part_loc (q), magenta_part_loc (r),
-                          minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, magenta_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
       rr = yellow_part_loc (r);
       part_type = yellow_part;
-      mp_add_or_subtract (mp, yellow_part_loc (q), yellow_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, yellow_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
       rr = black_part_loc (r);
       part_type = black_part;
-      mp_add_or_subtract (mp, black_part_loc (q), black_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, black_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
     }
     mp_take_part (mp, part_type);
     break;
   case mp_transform_type:
-    while (1) {
+    while (part_type==0) {
       rr = tx_part_loc (r);
       part_type = x_part;
-      mp_add_or_subtract (mp, tx_part_loc (q), tx_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, tx_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
       rr = ty_part_loc (r);
       part_type = y_part;
-      mp_add_or_subtract (mp, ty_part_loc (q), ty_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, ty_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
       rr = xx_part_loc (r);
       part_type = xx_part;
-      mp_add_or_subtract (mp, xx_part_loc (q), xx_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, xx_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
       rr = xy_part_loc (r);
       part_type = xy_part;
-      mp_add_or_subtract (mp, xy_part_loc (q), xy_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, xy_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
       rr = yx_part_loc (r);
       part_type = yx_part;
-      mp_add_or_subtract (mp, yx_part_loc (q), yx_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, yx_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
       rr = yy_part_loc (r);
       part_type = yy_part;
-      mp_add_or_subtract (mp, yy_part_loc (q), yy_part_loc (r), minus);
-      if (mp_type (r) != mp_known)
-        break;
-      if (value (r) != 0)
+      mp_add_or_subtract (mp, yy_part_loc (q), rr, minus);
+      if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
     }
     mp_take_part (mp, part_type);
