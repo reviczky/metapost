@@ -14098,13 +14098,14 @@ static void mp_reallocate_input_stack (MP mp, int newsize);
 @ @c
 static void mp_reallocate_input_stack (MP mp, int newsize) {
   int k;
-  XREALLOC (mp->input_file, newsize, void *);
-  XREALLOC (mp->line_stack, newsize, integer);
-  XREALLOC (mp->inext_stack, newsize, char *);
-  XREALLOC (mp->iname_stack, newsize, char *);
-  XREALLOC (mp->iarea_stack, newsize, char *);
-  XREALLOC (mp->mpx_name, newsize, str_number);
-  for (k = mp->max_in_open; k <= newsize; k++) {
+  int n = newsize +1;
+  XREALLOC (mp->input_file, n, void *);
+  XREALLOC (mp->line_stack, n, integer);
+  XREALLOC (mp->inext_stack, n, char *);
+  XREALLOC (mp->iname_stack, n, char *);
+  XREALLOC (mp->iarea_stack, n, char *);
+  XREALLOC (mp->mpx_name, n, str_number);
+  for (k = mp->max_in_open; k <= n; k++) {
     mp->input_file[k] = NULL;
     mp->line_stack[k] = 0;
     mp->inext_stack[k] = NULL;
@@ -23804,7 +23805,7 @@ make no change.
       if (value (r) != 0)
         break;
     }
-    mp_take_part (mp, (quarterword) value (rr));
+    mp_take_part (mp, part_type);
     break;
   case mp_cmykcolor_type:
     while (1) {
@@ -23838,7 +23839,7 @@ make no change.
       if (value (r) != 0)
         break;
     }
-    mp_take_part (mp, (quarterword) value (rr));
+    mp_take_part (mp, part_type);
     break;
   case mp_transform_type:
     while (1) {
@@ -23885,7 +23886,7 @@ make no change.
       if (value (r) != 0)
         break;
     }
-    mp_take_part (mp, (quarterword) value (rr));
+    mp_take_part (mp, part_type);
     break;
   default:
     assert (0);                 /* todo: |mp->cur_exp.type>mp_transform_node_type| ? */
@@ -24959,7 +24960,7 @@ static void mp_cat (MP mp, mp_node p) {
   a = str_value (p);
   b = cur_exp_str ();
   needed = length (a) + length (b);
-  str_room (needed);
+  str_room (needed+1);
   (void) memcpy (mp->cur_string, a->str, a->len);
   (void) memcpy (mp->cur_string + a->len, b->str, b->len);
   mp->cur_length = needed;
