@@ -11062,7 +11062,7 @@ if ((q != q0) && (q != c || c == c0))
     k_needed = 0;
   }
   if (r == c) {
-    mp_next_knot (p) = mp_next_knot (c);
+    mp_knot_info (p) = mp_knot_info (c);
     c = p;
   }
   if (r == mp->spec_p1)
