@@ -559,6 +559,8 @@ static void mpx_copy_mpto (MPX mpx, FILE *outfile, int textype) {
          s >= res && (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n'); s--);
       t = s;
       *(++s) = '\0';
+    } else {
+      t =s;
     }
     if (textype == B_TEX || textype == FIRST_VERBATIM_TEX) {
       /* whitespace at the start */
