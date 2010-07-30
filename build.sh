@@ -76,6 +76,10 @@ then
   export CFLAGS CXXFLAGS LDFLAGS XCFLAGS  
 fi
 
+case `uname` in
+  MINGW32*    ) MPOSTEXE=mpost.exe ;;
+  CYGWIN*    ) MPOSTEXE=mpost.exe ;;
+esac
 
 # ----------
 # clean up, if needed
