@@ -63,9 +63,7 @@ then
   B=build-windows
   STRIP=mingw32-strip
   MPOSTEXE=mpost.exe
-  OLDPATH=$PATH
-  PATH=/usr/mingw32/bin:$PATH
-  CONFHOST="--host=mingw32 --build=i686-linux-gnu "
+  CONFHOST="--host=i586-pc-mingw32 --build=i586-linux-gnu "
 fi
 
 if [ "$PPCCROSS" = "TRUE" ]
@@ -78,6 +76,10 @@ then
   export CFLAGS CXXFLAGS LDFLAGS XCFLAGS  
 fi
 
+case `uname` in
+  MINGW32*    ) MPOSTEXE=mpost.exe ;;
+  CYGWIN*    ) MPOSTEXE=mpost.exe ;;
+esac
 
 # ----------
 # clean up, if needed
@@ -97,75 +99,34 @@ cd "$B"
 
 if [ "$ONLY_MAKE" = "FALSE" ]
 then
-env TL_MAKE=$MAKE ../source/configure  $CONFHOST \
-    --enable-cxx-runtime-hack \
-    --disable-afm2pl    \
-    --disable-aleph  \
-    --disable-bibtex   \
-    --disable-bibtex8   \
-    --disable-cfftot1 \
-    --disable-cjkutils  \
-    --disable-detex    \
-    --disable-devnag   \
-    --disable-dialog   \
-    --disable-dtl      \
-    --enable-dump-share  \
-    --disable-dvi2tty  \
-    --disable-dvidvi   \
-    --disable-dviljk   \
-    --disable-dvipdfm  \
-    --disable-dvipdfmx \
-    --disable-dvipos  \
-    --disable-dvipsk  \
-    --disable-gsftopk \
-    --disable-lacheck \
-    --disable-luatex \
-    --disable-lcdf-typetools \
-    --disable-makeindexk \
-    --disable-mf  \
-    --disable-mmafm \
-    --disable-mmpfb \
+../source/configure  $CONFHOST \
+    --disable-all-pkgs \
+    --disable-shared    \
+    --disable-largefile \
+    --disable-ptex \
     --enable-mp  \
-    --disable-musixflx \
-    --disable-otfinfo \
-    --disable-otftotfm  \
-    --disable-pdfopen  \
-    --disable-pdftex  \
-    --disable-ps2eps   \
-    --disable-ps2pkm \
-    --disable-psutils  \
-    --disable-seetexk \
-    --disable-t1dotlessj  \
-    --disable-t1lint \
-    --disable-t1rawafm \
-    --disable-t1reencode \
-    --disable-t1testpage \
-    --disable-t1utils  \
-    --disable-tex    \
-    --disable-tex4htk \
-    --disable-tpic2pdftex  \
-    --disable-ttf2pk \
-    --disable-ttfdump \
-    --disable-ttftotype42 \
-    --disable-vlna  \
-    --disable-web-progs \
-    --disable-xdv2pdf \
-    --disable-xdvipdfmx \
-    --disable-xetex \
+    --enable-compiler-warnings=max \
+    --without-ptexenc \
+    --without-system-ptexenc \
     --without-system-kpathsea \
+    --without-system-xpdf \
+    --without-system-freetype \
     --without-system-freetype2 \
     --without-system-gd \
     --without-system-libpng \
     --without-system-teckit \
     --without-system-zlib \
     --without-system-t1lib \
-    --disable-shared    \
-    --disable-largefile \
+    --without-system-icu \
+    --without-system-graphite \
+    --without-system-zziplib \
     --without-mf-x-toolkit --without-x \
     || exit 1 
 fi
 
 $MAKE
+(cd texk/kpathsea; $MAKE )
+(cd texk/web2c; $MAKE $MPOSTEXE )
 
 # go back
 cd ..
@@ -175,11 +136,6 @@ then
   $STRIP "$B"/texk/web2c/$MPOSTEXE
 else
   echo "mpost binary not stripped"
-fi
-
-if [ "$MINGWCROSS" = "TRUE" ]
-then
-  PATH=$OLDPATH
 fi
 
 # show the results
