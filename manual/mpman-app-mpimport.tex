@@ -204,12 +204,13 @@ library.
 
 It is also possible to include MetaPost output in a GNU
 troff\index{troff} document.  The procedure is similar to
-Figure~\ref{fig:teximport}: the \ttt{grops} output processor includes
-PostScript files when they are requested via troff's \ttt{\string\X}
-command.  The \ttt{-mpspic}\index{mpspic?\texttt{-mpspic}} macro package
-provides a command \verb|.PSPIC|\index{PSPIC?\texttt{.PSPIC}}, which
-does just that when including an encapsulated PostScript file in the
-source code.  For instance, the troff command
+Figure~\ref{fig:teximport}: the \ttindex{grops} output processor
+includes PostScript files when they are requested via troff's
+\ttt{\string\X}\index{X?\texttt{\string\X}} command.  The
+\ttt{-mpspic}\index{mpspic?\texttt{-mpspic}} macro package provides a
+command \verb|.PSPIC|\index{PSPIC?\texttt{.PSPIC}}, which does just that
+when including an encapsulated PostScript file in the source code.  For
+instance, the troff command
 $$ \hbox{\verb|.PSPIC fig.1|} $$
 includes \ttt{fig.1}, using the natural height and width of the
 image as given in the file's bounding box.
