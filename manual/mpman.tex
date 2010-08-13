@@ -455,11 +455,11 @@ Any other value makes MetaPost fall back to PostScript output.  Variable
 
 What does one do with all the graphic files?  PostScript files are
 perfectly suitable for inclusion into documents created by
-\TeX\index{TeX?\TeX} or \emph{troff}\index{troff}.  The SVG format, as
-an XML descendant (Extensible Meta Language), is more aiming at
-automated data processing/interchanging and is widely used for web
-applications.  Appendix~\ref{mpimport} deals with the import of MetaPost
-graphics into third-party applications.
+\TeX\index{TeX?\TeX} or troff\index{troff}.  The SVG format, as an XML
+descendant (Extensible Meta Language), is more aiming at automated data
+processing/interchanging and is widely used for web applications.
+Appendix~\ref{mpimport} deals with the import of MetaPost graphics into
+third-party applications.
 
 \paragraph{Log file and version number}
 \label{logfile}
@@ -511,9 +511,9 @@ PostScript viewer.  For a long time, the most reliable way for
 previewing was to prepare a test document that includes all MetaPost
 figures, process that with \TeX\ or \LaTeX\ and \ttindex{dvips} and
 display the resulting \ttt{ps} file in a PostScript
-viewer.\footnote{There are alternatives, though. \ttindex{mpstoeps} is
+viewer.\footnote{There are alternatives, though.  mpstoeps\index{mpstoeps} is
 a Perl script that automates the process outlined above.
-\ttindex{mptopdf} is another tools that converts MetaPost files to
+mptopdf\index{mptopdf} is another tools that converts MetaPost files to
 PDF.}
 
 However, with MetaPost version~1.000 the situation changed.  Since that
@@ -1977,7 +1977,7 @@ the only reliable way to export text objects to SVG.
 
 It is worth noting that the default value \ttt{prologues:=0} is sufficient
 for graphics included in \TeX-based documents.  Also, the \ttt{prologues} variable is irrelevant
-when processing MetaPost files through the \ttindex{mptopdf} utility
+when processing MetaPost files through the mptopdf\index{mptopdf} utility
 (part of the \ConTeXt\ distribution), because PDF files are, by nature,
 stand-alone.  Moreover, the value of \ttt{prologues} has no effect on
 \MF\ fonts in your MetaPost files, i.\,e., MetaPost never embeds such
