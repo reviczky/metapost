@@ -1059,21 +1059,25 @@ static int comp_strings_entry (void *p, const void *pa, const void *pb);
 static void *copy_strings_entry (const void *p);
 static void *delete_strings_entry (void *p);
 
-@ @c
+@ An earlier version of this function used |strncmp|, but that produces
+wrong results in some cases.
+@c
+#define STRCMP_RESULT(a) ((a)<0 ? -1 : ((a)>0 ? 1 : 0))
 static int comp_strings_entry (void *p, const void *pa, const void *pb) {
   const mp_lstring *a = (const mp_lstring *) pa;
   const mp_lstring *b = (const mp_lstring *) pb;
+  size_t l;
+  unsigned char *s,*t;
   (void) p;
-  if (a->len != b->len) {
-    return (a->len > b->len ? 1 : -1);
+  s = a->str;
+  t = b->str;
+  l = (a->len<=b->len ? a->len : b->len);
+  while ( l-->0 ) { 
+    if ( *s!=*t)
+       return STRCMP_RESULT(*s-*t); 
+    s++; t++;
   }
-  if (a->str == NULL && b->str == NULL)
-    return 0;
-  if (a->str == NULL)
-    return -1;
-  if (b->str == NULL)
-    return 1;
-  return strncmp ((const char *) a->str, (const char *) b->str, a->len);
+  return STRCMP_RESULT(a->len-b->len);
 }
 static void *copy_strings_entry (const void *p) {
   str_number ff;
