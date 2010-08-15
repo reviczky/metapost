@@ -94,11 +94,6 @@ undergoes any modifications, so that it will be clear which version of
 
 @(mpmp.h@>=
 #define metapost_version "1.502"
-#ifdef DEBUG
-#  define FUNCTION_TRACE(s,args...) do { printf("FTRACE: " s,##args); usleep(10000); } while(0)
-#else
-#  define FUNCTION_TRACE(s,args...)
-#endif
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
 few typedefs and the header defintions for the externally used
@@ -169,6 +164,47 @@ extern font_number mp_read_font_info (MP mp, char *fname);      /* tfmin.w */
 @<Basic printing procedures@>;
 @<Error handling procedures@>
  
+@ Some debugging support for development. The trick with the variadic macros
+probably only works in gcc, as this preprocessor feature was not formalized 
+until the c99 standard (and that is too new for us). Lets' hope that at least
+most compilers understand the non-debug version.
+@^system dependencies@>
+
+@(mpmp.h@>=
+#define DEBUG 0
+#if DEBUG
+#  define debug_printf(args...) do_debug_printf(mp, "", args)
+#  define FUNCTION_TRACE(args...) do_debug_printf(mp, "FTRACE: ", args)
+#else
+#  define debug_printf(...)
+#  define FUNCTION_TRACE(...)
+#endif
+
+@ @<Internal library ...@>=
+void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...);
+
+@ This function occasionally crashes (if something is written after the
+log file is already closed), but that is not so important while debugging.
+
+@c
+void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...) {
+  va_list ap;
+  va_start (ap, fmt);
+  if (mp->log_file && !ferror(mp->log_file)) {
+    fputs(prefix, mp->log_file);
+    vfprintf(mp->log_file, fmt, ap);
+  }
+  va_end(ap);
+  va_start (ap, fmt);
+  if (mp->term_out  && !ferror(mp->term_out)) {
+    fputs(prefix, mp->term_out);
+    vfprintf(mp->term_out, fmt, ap);
+  } else {
+    fputs(prefix, stdout);
+    vfprintf(stdout, fmt, ap);
+  }
+  va_end(ap);
+}
 
 @ Here are the functions that set up the \MP\ instance.
 
@@ -5494,6 +5530,7 @@ static mp_node mp_get_pair_node (MP mp) {
   add_var_used (pair_node_size);
   memset (p, 0, pair_node_size);
   mp_type (p) = mp_pair_node_type;
+  FUNCTION_TRACE("get_pair_node(): %p\n", p);
   return (mp_node) p;
 }
 
@@ -6250,7 +6287,9 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t,
         }
         q = mp_link (r);
       }
-      set_subscr_head (p, q);
+      /* fix |subscr_head| if it was already present */
+      if (q==mp_link(mp->temp_head))
+        set_subscr_head (p, q);
     }
     p = attr_head (p);
     do {
@@ -12853,7 +12892,7 @@ structures have to match.
    set_dep_list((A), NULL);
    set_prev_dep((A), NULL);
  } while (0)
-@d dep_info get_dep_info
+@d dep_info(A) get_dep_info(mp,(A))
 @d set_dep_info(A,B) do {
    mp_value_node d = (mp_value_node)(B);
    FUNCTION_TRACE("set_dep_info(%p,%p) on %d\n",A,d,__LINE__);
@@ -12873,7 +12912,7 @@ structures have to match.
 } while (0)
 
 @c
-static mp_node get_dep_info (mp_value_node p) {
+static mp_node get_dep_info (MP mp, mp_value_node p) {
   mp_node d;
   d = p->parent_;               /* half of the |value| field in a |dependent| variable */
   FUNCTION_TRACE ("%p = dep_info(%p)\n", d, p);
@@ -12882,7 +12921,7 @@ static mp_node get_dep_info (mp_value_node p) {
 
 
 @ @<Declarations...@>=
-static mp_node get_dep_info (mp_value_node p);
+static mp_node get_dep_info (MP mp, mp_value_node p);
 
 @ 
 
@@ -19375,7 +19414,7 @@ list.
 @<Determine the dep...@>=
 s = mp->max_ptr[t];
 pp = (mp_node) dep_info (s);
-/* |printf ("s=%p, pp=%p, r=%p\n",s, pp, dep_list((mp_value_node)pp));| */
+/* |debug_printf ("s=%p, pp=%p, r=%p\n",s, pp, dep_list((mp_value_node)pp));| */
 v = dep_value (s);
 if (t == mp_dependent)
   set_dep_value (s, -fraction_one);
@@ -19636,10 +19675,6 @@ static void mp_bad_exp (MP mp, const char *s) {
 
 
 @ @<Supply diagnostic information, if requested@>=
-#ifdef DEBUG
-if (mp->panicking)
-  mp_check_mem (mp, false);
-#endif
 if (mp->interrupt != 0)
   if (mp->OK_to_interrupt) {
     mp_back_input (mp);
@@ -20355,6 +20390,7 @@ or |known|.
 
 @<Copy the big node |p|@>=
 {
+  debug_printf("value_node (%p) = %p\n", p, value_node(p));
   if (value_node (p) == NULL) {
     switch (mp_type (p)) {
     case mp_pair_type:
@@ -20378,37 +20414,37 @@ or |known|.
   switch (mp->cur_exp.type) {
   case mp_pair_type:
     mp_init_pair_node (mp, t);
-    mp_install (mp, x_part_loc (value_node (t)), x_part_loc (value_node (p)));
     mp_install (mp, y_part_loc (value_node (t)), y_part_loc (value_node (p)));
+    mp_install (mp, x_part_loc (value_node (t)), x_part_loc (value_node (p)));
     break;
   case mp_color_type:
     mp_init_color_node (mp, t);
-    mp_install (mp, red_part_loc (value_node (t)),
-                red_part_loc (value_node (p)));
-    mp_install (mp, green_part_loc (value_node (t)),
-                green_part_loc (value_node (p)));
     mp_install (mp, blue_part_loc (value_node (t)),
                 blue_part_loc (value_node (p)));
+    mp_install (mp, green_part_loc (value_node (t)),
+                green_part_loc (value_node (p)));
+    mp_install (mp, red_part_loc (value_node (t)),
+                red_part_loc (value_node (p)));
     break;
   case mp_cmykcolor_type:
     mp_init_cmykcolor_node (mp, t);
-    mp_install (mp, cyan_part_loc (value_node (t)),
-                cyan_part_loc (value_node (p)));
-    mp_install (mp, magenta_part_loc (value_node (t)),
-                magenta_part_loc (value_node (p)));
-    mp_install (mp, yellow_part_loc (value_node (t)),
-                yellow_part_loc (value_node (p)));
     mp_install (mp, black_part_loc (value_node (t)),
                 black_part_loc (value_node (p)));
+    mp_install (mp, yellow_part_loc (value_node (t)),
+                yellow_part_loc (value_node (p)));
+    mp_install (mp, magenta_part_loc (value_node (t)),
+                magenta_part_loc (value_node (p)));
+    mp_install (mp, cyan_part_loc (value_node (t)),
+                cyan_part_loc (value_node (p)));
     break;
   case mp_transform_type:
     mp_init_transform_node (mp, t);
-    mp_install (mp, tx_part_loc (value_node (t)), tx_part_loc (value_node (p)));
-    mp_install (mp, ty_part_loc (value_node (t)), ty_part_loc (value_node (p)));
-    mp_install (mp, xx_part_loc (value_node (t)), xx_part_loc (value_node (p)));
-    mp_install (mp, xy_part_loc (value_node (t)), xy_part_loc (value_node (p)));
-    mp_install (mp, yx_part_loc (value_node (t)), yx_part_loc (value_node (p)));
     mp_install (mp, yy_part_loc (value_node (t)), yy_part_loc (value_node (p)));
+    mp_install (mp, yx_part_loc (value_node (t)), yx_part_loc (value_node (p)));
+    mp_install (mp, xy_part_loc (value_node (t)), xy_part_loc (value_node (p)));
+    mp_install (mp, xx_part_loc (value_node (t)), xx_part_loc (value_node (p)));
+    mp_install (mp, ty_part_loc (value_node (t)), ty_part_loc (value_node (p)));
+    mp_install (mp, tx_part_loc (value_node (t)), tx_part_loc (value_node (p)));
     break;
   default:                     /* there are no other valid cases, but please the compiler */
     break;
