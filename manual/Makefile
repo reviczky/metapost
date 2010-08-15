@@ -4,14 +4,21 @@
 
 latex = latex
 pdflatex = pdflatex
+contextpdf = texexec
+contextdvi = texexec --dvi
 dvips = dvips
 bibtex = bibtex
 mpost = mpost -tex=tex
 mkindex = makeindex -c -s mpman.ist
 
 all: pdf
-pdf: mpman.pdf mpgraph.pdf mpboxes.pdf
-ps: mpman.ps mpgraph.ps mpboxes.ps
+pdf: mpman.pdf mpgraph.pdf mpboxes.pdf mplibapi.pdf
+ps: mpman.ps mpgraph.ps mpboxes.ps mplibapi.ps
+
+mplibapi.pdf: mplibapi.tex
+	mv -f mpgraph.mp mpgraph.saved
+	$(contextpdf) mplibapi
+	mv -f mpgraph.saved mpgraph.mp
 
 mpboxes.pdf: mpboxes.tex mpboxes.bib mpboxes.mp
 	$(mpost) mpboxes
@@ -37,6 +44,12 @@ mpman.pdf: mpman.tex mpman-app-legacy.tex mpman-app-mpimport.tex mpman-app-optab
 	$(pdflatex) mpman
 	$(mkindex) mpman
 	$(pdflatex) mpman
+
+mplibapi.ps: mplibapi.tex
+	mv -f mpgraph.mp mpgraph.saved
+	$(contextdvi) mplibapi
+	mv -f mpgraph.saved mpgraph.mp
+	$(dvips) mplibapi
 
 mpboxes.ps: mpboxes.tex mpboxes.bib mpboxes.mp
 	$(mpost) mpboxes
@@ -70,6 +83,7 @@ mpman.ps: mpman.tex mpman-app-legacy.tex mpman-app-mpimport.tex mpman-app-optab.
 clean:
 	rm -f *.aux *.bbl *.blg *.dvi *.log *.mpx *.mps
 	rm -f *.idx *.ilg *.ind *.toc *.out
+	rm -f *.tui *.tuo *.tmp *-mpgraph.mp
 
 distclean: clean
 	rm -f mp*.pdf mp*.ps
