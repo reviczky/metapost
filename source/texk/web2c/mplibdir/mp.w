@@ -181,22 +181,25 @@ most compilers understand the non-debug version.
 #endif
 
 @ @<Internal library ...@>=
+#if DEBUG
 void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...);
+#endif
 
 @ This function occasionally crashes (if something is written after the
 log file is already closed), but that is not so important while debugging.
 
 @c
+#if DEBUG
 void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...) {
   va_list ap;
   va_start (ap, fmt);
-  if (mp->log_file && !ferror(mp->log_file)) {
+  if (mp->log_file && !ferror((FILE *)mp->log_file)) {
     fputs(prefix, mp->log_file);
     vfprintf(mp->log_file, fmt, ap);
   }
   va_end(ap);
   va_start (ap, fmt);
-  if (mp->term_out  && !ferror(mp->term_out)) {
+  if (mp->term_out  && !ferror((FILE *)mp->term_out)) {
     fputs(prefix, mp->term_out);
     vfprintf(mp->term_out, fmt, ap);
   } else {
@@ -205,6 +208,7 @@ void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...) {
   }
   va_end(ap);
 }
+#endif
 
 @ Here are the functions that set up the \MP\ instance.
 
