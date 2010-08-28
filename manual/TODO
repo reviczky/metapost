@@ -31,6 +31,11 @@ mp-implementors list or alternatively the metapost list.
 ***   Wanted For Release  ***
 *****************************
 
+The MetaPost Workflow
+* (SH) Move non-essential parts to appendix.
+* (SH) Describe variables jobname, mpprocset, time, year, month, day,
+    hour, minute (in appendix).
+
 Reference Manual:
 * Describe environment variables.
 * Add description of interaction mode commands.
@@ -59,6 +64,7 @@ Advanced Graphics:
 * (SH) Colour cars and change code example in section piccomp.
 
 Reference Manual:
+* Describe missing variables, constants, and operators.
 * Describe mpware in section "Legacy information".
 
 
