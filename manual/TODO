@@ -35,6 +35,7 @@ The MetaPost Workflow
 * (SH) Move non-essential parts to appendix.
 * (SH) Describe variables jobname, mpprocset, time, year, month, day,
     hour, minute (in appendix).
+* Describe scripts mpstoeps, mptopdf, mpsproof (in appendix).
 
 Reference Manual:
 * Describe environment variables.
