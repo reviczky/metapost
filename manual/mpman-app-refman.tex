@@ -834,8 +834,8 @@ Here's a summary of the command-line switches understood by
   \cmdindex{-dvitomp}
   & Act as the \texttt{dvitomp} executable (see below).\\
   \cmdindex{-file-line-error}
-  & Start error messages with \texttt{filename:lineno:} instead of
-  \texttt{!}.\\
+  & Start error messages with \emph{\texttt{filename:lineno:}} instead
+  of \emph{\texttt{!}}.\\
   \cmdindex{-halt-on-error}
   & Immediately exit after the first error occurred.\\
   \cmdindex{-help}
@@ -851,7 +851,7 @@ Here's a summary of the command-line switches understood by
   & Set debugging flags for path searching.\\
   \cmdindex{-mem}=$\descr{string}$
   & Use $\descr{string}$ as memory dump name (same as
-  \texttt{\&$\descr{string}$})\\
+  \texttt{\&}$\descr{string}$)\\
   \cmdindex{-no-file-line-error}
   & Enable normal MetaPost and \TeX\ style error messages.\\
   \cmdindex{-no-kpathsea}
@@ -863,16 +863,16 @@ Here's a summary of the command-line switches understood by
   & Write a list of all opened disk files to
   \texttt{$\descr{jobname}$.fls}\index{fls file?{\tt fls}
     file}\index{files!fls?{\tt fls}}.  (This functionality is provided
-  by kpathsea.)\\ 
-  \cmdindex{-s}=$\descr{key}$=$\descr{value}$ \textrm{or}\newline
-  -s $\descr{key}$=$\descr{value}$
+  by kpathsea.)\\
+  \cmdindex{-s}=$\descr{key}$=$\descr{value}$ \textrm{or}\newline -s
+  $\descr{key}$=$\descr{value}$
   & Set internal variable $\descr{key}$ to $\descr{value}$.  The
   assignment is applied just before the input file is read-in.  This
   switch can be applied multiple times on the command-line.\newline
   $\descr{value}$ can be an integer between -16383 and 16383 or a string
   in double quotes.  For strings, double quotes are stripped, but no
-  other processing takes place.\newline
-  Example: \verb|-s=outputformat="svg" -s=prologues=3|\newline
+  other processing takes place.\newline Example:
+  \verb|-s=outputformat="svg" -s=prologues=3|\newline
   Use SVG backend converting font shapes to paths.\\
   \cmdindex{-tex}=$\descr{texprogram}$
   & Load format $\descr{texprogram}$ for rendering \TeX\ material.\\
