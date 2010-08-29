@@ -832,7 +832,7 @@ Here's a summary of the command-line switches understood by
   \cmdindex{-debug}
   & Don't delete intermediate files.\\
   \cmdindex{-dvitomp}
-  & Act as the \textit{dvitomp} executable (see below).\\
+  & Act as the \texttt{dvitomp} executable (see below).\\
   \cmdindex{-file-line-error}
   & Start error messages with \texttt{filename:lineno:} instead of
   \texttt{!}.\\
@@ -855,15 +855,15 @@ Here's a summary of the command-line switches understood by
   \cmdindex{-no-file-line-error}
   & Enable normal MetaPost and \TeX\ style error messages.\\
   \cmdindex{-no-kpathsea}
-  & Do not use \textit{kpathsea} to find files.  All files have to be in
-  the current directory or specified via a full path.\\
+  & Do not use the kpathsea program to find files.  All files have to be
+  in the current directory or specified via a full path.\\
   \cmdindex{-progname}=$\descr{string}$
   & Pretend to be the $\descr{string}$ executable.\\
   \cmdindex{-recorder}
   & Write a list of all opened disk files to
   \texttt{$\descr{jobname}$.fls}\index{fls file?{\tt fls}
     file}\index{files!fls?{\tt fls}}.  (This functionality is provided
-  by \textit{kpathsea}.)\\ 
+  by kpathsea.)\\ 
   \cmdindex{-s}=$\descr{key}$=$\descr{value}$ \textrm{or}\newline
   -s $\descr{key}$=$\descr{value}$
   & Set internal variable $\descr{key}$ to $\descr{value}$.  The
@@ -877,7 +877,7 @@ Here's a summary of the command-line switches understood by
   \cmdindex{-tex}=$\descr{texprogram}$
   & Load format $\descr{texprogram}$ for rendering \TeX\ material.\\
   \cmdindex{-troff}, \cmdindex{-T}
-  & Output \textit{troff} compatible PostScript files.\\
+  & Output troff compatible PostScript files.\\
   \cmdindex{-version}
   & Print version information and exit.\\
 \end{longtable}
@@ -907,18 +907,18 @@ The following command-line switches are ignored, but trigger a warning:
 \subsubsection*{The \texttt{dvitomp} Program}
 \label{refman:dvitomp}
 
-The \ttindex{dvitomp}\label{Ddvitomp} program converts DVI\index{dvi
-  file?{\tt dvi} file}\index{files!dvi?{\tt dvi}} files into low-level
-MetaPost code.  The command-line syntax of the executable is
+The dvitomp\label{Ddvitomp}\index{dvitomp} program converts
+DVI\index{dvi file?{\tt dvi} file}\index{files!dvi?{\tt dvi}} files into
+low-level MetaPost code.  The command-line syntax of the executable is
 $$ \hbox{\verb|dvitomp|}\ \descr{switches}\ \descr{infile}\ \descr{outfile}
 $$
 where $\descr{infile}$ is the DVI file to convert and $\descr{outfile}$
-contains the equivalent MetaPost code.  MetaPost uses the
-\texttt{dvitomp} program when typesetting \verb|btex| \verb|...|
-\verb|etex| labels by \TeX\ for the final conversion back into MetaPost
-code.  Files generated that way end with \texttt{.mpx}\index{mpx
-  file?{\tt mpx} file}\index{files!mpx?{\tt mpx}}.  The following
-command-line switches are accepted:
+contains the equivalent MetaPost code.  MetaPost uses the dvitomp
+program when typesetting \verb|btex| \verb|...| \verb|etex| labels by
+\TeX\ for the final conversion back into MetaPost code.  Files generated
+that way end with \texttt{.mpx}\index{mpx file?{\tt mpx}
+  file}\index{files!mpx?{\tt mpx}}.  The following command-line switches
+are accepted:
 \begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
   \cmdindex{-help}
   & Show help on command-line switches.\\
@@ -930,16 +930,15 @@ command-line switches are accepted:
   & Print version information and exit.\\
 \end{longtable}
 
-The \texttt{dvitomp} program used to be part of a set of external tools,
-called \emph{mpware}\index{mpware tools}\footnote{\texttt{makempx},
-  \texttt{mpto}, \texttt{dvitomp}, and \texttt{dmp}.}, that were used by
-MetaPost for processing \verb|btex| \verb|...| \verb|etex| labels.
-Since MetaPost version~1.100, the label conversion is handled internally
-by the \texttt{mpost} executable.  The \emph{mpware} tools are therefore
-obsolete and no longer part of the MetaPost distribution.  Nowadays, the
-\texttt{dvitomp} executable is either a copy of the \texttt{mpost}
-executable with the name \texttt{dvitomp} or a wrapper, calling
-\texttt{mpost} as
+The dvitomp program used to be part of a set of external tools, called
+\emph{mpware}\index{mpware tools}\footnote{makempx, mpto, dvitomp, and
+  dmp.}, which were used by MetaPost for processing \verb|btex|
+\verb|...| \verb|etex| labels.  Since MetaPost version~1.100, the label
+conversion is handled internally by the \texttt{mpost} executable.  The
+\emph{mpware} tools are therefore obsolete and no longer part of the
+MetaPost distribution.  Nowadays, the \texttt{dvitomp} executable is
+either a copy of the \texttt{mpost} executable with the name
+\texttt{dvitomp} or a wrapper, calling \texttt{mpost} as
 $$ \hbox{\verb|mpost -dvitomp|}\ \descr{infile}\
 \descr{outfile}\qquad\hbox{.} $$
 
