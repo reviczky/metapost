@@ -864,15 +864,16 @@ Here's a summary of the command-line switches understood by
   \texttt{$\descr{jobname}$.fls}\index{fls file?{\tt fls}
     file}\index{files!fls?{\tt fls}}.  (This functionality is provided
   by kpathsea.)\\
-  \cmdindex{-s}=$\descr{key}$=$\descr{value}$ \textrm{or}\newline -s
-  $\descr{key}$=$\descr{value}$
-  & Set internal variable $\descr{key}$ to $\descr{value}$.  The
-  assignment is applied just before the input file is read-in.  This
-  switch can be applied multiple times on the command-line.\newline
-  $\descr{value}$ can be an integer between -16383 and 16383 or a string
-  in double quotes.  For strings, double quotes are stripped, but no
-  other processing takes place.\newline Example:
-  \verb|-s=outputformat="svg" -s=prologues=3|\newline
+  \cmdindex{-s} $\descr{key}$=$\descr{value}$
+  & Set internal variable $\descr{key}$ to $\descr{value}$.  This switch
+  can be applied multiple times on the command-line.  The assignments
+  are applied just before the input file is read-in.  $\descr{value}$
+  can be an integer between -16383 and 16383 or a string in double
+  quotes.  For strings, double quotes are stripped, but no other
+  processing takes place.  To avoid double quotes being already stripped
+  by the shell, the whole assignment can be enclosed in another pair of
+  single quotes.  Example:
+  \verb|-s 'outputformat="svg"' -s prologues=3|\newline
   Use SVG backend converting font shapes to paths.\\
   \cmdindex{-tex}=$\descr{texprogram}$
   & Load format $\descr{texprogram}$ for rendering \TeX\ material.\\
