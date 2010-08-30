@@ -183,12 +183,12 @@ properties, font support, and automatic processing~\cite{hagen:metafun}.
 Here is an example of a MetaPost graphic inlined into a Con\TeX t
 document.
 
-$$\begin{verbatim}[commandchars=|\[\], codes={\catcode`$=3}]
+$$\begin{verbatim}[commandchars=|\[\]]
 \starttext
-\startuseMPgraphic{$|descr[name]$}
+\startuseMPgraphic{|tdescr[name]}
   ...
 \stopuseMPgraphic
-\useMPgraphic{$|descr[name]$}
+\useMPgraphic{|tdescr[name]}
 \stoptext
 \end{verbatim}
 $$
