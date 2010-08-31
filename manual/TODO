@@ -35,11 +35,10 @@ The MetaPost Workflow
 * (SH) Move non-essential parts to appendix.
 * (SH) Describe variables jobname, mpprocset, time, year, month, day,
     hour, minute (in appendix).
-* Describe scripts mpstoeps, mptopdf, mpsproof (in appendix).
 
 Reference Manual:
-* Describe environment variables.
-* Add description of interaction mode commands.
+* Describe environment variables and configuration files.
+* Add description of interaction mode.
 
 
 
@@ -63,6 +62,10 @@ Integrating Text and Graphics:
 Advanced Graphics:
 * Add a sub-section discussing colours.
 * (SH) Colour cars and change code example in section piccomp.
+
+Notes on the MetaPost Workflow:
+* Describe scripts mpstoeps, mptopdf, mpsproof (in appendix).
+* Merge section Debugging?
 
 Reference Manual:
 * Describe missing variables, constants, and operators.
