@@ -33,7 +33,7 @@ mp-implementors list or alternatively the metapost list.
 
 The MetaPost Workflow
 * (SH) Move non-essential parts to appendix.
-* (SH) Describe variables jobname, mpprocset, time, year, month, day,
+* (SH) Describe variables jobname, charcode, mpprocset, time, year, month, day,
     hour, minute (in appendix).
 
 Reference Manual:
@@ -51,6 +51,8 @@ Introduction:
 * Revise introduction.
 
 Integrating Text and Graphics:
+* Completely revise this section and consolidate information
+    scattered around mpman.
 * More information and examples on alternatives for calling TeX
     or LaTeX from within MetaPost.
 * (SH) Revise (and add more) flow charts for MetaPost workflow.
@@ -64,7 +66,9 @@ Advanced Graphics:
 * (SH) Colour cars and change code example in section piccomp.
 
 Notes on the MetaPost Workflow:
-* Describe scripts mpstoeps, mptopdf, mpsproof (in appendix).
+* beginfig(-1) generates fig.ps
+* Describe scripts mpstoeps, mptopdf, mpsproof.
+* Mention Troy's online previewer at http://www.tlhiv.org/mppreview/ ?
 * Merge section Debugging?
 
 Reference Manual:
