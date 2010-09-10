@@ -498,7 +498,7 @@ static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ft
           struct stat source_stat, target_stat;
           char *mpname = mpost_xstrdup(f);
           *(mpname + strlen(mpname) -1 ) = '\0';
-          printf("statting %s and %s\n", mpname, f);
+          /* printf("statting %s and %s\n", mpname, f); */
           if ((stat(f, &target_stat) >= 0) &&
               (stat(mpname, &source_stat) >= 0)) {
 #if HAVE_ST_MTIM
