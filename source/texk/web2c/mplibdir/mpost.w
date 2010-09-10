@@ -487,14 +487,14 @@ static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ft
         s = kpse_find_file (f, kpse_mp_format, 0); 
       } else {
         l = strlen(f);
-   	    if (l>3 && strcmp(f+l-3,".mf")==0) {
-   	      s = kpse_find_file (f,kpse_mf_format, 0); 
+   	if (l>3 && strcmp(f+l-3,".mf")==0) {
+   	  s = kpse_find_file (f,kpse_mf_format, 0); 
 #if HAVE_SYS_STAT_H
         } else if (l>4 && strcmp(f+l-4,".mpx")==0) {
           struct stat source_stat, target_stat;
           char *mpname = mpost_xstrdup(f);
           *(mpname + strlen(mpname) -1 ) = '\0';
-          printf("statting %s and %s\n", mpname, f);
+          /* printf("statting %s and %s\n", mpname, f); */
           if ((stat(f, &target_stat) >= 0) &&
               (stat(mpname, &source_stat) >= 0)) {
 #if HAVE_STRUCT_STAT_ST_MTIM
@@ -518,7 +518,7 @@ static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ft
         return s;
       }
     }
-	if (ftype>=mp_filetype_text) {
+    if (ftype>=mp_filetype_text) {
       s = kpse_find_file (fname, kpse_mp_format, 0); 
     } else {
       switch(ftype) {
