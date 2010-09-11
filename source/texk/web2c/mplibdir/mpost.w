@@ -298,12 +298,12 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
         if ((stat(qmpxname, &target_stat) >= 0) &&
             (stat(qmpname, &source_stat) >= 0)) {
 #if HAVE_STRUCT_STAT_ST_MTIM
-          if (source_stat.st_mtim.tv_sec <= target_stat.st_mtim.tv_sec || 
+          if (source_stat.st_mtim.tv_sec < target_stat.st_mtim.tv_sec || 
              (source_stat.st_mtim.tv_sec  == target_stat.st_mtim.tv_sec && 
-              source_stat.st_mtim.tv_nsec <= target_stat.st_mtim.tv_nsec))
+              source_stat.st_mtim.tv_nsec < target_stat.st_mtim.tv_nsec))
      	    nothingtodo = 1;
 #else
-          if (source_stat.st_mtime <= target_stat.st_mtime)
+          if (source_stat.st_mtime < target_stat.st_mtime)
   	        nothingtodo = 1;
 #endif
         }
