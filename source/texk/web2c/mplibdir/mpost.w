@@ -502,12 +502,12 @@ static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ft
           if ((stat(f, &target_stat) >= 0) &&
               (stat(mpname, &source_stat) >= 0)) {
 #if HAVE_ST_MTIM
-            if (source_stat.st_mtim.tv_sec <= target_stat.st_mtim.tv_sec || 
+            if (source_stat.st_mtim.tv_sec < target_stat.st_mtim.tv_sec || 
                (source_stat.st_mtim.tv_sec  == target_stat.st_mtim.tv_sec && 
-                source_stat.st_mtim.tv_nsec <= target_stat.st_mtim.tv_nsec))
+                source_stat.st_mtim.tv_nsec < target_stat.st_mtim.tv_nsec))
      	        s = mpost_xstrdup(f);
 #else
-            if (source_stat.st_mtime <= target_stat.st_mtime)
+            if (source_stat.st_mtime < target_stat.st_mtime)
   	            s = mpost_xstrdup(f);
 #endif
           }
