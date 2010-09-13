@@ -36,10 +36,6 @@ The MetaPost Workflow
 * (SH) Describe variables jobname, charcode, mpprocset, time, year, month, day,
     hour, minute (in appendix).
 
-Reference Manual:
-* Describe environment variables and configuration files.
-* Add description of interaction mode.
-
 
 
 
@@ -72,8 +68,13 @@ Notes on the MetaPost Workflow:
 * Merge section Debugging?
 
 Reference Manual:
+* Describe environment variables and configuration files.
 * Describe missing variables, constants, and operators.
-* Describe mpware in section "Legacy information".
+* Add description of interaction mode.
+
+Legacy Information:
+* Cite original Hobby papers.
+* Describe mpware (currently scattered around in mpman).
 
 
 
@@ -90,6 +91,7 @@ Reference Manual:
 * Build reference manual automatically from mp.web (as a separate manual?).
 
 General:
+* Make mpman self-contained (no need to look-up sth. in 'The MetaFontbook').
 * Make manual sources compatible with preview mode (Emacs).
 * Make manual sources LaTeX2e conform.
 * Make manual sources look nice in Emacs (AUCTeX font-locking).
