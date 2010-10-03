@@ -2,6 +2,7 @@
 # Rules for the groff/troff docs are in TeX Live,
 # texmf-dist/doc/metapost/base/Makefile.
 
+RM = -rm -f
 latex = latex
 pdflatex = pdflatex
 contextpdf = texexec
@@ -81,9 +82,8 @@ mpman.ps: mpman.tex mpman-app-legacy.tex mpman-app-mpimport.tex mpman-app-optab.
 	$(dvips) mpman
 
 clean:
-	rm -f *.aux *.bbl *.blg *.dvi *.log *.mpx *.mps
-	rm -f *.idx *.ilg *.ind *.toc *.out
-	rm -f *.tui *.tuo *.tmp *-mpgraph.mp
+	$(RM) *.aux *.bbl *.blg *.dvi *.idx *.ilg *.ind *.log *.mps *.mpx *.out *.toc
+	$(RM) *.tui *.tuo *.tmp *-mpgraph.mp
 
 distclean: clean
-	rm -f mp*.pdf mp*.ps
+	$(RM) mp*.pdf mp*.ps
