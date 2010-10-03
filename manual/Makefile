@@ -82,7 +82,7 @@ mpman.ps: mpman.tex mpman-app-legacy.tex mpman-app-mpimport.tex mpman-app-optab.
 	$(dvips) mpman
 
 clean:
-	$(RM) *.aux *.bbl *.blg *.dvi *.idx *.ilg *.ind *.log *.mps *.mpx *.out *.toc
+	$(RM) *.aux *.bbl *.blg *.dvi *.idx *.ilg *.ind *.log *.mps *.mpx *.out *.toc mpxerr.*
 	$(RM) *.tui *.tuo *.tmp *-mpgraph.mp
 
 distclean: clean
