@@ -839,18 +839,16 @@ command-line.
 \item[\cmdin] A MetaPost input file is a text file containing statements
   in the MetaPost language.  Typically, input files have file extension
   \texttt{mp}\index{mp file?{\tt mp} file}\index{files!mp?{\tt mp}},
-  e.g., \texttt{fig.mp}.  Here is how MetaPost searches for input files:
-  \begin{enumerate}
-  \item If \cmdin\ doesn't end with \texttt{.mp}\index{mp file?{\tt mp}
-      file}\index{files!mp?{\tt mp}}, MetaPost first looks for a file
-    \texttt{\cmdin.mp}.  Only if that file doesn't exist, it looks for
-    file \cmdin\ literally.  That way, the \texttt{mp}\index{mp
-      file?{\tt mp} file}\index{files!mp?{\tt mp}} file extension can be
-    omitted when calling MetaPost.
-  \item If \cmdin\ already ends with \texttt{.mp}\index{mp file?{\tt mp}
-      file}\index{files!mp?{\tt mp}}, no special file name handling
-    takes place and MetaPost looks for that file only.
-  \end{enumerate}
+  e.g., \texttt{fig.mp}.  Here is how MetaPost searches for input files.
+  If \cmdin\ doesn't end with \texttt{.mp}\index{mp file?{\tt mp}
+    file}\index{files!mp?{\tt mp}}, MetaPost first looks for a file
+  \texttt{\cmdin.mp}.  Only if that file doesn't exist, it looks for
+  file \cmdin\ literally.  That way, the \texttt{mp}\index{mp file?{\tt
+      mp} file}\index{files!mp?{\tt mp}} file extension can be omitted
+  when calling MetaPost.  If \cmdin\ already ends with
+  \texttt{.mp}\index{mp file?{\tt mp} file}\index{files!mp?{\tt mp}}, no
+  special file name handling takes place and MetaPost looks for that
+  file only.
 
   As an example, if there are two files \texttt{fig} and \texttt{fig.mp}
   in the current directory and MetaPost is invoked with
