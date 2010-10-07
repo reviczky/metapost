@@ -31,10 +31,9 @@ mp-implementors list or alternatively the metapost list.
 ***   Wanted For Release  ***
 *****************************
 
-The MetaPost Workflow
-* (SH) Move non-essential parts to appendix.
+Notes on the MetaPost Workflow:
 * (SH) Describe variables jobname, charcode, mpprocset, time, year, month, day,
-    hour, minute (in appendix).
+    hour, minute.
 
 
 
