@@ -64,7 +64,6 @@ Notes on the MetaPost Workflow:
 * beginfig(-1) generates fig.ps
 * Describe scripts mpstoeps, mptopdf, mpsproof.
 * Mention Troy's online previewer at http://www.tlhiv.org/mppreview/ ?
-* Merge section Debugging?
 
 Reference Manual:
 * Describe environment variables and configuration files.

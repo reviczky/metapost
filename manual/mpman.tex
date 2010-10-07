@@ -4811,7 +4811,283 @@ $$\hbox{\tt tex mproof {\sl MetaPost-output-filename}}$$
 Then process the resulting \texttt{.dvi}\index{dvi file?{\tt dvi}
   file}\index{files!dvi?{\tt dvi}} file as usual.
 
-\section{Debugging}
+
+\section{Another Look at the MetaPost Workflow}
+\label{workflow2}
+
+\index{workflow}
+
+In Section~\ref{workflow} we already had a brief look at how MetaPost
+compiles input files and generates output files.  This section contains
+some more information about internal variables that can be used to
+control MetaPost's run-time behavior, gives tips for previewing
+PostScript output, and shows how to import MetaPost graphics into
+third-party applications.
+
+\subsection{Customizing Run-Time Behavior}
+
+\index{runtime behavior!customize}
+
+MetaPost knows and obeys a number of internal\index{internal
+  variables}\index{variables!internal} that have no direct impact on
+drawing commands, but can be used to customize the way the MetaPost
+compiler processes input files.  The following paragraphs discuss those
+variables (in alphabetical order).
+
+\paragraph{Version Number}
+
+The version number of the MetaPost compiler can be determined from
+within a MetaPost program via the predefined constant string
+\texttt{mpversion}\index{mpversion?\texttt{mpversion}}\label{Dmpversion}
+(since version~0.9).  For instance the following code
+$$
+\begin{verbatim}
+message "mp = " & mpversion;
+\end{verbatim}
+$$
+writes
+$$
+\begin{verbatim}[commandchars=\\\{\}]
+mp = \mpversion
+\end{verbatim}
+$$
+to the console and the transcript file.  Variable \texttt{mpversion} can
+be used to execute code depending on the MetaPost version like this:
+$$
+\begin{verbatim}[commandchars=\\\{\}]
+if unknown mpversion: string mpversion; mpversion := "0.000"; fi
+if scantokens(mpversion) < 1.200:
+  errmessage "MetaPost v1.200 or later required (found v" & mpversion & ")";
+else:
+  \tdescr{code}
+fi
+\end{verbatim}
+$$
+The first line is optional and only added to handle ancient MetaPost
+versions gracefully that don't even know about variable
+\textrm{mpversion} (prior to v0.9).  The second test does the actual
+work.
+
+The version number is also written to output files and the transcript
+file.  For PostScript output the version number can be found in the
+\texttt{Creator}\index{Creator comment in PostScript
+  output?\texttt{Creator} comment in PostScript output|see{PostScript,
+    \texttt{Creator} comment}}\index{PostScript!Creator
+  comment?\texttt{Creator} comment} comment.  SVG files contain a simple
+comment line near the beginning of the file.  The
+transcript\index{files!transcript} file starts with a banner line that
+identifies the version\index{version number} of the MetaPost compiler.
+
+\paragraph{Output File Names}
+
+As discussed in Section~\ref{workflow}, by default, every
+\verb|beginfig| \ldots\ \verb|endfig| group in an input file corresponds
+to an output file that follows the naming scheme
+\texttt{\tdescr{jobname}.\tdescr{n}}.  That is, all files have varying
+numeric file extensions.  MetaPost provides a template mechanism that
+allows for more flexible output file names.  The template mechanism uses
+\texttt{printf}-style escape sequences that are re-evaluated at ship-out
+time, i.e., before each figure is written to disk.
+
+To configure the output file naming scheme a string containing the
+corresponding escape sequences has to be assigned to the internal string
+variable
+\verb|outputtemplate|\index{outputtemplate?\texttt{outputtemplate}}\label{Doutputtemplate}.
+The escape sequences provided are listed in
+table~\ref{tab:outputtemplate}.  If this code is saved in a file
+\texttt{fig.mp},
+$$
+\begin{verbatim}
+outputtemplate := "%j-%c.mps";
+beginfig(1);
+  draw origin--(100,100);
+endfig;
+end
+\end{verbatim}
+$$
+it will create the output file \texttt{fig-1.mps} instead of
+\texttt{fig.1}.  The file extension \texttt{mps}\index{mps file?{\tt
+    mps} file}\index{files!mps?{\tt mps}} is conventionally chosen for
+MetaPost's PostScript output (see Section~\ref{mpimport}).  For SVG
+output one would want to use \texttt{svg}\index{svg file?{\tt svg}
+  file}\index{files!svg?{\tt svg}} instead.
+
+\begin{table}
+  \def\d{$\langle$0-9$\rangle$}
+  \centering
+  \begin{tabular}{|>{\ttfamily}l|>{\ttfamily}l|l|}
+    \hline
+    \multicolumn1{|c|}{Escape sequence} & \multicolumn1{c|}{Equivalent}
+    & \multicolumn1{c|}{Meaning}\\\hline
+    \%\%\index{\%\%?\texttt{\%\%}}   & & percent sign\\
+    \%\d\{\tdescr{internal
+      variable}\}\index{\%\{...\}?\texttt{\%\{\ldots\}}} & & evaluate
+    internal variable\\
+    \%j\index{\%j?\texttt{\%j}} & \%\{jobname\} & current jobname\\
+    \%\d c\index{\%c?\texttt{\%c}} & \%\d\{charcode\} & charcode value (\verb|beginfig|
+    argument)\\ 
+    \%\d y\index{\%y?\texttt{\%y}} & \%\d\{year\} & current year\\
+    \%\d m\index{\%m?\texttt{\%m}} & \%\d\{month\} & month (numeric)\\
+    \%\d d\index{\%d?\texttt{\%d}} & \%\d\{day\} & day of the month\\
+    \%\d H\index{\%H?\texttt{\%H}} & \%\d\{hour\} & hour\\
+    \%\d M\index{\%M?\texttt{\%M}} & \%\d\{minute\} & minute\\
+    \hline
+  \end{tabular}
+  \caption{Allowed escape sequences for \ttt{outputtemplate}}
+  \label{tab:outputtemplate}
+\end{table}
+
+The template mechanism can also be used for naming graphic files
+individually, yet keeping all sources in one file.  Collecting, e.g.,
+different diagram sources in a single file \texttt{fig.mp}, it might be
+easier to recall the correct diagram names in a \TeX\ document than with
+numbered file names.  Note, the argument to \verb|beginfig| is not
+relevant as long as there's no \verb|%c| pattern in the file name
+template string.
+$$
+\begin{verbatim}
+outputtemplate := "fig-quality.mps";
+beginfig(1);
+  ...
+endfig;
+
+outputtemplate := "fig-cost-vs-productivity.mps";
+beginfig(2);
+  ...
+endfig;
+\end{verbatim}
+$$
+
+To ensure compatibility with older files, the default value of
+\verb|outputtemplate| is \verb|%j.%c|.  If you assign an empty string,
+it will revert to that default.  MetaPost versions~1.000 to~1.102 used a
+different template mechanism, see Section~\ref{Dfilenametemplate} for
+more information.
+
+\paragraph{Output Format}
+
+MetaPost can generate graphics in two output formats: Encapsulated
+PostScript\index{PostScript!structured} (EPSF\index{EPSF}) and, since
+version~1.200, Scalable Vector Graphics (SVG\index{SVG}) following
+version~1.1 of the SVG specification~\cite{w3c:svg1.1}.  By default,
+MetaPost outputs PostScript files---hence the name MetaPost.  The output
+format can be changed to SVG by assigning the value \verb|"svg"| to the
+internal string variable\index{internal
+  variables}\index{variables!internal}
+\verb|outputformat|\index{outputformat?\texttt{outputformat}}\label{Doutputformat}:
+$$
+\begin{verbatim}
+outputformat := "svg";
+\end{verbatim}
+$$
+
+Any other value makes MetaPost fall back to PostScript output.  Variable
+\verb|outputformat| is case-sensitive, so assigning it the string
+\verb|"SVG"| enables PostScript output, too.  Default value of variable
+\verb|outputformat| is \verb|"eps"|.
+
+\subsection{Previewing PostScript Output}
+\label{preview}
+
+\index{preview!PostScript}
+
+Previewing MetaPost's PostScript output is not difficult, but there are
+some catches that one should know about.  This section deals with the
+following questions: How can graphics be clipped to their true bounding
+box in the PostScript viewer application?  Why are my text labels
+rendered with an ugly font (or not at all) and what to do about that?
+
+\paragraph{Bounding Box}
+
+With default settings, MetaPost writes very much stripped-down
+PostScript code, containing only the bare graphics code, but no other
+ressources, like fonts etc.  The code is somewhat deficient, because it
+fails to correctly identify as Encapsulated PostScript
+(EPSF\index{EPSF}) in the header.  Instead MetaPost output wrongly
+pretends to be full PostScript (PS\index{PS}), which it is not.  Note,
+Encapsulated PostScript files don't have an associated page size, but
+provide bounding box information, because they are meant for inclusion
+into other documents.
+
+This is just fine for including MetaPost graphics in, say, \TeX\
+documents (see Section~\ref{mpimport}), but some PostScript viewers have
+difficulties rendering those PostScript files correctly.  As an example,
+because of the wrong ``PS'' header, GSview\index{GSview}---not knowing
+better---ignores bounding box information and then clips all contents to
+a (configurable) page size.  Graphic elements laying outside those fixed
+page boundaries are therefore not visible, e.g., when they have negative
+coordinates.
+
+To avoid such situations, the first rule when previewing MetaPost's
+PostScript output is to put the line
+$$
+\begin{verbatim}
+prologues := 2;
+\end{verbatim}
+\index{prologues?\texttt{prologues}}
+$$
+before the first \verb|beginfig| in MetaPost input files (see the
+discussion about \texttt{prologues} in Section~\ref{Dprologues}).  That
+way, MetaPost's PostScript output correctly identifies as Encapsulated
+PostScript and viewer applications should always obey the file's
+bounding box for on-screen rendering.
+
+A workaround for MetaPost's deficient default PostScript code that can
+sometimes be seen is to move the lower left corner of a figure to the
+origin as a last operation by saying
+$$
+\begin{verbatim}[commandchars=\\\{\}]
+\color{gray}currentpicture := currentpicture shifted -llcorner currentpicture;
+\end{verbatim}
+\index{currentpicture?\texttt{currentpicture}}
+\index{llcorner?\texttt{llcorner}}
+$$
+before \verb|endfig|.  But this doesn't prevent from clipping on the
+right and upper page boundaries.  Additionally, the line is required for
+all figures, cluttering source code, and it alters all coordinates in
+PostScript output, which might complicate debugging.  Applying such a
+manual transformation is therefore not recommended (which is why the
+line is grayed out).  Instead, users are advised to adjust
+\texttt{prologues} once in the preamble of the input file and enable
+clipping to the bounding box in the PostScript viewer.  For
+GSview\index{GSview}, that can be done by activating \texttt{Options}
+$\rightarrow$ \texttt{EPS Clip} and optionally \texttt{Options}
+$\rightarrow$ \texttt{Show Bounding Box} for verification.
+
+\paragraph{Text labels}
+
+Another popular previewing issue concerns graphics that contain text
+labels.  An observation MetaPost users can often make is that text
+labels in graphics are rendered with wrong fonts, wrong glyphs, and
+sometimes even not at all.  The reason is that with default settings,
+again, MetaPost's PostScript output is deficient, in that it doesn't
+declare what fonts are used in a graphic.  Setting variable
+\texttt{prologues} to~2, as shown in the previous paragraphs, makes
+MetaPost declare all needed PostScript\index{PostScript!fonts} fonts and
+embed the necessary encoding information.  If the PostScript viewer can
+provide the requested fonts, this might be sufficient to get text labels
+rendered correctly.  If you still observe wrong or missing glyphs you
+should put the line
+$$
+\begin{verbatim}
+prologues := 3;
+\end{verbatim}
+\index{prologues?\texttt{prologues}}
+$$
+into the preamble of the input file.  That way, MetaPost embeds the used
+PostScript\index{PostScript!fonts} fonts into the output file so that
+they are always available (see the discussion about \texttt{prologues}
+in Section~\ref{Dprologues}).  Note, this might enlarge the size of
+output files considerably.  Additionally, fonts might be embedded
+multiple times when several graphics using the same fonts are included
+into a document.  That's why, variable \texttt{prologues} should be
+reset to~0 before finally including MetaPost graphics into external
+documents.
+
+\subsection{Debugging}
+\label{debug}
+
+\index{debug}
 
 MetaPost inherits from \MF\index{metafont?\MF} numerous facilities for
 interactive debugging, most of which can only be mentioned briefly here.
@@ -5005,6 +5281,241 @@ shows in the transcript file at the end of the job how many of the
 MetaPost interpreter's limited resources were used.
 \end{description}
 
+\subsection{Importing MetaPost Graphics into External Applications}
+\label{mpimport}
+
+MetaPost is very well suited for creating graphics that are to be
+included into third-party applications, such as text documents,
+presentations or web pages, because MetaPost outputs graphics in vector
+formats, which can be scaled without quality degradation.  However,
+practice shows, that vector graphics, too, are best created with a rough
+target size already in mind.  Scaling a vector graphic calls for
+non-proportional scaling of certain technical parameters, such as line
+width, arrow size or fonts.  Otherwise, with growing scale factors
+scalable graphics tend to change their visual character.  Additionally,
+during import into a main document, they'll likely fail to match, e.g.,
+stroke width of the document.  To circumvent this, it is advisable to
+apply only small post-processing scale factors to vector graphics.  The
+following sections briefly discuss how to import MetaPost graphics into
+documents with selected applications.
+
+\subsubsection{\TeX\ and Friends}
+\label{teximport}
+\index{TeX?\TeX!and friends}
+
+MetaPost graphics in the PostScript\index{PostScript} format can be
+easily integrated into documents prepared with \TeX\ and friends.
+MetaPost's PostScript output is a low-featured dialect of the Postscript
+language, called \emph{purified EPS}\index{EPS!purified}, which can be
+converted into the Portable Document Format (PDF\index{PDF}) language
+on-the-fly.  For that reason, external MetaPost graphics can be used on
+both routes: a) using the traditional \TeX\ engine together with an
+external PostScript output driver and b) using newer \TeX\ engines, like
+pdf\TeX\ or its successor Lua\TeX, which contain a built-in PDF output
+driver.  Lua\TeX\ can additionally process embedded MetaPost code
+natively, falling back to the built-in \emph{mplib} library.
+
+Figure~\ref{fig:teximport} shows the process of including an external
+MetaPost graphic into a \TeX\ document using the PostScript route.  In
+the \TeX\ source a ``magic macro'' provided by the format or an external
+package is used for including a graphic file.  During the typesetting
+stage, the macro only reads bounding box information off the PostScript
+file and reserves the required space on the page via an empty box.  The
+file reference is passed-on to the output driver and only then, finally,
+the file is embedded into the document.  The freely available program
+\ttindex{dvips} is used as an output driver in this
+example.\footnote{The C source for \ttt{dvips} comes with the web2c
+  \TeX\ distribution.  Similar programs are available from other
+  sources.}  The next paragraphs give more detailed information on some
+popular combinations of \TeX\ formats and engines.
+
+\begin{figure}
+$$ \includegraphics{mpman-charts-1.mps} $$
+\caption{A diagram of the processing for a \TeX\ document embedding
+  MetaPost figures}
+\label{fig:teximport}
+\end{figure}
+
+\paragraph{Plain \TeX\ Format}
+\label{plaintexformat}
+\index{TeX?\TeX!format, plain!importing MetaPost files}
+
+For users of the Plain \TeX\ format and the traditional \TeX\
+engine\index{TeX?\TeX!engine} with Device Independend output
+(DVI\index{dvi file?{\tt dvi} file}) the
+\ttt{epsf}\index{epsf.tex?\texttt{epsf.tex}} package provides the
+``magic macro''
+$$ \verb|\epsfbox{|\descr{filename}\verb|}|%
+\index{epsfbox?\texttt{\string\epsfbox}} $$
+for embedding graphics, e.g., \verb|\epsfbox{fig.1}|.
+
+Users of the pdf\TeX\ engine\index{pdfTeX?pdf\TeX!engine} should refer
+to the standalone macros of the mptopdf\index{mptopdf} bundle, which can
+be found at \url{http://context.aanhet.net/mptopdf.htm}.
+
+With the Lua\TeX\ engine\index{LuaTeX?Lua\TeX!engine}, embedding
+external graphics works the same as with pdf\TeX.  Additionally,
+Lua\TeX\ users can inline MetaPost code directly into Plain \TeX\
+documents.  Lua\TeX\ is able to process such MetaPost code snippets,
+falling back to the built-in \emph{mplib}\index{mplib?\emph{mplib}}
+library.  Note, \emph{mplib} doesn't support
+\verb|verbatimtex|\slash\verb|btex| \ldots\ \verb|etex| constructs,
+currently.  Here is an example of a MetaPost graphic inlined into a
+Plain \TeX\ document.  For more information, please refer to the
+Lua\TeX~\cite[chap.~4.8]{luatex:manual} and
+\ttindex{luamplib}~\cite{hagen:luamplib} documentation.
+
+$$\begin{verbatim}
+\input luamplib.sty
+\mplibcode
+beginfig(1);
+  ...
+endfig;
+\endmplibcode
+\bye
+\end{verbatim}
+$$
+
+\paragraph{\LaTeX\ Format}
+\label{latexformat}
+\index{LaTeX?\LaTeX!format!importing MetaPost files}
+\index{TeX?\TeX!engine}
+\index{pdfTeX?pdf\TeX!engine}
+
+For users of the \LaTeX\ format and the traditional \TeX\ engine with
+Device Independent output (DVI\index{dvi file?{\tt dvi} file}) the
+well-known \ttindex{graphics} (or \ttindex{graphicx}) package aids in
+external graphics inclusion.  The package supports different engines,
+guessing the correct output driver automatically, and can handle several
+graphic formats.  The ``magic macro'' is
+$$ \verb|\includegraphics{|\descr{filename}\verb|}|%
+\index{includegraphics?\texttt{\string\includegraphics}} $$
+
+In DVI output driver mode the \ttt{graphics} package assumes all files
+with an unknown file extension, such as \texttt{.1} etc., to be in the
+EPS\index{EPS} format.  It therefore handles MetaPost files with a
+numeric default file extension correctly (see~\cite{reckdahl:epslatex}
+for more information).
+
+When using the pdf\TeX\ engine with a built-in PDF output driver, the
+situation is a bit different.  Only files with file extension
+\texttt{.mps}\index{mps file?{\tt mps} file}\index{files!mps?{\tt mps}}
+are recognized as purified EPS\index{EPS!purified} and can be converted
+to PDF\index{PDF} on-the-fly.  The recommended procedure for embedding
+MetaPost graphics into \LaTeX\ documents compiled with pdf\TeX\ is
+therefore to change MetaPost's output file name extension via
+\verb|outputtemplate|\index{outputtemplate?\texttt{outputtemplate}} (see
+p.~\pageref{Doutputtemplate}).  In the \LaTeX\ document include the
+graphic files with full name, e.g.,
+$$\begin{verbatim}
+\includegraphics{fig-1.mps}
+\end{verbatim}
+$$
+
+Note, the latter approach works with the \ttindex{dvips} driver, too.
+Even though, again, this time \ttt{.mps} is an unknown file extension,
+triggering EPS file handling in a fall-back procedure.  This property of
+the \ttt{graphics} package, which comes in handy for MetaPost files, is
+the reason many MetaPost source files start with the line
+$$\begin{verbatim}
+outputtemplate := "%j-%c.mps";
+\end{verbatim}
+$$
+
+With the Lua\TeX\ engine\index{LuaTeX?Lua\TeX!engine}, embedding
+external graphics works the same as with pdf\TeX.  Additionally,
+Lua\TeX\ users can inline MetaPost code directly into La\TeX\ documents.
+Lua\TeX\ is able to process such MetaPost code snippets, falling back to
+the built-in \emph{mplib}\index{mplib?\emph{mplib}} library.  Note,
+\emph{mplib} doesn't support \verb|verbatimtex|\slash\verb|btex| \ldots\
+\verb|etex| constructs, currently.  Here is an example of a MetaPost
+graphic inlined into a \LaTeX\ document.  For more information, please
+refer to the Lua\TeX~\cite[chap.~4.8]{luatex:manual} and
+\ttindex{luamplib}~\cite{hagen:luamplib} documentation.
+$$\begin{verbatim}
+\documentclass{article}
+\usepackage{luamplib}
+\begin{document}
+\begin{mplibcode}
+beginfig(1);
+  ...
+endfig;
+\end{mplibcode}
+\end{document}
+\end{verbatim}
+$$
+
+\paragraph{Con\TeX t Format}
+\label{contextformat}
+\index{ConTeXt?Con\TeX t!format!importing MetaPost files}
+
+In Con\TeX t\index{ConTeXt?Con\TeX t} graphics support is integrated in
+the kernel, covering advanced features like shading, transparency, color
+spaces or image inclusion.  The ``magic macro'' for embedding external
+graphics is
+$$ \verb|\externalfigure[|\descr{filename}\verb|]|%
+\index{externalfigure?\texttt{\string\externalfigure}} $$
+%
+The macro can handle numbered files as well as files with the \ttt{mps}
+suffix.
+
+Alternatively, Con\TeX t users can inline MetaPost code in the document
+source, which allows for more natural interfacing with document
+properties, font support, and automatic processing~\cite{hagen:metafun}.
+Here is an example of a MetaPost graphic inlined into a Con\TeX t
+document.
+$$\begin{verbatim}[commandchars=|\[\]]
+\starttext
+\startuseMPgraphic{|tdescr[name]}
+  ...
+\stopuseMPgraphic
+\useMPgraphic{|tdescr[name]}
+\stoptext
+\end{verbatim}
+$$
+
+Con\TeX t MkIV, being based on the Lua\TeX\ engine, provides a much
+tighter integration of MetaPost than older versions, since it can
+fall-back to the built-in \emph{mplib}\index{mplib?\emph{mplib}}
+library.
+
+\subsubsection{Troff}
+\label{troffimport}
+\index{troff!importing MetaPost files}
+
+It is also possible to include MetaPost output in a GNU
+troff\index{troff} document.  The procedure is similar to
+Figure~\ref{fig:teximport}: the \ttindex{grops} output processor
+includes PostScript files when they are requested via troff's
+\ttt{\string\X}\index{X?\texttt{\string\X}} command.  The
+\ttt{-mpspic}\index{mpspic?\texttt{-mpspic}} macro package provides a
+command \verb|.PSPIC|\index{PSPIC?\texttt{.PSPIC}}, which does just that
+when including an encapsulated PostScript file in the source code.  For
+instance, the troff command
+$$ \hbox{\verb|.PSPIC fig.1|} $$
+includes \ttt{fig.1}, using the natural height and width of the
+image as given in the file's bounding box.
+
+\subsubsection{Web Applications}
+\label{webimport}
+\index{SVG!files}
+
+An SVG\index{svg file?{\tt svg} file}\index{files!svg?{\tt svg}} file
+\texttt{fig.svg} can be easily embedded into HTML\index{HTML} documents
+with the following code snippet:
+$$\begin{verbatim}
+<p>
+  <object data="fig.svg" type="image/svg+xml" width="300" height="200">
+  </object>
+</p>
+\end{verbatim}
+$$
+
+SVG files can also be imported by various interactive graphics editing
+programs, for example GIMP\index{GIMP} or Inkscape\index{Inkscape}.  See
+Section~\ref{Dprologues} for information on font handling in SVG
+graphics.
+
 
 \section*{Acknowledgement}
 
@@ -5016,7 +5527,6 @@ treatment of included \TeX\ material.
 
 \appendix
 \include{mpman-app-refman}
-\include{mpman-app-mpimport}
 \include{mpman-app-legacy}
 
 
