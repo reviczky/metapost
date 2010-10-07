@@ -4938,6 +4938,13 @@ output one would want to use \texttt{svg}\index{svg file?{\tt svg}
   \label{tab:outputtemplate}
 \end{table}
 
+There are two transformations applied to the
+\verb|%c|\index{\%c?\texttt{\%c}} pattern.  For positive arguments to
+\verb|beginfig|, \verb|%c| is the
+charcode\index{charcode?\texttt{charcode}} value rounded to the nearest
+integer.  For negative arguments, \verb|%c| evaluates to the string
+\verb|ps| for backwards compatibility.
+
 The template mechanism can also be used for naming graphic files
 individually, yet keeping all sources in one file.  Collecting, e.g.,
 different diagram sources in a single file \texttt{fig.mp}, it might be

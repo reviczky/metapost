@@ -61,7 +61,6 @@ Advanced Graphics:
 * (SH) Colour cars and change code example in section piccomp.
 
 Notes on the MetaPost Workflow:
-* beginfig(-1) generates fig.ps
 * Describe scripts mpstoeps, mptopdf, mpsproof.
 * Mention Troy's online previewer at http://www.tlhiv.org/mppreview/ ?
 
