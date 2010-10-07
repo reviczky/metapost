@@ -4895,8 +4895,8 @@ corresponding escape sequences has to be assigned to the internal string
 variable
 \verb|outputtemplate|\index{outputtemplate?\texttt{outputtemplate}}\label{Doutputtemplate}.
 The escape sequences provided are listed in
-table~\ref{tab:outputtemplate}.  If this code is saved in a file
-\texttt{fig.mp},
+table~\ref{tab:outputtemplate}.  As an example, if this code is saved in
+a file \texttt{fig.mp},
 $$
 \begin{verbatim}
 outputtemplate := "%j-%c.mps";
@@ -4914,36 +4914,35 @@ output one would want to use \texttt{svg}\index{svg file?{\tt svg}
   file}\index{files!svg?{\tt svg}} instead.
 
 \begin{table}
-  \def\d{$\langle$0-9$\rangle$}
+  \newcommand*{\otesc}[3]{\%#1\index{\%#1?\texttt{\%#1}} & #2 & \%\{#3\}}
   \centering
-  \begin{tabular}{|>{\ttfamily}l|>{\ttfamily}l|l|}
+  \begin{tabular}{|>{\ttfamily}l|l|>{\ttfamily}l|}
     \hline
-    \multicolumn1{|c|}{Escape sequence} & \multicolumn1{c|}{Equivalent}
-    & \multicolumn1{c|}{Meaning}\\\hline
-    \%\%\index{\%\%?\texttt{\%\%}}   & & percent sign\\
-    \%\d\{\tdescr{internal
-      variable}\}\index{\%\{...\}?\texttt{\%\{\ldots\}}} & & evaluate
-    internal variable\\
-    \%j\index{\%j?\texttt{\%j}} & \%\{jobname\} & current jobname\\
-    \%\d c\index{\%c?\texttt{\%c}} & \%\d\{charcode\} & charcode value (\verb|beginfig|
-    argument)\\ 
-    \%\d y\index{\%y?\texttt{\%y}} & \%\d\{year\} & current year\\
-    \%\d m\index{\%m?\texttt{\%m}} & \%\d\{month\} & month (numeric)\\
-    \%\d d\index{\%d?\texttt{\%d}} & \%\d\{day\} & day of the month\\
-    \%\d H\index{\%H?\texttt{\%H}} & \%\d\{hour\} & hour\\
-    \%\d M\index{\%M?\texttt{\%M}} & \%\d\{minute\} & minute\\
+    \multicolumn1{|c|}{Escape sequence} & \multicolumn1{c|}{Meaning} & \multicolumn1{c|}{Equivalent}\\\hline
+    \%\%\index{\%\%?\texttt{\%\%}} & percent sign &\\
+    \%\{\tdescr{internal variable}\}\index{\%\{...\}?\texttt{\%\{\tdescr{internal variable}\}}} & evaluate internal variable &\\
+    \%j\index{\%j?\texttt{\%j}} & current jobname & \%\{jobname\} \\
+    \otesc{c}{charcode value (\texttt{beginfig} argument)}{charcode}\\
+    \otesc{y}{current year}{year}\\
+    \otesc{m}{month (numeric)}{month}\\
+    \otesc{d}{day of the month}{day}\\
+    \otesc{H}{hour}{hour}\\
+    \otesc{M}{minute}{minute}\\
     \hline
   \end{tabular}
   \caption{Allowed escape sequences for \ttt{outputtemplate}}
   \label{tab:outputtemplate}
 \end{table}
 
-There are two transformations applied to the
-\verb|%c|\index{\%c?\texttt{\%c}} pattern.  For positive arguments to
-\verb|beginfig|, \verb|%c| is the
-charcode\index{charcode?\texttt{charcode}} value rounded to the nearest
-integer.  For negative arguments, \verb|%c| evaluates to the string
-\verb|ps| for backwards compatibility.
+In escape sequences refering to numeric internals (including
+\verb|%{...}|), there can be an optional number (0--9) after \verb|%|
+that determines the number of digits in the resulting string expression,
+like \verb|%2m|.  The string is then padded with zeros from left.  When
+the \verb|%c|\index{\%c?\texttt{\%c}} escape sequence is evaluated, two
+transformations are applied.  For positive arguments to \verb|beginfig|,
+\verb|%c| is the charcode\index{charcode?\texttt{charcode}} value
+rounded to the nearest integer.  For negative arguments, \verb|%c|
+evaluates to the string \verb|ps| for backwards compatibility.
 
 The template mechanism can also be used for naming graphic files
 individually, yet keeping all sources in one file.  Collecting, e.g.,
