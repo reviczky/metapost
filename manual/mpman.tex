@@ -4833,62 +4833,22 @@ MetaPost knows and obeys a number of internal\index{internal
   variables}\index{variables!internal} that have no direct impact on
 drawing commands, but can be used to customize the way the MetaPost
 compiler processes input files.  The following paragraphs discuss those
-variables (in alphabetical order).
+variables (in no particular order).
 
-\paragraph{PostScript Dictionary}
+\paragraph{Date and Time}
 
-For PostScript output, MetaPost can define a dictionary of abbreviations
-of the PostScript commands, e.g., \verb|l| instead of \verb|lineto|, to
-reduce the size of output files.  Setting the internal variable
-\texttt{mpprocset}\index{mpprocset?\texttt{mpprocset}}\label{Dmpprocset}
-to~1 makes MetaPost create an extended preamble setting-up the
-dictionary.  Default value of variable \texttt{mpprocset} is~0, that is,
-no dictionary is used.  For SVG output, variable \texttt{mpprocset} is
-not relevant.
-
-\paragraph{Version Number}
-
-The version number of the MetaPost compiler can be determined from
-within a MetaPost program via the predefined constant string
-\texttt{mpversion}\index{mpversion?\texttt{mpversion}}\label{Dmpversion}
-(since version~0.9).  For instance the following code
-$$
-\begin{verbatim}
-message "mp = " & mpversion;
-\end{verbatim}
-$$
-writes
-$$
-\begin{verbatim}[commandchars=\\\{\}]
-mp = \mpversion
-\end{verbatim}
-$$
-to the console and the transcript file.  Variable \texttt{mpversion} can
-be used to execute code depending on the MetaPost version like this:
-$$
-\begin{verbatim}[commandchars=\\\{\}]
-if unknown mpversion: string mpversion; mpversion := "0.000"; fi
-if scantokens(mpversion) < 1.200:
-  errmessage "MetaPost v1.200 or later required (found v" & mpversion & ")";
-else:
-  \tdescr{code}
-fi
-\end{verbatim}
-$$
-The first line is optional and only added to handle ancient MetaPost
-versions gracefully that don't even know about variable
-\textrm{mpversion} (prior to v0.9).  The second test does the actual
-work.
-
-The version number is also written to output files and the transcript
-file.  For PostScript output the version number can be found in the
-\texttt{Creator}\index{Creator comment in PostScript
-  output?\texttt{Creator} comment in PostScript output|see{PostScript,
-    \texttt{Creator} comment}}\index{PostScript!Creator
-  comment?\texttt{Creator} comment} comment.  SVG files contain a simple
-comment line near the beginning of the file.  The
-transcript\index{files!transcript} file starts with a banner line that
-identifies the version\index{version number} of the MetaPost compiler.
+MetaPost provides a number of internal numeric variables that store the
+date and time a job was started, i.e., the MetaPost executable was
+called on the command-line.  Variables
+\texttt{year}\index{year?\texttt{year}}\label{Dyear},
+\texttt{month}\index{month?\texttt{month}}\label{Dmonth},
+\texttt{day}\index{day?\texttt{day}}\label{Dday},
+\texttt{hour}\index{hour?\texttt{hour}}\label{Dhour}, and
+\texttt{minute}\index{minute?\texttt{minute}}\label{Dminute} should be
+self-explanatory.  Variable
+\texttt{time}\index{time?\texttt{time}}\label{Dtime} returns the number
+of minutes past midnight, since the job was started, i.e.,
+$\texttt{time} = 60*\texttt{hour} + \texttt{minute}$.
 
 \paragraph{Output File Names}
 
@@ -5004,20 +4964,60 @@ Any other value makes MetaPost fall back to PostScript output.  Variable
 \verb|"SVG"| enables PostScript output, too.  Default value of variable
 \verb|outputformat| is \verb|"eps"|.
 
-\paragraph{Date and Time}
+\paragraph{PostScript Dictionary}
 
-MetaPost provides a number of internal numeric variables that store the
-date and time a job was started, i.e., the MetaPost executable was
-called on the command-line.  Variables
-\texttt{year}\index{year?\texttt{year}}\label{Dyear},
-\texttt{month}\index{month?\texttt{month}}\label{Dmonth},
-\texttt{day}\index{day?\texttt{day}}\label{Dday},
-\texttt{hour}\index{hour?\texttt{hour}}\label{Dhour}, and
-\texttt{minute}\index{minute?\texttt{minute}}\label{Dminute} should be
-self-explanatory.  Variable
-\texttt{time}\index{time?\texttt{time}}\label{Dtime} returns the number
-of minutes past midnight, since the job was started, i.e.,
-$\texttt{time} = 60*\texttt{hour} + \texttt{minute}$.
+For PostScript output, MetaPost can define a dictionary of abbreviations
+of the PostScript commands, e.g., \verb|l| instead of \verb|lineto|, to
+reduce the size of output files.  Setting the internal variable
+\texttt{mpprocset}\index{mpprocset?\texttt{mpprocset}}\label{Dmpprocset}
+to~1 makes MetaPost create an extended preamble setting-up the
+dictionary.  Default value of variable \texttt{mpprocset} is~0, that is,
+no dictionary is used.  For SVG output, variable \texttt{mpprocset} is
+not relevant.
+
+\paragraph{Version Number}
+
+The version number of the MetaPost compiler can be determined from
+within a MetaPost program via the predefined constant string
+\texttt{mpversion}\index{mpversion?\texttt{mpversion}}\label{Dmpversion}
+(since version~0.9).  For instance the following code
+$$
+\begin{verbatim}
+message "mp = " & mpversion;
+\end{verbatim}
+$$
+writes
+$$
+\begin{verbatim}[commandchars=\\\{\}]
+mp = \mpversion
+\end{verbatim}
+$$
+to the console and the transcript file.  Variable \texttt{mpversion} can
+be used to execute code depending on the MetaPost version like this:
+$$
+\begin{verbatim}[commandchars=\\\{\}]
+if unknown mpversion: string mpversion; mpversion := "0.000"; fi
+if scantokens(mpversion) < 1.200:
+  errmessage "MetaPost v1.200 or later required (found v" & mpversion & ")";
+else:
+  \tdescr{code}
+fi
+\end{verbatim}
+$$
+The first line is optional and only added to handle ancient MetaPost
+versions gracefully that don't even know about variable
+\textrm{mpversion} (prior to v0.9).  The second test does the actual
+work.
+
+The version number is also written to output files and the transcript
+file.  For PostScript output the version number can be found in the
+\texttt{Creator}\index{Creator comment in PostScript
+  output?\texttt{Creator} comment in PostScript output|see{PostScript,
+    \texttt{Creator} comment}}\index{PostScript!Creator
+  comment?\texttt{Creator} comment} comment.  SVG files contain a simple
+comment line near the beginning of the file.  The
+transcript\index{files!transcript} file starts with a banner line that
+identifies the version\index{version number} of the MetaPost compiler.
 
 \subsection{Previewing PostScript Output}
 \label{preview}
