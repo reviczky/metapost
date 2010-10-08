@@ -5004,6 +5004,21 @@ Any other value makes MetaPost fall back to PostScript output.  Variable
 \verb|"SVG"| enables PostScript output, too.  Default value of variable
 \verb|outputformat| is \verb|"eps"|.
 
+\paragraph{Date and Time}
+
+MetaPost provides a number of internal numeric variables that store the
+date and time a job was started, i.e., the MetaPost executable was
+called on the command-line.  Variables
+\texttt{year}\index{year?\texttt{year}}\label{Dyear},
+\texttt{month}\index{month?\texttt{month}}\label{Dmonth},
+\texttt{day}\index{day?\texttt{day}}\label{Dday},
+\texttt{hour}\index{hour?\texttt{hour}}\label{Dhour}, and
+\texttt{minute}\index{minute?\texttt{minute}}\label{Dminute} should be
+self-explanatory.  Variable
+\texttt{time}\index{time?\texttt{time}}\label{Dtime} returns the number
+of minutes past midnight, since the job was started, i.e.,
+$\texttt{time} = 60*\texttt{hour} + \texttt{minute}$.
+
 \subsection{Previewing PostScript Output}
 \label{preview}
 

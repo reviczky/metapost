@@ -32,8 +32,7 @@ mp-implementors list or alternatively the metapost list.
 *****************************
 
 Notes on the MetaPost Workflow:
-* (SH) Describe variables jobname, charcode, time, year, month, day,
-    hour, minute.
+* (SH) Describe variables jobname, charcode.
 
 
 
