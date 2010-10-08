@@ -3562,20 +3562,22 @@ To summarize the discussion of mismatching part operators:
 \subsection{Decomposing the Glyphs of a Font}
 \label{glyphs}
 
-MetaPost provides a primitive to convert a glyph of a font in the Adobe
-Type~1 Font\index{PostScript!fonts}\index{font!PostScript}\index{Adobe
-  Type~1 Font}\index{font!Adobe Type~1} format into its constituent
-filled paths---the strokes---and store them in a picture variable.  A
-glyph\index{font!glyph} is the visual representation of a character in a
-font.  A character\index{character}\index{font!character} is a certain
-slot\index{slot} (index) in a font with an associated meaning, e.g., the
-capital letter~``M'' or the exclamation mark.  The meaning of a slot is
-defined by the font encoding\index{encoding}\index{font!encoding}.  In
-general, the same character is represented by different glyphs in
-different fonts.  Figure~\ref{glyphsample} shows some glyphs for the
-character at slot~103 in the T1 encoding, i.e., the lower-case
-letter~``g''.  All glyphs are at the same nominal size.  Note, how
-glyphs may extend beyond their bounding box.
+MetaPost provides a primitive to convert a
+glyph\index{glyph}\index{font!glyph} of a font in the Adobe Type~1
+Font\index{PostScript!fonts}\index{font!PostScript}\index{Adobe Type~1
+  Font}\index{font!Adobe Type~1} format into its constituent filled
+paths---the strokes---and store them in a picture variable.  A glyph is
+the visual representation of a character in a font.  A
+character\index{character}\index{font!character} is a certain
+slot\index{slot}\index{font!slot} (index) in a font with an associated
+meaning, e.g., the capital letter~``M'' or the exclamation mark.  The
+meaning of a slot is defined by the font
+encoding\index{encoding}\index{font!encoding}.  In general, the same
+character is represented by different glyphs in different fonts.
+Figure~\ref{glyphsample} shows some glyphs for the character at slot~103
+in the T1 encoding, i.e., the lower-case letter~``g''.  All glyphs are
+at the same nominal size.  Note, how glyphs may extend beyond their
+bounding box.
 \begin{figure}[htp]
   \centering
   \setlength{\fboxsep}{0pt}
@@ -3597,8 +3599,8 @@ glyphs may extend beyond their bounding box.
   \label{glyphsample}
 \end{figure}
 
-The glyphs of an Adobe Type~1 font
-\index{PostScript!fonts}\index{font!PostScript}\index{Adobe Type~1
+The glyphs of an Adobe Type~1
+font\index{PostScript!fonts}\index{font!PostScript}\index{Adobe Type~1
   Font}\index{font!Adobe Type~1} are composed of two types of contours:
 Clockwise oriented contours add to the shape of a glyph and are filled
 with black ink.  Counter-clockwise oriented contours
@@ -3640,17 +3642,19 @@ glyph visually\footnote{Plain contours already carry enough information
 fonts\index{PostScript!fonts}\index{font!PostScript}\index{Adobe Type~1
   Font}\index{font!Adobe Type~1} use a generalized variant of the
 non-zero winding number fill rule\index{non-zero fill rule}\index{fill
-  rule!non-zero}\index{PostScript!fill rule}, that MetaPost doesn't
+  rule!non-zero}\index{PostScript!fill rule}, which MetaPost doesn't
 implement (MetaPost cannot handle non-contiguous paths).  As a side
 effect, the interiors of the erasing\index{erasing} contours are an
 opaque white in the returned picture, while they were transparent in the
 original glyph.  One can think of erasing contours to be unfilled (see
 p.~\pageref{Dunfill}).  For instance, the following code saves the
 contours of the lower case letter~``g'', bound to slot~103 in the OT1
-encoding\index{OT1 encoding}\index{encoding!OT1}, in the Computer Modern
-Roman\index{Computer Modern Roman} font in a picture variable:
+encoding\index{OT1 encoding}\index{encoding!OT1}, in the
+Computer\index{Computer Modern Roman} Modern Roman font in a picture
+variable:
 
-$$\begin{verbatim}
+$$
+\begin{verbatim}
 fontmapline "cmr10 CMR10 <cmr10.pfb";
 picture g;
 g := glyph 103 of "cmr10";
@@ -3671,7 +3675,7 @@ is mandatory for the font in question, given either by
 section~\ref{Dfontmapline}).
 
 In Figure~\ref{fig56}, the contours of the upper case letter~``\v{D}''
-in the Latin Modern Roman\index{Latin Modern Roman} font are saved in a
+in the Latin\index{Latin Modern Roman} Modern Roman font are saved in a
 picture variable.  The glyph is identified by its CharString name
 ``Dcaron''\index{Dcaron}.  The code then iterates over all contours and
 draws them together with their cardinal (black) and control points
@@ -3679,7 +3683,8 @@ draws them together with their cardinal (black) and control points
 cardinal points in this glyph.
 
 \begin{figure}[htb]
-$$\begin{verbatim}
+$$
+\begin{verbatim}
 fontmapfile "=lm-ec.map";
 beginfig(56);
   picture q;
@@ -3723,13 +3728,13 @@ negative).  Second, in an Adobe Type~1
 font\index{PostScript!fonts}\index{font!PostScript}\index{Adobe Type~1
   Font}\index{font!Adobe Type~1}, contours are in general closed by
 repeating the starting point before applying the \verb|closepath|
-operator\index{PostScript!\texttt{closepath} operator}.  The MetaPost
-representation of such a path would be:
+operator\index{PostScript!closepath operator?\texttt{closepath}
+  operator}.  The MetaPost representation of such a path would be:
 $$
 z_0\verb|..|\mbox{\itshape controls}\verb|..|z_1\verb|..| \cdots
 \verb|..|z_n\verb|..|\mbox{\itshape controls}\verb|..|z_0\verb|--cycle|
 $$
-A more natural MetaPost representation of this path would be:
+However, a more natural MetaPost representation of that path would be:
 $$
 z_0\verb|..|\mbox{\itshape controls}\verb|..|z_1\verb|..| \cdots
 \verb|..|z_n\verb|..|\mbox{\itshape controls}\verb|..cycle|
@@ -3737,20 +3742,20 @@ $$
 The \verb|glyph| operator transforms all paths into the latter
 representation, i.e., the last point is removed, whenever it matches the
 starting point.  Finally, the picture returned by the \verb|glyph|
-operator is scaled such that one font design unit\index{font!design
+operator is scaled, such that one font design unit\index{font!design
   unit} equals one PostScript
 point\index{point!PostScript}\index{PostScript!point} (bp).  A usual
 font design unit is a thousandth part of the font design
-size\index{font!design size}.  The returned picture will therefore
-typically have a height of around 1000\,bp.
+size\index{font!design size}.  Therefore, the returned picture will
+typically have a height of around 1000bp.
 
 Converting a text into plain curves is part of a process oftentimes
-called ``flattening\index{flattening} a document.''  When flattening
-text, all hinting information in fonts are lost.  Hinting information
-aid a rendering application in aligning certain parts of a glyph on a
+called ``flattening\index{flattening}'' a document.  During flattening,
+all hinting information in fonts are lost.  Hinting information aid a
+rendering application in aligning certain parts of a glyph on a
 low-resolution output device.  A flattened text may therefore look
 distorted on screen.  In SVG output, all text is automatically
-flattened, when the internal variable
+flattened, if the internal variable
 \verb|prologues|\index{prologues?\texttt{prologues}} is set to~3 (see
 section~\ref{Dprologues}).
 
