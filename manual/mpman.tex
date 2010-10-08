@@ -1578,7 +1578,11 @@ statement.  This is effectively
 like a {\tt label} statement followed by a statement drawing a dot at
 the indicated coordinates.  For example
 $$ \hbox{\tt dotlabel.bot("(0,0)", z0)} $$
-places a dot at {\tt z0} and then puts the label ``(0,0)'' just below the dot.
+places a dot at {\tt z0} and then puts the label ``(0,0)'' just below
+the dot.  The diameter of the dot draw by the {\tt dotlabel} statement
+is determined by the value of the internal variable {\tt
+  dotlabeldiam}\index{dotlabeldiam?\texttt{dotlabeldiam}}\label{Ddotlabdiam}.
+Default value is 3bp.
 
 Another alternative is the macro
 {\tt thelabel}\index{thelabel?\texttt{thelabel}}\label{Dthelab}.  This has
