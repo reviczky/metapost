@@ -4835,6 +4835,17 @@ drawing commands, but can be used to customize the way the MetaPost
 compiler processes input files.  The following paragraphs discuss those
 variables (in alphabetical order).
 
+\paragraph{PostScript Dictionary}
+
+For PostScript output, MetaPost can define a dictionary of abbreviations
+of the PostScript commands, e.g., \verb|l| instead of \verb|lineto|, to
+reduce the size of output files.  Setting the internal variable
+\texttt{mpprocset}\index{mpprocset?\texttt{mpprocset}}\label{Dmpprocset}
+to~1 makes MetaPost create an extended preamble setting-up the
+dictionary.  Default value of variable \texttt{mpprocset} is~0, that is,
+no dictionary is used.  For SVG output, variable \texttt{mpprocset} is
+not relevant.
+
 \paragraph{Version Number}
 
 The version number of the MetaPost compiler can be determined from
