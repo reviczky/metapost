@@ -54,8 +54,11 @@ Integrating Text and Graphics:
 * Why is verbatimtex\end{document}etex "safer", cf. sec. 13.1?
 * Discuss difference between "draw <pic> withpen" and
     "label(<pic>, ...) withpen" (when label bug is fixed).
+* Fix bad description of prologues in table ivartab.
+* Move discussion of prologues to sec. workflow2?
 
 Advanced Graphics:
+* drawdot uses currentpen.
 * Add a sub-section discussing colours.
 * (SH) Colour cars and change code example in section piccomp.
 
