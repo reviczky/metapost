@@ -198,8 +198,10 @@ $$ \hbox{\verb|draw (20,20)--(0,0)--(0,30)--(30,0)--(0,0)|} $$
 draws a polygonal line like this:
 $$ \includegraphics{mpman-1.mps} $$
 
-\label{Ddrawdot}MetaPost also has a \ttt{drawdot} command to print a
-single point, as in \ttt{drawdot(30,0)}. 
+MetaPost also has a
+\verb|drawdot|\index{drawdot?\texttt{drawdot}}\label{Ddrawdot} command
+to draw a single point with the current pen, as in
+\verb|drawdot (30,0)|.
 
 What is meant by coordinates like \verb|(30,0)|?  MetaPost uses the same
 default coordinate system that PostScript\index{PostScript!coordinate
@@ -238,20 +240,21 @@ generality that we do not need yet.  This leads to the strange looking
 statement\index{pickup?\texttt{pickup}}\index{pencircle?\texttt{pencircle}}%
 \index{scaled?\texttt{scaled}}
 $$ \hbox{\verb|pickup pencircle scaled 4pt|} $$
-for setting the line width for subsequent \verb|draw| statements to 4 points.
-(This is about eight times the default line width).
+for setting the line width (actually the pen size) for subsequent
+\verb|draw| or \verb|drawdot| statements to 4 points.  (This is about
+eight times the default pen size).
 
-With such a wide line width, even a line of zero length comes out as a big bold
-dot\index{dots}.  We can use this to make a grid of bold dots by having one
-\verb|drawdot| statement
-for each grid point.  Such a repetitive sequence of \verb|draw| statements is
-best written as a pair of nested loops:\index{loops}%
-\index{for?\texttt{for}}\index{endfor?\texttt{endfor}}
-$$\begin{verbatim}
+With such a large pen size, the \verb|drawdot| statement draws rather
+bold dots.  We can use this to make a grid of dots by nesting
+\verb|drawdot| in a pair of loops:\index{loops}%
+$$
+\begin{verbatim}
 for i=0 upto 2:
   for j=0 upto 2:  drawdot (i*u,j*u);  endfor
 endfor
 \end{verbatim}
+\index{for?\texttt{for}}
+\index{endfor?\texttt{endfor}}
 $$
 The outer loop runs for $i=0,1,2$ and the inner loop runs for $j=0,1,2$.
 The result is a three-by-three grid of bold dots as shown in Figure~\ref{fig1}.

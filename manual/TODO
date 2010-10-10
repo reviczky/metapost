@@ -58,7 +58,6 @@ Integrating Text and Graphics:
 * Move discussion of prologues to sec. workflow2?
 
 Advanced Graphics:
-* drawdot uses currentpen.
 * Add a sub-section discussing colours.
 * (SH) Colour cars and change code example in section piccomp.
 
