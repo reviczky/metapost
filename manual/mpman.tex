@@ -1069,8 +1069,10 @@ function of pens in MetaPost is to determine line thickness, but they
 can also be used to achieve calligraphic effects.  The
 statement\index{pickup?\texttt{pickup}}\label{Dpickup}
 $$ {\tt pickup\ }\descr{pen expression} $$
-causes the given pen to be used in subsequent {\tt draw} statements.
-Normally, the pen expression is of the form
+causes the given pen to be used in subsequent
+\verb|draw|\index{draw?\texttt{draw}} or
+\verb|drawdot|\index{drawdot?\texttt{drawdot}} statements.  Normally,
+the pen expression is of the form
 $$ {\tt pencircle\ scaled\ }\descr{numeric primary}. $$
 This defines a circular pen that produces lines of constant thickness.
 If calligraphic effects are desired, the pen expression can be adjusted to give
