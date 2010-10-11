@@ -5042,7 +5042,7 @@ Previewing MetaPost's PostScript output is not difficult, but there are
 some catches that one should know about.  This section deals with the
 following questions: How can graphics be clipped to their true bounding
 box in the PostScript viewer application?  Why are my text labels
-rendered with an ugly font (or not at all) and what to do about that?
+rendered with an ugly font (or not at all) and how to avoid that?
 
 \paragraph{Bounding Box}
 
@@ -5101,7 +5101,7 @@ GSview\index{GSview}, that can be done by activating \texttt{Options}
 $\rightarrow$ \texttt{EPS Clip} and optionally \texttt{Options}
 $\rightarrow$ \texttt{Show Bounding Box} for verification.
 
-\paragraph{Text labels}
+\paragraph{Text Labels}
 
 Another popular previewing issue concerns graphics that contain text
 labels.  An observation MetaPost users can often make is that text
@@ -5127,9 +5127,15 @@ they are always available (see the discussion about \texttt{prologues}
 in Section~\ref{Dprologues}).  Note, this might enlarge the size of
 output files considerably.  Additionally, fonts might be embedded
 multiple times when several graphics using the same fonts are included
-into a document.  That's why, variable \texttt{prologues} should be
-reset to~0 before finally including MetaPost graphics into external
-documents.
+into a document.  For that reason, it is recommended to reset variable
+\texttt{prologues} to~0 before finally including MetaPost graphics into
+external documents.
+
+\emph{As of October 2010, \texttt{dvips}\index{dvips?\texttt{dvips}}
+  v5.99 doesn't handle MetaPost output gracefully, if prologues is set
+  to a value larger than~0.  It is therefore \textsc{mandatory} to reset
+  prologues to~0 before including MetaPost graphics into \TeX\ documents
+  that are post-processed by \texttt{dvips}, currently.}
 
 \subsection{Debugging}
 \label{debug}
