@@ -23253,7 +23253,7 @@ void mp_do_new_internal (MP mp) {
   if (mp->cur_cmd==type_name && mp->cur_mod==mp_string_type) {
      the_type = mp_string_type;
   } else {
-     if (!(mp->cur_cmd==type_name && mp->cur_mod==mp_known)) {
+     if (!(mp->cur_cmd==type_name && mp->cur_mod==mp_numeric_type)) {
         mp_back_input(mp);
      }
   }
