@@ -4886,7 +4886,7 @@ $$
 \begin{verbatim}
 outputtemplate := "%j-%c.mps";
 beginfig(1);
-  draw origin--(100,100);
+  drawdot origin;
 endfig;
 end
 \end{verbatim}
@@ -4920,14 +4920,20 @@ output one would want to use \texttt{svg}\index{svg file?{\tt svg}
 \end{table}
 
 In escape sequences referring to numeric internals (including
-\verb|%{...}|), there can be an optional number (0--9) after \verb|%|
-that determines the number of digits in the resulting string expression,
-like \verb|%2m|.  The string is then padded with zeros from left.  When
-the \verb|%c|\index{\%c?\texttt{\%c}} escape sequence is evaluated, two
-transformations are applied.  For positive arguments to \verb|beginfig|,
-\verb|%c| is the charcode\index{charcode?\texttt{charcode}} value
-rounded to the nearest integer.  For negative arguments, \verb|%c|
-evaluates to the string \verb|ps| for backwards compatibility.
+\verb|%{...}|), there can be an optional number (0--99) after \verb|%|
+that determines the minimum number of digits in the resulting string
+expression, like \verb|%2m|.  The actual string length may exceed the
+requested value, if the decimal representation of the internal variable
+needs more digits.  If it needs fewer digits, the string is padded to
+the requested length with zeros from left.
+
+When the \verb|%c|\index{\%c?\texttt{\%c}} escape sequence is evaluated,
+two transformations are applied.  First, the
+charcode\index{charcode?\texttt{charcode}} value is rounded to the
+nearest integer.  Second, if the result is negative, \verb|%c| evaluates
+to the string \verb|ps| for backwards compatibility.  The latter
+transformation can be bypassed by using \verb|%{charcode}| instead of
+\verb|%c|.
 
 The template mechanism can also be used for naming graphic files
 individually, yet keeping all sources in one file.  Collecting, e.g.,
