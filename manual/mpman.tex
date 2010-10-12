@@ -5203,9 +5203,9 @@ generate PDF files.
 
 Syntax is the same as for \texttt{mproof.tex}, but there are two
 additional options.  With the
-\verb|\noheaders|\index{mpsproof.tex!noheaders?\texttt{\\noheaders}}
-option, file names, date stamps, and page numbers are omitted from the
-proof sheet.  Use it like
+\verb|\noheaders|\index{mpsproof.tex?\texttt{mpsproof.tex}!noheaders?\texttt{\textbackslash
+    noheaders}} option, file names, date stamps, and page numbers are
+omitted from the proof sheet.  Use it like
 $$
 \begin{verbatim}[commandchars=\|\{\}]
 tex mpsproof \noheaders |tdescr{MetaPost output files}
@@ -5213,10 +5213,10 @@ tex mpsproof \noheaders |tdescr{MetaPost output files}
 $$
 
 The
-\verb|\encapsulate|\index{mpsproof.tex!encapsulate?\texttt{\\encapsulate}}
-option can be used to generate an output file that has exactly the same
-page size as a figure's bounding box.  With this option only one figure
-can be processed, e.g.,
+\verb|\encapsulate|\index{mpsproof.tex?\texttt{mpsproof.tex}!encapsulate?\texttt{\textbackslash
+    encapsulate}} option can be used to generate an output file that has
+exactly the same page size as a figure's bounding box.  With this option
+only one figure can be processed, e.g.,
 $$
 \begin{verbatim}
 pdftex mpsproof \encapsulate fig.1
