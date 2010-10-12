@@ -5155,7 +5155,10 @@ tex mproof \tdescr{MetaPost output files}
 \end{verbatim}
 $$
 Then process the resulting \texttt{.dvi}\index{dvi file?{\tt dvi}
-  file}\index{files!dvi?{\tt dvi}} file as usual.  \emph{But notice the
+  file}\index{files!dvi?{\tt dvi}} file as usual.  That way, there's no
+need to care about different settings of variable
+\texttt{prologues}\index{prologues?\texttt{prologues}}, since in proof
+sheets MetaPost graphics are already embedded.  \emph{But notice the
   final remark on text labels and \texttt{dvips} in the preceeding
   section.}
 
