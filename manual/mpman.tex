@@ -5030,7 +5030,6 @@ identifies the version\index{version number} of the MetaPost compiler.
 
 \subsection{Previewing PostScript Output}
 \label{preview}
-
 \index{preview!PostScript}
 
 Previewing MetaPost's PostScript output is not difficult, but there are
@@ -5041,7 +5040,9 @@ rendered with an ugly font (or not at all) and how to avoid that?  How
 can several graphics be combined into a multi-page document that can be
 previewed within one instance of the viewer application?
 
-\paragraph{Bounding Box}
+\subsubsection{Bounding Box}
+\index{bounding box}
+\index{PostScript!bounding box}
 
 With default settings, MetaPost writes very much stripped-down
 PostScript code, containing only the bare graphics code, but no other
@@ -5098,7 +5099,7 @@ GSview\index{GSview}, that can be done by activating \texttt{Options}
 $\rightarrow$ \texttt{EPS Clip} and optionally \texttt{Options}
 $\rightarrow$ \texttt{Show Bounding Box} for verification.
 
-\paragraph{Text Labels}
+\subsubsection{Text Labels}
 
 Another popular previewing issue concerns graphics that contain text
 labels.  An observation MetaPost users can often make is that text
@@ -5135,20 +5136,22 @@ external documents.
   \texttt{prologues} to~0 before including MetaPost graphics into \TeX\
   documents that are post-processed by \texttt{dvips}, currently.}
 
-\paragraph{Proof Sheets}
+\subsubsection{Proof Sheets}
+\index{proof sheets}
 
 If you have lots of figures in a source file and need to preview many of
 them at the same time, opening every graphic in a new instance of the
 viewer application and switching between them back and forth can get
 cumbersom.  An alternative is to collect all graphics generated from a
-MetaPost input file in a proof\index{proof sheet} sheet, a multi-page
-document, that can be previewed and navigated in a single instance of
-the viewer application.
+MetaPost input file in a proof sheet, a multi-page document, that can be
+previewed and navigated in a single instance of the viewer application.
+The MetaPost distribution contains two (plain) \TeX\ scripts that help
+with the latter approach.
 
-The MetaPost distribution contains two scripts, \texttt{mproof.tex} and
-\texttt{mpsproof.tex}, that help with the latter approach.  The scripts
-are in (plain) \TeX, no MetaPost at all.  To write a proof sheet for
-MetaPost output, call \ttindex{mproof.tex} as
+\paragraph{\texttt{mproof.tex}}
+\index{mproof.tex?\texttt{mproof.tex}}
+
+To write a proof sheet for MetaPost output, call \texttt{mproof.tex} as
 $$
 \begin{verbatim}[commandchars=\\\{\}]
 tex mproof \tdescr{MetaPost output files}
@@ -5189,8 +5192,11 @@ tex mproof *.mps
 \end{verbatim}
 $$
 
-The \ttindex{mpsproof.tex} script is similar to \texttt{mproof.tex}, but
-more powerful.  While \texttt{mproof.tex} only runs with \TeX\ and
+\paragraph{\texttt{mpsproof.tex}}
+\index{mpsproof.tex?\texttt{mpsproof.tex}}
+
+The \texttt{mpsproof.tex} script is similar to \texttt{mproof.tex}, but
+more powerful.  While the latter script only runs with \TeX\ and
 requires an additional DVI output driver to generate PostScript files,
 \texttt{mpsproof.tex} can as well be run through pdf\TeX\ to directly
 generate PDF files.
