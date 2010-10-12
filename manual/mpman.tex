@@ -5145,10 +5145,10 @@ MetaPost input file in a proof\index{proof sheet} sheet, a multi-page
 document, that can be previewed and navigated in a single instance of
 the viewer application.
 
-The MetaPost distribution contains a script \texttt{mproof.tex} that
-helps with the latter approach.  The script is in (plain) \TeX, no
-MetaPost at all.  To write a proof sheet for MetaPost output, call
-\ttindex{mproof.tex} as
+The MetaPost distribution contains two scripts, \texttt{mproof.tex} and
+\texttt{mpsproof.tex}, that help with the latter approach.  The scripts
+are in (plain) \TeX, no MetaPost at all.  To write a proof sheet for
+MetaPost output, call \ttindex{mproof.tex} as
 $$
 \begin{verbatim}[commandchars=\\\{\}]
 tex mproof \tdescr{MetaPost output files}
@@ -5186,6 +5186,34 @@ can then be generated with
 $$
 \begin{verbatim}
 tex mproof *.mps
+\end{verbatim}
+$$
+
+The \ttindex{mpsproof.tex} script is similar to \texttt{mproof.tex}, but
+more powerful.  While \texttt{mproof.tex} only runs with \TeX\ and
+requires an additional DVI output driver to generate PostScript files,
+\texttt{mpsproof.tex} can as well be run through pdf\TeX\ to directly
+generate PDF files.
+
+Syntax is the same as for \texttt{mproof.tex}, but there are two
+additional options.  With the
+\verb|\noheaders|\index{mpsproof.tex!noheaders?\texttt{\\noheaders}}
+option, file names, date stamps, and page numbers are omitted from the
+proof sheet.  Use it like
+$$
+\begin{verbatim}[commandchars=\|\{\}]
+tex mpsproof \noheaders |tdescr{MetaPost output files}
+\end{verbatim}
+$$
+
+The
+\verb|\encapsulate|\index{mpsproof.tex!encapsulate?\texttt{\\encapsulate}}
+option can be used to generate an output file that has exactly the same
+page size as a figure's bounding box.  With this option only one figure
+can be processed, e.g.,
+$$
+\begin{verbatim}
+pdftex mpsproof \encapsulate fig.1
 \end{verbatim}
 $$
 
