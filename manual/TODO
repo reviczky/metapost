@@ -61,10 +61,6 @@ Advanced Graphics:
 * Add a sub-section discussing colours.
 * (SH) Colour cars and change code example in section piccomp.
 
-Notes on the MetaPost Workflow:
-* Describe scripts mpstoeps, mptopdf, mpsproof.
-* Mention Troy's online previewer at http://www.tlhiv.org/mppreview/ ?
-
 Reference Manual:
 * Describe environment variables and configuration files.
 * Describe missing variables, constants, and operators.
