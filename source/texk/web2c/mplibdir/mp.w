@@ -16229,9 +16229,11 @@ void mp_begin_name (MP mp) {
 @ And here's the second.
 @^system dependencies@>
 
-@d IS_DIR_SEP(c) (c=='/' || c=='\\')
-
 @c 
+#ifndef IS_DIR_SEP
+#define IS_DIR_SEP(c) (c=='/' || c=='\\')
+#endif
+
 boolean mp_more_name (MP mp, ASCII_code c) {
   if (c=='"') {
     mp->quoted_filename= ! mp->quoted_filename;
