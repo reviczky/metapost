@@ -1860,17 +1860,41 @@ will contain the PostScript font(s) (or a subset) used based on the
 for generating stand-alone PostScript graphics.
 
 In SVG mode, the font glyphs are converted to path definitions that
-are included at the top of the output file. This method is currently
-the only reliable way to export text objects to SVG.
+are included at the top of the output file.
 
 \end{itemize}
 
+The correct setting for variable \texttt{prologues} depends on how
+MetaPost graphics are post-processed.  Here are recommendations for some
+popular use-cases:
 
-It is worth noting that the default value \ttt{prologues:=0} is sufficient
-for graphics included in \TeX-based documents.  Also, the \ttt{prologues} variable is irrelevant
-when processing MetaPost files through the mptopdf\index{mptopdf} utility
-(part of the \ConTeXt\ distribution), because PDF files are, by nature,
-stand-alone.  Moreover, the value of \ttt{prologues} has no effect on
+\begin{description}
+
+\item[\normalfont\itshape Previewing:] Section~\ref{preview} discusses
+  previewing PostScript output.
+
+\item[\normalfont\itshape \TeX\ and dvips:] When including PostScript
+  figures into a \TeX\ document that is processed by \TeX\ and a DVI
+  output processer, e.g., dvips\index{dvips}, variable
+  \texttt{prologues} should \emph{not} be set to the value~1, unless the
+  used fonts are known to be resident in the PostScript interpreter.
+  Make sure that variable \texttt{prologues} is set to either~0 (font
+  inclusion handled by dvips, but without re-encoding support), 2 (font
+  inclusion by dvips, with font re-encoding if necessary), or~3 (font
+  inclusion and re-encoding by MetaPost). Value~3 is safest, but may
+  result in slightly larger output.
+
+\item[\normalfont\itshape pdf\TeX:] When generating PDF files with
+  pdf\TeX\ (and the mptopdf\index{mptopdf} bundle), variables
+  \texttt{prologues} is not relevant.
+
+\item[\normalfont\itshape SVG output:] Converting font glyphs to paths
+  by setting variable \texttt{prologues} to~3 is currently the only
+  reliable way to export text objects to SVG.
+
+\end{description}
+
+It is worth noting that the value of \ttt{prologues} has no effect on
 \MF\ fonts in your MetaPost files, i.\,e., MetaPost never embeds such
 fonts.  Only output drivers, e.\,g., \ttt{dvips} or pdf\LaTeX\ will
 handle those.
