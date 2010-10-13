@@ -1118,9 +1118,10 @@ so we have to fix up |job_name| and |job_area|. If there
 was a \.{--jobname} on the command line, we have to reset
 the options structure as well.
 
-@d MP_IS_DIR_SEP(c) (c=='/' || c=='\\')
-
 @<Discover the job name@>=
+#ifndef IS_DIR_SEP
+#define IS_DIR_SEP(c) (c=='/' || c=='\\')
+#endif
 { 
 char *tmp_job = NULL;
 if (options->job_name != NULL) {
@@ -1170,9 +1171,9 @@ if (options->job_name != NULL) {
 /* now split |tmp_job| into |job_area| and |job_name| */
 {
   char *s = tmp_job + strlen(tmp_job);
-  if (!MP_IS_DIR_SEP(*s)) { /* just in case */
+  if (!IS_DIR_SEP(*s)) { /* just in case */
     while (s>tmp_job) {
-      if (MP_IS_DIR_SEP(*s)) {
+      if (IS_DIR_SEP(*s)) {
         break;
       }
       s--;

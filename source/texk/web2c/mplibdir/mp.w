@@ -17796,16 +17796,17 @@ void mp_begin_name (MP mp) {
 @ And here's the second.
 @^system dependencies@>
 
-@d MP_IS_DIR_SEP(c) (c=='/' || c=='\\')
-
 @c
+#ifndef IS_DIR_SEP
+#define IS_DIR_SEP(c) (c=='/' || c=='\\')
+#endif
 boolean mp_more_name (MP mp, ASCII_code c) {
   if (c == '"') {
     mp->quoted_filename = !mp->quoted_filename;
   } else if ((c == ' ' || c == '\t') && (mp->quoted_filename == false)) {
     return false;
   } else {
-    if (MP_IS_DIR_SEP (c)) {
+    if (IS_DIR_SEP (c)) {
       mp->area_delimiter = (integer) mp->cur_length;
       mp->ext_delimiter = -1;
     } else if (c == '.') {
