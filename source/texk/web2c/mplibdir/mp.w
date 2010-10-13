@@ -16261,10 +16261,11 @@ boolean mp_more_name (MP mp, ASCII_code c) {
 
 @c
 void mp_end_name (MP mp) {
-  pool_pointer s; /* length of area, name, and extension */
+  pool_pointer s,orig; /* length of area, name, and extension */
   unsigned int len;
   /* "my/w.mp" */
   s = mp->str_start[mp->str_ptr];
+  orig = s;
   if ( mp->area_delimiter<0 ) {    
     mp->cur_area=xstrdup("");
   } else {
@@ -16280,7 +16281,7 @@ void mp_end_name (MP mp) {
     len = (unsigned)(mp->ext_delimiter-s);
   }
   copy_pool_segment(mp->cur_name,s,len);
-  mp->pool_ptr=s; /* don't need this partial string */
+  mp->pool_ptr=orig; /* don't need this partial string */
 }
 
 @ Conversely, here is a routine that takes three strings and prints a file
