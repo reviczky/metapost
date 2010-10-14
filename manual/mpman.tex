@@ -1888,6 +1888,15 @@ popular use-cases:
   pdf\TeX\ (and the mptopdf\index{mptopdf} bundle), variable
   \texttt{prologues} is not relevant.
 
+\item[\normalfont\itshape PostScript in external applications:] Some
+  text\index{text processor} processors or graphics applications can
+  directly import EPSF files, while for others MetaPost's PostScript
+  output has to be converted to a different vector or even a bitmap
+  format first.  In any case, as soon as PostScript graphics generated
+  by MetaPost are leaving the \TeX\ ecosystem, variable
+  \texttt{prologues} should be set to~3, so that all needed fonts are
+  embedded (as a subset).
+
 \item[\normalfont\itshape SVG output:] Converting font glyphs to paths
   by setting variable \texttt{prologues} to~3 is currently the only
   reliable way to export text objects to SVG.
