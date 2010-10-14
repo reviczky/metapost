@@ -5070,13 +5070,13 @@ previewed within one instance of the viewer application?
 
 With default settings, MetaPost writes very much stripped-down
 PostScript code, containing only the bare graphics code, but no other
-ressources, like fonts etc.  The code is somewhat deficient, because it
-fails to correctly identify as Encapsulated PostScript
-(EPSF\index{EPSF}) in the header.  Instead MetaPost output wrongly
-pretends to be full PostScript (PS\index{PS}), which it is not.  Note,
-Encapsulated PostScript files don't have an associated page size, but
-provide bounding box information, because they are meant for inclusion
-into other documents.
+ressources, like fonts etc.  The PostScript code is somewhat deficient,
+because it fails to correctly identify as Encapsulated PostScript
+(EPSF\index{EPSF}) in the header.  Note, Encapsulated PostScript files
+don't have an associated page size, but provide bounding box
+information, because they are meant for inclusion into other documents.
+Instead MetaPost output wrongly pretends to be full PostScript
+(PS\index{PS}), which it is not.
 
 This is just fine for including MetaPost graphics in, say, \TeX\
 documents (see Section~\ref{mpimport}), but some PostScript viewers have
@@ -5129,12 +5129,13 @@ Another popular previewing issue concerns graphics that contain text
 labels.  An observation MetaPost users can often make is that text
 labels in graphics are rendered with wrong fonts, wrong glyphs, and
 sometimes even not at all.  The reason is that with default settings,
-again, MetaPost's PostScript output is deficient, in that it doesn't
-declare what fonts are used in a graphic.  Setting variable
-\texttt{prologues} to~2, as shown in the previous paragraphs, makes
-MetaPost declare all needed PostScript\index{PostScript!fonts} fonts and
-embed the necessary encoding information.  If the PostScript viewer can
-provide the requested fonts, this might be sufficient to get text labels
+again, MetaPost's PostScript output is deficient, in that it uses a
+simple, non-standard way to declare what fonts are used in a graphic.
+Setting variable \texttt{prologues} to~2, as shown in the previous
+section, makes MetaPost generate more complex PostScript code to declare
+all needed PostScript\index{PostScript!fonts} fonts and embed the
+necessary encoding information.  If the PostScript viewer can provide
+the requested fonts, this might be sufficient to get text labels
 rendered correctly.  If you still observe wrong or missing glyphs you
 should put the line
 $$
@@ -5162,8 +5163,9 @@ viewer application and switching between them back and forth can get
 cumbersom.  An alternative is to collect all graphics generated from a
 MetaPost input file in a proof sheet, a multi-page document, that can be
 previewed and navigated in a single instance of the viewer application.
-The MetaPost distribution contains two (plain) \TeX\ scripts that help
-with the latter approach.
+The MetaPost distribution contains two (plain) \TeX\ scripts,
+\texttt{mproof.tex} and \texttt{mpsproof.tex}, that help with the latter
+approach.
 
 \paragraph{\texttt{mproof.tex}}
 \index{mproof.tex?\texttt{mproof.tex}}
@@ -5210,14 +5212,14 @@ $$
 \paragraph{\texttt{mpsproof.tex}}
 \index{mpsproof.tex?\texttt{mpsproof.tex}}
 
-The \texttt{mpsproof.tex} script is similar to \texttt{mproof.tex}, but
-more powerful.  While the latter script only runs with \TeX\ and
-requires an additional DVI output driver to generate PostScript files,
-\texttt{mpsproof.tex} can as well be run through pdf\TeX\ to directly
-generate PDF files.
+An alternative to \texttt{mproof.tex} is the script
+\texttt{mpsproof.tex}, which is similar, but more powerful.  While the
+former script only runs with \TeX\ and requires a DVI output driver to
+generate PostScript files, \texttt{mpsproof.tex} can as well be run
+through pdf\TeX\ to directly generate PDF files.  Additionally, it
+provides some command-line options.
 
-Syntax is the same as for \texttt{mproof.tex}, but there are two
-additional options.  With the
+With the
 \verb|\noheaders|\index{mpsproof.tex?\texttt{mpsproof.tex}!noheaders?\texttt{\textbackslash
     noheaders}} option, file names, date stamps, and page numbers are
 omitted from the proof sheet.  Use it like
