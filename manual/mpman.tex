@@ -389,9 +389,14 @@ Statements can also appear outside \verb|beginfig| \ldots\
 generate no visible output.  Typically, global configurations are put
 outside \verb|beginfig| \ldots\ \verb|endfig|, e.g., assignments to
 internal variables, such as \texttt{outputtemplate}, or a \LaTeX\
-preamble declaration for enhanced text rendering.  The remainder of this
-section briefly introduces three assignments to internal variables, each
-one useful by itself, that can often be found in MetaPost input files:
+preamble declaration for enhanced text rendering.
+Comments\index{comments} in MetaPost code are introduced by the percent
+sign~\verb|%|\index{\%?\texttt{\%}}, which causes the remainder of the
+current line to be ignored.
+
+The remainder of this section briefly introduces three assignments to
+internal variables, each one useful by itself, that can often be found
+in MetaPost input files:
 $$
 \begin{verbatim}[commandchars=\\\{\}]
 prologues := 3;                \smallskip
