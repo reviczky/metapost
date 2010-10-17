@@ -45,6 +45,7 @@
 %    2005/10/07 -- sanitize the filename (\meaning)
 %    2006/04/06 -- encapsulation added
 %    2006/06/30 -- Better documentation (the above comments)
+%    2008/11/11 -- make dvi output identical to mproof.tex
 %
 % Test for pdf:
 \newif\ifpdf
@@ -64,7 +65,7 @@
   \def\encapspecial{\pdfpageheight=\ht0 \pdfpagewidth=\wd0}
 \else
   \input epsf
-  \def\includemps#1{\hbox{\epsfverbosetrue\epsfbox{#1}}}
+  \def\includemps#1{\epsfverbosetrue\epsfbox{#1}}
   \def\MPSpresets{}
   \def\encapspecial{\special{papersize=\the\wd0,\the\ht0}}
 \fi
@@ -75,7 +76,7 @@
 \def\processMPfile{%
   \MPSpresets \hsize=100in \vsize=\hsize
   \hoffset=-1in \voffset=\hoffset \topskip=0pt
-  \setbox0=\vbox{\EA\includemps\EA{\theMPfile}}%
+  \setbox0=\vbox{\hbox{\EA\includemps\EA{\theMPfile}}}%
   \ifdim\wd0<1in \message{[warning:  width<1in]}\fi
   \ifdim\ht0<1in \message{[warning: height<1in]}\fi
   \encapspecial \box0 \end}
@@ -122,9 +123,9 @@
 
 \def\?{\let\munch=\relax\def\?{}}
 
-\everypar{\everypar{}\relax\munchline}
+% Encapsulation requires no indentation.
+\everypar{{\ifencapsulate\setbox0=\lastbox\fi}\everypar{}\relax\munchline}
 
-\parindent 0pt
 % We need the space before \? to ensure that it doesn't end up
 % in a filename.
 \obeylines\def\munchline#1
