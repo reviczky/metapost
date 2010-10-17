@@ -5244,13 +5244,16 @@ tex mpsproof \noheaders |tdescr{MetaPost output files}
 $$
 
 The
+\verb|\bbox|\index{mpsproof.tex?\texttt{mpsproof.tex}!bbox?\texttt{\textbackslash
+    bbox}} option can be used to generate an output file that has
+exactly the same page size as a figure's bounding box (\verb|\bbox| is
+actually an alias for the longer
 \verb|\encapsulate|\index{mpsproof.tex?\texttt{mpsproof.tex}!encapsulate?\texttt{\textbackslash
-    encapsulate}} option can be used to generate an output file that has
-exactly the same page size as a figure's bounding box.  With this option
-only one figure can be processed, e.g.,
+    encapsulate}}).  With this option only one figure can be processed
+at a time, e.g.,
 $$
 \begin{verbatim}
-pdftex mpsproof \encapsulate fig.1
+pdftex mpsproof \bbox fig.1
 \end{verbatim}
 $$
 
