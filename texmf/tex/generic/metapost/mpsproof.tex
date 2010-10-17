@@ -25,7 +25,8 @@
 % "Encapsulated" means that the pdf output (or the .ps resulting from
 % dvips mpsproof.dvi), has the same "bounding box" as the MetaPost figure.
 % Actually, it produces a file whose *page size* is the same as that
-% bounding box.
+% bounding box. The shorthand \bbox can be used in place of 
+% \encapsulate.
 %
 % If pdftex is used and \pdfoutput = 1, the result will be a pdf file,
 % otherwise the result is a dvi file containing dvips graphics \specials.
@@ -42,10 +43,11 @@
 %    2003/04/08 -- Original release
 %    2004/05/02 -- Allow "_" in filenames.
 %    2004/05/07 -- Added the \noheaders option.
-%    2005/10/07 -- sanitize the filename (\meaning)
-%    2006/04/06 -- encapsulation added
+%    2005/10/07 -- Sanitize the filename (\meaning)
+%    2006/04/06 -- Encapsulation added
 %    2006/06/30 -- Better documentation (the above comments)
-%    2008/11/11 -- make dvi output identical to mproof.tex
+%    2008/11/11 -- Make dvi output identical to mproof.tex
+%    2010/10/13 -- Added \bbox (short for \encapsulate)
 %
 % Test for pdf:
 \newif\ifpdf
@@ -88,6 +90,7 @@
 % produce output with same bounding box:
 \newif\ifencapsulate
 \def\encapsulate{\noheaders\encapsulatetrue}
+\let\bbox\encapsulate
 
 \def\maybeprint#1{\ifheaders#1\fi}
 \def\stripprefix#1>{}
