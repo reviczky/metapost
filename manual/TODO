@@ -31,9 +31,8 @@ mp-implementors list or alternatively the metapost list.
 ***   Wanted For Release  ***
 *****************************
 
-mpman.tex
-* Describe environment variables.
-* Add description of interaction mode commands.
+Notes on the MetaPost Workflow:
+* (SH) Describe variables jobname, charcode.
 
 
 
@@ -42,17 +41,34 @@ mpman.tex
 ***   Mid Term Issues     ***
 *****************************
 
+Introduction:
 * Revise introduction.
-* Move prologues discussion to section 3.
+
+Integrating Text and Graphics:
+* Completely revise this section and consolidate information
+    scattered around mpman.
 * More information and examples on alternatives for calling TeX
     or LaTeX from within MetaPost.
 * (SH) Revise (and add more) flow charts for MetaPost workflow.
+* Describe whitespace handling of verbatimtex/btex/etex.
 * Why is verbatimtex\end{document}etex "safer", cf. sec. 13.1?
 * Discuss difference between "draw <pic> withpen" and
     "label(<pic>, ...) withpen" (when label bug is fixed).
-* Add a sub-section discussing colours in section 9.
-* (SH) Colour cars and change code example in section 9.9.
-* Describe mpware in section "Legacy information".
+* Fix bad description of prologues in table ivartab.
+* Move discussion of prologues to sec. workflow2?
+
+Advanced Graphics:
+* Add a sub-section discussing colours.
+* (SH) Colour cars and change code example in section piccomp.
+
+Reference Manual:
+* Describe environment variables and configuration files.
+* Describe missing variables, constants, and operators.
+* Add description of interaction mode.
+
+Legacy Information:
+* Cite original Hobby papers.
+* Describe mpware (currently scattered around in mpman).
 
 
 
@@ -61,14 +77,18 @@ mpman.tex
 ***   Long Term Issues    ***
 *****************************
 
+Title page:
 * Add decent title graphics.
+
+Reference Manual:
 * Review presentation of primitives and plain macros in appendix A.
 * Build reference manual automatically from mp.web (as a separate manual?).
+
+General:
+* Make mpman self-contained (no need to look-up sth. in 'The MetaFontbook').
 * Make manual sources compatible with preview mode (Emacs).
 * Make manual sources LaTeX2e conform.
 * Make manual sources look nice in Emacs (AUCTeX font-locking).
 * Review overall layout of the manuals (type area, float placement,
   listing presentation etc.)
-
-
 
