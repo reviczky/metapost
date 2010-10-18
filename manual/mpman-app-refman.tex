@@ -1,4 +1,4 @@
-\svnInfo $Id: mpman-app-refman.tex 1244 2010-06-13 13:15:48Z stephanhennig $
+\svnInfo $Id: mpman-app-refman.tex 1381 2010-10-08 16:13:03Z stephanhennig $
 \section{Reference Manual}
 \label{refman}
 
@@ -8,7 +8,7 @@
 \setcounter{topnumber}{10}
 \setcounter{totalnumber}{10}
 
-\subsection{The MetaPost language}
+\subsection{The MetaPost Language}
 \label{refman:lang}
 
 Tables \ref{ivartab}--\ref{pseudotab} summarize the built-in features of
@@ -84,7 +84,7 @@ $$\begin{tabular}{|l|r|l|}
         Extra space allowed by {\tt bbox} (default 2{\tt bp})\\\hline
 \tt     charcode&       \pageref{Dcharcode}&
         The number of the current figure\\\hline
-\tt     day&    --&
+\tt     day&            \pageref{Dday}&
         The current day of the month\\\hline
 \tt     defaultcolormodel&    \pageref{Ddefaultcolormodel}&
         The initial color model  (default: 5, rgb)\\\hline
@@ -92,7 +92,9 @@ $$\begin{tabular}{|l|r|l|}
         Numeric index used by {\tt pickup} to select default pen\\\hline
 \pl\tt  defaultscale&   \pageref{Ddfscale}&
         Font scale factor for label strings (default 1)\\\hline
-\tt     hour&    --&
+\pl\tt  dotlabeldiam&   \pageref{Ddotlabdiam}&
+        Diameter of the dot drawn by \verb|dotlabel| (default 3{\tt bp})\\\hline
+\tt     hour&           \pageref{Dhour}&
         The hour of the day this job started\\\hline
 \pl\tt  labeloffset&    \pageref{Dlaboff}&
         Offset distance for labels (default 3{\tt bp})\\\hline
@@ -100,15 +102,14 @@ $$\begin{tabular}{|l|r|l|}
         0 for butt, 1 for round, 2 for square\\\hline
 \tt     linejoin&       \pageref{Dlinejoin}&
         0 for mitered, 1 for round, 2 for beveled\\\hline
-\tt     minute&    --&
+\tt     minute&         \pageref{Dminute}&
         The minute of the hour this job started\\\hline
 \tt     miterlimit&     \pageref{Dmiterlim}&
         Controls miter length as in PostScript\\\hline
-\tt     month&  --&
+\tt     month&          \pageref{Dmonth}&
         The current month (e.g, 3 $\equiv$ March)\\\hline
-\tt     mpprocset&  --&
-        \vtop{\hbox{Set this to~1 if you want to include a PostScript
-dictionary}\hbox{of      abbreviations in the output}}\\\hline
+\tt     mpprocset&      \pageref{Dmpprocset}&
+        Create a PostScript dictionary of command abbreviations\\\hline
 \tt     pausing&        --&
         ${}>0$ to display lines on the terminal before they are read\\\hline
 \tt     prologues&      \pageref{Dprologues}&
@@ -117,7 +118,7 @@ dictionary}\hbox{of      abbreviations in the output}}\\\hline
         Restore the graphics state after clip operations (default: 1)\\\hline
 \tt     showstopping&   --&
         ${}>0$ to stop after each {\tt show} command\\\hline
-\tt     time&   --&
+\tt     time&           \pageref{Dtime}&
         The number of minutes past midnight when this job started\\\hline
 \tt     tracingcapsules&        \pageref{Dtcapsules}&
         ${}>0$ to show capsules too\\\hline
@@ -149,7 +150,7 @@ dictionary}\hbox{of      abbreviations in the output}}\\\hline
         ${}>0$ to make {\tt llcorner} etc. ignore {\tt setbounds}\\\hline
 \tt     warningcheck&   \pageref{Dwarncheck}&
         Controls error message when variable value is large\\\hline
-\tt     year&   --&
+\tt     year&           \pageref{Dyear}&
         The current year (e.g., 1992)\\\hline
 \end{tabular}
 $$
@@ -799,93 +800,151 @@ $\tt \descr{suffix list} \rightarrow \descr{suffix} \;|\; \descr{suffix list}\hb
 \endgroup
 
 
-\subsection{Command-line syntax}
+\subsection{Command-Line Syntax}
 \label{refman:commandline}
-\index{command-line}
 
 \begingroup
 \renewcommand*{\arraystretch}{1.25}% Give command-line switch tables air.
-\newcommand*{\cmdindex}[1]{\index{command-line!\texttt{mpost}!\texttt{#1}}\texttt{#1}}
 
-\subsubsection*{The \texttt{mpost} program}
+\subsubsection{The MetaPost Program}
 \label{refman:mpost}
 
-The command-line syntax of the MetaPost executable is
-$$ {\tt mpost}\ \descr{switches}\ \descr{file}
-$$\label{Dmpost}
-where $\descr{file}$ is a text file containing statements in the
-MetaPost language.  Typically, MetaPost input files have file extension
-\texttt{.mp}\index{mp file?{\tt mp} file}\index{files!mp?{\tt mp}},
-e.g., \texttt{foo.mp}.  This extension can then be omitted in the
-\texttt{mpost} call.  There exist a number of command-line switches to
-control the run-time behavior of the MetaPost executable.  Switches can
-prefixed by one or two dashes.  Both forms have the same meaning.  An
-exemplary call to MetaPost that compiles file \texttt{foo.mp}, but
-immediately exits after encountering the first error without
-user-interaction would look like:
-$$ \hbox{\tt mpost -halt-on-error foo} $$
+\newcommand*{\opt}[1]{\ensuremath{\big[}#1\ensuremath{\big]}}
+\newcommand*{\cmdsw}{\tdescr{switches}}
+\newcommand*{\cmdmem}{\tdescr{memfile}}
+\newcommand*{\cmdin}{\tdescr{infile}}
+\newcommand*{\cmdcode}{\tdescr{commands}}
+\newcommand*{\cmdindex}[1]{\index{command-line!mpost?\texttt{mpost}!#1?\texttt{#1}}\texttt{#1}}
 
-Here's a summary of the command-line switches understood by
-\texttt{mpost}:
+The MetaPost program processes commands in the MetaPost language, either
+read from a file or typed-in interactively, and compiles them into
+PostScript or SVG graphics.  The run-time behavior of the executable can
+be controlled by command-line parameters, environment variables, and
+configuration files.  The MetaPost executable is named
+mpost\label{Dmpost}\index{mpost} (or occasionally just mp).  The
+command-line syntax of the executable is
+$$
+\begin{verbatim}[commandchars=\\\{\}]
+mpost \opt{\cmdsw} \opt{\&\cmdmem} \opt{\cmdin} \opt{\cmdcode}
+\end{verbatim}
+\index{mpost?\texttt{mpost}}\index{command-line!mpost?\texttt{mpost}}
+$$
+Any of the parameters is optional.  If no argument is given to the
+\verb|mpost| command, MetaPost enters interactive mode\index{interactive
+  mode}, indicated by a \verb|**| prompt\index{**?\texttt{**}!prompt},
+waiting for a file name to be typed-in by keyboard.  The file is then
+read-in and processed as if it were given as parameter \cmdin\ on the
+command-line.
 
-\begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
+\begin{description}
+\item[\cmdin] A MetaPost input file is a text file containing statements
+  in the MetaPost language.  Typically, input files have file extension
+  \texttt{mp}\index{mp file?{\tt mp} file}\index{files!mp?{\tt mp}},
+  e.g., \texttt{fig.mp}.  Here is how MetaPost searches for input files.
+  If \cmdin\ doesn't end with \texttt{.mp}\index{mp file?{\tt mp}
+    file}\index{files!mp?{\tt mp}}, MetaPost first looks for a file
+  \texttt{\cmdin.mp}.  Only if that file doesn't exist, it looks for
+  file \cmdin\ literally.  That way, the \texttt{mp}\index{mp file?{\tt
+      mp} file}\index{files!mp?{\tt mp}} file extension can be omitted
+  when calling MetaPost.  If \cmdin\ already ends with
+  \texttt{.mp}\index{mp file?{\tt mp} file}\index{files!mp?{\tt mp}}, no
+  special file name handling takes place and MetaPost looks for that
+  file only.
+
+  As an example, if there are two files \texttt{fig} and \texttt{fig.mp}
+  in the current directory and MetaPost is invoked with
+  \verb|'mpost fig'|, the file that gets processed is \texttt{fig.mp}.
+  To process file \texttt{fig} in this situation, MetaPost can be called
+  as \verb|'mpost fig.'|.  Note, the trailing dot is only needed as long
+  as there exists a file \texttt{fig.mp} alongside file \texttt{fig}.
+
+  If MetaPost cannot find any input file by the rules specified above,
+  it complaints with an error message and interactively asks for a new
+  input file name.
+
+\item[\cmdcode] All text on the command-line after \cmdin\ is
+  interpreted as MetaPost code and is processed after \cmdin\ is read.
+  If \cmdin\ already contains an \verb|end| statement, \cmdcode\ gets
+  effectively ignored.  If MetaPost doesn't encounter an \verb|end|
+  statement neither in \cmdin\ nor in \cmdcode, it enters interactive
+  mode after processing all input.
+
+\item[\texttt{\&\cmdmem}] \emph{to be completed}
+
+\item[\cmdsw] MetaPost provides a number of command-line switches that
+  control the run-time behavior.  Switches can be prefixed by one or two
+  dashes.  Both forms have the same meaning.  An exemplary call to
+  MetaPost that compiles a file \texttt{fig.mp}, using \LaTeX\ to
+  typeset \verb|btex|\slash\verb|etex| labels, would look like:
+$$
+\begin{verbatim}
+mpost -tex=latex fig
+\end{verbatim}
+\index{mpost?\texttt{mpost}}
+$$
+
+Here's a summary of the command-line switches provided by mpost:
+
+\setlength{\LTleft}{\leftmargin}
+\begin{longtable}{>{\ttfamily}p{.35\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
   \cmdindex{-debug}
   & Don't delete intermediate files.\\
   \cmdindex{-dvitomp}
-  & Act as the \textit{dvitomp} executable (see below).\\
+  & Act as the \texttt{dvitomp} executable (see below).\\
   \cmdindex{-file-line-error}
-  & Start error messages with \texttt{filename:lineno:} instead of
-  \texttt{!}.\\
+  & Start error messages with \verb|`filename:lineno:'| instead of
+  \verb|`!'|.\\
   \cmdindex{-halt-on-error}
   & Immediately exit after the first error occurred.\\
   \cmdindex{-help}
   & Show help on command-line switches.\\
   \cmdindex{-ini}
   & Be the INI variant of the program.\\
-  \cmdindex{-interaction}=$\descr{string}$
-  & Set interaction mode to one of \texttt{batchmode, nonstopmode,
-    scrollmode, errorstopmode}.\\
-  \cmdindex{-jobname}=$\descr{jobname}$
+  \cmdindex{-interaction}=\tdescr{string}
+  & Set interaction mode to one of \texttt{batchmode},
+  \texttt{nonstopmode}, \texttt{scrollmode}, \texttt{errorstopmode}.\\
+  \cmdindex{-jobname}=\tdescr{jobname}
   & Set the name of the job (affects output file names).\\
-  \cmdindex{-kpathsea-debug}=$\descr{number}$
+  \cmdindex{-kpathsea-debug}=\tdescr{number}
   & Set debugging flags for path searching.\\
-  \cmdindex{-mem}=$\descr{string}$
-  & Use $\descr{string}$ as memory dump name (same as
-  \texttt{\&$\descr{string}$})\\
+  \cmdindex{-mem}=\tdescr{string}
+  & Use \tdescr{string} as memory dump name (same as
+  \texttt{\&\tdescr{string}})\\
   \cmdindex{-no-file-line-error}
   & Enable normal MetaPost and \TeX\ style error messages.\\
   \cmdindex{-no-kpathsea}
-  & Do not use \textit{kpathsea} to find files.  All files have to be in
-  the current directory or specified via a full path.\\
-  \cmdindex{-progname}=$\descr{string}$
-  & Pretend to be the $\descr{string}$ executable.\\
+  & Do not use the kpathsea program to find files.  All files have to be
+  in the current directory or specified via a full path.\\
+  \cmdindex{-progname}=\tdescr{string}
+  & Pretend to be the \tdescr{string} executable.\\
   \cmdindex{-recorder}
   & Write a list of all opened disk files to
-  \texttt{$\descr{jobname}$.fls}\index{fls file?{\tt fls}
+  \texttt{\tdescr{jobname}.fls}\index{fls file?{\tt fls}
     file}\index{files!fls?{\tt fls}}.  (This functionality is provided
-  by \textit{kpathsea}.)\\ 
-  \cmdindex{-s}=$\descr{key}$=$\descr{value}$ \textrm{or}\newline
-  -s $\descr{key}$=$\descr{value}$
-  & Set internal variable $\descr{key}$ to $\descr{value}$.  The
-  assignment is applied just before the input file is read-in.  This
-  switch can be applied multiple times on the command-line.\newline
-  $\descr{value}$ can be an integer between -16383 and 16383 or a string
-  in double quotes.  For strings, double quotes are stripped, but no
-  other processing takes place.\newline
-  Example: \verb|-s=outputformat="svg" -s=prologues=3|\newline
+  by kpathsea.)\\
+  \cmdindex{-s} \tdescr{key}=\tdescr{value}
+  & Set internal variable \tdescr{key} to \tdescr{value}.  This switch
+  can be given multiple times on the command-line.  The assignments are
+  applied just before the input file is read-in.  \tdescr{value} can be
+  an integer between -16383 and 16383 or a string in double quotes.  For
+  strings, double quotes are stripped, but no other processing takes
+  place.  To avoid double quotes being already stripped by the shell,
+  the whole assignment can be enclosed in another pair of single quotes.
+  Example: \verb|-s 'outputformat="svg"' -s prologues=3|\newline
   Use SVG backend converting font shapes to paths.\\
-  \cmdindex{-tex}=$\descr{texprogram}$
-  & Load format $\descr{texprogram}$ for rendering \TeX\ material.\\
+  \cmdindex{-tex}=\tdescr{texprogram}
+  & Load format \tdescr{texprogram} for rendering \TeX\ material.\\
   \cmdindex{-troff}, \cmdindex{-T}
-  & Output \textit{troff} compatible PostScript files.\\
+  & Output troff compatible PostScript files.\\
   \cmdindex{-version}
   & Print version information and exit.\\
 \end{longtable}
 
 The following command-line switches are silently ignored in
-\textit{mplib}-based MetaPost (v1.100 or later), because they are always
+\emph{mplib}-based MetaPost (v1.100 or later), because they are always
 `on':
-\begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
+
+\begin{longtable}{>{\ttfamily}p{.35\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
   \cmdindex{-8bit}
   & \\
   \cmdindex{-parse-first-line}
@@ -893,55 +952,87 @@ The following command-line switches are silently ignored in
 \end{longtable}
 
 The following command-line switches are ignored, but trigger a warning:
-\begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
+
+\begin{longtable}{>{\ttfamily}p{.35\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
   \cmdindex{-no-parse-first-line}
   & \\
-  \cmdindex{-output-directory}=$\descr{string}$
+  \cmdindex{-output-directory}=\tdescr{string}
   & \\
-  \cmdindex{-translate-file}=$\descr{string}$
+  \cmdindex{-translate-file}=\tdescr{string}
   & \\
 \end{longtable}
 
-\renewcommand*{\cmdindex}[1]{\index{command-line!\texttt{dvitomp}!\texttt{#1}}\texttt{#1}}
+\end{description}
 
-\subsubsection*{The \texttt{dvitomp} program}
+\subsubsection{The dvitomp Program}
 \label{refman:dvitomp}
 
-The \ttindex{dvitomp}\label{Ddvitomp} program converts DVI\index{dvi
-  file?{\tt dvi} file}\index{files!dvi?{\tt dvi}} files into low-level
-MetaPost code.  The command-line syntax of the executable is
-$$ \hbox{\verb|dvitomp|}\ \descr{switches}\ \descr{infile}\ \descr{outfile}
+\renewcommand*{\cmdindex}[1]{\index{command-line!dvitomp?\texttt{dvitomp}!#1?\texttt{#1}}\texttt{#1}}
+\renewcommand*{\cmdin}{\tdescr{infile}}
+\newcommand*{\cmdout}{\tdescr{outfile}}
+
+The dvitomp\label{Ddvitomp}\index{dvitomp} program converts
+DVI\index{dvi file?{\tt dvi} file}\index{files!dvi?{\tt dvi}} files into
+low-level MetaPost code.  MetaPost uses the dvitomp program when
+typesetting \verb|btex|\slash\verb|etex| labels by \TeX\ for the final
+conversion back into MetaPost code.  The command-line syntax of the
+executable is
 $$
-where $\descr{infile}$ is the DVI file to convert and $\descr{outfile}$
-contains the equivalent MetaPost code.  MetaPost uses the
-\texttt{dvitomp} program when typesetting \verb|btex| \verb|...|
-\verb|etex| labels by \TeX\ for the final conversion back into MetaPost
-code.  Files generated that way end with \texttt{.mpx}\index{mpx
-  file?{\tt mpx} file}\index{files!mpx?{\tt mpx}}.  The following
-command-line switches are accepted:
-\begin{longtable}{>{\ttfamily}p{.3\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
+\begin{verbatim}[commandchars=\\\{\}]
+dvitomp \opt{\cmdsw} \cmdin \opt{\cmdout}
+\end{verbatim}
+\index{dvitomp?\texttt{dvitomp}}\index{command-line!dvitomp?\texttt{dvitomp}}
+$$
+Parameters \cmdsw\ and \cmdout\ are optional.
+
+\begin{description}
+\item[\cmdin] This is the name of the DVI file to convert.  If the name
+  doesn't end with \texttt{.dvi}\index{dvi file?{\tt dvi}
+    file}\index{files!dvi?{\tt dvi}}, that extension is appended.  Note,
+  dvitomp never opens files not ending \texttt{.dvi}.  This file is in
+  general automatically generated by \TeX\ or troff, driven by MetaPost.
+
+\item[\cmdout] This is the name of the output file containing the
+  MetaPost code equivalent to \cmdin.  If \cmdout\ is not given,
+  \cmdout\ is \cmdin\ with the extension \texttt{.dvi} replaced by
+  \texttt{.mpx}\index{mpx file?{\tt mpx} file}\index{files!mpx?{\tt
+      mpx}}.  If \cmdout\ is given and doesn't end with
+  \texttt{.mpx}\index{mpx file?{\tt mpx} file}\index{files!mpx?{\tt
+      mpx}}, that extension is appended.
+
+\item[\cmdsw] Command-line switches can be prefixed by one or two
+  dashes.  Both forms have the same meaning.  The following command-line
+  switches are provided by dvitomp:
+
+\setlength{\LTleft}{\leftmargin}
+\begin{longtable}{>{\ttfamily}p{.35\linewidth}>{\raggedright\arraybackslash}p{.6\linewidth}}
   \cmdindex{-help}
   & Show help on command-line switches.\\
-  \cmdindex{-kpathsea-debug}=$\descr{number}$
+  \cmdindex{-kpathsea-debug}=\tdescr{number}
   & Set debugging flags for path searching.\\
-  \cmdindex{-progname}=$\descr{string}$
-  & Pretend to be the $\descr{string}$ executable.\\
+  \cmdindex{-progname}=\tdescr{string}
+  & Pretend to be the \tdescr{string} executable.\\
   \cmdindex{-version}
   & Print version information and exit.\\
 \end{longtable}
 
-The \texttt{dvitomp} program used to be part of a set of external tools,
-called \emph{mpware}\index{mpware tools}\footnote{\texttt{makempx},
-  \texttt{mpto}, \texttt{dvitomp}, and \texttt{dmp}.}, that were used by
-MetaPost for processing \verb|btex| \verb|...| \verb|etex| labels.
-Since MetaPost version~1.100, the label conversion is handled internally
-by the \texttt{mpost} executable.  The \emph{mpware} tools are therefore
-obsolete and no longer part of the MetaPost distribution.  Nowadays, the
-\texttt{dvitomp} executable is either a copy of the \texttt{mpost}
-executable with the name \texttt{dvitomp} or a wrapper, calling
-\texttt{mpost} as
-$$ \hbox{\verb|mpost -dvitomp|}\ \descr{infile}\
-\descr{outfile}\qquad\hbox{.} $$
+\end{description}
+
+The dvitomp program used to be part of a set of external tools, called
+\emph{mpware}\index{mpware tools}\footnote{makempx, mpto, dvitomp, and
+  dmp.}, which were used by MetaPost for processing
+\verb|btex|\slash\verb|etex| labels.  Since MetaPost version~1.100, the
+label conversion is handled internally by the mpost\index{mpost}
+program.  The \emph{mpware} tools are therefore obsolete and no longer
+part of the MetaPost distribution.  Nowadays, dvitomp is either a copy
+of the mpost executable with the name dvitomp or a wrapper, calling
+mpost\index{mpost} as
+$$
+\begin{verbatim}[commandchars=\\\{\}]
+mpost -dvitomp \cmdin \cmdout
+\end{verbatim}
+\index{mpost?\texttt{mpost}}
+$$
 
 \endgroup
 
