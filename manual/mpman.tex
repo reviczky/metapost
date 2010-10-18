@@ -13,7 +13,7 @@
 \documentclass{article} % article is NOT the original style
 \usepackage[nofancy]{svninfo}% Access VCS information.
 \svnInfo $Id$
-\newcommand*{\mpversion}{1.209}
+\newcommand*{\mpversion}{1.211}
 
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
@@ -178,8 +178,8 @@ written about MetaPost.  For general help, try the
 \url{http://tug.org/mailman/listinfo/metapost}.
 
 The development is currently hosted at
-\url{https://foundry.supelec.fr/projects/metapost/}; visit this site
-for the current development team members, sources, and much else.
+\url{http://foundry.supelec.fr/projects/metapost/}; visit this site for
+the current development team members, sources, and much else.
 
 Please report bugs and request enhancements either on the
 \url{metapost@tug.org} list, or through the address given above.
@@ -279,15 +279,32 @@ $$
 \label{workflow}
 
 Before describing the MetaPost language in detail, let's have a look at
-how the MetaPost program is used for developing graphics: creating
-MetaPost source files, compiling sources, previewing MetaPost graphics,
-and finally including MetaPost graphics into third-party applications.
-This section also contains some technical details about MetaPost that
-are useful to know.  If you're not interested in these basics right now
-you can savely skip those parts and only refer to them later.
+MetaPost's graphic design workflow.  This section also contains some
+technical details about MetaPost that are useful to know.  If you're not
+interested in these basics right now you can savely skip those parts and
+only refer to them later.
 
-\subsection{Processing source files}
-\label{processing}
+Technically, the MetaPost compiler is a library written in the CWeb
+programming language, called \emph{mplib}\index{mplib?\emph{mplib}}.  A
+small wrapper program turns this library into a stand-alone command-line
+application.  Alternatively, \emph{mplib} can be embedded by third-party
+applications, like e.g. Lua\TeX.  The communication between MetaPost and
+third-party applications depends on how MetaPost is invoked.  In this
+manual, we'll assume a stand-alone executable of the MetaPost compiler
+is used.  Appendix~\ref{mpimport} briefly discusses using the
+\emph{mplib} library built-into Lua\TeX.  For more information, please
+refer to the documentation of the embedding application.
+
+The basic MetaPost workflow is depicted in figure~\ref{fig:mpworkflow}.
+Being a graphics description language, creating MetaPost graphics
+follows the \emph{edit-compile-debug} paradigm known from other
+programming languages.
+
+\begin{figure}[htp]
+$$ \includegraphics{mpman-charts-2.mps} $$
+\caption{The basic MetaPost workflow}
+\label{fig:mpworkflow}
+\end{figure}
 
 To create graphics with MetaPost, you prepare a text file containing
 code in the MetaPost language and then invoke the compiler, usually by
@@ -326,62 +343,6 @@ output.  Typically, global configurations are put outside
 \verb|outputtemplate| or \verb|prologues|, or a \LaTeX\ preamble
 declaration for enhanced text rendering.
 
-\paragraph{Log file and version number}
-\label{logfile}
-
-Any terminal I/O is summarized in a
-transcript\index{files!transcript}\index{transcript file} file called
-$\descr{filename}{\tt.log}$\index{log file?{\tt log}
-  file}\index{files!log?{\tt log}}.  This includes error messages and
-any MetaPost commands entered interactively.\footnote{A {\tt
-    *}\index{*?\texttt{*}} prompt is used for interactive input and a
-  {\tt **}\index{**?\texttt{**}} prompt indicates that an input file
-  name is expected.  This can be avoided by invoking MetaPost on a file
-  that ends with an {\tt end}\index{end?\texttt{end}} command.}  The
-transcript file starts with a banner line that identifies the
-version\index{version number} of MetaPost you are using.  The version
-number is also written to the generated PostScript or SVG file as a
-comment (for PostScript output the \texttt{Creator}\index{Creator
-  comment in PostScript output} line is used).  You can also determine
-the current version from within a MetaPost program via the predefined
-constant string
-\texttt{mpversion}\index{mpversion?\texttt{mpversion}}\label{Dmpversion}
-(since version~0.9).  For instance the following code
-
-$$\begin{verbatim}
-message "mp = " & mpversion;
-\end{verbatim}
-$$
-writes
-$$\begin{verbatim}[commandchars=\\\{\}]
-mp = \mpversion
-\end{verbatim}
-$$
-to the console and the transcript file.
-
-\paragraph{Output format}
-\label{outputformat}
-
-MetaPost can generate graphic in two output formats: Encapsulated
-PostScript\index{PostScript!structured} (EPSF\index{EPSF}), hence the
-name, and, since version~1.200, Scalable Vector Graphics
-(SVG\index{SVG}) following version~1.1 of the SVG
-specification~\cite{w3c:svg1.1}.  By default, MetaPost outputs
-PostScript files.  The output format can be changed to SVG by assigning
-the value \verb|"svg"| to the internal string variable\index{internal
-  variables}\index{variables!internal}
-\ttindex{outputformat}\label{Doutputformat}:
-
-$$\begin{verbatim}
-outputformat := "svg";
-\end{verbatim}
-$$
-
-Any other value makes MetaPost fall back to PostScript output.  Variable
-\verb|outputformat| is case-sensitive, so assigning it the string
-\verb|"SVG"| enables PostScript output, too.  Default value of variable
-\verb|outputformat| is \verb|"eps"|.
-
 \paragraph{Output file names}
 \label{outputfilenames}
 
@@ -412,7 +373,7 @@ $$
 it will create the output file \ttt{fig-001.mps} instead of \ttt{fig.1}.
 The file extension \texttt{.mps}\index{mps file?{\tt mps}
   file}\index{files!mps?{\tt mps}} is conventionally chosen for
-MetaPost's PostScript output (see section~\ref{teximport}).  For SVG
+MetaPost's PostScript output (see section~\ref{mpimport}).  For SVG
 output one would want to use \texttt{.svg}\index{svg file?{\tt svg}
   file}\index{files!svg?{\tt svg}} instead.
 
@@ -469,25 +430,71 @@ If you assign an empty string, it will revert to that default.  MetaPost
 versions~1.000 to~1.102 used a different template mechanism, see
 section~\ref{Dfilenametemplate} for more information.
 
+\paragraph{Output format}
+\label{outputformat}
+
+MetaPost can generate graphic in two output formats: Encapsulated
+PostScript\index{PostScript!structured} (EPSF\index{EPSF}), hence the
+name, and, since version~1.200, Scalable Vector Graphics
+(SVG\index{SVG}) following version~1.1 of the SVG
+specification~\cite{w3c:svg1.1}.  By default, MetaPost outputs
+PostScript files.  The output format can be changed to SVG by assigning
+the value \verb|"svg"| to the internal string variable\index{internal
+  variables}\index{variables!internal}
+\ttindex{outputformat}\label{Doutputformat}:
+
+$$\begin{verbatim}
+outputformat := "svg";
+\end{verbatim}
+$$
+
+Any other value makes MetaPost fall back to PostScript output.  Variable
+\verb|outputformat| is case-sensitive, so assigning it the string
+\verb|"SVG"| enables PostScript output, too.  Default value of variable
+\verb|outputformat| is \verb|"eps"|.
+
 What does one do with all the graphic files?  PostScript files are
 perfectly suitable for inclusion into documents created by
 \TeX\index{TeX?\TeX} or \emph{troff}\index{troff}.  The SVG format, as
 an XML descendant (Extensible Meta Language), is more aiming at
 automated data processing/interchanging and is widely used for web
-applications.  The next sections deal with the import of MetaPost
+applications.  Appendix~\ref{mpimport} deals with the import of MetaPost
 graphics into third-party applications.
 
-At this point, it seems advisable to point out, that it is good style to
-create MetaPost graphics at nearly target size.  While vector graphics
-\emph{can} be scaled without quality degradation, the visual character
-of a drawing might change unintentionally at large post-processing scale
-factors, because certain properties of a drawing do not scale
-proportionally, e.g., line width or arrow size.  Additionally, while
-outline fonts do scale proportionally, this is not always desired, e.g.,
-when a font is available in optical sizes, like the Computer Modern font
-family.
+\paragraph{Log file and version number}
+\label{logfile}
 
-\subsection{Previewing MetaPost graphics}
+Any terminal I/O is summarized in a
+transcript\index{files!transcript}\index{transcript file} file called
+$\descr{filename}{\tt.log}$\index{log file?{\tt log}
+  file}\index{files!log?{\tt log}}.  This includes error messages and
+any MetaPost commands entered interactively.\footnote{A {\tt
+    *}\index{*?\texttt{*}} prompt is used for interactive input and a
+  {\tt **}\index{**?\texttt{**}} prompt indicates that an input file
+  name is expected.  This can be avoided by invoking MetaPost on a file
+  that ends with an {\tt end}\index{end?\texttt{end}} command.}  The
+transcript file starts with a banner line that identifies the
+version\index{version number} of MetaPost you are using.  The version
+number is also written to the generated PostScript or SVG file as a
+comment (for PostScript output the \texttt{Creator}\index{Creator
+  comment in PostScript output} line is used).  You can also determine
+the current version from within a MetaPost program via the predefined
+constant string
+\texttt{mpversion}\index{mpversion?\texttt{mpversion}}\label{Dmpversion}
+(since version~0.9).  For instance the following code
+
+$$\begin{verbatim}
+message "mp = " & mpversion;
+\end{verbatim}
+$$
+writes
+$$\begin{verbatim}[commandchars=\\\{\}]
+mp = \mpversion
+\end{verbatim}
+$$
+to the console and the transcript file.
+
+\paragraph{Previewing MetaPost graphics}
 \label{previewing}
 \index{previewing}
 \index{PostScript!previewing}
@@ -510,158 +517,15 @@ a Perl script that automates the process outlined above.
 PDF.}
 
 However, with MetaPost version~1.000 the situation changed.  Since that
-version MetaPost is able to produce self-contained EPS files, that can
-reliably be previewed, may they contain text or not.  The
-new behaviour can be triggered by setting MetaPost's internal variable
+version MetaPost is able to produce self-contained EPS files that can
+reliably be previewed, whether they contain text or not.  The new
+behaviour can be triggered by setting MetaPost's internal variable
 \ttt{prologues}\index{prologues?\texttt{prologues}} to~3.  See
 section~\ref{Dbtex} for more information on \ttt{prologues}.
 
-Starting with version~1.200, MetaPost is also capable of producing
-SVG output. SVG files can be previewed with certain web browsers,
-for example Firefox~3\index{Firefox} or Konqueror~4.2\index{Konqueror}.
-
-\subsection{Importing MetaPost graphics in \TeX\ documents}
-\label{teximport}
-\index{TeX?\TeX!importing MetaPost files}
-\index{LaTeX?\LaTeX!importing MetaPost files}
-\index{pdfLaTeX?pdf\LaTeX!importing MetaPost files}
-\index{pdfTeX?pdf\TeX!importing MetaPost files}
-\index{ConTeXt?Con\TeX t!importing MetaPost files}
-
-MetaPost graphics in the PostScript format can be easily integreated
-into documents prepared with \TeX\ and friends.  MetaPost's PostScript
-output is a low-featured dialect of the Postscript language, called
-\emph{purified EPS}, that can be converted into the Portable Document
-Format (PDF\index{PDF}) language on-the-fly.  For that reason, MetaPost
-graphics can be handled by both engines, the traditional \TeX\ with an
-external output driver and the newer pdf\TeX, that contains a built-in
-PDF output driver.
-
-Figure~\ref{fig0} shows the process of including a MetaPost graphic into
-a plain \TeX\ or \LaTeX\ document.  In the \TeX\ document a ``magic
-macro'' provided by the format or an external package is used for
-including a graphic file.  During the typesetting stage, the macro only
-reads bounding box information off the PostScript file and reserves the
-required space on the page via an empty box.  The file reference is
-passed-on to the output driver and only then, finally, the file is
-embedded into the document.  The freely available program
-\ttindex{dvips} is used as an output driver in this
-example.\footnote{The C source for \ttt{dvips} comes with the web2c
-  \TeX\ distribution.  Similar programs are available from other
-  sources.}  The next paragraphs give brief information on some popular
-combinations of formats and engines.
-
-\begin{figure}[htp]
-$$ \includegraphics{mpman-0.mps} $$
-\caption[A diagram of the processing for a document with MetaPost figures]
-        {A diagram of the processing for a \TeX\ document with figures
-        in MetaPost}
-\label{fig0}
-\end{figure}
-
-\paragraph{Plain \TeX\ with \TeX}
-For users of \TeX\ with traditional DVI output the
-\ttt{epsf}\index{epsf.tex?\texttt{epsf.tex}} package provides the
-``magic macro''
-$$ \verb|\epsfbox{|\descr{filename}\verb|}|%
-\index{epsfbox?\texttt{\string\epsfbox}} $$
-for embedding graphics, e.g., \verb|\epsfbox{fig.1}|.
-
-\paragraph{Plain \TeX\ with pdf\TeX}
-Users of Plain \TeX\ and pdf\TeX\ should refer to the standalone macros
-of the \ttindex{mptopdf} bundle, that can be found at
-\url{http://context.aanhet.net/mptopdf.htm}.
-
-\paragraph{\LaTeX\ format}
-For \LaTeX\ documents the well-known \ttindex{graphics} (or
-\ttindex{graphicx}) package aids in external graphics inclusion.  The
-package supports different engines and can handle several graphic
-formats.  The ``magic macro'' is
-$$ \verb|\includegraphics{|\descr{filename}\verb|}|%
-\index{includegraphics?\texttt{\string\includegraphics}} $$
-
-When the \ttt{dvips} driver is chosen, the \ttt{graphics} package
-assumes all files with an unknown file extension to be in the EPS
-format.  MetaPost files with a numeric default file extension are
-therefore handled correctly -- even if only in a fall-back procedure
-(see~\cite{reckdahl:epslatex} for more information).
-
-For the pdf\TeX\ driver, the situation is a bit different.  Only files
-with file extension \texttt{.mps}\index{mps file?{\tt mps}
-  file}\index{files!mps?{\tt mps}} are recognized as purified EPS and
-can be converted to PDF\index{PDF} on-the-fly.  The recommended
-procedure for including MetaPost graphics into \LaTeX\ documents
-compiled with the pdf\TeX\ engine should be obvious: change MetaPost's
-output file naming scheme to write files ending \texttt{.mps} via
-\verb|outputtemplate|\index{outputtemplate?\texttt{outputtemplate}} (see
-p.~\pageref{Doutputtemplate}).  In the \LaTeX\ document include the
-graphic files with full name, e.g.,
-$$\begin{verbatim}
-\includegraphics{fig-1.mps}
-\end{verbatim}
-$$
-
-Note, the latter approach works with the \ttt{dvips} driver, too.  Even
-though, again, this time \ttt{.mps} is an unknown file extension and
-triggers EPS file handling in the fall-back procedure.  This property of
-the \ttt{graphics} package, that comes in handy for MetaPost files, is
-the reason many MetaPost source files start with the line
-$$\begin{verbatim}
-outputtemplate := "%j-%c.mps";
-\end{verbatim}
-$$
-
-\paragraph{Con\TeX t}
-In Con\TeX t\index{ConTeXt?Con\TeX t} support of MetaPost is integrated
-in the kernel. Apart from inline graphics (see MetaFun\index{MetaFun}
-manual), one can embed graphics explictely with the
-\verb+\externalfigure+%
-\index{externalfigure?\texttt{\string\externalfigure}} command.
-Numbered graphics are recognized automatically, as are graphics with the
-\ttt{mps} suffix.  Special features like shading, transparency, image
-inclusion, color spaces and such are handled automatically.  In practice
-Con\TeX t users will probably define MetaPost graphics in the document
-source which has some advantages, like a more natural interfacing with
-document properties, font support, and automatic processing.  Support
-for MetaPost inclusion is present in the versions MkII as well as MkIV,
-but the used methods are slightly different.  Future versions of MkIV
-will support an even more tight integration.
-
-\subsection{Importing MetaPost graphics in \emph{troff} documents}
-\label{troffimport}
-\index{troff!importing MetaPost files}
-
-It is also possible to include MetaPost output in a GNU \emph{troff}
-document.  The procedure is similar to Figure~\ref{fig0}: the
-\ttt{grops} output processor includes PostScript files when they are
-requested via \emph{troff}'s \ttt{\string\X} command.  The
-\ttt{-mpspic}\index{mpspic?\texttt{-mpspic}} macro package provides a
-command \verb|.PSPIC|\index{PSPIC?\texttt{.PSPIC}}, that does just that
-when including an encapsulated PostScript file in the source code.  For
-instance, the \emph{troff} command
-$$ \hbox{\verb|.PSPIC fig.1|} $$
-includes \ttt{fig.1}, using the natural height and width of the
-image as given in the file's bounding box.
-
-\subsection{Handling SVG files}
-\label{svgimport}
-\index{SVG!third-party applications}
-
-SVG graphics can be easily embedded into HTML\index{HTML} documents with
-the following code snippet:
-
-$$\begin{verbatim}
-<p>
-  <object data="foo.svg" type="image/svg+xml" width="300" height="200">
-  </object>
-</p>
-\end{verbatim}
-$$
-
-SVG files can also be imported by various interactive graphics editing
-programs, for example GIMP\index{GIMP} or Inkscape\index{Inkscape}.  See
-section~\ref{Dprologues} for information on font handling in SVG
-graphics.
+Starting with version~1.200, MetaPost is also capable of producing SVG
+output.  SVG files can be previewed with certain web browsers, for
+example Firefox~3\index{Firefox} or Konqueror~4.2\index{Konqueror}.
 
 
 \section{Curves}
@@ -760,6 +624,9 @@ draw (0,0)..controls (26.8,-1.8) and (51.4,14.6)
  ..(30,50);
 \end{verbatim}
 $$
+
+For a way to extract the control points of a path, given by the user or
+calculated by MetaPost, see section~\ref{Dprepostctrl}.
 
 \begin{figure}[htp]
 $$ \includegraphics{mpman-5.mps}
@@ -1644,12 +1511,12 @@ one or two.  The percent sign is very special because it introduces
 comments\index{comments}.  The percent sign and everything after it up
 to the end of the line are ignored.
 
-Another special character is the period.  Two or more periods together
-form a symbolic token, but a single period is ignored, and a period
-preceded or followed by digits is part of a number.  Thus {\tt ..}  and
-{\tt ...} are symbolic tokens while {\tt a.b} is just two tokens {\tt a}
-and {\tt b}.  It is conventional to use periods to separate tokens in
-this fashion when naming a variable that is more than one token long.
+Another special character is the period.  Two or more periods
+together form a symbolic token, but a single period is ignored, and a period
+preceded or followed by digits is part of a number  Thus {\tt ..}
+and {\tt ...} are symbolic tokens while {\tt a.b} is just two tokens {\tt a}
+and {\tt b}.  It conventional to use periods to separate tokens in this fashion
+when naming a variable that is more than one token long.
 
 \subsection{Variable Declarations}
 \label{vardecl}
@@ -2120,7 +1987,7 @@ handle those.
 The details on how to include PostScript figures in a paper
 done in \TeX\ or troff are system-dependent.  They can generally be found
 in manual pages and other on-line documentation, but have a look at
-section~\ref{teximport} of this manual for some brief instructions that
+section~\ref{mpimport} of this manual for some brief instructions that
 in many cases should work.  The manual for the
 widely-used Dvips processor is in a file \ttt{dvips.texi}, included in
 most distributions, and is available online at
@@ -2199,12 +2066,12 @@ statement. Again, this is for backward compatibility only.
 Regardless of whether you use \TeX\ or troff, all the real work of
 adding text to pictures is done by a MetaPost primitive operator called
 {\tt infont}\index{infont?\texttt{infont}}.  It is a \tdescr{primary
-binop}\index{primary binop?\tdescr{primary binop}} that takes a
+  binop}\index{primary binop?\tdescr{primary binop}} that takes a
 \tdescr{string secondary} as its left argument and a \tdescr{string
-primary} as its right argument.  The left argument is text, and the
+  primary} as its right argument.  The left argument is text, and the
 right argument is a font name.  The result of the operation is a
-\tdescr{picture secondary} that can then be transformed in various ways.
-One possibility is enlargement by a given factor via the
+\tdescr{picture secondary}, which can then be transformed in various
+ways.  One possibility is enlargement by a given factor via the
 syntax\index{scaled?\texttt{scaled}}
 $$ \descr{picture secondary}\, \hbox{\tt scaled}\, \descr{numeric primary} $$
 Thus {\tt label("text",z0)} is equivalent to
@@ -2673,6 +2540,31 @@ applying {\tt cutbefore} with time reversed along its first argument.
 Thus
 $$ p_1\ {\tt cutafter}\ p_2 $$
 tries to cut off the part of $p_1$ after its last intersection with $p_2$.
+
+The control points of a path can be requested by the two operators
+\index{precontrol of?\texttt{precontrol of}}
+\index{postcontrol of?\texttt{postcontrol of}}
+\label{Dprepostctrl}
+\begin{eqnarray*}
+  {\tt precontrol}\, \descr{numeric expression}\, {\tt of}\, \descr{path primary},\\
+  {\tt postcontrol}\, \descr{numeric expression}\, {\tt of}\, \descr{path primary}.
+\end{eqnarray*}
+
+For integer time values~$t$, these operators return the control points
+before and after a cardinal point of a path.  A segment
+$z_{t-1}\verb|..|z_t$ of a path~$p$ has therefore control points
+$$ {\tt postcontrol}\ t-1\ {\tt of}\ p
+$$
+and
+$$ {\tt precontrol}\ t\ {\tt of}\ p.
+$$
+
+For decimal time values, {\tt precontrol of} returns the last control
+point of sub-path $(0, t)$ and {\tt postcontrol of} returns the first
+control point of sub-path $(t, \infty)$ of a path.  In other words, the
+control points at fractional time values correspond to a virtual
+cardinal point inserted at the given time value without modifying path
+shape.
 
 Another operator\index{direction of?\texttt{direction of}}\label{Ddirof}
 $$ {\tt direction}\, \descr{numeric expression}\, {\tt of}\, \descr{path primary}
@@ -4746,10 +4638,10 @@ $$ {\tt for}\, \descr{symbolic token}\, \hbox{\tt =}\,
 $$
 It is equally simple to construct a loop that counts downward: just
 replace {\tt upto} by {\tt
-  downto}\index{downto?\texttt{downto}}\label{Ddwnto} and make the
-second \tdescr{expression} smaller than the first.  This section covers
-more complicated types of progressions, loops where the loop counter
-behaves like a suffix parameter, and ways of exiting from a loop.
+downto}\index{downto?\texttt{downto}}\label{Ddwnto} make the second
+\tdescr{expression} smaller than the first.  This section covers more
+complicated types of progressions, loops where the loop counter behaves
+like a suffix parameter, and ways of exiting from a loop.
 
 The first generalization is suggested by the fact that {\tt
 upto}\index{upto?\texttt{upto}} is a predefined macro
@@ -4779,7 +4671,7 @@ and~\ref{fig40}.
 
 Alternatively, the values to iterate over can be given explicitly.  Any
 sequence of zero or more expressions separated by commas can be used in
-place of {\tt a step b until c}.  In fact, the expressions need not all
+place of {\tt a step b upto c}.  In fact, the expressions need not all
 be the same type and they need not have known values.  Thus
 $$ \hbox{\tt for t=3.14, 2.78, (a,2a), "hello": show t; endfor} $$
 shows the four values listed.
@@ -5243,6 +5135,7 @@ treatment of included \TeX\ material.
 
 \appendix
 \include{mpman-app-refman}
+\include{mpman-app-mpimport}
 \include{mpman-app-legacy}
 
 
