@@ -1,0 +1,242 @@
+\svnInfo $Id: mpman-app-mpimport.tex 1253 2010-06-16 10:51:45Z stephanhennig $
+\section{Importing MetaPost graphics into third-party applications}
+\label{mpimport}
+
+MetaPost is very well suited for creating graphics that are to be
+included into third-party applications, such as text documents,
+presentations or web pages, because MetaPost outputs graphics in vector
+formats, which can be scaled without quality degradation.  However,
+practice shows, that vector graphics, too, are best created with a rough
+target size already in mind.  Scaling a vector graphic calls for
+non-proportional scaling of certain technical parameters, such as line
+width, arrow size or fonts.  Otherwise, with growing scale factors
+scalable graphics tend to change their visual character.  Additionally,
+during import into a main document, they'll likely fail to match, e.g.,
+stroke width of the document.  To circumvent this, it is advisable to
+apply only small post-processing scale factors to vector graphics.  The
+following sections briefly discuss how to import MetaPost graphics into
+documents with selected applications.
+
+\subsection{\TeX\ and friends}
+\label{teximport}
+\index{TeX?\TeX!and friends}
+
+MetaPost graphics in the PostScript\index{PostScript} format can be
+easily integrated into documents prepared with \TeX\ and friends.
+MetaPost's PostScript output is a low-featured dialect of the Postscript
+language, called \emph{purified EPS}\index{EPS!purified}, which can be
+converted into the Portable Document Format (PDF\index{PDF}) language
+on-the-fly.  For that reason, external MetaPost graphics can be used on
+both routes: a) using the traditional \TeX\ engine together with an
+external PostScript output driver and b) using newer \TeX\ engines, like
+pdf\TeX\ or its successor Lua\TeX, which contain a built-in PDF output
+driver.  Lua\TeX\ can additionally process embedded MetaPost code
+natively, falling back to the built-in \emph{mplib} library.
+
+Figure~\ref{fig:teximport} shows the process of including an external
+MetaPost graphic into a \TeX\ document using the PostScript route.  In
+the \TeX\ source a ``magic macro'' provided by the format or an external
+package is used for including a graphic file.  During the typesetting
+stage, the macro only reads bounding box information off the PostScript
+file and reserves the required space on the page via an empty box.  The
+file reference is passed-on to the output driver and only then, finally,
+the file is embedded into the document.  The freely available program
+\ttindex{dvips} is used as an output driver in this
+example.\footnote{The C source for \ttt{dvips} comes with the web2c
+  \TeX\ distribution.  Similar programs are available from other
+  sources.}  The next paragraphs give more detailed information on some
+popular combinations of \TeX\ formats and engines.
+
+\begin{figure}[htp]
+$$ \includegraphics{mpman-charts-1.mps} $$
+\caption{A diagram of the processing for a \TeX\ document embedding
+  MetaPost figures}
+\label{fig:teximport}
+\end{figure}
+
+\subsubsection{Plain \TeX\ format}
+\label{plaintexformat}
+\index{TeX?\TeX!format, plain!importing MetaPost files}
+
+For users of the Plain \TeX\ format and the traditional \TeX\
+engine\index{TeX?\TeX!engine} with Device Independend output
+(DVI\index{dvi file?{\tt dvi} file}) the
+\ttt{epsf}\index{epsf.tex?\texttt{epsf.tex}} package provides the
+``magic macro''
+$$ \verb|\epsfbox{|\descr{filename}\verb|}|%
+\index{epsfbox?\texttt{\string\epsfbox}} $$
+for embedding graphics, e.g., \verb|\epsfbox{fig.1}|.
+
+Users of the pdf\TeX\ engine\index{pdfTeX?pdf\TeX!engine} should refer
+to the standalone macros of the \ttindex{mptopdf} bundle, which can be
+found at \url{http://context.aanhet.net/mptopdf.htm}.
+
+With the Lua\TeX\ engine\index{LuaTeX?Lua\TeX!engine}, embedding
+external graphics works the same as with pdf\TeX.  Additionally,
+Lua\TeX\ users can inline MetaPost code directly into Plain \TeX\
+documents.  Lua\TeX\ is able to process such MetaPost code snippets,
+falling back to the built-in \emph{mplib}\index{mplib?\emph{mplib}}
+library.  Note, \emph{mplib} doesn't support \texttt{verbatimtex/btex
+  .. etex} constructs, currently.  Here is an example of a MetaPost
+graphic inlined into a Plain \TeX\ document.  For more information,
+please refer to the Lua\TeX~\cite[chap.~4.8]{luatex:manual} and
+\ttindex{luamplib}~\cite{hagen:luamplib} documentation.
+
+$$\begin{verbatim}
+\input luamplib.sty
+\mplibcode
+beginfig(1);
+  ...
+endfig;
+\endmplibcode
+\bye
+\end{verbatim}
+$$
+
+\subsubsection{\LaTeX\ format}
+\label{latexformat}
+\index{LaTeX?\LaTeX!format!importing MetaPost files}
+\index{TeX?\TeX!engine}
+\index{pdfTeX?pdf\TeX!engine}
+
+For users of the \LaTeX\ format and the traditional \TeX\ engine with
+Device Independent output (DVI\index{dvi file?{\tt dvi} file}) the
+well-known \ttindex{graphics} (or \ttindex{graphicx}) package aids in
+external graphics inclusion.  The package supports different engines,
+guessing the correct output driver automatically, and can handle several
+graphic formats.  The ``magic macro'' is
+$$ \verb|\includegraphics{|\descr{filename}\verb|}|%
+\index{includegraphics?\texttt{\string\includegraphics}} $$
+
+In DVI output driver mode the \ttt{graphics} package assumes all files
+with an unknown file extension, such as \texttt{.1} etc., to be in the
+EPS\index{EPS} format.  It therefore handles MetaPost files with a
+numeric default file extension correctly (see~\cite{reckdahl:epslatex}
+for more information).
+
+When using the pdf\TeX\ engine with a built-in PDF output driver, the
+situation is a bit different.  Only files with file extension
+\texttt{.mps}\index{mps file?{\tt mps} file}\index{files!mps?{\tt mps}}
+are recognized as purified EPS\index{EPS!purified} and can be converted
+to PDF\index{PDF} on-the-fly.  The recommended procedure for embedding
+MetaPost graphics into \LaTeX\ documents compiled with pdf\TeX\ is
+therefore to change MetaPost's output file name extension via
+\verb|outputtemplate|\index{outputtemplate?\texttt{outputtemplate}} (see
+p.~\pageref{Doutputtemplate}).  In the \LaTeX\ document include the
+graphic files with full name, e.g.,
+$$\begin{verbatim}
+\includegraphics{fig-1.mps}
+\end{verbatim}
+$$
+
+Note, the latter approach works with the \ttindex{dvips} driver, too.
+Even though, again, this time \ttt{.mps} is an unknown file extension,
+triggering EPS file handling in a fall-back procedure.  This property of
+the \ttt{graphics} package, which comes in handy for MetaPost files, is
+the reason many MetaPost source files start with the line
+$$\begin{verbatim}
+outputtemplate := "%j-%c.mps";
+\end{verbatim}
+$$
+
+With the Lua\TeX\ engine\index{LuaTeX?Lua\TeX!engine}, embedding
+external graphics works the same as with pdf\TeX.  Additionally,
+Lua\TeX\ users can inline MetaPost code directly into La\TeX\ documents.
+Lua\TeX\ is able to process such MetaPost code snippets, falling back to
+the built-in \emph{mplib}\index{mplib?\emph{mplib}} library.  Note,
+\emph{mplib} doesn't support \texttt{verbatimtex/btex .. etex}
+constructs, currently.  Here is an example of a MetaPost graphic inlined
+into a \LaTeX\ document.  For more information, please refer to the
+Lua\TeX~\cite[chap.~4.8]{luatex:manual} and
+\ttindex{luamplib}~\cite{hagen:luamplib} documentation.
+
+$$\begin{verbatim}
+\documentclass{article}
+\usepackage{luamplib}
+\begin{document}
+\begin{mplibcode}
+beginfig(1);
+  ...
+endfig;
+\end{mplibcode}
+\end{document}
+\end{verbatim}
+$$
+
+\subsubsection{Con\TeX t format}
+\label{contextformat}
+\index{ConTeXt?Con\TeX t!format!importing MetaPost files}
+
+In Con\TeX t\index{ConTeXt?Con\TeX t} graphics support is integrated in
+the kernel, covering advanced features like shading, transparency, color
+spaces or image inclusion.  The ``magic macro'' for embedding external
+graphics is
+$$ \verb|\externalfigure[|\descr{filename}\verb|]|%
+\index{externalfigure?\texttt{\string\externalfigure}} $$
+%
+The macro can handle numbered files as well as files with the \ttt{mps}
+suffix.
+
+Alternatively, Con\TeX t users can inline MetaPost code in the document
+source, which allows for more natural interfacing with document
+properties, font support, and automatic processing~\cite{hagen:metafun}.
+Here is an example of a MetaPost graphic inlined into a Con\TeX t
+document.
+
+$$\begin{verbatim}[commandchars=|\[\], codes={\catcode`$=3}]
+\starttext
+\startuseMPgraphic{$|descr[name]$}
+  ...
+\stopuseMPgraphic
+\useMPgraphic{$|descr[name]$}
+\stoptext
+\end{verbatim}
+$$
+
+Con\TeX t MkIV, being based on the Lua\TeX\ engine, provides a much
+tighter integration of MetaPost than older versions, since it can
+fall-back to the built-in \emph{mplib}\index{mplib?\emph{mplib}}
+library.
+
+\subsection{\emph{troff}}
+\label{troffimport}
+\index{troff!importing MetaPost files}
+
+It is also possible to include MetaPost output in a GNU \emph{troff}
+document.  The procedure is similar to Figure~\ref{fig:teximport}: the
+\ttt{grops} output processor includes PostScript files when they are
+requested via \emph{troff}'s \ttt{\string\X} command.  The
+\ttt{-mpspic}\index{mpspic?\texttt{-mpspic}} macro package provides a
+command \verb|.PSPIC|\index{PSPIC?\texttt{.PSPIC}}, which does just that
+when including an encapsulated PostScript file in the source code.  For
+instance, the \emph{troff} command
+$$ \hbox{\verb|.PSPIC fig.1|} $$
+includes \ttt{fig.1}, using the natural height and width of the
+image as given in the file's bounding box.
+
+\subsection{Handling SVG files}
+\label{svgfiles}
+\index{SVG!files}
+
+SVG graphics can be easily embedded into HTML\index{HTML} documents with
+the following code snippet:
+
+$$\begin{verbatim}
+<p>
+  <object data="foo.svg" type="image/svg+xml" width="300" height="200">
+  </object>
+</p>
+\end{verbatim}
+$$
+
+SVG files can also be imported by various interactive graphics editing
+programs, for example GIMP\index{GIMP} or Inkscape\index{Inkscape}.  See
+section~\ref{Dprologues} for information on font handling in SVG
+graphics.
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-PDF-mode: t
+%%% TeX-master: "mpman"
+%%% End: 

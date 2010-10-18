@@ -33,7 +33,6 @@ mp-implementors list or alternatively the metapost list.
 
 mpman.tex
 * Describe environment variables.
-* Add note on postcontrol and precontrol when discussing control points.
 * Add description of interaction mode commands.
 
 
@@ -48,8 +47,6 @@ mpman.tex
 * More information and examples on alternatives for calling TeX
     or LaTeX from within MetaPost.
 * (SH) Revise (and add more) flow charts for MetaPost workflow.
-* Information on using MetaPost from within LaTeX (emp), ConTeXt
-    and LuaTeX.
 * Why is verbatimtex\end{document}etex "safer", cf. sec. 13.1?
 * Discuss difference between "draw <pic> withpen" and
     "label(<pic>, ...) withpen" (when label bug is fixed).

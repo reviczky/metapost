@@ -24,6 +24,7 @@ README
 TODO
 agepop91.d
 agepopm.d
+charts.mp
 cm2lm.map
 countries.d
 ctabbing.sty
@@ -50,7 +51,11 @@ mpgraph.tex
 mpintro.bib
 mpintro.mp
 mpintro.tex
-mpman-optab.tex
+mpman-app-legacy.tex
+mpman-app-mpimport.tex
+mpman-app-optab.tex
+mpman-app-refman.tex
+mpman-charts.mp
 mpman.bib
 mpman.ist
 mpman.mp
