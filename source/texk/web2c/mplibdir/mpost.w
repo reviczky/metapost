@@ -235,6 +235,9 @@ static void recorder_start(char *jobname) {
   int fmt;
   boolean req;
   (void) mpx;
+  if ((mode[0]=='r' &&  !kpse_in_name_ok(nam)) ||
+      (mode[0]=='w' &&  !kpse_out_name_ok(nam)))
+     return NULL;  /* disallowed filename */
   if (mode[0] != 'r') { 
      return strdup(nam);
   }
@@ -282,6 +285,8 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
     } else {
       tmp = normalize_quotes(mpname, "mpname");
     }
+    if (!kpse_in_name_ok(tmp))
+       return 0;  /* disallowed filename */
     qmpname = kpse_find_file (tmp,kpse_mp_format, true);
     mpost_xfree(tmp);
     if (qmpname != NULL && job_area != NULL) {
@@ -423,6 +428,8 @@ static int mpost_run_dvitomp (char *dviname, char *mpxname) {
       mpost_xfree (m);
       m = s ;
     }
+    if (!(kpse_in_name_ok(d) && kpse_out_name_ok(m)))
+         return EXIT_FAILURE; /* disallowed filename */
     mpxopt->mpname = d;
     mpxopt->mpxname = m;
 
@@ -477,6 +484,9 @@ static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ft
   char *s;
   (void)mp;
   s = NULL;
+  if ((fmode[0]=='r' &&  !kpse_in_name_ok(fname)) ||
+      (fmode[0]=='w' &&  !kpse_out_name_ok(fname)))
+    return NULL;  /* disallowed filename */
   if (fmode[0]=='r') {
 	if ((job_area != NULL) &&
         (ftype>=mp_filetype_text || ftype==mp_filetype_program )) {
