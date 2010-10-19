@@ -2,6 +2,31 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.212:
+----------------------------------------------------------------------
+
+* A very long list of improvements to the manual.
+
+* MetaPost now adheres to the openin_any / openout_any settings in 
+  texmf.cnf
+
+* In some cases 'readfrom' made the file's path be prepended to the 
+  actually read string from the file.
+
+* The 'prologues:=3 output' with embedded labels was unreliable, 
+  especially when the resulting eps was included into a TeX document 
+  via dvips.
+
+* 'newinternal numeric' has been fixed, it generated an error in
+  metapost 1.211.
+ 
+* Label regeneration sometimes failed to run when the file time stamps
+  were close together.
+
+* Reallocation of the string pool during output file name creation
+  ('outputtemplate') could cause corruption in the created file's name.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.211:
 ----------------------------------------------------------------------
 
