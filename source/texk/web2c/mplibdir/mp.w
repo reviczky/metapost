@@ -1,6 +1,6 @@
 % $Id$
 %
-% Copyright 2008-2009 Taco Hoekwater.
+% Copyright 2008-2010 Taco Hoekwater.
 %
 % This program is free software: you can redistribute it and/or modify
 % it under the terms of the GNU Lesser General Public License as published by
@@ -89,13 +89,13 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.211" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.212" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @(mpmp.h@>=
-#define metapost_version "1.211"
-#define metapost_magic (('M'*256) + 'P')*65536 + 1211
+#define metapost_version "1.212"
+#define metapost_magic (('M'*256) + 'P')*65536 + 1212
 #define metapost_old_magic (('M'*256) + 'P')*65536 + 1080
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
@@ -16229,9 +16229,11 @@ void mp_begin_name (MP mp) {
 @ And here's the second.
 @^system dependencies@>
 
-@d IS_DIR_SEP(c) (c=='/' || c=='\\')
-
 @c 
+#ifndef IS_DIR_SEP
+#define IS_DIR_SEP(c) (c=='/' || c=='\\')
+#endif
+
 boolean mp_more_name (MP mp, ASCII_code c) {
   if (c=='"') {
     mp->quoted_filename= ! mp->quoted_filename;
@@ -16259,10 +16261,11 @@ boolean mp_more_name (MP mp, ASCII_code c) {
 
 @c
 void mp_end_name (MP mp) {
-  pool_pointer s; /* length of area, name, and extension */
+  pool_pointer s,orig; /* length of area, name, and extension */
   unsigned int len;
   /* "my/w.mp" */
   s = mp->str_start[mp->str_ptr];
+  orig = s;
   if ( mp->area_delimiter<0 ) {    
     mp->cur_area=xstrdup("");
   } else {
@@ -16278,7 +16281,7 @@ void mp_end_name (MP mp) {
     len = (unsigned)(mp->ext_delimiter-s);
   }
   copy_pool_segment(mp->cur_name,s,len);
-  mp->pool_ptr=s; /* don't need this partial string */
+  mp->pool_ptr=orig; /* don't need this partial string */
 }
 
 @ Conversely, here is a routine that takes three strings and prints a file
@@ -23253,7 +23256,7 @@ void mp_do_new_internal (MP mp) {
   if (mp->cur_cmd==type_name && mp->cur_mod==mp_string_type) {
      the_type = mp_string_type;
   } else {
-     if (!(mp->cur_cmd==type_name && mp->cur_mod==mp_known)) {
+     if (!(mp->cur_cmd==type_name && mp->cur_mod==mp_numeric_type)) {
         mp_back_input(mp);
      }
   }
@@ -25953,6 +25956,8 @@ static char *mp_set_output_file_name (MP mp, integer c) {
   unsigned old_setting; /* previous |selector| setting */
   pool_pointer i; /*  indexes into |filename_template|  */
   integer f; /* field width */
+  str_room(1024); /* have to prevent reallocation of the
+               	     string pool during this template processing */
   if ( mp->job_name==NULL ) mp_open_log_file(mp);
   if ( mp->internal[mp_output_template]==0) { 
     char *s; /* a file extension derived from |c| */

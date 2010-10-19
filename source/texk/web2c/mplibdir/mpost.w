@@ -1,6 +1,6 @@
 % $Id$
 %
-% Copyright 2008-2009 Taco Hoekwater.
+% Copyright 2008-2010 Taco Hoekwater.
 %
 % This program is free software: you can redistribute it and/or modify
 % it under the terms of the GNU Lesser General Public License as published by
@@ -235,6 +235,9 @@ static void recorder_start(char *jobname) {
   int fmt;
   boolean req;
   (void) mpx;
+  if ((mode[0]=='r' &&  !kpse_in_name_ok(nam)) ||
+      (mode[0]=='w' &&  !kpse_out_name_ok(nam)))
+     return NULL;  /* disallowed filename */
   if (mode[0] != 'r') { 
      return strdup(nam);
   }
@@ -282,6 +285,8 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
     } else {
       tmp = normalize_quotes(mpname, "mpname");
     }
+    if (!kpse_in_name_ok(tmp))
+       return 0;  /* disallowed filename */
     qmpname = kpse_find_file (tmp,kpse_mp_format, true);
     mpost_xfree(tmp);
     if (qmpname != NULL && job_area != NULL) {
@@ -298,12 +303,12 @@ static int mpost_run_make_mpx (MP mp, char *mpname, char *mpxname) {
         if ((stat(qmpxname, &target_stat) >= 0) &&
             (stat(qmpname, &source_stat) >= 0)) {
 #if HAVE_STRUCT_STAT_ST_MTIM
-          if (source_stat.st_mtim.tv_sec <= target_stat.st_mtim.tv_sec || 
+          if (source_stat.st_mtim.tv_sec < target_stat.st_mtim.tv_sec || 
              (source_stat.st_mtim.tv_sec  == target_stat.st_mtim.tv_sec && 
-              source_stat.st_mtim.tv_nsec <= target_stat.st_mtim.tv_nsec))
+              source_stat.st_mtim.tv_nsec < target_stat.st_mtim.tv_nsec))
      	    nothingtodo = 1;
 #else
-          if (source_stat.st_mtime <= target_stat.st_mtime)
+          if (source_stat.st_mtime < target_stat.st_mtime)
   	        nothingtodo = 1;
 #endif
         }
@@ -423,6 +428,8 @@ static int mpost_run_dvitomp (char *dviname, char *mpxname) {
       mpost_xfree (m);
       m = s ;
     }
+    if (!(kpse_in_name_ok(d) && kpse_out_name_ok(m)))
+         return EXIT_FAILURE; /* disallowed filename */
     mpxopt->mpname = d;
     mpxopt->mpxname = m;
 
@@ -477,6 +484,9 @@ static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ft
   char *s;
   (void)mp;
   s = NULL;
+  if ((fmode[0]=='r' &&  !kpse_in_name_ok(fname)) ||
+      (fmode[0]=='w' &&  !kpse_out_name_ok(fname)))
+    return NULL;  /* disallowed filename */
   if (fmode[0]=='r') {
 	if ((job_area != NULL) &&
         (ftype>=mp_filetype_text || ftype==mp_filetype_program )) {
@@ -487,14 +497,14 @@ static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ft
         s = kpse_find_file (f, kpse_mp_format, 0); 
       } else {
         l = strlen(f);
-   	    if (l>3 && strcmp(f+l-3,".mf")==0) {
-   	      s = kpse_find_file (f,kpse_mf_format, 0); 
+   	if (l>3 && strcmp(f+l-3,".mf")==0) {
+   	  s = kpse_find_file (f,kpse_mf_format, 0); 
 #if HAVE_SYS_STAT_H
         } else if (l>4 && strcmp(f+l-4,".mpx")==0) {
           struct stat source_stat, target_stat;
           char *mpname = mpost_xstrdup(f);
           *(mpname + strlen(mpname) -1 ) = '\0';
-          printf("statting %s and %s\n", mpname, f);
+          /* printf("statting %s and %s\n", mpname, f); */
           if ((stat(f, &target_stat) >= 0) &&
               (stat(mpname, &source_stat) >= 0)) {
 #if HAVE_STRUCT_STAT_ST_MTIM
@@ -518,7 +528,7 @@ static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ft
         return s;
       }
     }
-	if (ftype>=mp_filetype_text) {
+    if (ftype>=mp_filetype_text) {
       s = kpse_find_file (fname, kpse_mp_format, 0); 
     } else {
       switch(ftype) {
@@ -923,7 +933,7 @@ if (dvitomp_only)
 else
   fprintf(stdout, "\n" "MetaPost %s\n", s);
 fprintf(stdout, 
-"Copyright 2009 AT&T Bell Laboratories.\n"
+"Copyright 2010 AT&T Bell Laboratories, Taco Hoekwater.\n"
 "There is NO warranty.  Redistribution of this software is\n"
 "covered by the terms of both the MetaPost copyright and\n"
 "the Lesser GNU Lesser General Public License.\n"
@@ -1108,9 +1118,10 @@ so we have to fix up |job_name| and |job_area|. If there
 was a \.{--jobname} on the command line, we have to reset
 the options structure as well.
 
-@d IS_DIR_SEP(c) (c=='/' || c=='\\')
-
 @<Discover the job name@>=
+#ifndef IS_DIR_SEP
+#define IS_DIR_SEP(c) (c=='/' || c=='\\')
+#endif
 { 
 char *tmp_job = NULL;
 if (options->job_name != NULL) {
