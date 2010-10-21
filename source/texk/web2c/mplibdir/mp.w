@@ -30309,13 +30309,17 @@ etcetera to make it worthwile to move the code to |psout.w|.
 void mp_open_output_file (MP mp);
 
 @ @c
-static void mp_append_to_template (MP mp, integer ff, integer c) {
+static void mp_append_to_template (MP mp, integer ff, integer c, boolean rounding) {
   if (internal_type (c) == mp_string_type) {
     char *ss = mp_str (mp, internal_string (c));
     mp_print (mp, ss);
   } else if (internal_type (c) == mp_known) {
-    integer cc = mp_round_unscaled (mp, internal_value (c));
-    print_with_leading_zeroes (cc, ff);
+    if (rounding) {
+      integer cc = mp_round_unscaled (mp, internal_value (c));
+      print_with_leading_zeroes (cc, ff);
+    } else {
+      mp_print_scaled (mp, internal_value (c));
+    }
   }
 }
 static char *mp_set_output_file_name (MP mp, integer c) {
@@ -30359,32 +30363,32 @@ static char *mp_set_output_file_name (MP mp, integer c) {
         if (i < length (template)) {
           switch (*(template->str + i)) {
           case 'j':
-            mp_append_to_template (mp, f, mp_job_name);
+            mp_append_to_template (mp, f, mp_job_name, true);
             break;
           case 'c':
             if (internal_value (mp_char_code) < 0) {
               mp_print (mp, "ps");
             } else {
-              mp_append_to_template (mp, f, mp_char_code);
+              mp_append_to_template (mp, f, mp_char_code, true);
             }
             break;
           case 'o':
-            mp_append_to_template (mp, f, mp_output_format);
+            mp_append_to_template (mp, f, mp_output_format, true);
             break;
           case 'd':
-            mp_append_to_template (mp, f, mp_day);
+            mp_append_to_template (mp, f, mp_day, true);
             break;
           case 'm':
-            mp_append_to_template (mp, f, mp_month);
+            mp_append_to_template (mp, f, mp_month, true);
             break;
           case 'y':
-            mp_append_to_template (mp, f, mp_year);
+            mp_append_to_template (mp, f, mp_year, true);
             break;
           case 'H':
-            mp_append_to_template (mp, f, mp_hour);
+            mp_append_to_template (mp, f, mp_hour, true);
             break;
           case 'M':
-            mp_append_to_template (mp, f, mp_minute);
+            mp_append_to_template (mp, f, mp_minute, true);
             break;
           case '{':
             {
@@ -30417,7 +30421,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
                                    "The appearance of outputtemplate inside outputtemplate is ignored.");
                       mp_warn (mp, err);
                     } else {
-                      mp_append_to_template (mp, f, equiv (p));
+                      mp_append_to_template (mp, f, equiv (p), false);
                     }
                   } else {
                     char err[256];
