@@ -2,6 +2,37 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.503:
+----------------------------------------------------------------------
+
+* String comparisons have been fixed, these were broken in previous 
+  1.50x versions.
+
+* verbatimtex ... etex processing had a horrible bug that is now
+  fixed.
+
+* A fix has been applied for a bug that made redeclared variable 
+  subscript tags disappear.
+
+* Numeric internals used in 'outputtemplate' as '%{<internal>}' are
+  no longer rounded automatically (but the shortcut forms still are).
+
+* A very long list of improvements to the manual.
+
+* MetaPost now adheres to the openin_any / openout_any settings in 
+  texmf.cnf
+
+* The 'prologues:=3 output' with embedded labels was unreliable, 
+  especially when the resulting eps was included into a TeX document 
+  via dvips.
+
+* 'newinternal numeric' has been fixed, it generated an error in
+  metapost 1.211 and earlier 1.50x versions.
+ 
+* Label regeneration sometimes failed to run when the file time stamps
+  were close together.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.502:
 ----------------------------------------------------------------------
 
