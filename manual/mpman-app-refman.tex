@@ -811,7 +811,7 @@ $\tt \descr{suffix list} \rightarrow \descr{suffix} \;|\; \descr{suffix list}\hb
 
 \newcommand*{\opt}[1]{\ensuremath{\big[}#1\ensuremath{\big]}}
 \newcommand*{\cmdsw}{\tdescr{switches}}
-\newcommand*{\cmdmem}{\tdescr{memfile}}
+\newcommand*{\cmdmem}{\tdescr{preloadfile}}
 \newcommand*{\cmdin}{\tdescr{infile}}
 \newcommand*{\cmdcode}{\tdescr{commands}}
 \newcommand*{\cmdindex}[1]{\index{command-line!mpost?\texttt{mpost}!#1?\texttt{#1}}\texttt{#1}}
@@ -869,7 +869,15 @@ command-line.
   statement neither in \cmdin\ nor in \cmdcode, it enters interactive
   mode after processing all input.
 
-\item[\texttt{\&\cmdmem}] \emph{to be completed}
+\item[\texttt{\&\cmdmem}] The MetaPost program code in the \cmdmem\
+  MetaPost source file (and any other files that it inputs) is
+  executed before all other processing starts. The \cmdmem\ file
+  should end with an \texttt{end} or \texttt{dump} command.
+
+  If \cmdmem\ nor \cmdindex{-mem} is specified on the command line,
+  MetaPost will default to loading the macro file \texttt{mpost}, or
+  to whatever the actual name of the MetaPost executable is. The 
+  \cmdindex{-ini} switch can be used to suppress this behavior.
 
 \item[\cmdsw] MetaPost provides a number of command-line switches that
   control the run-time behavior.  Switches can be prefixed by one or two
@@ -899,7 +907,7 @@ Here's a summary of the command-line switches provided by mpost:
   \cmdindex{-help}
   & Show help on command-line switches.\\
   \cmdindex{-ini}
-  & Be the INI variant of the program.\\
+  & Do not load any preload file.\\
   \cmdindex{-interaction}=\tdescr{string}
   & Set interaction mode to one of \texttt{batchmode},
   \texttt{nonstopmode}, \texttt{scrollmode}, \texttt{errorstopmode}.\\
@@ -908,8 +916,8 @@ Here's a summary of the command-line switches provided by mpost:
   \cmdindex{-kpathsea-debug}=\tdescr{number}
   & Set debugging flags for path searching.\\
   \cmdindex{-mem}=\tdescr{string}
-  & Use \tdescr{string} as memory dump name (same as
-  \texttt{\&\tdescr{string}})\\
+  & Use \tdescr{string} for the name of the file that contains macros to be preloaded 
+  (same as \texttt{\&\tdescr{string}})\\
   \cmdindex{-no-file-line-error}
   & Enable normal MetaPost and \TeX\ style error messages.\\
   \cmdindex{-no-kpathsea}
