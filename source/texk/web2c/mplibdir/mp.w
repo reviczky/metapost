@@ -6359,7 +6359,6 @@ the current type before recycling.
 static quarterword mp_und_type (MP mp, mp_node p) {
   (void) mp;
   switch (mp_type (p)) {
-  case undefined:
   case mp_vacuous:
     return undefined;
   case mp_boolean_type:
@@ -19197,7 +19196,6 @@ static void mp_recycle_value (MP mp, mp_node p) {
   if (t < mp_dependent)
     v = value (p);
   switch (t) {
-  case undefined:
   case mp_vacuous:
   case mp_boolean_type:
   case mp_known:
@@ -27517,49 +27515,50 @@ void mp_scan_with_list (MP mp, mp_node p) {
   k = 0;
   memset(&new_expr,0,sizeof(mp_value));
   while (mp->cur_cmd == with_option) {
+    /* todo this is not very nice: the color models have their own enumeration */
     t = (mp_variable_type) mp->cur_mod;
     mp_get_x_next (mp);
-    if (t != mp_no_model)
+    if (t != (mp_variable_type) mp_no_model)
       mp_scan_expression (mp);
     if (((t == with_mp_pre_script) && (mp->cur_exp.type != mp_string_type)) ||
         ((t == with_mp_post_script) && (mp->cur_exp.type != mp_string_type)) ||
-        ((t == mp_uninitialized_model) &&
+        ((t == (mp_variable_type) mp_uninitialized_model) &&
          ((mp->cur_exp.type != mp_cmykcolor_type)
           && (mp->cur_exp.type != mp_color_type)
           && (mp->cur_exp.type != mp_known)
-          && (mp->cur_exp.type != mp_boolean_type))) || ((t == mp_cmyk_model)
+          && (mp->cur_exp.type != mp_boolean_type))) || ((t == (mp_variable_type) mp_cmyk_model)
                                                          && (mp->cur_exp.type !=
                                                              mp_cmykcolor_type))
-        || ((t == mp_rgb_model) && (mp->cur_exp.type != mp_color_type))
-        || ((t == mp_grey_model) && (mp->cur_exp.type != mp_known))
-        || ((t == mp_pen_type) && (mp->cur_exp.type != t))
-        || ((t == mp_picture_type) && (mp->cur_exp.type != t))) {
+        || ((t == (mp_variable_type) mp_rgb_model) && (mp->cur_exp.type != mp_color_type))
+        || ((t == (mp_variable_type) mp_grey_model) && (mp->cur_exp.type != mp_known))
+        || ((t == (mp_variable_type) mp_pen_type) && (mp->cur_exp.type != t))
+        || ((t == (mp_variable_type) mp_picture_type) && (mp->cur_exp.type != t))) {
       @<Complain about improper type@>;
-    } else if (t == mp_uninitialized_model) {
+    } else if (t == (mp_variable_type) mp_uninitialized_model) {
       if (cp == MP_VOID)
         @<Make |cp| a colored object in object list~|p|@>;
       if (cp != NULL)
         @<Transfer a color from the current expression to object~|cp|@>;
       mp_flush_cur_exp (mp, new_expr);
-    } else if (t == mp_rgb_model) {
+    } else if (t == (mp_variable_type) mp_rgb_model) {
       if (cp == MP_VOID)
         @<Make |cp| a colored object in object list~|p|@>;
       if (cp != NULL)
         @<Transfer a rgbcolor from the current expression to object~|cp|@>;
       mp_flush_cur_exp (mp, new_expr);
-    } else if (t == mp_cmyk_model) {
+    } else if (t == (mp_variable_type) mp_cmyk_model) {
       if (cp == MP_VOID)
         @<Make |cp| a colored object in object list~|p|@>;
       if (cp != NULL)
         @<Transfer a cmykcolor from the current expression to object~|cp|@>;
       mp_flush_cur_exp (mp, new_expr);
-    } else if (t == mp_grey_model) {
+    } else if (t == (mp_variable_type) mp_grey_model) {
       if (cp == MP_VOID)
         @<Make |cp| a colored object in object list~|p|@>;
       if (cp != NULL)
         @<Transfer a greyscale from the current expression to object~|cp|@>;
       mp_flush_cur_exp (mp, new_expr);
-    } else if (t == mp_no_model) {
+    } else if (t == (mp_variable_type) mp_no_model) {
       if (cp == MP_VOID)
         @<Make |cp| a colored object in object list~|p|@>;
       if (cp != NULL)
@@ -27665,14 +27664,14 @@ void mp_scan_with_list (MP mp, mp_node p) {
       "Next time say `withpostscript <known string expression>';";
   else if (t == mp_picture_type)
     mp->help_line[1] = "Next time say `dashed <known picture expression>';";
-  else if (t == mp_uninitialized_model)
+  else if (t == (mp_variable_type) mp_uninitialized_model)
     mp->help_line[1] = "Next time say `withcolor <known color expression>';";
-  else if (t == mp_rgb_model)
+  else if (t == (mp_variable_type) mp_rgb_model)
     mp->help_line[1] = "Next time say `withrgbcolor <known color expression>';";
-  else if (t == mp_cmyk_model)
+  else if (t == (mp_variable_type) mp_cmyk_model)
     mp->help_line[1] =
       "Next time say `withcmykcolor <known cmykcolor expression>';";
-  else if (t == mp_grey_model)
+  else if (t == (mp_variable_type) mp_grey_model)
     mp->help_line[1] =
       "Next time say `withgreyscale <known numeric expression>';";;
   mp_put_get_flush_error (mp, new_expr);
