@@ -86,7 +86,7 @@ typedef enum
 {
   kpse_gf_format,
   kpse_pk_format,
-  kpse_any_glyph_format,	/* ``any'' meaning gf or pk */
+  kpse_any_glyph_format,        /* ``any'' meaning gf or pk */
   kpse_tfm_format,
   kpse_afm_format,
   kpse_base_format,
@@ -168,31 +168,31 @@ typedef enum
 
 typedef struct
 {
-  const_string type;		/* Human-readable description.  */
-  const_string path;		/* The search path to use.  */
-  const_string raw_path;	/* Pre-$~ (but post-default) expansion.  */
-  const_string path_source;	/* Where the path started from.  */
-  const_string override_path;	/* From client environment variable.  */
-  const_string client_path;	/* E.g., from dvips's config.ps.  */
-  const_string cnf_path;	/* From texmf.cnf.  */
-  const_string default_path;	/* If all else fails.  */
-  const_string *suffix;		/* For kpse_find_file to check for/append.  */
-  const_string *alt_suffix;	/* More suffixes to check for.  */
-  boolean suffix_search_only;	/* Only search with a suffix?  */
-  const_string program;		/* ``mktexpk'', etc.  */
-  int          argc;		/* Count of standard arguments. */
-  const_string *argv;		/* Standard arguments to `program'.  */
-  boolean program_enabled_p;	/* Invoke `program'?  */
+  const_string type;            /* Human-readable description.  */
+  const_string path;            /* The search path to use.  */
+  const_string raw_path;        /* Pre-$~ (but post-default) expansion.  */
+  const_string path_source;     /* Where the path started from.  */
+  const_string override_path;   /* From client environment variable.  */
+  const_string client_path;     /* E.g., from dvips's config.ps.  */
+  const_string cnf_path;        /* From texmf.cnf.  */
+  const_string default_path;    /* If all else fails.  */
+  const_string *suffix;         /* For kpse_find_file to check for/append.  */
+  const_string *alt_suffix;     /* More suffixes to check for.  */
+  boolean suffix_search_only;   /* Only search with a suffix?  */
+  const_string program;         /* ``mktexpk'', etc.  */
+  int argc;                     /* Count of standard arguments.  */
+  const_string *argv;           /* Standard arguments to `program'.  */
+  boolean program_enabled_p;    /* Invoke `program'?  */
   kpse_src_type program_enable_level; /* Who said to invoke `program'.  */
-  boolean binmode;              /* The files must be opened in binary mode. */
+  boolean binmode;              /* Open files in binary mode?  */
 } kpse_format_info_type;
 
 typedef struct kpathsea_instance *kpathsea;
 
 typedef struct kpathsea_instance {
     /* from cnf.c */
-    p_record_input record_input;   /* for --recorder */
-    p_record_output record_output; /* for --recorder */
+    p_record_input record_input;        /* for --recorder */
+    p_record_output record_output;      /* for --recorder */
     hash_table_type cnf_hash;           /* used by read_all_cnf */
     boolean doing_cnf_init;             /* for kpse_cnf_get */
     /* from db.c */
@@ -223,37 +223,33 @@ typedef struct kpathsea_instance {
     /* from progname.c */
     string invocation_name;
     string invocation_short_name;
-    string program_name;           /* pretended name */
+    string program_name;                /* pretended name */
     int ll_verbose;                     /* for symlinks (conditional) */
     /* from tex-file.c */
     /* If non-NULL, try looking for this if can't find the real font.  */
     const_string fallback_font;
     /* If non-NULL, default list of fallback resolutions comes from this
-     * instead of the compile-time value.  Set by dvipsk for the R config
-     * cmd.  *SIZES environment variables override/use as default.
-     */
+       instead of the compile-time value.  Set by dvipsk for the R config
+       cmd.  *SIZES environment variables override/use as default.  */
     const_string fallback_resolutions_string;
     /* If non-NULL, check these if can't find (within a few percent of) the
-     * given resolution.  List must end with a zero element.
-     */
+       given resolution.  List must end with a zero element.  */
     unsigned *fallback_resolutions;
     kpse_format_info_type format_info[kpse_last_format];
     /* from tex-make.c */
     /* We never throw away stdout, since that is supposed to be the filename
-     *  found, if all is successful.  This variable controls whether stderr
-     *  is thrown away.
-     */
+       found, if all is successful.  This variable controls whether stderr
+       is thrown away.  */
     boolean make_tex_discard_errors;
     FILE *missfont;
     /* from variable.c  */
-    expansion_type *expansions; /* The sole variable of this type.  */
+    expansion_type *expansions; /* sole variable of this type */
     unsigned expansion_len ;
     /* from xputenv.c */
     /* These record the strings we've set and have to keep around.
-     * This function can be called many times during a run, and this
-     * allows us to reclaim memory we allocated.
-     */
-    char **saved_env;       /* these keep track of changed items */
+       This function can be called many times during a run, and this
+       allows us to reclaim memory we allocated.  */
+    char **saved_env;           /* keep track of changed items */
     int saved_count;
 #if defined(WIN32) || defined(__MINGW32__) || defined(__CYGWIN__)
     char **suffixlist;
