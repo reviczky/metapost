@@ -870,14 +870,16 @@ command-line.
   mode after processing all input.
 
 \item[\texttt{\&\cmdmem}] The MetaPost program code in the \cmdmem\
-  MetaPost source file (and any other files that it inputs) is
-  executed before all other processing starts. The \cmdmem\ file
-  should end with an \texttt{end} or \texttt{dump} command.
+  MetaPost source file (and any other files that it inputs) is executed
+  before all other processing starts. The \cmdmem\ file should end with
+  an \texttt{end}\index{end?\texttt{end}} or
+  \texttt{dump}\index{dump?\texttt{dump}} command.
 
-  If \cmdmem\ nor \cmdindex{-mem} is specified on the command line,
-  MetaPost will default to loading the macro file \texttt{mpost}, or
-  to whatever the actual name of the MetaPost executable is. The 
-  \cmdindex{-ini} switch can be used to suppress this behavior.
+  If neither \texttt{\&\cmdmem} nor \cmdindex{-mem} is specified on the
+  command line, MetaPost will default to loading the macro file
+  \texttt{mpost.mp}\index{mpost.mp?\texttt{mpost.mp}}, or to whatever
+  the actual name of the MetaPost executable is. The \cmdindex{-ini}
+  switch can be used to suppress this behavior.
 
 \item[\cmdsw] MetaPost provides a number of command-line switches that
   control the run-time behavior.  Switches can be prefixed by one or two
@@ -917,7 +919,7 @@ Here's a summary of the command-line switches provided by mpost:
   & Set debugging flags for path searching.\\
   \cmdindex{-mem}=\tdescr{string}
   & Use \tdescr{string} for the name of the file that contains macros to be preloaded 
-  (same as \texttt{\&\tdescr{string}})\\
+  (same as \texttt{\&\cmdmem})\\
   \cmdindex{-no-file-line-error}
   & Enable normal MetaPost and \TeX\ style error messages.\\
   \cmdindex{-no-kpathsea}
