@@ -4946,25 +4946,25 @@ output one would want to use \texttt{svg}\index{svg file?{\tt svg}
   \label{tab:outputtemplate}
 \end{table}
 
-The single-letter escape sequences that have numeric values are rounded to
-the nearest integer before they are converted to a string expression.
-In such escape sequences, there can be an optional number (0--99)
-following \verb|%| that determines the minimum number of
-digits in the resulting string expression, like \verb|%2m|.  The
-actually used length may exceed the requested length, if the decimal
-representation of the internal variable needs more digits.  If it
-needs fewer digits, the string is padded to the requested length with
-zeros from left. 
+In single-letter escape sequences referring to internal numerics, the
+corresponding value is rounded to the nearest integer before it is
+converted to a string expression.  In such escape sequences, there can
+be an optional number (0--99) following \verb|%| that determines the
+minimum number of digits in the resulting string expression, like
+\verb|%2m|.  If the decimal representation of the internal variable
+requires more digits, actual string length exceeds the requested length.
+If less digits are required, the string is padded to the requested
+length with zeros from left.
 
-Internal numeric variables used in \verb|%{...}| are \textit{not}
-rounded, and neither those nor string valued variables can be
-zero-padded.
+In the \verb|%{...}| escape sequence no rounding takes place.
+Additionally, neither this nor single-letter escape sequences referring
+to internal string variables can be zero-padded.
 
 For backwards compatibility, the \verb|%c|\index{\%c?\texttt{\%c}}
 escape sequence is handled special.  If the result of rounding the
 charcode value is negative, \verb|%c| evaluates to the string \verb|ps|.
 This transformation can be bypassed by using \verb|%{charcode}| instead
-of \verb|%c|.
+of \verb|%c| (bypassing the rounding, too).
 
 The template mechanism can also be used for naming graphic files
 individually, yet keeping all sources in one file.  Collecting, e.g.,
