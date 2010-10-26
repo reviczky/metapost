@@ -31,8 +31,18 @@ mp-implementors list or alternatively the metapost list.
 ***   Wanted For Release  ***
 *****************************
 
+Integrating Text and Graphics:
+* (SH) Fix bad description of prologues in table ivartab.
+* (SH) Move discussion of prologues to sec. workflow2.
+
 Notes on the MetaPost Workflow:
 * (SH) Describe variables jobname, charcode.
+
+Reference Manual:
+* Describe environment variables and configuration files.
+
+Legacy Information:
+* (SH) Cite original Hobby papers.
 
 
 
@@ -54,20 +64,16 @@ Integrating Text and Graphics:
 * Why is verbatimtex\end{document}etex "safer", cf. sec. 13.1?
 * Discuss difference between "draw <pic> withpen" and
     "label(<pic>, ...) withpen" (when label bug is fixed).
-* Fix bad description of prologues in table ivartab.
-* Move discussion of prologues to sec. workflow2?
 
 Advanced Graphics:
 * Add a sub-section discussing colours.
 * (SH) Colour cars and change code example in section piccomp.
 
 Reference Manual:
-* Describe environment variables and configuration files.
 * Describe missing variables, constants, and operators.
 * Add description of interaction mode.
 
 Legacy Information:
-* Cite original Hobby papers.
 * Describe mpware (currently scattered around in mpman).
 
 
