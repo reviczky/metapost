@@ -3,6 +3,10 @@
 #ifndef _WIN32LIB_H_
 #define _WIN32LIB_H_
 
+#include <io.h>
+#include <fcntl.h>
+#include <direct.h>
+
 #if !__STDC__
 #if _MSC_VER>=1200
    #pragma warning(push)
@@ -11,12 +15,12 @@
 #pragma warning(disable: 4255)
 
 #define boolean donotuse_boolean
-#include <windows.h>	/* Somewhere here WIN32 gets defined */
+#include <windows.h>    /* Somewhere here WIN32 gets defined */
 #undef boolean
 
 #if _MSC_VER>=1200
    #pragma warning(pop)
-#else 
+#else
    #pragma warning(default: 4668)
    #pragma warning(default: 4255)
 #endif

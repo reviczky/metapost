@@ -53,18 +53,17 @@
 #include <stdlib.h>
 #endif
 
-#ifndef	NULL
+#ifndef NULL
 #define NULL 0
 #endif
 
-int
-getopt_long (argc, argv, options, long_options, opt_index)
-     int argc;
-     char *const *argv;
-     const char *options;
-     const struct option *long_options;
-     int *opt_index;
-{
+int getopt_long(
+     int argc,
+     char *const *argv,
+     const char *options,
+     const struct option *long_options,
+     int *opt_index
+){
   return _getopt_internal (argc, argv, options, long_options, opt_index, 0);
 }
 
@@ -73,26 +72,24 @@ getopt_long (argc, argv, options, long_options, opt_index)
    but does match a short option, it is parsed as a short option
    instead.  */
 
-int
-getopt_long_only (argc, argv, options, long_options, opt_index)
-     int argc;
-     char *const *argv;
-     const char *options;
-     const struct option *long_options;
-     int *opt_index;
-{
+int getopt_long_only(
+     int argc,
+     char *const *argv,
+     const char *options,
+     const struct option *long_options,
+     int *opt_index
+){
   return _getopt_internal (argc, argv, options, long_options, opt_index, 1);
 }
 
 
-#endif	/* Not ELIDE_CODE.  */
+#endif  /* Not ELIDE_CODE.  */
 
 #ifdef TEST
 
 #include <stdio.h>
 
-int
-main (int argc, char **argv)
+int main(int argc, char **argv)
 {
   int c;
   int digit_optind = 0;
@@ -103,74 +100,74 @@ main (int argc, char **argv)
       int option_index = 0;
       static struct option long_options[] =
       {
-	{"add", 1, 0, 0},
-	{"append", 0, 0, 0},
-	{"delete", 1, 0, 0},
-	{"verbose", 0, 0, 0},
-	{"create", 0, 0, 0},
-	{"file", 1, 0, 0},
-	{0, 0, 0, 0}
+        {"add", 1, 0, 0},
+        {"append", 0, 0, 0},
+        {"delete", 1, 0, 0},
+        {"verbose", 0, 0, 0},
+        {"create", 0, 0, 0},
+        {"file", 1, 0, 0},
+        {0, 0, 0, 0}
       };
 
       c = getopt_long (argc, argv, "abc:d:0123456789",
-		       long_options, &option_index);
+                       long_options, &option_index);
       if (c == -1)
-	break;
+        break;
 
       switch (c)
-	{
-	case 0:
-	  printf ("option %s", long_options[option_index].name);
-	  if (optarg)
-	    printf (" with arg %s", optarg);
-	  printf ("\n");
-	  break;
+        {
+        case 0:
+          printf ("option %s", long_options[option_index].name);
+          if (optarg)
+            printf (" with arg %s", optarg);
+          printf ("\n");
+          break;
 
-	case '0':
-	case '1':
-	case '2':
-	case '3':
-	case '4':
-	case '5':
-	case '6':
-	case '7':
-	case '8':
-	case '9':
-	  if (digit_optind != 0 && digit_optind != this_option_optind)
-	    printf ("digits occur in two different argv-elements.\n");
-	  digit_optind = this_option_optind;
-	  printf ("option %c\n", c);
-	  break;
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+          if (digit_optind != 0 && digit_optind != this_option_optind)
+            printf ("digits occur in two different argv-elements.\n");
+          digit_optind = this_option_optind;
+          printf ("option %c\n", c);
+          break;
 
-	case 'a':
-	  printf ("option a\n");
-	  break;
+        case 'a':
+          printf ("option a\n");
+          break;
 
-	case 'b':
-	  printf ("option b\n");
-	  break;
+        case 'b':
+          printf ("option b\n");
+          break;
 
-	case 'c':
-	  printf ("option c with value `%s'\n", optarg);
-	  break;
+        case 'c':
+          printf ("option c with value `%s'\n", optarg);
+          break;
 
-	case 'd':
-	  printf ("option d with value `%s'\n", optarg);
-	  break;
+        case 'd':
+          printf ("option d with value `%s'\n", optarg);
+          break;
 
-	case '?':
-	  break;
+        case '?':
+          break;
 
-	default:
-	  printf ("?? getopt returned character code 0%o ??\n", c);
-	}
+        default:
+          printf ("?? getopt returned character code 0%o ??\n", c);
+        }
     }
 
   if (optind < argc)
     {
       printf ("non-option ARGV-elements: ");
       while (optind < argc)
-	printf ("%s ", argv[optind++]);
+        printf ("%s ", argv[optind++]);
       printf ("\n");
     }
 

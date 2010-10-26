@@ -3,13 +3,18 @@
 ## Copyright (C) 2009, 2010 Peter Breitenlohner <tex-live@tug.org>
 ## You may freely use, modify and/or distribute this file.
 ##
-INCLUDES = -I$(top_builddir)/.. -I$(top_srcdir) $(KPATHSEA_INCLUDES)
+INCLUDES = -I$(top_srcdir)
+AM_CPPFLAGS = $(KPATHSEA_INCLUDES)
 AM_CFLAGS = $(WARNING_CFLAGS)
 
 ## Rebuild libkpathsea
 @KPATHSEA_RULE@
 
 noinst_LIBRARIES = lib.a
+if PTEX
+noinst_LIBRARIES += libp.a
+endif PTEX
+EXTRA_LIBRARIES = libp.a
 
 ## We don't compile `texmfmp.c'; this file is converted into 'texextra.c'
 ## for TeX, 'mfextra.c' for Metafont, ...
@@ -31,7 +36,14 @@ lib_a_SOURCES = \
 	version.c \
 	zround.c
 
+## Replacements for pTeX.
+##
+libp_a_CPPFLAGS = -DPTEX $(PTEXENC_INCLUDES) $(AM_CPPFLAGS)
+libp_a_SOURCES = \
+	openclose.c \
+	printversion.c
+
 ## Not yet used
 ##
-EXTRA_DIST = alloca.c win32main.c
+EXTRA_DIST = alloca.c
 

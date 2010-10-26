@@ -5,10 +5,8 @@
 ##
 ACLOCAL_AMFLAGS = -I ../../m4 -I m4
 
-# First $(KPATHSEA_INCLUDES), then -I$(top_srcdir)/..
-# for the case of installed (system) kpathsea headers.
-INCLUDES = -I$(top_builddir)/.. $(KPATHSEA_INCLUDES) -I$(top_srcdir)/..
-AM_CPPFLAGS =
+INCLUDES =
+AM_CPPFLAGS = $(KPATHSEA_INCLUDES)
 ## Not yet for C, C++, and ObjC++ (too many warnings or not yet implemented)
 AM_CFLAGS = $(WARNING_CFLAGS)
 AM_CXXFLAGS = ## $(WARNING_CXXFLAGS)
@@ -30,7 +28,7 @@ nodist_man_MANS =
 check_PROGRAMS =
 TESTS =
 EXTRA_LIBRARIES =
-EXTRA_DIST = PROJECTS cftests config.h cpascal.h help.h
+EXTRA_DIST = PROJECTS cftests cpascal.h help.h w2c/config.h
 DISTCLEANFILES = $(EXTRA_LIBRARIES)
 CLEANFILES =
 TRIPTRAP =
@@ -78,7 +76,7 @@ web2c/stamp-makecpool: $(web2c_common) ${srcdir}/web2c/makecpool.c
 
 # Rebuild $(proglib)
 $(proglib): ${srcdir}/lib/*.c
-	cd lib && $(MAKE) $(AM_MAKEFLAGS)
+	cd lib && $(MAKE) $(AM_MAKEFLAGS) lib.a
 ## Rebuild libkpathsea
 @KPATHSEA_RULE@
 ## Rebuild libz
@@ -159,6 +157,9 @@ include $(srcdir)/mplibdir/am/libmplib.am
 ## e-TeX
 include $(srcdir)/etexdir/am/etex.am
 
+## pTeX
+include $(srcdir)/ptexdir/am/ptex.am
+
 ## pdfTeX
 include $(srcdir)/pdftexdir/am/pdftex.am
 include $(srcdir)/pdftexdir/am/libpdftex.am
@@ -167,7 +168,6 @@ include $(srcdir)/pdftexdir/am/pdftosrc.am
 
 ## luaTeX
 include $(srcdir)/luatexdir/am/luatex.am
-include $(srcdir)/luatexdir/am/luatangle.am
 include $(srcdir)/luatexdir/am/liblua51.am
 include $(srcdir)/luatexdir/am/luasocket.am
 include $(srcdir)/luatexdir/am/luamisc.am
@@ -196,5 +196,5 @@ include $(srcdir)/libmd5/am/md5.am
 
 ## Eventually delete these files
 ##
-EXTRA_DIST += Makefile.in.orig configure.in.orig metapost.mk
+EXTRA_DIST += Makefile.in.orig configure.in.orig
 

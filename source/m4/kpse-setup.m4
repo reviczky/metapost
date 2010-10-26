@@ -31,16 +31,14 @@ AS_CASE([$enable_native_texlive_build],
         [yes | no], [:],
         [enable_native_texlive_build=yes
          ac_configure_args="$ac_configure_args '--enable-native-texlive-build'"])
-if test "x$enable_native_texlive_build" = xyes; then
-  AS_CASE([$enable_multiplatform],
-          [yes | no], [:],
-          [enable_multiplatform=yes
-           ac_configure_args="$ac_configure_args '--enable-multiplatform'"])
-  AS_CASE([$enable_cxx_runtime_hack],
-          [yes | no], [:],
-          [enable_cxx_runtime_hack=yes
-           ac_configure_args="$ac_configure_args '--enable-cxx-runtime-hack'"])
-fi
+AS_CASE([$enable_multiplatform],
+        [yes | no], [:],
+        [enable_multiplatform=$enable_native_texlive_build
+         ac_configure_args="$ac_configure_args '--enable-multiplatform=$enable_native_texlive_build'"])
+AS_CASE([$enable_cxx_runtime_hack],
+        [yes | no], [:],
+        [enable_cxx_runtime_hack=$enable_native_texlive_build
+         ac_configure_args="$ac_configure_args '--enable-cxx-runtime-hack=$enable_native_texlive_build'"])
 AS_CASE([$enable_libtool_hack],
         [yes | no], [:],
         [AS_CASE([$host_os],
@@ -65,15 +63,20 @@ KPSE_ENABLE_CXX_HACK
 KPSE_ENABLE_LT_HACK
 KPSE_LIBS_PREPARE
 KPSE_WEB2C_PREPARE
-AS_CASE([$with_x],
-        [yes | no], [:],
-        [with_x=yes
-         AC_MSG_NOTICE([Assuming `--with-x'])
-         ac_configure_args="$ac_configure_args '--with-x'"])
+KPSE_CHECK_WIN32
+AS_CASE([$with_x:$kpse_cv_have_win32],
+        [yes:no | no:*], [:],
+        [yes:*], [AC_MSG_ERROR([you can not use `--with-x' for WIN32])],
+        [*:no], [with_x=yes
+                 AC_MSG_NOTICE([Assuming `--with-x'])
+                 ac_configure_args="$ac_configure_args '--with-x'"],
+        [with_x=no
+         AC_MSG_NOTICE([WIN32 -> `--without-x'])
+         ac_configure_args="$ac_configure_args '--without-x'"])
 KPSE_FOR_PKGS([utils], [m4_sinclude(kpse_TL[utils/]Kpse_Pkg[/ac/withenable.ac])])
 KPSE_FOR_PKGS([texk], [m4_sinclude(kpse_TL[texk/]Kpse_Pkg[/ac/withenable.ac])])
-m4_sinclude(kpse_TL[texk/kpathsea/ac/withenable.ac])
 KPSE_FOR_PKGS([libs], [m4_sinclude(kpse_TL[libs/]Kpse_Pkg[/ac/withenable.ac])])
+KPSE_FOR_PKGS([texlibs], [m4_sinclude(kpse_TL[texk/]Kpse_Pkg[/ac/withenable.ac])])
 ]) # KPSE_SETUP
 
 # KPSE_ENABLE_PROG(PROG, REQUIRED-LIBS, OPTIONS, [COMMENT])
@@ -84,6 +87,7 @@ KPSE_FOR_PKGS([libs], [m4_sinclude(kpse_TL[libs/]Kpse_Pkg[/ac/withenable.ac])])
 # Options:
 #          disable - do not build by default
 #          native - impossible to cross compile
+#          x - requires X11
 AC_DEFUN([KPSE_ENABLE_PROG],
 [m4_pushdef([Kpse_enable], m4_if(m4_index([ $3 ], [ disable ]), [-1], [yes], [no]))[]dnl
 AC_ARG_ENABLE([$1],
@@ -91,6 +95,13 @@ AC_ARG_ENABLE([$1],
                               m4_if(Kpse_enable, [yes],
                                     [do not ])[build the $1 ]m4_ifval([$4],
                                                                       [($4) ])[package]))[]dnl
+m4_if(m4_index([ $3 ], [ x ]), [-1], , [AS_IF([test "x$with_x" = xno],
+      [AS_CASE([$enable_[]AS_TR_SH($1)],
+               [""], [AC_MSG_NOTICE([`--without-x' -> `--disable-$1'])
+                      enable_[]AS_TR_SH($1)=no
+                      ac_configure_args="$ac_configure_args '--disable-$1'"],
+               [yes], [AC_MSG_ERROR([Sorry, incompatible options `--without-x' and `--enable-$1'])])])
+])[]dnl m4_if
 AS_CASE([$enable_[]AS_TR_SH($1)],
   m4_if(m4_index([ $3 ], [ native ]), [-1],
         [[yes|no], []],
@@ -99,8 +110,9 @@ AS_CASE([$enable_[]AS_TR_SH($1)],
          [no], []]),
   [m4_if(m4_index([ $3 ], [ native ]), [-1], ,
          [if test "x$cross_compiling" = xyes; then
-            enable_[]AS_TR_SH($1)=no
             AC_MSG_NOTICE([Cross compiling -> `--disable-$1'])
+            enable_[]AS_TR_SH($1)=no
+            ac_configure_args="$ac_configure_args '--disable-$1'"
           else])
    enable_[]AS_TR_SH($1)=m4_if(Kpse_enable, [yes], [$enable_all_pkgs], [no])
      AC_MSG_NOTICE([Assuming `--enable-$1=$enable_]AS_TR_SH($1)['])
@@ -115,7 +127,8 @@ AC_FOREACH([Kpse_Lib], [$2], [  need_[]AS_TR_SH(Kpse_Lib)=yes
 ]) # KPSE_ENABLE_PROG
 
 # KPSE_WITH_LIB(LIB, REQUIRED-LIBS, OPTIONS)
-# ---------------------------------------------------------
+# ------------------------------------------
+# For generic libraries in libs/LIB.
 # Unless the option `tree' is specified, provide the configure options
 # --with-system-LIB, --with-LIB-includes, and --with-LIB-libdir.
 # Define the list of libraries required from the TL tree (if any).
@@ -123,53 +136,62 @@ AC_FOREACH([Kpse_Lib], [$2], [  need_[]AS_TR_SH(Kpse_Lib)=yes
 #          tree - only use library from the TL tree
 #
 # At the top-level we build a (reversed) list of potential system libraries.
-AC_DEFUN([KPSE_WITH_LIB],
-[m4_if(m4_index([ $3 ], [ tree ]), [-1],
-[KPSE_]AS_TR_CPP([$1])[_OPTIONS([with-system])[]dnl
-if test "x$with_system_[]AS_TR_SH($1)" = x; then
-  if test -f $srcdir/kpse_TL[]m4_if([$1], [kpathsea], [texk], [libs])/$1/configure; then
-    AC_MSG_NOTICE([Assuming `$1' headers and library from TL tree])
-    with_system_[]AS_TR_SH($1)=no
+AC_DEFUN([KPSE_WITH_LIB], [_KPSE_WITH_LIB([libs], $@)])
+m4_define([kpse_sys_libs_pkgs], [])[]dnl initialize the list.
+
+# KPSE_WITH_TEXLIB(LIB, REQUIRED-LIBS, OPTIONS)
+# ---------------------------------------------
+# As above, but for TeX specific libraries in texk/LIB.
+AC_DEFUN([KPSE_WITH_TEXLIB], [_KPSE_WITH_LIB([texk], $@)])
+m4_define([kpse_sys_texk_pkgs], [])[]dnl initialize the list.
+
+# _KPSE_WITH_LIB(DIR, LIB, REQUIRED-LIBS, OPTIONS)
+# ------------------------------------------------
+# Internal subroutine for KPSE_WITH_LIB and KPSE_WITH_TEXLIB.
+m4_define([_KPSE_WITH_LIB],
+[m4_if(m4_index([ $4 ], [ tree ]), [-1],
+[KPSE_]AS_TR_CPP([$2])[_OPTIONS([with-system])[]dnl
+if test "x$with_system_[]AS_TR_SH($2)" = x; then
+  if test -f $srcdir/kpse_TL[]$1/$2/configure; then
+    AC_MSG_NOTICE([Assuming `$2' headers and library from TL tree])
+    with_system_[]AS_TR_SH($2)=no
   else
-    AC_MSG_NOTICE([Assuming installed `$1' headers and library])
-    with_system_[]AS_TR_SH($1)=yes
+    AC_MSG_NOTICE([Assuming installed `$2' headers and library])
+    with_system_[]AS_TR_SH($2)=yes
   fi
-  ac_configure_args="$ac_configure_args '--with-system-$1=$with_system_[]AS_TR_SH($1)'"
+  ac_configure_args="$ac_configure_args '--with-system-$2=$with_system_[]AS_TR_SH($2)'"
 m4_ifset([kpse_TL], [], dnl top level only
-[elif test "x$with_system_[]AS_TR_SH($1)" = xyes; then
-  AC_MSG_NOTICE([Using installed `$1' headers and library])
+[elif test "x$with_system_[]AS_TR_SH($2)" = xyes; then
+  AC_MSG_NOTICE([Using installed `$2' headers and library])
 else
-  AC_MSG_NOTICE([Using `$1' headers and library from TL tree])
-  if test "x$with_system_[]AS_TR_SH($1)" != xno; then
-    with_system_[]AS_TR_SH($1)=no
-    ac_configure_args="$ac_configure_args '--without-system-$1'"
+  AC_MSG_NOTICE([Using `$2' headers and library from TL tree])
+  if test "x$with_system_[]AS_TR_SH($2)" != xno; then
+    with_system_[]AS_TR_SH($2)=no
+    ac_configure_args="$ac_configure_args '--without-system-$2'"
   fi
-m4_define([kpse_syslib_pkgs], [$1]m4_ifval([kpse_syslib_pkgs],
-                                           [ _m4_defn([kpse_syslib_pkgs])]))[]dnl
+m4_define([kpse_sys_$1_pkgs],
+          [$2]m4_ifval([kpse_sys_$1_pkgs], [ _m4_defn([kpse_sys_$1_pkgs])]))[]dnl
 ])[]dnl m4_ifset
 fi
-m4_ifval([$2],
-[if test "x$with_system_[]AS_TR_SH($1)" = xyes; then
-AC_FOREACH([Kpse_Lib], [$2],
+m4_ifval([$3],
+[if test "x$with_system_[]AS_TR_SH($2)" = xyes; then
+AC_FOREACH([Kpse_Lib], [$3],
 [  if test "x$with_system_[]AS_TR_SH(Kpse_Lib)" = x; then
     AC_MSG_NOTICE([  ->  installed `AS_TR_SH(Kpse_Lib)' headers and library])
     with_system_[]AS_TR_SH(Kpse_Lib)=yes
     ac_configure_args="$ac_configure_args '--with-system-Kpse_Lib'"
   elif test "x$with_system_[]AS_TR_SH(Kpse_Lib)" != xyes; then
-    AC_MSG_ERROR([Sorry, `--with-system-$1' requires `--with-system-Kpse_Lib'])
+    AC_MSG_ERROR([Sorry, `--with-system-$2' requires `--with-system-Kpse_Lib'])
   fi
 ])fi
 ])[]dnl m4_ifval
 ])[]dnl m4_if
-m4_ifval([$2], [
-test "x$need_[]AS_TR_SH($1)" = xyes && {
-AC_FOREACH([Kpse_Lib], [$2], [  need_[]AS_TR_SH(Kpse_Lib)=yes
+m4_ifval([$3], [
+test "x$need_[]AS_TR_SH($2)" = xyes && {
+AC_FOREACH([Kpse_Lib], [$3], [  need_[]AS_TR_SH(Kpse_Lib)=yes
 ])}
 ])[]dnl m4_ifval
-]) # KPSE_WITH_LIB
-
-# Initialize the list of potential system libraries.
-m4_define([kpse_syslib_pkgs], [])
+]) # _KPSE_WITH_LIB
 
 # KPSE_TRY_LIB(LIB, PROLOGUE, BODY)
 # ---------------------------------

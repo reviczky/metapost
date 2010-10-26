@@ -3,7 +3,7 @@
 
 Written in 1994 by Karl Berry.  Public domain.  */
 
-#include "config.h"
+#include <w2c/config.h>
 #include "lib.h"
 
 /* This is needed because web2c turns the Pascal construct 'x' into the
@@ -16,7 +16,7 @@ Written in 1994 by Karl Berry.  Public domain.  */
 string
 chartostring (char ch)
 {
-  string str = (string)xmalloc (2);
+  string str = xmalloc (2);
   str[0] = ch;
   str[1] = 0;
   return str;
