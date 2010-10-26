@@ -1,29 +1,29 @@
 /* openclose.c: open and close files for TeX, Metafont, and BibTeX.
 
-   Written 1995, 96 Karl Berry.  Public domain.  */
+   Written 1995 Karl Berry.  Public domain.  */
 
-#include "config.h"
+#include <w2c/config.h>
 #include "lib.h"
 #include <kpathsea/c-pathch.h>
 #include <kpathsea/tex-file.h>
 #include <kpathsea/variable.h>
 #include <kpathsea/absolute.h>
+#ifdef PTEX
+#include <ptexenc/ptexenc.h>
+#endif
 
 /* The globals we use to communicate.  */
 extern string nameoffile;
 extern unsigned namelength;
-/* For "file:line:error style error messages. */
-extern string fullnameoffile;
-/* For the filename recorder. */
-extern boolean recorder_enabled;
-/* For the output-dir option. */
-extern string output_directory;
 
 /* Define some variables. */
+/* For "file:line:error" style error messages. */
 string fullnameoffile;       /* Defaults to NULL.  */
 static string recorder_name; /* Defaults to NULL.  */
 static FILE *recorder_file;  /* Defaults to NULL.  */
+/* For the filename recorder. */
 boolean recorder_enabled;    /* Defaults to false. */
+/* For the output-dir option. */
 string output_directory;     /* Defaults to NULL.  */
 
 /* For TeX and MetaPost.  See below.  Always defined so we don't have to
@@ -47,7 +47,7 @@ recorder_start(void)
     char pid_str[MAX_INT_LENGTH];
     sprintf (pid_str, "%ld", (long) pid);
     
-    recorder_name = (string)xmalloc(strlen(kpse_program_name)
+    recorder_name = xmalloc(strlen(kpse_program_name)
                                     + strlen (pid_str) + 5);
     strcpy(recorder_name, kpse_program_name);
     strcat(recorder_name, pid_str);
@@ -139,7 +139,7 @@ open_input (FILE **f_ptr, int filefmt, const_string fopen_mode)
         if (*f_ptr) {
             free (nameoffile);
             namelength = strlen (fname);
-            nameoffile = (string) xmalloc (namelength + 2);
+            nameoffile = xmalloc (namelength + 2);
             strcpy (nameoffile + 1, fname);
             fullnameoffile = fname;
         } else {
@@ -186,11 +186,17 @@ open_input (FILE **f_ptr, int filefmt, const_string fopen_mode)
                 /* kpse_find_file always returns a new string. */
                 free (nameoffile);
                 namelength = strlen (fname);
-                nameoffile = (string)xmalloc (namelength + 2);
+                nameoffile = xmalloc (namelength + 2);
                 strcpy (nameoffile + 1, fname);
                 free (fname);
 
                 /* This fopen is not allowed to fail. */
+#ifdef PTEX
+                if (filefmt == kpse_tex_format ||
+                    filefmt == kpse_bib_format) {
+                    *f_ptr = nkf_open (nameoffile + 1, fopen_mode);
+                } else
+#endif
                 *f_ptr = xfopen (nameoffile + 1, fopen_mode);
             }
         }
@@ -257,7 +263,7 @@ open_output (FILE **f_ptr, const_string fopen_mode)
         if (fname != nameoffile + 1) {
             free (nameoffile);
             namelength = strlen (fname);
-            nameoffile = (string)xmalloc (namelength + 2);
+            nameoffile = xmalloc (namelength + 2);
             strcpy (nameoffile + 1, fname);
         }
         recorder_record_output (fname);
@@ -277,7 +283,11 @@ close_file (FILE *f)
   if (!f)
     return;
     
+#ifdef PTEX
+  if (nkf_close (f) == EOF) {
+#else
   if (fclose (f) == EOF) {
+#endif
     /* It's not always nameoffile, we might have opened something else
        in the meantime.  And it's not easy to extract the filenames out
        of the pool array.  So just punt on the filename.  Sigh.  This
