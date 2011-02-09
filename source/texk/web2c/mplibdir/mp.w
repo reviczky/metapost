@@ -2399,6 +2399,7 @@ integer interrupt;      /* should \MP\ pause for instructions? */
 boolean OK_to_interrupt;        /* should interrupts be observed? */
 integer run_state;      /* are we processing input ? */
 boolean finished;       /* set true by |close_files_and_terminate| */
+boolean reading_preload;
 
 @ @<Allocate or ...@>=
 mp->OK_to_interrupt = true;
@@ -4447,6 +4448,7 @@ mp_sym frozen_right_delimiter;
 mp_sym frozen_semicolon;
 mp_sym frozen_slash;
 mp_sym frozen_undefined;
+mp_sym frozen_dump;
 
 
 @ Here are the functions needed for the avl construction.
@@ -14132,7 +14134,7 @@ by analogy with |line_stack|.
 @<Glob...@>=
 integer in_open;        /* the number of lines in the buffer, less one */
 integer in_open_max;    /* highest value of |in_open| ever seen */
-unsigned int open_parens;       /* the number of open text files */
+int open_parens;       /* the number of open text files */
 void **input_file;
 integer *line_stack;    /* the line number for each file */
 char **inext_stack;     /* used for naming \.{MPX} files */
@@ -14742,18 +14744,25 @@ void mp_begin_file_reading (MP mp) {
 
 @ Conversely, the variables must be downdated when such a level of input
 is finished.  Any associated \.{MPX} file must also be closed and popped
-off the file stack.
+off the file stack. While finishing preloading, it is possible that the file
+does not actually end with 'dump', so we capture that case here as well.
 
 @c
 static void mp_end_file_reading (MP mp) {
+  if (mp->reading_preload && mp->input_ptr == 0) {
+      pop_input;
+      mp->cur_sym = mp->frozen_dump;
+      mp_back_input (mp);
+      return;
+  } 
   if (mp->in_open <= file_bottom) {
-    print_err ("Attempt to close the bottom level file!");
-    help3 ("You attempted to close the bottommost file input level.",
-           "The most likely cause of this error is that your preload",
-           "file did not end with 'dump' or 'end'. MP will exit now.");
-    mp_error (mp);
-    mp->history = mp_fatal_error_stop;
-    mp_jump_out (mp);
+      print_err ("Attempt to close the bottom level file!");
+      help3 ("You attempted to close the bottommost file input level.",
+             "The most likely cause of this error is that your preload",
+             "file did not end with 'dump' or 'end'. MP will exit now.");
+      mp_error (mp);
+      mp->history = mp_fatal_error_stop;
+      mp_jump_out (mp);
   }
   if (mp->in_open > iindex) {
     if ((mp->mpx_name[mp->in_open] == absent) || (name <= max_spec_src)) {
@@ -26731,6 +26740,7 @@ char *mp_metapost_version (void);
 mp_primitive (mp, "end", stop, 0);
 @:end_}{\&{end} primitive@>;
 mp_primitive (mp, "dump", stop, 1);
+mp->frozen_dump = mp_frozen_primitive (mp, "dump", stop, 1);
 @:dump_}{\&{dump} primitive@>
  
 
@@ -31039,9 +31049,11 @@ boolean mp_load_preload_file (MP mp) {
     mp->first = (size_t) (limit + 1);
     loc = start;
   }
+  mp->reading_preload = true;
   do {
     mp_do_statement (mp);
-  } while (!(mp->cur_cmd == stop));     /* "dump" or "end" or EOF */
+  } while (!(mp->cur_cmd == stop && mp->cur_mod == 1));     /* "dump" or EOF */
+  mp->reading_preload = false;
   mp_primitive (mp, "dump", relax, 0); /* reset |dump| */
   mp_print_char (mp, xord (')'));
   decr (mp->open_parens);
