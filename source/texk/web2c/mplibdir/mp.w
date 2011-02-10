@@ -14750,12 +14750,11 @@ does not actually end with 'dump', so we capture that case here as well.
 @c
 static void mp_end_file_reading (MP mp) {
   if (mp->reading_preload && mp->input_ptr == 0) {
-      pop_input;
       mp->cur_sym = mp->frozen_dump;
       mp_back_input (mp);
       return;
   } 
-  if (mp->in_open <= file_bottom) {
+  if (mp->in_open <= file_bottom && 0) {
       print_err ("Attempt to close the bottom level file!");
       help3 ("You attempted to close the bottommost file input level.",
              "The most likely cause of this error is that your preload",
