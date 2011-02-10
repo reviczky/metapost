@@ -30004,12 +30004,12 @@ for (k = 1; k <= (int) mp->last_fnum; k++) {
   xfree (mp->font_name[k]);
   xfree (mp->font_ps_name[k]);
 }
-for (k = 0; k < TFM_ITEMS; k++) {
-  mp_xfree (mp->tfm_width[k]);
-  mp_xfree (mp->tfm_height[k]);
-  mp_xfree (mp->tfm_depth[k]);
-  mp_xfree (mp->tfm_ital_corr[k]);
-}
+
+mp_xfree (mp->tfm_width[0]);
+mp_xfree (mp->tfm_height[0]);
+mp_xfree (mp->tfm_depth[0]);
+mp_xfree (mp->tfm_ital_corr[0]);
+
 xfree (mp->font_info);
 xfree (mp->font_enc_name);
 xfree (mp->font_ps_name_fixed);
