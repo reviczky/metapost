@@ -14753,8 +14753,8 @@ static void mp_end_file_reading (MP mp) {
       mp->cur_sym = mp->frozen_dump;
       mp_back_input (mp);
       return;
-  } 
-  if (mp->in_open <= file_bottom && 0) {
+  } else {
+  if (mp->in_open <= file_bottom) {
       print_err ("Attempt to close the bottom level file!");
       help3 ("You attempted to close the bottommost file input level.",
              "The most likely cause of this error is that your preload",
@@ -14763,6 +14763,7 @@ static void mp_end_file_reading (MP mp) {
       mp->history = mp_fatal_error_stop;
       mp_jump_out (mp);
   }
+}
   if (mp->in_open > iindex) {
     if ((mp->mpx_name[mp->in_open] == absent) || (name <= max_spec_src)) {
       mp_confusion (mp, "endinput");
