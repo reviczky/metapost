@@ -14753,17 +14753,7 @@ static void mp_end_file_reading (MP mp) {
       mp->cur_sym = mp->frozen_dump;
       mp_back_input (mp);
       return;
-  } else {
-  if (mp->in_open <= file_bottom) {
-      print_err ("Attempt to close the bottom level file!");
-      help3 ("You attempted to close the bottommost file input level.",
-             "The most likely cause of this error is that your preload",
-             "file did not end with 'dump' or 'end'. MP will exit now.");
-      mp_error (mp);
-      mp->history = mp_fatal_error_stop;
-      mp_jump_out (mp);
   }
-}
   if (mp->in_open > iindex) {
     if ((mp->mpx_name[mp->in_open] == absent) || (name <= max_spec_src)) {
       mp_confusion (mp, "endinput");
@@ -31018,9 +31008,12 @@ interfere with the actual job.
 @c
 boolean mp_load_preload_file (MP mp) {
   size_t k;
-  in_state_record old_state = mp->cur_input;
+  in_state_record old_state;
+  integer old_in_open = mp->in_open;
+  void *old_cur_file = cur_file;
   char *fname = xstrdup (mp->name_of_file);
   size_t l = strlen (fname);
+  old_state = mp->cur_input;
   str_room (l);
   for (k = 0; k < l; k++) {
     append_char (*(fname + k));
@@ -31057,9 +31050,10 @@ boolean mp_load_preload_file (MP mp) {
   mp_primitive (mp, "dump", relax, 0); /* reset |dump| */
   mp_print_char (mp, xord (')'));
   decr (mp->open_parens);
-  (mp->close_file) (mp, mp->mem_file);
-  cur_file = NULL;
-  mp->cur_input = old_state;
+/*  |(mp->close_file) (mp, mp->mem_file);| */
+  cur_file = old_cur_file;
+  mp->cur_input  = old_state;
+  mp->in_open = old_in_open;
   return true;
 }
 
