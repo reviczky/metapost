@@ -1119,7 +1119,7 @@ static int comp_strings_entry (void *p, const void *pa, const void *pb) {
        return STRCMP_RESULT(*s-*t); 
     s++; t++;
   }
-  return STRCMP_RESULT(a->len-b->len);
+  return STRCMP_RESULT((int)(a->len)-(int)(b->len));
 }
 static void *copy_strings_entry (const void *p) {
   str_number ff;
@@ -16071,12 +16071,12 @@ a \&{vardef}, because the user may want to redefine `\.{endgroup}'.
 if (m == start_def) {
   mp_link (p) = mp_scan_toks (mp, macro_def, r, NULL, (quarterword) n);
 } else {
-  q = mp_get_symbolic_node (mp);
-  set_mp_sym_sym (q, mp->bg_loc);
-  mp_link (p) = q;
+  mp_node qq = mp_get_symbolic_node (mp);
+  set_mp_sym_sym (qq, mp->bg_loc);
+  mp_link (p) = qq;
   p = mp_get_symbolic_node (mp);
   set_mp_sym_sym (p, mp->eg_loc);
-  mp_link (q) = mp_scan_toks (mp, macro_def, r, p, (quarterword) n);
+  mp_link (qq) = mp_scan_toks (mp, macro_def, r, p, (quarterword) n);
 }
 if (mp->warning_info_node == mp->bad_vardef)
   mp_flush_token_list (mp, value_node (mp->bad_vardef))
@@ -18597,24 +18597,36 @@ recovery.
 @d cur_exp_knot() mp->cur_exp.data.p
 
 @d set_cur_exp_value(A) do {
+    if (cur_exp_str()) {
+        delete_str_ref(cur_exp_str());
+    }
     cur_exp_value() = (A);
     cur_exp_node() = NULL;
     cur_exp_str() = NULL;
     cur_exp_knot() = NULL;
   } while (0)
 @d set_cur_exp_node(A) do {
+    if (cur_exp_str()) {
+        delete_str_ref(cur_exp_str());
+    }
     cur_exp_node() = A;
     cur_exp_str() = NULL;
     cur_exp_knot() = NULL;
     cur_exp_value() = 0;
   } while (0)
 @d set_cur_exp_str(A) do {
+    if (cur_exp_str()) {
+        delete_str_ref(cur_exp_str());
+    }
     cur_exp_str() = A;
     cur_exp_node() = NULL;
     cur_exp_knot() = NULL;
     cur_exp_value() = 0;
   } while (0)
 @d set_cur_exp_knot(A) do {
+    if (cur_exp_str()) {
+        delete_str_ref(cur_exp_str());
+    }
     cur_exp_knot() = A;
     cur_exp_node() = NULL;
     cur_exp_str() = NULL;
@@ -24983,6 +24995,7 @@ static void mp_cat (MP mp, mp_node p) {
   mp->cur_string[needed] = '\0';
   set_cur_exp_str (mp_make_string (mp));
   delete_str_ref (b);
+  xfree(mp->cur_string); /* created by |mp_make_string| */
   mp->cur_length = saved_cur_length;
   mp->cur_string = saved_cur_string;
   mp->cur_string_size = saved_cur_string_size;
