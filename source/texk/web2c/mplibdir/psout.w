@@ -1624,11 +1624,11 @@ void mp_set_job_id (MP mp) {
     s = mp_xmalloc (mp,slen, sizeof (char));
     @= /*@@-bufferoverflowhigh@@*/ @>
     sprintf (s,"%.4u/%.2u/%.2u %.2u:%.2u %s %s",
-               ((unsigned)internal_value(mp_year)>>16),
-               ((unsigned)internal_value(mp_month)>>16), 
-               ((unsigned)internal_value(mp_day)>>16), 
-               ((unsigned)internal_value(mp_time)>>16) / 60, 
-               ((unsigned)internal_value(mp_time)>>16) % 60,
+               ((unsigned)internal_value_to_halfword(mp_year)>>16),
+               ((unsigned)internal_value_to_halfword(mp_month)>>16), 
+               ((unsigned)internal_value_to_halfword(mp_day)>>16), 
+               ((unsigned)internal_value_to_halfword(mp_time)>>16) / 60, 
+               ((unsigned)internal_value_to_halfword(mp_time)>>16) % 60,
                 name_string, format_string);
     @= /*@@=bufferoverflowhigh@@*/ @>
     mp->ps->job_id_string = mp_xstrdup (mp,s);
@@ -4848,7 +4848,7 @@ static void mp_ps_pair_out (MP mp,scaled x, scaled y) ;
 
 @ @c
 void mp_ps_print_cmd (MP mp, const char *l, const char *s) {
-  if ( internal_value(mp_procset)>0 ) { ps_room(strlen(s)); mp_ps_print(mp,s); }
+  if ( internal_value_to_halfword(mp_procset)>0 ) { ps_room(strlen(s)); mp_ps_print(mp,s); }
   else { ps_room(strlen(l)); mp_ps_print(mp, l); };
 }
 
@@ -4959,13 +4959,13 @@ void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues) {
   mp_ps_print(mp, s);
   mp_xfree(s);
   mp_ps_print_nl(mp, "%%CreationDate: ");
-  mp_ps_print_int(mp, mp_round_unscaled(mp, internal_value(mp_year))); 
+  mp_ps_print_int(mp, mp_round_unscaled(mp, internal_value_to_halfword(mp_year))); 
   mp_ps_print_char(mp, '.');
-  mp_ps_print_dd(mp, mp_round_unscaled(mp, internal_value(mp_month))); 
+  mp_ps_print_dd(mp, mp_round_unscaled(mp, internal_value_to_halfword(mp_month))); 
   mp_ps_print_char(mp, '.');
-  mp_ps_print_dd(mp, mp_round_unscaled(mp, internal_value(mp_day))); 
+  mp_ps_print_dd(mp, mp_round_unscaled(mp, internal_value_to_halfword(mp_day))); 
   mp_ps_print_char(mp, ':');
-  t=mp_round_unscaled(mp, internal_value(mp_time));
+  t=mp_round_unscaled(mp, internal_value_to_halfword(mp_time));
   mp_ps_print_dd(mp, t / 60); 
   mp_ps_print_dd(mp, t % 60);
   mp_ps_print_nl(mp, "%%Pages: 1");
@@ -5579,7 +5579,7 @@ if ( (ww!=gs_width) || (adj_wx!=gs_adj_wx) ) {
     mp_ps_print_cmd(mp, 
       " 0 dtransform exch truncate exch idtransform pop setlinewidth"," hlw");
   } else {
-    if ( internal_value(mp_procset)>0 ) {
+    if ( internal_value_to_halfword(mp_procset)>0 ) {
       ps_room(13);
       mp_ps_print_char(mp, ' ');
       mp_ps_print_scaled(mp, ww);
@@ -5775,7 +5775,7 @@ static void mp_gr_stroke_ellipse (MP mp,  mp_graphic_object *h, boolean fill_als
   } else {
     mp_gr_ps_path_out(mp, gr_path_p((mp_stroked_object *)h));
   }
-  if ( internal_value(mp_procset)==0 ) {
+  if ( internal_value_to_halfword(mp_procset)==0 ) {
     if ( fill_also ) mp_ps_print_nl(mp, "gsave fill grestore");
     @<Issue \ps\ commands to transform the coordinate system@>;
     mp_ps_print(mp, " stroke");
@@ -6106,11 +6106,11 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standal
   }
   if (mp->history >= mp_fatal_error_stop ) return 1;
   if (qprologues<0) 
-	prologues = (int)((unsigned)internal_value(mp_prologues)>>16);
+	prologues = (int)((unsigned)internal_value_to_halfword(mp_prologues)>>16);
   else
    prologues=qprologues;
   if (qprocset<0) 
-	procset = (int)((unsigned)internal_value(mp_procset)>>16);
+	procset = (int)((unsigned)internal_value_to_halfword(mp_procset)>>16);
   else
     procset=qprocset;
   mp_open_output_file(mp);
@@ -6182,13 +6182,13 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standal
       mp_gr_ps_path_out(mp, gr_path_p((mp_clip_object *)p));
       mp_ps_print_cmd(mp, " clip"," W");
       mp_ps_print_ln(mp);
-      if ( internal_value(mp_restore_clip_color)>0 )
+      if ( internal_value_to_halfword(mp_restore_clip_color)>0 )
         mp_gs_unknown_graphics_state(mp, 1);
       break;
     case mp_stop_clip_code: 
       mp_ps_print_nl(mp, ""); mp_ps_print_cmd(mp, "grestore","Q");
       mp_ps_print_ln(mp);
-      if ( internal_value(mp_restore_clip_color)>0 )
+      if ( internal_value_to_halfword(mp_restore_clip_color)>0 )
         mp_gs_unknown_graphics_state(mp, 2);
       else
         mp_gs_unknown_graphics_state(mp, -1);
