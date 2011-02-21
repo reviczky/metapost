@@ -12605,20 +12605,25 @@ and |(pp,mp_link(pp))|, respectively.
 
 @c
 static void mp_cubic_intersection (MP mp, mp_knot p, mp_knot pp) {
-  mp_knot q, qq;        /* |mp_link(p)|, |mp_link(pp)| */
+  mp_knot q, qq;           /* |mp_link(p)|, |mp_link(pp)| */
+  integer delx, dely;      /* the components of $\Delta=2^l(w_0-z_0)$ */
+  integer tol;             /* bound on the uncertainty in the overlap test */
+  integer uv, xy;          /* pointers to the current packets of interest */
+  integer three_l;         /* |tol_step| times the bisection level */
+  integer appr_t, appr_tt; /* best approximations known to the answers */
   mp->time_to_go = max_patience;
   mp->max_t = 2;
   @<Initialize for intersections at level zero@>;
 CONTINUE:
   while (1) {
-    if (mp->delx - mp->tol <=
-        stack_max (x_packet (mp->xy)) - stack_min (u_packet (mp->uv)))
-      if (mp->delx + mp->tol >=
-          stack_min (x_packet (mp->xy)) - stack_max (u_packet (mp->uv)))
-        if (mp->dely - mp->tol <=
-            stack_max (y_packet (mp->xy)) - stack_min (v_packet (mp->uv)))
-          if (mp->dely + mp->tol >=
-              stack_min (y_packet (mp->xy)) - stack_max (v_packet (mp->uv))) {
+    if (delx - tol <=
+        stack_max (x_packet (xy)) - stack_min (u_packet (uv)))
+      if (delx + tol >=
+          stack_min (x_packet (xy)) - stack_max (u_packet (uv)))
+        if (dely - tol <=
+            stack_max (y_packet (xy)) - stack_min (v_packet (uv)))
+          if (dely + tol >=
+              stack_min (y_packet (xy)) - stack_max (v_packet (uv))) {
             if (mp->cur_t >= mp->max_t) {
               if (mp->max_t == two) {   /* we've done 17 bisections */
                 mp->cur_t = halfp (mp->cur_t + 1);
@@ -12626,8 +12631,8 @@ CONTINUE:
                 return;
               }
               mp->max_t += mp->max_t;
-              mp->appr_t = mp->cur_t;
-              mp->appr_tt = mp->cur_tt;
+              appr_t = mp->cur_t;
+              appr_tt = mp->cur_tt;
             }
             @<Subdivide for a new level of intersection@>;
             goto CONTINUE;
@@ -12635,32 +12640,18 @@ CONTINUE:
     if (mp->time_to_go > 0) {
       decr (mp->time_to_go);
     } else {
-      while (mp->appr_t < unity) {
-        mp->appr_t += mp->appr_t;
-        mp->appr_tt += mp->appr_tt;
+      while (appr_t < unity) {
+        appr_t += appr_t;
+        appr_tt += appr_tt;
       }
-      mp->cur_t = mp->appr_t;
-      mp->cur_tt = mp->appr_tt;
+      mp->cur_t = appr_t;
+      mp->cur_tt = appr_tt;
       return;
     }
     @<Advance to the next pair |(cur_t,cur_tt)|@>;
   }
 }
 
-
-@ The following variables are global, although they are used only by
-|cubic_intersection|, because it is necessary on some machines to
-split |cubic_intersection| up into two procedures.
-
-@<Glob...@>=
-integer delx;
-integer dely;   /* the components of $\Delta=2^l(w_0-z_0)$ */
-integer tol;    /* bound on the uncertainty in the overlap test */
-integer uv;
-integer xy;     /* pointers to the current packets of interest */
-integer three_l;        /* |tol_step| times the bisection level */
-integer appr_t;
-integer appr_tt;        /* best approximations known to the answers */
 
 @ We shall assume that the coordinates are sufficiently non-extreme that
 integer overflow will not occur.
@@ -12686,63 +12677,63 @@ y1r = mp_right_y (pp) - mp_y_coord (pp);
 y2r = mp_left_y (qq) - mp_right_y (pp);
 y3r = mp_y_coord (qq) - mp_left_y (qq);
 set_min_max (yr_packet);
-mp->delx = mp_x_coord (p) - mp_x_coord (pp);
-mp->dely = mp_y_coord (p) - mp_y_coord (pp);
-mp->tol = 0;
-mp->uv = r_packets;
-mp->xy = r_packets;
-mp->three_l = 0;
+delx = mp_x_coord (p) - mp_x_coord (pp);
+dely = mp_y_coord (p) - mp_y_coord (pp);
+tol = 0;
+uv = r_packets;
+xy = r_packets;
+three_l = 0;
 mp->cur_t = 1;
 mp->cur_tt = 1
 
 @ @<Subdivide for a new level of intersection@>=
-stack_dx = mp->delx;
-stack_dy = mp->dely;
-stack_tol = mp->tol;
-stack_uv = mp->uv;
-stack_xy = mp->xy;
+stack_dx = delx;
+stack_dy = dely;
+stack_tol = tol;
+stack_uv = uv;
+stack_xy = xy;
 mp->bisect_ptr = mp->bisect_ptr + int_increment;
 mp->cur_t += mp->cur_t;
 mp->cur_tt += mp->cur_tt;
-u1l = stack_1 (u_packet (mp->uv));
-u3r = stack_3 (u_packet (mp->uv));
-u2l = half (u1l + stack_2 (u_packet (mp->uv)));
-u2r = half (u3r + stack_2 (u_packet (mp->uv)));
+u1l = stack_1 (u_packet (uv));
+u3r = stack_3 (u_packet (uv));
+u2l = half (u1l + stack_2 (u_packet (uv)));
+u2r = half (u3r + stack_2 (u_packet (uv)));
 u3l = half (u2l + u2r);
 u1r = u3l;
 set_min_max (ul_packet);
 set_min_max (ur_packet);
-v1l = stack_1 (v_packet (mp->uv));
-v3r = stack_3 (v_packet (mp->uv));
-v2l = half (v1l + stack_2 (v_packet (mp->uv)));
-v2r = half (v3r + stack_2 (v_packet (mp->uv)));
+v1l = stack_1 (v_packet (uv));
+v3r = stack_3 (v_packet (uv));
+v2l = half (v1l + stack_2 (v_packet (uv)));
+v2r = half (v3r + stack_2 (v_packet (uv)));
 v3l = half (v2l + v2r);
 v1r = v3l;
 set_min_max (vl_packet);
 set_min_max (vr_packet);
-x1l = stack_1 (x_packet (mp->xy));
-x3r = stack_3 (x_packet (mp->xy));
-x2l = half (x1l + stack_2 (x_packet (mp->xy)));
-x2r = half (x3r + stack_2 (x_packet (mp->xy)));
+x1l = stack_1 (x_packet (xy));
+x3r = stack_3 (x_packet (xy));
+x2l = half (x1l + stack_2 (x_packet (xy)));
+x2r = half (x3r + stack_2 (x_packet (xy)));
 x3l = half (x2l + x2r);
 x1r = x3l;
 set_min_max (xl_packet);
 set_min_max (xr_packet);
-y1l = stack_1 (y_packet (mp->xy));
-y3r = stack_3 (y_packet (mp->xy));
-y2l = half (y1l + stack_2 (y_packet (mp->xy)));
-y2r = half (y3r + stack_2 (y_packet (mp->xy)));
+y1l = stack_1 (y_packet (xy));
+y3r = stack_3 (y_packet (xy));
+y2l = half (y1l + stack_2 (y_packet (xy)));
+y2r = half (y3r + stack_2 (y_packet (xy)));
 y3l = half (y2l + y2r);
 y1r = y3l;
 set_min_max (yl_packet);
 set_min_max (yr_packet);
-mp->uv = l_packets;
-mp->xy = l_packets;
-mp->delx += mp->delx;
-mp->dely += mp->dely;
-mp->tol = mp->tol - mp->three_l + (integer) mp->tol_step;
-mp->tol += mp->tol;
-mp->three_l = mp->three_l + (integer) mp->tol_step
+uv = l_packets;
+xy = l_packets;
+delx += delx;
+dely += dely;
+tol = tol - three_l + (integer) mp->tol_step;
+tol += tol;
+three_l = three_l + (integer) mp->tol_step
 
 @ @<Advance to the next pair |(cur_t,cur_tt)|@>=
 NOT_FOUND:
@@ -12751,33 +12742,33 @@ if (odd (mp->cur_tt)) {
     @<Descend to the previous level and |goto not_found|@>;
   } else {
     incr (mp->cur_t);
-    mp->delx =
-      mp->delx + stack_1 (u_packet (mp->uv)) + stack_2 (u_packet (mp->uv))
-      + stack_3 (u_packet (mp->uv));
-    mp->dely =
-      mp->dely + stack_1 (v_packet (mp->uv)) + stack_2 (v_packet (mp->uv))
-      + stack_3 (v_packet (mp->uv));
-    mp->uv = mp->uv + int_packets;      /* switch from |l_packets| to |r_packets| */
+    delx =
+      delx + stack_1 (u_packet (uv)) + stack_2 (u_packet (uv))
+      + stack_3 (u_packet (uv));
+    dely =
+      dely + stack_1 (v_packet (uv)) + stack_2 (v_packet (uv))
+      + stack_3 (v_packet (uv));
+    uv = uv + int_packets;      /* switch from |l_packets| to |r_packets| */
     decr (mp->cur_tt);
-    mp->xy = mp->xy - int_packets;
+    xy = xy - int_packets;
     /* switch from |r_packets| to |l_packets| */
-    mp->delx =
-      mp->delx + stack_1 (x_packet (mp->xy)) + stack_2 (x_packet (mp->xy))
-      + stack_3 (x_packet (mp->xy));
-    mp->dely =
-      mp->dely + stack_1 (y_packet (mp->xy)) + stack_2 (y_packet (mp->xy))
-      + stack_3 (y_packet (mp->xy));
+    delx =
+      delx + stack_1 (x_packet (xy)) + stack_2 (x_packet (xy))
+      + stack_3 (x_packet (xy));
+    dely =
+      dely + stack_1 (y_packet (xy)) + stack_2 (y_packet (xy))
+      + stack_3 (y_packet (xy));
   }
 } else {
   incr (mp->cur_tt);
-  mp->tol = mp->tol + mp->three_l;
-  mp->delx =
-    mp->delx - stack_1 (x_packet (mp->xy)) - stack_2 (x_packet (mp->xy))
-    - stack_3 (x_packet (mp->xy));
-  mp->dely =
-    mp->dely - stack_1 (y_packet (mp->xy)) - stack_2 (y_packet (mp->xy))
-    - stack_3 (y_packet (mp->xy));
-  mp->xy = mp->xy + int_packets;        /* switch from |l_packets| to |r_packets| */
+  tol = tol + three_l;
+  delx =
+    delx - stack_1 (x_packet (xy)) - stack_2 (x_packet (xy))
+    - stack_3 (x_packet (xy));
+  dely =
+    dely - stack_1 (y_packet (xy)) - stack_2 (y_packet (xy))
+    - stack_3 (y_packet (xy));
+  xy = xy + int_packets;        /* switch from |l_packets| to |r_packets| */
 }
 
 
@@ -12788,12 +12779,12 @@ if (odd (mp->cur_tt)) {
   if (mp->cur_t == 0)
     return;
   mp->bisect_ptr -= int_increment;
-  mp->three_l -= (integer) mp->tol_step;
-  mp->delx = stack_dx;
-  mp->dely = stack_dy;
-  mp->tol = stack_tol;
-  mp->uv = stack_uv;
-  mp->xy = stack_xy;
+  three_l -= (integer) mp->tol_step;
+  delx = stack_dx;
+  dely = stack_dy;
+  tol = stack_tol;
+  uv = stack_uv;
+  xy = stack_xy;
   goto NOT_FOUND;
 }
 
