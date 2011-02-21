@@ -2992,17 +2992,13 @@ control of what error messages the user receives.
 @ @(mpmp.h@>=
 #define NODE_BODY                       \
   mp_variable_type type;                \
-  quarterword name_type;                \
-  halfword info;                        \
+  mp_name_type_type name_type;          \
   struct mp_node_data *link
 typedef struct mp_node_data {
   NODE_BODY;
+  mp_value_data data; 
 } mp_node_data;
-typedef struct mp_symbolic_node_data {
-  NODE_BODY;
-  mp_sym sym;
-} mp_symbolic_node_data;
-typedef struct mp_symbolic_node_data *mp_symbolic_node;
+typedef struct mp_node_data *mp_symbolic_node;
 
 @ Users who wish to study the memory requirements of particular applications can
 can use the special features that keep track of current and maximum memory usage. 
@@ -3026,12 +3022,12 @@ size_t var_used_max;    /* how much memory was in use max */
 static void do_set_mp_sym_info (MP mp, mp_node p, halfword v) {
   (void) mp;
   assert (p->type == mp_symbol_node);
-  p->info = v;
+  p->data.val = v;
 }
 static halfword get_mp_sym_info (MP mp, mp_node p) {
   (void) mp;
   assert (p->type == mp_symbol_node);
-  return p->info;
+  return p->data.val;
 }
 
 @ Similarly, so do these redirect to functions.
@@ -3044,13 +3040,13 @@ static void do_set_mp_sym_sym (MP mp, mp_node p, mp_sym v) {
   mp_symbolic_node pp = (mp_symbolic_node) p;
   (void) mp;
   assert (pp->type == mp_symbol_node);
-  pp->sym = v;
+  pp->data.sym = v;
 }
 static mp_sym get_mp_sym_sym (MP mp, mp_node p) {
   mp_symbolic_node pp = (mp_symbolic_node) p;
   (void) mp;
   assert (pp->type == mp_symbol_node);
-  return pp->sym;
+  return pp->data.sym;
 }
 
 @ @<Declarations@>=
@@ -3059,23 +3055,11 @@ static halfword get_mp_sym_info (MP mp, mp_node p);
 static void do_set_mp_sym_sym (MP mp, mp_node A, mp_sym B);
 static mp_sym get_mp_sym_sym (MP mp, mp_node p);
 
-@ Symbolic nodes also have |name_type|, which is a short enumeration
-
-@<Types...@>=
-enum {
-  mp_normal_sym = 0,
-  mp_internal_sym,              /* for values of internals */
-  mp_macro_sym,                 /* for macro names */
-  mp_expr_sym,                  /* for macro parameters if type |expr| */
-  mp_suffix_sym,                /* for macro parameters if type |suffix| */
-  mp_text_sym,                  /* for macro parameters if type |text| */
-} mp_sym_name_types;
-
 @ The function |get_symbolic_node| returns a pointer to a new symbolic node whose
 |link| field is null.
 @^inner loop@>
 
-@d symbolic_node_size sizeof(mp_symbolic_node_data)
+@d symbolic_node_size sizeof(mp_node_data)
 @c
 static mp_node mp_get_symbolic_node (MP mp) {
   mp_symbolic_node p = xmalloc (1, symbolic_node_size);
@@ -3115,11 +3099,11 @@ void mp_free_node (MP mp, mp_node p, size_t siz);
 @c
 static void do_set_mp_info (MP mp, mp_node p, halfword v) {
   (void) mp;
-  p->info = v;
+  p->data.val = v;
 }
 halfword get_mp_info (MP mp, mp_node p) {
   (void) mp;
-  return p->info;
+  return p->data.val;
 }
 
 
@@ -3523,8 +3507,8 @@ void mp_print_type (MP mp, quarterword t) {
 as well as a |type|. The possibilities for |name_type| are defined
 here; they will be explained in more detail later.
 
-@<Types...@>=
-enum mp_name_types {
+@<Enumeration types...@>=
+typedef enum {
   mp_root = 0,  /* |name_type| at the top level of a variable */
   mp_saved_root,                /* same, when the variable has been saved */
   mp_structured_root,           /* |name_type| where a |mp_structured| branch occurs */
@@ -3545,8 +3529,15 @@ enum mp_name_types {
   mp_black_part_sector,         /* |name_type| in the \&{greenpart} of a node */
   mp_grey_part_sector,          /* |name_type| in the \&{bluepart} of a node */
   mp_capsule,                   /* |name_type| in stashed-away subexpressions */
-  mp_token                      /* |name_type| in a numeric token or string token */
-};
+  mp_token,                     /* |name_type| in a numeric token or string token */
+  /* Symbolic nodes also have |name_type|, which is a different enumeration */
+  mp_normal_sym,
+  mp_internal_sym,              /* for values of internals */
+  mp_macro_sym,                 /* for macro names */
+  mp_expr_sym,                  /* for macro parameters if type |expr| */
+  mp_suffix_sym,                /* for macro parameters if type |suffix| */
+  mp_text_sym                   /* for macro parameters if type |text| */
+} mp_name_type_type;
 
 @ Primitive operations that produce values have a secondary identification
 code in addition to their command code; it's something like genera and species.
@@ -4943,7 +4934,7 @@ stack, as we will see later.
 Note that the `\\{type}' field of a node has nothing to do with ``type'' in a
 printer's sense. It's curious that the same word is used in such different ways.
 
-@d token_node_size sizeof(mp_token_node_data) /* the number of words in a large token node */
+@d token_node_size sizeof(mp_node_data) /* the number of words in a large token node */
 
 @d value_sym(A)   ((mp_token_node)(A))->data.sym /* the sym stored in a large token node */
 @d value(A)       ((mp_token_node)(A))->data.val /* the value stored in a large token node */
@@ -4984,11 +4975,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 
 
 @(mpmp.h@>=
-typedef struct mp_token_node_data {
-  NODE_BODY;
-  mp_value_data data;
-} mp_token_node_data;
-typedef struct mp_token_node_data *mp_token_node;
+typedef struct mp_node_data *mp_token_node;
 
 @
 @c
@@ -5951,6 +5938,19 @@ FOUND:
     }
     break;
 @.CAPSULE@>
+  case mp_root:
+  case mp_saved_root:
+  case mp_structured_root:
+  case mp_subscr:
+  case mp_attr:
+  case mp_token:
+  case mp_normal_sym:
+  case mp_internal_sym:
+  case mp_macro_sym:
+  case mp_expr_sym:
+  case mp_suffix_sym:
+  case mp_text_sym:
+    break;
   }                             /* there are no other cases */
   mp_print (mp, "part ");
   p = mp_link (p);
