@@ -499,6 +499,7 @@ scaled mp_round_decimals (MP mp, unsigned char *b, quarterword k) {
   /* converts a decimal fraction */
   unsigned a = 0;       /* the accumulator */
   int l = 0;
+  (void)mp; /* Will be needed later */
   for ( l = k-1; l >= 0; l-- ) {
     if (l<16)    /* digits for |k>=17| cannot affect the result */
       a = (a + (unsigned) (*(b+l) - '0') * two) / 10;
@@ -696,15 +697,16 @@ scaled mp_square_rt (MP mp, scaled x) {
 
 
 @ @<Handle square root of zero...@>=
-{
+{  
   if (x < 0) {
-    mp_print_err (mp, "Square root of ");
+    char msg[256];
+    const char *hlp[] = {
+           "Since I don't take square roots of negative numbers,",
+           "I'm zeroing this one. Proceed, with fingers crossed.",
+           NULL };
+    mp_snprintf(msg, 256, "Square root of %s has been replaced by 0", mp_string_scaled (mp, x));
 @.Square root...replaced by 0@>;
-    mp_print_scaled (mp, x);
-    mp_print (mp, " has been replaced by 0");
-    help2 ("Since I don't take square roots of negative numbers,",
-           "I'm zeroing this one. Proceed, with fingers crossed.");
-    mp_error (mp);
+    mp_do_error (mp, msg, hlp, true);
   };
   return 0;
 }
@@ -838,15 +840,17 @@ while (1) {
 @ @<Handle erroneous |pyth_sub| and set |a:=0|@>=
 {
   if (a < b) {
-    mp_print_err (mp, "Pythagorean subtraction ");
-    mp_print_scaled (mp, a);
-    mp_print (mp, "+-+");
-    mp_print_scaled (mp, b);
-    mp_print (mp, " has been replaced by 0");
+    char msg[256];
+    const char *hlp[] = {
+         "Since I don't take square roots of negative numbers,",
+         "I'm zeroing this one. Proceed, with fingers crossed.",
+         NULL };
+    char *astr = strdup(mp_string_scaled (mp, a));
+    assert (astr);
+    mp_snprintf (msg, 256, "Pythagorean subtraction %s+-+%s has been replaced by 0", astr, mp_string_scaled (mp, b));
+    free(astr);
 @.Pythagorean...@>;
-    help2 ("Since I don't take square roots of negative numbers,",
-           "I'm zeroing this one. Proceed, with fingers crossed.");
-    mp_error (mp);
+    mp_do_error (mp, msg, hlp, true);
   }
   a = 0;
 }
@@ -925,13 +929,14 @@ scaled mp_m_log (MP mp, scaled x) {
 
 @ @<Handle non-positive logarithm@>=
 {
-  mp_print_err (mp, "Logarithm of ");
+  char msg[256];
+  const char *hlp[] = { 
+         "Since I don't take logs of non-positive numbers,",
+         "I'm zeroing this one. Proceed, with fingers crossed.",
+          NULL };
+  mp_snprintf (msg, 256, "Logarithm of %s has been replaced by 0", mp_string_scaled (mp, x));
 @.Logarithm...replaced by 0@>;
-  mp_print_scaled (mp, x);
-  mp_print (mp, " has been replaced by 0");
-  help2 ("Since I don't take logs of non-positive numbers,",
-         "I'm zeroing this one. Proceed, with fingers crossed.");
-  mp_error (mp);
+  mp_do_error (mp, msg, hlp, true);
   return 0;
 }
 
@@ -1064,11 +1069,12 @@ angle mp_n_arg (MP mp, integer x, integer y) {
 
 @ @<Handle undefined arg@>=
 {
-  mp_print_err (mp, "angle(0,0) is taken as zero");
+  const char *hlp[] = {
+         "The `angle' between two identical points is undefined.",
+         "I'm zeroing this one. Proceed, with fingers crossed.",
+         NULL };
+  mp_do_error (mp, "angle(0,0) is taken as zero", hlp, true);
 @.angle(0,0)...zero@>;
-  help2 ("The `angle' between two identical points is undefined.",
-         "I'm zeroing this one. Proceed, with fingers crossed.");
-  mp_error (mp);
   return 0;
 }
 

@@ -93,16 +93,19 @@ precisely what is wrong if it does find a problem.  Programs called \.{TFtoPL}
 and \.{PLtoTF} can be used to debug \.{TFM} files.
 
 @<Complain that the \.{TFM} file is bad@>=
-mp_print_err(mp,"Font ");
-mp_print(mp, fname);
-if ( file_opened ) mp_print(mp, " not usable: TFM file is bad");
-else mp_print(mp, " not usable: TFM file not found");
-help3("I wasn't able to read the size data for this font so this",
-  "`infont' operation won't produce anything. If the font name",
-  "is right, you might ask an expert to make a TFM file");
-if ( file_opened )
-  mp->help_line[0]="is right, try asking an expert to fix the TFM file";
-mp_error(mp)
+{
+   char msg[256];
+   const char *hlp[] = {
+     "I wasn't able to read the size data for this font so this",
+     "`infont' operation won't produce anything. If the font name",
+     "is right, you might ask an expert to make a TFM file",
+     NULL };
+   if ( file_opened )
+     hlp[2]="is right, try asking an expert to fix the TFM file";
+   mp_snprintf(msg, 256, "Font %s not usable: TFM file %s", fname,
+              ( file_opened ? "is bad" : "not found"));
+   mp_do_error(mp, msg, hlp, true);
+}
 
 @ @<Read data from |tfm_infile|; if there is no room, say so...@>=
 @<Read the \.{TFM} size fields@>;

@@ -2042,12 +2042,14 @@ void mp_do_error (MP mp, const char *msg, const char **hlp, boolean deletions_al
   int i = 0;
   const char **cnt = NULL;
   mp_print_err(mp, msg);
-  cnt = hlp;
-  while (*cnt) {
-    i++; cnt++;
+  if (hlp) {
+    cnt = hlp;
+    while (*cnt) {
+      i++; cnt++;
+    }
+    cnt = hlp;
   }
   mp->help_ptr=i;
-  cnt = hlp;
   while (i>0) {
     mp->help_line[--i]= *cnt++;
   }
