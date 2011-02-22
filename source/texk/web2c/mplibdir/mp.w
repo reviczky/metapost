@@ -314,7 +314,7 @@ MP mp_initialize (MP_options * opt) {
     @<Prepare function pointers for non-interactive use@>;
   }
   /* open the terminal for output */
-  t_open_out;
+  t_open_out();
   mp->math = mp_initialize_math(mp);
   @<Find and load preload file, if required@>;
   @<Allocate or initialize variables@>;
@@ -633,9 +633,6 @@ mp_binfile_writer write_binary_file;
 @ The default function for finding files is |mp_find_file|. It is 
 pretty stupid: it will only find files in the current directory.
 
-This function may disappear altogether, it is currently only
-used for the default font map file.
-
 @c
 static char *mp_find_file (MP mp, const char *fname, const char *fmode,
                            int ftype) {
@@ -941,11 +938,11 @@ nothing happens except that the command line (if there is one) is copied
 to the input buffer.  The variable |command_line| will be filled by the 
 |main| procedure. 
 
-@d t_open_out  do {/* open the terminal for text output */
+@d t_open_out()  do {/* open the terminal for text output */
     mp->term_out = (mp->open_file)(mp,"terminal", "w", mp_filetype_terminal);
     mp->err_out = (mp->open_file)(mp,"error", "w", mp_filetype_error);
 } while (0)
-@d t_open_in  do { /* open the terminal for text input */
+@d t_open_in()  do { /* open the terminal for text input */
     mp->term_in = (mp->open_file)(mp,"terminal", "r", mp_filetype_terminal);
     if (mp->command_line!=NULL) {
       mp->last = strlen(mp->command_line);
@@ -974,9 +971,9 @@ these operations can be specified:
 @^system dependencies@>
 
 @(mpmp.h@>=
-#define update_terminal  (mp->flush_file)(mp,mp->term_out)      /* empty the terminal output buffer */
-#define clear_terminal          /* clear the terminal input buffer */
-#define wake_up_terminal (mp->flush_file)(mp,mp->term_out)
+#define update_terminal()  (mp->flush_file)(mp,mp->term_out)      /* empty the terminal output buffer */
+#define clear_terminal()          /* clear the terminal input buffer */
+#define wake_up_terminal() (mp->flush_file)(mp,mp->term_out)
                     /* cancel the user's cancellation of output */
 
 @ We need a special routine to read the first line of \MP\ input from
@@ -1026,7 +1023,7 @@ not be typed immediately after~`\.{**}'.)
 
 @c
 boolean mp_init_terminal (MP mp) {                               /* gets the terminal input started */
-  t_open_in;
+  t_open_in();
   if (mp->last != 0) {
     loc = 0;
     mp->first = 0;
@@ -1034,10 +1031,10 @@ boolean mp_init_terminal (MP mp) {                               /* gets the ter
   }
   while (1) {
     if (!mp->noninteractive) {
-      wake_up_terminal;
+      wake_up_terminal();
       do_putsf (mp->term_out, "**");
 @.**@>;
-      update_terminal;
+      update_terminal();
     }
     if (!mp_input_ln (mp, mp->term_in)) {       /* this shouldn't happen */
       do_putsf (mp->term_out, "\n! End of file on the terminal... why?");
@@ -1059,7 +1056,6 @@ boolean mp_init_terminal (MP mp) {                               /* gets the ter
 
 @ @<Declarations@>=
 static boolean mp_init_terminal (MP mp);
-
 
 @* String handling.
 Symbolic token names and diagnostic messages are variable-length strings
@@ -1400,29 +1396,6 @@ static integer mp_str_vs_str (MP mp, str_number s, str_number t) {
 }
 
 
-@ The first 128 strings will contain 95 standard ASCII characters, and the
-other 33 characters will be printed in three-symbol form like `\.{\^\^A}'
-unless a system-dependent change is made here. Installations that have
-an extended character set, where for example |xchr[032]=@t\.{'^^Z'}@>|,
-would like string 032 to be printed as the single character 032 instead
-of the three characters 0136, 0136, 0132 (\.{\^\^Z}). On the other hand,
-even people with an extended character set will want to represent string
-015 by \.{\^\^M}, since 015 is ASCII's ``carriage return'' code; the idea is
-to produce visible strings instead of tabs or line-feeds or carriage-returns
-or bell-rings or characters that are treated anomalously in text files.
-
-The boolean expression defined here should be |true| unless \MP\ internal
-code number~|k| corresponds to a non-troublesome visible symbol in the
-local character set.
-If character |k| cannot be printed, and |k<0200|, then character |k+0100| or
-|k-0100| must be printable; moreover, ASCII codes |[060..071, 0141..0146]|
-must be printable.
-@^character set dependencies@>
-@^system dependencies@>
-
-@<Character |k| cannot be printed@>=
-(k < ' ') || (k == 127)
- 
 
 @* On-line and off-line printing.
 Messages that are sent to a user's terminal and to the transcript-log file
@@ -1489,6 +1462,29 @@ ASCII_code *trick_buf;  /* circular buffer for pseudoprinting */
 integer trick_count;    /* threshold for pseudoprinting, explained later */
 integer first_count;    /* another variable for pseudoprinting */
 
+@ The first 128 strings will contain 95 standard ASCII characters, and the
+other 33 characters will be printed in three-symbol form like `\.{\^\^A}'
+unless a system-dependent change is made here. Installations that have
+an extended character set, where for example |xchr[032]=@t\.{'^^Z'}@>|,
+would like string 032 to be printed as the single character 032 instead
+of the three characters 0136, 0136, 0132 (\.{\^\^Z}). On the other hand,
+even people with an extended character set will want to represent string
+015 by \.{\^\^M}, since 015 is ASCII's ``carriage return'' code; the idea is
+to produce visible strings instead of tabs or line-feeds or carriage-returns
+or bell-rings or characters that are treated anomalously in text files.
+
+The boolean expression defined here should be |true| unless \MP\ internal
+code number~|k| corresponds to a non-troublesome visible symbol in the
+local character set.
+If character |k| cannot be printed, and |k<0200|, then character |k+0100| or
+|k-0100| must be printable; moreover, ASCII codes |[060..071, 0141..0146]|
+must be printable.
+@^character set dependencies@>
+@^system dependencies@>
+
+@<Character |k| cannot be printed@>=
+(k < ' ') || (k == 127)
+ 
 @ @<Allocate or initialize ...@>=
 mp->trick_buf = xmalloc ((mp->error_line + 1), sizeof (ASCII_code));
 
@@ -1698,7 +1694,7 @@ wterm (mp->banner);
 if (mp->mem_ident != NULL)
   mp_print (mp, mp->mem_ident);
 mp_print_ln (mp);
-update_terminal;
+update_terminal();
 
 @ The procedure |print_nl| is like |print|, but it makes sure that the
 string appears at the beginning of a new line.
@@ -1765,7 +1761,8 @@ This procedure is never called when |interaction<mp_scroll_mode|.
 
 @d prompt_input(A) do { 
     if (!mp->noninteractive) {
-      wake_up_terminal; mp_print(mp, (A)); 
+      wake_up_terminal();
+      mp_print(mp, (A)); 
     }
     mp_term_input(mp);
   } while (0) /* prints a string and gets a line of input */
@@ -1778,7 +1775,7 @@ void mp_term_input (MP mp) {                               /* gets a line from t
       longjmp (*(mp->jump_buf), 1);     /* chunk finished */
     mp->buffer[mp->last] = xord ('%');
   } else {
-    update_terminal;            /* Now the user sees the prompt for sure */
+    update_terminal();            /* Now the user sees the prompt for sure */
     if (!mp_input_ln (mp, mp->term_in)) {
       mp_fatal_error (mp, "End of file on the terminal!");
 @.End of file on the terminal@>
@@ -1856,7 +1853,7 @@ void mp_print_err (MP mp, const char *A);
 @ @c
 void mp_print_err (MP mp, const char *A) {
   if (mp->interaction == mp_error_stop_mode)
-    wake_up_terminal;
+    wake_up_terminal();
   if (mp->file_line_error_style && file_state && !terminal_input) {
     mp_print_nl (mp, "");
     if (long_name != NULL) {
@@ -2037,8 +2034,31 @@ void mp_warn (MP mp, const char *msg) {
   mp->selector = saved_selector;
 }
 
+@ All the above stuff is quite low-level. Here is a function that combines
+everything into a single function call.
+
+@c
+void mp_do_error (MP mp, const char *msg, const char **hlp, boolean deletions_allowed) {
+  int i = 0;
+  const char **cnt = NULL;
+  mp_print_err(mp, msg);
+  cnt = hlp;
+  while (*cnt) {
+    i++; cnt++;
+  }
+  mp->help_ptr=i;
+  cnt = hlp;
+  while (i>0) {
+    mp->help_line[--i]= *cnt++;
+  }
+  mp->deletions_allowed = deletions_allowed;
+  mp_error (mp);
+  mp->deletions_allowed = true;
+}
+
 
 @ @<Exported function ...@>=
+extern void mp_do_error (MP mp, const char *msg, const char **hlp, boolean deletions_allowed);
 extern void mp_error (MP mp);
 extern void mp_warn (MP mp, const char *msg);
 
@@ -2178,7 +2198,7 @@ relation between |"Q"|, |"R"|, |"S"|, and the desired interaction settings
   }                             /* there are no other cases */
   mp_print (mp, "...");
   mp_print_ln (mp);
-  update_terminal;
+  update_terminal();
   return;
 }
 
@@ -2314,7 +2334,7 @@ void mp_normalize_selector (MP mp) {
 
 @ The following procedure prints \MP's last words before dying.
 
-@d succumb { if ( mp->interaction==mp_error_stop_mode )
+@d succumb() { if ( mp->interaction==mp_error_stop_mode )
     mp->interaction=mp_scroll_mode; /* no more interaction */
   if ( mp->log_opened ) mp_error(mp);
   mp->history=mp_fatal_error_stop; mp_jump_out(mp); /* irrecoverable error */
@@ -2325,7 +2345,7 @@ void mp_fatal_error (MP mp, const char *s) {                               /* pr
   mp_normalize_selector (mp);
   print_err ("Emergency stop");
   help1 (s);
-  succumb;
+  succumb();
 @.Emergency stop@>
 }
 
@@ -2346,7 +2366,7 @@ void mp_overflow (MP mp, const char *s, integer n) {                            
   print_err (msg);
   help2 ("If you really absolutely need more capacity,",
          "you can ask a wizard to enlarge me.");
-  succumb;
+  succumb();
 }
 
 
@@ -2380,7 +2400,7 @@ void mp_confusion (MP mp, const char *s) {
     help2 ("One of your faux pas seems to have wounded me deeply...",
            "in fact, I'm barely conscious. Please fix it and try again.");
   }
-  succumb;
+  succumb();
 }
 
 
@@ -2413,18 +2433,16 @@ safe to do this.
 
 @c
 static void mp_pause_for_instructions (MP mp) {
+  const char *hlp[] = { "You rang?",
+	           "Try to insert some instructions for me (e.g.,`I show x'),",
+        	   "unless you just want to quit by typing `X'.", 
+	           NULL } ;
   if (mp->OK_to_interrupt) {
     mp->interaction = mp_error_stop_mode;
     if ((mp->selector == log_only) || (mp->selector == no_print))
       incr (mp->selector);
-    print_err ("Interruption");
 @.Interruption@>;
-    help3 ("You rang?",
-           "Try to insert some instructions for me (e.g.,`I show x'),",
-           "unless you just want to quit by typing `X'.");
-    mp->deletions_allowed = false;
-    mp_error (mp);
-    mp->deletions_allowed = true;
+    mp_do_error (mp, "Interruption", hlp, false);
     mp->interrupt = 0;
   }
 }
@@ -2478,20 +2496,21 @@ mp->arith_error = false;
 @ At crucial points the program will say |check_arith|, to test if
 an arithmetic error has been detected.
 
-@d check_arith do { 
+@d check_arith() do { 
   if ( mp->arith_error ) 
     mp_clear_arith(mp); 
 } while (0)
 
 @c
 static void mp_clear_arith (MP mp) {
-  print_err ("Arithmetic overflow");
-@.Arithmetic overflow@>;
-  help4 ("Uh, oh. A little while ago one of the quantities that I was",
+  const char *hlp[] = {
+         "Uh, oh. A little while ago one of the quantities that I was",
          "computing got too large, so I'm afraid your answers will be",
          "somewhat askew. You'll probably have to adopt different",
-         "tactics next time. But I shall try to carry on anyway.");
-  mp_error (mp);
+         "tactics next time. But I shall try to carry on anyway.",
+         NULL };
+  mp_do_error (mp, "Arithmetic overflow", hlp, true);
+@.Arithmetic overflow@>;
   mp->arith_error = false;
 }
 
@@ -7103,7 +7122,7 @@ static void mp_make_choices (MP mp, mp_knot knots) {
   mp_knot h;    /* the first breakpoint */
   mp_knot p, q; /* consecutive breakpoints being processed */
   @<Other local variables for |make_choices|@>;
-  check_arith;                  /* make sure that |arith_error=false| */
+  check_arith();                  /* make sure that |arith_error=false| */
   if (internal_value_to_halfword (mp_tracing_choices) > 0)
     mp_print_path (mp, knots, ", before choices", true);
   @<If consecutive knots are equal, join them explicitly@>;
@@ -8639,7 +8658,7 @@ static scaled mp_get_arc_length (MP mp, mp_knot h) {
     else
       p = q;
   }
-  check_arith;
+  check_arith();
   return a_tot;
 }
 
@@ -8687,7 +8706,7 @@ static scaled mp_get_arc_time (MP mp, mp_knot h, scaled arc0) {
     }
     p = q;
   }
-  check_arith;
+  check_arith();
   return t_tot;
 }
 
@@ -8711,7 +8730,7 @@ if (t < 0) {
     t_tot = -mp_get_arc_time (mp, p, -arc0);
     mp_toss_knot_list (mp, p);
   }
-  check_arith;
+  check_arith();
   return t_tot;
 }
 
@@ -8722,7 +8741,7 @@ if (arc > 0) {
   arc = arc - n * (arc0 - arc);
   if (t_tot > (EL_GORDO / (n + 1))) {
     mp->arith_error = true;
-    check_arith;
+    check_arith();
     return EL_GORDO;
   }
   t_tot = (n + 1) * t_tot;
@@ -12940,7 +12959,7 @@ structures have to match.
    set_dep_list((A), NULL);
    set_prev_dep((A), NULL);
  } while (0)
-@d dep_info(A) get_dep_info(mp,(A))
+@d dep_info(A) get_dep_info((A))
 @d set_dep_info(A,B) do {
    mp_value_node d = (mp_value_node)(B);
    FUNCTION_TRACE4("set_dep_info(%p,%p) on %d\n",A,d,__LINE__);
@@ -12960,7 +12979,7 @@ structures have to match.
 } while (0)
 
 @c
-static mp_node get_dep_info (MP mp, mp_value_node p) {
+static mp_node get_dep_info (mp_value_node p) {
   mp_node d;
   d = p->parent_;               /* half of the |value| field in a |dependent| variable */
   FUNCTION_TRACE3 ("%p = dep_info(%p)\n", d, p);
@@ -12969,7 +12988,7 @@ static mp_node get_dep_info (MP mp, mp_value_node p) {
 
 
 @ @<Declarations...@>=
-static mp_node get_dep_info (MP mp, mp_value_node p);
+static mp_node get_dep_info (mp_value_node p);
 
 @ 
 
@@ -13460,15 +13479,16 @@ static void mp_val_too_big (MP mp, scaled x);
 @ @c
 void mp_val_too_big (MP mp, scaled x) {
   if (internal_value_to_halfword (mp_warning_check) > 0) {
-    print_err ("Value is too large (");
-    mp_print_scaled (mp, x);
-    mp_print_char (mp, xord (')'));
-@.Value is too large@>;
-    help4 ("The equation I just processed has given some variable",
+    char msg[256];
+    const char *hlp[] = {
+           "The equation I just processed has given some variable",
            "a value of 4096 or more. Continue and I'll try to cope",
            "with that big value; but it might be dangerous.",
-           "(Set warningcheck:=0 to suppress this message.)");
-    mp_error (mp);
+           "(Set warningcheck:=0 to suppress this message.)",
+           NULL };
+    mp_snprintf (msg, 256, "Value is too large (%s)", mp_string_scaled(mp,x));
+@.Value is too large@>;
+    mp_do_error (mp, msg, hlp, true);
   }
 }
 
@@ -14751,12 +14771,13 @@ static void mp_back_error (MP mp) {                               /* back up one
   mp->OK_to_interrupt = true;
   mp_error (mp);
 }
-static void mp_ins_error (MP mp) {                               /* back up one inserted token and call |error| */
+static void mp_ins_error (MP mp, const char *msg, const char **hlp, boolean deletions_allowed) {
+  /* back up one inserted token and call |error| */
   mp->OK_to_interrupt = false;
   mp_back_input (mp);
   token_type = (quarterword) inserted;
   mp->OK_to_interrupt = true;
-  mp_error (mp);
+  mp_do_error (mp, msg, hlp,deletions_allowed);
 }
 
 
@@ -14883,7 +14904,7 @@ void mp_clear_for_error_prompt (MP mp) {
   while (file_state && terminal_input && (mp->input_ptr > 0) && (loc == limit))
     mp_end_file_reading (mp);
   mp_print_ln (mp);
-  clear_terminal;
+  clear_terminal();
 }
 
 
@@ -14979,17 +15000,19 @@ static boolean mp_check_outer_validity (MP mp) {
     if (mp->scanner_status > skipping) {
       @<Tell the user what has run away and try to recover@>;
     } else {
-      print_err ("Incomplete if; all text was ignored after line ");
-@.Incomplete if...@>;
-      mp_print_int (mp, mp->warning_info_line);
-      help3 ("A forbidden `outer' token occurred in skipped text.",
+      char msg[256];
+      const char *hlp[] = {
+             "A forbidden `outer' token occurred in skipped text.",
              "This kind of error happens when you say `if...' and forget",
-             "the matching `fi'. I've inserted a `fi'; this might work.");
-      if (mp->cur_sym == NULL)
-        mp->help_line[2] =
-          "The file ended while I was skipping conditional text.";
+             "the matching `fi'. I've inserted a `fi'; this might work.",
+             NULL };
+      mp_snprintf(msg, 256, "Incomplete if; all text was ignored after line %d", mp->warning_info_line);
+@.Incomplete if...@>;
+      if (mp->cur_sym == NULL) {
+        hlp[0] = "The file ended while I was skipping conditional text.";
+      } 
       mp->cur_sym = mp->frozen_fi;
-      mp_ins_error (mp);
+      mp_ins_error (mp, msg, hlp, false);
     }
     mp->deletions_allowed = true;
     return false;
@@ -15001,14 +15024,14 @@ static boolean mp_check_outer_validity (MP mp) {
 if (mp->cur_sym != NULL) {
   return true;
 } else {
-  mp->deletions_allowed = false;
-  print_err ("TeX mode didn't end; all text was ignored after line ");
-  mp_print_int (mp, mp->warning_info_line);
-  help2 ("The file ended while I was looking for the `etex' to",
-         "finish this TeX material.  I've inserted `etex' now.");
+  char msg[256];
+  const char *hlp[] = {
+         "The file ended while I was looking for the `etex' to",
+         "finish this TeX material.  I've inserted `etex' now.",
+          NULL };
+  mp_snprintf(msg, 256, "TeX mode didn't end; all text was ignored after line %d", mp->warning_info_line);
   mp->cur_sym = mp->frozen_etex;
-  mp_ins_error (mp);
-  mp->deletions_allowed = true;
+  mp_ins_error (mp, msg, hlp, false);
   return false;
 }
 
@@ -15023,24 +15046,27 @@ if (mp->cur_sym != NULL) {
 
 @ @<Tell the user what has run away...@>=
 {
-  mp_runaway (mp);              /* print the definition-so-far */
-  if (mp->cur_sym == NULL) {
-    print_err ("File ended");
-@.File ended while scanning...@>
-  } else {
-    print_err ("Forbidden token found");
-@.Forbidden token found...@>
-  }
-  mp_print (mp, " while scanning ");
-  help4 ("I suspect you have forgotten an `enddef',",
+  char msg[256];
+  char *msg_start = NULL;
+  const char *hlp[] = {
+         "I suspect you have forgotten an `enddef',",
          "causing me to read past where you wanted me to stop.",
          "I'll try to recover; but if the error is serious,",
-         "you'd better type `E' or `X' now and fix your file.");
+         "you'd better type `E' or `X' now and fix your file.",
+         NULL };
+  mp_runaway (mp);              /* print the definition-so-far */
+  if (mp->cur_sym == NULL) {
+    msg_start = "File ended while scanning";
+@.File ended while scanning...@>
+  } else {
+    msg_start = "Forbidden token found while scanning";
+@.Forbidden token found...@>
+  }
   switch (mp->scanner_status) {
     @<Complete the error message,
       and set |cur_sym| to a token that might help recover from the error@>
   }                             /* there are no other cases */
-  mp_ins_error (mp);
+  mp_ins_error (mp, msg, hlp, true);
 }
 
 
@@ -15050,37 +15076,49 @@ points to the string that might be changed.
 
 @<Complete the error message,...@>=
 case flushing:
-mp_print (mp, "to the end of the statement");
-mp->help_line[3] = "A previous error seems to have propagated,";
-mp->cur_sym = mp->frozen_semicolon;
-break;
+  mp_snprintf (msg, 256, "%s to the end of the statement", msg_start);
+  hlp[0] = "A previous error seems to have propagated,";
+  mp->cur_sym = mp->frozen_semicolon;
+  break;
 case absorbing:
-mp_print (mp, "a text argument");
-mp->help_line[3] = "It seems that a right delimiter was left out,";
-if (mp->warning_info == NULL) {
-  mp->cur_sym = mp->frozen_end_group;
-} else {
-  mp->cur_sym = mp->frozen_right_delimiter;
-  /* the next line makes sure that the inserted delimiter will
-    match the delimiter that already was read. */
-  equiv_sym (mp->cur_sym) = mp->warning_info;
-}
-break;
+  mp_snprintf (msg, 256, "%s a text argument", msg_start);
+  hlp[0] = "It seems that a right delimiter was left out,";
+  if (mp->warning_info == NULL) {
+    mp->cur_sym = mp->frozen_end_group;
+  } else {
+    mp->cur_sym = mp->frozen_right_delimiter;
+    /* the next line makes sure that the inserted delimiter will
+      match the delimiter that already was read. */
+    equiv_sym (mp->cur_sym) = mp->warning_info;
+  }
+  break;
 case var_defining:
+  {
+    str_number s;
+    int old_setting = mp->selector;
+    mp->selector = new_string;
+    mp_print_variable_name (mp, mp->warning_info_node);
+    s = mp_make_string (mp);
+    mp->selector = old_setting;
+    mp_snprintf (msg, 256, "%s the definition of %s", msg_start, s->str);
+    delete_str_ref(s);
+  }
+  mp->cur_sym = mp->frozen_end_def;
+  break;
 case op_defining:
-mp_print (mp, "the definition of ");
-if (mp->scanner_status == op_defining)
-  mp_print_text (mp->warning_info);
-else
-  mp_print_variable_name (mp, mp->warning_info_node);
-mp->cur_sym = mp->frozen_end_def;
-break;
+  {
+    char *s = (char *)text (mp->warning_info)->str;
+    mp_snprintf (msg, 256, "%s the definition of %s", msg_start, s);
+  }
+  mp->cur_sym = mp->frozen_end_def;
+  break;
 case loop_defining:
-mp_print (mp, "the text of a ");
-mp_print_text (mp->warning_info);
-mp_print (mp, " loop");
-mp->help_line[3] = "I suspect you have forgotten an `endfor',";
-mp->cur_sym = mp->frozen_end_for;
+  {
+    char *s = (char *)text (mp->warning_info)->str;
+    mp_snprintf (msg, 256, "%s the text of a %s loop", msg_start, s);
+  }
+  hlp[0] = "I suspect you have forgotten an `endfor',";
+  mp->cur_sym = mp->frozen_end_for;
 break;
 
 @ The |runaway| procedure displays the first part of the text that occurred
@@ -15335,13 +15373,11 @@ if (f == unity) {
 if (n < 32768) {
   @<Set |cur_mod:=n*unity+f| and check if it is uncomfortably large@>;
 } else if (mp->scanner_status != tex_flushing) {
-  print_err ("Enormous number has been reduced");
+  const char *hlp[] = {"I can\'t handle numbers bigger than 32767.99998;",
+         "so I've changed your constant to that maximum amount.", 
+         NULL };
+  mp_do_error (mp, "Enormous number has been reduced", hlp, false);
 @.Enormous number...@>;
-  help2 ("I can\'t handle numbers bigger than 32767.99998;",
-         "so I've changed your constant to that maximum amount.");
-  mp->deletions_allowed = false;
-  mp_error (mp);
-  mp->deletions_allowed = true;
   mp->cur_mod = EL_GORDO;
 }
 mp->cur_cmd = numeric_token;
@@ -15353,13 +15389,14 @@ return
   if (mp->cur_mod >= fraction_one) {
     if ((internal_value_to_halfword (mp_warning_check) > 0) &&
         (mp->scanner_status != tex_flushing)) {
-      print_err ("Number is too large (");
-      mp_print_scaled (mp, mp->cur_mod);
-      mp_print_char (mp, xord (')'));
-      help3 ("It is at least 4096. Continue and I'll try to cope",
+      char msg[256];
+      const char *hlp[] = {"It is at least 4096. Continue and I'll try to cope",
              "with that big value; but it might be dangerous.",
-             "(Set warningcheck:=0 to suppress this message.)");
-      mp_error (mp);
+             "(Set warningcheck:=0 to suppress this message.)",
+             NULL };
+      mp_snprintf (msg, 256, "Number is too large (%s)", mp_string_scaled(mp,mp->cur_mod));
+@.Number is too large@>;
+      mp_do_error (mp, msg, hlp, true);
     }
   }
 }
@@ -15482,7 +15519,7 @@ when an error condition causes us to |goto restart| without calling
     } else {
       mp_print_char (mp, xord (')'));
       decr (mp->open_parens);
-      update_terminal;          /* show user that file has been read */
+      update_terminal();          /* show user that file has been read */
       mp_end_file_reading (mp); /* resume previous level */
       if (mp_check_outer_validity (mp))
         goto RESTART;
@@ -15502,15 +15539,13 @@ files should have an \&{mpxbreak} after the translation of the last
 
 @<Complain that the \.{MPX} file ended unexpectly; then set...@>=
 {
-  mp->mpx_name[iindex] = mpx_finished;
-  print_err ("mpx file ended unexpectedly");
-  help4 ("The file had too few picture expressions for btex...etex",
+  const char *hlp[] =  {"The file had too few picture expressions for btex...etex",
          "blocks.  Such files are normally generated automatically",
          "but this one got messed up.  You might want to insert a",
-         "picture expression now.");
-  mp->deletions_allowed = false;
-  mp_error (mp);
-  mp->deletions_allowed = true;
+         "picture expression now.",
+          NULL }; 
+  mp->mpx_name[iindex] = mpx_finished;
+  mp_do_error (mp, "mpx file ended unexpectedly", hlp, false);
   mp->cur_sym = mp->frozen_mpx_break;
   goto COMMON_ENDING;
 }
@@ -15542,7 +15577,7 @@ void mp_firm_up_the_line (MP mp) {
   if ((!mp->noninteractive)
       && (internal_value_to_halfword (mp_pausing) > 0)
       && (mp->interaction > mp_nonstop_mode)) {
-    wake_up_terminal;
+    wake_up_terminal();
     mp_print_ln (mp);
     if (start < limit) {
       for (k = (size_t) start; k < (size_t) limit; k++) {
@@ -15676,39 +15711,43 @@ mp->warning_info_line = old_info
 
 @ @<Complain that \.{MPX} files cannot contain \TeX\ material@>=
 {
-  print_err ("An mpx file cannot contain btex or verbatimtex blocks");
-  help4 ("This file contains picture expressions for btex...etex",
+  const char *hlp[] = {
+         "This file contains picture expressions for btex...etex",
          "blocks.  Such files are normally generated automatically",
          "but this one seems to be messed up.  I'll just keep going",
-         "and hope for the best.");
-  mp_error (mp);
+         "and hope for the best.",
+         NULL };
+  mp_do_error (mp, "An mpx file cannot contain btex or verbatimtex blocks", hlp, true);
 }
 
 
 @ @<Complain that we are not reading a file@>=
 {
-  print_err ("You can only use `btex' or `verbatimtex' in a file");
-  help3 ("I'll have to ignore this preprocessor command because it",
+  const char *hlp[] = {
+         "I'll have to ignore this preprocessor command because it",
          "only works when there is a file to preprocess.  You might",
-         "want to delete everything up to the next `etex`.");
-  mp_error (mp);
+         "want to delete everything up to the next `etex`.",
+         NULL };
+  mp_do_error (mp, "You can only use `btex' or `verbatimtex' in a file", hlp, true);
 }
 
 
 @ @<Complain about a misplaced \&{mpxbreak}@>=
 {
-  print_err ("Misplaced mpxbreak");
-  help2 ("I'll ignore this preprocessor command because it",
-         "doesn't belong here");
-  mp_error (mp);
+  const char *hlp[] = {
+         "I'll ignore this preprocessor command because it",
+         "doesn't belong here",
+         NULL };
+  mp_do_error (mp, "Misplaced mpxbreak", hlp, true);
 }
 
 
 @ @<Complain about a misplaced \&{etex}@>=
 {
-  print_err ("Extra etex will be ignored");
-  help1 ("There is no btex or verbatimtex for this to match");
-  mp_error (mp);
+  const char *hlp[] = { 
+         "There is no btex or verbatimtex for this to match",
+          NULL };
+  mp_do_error (mp, "Extra etex will be ignored", hlp, true);
 }
 
 
@@ -15934,19 +15973,19 @@ hence \MP's tables won't get fouled up.
 static void mp_get_symbol (MP mp) {                               /* sets |cur_sym| to a safe symbol */
 RESTART:
   get_t_next (mp);
-  if ((mp->cur_sym == NULL) || 
-       mp_is_frozen(mp, mp->cur_sym)) {
-    print_err ("Missing symbolic token inserted");
-@.Missing symbolic token...@>;
-    help3 ("Sorry: You can\'t redefine a number, string, or expr.",
+  if ((mp->cur_sym == NULL) || mp_is_frozen(mp, mp->cur_sym)) {
+    const char *hlp[] = {
+           "Sorry: You can\'t redefine a number, string, or expr.",
            "I've inserted an inaccessible symbol so that your",
-           "definition will be completed without mixing me up too badly.");
+           "definition will be completed without mixing me up too badly.",
+           NULL };
     if (mp->cur_sym != NULL)
-      mp->help_line[2] = "Sorry: You can\'t redefine my error-recovery tokens.";
+      hlp[0] = "Sorry: You can\'t redefine my error-recovery tokens.";
     else if (mp->cur_cmd == string_token)
       delete_str_ref (mp->cur_mod_str);
     mp->cur_sym = mp->frozen_inaccessible;
-    mp_ins_error (mp);
+    mp_ins_error (mp, "Missing symbolic token inserted", hlp, true);
+@.Missing symbolic token...@>;
     goto RESTART;
   }
 }
@@ -16157,11 +16196,12 @@ if (m == start_def) {
 
 @ @<Change to `\.{a bad variable}'@>=
 {
-  print_err ("This variable already starts with a macro");
+  const char *hlp[] = {
+         "After `vardef a' you can\'t say `vardef a.b'.",
+         "So I'll have to discard this definition.",
+         NULL };
+  mp_do_error (mp, "This variable already starts with a macro", hlp, true);
 @.This variable already...@>;
-  help2 ("After `vardef a' you can\'t say `vardef a.b'.",
-         "So I'll have to discard this definition.");
-  mp_error (mp);
   mp->warning_info_node = mp->bad_vardef;
 }
 
@@ -16382,11 +16422,12 @@ static void mp_expand (MP mp) {
 
 @ @<Scold the user...@>=
 {
-  print_err ("Extra `endfor'");
+  const char *hlp[] = {
+         "I'm not currently working on a for loop,",
+         "so I had better not try to end anything.",
+         NULL };
+  mp_do_error (mp, "Extra `endfor'", hlp, true);
 @.Extra `endfor'@>;
-  help2 ("I'm not currently working on a for loop,",
-         "so I had better not try to end anything.");
-  mp_error (mp);
 }
 
 
@@ -16424,11 +16465,12 @@ that will be |NULL| if no loop is in progress.
   while (token_state && (nloc == NULL))
     mp_end_token_list (mp);     /* conserve stack space */
   if (mp->loop_ptr == NULL) {
-    print_err ("Lost loop");
+    const char *hlp[] = {
+           "I'm confused; after exiting from a loop, I still seem",
+           "to want to repeat it. I'll try to forget the problem.",
+           NULL };
+    mp_do_error (mp, "Lost loop", hlp, true);
 @.Lost loop@>;
-    help2 ("I'm confused; after exiting from a loop, I still seem",
-           "to want to repeat it. I'll try to forget the problem.");
-    mp_error (mp);
   } else {
     mp_resume_iteration (mp);   /* this procedure is in Part 37 below */
   }
@@ -17291,11 +17333,11 @@ code, which is actually part of |get_x_next|. It comes into play when
 @<Terminate the current conditional and skip to \&{fi}@>=
 if (mp->cur_mod > mp->if_limit) {
   if (mp->if_limit == if_code) {        /* condition not yet evaluated */
-    mp_missing_err (mp, ":");
-@.Missing `:'@>;
+    const char *hlp[] = { "Something was missing here", NULL };
     mp_back_input (mp);
     mp->cur_sym = mp->frozen_colon;
-    mp_ins_error (mp);
+    mp_ins_error (mp, "Missing `:' has been inserted", hlp, true);
+@.Missing `:'@>;
   } else {
     print_err ("Extra ");
     mp_print_cmd_mod (mp, fi_or_else, mp->cur_mod);
@@ -18021,19 +18063,19 @@ boolean mp_open_mem_file (MP mp) {
   if (mp_open_mem_name (mp))
     return true;
   if (mp_xstrcmp (mp->mem_name, "plain")) {
-    wake_up_terminal;
+    wake_up_terminal();
     wterm_ln ("Sorry, I can\'t find the '");
     wterm (mp->mem_name);
     wterm ("' preload file; will try 'plain'.");
 @.Sorry, I can't find...@>;
-    update_terminal;
+    update_terminal();
     /* now pull out all the stops: try for the system \.{plain} file */
     xfree (mp->mem_name);
     mp->mem_name = xstrdup ("plain");
     if (mp_open_mem_name (mp))
       return true;
   }
-  wake_up_terminal;
+  wake_up_terminal();
   wterm_ln ("I can't find the 'plain' preload file!\n");
 @.I can't find PLAIN...@>
 @.plain@>;
@@ -18219,7 +18261,7 @@ void mp_prompt_file_name (MP mp, const char *s, const char *e) {
   size_t k;     /* index into |buffer| */
   char *saved_cur_name;
   if (mp->interaction == mp_scroll_mode)
-    wake_up_terminal;
+    wake_up_terminal();
   if (strcmp (s, "input file name") == 0) {
     print_err ("I can\'t open file `");
 @.I can't find file x@>
@@ -18242,7 +18284,7 @@ void mp_prompt_file_name (MP mp, const char *s, const char *e) {
     mp_fatal_error (mp, "*** (job aborted, file error in nonstop mode)");
 @.job aborted, file error...@>;
   saved_cur_name = xstrdup (mp->cur_name);
-  clear_terminal;
+  clear_terminal();
   prompt_input (": ");
   @<Scan file name in the buffer@>;
   if (strcmp (mp->cur_ext, "") == 0)
@@ -18416,7 +18458,7 @@ void mp_start_input (MP mp) {                               /* \MP\ will \.{inpu
   incr (mp->open_parens);
   mp_print (mp, fname);
   xfree (fname);
-  update_terminal;
+  update_terminal();
   @<Flush |name| and replace it with |cur_name| if it won't be needed@>;
   @<Read the first line of the new file@>;
 }
@@ -18530,7 +18572,7 @@ int mp_run_make_mpx (MP mp, char *origname, char *mtxname) {
 
 @ @<Explain that the \.{MPX} file can't be read and |succumb|@>=
 if (mp->interaction == mp_error_stop_mode)
-  wake_up_terminal;
+  wake_up_terminal();
 mp_print_nl (mp, ">> ");
 mp_print (mp, origname);
 mp_print_nl (mp, ">> ");
@@ -18541,7 +18583,7 @@ help4 ("The two files given above are one of your source files",
        "btex..etex blocks mean. If you don't know why I had trouble,",
        "try running it manually through MPtoTeX, TeX, and DVItoMP");
 xfree (origname);
-succumb;
+succumb();
 
 @ The last file-opening commands are for files accessed via the \&{readfrom}
 @:read_from_}{\&{readfrom} primitive@>
@@ -19183,7 +19225,7 @@ static void mp_disp_err (MP mp, mp_node p, const char *s);
 @ @c
 void mp_disp_err (MP mp, mp_node p, const char *s) {
   if (mp->interaction == mp_error_stop_mode)
-    wake_up_terminal;
+    wake_up_terminal();
   mp_print_nl (mp, ">> ");
 @.>>@>;
   mp_print_exp (mp, p, 1);      /* ``medium verbose'' printing of the expression */
@@ -19456,7 +19498,7 @@ mp_value_node max_link[mp_proto_dependent + 1]; /* other occurrences of |p| */
   mp_flush_node_list (mp, (mp_node) s);
   if (mp->fix_needed)
     mp_fix_dependencies (mp);
-  check_arith;
+  check_arith();
 }
 
 
@@ -19650,7 +19692,7 @@ void mp_scan_primary (MP mp) {
   my_var_flag = mp->var_flag;
   mp->var_flag = 0;
 RESTART:
-  check_arith;
+  check_arith();
   @<Supply diagnostic information, if requested@>;
   switch (mp->cur_cmd) {
   case left_delimiter:
@@ -19709,21 +19751,30 @@ DONE:
 
 @c
 static void mp_bad_exp (MP mp, const char *s) {
+  char msg[256];
   int save_flag;
-  print_err (s);
-  mp_print (mp, " expression can't begin with `");
-  mp_print_cmd_mod (mp, mp->cur_cmd, mp->cur_mod);
-  mp_print_char (mp, xord ('\''));
-  help4 ("I'm afraid I need some sort of value in order to continue,",
+  const char *hlp[] = { 
+         "I'm afraid I need some sort of value in order to continue,",
          "so I've tentatively inserted `0'. You may want to",
          "delete this zero and insert something else;",
-         "see Chapter 27 of The METAFONTbook for an example.");
+         "see Chapter 27 of The METAFONTbook for an example.",
+         NULL };
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>;
+  {
+     str_number cm;
+     int old_selector = mp->selector;
+     mp->selector = new_string;
+     mp_print_cmd_mod (mp, mp->cur_cmd, mp->cur_mod);
+     mp->selector = old_selector;
+     cm = mp_make_string(mp);
+     mp_snprintf(msg, 256, "%s expression can't begin with `%s'", s, (char *)cm->str);
+     delete_str_ref(cm);
+  }
   mp_back_input (mp);
   mp->cur_sym = 0;
   mp->cur_cmd = numeric_token;
   mp->cur_mod = 0;
-  mp_ins_error (mp);
+  mp_ins_error (mp, msg, hlp, true);
   save_flag = mp->var_flag;
   mp->var_flag = 0;
   mp_get_x_next (mp);
@@ -19995,7 +20046,7 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
     } else {
       set_cur_exp_value (mp_make_scaled (mp, num, denom));
     }
-    check_arith;
+    check_arith();
     mp_get_x_next (mp);
   }
   if (mp->cur_cmd >= min_primary_command) {
@@ -21577,7 +21628,7 @@ break;
 @c
 @<Declare nullary action procedure@>;
 static void mp_do_nullary (MP mp, quarterword c) {
-  check_arith;
+  check_arith();
   if (internal_value_to_halfword (mp_tracing_commands) > two)
     mp_show_cmd_mod (mp, nullary, c);
   switch (c) {
@@ -21611,7 +21662,7 @@ static void mp_do_nullary (MP mp, quarterword c) {
     @<Read a string from the terminal@>;
     break;
   }                             /* there are no other cases */
-  check_arith;
+  check_arith();
 }
 
 
@@ -21650,7 +21701,7 @@ static void mp_do_unary (MP mp, quarterword c) {
   integer x;    /* a temporary register */
   halfword vv;  /* a temporary place for |cur_exp_value| */
   mp_value new_expr;
-  check_arith;
+  check_arith();
   memset(&new_expr,0,sizeof(mp_value));
   if (internal_value_to_halfword (mp_tracing_commands) > two)
     @<Trace the current unary operation@>;
@@ -21664,7 +21715,7 @@ static void mp_do_unary (MP mp, quarterword c) {
     break;
     @<Additional cases of unary operators@>;
   }                             /* there are no other cases */
-  check_arith;
+  check_arith();
 }
 
 
@@ -23357,7 +23408,7 @@ with the current expression.
 @c
 @<Declare binary action procedures@>;
 static void mp_finish_binary (MP mp, mp_node old_p, mp_node old_exp) {
-  check_arith;
+  check_arith();
   @<Recycle any sidestepped |independent| capsules@>;
 }
 static void mp_do_binary (MP mp, mp_node p, integer c) {
@@ -23366,7 +23417,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
   integer v;    /* for numeric manipulation */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  check_arith;
+  check_arith();
   if (internal_value_to_halfword (mp_tracing_commands) > two) {
     @<Trace the current binary operation@>;
   }
@@ -23772,7 +23823,7 @@ case greater_than:
 case greater_or_equal:
 case equal_to:
 case unequal_to:
-check_arith;                    /* at this point |arith_error| should be |false|? */
+check_arith();                    /* at this point |arith_error| should be |false|? */
 if ((mp->cur_exp.type > mp_pair_type) && (mp_type (p) > mp_pair_type)) {
   mp_add_or_subtract (mp, p, NULL, minus);      /* |cur_exp:=(p)-cur_exp| */
 } else if (mp->cur_exp.type != mp_type (p)) {
@@ -25599,7 +25650,7 @@ expression.
   if (internal_value_to_halfword (mp_tracing_titles) > 0) {
     mp_print_nl (mp, "");
     mp_print_str (mp, cur_exp_str ());
-    update_terminal;
+    update_terminal();
   }
 }
 
@@ -25774,7 +25825,7 @@ RESTART:
   }                             /* all valid cases have been listed */
   @<Announce that the equation cannot be performed@>;
 DONE:
-  check_arith;
+  check_arith();
   mp_recycle_value (mp, lhs);
   mp_free_node (mp, lhs, value_node_size);
 }
@@ -26643,7 +26694,7 @@ line = 0;
 name = is_term;
 mp->mpx_name[file_bottom] = absent;
 mp->force_eof = false;
-t_open_in;
+t_open_in();
 mp->scanner_status = normal;
 if (mp->mem_ident == NULL && !mp->ini_version) {
   if (!mp_load_preload_file (mp)) {
@@ -27420,7 +27471,7 @@ static void mp_do_show_whatever (MP mp);
 @ @c
 void mp_do_show_whatever (MP mp) {
   if (mp->interaction == mp_error_stop_mode)
-    wake_up_terminal;
+    wake_up_terminal();
   switch (mp->cur_mod) {
   case show_token_code:
     mp_do_show_token (mp);
@@ -30604,7 +30655,7 @@ if (c >= 0)
 
 @ @<End progress report@>=
 mp_print_char (mp, xord (']'));
-update_terminal;
+update_terminal();
 incr (mp->total_shipped)
  
 
@@ -31066,7 +31117,7 @@ boolean mp_load_preload_file (MP mp) {
   incr (mp->open_parens);
   mp_print (mp, fname);
   mp->mem_ident = fname;
-  update_terminal;
+  update_terminal();
   {
     line = 1;
     start = loc = limit + 1;
@@ -31125,7 +31176,7 @@ void mp_close_files_and_terminate (MP mp) {
   @<Close all open files in the |rd_file| and |wr_file| arrays@>;
   if (internal_value_to_halfword (mp_tracing_stats) > 0)
     @<Output statistics about this job@>;
-  wake_up_terminal;
+  wake_up_terminal();
   @<Do all the finishing work on the \.{TFM} file@>;
   @<Explain what output files were written@>;
   if (mp->log_opened && !mp->noninteractive) {
