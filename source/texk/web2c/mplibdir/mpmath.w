@@ -163,6 +163,7 @@ terminate before $s$ can possibly become zero.
 
 @<Internal library declarations@>=
 void mp_print_scaled (MP mp, scaled s);
+char *mp_string_scaled (MP mp, scaled s);
 
 @ @c
 void mp_print_scaled (MP mp, scaled s) {                               /* prints scaled real, rounded to five  digits */
@@ -184,6 +185,34 @@ void mp_print_scaled (MP mp, scaled s) {                               /* prints
       delta = delta * 10;
     } while (s > delta);
   }
+}
+
+char *mp_string_scaled (MP mp, scaled s) {                               /* prints scaled real, rounded to five  digits */
+  static char scaled_string[32];
+  scaled delta; /* amount of allowable inaccuracy */
+  int i = 0;
+  if (s < 0) {
+    scaled_string[i++] = xord ('-');
+    s = -s;                 /* print the sign, if negative */
+  }
+  /* print the integer part */
+  mp_snprintf ((scaled_string+i), 12, "%d", (int) (s / unity));
+  while (*(scaled_string+i)) i++;
+
+  s = 10 * (s % unity) + 5;
+  if (s != 5) {
+    delta = 10;
+    scaled_string[i++] =  xord ('.');
+    do {
+      if (delta > unity)
+        s = s + 0100000 - (delta / 2);  /* round the final digit */
+      scaled_string[i++] = xord ('0' + (s / unity));
+      s = 10 * (s % unity);
+      delta = delta * 10;
+    } while (s > delta);
+  }
+  scaled_string[i] = '\0';
+  return scaled_string;
 }
 
 @ Addition is not always checked to make sure that it doesn't overflow,
