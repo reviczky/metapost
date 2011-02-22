@@ -104,7 +104,7 @@ and \.{PLtoTF} can be used to debug \.{TFM} files.
      hlp[2]="is right, try asking an expert to fix the TFM file";
    mp_snprintf(msg, 256, "Font %s not usable: TFM file %s", fname,
               ( file_opened ? "is bad" : "not found"));
-   mp_do_error(mp, msg, hlp, true);
+   mp_error(mp, msg, hlp, true);
 }
 
 @ @<Read data from |tfm_infile|; if there is no room, say so...@>=

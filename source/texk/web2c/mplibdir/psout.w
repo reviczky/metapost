@@ -406,7 +406,7 @@ static void mp_enc_getline (MP mp) {
   int c;
 RESTART:
   if (enc_eof ()) {
-    mp_do_error(mp, "unexpected end of file", NULL, true);
+    mp_error(mp, "unexpected end of file", NULL, true);
   }
   p = mp->ps->enc_line;
   do {
@@ -437,7 +437,7 @@ static void mp_load_enc (MP mp, char *enc_name,
     char msg[256];
     remove_eol (r, mp->ps->enc_line);
     mp_snprintf (msg, 256, "invalid encoding vector (a name or `[' missing): `%s'", mp->ps->enc_line);
-    mp_do_error(mp, msg, NULL, true);
+    mp_error(mp, msg, NULL, true);
   }
   while (*(r-1)==' ') r--; /* strip trailing spaces from encoding name */
   myname = mp_xmalloc(mp,(size_t)(r-mp->ps->enc_line),1);
@@ -455,7 +455,7 @@ static void mp_load_enc (MP mp, char *enc_name,
         *p = 0;
       skip (r, ' ');
       if (names_count > 256) {
-        mp_do_error(mp, "encoding vector contains more than 256 names", NULL, true);
+        mp_error(mp, "encoding vector contains more than 256 names", NULL, true);
       }
       if (mp_xstrcmp (buf, notdef) != 0)
         glyph_names[names_count] = mp_xstrdup (mp,buf);
@@ -468,7 +468,7 @@ static void mp_load_enc (MP mp, char *enc_name,
         char msg[256];
         remove_eol (r, mp->ps->enc_line);
         mp_snprintf(msg, 256,"invalid encoding vector: a name or `] def' expected: `%s'", mp->ps->enc_line);
-        mp_do_error(mp, msg, NULL, true);
+        mp_error(mp, msg, NULL, true);
       }
     }
     mp_enc_getline (mp);
@@ -4056,7 +4056,7 @@ static char * mp_fm_font_subset_name (MP mp, font_number f);
   {
     char msg[256];
     mp_snprintf (msg, 256, "fontmap encoding problems for font %s", mp->font_name[f]);
-    mp_do_error(mp, msg, NULL, true); 
+    mp_error(mp, msg, NULL, true); 
   }
   return NULL;
 }
@@ -4071,7 +4071,7 @@ char * mp_fm_font_name (MP mp, font_number f) {
 	    } else {
               char msg[256];
               mp_snprintf (msg, 256, "font loading problems for font %s", mp->font_name[f]);
-              mp_do_error(mp, msg, NULL, true); 
+              mp_error(mp, msg, NULL, true); 
 	    }
       }
       return mp_xstrdup(mp,fm->ps_name);
@@ -4080,7 +4080,7 @@ char * mp_fm_font_name (MP mp, font_number f) {
   {
      char msg[256];
      mp_snprintf (msg, 256, "fontmap name problems for font %s", mp->font_name[f]);
-     mp_do_error(mp, msg, NULL, true); 
+     mp_error(mp, msg, NULL, true); 
   }
   return NULL;
 }
@@ -4101,7 +4101,7 @@ static char * mp_fm_font_subset_name (MP mp, font_number f) {
   {
      char msg[256];
      mp_snprintf (msg, 256, "fontmap name problems for font %s", mp->font_name[f]);
-     mp_do_error(mp, msg, NULL, true); 
+     mp_error(mp, msg, NULL, true); 
   }
   return NULL;
 }
@@ -4456,7 +4456,7 @@ do {
       if (prologues==3 ) {
         if ( ! mp_do_ps_font(mp,f) ) {
           if ( mp_has_fm_entry(mp,f, NULL) ) {
-            mp_do_error(mp, "Font embedding failed", NULL, true);
+            mp_error(mp, "Font embedding failed", NULL, true);
           }
         }
       }
