@@ -706,7 +706,7 @@ scaled mp_square_rt (MP mp, scaled x) {
            NULL };
     mp_snprintf(msg, 256, "Square root of %s has been replaced by 0", mp_string_scaled (mp, x));
 @.Square root...replaced by 0@>;
-    mp_do_error (mp, msg, hlp, true);
+    mp_error (mp, msg, hlp, true);
   };
   return 0;
 }
@@ -850,7 +850,7 @@ while (1) {
     mp_snprintf (msg, 256, "Pythagorean subtraction %s+-+%s has been replaced by 0", astr, mp_string_scaled (mp, b));
     free(astr);
 @.Pythagorean...@>;
-    mp_do_error (mp, msg, hlp, true);
+    mp_error (mp, msg, hlp, true);
   }
   a = 0;
 }
@@ -936,7 +936,7 @@ scaled mp_m_log (MP mp, scaled x) {
           NULL };
   mp_snprintf (msg, 256, "Logarithm of %s has been replaced by 0", mp_string_scaled (mp, x));
 @.Logarithm...replaced by 0@>;
-  mp_do_error (mp, msg, hlp, true);
+  mp_error (mp, msg, hlp, true);
   return 0;
 }
 
@@ -1073,7 +1073,7 @@ angle mp_n_arg (MP mp, integer x, integer y) {
          "The `angle' between two identical points is undefined.",
          "I'm zeroing this one. Proceed, with fingers crossed.",
          NULL };
-  mp_do_error (mp, "angle(0,0) is taken as zero", hlp, true);
+  mp_error (mp, "angle(0,0) is taken as zero", hlp, true);
 @.angle(0,0)...zero@>;
   return 0;
 }

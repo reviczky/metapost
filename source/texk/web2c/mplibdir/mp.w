@@ -1795,19 +1795,6 @@ void mp_term_input (MP mp) {                               /* gets a line from t
 
 
 @* Reporting errors.
-When something anomalous is detected, \MP\ typically does something like this:
-$$\vbox{\halign{#\hfil\cr
-|print_err("Something anomalous has been detected");|\cr
-|help3("This is the first line of my offer to help.")|\cr
-|("This is the second line. I'm trying to")|\cr
-|("explain the best way for you to proceed.");|\cr
-|error;|\cr}}$$
-A two-line help message would be given using |help2|, etc.; these informal
-helps should use simple vocabulary that complements the words used in the
-official error message that was printed. (Outside the U.S.A., the help
-messages should preferably be translated into the local vernacular. Each
-line of help is at most 60 characters long, in the present implementation,
-so that |max_print_line| will not be exceeded.)
 
 The |print_err| procedure supplies a `\.!' before the official message,
 and makes sure that the terminal is awake if a stop is going to occur.
@@ -1843,15 +1830,14 @@ if (mp->interaction == mp_unspecified_mode
 if (mp->interaction < mp_unspecified_mode)
   mp->interaction = mp_batch_mode;
 
-@ 
+@ |print_err| is not merged in |error| because it is also used in |prompt_file_name|,
+where |error| is not called at all.
 
-@d print_err(A) mp_print_err(mp,(A))
-
-@<Internal ...@>=
-void mp_print_err (MP mp, const char *A);
+@<Declarations@>=
+static void mp_print_err (MP mp, const char *A);
 
 @ @c
-void mp_print_err (MP mp, const char *A) {
+static void mp_print_err (MP mp, const char *A) {
   if (mp->interaction == mp_error_stop_mode)
     wake_up_terminal();
   if (mp->file_line_error_style && file_state && !terminal_input) {
@@ -1891,12 +1877,7 @@ if (mp->interaction == mp_batch_mode)
 else
   mp->selector = term_only
 
-@ A global variable |deletions_allowed| is set |false| if the |get_next|
-routine is active when |error| is called; this ensures that |get_next|
-will never be called recursively.
-@^recursion@>
-
-The global variable |history| records the worst level of error that
+@ The global variable |history| records the worst level of error that
 has been detected. It has four possible values: |spotless|, |warning_issued|,
 |error_message_issued|, and |fatal_error_stop|.
 
@@ -1915,15 +1896,11 @@ enum mp_history_state {
 };
 
 @ @<Glob...@>=
-boolean deletions_allowed;      /* is it safe for |error| to call |get_next|? */
 int history;    /* has the source input been clean so far? */
 int error_count;        /* the number of scrolled errors since the last statement ended */
 
 @ The value of |history| is initially |fatal_error_stop|, but it will
 be changed to |spotless| if \MP\ survives the initialization process.
-
-@<Allocate or ...@>=
-mp->deletions_allowed = true;   /* |history| is initialized elsewhere */
 
 @ Since errors can be detected almost anywhere in \MP, we want to declare the
 error procedures near the beginning of the program. But the error procedures
@@ -1947,27 +1924,7 @@ static void mp_clear_for_error_prompt (MP mp);
 @ @<Internal ...@>=
 void mp_normalize_selector (MP mp);
 
-@ Individual lines of help are recorded in the array |help_line|, which
-contains entries in positions |0..(help_ptr-1)|. They should be printed
-in reverse order, i.e., with |help_line[0]| appearing last.
-
-@d hlp1(A) mp->help_line[0]=A; }
-@d hlp2(A,B) mp->help_line[1]=A; hlp1(B)
-@d hlp3(A,B,C) mp->help_line[2]=A; hlp2(B,C)
-@d hlp4(A,B,C,D) mp->help_line[3]=A; hlp3(B,C,D)
-@d hlp5(A,B,C,D,E) mp->help_line[4]=A; hlp4(B,C,D,E)
-@d hlp6(A,B,C,D,E,F) mp->help_line[5]=A; hlp5(B,C,D,E,F)
-@d help0 mp->help_ptr=0 /* sometimes there might be no help */
-@d help1  { mp->help_ptr=1; hlp1 /* use this with one help line */
-@d help2  { mp->help_ptr=2; hlp2 /* use this with two help lines */
-@d help3  { mp->help_ptr=3; hlp3 /* use this with three help lines */
-@d help4  { mp->help_ptr=4; hlp4 /* use this with four help lines */
-@d help5  { mp->help_ptr=5; hlp5 /* use this with five help lines */
-@d help6  { mp->help_ptr=6; hlp6 /* use this with six help lines */
-
-@<Glob...@>=
-const char *help_line[6];       /* helps for the next |error| */
-unsigned int help_ptr;  /* the number of help lines present */
+@ @<Glob...@>=
 boolean use_err_help;   /* should the |err_help| string be shown? */
 str_number err_help;    /* a string set up by \&{errhelp} */
 
@@ -1998,13 +1955,50 @@ static void mp_jump_out (MP mp) {
 }
 
 
-@ Here now is the general |error| routine.
+@ 
 
 @<Error hand...@>=
-void mp_error (MP mp) {                               /* completes the job of error reporting */
+void mp_warn (MP mp, const char *msg) {
+  unsigned saved_selector = mp->selector;
+  mp_normalize_selector (mp);
+  mp_print_nl (mp, "Warning: ");
+  mp_print (mp, msg);
+  mp_print_ln (mp);
+  mp->selector = saved_selector;
+}
+
+@ Here now is the general |error| routine.
+
+The argument |deletions_allowed| is set |false| if the |get_next|
+routine is active when |error| is called; this ensures that |get_next|
+will never be called recursively.
+@^recursion@>
+
+Individual lines of help are recorded in the array |help_line|, which
+contains entries in positions |0..(help_ptr-1)|. They should be printed
+in reverse order, i.e., with |help_line[0]| appearing last.
+
+@c
+void mp_error (MP mp, const char *msg, const char **hlp, boolean deletions_allowed) {
   ASCII_code c; /* what the user types */
   integer s1, s2;       /* used to save global variables when deleting tokens */
   mp_sym s3;    /* likewise */
+  int i = 0;
+  const char *help_line[6];       /* helps for the next |error| */
+  unsigned int help_ptr;  /* the number of help lines present */
+  const char **cnt = NULL;
+  mp_print_err(mp, msg);
+  if (hlp) {
+    cnt = hlp;
+    while (*cnt) {
+      i++; cnt++;
+    }
+    cnt = hlp;
+  }
+  help_ptr=i;
+  while (i>0) {
+    help_line[--i]= *cnt++;
+  }
   if (mp->history < mp_error_message_issued)
     mp->history = mp_error_message_issued;
   mp_print_char (mp, xord ('.'));
@@ -2025,43 +2019,10 @@ void mp_error (MP mp) {                               /* completes the job of er
   }
   @<Put help message on the transcript file@>;
 }
-void mp_warn (MP mp, const char *msg) {
-  unsigned saved_selector = mp->selector;
-  mp_normalize_selector (mp);
-  mp_print_nl (mp, "Warning: ");
-  mp_print (mp, msg);
-  mp_print_ln (mp);
-  mp->selector = saved_selector;
-}
-
-@ All the above stuff is quite low-level. Here is a function that combines
-everything into a single function call.
-
-@c
-void mp_do_error (MP mp, const char *msg, const char **hlp, boolean deletions_allowed) {
-  int i = 0;
-  const char **cnt = NULL;
-  mp_print_err(mp, msg);
-  if (hlp) {
-    cnt = hlp;
-    while (*cnt) {
-      i++; cnt++;
-    }
-    cnt = hlp;
-  }
-  mp->help_ptr=i;
-  while (i>0) {
-    mp->help_line[--i]= *cnt++;
-  }
-  mp->deletions_allowed = deletions_allowed;
-  mp_error (mp);
-  mp->deletions_allowed = true;
-}
 
 
 @ @<Exported function ...@>=
-extern void mp_do_error (MP mp, const char *msg, const char **hlp, boolean deletions_allowed);
-extern void mp_error (MP mp);
+extern void mp_error (MP mp, const char *msg, const char **hlp, boolean deletions_allowed);
 extern void mp_warn (MP mp, const char *msg);
 
 
@@ -2126,7 +2087,7 @@ case '6':
 case '7':
 case '8':
 case '9':
-  if (mp->deletions_allowed) {
+  if (deletions_allowed) {
     @<Delete tokens and |continue|@>;
   }
   break;
@@ -2169,32 +2130,29 @@ default:
   mp_print_nl (mp, "I to insert something, ");
   if (mp->file_ptr > 0)
     mp_print (mp, "E to edit your file,");
-  if (mp->deletions_allowed)
+  if (deletions_allowed)
     mp_print_nl (mp,
                  "1 or ... or 9 to ignore the next 1 to 9 tokens of input,");
   mp_print_nl (mp, "H for help, X to quit.");
 }
 
 
-@ Here the author of \MP\ apologizes for making use of the numerical
-relation between |"Q"|, |"R"|, |"S"|, and the desired interaction settings
-|mp_batch_mode|, |mp_nonstop_mode|, |mp_scroll_mode|.
-@^Knuth, Donald Ervin@>
-
-@<Change the interaction...@>=
+@ @<Change the interaction...@>=
 {
   mp->error_count = 0;
-  mp->interaction = mp_batch_mode + c - 'Q';
   mp_print (mp, "OK, entering ");
   switch (c) {
   case 'Q':
+    mp->interaction = mp_batch_mode;
     mp_print (mp, "batchmode");
     decr (mp->selector);
     break;
   case 'R':
+    mp->interaction = mp_nonstop_mode;
     mp_print (mp, "nonstopmode");
     break;
   case 'S':
+    mp->interaction = mp_scroll_mode;
     mp_print (mp, "scrollmode");
     break;
   }                             /* there are no other cases */
@@ -2249,33 +2207,40 @@ to be familiar with \MP's input stacks.
   mp->cur_mod = s2;
   mp->cur_sym = s3;
   mp->OK_to_interrupt = true;
-  help2 ("I have just deleted some text, as you asked.",
-         "You can now delete more, or insert, or whatever.");
+  help_ptr = 2;
+  help_line[1] = "I have just deleted some text, as you asked.";
+  help_line[0] = "You can now delete more, or insert, or whatever.";
   mp_show_context (mp);
   goto CONTINUE;
 }
 
 
-@ @<Print the help info...@>=
+@ Some wiggling with |help_line| is done here to avoid giving no
+information whatsoever, or presenting the same information twice
+in a row.
+
+@<Print the help info...@>=
 {
   if (mp->use_err_help) {
     @<Print the string |err_help|, possibly on several lines@>;
     mp->use_err_help = false;
   } else {
-    if (mp->help_ptr == 0) {
-      help2 ("Sorry, I don't know how to help in this situation.",
-             "Maybe you should try asking a human?");
+    if (help_ptr == 0) {
+      help_ptr=2; 
+      help_line[1] = "Sorry, I don't know how to help in this situation.";
+      help_line[0] = "Maybe you should try asking a human?";
     }
     do {
-      decr (mp->help_ptr);
-      mp_print (mp, mp->help_line[mp->help_ptr]);
+      decr (help_ptr);
+      mp_print (mp, help_line[help_ptr]);
       mp_print_ln (mp);
-    } while (mp->help_ptr != 0);
+    } while (help_ptr != 0);
   };
-  help4 ("Sorry, I already gave what help I could...",
-         "Maybe you should try asking a human?",
-         "An error might have occurred before I noticed any problems.",
-         "``If all else fails, read the instructions.''");
+  help_ptr=4; 
+  help_line[3] = "Sorry, I already gave what help I could...";
+  help_line[2] = "Maybe you should try asking a human?";
+  help_line[1] = "An error might have occurred before I noticed any problems.";
+  help_line[0] = "``If all else fails, read the instructions.''";
   goto CONTINUE;
 }
 
@@ -2306,9 +2271,9 @@ if (mp->use_err_help) {
   mp_print_nl (mp, "");
   @<Print the string |err_help|, possibly on several lines@>;
 } else {
-  while (mp->help_ptr > 0) {
-    decr (mp->help_ptr);
-    mp_print_nl (mp, mp->help_line[mp->help_ptr]);
+  while (help_ptr > 0) {
+    decr (help_ptr);
+    mp_print_nl (mp, help_line[help_ptr]);
   };
   mp_print_ln (mp);
   if (mp->interaction > mp_batch_mode)
@@ -2336,18 +2301,16 @@ void mp_normalize_selector (MP mp) {
 
 @ The following procedure prints \MP's last words before dying.
 
-@d succumb() { if ( mp->interaction==mp_error_stop_mode )
-    mp->interaction=mp_scroll_mode; /* no more interaction */
-  if ( mp->log_opened ) mp_error(mp);
-  mp->history=mp_fatal_error_stop; mp_jump_out(mp); /* irrecoverable error */
-  }
-
 @<Error hand...@>=
 void mp_fatal_error (MP mp, const char *s) {                               /* prints |s|, and that's it */
+  const char *hlp[] = {s, NULL} ;
   mp_normalize_selector (mp);
-  print_err ("Emergency stop");
-  help1 (s);
-  succumb();
+  if ( mp->interaction==mp_error_stop_mode )
+    mp->interaction=mp_scroll_mode; /* no more interaction */
+  if ( mp->log_opened ) 
+    mp_error(mp, "Emergency stop", hlp, true);
+  mp->history=mp_fatal_error_stop; 
+  mp_jump_out(mp); /* irrecoverable error */
 @.Emergency stop@>
 }
 
@@ -2356,24 +2319,28 @@ void mp_fatal_error (MP mp, const char *s) {                               /* pr
 extern void mp_fatal_error (MP mp, const char *s);
 
 
-@ Here is the most dreaded error message.
-
-@<Error hand...@>=
-void mp_overflow (MP mp, const char *s, integer n) {                               /* stop due to finiteness */
-  char msg[256];
-  mp_normalize_selector (mp);
-  mp_snprintf (msg, 256, "MetaPost capacity exceeded, sorry [%s=%d]", s,
-               (int) n);
-@.MetaPost capacity exceeded ...@>;
-  print_err (msg);
-  help2 ("If you really absolutely need more capacity,",
-         "you can ask a wizard to enlarge me.");
-  succumb();
-}
-
-
 @ @<Internal library declarations@>=
 void mp_overflow (MP mp, const char *s, integer n);
+
+
+@ @<Error hand...@>=
+void mp_overflow (MP mp, const char *s, integer n) {                               /* stop due to finiteness */
+  char msg[256];
+  const char *hlp[] = {
+         "If you really absolutely need more capacity,",
+         "you can ask a wizard to enlarge me.",
+         NULL };
+  mp_normalize_selector (mp);
+  mp_snprintf (msg, 256, "MetaPost capacity exceeded, sorry [%s=%d]", s, (int) n);
+@.MetaPost capacity exceeded ...@>;
+  if ( mp->interaction==mp_error_stop_mode )
+    mp->interaction=mp_scroll_mode; /* no more interaction */
+  if ( mp->log_opened ) 
+    mp_error(mp, msg, hlp, true);
+  mp->history=mp_fatal_error_stop; 
+  mp_jump_out(mp); /* irrecoverable error */
+}
+
 
 @ The program might sometime run completely amok, at which point there is
 no choice but to stop. If no previous error has been detected, that's bad
@@ -2390,19 +2357,26 @@ void mp_confusion (MP mp, const char *s);
 @<Error hand...@>=
 void mp_confusion (MP mp, const char *s) {
   char msg[256];
+  const char *hlp[] = { 
+           "One of your faux pas seems to have wounded me deeply...",
+           "in fact, I'm barely conscious. Please fix it and try again.",
+           NULL };
   mp_normalize_selector (mp);
   if (mp->history < mp_error_message_issued) {
     mp_snprintf (msg, 256, "This can't happen (%s)", s);
 @.This can't happen@>;
-    print_err (msg);
-    help1 ("I'm broken. Please show this to someone who can fix can fix");
+    hlp[0] = "I'm broken. Please show this to someone who can fix can fix";
+    hlp[1] = NULL;
   } else {
-    print_err ("I can\'t go on meeting you like this");
+    mp_snprintf (msg, 256, "I can\'t go on meeting you like this");
 @.I can't go on...@>;
-    help2 ("One of your faux pas seems to have wounded me deeply...",
-           "in fact, I'm barely conscious. Please fix it and try again.");
   }
-  succumb();
+  if ( mp->interaction==mp_error_stop_mode )
+    mp->interaction=mp_scroll_mode; /* no more interaction */
+  if ( mp->log_opened ) 
+    mp_error(mp, msg, hlp, true);
+  mp->history=mp_fatal_error_stop; 
+  mp_jump_out(mp); /* irrecoverable error */
 }
 
 
@@ -2444,22 +2418,9 @@ static void mp_pause_for_instructions (MP mp) {
     if ((mp->selector == log_only) || (mp->selector == no_print))
       incr (mp->selector);
 @.Interruption@>;
-    mp_do_error (mp, "Interruption", hlp, false);
+    mp_error (mp, "Interruption", hlp, false);
     mp->interrupt = 0;
   }
-}
-
-
-@ Many of \MP's error messages state that a missing token has been
-inserted behind the scenes. We can save string space and program space
-by putting this common code into a subroutine.
-
-@c
-static void mp_missing_err (MP mp, const char *s) {
-  char msg[256];
-  mp_snprintf (msg, 256, "Missing `%s' has been inserted", s);
-@.Missing...inserted@>;
-  print_err (msg);
 }
 
 
@@ -2511,7 +2472,7 @@ static void mp_clear_arith (MP mp) {
          "somewhat askew. You'll probably have to adopt different",
          "tactics next time. But I shall try to carry on anyway.",
          NULL };
-  mp_do_error (mp, "Arithmetic overflow", hlp, true);
+  mp_error (mp, "Arithmetic overflow", hlp, true);
 @.Arithmetic overflow@>;
   mp->arith_error = false;
 }
@@ -7145,11 +7106,13 @@ static void mp_make_choices (MP mp, mp_knot knots) {
 
 @ @<Report an unexpected problem during the choice...@>=
 {
-  print_err ("Some number got too big");
+  const char *hlp[] = {
+         "The path that I just computed is out of range.",
+         "So it will probably look funny. Proceed, for a laugh.",
+          NULL };
+  mp_back_error (mp, "Some number got too big", hlp, true);
 @.Some number got too big@>;
-  help2 ("The path that I just computed is out of range.",
-         "So it will probably look funny. Proceed, for a laugh.");
-  mp_put_get_error (mp);
+  mp_get_x_next (mp);
   mp->arith_error = false;
 }
 
@@ -10508,11 +10471,13 @@ NOT_FOUND:
 
 @ @<Compain that the edge structure contains a node of the wrong type...@>=
 {
-  print_err ("Picture is too complicated to use as a dash pattern");
-  help3 ("When you say `dashed p', picture p should not contain any",
+  const char *hlp[] = {
+         "When you say `dashed p', picture p should not contain any",
          "text, filled regions, or clipping paths.  This time it did",
-         "so I'll just make it a solid line instead.");
-  mp_put_get_error (mp);
+         "so I'll just make it a solid line instead.",
+         NULL };
+  mp_back_error (mp, "Picture is too complicated to use as a dash pattern", hlp, true);
+  mp_get_x_next (mp);
   goto NOT_FOUND;
 }
 
@@ -10524,11 +10489,13 @@ static void mp_x_retrace_error (MP mp);
 
 @ @c
 void mp_x_retrace_error (MP mp) {
-  print_err ("Picture is too complicated to use as a dash pattern");
-  help3 ("When you say `dashed p', every path in p should be monotone",
+  const char *hlp[] = {
+         "When you say `dashed p', every path in p should be monotone",
          "in x and there must be no overlapping.  This failed",
-         "so I'll just make it a solid line instead.");
-  mp_put_get_error (mp);
+         "so I'll just make it a solid line instead.",
+         NULL };
+  mp_back_error (mp, "Picture is too complicated to use as a dash pattern", hlp, true);
+  mp_get_x_next (mp);
 }
 
 
@@ -10592,11 +10559,13 @@ scaled x0, x1, x2, x3;  /* $x$ coordinates of the segment from |qq| to |rr| */
 @ @<Make sure |p| and |p0| are the same color and |goto not_found|...@>=
 if ((red_val (p) != red_val (p0)) || (black_val (p) != black_val (p0)) ||
     (green_val (p) != green_val (p0)) || (blue_val (p) != blue_val (p0))) {
-  print_err ("Picture is too complicated to use as a dash pattern");
-  help3 ("When you say `dashed p', everything in picture p should",
+  const char *hlp[] = {
+         "When you say `dashed p', everything in picture p should",
          "be the same color.  I can\'t handle your color changes",
-         "so I'll just make it a solid line instead.");
-  mp_put_get_error (mp);
+         "so I'll just make it a solid line instead.",
+         NULL };
+  mp_back_error (mp, "Picture is too complicated to use as a dash pattern", hlp, true);
+  mp_get_x_next (mp);
   goto NOT_FOUND;
 }
 
@@ -13490,7 +13459,7 @@ void mp_val_too_big (MP mp, scaled x) {
            NULL };
     mp_snprintf (msg, 256, "Value is too large (%s)", mp_string_scaled(mp,x));
 @.Value is too large@>;
-    mp_do_error (mp, msg, hlp, true);
+    mp_error (mp, msg, hlp, true);
   }
 }
 
@@ -13975,11 +13944,13 @@ static void mp_ring_merge (MP mp, mp_node p, mp_node q) {
 
 @ @<Exclaim about a redundant equation@>=
 {
-  print_err ("Redundant equation");
+  const char *hlp[] = {
+         "I already knew that this equation was true.",
+         "But perhaps no harm has been done; let's continue.",
+         NULL };
+  mp_back_error (mp, "Redundant equation", hlp, true);
 @.Redundant equation@>;
-  help2 ("I already knew that this equation was true.",
-         "But perhaps no harm has been done; let's continue.");
-  mp_put_get_error (mp);
+  mp_get_x_next (mp);
 }
 
 
@@ -14766,12 +14737,16 @@ void mp_back_input (MP mp) {                               /* undoes one token o
 offending token just before issuing an error message.  We disable interrupts
 during the call of |back_input| so that the help message won't be lost.
 
+@<Declarations@>=
+static void mp_back_error (MP mp, const char *msg, const char **hlp, boolean deletions_allowed) ;
+
 @ @c
-static void mp_back_error (MP mp) {                               /* back up one token and call |error| */
+static void mp_back_error (MP mp, const char *msg, const char **hlp, boolean deletions_allowed) { 
+  /* back up one token and call |error| */
   mp->OK_to_interrupt = false;
   mp_back_input (mp);
   mp->OK_to_interrupt = true;
-  mp_error (mp);
+  mp_error (mp, msg, hlp, deletions_allowed);
 }
 static void mp_ins_error (MP mp, const char *msg, const char **hlp, boolean deletions_allowed) {
   /* back up one inserted token and call |error| */
@@ -14779,7 +14754,7 @@ static void mp_ins_error (MP mp, const char *msg, const char **hlp, boolean dele
   mp_back_input (mp);
   token_type = (quarterword) inserted;
   mp->OK_to_interrupt = true;
-  mp_do_error (mp, msg, hlp,deletions_allowed);
+  mp_error (mp, msg, hlp, deletions_allowed);
 }
 
 
@@ -14888,12 +14863,13 @@ by an auxiliary program called \.{DVItoMP}.
 
 @ @<Complain that we are not at the end of a line in the \.{MPX} file@>=
 {
-  print_err ("`mpxbreak' must be at the end of a line");
-  help4 ("This file contains picture expressions for btex...etex",
+  const char *hlp[] = {
+         "This file contains picture expressions for btex...etex",
          "blocks.  Such files are normally generated automatically",
          "but this one seems to be messed up.  I'm going to ignore",
-         "the rest of this line.");
-  mp_error (mp);
+         "the rest of this line.",
+         NULL };
+  mp_error (mp, "`mpxbreak' must be at the end of a line", hlp, true);
 }
 
 
@@ -14997,7 +14973,6 @@ static boolean mp_check_outer_validity (MP mp) {
     @<Check if the file has ended while flushing \TeX\ material and set the
       result value for |check_outer_validity|@>;
   } else {
-    mp->deletions_allowed = false;
     @<Back up an outer symbolic token so that it can be reread@>;
     if (mp->scanner_status > skipping) {
       @<Tell the user what has run away and try to recover@>;
@@ -15016,7 +14991,6 @@ static boolean mp_check_outer_validity (MP mp) {
       mp->cur_sym = mp->frozen_fi;
       mp_ins_error (mp, msg, hlp, false);
     }
-    mp->deletions_allowed = true;
     return false;
   }
 }
@@ -15109,14 +15083,14 @@ case var_defining:
   break;
 case op_defining:
   {
-    char *s = (char *)text (mp->warning_info)->str;
+    char *s = mp_str(mp, text(mp->warning_info));
     mp_snprintf (msg, 256, "%s the definition of %s", msg_start, s);
   }
   mp->cur_sym = mp->frozen_end_def;
   break;
 case loop_defining:
   {
-    char *s = (char *)text (mp->warning_info)->str;
+    char *s = mp_str(mp, text(mp->warning_info));
     mp_snprintf (msg, 256, "%s the text of a %s loop", msg_start, s);
   }
   hlp[0] = "I suspect you have forgotten an `endfor',";
@@ -15288,13 +15262,12 @@ FOUND:
 
 @<Decry the invalid...@>=
 {
-  print_err ("Text line contains an invalid character");
+  const char *hlp[] = {
+         "A funny symbol that I can\'t read has just been input.",
+         "Continue, and I'll forget that it ever happened.",
+         NULL };
+  mp_error(mp, "Text line contains an invalid character", hlp, false);
 @.Text line contains...@>;
-  help2 ("A funny symbol that I can\'t read has just been input.",
-         "Continue, and I'll forget that it ever happened.");
-  mp->deletions_allowed = false;
-  mp_error (mp);
-  mp->deletions_allowed = true;
   goto RESTART;
 }
 
@@ -15331,15 +15304,14 @@ because the |clear_for_error_prompt| routine might have reinstated
 
 @<Decry the missing string delimiter and |goto restart|@>=
 {
-  loc = limit;                  /* the next character to be read on this line will be |"%"| */
-  print_err ("Incomplete string token has been flushed");
-@.Incomplete string token...@>;
-  help3 ("Strings should finish on the same line as they began.",
+  const char *hlp[] =  {
+         "Strings should finish on the same line as they began.",
          "I've deleted the partial string; you might want to",
-         "insert another by typing, e.g., `I\"new string\"'.");
-  mp->deletions_allowed = false;
-  mp_error (mp);
-  mp->deletions_allowed = true;
+         "insert another by typing, e.g., `I\"new string\"'.",
+         NULL };
+  loc = limit;                  /* the next character to be read on this line will be |"%"| */
+  mp_error (mp, "Incomplete string token has been flushed", hlp, false);
+@.Incomplete string token...@>;
   goto RESTART;
 }
 
@@ -15378,7 +15350,7 @@ if (n < 32768) {
   const char *hlp[] = {"I can\'t handle numbers bigger than 32767.99998;",
          "so I've changed your constant to that maximum amount.", 
          NULL };
-  mp_do_error (mp, "Enormous number has been reduced", hlp, false);
+  mp_error (mp, "Enormous number has been reduced", hlp, false);
 @.Enormous number...@>;
   mp->cur_mod = EL_GORDO;
 }
@@ -15398,7 +15370,7 @@ return
              NULL };
       mp_snprintf (msg, 256, "Number is too large (%s)", mp_string_scaled(mp,mp->cur_mod));
 @.Number is too large@>;
-      mp_do_error (mp, msg, hlp, true);
+      mp_error (mp, msg, hlp, true);
     }
   }
 }
@@ -15547,7 +15519,7 @@ files should have an \&{mpxbreak} after the translation of the last
          "picture expression now.",
           NULL }; 
   mp->mpx_name[iindex] = mpx_finished;
-  mp_do_error (mp, "mpx file ended unexpectedly", hlp, false);
+  mp_error (mp, "mpx file ended unexpectedly", hlp, false);
   mp->cur_sym = mp->frozen_mpx_break;
   goto COMMON_ENDING;
 }
@@ -15719,7 +15691,7 @@ mp->warning_info_line = old_info
          "but this one seems to be messed up.  I'll just keep going",
          "and hope for the best.",
          NULL };
-  mp_do_error (mp, "An mpx file cannot contain btex or verbatimtex blocks", hlp, true);
+  mp_error (mp, "An mpx file cannot contain btex or verbatimtex blocks", hlp, true);
 }
 
 
@@ -15730,7 +15702,7 @@ mp->warning_info_line = old_info
          "only works when there is a file to preprocess.  You might",
          "want to delete everything up to the next `etex`.",
          NULL };
-  mp_do_error (mp, "You can only use `btex' or `verbatimtex' in a file", hlp, true);
+  mp_error (mp, "You can only use `btex' or `verbatimtex' in a file", hlp, true);
 }
 
 
@@ -15740,7 +15712,7 @@ mp->warning_info_line = old_info
          "I'll ignore this preprocessor command because it",
          "doesn't belong here",
          NULL };
-  mp_do_error (mp, "Misplaced mpxbreak", hlp, true);
+  mp_error (mp, "Misplaced mpxbreak", hlp, true);
 }
 
 
@@ -15749,7 +15721,7 @@ mp->warning_info_line = old_info
   const char *hlp[] = { 
          "There is no btex or verbatimtex for this to match",
           NULL };
-  mp_do_error (mp, "Extra etex will be ignored", hlp, true);
+  mp_error (mp, "Extra etex will be ignored", hlp, true);
 }
 
 
@@ -16011,14 +15983,15 @@ or assignment sign comes along at the proper place in a macro definition.
 static void mp_check_equals (MP mp) {
   if (mp->cur_cmd != equals)
     if (mp->cur_cmd != assignment) {
-      mp_missing_err (mp, "=");
-@.Missing `='@>;
-      help5 ("The next thing in this `def' should have been `=',",
+      const char *hlp[] = {
+             "The next thing in this `def' should have been `=',",
              "because I've already looked at the definition heading.",
              "But don't worry; I'll pretend that an equals sign",
              "was present. Everything from here to `enddef'",
-             "will be the replacement text of this macro.");
-      mp_back_error (mp);
+             "will be the replacement text of this macro.",
+             NULL };
+      mp_back_error (mp, "Missing `=' has been inserted", hlp, true);
+@.Missing `='@>;
     }
 }
 
@@ -16202,7 +16175,7 @@ if (m == start_def) {
          "After `vardef a' you can\'t say `vardef a.b'.",
          "So I'll have to discard this definition.",
          NULL };
-  mp_do_error (mp, "This variable already starts with a macro", hlp, true);
+  mp_error (mp, "This variable already starts with a macro", hlp, true);
 @.This variable already...@>;
   mp->warning_info_node = mp->bad_vardef;
 }
@@ -16229,10 +16202,9 @@ do {
   } else if ((mp->cur_cmd == param_type) && (mp->cur_mod == text_param)) {
     sym_type = mp_text_sym;
   } else {
-    print_err ("Missing parameter type; `expr' will be assumed");
+    const char *hlp[] = { "You should've had `expr' or `suffix' or `text' here.", NULL };
+    mp_back_error (mp, "Missing parameter type; `expr' will be assumed", hlp, true);
 @.Missing parameter type@>;
-    help1 ("You should've had `expr' or `suffix' or `text' here.");
-    mp_back_error (mp);
     sym_type = mp_expr_sym;
   }
   @<Absorb parameter tokens for type |sym_type|@>;
@@ -16359,14 +16331,25 @@ raised if the runtime system allows a larger C stack.
 @<Set initial...@>=
 mp->expand_depth = 10000;
 
-@ Even better would be if the system allows
-discovery of the amount of space available on the call stack.
+@ Even better would be if the system allows discovery of the amount of
+space available on the call stack.
 @^system dependencies@>
+
+In any case, when the limit is crossed, that is a fatal error.
 
 @c
 static void mp_check_expansion_depth (MP mp) {
   if (mp->expand_depth_count >= mp->expand_depth) {
-    mp_overflow (mp, "expansion depth", mp->expand_depth);
+    const char *hlp[] = {
+         "Recursive macro expansion cannot be unlimited because of runtime",
+         "stack constraints. The limit is 10000 recursion levels in total.",
+         NULL };
+    if ( mp->interaction==mp_error_stop_mode )
+      mp->interaction=mp_scroll_mode; /* no more interaction */
+    if ( mp->log_opened ) 
+      mp_error(mp, "Maximum expansion depth reached", hlp, true);
+    mp->history=mp_fatal_error_stop; 
+    mp_jump_out(mp);
   }
 }
 
@@ -16428,7 +16411,7 @@ static void mp_expand (MP mp) {
          "I'm not currently working on a for loop,",
          "so I had better not try to end anything.",
          NULL };
-  mp_do_error (mp, "Extra `endfor'", hlp, true);
+  mp_error (mp, "Extra `endfor'", hlp, true);
 @.Extra `endfor'@>;
 }
 
@@ -16471,7 +16454,7 @@ that will be |NULL| if no loop is in progress.
            "I'm confused; after exiting from a loop, I still seem",
            "to want to repeat it. I'll try to forget the problem.",
            NULL };
-    mp_do_error (mp, "Lost loop", hlp, true);
+    mp_error (mp, "Lost loop", hlp, true);
 @.Lost loop@>;
   } else {
     mp_resume_iteration (mp);   /* this procedure is in Part 37 below */
@@ -16486,22 +16469,24 @@ that will be |NULL| if no loop is in progress.
     mp_show_cmd_mod (mp, nullary, cur_exp_value ());
   if (cur_exp_value () == true_code) {
     if (mp->loop_ptr == NULL) {
-      print_err ("No loop is in progress");
-@.No loop is in progress@>;
-      help1 ("Why say `exitif' when there's nothing to exit from?");
+      const char *hlp[] = {
+          "Why say `exitif' when there's nothing to exit from?", 
+          NULL };
       if (mp->cur_cmd == semicolon)
-        mp_error (mp);
+        mp_error (mp, "No loop is in progress", hlp, true);
       else
-        mp_back_error (mp);
+        mp_back_error (mp, "No loop is in progress", hlp, true);
+@.No loop is in progress@>;
     } else {
       @<Exit prematurely from an iteration@>;
     }
   } else if (mp->cur_cmd != semicolon) {
-    mp_missing_err (mp, ";");
+    const char *hlp[] = {
+           "After `exitif <boolean exp>' I expect to see a semicolon.",
+           "I shall pretend that one was there.",
+           NULL };
+    mp_back_error (mp, "Missing `;' has been inserted", hlp, true);
 @.Missing `;'@>;
-    help2 ("After `exitif <boolean exp>' I expect to see a semicolon.",
-           "I shall pretend that one was there.");
-    mp_back_error (mp);
   }
 }
 
@@ -16548,12 +16533,16 @@ is less than |loop_text|.
   mp_scan_primary (mp);
   if (mp->cur_exp.type != mp_string_type) {
     mp_value new_expr;
+    const char *hlp[] = {
+           "I'm going to flush this expression, since",
+           "scantokens should be followed by a known string.",
+           NULL };
     memset(&new_expr,0,sizeof(mp_value));
-    mp_disp_err (mp, NULL, "Not a string");
+    mp_disp_err (mp, NULL);
+    mp_back_error (mp, "Not a string", hlp, true);
 @.Not a string@>;
-    help2 ("I'm going to flush this expression, since",
-           "scantokens should be followed by a known string.");
-    mp_put_get_flush_error (mp, new_expr);
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
   } else {
     mp_back_input (mp);
     if (length (cur_exp_str ()) > 0)
@@ -16764,18 +16753,24 @@ while (mp_name_type (r) == mp_expr_sym ||
   r = mp_link (r);
 }
 if (mp->cur_cmd == comma) {
-  print_err ("Too many arguments to ");
-@.Too many arguments...@>;
-  mp_print_macro_name (mp, arg_list, macro_name);
-  mp_print_char (mp, xord (';'));
-  mp_print_nl (mp, "  Missing `");
-  mp_print_text (r_delim);
-@.Missing `)'...@>;
-  mp_print (mp, "' has been inserted");
-  help3 ("I'm going to assume that the comma I just read was a",
+  char msg[256];
+  const char *hlp[] = {
+         "I'm going to assume that the comma I just read was a",
          "right delimiter, and then I'll begin expanding the macro.",
-         "You might want to delete some tokens before continuing.");
-  mp_error (mp);
+         "You might want to delete some tokens before continuing.",
+         NULL };
+  str_number rname;
+  int old_setting = mp->selector;
+  mp->selector = new_string;
+  mp_print_macro_name (mp, arg_list, macro_name);
+  rname = mp_make_string(mp);
+  mp->selector = old_setting;
+  mp_snprintf (msg, 256, "Too many arguments to %s; Missing `%s' has been insedrted",
+	       mp_str(mp, rname), mp_str(mp, text(r_delim)));
+  delete_str_ref(rname);
+@.Too many arguments...@>;
+@.Missing `)'...@>;
+  mp_error (mp, msg, hlp, true);
 }
 if (mp_sym_info (r) != general_macro) {
   @<Scan undelimited argument(s)@>;
@@ -16796,12 +16791,21 @@ and it's necessary to jump into the circle somewhere.)
 if (mp->cur_cmd != comma) {
   mp_get_x_next (mp);
   if (mp->cur_cmd != left_delimiter) {
-    print_err ("Missing argument to ");
-@.Missing argument...@>;
-    mp_print_macro_name (mp, arg_list, macro_name);
-    help3 ("That macro has more parameters than you thought.",
+    char msg[256];
+    const char *hlp[] = {
+           "That macro has more parameters than you thought.",
            "I'll continue by pretending that each missing argument",
-           "is either zero or null.");
+           "is either zero or null.",
+           NULL };
+    str_number sname;
+    int old_setting = mp->selector;
+    mp->selector = new_string;    
+    mp_print_macro_name (mp, arg_list, macro_name);
+    sname = mp_make_string(mp);
+    mp->selector = old_setting;    
+    mp_snprintf (msg, 256, "Missing argument to %s", mp_str(mp, sname));
+@.Missing argument...@>;
+    delete_str_ref(sname);    
     if (mp_name_type (r) == mp_suffix_sym || mp_name_type (r) == mp_text_sym) {
       set_cur_exp_value (0);    /* todo: this was |null| */
       mp->cur_exp.type = mp_token_list;
@@ -16809,7 +16813,7 @@ if (mp->cur_cmd != comma) {
       set_cur_exp_value (0);
       mp->cur_exp.type = mp_known;
     }
-    mp_back_error (mp);
+    mp_back_error (mp, msg, hlp, true);
     mp->cur_cmd = right_delimiter;
     goto FOUND;
   }
@@ -16828,19 +16832,23 @@ if ((mp->cur_cmd != right_delimiter) || (mp->cur_sym2 != l_delim)) {
   if (mp_name_type (mp_link (r)) == mp_expr_sym ||
       mp_name_type (mp_link (r)) == mp_suffix_sym ||
       mp_name_type (mp_link (r)) == mp_text_sym) {
-    mp_missing_err (mp, ",");
-@.Missing `,'@>;
-    help3 ("I've finished reading a macro argument and am about to",
+    const char *hlp[] = {
+           "I've finished reading a macro argument and am about to",
            "read another; the arguments weren't delimited correctly.",
-           "You might want to delete some tokens before continuing.");
-    mp_back_error (mp);
+           "You might want to delete some tokens before continuing.",
+           NULL };
+    mp_back_error (mp, "Missing `,' has been inserted", hlp, true);
+@.Missing `,'@>;
     mp->cur_cmd = comma;
   } else {
-    mp_missing_err (mp, mp_str (mp, text (r_delim)));
+    char msg[256];
+    const char *hlp[] = {
+           "I've gotten to the end of the macro parameter list.",
+           "You might want to delete some tokens before continuing.",
+           NULL };
+    mp_snprintf(msg, 256, "Missing `%s' has been inserted", mp_str(mp, text(r_delim)));
 @.Missing `)'@>;
-    help2 ("I've gotten to the end of the macro parameter list.",
-           "You might want to delete some tokens before continuing.");
-    mp_back_error (mp);
+    mp_back_error (mp, msg, hlp, true);
   }
 }
 
@@ -16992,12 +17000,20 @@ if (end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop| *
   tail = p;
   incr (n);
   if (mp->cur_cmd != of_token) {
-    mp_missing_err (mp, "of");
-    mp_print (mp, " for ");
-@.Missing `of'@>;
+    char msg[256];
+    str_number sname;
+    const char *hlp[] = { 
+        "I've got the first argument; will look now for the other.",
+        NULL };
+    int old_setting = mp->selector;
+    mp->selector = new_string;
     mp_print_macro_name (mp, arg_list, macro_name);
-    help1 ("I've got the first argument; will look now for the other.");
-    mp_back_error (mp);
+    sname = mp_make_string(mp);
+    mp->selector = old_setting;
+    mp_snprintf (msg, 256, "Missing `of' has been inserted for %s", mp_str(mp, sname));
+    delete_str_ref(sname);
+@.Missing `of'@>;
+    mp_back_error (mp, msg, hlp, true);
   }
   mp_get_x_next (mp);
   mp_scan_primary (mp);
@@ -17016,11 +17032,14 @@ if (end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop| *
   mp_scan_suffix (mp);
   if (l_delim != NULL) {
     if ((mp->cur_cmd != right_delimiter) || (mp->cur_sym2 != l_delim)) {
-      mp_missing_err (mp, mp_str (mp, text (r_delim)));
+      char msg[256];
+      const char *hlp[] = { 
+        "I've gotten to the end of the macro parameter list.",
+        "You might want to delete some tokens before continuing.",
+        NULL };
+      mp_snprintf(msg, 256, "Missing `%s' has been inserted", mp_str (mp, text (r_delim)));
 @.Missing `)'@>;
-      help2 ("I've gotten to the end of the macro parameter list.",
-             "You might want to delete some tokens before continuing.");
-      mp_back_error (mp);
+      mp_back_error (mp, msg, hlp, true);
     }
     mp_get_x_next (mp);
   }
@@ -17252,11 +17271,12 @@ statements. Therefore, \MP\ has to check for their presence.
 @c
 static void mp_check_colon (MP mp) {
   if (mp->cur_cmd != colon) {
-    mp_missing_err (mp, ":");
+    const char *hlp[] = {
+           "There should've been a colon after the condition.",
+           "I shall pretend that one was there.",
+           NULL }; 
+    mp_back_error (mp, "Missing `:' has been inserted", hlp, true);
 @.Missing `:'@>;
-    help2 ("There should've been a colon after the condition.",
-           "I shall pretend that one was there.");
-    mp_back_error (mp);
   }
 }
 
@@ -17341,13 +17361,17 @@ if (mp->cur_mod > mp->if_limit) {
     mp_ins_error (mp, "Missing `:' has been inserted", hlp, true);
 @.Missing `:'@>;
   } else {
-    print_err ("Extra ");
-    mp_print_cmd_mod (mp, fi_or_else, mp->cur_mod);
-@.Extra else@>
-@.Extra elseif@>
+    const char *hlp[] =  {"I'm ignoring this; it doesn't match any if.", NULL};
+    if (mp->cur_mod == fi_code) {
+       mp_error(mp, "Extra fi", hlp, true);
 @.Extra fi@>;
-    help1 ("I'm ignoring this; it doesn't match any if.");
-    mp_error (mp);
+    } else if (mp->cur_mod == else_code) {
+       mp_error(mp, "Extra else", hlp, true);
+@.Extra else@>
+    } else {
+       mp_error(mp, "Extra elseif", hlp, true);
+@.Extra elseif@>
+    }
   }
 } else {
   while (mp->cur_mod != fi_code)
@@ -17414,18 +17438,21 @@ screams at the user.
 
 @c
 static void mp_bad_for (MP mp, const char *s) {
+  char msg[256];
   mp_value new_expr;
-  memset(&new_expr,0,sizeof(mp_value));
-  mp_disp_err (mp, NULL, "Improper ");  /* show the bad expression above
-                                           the message */
-@.Improper...replaced by 0@>;
-  mp_print (mp, s);
-  mp_print (mp, " has been replaced by 0");
-  help4 ("When you say `for x=a step b until c',",
+  const char *hlp[] = {"When you say `for x=a step b until c',",
          "the initial value `a' and the step size `b'",
          "and the final value `c' must have known numeric values.",
-         "I'm zeroing this one. Proceed, with fingers crossed.");
-  mp_put_get_flush_error (mp, new_expr);
+         "I'm zeroing this one. Proceed, with fingers crossed.",
+         NULL };
+  memset(&new_expr,0,sizeof(mp_value));
+  mp_disp_err (mp, NULL); 
+  /* show the bad expression above the message */
+  mp_snprintf(msg, 256, "Improper %s has been replaced by 0", s);  
+@.Improper...replaced by 0@>;
+  mp_back_error (mp, msg, hlp, true);
+  mp_get_x_next (mp);
+  mp_flush_cur_exp (mp, new_expr);
 }
 
 
@@ -17482,22 +17509,24 @@ void mp_begin_iteration (MP mp) {
 
 @ @<Check for the assignment in a loop header@>=
 if ((mp->cur_cmd != equals) && (mp->cur_cmd != assignment)) {
-  mp_missing_err (mp, "=");
-@.Missing `='@>;
-  help3 ("The next thing in this loop should have been `=' or `:='.",
+  const char *hlp[] = {
+         "The next thing in this loop should have been `=' or `:='.",
          "But don't worry; I'll pretend that an equals sign",
-         "was present, and I'll look for the values next.");
-  mp_back_error (mp);
+         "was present, and I'll look for the values next.",
+         NULL };
+  mp_back_error (mp, "Missing `=' has been inserted", hlp, true);
+@.Missing `='@>;
 }
 
 @ @<Check for the presence of a colon@>=
 if (mp->cur_cmd != colon) {
-  mp_missing_err (mp, ":");
-@.Missing `:'@>;
-  help3 ("The next thing in this loop should have been a `:'.",
+  const char *hlp[] = {
+         "The next thing in this loop should have been a `:'.",
          "So I'll pretend that a colon was present;",
-         "everything from here to `endfor' will be iterated.");
-  mp_back_error (mp);
+         "everything from here to `endfor' will be iterated.",
+         NULL };
+  mp_back_error (mp, "Missing `:' has been inserted", hlp, true);
+@.Missing `:'@>;
 }
 
 @ We append a special |mp->frozen_repeat_loop| token in place of the
@@ -17716,11 +17745,12 @@ CONTINUE:
     mp_bad_for (mp, "step size");
   s->step_size = cur_exp_value ();
   if (mp->cur_cmd != until_token) {
-    mp_missing_err (mp, "until");
+    const char *hlp[] = {
+           "I assume you meant to say `until' after `step'.",
+           "So I'll look for the final value and colon next.",
+           NULL };
+    mp_back_error (mp, "Missing `until' has been inserted", hlp, true);
 @.Missing `until'@>;
-    help2 ("I assume you meant to say `until' after `step'.",
-           "So I'll look for the final value and colon next.");
-    mp_back_error (mp);
   }
   mp_get_x_next (mp);
   mp_scan_expression (mp);
@@ -17754,12 +17784,13 @@ parse a picture expression and prepare to iterate over it.
 @ @<Make sure the current expression is a known picture@>=
 if (mp->cur_exp.type != mp_picture_type) {
   mp_value new_expr;
+  const char *hlp[] = { "When you say `for x in p', p must be a known picture.", NULL };
   memset(&new_expr,0,sizeof(mp_value));
   new_expr.data.node = mp_get_edge_header_node (mp);
-  mp_disp_err (mp, NULL,
-               "Improper iteration spec has been replaced by nullpicture");
-  help1 ("When you say `for x in p', p must be a known picture.");
-  mp_put_get_flush_error (mp, new_expr);
+  mp_disp_err (mp, NULL);
+  mp_back_error (mp,"Improper iteration spec has been replaced by nullpicture", hlp, true);
+  mp_get_x_next (mp);
+  mp_flush_cur_exp (mp, new_expr);
   mp_init_edges (mp, mp->cur_exp.data.node);
   mp->cur_exp.type = mp_picture_type;
 }
@@ -18265,10 +18296,10 @@ void mp_prompt_file_name (MP mp, const char *s, const char *e) {
   if (mp->interaction == mp_scroll_mode)
     wake_up_terminal();
   if (strcmp (s, "input file name") == 0) {
-    print_err ("I can\'t open file `");
+    mp_print_err (mp, "I can\'t open file `");
 @.I can't find file x@>
   } else {
-    print_err ("I can\'t write on file `");
+    mp_print_err (mp, "I can\'t write on file `");
 @.I can't write on file x@>
   }
   if (strcmp (s, "file name for output") == 0) {
@@ -18495,12 +18526,13 @@ so there is no need to test the return value.
 while (token_state && (nloc == NULL))
   mp_end_token_list (mp);
 if (token_state) {
-  print_err ("File names can't appear within macros");
-@.File names can't...@>;
-  help3 ("Sorry...I've converted what follows to tokens,",
+  const char *hlp[] = {
+         "Sorry...I've converted what follows to tokens,",
          "possibly garbaging the name you gave.",
-         "Please delete the tokens and insert the name again.");
-  mp_error (mp);
+         "Please delete the tokens and insert the name again.",
+         NULL };
+  mp_error (mp, "File names can't appear within macros", hlp, true);
+@.File names can't...@>;
 }
 if (file_state) {
   mp_scan_file_name (mp);
@@ -18573,19 +18605,27 @@ int mp_run_make_mpx (MP mp, char *origname, char *mtxname) {
 
 
 @ @<Explain that the \.{MPX} file can't be read and |succumb|@>=
-if (mp->interaction == mp_error_stop_mode)
-  wake_up_terminal();
-mp_print_nl (mp, ">> ");
-mp_print (mp, origname);
-mp_print_nl (mp, ">> ");
-mp_print (mp, mp->name_of_file);
-mp_print_nl (mp, "! Unable to make mpx file");
-help4 ("The two files given above are one of your source files",
+{
+  const char *hlp[] = {
+       "The two files given above are one of your source files",
        "and an auxiliary file I need to read to find out what your",
        "btex..etex blocks mean. If you don't know why I had trouble,",
-       "try running it manually through MPtoTeX, TeX, and DVItoMP");
-xfree (origname);
-succumb();
+       "try running it manually through MPtoTeX, TeX, and DVItoMP",
+        NULL };
+  if (mp->interaction == mp_error_stop_mode)
+    wake_up_terminal();
+  mp_print_nl (mp, ">> ");
+  mp_print (mp, origname);
+  mp_print_nl (mp, ">> ");
+  mp_print (mp, mp->name_of_file);
+  xfree (origname);
+  if ( mp->interaction==mp_error_stop_mode )
+    mp->interaction=mp_scroll_mode; /* no more interaction */
+  if ( mp->log_opened ) 
+    mp_error(mp, "! Unable to make mpx file", hlp, true);
+  mp->history=mp_fatal_error_stop; 
+  mp_jump_out(mp); /* irrecoverable error */
+}
 
 @ The last file-opening commands are for files accessed via the \&{readfrom}
 @:read_from_}{\&{readfrom} primitive@>
@@ -19216,24 +19256,19 @@ the ring consists entirely of capsules.
 
 
 @ When errors are detected during parsing, it is often helpful to
-display an expression just above the error message, using |exp_err|
-or |disp_err| instead of |print_err|.
-
-@d exp_err(A) mp_disp_err(mp, NULL,(A)) /* displays the current expression */
+display an expression just above the error message, using |disp_err| 
+just before |mp_error|.
 
 @<Declarations@>=
-static void mp_disp_err (MP mp, mp_node p, const char *s);
+static void mp_disp_err (MP mp, mp_node p);
 
 @ @c
-void mp_disp_err (MP mp, mp_node p, const char *s) {
+void mp_disp_err (MP mp, mp_node p) {
   if (mp->interaction == mp_error_stop_mode)
     wake_up_terminal();
   mp_print_nl (mp, ">> ");
 @.>>@>;
   mp_print_exp (mp, p, 1);      /* ``medium verbose'' printing of the expression */
-  if (strlen (s) > 0) {
-    print_err (s);
-  }
 }
 
 
@@ -19616,36 +19651,6 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
 }
 
 
-@ Here are some routines that provide handy combinations of actions
-that are often needed during error recovery. For example,
-`|flush_error|' flushes the current expression, replaces it by
-a given value, and calls |error|.
-
-Errors often are detected after an extra token has already been scanned.
-The `\\{put\_get}' routines put that token back before calling |error|;
-then they get it back again. (Or perhaps they get another token, if
-the user has changed things.)
-
-@<Declarations@>=
-static void mp_flush_error (MP mp, mp_value v);
-static void mp_put_get_error (MP mp);
-static void mp_put_get_flush_error (MP mp, mp_value v);
-
-@ @c
-void mp_flush_error (MP mp, mp_value v) {
-  mp_error (mp);
-  mp_flush_cur_exp (mp, v);
-}
-void mp_put_get_error (MP mp) {
-  mp_back_error (mp);
-  mp_get_x_next (mp);
-}
-void mp_put_get_flush_error (MP mp, mp_value v) {
-  mp_put_get_error (mp);
-  mp_flush_cur_exp (mp, v);
-}
-
-
 @ A global variable |var_flag| is set to a special command code
 just before \MP\ calls |scan_expression|, if the expression should be
 treated as a variable when this command code immediately follows. For
@@ -19769,7 +19774,7 @@ static void mp_bad_exp (MP mp, const char *s) {
      mp_print_cmd_mod (mp, mp->cur_cmd, mp->cur_mod);
      mp->selector = old_selector;
      cm = mp_make_string(mp);
-     mp_snprintf(msg, 256, "%s expression can't begin with `%s'", s, (char *)cm->str);
+     mp_snprintf(msg, 256, "%s expression can't begin with `%s'", s, mp_str(mp, cm));
      delete_str_ref(cm);
   }
   mp_back_input (mp);
@@ -19897,14 +19902,18 @@ are synonymous with |x_part_loc| and |y_part_loc|.
 
 @ @<Make sure the second part of a pair or color has a numeric type@>=
 if (mp->cur_exp.type < mp_known) {
-  exp_err ("Nonnumeric ypart has been replaced by 0");
-@.Nonnumeric...replaced by 0@>;
-  help4 ("I've started to scan a pair `(a,b)' or a color `(a,b,c)';",
+  const char *hlp[] = {
+         "I've started to scan a pair `(a,b)' or a color `(a,b,c)';",
          "but after finding a nice `a' I found a `b' that isn't",
          "of numeric type. So I've changed that part to zero.",
-         "(The b that I didn't like appears above the error message.)");
+         "(The b that I didn't like appears above the error message.)",
+         NULL };
+  mp_disp_err(mp, NULL);
   new_expr.data.val = 0;
-  mp_put_get_flush_error (mp, new_expr);
+  mp_back_error (mp,"Nonnumeric ypart has been replaced by 0", hlp, true);
+@.Nonnumeric...replaced by 0@>;
+  mp_get_x_next (mp);
+  mp_flush_cur_exp (mp, new_expr);
 }
 
 @ @<Scan the last of a triplet of numerics@>=
@@ -19912,14 +19921,17 @@ if (mp->cur_exp.type < mp_known) {
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type < mp_known) {
-    exp_err ("Nonnumeric third part has been replaced by 0");
-@.Nonnumeric...replaced by 0@>;
-    help3
-      ("I've just scanned a color `(a,b,c)' or cmykcolor(a,b,c,d); but the `c'",
+    const char *hlp[] = {
+       "I've just scanned a color `(a,b,c)' or cmykcolor(a,b,c,d); but the `c'",
        "isn't of numeric type. So I've changed that part to zero.",
-       "(The c that I didn't like appears above the error message.)");
+       "(The c that I didn't like appears above the error message.)",
+       NULL };
+    mp_disp_err(mp, NULL);
     new_expr.data.val = 0;
-    mp_put_get_flush_error (mp, new_expr);
+    mp_back_error (mp,"Nonnumeric third part has been replaced by 0", hlp, true);
+@.Nonnumeric...replaced by 0@>;
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
   }
   mp_stash_in (mp, blue_part_loc (r));
 }
@@ -19930,13 +19942,17 @@ if (mp->cur_exp.type < mp_known) {
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type < mp_known) {
-    exp_err ("Nonnumeric blackpart has been replaced by 0");
-@.Nonnumeric...replaced by 0@>;
-    help3 ("I've just scanned a cmykcolor `(c,m,y,k)'; but the `k' isn't",
+    const char *hlp[] = {
+           "I've just scanned a cmykcolor `(c,m,y,k)'; but the `k' isn't",
            "of numeric type. So I've changed that part to zero.",
-           "(The k that I didn't like appears above the error message.)");
+           "(The k that I didn't like appears above the error message.)",
+           NULL };
+    mp_disp_err(mp, NULL); 
     new_expr.data.val = 0;
-    mp_put_get_flush_error (mp, new_expr);
+    mp_back_error (mp,"Nonnumeric blackpart has been replaced by 0", hlp, true);
+@.Nonnumeric...replaced by 0@>;
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
   }
   mp_stash_in (mp, black_part_loc (r));
 }
@@ -19959,13 +19975,14 @@ integer group_line;     /* where a group began */
     mp_do_statement (mp);       /* ends with |cur_cmd>=semicolon| */
   } while (mp->cur_cmd == semicolon);
   if (mp->cur_cmd != end_group) {
-    print_err ("A group begun on line ");
+    char msg[256];
+    const char *hlp[] = {
+           "I saw a `begingroup' back there that hasn't been matched",
+           "by `endgroup'. So I've inserted `endgroup' now.",
+           NULL };
+    mp_snprintf(msg, 256, "A group begun on line %d never ended", group_line);
 @.A group...never ended@>;
-    mp_print_int (mp, group_line);
-    mp_print (mp, " never ended");
-    help2 ("I saw a `begingroup' back there that hasn't been matched",
-           "by `endgroup'. So I've inserted `endgroup' now.");
-    mp_back_error (mp);
+    mp_back_error (mp, msg, hlp, true);
     mp->cur_cmd = end_group;
   }
   mp_unsave (mp);
@@ -20069,10 +20086,9 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
 
 @ @<Protest division...@>=
 {
-  print_err ("Division by zero");
+  const char *hlp[] = { "I'll pretend that you meant to divide by 1.", NULL };
+  mp_error (mp, "Division by zero", hlp, true);
 @.Division by zero@>;
-  help1 ("I'll pretend that you meant to divide by 1.");
-  mp_error (mp);
 }
 
 
@@ -20082,12 +20098,20 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_cmd != of_token) {
-    mp_missing_err (mp, "of");
-    mp_print (mp, " for ");
+    char msg[256];
+    str_number sname;
+    const char *hlp[] = {
+        "I've got the first argument; will look now for the other.",
+        NULL };
+    int old_setting = mp->selector;
+    mp->selector = new_string;
     mp_print_cmd_mod (mp, primary_binary, c);
+    mp->selector = old_setting;
+    sname = mp_make_string(mp);
+    mp_snprintf (msg, 256, "Missing `of' has been inserted for %s", mp_str(mp, sname));
+    delete_str_ref(sname);
+    mp_back_error (mp, msg, hlp, true);
 @.Missing `of'@>;
-    help1 ("I've got the first argument; will look now for the other.");
-    mp_back_error (mp);
   }
   p = mp_stash_cur_exp (mp);
   mp_get_x_next (mp);
@@ -20262,13 +20286,16 @@ static void mp_back_expr (MP mp) {
 @c
 static void mp_bad_subscript (MP mp) {
   mp_value new_expr;
-  memset(&new_expr,0,sizeof(mp_value));
-  exp_err ("Improper subscript has been replaced by zero");
-@.Improper subscript...@>;
-  help3 ("A bracketed subscript must have a known numeric value;",
+  const char *hlp[] = { 
+         "A bracketed subscript must have a known numeric value;",
          "unfortunately, what I found was the value that appears just",
-         "above this error message. So I'll try a zero subscript.");
-  mp_flush_error (mp, new_expr);
+         "above this error message. So I'll try a zero subscript.",
+         NULL };
+  memset(&new_expr,0,sizeof(mp_value));
+  mp_disp_err(mp, NULL);
+  mp_error (mp, "Improper subscript has been replaced by zero", hlp, true);
+@.Improper subscript...@>;
+  mp_flush_cur_exp (mp, new_expr);
 }
 
 
@@ -20324,21 +20351,22 @@ structures can change drastically whenever we call |get_x_next|; users
 aren't supposed to do this, but the fact that it is possible means that
 we must be cautious.)
 
-The following procedure prints an error message when a variable
-unexpectedly disappears. Its help message isn't quite right for
-our present purposes, but we'll be able to fix that up.
+The following procedure creates an error message for when a variable
+unexpectedly disappears. 
 
 @c
-static void mp_obliterated (MP mp, mp_node q) {
-  print_err ("Variable ");
+static char *mp_obliterated (MP mp, mp_node q) {
+  char msg[256];
+  str_number sname;
+  int old_setting = mp->selector;
+  mp->selector = new_string;
   mp_show_token_list (mp, q, NULL, 1000, 0);
-  mp_print (mp, " has been obliterated");
+  sname = mp_make_string(mp);
+  mp->selector = old_setting;
+  mp_snprintf(msg, 256, "Variable %s has been obliterated", mp_str(mp, sname));
 @.Variable...obliterated@>;
-  help5 ("It seems you did a nasty thing---probably by accident,",
-         "but nevertheless you nearly hornswoggled me...",
-         "While I was evaluating the right-hand side of this",
-         "command, something happened, and the left-hand side",
-         "is no longer a variable! So I won't change anything.");
+  delete_str_ref(sname);
+  return xstrdup(msg);
 }
 
 
@@ -20361,13 +20389,17 @@ p = mp_find_variable (mp, q);
 if (p != NULL) {
   mp_make_exp_copy (mp, p);
 } else {
-  mp_obliterated (mp, q);
-  mp->help_line[2] = "While I was evaluating the suffix of this variable,";
-  mp->help_line[1] = "something was redefined, and it's no longer a variable!";
-  mp->help_line[0] =
-    "In order to get back on my feet, I've inserted `0' instead.";
+  const char *hlp[] = {
+    "While I was evaluating the suffix of this variable,",
+    "something was redefined, and it's no longer a variable!",
+    "In order to get back on my feet, I've inserted `0' instead.",
+    NULL };
+  char *msg = mp_obliterated (mp, q);
   new_expr.data.val = 0;
-  mp_put_get_flush_error (mp, new_expr);
+  mp_back_error (mp, msg, hlp, true);
+  free(msg);
+  mp_get_x_next (mp);
+  mp_flush_cur_exp (mp, new_expr);
 }
 mp_flush_node_list (mp, q);
 goto DONE
@@ -20606,12 +20638,13 @@ provided that \.a is numeric.
     mp_get_x_next (mp);
     mp_scan_expression (mp);
     if (mp->cur_cmd != right_bracket) {
-      mp_missing_err (mp, "]");
-@.Missing `]'@>;
-      help3 ("I've scanned an expression of the form `a[b,c',",
+      const char *hlp[] = {
+             "I've scanned an expression of the form `a[b,c',",
              "so a right bracket should have come next.",
-             "I shall pretend that one was there.");
-      mp_back_error (mp);
+             "I shall pretend that one was there.",
+             NULL };
+      mp_back_error (mp, "Missing `]' has been inserted", hlp, true);
+@.Missing `]'@>;
     }
     r = mp_stash_cur_exp (mp);
     mp_make_exp_copy (mp, q);
@@ -20662,12 +20695,13 @@ static void mp_scan_suffix (MP mp) {
   if (mp->cur_exp.type != mp_known)
     mp_bad_subscript (mp);
   if (mp->cur_cmd != right_bracket) {
-    mp_missing_err (mp, "]");
-@.Missing `]'@>;
-    help3 ("I've seen a `[' and a subscript value, in a suffix,",
+    const char *hlp[] = {
+           "I've seen a `[' and a subscript value, in a suffix,",
            "so a right bracket should have come next.",
-           "I shall pretend that one was there.");
-    mp_back_error (mp);
+           "I shall pretend that one was there.",
+           NULL };
+    mp_back_error (mp, "Missing `]' has been inserted", hlp, true);
+@.Missing `]'@>;
   }
   mp->cur_cmd = numeric_token;
   mp->cur_mod = cur_exp_value ();
@@ -20937,15 +20971,19 @@ void mp_known_pair (MP mp) {
   mp_node p;    /* the pair node */
   memset(&new_expr,0,sizeof(mp_value));
   if (mp->cur_exp.type != mp_pair_type) {
-    exp_err ("Undefined coordinates have been replaced by (0,0)");
-@.Undefined coordinates...@>;
-    help5 ("I need x and y numbers for this part of the path.",
+    const char *hlp[] = { 
+           "I need x and y numbers for this part of the path.",
            "The value I found (see above) was no good;",
            "so I'll try to keep going by using zero instead.",
            "(Chapter 27 of The METAFONTbook explains that",
+           "you might want to type `I ??" "?' now.)",
+           NULL };
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
-           "you might want to type `I ??" "?' now.)");
-    mp_put_get_flush_error (mp, new_expr);
+    mp_disp_err(mp, NULL);
+    mp_back_error (mp, "Undefined coordinates have been replaced by (0,0)", hlp, true);
+@.Undefined coordinates...@>;
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
     mp->cur_x = 0;
     mp->cur_y = 0;
   } else {
@@ -20961,30 +20999,34 @@ void mp_known_pair (MP mp) {
 if (mp_type (x_part_loc (p)) == mp_known) {
   mp->cur_x = value (x_part_loc (p));
 } else {
-  mp_disp_err (mp, x_part_loc (p),
-               "Undefined x coordinate has been replaced by 0");
-@.Undefined coordinates...@>;
-  help5 ("I need a `known' x value for this part of the path.",
+  const char *hlp[] = { 
+         "I need a `known' x value for this part of the path.",
          "The value I found (see above) was no good;",
          "so I'll try to keep going by using zero instead.",
          "(Chapter 27 of The METAFONTbook explains that",
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
-         "you might want to type `I ??" "?' now.)");
-  mp_put_get_error (mp);
+         "you might want to type `I ??" "?' now.)",
+         NULL };
+  mp_disp_err (mp, x_part_loc (p));
+  mp_back_error (mp, "Undefined x coordinate has been replaced by 0", hlp, true);
+@.Undefined coordinates...@>;
+  mp_get_x_next (mp);
   mp_recycle_value (mp, x_part_loc (p));
   mp->cur_x = 0;
 }
 if (mp_type (y_part_loc (p)) == mp_known) {
   mp->cur_y = value (y_part_loc (p));
 } else {
-  mp_disp_err (mp, y_part_loc (p),
-               "Undefined y coordinate has been replaced by 0");
-  help5 ("I need a `known' y value for this part of the path.",
+  const char *hlp[] = { 
+         "I need a `known' y value for this part of the path.",
          "The value I found (see above) was no good;",
          "so I'll try to keep going by using zero instead.",
          "(Chapter 27 of The METAFONTbook explains that",
-         "you might want to type `I ??" "?' now.)");
-  mp_put_get_error (mp);
+         "you might want to type `I ??" "?' now.)",
+         NULL };
+  mp_disp_err (mp, y_part_loc (p));
+  mp_back_error (mp, "Undefined y coordinate has been replaced by 0", hlp, true);
+  mp_get_x_next (mp);
   mp_recycle_value (mp, y_part_loc (p));
   mp->cur_y = 0;
 }
@@ -21031,12 +21073,13 @@ static quarterword mp_scan_direction (MP mp) {
     @<Scan a given direction@>;
   }
   if (mp->cur_cmd != right_brace) {
-    mp_missing_err (mp, "}");
-@.Missing `\char`\}'@>;
-    help3 ("I've scanned a direction spec for part of a path,",
+    const char *hlp[] = {
+           "I've scanned a direction spec for part of a path,",
            "so a right brace should have come next.",
-           "I shall pretend that one was there.");
-    mp_back_error (mp);
+           "I shall pretend that one was there.",
+           NULL };
+    mp_back_error (mp, "Missing `}' has been inserted", hlp, true);
+@.Missing `\char`\}'@>;
   }
   mp_get_x_next (mp);
   return (quarterword) t;
@@ -21049,12 +21092,14 @@ static quarterword mp_scan_direction (MP mp) {
   mp_scan_expression (mp);
   if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < 0)) {
     mp_value new_expr;
+    const char *hlp[] = { "A curl must be a known, nonnegative number.", NULL };
     memset(&new_expr,0,sizeof(mp_value));
     new_expr.data.val = unity;
-    exp_err ("Improper curl has been replaced by 1");
+    mp_disp_err(mp, NULL);
+    mp_back_error (mp, "Improper curl has been replaced by 1", hlp, true);
 @.Improper curl@>;
-    help1 ("A curl must be a known, nonnegative number.");
-    mp_put_get_flush_error (mp, new_expr);
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
   }
   t = mp_curl;
 }
@@ -21081,39 +21126,48 @@ static quarterword mp_scan_direction (MP mp) {
 {
   if (mp->cur_exp.type != mp_known) {
     mp_value new_expr;
-    memset(&new_expr,0,sizeof(mp_value));
-    new_expr.data.val = 0;
-    exp_err ("Undefined x coordinate has been replaced by 0");
-@.Undefined coordinates...@>;
-    help5 ("I need a `known' x value for this part of the path.",
+    const char *hlp[] = { 
+           "I need a `known' x value for this part of the path.",
            "The value I found (see above) was no good;",
            "so I'll try to keep going by using zero instead.",
            "(Chapter 27 of The METAFONTbook explains that",
+           "you might want to type `I ??" "?' now.)",
+           NULL };
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
-           "you might want to type `I ??" "?' now.)");
-    mp_put_get_flush_error (mp, new_expr);
+    memset(&new_expr,0,sizeof(mp_value));
+    new_expr.data.val = 0;
+    mp_disp_err(mp, NULL);
+    mp_back_error (mp, "Undefined x coordinate has been replaced by 0", hlp, true);
+@.Undefined coordinates...@>;
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
   }
   x = cur_exp_value ();
   if (mp->cur_cmd != comma) {
-    mp_missing_err (mp, ",");
+    const char *hlp[] = {
+           "I've got the x coordinate of a path direction;",
+           "will look for the y coordinate next.",
+           NULL };
+    mp_back_error (mp, "Missing `,' has been inserted", hlp, true);
 @.Missing `,'@>;
-    help2 ("I've got the x coordinate of a path direction;",
-           "will look for the y coordinate next.");
-    mp_back_error (mp);
   }
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_known) {
     mp_value new_expr;
-    memset(&new_expr,0,sizeof(mp_value));
-    new_expr.data.val = 0;
-    exp_err ("Undefined y coordinate has been replaced by 0");
-    help5 ("I need a `known' y value for this part of the path.",
+    const char *hlp[] = { 
+           "I need a `known' y value for this part of the path.",
            "The value I found (see above) was no good;",
            "so I'll try to keep going by using zero instead.",
            "(Chapter 27 of The METAFONTbook explains that",
-           "you might want to type `I ??" "?' now.)");
-    mp_put_get_flush_error (mp, new_expr);
+           "you might want to type `I ??" "?' now.)",
+           NULL };
+    memset(&new_expr,0,sizeof(mp_value));
+    new_expr.data.val = 0;
+    mp_disp_err(mp, NULL);
+    mp_back_error (mp, "Undefined y coordinate has been replaced by 0", hlp, true);
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
   }
   mp->cur_y = cur_exp_value ();
   mp->cur_x = x;
@@ -21168,10 +21222,9 @@ there are no explicit control points.
     goto DONE;
   };
   if (mp->cur_cmd != path_join) {
-    mp_missing_err (mp, "..");
+    const char *hlp[] = { "A path join command should end with two dots.", NULL};
+    mp_back_error (mp, "Missing `..' has been inserted", hlp, true);
 @.Missing `..'@>;
-    help1 ("A path join command should end with two dots.");
-    mp_back_error (mp);
   }
 DONE:
   ;
@@ -21207,11 +21260,13 @@ DONE:
 
 @<Make sure that the current expression is a valid tension setting@>=
 if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < min_tension)) {
-  exp_err ("Improper tension has been set to 1");
-@.Improper tension@>;
-  help1 ("The expression above should have been a number >=3/4.");
+  const char *hlp[] = { "The expression above should have been a number >=3/4.", NULL };
+  mp_disp_err(mp, NULL);
   new_expr.data.val = unity;
-  mp_put_get_flush_error (mp, new_expr);
+  mp_back_error (mp, "Improper tension has been set to 1", hlp, true);
+@.Improper tension@>;
+  mp_get_x_next (mp);
+  mp_flush_cur_exp (mp, new_expr);
 }
 
 @ @<Set explicit control points@>=
@@ -21279,12 +21334,14 @@ shouldn't have length zero.
   if (d == ampersand) {
     if ((mp_x_coord (path_q) != mp_x_coord (pp)) ||
         (mp_y_coord (path_q) != mp_y_coord (pp))) {
-      print_err ("Paths don't touch; `&' will be changed to `..'");
-@.Paths don't touch@>;
-      help3 ("When you join paths `p&q', the ending point of p",
+      const char *hlp[] = {
+             "When you join paths `p&q', the ending point of p",
              "must be exactly equal to the starting point of q.",
-             "So I'm going to pretend that you said `p..q' instead.");
-      mp_put_get_error (mp);
+             "So I'm going to pretend that you said `p..q' instead.",
+             NULL };
+      mp_back_error (mp, "Paths don't touch; `&' will be changed to `..'", hlp, true);
+@.Paths don't touch@>;
+      mp_get_x_next (mp);
       d = path_join;
       right_tension (path_q) = unity;
       y = unity;
@@ -21376,12 +21433,16 @@ static void mp_get_boolean (MP mp) {
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_boolean_type) {
-    exp_err ("Undefined condition will be treated as `false'");
-@.Undefined condition...@>;
-    help2 ("The expression shown above should have had a definite",
-           "true-or-false value. I'm changing it to `false'.");
+    const char *hlp[] = { 
+           "The expression shown above should have had a definite",
+           "true-or-false value. I'm changing it to `false'.",
+           NULL };
+    mp_disp_err(mp, NULL);
     new_expr.data.val = false_code;
-    mp_put_get_flush_error (mp, new_expr);
+    mp_back_error (mp, "Undefined condition will be treated as `false'", hlp, true);
+@.Undefined condition...@>;
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
     mp->cur_exp.type = mp_boolean_type;
   }
 }
@@ -21788,14 +21849,25 @@ static void mp_print_known_or_unknown_type (MP mp, quarterword t, mp_node v) {
 
 @ @<Declare unary action...@>=
 static void mp_bad_unary (MP mp, quarterword c) {
-  exp_err ("Not implemented: ");
-  mp_print_op (mp, c);
-@.Not implemented...@>;
-  mp_print_known_or_unknown_type (mp, mp->cur_exp.type, cur_exp_node ());
-  help3 ("I'm afraid I don't know how to apply that operation to that",
+  char msg[256];
+  str_number sname;
+  int old_setting = mp->selector;
+  const char *hlp[] = {
+         "I'm afraid I don't know how to apply that operation to that",
          "particular type. Continue, and I'll simply return the",
-         "argument (shown above) as the result of the operation.");
-  mp_put_get_error (mp);
+         "argument (shown above) as the result of the operation.",
+         NULL };
+  mp->selector = new_string;
+  mp_print_op (mp, c);
+  mp_print_known_or_unknown_type (mp, mp->cur_exp.type, cur_exp_node ());
+  sname = mp_make_string(mp);
+  mp->selector = old_setting;
+  mp_snprintf (msg, 256, "Not implemented: %s", mp_str(mp, sname));
+  delete_str_ref(sname);
+  mp_disp_err(mp, NULL);
+  mp_back_error (mp, msg, hlp, true);
+@.Not implemented...@>;
+  mp_get_x_next (mp);
 }
 
 
@@ -22106,26 +22178,35 @@ static void mp_bad_color_part (MP mp, quarterword c);
 static void mp_bad_color_part (MP mp, quarterword c) {
   mp_node p;    /* the big node */
   mp_value new_expr;
+  char msg[256];
+  int old_setting;
+  str_number sname;
+  const char *hlp[] = {
+     "You can only ask for the redpart, greenpart, bluepart of a rgb object,",
+     "the cyanpart, magentapart, yellowpart or blackpart of a cmyk object, ",
+     "or the greypart of a grey object. No mixing and matching, please.",
+     NULL };
   memset(&new_expr,0,sizeof(mp_value));
   p = mp_link (dummy_loc (cur_exp_node ()));
-  exp_err ("Wrong picture color model: ");
+  mp_disp_err(mp, NULL);
+  old_setting = mp->selector;
+  mp->selector = new_string;
   mp_print_op (mp, c);
+  sname = mp_make_string(mp);
+  mp->selector = old_setting;
 @.Wrong picture color model...@>;
   if (mp_color_model (p) == mp_grey_model)
-    mp_print (mp, " of grey object");
+    mp_snprintf (msg, 256, "Wrong picture color model: %s of grey object", mp_str(mp, sname));
   else if (mp_color_model (p) == mp_cmyk_model)
-    mp_print (mp, " of cmyk object");
+    mp_snprintf (msg, 256, "Wrong picture color model: %s of cmyk object", mp_str(mp, sname));
   else if (mp_color_model (p) == mp_rgb_model)
-    mp_print (mp, " of rgb object");
+    mp_snprintf (msg, 256, "Wrong picture color model: %s of rgb object", mp_str(mp, sname));
   else if (mp_color_model (p) == mp_no_model)
-    mp_print (mp, " of marking object");
+    mp_snprintf (msg, 256, "Wrong picture color model: %s of marking object", mp_str(mp, sname));
   else
-    mp_print (mp, " of defaulted object");
-  help3
-    ("You can only ask for the redpart, greenpart, bluepart of a rgb object,",
-     "the cyanpart, magentapart, yellowpart or blackpart of a cmyk object, ",
-     "or the greypart of a grey object. No mixing and matching, please.");
-  mp_error (mp);
+    mp_snprintf (msg, 256, "Wrong picture color model: %s of defaulted object", mp_str(mp, sname));
+  delete_str_ref(sname);
+  mp_error (mp, msg, hlp, true);
   if (c == black_part)
     new_expr.data.val = unity;
   else
@@ -22571,24 +22652,26 @@ static void mp_str_to_num (MP mp, quarterword c) {                              
 
 @ @<Give error messages if |bad_char|...@>=
 if (bad_char) {
-  exp_err ("String contains illegal digits");
-@.String contains illegal digits@>;
+  const char *hlp[] = {"I zeroed out characters that weren't hex digits.", NULL};
   if (c == oct_op) {
-    help1 ("I zeroed out characters that weren't in the range 0..7.");
-  } else {
-    help1 ("I zeroed out characters that weren't hex digits.");
+    hlp[0] = "I zeroed out characters that weren't in the range 0..7.";
   }
-  mp_put_get_error (mp);
+  mp_disp_err(mp, NULL);
+  mp_back_error (mp, "String contains illegal digits", hlp, true);
+@.String contains illegal digits@>;
+  mp_get_x_next (mp);
 }
 if ((n > 4095)) {
   if (internal_value_to_halfword (mp_warning_check) > 0) {
-    print_err ("Number too large (");
-    mp_print_int (mp, n);
-    mp_print_char (mp, xord (')'));
+    char msg[256];
+    const char *hlp[] = {
+           "I have trouble with numbers greater than 4095; watch out.",
+           "(Set warningcheck:=0 to suppress this message.)",
+           NULL };
+    mp_snprintf (msg, 256,"Number too large (%d)", n);
 @.Number too large@>;
-    help2 ("I have trouble with numbers greater than 4095; watch out.",
-           "(Set warningcheck:=0 to suppress this message.)");
-    mp_put_get_error (mp);
+    mp_back_error (mp, msg, hlp, true);
+    mp_get_x_next (mp);
   }
 }
 
@@ -22835,8 +22918,7 @@ static scaled mp_new_turn_cycles (MP mp, mp_knot c) {
                        mp_right_y (p), mp_left_x (p_next), mp_left_y (p_next),
                        xp, yp);
     if (ang > seven_twenty_deg) {
-      print_err ("Strange path");
-      mp_error (mp);
+      mp_error (mp, "Strange path", NULL, true);
       mp->selector = old_setting;
       return 0;
     }
@@ -23440,9 +23522,16 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
 
 @ @<Declare binary action...@>=
 static void mp_bad_binary (MP mp, mp_node p, quarterword c) {
-  mp_disp_err (mp, p, "");
-  exp_err ("Not implemented: ");
-@.Not implemented...@>;
+
+  char msg[256];
+  str_number sname;
+  int old_setting = mp->selector;
+  const char *hlp[] = {
+         "I'm afraid I don't know how to apply that operation to that",
+         "combination of types. Continue, and I'll return the second",
+         "argument (see above) as the result of the operation.",
+         NULL };
+  mp->selector = new_string;
   if (c >= min_of)
     mp_print_op (mp, c);
   mp_print_known_or_unknown_type (mp, mp_type (p), p);
@@ -23451,19 +23540,27 @@ static void mp_bad_binary (MP mp, mp_node p, quarterword c) {
   else
     mp_print_op (mp, c);
   mp_print_known_or_unknown_type (mp, mp->cur_exp.type, cur_exp_node ());
-  help3 ("I'm afraid I don't know how to apply that operation to that",
-         "combination of types. Continue, and I'll return the second",
-         "argument (see above) as the result of the operation.");
-  mp_put_get_error (mp);
+  sname = mp_make_string(mp);
+  mp->selector = old_setting;
+  mp_snprintf (msg, 256, "Not implemented: %s", mp_str(mp, sname));
+@.Not implemented...@>;
+  delete_str_ref(sname);
+  mp_disp_err (mp, p);
+  mp_disp_err (mp, NULL);
+  mp_back_error (mp, msg, hlp, true);
+  mp_get_x_next (mp);
 }
 static void mp_bad_envelope_pen (MP mp) {
-  mp_disp_err (mp, NULL, "");
-  exp_err ("Not implemented: envelope(elliptical pen)of(path)");
-@.Not implemented...@>;
-  help3 ("I'm afraid I don't know how to apply that operation to that",
+  const char *hlp[] = {
+         "I'm afraid I don't know how to apply that operation to that",
          "combination of types. Continue, and I'll return the second",
-         "argument (see above) as the result of the operation.");
-  mp_put_get_error (mp);
+         "argument (see above) as the result of the operation.",
+         NULL };
+  mp_disp_err (mp, NULL);
+  mp_disp_err (mp, NULL);
+  mp_back_error (mp, "Not implemented: envelope(elliptical pen)of(path)", hlp, true);
+@.Not implemented...@>;
+  mp_get_x_next (mp);
 }
 
 
@@ -23854,17 +23951,21 @@ break;
 
 @ @<Compare the current expression with zero@>=
 if (mp->cur_exp.type != mp_known) {
+  const char *hlp[] = {
+      "Oh dear. I can\'t decide if the expression above is positive,",
+      "negative, or zero. So this comparison test won't be `true'.",
+      NULL  };
   if (mp->cur_exp.type < mp_known) {
-    mp_disp_err (mp, p, "");
-    help1 ("The quantities shown above have not been equated.")
-  } else {
-    help2 ("Oh dear. I can\'t decide if the expression above is positive,",
-           "negative, or zero. So this comparison test won't be `true'.");
+    mp_disp_err (mp, p);
+    hlp[0]  = "The quantities shown above have not been equated.";
+    hlp[1]  = NULL;
   }
-  exp_err ("Unknown relation will be considered false");
-@.Unknown relation...@>;
+  mp_disp_err(mp, NULL);
   new_expr.data.val = false_code;
-  mp_put_get_flush_error (mp, new_expr);
+  mp_back_error (mp,"Unknown relation will be considered false", hlp, true);
+@.Unknown relation...@>;
+  mp_get_x_next (mp);
+  mp_flush_cur_exp (mp, new_expr);
 } else {
   switch (c) {
   case less_than:
@@ -24340,11 +24441,14 @@ static void mp_dep_div (MP mp, mp_value_node p, scaled v) {
 
 @ @<Squeal about division by zero@>=
 {
-  exp_err ("Division by zero");
+  const char *hlp[] = {
+         "You're trying to divide the quantity shown above the error",
+         "message by zero. I'm going to divide it by one instead.",
+         NULL };
+  mp_disp_err(mp, NULL);
+  mp_back_error (mp, "Division by zero", hlp, true);
 @.Division by zero@>;
-  help2 ("You're trying to divide the quantity shown above the error",
-         "message by zero. I'm going to divide it by one instead.");
-  mp_put_get_error (mp);
+  mp_get_x_next (mp);
 }
 
 
@@ -24422,6 +24526,11 @@ scaled ty;      /* current transform coefficients */
 
 @ @<Put the current transform...@>=
 {
+  const char *hlp[] = {
+         "The expression shown above has the wrong type,",
+         "so I can\'t transform anything using it.",
+         "Proceed, and I'll omit the transformation.",
+         NULL };
   p = mp_stash_cur_exp (mp);
   set_cur_exp_node (mp_id_transform (mp));
   mp->cur_exp.type = mp_transform_type;
@@ -24431,12 +24540,10 @@ scaled ty;      /* current transform coefficients */
     and |goto done|;
     but do nothing if capsule |p| doesn't have the appropriate type@>;
   };                            /* there are no other cases */
-  mp_disp_err (mp, p, "Improper transformation argument");
+  mp_disp_err (mp, p);
+  mp_back_error (mp, "Improper transformation argument", hlp, true);
 @.Improper transformation argument@>;
-  help3 ("The expression shown above has the wrong type,",
-         "so I can\'t transform anything using it.",
-         "Proceed, and I'll omit the transformation.");
-  mp_put_get_error (mp);
+  mp_get_x_next (mp);
 DONE:
   mp_recycle_value (mp, p);
   mp_free_node (mp, p, value_node_size);
@@ -24551,13 +24658,17 @@ static void mp_set_up_known_trans (MP mp, quarterword c) {
   memset(&new_expr,0,sizeof(mp_value));
   mp_set_up_trans (mp, c);
   if (mp->cur_exp.type != mp_known) {
-    exp_err ("Transform components aren't all known");
-@.Transform components...@>;
-    help3 ("I'm unable to apply a partially specified transformation",
+    const char *hlp[] = { 
+           "I'm unable to apply a partially specified transformation",
            "except to a fully known pair or transform.",
-           "Proceed, and I'll omit the transformation.");
+           "Proceed, and I'll omit the transformation.",
+           NULL };
+    mp_disp_err(mp, NULL);
     new_expr.data.val = 0;
-    mp_put_get_flush_error (mp, new_expr);
+    mp_back_error (mp,"Transform components aren't all known", hlp, true);
+@.Transform components...@>;
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
     mp->txx = unity;
     mp->txy = 0;
     mp->tyx = 0;
@@ -25349,10 +25460,9 @@ static void mp_set_up_glyph_infont (MP mp, mp_node p) {
     if (mp_type (p) == mp_known) {
       int v = mp_round_unscaled (mp, value (p));
       if (v < 0 || v > 255) {
-        print_err ("glyph index too high (");
-        mp_print_int (mp, v);
-        mp_print (mp, ")");
-        mp_error (mp);
+        char msg[256];
+        mp_snprintf (msg, 256, "glyph index too high (%d)", v);
+        mp_error (mp, msg, NULL, true);
       } else {
         h = mp_ps_font_charstring (mp, f, v);
       }
@@ -25553,17 +25663,25 @@ occur when the statement is null.
 @<Worry about bad statement@>=
 {
   if (mp->cur_cmd < semicolon) {
-    print_err ("A statement can't begin with `");
-@.A statement can't begin with x@>;
-    mp_print_cmd_mod (mp, mp->cur_cmd, mp->cur_mod);
-    mp_print_char (mp, xord ('\''));
-    help5 ("I was looking for the beginning of a new statement.",
+    char msg[256];
+    str_number sname;
+    int old_setting = mp->selector;
+    const char *hlp[] = {
+           "I was looking for the beginning of a new statement.",
            "If you just proceed without changing anything, I'll ignore",
            "everything up to the next `;'. Please insert a semicolon",
            "now in front of anything that you don't want me to delete.",
-           "(See Chapter 27 of The METAFONTbook for an example.)");
+           "(See Chapter 27 of The METAFONTbook for an example.)",
+           NULL };
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>;
-    mp_back_error (mp);
+    mp->selector = new_string;
+    mp_print_cmd_mod (mp, mp->cur_cmd, mp->cur_mod);
+    sname = mp_make_string(mp);
+    mp->selector = old_setting;
+    mp_snprintf (msg, 256, "A statement can't begin with `%s'", mp_str(mp, sname));
+@.A statement can't begin with x@>;
+    delete_str_ref(sname);
+    mp_back_error (mp, msg, hlp, true);
     mp_get_x_next (mp);
   }
 }
@@ -25575,16 +25693,17 @@ also terminate a statement.
 
 @<Flush unparsable junk that was found after the statement@>=
 {
-  print_err ("Extra tokens will be flushed");
-@.Extra tokens will be flushed@>;
-  help6 ("I've just read as much of that statement as I could fathom,",
+  const char *hlp[] = {
+         "I've just read as much of that statement as I could fathom,",
          "so a semicolon should have been next. It's very puzzling...",
          "but I'll try to get myself back together, by ignoring",
          "everything up to the next `;'. Please insert a semicolon",
          "now in front of anything that you don't want me to delete.",
-         "(See Chapter 27 of The METAFONTbook for an example.)");
+         "(See Chapter 27 of The METAFONTbook for an example.)",
+          NULL };
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>;
-  mp_back_error (mp);
+  mp_back_error (mp, "Extra tokens will be flushed", hlp, true);
+@.Extra tokens will be flushed@>;
   mp->scanner_status = flushing;
   do {
     get_t_next (mp);
@@ -25633,12 +25752,15 @@ expression.
     else if (mp->cur_exp.type == mp_string_type) {
       @<Do a title@>;
     } else if (mp->cur_exp.type != mp_vacuous) {
-      exp_err ("Isolated expression");
-@.Isolated expression@>;
-      help3 ("I couldn't find an `=' or `:=' after the",
+      const char *hlp[] = {
+             "I couldn't find an `=' or `:=' after the",
              "expression that is shown above this error message,",
-             "so I guess I'll just ignore it and carry on.");
-      mp_put_get_error (mp);
+             "so I guess I'll just ignore it and carry on.",
+             NULL };
+      mp_disp_err(mp, NULL);
+      mp_back_error (mp, "Isolated expression", hlp, true);
+@.Isolated expression@>;
+      mp_get_x_next (mp);
     }
     new_expr.data.val = 0;
     mp_flush_cur_exp (mp, new_expr);
@@ -25705,11 +25827,13 @@ void mp_do_assignment (MP mp) {
   mp_node p;    /* where the left-hand value is stored */
   mp_node q;    /* temporary capsule for the right-hand value */
   if (mp->cur_exp.type != mp_token_list) {
-    exp_err ("Improper `:=' will be changed to `='");
+    const char *hlp[] = {
+           "I didn't find a variable name at the left of the `:=',",
+           "so I'm going to pretend that you said `=' instead.",
+           NULL };
+    mp_disp_err(mp, NULL);
+    mp_error (mp, "Improper `:=' will be changed to `='", hlp, true);
 @.Improper `:='@>;
-    help2 ("I didn't find a variable name at the left of the `:=',",
-           "so I'm going to pretend that you said `=' instead.");
-    mp_error (mp);
     mp_do_equation (mp);
   } else {
     lhs = cur_exp_node ();
@@ -25764,19 +25888,23 @@ if ((mp->cur_exp.type == mp_known || mp->cur_exp.type == mp_string_type)
     && (internal_type (mp_sym_info (lhs)) == mp->cur_exp.type)) {
   set_internal_from_cur_exp(mp_sym_info (lhs));
 } else {
-  exp_err ("Internal quantity `");
-@.Internal quantity...@>;
-  mp_print (mp, internal_name (mp_sym_info (lhs)));
+  char msg[256];
+  const char *hlp[] = {
+           "I can\'t set this internal quantity to anything but a known",
+           "numeric value, so I'll have to ignore this assignment.",
+           NULL };
+  mp_disp_err(mp, NULL);
   if (internal_type (mp_sym_info (lhs)) == mp_known) {
-    mp_print (mp, "' must receive a known numeric value");
-    help2 ("I can\'t set this internal quantity to anything but a known",
-           "numeric value, so I'll have to ignore this assignment.");
+    mp_snprintf (msg, 256, "Internal quantity `%s' must receive a known numeric value",
+                 internal_name (mp_sym_info (lhs)));
   } else {
-    mp_print (mp, "' must receive a known string");
-    help2 ("I can\'t set this internal quantity to anything but a known",
-           "string, so I'll have to ignore this assignment.");
+    mp_snprintf (msg, 256, "Internal quantity `%s' must receive a known string",
+              internal_name (mp_sym_info (lhs)));
+    hlp[1] = "string, so I'll have to ignore this assignment.";
   }
-  mp_put_get_error (mp);
+  mp_back_error (mp, msg, hlp, true);
+@.Internal quantity...@>;
+  mp_get_x_next (mp);
 }
 
 
@@ -25794,8 +25922,17 @@ if ((mp->cur_exp.type == mp_known || mp->cur_exp.type == mp_string_type)
     mp_unstash_cur_exp (mp, q);
     mp_make_eq (mp, p);
   } else {
-    mp_obliterated (mp, lhs);
-    mp_put_get_error (mp);
+    const char *hlp[] = { 
+         "It seems you did a nasty thing---probably by accident,",
+         "but nevertheless you nearly hornswoggled me...",
+         "While I was evaluating the right-hand side of this",
+         "command, something happened, and the left-hand side",
+         "is no longer a variable! So I won't change anything.",
+         NULL };
+    char *msg = mp_obliterated (mp, lhs);
+    mp_back_error (mp, msg, hlp, true);
+    free(msg);
+    mp_get_x_next (mp);
   }
 }
 
@@ -25834,23 +25971,21 @@ DONE:
 
 
 @ @<Announce that the equation cannot be performed@>=
-mp_disp_err (mp, lhs, "");
-exp_err ("Equation cannot be performed (");
+{
+  char msg[256];
+  const char *hlp[] = {
+       "I'm sorry, but I don't know how to make such things equal.",
+       "(See the two expressions just above the error message.)",
+       NULL  };
+  mp_snprintf(msg, 256, "Equation cannot be performed (%s=%s)", 
+	(mp_type (lhs) <= mp_pair_type ? mp_type_string (mp_type (lhs)) : "numeric"),
+	(mp->cur_exp.type <= mp_pair_type ? mp_type_string (mp->cur_exp.type) : "numeric"));
 @.Equation cannot be performed@>;
-if (mp_type (lhs) <= mp_pair_type)
-  mp_print_type (mp, mp_type (lhs));
-else
-  mp_print (mp, "numeric");
-mp_print_char (mp, xord ('='));
-if (mp->cur_exp.type <= mp_pair_type)
-  mp_print_type (mp, mp->cur_exp.type);
-else
-  mp_print (mp, "numeric");
-mp_print_char (mp, xord (')'));
-help2 ("I'm sorry, but I don't know how to make such things equal.",
-       "(See the two expressions just above the error message.)");
-mp_put_get_error (mp)
- 
+  mp_disp_err (mp, lhs);
+  mp_disp_err(mp, NULL);
+  mp_back_error (mp, msg, hlp, true);
+  mp_get_x_next (mp);
+}
 
 @ @<For each type |t|, make an equation and |goto done| unless...@>=
 case mp_boolean_type:
@@ -25914,19 +26049,27 @@ break;
     @<Exclaim about a redundant equation@>;
     goto DONE;
   }
-  print_err ("Redundant or inconsistent equation");
+  {
+    const char *hlp[] = {
+         "An equation between already-known quantities can't help.",
+         "But don't worry; continue and I'll just ignore it.",
+          NULL };
+    mp_back_error (mp, "Redundant or inconsistent equation", hlp, true);
 @.Redundant or inconsistent equation@>;
-  help2 ("An equation between already-known quantities can't help.",
-         "But don't worry; continue and I'll just ignore it.");
-  mp_put_get_error (mp);
+    mp_get_x_next (mp);
+  }
   goto DONE;
 NOT_FOUND:
-  print_err ("Inconsistent equation");
+  {
+    const char *hlp[] = {
+         "The equation I just read contradicts what was said before.",
+         "But don't worry; continue and I'll just ignore it.",
+          NULL };
+    mp_back_error (mp,"Inconsistent equation", hlp, true);
 @.Inconsistent equation@>;
-  help2 ("The equation I just read contradicts what was said before.",
-         "But don't worry; continue and I'll just ignore it.");
-  mp_put_get_error (mp);
-  goto DONE;
+    mp_get_x_next (mp);
+  }
+  goto DONE;  
 }
 
 
@@ -26039,14 +26182,15 @@ if (t == mp_known) {
 @ @<Deal with redundant or inconsistent equation@>=
 {
   if (abs (value (p)) > 64) {   /* off by .001 or more */
-    print_err ("Inconsistent equation");
+    char msg[256];    
+    const char *hlp[] = {
+           "The equation I just read contradicts what was said before.",
+           "But don't worry; continue and I'll just ignore it.",
+           NULL };
+    mp_snprintf (msg, 256, "Inconsistent equation (off by %s)", mp_string_scaled (mp, value (p)));
 @.Inconsistent equation@>;
-    mp_print (mp, " (off by ");
-    mp_print_scaled (mp, value (p));
-    mp_print_char (mp, xord (')'));
-    help2 ("The equation I just read contradicts what was said before.",
-           "But don't worry; continue and I'll just ignore it.");
-    mp_put_get_error (mp);
+    mp_back_error (mp, msg, hlp, true);
+    mp_get_x_next (mp);
   } else if (r == NULL) {
     @<Exclaim about a redundant equation@>;
   }
@@ -26225,11 +26369,13 @@ void mp_do_type_declaration (MP mp) {
       mp_type (q) = t;
       set_value (q, 0);         /* todo: this was |null| */
     } else {
-      print_err ("Declared variable conflicts with previous vardef");
+      const char *hlp[] = {
+             "You can't use, e.g., `numeric foo[]' after `vardef foo'.",
+             "Proceed, and I'll ignore the illegal redeclaration.",
+             NULL };
+      mp_back_error (mp, "Declared variable conflicts with previous vardef", hlp, true);
 @.Declared variable conflicts...@>;
-      help2 ("You can't use, e.g., `numeric foo[]' after `vardef foo'.",
-             "Proceed, and I'll ignore the illegal redeclaration.");
-      mp_put_get_error (mp);
+      mp_get_x_next (mp);
     }
     mp_flush_node_list (mp, p);
     if (mp->cur_cmd < comma) {
@@ -26241,16 +26387,18 @@ void mp_do_type_declaration (MP mp) {
 
 @ @<Flush spurious symbols after the declared variable@>=
 {
-  print_err ("Illegal suffix of declared variable will be flushed");
-@.Illegal suffix...flushed@>;
-  help5 ("Variables in declarations must consist entirely of",
+  const char *hlp[] = { 
+         "Variables in declarations must consist entirely of",
          "names and collective subscripts, e.g., `x[]a'.",
          "Are you trying to use a reserved word in a variable name?",
          "I'm going to discard the junk I found here,",
-         "up to the next comma or the end of the declaration.");
+         "up to the next comma or the end of the declaration.",
+         NULL };
   if (mp->cur_cmd == numeric_token)
-    mp->help_line[2] = "Explicit subscripts like `x15a' aren't permitted.";
-  mp_put_get_error (mp);
+    hlp[2] = "Explicit subscripts like `x15a' aren't permitted.";
+  mp_back_error (mp, "Illegal suffix of declared variable will be flushed", hlp, true);
+@.Illegal suffix...flushed@>;
+  mp_get_x_next (mp);
   mp->scanner_status = flushing;
   do {
     get_t_next (mp);
@@ -26272,11 +26420,13 @@ static void mp_main_control (MP mp) {
   do {
     mp_do_statement (mp);
     if (mp->cur_cmd == end_group) {
-      print_err ("Extra `endgroup'");
+      const char *hlp[] = { 
+             "I'm not currently working on a `begingroup',",
+             "so I had better not try to end anything.",
+             NULL };
+      mp_error (mp, "Extra `endgroup'", hlp, true);
 @.Extra `endgroup'@>;
-      help2 ("I'm not currently working on a `begingroup',",
-             "so I had better not try to end anything.");
-      mp_flush_error (mp, new_expr);
+      mp_flush_cur_exp (mp, new_expr);
     }
   } while (mp->cur_cmd != stop);
 }
@@ -26852,19 +27002,22 @@ void mp_do_random_seed (MP mp) {
   memset(&new_expr,0,sizeof(mp_value));
   mp_get_x_next (mp);
   if (mp->cur_cmd != assignment) {
-    mp_missing_err (mp, ":=");
+    const char *hlp[] = { "Always say `randomseed:=<numeric expression>'.", NULL };
+    mp_back_error (mp, "Missing `:=' has been inserted", hlp, true);
 @.Missing `:='@>;
-    help1 ("Always say `randomseed:=<numeric expression>'.");
-    mp_back_error (mp);
   };
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_known) {
-    exp_err ("Unknown value will be ignored");
+    const char *hlp[] = { 
+           "Your expression was too random for me to handle,",
+           "so I won't change the random seed just now.",
+           NULL };
+    mp_disp_err(mp, NULL);
+    mp_back_error (mp, "Unknown value will be ignored", hlp, true);
 @.Unknown value...ignored@>;
-    help2 ("Your expression was too random for me to handle,",
-           "so I won't change the random seed just now.");
-    mp_put_get_flush_error (mp, new_expr);
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
   } else {
     @<Initialize the random seed to |cur_exp|@>;
   }
@@ -27012,20 +27165,24 @@ void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim) {
     if (mp->cur_sym2 == l_delim)
       return;
   if (mp->cur_sym != r_delim) {
-    mp_missing_err (mp, mp_str (mp, text (r_delim)));
+    char msg[256];
+    const char *hlp[] = {
+           "I found no right delimiter to match a left one. So I've",
+           "put one in, behind the scenes; this may fix the problem.",
+            NULL };
+    mp_snprintf(msg, 256, "Missing `%s' has been inserted", mp_str (mp, text (r_delim)));
 @.Missing `)'@>;
-    help2 ("I found no right delimiter to match a left one. So I've",
-           "put one in, behind the scenes; this may fix the problem.");
-    mp_back_error (mp);
+    mp_back_error (mp, msg, hlp, true);
   } else {
-    print_err ("The token `");
-    mp_print_text (r_delim);
-@.The token...delimiter@>;
-    mp_print (mp, "' is no longer a right delimiter");
-    help3 ("Strange: This token has lost its former meaning!",
+    char msg[256];
+    const char *hlp[] = {
+           "Strange: This token has lost its former meaning!",
            "I'll read it as a right delimiter this time;",
-           "but watch out, I'll probably miss it later.");
-    mp_error (mp);
+           "but watch out, I'll probably miss it later.",
+           NULL };
+    mp_snprintf(msg, 256, "The token `%s' is no longer a right delimiter", mp_str(mp, text (r_delim)));
+@.The token...delimiter@>;
+    mp_error (mp, msg, hlp, true);
   }
 }
 
@@ -27058,15 +27215,14 @@ static void mp_do_interim (MP mp);
 void mp_do_interim (MP mp) {
   mp_get_x_next (mp);
   if (mp->cur_cmd != internal_quantity) {
-    print_err ("The token `");
+    char msg[256];
+    const char *hlp[] = {
+       "Something like `tracingonline' should follow `interim'.",
+       NULL };
+    mp_snprintf(msg, 256, "The token `%s' isn't an internal quantity", 
+      (mp->cur_sym == NULL ? "(%CAPSULE)" : mp_str(mp, text (mp->cur_sym))));
 @.The token...quantity@>;
-    if (mp->cur_sym == NULL)
-      mp_print (mp, "(%CAPSULE)");
-    else
-      mp_print_text (mp->cur_sym);
-    mp_print (mp, "' isn't an internal quantity");
-    help1 ("Something like `tracingonline' should follow `interim'.");
-    mp_back_error (mp);
+    mp_back_error (mp, msg, hlp, true);
   } else {
     mp_save_internal (mp, mp->cur_mod);
     mp_back_input (mp);
@@ -27088,12 +27244,13 @@ void mp_do_let (MP mp) {
   l = mp->cur_sym;
   mp_get_x_next (mp);
   if (mp->cur_cmd != equals && mp->cur_cmd != assignment) {
-    mp_missing_err (mp, "=");
-@.Missing `='@>;
-    help3 ("You should have said `let symbol = something'.",
+    const char *hlp[] = { 
+           "You should have said `let symbol = something'.",
            "But don't worry; I'll pretend that an equals sign",
-           "was present. The next token I read will be `something'.");
-    mp_back_error (mp);
+           "was present. The next token I read will be `something'.",
+           NULL };
+    mp_back_error (mp, "Missing `=' has been inserted", hlp, true);
+@.Missing `='@>;
   }
   mp_get_symbol (mp);
   switch (mp->cur_cmd) {
@@ -27492,18 +27649,20 @@ void mp_do_show_whatever (MP mp) {
     break;
   }                             /* there are no other cases */
   if (internal_value_to_halfword (mp_showstopping) > 0) {
-    print_err ("OK");
-@.OK@>;
+    const char *hlp[] = {
+         "This isn't an error message; I'm just showing something.", 
+         NULL };
     if (mp->interaction < mp_error_stop_mode) {
-      help0;
+      hlp[0] = NULL;
       decr (mp->error_count);
-    } else {
-      help1 ("This isn't an error message; I'm just showing something.");
     }
-    if (mp->cur_cmd == semicolon)
-      mp_error (mp);
-    else
-      mp_put_get_error (mp);
+    if (mp->cur_cmd == semicolon) {
+      mp_error (mp, "OK", hlp, true);
+    } else {
+      mp_back_error (mp, "OK", hlp, true);
+      mp_get_x_next (mp);
+    }
+@.OK@>;
   }
 }
 
@@ -27740,29 +27899,29 @@ void mp_scan_with_list (MP mp, mp_node p) {
 
 @ @<Complain about improper type@>=
 {
-  exp_err ("Improper type");
-@.Improper type@>;
-  help2 ("Next time say `withpen <known pen expression>';",
-         "I'll ignore the bad `with' clause and look for another.");
+  const char *hlp[] = {
+         "Next time say `withpen <known pen expression>';",
+         "I'll ignore the bad `with' clause and look for another.",
+         NULL };
+  mp_disp_err(mp, NULL);
   if (t == with_mp_pre_script)
-    mp->help_line[1] =
-      "Next time say `withprescript <known string expression>';";
+    hlp[0] = "Next time say `withprescript <known string expression>';";
   else if (t == with_mp_post_script)
-    mp->help_line[1] =
-      "Next time say `withpostscript <known string expression>';";
+    hlp[0] = "Next time say `withpostscript <known string expression>';";
   else if (t == mp_picture_type)
-    mp->help_line[1] = "Next time say `dashed <known picture expression>';";
+    hlp[0] = "Next time say `dashed <known picture expression>';";
   else if (t == (mp_variable_type) mp_uninitialized_model)
-    mp->help_line[1] = "Next time say `withcolor <known color expression>';";
+    hlp[0] = "Next time say `withcolor <known color expression>';";
   else if (t == (mp_variable_type) mp_rgb_model)
-    mp->help_line[1] = "Next time say `withrgbcolor <known color expression>';";
+    hlp[0] = "Next time say `withrgbcolor <known color expression>';";
   else if (t == (mp_variable_type) mp_cmyk_model)
-    mp->help_line[1] =
-      "Next time say `withcmykcolor <known cmykcolor expression>';";
+    hlp[0] = "Next time say `withcmykcolor <known cmykcolor expression>';";
   else if (t == (mp_variable_type) mp_grey_model)
-    mp->help_line[1] =
-      "Next time say `withgreyscale <known numeric expression>';";;
-  mp_put_get_flush_error (mp, new_expr);
+    hlp[0] = "Next time say `withgreyscale <known numeric expression>';";;
+  mp_back_error (mp, "Improper type", hlp, true);
+@.Improper type@>;
+  mp_get_x_next (mp);
+  mp_flush_cur_exp (mp, new_expr);
 }
 
 
@@ -27995,18 +28154,35 @@ mp_node mp_find_edges_var (MP mp, mp_node t) {
   p = mp_find_variable (mp, t);
   cur_edges = NULL;
   if (p == NULL) {
-    mp_obliterated (mp, t);
-    mp_put_get_error (mp);
+    const char *hlp[] = { 
+         "It seems you did a nasty thing---probably by accident,",
+         "but nevertheless you nearly hornswoggled me...",
+         "While I was evaluating the right-hand side of this",
+         "command, something happened, and the left-hand side",
+         "is no longer a variable! So I won't change anything.",
+         NULL };
+    char *msg = mp_obliterated (mp, t);
+    mp_back_error (mp, msg, hlp, true);
+    free(msg);
+    mp_get_x_next (mp);
   } else if (mp_type (p) != mp_picture_type) {
-    print_err ("Variable ");
+    char msg[256];
+    str_number sname;
+    int old_setting = mp->selector;
+    const char *hlp[] = {
+           "I was looking for a \"known\" picture variable.",
+           "So I'll not change anything just now.",
+           NULL };
+    mp->selector = new_string;
     mp_show_token_list (mp, t, NULL, 1000, 0);
+    sname = mp_make_string(mp);
+    mp->selector = old_setting;    
+    mp_snprintf (msg, 256, "Variable %s is the wrong type(%s)",
+                 mp_str(mp, sname), mp_type_string(mp_type (p)));
 @.Variable x is the wrong type@>;
-    mp_print (mp, " is the wrong type (");
-    mp_print_type (mp, mp_type (p));
-    mp_print_char (mp, xord (')'));
-    help2 ("I was looking for a \"known\" picture variable.",
-           "So I'll not change anything just now.");
-    mp_put_get_error (mp);
+    delete_str_ref(sname);
+    mp_back_error (mp, msg, hlp, true);
+    mp_get_x_next (mp);
   } else {
     set_value_node (p, mp_private_edges (mp, value_node (p)));
     cur_edges = value_node (p);
@@ -28079,14 +28255,18 @@ mp_node mp_start_draw_cmd (MP mp, quarterword sep) {
 
 @ @<Abandon edges command because there's no variable@>=
 {
-  exp_err ("Not a suitable variable");
-@.Not a suitable variable@>;
-  help4 ("At this point I needed to see the name of a picture variable.",
+  const char *hlp[] = { 
+         "At this point I needed to see the name of a picture variable.",
          "(Or perhaps you have indeed presented me with one; I might",
          "have missed it, if it wasn't followed by the proper token.)",
-         "So I'll not change anything just now.");
+         "So I'll not change anything just now.",
+         NULL };
+  mp_disp_err(mp, NULL);
   new_expr.data.val = 0;
-  mp_put_get_flush_error (mp, new_expr);
+  mp_back_error (mp, "Not a suitable variable", hlp, true);
+@.Not a suitable variable@>;
+  mp_get_x_next (mp);
+  mp_flush_cur_exp (mp, new_expr);
 }
 
 
@@ -28110,12 +28290,16 @@ void mp_do_bounds (MP mp) {
       new_expr.data.val = 0;
       mp_flush_cur_exp (mp, new_expr);
     } else if (mp->cur_exp.type != mp_path_type) {
-      exp_err ("Improper `clip'");
-@.Improper `addto'@>;
-      help2 ("This expression should have specified a known path.",
-             "So I'll not change anything just now.");
+      const char *hlp[] ={ 
+             "This expression should have specified a known path.",
+             "So I'll not change anything just now.",
+              NULL };
+      mp_disp_err(mp, NULL);
       new_expr.data.val = 0;
-      mp_put_get_flush_error (mp, new_expr);
+      mp_back_error (mp, "Improper `clip'", hlp, true);
+@.Improper `addto'@>;
+      mp_get_x_next (mp);
+      mp_flush_cur_exp (mp, new_expr);
     } else if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
       @<Complain about a non-cycle@>;
     } else {
@@ -28127,11 +28311,13 @@ void mp_do_bounds (MP mp) {
 
 @ @<Complain about a non-cycle@>=
 {
-  print_err ("Not a cycle");
+  const char *hlp[] = {
+         "That contour should have ended with `..cycle' or `&cycle'.",
+         "So I'll not change anything just now.",
+         NULL };
+  mp_back_error (mp, "Not a cycle" , hlp, true);
 @.Not a cycle@>;
-  help2 ("That contour should have ended with `..cycle' or `&cycle'.",
-         "So I'll not change anything just now.");
-  mp_put_get_error (mp);
+  mp_get_x_next (mp);
 }
 
 
@@ -28191,12 +28377,16 @@ setting |e:=NULL| prevents anything from being added to |lhe|.
   p = NULL;
   e = NULL;
   if (mp->cur_exp.type != mp_picture_type) {
-    exp_err ("Improper `addto'");
-@.Improper `addto'@>;
-    help2 ("This expression should have specified a known picture.",
-           "So I'll not change anything just now.");
+    const char *hlp[]= { 
+           "This expression should have specified a known picture.",
+           "So I'll not change anything just now.",
+           NULL };
+    mp_disp_err(mp, NULL);
     new_expr.data.val = 0;
-    mp_put_get_flush_error (mp, new_expr);
+    mp_back_error (mp, "Improper `addto'", hlp, true);
+@.Improper `addto'@>;
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
   } else {
     e = mp_private_edges (mp, cur_exp_node ());
     mp->cur_exp.type = mp_vacuous;
@@ -28215,12 +28405,16 @@ attempts to add to the edge structure.
   if (mp->cur_exp.type == mp_pair_type)
     mp_pair_to_path (mp);
   if (mp->cur_exp.type != mp_path_type) {
-    exp_err ("Improper `addto'");
-@.Improper `addto'@>;
-    help2 ("This expression should have specified a known path.",
-           "So I'll not change anything just now.");
+    const char *hlp[] = { 
+           "This expression should have specified a known path.",
+           "So I'll not change anything just now.",
+           NULL };
+    mp_disp_err(mp, NULL);
     new_expr.data.val = 0;
-    mp_put_get_flush_error (mp, new_expr);
+    mp_back_error (mp, "Improper `addto'", hlp, true);
+@.Improper `addto'@>;
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
   } else if (add_type == contour_code) {
     if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
       @<Complain about a non-cycle@>;
@@ -28299,10 +28493,12 @@ void mp_do_ship_out (MP mp) {
 
 @ @<Complain that it's not a known picture@>=
 {
-  exp_err ("Not a known picture");
-  help1 ("I can only output known pictures.");
+  const  char *hlp[] = { "I can only output known pictures.", NULL };
+  mp_disp_err(mp, NULL);
   new_expr.data.val = 0;
-  mp_put_get_flush_error (mp, new_expr);
+  mp_back_error (mp, "Not a known picture", hlp, true);
+  mp_get_x_next (mp);
+  mp_flush_cur_exp (mp, new_expr);
 }
 
 
@@ -28423,10 +28619,11 @@ void mp_do_message (MP mp) {
 
 @ @<Declare a procedure called |no_string_err|@>=
 static void mp_no_string_err (MP mp, const char *s) {
-  exp_err ("Not a string");
+  const char *hlp[] = {s, NULL};
+  mp_disp_err(mp, NULL);
+  mp_back_error (mp, "Not a string", hlp, true);
 @.Not a string@>;
-  help1 (s);
-  mp_put_get_error (mp);
+  mp_get_x_next (mp);
 }
 
 
@@ -28458,22 +28655,27 @@ mp->long_help_seen = false;
 
 @ @<Print string |cur_exp| as an error message@>=
 {
-  print_err ("");
-  mp_print_str (mp, cur_exp_str ());
+  char msg[256];
+  mp_snprintf(msg, 256, "%s", mp_str(mp, cur_exp_str ()));
   if (mp->err_help != NULL) {
     mp->use_err_help = true;
+    mp_back_error (mp, msg, NULL, true);
   } else if (mp->long_help_seen) {
-    help1 ("(That was another `errmessage'.)");
+    const char *hlp[] = { "(That was another `errmessage'.)", NULL };
+    mp_back_error (mp, msg, hlp, true);
   } else {
-    if (mp->interaction < mp_error_stop_mode)
-      mp->long_help_seen = true;
-    help4 ("This error message was generated by an `errmessage'",
+    const char *hlp[] = { 
+           "This error message was generated by an `errmessage'",
            "command, so I can\'t give any explicit help.",
            "Pretend that you're Miss Marple: Examine all clues,",
+           "and deduce the truth by inspired guesses.",
+           NULL };
 @^Marple, Jane@>
-           "and deduce the truth by inspired guesses.");
+    if (mp->interaction < mp_error_stop_mode)
+      mp->long_help_seen = true;
+    mp_back_error (mp, msg, hlp, true);
   }
-  mp_put_get_error (mp);
+  mp_get_x_next (mp);
   mp->use_err_help = false;
 }
 
@@ -28499,9 +28701,9 @@ void mp_do_write (MP mp) {
     mp_no_string_err (mp,
                       "The text to be written should be a known string expression");
   } else if (mp->cur_cmd != to_token) {
-    print_err ("Missing `to' clause");
-    help1 ("A write command should end with `to <filename>'");
-    mp_put_get_error (mp);
+    const char *hlp[] = { "A write command should end with `to <filename>'", NULL };
+    mp_back_error (mp, "Missing `to' clause", hlp, true);
+    mp_get_x_next (mp);
   } else {
     t = cur_exp_str ();
     mp->cur_exp.type = mp_vacuous;
@@ -28942,16 +29144,18 @@ static mp_node mp_tfm_check (MP mp, quarterword m);
 static mp_node mp_tfm_check (MP mp, quarterword m) {
   mp_node p = mp_get_value_node (mp);
   if (abs (internal_value_to_halfword (m)) >= fraction_half) {
-    print_err ("Enormous ");
-    mp_print (mp, internal_name (m));
+    char msg[256];
+    const char *hlp[] = {
+       "Font metric dimensions must be less than 2048pt.",
+       NULL } ;
+    mp_snprintf (msg, 256, "Enormous %s has been reduced", internal_name (m));
 @.Enormous charwd...@>
 @.Enormous chardp...@>
 @.Enormous charht...@>
 @.Enormous charic...@>
 @.Enormous designsize...@>;
-    mp_print (mp, " has been reduced");
-    help1 ("Font metric dimensions must be less than 2048pt.");
-    mp_put_get_error (mp);
+    mp_back_error (mp, msg, hlp, true);
+    mp_get_x_next (mp);
     if (internal_value_to_halfword (m) > 0)
       set_value (p, (fraction_half - 1));
     else
@@ -29033,6 +29237,10 @@ static eight_bits mp_get_code (MP mp);
 eight_bits mp_get_code (MP mp) {                               /* scans a character code value */
   integer c;    /* the code value found */
   mp_value new_expr;
+  const char *hlp[] = { 
+         "I was looking for a number between 0 and 255, or for a",
+         "string of length 1. Didn't find it; will use 0 instead.",
+          NULL };
   memset(&new_expr,0,sizeof(mp_value));
   mp_get_x_next (mp);
   mp_scan_expression (mp);
@@ -29047,12 +29255,12 @@ eight_bits mp_get_code (MP mp) {                               /* scans a charac
       return (eight_bits) c;
     }
   }
-  exp_err ("Invalid code has been replaced by 0");
-@.Invalid code...@>;
-  help2 ("I was looking for a number between 0 and 255, or for a",
-         "string of length 1. Didn't find it; will use 0 instead.");
+  mp_disp_err(mp, NULL);
   new_expr.data.val = 0;
-  mp_put_get_flush_error (mp, new_expr);
+  mp_back_error (mp, "Invalid code has been replaced by 0", hlp, true);
+@.Invalid code...@>;
+  mp_get_x_next (mp);
+  mp_flush_cur_exp (mp, new_expr);
   c = 0;
   return (eight_bits) c;
 }
@@ -29079,31 +29287,28 @@ void mp_set_tag (MP mp, halfword c, quarterword t, halfword r) {
 
 @ @<Complain about a character tag conflict@>=
 {
-  print_err ("Character ");
-  if ((c > ' ') && (c < 127))
-    mp_print_char (mp, xord (c));
-  else if (c == 256)
-    mp_print (mp, "||");
-  else {
-    mp_print (mp, "code ");
-    mp_print_int (mp, c);
-  };
-  mp_print (mp, " is already ");
-@.Character c is already...@>;
+  char *xtra;
+  char msg[256];
+  const char *hlp[] = {
+         "It's not legal to label a character more than once.",
+         "So I'll not change anything just now.",
+         NULL };
   switch (mp->char_tag[c]) {
-  case lig_tag:
-    mp_print (mp, "in a ligtable");
-    break;
-  case list_tag:
-    mp_print (mp, "in a charlist");
-    break;
-  case ext_tag:
-    mp_print (mp, "extensible");
-    break;
-  }                             /* there are no other cases */
-  help2 ("It's not legal to label a character more than once.",
-         "So I'll not change anything just now.");
-  mp_put_get_error (mp);
+  case lig_tag:  xtra = "in a ligtable";    break;
+  case list_tag: xtra = "in a charlist";    break;
+  case ext_tag:  xtra = "extensible";       break;
+  default:       xtra = "";                 break;
+  }
+  if ((c > ' ') && (c < 127)) {
+    mp_snprintf(msg, 256, "Character %c is already %s", xord(c), xtra); 
+  } else if (c == 256) {
+    mp_snprintf(msg, 256, "Character || is already %s", xtra); 
+  } else {
+    mp_snprintf(msg, 256, "Character code %d is already %s", c, xtra); 
+  }
+@.Character c is already...@>;
+  mp_back_error (mp, msg, hlp, true);
+  mp_get_x_next (mp);
 }
 
 
@@ -29143,18 +29348,22 @@ void mp_do_tfm_command (MP mp) {
     mp_get_x_next (mp);
     mp_scan_expression (mp);
     if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < half_unit)) {
-      exp_err ("Improper location");
+      const char *hlp[] = { 
+             "I was looking for a known, positive number.",
+             "For safety's sake I'll ignore the present command.",
+             NULL };
+      mp_disp_err(mp, NULL);
+      mp_back_error (mp, "Improper location", hlp, true);
 @.Improper location@>;
-      help2 ("I was looking for a known, positive number.",
-             "For safety's sake I'll ignore the present command.");
-      mp_put_get_error (mp);
+      mp_get_x_next (mp);
     } else {
       j = mp_round_unscaled (mp, cur_exp_value ());
       if (mp->cur_cmd != colon) {
-        mp_missing_err (mp, ":");
+        const char *hlp[] = { 
+          "A colon should follow a headerbyte or fontinfo location.",
+           NULL };
+        mp_back_error (mp, "Missing `:' has been inserted", hlp, true);
 @.Missing `:'@>;
-        help1 ("A colon should follow a headerbyte or fontinfo location.");
-        mp_back_error (mp);
       }
       if (c == header_byte_code) {
         @<Store a list of header bytes@>;
@@ -29189,10 +29398,9 @@ CONTINUE:
   if (mp->cur_cmd == lig_kern_token) {
     @<Compile a ligature/kern command@>;
   } else {
-    print_err ("Illegal ligtable step");
+    const char *hlp[] = { "I was looking for `=:' or `kern' here.", NULL };
+    mp_back_error (mp, "Illegal ligtable step", hlp, true);
 @.Illegal ligtable step@>;
-    help1 ("I was looking for `=:' or `kern' here.");
-    mp_back_error (mp);
     next_char (mp->nl) = qi (0);
     op_byte (mp->nl) = qi (0);
     rem_byte (mp->nl) = qi (0);
@@ -29276,11 +29484,13 @@ We may need to cancel skips that span more than 127 lig/kern steps.
     mp->lll=qo(skip_byte(mp->ll)); 
     skip_byte(mp->ll)=stop_flag; mp->ll=(short)(mp->ll-mp->lll);
   } while (mp->lll!=0)
-@d skip_error(A) { print_err("Too far to skip");
+
+@d skip_error(A) { 
+  const char *hlp[] = { "At most 127 lig/kern steps can separate skipto1 from 1::.", NULL};
+  mp_error(mp, "Too far to skip", hlp, true); 
 @.Too far to skip@>
-  help1("At most 127 lig/kern steps can separate skipto1 from 1::.");
-  mp_error(mp); cancel_skips((A));
-  }
+  cancel_skips((A));
+}
 
 @<Process a |skip_to| command and |goto done|@>=
 {
@@ -29333,12 +29543,16 @@ We may need to cancel skips that span more than 127 lig/kern steps.
     mp_get_x_next (mp);
     mp_scan_expression (mp);
     if (mp->cur_exp.type != mp_known) {
-      exp_err ("Improper kern");
-@.Improper kern@>;
-      help2 ("The amount of kern should be a known numeric value.",
-             "I'm zeroing this one. Proceed, with fingers crossed.");
+      const char *hlp[] =  {
+             "The amount of kern should be a known numeric value.",
+             "I'm zeroing this one. Proceed, with fingers crossed.",
+             NULL };
+      mp_disp_err(mp, NULL);
       new_expr.data.val = 0;
-      mp_put_get_flush_error (mp, new_expr);
+      mp_back_error (mp, "Improper kern", hlp, true);
+@.Improper kern@>;
+      mp_get_x_next (mp);
+      mp_flush_cur_exp (mp, new_expr);
     }
     mp->kern[mp->nk] = cur_exp_value ();
     k = 0;
@@ -29357,9 +29571,12 @@ We may need to cancel skips that span more than 127 lig/kern steps.
 
 
 @ @d missing_extensible_punctuation(A) 
-  { mp_missing_err(mp, (A));
+  { 
+    char msg[256];
+    const char *hlp[] = { "I'm processing `extensible c: t,m,b,r'.", NULL }; 
+    mp_snprintf(msg, 256, "Missing %s has been inserted", (A));
+    mp_back_error(mp, msg, hlp, true);
 @.Missing `\char`\#'@>
-  help1("I'm processing `extensible c: t,m,b,r'."); mp_back_error(mp);
   }
 
 @<Define an extensible recipe@>=
@@ -29414,11 +29631,13 @@ do {
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_known) {
-    exp_err ("Improper font parameter");
-@.Improper font parameter@>;
-    help1 ("I'm zeroing this one. Proceed, with fingers crossed.");
+    const char *hlp[] = { "I'm zeroing this one. Proceed, with fingers crossed.", NULL };
+    mp_disp_err(mp, NULL);
     new_expr.data.val = 0;
-    mp_put_get_flush_error (mp, new_expr);
+    mp_back_error (mp, "Improper font parameter", hlp, true);
+@.Improper font parameter@>;
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
   }
   mp->param[j] = cur_exp_value ();
   incr (j);
@@ -30357,9 +30576,10 @@ static void mp_do_mapline (MP mp) {
 
 @ @<Complain about improper map operation@>=
 {
-  exp_err ("Unsuitable expression");
-  help1 ("Only known strings can be map files or map lines.");
-  mp_put_get_error (mp);
+  const char *hlp[] = { "Only known strings can be map files or map lines.", NULL };
+  mp_disp_err(mp, NULL);
+  mp_back_error (mp, "Unsuitable expression", hlp, true);
+  mp_get_x_next (mp);
 }
 
 
@@ -30731,9 +30951,10 @@ void mp_do_special (MP mp) {
 
 @ @<Complain about improper special operation@>=
 {
-  exp_err ("Unsuitable expression");
-  help1 ("Only known strings are allowed for output as specials.");
-  mp_put_get_error (mp);
+  const char *hlp[] = { "Only known strings are allowed for output as specials.", NULL };
+  mp_disp_err(mp, NULL);
+  mp_back_error (mp, "Unsuitable expression", hlp, true);
+  mp_get_x_next (mp);
 }
 
 
