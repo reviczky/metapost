@@ -80,6 +80,7 @@
 #include "mpmp.h" /* internal header */
 #include "mppsout.h" /* internal header */
 #include "mpmath.h" /* internal header */
+#include "mpstrings.h" /* internal header */
 @h
 @<Declarations@>
 @<Static variables in the outer block@>

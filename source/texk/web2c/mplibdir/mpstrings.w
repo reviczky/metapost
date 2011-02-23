@@ -1,0 +1,364 @@
+% $Id$
+%
+% Copyright 2011 Taco Hoekwater.
+%
+% This program is free software: you can redistribute it and/or modify
+% it under the terms of the GNU Lesser General Public License as published by
+% the Free Software Foundation, either version 3 of the License, or
+% (at your option) any later version.
+%
+% This program is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU Lesser General Public License for more details.
+%
+% You should have received a copy of the GNU Lesser General Public License
+% along with this program.  If not, see <http://www.gnu.org/licenses/>.
+%
+% TeX is a trademark of the American Mathematical Society.
+% METAFONT is a trademark of Addison-Wesley Publishing Company.
+% PostScript is a trademark of Adobe Systems Incorporated.
+
+@* String handling.
+
+
+@ First, we will need some stuff from other files
+@c
+#include <w2c/config.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+#include <assert.h>
+#ifdef HAVE_UNISTD_H
+#  include <unistd.h>           /* for access */
+#endif
+#include <time.h>               /* for struct tm \& co */
+#include "mplib.h"
+#include "mplibps.h"            /* external header */
+#include "mplibsvg.h"           /* external header */
+#include "mpmp.h"               /* internal header */
+#include "mppsout.h"            /* internal header */
+#include "mpsvgout.h"           /* internal header */
+#include "mpmath.h"             /* internal header */
+#include "mpstrings.h"          /* internal header */
+
+@ Then there is some stuff we need to prepare ourselves
+
+@(mpstrings.h@>=
+@<Definitions@>;
+
+@ Here are the functions needed for the avl construction.
+
+@<Definitions@>=
+int comp_strings_entry (void *p, const void *pa, const void *pb);
+void *copy_strings_entry (const void *p);
+void *delete_strings_entry (void *p);
+
+@ An earlier version of this function used |strncmp|, but that produces
+wrong results in some cases.
+@c
+#define STRCMP_RESULT(a) ((a)<0 ? -1 : ((a)>0 ? 1 : 0))
+int comp_strings_entry (void *p, const void *pa, const void *pb) {
+  const mp_lstring *a = (const mp_lstring *) pa;
+  const mp_lstring *b = (const mp_lstring *) pb;
+  size_t l;
+  unsigned char *s,*t;
+  (void) p;
+  s = a->str;
+  t = b->str;
+  l = (a->len<=b->len ? a->len : b->len);
+  while ( l-->0 ) { 
+    if ( *s!=*t)
+       return STRCMP_RESULT(*s-*t); 
+    s++; t++;
+  }
+  return STRCMP_RESULT(a->len-b->len);
+}
+void *copy_strings_entry (const void *p) {
+  str_number ff;
+  const mp_lstring *fp;
+  fp = (const mp_lstring *) p;
+  ff = malloc (sizeof (mp_lstring));
+  if (ff == NULL)
+    return NULL;
+  ff->str = malloc (fp->len + 1);
+  if (ff->str == NULL) {
+    return NULL;
+  }
+  memcpy ((char *) ff->str, (char *) fp->str, fp->len + 1);
+  ff->len = fp->len;
+  ff->refs = 0;
+  return ff;
+}
+void *delete_strings_entry (void *p) {
+  str_number ff = (str_number) p;
+  mp_xfree (ff->str);
+  mp_xfree (ff);
+  return NULL;
+}
+
+@ @c
+void mp_initialize_strings (MP mp) {
+  @<Allocate or initialize strings@>;
+}
+
+@ @c
+void mp_dealloc_strings (MP mp) {
+  @<Dealloc variables@>;
+}
+
+@ Here are the definitions
+@<Definitions@>=
+extern void mp_initialize_strings (MP mp);
+extern void mp_dealloc_strings (MP mp);
+
+@ 
+@<Allocate or initialize ...@>=
+mp->strings = avl_create (comp_strings_entry,
+                          copy_strings_entry,
+                          delete_strings_entry, malloc, free, NULL);
+mp->cur_string = NULL;
+mp->cur_length = 0;
+mp->cur_string_size = 0;
+
+@ @<Dealloc variables@>=
+if (mp->strings != NULL)
+  avl_destroy (mp->strings);
+mp->strings = NULL;
+mp_xfree (mp->cur_string);
+mp->cur_string = NULL;
+
+@ Actually creating strings is done by |make_string|, but in order to
+do so it needs a way to create a new, empty string structure.
+
+@<Definitions@>=
+str_number new_strings_entry (MP mp);
+
+@ @c
+str_number new_strings_entry (MP mp) {
+  str_number ff;
+  ff = mp_xmalloc (mp, 1, sizeof (mp_lstring));
+  ff->str = NULL;
+  ff->len = 0;
+  ff->refs = 0;
+  return ff;
+}
+
+@ Most printing is done from |char *|s, but sometimes not. Here are
+functions that convert an internal string into a |char *| for use
+by the printing routines, and vice versa.
+
+@<Definitions@>=
+#define null_str mp_rts(mp,"")
+int mp_xstrcmp (const char *a, const char *b);
+char *mp_str (MP mp, str_number s);
+str_number mp_rtsl (MP mp, const char *s, size_t l);
+str_number mp_rts (MP mp, const char *s);
+str_number mp_make_string (MP mp);
+
+@ @c
+int mp_xstrcmp (const char *a, const char *b) {
+  if (a == NULL && b == NULL)
+    return 0;
+  if (a == NULL)
+    return -1;
+  if (b == NULL)
+    return 1;
+  return strcmp (a, b);
+}
+
+
+@ @c
+char *mp_str (MP mp, str_number ss) {
+  (void) mp;
+  return (char *) ss->str;
+}
+str_number mp_rtsl (MP mp, const char *s, size_t l) {
+  str_number str;
+  mp_lstring tmp;
+  tmp.str = mp_xmalloc (mp, l + 1, 1);
+  memcpy (tmp.str, s, (l + 1));
+  tmp.len = l;
+  str = (str_number) avl_find (&tmp, mp->strings);
+  if (str == NULL) {            /* not yet known */
+    str = new_strings_entry (mp);
+    str->str = mp_xmalloc (mp, l + 1, 1);
+    memcpy (str->str, s, (l + 1));
+    str->len = tmp.len;
+    assert (avl_ins (str, mp->strings, avl_false) > 0);
+    mp_xfree (str->str);
+    mp_xfree (str);
+    str = (str_number) avl_find (&tmp, mp->strings);
+  }
+  str->refs++;
+  free (tmp.str);
+  return str;
+}
+str_number mp_rts (MP mp, const char *s) {
+  return mp_rtsl (mp, s, strlen (s));
+}
+
+
+@ Several of the elementary string operations are performed using \.{WEB}
+macros instead of functions, because many of the
+operations are done quite frequently and we want to avoid the
+overhead of procedure calls. For example, here is
+a simple macro that computes the length of a string.
+@.WEB@>
+
+@<Definitions@>=
+#define length(A) ((A)->len) /* the number of characters in string \# */
+
+@ Strings are created by appending character codes to |cur_string|.
+The |append_char| macro, defined here, does not check to see if the
+buffer overflows; this test is supposed to be
+made before |append_char| is used.
+
+To test if there is room to append |l| more characters to |cur_string|,
+we shall write |str_room(l)|, which tries to make sure there is enough room
+in the |cur_string|.
+
+@<Definitions@>=
+#define EXTRA_STRING 500
+#define append_char(A) do { \
+    if (mp->cur_string==NULL) reset_cur_string(mp); \
+    else str_room(1); \
+    *(mp->cur_string+mp->cur_length)=(unsigned char)(A); \
+    mp->cur_length++; \
+} while (0)
+#define str_room(wsize) do { \
+    size_t nsize; \
+    if ((mp->cur_length+(size_t)wsize) > mp->cur_string_size) { \
+        nsize = mp->cur_string_size + mp->cur_string_size / 5 + EXTRA_STRING; \
+        if (nsize < (size_t)(wsize)) { \
+            nsize = (size_t)wsize + EXTRA_STRING; \
+        } \
+        mp->cur_string = (unsigned char *) xrealloc(mp->cur_string, (unsigned)nsize, sizeof(unsigned char)); \
+        memset (mp->cur_string+mp->cur_length,0,(nsize-mp->cur_length)); \
+        mp->cur_string_size = nsize; \
+    } \
+} while (0)
+
+
+@ At the very start of the metapost run and each time after
+|make_string| has stored a new string in the avl tree, the
+|cur_string| variable has to be prepared so that it will be ready to
+start creating a new string. The initial size is fairly arbitrary, but
+setting it a little higher than expected helps prevent |reallocs|
+
+@<Definitions@>=
+void reset_cur_string (MP mp);
+
+@ @c
+void reset_cur_string (MP mp) {
+  mp_xfree (mp->cur_string);
+  mp->cur_length = 0;
+  mp->cur_string_size = 63;
+  mp->cur_string = (unsigned char *) mp_xmalloc (mp, 64, sizeof (unsigned char));
+  memset (mp->cur_string, 0, 64);
+}
+
+
+@ \MP's string expressions are implemented in a brute-force way: Every
+new string or substring that is needed is simply stored into the string pool.
+Space is eventually reclaimed using the aid of a simple system system 
+of reference counts.
+@^reference counts@>
+
+The number of references to string number |s| will be |s->refs|. The
+special value |s->refs=MAX_STR_REF=127| is used to denote an unknown
+positive number of references; such strings will never be recycled. If
+a string is ever referred to more than 126 times, simultaneously, we
+put it in this category.
+
+@<Definitions@>=
+#define MAX_STR_REF 127 /* ``infinite'' number of references */
+#define add_str_ref(A) { if ( (A)->refs < MAX_STR_REF ) ((A)->refs)++; }
+
+@ Here's what we do when a string reference disappears:
+
+@<Definitions@>=
+#define delete_str_ref(A) do {  \
+    if ( (A)->refs < MAX_STR_REF ) { \
+       if ( (A)->refs > 1 ) ((A)->refs)--;  \
+       else mp_flush_string(mp, (A)); \
+    } \
+  } while (0)
+
+@ @<Definitions@>=
+void mp_flush_string (MP mp, str_number s);
+
+@ @c
+void mp_flush_string (MP mp, str_number s) {
+  if (s->refs == 0) {
+    mp->strs_in_use--;
+    mp->pool_in_use = mp->pool_in_use - (integer) length (s);
+    (void) avl_del (s, mp->strings, NULL);
+  }
+}
+
+
+@ Some C literals that are used as values cannot be simply added,
+their reference count has to be set such that they can not be flushed.
+
+@c
+str_number mp_intern (MP mp, const char *s) {
+  str_number r;
+  r = mp_rts (mp, s);
+  r->refs = MAX_STR_REF;
+  return r;
+}
+
+@ @<Definitions@>=
+str_number mp_intern (MP mp, const char *s);
+
+
+@ Once a sequence of characters has been appended to |cur_string|, it
+officially becomes a string when the function |make_string| is called.
+This function returns a pointer to the new string as its value.
+
+@<Definitions@>=
+str_number mp_make_string (MP mp);
+
+@ @c
+str_number mp_make_string (MP mp) {                               /* current string enters the pool */
+  str_number str;
+  mp_lstring tmp;
+  tmp.str = mp->cur_string;
+  tmp.len = mp->cur_length;
+  str = (str_number) avl_find (&tmp, mp->strings);
+  if (str == NULL) {            /* not yet known */
+    str = mp_xmalloc (mp, 1, sizeof (mp_lstring));
+    str->str = mp->cur_string;
+    str->len = tmp.len;
+    assert (avl_ins (str, mp->strings, avl_false) > 0);
+    str = (str_number) avl_find (&tmp, mp->strings);
+    mp->pool_in_use = mp->pool_in_use + (integer) length (str);
+    if (mp->pool_in_use > mp->max_pl_used)
+      mp->max_pl_used = mp->pool_in_use;
+    mp->strs_in_use++;
+    if (mp->strs_in_use > mp->max_strs_used)
+      mp->max_strs_used = mp->strs_in_use;
+    str->refs = 1;
+  }
+  reset_cur_string (mp);
+  return str;
+}
+
+
+@ Here is a routine that compares two strings in the string pool,
+and it does not assume that they have the same length. If the first string
+is lexicographically greater than, less than, or equal to the second,
+the result is respectively positive, negative, or zero.
+
+@<Definitions@>=
+integer mp_str_vs_str (MP mp, str_number s, str_number t);
+
+@ @c
+integer mp_str_vs_str (MP mp, str_number s, str_number t) {
+  (void) mp;
+  return comp_strings_entry (NULL, (const void *) s, (const void *) t);
+}
+
+
