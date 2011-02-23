@@ -159,6 +159,7 @@ typedef struct MP_instance {
 #include "mppsout.h"            /* internal header */
 #include "mpsvgout.h"           /* internal header */
 #include "mpmath.h"             /* internal header */
+#include "mpstrings.h"          /* internal header */
 extern font_number mp_read_font_info (MP mp, char *fname);      /* tfmin.w */
 @h @<Declarations@>;
 @<Basic printing procedures@>;
@@ -1057,8 +1058,9 @@ boolean mp_init_terminal (MP mp) {                               /* gets the ter
 @ @<Declarations@>=
 static boolean mp_init_terminal (MP mp);
 
-@* String handling.
-Symbolic token names and diagnostic messages are variable-length strings
+@* Globals for strings.
+
+@ Symbolic token names and diagnostic messages are variable-length strings
 of eight-bit characters. Many strings \MP\ uses are simply literals
 in the compiled source, like the error messages and the names of the
 internal parameters. Other strings are used or defined from the \MP\ input 
@@ -1085,150 +1087,20 @@ typedef struct {
 } mp_lstring;
 typedef mp_lstring *str_number; /* for pointers to string values */
 
-@ @<Glob...@>=
+@ The string handling functions are in \.{mpstrings.w}, but strings
+need a bunch of globals and those are defined here in the main file.
+
+@<Glob...@>=
 avl_tree strings;       /* string avl tree */
 unsigned char *cur_string;      /*  current string buffer */
 size_t cur_length;      /* current index in that buffer */
 size_t cur_string_size; /*  malloced size of |cur_string| */
 
-@ Here are the functions needed for the avl construction.
-
-@<Declarations@>=
-static int comp_strings_entry (void *p, const void *pa, const void *pb);
-static void *copy_strings_entry (const void *p);
-static void *delete_strings_entry (void *p);
-
-@ An earlier version of this function used |strncmp|, but that produces
-wrong results in some cases.
-@c
-#define STRCMP_RESULT(a) ((a)<0 ? -1 : ((a)>0 ? 1 : 0))
-static int comp_strings_entry (void *p, const void *pa, const void *pb) {
-  const mp_lstring *a = (const mp_lstring *) pa;
-  const mp_lstring *b = (const mp_lstring *) pb;
-  size_t l;
-  unsigned char *s,*t;
-  (void) p;
-  s = a->str;
-  t = b->str;
-  l = (a->len<=b->len ? a->len : b->len);
-  while ( l-->0 ) { 
-    if ( *s!=*t)
-       return STRCMP_RESULT(*s-*t); 
-    s++; t++;
-  }
-  return STRCMP_RESULT((int)(a->len)-(int)(b->len));
-}
-static void *copy_strings_entry (const void *p) {
-  str_number ff;
-  const mp_lstring *fp;
-  fp = (const mp_lstring *) p;
-  ff = malloc (sizeof (mp_lstring));
-  if (ff == NULL)
-    return NULL;
-  ff->str = malloc (fp->len + 1);
-  if (ff->str == NULL) {
-    return NULL;
-  }
-  memcpy ((char *) ff->str, (char *) fp->str, fp->len + 1);
-  ff->len = fp->len;
-  ff->refs = 0;
-  return ff;
-}
-static void *delete_strings_entry (void *p) {
-  str_number ff = (str_number) p;
-  mp_xfree (ff->str);
-  mp_xfree (ff);
-  return NULL;
-}
-
-
 @ @<Allocate or initialize ...@>=
-mp->strings = avl_create (comp_strings_entry,
-                          copy_strings_entry,
-                          delete_strings_entry, malloc, free, NULL);
-mp->cur_string = NULL;
-mp->cur_length = 0;
-mp->cur_string_size = 0;
+mp_initialize_strings(mp);
 
 @ @<Dealloc variables@>=
-if (mp->strings != NULL)
-  avl_destroy (mp->strings);
-xfree (mp->cur_string);
-
-@ Actually creating strings is done by |make_string|, but in order to
-do so it needs a way to create a new, empty string structure.
-
-@<Declarations@>=
-static str_number new_strings_entry (MP mp);
-
-@ @c
-static str_number new_strings_entry (MP mp) {
-  str_number ff;
-  ff = mp_xmalloc (mp, 1, sizeof (mp_lstring));
-  ff->str = NULL;
-  ff->len = 0;
-  ff->refs = 0;
-  return ff;
-}
-
-
-@ Most printing is done from |char *|s, but sometimes not. Here are
-functions that convert an internal string into a |char *| for use
-by the printing routines, and vice versa.
-
-@d null_str mp_rts(mp,"")
-
-@<Internal ...@>=
-int mp_xstrcmp (const char *a, const char *b);
-char *mp_str (MP mp, str_number s);
-
-@ @<Declarations@>=
-static str_number mp_rtsl (MP mp, const char *s, size_t l);
-static str_number mp_rts (MP mp, const char *s);
-static str_number mp_make_string (MP mp);
-
-@ @c
-int mp_xstrcmp (const char *a, const char *b) {
-  if (a == NULL && b == NULL)
-    return 0;
-  if (a == NULL)
-    return -1;
-  if (b == NULL)
-    return 1;
-  return strcmp (a, b);
-}
-
-
-@ @c
-char *mp_str (MP mp, str_number ss) {
-  (void) mp;
-  return (char *) ss->str;
-}
-str_number mp_rtsl (MP mp, const char *s, size_t l) {
-  str_number str;
-  mp_lstring tmp;
-  tmp.str = xmalloc (l + 1, 1);
-  memcpy (tmp.str, s, (l + 1));
-  tmp.len = l;
-  str = (str_number) avl_find (&tmp, mp->strings);
-  if (str == NULL) {            /* not yet known */
-    str = new_strings_entry (mp);
-    str->str = xmalloc (l + 1, 1);
-    memcpy (str->str, s, (l + 1));
-    str->len = tmp.len;
-    assert (avl_ins (str, mp->strings, avl_false) > 0);
-    xfree (str->str);
-    xfree (str);
-    str = (str_number) avl_find (&tmp, mp->strings);
-  }
-  str->refs++;
-  free (tmp.str);
-  return str;
-}
-str_number mp_rts (MP mp, const char *s) {
-  return mp_rtsl (mp, s, strlen (s));
-}
-
+mp_dealloc_strings(mp);
 
 @ The next four variables for keeping track of string pool usage.
 
@@ -1237,164 +1109,6 @@ integer pool_in_use;    /* total number of string bytes actually in use */
 integer max_pl_used;    /* maximum |pool_in_use| so far */
 integer strs_in_use;    /* total number of strings actually in use */
 integer max_strs_used;  /* maximum |strs_in_use| so far */
-
-@ Several of the elementary string operations are performed using \.{WEB}
-macros instead of functions, because many of the
-operations are done quite frequently and we want to avoid the
-overhead of procedure calls. For example, here is
-a simple macro that computes the length of a string.
-@.WEB@>
-
-@d length(A) ((A)->len) /* the number of characters in string \# */
-
-@ Strings are created by appending character codes to |cur_string|.
-The |append_char| macro, defined here, does not check to see if the
-buffer overflows; this test is supposed to be
-made before |append_char| is used.
-
-To test if there is room to append |l| more characters to |cur_string|,
-we shall write |str_room(l)|, which tries to make sure there is enough room
-in the |cur_string|.
-
-@d EXTRA_STRING 500
-
-@d append_char(A) do {
-    if (mp->cur_string==NULL) reset_cur_string(mp);
-    else str_room(1);
-    *(mp->cur_string+mp->cur_length)=(unsigned char)(A);
-    mp->cur_length++;
-} while (0)
-
-@d str_room(wsize) do {
-    size_t nsize;
-    if ((mp->cur_length+(size_t)wsize) > mp->cur_string_size) {
-        nsize = mp->cur_string_size + mp->cur_string_size / 5 + EXTRA_STRING;
-        if (nsize < (size_t)(wsize)) {
-            nsize = (size_t)wsize + EXTRA_STRING;
-        }
-        mp->cur_string = (unsigned char *) xrealloc(mp->cur_string, (unsigned)nsize, sizeof(unsigned char));
-        memset (mp->cur_string+mp->cur_length,0,(nsize-mp->cur_length));
-        mp->cur_string_size = nsize;
-    }
-} while (0)
-
-
-@ At the very start of the metapost run and each time after
-|make_string| has stored a new string in the avl tree, the
-|cur_string| variable has to be prepared so that it will be ready to
-start creating a new string. The initial size is fairly arbitrary, but
-setting it a little higher than expected helps prevent |reallocs|
-
-@<Declarations@>=
-static void reset_cur_string (MP mp);
-
-@ @c
-static void reset_cur_string (MP mp) {
-  xfree (mp->cur_string);
-  mp->cur_length = 0;
-  mp->cur_string_size = 63;
-  mp->cur_string = (unsigned char *) xmalloc (64, sizeof (unsigned char));
-  memset (mp->cur_string, 0, 64);
-}
-
-
-@ \MP's string expressions are implemented in a brute-force way: Every
-new string or substring that is needed is simply stored into the string pool.
-Space is eventually reclaimed using the aid of a simple system system 
-of reference counts.
-@^reference counts@>
-
-The number of references to string number |s| will be |s->refs|. The
-special value |s->refs=MAX_STR_REF=127| is used to denote an unknown
-positive number of references; such strings will never be recycled. If
-a string is ever referred to more than 126 times, simultaneously, we
-put it in this category.
-
-@d MAX_STR_REF 127 /* ``infinite'' number of references */
-@d add_str_ref(A) { if ( (A)->refs < MAX_STR_REF ) incr((A)->refs); }
-
-@ Here's what we do when a string reference disappears:
-
-@d delete_str_ref(A)  { 
-    if ( (A)->refs < MAX_STR_REF ) {
-       if ( (A)->refs > 1 ) decr((A)->refs); 
-       else mp_flush_string(mp, (A));
-    }
-  }
-
-@<Declarations@>=
-static void mp_flush_string (MP mp, str_number s);
-
-@ @c
-void mp_flush_string (MP mp, str_number s) {
-  if (s->refs == 0) {
-    decr (mp->strs_in_use);
-    mp->pool_in_use = mp->pool_in_use - (integer) length (s);
-    (void) avl_del (s, mp->strings, NULL);
-  }
-}
-
-
-@ Some C literals that are used as values cannot be simply added,
-their reference count has to be set such that they can not be flushed.
-
-@c
-str_number mp_intern (MP mp, const char *s) {
-  str_number r;
-  r = mp_rts (mp, s);
-  r->refs = MAX_STR_REF;
-  return r;
-}
-
-
-@ @<Declarations@>=
-static str_number mp_intern (MP mp, const char *s);
-
-
-@ Once a sequence of characters has been appended to |cur_string|, it
-officially becomes a string when the function |make_string| is called.
-This function returns a pointer to the new string as its value.
-
-@<Declarations@>=
-static str_number mp_make_string (MP mp);
-
-@ @c
-str_number mp_make_string (MP mp) {                               /* current string enters the pool */
-  str_number str;
-  mp_lstring tmp;
-  tmp.str = mp->cur_string;
-  tmp.len = mp->cur_length;
-  str = (str_number) avl_find (&tmp, mp->strings);
-  if (str == NULL) {            /* not yet known */
-    str = xmalloc (1, sizeof (mp_lstring));
-    str->str = mp->cur_string;
-    str->len = tmp.len;
-    assert (avl_ins (str, mp->strings, avl_false) > 0);
-    str = (str_number) avl_find (&tmp, mp->strings);
-    mp->pool_in_use = mp->pool_in_use + (integer) length (str);
-    if (mp->pool_in_use > mp->max_pl_used)
-      mp->max_pl_used = mp->pool_in_use;
-    incr (mp->strs_in_use);
-    if (mp->strs_in_use > mp->max_strs_used)
-      mp->max_strs_used = mp->strs_in_use;
-    str->refs = 1;
-  }
-  reset_cur_string (mp);
-  return str;
-}
-
-
-@ Here is a routine that compares two strings in the string pool,
-and it does not assume that they have the same length. If the first string
-is lexicographically greater than, less than, or equal to the second,
-the result is respectively positive, negative, or zero.
-
-@c
-static integer mp_str_vs_str (MP mp, str_number s, str_number t) {
-  (void) mp;
-  return comp_strings_entry (NULL, (const void *) s, (const void *) t);
-}
-
 
 
 @* On-line and off-line printing.
@@ -14983,7 +14697,7 @@ static boolean mp_check_outer_validity (MP mp) {
              "This kind of error happens when you say `if...' and forget",
              "the matching `fi'. I've inserted a `fi'; this might work.",
              NULL };
-      mp_snprintf(msg, 256, "Incomplete if; all text was ignored after line %d", mp->warning_info_line);
+      mp_snprintf(msg, 256, "Incomplete if; all text was ignored after line %d", (int)mp->warning_info_line);
 @.Incomplete if...@>;
       if (mp->cur_sym == NULL) {
         hlp[0] = "The file ended while I was skipping conditional text.";
@@ -15005,7 +14719,7 @@ if (mp->cur_sym != NULL) {
          "The file ended while I was looking for the `etex' to",
          "finish this TeX material.  I've inserted `etex' now.",
           NULL };
-  mp_snprintf(msg, 256, "TeX mode didn't end; all text was ignored after line %d", mp->warning_info_line);
+  mp_snprintf(msg, 256, "TeX mode didn't end; all text was ignored after line %d", (int)mp->warning_info_line);
   mp->cur_sym = mp->frozen_etex;
   mp_ins_error (mp, msg, hlp, false);
   return false;
@@ -15023,7 +14737,7 @@ if (mp->cur_sym != NULL) {
 @ @<Tell the user what has run away...@>=
 {
   char msg[256];
-  char *msg_start = NULL;
+  const char *msg_start = NULL;
   const char *hlp[] = {
          "I suspect you have forgotten an `enddef',",
          "causing me to read past where you wanted me to stop.",
@@ -19980,7 +19694,7 @@ integer group_line;     /* where a group began */
            "I saw a `begingroup' back there that hasn't been matched",
            "by `endgroup'. So I've inserted `endgroup' now.",
            NULL };
-    mp_snprintf(msg, 256, "A group begun on line %d never ended", group_line);
+    mp_snprintf(msg, 256, "A group begun on line %d never ended", (int)group_line);
 @.A group...never ended@>;
     mp_back_error (mp, msg, hlp, true);
     mp->cur_cmd = end_group;
@@ -22668,7 +22382,7 @@ if ((n > 4095)) {
            "I have trouble with numbers greater than 4095; watch out.",
            "(Set warningcheck:=0 to suppress this message.)",
            NULL };
-    mp_snprintf (msg, 256,"Number too large (%d)", n);
+    mp_snprintf (msg, 256,"Number too large (%d)", (int)n);
 @.Number too large@>;
     mp_back_error (mp, msg, hlp, true);
     mp_get_x_next (mp);
@@ -29287,7 +29001,7 @@ void mp_set_tag (MP mp, halfword c, quarterword t, halfword r) {
 
 @ @<Complain about a character tag conflict@>=
 {
-  char *xtra;
+  const char *xtra = NULL;
   char msg[256];
   const char *hlp[] = {
          "It's not legal to label a character more than once.",
