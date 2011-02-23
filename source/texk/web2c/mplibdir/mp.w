@@ -1372,14 +1372,19 @@ assumes that it is always safe to print a visible ASCII character.)
 
 @<Basic print...@>=
 static void mp_do_print (MP mp, const char *ss, size_t len) {                               /* prints string |s| */
-  size_t j = 0;
+  if (len==0)
+    return;
   if (mp->selector == new_string) {
-    str_room ((len * 4));
-  }
-  while (j < len) {
-    /* this was |xord((int)ss[j])| but that doesnt work */
-    mp_print_char (mp, (ASCII_code) ss[j]);
-    j++;
+    str_room (len);
+    memcpy((mp->cur_string+mp->cur_length), ss, len);
+    mp->cur_length += len;
+  } else {
+    size_t j = 0;
+    while (j < len) {
+      /* this was |xord((int)ss[j])| but that doesnt work */
+      mp_print_char (mp, (ASCII_code) ss[j]);
+      j++;
+    }
   }
 }
 
@@ -1387,8 +1392,7 @@ static void mp_do_print (MP mp, const char *ss, size_t len) {                   
 @ 
 @<Basic print...@>=
 void mp_print (MP mp, const char *ss) {
-  if (ss == NULL)
-    return;
+  assert (ss != NULL);
   mp_do_print (mp, ss, strlen (ss));
 }
 void mp_print_str (MP mp, str_number s) {
@@ -1405,8 +1409,6 @@ character positions.
 
 @<Initialize the output...@>=
 wterm (mp->banner);
-if (mp->mem_ident != NULL)
-  mp_print (mp, mp->mem_ident);
 mp_print_ln (mp);
 update_terminal();
 
@@ -1662,12 +1664,14 @@ crash occured during initialization, and it is not safe to run the normal
 cleanup routine.
 
 @<Error hand...@>=
-static void mp_jump_out (MP mp) {
+void mp_jump_out (MP mp) {
   if (mp->internal != NULL && mp->history < mp_system_error_stop)
     mp_close_files_and_terminate (mp);
   longjmp (*(mp->jump_buf), 1);
 }
 
+@ @<Internal ...@>=
+void mp_jump_out (MP mp);
 
 @ 
 
@@ -1962,10 +1966,10 @@ in a row.
 @ @<Print the string |err_help|, possibly on several lines@>=
 {
   size_t j = 0;
-  while (j < length (mp->err_help)) {
+  while (j < mp->err_help->len) {
     if (*(mp->err_help->str + j) != '%')
       mp_print (mp, (const char *) (mp->err_help->str + j));
-    else if (j + 1 == length (mp->err_help))
+    else if (j + 1 == mp->err_help->len)
       mp_print_ln (mp);
     else if (*(mp->err_help->str + j) != '%')
       mp_print_ln (mp);
@@ -2426,8 +2430,6 @@ extern char *mp_strldup (const char *p, size_t l);
 extern void mp_xfree (void *x);
 extern void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size);
 extern void *mp_xmalloc (MP mp, size_t nmem, size_t size);
-extern char *mp_xstrdup (MP mp, const char *s);
-extern char *mp_xstrldup (MP mp, const char *s, size_t l);
 extern void mp_do_snprintf (char *str, int size, const char *fmt, ...);
 
 @ Some care has to be taken while copying strings 
@@ -2491,24 +2493,6 @@ void *mp_xmalloc (MP mp, size_t nmem, size_t size) {
   }
   return w;
 }
-char *mp_xstrldup (MP mp, const char *s, size_t l) {
-  char *w;
-  if (s == NULL)
-    return NULL;
-  w = mp_strldup (s, l);
-  if (w == NULL) {
-    do_putsf (mp->err_out, "Out of memory!\n");
-    mp->history = mp_system_error_stop;
-    mp_jump_out (mp);
-  }
-  return w;
-}
-char *mp_xstrdup (MP mp, const char *s) {
-  if (s == NULL)
-    return NULL;
-  return mp_xstrldup (mp, s, strlen (s));
-}
-
 
 @ @<Internal library declarations@>=
 #ifdef HAVE_SNPRINTF
@@ -14985,11 +14969,10 @@ FOUND:
   goto RESTART;
 }
 
-
 @ @<Get a string token and |return|@>=
 {
   if (mp->buffer[loc] == '"') {
-    mp->cur_mod_str = null_str;
+    mp->cur_mod_str = mp_rts(mp,"");
   } else {
     k = loc;
     mp->buffer[limit + 1] = xord ('"');
@@ -16259,7 +16242,7 @@ is less than |loop_text|.
     mp_flush_cur_exp (mp, new_expr);
   } else {
     mp_back_input (mp);
-    if (length (cur_exp_str ()) > 0)
+    if (cur_exp_str ()->len > 0)
       @<Pretend we're reading a new one-line file@>;
   }
 }
@@ -16271,7 +16254,7 @@ is less than |loop_text|.
   memset(&new_expr,0,sizeof(mp_value));
   mp_begin_file_reading (mp);
   name = is_scantok;
-  k = mp->first + (size_t) length (cur_exp_str ());
+  k = mp->first + (size_t) cur_exp_str ()->len;
   if (k >= mp->max_buf_stack) {
     while (k >= mp->buf_size) {
       mp_reallocate_buffer (mp, (mp->buf_size + (mp->buf_size / 4)));
@@ -17895,7 +17878,7 @@ void mp_str_scan_file (MP mp, str_number s) {
   size_t p, q;  /* current position and stopping point */
   mp_begin_name (mp);
   p = 0;
-  q = length (s);
+  q = s->len;
   while (p < q) {
     if (!mp_more_name (mp, *(s->str + p)))
       break;
@@ -18129,7 +18112,6 @@ this file.
 @ @<Print the banner...@>=
 {
   wlog (mp->banner);
-  mp_print (mp, mp->mem_ident);
   mp_print (mp, "  ");
   mp_print_int (mp, mp_round_unscaled (mp, internal_value_to_halfword (mp_day)));
   mp_print_char (mp, xord (' '));
@@ -22235,7 +22217,7 @@ scaled se_sf;   /* the scale factor argument to |scale_edges| */
 switch (c) {
 case text_part:
 case font_part:
-  new_expr.data.str = null_str;
+  new_expr.data.str = mp_rts(mp,"");
   mp_flush_cur_exp (mp, new_expr);
   mp->cur_exp.type = mp_string_type;
   break;
@@ -22325,7 +22307,7 @@ static void mp_str_to_num (MP mp, quarterword c) {                              
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
   if (c == ASCII_op) {
-    if (length (cur_exp_str ()) == 0)
+    if (cur_exp_str ()->len == 0)
       n = -1;
     else
       n = cur_exp_str ()->str[0];
@@ -22336,7 +22318,7 @@ static void mp_str_to_num (MP mp, quarterword c) {                              
       b = 16;
     n = 0;
     bad_char = false;
-    for (k = 0; k < length (cur_exp_str ()); k++) {
+    for (k = 0; k < cur_exp_str ()->len; k++) {
       m = (ASCII_code) (*(cur_exp_str ()->str + k));
       if ((m >= '0') && (m <= '9'))
         m = (ASCII_code) (m - '0');
@@ -22396,7 +22378,7 @@ of different types of operands.
 case length_op:
 switch (mp->cur_exp.type) {
 case mp_string_type:
-  new_expr.data.val = (integer) (length (cur_exp_str ()) * unity);
+  new_expr.data.val = (integer) (cur_exp_str ()->len * unity);
   mp_flush_cur_exp (mp, new_expr);
   break;
 case mp_path_type:
@@ -24874,15 +24856,22 @@ static void mp_bilin3 (MP mp, mp_node p, scaled t,
 
 @ @<Additional cases of binary operators@>=
 case concatenate:
-if ((mp->cur_exp.type == mp_string_type) && (mp_type (p) == mp_string_type))
-  mp_cat (mp, p);
-else
+if ((mp->cur_exp.type == mp_string_type) && (mp_type (p) == mp_string_type)) {
+  str_number str = mp_cat (mp, str_value (p), cur_exp_str());
+  delete_str_ref (cur_exp_str ()) ;
+  set_cur_exp_str (str);
+} else
   mp_bad_binary (mp, p, concatenate);
 break;
 case substring_of:
-if (mp_nice_pair (mp, p, mp_type (p)) && (mp->cur_exp.type == mp_string_type))
-  mp_chop_string (mp, value_node (p));
-else
+if (mp_nice_pair (mp, p, mp_type (p)) && (mp->cur_exp.type == mp_string_type)) {
+  str_number str = mp_chop_string (mp, 
+                      cur_exp_str (),
+                      mp_round_unscaled (mp, value (x_part_loc (value_node(p)))), 
+                      mp_round_unscaled (mp, value (y_part_loc (value_node(p)))));
+  delete_str_ref (cur_exp_str ()) ;
+  set_cur_exp_str (str);
+} else
   mp_bad_binary (mp, p, substring_of);
 break;
 case subpath_of:
@@ -24893,77 +24882,6 @@ if (mp_nice_pair (mp, p, mp_type (p)) && (mp->cur_exp.type == mp_path_type))
 else
   mp_bad_binary (mp, p, subpath_of);
 break;
-
-@ @<Declare binary action...@>=
-static void mp_cat (MP mp, mp_node p) {
-  str_number a, b;      /* the strings being concatenated */
-  size_t needed;
-  size_t saved_cur_length = mp->cur_length;
-  unsigned char *saved_cur_string = mp->cur_string;
-  size_t saved_cur_string_size = mp->cur_string_size;
-  mp->cur_length = 0;
-  mp->cur_string = NULL;
-  mp->cur_string_size = 0;
-  a = str_value (p);
-  b = cur_exp_str ();
-  needed = length (a) + length (b);
-  str_room (needed+1);
-  (void) memcpy (mp->cur_string, a->str, a->len);
-  (void) memcpy (mp->cur_string + a->len, b->str, b->len);
-  mp->cur_length = needed;
-  mp->cur_string[needed] = '\0';
-  set_cur_exp_str (mp_make_string (mp));
-  delete_str_ref (b);
-  xfree(mp->cur_string); /* created by |mp_make_string| */
-  mp->cur_length = saved_cur_length;
-  mp->cur_string = saved_cur_string;
-  mp->cur_string_size = saved_cur_string_size;
-}
-
-
-@ @<Declare binary action...@>=
-static void mp_chop_string (MP mp, mp_node p) {
-  integer a, b; /* start and stop points */
-  integer l;    /* length of the original string */
-  integer k;    /* runs from |a| to |b| */
-  str_number s; /* the original string */
-  boolean reversed;     /* was |a>b|? */
-  a = mp_round_unscaled (mp, value (x_part_loc (p)));
-  b = mp_round_unscaled (mp, value (y_part_loc (p)));
-  if (a <= b)
-    reversed = false;
-  else {
-    reversed = true;
-    k = a;
-    a = b;
-    b = k;
-  };
-  s = cur_exp_str ();
-  l = (integer) length (s);
-  if (a < 0) {
-    a = 0;
-    if (b < 0)
-      b = 0;
-  }
-  if (b > l) {
-    b = l;
-    if (a > l)
-      a = l;
-  }
-  str_room ((size_t) (b - a));
-  if (reversed) {
-    for (k = b - 1; k >= a; k--) {
-      append_char (*(s->str + k));
-    }
-  } else {
-    for (k = a; k < b; k++) {
-      append_char (*(s->str + k));
-    }
-  }
-  set_cur_exp_str (mp_make_string (mp));
-  delete_str_ref (s);
-}
-
 
 @ @<Declare binary action...@>=
 static void mp_chop_path (MP mp, mp_node p) {
@@ -26562,7 +26480,7 @@ mp->mpx_name[file_bottom] = absent;
 mp->force_eof = false;
 t_open_in();
 mp->scanner_status = normal;
-if (mp->mem_ident == NULL && !mp->ini_version) {
+if (!mp->ini_version) {
   if (!mp_load_preload_file (mp)) {
     mp->history = mp_fatal_error_stop;
     return mp->history;
@@ -27043,7 +26961,7 @@ void mp_do_new_internal (MP mp) {
     internal_name (mp->int_ptr) =
       mp_xstrdup (mp, mp_str (mp, text (mp->cur_sym)));
     if (the_type == mp_string_type) {
-      set_internal_string (mp->int_ptr, null_str);
+      set_internal_string (mp->int_ptr, mp_rts(mp,""));
     } else {
       set_internal_from_scaled_int (mp->int_ptr, 0);
     }
@@ -27555,7 +27473,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
           s = mp_pre_script (ap);
           old_setting = mp->selector;
           mp->selector = new_string;
-          str_room (length (mp_pre_script (ap)) + length (cur_exp_str ()) + 2);
+          str_room (mp_pre_script (ap)->len + cur_exp_str ()->len + 2);
           mp_print_str (mp, cur_exp_str ());
           append_char (13);     /* a forced \ps\ newline  */
           mp_print_str (mp, mp_pre_script (ap));
@@ -27581,7 +27499,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
           s = mp_post_script (bp);
           old_setting = mp->selector;
           mp->selector = new_string;
-          str_room (length (mp_post_script (bp)) + length (cur_exp_str ()) + 2);
+          str_room (mp_post_script (bp)->len + cur_exp_str ()->len + 2);
           mp_print_str (mp, mp_post_script (bp));
           append_char (13);     /* a forced \ps\ newline  */
           mp_print_str (mp, cur_exp_str ());
@@ -28322,7 +28240,7 @@ void mp_do_message (MP mp) {
 @ @<Save the filename template@>=
 {
   delete_str_ref (internal_string (mp_output_template));
-  if (length (cur_exp_str ()) == 0) {
+  if (cur_exp_str ()->len == 0) {
     set_internal_string (mp_output_template, mp_rts (mp, "%j.%c"));
   } else {
     set_internal_string (mp_output_template, cur_exp_str ());
@@ -28348,7 +28266,7 @@ given an empty help string, or if none has ever been given.
 {
   if (mp->err_help != NULL)
     delete_str_ref (mp->err_help);
-  if (length (cur_exp_str ()) == 0)
+  if (cur_exp_str ()->len == 0)
     mp->err_help = NULL;
   else {
     mp->err_help = cur_exp_str ();
@@ -28964,7 +28882,7 @@ eight_bits mp_get_code (MP mp) {                               /* scans a charac
       if (c < 256)
         return (eight_bits) c;
   } else if (mp->cur_exp.type == mp_string_type) {
-    if (length (cur_exp_str ()) == 1) {
+    if (cur_exp_str ()->len == 1) {
       c = (integer) (*(cur_exp_str ()->str));
       return (eight_bits) c;
     }
@@ -30221,7 +30139,7 @@ void mp_set_text_box (MP mp, mp_node p) {
   f = (font_number) mp_font_n (p);
   bc = mp->font_bc[f];
   ec = mp->font_ec[f];
-  kk = length (mp_text_p (p));
+  kk = mp_text_p (p)->len;
   k = 0;
   while (k < kk) {
     @<Adjust |p|'s bounding box to contain |str_pool[k]|; advance |k|@>;
@@ -30374,14 +30292,14 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     old_setting = mp->selector;
     mp->selector = new_string;
     i = 0;
-    n = null_str;               /* initialize */
+    n = mp_rts(mp,"");               /* initialize */
     template = internal_string (mp_output_template);
-    while (i < length (template)) {
+    while (i < template->len) {
       f = 0;
       if (*(template->str + i) == '%') {
       CONTINUE:
         incr (i);
-        if (i < length (template)) {
+        if (i < template->len) {
           switch (*(template->str + i)) {
           case 'j':
             mp_append_to_template (mp, f, mp_job_name, true);
@@ -30416,7 +30334,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
               /* look up a name */
               size_t l = 0;
               size_t frst = i + 1;
-              while (i < length (template)) {
+              while (i < template->len) {
                 i++;
                 if (*(template->str + i) == '}')
                   break;
@@ -30486,7 +30404,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
         }
       } else {
         if (*(template->str + i) == '.')
-          if (length (n) == 0)
+          if (n->len == 0)
             n = mp_make_string (mp);
         mp_print_char (mp, *(template->str + i));
       };
@@ -30495,9 +30413,9 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     s = mp_make_string (mp);
     set_internal_from_scaled_int (mp_char_code, saved_char_code);
     mp->selector = old_setting;
-    if (length (n) == 0) {
+    if (n->len == 0) {
       n = s;
-      s = null_str;
+      s = mp_rts(mp,"");
     }
     ss = mp_str (mp, s);
     nn = mp_str (mp, n);
@@ -30819,7 +30737,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
     case mp_text_node_type:
       tt = (mp_text_object *) hq;
       gr_text_p (tt) = mp_xstrdup (mp, mp_str (mp, mp_text_p (p)));
-      gr_text_l (tt) = (size_t) length (mp_text_p (p));
+      gr_text_l (tt) = (size_t) mp_text_p (p)->len;
       gr_font_n (tt) = (unsigned int) mp_font_n (p);
       gr_font_name (tt) = mp_xstrdup (mp, mp->font_name[mp_font_n (p)]);
       gr_font_dsize (tt) = (unsigned int) mp->font_dsize[mp_font_n (p)];
@@ -31004,21 +30922,10 @@ name of the executable (\.{mpost} will attempt to preload the
 macros in the file \.{mpost.mp}). If such a preload is not 
 desired, the option variable |ini_version| has to be set |true|.
 
-The global variable |mem_ident| will be set to `\.{ (INIMP)}' 
-when |ini_version| is true; otherwise it will contain the filename 
-of the macro file being preloaded. 
-
 The variable |mem_file| holds the open file pointer.
 
 @<Glob...@>=
-char *mem_ident;
 void *mem_file; /* file for input or preloaded macros */
-
-@ @<Set init...@>=
-mp->mem_ident = NULL;
-
-@ @<Dealloc variables@>=
-xfree (mp->mem_ident);
 
 @ @<Declarations@>=
 extern boolean mp_load_preload_file (MP mp);
@@ -31053,7 +30960,6 @@ boolean mp_load_preload_file (MP mp) {
   mp_print_char (mp, xord ('('));
   incr (mp->open_parens);
   mp_print (mp, fname);
-  mp->mem_ident = fname;
   update_terminal();
   {
     line = 1;
@@ -31311,14 +31217,10 @@ But when we finish this part of the program, \MP\ is ready to call on the
 @<Get the first line...@>=
 {
   @<Initialize the input routines@>;
-  if (mp->mem_ident == NULL) {
-    if (!mp->ini_version) {
-      if (!mp_load_preload_file (mp)) {
-        mp->history = mp_fatal_error_stop;
-        return mp;
-      }
-    } else {
-      mp->mem_ident = mp_xstrdup (mp, " (INIMP)");
+  if (!mp->ini_version) {
+    if (!mp_load_preload_file (mp)) {
+      mp->history = mp_fatal_error_stop;
+      return mp;
     }
   }
   @<Initializations following first line@>;

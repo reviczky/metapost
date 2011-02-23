@@ -1604,33 +1604,28 @@ mp->ps->job_id_string = NULL;
 
 @c 
 void mp_set_job_id (MP mp) {
-    char *name_string, *format_string, *s;
+    char *name_string, *s;
     size_t slen;
     if (mp->ps->job_id_string != NULL)
        return;
     if ( mp->job_name==NULL )
        mp->job_name = mp_xstrdup(mp,"mpout");
     name_string = mp_xstrdup (mp,mp->job_name);
-    format_string = mp_xstrdup (mp, mp->mem_ident);
-    if (format_string == NULL) 
-      format_string = mp_xstrdup (mp, "");	
     slen = SMALL_BUF_SIZE +
-        strlen (name_string) +
-        strlen (format_string);
+        strlen (name_string) ;
     s = mp_xmalloc (mp,slen, sizeof (char));
     @= /*@@-bufferoverflowhigh@@*/ @>
-    sprintf (s,"%.4u/%.2u/%.2u %.2u:%.2u %s %s",
+    sprintf (s,"%.4u/%.2u/%.2u %.2u:%.2u %s",
                ((unsigned)internal_value_to_halfword(mp_year)>>16),
                ((unsigned)internal_value_to_halfword(mp_month)>>16), 
                ((unsigned)internal_value_to_halfword(mp_day)>>16), 
                ((unsigned)internal_value_to_halfword(mp_time)>>16) / 60, 
                ((unsigned)internal_value_to_halfword(mp_time)>>16) % 60,
-                name_string, format_string);
+                name_string);
     @= /*@@=bufferoverflowhigh@@*/ @>
     mp->ps->job_id_string = mp_xstrdup (mp,s);
     mp_xfree (s);
     mp_xfree (name_string);
-    mp_xfree (format_string);
 }
 static void fnstr_append (MP mp, const char *ss) {
     size_t n = strlen (ss) + 1;

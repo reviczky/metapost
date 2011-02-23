@@ -50,6 +50,7 @@
 #include "mplib.h"
 #include "mpmp.h" /* internal header */
 #include "mpmath.h" /* internal header */
+#include "mpstrings.h" /* internal header */
 @<Declarations@>;
 @h
 
