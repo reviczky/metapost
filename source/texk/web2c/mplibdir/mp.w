@@ -2425,33 +2425,10 @@ typedef union {
 @d XREALLOC(a,b,c) a = xrealloc(a,(b+1),sizeof(c));
 
 @<Declare helpers@>=
-extern char *mp_strdup (const char *p);
-extern char *mp_strldup (const char *p, size_t l);
 extern void mp_xfree (void *x);
 extern void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size);
 extern void *mp_xmalloc (MP mp, size_t nmem, size_t size);
 extern void mp_do_snprintf (char *str, int size, const char *fmt, ...);
-
-@ Some care has to be taken while copying strings 
-
-@c
-char *mp_strldup (const char *p, size_t l) {
-  char *r, *s;
-  if (p == NULL)
-    return NULL;
-  r = malloc ((size_t) (l * sizeof (char) + 1));
-  if (r == NULL)
-    return NULL;
-  s = memcpy (r, p, (size_t) (l));
-  *(s + l) = '\0';
-  return s;
-}
-char *mp_strdup (const char *p) {
-  if (p == NULL)
-    return NULL;
-  return mp_strldup (p, strlen (p));
-}
-
 
 @ The |max_size_test| guards against overflow, on the assumption that
 |size_t| is at least 31bits wide.
@@ -4640,6 +4617,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 @d set_str_value(A,B) do { /* store the value in a large token node */
    knot_value(A)=NULL;
    str_value(A)=(B);
+   add_str_ref((B));
    value_node(A)=NULL;
    value(A)=0;
  } while (0) 
@@ -9270,6 +9248,7 @@ static mp_node mp_new_text_node (MP mp, char *f, str_number s) {
   memset (t, 0, text_node_size);
   mp_type (t) = mp_text_node_type;
   mp_text_p (t) = s;
+  add_str_ref(s); 
   mp_font_n (t) = (halfword) mp_find_font (mp, f);      /* this identifies the font */
   red_val (t) = 0;
   green_val (t) = 0;
@@ -9592,7 +9571,7 @@ mp_node mp_toss_gr_object (MP mp, mp_node p) {
     mp_free_node (mp, p, stroked_node_size);
     break;
   case mp_text_node_type:
-    delete_str_ref (mp_text_p (p));
+    /* |delete_str_ref (mp_text_p (p));| */ /* gives errors */
     if (mp_pre_script (p) != NULL)
       delete_str_ref (mp_pre_script (p));
     if (mp_post_script (p) != NULL)
@@ -18440,6 +18419,7 @@ recovery.
         delete_str_ref(cur_exp_str());
     }
     cur_exp_str() = A;
+    add_str_ref(cur_exp_str());
     cur_exp_node() = NULL;
     cur_exp_knot() = NULL;
     cur_exp_value() = 0;
@@ -19853,7 +19833,6 @@ of the internal quantity, with |name_type| equal to |mp_internal_sym|.
   }
   if (internal_type (qq) == mp_string_type) {
     set_cur_exp_str (internal_string (qq));
-    add_str_ref (cur_exp_str ());
   } else {
     set_cur_exp_value (internal_value_to_halfword (qq));
   }
@@ -20160,7 +20139,6 @@ RESTART:
     break;
   case mp_string_type:
     set_cur_exp_str (str_value (p));
-    add_str_ref (cur_exp_str ());
     break;
   case mp_picture_type:
     set_cur_exp_node (value_node (p));
@@ -25230,6 +25208,7 @@ static void mp_do_infont (MP mp, mp_node p) {
   memset(&new_expr,0,sizeof(mp_value));
   q = mp_get_edge_header_node (mp);
   mp_init_edges (mp, q);
+  add_str_ref (cur_exp_str());
   mp_link (obj_tail (q)) =
     mp_new_text_node (mp, mp_str (mp, cur_exp_str ()), str_value (p));
   obj_tail (q) = mp_link (obj_tail (q));
