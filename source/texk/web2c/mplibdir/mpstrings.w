@@ -98,39 +98,6 @@ void *delete_strings_entry (void *p) {
   return NULL;
 }
 
-@ @c
-void mp_initialize_strings (MP mp) {
-  @<Allocate or initialize strings@>;
-}
-
-@ @c
-void mp_dealloc_strings (MP mp) {
-  @<Dealloc variables@>;
-}
-
-@ Here are the definitions
-@<Definitions@>=
-extern void mp_initialize_strings (MP mp);
-extern void mp_dealloc_strings (MP mp);
-
-@ 
-@<Allocate or initialize ...@>=
-mp->strings = avl_create (comp_strings_entry,
-                          copy_strings_entry,
-                          delete_strings_entry, malloc, free, NULL);
-mp->cur_string = NULL;
-mp->cur_length = 0;
-mp->cur_string_size = 0;
-
-@ @<Dealloc variables@>=
-if (mp->strings != NULL)
-  avl_destroy (mp->strings);
-mp->strings = NULL;
-mp_xfree (mp->cur_string);
-mp->cur_string = NULL;
-mp->cur_length = 0;
-mp->cur_string_size = 0;
-
 @ Actually creating strings is done by |make_string|, but in order to
 do so it needs a way to create a new, empty string structure.
 
@@ -147,18 +114,33 @@ str_number new_strings_entry (MP mp) {
   return ff;
 }
 
-@ Most printing is done from |char *|s, but sometimes not. Here are
-functions that convert an internal string into a |char *| for use
-by the printing routines, and vice versa.
+
+@ Some even more low-level functions are these:
 
 @<Definitions@>=
 extern int mp_xstrcmp (const char *a, const char *b);
 extern char *mp_xstrdup (MP mp, const char *s);
 extern char *mp_xstrldup (MP mp, const char *s, size_t l);
-char *mp_str (MP mp, str_number s);
-str_number mp_rtsl (MP mp, const char *s, size_t l);
-str_number mp_rts (MP mp, const char *s);
-str_number mp_make_string (MP mp);
+extern char *mp_strdup (const char *p);
+extern char *mp_strldup (const char *p, size_t l);
+
+@ @c
+char *mp_strldup (const char *p, size_t l) {
+  char *r, *s;
+  if (p == NULL)
+    return NULL;
+  r = malloc ((size_t) (l * sizeof (char) + 1));
+  if (r == NULL)
+    return NULL;
+  s = memcpy (r, p, (size_t) (l));
+  *(s + l) = '\0';
+  return s;
+}
+char *mp_strdup (const char *p) {
+  if (p == NULL)
+    return NULL;
+  return mp_strldup (p, strlen (p));
+}
 
 @ @c
 int mp_xstrcmp (const char *a, const char *b) {
@@ -170,8 +152,6 @@ int mp_xstrcmp (const char *a, const char *b) {
     return 1;
   return strcmp (a, b);
 }
-
-@ @c
 char *mp_xstrldup (MP mp, const char *s, size_t l) {
   char *w;
   if (s == NULL)
@@ -192,31 +172,64 @@ char *mp_xstrdup (MP mp, const char *s) {
 
 
 @ @c
+void mp_initialize_strings (MP mp) {
+  mp->strings = avl_create (comp_strings_entry,
+                            copy_strings_entry,
+                            delete_strings_entry, malloc, free, NULL);
+  mp->cur_string = NULL;
+  mp->cur_length = 0;
+  mp->cur_string_size = 0;
+}
+
+@ @c
+void mp_dealloc_strings (MP mp) {
+  if (mp->strings != NULL)
+    avl_destroy (mp->strings);
+  mp->strings = NULL;
+  mp_xfree (mp->cur_string);
+  mp->cur_string = NULL;
+  mp->cur_length = 0;
+  mp->cur_string_size = 0;
+}
+
+@ Here are the definitions
+@<Definitions@>=
+extern void mp_initialize_strings (MP mp);
+extern void mp_dealloc_strings (MP mp);
+
+@ Most printing is done from |char *|s, but sometimes not. Here are
+functions that convert an internal string into a |char *| for use
+by the printing routines, and vice versa.
+
+@<Definitions@>=
+char *mp_str (MP mp, str_number s);
+str_number mp_rtsl (MP mp, const char *s, size_t l);
+str_number mp_rts (MP mp, const char *s);
+str_number mp_make_string (MP mp);
+
+@ @c
 char *mp_str (MP mp, str_number ss) {
   (void) mp;
   return (char *) ss->str;
 }
+
+@ @c
 str_number mp_rtsl (MP mp, const char *s, size_t l) {
-  str_number str;
-  mp_lstring tmp;
-  tmp.str = mp_xmalloc (mp, l + 1, 1);
-  memcpy (tmp.str, s, (l + 1));
-  tmp.len = l;
-  str = (str_number) avl_find (&tmp, mp->strings);
-  if (str == NULL) {            /* not yet known */
-    str = new_strings_entry (mp);
-    str->str = mp_xmalloc (mp, l + 1, 1);
-    memcpy (str->str, s, (l + 1));
-    str->len = tmp.len;
+  str_number str, nstr;
+  str = new_strings_entry (mp);
+  str->str = (unsigned char *)mp_xstrldup (mp, s, l);
+  str->len = l;
+  nstr = (str_number) avl_find (str, mp->strings);
+  if (nstr == NULL) {            /* not yet known */
     assert (avl_ins (str, mp->strings, avl_false) > 0);
-    mp_xfree (str->str);
-    mp_xfree (str);
-    str = (str_number) avl_find (&tmp, mp->strings);
+    nstr = (str_number) avl_find (str, mp->strings);
   }
-  str->refs++;
-  free (tmp.str);
-  return str;
+  (void)delete_strings_entry(str);
+  add_str_ref(nstr);
+  return nstr;
 }
+
+@ @c
 str_number mp_rts (MP mp, const char *s) {
   return mp_rtsl (mp, s, strlen (s));
 }
@@ -292,7 +305,7 @@ put it in this category.
 @<Definitions@>=
 #define delete_str_ref(A) do {  \
     if ( (A)->refs < MAX_STR_REF ) { \
-       if ( (A)->refs > 1 ) ((A)->refs)--;  \
+       if ( (A)->refs > 0 ) ((A)->refs)--;  \
        else mp_flush_string(mp, (A)); \
     } \
   } while (0)
@@ -351,8 +364,8 @@ str_number mp_make_string (MP mp) {                               /* current str
     mp->strs_in_use++;
     if (mp->strs_in_use > mp->max_strs_used)
       mp->max_strs_used = mp->strs_in_use;
-    str->refs = 1;
   }
+  add_str_ref(str);
   reset_cur_string (mp);
   return str;
 }
