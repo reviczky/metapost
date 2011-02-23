@@ -4176,7 +4176,7 @@ static void *copy_symbols_entry (const void *p) {
   ff = malloc (sizeof (mp_symbol_entry));
   if (ff == NULL)
     return NULL;
-  ff->text = copy_strings_entry (fp->text);
+  ff->text = copy_strings_entry (fp->text); 
   if (ff->text == NULL)
     return NULL;
   ff->v = fp->v;
@@ -4191,7 +4191,8 @@ end of the run.
 @c
 static void *delete_symbols_entry (void *p) {
   mp_sym ff = (mp_sym) p;
-  delete_strings_entry (ff->text);
+  mp_xfree (ff->text->str);
+  mp_xfree (ff->text);
   mp_xfree (ff);
   return NULL;
 }
@@ -4222,7 +4223,7 @@ static mp_sym new_symbols_entry (MP mp, unsigned char *nam, size_t len) {
   mp_sym ff;
   ff = mp_xmalloc (mp, 1, sizeof (mp_symbol_entry));
   memset (ff, 0, sizeof (mp_symbol_entry));
-  ff->text = new_strings_entry (mp);
+  ff->text = mp_xmalloc (mp, 1, sizeof (mp_lstring));
   ff->text->str = nam;
   ff->text->len = len;
   ff->type = tag_token;

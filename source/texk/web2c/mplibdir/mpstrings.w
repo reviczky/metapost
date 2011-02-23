@@ -51,15 +51,13 @@
 @ Here are the functions needed for the avl construction.
 
 @<Definitions@>=
-int comp_strings_entry (void *p, const void *pa, const void *pb);
 void *copy_strings_entry (const void *p);
-void *delete_strings_entry (void *p);
 
 @ An earlier version of this function used |strncmp|, but that produces
 wrong results in some cases.
 @c
 #define STRCMP_RESULT(a) ((a)<0 ? -1 : ((a)>0 ? 1 : 0))
-int comp_strings_entry (void *p, const void *pa, const void *pb) {
+static int comp_strings_entry (void *p, const void *pa, const void *pb) {
   const mp_lstring *a = (const mp_lstring *) pa;
   const mp_lstring *b = (const mp_lstring *) pb;
   size_t l;
@@ -91,7 +89,7 @@ void *copy_strings_entry (const void *p) {
   ff->refs = 0;
   return ff;
 }
-void *delete_strings_entry (void *p) {
+static void *delete_strings_entry (void *p) {
   str_number ff = (str_number) p;
   mp_xfree (ff->str);
   mp_xfree (ff);
@@ -101,11 +99,8 @@ void *delete_strings_entry (void *p) {
 @ Actually creating strings is done by |make_string|, but in order to
 do so it needs a way to create a new, empty string structure.
 
-@<Definitions@>=
-str_number new_strings_entry (MP mp);
-
 @ @c
-str_number new_strings_entry (MP mp) {
+static str_number new_strings_entry (MP mp) {
   str_number ff;
   ff = mp_xmalloc (mp, 1, sizeof (mp_lstring));
   ff->str = NULL;
