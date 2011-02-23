@@ -128,6 +128,8 @@ if (mp->strings != NULL)
 mp->strings = NULL;
 mp_xfree (mp->cur_string);
 mp->cur_string = NULL;
+mp->cur_length = 0;
+mp->cur_string_size = 0;
 
 @ Actually creating strings is done by |make_string|, but in order to
 do so it needs a way to create a new, empty string structure.
@@ -150,8 +152,9 @@ functions that convert an internal string into a |char *| for use
 by the printing routines, and vice versa.
 
 @<Definitions@>=
-#define null_str mp_rts(mp,"")
-int mp_xstrcmp (const char *a, const char *b);
+extern int mp_xstrcmp (const char *a, const char *b);
+extern char *mp_xstrdup (MP mp, const char *s);
+extern char *mp_xstrldup (MP mp, const char *s, size_t l);
 char *mp_str (MP mp, str_number s);
 str_number mp_rtsl (MP mp, const char *s, size_t l);
 str_number mp_rts (MP mp, const char *s);
@@ -166,6 +169,25 @@ int mp_xstrcmp (const char *a, const char *b) {
   if (b == NULL)
     return 1;
   return strcmp (a, b);
+}
+
+@ @c
+char *mp_xstrldup (MP mp, const char *s, size_t l) {
+  char *w;
+  if (s == NULL)
+    return NULL;
+  w = mp_strldup (s, l);
+  if (w == NULL) {
+    do_putsf (mp->err_out, "Out of memory!\n");
+    mp->history = mp_system_error_stop;
+    mp_jump_out (mp);
+  }
+  return w;
+}
+char *mp_xstrdup (MP mp, const char *s) {
+  if (s == NULL)
+    return NULL;
+  return mp_xstrldup (mp, s, strlen (s));
 }
 
 
@@ -200,16 +222,6 @@ str_number mp_rts (MP mp, const char *s) {
 }
 
 
-@ Several of the elementary string operations are performed using \.{WEB}
-macros instead of functions, because many of the
-operations are done quite frequently and we want to avoid the
-overhead of procedure calls. For example, here is
-a simple macro that computes the length of a string.
-@.WEB@>
-
-@<Definitions@>=
-#define length(A) ((A)->len) /* the number of characters in string \# */
-
 @ Strings are created by appending character codes to |cur_string|.
 The |append_char| macro, defined here, does not check to see if the
 buffer overflows; this test is supposed to be
@@ -222,8 +234,7 @@ in the |cur_string|.
 @<Definitions@>=
 #define EXTRA_STRING 500
 #define append_char(A) do { \
-    if (mp->cur_string==NULL) reset_cur_string(mp); \
-    else str_room(1); \
+    str_room(1); \
     *(mp->cur_string+mp->cur_length)=(unsigned char)(A); \
     mp->cur_length++; \
 } while (0)
@@ -234,7 +245,7 @@ in the |cur_string|.
         if (nsize < (size_t)(wsize)) { \
             nsize = (size_t)wsize + EXTRA_STRING; \
         } \
-        mp->cur_string = (unsigned char *) xrealloc(mp->cur_string, (unsigned)nsize, sizeof(unsigned char)); \
+        mp->cur_string = (unsigned char *) mp_xrealloc(mp, mp->cur_string, (unsigned)nsize, sizeof(unsigned char)); \
         memset (mp->cur_string+mp->cur_length,0,(nsize-mp->cur_length)); \
         mp->cur_string_size = nsize; \
     } \
@@ -293,7 +304,7 @@ void mp_flush_string (MP mp, str_number s);
 void mp_flush_string (MP mp, str_number s) {
   if (s->refs == 0) {
     mp->strs_in_use--;
-    mp->pool_in_use = mp->pool_in_use - (integer) length (s);
+    mp->pool_in_use = mp->pool_in_use - (integer) s->len;
     (void) avl_del (s, mp->strings, NULL);
   }
 }
@@ -334,7 +345,7 @@ str_number mp_make_string (MP mp) {                               /* current str
     str->len = tmp.len;
     assert (avl_ins (str, mp->strings, avl_false) > 0);
     str = (str_number) avl_find (&tmp, mp->strings);
-    mp->pool_in_use = mp->pool_in_use + (integer) length (str);
+    mp->pool_in_use = mp->pool_in_use + (integer) str->len;
     if (mp->pool_in_use > mp->max_pl_used)
       mp->max_pl_used = mp->pool_in_use;
     mp->strs_in_use++;
@@ -361,4 +372,73 @@ integer mp_str_vs_str (MP mp, str_number s, str_number t) {
   return comp_strings_entry (NULL, (const void *) s, (const void *) t);
 }
 
+
+
+@ @<Definitions@>=
+str_number mp_cat (MP mp, str_number a, str_number b);
+
+@ @c
+str_number mp_cat (MP mp, str_number a, str_number b) {
+  str_number str;
+  size_t needed;
+  size_t saved_cur_length = mp->cur_length;
+  unsigned char *saved_cur_string = mp->cur_string;
+  size_t saved_cur_string_size = mp->cur_string_size;
+  mp->cur_length = 0;
+  mp->cur_string = NULL;
+  mp->cur_string_size = 0;
+  needed = a->len + b->len;
+  str_room (needed+1);
+  (void) memcpy (mp->cur_string, a->str, a->len);
+  (void) memcpy (mp->cur_string + a->len, b->str, b->len);
+  mp->cur_length = needed;
+  mp->cur_string[needed] = '\0';
+  str = mp_make_string (mp);
+  mp_xfree(mp->cur_string); /* created by |mp_make_string| */
+  mp->cur_length = saved_cur_length;
+  mp->cur_string = saved_cur_string;
+  mp->cur_string_size = saved_cur_string_size;
+  return str;
+}
+
+
+@ @<Definitions@>=
+str_number mp_chop_string (MP mp, str_number s, integer a, integer b);
+
+@ @c
+str_number mp_chop_string (MP mp, str_number s, integer a, integer b) {
+  integer l;    /* length of the original string */
+  integer k;    /* runs from |a| to |b| */
+  boolean reversed;     /* was |a>b|? */
+  if (a <= b)
+    reversed = false;
+  else {
+    reversed = true;
+    k = a;
+    a = b;
+    b = k;
+  }
+  l = (integer) s->len;
+  if (a < 0) {
+    a = 0;
+    if (b < 0)
+      b = 0;
+  }
+  if (b > l) {
+    b = l;
+    if (a > l)
+      a = l;
+  }
+  str_room ((size_t) (b - a));
+  if (reversed) {
+    for (k = b - 1; k >= a; k--) {
+      append_char (*(s->str + k));
+    }
+  } else {
+    for (k = a; k < b; k++) {
+      append_char (*(s->str + k));
+    }
+  }
+  return mp_make_string (mp);
+}
 
