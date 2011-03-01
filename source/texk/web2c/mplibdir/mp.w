@@ -280,7 +280,6 @@ static void mp_do_initialize (MP mp) {
 
 @<Global variables@>=
 void *math;
-mp_value_type val_type;
 
 @ This procedure gets things started properly.
 @c
@@ -2393,10 +2392,6 @@ typedef struct mp_node_data *mp_node;
 typedef struct mp_symbol_entry *mp_sym;
 typedef short quarterword;      /* 1/4 of a word */
 typedef int halfword;   /* 1/2 of a word */
-typedef enum {
-  mp_scaled_int_type = 0,
-  mp_double_type = 1,
-} mp_value_type;
 typedef struct {
   integer scale; /* only for |indep_scale|, used together with |val| */
   halfword val;
@@ -2416,6 +2411,24 @@ typedef union {
   integer sc;
   four_quarters qqqq;
 } font_data;
+
+
+@ The global variable |math_mode| has four settings, representing the
+math value type that will be used in this run.
+
+@<Exported types@>=
+typedef enum {
+  mp_math_scaled_mode = 0,
+  mp_math_double_mode = 1,
+  mp_math_binary_mode = 2,
+  mp_math_decimal_mode = 3,
+} mp_math_mode;
+
+@ @<Option variables@>=
+int math_mode;               /* math mode */
+
+@ @<Allocate or initialize ...@>=
+mp->math_mode = opt->math_mode;
 
 @ 
 @d xfree(A) do { mp_xfree(A); A=NULL; } while (0)
@@ -3697,10 +3710,10 @@ typedef struct {
 
 @ @(mpmp.h@>=
 #define internal_value_to_halfword(A) (halfword) \
-  (mp->val_type == mp_scaled_int_type ? (mp->internal[(A)].v.data.val) : (mp->internal[(A)].v.data.dval*65536.0))
+  (mp->math_mode == mp_math_scaled_mode ? (mp->internal[(A)].v.data.val) : (mp->internal[(A)].v.data.dval*65536.0))
 #define set_internal_from_scaled_int(A,B) do { \
-  mp->internal[(A)].v.data.val_type=mp->val_type;    \
-  if (mp->val_type == mp_scaled_int_type) {\
+  mp->internal[(A)].v.data.val_type=mp->math_mode;    \
+  if (mp->math_mode == mp_math_scaled_mode) {\
     mp->internal[(A)].v.data.val=(B);\
   } else { \
     mp->internal[(A)].v.data.dval=(B)/65536.0; \
@@ -3736,7 +3749,6 @@ int troff_mode;
 
 @ @<Allocate or initialize ...@>=
 mp->max_internal = 2 * max_given_internal;
-mp->val_type = mp_double_type;
 mp->internal = xmalloc ((mp->max_internal + 1), sizeof (mp_internal));
 memset (mp->internal, 0,
         (size_t) (mp->max_internal + 1) * sizeof (mp_internal));
@@ -6264,7 +6276,7 @@ static void mp_unsave_internal (MP mp, halfword q) {
     mp_print (mp, internal_name (q));
     mp_print_char (mp, xord ('='));
     if (internal_type (q) == mp_known) {
-      if (saved.v.data.val_type == mp_scaled_int_type) {
+      if (saved.v.data.val_type == mp_math_scaled_mode) {
         mp_print_scaled (mp, saved.v.data.val);
       } else {
         mp_print_scaled (mp, (halfword)(saved.v.data.dval*65536.0));
