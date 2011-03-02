@@ -17650,7 +17650,7 @@ void mp_end_name (MP mp) {
     len = (size_t) mp->ext_delimiter - s;
   }
   copy_pool_segment (mp->cur_name, s, len);
-  reset_cur_string (mp);
+  mp_reset_cur_string (mp);
 }
 
 

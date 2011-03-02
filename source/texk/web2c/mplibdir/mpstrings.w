@@ -267,10 +267,10 @@ start creating a new string. The initial size is fairly arbitrary, but
 setting it a little higher than expected helps prevent |reallocs|
 
 @<Definitions@>=
-void reset_cur_string (MP mp);
+void mp_reset_cur_string (MP mp);
 
 @ @c
-void reset_cur_string (MP mp) {
+void mp_reset_cur_string (MP mp) {
   mp_xfree (mp->cur_string);
   mp->cur_length = 0;
   mp->cur_string_size = 63;
@@ -361,7 +361,7 @@ str_number mp_make_string (MP mp) {                               /* current str
       mp->max_strs_used = mp->strs_in_use;
   }
   add_str_ref(str);
-  reset_cur_string (mp);
+  mp_reset_cur_string (mp);
   return str;
 }
 
