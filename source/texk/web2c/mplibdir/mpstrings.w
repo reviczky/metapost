@@ -300,7 +300,7 @@ put it in this category.
 @<Definitions@>=
 #define delete_str_ref(A) do {  \
     if ( (A)->refs < MAX_STR_REF ) { \
-       if ( (A)->refs > 0 ) ((A)->refs)--;  \
+       if ( (A)->refs > 1 ) ((A)->refs)--;  \
        else mp_flush_string(mp, (A)); \
     } \
   } while (0)
