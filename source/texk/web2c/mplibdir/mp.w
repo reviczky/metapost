@@ -716,18 +716,19 @@ mp->file_line_error_style = (opt->file_line_error_style > 0 ? true : false);
 @ \MP's file-opening procedures return |false| if no file identified by
 |name_of_file| could be opened.
 
-The |OPEN_FILE| macro takes care of the |print_found_names| parameter.
+The |do_open_file| function takes care of the |print_found_names| parameter.
 
-@d OPEN_FILE(A) do {
+@c
+static boolean mp_do_open_file (MP mp, void **f, int ftype, char *mode) {
   if (mp->print_found_names || mp->file_line_error_style) {
-    char *s = (mp->find_file)(mp,mp->name_of_file,A,ftype);
+    char *s = (mp->find_file)(mp,mp->name_of_file,mode,ftype);
     if (s!=NULL) {
-      *f = (mp->open_file)(mp,mp->name_of_file,A, ftype); 
+      *f = (mp->open_file)(mp,mp->name_of_file,mode, ftype); 
       if (mp->print_found_names) {
         xfree(mp->name_of_file);
         mp->name_of_file = xstrdup(s);
       }
-      if ((*(A) == 'r') && (ftype == mp_filetype_program)) {
+      if ((*mode == 'r') && (ftype == mp_filetype_program)) {
         long_name = xstrdup(s);
       }
       xfree(s);
@@ -735,20 +736,19 @@ The |OPEN_FILE| macro takes care of the |print_found_names| parameter.
       *f = NULL;
     }
   } else {
-    *f = (mp->open_file)(mp,mp->name_of_file,A, ftype); 
+    *f = (mp->open_file)(mp,mp->name_of_file,mode, ftype); 
   }
-} while (0);
-return (*f ? true : false)
-
-@c
+  return (*f ? true : false);
+}
+@#
 static boolean mp_open_in (MP mp, void **f, int ftype) {
-  /* open a text file for input */
-  OPEN_FILE ("r");
+  /* open a file for input */
+  return mp_do_open_file (mp, f, ftype, "r");
 }
 @#
 static boolean mp_open_out (MP mp, void **f, int ftype) {
-  /* open a binary file for output */
-  OPEN_FILE ("w");
+  /* open a file for output */
+  return mp_do_open_file (mp, f, ftype, "w");
 }
 
 
