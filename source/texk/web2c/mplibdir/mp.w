@@ -461,17 +461,6 @@ with checking at assignment time.
 @<Check the ``constant'' values for consistency@>=
 mp->bad = 0;
 
-@ Some |goto| labels are used by the following definitions. The label
-`|restart|' is occasionally used at the very beginning of a procedure; and
-the label `|reswitch|' is occasionally used just prior to a |case|
-statement in which some cases change the conditions and we wish to branch
-to the newly applicable case.  Loops that are set up with the |loop|
-construction defined below are commonly exited by going to `|done|' or to
-`|found|' or to `|not_found|', and they are sometimes repeated by going to
-`|continue|'.  If two or more parts of a subroutine start differently but
-end up the same, the shared code may be gathered together at
-`|common_ending|'.
-
 @ Here are some macros for common programming idioms.
 
 @d incr(A)   (A)=(A)+1 /* increase a variable by unity */
@@ -1096,7 +1085,7 @@ mp_initialize_strings(mp);
 @ @<Dealloc variables@>=
 mp_dealloc_strings(mp);
 
-@ The next four variables for keeping track of string pool usage.
+@ The next four variables are for keeping track of string memory usage.
 
 @<Glob...@>=
 integer pool_in_use;    /* total number of string bytes actually in use */
@@ -1315,9 +1304,8 @@ static void mp_print_visible_char (MP mp, ASCII_code s) {                       
     break;
   default:
     {
-      text_char ss[2];
+      text_char ss[2] = {0,0};
       ss[0] = xchr (s);
-      ss[1] = 0;
       mp_fputs ((char *) ss, mp->wr_file[(mp->selector - write_file)]);
     }
   }
@@ -1783,9 +1771,6 @@ void mp_run_editor (MP mp, char *fname, int fline) {
 
 
 @ 
-There is a secret `\.D' option available when the debugging routines haven't
-been commented~out.
-@^debugging@>
 
 @<Interpret code |c| and |return| if done@>=
 switch (c) {
@@ -1927,7 +1912,7 @@ to be familiar with \MP's input stacks.
 }
 
 
-@ Some wiggling with |help_line| is done here to avoid giving no
+@ Some wriggling with |help_line| is done here to avoid giving no
 information whatsoever, or presenting the same information twice
 in a row.
 
@@ -2202,13 +2187,7 @@ static void mp_clear_arith (MP mp) {
 sufficient; \MP\ has yet another, used internally to keep track of angles.
 
 @<Exported types...@>=
-#if 1
 typedef int scaled; /* this type is used for scaled integers */
-#else
-typedef struct scaled {
-  int val;
-} scaled;
-#endif
 typedef int fraction;       /* this type is used for scaled fractions */
 typedef int angle;  /* this type is used for scaled angles */
 
@@ -2237,7 +2216,7 @@ void mp_print_two (MP mp, scaled x, scaled y) {                               /*
 @d three_sixty_deg ((math_data *)mp->math)->three_sixty_deg_
 
 @ @<Local variables for initialization@>=
-integer k;      /* all-purpose loop index */
+integer k;  /* all-purpose loop index */
 
 @ And now let's complete our collection of numeric utility routines
 by considering random number generation.
