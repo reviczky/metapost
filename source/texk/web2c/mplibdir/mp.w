@@ -326,7 +326,7 @@ MP mp_initialize (MP_options * opt) {
     char ss[256];
     mp_snprintf (ss, 256, "Ouch---my internal constants have been clobbered!\n"
                  "---case %i", (int) mp->bad);
-    do_putsf (mp->err_out, (char *) ss);
+    mp_fputs (mp->err_out, (char *) ss);
 @.Ouch...clobbered@>;
     return mp;
   }
@@ -1027,12 +1027,12 @@ boolean mp_init_terminal (MP mp) {                               /* gets the ter
   while (1) {
     if (!mp->noninteractive) {
       wake_up_terminal();
-      do_putsf (mp->term_out, "**");
+      mp_fputs (mp->term_out, "**");
 @.**@>;
       update_terminal();
     }
     if (!mp_input_ln (mp, mp->term_in)) {       /* this shouldn't happen */
-      do_putsf (mp->term_out, "\n! End of file on the terminal... why?");
+      mp_fputs (mp->term_out, "\n! End of file on the terminal... why?");
 @.End of file on the terminal@>;
       return false;
     }
@@ -1043,7 +1043,7 @@ boolean mp_init_terminal (MP mp) {                               /* gets the ter
       return true;              /* return unless the line was all blank */
     }
     if (!mp->noninteractive) {
-      do_putsf (mp->term_out, "Please type the name of your input file.\n");
+      mp_fputs (mp->term_out, "Please type the name of your input file.\n");
     }
   }
 }
@@ -1212,15 +1212,15 @@ by changing |wterm|, |wterm_ln|, and |wterm_cr| here.
 @^system dependencies@>
 
 @(mpmp.h@>=
-#define do_putsf(f,b) (mp->write_ascii_file)(mp,f,b)
-#define wterm(A)     do_putsf(mp->term_out,(A))
+#define mp_fputs(f,b) (mp->write_ascii_file)(mp,f,b)
+#define wterm(A)     mp_fputs(mp->term_out,(A))
 #define wterm_chr(A) { unsigned char ss[2]; ss[0]=(A); ss[1]='\0'; wterm((char *)ss);}
-#define wterm_cr     do_putsf(mp->term_out,"\n")
-#define wterm_ln(A)  { wterm_cr; do_putsf(mp->term_out,(A)); }
-#define wlog(A)        do_putsf(mp->log_file,(A))
+#define wterm_cr     mp_fputs(mp->term_out,"\n")
+#define wterm_ln(A)  { wterm_cr; mp_fputs(mp->term_out,(A)); }
+#define wlog(A)        mp_fputs(mp->log_file,(A))
 #define wlog_chr(A)  { unsigned char ss[2]; ss[0]=(A); ss[1]='\0'; wlog((char *)ss);}
-#define wlog_cr      do_putsf(mp->log_file, "\n")
-#define wlog_ln(A)   { wlog_cr; do_putsf(mp->log_file,(A)); }
+#define wlog_cr      mp_fputs(mp->log_file, "\n")
+#define wlog_ln(A)   { wlog_cr; mp_fputs(mp->log_file,(A)); }
 
 
 @ To end a line of text output, we call |print_ln|.  Cases |0..max_write_files|
@@ -1261,7 +1261,7 @@ void mp_print_ln (MP mp) {                               /* prints an end-of-lin
   case new_string:
     break;
   default:
-    do_putsf (mp->wr_file[(mp->selector - write_file)], "\n");
+    mp_fputs (mp->wr_file[(mp->selector - write_file)], "\n");
   }
 }                               /* note that |tally| is not affected */
 
@@ -1318,7 +1318,7 @@ static void mp_print_visible_char (MP mp, ASCII_code s) {                       
       text_char ss[2];
       ss[0] = xchr (s);
       ss[1] = 0;
-      do_putsf (mp->wr_file[(mp->selector - write_file)], (char *) ss);
+      mp_fputs (mp->wr_file[(mp->selector - write_file)], (char *) ss);
     }
   }
   incr (mp->tally);
@@ -2451,13 +2451,13 @@ void mp_xfree (void *x) {
 void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) {
   void *w;
   if ((max_size_test / size) < nmem) {
-    do_putsf (mp->err_out, "Memory size overflow!\n");
+    mp_fputs (mp->err_out, "Memory size overflow!\n");
     mp->history = mp_fatal_error_stop;
     mp_jump_out (mp);
   }
   w = realloc (p, (nmem * size));
   if (w == NULL) {
-    do_putsf (mp->err_out, "Out of memory!\n");
+    mp_fputs (mp->err_out, "Out of memory!\n");
     mp->history = mp_system_error_stop;
     mp_jump_out (mp);
   }
@@ -2466,13 +2466,13 @@ void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) {
 void *mp_xmalloc (MP mp, size_t nmem, size_t size) {
   void *w;
   if ((max_size_test / size) < nmem) {
-    do_putsf (mp->err_out, "Memory size overflow!\n");
+    mp_fputs (mp->err_out, "Memory size overflow!\n");
     mp->history = mp_fatal_error_stop;
     mp_jump_out (mp);
   }
   w = malloc (nmem * size);
   if (w == NULL) {
-    do_putsf (mp->err_out, "Out of memory!\n");
+    mp_fputs (mp->err_out, "Out of memory!\n");
     mp->history = mp_system_error_stop;
     mp_jump_out (mp);
   }
