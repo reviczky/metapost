@@ -71,7 +71,7 @@ static int comp_strings_entry (void *p, const void *pa, const void *pb) {
        return STRCMP_RESULT(*s-*t); 
     s++; t++;
   }
-  return STRCMP_RESULT(a->len-b->len);
+  return STRCMP_RESULT((int)(a->len-b->len));
 }
 void *copy_strings_entry (const void *p) {
   str_number ff;
