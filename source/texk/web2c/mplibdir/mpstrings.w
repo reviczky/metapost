@@ -153,7 +153,7 @@ char *mp_xstrldup (MP mp, const char *s, size_t l) {
     return NULL;
   w = mp_strldup (s, l);
   if (w == NULL) {
-    mp_fputs (mp->err_out, "Out of memory!\n");
+    mp_fputs ("Out of memory!\n", mp->err_out);
     mp->history = mp_system_error_stop;
     mp_jump_out (mp);
   }
