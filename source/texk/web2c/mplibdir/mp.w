@@ -698,7 +698,7 @@ mp->print_found_names = (opt->print_found_names > 0 ? true : false);
 @ The |file_line_error_style| parameter makes \MP\ use a more
 standard compiler error message format instead of the Knuthian 
 exclamation mark. It needs the actual version of the current input 
-file name, that will be saved by |a_open_in| in the |long_name|.
+file name, that will be saved by |open_in| in the |long_name|.
 
 TODO: currently these long strings cause memory leaks, because they cannot
 be safely freed as they may appear in the |input_stack| multiple times.
@@ -741,17 +741,12 @@ The |OPEN_FILE| macro takes care of the |print_found_names| parameter.
 return (*f ? true : false)
 
 @c
-static boolean mp_a_open_in (MP mp, void **f, int ftype) {
+static boolean mp_open_in (MP mp, void **f, int ftype) {
   /* open a text file for input */
   OPEN_FILE ("r");
 }
 @#
-static boolean mp_a_open_out (MP mp, void **f, int ftype) {
-  /* open a text file for output */
-  OPEN_FILE ("w");
-}
-@#
-static boolean mp_b_open_out (MP mp, void **f, int ftype) {
+static boolean mp_open_out (MP mp, void **f, int ftype) {
   /* open a binary file for output */
   OPEN_FILE ("w");
 }
@@ -17812,9 +17807,6 @@ ideally be changed to deduce the full name of file~|f|, which is the file
 most recently opened, if it is possible to do this.
 @^system dependencies@>
 
-@<Declarations@>=
-#define mp_a_make_name_string(A,B)  mp_make_name_string(A)
-
 @ @c
 static str_number mp_make_name_string (MP mp) {
   int k;        /* index into |name_of_file| */
@@ -18056,7 +18048,7 @@ void mp_open_log_file (MP mp) {
     @<Fix up |mp->internal[mp_job_name]|@>;
   }
   mp_pack_job_name (mp, ".log");
-  while (!mp_a_open_out (mp, &mp->log_file, mp_filetype_log)) {
+  while (!mp_open_out (mp, &mp->log_file, mp_filetype_log)) {
     @<Try to get a different log file name@>;
   }
   mp->log_name = xstrdup (mp->name_of_file);
@@ -18130,11 +18122,11 @@ static boolean mp_try_extension (MP mp, const char *ext) {
   in_name = xstrdup (mp->cur_name);
   in_area = xstrdup (mp->cur_area);
   in_ext = xstrdup (ext);
-  if (mp_a_open_in (mp, &cur_file, mp_filetype_program)) {
+  if (mp_open_in (mp, &cur_file, mp_filetype_program)) {
     return true;
   } else {
     mp_pack_file_name (mp, mp->cur_name, NULL, ext);
-    return mp_a_open_in (mp, &cur_file, mp_filetype_program);
+    return mp_open_in (mp, &cur_file, mp_filetype_program);
   }
 }
 
@@ -18161,7 +18153,7 @@ void mp_start_input (MP mp) {                               /* \MP\ will \.{inpu
     mp_end_file_reading (mp);   /* remove the level that didn't work */
     mp_prompt_file_name (mp, "input file name", "");
   }
-  name = mp_a_make_name_string (mp, cur_file);
+  name = mp_make_name_string (mp);
   fname = xstrdup (mp->name_of_file);
   if (mp->job_name == NULL) {
     mp->job_name = xstrdup (mp->cur_name);
@@ -18185,7 +18177,7 @@ void mp_start_input (MP mp) {                               /* \MP\ will \.{inpu
 }
 
 
-@ This code should be omitted if |a_make_name_string| returns something other
+@ This code should be omitted if |make_name_string| returns something other
 than just a copy of its argument and the full file name is needed for opening
 \.{MPX} files or implementing the switch-to-editor option.
 @^system dependencies@>
@@ -18246,11 +18238,11 @@ void mp_start_mpx_input (MP mp) {
   if (!(mp->run_make_mpx) (mp, origname, mp->name_of_file))
     goto NOT_FOUND;
   mp_begin_file_reading (mp);
-  if (!mp_a_open_in (mp, &cur_file, mp_filetype_program)) {
+  if (!mp_open_in (mp, &cur_file, mp_filetype_program)) {
     mp_end_file_reading (mp);
     goto NOT_FOUND;
   }
-  name = mp_a_make_name_string (mp, cur_file);
+  name = mp_make_name_string (mp);
   mp->mpx_name[iindex] = name;
   add_str_ref (name);
   @<Read the first line of the new file@>;
@@ -18354,7 +18346,7 @@ static boolean mp_start_read_input (MP mp, char *s, readf_index n) {
   mp_ptr_scan_file (mp, s);
   pack_cur_name;
   mp_begin_file_reading (mp);
-  if (!mp_a_open_in (mp, &mp->rd_file[n], (int) (mp_filetype_text + n)))
+  if (!mp_open_in (mp, &mp->rd_file[n], (int) (mp_filetype_text + n)))
     goto NOT_FOUND;
   if (!mp_input_ln (mp, mp->rd_file[n])) {
     (mp->close_file) (mp, mp->rd_file[n]);
@@ -18377,7 +18369,7 @@ static void mp_open_write_file (MP mp, char *s, readf_index n);
 void mp_open_write_file (MP mp, char *s, readf_index n) {
   mp_ptr_scan_file (mp, s);
   pack_cur_name;
-  while (!mp_a_open_out (mp, &mp->wr_file[n], (int) (mp_filetype_text + n)))
+  while (!mp_open_out (mp, &mp->wr_file[n], (int) (mp_filetype_text + n)))
     mp_prompt_file_name (mp, "file name for write output", "");
   mp->wr_fname[n] = xstrdup (s);
 }
@@ -29673,7 +29665,7 @@ static void mp_tfm_qqqq (MP mp, four_quarters x) {                              
 if (mp->job_name == NULL)
   mp_open_log_file (mp);
 mp_pack_job_name (mp, ".tfm");
-while (!mp_b_open_out (mp, &mp->tfm_file, mp_filetype_metrics))
+while (!mp_open_out (mp, &mp->tfm_file, mp_filetype_metrics))
   mp_prompt_file_name (mp, "file name for font metrics", ".tfm");
 mp->metric_file_name = xstrdup (mp->name_of_file);
 @<Output the subfile sizes and header bytes@>;
@@ -30435,7 +30427,7 @@ void mp_open_output_file (MP mp) {
   integer c;    /* \&{charcode} rounded to the nearest integer */
   c = mp_round_unscaled (mp, internal_value_to_halfword (mp_char_code));
   ss = mp_set_output_file_name (mp, c);
-  while (!mp_a_open_out (mp, (void *) &mp->output_file, mp_filetype_postscript))
+  while (!mp_open_out (mp, (void *) &mp->output_file, mp_filetype_postscript))
     mp_prompt_file_name (mp, "file name for output", ss);
   @<Store the true output file name if appropriate@>;
 }
