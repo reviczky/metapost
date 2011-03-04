@@ -5208,8 +5208,8 @@ nodes containing two numeric values. The first of these values has
 the |link| in the first points back to the node whose |value| points
 to this four-word node.
 
-@d x_part_loc(A) ((mp_pair_node)(A))->x_part_ /* where the \&{xpart} is found in a pair node */
-@d y_part_loc(A) ((mp_pair_node)(A))->y_part_ /* where the \&{ypart} is found in a pair node */
+@d x_part(A) ((mp_pair_node)(A))->x_part_ /* where the \&{xpart} is found in a pair node */
+@d y_part(A) ((mp_pair_node)(A))->y_part_ /* where the \&{ypart} is found in a pair node */
 
 @(mpmp.h@>=
 typedef struct mp_pair_node_data {
@@ -5242,14 +5242,14 @@ static void mp_init_pair_node (MP mp, mp_node p) {
   mp_node q;    /* the new node */
   mp_type (p) = mp_pair_type;
   q = mp_get_pair_node (mp);
-  y_part_loc (q) = mp_get_value_node (mp);
-  new_indep (y_part_loc (q));   /* sets |type(q)| and |value(q)| */
-  mp_name_type (y_part_loc (q)) = (quarterword) (mp_y_part_sector);
-  mp_link (y_part_loc (q)) = p;
-  x_part_loc (q) = mp_get_value_node (mp);
-  new_indep (x_part_loc (q));   /* sets |type(q)| and |value(q)| */
-  mp_name_type (x_part_loc (q)) = (quarterword) (mp_x_part_sector);
-  mp_link (x_part_loc (q)) = p;
+  y_part (q) = mp_get_value_node (mp);
+  new_indep (y_part (q));   /* sets |type(q)| and |value(q)| */
+  mp_name_type (y_part (q)) = (quarterword) (mp_y_part_sector);
+  mp_link (y_part (q)) = p;
+  x_part (q) = mp_get_value_node (mp);
+  new_indep (x_part (q));   /* sets |type(q)| and |value(q)| */
+  mp_name_type (x_part (q)) = (quarterword) (mp_x_part_sector);
+  mp_link (x_part (q)) = p;
   set_value_node (p, q);
 }
 
@@ -5260,12 +5260,12 @@ Variables of type \&{transform} are similar, but in this case their
 |x_part_sector|, |y_part_sector|, |mp_xx_part_sector|, |mp_xy_part_sector|,
 |mp_yx_part_sector|, and |mp_yy_part_sector|.
 
-@d tx_part_loc(A) ((mp_transform_node)(A))->tx_part_ /* where the \&{xpart} is found in a transform node */
-@d ty_part_loc(A) ((mp_transform_node)(A))->ty_part_ /* where the \&{ypart} is found in a transform node */
-@d xx_part_loc(A) ((mp_transform_node)(A))->xx_part_ /* where the \&{xxpart} is found in a transform node */
-@d xy_part_loc(A) ((mp_transform_node)(A))->xy_part_ /* where the \&{xypart} is found in a transform node */
-@d yx_part_loc(A) ((mp_transform_node)(A))->yx_part_ /* where the \&{yxpart} is found in a transform node */
-@d yy_part_loc(A) ((mp_transform_node)(A))->yy_part_ /* where the \&{yypart} is found in a transform node */
+@d tx_part(A) ((mp_transform_node)(A))->tx_part_ /* where the \&{xpart} is found in a transform node */
+@d ty_part(A) ((mp_transform_node)(A))->ty_part_ /* where the \&{ypart} is found in a transform node */
+@d xx_part(A) ((mp_transform_node)(A))->xx_part_ /* where the \&{xxpart} is found in a transform node */
+@d xy_part(A) ((mp_transform_node)(A))->xy_part_ /* where the \&{xypart} is found in a transform node */
+@d yx_part(A) ((mp_transform_node)(A))->yx_part_ /* where the \&{yxpart} is found in a transform node */
+@d yy_part(A) ((mp_transform_node)(A))->yy_part_ /* where the \&{yypart} is found in a transform node */
 
 @(mpmp.h@>=
 typedef struct mp_transform_node_data {
@@ -5297,30 +5297,30 @@ static void mp_init_transform_node (MP mp, mp_node p) {
   mp_node q;    /* the new node */
   mp_type (p) = mp_transform_type;
   q = mp_get_transform_node (mp);       /* big node */
-  yy_part_loc (q) = mp_get_value_node (mp);
-  new_indep (yy_part_loc (q));  /* sets |type(q)| and |value(q)| */
-  mp_name_type (yy_part_loc (q)) = (quarterword) (mp_yy_part_sector);
-  mp_link (yy_part_loc (q)) = p;
-  yx_part_loc (q) = mp_get_value_node (mp);
-  new_indep (yx_part_loc (q));  /* sets |type(q)| and |value(q)| */
-  mp_name_type (yx_part_loc (q)) = (quarterword) (mp_yx_part_sector);
-  mp_link (yx_part_loc (q)) = p;
-  xy_part_loc (q) = mp_get_value_node (mp);
-  new_indep (xy_part_loc (q));  /* sets |type(q)| and |value(q)| */
-  mp_name_type (xy_part_loc (q)) = (quarterword) (mp_xy_part_sector);
-  mp_link (xy_part_loc (q)) = p;
-  xx_part_loc (q) = mp_get_value_node (mp);
-  new_indep (xx_part_loc (q));  /* sets |type(q)| and |value(q)| */
-  mp_name_type (xx_part_loc (q)) = (quarterword) (mp_xx_part_sector);
-  mp_link (xx_part_loc (q)) = p;
-  ty_part_loc (q) = mp_get_value_node (mp);
-  new_indep (ty_part_loc (q));  /* sets |type(q)| and |value(q)| */
-  mp_name_type (ty_part_loc (q)) = (quarterword) (mp_y_part_sector);
-  mp_link (ty_part_loc (q)) = p;
-  tx_part_loc (q) = mp_get_value_node (mp);
-  new_indep (tx_part_loc (q));  /* sets |type(q)| and |value(q)| */
-  mp_name_type (tx_part_loc (q)) = (quarterword) (mp_x_part_sector);
-  mp_link (tx_part_loc (q)) = p;
+  yy_part (q) = mp_get_value_node (mp);
+  new_indep (yy_part (q));  /* sets |type(q)| and |value(q)| */
+  mp_name_type (yy_part (q)) = (quarterword) (mp_yy_part_sector);
+  mp_link (yy_part (q)) = p;
+  yx_part (q) = mp_get_value_node (mp);
+  new_indep (yx_part (q));  /* sets |type(q)| and |value(q)| */
+  mp_name_type (yx_part (q)) = (quarterword) (mp_yx_part_sector);
+  mp_link (yx_part (q)) = p;
+  xy_part (q) = mp_get_value_node (mp);
+  new_indep (xy_part (q));  /* sets |type(q)| and |value(q)| */
+  mp_name_type (xy_part (q)) = (quarterword) (mp_xy_part_sector);
+  mp_link (xy_part (q)) = p;
+  xx_part (q) = mp_get_value_node (mp);
+  new_indep (xx_part (q));  /* sets |type(q)| and |value(q)| */
+  mp_name_type (xx_part (q)) = (quarterword) (mp_xx_part_sector);
+  mp_link (xx_part (q)) = p;
+  ty_part (q) = mp_get_value_node (mp);
+  new_indep (ty_part (q));  /* sets |type(q)| and |value(q)| */
+  mp_name_type (ty_part (q)) = (quarterword) (mp_y_part_sector);
+  mp_link (ty_part (q)) = p;
+  tx_part (q) = mp_get_value_node (mp);
+  new_indep (tx_part (q));  /* sets |type(q)| and |value(q)| */
+  mp_name_type (tx_part (q)) = (quarterword) (mp_x_part_sector);
+  mp_link (tx_part (q)) = p;
   set_value_node (p, q);
 }
 
@@ -5329,11 +5329,11 @@ static void mp_init_transform_node (MP mp, mp_node p) {
 Variables of type \&{color} have 3~values in 6~words identified by |mp_red_part_sector|, 
 |mp_green_part_sector|, and |mp_blue_part_sector|.
 
-@d red_part_loc(A) ((mp_color_node)(A))->red_part_ /* where the \&{redpart} is found in a color node */
-@d green_part_loc(A) ((mp_color_node)(A))->green_part_ /* where the \&{greenpart} is found in a color node */
-@d blue_part_loc(A) ((mp_color_node)(A))->blue_part_ /* where the \&{bluepart} is found in a color node */
+@d red_part(A) ((mp_color_node)(A))->red_part_ /* where the \&{redpart} is found in a color node */
+@d green_part(A) ((mp_color_node)(A))->green_part_ /* where the \&{greenpart} is found in a color node */
+@d blue_part(A) ((mp_color_node)(A))->blue_part_ /* where the \&{bluepart} is found in a color node */
 
-@d grey_part_loc(A) red_part_loc(A) /* where the \&{greypart} is found in a color node */
+@d grey_part(A) red_part(A) /* where the \&{greypart} is found in a color node */
 
 @(mpmp.h@>=
 typedef struct mp_color_node_data {
@@ -5364,28 +5364,28 @@ static void mp_init_color_node (MP mp, mp_node p) {
   mp_node q;    /* the new node */
   mp_type (p) = mp_color_type;
   q = mp_get_color_node (mp);   /* big node */
-  blue_part_loc (q) = mp_get_value_node (mp);
-  new_indep (blue_part_loc (q));        /* sets |type(q)| and |value(q)| */
-  mp_name_type (blue_part_loc (q)) = (quarterword) (mp_blue_part_sector);
-  mp_link (blue_part_loc (q)) = p;
-  green_part_loc (q) = mp_get_value_node (mp);
-  new_indep (green_part_loc (q));       /* sets |type(q)| and |value(q)| */
-  mp_name_type (y_part_loc (q)) = (quarterword) (mp_green_part_sector);
-  mp_link (green_part_loc (q)) = p;
-  red_part_loc (q) = mp_get_value_node (mp);
-  new_indep (red_part_loc (q)); /* sets |type(q)| and |value(q)| */
-  mp_name_type (red_part_loc (q)) = (quarterword) (mp_red_part_sector);
-  mp_link (red_part_loc (q)) = p;
+  blue_part (q) = mp_get_value_node (mp);
+  new_indep (blue_part (q));        /* sets |type(q)| and |value(q)| */
+  mp_name_type (blue_part (q)) = (quarterword) (mp_blue_part_sector);
+  mp_link (blue_part (q)) = p;
+  green_part (q) = mp_get_value_node (mp);
+  new_indep (green_part (q));       /* sets |type(q)| and |value(q)| */
+  mp_name_type (y_part (q)) = (quarterword) (mp_green_part_sector);
+  mp_link (green_part (q)) = p;
+  red_part (q) = mp_get_value_node (mp);
+  new_indep (red_part (q)); /* sets |type(q)| and |value(q)| */
+  mp_name_type (red_part (q)) = (quarterword) (mp_red_part_sector);
+  mp_link (red_part (q)) = p;
   set_value_node (p, q);
 }
 
 
 @ Finally, variables of type |cmykcolor|.
 
-@d cyan_part_loc(A)    ((mp_cmykcolor_node)(A))->cyan_part_ /* where the \&{cyanpart} is found in a color node */
-@d magenta_part_loc(A) ((mp_cmykcolor_node)(A))->magenta_part_ /* where the \&{magentapart} is found in a color node */
-@d yellow_part_loc(A)  ((mp_cmykcolor_node)(A))->yellow_part_ /* where the \&{yellowpart} is found in a color node */
-@d black_part_loc(A)   ((mp_cmykcolor_node)(A))->black_part_ /* where the \&{blackpart} is found in a color node */
+@d cyan_part(A)    ((mp_cmykcolor_node)(A))->cyan_part_ /* where the \&{cyanpart} is found in a color node */
+@d magenta_part(A) ((mp_cmykcolor_node)(A))->magenta_part_ /* where the \&{magentapart} is found in a color node */
+@d yellow_part(A)  ((mp_cmykcolor_node)(A))->yellow_part_ /* where the \&{yellowpart} is found in a color node */
+@d black_part(A)   ((mp_cmykcolor_node)(A))->black_part_ /* where the \&{blackpart} is found in a color node */
 
 @(mpmp.h@>=
 typedef struct mp_cmykcolor_node_data {
@@ -5417,22 +5417,22 @@ static void mp_init_cmykcolor_node (MP mp, mp_node p) {
   mp_node q;    /* the new node */
   mp_type (p) = mp_cmykcolor_type;
   q = mp_get_cmykcolor_node (mp);       /* big node */
-  black_part_loc (q) = mp_get_value_node (mp);
-  new_indep (black_part_loc (q));       /* sets |type(q)| and |value(q)| */
-  mp_name_type (black_part_loc (q)) = (quarterword) (mp_black_part_sector);
-  mp_link (black_part_loc (q)) = p;
-  yellow_part_loc (q) = mp_get_value_node (mp);
-  new_indep (yellow_part_loc (q));      /* sets |type(q)| and |value(q)| */
-  mp_name_type (yellow_part_loc (q)) = (quarterword) (mp_yellow_part_sector);
-  mp_link (yellow_part_loc (q)) = p;
-  magenta_part_loc (q) = mp_get_value_node (mp);
-  new_indep (magenta_part_loc (q));     /* sets |type(q)| and |value(q)| */
-  mp_name_type (magenta_part_loc (q)) = (quarterword) (mp_magenta_part_sector);
-  mp_link (magenta_part_loc (q)) = p;
-  cyan_part_loc (q) = mp_get_value_node (mp);
-  new_indep (cyan_part_loc (q));        /* sets |type(q)| and |value(q)| */
-  mp_name_type (cyan_part_loc (q)) = (quarterword) (mp_cyan_part_sector);
-  mp_link (cyan_part_loc (q)) = p;
+  black_part (q) = mp_get_value_node (mp);
+  new_indep (black_part (q));       /* sets |type(q)| and |value(q)| */
+  mp_name_type (black_part (q)) = (quarterword) (mp_black_part_sector);
+  mp_link (black_part (q)) = p;
+  yellow_part (q) = mp_get_value_node (mp);
+  new_indep (yellow_part (q));      /* sets |type(q)| and |value(q)| */
+  mp_name_type (yellow_part (q)) = (quarterword) (mp_yellow_part_sector);
+  mp_link (yellow_part (q)) = p;
+  magenta_part (q) = mp_get_value_node (mp);
+  new_indep (magenta_part (q));     /* sets |type(q)| and |value(q)| */
+  mp_name_type (magenta_part (q)) = (quarterword) (mp_magenta_part_sector);
+  mp_link (magenta_part (q)) = p;
+  cyan_part (q) = mp_get_value_node (mp);
+  new_indep (cyan_part (q));        /* sets |type(q)| and |value(q)| */
+  mp_name_type (cyan_part (q)) = (quarterword) (mp_cyan_part_sector);
+  mp_link (cyan_part (q)) = p;
   set_value_node (p, q);
 }
 
@@ -5454,18 +5454,18 @@ static mp_node mp_id_transform (MP mp) {
   set_value (p, 0);             /* todo: this was |null| */
   mp_init_transform_node (mp, p);
   q = value_node (p);
-  mp_type (tx_part_loc (q)) = mp_known;
-  set_value (tx_part_loc (q), 0);
-  mp_type (ty_part_loc (q)) = mp_known;
-  set_value (ty_part_loc (q), 0);
-  mp_type (xy_part_loc (q)) = mp_known;
-  set_value (xy_part_loc (q), 0);
-  mp_type (yx_part_loc (q)) = mp_known;
-  set_value (yx_part_loc (q), 0);
-  mp_type (xx_part_loc (q)) = mp_known;
-  set_value (xx_part_loc (q), unity);
-  mp_type (yy_part_loc (q)) = mp_known;
-  set_value (yy_part_loc (q), unity);
+  mp_type (tx_part (q)) = mp_known;
+  set_value (tx_part (q), 0);
+  mp_type (ty_part (q)) = mp_known;
+  set_value (ty_part (q), 0);
+  mp_type (xy_part (q)) = mp_known;
+  set_value (xy_part (q), 0);
+  mp_type (yx_part (q)) = mp_known;
+  set_value (yx_part (q), 0);
+  mp_type (xx_part (q)) = mp_known;
+  set_value (xx_part (q), unity);
+  mp_type (yy_part (q)) = mp_known;
+  set_value (yy_part (q), unity);
   return p;
 }
 
@@ -5633,46 +5633,46 @@ static boolean mp_interesting (MP mp, mp_node p) {
     if (t >= mp_x_part_sector && t != mp_capsule) {
       switch (t) {
       case mp_x_part_sector:
-        t = mp_name_type (mp_link (x_part_loc (p)));
+        t = mp_name_type (mp_link (x_part (p)));
         break;
       case mp_y_part_sector:
-        t = mp_name_type (mp_link (y_part_loc (p)));
+        t = mp_name_type (mp_link (y_part (p)));
         break;
       case mp_xx_part_sector:
-        t = mp_name_type (mp_link (xx_part_loc (p)));
+        t = mp_name_type (mp_link (xx_part (p)));
         break;
       case mp_xy_part_sector:
-        t = mp_name_type (mp_link (xy_part_loc (p)));
+        t = mp_name_type (mp_link (xy_part (p)));
         break;
       case mp_yx_part_sector:
-        t = mp_name_type (mp_link (yx_part_loc (p)));
+        t = mp_name_type (mp_link (yx_part (p)));
         break;
       case mp_yy_part_sector:
-        t = mp_name_type (mp_link (yy_part_loc (p)));
+        t = mp_name_type (mp_link (yy_part (p)));
         break;
       case mp_red_part_sector:
-        t = mp_name_type (mp_link (red_part_loc (p)));
+        t = mp_name_type (mp_link (red_part (p)));
         break;
       case mp_green_part_sector:
-        t = mp_name_type (mp_link (green_part_loc (p)));
+        t = mp_name_type (mp_link (green_part (p)));
         break;
       case mp_blue_part_sector:
-        t = mp_name_type (mp_link (blue_part_loc (p)));
+        t = mp_name_type (mp_link (blue_part (p)));
         break;
       case mp_cyan_part_sector:
-        t = mp_name_type (mp_link (cyan_part_loc (p)));
+        t = mp_name_type (mp_link (cyan_part (p)));
         break;
       case mp_magenta_part_sector:
-        t = mp_name_type (mp_link (magenta_part_loc (p)));
+        t = mp_name_type (mp_link (magenta_part (p)));
         break;
       case mp_yellow_part_sector:
-        t = mp_name_type (mp_link (yellow_part_loc (p)));
+        t = mp_name_type (mp_link (yellow_part (p)));
         break;
       case mp_black_part_sector:
-        t = mp_name_type (mp_link (black_part_loc (p)));
+        t = mp_name_type (mp_link (black_part (p)));
         break;
       case mp_grey_part_sector:
-        t = mp_name_type (mp_link (grey_part_loc (p)));
+        t = mp_name_type (mp_link (grey_part (p)));
         break;
       }
     }
@@ -9438,7 +9438,7 @@ field is needed to keep track of this.
 @d maxy_val(A) ((mp_edge_header_node)(A))->maxy_val_
 @d bblast(A) ((mp_edge_header_node)(A))->bblast_  /* last item considered in bounding box computation */
 @d bbtype(A) ((mp_edge_header_node)(A))->bbtype_ /* tells how bounding box data depends on \&{truecorners} */
-@d dummy_loc(A)  ((mp_edge_header_node)(A))->dummy_ /* where the object list begins in an edge header */
+@d edge_list(A)  ((mp_edge_header_node)(A))->list_ /* where the object list begins in an edge header */
 
 @(mpmp.h@>=
 typedef struct mp_edge_header_node_data {
@@ -9453,7 +9453,7 @@ typedef struct mp_edge_header_node_data {
   scaled maxy_val_;
   mp_node bblast_;
   halfword bbtype_;
-  mp_node dummy_;
+  mp_node list_;
   mp_node obj_tail_;    /* explained below */
   halfword ref_count_;  /* explained below */
 } mp_edge_header_node_data;
@@ -9467,7 +9467,7 @@ typedef struct mp_edge_header_node_data *mp_edge_header_node;
 static void mp_init_bbox (MP mp, mp_node h) {
   /* Initialize the bounding box information in edge structure |h| */
   (void) mp;
-  bblast (h) = dummy_loc (h);
+  bblast (h) = edge_list (h);
   bbtype (h) = no_bounds;
   minx_val (h) = EL_GORDO;
   miny_val (h) = EL_GORDO;
@@ -9490,14 +9490,14 @@ static mp_node mp_get_edge_header_node (MP mp) {
   add_var_used (edge_header_size);
   memset (p, 0, edge_header_size);
   mp_type (p) = mp_edge_header_node_type;
-  p->dummy_ = mp_get_token_node (mp);   /* or whatever, just a need a link handle */
+  p->list_ = mp_get_token_node (mp);   /* or whatever, just a need a link handle */
   return (mp_node) p;
 }
 static void mp_init_edges (MP mp, mp_node h) {
   /* initialize an edge header to NULL values */
   dash_list (h) = mp->null_dash;
-  obj_tail (h) = dummy_loc (h);
-  mp_link (dummy_loc (h)) = NULL;
+  obj_tail (h) = edge_list (h);
+  mp_link (edge_list (h)) = NULL;
   edge_ref_count (h) = 0;
   mp_init_bbox (mp, h);
 }
@@ -9525,7 +9525,7 @@ void mp_toss_edges (MP mp, mp_node h) {
   mp_node p, q; /* pointers that scan the list being recycled */
   mp_node r;    /* an edge structure that object |p| refers to */
   mp_flush_dash_list (mp, h);
-  q = mp_link (dummy_loc (h));
+  q = mp_link (edge_list (h));
   while ((q != NULL)) {
     p = q;
     q = mp_link (q);
@@ -9533,7 +9533,7 @@ void mp_toss_edges (MP mp, mp_node h) {
     if (r != NULL)
       delete_edge_ref (r);
   }
-  mp_free_node (mp, ((mp_edge_header_node) h)->dummy_, token_node_size);
+  mp_free_node (mp, ((mp_edge_header_node) h)->list_, token_node_size);
   mp_free_node (mp, h, edge_header_size);
 }
 void mp_flush_dash_list (MP mp, mp_node h) {
@@ -9615,7 +9615,7 @@ static mp_node mp_private_edges (MP mp, mp_node h) {
     return h;
   } else {
     decr (edge_ref_count (h));
-    hh = mp_copy_objects (mp, mp_link (dummy_loc (h)), NULL);
+    hh = mp_copy_objects (mp, mp_link (edge_list (h)), NULL);
     @<Copy the dash list from |h| to |hh|@>;
     @<Copy the bounding box information from |h| to |hh| and make |bblast(hh)|
       point into the new object list@>;
@@ -9690,8 +9690,8 @@ miny_val (hh) = miny_val (h);
 maxx_val (hh) = maxx_val (h);
 maxy_val (hh) = maxy_val (h);
 bbtype (hh) = bbtype (h);
-p = dummy_loc (h);
-pp = dummy_loc (hh);
+p = edge_list (h);
+pp = edge_list (hh);
 while ((p != bblast (h))) {
   if (p == NULL)
     mp_confusion (mp, "bblast");
@@ -9717,7 +9717,7 @@ mp_node mp_copy_objects (MP mp, mp_node p, mp_node q) {
   hh = mp_get_edge_header_node (mp);
   dash_list (hh) = mp->null_dash;
   edge_ref_count (hh) = 0;
-  pp = dummy_loc (hh);
+  pp = edge_list (hh);
   while (p != q) {
     @<Make |mp_link(pp)| point to a copy of object |p|, and update |p| and |pp|@>;
   }
@@ -9855,7 +9855,7 @@ void mp_print_edges (MP mp, mp_node h, const char *s, boolean nuline) {
   scaled scf;   /* a scale factor for the dash pattern */
   boolean ok_to_dash;   /* |false| for polygonal pen strokes */
   mp_print_diagnostic (mp, "Edge structure", s, nuline);
-  p = dummy_loc (h);
+  p = edge_list (h);
   while (mp_link (p) != NULL) {
     p = mp_link (p);
     mp_print_ln (mp);
@@ -10121,7 +10121,7 @@ static mp_node mp_make_dashes (MP mp, mp_node h) {                              
   if (dash_list (h) != mp->null_dash)
     return h;
   p0 = NULL;
-  p = mp_link (dummy_loc (h));
+  p = mp_link (edge_list (h));
   while (p != NULL) {
     if (mp_type (p) != mp_stroked_node_type) {
       @<Compain that the edge structure contains a node of the wrong type
@@ -17483,7 +17483,7 @@ parse a picture expression and prepare to iterate over it.
   @<Make sure the current expression is a known picture@>;
   s->type = mp->cur_exp.data.node;
   mp->cur_exp.type = mp_vacuous;
-  q = mp_link (dummy_loc (mp->cur_exp.data.node));
+  q = mp_link (edge_list (mp->cur_exp.data.node));
   if (q != NULL)
     if (is_start_or_stop (q))
       if (mp_skip_1component (mp, q) == NULL)
@@ -18836,10 +18836,10 @@ default:
 {
   mp_node vvv = v;
   mp_print_char (mp, xord ('('));
-  v = x_part_loc (vvv);
+  v = x_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
-  v = y_part_loc (vvv);
+  v = y_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (')'));
 }
@@ -18849,22 +18849,22 @@ default:
 {
   mp_node vvv = v;
   mp_print_char (mp, xord ('('));
-  v = tx_part_loc (vvv);
+  v = tx_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
-  v = ty_part_loc (vvv);
+  v = ty_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
-  v = xx_part_loc (vvv);
+  v = xx_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
-  v = xy_part_loc (vvv);
+  v = xy_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
-  v = yx_part_loc (vvv);
+  v = yx_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
-  v = yy_part_loc (vvv);
+  v = yy_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (')'));
 }
@@ -18874,13 +18874,13 @@ default:
 {
   mp_node vvv = v;
   mp_print_char (mp, xord ('('));
-  v = red_part_loc (vvv);
+  v = red_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
-  v = green_part_loc (vvv);
+  v = green_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
-  v = blue_part_loc (vvv);
+  v = blue_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (')'));
 }
@@ -18890,16 +18890,16 @@ default:
 {
   mp_node vvv = v;
   mp_print_char (mp, xord ('('));
-  v = cyan_part_loc (vvv);
+  v = cyan_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
-  v = magenta_part_loc (vvv);
+  v = magenta_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
-  v = yellow_part_loc (vvv);
+  v = yellow_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
-  v = black_part_loc (vvv);
+  v = black_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (')'));
 }
@@ -19055,51 +19055,51 @@ static void mp_recycle_value (MP mp, mp_node p) {
     break;
   case mp_cmykcolor_type:
     if (value_node (p) != NULL) {
-      mp_recycle_value (mp, cyan_part_loc (value_node (p)));
-      mp_recycle_value (mp, magenta_part_loc (value_node (p)));
-      mp_recycle_value (mp, yellow_part_loc (value_node (p)));
-      mp_recycle_value (mp, black_part_loc (value_node (p)));
-      mp_free_node (mp, cyan_part_loc (value_node (p)), value_node_size);
-      mp_free_node (mp, magenta_part_loc (value_node (p)), value_node_size);
-      mp_free_node (mp, black_part_loc (value_node (p)), value_node_size);
-      mp_free_node (mp, yellow_part_loc (value_node (p)), value_node_size);
+      mp_recycle_value (mp, cyan_part (value_node (p)));
+      mp_recycle_value (mp, magenta_part (value_node (p)));
+      mp_recycle_value (mp, yellow_part (value_node (p)));
+      mp_recycle_value (mp, black_part (value_node (p)));
+      mp_free_node (mp, cyan_part (value_node (p)), value_node_size);
+      mp_free_node (mp, magenta_part (value_node (p)), value_node_size);
+      mp_free_node (mp, black_part (value_node (p)), value_node_size);
+      mp_free_node (mp, yellow_part (value_node (p)), value_node_size);
       mp_free_node (mp, value_node (p), cmykcolor_node_size);
     }
     break;
   case mp_pair_type:
     if (value_node (p) != NULL) {
-      mp_recycle_value (mp, x_part_loc (value_node (p)));
-      mp_recycle_value (mp, y_part_loc (value_node (p)));
-      mp_free_node (mp, x_part_loc (value_node (p)), value_node_size);
-      mp_free_node (mp, y_part_loc (value_node (p)), value_node_size);
+      mp_recycle_value (mp, x_part (value_node (p)));
+      mp_recycle_value (mp, y_part (value_node (p)));
+      mp_free_node (mp, x_part (value_node (p)), value_node_size);
+      mp_free_node (mp, y_part (value_node (p)), value_node_size);
       mp_free_node (mp, value_node (p), pair_node_size);
     }
     break;
   case mp_color_type:
     if (value_node (p) != NULL) {
-      mp_recycle_value (mp, red_part_loc (value_node (p)));
-      mp_recycle_value (mp, green_part_loc (value_node (p)));
-      mp_recycle_value (mp, blue_part_loc (value_node (p)));
-      mp_free_node (mp, red_part_loc (value_node (p)), value_node_size);
-      mp_free_node (mp, green_part_loc (value_node (p)), value_node_size);
-      mp_free_node (mp, blue_part_loc (value_node (p)), value_node_size);
+      mp_recycle_value (mp, red_part (value_node (p)));
+      mp_recycle_value (mp, green_part (value_node (p)));
+      mp_recycle_value (mp, blue_part (value_node (p)));
+      mp_free_node (mp, red_part (value_node (p)), value_node_size);
+      mp_free_node (mp, green_part (value_node (p)), value_node_size);
+      mp_free_node (mp, blue_part (value_node (p)), value_node_size);
       mp_free_node (mp, value_node (p), color_node_size);
     }
     break;
   case mp_transform_type:
     if (value_node (p) != NULL) {
-      mp_recycle_value (mp, tx_part_loc (value_node (p)));
-      mp_recycle_value (mp, ty_part_loc (value_node (p)));
-      mp_recycle_value (mp, xx_part_loc (value_node (p)));
-      mp_recycle_value (mp, xy_part_loc (value_node (p)));
-      mp_recycle_value (mp, yx_part_loc (value_node (p)));
-      mp_recycle_value (mp, yy_part_loc (value_node (p)));
-      mp_free_node (mp, tx_part_loc (value_node (p)), value_node_size);
-      mp_free_node (mp, ty_part_loc (value_node (p)), value_node_size);
-      mp_free_node (mp, xx_part_loc (value_node (p)), value_node_size);
-      mp_free_node (mp, xy_part_loc (value_node (p)), value_node_size);
-      mp_free_node (mp, yx_part_loc (value_node (p)), value_node_size);
-      mp_free_node (mp, yy_part_loc (value_node (p)), value_node_size);
+      mp_recycle_value (mp, tx_part (value_node (p)));
+      mp_recycle_value (mp, ty_part (value_node (p)));
+      mp_recycle_value (mp, xx_part (value_node (p)));
+      mp_recycle_value (mp, xy_part (value_node (p)));
+      mp_recycle_value (mp, yx_part (value_node (p)));
+      mp_recycle_value (mp, yy_part (value_node (p)));
+      mp_free_node (mp, tx_part (value_node (p)), value_node_size);
+      mp_free_node (mp, ty_part (value_node (p)), value_node_size);
+      mp_free_node (mp, xx_part (value_node (p)), value_node_size);
+      mp_free_node (mp, xy_part (value_node (p)), value_node_size);
+      mp_free_node (mp, yx_part (value_node (p)), value_node_size);
+      mp_free_node (mp, yy_part (value_node (p)), value_node_size);
       mp_free_node (mp, value_node (p), transform_node_size);
     }
     break;
@@ -19564,8 +19564,8 @@ we copy it, then recycle it.
 }
 
 
-@ This code uses the fact that |red_part_loc| and |green_part_loc|
-are synonymous with |x_part_loc| and |y_part_loc|.
+@ This code uses the fact that |red_part| and |green_part|
+are synonymous with |x_part| and |y_part|.
 
 @<Scan the rest of a delimited set of numerics@>=
 {
@@ -19578,19 +19578,19 @@ are synonymous with |x_part_loc| and |y_part_loc|.
   if (mp->cur_cmd == mp_comma) {
     mp_init_color_node (mp, q);
     r = value_node (q);
-    mp_stash_in (mp, y_part_loc (r));
+    mp_stash_in (mp, y_part (r));
     mp_unstash_cur_exp (mp, p);
-    mp_stash_in (mp, x_part_loc (r));
+    mp_stash_in (mp, x_part (r));
     @<Scan the last of a triplet of numerics@>;
     if (mp->cur_cmd == mp_comma) {
       mp_init_cmykcolor_node (mp, q);
       t = value_node (q);
-      mp_type (cyan_part_loc (t)) = mp_type (red_part_loc (r));
-      set_value (cyan_part_loc (t), value (red_part_loc (r)));
-      mp_type (magenta_part_loc (t)) = mp_type (green_part_loc (r));
-      set_value (magenta_part_loc (t), value (green_part_loc (r)));
-      mp_type (yellow_part_loc (t)) = mp_type (blue_part_loc (r));
-      set_value (yellow_part_loc (t), value (blue_part_loc (r)));
+      mp_type (cyan_part (t)) = mp_type (red_part (r));
+      set_value (cyan_part (t), value (red_part (r)));
+      mp_type (magenta_part (t)) = mp_type (green_part (r));
+      set_value (magenta_part (t), value (green_part (r)));
+      mp_type (yellow_part (t)) = mp_type (blue_part (r));
+      set_value (yellow_part (t), value (blue_part (r)));
       mp_recycle_value (mp, r);
       r = t;
       @<Scan the last of a quartet of numerics@>;
@@ -19598,9 +19598,9 @@ are synonymous with |x_part_loc| and |y_part_loc|.
   } else {
     mp_init_pair_node (mp, q);
     r = value_node (q);
-    mp_stash_in (mp, y_part_loc (r));
+    mp_stash_in (mp, y_part (r));
     mp_unstash_cur_exp (mp, p);
-    mp_stash_in (mp, x_part_loc (r));
+    mp_stash_in (mp, x_part (r));
   }
   mp_check_delimiter (mp, l_delim, r_delim);
   mp->cur_exp.type = mp_type (q);
@@ -19641,7 +19641,7 @@ if (mp->cur_exp.type < mp_known) {
     mp_get_x_next (mp);
     mp_flush_cur_exp (mp, new_expr);
   }
-  mp_stash_in (mp, blue_part_loc (r));
+  mp_stash_in (mp, blue_part (r));
 }
 
 
@@ -19662,7 +19662,7 @@ if (mp->cur_exp.type < mp_known) {
     mp_get_x_next (mp);
     mp_flush_cur_exp (mp, new_expr);
   }
-  mp_stash_in (mp, black_part_loc (r));
+  mp_stash_in (mp, black_part (r));
 }
 
 
@@ -20262,37 +20262,37 @@ or |known|.
   switch (mp->cur_exp.type) {
   case mp_pair_type:
     mp_init_pair_node (mp, t);
-    mp_install (mp, y_part_loc (value_node (t)), y_part_loc (value_node (p)));
-    mp_install (mp, x_part_loc (value_node (t)), x_part_loc (value_node (p)));
+    mp_install (mp, y_part (value_node (t)), y_part (value_node (p)));
+    mp_install (mp, x_part (value_node (t)), x_part (value_node (p)));
     break;
   case mp_color_type:
     mp_init_color_node (mp, t);
-    mp_install (mp, blue_part_loc (value_node (t)),
-                blue_part_loc (value_node (p)));
-    mp_install (mp, green_part_loc (value_node (t)),
-                green_part_loc (value_node (p)));
-    mp_install (mp, red_part_loc (value_node (t)),
-                red_part_loc (value_node (p)));
+    mp_install (mp, blue_part (value_node (t)),
+                blue_part (value_node (p)));
+    mp_install (mp, green_part (value_node (t)),
+                green_part (value_node (p)));
+    mp_install (mp, red_part (value_node (t)),
+                red_part (value_node (p)));
     break;
   case mp_cmykcolor_type:
     mp_init_cmykcolor_node (mp, t);
-    mp_install (mp, black_part_loc (value_node (t)),
-                black_part_loc (value_node (p)));
-    mp_install (mp, yellow_part_loc (value_node (t)),
-                yellow_part_loc (value_node (p)));
-    mp_install (mp, magenta_part_loc (value_node (t)),
-                magenta_part_loc (value_node (p)));
-    mp_install (mp, cyan_part_loc (value_node (t)),
-                cyan_part_loc (value_node (p)));
+    mp_install (mp, black_part (value_node (t)),
+                black_part (value_node (p)));
+    mp_install (mp, yellow_part (value_node (t)),
+                yellow_part (value_node (p)));
+    mp_install (mp, magenta_part (value_node (t)),
+                magenta_part (value_node (p)));
+    mp_install (mp, cyan_part (value_node (t)),
+                cyan_part (value_node (p)));
     break;
   case mp_transform_type:
     mp_init_transform_node (mp, t);
-    mp_install (mp, yy_part_loc (value_node (t)), yy_part_loc (value_node (p)));
-    mp_install (mp, yx_part_loc (value_node (t)), yx_part_loc (value_node (p)));
-    mp_install (mp, xy_part_loc (value_node (t)), xy_part_loc (value_node (p)));
-    mp_install (mp, xx_part_loc (value_node (t)), xx_part_loc (value_node (p)));
-    mp_install (mp, ty_part_loc (value_node (t)), ty_part_loc (value_node (p)));
-    mp_install (mp, tx_part_loc (value_node (t)), tx_part_loc (value_node (p)));
+    mp_install (mp, yy_part (value_node (t)), yy_part (value_node (p)));
+    mp_install (mp, yx_part (value_node (t)), yx_part (value_node (p)));
+    mp_install (mp, xy_part (value_node (t)), xy_part (value_node (p)));
+    mp_install (mp, xx_part (value_node (t)), xx_part (value_node (p)));
+    mp_install (mp, ty_part (value_node (t)), ty_part (value_node (p)));
+    mp_install (mp, tx_part (value_node (t)), tx_part (value_node (p)));
     break;
   default:                     /* there are no other valid cases, but please the compiler */
     break;
@@ -20702,8 +20702,8 @@ void mp_known_pair (MP mp) {
 
 
 @ @<Make sure that both |x| and |y| parts of |p| are known...@>=
-if (mp_type (x_part_loc (p)) == mp_known) {
-  mp->cur_x = value (x_part_loc (p));
+if (mp_type (x_part (p)) == mp_known) {
+  mp->cur_x = value (x_part (p));
 } else {
   const char *hlp[] = { 
          "I need a `known' x value for this part of the path.",
@@ -20713,15 +20713,15 @@ if (mp_type (x_part_loc (p)) == mp_known) {
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
          "you might want to type `I ??" "?' now.)",
          NULL };
-  mp_disp_err (mp, x_part_loc (p));
+  mp_disp_err (mp, x_part (p));
   mp_back_error (mp, "Undefined x coordinate has been replaced by 0", hlp, true);
 @.Undefined coordinates...@>;
   mp_get_x_next (mp);
-  mp_recycle_value (mp, x_part_loc (p));
+  mp_recycle_value (mp, x_part (p));
   mp->cur_x = 0;
 }
-if (mp_type (y_part_loc (p)) == mp_known) {
-  mp->cur_y = value (y_part_loc (p));
+if (mp_type (y_part (p)) == mp_known) {
+  mp->cur_y = value (y_part (p));
 } else {
   const char *hlp[] = { 
          "I need a `known' y value for this part of the path.",
@@ -20730,10 +20730,10 @@ if (mp_type (y_part_loc (p)) == mp_known) {
          "(Chapter 27 of The METAFONTbook explains that",
          "you might want to type `I ??" "?' now.)",
          NULL };
-  mp_disp_err (mp, y_part_loc (p));
+  mp_disp_err (mp, y_part (p));
   mp_back_error (mp, "Undefined y coordinate has been replaced by 0", hlp, true);
   mp_get_x_next (mp);
-  mp_recycle_value (mp, y_part_loc (p));
+  mp_recycle_value (mp, y_part (p));
   mp->cur_y = 0;
 }
 
@@ -21496,8 +21496,8 @@ static boolean mp_nice_pair (MP mp, mp_node p, quarterword t) {
   (void) mp;
   if (t == mp_pair_type) {
     p = value_node (p);
-    if (mp_type (x_part_loc (p)) == mp_known)
-      if (mp_type (y_part_loc (p)) == mp_known)
+    if (mp_type (x_part (p)) == mp_known)
+      if (mp_type (y_part (p)) == mp_known)
         return true;
   }
   return false;
@@ -21514,23 +21514,23 @@ static boolean mp_nice_color_or_pair (MP mp, mp_node p, quarterword t) {
   switch (t) {
   case mp_pair_type:
     q = value_node (p);
-    if (mp_type (x_part_loc (q)) == mp_known)
-      if (mp_type (y_part_loc (q)) == mp_known)
+    if (mp_type (x_part (q)) == mp_known)
+      if (mp_type (y_part (q)) == mp_known)
         return true;
     break;
   case mp_color_type:
     q = value_node (p);
-    if (mp_type (red_part_loc (q)) == mp_known)
-      if (mp_type (green_part_loc (q)) == mp_known)
-        if (mp_type (blue_part_loc (q)) == mp_known)
+    if (mp_type (red_part (q)) == mp_known)
+      if (mp_type (green_part (q)) == mp_known)
+        if (mp_type (blue_part (q)) == mp_known)
           return true;
     break;
   case mp_cmykcolor_type:
     q = value_node (p);
-    if (mp_type (cyan_part_loc (q)) == mp_known)
-      if (mp_type (magenta_part_loc (q)) == mp_known)
-        if (mp_type (yellow_part_loc (q)) == mp_known)
-          if (mp_type (black_part_loc (q)) == mp_known)
+    if (mp_type (cyan_part (q)) == mp_known)
+      if (mp_type (magenta_part (q)) == mp_known)
+        if (mp_type (yellow_part (q)) == mp_known)
+          if (mp_type (black_part (q)) == mp_known)
             return true;
     break;
   }
@@ -21618,51 +21618,51 @@ case mp_independent:
     p = value_node (cur_exp_node ());
     switch (mp->cur_exp.type) {
     case mp_pair_type:
-      r = x_part_loc (p);
+      r = x_part (p);
       if (mp_type (r) == mp_known)
         set_value(r,-(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
-      r = y_part_loc (p);
+      r = y_part (p);
       if (mp_type (r) == mp_known)
         set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
       break;
     case mp_color_type:
-      r = red_part_loc (p);
+      r = red_part (p);
       if (mp_type (r) == mp_known)
         set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
-      r = green_part_loc (p);
+      r = green_part (p);
       if (mp_type (r) == mp_known)
         set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
-      r = blue_part_loc (p);
+      r = blue_part (p);
       if (mp_type (r) == mp_known)
         set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
       break;
     case mp_cmykcolor_type:
-      r = cyan_part_loc (p);
+      r = cyan_part (p);
       if (mp_type (r) == mp_known)
         set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
-      r = magenta_part_loc (p);
+      r = magenta_part (p);
       if (mp_type (r) == mp_known)
         set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
-      r = yellow_part_loc (p);
+      r = yellow_part (p);
       if (mp_type (r) == mp_known)
         set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
-      r = black_part_loc (p);
+      r = black_part (p);
       if (mp_type (r) == mp_known)
         set_value(r, -(value (r)));
       else
@@ -21776,7 +21776,7 @@ break;
 case mp_angle_op:
 if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
   p = value_node (cur_exp_node ());
-  x = mp_n_arg (mp, value (x_part_loc (p)), value (y_part_loc (p)));
+  x = mp_n_arg (mp, value (x_part (p)), value (y_part (p)));
   if (x >= 0)
     new_expr.data.val = (x + 8) / 16;
   else
@@ -21802,7 +21802,7 @@ picture objects that get passed into \&{within} do not raise an
 error when queried using the color part primitives (this is needed
 for backward compatibility) .
 
-@d cur_pic_item mp_link(dummy_loc(cur_exp_node()))
+@d cur_pic_item mp_link(edge_list(cur_exp_node()))
 @d pict_color_type(A) ((cur_pic_item!=NULL) &&
          ((!has_color(cur_pic_item)) 
           ||
@@ -21893,7 +21893,7 @@ static void mp_bad_color_part (MP mp, quarterword c) {
      "or the greypart of a grey object. No mixing and matching, please.",
      NULL };
   memset(&new_expr,0,sizeof(mp_value));
-  p = mp_link (dummy_loc (cur_exp_node ()));
+  p = mp_link (edge_list (cur_exp_node ()));
   mp_disp_err(mp, NULL);
   old_setting = mp->selector;
   mp->selector = new_string;
@@ -21935,48 +21935,48 @@ static void mp_take_part (MP mp, quarterword c) {
   switch (c) {
   case mp_x_part:
     if (mp->cur_exp.type == mp_pair_type)
-      mp_make_exp_copy (mp, x_part_loc (p));
+      mp_make_exp_copy (mp, x_part (p));
     else
-      mp_make_exp_copy (mp, tx_part_loc (p));
+      mp_make_exp_copy (mp, tx_part (p));
     break;
   case mp_y_part:
     if (mp->cur_exp.type == mp_pair_type)
-      mp_make_exp_copy (mp, y_part_loc (p));
+      mp_make_exp_copy (mp, y_part (p));
     else
-      mp_make_exp_copy (mp, ty_part_loc (p));
+      mp_make_exp_copy (mp, ty_part (p));
     break;
   case mp_xx_part:
-    mp_make_exp_copy (mp, xx_part_loc (p));
+    mp_make_exp_copy (mp, xx_part (p));
     break;
   case mp_xy_part:
-    mp_make_exp_copy (mp, xy_part_loc (p));
+    mp_make_exp_copy (mp, xy_part (p));
     break;
   case mp_yx_part:
-    mp_make_exp_copy (mp, yx_part_loc (p));
+    mp_make_exp_copy (mp, yx_part (p));
     break;
   case mp_yy_part:
-    mp_make_exp_copy (mp, yy_part_loc (p));
+    mp_make_exp_copy (mp, yy_part (p));
     break;
   case mp_red_part:
-    mp_make_exp_copy (mp, red_part_loc (p));
+    mp_make_exp_copy (mp, red_part (p));
     break;
   case mp_green_part:
-    mp_make_exp_copy (mp, green_part_loc (p));
+    mp_make_exp_copy (mp, green_part (p));
     break;
   case mp_blue_part:
-    mp_make_exp_copy (mp, blue_part_loc (p));
+    mp_make_exp_copy (mp, blue_part (p));
     break;
   case mp_cyan_part:
-    mp_make_exp_copy (mp, cyan_part_loc (p));
+    mp_make_exp_copy (mp, cyan_part (p));
     break;
   case mp_magenta_part:
-    mp_make_exp_copy (mp, magenta_part_loc (p));
+    mp_make_exp_copy (mp, magenta_part (p));
     break;
   case mp_yellow_part:
-    mp_make_exp_copy (mp, yellow_part_loc (p));
+    mp_make_exp_copy (mp, yellow_part (p));
     break;
   case mp_black_part:
-    mp_make_exp_copy (mp, black_part_loc (p));
+    mp_make_exp_copy (mp, black_part (p));
     break;
   }
   mp_recycle_value (mp, mp->temp_val);
@@ -22011,7 +22011,7 @@ static void mp_take_pict_part (MP mp, quarterword c) {
   mp_node p;    /* first graphical object in |cur_exp| */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  p = mp_link (dummy_loc (cur_exp_node ()));
+  p = mp_link (edge_list (cur_exp_node ()));
   if (p != NULL) {
     switch (c) {
     case mp_x_part:
@@ -22406,9 +22406,9 @@ case mp_picture_type:
 default:
   if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
     new_expr.data.val = mp_pyth_add (mp,
-                                     value (x_part_loc
+                                     value (x_part
                                             (value_node (cur_exp_node ()))),
-                                     value (y_part_loc
+                                     value (y_part
                                             (value_node (cur_exp_node ()))));
     mp_flush_cur_exp (mp, new_expr);
   } else
@@ -22440,7 +22440,7 @@ static scaled mp_pict_length (MP mp) {
   scaled n;     /* the count so far */
   mp_node p;    /* traverser */
   n = 0;
-  p = mp_link (dummy_loc (cur_exp_node ()));
+  p = mp_link (edge_list (cur_exp_node ()));
   if (p != NULL) {
     if (is_start_or_stop (p))
       if (mp_skip_1component (mp, p) == NULL)
@@ -22850,47 +22850,47 @@ static void mp_test_known (MP mp, quarterword c) {
     break;
   case mp_transform_type:
     p = value_node (cur_exp_node ());
-    if (mp_type (tx_part_loc (p)) != mp_known)
+    if (mp_type (tx_part (p)) != mp_known)
       break;
-    if (mp_type (ty_part_loc (p)) != mp_known)
+    if (mp_type (ty_part (p)) != mp_known)
       break;
-    if (mp_type (xx_part_loc (p)) != mp_known)
+    if (mp_type (xx_part (p)) != mp_known)
       break;
-    if (mp_type (xy_part_loc (p)) != mp_known)
+    if (mp_type (xy_part (p)) != mp_known)
       break;
-    if (mp_type (yx_part_loc (p)) != mp_known)
+    if (mp_type (yx_part (p)) != mp_known)
       break;
-    if (mp_type (yy_part_loc (p)) != mp_known)
+    if (mp_type (yy_part (p)) != mp_known)
       break;
     b = mp_true_code;
     break;
   case mp_color_type:
     p = value_node (cur_exp_node ());
-    if (mp_type (red_part_loc (p)) != mp_known)
+    if (mp_type (red_part (p)) != mp_known)
       break;
-    if (mp_type (green_part_loc (p)) != mp_known)
+    if (mp_type (green_part (p)) != mp_known)
       break;
-    if (mp_type (blue_part_loc (p)) != mp_known)
+    if (mp_type (blue_part (p)) != mp_known)
       break;
     b = mp_true_code;
     break;
   case mp_cmykcolor_type:
     p = value_node (cur_exp_node ());
-    if (mp_type (cyan_part_loc (p)) != mp_known)
+    if (mp_type (cyan_part (p)) != mp_known)
       break;
-    if (mp_type (magenta_part_loc (p)) != mp_known)
+    if (mp_type (magenta_part (p)) != mp_known)
       break;
-    if (mp_type (yellow_part_loc (p)) != mp_known)
+    if (mp_type (yellow_part (p)) != mp_known)
       break;
-    if (mp_type (black_part_loc (p)) != mp_known)
+    if (mp_type (black_part (p)) != mp_known)
       break;
     b = mp_true_code;
     break;
   case mp_pair_type:
     p = value_node (cur_exp_node ());
-    if (mp_type (x_part_loc (p)) != mp_known)
+    if (mp_type (x_part (p)) != mp_known)
       break;
-    if (mp_type (y_part_loc (p)) != mp_known)
+    if (mp_type (y_part (p)) != mp_known)
       break;
     b = mp_true_code;
     break;
@@ -22943,9 +22943,9 @@ case mp_clipped_op:
 case mp_bounded_op:
 if (mp->cur_exp.type != mp_picture_type) {
   new_expr.data.val = mp_false_code;
-} else if (mp_link (dummy_loc (cur_exp_node ())) == NULL) {
+} else if (mp_link (edge_list (cur_exp_node ())) == NULL) {
   new_expr.data.val = mp_false_code;
-} else if (mp_type (mp_link (dummy_loc (cur_exp_node ()))) ==
+} else if (mp_type (mp_link (edge_list (cur_exp_node ()))) ==
            (mp_variable_type) (c + mp_fill_node_type - mp_filled_op)) {
   new_expr.data.val = mp_true_code;
 } else {
@@ -23004,10 +23004,10 @@ static void mp_pair_value (MP mp, scaled x, scaled y) {
   mp_name_type (p) = mp_capsule;
   mp_init_pair_node (mp, p);
   p = value_node (p);
-  mp_type (x_part_loc (p)) = mp_known;
-  set_value (x_part_loc (p), x);
-  mp_type (y_part_loc (p)) = mp_known;
-  set_value (y_part_loc (p), y);
+  mp_type (x_part (p)) = mp_known;
+  set_value (x_part (p), x);
+  mp_type (y_part (p)) = mp_known;
+  set_value (y_part (p), y);
 }
 
 
@@ -23358,55 +23358,55 @@ static mp_node mp_tarnished (MP mp, mp_node p) {
   q = value_node (p);
   switch (mp_type (p)) {
   case mp_pair_type:
-    r = x_part_loc (q);
+    r = x_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
-    r = y_part_loc (q);
+    r = y_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
     break;
   case mp_color_type:
-    r = red_part_loc (q);
+    r = red_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
-    r = green_part_loc (q);
+    r = green_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
-    r = blue_part_loc (q);
+    r = blue_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
     break;
   case mp_cmykcolor_type:
-    r = cyan_part_loc (q);
+    r = cyan_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
-    r = magenta_part_loc (q);
+    r = magenta_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
-    r = yellow_part_loc (q);
+    r = yellow_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
-    r = black_part_loc (q);
+    r = black_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
     break;
   case mp_transform_type:
-    r = tx_part_loc (q);
+    r = tx_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
-    r = ty_part_loc (q);
+    r = ty_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
-    r = xx_part_loc (q);
+    r = xx_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
-    r = xy_part_loc (q);
+    r = xy_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
-    r = yx_part_loc (q);
+    r = yx_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
-    r = yy_part_loc (q);
+    r = yy_part (q);
     if (mp_type (r) == mp_independent)
       return MP_VOID;
     break;
@@ -23431,41 +23431,41 @@ if ((mp->cur_exp.type < mp_color_type) || (mp_type (p) < mp_color_type)) {
       r = value_node (cur_exp_node ());
       switch (mp->cur_exp.type) {
       case mp_pair_type:
-        mp_add_or_subtract (mp, x_part_loc (q), x_part_loc (r),
+        mp_add_or_subtract (mp, x_part (q), x_part (r),
                             (quarterword) c);
-        mp_add_or_subtract (mp, y_part_loc (q), y_part_loc (r),
+        mp_add_or_subtract (mp, y_part (q), y_part (r),
                             (quarterword) c);
         break;
       case mp_color_type:
-        mp_add_or_subtract (mp, red_part_loc (q), red_part_loc (r),
+        mp_add_or_subtract (mp, red_part (q), red_part (r),
                             (quarterword) c);
-        mp_add_or_subtract (mp, green_part_loc (q), green_part_loc (r),
+        mp_add_or_subtract (mp, green_part (q), green_part (r),
                             (quarterword) c);
-        mp_add_or_subtract (mp, blue_part_loc (q), blue_part_loc (r),
+        mp_add_or_subtract (mp, blue_part (q), blue_part (r),
                             (quarterword) c);
         break;
       case mp_cmykcolor_type:
-        mp_add_or_subtract (mp, cyan_part_loc (q), cyan_part_loc (r),
+        mp_add_or_subtract (mp, cyan_part (q), cyan_part (r),
                             (quarterword) c);
-        mp_add_or_subtract (mp, magenta_part_loc (q), magenta_part_loc (r),
+        mp_add_or_subtract (mp, magenta_part (q), magenta_part (r),
                             (quarterword) c);
-        mp_add_or_subtract (mp, yellow_part_loc (q), yellow_part_loc (r),
+        mp_add_or_subtract (mp, yellow_part (q), yellow_part (r),
                             (quarterword) c);
-        mp_add_or_subtract (mp, black_part_loc (q), black_part_loc (r),
+        mp_add_or_subtract (mp, black_part (q), black_part (r),
                             (quarterword) c);
         break;
       case mp_transform_type:
-        mp_add_or_subtract (mp, tx_part_loc (q), tx_part_loc (r),
+        mp_add_or_subtract (mp, tx_part (q), tx_part (r),
                             (quarterword) c);
-        mp_add_or_subtract (mp, ty_part_loc (q), ty_part_loc (r),
+        mp_add_or_subtract (mp, ty_part (q), ty_part (r),
                             (quarterword) c);
-        mp_add_or_subtract (mp, xx_part_loc (q), xx_part_loc (r),
+        mp_add_or_subtract (mp, xx_part (q), xx_part (r),
                             (quarterword) c);
-        mp_add_or_subtract (mp, xy_part_loc (q), xy_part_loc (r),
+        mp_add_or_subtract (mp, xy_part (q), xy_part (r),
                             (quarterword) c);
-        mp_add_or_subtract (mp, yx_part_loc (q), yx_part_loc (r),
+        mp_add_or_subtract (mp, yx_part (q), yx_part (r),
                             (quarterword) c);
-        mp_add_or_subtract (mp, yy_part_loc (q), yy_part_loc (r),
+        mp_add_or_subtract (mp, yy_part (q), yy_part (r),
                             (quarterword) c);
         break;
       default:                 /* there are no other valid cases, but please the compiler */
@@ -23724,14 +23724,14 @@ each loop runs exactly once.
   switch (mp->cur_exp.type) {
   case mp_pair_type:
     while (part_type==0) {
-      rr = x_part_loc (r);
+      rr = x_part (r);
       part_type = mp_x_part;
-      mp_add_or_subtract (mp, x_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, x_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
-      rr = y_part_loc (r);
+      rr = y_part (r);
       part_type = mp_y_part;
-      mp_add_or_subtract (mp, y_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, y_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
     }
@@ -23739,19 +23739,19 @@ each loop runs exactly once.
     break;
   case mp_color_type:
     while (part_type==0) {
-      rr = red_part_loc (r);
+      rr = red_part (r);
       part_type = mp_red_part;
-      mp_add_or_subtract (mp, red_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, red_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
-      rr = green_part_loc (r);
+      rr = green_part (r);
       part_type = mp_green_part;
-      mp_add_or_subtract (mp, green_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, green_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
-      rr = blue_part_loc (r);
+      rr = blue_part (r);
       part_type = mp_blue_part;
-      mp_add_or_subtract (mp, blue_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, blue_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
     }
@@ -23759,24 +23759,24 @@ each loop runs exactly once.
     break;
   case mp_cmykcolor_type:
     while (part_type==0) {
-      rr = cyan_part_loc (r);
+      rr = cyan_part (r);
       part_type = mp_cyan_part;
-      mp_add_or_subtract (mp, cyan_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, cyan_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
-      rr = magenta_part_loc (r);
+      rr = magenta_part (r);
       part_type = mp_magenta_part;
-      mp_add_or_subtract (mp, magenta_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, magenta_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
-      rr = yellow_part_loc (r);
+      rr = yellow_part (r);
       part_type = mp_yellow_part;
-      mp_add_or_subtract (mp, yellow_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, yellow_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
-      rr = black_part_loc (r);
+      rr = black_part (r);
       part_type = mp_black_part;
-      mp_add_or_subtract (mp, black_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, black_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
     }
@@ -23784,34 +23784,34 @@ each loop runs exactly once.
     break;
   case mp_transform_type:
     while (part_type==0) {
-      rr = tx_part_loc (r);
+      rr = tx_part (r);
       part_type = mp_x_part;
-      mp_add_or_subtract (mp, tx_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, tx_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
-      rr = ty_part_loc (r);
+      rr = ty_part (r);
       part_type = mp_y_part;
-      mp_add_or_subtract (mp, ty_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, ty_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
-      rr = xx_part_loc (r);
+      rr = xx_part (r);
       part_type = mp_xx_part;
-      mp_add_or_subtract (mp, xx_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, xx_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
-      rr = xy_part_loc (r);
+      rr = xy_part (r);
       part_type = mp_xy_part;
-      mp_add_or_subtract (mp, xy_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, xy_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
-      rr = yx_part_loc (r);
+      rr = yx_part (r);
       part_type = mp_yx_part;
-      mp_add_or_subtract (mp, yx_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, yx_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
-      rr = yy_part_loc (r);
+      rr = yy_part (r);
       part_type = mp_yy_part;
-      mp_add_or_subtract (mp, yy_part_loc (q), rr, mp_minus);
+      mp_add_or_subtract (mp, yy_part (q), rr, mp_minus);
       if (mp_type (rr) != mp_known || value (rr) != 0)
         break;
     }
@@ -23864,31 +23864,31 @@ break;
   if (mp->cur_exp.type == mp_known) {
     set_cur_exp_value (mp_take_scaled (mp, cur_exp_value (), v));
   } else if (mp->cur_exp.type == mp_pair_type) {
-    mp_dep_mult (mp, (mp_value_node) x_part_loc (value_node (cur_exp_node ())),
+    mp_dep_mult (mp, (mp_value_node) x_part (value_node (cur_exp_node ())),
                  v, true);
-    mp_dep_mult (mp, (mp_value_node) y_part_loc (value_node (cur_exp_node ())),
+    mp_dep_mult (mp, (mp_value_node) y_part (value_node (cur_exp_node ())),
                  v, true);
   } else if (mp->cur_exp.type == mp_color_type) {
     mp_dep_mult (mp,
-                 (mp_value_node) red_part_loc (value_node (cur_exp_node ())), v,
+                 (mp_value_node) red_part (value_node (cur_exp_node ())), v,
                  true);
     mp_dep_mult (mp,
-                 (mp_value_node) green_part_loc (value_node (cur_exp_node ())),
+                 (mp_value_node) green_part (value_node (cur_exp_node ())),
                  v, true);
     mp_dep_mult (mp,
-                 (mp_value_node) blue_part_loc (value_node (cur_exp_node ())),
+                 (mp_value_node) blue_part (value_node (cur_exp_node ())),
                  v, true);
   } else if (mp->cur_exp.type == mp_cmykcolor_type) {
     mp_dep_mult (mp,
-                 (mp_value_node) cyan_part_loc (value_node (cur_exp_node ())),
+                 (mp_value_node) cyan_part (value_node (cur_exp_node ())),
                  v, true);
     mp_dep_mult (mp, (mp_value_node)
-                 magenta_part_loc (value_node (cur_exp_node ())), v, true);
+                 magenta_part (value_node (cur_exp_node ())), v, true);
     mp_dep_mult (mp,
-                 (mp_value_node) yellow_part_loc (value_node (cur_exp_node ())),
+                 (mp_value_node) yellow_part (value_node (cur_exp_node ())),
                  v, true);
     mp_dep_mult (mp,
-                 (mp_value_node) black_part_loc (value_node (cur_exp_node ())),
+                 (mp_value_node) black_part (value_node (cur_exp_node ())),
                  v, true);
   } else {
     mp_dep_mult (mp, NULL, v, true);
@@ -23959,31 +23959,31 @@ static void mp_frac_mult (MP mp, scaled n, scaled d) {
   if (mp->cur_exp.type == mp_known) {
     set_cur_exp_value (mp_take_fraction (mp, cur_exp_value (), v));
   } else if (mp->cur_exp.type == mp_pair_type) {
-    mp_dep_mult (mp, (mp_value_node) x_part_loc (value_node (cur_exp_node ())),
+    mp_dep_mult (mp, (mp_value_node) x_part (value_node (cur_exp_node ())),
                  v, false);
-    mp_dep_mult (mp, (mp_value_node) y_part_loc (value_node (cur_exp_node ())),
+    mp_dep_mult (mp, (mp_value_node) y_part (value_node (cur_exp_node ())),
                  v, false);
   } else if (mp->cur_exp.type == mp_color_type) {
     mp_dep_mult (mp,
-                 (mp_value_node) red_part_loc (value_node (cur_exp_node ())), v,
+                 (mp_value_node) red_part (value_node (cur_exp_node ())), v,
                  false);
     mp_dep_mult (mp,
-                 (mp_value_node) green_part_loc (value_node (cur_exp_node ())),
+                 (mp_value_node) green_part (value_node (cur_exp_node ())),
                  v, false);
     mp_dep_mult (mp,
-                 (mp_value_node) blue_part_loc (value_node (cur_exp_node ())),
+                 (mp_value_node) blue_part (value_node (cur_exp_node ())),
                  v, false);
   } else if (mp->cur_exp.type == mp_cmykcolor_type) {
     mp_dep_mult (mp,
-                 (mp_value_node) cyan_part_loc (value_node (cur_exp_node ())),
+                 (mp_value_node) cyan_part (value_node (cur_exp_node ())),
                  v, false);
     mp_dep_mult (mp, (mp_value_node)
-                 magenta_part_loc (value_node (cur_exp_node ())), v, false);
+                 magenta_part (value_node (cur_exp_node ())), v, false);
     mp_dep_mult (mp,
-                 (mp_value_node) yellow_part_loc (value_node (cur_exp_node ())),
+                 (mp_value_node) yellow_part (value_node (cur_exp_node ())),
                  v, false);
     mp_dep_mult (mp,
-                 (mp_value_node) black_part_loc (value_node (cur_exp_node ())),
+                 (mp_value_node) black_part (value_node (cur_exp_node ())),
                  v, false);
   } else {
     mp_dep_mult (mp, NULL, v, false);
@@ -24024,49 +24024,49 @@ static void mp_hard_times (MP mp, mp_node p) {
   }                             /* now |cur_type=mp_pair_type| or |cur_type=mp_color_type| or |cur_type=mp_cmykcolor_type| */
   pp = (mp_value_node) p;
   if (mp->cur_exp.type == mp_pair_type) {
-    r = x_part_loc (value_node (cur_exp_node ()));
+    r = x_part (value_node (cur_exp_node ()));
     v = value (r);
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
-    r = y_part_loc (value_node (cur_exp_node ()));
+    r = y_part (value_node (cur_exp_node ()));
     v = value (r);
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
   } else if (mp->cur_exp.type == mp_color_type) {
-    r = red_part_loc (value_node (cur_exp_node ()));
+    r = red_part (value_node (cur_exp_node ()));
     v = value (r);
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
-    r = green_part_loc (value_node (cur_exp_node ()));
+    r = green_part (value_node (cur_exp_node ()));
     v = value (r);
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
-    r = blue_part_loc (value_node (cur_exp_node ()));
+    r = blue_part (value_node (cur_exp_node ()));
     v = value (r);
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
   } else if (mp->cur_exp.type == mp_cmykcolor_type) {
-    r = cyan_part_loc (value_node (cur_exp_node ()));
+    r = cyan_part (value_node (cur_exp_node ()));
     v = value (r);
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
-    r = yellow_part_loc (value_node (cur_exp_node ()));
+    r = yellow_part (value_node (cur_exp_node ()));
     v = value (r);
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
-    r = magenta_part_loc (value_node (cur_exp_node ()));
+    r = magenta_part (value_node (cur_exp_node ()));
     v = value (r);
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
-    r = black_part_loc (value_node (cur_exp_node ()));
+    r = black_part (value_node (cur_exp_node ()));
     v = value (r);
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
@@ -24088,30 +24088,30 @@ if ((mp->cur_exp.type != mp_known) || (mp_type (p) < mp_color_type)) {
     if (mp->cur_exp.type == mp_known) {
       set_cur_exp_value (mp_make_scaled (mp, cur_exp_value (), v));
     } else if (mp->cur_exp.type == mp_pair_type) {
-      mp_dep_div (mp, (mp_value_node) x_part_loc (value_node (cur_exp_node ())),
+      mp_dep_div (mp, (mp_value_node) x_part (value_node (cur_exp_node ())),
                   v);
-      mp_dep_div (mp, (mp_value_node) y_part_loc (value_node (cur_exp_node ())),
+      mp_dep_div (mp, (mp_value_node) y_part (value_node (cur_exp_node ())),
                   v);
     } else if (mp->cur_exp.type == mp_color_type) {
       mp_dep_div (mp,
-                  (mp_value_node) red_part_loc (value_node (cur_exp_node ())),
+                  (mp_value_node) red_part (value_node (cur_exp_node ())),
                   v);
       mp_dep_div (mp,
-                  (mp_value_node) green_part_loc (value_node (cur_exp_node ())),
+                  (mp_value_node) green_part (value_node (cur_exp_node ())),
                   v);
       mp_dep_div (mp,
-                  (mp_value_node) blue_part_loc (value_node (cur_exp_node ())),
+                  (mp_value_node) blue_part (value_node (cur_exp_node ())),
                   v);
     } else if (mp->cur_exp.type == mp_cmykcolor_type) {
       mp_dep_div (mp,
-                  (mp_value_node) cyan_part_loc (value_node (cur_exp_node ())),
+                  (mp_value_node) cyan_part (value_node (cur_exp_node ())),
                   v);
       mp_dep_div (mp, (mp_value_node)
-                  magenta_part_loc (value_node (cur_exp_node ())), v);
+                  magenta_part (value_node (cur_exp_node ())), v);
       mp_dep_div (mp, (mp_value_node)
-                  yellow_part_loc (value_node (cur_exp_node ())), v);
+                  yellow_part (value_node (cur_exp_node ())), v);
       mp_dep_div (mp,
-                  (mp_value_node) black_part_loc (value_node (cur_exp_node ())),
+                  (mp_value_node) black_part (value_node (cur_exp_node ())),
                   v);
     } else {
       mp_dep_div (mp, NULL, v);
@@ -24258,24 +24258,24 @@ DONE:
 
 @ @<If the current transform is entirely known, ...@>=
 q = value_node (cur_exp_node ());
-if (mp_type (tx_part_loc (q)) != mp_known)
+if (mp_type (tx_part (q)) != mp_known)
   return;
-if (mp_type (ty_part_loc (q)) != mp_known)
+if (mp_type (ty_part (q)) != mp_known)
   return;
-if (mp_type (xx_part_loc (q)) != mp_known)
+if (mp_type (xx_part (q)) != mp_known)
   return;
-if (mp_type (xy_part_loc (q)) != mp_known)
+if (mp_type (xy_part (q)) != mp_known)
   return;
-if (mp_type (yx_part_loc (q)) != mp_known)
+if (mp_type (yx_part (q)) != mp_known)
   return;
-if (mp_type (yy_part_loc (q)) != mp_known)
+if (mp_type (yy_part (q)) != mp_known)
   return;
-mp->txx = value (xx_part_loc (q));
-mp->txy = value (xy_part_loc (q));
-mp->tyx = value (yx_part_loc (q));
-mp->tyy = value (yy_part_loc (q));
-mp->tx = value (tx_part_loc (q));
-mp->ty = value (ty_part_loc (q));
+mp->txx = value (xx_part (q));
+mp->txy = value (xy_part (q));
+mp->tyx = value (yx_part (q));
+mp->tyy = value (yy_part (q));
+mp->tx = value (tx_part (q));
+mp->ty = value (ty_part (q));
 new_expr.data.val = 0;
 mp_flush_cur_exp (mp, new_expr)
  
@@ -24287,34 +24287,34 @@ if (mp_type (p) == mp_known)
 break;
 case mp_slanted_by:
 if (mp_type (p) > mp_pair_type) {
-  mp_install (mp, xy_part_loc (q), p);
+  mp_install (mp, xy_part (q), p);
   goto DONE;
 }
 break;
 case mp_scaled_by:
 if (mp_type (p) > mp_pair_type) {
-  mp_install (mp, xx_part_loc (q), p);
-  mp_install (mp, yy_part_loc (q), p);
+  mp_install (mp, xx_part (q), p);
+  mp_install (mp, yy_part (q), p);
   goto DONE;
 }
 break;
 case mp_shifted_by:
 if (mp_type (p) == mp_pair_type) {
   r = value_node (p);
-  mp_install (mp, tx_part_loc (q), x_part_loc (r));
-  mp_install (mp, ty_part_loc (q), y_part_loc (r));
+  mp_install (mp, tx_part (q), x_part (r));
+  mp_install (mp, ty_part (q), y_part (r));
   goto DONE;
 }
 break;
 case mp_x_scaled:
 if (mp_type (p) > mp_pair_type) {
-  mp_install (mp, xx_part_loc (q), p);
+  mp_install (mp, xx_part (q), p);
   goto DONE;
 }
 break;
 case mp_y_scaled:
 if (mp_type (p) > mp_pair_type) {
-  mp_install (mp, yy_part_loc (q), p);
+  mp_install (mp, yy_part (q), p);
   goto DONE;
 }
 break;
@@ -24331,10 +24331,10 @@ break;
   fraction n_sin;
   fraction n_cos;
   mp_n_sin_cos (mp, (value (p) % three_sixty_units) * 16, &n_cos, &n_sin);
-  set_value (xx_part_loc (q), mp_round_fraction (mp, n_cos));
-  set_value (yx_part_loc (q), mp_round_fraction (mp, n_sin));
-  set_value (xy_part_loc (q), -value (yx_part_loc (q)));
-  set_value (yy_part_loc (q), value (xx_part_loc (q)));
+  set_value (xx_part (q), mp_round_fraction (mp, n_cos));
+  set_value (yx_part (q), mp_round_fraction (mp, n_sin));
+  set_value (xy_part (q), -value (yx_part (q)));
+  set_value (yy_part (q), value (xx_part (q)));
   goto DONE;
 }
 
@@ -24342,15 +24342,15 @@ break;
 @ @<Install a complex multiplier, then |goto done|@>=
 {
   r = value_node (p);
-  mp_install (mp, xx_part_loc (q), x_part_loc (r));
-  mp_install (mp, yy_part_loc (q), x_part_loc (r));
-  mp_install (mp, yx_part_loc (q), y_part_loc (r));
-  if (mp_type (y_part_loc (r)) == mp_known)
-    set_value (y_part_loc (r), -(value (y_part_loc (r))));
+  mp_install (mp, xx_part (q), x_part (r));
+  mp_install (mp, yy_part (q), x_part (r));
+  mp_install (mp, yx_part (q), y_part (r));
+  if (mp_type (y_part (r)) == mp_known)
+    set_value (y_part (r), -(value (y_part (r))));
   else
     mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node)
-                                                      y_part_loc (r)));
-  mp_install (mp, xy_part_loc (q), y_part_loc (r));
+                                                      y_part (r)));
+  mp_install (mp, xy_part (q), y_part (r));
   goto DONE;
 }
 
@@ -24470,7 +24470,7 @@ static mp_node mp_edges_trans (MP mp, mp_node h) {
   }
   @<Make the bounding box of |h| unknown if it can't be updated properly
     without scanning the whole structure@>;
-  q = mp_link (dummy_loc (h));
+  q = mp_link (edge_list (h));
   while (q != NULL) {
     @<Transform graphical object |q|@>;
     q = mp_link (q);
@@ -24661,17 +24661,17 @@ static void mp_big_trans (MP mp, mp_node p, quarterword c) {
   mp_node q, r, pp, qq; /* list manipulation registers */
   q = value_node (p);
   if (mp_type (q) == mp_pair_node_type) {
-    if (mp_type (x_part_loc (q)) != mp_known ||
-        mp_type (y_part_loc (q)) != mp_known) {
+    if (mp_type (x_part (q)) != mp_known ||
+        mp_type (y_part (q)) != mp_known) {
       @<Transform an unknown big node and |return|@>;
     }
   } else {                      /* |mp_transform_type| */
-    if (mp_type (tx_part_loc (q)) != mp_known ||
-        mp_type (ty_part_loc (q)) != mp_known ||
-        mp_type (xx_part_loc (q)) != mp_known ||
-        mp_type (xy_part_loc (q)) != mp_known ||
-        mp_type (yx_part_loc (q)) != mp_known ||
-        mp_type (yy_part_loc (q)) != mp_known) {
+    if (mp_type (tx_part (q)) != mp_known ||
+        mp_type (ty_part (q)) != mp_known ||
+        mp_type (xx_part (q)) != mp_known ||
+        mp_type (xy_part (q)) != mp_known ||
+        mp_type (yx_part (q)) != mp_known ||
+        mp_type (yy_part (q)) != mp_known) {
       @<Transform an unknown big node and |return|@>;
     }
   }
@@ -24685,13 +24685,13 @@ static void mp_big_trans (MP mp, mp_node p, quarterword c) {
   mp_make_exp_copy (mp, p);
   r = value_node (cur_exp_node ());
   if (mp->cur_exp.type == mp_transform_type) {
-    mp_bilin1 (mp, yy_part_loc (r), mp->tyy, xy_part_loc (q), mp->tyx, 0);
-    mp_bilin1 (mp, yx_part_loc (r), mp->tyy, xx_part_loc (q), mp->tyx, 0);
-    mp_bilin1 (mp, xy_part_loc (r), mp->txx, yy_part_loc (q), mp->txy, 0);
-    mp_bilin1 (mp, xx_part_loc (r), mp->txx, yx_part_loc (q), mp->txy, 0);
+    mp_bilin1 (mp, yy_part (r), mp->tyy, xy_part (q), mp->tyx, 0);
+    mp_bilin1 (mp, yx_part (r), mp->tyy, xx_part (q), mp->tyx, 0);
+    mp_bilin1 (mp, xy_part (r), mp->txx, yy_part (q), mp->txy, 0);
+    mp_bilin1 (mp, xx_part (r), mp->txx, yx_part (q), mp->txy, 0);
   }
-  mp_bilin1 (mp, y_part_loc (r), mp->tyy, x_part_loc (q), mp->tyx, mp->ty);
-  mp_bilin1 (mp, x_part_loc (r), mp->txx, y_part_loc (q), mp->txy, mp->tx);
+  mp_bilin1 (mp, y_part (r), mp->tyy, x_part (q), mp->tyx, mp->ty);
+  mp_bilin1 (mp, x_part (r), mp->txx, y_part (q), mp->txy, mp->tx);
   return;
 }
 
@@ -24760,19 +24760,19 @@ if (mp->cur_exp.type == mp_known) {
   mp_make_exp_copy (mp, p);
   r = value_node (cur_exp_node ());
   if (mp->cur_exp.type == mp_transform_type) {
-    mp_bilin2 (mp, yy_part_loc (r), yy_part_loc (qq), value (xy_part_loc (q)),
-               yx_part_loc (qq), NULL);
-    mp_bilin2 (mp, yx_part_loc (r), yy_part_loc (qq), value (xx_part_loc (q)),
-               yx_part_loc (qq), NULL);
-    mp_bilin2 (mp, xy_part_loc (r), xx_part_loc (qq), value (yy_part_loc (q)),
-               xy_part_loc (qq), NULL);
-    mp_bilin2 (mp, xx_part_loc (r), xx_part_loc (qq), value (yx_part_loc (q)),
-               xy_part_loc (qq), NULL);
+    mp_bilin2 (mp, yy_part (r), yy_part (qq), value (xy_part (q)),
+               yx_part (qq), NULL);
+    mp_bilin2 (mp, yx_part (r), yy_part (qq), value (xx_part (q)),
+               yx_part (qq), NULL);
+    mp_bilin2 (mp, xy_part (r), xx_part (qq), value (yy_part (q)),
+               xy_part (qq), NULL);
+    mp_bilin2 (mp, xx_part (r), xx_part (qq), value (yx_part (q)),
+               xy_part (qq), NULL);
   }
-  mp_bilin2 (mp, y_part_loc (r), yy_part_loc (qq), value (x_part_loc (q)),
-             yx_part_loc (qq), y_part_loc (qq));
-  mp_bilin2 (mp, x_part_loc (r), xx_part_loc (qq), value (y_part_loc (q)),
-             xy_part_loc (qq), x_part_loc (qq));
+  mp_bilin2 (mp, y_part (r), yy_part (qq), value (x_part (q)),
+             yx_part (qq), y_part (qq));
+  mp_bilin2 (mp, x_part (r), xx_part (qq), value (y_part (q)),
+             xy_part (qq), x_part (qq));
   mp_recycle_value (mp, pp);
   mp_free_node (mp, pp, value_node_size);
 }
@@ -24832,18 +24832,18 @@ static void mp_bilin2 (MP mp, mp_node p, mp_node t, scaled v,
   mp_make_exp_copy (mp, p);
   r = value_node (cur_exp_node ());
   if (mp->cur_exp.type == mp_transform_type) {
-    mp_bilin3 (mp, yy_part_loc (r), mp->tyy, value (xy_part_loc (q)), mp->tyx,
+    mp_bilin3 (mp, yy_part (r), mp->tyy, value (xy_part (q)), mp->tyx,
                0);
-    mp_bilin3 (mp, yx_part_loc (r), mp->tyy, value (xx_part_loc (q)), mp->tyx,
+    mp_bilin3 (mp, yx_part (r), mp->tyy, value (xx_part (q)), mp->tyx,
                0);
-    mp_bilin3 (mp, xy_part_loc (r), mp->txx, value (yy_part_loc (q)), mp->txy,
+    mp_bilin3 (mp, xy_part (r), mp->txx, value (yy_part (q)), mp->txy,
                0);
-    mp_bilin3 (mp, xx_part_loc (r), mp->txx, value (yx_part_loc (q)), mp->txy,
+    mp_bilin3 (mp, xx_part (r), mp->txx, value (yx_part (q)), mp->txy,
                0);
   }
-  mp_bilin3 (mp, y_part_loc (r), mp->tyy, value (x_part_loc (q)), mp->tyx,
+  mp_bilin3 (mp, y_part (r), mp->tyy, value (x_part (q)), mp->tyx,
              mp->ty);
-  mp_bilin3 (mp, x_part_loc (r), mp->txx, value (y_part_loc (q)), mp->txy,
+  mp_bilin3 (mp, x_part (r), mp->txx, value (y_part (q)), mp->txy,
              mp->tx);
 }
 
@@ -24877,8 +24877,8 @@ case mp_substring_of:
 if (mp_nice_pair (mp, p, mp_type (p)) && (mp->cur_exp.type == mp_string_type)) {
   str_number str = mp_chop_string (mp, 
                       cur_exp_str (),
-                      mp_round_unscaled (mp, value (x_part_loc (value_node(p)))), 
-                      mp_round_unscaled (mp, value (y_part_loc (value_node(p)))));
+                      mp_round_unscaled (mp, value (x_part (value_node(p)))), 
+                      mp_round_unscaled (mp, value (y_part (value_node(p)))));
   delete_str_ref (cur_exp_str ()) ;
   set_cur_exp_str (str);
 } else
@@ -24900,8 +24900,8 @@ static void mp_chop_path (MP mp, mp_node p) {
   scaled a, b, k, l;    /* indices for chopping */
   boolean reversed;     /* was |a>b|? */
   l = mp_path_length (mp);
-  a = value (x_part_loc (p));
-  b = value (y_part_loc (p));
+  a = value (x_part (p));
+  b = value (y_part (p));
   if (a <= b) {
     reversed = false;
   } else {
@@ -25044,15 +25044,15 @@ break;
 
 @ @<Declare binary action...@>=
 static void mp_set_up_offset (MP mp, mp_node p) {
-  mp_find_offset (mp, value (x_part_loc (p)), value (y_part_loc (p)),
+  mp_find_offset (mp, value (x_part (p)), value (y_part (p)),
                   cur_exp_knot ());
   mp_pair_value (mp, mp->cur_x, mp->cur_y);
 }
 static void mp_set_up_direction_time (MP mp, mp_node p) {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.val = mp_find_direction_time (mp, value (x_part_loc (p)),
-                                              value (y_part_loc (p)),
+  new_expr.data.val = mp_find_direction_time (mp, value (x_part (p)),
+                                              value (y_part (p)),
                                               cur_exp_knot ());
   mp_flush_cur_exp (mp, new_expr);
 }
@@ -25723,34 +25723,34 @@ NOT_FOUND:
   p = value_node (lhs);
   switch (t) {
   case mp_transform_type:
-    mp_try_eq (mp, yy_part_loc (p), yy_part_loc (value_node (cur_exp_node ())));
-    mp_try_eq (mp, yx_part_loc (p), yx_part_loc (value_node (cur_exp_node ())));
-    mp_try_eq (mp, xy_part_loc (p), xy_part_loc (value_node (cur_exp_node ())));
-    mp_try_eq (mp, xx_part_loc (p), xx_part_loc (value_node (cur_exp_node ())));
-    mp_try_eq (mp, ty_part_loc (p), ty_part_loc (value_node (cur_exp_node ())));
-    mp_try_eq (mp, tx_part_loc (p), tx_part_loc (value_node (cur_exp_node ())));
+    mp_try_eq (mp, yy_part (p), yy_part (value_node (cur_exp_node ())));
+    mp_try_eq (mp, yx_part (p), yx_part (value_node (cur_exp_node ())));
+    mp_try_eq (mp, xy_part (p), xy_part (value_node (cur_exp_node ())));
+    mp_try_eq (mp, xx_part (p), xx_part (value_node (cur_exp_node ())));
+    mp_try_eq (mp, ty_part (p), ty_part (value_node (cur_exp_node ())));
+    mp_try_eq (mp, tx_part (p), tx_part (value_node (cur_exp_node ())));
     break;
   case mp_color_type:
-    mp_try_eq (mp, blue_part_loc (p),
-               blue_part_loc (value_node (cur_exp_node ())));
-    mp_try_eq (mp, green_part_loc (p),
-               green_part_loc (value_node (cur_exp_node ())));
-    mp_try_eq (mp, red_part_loc (p),
-               red_part_loc (value_node (cur_exp_node ())));
+    mp_try_eq (mp, blue_part (p),
+               blue_part (value_node (cur_exp_node ())));
+    mp_try_eq (mp, green_part (p),
+               green_part (value_node (cur_exp_node ())));
+    mp_try_eq (mp, red_part (p),
+               red_part (value_node (cur_exp_node ())));
     break;
   case mp_cmykcolor_type:
-    mp_try_eq (mp, black_part_loc (p),
-               black_part_loc (value_node (cur_exp_node ())));
-    mp_try_eq (mp, yellow_part_loc (p),
-               yellow_part_loc (value_node (cur_exp_node ())));
-    mp_try_eq (mp, magenta_part_loc (p),
-               magenta_part_loc (value_node (cur_exp_node ())));
-    mp_try_eq (mp, cyan_part_loc (p),
-               cyan_part_loc (value_node (cur_exp_node ())));
+    mp_try_eq (mp, black_part (p),
+               black_part (value_node (cur_exp_node ())));
+    mp_try_eq (mp, yellow_part (p),
+               yellow_part (value_node (cur_exp_node ())));
+    mp_try_eq (mp, magenta_part (p),
+               magenta_part (value_node (cur_exp_node ())));
+    mp_try_eq (mp, cyan_part (p),
+               cyan_part (value_node (cur_exp_node ())));
     break;
   case mp_pair_type:
-    mp_try_eq (mp, y_part_loc (p), y_part_loc (value_node (cur_exp_node ())));
-    mp_try_eq (mp, x_part_loc (p), x_part_loc (value_node (cur_exp_node ())));
+    mp_try_eq (mp, y_part (p), y_part (value_node (cur_exp_node ())));
+    mp_try_eq (mp, x_part (p), x_part (value_node (cur_exp_node ())));
     break;
   default:                     /* there are no other valid cases, but please the compiler */
     break;
@@ -27596,9 +27596,9 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
   magenta_val (cp) = 0;
   yellow_val (cp) = 0;
   black_val (cp) = 0;
-  red_val (cp) = value (red_part_loc (q));
-  green_val (cp) = value (green_part_loc (q));
-  blue_val (cp) = value (blue_part_loc (q));
+  red_val (cp) = value (red_part (q));
+  green_val (cp) = value (green_part (q));
+  blue_val (cp) = value (blue_part (q));
   mp_color_model (cp) = mp_rgb_model;
   if (red_val (cp) < 0)
     red_val (cp) = 0;
@@ -27618,10 +27618,10 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
 @ @<Transfer a cmykcolor from the current expression to object~|cp|@>=
 {
   q = value_node (cur_exp_node ());
-  cyan_val (cp) = value (cyan_part_loc (q));
-  magenta_val (cp) = value (magenta_part_loc (q));
-  yellow_val (cp) = value (yellow_part_loc (q));
-  black_val (cp) = value (black_part_loc (q));
+  cyan_val (cp) = value (cyan_part (q));
+  magenta_val (cp) = value (magenta_part (q));
+  yellow_val (cp) = value (yellow_part (q));
+  black_val (cp) = value (black_part (q));
   mp_color_model (cp) = mp_cmyk_model;
   if (cyan_val (cp) < 0)
     cyan_val (cp) = 0;
@@ -27969,9 +27969,9 @@ void mp_do_bounds (MP mp) {
 @ @<Make |cur_exp| into a \&{setbounds} or clipping path and add...@>=
 {
   p = mp_new_bounds_node (mp, cur_exp_knot (), (quarterword) m);
-  mp_link (p) = mp_link (dummy_loc (lhe));
-  mp_link (dummy_loc (lhe)) = p;
-  if (obj_tail (lhe) == dummy_loc (lhe))
+  mp_link (p) = mp_link (edge_list (lhe));
+  mp_link (edge_list (lhe)) = p;
+  if (obj_tail (lhe) == edge_list (lhe))
     obj_tail (lhe) = p;
   if (m == mp_start_clip_node_type) {
     p = mp_new_bounds_node (mp, NULL, mp_stop_clip_node_type);
@@ -28035,7 +28035,7 @@ setting |e:=NULL| prevents anything from being added to |lhe|.
   } else {
     e = mp_private_edges (mp, cur_exp_node ());
     mp->cur_exp.type = mp_vacuous;
-    p = mp_link (dummy_loc (e));
+    p = mp_link (edge_list (e));
   }
 }
 
@@ -28095,11 +28095,11 @@ if (lhe == NULL) {
 
 @ @<Merge |e| into |lhe| and delete |e|@>=
 {
-  if (mp_link (dummy_loc (e)) != NULL) {
-    mp_link (obj_tail (lhe)) = mp_link (dummy_loc (e));
+  if (mp_link (edge_list (e)) != NULL) {
+    mp_link (obj_tail (lhe)) = mp_link (edge_list (e));
     obj_tail (lhe) = obj_tail (e);
-    obj_tail (e) = dummy_loc (e);
-    mp_link (dummy_loc (e)) = NULL;
+    obj_tail (e) = edge_list (e);
+    mp_link (edge_list (e)) = NULL;
     mp_flush_dash_list (mp, lhe);
   }
   mp_toss_edges (mp, e);
@@ -30683,7 +30683,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
   hh->depth = internal_value_to_halfword (mp_char_dp);
   hh->ital_corr = internal_value_to_halfword (mp_char_ic);
   @<Export pending specials@>;
-  p = mp_link (dummy_loc (h));
+  p = mp_link (edge_list (h));
   while (p != NULL) {
     hq =
       mp_new_graphic_object (mp, (int) ((mp_type (p) - mp_fill_node_type) + 1));
@@ -30805,7 +30805,7 @@ mp_node mp_gr_unexport (MP mp, struct mp_edge_object *hh) {
   mp_graphic_object *p; /* the current graphical object */
   h = mp_get_edge_header_node (mp);
   mp_init_edges (mp, h);
-  ph = dummy_loc (h);
+  ph = edge_list (h);
   pt = ph;
   p = hh->body;
   minx_val (h) = hh->minx;
