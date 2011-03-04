@@ -2832,114 +2832,116 @@ for the smallest two commands.  The ordering is also important in the ranges
 
 At any rate, here is the list, for future reference.
 
-@d start_tex 1 /* begin \TeX\ material (\&{btex}, \&{verbatimtex}) */
-@d etex_marker 2 /* end \TeX\ material (\&{etex}) */
-@d mpx_break 3 /* stop reading an \.{MPX} file (\&{mpxbreak}) */
-@d max_pre_command mpx_break
-@d if_test 4 /* conditional text (\&{if}) */
-@d fi_or_else 5 /* delimiters for conditionals (\&{elseif}, \&{else}, \&{fi}) */
-@d input 6 /* input a source file (\&{input}, \&{endinput}) */
-@d iteration 7 /* iterate (\&{for}, \&{forsuffixes}, \&{forever}, \&{endfor}) */
-@d repeat_loop 8 /* special command substituted for \&{endfor} */
-@d exit_test 9 /* premature exit from a loop (\&{exitif}) */
-@d relax 10 /* do nothing (\.{\char`\\}) */
-@d scan_tokens 11 /* put a string into the input buffer */
-@d expand_after 12 /* look ahead one token */
-@d defined_macro 13 /* a macro defined by the user */
-@d min_command (defined_macro+1)
-@d save_command 14 /* save a list of tokens (\&{save}) */
-@d interim_command 15 /* save an internal quantity (\&{interim}) */
-@d let_command 16 /* redefine a symbolic token (\&{let}) */
-@d new_internal 17 /* define a new internal quantity (\&{newinternal}) */
-@d macro_def 18 /* define a macro (\&{def}, \&{vardef}, etc.) */
-@d ship_out_command 19 /* output a character (\&{shipout}) */
-@d add_to_command 20 /* add to edges (\&{addto}) */
-@d bounds_command 21  /* add bounding path to edges (\&{setbounds}, \&{clip}) */
-@d tfm_command 22 /* command for font metric info (\&{ligtable}, etc.) */
-@d protection_command 23 /* set protection flag (\&{outer}, \&{inner}) */
-@d show_command 24 /* diagnostic output (\&{show}, \&{showvariable}, etc.) */
-@d mode_command 25 /* set interaction level (\&{batchmode}, etc.) */
-@d mp_random_seed 26 /* initialize random number generator (\&{randomseed}) */
-@d message_command 27 /* communicate to user (\&{message}, \&{errmessage}) */
-@d every_job_command 28 /* designate a starting token (\&{everyjob}) */
-@d delimiters 29 /* define a pair of delimiters (\&{delimiters}) */
-@d special_command 30 /* output special info (\&{special})
-                       or font map info (\&{fontmapfile}, \&{fontmapline}) */
-@d write_command 31 /* write text to a file (\&{write}) */
-@d type_name 32 /* declare a type (\&{numeric}, \&{pair}, etc.) */
-@d max_statement_command type_name
-@d min_primary_command type_name
-@d left_delimiter 33 /* the left delimiter of a matching pair */
-@d begin_group 34 /* beginning of a group (\&{begingroup}) */
-@d nullary 35 /* an operator without arguments (e.g., \&{normaldeviate}) */
-@d unary 36 /* an operator with one argument (e.g., \&{sqrt}) */
-@d str_op 37 /* convert a suffix to a string (\&{str}) */
-@d cycle 38 /* close a cyclic path (\&{cycle}) */
-@d primary_binary 39 /* binary operation taking `\&{of}' (e.g., \&{point}) */
-@d capsule_token 40 /* a value that has been put into a token list */
-@d string_token 41 /* a string constant (e.g., |"hello"|) */
-@d internal_quantity 42 /* internal numeric parameter (e.g., \&{pausing}) */
-@d min_suffix_token internal_quantity
-@d tag_token 43 /* a symbolic token without a primitive meaning */
-@d numeric_token 44 /* a numeric constant (e.g., \.{3.14159}) */
-@d max_suffix_token numeric_token
-@d plus_or_minus 45 /* either `\.+' or `\.-' */
-@d max_primary_command plus_or_minus /* should also be |numeric_token+1| */
-@d min_tertiary_command plus_or_minus
-@d tertiary_secondary_macro 46 /* a macro defined by \&{secondarydef} */
-@d tertiary_binary 47 /* an operator at the tertiary level (e.g., `\.{++}') */
-@d max_tertiary_command tertiary_binary
-@d left_brace 48 /* the operator `\.{\char`\{}' */
-@d min_expression_command left_brace
-@d path_join 49 /* the operator `\.{..}' */
-@d ampersand 50 /* the operator `\.\&' */
-@d expression_tertiary_macro 51 /* a macro defined by \&{tertiarydef} */
-@d expression_binary 52 /* an operator at the expression level (e.g., `\.<') */
-@d equals 53 /* the operator `\.=' */
-@d max_expression_command equals
-@d and_command 54 /* the operator `\&{and}' */
-@d min_secondary_command and_command
-@d secondary_primary_macro 55 /* a macro defined by \&{primarydef} */
-@d slash 56 /* the operator `\./' */
-@d secondary_binary 57 /* an operator at the binary level (e.g., \&{shifted}) */
-@d max_secondary_command secondary_binary
-@d param_type 58 /* type of parameter (\&{primary}, \&{expr}, \&{suffix}, etc.) */
-@d controls 59 /* specify control points explicitly (\&{controls}) */
-@d tension 60 /* specify tension between knots (\&{tension}) */
-@d at_least 61 /* bounded tension value (\&{atleast}) */
-@d curl_command 62 /* specify curl at an end knot (\&{curl}) */
-@d macro_special 63 /* special macro operators (\&{quote}, \.{\#\AT!}, etc.) */
-@d right_delimiter 64 /* the right delimiter of a matching pair */
-@d left_bracket 65 /* the operator `\.[' */
-@d right_bracket 66 /* the operator `\.]' */
-@d right_brace 67 /* the operator `\.{\char`\}}' */
-@d with_option 68 /* option for filling (\&{withpen}, \&{withweight}, etc.) */
-@d thing_to_add 69
-  /* variant of \&{addto} (\&{contour}, \&{doublepath}, \&{also}) */
-@d of_token 70 /* the operator `\&{of}' */
-@d to_token 71 /* the operator `\&{to}' */
-@d step_token 72 /* the operator `\&{step}' */
-@d until_token 73 /* the operator `\&{until}' */
-@d within_token 74 /* the operator `\&{within}' */
-@d lig_kern_token 75
-  /* the operators `\&{kern}' and `\.{=:}' and `\.{=:\char'174}', etc. */
-@d assignment 76 /* the operator `\.{:=}' */
-@d skip_to 77 /* the operation `\&{skipto}' */
-@d bchar_label 78 /* the operator `\.{\char'174\char'174:}' */
-@d double_colon 79 /* the operator `\.{::}' */
-@d colon 80 /* the operator `\.:' */
-@#
-@d comma 81 /* the operator `\.,', must be |colon+1| */
-@d end_of_statement (mp->cur_cmd>comma)
-@d semicolon 82 /* the operator `\.;', must be |comma+1| */
-@d end_group 83 /* end a group (\&{endgroup}), must be |semicolon+1| */
-@d stop 84 /* end a job (\&{end}, \&{dump}), must be |end_group+1| */
-@d max_command_code stop
-@d outer_tag (max_command_code+1) /* protection code added to command code */
-@d undefined_cs (max_command_code+2) /* protection code added to command code */
+@d mp_max_command_code mp_stop
+@d mp_max_pre_command mp_mpx_break
+@d mp_min_command (mp_defined_macro+1)
+@d mp_max_statement_command mp_type_name
+@d mp_min_primary_command mp_type_name
+@d mp_min_suffix_token mp_internal_quantity
+@d mp_max_suffix_token mp_numeric_token
+@d mp_max_primary_command mp_plus_or_minus /* should also be |numeric_token+1| */
+@d mp_min_tertiary_command mp_plus_or_minus
+@d mp_max_tertiary_command mp_tertiary_binary
+@d mp_min_expression_command mp_left_brace
+@d mp_max_expression_command mp_equals
+@d mp_min_secondary_command mp_and_command
+@d mp_max_secondary_command mp_secondary_binary
+@d mp_end_of_statement (mp->cur_cmd>mp_comma)
 
-@<Types...@>=
-typedef int command_code;
+
+@<Enumeration types@>=
+typedef enum {
+mp_start_tex=1, /* begin \TeX\ material (\&{btex}, \&{verbatimtex}) */
+mp_etex_marker, /* end \TeX\ material (\&{etex}) */
+mp_mpx_break, /* stop reading an \.{MPX} file (\&{mpxbreak}) */
+mp_if_test, /* conditional text (\&{if}) */
+mp_fi_or_else, /* delimiters for conditionals (\&{elseif}, \&{else}, \&{fi}) */
+mp_input, /* input a source file (\&{input}, \&{endinput}) */
+mp_iteration, /* iterate (\&{for}, \&{forsuffixes}, \&{forever}, \&{endfor}) */
+mp_repeat_loop, /* special command substituted for \&{endfor} */
+mp_exit_test, /* premature exit from a loop (\&{exitif}) */
+mp_relax, /* do nothing (\.{\char`\\}) */
+mp_scan_tokens, /* put a string into the input buffer */
+mp_expand_after, /* look ahead one token */
+mp_defined_macro, /* a macro defined by the user */
+mp_save_command, /* save a list of tokens (\&{save}) */
+mp_interim_command, /* save an internal quantity (\&{interim}) */
+mp_let_command, /* redefine a symbolic token (\&{let}) */
+mp_new_internal, /* define a new internal quantity (\&{newinternal}) */
+mp_macro_def, /* define a macro (\&{def}, \&{vardef}, etc.) */
+mp_ship_out_command, /* output a character (\&{shipout}) */
+mp_add_to_command, /* add to edges (\&{addto}) */
+mp_bounds_command,  /* add bounding path to edges (\&{setbounds}, \&{clip}) */
+mp_tfm_command, /* command for font metric info (\&{ligtable}, etc.) */
+mp_protection_command, /* set protection flag (\&{outer}, \&{inner}) */
+mp_show_command, /* diagnostic output (\&{show}, \&{showvariable}, etc.) */
+mp_mode_command, /* set interaction level (\&{batchmode}, etc.) */
+mp_random_seed, /* initialize random number generator (\&{randomseed}) */
+mp_message_command, /* communicate to user (\&{message}, \&{errmessage}) */
+mp_every_job_command, /* designate a starting token (\&{everyjob}) */
+mp_delimiters, /* define a pair of delimiters (\&{delimiters}) */
+mp_special_command, /* output special info (\&{special})
+                       or font map info (\&{fontmapfile}, \&{fontmapline}) */
+mp_write_command, /* write text to a file (\&{write}) */
+mp_type_name, /* declare a type (\&{numeric}, \&{pair}, etc.) */
+mp_left_delimiter, /* the left delimiter of a matching pair */
+mp_begin_group, /* beginning of a group (\&{begingroup}) */
+mp_nullary, /* an operator without arguments (e.g., \&{normaldeviate}) */
+mp_unary, /* an operator with one argument (e.g., \&{sqrt}) */
+mp_str_op, /* convert a suffix to a string (\&{str}) */
+mp_cycle, /* close a cyclic path (\&{cycle}) */
+mp_primary_binary, /* binary operation taking `\&{of}' (e.g., \&{point}) */
+mp_capsule_token, /* a value that has been put into a token list */
+mp_string_token, /* a string constant (e.g., |"hello"|) */
+mp_internal_quantity, /* internal numeric parameter (e.g., \&{pausing}) */
+mp_tag_token, /* a symbolic token without a primitive meaning */
+mp_numeric_token, /* a numeric constant (e.g., \.{3.14159}) */
+mp_plus_or_minus, /* either `\.+' or `\.-' */
+mp_tertiary_secondary_macro, /* a macro defined by \&{secondarydef} */
+mp_tertiary_binary, /* an operator at the tertiary level (e.g., `\.{++}') */
+mp_left_brace, /* the operator `\.{\char`\{}' */
+mp_path_join, /* the operator `\.{..}' */
+mp_ampersand, /* the operator `\.\&' */
+mp_expression_tertiary_macro, /* a macro defined by \&{tertiarydef} */
+mp_expression_binary, /* an operator at the expression level (e.g., `\.<') */
+mp_equals, /* the operator `\.=' */
+mp_and_command, /* the operator `\&{and}' */
+mp_secondary_primary_macro, /* a macro defined by \&{primarydef} */
+mp_slash, /* the operator `\./' */
+mp_secondary_binary, /* an operator at the binary level (e.g., \&{shifted}) */
+mp_param_type, /* type of parameter (\&{primary}, \&{expr}, \&{suffix}, etc.) */
+mp_controls, /* specify control points explicitly (\&{controls}) */
+mp_tension, /* specify tension between knots (\&{tension}) */
+mp_at_least, /* bounded tension value (\&{atleast}) */
+mp_curl_command, /* specify curl at an end knot (\&{curl}) */
+mp_macro_special, /* special macro operators (\&{quote}, \.{\#\AT!}, etc.) */
+mp_right_delimiter, /* the right delimiter of a matching pair */
+mp_left_bracket, /* the operator `\.[' */
+mp_right_bracket, /* the operator `\.]' */
+mp_right_brace, /* the operator `\.{\char`\}}' */
+mp_with_option, /* option for filling (\&{withpen}, \&{withweight}, etc.) */
+mp_thing_to_add,
+  /* variant of \&{addto} (\&{contour}, \&{doublepath}, \&{also}) */
+mp_of_token, /* the operator `\&{of}' */
+mp_to_token, /* the operator `\&{to}' */
+mp_step_token, /* the operator `\&{step}' */
+mp_until_token, /* the operator `\&{until}' */
+mp_within_token, /* the operator `\&{within}' */
+mp_lig_kern_token,
+  /* the operators `\&{kern}' and `\.{=:}' and `\.{=:\char'174}', etc. */
+mp_assignment, /* the operator `\.{:=}' */
+mp_skip_to, /* the operation `\&{skipto}' */
+mp_bchar_label, /* the operator `\.{\char'174\char'174:}' */
+mp_double_colon, /* the operator `\.{::}' */
+mp_colon, /* the operator `\.:' */
+@#
+mp_comma, /* the operator `\.,', must be |colon+1| */
+mp_semicolon, /* the operator `\.;', must be |comma+1| */
+mp_end_group, /* end a group (\&{endgroup}), must be |semicolon+1| */
+mp_stop, /* end a job (\&{end}, \&{dump}), must be |end_group+1| */
+mp_outer_tag, /* protection code added to command code */
+mp_undefined_cs, /* protection code added to command code */
+} mp_command_code;
 
 @ Variables and capsules in \MP\ have a variety of ``types,''
 distinguished by the code numbers defined here. These numbers are also
@@ -3741,90 +3743,90 @@ enter them now, so that we don't have to list all those names again
 anywhere else.
 
 @<Put each of \MP's primitives into the hash table@>=
-mp_primitive (mp, "tracingtitles", internal_quantity, mp_tracing_titles);
+mp_primitive (mp, "tracingtitles", mp_internal_quantity, mp_tracing_titles);
 @:tracingtitles_}{\&{tracingtitles} primitive@>;
-mp_primitive (mp, "tracingequations", internal_quantity, mp_tracing_equations);
+mp_primitive (mp, "tracingequations", mp_internal_quantity, mp_tracing_equations);
 @:mp_tracing_equations_}{\&{tracingequations} primitive@>;
-mp_primitive (mp, "tracingcapsules", internal_quantity, mp_tracing_capsules);
+mp_primitive (mp, "tracingcapsules", mp_internal_quantity, mp_tracing_capsules);
 @:mp_tracing_capsules_}{\&{tracingcapsules} primitive@>;
-mp_primitive (mp, "tracingchoices", internal_quantity, mp_tracing_choices);
+mp_primitive (mp, "tracingchoices", mp_internal_quantity, mp_tracing_choices);
 @:mp_tracing_choices_}{\&{tracingchoices} primitive@>;
-mp_primitive (mp, "tracingspecs", internal_quantity, mp_tracing_specs);
+mp_primitive (mp, "tracingspecs", mp_internal_quantity, mp_tracing_specs);
 @:mp_tracing_specs_}{\&{tracingspecs} primitive@>;
-mp_primitive (mp, "tracingcommands", internal_quantity, mp_tracing_commands);
+mp_primitive (mp, "tracingcommands", mp_internal_quantity, mp_tracing_commands);
 @:mp_tracing_commands_}{\&{tracingcommands} primitive@>;
-mp_primitive (mp, "tracingrestores", internal_quantity, mp_tracing_restores);
+mp_primitive (mp, "tracingrestores", mp_internal_quantity, mp_tracing_restores);
 @:mp_tracing_restores_}{\&{tracingrestores} primitive@>;
-mp_primitive (mp, "tracingmacros", internal_quantity, mp_tracing_macros);
+mp_primitive (mp, "tracingmacros", mp_internal_quantity, mp_tracing_macros);
 @:mp_tracing_macros_}{\&{tracingmacros} primitive@>;
-mp_primitive (mp, "tracingoutput", internal_quantity, mp_tracing_output);
+mp_primitive (mp, "tracingoutput", mp_internal_quantity, mp_tracing_output);
 @:mp_tracing_output_}{\&{tracingoutput} primitive@>;
-mp_primitive (mp, "tracingstats", internal_quantity, mp_tracing_stats);
+mp_primitive (mp, "tracingstats", mp_internal_quantity, mp_tracing_stats);
 @:mp_tracing_stats_}{\&{tracingstats} primitive@>;
-mp_primitive (mp, "tracinglostchars", internal_quantity, mp_tracing_lost_chars);
+mp_primitive (mp, "tracinglostchars", mp_internal_quantity, mp_tracing_lost_chars);
 @:mp_tracing_lost_chars_}{\&{tracinglostchars} primitive@>;
-mp_primitive (mp, "tracingonline", internal_quantity, mp_tracing_online);
+mp_primitive (mp, "tracingonline", mp_internal_quantity, mp_tracing_online);
 @:mp_tracing_online_}{\&{tracingonline} primitive@>;
-mp_primitive (mp, "year", internal_quantity, mp_year);
+mp_primitive (mp, "year", mp_internal_quantity, mp_year);
 @:mp_year_}{\&{year} primitive@>;
-mp_primitive (mp, "month", internal_quantity, mp_month);
+mp_primitive (mp, "month", mp_internal_quantity, mp_month);
 @:mp_month_}{\&{month} primitive@>;
-mp_primitive (mp, "day", internal_quantity, mp_day);
+mp_primitive (mp, "day", mp_internal_quantity, mp_day);
 @:mp_day_}{\&{day} primitive@>;
-mp_primitive (mp, "time", internal_quantity, mp_time);
+mp_primitive (mp, "time", mp_internal_quantity, mp_time);
 @:time_}{\&{time} primitive@>;
-mp_primitive (mp, "hour", internal_quantity, mp_hour);
+mp_primitive (mp, "hour", mp_internal_quantity, mp_hour);
 @:hour_}{\&{hour} primitive@>;
-mp_primitive (mp, "minute", internal_quantity, mp_minute);
+mp_primitive (mp, "minute", mp_internal_quantity, mp_minute);
 @:minute_}{\&{minute} primitive@>;
-mp_primitive (mp, "charcode", internal_quantity, mp_char_code);
+mp_primitive (mp, "charcode", mp_internal_quantity, mp_char_code);
 @:mp_char_code_}{\&{charcode} primitive@>;
-mp_primitive (mp, "charext", internal_quantity, mp_char_ext);
+mp_primitive (mp, "charext", mp_internal_quantity, mp_char_ext);
 @:mp_char_ext_}{\&{charext} primitive@>;
-mp_primitive (mp, "charwd", internal_quantity, mp_char_wd);
+mp_primitive (mp, "charwd", mp_internal_quantity, mp_char_wd);
 @:mp_char_wd_}{\&{charwd} primitive@>;
-mp_primitive (mp, "charht", internal_quantity, mp_char_ht);
+mp_primitive (mp, "charht", mp_internal_quantity, mp_char_ht);
 @:mp_char_ht_}{\&{charht} primitive@>;
-mp_primitive (mp, "chardp", internal_quantity, mp_char_dp);
+mp_primitive (mp, "chardp", mp_internal_quantity, mp_char_dp);
 @:mp_char_dp_}{\&{chardp} primitive@>;
-mp_primitive (mp, "charic", internal_quantity, mp_char_ic);
+mp_primitive (mp, "charic", mp_internal_quantity, mp_char_ic);
 @:mp_char_ic_}{\&{charic} primitive@>;
-mp_primitive (mp, "designsize", internal_quantity, mp_design_size);
+mp_primitive (mp, "designsize", mp_internal_quantity, mp_design_size);
 @:mp_design_size_}{\&{designsize} primitive@>;
-mp_primitive (mp, "pausing", internal_quantity, mp_pausing);
+mp_primitive (mp, "pausing", mp_internal_quantity, mp_pausing);
 @:mp_pausing_}{\&{pausing} primitive@>;
-mp_primitive (mp, "showstopping", internal_quantity, mp_showstopping);
+mp_primitive (mp, "showstopping", mp_internal_quantity, mp_showstopping);
 @:mp_showstopping_}{\&{showstopping} primitive@>;
-mp_primitive (mp, "fontmaking", internal_quantity, mp_fontmaking);
+mp_primitive (mp, "fontmaking", mp_internal_quantity, mp_fontmaking);
 @:mp_fontmaking_}{\&{fontmaking} primitive@>;
-mp_primitive (mp, "linejoin", internal_quantity, mp_linejoin);
+mp_primitive (mp, "linejoin", mp_internal_quantity, mp_linejoin);
 @:mp_linejoin_}{\&{linejoin} primitive@>;
-mp_primitive (mp, "linecap", internal_quantity, mp_linecap);
+mp_primitive (mp, "linecap", mp_internal_quantity, mp_linecap);
 @:mp_linecap_}{\&{linecap} primitive@>;
-mp_primitive (mp, "miterlimit", internal_quantity, mp_miterlimit);
+mp_primitive (mp, "miterlimit", mp_internal_quantity, mp_miterlimit);
 @:mp_miterlimit_}{\&{miterlimit} primitive@>;
-mp_primitive (mp, "warningcheck", internal_quantity, mp_warning_check);
+mp_primitive (mp, "warningcheck", mp_internal_quantity, mp_warning_check);
 @:mp_warning_check_}{\&{warningcheck} primitive@>;
-mp_primitive (mp, "boundarychar", internal_quantity, mp_boundary_char);
+mp_primitive (mp, "boundarychar", mp_internal_quantity, mp_boundary_char);
 @:mp_boundary_char_}{\&{boundarychar} primitive@>;
-mp_primitive (mp, "prologues", internal_quantity, mp_prologues);
+mp_primitive (mp, "prologues", mp_internal_quantity, mp_prologues);
 @:mp_prologues_}{\&{prologues} primitive@>;
-mp_primitive (mp, "truecorners", internal_quantity, mp_true_corners);
+mp_primitive (mp, "truecorners", mp_internal_quantity, mp_true_corners);
 @:mp_true_corners_}{\&{truecorners} primitive@>;
-mp_primitive (mp, "mpprocset", internal_quantity, mp_procset);
+mp_primitive (mp, "mpprocset", mp_internal_quantity, mp_procset);
 @:mp_procset_}{\&{mpprocset} primitive@>;
-mp_primitive (mp, "troffmode", internal_quantity, mp_gtroffmode);
+mp_primitive (mp, "troffmode", mp_internal_quantity, mp_gtroffmode);
 @:troffmode_}{\&{troffmode} primitive@>;
-mp_primitive (mp, "defaultcolormodel", internal_quantity,
+mp_primitive (mp, "defaultcolormodel", mp_internal_quantity,
               mp_default_color_model);
 @:mp_default_color_model_}{\&{defaultcolormodel} primitive@>;
-mp_primitive (mp, "restoreclipcolor", internal_quantity, mp_restore_clip_color);
+mp_primitive (mp, "restoreclipcolor", mp_internal_quantity, mp_restore_clip_color);
 @:mp_restore_clip_color_}{\&{restoreclipcolor} primitive@>;
-mp_primitive (mp, "outputtemplate", internal_quantity, mp_output_template);
+mp_primitive (mp, "outputtemplate", mp_internal_quantity, mp_output_template);
 @:mp_output_template_}{\&{outputtemplate} primitive@>;
-mp_primitive (mp, "outputformat", internal_quantity, mp_output_format);
+mp_primitive (mp, "outputformat", mp_internal_quantity, mp_output_format);
 @:mp_output_format_}{\&{outputformat} primitive@>;
-mp_primitive (mp, "jobname", internal_quantity, mp_job_name);
+mp_primitive (mp, "jobname", mp_internal_quantity, mp_job_name);
 @:mp_job_name_}{\&{jobname} primitive@>
  
 
@@ -4008,8 +4010,8 @@ class numbers in nonstandard extensions of \MP.
 @d right_paren_class 8 /* the class number of `\.)' */
 @d isolated_classes 5: case 6: case 7: case 8 /* characters that make length-one tokens only */
 @d letter_class 9 /* letters and the underline character */
-@d left_bracket_class 17 /* `\.[' */
-@d right_bracket_class 18 /* `\.]' */
+@d mp_left_bracket_class 17 /* `\.[' */
+@d mp_right_bracket_class 18 /* `\.]' */
 @d invalid_class 20 /* bad character in the input */
 @d max_class 20 /* the largest class number */
 
@@ -4057,8 +4059,8 @@ mp->char_class['@@'] = 15;
 mp->char_class['$'] = 15;
 mp->char_class['^'] = 16;
 mp->char_class['~'] = 16;
-mp->char_class['['] = left_bracket_class;
-mp->char_class[']'] = right_bracket_class;
+mp->char_class['['] = mp_left_bracket_class;
+mp->char_class[']'] = mp_right_bracket_class;
 mp->char_class['{'] = 19;
 mp->char_class['}'] = 19;
 for (k = 0; k < ' '; k++)
@@ -4198,7 +4200,7 @@ static mp_sym new_symbols_entry (MP mp, unsigned char *nam, size_t len) {
   ff->text = mp_xmalloc (mp, 1, sizeof (mp_lstring));
   ff->text->str = nam;
   ff->text->len = len;
-  ff->type = tag_token;
+  ff->type = mp_tag_token;
   ff->v.type = mp_known;
   FUNCTION_TRACE4 ("%p = new_symbols_entry(\"%s\",%d)\n", ff, nam, len);
   return ff;
@@ -4212,11 +4214,11 @@ in error recovery.
 @<Initialize table entries@>=
 mp->st_count = 0;
 mp->frozen_bad_vardef =
-mp_frozen_primitive (mp, "a bad variable", tag_token, 0);
-mp->frozen_right_delimiter = mp_frozen_primitive (mp, ")", right_delimiter, 0);
+mp_frozen_primitive (mp, "a bad variable", mp_tag_token, 0);
+mp->frozen_right_delimiter = mp_frozen_primitive (mp, ")", mp_right_delimiter, 0);
 mp->frozen_inaccessible =
-mp_frozen_primitive (mp, " INACCESSIBLE", tag_token, 0);
-mp->frozen_undefined = mp_frozen_primitive (mp, " UNDEFINED", tag_token, 0);
+mp_frozen_primitive (mp, " INACCESSIBLE", mp_tag_token, 0);
+mp->frozen_undefined = mp_frozen_primitive (mp, " UNDEFINED", mp_tag_token, 0);
 
 @ Here is the subroutine that searches the avl tree for an identifier
 that matches a given string of length~|l| appearing in |buffer[j..
@@ -4299,93 +4301,93 @@ by their |eq_type| alone. These primitives are loaded into the hash table
 as follows:
 
 @<Put each of \MP's primitives into the hash table@>=
-mp_primitive (mp, "..", path_join, 0);
+mp_primitive (mp, "..", mp_path_join, 0);
 @:.._}{\.{..} primitive@>;
-mp_primitive (mp, "[", left_bracket, 0);
-mp->frozen_left_bracket = mp_frozen_primitive (mp, "[", left_bracket, 0);
+mp_primitive (mp, "[", mp_left_bracket, 0);
+mp->frozen_left_bracket = mp_frozen_primitive (mp, "[", mp_left_bracket, 0);
 @:[ }{\.{[} primitive@>;
-mp_primitive (mp, "]", right_bracket, 0);
+mp_primitive (mp, "]", mp_right_bracket, 0);
 @:] }{\.{]} primitive@>;
-mp_primitive (mp, "}", right_brace, 0);
+mp_primitive (mp, "}", mp_right_brace, 0);
 @:]]}{\.{\char`\}} primitive@>;
-mp_primitive (mp, "{", left_brace, 0);
+mp_primitive (mp, "{", mp_left_brace, 0);
 @:][}{\.{\char`\{} primitive@>;
-mp_primitive (mp, ":", colon, 0);
-mp->frozen_colon = mp_frozen_primitive (mp, ":", colon, 0);
+mp_primitive (mp, ":", mp_colon, 0);
+mp->frozen_colon = mp_frozen_primitive (mp, ":", mp_colon, 0);
 @:: }{\.{:} primitive@>;
-mp_primitive (mp, "::", double_colon, 0);
+mp_primitive (mp, "::", mp_double_colon, 0);
 @::: }{\.{::} primitive@>;
-mp_primitive (mp, "||:", bchar_label, 0);
+mp_primitive (mp, "||:", mp_bchar_label, 0);
 @:::: }{\.{\char'174\char'174:} primitive@>;
-mp_primitive (mp, ":=", assignment, 0);
+mp_primitive (mp, ":=", mp_assignment, 0);
 @::=_}{\.{:=} primitive@>;
-mp_primitive (mp, ",", comma, 0);
+mp_primitive (mp, ",", mp_comma, 0);
 @:, }{\., primitive@>;
-mp_primitive (mp, ";", semicolon, 0);
-mp->frozen_semicolon = mp_frozen_primitive (mp, ";", semicolon, 0);
+mp_primitive (mp, ";", mp_semicolon, 0);
+mp->frozen_semicolon = mp_frozen_primitive (mp, ";", mp_semicolon, 0);
 @:; }{\.; primitive@>;
-mp_primitive (mp, "\\", relax, 0);
+mp_primitive (mp, "\\", mp_relax, 0);
 @:]]\\}{\.{\char`\\} primitive@>;
-mp_primitive (mp, "addto", add_to_command, 0);
+mp_primitive (mp, "addto", mp_add_to_command, 0);
 @:add_to_}{\&{addto} primitive@>;
-mp_primitive (mp, "atleast", at_least, 0);
+mp_primitive (mp, "atleast", mp_at_least, 0);
 @:at_least_}{\&{atleast} primitive@>;
-mp_primitive (mp, "begingroup", begin_group, 0);
+mp_primitive (mp, "begingroup", mp_begin_group, 0);
 mp->bg_loc = mp->cur_sym;
 @:begin_group_}{\&{begingroup} primitive@>;
-mp_primitive (mp, "controls", controls, 0);
+mp_primitive (mp, "controls", mp_controls, 0);
 @:controls_}{\&{controls} primitive@>;
-mp_primitive (mp, "curl", curl_command, 0);
+mp_primitive (mp, "curl", mp_curl_command, 0);
 @:curl_}{\&{curl} primitive@>;
-mp_primitive (mp, "delimiters", delimiters, 0);
+mp_primitive (mp, "delimiters", mp_delimiters, 0);
 @:delimiters_}{\&{delimiters} primitive@>;
-mp_primitive (mp, "endgroup", end_group, 0);
+mp_primitive (mp, "endgroup", mp_end_group, 0);
 mp->eg_loc = mp->cur_sym;
-mp->frozen_end_group = mp_frozen_primitive (mp, "endgroup", end_group, 0);
+mp->frozen_end_group = mp_frozen_primitive (mp, "endgroup", mp_end_group, 0);
 @:endgroup_}{\&{endgroup} primitive@>;
-mp_primitive (mp, "everyjob", every_job_command, 0);
+mp_primitive (mp, "everyjob", mp_every_job_command, 0);
 @:every_job_}{\&{everyjob} primitive@>;
-mp_primitive (mp, "exitif", exit_test, 0);
+mp_primitive (mp, "exitif", mp_exit_test, 0);
 @:exit_if_}{\&{exitif} primitive@>;
-mp_primitive (mp, "expandafter", expand_after, 0);
+mp_primitive (mp, "expandafter", mp_expand_after, 0);
 @:expand_after_}{\&{expandafter} primitive@>;
-mp_primitive (mp, "interim", interim_command, 0);
+mp_primitive (mp, "interim", mp_interim_command, 0);
 @:interim_}{\&{interim} primitive@>;
-mp_primitive (mp, "let", let_command, 0);
+mp_primitive (mp, "let", mp_let_command, 0);
 @:let_}{\&{let} primitive@>;
-mp_primitive (mp, "newinternal", new_internal, 0);
+mp_primitive (mp, "newinternal", mp_new_internal, 0);
 @:new_internal_}{\&{newinternal} primitive@>;
-mp_primitive (mp, "of", of_token, 0);
+mp_primitive (mp, "of", mp_of_token, 0);
 @:of_}{\&{of} primitive@>;
 mp_primitive (mp, "randomseed", mp_random_seed, 0);
 @:mp_random_seed_}{\&{randomseed} primitive@>;
-mp_primitive (mp, "save", save_command, 0);
+mp_primitive (mp, "save", mp_save_command, 0);
 @:save_}{\&{save} primitive@>;
-mp_primitive (mp, "scantokens", scan_tokens, 0);
+mp_primitive (mp, "scantokens", mp_scan_tokens, 0);
 @:scan_tokens_}{\&{scantokens} primitive@>;
-mp_primitive (mp, "shipout", ship_out_command, 0);
+mp_primitive (mp, "shipout", mp_ship_out_command, 0);
 @:ship_out_}{\&{shipout} primitive@>;
-mp_primitive (mp, "skipto", skip_to, 0);
+mp_primitive (mp, "skipto", mp_skip_to, 0);
 @:skip_to_}{\&{skipto} primitive@>;
-mp_primitive (mp, "special", special_command, 0);
+mp_primitive (mp, "special", mp_special_command, 0);
 @:special}{\&{special} primitive@>;
-mp_primitive (mp, "fontmapfile", special_command, 1);
+mp_primitive (mp, "fontmapfile", mp_special_command, 1);
 @:fontmapfile}{\&{fontmapfile} primitive@>;
-mp_primitive (mp, "fontmapline", special_command, 2);
+mp_primitive (mp, "fontmapline", mp_special_command, 2);
 @:fontmapline}{\&{fontmapline} primitive@>;
-mp_primitive (mp, "step", step_token, 0);
+mp_primitive (mp, "step", mp_step_token, 0);
 @:step_}{\&{step} primitive@>;
-mp_primitive (mp, "str", str_op, 0);
+mp_primitive (mp, "str", mp_str_op, 0);
 @:str_}{\&{str} primitive@>;
-mp_primitive (mp, "tension", tension, 0);
+mp_primitive (mp, "tension", mp_tension, 0);
 @:tension_}{\&{tension} primitive@>;
-mp_primitive (mp, "to", to_token, 0);
+mp_primitive (mp, "to", mp_to_token, 0);
 @:to_}{\&{to} primitive@>;
-mp_primitive (mp, "until", until_token, 0);
+mp_primitive (mp, "until", mp_until_token, 0);
 @:until_}{\&{until} primitive@>;
-mp_primitive (mp, "within", within_token, 0);
+mp_primitive (mp, "within", mp_within_token, 0);
 @:within_}{\&{within} primitive@>;
-mp_primitive (mp, "write", write_command, 0);
+mp_primitive (mp, "write", mp_write_command, 0);
 @:write_}{\&{write} primitive@>
  
 
@@ -4396,100 +4398,100 @@ straightforward code that forms part of the |print_cmd_mod| routine
 explained below.
 
 @<Cases of |print_cmd_mod| for symbolic printing of primitives@>=
-case add_to_command:
+case mp_add_to_command:
 mp_print (mp, "addto");
 break;
-case assignment:
+case mp_assignment:
 mp_print (mp, ":=");
 break;
-case at_least:
+case mp_at_least:
 mp_print (mp, "atleast");
 break;
-case bchar_label:
+case mp_bchar_label:
 mp_print (mp, "||:");
 break;
-case begin_group:
+case mp_begin_group:
 mp_print (mp, "begingroup");
 break;
-case colon:
+case mp_colon:
 mp_print (mp, ":");
 break;
-case comma:
+case mp_comma:
 mp_print (mp, ",");
 break;
-case controls:
+case mp_controls:
 mp_print (mp, "controls");
 break;
-case curl_command:
+case mp_curl_command:
 mp_print (mp, "curl");
 break;
-case delimiters:
+case mp_delimiters:
 mp_print (mp, "delimiters");
 break;
-case double_colon:
+case mp_double_colon:
 mp_print (mp, "::");
 break;
-case end_group:
+case mp_end_group:
 mp_print (mp, "endgroup");
 break;
-case every_job_command:
+case mp_every_job_command:
 mp_print (mp, "everyjob");
 break;
-case exit_test:
+case mp_exit_test:
 mp_print (mp, "exitif");
 break;
-case expand_after:
+case mp_expand_after:
 mp_print (mp, "expandafter");
 break;
-case interim_command:
+case mp_interim_command:
 mp_print (mp, "interim");
 break;
-case left_brace:
+case mp_left_brace:
 mp_print (mp, "{");
 break;
-case left_bracket:
+case mp_left_bracket:
 mp_print (mp, "[");
 break;
-case let_command:
+case mp_let_command:
 mp_print (mp, "let");
 break;
-case new_internal:
+case mp_new_internal:
 mp_print (mp, "newinternal");
 break;
-case of_token:
+case mp_of_token:
 mp_print (mp, "of");
 break;
-case path_join:
+case mp_path_join:
 mp_print (mp, "..");
 break;
 case mp_random_seed:
 mp_print (mp, "randomseed");
 break;
-case relax:
+case mp_relax:
 mp_print_char (mp, xord ('\\'));
 break;
-case right_brace:
+case mp_right_brace:
 mp_print_char (mp, xord ('}'));
 break;
-case right_bracket:
+case mp_right_bracket:
 mp_print_char (mp, xord (']'));
 break;
-case save_command:
+case mp_save_command:
 mp_print (mp, "save");
 break;
-case scan_tokens:
+case mp_scan_tokens:
 mp_print (mp, "scantokens");
 break;
-case semicolon:
+case mp_semicolon:
 mp_print_char (mp, xord (';'));
 break;
-case ship_out_command:
+case mp_ship_out_command:
 mp_print (mp, "shipout");
 break;
-case skip_to:
+case mp_skip_to:
 mp_print (mp, "skipto");
 break;
-case special_command:
+case mp_special_command:
 if (m == 2)
   mp_print (mp, "fontmapline");
 else if (m == 1)
@@ -4497,25 +4499,25 @@ else if (m == 1)
 else
   mp_print (mp, "special");
 break;
-case step_token:
+case mp_step_token:
 mp_print (mp, "step");
 break;
-case str_op:
+case mp_str_op:
 mp_print (mp, "str");
 break;
-case tension:
+case mp_tension:
 mp_print (mp, "tension");
 break;
-case to_token:
+case mp_to_token:
 mp_print (mp, "to");
 break;
-case until_token:
+case mp_until_token:
 mp_print (mp, "until");
 break;
-case within_token:
+case mp_within_token:
 mp_print (mp, "within");
 break;
-case write_command:
+case mp_write_command:
 mp_print (mp, "write");
 break;
 
@@ -4816,12 +4818,12 @@ if (class == digit_class)
   mp_print_char (mp, xord (' '));
 v = value (p);
 if (v < 0) {
-  if (class == left_bracket_class)
+  if (class == mp_left_bracket_class)
     mp_print_char (mp, xord (' '));
   mp_print_char (mp, xord ('['));
   mp_print_scaled (mp, v);
   mp_print_char (mp, xord (']'));
-  c = right_bracket_class;
+  c = mp_right_bracket_class;
 } else {
   mp_print_scaled (mp, v);
   c = digit_class;
@@ -4834,10 +4836,10 @@ it is convenient to let |mp_info(p)=0| stand for `\.{[]}'.
 
 @<Display a collective subscript@>=
 {
-  if (class == left_bracket_class)
+  if (class == mp_left_bracket_class)
     mp_print_char (mp, xord (' '));
   mp_print (mp, "[]");
-  c = right_bracket_class;
+  c = mp_right_bracket_class;
 }
 
 
@@ -4941,7 +4943,7 @@ static void mp_show_macro (MP mp, mp_node p, mp_node q, integer l) {
   case secondary_macro:
   case tertiary_macro:
     mp_print_char (mp, xord ('<'));
-    mp_print_cmd_mod (mp, param_type, mp_sym_info (p));
+    mp_print_cmd_mod (mp, mp_param_type, mp_sym_info (p));
     mp_print (mp, ">->");
     break;
   case expr_macro:
@@ -5806,7 +5808,7 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
 @^inner loop@>;
   p_sym = mp_sym_sym (t);
   t = mp_link (t);
-  if ((eq_type (p_sym) % outer_tag) != tag_token)
+  if ((eq_type (p_sym) % mp_outer_tag) != mp_tag_token)
     abort_find;
   if (equiv_node (p_sym) == NULL)
     mp_new_root (mp, p_sym);
@@ -6105,15 +6107,15 @@ static void mp_clear_symbol (MP mp, mp_sym p, boolean saving) {
   mp_node q;    /* |equiv(p)| */
   FUNCTION_TRACE3 ("mp_clear_symbol(%p,%d)\n", p, saving);
   q = equiv_node (p);
-  switch (eq_type (p) % outer_tag) {
-  case defined_macro:
-  case secondary_primary_macro:
-  case tertiary_secondary_macro:
-  case expression_tertiary_macro:
+  switch (eq_type (p) % mp_outer_tag) {
+  case mp_defined_macro:
+  case mp_secondary_primary_macro:
+  case mp_tertiary_secondary_macro:
+  case mp_expression_tertiary_macro:
     if (!saving)
       mp_delete_mac_ref (mp, q);
     break;
-  case tag_token:
+  case mp_tag_token:
     if (q != NULL) {
       if (saving) {
         mp_name_type (q) = mp_saved_root;
@@ -6229,7 +6231,7 @@ static void mp_unsave_variable (MP mp, mp_sym q) {
   equiv (q) = mp->save_ptr->equiv;
   eq_type (q) = mp->save_ptr->eq_type;
   equiv_node (q) = mp->save_ptr->equiv_n;
-  if (eq_type (q) % outer_tag == tag_token) {
+  if (eq_type (q) % mp_outer_tag == mp_tag_token) {
     mp_node pp = equiv_node (q);
     if (pp != NULL)
       mp_name_type (pp) = mp_root;
@@ -13701,7 +13703,7 @@ in a few places near-arbitrary values are stored in it (if tests, macro texts,
 number scanning).
 
 @<Glob...@>=
-integer cur_cmd;        /* current command set by |get_next| */
+mp_command_code cur_cmd;        /* current command set by |get_next| */
 integer cur_mod;        /* operand of current command */
 mp_node cur_mod_node;   /* operand of current command, if it is a node */
 str_number cur_mod_str; /* operand of current command, if it is a string */
@@ -14393,7 +14395,7 @@ token by the |cur_tok| routine.
 static mp_node mp_cur_tok (MP mp) {
   mp_node p;    /* a new token node */
   if (mp->cur_sym == NULL && mp->cur_sym_mod == 0) {
-    if (mp->cur_cmd == capsule_token) {
+    if (mp->cur_cmd == mp_capsule_token) {
       mp_value save_exp = mp->cur_exp;  /* |cur_exp| to be restored */
       mp_make_exp_copy (mp, mp->cur_mod_node);
       p = mp_stash_cur_exp (mp);
@@ -14402,7 +14404,7 @@ static mp_node mp_cur_tok (MP mp) {
     } else {
       p = mp_get_token_node (mp);
       mp_name_type (p) = mp_token;
-      if (mp->cur_cmd == numeric_token) {
+      if (mp->cur_cmd == mp_numeric_token) {
         set_value (p, mp->cur_mod);
         mp_type (p) = mp_known;
       } else {
@@ -14880,9 +14882,9 @@ mp->cur_cmd = eq_type (mp->cur_sym);
 mp->cur_mod = equiv (mp->cur_sym);
 mp->cur_mod_node = equiv_node (mp->cur_sym);
 mp->cur_sym2 = equiv_sym (mp->cur_sym);
-if (mp->cur_cmd >= outer_tag) {
+if (mp->cur_cmd >= mp_outer_tag) {
   if (mp_check_outer_validity (mp))
-    mp->cur_cmd = mp->cur_cmd - outer_tag;
+    mp->cur_cmd = mp->cur_cmd - mp_outer_tag;
   else
     goto RESTART;
 }
@@ -14996,7 +14998,7 @@ FOUND:
     mp->cur_mod_str = mp_make_string (mp);
   }
   incr (loc);
-  mp->cur_cmd = string_token;
+  mp->cur_cmd = mp_string_token;
   return;
 }
 
@@ -15057,7 +15059,7 @@ if (n < 32768) {
 @.Enormous number...@>;
   mp->cur_mod = EL_GORDO;
 }
-mp->cur_cmd = numeric_token;
+mp->cur_cmd = mp_numeric_token;
 return
 
 @ @<Set |cur_mod:=n*unity+f| and check if it is uncomfortably large@>=
@@ -15089,7 +15091,7 @@ if (nloc != NULL && mp_type (nloc) == mp_symbol_node) { /* symbolic token */
   mp->cur_sym_mod = mp_name_type (nloc);
   nloc = mp_link (nloc);        /* move to next */
   if (mp->cur_sym_mod == mp_expr_sym) {
-    mp->cur_cmd = capsule_token;
+    mp->cur_cmd = mp_capsule_token;
     mp->cur_mod_node = mp->param_stack[param_start + cur_info];
     mp->cur_sym_mod = 0;
     mp->cur_sym = 0;
@@ -15113,16 +15115,16 @@ if (nloc != NULL && mp_type (nloc) == mp_symbol_node) { /* symbolic token */
   if (mp_name_type (nloc) == mp_token) {
     if (mp_type (nloc) == mp_known) {
       mp->cur_mod = value (nloc);
-      mp->cur_cmd = numeric_token;
+      mp->cur_cmd = mp_numeric_token;
     } else {
       mp->cur_mod_str = str_value (nloc);
-      mp->cur_cmd = string_token;
+      mp->cur_cmd = mp_string_token;
       add_str_ref (mp->cur_mod_str);
     }
   } else {
     mp->cur_mod_node = nloc;
     mp->cur_sym2 = NULL;
-    mp->cur_cmd = capsule_token;
+    mp->cur_cmd = mp_capsule_token;
   }
   nloc = mp_link (nloc);
   return;
@@ -15292,29 +15294,29 @@ $\,\ldots\,$\&{etex} blocks, switching to the \.{MPX} file when it sees
 @d verbatim_code 1
 
 @ @<Put each...@>=
-mp_primitive (mp, "btex", start_tex, btex_code);
+mp_primitive (mp, "btex", mp_start_tex, btex_code);
 @:btex_}{\&{btex} primitive@>;
-mp_primitive (mp, "verbatimtex", start_tex, verbatim_code);
+mp_primitive (mp, "verbatimtex", mp_start_tex, verbatim_code);
 @:verbatimtex_}{\&{verbatimtex} primitive@>;
-mp_primitive (mp, "etex", etex_marker, 0);
-mp->frozen_etex = mp_frozen_primitive (mp, "etex", etex_marker, 0);
+mp_primitive (mp, "etex", mp_etex_marker, 0);
+mp->frozen_etex = mp_frozen_primitive (mp, "etex", mp_etex_marker, 0);
 @:etex_}{\&{etex} primitive@>;
-mp_primitive (mp, "mpxbreak", mpx_break, 0);
-mp->frozen_mpx_break = mp_frozen_primitive (mp, "mpxbreak", mpx_break, 0);
+mp_primitive (mp, "mpxbreak", mp_mpx_break, 0);
+mp->frozen_mpx_break = mp_frozen_primitive (mp, "mpxbreak", mp_mpx_break, 0);
 @:mpx_break_}{\&{mpxbreak} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case start_tex:
+case mp_start_tex:
 if (m == btex_code)
   mp_print (mp, "btex");
 else
   mp_print (mp, "verbatimtex");
 break;
-case etex_marker:
+case mp_etex_marker:
 mp_print (mp, "etex");
 break;
-case mpx_break:
+case mp_mpx_break:
 mp_print (mp, "mpxbreak");
 break;
 
@@ -15325,7 +15327,7 @@ is encountered.
 @c
 static void get_t_next (MP mp) {
   mp_get_next (mp);
-  if (mp->cur_cmd <= max_pre_command)
+  if (mp->cur_cmd <= mp_max_pre_command)
     mp_t_next (mp);
 }
 
@@ -15339,15 +15341,15 @@ static void mp_start_mpx_input (MP mp);
 static void mp_t_next (MP mp) {
   int old_status;       /* saves the |scanner_status| */
   integer old_info;     /* saves the |warning_info| */
-  while (mp->cur_cmd <= max_pre_command) {
-    if (mp->cur_cmd == mpx_break) {
+  while (mp->cur_cmd <= mp_max_pre_command) {
+    if (mp->cur_cmd == mp_mpx_break) {
       if (!file_state || (mp->mpx_name[iindex] == absent)) {
         @<Complain about a misplaced \&{mpxbreak}@>;
       } else {
         mp_end_mpx_reading (mp);
         goto TEX_FLUSH;
       }
-    } else if (mp->cur_cmd == start_tex) {
+    } else if (mp->cur_cmd == mp_start_tex) {
       if (token_state || (name <= max_spec_src)) {
         @<Complain that we are not reading a file@>;
       } else if (mpx_reading) {
@@ -15382,7 +15384,7 @@ mp->scanner_status = tex_flushing;
 mp->warning_info_line = line;
 do {
   mp_get_next (mp);
-} while (mp->cur_cmd != etex_marker);
+} while (mp->cur_cmd != mp_etex_marker);
 mp->scanner_status = old_status;
 mp->warning_info_line = old_info
 
@@ -15446,32 +15448,32 @@ like \&{enddef} and \&{endfor}.
 @d end_for 0 /* command modifier for \&{endfor} */
 
 @<Put each...@>=
-mp_primitive (mp, "def", macro_def, start_def);
+mp_primitive (mp, "def", mp_macro_def, start_def);
 @:def_}{\&{def} primitive@>;
-mp_primitive (mp, "vardef", macro_def, var_def);
+mp_primitive (mp, "vardef", mp_macro_def, var_def);
 @:var_def_}{\&{vardef} primitive@>;
-mp_primitive (mp, "primarydef", macro_def, secondary_primary_macro);
+mp_primitive (mp, "primarydef", mp_macro_def, mp_secondary_primary_macro);
 @:primary_def_}{\&{primarydef} primitive@>;
-mp_primitive (mp, "secondarydef", macro_def, tertiary_secondary_macro);
+mp_primitive (mp, "secondarydef", mp_macro_def, mp_tertiary_secondary_macro);
 @:secondary_def_}{\&{secondarydef} primitive@>;
-mp_primitive (mp, "tertiarydef", macro_def, expression_tertiary_macro);
+mp_primitive (mp, "tertiarydef", mp_macro_def, mp_expression_tertiary_macro);
 @:tertiary_def_}{\&{tertiarydef} primitive@>;
-mp_primitive (mp, "enddef", macro_def, end_def);
-mp->frozen_end_def = mp_frozen_primitive (mp, "enddef", macro_def, end_def);
+mp_primitive (mp, "enddef", mp_macro_def, end_def);
+mp->frozen_end_def = mp_frozen_primitive (mp, "enddef", mp_macro_def, end_def);
 @:end_def_}{\&{enddef} primitive@>;
-mp_primitive (mp, "for", iteration, start_for);
+mp_primitive (mp, "for", mp_iteration, start_for);
 @:for_}{\&{for} primitive@>;
-mp_primitive (mp, "forsuffixes", iteration, start_forsuffixes);
+mp_primitive (mp, "forsuffixes", mp_iteration, start_forsuffixes);
 @:for_suffixes_}{\&{forsuffixes} primitive@>;
-mp_primitive (mp, "forever", iteration, start_forever);
+mp_primitive (mp, "forever", mp_iteration, start_forever);
 @:forever_}{\&{forever} primitive@>;
-mp_primitive (mp, "endfor", iteration, end_for);
-mp->frozen_end_for = mp_frozen_primitive (mp, "endfor", iteration, end_for);
+mp_primitive (mp, "endfor", mp_iteration, end_for);
+mp->frozen_end_for = mp_frozen_primitive (mp, "endfor", mp_iteration, end_for);
 @:end_for_}{\&{endfor} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case macro_def:
+case mp_macro_def:
 if (m <= var_def) {
   if (m == start_def)
     mp_print (mp, "def");
@@ -15479,15 +15481,15 @@ if (m <= var_def) {
     mp_print (mp, "enddef");
   else
     mp_print (mp, "vardef");
-} else if (m == secondary_primary_macro) {
+} else if (m == mp_secondary_primary_macro) {
   mp_print (mp, "primarydef");
-} else if (m == tertiary_secondary_macro) {
+} else if (m == mp_tertiary_secondary_macro) {
   mp_print (mp, "secondarydef");
 } else {
   mp_print (mp, "tertiarydef");
 }
 break;
-case iteration:
+case mp_iteration:
 if (m == start_forever)
   mp_print (mp, "forever");
 else if (m == end_for)
@@ -15530,7 +15532,7 @@ typedef struct mp_subst_list_item {
 
 @
 @c
-static mp_node mp_scan_toks (MP mp, command_code terminator,
+static mp_node mp_scan_toks (MP mp, mp_command_code terminator,
                              mp_subst_list_item * subst_list, mp_node tail_end,
                              quarterword suffix_count) {
   mp_node p;    /* tail of the token list being built */
@@ -15548,7 +15550,7 @@ static mp_node mp_scan_toks (MP mp, command_code terminator,
       @<Substitute for |cur_sym|, if it's on the |subst_list|@>;
       if (mp->cur_cmd == terminator) {
         @<Adjust the balance; |break| if it's zero@>;
-      } else if (mp->cur_cmd == macro_special) {
+      } else if (mp->cur_cmd == mp_macro_special) {
         /* Handle quoted symbols, \.{\#\AT!}, \.{\AT!}, or \.{\AT!\#} */
         if (mp->cur_mod == quote) {
           get_t_next (mp);
@@ -15585,7 +15587,7 @@ static mp_node mp_scan_toks (MP mp, command_code terminator,
     if (q->info == mp->cur_sym && q->info_mod == mp->cur_sym_mod) {
       cur_data = q->value_data;
       cur_data_mod = q->value_mod;
-      mp->cur_cmd = relax;
+      mp->cur_cmd = mp_relax;
       break;
     }
     q = q->link;
@@ -15613,18 +15615,18 @@ code called |macro_special|.
 @d macro_suffix 3 /* |macro_special| modifier for \.{\AT!\#} */
 
 @<Put each...@>=
-mp_primitive (mp, "quote", macro_special, quote);
+mp_primitive (mp, "quote", mp_macro_special, quote);
 @:quote_}{\&{quote} primitive@>;
-mp_primitive (mp, "#@@", macro_special, macro_prefix);
+mp_primitive (mp, "#@@", mp_macro_special, macro_prefix);
 @:]]]\#\AT!_}{\.{\#\AT!} primitive@>;
-mp_primitive (mp, "@@", macro_special, macro_at);
+mp_primitive (mp, "@@", mp_macro_special, macro_at);
 @:]]]\AT!_}{\.{\AT!} primitive@>;
-mp_primitive (mp, "@@#", macro_special, macro_suffix);
+mp_primitive (mp, "@@#", mp_macro_special, macro_suffix);
 @:]]]\AT!\#_}{\.{\AT!\#} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case macro_special:
+case mp_macro_special:
 switch (m) {
 case macro_prefix:
   mp_print (mp, "#@@");
@@ -15658,7 +15660,7 @@ RESTART:
            NULL };
     if (mp->cur_sym != NULL)
       hlp[0] = "Sorry: You can\'t redefine my error-recovery tokens.";
-    else if (mp->cur_cmd == string_token)
+    else if (mp->cur_cmd == mp_string_token)
       delete_str_ref (mp->cur_mod_str);
     mp->cur_sym = mp->frozen_inaccessible;
     mp_ins_error (mp, "Missing symbolic token inserted", hlp, true);
@@ -15684,8 +15686,8 @@ or assignment sign comes along at the proper place in a macro definition.
 
 @c
 static void mp_check_equals (MP mp) {
-  if (mp->cur_cmd != equals)
-    if (mp->cur_cmd != assignment) {
+  if (mp->cur_cmd != mp_equals)
+    if (mp->cur_cmd != mp_assignment) {
       const char *hlp[] = {
              "The next thing in this `def' should have been `=',",
              "because I've already looked at the definition heading.",
@@ -15705,7 +15707,7 @@ two parameters, which will be \.{EXPR0} and \.{EXPR1}.
 
 @c
 static void mp_make_op_def (MP mp) {
-  command_code m;       /* the type of definition */
+  mp_command_code m;       /* the type of definition */
   mp_node q, r; /* for list manipulation */
   mp_subst_list_item *qm = NULL, *qn = NULL;
   m = mp->cur_mod;
@@ -15734,7 +15736,7 @@ static void mp_make_op_def (MP mp) {
   mp_link (q) = r;
   set_mp_sym_info (r, general_macro);
   mp_name_type (r) = mp_macro_sym;
-  mp_link (r) = mp_scan_toks (mp, macro_def, qn, NULL, 0);
+  mp_link (r) = mp_scan_toks (mp, mp_macro_def, qn, NULL, 0);
   mp->scanner_status = normal;
   eq_type (mp->warning_info) = m;
   equiv_node (mp->warning_info) = q;
@@ -15746,22 +15748,22 @@ static void mp_make_op_def (MP mp) {
 \&{suffix}, \&{text}, \&{primary}, \&{secondary}, and \&{tertiary}.
 
 @<Put each...@>=
-mp_primitive (mp, "expr", param_type, expr_param);
+mp_primitive (mp, "expr", mp_param_type, expr_param);
 @:expr_}{\&{expr} primitive@>;
-mp_primitive (mp, "suffix", param_type, suffix_param);
+mp_primitive (mp, "suffix", mp_param_type, suffix_param);
 @:suffix_}{\&{suffix} primitive@>;
-mp_primitive (mp, "text", param_type, text_param);
+mp_primitive (mp, "text", mp_param_type, text_param);
 @:text_}{\&{text} primitive@>;
-mp_primitive (mp, "primary", param_type, primary_macro);
+mp_primitive (mp, "primary", mp_param_type, primary_macro);
 @:primary_}{\&{primary} primitive@>;
-mp_primitive (mp, "secondary", param_type, secondary_macro);
+mp_primitive (mp, "secondary", mp_param_type, secondary_macro);
 @:secondary_}{\&{secondary} primitive@>;
-mp_primitive (mp, "tertiary", param_type, tertiary_macro);
+mp_primitive (mp, "tertiary", mp_param_type, tertiary_macro);
 @:tertiary_}{\&{tertiary} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case param_type:
+case mp_param_type:
 if (m == expr_param)
   mp_print (mp, "expr");
 else if (m == suffix_param)
@@ -15805,10 +15807,10 @@ static void mp_scan_def (MP mp) {
   @<Scan the token or variable to be defined;
     set |n|, |scanner_status|, and |warning_info|@>;
   k = n;
-  if (mp->cur_cmd == left_delimiter) {
+  if (mp->cur_cmd == mp_left_delimiter) {
     @<Absorb delimited parameters, putting them into lists |q| and |r|@>;
   }
-  if (mp->cur_cmd == param_type) {
+  if (mp->cur_cmd == mp_param_type) {
     @<Absorb undelimited parameters, putting them into list |r|@>;
   }
   mp_check_equals (mp);
@@ -15827,14 +15829,14 @@ a \&{vardef}, because the user may want to redefine `\.{endgroup}'.
 
 @<Attach the replacement text to the tail of node |p|@>=
 if (m == start_def) {
-  mp_link (p) = mp_scan_toks (mp, macro_def, r, NULL, (quarterword) n);
+  mp_link (p) = mp_scan_toks (mp, mp_macro_def, r, NULL, (quarterword) n);
 } else {
   mp_node qq = mp_get_symbolic_node (mp);
   set_mp_sym_sym (qq, mp->bg_loc);
   mp_link (p) = qq;
   p = mp_get_symbolic_node (mp);
   set_mp_sym_sym (p, mp->eg_loc);
-  mp_link (qq) = mp_scan_toks (mp, macro_def, r, p, (quarterword) n);
+  mp_link (qq) = mp_scan_toks (mp, mp_macro_def, r, p, (quarterword) n);
 }
 if (mp->warning_info_node == mp->bad_vardef)
   mp_flush_token_list (mp, value_node (mp->bad_vardef))
@@ -15851,7 +15853,7 @@ if (m == start_def) {
   get_t_next (mp);
   mp->scanner_status = op_defining;
   n = 0;
-  eq_type (mp->warning_info) = defined_macro;
+  eq_type (mp->warning_info) = mp_defined_macro;
   equiv_node (mp->warning_info) = q;
 } else {
   p = mp_scan_declared_variable (mp);
@@ -15862,7 +15864,7 @@ if (m == start_def) {
     @<Change to `\.{a bad variable}'@>;
   mp->scanner_status = var_defining;
   n = 2;
-  if (mp->cur_cmd == macro_special && mp->cur_mod == macro_suffix) {    /* \.{\AT!\#} */
+  if (mp->cur_cmd == mp_macro_special && mp->cur_mod == macro_suffix) {    /* \.{\AT!\#} */
     n = 3;
     get_t_next (mp);
   }
@@ -15898,11 +15900,11 @@ do {
   l_delim = mp->cur_sym;
   r_delim = mp->cur_sym2;
   get_t_next (mp);
-  if ((mp->cur_cmd == param_type) && (mp->cur_mod == expr_param)) {
+  if ((mp->cur_cmd == mp_param_type) && (mp->cur_mod == expr_param)) {
     sym_type = mp_expr_sym;
-  } else if ((mp->cur_cmd == param_type) && (mp->cur_mod == suffix_param)) {
+  } else if ((mp->cur_cmd == mp_param_type) && (mp->cur_mod == suffix_param)) {
     sym_type = mp_suffix_sym;
-  } else if ((mp->cur_cmd == param_type) && (mp->cur_mod == text_param)) {
+  } else if ((mp->cur_cmd == mp_param_type) && (mp->cur_mod == text_param)) {
     sym_type = mp_text_sym;
   } else {
     const char *hlp[] = { "You should've had `expr' or `suffix' or `text' here.", NULL };
@@ -15913,7 +15915,7 @@ do {
   @<Absorb parameter tokens for type |sym_type|@>;
   mp_check_delimiter (mp, l_delim, r_delim);
   get_t_next (mp);
-} while (mp->cur_cmd == left_delimiter)
+} while (mp->cur_cmd == mp_left_delimiter)
 
 @ @<Absorb parameter tokens for type |sym_type|@>=
 do {
@@ -15933,7 +15935,7 @@ do {
   rp->link = r;
   r = rp;
   get_t_next (mp);
-} while (mp->cur_cmd == comma)
+} while (mp->cur_cmd == mp_comma)
 
 @ @<Absorb undelimited parameters, putting them into list |r|@>=
 {
@@ -15962,7 +15964,7 @@ do {
   r = rp;
   get_t_next (mp);
   if (c == expr_macro)
-    if (mp->cur_cmd == of_token) {
+    if (mp->cur_cmd == mp_of_token) {
       c = of_macro;
       rp = xmalloc (1, sizeof (mp_subst_list_item));
       rp->link = NULL;
@@ -16067,42 +16069,44 @@ static void mp_expand (MP mp) {
   mp->expand_depth_count++;
   mp_check_expansion_depth (mp);
   if (internal_value_to_halfword (mp_tracing_commands) > unity)
-    if (mp->cur_cmd != defined_macro)
+    if (mp->cur_cmd != mp_defined_macro)
       show_cur_cmd_mod;
   switch (mp->cur_cmd) {
-  case if_test:
+  case mp_if_test:
     mp_conditional (mp);        /* this procedure is discussed in Part 36 below */
     break;
-  case fi_or_else:
+  case mp_fi_or_else:
     @<Terminate the current conditional and skip to \&{fi}@>;
     break;
-  case input:
+  case mp_input:
     @<Initiate or terminate input from a file@>;
     break;
-  case iteration:
+  case mp_iteration:
     if (mp->cur_mod == end_for) {
       @<Scold the user for having an extra \&{endfor}@>;
     } else {
       mp_begin_iteration (mp);  /* this procedure is discussed in Part 37 below */
     }
     break;
-  case repeat_loop:
+  case mp_repeat_loop:
     @<Repeat a loop@>;
     break;
-  case exit_test:
+  case mp_exit_test:
     @<Exit a loop if the proper time has come@>;
     break;
-  case relax:
+  case mp_relax:
     break;
-  case expand_after:
+  case mp_expand_after:
     @<Expand the token after the next token@>;
     break;
-  case scan_tokens:
+  case mp_scan_tokens:
     @<Put a string into the input buffer@>;
     break;
-  case defined_macro:
+  case mp_defined_macro:
     mp_macro_call (mp, mp->cur_mod_node, NULL, mp->cur_sym);
     break;
+  default:
+    break; /* make the compiler happy */
   };                            /* there are no other cases */
   mp->expand_depth_count--;
 }
@@ -16123,14 +16127,14 @@ static void mp_expand (MP mp) {
 which will be declared later; the processing of \&{endinput} is trivial.
 
 @<Put each...@>=
-mp_primitive (mp, "input", input, 0);
+mp_primitive (mp, "input", mp_input, 0);
 @:input_}{\&{input} primitive@>;
-mp_primitive (mp, "endinput", input, 1);
+mp_primitive (mp, "endinput", mp_input, 1);
 @:end_input_}{\&{endinput} primitive@>
  
 
 @ @<Cases of |print_cmd_mod|...@>=
-case input:
+case mp_input:
 if (m == 0)
   mp_print (mp, "input");
 else
@@ -16169,13 +16173,13 @@ that will be |NULL| if no loop is in progress.
 {
   mp_get_boolean (mp);
   if (internal_value_to_halfword (mp_tracing_commands) > unity)
-    mp_show_cmd_mod (mp, nullary, cur_exp_value ());
+    mp_show_cmd_mod (mp, mp_nullary, cur_exp_value ());
   if (cur_exp_value () == mp_true_code) {
     if (mp->loop_ptr == NULL) {
       const char *hlp[] = {
           "Why say `exitif' when there's nothing to exit from?", 
           NULL };
-      if (mp->cur_cmd == semicolon)
+      if (mp->cur_cmd == mp_semicolon)
         mp_error (mp, "No loop is in progress", hlp, true);
       else
         mp_back_error (mp, "No loop is in progress", hlp, true);
@@ -16183,7 +16187,7 @@ that will be |NULL| if no loop is in progress.
     } else {
       @<Exit prematurely from an iteration@>;
     }
-  } else if (mp->cur_cmd != semicolon) {
+  } else if (mp->cur_cmd != mp_semicolon) {
     const char *hlp[] = {
            "After `exitif <boolean exp>' I expect to see a semicolon.",
            "I shall pretend that one was there.",
@@ -16222,7 +16226,7 @@ is less than |loop_text|.
   get_t_next (mp);
   p = mp_cur_tok (mp);
   get_t_next (mp);
-  if (mp->cur_cmd < min_command)
+  if (mp->cur_cmd < mp_min_command)
     mp_expand (mp);
   else
     mp_back_input (mp);
@@ -16296,15 +16300,15 @@ static void mp_get_x_next (MP mp);
 void mp_get_x_next (MP mp) {
   mp_node save_exp;     /* a capsule to save |cur_type| and |cur_exp| */
   get_t_next (mp);
-  if (mp->cur_cmd < min_command) {
+  if (mp->cur_cmd < mp_min_command) {
     save_exp = mp_stash_cur_exp (mp);
     do {
-      if (mp->cur_cmd == defined_macro)
+      if (mp->cur_cmd == mp_defined_macro)
         mp_macro_call (mp, mp->cur_mod_node, NULL, mp->cur_sym);
       else
         mp_expand (mp);
       get_t_next (mp);
-    } while (mp->cur_cmd < min_command);
+    } while (mp->cur_cmd < mp_min_command);
     mp_unstash_cur_exp (mp, save_exp);  /* that restores |cur_type| and |cur_exp| */
   }
 }
@@ -16449,13 +16453,13 @@ void mp_print_arg (MP mp, mp_node q, integer n, halfword b, quarterword bb) {
 
 
 @ @<Scan the remaining arguments, if any; set |r|...@>=
-mp->cur_cmd = comma + 1;        /* anything |<>comma| will do */
+mp->cur_cmd = mp_comma + 1;        /* anything |<>comma| will do */
 while (mp_name_type (r) == mp_expr_sym ||
        mp_name_type (r) == mp_suffix_sym || mp_name_type (r) == mp_text_sym) {
   @<Scan the delimited argument represented by |mp_sym_info(r)|@>;
   r = mp_link (r);
 }
-if (mp->cur_cmd == comma) {
+if (mp->cur_cmd == mp_comma) {
   char msg[256];
   const char *hlp[] = {
          "I'm going to assume that the comma I just read was a",
@@ -16491,9 +16495,9 @@ and |cur_exp| later. (Several things in this program depend on each other,
 and it's necessary to jump into the circle somewhere.)
 
 @<Scan the delimited argument represented by |mp_sym_info(r)|@>=
-if (mp->cur_cmd != comma) {
+if (mp->cur_cmd != mp_comma) {
   mp_get_x_next (mp);
-  if (mp->cur_cmd != left_delimiter) {
+  if (mp->cur_cmd != mp_left_delimiter) {
     char msg[256];
     const char *hlp[] = {
            "That macro has more parameters than you thought.",
@@ -16517,21 +16521,21 @@ if (mp->cur_cmd != comma) {
       mp->cur_exp.type = mp_known;
     }
     mp_back_error (mp, msg, hlp, true);
-    mp->cur_cmd = right_delimiter;
+    mp->cur_cmd = mp_right_delimiter;
     goto FOUND;
   }
   l_delim = mp->cur_sym;
   r_delim = mp->cur_sym2;
 }
 @<Scan the argument represented by |mp_sym_info(r)|@>;
-if (mp->cur_cmd != comma)
+if (mp->cur_cmd != mp_comma)
   @<Check that the proper right delimiter was present@>;
 FOUND:
 @<Append the current expression to |arg_list|@>
  
 
 @ @<Check that the proper right delim...@>=
-if ((mp->cur_cmd != right_delimiter) || (mp->cur_sym2 != l_delim)) {
+if ((mp->cur_cmd != mp_right_delimiter) || (mp->cur_sym2 != l_delim)) {
   if (mp_name_type (mp_link (r)) == mp_expr_sym ||
       mp_name_type (mp_link (r)) == mp_suffix_sym ||
       mp_name_type (mp_link (r)) == mp_text_sym) {
@@ -16542,7 +16546,7 @@ if ((mp->cur_cmd != right_delimiter) || (mp->cur_sym2 != l_delim)) {
            NULL };
     mp_back_error (mp, "Missing `,' has been inserted", hlp, true);
 @.Missing `,'@>;
-    mp->cur_cmd = comma;
+    mp->cur_cmd = mp_comma;
   } else {
     char msg[256];
     const char *hlp[] = {
@@ -16626,26 +16630,26 @@ void mp_scan_text_arg (MP mp, mp_sym l_delim, mp_sym r_delim) {
 
 
 @ @<Adjust the balance for a delimited argument...@>=
-if (mp->cur_cmd == right_delimiter) {
+if (mp->cur_cmd == mp_right_delimiter) {
   if (mp->cur_sym2 == l_delim) {
     decr (balance);
     if (balance == 0)
       break;
   }
-} else if (mp->cur_cmd == left_delimiter) {
+} else if (mp->cur_cmd == mp_left_delimiter) {
   if (mp->cur_sym2 == r_delim)
     incr (balance);
 }
 
 @ @<Adjust the balance for an undelimited...@>=
-if (end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop| */
+if (mp_end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop| */
   if (balance == 1) {
     break;
   } else {
-    if (mp->cur_cmd == end_group)
+    if (mp->cur_cmd == mp_end_group)
       decr (balance);
   }
-} else if (mp->cur_cmd == begin_group) {
+} else if (mp->cur_cmd == mp_begin_group) {
   incr (balance);
 }
 
@@ -16654,7 +16658,7 @@ if (end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop| *
   if (mp_sym_info (r) < text_macro) {
     mp_get_x_next (mp);
     if (mp_sym_info (r) != suffix_macro) {
-      if ((mp->cur_cmd == equals) || (mp->cur_cmd == assignment))
+      if ((mp->cur_cmd == mp_equals) || (mp->cur_cmd == mp_assignment))
         mp_get_x_next (mp);
     }
   }
@@ -16702,7 +16706,7 @@ if (end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop| *
     mp_link (tail) = p;
   tail = p;
   incr (n);
-  if (mp->cur_cmd != of_token) {
+  if (mp->cur_cmd != mp_of_token) {
     char msg[256];
     str_number sname;
     const char *hlp[] = { 
@@ -16725,7 +16729,7 @@ if (end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop| *
 
 @ @<Scan a suffix with optional delimiters@>=
 {
-  if (mp->cur_cmd != left_delimiter) {
+  if (mp->cur_cmd != mp_left_delimiter) {
     l_delim = NULL;
   } else {
     l_delim = mp->cur_sym;
@@ -16734,7 +16738,7 @@ if (end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop| *
   }
   mp_scan_suffix (mp);
   if (l_delim != NULL) {
-    if ((mp->cur_cmd != right_delimiter) || (mp->cur_sym2 != l_delim)) {
+    if ((mp->cur_cmd != mp_right_delimiter) || (mp->cur_sym2 != l_delim)) {
       char msg[256];
       const char *hlp[] = { 
         "I've gotten to the end of the macro parameter list.",
@@ -16846,20 +16850,20 @@ mp->cur_if = 0;
 mp->if_line = 0;
 
 @ @<Put each...@>=
-mp_primitive (mp, "if", if_test, if_code);
+mp_primitive (mp, "if", mp_if_test, if_code);
 @:if_}{\&{if} primitive@>;
-mp_primitive (mp, "fi", fi_or_else, fi_code);
-mp->frozen_fi = mp_frozen_primitive (mp, "fi", fi_or_else, fi_code);
+mp_primitive (mp, "fi", mp_fi_or_else, fi_code);
+mp->frozen_fi = mp_frozen_primitive (mp, "fi", mp_fi_or_else, fi_code);
 @:fi_}{\&{fi} primitive@>;
-mp_primitive (mp, "else", fi_or_else, else_code);
+mp_primitive (mp, "else", mp_fi_or_else, else_code);
 @:else_}{\&{else} primitive@>;
-mp_primitive (mp, "elseif", fi_or_else, else_if_code);
+mp_primitive (mp, "elseif", mp_fi_or_else, else_if_code);
 @:else_if_}{\&{elseif} primitive@>
  
 
 @ @<Cases of |print_cmd_mod|...@>=
-case if_test:
-case fi_or_else:
+case mp_if_test:
+case mp_fi_or_else:
 switch (m) {
 case if_code:
   mp_print (mp, "if");
@@ -16891,8 +16895,8 @@ void mp_pass_text (MP mp) {
   mp->warning_info_line = mp_true_line (mp);
   while (1) {
     get_t_next (mp);
-    if (mp->cur_cmd <= fi_or_else) {
-      if (mp->cur_cmd < fi_or_else) {
+    if (mp->cur_cmd <= mp_fi_or_else) {
+      if (mp->cur_cmd < mp_fi_or_else) {
         incr (l);
       } else {
         if (l == 0)
@@ -16910,7 +16914,7 @@ void mp_pass_text (MP mp) {
 
 
 @ @<Decrease the string reference count...@>=
-if (mp->cur_cmd == string_token) {
+if (mp->cur_cmd == mp_string_token) {
   delete_str_ref (mp->cur_mod_str);
 }
 
@@ -16973,7 +16977,7 @@ statements. Therefore, \MP\ has to check for their presence.
 
 @c
 static void mp_check_colon (MP mp) {
-  if (mp->cur_cmd != colon) {
+  if (mp->cur_cmd != mp_colon) {
     const char *hlp[] = {
            "There should've been a colon after the condition.",
            "I shall pretend that one was there.",
@@ -17197,7 +17201,7 @@ void mp_begin_iteration (MP mp) {
       p->value_mod = mp_suffix_sym;
     }
     mp_get_x_next (mp);
-    if (mp->cur_cmd == within_token) {
+    if (mp->cur_cmd == mp_within_token) {
       @<Set up a picture iteration@>;
     } else {
       @<Check for the assignment in a loop header@>;
@@ -17211,7 +17215,7 @@ void mp_begin_iteration (MP mp) {
 
 
 @ @<Check for the assignment in a loop header@>=
-if ((mp->cur_cmd != equals) && (mp->cur_cmd != assignment)) {
+if ((mp->cur_cmd != mp_equals) && (mp->cur_cmd != mp_assignment)) {
   const char *hlp[] = {
          "The next thing in this loop should have been `=' or `:='.",
          "But don't worry; I'll pretend that an equals sign",
@@ -17222,7 +17226,7 @@ if ((mp->cur_cmd != equals) && (mp->cur_cmd != assignment)) {
 }
 
 @ @<Check for the presence of a colon@>=
-if (mp->cur_cmd != colon) {
+if (mp->cur_cmd != mp_colon) {
   const char *hlp[] = {
          "The next thing in this loop should have been a `:'.",
          "So I'll pretend that a colon was present;",
@@ -17247,14 +17251,14 @@ q = mp_get_symbolic_node (mp);
 set_mp_sym_sym (q, mp->frozen_repeat_loop);
 mp->scanner_status = loop_defining;
 mp->warning_info = n;
-s->info = mp_scan_toks (mp, iteration, p, q, 0);
+s->info = mp_scan_toks (mp, mp_iteration, p, q, 0);
 mp->scanner_status = normal;
 s->link = mp->loop_ptr;
 mp->loop_ptr = s
 
 @ @<Initialize table...@>=
 mp->frozen_repeat_loop =
-mp_frozen_primitive (mp, " ENDFOR", repeat_loop + outer_tag, 0);
+mp_frozen_primitive (mp, " ENDFOR", mp_repeat_loop + mp_outer_tag, 0);
 
 @ The loop text is inserted into \MP's scanning apparatus by the
 |resume_iteration| routine.
@@ -17415,11 +17419,11 @@ do {
   if (m != start_for) {
     mp_scan_suffix (mp);
   } else {
-    if (mp->cur_cmd >= colon)
-      if (mp->cur_cmd <= comma)
+    if (mp->cur_cmd >= mp_colon)
+      if (mp->cur_cmd <= mp_comma)
         goto CONTINUE;
     mp_scan_expression (mp);
-    if (mp->cur_cmd == step_token)
+    if (mp->cur_cmd == mp_step_token)
       if (q == s->list) {
         @<Prepare for step-until construction and |break|@>;
       }
@@ -17435,7 +17439,7 @@ do {
   mp->cur_exp.type = mp_vacuous;
 CONTINUE:
   ;
-} while (mp->cur_cmd == comma)
+} while (mp->cur_cmd == mp_comma)
 
 @ @<Prepare for step-until construction and |break|@>=
 {
@@ -17447,7 +17451,7 @@ CONTINUE:
   if (mp->cur_exp.type != mp_known)
     mp_bad_for (mp, "step size");
   s->step_size = cur_exp_value ();
-  if (mp->cur_cmd != until_token) {
+  if (mp->cur_cmd != mp_until_token) {
     const char *hlp[] = {
            "I assume you meant to say `until' after `step'.",
            "So I'll look for the final value and colon next.",
@@ -19391,7 +19395,7 @@ earlier. If |cur_cmd| is not between |min_primary_command| and
 void mp_scan_primary (MP mp) {
   mp_node p, q, r;      /* for list manipulation */
   quarterword c;        /* a primitive operation code */
-  int my_var_flag;      /* initial value of |my_var_flag| */
+  mp_command_code my_var_flag;      /* initial value of |my_var_flag| */
   mp_sym l_delim, r_delim;      /* hash addresses of a delimiter pair */
   mp_value new_expr;
   @<Other local variables for |scan_primary|@>;
@@ -19402,40 +19406,40 @@ RESTART:
   check_arith();
   @<Supply diagnostic information, if requested@>;
   switch (mp->cur_cmd) {
-  case left_delimiter:
+  case mp_left_delimiter:
     @<Scan a delimited primary@>;
     break;
-  case begin_group:
+  case mp_begin_group:
     @<Scan a grouped primary@>;
     break;
-  case string_token:
+  case mp_string_token:
     @<Scan a string constant@>;
     break;
-  case numeric_token:
+  case mp_numeric_token:
     @<Scan a primary that starts with a numeric token@>;
     break;
-  case nullary:
+  case mp_nullary:
     @<Scan a nullary operation@>;
     break;
-  case unary:
-  case type_name:
-  case cycle:
-  case plus_or_minus:
+  case mp_unary:
+  case mp_type_name:
+  case mp_cycle:
+  case mp_plus_or_minus:
     @<Scan a unary operation@>;
     break;
-  case primary_binary:
+  case mp_primary_binary:
     @<Scan a binary operation with `\&{of}' between its operands@>;
     break;
-  case str_op:
+  case mp_str_op:
     @<Convert a suffix to a string@>;
     break;
-  case internal_quantity:
+  case mp_internal_quantity:
     @<Scan an internal numeric quantity@>;
     break;
-  case capsule_token:
+  case mp_capsule_token:
     mp_make_exp_copy (mp, mp->cur_mod_node);
     break;
-  case tag_token:
+  case mp_tag_token:
     @<Scan a variable primary; |goto restart| if it turns out to be a macro@>;
     break;
   default:
@@ -19446,7 +19450,7 @@ RESTART:
   }
   mp_get_x_next (mp);           /* the routines |goto done| if they don't want this */
 DONE:
-  if (mp->cur_cmd == left_bracket) {
+  if (mp->cur_cmd == mp_left_bracket) {
     if (mp->cur_exp.type >= mp_known) {
       @<Scan a mediation construction@>;
     }
@@ -19479,7 +19483,7 @@ static void mp_bad_exp (MP mp, const char *s) {
   }
   mp_back_input (mp);
   mp->cur_sym = 0;
-  mp->cur_cmd = numeric_token;
+  mp->cur_cmd = mp_numeric_token;
   mp->cur_mod = 0;
   mp_ins_error (mp, msg, hlp, true);
   save_flag = mp->var_flag;
@@ -19503,7 +19507,7 @@ if (mp->interrupt != 0)
   r_delim = mp->cur_sym2;
   mp_get_x_next (mp);
   mp_scan_expression (mp);
-  if ((mp->cur_cmd == comma) && (mp->cur_exp.type >= mp_known)) {
+  if ((mp->cur_cmd == mp_comma) && (mp->cur_exp.type >= mp_known)) {
     @<Scan the rest of a delimited set of numerics@>;
   } else {
     mp_check_delimiter (mp, l_delim, r_delim);
@@ -19567,14 +19571,14 @@ are synonymous with |x_part_loc| and |y_part_loc|.
   @<Make sure the second part of a pair or color has a numeric type@>;
   q = mp_get_value_node (mp);
   mp_name_type (q) = mp_capsule;
-  if (mp->cur_cmd == comma) {
+  if (mp->cur_cmd == mp_comma) {
     mp_init_color_node (mp, q);
     r = value_node (q);
     mp_stash_in (mp, y_part_loc (r));
     mp_unstash_cur_exp (mp, p);
     mp_stash_in (mp, x_part_loc (r));
     @<Scan the last of a triplet of numerics@>;
-    if (mp->cur_cmd == comma) {
+    if (mp->cur_cmd == mp_comma) {
       mp_init_cmykcolor_node (mp, q);
       t = value_node (q);
       mp_type (cyan_part_loc (t)) = mp_type (red_part_loc (r));
@@ -19673,8 +19677,8 @@ integer group_line;     /* where a group began */
   mp_save_boundary (mp);
   do {
     mp_do_statement (mp);       /* ends with |cur_cmd>=semicolon| */
-  } while (mp->cur_cmd == semicolon);
-  if (mp->cur_cmd != end_group) {
+  } while (mp->cur_cmd == mp_semicolon);
+  if (mp->cur_cmd != mp_end_group) {
     char msg[256];
     const char *hlp[] = {
            "I saw a `begingroup' back there that hasn't been matched",
@@ -19683,7 +19687,7 @@ integer group_line;     /* where a group began */
     mp_snprintf(msg, 256, "A group begun on line %d never ended", (int)group_line);
 @.A group...never ended@>;
     mp_back_error (mp, msg, hlp, true);
-    mp->cur_cmd = end_group;
+    mp->cur_cmd = mp_end_group;
   }
   mp_unsave (mp);
   /* this might change |cur_type|, if independent variables are recycled */
@@ -19746,14 +19750,14 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
   set_cur_exp_value (mp->cur_mod);
   mp->cur_exp.type = mp_known;
   mp_get_x_next (mp);
-  if (mp->cur_cmd != slash) {
+  if (mp->cur_cmd != mp_slash) {
     num = 0;
     denom = 0;
   } else {
     mp_get_x_next (mp);
-    if (mp->cur_cmd != numeric_token) {
+    if (mp->cur_cmd != mp_numeric_token) {
       mp_back_input (mp);
-      mp->cur_cmd = slash;
+      mp->cur_cmd = mp_slash;
       mp->cur_mod = mp_over;
       mp->cur_sym = mp->frozen_slash;
       goto DONE;
@@ -19768,8 +19772,8 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
     check_arith();
     mp_get_x_next (mp);
   }
-  if (mp->cur_cmd >= min_primary_command) {
-    if (mp->cur_cmd < numeric_token) {  /* in particular, |cur_cmd<>plus_or_minus| */
+  if (mp->cur_cmd >= mp_min_primary_command) {
+    if (mp->cur_cmd < mp_numeric_token) {  /* in particular, |cur_cmd<>plus_or_minus| */
       p = mp_stash_cur_exp (mp);
       mp_scan_primary (mp);
       if ((abs (num) >= abs (denom)) || (mp->cur_exp.type < mp_color_type)) {
@@ -19797,7 +19801,7 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
   c = (quarterword) mp->cur_mod;
   mp_get_x_next (mp);
   mp_scan_expression (mp);
-  if (mp->cur_cmd != of_token) {
+  if (mp->cur_cmd != mp_of_token) {
     char msg[256];
     str_number sname;
     const char *hlp[] = {
@@ -19805,7 +19809,7 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
         NULL };
     int old_setting = mp->selector;
     mp->selector = new_string;
-    mp_print_cmd_mod (mp, primary_binary, c);
+    mp_print_cmd_mod (mp, mp_primary_binary, c);
     mp->selector = old_setting;
     sname = mp_make_string(mp);
     mp_snprintf (msg, 256, "Missing `of' has been inserted for %s", mp_str(mp, sname));
@@ -19844,9 +19848,9 @@ of the internal quantity, with |name_type| equal to |mp_internal_sym|.
 @<Scan an internal...@>=
 {
   halfword qq = mp->cur_mod;
-  if (my_var_flag == assignment) {
+  if (my_var_flag == mp_assignment) {
     mp_get_x_next (mp);
-    if (mp->cur_cmd == assignment) {
+    if (mp->cur_cmd == mp_assignment) {
       set_cur_exp_node (mp_get_symbolic_node (mp));
       set_mp_sym_info (cur_exp_node (), qq);
       mp_name_type (cur_exp_node ()) = mp_internal_sym;
@@ -19908,12 +19912,12 @@ mp_node macro_ref = 0;  /* reference count for a suffixed macro */
     }
     mp_get_x_next (mp);
     tail = t;
-    if (mp->cur_cmd == left_bracket) {
+    if (mp->cur_cmd == mp_left_bracket) {
       @<Scan for a subscript; replace |cur_cmd| by |numeric_token| if found@>;
     }
-    if (mp->cur_cmd > max_suffix_token)
+    if (mp->cur_cmd > mp_max_suffix_token)
       break;
-    if (mp->cur_cmd < min_suffix_token)
+    if (mp->cur_cmd < mp_min_suffix_token)
       break;
   }                             /* now |cur_cmd| is |internal_quantity|, |tag_token|, or |numeric_token| */
   @<Handle unusual cases that masquerade as variables, and |goto restart|
@@ -19942,12 +19946,12 @@ mp_node macro_ref = 0;  /* reference count for a suffixed macro */
 {
   mp_get_x_next (mp);
   mp_scan_expression (mp);
-  if (mp->cur_cmd != right_bracket) {
+  if (mp->cur_cmd != mp_right_bracket) {
     @<Put the left bracket and the expression back to be rescanned@>;
   } else {
     if (mp->cur_exp.type != mp_known)
       mp_bad_subscript (mp);
-    mp->cur_cmd = numeric_token;
+    mp->cur_cmd = mp_numeric_token;
     mp->cur_mod = cur_exp_value ();
     mp->cur_sym = 0;
   }
@@ -19963,7 +19967,7 @@ so as to avoid any embarrassment about our incorrect assumption.
 {
   mp_back_input (mp);           /* that was the token following the current expression */
   mp_back_expr (mp);
-  mp->cur_cmd = left_bracket;
+  mp->cur_cmd = mp_left_bracket;
   mp->cur_mod = 0;
   mp->cur_sym = mp->frozen_left_bracket;
 }
@@ -20009,7 +20013,7 @@ into the variable structure; we need to start searching from the root each time.
   p = mp_link (pre_head);
   qq = mp_sym_sym (p);
   tt = undefined;
-  if (eq_type (qq) % outer_tag == tag_token) {
+  if (eq_type (qq) % mp_outer_tag == mp_tag_token) {
     q = equiv_node (qq);
     if (q == NULL)
       goto DONE2;
@@ -20328,14 +20332,14 @@ provided that \.a is numeric.
   p = mp_stash_cur_exp (mp);
   mp_get_x_next (mp);
   mp_scan_expression (mp);
-  if (mp->cur_cmd != comma) {
+  if (mp->cur_cmd != mp_comma) {
     @<Put the left bracket and the expression back...@>;
     mp_unstash_cur_exp (mp, p);
   } else {
     q = mp_stash_cur_exp (mp);
     mp_get_x_next (mp);
     mp_scan_expression (mp);
-    if (mp->cur_cmd != right_bracket) {
+    if (mp->cur_cmd != mp_right_bracket) {
       const char *hlp[] = {
              "I've scanned an expression of the form `a[b,c',",
              "so a right bracket should have come next.",
@@ -20364,12 +20368,12 @@ static void mp_scan_suffix (MP mp) {
   h = mp_get_symbolic_node (mp);
   t = h;
   while (1) {
-    if (mp->cur_cmd == left_bracket) {
+    if (mp->cur_cmd == mp_left_bracket) {
       @<Scan a bracketed subscript and set |cur_cmd:=numeric_token|@>;
     }
-    if (mp->cur_cmd == numeric_token) {
+    if (mp->cur_cmd == mp_numeric_token) {
       p = mp_new_num_tok (mp, mp->cur_mod);
-    } else if ((mp->cur_cmd == tag_token) || (mp->cur_cmd == internal_quantity)) {
+    } else if ((mp->cur_cmd == mp_tag_token) || (mp->cur_cmd == mp_internal_quantity)) {
       p = mp_get_symbolic_node (mp);
       set_mp_sym_sym (p, mp->cur_sym);
       mp_name_type (p) = mp->cur_sym_mod;
@@ -20392,7 +20396,7 @@ static void mp_scan_suffix (MP mp) {
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_known)
     mp_bad_subscript (mp);
-  if (mp->cur_cmd != right_bracket) {
+  if (mp->cur_cmd != mp_right_bracket) {
     const char *hlp[] = {
            "I've seen a `[' and a subscript value, in a suffix,",
            "so a right bracket should have come next.",
@@ -20401,7 +20405,7 @@ static void mp_scan_suffix (MP mp) {
     mp_back_error (mp, "Missing `]' has been inserted", hlp, true);
 @.Missing `]'@>;
   }
-  mp->cur_cmd = numeric_token;
+  mp->cur_cmd = mp_numeric_token;
   mp->cur_mod = cur_exp_value ();
 }
 
@@ -20425,25 +20429,25 @@ static void mp_scan_secondary (MP mp) {
   mp_node cc = NULL;
   mp_sym mac_name = NULL;      /* token defined with \&{primarydef} */
 RESTART:
-  if ((mp->cur_cmd < min_primary_command) ||
-      (mp->cur_cmd > max_primary_command))
+  if ((mp->cur_cmd < mp_min_primary_command) ||
+      (mp->cur_cmd > mp_max_primary_command))
     mp_bad_exp (mp, "A secondary");
 @.A secondary expression...@>;
   mp_scan_primary (mp);
 CONTINUE:
-  if (mp->cur_cmd <= max_secondary_command &&
-      mp->cur_cmd >= min_secondary_command) {
+  if (mp->cur_cmd <= mp_max_secondary_command &&
+      mp->cur_cmd >= mp_min_secondary_command) {
     p = mp_stash_cur_exp (mp);
     d = mp->cur_cmd;
     c = mp->cur_mod;
-    if (d == secondary_primary_macro) {
+    if (d == mp_secondary_primary_macro) {
       cc = mp->cur_mod_node;
       mac_name = mp->cur_sym;
       add_mac_ref (cc);
     }
     mp_get_x_next (mp);
     mp_scan_primary (mp);
-    if (d != secondary_primary_macro) {
+    if (d != mp_secondary_primary_macro) {
       mp_do_binary (mp, p, c);
     } else {
       mp_back_input (mp);
@@ -20481,25 +20485,25 @@ static void mp_scan_tertiary (MP mp) {
   mp_node cc = NULL;
   mp_sym mac_name = NULL;      /* token defined with \&{secondarydef} */
 RESTART:
-  if ((mp->cur_cmd < min_primary_command) ||
-      (mp->cur_cmd > max_primary_command))
+  if ((mp->cur_cmd < mp_min_primary_command) ||
+      (mp->cur_cmd > mp_max_primary_command))
     mp_bad_exp (mp, "A tertiary");
 @.A tertiary expression...@>;
   mp_scan_secondary (mp);
 CONTINUE:
-  if (mp->cur_cmd <= max_tertiary_command) {
-    if (mp->cur_cmd >= min_tertiary_command) {
+  if (mp->cur_cmd <= mp_max_tertiary_command) {
+    if (mp->cur_cmd >= mp_min_tertiary_command) {
       p = mp_stash_cur_exp (mp);
       c = mp->cur_mod;
       d = mp->cur_cmd;
-      if (d == tertiary_secondary_macro) {
+      if (d == mp_tertiary_secondary_macro) {
         cc = mp->cur_mod_node;
         mac_name = mp->cur_sym;
         add_mac_ref (cc);
       }
       mp_get_x_next (mp);
       mp_scan_secondary (mp);
-      if (d != tertiary_secondary_macro) {
+      if (d != mp_tertiary_secondary_macro) {
         mp_do_binary (mp, p, c);
       } else {
         mp_back_input (mp);
@@ -20543,24 +20547,24 @@ static void mp_scan_expression (MP mp) {
   mp->expand_depth_count++;
   mp_check_expansion_depth (mp);
 RESTART:
-  if ((mp->cur_cmd < min_primary_command) ||
-      (mp->cur_cmd > max_primary_command))
+  if ((mp->cur_cmd < mp_min_primary_command) ||
+      (mp->cur_cmd > mp_max_primary_command))
     mp_bad_exp (mp, "An");
 @.An expression...@>;
   mp_scan_tertiary (mp);
 CONTINUE:
-  if (mp->cur_cmd <= max_expression_command)
-    if (mp->cur_cmd >= min_expression_command) {
-      if ((mp->cur_cmd != equals) || (my_var_flag != assignment)) {
+  if (mp->cur_cmd <= mp_max_expression_command)
+    if (mp->cur_cmd >= mp_min_expression_command) {
+      if ((mp->cur_cmd != mp_equals) || (my_var_flag != mp_assignment)) {
         p = mp_stash_cur_exp (mp);
         d = mp->cur_cmd;
         c = mp->cur_mod;
-        if (d == expression_tertiary_macro) {
+        if (d == mp_expression_tertiary_macro) {
           cc = mp->cur_mod_node;
           mac_name = mp->cur_sym;
           add_mac_ref (cc);
         }
-        if ((d < ampersand) || ((d == ampersand) &&
+        if ((d < mp_ampersand) || ((d == mp_ampersand) &&
                                 ((mp_type (p) == mp_pair_type)
                                  || (mp_type (p) == mp_path_type)))) {
           @<Scan a path construction operation;
@@ -20568,7 +20572,7 @@ CONTINUE:
         } else {
           mp_get_x_next (mp);
           mp_scan_tertiary (mp);
-          if (d != expression_tertiary_macro) {
+          if (d != mp_expression_tertiary_macro) {
             mp_do_binary (mp, p, c);
           } else {
             mp_back_input (mp);
@@ -20596,7 +20600,7 @@ hoping to understand the next part of this code.
 CONTINUE_PATH:
   @<Determine the path join parameters;
     but |goto finish_path| if there's only a direction specifier@>;
-  if (mp->cur_cmd == cycle) {
+  if (mp->cur_cmd == mp_cycle) {
     @<Get ready to close a cycle@>;
   } else {
     mp_scan_tertiary (mp);
@@ -20605,8 +20609,8 @@ CONTINUE_PATH:
   }
   @<Join the partial paths and reset |p| and |q| to the head and tail
     of the result@>;
-  if (mp->cur_cmd >= min_expression_command)
-    if (mp->cur_cmd <= ampersand)
+  if (mp->cur_cmd >= mp_min_expression_command)
+    if (mp->cur_cmd <= mp_ampersand)
       if (!cycle_hit)
         goto CONTINUE_PATH;
 FINISH_PATH:
@@ -20733,17 +20737,17 @@ if (mp_type (y_part_loc (p)) == mp_known) {
 @ At this point |cur_cmd| is either |ampersand|, |left_brace|, or |path_join|.
 
 @<Determine the path join parameters...@>=
-if (mp->cur_cmd == left_brace) {
+if (mp->cur_cmd == mp_left_brace) {
   @<Put the pre-join direction information into node |q|@>;
 }
 d = mp->cur_cmd;
-if (d == path_join) {
+if (d == mp_path_join) {
   @<Determine the tension and/or control points@>;
-} else if (d != ampersand) {
+} else if (d != mp_ampersand) {
   goto FINISH_PATH;
 }
 mp_get_x_next (mp);
-if (mp->cur_cmd == left_brace) {
+if (mp->cur_cmd == mp_left_brace) {
   @<Put the post-join direction information into |x| and |t|@>;
 } else if (mp_right_type (path_q) != mp_explicit) {
   t = mp_open;
@@ -20765,12 +20769,12 @@ static quarterword mp_scan_direction (MP mp) {
   int t;        /* the type of information found */
   scaled x;     /* an |x| coordinate */
   mp_get_x_next (mp);
-  if (mp->cur_cmd == curl_command) {
+  if (mp->cur_cmd == mp_curl_command) {
     @<Scan a curl specification@>;
   } else {
     @<Scan a given direction@>;
   }
-  if (mp->cur_cmd != right_brace) {
+  if (mp->cur_cmd != mp_right_brace) {
     const char *hlp[] = {
            "I've scanned a direction spec for part of a path,",
            "so a right brace should have come next.",
@@ -20841,7 +20845,7 @@ static quarterword mp_scan_direction (MP mp) {
     mp_flush_cur_exp (mp, new_expr);
   }
   x = cur_exp_value ();
-  if (mp->cur_cmd != comma) {
+  if (mp->cur_cmd != mp_comma) {
     const char *hlp[] = {
            "I've got the x coordinate of a path direction;",
            "will look for the y coordinate next.",
@@ -20909,9 +20913,9 @@ there are no explicit control points.
 @ @<Determine the tension and/or...@>=
 {
   mp_get_x_next (mp);
-  if (mp->cur_cmd == tension) {
+  if (mp->cur_cmd == mp_tension) {
     @<Set explicit tensions@>;
-  } else if (mp->cur_cmd == controls) {
+  } else if (mp->cur_cmd == mp_controls) {
     @<Set explicit control points@>;
   } else {
     right_tension (path_q) = unity;
@@ -20919,7 +20923,7 @@ there are no explicit control points.
     mp_back_input (mp);         /* default tension */
     goto DONE;
   };
-  if (mp->cur_cmd != path_join) {
+  if (mp->cur_cmd != mp_path_join) {
     const char *hlp[] = { "A path join command should end with two dots.", NULL};
     mp_back_error (mp, "Missing `..' has been inserted", hlp, true);
 @.Missing `..'@>;
@@ -20933,21 +20937,21 @@ DONE:
 {
   mp_get_x_next (mp);
   y = mp->cur_cmd;
-  if (mp->cur_cmd == at_least)
+  if (mp->cur_cmd == mp_at_least)
     mp_get_x_next (mp);
   mp_scan_primary (mp);
   @<Make sure that the current expression is a valid tension setting@>;
-  if (y == at_least)
+  if (y == mp_at_least)
     negate (cur_exp_value ());
   right_tension (path_q) = cur_exp_value ();
-  if (mp->cur_cmd == and_command) {
+  if (mp->cur_cmd == mp_and_command) {
     mp_get_x_next (mp);
     y = mp->cur_cmd;
-    if (mp->cur_cmd == at_least)
+    if (mp->cur_cmd == mp_at_least)
       mp_get_x_next (mp);
     mp_scan_primary (mp);
     @<Make sure that the current expression is a valid tension setting@>;
-    if (y == at_least)
+    if (y == mp_at_least)
       negate (cur_exp_value ());
   }
   y = cur_exp_value ();
@@ -20976,7 +20980,7 @@ if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < min_tension)) {
   mp_known_pair (mp);
   mp_right_x (path_q) = mp->cur_x;
   mp_right_y (path_q) = mp->cur_y;
-  if (mp->cur_cmd != and_command) {
+  if (mp->cur_cmd != mp_and_command) {
     x = mp_right_x (path_q);
     y = mp_right_y (path_q);
   } else {
@@ -21018,9 +21022,9 @@ shouldn't have length zero.
   mp_get_x_next (mp);
   pp = path_p;
   qq = path_p;
-  if (d == ampersand)
+  if (d == mp_ampersand)
     if (path_p == path_q) {
-      d = path_join;
+      d = mp_path_join;
       right_tension (path_q) = unity;
       y = unity;
     }
@@ -21029,7 +21033,7 @@ shouldn't have length zero.
 
 @ @<Join the partial paths and reset |p| and |q|...@>=
 {
-  if (d == ampersand) {
+  if (d == mp_ampersand) {
     if ((mp_x_coord (path_q) != mp_x_coord (pp)) ||
         (mp_y_coord (path_q) != mp_y_coord (pp))) {
       const char *hlp[] = {
@@ -21040,13 +21044,13 @@ shouldn't have length zero.
       mp_back_error (mp, "Paths don't touch; `&' will be changed to `..'", hlp, true);
 @.Paths don't touch@>;
       mp_get_x_next (mp);
-      d = path_join;
+      d = mp_path_join;
       right_tension (path_q) = unity;
       y = unity;
     }
   }
   @<Plug an opening in |mp_right_type(pp)|, if possible@>;
-  if (d == ampersand) {
+  if (d == mp_ampersand) {
     @<Splice independent paths together@>;
   } else {
     @<Plug an opening in |mp_right_type(q)|, if possible@>;
@@ -21101,7 +21105,7 @@ if (mp_right_type (pp) == mp_open) {
 
 @ @<Choose control points for the path...@>=
 if (cycle_hit) {
-  if (d == ampersand)
+  if (d == mp_ampersand)
     path_p = path_q;
 } else {
   mp_left_type (path_p) = mp_endpoint;
@@ -21165,222 +21169,222 @@ on the \\{mod} code. For example, |do_binary| doesn't care whether the
 operation it performs is a |primary_binary| or |secondary_binary|, etc.
 
 @<Put each...@>=
-mp_primitive (mp, "true", nullary, mp_true_code);
+mp_primitive (mp, "true", mp_nullary, mp_true_code);
 @:true_}{\&{true} primitive@>;
-mp_primitive (mp, "false", nullary, mp_false_code);
+mp_primitive (mp, "false", mp_nullary, mp_false_code);
 @:false_}{\&{false} primitive@>;
-mp_primitive (mp, "nullpicture", nullary, mp_null_picture_code);
+mp_primitive (mp, "nullpicture", mp_nullary, mp_null_picture_code);
 @:null_picture_}{\&{nullpicture} primitive@>;
-mp_primitive (mp, "nullpen", nullary, mp_null_pen_code);
+mp_primitive (mp, "nullpen", mp_nullary, mp_null_pen_code);
 @:null_pen_}{\&{nullpen} primitive@>;
-mp_primitive (mp, "readstring", nullary, mp_read_string_op);
+mp_primitive (mp, "readstring", mp_nullary, mp_read_string_op);
 @:read_string_}{\&{readstring} primitive@>;
-mp_primitive (mp, "pencircle", nullary, mp_pen_circle);
+mp_primitive (mp, "pencircle", mp_nullary, mp_pen_circle);
 @:pen_circle_}{\&{pencircle} primitive@>;
-mp_primitive (mp, "normaldeviate", nullary, mp_normal_deviate);
+mp_primitive (mp, "normaldeviate", mp_nullary, mp_normal_deviate);
 @:normal_deviate_}{\&{normaldeviate} primitive@>;
-mp_primitive (mp, "readfrom", unary, mp_read_from_op);
+mp_primitive (mp, "readfrom", mp_unary, mp_read_from_op);
 @:read_from_}{\&{readfrom} primitive@>;
-mp_primitive (mp, "closefrom", unary, mp_close_from_op);
+mp_primitive (mp, "closefrom", mp_unary, mp_close_from_op);
 @:close_from_}{\&{closefrom} primitive@>;
-mp_primitive (mp, "odd", unary, mp_odd_op);
+mp_primitive (mp, "odd", mp_unary, mp_odd_op);
 @:odd_}{\&{odd} primitive@>;
-mp_primitive (mp, "known", unary, mp_known_op);
+mp_primitive (mp, "known", mp_unary, mp_known_op);
 @:known_}{\&{known} primitive@>;
-mp_primitive (mp, "unknown", unary, mp_unknown_op);
+mp_primitive (mp, "unknown", mp_unary, mp_unknown_op);
 @:unknown_}{\&{unknown} primitive@>;
-mp_primitive (mp, "not", unary, mp_not_op);
+mp_primitive (mp, "not", mp_unary, mp_not_op);
 @:not_}{\&{not} primitive@>;
-mp_primitive (mp, "decimal", unary, mp_decimal);
+mp_primitive (mp, "decimal", mp_unary, mp_decimal);
 @:decimal_}{\&{decimal} primitive@>;
-mp_primitive (mp, "reverse", unary, mp_reverse);
+mp_primitive (mp, "reverse", mp_unary, mp_reverse);
 @:reverse_}{\&{reverse} primitive@>;
-mp_primitive (mp, "makepath", unary, mp_make_path_op);
+mp_primitive (mp, "makepath", mp_unary, mp_make_path_op);
 @:make_path_}{\&{makepath} primitive@>;
-mp_primitive (mp, "makepen", unary, mp_make_pen_op);
+mp_primitive (mp, "makepen", mp_unary, mp_make_pen_op);
 @:make_pen_}{\&{makepen} primitive@>;
-mp_primitive (mp, "oct", unary, mp_oct_op);
+mp_primitive (mp, "oct", mp_unary, mp_oct_op);
 @:oct_}{\&{oct} primitive@>;
-mp_primitive (mp, "hex", unary, mp_hex_op);
+mp_primitive (mp, "hex", mp_unary, mp_hex_op);
 @:hex_}{\&{hex} primitive@>;
-mp_primitive (mp, "ASCII", unary, mp_ASCII_op);
+mp_primitive (mp, "ASCII", mp_unary, mp_ASCII_op);
 @:ASCII_}{\&{ASCII} primitive@>;
-mp_primitive (mp, "char", unary, mp_char_op);
+mp_primitive (mp, "char", mp_unary, mp_char_op);
 @:char_}{\&{char} primitive@>;
-mp_primitive (mp, "length", unary, mp_length_op);
+mp_primitive (mp, "length", mp_unary, mp_length_op);
 @:length_}{\&{length} primitive@>;
-mp_primitive (mp, "turningnumber", unary, mp_turning_op);
+mp_primitive (mp, "turningnumber", mp_unary, mp_turning_op);
 @:turning_number_}{\&{turningnumber} primitive@>;
-mp_primitive (mp, "xpart", unary, mp_x_part);
+mp_primitive (mp, "xpart", mp_unary, mp_x_part);
 @:x_part_}{\&{xpart} primitive@>;
-mp_primitive (mp, "ypart", unary, mp_y_part);
+mp_primitive (mp, "ypart", mp_unary, mp_y_part);
 @:y_part_}{\&{ypart} primitive@>;
-mp_primitive (mp, "xxpart", unary, mp_xx_part);
+mp_primitive (mp, "xxpart", mp_unary, mp_xx_part);
 @:xx_part_}{\&{xxpart} primitive@>;
-mp_primitive (mp, "xypart", unary, mp_xy_part);
+mp_primitive (mp, "xypart", mp_unary, mp_xy_part);
 @:xy_part_}{\&{xypart} primitive@>;
-mp_primitive (mp, "yxpart", unary, mp_yx_part);
+mp_primitive (mp, "yxpart", mp_unary, mp_yx_part);
 @:yx_part_}{\&{yxpart} primitive@>;
-mp_primitive (mp, "yypart", unary, mp_yy_part);
+mp_primitive (mp, "yypart", mp_unary, mp_yy_part);
 @:yy_part_}{\&{yypart} primitive@>;
-mp_primitive (mp, "redpart", unary, mp_red_part);
+mp_primitive (mp, "redpart", mp_unary, mp_red_part);
 @:red_part_}{\&{redpart} primitive@>;
-mp_primitive (mp, "greenpart", unary, mp_green_part);
+mp_primitive (mp, "greenpart", mp_unary, mp_green_part);
 @:green_part_}{\&{greenpart} primitive@>;
-mp_primitive (mp, "bluepart", unary, mp_blue_part);
+mp_primitive (mp, "bluepart", mp_unary, mp_blue_part);
 @:blue_part_}{\&{bluepart} primitive@>;
-mp_primitive (mp, "cyanpart", unary, mp_cyan_part);
+mp_primitive (mp, "cyanpart", mp_unary, mp_cyan_part);
 @:cyan_part_}{\&{cyanpart} primitive@>;
-mp_primitive (mp, "magentapart", unary, mp_magenta_part);
+mp_primitive (mp, "magentapart", mp_unary, mp_magenta_part);
 @:magenta_part_}{\&{magentapart} primitive@>;
-mp_primitive (mp, "yellowpart", unary, mp_yellow_part);
+mp_primitive (mp, "yellowpart", mp_unary, mp_yellow_part);
 @:yellow_part_}{\&{yellowpart} primitive@>;
-mp_primitive (mp, "blackpart", unary, mp_black_part);
+mp_primitive (mp, "blackpart", mp_unary, mp_black_part);
 @:black_part_}{\&{blackpart} primitive@>;
-mp_primitive (mp, "greypart", unary, mp_grey_part);
+mp_primitive (mp, "greypart", mp_unary, mp_grey_part);
 @:grey_part_}{\&{greypart} primitive@>;
-mp_primitive (mp, "colormodel", unary, mp_color_model_part);
+mp_primitive (mp, "colormodel", mp_unary, mp_color_model_part);
 @:color_model_part_}{\&{colormodel} primitive@>;
-mp_primitive (mp, "fontpart", unary, mp_font_part);
+mp_primitive (mp, "fontpart", mp_unary, mp_font_part);
 @:font_part_}{\&{fontpart} primitive@>;
-mp_primitive (mp, "textpart", unary, mp_text_part);
+mp_primitive (mp, "textpart", mp_unary, mp_text_part);
 @:text_part_}{\&{textpart} primitive@>;
-mp_primitive (mp, "pathpart", unary, mp_path_part);
+mp_primitive (mp, "pathpart", mp_unary, mp_path_part);
 @:path_part_}{\&{pathpart} primitive@>;
-mp_primitive (mp, "penpart", unary, mp_pen_part);
+mp_primitive (mp, "penpart", mp_unary, mp_pen_part);
 @:pen_part_}{\&{penpart} primitive@>;
-mp_primitive (mp, "dashpart", unary, mp_dash_part);
+mp_primitive (mp, "dashpart", mp_unary, mp_dash_part);
 @:dash_part_}{\&{dashpart} primitive@>;
-mp_primitive (mp, "sqrt", unary, mp_sqrt_op);
+mp_primitive (mp, "sqrt", mp_unary, mp_sqrt_op);
 @:sqrt_}{\&{sqrt} primitive@>;
-mp_primitive (mp, "mexp", unary, mp_m_exp_op);
+mp_primitive (mp, "mexp", mp_unary, mp_m_exp_op);
 @:m_exp_}{\&{mexp} primitive@>;
-mp_primitive (mp, "mlog", unary, mp_m_log_op);
+mp_primitive (mp, "mlog", mp_unary, mp_m_log_op);
 @:m_log_}{\&{mlog} primitive@>;
-mp_primitive (mp, "sind", unary, mp_sin_d_op);
+mp_primitive (mp, "sind", mp_unary, mp_sin_d_op);
 @:sin_d_}{\&{sind} primitive@>;
-mp_primitive (mp, "cosd", unary, mp_cos_d_op);
+mp_primitive (mp, "cosd", mp_unary, mp_cos_d_op);
 @:cos_d_}{\&{cosd} primitive@>;
-mp_primitive (mp, "floor", unary, mp_floor_op);
+mp_primitive (mp, "floor", mp_unary, mp_floor_op);
 @:floor_}{\&{floor} primitive@>;
-mp_primitive (mp, "uniformdeviate", unary, mp_uniform_deviate);
+mp_primitive (mp, "uniformdeviate", mp_unary, mp_uniform_deviate);
 @:uniform_deviate_}{\&{uniformdeviate} primitive@>;
-mp_primitive (mp, "charexists", unary, mp_char_exists_op);
+mp_primitive (mp, "charexists", mp_unary, mp_char_exists_op);
 @:char_exists_}{\&{charexists} primitive@>;
-mp_primitive (mp, "fontsize", unary, mp_font_size);
+mp_primitive (mp, "fontsize", mp_unary, mp_font_size);
 @:font_size_}{\&{fontsize} primitive@>;
-mp_primitive (mp, "llcorner", unary, mp_ll_corner_op);
+mp_primitive (mp, "llcorner", mp_unary, mp_ll_corner_op);
 @:ll_corner_}{\&{llcorner} primitive@>;
-mp_primitive (mp, "lrcorner", unary, mp_lr_corner_op);
+mp_primitive (mp, "lrcorner", mp_unary, mp_lr_corner_op);
 @:lr_corner_}{\&{lrcorner} primitive@>;
-mp_primitive (mp, "ulcorner", unary, mp_ul_corner_op);
+mp_primitive (mp, "ulcorner", mp_unary, mp_ul_corner_op);
 @:ul_corner_}{\&{ulcorner} primitive@>;
-mp_primitive (mp, "urcorner", unary, mp_ur_corner_op);
+mp_primitive (mp, "urcorner", mp_unary, mp_ur_corner_op);
 @:ur_corner_}{\&{urcorner} primitive@>;
-mp_primitive (mp, "arclength", unary, mp_arc_length);
+mp_primitive (mp, "arclength", mp_unary, mp_arc_length);
 @:arc_length_}{\&{arclength} primitive@>;
-mp_primitive (mp, "angle", unary, mp_angle_op);
+mp_primitive (mp, "angle", mp_unary, mp_angle_op);
 @:angle_}{\&{angle} primitive@>;
-mp_primitive (mp, "cycle", cycle, mp_cycle_op);
+mp_primitive (mp, "cycle", mp_cycle, mp_cycle_op);
 @:cycle_}{\&{cycle} primitive@>;
-mp_primitive (mp, "stroked", unary, mp_stroked_op);
+mp_primitive (mp, "stroked", mp_unary, mp_stroked_op);
 @:stroked_}{\&{stroked} primitive@>;
-mp_primitive (mp, "filled", unary, mp_filled_op);
+mp_primitive (mp, "filled", mp_unary, mp_filled_op);
 @:filled_}{\&{filled} primitive@>;
-mp_primitive (mp, "textual", unary, mp_textual_op);
+mp_primitive (mp, "textual", mp_unary, mp_textual_op);
 @:textual_}{\&{textual} primitive@>;
-mp_primitive (mp, "clipped", unary, mp_clipped_op);
+mp_primitive (mp, "clipped", mp_unary, mp_clipped_op);
 @:clipped_}{\&{clipped} primitive@>;
-mp_primitive (mp, "bounded", unary, mp_bounded_op);
+mp_primitive (mp, "bounded", mp_unary, mp_bounded_op);
 @:bounded_}{\&{bounded} primitive@>;
-mp_primitive (mp, "+", plus_or_minus, mp_plus);
+mp_primitive (mp, "+", mp_plus_or_minus, mp_plus);
 @:+ }{\.{+} primitive@>;
-mp_primitive (mp, "-", plus_or_minus, mp_minus);
+mp_primitive (mp, "-", mp_plus_or_minus, mp_minus);
 @:- }{\.{-} primitive@>;
-mp_primitive (mp, "*", secondary_binary, mp_times);
+mp_primitive (mp, "*", mp_secondary_binary, mp_times);
 @:* }{\.{*} primitive@>;
-mp_primitive (mp, "/", slash, mp_over);
-mp->frozen_slash = mp_frozen_primitive (mp, "/", slash, mp_over);
+mp_primitive (mp, "/", mp_slash, mp_over);
+mp->frozen_slash = mp_frozen_primitive (mp, "/", mp_slash, mp_over);
 @:/ }{\.{/} primitive@>;
-mp_primitive (mp, "++", tertiary_binary, mp_pythag_add);
+mp_primitive (mp, "++", mp_tertiary_binary, mp_pythag_add);
 @:++_}{\.{++} primitive@>;
-mp_primitive (mp, "+-+", tertiary_binary, mp_pythag_sub);
+mp_primitive (mp, "+-+", mp_tertiary_binary, mp_pythag_sub);
 @:+-+_}{\.{+-+} primitive@>;
-mp_primitive (mp, "or", tertiary_binary, mp_or_op);
+mp_primitive (mp, "or", mp_tertiary_binary, mp_or_op);
 @:or_}{\&{or} primitive@>;
-mp_primitive (mp, "and", and_command, mp_and_op);
+mp_primitive (mp, "and", mp_and_command, mp_and_op);
 @:and_}{\&{and} primitive@>;
-mp_primitive (mp, "<", expression_binary, mp_less_than);
+mp_primitive (mp, "<", mp_expression_binary, mp_less_than);
 @:< }{\.{<} primitive@>;
-mp_primitive (mp, "<=", expression_binary, mp_less_or_equal);
+mp_primitive (mp, "<=", mp_expression_binary, mp_less_or_equal);
 @:<=_}{\.{<=} primitive@>;
-mp_primitive (mp, ">", expression_binary, mp_greater_than);
+mp_primitive (mp, ">", mp_expression_binary, mp_greater_than);
 @:> }{\.{>} primitive@>;
-mp_primitive (mp, ">=", expression_binary, mp_greater_or_equal);
+mp_primitive (mp, ">=", mp_expression_binary, mp_greater_or_equal);
 @:>=_}{\.{>=} primitive@>;
-mp_primitive (mp, "=", equals, mp_equal_to);
+mp_primitive (mp, "=", mp_equals, mp_equal_to);
 @:= }{\.{=} primitive@>;
-mp_primitive (mp, "<>", expression_binary, mp_unequal_to);
+mp_primitive (mp, "<>", mp_expression_binary, mp_unequal_to);
 @:<>_}{\.{<>} primitive@>;
-mp_primitive (mp, "substring", primary_binary, mp_substring_of);
+mp_primitive (mp, "substring", mp_primary_binary, mp_substring_of);
 @:substring_}{\&{substring} primitive@>;
-mp_primitive (mp, "subpath", primary_binary, mp_subpath_of);
+mp_primitive (mp, "subpath", mp_primary_binary, mp_subpath_of);
 @:subpath_}{\&{subpath} primitive@>;
-mp_primitive (mp, "directiontime", primary_binary, mp_direction_time_of);
+mp_primitive (mp, "directiontime", mp_primary_binary, mp_direction_time_of);
 @:direction_time_}{\&{directiontime} primitive@>;
-mp_primitive (mp, "point", primary_binary, mp_point_of);
+mp_primitive (mp, "point", mp_primary_binary, mp_point_of);
 @:point_}{\&{point} primitive@>;
-mp_primitive (mp, "precontrol", primary_binary, mp_precontrol_of);
+mp_primitive (mp, "precontrol", mp_primary_binary, mp_precontrol_of);
 @:precontrol_}{\&{precontrol} primitive@>;
-mp_primitive (mp, "postcontrol", primary_binary, mp_postcontrol_of);
+mp_primitive (mp, "postcontrol", mp_primary_binary, mp_postcontrol_of);
 @:postcontrol_}{\&{postcontrol} primitive@>;
-mp_primitive (mp, "penoffset", primary_binary, mp_pen_offset_of);
+mp_primitive (mp, "penoffset", mp_primary_binary, mp_pen_offset_of);
 @:pen_offset_}{\&{penoffset} primitive@>;
-mp_primitive (mp, "arctime", primary_binary, mp_arc_time_of);
+mp_primitive (mp, "arctime", mp_primary_binary, mp_arc_time_of);
 @:arc_time_of_}{\&{arctime} primitive@>;
-mp_primitive (mp, "mpversion", nullary, mp_version);
+mp_primitive (mp, "mpversion", mp_nullary, mp_version);
 @:mp_verison_}{\&{mpversion} primitive@>;
-mp_primitive (mp, "&", ampersand, mp_concatenate);
+mp_primitive (mp, "&", mp_ampersand, mp_concatenate);
 @:!!!}{\.{\&} primitive@>;
-mp_primitive (mp, "rotated", secondary_binary, mp_rotated_by);
+mp_primitive (mp, "rotated", mp_secondary_binary, mp_rotated_by);
 @:rotated_}{\&{rotated} primitive@>;
-mp_primitive (mp, "slanted", secondary_binary, mp_slanted_by);
+mp_primitive (mp, "slanted", mp_secondary_binary, mp_slanted_by);
 @:slanted_}{\&{slanted} primitive@>;
-mp_primitive (mp, "scaled", secondary_binary, mp_scaled_by);
+mp_primitive (mp, "scaled", mp_secondary_binary, mp_scaled_by);
 @:scaled_}{\&{scaled} primitive@>;
-mp_primitive (mp, "shifted", secondary_binary, mp_shifted_by);
+mp_primitive (mp, "shifted", mp_secondary_binary, mp_shifted_by);
 @:shifted_}{\&{shifted} primitive@>;
-mp_primitive (mp, "transformed", secondary_binary, mp_transformed_by);
+mp_primitive (mp, "transformed", mp_secondary_binary, mp_transformed_by);
 @:transformed_}{\&{transformed} primitive@>;
-mp_primitive (mp, "xscaled", secondary_binary, mp_x_scaled);
+mp_primitive (mp, "xscaled", mp_secondary_binary, mp_x_scaled);
 @:x_scaled_}{\&{xscaled} primitive@>;
-mp_primitive (mp, "yscaled", secondary_binary, mp_y_scaled);
+mp_primitive (mp, "yscaled", mp_secondary_binary, mp_y_scaled);
 @:y_scaled_}{\&{yscaled} primitive@>;
-mp_primitive (mp, "zscaled", secondary_binary, mp_z_scaled);
+mp_primitive (mp, "zscaled", mp_secondary_binary, mp_z_scaled);
 @:z_scaled_}{\&{zscaled} primitive@>;
-mp_primitive (mp, "infont", secondary_binary, mp_in_font);
+mp_primitive (mp, "infont", mp_secondary_binary, mp_in_font);
 @:in_font_}{\&{infont} primitive@>;
-mp_primitive (mp, "intersectiontimes", tertiary_binary, mp_intersect);
+mp_primitive (mp, "intersectiontimes", mp_tertiary_binary, mp_intersect);
 @:intersection_times_}{\&{intersectiontimes} primitive@>;
-mp_primitive (mp, "envelope", primary_binary, mp_envelope_of);
+mp_primitive (mp, "envelope", mp_primary_binary, mp_envelope_of);
 @:envelope_}{\&{envelope} primitive@>;
-mp_primitive (mp, "glyph", primary_binary, mp_glyph_infont);
+mp_primitive (mp, "glyph", mp_primary_binary, mp_glyph_infont);
 @:glyph_infont_}{\&{envelope} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case nullary:
-case unary:
-case primary_binary:
-case secondary_binary:
-case tertiary_binary:
-case expression_binary:
-case cycle:
-case plus_or_minus:
-case slash:
-case ampersand:
-case equals:
-case and_command:
+case mp_nullary:
+case mp_unary:
+case mp_primary_binary:
+case mp_secondary_binary:
+case mp_tertiary_binary:
+case mp_expression_binary:
+case mp_cycle:
+case mp_plus_or_minus:
+case mp_slash:
+case mp_ampersand:
+case mp_equals:
+case mp_and_command:
 mp_print_op (mp, (quarterword) m);
 break;
 
@@ -21391,7 +21395,7 @@ break;
 static void mp_do_nullary (MP mp, quarterword c) {
   check_arith();
   if (internal_value_to_halfword (mp_tracing_commands) > two)
-    mp_show_cmd_mod (mp, nullary, c);
+    mp_show_cmd_mod (mp, mp_nullary, c);
   switch (c) {
   case mp_true_code:
   case mp_false_code:
@@ -25273,15 +25277,15 @@ void mp_do_statement (MP mp) {                               /* governs \MP's ac
   memset(&new_expr,0,sizeof(mp_value));
   mp->cur_exp.type = mp_vacuous;
   mp_get_x_next (mp);
-  if (mp->cur_cmd > max_primary_command) {
+  if (mp->cur_cmd > mp_max_primary_command) {
     @<Worry about bad statement@>;
-  } else if (mp->cur_cmd > max_statement_command) {
+  } else if (mp->cur_cmd > mp_max_statement_command) {
     @<Do an equation, assignment, title, or
      `$\langle\,$expression$\,\rangle\,$\&{endgroup}'@>;
   } else {
     @<Do a statement that doesn't begin with an expression@>;
   }
-  if (mp->cur_cmd < semicolon)
+  if (mp->cur_cmd < mp_semicolon)
     @<Flush unparsable junk that was found after the statement@>;
   mp->error_count = 0;
 }
@@ -25297,7 +25301,7 @@ occur when the statement is null.
 
 @<Worry about bad statement@>=
 {
-  if (mp->cur_cmd < semicolon) {
+  if (mp->cur_cmd < mp_semicolon) {
     char msg[256];
     str_number sname;
     int old_setting = mp->selector;
@@ -25343,7 +25347,7 @@ also terminate a statement.
   do {
     get_t_next (mp);
     @<Decrease the string reference count...@>;
-  } while (!end_of_statement);  /* |cur_cmd=semicolon|, |end_group|, or |stop| */
+  } while (!mp_end_of_statement);  /* |cur_cmd=semicolon|, |end_group|, or |stop| */
   mp->scanner_status = normal;
 }
 
@@ -25358,17 +25362,19 @@ expression.
   if (internal_value_to_halfword (mp_tracing_commands) > 0)
     show_cur_cmd_mod;
   switch (mp->cur_cmd) {
-  case type_name:
+  case mp_type_name:
     mp_do_type_declaration (mp);
     break;
-  case macro_def:
+  case mp_macro_def:
     if (mp->cur_mod > var_def)
       mp_make_op_def (mp);
     else if (mp->cur_mod > end_def)
       mp_scan_def (mp);
     break;
     @<Cases of |do_statement| that invoke particular commands@>;
-  }                             /* there are no other cases */
+  default:
+    break; /* make the compiler happy */
+  }
   mp->cur_exp.type = mp_vacuous;
 }
 
@@ -25377,12 +25383,12 @@ expression.
 
 @<Do an equation, assignment, title, or...@>=
 {
-  mp->var_flag = assignment;
+  mp->var_flag = mp_assignment;
   mp_scan_expression (mp);
-  if (mp->cur_cmd < end_group) {
-    if (mp->cur_cmd == equals)
+  if (mp->cur_cmd < mp_end_group) {
+    if (mp->cur_cmd == mp_equals)
       mp_do_equation (mp);
-    else if (mp->cur_cmd == assignment)
+    else if (mp->cur_cmd == mp_assignment)
       mp_do_assignment (mp);
     else if (mp->cur_exp.type == mp_string_type) {
       @<Do a title@>;
@@ -25433,11 +25439,11 @@ void mp_do_equation (MP mp) {
   mp_node p;    /* temporary register */
   lhs = mp_stash_cur_exp (mp);
   mp_get_x_next (mp);
-  mp->var_flag = assignment;
+  mp->var_flag = mp_assignment;
   mp_scan_expression (mp);
-  if (mp->cur_cmd == equals)
+  if (mp->cur_cmd == mp_equals)
     mp_do_equation (mp);
-  else if (mp->cur_cmd == assignment)
+  else if (mp->cur_cmd == mp_assignment)
     mp_do_assignment (mp);
   if (internal_value_to_halfword (mp_tracing_commands) > two)
     @<Trace the current equation@>;
@@ -25474,11 +25480,11 @@ void mp_do_assignment (MP mp) {
     lhs = cur_exp_node ();
     mp->cur_exp.type = mp_vacuous;
     mp_get_x_next (mp);
-    mp->var_flag = assignment;
+    mp->var_flag = mp_assignment;
     mp_scan_expression (mp);
-    if (mp->cur_cmd == equals)
+    if (mp->cur_cmd == mp_equals)
       mp_do_equation (mp);
-    else if (mp->cur_cmd == assignment)
+    else if (mp->cur_cmd == mp_assignment)
       mp_do_assignment (mp);
     if (internal_value_to_halfword (mp_tracing_commands) > two)
       @<Trace the current assignment@>;
@@ -25901,7 +25907,7 @@ mp_node mp_scan_declared_variable (MP mp) {
   mp_node h, t; /* head and tail of the token list to be returned */
   mp_get_symbol (mp);
   x = mp->cur_sym;
-  if (mp->cur_cmd != tag_token)
+  if (mp->cur_cmd != mp_tag_token)
     mp_clear_symbol (mp, x, false);
   h = mp_get_symbolic_node (mp);
   set_mp_sym_sym (h, x);
@@ -25910,9 +25916,9 @@ mp_node mp_scan_declared_variable (MP mp) {
     mp_get_x_next (mp);
     if (mp->cur_sym == NULL)
       break;
-    if (mp->cur_cmd != tag_token)
-      if (mp->cur_cmd != internal_quantity) {
-        if (mp->cur_cmd == left_bracket) {
+    if (mp->cur_cmd != mp_tag_token)
+      if (mp->cur_cmd != mp_internal_quantity) {
+        if (mp->cur_cmd == mp_left_bracket) {
           @<Descend past a collective subscript@>;
         } else {
           break;
@@ -25923,7 +25929,7 @@ mp_node mp_scan_declared_variable (MP mp) {
     set_mp_sym_sym (t, mp->cur_sym);
     mp_name_type (t) = mp->cur_sym_mod;
   }
-  if ((eq_type (x) % outer_tag) != tag_token)
+  if ((eq_type (x) % mp_outer_tag) != mp_tag_token)
     mp_clear_symbol (mp, x, false);
   if (equiv_node (x) == NULL)
     mp_new_root (mp, x);
@@ -25938,10 +25944,10 @@ declared variable.
 {
   mp_sym ll = mp->cur_sym;      /* hash address of left bracket */
   mp_get_x_next (mp);
-  if (mp->cur_cmd != right_bracket) {
+  if (mp->cur_cmd != mp_right_bracket) {
     mp_back_input (mp);
     mp->cur_sym = ll;
-    mp->cur_cmd = left_bracket;
+    mp->cur_cmd = mp_left_bracket;
     break;
   } else {
     mp->cur_sym = collective_subscript;
@@ -25952,32 +25958,32 @@ declared variable.
 @ Type declarations are introduced by the following primitive operations.
 
 @<Put each...@>=
-mp_primitive (mp, "numeric", type_name, mp_numeric_type);
+mp_primitive (mp, "numeric", mp_type_name, mp_numeric_type);
 @:numeric_}{\&{numeric} primitive@>;
-mp_primitive (mp, "string", type_name, mp_string_type);
+mp_primitive (mp, "string", mp_type_name, mp_string_type);
 @:string_}{\&{string} primitive@>;
-mp_primitive (mp, "boolean", type_name, mp_boolean_type);
+mp_primitive (mp, "boolean", mp_type_name, mp_boolean_type);
 @:boolean_}{\&{boolean} primitive@>;
-mp_primitive (mp, "path", type_name, mp_path_type);
+mp_primitive (mp, "path", mp_type_name, mp_path_type);
 @:path_}{\&{path} primitive@>;
-mp_primitive (mp, "pen", type_name, mp_pen_type);
+mp_primitive (mp, "pen", mp_type_name, mp_pen_type);
 @:pen_}{\&{pen} primitive@>;
-mp_primitive (mp, "picture", type_name, mp_picture_type);
+mp_primitive (mp, "picture", mp_type_name, mp_picture_type);
 @:picture_}{\&{picture} primitive@>;
-mp_primitive (mp, "transform", type_name, mp_transform_type);
+mp_primitive (mp, "transform", mp_type_name, mp_transform_type);
 @:transform_}{\&{transform} primitive@>;
-mp_primitive (mp, "color", type_name, mp_color_type);
+mp_primitive (mp, "color", mp_type_name, mp_color_type);
 @:color_}{\&{color} primitive@>;
-mp_primitive (mp, "rgbcolor", type_name, mp_color_type);
+mp_primitive (mp, "rgbcolor", mp_type_name, mp_color_type);
 @:color_}{\&{rgbcolor} primitive@>;
-mp_primitive (mp, "cmykcolor", type_name, mp_cmykcolor_type);
+mp_primitive (mp, "cmykcolor", mp_type_name, mp_cmykcolor_type);
 @:color_}{\&{cmykcolor} primitive@>;
-mp_primitive (mp, "pair", type_name, mp_pair_type);
+mp_primitive (mp, "pair", mp_type_name, mp_pair_type);
 @:pair_}{\&{pair} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case type_name:
+case mp_type_name:
 mp_print_type (mp, (quarterword) m);
 break;
 
@@ -26013,10 +26019,10 @@ void mp_do_type_declaration (MP mp) {
       mp_get_x_next (mp);
     }
     mp_flush_node_list (mp, p);
-    if (mp->cur_cmd < comma) {
+    if (mp->cur_cmd < mp_comma) {
       @<Flush spurious symbols after the declared variable@>;
     }
-  } while (!end_of_statement);
+  } while (!mp_end_of_statement);
 }
 
 
@@ -26029,7 +26035,7 @@ void mp_do_type_declaration (MP mp) {
          "I'm going to discard the junk I found here,",
          "up to the next comma or the end of the declaration.",
          NULL };
-  if (mp->cur_cmd == numeric_token)
+  if (mp->cur_cmd == mp_numeric_token)
     hlp[2] = "Explicit subscripts like `x15a' aren't permitted.";
   mp_back_error (mp, "Illegal suffix of declared variable will be flushed", hlp, true);
 @.Illegal suffix...flushed@>;
@@ -26038,7 +26044,7 @@ void mp_do_type_declaration (MP mp) {
   do {
     get_t_next (mp);
     @<Decrease the string reference count...@>;
-  } while (mp->cur_cmd < comma);        /* either |end_of_statement| or |cur_cmd=comma| */
+  } while (mp->cur_cmd < mp_comma);        /* either |end_of_statement| or |cur_cmd=comma| */
   mp->scanner_status = normal;
 }
 
@@ -26054,7 +26060,7 @@ static void mp_main_control (MP mp) {
   memset(&new_expr,0,sizeof(mp_value));
   do {
     mp_do_statement (mp);
-    if (mp->cur_cmd == end_group) {
+    if (mp->cur_cmd == mp_end_group) {
       const char *hlp[] = { 
              "I'm not currently working on a `begingroup',",
              "so I had better not try to end anything.",
@@ -26063,7 +26069,7 @@ static void mp_main_control (MP mp) {
 @.Extra `endgroup'@>;
       mp_flush_cur_exp (mp, new_expr);
     }
-  } while (mp->cur_cmd != stop);
+  } while (mp->cur_cmd != mp_stop);
 }
 int mp_run (MP mp) {
   if (mp->history < mp_fatal_error_stop) {
@@ -26095,7 +26101,7 @@ void mp_set_internal (MP mp, char *n, char *v, int isstring) {
     if (p == NULL) {
       errid = "variable does not exist";
     } else {
-      if (eq_type (p) == internal_quantity) {
+      if (eq_type (p) == mp_internal_quantity) {
         if ((internal_type (equiv (p)) == mp_string_type) && (isstring)) {
           set_internal_string (equiv (p), mp_rts (mp, v));
         } else if ((internal_type (equiv (p)) == mp_known) && (!isstring)) {
@@ -26555,7 +26561,7 @@ int mp_execute (MP mp, char *s, size_t l) {
     loc = start;
     do {
       mp_do_statement (mp);
-    } while (mp->cur_cmd != stop);
+    } while (mp->cur_cmd != mp_stop);
     mp_final_cleanup (mp);
     mp_close_files_and_terminate (mp);
   }
@@ -26600,15 +26606,15 @@ int mp_finish (MP mp);
 char *mp_metapost_version (void);
 
 @ @<Put each...@>=
-mp_primitive (mp, "end", stop, 0);
+mp_primitive (mp, "end", mp_stop, 0);
 @:end_}{\&{end} primitive@>;
-mp_primitive (mp, "dump", stop, 1);
-mp->frozen_dump = mp_frozen_primitive (mp, "dump", stop, 1);
+mp_primitive (mp, "dump", mp_stop, 1);
+mp->frozen_dump = mp_frozen_primitive (mp, "dump", mp_stop, 1);
 @:dump_}{\&{dump} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case stop:
+case mp_stop:
 if (mp->cur_mod == 0)
   mp_print (mp, "end");
 else
@@ -26636,7 +26642,7 @@ void mp_do_random_seed (MP mp) {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
   mp_get_x_next (mp);
-  if (mp->cur_cmd != assignment) {
+  if (mp->cur_cmd != mp_assignment) {
     const char *hlp[] = { "Always say `randomseed:=<numeric expression>'.", NULL };
     mp_back_error (mp, "Missing `:=' has been inserted", hlp, true);
 @.Missing `:='@>;
@@ -26677,7 +26683,7 @@ void mp_do_random_seed (MP mp) {
 @ And here's another simple one (somewhat different in flavor):
 
 @<Cases of |do_statement|...@>=
-case mode_command:
+case mp_mode_command:
 mp_print_ln (mp);
 mp->interaction = mp->cur_mod;
 @<Initialize the print |selector| based on |interaction|@>;
@@ -26687,18 +26693,18 @@ mp_get_x_next (mp);
 break;
 
 @ @<Put each...@>=
-mp_primitive (mp, "batchmode", mode_command, mp_batch_mode);
+mp_primitive (mp, "batchmode", mp_mode_command, mp_batch_mode);
 @:mp_batch_mode_}{\&{batchmode} primitive@>;
-mp_primitive (mp, "nonstopmode", mode_command, mp_nonstop_mode);
+mp_primitive (mp, "nonstopmode", mp_mode_command, mp_nonstop_mode);
 @:mp_nonstop_mode_}{\&{nonstopmode} primitive@>;
-mp_primitive (mp, "scrollmode", mode_command, mp_scroll_mode);
+mp_primitive (mp, "scrollmode", mp_mode_command, mp_scroll_mode);
 @:mp_scroll_mode_}{\&{scrollmode} primitive@>;
-mp_primitive (mp, "errorstopmode", mode_command, mp_error_stop_mode);
+mp_primitive (mp, "errorstopmode", mp_mode_command, mp_error_stop_mode);
 @:mp_error_stop_mode_}{\&{errorstopmode} primitive@>
  
 
 @ @<Cases of |print_cmd_mod|...@>=
-case mode_command:
+case mp_mode_command:
 switch (m) {
 case mp_batch_mode:
   mp_print (mp, "batchmode");
@@ -26718,19 +26724,19 @@ break;
 @ The `\&{inner}' and `\&{outer}' commands are only slightly harder.
 
 @<Cases of |do_statement|...@>=
-case protection_command:
+case mp_protection_command:
 mp_do_protection (mp);
 break;
 
 @ @<Put each...@>=
-mp_primitive (mp, "inner", protection_command, 0);
+mp_primitive (mp, "inner", mp_protection_command, 0);
 @:inner_}{\&{inner} primitive@>;
-mp_primitive (mp, "outer", protection_command, 1);
+mp_primitive (mp, "outer", mp_protection_command, 1);
 @:outer_}{\&{outer} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case protection_command:
+case mp_protection_command:
 if (m == 0)
   mp_print (mp, "inner");
 else
@@ -26749,13 +26755,13 @@ void mp_do_protection (MP mp) {
     mp_get_symbol (mp);
     t = eq_type (mp->cur_sym);
     if (m == 0) {
-      if (t >= outer_tag)
-        eq_type (mp->cur_sym) = t - outer_tag;
-    } else if (t < outer_tag) {
-      eq_type (mp->cur_sym) = t + outer_tag;
+      if (t >= mp_outer_tag)
+        eq_type (mp->cur_sym) = t - mp_outer_tag;
+    } else if (t < mp_outer_tag) {
+      eq_type (mp->cur_sym) = t + mp_outer_tag;
     }
     mp_get_x_next (mp);
-  } while (mp->cur_cmd == comma);
+  } while (mp->cur_cmd == mp_comma);
 }
 
 
@@ -26766,7 +26772,7 @@ declaration assigns the command code |left_delimiter| to `\.{(}' and
 hash address of its mate.
 
 @<Cases of |do_statement|...@>=
-case delimiters:
+case mp_delimiters:
 mp_def_delims (mp);
 break;
 
@@ -26780,9 +26786,9 @@ void mp_def_delims (MP mp) {
   l_delim = mp->cur_sym;
   mp_get_clear_symbol (mp);
   r_delim = mp->cur_sym;
-  eq_type (l_delim) = left_delimiter;
+  eq_type (l_delim) = mp_left_delimiter;
   equiv_sym (l_delim) = r_delim;
-  eq_type (r_delim) = right_delimiter;
+  eq_type (r_delim) = mp_right_delimiter;
   equiv_sym (r_delim) = l_delim;
   mp_get_x_next (mp);
 }
@@ -26796,7 +26802,7 @@ static void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim);
 
 @ @c
 void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim) {
-  if (mp->cur_cmd == right_delimiter)
+  if (mp->cur_cmd == mp_right_delimiter)
     if (mp->cur_sym2 == l_delim)
       return;
   if (mp->cur_sym != r_delim) {
@@ -26825,20 +26831,20 @@ void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim) {
 @ The next four commands save or change the values associated with tokens.
 
 @<Cases of |do_statement|...@>=
-case save_command:
+case mp_save_command:
 do {
   mp_get_symbol (mp);
   mp_save_variable (mp, mp->cur_sym);
   mp_get_x_next (mp);
-} while (mp->cur_cmd == comma);
+} while (mp->cur_cmd == mp_comma);
 break;
-case interim_command:
+case mp_interim_command:
 mp_do_interim (mp);
 break;
-case let_command:
+case mp_let_command:
 mp_do_let (mp);
 break;
-case new_internal:
+case mp_new_internal:
 mp_do_new_internal (mp);
 break;
 
@@ -26849,7 +26855,7 @@ static void mp_do_interim (MP mp);
 @ @c
 void mp_do_interim (MP mp) {
   mp_get_x_next (mp);
-  if (mp->cur_cmd != internal_quantity) {
+  if (mp->cur_cmd != mp_internal_quantity) {
     char msg[256];
     const char *hlp[] = {
        "Something like `tracingonline' should follow `interim'.",
@@ -26878,7 +26884,7 @@ void mp_do_let (MP mp) {
   mp_get_symbol (mp);
   l = mp->cur_sym;
   mp_get_x_next (mp);
-  if (mp->cur_cmd != equals && mp->cur_cmd != assignment) {
+  if (mp->cur_cmd != mp_equals && mp->cur_cmd != mp_assignment) {
     const char *hlp[] = { 
            "You should have said `let symbol = something'.",
            "But don't worry; I'll pretend that an equals sign",
@@ -26889,10 +26895,10 @@ void mp_do_let (MP mp) {
   }
   mp_get_symbol (mp);
   switch (mp->cur_cmd) {
-  case defined_macro:
-  case secondary_primary_macro:
-  case tertiary_secondary_macro:
-  case expression_tertiary_macro:
+  case mp_defined_macro:
+  case mp_secondary_primary_macro:
+  case mp_tertiary_secondary_macro:
+  case mp_expression_tertiary_macro:
     add_mac_ref (mp->cur_mod_node);
     break;
   default:
@@ -26900,15 +26906,15 @@ void mp_do_let (MP mp) {
   }
   mp_clear_symbol (mp, l, false);
   eq_type (l) = mp->cur_cmd;
-  if (mp->cur_cmd == tag_token)
+  if (mp->cur_cmd == mp_tag_token)
     equiv (l) = 0;              /* todo: this was |null| */
-  else if (mp->cur_cmd == defined_macro ||
-           mp->cur_cmd == secondary_primary_macro ||
-           mp->cur_cmd == tertiary_secondary_macro ||
-           mp->cur_cmd == expression_tertiary_macro)
+  else if (mp->cur_cmd == mp_defined_macro ||
+           mp->cur_cmd == mp_secondary_primary_macro ||
+           mp->cur_cmd == mp_tertiary_secondary_macro ||
+           mp->cur_cmd == mp_expression_tertiary_macro)
     equiv_node (l) = mp->cur_mod_node;
-  else if (mp->cur_cmd == left_delimiter ||
-           mp->cur_cmd ==  right_delimiter)
+  else if (mp->cur_cmd == mp_left_delimiter ||
+           mp->cur_cmd ==  mp_right_delimiter)
     equiv_sym (l) = mp->cur_sym2;
   else
     equiv (l) = mp->cur_mod;
@@ -26944,10 +26950,10 @@ void mp_grow_internals (MP mp, int l) {
 void mp_do_new_internal (MP mp) {
   int the_type = mp_known;
   mp_get_x_next (mp);
-  if (mp->cur_cmd == type_name && mp->cur_mod == mp_string_type) {
+  if (mp->cur_cmd == mp_type_name && mp->cur_mod == mp_string_type) {
     the_type = mp_string_type;
   } else {
-    if (!(mp->cur_cmd == type_name && mp->cur_mod == mp_numeric_type)) {
+    if (!(mp->cur_cmd == mp_type_name && mp->cur_mod == mp_numeric_type)) {
       mp_back_input (mp);
     }
   }
@@ -26957,7 +26963,7 @@ void mp_do_new_internal (MP mp) {
     }
     mp_get_clear_symbol (mp);
     incr (mp->int_ptr);
-    eq_type (mp->cur_sym) = internal_quantity;
+    eq_type (mp->cur_sym) = mp_internal_quantity;
     equiv (mp->cur_sym) = mp->int_ptr;
     if (internal_name (mp->int_ptr) != NULL)
       xfree (internal_name (mp->int_ptr));
@@ -26970,7 +26976,7 @@ void mp_do_new_internal (MP mp) {
     }
     set_internal_type (mp->int_ptr, the_type);
     mp_get_x_next (mp);
-  } while (mp->cur_cmd == comma);
+  } while (mp->cur_cmd == mp_comma);
 }
 
 
@@ -26991,20 +26997,20 @@ in the usual way.
 @d show_dependencies_code 4 /* show dependent variables in terms of independents */
 
 @<Put each...@>=
-mp_primitive (mp, "showtoken", show_command, show_token_code);
+mp_primitive (mp, "showtoken", mp_show_command, show_token_code);
 @:show_token_}{\&{showtoken} primitive@>;
-mp_primitive (mp, "showstats", show_command, show_stats_code);
+mp_primitive (mp, "showstats", mp_show_command, show_stats_code);
 @:show_stats_}{\&{showstats} primitive@>;
-mp_primitive (mp, "show", show_command, show_code);
+mp_primitive (mp, "show", mp_show_command, show_code);
 @:show_}{\&{show} primitive@>;
-mp_primitive (mp, "showvariable", show_command, show_var_code);
+mp_primitive (mp, "showvariable", mp_show_command, show_var_code);
 @:show_var_}{\&{showvariable} primitive@>;
-mp_primitive (mp, "showdependencies", show_command, show_dependencies_code);
+mp_primitive (mp, "showdependencies", mp_show_command, show_dependencies_code);
 @:show_dependencies_}{\&{showdependencies} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case show_command:
+case mp_show_command:
 switch (m) {
 case show_token_code:
   mp_print (mp, "showtoken");
@@ -27025,7 +27031,7 @@ default:
 break;
 
 @ @<Cases of |do_statement|...@>=
-case show_command:
+case mp_show_command:
 mp_do_show_whatever (mp);
 break;
 
@@ -27047,7 +27053,7 @@ void mp_do_show (MP mp) {
 @.>>@>;
     mp_print_exp (mp, NULL, 2);
     mp_flush_cur_exp (mp, new_expr);
-  } while (mp->cur_cmd == comma);
+  } while (mp->cur_cmd == mp_comma);
 }
 
 
@@ -27063,10 +27069,10 @@ void mp_disp_token (MP mp) {
   } else {
     mp_print_text (mp->cur_sym);
     mp_print_char (mp, xord ('='));
-    if (eq_type (mp->cur_sym) >= outer_tag)
+    if (eq_type (mp->cur_sym) >= mp_outer_tag)
       mp_print (mp, "(outer) ");
     mp_print_cmd_mod (mp, mp->cur_cmd, mp->cur_mod);
-    if (mp->cur_cmd == defined_macro) {
+    if (mp->cur_cmd == mp_defined_macro) {
       mp_print_ln (mp);
       mp_show_macro (mp, mp->cur_mod_node, NULL, 100000);
     }                           /* this avoids recursion between |show_macro| and |print_cmd_mod| */
@@ -27077,9 +27083,9 @@ void mp_disp_token (MP mp) {
 
 @ @<Show a numeric or string or capsule token@>=
 {
-  if (mp->cur_cmd == numeric_token) {
+  if (mp->cur_cmd == mp_numeric_token) {
     mp_print_scaled (mp, mp->cur_mod);
-  } else if (mp->cur_cmd == capsule_token) {
+  } else if (mp->cur_cmd == mp_capsule_token) {
     mp_print_capsule (mp, mp->cur_mod_node);
   } else {
     mp_print_char (mp, xord ('"'));
@@ -27095,9 +27101,9 @@ with |disp_token|, although they don't necessarily correspond to
 primitive tokens.
 
 @<Cases of |print_cmd_...@>=
-case left_delimiter:
-case right_delimiter:
-if (c == left_delimiter)
+case mp_left_delimiter:
+case mp_right_delimiter:
+if (c == mp_left_delimiter)
   mp_print (mp, "left");
 else
   mp_print (mp, "right");
@@ -27108,19 +27114,19 @@ mp_print_text (m);
 mp_print (mp, " delimiter");
 #endif
 break;
-case tag_token:
+case mp_tag_token:
 if (m == 0)                     /* todo: this was |null| */
   mp_print (mp, "tag");
 else
   mp_print (mp, "variable");
 break;
-case defined_macro:
+case mp_defined_macro:
 mp_print (mp, "macro:");
 break;
-case repeat_loop:
+case mp_repeat_loop:
 mp_print (mp, "[repeat the loop]");
 break;
-case internal_quantity:
+case mp_internal_quantity:
 mp_print (mp, internal_name (m));
 break;
 
@@ -27134,7 +27140,7 @@ void mp_do_show_token (MP mp) {
     get_t_next (mp);
     mp_disp_token (mp);
     mp_get_x_next (mp);
-  } while (mp->cur_cmd == comma);
+  } while (mp->cur_cmd == mp_comma);
 }
 
 
@@ -27218,7 +27224,7 @@ void mp_do_show_var (MP mp) {
     get_t_next (mp);
     if (mp->cur_sym != NULL)
       if (mp->cur_sym_mod == 0)
-        if (mp->cur_cmd == tag_token)
+        if (mp->cur_cmd == mp_tag_token)
           if (mp->cur_mod != 0) {
             mp_disp_var (mp, mp->cur_mod_node);
             goto DONE;
@@ -27226,7 +27232,7 @@ void mp_do_show_var (MP mp) {
     mp_disp_token (mp);
   DONE:
     mp_get_x_next (mp);
-  } while (mp->cur_cmd == comma);
+  } while (mp->cur_cmd == mp_comma);
 }
 
 
@@ -27291,7 +27297,7 @@ void mp_do_show_whatever (MP mp) {
       hlp[0] = NULL;
       decr (mp->error_count);
     }
-    if (mp->cur_cmd == semicolon) {
+    if (mp->cur_cmd == mp_semicolon) {
       mp_error (mp, "OK", hlp, true);
     } else {
       mp_back_error (mp, "OK", hlp, true);
@@ -27314,35 +27320,35 @@ void mp_do_show_whatever (MP mp) {
 @d with_mp_post_script 13
 
 @<Put each...@>=
-mp_primitive (mp, "doublepath", thing_to_add, double_path_code);
+mp_primitive (mp, "doublepath", mp_thing_to_add, double_path_code);
 @:double_path_}{\&{doublepath} primitive@>;
-mp_primitive (mp, "contour", thing_to_add, contour_code);
+mp_primitive (mp, "contour", mp_thing_to_add, contour_code);
 @:contour_}{\&{contour} primitive@>;
-mp_primitive (mp, "also", thing_to_add, also_code);
+mp_primitive (mp, "also", mp_thing_to_add, also_code);
 @:also_}{\&{also} primitive@>;
-mp_primitive (mp, "withpen", with_option, mp_pen_type);
+mp_primitive (mp, "withpen", mp_with_option, mp_pen_type);
 @:with_pen_}{\&{withpen} primitive@>;
-mp_primitive (mp, "dashed", with_option, mp_picture_type);
+mp_primitive (mp, "dashed", mp_with_option, mp_picture_type);
 @:dashed_}{\&{dashed} primitive@>;
-mp_primitive (mp, "withprescript", with_option, with_mp_pre_script);
+mp_primitive (mp, "withprescript", mp_with_option, with_mp_pre_script);
 @:with_mp_pre_script_}{\&{withprescript} primitive@>;
-mp_primitive (mp, "withpostscript", with_option, with_mp_post_script);
+mp_primitive (mp, "withpostscript", mp_with_option, with_mp_post_script);
 @:with_mp_post_script_}{\&{withpostscript} primitive@>;
-mp_primitive (mp, "withoutcolor", with_option, mp_no_model);
+mp_primitive (mp, "withoutcolor", mp_with_option, mp_no_model);
 @:with_color_}{\&{withoutcolor} primitive@>;
-mp_primitive (mp, "withgreyscale", with_option, mp_grey_model);
+mp_primitive (mp, "withgreyscale", mp_with_option, mp_grey_model);
 @:with_color_}{\&{withgreyscale} primitive@>;
-mp_primitive (mp, "withcolor", with_option, mp_uninitialized_model);
+mp_primitive (mp, "withcolor", mp_with_option, mp_uninitialized_model);
 @:with_color_}{\&{withcolor} primitive@>
 /*  \&{withrgbcolor} is an alias for \&{withcolor} */
-  mp_primitive (mp, "withrgbcolor", with_option, mp_rgb_model);
+  mp_primitive (mp, "withrgbcolor", mp_with_option, mp_rgb_model);
 @:with_color_}{\&{withrgbcolor} primitive@>;
-mp_primitive (mp, "withcmykcolor", with_option, mp_cmyk_model);
+mp_primitive (mp, "withcmykcolor", mp_with_option, mp_cmyk_model);
 @:with_color_}{\&{withcmykcolor} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case thing_to_add:
+case mp_thing_to_add:
 if (m == contour_code)
   mp_print (mp, "contour");
 else if (m == double_path_code)
@@ -27350,7 +27356,7 @@ else if (m == double_path_code)
 else
   mp_print (mp, "also");
 break;
-case with_option:
+case mp_with_option:
 if (m == mp_pen_type)
   mp_print (mp, "withpen");
 else if (m == with_mp_pre_script)
@@ -27396,7 +27402,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
   bp = MP_VOID;
   k = 0;
   memset(&new_expr,0,sizeof(mp_value));
-  while (mp->cur_cmd == with_option) {
+  while (mp->cur_cmd == mp_with_option) {
     /* todo this is not very nice: the color models have their own enumeration */
     t = (mp_variable_type) mp->cur_mod;
     mp_get_x_next (mp);
@@ -27828,22 +27834,22 @@ mp_node mp_find_edges_var (MP mp, mp_node t) {
 
 
 @ @<Cases of |do_statement|...@>=
-case add_to_command:
+case mp_add_to_command:
 mp_do_add_to (mp);
 break;
-case bounds_command:
+case mp_bounds_command:
 mp_do_bounds (mp);
 break;
 
 @ @<Put each...@>=
-mp_primitive (mp, "clip", bounds_command, mp_start_clip_node_type);
+mp_primitive (mp, "clip", mp_bounds_command, mp_start_clip_node_type);
 @:clip_}{\&{clip} primitive@>;
-mp_primitive (mp, "setbounds", bounds_command, mp_start_bounds_node_type);
+mp_primitive (mp, "setbounds", mp_bounds_command, mp_start_bounds_node_type);
 @:set_bounds_}{\&{setbounds} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case bounds_command:
+case mp_bounds_command:
 if (m == mp_start_clip_node_type)
   mp_print (mp, "clip");
 else
@@ -27918,7 +27924,7 @@ void mp_do_bounds (MP mp) {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
   m = mp->cur_mod;
-  lhv = mp_start_draw_cmd (mp, to_token);
+  lhv = mp_start_draw_cmd (mp, mp_to_token);
   if (lhv != NULL) {
     lhe = mp_find_edges_var (mp, lhv);
     if (lhe == NULL) {
@@ -27988,7 +27994,7 @@ void mp_do_add_to (MP mp) {
   quarterword add_type; /* |also_code|, |contour_code|, or |double_path_code| */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  lhv = mp_start_draw_cmd (mp, thing_to_add);
+  lhv = mp_start_draw_cmd (mp, mp_thing_to_add);
   add_type = mp->last_add_type;
   if (lhv != NULL) {
     if (add_type == also_code) {
@@ -28097,7 +28103,7 @@ if (lhe == NULL) {
 
 
 @ @<Cases of |do_statement|...@>=
-case ship_out_command:
+case mp_ship_out_command:
 mp_do_ship_out (mp);
 break;
 
@@ -28141,7 +28147,7 @@ void mp_do_ship_out (MP mp) {
 |start_sym|.
 
 @<Cases of |do_statement|...@>=
-case every_job_command:
+case mp_every_job_command:
 mp_get_symbol (mp);
 mp->start_sym = mp->cur_sym;
 mp_get_x_next (mp);
@@ -28176,18 +28182,18 @@ mp->start_sym = NULL;
           } while (0)
 
 @<Put each...@>=
-mp_primitive (mp, "message", message_command, message_code);
+mp_primitive (mp, "message", mp_message_command, message_code);
 @:message_}{\&{message} primitive@>;
-mp_primitive (mp, "errmessage", message_command, err_message_code);
+mp_primitive (mp, "errmessage", mp_message_command, err_message_code);
 @:err_message_}{\&{errmessage} primitive@>;
-mp_primitive (mp, "errhelp", message_command, err_help_code);
+mp_primitive (mp, "errhelp", mp_message_command, err_help_code);
 @:err_help_}{\&{errhelp} primitive@>;
-mp_primitive (mp, "filenametemplate", message_command, filename_template_code);
+mp_primitive (mp, "filenametemplate", mp_message_command, filename_template_code);
 @:filename_template_}{\&{filenametemplate} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case message_command:
+case mp_message_command:
 if (m < err_message_code)
   mp_print (mp, "message");
 else if (m == err_message_code)
@@ -28199,7 +28205,7 @@ else
 break;
 
 @ @<Cases of |do_statement|...@>=
-case message_command:
+case mp_message_command:
 mp_do_message (mp);
 break;
 
@@ -28316,7 +28322,7 @@ mp->long_help_seen = false;
 
 
 @ @<Cases of |do_statement|...@>=
-case write_command:
+case mp_write_command:
 mp_do_write (mp);
 break;
 
@@ -28335,7 +28341,7 @@ void mp_do_write (MP mp) {
   if (mp->cur_exp.type != mp_string_type) {
     mp_no_string_err (mp,
                       "The text to be written should be a known string expression");
-  } else if (mp->cur_cmd != to_token) {
+  } else if (mp->cur_cmd != mp_to_token) {
     const char *hlp[] = { "A write command should end with `to <filename>'", NULL };
     mp_back_error (mp, "Missing `to' clause", hlp, true);
     mp_get_x_next (mp);
@@ -28821,7 +28827,7 @@ mp->tfm_ital_corr[c] = mp_tfm_check (mp, mp_char_ic)
 @ Now let's consider \MP's special \.{TFM}-oriented commands.
 
 @<Cases of |do_statement|...@>=
-case tfm_command:
+case mp_tfm_command:
 mp_do_tfm_command (mp);
 break;
 
@@ -28832,20 +28838,20 @@ break;
 @d font_dimen_code 4
 
 @<Put each...@>=
-mp_primitive (mp, "charlist", tfm_command, char_list_code);
+mp_primitive (mp, "charlist", mp_tfm_command, char_list_code);
 @:char_list_}{\&{charlist} primitive@>;
-mp_primitive (mp, "ligtable", tfm_command, lig_table_code);
+mp_primitive (mp, "ligtable", mp_tfm_command, lig_table_code);
 @:lig_table_}{\&{ligtable} primitive@>;
-mp_primitive (mp, "extensible", tfm_command, extensible_code);
+mp_primitive (mp, "extensible", mp_tfm_command, extensible_code);
 @:extensible_}{\&{extensible} primitive@>;
-mp_primitive (mp, "headerbyte", tfm_command, header_byte_code);
+mp_primitive (mp, "headerbyte", mp_tfm_command, header_byte_code);
 @:header_byte_}{\&{headerbyte} primitive@>;
-mp_primitive (mp, "fontdimen", tfm_command, font_dimen_code);
+mp_primitive (mp, "fontdimen", mp_tfm_command, font_dimen_code);
 @:font_dimen_}{\&{fontdimen} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case tfm_command:
+case mp_tfm_command:
 switch (m) {
 case char_list_code:
   mp_print (mp, "charlist");
@@ -28961,7 +28967,7 @@ void mp_do_tfm_command (MP mp) {
   case char_list_code:
     c = mp_get_code (mp);
     /* we will store a list of character successors */
-    while (mp->cur_cmd == colon) {
+    while (mp->cur_cmd == mp_colon) {
       cc = mp_get_code (mp);
       mp_set_tag (mp, c, list_tag, cc);
       c = cc;
@@ -28993,7 +28999,7 @@ void mp_do_tfm_command (MP mp) {
       mp_get_x_next (mp);
     } else {
       j = mp_round_unscaled (mp, cur_exp_value ());
-      if (mp->cur_cmd != colon) {
+      if (mp->cur_cmd != mp_colon) {
         const char *hlp[] = { 
           "A colon should follow a headerbyte or fontinfo location.",
            NULL };
@@ -29018,19 +29024,19 @@ void mp_do_tfm_command (MP mp) {
   mp->lk_started = false;
 CONTINUE:
   mp_get_x_next (mp);
-  if ((mp->cur_cmd == skip_to) && mp->lk_started)
+  if ((mp->cur_cmd == mp_skip_to) && mp->lk_started)
     @<Process a |skip_to| command and |goto done|@>;
-  if (mp->cur_cmd == bchar_label) {
+  if (mp->cur_cmd == mp_bchar_label) {
     c = 256;
-    mp->cur_cmd = colon;
+    mp->cur_cmd = mp_colon;
   } else {
     mp_back_input (mp);
     c = mp_get_code (mp);
   };
-  if ((mp->cur_cmd == colon) || (mp->cur_cmd == double_colon)) {
+  if ((mp->cur_cmd == mp_colon) || (mp->cur_cmd == mp_double_colon)) {
     @<Record a label in a lig/kern subprogram and |goto continue|@>;
   }
-  if (mp->cur_cmd == lig_kern_token) {
+  if (mp->cur_cmd == mp_lig_kern_token) {
     @<Compile a ligature/kern command@>;
   } else {
     const char *hlp[] = { "I was looking for `=:' or `kern' here.", NULL };
@@ -29044,7 +29050,7 @@ CONTINUE:
   if (mp->nl == max_tfm_int)
     mp_fatal_error (mp, "ligtable too large");
   mp->nl++;
-  if (mp->cur_cmd == comma)
+  if (mp->cur_cmd == mp_comma)
     goto CONTINUE;
   if (skip_byte (mp->nl - 1) < stop_flag)
     skip_byte (mp->nl - 1) = stop_flag;
@@ -29052,28 +29058,28 @@ CONTINUE:
 DONE:
 
 @ @<Put each...@>=
-mp_primitive (mp, "=:", lig_kern_token, 0);
+mp_primitive (mp, "=:", mp_lig_kern_token, 0);
 @:=:_}{\.{=:} primitive@>;
-mp_primitive (mp, "=:|", lig_kern_token, 1);
+mp_primitive (mp, "=:|", mp_lig_kern_token, 1);
 @:=:/_}{\.{=:\char'174} primitive@>;
-mp_primitive (mp, "=:|>", lig_kern_token, 5);
+mp_primitive (mp, "=:|>", mp_lig_kern_token, 5);
 @:=:/>_}{\.{=:\char'174>} primitive@>;
-mp_primitive (mp, "|=:", lig_kern_token, 2);
+mp_primitive (mp, "|=:", mp_lig_kern_token, 2);
 @:=:/_}{\.{\char'174=:} primitive@>;
-mp_primitive (mp, "|=:>", lig_kern_token, 6);
+mp_primitive (mp, "|=:>", mp_lig_kern_token, 6);
 @:=:/>_}{\.{\char'174=:>} primitive@>;
-mp_primitive (mp, "|=:|", lig_kern_token, 3);
+mp_primitive (mp, "|=:|", mp_lig_kern_token, 3);
 @:=:/_}{\.{\char'174=:\char'174} primitive@>;
-mp_primitive (mp, "|=:|>", lig_kern_token, 7);
+mp_primitive (mp, "|=:|>", mp_lig_kern_token, 7);
 @:=:/>_}{\.{\char'174=:\char'174>} primitive@>;
-mp_primitive (mp, "|=:|>>", lig_kern_token, 11);
+mp_primitive (mp, "|=:|>>", mp_lig_kern_token, 11);
 @:=:/>_}{\.{\char'174=:\char'174>>} primitive@>;
-mp_primitive (mp, "kern", lig_kern_token, 128);
+mp_primitive (mp, "kern", mp_lig_kern_token, 128);
 @:kern_}{\&{kern} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
-case lig_kern_token:
+case mp_lig_kern_token:
 switch (m) {
 case 0:
   mp_print (mp, "=:");
@@ -29145,7 +29151,7 @@ We may need to cancel skips that span more than 127 lig/kern steps.
 
 @ @<Record a label in a lig/kern subprogram and |goto continue|@>=
 {
-  if (mp->cur_cmd == colon) {
+  if (mp->cur_cmd == mp_colon) {
     if (c == 256)
       mp->bch_label = mp->nl;
     else
@@ -29220,16 +29226,16 @@ We may need to cancel skips that span more than 127 lig/kern steps.
     mp_fatal_error (mp, "too many extensible recipies");
   c = mp_get_code (mp);
   mp_set_tag (mp, c, ext_tag, mp->ne);
-  if (mp->cur_cmd != colon)
+  if (mp->cur_cmd != mp_colon)
     missing_extensible_punctuation (":");
   ext_top (mp->ne) = qi (mp_get_code (mp));
-  if (mp->cur_cmd != comma)
+  if (mp->cur_cmd != mp_comma)
     missing_extensible_punctuation (",");
   ext_mid (mp->ne) = qi (mp_get_code (mp));
-  if (mp->cur_cmd != comma)
+  if (mp->cur_cmd != mp_comma)
     missing_extensible_punctuation (",");
   ext_bot (mp->ne) = qi (mp_get_code (mp));
-  if (mp->cur_cmd != comma)
+  if (mp->cur_cmd != mp_comma)
     missing_extensible_punctuation (",");
   ext_rep (mp->ne) = qi (mp_get_code (mp));
   mp->ne++;
@@ -29253,7 +29259,7 @@ do {
   mp->header_byte[j] = (char) mp_get_code (mp);
   incr (j);
   incr (mp->header_last);
-} while (mp->cur_cmd == comma)
+} while (mp->cur_cmd == mp_comma)
 
 @ @<Store a list of font dimensions@>=
 do {
@@ -29276,7 +29282,7 @@ do {
   }
   mp->param[j] = cur_exp_value ();
   incr (j);
-} while (mp->cur_cmd == comma)
+} while (mp->cur_cmd == mp_comma)
 
 @ OK: We've stored all the data that is needed for the \.{TFM} file.
 All that remains is to output it in the correct format.
@@ -30356,7 +30362,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
                                id);
                   mp_warn (mp, err);
                 } else {
-                  if (eq_type (p) == internal_quantity) {
+                  if (eq_type (p) == mp_internal_quantity) {
                     if (equiv (p) == mp_output_template) {
                       char err[256];
                       mp_snprintf (err, 256,
@@ -30558,7 +30564,7 @@ boolean mp_has_font_size (MP mp, font_number f) {
 mp_node last_pending;   /* the last token in a list of pending specials */
 
 @ @<Cases of |do_statement|...@>=
-case special_command:
+case mp_special_command:
 if (mp->cur_mod == 0)
   mp_do_special (mp);
 else if (mp->cur_mod == 1)
@@ -30977,9 +30983,9 @@ boolean mp_load_preload_file (MP mp) {
   mp->reading_preload = true;
   do {
     mp_do_statement (mp);
-  } while (!(mp->cur_cmd == stop && mp->cur_mod == 1));     /* "dump" or EOF */
+  } while (!(mp->cur_cmd == mp_stop && mp->cur_mod == 1));     /* "dump" or EOF */
   mp->reading_preload = false;
-  mp_primitive (mp, "dump", relax, 0); /* reset |dump| */
+  mp_primitive (mp, "dump", mp_relax, 0); /* reset |dump| */
   mp_print_char (mp, xord (')'));
   decr (mp->open_parens);
 /*  |(mp->close_file) (mp, mp->mem_file);| */
@@ -31172,7 +31178,7 @@ void mp_final_cleanup (MP mp) {
   while (mp->cond_ptr != NULL) {
     mp_print_nl (mp, "(end occurred when ");
 @.end occurred...@>;
-    mp_print_cmd_mod (mp, fi_or_else, mp->cur_if);
+    mp_print_cmd_mod (mp, mp_fi_or_else, mp->cur_if);
     /* `\.{if}' or `\.{elseif}' or `\.{else}' */
     if (mp->if_line != 0) {
       mp_print (mp, " on line ");
