@@ -3305,7 +3305,8 @@ mp_pen_offset_of, /* operation code for \.{penoffset} */
 mp_arc_time_of, /* operation code for \.{arctime} */
 mp_version, /* operation code for \.{mpversion} */
 mp_envelope_of, /* operation code for \.{envelope} */
-mp_glyph_infont /* operation code for \.{glyph} */
+mp_glyph_infont, /* operation code for \.{glyph} */
+mp_kern_flag /* operation code for \.{kern} */
 
 @ @c
 static void mp_print_op (MP mp, quarterword c) {
@@ -4890,20 +4891,23 @@ by a code for the type of macro.
   /* reference count preceding a macro definition or picture header */
 @d add_mac_ref(A)  set_mp_sym_info((A),ref_count((A))+1) /* make a new reference to a macro list */
 @d decr_mac_ref(A) set_mp_sym_info((A),ref_count((A))-1) /* remove a reference to a macro list */
-@d general_macro 0 /* preface to a macro defined with a parameter list */
-@d primary_macro 1 /* preface to a macro with a \&{primary} parameter */
-@d secondary_macro 2 /* preface to a macro with a \&{secondary} parameter */
-@d tertiary_macro 3 /* preface to a macro with a \&{tertiary} parameter */
-@d expr_macro 4 /* preface to a macro with an undelimited \&{expr} parameter */
-@d of_macro 5 /* preface to a macro with
-  undelimited `\&{expr} |x| \&{of}~|y|' parameters */
-@d suffix_macro 6 /* preface to a macro with an undelimited \&{suffix} parameter */
-@d text_macro 7 /* preface to a macro with an undelimited \&{text} parameter */
-@d expr_param 8
-@d suffix_param 9
-@d text_param 10
 
-@c
+@<Types...@>=
+typedef enum {
+ mp_general_macro, /* preface to a macro defined with a parameter list */
+ mp_primary_macro, /* preface to a macro with a \&{primary} parameter */
+ mp_secondary_macro, /* preface to a macro with a \&{secondary} parameter */
+ mp_tertiary_macro, /* preface to a macro with a \&{tertiary} parameter */
+ mp_expr_macro, /* preface to a macro with an undelimited \&{expr} parameter */
+ mp_of_macro, /* preface to a macro with undelimited `\&{expr} |x| \&{of}~|y|' parameters */
+ mp_suffix_macro, /* preface to a macro with an undelimited \&{suffix} parameter */
+ mp_text_macro, /* preface to a macro with an undelimited \&{text} parameter */
+ mp_expr_param, /* used by \.{expr} primitive */
+ mp_suffix_param, /* used by \.{suffix} primitive */
+ mp_text_param /* used by \.{text} primitive */
+} mp_macro_info;
+
+@ @c
 static void mp_delete_mac_ref (MP mp, mp_node p) {
   /* |p| points to the reference count of a macro list that is
      losing one reference */
@@ -4935,27 +4939,27 @@ static void mp_show_macro (MP mp, mp_node p, mp_node q, integer l) {
 @.ETC@>;
   mp->tally = 0;
   switch (mp_sym_info (p)) {
-  case general_macro:
+  case mp_general_macro:
     mp_print (mp, "->");
     break;
 @.->@>
-  case primary_macro:
-  case secondary_macro:
-  case tertiary_macro:
+  case mp_primary_macro:
+  case mp_secondary_macro:
+  case mp_tertiary_macro:
     mp_print_char (mp, xord ('<'));
     mp_print_cmd_mod (mp, mp_param_type, mp_sym_info (p));
     mp_print (mp, ">->");
     break;
-  case expr_macro:
+  case mp_expr_macro:
     mp_print (mp, "<expr>->");
     break;
-  case of_macro:
+  case mp_of_macro:
     mp_print (mp, "<expr>of<primary>->");
     break;
-  case suffix_macro:
+  case mp_suffix_macro:
     mp_print (mp, "<suffix>->");
     break;
-  case text_macro:
+  case mp_text_macro:
     mp_print (mp, "<text>->");
     break;
   }                             /* there are no other cases */
@@ -15734,7 +15738,7 @@ static void mp_make_op_def (MP mp) {
   set_mp_sym_info (q, 0);       /* |ref_count(q)=NULL;| */
   r = mp_get_symbolic_node (mp);
   mp_link (q) = r;
-  set_mp_sym_info (r, general_macro);
+  set_mp_sym_info (r, mp_general_macro);
   mp_name_type (r) = mp_macro_sym;
   mp_link (r) = mp_scan_toks (mp, mp_macro_def, qn, NULL, 0);
   mp->scanner_status = normal;
@@ -15748,31 +15752,31 @@ static void mp_make_op_def (MP mp) {
 \&{suffix}, \&{text}, \&{primary}, \&{secondary}, and \&{tertiary}.
 
 @<Put each...@>=
-mp_primitive (mp, "expr", mp_param_type, expr_param);
+mp_primitive (mp, "expr", mp_param_type, mp_expr_param);
 @:expr_}{\&{expr} primitive@>;
-mp_primitive (mp, "suffix", mp_param_type, suffix_param);
+mp_primitive (mp, "suffix", mp_param_type, mp_suffix_param);
 @:suffix_}{\&{suffix} primitive@>;
-mp_primitive (mp, "text", mp_param_type, text_param);
+mp_primitive (mp, "text", mp_param_type, mp_text_param);
 @:text_}{\&{text} primitive@>;
-mp_primitive (mp, "primary", mp_param_type, primary_macro);
+mp_primitive (mp, "primary", mp_param_type, mp_primary_macro);
 @:primary_}{\&{primary} primitive@>;
-mp_primitive (mp, "secondary", mp_param_type, secondary_macro);
+mp_primitive (mp, "secondary", mp_param_type, mp_secondary_macro);
 @:secondary_}{\&{secondary} primitive@>;
-mp_primitive (mp, "tertiary", mp_param_type, tertiary_macro);
+mp_primitive (mp, "tertiary", mp_param_type, mp_tertiary_macro);
 @:tertiary_}{\&{tertiary} primitive@>
  
 
 @ @<Cases of |print_cmd...@>=
 case mp_param_type:
-if (m == expr_param)
+if (m == mp_expr_param)
   mp_print (mp, "expr");
-else if (m == suffix_param)
+else if (m == mp_suffix_param)
   mp_print (mp, "suffix");
-else if (m == text_param)
+else if (m == mp_text_param)
   mp_print (mp, "text");
-else if (m == primary_macro)
+else if (m == mp_primary_macro)
   mp_print (mp, "primary");
-else if (m == secondary_macro)
+else if (m == mp_secondary_macro)
   mp_print (mp, "secondary");
 else
   mp_print (mp, "tertiary");
@@ -15799,7 +15803,7 @@ static void mp_scan_def (MP mp) {
   quarterword sym_type; /* |expr_sym|, |suffix_sym|, or |text_sym| */
   mp_sym l_delim, r_delim;      /* matching delimiters */
   m = mp->cur_mod;
-  c = general_macro;
+  c = mp_general_macro;
   mp_link (mp->hold_head) = NULL;
   q = mp_get_symbolic_node (mp);
   set_mp_sym_info (q, 0);       /* |ref_count(q)=NULL;| */
@@ -15900,11 +15904,11 @@ do {
   l_delim = mp->cur_sym;
   r_delim = mp->cur_sym2;
   get_t_next (mp);
-  if ((mp->cur_cmd == mp_param_type) && (mp->cur_mod == expr_param)) {
+  if ((mp->cur_cmd == mp_param_type) && (mp->cur_mod == mp_expr_param)) {
     sym_type = mp_expr_sym;
-  } else if ((mp->cur_cmd == mp_param_type) && (mp->cur_mod == suffix_param)) {
+  } else if ((mp->cur_cmd == mp_param_type) && (mp->cur_mod == mp_suffix_param)) {
     sym_type = mp_suffix_sym;
-  } else if ((mp->cur_cmd == mp_param_type) && (mp->cur_mod == text_param)) {
+  } else if ((mp->cur_cmd == mp_param_type) && (mp->cur_mod == mp_text_param)) {
     sym_type = mp_text_sym;
   } else {
     const char *hlp[] = { "You should've had `expr' or `suffix' or `text' here.", NULL };
@@ -15942,15 +15946,15 @@ do {
   rp = xmalloc (1, sizeof (mp_subst_list_item));
   rp->link = NULL;
   rp->value_data = k;
-  if (mp->cur_mod == expr_param) {
+  if (mp->cur_mod == mp_expr_param) {
     rp->value_mod = mp_expr_sym;
-    c = expr_macro;
-  } else if (mp->cur_mod == suffix_param) {
+    c = mp_expr_macro;
+  } else if (mp->cur_mod == mp_suffix_param) {
     rp->value_mod = mp_suffix_sym;
-    c = suffix_macro;
-  } else if (mp->cur_mod == text_param) {
+    c = mp_suffix_macro;
+  } else if (mp->cur_mod == mp_text_param) {
     rp->value_mod = mp_text_sym;
-    c = text_macro;
+    c = mp_text_macro;
   } else {
     c = mp->cur_mod;
     rp->value_mod = mp_expr_sym;
@@ -15963,9 +15967,9 @@ do {
   rp->link = r;
   r = rp;
   get_t_next (mp);
-  if (c == expr_macro)
+  if (c == mp_expr_macro)
     if (mp->cur_cmd == mp_of_token) {
-      c = of_macro;
+      c = mp_of_macro;
       rp = xmalloc (1, sizeof (mp_subst_list_item));
       rp->link = NULL;
       mp_check_param_size (mp, k);
@@ -16427,7 +16431,7 @@ void mp_print_arg (MP mp, mp_node q, integer n, halfword b, quarterword bb) {
   if (q && mp_link (q) == MP_VOID) {
     mp_print_nl (mp, "(EXPR");
   } else {
-    if ((bb < mp_text_sym) && (b != text_macro))
+    if ((bb < mp_text_sym) && (b != mp_text_macro))
       mp_print_nl (mp, "(SUFFIX");
     else
       mp_print_nl (mp, "(TEXT");
@@ -16479,7 +16483,7 @@ if (mp->cur_cmd == mp_comma) {
 @.Missing `)'...@>;
   mp_error (mp, msg, hlp, true);
 }
-if (mp_sym_info (r) != general_macro) {
+if (mp_sym_info (r) != mp_general_macro) {
   @<Scan undelimited argument(s)@>;
 }
 r = mp_link (r)
@@ -16655,33 +16659,33 @@ if (mp_end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop
 
 @ @<Scan undelimited argument(s)@>=
 {
-  if (mp_sym_info (r) < text_macro) {
+  if (mp_sym_info (r) < mp_text_macro) {
     mp_get_x_next (mp);
-    if (mp_sym_info (r) != suffix_macro) {
+    if (mp_sym_info (r) != mp_suffix_macro) {
       if ((mp->cur_cmd == mp_equals) || (mp->cur_cmd == mp_assignment))
         mp_get_x_next (mp);
     }
   }
   switch (mp_sym_info (r)) {
-  case primary_macro:
+  case mp_primary_macro:
     mp_scan_primary (mp);
     break;
-  case secondary_macro:
+  case mp_secondary_macro:
     mp_scan_secondary (mp);
     break;
-  case tertiary_macro:
+  case mp_tertiary_macro:
     mp_scan_tertiary (mp);
     break;
-  case expr_macro:
+  case mp_expr_macro:
     mp_scan_expression (mp);
     break;
-  case of_macro:
+  case mp_of_macro:
     @<Scan an expression followed by `\&{of} $\langle$primary$\rangle$'@>;
     break;
-  case suffix_macro:
+  case mp_suffix_macro:
     @<Scan a suffix with optional delimiters@>;
     break;
-  case text_macro:
+  case mp_text_macro:
     mp_scan_text_arg (mp, NULL, NULL);
     break;
   }                             /* there are no other cases */
@@ -29074,7 +29078,7 @@ mp_primitive (mp, "|=:|>", mp_lig_kern_token, 7);
 @:=:/>_}{\.{\char'174=:\char'174>} primitive@>;
 mp_primitive (mp, "|=:|>>", mp_lig_kern_token, 11);
 @:=:/>_}{\.{\char'174=:\char'174>>} primitive@>;
-mp_primitive (mp, "kern", mp_lig_kern_token, 128);
+mp_primitive (mp, "kern", mp_lig_kern_token, mp_kern_flag);
 @:kern_}{\&{kern} primitive@>
  
 
