@@ -2247,13 +2247,7 @@ int random_seed;        /* the default random seed */
 @ @<Allocate or initialize ...@>=
 mp->random_seed = opt->random_seed;
 
-@ To consume a random fraction, the program below will say `|next_random|'
-and then it will fetch |randoms[j_random]|.
-
-@d next_random { if ( mp->j_random==0 ) mp_new_randoms(mp);
-  else decr(mp->j_random); }
-
-@c
+@ @c
 static void mp_new_randoms (MP mp) {
   int k;        /* index into |randoms| */
   fraction x;   /* accumulator */
@@ -2270,6 +2264,15 @@ static void mp_new_randoms (MP mp) {
     mp->randoms[k] = x;
   }
   mp->j_random = 54;
+}
+
+@ To consume a random fraction, the program below will say `|next_random|'.
+
+@c 
+static fraction mp_next_random (MP mp) { 
+  if ( mp->j_random==0 ) mp_new_randoms(mp);
+  else decr(mp->j_random); 
+  return mp->randoms[mp->j_random];
 }
 
 
@@ -2310,8 +2313,8 @@ values between 0 and~|x|, because it rounds its answers.
 @c
 static scaled mp_unif_rand (MP mp, scaled x) {
   scaled y;     /* trial value */
-  next_random;
-  y = mp_take_fraction (mp, abs (x), mp->randoms[mp->j_random]);
+  integer u = mp_next_random(mp);
+  y = mp_take_fraction (mp, abs (x), u);
   if (y == abs (x))
     return 0;
   else if (x > 0)
@@ -2327,16 +2330,15 @@ can readily be obtained with the ratio method (Algorithm 3.4.1R in
 
 @c
 static scaled mp_norm_rand (MP mp) {
-  integer x, u, l;      /* what the book would call $2^{16}X$, $2^{28}U$, and $-2^{24}\ln U$ */
+  integer x, l;      /* what the book would call $2^{16}X$, $2^{28}U$, and $-2^{24}\ln U$ */
+  fraction u;
   do {
     do {
-      next_random;
+      fraction v = mp_next_random(mp);
       x =
-        mp_take_fraction (mp, 112429,
-                          mp->randoms[mp->j_random] - fraction_half);
+        mp_take_fraction (mp, 112429, v - fraction_half);
       /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
-      next_random;
-      u = mp->randoms[mp->j_random];
+      u = mp_next_random(mp);
     } while (abs (x) >= u);
     x = mp_make_fraction (mp, x, u);
     l = 139548960 - mp_m_log (mp, u);   /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
