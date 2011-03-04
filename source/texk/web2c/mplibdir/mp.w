@@ -2369,7 +2369,8 @@ typedef struct mp_symbol_entry *mp_sym;
 typedef short quarterword;      /* 1/4 of a word */
 typedef int halfword;   /* 1/2 of a word */
 typedef struct {
-  integer scale; /* only for |indep_scale|, used together with |val| */
+  integer scale; /* only for |indep_scale|, used together with |serial| */
+  integer serial; /* only for |indep_value|, used together with |scale| */
   halfword val;
   str_number str;
   mp_sym sym;
@@ -3665,7 +3666,6 @@ enum mp_given_internal {
   mp_gtroffmode                 /* whether the user specified |-troff| on the command line */
 };
 typedef struct {
-  integer scale; /* only for |indep_scale|, used together with |val| */
   halfword val;
   double dval;
   int val_type; /* type of |val| */
@@ -4583,13 +4583,16 @@ printer's sense. It's curious that the same word is used in such different ways.
 @d token_node_size sizeof(mp_node_data) /* the number of words in a large token node */
 
 @d value_sym(A)   ((mp_token_node)(A))->data.sym /* the sym stored in a large token node */
-@d value(A)       ((mp_token_node)(A))->data.val /* the value stored in a large token node */
+@d value(A)       mp_do_value(mp, (mp_node)(A)) /* the value stored in a large token node */
 
 @d set_value(A,B) do {  /* store the value in a large token node */
+  if (mp_type(A) == mp_independent) {
+	fprintf(stderr, "Bad call to set_value on %d\n", __LINE__);
+  }
    knot_value(A)=NULL;
    str_value(A)=NULL;
    value_node(A)=NULL;
-   value(A)=(B); 
+   ((mp_value_node)(A))->data.val=(B);
  } while (0)
 
 @d value_node(A)   ((mp_token_node)(A))->data.node /* the value stored in a large token node */
@@ -4598,7 +4601,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    knot_value(A)=NULL;
    str_value(A)=NULL;
    value_node(A)=(B);
-   value(A)=0;
+   ((mp_value_node)(A))->data.val=0;
  } while (0) 
 
 @d str_value(A)   ((mp_token_node)(A))->data.str /* the value stored in a large token node */
@@ -4608,7 +4611,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    str_value(A)=(B);
    add_str_ref((B));
    value_node(A)=NULL;
-   value(A)=0;
+   ((mp_value_node)(A))->data.val=0;
  } while (0) 
 
 @d knot_value(A)  ((mp_token_node)(A))->data.p /* the value stored in a large token node */
@@ -4617,12 +4620,33 @@ printer's sense. It's curious that the same word is used in such different ways.
    knot_value(A)=(B);
    str_value(A)=NULL;
    value_node(A)=NULL;
-   value(A)=0;
+   ((mp_value_node)(A))->data.val=0;
  } while (0) 
 
 
 @(mpmp.h@>=
 typedef struct mp_node_data *mp_token_node;
+
+@ @c
+integer mp_do_value (MP mp, mp_node A) {
+  if (mp_type(A) == mp_independent) {
+     fprintf(stderr,"bad call to value");
+  }
+  return ((mp_value_node)A)->data.val;
+}
+
+@ @c
+integer mp_do_dep_value (MP mp, mp_node A) {
+  if (mp_type(A) == mp_independent) {
+     fprintf(stderr,"bad call to dep_value");
+  }
+  return ((mp_value_node)A)->data.val;
+}
+
+
+@ @<Declarations@>=
+integer mp_do_value (MP mp, mp_node A);
+integer mp_do_dep_value (MP mp, mp_node A);
 
 @
 @c
@@ -12519,7 +12543,7 @@ as a |scaled| number plus a sum of independent variables with |fraction|
 coefficients.
 
 \smallskip\hang
-|type(p)=mp_independent| means that |value(p)=s|, where |s>0| is a ``serial
+|type(p)=mp_independent| means that |indep_value(p)=s|, where |s>0| is a ``serial
 number'' reflecting the time this variable was first used in an equation;
 and there is an extra field |indep_scale(p)=m|, with |0<=m<64|, each dependent 
 variable that refers to this one is actually referring to the future value of
@@ -12547,13 +12571,18 @@ independent variables it depends on is reverting to |undefined|.
 
 @d indep_scale(A) ((mp_value_node)(A))->data.scale
 @d set_indep_scale(A,B) ((mp_value_node)(A))->data.scale=(B)
+@d indep_value(A) ((mp_value_node)(A))->data.serial
+@d set_indep_value(A,B) ((mp_value_node)(A))->data.serial=(B)
+
 
 @d new_indep(A)  /* create a new independent variable */
   { if ( mp->serial_no>=max_integer )
     mp_fatal_error(mp, "variable instance identifiers exhausted");
-  mp_type((A))=mp_independent; mp->serial_no=mp->serial_no+1;
+  set_value((A),0);
+  mp_type((A))=mp_independent;
+  mp->serial_no=mp->serial_no+1;
   set_indep_scale((A),0);
-  set_value((A),mp->serial_no);
+  set_indep_value((A),mp->serial_no);
   }
 
 @<Glob...@>=
@@ -12589,8 +12618,11 @@ variable (say~|r|); and we have |prev_dep(r)=q|, etc.
 Dependency nodes sometimes mutate into value nodes and vice versa, so their
 structures have to match.
 
-@d dep_value(A) ((mp_value_node)(A))->data.val /* half of the |value| field in a |dependent| variable */
+@d dep_value(A) mp_do_dep_value(mp, (mp_node)(A)) /* the |value| field in a |dependent| variable */
 @d set_dep_value(A,B) do {
+  if (mp_type(A) == mp_independent) {
+	fprintf(stderr, "Bad call to set_dep_value on %d", __LINE__);
+  }
   ((mp_value_node)(A))->data.val=(B);  /* half of the |value| field in a |dependent| variable */
    FUNCTION_TRACE4("set_dep_value(%p,%d) on %d\n",A,B,__LINE__);
    set_dep_list((A), NULL);
@@ -12814,8 +12846,18 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
           corresponding term from |q|@>
       }
     } else {
-      v = (pp == NULL ? 0 : value (pp));
-      vv = (qq == NULL ? 0 : value (qq));
+      if (pp == NULL) 
+        v = 0;
+      else if (mp_type(pp) == mp_independent)
+        v = indep_value(pp);
+      else
+        v = value (pp);
+      if (qq == NULL) 
+        vv = 0;
+      else if (mp_type(qq) == mp_independent)
+        vv = indep_value(qq);
+      else
+        vv = value (qq);
       if (v < vv) {
         @<Contribute a term from |q|, multiplied by~|f|@>
       } else {
@@ -12915,8 +12957,18 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q,
           corresponding term from |q|@>
       }
     } else {
-      v = (pp == NULL ? 0 : value (pp));
-      vv = (qq == NULL ? 0 : value (qq));
+      if (pp == NULL) 
+        v = 0;
+      else if (mp_type(pp) == mp_independent)
+        v = indep_value(pp);
+      else
+        v = value (pp);
+      if (qq == NULL) 
+        vv = 0;
+      else if (mp_type(qq) == mp_independent)
+        vv = indep_value(qq);
+      else
+        vv = value (qq);
       if (v < vv) {
         s = mp_get_dep_node (mp);
         set_dep_info (s, qq);
@@ -13089,8 +13141,8 @@ static mp_value_node mp_p_with_x_becoming_q (MP mp, mp_value_node p,
   integer sx;   /* serial number of |x| */
   s = p;
   r = (mp_value_node) mp->temp_head;
-  sx = value (x);
-  while (dep_info (s) != NULL && value (dep_info (s)) > sx) {
+  sx = indep_value (x);
+  while (dep_info (s) != NULL && indep_value (dep_info (s)) > sx) {
     r = s;
     s = (mp_value_node) mp_link (s);
   }
@@ -20262,8 +20314,8 @@ a big node that will be part of a capsule.
 static void mp_install (MP mp, mp_node r, mp_node q) {
   mp_value_node p;      /* temporary register */
   if (mp_type (q) == mp_known) {
-    set_value (r, value (q));
     mp_type (r) = mp_known;
+    set_value (r, value (q));
   } else if (mp_type (q) == mp_independent) {
     p = mp_single_dependency (mp, q);
     if (p == mp->dep_final) {
@@ -21574,51 +21626,51 @@ case mp_independent:
     case mp_pair_type:
       r = x_part_loc (p);
       if (mp_type (r) == mp_known)
-        negate (value (r));
+        set_value(r,-(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
       r = y_part_loc (p);
       if (mp_type (r) == mp_known)
-        negate (value (r));
+        set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
       break;
     case mp_color_type:
       r = red_part_loc (p);
       if (mp_type (r) == mp_known)
-        negate (value (r));
+        set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
       r = green_part_loc (p);
       if (mp_type (r) == mp_known)
-        negate (value (r));
+        set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
       r = blue_part_loc (p);
       if (mp_type (r) == mp_known)
-        negate (value (r));
+        set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
       break;
     case mp_cmykcolor_type:
       r = cyan_part_loc (p);
       if (mp_type (r) == mp_known)
-        negate (value (r));
+        set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
       r = magenta_part_loc (p);
       if (mp_type (r) == mp_known)
-        negate (value (r));
+        set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
       r = yellow_part_loc (p);
       if (mp_type (r) == mp_known)
-        negate (value (r));
+        set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
       r = black_part_loc (p);
       if (mp_type (r) == mp_known)
-        negate (value (r));
+        set_value(r, -(value (r)));
       else
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) r));
       break;
@@ -24300,7 +24352,7 @@ break;
   mp_install (mp, yy_part_loc (q), x_part_loc (r));
   mp_install (mp, yx_part_loc (q), y_part_loc (r));
   if (mp_type (y_part_loc (r)) == mp_known)
-    negate (value (y_part_loc (r)));
+    set_value (y_part_loc (r), -(value (y_part_loc (r))));
   else
     mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node)
                                                       y_part_loc (r)));
