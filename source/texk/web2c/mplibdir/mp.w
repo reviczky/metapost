@@ -3666,34 +3666,15 @@ enum mp_given_internal {
   mp_gtroffmode                 /* whether the user specified |-troff| on the command line */
 };
 typedef struct {
-  halfword val;
-  double dval;
-  int val_type; /* type of |val| */
-  str_number str;
-  mp_sym sym;
-  mp_node node;
-  mp_knot p;
-} mp_internal_value_data;
-typedef struct {
-  mp_variable_type type;
-  mp_internal_value_data data;
-} mp_internal_value;
-typedef struct {
-  mp_internal_value v;
+  mp_value v;
   char *intname;
 } mp_internal;
 
 
 @ @(mpmp.h@>=
-#define internal_value_to_halfword(A) (halfword) \
-  (mp->math_mode == mp_math_scaled_mode ? (mp->internal[(A)].v.data.val) : (mp->internal[(A)].v.data.dval*65536.0))
+#define internal_value_to_halfword(A) (halfword)mp->internal[(A)].v.data.val
 #define set_internal_from_scaled_int(A,B) do { \
-  mp->internal[(A)].v.data.val_type=mp->math_mode;    \
-  if (mp->math_mode == mp_math_scaled_mode) {\
-    mp->internal[(A)].v.data.val=(B);\
-  } else { \
-    mp->internal[(A)].v.data.dval=(B)/65536.0; \
-  } \
+  mp->internal[(A)].v.data.val=(B);\
 } while (0)
 #define internal_string(A) (str_number)mp->internal[(A)].v.data.str
 #define set_internal_string(A,B) mp->internal[(A)].v.data.str=(B)
@@ -6276,11 +6257,7 @@ static void mp_unsave_internal (MP mp, halfword q) {
     mp_print (mp, internal_name (q));
     mp_print_char (mp, xord ('='));
     if (internal_type (q) == mp_known) {
-      if (saved.v.data.val_type == mp_math_scaled_mode) {
-        mp_print_scaled (mp, saved.v.data.val);
-      } else {
-        mp_print_scaled (mp, (halfword)(saved.v.data.dval*65536.0));
-      }
+      mp_print_scaled (mp, saved.v.data.val);
     } else if (internal_type (q) == mp_string_type) {
       char *s = mp_str (mp, saved.v.data.str);
       mp_print (mp, s);
