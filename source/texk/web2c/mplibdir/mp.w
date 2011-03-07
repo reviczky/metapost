@@ -2371,6 +2371,9 @@ typedef int halfword;   /* 1/2 of a word */
 typedef struct {
   integer scale; /* only for |indep_scale|, used together with |serial| */
   integer serial; /* only for |indep_value|, used together with |scale| */
+} mp_independent_data;
+typedef struct {
+  mp_independent_data indep;
   halfword val;
   str_number str;
   mp_sym sym;
@@ -12557,10 +12560,10 @@ and start again). A backward step may, however, take place: Sometimes
 a |dependent| variable becomes |mp_independent| again, when one of the
 independent variables it depends on is reverting to |undefined|.
 
-@d indep_scale(A) ((mp_value_node)(A))->data.scale
-@d set_indep_scale(A,B) ((mp_value_node)(A))->data.scale=(B)
-@d indep_value(A) ((mp_value_node)(A))->data.serial
-@d set_indep_value(A,B) ((mp_value_node)(A))->data.serial=(B)
+@d indep_scale(A) ((mp_value_node)(A))->data.indep.scale
+@d set_indep_scale(A,B) ((mp_value_node)(A))->data.indep.scale=(B)
+@d indep_value(A) ((mp_value_node)(A))->data.indep.serial
+@d set_indep_value(A,B) ((mp_value_node)(A))->data.indep.serial=(B)
 
 
 @d new_indep(A)  /* create a new independent variable */
