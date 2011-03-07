@@ -172,19 +172,21 @@ most compilers understand the non-debug version.
 @^system dependencies@>
 
 @(mpmp.h@>=
-#define DEBUG 0
+#define DEBUG 2
 #if DEBUG>1
 void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...);
 #  define debug_printf(a1,a2,a3) do_debug_printf(mp, "", a1,a2,a3)
 #  define FUNCTION_TRACE1(a1) do_debug_printf(mp, "FTRACE: ", a1)
 #  define FUNCTION_TRACE2(a1,a2) do_debug_printf(mp, "FTRACE: ", a1,a2)
 #  define FUNCTION_TRACE3(a1,a2,a3) do_debug_printf(mp, "FTRACE: ", a1,a2,a3)
+#  define FUNCTION_TRACE3X(a1,a2,a3) (void)mp
 #  define FUNCTION_TRACE4(a1,a2,a3,a4) do_debug_printf(mp, "FTRACE: ", a1,a2,a3,a4)
 #else
 #  define debug_printf(a1,a2,a3)
 #  define FUNCTION_TRACE1(a1) (void)mp
 #  define FUNCTION_TRACE2(a1,a2) (void)mp
 #  define FUNCTION_TRACE3(a1,a2,a3) (void)mp
+#  define FUNCTION_TRACE3X(a1,a2,a3) (void)mp
 #  define FUNCTION_TRACE4(a1,a2,a3,a4) (void)mp
 #endif
 
@@ -321,6 +323,9 @@ MP mp_initialize (MP_options * opt) {
   }
   /* open the terminal for output */
   t_open_out();
+#if DEBUG
+  setlinebuf(mp->term_out);
+#endif
   mp->math = mp_initialize_math(mp);
   @<Find and load preload file, if required@>;
   @<Allocate or initialize variables@>;
@@ -2676,12 +2681,12 @@ size_t var_used_max;    /* how much memory was in use max */
 
 @c
 static void do_set_mp_sym_info (MP mp, mp_node p, halfword v) {
-  (void) mp;
+  FUNCTION_TRACE3 ("do_set_mp_sym_info(%p,%d)\n", p, v);
   assert (p->type == mp_symbol_node);
   p->data.val = v;
 }
 static halfword get_mp_sym_info (MP mp, mp_node p) {
-  (void) mp;
+  FUNCTION_TRACE3 ("%d = get_mp_sym_info(%p)\n", p->data.val, p);
   assert (p->type == mp_symbol_node);
   return p->data.val;
 }
@@ -2694,13 +2699,13 @@ static halfword get_mp_sym_info (MP mp, mp_node p) {
 @c
 static void do_set_mp_sym_sym (MP mp, mp_node p, mp_sym v) {
   mp_symbolic_node pp = (mp_symbolic_node) p;
-  (void) mp;
+  FUNCTION_TRACE3 ("do_set_mp_sym_sym(%p,%p)\n", pp, v);
   assert (pp->type == mp_symbol_node);
   pp->data.sym = v;
 }
 static mp_sym get_mp_sym_sym (MP mp, mp_node p) {
   mp_symbolic_node pp = (mp_symbolic_node) p;
-  (void) mp;
+  FUNCTION_TRACE3 ("%p = get_mp_sym_sym(%p)\n", pp->data.sym, pp);
   assert (pp->type == mp_symbol_node);
   return pp->data.sym;
 }
@@ -3694,6 +3699,7 @@ typedef struct {
 #define internal_string(A) (str_number)mp->internal[(A)].v.data.str
 #define set_internal_string(A,B) mp->internal[(A)].v.data.str=(B)
 #define internal_name(A) mp->internal[(A)].intname
+#define set_internal_name(A,B) mp->internal[(A)].intname=(B)
 #define internal_type(A) (mp_variable_type)mp->internal[(A)].v.type
 #define set_internal_type(A,B) mp->internal[(A)].v.type=(B)
 #define set_internal_from_cur_exp(A) do { \
@@ -3886,48 +3892,48 @@ set_internal_from_scaled_int (mp_tracing_online, 3 * unity);
 printouts.
 
 @<Initialize table...@>=
-internal_name (mp_tracing_titles) = xstrdup ("tracingtitles");
-internal_name (mp_tracing_equations) = xstrdup ("tracingequations");
-internal_name (mp_tracing_capsules) = xstrdup ("tracingcapsules");
-internal_name (mp_tracing_choices) = xstrdup ("tracingchoices");
-internal_name (mp_tracing_specs) = xstrdup ("tracingspecs");
-internal_name (mp_tracing_commands) = xstrdup ("tracingcommands");
-internal_name (mp_tracing_restores) = xstrdup ("tracingrestores");
-internal_name (mp_tracing_macros) = xstrdup ("tracingmacros");
-internal_name (mp_tracing_output) = xstrdup ("tracingoutput");
-internal_name (mp_tracing_stats) = xstrdup ("tracingstats");
-internal_name (mp_tracing_lost_chars) = xstrdup ("tracinglostchars");
-internal_name (mp_tracing_online) = xstrdup ("tracingonline");
-internal_name (mp_year) = xstrdup ("year");
-internal_name (mp_month) = xstrdup ("month");
-internal_name (mp_day) = xstrdup ("day");
-internal_name (mp_time) = xstrdup ("time");
-internal_name (mp_hour) = xstrdup ("hour");
-internal_name (mp_minute) = xstrdup ("minute");
-internal_name (mp_char_code) = xstrdup ("charcode");
-internal_name (mp_char_ext) = xstrdup ("charext");
-internal_name (mp_char_wd) = xstrdup ("charwd");
-internal_name (mp_char_ht) = xstrdup ("charht");
-internal_name (mp_char_dp) = xstrdup ("chardp");
-internal_name (mp_char_ic) = xstrdup ("charic");
-internal_name (mp_design_size) = xstrdup ("designsize");
-internal_name (mp_pausing) = xstrdup ("pausing");
-internal_name (mp_showstopping) = xstrdup ("showstopping");
-internal_name (mp_fontmaking) = xstrdup ("fontmaking");
-internal_name (mp_linejoin) = xstrdup ("linejoin");
-internal_name (mp_linecap) = xstrdup ("linecap");
-internal_name (mp_miterlimit) = xstrdup ("miterlimit");
-internal_name (mp_warning_check) = xstrdup ("warningcheck");
-internal_name (mp_boundary_char) = xstrdup ("boundarychar");
-internal_name (mp_prologues) = xstrdup ("prologues");
-internal_name (mp_true_corners) = xstrdup ("truecorners");
-internal_name (mp_default_color_model) = xstrdup ("defaultcolormodel");
-internal_name (mp_procset) = xstrdup ("mpprocset");
-internal_name (mp_gtroffmode) = xstrdup ("troffmode");
-internal_name (mp_restore_clip_color) = xstrdup ("restoreclipcolor");
-internal_name (mp_output_template) = xstrdup ("outputtemplate");
-internal_name (mp_output_format) = xstrdup ("outputformat");
-internal_name (mp_job_name) = xstrdup ("jobname");
+set_internal_name (mp_tracing_titles, xstrdup ("tracingtitles"));
+set_internal_name (mp_tracing_equations, xstrdup ("tracingequations"));
+set_internal_name (mp_tracing_capsules, xstrdup ("tracingcapsules"));
+set_internal_name (mp_tracing_choices, xstrdup ("tracingchoices"));
+set_internal_name (mp_tracing_specs, xstrdup ("tracingspecs"));
+set_internal_name (mp_tracing_commands, xstrdup ("tracingcommands"));
+set_internal_name (mp_tracing_restores, xstrdup ("tracingrestores"));
+set_internal_name (mp_tracing_macros, xstrdup ("tracingmacros"));
+set_internal_name (mp_tracing_output, xstrdup ("tracingoutput"));
+set_internal_name (mp_tracing_stats, xstrdup ("tracingstats"));
+set_internal_name (mp_tracing_lost_chars, xstrdup ("tracinglostchars"));
+set_internal_name (mp_tracing_online, xstrdup ("tracingonline"));
+set_internal_name (mp_year, xstrdup ("year"));
+set_internal_name (mp_month, xstrdup ("month"));
+set_internal_name (mp_day, xstrdup ("day"));
+set_internal_name (mp_time, xstrdup ("time"));
+set_internal_name (mp_hour, xstrdup ("hour"));
+set_internal_name (mp_minute, xstrdup ("minute"));
+set_internal_name (mp_char_code, xstrdup ("charcode"));
+set_internal_name (mp_char_ext, xstrdup ("charext"));
+set_internal_name (mp_char_wd, xstrdup ("charwd"));
+set_internal_name (mp_char_ht, xstrdup ("charht"));
+set_internal_name (mp_char_dp, xstrdup ("chardp"));
+set_internal_name (mp_char_ic, xstrdup ("charic"));
+set_internal_name (mp_design_size, xstrdup ("designsize"));
+set_internal_name (mp_pausing, xstrdup ("pausing"));
+set_internal_name (mp_showstopping, xstrdup ("showstopping"));
+set_internal_name (mp_fontmaking, xstrdup ("fontmaking"));
+set_internal_name (mp_linejoin, xstrdup ("linejoin"));
+set_internal_name (mp_linecap, xstrdup ("linecap"));
+set_internal_name (mp_miterlimit, xstrdup ("miterlimit"));
+set_internal_name (mp_warning_check, xstrdup ("warningcheck"));
+set_internal_name (mp_boundary_char, xstrdup ("boundarychar"));
+set_internal_name (mp_prologues, xstrdup ("prologues"));
+set_internal_name (mp_true_corners, xstrdup ("truecorners"));
+set_internal_name (mp_default_color_model, xstrdup ("defaultcolormodel"));
+set_internal_name (mp_procset, xstrdup ("mpprocset"));
+set_internal_name (mp_gtroffmode, xstrdup ("troffmode"));
+set_internal_name (mp_restore_clip_color, xstrdup ("restoreclipcolor"));
+set_internal_name (mp_output_template, xstrdup ("outputtemplate"));
+set_internal_name (mp_output_format, xstrdup ("outputformat"));
+set_internal_name (mp_job_name, xstrdup ("jobname"));
 
 @ The following procedure, which is called just before \MP\ initializes its
 input and output, establishes the initial values of the date and time.
@@ -4090,11 +4096,66 @@ contains the string representation of the symbol, a |halfword|
 that holds the current command value of the token, and an 
 |mp_value| for the associated equivalent. 
 
-@d text(A)       (A)->text /* string number for symbolic token name */
-@d eq_type(A)    (A)->type /* the current ``meaning'' of a symbolic token */
-@d equiv(A)      (A)->v.data.val /* parametric part of a token's meaning */
-@d equiv_node(A) (A)->v.data.node /* parametric part of a token's meaning */
-@d equiv_sym(A)  (A)->v.data.sym /* parametric part of a token's meaning */
+@d text(A)       do_get_text(mp, (A)) /* string number for symbolic token name */
+@d set_text(A)     do {
+   FUNCTION_TRACE3 ("set_text(%p, %p)\n",(A),(B));
+   (A)->text=(B) ;
+} while (0)
+
+@d eq_type(A)      do_get_eq_type(mp, (A)) /* the current ``meaning'' of a symbolic token */
+@d set_eq_type(A,B)  do {
+   FUNCTION_TRACE3 ("set_eq_type(%p, %d)\n",(A),(B));
+   (A)->type=(B) ;
+} while (0)
+
+@d equiv(A)      do_get_equiv(mp, (A)) /* parametric part of a token's meaning */
+@d set_equiv(A,B)  do {
+   FUNCTION_TRACE3 ("set_equiv(%p, %d)\n",(A),(B));
+   (A)->v.data.val=(B) ;
+} while (0)
+
+@d equiv_node(A) do_get_equiv_node(mp, (A)) /* parametric part of a token's meaning */
+@d set_equiv_node(A,B)  do {
+   FUNCTION_TRACE3 ("set_equiv_node(%p, %p)\n",(A),(B));
+   (A)->v.data.node=(B) ;
+} while (0)
+
+@d equiv_sym(A)  do_get_equiv_sym(mp, (A)) /* parametric part of a token's meaning */
+@d set_equiv_sym(A,B)  do {
+   FUNCTION_TRACE3 ("set_equiv_sym(%p, %p)\n",(A),(B));
+   (A)->v.data.sym=(B) ;
+} while (0)
+
+@ @c
+static str_number do_get_text (MP mp, mp_sym A) {
+  FUNCTION_TRACE3 ("%d = do_get_text(%p)\n",A->text,A);
+  return A->text;
+}
+static halfword do_get_eq_type (MP mp, mp_sym A) {
+  FUNCTION_TRACE3 ("%d = do_get_eq_type(%p)\n",A->type,A);
+  return A->type;
+}
+static halfword do_get_equiv (MP mp, mp_sym A) {
+  FUNCTION_TRACE3 ("%d = do_get_equiv(%p)\n",A->v.data.val,A);
+  return A->v.data.val;
+}
+static mp_node do_get_equiv_node (MP mp, mp_sym A) {
+  FUNCTION_TRACE3 ("%p = do_get_equiv_node(%p)\n",A->v.data.node,A);
+  return A->v.data.node;
+}
+static mp_sym do_get_equiv_sym (MP mp, mp_sym A) {
+  FUNCTION_TRACE3 ("%p = do_get_equiv_sym(%p)\n",A->v.data.sym,A);
+  return A->v.data.sym;
+}
+
+
+@ @<Declarations...@>=
+static str_number do_get_text (MP mp, mp_sym A);
+static halfword do_get_eq_type (MP mp, mp_sym A);
+static halfword do_get_equiv (MP mp, mp_sym A);
+static mp_node do_get_equiv_node (MP mp, mp_sym A);
+static mp_sym do_get_equiv_sym (MP mp, mp_sym A);
+
 
 @ @<Types...@>=
 typedef struct mp_symbol_entry {
@@ -4276,8 +4337,8 @@ static void mp_primitive (MP mp, const char *ss, halfword c, halfword o) {
   char *s = mp_xstrdup (mp, ss);
   mp->cur_sym = mp_id_lookup (mp, s, strlen (s), true);
   mp_xfree (s);
-  eq_type (mp->cur_sym) = c;
-  equiv (mp->cur_sym) = o;
+  set_eq_type (mp->cur_sym, c);
+  set_equiv (mp->cur_sym, o);
 }
 
 
@@ -4578,45 +4639,50 @@ printer's sense. It's curious that the same word is used in such different ways.
 
 @d token_node_size sizeof(mp_node_data) /* the number of words in a large token node */
 
-@d value_sym(A)   ((mp_token_node)(A))->data.sym /* the sym stored in a large token node */
+@d value_sym(A)   get_value_sym(mp,(mp_token_node)(A)) /* the sym stored in a large token node */
+
+@d set_value_sym(A,B) do {  /* store the value in a large token node */
+   FUNCTION_TRACE3 ("set_value_sym(%p,%p)\n", (A),(B));
+   ((mp_token_node)(A))->data.sym=(B);
+ } while (0)
+
+
 @d value(A)       mp_do_value(mp, (mp_node)(A)) /* the value stored in a large token node */
 
 @d set_value(A,B) do {  /* store the value in a large token node */
-  if (mp_type(A) == mp_independent) {
-	fprintf(stderr, "Bad call to set_value on %d\n", __LINE__);
-  }
-   knot_value(A)=NULL;
-   str_value(A)=NULL;
-   value_node(A)=NULL;
-   ((mp_value_node)(A))->data.val=(B);
+   FUNCTION_TRACE3 ("set_value(%p,%d)\n", (A),(B));
+   if (mp_type(A) == mp_independent) {
+ 	fprintf(stderr, "Bad call to set_value on %d\n", __LINE__);
+   }
+   ((mp_token_node)(A))->data.p = NULL;
+   ((mp_token_node)(A))->data.str = NULL;
+   ((mp_token_node)(A))->data.node = NULL;
+   ((mp_token_node)(A))->data.val = (B);
  } while (0)
 
-@d value_node(A)   ((mp_token_node)(A))->data.node /* the value stored in a large token node */
+@d value_node(A)   get_value_node(mp, (mp_token_node)(A)) /* the value stored in a large token node */
 
-@d set_value_node(A,B) do { /* store the value in a large token node */
-   knot_value(A)=NULL;
-   str_value(A)=NULL;
-   value_node(A)=(B);
-   ((mp_value_node)(A))->data.val=0;
- } while (0) 
+@d set_value_node(A,B) do_set_value_node(mp, (mp_token_node)(A), (B))/* store the value in a large token node */
 
-@d str_value(A)   ((mp_token_node)(A))->data.str /* the value stored in a large token node */
+@d value_str(A)   get_value_str(mp, (mp_token_node)(A)) /* the value stored in a large token node */
 
-@d set_str_value(A,B) do { /* store the value in a large token node */
-   knot_value(A)=NULL;
-   str_value(A)=(B);
+@d set_value_str(A,B) do { /* store the value in a large token node */
+   FUNCTION_TRACE3 ("set_value_str(%p,%p)\n", (A),(B));
+   ((mp_token_node)(A))->data.p = NULL;
+   ((mp_token_node)(A))->data.str = (B);
    add_str_ref((B));
-   value_node(A)=NULL;
-   ((mp_value_node)(A))->data.val=0;
+   ((mp_token_node)(A))->data.node = NULL;
+   ((mp_token_node)(A))->data.val = 0;
  } while (0) 
 
-@d knot_value(A)  ((mp_token_node)(A))->data.p /* the value stored in a large token node */
+@d value_knot(A)  get_value_knot(mp, (mp_token_node)(A)) /* the value stored in a large token node */
 
-@d set_knot_value(A,B) do { /* store the value in a large token node */
-   knot_value(A)=(B);
-   str_value(A)=NULL;
-   value_node(A)=NULL;
-   ((mp_value_node)(A))->data.val=0;
+@d set_value_knot(A,B) do { /* store the value in a large token node */
+   FUNCTION_TRACE3 ("set_value_knot(%p,%p)\n", (A),(B));
+   ((mp_token_node)(A))->data.p = (B);
+   ((mp_token_node)(A))->data.str = NULL;
+   ((mp_token_node)(A))->data.node = NULL;
+   ((mp_token_node)(A))->data.val = 0;
  } while (0) 
 
 
@@ -4625,6 +4691,7 @@ typedef struct mp_node_data *mp_token_node;
 
 @ @c
 integer mp_do_value (MP mp, mp_node A) {
+  FUNCTION_TRACE3 ("%d = mp_do_value(%p)\n", ((mp_value_node)A)->data.val, A);
   if (mp_type(A) == mp_independent) {
      fprintf(stderr,"bad call to value");
   }
@@ -4633,16 +4700,49 @@ integer mp_do_value (MP mp, mp_node A) {
 
 @ @c
 integer mp_do_dep_value (MP mp, mp_node A) {
+  FUNCTION_TRACE3 ("%d = mp_do_dep_value(%p)\n", ((mp_value_node)A)->data.val, A);
   if (mp_type(A) == mp_independent) {
      fprintf(stderr,"bad call to dep_value");
   }
   return ((mp_value_node)A)->data.val;
 }
 
+@ @c
+static void do_set_value_node(MP mp, mp_token_node A, mp_node B) { /* store the value in a large token node */
+   FUNCTION_TRACE3 ("set_value_node(%p,%p)\n", A,B);
+   A->data.p = NULL;
+   A->data.str = NULL;
+   A->data.node = B;
+   A->data.val = 0;
+}
+
+@ @c
+static mp_sym get_value_sym (MP mp, mp_token_node A) {
+  FUNCTION_TRACE3 ("%p = get_value_sym(%p)\n", A->data.sym, A);
+  return  A->data.sym ;
+}
+static mp_node get_value_node (MP mp, mp_token_node A) {
+  FUNCTION_TRACE3 ("%p = get_value_node(%p)\n", A->data.node, A);
+  return  A->data.node ;
+}
+static str_number get_value_str (MP mp, mp_token_node A) {
+  FUNCTION_TRACE3 ("%p = get_value_str(%p)\n", A->data.str, A);
+  return  A->data.str ;
+}
+static mp_knot get_value_knot (MP mp, mp_token_node A) {
+  FUNCTION_TRACE3 ("%p = get_value_knot(%p)\n", A->data.p, A);
+  return  A->data.p ;
+}
+
 
 @ @<Declarations@>=
+static mp_sym get_value_sym (MP mp, mp_token_node A);
+static mp_node get_value_node (MP mp, mp_token_node A);
+static str_number get_value_str (MP mp, mp_token_node A) ;
+static mp_knot get_value_knot (MP mp, mp_token_node A) ;
 integer mp_do_value (MP mp, mp_node A);
 integer mp_do_dep_value (MP mp, mp_node A);
+static void do_set_value_node(MP mp, mp_token_node A, mp_node B);
 
 @
 @c
@@ -4665,6 +4765,7 @@ static mp_node mp_new_num_tok (MP mp, scaled v) {
   set_value (p, v);
   p->type = mp_known;
   p->name_type = mp_token;
+  FUNCTION_TRACE3 ("%p = mp_new_num_tok(%p)\n", p, v);
   return p;
 }
 
@@ -4689,7 +4790,7 @@ static void mp_flush_token_list (MP mp, mp_node p) {
       case mp_known:
         break;
       case mp_string_type:
-        delete_str_ref (str_value (q));
+        delete_str_ref (value_str (q));
         break;
       case unknown_types:
       case mp_pen_type:
@@ -4810,7 +4911,7 @@ if (mp_name_type (p) == mp_token) {
 @.BAD@>
   } else {
     mp_print_char (mp, xord ('"'));
-    mp_print_str (mp, str_value (p));
+    mp_print_str (mp, value_str (p));
     mp_print_char (mp, xord ('"'));
     c = string_class;
   }
@@ -5029,17 +5130,18 @@ Finally, |parent_| only applies in |attr| nodes (the ones that have
 for that does not save space and the extra complication in the
 structure is not worth the minimal extra code clarification.
 
-@d attr_head(A)   ((mp_value_node)(A))->attr_head_ /* pointer to attribute info */
+@d attr_head(A)   do_get_attr_head(mp,(mp_value_node)(A))
 @d set_attr_head(A,B) do {
    mp_node d = (B);
-   /* |printf("set attrhead of %p to %p on %d\n",A,d,__LINE__);| */
-   attr_head((A)) = d;
+   FUNCTION_TRACE4 ("set_attr_head(%p,%p) on line %d\n", (A), (B), __LINE__);
+   ((mp_value_node)(A))->attr_head_ = d;
 } while (0)
-@d subscr_head(A)   ((mp_value_node)(A))->subscr_head_ /* pointer to subscript info */
+
+@d subscr_head(A)   do_get_subscr_head(mp,(mp_value_node)(A))
 @d set_subscr_head(A,B) do {
    mp_node d = (B);
-   /* |printf("set subcrhead of %p to %p on %d\n",A,d,__LINE__);| */
-   subscr_head((A)) = d;
+   FUNCTION_TRACE4 ("set_subscr_head(%p,%p) on line %d\n", (A), (B), __LINE__);
+   ((mp_value_node)(A))->subscr_head_ = d;
 } while (0)
 
 @(mpmp.h@>=
@@ -5055,8 +5157,20 @@ typedef struct mp_value_node_data {
   mp_node subscr_head_;
 } mp_value_node_data;
 
+@ @c
+static mp_node do_get_attr_head (MP mp, mp_value_node A) {
+  FUNCTION_TRACE3 ("%p = get_attr_head(%p)\n", A->attr_head_, A);
+  return A->attr_head_;
+}
+static mp_node do_get_subscr_head (MP mp, mp_value_node A) {
+  FUNCTION_TRACE3 ("%p = get_subscr_head(%p)\n", A->subscr_head_, A);
+  return A->subscr_head_;
+}
+
 @ @<Declarations@>=
 static mp_node mp_get_value_node (MP mp);
+static mp_node do_get_subscr_head (MP mp, mp_value_node A);
+static mp_node do_get_attr_head (MP mp, mp_value_node A);
 
 @ It would have been nicer to make |mp_get_value_node| return
 |mp_value_node| variables, but with |eqtb| as it stands that 
@@ -5168,10 +5282,15 @@ information in their collective subscript attributes.
 
 @d hashloc(A) ((mp_value_node)(A))->v.hashloc_ /* hash address of this attribute */
 @d set_hashloc(A,B) do {
-  /* |printf ("set attrloc of %p to %d on %d\n", (A), d, __LINE__);| */
+  FUNCTION_TRACE4 ("set_hashloc(%p,%p) on line %d\n", (A), (B), __LINE__);
   ((mp_value_node)(A))->v.hashloc_ = (mp_sym)(B);
   } while (0)
 @d parent(A) (A)->parent_ /* pointer to |mp_structured| variable */
+@d set_parent(A,B) do {
+   mp_node d = (B);
+   FUNCTION_TRACE4 ("set_parent(%p,%p) on line %d\n", (A), (B), __LINE__);
+   ((mp_value_node)(A))->parent_ = d;
+} while (0)
 
 @ 
 @d mp_free_attr_node(a,b) mp_free_node(a,b,value_node_size)
@@ -5194,7 +5313,7 @@ result in all bits in a pointer being set, something else needs to be done.
 @<Initialize table...@>=
 mp->end_attr = (mp_node) mp_get_attr_node (mp);
 set_hashloc (mp->end_attr, -1);
-parent ((mp_value_node) mp->end_attr) = NULL;
+set_parent ((mp_value_node) mp->end_attr, NULL);
 
 @ @<Free table...@>=
 mp_free_attr_node (mp, mp->end_attr);
@@ -5202,6 +5321,11 @@ mp_free_attr_node (mp, mp->end_attr);
 @
 @d collective_subscript 0 /* code for the attribute `\.{[]}' */
 @d subscript(A) ((mp_value_node)(A))->v.subscript_ /* subscript of this variable */
+@d set_subscript(A,B) do {
+  FUNCTION_TRACE3("set_subscript(%p,%d)\n", (A), (B));
+  ((mp_value_node)(A))->v.subscript_=(B); /* subscript of this variable */
+} while (0)
+
 
 @c
 static mp_value_node mp_get_subscr_node (MP mp) {
@@ -5489,8 +5613,8 @@ static void mp_new_root (MP mp, mp_sym x) {
   p = mp_get_value_node (mp);
   mp_type (p) = undefined;
   mp_name_type (p) = mp_root;
-  value_sym (p) = x;
-  equiv_node (x) = p;
+  set_value_sym (p, x);
+  set_equiv_node (x, p);
 }
 
 
@@ -5708,7 +5832,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
     {
       qq = value_sym (p);
       r = mp_get_value_node (mp);
-      equiv_node (qq) = r;
+      set_equiv_node (qq, r);
     }
     break;
   case mp_subscr:
@@ -5723,7 +5847,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
     break;
   }
   set_mp_link (r, mp_link (p));
-  value_sym (r) = value_sym (p);
+  set_value_sym (r, value_sym (p));
   mp_type (r) = mp_structured;
   mp_name_type (r) = mp_name_type (p);
   set_attr_head (r, p);
@@ -5732,7 +5856,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
     mp_value_node qqr = mp_get_attr_node (mp);
     set_mp_link (p, (mp_node) qqr);
     set_subscr_head (r, (mp_node) qqr);
-    parent (qqr) = r;
+    set_parent (qqr, r);
     mp_type (qqr) = undefined;
     mp_name_type (qqr) = mp_attr;
     set_mp_link (qqr, mp->end_attr);
@@ -5758,7 +5882,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
   } while (r != p);
   r = (mp_node) mp_get_subscr_node (mp);
   if (q_new == mp->temp_head) {
-    subscr_head (q) = r;
+    set_subscr_head (q, r);
   } else {
     set_mp_link (q_new, r);
   }
@@ -5782,14 +5906,14 @@ node~|p|, so we must change both of them.
   r = (mp_node) rr;
   set_mp_link (q, (mp_node) rr);
   set_hashloc (rr, hashloc (p));
-  parent (rr) = parent ((mp_value_node) p);
+  set_parent (rr, parent ((mp_value_node) p));
   if (hashloc (p) == collective_subscript) {
     q = mp->temp_head;
     set_mp_link (q, subscr_head (parent ((mp_value_node) p)));
     while (mp_link (q) != p)
       q = mp_link (q);
     if (q == mp->temp_head)
-      subscr_head (parent ((mp_value_node) p)) = (mp_node) rr;
+      set_subscr_head (parent ((mp_value_node) p), (mp_node) rr);
     else
       set_mp_link (q, (mp_node) rr);
   }
@@ -5929,7 +6053,7 @@ subscript list, even though that word isn't part of a subscript node.
     set_hashloc (qq, nn);
     mp_name_type (qq) = mp_attr;
     mp_type (qq) = undefined;
-    parent ((mp_value_node) qq) = pp;
+    set_parent ((mp_value_node) qq, pp);
     ss = qq;
   }
   if (p == pp) {
@@ -5951,7 +6075,7 @@ subscript list, even though that word isn't part of a subscript node.
       set_hashloc (q, nn);
       mp_name_type (q) = mp_attr;
       mp_type (q) = undefined;
-      parent ((mp_value_node) q) = p;
+      set_parent ((mp_value_node) q, p);
       p = q;
     }
   }
@@ -6141,9 +6265,9 @@ static void mp_clear_symbol (MP mp, mp_sym p, boolean saving) {
   default:
     break;
   }
-  equiv (p) = mp->frozen_undefined->v.data.val;
-  equiv_node (p) = NULL;
-  eq_type (p) = mp->frozen_undefined->type;
+  set_equiv (p, mp->frozen_undefined->v.data.val);
+  set_equiv_node (p, NULL);
+  set_eq_type (p, mp->frozen_undefined->type);
 }
 
 
@@ -6241,9 +6365,9 @@ static void mp_unsave_variable (MP mp, mp_sym q) {
     mp_end_diagnostic (mp, false);
   }
   mp_clear_symbol (mp, q, false);
-  equiv (q) = mp->save_ptr->equiv;
-  eq_type (q) = mp->save_ptr->eq_type;
-  equiv_node (q) = mp->save_ptr->equiv_n;
+  set_equiv (q, mp->save_ptr->equiv);
+  set_eq_type (q, mp->save_ptr->eq_type);
+  set_equiv_node (q, mp->save_ptr->equiv_n);
   if (eq_type (q) % mp_outer_tag == mp_tag_token) {
     mp_node pp = equiv_node (q);
     if (pp != NULL)
@@ -13287,7 +13411,7 @@ static void mp_new_dep (MP mp, mp_node q, mp_variable_type newtype,
   mp_node r;    /* what used to be the first dependency */
   FUNCTION_TRACE4 ("mp_new_dep(%p,%d,%p)\n", q, newtype, p);
   mp_type (q) = newtype;
-  set_dep_list (q, (mp_node) p);
+  set_dep_list (q, p);
   set_prev_dep (q, (mp_node) mp->dep_head);
   r = mp_link (mp->dep_head);
   set_mp_link (mp->dep_final, r);
@@ -13469,7 +13593,7 @@ while (r != mp->dep_head) {
   if (dep_info (q) == NULL) {
     mp_make_known (mp, r, q);
   } else {
-    set_dep_list (r, (mp_node) q);
+    set_dep_list (r, q);
     do {
       q = (mp_value_node) mp_link (q);
     } while (dep_info (q) != NULL);
@@ -13614,14 +13738,14 @@ static void mp_nonlinear_eq (MP mp, mp_value v, mp_node p, boolean flush_p) {
       set_value (q, v.data.val);
       break;
     case mp_string_type:
-      set_str_value (q, v.data.str);
+      set_value_str (q, v.data.str);
       add_str_ref (v.data.str);
       break;
     case mp_pen_type:
-      set_knot_value (q, copy_pen (v.data.p));
+      set_value_knot (q, copy_pen (v.data.p));
       break;
     case mp_path_type:
-      set_knot_value (q, mp_copy_path (mp, v.data.p));
+      set_value_knot (q, mp_copy_path (mp, v.data.p));
       break;
     case mp_picture_type:
       set_value_node (q, v.data.node);
@@ -14419,7 +14543,7 @@ static mp_node mp_cur_tok (MP mp) {
         set_value (p, mp->cur_mod);
         mp_type (p) = mp_known;
       } else {
-        set_str_value (p, mp->cur_mod_str);
+        set_value_str (p, mp->cur_mod_str);
         mp_type (p) = mp_string_type;
       }
     }
@@ -14782,7 +14906,7 @@ case absorbing:
     mp->cur_sym = mp->frozen_right_delimiter;
     /* the next line makes sure that the inserted delimiter will
       match the delimiter that already was read. */
-    equiv_sym (mp->cur_sym) = mp->warning_info;
+    set_equiv_sym (mp->cur_sym, mp->warning_info);
   }
   break;
 case var_defining:
@@ -15128,7 +15252,7 @@ if (nloc != NULL && mp_type (nloc) == mp_symbol_node) { /* symbolic token */
       mp->cur_mod = value (nloc);
       mp->cur_cmd = mp_numeric_token;
     } else {
-      mp->cur_mod_str = str_value (nloc);
+      mp->cur_mod_str = value_str (nloc);
       mp->cur_cmd = mp_string_token;
       add_str_ref (mp->cur_mod_str);
     }
@@ -15749,8 +15873,8 @@ static void mp_make_op_def (MP mp) {
   mp_name_type (r) = mp_macro_sym;
   mp_link (r) = mp_scan_toks (mp, mp_macro_def, qn, NULL, 0);
   mp->scanner_status = normal;
-  eq_type (mp->warning_info) = m;
-  equiv_node (mp->warning_info) = q;
+  set_eq_type (mp->warning_info, m);
+  set_equiv_node (mp->warning_info, q);
   mp_get_x_next (mp);
 }
 
@@ -15864,8 +15988,8 @@ if (m == start_def) {
   get_t_next (mp);
   mp->scanner_status = op_defining;
   n = 0;
-  eq_type (mp->warning_info) = mp_defined_macro;
-  equiv_node (mp->warning_info) = q;
+  set_eq_type (mp->warning_info, mp_defined_macro);
+  set_equiv_node (mp->warning_info, q);
 } else {
   p = mp_scan_declared_variable (mp);
   mp_flush_variable (mp, equiv_node (mp_sym_sym (p)), mp_link (p), true);
@@ -15900,7 +16024,7 @@ if (m == start_def) {
 @ @<Initialize table entries@>=
 mp->bad_vardef = mp_get_value_node (mp);
 mp_name_type (mp->bad_vardef) = mp_root;
-value_sym (mp->bad_vardef) = mp->frozen_bad_vardef;
+set_value_sym (mp->bad_vardef, mp->frozen_bad_vardef);
 
 @ @<Free table entries@>=
 mp_free_value_node (mp, mp->bad_vardef);
@@ -18648,9 +18772,15 @@ static mp_node mp_stash_cur_exp (MP mp) {
     mp_name_type (p) = mp_capsule;
     mp_type (p) = mp->cur_exp.type;
     set_value (p, cur_exp_value ());    /* this also resets the rest to 0/NULL */
-    str_value (p) = cur_exp_str ();
-    knot_value (p) = cur_exp_knot ();
-    value_node (p) = cur_exp_node ();
+    if (cur_exp_str ())  {
+      set_value_str (p, cur_exp_str ());
+    }
+    if (cur_exp_knot ()) {
+      set_value_knot (p, cur_exp_knot ());
+    }
+    if (cur_exp_node ()) {
+      set_value_node (p, cur_exp_node ());
+    }
     break;
   }
   mp->cur_exp.type = mp_vacuous;
@@ -18698,11 +18828,11 @@ void mp_unstash_cur_exp (MP mp, mp_node p) {
     break;
   case mp_path_type:
   case mp_pen_type:
-    set_cur_exp_knot (knot_value (p));
+    set_cur_exp_knot (value_knot (p));
     mp_free_node (mp, p, value_node_size);
     break;
   case mp_string_type:
-    set_cur_exp_str (str_value (p));
+    set_cur_exp_str (value_str (p));
     mp_free_node (mp, p, value_node_size);
     break;
   case mp_picture_type:
@@ -18776,7 +18906,7 @@ case mp_numeric_type:
   break;
 case mp_string_type:
   mp_print_char (mp, xord ('"'));
-  mp_print_str (mp, str_value (p));
+  mp_print_str (mp, value_str (p));
   mp_print_char (mp, xord ('"'));
   break;
 case mp_pen_type:
@@ -18929,10 +19059,10 @@ if (verbosity <= 1) {
     };
   switch (t) {
   case mp_pen_type:
-    mp_print_pen (mp, knot_value (p), "", false);
+    mp_print_pen (mp, value_knot (p), "", false);
     break;
   case mp_path_type:
-    mp_print_path (mp, knot_value (p), "", false);
+    mp_print_path (mp, value_knot (p), "", false);
     break;
   case mp_picture_type:
     mp_print_edges (mp, v, "", false);
@@ -19051,11 +19181,11 @@ static void mp_recycle_value (MP mp, mp_node p) {
     mp_ring_delete (mp, p);
     break;
   case mp_string_type:
-    delete_str_ref (str_value (p));
+    delete_str_ref (value_str (p));
     break;
   case mp_path_type:
   case mp_pen_type:
-    mp_toss_knot_list (mp, knot_value (p));
+    mp_toss_knot_list (mp, value_knot (p));
     break;
   case mp_picture_type:
     delete_edge_ref (value_node (p));
@@ -19323,7 +19453,7 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
   r = mp->max_link[t];
   while (r != NULL) {
     q = (mp_value_node) dep_info (r);
-    set_dep_list (q, (mp_node) mp_p_plus_fq (mp, (mp_value_node) dep_list (q),
+    set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q),
                                              mp_make_fraction (mp,
                                                                dep_value (r),
                                                                -v), s, t,
@@ -19346,13 +19476,13 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
       if (cur_exp_node () == (mp_node) q && mp->cur_exp.type == mp_dependent)
         mp->cur_exp.type = mp_proto_dependent;
       set_dep_list (q,
-                    (mp_node) mp_p_over_v (mp, (mp_value_node) dep_list (q),
+                    mp_p_over_v (mp, (mp_value_node) dep_list (q),
                                            unity, mp_dependent,
                                            mp_proto_dependent));
       mp_type (q) = mp_proto_dependent;
       set_dep_value (r, mp_round_fraction (mp, dep_value (r)));
     }
-    set_dep_list (q, (mp_node) mp_p_plus_fq (mp, (mp_value_node) dep_list (q),
+    set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q),
                                              mp_make_scaled (mp, dep_value (r),
                                                              -v), s,
                                              mp_proto_dependent,
@@ -20177,17 +20307,17 @@ RESTART:
     set_cur_exp_node (t);
     break;
   case mp_string_type:
-    set_cur_exp_str (str_value (p));
+    set_cur_exp_str (value_str (p));
     break;
   case mp_picture_type:
     set_cur_exp_node (value_node (p));
     add_edge_ref (cur_exp_node ());
     break;
   case mp_pen_type:
-    set_cur_exp_knot (copy_pen (knot_value (p)));
+    set_cur_exp_knot (copy_pen (value_knot (p)));
     break;
   case mp_path_type:
-    set_cur_exp_knot (mp_copy_path (mp, knot_value (p)));
+    set_cur_exp_knot (mp_copy_path (mp, value_knot (p)));
     break;
   case mp_transform_type:
   case mp_color_type:
@@ -22909,7 +23039,7 @@ static void mp_test_known (MP mp, quarterword c) {
   else
     new_expr.data.val = mp_true_code + mp_false_code - b;
   mp_flush_cur_exp (mp, new_expr);
-  cur_exp_node () = NULL;
+  cur_exp_node() = NULL; /* !! do not replace with |set_cur_exp_node()| !! */
   mp->cur_exp.type = mp_boolean_type;
 }
 
@@ -23606,7 +23736,7 @@ static void mp_dep_finish (MP mp, mp_value_node v, mp_value_node q,
     p = (mp_value_node) cur_exp_node ();
   else
     p = q;
-  set_dep_list (p, (mp_node) v);
+  set_dep_list (p, v);
   mp_type (p) = t;
   if (dep_info (v) == NULL) {
     vv = value (v);
@@ -23642,7 +23772,7 @@ if ((mp->cur_exp.type > mp_pair_type) && (mp_type (p) > mp_pair_type)) {
   mp_bad_binary (mp, p, (quarterword) c);
   goto DONE;
 } else if (mp->cur_exp.type == mp_string_type) {
-  new_expr.data.val = mp_str_vs_str (mp, str_value (p), cur_exp_str ());
+  new_expr.data.val = mp_str_vs_str (mp, value_str (p), cur_exp_str ());
   mp_flush_cur_exp (mp, new_expr);
 } else if ((mp->cur_exp.type == mp_unknown_string) ||
            (mp->cur_exp.type == mp_unknown_boolean)) {
@@ -24721,19 +24851,19 @@ static void mp_bilin1 (MP mp, mp_node p, scaled t, mp_node q,
         if (mp_type (p) == mp_known) {
           mp_new_dep (mp, p, mp_type (p), mp_const_dependency (mp, value (p)));
         } else {
-          dep_list ((mp_value_node) p) =
-            (mp_node) mp_p_times_v (mp,
+          set_dep_list ((mp_value_node) p,
+            mp_p_times_v (mp,
                                     (mp_value_node) dep_list ((mp_value_node)
                                                               p), unity,
-                                    mp_dependent, mp_proto_dependent, true);
+                                    mp_dependent, mp_proto_dependent, true));
         }
         mp_type (p) = mp_proto_dependent;
       }
-      dep_list ((mp_value_node) p) =
-        (mp_node) mp_p_plus_fq (mp,
+      set_dep_list ((mp_value_node) p,
+        mp_p_plus_fq (mp,
                                 (mp_value_node) dep_list ((mp_value_node) p), u,
                                 (mp_value_node) dep_list ((mp_value_node) q),
-                                mp_proto_dependent, mp_type (q));
+                                mp_proto_dependent, mp_type (q)));
     }
   }
   if (mp_type (p) == mp_known) {
@@ -24796,10 +24926,10 @@ static void mp_add_mult_dep (MP mp, mp_value_node p, scaled v, mp_node r) {
                    dep_value (mp->dep_final) + mp_take_scaled (mp, value (r),
                                                                v));
   } else {
-    dep_list (p) =
-      (mp_node) mp_p_plus_fq (mp, (mp_value_node) dep_list (p), v,
+    set_dep_list (p,
+      mp_p_plus_fq (mp, (mp_value_node) dep_list (p), v,
                               (mp_value_node) dep_list ((mp_value_node) r),
-                              mp_proto_dependent, mp_type (r));
+                              mp_proto_dependent, mp_type (r)));
     if (mp->fix_needed)
       mp_fix_dependencies (mp);
   }
@@ -24874,7 +25004,7 @@ static void mp_bilin3 (MP mp, mp_node p, scaled t,
 @ @<Additional cases of binary operators@>=
 case mp_concatenate:
 if ((mp->cur_exp.type == mp_string_type) && (mp_type (p) == mp_string_type)) {
-  str_number str = mp_cat (mp, str_value (p), cur_exp_str());
+  str_number str = mp_cat (mp, value_str (p), cur_exp_str());
   delete_str_ref (cur_exp_str ()) ;
   set_cur_exp_str (str);
 } else
@@ -25068,7 +25198,7 @@ static void mp_set_up_envelope (MP mp, mp_node p) {
   scaled miterlim;
   mp_knot q = mp_copy_path (mp, cur_exp_knot ());       /* the original path */
   /* TODO: accept elliptical pens for straight paths */
-  if (pen_is_elliptical (knot_value (p))) {
+  if (pen_is_elliptical (value_knot (p))) {
     mp_bad_envelope_pen (mp);
     set_cur_exp_knot (q);
     mp->cur_exp.type = mp_path_type;
@@ -25091,7 +25221,7 @@ static void mp_set_up_envelope (MP mp, mp_node p) {
   else
     miterlim = internal_value_to_halfword (mp_miterlimit);
   set_cur_exp_knot (mp_make_envelope
-                    (mp, q, knot_value (p), ljoin, lcap, miterlim));
+                    (mp, q, value_knot (p), ljoin, lcap, miterlim));
   mp->cur_exp.type = mp_path_type;
 }
 
@@ -25116,7 +25246,7 @@ static void mp_set_up_glyph_infont (MP mp, mp_node p) {
         h = mp_ps_font_charstring (mp, f, v);
       }
     } else {
-      n = mp_str (mp, str_value (p));
+      n = mp_str (mp, value_str (p));
       h = mp_ps_do_font_charstring (mp, f, n);
     }
     mp_ps_font_free (mp, f);
@@ -25220,7 +25350,7 @@ if (mp_type (p) == mp_pair_type) {
 if (mp->cur_exp.type == mp_pair_type)
   mp_pair_to_path (mp);
 if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_path_type)) {
-  mp_path_intersection (mp, knot_value (p), cur_exp_knot ());
+  mp_path_intersection (mp, value_knot (p), cur_exp_knot ());
   mp_pair_value (mp, mp->cur_t, mp->cur_tt);
 } else {
   mp_bad_binary (mp, p, mp_intersect);
@@ -25249,7 +25379,7 @@ static void mp_do_infont (MP mp, mp_node p) {
   mp_init_edges (mp, q);
   add_str_ref (cur_exp_str());
   mp_link (obj_tail (q)) =
-    mp_new_text_node (mp, mp_str (mp, cur_exp_str ()), str_value (p));
+    mp_new_text_node (mp, mp_str (mp, cur_exp_str ()), value_str (p));
   obj_tail (q) = mp_link (obj_tail (q));
   mp_free_node (mp, p, value_node_size);
   new_expr.data.node = q;
@@ -25692,7 +25822,7 @@ break;
 {
   if (mp->cur_exp.type <= mp_string_type) {
     if (mp->cur_exp.type == mp_string_type) {
-      if (mp_str_vs_str (mp, str_value (lhs), cur_exp_str ()) != 0) {
+      if (mp_str_vs_str (mp, value_str (lhs), cur_exp_str ()) != 0) {
         goto NOT_FOUND;
       }
     } else if (v != cur_exp_value ()) {
@@ -26767,9 +26897,9 @@ void mp_do_protection (MP mp) {
     t = eq_type (mp->cur_sym);
     if (m == 0) {
       if (t >= mp_outer_tag)
-        eq_type (mp->cur_sym) = t - mp_outer_tag;
+        set_eq_type (mp->cur_sym, (t - mp_outer_tag));
     } else if (t < mp_outer_tag) {
-      eq_type (mp->cur_sym) = t + mp_outer_tag;
+      set_eq_type (mp->cur_sym, (t + mp_outer_tag));
     }
     mp_get_x_next (mp);
   } while (mp->cur_cmd == mp_comma);
@@ -26797,10 +26927,10 @@ void mp_def_delims (MP mp) {
   l_delim = mp->cur_sym;
   mp_get_clear_symbol (mp);
   r_delim = mp->cur_sym;
-  eq_type (l_delim) = mp_left_delimiter;
-  equiv_sym (l_delim) = r_delim;
-  eq_type (r_delim) = mp_right_delimiter;
-  equiv_sym (r_delim) = l_delim;
+  set_eq_type (l_delim, mp_left_delimiter);
+  set_equiv_sym (l_delim, r_delim);
+  set_eq_type (r_delim, mp_right_delimiter);
+  set_equiv_sym (r_delim, l_delim);
   mp_get_x_next (mp);
 }
 
@@ -26916,19 +27046,19 @@ void mp_do_let (MP mp) {
     break;
   }
   mp_clear_symbol (mp, l, false);
-  eq_type (l) = mp->cur_cmd;
+  set_eq_type (l, mp->cur_cmd);
   if (mp->cur_cmd == mp_tag_token)
-    equiv (l) = 0;              /* todo: this was |null| */
+    set_equiv (l, 0);              /* todo: this was |null| */
   else if (mp->cur_cmd == mp_defined_macro ||
            mp->cur_cmd == mp_secondary_primary_macro ||
            mp->cur_cmd == mp_tertiary_secondary_macro ||
            mp->cur_cmd == mp_expression_tertiary_macro)
-    equiv_node (l) = mp->cur_mod_node;
+    set_equiv_node (l, mp->cur_mod_node);
   else if (mp->cur_cmd == mp_left_delimiter ||
            mp->cur_cmd ==  mp_right_delimiter)
-    equiv_sym (l) = mp->cur_sym2;
+    set_equiv_sym (l, mp->cur_sym2);
   else
-    equiv (l) = mp->cur_mod;
+    set_equiv (l, mp->cur_mod);
   mp_get_x_next (mp);
 }
 
@@ -26974,12 +27104,12 @@ void mp_do_new_internal (MP mp) {
     }
     mp_get_clear_symbol (mp);
     incr (mp->int_ptr);
-    eq_type (mp->cur_sym) = mp_internal_quantity;
-    equiv (mp->cur_sym) = mp->int_ptr;
+    set_eq_type (mp->cur_sym, mp_internal_quantity);
+    set_equiv (mp->cur_sym, mp->int_ptr);
     if (internal_name (mp->int_ptr) != NULL)
       xfree (internal_name (mp->int_ptr));
-    internal_name (mp->int_ptr) =
-      mp_xstrdup (mp, mp_str (mp, text (mp->cur_sym)));
+    set_internal_name (mp->int_ptr,
+      mp_xstrdup (mp, mp_str (mp, text (mp->cur_sym))));
     if (the_type == mp_string_type) {
       set_internal_string (mp->int_ptr, mp_rts(mp,""));
     } else {
@@ -30620,7 +30750,7 @@ p = mp_link (mp->spec_head);
 while (p != NULL) {
   mp_special_object *tp;
   tp = (mp_special_object *) mp_new_graphic_object (mp, mp_special_code);
-  gr_pre_script (tp) = mp_xstrdup(mp,mp_str (mp, str_value (p)));
+  gr_pre_script (tp) = mp_xstrdup(mp,mp_str (mp, value_str (p)));
   if (hh->body == NULL)
     hh->body = (mp_graphic_object *) tp;
   else
