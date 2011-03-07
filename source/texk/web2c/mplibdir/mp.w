@@ -173,7 +173,7 @@ most compilers understand the non-debug version.
 
 @(mpmp.h@>=
 #define DEBUG 0
-#if DEBUG
+#if DEBUG>1
 void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...);
 #  define debug_printf(a1,a2,a3) do_debug_printf(mp, "", a1,a2,a3)
 #  define FUNCTION_TRACE1(a1) do_debug_printf(mp, "FTRACE: ", a1)
@@ -182,10 +182,10 @@ void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...);
 #  define FUNCTION_TRACE4(a1,a2,a3,a4) do_debug_printf(mp, "FTRACE: ", a1,a2,a3,a4)
 #else
 #  define debug_printf(a1,a2,a3)
-#  define FUNCTION_TRACE1(a1)
-#  define FUNCTION_TRACE2(a1,a2)
-#  define FUNCTION_TRACE3(a1,a2,a3)
-#  define FUNCTION_TRACE4(a1,a2,a3,a4)
+#  define FUNCTION_TRACE1(a1) (void)mp
+#  define FUNCTION_TRACE2(a1,a2) (void)mp
+#  define FUNCTION_TRACE3(a1,a2,a3) (void)mp
+#  define FUNCTION_TRACE4(a1,a2,a3,a4) (void)mp
 #endif
 
 @ This function occasionally crashes (if something is written after the
@@ -195,14 +195,20 @@ log file is already closed), but that is not so important while debugging.
 #if DEBUG
 void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...) {
   va_list ap;
-  va_start (ap, fmt);
+#if 0
+  va_start (ap, fmt); 
   if (mp->log_file && !ferror((FILE *)mp->log_file)) {
     fputs(prefix, mp->log_file);
     vfprintf(mp->log_file, fmt, ap);
   }
   va_end(ap);
+#endif
   va_start (ap, fmt);
+#if 0
   if (mp->term_out  && !ferror((FILE *)mp->term_out)) {
+#else
+  if (false) {
+#endif
     fputs(prefix, mp->term_out);
     vfprintf(mp->term_out, fmt, ap);
   } else {
@@ -2732,7 +2738,7 @@ A symbolic node is recycled by calling |free_symbolic_node|.
 
 @c
 void mp_free_node (MP mp, mp_node p, size_t siz) {                               /* node liberation */
-  FUNCTION_TRACE3 ("mp_free_node(%p,%d)\n", p, siz);
+  FUNCTION_TRACE3 ("mp_free_node(%p,%d)\n", p, (int)siz);
   mp->var_used -= siz;
   xfree (p);                    /* do more later */
 }
@@ -3861,7 +3867,7 @@ set_internal_from_scaled_int (mp_default_color_model, (mp_rgb_model * unity));
 set_internal_from_scaled_int (mp_restore_clip_color, unity);
 set_internal_string (mp_output_template, mp_intern (mp, "%j.%c"));
 set_internal_string (mp_output_format, mp_intern (mp, "eps"));
-#if 0
+#if DEBUG
 set_internal_from_scaled_int (mp_tracing_titles, 3 * unity);
 set_internal_from_scaled_int (mp_tracing_equations, 3 * unity);
 set_internal_from_scaled_int (mp_tracing_capsules, 3 * unity);
@@ -4206,7 +4212,7 @@ static mp_sym new_symbols_entry (MP mp, unsigned char *nam, size_t len) {
   ff->text->len = len;
   ff->type = mp_tag_token;
   ff->v.type = mp_known;
-  FUNCTION_TRACE4 ("%p = new_symbols_entry(\"%s\",%d)\n", ff, nam, len);
+  FUNCTION_TRACE4 ("%p = new_symbols_entry(\"%s\",%d)\n", ff, nam, (int)len);
   return ff;
 }
 
@@ -6252,7 +6258,7 @@ third kind.
 @c
 static void mp_save_internal (MP mp, halfword q) {
   mp_save_data *p;      /* new item for the save stack */
-  FUNCTION_TRACE2 ("mp_save_internal (%p)\n", q);
+  FUNCTION_TRACE2 ("mp_save_internal (%d)\n", q);
   if (mp->save_ptr != NULL) {
     p = xmalloc (1, sizeof (mp_save_data));
     p->info = q;
@@ -12610,45 +12616,43 @@ Dependency nodes sometimes mutate into value nodes and vice versa, so their
 structures have to match.
 
 @d dep_value(A) mp_do_dep_value(mp, (mp_node)(A)) /* the |value| field in a |dependent| variable */
-@d set_dep_value(A,B) do {
-  if (mp_type(A) == mp_independent) {
-	fprintf(stderr, "Bad call to set_dep_value on %d", __LINE__);
-  }
-  ((mp_value_node)(A))->data.val=(B);  /* half of the |value| field in a |dependent| variable */
-   FUNCTION_TRACE4("set_dep_value(%p,%d) on %d\n",A,B,__LINE__);
-   set_dep_list((A), NULL);
-   set_prev_dep((A), NULL);
- } while (0)
-@d dep_info(A) get_dep_info((A))
+@d set_dep_value(A,B) do_set_dep_value(mp,(A),(B)) 
+@d dep_info(A) get_dep_info(mp, (A))
 @d set_dep_info(A,B) do {
    mp_value_node d = (mp_value_node)(B);
-   FUNCTION_TRACE4("set_dep_info(%p,%p) on %d\n",A,d,__LINE__);
+   FUNCTION_TRACE4("set_dep_info(%p,%p) on %d\n",(A),d,__LINE__);
   ((mp_value_node)(A))->parent_ = (mp_node)d;
 } while (0)
 @d dep_list(A) ((mp_value_node)(A))->attr_head_  /* half of the |value| field in a |dependent| variable */
 @d set_dep_list(A,B) do {
    mp_value_node d = (mp_value_node)(B);
-   FUNCTION_TRACE4("set_dep_list(%p,%p) on %d\n",A,d,__LINE__);
+   FUNCTION_TRACE4("set_dep_list(%p,%p) on %d\n",(A),d,__LINE__);
    dep_list((A)) = (mp_node)d;
 } while (0)
 @d prev_dep(A) ((mp_value_node)(A))->subscr_head_ /* the other half; makes a doubly linked list */
 @d set_prev_dep(A,B) do {
    mp_value_node d = (mp_value_node)(B);
-   FUNCTION_TRACE4("set_prev_dep(%p,%p) on %d\n",A,d,__LINE__);
+   FUNCTION_TRACE4("set_prev_dep(%p,%p) on %d\n",(A),d,__LINE__);
    prev_dep((A)) = (mp_node)d;
 } while (0)
 
 @c
-static mp_node get_dep_info (mp_value_node p) {
+static mp_node get_dep_info (MP mp, mp_value_node p) {
   mp_node d;
   d = p->parent_;               /* half of the |value| field in a |dependent| variable */
   FUNCTION_TRACE3 ("%p = dep_info(%p)\n", d, p);
   return d;
 }
-
+static void do_set_dep_value (MP mp, mp_value_node p, halfword q) {
+   p->data.val=q;  /* half of the |value| field in a |dependent| variable */
+   FUNCTION_TRACE3("set_dep_value(%p,%d)\n", p, q);
+   p->attr_head_ = NULL;
+   p->subscr_head_ = NULL;
+}
 
 @ @<Declarations...@>=
-static mp_node get_dep_info (mp_value_node p);
+static mp_node get_dep_info (MP mp, mp_value_node p);
+static void do_set_dep_value (MP mp, mp_value_node p, halfword q) ;
 
 @ 
 
