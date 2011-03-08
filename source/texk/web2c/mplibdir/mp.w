@@ -13812,7 +13812,7 @@ representing the next input token.
 $$\vbox{\halign{#\hfil\cr
   \hbox{|cur_cmd| denotes a command code from the long list of codes
    given earlier;}\cr
-  \hbox{|cur_mod| denotes a modifier of the command code;}\cr
+  \hbox{|cur_mod| denotes a modifier or operand of the command code;}\cr
   \hbox{|cur_sym| is the hash address of the symbolic token that was
    just scanned,}\cr
   \hbox{\qquad or zero in the case of a numeric or string
@@ -13833,30 +13833,24 @@ activities, and there is a finite state control for each level of the
 input mechanism. These stacks record the current state of an implicitly
 recursive process, but the |get_next| procedure is not recursive.
 
-Unfortunately, |cur_mod| cannot be of type |mp_name_type_type| because
-in a few places near-arbitrary values are stored in it (if tests, macro texts,
-number scanning).
-
-@d cur_cmd() mp->cur_cmd_
-@d set_cur_cmd(A) mp->cur_cmd_=(A)
-@d cur_mod() mp->cur_mod_
-@d set_cur_mod(A) mp->cur_mod_=(A)
-@d cur_mod_node() mp->cur_mod_node_
-@d set_cur_mod_node(A) mp->cur_mod_node_=(A)
-@d cur_mod_str() mp->cur_mod_str_
-@d set_cur_mod_str(A) mp->cur_mod_str_=(A)
-@d cur_sym() mp->cur_sym_
-@d set_cur_sym(A) mp->cur_sym_=(A)
-@d cur_sym_mod() mp->cur_sym_mod_
-@d set_cur_sym_mod(A) mp->cur_sym_mod_=(A)
+@d cur_cmd() (unsigned)(mp->cur_mod_->type)
+@d set_cur_cmd(A) mp->cur_mod_->type=(A)
+@d cur_mod() mp->cur_mod_->data.val /* operand of current command */
+@d set_cur_mod(A) mp->cur_mod_->data.val=(A)
+@d cur_mod_node() mp->cur_mod_->data.node
+@d set_cur_mod_node(A) mp->cur_mod_->data.node=(A)
+@d cur_mod_str() mp->cur_mod_->data.str
+@d set_cur_mod_str(A) mp->cur_mod_->data.str=(A)
+@d cur_sym() mp->cur_mod_->data.sym
+@d set_cur_sym(A) mp->cur_mod_->data.sym=(A)
+@d cur_sym_mod() mp->cur_mod_->name_type
+@d set_cur_sym_mod(A) mp->cur_mod_->name_type=(A)
 
 @<Glob...@>=
-mp_command_code cur_cmd_;        /* current command set by |get_next| */
-integer cur_mod_;        /* operand of current command */
-mp_node cur_mod_node_;   /* operand of current command, if it is a node */
-str_number cur_mod_str_; /* operand of current command, if it is a string */
-mp_sym cur_sym_;         /* the current symbol */
-quarterword cur_sym_mod_;  /* the |name_type| of |param_stack| cases of |cur_sym| */
+mp_node cur_mod_;         /* current command, symbol, and its operands */
+
+@ @<Initialize table...@>=
+mp->cur_mod_ = mp_get_symbolic_node(mp);
 
 @ The |print_cmd_mod| routine prints a symbolic interpretation of a
 command code and its modifier.
@@ -15667,7 +15661,7 @@ When such parameters are present, they are called \.{(SUFFIX0)},
 
 @<Types...@>=
 typedef struct mp_subst_list_item {
-  quarterword info_mod;
+  mp_name_type_type info_mod;
   quarterword value_mod;
   mp_sym info;
   halfword value_data;
