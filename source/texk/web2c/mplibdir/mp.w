@@ -172,7 +172,7 @@ most compilers understand the non-debug version.
 @^system dependencies@>
 
 @(mpmp.h@>=
-#define DEBUG 2
+#define DEBUG 0
 #if DEBUG>1
 void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...);
 #  define debug_printf(a1,a2,a3) do_debug_printf(mp, "", a1,a2,a3)
@@ -367,7 +367,7 @@ if (mp->troff_mode) {
   set_internal_from_scaled_int (mp_prologues, unity);
 }
 if (mp->start_sym != NULL) {    /* insert the `\&{everyjob}' symbol */
-  mp->cur_sym = mp->start_sym;
+  set_cur_sym (mp->start_sym);
   mp_back_input (mp);
 }
 
@@ -1897,9 +1897,9 @@ to be familiar with \MP's input stacks.
 
 @<Delete tokens...@>=
 {
-  s1 = mp->cur_cmd;
-  s2 = mp->cur_mod;
-  s3 = mp->cur_sym;
+  s1 = cur_cmd();
+  s2 = cur_mod();
+  s3 = cur_sym();
   mp->OK_to_interrupt = false;
   if ((mp->last > mp->first + 1) && (mp->buffer[mp->first + 1] >= '0')
       && (mp->buffer[mp->first + 1] <= '9'))
@@ -1911,9 +1911,9 @@ to be familiar with \MP's input stacks.
     @<Decrease the string reference count, if the current token is a string@>;
     c--;
   };
-  mp->cur_cmd = s1;
-  mp->cur_mod = s2;
-  mp->cur_sym = s3;
+  set_cur_cmd (s1);
+  set_cur_mod (s2);
+  set_cur_sym (s3);
   mp->OK_to_interrupt = true;
   help_ptr = 2;
   help_line[1] = "I have just deleted some text, as you asked.";
@@ -2860,7 +2860,7 @@ At any rate, here is the list, for future reference.
 @d mp_max_expression_command mp_equals
 @d mp_min_secondary_command mp_and_command
 @d mp_max_secondary_command mp_secondary_binary
-@d mp_end_of_statement (mp->cur_cmd>mp_comma)
+@d mp_end_of_statement (cur_cmd()>mp_comma)
 
 
 @<Enumeration types@>=
@@ -4335,10 +4335,10 @@ contains the new |eqtb| pointer after |primitive| has acted.
 @c
 static void mp_primitive (MP mp, const char *ss, halfword c, halfword o) {
   char *s = mp_xstrdup (mp, ss);
-  mp->cur_sym = mp_id_lookup (mp, s, strlen (s), true);
+  set_cur_sym (mp_id_lookup (mp, s, strlen (s), true));
   mp_xfree (s);
-  set_eq_type (mp->cur_sym, c);
-  set_equiv (mp->cur_sym, o);
+  set_eq_type (cur_sym(), c);
+  set_equiv (cur_sym(), o);
 }
 
 
@@ -4404,7 +4404,7 @@ mp_primitive (mp, "addto", mp_add_to_command, 0);
 mp_primitive (mp, "atleast", mp_at_least, 0);
 @:at_least_}{\&{atleast} primitive@>;
 mp_primitive (mp, "begingroup", mp_begin_group, 0);
-mp->bg_loc = mp->cur_sym;
+mp->bg_loc = cur_sym();
 @:begin_group_}{\&{begingroup} primitive@>;
 mp_primitive (mp, "controls", mp_controls, 0);
 @:controls_}{\&{controls} primitive@>;
@@ -4413,7 +4413,7 @@ mp_primitive (mp, "curl", mp_curl_command, 0);
 mp_primitive (mp, "delimiters", mp_delimiters, 0);
 @:delimiters_}{\&{delimiters} primitive@>;
 mp_primitive (mp, "endgroup", mp_end_group, 0);
-mp->eg_loc = mp->cur_sym;
+mp->eg_loc = cur_sym();
 mp->frozen_end_group = mp_frozen_primitive (mp, "endgroup", mp_end_group, 0);
 @:endgroup_}{\&{endgroup} primitive@>;
 mp_primitive (mp, "everyjob", mp_every_job_command, 0);
@@ -13837,14 +13837,26 @@ Unfortunately, |cur_mod| cannot be of type |mp_name_type_type| because
 in a few places near-arbitrary values are stored in it (if tests, macro texts,
 number scanning).
 
+@d cur_cmd() mp->cur_cmd_
+@d set_cur_cmd(A) mp->cur_cmd_=(A)
+@d cur_mod() mp->cur_mod_
+@d set_cur_mod(A) mp->cur_mod_=(A)
+@d cur_mod_node() mp->cur_mod_node_
+@d set_cur_mod_node(A) mp->cur_mod_node_=(A)
+@d cur_mod_str() mp->cur_mod_str_
+@d set_cur_mod_str(A) mp->cur_mod_str_=(A)
+@d cur_sym() mp->cur_sym_
+@d set_cur_sym(A) mp->cur_sym_=(A)
+@d cur_sym_mod() mp->cur_sym_mod_
+@d set_cur_sym_mod(A) mp->cur_sym_mod_=(A)
+
 @<Glob...@>=
-mp_command_code cur_cmd;        /* current command set by |get_next| */
-integer cur_mod;        /* operand of current command */
-mp_node cur_mod_node;   /* operand of current command, if it is a node */
-str_number cur_mod_str; /* operand of current command, if it is a string */
-mp_sym cur_sym;         /* the current symbol */
-mp_sym cur_sym2;        /* a secondary symbol, needed for use of \&{delimiters} */
-quarterword cur_sym_mod;  /* the |name_type| of |param_stack| cases of |cur_sym| */
+mp_command_code cur_cmd_;        /* current command set by |get_next| */
+integer cur_mod_;        /* operand of current command */
+mp_node cur_mod_node_;   /* operand of current command, if it is a node */
+str_number cur_mod_str_; /* operand of current command, if it is a string */
+mp_sym cur_sym_;         /* the current symbol */
+quarterword cur_sym_mod_;  /* the |name_type| of |param_stack| cases of |cur_sym| */
 
 @ The |print_cmd_mod| routine prints a symbolic interpretation of a
 command code and its modifier.
@@ -13871,7 +13883,7 @@ void mp_print_cmd_mod (MP mp, integer c, integer m) {
 @ Here is a procedure that displays a given command in braces, in the
 user's transcript file.
 
-@d show_cur_cmd_mod mp_show_cmd_mod(mp, mp->cur_cmd,mp->cur_mod)
+@d show_cur_cmd_mod mp_show_cmd_mod(mp, cur_cmd(),cur_mod())
 
 @c
 static void mp_show_cmd_mod (MP mp, integer c, integer m) {
@@ -14529,28 +14541,28 @@ token by the |cur_tok| routine.
 @<Declare the procedure called |make_exp_copy|@>;
 static mp_node mp_cur_tok (MP mp) {
   mp_node p;    /* a new token node */
-  if (mp->cur_sym == NULL && mp->cur_sym_mod == 0) {
-    if (mp->cur_cmd == mp_capsule_token) {
+  if (cur_sym() == NULL && cur_sym_mod() == 0) {
+    if (cur_cmd() == mp_capsule_token) {
       mp_value save_exp = mp->cur_exp;  /* |cur_exp| to be restored */
-      mp_make_exp_copy (mp, mp->cur_mod_node);
+      mp_make_exp_copy (mp, cur_mod_node());
       p = mp_stash_cur_exp (mp);
       mp_link (p) = NULL;
       mp->cur_exp = save_exp;
     } else {
       p = mp_get_token_node (mp);
       mp_name_type (p) = mp_token;
-      if (mp->cur_cmd == mp_numeric_token) {
-        set_value (p, mp->cur_mod);
+      if (cur_cmd() == mp_numeric_token) {
+        set_value (p, cur_mod());
         mp_type (p) = mp_known;
       } else {
-        set_value_str (p, mp->cur_mod_str);
+        set_value_str (p, cur_mod_str());
         mp_type (p) = mp_string_type;
       }
     }
   } else {
     p = mp_get_symbolic_node (mp);
-    set_mp_sym_sym (p, mp->cur_sym);
-    mp_name_type (p) = mp->cur_sym_mod;
+    set_mp_sym_sym (p, cur_sym());
+    mp_name_type (p) = cur_sym_mod();
   }
   return p;
 }
@@ -14630,7 +14642,7 @@ does not actually end with 'dump', so we capture that case here as well.
 @c
 static void mp_end_file_reading (MP mp) {
   if (mp->reading_preload && mp->input_ptr == 0) {
-      mp->cur_sym = mp->frozen_dump;
+      set_cur_sym(mp->frozen_dump);
       mp_back_input (mp);
       return;
   }
@@ -14826,10 +14838,10 @@ static boolean mp_check_outer_validity (MP mp) {
              NULL };
       mp_snprintf(msg, 256, "Incomplete if; all text was ignored after line %d", (int)mp->warning_info_line);
 @.Incomplete if...@>;
-      if (mp->cur_sym == NULL) {
+      if (cur_sym() == NULL) {
         hlp[0] = "The file ended while I was skipping conditional text.";
       } 
-      mp->cur_sym = mp->frozen_fi;
+      set_cur_sym (mp->frozen_fi);
       mp_ins_error (mp, msg, hlp, false);
     }
     return false;
@@ -14838,7 +14850,7 @@ static boolean mp_check_outer_validity (MP mp) {
 
 
 @ @<Check if the file has ended while flushing \TeX\ material and set...@>=
-if (mp->cur_sym != NULL) {
+if (cur_sym() != NULL) {
   return true;
 } else {
   char msg[256];
@@ -14847,17 +14859,17 @@ if (mp->cur_sym != NULL) {
          "finish this TeX material.  I've inserted `etex' now.",
           NULL };
   mp_snprintf(msg, 256, "TeX mode didn't end; all text was ignored after line %d", (int)mp->warning_info_line);
-  mp->cur_sym = mp->frozen_etex;
+  set_cur_sym(mp->frozen_etex);
   mp_ins_error (mp, msg, hlp, false);
   return false;
 }
 
 
 @ @<Back up an outer symbolic token so that it can be reread@>=
-if (mp->cur_sym != NULL) {
+if (cur_sym() != NULL) {
   p = mp_get_symbolic_node (mp);
-  set_mp_sym_sym (p, mp->cur_sym);
-  mp_name_type (p) = mp->cur_sym_mod;
+  set_mp_sym_sym (p, cur_sym());
+  mp_name_type (p) = cur_sym_mod();
   back_list (p);                /* prepare to read the symbolic token again */
 }
 
@@ -14872,7 +14884,7 @@ if (mp->cur_sym != NULL) {
          "you'd better type `E' or `X' now and fix your file.",
          NULL };
   mp_runaway (mp);              /* print the definition-so-far */
-  if (mp->cur_sym == NULL) {
+  if (cur_sym() == NULL) {
     msg_start = "File ended while scanning";
 @.File ended while scanning...@>
   } else {
@@ -14895,18 +14907,18 @@ points to the string that might be changed.
 case flushing:
   mp_snprintf (msg, 256, "%s to the end of the statement", msg_start);
   hlp[0] = "A previous error seems to have propagated,";
-  mp->cur_sym = mp->frozen_semicolon;
+  set_cur_sym(mp->frozen_semicolon);
   break;
 case absorbing:
   mp_snprintf (msg, 256, "%s a text argument", msg_start);
   hlp[0] = "It seems that a right delimiter was left out,";
   if (mp->warning_info == NULL) {
-    mp->cur_sym = mp->frozen_end_group;
+    set_cur_sym(mp->frozen_end_group);
   } else {
-    mp->cur_sym = mp->frozen_right_delimiter;
+    set_cur_sym(mp->frozen_right_delimiter);
     /* the next line makes sure that the inserted delimiter will
       match the delimiter that already was read. */
-    set_equiv_sym (mp->cur_sym, mp->warning_info);
+    set_equiv_sym (cur_sym(), mp->warning_info);
   }
   break;
 case var_defining:
@@ -14920,14 +14932,14 @@ case var_defining:
     mp_snprintf (msg, 256, "%s the definition of %s", msg_start, s->str);
     delete_str_ref(s);
   }
-  mp->cur_sym = mp->frozen_end_def;
+  set_cur_sym(mp->frozen_end_def);
   break;
 case op_defining:
   {
     char *s = mp_str(mp, text(mp->warning_info));
     mp_snprintf (msg, 256, "%s the definition of %s", msg_start, s);
   }
-  mp->cur_sym = mp->frozen_end_def;
+  set_cur_sym(mp->frozen_end_def);
   break;
 case loop_defining:
   {
@@ -14935,7 +14947,7 @@ case loop_defining:
     mp_snprintf (msg, 256, "%s the text of a %s loop", msg_start, s);
   }
   hlp[0] = "I suspect you have forgotten an `endfor',";
-  mp->cur_sym = mp->frozen_end_for;
+  set_cur_sym(mp->frozen_end_for);
 break;
 
 @ The |runaway| procedure displays the first part of the text that occurred
@@ -14992,8 +15004,8 @@ void mp_get_next (MP mp) {
   int class;    /* its class number */
   integer n, f; /* registers for decimal-to-binary conversion */
 RESTART:
-  mp->cur_sym = 0;
-  mp->cur_sym_mod = 0;
+  set_cur_sym(NULL);
+  set_cur_sym_mod(0);
   if (file_state) {
     @<Input from external file; |goto restart| if no input found,
     or |return| if a non-symbolic token is found@>;
@@ -15013,13 +15025,12 @@ is increased by |outer_tag|.
 @^inner loop@>
 
 @<Finish getting the symbolic token in |cur_sym|...@>=
-mp->cur_cmd = eq_type (mp->cur_sym);
-mp->cur_mod = equiv (mp->cur_sym);
-mp->cur_mod_node = equiv_node (mp->cur_sym);
-mp->cur_sym2 = equiv_sym (mp->cur_sym);
-if (mp->cur_cmd >= mp_outer_tag) {
+set_cur_cmd( eq_type (cur_sym()));
+set_cur_mod( equiv (cur_sym()));
+set_cur_mod_node(equiv_node (cur_sym()));
+if (cur_cmd() >= mp_outer_tag) {
   if (mp_check_outer_validity (mp))
-    mp->cur_cmd = mp->cur_cmd - mp_outer_tag;
+    set_cur_cmd(cur_cmd() - mp_outer_tag);
   else
     goto RESTART;
 }
@@ -15092,8 +15103,7 @@ FIN_NUMERIC_TOKEN:
   @<Pack the numeric and fraction parts of a numeric token
     and |return|@>;
 FOUND:
-  mp->cur_sym =
-    mp_id_lookup (mp, (char *) (mp->buffer + k), (size_t) (loc - k), true);
+  set_cur_sym(mp_id_lookup (mp, (char *) (mp->buffer + k), (size_t) (loc - k), true));
 }
 
 
@@ -15115,7 +15125,7 @@ FOUND:
 @ @<Get a string token and |return|@>=
 {
   if (mp->buffer[loc] == '"') {
-    mp->cur_mod_str = mp_rts(mp,"");
+    set_cur_mod_str(mp_rts(mp,""));
   } else {
     k = loc;
     mp->buffer[limit + 1] = xord ('"');
@@ -15130,10 +15140,10 @@ FOUND:
       append_char (mp->buffer[k]);
       incr (k);
     } while (k != loc);
-    mp->cur_mod_str = mp_make_string (mp);
+    set_cur_mod_str(mp_make_string (mp));
   }
   incr (loc);
-  mp->cur_cmd = mp_string_token;
+  set_cur_cmd(mp_string_token);
   return;
 }
 
@@ -15192,15 +15202,15 @@ if (n < 32768) {
          NULL };
   mp_error (mp, "Enormous number has been reduced", hlp, false);
 @.Enormous number...@>;
-  mp->cur_mod = EL_GORDO;
+  set_cur_mod(EL_GORDO);
 }
-mp->cur_cmd = mp_numeric_token;
+set_cur_cmd(mp_numeric_token);
 return
 
 @ @<Set |cur_mod:=n*unity+f| and check if it is uncomfortably large@>=
 {
-  mp->cur_mod = n * unity + f;
-  if (mp->cur_mod >= fraction_one) {
+  set_cur_mod(n * unity + f);
+  if (cur_mod() >= fraction_one) {
     if ((internal_value_to_halfword (mp_warning_check) > 0) &&
         (mp->scanner_status != tex_flushing)) {
       char msg[256];
@@ -15208,7 +15218,7 @@ return
              "with that big value; but it might be dangerous.",
              "(Set warningcheck:=0 to suppress this message.)",
              NULL };
-      mp_snprintf (msg, 256, "Number is too large (%s)", mp_string_scaled(mp,mp->cur_mod));
+      mp_snprintf (msg, 256, "Number is too large (%s)", mp_string_scaled(mp,cur_mod()));
 @.Number is too large@>;
       mp_error (mp, msg, hlp, true);
     }
@@ -15222,16 +15232,16 @@ return
 @<Input from token list;...@>=
 if (nloc != NULL && mp_type (nloc) == mp_symbol_node) { /* symbolic token */
   halfword cur_info = mp_sym_info (nloc);
-  mp->cur_sym = mp_sym_sym (nloc);
-  mp->cur_sym_mod = mp_name_type (nloc);
+  set_cur_sym(mp_sym_sym (nloc));
+  set_cur_sym_mod(mp_name_type (nloc));
   nloc = mp_link (nloc);        /* move to next */
-  if (mp->cur_sym_mod == mp_expr_sym) {
-    mp->cur_cmd = mp_capsule_token;
-    mp->cur_mod_node = mp->param_stack[param_start + cur_info];
-    mp->cur_sym_mod = 0;
-    mp->cur_sym = 0;
+  if (cur_sym_mod() == mp_expr_sym) {
+    set_cur_cmd(mp_capsule_token);
+    set_cur_mod_node(mp->param_stack[param_start + cur_info]);
+    set_cur_sym_mod(0);
+    set_cur_sym(NULL);
     return;
-  } else if (mp->cur_sym_mod == mp_suffix_sym || mp->cur_sym_mod == mp_text_sym) {
+  } else if (cur_sym_mod() == mp_suffix_sym || cur_sym_mod() == mp_text_sym) {
     mp_begin_token_list (mp,
                          mp->param_stack[param_start + cur_info],
                          (quarterword) parameter);
@@ -15249,17 +15259,16 @@ if (nloc != NULL && mp_type (nloc) == mp_symbol_node) { /* symbolic token */
 {
   if (mp_name_type (nloc) == mp_token) {
     if (mp_type (nloc) == mp_known) {
-      mp->cur_mod = value (nloc);
-      mp->cur_cmd = mp_numeric_token;
+      set_cur_mod(value (nloc));
+      set_cur_cmd(mp_numeric_token);
     } else {
-      mp->cur_mod_str = value_str (nloc);
-      mp->cur_cmd = mp_string_token;
-      add_str_ref (mp->cur_mod_str);
+      set_cur_mod_str(value_str (nloc));
+      set_cur_cmd(mp_string_token);
+      add_str_ref (cur_mod_str());
     }
   } else {
-    mp->cur_mod_node = nloc;
-    mp->cur_sym2 = NULL;
-    mp->cur_cmd = mp_capsule_token;
+    set_cur_mod_node(nloc);
+    set_cur_cmd(mp_capsule_token);
   }
   nloc = mp_link (nloc);
   return;
@@ -15360,7 +15369,7 @@ files should have an \&{mpxbreak} after the translation of the last
           NULL }; 
   mp->mpx_name[iindex] = mpx_finished;
   mp_error (mp, "mpx file ended unexpectedly", hlp, false);
-  mp->cur_sym = mp->frozen_mpx_break;
+  set_cur_sym(mp->frozen_mpx_break);
   goto COMMON_ENDING;
 }
 
@@ -15462,7 +15471,7 @@ is encountered.
 @c
 static void get_t_next (MP mp) {
   mp_get_next (mp);
-  if (mp->cur_cmd <= mp_max_pre_command)
+  if (cur_cmd() <= mp_max_pre_command)
     mp_t_next (mp);
 }
 
@@ -15476,20 +15485,20 @@ static void mp_start_mpx_input (MP mp);
 static void mp_t_next (MP mp) {
   int old_status;       /* saves the |scanner_status| */
   integer old_info;     /* saves the |warning_info| */
-  while (mp->cur_cmd <= mp_max_pre_command) {
-    if (mp->cur_cmd == mp_mpx_break) {
+  while (cur_cmd() <= mp_max_pre_command) {
+    if (cur_cmd() == mp_mpx_break) {
       if (!file_state || (mp->mpx_name[iindex] == absent)) {
         @<Complain about a misplaced \&{mpxbreak}@>;
       } else {
         mp_end_mpx_reading (mp);
         goto TEX_FLUSH;
       }
-    } else if (mp->cur_cmd == mp_start_tex) {
+    } else if (cur_cmd() == mp_start_tex) {
       if (token_state || (name <= max_spec_src)) {
         @<Complain that we are not reading a file@>;
       } else if (mpx_reading) {
         @<Complain that \.{MPX} files cannot contain \TeX\ material@>;
-      } else if ((mp->cur_mod != verbatim_code) &&
+      } else if ((cur_mod() != verbatim_code) &&
                  (mp->mpx_name[iindex] != mpx_finished)) {
         if (!mp_begin_mpx_reading (mp))
           mp_start_mpx_input (mp);
@@ -15519,7 +15528,7 @@ mp->scanner_status = tex_flushing;
 mp->warning_info_line = line;
 do {
   mp_get_next (mp);
-} while (mp->cur_cmd != mp_etex_marker);
+} while (cur_cmd() != mp_etex_marker);
 mp->scanner_status = old_status;
 mp->warning_info_line = old_info
 
@@ -15681,16 +15690,16 @@ static mp_node mp_scan_toks (MP mp, mp_command_code terminator,
   while (1) {
     get_t_next (mp);
     cur_data = -1;
-    if (mp->cur_sym != NULL) {
+    if (cur_sym() != NULL) {
       @<Substitute for |cur_sym|, if it's on the |subst_list|@>;
-      if (mp->cur_cmd == terminator) {
+      if (cur_cmd() == terminator) {
         @<Adjust the balance; |break| if it's zero@>;
-      } else if (mp->cur_cmd == mp_macro_special) {
+      } else if (cur_cmd() == mp_macro_special) {
         /* Handle quoted symbols, \.{\#\AT!}, \.{\AT!}, or \.{\AT!\#} */
-        if (mp->cur_mod == quote) {
+        if (cur_mod() == quote) {
           get_t_next (mp);
-        } else if (mp->cur_mod <= suffix_count) {
-          cur_data = mp->cur_mod - 1;
+        } else if (cur_mod() <= suffix_count) {
+          cur_data = cur_mod() - 1;
           cur_data_mod = mp_suffix_sym;
         }
       }
@@ -15719,10 +15728,10 @@ static mp_node mp_scan_toks (MP mp, mp_command_code terminator,
 {
   q = subst_list;
   while (q != NULL) {
-    if (q->info == mp->cur_sym && q->info_mod == mp->cur_sym_mod) {
+    if (q->info == cur_sym() && q->info_mod == cur_sym_mod()) {
       cur_data = q->value_data;
       cur_data_mod = q->value_mod;
-      mp->cur_cmd = mp_relax;
+      set_cur_cmd(mp_relax);
       break;
     }
     q = q->link;
@@ -15731,7 +15740,7 @@ static mp_node mp_scan_toks (MP mp, mp_command_code terminator,
 
 
 @ @<Adjust the balance; |break| if it's zero@>=
-if (mp->cur_mod > 0) {
+if (cur_mod() > 0) {
   incr (balance);
 } else {
   decr (balance);
@@ -15787,17 +15796,17 @@ hence \MP's tables won't get fouled up.
 static void mp_get_symbol (MP mp) {                               /* sets |cur_sym| to a safe symbol */
 RESTART:
   get_t_next (mp);
-  if ((mp->cur_sym == NULL) || mp_is_frozen(mp, mp->cur_sym)) {
+  if ((cur_sym() == NULL) || mp_is_frozen(mp, cur_sym())) {
     const char *hlp[] = {
            "Sorry: You can\'t redefine a number, string, or expr.",
            "I've inserted an inaccessible symbol so that your",
            "definition will be completed without mixing me up too badly.",
            NULL };
-    if (mp->cur_sym != NULL)
+    if (cur_sym() != NULL)
       hlp[0] = "Sorry: You can\'t redefine my error-recovery tokens.";
-    else if (mp->cur_cmd == mp_string_token)
-      delete_str_ref (mp->cur_mod_str);
-    mp->cur_sym = mp->frozen_inaccessible;
+    else if (cur_cmd() == mp_string_token)
+      delete_str_ref (cur_mod_str());
+    set_cur_sym(mp->frozen_inaccessible);
     mp_ins_error (mp, "Missing symbolic token inserted", hlp, true);
 @.Missing symbolic token...@>;
     goto RESTART;
@@ -15812,7 +15821,7 @@ former value, if it was a variable. The following stronger version of
 @c
 static void mp_get_clear_symbol (MP mp) {
   mp_get_symbol (mp);
-  mp_clear_symbol (mp, mp->cur_sym, false);
+  mp_clear_symbol (mp, cur_sym(), false);
 }
 
 
@@ -15821,8 +15830,8 @@ or assignment sign comes along at the proper place in a macro definition.
 
 @c
 static void mp_check_equals (MP mp) {
-  if (mp->cur_cmd != mp_equals)
-    if (mp->cur_cmd != mp_assignment) {
+  if (cur_cmd() != mp_equals)
+    if (cur_cmd() != mp_assignment) {
       const char *hlp[] = {
              "The next thing in this `def' should have been `=',",
              "because I've already looked at the definition heading.",
@@ -15845,21 +15854,21 @@ static void mp_make_op_def (MP mp) {
   mp_command_code m;       /* the type of definition */
   mp_node q, r; /* for list manipulation */
   mp_subst_list_item *qm = NULL, *qn = NULL;
-  m = mp->cur_mod;
+  m = cur_mod();
   mp_get_symbol (mp);
   qm = xmalloc (1, sizeof (mp_subst_list_item));
   qm->link = NULL;
-  qm->info = mp->cur_sym;
-  qm->info_mod = mp->cur_sym_mod;
+  qm->info = cur_sym();
+  qm->info_mod = cur_sym_mod();
   qm->value_data = 0;
   qm->value_mod = mp_expr_sym;
   mp_get_clear_symbol (mp);
-  mp->warning_info = mp->cur_sym;
+  mp->warning_info = cur_sym();
   mp_get_symbol (mp);
   qn = xmalloc (1, sizeof (mp_subst_list_item));
   qn->link = qm;
-  qn->info = mp->cur_sym;
-  qn->info_mod = mp->cur_sym_mod;
+  qn->info = cur_sym();
+  qn->info_mod = cur_sym_mod();
   qn->value_data = 1;
   qn->value_mod = mp_expr_sym;
   get_t_next (mp);
@@ -15933,7 +15942,7 @@ static void mp_scan_def (MP mp) {
   mp_node p;    /* temporary storage */
   quarterword sym_type; /* |expr_sym|, |suffix_sym|, or |text_sym| */
   mp_sym l_delim, r_delim;      /* matching delimiters */
-  m = mp->cur_mod;
+  m = cur_mod();
   c = mp_general_macro;
   mp_link (mp->hold_head) = NULL;
   q = mp_get_symbolic_node (mp);
@@ -15942,10 +15951,10 @@ static void mp_scan_def (MP mp) {
   @<Scan the token or variable to be defined;
     set |n|, |scanner_status|, and |warning_info|@>;
   k = n;
-  if (mp->cur_cmd == mp_left_delimiter) {
+  if (cur_cmd() == mp_left_delimiter) {
     @<Absorb delimited parameters, putting them into lists |q| and |r|@>;
   }
-  if (mp->cur_cmd == mp_param_type) {
+  if (cur_cmd() == mp_param_type) {
     @<Absorb undelimited parameters, putting them into list |r|@>;
   }
   mp_check_equals (mp);
@@ -15984,7 +15993,7 @@ mp_sym eg_loc;  /* hash addresses of `\.{begingroup}' and `\.{endgroup}' */
 @ @<Scan the token or variable to be defined;...@>=
 if (m == start_def) {
   mp_get_clear_symbol (mp);
-  mp->warning_info = mp->cur_sym;
+  mp->warning_info = cur_sym();
   get_t_next (mp);
   mp->scanner_status = op_defining;
   n = 0;
@@ -15999,7 +16008,7 @@ if (m == start_def) {
     @<Change to `\.{a bad variable}'@>;
   mp->scanner_status = var_defining;
   n = 2;
-  if (mp->cur_cmd == mp_macro_special && mp->cur_mod == macro_suffix) {    /* \.{\AT!\#} */
+  if (cur_cmd() == mp_macro_special && cur_mod() == macro_suffix) {    /* \.{\AT!\#} */
     n = 3;
     get_t_next (mp);
   }
@@ -16032,14 +16041,14 @@ mp_free_value_node (mp, mp->bad_vardef);
 
 @ @<Absorb delimited parameters, putting them into lists |q| and |r|@>=
 do {
-  l_delim = mp->cur_sym;
-  r_delim = mp->cur_sym2;
+  l_delim = cur_sym();
+  r_delim = equiv_sym (cur_sym());
   get_t_next (mp);
-  if ((mp->cur_cmd == mp_param_type) && (mp->cur_mod == mp_expr_param)) {
+  if ((cur_cmd() == mp_param_type) && (cur_mod() == mp_expr_param)) {
     sym_type = mp_expr_sym;
-  } else if ((mp->cur_cmd == mp_param_type) && (mp->cur_mod == mp_suffix_param)) {
+  } else if ((cur_cmd() == mp_param_type) && (cur_mod() == mp_suffix_param)) {
     sym_type = mp_suffix_sym;
-  } else if ((mp->cur_cmd == mp_param_type) && (mp->cur_mod == mp_text_param)) {
+  } else if ((cur_cmd() == mp_param_type) && (cur_mod() == mp_text_param)) {
     sym_type = mp_text_sym;
   } else {
     const char *hlp[] = { "You should've had `expr' or `suffix' or `text' here.", NULL };
@@ -16050,7 +16059,7 @@ do {
   @<Absorb parameter tokens for type |sym_type|@>;
   mp_check_delimiter (mp, l_delim, r_delim);
   get_t_next (mp);
-} while (mp->cur_cmd == mp_left_delimiter)
+} while (cur_cmd() == mp_left_delimiter)
 
 @ @<Absorb parameter tokens for type |sym_type|@>=
 do {
@@ -16063,43 +16072,43 @@ do {
   rp->link = NULL;
   rp->value_data = k;
   rp->value_mod = sym_type;
-  rp->info = mp->cur_sym;
-  rp->info_mod = mp->cur_sym_mod;
+  rp->info = cur_sym();
+  rp->info_mod = cur_sym_mod();
   mp_check_param_size (mp, k);
   incr (k);
   rp->link = r;
   r = rp;
   get_t_next (mp);
-} while (mp->cur_cmd == mp_comma)
+} while (cur_cmd() == mp_comma)
 
 @ @<Absorb undelimited parameters, putting them into list |r|@>=
 {
   rp = xmalloc (1, sizeof (mp_subst_list_item));
   rp->link = NULL;
   rp->value_data = k;
-  if (mp->cur_mod == mp_expr_param) {
+  if (cur_mod() == mp_expr_param) {
     rp->value_mod = mp_expr_sym;
     c = mp_expr_macro;
-  } else if (mp->cur_mod == mp_suffix_param) {
+  } else if (cur_mod() == mp_suffix_param) {
     rp->value_mod = mp_suffix_sym;
     c = mp_suffix_macro;
-  } else if (mp->cur_mod == mp_text_param) {
+  } else if (cur_mod() == mp_text_param) {
     rp->value_mod = mp_text_sym;
     c = mp_text_macro;
   } else {
-    c = mp->cur_mod;
+    c = cur_mod();
     rp->value_mod = mp_expr_sym;
   }
   mp_check_param_size (mp, k);
   incr (k);
   mp_get_symbol (mp);
-  rp->info = mp->cur_sym;
-  rp->info_mod = mp->cur_sym_mod;
+  rp->info = cur_sym();
+  rp->info_mod = cur_sym_mod();
   rp->link = r;
   r = rp;
   get_t_next (mp);
   if (c == mp_expr_macro)
-    if (mp->cur_cmd == mp_of_token) {
+    if (cur_cmd() == mp_of_token) {
       c = mp_of_macro;
       rp = xmalloc (1, sizeof (mp_subst_list_item));
       rp->link = NULL;
@@ -16107,8 +16116,8 @@ do {
       rp->value_data = k;
       rp->value_mod = mp_expr_sym;
       mp_get_symbol (mp);
-      rp->info = mp->cur_sym;
-      rp->info_mod = mp->cur_sym_mod;
+      rp->info = cur_sym();
+      rp->info_mod = cur_sym_mod();
       rp->link = r;
       r = rp;
       get_t_next (mp);
@@ -16204,9 +16213,9 @@ static void mp_expand (MP mp) {
   mp->expand_depth_count++;
   mp_check_expansion_depth (mp);
   if (internal_value_to_halfword (mp_tracing_commands) > unity)
-    if (mp->cur_cmd != mp_defined_macro)
+    if (cur_cmd() != mp_defined_macro)
       show_cur_cmd_mod;
-  switch (mp->cur_cmd) {
+  switch (cur_cmd()) {
   case mp_if_test:
     mp_conditional (mp);        /* this procedure is discussed in Part 36 below */
     break;
@@ -16217,7 +16226,7 @@ static void mp_expand (MP mp) {
     @<Initiate or terminate input from a file@>;
     break;
   case mp_iteration:
-    if (mp->cur_mod == end_for) {
+    if (cur_mod() == end_for) {
       @<Scold the user for having an extra \&{endfor}@>;
     } else {
       mp_begin_iteration (mp);  /* this procedure is discussed in Part 37 below */
@@ -16238,7 +16247,7 @@ static void mp_expand (MP mp) {
     @<Put a string into the input buffer@>;
     break;
   case mp_defined_macro:
-    mp_macro_call (mp, mp->cur_mod_node, NULL, mp->cur_sym);
+    mp_macro_call (mp, cur_mod_node(), NULL, cur_sym());
     break;
   default:
     break; /* make the compiler happy */
@@ -16277,7 +16286,7 @@ else
 break;
 
 @ @<Initiate or terminate input...@>=
-if (mp->cur_mod > 0)
+if (cur_mod() > 0)
   mp->force_eof = true;
 else
   mp_start_input (mp)
@@ -16314,7 +16323,7 @@ that will be |NULL| if no loop is in progress.
       const char *hlp[] = {
           "Why say `exitif' when there's nothing to exit from?", 
           NULL };
-      if (mp->cur_cmd == mp_semicolon)
+      if (cur_cmd() == mp_semicolon)
         mp_error (mp, "No loop is in progress", hlp, true);
       else
         mp_back_error (mp, "No loop is in progress", hlp, true);
@@ -16322,7 +16331,7 @@ that will be |NULL| if no loop is in progress.
     } else {
       @<Exit prematurely from an iteration@>;
     }
-  } else if (mp->cur_cmd != mp_semicolon) {
+  } else if (cur_cmd() != mp_semicolon) {
     const char *hlp[] = {
            "After `exitif <boolean exp>' I expect to see a semicolon.",
            "I shall pretend that one was there.",
@@ -16361,7 +16370,7 @@ is less than |loop_text|.
   get_t_next (mp);
   p = mp_cur_tok (mp);
   get_t_next (mp);
-  if (mp->cur_cmd < mp_min_command)
+  if (cur_cmd() < mp_min_command)
     mp_expand (mp);
   else
     mp_back_input (mp);
@@ -16435,15 +16444,15 @@ static void mp_get_x_next (MP mp);
 void mp_get_x_next (MP mp) {
   mp_node save_exp;     /* a capsule to save |cur_type| and |cur_exp| */
   get_t_next (mp);
-  if (mp->cur_cmd < mp_min_command) {
+  if (cur_cmd() < mp_min_command) {
     save_exp = mp_stash_cur_exp (mp);
     do {
-      if (mp->cur_cmd == mp_defined_macro)
-        mp_macro_call (mp, mp->cur_mod_node, NULL, mp->cur_sym);
+      if (cur_cmd() == mp_defined_macro)
+        mp_macro_call (mp, cur_mod_node(), NULL, cur_sym());
       else
         mp_expand (mp);
       get_t_next (mp);
-    } while (mp->cur_cmd < mp_min_command);
+    } while (cur_cmd() < mp_min_command);
     mp_unstash_cur_exp (mp, save_exp);  /* that restores |cur_type| and |cur_exp| */
   }
 }
@@ -16588,13 +16597,13 @@ void mp_print_arg (MP mp, mp_node q, integer n, halfword b, quarterword bb) {
 
 
 @ @<Scan the remaining arguments, if any; set |r|...@>=
-mp->cur_cmd = mp_comma + 1;        /* anything |<>comma| will do */
+set_cur_cmd(mp_comma + 1);        /* anything |<>comma| will do */
 while (mp_name_type (r) == mp_expr_sym ||
        mp_name_type (r) == mp_suffix_sym || mp_name_type (r) == mp_text_sym) {
   @<Scan the delimited argument represented by |mp_sym_info(r)|@>;
   r = mp_link (r);
 }
-if (mp->cur_cmd == mp_comma) {
+if (cur_cmd() == mp_comma) {
   char msg[256];
   const char *hlp[] = {
          "I'm going to assume that the comma I just read was a",
@@ -16630,9 +16639,9 @@ and |cur_exp| later. (Several things in this program depend on each other,
 and it's necessary to jump into the circle somewhere.)
 
 @<Scan the delimited argument represented by |mp_sym_info(r)|@>=
-if (mp->cur_cmd != mp_comma) {
+if (cur_cmd() != mp_comma) {
   mp_get_x_next (mp);
-  if (mp->cur_cmd != mp_left_delimiter) {
+  if (cur_cmd() != mp_left_delimiter) {
     char msg[256];
     const char *hlp[] = {
            "That macro has more parameters than you thought.",
@@ -16656,21 +16665,21 @@ if (mp->cur_cmd != mp_comma) {
       mp->cur_exp.type = mp_known;
     }
     mp_back_error (mp, msg, hlp, true);
-    mp->cur_cmd = mp_right_delimiter;
+    set_cur_cmd(mp_right_delimiter);
     goto FOUND;
   }
-  l_delim = mp->cur_sym;
-  r_delim = mp->cur_sym2;
+  l_delim = cur_sym();
+  r_delim = equiv_sym (cur_sym());
 }
 @<Scan the argument represented by |mp_sym_info(r)|@>;
-if (mp->cur_cmd != mp_comma)
+if (cur_cmd() != mp_comma)
   @<Check that the proper right delimiter was present@>;
 FOUND:
 @<Append the current expression to |arg_list|@>
  
 
 @ @<Check that the proper right delim...@>=
-if ((mp->cur_cmd != mp_right_delimiter) || (mp->cur_sym2 != l_delim)) {
+if ((cur_cmd() != mp_right_delimiter) || (equiv_sym (cur_sym()) != l_delim)) {
   if (mp_name_type (mp_link (r)) == mp_expr_sym ||
       mp_name_type (mp_link (r)) == mp_suffix_sym ||
       mp_name_type (mp_link (r)) == mp_text_sym) {
@@ -16681,7 +16690,7 @@ if ((mp->cur_cmd != mp_right_delimiter) || (mp->cur_sym2 != l_delim)) {
            NULL };
     mp_back_error (mp, "Missing `,' has been inserted", hlp, true);
 @.Missing `,'@>;
-    mp->cur_cmd = mp_comma;
+    set_cur_cmd(mp_comma);
   } else {
     char msg[256];
     const char *hlp[] = {
@@ -16765,14 +16774,14 @@ void mp_scan_text_arg (MP mp, mp_sym l_delim, mp_sym r_delim) {
 
 
 @ @<Adjust the balance for a delimited argument...@>=
-if (mp->cur_cmd == mp_right_delimiter) {
-  if (mp->cur_sym2 == l_delim) {
+if (cur_cmd() == mp_right_delimiter) {
+  if (equiv_sym (cur_sym()) == l_delim) {
     decr (balance);
     if (balance == 0)
       break;
   }
-} else if (mp->cur_cmd == mp_left_delimiter) {
-  if (mp->cur_sym2 == r_delim)
+} else if (cur_cmd() == mp_left_delimiter) {
+  if (equiv_sym (cur_sym()) == r_delim)
     incr (balance);
 }
 
@@ -16781,10 +16790,10 @@ if (mp_end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop
   if (balance == 1) {
     break;
   } else {
-    if (mp->cur_cmd == mp_end_group)
+    if (cur_cmd() == mp_end_group)
       decr (balance);
   }
-} else if (mp->cur_cmd == mp_begin_group) {
+} else if (cur_cmd() == mp_begin_group) {
   incr (balance);
 }
 
@@ -16793,7 +16802,7 @@ if (mp_end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop
   if (mp_sym_info (r) < mp_text_macro) {
     mp_get_x_next (mp);
     if (mp_sym_info (r) != mp_suffix_macro) {
-      if ((mp->cur_cmd == mp_equals) || (mp->cur_cmd == mp_assignment))
+      if ((cur_cmd() == mp_equals) || (cur_cmd() == mp_assignment))
         mp_get_x_next (mp);
     }
   }
@@ -16841,7 +16850,7 @@ if (mp_end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop
     mp_link (tail) = p;
   tail = p;
   incr (n);
-  if (mp->cur_cmd != mp_of_token) {
+  if (cur_cmd() != mp_of_token) {
     char msg[256];
     str_number sname;
     const char *hlp[] = { 
@@ -16864,16 +16873,16 @@ if (mp_end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop
 
 @ @<Scan a suffix with optional delimiters@>=
 {
-  if (mp->cur_cmd != mp_left_delimiter) {
+  if (cur_cmd() != mp_left_delimiter) {
     l_delim = NULL;
   } else {
-    l_delim = mp->cur_sym;
-    r_delim = mp->cur_sym2;
+    l_delim = cur_sym();
+    r_delim = equiv_sym (cur_sym());
     mp_get_x_next (mp);
   }
   mp_scan_suffix (mp);
   if (l_delim != NULL) {
-    if ((mp->cur_cmd != mp_right_delimiter) || (mp->cur_sym2 != l_delim)) {
+    if ((cur_cmd() != mp_right_delimiter) || (equiv_sym (cur_sym()) != l_delim)) {
       char msg[256];
       const char *hlp[] = { 
         "I've gotten to the end of the macro parameter list.",
@@ -17030,13 +17039,13 @@ void mp_pass_text (MP mp) {
   mp->warning_info_line = mp_true_line (mp);
   while (1) {
     get_t_next (mp);
-    if (mp->cur_cmd <= mp_fi_or_else) {
-      if (mp->cur_cmd < mp_fi_or_else) {
+    if (cur_cmd() <= mp_fi_or_else) {
+      if (cur_cmd() < mp_fi_or_else) {
         incr (l);
       } else {
         if (l == 0)
           break;
-        if (mp->cur_mod == fi_code)
+        if (cur_mod() == fi_code)
           decr (l);
       }
     } else {
@@ -17049,8 +17058,8 @@ void mp_pass_text (MP mp) {
 
 
 @ @<Decrease the string reference count...@>=
-if (mp->cur_cmd == mp_string_token) {
-  delete_str_ref (mp->cur_mod_str);
+if (cur_cmd() == mp_string_token) {
+  delete_str_ref (cur_mod_str());
 }
 
 @ When we begin to process a new \&{if}, we set |if_limit:=if_code|; then
@@ -17112,7 +17121,7 @@ statements. Therefore, \MP\ has to check for their presence.
 
 @c
 static void mp_check_colon (MP mp) {
-  if (mp->cur_cmd != mp_colon) {
+  if (cur_cmd() != mp_colon) {
     const char *hlp[] = {
            "There should've been a colon after the condition.",
            "I shall pretend that one was there.",
@@ -17149,11 +17158,11 @@ FOUND:
   };
   @<Skip to \&{elseif} or \&{else} or \&{fi}, then |goto done|@>;
 DONE:
-  mp->cur_if = (quarterword) mp->cur_mod;
+  mp->cur_if = (quarterword) cur_mod();
   mp->if_line = mp_true_line (mp);
-  if (mp->cur_mod == fi_code) {
+  if (cur_mod() == fi_code) {
     @<Pop the condition stack@>
-  } else if (mp->cur_mod == else_if_code) {
+  } else if (cur_mod() == else_if_code) {
     goto RESWITCH;
   } else {
     set_cur_exp_value (mp_true_code);
@@ -17174,7 +17183,7 @@ while (1) {
   mp_pass_text (mp);
   if (mp->cond_ptr == save_cond_ptr)
     goto DONE;
-  else if (mp->cur_mod == fi_code)
+  else if (cur_mod() == fi_code)
     @<Pop the condition stack@>;
 }
 
@@ -17195,19 +17204,19 @@ code, which is actually part of |get_x_next|. It comes into play when
 \&{elseif}, \&{else}, or \&{fi} is scanned.
 
 @<Terminate the current conditional and skip to \&{fi}@>=
-if (mp->cur_mod > mp->if_limit) {
+if (cur_mod() > mp->if_limit) {
   if (mp->if_limit == if_code) {        /* condition not yet evaluated */
     const char *hlp[] = { "Something was missing here", NULL };
     mp_back_input (mp);
-    mp->cur_sym = mp->frozen_colon;
+    set_cur_sym(mp->frozen_colon);
     mp_ins_error (mp, "Missing `:' has been inserted", hlp, true);
 @.Missing `:'@>;
   } else {
     const char *hlp[] =  {"I'm ignoring this; it doesn't match any if.", NULL};
-    if (mp->cur_mod == fi_code) {
+    if (cur_mod() == fi_code) {
        mp_error(mp, "Extra fi", hlp, true);
 @.Extra fi@>;
-    } else if (mp->cur_mod == else_code) {
+    } else if (cur_mod() == else_code) {
        mp_error(mp, "Extra else", hlp, true);
 @.Extra else@>
     } else {
@@ -17216,7 +17225,7 @@ if (mp->cur_mod > mp->if_limit) {
     }
   }
 } else {
-  while (mp->cur_mod != fi_code)
+  while (cur_mod() != fi_code)
     mp_pass_text (mp);          /* skip to \&{fi} */
   @<Pop the condition stack@>;
 }
@@ -17314,8 +17323,8 @@ void mp_begin_iteration (MP mp) {
   mp_subst_list_item *p = NULL; /* substitution list for |scan_toks|
                                  */
   mp_node q;    /* link manipulation register */
-  m = mp->cur_mod;
-  n = mp->cur_sym;
+  m = cur_mod();
+  n = cur_sym();
   s = xmalloc (1, sizeof (mp_loop_data));
   s->type = s->list = s->info = s->list_start = NULL;
   s->link = NULL;
@@ -17327,8 +17336,8 @@ void mp_begin_iteration (MP mp) {
     mp_get_symbol (mp);
     p = xmalloc (1, sizeof (mp_subst_list_item));
     p->link = NULL;
-    p->info = mp->cur_sym;
-    p->info_mod = mp->cur_sym_mod;
+    p->info = cur_sym();
+    p->info_mod = cur_sym_mod();
     p->value_data = 0;
     if (m == start_for) {
       p->value_mod = mp_expr_sym;
@@ -17336,7 +17345,7 @@ void mp_begin_iteration (MP mp) {
       p->value_mod = mp_suffix_sym;
     }
     mp_get_x_next (mp);
-    if (mp->cur_cmd == mp_within_token) {
+    if (cur_cmd() == mp_within_token) {
       @<Set up a picture iteration@>;
     } else {
       @<Check for the assignment in a loop header@>;
@@ -17350,7 +17359,7 @@ void mp_begin_iteration (MP mp) {
 
 
 @ @<Check for the assignment in a loop header@>=
-if ((mp->cur_cmd != mp_equals) && (mp->cur_cmd != mp_assignment)) {
+if ((cur_cmd() != mp_equals) && (cur_cmd() != mp_assignment)) {
   const char *hlp[] = {
          "The next thing in this loop should have been `=' or `:='.",
          "But don't worry; I'll pretend that an equals sign",
@@ -17361,7 +17370,7 @@ if ((mp->cur_cmd != mp_equals) && (mp->cur_cmd != mp_assignment)) {
 }
 
 @ @<Check for the presence of a colon@>=
-if (mp->cur_cmd != mp_colon) {
+if (cur_cmd() != mp_colon) {
   const char *hlp[] = {
          "The next thing in this loop should have been a `:'.",
          "So I'll pretend that a colon was present;",
@@ -17554,11 +17563,11 @@ do {
   if (m != start_for) {
     mp_scan_suffix (mp);
   } else {
-    if (mp->cur_cmd >= mp_colon)
-      if (mp->cur_cmd <= mp_comma)
+    if (cur_cmd() >= mp_colon)
+      if (cur_cmd() <= mp_comma)
         goto CONTINUE;
     mp_scan_expression (mp);
-    if (mp->cur_cmd == mp_step_token)
+    if (cur_cmd() == mp_step_token)
       if (q == s->list) {
         @<Prepare for step-until construction and |break|@>;
       }
@@ -17574,7 +17583,7 @@ do {
   mp->cur_exp.type = mp_vacuous;
 CONTINUE:
   ;
-} while (mp->cur_cmd == mp_comma)
+} while (cur_cmd() == mp_comma)
 
 @ @<Prepare for step-until construction and |break|@>=
 {
@@ -17586,7 +17595,7 @@ CONTINUE:
   if (mp->cur_exp.type != mp_known)
     mp_bad_for (mp, "step size");
   s->step_size = cur_exp_value ();
-  if (mp->cur_cmd != mp_until_token) {
+  if (cur_cmd() != mp_until_token) {
     const char *hlp[] = {
            "I assume you meant to say `until' after `step'.",
            "So I'll look for the final value and colon next.",
@@ -19546,7 +19555,7 @@ void mp_scan_primary (MP mp) {
 RESTART:
   check_arith();
   @<Supply diagnostic information, if requested@>;
-  switch (mp->cur_cmd) {
+  switch (cur_cmd()) {
   case mp_left_delimiter:
     @<Scan a delimited primary@>;
     break;
@@ -19578,7 +19587,7 @@ RESTART:
     @<Scan an internal numeric quantity@>;
     break;
   case mp_capsule_token:
-    mp_make_exp_copy (mp, mp->cur_mod_node);
+    mp_make_exp_copy (mp, cur_mod_node());
     break;
   case mp_tag_token:
     @<Scan a variable primary; |goto restart| if it turns out to be a macro@>;
@@ -19591,7 +19600,7 @@ RESTART:
   }
   mp_get_x_next (mp);           /* the routines |goto done| if they don't want this */
 DONE:
-  if (mp->cur_cmd == mp_left_bracket) {
+  if (cur_cmd() == mp_left_bracket) {
     if (mp->cur_exp.type >= mp_known) {
       @<Scan a mediation construction@>;
     }
@@ -19616,16 +19625,16 @@ static void mp_bad_exp (MP mp, const char *s) {
      str_number cm;
      int old_selector = mp->selector;
      mp->selector = new_string;
-     mp_print_cmd_mod (mp, mp->cur_cmd, mp->cur_mod);
+     mp_print_cmd_mod (mp, cur_cmd(), cur_mod());
      mp->selector = old_selector;
      cm = mp_make_string(mp);
      mp_snprintf(msg, 256, "%s expression can't begin with `%s'", s, mp_str(mp, cm));
      delete_str_ref(cm);
   }
   mp_back_input (mp);
-  mp->cur_sym = 0;
-  mp->cur_cmd = mp_numeric_token;
-  mp->cur_mod = 0;
+  set_cur_sym(NULL);
+  set_cur_cmd(mp_numeric_token);
+  set_cur_mod(0);
   mp_ins_error (mp, msg, hlp, true);
   save_flag = mp->var_flag;
   mp->var_flag = 0;
@@ -19644,11 +19653,11 @@ if (mp->interrupt != 0)
 
 @ @<Scan a delimited primary@>=
 {
-  l_delim = mp->cur_sym;
-  r_delim = mp->cur_sym2;
+  l_delim = cur_sym();
+  r_delim = equiv_sym (cur_sym());
   mp_get_x_next (mp);
   mp_scan_expression (mp);
-  if ((mp->cur_cmd == mp_comma) && (mp->cur_exp.type >= mp_known)) {
+  if ((cur_cmd() == mp_comma) && (mp->cur_exp.type >= mp_known)) {
     @<Scan the rest of a delimited set of numerics@>;
   } else {
     mp_check_delimiter (mp, l_delim, r_delim);
@@ -19712,14 +19721,14 @@ are synonymous with |x_part| and |y_part|.
   @<Make sure the second part of a pair or color has a numeric type@>;
   q = mp_get_value_node (mp);
   mp_name_type (q) = mp_capsule;
-  if (mp->cur_cmd == mp_comma) {
+  if (cur_cmd() == mp_comma) {
     mp_init_color_node (mp, q);
     r = value_node (q);
     mp_stash_in (mp, y_part (r));
     mp_unstash_cur_exp (mp, p);
     mp_stash_in (mp, x_part (r));
     @<Scan the last of a triplet of numerics@>;
-    if (mp->cur_cmd == mp_comma) {
+    if (cur_cmd() == mp_comma) {
       mp_init_cmykcolor_node (mp, q);
       t = value_node (q);
       mp_type (cyan_part (t)) = mp_type (red_part (r));
@@ -19818,8 +19827,8 @@ integer group_line;     /* where a group began */
   mp_save_boundary (mp);
   do {
     mp_do_statement (mp);       /* ends with |cur_cmd>=semicolon| */
-  } while (mp->cur_cmd == mp_semicolon);
-  if (mp->cur_cmd != mp_end_group) {
+  } while (cur_cmd() == mp_semicolon);
+  if (cur_cmd() != mp_end_group) {
     char msg[256];
     const char *hlp[] = {
            "I saw a `begingroup' back there that hasn't been matched",
@@ -19828,7 +19837,7 @@ integer group_line;     /* where a group began */
     mp_snprintf(msg, 256, "A group begun on line %d never ended", (int)group_line);
 @.A group...never ended@>;
     mp_back_error (mp, msg, hlp, true);
-    mp->cur_cmd = mp_end_group;
+    set_cur_cmd(mp_end_group);
   }
   mp_unsave (mp);
   /* this might change |cur_type|, if independent variables are recycled */
@@ -19840,7 +19849,7 @@ integer group_line;     /* where a group began */
 @ @<Scan a string constant@>=
 {
   mp->cur_exp.type = mp_string_type;
-  set_cur_exp_str (mp->cur_mod_str);
+  set_cur_exp_str (cur_mod_str());
 }
 
 
@@ -19861,12 +19870,12 @@ suspense won't be too bad:
 and the current expression.
 
 @<Scan a nullary operation@>=
-mp_do_nullary (mp, (quarterword) mp->cur_mod)
+mp_do_nullary (mp, (quarterword) cur_mod())
  
 
 @ @<Scan a unary operation@>=
 {
-  c = (quarterword) mp->cur_mod;
+  c = (quarterword) cur_mod();
   mp_get_x_next (mp);
   mp_scan_primary (mp);
   mp_do_unary (mp, c);
@@ -19888,23 +19897,23 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
 
 @ @<Scan a primary that starts with a numeric token@>=
 {
-  set_cur_exp_value (mp->cur_mod);
+  set_cur_exp_value (cur_mod());
   mp->cur_exp.type = mp_known;
   mp_get_x_next (mp);
-  if (mp->cur_cmd != mp_slash) {
+  if (cur_cmd() != mp_slash) {
     num = 0;
     denom = 0;
   } else {
     mp_get_x_next (mp);
-    if (mp->cur_cmd != mp_numeric_token) {
+    if (cur_cmd() != mp_numeric_token) {
       mp_back_input (mp);
-      mp->cur_cmd = mp_slash;
-      mp->cur_mod = mp_over;
-      mp->cur_sym = mp->frozen_slash;
+      set_cur_cmd(mp_slash);
+      set_cur_mod(mp_over);
+      set_cur_sym(mp->frozen_slash);
       goto DONE;
     }
     num = cur_exp_value ();
-    denom = mp->cur_mod;
+    denom = cur_mod();
     if (denom == 0) {
       @<Protest division by zero@>;
     } else {
@@ -19913,8 +19922,8 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
     check_arith();
     mp_get_x_next (mp);
   }
-  if (mp->cur_cmd >= mp_min_primary_command) {
-    if (mp->cur_cmd < mp_numeric_token) {  /* in particular, |cur_cmd<>plus_or_minus| */
+  if (cur_cmd() >= mp_min_primary_command) {
+    if (cur_cmd() < mp_numeric_token) {  /* in particular, |cur_cmd<>plus_or_minus| */
       p = mp_stash_cur_exp (mp);
       mp_scan_primary (mp);
       if ((abs (num) >= abs (denom)) || (mp->cur_exp.type < mp_color_type)) {
@@ -19939,10 +19948,10 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
 
 @ @<Scan a binary operation with `\&{of}' between its operands@>=
 {
-  c = (quarterword) mp->cur_mod;
+  c = (quarterword) cur_mod();
   mp_get_x_next (mp);
   mp_scan_expression (mp);
-  if (mp->cur_cmd != mp_of_token) {
+  if (cur_cmd() != mp_of_token) {
     char msg[256];
     str_number sname;
     const char *hlp[] = {
@@ -19988,10 +19997,10 @@ of the internal quantity, with |name_type| equal to |mp_internal_sym|.
 
 @<Scan an internal...@>=
 {
-  halfword qq = mp->cur_mod;
+  halfword qq = cur_mod();
   if (my_var_flag == mp_assignment) {
     mp_get_x_next (mp);
-    if (mp->cur_cmd == mp_assignment) {
+    if (cur_cmd() == mp_assignment) {
       set_cur_exp_node (mp_get_symbolic_node (mp));
       set_mp_sym_info (cur_exp_node (), qq);
       mp_name_type (cur_exp_node ()) = mp_internal_sym;
@@ -20053,12 +20062,12 @@ mp_node macro_ref = 0;  /* reference count for a suffixed macro */
     }
     mp_get_x_next (mp);
     tail = t;
-    if (mp->cur_cmd == mp_left_bracket) {
+    if (cur_cmd() == mp_left_bracket) {
       @<Scan for a subscript; replace |cur_cmd| by |numeric_token| if found@>;
     }
-    if (mp->cur_cmd > mp_max_suffix_token)
+    if (cur_cmd() > mp_max_suffix_token)
       break;
-    if (mp->cur_cmd < mp_min_suffix_token)
+    if (cur_cmd() < mp_min_suffix_token)
       break;
   }                             /* now |cur_cmd| is |internal_quantity|, |tag_token|, or |numeric_token| */
   @<Handle unusual cases that masquerade as variables, and |goto restart|
@@ -20087,14 +20096,14 @@ mp_node macro_ref = 0;  /* reference count for a suffixed macro */
 {
   mp_get_x_next (mp);
   mp_scan_expression (mp);
-  if (mp->cur_cmd != mp_right_bracket) {
+  if (cur_cmd() != mp_right_bracket) {
     @<Put the left bracket and the expression back to be rescanned@>;
   } else {
     if (mp->cur_exp.type != mp_known)
       mp_bad_subscript (mp);
-    mp->cur_cmd = mp_numeric_token;
-    mp->cur_mod = cur_exp_value ();
-    mp->cur_sym = 0;
+    set_cur_cmd(mp_numeric_token);
+    set_cur_mod(cur_exp_value ());
+    set_cur_sym(NULL);
   }
 }
 
@@ -20108,9 +20117,9 @@ so as to avoid any embarrassment about our incorrect assumption.
 {
   mp_back_input (mp);           /* that was the token following the current expression */
   mp_back_expr (mp);
-  mp->cur_cmd = mp_left_bracket;
-  mp->cur_mod = 0;
-  mp->cur_sym = mp->frozen_left_bracket;
+  set_cur_cmd(mp_left_bracket);
+  set_cur_mod(0);
+  set_cur_sym(mp->frozen_left_bracket);
 }
 
 
@@ -20224,7 +20233,7 @@ if (post_head != NULL) {
 }
 q = mp_link (pre_head);
 mp_free_symbolic_node (mp, pre_head);
-if (mp->cur_cmd == my_var_flag) {
+if (cur_cmd() == my_var_flag) {
   mp->cur_exp.type = mp_token_list;
   set_cur_exp_node (q);
   goto DONE;
@@ -20473,14 +20482,14 @@ provided that \.a is numeric.
   p = mp_stash_cur_exp (mp);
   mp_get_x_next (mp);
   mp_scan_expression (mp);
-  if (mp->cur_cmd != mp_comma) {
+  if (cur_cmd() != mp_comma) {
     @<Put the left bracket and the expression back...@>;
     mp_unstash_cur_exp (mp, p);
   } else {
     q = mp_stash_cur_exp (mp);
     mp_get_x_next (mp);
     mp_scan_expression (mp);
-    if (mp->cur_cmd != mp_right_bracket) {
+    if (cur_cmd() != mp_right_bracket) {
       const char *hlp[] = {
              "I've scanned an expression of the form `a[b,c',",
              "so a right bracket should have come next.",
@@ -20509,15 +20518,15 @@ static void mp_scan_suffix (MP mp) {
   h = mp_get_symbolic_node (mp);
   t = h;
   while (1) {
-    if (mp->cur_cmd == mp_left_bracket) {
+    if (cur_cmd() == mp_left_bracket) {
       @<Scan a bracketed subscript and set |cur_cmd:=numeric_token|@>;
     }
-    if (mp->cur_cmd == mp_numeric_token) {
-      p = mp_new_num_tok (mp, mp->cur_mod);
-    } else if ((mp->cur_cmd == mp_tag_token) || (mp->cur_cmd == mp_internal_quantity)) {
+    if (cur_cmd() == mp_numeric_token) {
+      p = mp_new_num_tok (mp, cur_mod());
+    } else if ((cur_cmd() == mp_tag_token) || (cur_cmd() == mp_internal_quantity)) {
       p = mp_get_symbolic_node (mp);
-      set_mp_sym_sym (p, mp->cur_sym);
-      mp_name_type (p) = mp->cur_sym_mod;
+      set_mp_sym_sym (p, cur_sym());
+      mp_name_type (p) = cur_sym_mod();
     } else {
       break;
     }
@@ -20537,7 +20546,7 @@ static void mp_scan_suffix (MP mp) {
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_known)
     mp_bad_subscript (mp);
-  if (mp->cur_cmd != mp_right_bracket) {
+  if (cur_cmd() != mp_right_bracket) {
     const char *hlp[] = {
            "I've seen a `[' and a subscript value, in a suffix,",
            "so a right bracket should have come next.",
@@ -20546,8 +20555,8 @@ static void mp_scan_suffix (MP mp) {
     mp_back_error (mp, "Missing `]' has been inserted", hlp, true);
 @.Missing `]'@>;
   }
-  mp->cur_cmd = mp_numeric_token;
-  mp->cur_mod = cur_exp_value ();
+  set_cur_cmd(mp_numeric_token);
+  set_cur_mod(cur_exp_value ());
 }
 
 
@@ -20570,20 +20579,20 @@ static void mp_scan_secondary (MP mp) {
   mp_node cc = NULL;
   mp_sym mac_name = NULL;      /* token defined with \&{primarydef} */
 RESTART:
-  if ((mp->cur_cmd < mp_min_primary_command) ||
-      (mp->cur_cmd > mp_max_primary_command))
+  if ((cur_cmd() < mp_min_primary_command) ||
+      (cur_cmd() > mp_max_primary_command))
     mp_bad_exp (mp, "A secondary");
 @.A secondary expression...@>;
   mp_scan_primary (mp);
 CONTINUE:
-  if (mp->cur_cmd <= mp_max_secondary_command &&
-      mp->cur_cmd >= mp_min_secondary_command) {
+  if (cur_cmd() <= mp_max_secondary_command &&
+      cur_cmd() >= mp_min_secondary_command) {
     p = mp_stash_cur_exp (mp);
-    d = mp->cur_cmd;
-    c = mp->cur_mod;
+    d = cur_cmd();
+    c = cur_mod();
     if (d == mp_secondary_primary_macro) {
-      cc = mp->cur_mod_node;
-      mac_name = mp->cur_sym;
+      cc = cur_mod_node();
+      mac_name = cur_sym();
       add_mac_ref (cc);
     }
     mp_get_x_next (mp);
@@ -20626,20 +20635,20 @@ static void mp_scan_tertiary (MP mp) {
   mp_node cc = NULL;
   mp_sym mac_name = NULL;      /* token defined with \&{secondarydef} */
 RESTART:
-  if ((mp->cur_cmd < mp_min_primary_command) ||
-      (mp->cur_cmd > mp_max_primary_command))
+  if ((cur_cmd() < mp_min_primary_command) ||
+      (cur_cmd() > mp_max_primary_command))
     mp_bad_exp (mp, "A tertiary");
 @.A tertiary expression...@>;
   mp_scan_secondary (mp);
 CONTINUE:
-  if (mp->cur_cmd <= mp_max_tertiary_command) {
-    if (mp->cur_cmd >= mp_min_tertiary_command) {
+  if (cur_cmd() <= mp_max_tertiary_command) {
+    if (cur_cmd() >= mp_min_tertiary_command) {
       p = mp_stash_cur_exp (mp);
-      c = mp->cur_mod;
-      d = mp->cur_cmd;
+      c = cur_mod();
+      d = cur_cmd();
       if (d == mp_tertiary_secondary_macro) {
-        cc = mp->cur_mod_node;
-        mac_name = mp->cur_sym;
+        cc = cur_mod_node();
+        mac_name = cur_sym();
         add_mac_ref (cc);
       }
       mp_get_x_next (mp);
@@ -20688,21 +20697,21 @@ static void mp_scan_expression (MP mp) {
   mp->expand_depth_count++;
   mp_check_expansion_depth (mp);
 RESTART:
-  if ((mp->cur_cmd < mp_min_primary_command) ||
-      (mp->cur_cmd > mp_max_primary_command))
+  if ((cur_cmd() < mp_min_primary_command) ||
+      (cur_cmd() > mp_max_primary_command))
     mp_bad_exp (mp, "An");
 @.An expression...@>;
   mp_scan_tertiary (mp);
 CONTINUE:
-  if (mp->cur_cmd <= mp_max_expression_command)
-    if (mp->cur_cmd >= mp_min_expression_command) {
-      if ((mp->cur_cmd != mp_equals) || (my_var_flag != mp_assignment)) {
+  if (cur_cmd() <= mp_max_expression_command)
+    if (cur_cmd() >= mp_min_expression_command) {
+      if ((cur_cmd() != mp_equals) || (my_var_flag != mp_assignment)) {
         p = mp_stash_cur_exp (mp);
-        d = mp->cur_cmd;
-        c = mp->cur_mod;
+        d = cur_cmd();
+        c = cur_mod();
         if (d == mp_expression_tertiary_macro) {
-          cc = mp->cur_mod_node;
-          mac_name = mp->cur_sym;
+          cc = cur_mod_node();
+          mac_name = cur_sym();
           add_mac_ref (cc);
         }
         if ((d < mp_ampersand) || ((d == mp_ampersand) &&
@@ -20741,7 +20750,7 @@ hoping to understand the next part of this code.
 CONTINUE_PATH:
   @<Determine the path join parameters;
     but |goto finish_path| if there's only a direction specifier@>;
-  if (mp->cur_cmd == mp_cycle) {
+  if (cur_cmd() == mp_cycle) {
     @<Get ready to close a cycle@>;
   } else {
     mp_scan_tertiary (mp);
@@ -20750,8 +20759,8 @@ CONTINUE_PATH:
   }
   @<Join the partial paths and reset |p| and |q| to the head and tail
     of the result@>;
-  if (mp->cur_cmd >= mp_min_expression_command)
-    if (mp->cur_cmd <= mp_ampersand)
+  if (cur_cmd() >= mp_min_expression_command)
+    if (cur_cmd() <= mp_ampersand)
       if (!cycle_hit)
         goto CONTINUE_PATH;
 FINISH_PATH:
@@ -20878,17 +20887,17 @@ if (mp_type (y_part (p)) == mp_known) {
 @ At this point |cur_cmd| is either |ampersand|, |left_brace|, or |path_join|.
 
 @<Determine the path join parameters...@>=
-if (mp->cur_cmd == mp_left_brace) {
+if (cur_cmd() == mp_left_brace) {
   @<Put the pre-join direction information into node |q|@>;
 }
-d = mp->cur_cmd;
+d = cur_cmd();
 if (d == mp_path_join) {
   @<Determine the tension and/or control points@>;
 } else if (d != mp_ampersand) {
   goto FINISH_PATH;
 }
 mp_get_x_next (mp);
-if (mp->cur_cmd == mp_left_brace) {
+if (cur_cmd() == mp_left_brace) {
   @<Put the post-join direction information into |x| and |t|@>;
 } else if (mp_right_type (path_q) != mp_explicit) {
   t = mp_open;
@@ -20910,12 +20919,12 @@ static quarterword mp_scan_direction (MP mp) {
   int t;        /* the type of information found */
   scaled x;     /* an |x| coordinate */
   mp_get_x_next (mp);
-  if (mp->cur_cmd == mp_curl_command) {
+  if (cur_cmd() == mp_curl_command) {
     @<Scan a curl specification@>;
   } else {
     @<Scan a given direction@>;
   }
-  if (mp->cur_cmd != mp_right_brace) {
+  if (cur_cmd() != mp_right_brace) {
     const char *hlp[] = {
            "I've scanned a direction spec for part of a path,",
            "so a right brace should have come next.",
@@ -20986,7 +20995,7 @@ static quarterword mp_scan_direction (MP mp) {
     mp_flush_cur_exp (mp, new_expr);
   }
   x = cur_exp_value ();
-  if (mp->cur_cmd != mp_comma) {
+  if (cur_cmd() != mp_comma) {
     const char *hlp[] = {
            "I've got the x coordinate of a path direction;",
            "will look for the y coordinate next.",
@@ -21054,9 +21063,9 @@ there are no explicit control points.
 @ @<Determine the tension and/or...@>=
 {
   mp_get_x_next (mp);
-  if (mp->cur_cmd == mp_tension) {
+  if (cur_cmd() == mp_tension) {
     @<Set explicit tensions@>;
-  } else if (mp->cur_cmd == mp_controls) {
+  } else if (cur_cmd() == mp_controls) {
     @<Set explicit control points@>;
   } else {
     right_tension (path_q) = unity;
@@ -21064,7 +21073,7 @@ there are no explicit control points.
     mp_back_input (mp);         /* default tension */
     goto DONE;
   };
-  if (mp->cur_cmd != mp_path_join) {
+  if (cur_cmd() != mp_path_join) {
     const char *hlp[] = { "A path join command should end with two dots.", NULL};
     mp_back_error (mp, "Missing `..' has been inserted", hlp, true);
 @.Missing `..'@>;
@@ -21077,18 +21086,18 @@ DONE:
 @ @<Set explicit tensions@>=
 {
   mp_get_x_next (mp);
-  y = mp->cur_cmd;
-  if (mp->cur_cmd == mp_at_least)
+  y = cur_cmd();
+  if (cur_cmd() == mp_at_least)
     mp_get_x_next (mp);
   mp_scan_primary (mp);
   @<Make sure that the current expression is a valid tension setting@>;
   if (y == mp_at_least)
     negate (cur_exp_value ());
   right_tension (path_q) = cur_exp_value ();
-  if (mp->cur_cmd == mp_and_command) {
+  if (cur_cmd() == mp_and_command) {
     mp_get_x_next (mp);
-    y = mp->cur_cmd;
-    if (mp->cur_cmd == mp_at_least)
+    y = cur_cmd();
+    if (cur_cmd() == mp_at_least)
       mp_get_x_next (mp);
     mp_scan_primary (mp);
     @<Make sure that the current expression is a valid tension setting@>;
@@ -21121,7 +21130,7 @@ if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < min_tension)) {
   mp_known_pair (mp);
   mp_right_x (path_q) = mp->cur_x;
   mp_right_y (path_q) = mp->cur_y;
-  if (mp->cur_cmd != mp_and_command) {
+  if (cur_cmd() != mp_and_command) {
     x = mp_right_x (path_q);
     y = mp_right_y (path_q);
   } else {
@@ -25418,15 +25427,15 @@ void mp_do_statement (MP mp) {                               /* governs \MP's ac
   memset(&new_expr,0,sizeof(mp_value));
   mp->cur_exp.type = mp_vacuous;
   mp_get_x_next (mp);
-  if (mp->cur_cmd > mp_max_primary_command) {
+  if (cur_cmd() > mp_max_primary_command) {
     @<Worry about bad statement@>;
-  } else if (mp->cur_cmd > mp_max_statement_command) {
+  } else if (cur_cmd() > mp_max_statement_command) {
     @<Do an equation, assignment, title, or
      `$\langle\,$expression$\,\rangle\,$\&{endgroup}'@>;
   } else {
     @<Do a statement that doesn't begin with an expression@>;
   }
-  if (mp->cur_cmd < mp_semicolon)
+  if (cur_cmd() < mp_semicolon)
     @<Flush unparsable junk that was found after the statement@>;
   mp->error_count = 0;
 }
@@ -25442,7 +25451,7 @@ occur when the statement is null.
 
 @<Worry about bad statement@>=
 {
-  if (mp->cur_cmd < mp_semicolon) {
+  if (cur_cmd() < mp_semicolon) {
     char msg[256];
     str_number sname;
     int old_setting = mp->selector;
@@ -25455,7 +25464,7 @@ occur when the statement is null.
            NULL };
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>;
     mp->selector = new_string;
-    mp_print_cmd_mod (mp, mp->cur_cmd, mp->cur_mod);
+    mp_print_cmd_mod (mp, cur_cmd(), cur_mod());
     sname = mp_make_string(mp);
     mp->selector = old_setting;
     mp_snprintf (msg, 256, "A statement can't begin with `%s'", mp_str(mp, sname));
@@ -25502,14 +25511,14 @@ expression.
 {
   if (internal_value_to_halfword (mp_tracing_commands) > 0)
     show_cur_cmd_mod;
-  switch (mp->cur_cmd) {
+  switch (cur_cmd()) {
   case mp_type_name:
     mp_do_type_declaration (mp);
     break;
   case mp_macro_def:
-    if (mp->cur_mod > var_def)
+    if (cur_mod() > var_def)
       mp_make_op_def (mp);
-    else if (mp->cur_mod > end_def)
+    else if (cur_mod() > end_def)
       mp_scan_def (mp);
     break;
     @<Cases of |do_statement| that invoke particular commands@>;
@@ -25526,10 +25535,10 @@ expression.
 {
   mp->var_flag = mp_assignment;
   mp_scan_expression (mp);
-  if (mp->cur_cmd < mp_end_group) {
-    if (mp->cur_cmd == mp_equals)
+  if (cur_cmd() < mp_end_group) {
+    if (cur_cmd() == mp_equals)
       mp_do_equation (mp);
-    else if (mp->cur_cmd == mp_assignment)
+    else if (cur_cmd() == mp_assignment)
       mp_do_assignment (mp);
     else if (mp->cur_exp.type == mp_string_type) {
       @<Do a title@>;
@@ -25582,9 +25591,9 @@ void mp_do_equation (MP mp) {
   mp_get_x_next (mp);
   mp->var_flag = mp_assignment;
   mp_scan_expression (mp);
-  if (mp->cur_cmd == mp_equals)
+  if (cur_cmd() == mp_equals)
     mp_do_equation (mp);
-  else if (mp->cur_cmd == mp_assignment)
+  else if (cur_cmd() == mp_assignment)
     mp_do_assignment (mp);
   if (internal_value_to_halfword (mp_tracing_commands) > two)
     @<Trace the current equation@>;
@@ -25623,9 +25632,9 @@ void mp_do_assignment (MP mp) {
     mp_get_x_next (mp);
     mp->var_flag = mp_assignment;
     mp_scan_expression (mp);
-    if (mp->cur_cmd == mp_equals)
+    if (cur_cmd() == mp_equals)
       mp_do_equation (mp);
-    else if (mp->cur_cmd == mp_assignment)
+    else if (cur_cmd() == mp_assignment)
       mp_do_assignment (mp);
     if (internal_value_to_halfword (mp_tracing_commands) > two)
       @<Trace the current assignment@>;
@@ -26047,19 +26056,19 @@ mp_node mp_scan_declared_variable (MP mp) {
   mp_sym x;     /* hash address of the variable's root */
   mp_node h, t; /* head and tail of the token list to be returned */
   mp_get_symbol (mp);
-  x = mp->cur_sym;
-  if (mp->cur_cmd != mp_tag_token)
+  x = cur_sym();
+  if (cur_cmd() != mp_tag_token)
     mp_clear_symbol (mp, x, false);
   h = mp_get_symbolic_node (mp);
   set_mp_sym_sym (h, x);
   t = h;
   while (1) {
     mp_get_x_next (mp);
-    if (mp->cur_sym == NULL)
+    if (cur_sym() == NULL)
       break;
-    if (mp->cur_cmd != mp_tag_token)
-      if (mp->cur_cmd != mp_internal_quantity) {
-        if (mp->cur_cmd == mp_left_bracket) {
+    if (cur_cmd() != mp_tag_token)
+      if (cur_cmd() != mp_internal_quantity) {
+        if (cur_cmd() == mp_left_bracket) {
           @<Descend past a collective subscript@>;
         } else {
           break;
@@ -26067,8 +26076,8 @@ mp_node mp_scan_declared_variable (MP mp) {
       }
     mp_link (t) = mp_get_symbolic_node (mp);
     t = mp_link (t);
-    set_mp_sym_sym (t, mp->cur_sym);
-    mp_name_type (t) = mp->cur_sym_mod;
+    set_mp_sym_sym (t, cur_sym());
+    mp_name_type (t) = cur_sym_mod();
   }
   if ((eq_type (x) % mp_outer_tag) != mp_tag_token)
     mp_clear_symbol (mp, x, false);
@@ -26083,15 +26092,15 @@ declared variable.
 
 @<Descend past a collective subscript@>=
 {
-  mp_sym ll = mp->cur_sym;      /* hash address of left bracket */
+  mp_sym ll = cur_sym();      /* hash address of left bracket */
   mp_get_x_next (mp);
-  if (mp->cur_cmd != mp_right_bracket) {
+  if (cur_cmd() != mp_right_bracket) {
     mp_back_input (mp);
-    mp->cur_sym = ll;
-    mp->cur_cmd = mp_left_bracket;
+    set_cur_sym(ll);
+    set_cur_cmd(mp_left_bracket);
     break;
   } else {
-    mp->cur_sym = collective_subscript;
+    set_cur_sym(collective_subscript);
   }
 }
 
@@ -26139,10 +26148,10 @@ void mp_do_type_declaration (MP mp) {
   integer t;        /* the type being declared */
   mp_node p;    /* token list for a declared variable */
   mp_node q;    /* value node for the variable */
-  if (mp->cur_mod >= mp_transform_type)
-    t = (quarterword) mp->cur_mod;
+  if (cur_mod() >= mp_transform_type)
+    t = (quarterword) cur_mod();
   else
-    t = (quarterword) (mp->cur_mod + unknown_tag);
+    t = (quarterword) (cur_mod() + unknown_tag);
   do {
     p = mp_scan_declared_variable (mp);
     mp_flush_variable (mp, equiv_node (mp_sym_sym (p)), mp_link (p), false);
@@ -26160,7 +26169,7 @@ void mp_do_type_declaration (MP mp) {
       mp_get_x_next (mp);
     }
     mp_flush_node_list (mp, p);
-    if (mp->cur_cmd < mp_comma) {
+    if (cur_cmd() < mp_comma) {
       @<Flush spurious symbols after the declared variable@>;
     }
   } while (!mp_end_of_statement);
@@ -26176,7 +26185,7 @@ void mp_do_type_declaration (MP mp) {
          "I'm going to discard the junk I found here,",
          "up to the next comma or the end of the declaration.",
          NULL };
-  if (mp->cur_cmd == mp_numeric_token)
+  if (cur_cmd() == mp_numeric_token)
     hlp[2] = "Explicit subscripts like `x15a' aren't permitted.";
   mp_back_error (mp, "Illegal suffix of declared variable will be flushed", hlp, true);
 @.Illegal suffix...flushed@>;
@@ -26185,7 +26194,7 @@ void mp_do_type_declaration (MP mp) {
   do {
     get_t_next (mp);
     @<Decrease the string reference count...@>;
-  } while (mp->cur_cmd < mp_comma);        /* either |end_of_statement| or |cur_cmd=comma| */
+  } while (cur_cmd() < mp_comma);        /* either |end_of_statement| or |cur_cmd=comma| */
   mp->scanner_status = normal;
 }
 
@@ -26201,7 +26210,7 @@ static void mp_main_control (MP mp) {
   memset(&new_expr,0,sizeof(mp_value));
   do {
     mp_do_statement (mp);
-    if (mp->cur_cmd == mp_end_group) {
+    if (cur_cmd() == mp_end_group) {
       const char *hlp[] = { 
              "I'm not currently working on a `begingroup',",
              "so I had better not try to end anything.",
@@ -26210,7 +26219,7 @@ static void mp_main_control (MP mp) {
 @.Extra `endgroup'@>;
       mp_flush_cur_exp (mp, new_expr);
     }
-  } while (mp->cur_cmd != mp_stop);
+  } while (cur_cmd() != mp_stop);
 }
 int mp_run (MP mp) {
   if (mp->history < mp_fatal_error_stop) {
@@ -26652,7 +26661,7 @@ if (mp->troff_mode) {
 }
 @<Fix up |mp->internal[mp_job_name]|@>;
 if (mp->start_sym != NULL) {    /* insert the `\&{everyjob}' symbol */
-  mp->cur_sym = mp->start_sym;
+  set_cur_sym(mp->start_sym);
   mp_back_input (mp);
 }
 
@@ -26702,7 +26711,7 @@ int mp_execute (MP mp, char *s, size_t l) {
     loc = start;
     do {
       mp_do_statement (mp);
-    } while (mp->cur_cmd != mp_stop);
+    } while (cur_cmd() != mp_stop);
     mp_final_cleanup (mp);
     mp_close_files_and_terminate (mp);
   }
@@ -26756,7 +26765,7 @@ mp->frozen_dump = mp_frozen_primitive (mp, "dump", mp_stop, 1);
 
 @ @<Cases of |print_cmd...@>=
 case mp_stop:
-if (mp->cur_mod == 0)
+if (cur_mod() == 0)
   mp_print (mp, "end");
 else
   mp_print (mp, "dump");
@@ -26783,7 +26792,7 @@ void mp_do_random_seed (MP mp) {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
   mp_get_x_next (mp);
-  if (mp->cur_cmd != mp_assignment) {
+  if (cur_cmd() != mp_assignment) {
     const char *hlp[] = { "Always say `randomseed:=<numeric expression>'.", NULL };
     mp_back_error (mp, "Missing `:=' has been inserted", hlp, true);
 @.Missing `:='@>;
@@ -26826,7 +26835,7 @@ void mp_do_random_seed (MP mp) {
 @<Cases of |do_statement|...@>=
 case mp_mode_command:
 mp_print_ln (mp);
-mp->interaction = mp->cur_mod;
+mp->interaction = cur_mod();
 @<Initialize the print |selector| based on |interaction|@>;
 if (mp->log_opened)
   mp->selector = mp->selector + 2;
@@ -26891,18 +26900,18 @@ static void mp_do_protection (MP mp);
 void mp_do_protection (MP mp) {
   int m;        /* 0 to unprotect, 1 to protect */
   halfword t;   /* the |eq_type| before we change it */
-  m = mp->cur_mod;
+  m = cur_mod();
   do {
     mp_get_symbol (mp);
-    t = eq_type (mp->cur_sym);
+    t = eq_type (cur_sym());
     if (m == 0) {
       if (t >= mp_outer_tag)
-        set_eq_type (mp->cur_sym, (t - mp_outer_tag));
+        set_eq_type (cur_sym(), (t - mp_outer_tag));
     } else if (t < mp_outer_tag) {
-      set_eq_type (mp->cur_sym, (t + mp_outer_tag));
+      set_eq_type (cur_sym(), (t + mp_outer_tag));
     }
     mp_get_x_next (mp);
-  } while (mp->cur_cmd == mp_comma);
+  } while (cur_cmd() == mp_comma);
 }
 
 
@@ -26924,9 +26933,9 @@ static void mp_def_delims (MP mp);
 void mp_def_delims (MP mp) {
   mp_sym l_delim, r_delim;      /* the new delimiter pair */
   mp_get_clear_symbol (mp);
-  l_delim = mp->cur_sym;
+  l_delim = cur_sym();
   mp_get_clear_symbol (mp);
-  r_delim = mp->cur_sym;
+  r_delim = cur_sym();
   set_eq_type (l_delim, mp_left_delimiter);
   set_equiv_sym (l_delim, r_delim);
   set_eq_type (r_delim, mp_right_delimiter);
@@ -26943,10 +26952,10 @@ static void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim);
 
 @ @c
 void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim) {
-  if (mp->cur_cmd == mp_right_delimiter)
-    if (mp->cur_sym2 == l_delim)
+  if (cur_cmd() == mp_right_delimiter)
+    if (equiv_sym (cur_sym()) == l_delim)
       return;
-  if (mp->cur_sym != r_delim) {
+  if (cur_sym() != r_delim) {
     char msg[256];
     const char *hlp[] = {
            "I found no right delimiter to match a left one. So I've",
@@ -26975,9 +26984,9 @@ void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim) {
 case mp_save_command:
 do {
   mp_get_symbol (mp);
-  mp_save_variable (mp, mp->cur_sym);
+  mp_save_variable (mp, cur_sym());
   mp_get_x_next (mp);
-} while (mp->cur_cmd == mp_comma);
+} while (cur_cmd() == mp_comma);
 break;
 case mp_interim_command:
 mp_do_interim (mp);
@@ -26996,17 +27005,17 @@ static void mp_do_interim (MP mp);
 @ @c
 void mp_do_interim (MP mp) {
   mp_get_x_next (mp);
-  if (mp->cur_cmd != mp_internal_quantity) {
+  if (cur_cmd() != mp_internal_quantity) {
     char msg[256];
     const char *hlp[] = {
        "Something like `tracingonline' should follow `interim'.",
        NULL };
     mp_snprintf(msg, 256, "The token `%s' isn't an internal quantity", 
-      (mp->cur_sym == NULL ? "(%CAPSULE)" : mp_str(mp, text (mp->cur_sym))));
+      (cur_sym() == NULL ? "(%CAPSULE)" : mp_str(mp, text (cur_sym()))));
 @.The token...quantity@>;
     mp_back_error (mp, msg, hlp, true);
   } else {
-    mp_save_internal (mp, mp->cur_mod);
+    mp_save_internal (mp, cur_mod());
     mp_back_input (mp);
   }
   mp_do_statement (mp);
@@ -27023,9 +27032,9 @@ static void mp_do_let (MP mp);
 void mp_do_let (MP mp) {
   mp_sym l;     /* hash location of the left-hand symbol */
   mp_get_symbol (mp);
-  l = mp->cur_sym;
+  l = cur_sym();
   mp_get_x_next (mp);
-  if (mp->cur_cmd != mp_equals && mp->cur_cmd != mp_assignment) {
+  if (cur_cmd() != mp_equals && cur_cmd() != mp_assignment) {
     const char *hlp[] = { 
            "You should have said `let symbol = something'.",
            "But don't worry; I'll pretend that an equals sign",
@@ -27035,30 +27044,30 @@ void mp_do_let (MP mp) {
 @.Missing `='@>;
   }
   mp_get_symbol (mp);
-  switch (mp->cur_cmd) {
+  switch (cur_cmd()) {
   case mp_defined_macro:
   case mp_secondary_primary_macro:
   case mp_tertiary_secondary_macro:
   case mp_expression_tertiary_macro:
-    add_mac_ref (mp->cur_mod_node);
+    add_mac_ref (cur_mod_node());
     break;
   default:
     break;
   }
   mp_clear_symbol (mp, l, false);
-  set_eq_type (l, mp->cur_cmd);
-  if (mp->cur_cmd == mp_tag_token)
+  set_eq_type (l, cur_cmd());
+  if (cur_cmd() == mp_tag_token)
     set_equiv (l, 0);              /* todo: this was |null| */
-  else if (mp->cur_cmd == mp_defined_macro ||
-           mp->cur_cmd == mp_secondary_primary_macro ||
-           mp->cur_cmd == mp_tertiary_secondary_macro ||
-           mp->cur_cmd == mp_expression_tertiary_macro)
-    set_equiv_node (l, mp->cur_mod_node);
-  else if (mp->cur_cmd == mp_left_delimiter ||
-           mp->cur_cmd ==  mp_right_delimiter)
-    set_equiv_sym (l, mp->cur_sym2);
+  else if (cur_cmd() == mp_defined_macro ||
+           cur_cmd() == mp_secondary_primary_macro ||
+           cur_cmd() == mp_tertiary_secondary_macro ||
+           cur_cmd() == mp_expression_tertiary_macro)
+    set_equiv_node (l, cur_mod_node());
+  else if (cur_cmd() == mp_left_delimiter ||
+           cur_cmd() ==  mp_right_delimiter)
+    set_equiv_sym (l, equiv_sym (cur_sym()));
   else
-    set_equiv (l, mp->cur_mod);
+    set_equiv (l, cur_mod());
   mp_get_x_next (mp);
 }
 
@@ -27091,10 +27100,10 @@ void mp_grow_internals (MP mp, int l) {
 void mp_do_new_internal (MP mp) {
   int the_type = mp_known;
   mp_get_x_next (mp);
-  if (mp->cur_cmd == mp_type_name && mp->cur_mod == mp_string_type) {
+  if (cur_cmd() == mp_type_name && cur_mod() == mp_string_type) {
     the_type = mp_string_type;
   } else {
-    if (!(mp->cur_cmd == mp_type_name && mp->cur_mod == mp_numeric_type)) {
+    if (!(cur_cmd() == mp_type_name && cur_mod() == mp_numeric_type)) {
       mp_back_input (mp);
     }
   }
@@ -27104,12 +27113,12 @@ void mp_do_new_internal (MP mp) {
     }
     mp_get_clear_symbol (mp);
     incr (mp->int_ptr);
-    set_eq_type (mp->cur_sym, mp_internal_quantity);
-    set_equiv (mp->cur_sym, mp->int_ptr);
+    set_eq_type (cur_sym(), mp_internal_quantity);
+    set_equiv (cur_sym(), mp->int_ptr);
     if (internal_name (mp->int_ptr) != NULL)
       xfree (internal_name (mp->int_ptr));
     set_internal_name (mp->int_ptr,
-      mp_xstrdup (mp, mp_str (mp, text (mp->cur_sym))));
+      mp_xstrdup (mp, mp_str (mp, text (cur_sym()))));
     if (the_type == mp_string_type) {
       set_internal_string (mp->int_ptr, mp_rts(mp,""));
     } else {
@@ -27117,7 +27126,7 @@ void mp_do_new_internal (MP mp) {
     }
     set_internal_type (mp->int_ptr, the_type);
     mp_get_x_next (mp);
-  } while (mp->cur_cmd == mp_comma);
+  } while (cur_cmd() == mp_comma);
 }
 
 
@@ -27194,7 +27203,7 @@ void mp_do_show (MP mp) {
 @.>>@>;
     mp_print_exp (mp, NULL, 2);
     mp_flush_cur_exp (mp, new_expr);
-  } while (mp->cur_cmd == mp_comma);
+  } while (cur_cmd() == mp_comma);
 }
 
 
@@ -27205,17 +27214,17 @@ static void mp_disp_token (MP mp);
 void mp_disp_token (MP mp) {
   mp_print_nl (mp, "> ");
 @.>\relax@>;
-  if (mp->cur_sym == NULL) {
+  if (cur_sym() == NULL) {
     @<Show a numeric or string or capsule token@>;
   } else {
-    mp_print_text (mp->cur_sym);
+    mp_print_text (cur_sym());
     mp_print_char (mp, xord ('='));
-    if (eq_type (mp->cur_sym) >= mp_outer_tag)
+    if (eq_type (cur_sym()) >= mp_outer_tag)
       mp_print (mp, "(outer) ");
-    mp_print_cmd_mod (mp, mp->cur_cmd, mp->cur_mod);
-    if (mp->cur_cmd == mp_defined_macro) {
+    mp_print_cmd_mod (mp, cur_cmd(), cur_mod());
+    if (cur_cmd() == mp_defined_macro) {
       mp_print_ln (mp);
-      mp_show_macro (mp, mp->cur_mod_node, NULL, 100000);
+      mp_show_macro (mp, cur_mod_node(), NULL, 100000);
     }                           /* this avoids recursion between |show_macro| and |print_cmd_mod| */
 @^recursion@>
   }
@@ -27224,15 +27233,15 @@ void mp_disp_token (MP mp) {
 
 @ @<Show a numeric or string or capsule token@>=
 {
-  if (mp->cur_cmd == mp_numeric_token) {
-    mp_print_scaled (mp, mp->cur_mod);
-  } else if (mp->cur_cmd == mp_capsule_token) {
-    mp_print_capsule (mp, mp->cur_mod_node);
+  if (cur_cmd() == mp_numeric_token) {
+    mp_print_scaled (mp, cur_mod());
+  } else if (cur_cmd() == mp_capsule_token) {
+    mp_print_capsule (mp, cur_mod_node());
   } else {
     mp_print_char (mp, xord ('"'));
-    mp_print_str (mp, mp->cur_mod_str);
+    mp_print_str (mp, cur_mod_str());
     mp_print_char (mp, xord ('"'));
-    delete_str_ref (mp->cur_mod_str);
+    delete_str_ref (cur_mod_str());
   }
 }
 
@@ -27281,7 +27290,7 @@ void mp_do_show_token (MP mp) {
     get_t_next (mp);
     mp_disp_token (mp);
     mp_get_x_next (mp);
-  } while (mp->cur_cmd == mp_comma);
+  } while (cur_cmd() == mp_comma);
 }
 
 
@@ -27363,17 +27372,17 @@ static void mp_do_show_var (MP mp);
 void mp_do_show_var (MP mp) {
   do {
     get_t_next (mp);
-    if (mp->cur_sym != NULL)
-      if (mp->cur_sym_mod == 0)
-        if (mp->cur_cmd == mp_tag_token)
-          if (mp->cur_mod != 0) {
-            mp_disp_var (mp, mp->cur_mod_node);
+    if (cur_sym() != NULL)
+      if (cur_sym_mod() == 0)
+        if (cur_cmd() == mp_tag_token)
+          if (cur_mod() != 0) {
+            mp_disp_var (mp, cur_mod_node());
             goto DONE;
           }
     mp_disp_token (mp);
   DONE:
     mp_get_x_next (mp);
-  } while (mp->cur_cmd == mp_comma);
+  } while (cur_cmd() == mp_comma);
 }
 
 
@@ -27413,7 +27422,7 @@ static void mp_do_show_whatever (MP mp);
 void mp_do_show_whatever (MP mp) {
   if (mp->interaction == mp_error_stop_mode)
     wake_up_terminal();
-  switch (mp->cur_mod) {
+  switch (cur_mod()) {
   case show_token_code:
     mp_do_show_token (mp);
     break;
@@ -27438,7 +27447,7 @@ void mp_do_show_whatever (MP mp) {
       hlp[0] = NULL;
       decr (mp->error_count);
     }
-    if (mp->cur_cmd == mp_semicolon) {
+    if (cur_cmd() == mp_semicolon) {
       mp_error (mp, "OK", hlp, true);
     } else {
       mp_back_error (mp, "OK", hlp, true);
@@ -27543,9 +27552,9 @@ void mp_scan_with_list (MP mp, mp_node p) {
   bp = MP_VOID;
   k = 0;
   memset(&new_expr,0,sizeof(mp_value));
-  while (mp->cur_cmd == mp_with_option) {
+  while (cur_cmd() == mp_with_option) {
     /* todo this is not very nice: the color models have their own enumeration */
-    t = (mp_variable_type) mp->cur_mod;
+    t = (mp_variable_type) cur_mod();
     mp_get_x_next (mp);
     if (t != (mp_variable_type) mp_no_model)
       mp_scan_expression (mp);
@@ -28025,7 +28034,7 @@ mp_node mp_start_draw_cmd (MP mp, quarterword sep) {
     @<Abandon edges command because there's no variable@>;
   } else {
     lhv = cur_exp_node ();
-    add_type = (quarterword) mp->cur_mod;
+    add_type = (quarterword) cur_mod();
     mp->cur_exp.type = mp_vacuous;
     mp_get_x_next (mp);
     mp_scan_expression (mp);
@@ -28064,7 +28073,7 @@ void mp_do_bounds (MP mp) {
   integer m;    /* initial value of |cur_mod| */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  m = mp->cur_mod;
+  m = cur_mod();
   lhv = mp_start_draw_cmd (mp, mp_to_token);
   if (lhv != NULL) {
     lhe = mp_find_edges_var (mp, lhv);
@@ -28290,7 +28299,7 @@ void mp_do_ship_out (MP mp) {
 @<Cases of |do_statement|...@>=
 case mp_every_job_command:
 mp_get_symbol (mp);
-mp->start_sym = mp->cur_sym;
+mp->start_sym = cur_sym();
 mp_get_x_next (mp);
 break;
 
@@ -28359,7 +28368,7 @@ static void mp_do_message (MP mp);
 void mp_do_message (MP mp) {
   int m;        /* the type of message */
   mp_value new_expr;
-  m = mp->cur_mod;
+  m = cur_mod();
   memset(&new_expr,0,sizeof(mp_value));
   mp_get_x_next (mp);
   mp_scan_expression (mp);
@@ -28482,7 +28491,7 @@ void mp_do_write (MP mp) {
   if (mp->cur_exp.type != mp_string_type) {
     mp_no_string_err (mp,
                       "The text to be written should be a known string expression");
-  } else if (mp->cur_cmd != mp_to_token) {
+  } else if (cur_cmd() != mp_to_token) {
     const char *hlp[] = { "A write command should end with `to <filename>'", NULL };
     mp_back_error (mp, "Missing `to' clause", hlp, true);
     mp_get_x_next (mp);
@@ -29104,11 +29113,11 @@ void mp_do_tfm_command (MP mp) {
   int j;        /* index into |header_byte| or |param| */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  switch (mp->cur_mod) {
+  switch (cur_mod()) {
   case char_list_code:
     c = mp_get_code (mp);
     /* we will store a list of character successors */
-    while (mp->cur_cmd == mp_colon) {
+    while (cur_cmd() == mp_colon) {
       cc = mp_get_code (mp);
       mp_set_tag (mp, c, list_tag, cc);
       c = cc;
@@ -29126,7 +29135,7 @@ void mp_do_tfm_command (MP mp) {
     break;
   case header_byte_code:
   case font_dimen_code:
-    c = mp->cur_mod;
+    c = cur_mod();
     mp_get_x_next (mp);
     mp_scan_expression (mp);
     if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < half_unit)) {
@@ -29140,7 +29149,7 @@ void mp_do_tfm_command (MP mp) {
       mp_get_x_next (mp);
     } else {
       j = mp_round_unscaled (mp, cur_exp_value ());
-      if (mp->cur_cmd != mp_colon) {
+      if (cur_cmd() != mp_colon) {
         const char *hlp[] = { 
           "A colon should follow a headerbyte or fontinfo location.",
            NULL };
@@ -29165,19 +29174,19 @@ void mp_do_tfm_command (MP mp) {
   mp->lk_started = false;
 CONTINUE:
   mp_get_x_next (mp);
-  if ((mp->cur_cmd == mp_skip_to) && mp->lk_started)
+  if ((cur_cmd() == mp_skip_to) && mp->lk_started)
     @<Process a |skip_to| command and |goto done|@>;
-  if (mp->cur_cmd == mp_bchar_label) {
+  if (cur_cmd() == mp_bchar_label) {
     c = 256;
-    mp->cur_cmd = mp_colon;
+    set_cur_cmd(mp_colon);
   } else {
     mp_back_input (mp);
     c = mp_get_code (mp);
   };
-  if ((mp->cur_cmd == mp_colon) || (mp->cur_cmd == mp_double_colon)) {
+  if ((cur_cmd() == mp_colon) || (cur_cmd() == mp_double_colon)) {
     @<Record a label in a lig/kern subprogram and |goto continue|@>;
   }
-  if (mp->cur_cmd == mp_lig_kern_token) {
+  if (cur_cmd() == mp_lig_kern_token) {
     @<Compile a ligature/kern command@>;
   } else {
     const char *hlp[] = { "I was looking for `=:' or `kern' here.", NULL };
@@ -29191,7 +29200,7 @@ CONTINUE:
   if (mp->nl == max_tfm_int)
     mp_fatal_error (mp, "ligtable too large");
   mp->nl++;
-  if (mp->cur_cmd == mp_comma)
+  if (cur_cmd() == mp_comma)
     goto CONTINUE;
   if (skip_byte (mp->nl - 1) < stop_flag)
     skip_byte (mp->nl - 1) = stop_flag;
@@ -29292,7 +29301,7 @@ We may need to cancel skips that span more than 127 lig/kern steps.
 
 @ @<Record a label in a lig/kern subprogram and |goto continue|@>=
 {
-  if (mp->cur_cmd == mp_colon) {
+  if (cur_cmd() == mp_colon) {
     if (c == 256)
       mp->bch_label = mp->nl;
     else
@@ -29318,8 +29327,8 @@ We may need to cancel skips that span more than 127 lig/kern steps.
 {
   next_char (mp->nl) = qi (c);
   skip_byte (mp->nl) = qi (0);
-  if (mp->cur_mod < 128) {      /* ligature op */
-    op_byte (mp->nl) = qi (mp->cur_mod);
+  if (cur_mod() < 128) {      /* ligature op */
+    op_byte (mp->nl) = qi (cur_mod());
     rem_byte (mp->nl) = qi (mp_get_code (mp));
   } else {
     mp_get_x_next (mp);
@@ -29367,16 +29376,16 @@ We may need to cancel skips that span more than 127 lig/kern steps.
     mp_fatal_error (mp, "too many extensible recipies");
   c = mp_get_code (mp);
   mp_set_tag (mp, c, ext_tag, mp->ne);
-  if (mp->cur_cmd != mp_colon)
+  if (cur_cmd() != mp_colon)
     missing_extensible_punctuation (":");
   ext_top (mp->ne) = qi (mp_get_code (mp));
-  if (mp->cur_cmd != mp_comma)
+  if (cur_cmd() != mp_comma)
     missing_extensible_punctuation (",");
   ext_mid (mp->ne) = qi (mp_get_code (mp));
-  if (mp->cur_cmd != mp_comma)
+  if (cur_cmd() != mp_comma)
     missing_extensible_punctuation (",");
   ext_bot (mp->ne) = qi (mp_get_code (mp));
-  if (mp->cur_cmd != mp_comma)
+  if (cur_cmd() != mp_comma)
     missing_extensible_punctuation (",");
   ext_rep (mp->ne) = qi (mp_get_code (mp));
   mp->ne++;
@@ -29400,7 +29409,7 @@ do {
   mp->header_byte[j] = (char) mp_get_code (mp);
   incr (j);
   incr (mp->header_last);
-} while (mp->cur_cmd == mp_comma)
+} while (cur_cmd() == mp_comma)
 
 @ @<Store a list of font dimensions@>=
 do {
@@ -29423,7 +29432,7 @@ do {
   }
   mp->param[j] = cur_exp_value ();
   incr (j);
-} while (mp->cur_cmd == mp_comma)
+} while (cur_cmd() == mp_comma)
 
 @ OK: We've stored all the data that is needed for the \.{TFM} file.
 All that remains is to output it in the correct format.
@@ -30706,9 +30715,9 @@ mp_node last_pending;   /* the last token in a list of pending specials */
 
 @ @<Cases of |do_statement|...@>=
 case mp_special_command:
-if (mp->cur_mod == 0)
+if (cur_mod() == 0)
   mp_do_special (mp);
-else if (mp->cur_mod == 1)
+else if (cur_mod() == 1)
   mp_do_mapfile (mp);
 else
   mp_do_mapline (mp);
@@ -31124,7 +31133,7 @@ boolean mp_load_preload_file (MP mp) {
   mp->reading_preload = true;
   do {
     mp_do_statement (mp);
-  } while (!(mp->cur_cmd == mp_stop && mp->cur_mod == 1));     /* "dump" or EOF */
+  } while (!(cur_cmd() == mp_stop && cur_mod() == 1));     /* "dump" or EOF */
   mp->reading_preload = false;
   mp_primitive (mp, "dump", mp_relax, 0); /* reset |dump| */
   mp_print_char (mp, xord (')'));
@@ -31301,7 +31310,7 @@ been scanned.
 @c
 void mp_final_cleanup (MP mp) {
   integer c;    /* 0 for \&{end}, 1 for \&{dump} */
-  c = mp->cur_mod;
+  c = cur_mod();
   if (mp->job_name == NULL)
     mp_open_log_file (mp);
   while (mp->input_ptr > 0) {
