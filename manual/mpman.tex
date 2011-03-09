@@ -391,8 +391,8 @@ outside \verb|beginfig| \ldots\ \verb|endfig|, e.g., assignments to
 internal variables, such as \texttt{outputtemplate}, or a \LaTeX\
 preamble declaration for enhanced text rendering.
 Comments\index{comments} in MetaPost code are introduced by the percent
-sign~\verb|%|\index{\%?\texttt{\%}}, which causes the remainder of the
-current line to be ignored.
+sign~\verb|%|\index{\%?\texttt{\%}!comment}, which causes the remainder
+of the current line to be ignored.
 
 The remainder of this section briefly introduces three assignments to
 internal variables, each one useful by itself, that can often be found
@@ -1397,11 +1397,11 @@ themselves, the only symbolic tokens involving them are {\tt [}, {\tt
 
 Some characters are not listed in Table~\ref{classes} because they need
 special treatment.  The four characters {\tt ,;()} are ``loners'': each
-comma, semicolon, or parenthesis is a separate token
-even when they occur consecutively.  Thus {\tt (())} is four tokens, not
-one or two.  The percent sign is very special because it introduces
-comments\index{comments}.  The percent sign and everything after it up
-to the end of the line are ignored.
+comma, semicolon, or parenthesis is a separate token even when they
+occur consecutively.  Thus {\tt (())} is four tokens, not one or two.
+The percent sign is very special because it introduces
+comments\index{\%?\texttt{\%}!comment}\index{comments}.  The percent
+sign and everything after it up to the end of the line are ignored.
 
 Another special character is the period.  Two or more periods
 together form a symbolic token, but a single period is ignored, and a period
@@ -4807,7 +4807,7 @@ Explanation:
 \begin{itemize}
 
 \item 
-The \texttt{\%\&latex}\index{\%\&?\texttt{\%\&}} causes \LaTeX\ to be invoked instead of \TeX.
+The \texttt{\%\&latex}\index{\%?\texttt{\%}!magic comment!\%\&?\texttt{\%\&}} causes \LaTeX\ to be invoked instead of \TeX.
 (See below, also.)  Web2C- and MiKTeX-based \TeX\ implementations, at
 least, understand this \texttt{\%\&} specification; see, e.g., the Web2C
 documentation for details, \url{http://tug.org/web2c}.  (Information on
@@ -4926,20 +4926,20 @@ output one would want to use \texttt{svg}\index{svg file?{\tt svg}
   file}\index{files!svg?{\tt svg}} instead.
 
 \begin{table}
-  \newcommand*{\otesc}[3]{\%#1\index{\%#1?\texttt{\%#1}} & #2 & \%\{#3\}}
   \centering
   \begin{tabular}{|>{\ttfamily}l|l|>{\ttfamily}l|}
     \hline
     \multicolumn1{|c|}{Escape sequence} & \multicolumn1{c|}{Meaning} & \multicolumn1{c|}{Alternative}\\\hline
-    \%\%\index{\%\%?\texttt{\%\%}} & percent sign &\\
-    \%\{\tdescr{internal variable}\}\index{\%\{...\}?\texttt{\%\{\tdescr{internal variable}\}}} & evaluate internal variable &\\
-    \%j\index{\%j?\texttt{\%j}} & current jobname & \%\{jobname\} \\
-    \otesc{c}{charcode value (\texttt{beginfig} argument)}{charcode}\\
-    \otesc{y}{current year}{year}\\
-    \otesc{m}{month (numeric)}{month}\\
-    \otesc{d}{day of the month}{day}\\
-    \otesc{H}{hour}{hour}\\
-    \otesc{M}{minute}{minute}\\
+    \%\%\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%\%?\texttt{\%\%}} & percent sign &\\
+    \%\{\tdescr{internal variable}\}\index{\%?\texttt{\%}!outputtemplate
+      escape sequence?\texttt{outputtemplate} escape sequence!\%\{...\}?\texttt{\%\{\tdescr{internal variable}\}}} & evaluate internal variable &\\
+    \%j\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%j?\texttt{\%j}} & current jobname & \%\{jobname\}\\
+    \%c\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%c?\texttt{\%c}} & charcode value (\texttt{beginfig} argument) & \%\{charcode\}\\
+    \%y\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%y?\texttt{\%y}} & current year & \%\{year\}\\
+    \%m\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%m?\texttt{\%m}} & month (numeric) & \%\{month\}\\
+    \%d\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%d?\texttt{\%d}} & day of the month & \%\{day\}\\
+    \%H\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%H?\texttt{\%H}} & hour & \%\{hour\}\\
+    \%M\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%M?\texttt{\%M}} & minute & \%\{minute\}\\
     \hline
   \end{tabular}
   \caption{Allowed escape sequences for \ttt{outputtemplate}}
@@ -4960,7 +4960,9 @@ In the \verb|%{...}| escape sequence no rounding takes place.
 Additionally, neither this nor single-letter escape sequences referring
 to internal string variables can be zero-padded.
 
-For backwards compatibility, the \verb|%c|\index{\%c?\texttt{\%c}}
+For backwards compatibility, the
+\verb|%c|\index{\%?\texttt{\%}!outputtemplate escape
+  sequence?\texttt{outputtemplate} escape sequence!\%c?\texttt{\%c}}
 escape sequence is handled special.  If the result of rounding the
 charcode value is negative, \verb|%c| evaluates to the string \verb|ps|.
 This transformation can be bypassed by using \verb|%{charcode}| instead
