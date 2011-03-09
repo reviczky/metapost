@@ -190,18 +190,23 @@ Please report bugs and request enhancements either on the
 \section{Basic Drawing Statements}
 \label{basic}
 
-The simplest drawing statements are the ones that generate straight lines.
+The simplest drawing statement is the one that draws a single dot with
+the current pen at a given coordinate:
+$$
+\begin{verbatim}
+drawdot (30,0)
+\end{verbatim}
+\index{drawdot?\texttt{drawdot}}
+\label{Ddrawdot}
+$$
+
+MetaPost can also draw straight lines.
 Thus\index{draw?\texttt{draw}}\index{-{}-?\texttt{-{}-}}
 $$ \hbox{\verb|draw (20,20)--(0,0)|} $$
 draws\index{draw?\texttt{draw}} a diagonal line and
 $$ \hbox{\verb|draw (20,20)--(0,0)--(0,30)--(30,0)--(0,0)|} $$
 draws a polygonal line like this:
 $$ \includegraphics{mpman-1.mps} $$
-
-MetaPost also has a
-\verb|drawdot|\index{drawdot?\texttt{drawdot}}\label{Ddrawdot} command
-to draw a single point with the current pen, as in
-$$ \verb|drawdot (30,0);| $$
 
 What is meant by coordinates like \verb|(30,0)|?  MetaPost uses the same
 default coordinate system that PostScript\index{PostScript!coordinate
@@ -238,7 +243,7 @@ factor and {\tt 0cm} just multiplies the conversion factor by zero.
   implicit} as shorthand for \verb|2*cm|).  The coordinate \verb|(0,0)|
 can also be referred to as
 \texttt{origin}\index{origin?\texttt{origin}}\label{Dorigin}, as in
-$$ \hbox{\verb|drawdot origin;|}$$
+$$ \hbox{\verb|drawdot origin|} $$
 
 It is convenient to introduce your own scale factor, say $u$.  Then you
 can define coordinates in terms of $u$ and decide later whether you want
