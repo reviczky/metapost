@@ -225,8 +225,11 @@ $$ \hbox{\verb|(2cm,2cm)--(0,0)--(0,3cm)--(3cm,0)--(0,0)|} $$
 generates a larger version of the above diagram.  It is OK to say
 \verb|0| instead \verb|0cm| because {\tt cm} is really just a conversion
 factor and {\tt 0cm} just multiplies the conversion factor by zero.
-(MetaPost understands constructions like {\tt
-2cm}\index{multiplication, implicit} as shorthand for \verb|2*cm|).
+(MetaPost understands constructions like {\tt 2cm}\index{multiplication,
+  implicit} as shorthand for \verb|2*cm|).  The coordinate \verb|(0,0)|
+can also be referred to as
+\texttt{origin}\index{origin?\texttt{origin}}\label{Dorigin}, as in
+$$ \hbox{\verb|drawdot origin;|}$$
 
 It is convenient to introduce your own scale factor, say $u$.  Then you
 can define coordinates in terms of $u$ and decide later whether you want
