@@ -213,14 +213,23 @@ to distinguish it from the standard printer's
 point\index{point!printer's} which is $1\over72.27$ inches.
 
 MetaPost uses the same names for units of measure that \TeX\ and \MF\
-do.  Thus \verb|bp|\index{bp?\texttt{bp}}\label{Dbp} refers to
-PostScript points (``big points'') and
-\verb|pt|\index{pt?\texttt{pt}}\label{Dpt} refers to printer's points.
-Other units of measure include
-\verb|in|\index{in?\texttt{in}}\label{Din} for inches,
-\verb|cm|\index{cm?\texttt{cm}}\label{Dcm} for centimeters, and
-\verb|mm|\index{mm?\texttt{mm}}\label{Dmm} for millimeters.  For
-example,
+do.  Thus
+\verb|bp|\index{bp?\texttt{bp}}\index{units!bp?\texttt{bp}}\label{Dbp}
+refers to PostScript points (``big points'') and
+\verb|pt|\index{pt?\texttt{pt}}\index{units!pt?\texttt{pt}}\label{Dpt}
+refers to printer's points.  Other units of measure include
+\verb|in|\index{in?\texttt{in}}\index{units!in?\texttt{in}}\label{Din}
+for inches,
+\verb|pc|\index{pc?\texttt{pc}}\index{units!pc?\texttt{pc}}\label{Dpc}
+for picas,
+\verb|cm|\index{cm?\texttt{cm}}\index{units!cm?\texttt{cm}}\label{Dcm}
+for centimeters,
+\verb|mm|\index{mm?\texttt{mm}}\index{units!mm?\texttt{mm}}\label{Dmm}
+for millimeters,
+\verb|cc|\index{cc?\texttt{cc}}\index{units!cc?\texttt{cc}}\label{Dcc}
+for ciceros, and
+\verb|dd|\index{dd?\texttt{dd}}\index{units!dd?\texttt{dd}}\label{Ddd}
+for Didot points.  For example,
 $$ \hbox{\verb|(2cm,2cm)--(0,0)--(0,3cm)--(3cm,0)--(0,0)|} $$
 generates a larger version of the above diagram.  It is OK to say
 \verb|0| instead \verb|0cm| because {\tt cm} is really just a conversion
