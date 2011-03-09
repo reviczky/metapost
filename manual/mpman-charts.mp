@@ -202,8 +202,8 @@ beginfig(2);
   label(btex \appl{Editor} etex, degtoxy(wfstart+wfsegangle*1)) withcolor appl_col;
   label(btex \ext{fig.mp} etex, degtoxy(wfstart+wfsegangle*2)) withcolor ext_col;
   label(btex \appl{MetaPost} etex, degtoxy(wfstart+wfsegangle*3)) withcolor appl_col;
-  label(btex \ext{fig.1} etex, degtoxy(wfstart+wfsegangle*4+10)) withcolor ext_col;
-  label(btex {\extfontvii fig.log} etex, degtoxy(wfstart+wfsegangle*4-10)) withcolor ext_col;
+  label(btex \ext{fig.1} etex, degtoxy(wfstart+wfsegangle*4+wfsegangle/7)) withcolor ext_col;
+  label(btex \ext{fig.log} etex, degtoxy(wfstart+wfsegangle*4-wfsegangle/7)) withcolor .7[ext_col, wf_col];
   label(btex \appl{Previewer} etex, degtoxy(wfstart+wfsegangle*5)) withcolor appl_col;
 endfig;
 
