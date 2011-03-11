@@ -490,6 +490,21 @@ $$
 \label{fig3}
 \end{figure}
 
+MetaPost already provides a small selection of basic path shapes that
+can be used to derive custom paths from.  The predefined path
+\texttt{fullcircle}\index{fullcircle?\texttt{fullcircle}}\label{Dfcirc}
+is a very good approximation of a closed circle of unit diameter
+centered on the origin.  There are also
+\texttt{halfcircle}\index{halfcircle?\texttt{halfcircle}}\label{Dhcirc}
+and
+\texttt{quartercircle}\index{quartercircle?\texttt{quartercircle}}\label{Dqcirc},
+the former being the part of a full circle covering the first and second
+quadrant and the latter covering just the first quadrant.  Rectangularly
+shaped paths can be derived from
+\texttt{unitsquare}\index{unitsquare?\texttt{unitsquare}}\label{Dunitsqr},
+which is defined as a closed square of unit side length whose lower left
+corner is located at the origin.
+
 \subsection{B\'ezier Cubic Curves}
 
 When MetaPost is asked to draw a smooth curve through a sequence of
@@ -2208,15 +2223,9 @@ Value & Color model\\\hline
 Figure~\ref{fig21} illustrates several applications of the fill command
 to fill areas with shades of gray.  The paths involved are intersecting
 circles {\tt a} and {\tt b} and a path {\tt ab} that bounds the region
-inside both circles.  Circles {\tt a} and {\tt b} are derived from a
-predefined path {\tt
-fullcircle}\index{fullcircle?\texttt{fullcircle}}\label{Dfcirc} that
-approximates a circle of unit diameter centered on the origin.  There is
-also a predefined path {\tt
-halfcircle}\index{halfcircle?\texttt{halfcircle}}\label{Dhcirc} that is
-the part of {\tt fullcircle} above the $x$ axis. Path~{\tt ab} is then
-initialized using a predefined macro {\tt buildcycle} that will be
-discussed shortly.
+inside both circles.  Circles {\tt a} and {\tt b} are derived from {\tt
+  fullcircle}.  Path~{\tt ab} is then initialized using a predefined
+macro {\tt buildcycle} that will be discussed shortly.
 
 \begin{figure}[htp]
 $$ \begin{verbatim}
