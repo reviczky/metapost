@@ -491,19 +491,30 @@ $$
 \end{figure}
 
 MetaPost already provides a small selection of basic path shapes that
-can be used to derive custom paths from.  The predefined path
+can be used to derive custom paths from.  The predefined variable
 \texttt{fullcircle}\index{fullcircle?\texttt{fullcircle}}\label{Dfcirc}
-is a very good approximation of a closed circle of unit diameter
-centered on the origin.  There are also
+refers to a closed path describing a circle of unit diameter centered on
+the origin.  There are also
 \texttt{halfcircle}\index{halfcircle?\texttt{halfcircle}}\label{Dhcirc}
 and
 \texttt{quartercircle}\index{quartercircle?\texttt{quartercircle}}\label{Dqcirc},
 the former being the part of a full circle covering the first and second
-quadrant and the latter covering just the first quadrant.  Rectangularly
-shaped paths can be derived from
+quadrant and the latter covering just the first quadrant.  Because of
+the mathematical model that is used to describe paths in MetaPost (see
+below), all these are not exactly circular paths, but very good
+approximations.
+
+\begin{figure}
+$$ \includegraphics{mpman-61.mps} $$
+\caption{A circle and a square with cardinal points.  Arrows are
+  pointing to the start and end points of the closed paths.}
+\label{fig3a}
+\end{figure}
+
+Rectangularly shaped paths can be derived from
 \texttt{unitsquare}\index{unitsquare?\texttt{unitsquare}}\label{Dunitsqr},
-which is defined as a closed square of unit side length whose lower left
-corner is located at the origin.
+a closed path describing a square of unit side length whose lower left
+corner is located at the origin (figure~\ref{fig3a}).
 
 \subsection{B\'ezier Cubic Curves}
 
