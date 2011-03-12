@@ -815,7 +815,7 @@ beginfig(61);
       ahlength := 6bp;
       drawarrow shape withpen pencircle scaled .5;
       for k = 0 upto length shape:
-        drawdot point k of shape withpen pencircle scaled 3;
+        drawdot point k of shape withpen pencircle scaled dotlabeldiam;
       endfor
     )
   enddef;
