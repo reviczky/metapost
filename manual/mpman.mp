@@ -811,8 +811,8 @@ endfig;
 beginfig(61);
   def shape_with_cardinal_points(expr shape) =
     image(
-      ahangle := 30;
-      ahlength := 6bp;
+      interim ahangle := 30;
+      interim ahlength := 6bp;
       drawarrow shape withpen pencircle scaled .5;
       for k = 0 upto length shape:
         drawdot point k of shape withpen pencircle scaled dotlabeldiam;
