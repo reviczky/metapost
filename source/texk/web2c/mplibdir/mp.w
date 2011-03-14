@@ -88,12 +88,12 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.600" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.601" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @(mpmp.h@>=
-#define metapost_version "1.600"
+#define metapost_version "1.601"
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
 few typedefs and the header defintions for the externally used
@@ -6498,6 +6498,31 @@ typedef struct mp_knot_data {
 } mp_knot_data;
 
 
+@ 
+@d mp_gr_next_knot(A)   (A)->next /* the next knot in this list */
+
+@<Exported types...@>=
+typedef struct mp_gr_knot_data *mp_gr_knot;
+typedef struct mp_gr_knot_data {
+  double x_coord;
+  double y_coord;
+  double left_x;
+  double left_y;
+  double right_x;
+  double right_y;
+  mp_gr_knot next;
+  union {
+    struct {
+      unsigned short left_type;
+      unsigned short right_type;
+    } types;
+    mp_gr_knot prev;
+    signed int info;
+  } data;
+  unsigned char originator;
+} mp_gr_knot_data;
+
+
 @ @(mplib.h@>=
 enum mp_knot_type {
   mp_endpoint = 0,      /* |mp_left_type| at path beginning and |mp_right_type| at path end */
@@ -6763,6 +6788,16 @@ static mp_knot mp_new_knot (MP mp) {
 }
 
 
+@ @<Declarations@>=
+static mp_gr_knot mp_gr_new_knot (MP mp);
+
+@ @c
+static mp_gr_knot mp_gr_new_knot (MP mp) {
+  mp_gr_knot q = mp_xmalloc (mp, 1, sizeof (struct mp_gr_knot_data));
+  return q;
+}
+
+
 @ If we want to duplicate a knot node, we can say |copy_knot|:
 
 @c
@@ -6771,6 +6806,25 @@ static mp_knot mp_copy_knot (MP mp, mp_knot p) {
   q = mp_new_knot (mp);
   memcpy (q, p, sizeof (struct mp_knot_data));
   mp_next_knot (q) = NULL;
+  return q;
+}
+
+@ If we want to export a knot node, we can say |export_knot|:
+
+@c
+static mp_gr_knot mp_export_knot (MP mp, mp_knot p) {
+  mp_gr_knot q;    /* the copy */
+  q = mp_gr_new_knot (mp);
+  q->x_coord = mp_x_coord(p)/65536.0;
+  q->y_coord = mp_y_coord(p)/65536.0;
+  q->left_x  = mp_left_x(p)/65536.0;
+  q->left_y  = mp_left_y(p)/65536.0;
+  q->right_x = mp_right_x(p)/65536.0;
+  q->right_y = mp_right_y(p)/65536.0;
+  q->data.types.left_type = mp_left_type(p);
+  q->data.types.right_type = mp_left_type(p);
+  q->data.info = mp_knot_info(p);
+  mp_gr_next_knot (q) = NULL;
   return q;
 }
 
@@ -6794,6 +6848,68 @@ static mp_knot mp_copy_path (MP mp, mp_knot p) {
   return q;
 }
 
+@ The |export_path| routine makes a clone of a given path
+and converts the |value|s therein to |double|s.
+
+@c
+static mp_gr_knot mp_export_path (MP mp, mp_knot p) {
+  mp_knot pp;    /* for list manipulation */
+  mp_gr_knot q, qq;
+  if (p == NULL)
+    return NULL;
+  q = mp_export_knot (mp, p);
+  qq = q;
+  pp = mp_next_knot (p);
+  while (pp != p) {
+    mp_gr_next_knot (qq) = mp_export_knot (mp, pp);
+    qq = mp_gr_next_knot (qq);
+    pp = mp_next_knot (pp);
+  }
+  mp_gr_next_knot (qq) = q;
+  return q;
+}
+
+@ If we want to import a knot node, we can say |import_knot|:
+
+@c
+static mp_knot mp_import_knot (MP mp, mp_gr_knot p) {
+  mp_knot q;    /* the copy */
+  q = mp_new_knot (mp);
+  mp_x_coord(q) = (scaled)(p->x_coord * 65536.0);
+  mp_y_coord(q) = (scaled)(p->y_coord * 65536.0);
+  mp_left_x(q)  = (scaled)(p->left_x  * 65536.0);
+  mp_left_y(q)  = (scaled)(p->left_y  * 65536.0);
+  mp_right_x(q) = (scaled)(p->right_x * 65536.0);
+  mp_right_y(q) = (scaled)(p->right_y * 65536.0);
+  mp_left_type(q) = p->data.types.left_type;
+  mp_left_type(q) = p->data.types.right_type;
+  mp_knot_info(q) = p->data.info;
+  mp_next_knot (q) = NULL;
+  return q;
+}
+
+
+@ The |import_path| routine makes a clone of a given path
+and converts the |value|s therein to |scaled|s.
+
+@c
+static mp_knot mp_import_path (MP mp, mp_gr_knot p) {
+  mp_gr_knot pp;    /* for list manipulation */
+  mp_knot q, qq;
+  if (p == NULL)
+    return NULL;
+  q = mp_import_knot (mp, p);
+  qq = q;
+  pp = mp_gr_next_knot (p);
+  while (pp != p) {
+    mp_next_knot (qq) = mp_import_knot (mp, pp);
+    qq = mp_next_knot (qq);
+    pp = mp_gr_next_knot (pp);
+  }
+  mp_next_knot (qq) = q;
+  return q;
+}
+
 
 @ Just before |ship_out|, knot lists are exported for printing.
 
@@ -6801,18 +6917,18 @@ static mp_knot mp_copy_path (MP mp, mp_knot p) {
 of a given path.
 
 @c
-static mp_knot mp_export_knot_list (MP mp, mp_knot p) {
-  mp_knot q;    /* the exported copy */
+static mp_gr_knot mp_export_knot_list (MP mp, mp_knot p) {
+  mp_gr_knot q;    /* the exported copy */
   if (p == NULL)
     return NULL;
-  q = mp_copy_path (mp, p);
+  q = mp_export_path (mp, p);
   return q;
 }
-static mp_knot mp_import_knot_list (MP mp, mp_knot q) {
+static mp_knot mp_import_knot_list (MP mp, mp_gr_knot q) {
   mp_knot p;    /* the imported copy */
   if (q == NULL)
     return NULL;
-  p = mp_copy_path (mp, q);
+  p = mp_import_path (mp, q);
   return p;
 }
 
@@ -9781,7 +9897,7 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, scaled * w) {
   mp_dash_object *d;
   mp_node p, h;
   scaled scf;   /* scale factor */
-  int *dashes = NULL;
+  double *dashes = NULL;
   int num_dashes = 1;
   h = mp_dash_p (q);
   if (h == NULL || dash_list (h) == mp->null_dash)
@@ -9802,17 +9918,17 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, scaled * w) {
   add_var_used (sizeof (mp_dash_object));
   start_x (mp->null_dash) = start_x (p) + dash_y (h);
   while (p != mp->null_dash) {
-    dashes = xrealloc (dashes, (num_dashes + 2), sizeof (scaled));
+    dashes = xrealloc (dashes, (num_dashes + 2), sizeof (double));
     dashes[(num_dashes - 1)] =
-      mp_take_scaled (mp, (stop_x (p) - start_x (p)), scf);
+      mp_take_scaled (mp, (stop_x (p) - start_x (p)), scf) / 65536.0;
     dashes[(num_dashes)] =
-      mp_take_scaled (mp, (start_x (mp_link (p)) - stop_x (p)), scf);
-    dashes[(num_dashes + 1)] = -1;      /* terminus */
+      mp_take_scaled (mp, (start_x (mp_link (p)) - stop_x (p)), scf)  / 65536.0;
+    dashes[(num_dashes + 1)] = -1.0;      /* terminus */
     num_dashes += 2;
     p = mp_link (p);
   }
   d->array = dashes;
-  d->offset = mp_take_scaled (mp, mp_dash_offset (mp, h), scf);
+  d->offset = mp_take_scaled (mp, mp_dash_offset (mp, h), scf) / 65536.0;
   return d;
 }
 
@@ -25255,7 +25371,7 @@ static void mp_set_up_glyph_infont (MP mp, mp_node p) {
     mp_ps_font_free (mp, f);
   }
   if (h != NULL) {
-    set_cur_exp_node (mp_gr_unexport (mp, h));
+    set_cur_exp_node (mp_gr_import (mp, h));
   } else {
     set_cur_exp_node (mp_get_edge_header_node (mp));
     mp_init_edges (mp, cur_exp_node ());
@@ -30779,13 +30895,13 @@ static void mp_ship_out (MP mp, mp_node h);
     gr_cyan_val(q)     = 0;
 	gr_magenta_val(q)  = 0;
 	gr_yellow_val(q)   = 0;
-	gr_black_val(q)    = (gr_color_model(q)==mp_cmyk_model ? unity : 0);
+	gr_black_val(q)    = ((gr_color_model(q)==mp_cmyk_model ? unity : 0) / 65536.0);
   } else {
     gr_color_model(q)  = (unsigned char)mp_color_model(p);
-    gr_cyan_val(q)     = cyan_val(p);
-    gr_magenta_val(q)  = magenta_val(p);
-    gr_yellow_val(q)   = yellow_val(p);
-    gr_black_val(q)    = black_val(p);
+    gr_cyan_val(q)     = (cyan_val(p)  / 65536.0);
+    gr_magenta_val(q)  = (magenta_val(p) / 65536.0);
+    gr_yellow_val(q)   = (yellow_val(p) / 65536.0);
+    gr_black_val(q)    = (black_val(p) / 65536.0);
   }
 
 @d export_scripts(q,p)
@@ -30811,10 +30927,10 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
   hh->body = NULL;
   hh->next = NULL;
   hh->parent = mp;
-  hh->minx = minx_val (h);
-  hh->miny = miny_val (h);
-  hh->maxx = maxx_val (h);
-  hh->maxy = maxy_val (h);
+  hh->minx = minx_val (h)/65536.0;
+  hh->miny = miny_val (h)/65536.0;
+  hh->maxx = maxx_val (h)/65536.0;
+  hh->maxy = maxy_val (h)/65536.0;
   hh->filename = mp_xstrdup (mp, mp_get_output_file_name (mp));
   c = mp_round_unscaled (mp, internal_value_to_halfword (mp_char_code));
   hh->charcode = c;
@@ -30853,7 +30969,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
       export_color (tf, p);
       export_scripts (tf, p);
       gr_ljoin_val (tf) = (unsigned char) ljoin_val (p);
-      gr_miterlim_val (tf) = miterlim_val (p);
+      gr_miterlim_val (tf) = miterlim_val (p)  / 65536.0;
       break;
     case mp_stroked_node_type:
       ts = (mp_stroked_object *) hq;
@@ -30883,7 +30999,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
       export_color (ts, p);
       export_scripts (ts, p);
       gr_ljoin_val (ts) = (unsigned char) ljoin_val (p);
-      gr_miterlim_val (ts) = miterlim_val (p);
+      gr_miterlim_val (ts) = miterlim_val (p) / 65536.0;
       gr_lcap_val (ts) = (unsigned char) lcap_val (p);
       gr_dash_p (ts) = mp_export_dashes (mp, (mp_stroked_node) p, &d_width);
       break;
@@ -30893,18 +31009,18 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
       gr_text_l (tt) = (size_t) mp_text_p (p)->len;
       gr_font_n (tt) = (unsigned int) mp_font_n (p);
       gr_font_name (tt) = mp_xstrdup (mp, mp->font_name[mp_font_n (p)]);
-      gr_font_dsize (tt) = (unsigned int) mp->font_dsize[mp_font_n (p)];
+      gr_font_dsize (tt) = mp->font_dsize[mp_font_n (p)] / 65536.0;
       export_color (tt, p);
       export_scripts (tt, p);
-      gr_width_val (tt) = width_val (p);
-      gr_height_val (tt) = height_val (p);
-      gr_depth_val (tt) = depth_val (p);
-      gr_tx_val (tt) = tx_val (p);
-      gr_ty_val (tt) = ty_val (p);
-      gr_txx_val (tt) = txx_val (p);
-      gr_txy_val (tt) = txy_val (p);
-      gr_tyx_val (tt) = tyx_val (p);
-      gr_tyy_val (tt) = tyy_val (p);
+      gr_width_val (tt) = width_val (p)  / 65536.0;
+      gr_height_val (tt) = height_val (p)  / 65536.0;
+      gr_depth_val (tt) = depth_val (p)  / 65536.0;
+      gr_tx_val (tt) = tx_val (p)  / 65536.0;
+      gr_ty_val (tt) = ty_val (p)  / 65536.0;
+      gr_txx_val (tt) = txx_val (p)  / 65536.0;
+      gr_txy_val (tt) = txy_val (p)  / 65536.0;
+      gr_tyx_val (tt) = tyx_val (p)  / 65536.0;
+      gr_tyy_val (tt) = tyy_val (p)  / 65536.0;
       break;
     case mp_start_clip_node_type:
       tc = (mp_clip_object *) hq;
@@ -30939,7 +31055,7 @@ it takes quite a few shortcuts for cases that cannot appear
 in the output of |mp_ps_font_charstring|.
 
 @c
-mp_node mp_gr_unexport (MP mp, struct mp_edge_object *hh) {
+mp_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
   mp_node h;    /* the edge object */
   mp_node ph, pn, pt;   /* for adding items */
   mp_graphic_object *p; /* the current graphical object */
@@ -30948,10 +31064,10 @@ mp_node mp_gr_unexport (MP mp, struct mp_edge_object *hh) {
   ph = edge_list (h);
   pt = ph;
   p = hh->body;
-  minx_val (h) = hh->minx;
-  miny_val (h) = hh->miny;
-  maxx_val (h) = hh->maxx;
-  maxy_val (h) = hh->maxy;
+  minx_val (h) = (scaled)(hh->minx * 65536.0);
+  miny_val (h) = (scaled)(hh->miny * 65536.0);
+  maxx_val (h) = (scaled)(hh->maxx * 65536.0);
+  maxy_val (h) = (scaled)(hh->maxy * 65536.0);
   while (p != NULL) {
     switch (gr_type (p)) {
     case mp_fill_code:
@@ -30965,6 +31081,7 @@ mp_node mp_gr_unexport (MP mp, struct mp_edge_object *hh) {
           mp_link (pt) = pn;
           pt = mp_link (pt);
         } else {
+          grey_val (pn) = 0;
           mp_link (pn) = mp_link (ph);
           mp_link (ph) = pn;
           if (ph == pt)
@@ -30990,7 +31107,7 @@ mp_node mp_gr_unexport (MP mp, struct mp_edge_object *hh) {
 
 @ @<Declarations@>=
 static struct mp_edge_object *mp_gr_export (MP mp, mp_node h);
-static mp_node mp_gr_unexport (MP mp, struct mp_edge_object *h);
+static mp_node mp_gr_import (MP mp, struct mp_edge_object *h);
 
 @ This function is now nearly trivial.
 
