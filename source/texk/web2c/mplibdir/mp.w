@@ -11746,12 +11746,13 @@ approach that is achieved by setting |join_type:=2|.
 
 @c
 static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
-                                 quarterword lcap, scaled miterlim) {
+                                 quarterword lcap, mp_number miter) {
   mp_knot p, q, r, q0;  /* for manipulating the path */
   mp_knot w, w0;        /* the pen knot for the current offset */
   scaled qx, qy;        /* unshifted coordinates of |q| */
   halfword k, k0;       /* controls pen edge insertion */
   int join_type = 0;    /* codes |0..3| for mitered, round, beveled, or square */
+  scaled miterlim = number_to_scaled(miter);
   @<Other local variables for |make_envelope|@>;
   dxin = 0;
   dyin = 0;
@@ -25335,7 +25336,7 @@ static void mp_set_up_direction_time (MP mp, mp_node p) {
 }
 static void mp_set_up_envelope (MP mp, mp_node p) {
   unsigned char ljoin, lcap;
-  scaled miterlim;
+  mp_number miterlim;
   mp_knot q = mp_copy_path (mp, cur_exp_knot ());       /* the original path */
   /* TODO: accept elliptical pens for straight paths */
   if (pen_is_elliptical (value_knot (p))) {
@@ -25357,9 +25358,9 @@ static void mp_set_up_envelope (MP mp, mp_node p) {
   else
     lcap = 0;
   if (internal_value_to_halfword (mp_miterlimit) < unity)
-    miterlim = unity;
+    set_number_from_scaled(miterlim, unity);
   else
-    miterlim = internal_value_to_halfword (mp_miterlimit);
+    set_number_from_scaled(miterlim, internal_value_to_halfword (mp_miterlimit));
   set_cur_exp_knot (mp_make_envelope
                     (mp, q, value_knot (p), ljoin, lcap, miterlim));
   mp->cur_exp.type = mp_path_type;
@@ -30954,13 +30955,13 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
         pc = mp_copy_path (mp, mp_path_p (p0));
         pp =
           mp_make_envelope (mp, pc, mp_pen_p (p0), p0->ljoin,
-                            0, number_to_scaled(p0->miterlim));
+                            0, p0->miterlim);
         gr_path_p (tf) = mp_export_knot_list (mp, pp);
         mp_toss_knot_list (mp, pp);
         pc = mp_htap_ypoc (mp, mp_path_p (p0));
         pp =
           mp_make_envelope (mp, pc, mp_pen_p ((mp_fill_node) p), p0->ljoin,
-                            0, number_to_scaled(p0->miterlim));
+                            0, p0->miterlim);
         gr_htap_p (tf) = mp_export_knot_list (mp, pp);
         mp_toss_knot_list (mp, pp);
       }
@@ -30994,7 +30995,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
         pc =
           mp_make_envelope (mp, pc, mp_pen_p (p0),
                             p0->ljoin, (quarterword) t, 
-	                    number_to_scaled(p0->miterlim));
+	                    p0->miterlim);
         gr_path_p (ts) = mp_export_knot_list (mp, pc);
         mp_toss_knot_list (mp, pc);
       }
