@@ -5388,11 +5388,11 @@ static void mp_init_pair_node (MP mp, mp_node p) {
   mp_type (p) = mp_pair_type;
   q = mp_get_pair_node (mp);
   y_part (q) = mp_get_value_node (mp);
-  new_indep (y_part (q));   /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, y_part (q));   /* sets |type(q)| and |value(q)| */
   mp_name_type (y_part (q)) = (quarterword) (mp_y_part_sector);
   mp_link (y_part (q)) = p;
   x_part (q) = mp_get_value_node (mp);
-  new_indep (x_part (q));   /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, x_part (q));   /* sets |type(q)| and |value(q)| */
   mp_name_type (x_part (q)) = (quarterword) (mp_x_part_sector);
   mp_link (x_part (q)) = p;
   set_value_node (p, q);
@@ -5443,27 +5443,27 @@ static void mp_init_transform_node (MP mp, mp_node p) {
   mp_type (p) = mp_transform_type;
   q = mp_get_transform_node (mp);       /* big node */
   yy_part (q) = mp_get_value_node (mp);
-  new_indep (yy_part (q));  /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, yy_part (q));  /* sets |type(q)| and |value(q)| */
   mp_name_type (yy_part (q)) = (quarterword) (mp_yy_part_sector);
   mp_link (yy_part (q)) = p;
   yx_part (q) = mp_get_value_node (mp);
-  new_indep (yx_part (q));  /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, yx_part (q));  /* sets |type(q)| and |value(q)| */
   mp_name_type (yx_part (q)) = (quarterword) (mp_yx_part_sector);
   mp_link (yx_part (q)) = p;
   xy_part (q) = mp_get_value_node (mp);
-  new_indep (xy_part (q));  /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, xy_part (q));  /* sets |type(q)| and |value(q)| */
   mp_name_type (xy_part (q)) = (quarterword) (mp_xy_part_sector);
   mp_link (xy_part (q)) = p;
   xx_part (q) = mp_get_value_node (mp);
-  new_indep (xx_part (q));  /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, xx_part (q));  /* sets |type(q)| and |value(q)| */
   mp_name_type (xx_part (q)) = (quarterword) (mp_xx_part_sector);
   mp_link (xx_part (q)) = p;
   ty_part (q) = mp_get_value_node (mp);
-  new_indep (ty_part (q));  /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, ty_part (q));  /* sets |type(q)| and |value(q)| */
   mp_name_type (ty_part (q)) = (quarterword) (mp_y_part_sector);
   mp_link (ty_part (q)) = p;
   tx_part (q) = mp_get_value_node (mp);
-  new_indep (tx_part (q));  /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, tx_part (q));  /* sets |type(q)| and |value(q)| */
   mp_name_type (tx_part (q)) = (quarterword) (mp_x_part_sector);
   mp_link (tx_part (q)) = p;
   set_value_node (p, q);
@@ -5510,15 +5510,15 @@ static void mp_init_color_node (MP mp, mp_node p) {
   mp_type (p) = mp_color_type;
   q = mp_get_color_node (mp);   /* big node */
   blue_part (q) = mp_get_value_node (mp);
-  new_indep (blue_part (q));        /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, blue_part (q));        /* sets |type(q)| and |value(q)| */
   mp_name_type (blue_part (q)) = (quarterword) (mp_blue_part_sector);
   mp_link (blue_part (q)) = p;
   green_part (q) = mp_get_value_node (mp);
-  new_indep (green_part (q));       /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, green_part (q));       /* sets |type(q)| and |value(q)| */
   mp_name_type (y_part (q)) = (quarterword) (mp_green_part_sector);
   mp_link (green_part (q)) = p;
   red_part (q) = mp_get_value_node (mp);
-  new_indep (red_part (q)); /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, red_part (q)); /* sets |type(q)| and |value(q)| */
   mp_name_type (red_part (q)) = (quarterword) (mp_red_part_sector);
   mp_link (red_part (q)) = p;
   set_value_node (p, q);
@@ -5563,19 +5563,19 @@ static void mp_init_cmykcolor_node (MP mp, mp_node p) {
   mp_type (p) = mp_cmykcolor_type;
   q = mp_get_cmykcolor_node (mp);       /* big node */
   black_part (q) = mp_get_value_node (mp);
-  new_indep (black_part (q));       /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, black_part (q));       /* sets |type(q)| and |value(q)| */
   mp_name_type (black_part (q)) = (quarterword) (mp_black_part_sector);
   mp_link (black_part (q)) = p;
   yellow_part (q) = mp_get_value_node (mp);
-  new_indep (yellow_part (q));      /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, yellow_part (q));      /* sets |type(q)| and |value(q)| */
   mp_name_type (yellow_part (q)) = (quarterword) (mp_yellow_part_sector);
   mp_link (yellow_part (q)) = p;
   magenta_part (q) = mp_get_value_node (mp);
-  new_indep (magenta_part (q));     /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, magenta_part (q));     /* sets |type(q)| and |value(q)| */
   mp_name_type (magenta_part (q)) = (quarterword) (mp_magenta_part_sector);
   mp_link (magenta_part (q)) = p;
   cyan_part (q) = mp_get_value_node (mp);
-  new_indep (cyan_part (q));        /* sets |type(q)| and |value(q)| */
+  mp_new_indep (mp, cyan_part (q));        /* sets |type(q)| and |value(q)| */
   mp_name_type (cyan_part (q)) = (quarterword) (mp_cyan_part_sector);
   mp_link (cyan_part (q)) = p;
   set_value_node (p, q);
@@ -12824,17 +12824,22 @@ independent variables it depends on is reverting to |undefined|.
 @d set_indep_value(A,B) ((mp_value_node)(A))->data.indep.serial=(B)
 
 
-@d new_indep(A)  /* create a new independent variable */
-  { if ( mp->serial_no>=max_integer )
+@c 
+void mp_new_indep(MP mp, mp_node p)  { /* create a new independent variable */
+  if ( mp->serial_no>=max_integer ) {
     mp_fatal_error(mp, "variable instance identifiers exhausted");
-  set_value((A),0);
-  mp_type((A))=mp_independent;
-  mp->serial_no=mp->serial_no+1;
-  set_indep_scale((A),0);
-  set_indep_value((A),mp->serial_no);
   }
+  mp_type(p)=mp_independent;
+  mp->serial_no=mp->serial_no+1;
+  set_indep_scale(p,0);
+  set_indep_value(p,mp->serial_no);
+}
 
-@<Glob...@>=
+@ @<Declarations@>=
+void mp_new_indep(MP mp, mp_node p);
+
+
+@ @<Glob...@>=
 integer serial_no;      /* the most recent serial number */
 
 @ But how are dependency lists represented? It's simple: The linear combination
@@ -19540,7 +19545,7 @@ q = (mp_value_node) mp_link (r);
 set_mp_link (r, NULL);
 set_prev_dep (q, prev_dep ((mp_value_node) pp));
 set_mp_link (prev_dep ((mp_value_node) pp), (mp_node) q);
-new_indep ((mp_value_node) pp);
+mp_new_indep (mp, pp);
 if (cur_exp_node () == pp && mp->cur_exp.type == t)
   mp->cur_exp.type = mp_independent;
 if (internal_value_to_halfword (mp_tracing_equations) > 0) {
@@ -20464,7 +20469,7 @@ RESTART:
                                                                 p)));
     break;
   case mp_numeric_type:
-    new_indep (p);
+    mp_new_indep (mp, p);
     goto RESTART;
     break;
   case mp_independent:
