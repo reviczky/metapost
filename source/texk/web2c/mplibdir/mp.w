@@ -1067,7 +1067,7 @@ The avl tree |strings| contains all of the known string structures.
 Each structure contains an |unsigned char| pointer containing the eight-bit
 data, a |size_t| that holds the length of that data, and an |int| that 
 indicates how often this string is referenced (this will be explained below).
-Such strings are referred to by structure pointers called |str_number|.
+Such strings are referred to by structure pointers called |mp_string|.
 
 Besides the avl tree, there is a set of three variables called |cur_string|,
 |cur_length| and |cur_string_size| that are used for strings while they are
@@ -1079,7 +1079,7 @@ typedef struct {
   size_t len;   /* its length */
   int refs;     /* number of references */
 } mp_lstring;
-typedef mp_lstring *str_number; /* for pointers to string values */
+typedef mp_lstring *mp_string; /* for pointers to string values */
 
 @ The string handling functions are in \.{mpstrings.w}, but strings
 need a bunch of globals and those are defined here in the main file.
@@ -1232,7 +1232,7 @@ use an array |wr_file| that will be declared later.
 void mp_print (MP mp, const char *s);
 void mp_print_ln (MP mp);
 void mp_print_char (MP mp, ASCII_code k);
-void mp_print_str (MP mp, str_number s);
+void mp_print_str (MP mp, mp_string s);
 void mp_print_nl (MP mp, const char *s);
 void mp_print_two (MP mp, scaled x, scaled y);
 
@@ -1388,7 +1388,7 @@ void mp_print (MP mp, const char *ss) {
   assert (ss != NULL);
   mp_do_print (mp, ss, strlen (ss));
 }
-void mp_print_str (MP mp, str_number s) {
+void mp_print_str (MP mp, mp_string s) {
   assert (s != NULL);
   mp_do_print (mp, (const char *) s->str, s->len);
 }
@@ -1642,7 +1642,7 @@ void mp_normalize_selector (MP mp);
 
 @ @<Glob...@>=
 boolean use_err_help;   /* should the |err_help| string be shown? */
-str_number err_help;    /* a string set up by \&{errhelp} */
+mp_string err_help;    /* a string set up by \&{errhelp} */
 
 @ @<Allocate or ...@>=
 mp->use_err_help = false;
@@ -2408,7 +2408,7 @@ typedef struct {
 typedef struct {
   mp_independent_data indep;
   mp_number n;
-  str_number str;
+  mp_string str;
   mp_sym sym;
   mp_node node;
   mp_knot p;
@@ -3718,7 +3718,7 @@ typedef struct {
 #define set_internal_from_scaled_int(A,B) do { \
   mp->internal[(A)].v.data.n.data.val=(B);\
 } while (0)
-#define internal_string(A) (str_number)mp->internal[(A)].v.data.str
+#define internal_string(A) (mp_string)mp->internal[(A)].v.data.str
 #define set_internal_string(A,B) mp->internal[(A)].v.data.str=(B)
 #define internal_name(A) mp->internal[(A)].intname
 #define set_internal_name(A,B) mp->internal[(A)].intname=(B)
@@ -4113,7 +4113,7 @@ for (k = 127; k <= 255; k++)
 Symbolic tokens are stored in and retrieved from an AVL tree. This
 is not as fast as an actual hash table, but it is easily extensible.
 
-A symbolic token contains a pointer to the |str_number| that 
+A symbolic token contains a pointer to the |mp_string| that 
 contains the string representation of the symbol, a |halfword| 
 that holds the current command value of the token, and an 
 |mp_value| for the associated equivalent. 
@@ -4149,7 +4149,7 @@ that holds the current command value of the token, and an
 } while (0)
 
 @ @c
-static str_number do_get_text (MP mp, mp_sym A) {
+static mp_string do_get_text (MP mp, mp_sym A) {
   FUNCTION_TRACE3 ("%d = do_get_text(%p)\n",A->text,A);
   return A->text;
 }
@@ -4172,7 +4172,7 @@ static mp_sym do_get_equiv_sym (MP mp, mp_sym A) {
 
 
 @ @<Declarations...@>=
-static str_number do_get_text (MP mp, mp_sym A);
+static mp_string do_get_text (MP mp, mp_sym A);
 static halfword do_get_eq_type (MP mp, mp_sym A);
 static halfword do_get_equiv (MP mp, mp_sym A);
 static mp_node do_get_equiv_node (MP mp, mp_sym A);
@@ -4183,7 +4183,7 @@ static mp_sym do_get_equiv_sym (MP mp, mp_sym A);
 typedef struct mp_symbol_entry {
   halfword type;
   mp_value v;
-  str_number text;
+  mp_string text;
 } mp_symbol_entry;
 
 @ @<Glob...@>=
@@ -4639,7 +4639,7 @@ the |name_type| field is |token|, and the |value| field holds~|v|.
 
 (3)~A string token is also represented in a non-symbolic node; the |type|
 field is |mp_string_type|, the |name_type| field is |token|, and the
-|value| field holds the corresponding |str_number|.  
+|value| field holds the corresponding |mp_string|.  
 
 (4)~Capsules have |name_type=capsule|, and their |type| and |value| fields 
 represent arbitrary values, with |type| different from |symbol_node| 
@@ -4756,7 +4756,7 @@ static mp_node get_value_node (MP mp, mp_token_node A) {
   FUNCTION_TRACE3 ("%p = get_value_node(%p)\n", A->data.node, A);
   return  A->data.node ;
 }
-static str_number get_value_str (MP mp, mp_token_node A) {
+static mp_string get_value_str (MP mp, mp_token_node A) {
   FUNCTION_TRACE3 ("%p = get_value_str(%p)\n", A->data.str, A);
   return  A->data.str ;
 }
@@ -4769,7 +4769,7 @@ static mp_knot get_value_knot (MP mp, mp_token_node A) {
 @ @<Declarations@>=
 static mp_sym get_value_sym (MP mp, mp_token_node A);
 static mp_node get_value_node (MP mp, mp_token_node A);
-static str_number get_value_str (MP mp, mp_token_node A) ;
+static mp_string get_value_str (MP mp, mp_token_node A) ;
 static mp_knot get_value_knot (MP mp, mp_token_node A) ;
 integer mp_do_value (MP mp, mp_node A);
 integer mp_do_dep_value (MP mp, mp_node A);
@@ -4920,7 +4920,7 @@ if (mp_type (p) != mp_symbol_node) {
     if (sr == 0) {
       @<Display a collective subscript@>
     } else {
-      str_number rr = text (sr);
+      mp_string rr = text (sr);
       if (rr == NULL) {
         mp_print (mp, " NONEXISTENT");
 @.NONEXISTENT@>
@@ -9290,8 +9290,8 @@ typedef struct mp_fill_node_data {
   mp_number green;
   mp_number blue;
   mp_number black;
-  str_number pre_script_;
-  str_number post_script_;
+  mp_string pre_script_;
+  mp_string post_script_;
   mp_knot path_p_;
   mp_knot pen_p_;
   unsigned char ljoin;
@@ -9354,8 +9354,8 @@ typedef struct mp_stroked_node_data {
   mp_number green;
   mp_number blue;
   mp_number black;
-  str_number pre_script_;
-  str_number post_script_;
+  mp_string pre_script_;
+  mp_string post_script_;
   mp_knot path_p_;
   mp_knot pen_p_;
   unsigned char ljoin;
@@ -9483,9 +9483,9 @@ typedef struct mp_text_node_data {
   mp_number green;
   mp_number blue;
   mp_number black;
-  str_number pre_script_;
-  str_number post_script_;
-  str_number text_p_;
+  mp_string pre_script_;
+  mp_string post_script_;
+  mp_string text_p_;
   halfword font_n_;
   scaled width_val_;
   scaled height_val_;
@@ -9507,7 +9507,7 @@ mp_text_code = 3,
 @d text_node_size sizeof(struct mp_text_node_data)
 
 @c
-static mp_node mp_new_text_node (MP mp, char *f, str_number s) {
+static mp_node mp_new_text_node (MP mp, char *f, mp_string s) {
   mp_text_node t = (mp_text_node) xmalloc (1, text_node_size);
   add_var_used (text_node_size);
   memset (t, 0, text_node_size);
@@ -14039,7 +14039,7 @@ typedef struct {
   char *long_name_field;
   halfword start_field, loc_field, limit_field;
   mp_node nstart_field, nloc_field;
-  str_number name_field;
+  mp_string name_field;
   quarterword index_field;
 } in_state_record;
 
@@ -14090,9 +14090,9 @@ The |name| variable is a string number that designates the name of
 the current file, if we are reading an ordinary text file.  Special codes
 |is_term..max_spec_src| indicate other sources of input text.
 
-@d is_term (str_number)0 /* |name| value when reading from the terminal for normal input */
-@d is_read (str_number)1 /* |name| value when executing a \&{readstring} or \&{readfrom} */
-@d is_scantok (str_number)2 /* |name| value when reading text generated by \&{scantokens} */
+@d is_term (mp_string)0 /* |name| value when reading from the terminal for normal input */
+@d is_read (mp_string)1 /* |name| value when executing a \&{readstring} or \&{readfrom} */
+@d is_scantok (mp_string)2 /* |name| value when reading text generated by \&{scantokens} */
 @d max_spec_src is_scantok
 
 @ Additional information about the current line is available via the
@@ -14144,7 +14144,7 @@ by analogy with |line_stack|.
 @d in_ext mp->inext_stack[iindex] /* a string used to construct \.{MPX} file names */
 @d in_name mp->iname_stack[iindex] /* a string used to construct \.{MPX} file names */
 @d in_area mp->iarea_stack[iindex] /* another string for naming \.{MPX} files */
-@d absent (str_number)1 /* |name_field| value for unused |mpx_in_stack| entries */
+@d absent (mp_string)1 /* |name_field| value for unused |mpx_in_stack| entries */
 @d mpx_reading (mp->mpx_name[iindex]>absent)
   /* when reading a file, is it an \.{MPX} file? */
 @d mpx_finished 0
@@ -14159,7 +14159,7 @@ integer *line_stack;    /* the line number for each file */
 char **inext_stack;     /* used for naming \.{MPX} files */
 char **iname_stack;     /* used for naming \.{MPX} files */
 char **iarea_stack;     /* used for naming \.{MPX} files */
-str_number *mpx_name;
+mp_string *mpx_name;
 
 @ @<Declarations@>=
 static void mp_reallocate_input_stack (MP mp, int newsize);
@@ -14173,7 +14173,7 @@ static void mp_reallocate_input_stack (MP mp, int newsize) {
   XREALLOC (mp->inext_stack, n, char *);
   XREALLOC (mp->iname_stack, n, char *);
   XREALLOC (mp->iarea_stack, n, char *);
-  XREALLOC (mp->mpx_name, n, str_number);
+  XREALLOC (mp->mpx_name, n, mp_string);
   for (k = mp->max_in_open; k <= n; k++) {
     mp->input_file[k] = NULL;
     mp->line_stack[k] = 0;
@@ -15055,7 +15055,7 @@ case absorbing:
   break;
 case var_defining:
   {
-    str_number s;
+    mp_string s;
     int old_setting = mp->selector;
     mp->selector = new_string;
     mp_print_variable_name (mp, mp->warning_info_node);
@@ -16742,7 +16742,7 @@ if (cur_cmd() == mp_comma) {
          "right delimiter, and then I'll begin expanding the macro.",
          "You might want to delete some tokens before continuing.",
          NULL };
-  str_number rname;
+  mp_string rname;
   int old_setting = mp->selector;
   mp->selector = new_string;
   mp_print_macro_name (mp, arg_list, macro_name);
@@ -16780,7 +16780,7 @@ if (cur_cmd() != mp_comma) {
            "I'll continue by pretending that each missing argument",
            "is either zero or null.",
            NULL };
-    str_number sname;
+    mp_string sname;
     int old_setting = mp->selector;
     mp->selector = new_string;    
     mp_print_macro_name (mp, arg_list, macro_name);
@@ -16984,7 +16984,7 @@ if (mp_end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop
   incr (n);
   if (cur_cmd() != mp_of_token) {
     char msg[256];
-    str_number sname;
+    mp_string sname;
     const char *hlp[] = { 
         "I've got the first argument; will look now for the other.",
         NULL };
@@ -18107,7 +18107,7 @@ most recently opened, if it is possible to do this.
 @^system dependencies@>
 
 @ @c
-static str_number mp_make_name_string (MP mp) {
+static mp_string mp_make_name_string (MP mp) {
   int k;        /* index into |name_of_file| */
   int name_length = (int) strlen (mp->name_of_file);
   str_room (name_length);
@@ -18154,10 +18154,10 @@ static void mp_scan_file_name (MP mp) {
 @ Here is another version that takes its input from a string.
 
 @<Declare subroutines for parsing file names@>=
-void mp_str_scan_file (MP mp, str_number s);
+void mp_str_scan_file (MP mp, mp_string s);
 
 @ @c
-void mp_str_scan_file (MP mp, str_number s) {
+void mp_str_scan_file (MP mp, mp_string s) {
   size_t p, q;  /* current position and stopping point */
   mp_begin_name (mp);
   p = 0;
@@ -19754,7 +19754,7 @@ static void mp_bad_exp (MP mp, const char *s) {
          NULL };
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>;
   {
-     str_number cm;
+     mp_string cm;
      int old_selector = mp->selector;
      mp->selector = new_string;
      mp_print_cmd_mod (mp, cur_cmd(), cur_mod());
@@ -20085,7 +20085,7 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
   mp_scan_expression (mp);
   if (cur_cmd() != mp_of_token) {
     char msg[256];
-    str_number sname;
+    mp_string sname;
     const char *hlp[] = {
         "I've got the first argument; will look now for the other.",
         NULL };
@@ -20342,7 +20342,7 @@ unexpectedly disappears.
 @c
 static char *mp_obliterated (MP mp, mp_node q) {
   char msg[256];
-  str_number sname;
+  mp_string sname;
   int old_setting = mp->selector;
   mp->selector = new_string;
   mp_show_token_list (mp, q, NULL, 1000, 0);
@@ -21834,7 +21834,7 @@ static void mp_print_known_or_unknown_type (MP mp, quarterword t, mp_node v) {
 @ @<Declare unary action...@>=
 static void mp_bad_unary (MP mp, quarterword c) {
   char msg[256];
-  str_number sname;
+  mp_string sname;
   int old_setting = mp->selector;
   const char *hlp[] = {
          "I'm afraid I don't know how to apply that operation to that",
@@ -22164,7 +22164,7 @@ static void mp_bad_color_part (MP mp, quarterword c) {
   mp_value new_expr;
   char msg[256];
   int old_setting;
-  str_number sname;
+  mp_string sname;
   const char *hlp[] = {
      "You can only ask for the redpart, greenpart, bluepart of a rgb object,",
      "the cyanpart, magentapart, yellowpart or blackpart of a cmyk object, ",
@@ -23462,7 +23462,7 @@ mp->cur_exp.type = mp_string_type
 I have to cheat a little here because 
 
 @<Glob...@>=
-str_number eof_line;
+mp_string eof_line;
 
 @ @<Set init...@>=
 mp->eof_line = mp_rtsl (mp, "\0", 1);
@@ -23508,7 +23508,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
 static void mp_bad_binary (MP mp, mp_node p, quarterword c) {
 
   char msg[256];
-  str_number sname;
+  mp_string sname;
   int old_setting = mp->selector;
   const char *hlp[] = {
          "I'm afraid I don't know how to apply that operation to that",
@@ -25145,7 +25145,7 @@ static void mp_bilin3 (MP mp, mp_node p, scaled t,
 @ @<Additional cases of binary operators@>=
 case mp_concatenate:
 if ((mp->cur_exp.type == mp_string_type) && (mp_type (p) == mp_string_type)) {
-  str_number str = mp_cat (mp, value_str (p), cur_exp_str());
+  mp_string str = mp_cat (mp, value_str (p), cur_exp_str());
   delete_str_ref (cur_exp_str ()) ;
   set_cur_exp_str (str);
 } else
@@ -25153,7 +25153,7 @@ if ((mp->cur_exp.type == mp_string_type) && (mp_type (p) == mp_string_type)) {
 break;
 case mp_substring_of:
 if (mp_nice_pair (mp, p, mp_type (p)) && (mp->cur_exp.type == mp_string_type)) {
-  str_number str = mp_chop_string (mp, 
+  mp_string str = mp_chop_string (mp, 
                       cur_exp_str (),
                       mp_round_unscaled (mp, value (x_part (value_node(p)))), 
                       mp_round_unscaled (mp, value (y_part (value_node(p)))));
@@ -25585,7 +25585,7 @@ occur when the statement is null.
 {
   if (cur_cmd() < mp_semicolon) {
     char msg[256];
-    str_number sname;
+    mp_string sname;
     int old_setting = mp->selector;
     const char *hlp[] = {
            "I was looking for the beginning of a new statement.",
@@ -27673,7 +27673,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
   mp_node q;    /* for list manipulation */
   unsigned old_setting; /* saved |selector| setting */
   mp_node k;    /* for finding the near-last item in a list  */
-  str_number s; /* for string cleanup after combining  */
+  mp_string s; /* for string cleanup after combining  */
   mp_value new_expr;
   mp_node cp, pp, dp, ap, bp;
   /* objects being updated; |void| initially; |NULL| to suppress update */
@@ -28066,7 +28066,7 @@ mp_node mp_find_edges_var (MP mp, mp_node t) {
     mp_get_x_next (mp);
   } else if (mp_type (p) != mp_picture_type) {
     char msg[256];
-    str_number sname;
+    mp_string sname;
     int old_setting = mp->selector;
     const char *hlp[] = {
            "I was looking for a \"known\" picture variable.",
@@ -28589,7 +28589,7 @@ static void mp_do_write (MP mp);
 
 @ @c
 void mp_do_write (MP mp) {
-  str_number t; /* the line of text to be written */
+  mp_string t; /* the line of text to be written */
   write_index n, n0;    /* for searching |wr_fname| and |wr_file| arrays */
   unsigned old_setting; /* for saving |selector| during output */
   mp_value new_expr;
@@ -30547,7 +30547,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     free (s);
     ss = xstrdup (mp->name_of_file);
   } else {                      /* initializations */
-    str_number s, n, template;  /* a file extension derived from |c| */
+    mp_string s, n, template;  /* a file extension derived from |c| */
     scaled saved_char_code = internal_value_to_halfword (mp_char_code);
     set_internal_from_scaled_int (mp_char_code, (c * unity));
     if (internal_string (mp_job_name) == NULL) {
