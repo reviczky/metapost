@@ -9465,9 +9465,6 @@ black with its reference point at the origin.
 
 @d mp_text_p(A) ((mp_text_node)(A))->text_p_  /* a string pointer for the text to display */
 @d mp_font_n(A) ((mp_text_node)(A))->font_n_ /* the font number */
-@d width_val(A) ((mp_text_node)(A))->width_val_  /* unscaled width of the text */
-@d height_val(A) ((mp_text_node)(A))->height_val_  /* unscaled height of the text */
-@d depth_val(A) ((mp_text_node)(A))->depth_val_  /* unscaled depth of the text */
 @d tx_val(A)  ((mp_text_node)(A))->tx_val_   /* $x$ shift amount */
 @d ty_val(A)  ((mp_text_node)(A))->ty_val_   /* $y$ shift amount */
 @d txx_val(A) ((mp_text_node)(A))->txx_val_  /* |txx| transformation parameter */
@@ -9487,9 +9484,9 @@ typedef struct mp_text_node_data {
   mp_string post_script_;
   mp_string text_p_;
   halfword font_n_;
-  scaled width_val_;
-  scaled height_val_;
-  scaled depth_val_;
+  mp_number width;
+  mp_number height;
+  mp_number depth;
   scaled tx_val_;
   scaled ty_val_;
   scaled txx_val_;
@@ -9524,7 +9521,7 @@ static mp_node mp_new_text_node (MP mp, char *f, mp_string s) {
   txy_val (t) = 0;
   tyx_val (t) = 0;
   tyy_val (t) = unity;
-  mp_set_text_box (mp, (mp_node) t);    /* this finds the bounding box */
+  mp_set_text_box (mp, t);    /* this finds the bounding box */
   return (mp_node) t;
 }
 
@@ -10886,9 +10883,11 @@ parameters stored in the text node.
 
 @<Other cases for updating the bounding box...@>=
 case mp_text_node_type:
-x1 = mp_take_scaled (mp, txx_val (p), width_val (p));
-y0 = mp_take_scaled (mp, txy_val (p), -depth_val (p));
-y1 = mp_take_scaled (mp, txy_val (p), height_val (p));
+{
+mp_text_node p0 = (mp_text_node)p;
+x1 = mp_take_scaled (mp, txx_val (p), number_to_scaled(p0->width));
+y0 = mp_take_scaled (mp, txy_val (p), -number_to_scaled(p0->depth));
+y1 = mp_take_scaled (mp, txy_val (p), number_to_scaled(p0->height));
 mp_minx = tx_val (p);
 mp_maxx = mp_minx;
 if (y0 < y1) {
@@ -10902,9 +10901,9 @@ if (x1 < 0)
   mp_minx = mp_minx + x1;
 else
   mp_maxx = mp_maxx + x1;
-x1 = mp_take_scaled (mp, tyx_val (p), width_val (p));
-y0 = mp_take_scaled (mp, tyy_val (p), -depth_val (p));
-y1 = mp_take_scaled (mp, tyy_val (p), height_val (p));
+x1 = mp_take_scaled (mp, tyx_val (p), number_to_scaled(p0->width));
+y0 = mp_take_scaled (mp, tyy_val (p), -number_to_scaled(p0->depth));
+y1 = mp_take_scaled (mp, tyy_val (p), number_to_scaled(p0->height));
 mp_miny = ty_val (p);
 mp_maxy = mp_miny;
 if (y0 < y1) {
@@ -10919,6 +10918,7 @@ if (x1 < 0)
 else
   mp_maxy = mp_maxy + x1;
 mp_adjust_bbox (mp, h);
+}
 break;
 
 @ This case involves a recursive call that advances |bblast(h)| to the node of
@@ -30391,18 +30391,18 @@ able to find the bounding box of an item of text in an edge structure.  The
 |set_text_box| procedure takes a text node and adds this information.
 
 @<Declarations@>=
-static void mp_set_text_box (MP mp, mp_node p);
+static void mp_set_text_box (MP mp, mp_text_node p);
 
 @ @c
-void mp_set_text_box (MP mp, mp_node p) {
+void mp_set_text_box (MP mp, mp_text_node p) {
   font_number f;        /* |mp_font_n(p)| */
   ASCII_code bc, ec;    /* range of valid characters for font |f| */
   size_t k, kk; /* current character and character to stop at */
   four_quarters cc;     /* the |char_info| for the current character */
   scaled h, d;  /* dimensions of the current character */
-  width_val (p) = 0;
-  height_val (p) = -EL_GORDO;
-  depth_val (p) = -EL_GORDO;
+  set_number_from_scaled(p->width, 0);
+  set_number_from_scaled(p->height, -EL_GORDO);
+  set_number_from_scaled(p->depth, -EL_GORDO);
   f = (font_number) mp_font_n (p);
   bc = mp->font_bc[f];
   ec = mp->font_ec[f];
@@ -30424,13 +30424,14 @@ void mp_set_text_box (MP mp, mp_node p) {
     if (!ichar_exists (cc)) {
       mp_lost_warning (mp, f, *(mp_text_p (p)->str + k));
     } else {
-      width_val (p) = width_val (p) + char_width (f, cc);
+      set_number_from_scaled(p->width, 
+	number_to_scaled(p->width) + char_width (f, cc));
       h = char_height (f, cc);
       d = char_depth (f, cc);
-      if (h > height_val (p))
-        height_val (p) = h;
-      if (d > depth_val (p))
-        depth_val (p) = d;
+      if (h > number_to_scaled(p->height))
+        set_number_from_scaled(p->height, h);
+      if (d > number_to_scaled(p->depth))
+        set_number_from_scaled(p->depth, d);
     }
   }
   incr (k);
@@ -30441,9 +30442,9 @@ void mp_set_text_box (MP mp, mp_node p) {
 overflow.
 
 @<Set the height and depth to zero if the bounding box is empty@>=
-if (height_val (p) < -depth_val (p)) {
-  height_val (p) = 0;
-  depth_val (p) = 0;
+if (number_to_scaled(p->height) < -number_to_scaled(p->depth)) {
+  set_number_from_scaled(p->height, 0);
+  set_number_from_scaled(p->depth, 0);
 }
 
 @ The new primitives fontmapfile and fontmapline.
@@ -31018,9 +31019,9 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
       gr_font_dsize (tt) = mp->font_dsize[mp_font_n (p)] / 65536.0;
       export_color (tt, p0);
       export_scripts (tt, p);
-      gr_width_val (tt) = width_val (p)  / 65536.0;
-      gr_height_val (tt) = height_val (p)  / 65536.0;
-      gr_depth_val (tt) = depth_val (p)  / 65536.0;
+      gr_width_val (tt) = number_to_double(p0->width);
+      gr_height_val (tt) = number_to_double(p0->height);
+      gr_depth_val (tt) = number_to_double(p0->depth);
       gr_tx_val (tt) = tx_val (p)  / 65536.0;
       gr_ty_val (tt) = ty_val (p)  / 65536.0;
       gr_txx_val (tt) = txx_val (p)  / 65536.0;
