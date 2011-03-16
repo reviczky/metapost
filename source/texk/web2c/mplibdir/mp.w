@@ -4672,6 +4672,12 @@ printer's sense. It's curious that the same word is used in such different ways.
    ((mp_token_node)(A))->data.d.val = (B);
  } while (0)
 
+
+@d set_value_from_scaled(A,B) (A).data.d.val=(B)
+@d value_to_scaled(A) (A).data.d.val
+@d value_to_double(A) ((A).data.d.val/65536.0)
+
+
 @d value_node(A)   get_value_node(mp, (mp_token_node)(A)) /* the value stored in a large token node */
 
 @d set_value_node(A,B) do_set_value_node(mp, (mp_token_node)(A), (B))/* store the value in a large token node */
@@ -9250,24 +9256,20 @@ enum mp_graphical_object_code {
 First of all, a filled contour is represented by a eight-word node.  The first
 word contains |type| and |link| fields, and the next six words contain a
 pointer to a cyclic path and the value to use for \ps' \&{currentrgbcolor}
-parameter.  If a pen is used for filling |pen_p|, |ljoin_val| and |miterlim_val|
+parameter.  If a pen is used for filling |pen_p|, |ljoin| and |miterlim|
 give the relevant information.
 
 @d mp_path_p(A) (A)->path_p_  /* a pointer to the path that needs filling */
 @d mp_pen_p(A) (A)->pen_p_  /* a pointer to the pen to fill or stroke with */
 @d mp_color_model(A) ((mp_fill_node)(A))->color_model_ /*  the color model  */
-@d red_val(A) ((mp_fill_node)(A))->red_val_  /* the red component of the color in the range $0\ldots1$ */
+@d red_val(A) ((mp_fill_node)(A))->red_val_.data.d.val  /* the red component of the color in the range $0\ldots1$ */
 @d cyan_val red_val
 @d grey_val red_val
-@d green_val(A) ((mp_fill_node)(A))->green_val_  /* the green component of the color in the range $0\ldots1$ */
+@d green_val(A) ((mp_fill_node)(A))->green_val_.data.d.val  /* the green component of the color in the range $0\ldots1$ */
 @d magenta_val green_val
-@d blue_val(A) ((mp_fill_node)(A))->blue_val_    /* the blue component of the color in the range $0\ldots1$ */
+@d blue_val(A) ((mp_fill_node)(A))->blue_val_.data.d.val    /* the blue component of the color in the range $0\ldots1$ */
 @d yellow_val blue_val
-@d black_val(A) ((mp_fill_node)(A))->black_val_  /* the black component of the color in the range $0\ldots1$ */
-@d ljoin_val(A) ((mp_fill_node)(A))->ljoin_val_  /* the value of \&{linejoin} */
-@:mp_linejoin_}{\&{linejoin} primitive@>
-@d miterlim_val(A) ((mp_fill_node)(A))->miterlim_val_  /* the value of \&{miterlimit} */
-@:mp_miterlimit_}{\&{miterlimit} primitive@>
+@d black_val(A) ((mp_fill_node)(A))->black_val_.data.d.val  /* the black component of the color in the range $0\ldots1$ */
 @d mp_pre_script(A) ((mp_fill_node)(A))->pre_script_
 @d mp_post_script(A) ((mp_fill_node)(A))->post_script_
 
@@ -9275,16 +9277,16 @@ give the relevant information.
 typedef struct mp_fill_node_data {
   NODE_BODY;
   halfword color_model_;
-  scaled red_val_;
-  scaled green_val_;
-  scaled blue_val_;
-  scaled black_val_;
+  mp_value red_val_;
+  mp_value green_val_;
+  mp_value blue_val_;
+  mp_value black_val_;
   str_number pre_script_;
   str_number post_script_;
   mp_knot path_p_;
   mp_knot pen_p_;
-  quarterword ljoin_val_;
-  halfword miterlim_val_;
+  unsigned char ljoin;
+  mp_value miterlim;
 } mp_fill_node_data;
 typedef struct mp_fill_node_data *mp_fill_node;
 
@@ -9303,30 +9305,27 @@ static mp_node mp_new_fill_node (MP mp, mp_knot p) {
   mp_type (t) = mp_fill_node_type;
   mp_path_p (t) = p;
   mp_pen_p (t) = NULL;          /* |NULL| means don't use a pen */
-  red_val (t) = 0;
-  green_val (t) = 0;
-  blue_val (t) = 0;
-  black_val (t) = 0;
+  clear_color (t);
   mp_color_model (t) = mp_uninitialized_model;
   mp_pre_script (t) = NULL;
   mp_post_script (t) = NULL;
-  @<Set the |ljoin_val| and |miterlim_val| fields in object |t|@>;
+  @<Set the |ljoin| and |miterlim| fields in object |t|@>;
   return (mp_node) t;
 }
 
 
-@ @<Set the |ljoin_val| and |miterlim_val| fields in object |t|@>=
+@ @<Set the |ljoin| and |miterlim| fields in object |t|@>=
 if (internal_value_to_halfword (mp_linejoin) > unity)
-  ljoin_val (t) = 2;
+  t->ljoin = 2;
 else if (internal_value_to_halfword (mp_linejoin) > 0)
-  ljoin_val (t) = 1;
+  t->ljoin = 1;
 else
-  ljoin_val (t) = 0;
-if (internal_value_to_halfword (mp_miterlimit) < unity)
-  miterlim_val (t) = unity;
-else
-  miterlim_val (t) = internal_value_to_halfword (mp_miterlimit)
-   
+  t->ljoin = 0;
+if (internal_value_to_halfword (mp_miterlimit) < unity) {
+  set_value_from_scaled(t->miterlim,unity);
+} else {
+  set_value_from_scaled(t->miterlim,internal_value_to_halfword (mp_miterlimit));
+}
 
 @ A stroked path is represented by an eight-word node that is like a filled
 contour node except that it contains the current \&{linecap} value, a scale
@@ -9335,7 +9334,6 @@ is to be dashed.  The purpose of the scale factor is to allow a picture to
 be transformed without touching the picture that |dash_p| points to.
 
 @d mp_dash_p(A) ((mp_stroked_node)(A))->dash_p_  /* a pointer to the edge structure that gives the dash pattern */
-@d lcap_val(A) ((mp_stroked_node)(A))->lcap_val_  /* the value of \&{linecap} */
 @:mp_linecap_}{\&{linecap} primitive@>
 @d dash_scale(A) ((mp_stroked_node)(A))->dash_scale_ /* dash lengths are scaled by this factor */
 
@@ -9343,17 +9341,17 @@ be transformed without touching the picture that |dash_p| points to.
 typedef struct mp_stroked_node_data {
   NODE_BODY;
   halfword color_model_;
-  scaled red_val_;
-  scaled green_val_;
-  scaled blue_val_;
-  scaled black_val_;
+  mp_value red_val_;
+  mp_value green_val_;
+  mp_value blue_val_;
+  mp_value black_val_;
   str_number pre_script_;
   str_number post_script_;
   mp_knot path_p_;
   mp_knot pen_p_;
-  quarterword ljoin_val_;
-  halfword miterlim_val_;
-  quarterword lcap_val_;
+  unsigned char ljoin;
+  mp_value miterlim;
+  unsigned char lcap;
   mp_node dash_p_;
   scaled dash_scale_;
 } mp_stroked_node_data;
@@ -9377,20 +9375,16 @@ static mp_node mp_new_stroked_node (MP mp, mp_knot p) {
   mp_pen_p (t) = NULL;
   mp_dash_p (t) = NULL;
   dash_scale (t) = unity;
-  red_val (t) = 0;
-  green_val (t) = 0;
-  blue_val (t) = 0;
-  black_val (t) = 0;
-  mp_color_model (t) = mp_uninitialized_model;
+  clear_color(t);
   mp_pre_script (t) = NULL;
   mp_post_script (t) = NULL;
-  @<Set the |ljoin_val| and |miterlim_val| fields in object |t|@>;
+  @<Set the |ljoin| and |miterlim| fields in object |t|@>;
   if (internal_value_to_halfword (mp_linecap) > unity)
-    lcap_val (t) = 2;
+    t->lcap = 2;
   else if (internal_value_to_halfword (mp_linecap) > 0)
-    lcap_val (t) = 1;
+    t->lcap  = 1;
   else
-    lcap_val (t) = 0;
+    t->lcap  = 0;
   return (mp_node) t;
 }
 
@@ -9476,10 +9470,10 @@ black with its reference point at the origin.
 typedef struct mp_text_node_data {
   NODE_BODY;
   halfword color_model_;
-  scaled red_val_;
-  scaled green_val_;
-  scaled blue_val_;
-  scaled black_val_;
+  mp_value red_val_;
+  mp_value green_val_;
+  mp_value blue_val_;
+  mp_value black_val_;
   str_number pre_script_;
   str_number post_script_;
   str_number text_p_;
@@ -9512,11 +9506,7 @@ static mp_node mp_new_text_node (MP mp, char *f, str_number s) {
   mp_text_p (t) = s;
   add_str_ref(s); 
   mp_font_n (t) = (halfword) mp_find_font (mp, f);      /* this identifies the font */
-  red_val (t) = 0;
-  green_val (t) = 0;
-  blue_val (t) = 0;
-  black_val (t) = 0;
-  mp_color_model (t) = mp_uninitialized_model;
+  clear_color (t);
   mp_pre_script (t) = NULL;
   mp_post_script (t) = NULL;
   tx_val (t) = 0;
@@ -10152,10 +10142,10 @@ if ((mp_pen_p ((mp_fill_node) p) != NULL)) {
 break;
 
 @ @<Print join type for graphical object |p|@>=
-switch (ljoin_val (p)) {
+switch (((mp_stroked_node)p)->ljoin) {
 case 0:
   mp_print (mp, "mitered joins limited ");
-  mp_print_scaled (mp, miterlim_val (p));
+  mp_print_scaled (mp, value_to_scaled(((mp_stroked_node)p)->miterlim));
   break;
 case 1:
   mp_print (mp, "round joins");
@@ -10173,7 +10163,7 @@ default:
 @ For stroked nodes, we need to print |lcap_val(p)| as well.
 
 @<Print join and cap types for stroked node |p|@>=
-switch (lcap_val (p)) {
+switch (((mp_stroked_node)p)->lcap ) {
 case 0:
   mp_print (mp, "butt");
   break;
@@ -10871,7 +10861,7 @@ mp_maxx = mp_maxx + x1;
 mp_maxy = mp_maxy + y1;
 mp_adjust_bbox (mp, h);
 if ((mp_left_type (mp_path_p ((mp_stroked_node) p)) == mp_endpoint)
-    && (lcap_val (p) == 2))
+    && (((mp_stroked_node) p)->lcap == 2))
   mp_box_ends (mp, mp_path_p ((mp_stroked_node) p),
              mp_pen_p ((mp_stroked_node) p), h);
 break;
@@ -25330,7 +25320,7 @@ static void mp_set_up_direction_time (MP mp, mp_node p) {
   mp_flush_cur_exp (mp, new_expr);
 }
 static void mp_set_up_envelope (MP mp, mp_node p) {
-  quarterword ljoin, lcap;
+  unsigned char ljoin, lcap;
   scaled miterlim;
   mp_knot q = mp_copy_path (mp, cur_exp_knot ());       /* the original path */
   /* TODO: accept elliptical pens for straight paths */
@@ -27862,93 +27852,64 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
 }
 
 
-@ @<Transfer a rgbcolor from the current expression to object~|cp|@>=
+@ 
+
+@d clear_color(A) do {
+  cyan_val ((A)) = 0;
+  magenta_val ((A)) = 0;
+  yellow_val ((A)) = 0;
+  black_val ((A)) = 0;
+  mp_color_model ((A)) = mp_uninitialized_model;
+} while (0)
+
+@d set_color_val(A,B) do {
+  A = (B);
+  if (A < 0)
+    A = 0;
+  if (A > unity)
+   A = unity;
+} while (0)
+
+@<Transfer a rgbcolor from the current expression to object~|cp|@>=
 {
   q = value_node (cur_exp_node ());
-  cyan_val (cp) = 0;
-  magenta_val (cp) = 0;
-  yellow_val (cp) = 0;
-  black_val (cp) = 0;
-  red_val (cp) = value (red_part (q));
-  green_val (cp) = value (green_part (q));
-  blue_val (cp) = value (blue_part (q));
+  clear_color(cp);
   mp_color_model (cp) = mp_rgb_model;
-  if (red_val (cp) < 0)
-    red_val (cp) = 0;
-  if (green_val (cp) < 0)
-    green_val (cp) = 0;
-  if (blue_val (cp) < 0)
-    blue_val (cp) = 0;
-  if (red_val (cp) > unity)
-    red_val (cp) = unity;
-  if (green_val (cp) > unity)
-    green_val (cp) = unity;
-  if (blue_val (cp) > unity)
-    blue_val (cp) = unity;
+  set_color_val (red_val (cp), value (red_part (q)));
+  set_color_val (green_val (cp), value (green_part (q)));
+  set_color_val (blue_val (cp), value (blue_part (q)));
 }
-
 
 @ @<Transfer a cmykcolor from the current expression to object~|cp|@>=
 {
   q = value_node (cur_exp_node ());
-  cyan_val (cp) = value (cyan_part (q));
-  magenta_val (cp) = value (magenta_part (q));
-  yellow_val (cp) = value (yellow_part (q));
-  black_val (cp) = value (black_part (q));
+  set_color_val (cyan_val (cp), value (cyan_part (q)));
+  set_color_val (magenta_val (cp), value (magenta_part (q)));
+  set_color_val (yellow_val (cp), value (yellow_part (q)));
+  set_color_val (black_val (cp), value (black_part (q)));
   mp_color_model (cp) = mp_cmyk_model;
-  if (cyan_val (cp) < 0)
-    cyan_val (cp) = 0;
-  if (magenta_val (cp) < 0)
-    magenta_val (cp) = 0;
-  if (yellow_val (cp) < 0)
-    yellow_val (cp) = 0;
-  if (black_val (cp) < 0)
-    black_val (cp) = 0;
-  if (cyan_val (cp) > unity)
-    cyan_val (cp) = unity;
-  if (magenta_val (cp) > unity)
-    magenta_val (cp) = unity;
-  if (yellow_val (cp) > unity)
-    yellow_val (cp) = unity;
-  if (black_val (cp) > unity)
-    black_val (cp) = unity;
 }
 
 
 @ @<Transfer a greyscale from the current expression to object~|cp|@>=
 {
   scaled qq = cur_exp_value ();
-  cyan_val (cp) = 0;
-  magenta_val (cp) = 0;
-  yellow_val (cp) = 0;
-  black_val (cp) = 0;
-  grey_val (cp) = qq;
+  clear_color (cp);
   mp_color_model (cp) = mp_grey_model;
-  if (grey_val (cp) < 0)
-    grey_val (cp) = 0;
-  if (grey_val (cp) > unity)
-    grey_val (cp) = unity;
+  set_color_val (grey_val (cp), qq);
 }
 
 
 @ @<Transfer a noncolor from the current expression to object~|cp|@>=
 {
-  cyan_val (cp) = 0;
-  magenta_val (cp) = 0;
-  yellow_val (cp) = 0;
-  black_val (cp) = 0;
-  grey_val (cp) = 0;
+  clear_color (cp);
   mp_color_model (cp) = mp_no_model;
 }
 
 
 @ @<Transfer no color from the current expression to object~|cp|@>=
 {
-  cyan_val (cp) = 0;
-  magenta_val (cp) = 0;
-  yellow_val (cp) = 0;
-  black_val (cp) = 0;
-  grey_val (cp) = 0;
+  clear_color (cp);
   mp_color_model (cp) = mp_uninitialized_model;
 }
 
@@ -30972,21 +30933,21 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
         mp_knot pc, pp;
         pc = mp_copy_path (mp, mp_path_p ((mp_fill_node) p));
         pp =
-          mp_make_envelope (mp, pc, mp_pen_p ((mp_fill_node) p), ljoin_val (p),
-                            0, miterlim_val (p));
+          mp_make_envelope (mp, pc, mp_pen_p ((mp_fill_node) p), ((mp_fill_node)p)->ljoin,
+                            0, value_to_scaled(((mp_fill_node)p)->miterlim));
         gr_path_p (tf) = mp_export_knot_list (mp, pp);
         mp_toss_knot_list (mp, pp);
         pc = mp_htap_ypoc (mp, mp_path_p ((mp_fill_node) p));
         pp =
-          mp_make_envelope (mp, pc, mp_pen_p ((mp_fill_node) p), ljoin_val (p),
-                            0, miterlim_val (p));
+          mp_make_envelope (mp, pc, mp_pen_p ((mp_fill_node) p), ((mp_fill_node)p)->ljoin,
+                            0, value_to_scaled(((mp_fill_node)p)->miterlim));
         gr_htap_p (tf) = mp_export_knot_list (mp, pp);
         mp_toss_knot_list (mp, pp);
       }
       export_color (tf, p);
       export_scripts (tf, p);
-      gr_ljoin_val (tf) = (unsigned char) ljoin_val (p);
-      gr_miterlim_val (tf) = miterlim_val (p)  / 65536.0;
+      gr_ljoin_val (tf) = ((mp_fill_node) p)->ljoin;
+      gr_miterlim_val (tf) = value_to_double(((mp_fill_node)p)->miterlim);
       break;
     case mp_stroked_node_type:
       ts = (mp_stroked_object *) hq;
@@ -30998,7 +30959,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
       } else {
         mp_knot pc;
         pc = mp_copy_path (mp, mp_path_p ((mp_stroked_node) p));
-        t = lcap_val (p);
+        t = ((mp_stroked_node) p)->lcap;
         if (mp_left_type (pc) != mp_endpoint) {
           mp_left_type (mp_insert_knot
                         (mp, pc, mp_x_coord (pc), mp_y_coord (pc))) =
@@ -31009,15 +30970,16 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
         }
         pc =
           mp_make_envelope (mp, pc, mp_pen_p ((mp_stroked_node) p),
-                            ljoin_val (p), (quarterword) t, miterlim_val (p));
+                            ((mp_stroked_node)p)->ljoin, (quarterword) t, 
+	                    value_to_scaled(((mp_stroked_node)p)->miterlim));
         gr_path_p (ts) = mp_export_knot_list (mp, pc);
         mp_toss_knot_list (mp, pc);
       }
       export_color (ts, p);
       export_scripts (ts, p);
-      gr_ljoin_val (ts) = (unsigned char) ljoin_val (p);
-      gr_miterlim_val (ts) = miterlim_val (p) / 65536.0;
-      gr_lcap_val (ts) = (unsigned char) lcap_val (p);
+      gr_ljoin_val (ts) = ((mp_stroked_node) p)->ljoin;
+      gr_miterlim_val (ts) = value_to_double(((mp_stroked_node)p)->miterlim);
+      gr_lcap_val (ts) = ((mp_stroked_node) p)->lcap;
       gr_dash_p (ts) = mp_export_dashes (mp, (mp_stroked_node) p, &d_width);
       break;
     case mp_text_node_type:
