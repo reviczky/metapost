@@ -1476,17 +1476,17 @@ read. Leading blanks and blanks immediately following [+-=] are ignored.
 }
 
 @ @<Exported function headers@>=
-void mp_map_file (MP mp, str_number t);
-void mp_map_line (MP mp, str_number t);
+void mp_map_file (MP mp, mp_string t);
+void mp_map_line (MP mp, mp_string t);
 void mp_init_map_file (MP mp, int is_troff);
 
 @ @c 
-void mp_map_file (MP mp, str_number t) {
+void mp_map_file (MP mp, mp_string t) {
   char *ss = mp_str (mp,t);
   char *s = mp_xstrdup(mp, ss);
   mp_process_map_item (mp, s, MAPFILE);
 }
-void mp_map_line (MP mp, str_number t) {
+void mp_map_line (MP mp, mp_string t) {
   char *ss = mp_str (mp,t);
   char *s = mp_xstrdup(mp,ss);
   mp_process_map_item (mp, s, MAPLINE);

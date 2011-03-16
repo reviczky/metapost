@@ -74,7 +74,7 @@ static int comp_strings_entry (void *p, const void *pa, const void *pb) {
   return STRCMP_RESULT((int)(a->len-b->len));
 }
 void *copy_strings_entry (const void *p) {
-  str_number ff;
+  mp_string ff;
   const mp_lstring *fp;
   fp = (const mp_lstring *) p;
   ff = malloc (sizeof (mp_lstring));
@@ -90,7 +90,7 @@ void *copy_strings_entry (const void *p) {
   return ff;
 }
 static void *delete_strings_entry (void *p) {
-  str_number ff = (str_number) p;
+  mp_string ff = (mp_string) p;
   mp_xfree (ff->str);
   mp_xfree (ff);
   return NULL;
@@ -100,8 +100,8 @@ static void *delete_strings_entry (void *p) {
 do so it needs a way to create a new, empty string structure.
 
 @ @c
-static str_number new_strings_entry (MP mp) {
-  str_number ff;
+static mp_string new_strings_entry (MP mp) {
+  mp_string ff;
   ff = mp_xmalloc (mp, 1, sizeof (mp_lstring));
   ff->str = NULL;
   ff->len = 0;
@@ -197,27 +197,27 @@ functions that convert an internal string into a |char *| for use
 by the printing routines, and vice versa.
 
 @<Definitions@>=
-char *mp_str (MP mp, str_number s);
-str_number mp_rtsl (MP mp, const char *s, size_t l);
-str_number mp_rts (MP mp, const char *s);
-str_number mp_make_string (MP mp);
+char *mp_str (MP mp, mp_string s);
+mp_string mp_rtsl (MP mp, const char *s, size_t l);
+mp_string mp_rts (MP mp, const char *s);
+mp_string mp_make_string (MP mp);
 
 @ @c
-char *mp_str (MP mp, str_number ss) {
+char *mp_str (MP mp, mp_string ss) {
   (void) mp;
   return (char *) ss->str;
 }
 
 @ @c
-str_number mp_rtsl (MP mp, const char *s, size_t l) {
-  str_number str, nstr;
+mp_string mp_rtsl (MP mp, const char *s, size_t l) {
+  mp_string str, nstr;
   str = new_strings_entry (mp);
   str->str = (unsigned char *)mp_xstrldup (mp, s, l);
   str->len = l;
-  nstr = (str_number) avl_find (str, mp->strings);
+  nstr = (mp_string) avl_find (str, mp->strings);
   if (nstr == NULL) {            /* not yet known */
     assert (avl_ins (str, mp->strings, avl_false) > 0);
-    nstr = (str_number) avl_find (str, mp->strings);
+    nstr = (mp_string) avl_find (str, mp->strings);
   }
   (void)delete_strings_entry(str);
   add_str_ref(nstr);
@@ -225,7 +225,7 @@ str_number mp_rtsl (MP mp, const char *s, size_t l) {
 }
 
 @ @c
-str_number mp_rts (MP mp, const char *s) {
+mp_string mp_rts (MP mp, const char *s) {
   return mp_rtsl (mp, s, strlen (s));
 }
 
@@ -306,10 +306,10 @@ put it in this category.
   } while (0)
 
 @ @<Definitions@>=
-void mp_flush_string (MP mp, str_number s);
+void mp_flush_string (MP mp, mp_string s);
 
 @ @c
-void mp_flush_string (MP mp, str_number s) {
+void mp_flush_string (MP mp, mp_string s) {
   if (s->refs == 0) {
     mp->strs_in_use--;
     mp->pool_in_use = mp->pool_in_use - (integer) s->len;
@@ -322,15 +322,15 @@ void mp_flush_string (MP mp, str_number s) {
 their reference count has to be set such that they can not be flushed.
 
 @c
-str_number mp_intern (MP mp, const char *s) {
-  str_number r;
+mp_string mp_intern (MP mp, const char *s) {
+  mp_string r;
   r = mp_rts (mp, s);
   r->refs = MAX_STR_REF;
   return r;
 }
 
 @ @<Definitions@>=
-str_number mp_intern (MP mp, const char *s);
+mp_string mp_intern (MP mp, const char *s);
 
 
 @ Once a sequence of characters has been appended to |cur_string|, it
@@ -338,21 +338,21 @@ officially becomes a string when the function |make_string| is called.
 This function returns a pointer to the new string as its value.
 
 @<Definitions@>=
-str_number mp_make_string (MP mp);
+mp_string mp_make_string (MP mp);
 
 @ @c
-str_number mp_make_string (MP mp) {                               /* current string enters the pool */
-  str_number str;
+mp_string mp_make_string (MP mp) {                               /* current string enters the pool */
+  mp_string str;
   mp_lstring tmp;
   tmp.str = mp->cur_string;
   tmp.len = mp->cur_length;
-  str = (str_number) avl_find (&tmp, mp->strings);
+  str = (mp_string) avl_find (&tmp, mp->strings);
   if (str == NULL) {            /* not yet known */
     str = mp_xmalloc (mp, 1, sizeof (mp_lstring));
     str->str = mp->cur_string;
     str->len = tmp.len;
     assert (avl_ins (str, mp->strings, avl_false) > 0);
-    str = (str_number) avl_find (&tmp, mp->strings);
+    str = (mp_string) avl_find (&tmp, mp->strings);
     mp->pool_in_use = mp->pool_in_use + (integer) str->len;
     if (mp->pool_in_use > mp->max_pl_used)
       mp->max_pl_used = mp->pool_in_use;
@@ -372,10 +372,10 @@ is lexicographically greater than, less than, or equal to the second,
 the result is respectively positive, negative, or zero.
 
 @<Definitions@>=
-integer mp_str_vs_str (MP mp, str_number s, str_number t);
+integer mp_str_vs_str (MP mp, mp_string s, mp_string t);
 
 @ @c
-integer mp_str_vs_str (MP mp, str_number s, str_number t) {
+integer mp_str_vs_str (MP mp, mp_string s, mp_string t) {
   (void) mp;
   return comp_strings_entry (NULL, (const void *) s, (const void *) t);
 }
@@ -383,11 +383,11 @@ integer mp_str_vs_str (MP mp, str_number s, str_number t) {
 
 
 @ @<Definitions@>=
-str_number mp_cat (MP mp, str_number a, str_number b);
+mp_string mp_cat (MP mp, mp_string a, mp_string b);
 
 @ @c
-str_number mp_cat (MP mp, str_number a, str_number b) {
-  str_number str;
+mp_string mp_cat (MP mp, mp_string a, mp_string b) {
+  mp_string str;
   size_t needed;
   size_t saved_cur_length = mp->cur_length;
   unsigned char *saved_cur_string = mp->cur_string;
@@ -411,10 +411,10 @@ str_number mp_cat (MP mp, str_number a, str_number b) {
 
 
 @ @<Definitions@>=
-str_number mp_chop_string (MP mp, str_number s, integer a, integer b);
+mp_string mp_chop_string (MP mp, mp_string s, integer a, integer b);
 
 @ @c
-str_number mp_chop_string (MP mp, str_number s, integer a, integer b) {
+mp_string mp_chop_string (MP mp, mp_string s, integer a, integer b) {
   integer l;    /* length of the original string */
   integer k;    /* runs from |a| to |b| */
   boolean reversed;     /* was |a>b|? */
