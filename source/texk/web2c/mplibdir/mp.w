@@ -1443,6 +1443,13 @@ void mp_print_int (MP mp, integer n) {                               /* prints a
   mp_print (mp, s);
 }
 
+@ 
+@<Basic print...@>=
+void mp_print_number (MP mp, mp_number n) {
+  mp_print_scaled (mp, number_to_scaled(n));
+}
+
+
 
 @ @<Internal library ...@>=
 void mp_print_int (MP mp, integer n);
@@ -10147,7 +10154,7 @@ break;
 switch (((mp_stroked_node)p)->ljoin) {
 case 0:
   mp_print (mp, "mitered joins limited ");
-  mp_print_scaled (mp, number_to_scaled(((mp_stroked_node)p)->miterlim));
+  mp_print_number (mp, ((mp_stroked_node)p)->miterlim);
   break;
 case 1:
   mp_print (mp, "round joins");
@@ -10197,7 +10204,7 @@ void mp_print_obj_color (MP mp, mp_node p) {
     if (number_positive(p0->grey)) {
       mp_print (mp, "greyed ");
       mp_print_char (mp, xord ('('));
-      mp_print_scaled (mp, number_to_scaled(p0->grey));
+      mp_print_number (mp, p0->grey);
       mp_print_char (mp, xord (')'));
     };
   } else if (mp_color_model (p) == mp_cmyk_model) {
@@ -10205,13 +10212,13 @@ void mp_print_obj_color (MP mp, mp_node p) {
         number_positive(p0->yellow) || number_positive(p0->black)) {
       mp_print (mp, "processcolored ");
       mp_print_char (mp, xord ('('));
-      mp_print_scaled (mp, number_to_scaled(p0->cyan));
+      mp_print_number (mp, p0->cyan);
       mp_print_char (mp, xord (','));
-      mp_print_scaled (mp, number_to_scaled(p0->magenta));
+      mp_print_number (mp, p0->magenta);
       mp_print_char (mp, xord (','));
-      mp_print_scaled (mp, number_to_scaled(p0->yellow));
+      mp_print_number (mp, p0->yellow);
       mp_print_char (mp, xord (','));
-      mp_print_scaled (mp, number_to_scaled(p0->black));
+      mp_print_number (mp, p0->black);
       mp_print_char (mp, xord (')'));
     };
   } else if (mp_color_model (p) == mp_rgb_model) {
@@ -10219,11 +10226,11 @@ void mp_print_obj_color (MP mp, mp_node p) {
 	number_positive(p0->blue)) {
       mp_print (mp, "colored ");
       mp_print_char (mp, xord ('('));
-      mp_print_scaled (mp, number_to_scaled(p0->red));
+      mp_print_number (mp, p0->red);
       mp_print_char (mp, xord (','));
-      mp_print_scaled (mp, number_to_scaled(p0->green));
+      mp_print_number (mp, p0->green);
       mp_print_char (mp, xord (','));
-      mp_print_scaled (mp, number_to_scaled(p0->blue));
+      mp_print_number (mp, p0->blue);
       mp_print_char (mp, xord (')'));
     };
   }
