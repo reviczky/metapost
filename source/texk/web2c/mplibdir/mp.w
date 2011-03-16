@@ -4679,6 +4679,9 @@ printer's sense. It's curious that the same word is used in such different ways.
 @d set_number_from_scaled(A,B) (A).data.val=(B)
 @d number_to_scaled(A) (A).data.val
 @d number_to_double(A) ((A).data.val/65536.0)
+@d number_positive(A) ((A).data.val>0)
+@d number_equal(A,B) ((A).data.val==(B).data.val)
+@d number_clone(A,B) (A).data.val=(B).data.val
 
 
 @d value_node(A)   get_value_node(mp, (mp_token_node)(A)) /* the value stored in a large token node */
@@ -9265,14 +9268,10 @@ give the relevant information.
 @d mp_path_p(A) (A)->path_p_  /* a pointer to the path that needs filling */
 @d mp_pen_p(A) (A)->pen_p_  /* a pointer to the pen to fill or stroke with */
 @d mp_color_model(A) ((mp_fill_node)(A))->color_model_ /*  the color model  */
-@d red_val(A) ((mp_fill_node)(A))->red_val_.data.val  /* the red component of the color in the range $0\ldots1$ */
-@d cyan_val red_val
-@d grey_val red_val
-@d green_val(A) ((mp_fill_node)(A))->green_val_.data.val  /* the green component of the color in the range $0\ldots1$ */
-@d magenta_val green_val
-@d blue_val(A) ((mp_fill_node)(A))->blue_val_.data.val    /* the blue component of the color in the range $0\ldots1$ */
-@d yellow_val blue_val
-@d black_val(A) ((mp_fill_node)(A))->black_val_.data.val  /* the black component of the color in the range $0\ldots1$ */
+@d cyan red
+@d grey red
+@d magenta green
+@d yellow blue
 @d mp_pre_script(A) ((mp_fill_node)(A))->pre_script_
 @d mp_post_script(A) ((mp_fill_node)(A))->post_script_
 
@@ -9280,10 +9279,10 @@ give the relevant information.
 typedef struct mp_fill_node_data {
   NODE_BODY;
   halfword color_model_;
-  mp_number red_val_;
-  mp_number green_val_;
-  mp_number blue_val_;
-  mp_number black_val_;
+  mp_number red;
+  mp_number green;
+  mp_number blue;
+  mp_number black;
   str_number pre_script_;
   str_number post_script_;
   mp_knot path_p_;
@@ -9344,10 +9343,10 @@ be transformed without touching the picture that |dash_p| points to.
 typedef struct mp_stroked_node_data {
   NODE_BODY;
   halfword color_model_;
-  mp_number red_val_;
-  mp_number green_val_;
-  mp_number blue_val_;
-  mp_number black_val_;
+  mp_number red;
+  mp_number green;
+  mp_number blue;
+  mp_number black;
   str_number pre_script_;
   str_number post_script_;
   mp_knot path_p_;
@@ -9473,10 +9472,10 @@ black with its reference point at the origin.
 typedef struct mp_text_node_data {
   NODE_BODY;
   halfword color_model_;
-  mp_number red_val_;
-  mp_number green_val_;
-  mp_number blue_val_;
-  mp_number black_val_;
+  mp_number red;
+  mp_number green;
+  mp_number blue;
+  mp_number black;
   str_number pre_script_;
   str_number post_script_;
   str_number text_p_;
@@ -10193,36 +10192,38 @@ static void mp_print_obj_color (MP mp, mp_node p);
 
 @ @c
 void mp_print_obj_color (MP mp, mp_node p) {
+  mp_stroked_node p0 = (mp_stroked_node) p;
   if (mp_color_model (p) == mp_grey_model) {
-    if (grey_val (p) > 0) {
+    if (number_positive(p0->grey)) {
       mp_print (mp, "greyed ");
       mp_print_char (mp, xord ('('));
-      mp_print_scaled (mp, grey_val (p));
+      mp_print_scaled (mp, number_to_scaled(p0->grey));
       mp_print_char (mp, xord (')'));
     };
   } else if (mp_color_model (p) == mp_cmyk_model) {
-    if ((cyan_val (p) > 0) || (magenta_val (p) > 0) ||
-        (yellow_val (p) > 0) || (black_val (p) > 0)) {
+    if (number_positive(p0->cyan) || number_positive(p0->magenta) ||
+        number_positive(p0->yellow) || number_positive(p0->black)) {
       mp_print (mp, "processcolored ");
       mp_print_char (mp, xord ('('));
-      mp_print_scaled (mp, cyan_val (p));
+      mp_print_scaled (mp, number_to_scaled(p0->cyan));
       mp_print_char (mp, xord (','));
-      mp_print_scaled (mp, magenta_val (p));
+      mp_print_scaled (mp, number_to_scaled(p0->magenta));
       mp_print_char (mp, xord (','));
-      mp_print_scaled (mp, yellow_val (p));
+      mp_print_scaled (mp, number_to_scaled(p0->yellow));
       mp_print_char (mp, xord (','));
-      mp_print_scaled (mp, black_val (p));
+      mp_print_scaled (mp, number_to_scaled(p0->black));
       mp_print_char (mp, xord (')'));
     };
   } else if (mp_color_model (p) == mp_rgb_model) {
-    if ((red_val (p) > 0) || (green_val (p) > 0) || (blue_val (p) > 0)) {
+    if (number_positive(p0->red) || number_positive(p0->green) || 
+	number_positive(p0->blue)) {
       mp_print (mp, "colored ");
       mp_print_char (mp, xord ('('));
-      mp_print_scaled (mp, red_val (p));
+      mp_print_scaled (mp, number_to_scaled(p0->red));
       mp_print_char (mp, xord (','));
-      mp_print_scaled (mp, green_val (p));
+      mp_print_scaled (mp, number_to_scaled(p0->green));
       mp_print_char (mp, xord (','));
-      mp_print_scaled (mp, blue_val (p));
+      mp_print_scaled (mp, number_to_scaled(p0->blue));
       mp_print_char (mp, xord (')'));
     };
   }
@@ -10489,8 +10490,11 @@ if ((mp_x_coord (pp) > x0) || (x0 > x3)) {
 scaled x0, x1, x2, x3;  /* $x$ coordinates of the segment from |qq| to |rr| */
 
 @ @<Make sure |p| and |p0| are the same color and |goto not_found|...@>=
-if ((red_val (p) != red_val (p0)) || (black_val (p) != black_val (p0)) ||
-    (green_val (p) != green_val (p0)) || (blue_val (p) != blue_val (p0))) {
+if (!number_equal(((mp_stroked_node)p)->red, ((mp_stroked_node)p0)->red) || 
+    !number_equal(((mp_stroked_node)p)->black, ((mp_stroked_node)p0)->black) ||
+    !number_equal(((mp_stroked_node)p)->green, ((mp_stroked_node)p0)->green) || 
+    !number_equal(((mp_stroked_node)p)->blue, ((mp_stroked_node)p0)->blue)
+    ) {
   const char *hlp[] = {
          "When you say `dashed p', everything in picture p should",
          "be the same color.  I can\'t handle your color changes",
@@ -22317,13 +22321,13 @@ static void mp_take_pict_part (MP mp, quarterword c) {
       if (has_color (p)) {
         switch (c) {
         case mp_red_part:
-          new_expr.data.n.data.val = red_val (p);
+          number_clone(new_expr.data.n,((mp_stroked_node)p)->red);
           break;
         case mp_green_part:
-          new_expr.data.n.data.val = green_val (p);
+          number_clone(new_expr.data.n,((mp_stroked_node)p)->green);
           break;
         case mp_blue_part:
-          new_expr.data.n.data.val = blue_val (p);
+          number_clone(new_expr.data.n,((mp_stroked_node)p)->blue);
           break;
         }
         mp_flush_cur_exp (mp, new_expr);
@@ -22336,20 +22340,20 @@ static void mp_take_pict_part (MP mp, quarterword c) {
     case mp_black_part:
       if (has_color (p)) {
         if (mp_color_model (p) == mp_uninitialized_model && c == mp_black_part) {
-          new_expr.data.n.data.val = unity;
+          set_number_from_scaled(new_expr.data.n,unity);
         } else {
           switch (c) {
           case mp_cyan_part:
-            new_expr.data.n.data.val = cyan_val (p);
+            number_clone(new_expr.data.n,((mp_stroked_node)p)->cyan);
             break;
           case mp_magenta_part:
-            new_expr.data.n.data.val = magenta_val (p);
+            number_clone(new_expr.data.n,((mp_stroked_node)p)->magenta);
             break;
           case mp_yellow_part:
-            new_expr.data.n.data.val = yellow_val (p);
+            number_clone(new_expr.data.n,((mp_stroked_node)p)->yellow);
             break;
           case mp_black_part:
-            new_expr.data.n.data.val = black_val (p);
+            number_clone(new_expr.data.n,((mp_stroked_node)p)->black);
             break;
           }
         }
@@ -22359,7 +22363,7 @@ static void mp_take_pict_part (MP mp, quarterword c) {
       break;
     case mp_grey_part:
       if (has_color (p)) {
-        new_expr.data.n.data.val = grey_val (p);
+        number_clone(new_expr.data.n,((mp_stroked_node)p)->grey);
         mp_flush_cur_exp (mp, new_expr);
       } else
         goto NOT_FOUND;
@@ -27858,48 +27862,51 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
 @ 
 
 @d clear_color(A) do {
-  cyan_val ((A)) = 0;
-  magenta_val ((A)) = 0;
-  yellow_val ((A)) = 0;
-  black_val ((A)) = 0;
+  set_number_from_scaled(((mp_stroked_node)(A))->cyan, 0);
+  set_number_from_scaled(((mp_stroked_node)(A))->magenta, 0);
+  set_number_from_scaled(((mp_stroked_node)(A))->yellow, 0);
+  set_number_from_scaled(((mp_stroked_node)(A))->black, 0);
   mp_color_model ((A)) = mp_uninitialized_model;
 } while (0)
 
 @d set_color_val(A,B) do {
-  A = (B);
-  if (A < 0)
-    A = 0;
-  if (A > unity)
-   A = unity;
+  set_number_from_scaled(A, (B));
+  if (number_to_scaled(A) < 0)
+    set_number_from_scaled(A,0);
+  if (number_to_scaled(A) > unity)
+    set_number_from_scaled(A,unity);
 } while (0)
 
 @<Transfer a rgbcolor from the current expression to object~|cp|@>=
 {
+  mp_stroked_node cp0 = (mp_stroked_node)cp;
   q = value_node (cur_exp_node ());
-  clear_color(cp);
+  clear_color(cp0);
   mp_color_model (cp) = mp_rgb_model;
-  set_color_val (red_val (cp), value (red_part (q)));
-  set_color_val (green_val (cp), value (green_part (q)));
-  set_color_val (blue_val (cp), value (blue_part (q)));
+  set_color_val (cp0->red, value (red_part (q)));
+  set_color_val (cp0->green, value (green_part (q)));
+  set_color_val (cp0->blue, value (blue_part (q)));
 }
 
 @ @<Transfer a cmykcolor from the current expression to object~|cp|@>=
 {
+  mp_stroked_node cp0 = (mp_stroked_node)cp;
   q = value_node (cur_exp_node ());
-  set_color_val (cyan_val (cp), value (cyan_part (q)));
-  set_color_val (magenta_val (cp), value (magenta_part (q)));
-  set_color_val (yellow_val (cp), value (yellow_part (q)));
-  set_color_val (black_val (cp), value (black_part (q)));
+  set_color_val (cp0->cyan, value (cyan_part (q)));
+  set_color_val (cp0->magenta, value (magenta_part (q)));
+  set_color_val (cp0->yellow, value (yellow_part (q)));
+  set_color_val (cp0->black, value (black_part (q)));
   mp_color_model (cp) = mp_cmyk_model;
 }
 
 
 @ @<Transfer a greyscale from the current expression to object~|cp|@>=
 {
+  mp_stroked_node cp0 = (mp_stroked_node)cp;
   scaled qq = cur_exp_value ();
   clear_color (cp);
   mp_color_model (cp) = mp_grey_model;
-  set_color_val (grey_val (cp), qq);
+  set_color_val (cp0->grey, qq);
 }
 
 
@@ -27966,10 +27973,12 @@ if (dp > MP_VOID) {
   q = mp_link (cp);
   while (q != NULL) {
     if (has_color (q)) {
-      red_val (q) = red_val (cp);
-      green_val (q) = green_val (cp);
-      blue_val (q) = blue_val (cp);
-      black_val (q) = black_val (cp);
+      mp_stroked_node q0 = (mp_stroked_node)q;
+      mp_stroked_node cp0 = (mp_stroked_node)cp;
+      number_clone(q0->red,   cp0->red);
+      number_clone(q0->green, cp0->green);
+      number_clone(q0->blue,  cp0->blue);
+      number_clone(q0->black, cp0->black);
       mp_color_model (q) = mp_color_model (cp);
     }
     q = mp_link (q);
@@ -30879,10 +30888,10 @@ static void mp_ship_out (MP mp, mp_node h);
 	gr_black_val(q)    = ((gr_color_model(q)==mp_cmyk_model ? unity : 0) / 65536.0);
   } else {
     gr_color_model(q)  = (unsigned char)mp_color_model(p);
-    gr_cyan_val(q)     = (cyan_val(p)  / 65536.0);
-    gr_magenta_val(q)  = (magenta_val(p) / 65536.0);
-    gr_yellow_val(q)   = (yellow_val(p) / 65536.0);
-    gr_black_val(q)    = (black_val(p) / 65536.0);
+    gr_cyan_val(q)     = number_to_double(p->cyan);
+    gr_magenta_val(q)  = number_to_double(p->magenta);
+    gr_yellow_val(q)   = number_to_double(p->yellow);
+    gr_black_val(q)    = number_to_double(p->black);
   }
 
 @d export_scripts(q,p)
@@ -30926,43 +30935,47 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
       mp_new_graphic_object (mp, (int) ((mp_type (p) - mp_fill_node_type) + 1));
     switch (mp_type (p)) {
     case mp_fill_node_type:
+      {
+      mp_fill_node p0 = (mp_fill_node)p;
       tf = (mp_fill_object *) hq;
-      gr_pen_p (tf) = mp_export_knot_list (mp, mp_pen_p ((mp_fill_node) p));
-      d_width = mp_get_pen_scale (mp, mp_pen_p ((mp_fill_node) p));
-      if ((mp_pen_p ((mp_fill_node) p) == NULL)
-          || pen_is_elliptical (mp_pen_p ((mp_fill_node) p))) {
-        gr_path_p (tf) = mp_export_knot_list (mp, mp_path_p ((mp_fill_node) p));
+      gr_pen_p (tf) = mp_export_knot_list (mp, mp_pen_p (p0));
+      d_width = mp_get_pen_scale (mp, mp_pen_p (p0));
+      if ((mp_pen_p (p0) == NULL) || pen_is_elliptical (mp_pen_p (p0))) {
+        gr_path_p (tf) = mp_export_knot_list (mp, mp_path_p (p0));
       } else {
         mp_knot pc, pp;
-        pc = mp_copy_path (mp, mp_path_p ((mp_fill_node) p));
+        pc = mp_copy_path (mp, mp_path_p (p0));
         pp =
-          mp_make_envelope (mp, pc, mp_pen_p ((mp_fill_node) p), ((mp_fill_node)p)->ljoin,
-                            0, number_to_scaled(((mp_fill_node)p)->miterlim));
+          mp_make_envelope (mp, pc, mp_pen_p (p0), p0->ljoin,
+                            0, number_to_scaled(p0->miterlim));
         gr_path_p (tf) = mp_export_knot_list (mp, pp);
         mp_toss_knot_list (mp, pp);
-        pc = mp_htap_ypoc (mp, mp_path_p ((mp_fill_node) p));
+        pc = mp_htap_ypoc (mp, mp_path_p (p0));
         pp =
-          mp_make_envelope (mp, pc, mp_pen_p ((mp_fill_node) p), ((mp_fill_node)p)->ljoin,
-                            0, number_to_scaled(((mp_fill_node)p)->miterlim));
+          mp_make_envelope (mp, pc, mp_pen_p ((mp_fill_node) p), p0->ljoin,
+                            0, number_to_scaled(p0->miterlim));
         gr_htap_p (tf) = mp_export_knot_list (mp, pp);
         mp_toss_knot_list (mp, pp);
       }
-      export_color (tf, p);
+      export_color (tf, p0);
       export_scripts (tf, p);
-      gr_ljoin_val (tf) = ((mp_fill_node) p)->ljoin;
-      gr_miterlim_val (tf) = number_to_double(((mp_fill_node)p)->miterlim);
+      gr_ljoin_val (tf) = p0->ljoin;
+      gr_miterlim_val (tf) = number_to_double(p0->miterlim);
+      }
       break;
     case mp_stroked_node_type:
+      {
+      mp_stroked_node p0 = (mp_stroked_node)p;
       ts = (mp_stroked_object *) hq;
-      gr_pen_p (ts) = mp_export_knot_list (mp, mp_pen_p ((mp_stroked_node) p));
-      d_width = mp_get_pen_scale (mp, mp_pen_p ((mp_stroked_node) p));
-      if (pen_is_elliptical (mp_pen_p ((mp_stroked_node) p))) {
+      gr_pen_p (ts) = mp_export_knot_list (mp, mp_pen_p (p0));
+      d_width = mp_get_pen_scale (mp, mp_pen_p (p0));
+      if (pen_is_elliptical (mp_pen_p (p0))) {
         gr_path_p (ts) =
-          mp_export_knot_list (mp, mp_path_p ((mp_stroked_node) p));
+          mp_export_knot_list (mp, mp_path_p (p0));
       } else {
         mp_knot pc;
-        pc = mp_copy_path (mp, mp_path_p ((mp_stroked_node) p));
-        t = ((mp_stroked_node) p)->lcap;
+        pc = mp_copy_path (mp, mp_path_p (p0));
+        t = (p0)->lcap;
         if (mp_left_type (pc) != mp_endpoint) {
           mp_left_type (mp_insert_knot
                         (mp, pc, mp_x_coord (pc), mp_y_coord (pc))) =
@@ -30972,27 +30985,30 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
           t = 1;
         }
         pc =
-          mp_make_envelope (mp, pc, mp_pen_p ((mp_stroked_node) p),
-                            ((mp_stroked_node)p)->ljoin, (quarterword) t, 
-	                    number_to_scaled(((mp_stroked_node)p)->miterlim));
+          mp_make_envelope (mp, pc, mp_pen_p (p0),
+                            p0->ljoin, (quarterword) t, 
+	                    number_to_scaled(p0->miterlim));
         gr_path_p (ts) = mp_export_knot_list (mp, pc);
         mp_toss_knot_list (mp, pc);
       }
-      export_color (ts, p);
+      export_color (ts, p0);
       export_scripts (ts, p);
-      gr_ljoin_val (ts) = ((mp_stroked_node) p)->ljoin;
-      gr_miterlim_val (ts) = number_to_double(((mp_stroked_node)p)->miterlim);
-      gr_lcap_val (ts) = ((mp_stroked_node) p)->lcap;
-      gr_dash_p (ts) = mp_export_dashes (mp, (mp_stroked_node) p, &d_width);
+      gr_ljoin_val (ts) = p0->ljoin;
+      gr_miterlim_val (ts) = number_to_double(p0->miterlim);
+      gr_lcap_val (ts) = (p0)->lcap;
+      gr_dash_p (ts) = mp_export_dashes (mp, p0, &d_width);
+      }
       break;
     case mp_text_node_type:
+      {
+      mp_text_node p0 = (mp_text_node)p;
       tt = (mp_text_object *) hq;
       gr_text_p (tt) = mp_xstrdup (mp, mp_str (mp, mp_text_p (p)));
       gr_text_l (tt) = (size_t) mp_text_p (p)->len;
       gr_font_n (tt) = (unsigned int) mp_font_n (p);
       gr_font_name (tt) = mp_xstrdup (mp, mp->font_name[mp_font_n (p)]);
       gr_font_dsize (tt) = mp->font_dsize[mp_font_n (p)] / 65536.0;
-      export_color (tt, p);
+      export_color (tt, p0);
       export_scripts (tt, p);
       gr_width_val (tt) = width_val (p)  / 65536.0;
       gr_height_val (tt) = height_val (p)  / 65536.0;
@@ -31003,6 +31019,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
       gr_txy_val (tt) = txy_val (p)  / 65536.0;
       gr_tyx_val (tt) = tyx_val (p)  / 65536.0;
       gr_tyy_val (tt) = tyy_val (p)  / 65536.0;
+      }
       break;
     case mp_start_clip_node_type:
       tc = (mp_clip_object *) hq;
@@ -31059,11 +31076,11 @@ mp_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
           mp_import_knot_list (mp, gr_path_p ((mp_fill_object *) p));
         mp_color_model (pn) = mp_grey_model;
         if (mp_new_turn_cycles (mp, mp_path_p ((mp_fill_node) pn)) < 0) {
-          grey_val (pn) = unity;
+          set_number_from_scaled(((mp_fill_node) pn)->grey, unity);
           mp_link (pt) = pn;
           pt = mp_link (pt);
         } else {
-          grey_val (pn) = 0;
+          set_number_from_scaled(((mp_fill_node) pn)->grey, 0);
           mp_link (pn) = mp_link (ph);
           mp_link (ph) = pn;
           if (ph == pt)
