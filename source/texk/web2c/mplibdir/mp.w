@@ -9385,8 +9385,6 @@ is to be dashed.  The purpose of the scale factor is to allow a picture to
 be transformed without touching the picture that |dash_p| points to.
 
 @d mp_dash_p(A) ((mp_stroked_node)(A))->dash_p_  /* a pointer to the edge structure that gives the dash pattern */
-@:mp_linecap_}{\&{linecap} primitive@>
-@d dash_scale(A) ((mp_stroked_node)(A))->dash_scale_ /* dash lengths are scaled by this factor */
 
 @(mpmp.h@>=
 typedef struct mp_stroked_node_data {
@@ -9404,7 +9402,7 @@ typedef struct mp_stroked_node_data {
   mp_number miterlim;
   unsigned char lcap;
   mp_node dash_p_;
-  scaled dash_scale_;
+  mp_number dash_scale;
 } mp_stroked_node_data;
 typedef struct mp_stroked_node_data *mp_stroked_node;
 
@@ -9425,7 +9423,8 @@ static mp_node mp_new_stroked_node (MP mp, mp_knot p) {
   mp_path_p (t) = p;
   mp_pen_p (t) = NULL;
   mp_dash_p (t) = NULL;
-  dash_scale (t) = unity;
+  t->dash_scale = mp_new_number(mp);
+  set_number_from_scaled(t->dash_scale, unity);
   t->red = mp_new_number(mp);
   t->green = mp_new_number(mp);
   t->blue = mp_new_number(mp);
@@ -9968,12 +9967,12 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, scaled * w) {
   scf = mp_get_pen_scale (mp, mp_pen_p (q));
   if (scf == 0) {
     if (*w == 0)
-      scf = dash_scale (q);
+      scf = number_to_scaled(q->dash_scale);
     else
       return NULL;
   } else {
     scf = mp_make_scaled (mp, *w, scf);
-    scf = mp_take_scaled (mp, scf, dash_scale (q));
+    scf = mp_take_scaled (mp, scf, number_to_scaled(q->dash_scale));
   }
   *w = scf;
   d = xmalloc (1, sizeof (mp_dash_object));
@@ -10322,7 +10321,7 @@ ok_to_dash = pen_is_elliptical (mp_pen_p ((mp_stroked_node) p));
 if (!ok_to_dash)
   scf = unity;
 else
-  scf = dash_scale (p);
+  scf = number_to_scaled(((mp_stroked_node) p)->dash_scale);
 hh = mp_dash_p (p);
 pp = dash_list (hh);
 if ((pp == mp->null_dash) || (dash_y (hh) < 0)) {
@@ -10613,7 +10612,7 @@ while (mp_link (d) != mp->null_dash) {
     d = mp_link (d);
   } else {
     hh = mp_dash_p (ds);
-    hsf = dash_scale (ds);
+    hsf = number_to_scaled(((mp_stroked_node)ds)->dash_scale);
     if ((hh == NULL))
       mp_confusion (mp, "dash1");
 @:this can't happen dash0}{\quad dash1@>;
@@ -22553,7 +22552,7 @@ else {
     goto NOT_FOUND;
   else {
     add_edge_ref (mp_dash_p (p));
-    mp->se_sf = dash_scale (p);
+    mp->se_sf = number_to_scaled(((mp_stroked_node)p)->dash_scale);
     mp->se_pic = mp_dash_p (p);
     mp_scale_edges (mp);
     new_expr.data.node = mp->se_pic;
@@ -24988,7 +24987,8 @@ if (mp_pen_p (qq) != NULL) {
   mp_do_pen_trans (mp, mp_pen_p (qq));
   if (sqdet != 0
       && ((mp_type (q) == mp_stroked_node_type) && (mp_dash_p (q) != NULL)))
-    dash_scale (q) = mp_take_scaled (mp, dash_scale (q), sqdet);
+    set_number_from_scaled(((mp_stroked_node)q)->dash_scale , 
+        mp_take_scaled (mp, number_to_scaled(((mp_stroked_node)q)->dash_scale), sqdet));
   if (!pen_is_elliptical (mp_pen_p (qq)))
     if (sgndet < 0)
       mp_pen_p (qq) = mp_make_pen (mp, mp_copy_path (mp, mp_pen_p (qq)), true);
@@ -27897,7 +27897,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
         if (mp_dash_p (dp) != NULL)
           delete_edge_ref (mp_dash_p (dp));
         mp_dash_p (dp) = mp_make_dashes (mp, cur_exp_node ());
-        dash_scale (dp) = unity;
+        set_number_from_scaled(((mp_stroked_node)dp)->dash_scale,unity);
         mp->cur_exp.type = mp_vacuous;
       }
     }
@@ -28116,7 +28116,7 @@ if (dp > MP_VOID) {
       if (mp_dash_p (q) != NULL)
         delete_edge_ref (mp_dash_p (q));
       mp_dash_p (q) = mp_dash_p (dp);
-      dash_scale (q) = unity;
+      set_number_from_scaled(((mp_stroked_node)q)->dash_scale, unity);
       if (mp_dash_p (q) != NULL)
         add_edge_ref (mp_dash_p (q));
     }
