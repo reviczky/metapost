@@ -22370,7 +22370,7 @@ else
 break;
 
 @ @<Declarations@>=
-static void mp_scale_edges (MP mp);
+static mp_node mp_scale_edges (MP mp, mp_number se_sf, mp_node se_pic);
 
 @ @<Declare unary action...@>=
 static void mp_take_pict_part (MP mp, quarterword c) {
@@ -22573,23 +22573,12 @@ else {
     goto NOT_FOUND;
   else {
     add_edge_ref (mp_dash_p (p));
-    mp->se_sf = number_to_scaled(((mp_stroked_node)p)->dash_scale);
-    mp->se_pic = mp_dash_p (p);
-    mp_scale_edges (mp);
-    new_expr.data.node = mp->se_pic;
+    new_expr.data.node = mp_scale_edges (mp, ((mp_stroked_node)p)->dash_scale, mp_dash_p (p));
     mp_flush_cur_exp (mp, new_expr);
     mp->cur_exp.type = mp_picture_type;
   }
 }
 break;
-
-@ Since |scale_edges| had to be declared |forward|, it had to be declared as a
-parameterless procedure even though it really takes two arguments and updates
-one of them.  Hence the following globals are needed.
-
-@<Global...@>=
-mp_node se_pic; /* edge header used and updated by |scale_edges| */
-scaled se_sf;   /* the scale factor argument to |scale_edges| */
 
 @ @<Convert the current expression to a NULL value appropriate...@>=
 switch (c) {
@@ -24877,14 +24866,14 @@ static void mp_do_edges_trans (MP mp, mp_node p, quarterword c) {
   set_value_node (p, mp_edges_trans (mp, value_node (p)));
   mp_unstash_cur_exp (mp, p);
 }
-static void mp_scale_edges (MP mp) {
-  set_number_from_scaled(mp->txx, mp->se_sf);
-  set_number_from_scaled(mp->tyy, mp->se_sf);
+static mp_node mp_scale_edges (MP mp, mp_number se_sf, mp_node se_pic) {
+  number_clone(mp->txx, se_sf);
+  number_clone(mp->tyy, se_sf);
   set_number_from_scaled(mp->txy, 0);
   set_number_from_scaled(mp->tyx, 0);
   set_number_from_scaled(mp->tx, 0);
   set_number_from_scaled(mp->ty, 0);
-  mp->se_pic = mp_edges_trans (mp, mp->se_pic);
+  return mp_edges_trans (mp, se_pic);
 }
 
 
