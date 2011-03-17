@@ -9511,12 +9511,6 @@ black with its reference point at the origin.
 
 @d mp_text_p(A) ((mp_text_node)(A))->text_p_  /* a string pointer for the text to display */
 @d mp_font_n(A) ((mp_text_node)(A))->font_n_ /* the font number */
-@d tx_val(A)  ((mp_text_node)(A))->tx_val_   /* $x$ shift amount */
-@d ty_val(A)  ((mp_text_node)(A))->ty_val_   /* $y$ shift amount */
-@d txx_val(A) ((mp_text_node)(A))->txx_val_  /* |txx| transformation parameter */
-@d txy_val(A) ((mp_text_node)(A))->txy_val_  /* |txy| transformation parameter */
-@d tyx_val(A) ((mp_text_node)(A))->tyx_val_  /* |tyx| transformation parameter */
-@d tyy_val(A) ((mp_text_node)(A))->tyy_val_  /* |tyy| transformation parameter */
 
 @(mpmp.h@>=
 typedef struct mp_text_node_data {
@@ -9533,12 +9527,12 @@ typedef struct mp_text_node_data {
   mp_number width;
   mp_number height;
   mp_number depth;
-  scaled tx_val_;
-  scaled ty_val_;
-  scaled txx_val_;
-  scaled txy_val_;
-  scaled tyx_val_;
-  scaled tyy_val_;
+  mp_number tx;
+  mp_number ty;
+  mp_number txx;
+  mp_number txy;
+  mp_number tyx;
+  mp_number tyy;
 } mp_text_node_data;
 typedef struct mp_text_node_data *mp_text_node;
 
@@ -9568,12 +9562,19 @@ static mp_node mp_new_text_node (MP mp, char *f, mp_string s) {
   clear_color (t);
   mp_pre_script (t) = NULL;
   mp_post_script (t) = NULL;
-  tx_val (t) = 0;
-  ty_val (t) = 0;
-  txx_val (t) = unity;
-  txy_val (t) = 0;
-  tyx_val (t) = 0;
-  tyy_val (t) = unity;
+  t->width = mp_new_number(mp);
+  t->height = mp_new_number(mp);
+  t->depth = mp_new_number(mp);
+  t->tx = mp_new_number(mp);
+  t->ty = mp_new_number(mp);
+  t->txx = mp_new_number(mp);
+  t->txy = mp_new_number(mp);
+  t->tyx = mp_new_number(mp);
+  t->tyy = mp_new_number(mp);
+  /* |tx_val (t) = 0; ty_val (t) = 0;| */
+  /* |txy_val (t) = 0; tyx_val (t) = 0;| */
+  set_number_from_scaled(t->txx, unity);
+  set_number_from_scaled(t->tyy, unity);
   mp_set_text_box (mp, t);    /* this finds the bounding box */
   return (mp_node) t;
 }
@@ -10368,6 +10369,8 @@ scaled mp_dash_offset (MP mp, mp_node h) {
 
 @ @<Cases for printing graphical object node |p|@>=
 case mp_text_node_type:
+{
+mp_text_node p0 = (mp_text_node)p;
 mp_print_char (mp, xord ('"'));
 mp_print_str (mp, mp_text_p (p));
 mp_print (mp, "\" infont \"");
@@ -10377,18 +10380,19 @@ mp_print_ln (mp);
 mp_print_obj_color (mp, p);
 mp_print (mp, "transformed ");
 mp_print_char (mp, xord ('('));
-mp_print_scaled (mp, tx_val (p));
+mp_print_scaled (mp, number_to_scaled(p0->tx));
 mp_print_char (mp, xord (','));
-mp_print_scaled (mp, ty_val (p));
+mp_print_scaled (mp, number_to_scaled(p0->ty));
 mp_print_char (mp, xord (','));
-mp_print_scaled (mp, txx_val (p));
+mp_print_scaled (mp, number_to_scaled(p0->txx));
 mp_print_char (mp, xord (','));
-mp_print_scaled (mp, txy_val (p));
+mp_print_scaled (mp, number_to_scaled(p0->txy));
 mp_print_char (mp, xord (','));
-mp_print_scaled (mp, tyx_val (p));
+mp_print_scaled (mp, number_to_scaled(p0->tyx));
 mp_print_char (mp, xord (','));
-mp_print_scaled (mp, tyy_val (p));
+mp_print_scaled (mp, number_to_scaled(p0->tyy));
 mp_print_char (mp, xord (')'));
+}
 break;
 
 @ @<Cases for printing graphical object node |p|@>=
@@ -10938,10 +10942,10 @@ parameters stored in the text node.
 case mp_text_node_type:
 {
 mp_text_node p0 = (mp_text_node)p;
-x1 = mp_take_scaled (mp, txx_val (p), number_to_scaled(p0->width));
-y0 = mp_take_scaled (mp, txy_val (p), -number_to_scaled(p0->depth));
-y1 = mp_take_scaled (mp, txy_val (p), number_to_scaled(p0->height));
-mp_minx = tx_val (p);
+x1 = mp_take_scaled (mp, number_to_scaled(p0->txx), number_to_scaled(p0->width));
+y0 = mp_take_scaled (mp, number_to_scaled(p0->txy), -number_to_scaled(p0->depth));
+y1 = mp_take_scaled (mp, number_to_scaled(p0->txy), number_to_scaled(p0->height));
+mp_minx = number_to_scaled(p0->tx);
 mp_maxx = mp_minx;
 if (y0 < y1) {
   mp_minx = mp_minx + y0;
@@ -10954,10 +10958,10 @@ if (x1 < 0)
   mp_minx = mp_minx + x1;
 else
   mp_maxx = mp_maxx + x1;
-x1 = mp_take_scaled (mp, tyx_val (p), number_to_scaled(p0->width));
-y0 = mp_take_scaled (mp, tyy_val (p), -number_to_scaled(p0->depth));
-y1 = mp_take_scaled (mp, tyy_val (p), number_to_scaled(p0->height));
-mp_miny = ty_val (p);
+x1 = mp_take_scaled (mp, number_to_scaled(p0->tyx), number_to_scaled(p0->width));
+y0 = mp_take_scaled (mp, number_to_scaled(p0->tyy), -number_to_scaled(p0->depth));
+y1 = mp_take_scaled (mp, number_to_scaled(p0->tyy), number_to_scaled(p0->height));
+mp_miny = number_to_scaled(p0->ty);
 mp_maxy = mp_miny;
 if (y0 < y1) {
   mp_miny = mp_miny + y0;
@@ -22368,24 +22372,25 @@ static void mp_take_pict_part (MP mp, quarterword c) {
     case mp_yx_part:
     case mp_yy_part:
       if (mp_type (p) == mp_text_node_type) {
+        mp_text_node p0 = (mp_text_node)p;
         switch (c) {
         case mp_x_part:
-          new_expr.data.n->data.val = tx_val (p);
+          number_clone(new_expr.data.n, p0->tx);
           break;
         case mp_y_part:
-          new_expr.data.n->data.val = ty_val (p);
+          number_clone(new_expr.data.n, p0->ty);
           break;
         case mp_xx_part:
-          new_expr.data.n->data.val = txx_val (p);
+          number_clone(new_expr.data.n, p0->txx);
           break;
         case mp_xy_part:
-          new_expr.data.n->data.val = txy_val (p);
+          number_clone(new_expr.data.n, p0->txy);
           break;
         case mp_yx_part:
-          new_expr.data.n->data.val = tyx_val (p);
+          number_clone(new_expr.data.n, p0->tyx);
           break;
         case mp_yy_part:
-          new_expr.data.n->data.val = tyy_val (p);
+          number_clone(new_expr.data.n, p0->tyy);
           break;
         }
         mp_flush_cur_exp (mp, new_expr);
@@ -24752,6 +24757,15 @@ static void mp_trans (MP mp, scaled * p, scaled * q) {
     mp_take_scaled (mp, *q, mp->tyy) + mp->ty;
   *p = v;
 }
+static void mp_number_trans (MP mp, mp_number p, mp_number q) {
+  scaled qq, pp;
+  pp = mp_take_scaled (mp, number_to_scaled(p), mp->txx) +
+       mp_take_scaled (mp, number_to_scaled(q), mp->txy) + mp->tx;
+  qq = mp_take_scaled (mp, number_to_scaled(p), mp->tyx) +
+       mp_take_scaled (mp, number_to_scaled(q), mp->tyy) + mp->ty;
+  set_number_from_scaled(p,pp); 
+  set_number_from_scaled(q,qq); 
+}
 
 
 @ The simplest transformation procedure applies a transform to all
@@ -24998,13 +25012,13 @@ if (mp_pen_p (qq) != NULL) {
 }
 
 @ @<Transform the compact transformation@>=
-mp_trans (mp, &tx_val (q), &ty_val (q));
+mp_number_trans (mp, ((mp_text_node)q)->tx, ((mp_text_node)q)->ty);
 sx = mp->tx;
 sy = mp->ty;
 mp->tx = 0;
 mp->ty = 0;
-mp_trans (mp, &txx_val (q), &tyx_val (q));
-mp_trans (mp, &txy_val (q), &tyy_val (q));
+mp_number_trans (mp, ((mp_text_node)q)->txx, ((mp_text_node)q)->tyx);
+mp_number_trans (mp, ((mp_text_node)q)->txy, ((mp_text_node)q)->tyy);
 mp->tx = sx;
 mp->ty = sy
 
@@ -31117,12 +31131,12 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
       gr_width_val (tt) = number_to_double(p0->width);
       gr_height_val (tt) = number_to_double(p0->height);
       gr_depth_val (tt) = number_to_double(p0->depth);
-      gr_tx_val (tt) = tx_val (p)  / 65536.0;
-      gr_ty_val (tt) = ty_val (p)  / 65536.0;
-      gr_txx_val (tt) = txx_val (p)  / 65536.0;
-      gr_txy_val (tt) = txy_val (p)  / 65536.0;
-      gr_tyx_val (tt) = tyx_val (p)  / 65536.0;
-      gr_tyy_val (tt) = tyy_val (p)  / 65536.0;
+      gr_tx_val (tt)  = number_to_double(p0->tx);
+      gr_ty_val (tt)  = number_to_double(p0->ty);
+      gr_txx_val (tt) = number_to_double(p0->txx);
+      gr_txy_val (tt) = number_to_double(p0->txy);
+      gr_tyx_val (tt) = number_to_double(p0->tyx);
+      gr_tyy_val (tt) = number_to_double(p0->tyy);
       }
       break;
     case mp_start_clip_node_type:
