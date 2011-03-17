@@ -4676,14 +4676,6 @@ printer's sense. It's curious that the same word is used in such different ways.
  } while (0)
 
 
-@d set_number_from_scaled(A,B) (A)->data.val=(B)
-@d number_to_scaled(A) (A)->data.val
-@d number_to_double(A) ((A)->data.val/65536.0)
-@d number_positive(A) ((A)->data.val>0)
-@d number_equal(A,B) ((A)->data.val==(B)->data.val)
-@d number_clone(A,B) (A)->data.val=(B)->data.val
-
-
 @d value_node(A)   get_value_node(mp, (mp_token_node)(A)) /* the value stored in a large token node */
 
 @d set_value_node(A,B) do_set_value_node(mp, (mp_token_node)(A), (B))/* store the value in a large token node */
@@ -9276,10 +9268,34 @@ void mp_free_number (MP mp, mp_number n) {
   free(n);
 }
 
+@ 
+@d set_number_from_scaled(A,B) (A)->data.val=(B)
+@d number_to_scaled(A) (A)->data.val
+@d number_to_double(A) ((A)->data.val/65536.0)
+@d number_positive(A) ((A)->data.val>0)
+@d number_zero(A) ((A)->data.val==0)
+@d number_negative(A) ((A)->data.val<0)
+@d number_nonzero(A) (!number_zero(A))
+@d number_equal(A,B) ((A)->data.val==(B)->data.val)
+@d number_abs(A)     mp_number_abs(mp,A)
+@d number_nonequal(A,B) (!number_equal(A,B))
+@d number_nonequalabs(A,B) (!(abs((A)->data.val)==abs((B)->data.val)))
+@d number_clone(A,B) (A)->data.val=(B)->data.val
+
+@c
+mp_number mp_number_abs (MP mp, mp_number o) {
+  mp_number n = mp_new_number(mp);
+  n->data.val = abs(o->data.val);
+  return n;
+} 
+
+
+
 @
 @<Declarations@>=
 mp_number mp_new_number (MP mp);
 void mp_free_number (MP mp, mp_number n);
+mp_number mp_number_abs (MP mp, mp_number o);
 
 @* Edge structures.
 Now we come to \MP's internal scheme for representing pictures.
@@ -24582,12 +24598,20 @@ static void mp_set_up_trans (MP mp, quarterword c) {
 
 
 @ @<Glob...@>=
-scaled txx;
-scaled txy;
-scaled tyx;
-scaled tyy;
-scaled tx;
-scaled ty;      /* current transform coefficients */
+mp_number txx;
+mp_number txy;
+mp_number tyx;
+mp_number tyy;
+mp_number tx;
+mp_number ty;      /* current transform coefficients */
+
+@ @<Initialize table...@>=
+mp->txx = mp_new_number(mp);
+mp->txy = mp_new_number(mp);
+mp->tyx = mp_new_number(mp);
+mp->tyy = mp_new_number(mp);
+mp->tx = mp_new_number(mp);
+mp->ty = mp_new_number(mp);
 
 @ @<Put the current transform...@>=
 {
@@ -24629,12 +24653,12 @@ if (mp_type (yx_part (q)) != mp_known)
   return;
 if (mp_type (yy_part (q)) != mp_known)
   return;
-mp->txx = value (xx_part (q));
-mp->txy = value (xy_part (q));
-mp->tyx = value (yx_part (q));
-mp->tyy = value (yy_part (q));
-mp->tx = value (tx_part (q));
-mp->ty = value (ty_part (q));
+set_number_from_scaled(mp->txx, value (xx_part (q)));
+set_number_from_scaled(mp->txy, value (xy_part (q)));
+set_number_from_scaled(mp->tyx, value (yx_part (q)));
+set_number_from_scaled(mp->tyy, value (yy_part (q)));
+set_number_from_scaled(mp->tx, value (tx_part (q)));
+set_number_from_scaled(mp->ty, value (ty_part (q)));
 new_expr.data.n->data.val = 0;
 mp_flush_cur_exp (mp, new_expr)
  
@@ -24735,12 +24759,12 @@ static void mp_set_up_known_trans (MP mp, quarterword c) {
 @.Transform components...@>;
     mp_get_x_next (mp);
     mp_flush_cur_exp (mp, new_expr);
-    mp->txx = unity;
-    mp->txy = 0;
-    mp->tyx = 0;
-    mp->tyy = unity;
-    mp->tx = 0;
-    mp->ty = 0;
+    set_number_from_scaled(mp->txx, unity);
+    set_number_from_scaled(mp->txy, 0);
+    set_number_from_scaled(mp->tyx, 0);
+    set_number_from_scaled(mp->tyy, unity);
+    set_number_from_scaled(mp->tx, 0);
+    set_number_from_scaled(mp->ty, 0);
   }
 }
 
@@ -24751,18 +24775,18 @@ coordinates in locations |p| and~|q|.
 @<Declare binary action...@>=
 static void mp_trans (MP mp, scaled * p, scaled * q) {
   scaled v;     /* the new |x| value */
-  v = mp_take_scaled (mp, *p, mp->txx) +
-    mp_take_scaled (mp, *q, mp->txy) + mp->tx;
-  *q = mp_take_scaled (mp, *p, mp->tyx) +
-    mp_take_scaled (mp, *q, mp->tyy) + mp->ty;
+  v = mp_take_scaled (mp, *p, number_to_scaled(mp->txx)) +
+    mp_take_scaled (mp, *q, number_to_scaled(mp->txy)) + number_to_scaled(mp->tx);
+  *q = mp_take_scaled (mp, *p, number_to_scaled(mp->tyx)) +
+    mp_take_scaled (mp, *q, number_to_scaled(mp->tyy)) + number_to_scaled(mp->ty);
   *p = v;
 }
 static void mp_number_trans (MP mp, mp_number p, mp_number q) {
   scaled qq, pp;
-  pp = mp_take_scaled (mp, number_to_scaled(p), mp->txx) +
-       mp_take_scaled (mp, number_to_scaled(q), mp->txy) + mp->tx;
-  qq = mp_take_scaled (mp, number_to_scaled(p), mp->tyx) +
-       mp_take_scaled (mp, number_to_scaled(q), mp->tyy) + mp->ty;
+  pp = mp_take_scaled (mp, number_to_scaled(p), number_to_scaled(mp->txx)) +
+       mp_take_scaled (mp, number_to_scaled(q), number_to_scaled(mp->txy)) + number_to_scaled(mp->tx);
+  qq = mp_take_scaled (mp, number_to_scaled(p), number_to_scaled(mp->tyx)) +
+       mp_take_scaled (mp, number_to_scaled(q), number_to_scaled(mp->tyy)) + number_to_scaled(mp->ty);
   set_number_from_scaled(p,pp); 
   set_number_from_scaled(q,qq); 
 }
@@ -24832,8 +24856,10 @@ static mp_node mp_edges_trans (MP mp, mp_node h) {
   integer sgndet;       /* sign of the determinant */
   scaled v;     /* a temporary value */
   h = mp_private_edges (mp, h);
-  sqdet = mp_sqrt_det (mp, mp->txx, mp->txy, mp->tyx, mp->tyy);
-  sgndet = mp_ab_vs_cd (mp, mp->txx, mp->tyy, mp->txy, mp->tyx);
+  sqdet = mp_sqrt_det (mp, number_to_scaled(mp->txx), number_to_scaled(mp->txy), 
+	number_to_scaled(mp->tyx), number_to_scaled(mp->tyy));
+  sgndet = mp_ab_vs_cd (mp, number_to_scaled(mp->txx), number_to_scaled(mp->tyy), 
+	number_to_scaled(mp->txy), number_to_scaled(mp->tyx));
   if (dash_list (h) != mp->null_dash) {
     @<Try to transform the dash list of |h|@>;
   }
@@ -24852,26 +24878,29 @@ static void mp_do_edges_trans (MP mp, mp_node p, quarterword c) {
   mp_unstash_cur_exp (mp, p);
 }
 static void mp_scale_edges (MP mp) {
-  mp->txx = mp->se_sf;
-  mp->tyy = mp->se_sf;
-  mp->txy = 0;
-  mp->tyx = 0;
-  mp->tx = 0;
-  mp->ty = 0;
+  set_number_from_scaled(mp->txx, mp->se_sf);
+  set_number_from_scaled(mp->tyy, mp->se_sf);
+  set_number_from_scaled(mp->txy, 0);
+  set_number_from_scaled(mp->tyx, 0);
+  set_number_from_scaled(mp->tx, 0);
+  set_number_from_scaled(mp->ty, 0);
   mp->se_pic = mp_edges_trans (mp, mp->se_pic);
 }
 
 
 @ @<Try to transform the dash list of |h|@>=
-if ((mp->txy != 0) || (mp->tyx != 0) ||
-    (mp->ty != 0) || (abs (mp->txx) != abs (mp->tyy))) {
+if (number_nonzero(mp->txy) || number_nonzero(mp->tyx) ||
+    number_nonzero(mp->ty) || number_nonequalabs (mp->txx, mp->tyy)) {
   mp_flush_dash_list (mp, h);
 } else {
-  if (mp->txx < 0) {
+  mp_number abs_tyy ;
+  if (number_negative(mp->txx)) {
     @<Reverse the dash list of |h|@>;
   }
   @<Scale the dash list by |txx| and shift it by |tx|@>;
-  dash_y (h) = mp_take_scaled (mp, dash_y (h), abs (mp->tyy));
+  abs_tyy = number_abs (mp->tyy);
+  dash_y (h) = mp_take_scaled (mp, dash_y (h), number_to_scaled(abs_tyy));
+  mp_free_number(mp, abs_tyy);
 }
 
 
@@ -24894,8 +24923,8 @@ if ((mp->txy != 0) || (mp->tyx != 0) ||
 @ @<Scale the dash list by |txx| and shift it by |tx|@>=
 r = dash_list (h);
 while (r != mp->null_dash) {
-  start_x (r) = mp_take_scaled (mp, start_x (r), mp->txx) + mp->tx;
-  stop_x (r) = mp_take_scaled (mp, stop_x (r), mp->txx) + mp->tx;
+  start_x (r) = mp_take_scaled (mp, start_x (r), number_to_scaled( mp->txx)) + number_to_scaled(mp->tx);
+  stop_x (r) = mp_take_scaled (mp, stop_x (r),  number_to_scaled(mp->txx)) + number_to_scaled(mp->tx);
   r = mp_link (r);
 }
 
@@ -24930,16 +24959,20 @@ sum is similar.
 
 @<Scale the bounding box by |txx+txy| and |tyx+tyy|; then shift...@>=
 {
-  minx_val (h) = mp_take_scaled (mp, minx_val (h), mp->txx + mp->txy) + mp->tx;
-  maxx_val (h) = mp_take_scaled (mp, maxx_val (h), mp->txx + mp->txy) + mp->tx;
-  miny_val (h) = mp_take_scaled (mp, miny_val (h), mp->tyx + mp->tyy) + mp->ty;
-  maxy_val (h) = mp_take_scaled (mp, maxy_val (h), mp->tyx + mp->tyy) + mp->ty;
-  if (mp->txx + mp->txy < 0) {
+  minx_val (h) = mp_take_scaled (mp, minx_val (h), number_to_scaled(mp->txx) + 
+	number_to_scaled(mp->txy) + number_to_scaled(mp->tx));
+  maxx_val (h) = mp_take_scaled (mp, maxx_val (h), number_to_scaled(mp->txx) + 
+	number_to_scaled(mp->txy) + number_to_scaled(mp->tx));
+  miny_val (h) = mp_take_scaled (mp, miny_val (h), number_to_scaled(mp->tyx) + 
+	number_to_scaled(mp->tyy) + number_to_scaled(mp->ty));
+  maxy_val (h) = mp_take_scaled (mp, maxy_val (h), number_to_scaled(mp->tyx) + 
+	number_to_scaled(mp->tyy) + number_to_scaled(mp->ty));
+  if (number_to_scaled(mp->txx) + number_to_scaled(mp->txy) < 0) {
     v = minx_val (h);
     minx_val (h) = maxx_val (h);
     maxx_val (h) = v;
   }
-  if (mp->tyx + mp->tyy < 0) {
+  if (number_to_scaled(mp->tyx) + number_to_scaled(mp->tyy) < 0) {
     v = miny_val (h);
     miny_val (h) = maxy_val (h);
     maxy_val (h) = v;
@@ -24994,10 +25027,10 @@ We pass the mptrap test only if |dash_scale| is not adjusted, nowadays
 
 @<Transform |mp_pen_p(qq)|, making sure...@>=
 if (mp_pen_p (qq) != NULL) {
-  sx = mp->tx;
-  sy = mp->ty;
-  mp->tx = 0;
-  mp->ty = 0;
+  sx = number_to_scaled(mp->tx);
+  sy = number_to_scaled(mp->ty);
+  set_number_from_scaled(mp->tx, 0);
+  set_number_from_scaled(mp->ty, 0);
   mp_do_pen_trans (mp, mp_pen_p (qq));
   if (sqdet != 0
       && ((mp_type (q) == mp_stroked_node_type) && (mp_dash_p (q) != NULL)))
@@ -25007,20 +25040,20 @@ if (mp_pen_p (qq) != NULL) {
     if (sgndet < 0)
       mp_pen_p (qq) = mp_make_pen (mp, mp_copy_path (mp, mp_pen_p (qq)), true);
   /* this unreverses the pen */
-  mp->tx = sx;
-  mp->ty = sy;
+  set_number_from_scaled(mp->tx, sx);
+  set_number_from_scaled(mp->ty, sy);
 }
 
 @ @<Transform the compact transformation@>=
 mp_number_trans (mp, ((mp_text_node)q)->tx, ((mp_text_node)q)->ty);
-sx = mp->tx;
-sy = mp->ty;
-mp->tx = 0;
-mp->ty = 0;
+sx = number_to_scaled(mp->tx);
+sy = number_to_scaled(mp->ty);
+set_number_from_scaled(mp->tx, 0);
+set_number_from_scaled(mp->ty, 0);
 mp_number_trans (mp, ((mp_text_node)q)->txx, ((mp_text_node)q)->tyx);
 mp_number_trans (mp, ((mp_text_node)q)->txy, ((mp_text_node)q)->tyy);
-mp->tx = sx;
-mp->ty = sy
+set_number_from_scaled(mp->tx, sx);
+set_number_from_scaled(mp->ty, sy)
 
 @ The hard cases of transformation occur when big nodes are involved,
 and when some of their components are unknown.
@@ -25055,13 +25088,13 @@ static void mp_big_trans (MP mp, mp_node p, quarterword c) {
   mp_make_exp_copy (mp, p);
   r = value_node (cur_exp_node ());
   if (mp->cur_exp.type == mp_transform_type) {
-    mp_bilin1 (mp, yy_part (r), mp->tyy, xy_part (q), mp->tyx, 0);
-    mp_bilin1 (mp, yx_part (r), mp->tyy, xx_part (q), mp->tyx, 0);
-    mp_bilin1 (mp, xy_part (r), mp->txx, yy_part (q), mp->txy, 0);
-    mp_bilin1 (mp, xx_part (r), mp->txx, yx_part (q), mp->txy, 0);
+    mp_bilin1 (mp, yy_part (r), number_to_scaled(mp->tyy), xy_part (q), number_to_scaled(mp->tyx), 0);
+    mp_bilin1 (mp, yx_part (r), number_to_scaled(mp->tyy), xx_part (q), number_to_scaled(mp->tyx), 0);
+    mp_bilin1 (mp, xy_part (r), number_to_scaled(mp->txx), yy_part (q), number_to_scaled(mp->txy), 0);
+    mp_bilin1 (mp, xx_part (r), number_to_scaled(mp->txx), yx_part (q), number_to_scaled(mp->txy), 0);
   }
-  mp_bilin1 (mp, y_part (r), mp->tyy, x_part (q), mp->tyx, mp->ty);
-  mp_bilin1 (mp, x_part (r), mp->txx, y_part (q), mp->txy, mp->tx);
+  mp_bilin1 (mp, y_part (r), number_to_scaled(mp->tyy), x_part (q), number_to_scaled(mp->tyx), number_to_scaled(mp->ty));
+  mp_bilin1 (mp, x_part (r), number_to_scaled(mp->txx), y_part (q), number_to_scaled(mp->txy), number_to_scaled(mp->tx));
   return;
 }
 
@@ -25202,19 +25235,19 @@ static void mp_bilin2 (MP mp, mp_node p, mp_node t, scaled v,
   mp_make_exp_copy (mp, p);
   r = value_node (cur_exp_node ());
   if (mp->cur_exp.type == mp_transform_type) {
-    mp_bilin3 (mp, yy_part (r), mp->tyy, value (xy_part (q)), mp->tyx,
+    mp_bilin3 (mp, yy_part (r), number_to_scaled(mp->tyy), value (xy_part (q)), number_to_scaled(mp->tyx),
                0);
-    mp_bilin3 (mp, yx_part (r), mp->tyy, value (xx_part (q)), mp->tyx,
+    mp_bilin3 (mp, yx_part (r), number_to_scaled(mp->tyy), value (xx_part (q)), number_to_scaled(mp->tyx),
                0);
-    mp_bilin3 (mp, xy_part (r), mp->txx, value (yy_part (q)), mp->txy,
+    mp_bilin3 (mp, xy_part (r), number_to_scaled(mp->txx), value (yy_part (q)), number_to_scaled(mp->txy),
                0);
-    mp_bilin3 (mp, xx_part (r), mp->txx, value (yx_part (q)), mp->txy,
+    mp_bilin3 (mp, xx_part (r), number_to_scaled(mp->txx), value (yx_part (q)), number_to_scaled(mp->txy),
                0);
   }
-  mp_bilin3 (mp, y_part (r), mp->tyy, value (x_part (q)), mp->tyx,
-             mp->ty);
-  mp_bilin3 (mp, x_part (r), mp->txx, value (y_part (q)), mp->txy,
-             mp->tx);
+  mp_bilin3 (mp, y_part (r), number_to_scaled(mp->tyy), value (x_part (q)), number_to_scaled(mp->tyx),
+             number_to_scaled(mp->ty));
+  mp_bilin3 (mp, x_part (r), number_to_scaled(mp->txx), value (y_part (q)), number_to_scaled(mp->txy),
+             number_to_scaled(mp->tx));
 }
 
 
