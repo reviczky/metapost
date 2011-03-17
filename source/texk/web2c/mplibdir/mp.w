@@ -9270,6 +9270,7 @@ void mp_free_number (MP mp, mp_number n) {
 
 @ 
 @d set_number_from_scaled(A,B) (A)->data.val=(B)
+@d set_number_from_double(A,B) (A)->data.val=((B)*65536.0)
 @d number_to_scaled(A) (A)->data.val
 @d number_to_double(A) ((A)->data.val/65536.0)
 @d number_positive(A) ((A)->data.val>0)
@@ -9759,12 +9760,7 @@ Since the bounding box of pictures containing objects of type
 data might not be valid for all values of this parameter.  Hence, the |bbtype|
 field is needed to keep track of this.
 
-@d minx_val(A) ((mp_edge_header_node)(A))->minx_val_
-@d miny_val(A) ((mp_edge_header_node)(A))->miny_val_
-@d maxx_val(A) ((mp_edge_header_node)(A))->maxx_val_
-@d maxy_val(A) ((mp_edge_header_node)(A))->maxy_val_
 @d bblast(A) ((mp_edge_header_node)(A))->bblast_  /* last item considered in bounding box computation */
-@d bbtype(A) ((mp_edge_header_node)(A))->bbtype_ /* tells how bounding box data depends on \&{truecorners} */
 @d edge_list(A)  ((mp_edge_header_node)(A))->list_ /* where the object list begins in an edge header */
 
 @(mpmp.h@>=
@@ -9774,12 +9770,12 @@ typedef struct mp_edge_header_node_data {
   scaled stop_x_;
   scaled dash_y_;
   mp_node dash_info_;
-  scaled minx_val_;
-  scaled miny_val_;
-  scaled maxx_val_;
-  scaled maxy_val_;
+  mp_number minx;
+  mp_number miny;
+  mp_number maxx;
+  mp_number maxy;
   mp_node bblast_;
-  halfword bbtype_;
+  int bbtype; /* tells how bounding box data depends on \&{truecorners} */
   mp_node list_;
   mp_node obj_tail_;    /* explained below */
   halfword ref_count_;  /* explained below */
@@ -9791,15 +9787,15 @@ typedef struct mp_edge_header_node_data *mp_edge_header_node;
 @d bounds_set 1  /* |bbtype| value when bounding box data is for \&{truecorners}${}\le 0$ */
 @d bounds_unset 2  /* |bbtype| value when bounding box data is for \&{truecorners}${}>0$ */
 @c
-static void mp_init_bbox (MP mp, mp_node h) {
+static void mp_init_bbox (MP mp, mp_edge_header_node h) {
   /* Initialize the bounding box information in edge structure |h| */
   (void) mp;
   bblast (h) = edge_list (h);
-  bbtype (h) = no_bounds;
-  minx_val (h) = EL_GORDO;
-  miny_val (h) = EL_GORDO;
-  maxx_val (h) = -EL_GORDO;
-  maxy_val (h) = -EL_GORDO;
+  h->bbtype = no_bounds;
+  set_number_from_scaled(h->minx, EL_GORDO);
+  set_number_from_scaled(h->miny, EL_GORDO);
+  set_number_from_scaled(h->maxx, -EL_GORDO);
+  set_number_from_scaled(h->maxy, -EL_GORDO);
 }
 
 
@@ -9812,15 +9808,19 @@ word and a pointer to the tail of the object list in the last word.
 @d edge_header_size sizeof(struct mp_edge_header_node_data)
 
 @c
-static mp_node mp_get_edge_header_node (MP mp) {
+static mp_edge_header_node mp_get_edge_header_node (MP mp) {
   mp_edge_header_node p = (mp_edge_header_node) xmalloc (1, edge_header_size);
   add_var_used (edge_header_size);
   memset (p, 0, edge_header_size);
   mp_type (p) = mp_edge_header_node_type;
+  p->minx = mp_new_number(mp);
+  p->miny = mp_new_number(mp);
+  p->maxx = mp_new_number(mp);
+  p->maxy = mp_new_number(mp);
   p->list_ = mp_get_token_node (mp);   /* or whatever, just a need a link handle */
-  return (mp_node) p;
+  return p;
 }
-static void mp_init_edges (MP mp, mp_node h) {
+static void mp_init_edges (MP mp, mp_edge_header_node h) {
   /* initialize an edge header to NULL values */
   dash_list (h) = mp->null_dash;
   obj_tail (h) = edge_list (h);
@@ -9837,20 +9837,20 @@ of the need to dereference edge structures that are used as dash patterns.
 @d add_edge_ref(A) incr(edge_ref_count((A)))
 @d delete_edge_ref(A) { 
    if ( edge_ref_count((A))==0 ) 
-     mp_toss_edges(mp, (A));
+     mp_toss_edges(mp, (mp_edge_header_node)(A));
    else 
      decr(edge_ref_count((A))); 
    }
 
 @<Declarations@>=
-static void mp_flush_dash_list (MP mp, mp_node h);
-static mp_node mp_toss_gr_object (MP mp, mp_node p);
-static void mp_toss_edges (MP mp, mp_node h);
+static void mp_flush_dash_list (MP mp, mp_edge_header_node h);
+static mp_edge_header_node mp_toss_gr_object (MP mp, mp_node p);
+static void mp_toss_edges (MP mp, mp_edge_header_node h);
 
 @ @c
-void mp_toss_edges (MP mp, mp_node h) {
+void mp_toss_edges (MP mp, mp_edge_header_node h) {
   mp_node p, q; /* pointers that scan the list being recycled */
-  mp_node r;    /* an edge structure that object |p| refers to */
+  mp_edge_header_node r;    /* an edge structure that object |p| refers to */
   mp_flush_dash_list (mp, h);
   q = mp_link (edge_list (h));
   while ((q != NULL)) {
@@ -9860,10 +9860,10 @@ void mp_toss_edges (MP mp, mp_node h) {
     if (r != NULL)
       delete_edge_ref (r);
   }
-  mp_free_node (mp, ((mp_edge_header_node) h)->list_, token_node_size);
-  mp_free_node (mp, h, edge_header_size);
+  mp_free_node (mp, h->list_, token_node_size);
+  mp_free_node (mp, (mp_node)h, edge_header_size);
 }
-void mp_flush_dash_list (MP mp, mp_node h) {
+void mp_flush_dash_list (MP mp, mp_edge_header_node h) {
   mp_node p, q; /* pointers that scan the list being recycled */
   q = dash_list (h);
   while (q != mp->null_dash) { /* todo: NULL check should not be needed */
@@ -9873,9 +9873,9 @@ void mp_flush_dash_list (MP mp, mp_node h) {
   }
   dash_list (h) = mp->null_dash;
 }
-mp_node mp_toss_gr_object (MP mp, mp_node p) {
+mp_edge_header_node mp_toss_gr_object (MP mp, mp_node p) {
   /* returns an edge structure that needs to be dereferenced */
-  mp_node e = NULL;     /* the edge structure to return */
+  mp_edge_header_node e = NULL;     /* the edge structure to return */
   switch (mp_type (p)) {
   case mp_fill_node_type:
     mp_toss_knot_list (mp, mp_path_p ((mp_fill_node) p));
@@ -9895,7 +9895,7 @@ mp_node mp_toss_gr_object (MP mp, mp_node p) {
       delete_str_ref (mp_pre_script (p));
     if (mp_post_script (p) != NULL)
       delete_str_ref (mp_post_script (p));
-    e = mp_dash_p (p);
+    e = (mp_edge_header_node)mp_dash_p (p);
     mp_free_node (mp, p, stroked_node_size);
     break;
   case mp_text_node_type:
@@ -9933,16 +9933,16 @@ the work is done in a separate routine |copy_objects| that copies a list of
 graphical objects into a new edge header.
 
 @c
-static mp_node mp_private_edges (MP mp, mp_node h) {
+static mp_edge_header_node mp_private_edges (MP mp, mp_edge_header_node h) {
   /* make a private copy of the edge structure headed by |h| */
-  mp_node hh;   /* the edge header for the new copy */
+  mp_edge_header_node hh;   /* the edge header for the new copy */
   mp_node p, pp;        /* pointers for copying the dash list */
   assert (mp_type (h) == mp_edge_header_node_type);
   if (edge_ref_count (h) == 0) {
     return h;
   } else {
     decr (edge_ref_count (h));
-    hh = mp_copy_objects (mp, mp_link (edge_list (h)), NULL);
+    hh = (mp_edge_header_node)mp_copy_objects (mp, mp_link (edge_list (h)), NULL);
     @<Copy the dash list from |h| to |hh|@>;
     @<Copy the bounding box information from |h| to |hh| and make |bblast(hh)|
       point into the new object list@>;
@@ -9955,7 +9955,7 @@ static mp_node mp_private_edges (MP mp, mp_node h) {
 @^data structure assumptions@>
 
 @<Copy the dash list from |h| to |hh|@>=
-pp = hh;
+pp = (mp_node)hh;
 p = dash_list (h);
 while ((p != mp->null_dash)) {
   mp_link (pp) = mp_get_dash_node (mp);
@@ -10012,11 +10012,11 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, scaled * w) {
 
 
 @ @<Copy the bounding box information from |h| to |hh|...@>=
-minx_val (hh) = minx_val (h);
-miny_val (hh) = miny_val (h);
-maxx_val (hh) = maxx_val (h);
-maxy_val (hh) = maxy_val (h);
-bbtype (hh) = bbtype (h);
+number_clone(hh->minx, h->minx);
+number_clone(hh->miny, h->miny);
+number_clone(hh->maxx, h->maxx);
+number_clone(hh->maxy, h->maxy);
+hh->bbtype = h->bbtype;
 p = edge_list (h);
 pp = edge_list (hh);
 while ((p != bblast (h))) {
@@ -10034,11 +10034,11 @@ If |q| is NULL, it copies the entire sublist headed at |p|.  The resulting edge
 structure requires further initialization by |init_bbox|.
 
 @<Declarations@>=
-static mp_node mp_copy_objects (MP mp, mp_node p, mp_node q);
+static mp_edge_header_node mp_copy_objects (MP mp, mp_node p, mp_node q);
 
 @ @c
-mp_node mp_copy_objects (MP mp, mp_node p, mp_node q) {
-  mp_node hh;   /* the new edge header */
+mp_edge_header_node mp_copy_objects (MP mp, mp_node p, mp_node q) {
+  mp_edge_header_node hh;   /* the new edge header */
   mp_node pp;   /* the last newly copied object */
   quarterword k = 0;  /* temporary register */
   hh = mp_get_edge_header_node (mp);
@@ -10442,7 +10442,7 @@ length $\Delta x$, we set |dash_y(h)| to the length of the dash pattern by
 finding the maximum of $\Delta x$ and the absolute value of~$y_0$.
 
 @c
-static mp_node mp_make_dashes (MP mp, mp_node h) {                               /* returns |h| or |NULL| */
+static mp_edge_header_node mp_make_dashes (MP mp, mp_edge_header_node h) { /* returns |h| or |NULL| */
   mp_node p;    /* this scans the stroked nodes in the object list */
   mp_node p0;   /* if not |NULL| this points to the first stroked node */
   mp_knot pp, qq, rr;   /* pointers into |mp_path_p(p)| */
@@ -10584,10 +10584,10 @@ if (!number_equal(((mp_stroked_node)p)->red, ((mp_stroked_node)p0)->red) ||
 
 @ @<Insert |d| into the dash list and |goto not_found| if there is an error@>=
 start_x (mp->null_dash) = stop_x (d);
-dd = h;                         /* this makes |mp_link(dd)=dash_list(h)| */
+dd = (mp_node)h;                         /* this makes |mp_link(dd)=dash_list(h)| */
 while (start_x (mp_link (dd)) < stop_x (d))
   dd = mp_link (dd);
-if (dd != h) {
+if (dd != (mp_node)h) {
   if ((stop_x (dd) > start_x (d))) {
     mp_x_retrace_error (mp);
     goto NOT_FOUND;
@@ -10625,7 +10625,7 @@ corresponding dash nodes, we must be prepared to break up these dashes into
 smaller dashes.
 
 @<Scan |dash_list(h)| and deal with any dashes that are themselves dashed@>=
-d = h;                          /* now |mp_link(d)=dash_list(h)| */
+d = (mp_node)h;                          /* now |mp_link(d)=dash_list(h)| */
 while (mp_link (d) != mp->null_dash) {
   ds = dash_info (mp_link (d));
   if (ds == NULL) {
@@ -10719,15 +10719,15 @@ header's bounding box to accommodate the box computed by |path_bbox| or
 |maxy|.)
 
 @c
-static void mp_adjust_bbox (MP mp, mp_node h) {
-  if (mp_minx < minx_val (h))
-    minx_val (h) = mp_minx;
-  if (mp_miny < miny_val (h))
-    miny_val (h) = mp_miny;
-  if (mp_maxx > maxx_val (h))
-    maxx_val (h) = mp_maxx;
-  if (mp_maxy > maxy_val (h))
-    maxy_val (h) = mp_maxy;
+static void mp_adjust_bbox (MP mp, mp_edge_header_node h) {
+  if (mp_minx < number_to_scaled(h->minx))
+    set_number_from_scaled(h->minx, mp_minx);
+  if (mp_miny < number_to_scaled(h->miny))
+    set_number_from_scaled(h->miny, mp_miny);
+  if (mp_maxx > number_to_scaled(h->maxx))
+    set_number_from_scaled(h->maxx, mp_maxx);
+  if (mp_maxy > number_to_scaled(h->maxy))
+    set_number_from_scaled(h->maxy, mp_maxy);
 }
 
 
@@ -10736,7 +10736,7 @@ edge header~|h| to account for the squared-off ends of a non-cyclic path~|p|
 that is to be stroked with the pen~|pp|.
 
 @c
-static void mp_box_ends (MP mp, mp_knot p, mp_knot pp, mp_node h) {
+static void mp_box_ends (MP mp, mp_knot p, mp_knot pp, mp_edge_header_node h) {
   mp_knot q;    /* a knot node adjacent to knot |p| */
   fraction dx, dy;      /* a unit vector in the direction out of the path at~|p| */
   scaled d;     /* a factor for adjusting the length of |(dx,dy)| */
@@ -10805,15 +10805,15 @@ if (((d < 0) && (i == 1)) || ((d > 0) && (i == 2)))
   mp_confusion (mp, "box_ends");
 @:this can't happen box ends}{\quad\\{box\_ends}@>;
 z = mp_x_coord (p) + mp->cur_x + mp_take_fraction (mp, d, dx);
-if (z < minx_val (h))
-  minx_val (h) = z;
-if (z > maxx_val (h))
-  maxx_val (h) = z;
+if (z < number_to_scaled(h->minx))
+  set_number_from_scaled(h->minx, z);
+if (z > number_to_scaled(h->maxx))
+  set_number_from_scaled(h->maxx, z);
 z = mp_y_coord (p) + mp->cur_y + mp_take_fraction (mp, d, dy);
-if (z < miny_val (h))
-  miny_val (h) = z;
-if (z > maxy_val (h))
-  maxy_val (h) = z
+if (z < number_to_scaled(h->miny))
+  set_number_from_scaled(h->miny, z);
+if (z > number_to_scaled(h->maxy))
+  set_number_from_scaled(h->maxy, z);
 
 @ @<Advance |p| to the end of the path and make |q| the previous knot@>=
 do {
@@ -10830,7 +10830,7 @@ the objects to be clipped.  Such calls are distinguished by the fact that the
 boolean parameter |top_level| is false.
 
 @c
-void mp_set_bbox (MP mp, mp_node h, boolean top_level) {
+void mp_set_bbox (MP mp, mp_edge_header_node h, boolean top_level) {
   mp_node p;    /* a graphical object being considered */
   scaled sminx, sminy, smaxx, smaxy;
   /* for saving the bounding box during recursive calls */
@@ -10860,10 +10860,10 @@ void mp_set_bbox (MP mp, mp_node h, boolean top_level) {
 
 
 @ @<Declarations@>=
-static void mp_set_bbox (MP mp, mp_node h, boolean top_level);
+static void mp_set_bbox (MP mp, mp_edge_header_node h, boolean top_level);
 
 @ @<Wipe out any existing bounding box information if |bbtype(h)| is...@>=
-switch (bbtype (h)) {
+switch (h->bbtype ) {
 case no_bounds:
   break;
 case bounds_set:
@@ -10897,9 +10897,9 @@ break;
 @ @<Other cases for updating the bounding box...@>=
 case mp_start_bounds_node_type:
 if (internal_value_to_halfword (mp_true_corners) > 0) {
-  bbtype (h) = bounds_unset;
+  h->bbtype = bounds_unset;
 } else {
-  bbtype (h) = bounds_set;
+  h->bbtype = bounds_set;
   mp_path_bbox (mp, mp_path_p ((mp_start_bounds_node) p));
   mp_adjust_bbox (mp, h);
   @<Scan to the matching |mp_stop_bounds_node| node and update |p| and
@@ -11004,10 +11004,10 @@ x0 = mp_minx;
 y0 = mp_miny;
 x1 = mp_maxx;
 y1 = mp_maxy;
-sminx = minx_val (h);
-sminy = miny_val (h);
-smaxx = maxx_val (h);
-smaxy = maxy_val (h);
+sminx = number_to_scaled(h->minx);
+sminy = number_to_scaled(h->miny);
+smaxx = number_to_scaled(h->maxx);
+smaxy = number_to_scaled(h->maxy);
 @<Reinitialize the bounding box in header |h| and call |set_bbox| recursively
     starting at |mp_link(p)|@>;
 @<Clip the bounding box in |h| to the rectangle given by |x0|, |x1|,
@@ -11020,22 +11020,22 @@ mp_adjust_bbox (mp, h);
 break;
 
 @ @<Reinitialize the bounding box in header |h| and call |set_bbox|...@>=
-minx_val (h) = EL_GORDO;
-miny_val (h) = EL_GORDO;
-maxx_val (h) = -EL_GORDO;
-maxy_val (h) = -EL_GORDO;
+set_number_from_scaled(h->minx, EL_GORDO);
+set_number_from_scaled(h->miny, EL_GORDO);
+set_number_from_scaled(h->maxx, -EL_GORDO);
+set_number_from_scaled(h->maxy, -EL_GORDO);
 mp_set_bbox (mp, h, false)
  
 
 @ @<Clip the bounding box in |h| to the rectangle given by |x0|, |x1|,...@>=
-if (minx_val (h) < x0)
-  minx_val (h) = x0;
-if (miny_val (h) < y0)
-  miny_val (h) = y0;
-if (maxx_val (h) > x1)
-  maxx_val (h) = x1;
-if (maxy_val (h) > y1)
-  maxy_val (h) = y1
+if (number_to_scaled(h->minx) < x0)
+  set_number_from_scaled(h->minx, x0);
+if (number_to_scaled(h->miny) < y0)
+  set_number_from_scaled(h->miny, y0);
+if (number_to_scaled(h->maxx) > x1)
+  set_number_from_scaled(h->maxx, x1);
+if (number_to_scaled(h->maxy) > y1)
+  set_number_from_scaled(h->maxy, y1);
 
 @* Finding an envelope.
 When \MP\ has a path and a polygonal pen, it needs to express the desired
@@ -17708,8 +17708,8 @@ from...@>=
   if (q == NULL)
     goto NOT_FOUND;
   skip_component (q) goto NOT_FOUND;
-  set_cur_exp_node (mp_copy_objects (mp, mp->loop_ptr->list, q));
-  mp_init_bbox (mp, cur_exp_node ());
+  set_cur_exp_node ((mp_node)mp_copy_objects (mp, mp->loop_ptr->list, q));
+  mp_init_bbox (mp, (mp_edge_header_node)cur_exp_node ());
   mp->cur_exp.type = mp_picture_type;
   mp->loop_ptr->list = q;
   q = mp_stash_cur_exp (mp);
@@ -17846,12 +17846,12 @@ if (mp->cur_exp.type != mp_picture_type) {
   const char *hlp[] = { "When you say `for x in p', p must be a known picture.", NULL };
   memset(&new_expr,0,sizeof(mp_value));
   new_expr.data.n = mp_new_number(mp);
-  new_expr.data.node = mp_get_edge_header_node (mp);
+  new_expr.data.node = (mp_node)mp_get_edge_header_node (mp);
   mp_disp_err (mp, NULL);
   mp_back_error (mp,"Improper iteration spec has been replaced by nullpicture", hlp, true);
   mp_get_x_next (mp);
   mp_flush_cur_exp (mp, new_expr);
-  mp_init_edges (mp, mp->cur_exp.data.node);
+  mp_init_edges (mp, (mp_edge_header_node)mp->cur_exp.data.node);
   mp->cur_exp.type = mp_picture_type;
 }
 
@@ -21772,8 +21772,8 @@ static void mp_do_nullary (MP mp, quarterword c) {
     break;
   case mp_null_picture_code:
     mp->cur_exp.type = mp_picture_type;
-    set_cur_exp_node (mp_get_edge_header_node (mp));
-    mp_init_edges (mp, cur_exp_node ());
+    set_cur_exp_node ((mp_node)mp_get_edge_header_node (mp));
+    mp_init_edges (mp, (mp_edge_header_node)cur_exp_node ());
     break;
   case mp_null_pen_code:
     mp->cur_exp.type = mp_pen_type;
@@ -22370,7 +22370,7 @@ else
 break;
 
 @ @<Declarations@>=
-static mp_node mp_scale_edges (MP mp, mp_number se_sf, mp_node se_pic);
+static mp_edge_header_node mp_scale_edges (MP mp, mp_number se_sf, mp_edge_header_node se_pic);
 
 @ @<Declare unary action...@>=
 static void mp_take_pict_part (MP mp, quarterword c) {
@@ -22573,7 +22573,7 @@ else {
     goto NOT_FOUND;
   else {
     add_edge_ref (mp_dash_p (p));
-    new_expr.data.node = mp_scale_edges (mp, ((mp_stroked_node)p)->dash_scale, mp_dash_p (p));
+    new_expr.data.node = (mp_node)mp_scale_edges (mp, ((mp_stroked_node)p)->dash_scale, (mp_edge_header_node)mp_dash_p (p));
     mp_flush_cur_exp (mp, new_expr);
     mp->cur_exp.type = mp_picture_type;
   }
@@ -22605,9 +22605,9 @@ case mp_pen_part:
   mp->cur_exp.type = mp_pen_type;
   break;
 case mp_dash_part:
-  new_expr.data.node = mp_get_edge_header_node (mp);
+  new_expr.data.node = (mp_node)mp_get_edge_header_node (mp);
   mp_flush_cur_exp (mp, new_expr);
-  mp_init_edges (mp, cur_exp_node ());
+  mp_init_edges (mp, (mp_edge_header_node)cur_exp_node ());
   mp->cur_exp.type = mp_picture_type;
   break;
 default:
@@ -23405,18 +23405,21 @@ has the wrong type.
 static boolean mp_get_cur_bbox (MP mp) {
   switch (mp->cur_exp.type) {
   case mp_picture_type:
-    mp_set_bbox (mp, cur_exp_node (), true);
-    if (minx_val (cur_exp_node ()) > maxx_val (cur_exp_node ())) {
+  {
+    mp_edge_header_node p0 = (mp_edge_header_node)cur_exp_node ();
+    mp_set_bbox (mp, p0, true);
+    if (number_to_scaled(p0->minx) > number_to_scaled(p0->maxx)) {
       mp_minx = 0;
       mp_maxx = 0;
       mp_miny = 0;
       mp_maxy = 0;
     } else {
-      mp_minx = minx_val (cur_exp_node ());
-      mp_maxx = maxx_val (cur_exp_node ());
-      mp_miny = miny_val (cur_exp_node ());
-      mp_maxy = maxy_val (cur_exp_node ());
+      mp_minx = number_to_scaled(p0->minx);
+      mp_maxx = number_to_scaled(p0->maxx);
+      mp_miny = number_to_scaled(p0->miny);
+      mp_maxy = number_to_scaled(p0->maxy);
     }
+  }
     break;
   case mp_path_type:
     mp_path_bbox (mp, cur_exp_knot ());
@@ -24837,7 +24840,7 @@ that they have to return a (possibly new) structure because of the need to call
 |private_edges|.
 
 @<Declare binary action...@>=
-static mp_node mp_edges_trans (MP mp, mp_node h) {
+static mp_edge_header_node mp_edges_trans (MP mp, mp_edge_header_node h) {
   mp_node q;    /* the object being transformed */
   mp_node r, s; /* for list manipulation */
   scaled sx, sy;        /* saved transformation parameters */
@@ -24863,10 +24866,10 @@ static mp_node mp_edges_trans (MP mp, mp_node h) {
 }
 static void mp_do_edges_trans (MP mp, mp_node p, quarterword c) {
   mp_set_up_known_trans (mp, c);
-  set_value_node (p, mp_edges_trans (mp, value_node (p)));
+  set_value_node (p, (mp_node)mp_edges_trans (mp, (mp_edge_header_node)value_node (p)));
   mp_unstash_cur_exp (mp, p);
 }
-static mp_node mp_scale_edges (MP mp, mp_number se_sf, mp_node se_pic) {
+static mp_edge_header_node mp_scale_edges (MP mp, mp_number se_sf, mp_edge_header_node se_pic) {
   number_clone(mp->txx, se_sf);
   number_clone(mp->tyy, se_sf);
   set_number_from_scaled(mp->txy, 0);
@@ -24925,7 +24928,7 @@ if ((mp->txx == 0) && (mp->tyy == 0)) {
   mp_init_bbox (mp, h);
   goto DONE1;
 }
-if (minx_val (h) <= maxx_val (h)) {
+if (number_to_scaled (h->minx) <= number_to_scaled(h->maxx)) {
   @<Scale the bounding box by |txx+txy| and |tyx+tyy|; then shift by
    |(tx,ty)|@>;
 }
@@ -24934,12 +24937,12 @@ DONE1:
 
 @ @<Swap the $x$ and $y$ parameters in the bounding box of |h|@>=
 {
-  v = minx_val (h);
-  minx_val (h) = miny_val (h);
-  miny_val (h) = v;
-  v = maxx_val (h);
-  maxx_val (h) = maxy_val (h);
-  maxy_val (h) = v;
+  v = number_to_scaled(h->minx);
+  number_clone(h->minx, h->miny);
+  set_number_from_scaled(h->miny, v);
+  v = number_to_scaled(h->maxx);
+  number_clone(h->maxx, h->maxy);
+  set_number_from_scaled(h->maxy, v);
 }
 
 
@@ -24948,23 +24951,23 @@ sum is similar.
 
 @<Scale the bounding box by |txx+txy| and |tyx+tyy|; then shift...@>=
 {
-  minx_val (h) = mp_take_scaled (mp, minx_val (h), number_to_scaled(mp->txx) + 
-	number_to_scaled(mp->txy) + number_to_scaled(mp->tx));
-  maxx_val (h) = mp_take_scaled (mp, maxx_val (h), number_to_scaled(mp->txx) + 
-	number_to_scaled(mp->txy) + number_to_scaled(mp->tx));
-  miny_val (h) = mp_take_scaled (mp, miny_val (h), number_to_scaled(mp->tyx) + 
-	number_to_scaled(mp->tyy) + number_to_scaled(mp->ty));
-  maxy_val (h) = mp_take_scaled (mp, maxy_val (h), number_to_scaled(mp->tyx) + 
-	number_to_scaled(mp->tyy) + number_to_scaled(mp->ty));
+  set_number_from_scaled(h->minx, mp_take_scaled (mp, number_to_scaled(h->minx), number_to_scaled(mp->txx) + 
+	number_to_scaled(mp->txy) + number_to_scaled(mp->tx)));
+  set_number_from_scaled(h->maxx, mp_take_scaled (mp, number_to_scaled(h->maxx), number_to_scaled(mp->txx) + 
+	number_to_scaled(mp->txy) + number_to_scaled(mp->tx)));
+  set_number_from_scaled(h->miny, mp_take_scaled (mp, number_to_scaled(h->miny), number_to_scaled(mp->tyx) + 
+	number_to_scaled(mp->tyy) + number_to_scaled(mp->ty)));
+  set_number_from_scaled(h->maxy, mp_take_scaled (mp, number_to_scaled(h->maxy), number_to_scaled(mp->tyx) + 
+	number_to_scaled(mp->tyy) + number_to_scaled(mp->ty)));
   if (number_to_scaled(mp->txx) + number_to_scaled(mp->txy) < 0) {
-    v = minx_val (h);
-    minx_val (h) = maxx_val (h);
-    maxx_val (h) = v;
+    v = number_to_scaled(h->minx);
+    number_clone(h->minx, h->maxx);
+    set_number_from_scaled(h->maxx, v);
   }
   if (number_to_scaled(mp->tyx) + number_to_scaled(mp->tyy) < 0) {
-    v = miny_val (h);
-    miny_val (h) = maxy_val (h);
-    maxy_val (h) = v;
+    v = number_to_scaled(h->miny);
+    number_clone(h->miny, h->maxy);
+    set_number_from_scaled(h->maxy, v);
   }
 }
 
@@ -25508,10 +25511,10 @@ static void mp_set_up_glyph_infont (MP mp, mp_node p) {
     mp_ps_font_free (mp, f);
   }
   if (h != NULL) {
-    set_cur_exp_node (mp_gr_import (mp, h));
+    set_cur_exp_node ((mp_node)mp_gr_import (mp, h));
   } else {
-    set_cur_exp_node (mp_get_edge_header_node (mp));
-    mp_init_edges (mp, cur_exp_node ());
+    set_cur_exp_node ((mp_node)mp_get_edge_header_node (mp));
+    mp_init_edges (mp, (mp_edge_header_node)cur_exp_node ());
   }
   mp->cur_exp.type = mp_picture_type;
 }
@@ -25628,7 +25631,7 @@ break;
 
 @<Declare binary action...@>=
 static void mp_do_infont (MP mp, mp_node p) {
-  mp_node q;
+  mp_edge_header_node q;
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
   new_expr.data.n = mp_new_number(mp);
@@ -25639,7 +25642,7 @@ static void mp_do_infont (MP mp, mp_node p) {
     mp_new_text_node (mp, mp_str (mp, cur_exp_str ()), value_str (p));
   obj_tail (q) = mp_link (obj_tail (q));
   mp_free_node (mp, p, value_node_size);
-  new_expr.data.node = q;
+  new_expr.data.node = (mp_node)q;
   mp_flush_cur_exp (mp, new_expr);
   mp->cur_exp.type = mp_picture_type;
 }
@@ -26816,7 +26819,7 @@ static void mplib_flush_file (MP mp, void *ff) {
   return;
 }
 static void mplib_shipout_backend (MP mp, void *voidh) {
-  mp_node h = (mp_node) voidh;
+  mp_edge_header_node h = (mp_edge_header_node) voidh;
   mp_edge_object *hh = mp_gr_export (mp, h);
   if (hh) {
     mp_run_data *run = mp_rundata (mp);
@@ -27932,7 +27935,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
       if (dp != NULL) {
         if (mp_dash_p (dp) != NULL)
           delete_edge_ref (mp_dash_p (dp));
-        mp_dash_p (dp) = mp_make_dashes (mp, cur_exp_node ());
+        mp_dash_p (dp) = (mp_node)mp_make_dashes (mp, (mp_edge_header_node)cur_exp_node ());
         set_number_from_scaled(((mp_stroked_node)dp)->dash_scale,unity);
         mp->cur_exp.type = mp_vacuous;
       }
@@ -28167,12 +28170,12 @@ a token list for that variable.  Since the edge structure is about to be
 updated, we use |private_edges| to make sure that this is possible.
 
 @<Declare action procedures for use by |do_statement|@>=
-static mp_node mp_find_edges_var (MP mp, mp_node t);
+static mp_edge_header_node mp_find_edges_var (MP mp, mp_node t);
 
 @ @c
-mp_node mp_find_edges_var (MP mp, mp_node t) {
+mp_edge_header_node mp_find_edges_var (MP mp, mp_node t) {
   mp_node p;
-  mp_node cur_edges;    /* the return value */
+  mp_edge_header_node cur_edges;    /* the return value */
   p = mp_find_variable (mp, t);
   cur_edges = NULL;
   if (p == NULL) {
@@ -28206,8 +28209,8 @@ mp_node mp_find_edges_var (MP mp, mp_node t) {
     mp_back_error (mp, msg, hlp, true);
     mp_get_x_next (mp);
   } else {
-    set_value_node (p, mp_private_edges (mp, value_node (p)));
-    cur_edges = value_node (p);
+    set_value_node (p, (mp_node)mp_private_edges (mp, (mp_edge_header_node)value_node (p)));
+    cur_edges = (mp_edge_header_node)value_node (p);
   }
   mp_flush_node_list (mp, t);
   return cur_edges;
@@ -28300,7 +28303,8 @@ static void mp_do_bounds (MP mp);
 
 @ @c
 void mp_do_bounds (MP mp) {
-  mp_node lhv, lhe;     /* variable on left, the corresponding edge structure */
+  mp_node lhv;     /* variable on left, the corresponding edge structure */
+  mp_edge_header_node lhe;
   mp_node p;    /* for list manipulation */
   integer m;    /* initial value of |cur_mod| */
   mp_value new_expr;
@@ -28371,9 +28375,10 @@ static void mp_do_add_to (MP mp);
 
 @ @c
 void mp_do_add_to (MP mp) {
-  mp_node lhv, lhe;     /* variable on left, the corresponding edge structure */
+  mp_node lhv;
+  mp_edge_header_node lhe;     /* variable on left, the corresponding edge structure */
   mp_node p;    /* the graphical object or list for |scan_with_list| to update */
-  mp_node e;    /* an edge structure to be merged */
+  mp_edge_header_node e;    /* an edge structure to be merged */
   quarterword add_type; /* |also_code|, |contour_code|, or |double_path_code| */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
@@ -28413,7 +28418,7 @@ setting |e:=NULL| prevents anything from being added to |lhe|.
     mp_get_x_next (mp);
     mp_flush_cur_exp (mp, new_expr);
   } else {
-    e = mp_private_edges (mp, cur_exp_node ());
+    e = mp_private_edges (mp, (mp_edge_header_node)cur_exp_node ());
     mp->cur_exp.type = mp_vacuous;
     p = mp_link (edge_list (e));
   }
@@ -31039,7 +31044,7 @@ static void mp_ship_out (MP mp, mp_node h);
   if (mp_post_script(p)!=NULL) gr_post_script(q)  = mp_xstrdup(mp, mp_str(mp,mp_post_script(p)));
 
 @c
-struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
+struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
   mp_node p;    /* the current graphical object */
   integer t;    /* a temporary value */
   integer c;    /* a rounded charcode */
@@ -31057,10 +31062,10 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_node h) {
   hh->body = NULL;
   hh->next = NULL;
   hh->parent = mp;
-  hh->minx = minx_val (h)/65536.0;
-  hh->miny = miny_val (h)/65536.0;
-  hh->maxx = maxx_val (h)/65536.0;
-  hh->maxy = maxy_val (h)/65536.0;
+  hh->minx = number_to_double(h->minx);
+  hh->miny = number_to_double(h->miny);
+  hh->maxx = number_to_double(h->maxx);
+  hh->maxy = number_to_double(h->maxy);
   hh->filename = mp_xstrdup (mp, mp_get_output_file_name (mp));
   c = mp_round_unscaled (mp, internal_value_to_halfword (mp_char_code));
   hh->charcode = c;
@@ -31194,8 +31199,8 @@ it takes quite a few shortcuts for cases that cannot appear
 in the output of |mp_ps_font_charstring|.
 
 @c
-mp_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
-  mp_node h;    /* the edge object */
+mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
+  mp_edge_header_node h;    /* the edge object */
   mp_node ph, pn, pt;   /* for adding items */
   mp_graphic_object *p; /* the current graphical object */
   h = mp_get_edge_header_node (mp);
@@ -31203,10 +31208,10 @@ mp_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
   ph = edge_list (h);
   pt = ph;
   p = hh->body;
-  minx_val (h) = (scaled)(hh->minx * 65536.0);
-  miny_val (h) = (scaled)(hh->miny * 65536.0);
-  maxx_val (h) = (scaled)(hh->maxx * 65536.0);
-  maxy_val (h) = (scaled)(hh->maxy * 65536.0);
+  set_number_from_double(h->minx, hh->minx);
+  set_number_from_double(h->miny, hh->miny);
+  set_number_from_double(h->maxx, hh->maxx);
+  set_number_from_double(h->maxy, hh->maxy);
   while (p != NULL) {
     switch (gr_type (p)) {
     case mp_fill_code:
@@ -31245,8 +31250,8 @@ mp_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
 
 
 @ @<Declarations@>=
-static struct mp_edge_object *mp_gr_export (MP mp, mp_node h);
-static mp_node mp_gr_import (MP mp, struct mp_edge_object *h);
+static struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h);
+static mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *h);
 
 @ This function is now nearly trivial.
 
@@ -31270,7 +31275,7 @@ static void mp_shipout_backend (MP mp, void *h);
 void mp_shipout_backend (MP mp, void *voidh) {
   char *s;
   mp_edge_object *hh;   /* the first graphical object */
-  mp_node h = (mp_node) voidh;
+  mp_edge_header_node h = (mp_edge_header_node) voidh;
   hh = mp_gr_export (mp, h);
   s = NULL;
   if (internal_string (mp_output_format) != NULL)
