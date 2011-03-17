@@ -2787,7 +2787,7 @@ Some nodes are created statically, since static allocation is
 more efficient than dynamic allocation when we can get away with it. 
 
 @<Glob...@>=
-mp_node null_dash;
+mp_dash_node null_dash;
 mp_value_node dep_head;
 mp_node inf_val;
 mp_node zero_val;
@@ -9706,37 +9706,40 @@ with a pointer to the list of dash nodes.
 
 The |dash_info| is explained below.
 
-@d dash_list(A) ((mp_dash_node)(A))->link  /* in an edge header this points to the first dash node */
-@d start_x(A) ((mp_dash_node)(A))->start_x_  /* the starting $x$~coordinate in a dash node */
-@d stop_x(A) ((mp_dash_node)(A))->stop_x_  /* the ending $x$~coordinate in a dash node */
-@d dash_y(A) ((mp_dash_node)(A))->dash_y_  /* $y$ value for the dash list in an edge header */
+@d dash_list(A) (mp_dash_node)(((mp_dash_node)(A))->link)  /* in an edge header this points to the first dash node */
+@d set_dash_list(A,B) ((mp_dash_node)(A))->link=(mp_node)((B))  /* in an edge header this points to the first dash node */
 
 @(mpmp.h@>=
 typedef struct mp_dash_node_data {
   NODE_BODY;
-  scaled start_x_;
-  scaled stop_x_;
-  scaled dash_y_;
+  mp_number start_x; /* the starting $x$~coordinate in a dash node */
+  mp_number stop_x; /* the ending $x$~coordinate in a dash node */
+  mp_number dash_y; /* $y$ value for the dash list in an edge header */
   mp_node dash_info_;
 } mp_dash_node_data;
+
+@ @<Types...@>=
 typedef struct mp_dash_node_data *mp_dash_node;
 
 @ @<Initialize table entries@>=
 mp->null_dash = mp_get_dash_node (mp);
 
 @ @<Free table entries@>=
-mp_free_node (mp, mp->null_dash, dash_node_size);
+mp_free_node (mp, (mp_node)mp->null_dash, dash_node_size);
 
 @ 
 @d dash_node_size sizeof(struct mp_dash_node_data)
 
 @c
-static mp_node mp_get_dash_node (MP mp) {
+static mp_dash_node mp_get_dash_node (MP mp) {
   mp_dash_node p = (mp_dash_node) xmalloc (1, dash_node_size);
   add_var_used (dash_node_size);
   memset (p, 0, dash_node_size);
+  p->start_x = mp_new_number(mp);
+  p->stop_x = mp_new_number(mp);
+  p->dash_y = mp_new_number(mp);
   mp_type (p) = mp_dash_node_type;
-  return (mp_node) p;
+  return p;
 }
 
 
@@ -9766,9 +9769,9 @@ field is needed to keep track of this.
 @(mpmp.h@>=
 typedef struct mp_edge_header_node_data {
   NODE_BODY;
-  scaled start_x_;
-  scaled stop_x_;
-  scaled dash_y_;
+  mp_number start_x;
+  mp_number stop_x;
+  mp_number dash_y;
   mp_node dash_info_;
   mp_number minx;
   mp_number miny;
@@ -9813,6 +9816,9 @@ static mp_edge_header_node mp_get_edge_header_node (MP mp) {
   add_var_used (edge_header_size);
   memset (p, 0, edge_header_size);
   mp_type (p) = mp_edge_header_node_type;
+  p->start_x = mp_new_number(mp);
+  p->stop_x = mp_new_number(mp);
+  p->dash_y = mp_new_number(mp);
   p->minx = mp_new_number(mp);
   p->miny = mp_new_number(mp);
   p->maxx = mp_new_number(mp);
@@ -9822,7 +9828,7 @@ static mp_edge_header_node mp_get_edge_header_node (MP mp) {
 }
 static void mp_init_edges (MP mp, mp_edge_header_node h) {
   /* initialize an edge header to NULL values */
-  dash_list (h) = mp->null_dash;
+  set_dash_list (h, mp->null_dash);
   obj_tail (h) = edge_list (h);
   mp_link (edge_list (h)) = NULL;
   edge_ref_count (h) = 0;
@@ -9864,14 +9870,14 @@ void mp_toss_edges (MP mp, mp_edge_header_node h) {
   mp_free_node (mp, (mp_node)h, edge_header_size);
 }
 void mp_flush_dash_list (MP mp, mp_edge_header_node h) {
-  mp_node p, q; /* pointers that scan the list being recycled */
+  mp_dash_node p, q; /* pointers that scan the list being recycled */
   q = dash_list (h);
   while (q != mp->null_dash) { /* todo: NULL check should not be needed */
     p = q;
-    q = mp_link (q);
-    mp_free_node (mp, p, dash_node_size);
+    q = (mp_dash_node)mp_link (q);
+    mp_free_node (mp, (mp_node)p, dash_node_size);
   }
-  dash_list (h) = mp->null_dash;
+  set_dash_list (h,mp->null_dash);
 }
 mp_edge_header_node mp_toss_gr_object (MP mp, mp_node p) {
   /* returns an edge structure that needs to be dereferenced */
@@ -9936,7 +9942,7 @@ graphical objects into a new edge header.
 static mp_edge_header_node mp_private_edges (MP mp, mp_edge_header_node h) {
   /* make a private copy of the edge structure headed by |h| */
   mp_edge_header_node hh;   /* the edge header for the new copy */
-  mp_node p, pp;        /* pointers for copying the dash list */
+  mp_dash_node p, pp;        /* pointers for copying the dash list */
   assert (mp_type (h) == mp_edge_header_node_type);
   if (edge_ref_count (h) == 0) {
     return h;
@@ -9955,17 +9961,17 @@ static mp_edge_header_node mp_private_edges (MP mp, mp_edge_header_node h) {
 @^data structure assumptions@>
 
 @<Copy the dash list from |h| to |hh|@>=
-pp = (mp_node)hh;
+pp = (mp_dash_node)hh;
 p = dash_list (h);
 while ((p != mp->null_dash)) {
-  mp_link (pp) = mp_get_dash_node (mp);
-  pp = mp_link (pp);
-  start_x (pp) = start_x (p);
-  stop_x (pp) = stop_x (p);
-  p = mp_link (p);
+  mp_link (pp) = (mp_node)mp_get_dash_node (mp);
+  pp = (mp_dash_node)mp_link (pp);
+  number_clone(pp->start_x, p->start_x);
+  number_clone(pp->stop_x, p->stop_x);
+  p = (mp_dash_node)mp_link (p);
 }
-mp_link (pp) = mp->null_dash;
-dash_y (hh) = dash_y (h)
+mp_link (pp) = (mp_node)mp->null_dash;
+number_clone(hh->dash_y, h->dash_y )
  
 
 @ |h| is an edge structure
@@ -9973,11 +9979,11 @@ dash_y (hh) = dash_y (h)
 @c
 static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, scaled * w) {
   mp_dash_object *d;
-  mp_node p, h;
+  mp_dash_node p, h;
   scaled scf;   /* scale factor */
   double *dashes = NULL;
   int num_dashes = 1;
-  h = mp_dash_p (q);
+  h = (mp_dash_node)mp_dash_p (q);
   if (h == NULL || dash_list (h) == mp->null_dash)
     return NULL;
   p = dash_list (h);
@@ -9994,16 +10000,16 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, scaled * w) {
   *w = scf;
   d = xmalloc (1, sizeof (mp_dash_object));
   add_var_used (sizeof (mp_dash_object));
-  start_x (mp->null_dash) = start_x (p) + dash_y (h);
+  set_number_from_scaled(mp->null_dash->start_x, number_to_scaled(p->start_x) + number_to_scaled(h->dash_y));
   while (p != mp->null_dash) {
     dashes = xrealloc (dashes, (num_dashes + 2), sizeof (double));
     dashes[(num_dashes - 1)] =
-      mp_take_scaled (mp, (stop_x (p) - start_x (p)), scf) / 65536.0;
+      mp_take_scaled (mp, (number_to_scaled(p->stop_x) - number_to_scaled(p->start_x)), scf) / 65536.0;
     dashes[(num_dashes)] =
-      mp_take_scaled (mp, (start_x (mp_link (p)) - stop_x (p)), scf)  / 65536.0;
+      mp_take_scaled (mp, (number_to_scaled(((mp_dash_node)mp_link (p))->start_x) - number_to_scaled(p->stop_x)), scf)  / 65536.0;
     dashes[(num_dashes + 1)] = -1.0;      /* terminus */
     num_dashes += 2;
-    p = mp_link (p);
+    p = (mp_dash_node)mp_link (p);
   }
   d->array = dashes;
   d->offset = mp_take_scaled (mp, mp_dash_offset (mp, h), scf) / 65536.0;
@@ -10017,16 +10023,16 @@ number_clone(hh->miny, h->miny);
 number_clone(hh->maxx, h->maxx);
 number_clone(hh->maxy, h->maxy);
 hh->bbtype = h->bbtype;
-p = edge_list (h);
-pp = edge_list (hh);
-while ((p != bblast (h))) {
+p = (mp_dash_node)edge_list (h);
+pp = (mp_dash_node)edge_list (hh);
+while ((p != (mp_dash_node)bblast (h))) {
   if (p == NULL)
     mp_confusion (mp, "bblast");
 @:this can't happen bblast}{\quad bblast@>;
-  p = mp_link (p);
-  pp = mp_link (pp);
+  p = (mp_dash_node)mp_link (p);
+  pp = (mp_dash_node)mp_link (pp);
 }
-bblast (hh) = pp
+bblast (hh) = (mp_node)pp
 
 @ Here is the promised routine for copying graphical objects into a new edge
 structure.  It starts copying at object~|p| and stops just before object~|q|.
@@ -10042,7 +10048,7 @@ mp_edge_header_node mp_copy_objects (MP mp, mp_node p, mp_node q) {
   mp_node pp;   /* the last newly copied object */
   quarterword k = 0;  /* temporary register */
   hh = mp_get_edge_header_node (mp);
-  dash_list (hh) = mp->null_dash;
+  set_dash_list (hh, mp->null_dash);
   edge_ref_count (hh) = 0;
   pp = edge_list (hh);
   while (p != q) {
@@ -10178,7 +10184,6 @@ static void mp_print_edges (MP mp, mp_node h, const char *s, boolean nuline);
 @ @c
 void mp_print_edges (MP mp, mp_node h, const char *s, boolean nuline) {
   mp_node p;    /* a graphical object to be printed */
-  mp_node hh, pp;       /* temporary pointers */
   scaled scf;   /* a scale factor for the dash pattern */
   boolean ok_to_dash;   /* |false| for polygonal pen strokes */
   mp_print_diagnostic (mp, "Edge structure", s, nuline);
@@ -10334,50 +10339,54 @@ Note that memory is allocated for |start_x(null_dash)| and we are free to
 give it any convenient value.
 
 @<Finish printing the dash pattern that |p| refers to@>=
+{
+mp_dash_node ppd, hhd;
 ok_to_dash = pen_is_elliptical (mp_pen_p ((mp_stroked_node) p));
 if (!ok_to_dash)
   scf = unity;
 else
   scf = number_to_scaled(((mp_stroked_node) p)->dash_scale);
-hh = mp_dash_p (p);
-pp = dash_list (hh);
-if ((pp == mp->null_dash) || (dash_y (hh) < 0)) {
+hhd = (mp_dash_node)mp_dash_p (p);
+ppd = dash_list (hhd);
+if ((ppd == mp->null_dash) || (number_to_scaled(hhd->dash_y) < 0)) {
   mp_print (mp, " ??");
 } else {
-  start_x (mp->null_dash) = start_x (pp) + dash_y (hh);
-  while (pp != mp->null_dash) {
+  set_number_from_scaled(mp->null_dash->start_x, 
+	number_to_scaled(ppd->start_x) + number_to_scaled(hhd->dash_y ));
+  while (ppd != mp->null_dash) {
     mp_print (mp, "on ");
-    mp_print_scaled (mp, mp_take_scaled (mp, stop_x (pp) - start_x (pp), scf));
+    mp_print_scaled (mp, mp_take_scaled (mp, number_to_scaled(ppd->stop_x) - 
+	number_to_scaled(ppd->start_x), scf));
     mp_print (mp, " off ");
     mp_print_scaled (mp,
-                     mp_take_scaled (mp, start_x (mp_link (pp)) - stop_x (pp),
-                                     scf));
-    pp = mp_link (pp);
-    if (pp != mp->null_dash)
+                     mp_take_scaled (mp, number_to_scaled(((mp_dash_node)mp_link (ppd))->start_x)  - 
+	number_to_scaled(ppd->stop_x), scf));
+    ppd = (mp_dash_node)mp_link (ppd);
+    if (ppd != mp->null_dash)
       mp_print_char (mp, xord (' '));
   }
   mp_print (mp, ") shifted ");
-  mp_print_scaled (mp, -mp_take_scaled (mp, mp_dash_offset (mp, hh), scf));
-  if (!ok_to_dash || (dash_y (hh) == 0))
+  mp_print_scaled (mp, -mp_take_scaled (mp, mp_dash_offset (mp, hhd), scf));
+  if (!ok_to_dash || (number_to_scaled(hhd->dash_y ) == 0))
     mp_print (mp, " (this will be ignored)");
 }
-
+}
 
 @ @<Declarations@>=
-static scaled mp_dash_offset (MP mp, mp_node h);
+static scaled mp_dash_offset (MP mp, mp_dash_node h);
 
 @ @c
-scaled mp_dash_offset (MP mp, mp_node h) {
+scaled mp_dash_offset (MP mp, mp_dash_node h) {
   scaled x;     /* the answer */
-  if (dash_list (h) == mp->null_dash || dash_y (h) < 0)
+  if (dash_list (h) == mp->null_dash || number_to_scaled(h->dash_y ) < 0)
     mp_confusion (mp, "dash0");
 @:this can't happen dash0}{\quad dash0@>;
-  if (dash_y (h) == 0) {
+  if (number_to_scaled(h->dash_y) == 0) {
     x = 0;
   } else {
-    x = -(start_x (dash_list (h)) % dash_y (h));
+    x = -(number_to_scaled ((dash_list (h))->start_x ) % number_to_scaled(h->dash_y ));
     if (x < 0)
-      x = x + dash_y (h);
+      x = x + number_to_scaled(h->dash_y);
   }
   return x;
 }
@@ -10446,7 +10455,7 @@ static mp_edge_header_node mp_make_dashes (MP mp, mp_edge_header_node h) { /* re
   mp_node p;    /* this scans the stroked nodes in the object list */
   mp_node p0;   /* if not |NULL| this points to the first stroked node */
   mp_knot pp, qq, rr;   /* pointers into |mp_path_p(p)| */
-  mp_node d, dd;        /* pointers used to create the dash list */
+  mp_dash_node d, dd;        /* pointers used to create the dash list */
   scaled y0;
   @<Other local variables in |make_dashes|@>;
   y0 = 0;                       /* the initial $y$ coordinate */
@@ -10526,17 +10535,17 @@ if (mp_next_knot (pp) != pp) {
       if there is a problem@>;
   } while (mp_right_type (rr) != mp_endpoint);
 }
-d = mp_get_dash_node (mp);
+d = (mp_dash_node)mp_get_dash_node (mp);
 if (mp_dash_p (p) == NULL)
   dash_info (d) = NULL;
 else
   dash_info (d) = p;
 if (mp_x_coord (pp) < mp_x_coord (rr)) {
-  start_x (d) = mp_x_coord (pp);
-  stop_x (d) = mp_x_coord (rr);
+  set_number_from_scaled(d->start_x, mp_x_coord (pp));
+  set_number_from_scaled(d->stop_x, mp_x_coord (rr));
 } else {
-  start_x (d) = mp_x_coord (rr);
-  stop_x (d) = mp_x_coord (pp);
+  set_number_from_scaled(d->start_x, mp_x_coord (rr));
+  set_number_from_scaled(d->stop_x, mp_x_coord (pp));
 }
 
 
@@ -10583,31 +10592,31 @@ if (!number_equal(((mp_stroked_node)p)->red, ((mp_stroked_node)p0)->red) ||
 }
 
 @ @<Insert |d| into the dash list and |goto not_found| if there is an error@>=
-start_x (mp->null_dash) = stop_x (d);
-dd = (mp_node)h;                         /* this makes |mp_link(dd)=dash_list(h)| */
-while (start_x (mp_link (dd)) < stop_x (d))
-  dd = mp_link (dd);
-if (dd != (mp_node)h) {
-  if ((stop_x (dd) > start_x (d))) {
+number_clone(mp->null_dash->start_x, d->stop_x);
+dd = (mp_dash_node)h;                         /* this makes |mp_link(dd)=dash_list(h)| */
+while (number_to_scaled(((mp_dash_node)mp_link (dd))->start_x)  < number_to_scaled(d->stop_x ))
+  dd = (mp_dash_node)mp_link (dd);
+if (dd != (mp_dash_node)h) {
+  if (number_to_scaled(dd->stop_x) > number_to_scaled(d->start_x)) {
     mp_x_retrace_error (mp);
     goto NOT_FOUND;
   };
 }
 mp_link (d) = mp_link (dd);
-mp_link (dd) = d
+mp_link (dd) = (mp_node)d
 
 @ @<Set |dash_y(h)| and merge the first and last dashes if necessary@>=
 d = dash_list (h);
-while ((mp_link (d) != mp->null_dash))
-  d = mp_link (d);
+while ((mp_link (d) != (mp_node)mp->null_dash))
+  d = (mp_dash_node)mp_link (d);
 dd = dash_list (h);
-dash_y (h) = stop_x (d) - start_x (dd);
-if (abs (y0) > dash_y (h)) {
-dash_y (h) = abs (y0);
+set_number_from_scaled(h->dash_y, number_to_scaled(d->stop_x) - number_to_scaled(dd->start_x));
+if (abs (y0) > number_to_scaled(h->dash_y) ) {
+set_number_from_scaled(h->dash_y ,abs (y0));
 } else if (d != dd) {
-  dash_list (h) = mp_link (dd);
-  stop_x (d) = stop_x (dd) + dash_y (h);
-  mp_free_node (mp, dd, dash_node_size);
+  set_dash_list (h, mp_link (dd));
+  set_number_from_scaled(d->stop_x, number_to_scaled(dd->stop_x) + number_to_scaled(h->dash_y));
+  mp_free_node (mp, (mp_node)dd, dash_node_size);
 }
 
 @ We get here when the argument is a NULL picture or when there is an error.
@@ -10625,19 +10634,19 @@ corresponding dash nodes, we must be prepared to break up these dashes into
 smaller dashes.
 
 @<Scan |dash_list(h)| and deal with any dashes that are themselves dashed@>=
-d = (mp_node)h;                          /* now |mp_link(d)=dash_list(h)| */
-while (mp_link (d) != mp->null_dash) {
+d = (mp_dash_node)h;                          /* now |mp_link(d)=dash_list(h)| */
+while (mp_link (d) != (mp_node)mp->null_dash) {
   ds = dash_info (mp_link (d));
   if (ds == NULL) {
-    d = mp_link (d);
+    d = (mp_dash_node)mp_link (d);
   } else {
-    hh = mp_dash_p (ds);
+    hh = (mp_edge_header_node)mp_dash_p (ds);
     hsf = number_to_scaled(((mp_stroked_node)ds)->dash_scale);
     if ((hh == NULL))
       mp_confusion (mp, "dash1");
 @:this can't happen dash0}{\quad dash1@>;
-    if (dash_y (hh) == 0) {
-      d = mp_link (d);
+    if (number_to_scaled(((mp_dash_node)hh)->dash_y ) == 0) {
+      d = (mp_dash_node)mp_link (d);
     } else {
       if (dash_list (hh) == NULL)
         mp_confusion (mp, "dash1");
@@ -10650,31 +10659,31 @@ while (mp_link (d) != mp->null_dash) {
 
 
 @ @<Other local variables in |make_dashes|@>=
-mp_node dln;    /* |mp_link(d)| */
-mp_node hh;     /* an edge header that tells how to break up |dln| */
+mp_dash_node dln;    /* |mp_link(d)| */
+mp_edge_header_node hh;     /* an edge header that tells how to break up |dln| */
 scaled hsf;     /* the dash pattern from |hh| gets scaled by this */
 mp_node ds;     /* the stroked node from which |hh| and |hsf| are derived */
 scaled xoff;    /* added to $x$ values in |dash_list(hh)| to match |dln| */
 
 @ @<Replace |mp_link(d)| by a dashed version as determined by edge header...@>=
-dln = mp_link (d);
+dln = (mp_dash_node)mp_link (d);
 dd = dash_list (hh);
-xoff = start_x (dln) - mp_take_scaled (mp, hsf, start_x (dd)) -
-mp_take_scaled (mp, hsf, mp_dash_offset (mp, hh));
-start_x (mp->null_dash) = mp_take_scaled (mp, hsf, start_x (dd))
-  + mp_take_scaled (mp, hsf, dash_y (hh));
-stop_x (mp->null_dash) = start_x (mp->null_dash);
+xoff = number_to_scaled(dln->start_x) - mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)) -
+mp_take_scaled (mp, hsf, mp_dash_offset (mp, (mp_dash_node)hh));
+set_number_from_scaled(mp->null_dash->start_x, mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))
+  + mp_take_scaled (mp, hsf, number_to_scaled (hh->dash_y) ));
+number_clone(mp->null_dash->stop_x, mp->null_dash->start_x);
 @<Advance |dd| until finding the first dash that overlaps |dln| when
   offset by |xoff|@>;
-while (start_x (dln) <= stop_x (dln)) {
+while (number_to_scaled(dln->start_x) <= number_to_scaled(dln->stop_x)) {
 @<If |dd| has `fallen off the end', back up to the beginning and fix |xoff|@>;
 @<Insert a dash between |d| and |dln| for the overlap with the offset version
     of |dd|@>;
-dd = mp_link (dd);
-start_x (dln) = xoff + mp_take_scaled (mp, hsf, start_x (dd));
+dd = (mp_dash_node)mp_link (dd);
+set_number_from_scaled(dln->start_x , xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)));
 }
 mp_link (d) = mp_link (dln);
-mp_free_node (mp, dln, dash_node_size)
+mp_free_node (mp, (mp_node)dln, dash_node_size)
  
 
 @ The name of this module is a bit of a lie because we just find the
@@ -10683,33 +10692,33 @@ overlap possible.  It could be that the unoffset version of dash |dln| falls
 in the gap between |dd| and its predecessor.
 
 @<Advance |dd| until finding the first dash that overlaps |dln| when...@>=
-while (xoff + mp_take_scaled (mp, hsf, stop_x (dd)) < start_x (dln)) {
-  dd = mp_link (dd);
+while (xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x)) < number_to_scaled(dln->start_x)) {
+  dd = (mp_dash_node)mp_link (dd);
 }
 
 
 @ @<If |dd| has `fallen off the end', back up to the beginning and fix...@>=
 if (dd == mp->null_dash) {
   dd = dash_list (hh);
-  xoff = xoff + mp_take_scaled (mp, hsf, dash_y (hh));
+  xoff = xoff + mp_take_scaled (mp, hsf, number_to_scaled(hh->dash_y));
 }
 
 @ At this point we already know that
 |start_x(dln)<=xoff+take_scaled(hsf,stop_x(dd))|.
 
 @<Insert a dash between |d| and |dln| for the overlap with the offset...@>=
-if ((xoff + mp_take_scaled (mp, hsf, start_x (dd))) <= stop_x (dln)) {
-  mp_link (d) = mp_get_dash_node (mp);
-  d = mp_link (d);
-  mp_link (d) = dln;
-  if (start_x (dln) > (xoff + mp_take_scaled (mp, hsf, start_x (dd))))
-    start_x (d) = start_x (dln);
+if ((xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))) <= number_to_scaled(dln->stop_x)) {
+  mp_link (d) = (mp_node)mp_get_dash_node (mp);
+  d = (mp_dash_node)mp_link (d);
+  mp_link (d) = (mp_node)dln;
+  if (number_to_scaled(dln->start_x)  > (xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))))
+    number_clone(d->start_x , dln->start_x );
   else
-    start_x (d) = xoff + mp_take_scaled (mp, hsf, start_x (dd));
-  if (stop_x (dln) < (xoff + mp_take_scaled (mp, hsf, stop_x (dd))))
-    stop_x (d) = stop_x (dln);
+    set_number_from_scaled(d->start_x, xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)));
+  if (number_to_scaled(dln->stop_x ) < (xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x ))))
+    number_clone(d->stop_x , dln->stop_x );
   else
-    stop_x (d) = xoff + mp_take_scaled (mp, hsf, stop_x (dd));
+    set_number_from_scaled(d->stop_x , xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x )));
 }
 
 @ The next major task is to update the bounding box information in an edge
@@ -24842,7 +24851,7 @@ that they have to return a (possibly new) structure because of the need to call
 @<Declare binary action...@>=
 static mp_edge_header_node mp_edges_trans (MP mp, mp_edge_header_node h) {
   mp_node q;    /* the object being transformed */
-  mp_node r, s; /* for list manipulation */
+  mp_dash_node r, s; /* for list manipulation */
   scaled sx, sy;        /* saved transformation parameters */
   scaled sqdet; /* square root of determinant for |dash_scale| */
   integer sgndet;       /* sign of the determinant */
@@ -24891,7 +24900,7 @@ if (number_nonzero(mp->txy) || number_nonzero(mp->tyx) ||
   }
   @<Scale the dash list by |txx| and shift it by |tx|@>;
   abs_tyy = number_abs (mp->tyy);
-  dash_y (h) = mp_take_scaled (mp, dash_y (h), number_to_scaled(abs_tyy));
+  set_number_from_scaled(h->dash_y, mp_take_scaled (mp, number_to_scaled(h->dash_y), number_to_scaled(abs_tyy)));
   mp_free_number(mp, abs_tyy);
 }
 
@@ -24899,15 +24908,15 @@ if (number_nonzero(mp->txy) || number_nonzero(mp->tyx) ||
 @ @<Reverse the dash list of |h|@>=
 {
   r = dash_list (h);
-  dash_list (h) = mp->null_dash;
+  set_dash_list (h, mp->null_dash);
   while (r != mp->null_dash) {
     s = r;
-    r = mp_link (r);
-    v = start_x (s);
-    start_x (s) = stop_x (s);
-    stop_x (s) = v;
-    mp_link (s) = dash_list (h);
-    dash_list (h) = s;
+    r = (mp_dash_node)mp_link (r);
+    v = number_to_scaled(s->start_x );
+    number_clone(s->start_x , s->stop_x );
+    set_number_from_scaled(s->stop_x , v);
+    mp_link (s) = (mp_node)dash_list (h);
+    set_dash_list (h, s);
   }
 }
 
@@ -24915,9 +24924,11 @@ if (number_nonzero(mp->txy) || number_nonzero(mp->tyx) ||
 @ @<Scale the dash list by |txx| and shift it by |tx|@>=
 r = dash_list (h);
 while (r != mp->null_dash) {
-  start_x (r) = mp_take_scaled (mp, start_x (r), number_to_scaled( mp->txx)) + number_to_scaled(mp->tx);
-  stop_x (r) = mp_take_scaled (mp, stop_x (r),  number_to_scaled(mp->txx)) + number_to_scaled(mp->tx);
-  r = mp_link (r);
+  set_number_from_scaled(r->start_x , mp_take_scaled (mp, 
+	number_to_scaled(r->start_x), number_to_scaled( mp->txx)) + number_to_scaled(mp->tx));
+  set_number_from_scaled(r->stop_x , mp_take_scaled (mp, 
+	number_to_scaled(r->stop_x),  number_to_scaled(mp->txx)) + number_to_scaled(mp->tx));
+  r = (mp_dash_node)mp_link (r);
 }
 
 
