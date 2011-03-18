@@ -8025,23 +8025,32 @@ It is convenient to define a \.{WEB} macro |t_of_the_way| such that
 |t_of_the_way(a,b)| expands to |a-(a-b)*t|, i.e., to |t[a,b]|.
 
 @d t_of_the_way(A,B) ((A)-mp_take_fraction(mp,((A)-(B)),t))
+@d t_of_the_way_n(A,B) (number_to_scaled((A))-mp_take_fraction(mp,(number_to_scaled((A))-number_to_scaled((B))),t))
 
 @c
 static scaled mp_eval_cubic (MP mp, mp_knot p, mp_knot q, quarterword c,
                              fraction t) {
-  scaled x1, x2, x3;    /* intermediate values */
+  scaled ret;
+  mp_number x1, x2, x3;    /* intermediate values */
+  x1 = mp_new_number(mp);
+  x2 = mp_new_number(mp);
+  x3 = mp_new_number(mp);
   if (c == mp_x_code) {
-    x1 = t_of_the_way (number_to_scaled (p->x_coord), number_to_scaled (p->right_x));
-    x2 = t_of_the_way (number_to_scaled (p->right_x), number_to_scaled (q->left_x));
-    x3 = t_of_the_way (number_to_scaled(q->left_x), number_to_scaled(q->x_coord));
+    set_number_from_scaled(x1, t_of_the_way_n (p->x_coord, p->right_x));
+    set_number_from_scaled(x2, t_of_the_way_n (p->right_x, q->left_x));
+    set_number_from_scaled(x3, t_of_the_way_n (q->left_x, q->x_coord));
   } else {
-    x1 = t_of_the_way (number_to_scaled (p->y_coord), number_to_scaled (p->right_y));
-    x2 = t_of_the_way (number_to_scaled (p->right_y), number_to_scaled(q->left_y));
-    x3 = t_of_the_way (number_to_scaled(q->left_y), number_to_scaled(q->y_coord));
+    set_number_from_scaled(x1, t_of_the_way_n (p->y_coord, p->right_y));
+    set_number_from_scaled(x2, t_of_the_way_n (p->right_y, q->left_y));
+    set_number_from_scaled(x3, t_of_the_way_n (q->left_y, q->y_coord));
   }
-  x1 = t_of_the_way (x1, x2);
-  x2 = t_of_the_way (x2, x3);
-  return t_of_the_way (x1, x2);
+  set_number_from_scaled(x1, t_of_the_way_n (x1, x2));
+  set_number_from_scaled(x2, t_of_the_way_n (x2, x3));
+  ret = t_of_the_way_n (x1, x2);
+  mp_free_number(mp, x1);
+  mp_free_number(mp, x2);
+  mp_free_number(mp, x3);
+  return ret;
 }
 
 
@@ -8079,36 +8088,44 @@ The |c| parameter is |x_code| or |y_code|.
 @c
 static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
   boolean wavy; /* whether we need to look for extremes */
-  scaled del1, del2, del3, del, dmax;   /* proportional to the control
-                                           points of a quadratic derived from a cubic */
+  mp_number del1, del2, del3, del, dmax;  /* proportional to the control
+                         points of a quadratic derived from a cubic */
   fraction t, tt;       /* where a quadratic crosses zero */
   scaled x;     /* a value that |bbmin[c]| and |bbmax[c]| must accommodate */
   x = (c == mp_x_code ? number_to_scaled(q->x_coord) : number_to_scaled(q->y_coord));
+  del1 = mp_new_number(mp);
+  del2 = mp_new_number(mp);
+  del3 = mp_new_number(mp);
+  del  = mp_new_number(mp);
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
   @<Check the control points against the bounding box and set |wavy:=true|
     if any of them lie outside@>;
   if (wavy) {
     if (c == mp_x_code) {
-      del1 = number_to_scaled (p->right_x) - number_to_scaled (p->x_coord);
-      del2 = number_to_scaled(q->left_x) - number_to_scaled (p->right_x);
-      del3 = number_to_scaled(q->x_coord) - number_to_scaled(q->left_x);
+      set_number_from_substraction(del1, p->right_x, p->x_coord);
+      set_number_from_substraction(del2, q->left_x, p->right_x);
+      set_number_from_substraction(del3, q->x_coord, q->left_x);
     } else {
-      del1 = number_to_scaled (p->right_y) - number_to_scaled (p->y_coord);
-      del2 = number_to_scaled(q->left_y) - number_to_scaled (p->right_y);
-      del3 = number_to_scaled(q->y_coord) - number_to_scaled(q->left_y);
+      set_number_from_substraction(del1, p->right_y, p->y_coord);
+      set_number_from_substraction(del2, q->left_y, p->right_y);
+      set_number_from_substraction(del3, q->y_coord, q->left_y);
     }
     @<Scale up |del1|, |del2|, and |del3| for greater accuracy;
       also set |del| to the first nonzero element of |(del1,del2,del3)|@>;
-    if (del < 0) {
-      negate (del1);
-      negate (del2);
-      negate (del3);
-    };
-    t = mp_crossing_point (mp, del1, del2, del3);
+    if (number_negative(del)) {
+      number_negate (del1);
+      number_negate (del2);
+      number_negate (del3);
+    }
+    t = mp_crossing_point (mp, number_to_scaled(del1), number_to_scaled(del2), number_to_scaled(del3));
     if (t < fraction_one) {
       @<Test the extremes of the cubic against the bounding box@>;
     }
   }
+  mp_free_number(mp, del3);
+  mp_free_number(mp, del2);
+  mp_free_number(mp, del1);
+  mp_free_number(mp, del);
 }
 
 
@@ -8139,24 +8156,39 @@ if (c == mp_x_code) {
 section. We just set |del=0| in that case.
 
 @<Scale up |del1|, |del2|, and |del3| for greater accuracy...@>=
-if (del1 != 0)
-  del = del1;
-else if (del2 != 0)
-  del = del2;
-else
-  del = del3;
-if (del != 0) {
-  dmax = abs (del1);
-  if (abs (del2) > dmax)
-    dmax = abs (del2);
-  if (abs (del3) > dmax)
-    dmax = abs (del3);
-  while (dmax < fraction_half) {
-    dmax += dmax;
-    del1 += del1;
-    del2 += del2;
-    del3 += del3;
+if (number_nonzero(del1)) {
+  number_clone (del, del1);
+} else if (number_nonzero(del2)) {
+  number_clone (del, del2);
+} else {
+  number_clone (del, del3);
+}
+if (number_nonzero(del)) {
+  mp_number absval1;
+  mp_number frac_half = mp_new_number(mp);
+  set_number_from_scaled(frac_half, fraction_half);
+  dmax = number_abs (del1);
+  absval1 = number_abs (del2);
+  if (number_greater(absval1, dmax)) {
+    mp_free_number(mp, dmax);
+    dmax = absval1;
+  } else {
+    mp_free_number(mp, absval1);
   }
+  absval1 = number_abs (del3);
+  if (number_greater(absval1, dmax)) {
+    mp_free_number(mp, dmax);
+    dmax = absval1;
+  } else {
+    mp_free_number(mp, absval1);
+  }
+  while (number_less(dmax, frac_half)) {
+    set_number_from_addition(dmax, dmax, dmax);
+    set_number_from_addition(del1, del1, del1);
+    set_number_from_addition(del2, del2, del2);
+    set_number_from_addition(del3, del3, del3);
+  }
+  mp_free_number(mp, frac_half);
 }
 
 @ Since |crossing_point| has tried to choose |t| so that
@@ -8169,11 +8201,11 @@ must cut it to zero to avoid confusion.
 {
   x = mp_eval_cubic (mp, p, q, c, t);
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
-  del2 = t_of_the_way (del2, del3);
+  set_number_from_scaled(del2, t_of_the_way_n (del2, del3));
   /* now |0,del2,del3| represent the derivative on the remaining interval */
-  if (del2 > 0)
-    del2 = 0;
-  tt = mp_crossing_point (mp, 0, -del2, -del3);
+  if (number_positive(del2))
+    set_number_to_zero(del2);
+  tt = mp_crossing_point (mp, 0, -number_to_scaled(del2), -number_to_scaled(del3));
   if (tt < fraction_one) {
     @<Test the second extreme against the bounding box@>;
   }
@@ -9295,6 +9327,7 @@ void mp_free_number (MP mp, mp_number n) {
 @d number_to_scaled(A) (A)->data.val
 @d number_to_double(A) ((A)->data.val/65536.0)
 @d number_positive(A) ((A)->data.val>0)
+@d number_negate(A) ((A)->data.val=-(A)->data.val)
 @d number_zero(A) ((A)->data.val==0)
 @d number_negative(A) ((A)->data.val<0)
 @d number_nonzero(A) (!number_zero(A))
@@ -10029,7 +10062,7 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, scaled * w) {
   *w = scf;
   d = xmalloc (1, sizeof (mp_dash_object));
   add_var_used (sizeof (mp_dash_object));
-  set_number_from_scaled(mp->null_dash->start_x, number_to_scaled(p->start_x) + number_to_scaled(h->dash_y));
+  set_number_from_addition(mp->null_dash->start_x, p->start_x, h->dash_y);
   while (p != mp->null_dash) {
     dashes = xrealloc (dashes, (num_dashes + 2), sizeof (double));
     dashes[(num_dashes - 1)] =
@@ -11232,7 +11265,7 @@ static void mp_split_cubic (MP mp, mp_knot p, fraction t);
 
 @ @c
 void mp_split_cubic (MP mp, mp_knot p, fraction t) {                               /* splits the cubic after |p| */
-  scaled v;     /* an intermediate value */
+  mp_number v;     /* an intermediate value */
   mp_knot q, r; /* for list manipulation */
   q = mp_next_knot (p);
   r = mp_new_knot (mp);
@@ -11241,18 +11274,20 @@ void mp_split_cubic (MP mp, mp_knot p, fraction t) {                            
   mp_originator (r) = mp_program_code;
   mp_left_type (r) = mp_explicit;
   mp_right_type (r) = mp_explicit;
-  v = t_of_the_way (number_to_scaled (p->right_x), number_to_scaled (q->left_x));
-  set_number_from_scaled (p->right_x, t_of_the_way (number_to_scaled (p->x_coord), number_to_scaled (p->right_x)));
-  set_number_from_scaled (q->left_x, t_of_the_way (number_to_scaled (q->left_x), number_to_scaled (q->x_coord)));
-  set_number_from_scaled (r->left_x, t_of_the_way (number_to_scaled (p->right_x), v));
-  set_number_from_scaled (r->right_x, t_of_the_way (v, number_to_scaled (q->left_x)));
-  set_number_from_scaled (r->x_coord, t_of_the_way (number_to_scaled (r->left_x), number_to_scaled (r->right_x)));
-  v = t_of_the_way (number_to_scaled (p->right_y), number_to_scaled (q->left_y));
-  set_number_from_scaled (p->right_y, t_of_the_way (number_to_scaled (p->y_coord), number_to_scaled (p->right_y)));
-  set_number_from_scaled (q->left_y, t_of_the_way (number_to_scaled (q->left_y), number_to_scaled (q->y_coord)));
-  set_number_from_scaled (r->left_y, t_of_the_way (number_to_scaled (p->right_y), v));
-  set_number_from_scaled (r->right_y, t_of_the_way (v, number_to_scaled (q->left_y)));
-  set_number_from_scaled (r->y_coord, t_of_the_way (number_to_scaled (r->left_y), number_to_scaled (r->right_y)));
+  v = mp_new_number(mp);
+  set_number_from_scaled (v, t_of_the_way_n (p->right_x, q->left_x));
+  set_number_from_scaled (p->right_x, t_of_the_way_n (p->x_coord, p->right_x));
+  set_number_from_scaled (q->left_x, t_of_the_way_n (q->left_x, q->x_coord));
+  set_number_from_scaled (r->left_x, t_of_the_way_n (p->right_x, v));
+  set_number_from_scaled (r->right_x, t_of_the_way_n (v, q->left_x));
+  set_number_from_scaled (r->x_coord, t_of_the_way_n (r->left_x, r->right_x));
+  set_number_from_scaled (v, t_of_the_way_n (p->right_y, q->left_y));
+  set_number_from_scaled (p->right_y, t_of_the_way_n (p->y_coord, p->right_y));
+  set_number_from_scaled (q->left_y, t_of_the_way_n (q->left_y, q->y_coord));
+  set_number_from_scaled (r->left_y, t_of_the_way_n (p->right_y, v));
+  set_number_from_scaled (r->right_y, t_of_the_way_n (v, q->left_y));
+  set_number_from_scaled (r->y_coord, t_of_the_way_n (r->left_y, r->right_y));
+  mp_free_number(mp, v);
 }
 
 
@@ -11972,12 +12007,12 @@ scaled tmp;     /* a temporary value */
 knot in which case they get shifted at the very end.
 
 @<Add offset |w| to the cubic from |p| to |q|@>=
-set_number_from_scaled (p->right_x, number_to_scaled (p->right_x) + number_to_scaled (w->x_coord));
-set_number_from_scaled (p->right_y, number_to_scaled (p->right_y) + number_to_scaled (w->y_coord));
-set_number_from_scaled (q->left_x, number_to_scaled (q->left_x) + number_to_scaled (w->x_coord));
-set_number_from_scaled (q->left_y, number_to_scaled (q->left_y) + number_to_scaled (w->y_coord));
-set_number_from_scaled (q->x_coord, number_to_scaled (q->x_coord) + number_to_scaled (w->x_coord));
-set_number_from_scaled (q->y_coord, number_to_scaled (q->y_coord) + number_to_scaled (w->y_coord));
+set_number_from_addition (p->right_x, p->right_x, w->x_coord);
+set_number_from_addition (p->right_y, p->right_y, w->y_coord);
+set_number_from_addition (q->left_x,  q->left_x,  w->x_coord);
+set_number_from_addition (q->left_y,  q->left_y,  w->y_coord);
+set_number_from_addition (q->x_coord, q->x_coord, w->x_coord);
+set_number_from_addition (q->y_coord, q->y_coord, w->y_coord);
 mp_left_type (q) = mp_explicit;
 mp_right_type (q) = mp_explicit
 
@@ -25025,20 +25060,26 @@ sum is similar.
 
 @<Scale the bounding box by |txx+txy| and |tyx+tyy|; then shift...@>=
 {
-  set_number_from_scaled(h->minx, mp_take_scaled (mp, number_to_scaled(h->minx), number_to_scaled(mp->txx) + 
-	number_to_scaled(mp->txy) + number_to_scaled(mp->tx)));
-  set_number_from_scaled(h->maxx, mp_take_scaled (mp, number_to_scaled(h->maxx), number_to_scaled(mp->txx) + 
-	number_to_scaled(mp->txy) + number_to_scaled(mp->tx)));
-  set_number_from_scaled(h->miny, mp_take_scaled (mp, number_to_scaled(h->miny), number_to_scaled(mp->tyx) + 
-	number_to_scaled(mp->tyy) + number_to_scaled(mp->ty)));
-  set_number_from_scaled(h->maxy, mp_take_scaled (mp, number_to_scaled(h->maxy), number_to_scaled(mp->tyx) + 
-	number_to_scaled(mp->tyy) + number_to_scaled(mp->ty)));
-  if (number_to_scaled(mp->txx) + number_to_scaled(mp->txy) < 0) {
+  mp_number tot = mp_new_number(mp);
+  set_number_from_addition(tot,mp->txx,mp->txy);
+  set_number_from_addition(tot,tot,mp->tx);
+  set_number_from_scaled(h->minx, mp_take_scaled (mp, number_to_scaled(h->minx), number_to_scaled(tot)));
+  set_number_from_scaled(h->maxx, mp_take_scaled (mp, number_to_scaled(h->maxx), number_to_scaled(tot)));
+
+  set_number_from_addition(tot,mp->tyx,mp->tyy);
+  set_number_from_addition(tot,tot,mp->ty);
+  set_number_from_scaled(h->miny, mp_take_scaled (mp, number_to_scaled(h->miny), number_to_scaled(tot)));
+  set_number_from_scaled(h->maxy, mp_take_scaled (mp, number_to_scaled(h->maxy), number_to_scaled(tot)));
+
+  set_number_from_addition(tot, mp->txx, mp->txy);
+  if (number_negative(tot) < 0) {
     number_swap(h->minx, h->maxx);
   }
-  if (number_to_scaled(mp->tyx) + number_to_scaled(mp->tyy) < 0) {
+  set_number_from_addition(tot, mp->tyx, mp->tyy);
+  if (number_negative(tot) < 0) {
     number_swap(h->miny, h->maxy);
   }
+  mp_free_number(mp, tot);
 }
 
 
