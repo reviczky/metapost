@@ -2383,7 +2383,6 @@ from quarterwords. These are legacy macros.
 @<Types...@>=
 typedef struct mp_value_node_data *mp_value_node;
 typedef struct mp_node_data *mp_node;
-typedef struct mp_number_data *mp_number;
 typedef struct mp_symbol_entry *mp_sym;
 typedef short quarterword;      /* 1/4 of a word */
 typedef int halfword;   /* 1/2 of a word */
@@ -2416,6 +2415,7 @@ typedef union {
 math value type that will be used in this run.
 
 @<Exported types@>=
+typedef struct mp_number_data *mp_number;
 typedef enum {
   mp_math_scaled_mode = 0,
   mp_math_double_mode = 1,
@@ -6485,12 +6485,6 @@ is not closed, the |mp_left_type| of knot~0 and the |mp_right_type| of knot~|n|
 are equal to |endpoint|. In the latter case the |link| in knot~|n| points
 to knot~0, and the control points $z_0^-$ and $z_n^+$ are not used.
 
-@d mp_x_coord(A)     (A)->x_coord /* the |x| coordinate of this knot */ 
-@d mp_y_coord(A)     (A)->y_coord   /* the |y| coordinate of this knot */
-@d mp_left_x(A)      (A)->left_x /* the |x| coordinate of previous control point */
-@d mp_left_y(A)      (A)->left_y /* the |y| coordinate of previous control point */
-@d mp_right_x(A)     (A)->right_x /* the |x| coordinate of next control point */
-@d mp_right_y(A)     (A)->right_y /* the |y| coordinate of next control point */
 @d mp_next_knot(A)   (A)->next /* the next knot in this list */
 @d mp_left_type(A)   (A)->data.types.left_type /* characterizes the path entering this knot */
 @d mp_right_type(A)  (A)->data.types.right_type /* characterizes the path leaving this knot */
@@ -6500,12 +6494,12 @@ to knot~0, and the control points $z_0^-$ and $z_n^+$ are not used.
 @<Exported types...@>=
 typedef struct mp_knot_data *mp_knot;
 typedef struct mp_knot_data {
-  scaled x_coord;
-  scaled y_coord;
-  scaled left_x;
-  scaled left_y;
-  scaled right_x;
-  scaled right_y;
+  mp_number x_coord; /* the |x| coordinate of this knot */ 
+  mp_number y_coord; /* the |y| coordinate of this knot */
+  mp_number left_x; /* the |x| coordinate of previous control point */
+  mp_number left_y; /* the |y| coordinate of previous control point */
+  mp_number right_x; /* the |x| coordinate of next control point */
+  mp_number right_y; /* the |y| coordinate of next control point */
   mp_knot next;
   union {
     struct {
@@ -6593,7 +6587,7 @@ where \.p is the path `\.{z4..controls z45 and z54..z5}', will be represented
 by the six knots
 \def\lodash{\hbox to 1.1em{\thinspace\hrulefill\thinspace}}
 $$\vbox{\halign{#\hfil&&\qquad#\hfil\cr
-|mp_left_type|&\\{left} info&|mp_x_coord,mp_y_coord|&|mp_right_type|&\\{right} info\cr
+|mp_left_type|&\\{left} info&|x_coord,y_coord|&|mp_right_type|&\\{right} info\cr
 \noalign{\yskip}
 |endpoint|&\lodash$,\,$\lodash&$x_0,y_0$&|curl|&$1.0,1.0$\cr
 |open|&\lodash$,1.0$&$x_1,y_1$&|open|&\lodash$,-1.0$\cr
@@ -6613,12 +6607,12 @@ path syntax:
 |mp_left_type| of the following node is |explicit|.
 (iii)~|endpoint| types occur only at the ends, as mentioned above.
 
-@d left_curl mp_left_x /* curl information when entering this knot */
-@d left_given mp_left_x /* given direction when entering this knot */
-@d left_tension mp_left_y /* tension information when entering this knot */
-@d right_curl mp_right_x /* curl information when leaving this knot */
-@d right_given mp_right_x /* given direction when leaving this knot */
-@d right_tension mp_right_y /* tension information when leaving this knot */
+@d left_curl left_x /* curl information when entering this knot */
+@d left_given left_x /* given direction when entering this knot */
+@d left_tension left_y /* tension information when entering this knot */
+@d right_curl right_x /* curl information when leaving this knot */
+@d right_given right_x /* given direction when leaving this knot */
+@d right_tension right_y /* tension information when leaving this knot */
 
 @ Knots can be user-supplied, or they can be created by program code,
 like the |split_cubic| function, or |copy_path|. The distinction is
@@ -6668,7 +6662,7 @@ void mp_pr_path (MP mp, mp_knot h) {
 
 
 @ @<Print information for adjacent knots...@>=
-mp_print_two (mp, mp_x_coord (p), mp_y_coord (p));
+mp_print_two (mp, number_to_scaled(p->x_coord), number_to_scaled(p->y_coord));
 switch (mp_right_type (p)) {
 case mp_endpoint:
   if (mp_left_type (p) == mp_open)
@@ -6696,7 +6690,7 @@ default:
 if (mp_left_type (q) <= mp_explicit) {
   mp_print (mp, "..control?");  /* can't happen */
 @.control?@>
-} else if ((right_tension (p) != unity) || (left_tension (q) != unity)) {
+} else if ((number_to_scaled(p->right_tension) != unity) || (number_to_scaled(q->left_tension) != unity)) {
   @<Print tension between |p| and |q|@>;
 }
 
@@ -6709,7 +6703,7 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
   fraction n_cos;
   mp_print_nl (mp, " ..");
   if (mp_left_type (p) == mp_given) {
-    mp_n_sin_cos (mp, left_given (p), &n_cos, &n_sin);
+    mp_n_sin_cos (mp, number_to_scaled(p->left_given), &n_cos, &n_sin);
     mp_print_char (mp, xord ('{'));
     mp_print_scaled (mp, n_cos);
     mp_print_char (mp, xord (','));
@@ -6717,7 +6711,7 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
     mp_print_char (mp, xord ('}'));
   } else if (mp_left_type (p) == mp_curl) {
     mp_print (mp, "{curl ");
-    mp_print_scaled (mp, left_curl (p));
+    mp_print_scaled (mp, number_to_scaled(p->left_curl));
     mp_print_char (mp, xord ('}'));
   }
 }
@@ -6726,14 +6720,14 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
 @ @<Print tension between |p| and |q|@>=
 {
   mp_print (mp, "..tension ");
-  if (right_tension (p) < 0)
+  if (number_to_scaled(p->right_tension) < 0)
     mp_print (mp, "atleast");
-  mp_print_scaled (mp, abs (right_tension (p)));
-  if (right_tension (p) != left_tension (q)) {
+  mp_print_scaled (mp, abs (number_to_scaled(p->right_tension)));
+  if (number_to_scaled(p->right_tension) != number_to_scaled(q->left_tension)) {
     mp_print (mp, " and ");
-    if (left_tension (q) < 0)
+    if (number_to_scaled(q->left_tension) < 0)
       mp_print (mp, "atleast");
-    mp_print_scaled (mp, abs (left_tension (q)));
+    mp_print_scaled (mp, abs (number_to_scaled(q->left_tension)));
   }
 }
 
@@ -6741,13 +6735,13 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
 @ @<Print control points between |p| and |q|, then |goto done1|@>=
 {
   mp_print (mp, "..controls ");
-  mp_print_two (mp, mp_right_x (p), mp_right_y (p));
+  mp_print_two (mp, number_to_scaled (p->right_x), number_to_scaled (p->right_y));
   mp_print (mp, " and ");
   if (mp_left_type (q) != mp_explicit) {
     mp_print (mp, "??");        /* can't happen */
 @.??@>
   } else {
-    mp_print_two (mp, mp_left_x (q), mp_left_y (q));
+    mp_print_two (mp, number_to_scaled(q->left_x), number_to_scaled(q->left_y));
   }
   goto DONE1;
 }
@@ -6769,11 +6763,11 @@ if ((mp_left_type (p) != mp_explicit) && (mp_left_type (p) != mp_open)) {
 @.??@>;
   if (mp_right_type (p) == mp_curl) {
     mp_print (mp, "{curl ");
-    mp_print_scaled (mp, right_curl (p));
+    mp_print_scaled (mp, number_to_scaled(p->right_curl));
   } else {
     fraction n_sin;
     fraction n_cos;
-    mp_n_sin_cos (mp, right_given (p), &n_cos, &n_sin);
+    mp_n_sin_cos (mp, number_to_scaled(p->right_given), &n_cos, &n_sin);
     mp_print_char (mp, xord ('{'));
     mp_print_scaled (mp, n_cos);
     mp_print_char (mp, xord (','));
@@ -6805,6 +6799,13 @@ static mp_knot mp_new_knot (MP mp);
 @ @c
 static mp_knot mp_new_knot (MP mp) {
   mp_knot q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
+  memset(q,0,sizeof (struct mp_knot_data));
+  q->x_coord = mp_new_number(mp);
+  q->y_coord = mp_new_number(mp);
+  q->left_x = mp_new_number(mp);
+  q->left_y = mp_new_number(mp);
+  q->right_x = mp_new_number(mp);
+  q->right_y = mp_new_number(mp);
   return q;
 }
 
@@ -6826,6 +6827,18 @@ static mp_knot mp_copy_knot (MP mp, mp_knot p) {
   mp_knot q;    /* the copy */
   q = mp_new_knot (mp);
   memcpy (q, p, sizeof (struct mp_knot_data));
+  q->x_coord = mp_new_number(mp);
+  q->y_coord = mp_new_number(mp);
+  q->left_x = mp_new_number(mp);
+  q->left_y = mp_new_number(mp);
+  q->right_x = mp_new_number(mp);
+  q->right_y = mp_new_number(mp);
+  number_clone(q->x_coord, p->x_coord);
+  number_clone(q->y_coord, p->y_coord);
+  number_clone(q->left_x, p->left_x);
+  number_clone(q->left_y, p->left_y);
+  number_clone(q->right_x, p->right_x);
+  number_clone(q->right_y, p->right_y);
   mp_next_knot (q) = NULL;
   return q;
 }
@@ -6836,12 +6849,12 @@ static mp_knot mp_copy_knot (MP mp, mp_knot p) {
 static mp_gr_knot mp_export_knot (MP mp, mp_knot p) {
   mp_gr_knot q;    /* the copy */
   q = mp_gr_new_knot (mp);
-  q->x_coord = mp_x_coord(p)/65536.0;
-  q->y_coord = mp_y_coord(p)/65536.0;
-  q->left_x  = mp_left_x(p)/65536.0;
-  q->left_y  = mp_left_y(p)/65536.0;
-  q->right_x = mp_right_x(p)/65536.0;
-  q->right_y = mp_right_y(p)/65536.0;
+  q->x_coord = number_to_double(p->x_coord);
+  q->y_coord = number_to_double(p->y_coord);
+  q->left_x  = number_to_double(p->left_x);
+  q->left_y  = number_to_double(p->left_y);
+  q->right_x = number_to_double(p->right_x);
+  q->right_y = number_to_double(p->right_y);
   q->data.types.left_type = mp_left_type(p);
   q->data.types.right_type = mp_left_type(p);
   q->data.info = mp_knot_info(p);
@@ -6896,12 +6909,12 @@ static mp_gr_knot mp_export_path (MP mp, mp_knot p) {
 static mp_knot mp_import_knot (MP mp, mp_gr_knot p) {
   mp_knot q;    /* the copy */
   q = mp_new_knot (mp);
-  mp_x_coord(q) = (scaled)(p->x_coord * 65536.0);
-  mp_y_coord(q) = (scaled)(p->y_coord * 65536.0);
-  mp_left_x(q)  = (scaled)(p->left_x  * 65536.0);
-  mp_left_y(q)  = (scaled)(p->left_y  * 65536.0);
-  mp_right_x(q) = (scaled)(p->right_x * 65536.0);
-  mp_right_y(q) = (scaled)(p->right_y * 65536.0);
+  set_number_from_scaled(q->x_coord, (scaled)(p->x_coord * 65536.0));
+  set_number_from_scaled(q->y_coord, (scaled)(p->y_coord * 65536.0));
+  set_number_from_scaled(q->left_x, (scaled)(p->left_x  * 65536.0));
+  set_number_from_scaled(q->left_y, (scaled)(p->left_y  * 65536.0));
+  set_number_from_scaled(q->right_x, (scaled)(p->right_x * 65536.0));
+  set_number_from_scaled(q->right_y, (scaled)(p->right_y * 65536.0));
   mp_left_type(q) = p->data.types.left_type;
   mp_left_type(q) = p->data.types.right_type;
   mp_knot_info(q) = p->data.info;
@@ -6971,12 +6984,12 @@ static mp_knot mp_htap_ypoc (MP mp, mp_knot p) {
   while (1) {
     mp_right_type (qq) = mp_left_type (pp);
     mp_left_type (qq) = mp_right_type (pp);
-    mp_x_coord (qq) = mp_x_coord (pp);
-    mp_y_coord (qq) = mp_y_coord (pp);
-    mp_right_x (qq) = mp_left_x (pp);
-    mp_right_y (qq) = mp_left_y (pp);
-    mp_left_x (qq) = mp_right_x (pp);
-    mp_left_y (qq) = mp_right_y (pp);
+    number_clone (qq->x_coord, pp->x_coord);
+    number_clone (qq->y_coord, pp->y_coord);
+    number_clone (qq->right_x, pp->left_x);
+    number_clone (qq->right_y, pp->left_y);
+    number_clone (qq->left_x, pp->right_x);
+    number_clone (qq->left_y, pp->right_y);
     mp_originator (qq) = mp_originator (pp);
     if (mp_next_knot (pp) == p) {
       mp_next_knot (q) = qq;
@@ -7072,22 +7085,23 @@ knots.
 p = knots;
 do {
   q = mp_next_knot (p);
-  if (mp_x_coord (p) == mp_x_coord (q) &&
-      mp_y_coord (p) == mp_y_coord (q) && mp_right_type (p) > mp_explicit) {
+  if (number_to_scaled (p->x_coord) == number_to_scaled (q->x_coord) &&
+      number_to_scaled (p->y_coord) == number_to_scaled (q->y_coord) && 
+      mp_right_type (p) > mp_explicit) {
     mp_right_type (p) = mp_explicit;
     if (mp_left_type (p) == mp_open) {
       mp_left_type (p) = mp_curl;
-      left_curl (p) = unity;
+      set_number_from_scaled(p->left_curl, unity);
     }
     mp_left_type (q) = mp_explicit;
     if (mp_right_type (q) == mp_open) {
       mp_right_type (q) = mp_curl;
-      right_curl (q) = unity;
+      set_number_from_scaled(q->right_curl, unity);
     }
-    mp_right_x (p) = mp_x_coord (p);
-    mp_left_x (q) = mp_x_coord (p);
-    mp_right_y (p) = mp_y_coord (p);
-    mp_left_y (q) = mp_y_coord (p);
+    number_clone (p->right_x, p->x_coord);
+    number_clone (q->left_x, p->x_coord);
+    number_clone (p->right_y, p->y_coord);
+    number_clone (q->left_y, p->y_coord);
   }
   p = q;
 } while (p != knots)
@@ -7131,10 +7145,10 @@ checking the |mp_left_type| and |mp_right_type| fields.
 
 @<Give reasonable values for the unused control points between |p| and~|q|@>=
 {
-  mp_right_x (p) = mp_x_coord (p);
-  mp_right_y (p) = mp_y_coord (p);
-  mp_left_x (q) = mp_x_coord (q);
-  mp_left_y (q) = mp_y_coord (q);
+  number_clone (p->right_x, p->x_coord);
+  number_clone (p->right_y, p->y_coord);
+  number_clone (q->left_x, q->x_coord);
+  number_clone (q->left_y, q->y_coord);
 }
 
 
@@ -7291,8 +7305,8 @@ RESTART:
   n = mp->path_size;
   do {
     t = mp_next_knot (s);
-    mp->delta_x[k] = mp_x_coord (t) - mp_x_coord (s);
-    mp->delta_y[k] = mp_y_coord (t) - mp_y_coord (s);
+    mp->delta_x[k] = number_to_scaled(t->x_coord) - number_to_scaled(s->x_coord);
+    mp->delta_y[k] = number_to_scaled(t->y_coord) - number_to_scaled(s->y_coord);
     mp->delta[k] = mp_pyth_add (mp, mp->delta_x[k], mp->delta_y[k]);
     if (k > 0) {
       sine = mp_make_fraction (mp, mp->delta_y[k - 1], mp->delta[k - 1]);
@@ -7330,25 +7344,25 @@ Similarly, |mp_left_type(q)| is either |given| or |curl| or |open| or
 
 @<Remove |open| types at the breakpoints@>=
 if (mp_left_type (q) == mp_open) {
-  delx = mp_right_x (q) - mp_x_coord (q);
-  dely = mp_right_y (q) - mp_y_coord (q);
+  delx = number_to_scaled(q->right_x) - number_to_scaled(q->x_coord);
+  dely = number_to_scaled(q->right_y) - number_to_scaled(q->y_coord);
   if ((delx == 0) && (dely == 0)) {
     mp_left_type (q) = mp_curl;
-    left_curl (q) = unity;
+    set_number_from_scaled(q->left_curl, unity);
   } else {
     mp_left_type (q) = mp_given;
-    left_given (q) = mp_n_arg (mp, delx, dely);
+    set_number_from_scaled(q->left_given, mp_n_arg (mp, delx, dely));
   }
 }
 if ((mp_right_type (p) == mp_open) && (mp_left_type (p) == mp_explicit)) {
-  delx = mp_x_coord (p) - mp_left_x (p);
-  dely = mp_y_coord (p) - mp_left_y (p);
+  delx = number_to_scaled (p->x_coord) - number_to_scaled (p->left_x);
+  dely = number_to_scaled (p->y_coord) - number_to_scaled (p->left_y);
   if ((delx == 0) && (dely == 0)) {
     mp_right_type (p) = mp_curl;
-    right_curl (p) = unity;
+    set_number_from_scaled(p->right_curl, unity);
   } else {
     mp_right_type (p) = mp_given;
-    right_given (p) = mp_n_arg (mp, delx, dely);
+    set_number_from_scaled(p->right_given, mp_n_arg (mp, delx, dely));
   }
 }
 
@@ -7530,25 +7544,23 @@ scaled lt, rt;  /* tension values */
 |bb| computed here are never more than 4/5.
 
 @<Calculate the values $\\{aa}=...@>=
-if (abs (right_tension (r)) == unity) {
+if (abs (number_to_scaled(r->right_tension)) == unity) {
   aa = fraction_half;
   dd = 2 * mp->delta[k];
 } else {
-  aa = mp_make_fraction (mp, unity, 3 * abs (right_tension (r)) - unity);
+  aa = mp_make_fraction (mp, unity, 3 * abs (number_to_scaled(r->right_tension)) - unity);
   dd = mp_take_fraction (mp, mp->delta[k],
                          fraction_three - mp_make_fraction (mp, unity,
-                                                            abs (right_tension
-                                                                 (r))));
+                                                            abs (number_to_scaled(r->right_tension))));
 }
-if (abs (left_tension (t)) == unity) {
+if (abs (number_to_scaled(t->left_tension)) == unity) {
   bb = fraction_half;
   ee = 2 * mp->delta[k - 1];
 } else {
-  bb = mp_make_fraction (mp, unity, 3 * abs (left_tension (t)) - unity);
+  bb = mp_make_fraction (mp, unity, 3 * abs (number_to_scaled(t->left_tension)) - unity);
   ee = mp_take_fraction (mp, mp->delta[k - 1],
                          fraction_three - mp_make_fraction (mp, unity,
-                                                            abs (left_tension
-                                                                 (t))));
+                                                            abs (number_to_scaled(t->left_tension))));
 }
 cc = fraction_one - mp_take_fraction (mp, mp->uu[k - 1], aa)
  
@@ -7561,8 +7573,8 @@ will not be needed after this step has been performed.
 
 @<Calculate the ratio $\\{ff}=C_k/(C_k+B_k-u_{k-1}A_k)$@>=
 dd = mp_take_fraction (mp, dd, cc);
-lt = abs (left_tension (s));
-rt = abs (right_tension (s));
+lt = abs (number_to_scaled(s->left_tension));
+rt = abs (number_to_scaled(s->right_tension));
 if (lt != rt) {                 /* $\beta_k^{-1}\ne\alpha_k^{-1}$ */
   if (lt < rt) {
     ff = mp_make_fraction (mp, lt, rt);
@@ -7642,7 +7654,7 @@ so we can solve for $\theta_n=\theta_0$.
 @<Calculate the given value of $\theta_n$...@>=
 {
   mp->theta[n] =
-    left_given (s) - mp_n_arg (mp, mp->delta_x[n - 1], mp->delta_y[n - 1]);
+    number_to_scaled(s->left_given) - mp_n_arg (mp, mp->delta_x[n - 1], mp->delta_y[n - 1]);
   reduce_angle (mp->theta[n]);
   goto FOUND;
 }
@@ -7650,7 +7662,7 @@ so we can solve for $\theta_n=\theta_0$.
 
 @ @<Set up the equation for a given value of $\theta_0$@>=
 {
-  mp->vv[0] = right_given (s) - mp_n_arg (mp, mp->delta_x[0], mp->delta_y[0]);
+  mp->vv[0] = number_to_scaled(s->right_given) - mp_n_arg (mp, mp->delta_x[0], mp->delta_y[0]);
   reduce_angle (mp->vv[0]);
   mp->uu[0] = 0;
   mp->ww[0] = 0;
@@ -7659,9 +7671,9 @@ so we can solve for $\theta_n=\theta_0$.
 
 @ @<Set up the equation for a curl at $\theta_0$@>=
 {
-  cc = right_curl (s);
-  lt = abs (left_tension (t));
-  rt = abs (right_tension (s));
+  cc = number_to_scaled(s->right_curl);
+  lt = abs (number_to_scaled(t->left_tension));
+  rt = abs (number_to_scaled(s->right_tension));
   if ((rt == unity) && (lt == unity))
     mp->uu[0] = mp_make_fraction (mp, cc + cc + unity, cc + two);
   else
@@ -7673,9 +7685,9 @@ so we can solve for $\theta_n=\theta_0$.
 
 @ @<Set up equation for a curl at $\theta_n$...@>=
 {
-  cc = left_curl (s);
-  lt = abs (left_tension (s));
-  rt = abs (right_tension (r));
+  cc = number_to_scaled(s->left_curl);
+  lt = abs (number_to_scaled(s->left_tension));
+  rt = abs (number_to_scaled(r->right_tension));
   if ((rt == unity) && (lt == unity))
     ff = mp_make_fraction (mp, cc + cc + unity, cc + two);
   else
@@ -7769,15 +7781,16 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   fraction rr, ss;      /* velocities, divided by thrice the tension */
   scaled lt, rt;        /* tensions */
   fraction sine;        /* $\sin(\theta+\phi)$ */
-  lt = abs (left_tension (q));
-  rt = abs (right_tension (p));
+  lt = abs (number_to_scaled(q->left_tension));
+  rt = abs (number_to_scaled(p->right_tension));
   rr = mp_velocity (mp, mp->st, mp->ct, mp->sf, mp->cf, rt);
   ss = mp_velocity (mp, mp->sf, mp->cf, mp->st, mp->ct, lt);
-  if ((right_tension (p) < 0) || (left_tension (q) < 0)) {
+  if ((number_to_scaled(p->right_tension) < 0) || (number_to_scaled(q->left_tension) < 0)) {
     @<Decrease the velocities,
       if necessary, to stay inside the bounding triangle@>;
   }
-  mp_right_x (p) = mp_x_coord (p) + mp_take_fraction (mp,
+  set_number_from_scaled (p->right_x,
+    number_to_scaled (p->x_coord) + mp_take_fraction (mp,
                                                       mp_take_fraction (mp,
                                                                         mp->delta_x
                                                                         [k],
@@ -7787,25 +7800,25 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
                                                                           [k],
                                                                           mp->
                                                                           st),
-                                                      rr);
-  mp_right_y (p) =
-    mp_y_coord (p) + mp_take_fraction (mp,
+                                                      rr));
+  set_number_from_scaled (p->right_y,
+    number_to_scaled (p->y_coord) + mp_take_fraction (mp,
                                        mp_take_fraction (mp, mp->delta_y[k],
                                                          mp->ct) +
                                        mp_take_fraction (mp, mp->delta_x[k],
-                                                         mp->st), rr);
-  mp_left_x (q) =
-    mp_x_coord (q) - mp_take_fraction (mp,
+                                                         mp->st), rr));
+  set_number_from_scaled(q->left_x,
+    number_to_scaled(q->x_coord) - mp_take_fraction (mp,
                                        mp_take_fraction (mp, mp->delta_x[k],
                                                          mp->cf) +
                                        mp_take_fraction (mp, mp->delta_y[k],
-                                                         mp->sf), ss);
-  mp_left_y (q) =
-    mp_y_coord (q) - mp_take_fraction (mp,
+                                                         mp->sf), ss));
+  set_number_from_scaled(q->left_y,
+    number_to_scaled(q->y_coord) - mp_take_fraction (mp,
                                        mp_take_fraction (mp, mp->delta_y[k],
                                                          mp->cf) -
                                        mp_take_fraction (mp, mp->delta_x[k],
-                                                         mp->sf), ss);
+                                                         mp->sf), ss));
   mp_right_type (p) = mp_explicit;
   mp_left_type (q) = mp_explicit;
 }
@@ -7822,10 +7835,10 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
     mp_take_fraction (mp, abs (mp->sf), mp->ct);
   if (sine > 0) {
     sine = mp_take_fraction (mp, sine, fraction_one + unity);   /* safety factor */
-    if (right_tension (p) < 0)
+    if (number_to_scaled(p->right_tension) < 0)
       if (mp_ab_vs_cd (mp, abs (mp->sf), fraction_one, rr, sine) < 0)
         rr = mp_make_fraction (mp, abs (mp->sf), sine);
-    if (left_tension (q) < 0)
+    if (number_to_scaled(q->left_tension) < 0)
       if (mp_ab_vs_cd (mp, abs (mp->st), fraction_one, ss, sine) < 0)
         ss = mp_make_fraction (mp, abs (mp->st), sine);
   }
@@ -7838,10 +7851,10 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
   fraction n_sin;
   fraction n_cos;
   aa = mp_n_arg (mp, mp->delta_x[0], mp->delta_y[0]);
-  mp_n_sin_cos (mp, right_given (p) - aa, &n_cos, &n_sin);
+  mp_n_sin_cos (mp, number_to_scaled(p->right_given) - aa, &n_cos, &n_sin);
   mp->ct = n_cos;
   mp->st = n_sin;
-  mp_n_sin_cos (mp, left_given (q) - aa, &n_cos, &n_sin);
+  mp_n_sin_cos (mp, number_to_scaled(q->left_given) - aa, &n_cos, &n_sin);
   mp->cf = n_cos;
   mp->sf = -n_sin;
   mp_set_controls (mp, p, q, 0);
@@ -7853,35 +7866,35 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
 {
   mp_right_type (p) = mp_explicit;
   mp_left_type (q) = mp_explicit;
-  lt = abs (left_tension (q));
-  rt = abs (right_tension (p));
+  lt = abs (number_to_scaled(q->left_tension));
+  rt = abs (number_to_scaled(p->right_tension));
   if (rt == unity) {
     if (mp->delta_x[0] >= 0)
-      mp_right_x (p) = mp_x_coord (p) + ((mp->delta_x[0] + 1) / 3);
+      set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + ((mp->delta_x[0] + 1) / 3));
     else
-      mp_right_x (p) = mp_x_coord (p) + ((mp->delta_x[0] - 1) / 3);
+      set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + ((mp->delta_x[0] - 1) / 3));
     if (mp->delta_y[0] >= 0)
-      mp_right_y (p) = mp_y_coord (p) + ((mp->delta_y[0] + 1) / 3);
+      set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + ((mp->delta_y[0] + 1) / 3));
     else
-      mp_right_y (p) = mp_y_coord (p) + ((mp->delta_y[0] - 1) / 3);
+      set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + ((mp->delta_y[0] - 1) / 3));
   } else {
     ff = mp_make_fraction (mp, unity, 3 * rt);  /* $\alpha/3$ */
-    mp_right_x (p) = mp_x_coord (p) + mp_take_fraction (mp, mp->delta_x[0], ff);
-    mp_right_y (p) = mp_y_coord (p) + mp_take_fraction (mp, mp->delta_y[0], ff);
+    set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + mp_take_fraction (mp, mp->delta_x[0], ff));
+    set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + mp_take_fraction (mp, mp->delta_y[0], ff));
   }
   if (lt == unity) {
     if (mp->delta_x[0] >= 0)
-      mp_left_x (q) = mp_x_coord (q) - ((mp->delta_x[0] + 1) / 3);
+      set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - ((mp->delta_x[0] + 1) / 3));
     else
-      mp_left_x (q) = mp_x_coord (q) - ((mp->delta_x[0] - 1) / 3);
+      set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - ((mp->delta_x[0] - 1) / 3));
     if (mp->delta_y[0] >= 0)
-      mp_left_y (q) = mp_y_coord (q) - ((mp->delta_y[0] + 1) / 3);
+      set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - ((mp->delta_y[0] + 1) / 3));
     else
-      mp_left_y (q) = mp_y_coord (q) - ((mp->delta_y[0] - 1) / 3);
+      set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - ((mp->delta_y[0] - 1) / 3));
   } else {
     ff = mp_make_fraction (mp, unity, 3 * lt);  /* $\beta/3$ */
-    mp_left_x (q) = mp_x_coord (q) - mp_take_fraction (mp, mp->delta_x[0], ff);
-    mp_left_y (q) = mp_y_coord (q) - mp_take_fraction (mp, mp->delta_y[0], ff);
+    set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - mp_take_fraction (mp, mp->delta_x[0], ff));
+    set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - mp_take_fraction (mp, mp->delta_y[0], ff));
   }
   return;
 }
@@ -8018,13 +8031,13 @@ static scaled mp_eval_cubic (MP mp, mp_knot p, mp_knot q, quarterword c,
                              fraction t) {
   scaled x1, x2, x3;    /* intermediate values */
   if (c == mp_x_code) {
-    x1 = t_of_the_way (mp_x_coord (p), mp_right_x (p));
-    x2 = t_of_the_way (mp_right_x (p), mp_left_x (q));
-    x3 = t_of_the_way (mp_left_x (q), mp_x_coord (q));
+    x1 = t_of_the_way (number_to_scaled (p->x_coord), number_to_scaled (p->right_x));
+    x2 = t_of_the_way (number_to_scaled (p->right_x), number_to_scaled (q->left_x));
+    x3 = t_of_the_way (number_to_scaled(q->left_x), number_to_scaled(q->x_coord));
   } else {
-    x1 = t_of_the_way (mp_y_coord (p), mp_right_y (p));
-    x2 = t_of_the_way (mp_right_y (p), mp_left_y (q));
-    x3 = t_of_the_way (mp_left_y (q), mp_y_coord (q));
+    x1 = t_of_the_way (number_to_scaled (p->y_coord), number_to_scaled (p->right_y));
+    x2 = t_of_the_way (number_to_scaled (p->right_y), number_to_scaled(q->left_y));
+    x3 = t_of_the_way (number_to_scaled(q->left_y), number_to_scaled(q->y_coord));
   }
   x1 = t_of_the_way (x1, x2);
   x2 = t_of_the_way (x2, x3);
@@ -8070,19 +8083,19 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
                                            points of a quadratic derived from a cubic */
   fraction t, tt;       /* where a quadratic crosses zero */
   scaled x;     /* a value that |bbmin[c]| and |bbmax[c]| must accommodate */
-  x = (c == mp_x_code ? mp_x_coord (q) : mp_y_coord (q));
+  x = (c == mp_x_code ? number_to_scaled(q->x_coord) : number_to_scaled(q->y_coord));
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
   @<Check the control points against the bounding box and set |wavy:=true|
     if any of them lie outside@>;
   if (wavy) {
     if (c == mp_x_code) {
-      del1 = mp_right_x (p) - mp_x_coord (p);
-      del2 = mp_left_x (q) - mp_right_x (p);
-      del3 = mp_x_coord (q) - mp_left_x (q);
+      del1 = number_to_scaled (p->right_x) - number_to_scaled (p->x_coord);
+      del2 = number_to_scaled(q->left_x) - number_to_scaled (p->right_x);
+      del3 = number_to_scaled(q->x_coord) - number_to_scaled(q->left_x);
     } else {
-      del1 = mp_right_y (p) - mp_y_coord (p);
-      del2 = mp_left_y (q) - mp_right_y (p);
-      del3 = mp_y_coord (q) - mp_left_y (q);
+      del1 = number_to_scaled (p->right_y) - number_to_scaled (p->y_coord);
+      del2 = number_to_scaled(q->left_y) - number_to_scaled (p->right_y);
+      del3 = number_to_scaled(q->y_coord) - number_to_scaled(q->left_y);
     }
     @<Scale up |del1|, |del2|, and |del3| for greater accuracy;
       also set |del| to the first nonzero element of |(del1,del2,del3)|@>;
@@ -8108,16 +8121,16 @@ if (x > mp->bbmax[c])
 @ @<Check the control points against the bounding box and set...@>=
 wavy = true;
 if (c == mp_x_code) {
-  if (mp->bbmin[c] <= mp_right_x (p))
-    if (mp_right_x (p) <= mp->bbmax[c])
-      if (mp->bbmin[c] <= mp_left_x (q))
-        if (mp_left_x (q) <= mp->bbmax[c])
+  if (mp->bbmin[c] <= number_to_scaled (p->right_x))
+    if (number_to_scaled (p->right_x) <= mp->bbmax[c])
+      if (mp->bbmin[c] <= number_to_scaled (q->left_x))
+        if (number_to_scaled (q->left_x) <= mp->bbmax[c])
           wavy = false;
 } else {
-  if (mp->bbmin[c] <= mp_right_y (p))
-    if (mp_right_y (p) <= mp->bbmax[c])
-      if (mp->bbmin[c] <= mp_left_y (q))
-        if (mp_left_y (q) <= mp->bbmax[c])
+  if (mp->bbmin[c] <= number_to_scaled (p->right_y))
+    if (number_to_scaled (p->right_y) <= mp->bbmax[c])
+      if (mp->bbmin[c] <= number_to_scaled (q->left_y))
+        if (number_to_scaled (q->left_y) <= mp->bbmax[c])
           wavy = false;
 }
 
@@ -8180,8 +8193,8 @@ must cut it to zero to avoid confusion.
 @c
 static void mp_path_bbox (MP mp, mp_knot h) {
   mp_knot p, q; /* a pair of adjacent knots */
-  mp_minx = mp_x_coord (h);
-  mp_miny = mp_y_coord (h);
+  mp_minx = number_to_scaled(h->x_coord);
+  mp_miny = number_to_scaled(h->y_coord);
   mp_maxx = mp_minx;
   mp_maxy = mp_miny;
   p = h;
@@ -8558,12 +8571,12 @@ static scaled mp_get_arc_length (MP mp, mp_knot h) {
   while (mp_right_type (p) != mp_endpoint) {
     q = mp_next_knot (p);
     a =
-      mp_do_arc_test (mp, mp_right_x (p) - mp_x_coord (p),
-                      mp_right_y (p) - mp_y_coord (p),
-                      mp_left_x (q) - mp_right_x (p),
-                      mp_left_y (q) - mp_right_y (p),
-                      mp_x_coord (q) - mp_left_x (q),
-                      mp_y_coord (q) - mp_left_y (q), EL_GORDO);
+      mp_do_arc_test (mp, number_to_scaled (p->right_x) - number_to_scaled (p->x_coord),
+                      number_to_scaled (p->right_y) - number_to_scaled (p->y_coord),
+                      number_to_scaled(q->left_x) - number_to_scaled (p->right_x),
+                      number_to_scaled(q->left_y) - number_to_scaled (p->right_y),
+                      number_to_scaled(q->x_coord) - number_to_scaled(q->left_x),
+                      number_to_scaled(q->y_coord) - number_to_scaled(q->left_y), EL_GORDO);
     a_tot = mp_slow_add (mp, a, a_tot);
     if (q == h)
       break;
@@ -8604,12 +8617,12 @@ static scaled mp_get_arc_time (MP mp, mp_knot h, scaled arc0) {
   while ((mp_right_type (p) != mp_endpoint) && (arc > 0)) {
     q = mp_next_knot (p);
     t =
-      mp_do_arc_test (mp, mp_right_x (p) - mp_x_coord (p),
-                      mp_right_y (p) - mp_y_coord (p),
-                      mp_left_x (q) - mp_right_x (p),
-                      mp_left_y (q) - mp_right_y (p),
-                      mp_x_coord (q) - mp_left_x (q),
-                      mp_y_coord (q) - mp_left_y (q), arc);
+      mp_do_arc_test (mp, number_to_scaled (p->right_x) - number_to_scaled (p->x_coord),
+                      number_to_scaled (p->right_y) - number_to_scaled (p->y_coord),
+                      number_to_scaled(q->left_x) - number_to_scaled (p->right_x),
+                      number_to_scaled(q->left_y) - number_to_scaled (p->right_y),
+                      number_to_scaled(q->x_coord) - number_to_scaled(q->left_x),
+                      number_to_scaled(q->y_coord) - number_to_scaled(q->left_y), arc);
     @<Update |arc| and |t_tot| after |do_arc_test| has just returned |t|@>;
     if (q == h) {
       @<Update |t_tot| and |arc| to avoid going around the cyclic
@@ -8677,8 +8690,8 @@ counter-clockwise order.
 Since we will need to scan pen polygons both forward and backward, a pen
 should be represented as a doubly linked ring of knot nodes.  There is
 room for the extra back pointer because we do not need the
-|mp_left_type| or |mp_right_type| fields.  In fact, we don't need the |mp_left_x|,
-|mp_left_y|, |mp_right_x|, or |mp_right_y| fields either but we leave these alone
+|mp_left_type| or |mp_right_type| fields.  In fact, we don't need the |left_x|,
+|left_y|, |right_x|, or |right_y| fields either but we leave these alone
 so that certain procedures can operate on both pens and paths.  In particular,
 pens can be copied using |copy_path| and recycled using |toss_knot_list|.
 
@@ -8723,12 +8736,12 @@ static mp_knot mp_get_pen_circle (MP mp, scaled diam) {
   mp_next_knot (h) = h;
   mp_prev_knot (h) = h;
   mp_originator (h) = mp_program_code;
-  mp_x_coord (h) = 0;
-  mp_y_coord (h) = 0;
-  mp_left_x (h) = diam;
-  mp_left_y (h) = 0;
-  mp_right_x (h) = 0;
-  mp_right_y (h) = diam;
+  set_number_from_scaled(h->x_coord, 0);
+  set_number_from_scaled(h->y_coord, 0);
+  set_number_from_scaled(h->left_x, diam);
+  set_number_from_scaled(h->left_y, 0);
+  set_number_from_scaled(h->right_x, 0);
+  set_number_from_scaled(h->right_y, diam);
   return h;
 }
 
@@ -8736,14 +8749,14 @@ static mp_knot mp_get_pen_circle (MP mp, scaled diam) {
 @ If the polygon being returned by |make_pen| has only one vertex, it will
 be interpreted as an elliptical pen.  This is no problem since a degenerate
 polygon can equally well be thought of as a degenerate ellipse.  We need only
-initialize the |mp_left_x|, |mp_left_y|, |mp_right_x|, and |mp_right_y| fields.
+initialize the |left_x|, |left_y|, |right_x|, and |right_y| fields.
 
 @<Make sure |h| isn't confused with an elliptical pen@>=
 if (pen_is_elliptical (h)) {
-  mp_left_x (h) = mp_x_coord (h);
-  mp_left_y (h) = mp_y_coord (h);
-  mp_right_x (h) = mp_x_coord (h);
-  mp_right_y (h) = mp_y_coord (h);
+  number_clone(h->left_x, h->x_coord);
+  number_clone(h->left_y, h->y_coord);
+  number_clone(h->right_x, h->x_coord);
+  number_clone(h->right_y, h->y_coord);
 }
 
 @ Printing a polygonal pen is very much like printing a path
@@ -8759,7 +8772,7 @@ void mp_pr_pen (MP mp, mp_knot h) {
   } else {
     p = h;
     do {
-      mp_print_two (mp, mp_x_coord (p), mp_y_coord (p));
+      mp_print_two (mp, number_to_scaled (p->x_coord), number_to_scaled (p->y_coord));
       mp_print_nl (mp, " .. ");
       @<Advance |p| making sure the links are OK and |return| if there is
         a problem@>;
@@ -8781,17 +8794,17 @@ p = q
 @ @<Print the elliptical pen |h|@>=
 {
   mp_print (mp, "pencircle transformed (");
-  mp_print_scaled (mp, mp_x_coord (h));
+  mp_print_scaled (mp, number_to_scaled(h->x_coord));
   mp_print_char (mp, xord (','));
-  mp_print_scaled (mp, mp_y_coord (h));
+  mp_print_scaled (mp, number_to_scaled(h->y_coord));
   mp_print_char (mp, xord (','));
-  mp_print_scaled (mp, mp_left_x (h) - mp_x_coord (h));
+  mp_print_scaled (mp, number_to_scaled(h->left_x) - number_to_scaled(h->x_coord));
   mp_print_char (mp, xord (','));
-  mp_print_scaled (mp, mp_right_x (h) - mp_x_coord (h));
+  mp_print_scaled (mp, number_to_scaled(h->right_x) - number_to_scaled(h->x_coord));
   mp_print_char (mp, xord (','));
-  mp_print_scaled (mp, mp_left_y (h) - mp_y_coord (h));
+  mp_print_scaled (mp, number_to_scaled(h->left_y) - number_to_scaled(h->y_coord));
   mp_print_char (mp, xord (','));
-  mp_print_scaled (mp, mp_right_y (h) - mp_y_coord (h));
+  mp_print_scaled (mp, number_to_scaled(h->right_y) - number_to_scaled(h->y_coord));
   mp_print_char (mp, xord (')'));
 }
 
@@ -8836,10 +8849,10 @@ static void mp_make_path (MP mp, mp_knot h) {
 
 
 @ @<copy the coordinates of knot |p| into its control points@>=
-mp_left_x (p) = mp_x_coord (p);
-mp_left_y (p) = mp_y_coord (p);
-mp_right_x (p) = mp_x_coord (p);
-mp_right_y (p) = mp_y_coord (p)
+number_clone (p->left_x, p->x_coord);
+number_clone (p->left_y, p->y_coord);
+number_clone (p->right_x, p->x_coord);
+number_clone (p->right_y, p->y_coord)
  
 
 @ We need an eight knot path to get a good approximation to an ellipse.
@@ -8861,12 +8874,12 @@ mp_right_y (p) = mp_y_coord (p)
 
 
 @ @<Extract the transformation parameters from the elliptical pen~|h|@>=
-center_x = mp_x_coord (h);
-center_y = mp_y_coord (h);
-width_x = mp_left_x (h) - center_x;
-width_y = mp_left_y (h) - center_y;
-height_x = mp_right_x (h) - center_x;
-height_y = mp_right_y (h) - center_y
+center_x = number_to_scaled(h->x_coord);
+center_y = number_to_scaled(h->y_coord);
+width_x = number_to_scaled(h->left_x) - center_x;
+width_y = number_to_scaled(h->left_y) - center_y;
+height_x = number_to_scaled(h->right_x) - center_x;
+height_y = number_to_scaled(h->right_y) - center_y
 
 @ @<Other local variables in |make_path|@>=
 scaled center_x, center_y;      /* translation parameters for an elliptical pen */
@@ -8882,18 +8895,18 @@ to use there.
 
 @<Initialize |p| as the |k|th knot of a circle of unit diameter,...@>=
 kk = (k + 6) % 8;
-mp_x_coord (p) = center_x + mp_take_fraction (mp, mp->half_cos[k], width_x)
-  + mp_take_fraction (mp, mp->half_cos[kk], height_x);
-mp_y_coord (p) = center_y + mp_take_fraction (mp, mp->half_cos[k], width_y)
-  + mp_take_fraction (mp, mp->half_cos[kk], height_y);
+set_number_from_scaled (p->x_coord, center_x + mp_take_fraction (mp, mp->half_cos[k], width_x)
+  + mp_take_fraction (mp, mp->half_cos[kk], height_x));
+set_number_from_scaled (p->y_coord, center_y + mp_take_fraction (mp, mp->half_cos[k], width_y)
+  + mp_take_fraction (mp, mp->half_cos[kk], height_y));
 dx = -mp_take_fraction (mp, mp->d_cos[kk], width_x)
   + mp_take_fraction (mp, mp->d_cos[k], height_x);
 dy = -mp_take_fraction (mp, mp->d_cos[kk], width_y)
   + mp_take_fraction (mp, mp->d_cos[k], height_y);
-mp_right_x (p) = mp_x_coord (p) + dx;
-mp_right_y (p) = mp_y_coord (p) + dy;
-mp_left_x (p) = mp_x_coord (p) - dx;
-mp_left_y (p) = mp_y_coord (p) - dy;
+set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + dx);
+set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + dy);
+set_number_from_scaled (p->left_x, number_to_scaled (p->x_coord) - dx);
+set_number_from_scaled (p->left_y, number_to_scaled (p->y_coord) - dy);
 mp_left_type (p) = mp_explicit;
 mp_right_type (p) = mp_explicit;
 mp_originator (p) = mp_program_code
@@ -8969,8 +8982,9 @@ mp_knot mp_convex_hull (MP mp, mp_knot h) {                               /* Mak
 l = h;
 p = mp_next_knot (h);
 while (p != h) {
-  if (mp_x_coord (p) <= mp_x_coord (l))
-    if ((mp_x_coord (p) < mp_x_coord (l)) || (mp_y_coord (p) < mp_y_coord (l)))
+  if (number_to_scaled (p->x_coord) <= number_to_scaled(l->x_coord))
+    if ((number_to_scaled (p->x_coord) < number_to_scaled(l->x_coord)) || 
+        (number_to_scaled (p->y_coord) < number_to_scaled(l->y_coord)))
       l = p;
   p = mp_next_knot (p);
 }
@@ -8980,22 +8994,23 @@ while (p != h) {
 r = h;
 p = mp_next_knot (h);
 while (p != h) {
-  if (mp_x_coord (p) >= mp_x_coord (r))
-    if ((mp_x_coord (p) > mp_x_coord (r)) || (mp_y_coord (p) > mp_y_coord (r)))
+  if (number_to_scaled (p->x_coord) >= number_to_scaled(r->x_coord))
+    if ((number_to_scaled (p->x_coord) > number_to_scaled(r->x_coord)) || 
+        (number_to_scaled (p->y_coord) > number_to_scaled(r->y_coord)))
       r = p;
   p = mp_next_knot (p);
 }
 
 
 @ @<Find any knots on the path from |l| to |r| above the |l|-|r| line...@>=
-dx = mp_x_coord (r) - mp_x_coord (l);
-dy = mp_y_coord (r) - mp_y_coord (l);
+dx = number_to_scaled(r->x_coord) - number_to_scaled(l->x_coord);
+dy = number_to_scaled(r->y_coord) - number_to_scaled(l->y_coord);
 p = mp_next_knot (l);
 while (p != r) {
 q = mp_next_knot (p);
 if (mp_ab_vs_cd
-    (mp, dx, mp_y_coord (p) - mp_y_coord (l), dy,
-     mp_x_coord (p) - mp_x_coord (l)) > 0)
+    (mp, dx, number_to_scaled (p->y_coord) - number_to_scaled(l->y_coord), dy,
+     number_to_scaled (p->x_coord) - number_to_scaled(l->x_coord)) > 0)
   mp_move_knot (mp, p, r);
 p = q;
 }
@@ -9024,8 +9039,8 @@ p = s;
 while (p != l) {
   q = mp_next_knot (p);
   if (mp_ab_vs_cd
-      (mp, dx, mp_y_coord (p) - mp_y_coord (l), dy,
-       mp_x_coord (p) - mp_x_coord (l)) < 0)
+      (mp, dx, number_to_scaled (p->y_coord) - number_to_scaled(l->y_coord), dy,
+       number_to_scaled (p->x_coord) - number_to_scaled(l->x_coord)) < 0)
     mp_move_knot (mp, p, l);
   p = q;
 }
@@ -9039,10 +9054,10 @@ choice of |l| and |r|.
 p = mp_next_knot (l);
 while (p != r) {
   q = mp_prev_knot (p);
-  while (mp_x_coord (q) > mp_x_coord (p))
+  while (number_to_scaled(q->x_coord) > number_to_scaled (p->x_coord))
     q = mp_prev_knot (q);
-  while (mp_x_coord (q) == mp_x_coord (p)) {
-    if (mp_y_coord (q) > mp_y_coord (p))
+  while (number_to_scaled(q->x_coord) == number_to_scaled (p->x_coord)) {
+    if (number_to_scaled(q->y_coord) > number_to_scaled (p->y_coord))
       q = mp_prev_knot (q);
     else
       break;
@@ -9060,10 +9075,10 @@ while (p != r) {
 p = mp_next_knot (r);
 while (p != l) {
   q = mp_prev_knot (p);
-  while (mp_x_coord (q) < mp_x_coord (p))
+  while (number_to_scaled(q->x_coord) < number_to_scaled (p->x_coord))
     q = mp_prev_knot (q);
-  while (mp_x_coord (q) == mp_x_coord (p)) {
-    if (mp_y_coord (q) < mp_y_coord (p))
+  while (number_to_scaled(q->x_coord) == number_to_scaled (p->x_coord)) {
+    if (number_to_scaled(q->y_coord) < number_to_scaled (p->y_coord))
       q = mp_prev_knot (q);
     else
       break;
@@ -9086,16 +9101,16 @@ where the |then| clause is not executed.
   p = l;
   q = mp_next_knot (l);
   while (1) {
-    dx = mp_x_coord (q) - mp_x_coord (p);
-    dy = mp_y_coord (q) - mp_y_coord (p);
+    dx = number_to_scaled(q->x_coord) - number_to_scaled (p->x_coord);
+    dy = number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord);
     p = q;
     q = mp_next_knot (q);
     if (p == l)
       break;
     if (p != r)
       if (mp_ab_vs_cd
-          (mp, dx, mp_y_coord (q) - mp_y_coord (p), dy,
-           mp_x_coord (q) - mp_x_coord (p)) <= 0) {
+          (mp, dx, number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord), dy,
+           number_to_scaled(q->x_coord) - number_to_scaled (p->x_coord)) <= 0) {
         @<Remove knot |p| and back up |p| and |q| but don't go past |l|@>;
       }
   }
@@ -9137,17 +9152,17 @@ static void mp_find_offset (MP mp, scaled x, scaled y, mp_knot h) {
       q = mp_next_knot (q);
     } while (!
              (mp_ab_vs_cd
-              (mp, mp_x_coord (q) - mp_x_coord (p), y,
-               mp_y_coord (q) - mp_y_coord (p), x) >= 0));
+              (mp, number_to_scaled(q->x_coord) - number_to_scaled (p->x_coord), y,
+               number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord), x) >= 0));
     do {
       p = q;
       q = mp_next_knot (q);
     } while (!
              (mp_ab_vs_cd
-              (mp, mp_x_coord (q) - mp_x_coord (p), y,
-               mp_y_coord (q) - mp_y_coord (p), x) <= 0));
-    mp->cur_x = mp_x_coord (p);
-    mp->cur_y = mp_y_coord (p);
+              (mp, number_to_scaled(q->x_coord) - number_to_scaled (p->x_coord), y,
+               number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord), x) <= 0));
+    mp->cur_x = number_to_scaled (p->x_coord);
+    mp->cur_y = number_to_scaled (p->y_coord);
   }
 }
 
@@ -9158,8 +9173,8 @@ scaled cur_y;   /* all-purpose return value registers */
 
 @ @<Find the offset for |(x,y)| on the elliptical pen~|h|@>=
 if ((x == 0) && (y == 0)) {
-  mp->cur_x = mp_x_coord (h);
-  mp->cur_y = mp_y_coord (h);
+  mp->cur_x = number_to_scaled(h->x_coord);
+  mp->cur_y = number_to_scaled(h->y_coord);
 } else {
   @<Find the non-constant part of the transformation for |h|@>;
   while ((abs (x) < fraction_half) && (abs (y) < fraction_half)) {
@@ -9169,19 +9184,19 @@ if ((x == 0) && (y == 0)) {
   @<Make |(xx,yy)| the offset on the untransformed \&{pencircle} for the
     untransformed version of |(x,y)|@>;
   mp->cur_x =
-    mp_x_coord (h) + mp_take_fraction (mp, xx, wx) + mp_take_fraction (mp, yy,
+    number_to_scaled(h->x_coord) + mp_take_fraction (mp, xx, wx) + mp_take_fraction (mp, yy,
                                                                        hx);
   mp->cur_y =
-    mp_y_coord (h) + mp_take_fraction (mp, xx, wy) + mp_take_fraction (mp, yy,
+    number_to_scaled(h->y_coord) + mp_take_fraction (mp, xx, wy) + mp_take_fraction (mp, yy,
                                                                        hy);
 }
 
 
 @ @<Find the non-constant part of the transformation for |h|@>=
-wx = mp_left_x (h) - mp_x_coord (h);
-wy = mp_left_y (h) - mp_y_coord (h);
-hx = mp_right_x (h) - mp_x_coord (h);
-hy = mp_right_y (h) - mp_y_coord (h)
+wx = number_to_scaled(h->left_x)  - number_to_scaled(h->x_coord);
+wy = number_to_scaled(h->left_y)  - number_to_scaled(h->y_coord);
+hx = number_to_scaled(h->right_x) - number_to_scaled(h->x_coord);
+hy = number_to_scaled(h->right_y) - number_to_scaled(h->y_coord)
  
 
 @ @<Make |(xx,yy)| the offset on the untransformed \&{pencircle} for the...@>=
@@ -9203,20 +9218,20 @@ static void mp_pen_bbox (MP mp, mp_knot h) {
   if (pen_is_elliptical (h)) {
     @<Find the bounding box of an elliptical pen@>;
   } else {
-    mp_minx = mp_x_coord (h);
+    mp_minx = number_to_scaled(h->x_coord);
     mp_maxx = mp_minx;
-    mp_miny = mp_y_coord (h);
+    mp_miny = number_to_scaled(h->y_coord);
     mp_maxy = mp_miny;
     p = mp_next_knot (h);
     while (p != h) {
-      if (mp_x_coord (p) < mp_minx)
-        mp_minx = mp_x_coord (p);
-      if (mp_y_coord (p) < mp_miny)
-        mp_miny = mp_y_coord (p);
-      if (mp_x_coord (p) > mp_maxx)
-        mp_maxx = mp_x_coord (p);
-      if (mp_y_coord (p) > mp_maxy)
-        mp_maxy = mp_y_coord (p);
+      if (number_to_scaled (p->x_coord) < mp_minx)
+        mp_minx = number_to_scaled (p->x_coord);
+      if (number_to_scaled (p->y_coord) < mp_miny)
+        mp_miny = number_to_scaled (p->y_coord);
+      if (number_to_scaled (p->x_coord) > mp_maxx)
+        mp_maxx = number_to_scaled (p->x_coord);
+      if (number_to_scaled (p->y_coord) > mp_maxy)
+        mp_maxy = number_to_scaled (p->y_coord);
       p = mp_next_knot (p);
     }
   }
@@ -9227,10 +9242,10 @@ static void mp_pen_bbox (MP mp, mp_knot h) {
 {
   mp_find_offset (mp, 0, fraction_one, h);
   mp_maxx = mp->cur_x;
-  mp_minx = 2 * mp_x_coord (h) - mp->cur_x;
+  mp_minx = 2 * number_to_scaled(h->x_coord) - mp->cur_x;
   mp_find_offset (mp, -fraction_one, 0, h);
   mp_maxy = mp->cur_y;
-  mp_miny = 2 * mp_y_coord (h) - mp->cur_y;
+  mp_miny = 2 * number_to_scaled (h->y_coord) - mp->cur_y;
 }
 
 
@@ -9494,10 +9509,10 @@ static scaled mp_get_pen_scale (MP mp, mp_knot p) {
   if (p == NULL)
     return 0;
   return mp_sqrt_det (mp,
-                      mp_left_x (p) - mp_x_coord (p),
-                      mp_right_x (p) - mp_x_coord (p),
-                      mp_left_y (p) - mp_y_coord (p),
-                      mp_right_y (p) - mp_y_coord (p));
+                      number_to_scaled (p->left_x) - number_to_scaled (p->x_coord),
+                      number_to_scaled (p->right_x) - number_to_scaled (p->x_coord),
+                      number_to_scaled (p->left_y) - number_to_scaled (p->y_coord),
+                      number_to_scaled (p->right_y) - number_to_scaled (p->y_coord));
 }
 
 
@@ -10471,7 +10486,7 @@ static mp_edge_header_node mp_make_dashes (MP mp, mp_edge_header_node h) { /* re
     pp = mp_path_p ((mp_stroked_node) p);
     if (p0 == NULL) {
       p0 = p;
-      y0 = mp_y_coord (pp);
+      y0 = number_to_scaled (pp->y_coord);
     }
     @<Make |d| point to a new dash node created from stroke |p| and path |pp|
       or |goto not_found| if there is an error@>;
@@ -10540,12 +10555,12 @@ if (mp_dash_p (p) == NULL)
   dash_info (d) = NULL;
 else
   dash_info (d) = p;
-if (mp_x_coord (pp) < mp_x_coord (rr)) {
-  set_number_from_scaled(d->start_x, mp_x_coord (pp));
-  set_number_from_scaled(d->stop_x, mp_x_coord (rr));
+if (number_to_scaled (pp->x_coord) < number_to_scaled (rr->x_coord)) {
+  number_clone(d->start_x, pp->x_coord);
+  number_clone(d->stop_x, rr->x_coord);
 } else {
-  set_number_from_scaled(d->start_x, mp_x_coord (rr));
-  set_number_from_scaled(d->stop_x, mp_x_coord (pp));
+  number_clone(d->start_x, rr->x_coord);
+  number_clone(d->stop_x, pp->x_coord);
 }
 
 
@@ -10553,10 +10568,10 @@ if (mp_x_coord (pp) < mp_x_coord (rr)) {
 monotone in $x$ but is reversed relative to the path from |pp| to |qq|.
 
 @<Check for retracing between knots |qq| and |rr| and |goto not_found|...@>=
-x0 = mp_x_coord (qq);
-x1 = mp_right_x (qq);
-x2 = mp_left_x (rr);
-x3 = mp_x_coord (rr);
+x0 = number_to_scaled(qq->x_coord);
+x1 = number_to_scaled(qq->right_x);
+x2 = number_to_scaled(rr->left_x);
+x3 = number_to_scaled(rr->x_coord);
 if ((x0 > x1) || (x1 > x2) || (x2 > x3)) {
   if ((x0 < x1) || (x1 < x2) || (x2 < x3)) {
     if (mp_ab_vs_cd (mp, x2 - x1, x2 - x1, x1 - x0, x3 - x2) > 0) {
@@ -10565,8 +10580,8 @@ if ((x0 > x1) || (x1 > x2) || (x2 > x3)) {
     }
   }
 }
-if ((mp_x_coord (pp) > x0) || (x0 > x3)) {
-  if ((mp_x_coord (pp) < x0) || (x0 < x3)) {
+if ((number_to_scaled (pp->x_coord) > x0) || (x0 > x3)) {
+  if ((number_to_scaled (pp->x_coord) < x0) || (x0 < x3)) {
     mp_x_retrace_error (mp);
     goto NOT_FOUND;
   }
@@ -10779,22 +10794,22 @@ static void mp_box_ends (MP mp, mp_knot p, mp_knot pp, mp_edge_header_node h) {
 
 @ @<Make |(dx,dy)| the final direction for the path segment from...@>=
 if (q == mp_next_knot (p)) {
-  dx = mp_x_coord (p) - mp_right_x (p);
-  dy = mp_y_coord (p) - mp_right_y (p);
+  dx = number_to_scaled (p->x_coord) - number_to_scaled (p->right_x);
+  dy = number_to_scaled (p->y_coord) - number_to_scaled (p->right_y);
   if ((dx == 0) && (dy == 0)) {
-    dx = mp_x_coord (p) - mp_left_x (q);
-    dy = mp_y_coord (p) - mp_left_y (q);
+    dx = number_to_scaled (p->x_coord) - number_to_scaled(q->left_x);
+    dy = number_to_scaled (p->y_coord) - number_to_scaled(q->left_y);
   }
 } else {
-  dx = mp_x_coord (p) - mp_left_x (p);
-  dy = mp_y_coord (p) - mp_left_y (p);
+  dx = number_to_scaled (p->x_coord) - number_to_scaled (p->left_x);
+  dy = number_to_scaled (p->y_coord) - number_to_scaled (p->left_y);
   if ((dx == 0) && (dy == 0)) {
-    dx = mp_x_coord (p) - mp_right_x (q);
-    dy = mp_y_coord (p) - mp_right_y (q);
+    dx = number_to_scaled (p->x_coord) - number_to_scaled(q->right_x);
+    dy = number_to_scaled (p->y_coord) - number_to_scaled(q->right_y);
   }
 }
-dx = mp_x_coord (p) - mp_x_coord (q);
-dy = mp_y_coord (p) - mp_y_coord (q)
+dx = number_to_scaled (p->x_coord) - number_to_scaled(q->x_coord);
+dy = number_to_scaled (p->y_coord) - number_to_scaled(q->y_coord)
  
 
 @ @<Normalize the direction |(dx,dy)| and find the pen offset |(xx,yy)|@>=
@@ -10813,12 +10828,12 @@ mp_take_fraction (mp, xx - mp->cur_x, dx) + mp_take_fraction (mp,
 if (((d < 0) && (i == 1)) || ((d > 0) && (i == 2)))
   mp_confusion (mp, "box_ends");
 @:this can't happen box ends}{\quad\\{box\_ends}@>;
-z = mp_x_coord (p) + mp->cur_x + mp_take_fraction (mp, d, dx);
+z = number_to_scaled (p->x_coord) + mp->cur_x + mp_take_fraction (mp, d, dx);
 if (z < number_to_scaled(h->minx))
   set_number_from_scaled(h->minx, z);
 if (z > number_to_scaled(h->maxx))
   set_number_from_scaled(h->maxx, z);
-z = mp_y_coord (p) + mp->cur_y + mp_take_fraction (mp, d, dy);
+z = number_to_scaled (p->y_coord) + mp->cur_y + mp_take_fraction (mp, d, dy);
 if (z < number_to_scaled(h->miny))
   set_number_from_scaled(h->miny, z);
 if (z > number_to_scaled(h->maxy))
@@ -11131,11 +11146,14 @@ consistent with the pen offset~|h|.  If this is wrong, it can be corrected
 later.
 
 @<Initialize the incoming direction and pen offset at |c|@>=
-dxin = mp_x_coord (mp_next_knot (h)) - mp_x_coord (mp_prev_knot (h));
-dyin = mp_y_coord (mp_next_knot (h)) - mp_y_coord (mp_prev_knot (h));
+{mp_knot hn = mp_next_knot (h);
+mp_knot hp = mp_prev_knot (h);
+dxin = number_to_scaled(hn->x_coord) - number_to_scaled(hp->x_coord);
+dyin = number_to_scaled(hn->y_coord) - number_to_scaled(hp->y_coord);
 if ((dxin == 0) && (dyin == 0)) {
-dxin = mp_y_coord (mp_prev_knot (h)) - mp_y_coord (h);
-dyin = mp_x_coord (h) - mp_x_coord (mp_prev_knot (h));
+dxin = number_to_scaled(hp->y_coord) - number_to_scaled(h->y_coord);
+dyin = number_to_scaled(h->x_coord) - number_to_scaled(hp->x_coord);
+}
 }
 w0 = h
 
@@ -11153,9 +11171,12 @@ on Sarovar.)
 q0 = q;
 do {
   r = mp_next_knot (p);
-  if (mp_x_coord (p) == mp_right_x (p) && mp_y_coord (p) == mp_right_y (p) &&
-      mp_x_coord (p) == mp_left_x (r) && mp_y_coord (p) == mp_left_y (r) &&
-      mp_x_coord (p) == mp_x_coord (r) && mp_y_coord (p) == mp_y_coord (r) &&
+  if (number_equal (p->x_coord, p->right_x) &&
+      number_equal (p->y_coord, p->right_y) &&
+      number_equal (p->x_coord, r->left_x) && 
+      number_equal (p->y_coord, r->left_y) &&
+      number_equal (p->x_coord, r->x_coord) && 
+      number_equal (p->y_coord, r->y_coord) &&
       r != p) {
     @<Remove the cubic following |p| and update the data structures
         to merge |r| into |p|@>;
@@ -11206,18 +11227,18 @@ void mp_split_cubic (MP mp, mp_knot p, fraction t) {                            
   mp_originator (r) = mp_program_code;
   mp_left_type (r) = mp_explicit;
   mp_right_type (r) = mp_explicit;
-  v = t_of_the_way (mp_right_x (p), mp_left_x (q));
-  mp_right_x (p) = t_of_the_way (mp_x_coord (p), mp_right_x (p));
-  mp_left_x (q) = t_of_the_way (mp_left_x (q), mp_x_coord (q));
-  mp_left_x (r) = t_of_the_way (mp_right_x (p), v);
-  mp_right_x (r) = t_of_the_way (v, mp_left_x (q));
-  mp_x_coord (r) = t_of_the_way (mp_left_x (r), mp_right_x (r));
-  v = t_of_the_way (mp_right_y (p), mp_left_y (q));
-  mp_right_y (p) = t_of_the_way (mp_y_coord (p), mp_right_y (p));
-  mp_left_y (q) = t_of_the_way (mp_left_y (q), mp_y_coord (q));
-  mp_left_y (r) = t_of_the_way (mp_right_y (p), v);
-  mp_right_y (r) = t_of_the_way (v, mp_left_y (q));
-  mp_y_coord (r) = t_of_the_way (mp_left_y (r), mp_right_y (r));
+  v = t_of_the_way (number_to_scaled (p->right_x), number_to_scaled (q->left_x));
+  set_number_from_scaled (p->right_x, t_of_the_way (number_to_scaled (p->x_coord), number_to_scaled (p->right_x)));
+  set_number_from_scaled (q->left_x, t_of_the_way (number_to_scaled (q->left_x), number_to_scaled (q->x_coord)));
+  set_number_from_scaled (r->left_x, t_of_the_way (number_to_scaled (p->right_x), v));
+  set_number_from_scaled (r->right_x, t_of_the_way (v, number_to_scaled (q->left_x)));
+  set_number_from_scaled (r->x_coord, t_of_the_way (number_to_scaled (r->left_x), number_to_scaled (r->right_x)));
+  v = t_of_the_way (number_to_scaled (p->right_y), number_to_scaled (q->left_y));
+  set_number_from_scaled (p->right_y, t_of_the_way (number_to_scaled (p->y_coord), number_to_scaled (p->right_y)));
+  set_number_from_scaled (q->left_y, t_of_the_way (number_to_scaled (q->left_y), number_to_scaled (q->y_coord)));
+  set_number_from_scaled (r->left_y, t_of_the_way (number_to_scaled (p->right_y), v));
+  set_number_from_scaled (r->right_y, t_of_the_way (v, number_to_scaled (q->left_y)));
+  set_number_from_scaled (r->y_coord, t_of_the_way (number_to_scaled (r->left_y), number_to_scaled (r->right_y)));
 }
 
 
@@ -11232,8 +11253,8 @@ void mp_remove_cubic (MP mp, mp_knot p) {                               /* remov
   (void) mp;
   q = mp_next_knot (p);
   mp_next_knot (p) = mp_next_knot (q);
-  mp_right_x (p) = mp_right_x (q);
-  mp_right_y (p) = mp_right_y (q);
+  number_clone (p->right_x, q->right_x);
+  number_clone (p->right_y, q->right_y);
   mp_xfree (q);
 }
 
@@ -11309,12 +11330,12 @@ fraction t;     /* where the derivative passes through zero */
 fraction s;     /* a temporary value */
 
 @ @<Prepare for derivative computations...@>=
-x0 = mp_right_x (p) - mp_x_coord (p);
-x2 = mp_x_coord (q) - mp_left_x (q);
-x1 = mp_left_x (q) - mp_right_x (p);
-y0 = mp_right_y (p) - mp_y_coord (p);
-y2 = mp_y_coord (q) - mp_left_y (q);
-y1 = mp_left_y (q) - mp_right_y (p);
+x0 = number_to_scaled (p->right_x) - number_to_scaled (p->x_coord);
+x2 = number_to_scaled (q->x_coord) - number_to_scaled (q->left_x);
+x1 = number_to_scaled (q->left_x) - number_to_scaled (p->right_x);
+y0 = number_to_scaled (p->right_y) - number_to_scaled (p->y_coord);
+y2 = number_to_scaled (q->y_coord) - number_to_scaled (q->left_y);
+y1 = number_to_scaled (q->left_y) - number_to_scaled (p->right_y);
 max_coef = abs (x0);
 if (abs (x1) > max_coef)
   max_coef = abs (x1);
@@ -11408,8 +11429,8 @@ function cross from positive to negative when $d_{k-1}\preceq d(t)\preceq d_k$
 begins to fail.
 
 @<Compute test coefficients |(t0,t1,t2)| for $d(t)$ versus...@>=
-du = mp_x_coord (ww) - mp_x_coord (w);
-dv = mp_y_coord (ww) - mp_y_coord (w);
+du = number_to_scaled (ww->x_coord) - number_to_scaled (w->x_coord);
+dv = number_to_scaled (ww->y_coord) - number_to_scaled (w->y_coord);
 if (abs (du) >= abs (dv)) {
 s = mp_make_fraction (mp, dv, du);
 t0 = mp_take_fraction (mp, x0, s) - y0;
@@ -11549,8 +11570,8 @@ integer mp_get_turn_amt (MP mp, mp_knot w, scaled dx, scaled dy, boolean ccw) {
   if (ccw) {
     ww = mp_next_knot (w);
     do {
-      t = mp_ab_vs_cd (mp, dy, (mp_x_coord (ww) - mp_x_coord (w)),
-                       dx, (mp_y_coord (ww) - mp_y_coord (w)));
+      t = mp_ab_vs_cd (mp, dy, (number_to_scaled (ww->x_coord) - number_to_scaled (w->x_coord)),
+                       dx, (number_to_scaled (ww->y_coord) - number_to_scaled (w->y_coord)));
       if (t < 0)
         break;
       incr (s);
@@ -11559,8 +11580,8 @@ integer mp_get_turn_amt (MP mp, mp_knot w, scaled dx, scaled dy, boolean ccw) {
     } while (t > 0);
   } else {
     ww = mp_prev_knot (w);
-    while (mp_ab_vs_cd (mp, dy, (mp_x_coord (w) - mp_x_coord (ww)),
-                        dx, (mp_y_coord (w) - mp_y_coord (ww))) < 0) {
+    while (mp_ab_vs_cd (mp, dy, (number_to_scaled (w->x_coord) - number_to_scaled (ww->x_coord)),
+                        dx, (number_to_scaled (w->y_coord) - number_to_scaled (ww->y_coord))) < 0) {
       decr (s);
       w = ww;
       ww = mp_prev_knot (ww);
@@ -11718,8 +11739,8 @@ same sign, we pick this as |d_sign|, since it means we have a flex, not a cusp.
 Otherwise we proceed to the cusp code.
 
 @<Check rotation direction based on node position@>=
-u0 = mp_x_coord (q) - mp_x_coord (p);
-u1 = mp_y_coord (q) - mp_y_coord (p);
+u0 = number_to_scaled (q->x_coord) - number_to_scaled (p->x_coord);
+u1 = number_to_scaled (q->y_coord) - number_to_scaled (p->y_coord);
 d_sign = half (mp_ab_vs_cd (mp, dx, u1, u0, dy) +
                mp_ab_vs_cd (mp, u0, dyin, dxin, u1));
 
@@ -11766,9 +11787,9 @@ static void mp_print_spec (MP mp, mp_knot cur_spec, mp_knot cur_pen,
   p = cur_spec;
   w = mp_pen_walk (mp, cur_pen, mp->spec_offset);
   mp_print_ln (mp);
-  mp_print_two (mp, mp_x_coord (cur_spec), mp_y_coord (cur_spec));
+  mp_print_two (mp, number_to_scaled (cur_spec->x_coord), number_to_scaled (cur_spec->y_coord));
   mp_print (mp, " % beginning with offset ");
-  mp_print_two (mp, mp_x_coord (w), mp_y_coord (w));
+  mp_print_two (mp, number_to_scaled (w->x_coord), number_to_scaled (w->y_coord));
   do {
     while (1) {
       q = mp_next_knot (p);
@@ -11793,18 +11814,18 @@ static void mp_print_spec (MP mp, mp_knot cur_spec, mp_knot cur_pen,
   if (mp_knot_info (p) > zero_off)
     mp_print (mp, "counter");
   mp_print (mp, "clockwise to offset ");
-  mp_print_two (mp, mp_x_coord (w), mp_y_coord (w));
+  mp_print_two (mp, number_to_scaled (w->x_coord), number_to_scaled (w->y_coord));
 }
 
 
 @ @<Print the cubic between |p| and |q|@>=
 {
   mp_print_nl (mp, "   ..controls ");
-  mp_print_two (mp, mp_right_x (p), mp_right_y (p));
+  mp_print_two (mp, number_to_scaled (p->right_x), number_to_scaled (p->right_y));
   mp_print (mp, " and ");
-  mp_print_two (mp, mp_left_x (q), mp_left_y (q));
+  mp_print_two (mp, number_to_scaled (q->left_x), number_to_scaled (q->left_y));
   mp_print_nl (mp, " ..");
-  mp_print_two (mp, mp_x_coord (q), mp_y_coord (q));
+  mp_print_two (mp, number_to_scaled (q->x_coord), number_to_scaled (q->y_coord));
 }
 
 
@@ -11850,8 +11871,8 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
   do {
     q = mp_next_knot (p);
     q0 = q;
-    qx = mp_x_coord (q);
-    qy = mp_y_coord (q);
+    qx = number_to_scaled (q->x_coord);
+    qy = number_to_scaled (q->y_coord);
     k = mp_knot_info (q);
     k0 = k;
     w0 = w;
@@ -11862,7 +11883,7 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
     while (k != zero_off) {
       @<Step |w| and move |k| one step closer to |zero_off|@>;
       if ((join_type == 1) || (k == zero_off))
-        q = mp_insert_knot (mp, q, qx + mp_x_coord (w), qy + mp_y_coord (w));
+        q = mp_insert_knot (mp, q, qx + number_to_scaled (w->x_coord), qy + number_to_scaled (w->y_coord));
     };
     if (q != mp_next_knot (p)) {
       @<Set |p=mp_link(p)| and add knots between |p| and |q| as
@@ -11927,12 +11948,12 @@ scaled tmp;     /* a temporary value */
 knot in which case they get shifted at the very end.
 
 @<Add offset |w| to the cubic from |p| to |q|@>=
-mp_right_x (p) = mp_right_x (p) + mp_x_coord (w);
-mp_right_y (p) = mp_right_y (p) + mp_y_coord (w);
-mp_left_x (q) = mp_left_x (q) + mp_x_coord (w);
-mp_left_y (q) = mp_left_y (q) + mp_y_coord (w);
-mp_x_coord (q) = mp_x_coord (q) + mp_x_coord (w);
-mp_y_coord (q) = mp_y_coord (q) + mp_y_coord (w);
+set_number_from_scaled (p->right_x, number_to_scaled (p->right_x) + number_to_scaled (w->x_coord));
+set_number_from_scaled (p->right_y, number_to_scaled (p->right_y) + number_to_scaled (w->y_coord));
+set_number_from_scaled (q->left_x, number_to_scaled (q->left_x) + number_to_scaled (w->x_coord));
+set_number_from_scaled (q->left_y, number_to_scaled (q->left_y) + number_to_scaled (w->y_coord));
+set_number_from_scaled (q->x_coord, number_to_scaled (q->x_coord) + number_to_scaled (w->x_coord));
+set_number_from_scaled (q->y_coord, number_to_scaled (q->y_coord) + number_to_scaled (w->y_coord));
 mp_left_type (q) = mp_explicit;
 mp_right_type (q) = mp_explicit
 
@@ -11960,14 +11981,14 @@ mp_knot mp_insert_knot (MP mp, mp_knot q, scaled x, scaled y) {
   r = mp_new_knot (mp);
   mp_next_knot (r) = mp_next_knot (q);
   mp_next_knot (q) = r;
-  mp_right_x (r) = mp_right_x (q);
-  mp_right_y (r) = mp_right_y (q);
-  mp_x_coord (r) = x;
-  mp_y_coord (r) = y;
-  mp_right_x (q) = mp_x_coord (q);
-  mp_right_y (q) = mp_y_coord (q);
-  mp_left_x (r) = mp_x_coord (r);
-  mp_left_y (r) = mp_y_coord (r);
+  number_clone (r->right_x, q->right_x);
+  number_clone (r->right_y, q->right_y);
+  set_number_from_scaled (r->x_coord, x);
+  set_number_from_scaled (r->y_coord, y);
+  number_clone (q->right_x, q->x_coord);
+  number_clone (q->right_y, q->y_coord);
+  number_clone (r->left_x, r->x_coord);
+  number_clone (r->left_y, r->y_coord);
   mp_left_type (r) = mp_explicit;
   mp_right_type (r) = mp_explicit;
   mp_originator (r) = mp_program_code;
@@ -11988,8 +12009,8 @@ mp_knot mp_insert_knot (MP mp, mp_knot q, scaled x, scaled y) {
         squared join@>;
     }
     if (r != NULL) {
-      mp_right_x (r) = mp_x_coord (r);
-      mp_right_y (r) = mp_y_coord (r);
+      number_clone (r->right_x, r->x_coord);
+      number_clone (r->right_y, r->y_coord);
     }
   }
 }
@@ -12004,12 +12025,12 @@ problems, so we just set |r:=NULL| in that case.
   if (abs (det) < 26844) {
     r = NULL;                   /* sine $<10^{-4}$ */
   } else {
-    tmp = mp_take_fraction (mp, mp_x_coord (q) - mp_x_coord (p), dyout) -
-      mp_take_fraction (mp, mp_y_coord (q) - mp_y_coord (p), dxout);
+    tmp = mp_take_fraction (mp, number_to_scaled (q->x_coord) - number_to_scaled (p->x_coord), dyout) -
+      mp_take_fraction (mp, number_to_scaled (q->y_coord) - number_to_scaled (p->y_coord), dxout);
     tmp = mp_make_fraction (mp, tmp, det);
     r =
-      mp_insert_knot (mp, p, mp_x_coord (p) + mp_take_fraction (mp, tmp, dxin),
-                      mp_y_coord (p) + mp_take_fraction (mp, tmp, dyin));
+      mp_insert_knot (mp, p, number_to_scaled (p->x_coord) + mp_take_fraction (mp, tmp, dxin),
+                      number_to_scaled (p->y_coord) + mp_take_fraction (mp, tmp, dyin));
   }
 }
 
@@ -12019,8 +12040,8 @@ fraction det;   /* a determinant used for mitered join calculations */
 
 @ @<Make |r| the last of two knots inserted between |p| and |q| to form a...@>=
 {
-  ht_x = mp_y_coord (w) - mp_y_coord (w0);
-  ht_y = mp_x_coord (w0) - mp_x_coord (w);
+  ht_x = number_to_scaled (w->y_coord) - number_to_scaled (w0->y_coord);
+  ht_y = number_to_scaled (w0->x_coord) - number_to_scaled (w->x_coord);
   while ((abs (ht_x) < fraction_half) && (abs (ht_y) < fraction_half)) {
     ht_x += ht_x;
     ht_y += ht_y;
@@ -12029,12 +12050,12 @@ fraction det;   /* a determinant used for mitered join calculations */
     product with |(ht_x,ht_y)|@>;
   tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, dxin, ht_x) +
                           mp_take_fraction (mp, dyin, ht_y));
-  r = mp_insert_knot (mp, p, mp_x_coord (p) + mp_take_fraction (mp, tmp, dxin),
-                      mp_y_coord (p) + mp_take_fraction (mp, tmp, dyin));
+  r = mp_insert_knot (mp, p, number_to_scaled (p->x_coord) + mp_take_fraction (mp, tmp, dxin),
+                      number_to_scaled (p->y_coord) + mp_take_fraction (mp, tmp, dyin));
   tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, dxout, ht_x) +
                           mp_take_fraction (mp, dyout, ht_y));
-  r = mp_insert_knot (mp, r, mp_x_coord (q) + mp_take_fraction (mp, tmp, dxout),
-                      mp_y_coord (q) + mp_take_fraction (mp, tmp, dyout));
+  r = mp_insert_knot (mp, r, number_to_scaled (q->x_coord) + mp_take_fraction (mp, tmp, dxout),
+                      number_to_scaled (q->y_coord) + mp_take_fraction (mp, tmp, dyout));
 }
 
 
@@ -12055,8 +12076,8 @@ while (1) {
   @<Step |ww| and move |kk| one step closer to |k0|@>;
   if (kk == k0)
     break;
-  tmp = mp_take_fraction (mp, (mp_x_coord (ww) - mp_x_coord (w0)), ht_x) +
-    mp_take_fraction (mp, (mp_y_coord (ww) - mp_y_coord (w0)), ht_y);
+  tmp = mp_take_fraction (mp, (number_to_scaled (ww->x_coord) - number_to_scaled (w0->x_coord)), ht_x) +
+    mp_take_fraction (mp, (number_to_scaled (ww->y_coord) - number_to_scaled (w0->y_coord)), ht_y);
   if (tmp > max_ht)
     max_ht = tmp;
 }
@@ -12093,10 +12114,10 @@ if (mp_left_type (c) == mp_endpoint) {
 {
   mp_left_type (c) = mp_explicit;
   mp_right_type (c) = mp_explicit;
-  mp_left_x (c) = mp_x_coord (c);
-  mp_left_y (c) = mp_y_coord (c);
-  mp_right_x (c) = mp_x_coord (c);
-  mp_right_y (c) = mp_y_coord (c);
+  number_clone(c->left_x, c->x_coord);
+  number_clone(c->left_y, c->y_coord);
+  number_clone(c->right_x, c->x_coord);
+  number_clone(c->right_y, c->y_coord);
 }
 
 
@@ -12104,17 +12125,17 @@ if (mp_left_type (c) == mp_endpoint) {
 That knot is |p| but if |p<>c|, its coordinates have already been offset by |w|.
 
 @<Set the incoming and outgoing directions at |q|; in case of...@>=
-dxin = mp_x_coord (q) - mp_left_x (q);
-dyin = mp_y_coord (q) - mp_left_y (q);
+dxin = number_to_scaled (q->x_coord) - number_to_scaled (q->left_x);
+dyin = number_to_scaled (q->y_coord) - number_to_scaled (q->left_y);
 if ((dxin == 0) && (dyin == 0)) {
-dxin = mp_x_coord (q) - mp_right_x (p);
-dyin = mp_y_coord (q) - mp_right_y (p);
+dxin = number_to_scaled (q->x_coord) - number_to_scaled (p->right_x);
+dyin = number_to_scaled (q->y_coord) - number_to_scaled (p->right_y);
 if ((dxin == 0) && (dyin == 0)) {
-  dxin = mp_x_coord (q) - mp_x_coord (p);
-  dyin = mp_y_coord (q) - mp_y_coord (p);
+  dxin = number_to_scaled (q->x_coord) - number_to_scaled (p->x_coord);
+  dyin = number_to_scaled (q->y_coord) - number_to_scaled (p->y_coord);
   if (p != c) {                 /* the coordinates of |p| have been offset by |w| */
-    dxin = dxin + mp_x_coord (w);
-    dyin = dyin + mp_y_coord (w);
+    dxin = dxin + number_to_scaled (w->x_coord);
+    dyin = dyin + number_to_scaled (w->y_coord);
   }
 }
 }
@@ -12132,20 +12153,20 @@ if (tmp == 0) {
 and~|r| have already been offset by |h|.
 
 @<Set the outgoing direction at |q|@>=
-dxout = mp_right_x (q) - mp_x_coord (q);
-dyout = mp_right_y (q) - mp_y_coord (q);
+dxout = number_to_scaled (q->right_x) - number_to_scaled (q->x_coord);
+dyout = number_to_scaled (q->right_y) - number_to_scaled (q->y_coord);
 if ((dxout == 0) && (dyout == 0)) {
 r = mp_next_knot (q);
-dxout = mp_left_x (r) - mp_x_coord (q);
-dyout = mp_left_y (r) - mp_y_coord (q);
+dxout = number_to_scaled (r->left_x) - number_to_scaled (q->x_coord);
+dyout = number_to_scaled (r->left_y) - number_to_scaled (q->y_coord);
 if ((dxout == 0) && (dyout == 0)) {
-  dxout = mp_x_coord (r) - mp_x_coord (q);
-  dyout = mp_y_coord (r) - mp_y_coord (q);
+  dxout = number_to_scaled (r->x_coord) - number_to_scaled (q->x_coord);
+  dyout = number_to_scaled (r->y_coord) - number_to_scaled (q->y_coord);
 }
 }
 if (q == c) {
-  dxout = dxout - mp_x_coord (h);
-  dyout = dyout - mp_y_coord (h);
+  dxout = dxout - number_to_scaled (h->x_coord);
+  dyout = dyout - number_to_scaled (h->y_coord);
 }
 tmp = mp_pyth_add (mp, dxout, dyout);
 if (tmp == 0)
@@ -12258,12 +12279,12 @@ angle theta, phi;       /* angles of exit and entry at a knot */
 fraction t;     /* temp storage */
 
 @ @<Set local variables |x1,x2,x3| and |y1,y2,y3| to multiples...@>=
-x1 = mp_right_x (p) - mp_x_coord (p);
-x2 = mp_left_x (q) - mp_right_x (p);
-x3 = mp_x_coord (q) - mp_left_x (q);
-y1 = mp_right_y (p) - mp_y_coord (p);
-y2 = mp_left_y (q) - mp_right_y (p);
-y3 = mp_y_coord (q) - mp_left_y (q);
+x1 = number_to_scaled (p->right_x) - number_to_scaled (p->x_coord);
+x2 = number_to_scaled (q->left_x) - number_to_scaled (p->right_x);
+x3 = number_to_scaled (q->x_coord) - number_to_scaled (q->left_x);
+y1 = number_to_scaled (p->right_y) - number_to_scaled (p->y_coord);
+y2 = number_to_scaled (q->left_y) - number_to_scaled (p->right_y);
+y3 = number_to_scaled (q->y_coord) - number_to_scaled (q->left_y);
 max = abs (x1);
 if (abs (x2) > max)
   max = abs (x2);
@@ -12677,24 +12698,24 @@ integer overflow will not occur.
 q = mp_next_knot (p);
 qq = mp_next_knot (pp);
 mp->bisect_ptr = int_packets;
-u1r = mp_right_x (p) - mp_x_coord (p);
-u2r = mp_left_x (q) - mp_right_x (p);
-u3r = mp_x_coord (q) - mp_left_x (q);
+u1r = number_to_scaled (p->right_x) - number_to_scaled (p->x_coord);
+u2r = number_to_scaled (q->left_x) - number_to_scaled (p->right_x);
+u3r = number_to_scaled (q->x_coord) - number_to_scaled (q->left_x);
 set_min_max (ur_packet);
-v1r = mp_right_y (p) - mp_y_coord (p);
-v2r = mp_left_y (q) - mp_right_y (p);
-v3r = mp_y_coord (q) - mp_left_y (q);
+v1r = number_to_scaled (p->right_y) - number_to_scaled (p->y_coord);
+v2r = number_to_scaled (q->left_y) - number_to_scaled (p->right_y);
+v3r = number_to_scaled (q->y_coord) - number_to_scaled (q->left_y);
 set_min_max (vr_packet);
-x1r = mp_right_x (pp) - mp_x_coord (pp);
-x2r = mp_left_x (qq) - mp_right_x (pp);
-x3r = mp_x_coord (qq) - mp_left_x (qq);
+x1r = number_to_scaled (pp->right_x) - number_to_scaled (pp->x_coord);
+x2r = number_to_scaled (qq->left_x) - number_to_scaled (pp->right_x);
+x3r = number_to_scaled (qq->x_coord) - number_to_scaled (qq->left_x);
 set_min_max (xr_packet);
-y1r = mp_right_y (pp) - mp_y_coord (pp);
-y2r = mp_left_y (qq) - mp_right_y (pp);
-y3r = mp_y_coord (qq) - mp_left_y (qq);
+y1r = number_to_scaled (pp->right_y) - number_to_scaled (pp->y_coord);
+y2r = number_to_scaled (qq->left_y) - number_to_scaled (pp->right_y);
+y3r = number_to_scaled (qq->y_coord) - number_to_scaled (qq->left_y);
 set_min_max (yr_packet);
-delx = mp_x_coord (p) - mp_x_coord (pp);
-dely = mp_y_coord (p) - mp_y_coord (pp);
+delx = number_to_scaled (p->x_coord) - number_to_scaled (pp->x_coord);
+dely = number_to_scaled (p->y_coord) - number_to_scaled (pp->y_coord);
 tol = 0;
 uv = r_packets;
 xy = r_packets;
@@ -12848,17 +12869,17 @@ static void mp_path_intersection (MP mp, mp_knot h, mp_knot hh) {
 
 @ @<Change one-point paths...@>=
 if (mp_right_type (h) == mp_endpoint) {
-  mp_right_x (h) = mp_x_coord (h);
-  mp_left_x (h) = mp_x_coord (h);
-  mp_right_y (h) = mp_y_coord (h);
-  mp_left_y (h) = mp_y_coord (h);
+  number_clone (h->right_x, h->x_coord);
+  number_clone (h->left_x, h->x_coord);
+  number_clone (h->right_y, h->y_coord);
+  number_clone (h->left_y, h->y_coord);
   mp_right_type (h) = mp_explicit;
 }
 if (mp_right_type (hh) == mp_endpoint) {
-  mp_right_x (hh) = mp_x_coord (hh);
-  mp_left_x (hh) = mp_x_coord (hh);
-  mp_right_y (hh) = mp_y_coord (hh);
-  mp_left_y (hh) = mp_y_coord (hh);
+  number_clone (hh->right_x, hh->x_coord);
+  number_clone (hh->left_x, hh->x_coord);
+  number_clone (hh->right_y, hh->y_coord);
+  number_clone (hh->left_y, hh->y_coord);
   mp_right_type (hh) = mp_explicit;
 }
 
@@ -21018,15 +21039,14 @@ when \MP\ discovers that the pair is part of a path.
 @c
 static mp_knot mp_pair_to_knot (MP mp) {                               /* convert a pair to a knot with two endpoints */
   mp_knot q;    /* the new node */
-  q = xmalloc (1, sizeof (struct mp_knot_data));
-  memset (q, 0, sizeof (struct mp_knot_data));
+  q = mp_new_knot(mp);
   mp_left_type (q) = mp_endpoint;
   mp_right_type (q) = mp_endpoint;
   mp_originator (q) = mp_metapost_user;
   mp_next_knot (q) = q;
   mp_known_pair (mp);
-  mp_x_coord (q) = mp->cur_x;
-  mp_y_coord (q) = mp->cur_y;
+  set_number_from_scaled (q->x_coord, mp->cur_x);
+  set_number_from_scaled (q->y_coord, mp->cur_y);
   return q;
 }
 
@@ -21262,17 +21282,17 @@ the value of |mp_right_type(q)| in cases such as
   t = mp_scan_direction (mp);
   if (t != mp_open) {
     mp_right_type (path_q) = (unsigned short) t;
-    right_given (path_q) = cur_exp_value ();
+    set_number_from_scaled(path_q->right_given, cur_exp_value ());
     if (mp_left_type (path_q) == mp_open) {
       mp_left_type (path_q) = (unsigned short) t;
-      left_given (path_q) = cur_exp_value ();
+      set_number_from_scaled(path_q->left_given, cur_exp_value ());
     }                           /* note that |left_given(q)=left_curl(q)| */
   }
 }
 
 
 @ Since |left_tension| and |mp_left_y| share the same position in knot nodes,
-and since |left_given| is similarly equivalent to |mp_left_x|, we use
+and since |left_given| is similarly equivalent to |left_x|, we use
 |x| and |y| to hold the given direction and tension information when
 there are no explicit control points.
 
@@ -21294,7 +21314,7 @@ there are no explicit control points.
   } else if (cur_cmd() == mp_controls) {
     @<Set explicit control points@>;
   } else {
-    right_tension (path_q) = unity;
+    set_number_from_scaled(path_q->right_tension, unity);
     y = unity;
     mp_back_input (mp);         /* default tension */
     goto DONE;
@@ -21319,7 +21339,7 @@ DONE:
   @<Make sure that the current expression is a valid tension setting@>;
   if (y == mp_at_least)
     negate (cur_exp_value ());
-  right_tension (path_q) = cur_exp_value ();
+  set_number_from_scaled(path_q->right_tension, cur_exp_value ());
   if (cur_cmd() == mp_and_command) {
     mp_get_x_next (mp);
     y = cur_cmd();
@@ -21354,11 +21374,11 @@ if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < min_tension)) {
   mp_get_x_next (mp);
   mp_scan_primary (mp);
   mp_known_pair (mp);
-  mp_right_x (path_q) = mp->cur_x;
-  mp_right_y (path_q) = mp->cur_y;
+  set_number_from_scaled (path_q->right_x, mp->cur_x);
+  set_number_from_scaled (path_q->right_y, mp->cur_y);
   if (cur_cmd() != mp_and_command) {
-    x = mp_right_x (path_q);
-    y = mp_right_y (path_q);
+    x = number_to_scaled (path_q->right_x);
+    y = number_to_scaled (path_q->right_y);
   } else {
     mp_get_x_next (mp);
     mp_scan_primary (mp);
@@ -21401,7 +21421,7 @@ shouldn't have length zero.
   if (d == mp_ampersand)
     if (path_p == path_q) {
       d = mp_path_join;
-      right_tension (path_q) = unity;
+      set_number_from_scaled(path_q->right_tension, unity);
       y = unity;
     }
 }
@@ -21410,8 +21430,8 @@ shouldn't have length zero.
 @ @<Join the partial paths and reset |p| and |q|...@>=
 {
   if (d == mp_ampersand) {
-    if ((mp_x_coord (path_q) != mp_x_coord (pp)) ||
-        (mp_y_coord (path_q) != mp_y_coord (pp))) {
+    if (!(number_equal (path_q->x_coord, pp->x_coord)) ||
+        !(number_equal (path_q->y_coord, pp->y_coord))) {
       const char *hlp[] = {
              "When you join paths `p&q', the ending point of p",
              "must be exactly equal to the starting point of q.",
@@ -21421,7 +21441,7 @@ shouldn't have length zero.
 @.Paths don't touch@>;
       mp_get_x_next (mp);
       d = mp_path_join;
-      right_tension (path_q) = unity;
+      set_number_from_scaled(path_q->right_tension, unity);
       y = unity;
     }
   }
@@ -21431,9 +21451,9 @@ shouldn't have length zero.
   } else {
     @<Plug an opening in |mp_right_type(q)|, if possible@>;
     mp_next_knot (path_q) = pp;
-    mp_left_y (pp) = y;
+    set_number_from_scaled (pp->left_y, y);
     if (t != mp_open) {
-      mp_left_x (pp) = x;
+      set_number_from_scaled (pp->left_x, x);
       mp_left_type (pp) = (unsigned short) t;
     };
   }
@@ -21445,7 +21465,7 @@ shouldn't have length zero.
 if (mp_right_type (path_q) == mp_open) {
   if ((mp_left_type (path_q) == mp_curl) || (mp_left_type (path_q) == mp_given)) {
     mp_right_type (path_q) = mp_left_type (path_q);
-    right_given (path_q) = left_given (path_q);
+    number_clone(path_q->right_given, path_q->left_given);
   }
 }
 
@@ -21453,7 +21473,7 @@ if (mp_right_type (path_q) == mp_open) {
 if (mp_right_type (pp) == mp_open) {
   if ((t == mp_curl) || (t == mp_given)) {
     mp_right_type (pp) = (unsigned short) t;
-    right_given (pp) = x;
+    set_number_from_scaled(pp->right_given, x);
   }
 }
 
@@ -21462,17 +21482,17 @@ if (mp_right_type (pp) == mp_open) {
   if (mp_left_type (path_q) == mp_open)
     if (mp_right_type (path_q) == mp_open) {
       mp_left_type (path_q) = mp_curl;
-      left_curl (path_q) = unity;
+      set_number_from_scaled(path_q->left_curl, unity);
     }
   if (mp_right_type (pp) == mp_open)
     if (t == mp_open) {
       mp_right_type (pp) = mp_curl;
-      right_curl (pp) = unity;
+      set_number_from_scaled(pp->right_curl, unity);
     }
   mp_right_type (path_q) = mp_right_type (pp);
   mp_next_knot (path_q) = mp_next_knot (pp);
-  mp_right_x (path_q) = mp_right_x (pp);
-  mp_right_y (path_q) = mp_right_y (pp);
+  number_clone (path_q->right_x, pp->right_x);
+  number_clone (path_q->right_y, pp->right_y);
   mp_xfree (pp);
   if (qq == pp)
     qq = path_q;
@@ -21487,12 +21507,12 @@ if (cycle_hit) {
   mp_left_type (path_p) = mp_endpoint;
   if (mp_right_type (path_p) == mp_open) {
     mp_right_type (path_p) = mp_curl;
-    right_curl (path_p) = unity;
+    set_number_from_scaled(path_p->right_curl, unity);
   }
   mp_right_type (path_q) = mp_endpoint;
   if (mp_left_type (path_q) == mp_open) {
     mp_left_type (path_q) = mp_curl;
-    left_curl (path_q) = unity;
+    set_number_from_scaled(path_q->left_curl, unity);
   }
   mp_next_knot (path_q) = path_p;
 }
@@ -22603,8 +22623,8 @@ case mp_path_part:
   mp_left_type (cur_exp_knot ()) = mp_endpoint;
   mp_right_type (cur_exp_knot ()) = mp_endpoint;
   mp_next_knot (cur_exp_knot ()) = cur_exp_knot ();
-  mp_x_coord (cur_exp_knot ()) = 0;
-  mp_y_coord (cur_exp_knot ()) = 0;
+  set_number_from_scaled(cur_exp_knot ()->x_coord, 0);
+  set_number_from_scaled(cur_exp_knot ()->y_coord, 0);
   mp_originator (cur_exp_knot ()) = mp_metapost_user;
   mp->cur_exp.type = mp_path_type;
   break;
@@ -22984,11 +23004,11 @@ static scaled mp_new_turn_cycles (MP mp, mp_knot c) {
     mp_end_diagnostic (mp, false);
   }
   do {
-    xp = mp_x_coord (p_next);
-    yp = mp_y_coord (p_next);
+    xp = number_to_scaled (p_next->x_coord);
+    yp = number_to_scaled (p_next->y_coord);
     ang =
-      mp_bezier_slope (mp, mp_x_coord (p), mp_y_coord (p), mp_right_x (p),
-                       mp_right_y (p), mp_left_x (p_next), mp_left_y (p_next),
+      mp_bezier_slope (mp, number_to_scaled (p->x_coord), number_to_scaled (p->y_coord), number_to_scaled (p->right_x),
+                       number_to_scaled (p->right_y), number_to_scaled (p_next->left_x), number_to_scaled (p_next->left_y),
                        xp, yp);
     if (ang > seven_twenty_deg) {
       mp_error (mp, "Strange path", NULL, true);
@@ -23005,27 +23025,27 @@ static scaled mp_new_turn_cycles (MP mp, mp_knot c) {
       turns = turns - unity;
     }
     /*  incoming angle at next point  */
-    x = mp_left_x (p_next);
-    y = mp_left_y (p_next);
+    x = number_to_scaled (p_next->left_x);
+    y = number_to_scaled (p_next->left_y);
     if ((xp == x) && (yp == y)) {
-      x = mp_right_x (p);
-      y = mp_right_y (p);
+      x = number_to_scaled (p->right_x);
+      y = number_to_scaled (p->right_y);
     };
     if ((xp == x) && (yp == y)) {
-      x = mp_x_coord (p);
-      y = mp_y_coord (p);
+      x = number_to_scaled (p->x_coord);
+      y = number_to_scaled (p->y_coord);
     };
     in_angle = mp_an_angle (mp, xp - x, yp - y);
     /*  outgoing angle at next point  */
-    x = mp_right_x (p_next);
-    y = mp_right_y (p_next);
+    x = number_to_scaled (p_next->right_x);
+    y = number_to_scaled (p_next->right_y);
     if ((xp == x) && (yp == y)) {
-      x = mp_left_x (p_nextnext);
-      y = mp_left_y (p_nextnext);
+      x = number_to_scaled (p_nextnext->left_x);
+      y = number_to_scaled (p_nextnext->left_y);
     };
     if ((xp == x) && (yp == y)) {
-      x = mp_x_coord (p_nextnext);
-      y = mp_y_coord (p_nextnext);
+      x = number_to_scaled (p_nextnext->x_coord);
+      y = number_to_scaled (p_nextnext->y_coord);
     };
     out_angle = mp_an_angle (mp, x - xp, y - yp);
     ang = (out_angle - in_angle);
@@ -23100,10 +23120,10 @@ static scaled mp_turn_cycles (MP mp, mp_knot c) {
   turns = 0;
   p = c;
   do {
-    ang = mp_an_angle (mp, mp_x_coord (p_to) - mp_x_coord (p_here),
-                       mp_y_coord (p_to) - mp_y_coord (p_here))
-      - mp_an_angle (mp, mp_x_coord (p_here) - mp_x_coord (p_from),
-                     mp_y_coord (p_here) - mp_y_coord (p_from));
+    ang = mp_an_angle (mp, number_to_scaled (p_to->x_coord) - number_to_scaled (p_here->x_coord),
+                       number_to_scaled (p_to->y_coord) - number_to_scaled (p_here->y_coord))
+      - mp_an_angle (mp, number_to_scaled (p_here->x_coord) - number_to_scaled (p_from->x_coord),
+                     number_to_scaled (p_here->y_coord) - number_to_scaled (p_from->y_coord));
     reduce_angle (ang);
     res = res + ang;
     if (res >= three_sixty_deg) {
@@ -23126,8 +23146,8 @@ static scaled mp_turn_cycles_wrapper (MP mp, mp_knot c) {
   scaled saved_t_o;     /* tracing\_online saved  */
   if ((mp_next_knot (c) == c) || (mp_next_knot (mp_next_knot (c)) == c)) {
     if (mp_an_angle
-        (mp, mp_x_coord (c) - mp_right_x (c),
-         mp_y_coord (c) - mp_right_y (c)) > 0)
+        (mp, number_to_scaled (c->x_coord) - number_to_scaled (c->right_x),
+         number_to_scaled (c->y_coord) - number_to_scaled (c->right_y)) > 0)
       return unity;
     else
       return -unity;
@@ -24774,14 +24794,6 @@ static void mp_set_up_known_trans (MP mp, quarterword c) {
 coordinates in locations |p| and~|q|.
 
 @<Declare binary action...@>=
-static void mp_trans (MP mp, scaled * p, scaled * q) {
-  scaled v;     /* the new |x| value */
-  v = mp_take_scaled (mp, *p, number_to_scaled(mp->txx)) +
-    mp_take_scaled (mp, *q, number_to_scaled(mp->txy)) + number_to_scaled(mp->tx);
-  *q = mp_take_scaled (mp, *p, number_to_scaled(mp->tyx)) +
-    mp_take_scaled (mp, *q, number_to_scaled(mp->tyy)) + number_to_scaled(mp->ty);
-  *p = v;
-}
 static void mp_number_trans (MP mp, mp_number p, mp_number q) {
   scaled qq, pp;
   pp = mp_take_scaled (mp, number_to_scaled(p), number_to_scaled(mp->txx)) +
@@ -24808,10 +24820,10 @@ static void mp_do_path_trans (MP mp, mp_knot p) {
   q = p;
   do {
     if (mp_left_type (q) != mp_endpoint)
-      mp_trans (mp, &mp_left_x (q), &mp_left_y (q));
-    mp_trans (mp, &mp_x_coord (q), &mp_y_coord (q));
+      mp_number_trans (mp, q->left_x, q->left_y);
+    mp_number_trans (mp, q->x_coord, q->y_coord);
     if (mp_right_type (q) != mp_endpoint)
-      mp_trans (mp, &mp_right_x (q), &mp_right_y (q));
+      mp_number_trans (mp, q->right_x, q->right_y);
     q = mp_next_knot (q);
   } while (q != p);
 }
@@ -24828,12 +24840,12 @@ and |mp_right_type| fields.
 static void mp_do_pen_trans (MP mp, mp_knot p) {
   mp_knot q;    /* list traverser */
   if (pen_is_elliptical (p)) {
-    mp_trans (mp, &mp_left_x (p), &mp_left_y (p));
-    mp_trans (mp, &mp_right_x (p), &mp_right_y (p));
+    mp_number_trans (mp, p->left_x, p->left_y);
+    mp_number_trans (mp, p->right_x, p->right_y);
   }
   q = p;
   do {
-    mp_trans (mp, &mp_x_coord (q), &mp_y_coord (q));
+    mp_number_trans (mp, q->x_coord, q->y_coord);
     q = mp_next_knot (q);
   } while (q != p);
 }
@@ -25579,19 +25591,19 @@ static void mp_find_point (MP mp, scaled v, quarterword c) {
 @ @<Set the current expression to the desired path coordinates...@>=
 switch (c) {
 case mp_point_of:
-  mp_pair_value (mp, mp_x_coord (p), mp_y_coord (p));
+  mp_pair_value (mp, number_to_scaled (p->x_coord), number_to_scaled (p->y_coord));
   break;
 case mp_precontrol_of:
   if (mp_left_type (p) == mp_endpoint)
-    mp_pair_value (mp, mp_x_coord (p), mp_y_coord (p));
+    mp_pair_value (mp, number_to_scaled (p->x_coord), number_to_scaled (p->y_coord));
   else
-    mp_pair_value (mp, mp_left_x (p), mp_left_y (p));
+    mp_pair_value (mp, number_to_scaled (p->left_x), number_to_scaled (p->left_y));
   break;
 case mp_postcontrol_of:
   if (mp_right_type (p) == mp_endpoint)
-    mp_pair_value (mp, mp_x_coord (p), mp_y_coord (p));
+    mp_pair_value (mp, number_to_scaled (p->x_coord), number_to_scaled (p->y_coord));
   else
-    mp_pair_value (mp, mp_right_x (p), mp_right_y (p));
+    mp_pair_value (mp, number_to_scaled (p->right_x), number_to_scaled (p->right_y));
   break;
 }                               /* there are no other cases */
 
@@ -31134,7 +31146,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
         t = p0->lcap;
         if (mp_left_type (pc) != mp_endpoint) {
           mp_left_type (mp_insert_knot
-                        (mp, pc, mp_x_coord (pc), mp_y_coord (pc))) =
+                        (mp, pc, number_to_scaled (pc->x_coord), number_to_scaled (pc->y_coord))) =
             mp_endpoint;
           mp_right_type (pc) = mp_endpoint;
           pc = mp_next_knot (pc);
