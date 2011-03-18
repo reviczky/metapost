@@ -9286,6 +9286,8 @@ void mp_free_number (MP mp, mp_number n) {
 @ 
 @d set_number_from_scaled(A,B) (A)->data.val=(B)
 @d set_number_from_double(A,B) (A)->data.val=((B)*65536.0)
+@d set_number_from_addition(A,B,C) (A)->data.val=(B)->data.val+(C)->data.val
+@d set_number_from_substraction(A,B,C) (A)->data.val=(B)->data.val-(C)->data.val
 @d set_number_to_unity(A) (A)->data.val=unity
 @d set_number_to_zero(A) (A)->data.val=0
 @d set_number_to_inf(A) (A)->data.val=EL_GORDO
@@ -9302,9 +9304,13 @@ void mp_free_number (MP mp, mp_number n) {
 @d number_less(A,B) ((A)->data.val<(B)->data.val)
 @d number_lessequal(A,B) ((A)->data.val<=(B)->data.val)
 @d number_abs(A)     mp_number_abs(mp,A)
-@d number_nonequal(A,B) (!number_equal(A,B))
 @d number_nonequalabs(A,B) (!(abs((A)->data.val)==abs((B)->data.val)))
 @d number_clone(A,B) (A)->data.val=(B)->data.val
+@d number_swap(A,B) do {
+  scaled swap_tmp = (A)->data.val;
+  (A)->data.val=(B)->data.val;
+  (B)->data.val=swap_tmp;
+} while (0)
 
 @c
 mp_number mp_number_abs (MP mp, mp_number o) {
@@ -10401,7 +10407,7 @@ static scaled mp_dash_offset (MP mp, mp_dash_node h);
 @ @c
 scaled mp_dash_offset (MP mp, mp_dash_node h) {
   scaled x;     /* the answer */
-  if (dash_list (h) == mp->null_dash || number_negative(h->dash_y ))
+ if (dash_list (h) == mp->null_dash || number_negative(h->dash_y ))
     mp_confusion (mp, "dash0");
 @:this can't happen dash0}{\quad dash0@>;
   if (number_zero(h->dash_y)) {
@@ -11860,8 +11866,8 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
                                  quarterword lcap, mp_number miter) {
   mp_knot p, q, r, q0;  /* for manipulating the path */
   mp_knot w, w0;        /* the pen knot for the current offset */
-  scaled qx, qy;        /* unshifted coordinates of |q| */
   halfword k, k0;       /* controls pen edge insertion */
+  mp_number qx, qy;        /* unshifted coordinates of |q| */
   int join_type = 0;    /* codes |0..3| for mitered, round, beveled, or square */
   scaled miterlim = number_to_scaled(miter);
   @<Other local variables for |make_envelope|@>;
@@ -11871,6 +11877,8 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
   dyout = 0;
   mp->spec_p1 = NULL;
   mp->spec_p2 = NULL;
+  qx = mp_new_number(mp);
+  qy = mp_new_number(mp);
   @<If endpoint, double the path |c|, and set |spec_p1| and |spec_p2|@>;
   @<Use |offset_prep| to compute the envelope spec then walk |h| around to
     the initial offset@>;
@@ -11879,8 +11887,8 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
   do {
     q = mp_next_knot (p);
     q0 = q;
-    qx = number_to_scaled (q->x_coord);
-    qy = number_to_scaled (q->y_coord);
+    number_clone (qx, q->x_coord);
+    number_clone (qy, q->y_coord);
     k = mp_knot_info (q);
     k0 = k;
     w0 = w;
@@ -11890,15 +11898,23 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
     @<Add offset |w| to the cubic from |p| to |q|@>;
     while (k != zero_off) {
       @<Step |w| and move |k| one step closer to |zero_off|@>;
-      if ((join_type == 1) || (k == zero_off))
-        q = mp_insert_knot (mp, q, qx + number_to_scaled (w->x_coord), qy + number_to_scaled (w->y_coord));
-    };
+      if ((join_type == 1) || (k == zero_off)) {
+        mp_number xtot, ytot; 
+        xtot = mp_new_number(mp);
+        ytot = mp_new_number(mp);
+        set_number_from_addition (xtot, qx, w->x_coord);
+        set_number_from_addition (ytot, qy, w->y_coord);
+        q = mp_insert_knot (mp, q, xtot, ytot);
+      }
+    }
     if (q != mp_next_knot (p)) {
       @<Set |p=mp_link(p)| and add knots between |p| and |q| as
         required by |join_type|@>;
     }
     p = q;
   } while (q0 != c);
+  mp_free_number(mp, qx);
+  mp_free_number(mp, qy);
   return c;
 }
 
@@ -11980,10 +11996,10 @@ the |mp_right_x| and |mp_right_y| fields of |r| are set from |q|.  This is done 
 case the cubic containing these control points is ``yet to be examined.''
 
 @<Declarations@>=
-static mp_knot mp_insert_knot (MP mp, mp_knot q, scaled x, scaled y);
+static mp_knot mp_insert_knot (MP mp, mp_knot q, mp_number x, mp_number y);
 
 @ @c
-mp_knot mp_insert_knot (MP mp, mp_knot q, scaled x, scaled y) {
+mp_knot mp_insert_knot (MP mp, mp_knot q, mp_number x, mp_number y) {
   /* returns the inserted knot */
   mp_knot r;    /* the new knot */
   r = mp_new_knot (mp);
@@ -11991,8 +12007,8 @@ mp_knot mp_insert_knot (MP mp, mp_knot q, scaled x, scaled y) {
   mp_next_knot (q) = r;
   number_clone (r->right_x, q->right_x);
   number_clone (r->right_y, q->right_y);
-  set_number_from_scaled (r->x_coord, x);
-  set_number_from_scaled (r->y_coord, y);
+  number_clone (r->x_coord, x);
+  number_clone (r->y_coord, y);
   number_clone (q->right_x, q->x_coord);
   number_clone (q->right_y, q->y_coord);
   number_clone (r->left_x, r->x_coord);
@@ -12033,12 +12049,25 @@ problems, so we just set |r:=NULL| in that case.
   if (abs (det) < 26844) {
     r = NULL;                   /* sine $<10^{-4}$ */
   } else {
+    mp_number xtot, ytot, xsub, ysub;
+    xtot = mp_new_number(mp);
+    ytot = mp_new_number(mp);
+    xsub = mp_new_number(mp);
+    ysub = mp_new_number(mp);
+
     tmp = mp_take_fraction (mp, number_to_scaled (q->x_coord) - number_to_scaled (p->x_coord), dyout) -
       mp_take_fraction (mp, number_to_scaled (q->y_coord) - number_to_scaled (p->y_coord), dxout);
     tmp = mp_make_fraction (mp, tmp, det);
-    r =
-      mp_insert_knot (mp, p, number_to_scaled (p->x_coord) + mp_take_fraction (mp, tmp, dxin),
-                      number_to_scaled (p->y_coord) + mp_take_fraction (mp, tmp, dyin));
+    
+    set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, dxin));
+    set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, dyin));
+    set_number_from_addition(xtot, p->x_coord, xsub);
+    set_number_from_addition(ytot, p->y_coord, ysub);
+    r = mp_insert_knot (mp, p, xtot, ytot);
+    mp_free_number(mp, xtot);
+    mp_free_number(mp, ytot);
+    mp_free_number(mp, xsub);
+    mp_free_number(mp, ysub);
   }
 }
 
@@ -12048,6 +12077,11 @@ fraction det;   /* a determinant used for mitered join calculations */
 
 @ @<Make |r| the last of two knots inserted between |p| and |q| to form a...@>=
 {
+  mp_number xtot, ytot, xsub, ysub;
+  xtot = mp_new_number(mp);
+  ytot = mp_new_number(mp);
+  xsub = mp_new_number(mp);
+  ysub = mp_new_number(mp);
   ht_x = number_to_scaled (w->y_coord) - number_to_scaled (w0->y_coord);
   ht_y = number_to_scaled (w0->x_coord) - number_to_scaled (w->x_coord);
   while ((abs (ht_x) < fraction_half) && (abs (ht_y) < fraction_half)) {
@@ -12058,12 +12092,24 @@ fraction det;   /* a determinant used for mitered join calculations */
     product with |(ht_x,ht_y)|@>;
   tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, dxin, ht_x) +
                           mp_take_fraction (mp, dyin, ht_y));
-  r = mp_insert_knot (mp, p, number_to_scaled (p->x_coord) + mp_take_fraction (mp, tmp, dxin),
-                      number_to_scaled (p->y_coord) + mp_take_fraction (mp, tmp, dyin));
+  set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, dxin));
+  set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, dyin));
+  set_number_from_addition(xtot, p->x_coord, xsub);
+  set_number_from_addition(ytot, p->y_coord, ysub);
+  r = mp_insert_knot (mp, p, xtot, ytot);
+
   tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, dxout, ht_x) +
                           mp_take_fraction (mp, dyout, ht_y));
-  r = mp_insert_knot (mp, r, number_to_scaled (q->x_coord) + mp_take_fraction (mp, tmp, dxout),
-                      number_to_scaled (q->y_coord) + mp_take_fraction (mp, tmp, dyout));
+
+  set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, dxout));
+  set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, dyout));
+  set_number_from_addition(xtot, q->x_coord, xsub);
+  set_number_from_addition(ytot, q->y_coord, ysub);
+  r = mp_insert_knot (mp, p, xtot, ytot);
+  mp_free_number(mp, xsub);
+  mp_free_number(mp, ysub);
+  mp_free_number(mp, xtot);
+  mp_free_number(mp, ytot);
 }
 
 
@@ -21198,7 +21244,7 @@ static quarterword mp_scan_direction (MP mp) {
     const char *hlp[] = { "A curl must be a known, nonnegative number.", NULL };
     memset(&new_expr,0,sizeof(mp_value));
     new_expr.data.n = mp_new_number(mp);
-    new_expr.data.n->data.val = unity;
+    set_number_to_unity(new_expr.data.n);
     mp_disp_err(mp, NULL);
     mp_back_error (mp, "Improper curl has been replaced by 1", hlp, true);
 @.Improper curl@>;
@@ -24872,11 +24918,12 @@ that they have to return a (possibly new) structure because of the need to call
 static mp_edge_header_node mp_edges_trans (MP mp, mp_edge_header_node h) {
   mp_node q;    /* the object being transformed */
   mp_dash_node r, s; /* for list manipulation */
-  scaled sx, sy;        /* saved transformation parameters */
+  mp_number sx, sy;        /* saved transformation parameters */
   scaled sqdet; /* square root of determinant for |dash_scale| */
   integer sgndet;       /* sign of the determinant */
-  scaled v;     /* a temporary value */
   h = mp_private_edges (mp, h);
+  sx = mp_new_number(mp);
+  sy = mp_new_number(mp);
   sqdet = mp_sqrt_det (mp, number_to_scaled(mp->txx), number_to_scaled(mp->txy), 
 	number_to_scaled(mp->tyx), number_to_scaled(mp->tyy));
   sgndet = mp_ab_vs_cd (mp, number_to_scaled(mp->txx), number_to_scaled(mp->tyy), 
@@ -24891,6 +24938,8 @@ static mp_edge_header_node mp_edges_trans (MP mp, mp_edge_header_node h) {
     @<Transform graphical object |q|@>;
     q = mp_link (q);
   }
+  mp_free_number(mp, sx);
+  mp_free_number(mp, sy);
   return h;
 }
 static void mp_do_edges_trans (MP mp, mp_node p, quarterword c) {
@@ -24932,9 +24981,7 @@ if (number_nonzero(mp->txy) || number_nonzero(mp->tyx) ||
   while (r != mp->null_dash) {
     s = r;
     r = (mp_dash_node)mp_link (r);
-    v = number_to_scaled(s->start_x );
-    number_clone(s->start_x , s->stop_x );
-    set_number_from_scaled(s->stop_x , v);
+    number_swap(s->start_x, s->stop_x );
     mp_link (s) = (mp_node)dash_list (h);
     set_dash_list (h, s);
   }
@@ -24968,12 +25015,8 @@ DONE1:
 
 @ @<Swap the $x$ and $y$ parameters in the bounding box of |h|@>=
 {
-  v = number_to_scaled(h->minx);
-  number_clone(h->minx, h->miny);
-  set_number_from_scaled(h->miny, v);
-  v = number_to_scaled(h->maxx);
-  number_clone(h->maxx, h->maxy);
-  set_number_from_scaled(h->maxy, v);
+  number_swap(h->minx, h->miny);
+  number_swap(h->maxx, h->maxy);
 }
 
 
@@ -24991,14 +25034,10 @@ sum is similar.
   set_number_from_scaled(h->maxy, mp_take_scaled (mp, number_to_scaled(h->maxy), number_to_scaled(mp->tyx) + 
 	number_to_scaled(mp->tyy) + number_to_scaled(mp->ty)));
   if (number_to_scaled(mp->txx) + number_to_scaled(mp->txy) < 0) {
-    v = number_to_scaled(h->minx);
-    number_clone(h->minx, h->maxx);
-    set_number_from_scaled(h->maxx, v);
+    number_swap(h->minx, h->maxx);
   }
   if (number_to_scaled(mp->tyx) + number_to_scaled(mp->tyy) < 0) {
-    v = number_to_scaled(h->miny);
-    number_clone(h->miny, h->maxy);
-    set_number_from_scaled(h->maxy, v);
+    number_swap(h->miny, h->maxy);
   }
 }
 
@@ -25050,8 +25089,8 @@ We pass the mptrap test only if |dash_scale| is not adjusted, nowadays
 
 @<Transform |mp_pen_p(qq)|, making sure...@>=
 if (mp_pen_p (qq) != NULL) {
-  sx = number_to_scaled(mp->tx);
-  sy = number_to_scaled(mp->ty);
+  number_clone(sx, mp->tx);
+  number_clone(sy, mp->ty);
   set_number_to_zero(mp->tx);
   set_number_to_zero(mp->ty);
   mp_do_pen_trans (mp, mp_pen_p (qq));
@@ -25063,20 +25102,20 @@ if (mp_pen_p (qq) != NULL) {
     if (sgndet < 0)
       mp_pen_p (qq) = mp_make_pen (mp, mp_copy_path (mp, mp_pen_p (qq)), true);
   /* this unreverses the pen */
-  set_number_from_scaled(mp->tx, sx);
-  set_number_from_scaled(mp->ty, sy);
+  number_clone(mp->tx, sx);
+  number_clone(mp->ty, sy);
 }
 
 @ @<Transform the compact transformation@>=
 mp_number_trans (mp, ((mp_text_node)q)->tx, ((mp_text_node)q)->ty);
-sx = number_to_scaled(mp->tx);
-sy = number_to_scaled(mp->ty);
+number_clone(sx, mp->tx);
+number_clone(sy, mp->ty);
 set_number_to_zero(mp->tx);
 set_number_to_zero(mp->ty);
 mp_number_trans (mp, ((mp_text_node)q)->txx, ((mp_text_node)q)->tyx);
 mp_number_trans (mp, ((mp_text_node)q)->txy, ((mp_text_node)q)->tyy);
-set_number_from_scaled(mp->tx, sx);
-set_number_from_scaled(mp->ty, sy)
+number_clone(mp->tx, sx);
+number_clone(mp->ty, sy)
 
 @ The hard cases of transformation occur when big nodes are involved,
 and when some of their components are unknown.
@@ -30566,7 +30605,9 @@ void mp_set_text_box (MP mp, mp_text_node p) {
   ASCII_code bc, ec;    /* range of valid characters for font |f| */
   size_t k, kk; /* current character and character to stop at */
   four_quarters cc;     /* the |char_info| for the current character */
-  scaled h, d;  /* dimensions of the current character */
+  mp_number h, d;  /* dimensions of the current character */
+  h = mp_new_number(mp);
+  d = mp_new_number(mp);
   set_number_to_zero(p->width);
   set_number_to_neg_inf(p->height);
   set_number_to_neg_inf(p->depth);
@@ -30579,6 +30620,8 @@ void mp_set_text_box (MP mp, mp_text_node p) {
     @<Adjust |p|'s bounding box to contain |str_pool[k]|; advance |k|@>;
   }
   @<Set the height and depth to zero if the bounding box is empty@>;
+  mp_free_number(mp, h);
+  mp_free_number(mp, d);
 }
 
 
@@ -30591,14 +30634,13 @@ void mp_set_text_box (MP mp, mp_text_node p) {
     if (!ichar_exists (cc)) {
       mp_lost_warning (mp, f, *(mp_text_p (p)->str + k));
     } else {
-      set_number_from_scaled(p->width, 
-	number_to_scaled(p->width) + char_width (f, cc));
-      h = char_height (f, cc);
-      d = char_depth (f, cc);
-      if (h > number_to_scaled(p->height))
-        set_number_from_scaled(p->height, h);
-      if (d > number_to_scaled(p->depth))
-        set_number_from_scaled(p->depth, d);
+      set_number_from_scaled(p->width, number_to_scaled(p->width) + char_width (f, cc));
+      set_number_from_scaled(h, char_height (f, cc));
+      set_number_from_scaled(d, char_depth (f, cc));
+      if (number_greater(h, p->height))
+        number_clone(p->height, h);
+      if (number_greater(d, p->depth))
+        number_clone(p->depth, d);
     }
   }
   incr (k);
@@ -30609,7 +30651,7 @@ void mp_set_text_box (MP mp, mp_text_node p) {
 overflow.
 
 @<Set the height and depth to zero if the bounding box is empty@>=
-if (number_greaterequal(p->height, p->depth)) {
+if (number_to_scaled(p->height) < -number_to_scaled(p->depth)) {
   set_number_to_zero(p->height);
   set_number_to_zero(p->depth);
 }
@@ -31153,9 +31195,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
         pc = mp_copy_path (mp, mp_path_p (p0));
         t = p0->lcap;
         if (mp_left_type (pc) != mp_endpoint) {
-          mp_left_type (mp_insert_knot
-                        (mp, pc, number_to_scaled (pc->x_coord), number_to_scaled (pc->y_coord))) =
-            mp_endpoint;
+          mp_left_type (mp_insert_knot (mp, pc, pc->x_coord, pc->y_coord)) =  mp_endpoint;
           mp_right_type (pc) = mp_endpoint;
           pc = mp_next_knot (pc);
           t = 1;
@@ -31256,7 +31296,7 @@ mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
           mp_link (pt) = pn;
           pt = mp_link (pt);
         } else {
-          set_number_to_unity(((mp_fill_node) pn)->grey);
+          set_number_to_zero(((mp_fill_node) pn)->grey);
           mp_link (pn) = mp_link (ph);
           mp_link (ph) = pn;
           if (ph == pt)
