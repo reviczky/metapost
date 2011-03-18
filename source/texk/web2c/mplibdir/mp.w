@@ -6711,7 +6711,7 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
     mp_print_char (mp, xord ('}'));
   } else if (mp_left_type (p) == mp_curl) {
     mp_print (mp, "{curl ");
-    mp_print_scaled (mp, number_to_scaled(p->left_curl));
+    mp_print_number (mp, p->left_curl);
     mp_print_char (mp, xord ('}'));
   }
 }
@@ -6720,12 +6720,12 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
 @ @<Print tension between |p| and |q|@>=
 {
   mp_print (mp, "..tension ");
-  if (number_to_scaled(p->right_tension) < 0)
+  if (number_negative(p->right_tension))
     mp_print (mp, "atleast");
   mp_print_scaled (mp, abs (number_to_scaled(p->right_tension)));
-  if (number_to_scaled(p->right_tension) != number_to_scaled(q->left_tension)) {
+  if (!number_equal(p->right_tension, q->left_tension)) {
     mp_print (mp, " and ");
-    if (number_to_scaled(q->left_tension) < 0)
+    if (number_negative(q->left_tension))
       mp_print (mp, "atleast");
     mp_print_scaled (mp, abs (number_to_scaled(q->left_tension)));
   }
@@ -6763,7 +6763,7 @@ if ((mp_left_type (p) != mp_explicit) && (mp_left_type (p) != mp_open)) {
 @.??@>;
   if (mp_right_type (p) == mp_curl) {
     mp_print (mp, "{curl ");
-    mp_print_scaled (mp, number_to_scaled(p->right_curl));
+    mp_print_number (mp, p->right_curl);
   } else {
     fraction n_sin;
     fraction n_cos;
@@ -6909,12 +6909,12 @@ static mp_gr_knot mp_export_path (MP mp, mp_knot p) {
 static mp_knot mp_import_knot (MP mp, mp_gr_knot p) {
   mp_knot q;    /* the copy */
   q = mp_new_knot (mp);
-  set_number_from_scaled(q->x_coord, (scaled)(p->x_coord * 65536.0));
-  set_number_from_scaled(q->y_coord, (scaled)(p->y_coord * 65536.0));
-  set_number_from_scaled(q->left_x, (scaled)(p->left_x  * 65536.0));
-  set_number_from_scaled(q->left_y, (scaled)(p->left_y  * 65536.0));
-  set_number_from_scaled(q->right_x, (scaled)(p->right_x * 65536.0));
-  set_number_from_scaled(q->right_y, (scaled)(p->right_y * 65536.0));
+  set_number_from_double(q->x_coord, p->x_coord);
+  set_number_from_double(q->y_coord, p->y_coord);
+  set_number_from_double(q->left_x, p->left_x);
+  set_number_from_double(q->left_y, p->left_y);
+  set_number_from_double(q->right_x, p->right_x);
+  set_number_from_double(q->right_y, p->right_y);
   mp_left_type(q) = p->data.types.left_type;
   mp_left_type(q) = p->data.types.right_type;
   mp_knot_info(q) = p->data.info;
@@ -7085,18 +7085,18 @@ knots.
 p = knots;
 do {
   q = mp_next_knot (p);
-  if (number_to_scaled (p->x_coord) == number_to_scaled (q->x_coord) &&
-      number_to_scaled (p->y_coord) == number_to_scaled (q->y_coord) && 
+  if (number_equal (p->x_coord, q->x_coord) &&
+      number_equal (p->y_coord, q->y_coord) && 
       mp_right_type (p) > mp_explicit) {
     mp_right_type (p) = mp_explicit;
     if (mp_left_type (p) == mp_open) {
       mp_left_type (p) = mp_curl;
-      set_number_from_scaled(p->left_curl, unity);
+      set_number_to_unity(p->left_curl);
     }
     mp_left_type (q) = mp_explicit;
     if (mp_right_type (q) == mp_open) {
       mp_right_type (q) = mp_curl;
-      set_number_from_scaled(q->right_curl, unity);
+      set_number_to_unity(q->right_curl);
     }
     number_clone (p->right_x, p->x_coord);
     number_clone (q->left_x, p->x_coord);
@@ -7348,7 +7348,7 @@ if (mp_left_type (q) == mp_open) {
   dely = number_to_scaled(q->right_y) - number_to_scaled(q->y_coord);
   if ((delx == 0) && (dely == 0)) {
     mp_left_type (q) = mp_curl;
-    set_number_from_scaled(q->left_curl, unity);
+    set_number_to_unity(q->left_curl);
   } else {
     mp_left_type (q) = mp_given;
     set_number_from_scaled(q->left_given, mp_n_arg (mp, delx, dely));
@@ -7359,7 +7359,7 @@ if ((mp_right_type (p) == mp_open) && (mp_left_type (p) == mp_explicit)) {
   dely = number_to_scaled (p->y_coord) - number_to_scaled (p->left_y);
   if ((delx == 0) && (dely == 0)) {
     mp_right_type (p) = mp_curl;
-    set_number_from_scaled(p->right_curl, unity);
+    set_number_to_unity(p->right_curl);
   } else {
     mp_right_type (p) = mp_given;
     set_number_from_scaled(p->right_given, mp_n_arg (mp, delx, dely));
@@ -7785,7 +7785,7 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   rt = abs (number_to_scaled(p->right_tension));
   rr = mp_velocity (mp, mp->st, mp->ct, mp->sf, mp->cf, rt);
   ss = mp_velocity (mp, mp->sf, mp->cf, mp->st, mp->ct, lt);
-  if ((number_to_scaled(p->right_tension) < 0) || (number_to_scaled(q->left_tension) < 0)) {
+  if (number_negative(p->right_tension) || number_negative(q->left_tension)) {
     @<Decrease the velocities,
       if necessary, to stay inside the bounding triangle@>;
   }
@@ -7835,10 +7835,10 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
     mp_take_fraction (mp, abs (mp->sf), mp->ct);
   if (sine > 0) {
     sine = mp_take_fraction (mp, sine, fraction_one + unity);   /* safety factor */
-    if (number_to_scaled(p->right_tension) < 0)
+    if (number_negative(p->right_tension))
       if (mp_ab_vs_cd (mp, abs (mp->sf), fraction_one, rr, sine) < 0)
         rr = mp_make_fraction (mp, abs (mp->sf), sine);
-    if (number_to_scaled(q->left_tension) < 0)
+    if (number_negative(q->left_tension))
       if (mp_ab_vs_cd (mp, abs (mp->st), fraction_one, ss, sine) < 0)
         ss = mp_make_fraction (mp, abs (mp->st), sine);
   }
@@ -8736,11 +8736,11 @@ static mp_knot mp_get_pen_circle (MP mp, scaled diam) {
   mp_next_knot (h) = h;
   mp_prev_knot (h) = h;
   mp_originator (h) = mp_program_code;
-  set_number_from_scaled(h->x_coord, 0);
-  set_number_from_scaled(h->y_coord, 0);
+  set_number_to_zero(h->x_coord);
+  set_number_to_zero(h->y_coord);
   set_number_from_scaled(h->left_x, diam);
-  set_number_from_scaled(h->left_y, 0);
-  set_number_from_scaled(h->right_x, 0);
+  set_number_to_zero(h->left_y);
+  set_number_to_zero(h->right_x);
   set_number_from_scaled(h->right_y, diam);
   return h;
 }
@@ -8794,9 +8794,9 @@ p = q
 @ @<Print the elliptical pen |h|@>=
 {
   mp_print (mp, "pencircle transformed (");
-  mp_print_scaled (mp, number_to_scaled(h->x_coord));
+  mp_print_number (mp, h->x_coord);
   mp_print_char (mp, xord (','));
-  mp_print_scaled (mp, number_to_scaled(h->y_coord));
+  mp_print_number (mp, h->y_coord);
   mp_print_char (mp, xord (','));
   mp_print_scaled (mp, number_to_scaled(h->left_x) - number_to_scaled(h->x_coord));
   mp_print_char (mp, xord (','));
@@ -8982,9 +8982,9 @@ mp_knot mp_convex_hull (MP mp, mp_knot h) {                               /* Mak
 l = h;
 p = mp_next_knot (h);
 while (p != h) {
-  if (number_to_scaled (p->x_coord) <= number_to_scaled(l->x_coord))
-    if ((number_to_scaled (p->x_coord) < number_to_scaled(l->x_coord)) || 
-        (number_to_scaled (p->y_coord) < number_to_scaled(l->y_coord)))
+  if (number_lessequal (p->x_coord, l->x_coord))
+    if ((number_less (p->x_coord, l->x_coord)) || 
+        (number_less (p->y_coord, l->y_coord)))
       l = p;
   p = mp_next_knot (p);
 }
@@ -8994,9 +8994,9 @@ while (p != h) {
 r = h;
 p = mp_next_knot (h);
 while (p != h) {
-  if (number_to_scaled (p->x_coord) >= number_to_scaled(r->x_coord))
-    if ((number_to_scaled (p->x_coord) > number_to_scaled(r->x_coord)) || 
-        (number_to_scaled (p->y_coord) > number_to_scaled(r->y_coord)))
+  if (number_greaterequal(p->x_coord, r->x_coord))
+    if (number_greater (p->x_coord, r->x_coord) || 
+        number_greater (p->y_coord, r->y_coord))
       r = p;
   p = mp_next_knot (p);
 }
@@ -9054,10 +9054,10 @@ choice of |l| and |r|.
 p = mp_next_knot (l);
 while (p != r) {
   q = mp_prev_knot (p);
-  while (number_to_scaled(q->x_coord) > number_to_scaled (p->x_coord))
+  while (number_greater(q->x_coord, p->x_coord))
     q = mp_prev_knot (q);
-  while (number_to_scaled(q->x_coord) == number_to_scaled (p->x_coord)) {
-    if (number_to_scaled(q->y_coord) > number_to_scaled (p->y_coord))
+  while (number_equal(q->x_coord, p->x_coord)) {
+    if (number_greater(q->y_coord, p->y_coord))
       q = mp_prev_knot (q);
     else
       break;
@@ -9075,10 +9075,10 @@ while (p != r) {
 p = mp_next_knot (r);
 while (p != l) {
   q = mp_prev_knot (p);
-  while (number_to_scaled(q->x_coord) < number_to_scaled (p->x_coord))
+  while (number_less(q->x_coord, p->x_coord))
     q = mp_prev_knot (q);
-  while (number_to_scaled(q->x_coord) == number_to_scaled (p->x_coord)) {
-    if (number_to_scaled(q->y_coord) < number_to_scaled (p->y_coord))
+  while (number_equal(q->x_coord, p->x_coord)) {
+    if (number_less (q->y_coord, p->y_coord))
       q = mp_prev_knot (q);
     else
       break;
@@ -9272,7 +9272,7 @@ typedef struct mp_number_data {
 @c
 mp_number mp_new_number (MP mp) {
   mp_number n = xmalloc(1, sizeof (struct mp_number_data)) ;
-  set_number_from_scaled(n,0);
+  set_number_to_zero(n);
   return n;
 }
 
@@ -9286,6 +9286,10 @@ void mp_free_number (MP mp, mp_number n) {
 @ 
 @d set_number_from_scaled(A,B) (A)->data.val=(B)
 @d set_number_from_double(A,B) (A)->data.val=((B)*65536.0)
+@d set_number_to_unity(A) (A)->data.val=unity
+@d set_number_to_zero(A) (A)->data.val=0
+@d set_number_to_inf(A) (A)->data.val=EL_GORDO
+@d set_number_to_neg_inf(A) (A)->data.val=-EL_GORDO
 @d number_to_scaled(A) (A)->data.val
 @d number_to_double(A) ((A)->data.val/65536.0)
 @d number_positive(A) ((A)->data.val>0)
@@ -9293,6 +9297,10 @@ void mp_free_number (MP mp, mp_number n) {
 @d number_negative(A) ((A)->data.val<0)
 @d number_nonzero(A) (!number_zero(A))
 @d number_equal(A,B) ((A)->data.val==(B)->data.val)
+@d number_greater(A,B) ((A)->data.val>(B)->data.val)
+@d number_greaterequal(A,B) ((A)->data.val>=(B)->data.val)
+@d number_less(A,B) ((A)->data.val<(B)->data.val)
+@d number_lessequal(A,B) ((A)->data.val<=(B)->data.val)
 @d number_abs(A)     mp_number_abs(mp,A)
 @d number_nonequal(A,B) (!number_equal(A,B))
 @d number_nonequalabs(A,B) (!(abs((A)->data.val)==abs((B)->data.val)))
@@ -9405,7 +9413,7 @@ else if (internal_value_to_halfword (mp_linejoin) > 0)
 else
   t->ljoin = 0;
 if (internal_value_to_halfword (mp_miterlimit) < unity) {
-  set_number_from_scaled(t->miterlim,unity);
+  set_number_to_unity(t->miterlim);
 } else {
   set_number_from_scaled(t->miterlim,internal_value_to_halfword (mp_miterlimit));
 }
@@ -9456,7 +9464,7 @@ static mp_node mp_new_stroked_node (MP mp, mp_knot p) {
   mp_pen_p (t) = NULL;
   mp_dash_p (t) = NULL;
   t->dash_scale = mp_new_number(mp);
-  set_number_from_scaled(t->dash_scale, unity);
+  set_number_to_unity(t->dash_scale);
   t->red = mp_new_number(mp);
   t->green = mp_new_number(mp);
   t->blue = mp_new_number(mp);
@@ -9605,8 +9613,8 @@ static mp_node mp_new_text_node (MP mp, char *f, mp_string s) {
   t->tyy = mp_new_number(mp);
   /* |tx_val (t) = 0; ty_val (t) = 0;| */
   /* |txy_val (t) = 0; tyx_val (t) = 0;| */
-  set_number_from_scaled(t->txx, unity);
-  set_number_from_scaled(t->tyy, unity);
+  set_number_to_unity(t->txx);
+  set_number_to_unity(t->tyy);
   mp_set_text_box (mp, t);    /* this finds the bounding box */
   return (mp_node) t;
 }
@@ -9810,10 +9818,10 @@ static void mp_init_bbox (MP mp, mp_edge_header_node h) {
   (void) mp;
   bblast (h) = edge_list (h);
   h->bbtype = no_bounds;
-  set_number_from_scaled(h->minx, EL_GORDO);
-  set_number_from_scaled(h->miny, EL_GORDO);
-  set_number_from_scaled(h->maxx, -EL_GORDO);
-  set_number_from_scaled(h->maxy, -EL_GORDO);
+  set_number_to_inf(h->minx);
+  set_number_to_inf(h->miny);
+  set_number_to_neg_inf(h->maxx);
+  set_number_to_neg_inf(h->maxy);
 }
 
 
@@ -10363,7 +10371,7 @@ else
   scf = number_to_scaled(((mp_stroked_node) p)->dash_scale);
 hhd = (mp_dash_node)mp_dash_p (p);
 ppd = dash_list (hhd);
-if ((ppd == mp->null_dash) || (number_to_scaled(hhd->dash_y) < 0)) {
+if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
   mp_print (mp, " ??");
 } else {
   set_number_from_scaled(mp->null_dash->start_x, 
@@ -10382,7 +10390,7 @@ if ((ppd == mp->null_dash) || (number_to_scaled(hhd->dash_y) < 0)) {
   }
   mp_print (mp, ") shifted ");
   mp_print_scaled (mp, -mp_take_scaled (mp, mp_dash_offset (mp, hhd), scf));
-  if (!ok_to_dash || (number_to_scaled(hhd->dash_y ) == 0))
+  if (!ok_to_dash || number_zero(hhd->dash_y) )
     mp_print (mp, " (this will be ignored)");
 }
 }
@@ -10393,10 +10401,10 @@ static scaled mp_dash_offset (MP mp, mp_dash_node h);
 @ @c
 scaled mp_dash_offset (MP mp, mp_dash_node h) {
   scaled x;     /* the answer */
-  if (dash_list (h) == mp->null_dash || number_to_scaled(h->dash_y ) < 0)
+  if (dash_list (h) == mp->null_dash || number_negative(h->dash_y ))
     mp_confusion (mp, "dash0");
 @:this can't happen dash0}{\quad dash0@>;
-  if (number_to_scaled(h->dash_y) == 0) {
+  if (number_zero(h->dash_y)) {
     x = 0;
   } else {
     x = -(number_to_scaled ((dash_list (h))->start_x ) % number_to_scaled(h->dash_y ));
@@ -10420,17 +10428,17 @@ mp_print_ln (mp);
 mp_print_obj_color (mp, p);
 mp_print (mp, "transformed ");
 mp_print_char (mp, xord ('('));
-mp_print_scaled (mp, number_to_scaled(p0->tx));
+mp_print_number (mp, p0->tx);
 mp_print_char (mp, xord (','));
-mp_print_scaled (mp, number_to_scaled(p0->ty));
+mp_print_number (mp, p0->ty);
 mp_print_char (mp, xord (','));
-mp_print_scaled (mp, number_to_scaled(p0->txx));
+mp_print_number (mp, p0->txx);
 mp_print_char (mp, xord (','));
-mp_print_scaled (mp, number_to_scaled(p0->txy));
+mp_print_number (mp, p0->txy);
 mp_print_char (mp, xord (','));
-mp_print_scaled (mp, number_to_scaled(p0->tyx));
+mp_print_number (mp, p0->tyx);
 mp_print_char (mp, xord (','));
-mp_print_scaled (mp, number_to_scaled(p0->tyy));
+mp_print_number (mp, p0->tyy);
 mp_print_char (mp, xord (')'));
 }
 break;
@@ -10555,7 +10563,7 @@ if (mp_dash_p (p) == NULL)
   dash_info (d) = NULL;
 else
   dash_info (d) = p;
-if (number_to_scaled (pp->x_coord) < number_to_scaled (rr->x_coord)) {
+if (number_less (pp->x_coord, rr->x_coord)) {
   number_clone(d->start_x, pp->x_coord);
   number_clone(d->stop_x, rr->x_coord);
 } else {
@@ -10609,10 +10617,10 @@ if (!number_equal(((mp_stroked_node)p)->red, ((mp_stroked_node)p0)->red) ||
 @ @<Insert |d| into the dash list and |goto not_found| if there is an error@>=
 number_clone(mp->null_dash->start_x, d->stop_x);
 dd = (mp_dash_node)h;                         /* this makes |mp_link(dd)=dash_list(h)| */
-while (number_to_scaled(((mp_dash_node)mp_link (dd))->start_x)  < number_to_scaled(d->stop_x ))
+while (number_less(((mp_dash_node)mp_link (dd))->start_x, d->stop_x ))
   dd = (mp_dash_node)mp_link (dd);
 if (dd != (mp_dash_node)h) {
-  if (number_to_scaled(dd->stop_x) > number_to_scaled(d->start_x)) {
+  if (number_greater(dd->stop_x, d->start_x)) {
     mp_x_retrace_error (mp);
     goto NOT_FOUND;
   };
@@ -10660,7 +10668,7 @@ while (mp_link (d) != (mp_node)mp->null_dash) {
     if ((hh == NULL))
       mp_confusion (mp, "dash1");
 @:this can't happen dash0}{\quad dash1@>;
-    if (number_to_scaled(((mp_dash_node)hh)->dash_y ) == 0) {
+    if (number_zero(((mp_dash_node)hh)->dash_y )) {
       d = (mp_dash_node)mp_link (d);
     } else {
       if (dash_list (hh) == NULL)
@@ -10690,7 +10698,7 @@ set_number_from_scaled(mp->null_dash->start_x, mp_take_scaled (mp, hsf, number_t
 number_clone(mp->null_dash->stop_x, mp->null_dash->start_x);
 @<Advance |dd| until finding the first dash that overlaps |dln| when
   offset by |xoff|@>;
-while (number_to_scaled(dln->start_x) <= number_to_scaled(dln->stop_x)) {
+while (number_lessequal(dln->start_x, dln->stop_x)) {
 @<If |dd| has `fallen off the end', back up to the beginning and fix |xoff|@>;
 @<Insert a dash between |d| and |dln| for the overlap with the offset version
     of |dd|@>;
@@ -11044,10 +11052,10 @@ mp_adjust_bbox (mp, h);
 break;
 
 @ @<Reinitialize the bounding box in header |h| and call |set_bbox|...@>=
-set_number_from_scaled(h->minx, EL_GORDO);
-set_number_from_scaled(h->miny, EL_GORDO);
-set_number_from_scaled(h->maxx, -EL_GORDO);
-set_number_from_scaled(h->maxy, -EL_GORDO);
+set_number_to_inf(h->minx);
+set_number_to_inf(h->miny);
+set_number_to_neg_inf(h->maxx);
+set_number_to_neg_inf(h->maxy);
 mp_set_bbox (mp, h, false)
  
 
@@ -21314,7 +21322,7 @@ there are no explicit control points.
   } else if (cur_cmd() == mp_controls) {
     @<Set explicit control points@>;
   } else {
-    set_number_from_scaled(path_q->right_tension, unity);
+    set_number_to_unity(path_q->right_tension);
     y = unity;
     mp_back_input (mp);         /* default tension */
     goto DONE;
@@ -21421,7 +21429,7 @@ shouldn't have length zero.
   if (d == mp_ampersand)
     if (path_p == path_q) {
       d = mp_path_join;
-      set_number_from_scaled(path_q->right_tension, unity);
+      set_number_to_unity(path_q->right_tension);
       y = unity;
     }
 }
@@ -21441,7 +21449,7 @@ shouldn't have length zero.
 @.Paths don't touch@>;
       mp_get_x_next (mp);
       d = mp_path_join;
-      set_number_from_scaled(path_q->right_tension, unity);
+      set_number_to_unity(path_q->right_tension);
       y = unity;
     }
   }
@@ -21482,12 +21490,12 @@ if (mp_right_type (pp) == mp_open) {
   if (mp_left_type (path_q) == mp_open)
     if (mp_right_type (path_q) == mp_open) {
       mp_left_type (path_q) = mp_curl;
-      set_number_from_scaled(path_q->left_curl, unity);
+      set_number_to_unity(path_q->left_curl);
     }
   if (mp_right_type (pp) == mp_open)
     if (t == mp_open) {
       mp_right_type (pp) = mp_curl;
-      set_number_from_scaled(pp->right_curl, unity);
+      set_number_to_unity(pp->right_curl);
     }
   mp_right_type (path_q) = mp_right_type (pp);
   mp_next_knot (path_q) = mp_next_knot (pp);
@@ -21507,12 +21515,12 @@ if (cycle_hit) {
   mp_left_type (path_p) = mp_endpoint;
   if (mp_right_type (path_p) == mp_open) {
     mp_right_type (path_p) = mp_curl;
-    set_number_from_scaled(path_p->right_curl, unity);
+    set_number_to_unity(path_p->right_curl);
   }
   mp_right_type (path_q) = mp_endpoint;
   if (mp_left_type (path_q) == mp_open) {
     mp_left_type (path_q) = mp_curl;
-    set_number_from_scaled(path_q->left_curl, unity);
+    set_number_to_unity(path_q->left_curl);
   }
   mp_next_knot (path_q) = path_p;
 }
@@ -22467,7 +22475,7 @@ static void mp_take_pict_part (MP mp, quarterword c) {
     case mp_black_part:
       if (has_color (p)) {
         if (mp_color_model (p) == mp_uninitialized_model && c == mp_black_part) {
-          set_number_from_scaled(new_expr.data.n,unity);
+          set_number_to_unity(new_expr.data.n);
         } else {
           switch (c) {
           case mp_cyan_part:
@@ -22623,8 +22631,8 @@ case mp_path_part:
   mp_left_type (cur_exp_knot ()) = mp_endpoint;
   mp_right_type (cur_exp_knot ()) = mp_endpoint;
   mp_next_knot (cur_exp_knot ()) = cur_exp_knot ();
-  set_number_from_scaled(cur_exp_knot ()->x_coord, 0);
-  set_number_from_scaled(cur_exp_knot ()->y_coord, 0);
+  set_number_to_zero(cur_exp_knot ()->x_coord);
+  set_number_to_zero(cur_exp_knot ()->y_coord);
   mp_originator (cur_exp_knot ()) = mp_metapost_user;
   mp->cur_exp.type = mp_path_type;
   break;
@@ -23030,11 +23038,11 @@ static scaled mp_new_turn_cycles (MP mp, mp_knot c) {
     if ((xp == x) && (yp == y)) {
       x = number_to_scaled (p->right_x);
       y = number_to_scaled (p->right_y);
-    };
+    }
     if ((xp == x) && (yp == y)) {
       x = number_to_scaled (p->x_coord);
       y = number_to_scaled (p->y_coord);
-    };
+    }
     in_angle = mp_an_angle (mp, xp - x, yp - y);
     /*  outgoing angle at next point  */
     x = number_to_scaled (p_next->right_x);
@@ -23437,7 +23445,7 @@ static boolean mp_get_cur_bbox (MP mp) {
   {
     mp_edge_header_node p0 = (mp_edge_header_node)cur_exp_node ();
     mp_set_bbox (mp, p0, true);
-    if (number_to_scaled(p0->minx) > number_to_scaled(p0->maxx)) {
+    if (number_greater(p0->minx, p0->maxx)) {
       mp_minx = 0;
       mp_maxx = 0;
       mp_miny = 0;
@@ -24780,12 +24788,12 @@ static void mp_set_up_known_trans (MP mp, quarterword c) {
 @.Transform components...@>;
     mp_get_x_next (mp);
     mp_flush_cur_exp (mp, new_expr);
-    set_number_from_scaled(mp->txx, unity);
-    set_number_from_scaled(mp->txy, 0);
-    set_number_from_scaled(mp->tyx, 0);
-    set_number_from_scaled(mp->tyy, unity);
-    set_number_from_scaled(mp->tx, 0);
-    set_number_from_scaled(mp->ty, 0);
+    set_number_to_unity(mp->txx);
+    set_number_to_zero(mp->txy);
+    set_number_to_zero(mp->tyx);
+    set_number_to_unity(mp->tyy);
+    set_number_to_zero(mp->tx);
+    set_number_to_zero(mp->ty);
   }
 }
 
@@ -24893,10 +24901,10 @@ static void mp_do_edges_trans (MP mp, mp_node p, quarterword c) {
 static mp_edge_header_node mp_scale_edges (MP mp, mp_number se_sf, mp_edge_header_node se_pic) {
   number_clone(mp->txx, se_sf);
   number_clone(mp->tyy, se_sf);
-  set_number_from_scaled(mp->txy, 0);
-  set_number_from_scaled(mp->tyx, 0);
-  set_number_from_scaled(mp->tx, 0);
-  set_number_from_scaled(mp->ty, 0);
+  set_number_to_zero(mp->txy);
+  set_number_to_zero(mp->tyx);
+  set_number_to_zero(mp->tx);
+  set_number_to_zero(mp->ty);
   return mp_edges_trans (mp, se_pic);
 }
 
@@ -24951,7 +24959,7 @@ if ((mp->txx == 0) && (mp->tyy == 0)) {
   mp_init_bbox (mp, h);
   goto DONE1;
 }
-if (number_to_scaled (h->minx) <= number_to_scaled(h->maxx)) {
+if (number_lessequal (h->minx, h->maxx)) {
   @<Scale the bounding box by |txx+txy| and |tyx+tyy|; then shift by
    |(tx,ty)|@>;
 }
@@ -25044,8 +25052,8 @@ We pass the mptrap test only if |dash_scale| is not adjusted, nowadays
 if (mp_pen_p (qq) != NULL) {
   sx = number_to_scaled(mp->tx);
   sy = number_to_scaled(mp->ty);
-  set_number_from_scaled(mp->tx, 0);
-  set_number_from_scaled(mp->ty, 0);
+  set_number_to_zero(mp->tx);
+  set_number_to_zero(mp->ty);
   mp_do_pen_trans (mp, mp_pen_p (qq));
   if (sqdet != 0
       && ((mp_type (q) == mp_stroked_node_type) && (mp_dash_p (q) != NULL)))
@@ -25063,8 +25071,8 @@ if (mp_pen_p (qq) != NULL) {
 mp_number_trans (mp, ((mp_text_node)q)->tx, ((mp_text_node)q)->ty);
 sx = number_to_scaled(mp->tx);
 sy = number_to_scaled(mp->ty);
-set_number_from_scaled(mp->tx, 0);
-set_number_from_scaled(mp->ty, 0);
+set_number_to_zero(mp->tx);
+set_number_to_zero(mp->ty);
 mp_number_trans (mp, ((mp_text_node)q)->txx, ((mp_text_node)q)->tyx);
 mp_number_trans (mp, ((mp_text_node)q)->txy, ((mp_text_node)q)->tyy);
 set_number_from_scaled(mp->tx, sx);
@@ -25499,7 +25507,7 @@ static void mp_set_up_envelope (MP mp, mp_node p) {
   else
     lcap = 0;
   if (internal_value_to_halfword (mp_miterlimit) < unity)
-    set_number_from_scaled(miterlim, unity);
+    set_number_to_unity(miterlim);
   else
     set_number_from_scaled(miterlim, internal_value_to_halfword (mp_miterlimit));
   set_cur_exp_knot (mp_make_envelope
@@ -27959,7 +27967,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
         if (mp_dash_p (dp) != NULL)
           delete_edge_ref (mp_dash_p (dp));
         mp_dash_p (dp) = (mp_node)mp_make_dashes (mp, (mp_edge_header_node)cur_exp_node ());
-        set_number_from_scaled(((mp_stroked_node)dp)->dash_scale,unity);
+        set_number_to_unity(((mp_stroked_node)dp)->dash_scale);
         mp->cur_exp.type = mp_vacuous;
       }
     }
@@ -28019,19 +28027,19 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
 @ 
 
 @d clear_color(A) do {
-  set_number_from_scaled(((mp_stroked_node)(A))->cyan, 0);
-  set_number_from_scaled(((mp_stroked_node)(A))->magenta, 0);
-  set_number_from_scaled(((mp_stroked_node)(A))->yellow, 0);
-  set_number_from_scaled(((mp_stroked_node)(A))->black, 0);
+  set_number_to_zero(((mp_stroked_node)(A))->cyan);
+  set_number_to_zero(((mp_stroked_node)(A))->magenta);
+  set_number_to_zero(((mp_stroked_node)(A))->yellow);
+  set_number_to_zero(((mp_stroked_node)(A))->black);
   mp_color_model ((A)) = mp_uninitialized_model;
 } while (0)
 
 @d set_color_val(A,B) do {
   set_number_from_scaled(A, (B));
-  if (number_to_scaled(A) < 0)
-    set_number_from_scaled(A,0);
+  if (number_negative(A))
+    set_number_to_zero(A);
   if (number_to_scaled(A) > unity)
-    set_number_from_scaled(A,unity);
+    set_number_to_unity(A);
 } while (0)
 
 @<Transfer a rgbcolor from the current expression to object~|cp|@>=
@@ -28178,7 +28186,7 @@ if (dp > MP_VOID) {
       if (mp_dash_p (q) != NULL)
         delete_edge_ref (mp_dash_p (q));
       mp_dash_p (q) = mp_dash_p (dp);
-      set_number_from_scaled(((mp_stroked_node)q)->dash_scale, unity);
+      set_number_to_unity(((mp_stroked_node)q)->dash_scale);
       if (mp_dash_p (q) != NULL)
         add_edge_ref (mp_dash_p (q));
     }
@@ -30559,9 +30567,9 @@ void mp_set_text_box (MP mp, mp_text_node p) {
   size_t k, kk; /* current character and character to stop at */
   four_quarters cc;     /* the |char_info| for the current character */
   scaled h, d;  /* dimensions of the current character */
-  set_number_from_scaled(p->width, 0);
-  set_number_from_scaled(p->height, -EL_GORDO);
-  set_number_from_scaled(p->depth, -EL_GORDO);
+  set_number_to_zero(p->width);
+  set_number_to_neg_inf(p->height);
+  set_number_to_neg_inf(p->depth);
   f = (font_number) mp_font_n (p);
   bc = mp->font_bc[f];
   ec = mp->font_ec[f];
@@ -30601,9 +30609,9 @@ void mp_set_text_box (MP mp, mp_text_node p) {
 overflow.
 
 @<Set the height and depth to zero if the bounding box is empty@>=
-if (number_to_scaled(p->height) < -number_to_scaled(p->depth)) {
-  set_number_from_scaled(p->height, 0);
-  set_number_from_scaled(p->depth, 0);
+if (number_greaterequal(p->height, p->depth)) {
+  set_number_to_zero(p->height);
+  set_number_to_zero(p->depth);
 }
 
 @ The new primitives fontmapfile and fontmapline.
@@ -31244,11 +31252,11 @@ mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
           mp_import_knot_list (mp, gr_path_p ((mp_fill_object *) p));
         mp_color_model (pn) = mp_grey_model;
         if (mp_new_turn_cycles (mp, mp_path_p ((mp_fill_node) pn)) < 0) {
-          set_number_from_scaled(((mp_fill_node) pn)->grey, unity);
+          set_number_to_unity(((mp_fill_node) pn)->grey);
           mp_link (pt) = pn;
           pt = mp_link (pt);
         } else {
-          set_number_from_scaled(((mp_fill_node) pn)->grey, 0);
+          set_number_to_unity(((mp_fill_node) pn)->grey);
           mp_link (pn) = mp_link (ph);
           mp_link (ph) = pn;
           if (ph == pt)
