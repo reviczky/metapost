@@ -1234,7 +1234,7 @@ void mp_print_ln (MP mp);
 void mp_print_char (MP mp, ASCII_code k);
 void mp_print_str (MP mp, mp_string s);
 void mp_print_nl (MP mp, const char *s);
-void mp_print_two (MP mp, scaled x, scaled y);
+void mp_print_two (MP mp, mp_number x, mp_number y);
 
 @ @<Declarations@>=
 static void mp_print_visible_char (MP mp, ASCII_code s);
@@ -2213,11 +2213,11 @@ typedef int angle;  /* this type is used for scaled angles */
 separated by a comma.
 
 @<Basic printing...@>=
-void mp_print_two (MP mp, scaled x, scaled y) {                               /* prints `|(x,y)|' */
+void mp_print_two (MP mp, mp_number x, mp_number y) {                               /* prints `|(x,y)|' */
   mp_print_char (mp, xord ('('));
-  mp_print_scaled (mp, x);
+  mp_print_number (mp, x);
   mp_print_char (mp, xord (','));
-  mp_print_scaled (mp, y);
+  mp_print_number (mp, y);
   mp_print_char (mp, xord (')'));
 }
 
@@ -6662,7 +6662,7 @@ void mp_pr_path (MP mp, mp_knot h) {
 
 
 @ @<Print information for adjacent knots...@>=
-mp_print_two (mp, number_to_scaled(p->x_coord), number_to_scaled(p->y_coord));
+mp_print_two (mp, p->x_coord, p->y_coord);
 switch (mp_right_type (p)) {
 case mp_endpoint:
   if (mp_left_type (p) == mp_open)
@@ -6735,13 +6735,13 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
 @ @<Print control points between |p| and |q|, then |goto done1|@>=
 {
   mp_print (mp, "..controls ");
-  mp_print_two (mp, number_to_scaled (p->right_x), number_to_scaled (p->right_y));
+  mp_print_two (mp, p->right_x, p->right_y);
   mp_print (mp, " and ");
   if (mp_left_type (q) != mp_explicit) {
     mp_print (mp, "??");        /* can't happen */
 @.??@>
   } else {
-    mp_print_two (mp, number_to_scaled(q->left_x), number_to_scaled(q->left_y));
+    mp_print_two (mp, q->left_x, q->left_y);
   }
   goto DONE1;
 }
@@ -8772,7 +8772,7 @@ void mp_pr_pen (MP mp, mp_knot h) {
   } else {
     p = h;
     do {
-      mp_print_two (mp, number_to_scaled (p->x_coord), number_to_scaled (p->y_coord));
+      mp_print_two (mp, p->x_coord, p->y_coord);
       mp_print_nl (mp, " .. ");
       @<Advance |p| making sure the links are OK and |return| if there is
         a problem@>;
@@ -11787,9 +11787,9 @@ static void mp_print_spec (MP mp, mp_knot cur_spec, mp_knot cur_pen,
   p = cur_spec;
   w = mp_pen_walk (mp, cur_pen, mp->spec_offset);
   mp_print_ln (mp);
-  mp_print_two (mp, number_to_scaled (cur_spec->x_coord), number_to_scaled (cur_spec->y_coord));
+  mp_print_two (mp, cur_spec->x_coord, cur_spec->y_coord);
   mp_print (mp, " % beginning with offset ");
-  mp_print_two (mp, number_to_scaled (w->x_coord), number_to_scaled (w->y_coord));
+  mp_print_two (mp, w->x_coord, w->y_coord);
   do {
     while (1) {
       q = mp_next_knot (p);
@@ -11814,18 +11814,18 @@ static void mp_print_spec (MP mp, mp_knot cur_spec, mp_knot cur_pen,
   if (mp_knot_info (p) > zero_off)
     mp_print (mp, "counter");
   mp_print (mp, "clockwise to offset ");
-  mp_print_two (mp, number_to_scaled (w->x_coord), number_to_scaled (w->y_coord));
+  mp_print_two (mp, w->x_coord, w->y_coord);
 }
 
 
 @ @<Print the cubic between |p| and |q|@>=
 {
   mp_print_nl (mp, "   ..controls ");
-  mp_print_two (mp, number_to_scaled (p->right_x), number_to_scaled (p->right_y));
+  mp_print_two (mp, p->right_x,  p->right_y);
   mp_print (mp, " and ");
-  mp_print_two (mp, number_to_scaled (q->left_x), number_to_scaled (q->left_y));
+  mp_print_two (mp, q->left_x, q->left_y);
   mp_print_nl (mp, " ..");
-  mp_print_two (mp, number_to_scaled (q->x_coord), number_to_scaled (q->y_coord));
+  mp_print_two (mp, q->x_coord, q->y_coord);
 }
 
 
