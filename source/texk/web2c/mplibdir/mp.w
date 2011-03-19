@@ -8025,28 +8025,30 @@ It is convenient to define a \.{WEB} macro |t_of_the_way| such that
 |t_of_the_way(a,b)| expands to |a-(a-b)*t|, i.e., to |t[a,b]|.
 
 @d t_of_the_way(A,B) ((A)-mp_take_fraction(mp,((A)-(B)),t))
-@d t_of_the_way_n(A,B) (number_to_scaled((A))-mp_take_fraction(mp,(number_to_scaled((A))-number_to_scaled((B))),t))
 
 @c
 static scaled mp_eval_cubic (MP mp, mp_knot p, mp_knot q, quarterword c,
                              fraction t) {
   scaled ret;
-  mp_number x1, x2, x3;    /* intermediate values */
+  mp_number x1, x2, x3, r;    /* intermediate values */
   x1 = mp_new_number(mp);
   x2 = mp_new_number(mp);
   x3 = mp_new_number(mp);
+  r = mp_new_number(mp);
   if (c == mp_x_code) {
-    set_number_from_scaled(x1, t_of_the_way_n (p->x_coord, p->right_x));
-    set_number_from_scaled(x2, t_of_the_way_n (p->right_x, q->left_x));
-    set_number_from_scaled(x3, t_of_the_way_n (q->left_x, q->x_coord));
+    set_number_from_of_the_way(x1, t, p->x_coord, p->right_x);
+    set_number_from_of_the_way(x2, t, p->right_x, q->left_x);
+    set_number_from_of_the_way(x3, t, q->left_x, q->x_coord);
   } else {
-    set_number_from_scaled(x1, t_of_the_way_n (p->y_coord, p->right_y));
-    set_number_from_scaled(x2, t_of_the_way_n (p->right_y, q->left_y));
-    set_number_from_scaled(x3, t_of_the_way_n (q->left_y, q->y_coord));
+    set_number_from_of_the_way(x1, t, p->y_coord, p->right_y);
+    set_number_from_of_the_way(x2, t, p->right_y, q->left_y);
+    set_number_from_of_the_way(x3, t, q->left_y, q->y_coord);
   }
-  set_number_from_scaled(x1, t_of_the_way_n (x1, x2));
-  set_number_from_scaled(x2, t_of_the_way_n (x2, x3));
-  ret = t_of_the_way_n (x1, x2);
+  set_number_from_of_the_way(x1, t, x1, x2);
+  set_number_from_of_the_way(x2, t, x2, x3);
+  set_number_from_of_the_way(r,  t, x1, x2);
+  ret = number_to_scaled(r);
+  mp_free_number(mp, r);
   mp_free_number(mp, x1);
   mp_free_number(mp, x2);
   mp_free_number(mp, x3);
@@ -8201,7 +8203,7 @@ must cut it to zero to avoid confusion.
 {
   x = mp_eval_cubic (mp, p, q, c, t);
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
-  set_number_from_scaled(del2, t_of_the_way_n (del2, del3));
+  set_number_from_of_the_way(del2, t, del2, del3);
   /* now |0,del2,del3| represent the derivative on the remaining interval */
   if (number_positive(del2))
     set_number_to_zero(del2);
@@ -9324,6 +9326,11 @@ void mp_free_number (MP mp, mp_number n) {
 @d set_number_to_zero(A) (A)->data.val=0
 @d set_number_to_inf(A) (A)->data.val=EL_GORDO
 @d set_number_to_neg_inf(A) (A)->data.val=-EL_GORDO
+
+@d set_number_from_of_the_way(A,t,B,C) do {
+    (A)->data.val = (B)->data.val - mp_take_fraction(mp, ((B)->data.val - (C)->data.val),t);
+} while (0)
+
 @d number_to_scaled(A) (A)->data.val
 @d number_to_double(A) ((A)->data.val/65536.0)
 @d number_positive(A) ((A)->data.val>0)
@@ -11142,11 +11149,36 @@ static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h) {
   mp_knot c0, p, q, q0, r, w, ww;       /* for list manipulation */
   integer k_needed;     /* amount to be added to |mp_info(p)| when it is computed */
   mp_knot w0;   /* a pointer to pen offset to use just before |p| */
-  scaled dxin, dyin;    /* the direction into knot |p| */
+  mp_number dxin, dyin;    /* the direction into knot |p| */
   integer turn_amt;     /* change in pen offsets for the current cubic */
   @<Other local variables for |offset_prep|@>;
-  dx0 = 0;
-  dy0 = 0;
+  dxin = mp_new_number(mp);
+  dyin = mp_new_number(mp);
+  dx0 = mp_new_number(mp);
+  dy0 = mp_new_number(mp);
+  x0 = mp_new_number(mp);
+  y0 = mp_new_number(mp);
+  x1 = mp_new_number(mp);
+  y1 = mp_new_number(mp);
+  x2 = mp_new_number(mp);
+  y2 = mp_new_number(mp);
+  du = mp_new_number(mp);
+  dv = mp_new_number(mp);
+  dx = mp_new_number(mp);
+  dy = mp_new_number(mp);
+  x0a = mp_new_number(mp);
+  y0a = mp_new_number(mp);
+  x1a = mp_new_number(mp);
+  y1a = mp_new_number(mp);
+  x2a = mp_new_number(mp);
+  y2a = mp_new_number(mp);
+  t0 = mp_new_number(mp);
+  t1 = mp_new_number(mp);
+  t2 = mp_new_number(mp);
+  u0 = mp_new_number(mp);
+  u1 = mp_new_number(mp);
+  v0 = mp_new_number(mp);
+  v1 = mp_new_number(mp);
   @<Initialize the pen size~|n|@>;
   @<Initialize the incoming direction and pen offset at |c|@>;
   p = c;
@@ -11163,6 +11195,34 @@ static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h) {
   } while (q != c);
   @<Fix the offset change in |mp_knot_info(c)| and set |c| to the return value of
     |offset_prep|@>;
+  mp_free_number(mp, dxin);
+  mp_free_number(mp, dyin);
+  mp_free_number(mp, dx0);
+  mp_free_number(mp, dy0);
+  mp_free_number(mp, x0);
+  mp_free_number(mp, y0);
+  mp_free_number(mp, x1);
+  mp_free_number(mp, y1);
+  mp_free_number(mp, x2);
+  mp_free_number(mp, y2);
+  mp_free_number(mp, max_coef);
+  mp_free_number(mp, du);
+  mp_free_number(mp, dv);
+  mp_free_number(mp, dx);
+  mp_free_number(mp, dy);
+  mp_free_number(mp, x0a);
+  mp_free_number(mp, y0a);
+  mp_free_number(mp, x1a);
+  mp_free_number(mp, y1a);
+  mp_free_number(mp, x2a);
+  mp_free_number(mp, y2a);
+  mp_free_number(mp, t0);
+  mp_free_number(mp, t1);
+  mp_free_number(mp, t2);
+  mp_free_number(mp, u0);
+  mp_free_number(mp, u1);
+  mp_free_number(mp, v0);
+  mp_free_number(mp, v1);
   return c;
 }
 
@@ -11193,14 +11253,15 @@ consistent with the pen offset~|h|.  If this is wrong, it can be corrected
 later.
 
 @<Initialize the incoming direction and pen offset at |c|@>=
-{mp_knot hn = mp_next_knot (h);
-mp_knot hp = mp_prev_knot (h);
-dxin = number_to_scaled(hn->x_coord) - number_to_scaled(hp->x_coord);
-dyin = number_to_scaled(hn->y_coord) - number_to_scaled(hp->y_coord);
-if ((dxin == 0) && (dyin == 0)) {
-dxin = number_to_scaled(hp->y_coord) - number_to_scaled(h->y_coord);
-dyin = number_to_scaled(h->x_coord) - number_to_scaled(hp->x_coord);
-}
+{
+  mp_knot hn = mp_next_knot (h);
+  mp_knot hp = mp_prev_knot (h);
+  set_number_from_substraction(dxin, hn->x_coord, hp->x_coord);
+  set_number_from_substraction(dyin, hn->y_coord, hp->y_coord);
+  if (number_zero(dxin) && number_zero(dyin)) {
+    set_number_from_substraction(dxin, hp->y_coord, h->y_coord);
+    set_number_from_substraction(dyin, h->x_coord, hp->x_coord);
+  }
 }
 w0 = h
 
@@ -11275,18 +11336,18 @@ void mp_split_cubic (MP mp, mp_knot p, fraction t) {                            
   mp_left_type (r) = mp_explicit;
   mp_right_type (r) = mp_explicit;
   v = mp_new_number(mp);
-  set_number_from_scaled (v, t_of_the_way_n (p->right_x, q->left_x));
-  set_number_from_scaled (p->right_x, t_of_the_way_n (p->x_coord, p->right_x));
-  set_number_from_scaled (q->left_x, t_of_the_way_n (q->left_x, q->x_coord));
-  set_number_from_scaled (r->left_x, t_of_the_way_n (p->right_x, v));
-  set_number_from_scaled (r->right_x, t_of_the_way_n (v, q->left_x));
-  set_number_from_scaled (r->x_coord, t_of_the_way_n (r->left_x, r->right_x));
-  set_number_from_scaled (v, t_of_the_way_n (p->right_y, q->left_y));
-  set_number_from_scaled (p->right_y, t_of_the_way_n (p->y_coord, p->right_y));
-  set_number_from_scaled (q->left_y, t_of_the_way_n (q->left_y, q->y_coord));
-  set_number_from_scaled (r->left_y, t_of_the_way_n (p->right_y, v));
-  set_number_from_scaled (r->right_y, t_of_the_way_n (v, q->left_y));
-  set_number_from_scaled (r->y_coord, t_of_the_way_n (r->left_y, r->right_y));
+  set_number_from_of_the_way (v,          t, p->right_x, q->left_x);
+  set_number_from_of_the_way (p->right_x, t, p->x_coord, p->right_x);
+  set_number_from_of_the_way (q->left_x,  t, q->left_x, q->x_coord);
+  set_number_from_of_the_way (r->left_x,  t, p->right_x, v);
+  set_number_from_of_the_way (r->right_x, t, v, q->left_x);
+  set_number_from_of_the_way (r->x_coord, t, r->left_x, r->right_x);
+  set_number_from_of_the_way (v,          t, p->right_y, q->left_y);
+  set_number_from_of_the_way (p->right_y, t, p->y_coord, p->right_y);
+  set_number_from_of_the_way (q->left_y,  t, q->left_y, q->y_coord);
+  set_number_from_of_the_way (r->left_y,  t, p->right_y, v);
+  set_number_from_of_the_way (r->right_y, t, v, q->left_y);
+  set_number_from_of_the_way (r->y_coord, t, r->left_y, r->right_y);
   mp_free_number(mp, v);
 }
 
@@ -11369,43 +11430,61 @@ $X_1=2^l(x_2-x_1)$, and $X_2=2^l(x_3-x_2)$; similarly |y0|, |y1|, and~|y2|
 represent $Y_0=2^l(y_1-y_0)$, $Y_1=2^l(y_2-y_1)$, and $Y_2=2^l(y_3-y_2)$.
 
 @<Other local variables for |offset_prep|@>=
-integer x0, x1, x2, y0, y1, y2; /* representatives of derivatives */
-integer t0, t1, t2;     /* coefficients of polynomial for slope testing */
-integer du, dv, dx, dy; /* for directions of the pen and the curve */
-integer dx0, dy0;       /* initial direction for the first cubic in the curve */
-integer max_coef;       /* used while scaling */
-integer x0a, x1a, x2a, y0a, y1a, y2a;   /* intermediate values */
+mp_number x0, x1, x2, y0, y1, y2; /* representatives of derivatives */
+mp_number t0, t1, t2;     /* coefficients of polynomial for slope testing */
+mp_number du, dv, dx, dy; /* for directions of the pen and the curve */
+mp_number dx0, dy0;       /* initial direction for the first cubic in the curve */
+mp_number max_coef;       /* used while scaling */
+mp_number x0a, x1a, x2a, y0a, y1a, y2a;   /* intermediate values */
 fraction t;     /* where the derivative passes through zero */
 fraction s;     /* a temporary value */
 
 @ @<Prepare for derivative computations...@>=
-x0 = number_to_scaled (p->right_x) - number_to_scaled (p->x_coord);
-x2 = number_to_scaled (q->x_coord) - number_to_scaled (q->left_x);
-x1 = number_to_scaled (q->left_x) - number_to_scaled (p->right_x);
-y0 = number_to_scaled (p->right_y) - number_to_scaled (p->y_coord);
-y2 = number_to_scaled (q->y_coord) - number_to_scaled (q->left_y);
-y1 = number_to_scaled (q->left_y) - number_to_scaled (p->right_y);
-max_coef = abs (x0);
-if (abs (x1) > max_coef)
-  max_coef = abs (x1);
-if (abs (x2) > max_coef)
-  max_coef = abs (x2);
-if (abs (y0) > max_coef)
-  max_coef = abs (y0);
-if (abs (y1) > max_coef)
-  max_coef = abs (y1);
-if (abs (y2) > max_coef)
-  max_coef = abs (y2);
-if (max_coef == 0)
-  goto NOT_FOUND;
-while (max_coef < fraction_half) {
-double (max_coef);
-double (x0);
-double (x1);
-double (x2);
-double (y0);
-double (y1);
-double (y2);
+set_number_from_substraction(x0, p->right_x, p->x_coord);
+set_number_from_substraction(x2, q->x_coord, q->left_x);
+set_number_from_substraction(x1, q->left_x, p->right_x);
+set_number_from_substraction(y0, p->right_y, p->y_coord);
+set_number_from_substraction(y2, q->y_coord, q->left_y);
+set_number_from_substraction(y1, q->left_y, p->right_y);
+{
+  mp_number absval = number_abs(x1);
+  max_coef = number_abs(x0);
+  if (number_greater(absval, max_coef)) {
+    mp_free_number(mp, max_coef);
+    max_coef = absval;
+  }
+  absval = number_abs(x2);
+  if (number_greater(absval, max_coef)) {
+    mp_free_number(mp, max_coef);
+    max_coef = absval;
+  }
+  absval = number_abs(y0);
+  if (number_greater(absval, max_coef)) {
+    mp_free_number(mp, max_coef);
+    max_coef = absval;
+  }
+  absval = number_abs(y1);
+  if (number_greater(absval, max_coef)) {
+    mp_free_number(mp, max_coef);
+    max_coef = absval;
+  }
+  absval = number_abs(y2);
+  if (number_greater(absval, max_coef)) {
+    mp_free_number(mp, max_coef);
+    max_coef = absval;
+  }
+  if (number_zero(max_coef)) {
+    goto NOT_FOUND;
+  }
+}
+while (number_to_scaled(max_coef) < fraction_half) {
+  set_number_from_addition (max_coef, max_coef, max_coef);
+  set_number_from_addition (x0, x0, x0);
+  set_number_from_addition (x1, x1, x1);
+  set_number_from_addition (x2, x2, x2);
+  set_number_from_addition (y0, y0, y0);
+  set_number_from_addition (y1, y1, y1);
+  set_number_from_addition (y2, y2, y2);
 }
 
 
@@ -11434,23 +11513,29 @@ be set properly.  The |turn_amt| parameter gives the absolute value of the
 overall net change in pen offsets.
 
 @<Declarations@>=
-static void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, integer
-                                x0, integer x1, integer x2, integer y0,
-                                integer y1, integer y2, integer rise,
+static void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, mp_number
+                                x0, mp_number x1, mp_number x2, mp_number y0,
+                                mp_number y1, mp_number y2, integer rise,
                                 integer turn_amt);
 
 @ @c
-void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, integer
-                         x0, integer x1, integer x2, integer y0, integer y1,
-                         integer y2, integer rise, integer turn_amt) {
+void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, mp_number
+                         x0, mp_number x1, mp_number x2, mp_number y0, mp_number y1,
+                         mp_number y2, integer rise, integer turn_amt) {
   mp_knot ww;   /* for list manipulation */
-  scaled du, dv;        /* for slope calculation */
-  integer t0, t1, t2;   /* test coefficients */
+  mp_number du, dv;        /* for slope calculation */
+  mp_number t0, t1, t2;   /* test coefficients */
   fraction t;   /* place where the derivative passes a critical slope */
   fraction s;   /* slope or reciprocal slope */
-  integer v;    /* intermediate value for updating |x0..y2| */
+  mp_number v;    /* intermediate value for updating |x0..y2| */
   mp_knot q;    /* original |mp_next_knot(p)| */
   q = mp_next_knot (p);
+  du = mp_new_number(mp);
+  dv = mp_new_number(mp);
+  v = mp_new_number(mp);
+  t0 = mp_new_number(mp);
+  t1 = mp_new_number(mp);
+  t2 = mp_new_number(mp);
   while (1) {
     if (rise > 0)
       ww = mp_next_knot (w);    /* a pointer to $w\k$ */
@@ -11458,7 +11543,7 @@ void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, integer
       ww = mp_prev_knot (w);    /* a pointer to $w_{k-1}$ */
     @<Compute test coefficients |(t0,t1,t2)|
       for $d(t)$ versus $d_k$ or $d_{k-1}$@>;
-    t = mp_crossing_point (mp, t0, t1, t2);
+    t = mp_crossing_point (mp, number_to_scaled(t0), number_to_scaled(t1), number_to_scaled(t2));
     if (t >= fraction_one) {
       if (turn_amt > 0)
         t = fraction_one;
@@ -11469,6 +11554,12 @@ void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, integer
       and split off another cubic if the derivative crosses back@>;
     w = ww;
   }
+  mp_free_number(mp, du);
+  mp_free_number(mp, dv);
+  mp_free_number(mp, v);
+  mp_free_number(mp, t0);
+  mp_free_number(mp, t1);
+  mp_free_number(mp, t2);
 }
 
 
@@ -11478,31 +11569,39 @@ function cross from positive to negative when $d_{k-1}\preceq d(t)\preceq d_k$
 begins to fail.
 
 @<Compute test coefficients |(t0,t1,t2)| for $d(t)$ versus...@>=
-du = number_to_scaled (ww->x_coord) - number_to_scaled (w->x_coord);
-dv = number_to_scaled (ww->y_coord) - number_to_scaled (w->y_coord);
-if (abs (du) >= abs (dv)) {
-s = mp_make_fraction (mp, dv, du);
-t0 = mp_take_fraction (mp, x0, s) - y0;
-t1 = mp_take_fraction (mp, x1, s) - y1;
-t2 = mp_take_fraction (mp, x2, s) - y2;
-if (du < 0) {
-  negate (t0);
-  negate (t1);
-  negate (t2);
-}
-} else {
-  s = mp_make_fraction (mp, du, dv);
-  t0 = x0 - mp_take_fraction (mp, y0, s);
-  t1 = x1 - mp_take_fraction (mp, y1, s);
-  t2 = x2 - mp_take_fraction (mp, y2, s);
-  if (dv < 0) {
-    negate (t0);
-    negate (t1);
-    negate (t2);
+{
+  mp_number abs_du, abs_dv;
+  
+  set_number_from_substraction(du, ww->x_coord, w->x_coord);
+  set_number_from_substraction(dv, ww->y_coord, w->y_coord);
+  abs_du = number_abs(du);
+  abs_dv = number_abs(dv);
+  if (number_greaterequal(abs_du, abs_dv)) {
+    s = mp_make_fraction (mp, number_to_scaled(dv), number_to_scaled(du));
+    set_number_from_scaled(t0, mp_take_fraction (mp, number_to_scaled(x0), s) - number_to_scaled(y0));
+    set_number_from_scaled(t1, mp_take_fraction (mp, number_to_scaled(x1), s) - number_to_scaled(y1));
+    set_number_from_scaled(t2, mp_take_fraction (mp, number_to_scaled(x2), s) - number_to_scaled(y2));
+    if (number_negative(du)) {
+      number_negate (t0);
+      number_negate (t1);
+      number_negate (t2);
+    }
+  } else {
+    s = mp_make_fraction (mp, number_to_scaled(du), number_to_scaled(dv));
+    set_number_from_scaled(t0, number_to_scaled(x0) - mp_take_fraction (mp, number_to_scaled(y0), s));
+    set_number_from_scaled(t1, number_to_scaled(x1) - mp_take_fraction (mp, number_to_scaled(y1), s));
+    set_number_from_scaled(t2, number_to_scaled(x2) - mp_take_fraction (mp, number_to_scaled(y2), s));
+    if (number_negative(dv)) {
+      number_negate (t0);
+      number_negate (t1);
+      number_negate (t2);
+    }
   }
+  mp_free_number(mp, abs_du);
+  mp_free_number(mp, abs_dv);
+  if (number_negative(t0))
+    set_number_to_zero(t0); /* should be positive without rounding error */
 }
-if (t0 < 0)
-  t0 = 0                        /* should be positive without rounding error */
     
 
 @ The curve has crossed $d_k$ or $d_{k-1}$; its initial segment satisfies
@@ -11515,17 +11614,17 @@ respectively, yielding another solution of $(*)$.
   p = mp_next_knot (p);
   mp_knot_info (p) = zero_off + rise;
   decr (turn_amt);
-  v = t_of_the_way (x0, x1);
-  x1 = t_of_the_way (x1, x2);
-  x0 = t_of_the_way (v, x1);
-  v = t_of_the_way (y0, y1);
-  y1 = t_of_the_way (y1, y2);
-  y0 = t_of_the_way (v, y1);
+  set_number_from_of_the_way(v,  t, x0, x1);
+  set_number_from_of_the_way(x1, t, x1, x2);
+  set_number_from_of_the_way(x0, t, v, x1);
+  set_number_from_of_the_way(v,  t, y0, y1);
+  set_number_from_of_the_way(y1, t, y1, y2);
+  set_number_from_of_the_way(y0, t, v, y1);
   if (turn_amt < 0) {
-    t1 = t_of_the_way (t1, t2);
-    if (t1 > 0)
-      t1 = 0;                   /* without rounding error, |t1| would be |<=0| */
-    t = mp_crossing_point (mp, 0, -t1, -t2);
+    set_number_from_of_the_way(t1, t, t1, t2);
+    if (number_positive(t1))
+      set_number_to_zero(t1);  /* without rounding error, |t1| would be |<=0| */
+    t = mp_crossing_point (mp, 0, -number_to_scaled(t1), -number_to_scaled(t2));
     if (t > fraction_one)
       t = fraction_one;
     incr (turn_amt);
@@ -11534,12 +11633,12 @@ respectively, yielding another solution of $(*)$.
     } else {
       mp_split_cubic (mp, p, t);
       mp_knot_info (mp_next_knot (p)) = zero_off - rise;
-      v = t_of_the_way (x1, x2);
-      x1 = t_of_the_way (x0, x1);
-      x2 = t_of_the_way (x1, v);
-      v = t_of_the_way (y1, y2);
-      y1 = t_of_the_way (y0, y1);
-      y2 = t_of_the_way (y1, v);
+      set_number_from_of_the_way(v,  t, x1, x2);
+      set_number_from_of_the_way(x1, t, x0, x1);
+      set_number_from_of_the_way(x2, t, x1, v);
+      set_number_from_of_the_way(v,  t, y1, y2);
+      set_number_from_of_the_way(y1, t, y0, y1);
+      set_number_from_of_the_way(y2, t, y1, v);
     }
   }
 }
@@ -11555,30 +11654,30 @@ the true initial direction for the given cubic, even if it is almost
 degenerate.
 
 @<Find the initial direction |(dx,dy)|@>=
-dx = x0;
-dy = y0;
-if (dx == 0 && dy == 0) {
-  dx = x1;
-  dy = y1;
-  if (dx == 0 && dy == 0) {
-    dx = x2;
-    dy = y2;
+number_clone(dx, x0);
+number_clone(dy, y0);
+if (number_zero(dx) && number_zero(dy)) {
+  number_clone(dx, x1);
+  number_clone(dy, y1);
+  if (number_zero(dx) && number_zero(dy)) {
+    number_clone(dx, x2);
+    number_clone(dy, y2);
   }
 }
 if (p == c) {
-  dx0 = dx;
-  dy0 = dy;
+  number_clone(dx0, dx);
+  number_clone(dy0, dy);
 }
 
 @ @<Find the final direction |(dxin,dyin)|@>=
-dxin = x2;
-dyin = y2;
-if (dxin == 0 && dyin == 0) {
-  dxin = x1;
-  dyin = y1;
-  if (dxin == 0 && dyin == 0) {
-    dxin = x0;
-    dyin = y0;
+number_clone(dxin, x2);
+number_clone(dyin, y2);
+if (number_zero(dxin) && number_zero(dyin)) {
+  number_clone(dxin, x1);
+  number_clone(dyin, y1);
+  if (number_zero(dxin) && number_zero(dyin)) {
+    number_clone(dxin, x0);
+    number_clone(dyin, y0);
   }
 }
 
@@ -11591,7 +11690,9 @@ right.) This code depends on |w0| being the offset for |(dxin,dyin)|.
 
 @<Update |mp_knot_info(p)| and find the offset $w_k$ such that...@>=
 turn_amt =
-mp_get_turn_amt (mp, w0, dx, dy, (mp_ab_vs_cd (mp, dy, dxin, dx, dyin) >= 0));
+mp_get_turn_amt (mp, w0, number_to_scaled(dx), number_to_scaled(dy), 
+        (mp_ab_vs_cd (mp, number_to_scaled(dy), number_to_scaled(dxin), 
+                      number_to_scaled(dx), number_to_scaled(dyin)) >= 0));
 w = mp_pen_walk (mp, w0, turn_amt);
 w0 = w;
 mp_knot_info (p) = mp_knot_info (p) + turn_amt
@@ -11662,7 +11763,8 @@ mp_knot_info (c) = zero_off + n;
   while (mp_knot_info (c) > zero_off)
     fix_by (-n);
   if ((mp_knot_info (c) != zero_off)
-      && (mp_ab_vs_cd (mp, dy0, dxin, dx0, dyin) >= 0))
+      && (mp_ab_vs_cd (mp, number_to_scaled(dy0), number_to_scaled(dxin), 
+                       number_to_scaled(dx0), number_to_scaled(dyin)) >= 0))
     fix_by (n);
 }
 
@@ -11681,21 +11783,21 @@ if (t > fraction_one) {
 } else {
   mp_split_cubic (mp, p, t);
   r = mp_next_knot (p);
-  x1a = t_of_the_way (x0, x1);
-  x1 = t_of_the_way (x1, x2);
-  x2a = t_of_the_way (x1a, x1);
-  y1a = t_of_the_way (y0, y1);
-  y1 = t_of_the_way (y1, y2);
-  y2a = t_of_the_way (y1a, y1);
+  set_number_from_of_the_way(x1a, t, x0, x1);
+  set_number_from_of_the_way(x1,  t, x1, x2);
+  set_number_from_of_the_way(x2a, t, x1a, x1);
+  set_number_from_of_the_way(y1a, t, y0, y1);
+  set_number_from_of_the_way(y1,  t, y1, y2);
+  set_number_from_of_the_way(y2a, t, y1a, y1);
   mp_fin_offset_prep (mp, p, w, x0, x1a, x2a, y0, y1a, y2a, 1, 0);
-  x0 = x2a;
-  y0 = y2a;
+  number_clone(x0, x2a);
+  number_clone(y0, y2a);
   mp_knot_info (r) = zero_off - 1;
   if (turn_amt >= 0) {
-    t1 = t_of_the_way (t1, t2);
-    if (t1 > 0)
-      t1 = 0;
-    t = mp_crossing_point (mp, 0, -t1, -t2);
+    set_number_from_of_the_way(t1, t, t1, t2);
+    if (number_positive(t1))
+      set_number_to_zero(t1);
+    t = mp_crossing_point (mp, 0, -number_to_scaled(t1), -number_to_scaled(t2));
     if (t > fraction_one)
       t = fraction_one;
     @<Split off another rising cubic for |fin_offset_prep|@>;
@@ -11709,16 +11811,15 @@ if (t > fraction_one) {
 @ @<Split off another rising cubic for |fin_offset_prep|@>=
 mp_split_cubic (mp, r, t);
 mp_knot_info (mp_next_knot (r)) = zero_off + 1;
-x1a = t_of_the_way (x1, x2);
-x1 = t_of_the_way (x0, x1);
-x0a = t_of_the_way (x1, x1a);
-y1a = t_of_the_way (y1, y2);
-y1 = t_of_the_way (y0, y1);
-y0a = t_of_the_way (y1, y1a);
-mp_fin_offset_prep (mp, mp_next_knot (r), w, x0a, x1a, x2, y0a, y1a, y2, 1,
-                    turn_amt);
-x2 = x0a;
-y2 = y0a
+set_number_from_of_the_way(x1a, t, x1, x2);
+set_number_from_of_the_way(x1,  t, x0, x1);
+set_number_from_of_the_way(x0a, t, x1, x1a);
+set_number_from_of_the_way(y1a, t, y1, y2);
+set_number_from_of_the_way(y1,  t, y0, y1);
+set_number_from_of_the_way(y0a, t, y1, y1a);
+mp_fin_offset_prep (mp, mp_next_knot (r), w, x0a, x1a, x2, y0a, y1a, y2, 1,  turn_amt);
+number_clone(x2, x0a);
+number_clone(y2, y0a)
 
 @ At this point, the direction of the incoming pen edge is |(-du,-dv)|.
 When the component of $d(t)$ perpendicular to |(-du,-dv)| crosses zero, we
@@ -11730,17 +11831,22 @@ answer.  If |t2<0|, there is one crossing and it is antiparallel only if
 crossing and the first crossing cannot be antiparallel.
 
 @<Find the first |t| where $d(t)$ crosses $d_{k-1}$ or set...@>=
-t = mp_crossing_point (mp, t0, t1, t2);
+t = mp_crossing_point (mp, number_to_scaled(t0), number_to_scaled(t1), number_to_scaled(t2));
 if (turn_amt >= 0) {
-  if (t2 < 0) {
+  if (number_negative(t2)) {
     t = fraction_one + 1;
   } else {
-    u0 = t_of_the_way (x0, x1);
-    u1 = t_of_the_way (x1, x2);
-    ss = mp_take_fraction (mp, -du, t_of_the_way (u0, u1));
-    v0 = t_of_the_way (y0, y1);
-    v1 = t_of_the_way (y1, y2);
-    ss = ss + mp_take_fraction (mp, -dv, t_of_the_way (v0, v1));
+    mp_number tmp;
+    tmp = mp_new_number(mp);
+    set_number_from_of_the_way(u0, t, x0, x1);
+    set_number_from_of_the_way(u1, t, x1, x2);
+    set_number_from_of_the_way(tmp, t, u0, u1);
+    ss = mp_take_fraction (mp, -number_to_scaled(du), number_to_scaled(tmp));
+    set_number_from_of_the_way(v0, t, y0, y1);
+    set_number_from_of_the_way(v1, t, y1, y2);
+    set_number_from_of_the_way(tmp, t, v0, v1);
+    ss = ss + mp_take_fraction (mp, -number_to_scaled(dv), number_to_scaled(tmp));
+    mp_free_number(mp, tmp);
     if (ss < 0)
       t = fraction_one + 1;
   }
@@ -11749,7 +11855,7 @@ if (turn_amt >= 0) {
 }
 
 @ @<Other local variables for |offset_prep|@>=
-integer u0, u1, v0, v1; /* intermediate values for $d(t)$ calculation */
+mp_number u0, u1, v0, v1; /* intermediate values for $d(t)$ calculation */
 integer ss = 0; /* the part of the dot product computed so far */
 int d_sign;     /* sign of overall change in direction for this cubic */
 
@@ -11759,18 +11865,19 @@ consistent.  To make \&{doublepath} envelopes work properly, reversing
 the path should always change the sign of |turn_amt|.
 
 @<Decide on the net change in pen offsets and set |turn_amt|@>=
-d_sign = mp_ab_vs_cd (mp, dx, dyin, dxin, dy);
+d_sign = mp_ab_vs_cd (mp, number_to_scaled(dx), number_to_scaled(dyin), 
+	number_to_scaled(dxin), number_to_scaled(dy));
 if (d_sign == 0) {
   @<Check rotation direction based on node position@>
 }
 if (d_sign == 0) {
-  if (dx == 0) {
-    if (dy > 0)
+  if (number_zero(dx)) {
+    if (number_positive(dy))
       d_sign = 1;
     else
       d_sign = -1;
   } else {
-    if (dx > 0)
+    if (number_positive(dx))
       d_sign = 1;
     else
       d_sign = -1;
@@ -11778,7 +11885,7 @@ if (d_sign == 0) {
 }
 @<Make |ss| negative if and only if the total change in direction is
   more than $180^\circ$@>;
-turn_amt = mp_get_turn_amt (mp, w, dxin, dyin, (d_sign > 0));
+turn_amt = mp_get_turn_amt (mp, w, number_to_scaled(dxin), number_to_scaled(dyin), (d_sign > 0));
 if (ss < 0)
   turn_amt = turn_amt - d_sign * n
 
@@ -11788,10 +11895,10 @@ same sign, we pick this as |d_sign|, since it means we have a flex, not a cusp.
 Otherwise we proceed to the cusp code.
 
 @<Check rotation direction based on node position@>=
-u0 = number_to_scaled (q->x_coord) - number_to_scaled (p->x_coord);
-u1 = number_to_scaled (q->y_coord) - number_to_scaled (p->y_coord);
-d_sign = half (mp_ab_vs_cd (mp, dx, u1, u0, dy) +
-               mp_ab_vs_cd (mp, u0, dyin, dxin, u1));
+set_number_from_substraction(u0, q->x_coord, p->x_coord);
+set_number_from_substraction(u1, q->y_coord, p->y_coord);
+d_sign = half (mp_ab_vs_cd (mp, number_to_scaled(dx), number_to_scaled(u1), number_to_scaled(u0), number_to_scaled(dy)) +
+               mp_ab_vs_cd (mp, number_to_scaled(u0), number_to_scaled(dyin), number_to_scaled(dxin), number_to_scaled(u1)));
 
 @ In order to be invariant under path reversal, the result of this computation
 should not change when |x0|, |y0|, $\ldots$ are all negated and |(x0,y0)| is
@@ -11800,28 +11907,35 @@ then swapped with |(x2,y2)|.  We make use of the identities
 |t_of_the_way(-a,-b)=-(t_of_the_way(a,b))|.
 
 @<Make |ss| negative if and only if the total change in direction is...@>=
-t0 =
-half (mp_take_fraction (mp, x0, y2)) - half (mp_take_fraction (mp, x2, y0));
-t1 =
-half (mp_take_fraction (mp, x1, (y0 + y2))) -
-half (mp_take_fraction (mp, y1, (x0 + x2)));
-if (t0 == 0)
-  t0 = d_sign;                  /* path reversal always negates |d_sign| */
-if (t0 > 0) {
-t = mp_crossing_point (mp, t0, t1, -t0);
-u0 = t_of_the_way (x0, x1);
-u1 = t_of_the_way (x1, x2);
-v0 = t_of_the_way (y0, y1);
-v1 = t_of_the_way (y1, y2);
+set_number_from_scaled(t0, half (mp_take_fraction (mp, number_to_scaled(x0), number_to_scaled(y2))) - 
+     half (mp_take_fraction (mp, number_to_scaled(x2), number_to_scaled(y0))));
+set_number_from_scaled(t1, half (mp_take_fraction (mp, number_to_scaled(x1), (number_to_scaled(y0) + number_to_scaled(y2)))) -
+     half (mp_take_fraction (mp, number_to_scaled(y1), (number_to_scaled(x0) + number_to_scaled(x2)))));
+if (number_zero(t0))
+  set_number_from_scaled(t0, d_sign);                  /* path reversal always negates |d_sign| */
+if (number_positive(t0)) {
+  t = mp_crossing_point (mp, number_to_scaled(t0), number_to_scaled(t1), -number_to_scaled(t0));
+  set_number_from_of_the_way(u0, t, x0, x1);
+  set_number_from_of_the_way(u1, t, x1, x2);
+  set_number_from_of_the_way(v0, t, y0, y1);
+  set_number_from_of_the_way(v1, t, y1, y2);
 } else {
-  t = mp_crossing_point (mp, -t0, t1, t0);
-  u0 = t_of_the_way (x2, x1);
-  u1 = t_of_the_way (x1, x0);
-  v0 = t_of_the_way (y2, y1);
-  v1 = t_of_the_way (y1, y0);
+  t = mp_crossing_point (mp, -number_to_scaled(t0), number_to_scaled(t1), number_to_scaled(t0));
+  set_number_from_of_the_way(u0, t, x2, x1);
+  set_number_from_of_the_way(u1, t, x1, x0);
+  set_number_from_of_the_way(v0, t, y2, y1);
+  set_number_from_of_the_way(v1, t, y1, y0);
 }
-ss = mp_take_fraction (mp, (x0 + x2), t_of_the_way (u0, u1)) +
-mp_take_fraction (mp, (y0 + y2), t_of_the_way (v0, v1))
+{ 
+  mp_number tmp1 = mp_new_number(mp);
+  mp_number tmp2 = mp_new_number(mp);
+  set_number_from_of_the_way(tmp1, t, u0, u1);
+  set_number_from_of_the_way(tmp2, t, v0, v1);
+  ss = mp_take_fraction (mp, (number_to_scaled(x0) + number_to_scaled(x2)), number_to_scaled(tmp1)) +
+       mp_take_fraction (mp, (number_to_scaled(y0) + number_to_scaled(y2)), number_to_scaled(tmp2));
+  mp_free_number(mp, tmp1);
+  mp_free_number(mp, tmp2);
+}
  
 
 @ Here's a routine that prints an envelope spec in symbolic form.  It assumes
@@ -12289,11 +12403,17 @@ to find when a given path first travels ``due east.''
 
 @c
 static scaled mp_find_direction_time (MP mp, scaled x, scaled y, mp_knot h) {
-  scaled max;   /* $\max\bigl(\vert x\vert,\vert y\vert\bigr)$ */
+  mp_number max;   /* $\max\bigl(\vert x\vert,\vert y\vert\bigr)$ */
   mp_knot p, q; /* for list traversal */
   scaled n;     /* the direction time at knot |p| */
   scaled tt;    /* the direction time within a cubic */
   @<Other local variables for |find_direction_time|@>;
+  x1 = mp_new_number(mp);
+  x2 = mp_new_number(mp);
+  x3 = mp_new_number(mp);
+  y1 = mp_new_number(mp);
+  y2 = mp_new_number(mp);
+  y3 = mp_new_number(mp);
   @<Normalize the given direction for better accuracy;
     but |return| with zero result if it's zero@>;
   n = 0;
@@ -12309,8 +12429,12 @@ static scaled mp_find_direction_time (MP mp, scaled x, scaled y, mp_knot h) {
     p = q;
     n = n + unity;
   }
+  @<Free local variables for |find_direction_time|@>;
+  mp_free_number(mp, max);
   return (-unity);
 FOUND:
+  @<Free local variables for |find_direction_time|@>;
+  mp_free_number(mp, max);
   return (n + tt);
 }
 
@@ -12348,67 +12472,93 @@ undefined on the first cubic, i.e., when |n=0|.)
 tt = 0;
 @<Set local variables |x1,x2,x3| and |y1,y2,y3| to multiples of the control
   points of the rotated derivatives@>;
-if (y1 == 0)
-  if (x1 >= 0)
+if (number_zero(y1))
+  if (number_zero(x1) || number_positive(x1))
     goto FOUND;
 if (n > 0) {
   @<Exit to |found| if an eastward direction occurs at knot |p|@>;
   if (p == h)
     break;
 };
-if ((x3 != 0) || (y3 != 0))
-  phi = mp_n_arg (mp, x3, y3);
+if (number_nonzero(x3) || number_nonzero(y3))
+  phi = mp_n_arg (mp, number_to_scaled(x3), number_to_scaled(y3));
 @<Exit to |found| if the curve whose derivatives are specified by
   |x1,x2,x3,y1,y2,y3| travels eastward at some time~|tt|@>
  
 
 @ @<Other local variables for |find_direction_time|@>=
-scaled x1, x2, x3, y1, y2, y3;  /* multiples of rotated derivatives */
+mp_number x1, x2, x3, y1, y2, y3;  /* multiples of rotated derivatives */
 angle theta, phi;       /* angles of exit and entry at a knot */
 fraction t;     /* temp storage */
 
+@ @<Free local variables for |find_direction_time|@>=
+mp_free_number(mp, x1);
+mp_free_number(mp, x2);
+mp_free_number(mp, x3);
+mp_free_number(mp, y1);
+mp_free_number(mp, y2);
+mp_free_number(mp, y3);
+
 @ @<Set local variables |x1,x2,x3| and |y1,y2,y3| to multiples...@>=
-x1 = number_to_scaled (p->right_x) - number_to_scaled (p->x_coord);
-x2 = number_to_scaled (q->left_x) - number_to_scaled (p->right_x);
-x3 = number_to_scaled (q->x_coord) - number_to_scaled (q->left_x);
-y1 = number_to_scaled (p->right_y) - number_to_scaled (p->y_coord);
-y2 = number_to_scaled (q->left_y) - number_to_scaled (p->right_y);
-y3 = number_to_scaled (q->y_coord) - number_to_scaled (q->left_y);
-max = abs (x1);
-if (abs (x2) > max)
-  max = abs (x2);
-if (abs (x3) > max)
-  max = abs (x3);
-if (abs (y1) > max)
-  max = abs (y1);
-if (abs (y2) > max)
-  max = abs (y2);
-if (abs (y3) > max)
-  max = abs (y3);
-if (max == 0)
-  goto FOUND;
-while (max < fraction_half) {
-max += max;
-x1 += x1;
-x2 += x2;
-x3 += x3;
-y1 += y1;
-y2 += y2;
-y3 += y3;
+{
+  mp_number absval;
+  set_number_from_substraction(x1, p->right_x, p->x_coord);
+  set_number_from_substraction(x2, q->left_x,  p->right_x);
+  set_number_from_substraction(x3, q->x_coord, q->left_x);
+  set_number_from_substraction(y1, p->right_y, p->y_coord);
+  set_number_from_substraction(y2, q->left_y,  p->right_y);
+  set_number_from_substraction(y3, q->y_coord, q->left_y);
+  absval = number_abs(x2);
+  max = number_abs(x1);
+  if (number_greater(absval, max)) {
+    mp_free_number(mp, max);
+    max = absval;
+  }
+  absval = number_abs(x3);
+  if (number_greater(absval, max)) {
+    mp_free_number(mp, max);
+    max = absval;
+  }
+  absval = number_abs(y1);
+  if (number_greater(absval, max)) {
+    mp_free_number(mp, max);
+    max = absval;
+  }
+  absval = number_abs(y2);
+  if (number_greater(absval, max)) {
+    mp_free_number(mp, max);
+    max = absval;
+  }
+  absval = number_abs(y3);
+  if (number_greater(absval, max)) {
+    mp_free_number(mp, max);
+    max = absval;
+  }
+  if (number_zero(max))
+    goto FOUND;
+  while (number_to_scaled(max) < fraction_half) {
+    set_number_from_addition(max, max, max);
+    set_number_from_addition(x1, x1, x1);
+    set_number_from_addition(x2, x2, x2);
+    set_number_from_addition(x3, x3, x3);
+    set_number_from_addition(y1, y1, y1);
+    set_number_from_addition(y2, y2, y2);
+    set_number_from_addition(y3, y3, y3);
+  }
+  t = number_to_scaled(x1);
+  set_number_from_scaled(x1, mp_take_fraction (mp, number_to_scaled(x1), x) + mp_take_fraction (mp, number_to_scaled(y1), y));
+  set_number_from_scaled(y1, mp_take_fraction (mp, number_to_scaled(y1), x) - mp_take_fraction (mp, t, y));
+  t = number_to_scaled(x2);
+  set_number_from_scaled(x2, mp_take_fraction (mp, number_to_scaled(x2), x) + mp_take_fraction (mp, number_to_scaled(y2), y));
+  set_number_from_scaled(y2, mp_take_fraction (mp, number_to_scaled(y2), x) - mp_take_fraction (mp, t, y));
+  t = number_to_scaled(x3);
+  set_number_from_scaled(x3, mp_take_fraction (mp, number_to_scaled(x3), x) + mp_take_fraction (mp, number_to_scaled(y3), y));
+  set_number_from_scaled(y3, mp_take_fraction (mp, number_to_scaled(y3), x) - mp_take_fraction (mp, t, y));
 }
-t = x1;
-x1 = mp_take_fraction (mp, x1, x) + mp_take_fraction (mp, y1, y);
-y1 = mp_take_fraction (mp, y1, x) - mp_take_fraction (mp, t, y);
-t = x2;
-x2 = mp_take_fraction (mp, x2, x) + mp_take_fraction (mp, y2, y);
-y2 = mp_take_fraction (mp, y2, x) - mp_take_fraction (mp, t, y);
-t = x3;
-x3 = mp_take_fraction (mp, x3, x) + mp_take_fraction (mp, y3, y);
-y3 = mp_take_fraction (mp, y3, x) - mp_take_fraction (mp, t, y)
  
 
 @ @<Exit to |found| if an eastward direction occurs at knot |p|@>=
-theta = mp_n_arg (mp, x1, y1);
+theta = mp_n_arg (mp, number_to_scaled(x1), number_to_scaled(y1));
 if (theta >= 0 && phi <= 0 && phi >= theta - one_eighty_deg)
   goto FOUND;
 if (theta <= 0 && phi >= 0 && phi <= theta + one_eighty_deg)
@@ -12426,23 +12576,23 @@ And finally, we need to do special things if $B(y_1,y_2,y_3;t)$ is
 identically zero.
 
 @ @<Exit to |found| if the curve whose derivatives are specified by...@>=
-if (x1 < 0)
-  if (x2 < 0)
-    if (x3 < 0)
+if (number_negative(x1))
+  if (number_negative(x2))
+    if (number_negative(x3))
       goto DONE;
-if (mp_ab_vs_cd (mp, y1, y3, y2, y2) == 0) {
+if (mp_ab_vs_cd (mp, number_to_scaled(y1), number_to_scaled(y3), number_to_scaled(y2), number_to_scaled(y2)) == 0) {
   @<Handle the test for eastward directions when $y_1y_3=y_2^2$;
     either |goto found| or |goto done|@>;
 }
-if (y1 <= 0) {
-  if (y1 < 0) {
-    y1 = -y1;
-    y2 = -y2;
-    y3 = -y3;
-  } else if (y2 > 0) {
-    y2 = -y2;
-    y3 = -y3;
-  };
+if (number_zero(y1) || number_negative(y1)) {
+  if (number_negative(y1)) {
+    number_negate(y1);
+    number_negate(y2);
+    number_negate(y3);
+  } else if (number_positive(y2)) {
+    number_negate(y2);
+    number_negate(y3);
+  }
 }
 @<Check the places where $B(y_1,y_2,y_3;t)=0$ to see if
   $B(x_1,x_2,x_3;t)\ge0$@>;
@@ -12460,41 +12610,52 @@ do the right thing.
 @d we_found_it { tt=(t+04000) / 010000; goto FOUND; }
 
 @<Check the places where $B(y_1,y_2,y_3;t)=0$...@>=
-t = mp_crossing_point (mp, y1, y2, y3);
+t = mp_crossing_point (mp, number_to_scaled(y1), number_to_scaled(y2), number_to_scaled(y3));
 if (t > fraction_one)
   goto DONE;
-y2 = t_of_the_way (y2, y3);
-x1 = t_of_the_way (x1, x2);
-x2 = t_of_the_way (x2, x3);
-x1 = t_of_the_way (x1, x2);
-if (x1 >= 0)
+set_number_from_of_the_way(y2, t, y2, y3);
+set_number_from_of_the_way(x1, t, x1, x2);
+set_number_from_of_the_way(x2, t, x2, x3);
+set_number_from_of_the_way(x1, t, x1, x2);
+if (number_zero(x1) || number_positive(x1))
   we_found_it;
-if (y2 > 0)
-  y2 = 0;
+if (number_positive(y2))
+  set_number_to_zero(y2);
 tt = t;
-t = mp_crossing_point (mp, 0, -y2, -y3);
+t = mp_crossing_point (mp, 0, -number_to_scaled(y2), -number_to_scaled(y3));
 if (t > fraction_one)
   goto DONE;
-x1 = t_of_the_way (x1, x2);
-x2 = t_of_the_way (x2, x3);
-if (t_of_the_way (x1, x2) >= 0) {
-  t = t_of_the_way (tt, fraction_one);
-  we_found_it;
+{
+  mp_number tmp = mp_new_number(mp);
+  set_number_from_of_the_way(x1, t, x1, x2);
+  set_number_from_of_the_way(x2, t, x2, x3);
+  set_number_from_of_the_way(tmp, t, x1, x2);
+  if (number_positive(tmp) || number_zero(tmp)) {
+    mp_free_number(mp, tmp);
+    t = t_of_the_way (tt, fraction_one);
+    we_found_it;
+  }
+  mp_free_number(mp, tmp);
 }
 
 @ @<Handle the test for eastward directions when $y_1y_3=y_2^2$;
     either |goto found| or |goto done|@>=
 {
-  if (mp_ab_vs_cd (mp, y1, y2, 0, 0) < 0) {
-    t = mp_make_fraction (mp, y1, y1 - y2);
-    x1 = t_of_the_way (x1, x2);
-    x2 = t_of_the_way (x2, x3);
-    if (t_of_the_way (x1, x2) >= 0)
+  if (mp_ab_vs_cd (mp, number_to_scaled(y1), number_to_scaled(y2), 0, 0) < 0) {
+    mp_number tmp = mp_new_number(mp);
+    t = mp_make_fraction (mp, number_to_scaled(y1), number_to_scaled(y1) - number_to_scaled(y2));
+    set_number_from_of_the_way(x1, t, x1, x2);
+    set_number_from_of_the_way(x2, t, x2, x3);
+    set_number_from_of_the_way(tmp, t, x1, x2);
+    if (number_zero(tmp) || number_positive(tmp)) {
+      mp_free_number(mp, tmp);
       we_found_it;
-  } else if (y3 == 0) {
-    if (y1 == 0) {
+    }
+    mp_free_number(mp, tmp);
+  } else if (number_zero(y3)) {
+    if (number_zero(y1)) {
       @<Exit to |found| if the derivative $B(x_1,x_2,x_3;t)$ becomes |>=0|@>;
-    } else if (x3 >= 0) {
+    } else if (number_zero(x3) || number_positive(x3)) {
       tt = unity;
       goto FOUND;
     }
@@ -12509,11 +12670,11 @@ traveling east.
 
 @<Exit to |found| if the derivative $B(x_1,x_2,x_3;t)$ becomes |>=0|...@>=
 {
-  t = mp_crossing_point (mp, -x1, -x2, -x3);
+  t = mp_crossing_point (mp, -number_to_scaled(x1), -number_to_scaled(x2), -number_to_scaled(x3));
   if (t <= fraction_one)
     we_found_it;
-  if (mp_ab_vs_cd (mp, x1, x3, x2, x2) <= 0) {
-    t = mp_make_fraction (mp, x1, x1 - x2);
+  if (mp_ab_vs_cd (mp, number_to_scaled(x1), number_to_scaled(x3), number_to_scaled(x2), number_to_scaled(x2)) <= 0) {
+    t = mp_make_fraction (mp, number_to_scaled(x1), number_to_scaled(x1) - number_to_scaled(x2));
     we_found_it;
   }
 }
