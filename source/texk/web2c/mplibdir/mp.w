@@ -8236,10 +8236,10 @@ if (number_nonzero(del)) {
     number_clone(dmax, absval1);
   }
   while (number_less(dmax, frac_half)) {
-    set_number_from_addition(dmax, dmax, dmax);
-    set_number_from_addition(del1, del1, del1);
-    set_number_from_addition(del2, del2, del2);
-    set_number_from_addition(del3, del3, del3);
+    number_double(dmax);
+    number_double(del1);
+    number_double(del2);
+    number_double(del3);
   }
   mp_free_number(mp, absval1);
   mp_free_number(mp, frac_half);
@@ -8380,13 +8380,14 @@ and they are needed in different instances of |arc_test|.
 @c
 static mp_number mp_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number dx1,
                            mp_number dy1, mp_number dx2, mp_number dy2, mp_number v0,
-                           mp_number v02, mp_number v2, mp_number a_goal, scaled tol) {
+                           mp_number v02, mp_number v2, mp_number a_goal, mp_number tol) {
   boolean simple;       /* are the control points confined to a $90^\circ$ sector? */
   mp_number ret;
   mp_number dx01, dy01, dx12, dy12, dx02, dy02;    /* bisection results */
   mp_number v002, v022; /* twice the velocity magnitudes at $t={1\over4}$ and $t={3\over4}$ */
   mp_number arc;   /* best arc length estimate before recursion */
   mp_number arc1;    /* arc length estimate for the first half */
+  mp_number simply; 
   ret = mp_new_number (mp);
   arc = mp_new_number (mp);
   arc1 = mp_new_number (mp);
@@ -8398,14 +8399,22 @@ static mp_number mp_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number dx1
   dy02 = mp_new_number (mp);
   v002 = mp_new_number (mp);
   v022 = mp_new_number (mp);
+  simply = mp_new_number (mp);
   @<Bisect the B\'ezier quadratic given by |dx0|, |dy0|, |dx1|, |dy1|,
     |dx2|, |dy2|@>;
   @<Initialize |v002|, |v022|, and the arc length estimate |arc|; if it overflows
     set |arc_test| and |return|@>;
   @<Test if the control points are confined to one quadrant or rotating them
     $45^\circ$ would put them in one quadrant.  Then set |simple| appropriately@>;
-  if (simple && (abs (number_to_scaled(arc) - number_to_scaled(v02) - 
-         halfp (number_to_scaled(v0) + number_to_scaled(v2))) <= tol)) {
+
+  set_number_from_addition(simply, v0, v2);
+  number_halfp (simply);
+  number_negate (simply);
+  number_add (simply, arc);
+  number_substract (simply, v02);
+  number_abs (simply);
+
+  if (simple && number_lessequal(simply, tol)) {
     if (number_less(arc, a_goal)){
       number_clone(ret, arc);
     } else {
@@ -8426,6 +8435,7 @@ DONE:
   mp_free_number (mp, dy02);
   mp_free_number (mp, v002);
   mp_free_number (mp, v022);
+  mp_free_number (mp, simply);
   return ret;
 }
 
@@ -8445,15 +8455,21 @@ calls, but $1.5$ is an adequate approximation.  It is best to avoid using
   half_v02 = mp_new_number(mp);
   @<Set |a_new| and |a_aux| so their sum is |2*a_goal| and |a_new| is as
     large as possible@>;
-  tol = tol + halfp (tol);
+  {
+    mp_number halfp_tol = mp_new_number(mp);
+    number_clone (halfp_tol, tol);
+    number_halfp (halfp_tol);
+    number_add(tol, halfp_tol);
+    mp_free_number (mp, halfp_tol);
+  }
   number_clone(half_v02, v02);
   number_halfp(half_v02);
   a = mp_arc_test (mp, dx0, dy0, dx01, dy01, dx02, dy02, 
                               v0, v002, half_v02, a_new, tol);
   if (number_negative(a)) {
     set_number_to_unity(ret);
-    set_number_from_addition(ret,ret,ret); /* two */
-    set_number_from_substraction(ret, ret, a); /* two - a */
+    number_double(ret); /* two */
+    number_substract(ret, a); /* two - a */
     number_halfp(ret);
     number_negate(ret); /* -halfp(two - a) */
   } else {
@@ -8469,7 +8485,7 @@ calls, but $1.5$ is an adequate approximation.  It is best to avoid using
       number_clone(ret, tmp);
       set_number_to_unity(tmp);
       number_halfp(tmp);
-      set_number_from_substraction(ret, ret, tmp); /* (-(halfp(-b)) - 1/2) */
+      number_substract(ret, tmp); /* (-(halfp(-b)) - 1/2) */
       mp_free_number (mp, tmp);
     } else {
       set_number_from_substraction(ret, b, a);
@@ -8488,7 +8504,7 @@ calls, but $1.5$ is an adequate approximation.  It is best to avoid using
 
 @ @<Set |a_new| and |a_aux| so their sum is |2*a_goal| and |a_new| is...@>=
 set_number_to_inf(a_aux);
-set_number_from_substraction(a_aux, a_aux, a_goal);
+number_substract(a_aux, a_goal);
 if (number_greater(a_goal, a_aux)) {
   set_number_from_substraction(a_aux, a_goal, a_aux);
   set_number_to_inf(a_new);
@@ -8504,8 +8520,8 @@ overflow.
 
 @<Update |a_new| to reduce |a_new+a_aux| by |a|@>=
 if (number_greater(a, a_aux)) {
-  set_number_from_substraction(a_aux, a_aux, a);
-  set_number_from_addition(a_new, a_new, a_aux);
+  number_substract(a_aux, a);
+  number_add(a_new, a_aux);
 }
 
 @ This code assumes all {\it dx} and {\it dy} variables have magnitude less than
@@ -8539,15 +8555,30 @@ number_half(dy02);
   set_number_from_scaled(v022, 
        mp_pyth_add (mp, number_to_scaled(dx12) + half (number_to_scaled(dx02) + number_to_scaled(dx2)), 
                         number_to_scaled(dy12) + half (number_to_scaled(dy02) + number_to_scaled(dy2))));
-  set_number_from_scaled(tmp, halfp (number_to_scaled(v02) + 2));
-  set_number_from_scaled(arc1, number_to_scaled(v002) + 
-        half (halfp (number_to_scaled(v0) + number_to_scaled(tmp)) - number_to_scaled(v002)));
-  set_number_from_scaled(arc, number_to_scaled(v022) + 
-        half (halfp (number_to_scaled(v2) + number_to_scaled(tmp)) - number_to_scaled(v022)));
-  mp_free_number (mp, tmp);
-  if (number_to_scaled(arc) < EL_GORDO - number_to_scaled(arc1)) {
-    set_number_from_addition(arc, arc, arc1);
+  number_clone (tmp, v02);
+  number_add_int (tmp, 2);
+  number_halfp (tmp);
+
+  set_number_from_addition(arc1, v0, tmp);
+  number_halfp (arc1);
+  number_substract (arc1, v002);
+  number_half (arc1);
+  set_number_from_addition(arc1, v002, arc1);
+
+  set_number_from_addition(arc, v2, tmp);
+  number_halfp (arc);
+  number_substract (arc, v022);
+  number_half (arc);
+  set_number_from_addition(arc, v022, arc);
+
+  /* reuse |tmp| for the next |if| test: */
+  set_number_to_inf(tmp);
+  number_substract(tmp,arc1);
+  if (number_less(arc, tmp)) {
+    mp_free_number (mp, tmp);
+    number_add(arc, arc1);
   } else {
+    mp_free_number (mp, tmp);
     mp->arith_error = true;
     if (number_infinite(a_goal)) {
       set_number_to_inf(ret);
@@ -8555,8 +8586,8 @@ number_half(dy02);
       mp_number unit = mp_new_number(mp);
       set_number_to_zero(ret);
       set_number_to_unity(unit);
-      set_number_from_substraction(ret,ret,unit);
-      set_number_from_substraction(ret,ret,unit); /* -two */
+      number_substract(ret,unit);
+      number_substract(ret,unit); /* -two */
       mp_free_number(mp,unit);
     }
     goto DONE;
@@ -8636,23 +8667,44 @@ $\tau$ given $a$, $b$, $c$, and $x$.
 {
   mp_number tmp = mp_new_number (mp);
   mp_number tmp2 = mp_new_number (mp);
-  set_number_from_scaled(tmp, (number_to_scaled(v02) + 2) / 4);
+  mp_number tmp3 = mp_new_number (mp);
+  mp_number tmp4 = mp_new_number (mp);  
+  mp_number tmp5;  
+  number_clone(tmp, v02);
+  number_add_int(tmp, 2);
+  number_half(tmp);
+  number_half(tmp); /* (v02+2) / 4 */
   if (number_lessequal(a_goal, arc1)) {
-    set_number_from_scaled(tmp2, halfp (number_to_scaled(v0)));
-    set_number_from_scaled(ret,
-      (halfp (mp_solve_rising_cubic (mp, number_to_scaled(tmp2), 
-                   number_to_scaled(arc1) - number_to_scaled(tmp2) - number_to_scaled(tmp), 
-             number_to_scaled(tmp), number_to_scaled(a_goal))) - two));
+    number_clone(tmp2, v0);
+    number_halfp(tmp2);
+    set_number_from_substraction(tmp3, arc1, tmp2);
+    number_substract(tmp3, tmp);
+    tmp5 = mp_solve_rising_cubic (mp, tmp2, tmp3, tmp, a_goal);
+    number_halfp (tmp5);
+    set_number_to_unity(tmp3);
+    number_substract(tmp5, tmp3);
+    number_substract(tmp5, tmp3);
+    number_clone(ret, tmp5);
   } else {
-    set_number_from_scaled(tmp2, halfp (number_to_scaled(v2)));
-    set_number_from_scaled(ret, ((half_unit - two) +
-            halfp (mp_solve_rising_cubic
-                   (mp, number_to_scaled(tmp), number_to_scaled(arc) - number_to_scaled(arc1) - 
-                           number_to_scaled(tmp) - number_to_scaled(tmp2), 
-                        number_to_scaled(tmp2), number_to_scaled(a_goal) - number_to_scaled(arc1)))));
+    number_clone(tmp2, v2);
+    set_number_from_substraction(tmp3, arc, arc1);
+    number_substract(tmp3, tmp);
+    number_substract(tmp3, tmp2);
+    set_number_from_substraction(tmp4, a_goal, arc1);
+    tmp5 = mp_solve_rising_cubic (mp, tmp, tmp3, tmp2, tmp4);
+    number_halfp(tmp5);
+    set_number_to_unity(tmp2);
+    set_number_to_unity(tmp3);
+    number_half(tmp2);
+    number_substract(tmp2, tmp3);
+    number_substract(tmp2, tmp3);
+    set_number_from_addition(ret, tmp2, tmp5);
   }
   mp_free_number (mp, tmp);
   mp_free_number (mp, tmp2);
+  mp_free_number (mp, tmp3);
+  mp_free_number (mp, tmp4);
+  mp_free_number (mp, tmp5);
   goto DONE;
 }
 
@@ -8666,21 +8718,43 @@ it and proceed with binary search.  This finds a time when the function value
 reaches |x| and the slope is positive.
 
 @<Declarations@>=
-static scaled mp_solve_rising_cubic (MP mp, scaled a, scaled b, scaled c,
-                                     scaled x);
+static mp_number mp_solve_rising_cubic (MP mp, mp_number a, mp_number b, mp_number c, mp_number x);
 
 @ @c
-scaled mp_solve_rising_cubic (MP mp, scaled a, scaled b, scaled c, scaled x) {
-  scaled ab, bc, ac;    /* bisection results */
-  integer t;    /* $2^k+q$ where unscaled answer is in $[q2^{-k},(q+1)2^{-k})$ */
-  integer xx;   /* temporary for updating |x| */
-  if ((a < 0) || (c < 0))
+mp_number mp_solve_rising_cubic (MP mp, mp_number a_orig, mp_number b_orig, mp_number c_orig, mp_number x_orig) {
+  mp_number abc;
+  mp_number ret;
+  mp_number a, b, c, x;      /* local versions of arguments */
+  mp_number ab, bc, ac;    /* bisection results */
+  int t;    /* $2^k+q$ where unscaled answer is in $[q2^{-k},(q+1)2^{-k})$ */
+  mp_number xx;   /* temporary for updating |x| */
+  mp_number negval; /* temporary for an |if| */
+  if (number_negative(a_orig) || number_negative(c_orig))
     mp_confusion (mp, "rising?");
 @:this can't happen rising?}{\quad rising?@>;
-  if (x <= 0) {
-    return 0;
-  } else if (x >= a + b + c) {
-    return unity;
+  abc = mp_new_number (mp);
+  a = mp_new_number (mp);
+  b = mp_new_number (mp);
+  c = mp_new_number (mp);
+  x = mp_new_number (mp);
+  number_clone(a, a_orig);
+  number_clone(b, b_orig);
+  number_clone(c, c_orig);
+  number_clone(x, x_orig);
+  ab = mp_new_number (mp);
+  bc = mp_new_number (mp);
+  ac = mp_new_number (mp);
+  xx = mp_new_number (mp);
+  negval = mp_new_number (mp);
+  number_clone(negval, x);
+  number_negate(negval);
+  set_number_from_addition(abc, a, b);
+  number_add(abc, c);
+  ret = mp_new_number (mp);
+  if (number_nonpositive(x)) {
+    set_number_to_zero(ret);
+  } else if (number_greaterequal(x, abc)) {
+    set_number_to_unity(ret);
   } else {
     t = 1;
     @<Rescale if necessary to make sure |a|, |b|, and |c| are all less than
@@ -8688,40 +8762,56 @@ scaled mp_solve_rising_cubic (MP mp, scaled a, scaled b, scaled c, scaled x) {
     do {
       t += t;
       @<Subdivide the B\'ezier quadratic defined by |a|, |b|, |c|@>;
-      xx = x - a - ab - ac;
-      if (xx < -x) {
-        x += x;
-        b = ab;
-        c = ac;
+      number_clone(xx,x);
+      number_substract(xx, a);
+      number_substract(xx, ab);
+      number_substract(xx, ac);
+      if (number_less(xx, negval)) {
+        number_double(x);
+        number_clone(b, ab);
+        number_clone(c, ac);
       } else {
-        x = x + xx;
-        a = ac;
-        b = bc;
+        number_add(x, xx);
+        number_clone(a, ac);
+        number_clone(b, bc);
         t = t + 1;
-      };
+      }
     } while (t < unity);
-    return (t - unity);
+    set_number_from_scaled(ret, (t - unity));
   }
+  mp_free_number (mp, abc);
+  mp_free_number (mp, a);
+  mp_free_number (mp, b);
+  mp_free_number (mp, c);
+  mp_free_number (mp, ab);
+  mp_free_number (mp, bc);
+  mp_free_number (mp, ac);
+  mp_free_number (mp, xx);
+  mp_free_number (mp, x);
+  return ret;
 }
 
 
 @ @<Subdivide the B\'ezier quadratic defined by |a|, |b|, |c|@>=
-ab = half (a + b);
-bc = half (b + c);
-ac = half (ab + bc)
- 
+set_number_from_addition(ab, a, b);
+number_half(ab);
+set_number_from_addition(bc, b, c);
+number_half(bc);
+set_number_from_addition(ac, ab, bc);
+number_half(ac);
 
 @ The upper bound on |a|, |b|, and |c|:
 
 @d one_third_EL_GORDO  ((math_data *)mp->math)->one_third_max_scaled_
 
 @<Rescale if necessary to make sure |a|, |b|, and |c| are all less than...@>=
-while ((a > one_third_EL_GORDO) || (b > one_third_EL_GORDO)
-       || (c > one_third_EL_GORDO)) {
-  a = halfp (a);
-  b = half (b);
-  c = halfp (c);
-  x = halfp (x);
+while ((number_to_scaled(a) > one_third_EL_GORDO) || 
+       (number_to_scaled(b) > one_third_EL_GORDO) || 
+       (number_to_scaled(c) > one_third_EL_GORDO)) {
+  number_halfp(a);
+  number_half(b);
+  number_halfp(c);
+  number_halfp(x);
 }
 
 
@@ -8729,7 +8819,7 @@ while ((a > one_third_EL_GORDO) || (b > one_third_EL_GORDO)
 unnecessary arguments and ensures that each $({\it dx},{\it dy})$ pair has
 length less than |fraction_four|.
 
-@d arc_tol   16  /* quit when change in arc length estimate reaches this */
+@d arc_tol_limit   (unity/4096)  /* quit when change in arc length estimate reaches this */
 
 @c
 static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number dx1,
@@ -8737,10 +8827,13 @@ static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number 
   mp_number v0, v1, v2;    /* length of each $({\it dx},{\it dy})$ pair */
   mp_number v02;   /* twice the norm of the quadratic at $t={1\over2}$ */
   mp_number ret;
+  mp_number arc_tol;
   v0 = mp_new_number (mp);
   v1 = mp_new_number (mp);
   v2 = mp_new_number (mp);
   ret = mp_new_number (mp);
+  arc_tol = mp_new_number (mp);
+  set_number_from_scaled(arc_tol, arc_tol_limit);
   set_number_from_scaled(v0, mp_pyth_add (mp, number_to_scaled(dx0), number_to_scaled(dy0)));
   set_number_from_scaled(v1, mp_pyth_add (mp, number_to_scaled(dx1), number_to_scaled(dy1)));
   set_number_from_scaled(v2, mp_pyth_add (mp, number_to_scaled(dx2), number_to_scaled(dy2)));
@@ -8748,10 +8841,13 @@ static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number 
       (number_to_scaled(v1) >= fraction_four) || 
       (number_to_scaled(v2) >= fraction_four)) {
     mp->arith_error = true;
-    if (number_infinite(a_goal))
+    if (number_infinite(a_goal)) {
       set_number_to_inf(ret);
-    else
-      set_number_from_scaled(ret, (-two));
+    } else {
+      set_number_to_unity(ret);
+      number_double(ret);
+      number_negate(ret);
+    }
   } else {
     v02 = mp_new_number (mp);
     set_number_from_scaled(v02, 
@@ -8764,6 +8860,7 @@ static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number 
   mp_free_number (mp, v0);
   mp_free_number (mp, v1);
   mp_free_number (mp, v2);
+  mp_free_number (mp, arc_tol);
   return ret;
 }
 
@@ -8885,7 +8982,7 @@ if (number_negative(t)) {
   set_number_to_zero(arc);
 } else {
   t_tot = t_tot + unity;
-  set_number_from_substraction(arc, arc, t);
+  number_substract(arc, t);
 }
 
 
@@ -9543,9 +9640,12 @@ void mp_free_number (MP mp, mp_number n) {
 @d number_to_scaled(A) (A)->data.val
 @d number_to_double(A) ((A)->data.val/65536.0)
 @d number_negate(A) ((A)->data.val=-(A)->data.val)
+@d number_add(A,B) ((A)->data.val=(A)->data.val+(B)->data.val)
+@d number_substract(A,B) ((A)->data.val=(A)->data.val-(B)->data.val)
 @d number_half(A) ((A)->data.val=(A)->data.val/2)
 @d number_halfp(A) ((A)->data.val=(A)->data.val/2)
 @d number_double(A) ((A)->data.val=((A)->data.val+(A)->data.val))
+@d number_add_int(A,B) ((A)->data.val=((A)->data.val+(B)))
 @d number_abs(A)    ((A)->data.val=abs((A)->data.val))
 @d number_positive(A) ((A)->data.val>0)
 @d number_zero(A) ((A)->data.val==0)
@@ -11688,13 +11788,13 @@ set_number_from_substraction(y1, q->left_y, p->right_y);
   mp_free_number (mp, absval);
 }
 while (number_to_scaled(max_coef) < fraction_half) {
-  set_number_from_addition (max_coef, max_coef, max_coef);
-  set_number_from_addition (x0, x0, x0);
-  set_number_from_addition (x1, x1, x1);
-  set_number_from_addition (x2, x2, x2);
-  set_number_from_addition (y0, y0, y0);
-  set_number_from_addition (y1, y1, y1);
-  set_number_from_addition (y2, y2, y2);
+  number_double (max_coef);
+  number_double (x0);
+  number_double (x1);
+  number_double (x2);
+  number_double (y0);
+  number_double (y1);
+  number_double (y2);
 }
 
 
@@ -12362,12 +12462,12 @@ scaled tmp;     /* a temporary value */
 knot in which case they get shifted at the very end.
 
 @<Add offset |w| to the cubic from |p| to |q|@>=
-set_number_from_addition (p->right_x, p->right_x, w->x_coord);
-set_number_from_addition (p->right_y, p->right_y, w->y_coord);
-set_number_from_addition (q->left_x,  q->left_x,  w->x_coord);
-set_number_from_addition (q->left_y,  q->left_y,  w->y_coord);
-set_number_from_addition (q->x_coord, q->x_coord, w->x_coord);
-set_number_from_addition (q->y_coord, q->y_coord, w->y_coord);
+number_add (p->right_x, w->x_coord);
+number_add (p->right_y, w->y_coord);
+number_add (q->left_x,  w->x_coord);
+number_add (q->left_y,  w->y_coord);
+number_add (q->x_coord, w->x_coord);
+number_add (q->y_coord, w->y_coord);
 mp_left_type (q) = mp_explicit;
 mp_right_type (q) = mp_explicit
 
@@ -12781,13 +12881,13 @@ mp_free_number(mp, y3);
   if (number_zero(max))
     goto FOUND;
   while (number_to_scaled(max) < fraction_half) {
-    set_number_from_addition(max, max, max);
-    set_number_from_addition(x1, x1, x1);
-    set_number_from_addition(x2, x2, x2);
-    set_number_from_addition(x3, x3, x3);
-    set_number_from_addition(y1, y1, y1);
-    set_number_from_addition(y2, y2, y2);
-    set_number_from_addition(y3, y3, y3);
+    number_double(max);
+    number_double(x1);
+    number_double(x2);
+    number_double(x3);
+    number_double(y1);
+    number_double(y2);
+    number_double(y3);
   }
   t = number_to_scaled(x1);
   set_number_from_scaled(x1, mp_take_fraction (mp, number_to_scaled(x1), x) + mp_take_fraction (mp, number_to_scaled(y1), y));
@@ -25492,12 +25592,12 @@ sum is similar.
 {
   mp_number tot = mp_new_number(mp);
   set_number_from_addition(tot,mp->txx,mp->txy);
-  set_number_from_addition(tot,tot,mp->tx);
+  number_add(tot,mp->tx);
   set_number_from_scaled(h->minx, mp_take_scaled (mp, number_to_scaled(h->minx), number_to_scaled(tot)));
   set_number_from_scaled(h->maxx, mp_take_scaled (mp, number_to_scaled(h->maxx), number_to_scaled(tot)));
 
   set_number_from_addition(tot,mp->tyx,mp->tyy);
-  set_number_from_addition(tot,tot,mp->ty);
+  number_add(tot,mp->ty);
   set_number_from_scaled(h->miny, mp_take_scaled (mp, number_to_scaled(h->miny), number_to_scaled(tot)));
   set_number_from_scaled(h->maxy, mp_take_scaled (mp, number_to_scaled(h->maxy), number_to_scaled(tot)));
 
