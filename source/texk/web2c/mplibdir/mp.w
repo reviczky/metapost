@@ -7524,7 +7524,6 @@ provide temporary storage for intermediate quantities.
 @<Other local variables for |solve_choices|@>=
 fraction aa, bb, cc, ff, acc;   /* temporary registers */
 scaled dd, ee;  /* likewise, but |scaled| */
-scaled lt, rt;  /* tension values */
 
 @ @<Set up equation to match mock curvatures...@>=
 {
@@ -7572,21 +7571,26 @@ because of the quantities just calculated. The values of |dd| and |ee|
 will not be needed after this step has been performed.
 
 @<Calculate the ratio $\\{ff}=C_k/(C_k+B_k-u_{k-1}A_k)$@>=
-dd = mp_take_fraction (mp, dd, cc);
-lt = abs (number_to_scaled(s->left_tension));
-rt = abs (number_to_scaled(s->right_tension));
-if (lt != rt) {                 /* $\beta_k^{-1}\ne\alpha_k^{-1}$ */
-  if (lt < rt) {
-    ff = mp_make_fraction (mp, lt, rt);
-    ff = mp_take_fraction (mp, ff, ff); /* $\alpha_k^2/\beta_k^2$ */
-    dd = mp_take_fraction (mp, dd, ff);
-  } else {
-    ff = mp_make_fraction (mp, rt, lt);
-    ff = mp_take_fraction (mp, ff, ff); /* $\beta_k^2/\alpha_k^2$ */
-    ee = mp_take_fraction (mp, ee, ff);
+{
+  mp_number rt, lt;
+  dd = mp_take_fraction (mp, dd, cc);
+  lt = number_abs (s->left_tension);
+  rt = number_abs (s->right_tension);
+  if (!number_equal(lt, rt)) {                 /* $\beta_k^{-1}\ne\alpha_k^{-1}$ */
+    if (number_less(lt, rt)) {
+      ff = mp_make_fraction (mp, number_to_scaled(lt), number_to_scaled(rt));
+      ff = mp_take_fraction (mp, ff, ff); /* $\alpha_k^2/\beta_k^2$ */
+      dd = mp_take_fraction (mp, dd, ff);
+    } else {
+      ff = mp_make_fraction (mp, number_to_scaled(rt), number_to_scaled(lt));
+      ff = mp_take_fraction (mp, ff, ff); /* $\beta_k^2/\alpha_k^2$ */
+      ee = mp_take_fraction (mp, ee, ff);
+    }
   }
+  mp_free_number (mp, rt);
+  mp_free_number (mp, lt);
+  ff = mp_make_fraction (mp, ee, ee + dd);
 }
-ff = mp_make_fraction (mp, ee, ee + dd)
  
 
 @ The value of $u_{k-1}$ will be |<=1| except when $k=1$ and the previous
@@ -7671,30 +7675,36 @@ so we can solve for $\theta_n=\theta_0$.
 
 @ @<Set up the equation for a curl at $\theta_0$@>=
 {
+  mp_number lt, rt;  /* tension values */
   cc = number_to_scaled(s->right_curl);
-  lt = abs (number_to_scaled(t->left_tension));
-  rt = abs (number_to_scaled(s->right_tension));
-  if ((rt == unity) && (lt == unity))
+  lt = number_abs (t->left_tension);
+  rt = number_abs (s->right_tension);
+  if (number_unity(rt) && number_unity(lt))
     mp->uu[0] = mp_make_fraction (mp, cc + cc + unity, cc + two);
   else
     mp->uu[0] = mp_curl_ratio (mp, cc, rt, lt);
   mp->vv[0] = -mp_take_fraction (mp, mp->psi[1], mp->uu[0]);
   mp->ww[0] = 0;
+  mp_free_number (mp, rt);
+  mp_free_number (mp, lt);
 }
 
 
 @ @<Set up equation for a curl at $\theta_n$...@>=
 {
+  mp_number lt, rt;  /* tension values */
   cc = number_to_scaled(s->left_curl);
-  lt = abs (number_to_scaled(s->left_tension));
-  rt = abs (number_to_scaled(r->right_tension));
-  if ((rt == unity) && (lt == unity))
+  lt = number_abs (s->left_tension);
+  rt = number_abs (r->right_tension);
+  if (number_unity(rt) && number_unity(lt))
     ff = mp_make_fraction (mp, cc + cc + unity, cc + two);
   else
     ff = mp_curl_ratio (mp, cc, lt, rt);
   mp->theta[n] =
     -mp_make_fraction (mp, mp_take_fraction (mp, mp->vv[n - 1], ff),
                        fraction_one - mp_take_fraction (mp, ff, mp->uu[n - 1]));
+  mp_free_number (mp, rt);
+  mp_free_number (mp, lt);
   goto FOUND;
 }
 
@@ -7709,14 +7719,14 @@ is necessary only if the curl and tension are both large.)
 The values of $\alpha$ and $\beta$ will be at most~4/3.
 
 @<Declarations@>=
-static fraction mp_curl_ratio (MP mp, scaled gamma, scaled a_tension,
-                               scaled b_tension);
+static fraction mp_curl_ratio (MP mp, scaled gamma, mp_number a_tension,
+                               mp_number b_tension);
 
 @ @c
-fraction mp_curl_ratio (MP mp, scaled gamma, scaled a_tension, scaled b_tension) {
+fraction mp_curl_ratio (MP mp, scaled gamma, mp_number a_tension, mp_number b_tension) {
   fraction alpha, beta, num, denom, ff; /* registers */
-  alpha = mp_make_fraction (mp, unity, a_tension);
-  beta = mp_make_fraction (mp, unity, b_tension);
+  alpha = mp_make_fraction (mp, unity, number_to_scaled(a_tension));
+  beta = mp_make_fraction (mp, unity, number_to_scaled(b_tension));
   if (alpha <= beta) {
     ff = mp_make_fraction (mp, alpha, beta);
     ff = mp_take_fraction (mp, ff, ff);
@@ -7779,48 +7789,39 @@ static void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k);
 @ @c
 void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   fraction rr, ss;      /* velocities, divided by thrice the tension */
-  scaled lt, rt;        /* tensions */
+  mp_number lt, rt;        /* tensions */
   fraction sine;        /* $\sin(\theta+\phi)$ */
-  lt = abs (number_to_scaled(q->left_tension));
-  rt = abs (number_to_scaled(p->right_tension));
-  rr = mp_velocity (mp, mp->st, mp->ct, mp->sf, mp->cf, rt);
-  ss = mp_velocity (mp, mp->sf, mp->cf, mp->st, mp->ct, lt);
+  mp_number tmp;
+  tmp = mp_new_number(mp);
+  lt = number_abs(q->left_tension);
+  rt = number_abs(p->right_tension);
+  rr = mp_velocity (mp, mp->st, mp->ct, mp->sf, mp->cf, number_to_scaled(rt));
+  ss = mp_velocity (mp, mp->sf, mp->cf, mp->st, mp->ct, number_to_scaled(lt));
   if (number_negative(p->right_tension) || number_negative(q->left_tension)) {
     @<Decrease the velocities,
       if necessary, to stay inside the bounding triangle@>;
   }
-  set_number_from_scaled (p->right_x,
-    number_to_scaled (p->x_coord) + mp_take_fraction (mp,
-                                                      mp_take_fraction (mp,
-                                                                        mp->delta_x
-                                                                        [k],
-                                                                        mp->ct)
-                                                      - mp_take_fraction (mp,
-                                                                          mp->delta_y
-                                                                          [k],
-                                                                          mp->
-                                                                          st),
-                                                      rr));
-  set_number_from_scaled (p->right_y,
-    number_to_scaled (p->y_coord) + mp_take_fraction (mp,
-                                       mp_take_fraction (mp, mp->delta_y[k],
-                                                         mp->ct) +
-                                       mp_take_fraction (mp, mp->delta_x[k],
-                                                         mp->st), rr));
-  set_number_from_scaled(q->left_x,
-    number_to_scaled(q->x_coord) - mp_take_fraction (mp,
-                                       mp_take_fraction (mp, mp->delta_x[k],
-                                                         mp->cf) +
-                                       mp_take_fraction (mp, mp->delta_y[k],
-                                                         mp->sf), ss));
-  set_number_from_scaled(q->left_y,
-    number_to_scaled(q->y_coord) - mp_take_fraction (mp,
-                                       mp_take_fraction (mp, mp->delta_y[k],
-                                                         mp->cf) -
-                                       mp_take_fraction (mp, mp->delta_x[k],
-                                                         mp->sf), ss));
+  set_number_from_scaled (tmp, mp_take_fraction (mp,
+        mp_take_fraction (mp, mp->delta_x [k], mp->ct) - 
+        mp_take_fraction (mp, mp->delta_y [k], mp->st), rr));
+  set_number_from_addition (p->right_x, p->x_coord, tmp);
+  set_number_from_scaled (tmp, mp_take_fraction (mp,
+        mp_take_fraction (mp, mp->delta_y[k], mp->ct) +
+        mp_take_fraction (mp, mp->delta_x[k], mp->st), rr));
+  set_number_from_addition (p->right_y, p->y_coord, tmp);
+  set_number_from_scaled (tmp, mp_take_fraction (mp,
+        mp_take_fraction (mp, mp->delta_x[k], mp->cf) +
+        mp_take_fraction (mp, mp->delta_y[k], mp->sf), ss));
+  set_number_from_substraction (q->left_x, q->x_coord, tmp);
+  set_number_from_scaled (tmp, mp_take_fraction (mp,
+        mp_take_fraction (mp, mp->delta_y[k], mp->cf) -
+        mp_take_fraction (mp, mp->delta_x[k], mp->sf), ss));
+  set_number_from_substraction(q->left_y, q->y_coord, tmp);
   mp_right_type (p) = mp_explicit;
   mp_left_type (q) = mp_explicit;
+  mp_free_number(mp, tmp);
+  mp_free_number(mp, lt);
+  mp_free_number(mp, rt);
 }
 
 
@@ -7864,11 +7865,12 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
 
 @ @<Reduce to simple case of straight line and |return|@>=
 {
+  mp_number lt, rt;  /* tension values */
   mp_right_type (p) = mp_explicit;
   mp_left_type (q) = mp_explicit;
-  lt = abs (number_to_scaled(q->left_tension));
-  rt = abs (number_to_scaled(p->right_tension));
-  if (rt == unity) {
+  lt = number_abs (q->left_tension);
+  rt = number_abs (p->right_tension);
+  if (number_unity(rt)) {
     if (mp->delta_x[0] >= 0)
       set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + ((mp->delta_x[0] + 1) / 3));
     else
@@ -7878,11 +7880,11 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
     else
       set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + ((mp->delta_y[0] - 1) / 3));
   } else {
-    ff = mp_make_fraction (mp, unity, 3 * rt);  /* $\alpha/3$ */
+    ff = mp_make_fraction (mp, unity, 3 * number_to_scaled(rt));  /* $\alpha/3$ */
     set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + mp_take_fraction (mp, mp->delta_x[0], ff));
     set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + mp_take_fraction (mp, mp->delta_y[0], ff));
   }
-  if (lt == unity) {
+  if (number_unity(lt)) {
     if (mp->delta_x[0] >= 0)
       set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - ((mp->delta_x[0] + 1) / 3));
     else
@@ -7892,10 +7894,12 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
     else
       set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - ((mp->delta_y[0] - 1) / 3));
   } else {
-    ff = mp_make_fraction (mp, unity, 3 * lt);  /* $\beta/3$ */
+    ff = mp_make_fraction (mp, unity, 3 * number_to_scaled(lt));  /* $\beta/3$ */
     set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - mp_take_fraction (mp, mp->delta_x[0], ff));
     set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - mp_take_fraction (mp, mp->delta_y[0], ff));
   }
+  mp_free_number(mp, lt);
+  mp_free_number(mp, rt);
   return;
 }
 
@@ -7940,25 +7944,23 @@ is already negative at |t=0|), |crossing_point| returns the value zero.
 @d zero_crossing { return 0; }
 
 @c
-static fraction mp_crossing_point (MP mp, integer a, integer b, integer c) {
-  integer d;    /* recursive counter */
-  integer x, xx, x0, x1, x2;    /* temporary registers for bisection */
-  if (a < 0)
+static fraction mp_crossing_point (MP mp, mp_number a, mp_number b, mp_number c) {
+  if (number_negative(a))
     zero_crossing;
-  if (c >= 0) {
-    if (b >= 0) {
-      if (c > 0) {
+  if (number_positive(c) || number_zero(c)) {
+    if (number_positive(b) || number_zero(b)) {
+      if (number_positive(c)) {
         no_crossing;
-      } else if ((a == 0) && (b == 0)) {
+      } else if (number_zero(a) && number_zero(b)) {
         no_crossing;
       } else {
         one_crossing;
       }
     }
-    if (a == 0)
+    if (number_zero(a))
       zero_crossing;
-  } else if (a == 0) {
-    if (b <= 0)
+  } else if (number_zero(a)) {
+    if (number_zero(b) || number_negative(b))
       zero_crossing;
   }
   @<Use bisection to find the crossing point, if one exists@>;
@@ -7988,34 +7990,61 @@ will occur if the inputs satisfy
 $a<2^{30}$, $\vert a-b\vert<2^{30}$, and $\vert b-c\vert<2^{30}$.
 
 @<Use bisection to find the crossing point...@>=
-d = 1;
-x0 = a;
-x1 = a - b;
-x2 = b - c;
-do {
-  x = half (x1 + x2);
-  if (x1 - x0 > x0) {
-    x2 = x;
-    x0 += x0;
-    d += d;
-  } else {
-    xx = x1 + x - x0;
-    if (xx > x0) {
-      x2 = x;
-      x0 += x0;
+{
+  mp_number x, xx, x0, x1, x2;    /* temporary registers for bisection */
+  int d = 1;    /* recursive counter */
+  mp_number tmp = mp_new_number(mp);
+  x = mp_new_number(mp);
+  xx = mp_new_number(mp);
+  x0 = mp_new_number(mp);
+  x1 = mp_new_number(mp);
+  x2 = mp_new_number(mp);
+  number_clone(x0,a);
+  set_number_from_substraction(x1, a, b);
+  set_number_from_substraction(x2, b, c);
+  do {
+    set_number_from_addition(tmp, x1, x2);
+    number_half (tmp);
+    number_clone(x, tmp);
+    set_number_from_substraction(tmp, x1, x0);
+    if (number_greater(tmp, x0)) {
+      number_clone(x2, x);
+      number_double(x0);
       d += d;
     } else {
-      x0 = x0 - xx;
-      if (x <= x0) {
-        if (x + x2 <= x0)
-          no_crossing;
+      set_number_from_addition(tmp, x1, x);
+      set_number_from_substraction(xx, tmp, x0);
+      if (number_greater(xx, x0)) {
+        number_clone(x2, x);
+        number_double(x0);
+        d += d;
+      } else {
+        set_number_from_substraction(x0, x0, xx);
+        if (number_lessequal(x, x0)) {
+	  set_number_from_addition(tmp, x, x2);
+          if (number_lessequal(tmp,x0)) {
+            mp_free_number(mp, tmp);
+            mp_free_number (mp, x);
+            mp_free_number (mp, xx);
+            mp_free_number (mp, x0);
+            mp_free_number (mp, x1);
+            mp_free_number (mp, x2);
+            return 0;
+          }
+        }
+        number_clone(x1, x);
+        d = d + d + 1;
       }
-      x1 = x;
-      d = d + d + 1;
     }
-  }
-} while (d < fraction_one);
-return (d - fraction_one)
+  } while (d < fraction_one);
+  mp_free_number(mp, tmp);
+  mp_free_number (mp, x);
+  mp_free_number (mp, xx);
+  mp_free_number (mp, x0);
+  mp_free_number (mp, x1);
+  mp_free_number (mp, x2);
+  return (d - fraction_one);
+}
  
 
 @ Here is a routine that computes the $x$ or $y$ coordinate of the point on
@@ -8119,7 +8148,7 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
       number_negate (del2);
       number_negate (del3);
     }
-    t = mp_crossing_point (mp, number_to_scaled(del1), number_to_scaled(del2), number_to_scaled(del3));
+    t = mp_crossing_point (mp, del1, del2, del3);
     if (t < fraction_one) {
       @<Test the extremes of the cubic against the bounding box@>;
     }
@@ -8207,7 +8236,19 @@ must cut it to zero to avoid confusion.
   /* now |0,del2,del3| represent the derivative on the remaining interval */
   if (number_positive(del2))
     set_number_to_zero(del2);
-  tt = mp_crossing_point (mp, 0, -number_to_scaled(del2), -number_to_scaled(del3));
+  {
+    mp_number arg1 = mp_new_number(mp);
+    mp_number arg2 = mp_new_number(mp);
+    mp_number arg3 = mp_new_number(mp);
+    number_clone(arg2, del2);
+    number_negate(arg2);
+    number_clone(arg3, del3);
+    number_negate(arg3);
+    tt = mp_crossing_point (mp, arg1, arg2, arg3);
+    mp_free_number (mp, arg1);
+    mp_free_number (mp, arg2);
+    mp_free_number (mp, arg3);
+  }
   if (tt < fraction_one) {
     @<Test the second extreme against the bounding box@>;
   }
@@ -9333,9 +9374,12 @@ void mp_free_number (MP mp, mp_number n) {
 
 @d number_to_scaled(A) (A)->data.val
 @d number_to_double(A) ((A)->data.val/65536.0)
-@d number_positive(A) ((A)->data.val>0)
 @d number_negate(A) ((A)->data.val=-(A)->data.val)
+@d number_half(A) ((A)->data.val=(A)->data.val/2)
+@d number_double(A) ((A)->data.val=((A)->data.val+(A)->data.val))
+@d number_positive(A) ((A)->data.val>0)
 @d number_zero(A) ((A)->data.val==0)
+@d number_unity(A) ((A)->data.val==unity)
 @d number_negative(A) ((A)->data.val<0)
 @d number_nonzero(A) (!number_zero(A))
 @d number_equal(A,B) ((A)->data.val==(B)->data.val)
@@ -11145,12 +11189,12 @@ integer spec_offset;    /* number of pen edges between |h| and the initial offse
 
 @ @c
 static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h) {
-  halfword n;   /* the number of vertices in the pen polygon */
+  int n;   /* the number of vertices in the pen polygon */
   mp_knot c0, p, q, q0, r, w, ww;       /* for list manipulation */
-  integer k_needed;     /* amount to be added to |mp_info(p)| when it is computed */
+  int k_needed;     /* amount to be added to |mp_info(p)| when it is computed */
   mp_knot w0;   /* a pointer to pen offset to use just before |p| */
   mp_number dxin, dyin;    /* the direction into knot |p| */
-  integer turn_amt;     /* change in pen offsets for the current cubic */
+  int turn_amt;     /* change in pen offsets for the current cubic */
   @<Other local variables for |offset_prep|@>;
   dxin = mp_new_number(mp);
   dyin = mp_new_number(mp);
@@ -11543,7 +11587,7 @@ void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, mp_number
       ww = mp_prev_knot (w);    /* a pointer to $w_{k-1}$ */
     @<Compute test coefficients |(t0,t1,t2)|
       for $d(t)$ versus $d_k$ or $d_{k-1}$@>;
-    t = mp_crossing_point (mp, number_to_scaled(t0), number_to_scaled(t1), number_to_scaled(t2));
+    t = mp_crossing_point (mp, t0, t1, t2);
     if (t >= fraction_one) {
       if (turn_amt > 0)
         t = fraction_one;
@@ -11621,10 +11665,20 @@ respectively, yielding another solution of $(*)$.
   set_number_from_of_the_way(y1, t, y1, y2);
   set_number_from_of_the_way(y0, t, v, y1);
   if (turn_amt < 0) {
+    mp_number arg1 = mp_new_number (mp);
+    mp_number arg2 = mp_new_number (mp);
+    mp_number arg3 = mp_new_number (mp);
     set_number_from_of_the_way(t1, t, t1, t2);
     if (number_positive(t1))
       set_number_to_zero(t1);  /* without rounding error, |t1| would be |<=0| */
-    t = mp_crossing_point (mp, 0, -number_to_scaled(t1), -number_to_scaled(t2));
+    number_clone(arg2, t1);
+    number_negate(arg2);
+    number_clone(arg3, t2);
+    number_negate(arg3);
+    t = mp_crossing_point (mp, arg1, arg2, arg3);
+    mp_free_number(mp, arg1);
+    mp_free_number(mp, arg2);
+    mp_free_number(mp, arg3);
     if (t > fraction_one)
       t = fraction_one;
     incr (turn_amt);
@@ -11794,10 +11848,20 @@ if (t > fraction_one) {
   number_clone(y0, y2a);
   mp_knot_info (r) = zero_off - 1;
   if (turn_amt >= 0) {
+    mp_number arg1 = mp_new_number(mp);
+    mp_number arg2 = mp_new_number(mp);
+    mp_number arg3 = mp_new_number(mp);
     set_number_from_of_the_way(t1, t, t1, t2);
     if (number_positive(t1))
       set_number_to_zero(t1);
-    t = mp_crossing_point (mp, 0, -number_to_scaled(t1), -number_to_scaled(t2));
+    number_clone(arg2, t1);
+    number_negate(arg2);
+    number_clone(arg3, t2);
+    number_negate(arg3);
+    t = mp_crossing_point (mp, arg1, arg2, arg3);
+    mp_free_number(mp, arg1);
+    mp_free_number(mp, arg2);
+    mp_free_number(mp, arg3);
     if (t > fraction_one)
       t = fraction_one;
     @<Split off another rising cubic for |fin_offset_prep|@>;
@@ -11831,7 +11895,7 @@ answer.  If |t2<0|, there is one crossing and it is antiparallel only if
 crossing and the first crossing cannot be antiparallel.
 
 @<Find the first |t| where $d(t)$ crosses $d_{k-1}$ or set...@>=
-t = mp_crossing_point (mp, number_to_scaled(t0), number_to_scaled(t1), number_to_scaled(t2));
+t = mp_crossing_point (mp, t0, t1, t2);
 if (turn_amt >= 0) {
   if (number_negative(t2)) {
     t = fraction_one + 1;
@@ -11856,7 +11920,7 @@ if (turn_amt >= 0) {
 
 @ @<Other local variables for |offset_prep|@>=
 mp_number u0, u1, v0, v1; /* intermediate values for $d(t)$ calculation */
-integer ss = 0; /* the part of the dot product computed so far */
+fraction ss = 0; /* the part of the dot product computed so far */
 int d_sign;     /* sign of overall change in direction for this cubic */
 
 @ If the cubic almost has a cusp, it is a numerically ill-conditioned
@@ -11914,13 +11978,21 @@ set_number_from_scaled(t1, half (mp_take_fraction (mp, number_to_scaled(x1), (nu
 if (number_zero(t0))
   set_number_from_scaled(t0, d_sign);                  /* path reversal always negates |d_sign| */
 if (number_positive(t0)) {
-  t = mp_crossing_point (mp, number_to_scaled(t0), number_to_scaled(t1), -number_to_scaled(t0));
+  mp_number arg3 = mp_new_number(mp);
+  number_clone(arg3, t0);
+  number_negate(arg3);
+  t = mp_crossing_point (mp, t0, t1, arg3);
+  mp_free_number(mp, arg3);
   set_number_from_of_the_way(u0, t, x0, x1);
   set_number_from_of_the_way(u1, t, x1, x2);
   set_number_from_of_the_way(v0, t, y0, y1);
   set_number_from_of_the_way(v1, t, y1, y2);
 } else {
-  t = mp_crossing_point (mp, -number_to_scaled(t0), number_to_scaled(t1), number_to_scaled(t0));
+  mp_number arg1 = mp_new_number(mp);
+  number_clone(arg1, t0);
+  number_negate(arg1);
+  t = mp_crossing_point (mp, arg1, t1, t0);
+  mp_free_number(mp, arg1);
   set_number_from_of_the_way(u0, t, x2, x1);
   set_number_from_of_the_way(u1, t, x1, x0);
   set_number_from_of_the_way(v0, t, y2, y1);
@@ -12610,7 +12682,7 @@ do the right thing.
 @d we_found_it { tt=(t+04000) / 010000; goto FOUND; }
 
 @<Check the places where $B(y_1,y_2,y_3;t)=0$...@>=
-t = mp_crossing_point (mp, number_to_scaled(y1), number_to_scaled(y2), number_to_scaled(y3));
+t = mp_crossing_point (mp, y1, y2, y3);
 if (t > fraction_one)
   goto DONE;
 set_number_from_of_the_way(y2, t, y2, y3);
@@ -12622,7 +12694,19 @@ if (number_zero(x1) || number_positive(x1))
 if (number_positive(y2))
   set_number_to_zero(y2);
 tt = t;
-t = mp_crossing_point (mp, 0, -number_to_scaled(y2), -number_to_scaled(y3));
+{
+  mp_number arg1 = mp_new_number (mp);
+  mp_number arg2 = mp_new_number (mp);
+  mp_number arg3 = mp_new_number (mp);
+  number_clone(arg2, y2);
+  number_negate(arg2);
+  number_clone(arg3, y3);
+  number_negate(arg3);
+  t = mp_crossing_point (mp, arg1, arg2, arg3);
+  mp_free_number(mp, arg1);
+  mp_free_number(mp, arg2);
+  mp_free_number(mp, arg3);
+}
 if (t > fraction_one)
   goto DONE;
 {
@@ -12670,7 +12754,19 @@ traveling east.
 
 @<Exit to |found| if the derivative $B(x_1,x_2,x_3;t)$ becomes |>=0|...@>=
 {
-  t = mp_crossing_point (mp, -number_to_scaled(x1), -number_to_scaled(x2), -number_to_scaled(x3));
+  mp_number arg1 = mp_new_number (mp);
+  mp_number arg2 = mp_new_number (mp);
+  mp_number arg3 = mp_new_number (mp);
+  number_clone(arg1, x1);
+  number_negate(arg1);
+  number_clone(arg2, x2);
+  number_negate(arg2);
+  number_clone(arg3, x3);
+  number_negate(arg3);
+  t = mp_crossing_point (mp, arg1, arg2, arg3);
+  mp_free_number(mp, arg1);
+  mp_free_number(mp, arg2);
+  mp_free_number(mp, arg3);
   if (t <= fraction_one)
     we_found_it;
   if (mp_ab_vs_cd (mp, number_to_scaled(x1), number_to_scaled(x3), number_to_scaled(x2), number_to_scaled(x2)) <= 0) {
