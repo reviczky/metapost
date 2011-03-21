@@ -8619,24 +8619,42 @@ length less than |fraction_four|.
 @d arc_tol   16  /* quit when change in arc length estimate reaches this */
 
 @c
-static scaled mp_do_arc_test (MP mp, scaled dx0, scaled dy0, scaled dx1,
-                              scaled dy1, scaled dx2, scaled dy2, scaled a_goal) {
-  scaled v0, v1, v2;    /* length of each $({\it dx},{\it dy})$ pair */
-  scaled v02;   /* twice the norm of the quadratic at $t={1\over2}$ */
-  v0 = mp_pyth_add (mp, dx0, dy0);
-  v1 = mp_pyth_add (mp, dx1, dy1);
-  v2 = mp_pyth_add (mp, dx2, dy2);
-  if ((v0 >= fraction_four) || (v1 >= fraction_four) || (v2 >= fraction_four)) {
+static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number dx1,
+                              mp_number dy1, mp_number dx2, mp_number dy2, mp_number a_goal) {
+  mp_number v0, v1, v2;    /* length of each $({\it dx},{\it dy})$ pair */
+  mp_number v02;   /* twice the norm of the quadratic at $t={1\over2}$ */
+  mp_number ret;
+  v0 = mp_new_number (mp);
+  v1 = mp_new_number (mp);
+  v2 = mp_new_number (mp);
+  ret = mp_new_number (mp);
+  set_number_from_scaled(v0, mp_pyth_add (mp, number_to_scaled(dx0), number_to_scaled(dy0)));
+  set_number_from_scaled(v1, mp_pyth_add (mp, number_to_scaled(dx1), number_to_scaled(dy1)));
+  set_number_from_scaled(v2, mp_pyth_add (mp, number_to_scaled(dx2), number_to_scaled(dy2)));
+  if ((number_to_scaled(v0) >= fraction_four) || 
+      (number_to_scaled(v1) >= fraction_four) || 
+      (number_to_scaled(v2) >= fraction_four)) {
     mp->arith_error = true;
-    if (a_goal == EL_GORDO)
-      return EL_GORDO;
+    if (number_infinite(a_goal))
+      set_number_to_inf(ret);
     else
-      return (-two);
+      set_number_from_scaled(ret, (-two));
   } else {
-    v02 = mp_pyth_add (mp, dx1 + half (dx0 + dx2), dy1 + half (dy0 + dy2));
-    return (mp_arc_test (mp, dx0, dy0, dx1, dy1, dx2, dy2,
-                         v0, v02, v2, a_goal, arc_tol));
+    v02 = mp_new_number (mp);
+    set_number_from_scaled(v02, 
+        mp_pyth_add (mp, number_to_scaled(dx1) + half (number_to_scaled(dx0) + number_to_scaled(dx2)), 
+	                   number_to_scaled(dy1) + half (number_to_scaled(dy0) + number_to_scaled(dy2))));
+    set_number_from_scaled(ret, mp_arc_test (mp, number_to_scaled(dx0), number_to_scaled(dy0), 
+                           number_to_scaled(dx1), number_to_scaled(dy1), 
+                           number_to_scaled(dx2), number_to_scaled(dy2),
+                           number_to_scaled(v0), number_to_scaled(v02), number_to_scaled(v2), 
+                           number_to_scaled(a_goal), arc_tol));
+    mp_free_number (mp, v02);
   }
+  mp_free_number (mp, v0);
+  mp_free_number (mp, v1);
+  mp_free_number (mp, v2);
+  return ret;
 }
 
 
@@ -8645,24 +8663,43 @@ static scaled mp_do_arc_test (MP mp, scaled dx0, scaled dy0, scaled dx1,
 @c
 static scaled mp_get_arc_length (MP mp, mp_knot h) {
   mp_knot p, q; /* for traversing the path */
-  scaled a, a_tot;      /* current and total arc lengths */
+  mp_number a;  /* current arc length */
+  scaled a_tot; /* total arc length */
+  mp_number arg1, arg2, arg3, arg4, arg5, arg6;
+  mp_number arcgoal; 
   a_tot = 0;
   p = h;
+  arg1 = mp_new_number (mp);
+  arg2 = mp_new_number (mp);
+  arg3 = mp_new_number (mp);
+  arg4 = mp_new_number (mp);
+  arg5 = mp_new_number (mp);
+  arg6 = mp_new_number (mp);
+  arcgoal = mp_new_number(mp);
+  set_number_to_inf(arcgoal);
   while (mp_right_type (p) != mp_endpoint) {
     q = mp_next_knot (p);
-    a =
-      mp_do_arc_test (mp, number_to_scaled (p->right_x) - number_to_scaled (p->x_coord),
-                      number_to_scaled (p->right_y) - number_to_scaled (p->y_coord),
-                      number_to_scaled(q->left_x) - number_to_scaled (p->right_x),
-                      number_to_scaled(q->left_y) - number_to_scaled (p->right_y),
-                      number_to_scaled(q->x_coord) - number_to_scaled(q->left_x),
-                      number_to_scaled(q->y_coord) - number_to_scaled(q->left_y), EL_GORDO);
-    a_tot = mp_slow_add (mp, a, a_tot);
+    set_number_from_substraction(arg1, p->right_x, p->x_coord);
+    set_number_from_substraction(arg2, p->right_y, p->y_coord);
+    set_number_from_substraction(arg3, q->left_x,  p->right_x);
+    set_number_from_substraction(arg4, q->left_y,  p->right_y);
+    set_number_from_substraction(arg5, q->x_coord, q->left_x);
+    set_number_from_substraction(arg6, q->y_coord, q->left_y);
+    a = mp_do_arc_test (mp, arg1, arg2, arg3, arg4, arg5, arg6, arcgoal);
+    a_tot = mp_slow_add (mp, number_to_scaled(a), a_tot);
     if (q == h)
       break;
     else
       p = q;
   }
+  mp_free_number (mp, arcgoal);
+  mp_free_number (mp, a);
+  mp_free_number (mp, arg1);
+  mp_free_number (mp, arg2);
+  mp_free_number (mp, arg3);
+  mp_free_number (mp, arg4);
+  mp_free_number (mp, arg5);
+  mp_free_number (mp, arg6);
   check_arith();
   return a_tot;
 }
@@ -8683,26 +8720,34 @@ we must be prepared to compute the arc length of path~|h| and divide this into
 static scaled mp_get_arc_time (MP mp, mp_knot h, scaled arc0) {
   mp_knot p, q; /* for traversing the path */
   scaled t_tot; /* accumulator for the result */
-  scaled t;     /* the result of |do_arc_test| */
-  scaled arc;   /* portion of |arc0| not used up so far */
+  mp_number t;     /* the result of |do_arc_test| */
+  mp_number arc;   /* portion of |arc0| not used up so far */
   integer n;    /* number of extra times to go around the cycle */
+  mp_number arg1, arg2, arg3, arg4, arg5, arg6; /* |do_arc_test| arguments */
   if (arc0 < 0) {
     @<Deal with a negative |arc0| value and |return|@>;
   }
   if (arc0 == EL_GORDO)
     decr (arc0);
   t_tot = 0;
-  arc = arc0;
+  arc  = mp_new_number (mp);
+  set_number_from_scaled(arc, arc0);
   p = h;
-  while ((mp_right_type (p) != mp_endpoint) && (arc > 0)) {
+  arg1 = mp_new_number (mp);
+  arg2 = mp_new_number (mp);
+  arg3 = mp_new_number (mp);
+  arg4 = mp_new_number (mp);
+  arg5 = mp_new_number (mp);
+  arg6 = mp_new_number (mp);
+  while ((mp_right_type (p) != mp_endpoint) && number_positive(arc)) {
     q = mp_next_knot (p);
-    t =
-      mp_do_arc_test (mp, number_to_scaled (p->right_x) - number_to_scaled (p->x_coord),
-                      number_to_scaled (p->right_y) - number_to_scaled (p->y_coord),
-                      number_to_scaled(q->left_x) - number_to_scaled (p->right_x),
-                      number_to_scaled(q->left_y) - number_to_scaled (p->right_y),
-                      number_to_scaled(q->x_coord) - number_to_scaled(q->left_x),
-                      number_to_scaled(q->y_coord) - number_to_scaled(q->left_y), arc);
+    set_number_from_substraction(arg1, p->right_x, p->x_coord);
+    set_number_from_substraction(arg2, p->right_y, p->y_coord);
+    set_number_from_substraction(arg3, q->left_x,  p->right_x);
+    set_number_from_substraction(arg4, q->left_y,  p->right_y);
+    set_number_from_substraction(arg5, q->x_coord, q->left_x);
+    set_number_from_substraction(arg6, q->y_coord, q->left_y);
+    t = mp_do_arc_test (mp, arg1, arg2, arg3, arg4, arg5, arg6, arc);
     @<Update |arc| and |t_tot| after |do_arc_test| has just returned |t|@>;
     if (q == h) {
       @<Update |t_tot| and |arc| to avoid going around the cyclic
@@ -8712,17 +8757,25 @@ static scaled mp_get_arc_time (MP mp, mp_knot h, scaled arc0) {
     p = q;
   }
   check_arith();
+  mp_free_number (mp, t);
+  mp_free_number (mp, arc);
+  mp_free_number (mp, arg1);
+  mp_free_number (mp, arg2);
+  mp_free_number (mp, arg3);
+  mp_free_number (mp, arg4);
+  mp_free_number (mp, arg5);
+  mp_free_number (mp, arg6);
   return t_tot;
 }
 
 
 @ @<Update |arc| and |t_tot| after |do_arc_test| has just returned |t|@>=
-if (t < 0) {
-  t_tot = t_tot + t + two;
-  arc = 0;
+if (number_negative(t)) {
+  t_tot = t_tot + number_to_scaled(t) + two;
+  set_number_to_zero(arc);
 } else {
   t_tot = t_tot + unity;
-  arc = arc - t;
+  set_number_from_substraction(arc, arc, t);
 }
 
 
@@ -8741,9 +8794,9 @@ if (t < 0) {
 
 
 @ @<Update |t_tot| and |arc| to avoid going around the cyclic...@>=
-if (arc > 0) {
-  n = arc / (arc0 - arc);
-  arc = arc - n * (arc0 - arc);
+if (number_positive(arc)) {
+  n = number_to_scaled(arc) / (arc0 - number_to_scaled(arc));
+  set_number_from_scaled(arc, number_to_scaled(arc) - n * (arc0 - number_to_scaled(arc)));
   if (t_tot > (EL_GORDO / (n + 1))) {
     mp->arith_error = true;
     check_arith();
@@ -9384,6 +9437,7 @@ void mp_free_number (MP mp, mp_number n) {
 @d number_double(A) ((A)->data.val=((A)->data.val+(A)->data.val))
 @d number_positive(A) ((A)->data.val>0)
 @d number_zero(A) ((A)->data.val==0)
+@d number_infinite(A) ((A)->data.val==EL_GORDO)
 @d number_unity(A) ((A)->data.val==unity)
 @d number_negative(A) ((A)->data.val<0)
 @d number_nonzero(A) (!number_zero(A))
