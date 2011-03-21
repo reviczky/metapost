@@ -8358,15 +8358,16 @@ ${1\over3}\vb\dot B(1)\vb$.  These quantities are relatively expensive to comput
 and they are needed in different instances of |arc_test|.
 
 @c
-static scaled mp_arc_test (MP mp, scaled dx0, scaled dy0, scaled dx1,
+static mp_number mp_arc_test (MP mp, scaled dx0, scaled dy0, scaled dx1,
                            scaled dy1, scaled dx2, scaled dy2, scaled v0,
                            scaled v02, scaled v2, scaled a_goal, scaled tol) {
   boolean simple;       /* are the control points confined to a $90^\circ$ sector? */
+  mp_number ret;
   scaled dx01, dy01, dx12, dy12, dx02, dy02;    /* bisection results */
-  scaled v002, v022;
-  /* twice the velocity magnitudes at $t={1\over4}$ and $t={3\over4}$ */
+  scaled v002, v022; /* twice the velocity magnitudes at $t={1\over4}$ and $t={3\over4}$ */
   scaled arc;   /* best arc length estimate before recursion */
   @<Other local variables in |arc_test|@>;
+  ret = mp_new_number (mp);
   @<Bisect the B\'ezier quadratic given by |dx0|, |dy0|, |dx1|, |dy1|,
     |dx2|, |dy2|@>;
   @<Initialize |v002|, |v022|, and the arc length estimate |arc|; if it overflows
@@ -8375,7 +8376,7 @@ static scaled mp_arc_test (MP mp, scaled dx0, scaled dy0, scaled dx1,
     $45^\circ$ would put them in one quadrant.  Then set |simple| appropriately@>;
   if (simple && (abs (arc - v02 - halfp (v0 + v2)) <= tol)) {
     if (arc < a_goal) {
-      return arc;
+      set_number_from_scaled(ret, arc);
     } else {
       @<Estimate when the arc length reaches |a_goal| and set |arc_test| to
          that time minus |two|@>;
@@ -8383,6 +8384,8 @@ static scaled mp_arc_test (MP mp, scaled dx0, scaled dy0, scaled dx1,
   } else {
     @<Use one or two recursive calls to compute the |arc_test| function@>;
   }
+DONE:
+  return ret;
 }
 
 
@@ -8393,22 +8396,27 @@ calls, but $1.5$ is an adequate approximation.  It is best to avoid using
 
 @<Use one or two recursive calls to compute the |arc_test| function@>=
 {
+  mp_number arc_test;
   @<Set |a_new| and |a_aux| so their sum is |2*a_goal| and |a_new| is as
     large as possible@>;
   tol = tol + halfp (tol);
-  a = mp_arc_test (mp, dx0, dy0, dx01, dy01, dx02, dy02, v0, v002,
-                   halfp (v02), a_new, tol);
+  arc_test = mp_arc_test (mp, dx0, dy0, dx01, dy01, dx02, dy02, v0, v002,
+                              halfp (v02), a_new, tol);
+  a = number_to_scaled(arc_test);
   if (a < 0) {
-    return (-halfp (two - a));
+    set_number_from_scaled (ret, (-halfp (two - a)));
   } else {
     @<Update |a_new| to reduce |a_new+a_aux| by |a|@>;
-    b = mp_arc_test (mp, dx02, dy02, dx12, dy12, dx2, dy2,
-                     halfp (v02), v022, v2, a_new, tol);
+    arc_test = mp_arc_test (mp, dx02, dy02, dx12, dy12, dx2, dy2,
+                            halfp (v02), v022, v2, a_new, tol);
+    b = number_to_scaled(arc_test);
     if (b < 0)
-      return (-halfp (-b) - half_unit);
+      set_number_from_scaled(ret, (-halfp (-b) - half_unit));
     else
-      return (a + half (b - a));
+      set_number_from_scaled(ret, (a + half (b - a)));
   }
+  mp_free_number (mp, arc_test);
+  goto DONE;
 }
 
 
@@ -8464,11 +8472,14 @@ if ((arc < EL_GORDO - arc1)) {
   arc = arc + arc1;
 } else {
   mp->arith_error = true;
-  if (a_goal == EL_GORDO)
-    return (EL_GORDO);
-  else
-    return (-two);
+  if (a_goal == EL_GORDO) {
+    set_number_to_inf(ret);
+  } else {
+    set_number_from_scaled(ret, -two);
+  }
+  goto DONE;
 }
+
 
 
 @ @<Other local variables in |arc_test|@>=
@@ -8532,15 +8543,16 @@ $\tau$ given $a$, $b$, $c$, and $x$.
   tmp = (v02 + 2) / 4;
   if (a_goal <= arc1) {
     tmp2 = halfp (v0);
-    return
+    set_number_from_scaled(ret,
       (halfp (mp_solve_rising_cubic (mp, tmp2, arc1 - tmp2 - tmp, tmp, a_goal))
-       - two);
+       - two));
   } else {
     tmp2 = halfp (v2);
-    return ((half_unit - two) +
+    set_number_from_scaled(ret, ((half_unit - two) +
             halfp (mp_solve_rising_cubic
-                   (mp, tmp, arc - arc1 - tmp - tmp2, tmp2, a_goal - arc1)));
+                   (mp, tmp, arc - arc1 - tmp - tmp2, tmp2, a_goal - arc1))));
   }
+  goto DONE;
 }
 
 
@@ -8644,11 +8656,12 @@ static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number 
     set_number_from_scaled(v02, 
         mp_pyth_add (mp, number_to_scaled(dx1) + half (number_to_scaled(dx0) + number_to_scaled(dx2)), 
 	                   number_to_scaled(dy1) + half (number_to_scaled(dy0) + number_to_scaled(dy2))));
-    set_number_from_scaled(ret, mp_arc_test (mp, number_to_scaled(dx0), number_to_scaled(dy0), 
-                           number_to_scaled(dx1), number_to_scaled(dy1), 
-                           number_to_scaled(dx2), number_to_scaled(dy2),
-                           number_to_scaled(v0), number_to_scaled(v02), number_to_scaled(v2), 
-                           number_to_scaled(a_goal), arc_tol));
+    mp_free_number (mp, ret);
+    number_clone(ret, mp_arc_test (mp, number_to_scaled(dx0), number_to_scaled(dy0), 
+                      number_to_scaled(dx1), number_to_scaled(dy1), 
+                      number_to_scaled(dx2), number_to_scaled(dy2),
+                      number_to_scaled(v0), number_to_scaled(v02), number_to_scaled(v2), 
+                      number_to_scaled(a_goal), arc_tol));
     mp_free_number (mp, v02);
   }
   mp_free_number (mp, v0);
