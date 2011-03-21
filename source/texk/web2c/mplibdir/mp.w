@@ -8056,9 +8056,8 @@ It is convenient to define a \.{WEB} macro |t_of_the_way| such that
 @d t_of_the_way(A,B) ((A)-mp_take_fraction(mp,((A)-(B)),t))
 
 @c
-static scaled mp_eval_cubic (MP mp, mp_knot p, mp_knot q, quarterword c,
+static mp_number mp_eval_cubic (MP mp, mp_knot p, mp_knot q, quarterword c,
                              fraction t) {
-  scaled ret;
   mp_number x1, x2, x3, r;    /* intermediate values */
   x1 = mp_new_number(mp);
   x2 = mp_new_number(mp);
@@ -8076,12 +8075,10 @@ static scaled mp_eval_cubic (MP mp, mp_knot p, mp_knot q, quarterword c,
   set_number_from_of_the_way(x1, t, x1, x2);
   set_number_from_of_the_way(x2, t, x2, x3);
   set_number_from_of_the_way(r,  t, x1, x2);
-  ret = number_to_scaled(r);
-  mp_free_number(mp, r);
   mp_free_number(mp, x1);
   mp_free_number(mp, x2);
   mp_free_number(mp, x3);
-  return ret;
+  return r;
 }
 
 
@@ -8122,8 +8119,13 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
   mp_number del1, del2, del3, del, dmax;  /* proportional to the control
                          points of a quadratic derived from a cubic */
   fraction t, tt;       /* where a quadratic crosses zero */
-  scaled x;     /* a value that |bbmin[c]| and |bbmax[c]| must accommodate */
-  x = (c == mp_x_code ? number_to_scaled(q->x_coord) : number_to_scaled(q->y_coord));
+  mp_number x;     /* a value that |bbmin[c]| and |bbmax[c]| must accommodate */
+  x = mp_new_number (mp);
+  if (c == mp_x_code) {
+    number_clone(x, q->x_coord);
+  } else {
+    number_clone(x, q->y_coord);
+  }
   del1 = mp_new_number(mp);
   del2 = mp_new_number(mp);
   del3 = mp_new_number(mp);
@@ -8157,14 +8159,15 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
   mp_free_number(mp, del2);
   mp_free_number(mp, del1);
   mp_free_number(mp, del);
+  mp_free_number(mp, x);
 }
 
 
 @ @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>=
-if (x < mp->bbmin[c])
-  mp->bbmin[c] = x;
-if (x > mp->bbmax[c])
-  mp->bbmax[c] = x
+if (number_to_scaled(x) < mp->bbmin[c])
+  mp->bbmin[c] = number_to_scaled(x);
+if (number_to_scaled(x) > mp->bbmax[c])
+  mp->bbmax[c] = number_to_scaled(x)
 
 @ @<Check the control points against the bounding box and set...@>=
 wavy = true;
@@ -8230,6 +8233,7 @@ must cut it to zero to avoid confusion.
 
 @<Test the extremes of the cubic against the bounding box@>=
 {
+  mp_free_number (mp, x);
   x = mp_eval_cubic (mp, p, q, c, t);
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
   set_number_from_of_the_way(del2, t, del2, del3);
@@ -8257,6 +8261,7 @@ must cut it to zero to avoid confusion.
 
 @ @<Test the second extreme against the bounding box@>=
 {
+  mp_free_number (mp, x);
   x = mp_eval_cubic (mp, p, q, c, t_of_the_way (tt, fraction_one));
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
 }
