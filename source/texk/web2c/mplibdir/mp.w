@@ -4663,6 +4663,7 @@ printer's sense. It's curious that the same word is used in such different ways.
 
 
 @d value(A)       mp_do_value(mp, (mp_node)(A)) /* the value stored in a large token node */
+@d value_number(A) ((mp_value_node)A)->data.n
 
 @d set_value(A,B) do {  /* store the value in a large token node */
    FUNCTION_TRACE3 ("set_value(%p,%d)\n", (A),(B));
@@ -8556,7 +8557,7 @@ number_half(dy02);
        mp_pyth_add (mp, number_to_scaled(dx12) + half (number_to_scaled(dx02) + number_to_scaled(dx2)), 
                         number_to_scaled(dy12) + half (number_to_scaled(dy02) + number_to_scaled(dy2))));
   number_clone (tmp, v02);
-  number_add_int (tmp, 2);
+  number_add_scaled (tmp, 2);
   number_halfp (tmp);
 
   set_number_from_addition(arc1, v0, tmp);
@@ -8671,7 +8672,7 @@ $\tau$ given $a$, $b$, $c$, and $x$.
   mp_number tmp4 = mp_new_number (mp);  
   mp_number tmp5;  
   number_clone(tmp, v02);
-  number_add_int(tmp, 2);
+  number_add_scaled(tmp, 2);
   number_half(tmp);
   number_half(tmp); /* (v02+2) / 4 */
   if (number_lessequal(a_goal, arc1)) {
@@ -8924,21 +8925,24 @@ we must be prepared to compute the arc length of path~|h| and divide this into
 |arc0| to find how many multiples of the length of path~|h| to add.
 
 @c
-static scaled mp_get_arc_time (MP mp, mp_knot h, scaled arc0) {
+static scaled mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
   mp_knot p, q; /* for traversing the path */
   scaled t_tot; /* accumulator for the result */
   mp_number t;     /* the result of |do_arc_test| */
-  mp_number arc;   /* portion of |arc0| not used up so far */
+  mp_number arc, arc0;   /* portion of |arc0| not used up so far */
   integer n;    /* number of extra times to go around the cycle */
   mp_number arg1, arg2, arg3, arg4, arg5, arg6; /* |do_arc_test| arguments */
-  if (arc0 < 0) {
-    @<Deal with a negative |arc0| value and |return|@>;
+  if (number_negative(arc0_orig)) {
+    @<Deal with a negative |arc0_orig| value and |return|@>;
   }
-  if (arc0 == EL_GORDO)
-    decr (arc0);
+  arc0  = mp_new_number (mp);
+  number_clone(arc0, arc0_orig);
+  if (number_infinite(arc0)) {
+    number_substract_scaled (arc0, 1);
+  }
   t_tot = 0;
   arc  = mp_new_number (mp);
-  set_number_from_scaled(arc, arc0);
+  number_clone(arc, arc0);
   p = h;
   arg1 = mp_new_number (mp);
   arg2 = mp_new_number (mp);
@@ -8986,14 +8990,19 @@ if (number_negative(t)) {
 }
 
 
-@ @<Deal with a negative |arc0| value and |return|@>=
+@ @<Deal with a negative |arc0_orig| value and |return|@>=
 {
   if (mp_left_type (h) == mp_endpoint) {
     t_tot = 0;
   } else {
+    mp_number neg_arc0;
     p = mp_htap_ypoc (mp, h);
-    t_tot = -mp_get_arc_time (mp, p, -arc0);
+    neg_arc0 = mp_new_number(mp);
+    number_clone(neg_arc0, arc0_orig);
+    number_negate(neg_arc0);
+    t_tot = -mp_get_arc_time (mp, p, neg_arc0);
     mp_toss_knot_list (mp, p);
+    mp_free_number (mp, neg_arc0);
   }
   check_arith();
   return t_tot;
@@ -9002,8 +9011,8 @@ if (number_negative(t)) {
 
 @ @<Update |t_tot| and |arc| to avoid going around the cyclic...@>=
 if (number_positive(arc)) {
-  n = number_to_scaled(arc) / (arc0 - number_to_scaled(arc));
-  set_number_from_scaled(arc, number_to_scaled(arc) - n * (arc0 - number_to_scaled(arc)));
+  n = number_to_scaled(arc) / (number_to_scaled(arc0) - number_to_scaled(arc));
+  set_number_from_scaled(arc, number_to_scaled(arc) - n * (number_to_scaled(arc0) - number_to_scaled(arc)));
   if (t_tot > (EL_GORDO / (n + 1))) {
     mp->arith_error = true;
     check_arith();
@@ -9645,7 +9654,8 @@ void mp_free_number (MP mp, mp_number n) {
 @d number_half(A) ((A)->data.val=(A)->data.val/2)
 @d number_halfp(A) ((A)->data.val=(A)->data.val/2)
 @d number_double(A) ((A)->data.val=((A)->data.val+(A)->data.val))
-@d number_add_int(A,B) ((A)->data.val=((A)->data.val+(B)))
+@d number_add_scaled(A,B) ((A)->data.val=((A)->data.val+(B)))
+@d number_substract_scaled(A,B) ((A)->data.val=((A)->data.val-(B)))
 @d number_abs(A)    ((A)->data.val=abs((A)->data.val))
 @d number_positive(A) ((A)->data.val>0)
 @d number_zero(A) ((A)->data.val==0)
@@ -26231,7 +26241,7 @@ case mp_arc_time_of:
 if (mp->cur_exp.type == mp_pair_type)
   mp_pair_to_path (mp);
 if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_known)) {
-  new_expr.data.n->data.val = mp_get_arc_time (mp, cur_exp_knot (), value (p));
+  new_expr.data.n->data.val = mp_get_arc_time (mp, cur_exp_knot (), value_number (p));
   mp_flush_cur_exp (mp, new_expr);
 } else {
   mp_bad_binary (mp, p, (quarterword) c);
