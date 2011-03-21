@@ -7574,8 +7574,12 @@ will not be needed after this step has been performed.
 {
   mp_number rt, lt;
   dd = mp_take_fraction (mp, dd, cc);
-  lt = number_abs (s->left_tension);
-  rt = number_abs (s->right_tension);
+  lt = mp_new_number (mp);
+  rt = mp_new_number (mp);
+  number_clone (lt, s->left_tension);
+  number_abs (lt);
+  number_clone (rt, s->right_tension);
+  number_abs (rt);
   if (!number_equal(lt, rt)) {                 /* $\beta_k^{-1}\ne\alpha_k^{-1}$ */
     if (number_less(lt, rt)) {
       ff = mp_make_fraction (mp, number_to_scaled(lt), number_to_scaled(rt));
@@ -7676,9 +7680,13 @@ so we can solve for $\theta_n=\theta_0$.
 @ @<Set up the equation for a curl at $\theta_0$@>=
 {
   mp_number lt, rt;  /* tension values */
+  lt = mp_new_number (mp);
+  rt = mp_new_number (mp);
   cc = number_to_scaled(s->right_curl);
-  lt = number_abs (t->left_tension);
-  rt = number_abs (s->right_tension);
+  number_clone (lt, t->left_tension);
+  number_abs(lt);
+  number_clone (rt, s->right_tension);
+  number_abs(rt);
   if (number_unity(rt) && number_unity(lt))
     mp->uu[0] = mp_make_fraction (mp, cc + cc + unity, cc + two);
   else
@@ -7693,9 +7701,13 @@ so we can solve for $\theta_n=\theta_0$.
 @ @<Set up equation for a curl at $\theta_n$...@>=
 {
   mp_number lt, rt;  /* tension values */
+  lt = mp_new_number (mp);
+  rt = mp_new_number (mp);
   cc = number_to_scaled(s->left_curl);
-  lt = number_abs (s->left_tension);
-  rt = number_abs (r->right_tension);
+  number_clone (lt, s->left_tension);
+  number_abs(lt);
+  number_clone (rt, r->right_tension);
+  number_abs(rt);
   if (number_unity(rt) && number_unity(lt))
     ff = mp_make_fraction (mp, cc + cc + unity, cc + two);
   else
@@ -7793,8 +7805,12 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   fraction sine;        /* $\sin(\theta+\phi)$ */
   mp_number tmp;
   tmp = mp_new_number(mp);
-  lt = number_abs(q->left_tension);
-  rt = number_abs(p->right_tension);
+  lt = mp_new_number (mp);
+  rt = mp_new_number (mp);
+  number_clone(lt, q->left_tension);
+  number_abs(lt);
+  number_clone(rt, p->right_tension);
+  number_abs(rt);
   rr = mp_velocity (mp, mp->st, mp->ct, mp->sf, mp->cf, number_to_scaled(rt));
   ss = mp_velocity (mp, mp->sf, mp->cf, mp->st, mp->ct, number_to_scaled(lt));
   if (number_negative(p->right_tension) || number_negative(q->left_tension)) {
@@ -7868,8 +7884,12 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
   mp_number lt, rt;  /* tension values */
   mp_right_type (p) = mp_explicit;
   mp_left_type (q) = mp_explicit;
-  lt = number_abs (q->left_tension);
-  rt = number_abs (p->right_tension);
+  lt = mp_new_number (mp);
+  rt = mp_new_number (mp);
+  number_clone (lt, q->left_tension);
+  number_abs(lt);
+  number_clone (rt, p->right_tension);
+  number_abs(rt);
   if (number_unity(rt)) {
     if (mp->delta_x[0] >= 0)
       set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + ((mp->delta_x[0] + 1) / 3));
@@ -8130,6 +8150,7 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
   del2 = mp_new_number(mp);
   del3 = mp_new_number(mp);
   del  = mp_new_number(mp);
+  dmax = mp_new_number(mp);
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
   @<Check the control points against the bounding box and set |wavy:=true|
     if any of them lie outside@>;
@@ -8159,6 +8180,7 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
   mp_free_number(mp, del2);
   mp_free_number(mp, del1);
   mp_free_number(mp, del);
+  mp_free_number(mp, dmax);
   mp_free_number(mp, x);
 }
 
@@ -8198,23 +8220,20 @@ if (number_nonzero(del1)) {
   number_clone (del, del3);
 }
 if (number_nonzero(del)) {
-  mp_number absval1;
+  mp_number absval1  = mp_new_number(mp);
   mp_number frac_half = mp_new_number(mp);
   set_number_from_scaled(frac_half, fraction_half);
-  dmax = number_abs (del1);
-  absval1 = number_abs (del2);
+  number_clone (dmax, del1);
+  number_abs (dmax);
+  number_clone (absval1, del2);
+  number_abs(absval1);
   if (number_greater(absval1, dmax)) {
-    mp_free_number(mp, dmax);
-    dmax = absval1;
-  } else {
-    mp_free_number(mp, absval1);
+    number_clone(dmax, absval1);
   }
-  absval1 = number_abs (del3);
+  number_clone (absval1, del3);
+  number_abs(absval1);
   if (number_greater(absval1, dmax)) {
-    mp_free_number(mp, dmax);
-    dmax = absval1;
-  } else {
-    mp_free_number(mp, absval1);
+    number_clone(dmax, absval1);
   }
   while (number_less(dmax, frac_half)) {
     set_number_from_addition(dmax, dmax, dmax);
@@ -8222,6 +8241,7 @@ if (number_nonzero(del)) {
     set_number_from_addition(del2, del2, del2);
     set_number_from_addition(del3, del3, del3);
   }
+  mp_free_number(mp, absval1);
   mp_free_number(mp, frac_half);
 }
 
@@ -9526,6 +9546,7 @@ void mp_free_number (MP mp, mp_number n) {
 @d number_half(A) ((A)->data.val=(A)->data.val/2)
 @d number_halfp(A) ((A)->data.val=(A)->data.val/2)
 @d number_double(A) ((A)->data.val=((A)->data.val+(A)->data.val))
+@d number_abs(A)    ((A)->data.val=abs((A)->data.val))
 @d number_positive(A) ((A)->data.val>0)
 @d number_zero(A) ((A)->data.val==0)
 @d number_infinite(A) ((A)->data.val==EL_GORDO)
@@ -9539,7 +9560,6 @@ void mp_free_number (MP mp, mp_number n) {
 @d number_greaterequal(A,B) ((A)->data.val>=(B)->data.val)
 @d number_less(A,B) ((A)->data.val<(B)->data.val)
 @d number_lessequal(A,B) ((A)->data.val<=(B)->data.val)
-@d number_abs(A)     mp_number_abs(mp,A)
 @d number_nonequalabs(A,B) (!(abs((A)->data.val)==abs((B)->data.val)))
 @d number_clone(A,B) (A)->data.val=(B)->data.val
 @d number_swap(A,B) do {
@@ -9548,20 +9568,10 @@ void mp_free_number (MP mp, mp_number n) {
   (B)->data.val=swap_tmp;
 } while (0)
 
-@c
-mp_number mp_number_abs (MP mp, mp_number o) {
-  mp_number n = mp_new_number(mp);
-  n->data.val = abs(o->data.val);
-  return n;
-} 
-
-
-
 @
 @<Declarations@>=
 mp_number mp_new_number (MP mp);
 void mp_free_number (MP mp, mp_number n);
-mp_number mp_number_abs (MP mp, mp_number o);
 
 @* Edge structures.
 Now we come to \MP's internal scheme for representing pictures.
@@ -11347,7 +11357,9 @@ static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h) {
   mp_knot w0;   /* a pointer to pen offset to use just before |p| */
   mp_number dxin, dyin;    /* the direction into knot |p| */
   int turn_amt;     /* change in pen offsets for the current cubic */
+  mp_number max_coef;       /* used while scaling */
   @<Other local variables for |offset_prep|@>;
+  max_coef = mp_new_number(mp);
   dxin = mp_new_number(mp);
   dyin = mp_new_number(mp);
   dx0 = mp_new_number(mp);
@@ -11630,7 +11642,6 @@ mp_number x0, x1, x2, y0, y1, y2; /* representatives of derivatives */
 mp_number t0, t1, t2;     /* coefficients of polynomial for slope testing */
 mp_number du, dv, dx, dy; /* for directions of the pen and the curve */
 mp_number dx0, dy0;       /* initial direction for the first cubic in the curve */
-mp_number max_coef;       /* used while scaling */
 mp_number x0a, x1a, x2a, y0a, y1a, y2a;   /* intermediate values */
 fraction t;     /* where the derivative passes through zero */
 fraction s;     /* a temporary value */
@@ -11643,35 +11654,38 @@ set_number_from_substraction(y0, p->right_y, p->y_coord);
 set_number_from_substraction(y2, q->y_coord, q->left_y);
 set_number_from_substraction(y1, q->left_y, p->right_y);
 {
-  mp_number absval = number_abs(x1);
-  max_coef = number_abs(x0);
+  mp_number absval = mp_new_number (mp);
+  number_clone(absval, x1);
+  number_abs(absval);
+  number_clone(max_coef, x0);
+  number_abs (max_coef);
   if (number_greater(absval, max_coef)) {
-    mp_free_number(mp, max_coef);
-    max_coef = absval;
+    number_clone(max_coef, absval);
   }
-  absval = number_abs(x2);
+  number_clone(absval, x2);
+  number_abs(absval);
   if (number_greater(absval, max_coef)) {
-    mp_free_number(mp, max_coef);
-    max_coef = absval;
+    number_clone(max_coef, absval);
   }
-  absval = number_abs(y0);
+  number_clone(absval, y0);
+  number_abs(absval);
   if (number_greater(absval, max_coef)) {
-    mp_free_number(mp, max_coef);
-    max_coef = absval;
+    number_clone(max_coef, absval);
   }
-  absval = number_abs(y1);
+  number_clone(absval, y1);
+  number_abs(absval);
   if (number_greater(absval, max_coef)) {
-    mp_free_number(mp, max_coef);
-    max_coef = absval;
+    number_clone(max_coef, absval);
   }
-  absval = number_abs(y2);
+  number_clone(absval, y2);
+  number_abs(absval);
   if (number_greater(absval, max_coef)) {
-    mp_free_number(mp, max_coef);
-    max_coef = absval;
+    number_clone(max_coef, absval);
   }
   if (number_zero(max_coef)) {
     goto NOT_FOUND;
   }
+  mp_free_number (mp, absval);
 }
 while (number_to_scaled(max_coef) < fraction_half) {
   set_number_from_addition (max_coef, max_coef, max_coef);
@@ -11767,11 +11781,14 @@ begins to fail.
 @<Compute test coefficients |(t0,t1,t2)| for $d(t)$ versus...@>=
 {
   mp_number abs_du, abs_dv;
-  
+  abs_du = mp_new_number (mp);
+  abs_dv = mp_new_number (mp);
   set_number_from_substraction(du, ww->x_coord, w->x_coord);
   set_number_from_substraction(dv, ww->y_coord, w->y_coord);
-  abs_du = number_abs(du);
-  abs_dv = number_abs(dv);
+  number_clone(abs_du, du);
+  number_abs(abs_du);
+  number_clone(abs_dv, dv);
+  number_abs(abs_dv);
   if (number_greaterequal(abs_du, abs_dv)) {
     s = mp_make_fraction (mp, number_to_scaled(dv), number_to_scaled(du));
     set_number_from_scaled(t0, mp_take_fraction (mp, number_to_scaled(x0), s) - number_to_scaled(y0));
@@ -12632,6 +12649,7 @@ static scaled mp_find_direction_time (MP mp, scaled x, scaled y, mp_knot h) {
   scaled n;     /* the direction time at knot |p| */
   scaled tt;    /* the direction time within a cubic */
   @<Other local variables for |find_direction_time|@>;
+  max = mp_new_number (mp);
   x1 = mp_new_number(mp);
   x2 = mp_new_number(mp);
   x3 = mp_new_number(mp);
@@ -12725,39 +12743,41 @@ mp_free_number(mp, y3);
 
 @ @<Set local variables |x1,x2,x3| and |y1,y2,y3| to multiples...@>=
 {
-  mp_number absval;
+  mp_number absval = mp_new_number (mp);
   set_number_from_substraction(x1, p->right_x, p->x_coord);
   set_number_from_substraction(x2, q->left_x,  p->right_x);
   set_number_from_substraction(x3, q->x_coord, q->left_x);
   set_number_from_substraction(y1, p->right_y, p->y_coord);
   set_number_from_substraction(y2, q->left_y,  p->right_y);
   set_number_from_substraction(y3, q->y_coord, q->left_y);
-  absval = number_abs(x2);
-  max = number_abs(x1);
+  number_clone(absval, x2);
+  number_abs(absval);
+  number_clone(max, x1);
+  number_abs(max);
   if (number_greater(absval, max)) {
-    mp_free_number(mp, max);
-    max = absval;
+    number_clone(max, absval);
   }
-  absval = number_abs(x3);
+  number_clone(absval, x3);
+  number_abs(absval);
   if (number_greater(absval, max)) {
-    mp_free_number(mp, max);
-    max = absval;
+    number_clone(max, absval);
   }
-  absval = number_abs(y1);
+  number_clone(absval, y1);
+  number_abs(absval);
   if (number_greater(absval, max)) {
-    mp_free_number(mp, max);
-    max = absval;
+    number_clone(max, absval);
   }
-  absval = number_abs(y2);
+  number_clone(absval, y2);
+  number_abs(absval);
   if (number_greater(absval, max)) {
-    mp_free_number(mp, max);
-    max = absval;
+    number_clone(max, absval);
   }
-  absval = number_abs(y3);
+  number_clone(absval, y3);
+  number_abs(absval);
   if (number_greater(absval, max)) {
-    mp_free_number(mp, max);
-    max = absval;
+    number_clone(max, absval);
   }
+  mp_free_number (mp, absval);
   if (number_zero(max))
     goto FOUND;
   while (number_to_scaled(max) < fraction_half) {
@@ -25407,12 +25427,13 @@ if (number_nonzero(mp->txy) || number_nonzero(mp->tyx) ||
     number_nonzero(mp->ty) || number_nonequalabs (mp->txx, mp->tyy)) {
   mp_flush_dash_list (mp, h);
 } else {
-  mp_number abs_tyy ;
+  mp_number abs_tyy = mp_new_number (mp);
   if (number_negative(mp->txx)) {
     @<Reverse the dash list of |h|@>;
   }
   @<Scale the dash list by |txx| and shift it by |tx|@>;
-  abs_tyy = number_abs (mp->tyy);
+  number_clone(abs_tyy, mp->tyy);
+  number_abs (abs_tyy);
   set_number_from_scaled(h->dash_y, mp_take_scaled (mp, number_to_scaled(h->dash_y), number_to_scaled(abs_tyy)));
   mp_free_number(mp, abs_tyy);
 }
