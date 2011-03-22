@@ -8406,7 +8406,7 @@ and they are needed in different instances of |arc_test|.
 @c
 static mp_number mp_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number dx1,
                            mp_number dy1, mp_number dx2, mp_number dy2, mp_number v0,
-                           mp_number v02, mp_number v2, mp_number a_goal, mp_number tol) {
+                           mp_number v02, mp_number v2, mp_number a_goal, mp_number tol_orig) {
   boolean simple;       /* are the control points confined to a $90^\circ$ sector? */
   mp_number ret;
   mp_number dx01, dy01, dx12, dy12, dx02, dy02;    /* bisection results */
@@ -8414,6 +8414,7 @@ static mp_number mp_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number dx1
   mp_number arc;   /* best arc length estimate before recursion */
   mp_number arc1;    /* arc length estimate for the first half */
   mp_number simply; 
+  mp_number tol; 
   ret = mp_new_number (mp);
   arc = mp_new_number (mp);
   arc1 = mp_new_number (mp);
@@ -8426,6 +8427,8 @@ static mp_number mp_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number dx1
   v002 = mp_new_number (mp);
   v022 = mp_new_number (mp);
   simply = mp_new_number (mp);
+  tol = mp_new_number (mp);
+  number_clone(tol, tol_orig);
   @<Bisect the B\'ezier quadratic given by |dx0|, |dy0|, |dx1|, |dy1|,
     |dx2|, |dy2|@>;
   @<Initialize |v002|, |v022|, and the arc length estimate |arc|; if it overflows
@@ -8440,7 +8443,7 @@ static mp_number mp_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number dx1
   number_substract (simply, v02);
   number_abs (simply);
 
-  if (simple && number_lessequal(simply, tol)) {
+ if (simple && number_lessequal(simply, tol)) {
     if (number_less(arc, a_goal)){
       number_clone(ret, arc);
     } else {
@@ -8462,6 +8465,7 @@ DONE:
   mp_free_number (mp, v002);
   mp_free_number (mp, v022);
   mp_free_number (mp, simply);
+  mp_free_number (mp, tol);
   return ret;
 }
 
@@ -8581,6 +8585,7 @@ number_half(dy02);
   set_number_from_scaled(v022, 
        mp_pyth_add (mp, number_to_scaled(dx12) + half (number_to_scaled(dx02) + number_to_scaled(dx2)), 
                         number_to_scaled(dy12) + half (number_to_scaled(dy02) + number_to_scaled(dy2))));
+
   number_clone (tmp, v02);
   number_add_scaled (tmp, 2);
   number_halfp (tmp);
@@ -8609,12 +8614,9 @@ number_half(dy02);
     if (number_infinite(a_goal)) {
       set_number_to_inf(ret);
     } else {
-      mp_number unit = mp_new_number(mp);
-      set_number_to_zero(ret);
-      set_number_to_unity(unit);
-      number_substract(ret,unit);
-      number_substract(ret,unit); /* -two */
-      mp_free_number(mp,unit);
+      set_number_to_unity(ret);
+      number_double(ret);
+      number_negate(ret); /* -two */
     }
     goto DONE;
   }
@@ -8713,6 +8715,7 @@ $\tau$ given $a$, $b$, $c$, and $x$.
     number_clone(ret, tmp5);
   } else {
     number_clone(tmp2, v2);
+    number_halfp(tmp2);
     set_number_from_substraction(tmp3, arc, arc1);
     number_substract(tmp3, tmp);
     number_substract(tmp3, tmp2);
@@ -8754,7 +8757,7 @@ mp_number mp_solve_rising_cubic (MP mp, mp_number a_orig, mp_number b_orig, mp_n
   mp_number ab, bc, ac;    /* bisection results */
   int t;    /* $2^k+q$ where unscaled answer is in $[q2^{-k},(q+1)2^{-k})$ */
   mp_number xx;   /* temporary for updating |x| */
-  mp_number negval; /* temporary for an |if| */
+  mp_number neg_x; /* temporary for an |if| */
   if (number_negative(a_orig) || number_negative(c_orig))
     mp_confusion (mp, "rising?");
 @:this can't happen rising?}{\quad rising?@>;
@@ -8771,9 +8774,9 @@ mp_number mp_solve_rising_cubic (MP mp, mp_number a_orig, mp_number b_orig, mp_n
   bc = mp_new_number (mp);
   ac = mp_new_number (mp);
   xx = mp_new_number (mp);
-  negval = mp_new_number (mp);
-  number_clone(negval, x);
-  number_negate(negval);
+  neg_x = mp_new_number (mp);
+  number_clone(neg_x, x);
+  number_negate(neg_x);
   set_number_from_addition(abc, a, b);
   number_add(abc, c);
   ret = mp_new_number (mp);
@@ -8792,7 +8795,7 @@ mp_number mp_solve_rising_cubic (MP mp, mp_number a_orig, mp_number b_orig, mp_n
       number_substract(xx, a);
       number_substract(xx, ab);
       number_substract(xx, ac);
-      if (number_less(xx, negval)) {
+      if (number_less(xx, neg_x)) {
         number_double(x);
         number_clone(b, ab);
         number_clone(c, ac);
@@ -8814,6 +8817,7 @@ mp_number mp_solve_rising_cubic (MP mp, mp_number a_orig, mp_number b_orig, mp_n
   mp_free_number (mp, ac);
   mp_free_number (mp, xx);
   mp_free_number (mp, x);
+  mp_free_number (mp, neg_x);
   return ret;
 }
 
