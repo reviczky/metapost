@@ -7287,7 +7287,7 @@ int path_size;  /* maximum number of knots between breakpoints of a path */
 mp_number *delta_x;
 mp_number *delta_y;
 mp_number *delta;  /* knot differences */
-angle *psi;     /* turning angles */
+mp_number *psi;     /* turning angles */
 
 @ @<Dealloc variables@>=
 {
@@ -7296,12 +7296,13 @@ angle *psi;     /* turning angles */
     free_number (mp->delta_x[k]); 
     free_number (mp->delta_y[k]); 
     free_number (mp->delta[k]); 
+    free_number (mp->psi[k]); 
   }
   xfree (mp->delta_x);
   xfree (mp->delta_y);
   xfree (mp->delta);
+  xfree (mp->psi);
 }
-xfree (mp->psi);
 
 @ @<Other local variables for |make_choices|@>=
 int k, n;       /* current and final knot numbers */
@@ -7322,10 +7323,11 @@ RESTART:
     if (k > 0) {
       sine = mp_make_fraction (mp, number_to_scaled(mp->delta_y[k - 1]), number_to_scaled(mp->delta[k - 1]));
       cosine = mp_make_fraction (mp, number_to_scaled(mp->delta_x[k - 1]), number_to_scaled(mp->delta[k - 1]));
-      mp->psi[k] = mp_n_arg (mp, mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), cosine) +
+      set_number_from_scaled(mp->psi[k], 
+               mp_n_arg (mp, mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), cosine) +
                              mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), sine),
                              mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), cosine) -
-                             mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), sine));
+                             mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), sine)));
     }
     incr (k);
     s = t;
@@ -7337,9 +7339,9 @@ RESTART:
       n = k;
   } while (!((k >= n) && (mp_left_type (s) != mp_end_cycle)));
   if (k == n)
-    mp->psi[n] = 0;
+    set_number_to_zero(mp->psi[n]);
   else
-    mp->psi[k] = mp->psi[1];
+    number_clone(mp->psi[k], mp->psi[1]);
 }
 
 
@@ -7419,16 +7421,25 @@ and~|k+1|. The $u$'s and $w$'s are scaled by $2^{28}$, i.e., they are
 of type |fraction|; the $\theta$'s and $v$'s are of type |angle|.
 
 @<Glob...@>=
-angle *theta;   /* values of $\theta_k$ */
-fraction *uu;   /* values of $u_k$ */
-angle *vv;      /* values of $v_k$ */
-fraction *ww;   /* values of $w_k$ */
+mp_number *theta;   /* values of $\theta_k$ */
+mp_number *uu;   /* values of $u_k$ */
+mp_number *vv;      /* values of $v_k$ */
+mp_number *ww;   /* values of $w_k$ */
 
 @ @<Dealloc variables@>=
-xfree (mp->theta);
-xfree (mp->uu);
-xfree (mp->vv);
-xfree (mp->ww);
+{
+  int k;
+  for (k = 0; k<mp->path_size; k++) { 
+    free_number (mp->theta[k]); 
+    free_number (mp->uu[k]); 
+    free_number (mp->vv[k]); 
+    free_number (mp->ww[k]); 
+  }
+  xfree (mp->theta);
+  xfree (mp->uu);
+  xfree (mp->vv);
+  xfree (mp->ww);
+}
 
 @ @<Declarations@>=
 static void mp_reallocate_paths (MP mp, int l);
@@ -7439,16 +7450,21 @@ void mp_reallocate_paths (MP mp, int l) {
   XREALLOC (mp->delta_x, l, mp_number);
   XREALLOC (mp->delta_y, l, mp_number);
   XREALLOC (mp->delta, l, mp_number);
-  for (k = mp->path_size; k<l; k++) { 
-   new_number (mp->delta_x[k]); 
-   new_number (mp->delta_y[k]); 
-   new_number (mp->delta[k]); 
-  }
   XREALLOC (mp->psi, l, mp_number);
-  XREALLOC (mp->theta, l, angle);
-  XREALLOC (mp->uu, l, fraction);
-  XREALLOC (mp->vv, l, angle);
-  XREALLOC (mp->ww, l, fraction);
+  XREALLOC (mp->theta, l, mp_number);
+  XREALLOC (mp->uu, l, mp_number);
+  XREALLOC (mp->vv, l, mp_number);
+  XREALLOC (mp->ww, l, mp_number);
+  for (k = mp->path_size; k<l; k++) { 
+    new_number (mp->delta_x[k]); 
+    new_number (mp->delta_y[k]); 
+    new_number (mp->delta[k]); 
+    new_angle (mp->psi[k]); 
+    new_angle (mp->theta[k]); 
+    new_fraction (mp->uu[k]); 
+    new_angle (mp->vv[k]); 
+    new_fraction (mp->ww[k]); 
+  }
   mp->path_size = l;
 }
 
@@ -7521,9 +7537,9 @@ case mp_curl:
   }
   break;
 case mp_open:
-  mp->uu[0] = 0;
-  mp->vv[0] = 0;
-  mp->ww[0] = fraction_one;
+  set_number_to_zero(mp->uu[0]);
+  set_number_to_zero(mp->vv[0]);
+  set_number_from_scaled(mp->ww[0], fraction_one);
   /* this begins a cycle */
   break;
 }                               /* there are no other cases */
@@ -7555,7 +7571,7 @@ scaled dd, ee;  /* likewise, but |scaled| */
     $\\{dd}=(3-\alpha_{k-1})d_{k,k+1}$, $\\{ee}=(3-\beta\k)d_{k-1,k}$,
     and $\\{cc}=(B_k-u_{k-1}A_k)/B_k$@>;
   @<Calculate the ratio $\\{ff}=C_k/(C_k+B_k-u_{k-1}A_k)$@>;
-  mp->uu[k] = mp_take_fraction (mp, ff, bb);
+  set_number_from_scaled(mp->uu[k], mp_take_fraction (mp, ff, bb));
   @<Calculate the values of $v_k$ and $w_k$@>;
   if (mp_left_type (s) == mp_end_cycle) {
     @<Adjust $\theta_n$ to equal $\theta_0$ and |goto found|@>;
@@ -7585,7 +7601,7 @@ if (abs (number_to_scaled(t->left_tension)) == unity) {
                          fraction_three - mp_make_fraction (mp, unity,
                                                             abs (number_to_scaled(t->left_tension))));
 }
-cc = fraction_one - mp_take_fraction (mp, mp->uu[k - 1], aa)
+cc = fraction_one - mp_take_fraction (mp, number_to_scaled(mp->uu[k - 1]), aa)
  
 
 @ The ratio to be calculated in this step can be written in the form
@@ -7630,20 +7646,20 @@ case. The curl equation makes $w_0=0$ and $v_0=-u_0\psi_1$, hence
 $-B_1\psi_1-A_1v_0=-(B_1-u_0A_1)\psi_1=-\\{cc}\cdot B_1\psi_1$.
 
 @<Calculate the values of $v_k$ and $w_k$@>=
-acc = -mp_take_fraction (mp, mp->psi[k + 1], mp->uu[k]);
+acc = -mp_take_fraction (mp, number_to_scaled(mp->psi[k + 1]), number_to_scaled(mp->uu[k]));
 if (mp_right_type (r) == mp_curl) {
-  mp->ww[k] = 0;
-  mp->vv[k] = acc - mp_take_fraction (mp, mp->psi[1], fraction_one - ff);
+  set_number_to_zero(mp->ww[k]);
+  set_number_from_scaled(mp->vv[k], acc - mp_take_fraction (mp, number_to_scaled(mp->psi[1]), fraction_one - ff));
 } else {
   ff = mp_make_fraction (mp, fraction_one - ff, cc);    /* this is
                                                            $B_k/(C_k+B_k-u_{k-1}A_k)<5$ */
-  acc = acc - mp_take_fraction (mp, mp->psi[k], ff);
+  acc = acc - mp_take_fraction (mp, number_to_scaled(mp->psi[k]), ff);
   ff = mp_take_fraction (mp, ff, aa);   /* this is $A_k/(C_k+B_k-u_{k-1}A_k)$ */
-  mp->vv[k] = acc - mp_take_fraction (mp, mp->vv[k - 1], ff);
-  if (mp->ww[k - 1] == 0)
-    mp->ww[k] = 0;
+  set_number_from_scaled(mp->vv[k], acc - mp_take_fraction (mp, number_to_scaled(mp->vv[k - 1]), ff));
+  if (number_zero(mp->ww[k - 1]))
+    set_number_to_zero(mp->ww[k]);
   else
-    mp->ww[k] = -mp_take_fraction (mp, mp->ww[k - 1], ff);
+    set_number_from_scaled(mp->ww[k], -mp_take_fraction (mp, number_to_scaled(mp->ww[k - 1]), ff));
 }
 
 
@@ -7667,14 +7683,14 @@ so we can solve for $\theta_n=\theta_0$.
     decr (k);
     if (k == 0)
       k = n;
-    aa = mp->vv[k] - mp_take_fraction (mp, aa, mp->uu[k]);
-    bb = mp->ww[k] - mp_take_fraction (mp, bb, mp->uu[k]);
+    aa = number_to_scaled(mp->vv[k]) - mp_take_fraction (mp, aa, number_to_scaled(mp->uu[k]));
+    bb = number_to_scaled(mp->ww[k]) - mp_take_fraction (mp, bb, number_to_scaled(mp->uu[k]));
   } while (k != n);             /* now $\theta_n=\\{aa}+\\{bb}\cdot\theta_n$ */
   aa = mp_make_fraction (mp, aa, fraction_one - bb);
-  mp->theta[n] = aa;
-  mp->vv[0] = aa;
+  set_number_from_scaled(mp->theta[n], aa);
+  set_number_from_scaled(mp->vv[0], aa);
   for (k = 1; k < n; k++) {
-    mp->vv[k] = mp->vv[k] + mp_take_fraction (mp, aa, mp->ww[k]);
+    set_number_from_scaled(mp->vv[k], number_to_scaled(mp->vv[k]) + mp_take_fraction (mp, aa, number_to_scaled(mp->ww[k])));
   }
   goto FOUND;
 }
@@ -7683,21 +7699,47 @@ so we can solve for $\theta_n=\theta_0$.
 @ @d reduce_angle(A) if ( abs((A))>one_eighty_deg ) {
   if ( (A)>0 ) (A)=(A)-three_sixty_deg; else (A)=(A)+three_sixty_deg; }
 
-@<Calculate the given value of $\theta_n$...@>=
+@c 
+void mp_reduce_angle_number (MP mp, mp_number a) {
+  mp_number abs_a, one_eighty_deg_n, three_sixty_deg_n;
+  new_number(abs_a);
+  new_number(one_eighty_deg_n);
+  new_number(three_sixty_deg_n);
+  set_number_from_scaled (one_eighty_deg_n, one_eighty_deg);
+  set_number_from_scaled (three_sixty_deg_n, three_sixty_deg);
+  number_clone(abs_a, a);
+  number_abs(abs_a);
+  if ( number_greater(abs_a, one_eighty_deg_n)) {
+    if (number_positive(a)) {
+      number_substract(a, three_sixty_deg_n); 
+    } else {
+      number_add(a, three_sixty_deg_n); 
+    }
+  }
+  free_number(one_eighty_deg_n);
+  free_number(three_sixty_deg_n);
+  free_number(abs_a);
+}
+
+@ @<Declarations@>=
+void mp_reduce_angle_number (MP mp, mp_number a);
+
+
+@ @<Calculate the given value of $\theta_n$...@>=
 {
-  mp->theta[n] =
-    number_to_scaled(s->left_given) - mp_n_arg (mp, number_to_scaled(mp->delta_x[n - 1]), number_to_scaled(mp->delta_y[n - 1]));
-  reduce_angle (mp->theta[n]);
+  set_number_from_scaled(mp->theta[n],
+    number_to_scaled(s->left_given) - mp_n_arg (mp, number_to_scaled(mp->delta_x[n - 1]), number_to_scaled(mp->delta_y[n - 1])));
+  mp_reduce_angle_number (mp, mp->theta[n]);
   goto FOUND;
 }
 
 
 @ @<Set up the equation for a given value of $\theta_0$@>=
 {
-  mp->vv[0] = number_to_scaled(s->right_given) - mp_n_arg (mp, number_to_scaled(mp->delta_x[0]), number_to_scaled(mp->delta_y[0]));
-  reduce_angle (mp->vv[0]);
-  mp->uu[0] = 0;
-  mp->ww[0] = 0;
+  set_number_from_scaled(mp->vv[0], number_to_scaled(s->right_given) - mp_n_arg (mp, number_to_scaled(mp->delta_x[0]), number_to_scaled(mp->delta_y[0])));
+  mp_reduce_angle_number (mp, mp->vv[0]);
+  set_number_to_zero(mp->uu[0]);
+  set_number_to_zero(mp->ww[0]);
 }
 
 
@@ -7712,11 +7754,11 @@ so we can solve for $\theta_n=\theta_0$.
   number_clone (rt, s->right_tension);
   number_abs(rt);
   if (number_unity(rt) && number_unity(lt))
-    mp->uu[0] = mp_make_fraction (mp, cc + cc + unity, cc + two);
+    set_number_from_scaled(mp->uu[0], mp_make_fraction (mp, cc + cc + unity, cc + two));
   else
-    mp->uu[0] = mp_curl_ratio (mp, cc, rt, lt);
-  mp->vv[0] = -mp_take_fraction (mp, mp->psi[1], mp->uu[0]);
-  mp->ww[0] = 0;
+    set_number_from_scaled(mp->uu[0], mp_curl_ratio (mp, cc, rt, lt));
+  set_number_from_scaled(mp->vv[0], -mp_take_fraction (mp, number_to_scaled(mp->psi[1]), number_to_scaled(mp->uu[0])));
+  set_number_to_zero(mp->ww[0]);
   free_number (rt);
   free_number (lt);
 }
@@ -7736,9 +7778,9 @@ so we can solve for $\theta_n=\theta_0$.
     ff = mp_make_fraction (mp, cc + cc + unity, cc + two);
   else
     ff = mp_curl_ratio (mp, cc, lt, rt);
-  mp->theta[n] =
-    -mp_make_fraction (mp, mp_take_fraction (mp, mp->vv[n - 1], ff),
-                       fraction_one - mp_take_fraction (mp, ff, mp->uu[n - 1]));
+  set_number_from_scaled(mp->theta[n],
+    -mp_make_fraction (mp, mp_take_fraction (mp, number_to_scaled(mp->vv[n - 1]), ff),
+                       fraction_one - mp_take_fraction (mp, ff, number_to_scaled(mp->uu[n - 1]))));
   free_number (rt);
   free_number (lt);
   goto FOUND;
@@ -7789,7 +7831,7 @@ fraction mp_curl_ratio (MP mp, scaled gamma, mp_number a_tension, mp_number b_te
 
 @<Finish choosing angles and assigning control points@>=
 for (k = n - 1; k >= 0; k--) {
-  mp->theta[k] = mp->vv[k] - mp_take_fraction (mp, mp->theta[k + 1], mp->uu[k]);
+  set_number_from_scaled(mp->theta[k], number_to_scaled(mp->vv[k]) - mp_take_fraction (mp, number_to_scaled(mp->theta[k + 1]), number_to_scaled(mp->uu[k])));
 }
 s = p;
 k = 0;
@@ -7797,10 +7839,10 @@ do {
   fraction n_sin;
   fraction n_cos;
   t = mp_next_knot (s);
-  mp_n_sin_cos (mp, mp->theta[k], &n_cos, &n_sin);
+  mp_n_sin_cos (mp, number_to_scaled(mp->theta[k]), &n_cos, &n_sin);
   mp->st = n_sin;
   mp->ct = n_cos;
-  mp_n_sin_cos (mp, -mp->psi[k + 1] - mp->theta[k + 1], &n_cos, &n_sin);
+  mp_n_sin_cos (mp, -number_to_scaled(mp->psi[k + 1]) - number_to_scaled(mp->theta[k + 1]), &n_cos, &n_sin);
   mp->sf = n_sin;
   mp->cf = n_cos;
   mp_set_controls (mp, s, t, k);
