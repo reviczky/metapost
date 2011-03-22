@@ -936,15 +936,18 @@ in such a way that their Pythagorean sum remains invariant, while the
 smaller argument decreases.
 
 @<Internal library ...@>=
-integer mp_pyth_add (MP mp, integer a, integer b);
+mp_number mp_pyth_add (MP mp, mp_number a, mp_number b);
 
 
 @ @c
-integer mp_pyth_add (MP mp, integer a, integer b) {
+mp_number mp_pyth_add (MP mp, mp_number a_orig, mp_number b_orig) {
+  scaled a, b;
+  mp_number ret;
   fraction r;   /* register used to transform |a| and |b| */
   boolean big;  /* is the result dangerously near $2^{31}$? */
-  a = abs (a);
-  b = abs (b);
+  new_number(ret);
+  a = abs (a_orig->data.val);
+  b = abs (b_orig->data.val);
   if (a < b) {
     r = b;
     b = a;
@@ -968,7 +971,8 @@ integer mp_pyth_add (MP mp, integer a, integer b) {
       };
     }
   }
-  return a;
+  ret->data.val = a;
+  return ret;
 }
 
 
@@ -991,14 +995,17 @@ while (1) {
 It converges slowly when $b$ is near $a$, but otherwise it works fine.
 
 @<Internal library declarations@>=
-integer mp_pyth_sub (MP mp, integer a, integer b);
+mp_number mp_pyth_sub (MP mp, mp_number a, mp_number b);
 
 @ @c
-integer mp_pyth_sub (MP mp, integer a, integer b) {
+mp_number mp_pyth_sub (MP mp, mp_number a_orig, mp_number b_orig) {
+  mp_number ret;
+  scaled a, b;
   fraction r;   /* register used to transform |a| and |b| */
-  boolean big;  /* is the input dangerously near $2^{31}$? */
-  a = abs (a);
-  b = abs (b);
+  boolean big;  /* is the result dangerously near $2^{31}$? */
+  new_number(ret);  
+  a = abs (a_orig->data.val);
+  b = abs (b_orig->data.val);
   if (a <= b) {
     @<Handle erroneous |pyth_sub| and set |a:=0|@>;
   } else {
@@ -1013,7 +1020,8 @@ integer mp_pyth_sub (MP mp, integer a, integer b) {
     if (big)
       a *= 2;
   }
-  return a;
+  ret->data.val = a;
+  return ret;
 }
 
 
@@ -1373,8 +1381,10 @@ void mp_n_sin_cos (MP mp, angle z, fraction *n_cos, fraction *n_sin);
 void mp_n_sin_cos (MP mp, angle z, fraction *n_cos, fraction *n_sin) {
   quarterword k;        /* loop control variable */
   int q;        /* specifies the quadrant */
-  fraction r;   /* magnitude of |(x,y)| */
   integer x, y, t;      /* temporary registers */
+  mp_number x_n, y_n, ret;
+  new_number (x_n);
+  new_number (y_n);
   while (z < 0)
     z = z + three_sixty_deg;
   z = z % three_sixty_deg;      /* now |0<=z<three_sixty_deg| */
@@ -1386,9 +1396,14 @@ void mp_n_sin_cos (MP mp, angle z, fraction *n_cos, fraction *n_sin) {
     z = forty_five_deg - z;
   @<Subtract angle |z| from |(x,y)|@>;
   @<Convert |(x,y)| to the octant determined by~|q|@>;
-  r = mp_pyth_add (mp, x, y);
-  *n_cos = mp_make_fraction (mp, x, r);
-  *n_sin = mp_make_fraction (mp, y, r);
+  x_n->data.val = x;
+  y_n->data.val = y;
+  ret = mp_pyth_add (mp, x_n, y_n);
+  *n_cos = mp_make_fraction (mp, x, ret->data.val);
+  *n_sin = mp_make_fraction (mp, y, ret->data.val);
+  free_number(ret);
+  free_number(x_n);
+  free_number(y_n);
 }
 
 

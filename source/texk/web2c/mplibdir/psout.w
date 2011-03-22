@@ -5580,10 +5580,21 @@ if ( (gr_right_x(pp)==gr_x_coord(pp)) && (gr_left_y(pp)==gr_y_coord(pp)) ) {
   wx = fabs(gr_left_x(pp) - gr_x_coord(pp));
   wy = fabs(gr_right_y(pp) - gr_y_coord(pp));
 } else {
-  wx = mp_pyth_add(mp, (gr_left_x(pp)-gr_x_coord(pp))*66536,
-                  (gr_right_x(pp)-gr_x_coord(pp))*66536) / 65536.0;
-  wy = mp_pyth_add(mp, (gr_left_y(pp)-gr_y_coord(pp))*66536, 
-                  (gr_right_y(pp)-gr_y_coord(pp))*66536) / 65536.0;
+  mp_number arg1, arg2, ret;
+  new_number(arg1);
+  new_number(arg2);
+  mp_set_number_from_double (arg1, gr_left_x(pp)-gr_x_coord(pp));
+  mp_set_number_from_double (arg2, gr_right_x(pp)-gr_x_coord(pp));
+  ret = mp_pyth_add(mp, arg1, arg2);
+  wx = mp_number_to_double(ret);
+  free_number(ret);
+  mp_set_number_from_double (arg1, gr_left_y(pp)-gr_y_coord(pp));
+  mp_set_number_from_double (arg2, gr_right_y(pp)-gr_y_coord(pp));
+  ret = mp_pyth_add(mp, arg1, arg2);
+  wy = mp_number_to_double(ret);
+  free_number(ret);
+  free_number(arg1);
+  free_number(arg2);
 }
 
 @ The path is considered ``essentially horizontal'' if its range of
@@ -5898,6 +5909,9 @@ static double mp_gr_choose_scale (MP mp, mp_graphic_object *p) ;
   /* |p| should point to a text node */
   double a,b,c,d,ad,bc; /* temporary values */
   double r;
+  mp_number arg1, arg2, ret, ret1, ret2;
+  new_number(arg1);
+  new_number(arg2);
   a=gr_txx_val(p);
   b=gr_txy_val(p);
   c=gr_tyx_val(p);
@@ -5908,9 +5922,19 @@ static double mp_gr_choose_scale (MP mp, mp_graphic_object *p) ;
   if ( d<0 ) negate(d);
   ad=(a-d)/2.0;
   bc=(b-c)/2.0;
-  r = mp_pyth_add(mp, 
-                     mp_pyth_add(mp, (d+ad)*65536.0,ad*65536.0), 
-                     mp_pyth_add(mp, (c+bc)*65536.0,bc*65536.0))/65536.0;
+  mp_set_number_from_double(arg1, (d+ad));
+  mp_set_number_from_double(arg2, ad);
+  ret1 = mp_pyth_add(mp, arg1, arg2);
+  mp_set_number_from_double(arg1, (c+bc));
+  mp_set_number_from_double(arg2, bc);
+  ret2 = mp_pyth_add(mp, arg1, arg2);
+  ret = mp_pyth_add(mp, ret1, ret2);
+  r = mp_number_to_double(ret);
+  free_number (ret);
+  free_number (ret1);
+  free_number (ret2);
+  free_number (arg1);
+  free_number (arg2);
   return r;
 }
 
