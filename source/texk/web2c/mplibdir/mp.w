@@ -4046,6 +4046,7 @@ class numbers in nonstandard extensions of \MP.
 @d max_class 20 /* the largest class number */
 
 @<Glob...@>=
+#define digit_class 0 /* the class number of \.{0123456789} */
 int char_class[256];    /* the class numbers */
 
 @ If changes are made to accommodate non-ASCII character sets, they should
@@ -15738,9 +15739,9 @@ name of a macro whose replacement text is being scanned.
 @d var_defining 4 /* |scanner_status| when a \&{vardef} is being scanned */
 @d op_defining 5 /* |scanner_status| when a macro \&{def} is being scanned */
 @d loop_defining 6 /* |scanner_status| when a \&{for} loop is being scanned */
-@d tex_flushing 7 /* |scanner_status| when skipping \TeX\ material */
 
 @<Glob...@>=
+#define tex_flushing 7 /* |scanner_status| when skipping \TeX\ material */
 integer scanner_status; /* are we scanning at high speed? */
 mp_sym warning_info;    /* if so, what else do we need to know,
                            in case an error occurs? */
@@ -15940,7 +15941,6 @@ void mp_get_next (MP mp) {
   int k;        /* an index into |buffer| */
   ASCII_code c; /* the current character in the buffer */
   int class;    /* its class number */
-  integer n, f; /* registers for decimal-to-binary conversion */
 RESTART:
   set_cur_sym(NULL);
   set_cur_sym_mod(0);
@@ -15985,15 +15985,16 @@ SWITCH:
   class = mp->char_class[c];
   switch (class) {
   case digit_class:
-    goto START_NUMERIC_TOKEN;
+    mp_scan_numeric_token(mp, (c - '0'));
+    return;
     break;
   case period_class:
     class = mp->char_class[mp->buffer[loc]];
     if (class > period_class) {
       goto SWITCH;
     } else if (class < period_class) {  /* |class=digit_class| */
-      n = 0;
-      goto START_DECIMAL_TOKEN;
+      mp_scan_fractional_token(mp, 0);
+      return;
     }
 @:. }{\..\ token@>;
     break;
@@ -16010,10 +16011,31 @@ SWITCH:
     goto SWITCH;
     break;
   case string_class:
-    if (mp->scanner_status == tex_flushing)
+    if (mp->scanner_status == tex_flushing) {
       goto SWITCH;
-    else
-      @<Get a string token and |return|@>;
+    } else {
+      if (mp->buffer[loc] == '"') {
+        set_cur_mod_str(mp_rts(mp,""));
+      } else {
+        k = loc;
+        mp->buffer[limit + 1] = xord ('"');
+        do {
+          incr (loc);
+        } while (mp->buffer[loc] != '"');
+        if (loc > limit) {
+          @<Decry the missing string delimiter and |goto restart|@>;
+        }
+        str_room ((size_t) (loc - k));
+        do {
+          append_char (mp->buffer[k]);
+          incr (k);
+        } while (k != loc);
+        set_cur_mod_str(mp_make_string (mp));
+      }
+      incr (loc);
+      set_cur_cmd(mp_string_token);
+      return;
+    }
     break;
   case isolated_classes:
     k = loc - 1;
@@ -16031,15 +16053,6 @@ SWITCH:
   k = loc - 1;
   while (mp->char_class[mp->buffer[loc]] == class)
     incr (loc);
-  goto FOUND;
-START_NUMERIC_TOKEN:
-  @<Get the integer part |n| of a numeric token;
-    set |f:=0| and |goto fin_numeric_token| if there is no decimal point@>;
-START_DECIMAL_TOKEN:
-  @<Get the fraction part |f| of a numeric token@>;
-FIN_NUMERIC_TOKEN:
-  @<Pack the numeric and fraction parts of a numeric token
-    and |return|@>;
 FOUND:
   set_cur_sym(mp_id_lookup (mp, (char *) (mp->buffer + k), (size_t) (loc - k), true));
 }
@@ -16060,31 +16073,6 @@ FOUND:
   goto RESTART;
 }
 
-@ @<Get a string token and |return|@>=
-{
-  if (mp->buffer[loc] == '"') {
-    set_cur_mod_str(mp_rts(mp,""));
-  } else {
-    k = loc;
-    mp->buffer[limit + 1] = xord ('"');
-    do {
-      incr (loc);
-    } while (mp->buffer[loc] != '"');
-    if (loc > limit) {
-      @<Decry the missing string delimiter and |goto restart|@>;
-    }
-    str_room ((size_t) (loc - k));
-    do {
-      append_char (mp->buffer[k]);
-      incr (k);
-    } while (k != loc);
-    set_cur_mod_str(mp_make_string (mp));
-  }
-  incr (loc);
-  set_cur_cmd(mp_string_token);
-  return;
-}
-
 
 @ We go to |restart| after this error message, not to |SWITCH|,
 because the |clear_for_error_prompt| routine might have reinstated
@@ -16102,67 +16090,6 @@ because the |clear_for_error_prompt| routine might have reinstated
 @.Incomplete string token...@>;
   goto RESTART;
 }
-
-
-@ @<Get the integer part |n| of a numeric token...@>=
-n = c - '0';
-while (mp->char_class[mp->buffer[loc]] == digit_class) {
-  if (n < 32768)
-    n = 10 * n + mp->buffer[loc] - '0';
-  incr (loc);
-}
-if (mp->buffer[loc] == '.')
-  if (mp->char_class[mp->buffer[loc + 1]] == digit_class)
-    goto DONE;
-f = 0;
-goto FIN_NUMERIC_TOKEN;
-DONE:incr (loc)
- 
-
-@ @<Get the fraction part |f| of a numeric token@>=
-k = 0;
-do {
-  incr (k);
-  incr (loc);
-} while (mp->char_class[mp->buffer[loc]] == digit_class);
-f = mp_round_decimals (mp, (unsigned char *)(mp->buffer+loc-k), (quarterword) k);
-if (f == unity) {
-  incr (n);
-  f = 0;
-}
-
-@ @<Pack the numeric and fraction parts of a numeric token and |return|@>=
-if (n < 32768) {
-  @<Set |cur_mod:=n*unity+f| and check if it is uncomfortably large@>;
-} else if (mp->scanner_status != tex_flushing) {
-  const char *hlp[] = {"I can\'t handle numbers bigger than 32767.99998;",
-         "so I've changed your constant to that maximum amount.", 
-         NULL };
-  mp_error (mp, "Enormous number has been reduced", hlp, false);
-@.Enormous number...@>;
-  set_cur_mod(EL_GORDO);
-}
-set_cur_cmd(mp_numeric_token);
-return
-
-@ @<Set |cur_mod:=n*unity+f| and check if it is uncomfortably large@>=
-{
-  set_cur_mod(n * unity + f);
-  if (cur_mod() >= fraction_one) {
-    if ((internal_value_to_halfword (mp_warning_check) > 0) &&
-        (mp->scanner_status != tex_flushing)) {
-      char msg[256];
-      const char *hlp[] = {"It is at least 4096. Continue and I'll try to cope",
-             "with that big value; but it might be dangerous.",
-             "(Set warningcheck:=0 to suppress this message.)",
-             NULL };
-      mp_snprintf (msg, 256, "Number is too large (%s)", mp_string_scaled(mp,cur_mod()));
-@.Number is too large@>;
-      mp_error (mp, msg, hlp, true);
-    }
-  }
-}
-
 
 @ Let's consider now what happens when |get_next| is looking at a token list.
 @^inner loop@>

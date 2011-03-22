@@ -699,6 +699,83 @@ scaled mp_round_decimals (MP mp, unsigned char *b, quarterword k) {
   return (scaled) halfp (a + 1);
 }
 
+@* Scanning numbers in the input
+
+The definitions below are temporarily here
+
+@d set_cur_cmd(A) mp->cur_mod_->type=(A)
+@d set_cur_mod(A) mp->cur_mod_->data.n->data.val=(A)
+
+@
+@c
+void mp_wrapup_numeric_token(MP mp, scaled n, scaled f) {
+  scaled mod ;
+  if (n < 32768) {
+    mod = (n * unity + f);
+    set_cur_mod(mod);
+    if (mod >= fraction_one) {
+      if ((internal_value_to_halfword (mp_warning_check) > 0) &&
+          (mp->scanner_status != tex_flushing)) {
+        char msg[256];
+        const char *hlp[] = {"It is at least 4096. Continue and I'll try to cope",
+               "with that big value; but it might be dangerous.",
+               "(Set warningcheck:=0 to suppress this message.)",
+               NULL };
+        mp_snprintf (msg, 256, "Number is too large (%s)", mp_string_scaled(mp,mod));
+@.Number is too large@>;
+        mp_error (mp, msg, hlp, true);
+      }
+    }
+  } else if (mp->scanner_status != tex_flushing) {
+    const char *hlp[] = {"I can\'t handle numbers bigger than 32767.99998;",
+         "so I've changed your constant to that maximum amount.", 
+         NULL };
+    mp_error (mp, "Enormous number has been reduced", hlp, false);
+@.Enormous number...@>;
+    set_cur_mod(EL_GORDO);
+  }
+  set_cur_cmd(mp_numeric_token);
+}
+
+@ @c
+void mp_scan_fractional_token (MP mp, scaled n) {
+  scaled f;
+  int k = 0;
+  do {
+    k++;
+    mp->cur_input.loc_field++;
+  } while (mp->char_class[mp->buffer[mp->cur_input.loc_field]] == digit_class);
+  f = mp_round_decimals (mp, (unsigned char *)(mp->buffer+mp->cur_input.loc_field-k), (quarterword) k);
+  if (f == unity) {
+    n++;
+    f = 0;
+  }
+  mp_wrapup_numeric_token(mp, n, f);
+}
+
+
+@ @c
+void mp_scan_numeric_token (MP mp, scaled n) {
+  while (mp->char_class[mp->buffer[mp->cur_input.loc_field]] == digit_class) {
+    if (n < 32768)
+      n = 10 * n + mp->buffer[mp->cur_input.loc_field] - '0';
+    mp->cur_input.loc_field++;
+  }
+  if (!(mp->buffer[mp->cur_input.loc_field] == '.' &&
+        mp->char_class[mp->buffer[mp->cur_input.loc_field + 1]] == digit_class)) {
+    mp_wrapup_numeric_token(mp, n, 0);
+  } else {
+    mp->cur_input.loc_field++;
+    mp_scan_fractional_token(mp, n);
+  }
+}
+
+@ @<Internal library declarations@>=
+extern void mp_scan_fractional_token (MP mp, scaled n);
+extern void mp_scan_numeric_token (MP mp, scaled n);
+
+
+
 @ The |scaled| quantities in \MP\ programs are generally supposed to be
 less than $2^{12}$ in absolute value, so \MP\ does much of its internal
 arithmetic with 28~significant bits of precision. A |fraction| denotes
