@@ -9518,12 +9518,25 @@ apply, it chooses one of them.
 @c
 static void mp_find_offset (MP mp, scaled x, scaled y, mp_knot h) {
   mp_knot p, q; /* consecutive knots */
-  scaled wx, wy, hx, hy;
-  /* the transformation matrix for an elliptical pen */
-  fraction xx, yy;      /* untransformed offset for an elliptical pen */
-  fraction d;   /* a temporary register */
   if (pen_is_elliptical (h)) {
+    mp_fraction xx, yy;      /* untransformed offset for an elliptical pen */
+    mp_number wx, wy, hx, hy; /* the transformation matrix for an elliptical pen */
+    mp_fraction d;   /* a temporary register */
+    xx = mp_new_number(mp);
+    yy = mp_new_number(mp);
+    wx = mp_new_number(mp);
+    wy = mp_new_number(mp);
+    hx = mp_new_number(mp);
+    hy = mp_new_number(mp);
+    d  = mp_new_number(mp);
     @<Find the offset for |(x,y)| on the elliptical pen~|h|@>
+    mp_free_number (mp, xx);
+    mp_free_number (mp, yy);
+    mp_free_number (mp, wx);
+    mp_free_number (mp, wy);
+    mp_free_number (mp, hx);
+    mp_free_number (mp, hy);
+    mp_free_number (mp, d);
   } else {
     q = h;
     do {
@@ -9559,32 +9572,36 @@ if ((x == 0) && (y == 0)) {
   while ((abs (x) < fraction_half) && (abs (y) < fraction_half)) {
     x += x;
     y += y;
-  };
+  }
   @<Make |(xx,yy)| the offset on the untransformed \&{pencircle} for the
     untransformed version of |(x,y)|@>;
   mp->cur_x =
-    number_to_scaled(h->x_coord) + mp_take_fraction (mp, xx, wx) + mp_take_fraction (mp, yy,
-                                                                       hx);
+    number_to_scaled(h->x_coord) + 
+    mp_take_fraction (mp, number_to_scaled(xx), number_to_scaled(wx)) + 
+    mp_take_fraction (mp, number_to_scaled(yy), number_to_scaled(hx));
   mp->cur_y =
-    number_to_scaled(h->y_coord) + mp_take_fraction (mp, xx, wy) + mp_take_fraction (mp, yy,
-                                                                       hy);
+    number_to_scaled(h->y_coord) + 
+    mp_take_fraction (mp, number_to_scaled(xx), number_to_scaled(wy)) + 
+    mp_take_fraction (mp, number_to_scaled(yy), number_to_scaled(hy));
 }
 
 
 @ @<Find the non-constant part of the transformation for |h|@>=
-wx = number_to_scaled(h->left_x)  - number_to_scaled(h->x_coord);
-wy = number_to_scaled(h->left_y)  - number_to_scaled(h->y_coord);
-hx = number_to_scaled(h->right_x) - number_to_scaled(h->x_coord);
-hy = number_to_scaled(h->right_y) - number_to_scaled(h->y_coord)
+{
+  set_number_from_substraction(wx, h->left_x,  h->x_coord);
+  set_number_from_substraction(wy, h->left_y,  h->y_coord);
+  set_number_from_substraction(hx, h->right_x, h->x_coord);
+  set_number_from_substraction(hy, h->right_y, h->y_coord);
+}
  
 
 @ @<Make |(xx,yy)| the offset on the untransformed \&{pencircle} for the...@>=
-yy = -(mp_take_fraction (mp, x, hy) + mp_take_fraction (mp, y, -hx));
-xx = mp_take_fraction (mp, x, -wy) + mp_take_fraction (mp, y, wx);
-d = mp_pyth_add (mp, xx, yy);
-if (d > 0) {
-xx = half (mp_make_fraction (mp, xx, d));
-yy = half (mp_make_fraction (mp, yy, d));
+set_number_from_scaled(yy, -(mp_take_fraction (mp, x, number_to_scaled(hy)) + mp_take_fraction (mp, y, -number_to_scaled(hx))));
+set_number_from_scaled(xx, mp_take_fraction (mp, x, -number_to_scaled(wy)) + mp_take_fraction (mp, y, number_to_scaled(wx)));
+set_number_from_scaled(d, mp_pyth_add (mp, number_to_scaled(xx), number_to_scaled(yy)));
+if (number_positive(d)) {
+  set_number_from_scaled(xx, half (mp_make_fraction (mp, number_to_scaled(xx), number_to_scaled(d))));
+  set_number_from_scaled(yy, half (mp_make_fraction (mp, number_to_scaled(yy), number_to_scaled(d))));
 }
 
 @ Finding the bounding box of a pen is easy except if the pen is elliptical.
