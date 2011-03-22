@@ -2414,6 +2414,8 @@ typedef union {
 @ The global variable |math_mode| has four settings, representing the
 math value type that will be used in this run.
 
+@d mp_fraction mp_number
+
 @<Exported types@>=
 typedef struct mp_number_data *mp_number;
 typedef enum {
@@ -11160,24 +11162,30 @@ that is to be stroked with the pen~|pp|.
 @c
 static void mp_box_ends (MP mp, mp_knot p, mp_knot pp, mp_edge_header_node h) {
   mp_knot q;    /* a knot node adjacent to knot |p| */
-  fraction dx, dy;      /* a unit vector in the direction out of the path at~|p| */
-  scaled d;     /* a factor for adjusting the length of |(dx,dy)| */
-  scaled z;     /* a coordinate being tested against the bounding box */
-  scaled xx, yy;        /* the extreme pen vertex in the |(dx,dy)| direction */
+  mp_fraction dx, dy;      /* a unit vector in the direction out of the path at~|p| */
+  mp_number d;     /* a factor for adjusting the length of |(dx,dy)| */
+  mp_number z;     /* a coordinate being tested against the bounding box */
+  mp_number xx, yy;        /* the extreme pen vertex in the |(dx,dy)| direction */
   integer i;    /* a loop counter */
+  dx = mp_new_number(mp);
+  dy = mp_new_number(mp);
+  xx = mp_new_number(mp);
+  yy = mp_new_number(mp);
+  z = mp_new_number(mp);
+  d = mp_new_number(mp);
   if (mp_right_type (p) != mp_endpoint) {
     q = mp_next_knot (p);
     while (1) {
       @<Make |(dx,dy)| the final direction for the path segment from
         |q| to~|p|; set~|d|@>;
-      d = mp_pyth_add (mp, dx, dy);
-      if (d > 0) {
+      set_number_from_scaled(d, mp_pyth_add (mp, number_to_scaled(dx), number_to_scaled(dy)));
+      if (number_positive(d)) {
         @<Normalize the direction |(dx,dy)| and find the pen offset |(xx,yy)|@>;
         for (i = 1; i <= 2; i++) {
           @<Use |(dx,dy)| to generate a vertex of the square end cap and
              update the bounding box to accommodate it@>;
-          dx = -dx;
-          dy = -dy;
+          number_negate(dx);
+          number_negate(dy);
         }
       }
       if (mp_right_type (p) == mp_endpoint) {
@@ -11187,55 +11195,61 @@ static void mp_box_ends (MP mp, mp_knot p, mp_knot pp, mp_edge_header_node h) {
       }
     }
   }
+  mp_free_number (mp, dx);
+  mp_free_number (mp, dy);
+  mp_free_number (mp, xx);
+  mp_free_number (mp, yy);
+  mp_free_number (mp, z);
+  mp_free_number (mp, d);
 }
 
 
 @ @<Make |(dx,dy)| the final direction for the path segment from...@>=
 if (q == mp_next_knot (p)) {
-  dx = number_to_scaled (p->x_coord) - number_to_scaled (p->right_x);
-  dy = number_to_scaled (p->y_coord) - number_to_scaled (p->right_y);
-  if ((dx == 0) && (dy == 0)) {
-    dx = number_to_scaled (p->x_coord) - number_to_scaled(q->left_x);
-    dy = number_to_scaled (p->y_coord) - number_to_scaled(q->left_y);
+  set_number_from_substraction(dx, p->x_coord, p->right_x);
+  set_number_from_substraction(dy, p->y_coord, p->right_y);
+  if (number_zero(dx) && number_zero(dy)) {
+    set_number_from_substraction(dx, p->x_coord, q->left_x);
+    set_number_from_substraction(dy, p->y_coord, q->left_y);
   }
 } else {
-  dx = number_to_scaled (p->x_coord) - number_to_scaled (p->left_x);
-  dy = number_to_scaled (p->y_coord) - number_to_scaled (p->left_y);
-  if ((dx == 0) && (dy == 0)) {
-    dx = number_to_scaled (p->x_coord) - number_to_scaled(q->right_x);
-    dy = number_to_scaled (p->y_coord) - number_to_scaled(q->right_y);
+  set_number_from_substraction(dx, p->x_coord, p->left_x);
+  set_number_from_substraction(dy, p->y_coord, p->left_y);
+  if (number_zero(dx) && number_zero(dy)) {
+    set_number_from_substraction(dx, p->x_coord, q->right_x);
+    set_number_from_substraction(dy, p->y_coord, q->right_y);
   }
 }
-dx = number_to_scaled (p->x_coord) - number_to_scaled(q->x_coord);
-dy = number_to_scaled (p->y_coord) - number_to_scaled(q->y_coord)
+set_number_from_substraction(dx, p->x_coord, q->x_coord);
+set_number_from_substraction(dy, p->y_coord, q->y_coord);
  
 
 @ @<Normalize the direction |(dx,dy)| and find the pen offset |(xx,yy)|@>=
-dx = mp_make_fraction (mp, dx, d);
-dy = mp_make_fraction (mp, dy, d);
-mp_find_offset (mp, -dy, dx, pp);
-xx = mp->cur_x;
-yy = mp->cur_y
+{
+  set_number_from_scaled(dx, mp_make_fraction (mp, number_to_scaled(dx), number_to_scaled(d)));
+  set_number_from_scaled(dy, mp_make_fraction (mp, number_to_scaled(dy), number_to_scaled(d)));
+  mp_find_offset (mp, -number_to_scaled(dy), number_to_scaled(dx), pp);
+  set_number_from_scaled(xx, mp->cur_x);
+  set_number_from_scaled(yy, mp->cur_y);
+}
 
 @ @<Use |(dx,dy)| to generate a vertex of the square end cap and...@>=
-mp_find_offset (mp, dx, dy, pp);
-d =
-mp_take_fraction (mp, xx - mp->cur_x, dx) + mp_take_fraction (mp,
-                                                              yy - mp->cur_y,
-                                                              dy);
-if (((d < 0) && (i == 1)) || ((d > 0) && (i == 2)))
+mp_find_offset (mp, number_to_scaled(dx), number_to_scaled(dy), pp);
+set_number_from_scaled(d, mp_take_fraction (mp, number_to_scaled(xx) - mp->cur_x, number_to_scaled(dx)) +
+                          mp_take_fraction (mp, number_to_scaled(yy) - mp->cur_y, number_to_scaled(dy)));
+if ((number_negative(d) && (i == 1)) || (number_positive(d) && (i == 2)))
   mp_confusion (mp, "box_ends");
 @:this can't happen box ends}{\quad\\{box\_ends}@>;
-z = number_to_scaled (p->x_coord) + mp->cur_x + mp_take_fraction (mp, d, dx);
-if (z < number_to_scaled(h->minx))
-  set_number_from_scaled(h->minx, z);
-if (z > number_to_scaled(h->maxx))
-  set_number_from_scaled(h->maxx, z);
-z = number_to_scaled (p->y_coord) + mp->cur_y + mp_take_fraction (mp, d, dy);
-if (z < number_to_scaled(h->miny))
-  set_number_from_scaled(h->miny, z);
-if (z > number_to_scaled(h->maxy))
-  set_number_from_scaled(h->maxy, z);
+set_number_from_scaled(z, number_to_scaled (p->x_coord) + mp->cur_x + mp_take_fraction (mp, number_to_scaled (d), number_to_scaled(dx)));
+if (number_less(z, h->minx))
+  number_clone(h->minx, z);
+if (number_greater(z, h->maxx))
+  number_clone(h->maxx, z);
+set_number_from_scaled(z, number_to_scaled (p->y_coord) + mp->cur_y + mp_take_fraction (mp, number_to_scaled (d), number_to_scaled(dy)));
+if (number_less(z, h->miny))
+  number_clone(h->miny, z);
+if (number_greater(z, h->maxy))
+  number_clone(h->maxy, z);
 
 @ @<Advance |p| to the end of the path and make |q| the previous knot@>=
 do {
