@@ -9898,48 +9898,90 @@ needed because |square_rt| scales its result by $2^8$ while we need $2^{14}$
 to counteract the effect of |take_fraction|.
 
 @ @c
-scaled mp_sqrt_det (MP mp, scaled a, scaled b, scaled c, scaled d) {
-  scaled maxabs;        /* $max(|a|,|b|,|c|,|d|)$ */
+mp_number mp_sqrt_det (MP mp, mp_number a_orig, mp_number b_orig, mp_number c_orig, mp_number d_orig) {
+  mp_number a,b,c,d; 
+  mp_number maxabs;        /* $max(|a|,|b|,|c|,|d|)$ */
+  mp_number ret;
   unsigned s;   /* amount by which the result of |square_rt| needs to be scaled */
+  new_number(a);
+  new_number(b);
+  new_number(c);
+  new_number(d);
+  new_number(maxabs);
+  new_number(ret);
+  number_clone(a, a_orig);
+  number_clone(b, b_orig);
+  number_clone(c, c_orig);
+  number_clone(d, d_orig);
   @<Initialize |maxabs|@>;
   s = 64;
-  while ((maxabs < fraction_one) && (s > 1)) {
-    a += a;
-    b += b;
-    c += c;
-    d += d;
-    maxabs += maxabs;
+  while ((number_to_scaled(maxabs) < fraction_one) && (s > 1)) {
+    number_double(a);
+    number_double(b);
+    number_double(c);
+    number_double(d);
+    number_double(maxabs);
     s = (unsigned) (halfp (s));
   }
-  return (scaled) (s *
+  set_number_from_scaled (ret,(s *
                    (unsigned) mp_square_rt (mp,
-                                            abs (mp_take_fraction (mp, a, d) -
-                                                 mp_take_fraction (mp, b, c))));
+                                            abs (mp_take_fraction (mp, number_to_scaled(a), number_to_scaled(d)) -
+                                                 mp_take_fraction (mp, number_to_scaled(b), number_to_scaled(c))))));
+  free_number(a);
+  free_number(b);
+  free_number(c);
+  free_number(d);
+  return ret;
 }
 @#
-static scaled mp_get_pen_scale (MP mp, mp_knot p) {
-  if (p == NULL)
-    return 0;
-  return mp_sqrt_det (mp,
-                      number_to_scaled (p->left_x) - number_to_scaled (p->x_coord),
-                      number_to_scaled (p->right_x) - number_to_scaled (p->x_coord),
-                      number_to_scaled (p->left_y) - number_to_scaled (p->y_coord),
-                      number_to_scaled (p->right_y) - number_to_scaled (p->y_coord));
+static mp_number mp_get_pen_scale (MP mp, mp_knot p) {
+  mp_number ret;
+  if (p == NULL) {
+    new_number(ret);
+  } else {
+    mp_number a,b,c,d;
+    new_number(a);
+    new_number(b);
+    new_number(c);
+    new_number(d);
+    set_number_from_substraction(a, p->left_x, p->x_coord);
+    set_number_from_substraction(b, p->right_x, p->x_coord);
+    set_number_from_substraction(c, p->left_y,  p->y_coord);
+    set_number_from_substraction(d, p->right_y, p->y_coord);
+    ret = mp_sqrt_det (mp, a, b, c, d);
+    free_number(a);
+    free_number(b);
+    free_number(c);
+    free_number(d);
+  }
+  return ret;
 }
 
 
 @ @<Declarations@>=
-static scaled mp_sqrt_det (MP mp, scaled a, scaled b, scaled c, scaled d);
+static mp_number mp_sqrt_det (MP mp, mp_number a, mp_number b, mp_number c, mp_number d);
 
 
 @ @<Initialize |maxabs|@>=
-maxabs = abs (a);
-if (abs (b) > maxabs)
-  maxabs = abs (b);
-if (abs (c) > maxabs)
-  maxabs = abs (c);
-if (abs (d) > maxabs)
-  maxabs = abs (d)
+{
+  mp_number tmp;
+  new_number (tmp);
+  number_clone(maxabs, a);
+  number_abs(maxabs);
+  number_clone(tmp, b);
+  number_abs(tmp);
+  if (number_greater(tmp, maxabs))
+    number_clone(maxabs, tmp);
+  number_clone(tmp, c);
+  number_abs(tmp);
+  if (number_greater(tmp, maxabs))
+    number_clone(maxabs, tmp);
+  number_clone(tmp, d);
+  number_abs(tmp);
+  if (number_greater(tmp, maxabs))
+    number_clone(maxabs, tmp);
+  free_number(tmp);
+}
    
 
 @ When a picture contains text, this is represented by a fourteen-word node
@@ -10404,10 +10446,10 @@ number_clone(hh->dash_y, h->dash_y )
 @ |h| is an edge structure
 
 @c
-static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, scaled * w) {
+static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, mp_number w) {
   mp_dash_object *d;
   mp_dash_node p, h;
-  scaled scf;   /* scale factor */
+  mp_number scf;   /* scale factor */
   double *dashes = NULL;
   int num_dashes = 1;
   h = (mp_dash_node)mp_dash_p (q);
@@ -10415,31 +10457,34 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, scaled * w) {
     return NULL;
   p = dash_list (h);
   scf = mp_get_pen_scale (mp, mp_pen_p (q));
-  if (scf == 0) {
-    if (*w == 0)
-      scf = number_to_scaled(q->dash_scale);
-    else
+  if (number_zero(scf)) {
+    if (number_zero(w)) {
+      number_clone(scf, q->dash_scale);
+    } else {
+      free_number(scf);
       return NULL;
+    }
   } else {
-    scf = mp_make_scaled (mp, *w, scf);
-    scf = mp_take_scaled (mp, scf, number_to_scaled(q->dash_scale));
+    set_number_from_scaled(scf, mp_make_scaled (mp, number_to_scaled(w), number_to_scaled(scf)));
+    set_number_from_scaled(scf, mp_take_scaled (mp, number_to_scaled(scf), number_to_scaled(q->dash_scale)));
   }
-  *w = scf;
+  number_clone(w, scf);
   d = xmalloc (1, sizeof (mp_dash_object));
   add_var_used (sizeof (mp_dash_object));
   set_number_from_addition(mp->null_dash->start_x, p->start_x, h->dash_y);
   while (p != mp->null_dash) {
     dashes = xrealloc (dashes, (num_dashes + 2), sizeof (double));
     dashes[(num_dashes - 1)] =
-      mp_take_scaled (mp, (number_to_scaled(p->stop_x) - number_to_scaled(p->start_x)), scf) / 65536.0;
+      mp_take_scaled (mp, (number_to_scaled(p->stop_x) - number_to_scaled(p->start_x)), number_to_scaled(scf)) / 65536.0;
     dashes[(num_dashes)] =
-      mp_take_scaled (mp, (number_to_scaled(((mp_dash_node)mp_link (p))->start_x) - number_to_scaled(p->stop_x)), scf)  / 65536.0;
+      mp_take_scaled (mp, (number_to_scaled(((mp_dash_node)mp_link (p))->start_x) - number_to_scaled(p->stop_x)), number_to_scaled(scf))  / 65536.0;
     dashes[(num_dashes + 1)] = -1.0;      /* terminus */
     num_dashes += 2;
     p = (mp_dash_node)mp_link (p);
   }
   d->array = dashes;
-  d->offset = mp_take_scaled (mp, mp_dash_offset (mp, h), scf) / 65536.0;
+  d->offset = mp_take_scaled (mp, mp_dash_offset (mp, h), number_to_scaled(scf)) / 65536.0;
+  free_number(scf);
   return d;
 }
 
@@ -25503,13 +25548,12 @@ static mp_edge_header_node mp_edges_trans (MP mp, mp_edge_header_node h) {
   mp_node q;    /* the object being transformed */
   mp_dash_node r, s; /* for list manipulation */
   mp_number sx, sy;        /* saved transformation parameters */
-  scaled sqdet; /* square root of determinant for |dash_scale| */
+  mp_number sqdet; /* square root of determinant for |dash_scale| */
   integer sgndet;       /* sign of the determinant */
   h = mp_private_edges (mp, h);
   new_number(sx);
   new_number(sy);
-  sqdet = mp_sqrt_det (mp, number_to_scaled(mp->txx), number_to_scaled(mp->txy), 
-	number_to_scaled(mp->tyx), number_to_scaled(mp->tyy));
+  sqdet = mp_sqrt_det (mp, mp->txx, mp->txy, mp->tyx, mp->tyy);
   sgndet = mp_ab_vs_cd (mp, number_to_scaled(mp->txx), number_to_scaled(mp->tyy), 
 	number_to_scaled(mp->txy), number_to_scaled(mp->tyx));
   if (dash_list (h) != mp->null_dash) {
@@ -25524,6 +25568,7 @@ static mp_edge_header_node mp_edges_trans (MP mp, mp_edge_header_node h) {
   }
   free_number (sx);
   free_number (sy);
+  free_number (sqdet);
   return h;
 }
 static void mp_do_edges_trans (MP mp, mp_node p, quarterword c) {
@@ -25686,10 +25731,10 @@ if (mp_pen_p (qq) != NULL) {
   set_number_to_zero(mp->tx);
   set_number_to_zero(mp->ty);
   mp_do_pen_trans (mp, mp_pen_p (qq));
-  if (sqdet != 0
+  if (number_nonzero(sqdet)
       && ((mp_type (q) == mp_stroked_node_type) && (mp_dash_p (q) != NULL)))
     set_number_from_scaled(((mp_stroked_node)q)->dash_scale , 
-        mp_take_scaled (mp, number_to_scaled(((mp_stroked_node)q)->dash_scale), sqdet));
+        mp_take_scaled (mp, number_to_scaled(((mp_stroked_node)q)->dash_scale), number_to_scaled(sqdet)));
   if (!pen_is_elliptical (mp_pen_p (qq)))
     if (sgndet < 0)
       mp_pen_p (qq) = mp_make_pen (mp, mp_copy_path (mp, mp_pen_p (qq)), true);
@@ -31713,7 +31758,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
   mp_node p;    /* the current graphical object */
   integer t;    /* a temporary value */
   integer c;    /* a rounded charcode */
-  scaled d_width;       /* the current pen width */
+  mp_number d_width;       /* the current pen width */
   mp_edge_object *hh;   /* the first graphical object */
   mp_graphic_object *hq;        /* something |hp| points to  */
   mp_text_object *tt;
@@ -31741,8 +31786,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
   @<Export pending specials@>;
   p = mp_link (edge_list (h));
   while (p != NULL) {
-    hq =
-      mp_new_graphic_object (mp, (int) ((mp_type (p) - mp_fill_node_type) + 1));
+    hq = mp_new_graphic_object (mp, (int) ((mp_type (p) - mp_fill_node_type) + 1));
     switch (mp_type (p)) {
     case mp_fill_node_type:
       {
@@ -31804,7 +31848,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
       gr_ljoin_val (ts) = p0->ljoin;
       gr_miterlim_val (ts) = number_to_double(p0->miterlim);
       gr_lcap_val (ts) = p0->lcap;
-      gr_dash_p (ts) = mp_export_dashes (mp, p0, &d_width);
+      gr_dash_p (ts) = mp_export_dashes (mp, p0, d_width);
       }
       break;
     case mp_text_node_type:
