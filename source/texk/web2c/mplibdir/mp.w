@@ -7132,10 +7132,10 @@ while (1) {
 @<Fill in the control points between |p| and the next breakpoint...@>=
 q = mp_next_knot (p);
 if (mp_right_type (p) >= mp_given) {
-  while ((mp_left_type (q) == mp_open) && (mp_right_type (q) == mp_open))
+  while ((mp_left_type (q) == mp_open) && (mp_right_type (q) == mp_open)) {
     q = mp_next_knot (q);
-  @<Fill in the control information between
-    consecutive breakpoints |p| and |q|@>;
+  }
+  @<Fill in the control information between consecutive breakpoints |p| and |q|@>;
 } else if (mp_right_type (p) == mp_endpoint) {
   @<Give reasonable values for the unused control points between |p| and~|q|@>;
 }
@@ -7281,21 +7281,28 @@ and $z\k-z_k$ will be stored in |psi[k]|.
 
 @<Glob...@>=
 int path_size;  /* maximum number of knots between breakpoints of a path */
-scaled *delta_x;
-scaled *delta_y;
-scaled *delta;  /* knot differences */
+mp_number *delta_x;
+mp_number *delta_y;
+mp_number *delta;  /* knot differences */
 angle *psi;     /* turning angles */
 
 @ @<Dealloc variables@>=
-xfree (mp->delta_x);
-xfree (mp->delta_y);
-xfree (mp->delta);
+{
+  int k;
+  for (k = 0; k<mp->path_size; k++) { 
+    mp_free_number (mp, mp->delta_x[k]); 
+    mp_free_number (mp, mp->delta_y[k]); 
+    mp_free_number (mp, mp->delta[k]); 
+  }
+  xfree (mp->delta_x);
+  xfree (mp->delta_y);
+  xfree (mp->delta);
+}
 xfree (mp->psi);
 
 @ @<Other local variables for |make_choices|@>=
 int k, n;       /* current and final knot numbers */
 mp_knot s, t;   /* registers for list traversal */
-scaled delx, dely;      /* directions where |open| meets |explicit| */
 fraction sine, cosine;  /* trig functions of various angles */
 
 @ @<Calculate the turning angles...@>=
@@ -7306,16 +7313,17 @@ RESTART:
   n = mp->path_size;
   do {
     t = mp_next_knot (s);
-    mp->delta_x[k] = number_to_scaled(t->x_coord) - number_to_scaled(s->x_coord);
-    mp->delta_y[k] = number_to_scaled(t->y_coord) - number_to_scaled(s->y_coord);
-    mp->delta[k] = mp_pyth_add (mp, mp->delta_x[k], mp->delta_y[k]);
+    set_number_from_substraction(mp->delta_x[k], t->x_coord, s->x_coord);
+    set_number_from_substraction(mp->delta_y[k], t->y_coord, s->y_coord);
+    set_number_from_scaled(mp->delta[k], 
+         mp_pyth_add (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled(mp->delta_y[k])));
     if (k > 0) {
-      sine = mp_make_fraction (mp, mp->delta_y[k - 1], mp->delta[k - 1]);
-      cosine = mp_make_fraction (mp, mp->delta_x[k - 1], mp->delta[k - 1]);
-      mp->psi[k] = mp_n_arg (mp, mp_take_fraction (mp, mp->delta_x[k], cosine) +
-                             mp_take_fraction (mp, mp->delta_y[k], sine),
-                             mp_take_fraction (mp, mp->delta_y[k], cosine) -
-                             mp_take_fraction (mp, mp->delta_x[k], sine));
+      sine = mp_make_fraction (mp, number_to_scaled(mp->delta_y[k - 1]), number_to_scaled(mp->delta[k - 1]));
+      cosine = mp_make_fraction (mp, number_to_scaled(mp->delta_x[k - 1]), number_to_scaled(mp->delta[k - 1]));
+      mp->psi[k] = mp_n_arg (mp, mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), cosine) +
+                             mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), sine),
+                             mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), cosine) -
+                             mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), sine));
     }
     incr (k);
     s = t;
@@ -7344,27 +7352,34 @@ Similarly, |mp_left_type(q)| is either |given| or |curl| or |open| or
 |mp_end_cycle|. The |open| possibility is reduced either to |given| or to |curl|.
 
 @<Remove |open| types at the breakpoints@>=
-if (mp_left_type (q) == mp_open) {
-  delx = number_to_scaled(q->right_x) - number_to_scaled(q->x_coord);
-  dely = number_to_scaled(q->right_y) - number_to_scaled(q->y_coord);
-  if ((delx == 0) && (dely == 0)) {
-    mp_left_type (q) = mp_curl;
-    set_number_to_unity(q->left_curl);
-  } else {
-    mp_left_type (q) = mp_given;
-    set_number_from_scaled(q->left_given, mp_n_arg (mp, delx, dely));
+{
+  mp_number delx, dely;      /* directions where |open| meets |explicit| */
+  delx = mp_new_number(mp);
+  dely = mp_new_number(mp);
+  if (mp_left_type (q) == mp_open) {
+    set_number_from_substraction(delx, q->right_x, q->x_coord);
+    set_number_from_substraction(dely, q->right_y, q->y_coord);
+    if (number_zero(delx) && number_zero(dely)) {
+      mp_left_type (q) = mp_curl;
+      set_number_to_unity(q->left_curl);
+    } else {
+      mp_left_type (q) = mp_given;
+      set_number_from_scaled(q->left_given, mp_n_arg (mp, number_to_scaled(delx), number_to_scaled(dely)));
+    }
   }
-}
-if ((mp_right_type (p) == mp_open) && (mp_left_type (p) == mp_explicit)) {
-  delx = number_to_scaled (p->x_coord) - number_to_scaled (p->left_x);
-  dely = number_to_scaled (p->y_coord) - number_to_scaled (p->left_y);
-  if ((delx == 0) && (dely == 0)) {
-    mp_right_type (p) = mp_curl;
-    set_number_to_unity(p->right_curl);
-  } else {
-    mp_right_type (p) = mp_given;
-    set_number_from_scaled(p->right_given, mp_n_arg (mp, delx, dely));
+  if ((mp_right_type (p) == mp_open) && (mp_left_type (p) == mp_explicit)) {
+    set_number_from_substraction(delx, p->x_coord, p->left_x);
+    set_number_from_substraction(dely, p->y_coord, p->left_y);
+    if (number_zero(delx) && number_zero(dely)) {
+      mp_right_type (p) = mp_curl;
+      set_number_to_unity(p->right_curl);
+    } else {
+      mp_right_type (p) = mp_given;
+      set_number_from_scaled(p->right_given, mp_n_arg (mp, number_to_scaled(delx), number_to_scaled(dely)));
+    }
   }
+  mp_free_number(mp, delx);
+  mp_free_number(mp, dely);
 }
 
 @ Linear equations need to be solved whenever |n>1|; and also when |n=1|
@@ -7418,10 +7433,16 @@ static void mp_reallocate_paths (MP mp, int l);
 
 @ @c
 void mp_reallocate_paths (MP mp, int l) {
-  XREALLOC (mp->delta_x, l, scaled);
-  XREALLOC (mp->delta_y, l, scaled);
-  XREALLOC (mp->delta, l, scaled);
-  XREALLOC (mp->psi, l, angle);
+  int k;
+  XREALLOC (mp->delta_x, l, mp_number);
+  XREALLOC (mp->delta_y, l, mp_number);
+  XREALLOC (mp->delta, l, mp_number);
+  for (k = mp->path_size; k<l; k++) { 
+   mp->delta_x[k] = mp_new_number (mp); 
+   mp->delta_y[k] = mp_new_number (mp); 
+   mp->delta[k] = mp_new_number (mp); 
+  }
+  XREALLOC (mp->psi, l, mp_number);
   XREALLOC (mp->theta, l, angle);
   XREALLOC (mp->uu, l, fraction);
   XREALLOC (mp->vv, l, angle);
@@ -7546,19 +7567,19 @@ scaled dd, ee;  /* likewise, but |scaled| */
 @<Calculate the values $\\{aa}=...@>=
 if (abs (number_to_scaled(r->right_tension)) == unity) {
   aa = fraction_half;
-  dd = 2 * mp->delta[k];
+  dd = 2 * number_to_scaled(mp->delta[k]);
 } else {
   aa = mp_make_fraction (mp, unity, 3 * abs (number_to_scaled(r->right_tension)) - unity);
-  dd = mp_take_fraction (mp, mp->delta[k],
+  dd = mp_take_fraction (mp, number_to_scaled(mp->delta[k]),
                          fraction_three - mp_make_fraction (mp, unity,
                                                             abs (number_to_scaled(r->right_tension))));
 }
 if (abs (number_to_scaled(t->left_tension)) == unity) {
   bb = fraction_half;
-  ee = 2 * mp->delta[k - 1];
+  ee = 2 * number_to_scaled(mp->delta[k - 1]);
 } else {
   bb = mp_make_fraction (mp, unity, 3 * abs (number_to_scaled(t->left_tension)) - unity);
-  ee = mp_take_fraction (mp, mp->delta[k - 1],
+  ee = mp_take_fraction (mp, number_to_scaled(mp->delta[k - 1]),
                          fraction_three - mp_make_fraction (mp, unity,
                                                             abs (number_to_scaled(t->left_tension))));
 }
@@ -7663,7 +7684,7 @@ so we can solve for $\theta_n=\theta_0$.
 @<Calculate the given value of $\theta_n$...@>=
 {
   mp->theta[n] =
-    number_to_scaled(s->left_given) - mp_n_arg (mp, mp->delta_x[n - 1], mp->delta_y[n - 1]);
+    number_to_scaled(s->left_given) - mp_n_arg (mp, number_to_scaled(mp->delta_x[n - 1]), number_to_scaled(mp->delta_y[n - 1]));
   reduce_angle (mp->theta[n]);
   goto FOUND;
 }
@@ -7671,7 +7692,7 @@ so we can solve for $\theta_n=\theta_0$.
 
 @ @<Set up the equation for a given value of $\theta_0$@>=
 {
-  mp->vv[0] = number_to_scaled(s->right_given) - mp_n_arg (mp, mp->delta_x[0], mp->delta_y[0]);
+  mp->vv[0] = number_to_scaled(s->right_given) - mp_n_arg (mp, number_to_scaled(mp->delta_x[0]), number_to_scaled(mp->delta_y[0]));
   reduce_angle (mp->vv[0]);
   mp->uu[0] = 0;
   mp->ww[0] = 0;
@@ -7819,20 +7840,20 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
       if necessary, to stay inside the bounding triangle@>;
   }
   set_number_from_scaled (tmp, mp_take_fraction (mp,
-        mp_take_fraction (mp, mp->delta_x [k], mp->ct) - 
-        mp_take_fraction (mp, mp->delta_y [k], mp->st), rr));
+        mp_take_fraction (mp, number_to_scaled(mp->delta_x [k]), mp->ct) - 
+        mp_take_fraction (mp, number_to_scaled(mp->delta_y [k]), mp->st), rr));
   set_number_from_addition (p->right_x, p->x_coord, tmp);
   set_number_from_scaled (tmp, mp_take_fraction (mp,
-        mp_take_fraction (mp, mp->delta_y[k], mp->ct) +
-        mp_take_fraction (mp, mp->delta_x[k], mp->st), rr));
+        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), mp->ct) +
+        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), mp->st), rr));
   set_number_from_addition (p->right_y, p->y_coord, tmp);
   set_number_from_scaled (tmp, mp_take_fraction (mp,
-        mp_take_fraction (mp, mp->delta_x[k], mp->cf) +
-        mp_take_fraction (mp, mp->delta_y[k], mp->sf), ss));
+        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), mp->cf) +
+        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), mp->sf), ss));
   set_number_from_substraction (q->left_x, q->x_coord, tmp);
   set_number_from_scaled (tmp, mp_take_fraction (mp,
-        mp_take_fraction (mp, mp->delta_y[k], mp->cf) -
-        mp_take_fraction (mp, mp->delta_x[k], mp->sf), ss));
+        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), mp->cf) -
+        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), mp->sf), ss));
   set_number_from_substraction(q->left_y, q->y_coord, tmp);
   mp_right_type (p) = mp_explicit;
   mp_left_type (q) = mp_explicit;
@@ -7868,7 +7889,7 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
 {
   fraction n_sin;
   fraction n_cos;
-  aa = mp_n_arg (mp, mp->delta_x[0], mp->delta_y[0]);
+  aa = mp_n_arg (mp, number_to_scaled(mp->delta_x[0]), number_to_scaled(mp->delta_y[0]));
   mp_n_sin_cos (mp, number_to_scaled(p->right_given) - aa, &n_cos, &n_sin);
   mp->ct = n_cos;
   mp->st = n_sin;
@@ -7892,32 +7913,36 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
   number_clone (rt, p->right_tension);
   number_abs(rt);
   if (number_unity(rt)) {
-    if (mp->delta_x[0] >= 0)
-      set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + ((mp->delta_x[0] + 1) / 3));
+    if (number_nonnegative(mp->delta_x[0]))
+      set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + ((number_to_scaled(mp->delta_x[0]) + 1) / 3));
     else
-      set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + ((mp->delta_x[0] - 1) / 3));
-    if (mp->delta_y[0] >= 0)
-      set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + ((mp->delta_y[0] + 1) / 3));
+      set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + ((number_to_scaled(mp->delta_x[0]) - 1) / 3));
+    if (number_nonnegative(mp->delta_y[0]))
+      set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + ((number_to_scaled(mp->delta_y[0]) + 1) / 3));
     else
-      set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + ((mp->delta_y[0] - 1) / 3));
+      set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + ((number_to_scaled(mp->delta_y[0]) - 1) / 3));
   } else {
     ff = mp_make_fraction (mp, unity, 3 * number_to_scaled(rt));  /* $\alpha/3$ */
-    set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + mp_take_fraction (mp, mp->delta_x[0], ff));
-    set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + mp_take_fraction (mp, mp->delta_y[0], ff));
+    set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + 
+                                        mp_take_fraction (mp, number_to_scaled(mp->delta_x[0]), ff));
+    set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + 
+                                        mp_take_fraction (mp, number_to_scaled(mp->delta_y[0]), ff));
   }
   if (number_unity(lt)) {
-    if (mp->delta_x[0] >= 0)
-      set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - ((mp->delta_x[0] + 1) / 3));
+    if (number_nonnegative(mp->delta_x[0]))
+      set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - ((number_to_scaled(mp->delta_x[0]) + 1) / 3));
     else
-      set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - ((mp->delta_x[0] - 1) / 3));
-    if (mp->delta_y[0] >= 0)
-      set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - ((mp->delta_y[0] + 1) / 3));
+      set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - ((number_to_scaled(mp->delta_x[0]) - 1) / 3));
+    if (number_nonnegative(mp->delta_y[0]))
+      set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - ((number_to_scaled(mp->delta_y[0]) + 1) / 3));
     else
-      set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - ((mp->delta_y[0] - 1) / 3));
+      set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - ((number_to_scaled(mp->delta_y[0]) - 1) / 3));
   } else {
     ff = mp_make_fraction (mp, unity, 3 * number_to_scaled(lt));  /* $\beta/3$ */
-    set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - mp_take_fraction (mp, mp->delta_x[0], ff));
-    set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - mp_take_fraction (mp, mp->delta_y[0], ff));
+    set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - 
+         mp_take_fraction (mp, number_to_scaled(mp->delta_x[0]), ff));
+    set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - 
+         mp_take_fraction (mp, number_to_scaled(mp->delta_y[0]), ff));
   }
   mp_free_number(mp, lt);
   mp_free_number(mp, rt);
@@ -8493,12 +8518,12 @@ calls, but $1.5$ is an adequate approximation.  It is best to avoid using
       number_half(ret);
       set_number_from_addition(ret, a, ret); /* (a + half(b - a)) */
     }
+    mp_free_number (mp, b);
   }
   mp_free_number (mp, half_v02);
   mp_free_number (mp, a_aux);
   mp_free_number (mp, a_new);
   mp_free_number (mp, a);
-  mp_free_number (mp, b);
   goto DONE;
 }
 
@@ -8854,7 +8879,6 @@ static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number 
     set_number_from_scaled(v02, 
         mp_pyth_add (mp, number_to_scaled(dx1) + half (number_to_scaled(dx0) + number_to_scaled(dx2)), 
 	                   number_to_scaled(dy1) + half (number_to_scaled(dy0) + number_to_scaled(dy2))));
-    mp_free_number (mp, ret);
     number_clone(ret, mp_arc_test (mp, dx0, dy0, dx1, dy1, dx2, dy2, v0, v02, v2, a_goal, arc_tol));
     mp_free_number (mp, v02);
   }
