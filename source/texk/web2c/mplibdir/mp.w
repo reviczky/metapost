@@ -2414,8 +2414,6 @@ typedef union {
 @ The global variable |math_mode| has four settings, representing the
 math value type that will be used in this run.
 
-@d mp_fraction mp_number
-
 @<Exported types@>=
 typedef struct mp_number_data *mp_number;
 typedef enum {
@@ -2738,7 +2736,7 @@ static mp_node mp_get_symbolic_node (MP mp) {
   memset (p, 0, symbolic_node_size);
   p->type = mp_symbol_node;
   p->name_type = mp_normal_sym;
-  p->data.n = mp_new_number(mp);
+  new_number(p->data.n);
   FUNCTION_TRACE2 ("%p = mp_get_symbolic_node()\n", p);
   return (mp_node) p;
 }
@@ -3744,7 +3742,7 @@ memset (mp->internal, 0,
 {
   int i;
   for (i = 1; i <= mp->max_internal; i++) {
-    mp->internal[i].v.data.n = mp_new_number(mp);
+    new_number(mp->internal[i].v.data.n);
   }
   for (i = 1; i <= max_given_internal; i++) {
     set_internal_type (i, mp_known);
@@ -4289,7 +4287,7 @@ static mp_sym new_symbols_entry (MP mp, unsigned char *nam, size_t len) {
   ff->text->len = len;
   ff->type = mp_tag_token;
   ff->v.type = mp_known;
-  ff->v.data.n = mp_new_number(mp);
+  new_number(ff->v.data.n);
   FUNCTION_TRACE4 ("%p = new_symbols_entry(\"%s\",%d)\n", ff, nam, (int)len);
   return ff;
 }
@@ -4770,7 +4768,7 @@ static mp_node mp_get_token_node (MP mp) {
   add_var_used (token_node_size);
   memset (p, 0, token_node_size);
   p->type = mp_token_node_type;
-  p->data.n = mp_new_number(mp);
+  new_number(p->data.n);
   FUNCTION_TRACE2 ("%p = mp_get_token_node()\n", p);
   return (mp_node) p;
 }
@@ -5206,7 +5204,7 @@ static mp_node mp_get_value_node (MP mp) {
   add_var_used (value_node_size);
   memset (p, 0, value_node_size);
   mp_type (p) = mp_value_node_type;
-  p->data.n = mp_new_number(mp);
+  new_number(p->data.n);
   FUNCTION_TRACE2 ("%p = mp_get_value_node()\n", p);
   return p;
 }
@@ -6410,7 +6408,7 @@ static void mp_save_internal (MP mp, halfword q) {
     p->type = mp_internal_sym;
     p->link = mp->save_ptr;
     p->value = mp->internal[q];
-    p->value.v.data.n = mp_new_number(mp);
+    new_number(p->value.v.data.n);
     number_clone(p->value.v.data.n, mp->internal[q].v.data.n);
     mp->save_ptr = p;
   }
@@ -6434,7 +6432,7 @@ static void mp_unsave_internal (MP mp, halfword q) {
     mp_print_char (mp, xord ('}'));
     mp_end_diagnostic (mp, false);
   }
-  mp_free_number(mp, mp->internal[q].v.data.n);
+  free_number (mp->internal[q].v.data.n);
   mp->internal[q] = saved;
 }
 
@@ -6803,12 +6801,12 @@ static mp_knot mp_new_knot (MP mp);
 static mp_knot mp_new_knot (MP mp) {
   mp_knot q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
   memset(q,0,sizeof (struct mp_knot_data));
-  q->x_coord = mp_new_number(mp);
-  q->y_coord = mp_new_number(mp);
-  q->left_x = mp_new_number(mp);
-  q->left_y = mp_new_number(mp);
-  q->right_x = mp_new_number(mp);
-  q->right_y = mp_new_number(mp);
+  new_number(q->x_coord);
+  new_number(q->y_coord);
+  new_number(q->left_x);
+  new_number(q->left_y);
+  new_number(q->right_x);
+  new_number(q->right_y);
   return q;
 }
 
@@ -6830,12 +6828,12 @@ static mp_knot mp_copy_knot (MP mp, mp_knot p) {
   mp_knot q;    /* the copy */
   q = mp_new_knot (mp);
   memcpy (q, p, sizeof (struct mp_knot_data));
-  q->x_coord = mp_new_number(mp);
-  q->y_coord = mp_new_number(mp);
-  q->left_x = mp_new_number(mp);
-  q->left_y = mp_new_number(mp);
-  q->right_x = mp_new_number(mp);
-  q->right_y = mp_new_number(mp);
+  new_number(q->x_coord);
+  new_number(q->y_coord);
+  new_number(q->left_x);
+  new_number(q->left_y);
+  new_number(q->right_x);
+  new_number(q->right_y);
   number_clone(q->x_coord, p->x_coord);
   number_clone(q->y_coord, p->y_coord);
   number_clone(q->left_x, p->left_x);
@@ -7292,9 +7290,9 @@ angle *psi;     /* turning angles */
 {
   int k;
   for (k = 0; k<mp->path_size; k++) { 
-    mp_free_number (mp, mp->delta_x[k]); 
-    mp_free_number (mp, mp->delta_y[k]); 
-    mp_free_number (mp, mp->delta[k]); 
+    free_number (mp->delta_x[k]); 
+    free_number (mp->delta_y[k]); 
+    free_number (mp->delta[k]); 
   }
   xfree (mp->delta_x);
   xfree (mp->delta_y);
@@ -7356,8 +7354,8 @@ Similarly, |mp_left_type(q)| is either |given| or |curl| or |open| or
 @<Remove |open| types at the breakpoints@>=
 {
   mp_number delx, dely;      /* directions where |open| meets |explicit| */
-  delx = mp_new_number(mp);
-  dely = mp_new_number(mp);
+  new_number(delx);
+  new_number(dely);
   if (mp_left_type (q) == mp_open) {
     set_number_from_substraction(delx, q->right_x, q->x_coord);
     set_number_from_substraction(dely, q->right_y, q->y_coord);
@@ -7380,8 +7378,8 @@ Similarly, |mp_left_type(q)| is either |given| or |curl| or |open| or
       set_number_from_scaled(p->right_given, mp_n_arg (mp, number_to_scaled(delx), number_to_scaled(dely)));
     }
   }
-  mp_free_number(mp, delx);
-  mp_free_number(mp, dely);
+  free_number (delx);
+  free_number (dely);
 }
 
 @ Linear equations need to be solved whenever |n>1|; and also when |n=1|
@@ -7440,9 +7438,9 @@ void mp_reallocate_paths (MP mp, int l) {
   XREALLOC (mp->delta_y, l, mp_number);
   XREALLOC (mp->delta, l, mp_number);
   for (k = mp->path_size; k<l; k++) { 
-   mp->delta_x[k] = mp_new_number (mp); 
-   mp->delta_y[k] = mp_new_number (mp); 
-   mp->delta[k] = mp_new_number (mp); 
+   new_number (mp->delta_x[k]); 
+   new_number (mp->delta_y[k]); 
+   new_number (mp->delta[k]); 
   }
   XREALLOC (mp->psi, l, mp_number);
   XREALLOC (mp->theta, l, angle);
@@ -7598,8 +7596,8 @@ will not be needed after this step has been performed.
 {
   mp_number rt, lt;
   dd = mp_take_fraction (mp, dd, cc);
-  lt = mp_new_number (mp);
-  rt = mp_new_number (mp);
+  new_number (lt);
+  new_number (rt);
   number_clone (lt, s->left_tension);
   number_abs (lt);
   number_clone (rt, s->right_tension);
@@ -7615,8 +7613,8 @@ will not be needed after this step has been performed.
       ee = mp_take_fraction (mp, ee, ff);
     }
   }
-  mp_free_number (mp, rt);
-  mp_free_number (mp, lt);
+  free_number (rt);
+  free_number (lt);
   ff = mp_make_fraction (mp, ee, ee + dd);
 }
  
@@ -7704,8 +7702,8 @@ so we can solve for $\theta_n=\theta_0$.
 @ @<Set up the equation for a curl at $\theta_0$@>=
 {
   mp_number lt, rt;  /* tension values */
-  lt = mp_new_number (mp);
-  rt = mp_new_number (mp);
+  new_number (lt);
+  new_number (rt);
   cc = number_to_scaled(s->right_curl);
   number_clone (lt, t->left_tension);
   number_abs(lt);
@@ -7717,16 +7715,16 @@ so we can solve for $\theta_n=\theta_0$.
     mp->uu[0] = mp_curl_ratio (mp, cc, rt, lt);
   mp->vv[0] = -mp_take_fraction (mp, mp->psi[1], mp->uu[0]);
   mp->ww[0] = 0;
-  mp_free_number (mp, rt);
-  mp_free_number (mp, lt);
+  free_number (rt);
+  free_number (lt);
 }
 
 
 @ @<Set up equation for a curl at $\theta_n$...@>=
 {
   mp_number lt, rt;  /* tension values */
-  lt = mp_new_number (mp);
-  rt = mp_new_number (mp);
+  new_number (lt);
+  new_number (rt);
   cc = number_to_scaled(s->left_curl);
   number_clone (lt, s->left_tension);
   number_abs(lt);
@@ -7739,8 +7737,8 @@ so we can solve for $\theta_n=\theta_0$.
   mp->theta[n] =
     -mp_make_fraction (mp, mp_take_fraction (mp, mp->vv[n - 1], ff),
                        fraction_one - mp_take_fraction (mp, ff, mp->uu[n - 1]));
-  mp_free_number (mp, rt);
-  mp_free_number (mp, lt);
+  free_number (rt);
+  free_number (lt);
   goto FOUND;
 }
 
@@ -7828,9 +7826,9 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   mp_number lt, rt;        /* tensions */
   fraction sine;        /* $\sin(\theta+\phi)$ */
   mp_number tmp;
-  tmp = mp_new_number(mp);
-  lt = mp_new_number (mp);
-  rt = mp_new_number (mp);
+  new_number(tmp);
+  new_number (lt);
+  new_number (rt);
   number_clone(lt, q->left_tension);
   number_abs(lt);
   number_clone(rt, p->right_tension);
@@ -7859,9 +7857,9 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   set_number_from_substraction(q->left_y, q->y_coord, tmp);
   mp_right_type (p) = mp_explicit;
   mp_left_type (q) = mp_explicit;
-  mp_free_number(mp, tmp);
-  mp_free_number(mp, lt);
-  mp_free_number(mp, rt);
+  free_number (tmp);
+  free_number (lt);
+  free_number (rt);
 }
 
 
@@ -7908,8 +7906,8 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
   mp_number lt, rt;  /* tension values */
   mp_right_type (p) = mp_explicit;
   mp_left_type (q) = mp_explicit;
-  lt = mp_new_number (mp);
-  rt = mp_new_number (mp);
+  new_number (lt);
+  new_number (rt);
   number_clone (lt, q->left_tension);
   number_abs(lt);
   number_clone (rt, p->right_tension);
@@ -7946,8 +7944,8 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
     set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - 
          mp_take_fraction (mp, number_to_scaled(mp->delta_y[0]), ff));
   }
-  mp_free_number(mp, lt);
-  mp_free_number(mp, rt);
+  free_number (lt);
+  free_number (rt);
   return;
 }
 
@@ -8041,12 +8039,12 @@ $a<2^{30}$, $\vert a-b\vert<2^{30}$, and $\vert b-c\vert<2^{30}$.
 {
   mp_number x, xx, x0, x1, x2;    /* temporary registers for bisection */
   int d = 1;    /* recursive counter */
-  mp_number tmp = mp_new_number(mp);
-  x = mp_new_number(mp);
-  xx = mp_new_number(mp);
-  x0 = mp_new_number(mp);
-  x1 = mp_new_number(mp);
-  x2 = mp_new_number(mp);
+  mp_number new_number(tmp);
+  new_number(x);
+  new_number(xx);
+  new_number(x0);
+  new_number(x1);
+  new_number(x2);
   number_clone(x0,a);
   set_number_from_substraction(x1, a, b);
   set_number_from_substraction(x2, b, c);
@@ -8071,12 +8069,12 @@ $a<2^{30}$, $\vert a-b\vert<2^{30}$, and $\vert b-c\vert<2^{30}$.
         if (number_lessequal(x, x0)) {
 	  set_number_from_addition(tmp, x, x2);
           if (number_lessequal(tmp,x0)) {
-            mp_free_number(mp, tmp);
-            mp_free_number (mp, x);
-            mp_free_number (mp, xx);
-            mp_free_number (mp, x0);
-            mp_free_number (mp, x1);
-            mp_free_number (mp, x2);
+            free_number (tmp);
+            free_number (x);
+            free_number (xx);
+            free_number (x0);
+            free_number (x1);
+            free_number (x2);
             return 0;
           }
         }
@@ -8085,12 +8083,12 @@ $a<2^{30}$, $\vert a-b\vert<2^{30}$, and $\vert b-c\vert<2^{30}$.
       }
     }
   } while (d < fraction_one);
-  mp_free_number(mp, tmp);
-  mp_free_number (mp, x);
-  mp_free_number (mp, xx);
-  mp_free_number (mp, x0);
-  mp_free_number (mp, x1);
-  mp_free_number (mp, x2);
+  free_number (tmp);
+  free_number (x);
+  free_number (xx);
+  free_number (x0);
+  free_number (x1);
+  free_number (x2);
   return (d - fraction_one);
 }
  
@@ -8107,10 +8105,10 @@ It is convenient to define a \.{WEB} macro |t_of_the_way| such that
 static mp_number mp_eval_cubic (MP mp, mp_knot p, mp_knot q, quarterword c,
                              fraction t) {
   mp_number x1, x2, x3, r;    /* intermediate values */
-  x1 = mp_new_number(mp);
-  x2 = mp_new_number(mp);
-  x3 = mp_new_number(mp);
-  r = mp_new_number(mp);
+  new_number(x1);
+  new_number(x2);
+  new_number(x3);
+  new_number(r);
   if (c == mp_x_code) {
     set_number_from_of_the_way(x1, t, p->x_coord, p->right_x);
     set_number_from_of_the_way(x2, t, p->right_x, q->left_x);
@@ -8123,9 +8121,9 @@ static mp_number mp_eval_cubic (MP mp, mp_knot p, mp_knot q, quarterword c,
   set_number_from_of_the_way(x1, t, x1, x2);
   set_number_from_of_the_way(x2, t, x2, x3);
   set_number_from_of_the_way(r,  t, x1, x2);
-  mp_free_number(mp, x1);
-  mp_free_number(mp, x2);
-  mp_free_number(mp, x3);
+  free_number (x1);
+  free_number (x2);
+  free_number (x3);
   return r;
 }
 
@@ -8168,17 +8166,17 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
                          points of a quadratic derived from a cubic */
   fraction t, tt;       /* where a quadratic crosses zero */
   mp_number x;     /* a value that |bbmin[c]| and |bbmax[c]| must accommodate */
-  x = mp_new_number (mp);
+  new_number (x);
   if (c == mp_x_code) {
     number_clone(x, q->x_coord);
   } else {
     number_clone(x, q->y_coord);
   }
-  del1 = mp_new_number(mp);
-  del2 = mp_new_number(mp);
-  del3 = mp_new_number(mp);
-  del  = mp_new_number(mp);
-  dmax = mp_new_number(mp);
+  new_number(del1);
+  new_number(del2);
+  new_number(del3);
+  new_number(del);
+  new_number(dmax);
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
   @<Check the control points against the bounding box and set |wavy:=true|
     if any of them lie outside@>;
@@ -8204,12 +8202,12 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
       @<Test the extremes of the cubic against the bounding box@>;
     }
   }
-  mp_free_number(mp, del3);
-  mp_free_number(mp, del2);
-  mp_free_number(mp, del1);
-  mp_free_number(mp, del);
-  mp_free_number(mp, dmax);
-  mp_free_number(mp, x);
+  free_number (del3);
+  free_number (del2);
+  free_number (del1);
+  free_number (del);
+  free_number (dmax);
+  free_number (x);
 }
 
 
@@ -8248,8 +8246,10 @@ if (number_nonzero(del1)) {
   number_clone (del, del3);
 }
 if (number_nonzero(del)) {
-  mp_number absval1  = mp_new_number(mp);
-  mp_number frac_half = mp_new_number(mp);
+  mp_number absval1; 
+  mp_number frac_half;
+  new_number(absval1);
+  new_number(frac_half);
   set_number_from_scaled(frac_half, fraction_half);
   number_clone (dmax, del1);
   number_abs (dmax);
@@ -8269,8 +8269,8 @@ if (number_nonzero(del)) {
     number_double(del2);
     number_double(del3);
   }
-  mp_free_number(mp, absval1);
-  mp_free_number(mp, frac_half);
+  free_number (absval1);
+  free_number (frac_half);
 }
 
 @ Since |crossing_point| has tried to choose |t| so that
@@ -8281,7 +8281,7 @@ must cut it to zero to avoid confusion.
 
 @<Test the extremes of the cubic against the bounding box@>=
 {
-  mp_free_number (mp, x);
+  free_number (x);
   x = mp_eval_cubic (mp, p, q, c, t);
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
   set_number_from_of_the_way(del2, t, del2, del3);
@@ -8289,17 +8289,17 @@ must cut it to zero to avoid confusion.
   if (number_positive(del2))
     set_number_to_zero(del2);
   {
-    mp_number arg1 = mp_new_number(mp);
-    mp_number arg2 = mp_new_number(mp);
-    mp_number arg3 = mp_new_number(mp);
+    mp_number new_number(arg1);
+    mp_number new_number(arg2);
+    mp_number new_number(arg3);
     number_clone(arg2, del2);
     number_negate(arg2);
     number_clone(arg3, del3);
     number_negate(arg3);
     tt = mp_crossing_point (mp, arg1, arg2, arg3);
-    mp_free_number (mp, arg1);
-    mp_free_number (mp, arg2);
-    mp_free_number (mp, arg3);
+    free_number (arg1);
+    free_number (arg2);
+    free_number (arg3);
   }
   if (tt < fraction_one) {
     @<Test the second extreme against the bounding box@>;
@@ -8309,7 +8309,7 @@ must cut it to zero to avoid confusion.
 
 @ @<Test the second extreme against the bounding box@>=
 {
-  mp_free_number (mp, x);
+  free_number (x);
   x = mp_eval_cubic (mp, p, q, c, t_of_the_way (tt, fraction_one));
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
 }
@@ -8417,19 +8417,19 @@ static mp_number mp_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number dx1
   mp_number arc1;    /* arc length estimate for the first half */
   mp_number simply; 
   mp_number tol; 
-  ret = mp_new_number (mp);
-  arc = mp_new_number (mp);
-  arc1 = mp_new_number (mp);
-  dx01 = mp_new_number (mp);
-  dy01 = mp_new_number (mp);
-  dx12 = mp_new_number (mp); 
-  dy12 = mp_new_number (mp);
-  dx02 = mp_new_number (mp);
-  dy02 = mp_new_number (mp);
-  v002 = mp_new_number (mp);
-  v022 = mp_new_number (mp);
-  simply = mp_new_number (mp);
-  tol = mp_new_number (mp);
+  new_number (ret );
+  new_number (arc );
+  new_number (arc1);
+  new_number (dx01);
+  new_number (dy01);
+  new_number (dx12); 
+  new_number (dy12);
+  new_number (dx02);
+  new_number (dy02);
+  new_number (v002);
+  new_number (v022);
+  new_number (simply);
+  new_number (tol);
   number_clone(tol, tol_orig);
   @<Bisect the B\'ezier quadratic given by |dx0|, |dy0|, |dx1|, |dy1|,
     |dx2|, |dy2|@>;
@@ -8456,18 +8456,18 @@ static mp_number mp_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number dx1
     @<Use one or two recursive calls to compute the |arc_test| function@>;
   }
 DONE:
-  mp_free_number (mp, arc);
-  mp_free_number (mp, arc1);
-  mp_free_number (mp, dx01);
-  mp_free_number (mp, dy01);
-  mp_free_number (mp, dx12); 
-  mp_free_number (mp, dy12);
-  mp_free_number (mp, dx02);
-  mp_free_number (mp, dy02);
-  mp_free_number (mp, v002);
-  mp_free_number (mp, v022);
-  mp_free_number (mp, simply);
-  mp_free_number (mp, tol);
+  free_number (arc);
+  free_number (arc1);
+  free_number (dx01);
+  free_number (dy01);
+  free_number (dx12); 
+  free_number (dy12);
+  free_number (dx02);
+  free_number (dy02);
+  free_number (v002);
+  free_number (v022);
+  free_number (simply);
+  free_number (tol);
   return ret;
 }
 
@@ -8482,17 +8482,17 @@ calls, but $1.5$ is an adequate approximation.  It is best to avoid using
   mp_number a_new, a_aux;    /* the sum of these gives the |a_goal| */
   mp_number a, b;    /* results of recursive calls */
   mp_number half_v02; /* |halfp(v02)|, a recursion argument */
-  a_new = mp_new_number(mp);
-  a_aux = mp_new_number(mp);
-  half_v02 = mp_new_number(mp);
+  new_number(a_new);
+  new_number(a_aux);
+  new_number(half_v02);
   @<Set |a_new| and |a_aux| so their sum is |2*a_goal| and |a_new| is as
     large as possible@>;
   {
-    mp_number halfp_tol = mp_new_number(mp);
+    mp_number new_number(halfp_tol);
     number_clone (halfp_tol, tol);
     number_halfp (halfp_tol);
     number_add(tol, halfp_tol);
-    mp_free_number (mp, halfp_tol);
+    free_number (halfp_tol);
   }
   number_clone(half_v02, v02);
   number_halfp(half_v02);
@@ -8509,7 +8509,8 @@ calls, but $1.5$ is an adequate approximation.  It is best to avoid using
     b = mp_arc_test (mp, dx02, dy02, dx12, dy12, dx2, dy2,
                          half_v02, v022, v2, a_new, tol);
     if (number_negative(b)) {
-      mp_number tmp = mp_new_number (mp);
+      mp_number tmp ;
+      new_number (tmp);
       number_clone(tmp, b);
       number_negate(tmp);
       number_halfp(tmp);
@@ -8518,18 +8519,18 @@ calls, but $1.5$ is an adequate approximation.  It is best to avoid using
       set_number_to_unity(tmp);
       number_halfp(tmp);
       number_substract(ret, tmp); /* (-(halfp(-b)) - 1/2) */
-      mp_free_number (mp, tmp);
+      free_number (tmp);
     } else {
       set_number_from_substraction(ret, b, a);
       number_half(ret);
       set_number_from_addition(ret, a, ret); /* (a + half(b - a)) */
     }
-    mp_free_number (mp, b);
+    free_number (b);
   }
-  mp_free_number (mp, half_v02);
-  mp_free_number (mp, a_aux);
-  mp_free_number (mp, a_new);
-  mp_free_number (mp, a);
+  free_number (half_v02);
+  free_number (a_aux);
+  free_number (a_new);
+  free_number (a);
   goto DONE;
 }
 
@@ -8580,7 +8581,8 @@ number_half(dy02);
 
 @<Initialize |v002|, |v022|, and the arc length estimate |arc|;...@>=
 {
-  mp_number tmp = mp_new_number (mp);
+  mp_number tmp ;
+  new_number (tmp);
   set_number_from_scaled(v002, 
        mp_pyth_add (mp, number_to_scaled(dx01) + half (number_to_scaled(dx0) + number_to_scaled(dx02)), 
                         number_to_scaled(dy01) + half (number_to_scaled(dy0) + number_to_scaled(dy02))));
@@ -8608,10 +8610,10 @@ number_half(dy02);
   set_number_to_inf(tmp);
   number_substract(tmp,arc1);
   if (number_less(arc, tmp)) {
-    mp_free_number (mp, tmp);
+    free_number (tmp);
     number_add(arc, arc1);
   } else {
-    mp_free_number (mp, tmp);
+    free_number (tmp);
     mp->arith_error = true;
     if (number_infinite(a_goal)) {
       set_number_to_inf(ret);
@@ -8637,9 +8639,9 @@ if (!simple) {
            (number_lessequal(dx0, dy0) && number_lessequal(dx1, dy1) && number_lessequal(dx2, dy2));
   if (simple) {
     mp_number neg_dx0, neg_dx1, neg_dx2;
-    neg_dx0 = mp_new_number(mp);
-    neg_dx1 = mp_new_number(mp);
-    neg_dx2 = mp_new_number(mp);
+    new_number(neg_dx0);
+    new_number(neg_dx1);
+    new_number(neg_dx2);
     number_clone(neg_dx0, dx0);
     number_clone(neg_dx1, dx1);
     number_clone(neg_dx2, dx2);
@@ -8649,9 +8651,9 @@ if (!simple) {
     simple = 
       (number_greaterequal(neg_dx0, dy0) && number_greaterequal(neg_dx1, dy1) && number_greaterequal(neg_dx2, dy2)) ||
       (number_lessequal(neg_dx0, dy0) && number_lessequal(neg_dx1, dy1) && number_lessequal(neg_dx2, dy2));
-    mp_free_number (mp, neg_dx0);
-    mp_free_number (mp, neg_dx1);
-    mp_free_number (mp, neg_dx2);
+    free_number (neg_dx0);
+    free_number (neg_dx1);
+    free_number (neg_dx2);
   }
 }
 
@@ -8695,11 +8697,15 @@ $\tau$ given $a$, $b$, $c$, and $x$.
 
 @<Estimate when the arc length reaches |a_goal| and set |arc_test| to...@>=
 {
-  mp_number tmp = mp_new_number (mp);
-  mp_number tmp2 = mp_new_number (mp);
-  mp_number tmp3 = mp_new_number (mp);
-  mp_number tmp4 = mp_new_number (mp);  
+  mp_number tmp;
+  mp_number tmp2;
+  mp_number tmp3;
+  mp_number tmp4;  
   mp_number tmp5;  
+  new_number (tmp); 
+  new_number (tmp2);
+  new_number (tmp3);
+  new_number (tmp4);
   number_clone(tmp, v02);
   number_add_scaled(tmp, 2);
   number_half(tmp);
@@ -8731,11 +8737,11 @@ $\tau$ given $a$, $b$, $c$, and $x$.
     number_substract(tmp2, tmp3);
     set_number_from_addition(ret, tmp2, tmp5);
   }
-  mp_free_number (mp, tmp);
-  mp_free_number (mp, tmp2);
-  mp_free_number (mp, tmp3);
-  mp_free_number (mp, tmp4);
-  mp_free_number (mp, tmp5);
+  free_number (tmp);
+  free_number (tmp2);
+  free_number (tmp3);
+  free_number (tmp4);
+  free_number (tmp5);
   goto DONE;
 }
 
@@ -8763,23 +8769,23 @@ mp_number mp_solve_rising_cubic (MP mp, mp_number a_orig, mp_number b_orig, mp_n
   if (number_negative(a_orig) || number_negative(c_orig))
     mp_confusion (mp, "rising?");
 @:this can't happen rising?}{\quad rising?@>;
-  abc = mp_new_number (mp);
-  a = mp_new_number (mp);
-  b = mp_new_number (mp);
-  c = mp_new_number (mp);
-  x = mp_new_number (mp);
+  new_number (abc);
+  new_number (a);
+  new_number (b);
+  new_number (c);
+  new_number (x);
   number_clone(a, a_orig);
   number_clone(b, b_orig);
   number_clone(c, c_orig);
   number_clone(x, x_orig);
-  ab = mp_new_number (mp);
-  bc = mp_new_number (mp);
-  ac = mp_new_number (mp);
-  xx = mp_new_number (mp);
-  neg_x = mp_new_number (mp);
+  new_number (ab);
+  new_number (bc);
+  new_number (ac);
+  new_number (xx);
+  new_number (neg_x);
   set_number_from_addition(abc, a, b);
   number_add(abc, c);
-  ret = mp_new_number (mp);
+  new_number (ret);
   if (number_nonpositive(x)) {
     set_number_to_zero(ret);
   } else if (number_greaterequal(x, abc)) {
@@ -8810,16 +8816,16 @@ mp_number mp_solve_rising_cubic (MP mp, mp_number a_orig, mp_number b_orig, mp_n
     } while (t < unity);
     set_number_from_scaled(ret, (t - unity));
   }
-  mp_free_number (mp, abc);
-  mp_free_number (mp, a);
-  mp_free_number (mp, b);
-  mp_free_number (mp, c);
-  mp_free_number (mp, ab);
-  mp_free_number (mp, bc);
-  mp_free_number (mp, ac);
-  mp_free_number (mp, xx);
-  mp_free_number (mp, x);
-  mp_free_number (mp, neg_x);
+  free_number (abc);
+  free_number (a);
+  free_number (b);
+  free_number (c);
+  free_number (ab);
+  free_number (bc);
+  free_number (ac);
+  free_number (xx);
+  free_number (x);
+  free_number (neg_x);
   return ret;
 }
 
@@ -8860,11 +8866,11 @@ static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number 
   mp_number v02;   /* twice the norm of the quadratic at $t={1\over2}$ */
   mp_number ret;
   mp_number arc_tol;
-  v0 = mp_new_number (mp);
-  v1 = mp_new_number (mp);
-  v2 = mp_new_number (mp);
-  ret = mp_new_number (mp);
-  arc_tol = mp_new_number (mp);
+  new_number (v0);
+  new_number (v1);
+  new_number (v2);
+  new_number (ret);
+  new_number (arc_tol);
   set_number_from_scaled(arc_tol, arc_tol_limit);
   set_number_from_scaled(v0, mp_pyth_add (mp, number_to_scaled(dx0), number_to_scaled(dy0)));
   set_number_from_scaled(v1, mp_pyth_add (mp, number_to_scaled(dx1), number_to_scaled(dy1)));
@@ -8881,17 +8887,17 @@ static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number 
       number_negate(ret);
     }
   } else {
-    v02 = mp_new_number (mp);
+    new_number (v02);
     set_number_from_scaled(v02, 
         mp_pyth_add (mp, number_to_scaled(dx1) + half (number_to_scaled(dx0) + number_to_scaled(dx2)), 
 	                   number_to_scaled(dy1) + half (number_to_scaled(dy0) + number_to_scaled(dy2))));
     number_clone(ret, mp_arc_test (mp, dx0, dy0, dx1, dy1, dx2, dy2, v0, v02, v2, a_goal, arc_tol));
-    mp_free_number (mp, v02);
+    free_number (v02);
   }
-  mp_free_number (mp, v0);
-  mp_free_number (mp, v1);
-  mp_free_number (mp, v2);
-  mp_free_number (mp, arc_tol);
+  free_number (v0);
+  free_number (v1);
+  free_number (v2);
+  free_number (arc_tol);
   return ret;
 }
 
@@ -8907,13 +8913,13 @@ static scaled mp_get_arc_length (MP mp, mp_knot h) {
   mp_number arcgoal; 
   a_tot = 0;
   p = h;
-  arg1 = mp_new_number (mp);
-  arg2 = mp_new_number (mp);
-  arg3 = mp_new_number (mp);
-  arg4 = mp_new_number (mp);
-  arg5 = mp_new_number (mp);
-  arg6 = mp_new_number (mp);
-  arcgoal = mp_new_number(mp);
+  new_number (arg1);
+  new_number (arg2);
+  new_number (arg3);
+  new_number (arg4);
+  new_number (arg5);
+  new_number (arg6);
+  new_number(arcgoal);
   set_number_to_inf(arcgoal);
   while (mp_right_type (p) != mp_endpoint) {
     q = mp_next_knot (p);
@@ -8930,14 +8936,14 @@ static scaled mp_get_arc_length (MP mp, mp_knot h) {
     else
       p = q;
   }
-  mp_free_number (mp, arcgoal);
-  mp_free_number (mp, a);
-  mp_free_number (mp, arg1);
-  mp_free_number (mp, arg2);
-  mp_free_number (mp, arg3);
-  mp_free_number (mp, arg4);
-  mp_free_number (mp, arg5);
-  mp_free_number (mp, arg6);
+  free_number (arcgoal);
+  free_number (a);
+  free_number (arg1);
+  free_number (arg2);
+  free_number (arg3);
+  free_number (arg4);
+  free_number (arg5);
+  free_number (arg6);
   check_arith();
   return a_tot;
 }
@@ -8965,21 +8971,21 @@ static scaled mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
   if (number_negative(arc0_orig)) {
     @<Deal with a negative |arc0_orig| value and |return|@>;
   }
-  arc0  = mp_new_number (mp);
+  new_number (arc0);
   number_clone(arc0, arc0_orig);
   if (number_infinite(arc0)) {
     number_substract_scaled (arc0, 1);
   }
   t_tot = 0;
-  arc  = mp_new_number (mp);
+  new_number (arc);
   number_clone(arc, arc0);
   p = h;
-  arg1 = mp_new_number (mp);
-  arg2 = mp_new_number (mp);
-  arg3 = mp_new_number (mp);
-  arg4 = mp_new_number (mp);
-  arg5 = mp_new_number (mp);
-  arg6 = mp_new_number (mp);
+  new_number (arg1);
+  new_number (arg2);
+  new_number (arg3);
+  new_number (arg4);
+  new_number (arg5);
+  new_number (arg6);
   while ((mp_right_type (p) != mp_endpoint) && number_positive(arc)) {
     q = mp_next_knot (p);
     set_number_from_substraction(arg1, p->right_x, p->x_coord);
@@ -8998,14 +9004,14 @@ static scaled mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
     p = q;
   }
   check_arith();
-  mp_free_number (mp, t);
-  mp_free_number (mp, arc);
-  mp_free_number (mp, arg1);
-  mp_free_number (mp, arg2);
-  mp_free_number (mp, arg3);
-  mp_free_number (mp, arg4);
-  mp_free_number (mp, arg5);
-  mp_free_number (mp, arg6);
+  free_number (t);
+  free_number (arc);
+  free_number (arg1);
+  free_number (arg2);
+  free_number (arg3);
+  free_number (arg4);
+  free_number (arg5);
+  free_number (arg6);
   return t_tot;
 }
 
@@ -9027,12 +9033,12 @@ if (number_negative(t)) {
   } else {
     mp_number neg_arc0;
     p = mp_htap_ypoc (mp, h);
-    neg_arc0 = mp_new_number(mp);
+    new_number(neg_arc0);
     number_clone(neg_arc0, arc0_orig);
     number_negate(neg_arc0);
     t_tot = -mp_get_arc_time (mp, p, neg_arc0);
     mp_toss_knot_list (mp, p);
-    mp_free_number (mp, neg_arc0);
+    free_number (neg_arc0);
   }
   check_arith();
   return t_tot;
@@ -9522,21 +9528,21 @@ static void mp_find_offset (MP mp, scaled x, scaled y, mp_knot h) {
     mp_fraction xx, yy;      /* untransformed offset for an elliptical pen */
     mp_number wx, wy, hx, hy; /* the transformation matrix for an elliptical pen */
     mp_fraction d;   /* a temporary register */
-    xx = mp_new_number(mp);
-    yy = mp_new_number(mp);
-    wx = mp_new_number(mp);
-    wy = mp_new_number(mp);
-    hx = mp_new_number(mp);
-    hy = mp_new_number(mp);
-    d  = mp_new_number(mp);
+    new_fraction(xx);
+    new_fraction(yy);
+    new_number(wx);
+    new_number(wy);
+    new_number(hx);
+    new_number(hy);
+    new_fraction(d);
     @<Find the offset for |(x,y)| on the elliptical pen~|h|@>
-    mp_free_number (mp, xx);
-    mp_free_number (mp, yy);
-    mp_free_number (mp, wx);
-    mp_free_number (mp, wy);
-    mp_free_number (mp, hx);
-    mp_free_number (mp, hy);
-    mp_free_number (mp, d);
+    free_number (xx);
+    free_number (yy);
+    free_number (wx);
+    free_number (wy);
+    free_number (hx);
+    free_number (hy);
+    free_number (d);
   } else {
     q = h;
     do {
@@ -9647,37 +9653,12 @@ static void mp_pen_bbox (MP mp, mp_knot h) {
 
 @* Numerical values.
 
-@<Types...@>=
-typedef union {
-  halfword val;
-} mp_number_store;
-typedef enum {
-  mp_scaled_type = 0,
-  mp_fraction_type,
-  mp_degree_type,
-  mp_double_type,
-  mp_binary_type,
-  mp_decimal_type,
-} mp_number_type;
-typedef struct mp_number_data {
-  mp_number_store data;
-  mp_number_type type;
-} mp_number_data;
-
-@ 
-@c
-mp_number mp_new_number (MP mp) {
-  mp_number n = xmalloc(1, sizeof (struct mp_number_data)) ;
-  set_number_to_zero(n);
-  return n;
-}
-
-@ 
-@c
-void mp_free_number (MP mp, mp_number n) {
-  (void)mp;
-  free(n);
-}
+@d mp_fraction mp_number
+@d mp_degree mp_number
+@d new_number(A) (A)=mp_new_number(mp, mp_scaled_type)
+@d new_fraction(A) (A)=mp_new_number(mp, mp_fraction_type)
+@d new_degree(A) (A)=mp_new_number(mp, mp_degree_type)
+@d free_number(A) mp_free_number(mp, (A))
 
 @ 
 @d set_number_from_of_the_way(A,t,B,C) mp_set_number_from_of_the_way(mp, A,t,B,C) 
@@ -9716,11 +9697,6 @@ void mp_free_number (MP mp, mp_number n) {
 @d number_nonequalabs(A,B)	       mp_number_nonequalabs(A,B)	       
 @d number_clone(A,B)		       mp_number_clone(A,B)		       
 @d number_swap(A,B)		       mp_number_swap(A,B)		       
-
-@
-@<Declarations@>=
-mp_number mp_new_number (MP mp);
-void mp_free_number (MP mp, mp_number n);
 
 @* Edge structures.
 Now we come to \MP's internal scheme for representing pictures.
@@ -9792,11 +9768,11 @@ static mp_node mp_new_fill_node (MP mp, mp_knot p) {
   mp_type (t) = mp_fill_node_type;
   mp_path_p (t) = p;
   mp_pen_p (t) = NULL;          /* |NULL| means don't use a pen */
-  t->red = mp_new_number(mp);
-  t->green = mp_new_number(mp);
-  t->blue = mp_new_number(mp);
-  t->black = mp_new_number(mp);
-  t->miterlim = mp_new_number(mp);
+  new_number(t->red);
+  new_number(t->green);
+  new_number(t->blue);
+  new_number(t->black);
+  new_number(t->miterlim);
   clear_color (t);
   mp_color_model (t) = mp_uninitialized_model;
   mp_pre_script (t) = NULL;
@@ -9864,13 +9840,13 @@ static mp_node mp_new_stroked_node (MP mp, mp_knot p) {
   mp_path_p (t) = p;
   mp_pen_p (t) = NULL;
   mp_dash_p (t) = NULL;
-  t->dash_scale = mp_new_number(mp);
+  new_number(t->dash_scale);
   set_number_to_unity(t->dash_scale);
-  t->red = mp_new_number(mp);
-  t->green = mp_new_number(mp);
-  t->blue = mp_new_number(mp);
-  t->black = mp_new_number(mp);
-  t->miterlim = mp_new_number(mp);
+  new_number(t->red);
+  new_number(t->green);
+  new_number(t->blue);
+  new_number(t->black);
+  new_number(t->miterlim);
   clear_color(t);
   mp_pre_script (t) = NULL;
   mp_post_script (t) = NULL;
@@ -9993,25 +9969,25 @@ static mp_node mp_new_text_node (MP mp, char *f, mp_string s) {
   mp_text_p (t) = s;
   add_str_ref(s); 
   mp_font_n (t) = (halfword) mp_find_font (mp, f);      /* this identifies the font */
-  t->red = mp_new_number(mp);
-  t->green = mp_new_number(mp);
-  t->blue = mp_new_number(mp);
-  t->black = mp_new_number(mp);
-  t->width = mp_new_number(mp);
-  t->height = mp_new_number(mp);
-  t->depth = mp_new_number(mp);
+  new_number(t->red);
+  new_number(t->green);
+  new_number(t->blue);
+  new_number(t->black);
+  new_number(t->width);
+  new_number(t->height);
+  new_number(t->depth);
   clear_color (t);
   mp_pre_script (t) = NULL;
   mp_post_script (t) = NULL;
-  t->width = mp_new_number(mp);
-  t->height = mp_new_number(mp);
-  t->depth = mp_new_number(mp);
-  t->tx = mp_new_number(mp);
-  t->ty = mp_new_number(mp);
-  t->txx = mp_new_number(mp);
-  t->txy = mp_new_number(mp);
-  t->tyx = mp_new_number(mp);
-  t->tyy = mp_new_number(mp);
+  new_number(t->width);
+  new_number(t->height);
+  new_number(t->depth);
+  new_number(t->tx);
+  new_number(t->ty);
+  new_number(t->txx);
+  new_number(t->txy);
+  new_number(t->tyx);
+  new_number(t->tyy);
   /* |tx_val (t) = 0; ty_val (t) = 0;| */
   /* |txy_val (t) = 0; tyx_val (t) = 0;| */
   set_number_to_unity(t->txx);
@@ -10159,9 +10135,9 @@ static mp_dash_node mp_get_dash_node (MP mp) {
   mp_dash_node p = (mp_dash_node) xmalloc (1, dash_node_size);
   add_var_used (dash_node_size);
   memset (p, 0, dash_node_size);
-  p->start_x = mp_new_number(mp);
-  p->stop_x = mp_new_number(mp);
-  p->dash_y = mp_new_number(mp);
+  new_number(p->start_x);
+  new_number(p->stop_x);
+  new_number(p->dash_y);
   mp_type (p) = mp_dash_node_type;
   return p;
 }
@@ -10240,13 +10216,13 @@ static mp_edge_header_node mp_get_edge_header_node (MP mp) {
   add_var_used (edge_header_size);
   memset (p, 0, edge_header_size);
   mp_type (p) = mp_edge_header_node_type;
-  p->start_x = mp_new_number(mp);
-  p->stop_x = mp_new_number(mp);
-  p->dash_y = mp_new_number(mp);
-  p->minx = mp_new_number(mp);
-  p->miny = mp_new_number(mp);
-  p->maxx = mp_new_number(mp);
-  p->maxy = mp_new_number(mp);
+  new_number(p->start_x);
+  new_number(p->stop_x);
+  new_number(p->dash_y);
+  new_number(p->minx);
+  new_number(p->miny);
+  new_number(p->maxx);
+  new_number(p->maxy);
   p->list_ = mp_get_token_node (mp);   /* or whatever, just a need a link handle */
   return p;
 }
@@ -11176,12 +11152,12 @@ static void mp_box_ends (MP mp, mp_knot p, mp_knot pp, mp_edge_header_node h) {
   mp_number z;     /* a coordinate being tested against the bounding box */
   mp_number xx, yy;        /* the extreme pen vertex in the |(dx,dy)| direction */
   integer i;    /* a loop counter */
-  dx = mp_new_number(mp);
-  dy = mp_new_number(mp);
-  xx = mp_new_number(mp);
-  yy = mp_new_number(mp);
-  z = mp_new_number(mp);
-  d = mp_new_number(mp);
+  new_fraction(dx);
+  new_fraction(dy);
+  new_number(xx);
+  new_number(yy);
+  new_number(z);
+  new_number(d);
   if (mp_right_type (p) != mp_endpoint) {
     q = mp_next_knot (p);
     while (1) {
@@ -11204,12 +11180,12 @@ static void mp_box_ends (MP mp, mp_knot p, mp_knot pp, mp_edge_header_node h) {
       }
     }
   }
-  mp_free_number (mp, dx);
-  mp_free_number (mp, dy);
-  mp_free_number (mp, xx);
-  mp_free_number (mp, yy);
-  mp_free_number (mp, z);
-  mp_free_number (mp, d);
+  free_number (dx);
+  free_number (dy);
+  free_number (xx);
+  free_number (yy);
+  free_number (z);
+  free_number (d);
 }
 
 
@@ -11520,34 +11496,34 @@ static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h) {
   int turn_amt;     /* change in pen offsets for the current cubic */
   mp_number max_coef;       /* used while scaling */
   @<Other local variables for |offset_prep|@>;
-  max_coef = mp_new_number(mp);
-  dxin = mp_new_number(mp);
-  dyin = mp_new_number(mp);
-  dx0 = mp_new_number(mp);
-  dy0 = mp_new_number(mp);
-  x0 = mp_new_number(mp);
-  y0 = mp_new_number(mp);
-  x1 = mp_new_number(mp);
-  y1 = mp_new_number(mp);
-  x2 = mp_new_number(mp);
-  y2 = mp_new_number(mp);
-  du = mp_new_number(mp);
-  dv = mp_new_number(mp);
-  dx = mp_new_number(mp);
-  dy = mp_new_number(mp);
-  x0a = mp_new_number(mp);
-  y0a = mp_new_number(mp);
-  x1a = mp_new_number(mp);
-  y1a = mp_new_number(mp);
-  x2a = mp_new_number(mp);
-  y2a = mp_new_number(mp);
-  t0 = mp_new_number(mp);
-  t1 = mp_new_number(mp);
-  t2 = mp_new_number(mp);
-  u0 = mp_new_number(mp);
-  u1 = mp_new_number(mp);
-  v0 = mp_new_number(mp);
-  v1 = mp_new_number(mp);
+  new_number(max_coef);
+  new_number(dxin);
+  new_number(dyin);
+  new_number(dx0);
+  new_number(dy0);
+  new_number(x0);
+  new_number(y0);
+  new_number(x1);
+  new_number(y1);
+  new_number(x2);
+  new_number(y2);
+  new_number(du);
+  new_number(dv);
+  new_number(dx);
+  new_number(dy);
+  new_number(x0a);
+  new_number(y0a);
+  new_number(x1a);
+  new_number(y1a);
+  new_number(x2a);
+  new_number(y2a);
+  new_number(t0);
+  new_number(t1);
+  new_number(t2);
+  new_number(u0);
+  new_number(u1);
+  new_number(v0);
+  new_number(v1);
   @<Initialize the pen size~|n|@>;
   @<Initialize the incoming direction and pen offset at |c|@>;
   p = c;
@@ -11564,34 +11540,34 @@ static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h) {
   } while (q != c);
   @<Fix the offset change in |mp_knot_info(c)| and set |c| to the return value of
     |offset_prep|@>;
-  mp_free_number(mp, dxin);
-  mp_free_number(mp, dyin);
-  mp_free_number(mp, dx0);
-  mp_free_number(mp, dy0);
-  mp_free_number(mp, x0);
-  mp_free_number(mp, y0);
-  mp_free_number(mp, x1);
-  mp_free_number(mp, y1);
-  mp_free_number(mp, x2);
-  mp_free_number(mp, y2);
-  mp_free_number(mp, max_coef);
-  mp_free_number(mp, du);
-  mp_free_number(mp, dv);
-  mp_free_number(mp, dx);
-  mp_free_number(mp, dy);
-  mp_free_number(mp, x0a);
-  mp_free_number(mp, y0a);
-  mp_free_number(mp, x1a);
-  mp_free_number(mp, y1a);
-  mp_free_number(mp, x2a);
-  mp_free_number(mp, y2a);
-  mp_free_number(mp, t0);
-  mp_free_number(mp, t1);
-  mp_free_number(mp, t2);
-  mp_free_number(mp, u0);
-  mp_free_number(mp, u1);
-  mp_free_number(mp, v0);
-  mp_free_number(mp, v1);
+  free_number (dxin);
+  free_number (dyin);
+  free_number (dx0);
+  free_number (dy0);
+  free_number (x0);
+  free_number (y0);
+  free_number (x1);
+  free_number (y1);
+  free_number (x2);
+  free_number (y2);
+  free_number (max_coef);
+  free_number (du);
+  free_number (dv);
+  free_number (dx);
+  free_number (dy);
+  free_number (x0a);
+  free_number (y0a);
+  free_number (x1a);
+  free_number (y1a);
+  free_number (x2a);
+  free_number (y2a);
+  free_number (t0);
+  free_number (t1);
+  free_number (t2);
+  free_number (u0);
+  free_number (u1);
+  free_number (v0);
+  free_number (v1);
   return c;
 }
 
@@ -11704,7 +11680,7 @@ void mp_split_cubic (MP mp, mp_knot p, fraction t) {                            
   mp_originator (r) = mp_program_code;
   mp_left_type (r) = mp_explicit;
   mp_right_type (r) = mp_explicit;
-  v = mp_new_number(mp);
+  new_number(v);
   set_number_from_of_the_way (v,          t, p->right_x, q->left_x);
   set_number_from_of_the_way (p->right_x, t, p->x_coord, p->right_x);
   set_number_from_of_the_way (q->left_x,  t, q->left_x, q->x_coord);
@@ -11717,7 +11693,7 @@ void mp_split_cubic (MP mp, mp_knot p, fraction t) {                            
   set_number_from_of_the_way (r->left_y,  t, p->right_y, v);
   set_number_from_of_the_way (r->right_y, t, v, q->left_y);
   set_number_from_of_the_way (r->y_coord, t, r->left_y, r->right_y);
-  mp_free_number(mp, v);
+  free_number (v);
 }
 
 
@@ -11815,7 +11791,8 @@ set_number_from_substraction(y0, p->right_y, p->y_coord);
 set_number_from_substraction(y2, q->y_coord, q->left_y);
 set_number_from_substraction(y1, q->left_y, p->right_y);
 {
-  mp_number absval = mp_new_number (mp);
+  mp_number absval; 
+  new_number (absval);
   number_clone(absval, x1);
   number_abs(absval);
   number_clone(max_coef, x0);
@@ -11846,7 +11823,7 @@ set_number_from_substraction(y1, q->left_y, p->right_y);
   if (number_zero(max_coef)) {
     goto NOT_FOUND;
   }
-  mp_free_number (mp, absval);
+  free_number (absval);
 }
 while (number_to_scaled(max_coef) < fraction_half) {
   number_double (max_coef);
@@ -11901,12 +11878,12 @@ void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, mp_number
   mp_number v;    /* intermediate value for updating |x0..y2| */
   mp_knot q;    /* original |mp_next_knot(p)| */
   q = mp_next_knot (p);
-  du = mp_new_number(mp);
-  dv = mp_new_number(mp);
-  v = mp_new_number(mp);
-  t0 = mp_new_number(mp);
-  t1 = mp_new_number(mp);
-  t2 = mp_new_number(mp);
+  new_number(du);
+  new_number(dv);
+  new_number(v);
+  new_number(t0);
+  new_number(t1);
+  new_number(t2);
   while (1) {
     if (rise > 0)
       ww = mp_next_knot (w);    /* a pointer to $w\k$ */
@@ -11925,12 +11902,12 @@ void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, mp_number
       and split off another cubic if the derivative crosses back@>;
     w = ww;
   }
-  mp_free_number(mp, du);
-  mp_free_number(mp, dv);
-  mp_free_number(mp, v);
-  mp_free_number(mp, t0);
-  mp_free_number(mp, t1);
-  mp_free_number(mp, t2);
+  free_number (du);
+  free_number (dv);
+  free_number (v);
+  free_number (t0);
+  free_number (t1);
+  free_number (t2);
 }
 
 
@@ -11942,8 +11919,8 @@ begins to fail.
 @<Compute test coefficients |(t0,t1,t2)| for $d(t)$ versus...@>=
 {
   mp_number abs_du, abs_dv;
-  abs_du = mp_new_number (mp);
-  abs_dv = mp_new_number (mp);
+  new_number (abs_du);
+  new_number (abs_dv);
   set_number_from_substraction(du, ww->x_coord, w->x_coord);
   set_number_from_substraction(dv, ww->y_coord, w->y_coord);
   number_clone(abs_du, du);
@@ -11971,8 +11948,8 @@ begins to fail.
       number_negate (t2);
     }
   }
-  mp_free_number(mp, abs_du);
-  mp_free_number(mp, abs_dv);
+  free_number (abs_du);
+  free_number (abs_dv);
   if (number_negative(t0))
     set_number_to_zero(t0); /* should be positive without rounding error */
 }
@@ -11995,9 +11972,10 @@ respectively, yielding another solution of $(*)$.
   set_number_from_of_the_way(y1, t, y1, y2);
   set_number_from_of_the_way(y0, t, v, y1);
   if (turn_amt < 0) {
-    mp_number arg1 = mp_new_number (mp);
-    mp_number arg2 = mp_new_number (mp);
-    mp_number arg3 = mp_new_number (mp);
+    mp_number arg1, arg2, arg3;
+    new_number (arg1);
+    new_number (arg2);
+    new_number (arg3);
     set_number_from_of_the_way(t1, t, t1, t2);
     if (number_positive(t1))
       set_number_to_zero(t1);  /* without rounding error, |t1| would be |<=0| */
@@ -12006,9 +11984,9 @@ respectively, yielding another solution of $(*)$.
     number_clone(arg3, t2);
     number_negate(arg3);
     t = mp_crossing_point (mp, arg1, arg2, arg3);
-    mp_free_number(mp, arg1);
-    mp_free_number(mp, arg2);
-    mp_free_number(mp, arg3);
+    free_number (arg1);
+    free_number (arg2);
+    free_number (arg3);
     if (t > fraction_one)
       t = fraction_one;
     incr (turn_amt);
@@ -12178,9 +12156,9 @@ if (t > fraction_one) {
   number_clone(y0, y2a);
   mp_knot_info (r) = zero_off - 1;
   if (turn_amt >= 0) {
-    mp_number arg1 = mp_new_number(mp);
-    mp_number arg2 = mp_new_number(mp);
-    mp_number arg3 = mp_new_number(mp);
+    mp_number new_number(arg1);
+    mp_number new_number(arg2);
+    mp_number new_number(arg3);
     set_number_from_of_the_way(t1, t, t1, t2);
     if (number_positive(t1))
       set_number_to_zero(t1);
@@ -12189,9 +12167,9 @@ if (t > fraction_one) {
     number_clone(arg3, t2);
     number_negate(arg3);
     t = mp_crossing_point (mp, arg1, arg2, arg3);
-    mp_free_number(mp, arg1);
-    mp_free_number(mp, arg2);
-    mp_free_number(mp, arg3);
+    free_number (arg1);
+    free_number (arg2);
+    free_number (arg3);
     if (t > fraction_one)
       t = fraction_one;
     @<Split off another rising cubic for |fin_offset_prep|@>;
@@ -12231,7 +12209,7 @@ if (turn_amt >= 0) {
     t = fraction_one + 1;
   } else {
     mp_number tmp;
-    tmp = mp_new_number(mp);
+    new_number(tmp);
     set_number_from_of_the_way(u0, t, x0, x1);
     set_number_from_of_the_way(u1, t, x1, x2);
     set_number_from_of_the_way(tmp, t, u0, u1);
@@ -12240,7 +12218,7 @@ if (turn_amt >= 0) {
     set_number_from_of_the_way(v1, t, y1, y2);
     set_number_from_of_the_way(tmp, t, v0, v1);
     ss = ss + mp_take_fraction (mp, -number_to_scaled(dv), number_to_scaled(tmp));
-    mp_free_number(mp, tmp);
+    free_number (tmp);
     if (ss < 0)
       t = fraction_one + 1;
   }
@@ -12308,35 +12286,35 @@ set_number_from_scaled(t1, half (mp_take_fraction (mp, number_to_scaled(x1), (nu
 if (number_zero(t0))
   set_number_from_scaled(t0, d_sign);                  /* path reversal always negates |d_sign| */
 if (number_positive(t0)) {
-  mp_number arg3 = mp_new_number(mp);
+  mp_number new_number(arg3);
   number_clone(arg3, t0);
   number_negate(arg3);
   t = mp_crossing_point (mp, t0, t1, arg3);
-  mp_free_number(mp, arg3);
+  free_number (arg3);
   set_number_from_of_the_way(u0, t, x0, x1);
   set_number_from_of_the_way(u1, t, x1, x2);
   set_number_from_of_the_way(v0, t, y0, y1);
   set_number_from_of_the_way(v1, t, y1, y2);
 } else {
-  mp_number arg1 = mp_new_number(mp);
+  mp_number new_number(arg1);
   number_clone(arg1, t0);
   number_negate(arg1);
   t = mp_crossing_point (mp, arg1, t1, t0);
-  mp_free_number(mp, arg1);
+  free_number (arg1);
   set_number_from_of_the_way(u0, t, x2, x1);
   set_number_from_of_the_way(u1, t, x1, x0);
   set_number_from_of_the_way(v0, t, y2, y1);
   set_number_from_of_the_way(v1, t, y1, y0);
 }
 { 
-  mp_number tmp1 = mp_new_number(mp);
-  mp_number tmp2 = mp_new_number(mp);
+  mp_number new_number(tmp1);
+  mp_number new_number(tmp2);
   set_number_from_of_the_way(tmp1, t, u0, u1);
   set_number_from_of_the_way(tmp2, t, v0, v1);
   ss = mp_take_fraction (mp, (number_to_scaled(x0) + number_to_scaled(x2)), number_to_scaled(tmp1)) +
        mp_take_fraction (mp, (number_to_scaled(y0) + number_to_scaled(y2)), number_to_scaled(tmp2));
-  mp_free_number(mp, tmp1);
-  mp_free_number(mp, tmp2);
+  free_number (tmp1);
+  free_number (tmp2);
 }
  
 
@@ -12423,14 +12401,14 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
   int join_type = 0;    /* codes |0..3| for mitered, round, beveled, or square */
   scaled miterlim = number_to_scaled(miter);
   @<Other local variables for |make_envelope|@>;
-  dxin = mp_new_number(mp);
-  dyin = mp_new_number(mp);
-  dxout = mp_new_number(mp);
-  dyout = mp_new_number(mp);
+  new_fraction(dxin);
+  new_fraction(dyin);
+  new_fraction(dxout);
+  new_fraction(dyout);
   mp->spec_p1 = NULL;
   mp->spec_p2 = NULL;
-  qx = mp_new_number(mp);
-  qy = mp_new_number(mp);
+  new_number(qx);
+  new_number(qy);
   @<If endpoint, double the path |c|, and set |spec_p1| and |spec_p2|@>;
   @<Use |offset_prep| to compute the envelope spec then walk |h| around to
     the initial offset@>;
@@ -12452,8 +12430,8 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
       @<Step |w| and move |k| one step closer to |zero_off|@>;
       if ((join_type == 1) || (k == zero_off)) {
         mp_number xtot, ytot; 
-        xtot = mp_new_number(mp);
-        ytot = mp_new_number(mp);
+        new_number(xtot);
+        new_number(ytot);
         set_number_from_addition (xtot, qx, w->x_coord);
         set_number_from_addition (ytot, qy, w->y_coord);
         q = mp_insert_knot (mp, q, xtot, ytot);
@@ -12465,12 +12443,12 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
     }
     p = q;
   } while (q0 != c);
-  mp_free_number(mp, qx);
-  mp_free_number(mp, qy);
-  mp_free_number(mp, dxin);
-  mp_free_number(mp, dyin);
-  mp_free_number(mp, dxout);
-  mp_free_number(mp, dyout);
+  free_number (qx);
+  free_number (qy);
+  free_number (dxin);
+  free_number (dyin);
+  free_number (dxout);
+  free_number (dyout);
   return c;
 }
 
@@ -12606,10 +12584,10 @@ problems, so we just set |r:=NULL| in that case.
     r = NULL;                   /* sine $<10^{-4}$ */
   } else {
     mp_number xtot, ytot, xsub, ysub;
-    xtot = mp_new_number(mp);
-    ytot = mp_new_number(mp);
-    xsub = mp_new_number(mp);
-    ysub = mp_new_number(mp);
+    new_number(xtot);
+    new_number(ytot);
+    new_number(xsub);
+    new_number(ysub);
 
     tmp = mp_take_fraction (mp, number_to_scaled (q->x_coord) - number_to_scaled (p->x_coord), number_to_scaled(dyout)) -
       mp_take_fraction (mp, number_to_scaled (q->y_coord) - number_to_scaled (p->y_coord), number_to_scaled(dxout));
@@ -12620,10 +12598,10 @@ problems, so we just set |r:=NULL| in that case.
     set_number_from_addition(xtot, p->x_coord, xsub);
     set_number_from_addition(ytot, p->y_coord, ysub);
     r = mp_insert_knot (mp, p, xtot, ytot);
-    mp_free_number(mp, xtot);
-    mp_free_number(mp, ytot);
-    mp_free_number(mp, xsub);
-    mp_free_number(mp, ysub);
+    free_number (xtot);
+    free_number (ytot);
+    free_number (xsub);
+    free_number (ysub);
   }
 }
 
@@ -12634,10 +12612,10 @@ fraction det;   /* a determinant used for mitered join calculations */
 @ @<Make |r| the last of two knots inserted between |p| and |q| to form a...@>=
 {
   mp_number xtot, ytot, xsub, ysub;
-  xtot = mp_new_number(mp);
-  ytot = mp_new_number(mp);
-  xsub = mp_new_number(mp);
-  ysub = mp_new_number(mp);
+  new_number(xtot);
+  new_number(ytot);
+  new_number(xsub);
+  new_number(ysub);
   ht_x = number_to_scaled (w->y_coord) - number_to_scaled (w0->y_coord);
   ht_y = number_to_scaled (w0->x_coord) - number_to_scaled (w->x_coord);
   while ((abs (ht_x) < fraction_half) && (abs (ht_y) < fraction_half)) {
@@ -12662,10 +12640,10 @@ fraction det;   /* a determinant used for mitered join calculations */
   set_number_from_addition(xtot, q->x_coord, xsub);
   set_number_from_addition(ytot, q->y_coord, ysub);
   r = mp_insert_knot (mp, p, xtot, ytot);
-  mp_free_number(mp, xsub);
-  mp_free_number(mp, ysub);
-  mp_free_number(mp, xtot);
-  mp_free_number(mp, ytot);
+  free_number (xsub);
+  free_number (ysub);
+  free_number (xtot);
+  free_number (ytot);
 }
 
 
@@ -12815,13 +12793,13 @@ static scaled mp_find_direction_time (MP mp, scaled x, scaled y, mp_knot h) {
   scaled n;     /* the direction time at knot |p| */
   scaled tt;    /* the direction time within a cubic */
   @<Other local variables for |find_direction_time|@>;
-  max = mp_new_number (mp);
-  x1 = mp_new_number(mp);
-  x2 = mp_new_number(mp);
-  x3 = mp_new_number(mp);
-  y1 = mp_new_number(mp);
-  y2 = mp_new_number(mp);
-  y3 = mp_new_number(mp);
+  new_number(max);
+  new_number(x1);
+  new_number(x2);
+  new_number(x3);
+  new_number(y1);
+  new_number(y2);
+  new_number(y3);
   @<Normalize the given direction for better accuracy;
     but |return| with zero result if it's zero@>;
   n = 0;
@@ -12838,11 +12816,11 @@ static scaled mp_find_direction_time (MP mp, scaled x, scaled y, mp_knot h) {
     n = n + unity;
   }
   @<Free local variables for |find_direction_time|@>;
-  mp_free_number(mp, max);
+  free_number (max);
   return (-unity);
 FOUND:
   @<Free local variables for |find_direction_time|@>;
-  mp_free_number(mp, max);
+  free_number (max);
   return (n + tt);
 }
 
@@ -12900,16 +12878,17 @@ angle theta, phi;       /* angles of exit and entry at a knot */
 fraction t;     /* temp storage */
 
 @ @<Free local variables for |find_direction_time|@>=
-mp_free_number(mp, x1);
-mp_free_number(mp, x2);
-mp_free_number(mp, x3);
-mp_free_number(mp, y1);
-mp_free_number(mp, y2);
-mp_free_number(mp, y3);
+free_number (x1);
+free_number (x2);
+free_number (x3);
+free_number (y1);
+free_number (y2);
+free_number (y3);
 
 @ @<Set local variables |x1,x2,x3| and |y1,y2,y3| to multiples...@>=
 {
-  mp_number absval = mp_new_number (mp);
+  mp_number absval; 
+  new_number (absval);
   set_number_from_substraction(x1, p->right_x, p->x_coord);
   set_number_from_substraction(x2, q->left_x,  p->right_x);
   set_number_from_substraction(x3, q->x_coord, q->left_x);
@@ -12943,7 +12922,7 @@ mp_free_number(mp, y3);
   if (number_greater(absval, max)) {
     number_clone(max, absval);
   }
-  mp_free_number (mp, absval);
+  free_number (absval);
   if (number_zero(max))
     goto FOUND;
   while (number_to_scaled(max) < fraction_half) {
@@ -13033,47 +13012,48 @@ if (number_positive(y2))
   set_number_to_zero(y2);
 tt = t;
 {
-  mp_number arg1 = mp_new_number (mp);
-  mp_number arg2 = mp_new_number (mp);
-  mp_number arg3 = mp_new_number (mp);
+  mp_number arg1, arg2, arg3;
+  new_number (arg1);
+  new_number (arg2);
+  new_number (arg3);
   number_clone(arg2, y2);
   number_negate(arg2);
   number_clone(arg3, y3);
   number_negate(arg3);
   t = mp_crossing_point (mp, arg1, arg2, arg3);
-  mp_free_number(mp, arg1);
-  mp_free_number(mp, arg2);
-  mp_free_number(mp, arg3);
+  free_number (arg1);
+  free_number (arg2);
+  free_number (arg3);
 }
 if (t > fraction_one)
   goto DONE;
 {
-  mp_number tmp = mp_new_number(mp);
+  mp_number new_number(tmp);
   set_number_from_of_the_way(x1, t, x1, x2);
   set_number_from_of_the_way(x2, t, x2, x3);
   set_number_from_of_the_way(tmp, t, x1, x2);
   if (number_positive(tmp) || number_zero(tmp)) {
-    mp_free_number(mp, tmp);
+    free_number (tmp);
     t = t_of_the_way (tt, fraction_one);
     we_found_it;
   }
-  mp_free_number(mp, tmp);
+  free_number (tmp);
 }
 
 @ @<Handle the test for eastward directions when $y_1y_3=y_2^2$;
     either |goto found| or |goto done|@>=
 {
   if (mp_ab_vs_cd (mp, number_to_scaled(y1), number_to_scaled(y2), 0, 0) < 0) {
-    mp_number tmp = mp_new_number(mp);
+    mp_number new_number(tmp);
     t = mp_make_fraction (mp, number_to_scaled(y1), number_to_scaled(y1) - number_to_scaled(y2));
     set_number_from_of_the_way(x1, t, x1, x2);
     set_number_from_of_the_way(x2, t, x2, x3);
     set_number_from_of_the_way(tmp, t, x1, x2);
     if (number_zero(tmp) || number_positive(tmp)) {
-      mp_free_number(mp, tmp);
+      free_number (tmp);
       we_found_it;
     }
-    mp_free_number(mp, tmp);
+    free_number (tmp);
   } else if (number_zero(y3)) {
     if (number_zero(y1)) {
       @<Exit to |found| if the derivative $B(x_1,x_2,x_3;t)$ becomes |>=0|@>;
@@ -13092,9 +13072,10 @@ traveling east.
 
 @<Exit to |found| if the derivative $B(x_1,x_2,x_3;t)$ becomes |>=0|...@>=
 {
-  mp_number arg1 = mp_new_number (mp);
-  mp_number arg2 = mp_new_number (mp);
-  mp_number arg3 = mp_new_number (mp);
+  mp_number arg1, arg2, arg3;
+  new_number (arg1);
+  new_number (arg2);
+  new_number (arg3);
   number_clone(arg1, x1);
   number_negate(arg1);
   number_clone(arg2, x2);
@@ -13102,9 +13083,9 @@ traveling east.
   number_clone(arg3, x3);
   number_negate(arg3);
   t = mp_crossing_point (mp, arg1, arg2, arg3);
-  mp_free_number(mp, arg1);
-  mp_free_number(mp, arg2);
-  mp_free_number(mp, arg3);
+  free_number (arg1);
+  free_number (arg2);
+  free_number (arg3);
   if (t <= fraction_one)
     we_found_it;
   if (mp_ab_vs_cd (mp, number_to_scaled(x1), number_to_scaled(x3), number_to_scaled(x2), number_to_scaled(x2)) <= 0) {
@@ -17308,7 +17289,7 @@ is less than |loop_text|.
            "scantokens should be followed by a known string.",
            NULL };
     memset(&new_expr,0,sizeof(mp_value));
-    new_expr.data.n = mp_new_number(mp);
+    new_number(new_expr.data.n);
     mp_disp_err (mp, NULL);
     mp_back_error (mp, "Not a string", hlp, true);
 @.Not a string@>;
@@ -17326,7 +17307,7 @@ is less than |loop_text|.
 {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   mp_begin_file_reading (mp);
   name = is_scantok;
   k = mp->first + (size_t) cur_exp_str ()->len;
@@ -18218,7 +18199,7 @@ static void mp_bad_for (MP mp, const char *s) {
          "I'm zeroing this one. Proceed, with fingers crossed.",
          NULL };
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   mp_disp_err (mp, NULL); 
   /* show the bad expression above the message */
   mp_snprintf(msg, 256, "Improper %s has been replaced by 0", s);  
@@ -18559,7 +18540,7 @@ if (mp->cur_exp.type != mp_picture_type) {
   mp_value new_expr;
   const char *hlp[] = { "When you say `for x in p', p must be a known picture.", NULL };
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   new_expr.data.node = (mp_node)mp_get_edge_header_node (mp);
   mp_disp_err (mp, NULL);
   mp_back_error (mp,"Improper iteration spec has been replaced by nullpicture", hlp, true);
@@ -19535,7 +19516,7 @@ mp_value cur_exp;       /* the value of the expression just found */
 
 @ @<Set init...@>=
 memset (&mp->cur_exp.data, 0, sizeof (mp_value));
-mp->cur_exp.data.n = mp_new_number(mp);
+new_number(mp->cur_exp.data.n);
 
 @ Many different kinds of expressions are possible, so it is wise to have
 precise descriptions of what |cur_type| and |cur_exp| mean in all cases:
@@ -20474,7 +20455,7 @@ void mp_scan_primary (MP mp) {
   mp_value new_expr;
   @<Other local variables for |scan_primary|@>;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   my_var_flag = mp->var_flag;
   mp->var_flag = 0;
 RESTART:
@@ -21070,7 +21051,7 @@ static void mp_bad_subscript (MP mp) {
          "above this error message. So I'll try a zero subscript.",
          NULL };
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   mp_disp_err(mp, NULL);
   mp_error (mp, "Improper subscript has been replaced by zero", hlp, true);
 @.Improper subscript...@>;
@@ -21618,7 +21599,7 @@ static void mp_scan_expression (MP mp) {
   y = 0;
   x = 0;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   my_var_flag = mp->var_flag;
   mac_name = NULL;
   mp->expand_depth_count++;
@@ -21748,7 +21729,7 @@ void mp_known_pair (MP mp) {
   mp_value new_expr;
   mp_node p;    /* the pair node */
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   if (mp->cur_exp.type != mp_pair_type) {
     const char *hlp[] = { 
            "I need x and y numbers for this part of the path.",
@@ -21873,7 +21854,7 @@ static quarterword mp_scan_direction (MP mp) {
     mp_value new_expr;
     const char *hlp[] = { "A curl must be a known, nonnegative number.", NULL };
     memset(&new_expr,0,sizeof(mp_value));
-    new_expr.data.n = mp_new_number(mp);
+    new_number(new_expr.data.n);
     set_number_to_unity(new_expr.data.n);
     mp_disp_err(mp, NULL);
     mp_back_error (mp, "Improper curl has been replaced by 1", hlp, true);
@@ -21915,7 +21896,7 @@ static quarterword mp_scan_direction (MP mp) {
            NULL };
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
     memset(&new_expr,0,sizeof(mp_value));
-    new_expr.data.n = mp_new_number(mp);
+    new_number(new_expr.data.n);
     new_expr.data.n->data.val = 0;
     mp_disp_err(mp, NULL);
     mp_back_error (mp, "Undefined x coordinate has been replaced by 0", hlp, true);
@@ -21944,7 +21925,7 @@ static quarterword mp_scan_direction (MP mp) {
            "you might want to type `I ??" "?' now.)",
            NULL };
     memset(&new_expr,0,sizeof(mp_value));
-    new_expr.data.n = mp_new_number(mp);
+    new_number(new_expr.data.n);
     new_expr.data.n->data.val = 0;
     mp_disp_err(mp, NULL);
     mp_back_error (mp, "Undefined y coordinate has been replaced by 0", hlp, true);
@@ -22212,7 +22193,7 @@ supposed to be either |true_code| or |false_code|.
 static void mp_get_boolean (MP mp) {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_boolean_type) {
@@ -22549,7 +22530,7 @@ static void mp_do_unary (MP mp, quarterword c) {
   mp_value new_expr;
   check_arith();
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   if (internal_value_to_halfword (mp_tracing_commands) > two)
     @<Trace the current unary operation@>;
   switch (c) {
@@ -22971,7 +22952,7 @@ static void mp_bad_color_part (MP mp, quarterword c) {
      "or the greypart of a grey object. No mixing and matching, please.",
      NULL };
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   p = mp_link (edge_list (cur_exp_node ()));
   mp_disp_err(mp, NULL);
   old_setting = mp->selector;
@@ -23090,7 +23071,7 @@ static void mp_take_pict_part (MP mp, quarterword c) {
   mp_node p;    /* first graphical object in |cur_exp| */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   p = mp_link (edge_list (cur_exp_node ()));
   if (p != NULL) {
     switch (c) {
@@ -23386,7 +23367,7 @@ static void mp_str_to_num (MP mp, quarterword c) {                              
   boolean bad_char;     /* did the string contain an invalid digit? */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   if (c == mp_ASCII_op) {
     if (cur_exp_str ()->len == 0)
       n = -1;
@@ -23908,7 +23889,7 @@ static void mp_test_known (MP mp, quarterword c) {
   mp_node p;    /* location in a big node */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   b = mp_false_code;
   switch (mp->cur_exp.type) {
   case mp_vacuous:
@@ -24068,7 +24049,7 @@ static void mp_pair_value (MP mp, scaled x, scaled y) {
   mp_node p;    /* a pair node */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   p = mp_get_value_node (mp);
   new_expr.type = mp_type (p);
   new_expr.data.node = p;
@@ -24164,7 +24145,7 @@ static void mp_do_read_or_close (MP mp, quarterword c) {
   mp_value new_expr;
   readf_index n, n0;    /* indices for searching |rd_fname| */
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   @<Find the |n| where |rd_fname[n]=cur_exp|; if |cur_exp| must be inserted,
     call |start_read_input| and |goto found| or |not_found|@>;
   mp_begin_file_reading (mp);
@@ -24284,7 +24265,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
   integer v;    /* for numeric manipulation */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   check_arith();
   if (internal_value_to_halfword (mp_tracing_commands) > two) {
     @<Trace the current binary operation@>;
@@ -24673,7 +24654,7 @@ static void mp_dep_finish (MP mp, mp_value_node v, mp_value_node q,
   scaled vv;    /* the value, if it is |known| */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   if (q == NULL)
     p = (mp_value_node) cur_exp_node ();
   else
@@ -25293,7 +25274,7 @@ static void mp_set_up_trans (MP mp, quarterword c) {
   mp_node p, q, r;      /* list manipulation registers */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   if ((c != mp_transformed_by) || (mp->cur_exp.type != mp_transform_type)) {
     @<Put the current transform into |cur_exp|@>;
   }
@@ -25311,12 +25292,12 @@ mp_number tx;
 mp_number ty;      /* current transform coefficients */
 
 @ @<Initialize table...@>=
-mp->txx = mp_new_number(mp);
-mp->txy = mp_new_number(mp);
-mp->tyx = mp_new_number(mp);
-mp->tyy = mp_new_number(mp);
-mp->tx = mp_new_number(mp);
-mp->ty = mp_new_number(mp);
+new_number(mp->txx);
+new_number(mp->txy);
+new_number(mp->tyx);
+new_number(mp->tyy);
+new_number(mp->tx);
+new_number(mp->ty);
 
 @ @<Put the current transform...@>=
 {
@@ -25450,7 +25431,7 @@ insists that the transformation be entirely known.
 static void mp_set_up_known_trans (MP mp, quarterword c) {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   mp_set_up_trans (mp, c);
   if (mp->cur_exp.type != mp_known) {
     const char *hlp[] = { 
@@ -25552,8 +25533,8 @@ static mp_edge_header_node mp_edges_trans (MP mp, mp_edge_header_node h) {
   scaled sqdet; /* square root of determinant for |dash_scale| */
   integer sgndet;       /* sign of the determinant */
   h = mp_private_edges (mp, h);
-  sx = mp_new_number(mp);
-  sy = mp_new_number(mp);
+  new_number(sx);
+  new_number(sy);
   sqdet = mp_sqrt_det (mp, number_to_scaled(mp->txx), number_to_scaled(mp->txy), 
 	number_to_scaled(mp->tyx), number_to_scaled(mp->tyy));
   sgndet = mp_ab_vs_cd (mp, number_to_scaled(mp->txx), number_to_scaled(mp->tyy), 
@@ -25568,8 +25549,8 @@ static mp_edge_header_node mp_edges_trans (MP mp, mp_edge_header_node h) {
     @<Transform graphical object |q|@>;
     q = mp_link (q);
   }
-  mp_free_number(mp, sx);
-  mp_free_number(mp, sy);
+  free_number (sx);
+  free_number (sy);
   return h;
 }
 static void mp_do_edges_trans (MP mp, mp_node p, quarterword c) {
@@ -25593,7 +25574,8 @@ if (number_nonzero(mp->txy) || number_nonzero(mp->tyx) ||
     number_nonzero(mp->ty) || number_nonequalabs (mp->txx, mp->tyy)) {
   mp_flush_dash_list (mp, h);
 } else {
-  mp_number abs_tyy = mp_new_number (mp);
+  mp_number abs_tyy;
+  new_number (abs_tyy);
   if (number_negative(mp->txx)) {
     @<Reverse the dash list of |h|@>;
   }
@@ -25601,7 +25583,7 @@ if (number_nonzero(mp->txy) || number_nonzero(mp->tyx) ||
   number_clone(abs_tyy, mp->tyy);
   number_abs (abs_tyy);
   set_number_from_scaled(h->dash_y, mp_take_scaled (mp, number_to_scaled(h->dash_y), number_to_scaled(abs_tyy)));
-  mp_free_number(mp, abs_tyy);
+  free_number (abs_tyy);
 }
 
 
@@ -25656,7 +25638,7 @@ sum is similar.
 
 @<Scale the bounding box by |txx+txy| and |tyx+tyy|; then shift...@>=
 {
-  mp_number tot = mp_new_number(mp);
+  mp_number new_number(tot);
   set_number_from_addition(tot,mp->txx,mp->txy);
   number_add(tot,mp->tx);
   set_number_from_scaled(h->minx, mp_take_scaled (mp, number_to_scaled(h->minx), number_to_scaled(tot)));
@@ -25675,7 +25657,7 @@ sum is similar.
   if (number_negative(tot) < 0) {
     number_swap(h->miny, h->maxy);
   }
-  mp_free_number(mp, tot);
+  free_number (tot);
 }
 
 
@@ -26153,7 +26135,7 @@ static void mp_set_up_offset (MP mp, mp_node p) {
 static void mp_set_up_direction_time (MP mp, mp_node p) {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   new_expr.data.n->data.val = mp_find_direction_time (mp, value (x_part (p)),
                                               value (y_part (p)),
                                               cur_exp_knot ());
@@ -26161,7 +26143,7 @@ static void mp_set_up_direction_time (MP mp, mp_node p) {
 }
 static void mp_set_up_envelope (MP mp, mp_node p) {
   unsigned char ljoin, lcap;
-  mp_number miterlim = mp_new_number(mp);
+  mp_number new_number(miterlim);
   mp_knot q = mp_copy_path (mp, cur_exp_knot ());       /* the original path */
   /* TODO: accept elliptical pens for straight paths */
   if (pen_is_elliptical (value_knot (p))) {
@@ -26341,7 +26323,7 @@ static void mp_do_infont (MP mp, mp_node p) {
   mp_edge_header_node q;
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   q = mp_get_edge_header_node (mp);
   mp_init_edges (mp, q);
   add_str_ref (cur_exp_str());
@@ -26383,7 +26365,7 @@ as a type declaration rather than a boolean expression.
 void mp_do_statement (MP mp) {                               /* governs \MP's activities */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   mp->cur_exp.type = mp_vacuous;
   mp_get_x_next (mp);
   if (cur_cmd() > mp_max_primary_command) {
@@ -26702,7 +26684,7 @@ void mp_make_eq (MP mp, mp_node lhs) {
   mp_node p;    /* pointer inside of big nodes */
   integer v = 0;        /* value of the left-hand side */
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
 RESTART:
   t = mp_type (lhs);
   if (t <= mp_pair_type)
@@ -27168,7 +27150,7 @@ Each execution of |do_statement| concludes with
 static void mp_main_control (MP mp) {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   do {
     mp_do_statement (mp);
     if (cur_cmd() == mp_end_group) {
@@ -27752,7 +27734,7 @@ static void mp_do_random_seed (MP mp);
 void mp_do_random_seed (MP mp) {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   mp_get_x_next (mp);
   if (cur_cmd() != mp_assignment) {
     const char *hlp[] = { "Always say `randomseed:=<numeric expression>'.", NULL };
@@ -28053,7 +28035,7 @@ void mp_grow_internals (MP mp, int l) {
       memcpy (internal + k, mp->internal + k, sizeof (mp_internal));
     } else {
       memset (internal + k, 0, sizeof (mp_internal));
-      mp->internal[k].v.data.n = mp_new_number(mp);
+      new_number(mp->internal[k].v.data.n);
     }
   }
   xfree (mp->internal);
@@ -28159,7 +28141,7 @@ static void mp_do_show (MP mp);
 void mp_do_show (MP mp) {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   do {
     mp_get_x_next (mp);
     mp_scan_expression (mp);
@@ -28516,7 +28498,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
   bp = MP_VOID;
   k = 0;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   while (cur_cmd() == mp_with_option) {
     /* todo this is not very nice: the color models have their own enumeration */
     t = (mp_variable_type) cur_mod();
@@ -28968,7 +28950,7 @@ mp_node mp_start_draw_cmd (MP mp, quarterword sep) {
   quarterword add_type = 0;     /* value to be returned in |last_add_type| */
   lhv = NULL;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   mp_get_x_next (mp);
   mp->var_flag = sep;
   mp_scan_primary (mp);
@@ -29016,7 +28998,7 @@ void mp_do_bounds (MP mp) {
   integer m;    /* initial value of |cur_mod| */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   m = cur_mod();
   lhv = mp_start_draw_cmd (mp, mp_to_token);
   if (lhv != NULL) {
@@ -29089,7 +29071,7 @@ void mp_do_add_to (MP mp) {
   quarterword add_type; /* |also_code|, |contour_code|, or |double_path_code| */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   lhv = mp_start_draw_cmd (mp, mp_thing_to_add);
   add_type = mp->last_add_type;
   if (lhv != NULL) {
@@ -29212,7 +29194,7 @@ void mp_do_ship_out (MP mp) {
   integer c;    /* the character code */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_picture_type) {
@@ -29317,7 +29299,7 @@ void mp_do_message (MP mp) {
   mp_value new_expr;
   m = cur_mod();
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_string_type)
@@ -29434,7 +29416,7 @@ void mp_do_write (MP mp) {
   unsigned old_setting; /* for saving |selector| during output */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_string_type) {
@@ -29982,7 +29964,7 @@ eight_bits mp_get_code (MP mp) {                               /* scans a charac
          "string of length 1. Didn't find it; will use 0 instead.",
           NULL };
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type == mp_known) {
@@ -30063,7 +30045,7 @@ void mp_do_tfm_command (MP mp) {
   int j;        /* index into |header_byte| or |param| */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_new_number(mp);
+  new_number(new_expr.data.n);
   switch (cur_mod()) {
   case char_list_code:
     c = mp_get_code (mp);
@@ -31243,8 +31225,8 @@ void mp_set_text_box (MP mp, mp_text_node p) {
   size_t k, kk; /* current character and character to stop at */
   four_quarters cc;     /* the |char_info| for the current character */
   mp_number h, d;  /* dimensions of the current character */
-  h = mp_new_number(mp);
-  d = mp_new_number(mp);
+  new_number(h);
+  new_number(d);
   set_number_to_zero(p->width);
   set_number_to_neg_inf(p->height);
   set_number_to_neg_inf(p->depth);
@@ -31257,8 +31239,8 @@ void mp_set_text_box (MP mp, mp_text_node p) {
     @<Adjust |p|'s bounding box to contain |str_pool[k]|; advance |k|@>;
   }
   @<Set the height and depth to zero if the bounding box is empty@>;
-  mp_free_number(mp, h);
-  mp_free_number(mp, d);
+  free_number (h);
+  free_number (d);
 }
 
 

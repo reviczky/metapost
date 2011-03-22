@@ -104,6 +104,45 @@ void mp_free_math (MP mp) {
   free(mp->math);
 }
 
+@ Creating an destroying |mp_number| objects
+
+@<Types...@>=
+typedef union {
+  halfword val;
+} mp_number_store;
+typedef enum {
+  mp_scaled_type = 0,
+  mp_fraction_type,
+  mp_degree_type,
+  mp_double_type,
+  mp_binary_type,
+  mp_decimal_type,
+} mp_number_type;
+typedef struct mp_number_data {
+  mp_number_store data;
+  mp_number_type type;
+} mp_number_data;
+
+@ @c
+mp_number mp_new_number (MP mp, mp_number_type t) {
+  mp_number n = (mp_number)mp_xmalloc(mp, 1, sizeof (struct mp_number_data)) ;
+  mp_set_number_to_zero(n);
+  n->type = t;
+  return n;
+}
+
+@ 
+@c
+void mp_free_number (MP mp, mp_number n) {
+  (void)mp;
+  free(n);
+}
+
+@ @<Internal library declarations@>=
+extern mp_number mp_new_number (MP mp, mp_number_type t) ;
+extern void mp_free_number (MP mp, mp_number n) ;
+
+
 @ Here are the low-level functions on |mp_number| items, setters first.
 
 @c 
