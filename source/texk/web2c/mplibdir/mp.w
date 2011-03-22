@@ -2414,6 +2414,8 @@ typedef union {
 @ The global variable |math_mode| has four settings, representing the
 math value type that will be used in this run.
 
+the typedef for |mp_number| is here because it has to come very early.
+ 
 @<Exported types@>=
 typedef struct mp_number_data *mp_number;
 typedef enum {
@@ -7315,8 +7317,7 @@ RESTART:
     t = mp_next_knot (s);
     set_number_from_substraction(mp->delta_x[k], t->x_coord, s->x_coord);
     set_number_from_substraction(mp->delta_y[k], t->y_coord, s->y_coord);
-    set_number_from_scaled(mp->delta[k], 
-         mp_pyth_add (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled(mp->delta_y[k])));
+    number_clone(mp->delta[k], mp_pyth_add (mp, mp->delta_x[k], mp->delta_y[k]));
     if (k > 0) {
       sine = mp_make_fraction (mp, number_to_scaled(mp->delta_y[k - 1]), number_to_scaled(mp->delta[k - 1]));
       cosine = mp_make_fraction (mp, number_to_scaled(mp->delta_x[k - 1]), number_to_scaled(mp->delta[k - 1]));
@@ -8581,14 +8582,27 @@ number_half(dy02);
 
 @<Initialize |v002|, |v022|, and the arc length estimate |arc|;...@>=
 {
-  mp_number tmp ;
+  mp_number tmp, arg1, arg2 ;
   new_number (tmp);
-  set_number_from_scaled(v002, 
-       mp_pyth_add (mp, number_to_scaled(dx01) + half (number_to_scaled(dx0) + number_to_scaled(dx02)), 
-                        number_to_scaled(dy01) + half (number_to_scaled(dy0) + number_to_scaled(dy02))));
-  set_number_from_scaled(v022, 
-       mp_pyth_add (mp, number_to_scaled(dx12) + half (number_to_scaled(dx02) + number_to_scaled(dx2)), 
-                        number_to_scaled(dy12) + half (number_to_scaled(dy02) + number_to_scaled(dy2))));
+  new_number (arg1);
+  new_number (arg2);
+  set_number_from_addition(arg1, dx0, dx02);
+  number_half(arg1);
+  number_add(arg1, dx01);
+  set_number_from_addition(arg2, dy0, dy02);
+  number_half(arg2);
+  number_add(arg2, dy01);
+  number_clone(v002, mp_pyth_add (mp, arg1, arg2));
+
+  set_number_from_addition(arg1, dx02, dx2);
+  number_half(arg1);
+  number_add(arg1, dx12);
+  set_number_from_addition(arg2, dy02, dy2);
+  number_half(arg2);
+  number_add(arg2, dy12);
+  number_clone(v022, mp_pyth_add (mp, arg1, arg2));
+  free_number(arg1);
+  free_number(arg2);
 
   number_clone (tmp, v02);
   number_add_scaled (tmp, 2);
@@ -8872,9 +8886,9 @@ static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number 
   new_number (ret);
   new_number (arc_tol);
   set_number_from_scaled(arc_tol, arc_tol_limit);
-  set_number_from_scaled(v0, mp_pyth_add (mp, number_to_scaled(dx0), number_to_scaled(dy0)));
-  set_number_from_scaled(v1, mp_pyth_add (mp, number_to_scaled(dx1), number_to_scaled(dy1)));
-  set_number_from_scaled(v2, mp_pyth_add (mp, number_to_scaled(dx2), number_to_scaled(dy2)));
+  number_clone(v0, mp_pyth_add (mp, dx0, dy0));
+  number_clone(v1, mp_pyth_add (mp, dx1, dy1));
+  number_clone(v2, mp_pyth_add (mp, dx2, dy2));
   if ((number_to_scaled(v0) >= fraction_four) || 
       (number_to_scaled(v1) >= fraction_four) || 
       (number_to_scaled(v2) >= fraction_four)) {
@@ -8887,10 +8901,19 @@ static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number 
       number_negate(ret);
     }
   } else {
+    mp_number arg1, arg2;
     new_number (v02);
-    set_number_from_scaled(v02, 
-        mp_pyth_add (mp, number_to_scaled(dx1) + half (number_to_scaled(dx0) + number_to_scaled(dx2)), 
-	                   number_to_scaled(dy1) + half (number_to_scaled(dy0) + number_to_scaled(dy2))));
+    new_number (arg1);
+    new_number (arg2);
+    set_number_from_addition(arg1, dx0, dx2);
+    number_half(arg1);
+    number_add(arg1, dx1);
+    set_number_from_addition(arg2, dy0, dy2);
+    number_half(arg2);
+    number_add(arg2, dy1);
+    number_clone(v02, mp_pyth_add (mp, arg1, arg2));
+    free_number(arg1);
+    free_number(arg2);
     number_clone(ret, mp_arc_test (mp, dx0, dy0, dx1, dy1, dx2, dy2, v0, v02, v2, a_goal, arc_tol));
     free_number (v02);
   }
@@ -9604,7 +9627,7 @@ if ((x == 0) && (y == 0)) {
 @ @<Make |(xx,yy)| the offset on the untransformed \&{pencircle} for the...@>=
 set_number_from_scaled(yy, -(mp_take_fraction (mp, x, number_to_scaled(hy)) + mp_take_fraction (mp, y, -number_to_scaled(hx))));
 set_number_from_scaled(xx, mp_take_fraction (mp, x, -number_to_scaled(wy)) + mp_take_fraction (mp, y, number_to_scaled(wx)));
-set_number_from_scaled(d, mp_pyth_add (mp, number_to_scaled(xx), number_to_scaled(yy)));
+number_clone(d, mp_pyth_add (mp, xx, yy));
 if (number_positive(d)) {
   set_number_from_scaled(xx, half (mp_make_fraction (mp, number_to_scaled(xx), number_to_scaled(d))));
   set_number_from_scaled(yy, half (mp_make_fraction (mp, number_to_scaled(yy), number_to_scaled(d))));
@@ -9653,12 +9676,15 @@ static void mp_pen_bbox (MP mp, mp_knot h) {
 
 @* Numerical values.
 
-@d mp_fraction mp_number
-@d mp_degree mp_number
-@d new_number(A) (A)=mp_new_number(mp, mp_scaled_type)
-@d new_fraction(A) (A)=mp_new_number(mp, mp_fraction_type)
-@d new_degree(A) (A)=mp_new_number(mp, mp_degree_type)
-@d free_number(A) mp_free_number(mp, (A))
+This first set goes into the header
+
+@(mpmp.h@>=
+#define mp_fraction mp_number
+#define mp_degree mp_number
+#define new_number(A) (A)=mp_new_number(mp, mp_scaled_type)
+#define new_fraction(A) (A)=mp_new_number(mp, mp_fraction_type)
+#define new_degree(A) (A)=mp_new_number(mp, mp_degree_type)
+#define free_number(A) mp_free_number(mp, (A))
 
 @ 
 @d set_number_from_of_the_way(A,t,B,C) mp_set_number_from_of_the_way(mp, A,t,B,C) 
@@ -11163,7 +11189,7 @@ static void mp_box_ends (MP mp, mp_knot p, mp_knot pp, mp_edge_header_node h) {
     while (1) {
       @<Make |(dx,dy)| the final direction for the path segment from
         |q| to~|p|; set~|d|@>;
-      set_number_from_scaled(d, mp_pyth_add (mp, number_to_scaled(dx), number_to_scaled(dy)));
+      number_clone(d, mp_pyth_add (mp, dx, dy));
       if (number_positive(d)) {
         @<Normalize the direction |(dx,dy)| and find the pen offset |(xx,yy)|@>;
         for (i = 1; i <= 2; i++) {
@@ -12713,27 +12739,33 @@ if (mp_left_type (c) == mp_endpoint) {
 That knot is |p| but if |p<>c|, its coordinates have already been offset by |w|.
 
 @<Set the incoming and outgoing directions at |q|; in case of...@>=
-set_number_from_substraction(dxin, q->x_coord, q->left_x);
-set_number_from_substraction(dyin, q->y_coord, q->left_y);
-if (number_zero(dxin) && number_zero(dyin)) {
-set_number_from_substraction(dxin, q->x_coord, p->right_x);
-set_number_from_substraction(dyin, q->y_coord, p->right_y);
-if (number_zero(dxin) && number_zero(dyin)) {
-  set_number_from_substraction(dxin, q->x_coord, p->x_coord);
-  set_number_from_substraction(dyin, q->y_coord, p->y_coord);
-  if (p != c) {                 /* the coordinates of |p| have been offset by |w| */
-    number_add(dxin, w->x_coord);
-    number_add(dyin, w->y_coord);
+{
+  mp_number tmpx;
+  new_number(tmpx);
+  set_number_from_substraction(dxin, q->x_coord, q->left_x);
+  set_number_from_substraction(dyin, q->y_coord, q->left_y);
+  if (number_zero(dxin) && number_zero(dyin)) {
+    set_number_from_substraction(dxin, q->x_coord, p->right_x);
+    set_number_from_substraction(dyin, q->y_coord, p->right_y);
+    if (number_zero(dxin) && number_zero(dyin)) {
+      set_number_from_substraction(dxin, q->x_coord, p->x_coord);
+      set_number_from_substraction(dyin, q->y_coord, p->y_coord);
+      if (p != c) {                 /* the coordinates of |p| have been offset by |w| */
+        number_add(dxin, w->x_coord);
+        number_add(dyin, w->y_coord);
+      }
+    }
   }
-}
-}
-tmp = mp_pyth_add (mp, number_to_scaled(dxin), number_to_scaled(dyin));
-if (tmp == 0) {
-  join_type = 2;
-} else {
-  set_number_from_scaled(dxin, mp_make_fraction (mp, number_to_scaled(dxin), tmp));
-  set_number_from_scaled(dyin, mp_make_fraction (mp, number_to_scaled(dyin), tmp));
-  @<Set the outgoing direction at |q|@>;
+  number_clone(tmpx, mp_pyth_add (mp, dxin, dyin));
+  tmp = number_to_scaled(tmpx);
+  free_number(tmpx);
+  if (tmp == 0) {
+    join_type = 2;
+  } else {
+    set_number_from_scaled(dxin, mp_make_fraction (mp, number_to_scaled(dxin), tmp));
+    set_number_from_scaled(dyin, mp_make_fraction (mp, number_to_scaled(dyin), tmp));
+    @<Set the outgoing direction at |q|@>;
+  }
 }
 
 
@@ -12741,27 +12773,33 @@ if (tmp == 0) {
 and~|r| have already been offset by |h|.
 
 @<Set the outgoing direction at |q|@>=
-set_number_from_substraction(dxout, q->right_x, q->x_coord);
-set_number_from_substraction(dyout, q->right_y, q->y_coord);
-if (number_zero(dxout) && number_zero(dyout)) {
-  r = mp_next_knot (q);
-  set_number_from_substraction(dxout, r->left_x, q->x_coord);
-  set_number_from_substraction(dyout, r->left_y, q->y_coord);
+{
+  mp_number tmpx;
+  new_number(tmpx);
+  set_number_from_substraction(dxout, q->right_x, q->x_coord);
+  set_number_from_substraction(dyout, q->right_y, q->y_coord);
   if (number_zero(dxout) && number_zero(dyout)) {
-    set_number_from_substraction(dxout, r->x_coord, q->x_coord);
-    set_number_from_substraction(dyout, r->y_coord, q->y_coord);
+    r = mp_next_knot (q);
+    set_number_from_substraction(dxout, r->left_x, q->x_coord);
+    set_number_from_substraction(dyout, r->left_y, q->y_coord);
+    if (number_zero(dxout) && number_zero(dyout)) {
+      set_number_from_substraction(dxout, r->x_coord, q->x_coord);
+      set_number_from_substraction(dyout, r->y_coord, q->y_coord);
+    }
   }
-}
-if (q == c) {
-  number_substract(dxout, h->x_coord);
-  number_substract(dyout, h->y_coord);
-}
-tmp = mp_pyth_add (mp, number_to_scaled(dxout), number_to_scaled(dyout));
-if (tmp == 0)
-  mp_confusion (mp, "degenerate spec");
+  if (q == c) {
+    number_substract(dxout, h->x_coord);
+    number_substract(dyout, h->y_coord);
+  }
+  number_clone(tmpx, mp_pyth_add (mp, dxout, dyout));
+  tmp = number_to_scaled(tmpx);
+  free_number(tmpx);
+  if (tmp == 0)
+    mp_confusion (mp, "degenerate spec");
 @:this can't happen degerate spec}{\quad degenerate spec@>;
-set_number_from_scaled(dxout, mp_make_fraction (mp, number_to_scaled(dxout), tmp));
-set_number_from_scaled(dyout, mp_make_fraction (mp, number_to_scaled(dyout), tmp))
+  set_number_from_scaled(dxout, mp_make_fraction (mp, number_to_scaled(dxout), tmp));
+  set_number_from_scaled(dyout, mp_make_fraction (mp, number_to_scaled(dyout), tmp));
+}
  
 
 @* Direction and intersection times.
@@ -19468,6 +19506,7 @@ backup mechanisms have been added in order to provide reasonable error
 recovery.
 
 @d cur_exp_value() mp->cur_exp.data.n->data.val
+@d cur_exp_value_number() mp->cur_exp.data.n
 @d cur_exp_node() mp->cur_exp.data.node
 @d cur_exp_str() mp->cur_exp.data.str
 @d cur_exp_knot() mp->cur_exp.data.p
@@ -19477,6 +19516,15 @@ recovery.
         delete_str_ref(cur_exp_str());
     }
     cur_exp_value() = (A);
+    cur_exp_node() = NULL;
+    cur_exp_str() = NULL;
+    cur_exp_knot() = NULL;
+  } while (0)
+@d set_cur_exp_value_number(A) do {
+    if (cur_exp_str()) {
+        delete_str_ref(cur_exp_str());
+    }
+    cur_exp_value_number() = (A);
     cur_exp_node() = NULL;
     cur_exp_str() = NULL;
     cur_exp_knot() = NULL;
@@ -23457,11 +23505,9 @@ case mp_picture_type:
   break;
 default:
   if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
-    new_expr.data.n->data.val = mp_pyth_add (mp,
-                                     value (x_part
-                                            (value_node (cur_exp_node ()))),
-                                     value (y_part
-                                            (value_node (cur_exp_node ()))));
+    number_clone(new_expr.data.n,
+                 mp_pyth_add (mp, value_number (x_part (value_node (cur_exp_node ()))),
+                                  value_number (y_part (value_node (cur_exp_node ())))));
     mp_flush_cur_exp (mp, new_expr);
   } else
     mp_bad_unary (mp, c);
@@ -25223,9 +25269,9 @@ case mp_pythag_add:
 case mp_pythag_sub:
 if ((mp->cur_exp.type == mp_known) && (mp_type (p) == mp_known)) {
   if (c == mp_pythag_add)
-    set_cur_exp_value (mp_pyth_add (mp, value (p), cur_exp_value ()));
+    set_cur_exp_value_number (mp_pyth_add (mp, value_number (p), cur_exp_value_number ()));
   else
-    set_cur_exp_value (mp_pyth_sub (mp, value (p), cur_exp_value ()));
+    set_cur_exp_value_number (mp_pyth_sub (mp, value_number (p), cur_exp_value_number ()));
 } else
   mp_bad_binary (mp, p, (quarterword) c);
 break;

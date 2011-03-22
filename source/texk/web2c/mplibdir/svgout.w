@@ -620,10 +620,21 @@ mp_pen_info *mp_svg_pen_info(MP mp, mp_gr_knot pp, mp_gr_knot p) {
     wx = fabs(gr_left_x(p)  - gr_x_coord(p));
     wy = fabs(gr_right_y(p) - gr_y_coord(p));
   } else {
-    wx = mp_pyth_add(mp, (gr_left_x(p)-gr_x_coord(p))*65536.0,
-                         (gr_right_x(p)-gr_x_coord(p))*65536.0) / 65536.0;
-    wy = mp_pyth_add(mp, (gr_left_y(p)-gr_y_coord(p))*65536.0,
-                         (gr_right_y(p)-gr_y_coord(p))*65536.0) / 65536.0;
+    mp_number arg1, arg2, ret;
+    new_number(arg1);
+    new_number(arg2);
+    mp_set_number_from_double (arg1, gr_left_x(p)-gr_x_coord(p));
+    mp_set_number_from_double (arg2, gr_right_x(p)-gr_x_coord(p));
+    ret = mp_pyth_add(mp, arg1, arg2);
+    wx = mp_number_to_double(ret);
+    free_number(ret);
+    mp_set_number_from_double (arg1, gr_left_y(p)-gr_y_coord(p));
+    mp_set_number_from_double (arg2, gr_right_y(p)-gr_y_coord(p));
+    ret = mp_pyth_add(mp, arg1, arg2);
+    wy = mp_number_to_double(ret);
+    free_number(ret);
+    free_number(arg1);
+    free_number(arg2);
   }
   if ((wy/coord_range_x(pp, wx)) >= (wx/coord_range_y(pp, wy)))
     pen->ww = wy;
