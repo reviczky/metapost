@@ -9578,20 +9578,28 @@ static void mp_find_offset (MP mp, mp_number x_orig, mp_number y_orig, mp_knot h
     } while (!
              (mp_ab_vs_cd (mp, number_to_scaled(q->x_coord) - number_to_scaled (p->x_coord), number_to_scaled(y_orig),
                number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord), number_to_scaled(x_orig)) <= 0));
-    mp->cur_x = number_to_scaled (p->x_coord);
-    mp->cur_y = number_to_scaled (p->y_coord);
+    number_clone (mp->cur_x, p->x_coord);
+    number_clone (mp->cur_y, p->y_coord);
   }
 }
 
 
 @ @<Glob...@>=
-scaled cur_x;
-scaled cur_y;   /* all-purpose return value registers */
+mp_number cur_x;
+mp_number cur_y;   /* all-purpose return value registers */
+
+@ @<Initialize table entries@>=
+new_number (mp->cur_x);
+new_number (mp->cur_y);
+
+@ @<Dealloc...@>=
+free_number (mp->cur_x);
+free_number (mp->cur_y);
 
 @ @<Find the offset for |(x,y)| on the elliptical pen~|h|@>=
 if (number_zero(x_orig) && number_zero(y_orig)) {
-  mp->cur_x = number_to_scaled(h->x_coord);
-  mp->cur_y = number_to_scaled(h->y_coord);
+  number_clone(mp->cur_x, h->x_coord);
+  number_clone(mp->cur_y, h->y_coord);
 } else {
   mp_number x, y, abs_x, abs_y, half_fraction;
   new_number(x);
@@ -9617,14 +9625,14 @@ if (number_zero(x_orig) && number_zero(y_orig)) {
   }
   @<Make |(xx,yy)| the offset on the untransformed \&{pencircle} for the
     untransformed version of |(x,y)|@>;
-  mp->cur_x =
+  set_number_from_scaled(mp->cur_x,
     number_to_scaled(h->x_coord) + 
     mp_take_fraction (mp, number_to_scaled(xx), number_to_scaled(wx)) + 
-    mp_take_fraction (mp, number_to_scaled(yy), number_to_scaled(hx));
-  mp->cur_y =
+    mp_take_fraction (mp, number_to_scaled(yy), number_to_scaled(hx)));
+  set_number_from_scaled(mp->cur_y,
     number_to_scaled(h->y_coord) + 
     mp_take_fraction (mp, number_to_scaled(xx), number_to_scaled(wy)) + 
-    mp_take_fraction (mp, number_to_scaled(yy), number_to_scaled(hy));
+    mp_take_fraction (mp, number_to_scaled(yy), number_to_scaled(hy)));
   free_number(abs_x);
   free_number(abs_y);
   free_number(half_fraction);
@@ -9690,12 +9698,12 @@ static void mp_pen_bbox (MP mp, mp_knot h) {
   new_number(arg2);
   set_number_from_scaled(arg2, fraction_one);
   mp_find_offset (mp, arg1, arg2, h);
-  mp_maxx = mp->cur_x;
-  mp_minx = 2 * number_to_scaled(h->x_coord) - mp->cur_x;
+  mp_maxx = number_to_scaled(mp->cur_x);
+  mp_minx = 2 * number_to_scaled(h->x_coord) - number_to_scaled(mp->cur_x);
   number_negate (arg2);
   mp_find_offset (mp, arg2, arg1, h);
-  mp_maxy = mp->cur_y;
-  mp_miny = 2 * number_to_scaled (h->y_coord) - mp->cur_y;
+  mp_maxy = number_to_scaled(mp->cur_y);
+  mp_miny = 2 * number_to_scaled (h->y_coord) - number_to_scaled(mp->cur_y);
   free_number(arg1);
   free_number(arg2);
 }
@@ -11349,23 +11357,25 @@ set_number_from_substraction(dy, p->y_coord, q->y_coord);
   number_negate(arg1);
   mp_find_offset (mp, arg1, dx, pp);
   free_number(arg1);
-  set_number_from_scaled(xx, mp->cur_x);
-  set_number_from_scaled(yy, mp->cur_y);
+  number_clone(xx, mp->cur_x);
+  number_clone(yy, mp->cur_y);
 }
 
 @ @<Use |(dx,dy)| to generate a vertex of the square end cap and...@>=
 mp_find_offset (mp, dx, dy, pp);
-set_number_from_scaled(d, mp_take_fraction (mp, number_to_scaled(xx) - mp->cur_x, number_to_scaled(dx)) +
-                          mp_take_fraction (mp, number_to_scaled(yy) - mp->cur_y, number_to_scaled(dy)));
+set_number_from_scaled(d, mp_take_fraction (mp, number_to_scaled(xx) - number_to_scaled(mp->cur_x), number_to_scaled(dx)) +
+                          mp_take_fraction (mp, number_to_scaled(yy) - number_to_scaled(mp->cur_y), number_to_scaled(dy)));
 if ((number_negative(d) && (i == 1)) || (number_positive(d) && (i == 2)))
   mp_confusion (mp, "box_ends");
 @:this can't happen box ends}{\quad\\{box\_ends}@>;
-set_number_from_scaled(z, number_to_scaled (p->x_coord) + mp->cur_x + mp_take_fraction (mp, number_to_scaled (d), number_to_scaled(dx)));
+set_number_from_scaled(z, number_to_scaled (p->x_coord) + number_to_scaled(mp->cur_x) + 
+                          mp_take_fraction (mp, number_to_scaled (d), number_to_scaled(dx)));
 if (number_less(z, h->minx))
   number_clone(h->minx, z);
 if (number_greater(z, h->maxx))
   number_clone(h->maxx, z);
-set_number_from_scaled(z, number_to_scaled (p->y_coord) + mp->cur_y + mp_take_fraction (mp, number_to_scaled (d), number_to_scaled(dy)));
+set_number_from_scaled(z, number_to_scaled (p->y_coord) + number_to_scaled(mp->cur_y) + 
+                          mp_take_fraction (mp, number_to_scaled (d), number_to_scaled(dy)));
 if (number_less(z, h->miny))
   number_clone(h->miny, z);
 if (number_greater(z, h->maxy))
@@ -21793,8 +21803,8 @@ static mp_knot mp_pair_to_knot (MP mp) {                               /* conver
   mp_originator (q) = mp_metapost_user;
   mp_next_knot (q) = q;
   mp_known_pair (mp);
-  set_number_from_scaled (q->x_coord, mp->cur_x);
-  set_number_from_scaled (q->y_coord, mp->cur_y);
+  number_clone (q->x_coord, mp->cur_x);
+  number_clone (q->y_coord, mp->cur_y);
   return q;
 }
 
@@ -21827,8 +21837,8 @@ void mp_known_pair (MP mp) {
 @.Undefined coordinates...@>;
     mp_get_x_next (mp);
     mp_flush_cur_exp (mp, new_expr);
-    mp->cur_x = 0;
-    mp->cur_y = 0;
+    set_number_to_zero(mp->cur_x);
+    set_number_to_zero(mp->cur_y);
   } else {
     p = value_node (cur_exp_node ());
     @<Make sure that both |x| and |y| parts of |p| are known;
@@ -21840,7 +21850,7 @@ void mp_known_pair (MP mp) {
 
 @ @<Make sure that both |x| and |y| parts of |p| are known...@>=
 if (mp_type (x_part (p)) == mp_known) {
-  mp->cur_x = value (x_part (p));
+  number_clone(mp->cur_x, value_number (x_part (p)));
 } else {
   const char *hlp[] = { 
          "I need a `known' x value for this part of the path.",
@@ -21855,10 +21865,10 @@ if (mp_type (x_part (p)) == mp_known) {
 @.Undefined coordinates...@>;
   mp_get_x_next (mp);
   mp_recycle_value (mp, x_part (p));
-  mp->cur_x = 0;
+  set_number_to_zero(mp->cur_x);
 }
 if (mp_type (y_part (p)) == mp_known) {
-  mp->cur_y = value (y_part (p));
+  number_clone(mp->cur_y, value_number (y_part (p)));
 } else {
   const char *hlp[] = { 
          "I need a `known' y value for this part of the path.",
@@ -21871,7 +21881,7 @@ if (mp_type (y_part (p)) == mp_known) {
   mp_back_error (mp, "Undefined y coordinate has been replaced by 0", hlp, true);
   mp_get_x_next (mp);
   mp_recycle_value (mp, y_part (p));
-  mp->cur_y = 0;
+  set_number_to_zero(mp->cur_y);
 }
 
 
@@ -21908,7 +21918,6 @@ lengthy because a variety of potential errors need to be nipped in the bud.
 @c
 static quarterword mp_scan_direction (MP mp) {
   int t;        /* the type of information found */
-  scaled x;     /* an |x| coordinate */
   mp_get_x_next (mp);
   if (cur_cmd() == mp_curl_command) {
     @<Scan a curl specification@>;
@@ -21957,17 +21966,19 @@ static quarterword mp_scan_direction (MP mp) {
   } else {
     mp_known_pair (mp);
   }
-  if ((mp->cur_x == 0) && (mp->cur_y == 0))
+  if (number_zero(mp->cur_x) && number_zero(mp->cur_y))
     t = mp_open;
   else {
     t = mp_given;
-    set_cur_exp_value (mp_n_arg (mp, mp->cur_x, mp->cur_y));
+    set_cur_exp_value (mp_n_arg (mp, number_to_scaled(mp->cur_x), number_to_scaled(mp->cur_y)));
   }
 }
 
 
 @ @<Get given directions separated by commas@>=
 {
+  mp_number xx;
+  new_number(xx);
   if (mp->cur_exp.type != mp_known) {
     mp_value new_expr;
     const char *hlp[] = { 
@@ -21987,7 +21998,7 @@ static quarterword mp_scan_direction (MP mp) {
     mp_get_x_next (mp);
     mp_flush_cur_exp (mp, new_expr);
   }
-  x = cur_exp_value ();
+  number_clone(xx, cur_exp_value_number ());
   if (cur_cmd() != mp_comma) {
     const char *hlp[] = {
            "I've got the x coordinate of a path direction;",
@@ -22015,8 +22026,9 @@ static quarterword mp_scan_direction (MP mp) {
     mp_get_x_next (mp);
     mp_flush_cur_exp (mp, new_expr);
   }
-  mp->cur_y = cur_exp_value ();
-  mp->cur_x = x;
+  number_clone(mp->cur_y, cur_exp_value_number ());
+  number_clone(mp->cur_x, xx);
+  free_number(xx);
 }
 
 
@@ -22122,8 +22134,8 @@ if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < min_tension)) {
   mp_get_x_next (mp);
   mp_scan_primary (mp);
   mp_known_pair (mp);
-  set_number_from_scaled (path_q->right_x, mp->cur_x);
-  set_number_from_scaled (path_q->right_y, mp->cur_y);
+  number_clone (path_q->right_x, mp->cur_x);
+  number_clone (path_q->right_y, mp->cur_y);
   if (cur_cmd() != mp_and_command) {
     x = number_to_scaled (path_q->right_x);
     y = number_to_scaled (path_q->right_y);
@@ -22131,8 +22143,8 @@ if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < min_tension)) {
     mp_get_x_next (mp);
     mp_scan_primary (mp);
     mp_known_pair (mp);
-    x = mp->cur_x;
-    y = mp->cur_y;
+    x = number_to_scaled (mp->cur_x);
+    y = number_to_scaled (mp->cur_y);
   }
 }
 
@@ -26211,7 +26223,7 @@ break;
 static void mp_set_up_offset (MP mp, mp_node p) {
   mp_find_offset (mp, value_number (x_part (p)), value_number (y_part (p)),
                   cur_exp_knot ());
-  mp_pair_value (mp, mp->cur_x, mp->cur_y);
+  mp_pair_value (mp, number_to_scaled (mp->cur_x), number_to_scaled (mp->cur_y));
 }
 static void mp_set_up_direction_time (MP mp, mp_node p) {
   mp_value new_expr;
