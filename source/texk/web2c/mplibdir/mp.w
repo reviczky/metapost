@@ -9417,8 +9417,7 @@ dy = number_to_scaled(r->y_coord) - number_to_scaled(l->y_coord);
 p = mp_next_knot (l);
 while (p != r) {
 q = mp_next_knot (p);
-if (mp_ab_vs_cd
-    (mp, dx, number_to_scaled (p->y_coord) - number_to_scaled(l->y_coord), dy,
+if (mp_ab_vs_cd (mp, dx, number_to_scaled (p->y_coord) - number_to_scaled(l->y_coord), dy,
      number_to_scaled (p->x_coord) - number_to_scaled(l->x_coord)) > 0)
   mp_move_knot (mp, p, r);
 p = q;
@@ -9447,8 +9446,7 @@ void mp_move_knot (MP mp, mp_knot p, mp_knot q) {
 p = s;
 while (p != l) {
   q = mp_next_knot (p);
-  if (mp_ab_vs_cd
-      (mp, dx, number_to_scaled (p->y_coord) - number_to_scaled(l->y_coord), dy,
+  if (mp_ab_vs_cd (mp, dx, number_to_scaled (p->y_coord) - number_to_scaled(l->y_coord), dy,
        number_to_scaled (p->x_coord) - number_to_scaled(l->x_coord)) < 0)
     mp_move_knot (mp, p, l);
   p = q;
@@ -9517,8 +9515,7 @@ where the |then| clause is not executed.
     if (p == l)
       break;
     if (p != r)
-      if (mp_ab_vs_cd
-          (mp, dx, number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord), dy,
+      if (mp_ab_vs_cd (mp, dx, number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord), dy,
            number_to_scaled(q->x_coord) - number_to_scaled (p->x_coord)) <= 0) {
         @<Remove knot |p| and back up |p| and |q| but don't go past |l|@>;
       }
@@ -9546,7 +9543,7 @@ offset associated with the given direction |(x,y)|.  If two different offsets
 apply, it chooses one of them.
 
 @c
-static void mp_find_offset (MP mp, scaled x, scaled y, mp_knot h) {
+static void mp_find_offset (MP mp, mp_number x_orig, mp_number y_orig, mp_knot h) {
   mp_knot p, q; /* consecutive knots */
   if (pen_is_elliptical (h)) {
     mp_fraction xx, yy;      /* untransformed offset for an elliptical pen */
@@ -9573,16 +9570,14 @@ static void mp_find_offset (MP mp, scaled x, scaled y, mp_knot h) {
       p = q;
       q = mp_next_knot (q);
     } while (!
-             (mp_ab_vs_cd
-              (mp, number_to_scaled(q->x_coord) - number_to_scaled (p->x_coord), y,
-               number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord), x) >= 0));
+             (mp_ab_vs_cd (mp, number_to_scaled(q->x_coord) - number_to_scaled (p->x_coord), number_to_scaled(y_orig),
+               number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord), number_to_scaled(x_orig)) >= 0));
     do {
       p = q;
       q = mp_next_knot (q);
     } while (!
-             (mp_ab_vs_cd
-              (mp, number_to_scaled(q->x_coord) - number_to_scaled (p->x_coord), y,
-               number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord), x) <= 0));
+             (mp_ab_vs_cd (mp, number_to_scaled(q->x_coord) - number_to_scaled (p->x_coord), number_to_scaled(y_orig),
+               number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord), number_to_scaled(x_orig)) <= 0));
     mp->cur_x = number_to_scaled (p->x_coord);
     mp->cur_y = number_to_scaled (p->y_coord);
   }
@@ -9594,14 +9589,31 @@ scaled cur_x;
 scaled cur_y;   /* all-purpose return value registers */
 
 @ @<Find the offset for |(x,y)| on the elliptical pen~|h|@>=
-if ((x == 0) && (y == 0)) {
+if (number_zero(x_orig) && number_zero(y_orig)) {
   mp->cur_x = number_to_scaled(h->x_coord);
   mp->cur_y = number_to_scaled(h->y_coord);
 } else {
+  mp_number x, y, abs_x, abs_y, half_fraction;
+  new_number(x);
+  new_number(y);
+  new_number(abs_x);
+  new_number(abs_y);
+  new_number(half_fraction);
+  set_number_from_scaled(half_fraction, fraction_half);
+  number_clone(x, x_orig);
+  number_clone(y, y_orig);
   @<Find the non-constant part of the transformation for |h|@>;
-  while ((abs (x) < fraction_half) && (abs (y) < fraction_half)) {
-    x += x;
-    y += y;
+  number_clone(abs_x, x);
+  number_clone(abs_y, y);
+  number_abs(abs_x);
+  number_abs(abs_y);
+  while (number_less(abs_x, half_fraction) && number_less(abs_y, half_fraction)) {
+    number_double(x);
+    number_double(y);
+    number_clone(abs_x, x);
+    number_clone(abs_y, y);
+    number_abs(abs_x);
+    number_abs(abs_y);
   }
   @<Make |(xx,yy)| the offset on the untransformed \&{pencircle} for the
     untransformed version of |(x,y)|@>;
@@ -9613,6 +9625,11 @@ if ((x == 0) && (y == 0)) {
     number_to_scaled(h->y_coord) + 
     mp_take_fraction (mp, number_to_scaled(xx), number_to_scaled(wy)) + 
     mp_take_fraction (mp, number_to_scaled(yy), number_to_scaled(hy));
+  free_number(abs_x);
+  free_number(abs_y);
+  free_number(half_fraction);
+  free_number(x);
+  free_number(y);
 }
 
 
@@ -9626,8 +9643,10 @@ if ((x == 0) && (y == 0)) {
  
 
 @ @<Make |(xx,yy)| the offset on the untransformed \&{pencircle} for the...@>=
-set_number_from_scaled(yy, -(mp_take_fraction (mp, x, number_to_scaled(hy)) + mp_take_fraction (mp, y, -number_to_scaled(hx))));
-set_number_from_scaled(xx, mp_take_fraction (mp, x, -number_to_scaled(wy)) + mp_take_fraction (mp, y, number_to_scaled(wx)));
+set_number_from_scaled(yy, -(mp_take_fraction (mp, number_to_scaled(x), number_to_scaled(hy)) + 
+                             mp_take_fraction (mp, number_to_scaled(y), -number_to_scaled(hx))));
+set_number_from_scaled(xx, mp_take_fraction (mp, number_to_scaled(x), -number_to_scaled(wy)) + 
+                           mp_take_fraction (mp, number_to_scaled(y), number_to_scaled(wx)));
 number_clone(d, mp_pyth_add (mp, xx, yy));
 if (number_positive(d)) {
   set_number_from_scaled(xx, half (mp_make_fraction (mp, number_to_scaled(xx), number_to_scaled(d))));
@@ -9666,12 +9685,19 @@ static void mp_pen_bbox (MP mp, mp_knot h) {
 
 @ @<Find the bounding box of an elliptical pen@>=
 {
-  mp_find_offset (mp, 0, fraction_one, h);
+  mp_number arg1, arg2;
+  new_number(arg1);
+  new_number(arg2);
+  set_number_from_scaled(arg2, fraction_one);
+  mp_find_offset (mp, arg1, arg2, h);
   mp_maxx = mp->cur_x;
   mp_minx = 2 * number_to_scaled(h->x_coord) - mp->cur_x;
-  mp_find_offset (mp, -fraction_one, 0, h);
+  number_negate (arg2);
+  mp_find_offset (mp, arg2, arg1, h);
   mp_maxy = mp->cur_y;
   mp_miny = 2 * number_to_scaled (h->y_coord) - mp->cur_y;
+  free_number(arg1);
+  free_number(arg2);
 }
 
 
@@ -11025,27 +11051,59 @@ if (number_less (pp->x_coord, rr->x_coord)) {
 monotone in $x$ but is reversed relative to the path from |pp| to |qq|.
 
 @<Check for retracing between knots |qq| and |rr| and |goto not_found|...@>=
-x0 = number_to_scaled(qq->x_coord);
-x1 = number_to_scaled(qq->right_x);
-x2 = number_to_scaled(rr->left_x);
-x3 = number_to_scaled(rr->x_coord);
-if ((x0 > x1) || (x1 > x2) || (x2 > x3)) {
-  if ((x0 < x1) || (x1 < x2) || (x2 < x3)) {
-    if (mp_ab_vs_cd (mp, x2 - x1, x2 - x1, x1 - x0, x3 - x2) > 0) {
+{
+  mp_number x0, x1, x2, x3;  /* $x$ coordinates of the segment from |qq| to |rr| */
+  new_number(x0);
+  new_number(x1);
+  new_number(x2);
+  new_number(x3);
+  number_clone(x0, qq->x_coord);
+  number_clone(x1, qq->right_x);
+  number_clone(x2, rr->left_x);
+  number_clone(x3, rr->x_coord);
+  if (number_greater(x0, x1) || number_greater(x1, x2) || number_greater(x2, x3)) {
+    if (number_less(x0, x1) || number_less(x1, x2) || number_less(x2, x3)) {
+      mp_number a1, a2, a3, a4;
+      scaled test;
+      new_number(a1);
+      new_number(a2);
+      new_number(a3);
+      new_number(a4);
+      set_number_from_substraction(a1, x2, x1);
+      set_number_from_substraction(a2, x2, x1);
+      set_number_from_substraction(a3, x1, x0);
+      set_number_from_substraction(a4, x3, x2);
+      test = mp_ab_vs_cd (mp, number_to_scaled(a1), number_to_scaled(a2), 
+                          number_to_scaled(a3), number_to_scaled(a4));
+      free_number(a1);
+      free_number(a2);
+      free_number(a3);
+      free_number(a4);
+      if (test > 0) {
+        mp_x_retrace_error (mp);
+        free_number(x0);
+        free_number(x1);
+        free_number(x2);
+        free_number(x3);
+        goto NOT_FOUND;
+      }
+    }
+  }
+  if (number_greater(pp->x_coord, x0) || number_greater(x0, x3)) {
+    if (number_less (pp->x_coord, x0) || number_less(x0, x3)) {
       mp_x_retrace_error (mp);
+      free_number(x0);
+      free_number(x1);
+      free_number(x2);
+      free_number(x3);
       goto NOT_FOUND;
     }
   }
+  free_number(x0);
+  free_number(x1);
+  free_number(x2);
+  free_number(x3);
 }
-if ((number_to_scaled (pp->x_coord) > x0) || (x0 > x3)) {
-  if ((number_to_scaled (pp->x_coord) < x0) || (x0 < x3)) {
-    mp_x_retrace_error (mp);
-    goto NOT_FOUND;
-  }
-}
-
-@ @<Other local variables in |make_dashes|@>=
-scaled x0, x1, x2, x3;  /* $x$ coordinates of the segment from |qq| to |rr| */
 
 @ @<Make sure |p| and |p0| are the same color and |goto not_found|...@>=
 if (!number_equal(((mp_stroked_node)p)->red, ((mp_stroked_node)p0)->red) || 
@@ -11283,15 +11341,20 @@ set_number_from_substraction(dy, p->y_coord, q->y_coord);
 
 @ @<Normalize the direction |(dx,dy)| and find the pen offset |(xx,yy)|@>=
 {
+  mp_number arg1;
+  new_number(arg1);
   set_number_from_scaled(dx, mp_make_fraction (mp, number_to_scaled(dx), number_to_scaled(d)));
   set_number_from_scaled(dy, mp_make_fraction (mp, number_to_scaled(dy), number_to_scaled(d)));
-  mp_find_offset (mp, -number_to_scaled(dy), number_to_scaled(dx), pp);
+  number_clone(arg1, dy);
+  number_negate(arg1);
+  mp_find_offset (mp, arg1, dx, pp);
+  free_number(arg1);
   set_number_from_scaled(xx, mp->cur_x);
   set_number_from_scaled(yy, mp->cur_y);
 }
 
 @ @<Use |(dx,dy)| to generate a vertex of the square end cap and...@>=
-mp_find_offset (mp, number_to_scaled(dx), number_to_scaled(dy), pp);
+mp_find_offset (mp, dx, dy, pp);
 set_number_from_scaled(d, mp_take_fraction (mp, number_to_scaled(xx) - mp->cur_x, number_to_scaled(dx)) +
                           mp_take_fraction (mp, number_to_scaled(yy) - mp->cur_y, number_to_scaled(dy)));
 if ((number_negative(d) && (i == 1)) || (number_positive(d) && (i == 2)))
@@ -26146,7 +26209,7 @@ break;
 
 @ @<Declare binary action...@>=
 static void mp_set_up_offset (MP mp, mp_node p) {
-  mp_find_offset (mp, value (x_part (p)), value (y_part (p)),
+  mp_find_offset (mp, value_number (x_part (p)), value_number (y_part (p)),
                   cur_exp_knot ());
   mp_pair_value (mp, mp->cur_x, mp->cur_y);
 }
