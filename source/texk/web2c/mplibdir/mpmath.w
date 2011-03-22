@@ -113,7 +113,7 @@ typedef union {
 typedef enum {
   mp_scaled_type = 0,
   mp_fraction_type,
-  mp_degree_type,
+  mp_angle_type,
   mp_double_type,
   mp_binary_type,
   mp_decimal_type,

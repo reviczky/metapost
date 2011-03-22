@@ -9680,10 +9680,10 @@ This first set goes into the header
 
 @(mpmp.h@>=
 #define mp_fraction mp_number
-#define mp_degree mp_number
+#define mp_angle mp_number
 #define new_number(A) (A)=mp_new_number(mp, mp_scaled_type)
 #define new_fraction(A) (A)=mp_new_number(mp, mp_fraction_type)
-#define new_degree(A) (A)=mp_new_number(mp, mp_degree_type)
+#define new_angle(A) (A)=mp_new_number(mp, mp_angle_type)
 #define free_number(A) mp_free_number(mp, (A))
 
 @ 
