@@ -12410,13 +12410,14 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
   mp_knot w, w0;        /* the pen knot for the current offset */
   halfword k, k0;       /* controls pen edge insertion */
   mp_number qx, qy;        /* unshifted coordinates of |q| */
+  mp_fraction dxin, dyin, dxout, dyout;      /* directions at |q| when square or mitered */
   int join_type = 0;    /* codes |0..3| for mitered, round, beveled, or square */
   scaled miterlim = number_to_scaled(miter);
   @<Other local variables for |make_envelope|@>;
-  dxin = 0;
-  dyin = 0;
-  dxout = 0;
-  dyout = 0;
+  dxin = mp_new_number(mp);
+  dyin = mp_new_number(mp);
+  dxout = mp_new_number(mp);
+  dyout = mp_new_number(mp);
   mp->spec_p1 = NULL;
   mp->spec_p2 = NULL;
   qx = mp_new_number(mp);
@@ -12457,6 +12458,10 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
   } while (q0 != c);
   mp_free_number(mp, qx);
   mp_free_number(mp, qy);
+  mp_free_number(mp, dxin);
+  mp_free_number(mp, dyin);
+  mp_free_number(mp, dxout);
+  mp_free_number(mp, dyout);
   return c;
 }
 
@@ -12498,8 +12503,8 @@ if (k < zero_off) {
 @ @<If |miterlim| is less than the secant of half the angle at |q|...@>=
 {
   tmp = mp_take_fraction (mp, miterlim, fraction_half +
-                          half (mp_take_fraction (mp, dxin, dxout) +
-                                mp_take_fraction (mp, dyin, dyout)));
+                          half (mp_take_fraction (mp, number_to_scaled(dxin), number_to_scaled(dxout)) +
+                                mp_take_fraction (mp, number_to_scaled(dyin), number_to_scaled(dyout))));
   if (tmp < unity)
     if (mp_take_scaled (mp, miterlim, tmp) < unity)
       join_type = 2;
@@ -12507,7 +12512,6 @@ if (k < zero_off) {
 
 
 @ @<Other local variables for |make_envelope|@>=
-fraction dxin, dyin, dxout, dyout;      /* directions at |q| when square or mitered */
 scaled tmp;     /* a temporary value */
 
 @ The coordinates of |p| have already been shifted unless |p| is the first
@@ -12587,7 +12591,8 @@ problems, so we just set |r:=NULL| in that case.
 
 @<Insert a new knot |r| between |p| and |q| as required for a mitered join@>=
 {
-  det = mp_take_fraction (mp, dyout, dxin) - mp_take_fraction (mp, dxout, dyin);
+  det = mp_take_fraction (mp, number_to_scaled(dyout), number_to_scaled(dxin)) - 
+        mp_take_fraction (mp, number_to_scaled(dxout), number_to_scaled(dyin));
   if (abs (det) < 26844) {
     r = NULL;                   /* sine $<10^{-4}$ */
   } else {
@@ -12597,12 +12602,12 @@ problems, so we just set |r:=NULL| in that case.
     xsub = mp_new_number(mp);
     ysub = mp_new_number(mp);
 
-    tmp = mp_take_fraction (mp, number_to_scaled (q->x_coord) - number_to_scaled (p->x_coord), dyout) -
-      mp_take_fraction (mp, number_to_scaled (q->y_coord) - number_to_scaled (p->y_coord), dxout);
+    tmp = mp_take_fraction (mp, number_to_scaled (q->x_coord) - number_to_scaled (p->x_coord), number_to_scaled(dyout)) -
+      mp_take_fraction (mp, number_to_scaled (q->y_coord) - number_to_scaled (p->y_coord), number_to_scaled(dxout));
     tmp = mp_make_fraction (mp, tmp, det);
     
-    set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, dxin));
-    set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, dyin));
+    set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, number_to_scaled(dxin)));
+    set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, number_to_scaled(dyin)));
     set_number_from_addition(xtot, p->x_coord, xsub);
     set_number_from_addition(ytot, p->y_coord, ysub);
     r = mp_insert_knot (mp, p, xtot, ytot);
@@ -12632,19 +12637,19 @@ fraction det;   /* a determinant used for mitered join calculations */
   }
   @<Scan the pen polygon between |w0| and |w| and make |max_ht| the range dot
     product with |(ht_x,ht_y)|@>;
-  tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, dxin, ht_x) +
-                          mp_take_fraction (mp, dyin, ht_y));
-  set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, dxin));
-  set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, dyin));
+  tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, number_to_scaled(dxin), ht_x) +
+                          mp_take_fraction (mp, number_to_scaled(dyin), ht_y));
+  set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, number_to_scaled(dxin)));
+  set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, number_to_scaled(dyin)));
   set_number_from_addition(xtot, p->x_coord, xsub);
   set_number_from_addition(ytot, p->y_coord, ysub);
   r = mp_insert_knot (mp, p, xtot, ytot);
 
-  tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, dxout, ht_x) +
-                          mp_take_fraction (mp, dyout, ht_y));
+  tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, number_to_scaled(dxout), ht_x) +
+                          mp_take_fraction (mp, number_to_scaled(dyout), ht_y));
 
-  set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, dxout));
-  set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, dyout));
+  set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, number_to_scaled(dxout)));
+  set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, number_to_scaled(dyout)));
   set_number_from_addition(xtot, q->x_coord, xsub);
   set_number_from_addition(ytot, q->y_coord, ysub);
   r = mp_insert_knot (mp, p, xtot, ytot);
@@ -12721,26 +12726,26 @@ if (mp_left_type (c) == mp_endpoint) {
 That knot is |p| but if |p<>c|, its coordinates have already been offset by |w|.
 
 @<Set the incoming and outgoing directions at |q|; in case of...@>=
-dxin = number_to_scaled (q->x_coord) - number_to_scaled (q->left_x);
-dyin = number_to_scaled (q->y_coord) - number_to_scaled (q->left_y);
-if ((dxin == 0) && (dyin == 0)) {
-dxin = number_to_scaled (q->x_coord) - number_to_scaled (p->right_x);
-dyin = number_to_scaled (q->y_coord) - number_to_scaled (p->right_y);
-if ((dxin == 0) && (dyin == 0)) {
-  dxin = number_to_scaled (q->x_coord) - number_to_scaled (p->x_coord);
-  dyin = number_to_scaled (q->y_coord) - number_to_scaled (p->y_coord);
+set_number_from_substraction(dxin, q->x_coord, q->left_x);
+set_number_from_substraction(dyin, q->y_coord, q->left_y);
+if (number_zero(dxin) && number_zero(dyin)) {
+set_number_from_substraction(dxin, q->x_coord, p->right_x);
+set_number_from_substraction(dyin, q->y_coord, p->right_y);
+if (number_zero(dxin) && number_zero(dyin)) {
+  set_number_from_substraction(dxin, q->x_coord, p->x_coord);
+  set_number_from_substraction(dyin, q->y_coord, p->y_coord);
   if (p != c) {                 /* the coordinates of |p| have been offset by |w| */
-    dxin = dxin + number_to_scaled (w->x_coord);
-    dyin = dyin + number_to_scaled (w->y_coord);
+    number_add(dxin, w->x_coord);
+    number_add(dyin, w->y_coord);
   }
 }
 }
-tmp = mp_pyth_add (mp, dxin, dyin);
+tmp = mp_pyth_add (mp, number_to_scaled(dxin), number_to_scaled(dyin));
 if (tmp == 0) {
   join_type = 2;
 } else {
-  dxin = mp_make_fraction (mp, dxin, tmp);
-  dyin = mp_make_fraction (mp, dyin, tmp);
+  set_number_from_scaled(dxin, mp_make_fraction (mp, number_to_scaled(dxin), tmp));
+  set_number_from_scaled(dyin, mp_make_fraction (mp, number_to_scaled(dyin), tmp));
   @<Set the outgoing direction at |q|@>;
 }
 
@@ -12749,27 +12754,27 @@ if (tmp == 0) {
 and~|r| have already been offset by |h|.
 
 @<Set the outgoing direction at |q|@>=
-dxout = number_to_scaled (q->right_x) - number_to_scaled (q->x_coord);
-dyout = number_to_scaled (q->right_y) - number_to_scaled (q->y_coord);
-if ((dxout == 0) && (dyout == 0)) {
-r = mp_next_knot (q);
-dxout = number_to_scaled (r->left_x) - number_to_scaled (q->x_coord);
-dyout = number_to_scaled (r->left_y) - number_to_scaled (q->y_coord);
-if ((dxout == 0) && (dyout == 0)) {
-  dxout = number_to_scaled (r->x_coord) - number_to_scaled (q->x_coord);
-  dyout = number_to_scaled (r->y_coord) - number_to_scaled (q->y_coord);
-}
+set_number_from_substraction(dxout, q->right_x, q->x_coord);
+set_number_from_substraction(dyout, q->right_y, q->y_coord);
+if (number_zero(dxout) && number_zero(dyout)) {
+  r = mp_next_knot (q);
+  set_number_from_substraction(dxout, r->left_x, q->x_coord);
+  set_number_from_substraction(dyout, r->left_y, q->y_coord);
+  if (number_zero(dxout) && number_zero(dyout)) {
+    set_number_from_substraction(dxout, r->x_coord, q->x_coord);
+    set_number_from_substraction(dyout, r->y_coord, q->y_coord);
+  }
 }
 if (q == c) {
-  dxout = dxout - number_to_scaled (h->x_coord);
-  dyout = dyout - number_to_scaled (h->y_coord);
+  number_substract(dxout, h->x_coord);
+  number_substract(dyout, h->y_coord);
 }
-tmp = mp_pyth_add (mp, dxout, dyout);
+tmp = mp_pyth_add (mp, number_to_scaled(dxout), number_to_scaled(dyout));
 if (tmp == 0)
   mp_confusion (mp, "degenerate spec");
 @:this can't happen degerate spec}{\quad degenerate spec@>;
-dxout = mp_make_fraction (mp, dxout, tmp);
-dyout = mp_make_fraction (mp, dyout, tmp)
+set_number_from_scaled(dxout, mp_make_fraction (mp, number_to_scaled(dxout), tmp));
+set_number_from_scaled(dyout, mp_make_fraction (mp, number_to_scaled(dyout), tmp))
  
 
 @* Direction and intersection times.
