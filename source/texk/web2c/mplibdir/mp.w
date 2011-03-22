@@ -9680,50 +9680,42 @@ void mp_free_number (MP mp, mp_number n) {
 }
 
 @ 
-@d set_number_from_scaled(A,B) (A)->data.val=(B)
-@d set_number_from_double(A,B) (A)->data.val=((B)*65536.0)
-@d set_number_from_addition(A,B,C) (A)->data.val=(B)->data.val+(C)->data.val
-@d set_number_from_substraction(A,B,C) (A)->data.val=(B)->data.val-(C)->data.val
-@d set_number_to_unity(A) (A)->data.val=unity
-@d set_number_to_zero(A) (A)->data.val=0
-@d set_number_to_inf(A) (A)->data.val=EL_GORDO
-@d set_number_to_neg_inf(A) (A)->data.val=-EL_GORDO
-
-@d set_number_from_of_the_way(A,t,B,C) do {
-    (A)->data.val = (B)->data.val - mp_take_fraction(mp, ((B)->data.val - (C)->data.val),t);
-} while (0)
-
-@d number_to_scaled(A) (A)->data.val
-@d number_to_double(A) ((A)->data.val/65536.0)
-@d number_negate(A) ((A)->data.val=-(A)->data.val)
-@d number_add(A,B) ((A)->data.val=(A)->data.val+(B)->data.val)
-@d number_substract(A,B) ((A)->data.val=(A)->data.val-(B)->data.val)
-@d number_half(A) ((A)->data.val=(A)->data.val/2)
-@d number_halfp(A) ((A)->data.val=(A)->data.val/2)
-@d number_double(A) ((A)->data.val=((A)->data.val+(A)->data.val))
-@d number_add_scaled(A,B) ((A)->data.val=((A)->data.val+(B)))
-@d number_substract_scaled(A,B) ((A)->data.val=((A)->data.val-(B)))
-@d number_abs(A)    ((A)->data.val=abs((A)->data.val))
-@d number_positive(A) ((A)->data.val>0)
-@d number_zero(A) ((A)->data.val==0)
-@d number_infinite(A) ((A)->data.val==EL_GORDO)
-@d number_unity(A) ((A)->data.val==unity)
-@d number_negative(A) ((A)->data.val<0)
-@d number_nonnegative(A) ((A)->data.val>=0)
-@d number_nonpositive(A) ((A)->data.val<=0)
-@d number_nonzero(A) (!number_zero(A))
-@d number_equal(A,B) ((A)->data.val==(B)->data.val)
-@d number_greater(A,B) ((A)->data.val>(B)->data.val)
-@d number_greaterequal(A,B) ((A)->data.val>=(B)->data.val)
-@d number_less(A,B) ((A)->data.val<(B)->data.val)
-@d number_lessequal(A,B) ((A)->data.val<=(B)->data.val)
-@d number_nonequalabs(A,B) (!(abs((A)->data.val)==abs((B)->data.val)))
-@d number_clone(A,B) (A)->data.val=(B)->data.val
-@d number_swap(A,B) do {
-  scaled swap_tmp = (A)->data.val;
-  (A)->data.val=(B)->data.val;
-  (B)->data.val=swap_tmp;
-} while (0)
+@d set_number_from_of_the_way(A,t,B,C) mp_set_number_from_of_the_way(mp, A,t,B,C) 
+@d set_number_from_scaled(A,B)	       mp_set_number_from_scaled(A,B)	       
+@d set_number_from_double(A,B)	       mp_set_number_from_double(A,B)	       
+@d set_number_from_addition(A,B,C)     mp_set_number_from_addition(A,B,C)     
+@d set_number_from_substraction(A,B,C) mp_set_number_from_substraction(A,B,C) 
+@d set_number_to_unity(A)	       mp_set_number_to_unity(A)	       
+@d set_number_to_zero(A)	       mp_set_number_to_zero(A)	       
+@d set_number_to_inf(A)		       mp_set_number_to_inf(A)		       
+@d set_number_to_neg_inf(A)	       mp_set_number_to_neg_inf(A)	       
+@d number_to_scaled(A)		       mp_number_to_scaled(A)		       
+@d number_to_double(A)		       mp_number_to_double(A)		       
+@d number_negate(A)		       mp_number_negate(A)		       
+@d number_add(A,B)		       mp_number_add(A,B)		       
+@d number_substract(A,B)	       mp_number_substract(A,B)	       
+@d number_half(A)		       mp_number_half(A)		       
+@d number_halfp(A)		       mp_number_halfp(A)		       
+@d number_double(A)		       mp_number_double(A)		       
+@d number_add_scaled(A,B)	       mp_number_add_scaled(A,B)	       
+@d number_substract_scaled(A,B)	       mp_number_substract_scaled(A,B)	       
+@d number_abs(A)		       mp_number_abs(A)		       
+@d number_positive(A)		       mp_number_positive(A)		       
+@d number_zero(A)		       mp_number_zero(A)		       
+@d number_infinite(A)		       mp_number_infinite(A)		       
+@d number_unity(A)		       mp_number_unity(A)		       
+@d number_negative(A)		       mp_number_negative(A)		       
+@d number_nonnegative(A)	       mp_number_nonnegative(A)	       
+@d number_nonpositive(A)	       mp_number_nonpositive(A)	       
+@d number_nonzero(A)		       mp_number_nonzero(A)		       
+@d number_equal(A,B)		       mp_number_equal(A,B)		       
+@d number_greater(A,B)		       mp_number_greater(A,B)		       
+@d number_greaterequal(A,B)	       mp_number_greaterequal(A,B)	       
+@d number_less(A,B)		       mp_number_less(A,B)		       
+@d number_lessequal(A,B)	       mp_number_lessequal(A,B)	       
+@d number_nonequalabs(A,B)	       mp_number_nonequalabs(A,B)	       
+@d number_clone(A,B)		       mp_number_clone(A,B)		       
+@d number_swap(A,B)		       mp_number_swap(A,B)		       
 
 @
 @<Declarations@>=

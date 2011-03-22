@@ -31,13 +31,7 @@
 
 @ Introduction.
 
-@
-@d hlp1(A) mp->help_line[0]=A; }
-@d hlp2(A,B) mp->help_line[1]=A; hlp1(B)
-@d help1  { mp->help_ptr=1; hlp1 /* use this with one help line */
-@d help2  { mp->help_ptr=2; hlp2 /* use this with two help lines */
-
-@ @c 
+@c 
 #include <w2c/config.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -109,6 +103,165 @@ void * mp_initialize_math (MP mp) {
 void mp_free_math (MP mp) {
   free(mp->math);
 }
+
+@ Here are the low-level functions on |mp_number| items, setters first.
+
+@c 
+void mp_set_number_from_scaled(mp_number A, scaled B) {
+  A->data.val = B;
+}
+void mp_set_number_from_double(mp_number A, double B) {
+  A->data.val = (scaled)(B*65536.0);
+}
+void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C) {
+  A->data.val = B->data.val+C->data.val;
+}
+void mp_set_number_from_substraction (mp_number A, mp_number B, mp_number C) {
+ A->data.val = B->data.val-C->data.val;
+}
+void mp_set_number_to_unity(mp_number A) {
+  A->data.val=unity;
+}
+void mp_set_number_to_zero(mp_number A) {
+  A->data.val=0;
+}
+void mp_set_number_to_inf(mp_number A) {
+  A->data.val=EL_GORDO;
+}
+void mp_set_number_to_neg_inf(mp_number A) {
+  A->data.val=-EL_GORDO;
+}
+void mp_set_number_from_of_the_way(MP mp, mp_number A, int t, mp_number B, mp_number C) {
+  A->data.val = B->data.val - mp_take_fraction(mp, (B->data.val - C->data.val), t);
+}
+void mp_number_negate(mp_number A) {
+  A->data.val = -A->data.val;
+}
+void mp_number_add(mp_number A, mp_number B) {
+  A->data.val = A->data.val + B->data.val;
+}
+void mp_number_substract(mp_number A, mp_number B) {
+  A->data.val = A->data.val - B->data.val;
+}
+void mp_number_half(mp_number A) {
+  A->data.val = A->data.val/2;
+}
+void mp_number_halfp(mp_number A) {
+  A->data.val = (A->data.val>>1);
+}
+void mp_number_double(mp_number A) {
+  A->data.val = A->data.val + A->data.val;
+}
+void mp_number_add_scaled(mp_number A, scaled B) {
+  A->data.val = A->data.val + B;
+}
+void mp_number_substract_scaled(mp_number A, scaled B) {
+  A->data.val = A->data.val - B;
+}
+void mp_number_abs(mp_number A) {   
+  A->data.val = abs(A->data.val);
+}
+void mp_number_clone(mp_number A, mp_number B) {
+  A->data.val=B->data.val;
+}
+void mp_number_swap(mp_number A, mp_number B) {
+  scaled swap_tmp = A->data.val;
+  A->data.val=B->data.val;
+  B->data.val=swap_tmp;
+}
+
+@ Query functions
+
+@c
+scaled mp_number_to_scaled(mp_number A) {
+  return A->data.val;
+}
+double mp_number_to_double(mp_number A) {
+  return (A->data.val/65536.0);
+}
+int mp_number_positive(mp_number A) { 
+  return (A->data.val>0);
+}
+int mp_number_zero(mp_number A) {
+  return (A->data.val==0);
+}
+int mp_number_infinite(mp_number A) {
+  return (A->data.val==EL_GORDO);
+}
+int mp_number_unity(mp_number A) {
+  return (A->data.val==unity);
+}
+int mp_number_negative(mp_number A) {
+  return (A->data.val<0);
+}
+int mp_number_nonnegative(mp_number A) {
+  return (A->data.val>=0);
+}
+int mp_number_nonpositive(mp_number A) {
+  return (A->data.val<=0);
+}
+int mp_number_nonzero(mp_number A) {
+  return (A->data.val!=0);
+}
+int mp_number_equal(mp_number A, mp_number B) {
+  return (A->data.val==B->data.val);
+}
+int mp_number_greater(mp_number A, mp_number B) {
+  return (A->data.val>B->data.val);
+}
+int mp_number_greaterequal(mp_number A, mp_number B) {
+  return (A->data.val>=B->data.val);
+}
+int mp_number_less(mp_number A, mp_number B) {
+  return (A->data.val<B->data.val);
+}
+int mp_number_lessequal(mp_number A, mp_number B) {
+  return (A->data.val<=B->data.val);
+}
+int mp_number_nonequalabs(mp_number A, mp_number B) {
+  return (!(abs(A->data.val)==abs(B->data.val)));
+}
+
+@ Header definitions for those 
+
+@<Internal library declarations@>=
+extern void mp_set_number_from_of_the_way(MP mp, mp_number A, int t, mp_number B, mp_number C);
+extern void mp_set_number_from_scaled(mp_number A, scaled B);
+extern void mp_set_number_from_double(mp_number A, double B);
+extern void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C);
+extern void mp_set_number_from_substraction (mp_number A, mp_number B, mp_number C);
+extern void mp_set_number_to_unity(mp_number A);
+extern void mp_set_number_to_zero(mp_number A);
+extern void mp_set_number_to_inf(mp_number A);
+extern void mp_set_number_to_neg_inf(mp_number A);
+extern void mp_number_negate(mp_number A);
+extern void mp_number_add(mp_number A, mp_number B);
+extern void mp_number_substract(mp_number A, mp_number B);
+extern void mp_number_half(mp_number A);
+extern void mp_number_halfp(mp_number A);
+extern void mp_number_double(mp_number A);
+extern void mp_number_add_scaled(mp_number A, scaled B);
+extern void mp_number_substract_scaled(mp_number A, scaled B);
+extern void mp_number_abs(mp_number A);   
+extern void mp_number_clone(mp_number A, mp_number B);
+extern void mp_number_swap(mp_number A, mp_number B);
+extern scaled mp_number_to_scaled(mp_number A);
+extern double mp_number_to_double(mp_number A);
+extern int mp_number_positive(mp_number A); 
+extern int mp_number_zero(mp_number A);
+extern int mp_number_infinite(mp_number A);
+extern int mp_number_unity(mp_number A);
+extern int mp_number_negative(mp_number A);
+extern int mp_number_nonnegative(mp_number A);
+extern int mp_number_nonpositive(mp_number A);
+extern int mp_number_nonzero(mp_number A);
+extern int mp_number_equal(mp_number A, mp_number B);
+extern int mp_number_greater(mp_number A, mp_number B);
+extern int mp_number_greaterequal(mp_number A, mp_number B);
+extern int mp_number_less(mp_number A, mp_number B);
+extern int mp_number_lessequal(mp_number A, mp_number B);
+extern int mp_number_nonequalabs(mp_number A, mp_number B);
+
 
 @ Fixed-point arithmetic is done on {\sl scaled integers\/} that are multiples
 of $2^{-16}$. In other words, a binary point is assumed to be sixteen bit
