@@ -8775,8 +8775,6 @@ mp_number mp_solve_rising_cubic (MP mp, mp_number a_orig, mp_number b_orig, mp_n
   ac = mp_new_number (mp);
   xx = mp_new_number (mp);
   neg_x = mp_new_number (mp);
-  number_clone(neg_x, x);
-  number_negate(neg_x);
   set_number_from_addition(abc, a, b);
   number_add(abc, c);
   ret = mp_new_number (mp);
@@ -8795,6 +8793,8 @@ mp_number mp_solve_rising_cubic (MP mp, mp_number a_orig, mp_number b_orig, mp_n
       number_substract(xx, a);
       number_substract(xx, ab);
       number_substract(xx, ac);
+      number_clone(neg_x, x);
+      number_negate(neg_x);
       if (number_less(xx, neg_x)) {
         number_double(x);
         number_clone(b, ab);
