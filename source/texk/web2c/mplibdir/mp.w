@@ -24374,7 +24374,7 @@ break;
 given ordered pair of values.
 
 @<Declare unary action procedures@>=
-static void mp_pair_value (MP mp, scaled x, scaled y) {
+static void mp_pair_value (MP mp, mp_number x, mp_number y) {
   mp_node p;    /* a pair node */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
@@ -24388,9 +24388,9 @@ static void mp_pair_value (MP mp, scaled x, scaled y) {
   mp_init_pair_node (mp, p);
   p = value_node (p);
   mp_type (x_part (p)) = mp_known;
-  set_value (x_part (p), x);
+  set_value (x_part (p), number_to_scaled (x));
   mp_type (y_part (p)) = mp_known;
-  set_value (y_part (p), y);
+  set_value (y_part (p), number_to_scaled (y));
 }
 
 
@@ -24399,25 +24399,25 @@ case mp_ll_corner_op:
 if (!mp_get_cur_bbox (mp))
   mp_bad_unary (mp, mp_ll_corner_op);
 else
-  mp_pair_value (mp, number_to_scaled (mp_minx), number_to_scaled (mp_miny));
+  mp_pair_value (mp, mp_minx, mp_miny);
 break;
 case mp_lr_corner_op:
 if (!mp_get_cur_bbox (mp))
   mp_bad_unary (mp, mp_lr_corner_op);
 else
-  mp_pair_value (mp,  number_to_scaled (mp_maxx), number_to_scaled (mp_miny));
+  mp_pair_value (mp,  mp_maxx, mp_miny);
 break;
 case mp_ul_corner_op:
 if (!mp_get_cur_bbox (mp))
   mp_bad_unary (mp, mp_ul_corner_op);
 else
-  mp_pair_value (mp, number_to_scaled (mp_minx), number_to_scaled (mp_maxy));
+  mp_pair_value (mp, mp_minx, mp_maxy);
 break;
 case mp_ur_corner_op:
 if (!mp_get_cur_bbox (mp))
   mp_bad_unary (mp, mp_ur_corner_op);
 else
-  mp_pair_value (mp, number_to_scaled (mp_maxx),  number_to_scaled (mp_maxy));
+  mp_pair_value (mp, mp_maxx,  mp_maxy);
 break;
 
 @ Here is a function that sets |minx|, |maxx|, |miny|, |maxy| to the bounding
@@ -26459,7 +26459,7 @@ break;
 static void mp_set_up_offset (MP mp, mp_node p) {
   mp_find_offset (mp, value_number (x_part (p)), value_number (y_part (p)),
                   cur_exp_knot ());
-  mp_pair_value (mp, number_to_scaled (mp->cur_x), number_to_scaled (mp->cur_y));
+  mp_pair_value (mp, mp->cur_x, mp->cur_y);
 }
 static void mp_set_up_direction_time (MP mp, mp_node p) {
   mp_value new_expr;
@@ -26586,19 +26586,19 @@ static void mp_find_point (MP mp, scaled v, quarterword c) {
 @ @<Set the current expression to the desired path coordinates...@>=
 switch (c) {
 case mp_point_of:
-  mp_pair_value (mp, number_to_scaled (p->x_coord), number_to_scaled (p->y_coord));
+  mp_pair_value (mp, p->x_coord, p->y_coord);
   break;
 case mp_precontrol_of:
   if (mp_left_type (p) == mp_endpoint)
-    mp_pair_value (mp, number_to_scaled (p->x_coord), number_to_scaled (p->y_coord));
+    mp_pair_value (mp, p->x_coord, p->y_coord);
   else
-    mp_pair_value (mp, number_to_scaled (p->left_x), number_to_scaled (p->left_y));
+    mp_pair_value (mp, p->left_x, p->left_y);
   break;
 case mp_postcontrol_of:
   if (mp_right_type (p) == mp_endpoint)
-    mp_pair_value (mp, number_to_scaled (p->x_coord), number_to_scaled (p->y_coord));
+    mp_pair_value (mp, p->x_coord, p->y_coord);
   else
-    mp_pair_value (mp, number_to_scaled (p->right_x), number_to_scaled (p->right_y));
+    mp_pair_value (mp, p->right_x, p->right_y);
   break;
 }                               /* there are no other cases */
 
@@ -26627,8 +26627,15 @@ if (mp_type (p) == mp_pair_type) {
 if (mp->cur_exp.type == mp_pair_type)
   mp_pair_to_path (mp);
 if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_path_type)) {
+  mp_number arg1, arg2;
+  new_number (arg1);
+  new_number (arg2);
   mp_path_intersection (mp, value_knot (p), cur_exp_knot ());
-  mp_pair_value (mp, mp->cur_t, mp->cur_tt);
+  set_number_from_scaled (arg1, mp->cur_t);
+  set_number_from_scaled (arg2, mp->cur_tt);
+  mp_pair_value (mp, arg1, arg2);
+  free_number (arg1);
+  free_number (arg2);
 } else {
   mp_bad_binary (mp, p, mp_intersect);
 }
