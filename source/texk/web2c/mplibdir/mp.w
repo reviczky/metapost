@@ -8628,7 +8628,8 @@ calls, but $1.5$ is an adequate approximation.  It is best to avoid using
   @<Set |a_new| and |a_aux| so their sum is |2*a_goal| and |a_new| is as
     large as possible@>;
   {
-    mp_number new_number(halfp_tol);
+    mp_number halfp_tol;
+    new_number(halfp_tol);
     number_clone (halfp_tol, tol);
     number_halfp (halfp_tol);
     number_add(tol, halfp_tol);
@@ -12581,9 +12582,10 @@ if (number_greater(t, fraction_one_t)) {
   number_clone(y0, y2a);
   mp_knot_info (r) = zero_off - 1;
   if (turn_amt >= 0) {
-    mp_number new_number(arg1);
-    mp_number new_number(arg2);
-    mp_number new_number(arg3);
+    mp_number arg1, arg2, arg3;
+    new_number(arg1);
+    new_number(arg2);
+    new_number(arg3);
     set_number_from_of_the_way(t1, t, t1, t2);
     if (number_positive(t1))
       set_number_to_zero(t1);
@@ -12714,7 +12716,8 @@ set_number_from_scaled(t1, half (mp_take_fraction (mp, number_to_scaled(x1), (nu
 if (number_zero(t0))
   set_number_from_scaled(t0, d_sign);                  /* path reversal always negates |d_sign| */
 if (number_positive(t0)) {
-  mp_number new_number(arg3);
+  mp_number arg3;
+  new_number(arg3);
   number_clone(arg3, t0);
   number_negate(arg3);
   free_number (t);
@@ -12725,7 +12728,8 @@ if (number_positive(t0)) {
   set_number_from_of_the_way(v0, t, y0, y1);
   set_number_from_of_the_way(v1, t, y1, y2);
 } else {
-  mp_number new_number(arg1);
+  mp_number arg1;
+  new_number(arg1);
   number_clone(arg1, t0);
   number_negate(arg1);
   free_number (t);
@@ -12737,8 +12741,9 @@ if (number_positive(t0)) {
   set_number_from_of_the_way(v1, t, y1, y0);
 }
 { 
-  mp_number new_number(tmp1);
-  mp_number new_number(tmp2);
+  mp_number tmp1, tmp2;
+  new_number(tmp1);
+  new_number(tmp2);
   set_number_from_of_the_way(tmp1, t, u0, u1);
   set_number_from_of_the_way(tmp2, t, v0, v1);
   ss = mp_take_fraction (mp, (number_to_scaled(x0) + number_to_scaled(x2)), number_to_scaled(tmp1)) +
@@ -12822,14 +12827,13 @@ approach that is achieved by setting |join_type:=2|.
 
 @c
 static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
-                                 quarterword lcap, mp_number miter) {
+                                 quarterword lcap, mp_number miterlim) {
   mp_knot p, q, r, q0;  /* for manipulating the path */
   mp_knot w, w0;        /* the pen knot for the current offset */
   halfword k, k0;       /* controls pen edge insertion */
   mp_number qx, qy;        /* unshifted coordinates of |q| */
   mp_fraction dxin, dyin, dxout, dyout;      /* directions at |q| when square or mitered */
   int join_type = 0;    /* codes |0..3| for mitered, round, beveled, or square */
-  scaled miterlim = number_to_scaled(miter);
   @<Other local variables for |make_envelope|@>;
   new_fraction(dxin);
   new_fraction(dyin);
@@ -12919,11 +12923,11 @@ if (k < zero_off) {
 
 @ @<If |miterlim| is less than the secant of half the angle at |q|...@>=
 {
-  tmp = mp_take_fraction (mp, miterlim, fraction_half +
+  tmp = mp_take_fraction (mp, number_to_scaled(miterlim), fraction_half +
                           half (mp_take_fraction (mp, number_to_scaled(dxin), number_to_scaled(dxout)) +
                                 mp_take_fraction (mp, number_to_scaled(dyin), number_to_scaled(dyout))));
   if (tmp < unity)
-    if (mp_take_scaled (mp, miterlim, tmp) < unity)
+    if (mp_take_scaled (mp, number_to_scaled(miterlim), tmp) < unity)
       join_type = 2;
 }
 
@@ -13531,7 +13535,8 @@ number_clone(tt, t);
 if (number_greater (t, fraction_one_t))
   goto DONE;
 {
-  mp_number new_number(tmp);
+  mp_number tmp;
+  new_number(tmp);
   set_number_from_of_the_way(x1, t, x1, x2);
   set_number_from_of_the_way(x2, t, x2, x3);
   set_number_from_of_the_way(tmp, t, x1, x2);
@@ -13553,7 +13558,8 @@ if (number_greater (t, fraction_one_t))
   ab_vs_cd = mp_ab_vs_cd (mp, y1, y2, zero_t, zero_t);
   free_number (zero_t);
   if (ab_vs_cd < 0) {
-    mp_number new_number(tmp);
+    mp_number tmp;
+    new_number(tmp);
     set_number_from_scaled (t, mp_make_fraction (mp, number_to_scaled(y1), number_to_scaled(y1) - number_to_scaled(y2)));
     set_number_from_of_the_way(x1, t, x1, x2);
     set_number_from_of_the_way(x2, t, x2, x3);
@@ -26211,7 +26217,8 @@ sum is similar.
 
 @<Scale the bounding box by |txx+txy| and |tyx+tyy|; then shift...@>=
 {
-  mp_number new_number(tot);
+  mp_number tot;
+  new_number(tot);
   set_number_from_addition(tot,mp->txx,mp->txy);
   number_add(tot,mp->tx);
   set_number_from_scaled(h->minx, mp_take_scaled (mp, number_to_scaled(h->minx), number_to_scaled(tot)));
@@ -26727,8 +26734,9 @@ static void mp_set_up_direction_time (MP mp, mp_node p) {
 }
 static void mp_set_up_envelope (MP mp, mp_node p) {
   unsigned char ljoin, lcap;
-  mp_number new_number(miterlim);
+  mp_number miterlim;
   mp_knot q = mp_copy_path (mp, cur_exp_knot ());       /* the original path */
+  new_number(miterlim);
   /* TODO: accept elliptical pens for straight paths */
   if (pen_is_elliptical (value_knot (p))) {
     mp_bad_envelope_pen (mp);
