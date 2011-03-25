@@ -9067,14 +9067,16 @@ static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number 
 @ Now it is easy to find the arc length of an entire path.
 
 @c
-static scaled mp_get_arc_length (MP mp, mp_knot h) {
+static mp_number mp_get_arc_length (MP mp, mp_knot h) {
   mp_knot p, q; /* for traversing the path */
   mp_number a;  /* current arc length */
   scaled a_tot; /* total arc length */
   mp_number arg1, arg2, arg3, arg4, arg5, arg6;
   mp_number arcgoal; 
+  mp_number ret;
   a_tot = 0;
   p = h;
+  new_number (ret);
   new_number (arg1);
   new_number (arg2);
   new_number (arg3);
@@ -9107,7 +9109,8 @@ static scaled mp_get_arc_length (MP mp, mp_knot h) {
   free_number (arg5);
   free_number (arg6);
   check_arith();
-  return a_tot;
+  set_number_from_scaled (ret, a_tot);
+  return ret;
 }
 
 
@@ -9123,16 +9126,18 @@ we must be prepared to compute the arc length of path~|h| and divide this into
 |arc0| to find how many multiples of the length of path~|h| to add.
 
 @c
-static scaled mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
+static mp_number mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
   mp_knot p, q; /* for traversing the path */
   scaled t_tot; /* accumulator for the result */
   mp_number t;     /* the result of |do_arc_test| */
   mp_number arc, arc0;   /* portion of |arc0| not used up so far */
+  mp_number ret;
   integer n;    /* number of extra times to go around the cycle */
   mp_number arg1, arg2, arg3, arg4, arg5, arg6; /* |do_arc_test| arguments */
   if (number_negative(arc0_orig)) {
     @<Deal with a negative |arc0_orig| value and |return|@>;
   }
+  new_number (ret);
   new_number (arc0);
   number_clone(arc0, arc0_orig);
   if (number_infinite(arc0)) {
@@ -9166,6 +9171,8 @@ static scaled mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
     p = q;
   }
   check_arith();
+  set_number_from_scaled (ret, t_tot);
+RETURN:
   free_number (t);
   free_number (arc);
   free_number (arg1);
@@ -9174,7 +9181,7 @@ static scaled mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
   free_number (arg4);
   free_number (arg5);
   free_number (arg6);
-  return t_tot;
+  return ret;
 }
 
 
@@ -9191,19 +9198,20 @@ if (number_negative(t)) {
 @ @<Deal with a negative |arc0_orig| value and |return|@>=
 {
   if (mp_left_type (h) == mp_endpoint) {
-    t_tot = 0;
+    new_number(ret);
   } else {
     mp_number neg_arc0;
     p = mp_htap_ypoc (mp, h);
     new_number(neg_arc0);
     number_clone(neg_arc0, arc0_orig);
     number_negate(neg_arc0);
-    t_tot = -mp_get_arc_time (mp, p, neg_arc0);
+    ret = mp_get_arc_time (mp, p, neg_arc0);
+    number_negate(ret);
     mp_toss_knot_list (mp, p);
     free_number (neg_arc0);
   }
   check_arith();
-  return t_tot;
+  return ret;
 }
 
 
@@ -9214,7 +9222,8 @@ if (number_positive(arc)) {
   if (t_tot > (EL_GORDO / (n + 1))) {
     mp->arith_error = true;
     check_arith();
-    return EL_GORDO;
+    set_number_to_inf(ret);
+    goto RETURN;
   }
   t_tot = (n + 1) * t_tot;
 }
@@ -24497,7 +24506,8 @@ if (mp->cur_exp.type == mp_pair_type)
 if (mp->cur_exp.type != mp_path_type) {
   mp_bad_unary (mp, mp_arc_length);
 } else {
-  new_expr.data.n->data.val = mp_get_arc_length (mp, cur_exp_knot ());
+  free_number (new_expr.data.n);
+  new_expr.data.n = mp_get_arc_length (mp, cur_exp_knot ());
   mp_flush_cur_exp (mp, new_expr);
 }
 break;
@@ -26844,7 +26854,8 @@ case mp_arc_time_of:
 if (mp->cur_exp.type == mp_pair_type)
   mp_pair_to_path (mp);
 if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_known)) {
-  new_expr.data.n->data.val = mp_get_arc_time (mp, cur_exp_knot (), value_number (p));
+  free_number (new_expr.data.n);
+  new_expr.data.n = mp_get_arc_time (mp, cur_exp_knot (), value_number (p));
   mp_flush_cur_exp (mp, new_expr);
 } else {
   mp_bad_binary (mp, p, (quarterword) c);
