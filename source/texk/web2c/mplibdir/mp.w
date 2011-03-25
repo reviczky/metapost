@@ -23698,23 +23698,13 @@ break;
 argument is |origin|.
 
 @<Declare unary action...@>=
-static angle mp_an_angle (MP mp, scaled xpar, scaled ypar) {
-  if ((!((xpar == 0) && (ypar == 0)))) {
-    angle ret;
-    mp_number arg1, arg2;
-    mp_number n_arg;
-    new_number (arg1);
-    new_number (arg2);
-    set_number_from_scaled (arg1, xpar);
-    set_number_from_scaled (arg2, ypar);
-    n_arg = mp_n_arg (mp, arg1, arg2);
-    free_number (arg1);
-    free_number (arg2);
-    ret = number_to_scaled (n_arg);
-    free_number (n_arg);
-    return ret;
+static mp_number mp_an_angle (MP mp, mp_number xpar, mp_number ypar) {
+  mp_number ret;
+  if ((!(number_zero(xpar) && number_zero(ypar)))) {
+    return mp_n_arg (mp, xpar, ypar);
   }
-  return 0;
+  new_number (ret);
+  return ret;
 }
 
 
@@ -23741,8 +23731,9 @@ static angle mp_bezier_slope (MP mp, integer AX, integer AY, integer BX,
                               integer DY) {
   double a, b, c;
   integer deltax, deltay;
+  mp_number arg1, arg2;
   double ax, ay, bx, by, cx, cy, dx, dy;
-  angle xi = 0, xo = 0, xm = 0;
+  mp_number xi, xo, xm;
   double res = 0;
   ax = (double) (AX / divisor);
   ay = (double) (AY / divisor);
@@ -23752,6 +23743,8 @@ static angle mp_bezier_slope (MP mp, integer AX, integer AY, integer BX,
   cy = (double) (CY / divisor);
   dx = (double) (DX / divisor);
   dy = (double) (DY / divisor);
+  new_number (arg1);
+  new_number (arg2);
   deltax = (BX - AX);
   deltay = (BY - AY);
   if (deltax == 0 && deltay == 0) {
@@ -23762,10 +23755,14 @@ static angle mp_bezier_slope (MP mp, integer AX, integer AY, integer BX,
     deltax = (DX - AX);
     deltay = (DY - AY);
   }
-  xi = mp_an_angle (mp, deltax, deltay);
+  set_number_from_scaled (arg1, deltax);
+  set_number_from_scaled (arg2, deltay);
+  xi = mp_an_angle (mp, arg1, arg2);
   deltax = (CX - BX);
   deltay = (CY - BY);
-  xm = mp_an_angle (mp, deltax, deltay);
+  set_number_from_scaled (arg1, deltax);
+  set_number_from_scaled (arg2, deltay);
+  xm = mp_an_angle (mp, arg1, arg2); /* !!! never used? */
   deltax = (DX - CX);
   deltay = (DY - CY);
   if (deltax == 0 && deltay == 0) {
@@ -23776,31 +23773,33 @@ static angle mp_bezier_slope (MP mp, integer AX, integer AY, integer BX,
     deltax = (DX - AX);
     deltay = (DY - AY);
   }
-  xo = mp_an_angle (mp, deltax, deltay);
+  set_number_from_scaled (arg1, deltax);
+  set_number_from_scaled (arg2, deltay);
+  xo = mp_an_angle (mp, arg1, arg2);
   a = (bx - ax) * (cy - by) - (cx - bx) * (by - ay);    /* a = (bp-ap)x(cp-bp); */
   b = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx);;   /* b = (bp-ap)x(dp-cp); */
   c = (cx - bx) * (dy - cy) - (dx - cx) * (cy - by);    /* c = (cp-bp)x(dp-cp); */
   if ((a == 0) && (c == 0)) {
-    res = (b == 0 ? 0 : (mp_out (xo) - mp_out (xi)));
+    res = (b == 0 ? 0 : (mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi))));
   } else if ((a == 0) || (c == 0)) {
     if ((mp_sign (b) == mp_sign (a)) || (mp_sign (b) == mp_sign (c))) {
-      res = mp_out (xo) - mp_out (xi);  /* ? */
+      res = mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi));  /* ? */
       if (res < -180.0)
         res += 360.0;
       else if (res > 180.0)
         res -= 360.0;
     } else {
-      res = mp_out (xo) - mp_out (xi);  /* ? */
+      res = mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi));  /* ? */
     }
   } else if ((mp_sign (a) * mp_sign (c)) < 0) {
-    res = mp_out (xo) - mp_out (xi);    /* ? */
+    res = mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi));    /* ? */
     if (res < -180.0)
       res += 360.0;
     else if (res > 180.0)
       res -= 360.0;
   } else {
     if (mp_sign (a) == mp_sign (b)) {
-      res = mp_out (xo) - mp_out (xi);  /* ? */
+      res = mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi));  /* ? */
       if (res < -180.0)
         res += 360.0;
       else if (res > 180.0)
@@ -23809,13 +23808,13 @@ static angle mp_bezier_slope (MP mp, integer AX, integer AY, integer BX,
       if ((b * b) == (4 * a * c)) {
         res = (double) bezier_error;
       } else if ((b * b) < (4 * a * c)) {
-        res = mp_out (xo) - mp_out (xi);        /* ? */
+        res = mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi));        /* ? */
         if (res <= 0.0 && res > -180.0)
           res += 360.0;
         else if (res >= 0.0 && res < 180.0)
           res -= 360.0;
       } else {
-        res = mp_out (xo) - mp_out (xi);
+        res = mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi));
         if (res < -180.0)
           res += 360.0;
         else if (res > 180.0)
@@ -23823,6 +23822,11 @@ static angle mp_bezier_slope (MP mp, integer AX, integer AY, integer BX,
       }
     }
   }
+  free_number (arg1);
+  free_number (arg2);
+  free_number (xi);
+  free_number (xo);
+  free_number (xm);
   return double2angle (res);
 }
 
@@ -23839,9 +23843,12 @@ static scaled mp_new_turn_cycles (MP mp, mp_knot c) {
   mp_knot p;    /*  for running around the path  */
   mp_number xp, yp;       /*  coordinates of next point  */
   mp_number x, y; /*  helper coordinates  */
+  mp_number arg1, arg2;
   mp_angle in_angle, out_angle;    /*  helper angles */
   mp_angle seven_twenty_deg_n, one_eighty_deg_n, neg_one_eighty_deg_n, three_sixty_deg_n;
   unsigned old_setting; /* saved |selector| setting */
+  new_number(arg1);
+  new_number(arg2);
   new_number(xp);
   new_number(yp);
   new_number(x);
@@ -23901,7 +23908,10 @@ static scaled mp_new_turn_cycles (MP mp, mp_knot c) {
       number_clone (x, p->x_coord);
       number_clone (y, p->y_coord);
     }
-    set_number_from_scaled(in_angle, mp_an_angle (mp, number_to_scaled(xp) - number_to_scaled(x), number_to_scaled(yp) - number_to_scaled(y)));
+    set_number_from_substraction(arg1, xp, x);
+    set_number_from_substraction(arg2, yp, y);
+    free_number (in_angle);
+    in_angle = mp_an_angle (mp, arg1, arg2);
     /*  outgoing angle at next point  */
     number_clone (x, p_next->right_x);
     number_clone (y, p_next->right_y);
@@ -23913,7 +23923,10 @@ static scaled mp_new_turn_cycles (MP mp, mp_knot c) {
       number_clone (x, p_nextnext->x_coord);
       number_clone (y, p_nextnext->y_coord);
     }
-    set_number_from_scaled(out_angle, mp_an_angle (mp, number_to_scaled(x) - number_to_scaled(xp), number_to_scaled(y) - number_to_scaled(yp)));
+    set_number_from_substraction(arg1, x, xp);
+    set_number_from_substraction(arg2, y, yp);
+    free_number (out_angle);
+    out_angle = mp_an_angle (mp, arg1, arg2);
     set_number_from_substraction(ang, out_angle, in_angle);
     mp_reduce_angle (mp, ang);
     if (number_nonzero(ang)) {
@@ -23943,6 +23956,8 @@ DONE:
   free_number(out_angle);
   free_number(ang);
   free_number(res);
+  free_number(arg1);
+  free_number(arg2);
   return turns;
 }
 
@@ -23996,19 +24011,30 @@ static scaled mp_turn_cycles (MP mp, mp_knot c) {
   scaled turns; /*  the turn counter  */
   mp_angle three_sixty_deg_n, neg_three_sixty_deg_n;
   mp_knot p;    /*  for running around the path  */
+  mp_number arg1, arg2, arg3, arg4;
   new_angle(three_sixty_deg_n);
   new_angle(neg_three_sixty_deg_n);
   new_angle(res);
   new_angle(ang);
+  new_number(arg1);
+  new_number(arg2);
+  new_number(arg3);
+  new_number(arg4);
   set_number_from_scaled(three_sixty_deg_n, three_sixty_deg);
   set_number_from_scaled(neg_three_sixty_deg_n, -three_sixty_deg);
   turns = 0;
   p = c;
   do {
-    set_number_from_scaled(ang, mp_an_angle (mp, number_to_scaled (p_to->x_coord) - number_to_scaled (p_here->x_coord),
-                       number_to_scaled (p_to->y_coord) - number_to_scaled (p_here->y_coord))
-      - mp_an_angle (mp, number_to_scaled (p_here->x_coord) - number_to_scaled (p_from->x_coord),
-                     number_to_scaled (p_here->y_coord) - number_to_scaled (p_from->y_coord)));
+    mp_number ret1, ret2;
+    set_number_from_substraction(arg1, p_to->x_coord, p_here->x_coord);
+    set_number_from_substraction(arg2, p_to->y_coord, p_here->y_coord);
+    set_number_from_substraction(arg3, p_here->x_coord, p_from->x_coord);
+    set_number_from_substraction(arg4, p_here->y_coord, p_from->y_coord);
+    ret1 = mp_an_angle (mp, arg1, arg2);
+    ret2 = mp_an_angle (mp, arg3, arg4);
+    set_number_from_substraction(ang, ret1, ret2);
+    free_number (ret1);
+    free_number (ret2);
     mp_reduce_angle (mp, ang);
     number_add(res, ang);
     if (number_greaterequal(res, three_sixty_deg_n)) {
@@ -24021,6 +24047,10 @@ static scaled mp_turn_cycles (MP mp, mp_knot c) {
     }
     p = mp_next_knot (p);
   } while (p != c);
+  free_number(arg1);
+  free_number(arg2);
+  free_number(arg3);
+  free_number(arg4);
   free_number(ang);
   free_number(res);
   free_number(three_sixty_deg_n);
@@ -24033,13 +24063,24 @@ static scaled mp_turn_cycles (MP mp, mp_knot c) {
 static scaled mp_turn_cycles_wrapper (MP mp, mp_knot c) {
   scaled nval, oval;
   scaled saved_t_o;     /* tracing\_online saved  */
+  mp_number arg1, arg2;
   if ((mp_next_knot (c) == c) || (mp_next_knot (mp_next_knot (c)) == c)) {
-    if (mp_an_angle
-        (mp, number_to_scaled (c->x_coord) - number_to_scaled (c->right_x),
-         number_to_scaled (c->y_coord) - number_to_scaled (c->right_y)) > 0)
-      return unity;
-    else
-      return -unity;
+    scaled ret;
+    mp_number an_angle;
+    new_number (arg1);
+    new_number (arg2);
+    set_number_from_substraction(arg1, c->x_coord, c->right_x);
+    set_number_from_substraction(arg2, c->y_coord, c->right_y);
+    an_angle = mp_an_angle(mp, arg1, arg2);
+    if (number_positive(an_angle)) {
+      ret = unity;
+    } else {
+      ret = -unity;
+    }
+    free_number (an_angle);
+    free_number (arg1);
+    free_number (arg2);
+    return ret;
   } else {
     nval = mp_new_turn_cycles (mp, c);
     oval = mp_turn_cycles (mp, c);
