@@ -7742,44 +7742,53 @@ void mp_reduce_angle (MP mp, mp_number a);
 
 @ @<Set up the equation for a curl at $\theta_0$@>=
 {
-  mp_number lt, rt;  /* tension values */
+  mp_number lt, rt, cc;  /* tension values */
   new_number (lt);
   new_number (rt);
-  cc = number_to_scaled(s->right_curl);
+  new_number (cc);
+  number_clone (cc, s->right_curl);
   number_clone (lt, t->left_tension);
   number_abs(lt);
   number_clone (rt, s->right_tension);
   number_abs(rt);
-  if (number_unity(rt) && number_unity(lt))
-    set_number_from_scaled(mp->uu[0], mp_make_fraction (mp, cc + cc + unity, cc + two));
-  else
-    set_number_from_scaled(mp->uu[0], mp_curl_ratio (mp, cc, rt, lt));
+  if (number_unity(rt) && number_unity(lt)) {
+    set_number_from_scaled(mp->uu[0], mp_make_fraction (mp, number_to_scaled(cc) + number_to_scaled(cc) + unity, number_to_scaled(cc) + two));
+  } else {
+    free_number(mp->uu[0]);
+    mp->uu[0] = mp_curl_ratio (mp, cc, rt, lt);
+  }
   set_number_from_scaled(mp->vv[0], -mp_take_fraction (mp, number_to_scaled(mp->psi[1]), number_to_scaled(mp->uu[0])));
   set_number_to_zero(mp->ww[0]);
   free_number (rt);
   free_number (lt);
+  free_number (cc);
 }
 
 
 @ @<Set up equation for a curl at $\theta_n$...@>=
 {
-  mp_number lt, rt;  /* tension values */
+  mp_number lt, rt, cc;  /* tension values */
   new_number (lt);
   new_number (rt);
-  cc = number_to_scaled(s->left_curl);
+  new_number (cc);
+  number_clone (cc, s->left_curl);
   number_clone (lt, s->left_tension);
   number_abs(lt);
   number_clone (rt, r->right_tension);
   number_abs(rt);
-  if (number_unity(rt) && number_unity(lt))
-    ff = mp_make_fraction (mp, cc + cc + unity, cc + two);
-  else
-    ff = mp_curl_ratio (mp, cc, lt, rt);
+  if (number_unity(rt) && number_unity(lt)) {
+    ff = mp_make_fraction (mp, number_to_scaled(cc) + number_to_scaled(cc) + unity, number_to_scaled(cc) + two);
+  } else {
+    mp_number tmp = mp_curl_ratio (mp, cc, lt, rt);
+    ff = number_to_scaled (tmp);
+    free_number (tmp);
+  }
   set_number_from_scaled(mp->theta[n],
     -mp_make_fraction (mp, mp_take_fraction (mp, number_to_scaled(mp->vv[n - 1]), ff),
                        fraction_one - mp_take_fraction (mp, ff, number_to_scaled(mp->uu[n - 1]))));
   free_number (rt);
   free_number (lt);
+  free_number (cc);
   goto FOUND;
 }
 
@@ -7794,14 +7803,17 @@ is necessary only if the curl and tension are both large.)
 The values of $\alpha$ and $\beta$ will be at most~4/3.
 
 @<Declarations@>=
-static fraction mp_curl_ratio (MP mp, scaled gamma, mp_number a_tension,
-                               mp_number b_tension);
+static mp_number mp_curl_ratio (MP mp, mp_number gamma, mp_number a_tension,
+                                 mp_number b_tension);
 
 @ @c
-fraction mp_curl_ratio (MP mp, scaled gamma, mp_number a_tension, mp_number b_tension) {
-  fraction alpha, beta, num, denom, ff; /* registers */
+mp_number mp_curl_ratio (MP mp, mp_number gamma_orig, mp_number a_tension, mp_number b_tension) {
+  mp_number ret;
+  fraction alpha, beta, gamma, num, denom, ff; /* registers */
   alpha = mp_make_fraction (mp, unity, number_to_scaled(a_tension));
   beta = mp_make_fraction (mp, unity, number_to_scaled(b_tension));
+  gamma = number_to_scaled (gamma_orig);
+  new_fraction(ret);
   if (alpha <= beta) {
     ff = mp_make_fraction (mp, alpha, beta);
     ff = mp_take_fraction (mp, ff, ff);
@@ -7818,9 +7830,10 @@ fraction mp_curl_ratio (MP mp, scaled gamma, mp_number a_tension, mp_number b_te
     num = mp_take_fraction (mp, gamma, fraction_three - alpha) + beta;
   }
   if (num >= denom + denom + denom + denom)
-    return fraction_four;
+    set_number_from_scaled(ret, fraction_four);
   else
-    return mp_make_fraction (mp, num, denom);
+    set_number_from_scaled(ret, mp_make_fraction (mp, num, denom));
+  return ret;
 }
 
 
