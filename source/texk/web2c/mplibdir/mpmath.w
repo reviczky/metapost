@@ -1311,14 +1311,19 @@ to be computationally simplest.
 @d eighth_octant (first_octant+negate_y)
 
 @<Internal library declarations@>=
-angle mp_n_arg (MP mp, integer x, integer y);
+mp_number mp_n_arg (MP mp, mp_number x, mp_number y);
 
 @ @c
-angle mp_n_arg (MP mp, integer x, integer y) {
+mp_number mp_n_arg (MP mp, mp_number x_orig, mp_number y_orig) {
+  mp_number ret;
   angle z;      /* auxiliary register */
   integer t;    /* temporary storage */
   quarterword k;        /* loop counter */
   int octant;   /* octant code */
+  integer x, y;
+  new_angle(ret);
+  x = x_orig->data.val;
+  y = y_orig->data.val;
   if (x >= 0) {
     octant = first_octant;
   } else {
@@ -1352,30 +1357,38 @@ angle mp_n_arg (MP mp, integer x, integer y) {
          NULL };
   mp_error (mp, "angle(0,0) is taken as zero", hlp, true);
 @.angle(0,0)...zero@>;
-  return 0;
+  return ret;
 }
 
 
 @ @<Return an appropriate answer...@>=
 switch (octant) {
 case first_octant:
-  return z;
+  ret->data.val = z;
+  break;
 case second_octant:
-  return (ninety_deg - z);
+  ret->data.val =  (ninety_deg - z);
+  break;
 case third_octant:
-  return (ninety_deg + z);
+  ret->data.val =  (ninety_deg + z);
+  break;
 case fourth_octant:
-  return (one_eighty_deg - z);
+  ret->data.val =  (one_eighty_deg - z);
+  break;
 case fifth_octant:
-  return (z - one_eighty_deg);
+  ret->data.val =  (z - one_eighty_deg);
+  break;
 case sixth_octant:
-  return (-z - ninety_deg);
+  ret->data.val = (-z - ninety_deg);
+  break;
 case seventh_octant:
-  return (z - ninety_deg);
+  ret->data.val =  (z - ninety_deg);
+  break;
 case eighth_octant:
-  return (-z);
-};                              /* there are no other cases */
-return 0
+  ret->data.val = (-z);
+  break;
+}                              /* there are no other cases */
+return ret
 
 @ At this point we have |x>=y>=0|, and |x>0|. The numbers are scaled up
 or down until $2^{28}\L x<2^{29}$, so that accurate fixed-point calculations
