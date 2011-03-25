@@ -23716,7 +23716,7 @@ moves at the actual points.
 @d mp_floor(a) ((a)>=0 ? (int)(a) : -(int)(-(a)))
 @d bezier_error (720*(256*256*16))+1
 @d mp_sign(v) ((v)>0 ? 1 : ((v)<0 ? -1 : 0 ))
-@d mp_out(A) (double)((A)/(256*256*16))
+@d mp_out(A) (double)((A)/16)
 @d double2angle(a) (int)mp_floor(a*256.0*256.0*16.0)
 
 @<Declare unary action...@>=
@@ -23774,26 +23774,26 @@ static mp_number mp_bezier_slope (MP mp, mp_number AX, mp_number AY, mp_number B
   b = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx);;   /* b = (bp-ap)x(dp-cp); */
   c = (cx - bx) * (dy - cy) - (dx - cx) * (cy - by);    /* c = (cp-bp)x(dp-cp); */
   if ((a == 0) && (c == 0)) {
-    res = (b == 0 ? 0 : (mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi))));
+    res = (b == 0 ? 0 : (mp_out (number_to_double(xo)) - mp_out (number_to_double(xi))));
   } else if ((a == 0) || (c == 0)) {
     if ((mp_sign (b) == mp_sign (a)) || (mp_sign (b) == mp_sign (c))) {
-      res = mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi));  /* ? */
+      res = mp_out (number_to_double(xo)) - mp_out (number_to_double(xi));  /* ? */
       if (res < -180.0)
         res += 360.0;
       else if (res > 180.0)
         res -= 360.0;
     } else {
-      res = mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi));  /* ? */
+      res = mp_out (number_to_double(xo)) - mp_out (number_to_double(xi));  /* ? */
     }
   } else if ((mp_sign (a) * mp_sign (c)) < 0) {
-    res = mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi));    /* ? */
+    res = mp_out (number_to_double(xo)) - mp_out (number_to_double(xi));    /* ? */
     if (res < -180.0)
       res += 360.0;
     else if (res > 180.0)
       res -= 360.0;
   } else {
     if (mp_sign (a) == mp_sign (b)) {
-      res = mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi));  /* ? */
+      res = mp_out (number_to_double(xo)) - mp_out (number_to_double(xi));  /* ? */
       if (res < -180.0)
         res += 360.0;
       else if (res > 180.0)
@@ -23802,13 +23802,13 @@ static mp_number mp_bezier_slope (MP mp, mp_number AX, mp_number AY, mp_number B
       if ((b * b) == (4 * a * c)) {
         res = (double) bezier_error;
       } else if ((b * b) < (4 * a * c)) {
-        res = mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi));        /* ? */
+        res = mp_out (number_to_double(xo)) - mp_out (number_to_double(xi));        /* ? */
         if (res <= 0.0 && res > -180.0)
           res += 360.0;
         else if (res >= 0.0 && res < 180.0)
           res -= 360.0;
       } else {
-        res = mp_out (number_to_scaled(xo)) - mp_out (number_to_scaled(xi));
+        res = mp_out (number_to_double(xo)) - mp_out (number_to_double(xi));
         if (res < -180.0)
           res += 360.0;
         else if (res > 180.0)
