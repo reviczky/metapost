@@ -8214,9 +8214,28 @@ enum mp_bb_code {
 @d mp_maxy mp->bbmax[mp_y_code]
 
 @<Glob...@>=
-scaled bbmin[mp_y_code + 1];
-scaled bbmax[mp_y_code + 1];
+mp_number bbmin[mp_y_code + 1];
+mp_number bbmax[mp_y_code + 1];
 /* the result of procedures that compute bounding box information */
+
+@ @<Initialize table ...@>=
+{ 
+  int i;
+  for (i=0;i<=mp_y_code;i++) {
+    new_number(mp->bbmin[i]);
+    new_number(mp->bbmax[i]);
+  }
+}
+
+@ @<Dealloc...@>=
+{ 
+  int i;
+  for (i=0;i<=mp_y_code;i++) {
+    free_number(mp->bbmin[i]);
+    free_number(mp->bbmax[i]);
+  }
+}
+
 
 @ Now we're ready for the key part of the bounding box computation.
 The |bound_cubic| procedure updates |bbmin[c]| and |bbmax[c]| based on
@@ -8280,24 +8299,24 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
 
 
 @ @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>=
-if (number_to_scaled(x) < mp->bbmin[c])
-  mp->bbmin[c] = number_to_scaled(x);
-if (number_to_scaled(x) > mp->bbmax[c])
-  mp->bbmax[c] = number_to_scaled(x)
+if (number_less(x, mp->bbmin[c]))
+  number_clone(mp->bbmin[c], x);
+if (number_greater(x, mp->bbmax[c]))
+  number_clone(mp->bbmax[c], x)
 
 @ @<Check the control points against the bounding box and set...@>=
 wavy = true;
 if (c == mp_x_code) {
-  if (mp->bbmin[c] <= number_to_scaled (p->right_x))
-    if (number_to_scaled (p->right_x) <= mp->bbmax[c])
-      if (mp->bbmin[c] <= number_to_scaled (q->left_x))
-        if (number_to_scaled (q->left_x) <= mp->bbmax[c])
+  if (number_lessequal(mp->bbmin[c], p->right_x))
+    if (number_lessequal (p->right_x, mp->bbmax[c]))
+      if (number_lessequal(mp->bbmin[c], q->left_x))
+        if (number_lessequal (q->left_x, mp->bbmax[c]))
           wavy = false;
 } else {
-  if (mp->bbmin[c] <= number_to_scaled (p->right_y))
-    if (number_to_scaled (p->right_y) <= mp->bbmax[c])
-      if (mp->bbmin[c] <= number_to_scaled (q->left_y))
-        if (number_to_scaled (q->left_y) <= mp->bbmax[c])
+  if (number_lessequal(mp->bbmin[c], p->right_y))
+    if (number_lessequal (p->right_y, mp->bbmax[c]))
+      if (number_lessequal(mp->bbmin[c], q->left_y))
+        if (number_lessequal (q->left_y, mp->bbmax[c]))
           wavy = false;
 }
 
@@ -8389,10 +8408,10 @@ must cut it to zero to avoid confusion.
 @c
 static void mp_path_bbox (MP mp, mp_knot h) {
   mp_knot p, q; /* a pair of adjacent knots */
-  mp_minx = number_to_scaled(h->x_coord);
-  mp_miny = number_to_scaled(h->y_coord);
-  mp_maxx = mp_minx;
-  mp_maxy = mp_miny;
+  number_clone(mp_minx, h->x_coord);
+  number_clone(mp_miny, h->y_coord);
+  number_clone (mp_maxx, mp_minx);
+  number_clone (mp_maxy, mp_miny);
   p = h;
   do {
     if (mp_right_type (p) == mp_endpoint)
@@ -9737,20 +9756,20 @@ static void mp_pen_bbox (MP mp, mp_knot h) {
   if (pen_is_elliptical (h)) {
     @<Find the bounding box of an elliptical pen@>;
   } else {
-    mp_minx = number_to_scaled(h->x_coord);
-    mp_maxx = mp_minx;
-    mp_miny = number_to_scaled(h->y_coord);
-    mp_maxy = mp_miny;
+    number_clone (mp_minx, h->x_coord);
+    number_clone (mp_maxx, mp_minx);
+    number_clone (mp_miny, h->y_coord);
+    number_clone (mp_maxy, mp_miny);
     p = mp_next_knot (h);
     while (p != h) {
-      if (number_to_scaled (p->x_coord) < mp_minx)
-        mp_minx = number_to_scaled (p->x_coord);
-      if (number_to_scaled (p->y_coord) < mp_miny)
-        mp_miny = number_to_scaled (p->y_coord);
-      if (number_to_scaled (p->x_coord) > mp_maxx)
-        mp_maxx = number_to_scaled (p->x_coord);
-      if (number_to_scaled (p->y_coord) > mp_maxy)
-        mp_maxy = number_to_scaled (p->y_coord);
+      if (number_less (p->x_coord, mp_minx))
+        number_clone (mp_minx, p->x_coord);
+      if (number_less (p->y_coord, mp_miny))
+        number_clone (mp_miny, p->y_coord);
+      if (number_greater (p->x_coord, mp_maxx))
+        number_clone (mp_maxx, p->x_coord);
+      if (number_greater (p->y_coord, mp_maxy))
+        number_clone (mp_maxy, p->y_coord);
       p = mp_next_knot (p);
     }
   }
@@ -9761,15 +9780,19 @@ static void mp_pen_bbox (MP mp, mp_knot h) {
 {
   mp_number arg1, arg2;
   new_number(arg1);
-  new_number(arg2);
+  new_fraction (arg2);
   set_number_from_scaled(arg2, fraction_one);
   mp_find_offset (mp, arg1, arg2, h);
-  mp_maxx = number_to_scaled(mp->cur_x);
-  mp_minx = 2 * number_to_scaled(h->x_coord) - number_to_scaled(mp->cur_x);
+  number_clone (mp_maxx, mp->cur_x);
+  number_clone (mp_minx, h->x_coord);
+  number_double (mp_minx);
+  number_substract (mp_minx, mp->cur_x);
   number_negate (arg2);
   mp_find_offset (mp, arg2, arg1, h);
-  mp_maxy = number_to_scaled(mp->cur_y);
-  mp_miny = 2 * number_to_scaled (h->y_coord) - number_to_scaled(mp->cur_y);
+  number_clone (mp_maxy, mp->cur_y);
+  number_clone (mp_miny, h->y_coord);
+  number_double (mp_miny);
+  number_substract (mp_miny, mp->cur_y);
   free_number(arg1);
   free_number(arg2);
 }
@@ -11333,14 +11356,14 @@ header's bounding box to accommodate the box computed by |path_bbox| or
 
 @c
 static void mp_adjust_bbox (MP mp, mp_edge_header_node h) {
-  if (mp_minx < number_to_scaled(h->minx))
-    set_number_from_scaled(h->minx, mp_minx);
-  if (mp_miny < number_to_scaled(h->miny))
-    set_number_from_scaled(h->miny, mp_miny);
-  if (mp_maxx > number_to_scaled(h->maxx))
-    set_number_from_scaled(h->maxx, mp_maxx);
-  if (mp_maxy > number_to_scaled(h->maxy))
-    set_number_from_scaled(h->maxy, mp_maxy);
+  if (number_less (mp_minx, h->minx))
+    number_clone(h->minx, mp_minx);
+  if (number_less (mp_miny, h->miny))
+    number_clone(h->miny, mp_miny);
+  if (number_greater (mp_maxx, h->maxx))
+    number_clone(h->maxx, mp_maxx);
+  if (number_greater (mp_maxy, h->maxy))
+    number_clone(h->maxy, mp_maxy);
 }
 
 
@@ -11464,9 +11487,6 @@ boolean parameter |top_level| is false.
 @c
 void mp_set_bbox (MP mp, mp_edge_header_node h, boolean top_level) {
   mp_node p;    /* a graphical object being considered */
-  scaled sminx, sminy, smaxx, smaxy;
-  /* for saving the bounding box during recursive calls */
-  scaled x0, x1, y0, y1;        /* temporary registers */
   integer lev;  /* nesting level for |mp_start_bounds_node| nodes */
   @<Wipe out any existing bounding box information if |bbtype(h)| is
   incompatible with |internal[mp_true_corners]|@>;
@@ -11511,17 +11531,26 @@ case bounds_unset:
 
 @ @<Other cases for updating the bounding box...@>=
 case mp_fill_node_type:
-mp_path_bbox (mp, mp_path_p ((mp_fill_node) p));
-if (mp_pen_p ((mp_fill_node) p) != NULL) {
-  x0 = mp_minx;
-  y0 = mp_miny;
-  x1 = mp_maxx;
-  y1 = mp_maxy;
-  mp_pen_bbox (mp, mp_pen_p ((mp_fill_node) p));
-  mp_minx = mp_minx + x0;
-  mp_miny = mp_miny + y0;
-  mp_maxx = mp_maxx + x1;
-  mp_maxy = mp_maxy + y1;
+  mp_path_bbox (mp, mp_path_p ((mp_fill_node) p));
+  if (mp_pen_p ((mp_fill_node) p) != NULL) {
+    mp_number x0a, y0a, x1a, y1a;
+    new_number (x0a);
+    new_number (y0a);
+    new_number (x1a);
+    new_number (y1a);
+    number_clone (x0a, mp_minx);
+    number_clone (y0a, mp_miny);
+    number_clone (x1a, mp_maxx);
+    number_clone (y1a, mp_maxy);
+    mp_pen_bbox (mp, mp_pen_p ((mp_fill_node) p));
+    number_add (mp_minx, x0a);
+    number_add (mp_miny, y0a);
+    number_add (mp_maxx, x1a);
+    number_add (mp_maxy, y1a);
+    free_number (x0a);
+    free_number (y0a);
+    free_number (x1a);
+    free_number (y1a);
 }
 mp_adjust_bbox (mp, h);
 break;
@@ -11566,15 +11595,26 @@ when using butt end caps.  The basic computation is for round end caps and
 @<Other cases for updating the bounding box...@>=
 case mp_stroked_node_type:
 mp_path_bbox (mp, mp_path_p ((mp_stroked_node) p));
-x0 = mp_minx;
-y0 = mp_miny;
-x1 = mp_maxx;
-y1 = mp_maxy;
-mp_pen_bbox (mp, mp_pen_p ((mp_stroked_node) p));
-mp_minx = mp_minx + x0;
-mp_miny = mp_miny + y0;
-mp_maxx = mp_maxx + x1;
-mp_maxy = mp_maxy + y1;
+{
+    mp_number x0a, y0a, x1a, y1a;
+    new_number (x0a);
+    new_number (y0a);
+    new_number (x1a);
+    new_number (y1a);
+    number_clone (x0a, mp_minx);
+    number_clone (y0a, mp_miny);
+    number_clone (x1a, mp_maxx);
+    number_clone (y1a, mp_maxy);
+    mp_pen_bbox (mp, mp_pen_p ((mp_stroked_node) p));
+    number_add (mp_minx, x0a);
+    number_add (mp_miny, y0a);
+    number_add (mp_maxx, x1a);
+    number_add (mp_maxy, y1a);
+    free_number (x0a);
+    free_number (y0a);
+    free_number (x1a);
+    free_number (y1a);
+}
 mp_adjust_bbox (mp, h);
 if ((mp_left_type (mp_path_p ((mp_stroked_node) p)) == mp_endpoint)
     && (((mp_stroked_node) p)->lcap == 2))
@@ -11589,40 +11629,49 @@ parameters stored in the text node.
 @<Other cases for updating the bounding box...@>=
 case mp_text_node_type:
 {
-mp_text_node p0 = (mp_text_node)p;
-x1 = mp_take_scaled (mp, number_to_scaled(p0->txx), number_to_scaled(p0->width));
-y0 = mp_take_scaled (mp, number_to_scaled(p0->txy), -number_to_scaled(p0->depth));
-y1 = mp_take_scaled (mp, number_to_scaled(p0->txy), number_to_scaled(p0->height));
-mp_minx = number_to_scaled(p0->tx);
-mp_maxx = mp_minx;
-if (y0 < y1) {
-  mp_minx = mp_minx + y0;
-  mp_maxx = mp_maxx + y1;
+    mp_number x0a, y0a, x1a, y1a;
+    mp_text_node p0 = (mp_text_node)p;
+    new_number (x0a);
+    new_number (y0a);
+    new_number (x1a);
+    new_number (y1a);
+set_number_from_scaled (x1a, mp_take_scaled (mp, number_to_scaled(p0->txx), number_to_scaled(p0->width)));
+set_number_from_scaled (y0a, mp_take_scaled (mp, number_to_scaled(p0->txy), -number_to_scaled(p0->depth)));
+set_number_from_scaled (y1a, mp_take_scaled (mp, number_to_scaled(p0->txy), number_to_scaled(p0->height)));
+number_clone (mp_minx, p0->tx);
+number_clone (mp_maxx, mp_minx);
+if (number_less(y0a, y1a)) {
+  number_add (mp_minx, y0a);
+  number_add (mp_maxx, y1a);
 } else {
-  mp_minx = mp_minx + y1;
-  mp_maxx = mp_maxx + y0;
+  number_add (mp_minx, y1a);
+  number_add (mp_maxx, y0a);
 }
-if (x1 < 0)
-  mp_minx = mp_minx + x1;
+if (number_negative(x1a))
+  number_add (mp_minx, x1a);
 else
-  mp_maxx = mp_maxx + x1;
-x1 = mp_take_scaled (mp, number_to_scaled(p0->tyx), number_to_scaled(p0->width));
-y0 = mp_take_scaled (mp, number_to_scaled(p0->tyy), -number_to_scaled(p0->depth));
-y1 = mp_take_scaled (mp, number_to_scaled(p0->tyy), number_to_scaled(p0->height));
-mp_miny = number_to_scaled(p0->ty);
-mp_maxy = mp_miny;
-if (y0 < y1) {
-  mp_miny = mp_miny + y0;
-  mp_maxy = mp_maxy + y1;
+  number_add (mp_maxx, x1a);
+set_number_from_scaled (x1a, mp_take_scaled (mp, number_to_scaled(p0->tyx), number_to_scaled(p0->width)));
+set_number_from_scaled (y0a, mp_take_scaled (mp, number_to_scaled(p0->tyy), -number_to_scaled(p0->depth)));
+set_number_from_scaled (y1a, mp_take_scaled (mp, number_to_scaled(p0->tyy), number_to_scaled(p0->height)));
+number_clone (mp_miny, p0->ty);
+number_clone (mp_maxy, mp_miny);
+if (number_less (y0a, y1a)) {
+  number_add (mp_miny, y0a);
+  number_add (mp_maxy, y1a);
 } else {
-  mp_miny = mp_miny + y1;
-  mp_maxy = mp_maxy + y0;
+  number_add (mp_miny, y1a);
+  number_add (mp_maxy, y0a);
 }
-if (x1 < 0)
-  mp_miny = mp_miny + x1;
+if (number_negative(x1a))
+  number_add (mp_miny, x1a);
 else
-  mp_maxy = mp_maxy + x1;
+  number_add (mp_maxy, x1a);
 mp_adjust_bbox (mp, h);
+    free_number (x0a);
+    free_number (y0a);
+    free_number (x1a);
+    free_number (y1a);
 }
 break;
 
@@ -11631,24 +11680,45 @@ type |mp_stop_clip_node| that matches |p|.
 
 @<Other cases for updating the bounding box...@>=
 case mp_start_clip_node_type:
+{
+  mp_number sminx, sminy, smaxx, smaxy;
+  /* for saving the bounding box during recursive calls */
+  mp_number x0a, y0a, x1a, y1a;
+    new_number (x0a);
+    new_number (y0a);
+    new_number (x1a);
+    new_number (y1a);
+    new_number (sminx);
+    new_number (sminy);
+    new_number (smaxx);
+    new_number (smaxy);
 mp_path_bbox (mp, mp_path_p ((mp_start_clip_node) p));
-x0 = mp_minx;
-y0 = mp_miny;
-x1 = mp_maxx;
-y1 = mp_maxy;
-sminx = number_to_scaled(h->minx);
-sminy = number_to_scaled(h->miny);
-smaxx = number_to_scaled(h->maxx);
-smaxy = number_to_scaled(h->maxy);
+number_clone (x0a, mp_minx);
+number_clone (y0a, mp_miny);
+number_clone (x1a, mp_maxx);
+number_clone (y1a, mp_maxy);
+number_clone (sminx, h->minx);
+number_clone (sminy, h->miny);
+number_clone (smaxx, h->maxx);
+number_clone (smaxy, h->maxy);
 @<Reinitialize the bounding box in header |h| and call |set_bbox| recursively
     starting at |mp_link(p)|@>;
-@<Clip the bounding box in |h| to the rectangle given by |x0|, |x1|,
-    |y0|, |y1|@>;
-mp_minx = sminx;
-mp_miny = sminy;
-mp_maxx = smaxx;
-mp_maxy = smaxy;
+@<Clip the bounding box in |h| to the rectangle given by |x0a|, |x1a|,
+    |y0a|, |y1a|@>;
+number_clone (mp_minx, sminx);
+number_clone (mp_miny, sminy);
+number_clone (mp_maxx, smaxx);
+number_clone (mp_maxy, smaxy);
 mp_adjust_bbox (mp, h);
+    free_number (sminx);
+    free_number (sminy);
+    free_number (smaxx);
+    free_number (smaxy);
+    free_number (x0a);
+    free_number (y0a);
+    free_number (x1a);
+    free_number (y1a);
+}
 break;
 
 @ @<Reinitialize the bounding box in header |h| and call |set_bbox|...@>=
@@ -11659,15 +11729,15 @@ set_number_to_neg_inf(h->maxy);
 mp_set_bbox (mp, h, false)
  
 
-@ @<Clip the bounding box in |h| to the rectangle given by |x0|, |x1|,...@>=
-if (number_to_scaled(h->minx) < x0)
-  set_number_from_scaled(h->minx, x0);
-if (number_to_scaled(h->miny) < y0)
-  set_number_from_scaled(h->miny, y0);
-if (number_to_scaled(h->maxx) > x1)
-  set_number_from_scaled(h->maxx, x1);
-if (number_to_scaled(h->maxy) > y1)
-  set_number_from_scaled(h->maxy, y1);
+@ @<Clip the bounding box in |h| to the rectangle given by |x0a|, |x1a|,...@>=
+if (number_less(h->minx, x0a))
+  number_clone(h->minx, x0a);
+if (number_less(h->miny, y0a))
+  number_clone(h->miny, y0a);
+if (number_greater(h->maxx, x1a))
+  number_clone(h->maxx, x1a);
+if (number_greater(h->maxy, y1a))
+  number_clone(h->maxy, y1a);
 
 @* Finding an envelope.
 When \MP\ has a path and a polygonal pen, it needs to express the desired
@@ -24329,25 +24399,25 @@ case mp_ll_corner_op:
 if (!mp_get_cur_bbox (mp))
   mp_bad_unary (mp, mp_ll_corner_op);
 else
-  mp_pair_value (mp, mp_minx, mp_miny);
+  mp_pair_value (mp, number_to_scaled (mp_minx), number_to_scaled (mp_miny));
 break;
 case mp_lr_corner_op:
 if (!mp_get_cur_bbox (mp))
   mp_bad_unary (mp, mp_lr_corner_op);
 else
-  mp_pair_value (mp, mp_maxx, mp_miny);
+  mp_pair_value (mp,  number_to_scaled (mp_maxx), number_to_scaled (mp_miny));
 break;
 case mp_ul_corner_op:
 if (!mp_get_cur_bbox (mp))
   mp_bad_unary (mp, mp_ul_corner_op);
 else
-  mp_pair_value (mp, mp_minx, mp_maxy);
+  mp_pair_value (mp, number_to_scaled (mp_minx), number_to_scaled (mp_maxy));
 break;
 case mp_ur_corner_op:
 if (!mp_get_cur_bbox (mp))
   mp_bad_unary (mp, mp_ur_corner_op);
 else
-  mp_pair_value (mp, mp_maxx, mp_maxy);
+  mp_pair_value (mp, number_to_scaled (mp_maxx),  number_to_scaled (mp_maxy));
 break;
 
 @ Here is a function that sets |minx|, |maxx|, |miny|, |maxy| to the bounding
@@ -24362,15 +24432,15 @@ static boolean mp_get_cur_bbox (MP mp) {
     mp_edge_header_node p0 = (mp_edge_header_node)cur_exp_node ();
     mp_set_bbox (mp, p0, true);
     if (number_greater(p0->minx, p0->maxx)) {
-      mp_minx = 0;
-      mp_maxx = 0;
-      mp_miny = 0;
-      mp_maxy = 0;
+      set_number_to_zero(mp_minx);
+      set_number_to_zero(mp_maxx);
+      set_number_to_zero(mp_miny);
+      set_number_to_zero(mp_maxy);
     } else {
-      mp_minx = number_to_scaled(p0->minx);
-      mp_maxx = number_to_scaled(p0->maxx);
-      mp_miny = number_to_scaled(p0->miny);
-      mp_maxy = number_to_scaled(p0->maxy);
+      number_clone (mp_minx, p0->minx);
+      number_clone (mp_maxx, p0->maxx);
+      number_clone (mp_miny, p0->miny);
+      number_clone (mp_maxy, p0->maxy);
     }
   }
     break;
