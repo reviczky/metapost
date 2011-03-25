@@ -2350,6 +2350,11 @@ can readily be obtained with the ratio method (Algorithm 3.4.1R in
 static scaled mp_norm_rand (MP mp) {
   integer x, l;      /* what the book would call $2^{16}X$, $2^{28}U$, and $-2^{24}\ln U$ */
   fraction u;
+  mp_number one_k, la, xa;
+  new_number (one_k);
+  new_number (la);
+  new_number (xa);
+  set_number_from_scaled (one_k, 1024);
   do {
     do {
       fraction v = mp_next_random(mp);
@@ -2360,7 +2365,12 @@ static scaled mp_norm_rand (MP mp) {
     } while (abs (x) >= u);
     x = mp_make_fraction (mp, x, u);
     l = 139548960 - mp_m_log (mp, u);   /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
-  } while (mp_ab_vs_cd (mp, 1024, l, x, x) < 0);
+    set_number_from_scaled (la, l);
+    set_number_from_scaled (xa, x);
+  } while (mp_ab_vs_cd (mp, number_to_scaled (one_k), number_to_scaled (la), number_to_scaled (xa), number_to_scaled (xa)) < 0);
+  free_number (la);
+  free_number (xa);
+  free_number (one_k);
   return x;
 }
 
@@ -7888,10 +7898,11 @@ static void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k);
 
 @ @c
 void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
-  fraction rr, ss;      /* velocities, divided by thrice the tension */
+  mp_number rr, ss;      /* velocities, divided by thrice the tension */
   mp_number lt, rt;        /* tensions */
-  fraction sine;        /* $\sin(\theta+\phi)$ */
+  mp_number sine;        /* $\sin(\theta+\phi)$ */
   mp_number tmp;
+  mp_number fraction_one_k;
   new_number(tmp);
   new_number (lt);
   new_number (rt);
@@ -7899,33 +7910,42 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   number_abs(lt);
   number_clone(rt, p->right_tension);
   number_abs(rt);
-  rr = mp_velocity (mp, mp->st, mp->ct, mp->sf, mp->cf, number_to_scaled(rt));
-  ss = mp_velocity (mp, mp->sf, mp->cf, mp->st, mp->ct, number_to_scaled(lt));
+  new_fraction (rr);
+  new_fraction (ss);
+  new_fraction (sine);
+  new_fraction (fraction_one_k);
+  set_number_from_scaled (fraction_one_k, fraction_one);
+  set_number_from_scaled (rr, mp_velocity (mp, mp->st, mp->ct, mp->sf, mp->cf, number_to_scaled(rt)));
+  set_number_from_scaled (ss, mp_velocity (mp, mp->sf, mp->cf, mp->st, mp->ct, number_to_scaled(lt)));
   if (number_negative(p->right_tension) || number_negative(q->left_tension)) {
     @<Decrease the velocities,
       if necessary, to stay inside the bounding triangle@>;
   }
   set_number_from_scaled (tmp, mp_take_fraction (mp,
         mp_take_fraction (mp, number_to_scaled(mp->delta_x [k]), mp->ct) - 
-        mp_take_fraction (mp, number_to_scaled(mp->delta_y [k]), mp->st), rr));
+        mp_take_fraction (mp, number_to_scaled(mp->delta_y [k]), mp->st), number_to_scaled (rr)));
   set_number_from_addition (p->right_x, p->x_coord, tmp);
   set_number_from_scaled (tmp, mp_take_fraction (mp,
         mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), mp->ct) +
-        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), mp->st), rr));
+        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), mp->st), number_to_scaled (rr)));
   set_number_from_addition (p->right_y, p->y_coord, tmp);
   set_number_from_scaled (tmp, mp_take_fraction (mp,
         mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), mp->cf) +
-        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), mp->sf), ss));
+        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), mp->sf), number_to_scaled (ss)));
   set_number_from_substraction (q->left_x, q->x_coord, tmp);
   set_number_from_scaled (tmp, mp_take_fraction (mp,
         mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), mp->cf) -
-        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), mp->sf), ss));
+        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), mp->sf), number_to_scaled (ss)));
   set_number_from_substraction(q->left_y, q->y_coord, tmp);
   mp_right_type (p) = mp_explicit;
   mp_left_type (q) = mp_explicit;
   free_number (tmp);
   free_number (lt);
   free_number (rt);
+  free_number (rr);
+  free_number (ss);
+  free_number (sine);
+  free_number (fraction_one_k);
 }
 
 
@@ -7936,16 +7956,20 @@ there is no ``bounding triangle.''
 
 @<Decrease the velocities, if necessary...@>=
 if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
-  sine = mp_take_fraction (mp, abs (mp->st), mp->cf) +
-    mp_take_fraction (mp, abs (mp->sf), mp->ct);
-  if (sine > 0) {
-    sine = mp_take_fraction (mp, sine, fraction_one + unity);   /* safety factor */
-    if (number_negative(p->right_tension))
-      if (mp_ab_vs_cd (mp, abs (mp->sf), fraction_one, rr, sine) < 0)
-        rr = mp_make_fraction (mp, abs (mp->sf), sine);
-    if (number_negative(q->left_tension))
-      if (mp_ab_vs_cd (mp, abs (mp->st), fraction_one, ss, sine) < 0)
-        ss = mp_make_fraction (mp, abs (mp->st), sine);
+  set_number_from_scaled (sine, mp_take_fraction (mp, abs (mp->st), mp->cf) +
+    mp_take_fraction (mp, abs (mp->sf), mp->ct));
+  if (number_positive(sine)) {
+    set_number_from_scaled (sine, mp_take_fraction (mp, number_to_scaled (sine), fraction_one + unity));   /* safety factor */
+    if (number_negative(p->right_tension)) {
+      if (mp_ab_vs_cd (mp, abs (mp->sf), number_to_scaled (fraction_one_k), number_to_scaled (rr), number_to_scaled (sine)) < 0) {
+        set_number_from_scaled (rr, mp_make_fraction (mp, abs (mp->sf), number_to_scaled (sine)));
+      }
+    }
+    if (number_negative(q->left_tension)) {
+      if (mp_ab_vs_cd (mp, abs (mp->st), number_to_scaled (fraction_one_k), number_to_scaled (ss), number_to_scaled (sine)) < 0) {
+        set_number_from_scaled (ss, mp_make_fraction (mp, abs (mp->st), number_to_scaled (sine)));
+      }
+    }
   }
 }
 
@@ -9447,9 +9471,12 @@ mp_knot mp_convex_hull (MP mp, mp_knot h) {                               /* Mak
   mp_knot l, r; /* the leftmost and rightmost knots */
   mp_knot p, q; /* knots being scanned */
   mp_knot s;    /* the starting point for an upcoming scan */
-  scaled dx, dy;        /* a temporary pointer */
+  mp_number dx, dy;        /* a temporary pointer */
+  mp_knot ret;
+  new_number (dx);
+  new_number (dy);
   if (pen_is_elliptical (h)) {
-    return h;
+    ret = h;
   } else {
     @<Set |l| to the leftmost knot in polygon~|h|@>;
     @<Set |r| to the rightmost knot in polygon~|h|@>;
@@ -9465,8 +9492,11 @@ mp_knot mp_convex_hull (MP mp, mp_knot h) {                               /* Mak
     if (l != mp_next_knot (l)) {
       @<Do a Gramm scan and remove vertices where there is no left turn@>;
     }
-    return l;
+    ret = l;
   }
+  free_number (dx);
+  free_number (dy);
+  return ret;
 }
 
 
@@ -9497,12 +9527,12 @@ while (p != h) {
 
 
 @ @<Find any knots on the path from |l| to |r| above the |l|-|r| line...@>=
-dx = number_to_scaled(r->x_coord) - number_to_scaled(l->x_coord);
-dy = number_to_scaled(r->y_coord) - number_to_scaled(l->y_coord);
+set_number_from_substraction (dx, r->x_coord, l->x_coord);
+set_number_from_substraction (dy, r->y_coord, l->y_coord);
 p = mp_next_knot (l);
 while (p != r) {
 q = mp_next_knot (p);
-if (mp_ab_vs_cd (mp, dx, number_to_scaled (p->y_coord) - number_to_scaled(l->y_coord), dy,
+if (mp_ab_vs_cd (mp, number_to_scaled (dx), number_to_scaled (p->y_coord) - number_to_scaled(l->y_coord), number_to_scaled (dy),
      number_to_scaled (p->x_coord) - number_to_scaled(l->x_coord)) > 0)
   mp_move_knot (mp, p, r);
 p = q;
@@ -9531,7 +9561,7 @@ void mp_move_knot (MP mp, mp_knot p, mp_knot q) {
 p = s;
 while (p != l) {
   q = mp_next_knot (p);
-  if (mp_ab_vs_cd (mp, dx, number_to_scaled (p->y_coord) - number_to_scaled(l->y_coord), dy,
+  if (mp_ab_vs_cd (mp, number_to_scaled (dx), number_to_scaled (p->y_coord) - number_to_scaled(l->y_coord), number_to_scaled (dy),
        number_to_scaled (p->x_coord) - number_to_scaled(l->x_coord)) < 0)
     mp_move_knot (mp, p, l);
   p = q;
@@ -9593,14 +9623,14 @@ where the |then| clause is not executed.
   p = l;
   q = mp_next_knot (l);
   while (1) {
-    dx = number_to_scaled(q->x_coord) - number_to_scaled (p->x_coord);
-    dy = number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord);
+    set_number_from_substraction (dx, q->x_coord, p->x_coord);
+    set_number_from_substraction (dy, q->y_coord, p->y_coord);
     p = q;
     q = mp_next_knot (q);
     if (p == l)
       break;
     if (p != r)
-      if (mp_ab_vs_cd (mp, dx, number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord), dy,
+      if (mp_ab_vs_cd (mp, number_to_scaled (dx), number_to_scaled(q->y_coord) - number_to_scaled (p->y_coord), number_to_scaled (dy),
            number_to_scaled(q->x_coord) - number_to_scaled (p->x_coord)) <= 0) {
         @<Remove knot |p| and back up |p| and |q| but don't go past |l|@>;
       }
@@ -12332,8 +12362,7 @@ counter-clockwise in order to make \&{doublepath} envelopes come out
 right.) This code depends on |w0| being the offset for |(dxin,dyin)|.
 
 @<Update |mp_knot_info(p)| and find the offset $w_k$ such that...@>=
-turn_amt =
-mp_get_turn_amt (mp, w0, number_to_scaled(dx), number_to_scaled(dy), 
+turn_amt = mp_get_turn_amt (mp, w0, dx, dy, 
         (mp_ab_vs_cd (mp, number_to_scaled(dy), number_to_scaled(dxin), 
                       number_to_scaled(dx), number_to_scaled(dyin)) >= 0));
 w = mp_pen_walk (mp, w0, turn_amt);
@@ -12350,21 +12379,20 @@ to |(dx,dy)|.  In this case, we must be careful to stop after crossing the first
 such edge in order to avoid an infinite loop.
 
 @<Declarations@>=
-static integer mp_get_turn_amt (MP mp, mp_knot w, scaled dx,
-                                scaled dy, boolean ccw);
+static integer mp_get_turn_amt (MP mp, mp_knot w, mp_number dx,
+                                mp_number dy, boolean ccw);
 
 @ @c
-integer mp_get_turn_amt (MP mp, mp_knot w, scaled dx, scaled dy, boolean ccw) {
+integer mp_get_turn_amt (MP mp, mp_knot w, mp_number dx, mp_number dy, boolean ccw) {
   mp_knot ww;   /* a neighbor of knot~|w| */
   integer s;    /* turn amount so far */
   integer t;    /* |ab_vs_cd| result */
   s = 0;
-  (void) mp;
   if (ccw) {
     ww = mp_next_knot (w);
     do {
-      t = mp_ab_vs_cd (mp, dy, (number_to_scaled (ww->x_coord) - number_to_scaled (w->x_coord)),
-                       dx, (number_to_scaled (ww->y_coord) - number_to_scaled (w->y_coord)));
+      t = mp_ab_vs_cd (mp, number_to_scaled (dy), (number_to_scaled (ww->x_coord) - number_to_scaled (w->x_coord)),
+                       number_to_scaled (dx), (number_to_scaled (ww->y_coord) - number_to_scaled (w->y_coord)));
       if (t < 0)
         break;
       incr (s);
@@ -12373,8 +12401,8 @@ integer mp_get_turn_amt (MP mp, mp_knot w, scaled dx, scaled dy, boolean ccw) {
     } while (t > 0);
   } else {
     ww = mp_prev_knot (w);
-    while (mp_ab_vs_cd (mp, dy, (number_to_scaled (w->x_coord) - number_to_scaled (ww->x_coord)),
-                        dx, (number_to_scaled (w->y_coord) - number_to_scaled (ww->y_coord))) < 0) {
+    while (mp_ab_vs_cd (mp, number_to_scaled (dy), (number_to_scaled (w->x_coord) - number_to_scaled (ww->x_coord)),
+                        number_to_scaled (dx), (number_to_scaled (w->y_coord) - number_to_scaled (ww->y_coord))) < 0) {
       decr (s);
       w = ww;
       ww = mp_prev_knot (ww);
@@ -12538,7 +12566,7 @@ if (d_sign == 0) {
 }
 @<Make |ss| negative if and only if the total change in direction is
   more than $180^\circ$@>;
-turn_amt = mp_get_turn_amt (mp, w, number_to_scaled(dxin), number_to_scaled(dyin), (d_sign > 0));
+turn_amt = mp_get_turn_amt (mp, w, dxin, dyin, (d_sign > 0));
 if (ss < 0)
   turn_amt = turn_amt - d_sign * n
 
@@ -13342,7 +13370,13 @@ if (t > fraction_one)
 @ @<Handle the test for eastward directions when $y_1y_3=y_2^2$;
     either |goto found| or |goto done|@>=
 {
-  if (mp_ab_vs_cd (mp, number_to_scaled(y1), number_to_scaled(y2), 0, 0) < 0) {
+  mp_number zero_t;
+  integer ab_vs_cd;
+  new_number (zero_t);
+  set_number_to_zero (zero_t);
+  ab_vs_cd = mp_ab_vs_cd (mp, number_to_scaled(y1), number_to_scaled(y2), number_to_scaled(zero_t), number_to_scaled(zero_t));
+  free_number (zero_t);
+  if (ab_vs_cd < 0) {
     mp_number new_number(tmp);
     t = mp_make_fraction (mp, number_to_scaled(y1), number_to_scaled(y1) - number_to_scaled(y2));
     set_number_from_of_the_way(x1, t, x1, x2);
@@ -25304,11 +25338,28 @@ static void mp_dep_mult (MP mp, mp_value_node p, integer v, boolean v_is_scaled)
   t = mp_type (q);
   q = (mp_value_node) dep_list (q);
   s = t;
-  if (t == mp_dependent)
-    if (v_is_scaled)
-      if (mp_ab_vs_cd (mp, mp_max_coef (mp, q), abs (v), coef_bound - 1, unity)
-          >= 0)
+  if (t == mp_dependent) {
+    if (v_is_scaled) {
+      integer ab_vs_cd;
+      mp_number unity_t, coef_bound_1, arg1, arg2;
+      new_number (arg1);
+      new_number (arg2);
+      new_number (unity_t);
+      new_number (coef_bound_1);
+      set_number_to_unity (unity_t);
+      set_number_from_scaled (coef_bound_1, coef_bound - 1);
+      set_number_from_scaled (arg1, mp_max_coef (mp, q));
+      set_number_from_scaled (arg2, abs (v));
+      ab_vs_cd = mp_ab_vs_cd (mp, number_to_scaled (arg1), number_to_scaled (arg2), number_to_scaled (coef_bound_1), number_to_scaled (unity_t));
+      free_number (unity_t);
+      free_number (coef_bound_1);
+      free_number (arg1);
+      free_number (arg2);
+      if (ab_vs_cd >= 0) {
         t = mp_proto_dependent;
+      }
+    }
+  }
   q = mp_p_times_v (mp, q, v, s, t, v_is_scaled);
   mp_dep_finish (mp, q, p, t);
 }
@@ -25525,10 +25576,26 @@ static void mp_dep_div (MP mp, mp_value_node p, scaled v) {
   t = mp_type (q);
   q = (mp_value_node) dep_list (q);
   s = t;
-  if (t == mp_dependent)
-    if (mp_ab_vs_cd (mp, mp_max_coef (mp, q), unity, coef_bound - 1, abs (v)) >=
-        0)
-      t = mp_proto_dependent;
+  if (t == mp_dependent) {
+      integer ab_vs_cd;
+      mp_number unity_t, coef_bound_1, arg1, arg2;
+      new_number (arg1);
+      new_number (arg2);
+      new_number (unity_t);
+      new_number (coef_bound_1);
+      set_number_to_unity (unity_t);
+      set_number_from_scaled (coef_bound_1, coef_bound - 1);
+      set_number_from_scaled (arg1, mp_max_coef (mp, q));
+      set_number_from_scaled (arg2, abs (v));
+      ab_vs_cd = mp_ab_vs_cd (mp, number_to_scaled (arg1), number_to_scaled (unity_t), number_to_scaled (coef_bound_1), number_to_scaled (arg2));
+      free_number (unity_t);
+      free_number (coef_bound_1);
+      free_number (arg1);
+      free_number (arg2);
+      if (ab_vs_cd >=  0) {
+        t = mp_proto_dependent;
+      }
+  }
   q = mp_p_over_v (mp, q, v, s, t);
   mp_dep_finish (mp, q, p, t);
 }
