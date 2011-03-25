@@ -170,8 +170,8 @@ void mp_set_number_to_inf(mp_number A) {
 void mp_set_number_to_neg_inf(mp_number A) {
   A->data.val=-EL_GORDO;
 }
-void mp_set_number_from_of_the_way(MP mp, mp_number A, int t, mp_number B, mp_number C) {
-  A->data.val = B->data.val - mp_take_fraction(mp, (B->data.val - C->data.val), t);
+void mp_set_number_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B, mp_number C) {
+  A->data.val = B->data.val - mp_take_fraction(mp, (B->data.val - C->data.val), t->data.val);
 }
 void mp_number_negate(mp_number A) {
   A->data.val = -A->data.val;
@@ -264,7 +264,7 @@ int mp_number_nonequalabs(mp_number A, mp_number B) {
 @ Header definitions for those 
 
 @<Internal library declarations@>=
-extern void mp_set_number_from_of_the_way(MP mp, mp_number A, int t, mp_number B, mp_number C);
+extern void mp_set_number_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B, mp_number C);
 extern void mp_set_number_from_scaled(mp_number A, scaled B);
 extern void mp_set_number_from_double(mp_number A, double B);
 extern void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C);
