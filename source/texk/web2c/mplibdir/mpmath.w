@@ -845,12 +845,17 @@ given integers $(a,b,c,d)$. In most cases a quick decision is reached.
 The result is $+1$, 0, or~$-1$ in the three respective cases.
 
 @<Internal library declarations@>=
-integer mp_ab_vs_cd (MP mp, integer a, integer b, integer c, integer d);
+integer mp_ab_vs_cd (MP mp, mp_number a, mp_number b, mp_number c, mp_number d);
 
 @ @c
-integer mp_ab_vs_cd (MP mp, integer a, integer b, integer c, integer d) {
+integer mp_ab_vs_cd (MP mp, mp_number a_orig, mp_number b_orig, mp_number c_orig, mp_number d_orig) {
   integer q, r; /* temporary registers */
+  integer a, b, c, d;
   (void)mp;
+  a = a_orig->data.val;
+  b = b_orig->data.val;
+  c = c_orig->data.val;
+  d = d_orig->data.val;
   @<Reduce to the case that |a,c>=0|, |b,d>0|@>;
   while (1) {
     q = a / d;
