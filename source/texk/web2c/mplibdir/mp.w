@@ -26665,7 +26665,7 @@ case mp_postcontrol_of:
 if (mp->cur_exp.type == mp_pair_type)
   mp_pair_to_path (mp);
 if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_known))
-  mp_find_point (mp, value (p), (quarterword) c);
+  mp_find_point (mp, value_number (p), (quarterword) c);
 else
   mp_bad_binary (mp, p, (quarterword) c);
 break;
@@ -26781,9 +26781,12 @@ static void mp_set_up_glyph_infont (MP mp, mp_node p) {
 
 
 @ @<Declare binary action...@>=
-static void mp_find_point (MP mp, scaled v, quarterword c) {
+static void mp_find_point (MP mp, mp_number v_orig, quarterword c) {
   mp_knot p;    /* the path */
   scaled n;     /* its length */
+  mp_number v;
+  new_number (v);
+  number_clone (v, v_orig);
   p = cur_exp_knot ();
   if (mp_left_type (p) == mp_endpoint)
     n = -unity;
@@ -26794,24 +26797,24 @@ static void mp_find_point (MP mp, scaled v, quarterword c) {
     n = n + unity;
   } while (p != cur_exp_knot ());
   if (n == 0) {
-    v = 0;
-  } else if (v < 0) {
+    set_number_to_zero(v);
+  } else if (number_negative(v)) {
     if (mp_left_type (p) == mp_endpoint)
-      v = 0;
+      set_number_to_zero(v);
     else
-      v = n - 1 - ((-v - 1) % n);
-  } else if (v > n) {
+      set_number_from_scaled (v, n - 1 - ((-number_to_scaled(v) - 1) % n));
+  } else if (number_to_scaled(v) > n) {
     if (mp_left_type (p) == mp_endpoint)
-      v = n;
+      set_number_from_scaled (v, n);
     else
-      v = v % n;
+      set_number_from_scaled (v, number_to_scaled(v) % n);
   }
   p = cur_exp_knot ();
-  while (v >= unity) {
+  while (number_to_scaled(v) >= unity) {
     p = mp_next_knot (p);
-    v = v - unity;
+    set_number_from_scaled (v, number_to_scaled(v) - unity);
   }
-  if (v != 0) {
+  if (number_nonzero(v)) {
     @<Insert a fractional node by splitting the cubic@>;
   }
   @<Set the current expression to the desired path coordinates@>;
@@ -26822,7 +26825,7 @@ static void mp_find_point (MP mp, scaled v, quarterword c) {
 {
   mp_number arg1;
   new_number (arg1);
-  set_number_from_scaled (arg1, v * 010000);
+  set_number_from_scaled (arg1, number_to_scaled(v) * 010000);
   mp_split_cubic (mp, p, arg1);
   free_number (arg1);
   p = mp_next_knot (p);
