@@ -7321,13 +7321,19 @@ RESTART:
     set_number_from_substraction(mp->delta_y[k], t->y_coord, s->y_coord);
     number_clone(mp->delta[k], mp_pyth_add (mp, mp->delta_x[k], mp->delta_y[k]));
     if (k > 0) {
+      mp_number arg1, arg2;
+      new_number (arg1);
+      new_number (arg2);
       sine = mp_make_fraction (mp, number_to_scaled(mp->delta_y[k - 1]), number_to_scaled(mp->delta[k - 1]));
       cosine = mp_make_fraction (mp, number_to_scaled(mp->delta_x[k - 1]), number_to_scaled(mp->delta[k - 1]));
-      set_number_from_scaled(mp->psi[k], 
-               mp_n_arg (mp, mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), cosine) +
-                             mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), sine),
-                             mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), cosine) -
-                             mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), sine)));
+      set_number_from_scaled (arg1, mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), cosine) +
+                             mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), sine)); 
+      set_number_from_scaled (arg2,mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), cosine) -
+                             mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), sine));
+      free_number (mp->psi[k]);
+      mp->psi[k] = mp_n_arg (mp, arg1, arg2 );
+      free_number (arg1);
+      free_number (arg2);
     }
     incr (k);
     s = t;
@@ -7368,7 +7374,8 @@ Similarly, |mp_left_type(q)| is either |given| or |curl| or |open| or
       set_number_to_unity(q->left_curl);
     } else {
       mp_left_type (q) = mp_given;
-      set_number_from_scaled(q->left_given, mp_n_arg (mp, number_to_scaled(delx), number_to_scaled(dely)));
+      free_number (q->left_given);
+      q->left_given = mp_n_arg (mp, delx, dely);
     }
   }
   if ((mp_right_type (p) == mp_open) && (mp_left_type (p) == mp_explicit)) {
@@ -7379,7 +7386,8 @@ Similarly, |mp_left_type(q)| is either |given| or |curl| or |open| or
       set_number_to_unity(p->right_curl);
     } else {
       mp_right_type (p) = mp_given;
-      set_number_from_scaled(p->right_given, mp_n_arg (mp, number_to_scaled(delx), number_to_scaled(dely)));
+      free_number (p->right_given);
+      p->right_given = mp_n_arg (mp, delx, dely);
     }
   }
   free_number (delx);
@@ -7724,8 +7732,10 @@ void mp_reduce_angle (MP mp, mp_number a);
 
 @ @<Calculate the given value of $\theta_n$...@>=
 {
+  mp_number n_arg = mp_n_arg (mp, mp->delta_x[n - 1], mp->delta_y[n - 1]);
   set_number_from_scaled(mp->theta[n],
-    number_to_scaled(s->left_given) - mp_n_arg (mp, number_to_scaled(mp->delta_x[n - 1]), number_to_scaled(mp->delta_y[n - 1])));
+    number_to_scaled(s->left_given) - number_to_scaled (n_arg));
+  free_number (n_arg);
   mp_reduce_angle (mp, mp->theta[n]);
   goto FOUND;
 }
@@ -7733,7 +7743,9 @@ void mp_reduce_angle (MP mp, mp_number a);
 
 @ @<Set up the equation for a given value of $\theta_0$@>=
 {
-  set_number_from_scaled(mp->vv[0], number_to_scaled(s->right_given) - mp_n_arg (mp, number_to_scaled(mp->delta_x[0]), number_to_scaled(mp->delta_y[0])));
+  mp_number n_arg = mp_n_arg (mp, mp->delta_x[0], mp->delta_y[0]);
+  set_number_from_scaled(mp->vv[0], number_to_scaled(s->right_given) - number_to_scaled (n_arg));
+  free_number (n_arg);
   mp_reduce_angle (mp, mp->vv[0]);
   set_number_to_zero(mp->uu[0]);
   set_number_to_zero(mp->ww[0]);
@@ -7943,7 +7955,9 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
 {
   fraction n_sin;
   fraction n_cos;
-  aa = mp_n_arg (mp, number_to_scaled(mp->delta_x[0]), number_to_scaled(mp->delta_y[0]));
+  mp_number n_arg = mp_n_arg (mp, mp->delta_x[0], mp->delta_y[0]);
+  aa = number_to_scaled (n_arg);
+  free_number (n_arg);
   mp_n_sin_cos (mp, number_to_scaled(p->right_given) - aa, &n_cos, &n_sin);
   mp->ct = n_cos;
   mp->st = n_sin;
@@ -13075,10 +13089,14 @@ if (n > 0) {
   if (p == h)
     break;
 };
-if (number_nonzero(x3) || number_nonzero(y3))
-  phi = mp_n_arg (mp, number_to_scaled(x3), number_to_scaled(y3));
+if (number_nonzero(x3) || number_nonzero(y3)) {
+  mp_number n_arg = mp_n_arg (mp, x3, y3);
+  phi = number_to_scaled (n_arg);
+  free_number (n_arg);
+}
 @<Exit to |found| if the curve whose derivatives are specified by
   |x1,x2,x3,y1,y2,y3| travels eastward at some time~|tt|@>
+
  
 
 @ @<Other local variables for |find_direction_time|@>=
@@ -13156,7 +13174,9 @@ free_number (y3);
  
 
 @ @<Exit to |found| if an eastward direction occurs at knot |p|@>=
-theta = mp_n_arg (mp, number_to_scaled(x1), number_to_scaled(y1));
+mp_number n_arg = mp_n_arg (mp, x1, y1);
+theta = number_to_scaled (n_arg);
+free_number (n_arg);
 if (theta >= 0 && phi <= 0 && phi >= theta - one_eighty_deg)
   goto FOUND;
 if (theta <= 0 && phi >= 0 && phi <= theta + one_eighty_deg)
@@ -22021,8 +22041,10 @@ static quarterword mp_scan_direction (MP mp) {
   if (number_zero(mp->cur_x) && number_zero(mp->cur_y))
     t = mp_open;
   else {
+    mp_number n_arg = mp_n_arg (mp, mp->cur_x, mp->cur_y);
     t = mp_given;
-    set_cur_exp_value (mp_n_arg (mp, number_to_scaled(mp->cur_x), number_to_scaled(mp->cur_y)));
+    set_cur_exp_value (number_to_scaled (n_arg));
+    free_number (n_arg);
   }
 }
 
@@ -22981,8 +23003,11 @@ break;
 @ @<Additional cases of unary operators@>=
 case mp_angle_op:
 if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
+  mp_number n_arg;
   p = value_node (cur_exp_node ());
-  x = mp_n_arg (mp, value (x_part (p)), value (y_part (p)));
+  n_arg = mp_n_arg (mp, value_number (x_part (p)), value_number (y_part (p)));
+  x = number_to_scaled (n_arg);
+  free_number (n_arg);
   if (x >= 0)
     new_expr.data.n->data.val = (x + 8) / 16;
   else
@@ -23674,8 +23699,21 @@ argument is |origin|.
 
 @<Declare unary action...@>=
 static angle mp_an_angle (MP mp, scaled xpar, scaled ypar) {
-  if ((!((xpar == 0) && (ypar == 0))))
-    return mp_n_arg (mp, xpar, ypar);
+  if ((!((xpar == 0) && (ypar == 0)))) {
+    angle ret;
+    mp_number arg1, arg2;
+    mp_number n_arg;
+    new_number (arg1);
+    new_number (arg2);
+    set_number_from_scaled (arg1, xpar);
+    set_number_from_scaled (arg2, ypar);
+    n_arg = mp_n_arg (mp, arg1, arg2);
+    free_number (arg1);
+    free_number (arg2);
+    ret = number_to_scaled (n_arg);
+    free_number (n_arg);
+    return ret;
+  }
   return 0;
 }
 
