@@ -11401,27 +11401,31 @@ mp_dash_node dln;    /* |mp_link(d)| */
 mp_edge_header_node hh;     /* an edge header that tells how to break up |dln| */
 scaled hsf;     /* the dash pattern from |hh| gets scaled by this */
 mp_node ds;     /* the stroked node from which |hh| and |hsf| are derived */
-scaled xoff;    /* added to $x$ values in |dash_list(hh)| to match |dln| */
 
 @ @<Replace |mp_link(d)| by a dashed version as determined by edge header...@>=
-dln = (mp_dash_node)mp_link (d);
-dd = dash_list (hh);
-xoff = number_to_scaled(dln->start_x) - mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)) -
-mp_take_scaled (mp, hsf, mp_dash_offset (mp, (mp_dash_node)hh));
-set_number_from_scaled(mp->null_dash->start_x, mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))
-  + mp_take_scaled (mp, hsf, number_to_scaled (hh->dash_y) ));
-number_clone(mp->null_dash->stop_x, mp->null_dash->start_x);
-@<Advance |dd| until finding the first dash that overlaps |dln| when
-  offset by |xoff|@>;
-while (number_lessequal(dln->start_x, dln->stop_x)) {
-@<If |dd| has `fallen off the end', back up to the beginning and fix |xoff|@>;
-@<Insert a dash between |d| and |dln| for the overlap with the offset version
-    of |dd|@>;
-dd = (mp_dash_node)mp_link (dd);
-set_number_from_scaled(dln->start_x , xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)));
+{
+  mp_number xoff;    /* added to $x$ values in |dash_list(hh)| to match |dln| */
+  dln = (mp_dash_node)mp_link (d);
+  dd = dash_list (hh);
+  new_number (xoff);
+  set_number_from_scaled(xoff, number_to_scaled(dln->start_x) - mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)) -
+                       mp_take_scaled (mp, hsf, mp_dash_offset (mp, (mp_dash_node)hh)));
+  set_number_from_scaled(mp->null_dash->start_x, mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))
+                       + mp_take_scaled (mp, hsf, number_to_scaled (hh->dash_y) ));
+  number_clone(mp->null_dash->stop_x, mp->null_dash->start_x);
+  @<Advance |dd| until finding the first dash that overlaps |dln| when
+    offset by |xoff|@>;
+  while (number_lessequal(dln->start_x, dln->stop_x)) {
+    @<If |dd| has `fallen off the end', back up to the beginning and fix |xoff|@>;
+    @<Insert a dash between |d| and |dln| for the overlap with the offset version
+      of |dd|@>;
+    dd = (mp_dash_node)mp_link (dd);
+    set_number_from_scaled(dln->start_x , number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)));
+  }
+  free_number(xoff);
+  mp_link (d) = mp_link (dln);
+  mp_free_node (mp, (mp_node)dln, dash_node_size);
 }
-mp_link (d) = mp_link (dln);
-mp_free_node (mp, (mp_node)dln, dash_node_size)
  
 
 @ The name of this module is a bit of a lie because we just find the
@@ -11430,7 +11434,7 @@ overlap possible.  It could be that the unoffset version of dash |dln| falls
 in the gap between |dd| and its predecessor.
 
 @<Advance |dd| until finding the first dash that overlaps |dln| when...@>=
-while (xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x)) < number_to_scaled(dln->start_x)) {
+while (number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x)) < number_to_scaled(dln->start_x)) {
   dd = (mp_dash_node)mp_link (dd);
 }
 
@@ -11438,25 +11442,24 @@ while (xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x)) < number_to
 @ @<If |dd| has `fallen off the end', back up to the beginning and fix...@>=
 if (dd == mp->null_dash) {
   dd = dash_list (hh);
-  xoff = xoff + mp_take_scaled (mp, hsf, number_to_scaled(hh->dash_y));
+  number_add_scaled(xoff, mp_take_scaled (mp, hsf, number_to_scaled(hh->dash_y)));
 }
 
-@ At this point we already know that
-|start_x(dln)<=xoff+take_scaled(hsf,stop_x(dd))|.
+@ At this point we already know that |start_x(dln)<=xoff+take_scaled(hsf,stop_x(dd))|.
 
 @<Insert a dash between |d| and |dln| for the overlap with the offset...@>=
-if ((xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))) <= number_to_scaled(dln->stop_x)) {
+if ((number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))) <= number_to_scaled(dln->stop_x)) {
   mp_link (d) = (mp_node)mp_get_dash_node (mp);
   d = (mp_dash_node)mp_link (d);
   mp_link (d) = (mp_node)dln;
-  if (number_to_scaled(dln->start_x)  > (xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))))
+  if (number_to_scaled(dln->start_x)  > (number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))))
     number_clone(d->start_x , dln->start_x );
   else
-    set_number_from_scaled(d->start_x, xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)));
-  if (number_to_scaled(dln->stop_x ) < (xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x ))))
+    set_number_from_scaled(d->start_x, number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)));
+  if (number_to_scaled(dln->stop_x ) < (number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x ))))
     number_clone(d->stop_x , dln->stop_x );
   else
-    set_number_from_scaled(d->stop_x , xoff + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x )));
+    set_number_from_scaled(d->stop_x , number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x )));
 }
 
 @ The next major task is to update the bounding box information in an edge
@@ -26818,6 +26821,7 @@ static void mp_find_point (MP mp, mp_number v_orig, quarterword c) {
     @<Insert a fractional node by splitting the cubic@>;
   }
   @<Set the current expression to the desired path coordinates@>;
+  free_number (v);
 }
 
 
