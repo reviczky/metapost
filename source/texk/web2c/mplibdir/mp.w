@@ -23903,7 +23903,8 @@ case mp_string_type:
   mp_flush_cur_exp (mp, new_expr);
   break;
 case mp_path_type:
-  new_expr.data.n->data.val = mp_path_length (mp);
+  free_number (new_expr.data.n);
+  new_expr.data.n = mp_path_length (mp);
   mp_flush_cur_exp (mp, new_expr);
   break;
 case mp_known:
@@ -23911,7 +23912,8 @@ case mp_known:
   set_cur_exp_value (vv);
   break;
 case mp_picture_type:
-  new_expr.data.n->data.val = mp_pict_length (mp);
+  free_number (new_expr.data.n);
+  new_expr.data.n = mp_pict_length (mp);
   mp_flush_cur_exp (mp, new_expr);
   break;
 default:
@@ -23927,28 +23929,35 @@ default:
 break;
 
 @ @<Declare unary action...@>=
-static scaled mp_path_length (MP mp) {                               /* computes the length of the current path */
-  scaled n;     /* the path length so far */
+static mp_number mp_path_length (MP mp) {                               /* computes the length of the current path */
+  mp_number n;     /* the path length so far */
+  mp_number unity_t;
   mp_knot p;    /* traverser */
+  new_number (n);
+  new_number (unity_t);
+  set_number_to_unity(unity_t);
   p = cur_exp_knot ();
-  if (mp_left_type (p) == mp_endpoint)
-    n = -unity;
-  else
-    n = 0;
+  if (mp_left_type (p) == mp_endpoint) {
+    number_substract(n, unity_t); /* -unity */
+  }
   do {
     p = mp_next_knot (p);
-    n = n + unity;
+    number_add(n, unity_t);
   } while (p != cur_exp_knot ());
+  free_number (unity_t);
   return n;
 }
 
 
 @ @<Declare unary action...@>=
-static scaled mp_pict_length (MP mp) {
+static mp_number mp_pict_length (MP mp) {
   /* counts interior components in picture |cur_exp| */
-  scaled n;     /* the count so far */
+  mp_number n;     /* the count so far */
+  mp_number unity_t;
   mp_node p;    /* traverser */
-  n = 0;
+  new_number (n);
+  new_number (unity_t);
+  set_number_to_unity (unity_t);
   p = mp_link (edge_list (cur_exp_node ()));
   if (p != NULL) {
     if (is_start_or_stop (p))
@@ -23956,9 +23965,10 @@ static scaled mp_pict_length (MP mp) {
         p = mp_link (p);
     while (p != NULL) {
       skip_component (p) return n;
-      n = n + unity;
+      number_add(n, unity_t);
     }
   }
+  free_number (unity_t);
   return n;
 }
 
@@ -23976,7 +23986,8 @@ if (mp->cur_exp.type == mp_pair_type) {
   new_expr.data.p = NULL;
   mp_flush_cur_exp (mp, new_expr);      /* not a cyclic path */
 } else {
-  new_expr.data.n->data.val = mp_turn_cycles_wrapper (mp, cur_exp_knot ());
+  free_number (new_expr.data.n);
+  new_expr.data.n = mp_turn_cycles_wrapper (mp, cur_exp_knot ());
   mp_flush_cur_exp (mp, new_expr);
 }
 break;
@@ -24119,9 +24130,10 @@ static mp_number mp_bezier_slope (MP mp, mp_number AX, mp_number AY, mp_number B
 @d seven_twenty_deg 05500000000 /* $720\cdot2^{20}$, represents $720^\circ$ */
 
 @<Declare unary action...@>=
-static angle mp_new_turn_cycles (MP mp, mp_knot c) {
+static mp_number mp_new_turn_cycles (MP mp, mp_knot c) {
   mp_angle res, ang;       /*  the angles of intermediate results  */
-  scaled turns; /*  the turn counter  */
+  mp_number turns; /*  the turn counter  */
+  mp_number unity_t;
   mp_knot p;    /*  for running around the path  */
   mp_number xp, yp;       /*  coordinates of next point  */
   mp_number x, y; /*  helper coordinates  */
@@ -24129,6 +24141,8 @@ static angle mp_new_turn_cycles (MP mp, mp_knot c) {
   mp_angle in_angle, out_angle;    /*  helper angles */
   mp_angle seven_twenty_deg_n, one_eighty_deg_n, neg_one_eighty_deg_n, three_sixty_deg_n;
   unsigned old_setting; /* saved |selector| setting */
+  new_number(turns);
+  new_number(unity_t);
   new_number(arg1);
   new_number(arg2);
   new_number(xp);
@@ -24143,12 +24157,12 @@ static angle mp_new_turn_cycles (MP mp, mp_knot c) {
   new_angle(one_eighty_deg_n);
   new_angle(neg_one_eighty_deg_n);
   new_angle(three_sixty_deg_n);
+  set_number_to_unity(unity_t);
   set_number_from_scaled(seven_twenty_deg_n, seven_twenty_deg);
   set_number_from_scaled(one_eighty_deg_n, one_eighty_deg);
   set_number_from_scaled(neg_one_eighty_deg_n, one_eighty_deg);
   number_negate(neg_one_eighty_deg_n);
   set_number_from_scaled(three_sixty_deg_n, three_sixty_deg);
-  turns = 0;
   p = c;
   old_setting = mp->selector;
   mp->selector = term_only;
@@ -24166,17 +24180,17 @@ static angle mp_new_turn_cycles (MP mp, mp_knot c) {
     if (number_greater(ang, seven_twenty_deg_n)) {
       mp_error (mp, "Strange path", NULL, true);
       mp->selector = old_setting;
-      turns = 0;
+      set_number_to_zero(turns);
       goto DONE;
     }
     number_add(res, ang);
     if (number_greater(res, one_eighty_deg_n)) {
       number_substract(res, three_sixty_deg_n);
-      turns = turns + unity;
+      number_add(turns, unity_t);
     }
     if (number_lessequal(res, neg_one_eighty_deg_n)) {
       number_add(res, three_sixty_deg_n);
-      turns = turns - unity;
+      number_substract(turns, unity_t);
     }
     /*  incoming angle at next point  */
     number_clone (x, p_next->left_x);
@@ -24214,17 +24228,18 @@ static angle mp_new_turn_cycles (MP mp, mp_knot c) {
       number_add(res, ang);
       if (number_greaterequal(res, one_eighty_deg_n)) {
         number_add(res, three_sixty_deg_n);
-        turns = turns + unity;
+        number_add(turns, unity_t);
       }
       if (number_lessequal(res, neg_one_eighty_deg_n)) {
         number_add(res, three_sixty_deg_n);
-        turns = turns - unity;
+        number_substract(turns, unity_t);
       }
     }
     p = mp_next_knot (p);
   } while (p != c);
   mp->selector = old_setting;
 DONE:
+  free_number(unity_t);
   free_number(xp);
   free_number(yp);
   free_number(x);
@@ -24287,12 +24302,15 @@ backward once, but forward twice. These defines help hide the trick.
 @d p_from p
 
 @<Declare unary action...@>=
-static scaled mp_turn_cycles (MP mp, mp_knot c) {
+static mp_number mp_turn_cycles (MP mp, mp_knot c) {
   mp_angle res, ang;       /*  the angles of intermediate results  */
-  scaled turns; /*  the turn counter  */
+  mp_number turns; /*  the turn counter  */
+  mp_number unity_t;
   mp_angle three_sixty_deg_n, neg_three_sixty_deg_n;
   mp_knot p;    /*  for running around the path  */
   mp_number arg1, arg2, arg3, arg4;
+  new_number (turns);
+  new_number (unity_t);
   new_angle(three_sixty_deg_n);
   new_angle(neg_three_sixty_deg_n);
   new_angle(res);
@@ -24301,9 +24319,9 @@ static scaled mp_turn_cycles (MP mp, mp_knot c) {
   new_number(arg2);
   new_number(arg3);
   new_number(arg4);
+  set_number_to_unity (unity_t);
   set_number_from_scaled(three_sixty_deg_n, three_sixty_deg);
   set_number_from_scaled(neg_three_sixty_deg_n, -three_sixty_deg);
-  turns = 0;
   p = c;
   do {
     mp_number ret1, ret2;
@@ -24320,11 +24338,11 @@ static scaled mp_turn_cycles (MP mp, mp_knot c) {
     number_add(res, ang);
     if (number_greaterequal(res, three_sixty_deg_n)) {
       number_substract(res, three_sixty_deg_n);
-      turns = turns + unity;
+      number_add (turns, unity_t);
     }
     if (number_lessequal(res, neg_three_sixty_deg_n)) {
       number_add(res, three_sixty_deg_n);
-      turns = turns - unity;
+      number_substract (turns, unity_t);
     }
     p = mp_next_knot (p);
   } while (p != c);
@@ -24334,6 +24352,7 @@ static scaled mp_turn_cycles (MP mp, mp_knot c) {
   free_number(arg4);
   free_number(ang);
   free_number(res);
+  free_number(unity_t);
   free_number(three_sixty_deg_n);
   free_number(neg_three_sixty_deg_n);
   return turns;
@@ -24341,42 +24360,43 @@ static scaled mp_turn_cycles (MP mp, mp_knot c) {
 
 
 @ @<Declare unary action...@>=
-static scaled mp_turn_cycles_wrapper (MP mp, mp_knot c) {
-  scaled nval, oval;
-  scaled saved_t_o;     /* tracing\_online saved  */
+static mp_number mp_turn_cycles_wrapper (MP mp, mp_knot c) {
   mp_number arg1, arg2;
   if ((mp_next_knot (c) == c) || (mp_next_knot (mp_next_knot (c)) == c)) {
-    scaled ret;
+    mp_number ret;
     mp_number an_angle;
     new_number (arg1);
     new_number (arg2);
+    new_number (ret);
     set_number_from_substraction(arg1, c->x_coord, c->right_x);
     set_number_from_substraction(arg2, c->y_coord, c->right_y);
     an_angle = mp_an_angle(mp, arg1, arg2);
     if (number_positive(an_angle)) {
-      ret = unity;
+      set_number_to_unity(ret);
     } else {
-      ret = -unity;
+      set_number_to_unity(ret);
+      number_negate(ret);
     }
     free_number (an_angle);
     free_number (arg1);
     free_number (arg2);
     return ret;
   } else {
-    nval = mp_new_turn_cycles (mp, c);
-    oval = mp_turn_cycles (mp, c);
-    if (nval != oval && internal_value_to_halfword (mp_tracing_choices) > (2 * unity)) {
-      saved_t_o = internal_value_to_halfword (mp_tracing_online);
+    mp_number nval = mp_new_turn_cycles (mp, c);
+    mp_number oval = mp_turn_cycles (mp, c);
+    if ((!number_equal(nval, oval)) && internal_value_to_halfword (mp_tracing_choices) > (2 * unity)) {
+      scaled saved_t_o = internal_value_to_halfword (mp_tracing_online);
       set_internal_from_scaled_int (mp_tracing_online, unity);
       mp_begin_diagnostic (mp);
       mp_print_nl (mp, "Warning: the turningnumber algorithms do not agree."
                    " The current computed value is ");
-      mp_print_scaled (mp, nval);
+      mp_print_number (mp, nval);
       mp_print (mp, ", but the 'connect-the-dots' algorithm returned ");
-      mp_print_scaled (mp, oval);
+      mp_print_number (mp, oval);
       mp_end_diagnostic (mp, false);
       set_internal_from_scaled_int (mp_tracing_online, saved_t_o);
     }
+    free_number (oval);
     return nval;
   }
 }
@@ -26561,7 +26581,8 @@ break;
 static void mp_chop_path (MP mp, mp_node p) {
   mp_knot q;    /* a knot in the original path */
   mp_knot pp, qq, rr, ss;       /* link variables for copies of path nodes */
-  scaled a, b, k, l;    /* indices for chopping */
+  scaled a, b, k;    /* indices for chopping */
+  mp_number l;
   boolean reversed;     /* was |a>b|? */
   l = mp_path_length (mp);
   a = value (x_part (p));
@@ -26596,6 +26617,7 @@ static void mp_chop_path (MP mp, mp_node p) {
   } else {
     set_cur_exp_knot (pp);
   }
+  free_number (l);
 }
 
 
@@ -26607,20 +26629,20 @@ if (a < 0) {
       b = 0;
   } else {
     do {
-      a = a + l;
-      b = b + l;
+      a = a + number_to_scaled(l);
+      b = b + number_to_scaled(l);
     } while (a < 0);            /* a cycle always has length |l>0| */
   }
 }
-if (b > l) {
+if (b > number_to_scaled(l)) {
   if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
-    b = l;
-    if (a > l)
-      a = l;
+    b = number_to_scaled(l);
+    if (a > number_to_scaled(l))
+      a = number_to_scaled(l);
   } else {
-    while (a >= l) {
-      a = a - l;
-      b = b - l;
+    while (a >= number_to_scaled(l)) {
+      a = a - number_to_scaled(l);
+      b = b - number_to_scaled(l);
     }
   }
 }
@@ -32513,11 +32535,13 @@ mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
     switch (gr_type (p)) {
     case mp_fill_code:
       if (gr_pen_p ((mp_fill_object *) p) == NULL) {
+        mp_number turns;
         pn = mp_new_fill_node (mp, NULL);
         mp_path_p ((mp_fill_node) pn) =
           mp_import_knot_list (mp, gr_path_p ((mp_fill_object *) p));
         mp_color_model (pn) = mp_grey_model;
-        if (mp_new_turn_cycles (mp, mp_path_p ((mp_fill_node) pn)) < 0) {
+        turns = mp_new_turn_cycles (mp, mp_path_p ((mp_fill_node) pn));
+        if (number_negative(turns)) {
           set_number_to_unity(((mp_fill_node) pn)->grey);
           mp_link (pt) = pn;
           pt = mp_link (pt);
@@ -32528,6 +32552,7 @@ mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
           if (ph == pt)
             pt = pn;
         }
+        free_number (turns);
       }
       break;
     case mp_stroked_code:
