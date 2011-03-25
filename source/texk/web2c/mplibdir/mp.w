@@ -9382,6 +9382,18 @@ number_clone (p->right_y, p->y_coord)
 
 @<Make the elliptical pen |h| into a path@>=
 {
+  mp_number center_x, center_y;      /* translation parameters for an elliptical pen */
+  mp_number width_x, width_y;        /* the effect of a unit change in $x$ */
+  mp_number height_x, height_y;      /* the effect of a unit change in $y$ */
+  mp_number dx, dy;  /* the vector from knot |p| to its right control point */
+  new_number (center_x);
+  new_number (center_y);
+  new_number (width_x);
+  new_number (width_y);
+  new_number (height_x);
+  new_number (height_y);
+  new_number (dx);
+  new_number (dy);
   @<Extract the transformation parameters from the elliptical pen~|h|@>;
   p = h;
   for (k = 0; k <= 7; k++) {
@@ -9393,22 +9405,26 @@ number_clone (p->right_y, p->y_coord)
       mp_next_knot (p) = mp_new_knot (mp);
     p = mp_next_knot (p);
   }
+  free_number (dx);
+  free_number (dy);
+  free_number (center_x);
+  free_number (center_y);
+  free_number (width_x);
+  free_number (width_y);
+  free_number (height_x);
+  free_number (height_y);
 }
 
 
 @ @<Extract the transformation parameters from the elliptical pen~|h|@>=
-center_x = number_to_scaled(h->x_coord);
-center_y = number_to_scaled(h->y_coord);
-width_x = number_to_scaled(h->left_x) - center_x;
-width_y = number_to_scaled(h->left_y) - center_y;
-height_x = number_to_scaled(h->right_x) - center_x;
-height_y = number_to_scaled(h->right_y) - center_y
+number_clone (center_x, h->x_coord);
+number_clone (center_y, h->y_coord);
+set_number_from_substraction (width_x, h->left_x, center_x);
+set_number_from_substraction (width_y, h->left_y, center_y);
+set_number_from_substraction (height_x, h->right_x, center_x);
+set_number_from_substraction (height_y, h->right_y, center_y);
 
 @ @<Other local variables in |make_path|@>=
-scaled center_x, center_y;      /* translation parameters for an elliptical pen */
-scaled width_x, width_y;        /* the effect of a unit change in $x$ */
-scaled height_x, height_y;      /* the effect of a unit change in $y$ */
-scaled dx, dy;  /* the vector from knot |p| to its right control point */
 integer kk;
   /* |k| advanced $270^\circ$ around the ring (cf. $\sin\theta=\cos(\theta+270)$) */
 
@@ -9418,18 +9434,18 @@ to use there.
 
 @<Initialize |p| as the |k|th knot of a circle of unit diameter,...@>=
 kk = (k + 6) % 8;
-set_number_from_scaled (p->x_coord, center_x + mp_take_fraction (mp, mp->half_cos[k], width_x)
-  + mp_take_fraction (mp, mp->half_cos[kk], height_x));
-set_number_from_scaled (p->y_coord, center_y + mp_take_fraction (mp, mp->half_cos[k], width_y)
-  + mp_take_fraction (mp, mp->half_cos[kk], height_y));
-dx = -mp_take_fraction (mp, mp->d_cos[kk], width_x)
-  + mp_take_fraction (mp, mp->d_cos[k], height_x);
-dy = -mp_take_fraction (mp, mp->d_cos[kk], width_y)
-  + mp_take_fraction (mp, mp->d_cos[k], height_y);
-set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + dx);
-set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + dy);
-set_number_from_scaled (p->left_x, number_to_scaled (p->x_coord) - dx);
-set_number_from_scaled (p->left_y, number_to_scaled (p->y_coord) - dy);
+set_number_from_scaled (p->x_coord, number_to_scaled (center_x) + mp_take_fraction (mp, mp->half_cos[k], number_to_scaled (width_x))
+  + mp_take_fraction (mp, mp->half_cos[kk], number_to_scaled (height_x)));
+set_number_from_scaled (p->y_coord, number_to_scaled (center_y) + mp_take_fraction (mp, mp->half_cos[k], number_to_scaled (width_y))
+  + mp_take_fraction (mp, mp->half_cos[kk], number_to_scaled (height_y)));
+set_number_from_scaled (dx, -mp_take_fraction (mp, mp->d_cos[kk], number_to_scaled (width_x))
+  + mp_take_fraction (mp, mp->d_cos[k], number_to_scaled (height_x)));
+set_number_from_scaled (dy, -mp_take_fraction (mp, mp->d_cos[kk], number_to_scaled (width_y))
+  + mp_take_fraction (mp, mp->d_cos[k], number_to_scaled (height_y)));
+set_number_from_addition (p->right_x, p->x_coord, dx);
+set_number_from_addition (p->right_y, p->y_coord, dy);
+set_number_from_substraction (p->left_x, p->x_coord, dx);
+set_number_from_substraction (p->left_y, p->y_coord, dy);
 mp_left_type (p) = mp_explicit;
 mp_right_type (p) = mp_explicit;
 mp_originator (p) = mp_program_code
@@ -13145,19 +13161,21 @@ and the given direction so that |(x,y)=(1,0)|; i.e., the main task will be
 to find when a given path first travels ``due east.''
 
 @c
-static scaled mp_find_direction_time (MP mp, scaled x, scaled y, mp_knot h) {
+static mp_number mp_find_direction_time (MP mp, mp_number x_orig, mp_number y_orig, mp_knot h) {
+  mp_number ret;
   mp_number max;   /* $\max\bigl(\vert x\vert,\vert y\vert\bigr)$ */
   mp_knot p, q; /* for list traversal */
   scaled n;     /* the direction time at knot |p| */
-  scaled tt;    /* the direction time within a cubic */
+  mp_number tt;    /* the direction time within a cubic */
+  mp_number fraction_one_t;
+  scaled x, y;
   @<Other local variables for |find_direction_time|@>;
-  new_number(max);
-  new_number(x1);
-  new_number(x2);
-  new_number(x3);
-  new_number(y1);
-  new_number(y2);
-  new_number(y3);
+  new_number (ret);
+  new_fraction (tt);
+  new_fraction (fraction_one_t);
+  set_number_from_scaled (fraction_one_t, fraction_one);
+  x = number_to_scaled (x_orig);
+  y = number_to_scaled (y_orig);
   @<Normalize the given direction for better accuracy;
     but |return| with zero result if it's zero@>;
   n = 0;
@@ -13175,11 +13193,18 @@ static scaled mp_find_direction_time (MP mp, scaled x, scaled y, mp_knot h) {
   }
   @<Free local variables for |find_direction_time|@>;
   free_number (max);
-  return (-unity);
+  free_number (tt);
+  free_number (fraction_one_t);
+  set_number_to_unity (ret);
+  number_negate(ret);
+  return ret;
 FOUND:
+  set_number_from_scaled (ret, (n + number_to_scaled(tt)));
   @<Free local variables for |find_direction_time|@>;
   free_number (max);
-  return (n + tt);
+  free_number (tt);
+  free_number (fraction_one_t);
+  return ret;
 }
 
 
@@ -13213,7 +13238,7 @@ in which the previous rotated cubic was traveling. (The value of |phi| will be
 undefined on the first cubic, i.e., when |n=0|.)
 
 @<Rotate the cubic between |p| and |q|; then...@>=
-tt = 0;
+set_number_to_zero(tt);
 @<Set local variables |x1,x2,x3| and |y1,y2,y3| to multiples of the control
   points of the rotated derivatives@>;
 if (number_zero(y1))
@@ -13223,7 +13248,7 @@ if (n > 0) {
   @<Exit to |found| if an eastward direction occurs at knot |p|@>;
   if (p == h)
     break;
-};
+}
 if (number_nonzero(x3) || number_nonzero(y3)) {
   mp_number n_arg = mp_n_arg (mp, x3, y3);
   phi = number_to_scaled (n_arg);
@@ -13237,7 +13262,15 @@ if (number_nonzero(x3) || number_nonzero(y3)) {
 @ @<Other local variables for |find_direction_time|@>=
 mp_number x1, x2, x3, y1, y2, y3;  /* multiples of rotated derivatives */
 angle theta, phi;       /* angles of exit and entry at a knot */
-fraction t;     /* temp storage */
+mp_number t;     /* temp storage */
+new_number(max);
+new_number(x1);
+new_number(x2);
+new_number(x3);
+new_number(y1);
+new_number(y2);
+new_number(y3);
+new_fraction(t);
 
 @ @<Free local variables for |find_direction_time|@>=
 free_number (x1);
@@ -13246,6 +13279,7 @@ free_number (x3);
 free_number (y1);
 free_number (y2);
 free_number (y3);
+free_number (t);
 
 @ @<Set local variables |x1,x2,x3| and |y1,y2,y3| to multiples...@>=
 {
@@ -13296,26 +13330,28 @@ free_number (y3);
     number_double(y2);
     number_double(y3);
   }
-  t = number_to_scaled(x1);
+  number_clone(t, x1);
   set_number_from_scaled(x1, mp_take_fraction (mp, number_to_scaled(x1), x) + mp_take_fraction (mp, number_to_scaled(y1), y));
-  set_number_from_scaled(y1, mp_take_fraction (mp, number_to_scaled(y1), x) - mp_take_fraction (mp, t, y));
-  t = number_to_scaled(x2);
+  set_number_from_scaled(y1, mp_take_fraction (mp, number_to_scaled(y1), x) - mp_take_fraction (mp, number_to_scaled(t), y));
+  number_clone(t, x2);
   set_number_from_scaled(x2, mp_take_fraction (mp, number_to_scaled(x2), x) + mp_take_fraction (mp, number_to_scaled(y2), y));
-  set_number_from_scaled(y2, mp_take_fraction (mp, number_to_scaled(y2), x) - mp_take_fraction (mp, t, y));
-  t = number_to_scaled(x3);
+  set_number_from_scaled(y2, mp_take_fraction (mp, number_to_scaled(y2), x) - mp_take_fraction (mp, number_to_scaled(t), y));
+  number_clone(t, x3);
   set_number_from_scaled(x3, mp_take_fraction (mp, number_to_scaled(x3), x) + mp_take_fraction (mp, number_to_scaled(y3), y));
-  set_number_from_scaled(y3, mp_take_fraction (mp, number_to_scaled(y3), x) - mp_take_fraction (mp, t, y));
+  set_number_from_scaled(y3, mp_take_fraction (mp, number_to_scaled(y3), x) - mp_take_fraction (mp, number_to_scaled(t), y));
 }
  
 
 @ @<Exit to |found| if an eastward direction occurs at knot |p|@>=
-mp_number n_arg = mp_n_arg (mp, x1, y1);
-theta = number_to_scaled (n_arg);
-free_number (n_arg);
-if (theta >= 0 && phi <= 0 && phi >= theta - one_eighty_deg)
-  goto FOUND;
-if (theta <= 0 && phi >= 0 && phi <= theta + one_eighty_deg)
-  goto FOUND;
+{
+  mp_number n_arg = mp_n_arg (mp, x1, y1);
+  theta = number_to_scaled (n_arg);
+  free_number (n_arg);
+  if (theta >= 0 && phi <= 0 && phi >= theta - one_eighty_deg)
+    goto FOUND;
+  if (theta <= 0 && phi >= 0 && phi <= theta + one_eighty_deg)
+    goto FOUND;
+}
 
 
 @ In this step we want to use the |crossing_point| routine to find the
@@ -13360,21 +13396,21 @@ miss the roots when $y_1y_3<y_2^2$. The rotation process is itself
 subject to rounding errors. Yet this code optimistically tries to
 do the right thing.
 
-@d we_found_it { tt=(t+04000) / 010000; goto FOUND; }
+@d we_found_it { set_number_from_scaled (tt,(number_to_scaled (t)+04000) / 010000); goto FOUND; }
 
 @<Check the places where $B(y_1,y_2,y_3;t)=0$...@>=
-t = mp_crossing_point (mp, y1, y2, y3);
-if (t > fraction_one)
+set_number_from_scaled (t, mp_crossing_point (mp, y1, y2, y3));
+if (number_greater (t, fraction_one_t))
   goto DONE;
-set_number_from_of_the_way(y2, t, y2, y3);
-set_number_from_of_the_way(x1, t, x1, x2);
-set_number_from_of_the_way(x2, t, x2, x3);
-set_number_from_of_the_way(x1, t, x1, x2);
+set_number_from_of_the_way(y2, number_to_scaled (t), y2, y3);
+set_number_from_of_the_way(x1, number_to_scaled (t), x1, x2);
+set_number_from_of_the_way(x2, number_to_scaled (t), x2, x3);
+set_number_from_of_the_way(x1, number_to_scaled (t), x1, x2);
 if (number_zero(x1) || number_positive(x1))
   we_found_it;
 if (number_positive(y2))
   set_number_to_zero(y2);
-tt = t;
+number_clone(tt, t);
 {
   mp_number arg1, arg2, arg3;
   new_number (arg1);
@@ -13384,21 +13420,21 @@ tt = t;
   number_negate(arg2);
   number_clone(arg3, y3);
   number_negate(arg3);
-  t = mp_crossing_point (mp, arg1, arg2, arg3);
+  set_number_from_scaled (t, mp_crossing_point (mp, arg1, arg2, arg3));
   free_number (arg1);
   free_number (arg2);
   free_number (arg3);
 }
-if (t > fraction_one)
+if (number_greater (t, fraction_one_t))
   goto DONE;
 {
   mp_number new_number(tmp);
-  set_number_from_of_the_way(x1, t, x1, x2);
-  set_number_from_of_the_way(x2, t, x2, x3);
-  set_number_from_of_the_way(tmp, t, x1, x2);
-  if (number_positive(tmp) || number_zero(tmp)) {
+  set_number_from_of_the_way(x1, number_to_scaled (t), x1, x2);
+  set_number_from_of_the_way(x2, number_to_scaled (t), x2, x3);
+  set_number_from_of_the_way(tmp, number_to_scaled (t), x1, x2);
+  if (number_nonnegative(tmp)) {
     free_number (tmp);
-    t = t_of_the_way (tt, fraction_one);
+    set_number_from_of_the_way (t, number_to_scaled (t), tt, fraction_one_t);
     we_found_it;
   }
   free_number (tmp);
@@ -13415,10 +13451,10 @@ if (t > fraction_one)
   free_number (zero_t);
   if (ab_vs_cd < 0) {
     mp_number new_number(tmp);
-    t = mp_make_fraction (mp, number_to_scaled(y1), number_to_scaled(y1) - number_to_scaled(y2));
-    set_number_from_of_the_way(x1, t, x1, x2);
-    set_number_from_of_the_way(x2, t, x2, x3);
-    set_number_from_of_the_way(tmp, t, x1, x2);
+    set_number_from_scaled (t, mp_make_fraction (mp, number_to_scaled(y1), number_to_scaled(y1) - number_to_scaled(y2)));
+    set_number_from_of_the_way(x1, number_to_scaled (t), x1, x2);
+    set_number_from_of_the_way(x2, number_to_scaled (t), x2, x3);
+    set_number_from_of_the_way(tmp, number_to_scaled (t), x1, x2);
     if (number_zero(tmp) || number_positive(tmp)) {
       free_number (tmp);
       we_found_it;
@@ -13428,7 +13464,7 @@ if (t > fraction_one)
     if (number_zero(y1)) {
       @<Exit to |found| if the derivative $B(x_1,x_2,x_3;t)$ becomes |>=0|@>;
     } else if (number_zero(x3) || number_positive(x3)) {
-      tt = unity;
+      set_number_to_unity(tt);
       goto FOUND;
     }
   }
@@ -13452,14 +13488,14 @@ traveling east.
   number_negate(arg2);
   number_clone(arg3, x3);
   number_negate(arg3);
-  t = mp_crossing_point (mp, arg1, arg2, arg3);
+  set_number_from_scaled (t, mp_crossing_point (mp, arg1, arg2, arg3));
   free_number (arg1);
   free_number (arg2);
   free_number (arg3);
-  if (t <= fraction_one)
+  if (number_lessequal (t, fraction_one_t))
     we_found_it;
   if (mp_ab_vs_cd (mp, x1, x3, x2, x2) <= 0) {
-    t = mp_make_fraction (mp, number_to_scaled(x1), number_to_scaled(x1) - number_to_scaled(x2));
+    set_number_from_scaled (t, mp_make_fraction (mp, number_to_scaled(x1), number_to_scaled(x1) - number_to_scaled(x2)));
     we_found_it;
   }
 }
@@ -26567,9 +26603,8 @@ static void mp_set_up_offset (MP mp, mp_node p) {
 static void mp_set_up_direction_time (MP mp, mp_node p) {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
-  new_expr.data.n->data.val = mp_find_direction_time (mp, value (x_part (p)),
-                                              value (y_part (p)),
+  new_expr.data.n = mp_find_direction_time (mp, value_number (x_part (p)),
+                                              value_number (y_part (p)),
                                               cur_exp_knot ());
   mp_flush_cur_exp (mp, new_expr);
 }
