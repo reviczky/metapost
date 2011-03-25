@@ -10685,6 +10685,7 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, mp_number w) 
   mp_dash_object *d;
   mp_dash_node p, h;
   mp_number scf;   /* scale factor */
+  mp_number dashoff;
   double *dashes = NULL;
   int num_dashes = 1;
   h = (mp_dash_node)mp_dash_p (q);
@@ -10718,7 +10719,9 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, mp_number w) 
     p = (mp_dash_node)mp_link (p);
   }
   d->array = dashes;
-  d->offset = mp_take_scaled (mp, mp_dash_offset (mp, h), number_to_scaled(scf)) / 65536.0;
+  dashoff = mp_dash_offset (mp, h);
+  d->offset = mp_take_scaled (mp, number_to_scaled(dashoff), number_to_scaled(scf)) / 65536.0;
+  free_number (dashoff);
   free_number(scf);
   return d;
 }
@@ -11058,6 +11061,7 @@ ppd = dash_list (hhd);
 if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
   mp_print (mp, " ??");
 } else {
+  mp_number dashoff;
   set_number_from_scaled(mp->null_dash->start_x, 
 	number_to_scaled(ppd->start_x) + number_to_scaled(hhd->dash_y ));
   while (ppd != mp->null_dash) {
@@ -11073,27 +11077,30 @@ if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
       mp_print_char (mp, xord (' '));
   }
   mp_print (mp, ") shifted ");
-  mp_print_scaled (mp, -mp_take_scaled (mp, mp_dash_offset (mp, hhd), scf));
+  dashoff = mp_dash_offset (mp, hhd);
+  mp_print_scaled (mp, -mp_take_scaled (mp, number_to_scaled(dashoff), scf));
+  free_number (dashoff);
   if (!ok_to_dash || number_zero(hhd->dash_y) )
     mp_print (mp, " (this will be ignored)");
 }
 }
 
 @ @<Declarations@>=
-static scaled mp_dash_offset (MP mp, mp_dash_node h);
+static mp_number mp_dash_offset (MP mp, mp_dash_node h);
 
 @ @c
-scaled mp_dash_offset (MP mp, mp_dash_node h) {
-  scaled x;     /* the answer */
- if (dash_list (h) == mp->null_dash || number_negative(h->dash_y ))
+mp_number mp_dash_offset (MP mp, mp_dash_node h) {
+  mp_number x;     /* the answer */
+  if (dash_list (h) == mp->null_dash || number_negative(h->dash_y ))
     mp_confusion (mp, "dash0");
 @:this can't happen dash0}{\quad dash0@>;
+  new_number (x);
   if (number_zero(h->dash_y)) {
-    x = 0;
+    set_number_to_zero(x); 
   } else {
-    x = -(number_to_scaled ((dash_list (h))->start_x ) % number_to_scaled(h->dash_y ));
-    if (x < 0)
-      x = x + number_to_scaled(h->dash_y);
+    set_number_from_scaled(x, -(number_to_scaled ((dash_list (h))->start_x ) % number_to_scaled(h->dash_y )));
+    if (number_negative(x))
+      number_add(x, h->dash_y);
   }
   return x;
 }
@@ -11405,11 +11412,14 @@ mp_node ds;     /* the stroked node from which |hh| and |hsf| are derived */
 @ @<Replace |mp_link(d)| by a dashed version as determined by edge header...@>=
 {
   mp_number xoff;    /* added to $x$ values in |dash_list(hh)| to match |dln| */
+  mp_number dashoff;
   dln = (mp_dash_node)mp_link (d);
   dd = dash_list (hh);
   new_number (xoff);
+  dashoff = mp_dash_offset (mp, (mp_dash_node)hh);
   set_number_from_scaled(xoff, number_to_scaled(dln->start_x) - mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)) -
-                       mp_take_scaled (mp, hsf, mp_dash_offset (mp, (mp_dash_node)hh)));
+                       mp_take_scaled (mp, hsf, number_to_scaled(dashoff)));
+  free_number (dashoff);
   set_number_from_scaled(mp->null_dash->start_x, mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))
                        + mp_take_scaled (mp, hsf, number_to_scaled (hh->dash_y) ));
   number_clone(mp->null_dash->stop_x, mp->null_dash->start_x);
