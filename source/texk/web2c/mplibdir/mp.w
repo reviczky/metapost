@@ -8082,12 +8082,17 @@ $B(a,b,c;t)$ changes from positive to negative, or returns
 |t=fraction_one+1| if no such value exists. If |a<0| (so that $B(a,b,c;t)$
 is already negative at |t=0|), |crossing_point| returns the value zero.
 
-@d no_crossing {  return (fraction_one+1); }
-@d one_crossing { return fraction_one; }
-@d zero_crossing { return 0; }
+@d no_crossing {  number_clone(ret, fraction_one_t); number_add_scaled(ret, 1); goto RETURN; }
+@d one_crossing { number_clone(ret, fraction_one_t); goto RETURN; }
+@d zero_crossing { set_number_to_zero(ret); goto RETURN; }
 
 @c
-static fraction mp_crossing_point (MP mp, mp_number a, mp_number b, mp_number c) {
+static mp_number mp_crossing_point (MP mp, mp_number a, mp_number b, mp_number c) {
+  mp_number ret;
+  mp_number fraction_one_t;
+  new_fraction (ret);
+  new_fraction (fraction_one_t);
+  set_number_from_scaled (fraction_one_t, fraction_one);
   if (number_negative(a))
     zero_crossing;
   if (number_positive(c) || number_zero(c)) {
@@ -8107,6 +8112,9 @@ static fraction mp_crossing_point (MP mp, mp_number a, mp_number b, mp_number c)
       zero_crossing;
   }
   @<Use bisection to find the crossing point, if one exists@>;
+RETURN:
+  free_number (fraction_one_t);
+  return ret;
 }
 
 
@@ -8172,7 +8180,7 @@ $a<2^{30}$, $\vert a-b\vert<2^{30}$, and $\vert b-c\vert<2^{30}$.
             free_number (x0);
             free_number (x1);
             free_number (x2);
-            return 0;
+            zero_crossing;
           }
         }
         number_clone(x1, x);
@@ -8186,7 +8194,7 @@ $a<2^{30}$, $\vert a-b\vert<2^{30}$, and $\vert b-c\vert<2^{30}$.
   free_number (x0);
   free_number (x1);
   free_number (x2);
-  return (d - fraction_one);
+  set_number_from_scaled(ret, (d - fraction_one));
 }
  
 
@@ -8313,7 +8321,8 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
       number_negate (del2);
       number_negate (del3);
     }
-    set_number_from_scaled(t, mp_crossing_point (mp, del1, del2, del3));
+    free_number (t);
+    t = mp_crossing_point (mp, del1, del2, del3);
     if (number_less(t, fraction_one_t)) {
       @<Test the extremes of the cubic against the bounding box@>;
     }
@@ -8416,7 +8425,8 @@ must cut it to zero to avoid confusion.
     number_negate(arg2);
     number_clone(arg3, del3);
     number_negate(arg3);
-    set_number_from_scaled(tt, mp_crossing_point (mp, zero_t, arg2, arg3));
+    free_number (tt);
+    tt = mp_crossing_point (mp, zero_t, arg2, arg3);
     free_number (zero_t);
     free_number (arg2);
     free_number (arg3);
@@ -12268,7 +12278,8 @@ void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, mp_number
       ww = mp_prev_knot (w);    /* a pointer to $w_{k-1}$ */
     @<Compute test coefficients |(t0,t1,t2)|
       for $d(t)$ versus $d_k$ or $d_{k-1}$@>;
-    set_number_from_scaled(t, mp_crossing_point (mp, t0, t1, t2));
+    free_number (t);
+    t = mp_crossing_point (mp, t0, t1, t2);
     if (number_greaterequal(t, fraction_one_t)) {
       if (turn_amt > 0)
         number_clone(t, fraction_one_t);
@@ -12363,7 +12374,8 @@ respectively, yielding another solution of $(*)$.
     number_negate(arg2);
     number_clone(arg3, t2);
     number_negate(arg3);
-    set_number_from_scaled(t, mp_crossing_point (mp, arg1, arg2, arg3));
+    free_number (t);
+    t = mp_crossing_point (mp, arg1, arg2, arg3);
     free_number (arg1);
     free_number (arg2);
     free_number (arg3);
@@ -12551,7 +12563,8 @@ if (number_greater(t, fraction_one_t)) {
     number_negate(arg2);
     number_clone(arg3, t2);
     number_negate(arg3);
-    set_number_from_scaled(t, mp_crossing_point (mp, arg1, arg2, arg3));
+    free_number (t);
+    t = mp_crossing_point (mp, arg1, arg2, arg3);
     free_number (arg1);
     free_number (arg2);
     free_number (arg3);
@@ -12588,7 +12601,8 @@ answer.  If |t2<0|, there is one crossing and it is antiparallel only if
 crossing and the first crossing cannot be antiparallel.
 
 @<Find the first |t| where $d(t)$ crosses $d_{k-1}$ or set...@>=
-set_number_from_scaled (t, mp_crossing_point (mp, t0, t1, t2));
+free_number (t);
+t = mp_crossing_point (mp, t0, t1, t2);
 if (turn_amt >= 0) {
   if (number_negative(t2)) {
     number_clone(t, fraction_one_t);
@@ -12675,7 +12689,8 @@ if (number_positive(t0)) {
   mp_number new_number(arg3);
   number_clone(arg3, t0);
   number_negate(arg3);
-  set_number_from_scaled (t, mp_crossing_point (mp, t0, t1, arg3));
+  free_number (t);
+  t = mp_crossing_point (mp, t0, t1, arg3);
   free_number (arg3);
   set_number_from_of_the_way(u0, t, x0, x1);
   set_number_from_of_the_way(u1, t, x1, x2);
@@ -12685,7 +12700,8 @@ if (number_positive(t0)) {
   mp_number new_number(arg1);
   number_clone(arg1, t0);
   number_negate(arg1);
-  set_number_from_scaled (t, mp_crossing_point (mp, arg1, t1, t0));
+  free_number (t);
+  t = mp_crossing_point (mp, arg1, t1, t0);
   free_number (arg1);
   set_number_from_of_the_way(u0, t, x2, x1);
   set_number_from_of_the_way(u1, t, x1, x0);
@@ -13456,7 +13472,8 @@ do the right thing.
 @d we_found_it { set_number_from_scaled (tt,(number_to_scaled (t)+04000) / 010000); goto FOUND; }
 
 @<Check the places where $B(y_1,y_2,y_3;t)=0$...@>=
-set_number_from_scaled (t, mp_crossing_point (mp, y1, y2, y3));
+free_number (t);
+t = mp_crossing_point (mp, y1, y2, y3);
 if (number_greater (t, fraction_one_t))
   goto DONE;
 set_number_from_of_the_way(y2, t, y2, y3);
@@ -13477,7 +13494,8 @@ number_clone(tt, t);
   number_negate(arg2);
   number_clone(arg3, y3);
   number_negate(arg3);
-  set_number_from_scaled (t, mp_crossing_point (mp, arg1, arg2, arg3));
+  free_number (t);
+  t = mp_crossing_point (mp, arg1, arg2, arg3);
   free_number (arg1);
   free_number (arg2);
   free_number (arg3);
@@ -13545,7 +13563,8 @@ traveling east.
   number_negate(arg2);
   number_clone(arg3, x3);
   number_negate(arg3);
-  set_number_from_scaled (t, mp_crossing_point (mp, arg1, arg2, arg3));
+  free_number (t);
+  t = mp_crossing_point (mp, arg1, arg2, arg3);
   free_number (arg1);
   free_number (arg2);
   free_number (arg3);
