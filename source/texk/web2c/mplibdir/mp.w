@@ -13165,22 +13165,34 @@ static mp_number mp_find_direction_time (MP mp, mp_number x_orig, mp_number y_or
   mp_number ret;
   mp_number max;   /* $\max\bigl(\vert x\vert,\vert y\vert\bigr)$ */
   mp_knot p, q; /* for list traversal */
-  scaled n;     /* the direction time at knot |p| */
+  mp_number n;     /* the direction time at knot |p| */
   mp_number tt;    /* the direction time within a cubic */
-  mp_number fraction_one_t;
-  scaled x, y;
+  mp_number fraction_one_t, one_eighty_deg_t, unity_t;
+  mp_number x, y;
+  mp_number abs_x, abs_y;
   @<Other local variables for |find_direction_time|@>;
+  new_number (x);
+  new_number (y);
+  new_number (abs_x);
+  new_number (abs_y);
+  new_number (n);
   new_number (ret);
   new_fraction (tt);
   new_fraction (fraction_one_t);
+  new_angle (one_eighty_deg_t);
+  new_number (unity_t);
   set_number_from_scaled (fraction_one_t, fraction_one);
-  x = number_to_scaled (x_orig);
-  y = number_to_scaled (y_orig);
+  set_number_from_scaled (one_eighty_deg_t, one_eighty_deg); 
+  set_number_from_scaled (unity_t, unity); 
+  number_clone (x, x_orig);
+  number_clone (y, y_orig);
+  number_clone (abs_x, x_orig);
+  number_clone (abs_y, y_orig);
+  number_abs (abs_x);
+  number_abs (abs_y);
   @<Normalize the given direction for better accuracy;
-    but |return| with zero result if it's zero@>;
-  n = 0;
+      but |return| with zero result if it's zero@>;
   p = h;
-  phi = 0;
   while (1) {
     if (mp_right_type (p) == mp_endpoint)
       break;
@@ -13189,42 +13201,52 @@ static mp_number mp_find_direction_time (MP mp, mp_number x_orig, mp_number y_or
       |goto found| if the rotated cubic travels due east at some time |tt|;
       but |break| if an entire cyclic path has been traversed@>;
     p = q;
-    n = n + unity;
+    number_add(n, unity_t);
   }
-  @<Free local variables for |find_direction_time|@>;
-  free_number (max);
-  free_number (tt);
-  free_number (fraction_one_t);
   set_number_to_unity (ret);
   number_negate(ret);
-  return ret;
+  goto FREE;
 FOUND:
-  set_number_from_scaled (ret, (n + number_to_scaled(tt)));
+  set_number_from_addition (ret, n, tt);
+  goto FREE;
+FREE: 
+  free_number (x);
+  free_number (y);
+  free_number (abs_x);
+  free_number (abs_y);
   @<Free local variables for |find_direction_time|@>;
+  free_number (n);
   free_number (max);
   free_number (tt);
+  free_number (unity_t);
   free_number (fraction_one_t);
-  return ret;
+  free_number (one_eighty_deg_t);
+  return ret; /* = zero */
 }
 
 
 @ @<Normalize the given direction for better accuracy...@>=
-if (abs (x) < abs (y)) {
-  x = mp_make_fraction (mp, x, abs (y));
-  if (y > 0)
-    y = fraction_one;
-  else
-    y = -fraction_one;
-} else if (x == 0) {
-  return 0;
-} else {
-  y = mp_make_fraction (mp, y, abs (x));
-  if (x > 0)
-    x = fraction_one;
-  else
-    x = -fraction_one;
+{
+  if (number_less(abs_x, abs_y)) {
+    set_number_from_scaled(x, mp_make_fraction (mp, number_to_scaled(x), number_to_scaled(abs_y)));
+    if (number_positive(y)) {
+      number_clone(y, fraction_one_t);
+    } else {
+      number_clone(y, fraction_one_t);
+      number_negate(y);
+    }
+  } else if (number_zero(x)) {
+    goto FREE;
+  } else {
+    set_number_from_scaled(y, mp_make_fraction (mp, number_to_scaled(y), number_to_scaled(abs_x)));
+    if (number_positive(x)) {
+      number_clone(x, fraction_one_t);
+    } else {
+      number_clone(x, fraction_one_t);
+      number_negate(x);
+    }
+  }
 }
-
 
 @ Since we're interested in the tangent directions, we work with the
 derivative $${1\over3}B'(x_0,x_1,x_2,x_3;t)=
@@ -13244,15 +13266,14 @@ set_number_to_zero(tt);
 if (number_zero(y1))
   if (number_zero(x1) || number_positive(x1))
     goto FOUND;
-if (n > 0) {
+if (number_positive(n)) {
   @<Exit to |found| if an eastward direction occurs at knot |p|@>;
   if (p == h)
     break;
 }
 if (number_nonzero(x3) || number_nonzero(y3)) {
-  mp_number n_arg = mp_n_arg (mp, x3, y3);
-  phi = number_to_scaled (n_arg);
-  free_number (n_arg);
+  free_number (phi);
+  phi = mp_n_arg (mp, x3, y3);
 }
 @<Exit to |found| if the curve whose derivatives are specified by
   |x1,x2,x3,y1,y2,y3| travels eastward at some time~|tt|@>
@@ -13261,7 +13282,7 @@ if (number_nonzero(x3) || number_nonzero(y3)) {
 
 @ @<Other local variables for |find_direction_time|@>=
 mp_number x1, x2, x3, y1, y2, y3;  /* multiples of rotated derivatives */
-angle theta, phi;       /* angles of exit and entry at a knot */
+mp_number phi;       /* angles of exit and entry at a knot */
 mp_number t;     /* temp storage */
 new_number(max);
 new_number(x1);
@@ -13271,6 +13292,7 @@ new_number(y1);
 new_number(y2);
 new_number(y3);
 new_fraction(t);
+new_angle(phi);
 
 @ @<Free local variables for |find_direction_time|@>=
 free_number (x1);
@@ -13280,6 +13302,7 @@ free_number (y1);
 free_number (y2);
 free_number (y3);
 free_number (t);
+free_number (phi);
 
 @ @<Set local variables |x1,x2,x3| and |y1,y2,y3| to multiples...@>=
 {
@@ -13331,26 +13354,36 @@ free_number (t);
     number_double(y3);
   }
   number_clone(t, x1);
-  set_number_from_scaled(x1, mp_take_fraction (mp, number_to_scaled(x1), x) + mp_take_fraction (mp, number_to_scaled(y1), y));
-  set_number_from_scaled(y1, mp_take_fraction (mp, number_to_scaled(y1), x) - mp_take_fraction (mp, number_to_scaled(t), y));
+  set_number_from_scaled(x1, mp_take_fraction (mp, number_to_scaled(x1), number_to_scaled(x)) + mp_take_fraction (mp, number_to_scaled(y1), number_to_scaled(y)));
+  set_number_from_scaled(y1, mp_take_fraction (mp, number_to_scaled(y1), number_to_scaled(x)) - mp_take_fraction (mp, number_to_scaled(t), number_to_scaled(y)));
   number_clone(t, x2);
-  set_number_from_scaled(x2, mp_take_fraction (mp, number_to_scaled(x2), x) + mp_take_fraction (mp, number_to_scaled(y2), y));
-  set_number_from_scaled(y2, mp_take_fraction (mp, number_to_scaled(y2), x) - mp_take_fraction (mp, number_to_scaled(t), y));
+  set_number_from_scaled(x2, mp_take_fraction (mp, number_to_scaled(x2), number_to_scaled(x)) + mp_take_fraction (mp, number_to_scaled(y2), number_to_scaled(y)));
+  set_number_from_scaled(y2, mp_take_fraction (mp, number_to_scaled(y2), number_to_scaled(x)) - mp_take_fraction (mp, number_to_scaled(t), number_to_scaled(y)));
   number_clone(t, x3);
-  set_number_from_scaled(x3, mp_take_fraction (mp, number_to_scaled(x3), x) + mp_take_fraction (mp, number_to_scaled(y3), y));
-  set_number_from_scaled(y3, mp_take_fraction (mp, number_to_scaled(y3), x) - mp_take_fraction (mp, number_to_scaled(t), y));
+  set_number_from_scaled(x3, mp_take_fraction (mp, number_to_scaled(x3), number_to_scaled(x)) + mp_take_fraction (mp, number_to_scaled(y3), number_to_scaled(y)));
+  set_number_from_scaled(y3, mp_take_fraction (mp, number_to_scaled(y3), number_to_scaled(x)) - mp_take_fraction (mp, number_to_scaled(t), number_to_scaled(y)));
 }
  
 
 @ @<Exit to |found| if an eastward direction occurs at knot |p|@>=
 {
-  mp_number n_arg = mp_n_arg (mp, x1, y1);
-  theta = number_to_scaled (n_arg);
-  free_number (n_arg);
-  if (theta >= 0 && phi <= 0 && phi >= theta - one_eighty_deg)
+  mp_number theta = mp_n_arg (mp, x1, y1);
+  mp_number tmp;
+  new_angle (tmp);
+  set_number_from_substraction (tmp, theta, one_eighty_deg_t);
+  if (number_nonnegative(theta) && number_nonpositive(phi) && number_greaterequal(phi, tmp)) {
+    free_number (tmp);
+    free_number (theta);
     goto FOUND;
-  if (theta <= 0 && phi >= 0 && phi <= theta + one_eighty_deg)
+  }
+  set_number_from_addition (tmp, theta, one_eighty_deg_t);
+  if (number_nonpositive(theta) && number_nonnegative(phi) && number_lessequal(phi, tmp)) {
+    free_number (tmp);
+    free_number (theta);
     goto FOUND;
+  }
+  free_number (tmp);
+  free_number (theta);
 }
 
 
