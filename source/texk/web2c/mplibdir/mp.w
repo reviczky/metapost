@@ -8143,16 +8143,19 @@ $a<2^{30}$, $\vert a-b\vert<2^{30}$, and $\vert b-c\vert<2^{30}$.
 @<Use bisection to find the crossing point...@>=
 {
   mp_number x, xx, x0, x1, x2;    /* temporary registers for bisection */
-  int d = 1;    /* recursive counter */
-  mp_number new_number(tmp);
+  mp_number d;    /* recursive counter, counts scaled units */
+  mp_number tmp;
+  new_number(tmp);
   new_number(x);
   new_number(xx);
   new_number(x0);
   new_number(x1);
   new_number(x2);
   number_clone(x0,a);
+  new_number(d);
   set_number_from_substraction(x1, a, b);
   set_number_from_substraction(x2, b, c);
+  number_add_scaled (d, 1);
   do {
     set_number_from_addition(tmp, x1, x2);
     number_half (tmp);
@@ -8161,14 +8164,14 @@ $a<2^{30}$, $\vert a-b\vert<2^{30}$, and $\vert b-c\vert<2^{30}$.
     if (number_greater(tmp, x0)) {
       number_clone(x2, x);
       number_double(x0);
-      d += d;
+      number_double(d);
     } else {
       set_number_from_addition(tmp, x1, x);
       set_number_from_substraction(xx, tmp, x0);
       if (number_greater(xx, x0)) {
         number_clone(x2, x);
         number_double(x0);
-        d += d;
+        number_double(d);
       } else {
         set_number_from_substraction(x0, x0, xx);
         if (number_lessequal(x, x0)) {
@@ -8184,17 +8187,20 @@ $a<2^{30}$, $\vert a-b\vert<2^{30}$, and $\vert b-c\vert<2^{30}$.
           }
         }
         number_clone(x1, x);
-        d = d + d + 1;
+        number_double(d);
+	number_add_scaled (d,1);
       }
     }
-  } while (d < fraction_one);
+  } while (number_less(d, fraction_one_t));
   free_number (tmp);
   free_number (x);
   free_number (xx);
   free_number (x0);
   free_number (x1);
   free_number (x2);
-  set_number_from_scaled(ret, (d - fraction_one));
+  number_substract (d, fraction_one_t);
+  number_clone(ret, d);
+  free_number (d);
 }
  
 
