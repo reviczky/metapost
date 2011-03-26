@@ -812,30 +812,34 @@ arguments |st|, |ct|, |sf|, and |cf|, representing $\sin\theta$, $\cos\theta$,
 $\sin\phi$, and $\cos\phi$, respectively.
 
 @<Internal library declarations@>=
-fraction mp_velocity (MP mp, fraction st, fraction ct, fraction sf,
-	                     fraction cf, scaled t);
+mp_number mp_velocity (MP mp, mp_number st, mp_number ct, mp_number sf,
+	                      mp_number cf, mp_number t);
 
 @ @c
-fraction mp_velocity (MP mp, fraction st, fraction ct, fraction sf,
-	                     fraction cf, scaled t) {
+mp_number mp_velocity (MP mp, mp_number st, mp_number ct, mp_number sf,
+	                      mp_number cf, mp_number t) {
+  mp_number ret;
   integer acc, num, denom;      /* registers for intermediate calculations */
-  acc = mp_take_fraction (mp, st - (sf / 16), sf - (st / 16));
-  acc = mp_take_fraction (mp, acc, ct - cf);
+  new_number (ret);
+  acc = mp_take_fraction (mp, st->data.val - (sf->data.val / 16), sf->data.val - (st->data.val / 16));
+  acc = mp_take_fraction (mp, acc, ct->data.val - cf->data.val);
   num = fraction_two + mp_take_fraction (mp, acc, 379625062);
   /* $2^{28}\sqrt2\approx379625062.497$ */
   denom =
-    fraction_three + mp_take_fraction (mp, ct,
-                                       497706707) + mp_take_fraction (mp, cf,
+    fraction_three + mp_take_fraction (mp, ct->data.val,
+                                       497706707) + mp_take_fraction (mp, cf->data.val,
                                                                       307599661);
   /* $3\cdot2^{27}\cdot(\sqrt5-1)\approx497706706.78$ and
      $3\cdot2^{27}\cdot(3-\sqrt5\,)\approx307599661.22$ */
-  if (t != unity)
-    num = mp_make_scaled (mp, num, t);
+  if (t->data.val != unity)
+    num = mp_make_scaled (mp, num, t->data.val);
   /* |make_scaled(fraction,scaled)=fraction| */
-  if (num / 4 >= denom)
-    return fraction_four;
-  else
-    return mp_make_fraction (mp, num, denom);
+  if (num / 4 >= denom) {
+    ret->data.val = fraction_four;
+  } else {
+    ret->data.val = mp_make_fraction (mp, num, denom);
+  }
+  return ret;
 }
 
 

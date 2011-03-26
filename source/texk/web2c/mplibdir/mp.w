@@ -7912,11 +7912,11 @@ do {
   fraction n_cos;
   t = mp_next_knot (s);
   mp_n_sin_cos (mp, number_to_scaled(mp->theta[k]), &n_cos, &n_sin);
-  mp->st = n_sin;
-  mp->ct = n_cos;
+  set_number_from_scaled (mp->st, n_sin);
+  set_number_from_scaled (mp->ct, n_cos);
   mp_n_sin_cos (mp, -number_to_scaled(mp->psi[k + 1]) - number_to_scaled(mp->theta[k + 1]), &n_cos, &n_sin);
-  mp->sf = n_sin;
-  mp->cf = n_cos;
+  set_number_from_scaled (mp->sf, n_sin);
+  set_number_from_scaled (mp->cf, n_cos);
   mp_set_controls (mp, s, t, k);
   incr (k);
   s = t;
@@ -7928,10 +7928,23 @@ record the values of $\sin\theta$, $\cos\theta$, $\sin\phi$, and
 $\cos\phi$ needed in this calculation.
 
 @<Glob...@>=
-fraction st;
-fraction ct;
-fraction sf;
-fraction cf;    /* sines and cosines */
+mp_number st;
+mp_number ct;
+mp_number sf;
+mp_number cf;    /* sines and cosines */
+
+@ @<Initialize table...@>=
+new_fraction (mp->st);
+new_fraction (mp->ct);
+new_fraction (mp->sf);
+new_fraction (mp->cf);
+
+@ @<Dealloc ...@>=
+free_number (mp->st);
+free_number (mp->ct);
+free_number (mp->sf);
+free_number (mp->cf);
+
 
 @ @<Declarations@>=
 static void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k);
@@ -7950,32 +7963,30 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   number_abs(lt);
   number_clone(rt, p->right_tension);
   number_abs(rt);
-  new_fraction (rr);
-  new_fraction (ss);
   new_fraction (sine);
   new_fraction (fraction_one_k);
   set_number_from_scaled (fraction_one_k, fraction_one);
-  set_number_from_scaled (rr, mp_velocity (mp, mp->st, mp->ct, mp->sf, mp->cf, number_to_scaled(rt)));
-  set_number_from_scaled (ss, mp_velocity (mp, mp->sf, mp->cf, mp->st, mp->ct, number_to_scaled(lt)));
+  rr = mp_velocity (mp, mp->st, mp->ct, mp->sf, mp->cf, rt);
+  ss = mp_velocity (mp, mp->sf, mp->cf, mp->st, mp->ct, lt);
   if (number_negative(p->right_tension) || number_negative(q->left_tension)) {
     @<Decrease the velocities,
       if necessary, to stay inside the bounding triangle@>;
   }
   set_number_from_scaled (tmp, mp_take_fraction (mp,
-        mp_take_fraction (mp, number_to_scaled(mp->delta_x [k]), mp->ct) - 
-        mp_take_fraction (mp, number_to_scaled(mp->delta_y [k]), mp->st), number_to_scaled (rr)));
+        mp_take_fraction (mp, number_to_scaled(mp->delta_x [k]), number_to_scaled (mp->ct)) - 
+        mp_take_fraction (mp, number_to_scaled(mp->delta_y [k]), number_to_scaled (mp->st)), number_to_scaled (rr)));
   set_number_from_addition (p->right_x, p->x_coord, tmp);
   set_number_from_scaled (tmp, mp_take_fraction (mp,
-        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), mp->ct) +
-        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), mp->st), number_to_scaled (rr)));
+        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), number_to_scaled (mp->ct)) +
+        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled (mp->st)), number_to_scaled (rr)));
   set_number_from_addition (p->right_y, p->y_coord, tmp);
   set_number_from_scaled (tmp, mp_take_fraction (mp,
-        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), mp->cf) +
-        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), mp->sf), number_to_scaled (ss)));
+        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled (mp->cf)) +
+        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), number_to_scaled (mp->sf)), number_to_scaled (ss)));
   set_number_from_substraction (q->left_x, q->x_coord, tmp);
   set_number_from_scaled (tmp, mp_take_fraction (mp,
-        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), mp->cf) -
-        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), mp->sf), number_to_scaled (ss)));
+        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), number_to_scaled (mp->cf)) -
+        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled (mp->sf)), number_to_scaled (ss)));
   set_number_from_substraction(q->left_y, q->y_coord, tmp);
   mp_right_type (p) = mp_explicit;
   mp_left_type (q) = mp_explicit;
@@ -7995,23 +8006,23 @@ $\sin\phi$, and $\sin(\theta+\phi)$ all have the same sign. Otherwise
 there is no ``bounding triangle.''
 
 @<Decrease the velocities, if necessary...@>=
-if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
-  set_number_from_scaled (sine, mp_take_fraction (mp, abs (mp->st), mp->cf) +
-    mp_take_fraction (mp, abs (mp->sf), mp->ct));
+if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpositive(mp->st) && number_nonpositive(mp->sf))) {
+  set_number_from_scaled (sine, mp_take_fraction (mp, abs (number_to_scaled (mp->st)), number_to_scaled (mp->cf)) +
+    mp_take_fraction (mp, abs (number_to_scaled (mp->sf)), number_to_scaled (mp->ct)));
   if (number_positive(sine)) {
     mp_number  arg1;
     new_number (arg1);
     set_number_from_scaled (sine, mp_take_fraction (mp, number_to_scaled (sine), fraction_one + unity));   /* safety factor */
     if (number_negative(p->right_tension)) {
-      set_number_from_scaled (arg1, abs (mp->sf));
+      set_number_from_scaled (arg1, abs (number_to_scaled (mp->sf)));
       if (mp_ab_vs_cd (mp, arg1, fraction_one_k, rr, sine) < 0) {
-        set_number_from_scaled (rr, mp_make_fraction (mp, abs (mp->sf), number_to_scaled (sine)));
+        set_number_from_scaled (rr, mp_make_fraction (mp, abs (number_to_scaled (mp->sf)), number_to_scaled (sine)));
       }
     }
     if (number_negative(q->left_tension)) {
-      set_number_from_scaled (arg1, abs (mp->st));
+      set_number_from_scaled (arg1, abs (number_to_scaled (mp->st)));
       if (mp_ab_vs_cd (mp, arg1, fraction_one_k, ss, sine) < 0) {
-        set_number_from_scaled (ss, mp_make_fraction (mp, abs (mp->st), number_to_scaled (sine)));
+        set_number_from_scaled (ss, mp_make_fraction (mp, abs (number_to_scaled (mp->st)), number_to_scaled (sine)));
       }
     }
     free_number (arg1);
@@ -8028,11 +8039,11 @@ if (((mp->st >= 0) && (mp->sf >= 0)) || ((mp->st <= 0) && (mp->sf <= 0))) {
   aa = number_to_scaled (n_arg);
   free_number (n_arg);
   mp_n_sin_cos (mp, number_to_scaled(p->right_given) - aa, &n_cos, &n_sin);
-  mp->ct = n_cos;
-  mp->st = n_sin;
+  set_number_from_scaled (mp->ct, n_cos);
+  set_number_from_scaled (mp->st, n_sin);
   mp_n_sin_cos (mp, number_to_scaled(q->left_given) - aa, &n_cos, &n_sin);
-  mp->cf = n_cos;
-  mp->sf = -n_sin;
+  set_number_from_scaled (mp->cf, n_cos);
+  set_number_from_scaled (mp->sf, -n_sin);
   mp_set_controls (mp, p, q, 0);
   return;
 }
