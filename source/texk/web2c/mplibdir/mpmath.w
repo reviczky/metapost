@@ -1472,18 +1472,20 @@ any loss of accuracy. Then |x| and~|y| are divided by~|r|.
 @d odd(A)   ((A)%2==1)
 
 @<Internal library declarations@>=
-void mp_n_sin_cos (MP mp, angle z, fraction *n_cos, fraction *n_sin);
+void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin);
 
 @ Compute a multiple of the sine and cosine
 
 @c
-void mp_n_sin_cos (MP mp, angle z, fraction *n_cos, fraction *n_sin) {
+void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin) {
   quarterword k;        /* loop control variable */
   int q;        /* specifies the quadrant */
   integer x, y, t;      /* temporary registers */
+  scaled z;
   mp_number x_n, y_n, ret;
   new_number (x_n);
   new_number (y_n);
+  z = z_orig->data.val;
   while (z < 0)
     z = z + three_sixty_deg;
   z = z % three_sixty_deg;      /* now |0<=z<three_sixty_deg| */
@@ -1498,8 +1500,8 @@ void mp_n_sin_cos (MP mp, angle z, fraction *n_cos, fraction *n_sin) {
   x_n->data.val = x;
   y_n->data.val = y;
   ret = mp_pyth_add (mp, x_n, y_n);
-  *n_cos = mp_make_fraction (mp, x, ret->data.val);
-  *n_sin = mp_make_fraction (mp, y, ret->data.val);
+  n_cos->data.val = mp_make_fraction (mp, x, ret->data.val);
+  n_sin->data.val = mp_make_fraction (mp, y, ret->data.val);
   free_number(ret);
   free_number(x_n);
   free_number(y_n);
