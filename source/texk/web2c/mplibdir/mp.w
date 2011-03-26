@@ -2256,7 +2256,7 @@ multiple MetaPost processes within the same second.
 @^system dependencies@>
 
 @<Glob...@>=
-fraction randoms[55];   /* the last 55 random values generated */
+mp_number randoms[55];   /* the last 55 random values generated */
 int j_random;   /* the number of unused |randoms| */
 
 @ @<Option variables@>=
@@ -2264,33 +2264,58 @@ int random_seed;        /* the default random seed */
 
 @ @<Allocate or initialize ...@>=
 mp->random_seed = opt->random_seed;
+{
+  int i;
+  for (i=0;i<55;i++) {
+     new_fraction (mp->randoms[i]);
+  }
+}
+
+@ @<Dealloc...@>=
+{
+  int i;
+  for (i=0;i<55;i++) {
+     free_number (mp->randoms[i]);
+  }
+}
 
 @ @c
 static void mp_new_randoms (MP mp) {
   int k;        /* index into |randoms| */
-  fraction x;   /* accumulator */
+  mp_number x;   /* accumulator */
+  mp_number fraction_one_t;
+  new_number (x);
+  new_number (fraction_one_t);
+  set_number_from_scaled (fraction_one_t, fraction_one);
   for (k = 0; k <= 23; k++) {
-    x = mp->randoms[k] - mp->randoms[k + 31];
-    if (x < 0)
-      x = x + fraction_one;
-    mp->randoms[k] = x;
+    set_number_from_substraction(x, mp->randoms[k], mp->randoms[k + 31]);
+    if (number_negative(x))
+      number_add (x, fraction_one_t);
+    number_clone (mp->randoms[k], x);
   }
   for (k = 24; k <= 54; k++) {
-    x = mp->randoms[k] - mp->randoms[k - 24];
-    if (x < 0)
-      x = x + fraction_one;
-    mp->randoms[k] = x;
+    set_number_from_substraction(x, mp->randoms[k], mp->randoms[k - 24]);
+    if (number_negative(x))
+      number_add (x, fraction_one_t);
+    number_clone (mp->randoms[k], x);
   }
+  free_number (fraction_one_t);
+  free_number (x);
   mp->j_random = 54;
 }
 
 @ To consume a random fraction, the program below will say `|next_random|'.
 
 @c 
-static fraction mp_next_random (MP mp) { 
-  if ( mp->j_random==0 ) mp_new_randoms(mp);
-  else decr(mp->j_random); 
-  return mp->randoms[mp->j_random];
+static mp_number mp_next_random (MP mp) { 
+  mp_number ret;
+  new_number (ret);
+  if ( mp->j_random==0 ) 
+    mp_new_randoms(mp);
+  else 
+    decr(mp->j_random); 
+  number_clone (ret, mp->randoms[mp->j_random]);
+  return ret;
 }
 
 
@@ -2313,7 +2338,7 @@ void mp_init_randoms (MP mp, int seed) {
     j = jj;
     if (k < 0)
       k = k + fraction_one;
-    mp->randoms[(i * 21) % 55] = j;
+    set_number_from_scaled (mp->randoms[(i * 21) % 55], j);
   }
   mp_new_randoms (mp);
   mp_new_randoms (mp);
@@ -2333,10 +2358,11 @@ static mp_number mp_unif_rand (MP mp, mp_number x_orig) {
   scaled y;     /* trial value */
   scaled x;
   mp_number ret;
-  integer u = mp_next_random(mp);
+  mp_number u = mp_next_random(mp);
   new_number (ret);
   x = number_to_scaled (x_orig);
-  y = mp_take_fraction (mp, abs (x), u);
+  y = mp_take_fraction (mp, abs (x), number_to_scaled (u));
+  free_number (u);
   if (y == abs (x)) {
     set_number_to_zero(ret);
   } else if (x > 0) {
@@ -2357,7 +2383,7 @@ can readily be obtained with the ratio method (Algorithm 3.4.1R in
 static mp_number mp_norm_rand (MP mp) {
   integer x, l;      /* what the book would call $2^{16}X$, $2^{28}U$, and $-2^{24}\ln U$ */
   mp_number ret;
-  fraction u;
+  mp_number u;
   mp_number one_k, la, xa;
   new_number (one_k);
   new_number (la);
@@ -2366,14 +2392,13 @@ static mp_number mp_norm_rand (MP mp) {
   new_number (ret);
   do {
     do {
-      fraction v = mp_next_random(mp);
-      x =
-        mp_take_fraction (mp, 112429, v - fraction_half);
-      /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
+      mp_number v = mp_next_random(mp);
+      x = mp_take_fraction (mp, 112429, number_to_scaled (v) - fraction_half); /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
+      free_number (v);
       u = mp_next_random(mp);
-    } while (abs (x) >= u);
-    x = mp_make_fraction (mp, x, u);
-    l = 139548960 - mp_m_log (mp, u);   /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
+    } while (abs (x) >= number_to_scaled (u));
+    x = mp_make_fraction (mp, x, number_to_scaled (u));
+    l = 139548960 - mp_m_log (mp, number_to_scaled (u));   /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
     set_number_from_scaled (la, l);
     set_number_from_scaled (xa, x);
   } while (mp_ab_vs_cd (mp, one_k, la, xa, xa) < 0);
@@ -2381,6 +2406,7 @@ static mp_number mp_norm_rand (MP mp) {
   free_number (la);
   free_number (xa);
   free_number (one_k);
+  free_number (u);
   return ret;
 }
 
@@ -14303,13 +14329,13 @@ if (v != unity)
 is returned by the following simple function.
 
 @c
-static fraction mp_max_coef (MP mp, mp_value_node p) {
-  fraction x;   /* the maximum so far */
+static mp_number mp_max_coef (MP mp, mp_value_node p) {
+  mp_number x;   /* the maximum so far */
   (void) mp;
-  x = 0;
+  new_fraction (x);
   while (dep_info (p) != NULL) {
-    if (abs (dep_value (p)) > x)
-      x = abs (dep_value (p));
+    if (abs (dep_value (p)) > number_to_scaled (x))
+      set_number_from_scaled (x,  abs (dep_value (p)));
     p = (mp_value_node) mp_link (p);
   }
   return x;
@@ -25241,10 +25267,17 @@ if (mp_type (p) == mp_known) {
     new_number (unity_t);
     set_number_to_unity(unity_t);
     if (s == mp_dependent) {
-      if (mp_max_coef (mp, r) + mp_max_coef (mp, v) < coef_bound) {
+      mp_number ret1, ret2;
+      ret1 = mp_max_coef (mp, r);
+      ret2 = mp_max_coef (mp, v);
+      number_add (ret1, ret2);
+      free_number (ret2);
+      if (number_to_scaled (ret1) < coef_bound) {
         v = mp_p_plus_q (mp, v, r, mp_dependent);
+        free_number (ret1);
         goto DONE;
       }
+      free_number (ret1);
     }                           /* |fix_needed| will necessarily be false */
     t = mp_proto_dependent;
     v = mp_p_over_v (mp, v, unity_t, mp_dependent, mp_proto_dependent);
@@ -25603,13 +25636,12 @@ static void mp_dep_mult (MP mp, mp_value_node p, integer v, boolean v_is_scaled)
     if (v_is_scaled) {
       integer ab_vs_cd;
       mp_number unity_t, coef_bound_1, arg1, arg2;
-      new_number (arg1);
       new_number (arg2);
       new_number (unity_t);
       new_number (coef_bound_1);
       set_number_to_unity (unity_t);
       set_number_from_scaled (coef_bound_1, coef_bound - 1);
-      set_number_from_scaled (arg1, mp_max_coef (mp, q));
+      arg1 = mp_max_coef (mp, q);
       set_number_from_scaled (arg2, abs (v));
       ab_vs_cd = mp_ab_vs_cd (mp, arg1, arg2, coef_bound_1, unity_t);
       free_number (unity_t);
@@ -25842,13 +25874,12 @@ static void mp_dep_div (MP mp, mp_value_node p, mp_number v) {
   if (t == mp_dependent) {
       integer ab_vs_cd;
       mp_number unity_t, coef_bound_1, arg1, arg2;
-      new_number (arg1);
       new_number (arg2);
       new_number (unity_t);
       new_number (coef_bound_1);
       set_number_to_unity (unity_t);
       set_number_from_scaled (coef_bound_1, coef_bound - 1);
-      set_number_from_scaled (arg1, mp_max_coef (mp, q));
+      arg1 = mp_max_coef (mp, q);
       number_clone (arg2, v);
       number_abs (arg2);
       ab_vs_cd = mp_ab_vs_cd (mp, arg1, unity_t, coef_bound_1, arg2);
@@ -29446,11 +29477,14 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
 
 @ @<Transfer a greyscale from the current expression to object~|cp|@>=
 {
+  mp_number qq;
   mp_stroked_node cp0 = (mp_stroked_node)cp;
-  scaled qq = cur_exp_value ();
+  new_number (qq);
+  number_clone (qq, cur_exp_value_number ());
   clear_color (cp);
   mp_color_model (cp) = mp_grey_model;
-  set_color_val (cp0->grey, qq);
+  set_color_val (cp0->grey, number_to_scaled (qq));
+  free_number (qq);
 }
 
 
@@ -31131,18 +31165,18 @@ that are allocated for sorting will never be returned to free storage.
 @d clear_the_list mp_link(mp->temp_head)=mp->inf_val
 
 @c
-static mp_node mp_sort_in (MP mp, scaled v) {
+static mp_node mp_sort_in (MP mp, mp_number v) {
   mp_node p, q, r;      /* list manipulation registers */
   p = mp->temp_head;
   while (1) {
     q = mp_link (p);
-    if (v <= value (q))
+    if (number_lessequal(v, value_number (q)))
       break;
     p = q;
   }
-  if (v < value (q)) {
+  if (number_less (v, value_number (q))) {
     r = mp_get_value_node (mp);
-    set_value (r, v);
+    set_value (r, number_to_scaled (v));
     mp_link (r) = q;
     mp_link (p) = r;
   }
@@ -31162,7 +31196,7 @@ current list and sets |perturbation| to the minimum distance between
 adjacent values.
 
 @c
-static integer mp_min_cover (MP mp, scaled d) {
+static integer mp_min_cover (MP mp, mp_number d) {
   mp_node p;    /* runs through the current list */
   scaled l;     /* the least element covered by the current interval */
   integer m;    /* lower bound on the size of the minimum cover */
@@ -31174,7 +31208,7 @@ static integer mp_min_cover (MP mp, scaled d) {
     l = value (p);
     do {
       p = mp_link (p);
-    } while (value (p) <= l + d);
+    } while (value (p) <= l + number_to_scaled (d));
     if (value (p) - l < mp->perturbation)
       mp->perturbation = value (p) - l;
   }
@@ -31193,19 +31227,29 @@ finding the range, then to go sequentially until the exact borderline has
 been discovered.
 
 @c
-static scaled mp_threshold (MP mp, integer m) {
-  scaled d;     /* lower bound on the smallest interval size */
-  mp->excess = mp_min_cover (mp, 0) - m;
+static mp_number mp_threshold (MP mp, integer m) {
+  mp_number ret, d, arg1, zero_t;     /* lower bound on the smallest interval size */
+  new_number (zero_t);
+  new_number (ret);
+  new_number (d);
+  new_number (arg1);
+  mp->excess = mp_min_cover (mp, zero_t) - m;
   if (mp->excess <= 0) {
-    return 0;
+    number_clone (ret, zero_t);
   } else {
     do {
-      d = mp->perturbation;
-    } while (mp_min_cover (mp, d + d) > m);
-    while (mp_min_cover (mp, d) > m)
-      d = mp->perturbation;
-    return d;
+      set_number_from_scaled (d, mp->perturbation);
+      set_number_from_addition(arg1, d, d);
+    } while (mp_min_cover (mp, arg1) > m);
+    while (mp_min_cover (mp, d) > m) {
+      set_number_from_scaled (d, mp->perturbation);
+    }
+    number_clone (ret, d);
   }
+  free_number (zero_t);
+  free_number (d);
+  free_number (arg1);
+  return ret;
 }
 
 
@@ -31218,7 +31262,7 @@ value of |skimp|.
 
 @c
 static integer mp_skimp (MP mp, integer m) {
-  scaled d;     /* the size of intervals being coalesced */
+  mp_number d;     /* the size of intervals being coalesced */
   mp_node p, q, r;      /* list manipulation registers */
   scaled l;     /* the least value in the current interval */
   scaled v;     /* a compromise value */
@@ -31231,12 +31275,13 @@ static integer mp_skimp (MP mp, integer m) {
     incr (m);
     l = value (p);
     set_mp_info (p, m);
-    if (value (mp_link (p)) <= l + d) {
+    if (value (mp_link (p)) <= l + number_to_scaled (d)) {
       @<Replace an interval of values by its midpoint@>;
     }
     q = p;
     p = mp_link (p);
   }
+  free_number (d);
   return m;
 }
 
@@ -31248,8 +31293,8 @@ static integer mp_skimp (MP mp, integer m) {
     set_mp_info (p, m);
     decr (mp->excess);
     if (mp->excess == 0)
-      d = 0;
-  } while (value (mp_link (p)) <= l + d);
+      set_number_to_zero (d);
+  } while (value (mp_link (p)) <= l + number_to_scaled (d));
   v = l + halfp (value (p) - l);
   if (value (p) - v > mp->perturbation)
     mp->perturbation = value (p) - v;
@@ -31292,7 +31337,7 @@ lists of dimensions.
 clear_the_list;
 for (k = mp->bc; k <= mp->ec; k++) {
   if (mp->char_exists[k])
-    mp->tfm_width[k] = mp_sort_in (mp, value (mp->tfm_width[k]));
+    mp->tfm_width[k] = mp_sort_in (mp, value_number (mp->tfm_width[k]));
 }
 mp->nw = (short) (mp_skimp (mp, 255) + 1);
 mp->dimen_head[1] = mp_link (mp->temp_head);
@@ -31314,7 +31359,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
     if (mp->tfm_height[k] == 0)
       mp->tfm_height[k] = mp->zero_val;
     else
-      mp->tfm_height[k] = mp_sort_in (mp, value (mp->tfm_height[k]));
+      mp->tfm_height[k] = mp_sort_in (mp, value_number (mp->tfm_height[k]));
   }
 }
 mp->nh = (short) (mp_skimp (mp, 15) + 1);
@@ -31327,7 +31372,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
     if (mp->tfm_depth[k] == 0)
       mp->tfm_depth[k] = mp->zero_val;
     else
-      mp->tfm_depth[k] = mp_sort_in (mp, value (mp->tfm_depth[k]));
+      mp->tfm_depth[k] = mp_sort_in (mp, value_number (mp->tfm_depth[k]));
   }
 }
 mp->nd = (short) (mp_skimp (mp, 15) + 1);
@@ -31340,7 +31385,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
     if (mp->tfm_ital_corr[k] == 0)
       mp->tfm_ital_corr[k] = mp->zero_val;
     else
-      mp->tfm_ital_corr[k] = mp_sort_in (mp, value (mp->tfm_ital_corr[k]));
+      mp->tfm_ital_corr[k] = mp_sort_in (mp, value_number (mp->tfm_ital_corr[k]));
   }
 }
 mp->ni = (short) (mp_skimp (mp, 63) + 1);
@@ -31401,16 +31446,27 @@ design size. If the data was out of range, it is corrected and the
 global variable |tfm_changed| is increased by~one.
 
 @c
-static integer mp_dimen_out (MP mp, scaled x) {
-  if (abs (x) > mp->max_tfm_dimen) {
+static integer mp_dimen_out (MP mp, mp_number x_orig) {
+  integer ret;
+  mp_number abs_x;
+  mp_number x;
+  new_number (abs_x);
+  new_number (x);
+  number_clone (x, x_orig);
+  number_clone (abs_x, x_orig);
+  number_abs (abs_x);
+  if (number_to_scaled (abs_x) > mp->max_tfm_dimen) {
     incr (mp->tfm_changed);
-    if (x > 0)
-      x = mp->max_tfm_dimen;
+    if (number_positive(x))
+      set_number_from_scaled (x, mp->max_tfm_dimen);
     else
-      x = -mp->max_tfm_dimen;
+      set_number_from_scaled (x, -mp->max_tfm_dimen);
   }
-  x = mp_make_scaled (mp, x * 16, internal_value_to_halfword (mp_design_size));
-  return x;
+  set_number_from_scaled (x, mp_make_scaled (mp, number_to_scaled (x) * 16, internal_value_to_halfword (mp_design_size)));
+  free_number (abs_x);
+  ret = number_to_scaled (x);
+  free_number (x);
+  return ret;
 }
 
 
@@ -31448,7 +31504,7 @@ B4 = mp->ec;
 mp->tfm_changed = 0;
 for (k = mp->bc; k <= mp->ec; k++) {
   if (mp->char_exists[k]) {
-    x = mp_dimen_out (mp, value (mp->tfm_width[k])) + (k + 4) * 020000000;      /* this is positive */
+    x = mp_dimen_out (mp, value_number (mp->tfm_width[k])) + (k + 4) * 020000000;      /* this is positive */
     B1 = (eight_bits) ((B1 + B1 + x) % 255);
     B2 = (eight_bits) ((B2 + B2 + x) % 253);
     B3 = (eight_bits) ((B3 + B3 + x) % 251);
@@ -31561,7 +31617,7 @@ for (k = 1; k <= 4; k++) {
   mp_tfm_four (mp, 0);
   p = mp->dimen_head[k];
   while (p != mp->inf_val) {
-    mp_tfm_four (mp, mp_dimen_out (mp, value (p)));
+    mp_tfm_four (mp, mp_dimen_out (mp, value_number (p)));
     p = mp_link (p);
   }
 }
@@ -31649,13 +31705,22 @@ if (mp->lk_started) {           /* |lk_offset=1| for the special |bchar| */
 }
 for (k = 0; k < mp->nl; k++)
   mp_tfm_qqqq (mp, mp->lig_kern[k]);
-for (k = 0; k < mp->nk; k++)
-  mp_tfm_four (mp, mp_dimen_out (mp, mp->kern[k]))
-   
+{
+  mp_number arg;
+  new_number (arg);
+  for (k = 0; k < mp->nk; k++) {
+    set_number_from_scaled (arg, mp->kern[k]);
+    mp_tfm_four (mp, mp_dimen_out (mp, arg));
+  }
+  free_number (arg);
+}
 
 @ @<Output the extensible character recipes...@>=
 for (k = 0; k < mp->ne; k++)
   mp_tfm_qqqq (mp, mp->exten[k]);
+{
+mp_number arg;
+new_number (arg);
 for (k = 1; k <= mp->np; k++) {
   if (k == 1) {
     if (abs (mp->param[1]) < fraction_half) {
@@ -31668,8 +31733,11 @@ for (k = 1; k <= mp->np; k++) {
         mp_tfm_four (mp, -max_integer);
     }
   } else {
-    mp_tfm_four (mp, mp_dimen_out (mp, mp->param[k]));
+    set_number_from_scaled (arg, mp->param[k]);
+    mp_tfm_four (mp, mp_dimen_out (mp, arg));
   }
+}
+free_number (arg);
 }
 if (mp->tfm_changed > 0) {
   if (mp->tfm_changed == 1) {
