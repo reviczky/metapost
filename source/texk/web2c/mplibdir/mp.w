@@ -6753,21 +6753,24 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
 
 @<Print two dots...@>=
 {
-  fraction n_sin;
-  fraction n_cos;
+  mp_number n_sin, n_cos;
+  new_fraction (n_sin);
+  new_fraction (n_cos);
   mp_print_nl (mp, " ..");
   if (mp_left_type (p) == mp_given) {
-    mp_n_sin_cos (mp, number_to_scaled(p->left_given), &n_cos, &n_sin);
+    mp_n_sin_cos (mp, p->left_given, n_cos, n_sin);
     mp_print_char (mp, xord ('{'));
-    mp_print_scaled (mp, n_cos);
+    mp_print_number (mp, n_cos);
     mp_print_char (mp, xord (','));
-    mp_print_scaled (mp, n_sin);
+    mp_print_number (mp, n_sin);
     mp_print_char (mp, xord ('}'));
   } else if (mp_left_type (p) == mp_curl) {
     mp_print (mp, "{curl ");
     mp_print_number (mp, p->left_curl);
     mp_print_char (mp, xord ('}'));
   }
+  free_number (n_sin);
+  free_number (n_cos);
 }
 
 
@@ -6819,13 +6822,16 @@ if ((mp_left_type (p) != mp_explicit) && (mp_left_type (p) != mp_open)) {
     mp_print (mp, "{curl ");
     mp_print_number (mp, p->right_curl);
   } else {
-    fraction n_sin;
-    fraction n_cos;
-    mp_n_sin_cos (mp, number_to_scaled(p->right_given), &n_cos, &n_sin);
+    mp_number n_sin, n_cos;
+    new_fraction (n_sin);
+    new_fraction (n_cos);
+    mp_n_sin_cos (mp, p->right_given, n_cos, n_sin);
     mp_print_char (mp, xord ('{'));
-    mp_print_scaled (mp, n_cos);
+    mp_print_number (mp, n_cos);
     mp_print_char (mp, xord (','));
-    mp_print_scaled (mp, n_sin);
+    mp_print_number (mp, n_sin);
+    free_number (n_sin);
+    free_number (n_cos);
   }
   mp_print_char (mp, xord ('}'));
 }
@@ -7357,10 +7363,12 @@ mp_number *psi;     /* turning angles */
 @ @<Other local variables for |make_choices|@>=
 int k, n;       /* current and final knot numbers */
 mp_knot s, t;   /* registers for list traversal */
-fraction sine, cosine;  /* trig functions of various angles */
 
 @ @<Calculate the turning angles...@>=
 {
+  mp_number sine, cosine;  /* trig functions of various angles */
+  new_fraction (sine);
+  new_fraction (cosine);
 RESTART:
   k = 0;
   s = p;
@@ -7374,12 +7382,12 @@ RESTART:
       mp_number arg1, arg2;
       new_number (arg1);
       new_number (arg2);
-      sine = mp_make_fraction (mp, number_to_scaled(mp->delta_y[k - 1]), number_to_scaled(mp->delta[k - 1]));
-      cosine = mp_make_fraction (mp, number_to_scaled(mp->delta_x[k - 1]), number_to_scaled(mp->delta[k - 1]));
-      set_number_from_scaled (arg1, mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), cosine) +
-                             mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), sine)); 
-      set_number_from_scaled (arg2,mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), cosine) -
-                             mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), sine));
+      set_number_from_scaled (sine, mp_make_fraction (mp, number_to_scaled(mp->delta_y[k - 1]), number_to_scaled(mp->delta[k - 1])));
+      set_number_from_scaled (cosine, mp_make_fraction (mp, number_to_scaled(mp->delta_x[k - 1]), number_to_scaled(mp->delta[k - 1])));
+      set_number_from_scaled (arg1, mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled (cosine)) +
+                             mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), number_to_scaled (sine))); 
+      set_number_from_scaled (arg2,mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), number_to_scaled (cosine)) -
+                             mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled (sine)));
       free_number (mp->psi[k]);
       mp->psi[k] = mp_n_arg (mp, arg1, arg2 );
       free_number (arg1);
@@ -7398,6 +7406,8 @@ RESTART:
     set_number_to_zero(mp->psi[n]);
   else
     number_clone(mp->psi[k], mp->psi[1]);
+  free_number (sine);
+  free_number (cosine);
 }
 
 
@@ -7907,20 +7917,23 @@ for (k = n - 1; k >= 0; k--) {
 }
 s = p;
 k = 0;
+{
+mp_number arg;
+new_number (arg);
 do {
-  fraction n_sin;
-  fraction n_cos;
   t = mp_next_knot (s);
-  mp_n_sin_cos (mp, number_to_scaled(mp->theta[k]), &n_cos, &n_sin);
-  set_number_from_scaled (mp->st, n_sin);
-  set_number_from_scaled (mp->ct, n_cos);
-  mp_n_sin_cos (mp, -number_to_scaled(mp->psi[k + 1]) - number_to_scaled(mp->theta[k + 1]), &n_cos, &n_sin);
-  set_number_from_scaled (mp->sf, n_sin);
-  set_number_from_scaled (mp->cf, n_cos);
+  mp_n_sin_cos (mp, mp->theta[k], mp->ct, mp->st);
+  number_clone (arg, mp->psi[k + 1]);
+  number_negate (arg);
+  number_substract (arg, mp->theta[k + 1]);
+  mp_n_sin_cos (mp, arg, mp->cf, mp->sf);
   mp_set_controls (mp, s, t, k);
   incr (k);
   s = t;
-} while (k != n)
+} while (k != n);
+free_number (arg);
+}
+
 
 @ The |set_controls| routine actually puts the control points into
 a pair of consecutive nodes |p| and~|q|. Global variables are used to
@@ -8033,18 +8046,16 @@ if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpos
 
 @<Reduce to simple case of two givens and |return|@>=
 {
-  fraction n_sin;
-  fraction n_cos;
+  mp_number arg1;
   mp_number n_arg = mp_n_arg (mp, mp->delta_x[0], mp->delta_y[0]);
-  aa = number_to_scaled (n_arg);
-  free_number (n_arg);
-  mp_n_sin_cos (mp, number_to_scaled(p->right_given) - aa, &n_cos, &n_sin);
-  set_number_from_scaled (mp->ct, n_cos);
-  set_number_from_scaled (mp->st, n_sin);
-  mp_n_sin_cos (mp, number_to_scaled(q->left_given) - aa, &n_cos, &n_sin);
-  set_number_from_scaled (mp->cf, n_cos);
-  set_number_from_scaled (mp->sf, -n_sin);
+  new_number (arg1);
+  set_number_from_substraction (arg1, p->right_given, n_arg);
+  mp_n_sin_cos (mp, arg1, mp->ct, mp->st);
+  set_number_from_substraction (arg1, q->left_given, n_arg);
+  mp_n_sin_cos (mp, arg1, mp->cf, mp->sf);
+  number_negate (mp->sf);
   mp_set_controls (mp, p, q, 0);
+  free_number (n_arg);
   return;
 }
 
@@ -23343,13 +23354,19 @@ if (mp->cur_exp.type != mp_known) {
   case mp_sin_d_op:
   case mp_cos_d_op:
     {
-      fraction n_sin;
-      fraction n_cos; /* results computed by |n_sin_cos| */
-      mp_n_sin_cos (mp, (cur_exp_value () % three_sixty_units) * 16, &n_cos, &n_sin);
+      mp_number n_sin, n_cos, arg1;
+      new_number (arg1);
+      new_fraction (n_sin);
+      new_fraction (n_cos); /* results computed by |n_sin_cos| */
+      set_number_from_scaled (arg1, (cur_exp_value () % three_sixty_units) * 16);
+      mp_n_sin_cos (mp, arg1, n_cos, n_sin);
       if (c == mp_sin_d_op)
-        set_cur_exp_value (mp_round_fraction (mp, n_sin));
+        set_cur_exp_value (mp_round_fraction (mp, number_to_scaled (n_sin)));
       else
-        set_cur_exp_value (mp_round_fraction (mp, n_cos));
+        set_cur_exp_value (mp_round_fraction (mp, number_to_scaled (n_cos)));
+      free_number (arg1);
+      free_number (n_sin);
+      free_number (n_cos);
     }
     break;
   case mp_floor_op:
@@ -26099,13 +26116,19 @@ break;
 
 @ @<Install sines and cosines, then |goto done|@>=
 {
-  fraction n_sin;
-  fraction n_cos;
-  mp_n_sin_cos (mp, (value (p) % three_sixty_units) * 16, &n_cos, &n_sin);
-  set_value (xx_part (q), mp_round_fraction (mp, n_cos));
-  set_value (yx_part (q), mp_round_fraction (mp, n_sin));
+  mp_number n_sin, n_cos, arg1;
+  new_number (arg1);
+  new_fraction (n_sin);
+  new_fraction (n_cos); /* results computed by |n_sin_cos| */
+  set_number_from_scaled (arg1, (value (p) % three_sixty_units) * 16);
+  mp_n_sin_cos (mp, arg1, n_cos, n_sin);
+  set_value (xx_part (q), mp_round_fraction (mp, number_to_scaled (n_cos)));
+  set_value (yx_part (q), mp_round_fraction (mp, number_to_scaled (n_sin)));
   set_value (xy_part (q), -value (yx_part (q)));
   set_value (yy_part (q), value (xx_part (q)));
+  free_number (arg1);
+  free_number (n_sin);
+  free_number (n_cos);
   goto DONE;
 }
 
