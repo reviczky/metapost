@@ -2329,16 +2329,23 @@ with about half the probability that it will produce any other particular
 values between 0 and~|x|, because it rounds its answers.
 
 @c
-static scaled mp_unif_rand (MP mp, scaled x) {
+static mp_number mp_unif_rand (MP mp, mp_number x_orig) {
   scaled y;     /* trial value */
+  scaled x;
+  mp_number ret;
   integer u = mp_next_random(mp);
+  new_number (ret);
+  x = number_to_scaled (x_orig);
   y = mp_take_fraction (mp, abs (x), u);
-  if (y == abs (x))
-    return 0;
-  else if (x > 0)
-    return y;
-  else
-    return (-y);
+  if (y == abs (x)) {
+    set_number_to_zero(ret);
+  } else if (x > 0) {
+    set_number_from_scaled (ret, y);
+  } else {
+    set_number_from_scaled (ret, y);
+    number_negate (ret);
+  }
+  return ret;
 }
 
 
@@ -2347,14 +2354,16 @@ can readily be obtained with the ratio method (Algorithm 3.4.1R in
 {\sl The Art of Computer Programming\/}).
 
 @c
-static scaled mp_norm_rand (MP mp) {
+static mp_number mp_norm_rand (MP mp) {
   integer x, l;      /* what the book would call $2^{16}X$, $2^{28}U$, and $-2^{24}\ln U$ */
+  mp_number ret;
   fraction u;
   mp_number one_k, la, xa;
   new_number (one_k);
   new_number (la);
   new_number (xa);
   set_number_from_scaled (one_k, 1024);
+  new_number (ret);
   do {
     do {
       fraction v = mp_next_random(mp);
@@ -2368,10 +2377,11 @@ static scaled mp_norm_rand (MP mp) {
     set_number_from_scaled (la, l);
     set_number_from_scaled (xa, x);
   } while (mp_ab_vs_cd (mp, one_k, la, xa, xa) < 0);
+  number_clone (ret, xa);
   free_number (la);
   free_number (xa);
   free_number (one_k);
-  return x;
+  return ret;
 }
 
 
@@ -4790,13 +4800,13 @@ static mp_node mp_get_token_node (MP mp) {
 @ A numeric token is created by the following trivial routine.
 
 @c
-static mp_node mp_new_num_tok (MP mp, scaled v) {
+static mp_node mp_new_num_tok (MP mp, mp_number v) {
   mp_node p;    /* the new node */
   p = mp_get_token_node (mp);
-  set_value (p, v);
+  set_value (p, number_to_scaled (v));
   p->type = mp_known;
   p->name_type = mp_token;
-  FUNCTION_TRACE3 ("%p = mp_new_num_tok(%p)\n", p, v);
+  FUNCTION_TRACE3 ("%p = mp_new_num_tok(%p)\n", p, number_to_scaled (v));
   return p;
 }
 
@@ -5688,7 +5698,11 @@ void mp_print_variable_name (MP mp, mp_node p) {
 @ @<Ascend one level, pushing a token onto list |q|...@>=
 {
   if (mp_name_type (p) == mp_subscr) {
-    r = mp_new_num_tok (mp, subscript (p));
+    mp_number arg1;
+    new_number (arg1);
+    set_number_from_scaled (arg1, subscript (p));
+    r = mp_new_num_tok (mp, arg1);
+    free_number (arg1);
     do {
       p = mp_link (p);
     } while (mp_name_type (p) != mp_attr);
@@ -14613,16 +14627,18 @@ static mp_value_node mp_p_times_v (MP mp, mp_value_node p, integer v,
 by a given |scaled| constant.
 
 @<Declarations@>=
-static mp_value_node mp_p_over_v (MP mp, mp_value_node p, scaled v, quarterword
+static mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v, quarterword
                                   t0, quarterword t1);
 
 @ @c
-mp_value_node mp_p_over_v (MP mp, mp_value_node p, scaled v, quarterword
+mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
                            t0, quarterword t1) {
   mp_value_node r, s;   /* for list manipulation */
   integer w;    /* tentative coefficient */
   integer threshold;
+  scaled v;
   boolean scaling_down;
+  v = number_to_scaled (v_orig);
   if (t0 != t1)
     scaling_down = true;
   else
@@ -20839,12 +20855,16 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
   while (r != NULL) {
     q = (mp_value_node) dep_info (r);
     if (t == mp_dependent) {    /* for safety's sake, we change |q| to |mp_proto_dependent| */
+      mp_number unity_t;
+      new_number (unity_t);
+      set_number_to_unity(unity_t);
       if (cur_exp_node () == (mp_node) q && mp->cur_exp.type == mp_dependent)
         mp->cur_exp.type = mp_proto_dependent;
       set_dep_list (q,
                     mp_p_over_v (mp, (mp_value_node) dep_list (q),
-                                           unity, mp_dependent,
+                                           unity_t, mp_dependent,
                                            mp_proto_dependent));
+      free_number (unity_t);
       mp_type (q) = mp_proto_dependent;
       set_dep_value (r, mp_round_fraction (mp, dep_value (r)));
     }
@@ -21881,7 +21901,11 @@ static void mp_scan_suffix (MP mp) {
       @<Scan a bracketed subscript and set |cur_cmd:=numeric_token|@>;
     }
     if (cur_cmd() == mp_numeric_token) {
-      p = mp_new_num_tok (mp, cur_mod());
+      mp_number arg1;
+      new_number (arg1);
+      set_number_from_scaled (arg1, cur_mod());
+      p = mp_new_num_tok (mp, arg1);
+      free_number (arg1);
     } else if ((cur_cmd() == mp_tag_token) || (cur_cmd() == mp_internal_quantity)) {
       p = mp_get_symbolic_node (mp);
       set_mp_sym_sym (p, cur_sym());
@@ -22931,7 +22955,8 @@ static void mp_do_nullary (MP mp, quarterword c) {
     break;
   case mp_normal_deviate:
     mp->cur_exp.type = mp_known;
-    set_cur_exp_value (mp_norm_rand (mp));
+    free_number (cur_exp_value_number());
+    set_cur_exp_value_number (mp_norm_rand (mp));
     break;
   case mp_pen_circle:
     mp->cur_exp.type = mp_pen_type;
@@ -23272,8 +23297,8 @@ if (mp->cur_exp.type != mp_known) {
     set_cur_exp_value (vv);
     break;
   case mp_uniform_deviate:
-    vv = mp_unif_rand (mp, cur_exp_value ());
-    set_cur_exp_value (vv);
+    free_number (cur_exp_value_number());
+    set_cur_exp_value_number (mp_unif_rand (mp, cur_exp_value_number ()));
     break;
   case mp_odd_op:
     vv = odd (mp_round_unscaled (mp, cur_exp_value ()));
@@ -25184,6 +25209,9 @@ if (mp_type (p) == mp_known) {
   s = mp_type (p);
   r = (mp_value_node) dep_list ((mp_value_node) p);
   if (t == mp_dependent) {
+    mp_number unity_t;
+    new_number (unity_t);
+    set_number_to_unity(unity_t);
     if (s == mp_dependent) {
       if (mp_max_coef (mp, r) + mp_max_coef (mp, v) < coef_bound) {
         v = mp_p_plus_q (mp, v, r, mp_dependent);
@@ -25191,7 +25219,8 @@ if (mp_type (p) == mp_known) {
       }
     }                           /* |fix_needed| will necessarily be false */
     t = mp_proto_dependent;
-    v = mp_p_over_v (mp, v, unity, mp_dependent, mp_proto_dependent);
+    v = mp_p_over_v (mp, v, unity_t, mp_dependent, mp_proto_dependent);
+    free_number (unity_t);
   }
   if (s == mp_proto_dependent)
     v = mp_p_plus_q (mp, v, r, mp_proto_dependent);
@@ -25724,41 +25753,43 @@ case mp_over:
 if ((mp->cur_exp.type != mp_known) || (mp_type (p) < mp_color_type)) {
   mp_bad_binary (mp, p, mp_over);
 } else {
-  v = cur_exp_value ();
+  mp_number v_n;
+  new_number (v_n); 
+  set_number_from_scaled (v_n, cur_exp_value ());
   mp_unstash_cur_exp (mp, p);
-  if (v == 0) {
+  if (number_zero(v_n)) {
     @<Squeal about division by zero@>;
   } else {
     if (mp->cur_exp.type == mp_known) {
-      set_cur_exp_value (mp_make_scaled (mp, cur_exp_value (), v));
+      set_cur_exp_value (mp_make_scaled (mp, cur_exp_value (), number_to_scaled (v_n)));
     } else if (mp->cur_exp.type == mp_pair_type) {
       mp_dep_div (mp, (mp_value_node) x_part (value_node (cur_exp_node ())),
-                  v);
+                  v_n);
       mp_dep_div (mp, (mp_value_node) y_part (value_node (cur_exp_node ())),
-                  v);
+                  v_n);
     } else if (mp->cur_exp.type == mp_color_type) {
       mp_dep_div (mp,
                   (mp_value_node) red_part (value_node (cur_exp_node ())),
-                  v);
+                  v_n);
       mp_dep_div (mp,
                   (mp_value_node) green_part (value_node (cur_exp_node ())),
-                  v);
+                  v_n);
       mp_dep_div (mp,
                   (mp_value_node) blue_part (value_node (cur_exp_node ())),
-                  v);
+                  v_n);
     } else if (mp->cur_exp.type == mp_cmykcolor_type) {
       mp_dep_div (mp,
                   (mp_value_node) cyan_part (value_node (cur_exp_node ())),
-                  v);
+                  v_n);
       mp_dep_div (mp, (mp_value_node)
-                  magenta_part (value_node (cur_exp_node ())), v);
+                  magenta_part (value_node (cur_exp_node ())), v_n);
       mp_dep_div (mp, (mp_value_node)
-                  yellow_part (value_node (cur_exp_node ())), v);
+                  yellow_part (value_node (cur_exp_node ())), v_n);
       mp_dep_div (mp,
                   (mp_value_node) black_part (value_node (cur_exp_node ())),
-                  v);
+                  v_n);
     } else {
-      mp_dep_div (mp, NULL, v);
+      mp_dep_div (mp, NULL, v_n);
     }
   }
   binary_return;
@@ -25766,7 +25797,7 @@ if ((mp->cur_exp.type != mp_known) || (mp_type (p) < mp_color_type)) {
 break;
 
 @ @<Declare binary action...@>=
-static void mp_dep_div (MP mp, mp_value_node p, scaled v) {
+static void mp_dep_div (MP mp, mp_value_node p, mp_number v) {
   mp_value_node q;      /* the dependency list being divided by |v| */
   quarterword s, t;     /* its type, before and after */
   if (p == NULL)
@@ -25774,7 +25805,7 @@ static void mp_dep_div (MP mp, mp_value_node p, scaled v) {
   else if (mp_type (p) != mp_known)
     q = p;
   else {
-    set_value (p, mp_make_scaled (mp, value (p), v));
+    set_value (p, mp_make_scaled (mp, value (p), number_to_scaled (v)));
     return;
   }
   t = mp_type (q);
@@ -25790,7 +25821,8 @@ static void mp_dep_div (MP mp, mp_value_node p, scaled v) {
       set_number_to_unity (unity_t);
       set_number_from_scaled (coef_bound_1, coef_bound - 1);
       set_number_from_scaled (arg1, mp_max_coef (mp, q));
-      set_number_from_scaled (arg2, abs (v));
+      number_clone (arg2, v);
+      number_abs (arg2);
       ab_vs_cd = mp_ab_vs_cd (mp, arg1, unity_t, coef_bound_1, arg2);
       free_number (unity_t);
       free_number (coef_bound_1);
