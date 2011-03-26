@@ -9301,7 +9301,7 @@ knot node and transformed as if it were a path.
 @d pen_is_elliptical(A) ((A)==mp_next_knot((A)))
 
 @c
-static mp_knot mp_get_pen_circle (MP mp, scaled diam) {
+static mp_knot mp_get_pen_circle (MP mp, mp_number diam) {
   mp_knot h;    /* the knot node to return */
   h = mp_new_knot (mp);
   mp_next_knot (h) = h;
@@ -9309,10 +9309,10 @@ static mp_knot mp_get_pen_circle (MP mp, scaled diam) {
   mp_originator (h) = mp_program_code;
   set_number_to_zero(h->x_coord);
   set_number_to_zero(h->y_coord);
-  set_number_from_scaled(h->left_x, diam);
+  number_clone(h->left_x, diam);
   set_number_to_zero(h->left_y);
   set_number_to_zero(h->right_x);
-  set_number_from_scaled(h->right_y, diam);
+  number_clone(h->right_y, diam);
   return h;
 }
 
@@ -13337,7 +13337,7 @@ FREE:
 @ Since we're interested in the tangent directions, we work with the
 derivative $${1\over3}B'(x_0,x_1,x_2,x_3;t)=
 B(x_1-x_0,x_2-x_1,x_3-x_2;t)$$ instead of
-$B(x_0,x_1,x_2,x_3;t)$ itself. The derived coefficients are also scaled up
+$B(x_0,x_1,x_2,x_3;t)$ itself. The derived coefficients are also scale-d up
 in order to achieve better accuracy.
 
 The given path may turn abruptly at a knot, and it might pass the critical
@@ -14719,11 +14719,13 @@ static mp_value_node mp_p_with_x_becoming_q (MP mp, mp_value_node p,
 @ Here's a simple procedure that reports an error when a variable
 has just received a known value that's out of the required range.
 
+Todo: this is |scaled| specific.
+
 @<Declarations@>=
-static void mp_val_too_big (MP mp, scaled x);
+static void mp_val_too_big (MP mp, mp_number x);
 
 @ @c
-void mp_val_too_big (MP mp, scaled x) {
+void mp_val_too_big (MP mp, mp_number x) {
   if (internal_value_to_halfword (mp_warning_check) > 0) {
     char msg[256];
     const char *hlp[] = {
@@ -14732,7 +14734,7 @@ void mp_val_too_big (MP mp, scaled x) {
            "with that big value; but it might be dangerous.",
            "(Set warningcheck:=0 to suppress this message.)",
            NULL };
-    mp_snprintf (msg, 256, "Value is too large (%s)", mp_string_scaled(mp,x));
+    mp_snprintf (msg, 256, "Value is too large (%s)", mp_string_scaled(mp, number_to_scaled (x)));
 @.Value is too large@>;
     mp_error (mp, msg, hlp, true);
   }
@@ -14756,7 +14758,7 @@ void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
   set_value (p, dep_value (q));
   mp_free_dep_node (mp, q);
   if (abs (value (p)) >= fraction_one)
-    mp_val_too_big (mp, value (p));
+    mp_val_too_big (mp, value_number (p));
   if ((internal_value_to_halfword (mp_tracing_equations) > 0)
       && mp_interesting (mp, (mp_node) p)) {
     mp_begin_diagnostic (mp);
@@ -14863,11 +14865,11 @@ The |const_dependency| routine produces a list that has nothing but
 a constant term.
 
 @c
-static mp_value_node mp_const_dependency (MP mp, scaled v) {
+static mp_value_node mp_const_dependency (MP mp, mp_number v) {
   mp->dep_final = mp_get_dep_node (mp);
-  set_dep_value (mp->dep_final, v);
+  set_dep_value (mp->dep_final, number_to_scaled (v));
   set_dep_info (mp->dep_final, NULL);
-  FUNCTION_TRACE3 ("%p = mp_const_dependency(%d)\n", mp->dep_final, v);
+  FUNCTION_TRACE3 ("%p = mp_const_dependency(%d)\n", mp->dep_final, number_to_scaled (v));
   return mp->dep_final;
 }
 
@@ -14889,17 +14891,20 @@ recognized by testing that the returned list pointer is equal to
 static mp_value_node mp_single_dependency (MP mp, mp_node p) {
   mp_value_node q, rr;  /* the new dependency list */
   integer m;    /* the number of doublings */
+  mp_number zero_t;
+  new_number (zero_t);
   m = indep_scale (p);
   if (m > 28) {
-    q = mp_const_dependency (mp, 0);
+    q = mp_const_dependency (mp, zero_t);
   } else {
     q = mp_get_dep_node (mp);
     set_dep_value (q, (integer) two_to_the (28 - m));
     set_dep_info (q, p);
-    rr = mp_const_dependency (mp, 0);
+    rr = mp_const_dependency (mp, zero_t);
     set_mp_link (q, (mp_node) rr);
   }
   FUNCTION_TRACE3 ("%p = mp_single_dependency(%p)\n", q, p);
+  free_number (zero_t);
   return q;
 }
 
@@ -15048,7 +15053,7 @@ if (dep_info (p) == NULL) {
   mp_type (x) = mp_known;
   set_value (x, dep_value (p));
   if (abs (value (x)) >= fraction_one)
-    mp_val_too_big (mp, value (x));
+    mp_val_too_big (mp, value_number (x));
   mp_free_dep_node (mp, p);
   if (cur_exp_node () == x && mp->cur_exp.type == mp_independent) {
     set_cur_exp_value (value (x));
@@ -21307,7 +21312,14 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
       if ((abs (num) >= abs (denom)) || (mp->cur_exp.type < mp_color_type)) {
         mp_do_binary (mp, p, mp_times);
       } else {
-        mp_frac_mult (mp, num, denom);
+        mp_number arg1, arg2;
+        new_number (arg1);
+        new_number (arg2);
+        set_number_from_scaled (arg1, num);
+        set_number_from_scaled (arg2, denom);
+        mp_frac_mult (mp, arg1, arg2);
+        free_number (arg1);
+        free_number (arg2);
         mp_free_node (mp, p, value_node_size);
       }
     }
@@ -22950,8 +22962,13 @@ static void mp_do_nullary (MP mp, quarterword c) {
     mp_init_edges (mp, (mp_edge_header_node)cur_exp_node ());
     break;
   case mp_null_pen_code:
-    mp->cur_exp.type = mp_pen_type;
-    set_cur_exp_knot (mp_get_pen_circle (mp, 0));
+    {
+      mp_number zero_t;
+      new_number (zero_t);
+      mp->cur_exp.type = mp_pen_type;
+      set_cur_exp_knot (mp_get_pen_circle (mp, zero_t));
+      free_number (zero_t);
+    }
     break;
   case mp_normal_deviate:
     mp->cur_exp.type = mp_known;
@@ -22959,8 +22976,14 @@ static void mp_do_nullary (MP mp, quarterword c) {
     set_cur_exp_value_number (mp_norm_rand (mp));
     break;
   case mp_pen_circle:
-    mp->cur_exp.type = mp_pen_type;
-    set_cur_exp_knot (mp_get_pen_circle (mp, unity));
+    {
+       mp_number unity_t;
+       new_number (unity_t);
+       set_number_to_unity (unity_t);
+       mp->cur_exp.type = mp_pen_type;
+       set_cur_exp_knot (mp_get_pen_circle (mp, unity_t));
+       free_number (unity_t);
+     }
     break;
   case mp_version:
     mp->cur_exp.type = mp_string_type;
@@ -23778,9 +23801,14 @@ case mp_path_part:
   mp->cur_exp.type = mp_path_type;
   break;
 case mp_pen_part:
-  new_expr.data.p = mp_get_pen_circle (mp, 0);
-  mp_flush_cur_exp (mp, new_expr);
-  mp->cur_exp.type = mp_pen_type;
+  {
+    mp_number zero_t;
+    new_number (zero_t);
+    new_expr.data.p = mp_get_pen_circle (mp, zero_t);
+    free_number (zero_t);
+    mp_flush_cur_exp (mp, new_expr);
+    mp->cur_exp.type = mp_pen_type;
+  }
   break;
 case mp_dash_part:
   new_expr.data.node = (mp_node)mp_get_edge_header_node (mp);
@@ -25603,7 +25631,7 @@ internally, when |v| is a |fraction| whose magnitude is at most~1,
 and when |cur_type>=mp_color_type|.
 
 @c
-static void mp_frac_mult (MP mp, scaled n, scaled d) {
+static void mp_frac_mult (MP mp, mp_number n, mp_number d) {
   /* multiplies |cur_exp| by |n/d| */
   mp_node old_exp;      /* a capsule to recycle */
   fraction v;   /* |n/d| */
@@ -25628,7 +25656,7 @@ static void mp_frac_mult (MP mp, scaled n, scaled d) {
     old_exp = cur_exp_node ();
     mp_make_exp_copy (mp, old_exp);
   }
-  v = mp_make_fraction (mp, n, d);
+  v = mp_make_fraction (mp, number_to_scaled (n), number_to_scaled (d));
   if (mp->cur_exp.type == mp_known) {
     set_cur_exp_value (mp_take_fraction (mp, cur_exp_value (), v));
   } else if (mp->cur_exp.type == mp_pair_type) {
@@ -25672,9 +25700,9 @@ static void mp_frac_mult (MP mp, scaled n, scaled d) {
 {
   mp_begin_diagnostic (mp);
   mp_print_nl (mp, "{(");
-  mp_print_scaled (mp, n);
+  mp_print_number (mp, n);
   mp_print_char (mp, xord ('/'));
-  mp_print_scaled (mp, d);
+  mp_print_number (mp, d);
   mp_print (mp, ")*(");
   mp_print_exp (mp, NULL, 0);
   mp_print (mp, ")}");
@@ -26401,13 +26429,16 @@ static void mp_big_trans (MP mp, mp_node p, quarterword c) {
   mp_make_exp_copy (mp, p);
   r = value_node (cur_exp_node ());
   if (mp->cur_exp.type == mp_transform_type) {
-    mp_bilin1 (mp, yy_part (r), number_to_scaled(mp->tyy), xy_part (q), number_to_scaled(mp->tyx), 0);
-    mp_bilin1 (mp, yx_part (r), number_to_scaled(mp->tyy), xx_part (q), number_to_scaled(mp->tyx), 0);
-    mp_bilin1 (mp, xy_part (r), number_to_scaled(mp->txx), yy_part (q), number_to_scaled(mp->txy), 0);
-    mp_bilin1 (mp, xx_part (r), number_to_scaled(mp->txx), yx_part (q), number_to_scaled(mp->txy), 0);
+    mp_number zero_t;
+    new_number (zero_t);
+    mp_bilin1 (mp, yy_part (r), mp->tyy, xy_part (q), mp->tyx, zero_t);
+    mp_bilin1 (mp, yx_part (r), mp->tyy, xx_part (q), mp->tyx, zero_t);
+    mp_bilin1 (mp, xy_part (r), mp->txx, yy_part (q), mp->txy, zero_t);
+    mp_bilin1 (mp, xx_part (r), mp->txx, yx_part (q), mp->txy, zero_t);
+    free_number (zero_t);
   }
-  mp_bilin1 (mp, y_part (r), number_to_scaled(mp->tyy), x_part (q), number_to_scaled(mp->tyx), number_to_scaled(mp->ty));
-  mp_bilin1 (mp, x_part (r), number_to_scaled(mp->txx), y_part (q), number_to_scaled(mp->txy), number_to_scaled(mp->tx));
+  mp_bilin1 (mp, y_part (r), mp->tyy, x_part (q), mp->tyx, mp->ty);
+  mp_bilin1 (mp, x_part (r), mp->txx, y_part (q), mp->txy, mp->tx);
   return;
 }
 
@@ -26417,18 +26448,24 @@ and let |q| point to a another value field. The |bilin1| procedure
 replaces |p| by $p\cdot t+q\cdot u+\delta$.
 
 @<Declare subroutines needed by |big_trans|@>=
-static void mp_bilin1 (MP mp, mp_node p, scaled t, mp_node q,
-                       scaled u, scaled delta) {
-  if (t != unity)
-    mp_dep_mult (mp, (mp_value_node) p, t, true);
-  if (u != 0) {
+static void mp_bilin1 (MP mp, mp_node p, mp_number t, mp_node q,
+                       mp_number u, mp_number delta_orig) {
+  mp_number unity_t;
+  scaled delta;
+  new_number (unity_t);
+  delta = number_to_scaled (delta_orig);
+  set_number_to_unity (unity_t);
+  if (!number_equal(t, unity_t)) {
+    mp_dep_mult (mp, (mp_value_node) p, number_to_scaled (t), true);
+  }
+  if (number_nonzero(u)) {
     if (mp_type (q) == mp_known) {
-      delta += mp_take_scaled (mp, value (q), u);
+      delta += mp_take_scaled (mp, value (q), number_to_scaled (u));
     } else {
       /* Ensure that |type(p)=mp_proto_dependent| */
       if (mp_type (p) != mp_proto_dependent) {
         if (mp_type (p) == mp_known) {
-          mp_new_dep (mp, p, mp_type (p), mp_const_dependency (mp, value (p)));
+          mp_new_dep (mp, p, mp_type (p), mp_const_dependency (mp, value_number (p)));
         } else {
           set_dep_list ((mp_value_node) p,
             mp_p_times_v (mp,
@@ -26440,7 +26477,7 @@ static void mp_bilin1 (MP mp, mp_node p, scaled t, mp_node q,
       }
       set_dep_list ((mp_value_node) p,
         mp_p_plus_fq (mp,
-                                (mp_value_node) dep_list ((mp_value_node) p), u,
+                                (mp_value_node) dep_list ((mp_value_node) p), number_to_scaled (u),
                                 (mp_value_node) dep_list ((mp_value_node) q),
                                 mp_proto_dependent, mp_type (q)));
     }
@@ -26476,18 +26513,18 @@ if (mp->cur_exp.type == mp_known) {
   mp_make_exp_copy (mp, p);
   r = value_node (cur_exp_node ());
   if (mp->cur_exp.type == mp_transform_type) {
-    mp_bilin2 (mp, yy_part (r), yy_part (qq), value (xy_part (q)),
+    mp_bilin2 (mp, yy_part (r), yy_part (qq), value_number (xy_part (q)),
                yx_part (qq), NULL);
-    mp_bilin2 (mp, yx_part (r), yy_part (qq), value (xx_part (q)),
+    mp_bilin2 (mp, yx_part (r), yy_part (qq), value_number (xx_part (q)),
                yx_part (qq), NULL);
-    mp_bilin2 (mp, xy_part (r), xx_part (qq), value (yy_part (q)),
+    mp_bilin2 (mp, xy_part (r), xx_part (qq), value_number (yy_part (q)),
                xy_part (qq), NULL);
-    mp_bilin2 (mp, xx_part (r), xx_part (qq), value (yx_part (q)),
+    mp_bilin2 (mp, xx_part (r), xx_part (qq), value_number (yx_part (q)),
                xy_part (qq), NULL);
   }
-  mp_bilin2 (mp, y_part (r), yy_part (qq), value (x_part (q)),
+  mp_bilin2 (mp, y_part (r), yy_part (qq), value_number (x_part (q)),
              yx_part (qq), y_part (qq));
-  mp_bilin2 (mp, x_part (r), xx_part (qq), value (y_part (q)),
+  mp_bilin2 (mp, x_part (r), xx_part (qq), value_number (y_part (q)),
              xy_part (qq), x_part (qq));
   mp_recycle_value (mp, pp);
   mp_free_node (mp, pp, value_node_size);
@@ -26499,14 +26536,14 @@ at |dep_final|. The following procedure adds |v| times another
 numeric quantity to~|p|.
 
 @<Declare subroutines needed by |big_trans|@>=
-static void mp_add_mult_dep (MP mp, mp_value_node p, scaled v, mp_node r) {
+static void mp_add_mult_dep (MP mp, mp_value_node p, mp_number v, mp_node r) {
   if (mp_type (r) == mp_known) {
     set_dep_value (mp->dep_final,
                    dep_value (mp->dep_final) + mp_take_scaled (mp, value (r),
-                                                               v));
+                                                               number_to_scaled (v)));
   } else {
     set_dep_list (p,
-      mp_p_plus_fq (mp, (mp_value_node) dep_list (p), v,
+      mp_p_plus_fq (mp, (mp_value_node) dep_list (p), number_to_scaled (v),
                               (mp_value_node) dep_list ((mp_value_node) r),
                               mp_proto_dependent, mp_type (r)));
     if (mp->fix_needed)
@@ -26523,60 +26560,77 @@ unless it is |NULL| (which stands for zero). Location~|p| will be
 replaced by $p\cdot t+v\cdot u+q$.
 
 @<Declare subroutines needed by |big_trans|@>=
-static void mp_bilin2 (MP mp, mp_node p, mp_node t, scaled v,
+static void mp_bilin2 (MP mp, mp_node p, mp_node t, mp_number v,
                        mp_node u, mp_node q) {
-  scaled vv;    /* temporary storage for |value(p)| */
-  vv = value (p);
-  mp_new_dep (mp, p, mp_proto_dependent, mp_const_dependency (mp, 0));  /* this sets |dep_final| */
-  if (vv != 0)
+  mp_number vv;    /* temporary storage for |value(p)| */
+  mp_number zero_t, unity_t;
+  new_number (zero_t);
+  new_number (unity_t);
+  set_number_to_unity (unity_t);
+  new_number (vv);
+  set_number_from_scaled (vv, value (p));
+  mp_new_dep (mp, p, mp_proto_dependent, mp_const_dependency (mp, zero_t));  /* this sets |dep_final| */
+  if (number_nonzero(vv)) {
     mp_add_mult_dep (mp, (mp_value_node) p, vv, t);     /* |dep_final| doesn't change */
-  if (v != 0)
-    mp_add_mult_dep (mp, (mp_value_node) p, v, u);
+  }
+  if (number_nonzero(v)) {
+    mp_number arg1;
+    new_number (arg1);
+    number_clone (arg1, v);
+    mp_add_mult_dep (mp, (mp_value_node) p, arg1, u);
+    free_number (arg1);
+  }
   if (q != NULL)
-    mp_add_mult_dep (mp, (mp_value_node) p, unity, q);
+    mp_add_mult_dep (mp, (mp_value_node) p, unity_t, q);
   if (dep_list ((mp_value_node) p) == (mp_node) mp->dep_final) {
-    vv = dep_value (mp->dep_final);
+    set_number_from_scaled (vv, dep_value (mp->dep_final));
     mp_recycle_value (mp, p);
     mp_type (p) = mp_known;
-    set_value (p, vv);
+    set_value (p, number_to_scaled (vv));
   }
+  free_number (vv);
+  free_number (zero_t);
+  free_number (unity_t);
 }
 
 
 @ @<Transform known by known@>=
 {
+  mp_number zero_t;
+  new_number (zero_t);
   mp_make_exp_copy (mp, p);
   r = value_node (cur_exp_node ());
   if (mp->cur_exp.type == mp_transform_type) {
-    mp_bilin3 (mp, yy_part (r), number_to_scaled(mp->tyy), value (xy_part (q)), number_to_scaled(mp->tyx),
-               0);
-    mp_bilin3 (mp, yx_part (r), number_to_scaled(mp->tyy), value (xx_part (q)), number_to_scaled(mp->tyx),
-               0);
-    mp_bilin3 (mp, xy_part (r), number_to_scaled(mp->txx), value (yy_part (q)), number_to_scaled(mp->txy),
-               0);
-    mp_bilin3 (mp, xx_part (r), number_to_scaled(mp->txx), value (yx_part (q)), number_to_scaled(mp->txy),
-               0);
+    mp_bilin3 (mp, yy_part (r), mp->tyy, value_number (xy_part (q)), mp->tyx, zero_t);
+    mp_bilin3 (mp, yx_part (r), mp->tyy, value_number (xx_part (q)), mp->tyx, zero_t);
+    mp_bilin3 (mp, xy_part (r), mp->txx, value_number (yy_part (q)), mp->txy, zero_t);
+    mp_bilin3 (mp, xx_part (r), mp->txx, value_number (yx_part (q)), mp->txy, zero_t);
   }
-  mp_bilin3 (mp, y_part (r), number_to_scaled(mp->tyy), value (x_part (q)), number_to_scaled(mp->tyx),
-             number_to_scaled(mp->ty));
-  mp_bilin3 (mp, x_part (r), number_to_scaled(mp->txx), value (y_part (q)), number_to_scaled(mp->txy),
-             number_to_scaled(mp->tx));
+  mp_bilin3 (mp, y_part (r), mp->tyy, value_number (x_part (q)), mp->tyx, mp->ty);
+  mp_bilin3 (mp, x_part (r), mp->txx, value_number (y_part (q)), mp->txy, mp->tx);
+  free_number (zero_t);
 }
 
 
 @ Finally, in |bilin3| everything is |known|.
 
 @<Declare subroutines needed by |big_trans|@>=
-static void mp_bilin3 (MP mp, mp_node p, scaled t,
-                       scaled v, scaled u, scaled delta) {
-  if (t != unity)
-    delta += mp_take_scaled (mp, value (p), t);
+static void mp_bilin3 (MP mp, mp_node p, mp_number t,
+                       mp_number v, mp_number u, mp_number delta_orig) {
+  scaled delta;
+  mp_number unity_t;
+  delta = number_to_scaled (delta_orig);
+  new_number (unity_t);
+  set_number_to_unity (unity_t);
+  if (!number_equal(t, unity_t))
+    delta += mp_take_scaled (mp, value (p), number_to_scaled (t));
   else
     delta += value (p);
-  if (u != 0)
-    set_value (p, delta + mp_take_scaled (mp, v, u));
+  if (number_nonzero(u))
+    set_value (p, delta + mp_take_scaled (mp, number_to_scaled (v), number_to_scaled (u)));
   else
     set_value (p, delta);
+  free_number (unity_t);
 }
 
 
@@ -27550,9 +27604,14 @@ void mp_try_eq (MP mp, mp_node l, mp_node r) {
 @ @<Remove the left operand from its container, negate it, and...@>=
 t = mp_type (l);
 if (t == mp_known) {
+  mp_number arg1;
+  new_number (arg1);
+  number_clone (arg1, value_number(l));
+  number_negate (arg1);
   t = mp_dependent;
-  p = mp_const_dependency (mp, -value (l));
+  p = mp_const_dependency (mp, arg1);
   q = p;
+  free_number (arg1);
 } else if (t == mp_independent) {
   t = mp_dependent;
   p = mp_single_dependency (mp, l);
@@ -27860,7 +27919,7 @@ void mp_set_internal (MP mp, char *n, char *v, int isstring) {
         if ((internal_type (equiv (p)) == mp_string_type) && (isstring)) {
           set_internal_string (equiv (p), mp_rts (mp, v));
         } else if ((internal_type (equiv (p)) == mp_known) && (!isstring)) {
-          scaled test = (scaled) atoi (v);
+          int test = atoi (v);
           if (test > 16383) {
             errid = "value is too large";
           } else if (test < -16383) {
@@ -29825,8 +29884,12 @@ if (lhe == NULL) {
   mp_link (obj_tail (lhe)) = p;
   obj_tail (lhe) = p;
   if (add_type == double_path_code)
-    if (mp_pen_p ((mp_stroked_node) p) == NULL)
-      mp_pen_p ((mp_stroked_node) p) = mp_get_pen_circle (mp, 0);
+    if (mp_pen_p ((mp_stroked_node) p) == NULL) {
+      mp_number zero_t;
+      new_number (zero_t);
+      mp_pen_p ((mp_stroked_node) p) = mp_get_pen_circle (mp, zero_t);
+      free_number (zero_t);
+    }
 }
 
 @ @<Merge |e| into |lhe| and delete |e|@>=
