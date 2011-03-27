@@ -9563,14 +9563,14 @@ to use there.
 
 @<Initialize |p| as the |k|th knot of a circle of unit diameter,...@>=
 kk = (k + 6) % 8;
-set_number_from_scaled (p->x_coord, number_to_scaled (center_x) + mp_take_fraction (mp, mp->half_cos[k], number_to_scaled (width_x))
-  + mp_take_fraction (mp, mp->half_cos[kk], number_to_scaled (height_x)));
-set_number_from_scaled (p->y_coord, number_to_scaled (center_y) + mp_take_fraction (mp, mp->half_cos[k], number_to_scaled (width_y))
-  + mp_take_fraction (mp, mp->half_cos[kk], number_to_scaled (height_y)));
-set_number_from_scaled (dx, -mp_take_fraction (mp, mp->d_cos[kk], number_to_scaled (width_x))
-  + mp_take_fraction (mp, mp->d_cos[k], number_to_scaled (height_x)));
-set_number_from_scaled (dy, -mp_take_fraction (mp, mp->d_cos[kk], number_to_scaled (width_y))
-  + mp_take_fraction (mp, mp->d_cos[k], number_to_scaled (height_y)));
+set_number_from_scaled (p->x_coord, number_to_scaled (center_x) + mp_take_fraction (mp, number_to_scaled (mp->half_cos[k]), number_to_scaled (width_x))
+  + mp_take_fraction (mp, number_to_scaled (mp->half_cos[kk]), number_to_scaled (height_x)));
+set_number_from_scaled (p->y_coord, number_to_scaled (center_y) + mp_take_fraction (mp, number_to_scaled (mp->half_cos[k]), number_to_scaled (width_y))
+  + mp_take_fraction (mp, number_to_scaled (mp->half_cos[kk]), number_to_scaled (height_y)));
+set_number_from_scaled (dx, -mp_take_fraction (mp, number_to_scaled (mp->d_cos[kk]), number_to_scaled (width_x))
+  + mp_take_fraction (mp, number_to_scaled (mp->d_cos[k]), number_to_scaled (height_x)));
+set_number_from_scaled (dy, -mp_take_fraction (mp, number_to_scaled (mp->d_cos[kk]), number_to_scaled (width_y))
+  + mp_take_fraction (mp, number_to_scaled (mp->d_cos[k]), number_to_scaled (height_y)));
 set_number_from_addition (p->right_x, p->x_coord, dx);
 set_number_from_addition (p->right_y, p->y_coord, dy);
 set_number_from_substraction (p->left_x, p->x_coord, dx);
@@ -9580,8 +9580,8 @@ mp_right_type (p) = mp_explicit;
 mp_originator (p) = mp_program_code
 
 @ @<Glob...@>=
-fraction half_cos[8];   /* ${1\over2}\cos(45k)$ */
-fraction d_cos[8];      /* a magic constant times $\cos(45k)$ */
+mp_number half_cos[8];   /* ${1\over2}\cos(45k)$ */
+mp_number d_cos[8];      /* a magic constant times $\cos(45k)$ */
 
 @ The magic constant for |d_cos| is the distance between $({1\over2},0)$ and
 $({1\over4}\sqrt2,{1\over4}\sqrt2)$ times the result of the |velocity|
@@ -9591,19 +9591,31 @@ $$ d = {\sqrt{2-\sqrt2}\over 3+3\cos22.5^\circ}
 $$
 
 @<Set init...@>=
-mp->half_cos[0] = fraction_half;
-mp->half_cos[1] = 94906266;     /* $2^{26}\sqrt2\approx94906265.62$ */
-mp->half_cos[2] = 0;
-mp->d_cos[0] = 35596755;        /* $2^{28}d\approx35596754.69$ */
-mp->d_cos[1] = 25170707;        /* $2^{27}\sqrt2\,d\approx25170706.63$ */
-mp->d_cos[2] = 0;
+for (k = 0; k <= 7; k++) {
+  new_fraction (mp->half_cos[k]);
+  new_fraction (mp->d_cos[k]);
+}
+set_number_from_scaled (mp->half_cos[0], fraction_half);
+set_number_from_scaled (mp->half_cos[1], 94906266);     /* $2^{26}\sqrt2\approx94906265.62$ */
+set_number_from_scaled (mp->half_cos[2], 0);
+set_number_from_scaled (mp->d_cos[0], 35596755);        /* $2^{28}d\approx35596754.69$ */
+set_number_from_scaled (mp->d_cos[1], 25170707);        /* $2^{27}\sqrt2\,d\approx25170706.63$ */
+set_number_from_scaled (mp->d_cos[2], 0);
 for (k = 3; k <= 4; k++) {
-  mp->half_cos[k] = -mp->half_cos[4 - k];
-  mp->d_cos[k] = -mp->d_cos[4 - k];
+  number_clone (mp->half_cos[k], mp->half_cos[4 - k]);
+  number_negate (mp->half_cos[k]);
+  number_clone (mp->d_cos[k], mp->d_cos[4 - k]);
+  number_negate (mp->d_cos[k]);
 }
 for (k = 5; k <= 7; k++) {
-  mp->half_cos[k] = mp->half_cos[8 - k];
-  mp->d_cos[k] = mp->d_cos[8 - k];
+  number_clone (mp->half_cos[k], mp->half_cos[8 - k]);
+  number_clone (mp->d_cos[k], mp->d_cos[8 - k]);
+}
+
+@ @<Dealloc...@>=
+for (k = 0; k <= 7; k++) {
+  free_number (mp->half_cos[k]);
+  free_number (mp->d_cos[k]);
 }
 
 
@@ -11997,6 +12009,7 @@ static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h) {
   int turn_amt;     /* change in pen offsets for the current cubic */
   mp_number max_coef;       /* used while scaling */
   mp_number fraction_one_t;
+  mp_number ss;
   @<Other local variables for |offset_prep|@>;
   new_number(max_coef);
   new_number(dxin);
@@ -12026,6 +12039,8 @@ static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h) {
   new_number(u1);
   new_number(v0);
   new_number(v1);
+  new_fraction (ss);
+  new_fraction (s);
   new_fraction (t);
   new_fraction (fraction_one_t);
   set_number_from_scaled (fraction_one_t, fraction_one);
@@ -12045,6 +12060,8 @@ static mp_knot mp_offset_prep (MP mp, mp_knot c, mp_knot h) {
   } while (q != c);
   @<Fix the offset change in |mp_knot_info(c)| and set |c| to the return value of
     |offset_prep|@>;
+  free_number (ss);
+  free_number (s);
   free_number (dxin);
   free_number (dyin);
   free_number (dx0);
@@ -12288,7 +12305,7 @@ mp_number du, dv, dx, dy; /* for directions of the pen and the curve */
 mp_number dx0, dy0;       /* initial direction for the first cubic in the curve */
 mp_number x0a, x1a, x2a, y0a, y1a, y2a;   /* intermediate values */
 mp_number t;     /* where the derivative passes through zero */
-fraction s;     /* a temporary value */
+mp_number s;     /* a temporary value */
 
 @ @<Prepare for derivative computations...@>=
 set_number_from_substraction(x0, p->right_x, p->x_coord);
@@ -12381,7 +12398,7 @@ void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, mp_number
   mp_number du, dv;        /* for slope calculation */
   mp_number t0, t1, t2;   /* test coefficients */
   mp_number t;   /* place where the derivative passes a critical slope */
-  fraction s;   /* slope or reciprocal slope */
+  mp_number s;   /* slope or reciprocal slope */
   mp_number v;    /* intermediate value for updating |x0..y2| */
   mp_knot q;    /* original |mp_next_knot(p)| */
   mp_number fraction_one_t;
@@ -12392,6 +12409,7 @@ void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, mp_number
   new_number(t0);
   new_number(t1);
   new_number(t2);
+  new_fraction(s);
   new_fraction(t);
   new_fraction(fraction_one_t);
   set_number_from_scaled (fraction_one_t, fraction_one);
@@ -12415,6 +12433,7 @@ void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, mp_number
     w = ww;
   }
 RETURN:
+  free_number (s);
   free_number (t);
   free_number (fraction_one_t);
   free_number (du);
@@ -12443,20 +12462,20 @@ begins to fail.
   number_clone(abs_dv, dv);
   number_abs(abs_dv);
   if (number_greaterequal(abs_du, abs_dv)) {
-    s = mp_make_fraction (mp, number_to_scaled(dv), number_to_scaled(du));
-    set_number_from_scaled(t0, mp_take_fraction (mp, number_to_scaled(x0), s) - number_to_scaled(y0));
-    set_number_from_scaled(t1, mp_take_fraction (mp, number_to_scaled(x1), s) - number_to_scaled(y1));
-    set_number_from_scaled(t2, mp_take_fraction (mp, number_to_scaled(x2), s) - number_to_scaled(y2));
+    set_number_from_scaled(s, mp_make_fraction (mp, number_to_scaled(dv), number_to_scaled(du)));
+    set_number_from_scaled(t0, mp_take_fraction (mp, number_to_scaled(x0), number_to_scaled(s)) - number_to_scaled(y0));
+    set_number_from_scaled(t1, mp_take_fraction (mp, number_to_scaled(x1), number_to_scaled(s)) - number_to_scaled(y1));
+    set_number_from_scaled(t2, mp_take_fraction (mp, number_to_scaled(x2), number_to_scaled(s)) - number_to_scaled(y2));
     if (number_negative(du)) {
       number_negate (t0);
       number_negate (t1);
       number_negate (t2);
     }
   } else {
-    s = mp_make_fraction (mp, number_to_scaled(du), number_to_scaled(dv));
-    set_number_from_scaled(t0, number_to_scaled(x0) - mp_take_fraction (mp, number_to_scaled(y0), s));
-    set_number_from_scaled(t1, number_to_scaled(x1) - mp_take_fraction (mp, number_to_scaled(y1), s));
-    set_number_from_scaled(t2, number_to_scaled(x2) - mp_take_fraction (mp, number_to_scaled(y2), s));
+    set_number_from_scaled(s, mp_make_fraction (mp, number_to_scaled(du), number_to_scaled(dv)));
+    set_number_from_scaled(t0, number_to_scaled(x0) - mp_take_fraction (mp, number_to_scaled(y0), number_to_scaled(s)));
+    set_number_from_scaled(t1, number_to_scaled(x1) - mp_take_fraction (mp, number_to_scaled(y1), number_to_scaled(s)));
+    set_number_from_scaled(t2, number_to_scaled(x2) - mp_take_fraction (mp, number_to_scaled(y2), number_to_scaled(s)));
     if (number_negative(dv)) {
       number_negate (t0);
       number_negate (t1);
@@ -12738,13 +12757,13 @@ if (turn_amt >= 0) {
     set_number_from_of_the_way(u0, t, x0, x1);
     set_number_from_of_the_way(u1, t, x1, x2);
     set_number_from_of_the_way(tmp, t, u0, u1);
-    ss = mp_take_fraction (mp, -number_to_scaled(du), number_to_scaled(tmp));
+    set_number_from_scaled (ss, mp_take_fraction (mp, -number_to_scaled(du), number_to_scaled(tmp)));
     set_number_from_of_the_way(v0, t, y0, y1);
     set_number_from_of_the_way(v1, t, y1, y2);
     set_number_from_of_the_way(tmp, t, v0, v1);
-    ss = ss + mp_take_fraction (mp, -number_to_scaled(dv), number_to_scaled(tmp));
+    set_number_from_scaled (ss, number_to_scaled (ss) + mp_take_fraction (mp, -number_to_scaled(dv), number_to_scaled(tmp)));
     free_number (tmp);
-    if (ss < 0) {
+    if (number_negative(ss)) {
       number_clone(t, fraction_one_t);
       number_add_scaled (t, 1);
     }
@@ -12755,7 +12774,6 @@ if (turn_amt >= 0) {
 
 @ @<Other local variables for |offset_prep|@>=
 mp_number u0, u1, v0, v1; /* intermediate values for $d(t)$ calculation */
-fraction ss = 0; /* the part of the dot product computed so far */
 int d_sign;     /* sign of overall change in direction for this cubic */
 
 @ If the cubic almost has a cusp, it is a numerically ill-conditioned
@@ -12784,7 +12802,7 @@ if (d_sign == 0) {
 @<Make |ss| negative if and only if the total change in direction is
   more than $180^\circ$@>;
 turn_amt = mp_get_turn_amt (mp, w, dxin, dyin, (d_sign > 0));
-if (ss < 0)
+if (number_negative(ss))
   turn_amt = turn_amt - d_sign * n
 
 @ We check rotation direction by looking at the vector connecting the current
@@ -12841,8 +12859,8 @@ if (number_positive(t0)) {
   new_number(tmp2);
   set_number_from_of_the_way(tmp1, t, u0, u1);
   set_number_from_of_the_way(tmp2, t, v0, v1);
-  ss = mp_take_fraction (mp, (number_to_scaled(x0) + number_to_scaled(x2)), number_to_scaled(tmp1)) +
-       mp_take_fraction (mp, (number_to_scaled(y0) + number_to_scaled(y2)), number_to_scaled(tmp2));
+  set_number_from_scaled (ss, mp_take_fraction (mp, (number_to_scaled(x0) + number_to_scaled(x2)), number_to_scaled(tmp1)) +
+       mp_take_fraction (mp, (number_to_scaled(y0) + number_to_scaled(y2)), number_to_scaled(tmp2)));
   free_number (tmp1);
   free_number (tmp2);
 }
@@ -13107,9 +13125,11 @@ problems, so we just set |r:=NULL| in that case.
 
 @<Insert a new knot |r| between |p| and |q| as required for a mitered join@>=
 {
-  det = mp_take_fraction (mp, number_to_scaled(dyout), number_to_scaled(dxin)) - 
-        mp_take_fraction (mp, number_to_scaled(dxout), number_to_scaled(dyin));
-  if (abs (det) < 26844) {
+  mp_number det;   /* a determinant used for mitered join calculations */
+  new_fraction (det);
+  set_number_from_scaled(det, mp_take_fraction (mp, number_to_scaled(dyout), number_to_scaled(dxin)) - 
+        mp_take_fraction (mp, number_to_scaled(dxout), number_to_scaled(dyin)));
+  if (abs (number_to_scaled(det)) < 26844) {
     r = NULL;                   /* sine $<10^{-4}$ */
   } else {
     mp_number xtot, ytot, xsub, ysub;
@@ -13120,7 +13140,7 @@ problems, so we just set |r:=NULL| in that case.
 
     tmp = mp_take_fraction (mp, number_to_scaled (q->x_coord) - number_to_scaled (p->x_coord), number_to_scaled(dyout)) -
       mp_take_fraction (mp, number_to_scaled (q->y_coord) - number_to_scaled (p->y_coord), number_to_scaled(dxout));
-    tmp = mp_make_fraction (mp, tmp, det);
+    tmp = mp_make_fraction (mp, tmp, number_to_scaled(det));
     
     set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, number_to_scaled(dxin)));
     set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, number_to_scaled(dyin)));
@@ -13132,37 +13152,38 @@ problems, so we just set |r:=NULL| in that case.
     free_number (xsub);
     free_number (ysub);
   }
+  free_number (det);
 }
 
 
-@ @<Other local variables for |make_envelope|@>=
-fraction det;   /* a determinant used for mitered join calculations */
-
 @ @<Make |r| the last of two knots inserted between |p| and |q| to form a...@>=
 {
+  mp_number ht_x, ht_y;    /* perpendicular to the segment from |p| to |q| */
   mp_number xtot, ytot, xsub, ysub;
   new_number(xtot);
   new_number(ytot);
   new_number(xsub);
   new_number(ysub);
-  ht_x = number_to_scaled (w->y_coord) - number_to_scaled (w0->y_coord);
-  ht_y = number_to_scaled (w0->x_coord) - number_to_scaled (w->x_coord);
-  while ((abs (ht_x) < fraction_half) && (abs (ht_y) < fraction_half)) {
-    ht_x += ht_x;
-    ht_y += ht_y;
+  new_fraction (ht_x);
+  new_fraction (ht_y);
+  set_number_from_scaled(ht_x, number_to_scaled (w->y_coord) - number_to_scaled (w0->y_coord));
+  set_number_from_scaled(ht_y, number_to_scaled (w0->x_coord) - number_to_scaled (w->x_coord));
+  while ((abs (number_to_scaled(ht_x)) < fraction_half) && (abs (number_to_scaled(ht_y)) < fraction_half)) {
+    number_double(ht_x);
+    number_double(ht_y);
   }
   @<Scan the pen polygon between |w0| and |w| and make |max_ht| the range dot
     product with |(ht_x,ht_y)|@>;
-  tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, number_to_scaled(dxin), ht_x) +
-                          mp_take_fraction (mp, number_to_scaled(dyin), ht_y));
+  tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, number_to_scaled(dxin), number_to_scaled(ht_x)) +
+                          mp_take_fraction (mp, number_to_scaled(dyin), number_to_scaled(ht_y)));
   set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, number_to_scaled(dxin)));
   set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, number_to_scaled(dyin)));
   set_number_from_addition(xtot, p->x_coord, xsub);
   set_number_from_addition(ytot, p->y_coord, ysub);
   r = mp_insert_knot (mp, p, xtot, ytot);
 
-  tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, number_to_scaled(dxout), ht_x) +
-                          mp_take_fraction (mp, number_to_scaled(dyout), ht_y));
+  tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, number_to_scaled(dxout), number_to_scaled(ht_x)) +
+                          mp_take_fraction (mp, number_to_scaled(dyout), number_to_scaled(ht_y)));
 
   set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, number_to_scaled(dxout)));
   set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, number_to_scaled(dyout)));
@@ -13173,11 +13194,12 @@ fraction det;   /* a determinant used for mitered join calculations */
   free_number (ysub);
   free_number (xtot);
   free_number (ytot);
+  free_number (ht_x);
+  free_number (ht_y);
 }
 
 
 @ @<Other local variables for |make_envelope|@>=
-fraction ht_x, ht_y;    /* perpendicular to the segment from |p| to |q| */
 scaled max_ht;  /* maximum height of the pen polygon above the |w0|-|w| line */
 halfword kk;    /* keeps track of the pen vertices being scanned */
 mp_knot ww;     /* the pen vertex being tested */
@@ -13193,8 +13215,8 @@ while (1) {
   @<Step |ww| and move |kk| one step closer to |k0|@>;
   if (kk == k0)
     break;
-  tmp = mp_take_fraction (mp, (number_to_scaled (ww->x_coord) - number_to_scaled (w0->x_coord)), ht_x) +
-    mp_take_fraction (mp, (number_to_scaled (ww->y_coord) - number_to_scaled (w0->y_coord)), ht_y);
+  tmp = mp_take_fraction (mp, (number_to_scaled (ww->x_coord) - number_to_scaled (w0->x_coord)), number_to_scaled(ht_x)) +
+    mp_take_fraction (mp, (number_to_scaled (ww->y_coord) - number_to_scaled (w0->y_coord)), number_to_scaled(ht_y));
   if (tmp > max_ht)
     max_ht = tmp;
 }
@@ -24969,7 +24991,6 @@ static void mp_finish_binary (MP mp, mp_node old_p, mp_node old_exp) {
 static void mp_do_binary (MP mp, mp_node p, integer c) {
   mp_node q, r, rr;     /* for list manipulation */
   mp_node old_p, old_exp;       /* capsules to recycle */
-  integer v;    /* for numeric manipulation */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
   new_number(new_expr.data.n);
@@ -25632,51 +25653,39 @@ break;
 
 @ @<Multiply when at least one operand is known@>=
 {
+  mp_number vv;
+  new_fraction (vv);
   if (mp_type (p) == mp_known) {
-    v = value (p);
+    number_clone(vv, value_number (p));
     mp_free_node (mp, p, value_node_size);
   } else {
-    v = cur_exp_value ();
+    number_clone(vv, cur_exp_value_number ());
     mp_unstash_cur_exp (mp, p);
   }
   if (mp->cur_exp.type == mp_known) {
-    set_cur_exp_value (mp_take_scaled (mp, cur_exp_value (), v));
+    set_cur_exp_value (mp_take_scaled (mp, cur_exp_value (), number_to_scaled (vv)));
   } else if (mp->cur_exp.type == mp_pair_type) {
-    mp_dep_mult (mp, (mp_value_node) x_part (value_node (cur_exp_node ())),
-                 v, true);
-    mp_dep_mult (mp, (mp_value_node) y_part (value_node (cur_exp_node ())),
-                 v, true);
+    mp_dep_mult (mp, (mp_value_node) x_part (value_node (cur_exp_node ())), vv, true);
+    mp_dep_mult (mp, (mp_value_node) y_part (value_node (cur_exp_node ())), vv, true);
   } else if (mp->cur_exp.type == mp_color_type) {
-    mp_dep_mult (mp,
-                 (mp_value_node) red_part (value_node (cur_exp_node ())), v,
-                 true);
-    mp_dep_mult (mp,
-                 (mp_value_node) green_part (value_node (cur_exp_node ())),
-                 v, true);
-    mp_dep_mult (mp,
-                 (mp_value_node) blue_part (value_node (cur_exp_node ())),
-                 v, true);
+    mp_dep_mult (mp, (mp_value_node) red_part (value_node (cur_exp_node ())), vv, true);
+    mp_dep_mult (mp, (mp_value_node) green_part (value_node (cur_exp_node ())), vv, true);
+    mp_dep_mult (mp, (mp_value_node) blue_part (value_node (cur_exp_node ())), vv, true);
   } else if (mp->cur_exp.type == mp_cmykcolor_type) {
-    mp_dep_mult (mp,
-                 (mp_value_node) cyan_part (value_node (cur_exp_node ())),
-                 v, true);
-    mp_dep_mult (mp, (mp_value_node)
-                 magenta_part (value_node (cur_exp_node ())), v, true);
-    mp_dep_mult (mp,
-                 (mp_value_node) yellow_part (value_node (cur_exp_node ())),
-                 v, true);
-    mp_dep_mult (mp,
-                 (mp_value_node) black_part (value_node (cur_exp_node ())),
-                 v, true);
+    mp_dep_mult (mp, (mp_value_node) cyan_part (value_node (cur_exp_node ())), vv, true);
+    mp_dep_mult (mp, (mp_value_node) magenta_part (value_node (cur_exp_node ())), vv, true);
+    mp_dep_mult (mp, (mp_value_node) yellow_part (value_node (cur_exp_node ())), vv, true);
+    mp_dep_mult (mp, (mp_value_node) black_part (value_node (cur_exp_node ())),  vv, true);
   } else {
-    mp_dep_mult (mp, NULL, v, true);
+    mp_dep_mult (mp, NULL, vv, true);
   }
+  free_number (vv);
   binary_return;
 }
 
 
 @ @<Declare binary action...@>=
-static void mp_dep_mult (MP mp, mp_value_node p, integer v, boolean v_is_scaled) {
+static void mp_dep_mult (MP mp, mp_value_node p, mp_number v, boolean v_is_scaled) {
   mp_value_node q;      /* the dependency list being multiplied by |v| */
   quarterword s, t;     /* its type, before and after */
   if (p == NULL) {
@@ -25685,9 +25694,9 @@ static void mp_dep_mult (MP mp, mp_value_node p, integer v, boolean v_is_scaled)
     q = p;
   } else {
     if (v_is_scaled)
-      set_dep_value (p, mp_take_scaled (mp, dep_value (p), v));
+      set_dep_value (p, mp_take_scaled (mp, dep_value (p), number_to_scaled (v)));
     else
-      set_dep_value (p, mp_take_fraction (mp, dep_value (p), v));
+      set_dep_value (p, mp_take_fraction (mp, dep_value (p), number_to_scaled (v)));
     return;
   };
   t = mp_type (q);
@@ -25703,7 +25712,7 @@ static void mp_dep_mult (MP mp, mp_value_node p, integer v, boolean v_is_scaled)
       set_number_to_unity (unity_t);
       set_number_from_scaled (coef_bound_1, coef_bound - 1);
       arg1 = mp_max_coef (mp, q);
-      set_number_from_scaled (arg2, abs (v));
+      set_number_from_scaled (arg2, abs (number_to_scaled (v)));
       ab_vs_cd = mp_ab_vs_cd (mp, arg1, arg2, coef_bound_1, unity_t);
       free_number (unity_t);
       free_number (coef_bound_1);
@@ -25714,7 +25723,7 @@ static void mp_dep_mult (MP mp, mp_value_node p, integer v, boolean v_is_scaled)
       }
     }
   }
-  q = mp_p_times_v (mp, q, v, s, t, v_is_scaled);
+  q = mp_p_times_v (mp, q, number_to_scaled (v), s, t, v_is_scaled);
   mp_dep_finish (mp, q, p, t);
 }
 
@@ -25727,7 +25736,8 @@ and when |cur_type>=mp_color_type|.
 static void mp_frac_mult (MP mp, mp_number n, mp_number d) {
   /* multiplies |cur_exp| by |n/d| */
   mp_node old_exp;      /* a capsule to recycle */
-  fraction v;   /* |n/d| */
+  mp_number v;   /* |n/d| */
+  new_fraction (v);
   if (internal_value_to_halfword (mp_tracing_commands) > two) {
     @<Trace the fraction multiplication@>;
   }
@@ -25749,36 +25759,21 @@ static void mp_frac_mult (MP mp, mp_number n, mp_number d) {
     old_exp = cur_exp_node ();
     mp_make_exp_copy (mp, old_exp);
   }
-  v = mp_make_fraction (mp, number_to_scaled (n), number_to_scaled (d));
+  set_number_from_scaled(v, mp_make_fraction (mp, number_to_scaled (n), number_to_scaled (d)));
   if (mp->cur_exp.type == mp_known) {
-    set_cur_exp_value (mp_take_fraction (mp, cur_exp_value (), v));
+    set_cur_exp_value (mp_take_fraction (mp, cur_exp_value (), number_to_scaled (v)));
   } else if (mp->cur_exp.type == mp_pair_type) {
-    mp_dep_mult (mp, (mp_value_node) x_part (value_node (cur_exp_node ())),
-                 v, false);
-    mp_dep_mult (mp, (mp_value_node) y_part (value_node (cur_exp_node ())),
-                 v, false);
+    mp_dep_mult (mp, (mp_value_node) x_part (value_node (cur_exp_node ())), v, false);
+    mp_dep_mult (mp, (mp_value_node) y_part (value_node (cur_exp_node ())), v, false);
   } else if (mp->cur_exp.type == mp_color_type) {
-    mp_dep_mult (mp,
-                 (mp_value_node) red_part (value_node (cur_exp_node ())), v,
-                 false);
-    mp_dep_mult (mp,
-                 (mp_value_node) green_part (value_node (cur_exp_node ())),
-                 v, false);
-    mp_dep_mult (mp,
-                 (mp_value_node) blue_part (value_node (cur_exp_node ())),
-                 v, false);
+    mp_dep_mult (mp, (mp_value_node) red_part (value_node (cur_exp_node ())), v, false);
+    mp_dep_mult (mp, (mp_value_node) green_part (value_node (cur_exp_node ())), v, false);
+    mp_dep_mult (mp, (mp_value_node) blue_part (value_node (cur_exp_node ())), v, false);
   } else if (mp->cur_exp.type == mp_cmykcolor_type) {
-    mp_dep_mult (mp,
-                 (mp_value_node) cyan_part (value_node (cur_exp_node ())),
-                 v, false);
-    mp_dep_mult (mp, (mp_value_node)
-                 magenta_part (value_node (cur_exp_node ())), v, false);
-    mp_dep_mult (mp,
-                 (mp_value_node) yellow_part (value_node (cur_exp_node ())),
-                 v, false);
-    mp_dep_mult (mp,
-                 (mp_value_node) black_part (value_node (cur_exp_node ())),
-                 v, false);
+    mp_dep_mult (mp, (mp_value_node) cyan_part (value_node (cur_exp_node ())), v, false);
+    mp_dep_mult (mp, (mp_value_node) magenta_part (value_node (cur_exp_node ())), v, false);
+    mp_dep_mult (mp, (mp_value_node) yellow_part (value_node (cur_exp_node ())), v, false);
+    mp_dep_mult (mp, (mp_value_node) black_part (value_node (cur_exp_node ())), v, false);
   } else {
     mp_dep_mult (mp, NULL, v, false);
   }
@@ -25786,6 +25781,7 @@ static void mp_frac_mult (MP mp, mp_number n, mp_number d) {
     mp_recycle_value (mp, old_exp);
     mp_free_node (mp, old_exp, value_node_size);
   }
+  free_number (v);
 }
 
 
@@ -25810,7 +25806,8 @@ static void mp_hard_times (MP mp, mp_node p) {
   mp_value_node q;      /* a copy of the dependent variable |p| */
   mp_value_node pp;     /* for typecasting p */
   mp_node r;    /* a component of the big node for the nice color or pair */
-  scaled v;     /* the known value for |r| */
+  mp_number v;     /* the known value for |r| */
+  new_number (v);
   if (mp_type (p) <= mp_pair_type) {
     q = (mp_value_node) mp_stash_cur_exp (mp);
     mp_unstash_cur_exp (mp, p);
@@ -25819,53 +25816,54 @@ static void mp_hard_times (MP mp, mp_node p) {
   pp = (mp_value_node) p;
   if (mp->cur_exp.type == mp_pair_type) {
     r = x_part (value_node (cur_exp_node ()));
-    v = value (r);
+    number_clone(v, value_number (r));
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
     r = y_part (value_node (cur_exp_node ()));
-    v = value (r);
+    number_clone(v, value_number (r));
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
   } else if (mp->cur_exp.type == mp_color_type) {
     r = red_part (value_node (cur_exp_node ()));
-    v = value (r);
+    number_clone(v, value_number (r));
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
     r = green_part (value_node (cur_exp_node ()));
-    v = value (r);
+    number_clone(v, value_number (r));
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
     r = blue_part (value_node (cur_exp_node ()));
-    v = value (r);
+    number_clone(v, value_number (r));
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
   } else if (mp->cur_exp.type == mp_cmykcolor_type) {
     r = cyan_part (value_node (cur_exp_node ()));
-    v = value (r);
+    number_clone(v, value_number (r));
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
     r = yellow_part (value_node (cur_exp_node ()));
-    v = value (r);
+    number_clone(v, value_number (r));
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
     r = magenta_part (value_node (cur_exp_node ()));
-    v = value (r);
+    number_clone(v, value_number (r));
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
     r = black_part (value_node (cur_exp_node ()));
-    v = value (r);
+    number_clone(v, value_number (r));
     mp_new_dep (mp, r, mp_type (pp),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list (pp)));
     mp_dep_mult (mp, (mp_value_node) r, v, true);
   }
+  free_number (v);
 }
 
 
@@ -26554,7 +26552,7 @@ static void mp_bilin1 (MP mp, mp_node p, mp_number t, mp_node q,
   delta = number_to_scaled (delta_orig);
   set_number_to_unity (unity_t);
   if (!number_equal(t, unity_t)) {
-    mp_dep_mult (mp, (mp_value_node) p, number_to_scaled (t), true);
+    mp_dep_mult (mp, (mp_value_node) p, t, true);
   }
   if (number_nonzero(u)) {
     if (mp_type (q) == mp_known) {
