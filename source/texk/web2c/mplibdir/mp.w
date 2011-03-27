@@ -2326,23 +2326,33 @@ static void mp_init_randoms (MP mp, int seed);
 
 @c
 void mp_init_randoms (MP mp, int seed) {
-  fraction j, jj, k;    /* more or less random integers */
+  mp_number j, jj, k;    /* more or less random integers */
+  mp_number fraction_one_t;
   int i;        /* index into |randoms| */
-  j = abs (seed);
-  while (j >= fraction_one)
-    j = halfp (j);
-  k = 1;
+  new_fraction (j);
+  new_fraction (jj);
+  new_fraction (k);
+  new_fraction (fraction_one_t);
+  set_number_from_scaled (fraction_one_t, fraction_one);
+  set_number_from_scaled (j, abs (seed));
+  while (number_greaterequal(j, fraction_one_t))
+    number_halfp (j);
+  number_add_scaled (k, 1);
   for (i = 0; i <= 54; i++) {
-    jj = k;
-    k = j - k;
-    j = jj;
-    if (k < 0)
-      k = k + fraction_one;
-    set_number_from_scaled (mp->randoms[(i * 21) % 55], j);
+    number_clone (jj, k);
+    set_number_from_substraction (k, j, k);
+    number_clone (j, jj);
+    if (number_negative(k))
+      number_add (k, fraction_one_t);
+    number_clone (mp->randoms[(i * 21) % 55], j);
   }
   mp_new_randoms (mp);
   mp_new_randoms (mp);
   mp_new_randoms (mp);          /* ``warm up'' the array */
+  free_number (j);
+  free_number (jj);
+  free_number (k);
+  free_number (fraction_one_t);
 }
 
 
