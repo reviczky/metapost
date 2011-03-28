@@ -11023,8 +11023,9 @@ static void mp_print_edges (MP mp, mp_node h, const char *s, boolean nuline);
 @ @c
 void mp_print_edges (MP mp, mp_node h, const char *s, boolean nuline) {
   mp_node p;    /* a graphical object to be printed */
-  scaled scf;   /* a scale factor for the dash pattern */
+  mp_number scf;   /* a scale factor for the dash pattern */
   boolean ok_to_dash;   /* |false| for polygonal pen strokes */
+  new_number (scf);
   mp_print_diagnostic (mp, "Edge structure", s, nuline);
   p = edge_list (h);
   while (mp_link (p) != NULL) {
@@ -11042,6 +11043,7 @@ void mp_print_edges (MP mp, mp_node h, const char *s, boolean nuline) {
     mp_print (mp, "?");
 @.End edges?@>;
   mp_end_diagnostic (mp, true);
+  free_number (scf);
 }
 
 
@@ -11182,9 +11184,9 @@ give it any convenient value.
 mp_dash_node ppd, hhd;
 ok_to_dash = pen_is_elliptical (mp_pen_p ((mp_stroked_node) p));
 if (!ok_to_dash)
-  scf = unity;
+  set_number_to_unity (scf);
 else
-  scf = number_to_scaled(((mp_stroked_node) p)->dash_scale);
+  number_clone(scf, ((mp_stroked_node) p)->dash_scale);
 hhd = (mp_dash_node)mp_dash_p (p);
 ppd = dash_list (hhd);
 if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
@@ -11196,18 +11198,18 @@ if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
   while (ppd != mp->null_dash) {
     mp_print (mp, "on ");
     mp_print_scaled (mp, mp_take_scaled (mp, number_to_scaled(ppd->stop_x) - 
-	number_to_scaled(ppd->start_x), scf));
+	number_to_scaled(ppd->start_x), number_to_scaled (scf)));
     mp_print (mp, " off ");
     mp_print_scaled (mp,
                      mp_take_scaled (mp, number_to_scaled(((mp_dash_node)mp_link (ppd))->start_x)  - 
-	number_to_scaled(ppd->stop_x), scf));
+	number_to_scaled(ppd->stop_x), number_to_scaled (scf)));
     ppd = (mp_dash_node)mp_link (ppd);
     if (ppd != mp->null_dash)
       mp_print_char (mp, xord (' '));
   }
   mp_print (mp, ") shifted ");
   dashoff = mp_dash_offset (mp, hhd);
-  mp_print_scaled (mp, -mp_take_scaled (mp, number_to_scaled(dashoff), scf));
+  mp_print_scaled (mp, -mp_take_scaled (mp, number_to_scaled(dashoff), number_to_scaled (scf)));
   free_number (dashoff);
   if (!ok_to_dash || number_zero(hhd->dash_y) )
     mp_print (mp, " (this will be ignored)");
@@ -11508,6 +11510,9 @@ corresponding dash nodes, we must be prepared to break up these dashes into
 smaller dashes.
 
 @<Scan |dash_list(h)| and deal with any dashes that are themselves dashed@>=
+{
+mp_number hsf;     /* the dash pattern from |hh| gets scaled by this */
+new_number (hsf);
 d = (mp_dash_node)h;                          /* now |mp_link(d)=dash_list(h)| */
 while (mp_link (d) != (mp_node)mp->null_dash) {
   ds = dash_info (mp_link (d));
@@ -11515,7 +11520,7 @@ while (mp_link (d) != (mp_node)mp->null_dash) {
     d = (mp_dash_node)mp_link (d);
   } else {
     hh = (mp_edge_header_node)mp_dash_p (ds);
-    hsf = number_to_scaled(((mp_stroked_node)ds)->dash_scale);
+    number_clone(hsf, ((mp_stroked_node)ds)->dash_scale);
     if ((hh == NULL))
       mp_confusion (mp, "dash1");
 @:this can't happen dash0}{\quad dash1@>;
@@ -11530,12 +11535,12 @@ while (mp_link (d) != (mp_node)mp->null_dash) {
     }
   }
 }
-
+free_number (hsf);
+}
 
 @ @<Other local variables in |make_dashes|@>=
 mp_dash_node dln;    /* |mp_link(d)| */
 mp_edge_header_node hh;     /* an edge header that tells how to break up |dln| */
-scaled hsf;     /* the dash pattern from |hh| gets scaled by this */
 mp_node ds;     /* the stroked node from which |hh| and |hsf| are derived */
 
 @ @<Replace |mp_link(d)| by a dashed version as determined by edge header...@>=
@@ -11546,11 +11551,11 @@ mp_node ds;     /* the stroked node from which |hh| and |hsf| are derived */
   dd = dash_list (hh);
   new_number (xoff);
   dashoff = mp_dash_offset (mp, (mp_dash_node)hh);
-  set_number_from_scaled(xoff, number_to_scaled(dln->start_x) - mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)) -
-                       mp_take_scaled (mp, hsf, number_to_scaled(dashoff)));
+  set_number_from_scaled(xoff, number_to_scaled(dln->start_x) - mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x)) -
+                       mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dashoff)));
   free_number (dashoff);
-  set_number_from_scaled(mp->null_dash->start_x, mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))
-                       + mp_take_scaled (mp, hsf, number_to_scaled (hh->dash_y) ));
+  set_number_from_scaled(mp->null_dash->start_x, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x ))
+                       + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled (hh->dash_y) ));
   number_clone(mp->null_dash->stop_x, mp->null_dash->start_x);
   @<Advance |dd| until finding the first dash that overlaps |dln| when
     offset by |xoff|@>;
@@ -11559,7 +11564,7 @@ mp_node ds;     /* the stroked node from which |hh| and |hsf| are derived */
     @<Insert a dash between |d| and |dln| for the overlap with the offset version
       of |dd|@>;
     dd = (mp_dash_node)mp_link (dd);
-    set_number_from_scaled(dln->start_x , number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)));
+    set_number_from_scaled(dln->start_x , number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x)));
   }
   free_number(xoff);
   mp_link (d) = mp_link (dln);
@@ -11573,7 +11578,7 @@ overlap possible.  It could be that the unoffset version of dash |dln| falls
 in the gap between |dd| and its predecessor.
 
 @<Advance |dd| until finding the first dash that overlaps |dln| when...@>=
-while (number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x)) < number_to_scaled(dln->start_x)) {
+while (number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->stop_x)) < number_to_scaled(dln->start_x)) {
   dd = (mp_dash_node)mp_link (dd);
 }
 
@@ -11581,24 +11586,24 @@ while (number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->st
 @ @<If |dd| has `fallen off the end', back up to the beginning and fix...@>=
 if (dd == mp->null_dash) {
   dd = dash_list (hh);
-  number_add_scaled(xoff, mp_take_scaled (mp, hsf, number_to_scaled(hh->dash_y)));
+  number_add_scaled(xoff, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(hh->dash_y)));
 }
 
 @ At this point we already know that |start_x(dln)<=xoff+take_scaled(hsf,stop_x(dd))|.
 
 @<Insert a dash between |d| and |dln| for the overlap with the offset...@>=
-if ((number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))) <= number_to_scaled(dln->stop_x)) {
+if ((number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x ))) <= number_to_scaled(dln->stop_x)) {
   mp_link (d) = (mp_node)mp_get_dash_node (mp);
   d = (mp_dash_node)mp_link (d);
   mp_link (d) = (mp_node)dln;
-  if (number_to_scaled(dln->start_x)  > (number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x ))))
+  if (number_to_scaled(dln->start_x)  > (number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x ))))
     number_clone(d->start_x , dln->start_x );
   else
-    set_number_from_scaled(d->start_x, number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->start_x)));
-  if (number_to_scaled(dln->stop_x ) < (number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x ))))
+    set_number_from_scaled(d->start_x, number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x)));
+  if (number_to_scaled(dln->stop_x ) < (number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->stop_x ))))
     number_clone(d->stop_x , dln->stop_x );
   else
-    set_number_from_scaled(d->stop_x , number_to_scaled(xoff) + mp_take_scaled (mp, hsf, number_to_scaled(dd->stop_x )));
+    set_number_from_scaled(d->stop_x , number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->stop_x )));
 }
 
 @ The next major task is to update the bounding box information in an edge
@@ -18760,9 +18765,9 @@ typedef struct mp_loop_data {
                    mem */
   mp_node list; /* the remaining list elements */
   mp_node list_start;   /* head fo the list of elements */
-  scaled value; /* current arithmetic value */
-  scaled step_size;     /* arithmetic step size */
-  scaled final_value;   /* end arithmetic value */
+  mp_number value; /* current arithmetic value */
+  mp_number step_size;     /* arithmetic step size */
+  mp_number final_value;   /* end arithmetic value */
   struct mp_loop_data *link;    /* the enclosing loop, if any */
 } mp_loop_data;
 
@@ -18818,6 +18823,9 @@ void mp_begin_iteration (MP mp) {
   s = xmalloc (1, sizeof (mp_loop_data));
   s->type = s->list = s->info = s->list_start = NULL;
   s->link = NULL;
+  new_number (s->value);
+  new_number (s->step_size);
+  new_number (s->final_value);
   if (m == start_forever) {
     s->type = MP_VOID;
     p = NULL;
@@ -18902,31 +18910,33 @@ void mp_resume_iteration (MP mp) {
   mp_node p, q; /* link registers */
   p = mp->loop_ptr->type;
   if (p == PROGRESSION_FLAG) {
-    set_cur_exp_value (mp->loop_ptr->value);
+    set_cur_exp_value (number_to_scaled (mp->loop_ptr->value));
     if (@<The arithmetic progression has ended@>) {
       mp_stop_iteration (mp);
       return;
     }
     mp->cur_exp.type = mp_known;
     q = mp_stash_cur_exp (mp);  /* make |q| an \&{expr} argument */
-    mp->loop_ptr->value = cur_exp_value () + mp->loop_ptr->step_size;   /*
-                                                                           set |value(p)| for the next iteration */
+    set_number_from_scaled (mp->loop_ptr->value, cur_exp_value () + number_to_scaled (mp->loop_ptr->step_size));   
+                                                                       /* set |value(p)| for the next iteration */
     /* detect numeric overflow */
-    if ((mp->loop_ptr->step_size > 0) &&
-        (mp->loop_ptr->value < cur_exp_value ())) {
-      if (mp->loop_ptr->final_value > 0) {
-        mp->loop_ptr->value = mp->loop_ptr->final_value;
-        mp->loop_ptr->final_value--;
+    if (number_positive(mp->loop_ptr->step_size) &&
+        (number_to_scaled(mp->loop_ptr->value) < cur_exp_value ())) {
+      if (number_positive(mp->loop_ptr->final_value)) {
+        number_clone (mp->loop_ptr->value, mp->loop_ptr->final_value);
+        number_add_scaled (mp->loop_ptr->final_value, -1);
       } else {
-        mp->loop_ptr->value = mp->loop_ptr->final_value + 1;
+        number_clone (mp->loop_ptr->value, mp->loop_ptr->final_value);
+        number_add_scaled (mp->loop_ptr->value, 1);
       }
-    } else if ((mp->loop_ptr->step_size < 0) &&
-               (mp->loop_ptr->value > cur_exp_value ())) {
-      if (mp->loop_ptr->final_value < 0) {
-        mp->loop_ptr->value = mp->loop_ptr->final_value;
-        mp->loop_ptr->final_value++;
+    } else if (number_negative(mp->loop_ptr->step_size) &&
+              (number_to_scaled (mp->loop_ptr->value) > cur_exp_value ())) {
+      if (number_negative (mp->loop_ptr->final_value)) {
+        number_clone (mp->loop_ptr->value, mp->loop_ptr->final_value);
+        number_add_scaled (mp->loop_ptr->final_value, 1);
       } else {
-        mp->loop_ptr->value = mp->loop_ptr->final_value - 1;
+        number_clone (mp->loop_ptr->value, mp->loop_ptr->final_value);
+        number_add_scaled (mp->loop_ptr->value, -1);
       }
     }
   } else if (p == NULL) {
@@ -18963,10 +18973,9 @@ NOT_FOUND:
 
 
 @ @<The arithmetic progression has ended@>=
-((mp->loop_ptr->step_size > 0)
- && (cur_exp_value () > mp->loop_ptr->final_value))
-  || ((mp->loop_ptr->step_size < 0)
-      && (cur_exp_value () < mp->loop_ptr->final_value))
+(number_positive(mp->loop_ptr->step_size) && (cur_exp_value () > number_to_scaled (mp->loop_ptr->final_value)))
+|| 
+(number_negative(mp->loop_ptr->step_size) && (cur_exp_value () < number_to_scaled (mp->loop_ptr->final_value)))
  
 
 @ @<Trace the start of a loop@>=
@@ -19032,6 +19041,9 @@ void mp_stop_iteration (MP mp) {
   tmp = mp->loop_ptr;
   mp->loop_ptr = tmp->link;
   mp_flush_token_list (mp, tmp->info);
+  free_number (tmp->value);
+  free_number (tmp->step_size);
+  free_number (tmp->final_value);
   xfree (tmp);
 }
 
@@ -19079,12 +19091,12 @@ CONTINUE:
 {
   if (mp->cur_exp.type != mp_known)
     mp_bad_for (mp, "initial value");
-  s->value = cur_exp_value ();
+  set_number_from_scaled (s->value, cur_exp_value ());
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_known)
     mp_bad_for (mp, "step size");
-  s->step_size = cur_exp_value ();
+  set_number_from_scaled (s->step_size, cur_exp_value ());
   if (cur_cmd() != mp_until_token) {
     const char *hlp[] = {
            "I assume you meant to say `until' after `step'.",
@@ -19097,7 +19109,7 @@ CONTINUE:
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_known)
     mp_bad_for (mp, "final value");
-  s->final_value = cur_exp_value ();
+  set_number_from_scaled (s->final_value, cur_exp_value ());
   s->type = PROGRESSION_FLAG;
   break;
 }
