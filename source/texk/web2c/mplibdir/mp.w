@@ -22223,12 +22223,12 @@ static void mp_scan_expression (MP mp) {
   int my_var_flag;      /* initial value of |var_flag| */
   mp_sym mac_name;      /* token defined with \&{tertiarydef} */
   boolean cycle_hit;    /* did a path expression just end with `\&{cycle}'? */
-  scaled x, y;  /* explicit coordinates or tension at a path join */
+  mp_number x, y;  /* explicit coordinates or tension at a path join */
   int t;        /* knot type following a path join */
   mp_value new_expr;
   t = 0;
-  y = 0;
-  x = 0;
+  new_number (y);
+  new_number (x);
   memset(&new_expr,0,sizeof(mp_value));
   new_number(new_expr.data.n);
   my_var_flag = mp->var_flag;
@@ -22275,6 +22275,8 @@ CONTINUE:
       }
     }
   mp->expand_depth_count--;
+  free_number (x);
+  free_number (y);
 }
 
 
@@ -22440,7 +22442,7 @@ if (cur_cmd() == mp_left_brace) {
   @<Put the post-join direction information into |x| and |t|@>;
 } else if (mp_right_type (path_q) != mp_explicit) {
   t = mp_open;
-  x = 0;
+  set_number_to_zero(x);
 }
 
 @ The |scan_direction| subroutine looks at the directional information
@@ -22600,7 +22602,7 @@ there are no explicit control points.
 {
   t = mp_scan_direction (mp);
   if (mp_right_type (path_q) != mp_explicit)
-    x = cur_exp_value ();
+    set_number_from_scaled (x, cur_exp_value ());
   else
     t = mp_explicit;            /* the direction information is superfluous */
 }
@@ -22615,7 +22617,7 @@ there are no explicit control points.
     @<Set explicit control points@>;
   } else {
     set_number_to_unity(path_q->right_tension);
-    y = unity;
+    set_number_to_unity(y);
     mp_back_input (mp);         /* default tension */
     goto DONE;
   };
@@ -22632,25 +22634,25 @@ DONE:
 @ @<Set explicit tensions@>=
 {
   mp_get_x_next (mp);
-  y = cur_cmd();
+  set_number_from_scaled (y, cur_cmd());
   if (cur_cmd() == mp_at_least)
     mp_get_x_next (mp);
   mp_scan_primary (mp);
   @<Make sure that the current expression is a valid tension setting@>;
-  if (y == mp_at_least)
+  if (number_to_scaled (y) == mp_at_least)
     negate (cur_exp_value ());
   set_number_from_scaled(path_q->right_tension, cur_exp_value ());
   if (cur_cmd() == mp_and_command) {
     mp_get_x_next (mp);
-    y = cur_cmd();
+    set_number_from_scaled (y, cur_cmd());
     if (cur_cmd() == mp_at_least)
       mp_get_x_next (mp);
     mp_scan_primary (mp);
     @<Make sure that the current expression is a valid tension setting@>;
-    if (y == mp_at_least)
+    if (number_to_scaled (y) == mp_at_least)
       negate (cur_exp_value ());
   }
-  y = cur_exp_value ();
+  set_number_from_scaled (y, cur_exp_value ());
 }
 
 
@@ -22677,14 +22679,14 @@ if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < min_tension)) {
   number_clone (path_q->right_x, mp->cur_x);
   number_clone (path_q->right_y, mp->cur_y);
   if (cur_cmd() != mp_and_command) {
-    x = number_to_scaled (path_q->right_x);
-    y = number_to_scaled (path_q->right_y);
+    number_clone (x, path_q->right_x);
+    number_clone (y, path_q->right_y);
   } else {
     mp_get_x_next (mp);
     mp_scan_primary (mp);
     mp_known_pair (mp);
-    x = number_to_scaled (mp->cur_x);
-    y = number_to_scaled (mp->cur_y);
+    number_clone (x, mp->cur_x);
+    number_clone (y, mp->cur_y);
   }
 }
 
@@ -22722,7 +22724,7 @@ shouldn't have length zero.
     if (path_p == path_q) {
       d = mp_path_join;
       set_number_to_unity(path_q->right_tension);
-      y = unity;
+      set_number_to_unity(y);
     }
 }
 
@@ -22741,8 +22743,8 @@ shouldn't have length zero.
 @.Paths don't touch@>;
       mp_get_x_next (mp);
       d = mp_path_join;
-      set_number_to_unity(path_q->right_tension);
-      y = unity;
+      set_number_to_unity (path_q->right_tension);
+      set_number_to_unity (y);
     }
   }
   @<Plug an opening in |mp_right_type(pp)|, if possible@>;
@@ -22751,9 +22753,9 @@ shouldn't have length zero.
   } else {
     @<Plug an opening in |mp_right_type(q)|, if possible@>;
     mp_next_knot (path_q) = pp;
-    set_number_from_scaled (pp->left_y, y);
+    number_clone (pp->left_y, y);
     if (t != mp_open) {
-      set_number_from_scaled (pp->left_x, x);
+      number_clone (pp->left_x, x);
       mp_left_type (pp) = (unsigned short) t;
     };
   }
@@ -22773,7 +22775,7 @@ if (mp_right_type (path_q) == mp_open) {
 if (mp_right_type (pp) == mp_open) {
   if ((t == mp_curl) || (t == mp_given)) {
     mp_right_type (pp) = (unsigned short) t;
-    set_number_from_scaled(pp->right_given, x);
+    number_clone (pp->right_given, x);
   }
 }
 
@@ -26261,13 +26263,17 @@ coordinates in locations |p| and~|q|.
 
 @<Declare binary action...@>=
 static void mp_number_trans (MP mp, mp_number p, mp_number q) {
-  scaled qq, pp;
-  pp = mp_take_scaled (mp, number_to_scaled(p), number_to_scaled(mp->txx)) +
-       mp_take_scaled (mp, number_to_scaled(q), number_to_scaled(mp->txy)) + number_to_scaled(mp->tx);
-  qq = mp_take_scaled (mp, number_to_scaled(p), number_to_scaled(mp->tyx)) +
-       mp_take_scaled (mp, number_to_scaled(q), number_to_scaled(mp->tyy)) + number_to_scaled(mp->ty);
-  set_number_from_scaled(p,pp); 
-  set_number_from_scaled(q,qq); 
+  mp_number pp, qq;
+  new_number (pp);
+  new_number (qq);
+  set_number_from_scaled(pp, mp_take_scaled (mp, number_to_scaled(p), number_to_scaled(mp->txx)) +
+       mp_take_scaled (mp, number_to_scaled(q), number_to_scaled(mp->txy)) + number_to_scaled(mp->tx));
+  set_number_from_scaled(qq, mp_take_scaled (mp, number_to_scaled(p), number_to_scaled(mp->tyx)) +
+       mp_take_scaled (mp, number_to_scaled(q), number_to_scaled(mp->tyy)) + number_to_scaled(mp->ty));
+  number_clone(p,pp); 
+  number_clone(q,qq); 
+  free_number (pp);
+  free_number (qq);
 }
 
 
@@ -26592,16 +26598,21 @@ replaces |p| by $p\cdot t+q\cdot u+\delta$.
 static void mp_bilin1 (MP mp, mp_node p, mp_number t, mp_node q,
                        mp_number u, mp_number delta_orig) {
   mp_number unity_t;
-  scaled delta;
+  mp_number delta;
   new_number (unity_t);
-  delta = number_to_scaled (delta_orig);
+  new_number (delta);
+  number_clone (delta, delta_orig);
   set_number_to_unity (unity_t);
   if (!number_equal(t, unity_t)) {
     mp_dep_mult (mp, (mp_value_node) p, t, true);
   }
   if (number_nonzero(u)) {
     if (mp_type (q) == mp_known) {
-      delta += mp_take_scaled (mp, value (q), number_to_scaled (u));
+      mp_number tmp;
+      new_number (tmp);
+      set_number_from_scaled (tmp, mp_take_scaled (mp, value (q), number_to_scaled (u)));
+      number_add (delta, tmp);
+      free_number (tmp);
     } else {
       /* Ensure that |type(p)=mp_proto_dependent| */
       if (mp_type (p) != mp_proto_dependent) {
@@ -26624,23 +26635,28 @@ static void mp_bilin1 (MP mp, mp_node p, mp_number t, mp_node q,
     }
   }
   if (mp_type (p) == mp_known) {
-    set_value (p, value (p) + delta);
+    set_value (p, value (p) + number_to_scaled (delta));
   } else {
+    mp_number tmp;
     mp_value_node r;    /* list traverser */
+    new_number (tmp);
     r = (mp_value_node) dep_list ((mp_value_node) p);
     while (dep_info (r) != NULL)
       r = (mp_value_node) mp_link (r);
-    delta += value (r);
+    set_number_from_scaled (tmp, value(r));
+    number_add (delta, tmp);
     if (r != (mp_value_node) dep_list ((mp_value_node) p))
-      set_value (r, delta);
+      set_value (r, number_to_scaled (delta));
     else {
       mp_recycle_value (mp, p);
       mp_type (p) = mp_known;
-      set_value (p, delta);
+      set_value (p, number_to_scaled (delta));
     }
+    free_number (tmp);
   }
   if (mp->fix_needed)
     mp_fix_dependencies (mp);
+  free_number (delta);
 }
 
 
@@ -26758,19 +26774,25 @@ static void mp_bilin2 (MP mp, mp_node p, mp_node t, mp_number v,
 @<Declare subroutines needed by |big_trans|@>=
 static void mp_bilin3 (MP mp, mp_node p, mp_number t,
                        mp_number v, mp_number u, mp_number delta_orig) {
-  scaled delta;
+  mp_number delta;
+  mp_number tmp;
   mp_number unity_t;
-  delta = number_to_scaled (delta_orig);
+  new_number (tmp);
+  new_number (delta);
+  number_clone (delta, delta_orig);
   new_number (unity_t);
   set_number_to_unity (unity_t);
-  if (!number_equal(t, unity_t))
-    delta += mp_take_scaled (mp, value (p), number_to_scaled (t));
+  if (!number_equal(t, unity_t)) 
+    set_number_from_scaled (tmp, mp_take_scaled (mp, value (p), number_to_scaled (t)));
   else
-    delta += value (p);
+    set_number_from_scaled (tmp, value (p));
+  number_add (delta, tmp);
   if (number_nonzero(u))
-    set_value (p, delta + mp_take_scaled (mp, number_to_scaled (v), number_to_scaled (u)));
+    set_value (p, number_to_scaled (delta) + mp_take_scaled (mp, number_to_scaled (v), number_to_scaled (u)));
   else
-    set_value (p, delta);
+    set_value (p, number_to_scaled (delta));
+  free_number (tmp);
+  free_number (delta);
   free_number (unity_t);
 }
 
@@ -26808,28 +26830,31 @@ break;
 static void mp_chop_path (MP mp, mp_node p) {
   mp_knot q;    /* a knot in the original path */
   mp_knot pp, qq, rr, ss;       /* link variables for copies of path nodes */
-  scaled a, b, k;    /* indices for chopping */
+  mp_number a, b;    /* indices for chopping */
   mp_number l;
+  mp_number unity_t;
   boolean reversed;     /* was |a>b|? */
+  new_number (unity_t);
+  new_number (a);
+  new_number (b);
   l = mp_path_length (mp);
-  a = value (x_part (p));
-  b = value (y_part (p));
-  if (a <= b) {
+  set_number_to_unity (unity_t);
+  set_number_from_scaled (a, value (x_part (p)));
+  set_number_from_scaled (b, value (y_part (p)));
+  if (number_lessequal(a, b)) {
     reversed = false;
   } else {
     reversed = true;
-    k = a;
-    a = b;
-    b = k;
+    number_swap (a, b);
   }
   @<Dispense with the cases |a<0| and/or |b>l|@>;
   q = cur_exp_knot ();
-  while (a >= unity) {
+  while (number_greaterequal(a, unity_t)) {
     q = mp_next_knot (q);
-    a = a - unity;
-    b = b - unity;
+    number_substract(a, unity_t);
+    number_substract(b, unity_t);
   }
-  if (b == a) {
+  if (number_equal(b, a)) {
     @<Construct a path from |pp| to |qq| of length zero@>;
   } else {
     @<Construct a path from |pp| to |qq| of length $\lceil b\rceil$@>;
@@ -26844,32 +26869,35 @@ static void mp_chop_path (MP mp, mp_node p) {
   } else {
     set_cur_exp_knot (pp);
   }
+  free_number (unity_t);
   free_number (l);
+  free_number (a);
+  free_number (b);
 }
 
 
 @ @<Dispense with the cases |a<0| and/or |b>l|@>=
-if (a < 0) {
+if (number_negative(a)) {
   if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
-    a = 0;
-    if (b < 0)
-      b = 0;
+    set_number_to_zero(a);
+    if (number_negative(b))
+      set_number_to_zero(b);
   } else {
     do {
-      a = a + number_to_scaled(l);
-      b = b + number_to_scaled(l);
-    } while (a < 0);            /* a cycle always has length |l>0| */
+      number_add (a, l);
+      number_add (b, l);
+    } while (number_negative(a));            /* a cycle always has length |l>0| */
   }
 }
-if (b > number_to_scaled(l)) {
+if (number_greater (b, l)) {
   if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
-    b = number_to_scaled(l);
-    if (a > number_to_scaled(l))
-      a = number_to_scaled(l);
+    number_clone (b, l);
+    if (number_greater (a, l))
+      number_clone(a, l);
   } else {
-    while (a >= number_to_scaled(l)) {
-      a = a - number_to_scaled(l);
-      b = b - number_to_scaled(l);
+    while (number_greaterequal (a, l)) {
+      number_substract (a, l);
+      number_substract (b, l);
     }
   }
 }
@@ -26883,27 +26911,27 @@ if (b > number_to_scaled(l)) {
     rr = qq;
     qq = mp_copy_knot (mp, q);
     mp_next_knot (rr) = qq;
-    b = b - unity;
-  } while (b > 0);
-  if (a > 0) {
+    number_substract (b, unity_t);
+  } while (number_positive (b));
+  if (number_positive (a)) {
     mp_number arg1;
     new_number (arg1);
     ss = pp;
     pp = mp_next_knot (pp);
-    set_number_from_scaled (arg1, a * 010000);
+    set_number_from_scaled (arg1, number_to_scaled (a) * 010000);
     mp_split_cubic (mp, ss, arg1);
     free_number (arg1);
     pp = mp_next_knot (ss);
     mp_xfree (ss);
     if (rr == ss) {
-      b = mp_make_scaled (mp, b, unity - a);
+      set_number_from_scaled (b, mp_make_scaled (mp, number_to_scaled (b), unity - number_to_scaled (a)));
       rr = pp;
     }
   }
-  if (b < 0) {
+  if (number_negative (b)) {
     mp_number arg1;
     new_number (arg1);
-    set_number_from_scaled (arg1, (b + unity) * 010000);
+    set_number_from_scaled (arg1, (number_to_scaled (b) + unity) * 010000);
     mp_split_cubic (mp, rr, arg1);
     free_number (arg1);
     mp_xfree (qq);
@@ -26914,10 +26942,10 @@ if (b > number_to_scaled(l)) {
 
 @ @<Construct a path from |pp| to |qq| of length zero@>=
 {
-  if (a > 0) {
+  if (number_positive (a)) {
     mp_number arg1;
     new_number (arg1);
-    set_number_from_scaled (arg1, a * 010000);
+    set_number_from_scaled (arg1, number_to_scaled (a) * 010000);
     mp_split_cubic (mp, q, arg1);
     free_number (arg1);
     q = mp_next_knot (q);
@@ -27053,42 +27081,50 @@ static void mp_set_up_glyph_infont (MP mp, mp_node p) {
 @ @<Declare binary action...@>=
 static void mp_find_point (MP mp, mp_number v_orig, quarterword c) {
   mp_knot p;    /* the path */
-  scaled n;     /* its length */
+  mp_number n;     /* its length */
   mp_number v;
+  mp_number unity_t;
+  new_number (unity_t);
   new_number (v);
+  new_number (n);
+  set_number_to_unity (unity_t);
   number_clone (v, v_orig);
   p = cur_exp_knot ();
-  if (mp_left_type (p) == mp_endpoint)
-    n = -unity;
-  else
-    n = 0;
+  if (mp_left_type (p) == mp_endpoint) {
+    set_number_to_unity (n);
+    number_negate (n);
+  } else {
+    set_number_to_zero (n);
+  }
   do {
     p = mp_next_knot (p);
-    n = n + unity;
+    number_add (n, unity_t);
   } while (p != cur_exp_knot ());
-  if (n == 0) {
+  if (number_zero (n)) {
     set_number_to_zero(v);
   } else if (number_negative(v)) {
     if (mp_left_type (p) == mp_endpoint)
       set_number_to_zero(v);
     else
-      set_number_from_scaled (v, n - 1 - ((-number_to_scaled(v) - 1) % n));
-  } else if (number_to_scaled(v) > n) {
+      set_number_from_scaled (v, number_to_scaled (n) - 1 - ((-number_to_scaled(v) - 1) % number_to_scaled (n)));
+  } else if (number_greater(v, n)) {
     if (mp_left_type (p) == mp_endpoint)
-      set_number_from_scaled (v, n);
+      number_clone (v, n);
     else
-      set_number_from_scaled (v, number_to_scaled(v) % n);
+      set_number_from_scaled (v, number_to_scaled(v) % number_to_scaled (n));
   }
   p = cur_exp_knot ();
-  while (number_to_scaled(v) >= unity) {
+  while (number_greaterequal(v, unity_t)) {
     p = mp_next_knot (p);
-    set_number_from_scaled (v, number_to_scaled(v) - unity);
+    number_substract (v, unity_t);
   }
   if (number_nonzero(v)) {
     @<Insert a fractional node by splitting the cubic@>;
   }
   @<Set the current expression to the desired path coordinates@>;
   free_number (v);
+  free_number (n);
+  free_number (unity_t);
 }
 
 
@@ -30674,11 +30710,11 @@ int header_last;        /* last initialized \.{TFM} header byte */
 int header_size;        /* size of the \.{TFM} header */
 four_quarters *lig_kern;        /* the ligature/kern table */
 short nl;       /* the number of ligature/kern steps so far */
-scaled *kern;   /* distinct kerning amounts */
+mp_number *kern;   /* distinct kerning amounts */
 short nk;       /* the number of distinct kerns so far */
 four_quarters exten[TFM_ITEMS]; /* extensible character recipes */
 short ne;       /* the number of extensible characters so far */
-scaled *param;  /* \&{fontinfo} parameters */
+mp_number *param;  /* \&{fontinfo} parameters */
 short np;       /* the largest \&{fontinfo} parameter specified so far */
 short nw;
 short nh;
@@ -30702,8 +30738,20 @@ mp->header_byte = xmalloc (mp->header_size, sizeof (char));
 @ @<Dealloc variables@>=
 xfree (mp->header_byte);
 xfree (mp->lig_kern);
-xfree (mp->kern);
-xfree (mp->param);
+if (mp->kern) {
+  int i;
+  for (i=0;i<(max_tfm_int + 1);i++) {
+    free_number(mp->kern[i]);
+  }
+  xfree (mp->kern);
+}
+if (mp->param) {
+  int i;
+  for (i=0;i<(max_tfm_int + 1);i++) {
+    free_number(mp->param[i]);
+  }
+  xfree (mp->param);
+}
 
 @ @<Set init...@>=
 for (k = 0; k <= 255; k++) {
@@ -30928,8 +30976,12 @@ void mp_do_tfm_command (MP mp) {
   case lig_table_code:
     if (mp->lig_kern == NULL)
       mp->lig_kern = xmalloc ((max_tfm_int + 1), sizeof (four_quarters));
-    if (mp->kern == NULL)
-      mp->kern = xmalloc ((max_tfm_int + 1), sizeof (scaled));
+    if (mp->kern == NULL) {
+      int i;
+      mp->kern = xmalloc ((max_tfm_int + 1), sizeof (mp_number));
+      for (i=0;i<(max_tfm_int + 1);i++)
+         new_number (mp->kern[i]);
+    }
     @<Store a list of ligature/kern steps@>;
     break;
   case extensible_code:
@@ -30961,8 +31013,12 @@ void mp_do_tfm_command (MP mp) {
       if (c == header_byte_code) {
         @<Store a list of header bytes@>;
       } else {
-        if (mp->param == NULL)
-          mp->param = xmalloc ((max_tfm_int + 1), sizeof (scaled));
+        if (mp->param == NULL) {
+          int i;
+          mp->param = xmalloc ((max_tfm_int + 1), sizeof (mp_number));
+          for (i=0;i<(max_tfm_int + 1);i++)
+             new_number (mp->param[i]);
+        }
         @<Store a list of font dimensions@>;
       }
     }
@@ -31147,9 +31203,9 @@ We may need to cancel skips that span more than 127 lig/kern steps.
       mp_get_x_next (mp);
       mp_flush_cur_exp (mp, new_expr);
     }
-    mp->kern[mp->nk] = cur_exp_value ();
+    set_number_from_scaled (mp->kern[mp->nk], cur_exp_value ());
     k = 0;
-    while (mp->kern[k] != cur_exp_value ())
+    while (number_to_scaled (mp->kern[k]) != cur_exp_value ())
       incr (k);
     if (k == mp->nk) {
       if (mp->nk == max_tfm_int)
@@ -31219,7 +31275,7 @@ do {
     mp_fatal_error (mp, "too many fontdimens");
   while (j > mp->np) {
     mp->np++;
-    mp->param[mp->np] = 0;
+    set_number_to_zero(mp->param[mp->np]);
   };
   mp_get_x_next (mp);
   mp_scan_expression (mp);
@@ -31232,7 +31288,7 @@ do {
     mp_get_x_next (mp);
     mp_flush_cur_exp (mp, new_expr);
   }
-  mp->param[j] = cur_exp_value ();
+  set_number_from_scaled (mp->param[j], cur_exp_value ());
   incr (j);
 } while (cur_cmd() == mp_comma)
 
@@ -31308,27 +31364,35 @@ adjacent values.
 @c
 static integer mp_min_cover (MP mp, mp_number d) {
   mp_node p;    /* runs through the current list */
-  scaled l;     /* the least element covered by the current interval */
+  mp_number l;     /* the least element covered by the current interval */
   integer m;    /* lower bound on the size of the minimum cover */
   m = 0;
+  new_number  (l);
   p = mp_link (mp->temp_head);
-  mp->perturbation = EL_GORDO;
+  set_number_to_inf(mp->perturbation);
   while (p != mp->inf_val) {
     incr (m);
-    l = value (p);
+    set_number_from_scaled (l, value (p));
     do {
       p = mp_link (p);
-    } while (value (p) <= l + number_to_scaled (d));
-    if (value (p) - l < mp->perturbation)
-      mp->perturbation = value (p) - l;
+    } while (value (p) <= number_to_scaled (l) + number_to_scaled (d));
+    if (value (p) - number_to_scaled (l) < number_to_scaled (mp->perturbation))
+      set_number_from_scaled (mp->perturbation, value (p) - number_to_scaled (l));
   }
+  free_number  (l);
   return m;
 }
 
 
 @ @<Glob...@>=
-scaled perturbation;    /* quantity related to \.{TFM} rounding */
+mp_number perturbation;    /* quantity related to \.{TFM} rounding */
 integer excess; /* the list is this much too long */
+
+@ @<Initialize table...@>=
+new_number (mp->perturbation);
+
+@ @<Dealloc...@>=
+free_number (mp->perturbation);
 
 @ The smallest |d| such that a given list can be covered with |m| intervals
 is determined by the |threshold| routine, which is sort of an inverse
@@ -31348,11 +31412,11 @@ static mp_number mp_threshold (MP mp, integer m) {
     number_clone (ret, zero_t);
   } else {
     do {
-      set_number_from_scaled (d, mp->perturbation);
+      number_clone (d, mp->perturbation);
       set_number_from_addition(arg1, d, d);
     } while (mp_min_cover (mp, arg1) > m);
     while (mp_min_cover (mp, d) > m) {
-      set_number_from_scaled (d, mp->perturbation);
+      number_clone (d, mp->perturbation);
     }
     number_clone (ret, d);
   }
@@ -31374,24 +31438,28 @@ value of |skimp|.
 static integer mp_skimp (MP mp, integer m) {
   mp_number d;     /* the size of intervals being coalesced */
   mp_node p, q, r;      /* list manipulation registers */
-  scaled l;     /* the least value in the current interval */
-  scaled v;     /* a compromise value */
+  mp_number l;     /* the least value in the current interval */
+  mp_number v;     /* a compromise value */
   d = mp_threshold (mp, m);
-  mp->perturbation = 0;
+  new_number (l);
+  new_number (v);
+  set_number_to_zero (mp->perturbation);
   q = mp->temp_head;
   m = 0;
   p = mp_link (mp->temp_head);
   while (p != mp->inf_val) {
     incr (m);
-    l = value (p);
+    set_number_from_scaled (l, value (p));
     set_mp_info (p, m);
-    if (value (mp_link (p)) <= l + number_to_scaled (d)) {
+    if (value (mp_link (p)) <= number_to_scaled (l) + number_to_scaled (d)) {
       @<Replace an interval of values by its midpoint@>;
     }
     q = p;
     p = mp_link (p);
   }
   free_number (d);
+  free_number (l);
+  free_number (v);
   return m;
 }
 
@@ -31404,14 +31472,14 @@ static integer mp_skimp (MP mp, integer m) {
     decr (mp->excess);
     if (mp->excess == 0)
       set_number_to_zero (d);
-  } while (value (mp_link (p)) <= l + number_to_scaled (d));
-  v = l + halfp (value (p) - l);
-  if (value (p) - v > mp->perturbation)
-    mp->perturbation = value (p) - v;
+  } while (value (mp_link (p)) <= number_to_scaled (l) + number_to_scaled (d));
+  set_number_from_scaled (v, number_to_scaled (l) + halfp (value (p) - number_to_scaled (l)));
+  if (value (p) - number_to_scaled (v) > number_to_scaled (mp->perturbation))
+    set_number_from_scaled (mp->perturbation, value (p) - number_to_scaled (v));
   r = q;
   do {
     r = mp_link (r);
-    set_value (r, v);
+    set_value (r, number_to_scaled (v));
   } while (r != p);
   mp_link (q) = p;              /* remove duplicate values from the current list */
 }
@@ -31429,7 +31497,7 @@ static void mp_tfm_warning (MP mp, quarterword m) {
 @.some charhts...@>
 @.some charics...@>;
   mp_print (mp, " values had to be adjusted by as much as ");
-  mp_print_scaled (mp, mp->perturbation);
+  mp_print_number (mp, mp->perturbation);
   mp_print (mp, "pt)");
 }
 
@@ -31451,7 +31519,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
 }
 mp->nw = (short) (mp_skimp (mp, 255) + 1);
 mp->dimen_head[1] = mp_link (mp->temp_head);
-if (mp->perturbation >= 010000)
+if (number_to_scaled (mp->perturbation) >= 010000)
   mp_tfm_warning (mp, mp_char_wd)
    
 
@@ -31474,7 +31542,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
 }
 mp->nh = (short) (mp_skimp (mp, 15) + 1);
 mp->dimen_head[2] = mp_link (mp->temp_head);
-if (mp->perturbation >= 010000)
+if (number_to_scaled (mp->perturbation) >= 010000)
   mp_tfm_warning (mp, mp_char_ht);
 clear_the_list;
 for (k = mp->bc; k <= mp->ec; k++) {
@@ -31487,7 +31555,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
 }
 mp->nd = (short) (mp_skimp (mp, 15) + 1);
 mp->dimen_head[3] = mp_link (mp->temp_head);
-if (mp->perturbation >= 010000)
+if (number_to_scaled (mp->perturbation) >= 010000)
   mp_tfm_warning (mp, mp_char_dp);
 clear_the_list;
 for (k = mp->bc; k <= mp->ec; k++) {
@@ -31500,7 +31568,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
 }
 mp->ni = (short) (mp_skimp (mp, 63) + 1);
 mp->dimen_head[4] = mp_link (mp->temp_head);
-if (mp->perturbation >= 010000)
+if (number_to_scaled (mp->perturbation) >= 010000)
   mp_tfm_warning (mp, mp_char_ic)
    
 
@@ -31527,27 +31595,29 @@ $$\hbox{|make_scaled(16*max_tfm_dimen,internal_value_to_halfword(mp_design_size)
 
 @c
 static void mp_fix_design_size (MP mp) {
-  scaled d;     /* the design size */
-  d = internal_value_to_halfword (mp_design_size);
-  if ((d < unity) || (d >= fraction_half)) {
-    if (d != 0)
+  mp_number d;     /* the design size */
+  new_number (d);
+  set_number_from_scaled (d, internal_value_to_halfword (mp_design_size));
+  if ((number_to_scaled (d) < unity) || (number_to_scaled (d) >= fraction_half)) {
+    if (!number_zero (d))
       mp_print_nl (mp, "(illegal design size has been changed to 128pt)");
 @.illegal design size...@>;
-    d = 040000000;
-    set_internal_from_scaled_int (mp_design_size, d);
+    set_number_from_scaled (d, 040000000);
+    set_internal_from_scaled_int (mp_design_size, number_to_scaled (d));
   }
   if (mp->header_byte[4] == 0 && mp->header_byte[5] == 0 &&
       mp->header_byte[6] == 0 && mp->header_byte[7] == 0) {
-    mp->header_byte[4] = (char) (d / 04000000);
-    mp->header_byte[5] = (char) ((d / 4096) % 256);
-    mp->header_byte[6] = (char) ((d / 16) % 256);
-    mp->header_byte[7] = (char) ((d % 16) * 16);
+    mp->header_byte[4] = (char) (number_to_scaled (d) / 04000000);
+    mp->header_byte[5] = (char) ((number_to_scaled (d) / 4096) % 256);
+    mp->header_byte[6] = (char) ((number_to_scaled (d) / 16) % 256);
+    mp->header_byte[7] = (char) ((number_to_scaled (d) % 16) * 16);
   }
   set_number_from_scaled (mp->max_tfm_dimen,
     16 * internal_value_to_halfword (mp_design_size) - 1 -
     internal_value_to_halfword (mp_design_size) / 010000000);
   if (number_to_scaled (mp->max_tfm_dimen) >= fraction_half)
     set_number_from_scaled (mp->max_tfm_dimen, fraction_half - 1);
+  free_number (d);
 }
 
 
@@ -31828,7 +31898,7 @@ for (k = 0; k < mp->nl; k++)
   mp_number arg;
   new_number (arg);
   for (k = 0; k < mp->nk; k++) {
-    set_number_from_scaled (arg, mp->kern[k]);
+    number_clone (arg, mp->kern[k]);
     mp_tfm_four (mp, mp_dimen_out (mp, arg));
   }
   free_number (arg);
@@ -31842,17 +31912,17 @@ mp_number arg;
 new_number (arg);
 for (k = 1; k <= mp->np; k++) {
   if (k == 1) {
-    if (abs (mp->param[1]) < fraction_half) {
-      mp_tfm_four (mp, mp->param[1] * 16);
+    if (abs (number_to_scaled (mp->param[1])) < fraction_half) {
+      mp_tfm_four (mp, number_to_scaled (mp->param[1]) * 16);
     } else {
       incr (mp->tfm_changed);
-      if (mp->param[1] > 0)
+      if (number_positive(mp->param[1]))
         mp_tfm_four (mp, max_integer);
       else
         mp_tfm_four (mp, -max_integer);
     }
   } else {
-    set_number_from_scaled (arg, mp->param[k]);
+    number_clone (arg, mp->param[k]);
     mp_tfm_four (mp, mp_dimen_out (mp, arg));
   }
 }
