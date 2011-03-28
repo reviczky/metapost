@@ -5234,8 +5234,8 @@ structure is not worth the minimal extra code clarification.
 typedef struct mp_value_node_data {
   NODE_BODY;
   mp_value_data data;
-  union {
-    scaled subscript_;
+  struct {
+    mp_number subscript_;
     mp_sym hashloc_;
   } v;
   mp_node parent_;
@@ -5268,13 +5268,14 @@ became messy: lots of typecasts. So, it returns a simple
 
 @c
 static mp_node mp_get_value_node (MP mp) {
-  mp_node p = xmalloc (1, value_node_size);
+  mp_value_node p = xmalloc (1, value_node_size);
   add_var_used (value_node_size);
   memset (p, 0, value_node_size);
   mp_type (p) = mp_value_node_type;
   new_number(p->data.n);
+  new_number(p->v.subscript_);
   FUNCTION_TRACE2 ("%p = mp_get_value_node()\n", p);
-  return p;
+  return (mp_node)p;
 }
 
 
@@ -5745,7 +5746,7 @@ void mp_print_variable_name (MP mp, mp_node p) {
   if (mp_name_type (p) == mp_subscr) {
     mp_number arg1;
     new_number (arg1);
-    set_number_from_scaled (arg1, subscript (p));
+    number_clone (arg1, subscript (p));
     r = mp_new_num_tok (mp, arg1);
     free_number (arg1);
     do {
@@ -6032,7 +6033,6 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
   mp_node p, q, r, s;   /* nodes in the ``value'' line */
   mp_sym p_sym;
   mp_node pp, qq, rr, ss;       /* nodes in the ``collective'' line */
-  integer n;    /* subscript or attribute */
 @^inner loop@>;
   p_sym = mp_sym_sym (t);
   t = mp_link (t);
@@ -6099,19 +6099,22 @@ subscript list, even though that word isn't part of a subscript node.
 
 @<Descend one level for the subscript |value(t)|@>=
 {
-  halfword save_subscript;      /* temporary storage */
-  n = value (t);
+  mp_number nn;
+  mp_number save_subscript;      /* temporary storage */
+  new_number (nn);
+  set_number_from_scaled (nn, value (t));
   pp = mp_link (attr_head (pp));        /* now |hashloc(pp)=collective_subscript| */
   q = mp_link (attr_head (p));
-  save_subscript = subscript (q);
-  subscript (q) = EL_GORDO;
+  new_number (save_subscript);
+  number_clone (save_subscript, subscript (q));
+  set_number_to_inf(subscript (q));
   s = mp->temp_head;
   set_mp_link (s, subscr_head (p));
   do {
     r = s;
     s = mp_link (s);
-  } while (n > subscript (s));
-  if (n == subscript (s)) {
+  } while (number_greater (nn ,subscript (s)));
+  if (number_equal(nn, subscript (s))) {
     p = s;
   } else {
     mp_value_node pp = mp_get_subscr_node (mp);
@@ -6120,12 +6123,14 @@ subscript list, even though that word isn't part of a subscript node.
     else
       set_mp_link (r, (mp_node) pp);
     set_mp_link (pp, s);
-    subscript (pp) = n;
+    number_clone (subscript (pp), nn);
     mp_name_type (pp) = mp_subscr;
     mp_type (pp) = undefined;
     p = (mp_node) pp;
   }
-  subscript (q) = save_subscript;
+  number_clone (subscript (q), save_subscript);
+  free_number (save_subscript);
+  free_number (nn);
 }
 
 
