@@ -4574,7 +4574,7 @@ static font_number mp_print_font_comments (MP mp , mp_edge_object *h, int prolog
   int ff; /* a loop counter */
   boolean done_fonts; /* have we finished listing the fonts in the header? */
   font_number f; /* a font number for loops */
-  scaled ds; /* design size and scale factor for a text node */
+  int ds; /* design size and scale factor for a text node, scaled */
   int ldf=0; /* the last \.{DocumentFont} listed (otherwise |null_font|) */
   cur_fsize = mp_xmalloc(mp,(size_t)(mp->font_max+1),sizeof(mp_node));
   if ( prologues>0 ) {
@@ -4913,7 +4913,7 @@ static void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues);
 
 @ @c
 void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues) {
-  scaled t;
+  int t; /* scaled */
   char *s;   
   mp_ps_print(mp, "%!PS");
   if ( prologues>0 ) 
@@ -5970,10 +5970,10 @@ quarterword mp_size_index (MP mp, font_number f, double s) {
 }
 
 @ @<Declarations@>=
-static scaled mp_indexed_size (MP mp,font_number f, quarterword j);
+static int mp_indexed_size (MP mp,font_number f, quarterword j);
 
 @ @c
-scaled mp_indexed_size (MP mp,font_number f, quarterword j) {
+int mp_indexed_size (MP mp,font_number f, quarterword j) { /* return scaled */
   mp_node p; /* a font size node */
   int i; /* the size index for |p| */
   p=mp->font_sizes[f];
@@ -6011,7 +6011,7 @@ position in the size list for its font.
 @<Types...@>=
 typedef struct mp_font_size_node_data {
   NODE_BODY;
-  scaled sc_factor_;
+  int sc_factor_; /* scaled */
 } mp_font_size_node_data;
 typedef struct mp_font_size_node_data* mp_font_size_node;
 
