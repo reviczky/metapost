@@ -11301,9 +11301,9 @@ static mp_edge_header_node mp_make_dashes (MP mp, mp_edge_header_node h) { /* re
   mp_node p0;   /* if not |NULL| this points to the first stroked node */
   mp_knot pp, qq, rr;   /* pointers into |mp_path_p(p)| */
   mp_dash_node d, dd;        /* pointers used to create the dash list */
-  scaled y0;
+  mp_number y0;
   @<Other local variables in |make_dashes|@>;
-  y0 = 0;                       /* the initial $y$ coordinate */
+  new_number (y0);                       /* the initial $y$ coordinate */
   if (dash_list (h) != mp->null_dash)
     return h;
   p0 = NULL;
@@ -11316,7 +11316,7 @@ static mp_edge_header_node mp_make_dashes (MP mp, mp_edge_header_node h) { /* re
     pp = mp_path_p ((mp_stroked_node) p);
     if (p0 == NULL) {
       p0 = p;
-      y0 = number_to_scaled (pp->y_coord);
+      number_clone(y0, pp->y_coord);
     }
     @<Make |d| point to a new dash node created from stroke |p| and path |pp|
       or |goto not_found| if there is an error@>;
@@ -11327,8 +11327,10 @@ static mp_edge_header_node mp_make_dashes (MP mp, mp_edge_header_node h) { /* re
     goto NOT_FOUND;             /* No error message */
   @<Scan |dash_list(h)| and deal with any dashes that are themselves dashed@>;
   @<Set |dash_y(h)| and merge the first and last dashes if necessary@>;
+  free_number (y0);
   return h;
 NOT_FOUND:
+  free_number (y0);
   @<Flush the dash list, recycle |h| and return |NULL|@>;
 }
 
@@ -11411,7 +11413,8 @@ monotone in $x$ but is reversed relative to the path from |pp| to |qq|.
   if (number_greater(x0, x1) || number_greater(x1, x2) || number_greater(x2, x3)) {
     if (number_less(x0, x1) || number_less(x1, x2) || number_less(x2, x3)) {
       mp_number a1, a2, a3, a4;
-      scaled test;
+      mp_number test;
+      new_number(test);
       new_number(a1);
       new_number(a2);
       new_number(a3);
@@ -11420,19 +11423,21 @@ monotone in $x$ but is reversed relative to the path from |pp| to |qq|.
       set_number_from_substraction(a2, x2, x1);
       set_number_from_substraction(a3, x1, x0);
       set_number_from_substraction(a4, x3, x2);
-      test = mp_ab_vs_cd (mp, a1, a2, a3, a4);
+      set_number_from_scaled (test, mp_ab_vs_cd (mp, a1, a2, a3, a4));
       free_number(a1);
       free_number(a2);
       free_number(a3);
       free_number(a4);
-      if (test > 0) {
+      if (number_positive(test)) {
         mp_x_retrace_error (mp);
         free_number(x0);
         free_number(x1);
         free_number(x2);
         free_number(x3);
+        free_number(test);
         goto NOT_FOUND;
       }
+      free_number(test);
     }
   }
   if (number_greater(pp->x_coord, x0) || number_greater(x0, x3)) {
@@ -11487,8 +11492,9 @@ while ((mp_link (d) != (mp_node)mp->null_dash))
   d = (mp_dash_node)mp_link (d);
 dd = dash_list (h);
 set_number_from_scaled(h->dash_y, number_to_scaled(d->stop_x) - number_to_scaled(dd->start_x));
-if (abs (y0) > number_to_scaled(h->dash_y) ) {
-set_number_from_scaled(h->dash_y ,abs (y0));
+if (abs (number_to_scaled (y0)) > number_to_scaled(h->dash_y) ) {
+  number_clone(h->dash_y, y0);
+  number_abs (h->dash_y);
 } else if (d != dd) {
   set_dash_list (h, mp_link (dd));
   set_number_from_scaled(d->stop_x, number_to_scaled(dd->stop_x) + number_to_scaled(h->dash_y));
@@ -12974,6 +12980,8 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
   mp_fraction dxin, dyin, dxout, dyout;      /* directions at |q| when square or mitered */
   int join_type = 0;    /* codes |0..3| for mitered, round, beveled, or square */
   @<Other local variables for |make_envelope|@>;
+  new_number (max_ht);
+  new_number (tmp);
   new_fraction(dxin);
   new_fraction(dyin);
   new_fraction(dxout);
@@ -13016,6 +13024,8 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
     }
     p = q;
   } while (q0 != c);
+  free_number (max_ht);
+  free_number (tmp);
   free_number (qx);
   free_number (qy);
   free_number (dxin);
@@ -13062,17 +13072,17 @@ if (k < zero_off) {
 
 @ @<If |miterlim| is less than the secant of half the angle at |q|...@>=
 {
-  tmp = mp_take_fraction (mp, number_to_scaled(miterlim), fraction_half +
+  set_number_from_scaled(tmp, mp_take_fraction (mp, number_to_scaled(miterlim), fraction_half +
                           half (mp_take_fraction (mp, number_to_scaled(dxin), number_to_scaled(dxout)) +
-                                mp_take_fraction (mp, number_to_scaled(dyin), number_to_scaled(dyout))));
-  if (tmp < unity)
-    if (mp_take_scaled (mp, number_to_scaled(miterlim), tmp) < unity)
+                                mp_take_fraction (mp, number_to_scaled(dyin), number_to_scaled(dyout)))));
+  if (number_to_scaled(tmp) < unity)
+    if (mp_take_scaled (mp, number_to_scaled(miterlim), number_to_scaled(tmp)) < unity)
       join_type = 2;
 }
 
 
 @ @<Other local variables for |make_envelope|@>=
-scaled tmp;     /* a temporary value */
+mp_number tmp;     /* a temporary value */
 
 @ The coordinates of |p| have already been shifted unless |p| is the first
 knot in which case they get shifted at the very end.
@@ -13164,12 +13174,12 @@ problems, so we just set |r:=NULL| in that case.
     new_number(xsub);
     new_number(ysub);
 
-    tmp = mp_take_fraction (mp, number_to_scaled (q->x_coord) - number_to_scaled (p->x_coord), number_to_scaled(dyout)) -
-      mp_take_fraction (mp, number_to_scaled (q->y_coord) - number_to_scaled (p->y_coord), number_to_scaled(dxout));
-    tmp = mp_make_fraction (mp, tmp, number_to_scaled(det));
+    set_number_from_scaled (tmp, mp_take_fraction (mp, number_to_scaled (q->x_coord) - number_to_scaled (p->x_coord), number_to_scaled(dyout)) -
+      mp_take_fraction (mp, number_to_scaled (q->y_coord) - number_to_scaled (p->y_coord), number_to_scaled(dxout)));
+    set_number_from_scaled (tmp, mp_make_fraction (mp, number_to_scaled(tmp), number_to_scaled(det)));
     
-    set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, number_to_scaled(dxin)));
-    set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, number_to_scaled(dyin)));
+    set_number_from_scaled(xsub, mp_take_fraction (mp, number_to_scaled(tmp), number_to_scaled(dxin)));
+    set_number_from_scaled(ysub, mp_take_fraction (mp, number_to_scaled(tmp), number_to_scaled(dyin)));
     set_number_from_addition(xtot, p->x_coord, xsub);
     set_number_from_addition(ytot, p->y_coord, ysub);
     r = mp_insert_knot (mp, p, xtot, ytot);
@@ -13200,19 +13210,19 @@ problems, so we just set |r:=NULL| in that case.
   }
   @<Scan the pen polygon between |w0| and |w| and make |max_ht| the range dot
     product with |(ht_x,ht_y)|@>;
-  tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, number_to_scaled(dxin), number_to_scaled(ht_x)) +
-                          mp_take_fraction (mp, number_to_scaled(dyin), number_to_scaled(ht_y)));
-  set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, number_to_scaled(dxin)));
-  set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, number_to_scaled(dyin)));
+  set_number_from_scaled (tmp, mp_make_fraction (mp, number_to_scaled (max_ht), mp_take_fraction (mp, number_to_scaled(dxin), number_to_scaled(ht_x)) +
+                          mp_take_fraction (mp, number_to_scaled(dyin), number_to_scaled(ht_y))));
+  set_number_from_scaled(xsub, mp_take_fraction (mp, number_to_scaled(tmp), number_to_scaled(dxin)));
+  set_number_from_scaled(ysub, mp_take_fraction (mp, number_to_scaled(tmp), number_to_scaled(dyin)));
   set_number_from_addition(xtot, p->x_coord, xsub);
   set_number_from_addition(ytot, p->y_coord, ysub);
   r = mp_insert_knot (mp, p, xtot, ytot);
 
-  tmp = mp_make_fraction (mp, max_ht, mp_take_fraction (mp, number_to_scaled(dxout), number_to_scaled(ht_x)) +
-                          mp_take_fraction (mp, number_to_scaled(dyout), number_to_scaled(ht_y)));
+  set_number_from_scaled (tmp, mp_make_fraction (mp, number_to_scaled (max_ht), mp_take_fraction (mp, number_to_scaled(dxout), number_to_scaled(ht_x)) +
+                          mp_take_fraction (mp, number_to_scaled(dyout), number_to_scaled(ht_y))));
 
-  set_number_from_scaled(xsub, mp_take_fraction (mp, tmp, number_to_scaled(dxout)));
-  set_number_from_scaled(ysub, mp_take_fraction (mp, tmp, number_to_scaled(dyout)));
+  set_number_from_scaled(xsub, mp_take_fraction (mp, number_to_scaled(tmp), number_to_scaled(dxout)));
+  set_number_from_scaled(ysub, mp_take_fraction (mp, number_to_scaled(tmp), number_to_scaled(dyout)));
   set_number_from_addition(xtot, q->x_coord, xsub);
   set_number_from_addition(ytot, q->y_coord, ysub);
   r = mp_insert_knot (mp, p, xtot, ytot);
@@ -13226,7 +13236,7 @@ problems, so we just set |r:=NULL| in that case.
 
 
 @ @<Other local variables for |make_envelope|@>=
-scaled max_ht;  /* maximum height of the pen polygon above the |w0|-|w| line */
+mp_number max_ht;  /* maximum height of the pen polygon above the |w0|-|w| line */
 halfword kk;    /* keeps track of the pen vertices being scanned */
 mp_knot ww;     /* the pen vertex being tested */
 
@@ -13234,17 +13244,17 @@ mp_knot ww;     /* the pen vertex being tested */
 from zero to |max_ht|.
 
 @<Scan the pen polygon between |w0| and |w| and make |max_ht| the range...@>=
-max_ht = 0;
+set_number_to_zero (max_ht);
 kk = zero_off;
 ww = w;
 while (1) {
   @<Step |ww| and move |kk| one step closer to |k0|@>;
   if (kk == k0)
     break;
-  tmp = mp_take_fraction (mp, (number_to_scaled (ww->x_coord) - number_to_scaled (w0->x_coord)), number_to_scaled(ht_x)) +
-    mp_take_fraction (mp, (number_to_scaled (ww->y_coord) - number_to_scaled (w0->y_coord)), number_to_scaled(ht_y));
-  if (tmp > max_ht)
-    max_ht = tmp;
+  set_number_from_scaled (tmp ,mp_take_fraction (mp, (number_to_scaled (ww->x_coord) - number_to_scaled (w0->x_coord)), number_to_scaled(ht_x)) +
+    mp_take_fraction (mp, (number_to_scaled (ww->y_coord) - number_to_scaled (w0->y_coord)), number_to_scaled(ht_y)));
+  if (number_greater(tmp, max_ht))
+    number_clone(max_ht, tmp);
 }
 
 
@@ -13308,13 +13318,13 @@ That knot is |p| but if |p<>c|, its coordinates have already been offset by |w|.
     }
   }
   number_clone(tmpx, mp_pyth_add (mp, dxin, dyin));
-  tmp = number_to_scaled(tmpx);
+  number_clone(tmp, tmpx);
   free_number(tmpx);
-  if (tmp == 0) {
+  if (number_zero(tmp)) {
     join_type = 2;
   } else {
-    set_number_from_scaled(dxin, mp_make_fraction (mp, number_to_scaled(dxin), tmp));
-    set_number_from_scaled(dyin, mp_make_fraction (mp, number_to_scaled(dyin), tmp));
+    set_number_from_scaled(dxin, mp_make_fraction (mp, number_to_scaled(dxin), number_to_scaled(tmp)));
+    set_number_from_scaled(dyin, mp_make_fraction (mp, number_to_scaled(dyin), number_to_scaled(tmp)));
     @<Set the outgoing direction at |q|@>;
   }
 }
@@ -13343,13 +13353,13 @@ and~|r| have already been offset by |h|.
     number_substract(dyout, h->y_coord);
   }
   number_clone(tmpx, mp_pyth_add (mp, dxout, dyout));
-  tmp = number_to_scaled(tmpx);
+  number_clone (tmp, tmpx);
   free_number(tmpx);
-  if (tmp == 0)
+  if (number_zero(tmp))
     mp_confusion (mp, "degenerate spec");
 @:this can't happen degerate spec}{\quad degenerate spec@>;
-  set_number_from_scaled(dxout, mp_make_fraction (mp, number_to_scaled(dxout), tmp));
-  set_number_from_scaled(dyout, mp_make_fraction (mp, number_to_scaled(dyout), tmp));
+  set_number_from_scaled(dxout, mp_make_fraction (mp, number_to_scaled(dxout), number_to_scaled(tmp)));
+  set_number_from_scaled(dyout, mp_make_fraction (mp, number_to_scaled(dyout), number_to_scaled(tmp)));
 }
  
 
@@ -14765,9 +14775,10 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
   mp_value_node r, s;   /* for list manipulation */
   integer w;    /* tentative coefficient */
   integer threshold;
-  scaled v;
+  mp_number v;
   boolean scaling_down;
-  v = number_to_scaled (v_orig);
+  new_number (v);
+  number_clone (v, v_orig);
   if (t0 != t1)
     scaling_down = true;
   else
@@ -14779,12 +14790,12 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
   r = (mp_value_node) mp->temp_head;
   while (dep_info (p) != NULL) {
     if (scaling_down) {
-      if (abs (v) < 02000000)
-        w = mp_make_scaled (mp, dep_value (p), v * 010000);
+      if (abs (number_to_scaled (v)) < 02000000)
+        w = mp_make_scaled (mp, dep_value (p), number_to_scaled (v) * 010000);
       else
-        w = mp_make_scaled (mp, mp_round_fraction (mp, dep_value (p)), v);
+        w = mp_make_scaled (mp, mp_round_fraction (mp, dep_value (p)), number_to_scaled (v));
     } else {
-      w = mp_make_scaled (mp, dep_value (p), v);
+      w = mp_make_scaled (mp, dep_value (p), number_to_scaled (v));
     }
     if (abs (w) <= threshold) {
       s = (mp_value_node) mp_link (p);
@@ -14802,7 +14813,8 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
     }
   }
   set_mp_link (r, (mp_node) p);
-  set_dep_value (p, mp_make_scaled (mp, dep_value (p), v));
+  set_dep_value (p, mp_make_scaled (mp, dep_value (p), number_to_scaled(v)));
+  free_number (v);
   return (mp_value_node) mp_link (mp->temp_head);
 }
 
@@ -21066,9 +21078,12 @@ void mp_scan_primary (MP mp) {
   mp_command_code my_var_flag;      /* initial value of |my_var_flag| */
   mp_sym l_delim, r_delim;      /* hash addresses of a delimiter pair */
   mp_value new_expr;
+  mp_number num, denom;      /* for primaries that are fractions, like `1/2' */
   @<Other local variables for |scan_primary|@>;
   memset(&new_expr,0,sizeof(mp_value));
   new_number(new_expr.data.n);
+  new_number (num);
+  new_number (denom);
   my_var_flag = mp->var_flag;
   mp->var_flag = 0;
 RESTART:
@@ -21124,6 +21139,8 @@ DONE:
       @<Scan a mediation construction@>;
     }
   }
+  free_number (num);
+  free_number (denom);
 }
 
 
@@ -21411,17 +21428,14 @@ with a plus sign or a minus sign). The code here uses the facts that
 than unity, we try to retain higher precision when we use it in scalar
 multiplication.
 
-@<Other local variables for |scan_primary|@>=
-scaled num, denom;      /* for primaries that are fractions, like `1/2' */
-
 @ @<Scan a primary that starts with a numeric token@>=
 {
   set_cur_exp_value (cur_mod());
   mp->cur_exp.type = mp_known;
   mp_get_x_next (mp);
   if (cur_cmd() != mp_slash) {
-    num = 0;
-    denom = 0;
+    set_number_to_zero(num);
+    set_number_to_zero(denom);
   } else {
     mp_get_x_next (mp);
     if (cur_cmd() != mp_numeric_token) {
@@ -21431,12 +21445,12 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
       set_cur_sym(mp->frozen_slash);
       goto DONE;
     }
-    num = cur_exp_value ();
-    denom = cur_mod();
-    if (denom == 0) {
+    set_number_from_scaled (num, cur_exp_value ());
+    set_number_from_scaled (denom, cur_mod());
+    if (number_zero(denom)) {
       @<Protest division by zero@>;
     } else {
-      set_cur_exp_value (mp_make_scaled (mp, num, denom));
+      set_cur_exp_value (mp_make_scaled (mp, number_to_scaled(num), number_to_scaled(denom)));
     }
     check_arith();
     mp_get_x_next (mp);
@@ -21445,17 +21459,10 @@ scaled num, denom;      /* for primaries that are fractions, like `1/2' */
     if (cur_cmd() < mp_numeric_token) {  /* in particular, |cur_cmd<>plus_or_minus| */
       p = mp_stash_cur_exp (mp);
       mp_scan_primary (mp);
-      if ((abs (num) >= abs (denom)) || (mp->cur_exp.type < mp_color_type)) {
+      if ((abs (number_to_scaled(num)) >= abs (number_to_scaled(denom))) || (mp->cur_exp.type < mp_color_type)) {
         mp_do_binary (mp, p, mp_times);
       } else {
-        mp_number arg1, arg2;
-        new_number (arg1);
-        new_number (arg2);
-        set_number_from_scaled (arg1, num);
-        set_number_from_scaled (arg2, denom);
-        mp_frac_mult (mp, arg1, arg2);
-        free_number (arg1);
-        free_number (arg2);
+        mp_frac_mult (mp, num, denom);
         mp_free_node (mp, p, value_node_size);
       }
     }
@@ -24580,7 +24587,9 @@ static mp_number mp_turn_cycles_wrapper (MP mp, mp_knot c) {
     mp_number nval = mp_new_turn_cycles (mp, c);
     mp_number oval = mp_turn_cycles (mp, c);
     if ((!number_equal(nval, oval)) && internal_value_to_halfword (mp_tracing_choices) > (2 * unity)) {
-      scaled saved_t_o = internal_value_to_halfword (mp_tracing_online);
+      mp_number saved_t_o;
+      new_number (saved_t_o);
+      set_number_from_scaled (saved_t_o, internal_value_to_halfword (mp_tracing_online));
       set_internal_from_scaled_int (mp_tracing_online, unity);
       mp_begin_diagnostic (mp);
       mp_print_nl (mp, "Warning: the turningnumber algorithms do not agree."
@@ -24589,7 +24598,8 @@ static mp_number mp_turn_cycles_wrapper (MP mp, mp_knot c) {
       mp_print (mp, ", but the 'connect-the-dots' algorithm returned ");
       mp_print_number (mp, oval);
       mp_end_diagnostic (mp, false);
-      set_internal_from_scaled_int (mp_tracing_online, saved_t_o);
+      set_internal_from_scaled_int (mp_tracing_online, number_to_scaled (saved_t_o));
+      free_number (saved_t_o);
     }
     free_number (oval);
     return nval;
@@ -25423,10 +25433,11 @@ final pointer as the list |v|.
 static void mp_dep_finish (MP mp, mp_value_node v, mp_value_node q,
                            quarterword t) {
   mp_value_node p;      /* the destination */
-  scaled vv;    /* the value, if it is |known| */
+  mp_number vv;    /* the value, if it is |known| */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
   new_number(new_expr.data.n);
+  new_number (vv);
   if (q == NULL)
     p = (mp_value_node) cur_exp_node ();
   else
@@ -25434,20 +25445,21 @@ static void mp_dep_finish (MP mp, mp_value_node v, mp_value_node q,
   set_dep_list (p, v);
   mp_type (p) = t;
   if (dep_info (v) == NULL) {
-    vv = value (v);
+    number_clone (vv, value_number (v));
     if (q == NULL) {
-      new_expr.data.n->data.val = vv;
+      number_clone (new_expr.data.n, vv);
       mp_flush_cur_exp (mp, new_expr);
     } else {
       mp_recycle_value (mp, (mp_node) p);
       mp_type (q) = mp_known;
-      set_value (q, vv);
+      set_value (q, number_to_scaled (vv));
     }
   } else if (q == NULL) {
     mp->cur_exp.type = t;
   }
   if (mp->fix_needed)
     mp_fix_dependencies (mp);
+  free_number (vv);
 }
 
 
@@ -31531,11 +31543,11 @@ static void mp_fix_design_size (MP mp) {
     mp->header_byte[6] = (char) ((d / 16) % 256);
     mp->header_byte[7] = (char) ((d % 16) * 16);
   }
-  mp->max_tfm_dimen =
+  set_number_from_scaled (mp->max_tfm_dimen,
     16 * internal_value_to_halfword (mp_design_size) - 1 -
-    internal_value_to_halfword (mp_design_size) / 010000000;
-  if (mp->max_tfm_dimen >= fraction_half)
-    mp->max_tfm_dimen = fraction_half - 1;
+    internal_value_to_halfword (mp_design_size) / 010000000);
+  if (number_to_scaled (mp->max_tfm_dimen) >= fraction_half)
+    set_number_from_scaled (mp->max_tfm_dimen, fraction_half - 1);
 }
 
 
@@ -31553,12 +31565,14 @@ static integer mp_dimen_out (MP mp, mp_number x_orig) {
   number_clone (x, x_orig);
   number_clone (abs_x, x_orig);
   number_abs (abs_x);
-  if (number_to_scaled (abs_x) > mp->max_tfm_dimen) {
+  if (number_greater (abs_x, mp->max_tfm_dimen)) {
     incr (mp->tfm_changed);
     if (number_positive(x))
-      set_number_from_scaled (x, mp->max_tfm_dimen);
-    else
-      set_number_from_scaled (x, -mp->max_tfm_dimen);
+      number_clone (x, mp->max_tfm_dimen);
+    else {
+      number_clone (x, mp->max_tfm_dimen);
+      number_negate (x);
+    }
   }
   set_number_from_scaled (x, mp_make_scaled (mp, number_to_scaled (x) * 16, internal_value_to_halfword (mp_design_size)));
   free_number (abs_x);
@@ -31569,8 +31583,15 @@ static integer mp_dimen_out (MP mp, mp_number x_orig) {
 
 
 @ @<Glob...@>=
-scaled max_tfm_dimen;   /* bound on widths, heights, kerns, etc. */
+mp_number max_tfm_dimen;   /* bound on widths, heights, kerns, etc. */
 integer tfm_changed;    /* the number of data entries that were out of bounds */
+
+@ @<Initialize table...@>=
+new_number (mp->max_tfm_dimen);
+
+@ @<Dealloc...@>=
+free_number (mp->max_tfm_dimen);
+
 
 @ If the user has not specified any of the first four header bytes,
 the |fix_check_sum| procedure replaces them by a ``check sum'' computed
@@ -32268,7 +32289,9 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     ss = xstrdup (mp->name_of_file);
   } else {                      /* initializations */
     mp_string s, n, template;  /* a file extension derived from |c| */
-    scaled saved_char_code = internal_value_to_halfword (mp_char_code);
+    mp_number saved_char_code;  
+    new_number (saved_char_code);
+    set_number_from_scaled (saved_char_code, internal_value_to_halfword (mp_char_code));
     set_internal_from_scaled_int (mp_char_code, (c * unity));
     if (internal_string (mp_job_name) == NULL) {
       if (mp->job_name == NULL) {
@@ -32398,7 +32421,8 @@ static char *mp_set_output_file_name (MP mp, integer c) {
       incr (i);
     }
     s = mp_make_string (mp);
-    set_internal_from_scaled_int (mp_char_code, saved_char_code);
+    set_internal_from_scaled_int (mp_char_code, number_to_scaled (saved_char_code));
+    free_number (saved_char_code);
     mp->selector = old_setting;
     if (n->len == 0) {
       n = s;
