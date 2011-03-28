@@ -470,7 +470,7 @@ void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
 @ @<Print the MetaPost version and time @>=
 {
   char *s;   
-  scaled tt;
+  int tt; /* scaled */
   mp_svg_print_nl(mp, "<!-- Created by MetaPost ");
   s = mp_metapost_version();
   mp_svg_print(mp, s);

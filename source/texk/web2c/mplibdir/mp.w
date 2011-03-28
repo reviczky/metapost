@@ -2206,11 +2206,6 @@ static void mp_clear_arith (MP mp) {
 @ In fact, the two sorts of scaling discussed above aren't quite
 sufficient; \MP\ has yet another, used internally to keep track of angles.
 
-@<Exported types...@>=
-typedef int scaled; /* this type is used for scaled integers */
-typedef int fraction;       /* this type is used for scaled fractions */
-typedef int angle;  /* this type is used for scaled angles */
-
 @ We often want to print two scaled quantities in parentheses,
 separated by a comma.
 
@@ -10007,39 +10002,39 @@ This first set goes into the header
 @(mpmp.h@>=
 #define mp_fraction mp_number
 #define mp_angle mp_number
-#define new_number(A) (A)=mp_new_number(mp, mp_scaled_type)
-#define new_fraction(A) (A)=mp_new_number(mp, mp_fraction_type)
-#define new_angle(A) (A)=mp_new_number(mp, mp_angle_type)
-#define free_number(A) mp_free_number(mp, (A))
+#define new_number(A) (A)=(((math_data *)(mp->math))->new)(mp, mp_scaled_type)
+#define new_fraction(A) (A)=(((math_data *)(mp->math))->new)(mp, mp_fraction_type)
+#define new_angle(A) (A)=(((math_data *)(mp->math))->new)(mp, mp_angle_type)
+#define free_number(A) (((math_data *)(mp->math))->free)(mp, (A))
 
 @ 
-@d set_number_from_of_the_way(A,t,B,C) mp_set_number_from_of_the_way(mp, A,t,B,C) 
-@d set_number_from_scaled(A,B)	       mp_set_number_from_scaled(A,B)
-@d set_number_from_double(A,B)	       mp_set_number_from_double(A,B)
-@d set_number_from_addition(A,B,C)     mp_set_number_from_addition(A,B,C)
-@d set_number_from_substraction(A,B,C) mp_set_number_from_substraction(A,B,C)
+@d set_number_from_of_the_way(A,t,B,C) (((math_data *)(mp->math))->from_oftheway)(mp, A,t,B,C) 
+@d set_number_from_scaled(A,B)	       (((math_data *)(mp->math))->from_scaled)(A,B)
+@d set_number_from_double(A,B)	       (((math_data *)(mp->math))->from_double)(A,B)
+@d set_number_from_addition(A,B,C)     (((math_data *)(mp->math))->from_addition)(A,B,C)
+@d set_number_from_substraction(A,B,C) (((math_data *)(mp->math))->from_substraction)(A,B,C)
 @#
-@d set_number_to_unity(A)	       mp_number_clone(A, unity_t)
-@d set_number_to_zero(A)	       mp_number_clone(A, zero_t)
-@d set_number_to_inf(A)		       mp_number_clone(A, inf_t)
+@d set_number_to_unity(A)	       (((math_data *)(mp->math))->clone)(A, unity_t)
+@d set_number_to_zero(A)	       (((math_data *)(mp->math))->clone)(A, zero_t)
+@d set_number_to_inf(A)		       (((math_data *)(mp->math))->clone)(A, inf_t)
 @d set_number_to_neg_inf(A)	       do { set_number_to_inf(A); number_negate (A); } while (0)
 @#
-@d number_to_scaled(A)		       mp_number_to_scaled(A)		       
-@d number_to_double(A)		       mp_number_to_double(A)		       
-@d number_negate(A)		       mp_number_negate(A)		       
-@d number_add(A,B)		       mp_number_add(A,B)		       
-@d number_substract(A,B)	       mp_number_substract(A,B)	       
-@d number_half(A)		       mp_number_half(A)		       
-@d number_halfp(A)		       mp_number_halfp(A)		       
-@d number_double(A)		       mp_number_double(A)		       
-@d number_add_scaled(A,B)	       mp_number_add_scaled(A,B)	       
-@d number_abs(A)		       mp_number_abs(A)		       
-@d number_nonequalabs(A,B)	       mp_number_nonequalabs(A,B)	       
-@d number_equal(A,B)		       mp_number_equal(A,B)		       
-@d number_greater(A,B)		       mp_number_greater(A,B)		       
-@d number_less(A,B)		       mp_number_less(A,B)		       
-@d number_clone(A,B)		       mp_number_clone(A,B)		       
-@d number_swap(A,B)		       mp_number_swap(A,B)		       
+@d number_to_scaled(A)		       (((math_data *)(mp->math))->to_scaled)(A)		       
+@d number_to_double(A)		       (((math_data *)(mp->math))->to_double)(A)		       
+@d number_negate(A)		       (((math_data *)(mp->math))->negate)(A)		       
+@d number_add(A,B)		       (((math_data *)(mp->math))->add)(A,B)		       
+@d number_substract(A,B)	       (((math_data *)(mp->math))->substract)(A,B)	       
+@d number_half(A)		       (((math_data *)(mp->math))->half)(A)		       
+@d number_halfp(A)		       (((math_data *)(mp->math))->halfp)(A)		       
+@d number_double(A)		       (((math_data *)(mp->math))->do_double)(A)		       
+@d number_add_scaled(A,B)	       (((math_data *)(mp->math))->add_scaled)(A,B)	       
+@d number_abs(A)		       (((math_data *)(mp->math))->abs)(A)		       
+@d number_nonequalabs(A,B)	       (((math_data *)(mp->math))->nonequalabs)(A,B)	       
+@d number_equal(A,B)		       (((math_data *)(mp->math))->equal)(A,B)		       
+@d number_greater(A,B)		       (((math_data *)(mp->math))->greater)(A,B)		       
+@d number_less(A,B)		       (((math_data *)(mp->math))->less)(A,B)		       
+@d number_clone(A,B)		       (((math_data *)(mp->math))->clone)(A,B)		       
+@d number_swap(A,B)		       (((math_data *)(mp->math))->swap)(A,B)		       
 @#
 @d number_zero(A)		       number_equal(A, zero_t)		       
 @d number_infinite(A)		       number_equal(A, inf_t)		       

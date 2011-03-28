@@ -70,7 +70,7 @@ font_number mp_read_font_info (MP mp, char *fname) {
   int i,ii; /* |font_info| indices */
   int jj; /* counts bytes to be ignored */
   int z; /* used to compute the design size */
-  fraction d; /* height, width, or depth as a fraction of design size times $2^{-8}$ */
+  int d; /* height, width, or depth as a fraction of design size times $2^{-8}$ */
   int h_and_d; /* height and depth indices being unpacked */
   int tfbyte = 0; /* a byte read from the file */
   n=null_font;
