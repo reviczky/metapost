@@ -55,21 +55,21 @@
 
 @<Types@>=
 typedef struct math_data {
-  scaled max_scaled_;
-  scaled one_third_max_scaled_;
   scaled unity_;
-  scaled two_;
-  scaled three_;
-  scaled half_unit_;
-  scaled three_quarter_unit_;
-  fraction fraction_one_;
-  fraction fraction_half_;
-  fraction fraction_two_;
-  fraction fraction_three_;
-  fraction fraction_four_;
-  angle ninety_deg_;
-  angle one_eighty_deg_;
-  angle three_sixty_deg_;
+  mp_number inf_t;
+  mp_number one_third_inf_t;
+  mp_number zero_t;
+  mp_number unity_t;
+  mp_number two_t;
+  mp_number three_t;
+  mp_number half_unit_t;
+  mp_number three_quarter_unit_t;
+  mp_number fraction_one_t;
+  mp_number fraction_half_t;
+  mp_number fraction_three_t;
+  mp_number fraction_four_t;
+  mp_number one_eighty_deg_t;
+  mp_number three_sixty_deg_t;
 } math_data;
 
 @ @<Internal library declarations@>=
@@ -80,27 +80,50 @@ void mp_free_math (MP mp);
 void * mp_initialize_math (MP mp) {
   math_data *math = (math_data *)mp_xmalloc(mp,1,sizeof(math_data));
   /* here are the constants for |scaled| objects */
-  math->max_scaled_ = EL_GORDO;
-  math->one_third_max_scaled_ = one_third_EL_GORDO;
-  math->unity_ = unity;
-  math->two_  = two;
-  math->three_ = three;
-  math->half_unit_ = half_unit;
-  math->three_quarter_unit_ = three_quarter_unit;
+  new_number (math->inf_t);
+  math->inf_t->data.val  = EL_GORDO;
+  new_number (math->one_third_inf_t);
+  math->one_third_inf_t->data.val = one_third_EL_GORDO;
+  new_number (math->unity_t);
+  math->unity_t->data.val = unity;
+  new_number (math->two_t);
+  math->two_t->data.val = two;
+  new_number (math->three_t);
+  math->three_t->data.val = three;
+  new_number (math->half_unit_t);
+  math->half_unit_t->data.val = half_unit;
+  new_number (math->three_quarter_unit_t);
+  math->three_quarter_unit_t->data.val = three_quarter_unit;
+  new_number (math->zero_t);
   /* |fractions| */
-  math->fraction_one_   = fraction_one;
-  math->fraction_half_  = fraction_half;
-  math->fraction_two_   = fraction_two;
-  math->fraction_three_ = fraction_three;
-  math->fraction_four_  = fraction_four;
+  new_number (math->fraction_one_t);
+  math->fraction_one_t->data.val = fraction_one;
+  new_number (math->fraction_half_t);
+  math->fraction_half_t->data.val = fraction_half;
+  new_number (math->fraction_three_t);
+  math->fraction_three_t->data.val = fraction_three;
+  new_number (math->fraction_four_t);
+  math->fraction_four_t->data.val = fraction_four;
   /* |angles| */
-  math->ninety_deg_ = ninety_deg;
-  math->one_eighty_deg_ = one_eighty_deg;
-  math->three_sixty_deg_ = three_sixty_deg;
+  new_number (math->three_sixty_deg_t);
+  math->three_sixty_deg_t->data.val = three_sixty_deg;
+  new_number (math->one_eighty_deg_t);
+  math->one_eighty_deg_t->data.val = one_eighty_deg;
   return (void *)math;
 }
 
 void mp_free_math (MP mp) {
+  free_number (((math_data *)mp->math)->three_sixty_deg_t);
+  free_number (((math_data *)mp->math)->one_eighty_deg_t);
+  free_number (((math_data *)mp->math)->fraction_one_t);
+  free_number (((math_data *)mp->math)->zero_t);
+  free_number (((math_data *)mp->math)->half_unit_t);
+  free_number (((math_data *)mp->math)->three_quarter_unit_t);
+  free_number (((math_data *)mp->math)->unity_t);
+  free_number (((math_data *)mp->math)->two_t);
+  free_number (((math_data *)mp->math)->three_t);
+  free_number (((math_data *)mp->math)->one_third_inf_t);
+  free_number (((math_data *)mp->math)->inf_t);
   free(mp->math);
 }
 
@@ -126,7 +149,7 @@ typedef struct mp_number_data {
 @ @c
 mp_number mp_new_number (MP mp, mp_number_type t) {
   mp_number n = (mp_number)mp_xmalloc(mp, 1, sizeof (struct mp_number_data)) ;
-  mp_set_number_to_zero(n);
+  n->data.val = 0;
   n->type = t;
   return n;
 }
@@ -158,18 +181,6 @@ void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C) {
 void mp_set_number_from_substraction (mp_number A, mp_number B, mp_number C) {
  A->data.val = B->data.val-C->data.val;
 }
-void mp_set_number_to_unity(mp_number A) {
-  A->data.val=unity;
-}
-void mp_set_number_to_zero(mp_number A) {
-  A->data.val=0;
-}
-void mp_set_number_to_inf(mp_number A) {
-  A->data.val=EL_GORDO;
-}
-void mp_set_number_to_neg_inf(mp_number A) {
-  A->data.val=-EL_GORDO;
-}
 void mp_set_number_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B, mp_number C) {
   A->data.val = B->data.val - mp_take_fraction(mp, (B->data.val - C->data.val), t->data.val);
 }
@@ -191,11 +202,8 @@ void mp_number_halfp(mp_number A) {
 void mp_number_double(mp_number A) {
   A->data.val = A->data.val + A->data.val;
 }
-void mp_number_add_scaled(mp_number A, scaled B) {
+void mp_number_add_scaled(mp_number A, scaled B) { /* also for negative B */
   A->data.val = A->data.val + B;
-}
-void mp_number_substract_scaled(mp_number A, scaled B) {
-  A->data.val = A->data.val - B;
 }
 void mp_number_abs(mp_number A) {   
   A->data.val = abs(A->data.val);
@@ -218,44 +226,14 @@ scaled mp_number_to_scaled(mp_number A) {
 double mp_number_to_double(mp_number A) {
   return (A->data.val/65536.0);
 }
-int mp_number_positive(mp_number A) { 
-  return (A->data.val>0);
-}
-int mp_number_zero(mp_number A) {
-  return (A->data.val==0);
-}
-int mp_number_infinite(mp_number A) {
-  return (A->data.val==EL_GORDO);
-}
-int mp_number_unity(mp_number A) {
-  return (A->data.val==unity);
-}
-int mp_number_negative(mp_number A) {
-  return (A->data.val<0);
-}
-int mp_number_nonnegative(mp_number A) {
-  return (A->data.val>=0);
-}
-int mp_number_nonpositive(mp_number A) {
-  return (A->data.val<=0);
-}
-int mp_number_nonzero(mp_number A) {
-  return (A->data.val!=0);
-}
 int mp_number_equal(mp_number A, mp_number B) {
   return (A->data.val==B->data.val);
 }
 int mp_number_greater(mp_number A, mp_number B) {
   return (A->data.val>B->data.val);
 }
-int mp_number_greaterequal(mp_number A, mp_number B) {
-  return (A->data.val>=B->data.val);
-}
 int mp_number_less(mp_number A, mp_number B) {
   return (A->data.val<B->data.val);
-}
-int mp_number_lessequal(mp_number A, mp_number B) {
-  return (A->data.val<=B->data.val);
 }
 int mp_number_nonequalabs(mp_number A, mp_number B) {
   return (!(abs(A->data.val)==abs(B->data.val)));
@@ -269,10 +247,6 @@ extern void mp_set_number_from_scaled(mp_number A, scaled B);
 extern void mp_set_number_from_double(mp_number A, double B);
 extern void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C);
 extern void mp_set_number_from_substraction (mp_number A, mp_number B, mp_number C);
-extern void mp_set_number_to_unity(mp_number A);
-extern void mp_set_number_to_zero(mp_number A);
-extern void mp_set_number_to_inf(mp_number A);
-extern void mp_set_number_to_neg_inf(mp_number A);
 extern void mp_number_negate(mp_number A);
 extern void mp_number_add(mp_number A, mp_number B);
 extern void mp_number_substract(mp_number A, mp_number B);
@@ -280,25 +254,14 @@ extern void mp_number_half(mp_number A);
 extern void mp_number_halfp(mp_number A);
 extern void mp_number_double(mp_number A);
 extern void mp_number_add_scaled(mp_number A, scaled B);
-extern void mp_number_substract_scaled(mp_number A, scaled B);
 extern void mp_number_abs(mp_number A);   
 extern void mp_number_clone(mp_number A, mp_number B);
 extern void mp_number_swap(mp_number A, mp_number B);
 extern scaled mp_number_to_scaled(mp_number A);
 extern double mp_number_to_double(mp_number A);
-extern int mp_number_positive(mp_number A); 
-extern int mp_number_zero(mp_number A);
-extern int mp_number_infinite(mp_number A);
-extern int mp_number_unity(mp_number A);
-extern int mp_number_negative(mp_number A);
-extern int mp_number_nonnegative(mp_number A);
-extern int mp_number_nonpositive(mp_number A);
-extern int mp_number_nonzero(mp_number A);
 extern int mp_number_equal(mp_number A, mp_number B);
 extern int mp_number_greater(mp_number A, mp_number B);
-extern int mp_number_greaterequal(mp_number A, mp_number B);
 extern int mp_number_less(mp_number A, mp_number B);
-extern int mp_number_lessequal(mp_number A, mp_number B);
 extern int mp_number_nonequalabs(mp_number A, mp_number B);
 
 
