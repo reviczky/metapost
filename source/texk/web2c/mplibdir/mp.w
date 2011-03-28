@@ -2365,22 +2365,31 @@ values between 0 and~|x|, because it rounds its answers.
 
 @c
 static mp_number mp_unif_rand (MP mp, mp_number x_orig) {
-  scaled y;     /* trial value */
-  scaled x;
+  mp_number y;     /* trial value */
+  mp_number x;
+  mp_number abs_x;
   mp_number ret;
   mp_number u = mp_next_random(mp);
+  new_number (x);
+  new_number (abs_x);
+  new_number (y);
   new_number (ret);
-  x = number_to_scaled (x_orig);
-  y = mp_take_fraction (mp, abs (x), number_to_scaled (u));
+  number_clone (x, x_orig);
+  number_clone (abs_x, x);
+  number_abs (abs_x);
+  set_number_from_scaled (y, mp_take_fraction (mp, number_to_scaled (abs_x), number_to_scaled (u)));
   free_number (u);
-  if (y == abs (x)) {
+  if (number_equal(y, abs_x)) {
     set_number_to_zero(ret);
-  } else if (x > 0) {
-    set_number_from_scaled (ret, y);
+  } else if (number_positive(x)) {
+    number_clone (ret, y);
   } else {
-    set_number_from_scaled (ret, y);
+    number_clone (ret, y);
     number_negate (ret);
   }
+  free_number (abs_x);
+  free_number (x);
+  free_number (y);
   return ret;
 }
 
@@ -9166,12 +9175,12 @@ static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number 
 static mp_number mp_get_arc_length (MP mp, mp_knot h) {
   mp_knot p, q; /* for traversing the path */
   mp_number a;  /* current arc length */
-  scaled a_tot; /* total arc length */
+  mp_number a_tot; /* total arc length */
   mp_number arg1, arg2, arg3, arg4, arg5, arg6;
   mp_number arcgoal; 
   mp_number ret;
-  a_tot = 0;
   p = h;
+  new_number (a_tot);
   new_number (ret);
   new_number (arg1);
   new_number (arg2);
@@ -9190,7 +9199,7 @@ static mp_number mp_get_arc_length (MP mp, mp_knot h) {
     set_number_from_substraction(arg5, q->x_coord, q->left_x);
     set_number_from_substraction(arg6, q->y_coord, q->left_y);
     a = mp_do_arc_test (mp, arg1, arg2, arg3, arg4, arg5, arg6, arcgoal);
-    a_tot = mp_slow_add (mp, number_to_scaled(a), a_tot);
+    set_number_from_scaled (a_tot, mp_slow_add (mp, number_to_scaled(a), number_to_scaled (a_tot)));
     if (q == h)
       break;
     else
@@ -9205,7 +9214,8 @@ static mp_number mp_get_arc_length (MP mp, mp_knot h) {
   free_number (arg5);
   free_number (arg6);
   check_arith();
-  set_number_from_scaled (ret, a_tot);
+  number_clone (ret, a_tot);
+  free_number (a_tot);
   return ret;
 }
 
@@ -9224,7 +9234,7 @@ we must be prepared to compute the arc length of path~|h| and divide this into
 @c
 static mp_number mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
   mp_knot p, q; /* for traversing the path */
-  scaled t_tot; /* accumulator for the result */
+  mp_number t_tot; /* accumulator for the result */
   mp_number t;     /* the result of |do_arc_test| */
   mp_number arc, arc0;   /* portion of |arc0| not used up so far */
   mp_number ret;
@@ -9234,12 +9244,12 @@ static mp_number mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
     @<Deal with a negative |arc0_orig| value and |return|@>;
   }
   new_number (ret);
+  new_number (t_tot);
   new_number (arc0);
   number_clone(arc0, arc0_orig);
   if (number_infinite(arc0)) {
     number_substract_scaled (arc0, 1);
   }
-  t_tot = 0;
   new_number (arc);
   number_clone(arc, arc0);
   p = h;
@@ -9267,8 +9277,9 @@ static mp_number mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
     p = q;
   }
   check_arith();
-  set_number_from_scaled (ret, t_tot);
+  number_clone (ret, t_tot);
 RETURN:
+  free_number (t_tot);
   free_number (t);
   free_number (arc);
   free_number (arg1);
@@ -9283,10 +9294,20 @@ RETURN:
 
 @ @<Update |arc| and |t_tot| after |do_arc_test| has just returned |t|@>=
 if (number_negative(t)) {
-  t_tot = t_tot + number_to_scaled(t) + two;
+  mp_number two_t;
+  new_number (two_t);
+  set_number_to_unity (two_t);
+  number_double (two_t);
+  number_add (t_tot, t);
+  number_add (t_tot, two_t);
+  free_number (two_t);
   set_number_to_zero(arc);
 } else {
-  t_tot = t_tot + unity;
+  mp_number unity_t;
+  new_number (unity_t);
+  set_number_to_unity (unity_t);
+  number_add (t_tot, unity_t);
+  free_number (unity_t);
   number_substract(arc, t);
 }
 
@@ -9315,13 +9336,13 @@ if (number_negative(t)) {
 if (number_positive(arc)) {
   n = number_to_scaled(arc) / (number_to_scaled(arc0) - number_to_scaled(arc));
   set_number_from_scaled(arc, number_to_scaled(arc) - n * (number_to_scaled(arc0) - number_to_scaled(arc)));
-  if (t_tot > (EL_GORDO / (n + 1))) {
+  if (number_to_scaled (t_tot) > (EL_GORDO / (n + 1))) {
     mp->arith_error = true;
     check_arith();
     set_number_to_inf(ret);
     goto RETURN;
   }
-  t_tot = (n + 1) * t_tot;
+  set_number_from_scaled (t_tot, (n + 1) * number_to_scaled (t_tot));
 }
 
 @* Data structures for pens.
