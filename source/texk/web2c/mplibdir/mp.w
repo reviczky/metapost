@@ -363,8 +363,8 @@ mp_set_job_id (mp);
 mp_init_map_file (mp, mp->troff_mode);
 mp->history = mp_spotless;      /* ready to go! */
 if (mp->troff_mode) {
-  set_internal_from_scaled_int (mp_gtroffmode, number_to_scaled (unity_t));
-  set_internal_from_scaled_int (mp_prologues, number_to_scaled (unity_t));
+  number_clone (internal_value (mp_gtroffmode), unity_t);
+  number_clone (internal_value (mp_prologues), unity_t);
 }
 if (mp->start_sym != NULL) {    /* insert the `\&{everyjob}' symbol */
   set_cur_sym (mp->start_sym);
@@ -3755,9 +3755,9 @@ typedef struct {
 
 
 @ @(mpmp.h@>=
-#define internal_value_to_halfword(A) (halfword)mp->internal[(A)].v.data.n->data.val
+#define internal_value(A) mp->internal[(A)].v.data.n
 #define set_internal_from_scaled_int(A,B) do { \
-  mp->internal[(A)].v.data.n->data.val=(B);\
+  set_number_from_scaled (internal_value ((A)),(B));\
 } while (0)
 #define internal_string(A) (mp_string)mp->internal[(A)].v.data.str
 #define set_internal_string(A,B) mp->internal[(A)].v.data.str=(B)
@@ -3936,22 +3936,22 @@ enum mp_color_model {
 
 @ @<Initialize table entries@>=
 set_internal_from_scaled_int (mp_default_color_model, (mp_rgb_model * number_to_scaled (unity_t)));
-set_internal_from_scaled_int (mp_restore_clip_color, number_to_scaled (unity_t));
+number_clone (internal_value (mp_restore_clip_color), unity_t);
 set_internal_string (mp_output_template, mp_intern (mp, "%j.%c"));
 set_internal_string (mp_output_format, mp_intern (mp, "eps"));
 #if DEBUG
-set_internal_from_scaled_int (mp_tracing_titles, 3 * number_to_scaled (unity_t));
-set_internal_from_scaled_int (mp_tracing_equations, 3 * number_to_scaled (unity_t));
-set_internal_from_scaled_int (mp_tracing_capsules, 3 * number_to_scaled (unity_t));
-set_internal_from_scaled_int (mp_tracing_choices, 3 * number_to_scaled (unity_t));
-set_internal_from_scaled_int (mp_tracing_specs, 3 * number_to_scaled (unity_t));
-set_internal_from_scaled_int (mp_tracing_commands, 3 * number_to_scaled (unity_t));
-set_internal_from_scaled_int (mp_tracing_restores, 3 * number_to_scaled (unity_t));
-set_internal_from_scaled_int (mp_tracing_macros, 3 * number_to_scaled (unity_t));
-set_internal_from_scaled_int (mp_tracing_output, 3 * number_to_scaled (unity_t));
-set_internal_from_scaled_int (mp_tracing_stats, 3 * number_to_scaled (unity_t));
-set_internal_from_scaled_int (mp_tracing_lost_chars, 3 * number_to_scaled (unity_t));
-set_internal_from_scaled_int (mp_tracing_online, 3 * number_to_scaled (unity_t));
+number_clone (mp_tracing_titles, three_t);
+number_clone (mp_tracing_equations, three_t);
+number_clone (mp_tracing_capsules, three_t);
+number_clone (mp_tracing_choices, three_t);
+number_clone (mp_tracing_specs, three_t);
+number_clone (mp_tracing_commands, three_t);
+number_clone (mp_tracing_restores, three_t);
+number_clone (mp_tracing_macros, three_t);
+number_clone (mp_tracing_output, three_t);
+number_clone (mp_tracing_stats, three_t);
+number_clone (mp_tracing_lost_chars, three_t);
+number_clone (mp_tracing_online, three_t);
 #endif
 
 @ Well, we do have to list the names one more time, for use in symbolic
@@ -4038,7 +4038,7 @@ static void mp_print_diagnostic (MP mp, const char *s, const char *t,
 @ @<Basic printing...@>=
 void mp_begin_diagnostic (MP mp) {                               /* prepare to do some tracing */
   mp->old_setting = mp->selector;
-  if ((internal_value_to_halfword (mp_tracing_online) <= 0)
+  if (number_nonpositive(internal_value (mp_tracing_online))
       && (mp->selector == term_and_log)) {
     decr (mp->selector);
     if (mp->history == mp_spotless)
@@ -5838,7 +5838,7 @@ in a capsule, or if the user wants to trace capsules.
 @c
 static boolean mp_interesting (MP mp, mp_node p) {
   quarterword t;        /* a |name_type| */
-  if (internal_value_to_halfword (mp_tracing_capsules) > 0) {
+  if (number_positive(internal_value (mp_tracing_capsules))) {
     return true;
   } else {
     t = mp_name_type (p);
@@ -6440,7 +6440,7 @@ static void mp_save_variable (MP mp, mp_sym q) {
   mp_clear_symbol (mp, q, (mp->save_ptr != NULL));
 }
 static void mp_unsave_variable (MP mp, mp_sym q) {
-  if (internal_value_to_halfword (mp_tracing_restores) > 0) {
+  if (number_positive(internal_value (mp_tracing_restores))) {
     mp_begin_diagnostic (mp);
     mp_print_nl (mp, "{restoring ");
     mp_print_text (q);
@@ -6480,7 +6480,7 @@ static void mp_save_internal (MP mp, halfword q) {
 
 static void mp_unsave_internal (MP mp, halfword q) {
   mp_internal saved = mp->save_ptr->value;
-  if (internal_value_to_halfword (mp_tracing_restores) > 0) {
+  if (number_positive(internal_value (mp_tracing_restores))) {
     mp_begin_diagnostic (mp);
     mp_print_nl (mp, "{restoring ");
     mp_print (mp, internal_name (q));
@@ -7117,7 +7117,7 @@ static void mp_make_choices (MP mp, mp_knot knots) {
   mp_knot p, q; /* consecutive breakpoints being processed */
   @<Other local variables for |make_choices|@>;
   check_arith();                  /* make sure that |arith_error=false| */
-  if (internal_value_to_halfword (mp_tracing_choices) > 0)
+  if (number_positive(internal_value (mp_tracing_choices)))
     mp_print_path (mp, knots, ", before choices", true);
   @<If consecutive knots are equal, join them explicitly@>;
   @<Find the first breakpoint, |h|, on the path;
@@ -7127,7 +7127,7 @@ static void mp_make_choices (MP mp, mp_knot knots) {
     @<Fill in the control points between |p| and the next breakpoint,
       then advance |p| to that breakpoint@>;
   } while (p != h);
-  if (internal_value_to_halfword (mp_tracing_choices) > 0)
+  if (number_positive(internal_value (mp_tracing_choices)))
     mp_print_path (mp, knots, ", after choices", true);
   if (mp->arith_error) {
     @<Report an unexpected problem during the choice-making@>;
@@ -10132,16 +10132,16 @@ static mp_node mp_new_fill_node (MP mp, mp_knot p) {
 
 
 @ @<Set the |ljoin| and |miterlim| fields in object |t|@>=
-if (internal_value_to_halfword (mp_linejoin) > number_to_scaled (unity_t))
+if (number_greater(internal_value (mp_linejoin), unity_t))
   t->ljoin = 2;
-else if (internal_value_to_halfword (mp_linejoin) > 0)
+else if (number_positive(internal_value (mp_linejoin)))
   t->ljoin = 1;
 else
   t->ljoin = 0;
-if (internal_value_to_halfword (mp_miterlimit) < number_to_scaled (unity_t)) {
+if (number_less(internal_value (mp_miterlimit), unity_t)) {
   set_number_to_unity(t->miterlim);
 } else {
-  set_number_from_scaled(t->miterlim,internal_value_to_halfword (mp_miterlimit));
+  number_clone(t->miterlim,internal_value (mp_miterlimit));
 }
 
 @ A stroked path is represented by an eight-word node that is like a filled
@@ -10200,9 +10200,9 @@ static mp_node mp_new_stroked_node (MP mp, mp_knot p) {
   mp_pre_script (t) = NULL;
   mp_post_script (t) = NULL;
   @<Set the |ljoin| and |miterlim| fields in object |t|@>;
-  if (internal_value_to_halfword (mp_linecap) > number_to_scaled (unity_t))
+  if (number_greater(internal_value (mp_linecap), unity_t))
     t->lcap = 2;
-  else if (internal_value_to_halfword (mp_linecap) > 0)
+  else if (number_positive(internal_value (mp_linecap)))
     t->lcap = 1;
   else
     t->lcap = 0;
@@ -11741,11 +11741,11 @@ switch (h->bbtype ) {
 case no_bounds:
   break;
 case bounds_set:
-  if (internal_value_to_halfword (mp_true_corners) > 0)
+  if (number_positive(internal_value (mp_true_corners)))
     mp_init_bbox (mp, h);
   break;
 case bounds_unset:
-  if (internal_value_to_halfword (mp_true_corners) <= 0)
+  if (number_nonpositive(internal_value (mp_true_corners)))
     mp_init_bbox (mp, h);
   break;
 }                               /* there are no other cases */
@@ -11779,7 +11779,7 @@ break;
 
 @ @<Other cases for updating the bounding box...@>=
 case mp_start_bounds_node_type:
-if (internal_value_to_halfword (mp_true_corners) > 0) {
+if (number_positive (internal_value (mp_true_corners))) {
   h->bbtype = bounds_unset;
 } else {
   h->bbtype = bounds_set;
@@ -11790,7 +11790,7 @@ if (internal_value_to_halfword (mp_true_corners) > 0) {
 }
 break;
 case mp_stop_bounds_node_type:
-if (internal_value_to_halfword (mp_true_corners) <= 0)
+if (number_nonpositive (internal_value (mp_true_corners)))
   mp_confusion (mp, "bbox2");
 @:this can't happen bbox2}{\quad bbox2@>;
 break;
@@ -12988,7 +12988,7 @@ static mp_knot mp_make_envelope (MP mp, mp_knot c, mp_knot h, quarterword ljoin,
 
 @ @<Use |offset_prep| to compute the envelope spec then walk |h| around to...@>=
 c = mp_offset_prep (mp, c, h);
-if (internal_value_to_halfword (mp_tracing_specs) > 0)
+if (number_positive(internal_value (mp_tracing_specs)))
   mp_print_spec (mp, c, h, "");
 h = mp_pen_walk (mp, h, mp->spec_offset)
  
@@ -14803,7 +14803,7 @@ static void mp_val_too_big (MP mp, mp_number x);
 
 @ @c
 void mp_val_too_big (MP mp, mp_number x) {
-  if (internal_value_to_halfword (mp_warning_check) > 0) {
+  if (number_positive (internal_value (mp_warning_check))) {
     char msg[256];
     const char *hlp[] = {
            "The equation I just processed has given some variable",
@@ -14836,7 +14836,7 @@ void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
   mp_free_dep_node (mp, q);
   if (abs (value (p)) >= number_to_scaled (fraction_one_t))
     mp_val_too_big (mp, value_number (p));
-  if ((internal_value_to_halfword (mp_tracing_equations) > 0)
+  if ((number_positive(internal_value (mp_tracing_equations)))
       && mp_interesting (mp, (mp_node) p)) {
     mp_begin_diagnostic (mp);
     mp_print_nl (mp, "#### ");
@@ -15029,7 +15029,7 @@ static void mp_linear_eq (MP mp, mp_value_node p, quarterword t) {
   x = dep_info (q);
   n = indep_scale (x);
   @<Divide list |p| by |-v|, removing node |q|@>;
-  if (internal_value_to_halfword (mp_tracing_equations) > 0) {
+  if (number_positive (internal_value (mp_tracing_equations))) {
     @<Display the new dependency@>;
   }
   @<Simplify all existing dependencies by substituting for |x|@>;
@@ -16835,7 +16835,7 @@ void mp_firm_up_the_line (MP mp) {
   size_t k;     /* an index into |buffer| */
   limit = (halfword) mp->last;
   if ((!mp->noninteractive)
-      && (internal_value_to_halfword (mp_pausing) > 0)
+      && (number_positive (internal_value (mp_pausing)))
       && (mp->interaction > mp_nonstop_mode)) {
     wake_up_terminal();
     mp_print_ln (mp);
@@ -17649,7 +17649,7 @@ static void mp_expand (MP mp) {
   size_t j;     /* index into |str_pool| */
   mp->expand_depth_count++;
   mp_check_expansion_depth (mp);
-  if (internal_value_to_halfword (mp_tracing_commands) > number_to_scaled (unity_t))
+  if (number_greater (internal_value (mp_tracing_commands), unity_t))
     if (cur_cmd() != mp_defined_macro)
       show_cur_cmd_mod;
   switch (cur_cmd()) {
@@ -17753,7 +17753,7 @@ that will be |NULL| if no loop is in progress.
 @ @<Exit a loop if the proper time has come@>=
 {
   mp_get_boolean (mp);
-  if (internal_value_to_halfword (mp_tracing_commands) > number_to_scaled (unity_t))
+  if (number_greater (internal_value (mp_tracing_commands),  unity_t))
     mp_show_cmd_mod (mp, mp_nullary, cur_exp_value ());
   if (cur_exp_value () == mp_true_code) {
     if (mp->loop_ptr == NULL) {
@@ -17948,7 +17948,7 @@ void mp_macro_call (MP mp, mp_node def_ref, mp_node arg_list, mp_sym macro_name)
     @<Determine the number |n| of arguments already supplied,
     and set |tail| to the tail of |arg_list|@>;
   }
-  if (internal_value_to_halfword (mp_tracing_macros) > 0) {
+  if (number_positive (internal_value (mp_tracing_macros))) {
     @<Show the text of the macro being expanded, and the existing arguments@>;
   }
   @<Scan the remaining arguments, if any; set |r| to the first token
@@ -18153,7 +18153,7 @@ a token list pointed to by |cur_exp|, in which case we will have
     set_mp_sym_sym (p, mp->cur_exp.data.node);
   else
     set_mp_sym_sym (p, mp_stash_cur_exp (mp));
-  if (internal_value_to_halfword (mp_tracing_macros) > 0) {
+  if (number_positive (internal_value (mp_tracing_macros))) {
     mp_begin_diagnostic (mp);
     mp_print_arg (mp, (mp_node)mp_sym_sym (p), n, mp_sym_info (r), mp_name_type (r));
     mp_end_diagnostic (mp, false);
@@ -18278,7 +18278,7 @@ if (mp_end_of_statement) {         /* |cur_cmd=semicolon|, |end_group|, or |stop
   mp_scan_expression (mp);
   p = mp_get_symbolic_node (mp);
   set_mp_sym_sym (p, mp_stash_cur_exp (mp));
-  if (internal_value_to_halfword (mp_tracing_macros) > 0) {
+  if (number_positive (internal_value (mp_tracing_macros))) {
     mp_begin_diagnostic (mp);
     mp_print_arg (mp, (mp_node)mp_sym_sym (p), n, 0, 0);
     mp_end_diagnostic (mp, false);
@@ -18586,7 +18586,7 @@ void mp_conditional (MP mp) {
 RESWITCH:
   mp_get_boolean (mp);
   new_if_limit = else_if_code;
-  if (internal_value_to_halfword (mp_tracing_commands) > number_to_scaled (unity_t)) {
+  if (number_greater (internal_value (mp_tracing_commands), unity_t)) {
     @<Display the boolean value of |cur_exp|@>;
   }
 FOUND:
@@ -18908,7 +18908,7 @@ void mp_resume_iteration (MP mp) {
   }
   mp_begin_token_list (mp, mp->loop_ptr->info, (quarterword) loop_text);
   mp_stack_argument (mp, q);
-  if (internal_value_to_halfword (mp_tracing_commands) > number_to_scaled (unity_t)) {
+  if (number_greater (internal_value (mp_tracing_commands), unity_t)) {
     @<Trace the start of a loop@>;
   }
   return;
@@ -19712,18 +19712,18 @@ this file.
 {
   wlog (mp->banner);
   mp_print (mp, "  ");
-  mp_print_int (mp, mp_round_unscaled (mp, internal_value_to_halfword (mp_day)));
+  mp_print_int (mp, mp_round_unscaled (mp, number_to_scaled (internal_value (mp_day))));
   mp_print_char (mp, xord (' '));
-  m = mp_round_unscaled (mp, internal_value_to_halfword (mp_month));
+  m = mp_round_unscaled (mp, number_to_scaled (internal_value (mp_month)));
   for (k = 3 * m - 3; k < 3 * m; k++) {
     wlog_chr ((unsigned char) months[k]);
   }
   mp_print_char (mp, xord (' '));
-  mp_print_int (mp, mp_round_unscaled (mp, internal_value_to_halfword (mp_year)));
+  mp_print_int (mp, mp_round_unscaled (mp, number_to_scaled (internal_value (mp_year))));
   mp_print_char (mp, xord (' '));
-  mp_print_dd (mp, mp_round_unscaled (mp, internal_value_to_halfword (mp_hour)));
+  mp_print_dd (mp, mp_round_unscaled (mp, number_to_scaled (internal_value (mp_hour))));
   mp_print_char (mp, xord (':'));
-  mp_print_dd (mp, mp_round_unscaled (mp, internal_value_to_halfword (mp_minute)));
+  mp_print_dd (mp, mp_round_unscaled (mp, number_to_scaled (internal_value (mp_minute))));
 }
 
 
@@ -20519,7 +20519,7 @@ if (verbosity <= 1) {
   mp_print_type (mp, t);
 } else {
   if (mp->selector == term_and_log)
-    if (internal_value_to_halfword (mp_tracing_online) <= 0) {
+    if (number_nonpositive (internal_value (mp_tracing_online))) {
       mp->selector = term_only;
       mp_print_type (mp, t);
       mp_print (mp, " (see the transcript file)");
@@ -20880,7 +20880,7 @@ set_mp_link (prev_dep ((mp_value_node) pp), (mp_node) q);
 mp_new_indep (mp, pp);
 if (cur_exp_node () == pp && mp->cur_exp.type == t)
   mp->cur_exp.type = mp_independent;
-if (internal_value_to_halfword (mp_tracing_equations) > 0) {
+if (number_positive (internal_value (mp_tracing_equations))) {
   @<Show the transformed dependency@>;
 }
 
@@ -21287,7 +21287,7 @@ integer group_line;     /* where a group began */
 @ @<Scan a grouped primary@>=
 {
   group_line = mp_true_line (mp);
-  if (internal_value_to_halfword (mp_tracing_commands) > 0)
+  if (number_positive (internal_value (mp_tracing_commands)))
     show_cur_cmd_mod;
   mp_save_boundary (mp);
   do {
@@ -21306,7 +21306,7 @@ integer group_line;     /* where a group began */
   }
   mp_unsave (mp);
   /* this might change |cur_type|, if independent variables are recycled */
-  if (internal_value_to_halfword (mp_tracing_commands) > 0)
+  if (number_positive (internal_value (mp_tracing_commands)))
     show_cur_cmd_mod;
 }
 
@@ -21474,7 +21474,7 @@ of the internal quantity, with |name_type| equal to |mp_internal_sym|.
   if (internal_type (qq) == mp_string_type) {
     set_cur_exp_str (internal_string (qq));
   } else {
-    set_cur_exp_value (internal_value_to_halfword (qq));
+    set_cur_exp_value (number_to_scaled (internal_value (qq)));
   }
   mp->cur_exp.type = internal_type (qq);
 }
@@ -23022,7 +23022,7 @@ break;
 @<Declare nullary action procedure@>;
 static void mp_do_nullary (MP mp, quarterword c) {
   check_arith();
-  if (internal_value_to_halfword (mp_tracing_commands) > number_to_scaled(two_t))
+  if (number_greater (internal_value (mp_tracing_commands), two_t))
     mp_show_cmd_mod (mp, mp_nullary, c);
   switch (c) {
   case mp_true_code:
@@ -23102,7 +23102,7 @@ static void mp_do_unary (MP mp, quarterword c) {
   check_arith();
   memset(&new_expr,0,sizeof(mp_value));
   new_number(new_expr.data.n);
-  if (internal_value_to_halfword (mp_tracing_commands) > number_to_scaled(two_t))
+  if (number_greater (internal_value (mp_tracing_commands), two_t))
     @<Trace the current unary operation@>;
   switch (c) {
   case mp_plus:
@@ -23448,7 +23448,7 @@ for backward compatibility) .
          (((mp_color_model(cur_pic_item)==A)
           ||
           ((mp_color_model(cur_pic_item)==mp_uninitialized_model) &&
-           (internal_value_to_halfword(mp_default_color_model)/number_to_scaled (unity_t))==(A))))))
+           (number_to_scaled (internal_value(mp_default_color_model))/number_to_scaled (unity_t))==(A))))))
 
 @<Additional cases of unary operators@>=
 case mp_x_part:
@@ -23743,7 +23743,7 @@ static void mp_take_pict_part (MP mp, quarterword c) {
     case mp_color_model_part:
       if (has_color (p)) {
         if (mp_color_model (p) == mp_uninitialized_model)
-          new_expr.data.n->data.val = internal_value_to_halfword (mp_default_color_model);
+          number_clone (new_expr.data.n, internal_value (mp_default_color_model));
         else
           new_expr.data.n->data.val = mp_color_model (p) * number_to_scaled (unity_t);
         mp_flush_cur_exp (mp, new_expr);
@@ -24002,7 +24002,7 @@ if (bad_char) {
   mp_get_x_next (mp);
 }
 if ((n > 4095)) {
-  if (internal_value_to_halfword (mp_warning_check) > 0) {
+  if (number_positive (internal_value (mp_warning_check))) {
     char msg[256];
     const char *hlp[] = {
            "I have trouble with numbers greater than 4095; watch out.",
@@ -24274,7 +24274,7 @@ static mp_number mp_new_turn_cycles (MP mp, mp_knot c) {
   p = c;
   old_setting = mp->selector;
   mp->selector = term_only;
-  if (internal_value_to_halfword (mp_tracing_commands) > number_to_scaled (unity_t)) {
+  if (number_greater (internal_value (mp_tracing_commands), unity_t)) {
     mp_begin_diagnostic (mp);
     mp_print_nl (mp, "");
     mp_end_diagnostic (mp, false);
@@ -24483,11 +24483,11 @@ static mp_number mp_turn_cycles_wrapper (MP mp, mp_knot c) {
   } else {
     mp_number nval = mp_new_turn_cycles (mp, c);
     mp_number oval = mp_turn_cycles (mp, c);
-    if ((!number_equal(nval, oval)) && internal_value_to_halfword (mp_tracing_choices) > (2 * number_to_scaled (unity_t))) {
+    if ((!number_equal(nval, oval)) && number_greater (internal_value (mp_tracing_choices), two_t)) {
       mp_number saved_t_o;
       new_number (saved_t_o);
-      set_number_from_scaled (saved_t_o, internal_value_to_halfword (mp_tracing_online));
-      set_internal_from_scaled_int (mp_tracing_online, number_to_scaled (unity_t));
+      number_clone (saved_t_o, internal_value (mp_tracing_online));
+      number_clone (internal_value (mp_tracing_online), unity_t);
       mp_begin_diagnostic (mp);
       mp_print_nl (mp, "Warning: the turningnumber algorithms do not agree."
                    " The current computed value is ");
@@ -24495,7 +24495,7 @@ static mp_number mp_turn_cycles_wrapper (MP mp, mp_knot c) {
       mp_print (mp, ", but the 'connect-the-dots' algorithm returned ");
       mp_print_number (mp, oval);
       mp_end_diagnostic (mp, false);
-      set_internal_from_scaled_int (mp_tracing_online, number_to_scaled (saved_t_o));
+      number_clone (internal_value (mp_tracing_online), saved_t_o);
       free_number (saved_t_o);
     }
     free_number (oval);
@@ -24935,7 +24935,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
   memset(&new_expr,0,sizeof(mp_value));
   new_number(new_expr.data.n);
   check_arith();
-  if (internal_value_to_halfword (mp_tracing_commands) > number_to_scaled(two_t)) {
+  if (number_greater (internal_value (mp_tracing_commands), two_t)) {
     @<Trace the current binary operation@>;
   }
   @<Sidestep |independent| cases in capsule |p|@>;
@@ -25673,7 +25673,7 @@ static void mp_frac_mult (MP mp, mp_number n, mp_number d) {
   mp_node old_exp;      /* a capsule to recycle */
   mp_number v;   /* |n/d| */
   new_fraction (v);
-  if (internal_value_to_halfword (mp_tracing_commands) > number_to_scaled(two_t)) {
+  if (number_greater (internal_value (mp_tracing_commands), two_t)) {
     @<Trace the fraction multiplication@>;
   }
   switch (mp->cur_exp.type) {
@@ -26883,22 +26883,22 @@ static void mp_set_up_envelope (MP mp, mp_node p) {
     mp->cur_exp.type = mp_path_type;
     return;
   }
-  if (internal_value_to_halfword (mp_linejoin) > number_to_scaled (unity_t))
+  if (number_greater (internal_value (mp_linejoin), unity_t))
     ljoin = 2;
-  else if (internal_value_to_halfword (mp_linejoin) > 0)
+  else if (number_positive (internal_value (mp_linejoin)))
     ljoin = 1;
   else
     ljoin = 0;
-  if (internal_value_to_halfword (mp_linecap) > number_to_scaled (unity_t))
+  if (number_greater (internal_value (mp_linecap), unity_t))
     lcap = 2;
-  else if (internal_value_to_halfword (mp_linecap) > 0)
+  else if (number_positive (internal_value (mp_linecap)))
     lcap = 1;
   else
     lcap = 0;
-  if (internal_value_to_halfword (mp_miterlimit) < number_to_scaled (unity_t))
+  if (number_less (internal_value (mp_miterlimit), unity_t))
     set_number_to_unity(miterlim);
   else
-    set_number_from_scaled(miterlim, internal_value_to_halfword (mp_miterlimit));
+    number_clone(miterlim, internal_value (mp_miterlimit));
   set_cur_exp_knot (mp_make_envelope
                     (mp, q, value_knot (p), ljoin, lcap, miterlim));
   mp->cur_exp.type = mp_path_type;
@@ -27201,7 +27201,7 @@ expression.
 
 @<Do a statement that doesn't...@>=
 {
-  if (internal_value_to_halfword (mp_tracing_commands) > 0)
+  if (number_positive (internal_value (mp_tracing_commands)))
     show_cur_cmd_mod;
   switch (cur_cmd()) {
   case mp_type_name:
@@ -27254,7 +27254,7 @@ expression.
 
 @ @<Do a title@>=
 {
-  if (internal_value_to_halfword (mp_tracing_titles) > 0) {
+  if (number_positive (internal_value (mp_tracing_titles))) {
     mp_print_nl (mp, "");
     mp_print_str (mp, cur_exp_str ());
     update_terminal();
@@ -27287,7 +27287,7 @@ void mp_do_equation (MP mp) {
     mp_do_equation (mp);
   else if (cur_cmd() == mp_assignment)
     mp_do_assignment (mp);
-  if (internal_value_to_halfword (mp_tracing_commands) > number_to_scaled(two_t))
+  if (number_greater (internal_value (mp_tracing_commands), two_t))
     @<Trace the current equation@>;
   if (mp->cur_exp.type == mp_unknown_path)
     if (mp_type (lhs) == mp_pair_type) {
@@ -27328,7 +27328,7 @@ void mp_do_assignment (MP mp) {
       mp_do_equation (mp);
     else if (cur_cmd() == mp_assignment)
       mp_do_assignment (mp);
-    if (internal_value_to_halfword (mp_tracing_commands) > number_to_scaled(two_t))
+    if (number_greater (internal_value (mp_tracing_commands), two_t))
       @<Trace the current assignment@>;
     if (mp_name_type (lhs) == mp_internal_sym) {
       @<Assign the current expression to an internal variable@>;
@@ -28347,7 +28347,7 @@ if (!mp->ini_version) {
 mp_fix_date_and_time (mp);
 if (mp->random_seed == 0)
   mp->random_seed =
-    (internal_value_to_halfword (mp_time) / number_to_scaled (unity_t)) + internal_value_to_halfword (mp_day);
+    (number_to_scaled (internal_value (mp_time)) / number_to_scaled (unity_t)) + number_to_scaled (internal_value (mp_day));
 mp_init_randoms (mp, mp->random_seed);
 @<Initialize the print |selector|...@>;
 mp_open_log_file (mp);
@@ -28355,8 +28355,8 @@ mp_set_job_id (mp);
 mp_init_map_file (mp, mp->troff_mode);
 mp->history = mp_spotless;      /* ready to go! */
 if (mp->troff_mode) {
-  set_internal_from_scaled_int (mp_gtroffmode, number_to_scaled (unity_t));
-  set_internal_from_scaled_int (mp_prologues, number_to_scaled (unity_t));
+  number_clone (internal_value(mp_gtroffmode), unity_t);
+  number_clone (internal_value(mp_prologues), unity_t);
 }
 @<Fix up |mp->internal[mp_job_name]|@>;
 if (mp->start_sym != NULL) {    /* insert the `\&{everyjob}' symbol */
@@ -28823,7 +28823,7 @@ void mp_do_new_internal (MP mp) {
     if (the_type == mp_string_type) {
       set_internal_string (mp->int_ptr, mp_rts(mp,""));
     } else {
-      set_internal_from_scaled_int (mp->int_ptr, 0);
+      set_number_to_zero (internal_value (mp->int_ptr));
     }
     set_internal_type (mp->int_ptr, the_type);
     mp_get_x_next (mp);
@@ -29141,7 +29141,7 @@ void mp_do_show_whatever (MP mp) {
     mp_do_show_dependencies (mp);
     break;
   }                             /* there are no other cases */
-  if (internal_value_to_halfword (mp_showstopping) > 0) {
+  if (number_positive (internal_value (mp_showstopping))) {
     const char *hlp[] = {
          "This isn't an error message; I'm just showing something.", 
          NULL };
@@ -29960,7 +29960,7 @@ void mp_do_ship_out (MP mp) {
   if (mp->cur_exp.type != mp_picture_type) {
     @<Complain that it's not a known picture@>;
   } else {
-    c = mp_round_unscaled (mp, internal_value_to_halfword (mp_char_code)) % 256;
+    c = mp_round_unscaled (mp, number_to_scaled (internal_value (mp_char_code))) % 256;
     if (c < 0)
       c = c + 256;
     @<Store the width information for character code~|c|@>;
@@ -30637,7 +30637,7 @@ static mp_node mp_tfm_check (MP mp, quarterword m);
 @ @c
 static mp_node mp_tfm_check (MP mp, quarterword m) {
   mp_node p = mp_get_value_node (mp);
-  if (abs (internal_value_to_halfword (m)) >= number_to_scaled (fraction_half_t)) {
+  if (abs (number_to_scaled (internal_value (m))) >= number_to_scaled (fraction_half_t)) {
     char msg[256];
     const char *hlp[] = {
        "Font metric dimensions must be less than 2048pt.",
@@ -30650,12 +30650,12 @@ static mp_node mp_tfm_check (MP mp, quarterword m) {
 @.Enormous designsize...@>;
     mp_back_error (mp, msg, hlp, true);
     mp_get_x_next (mp);
-    if (internal_value_to_halfword (m) > 0)
+    if (number_positive (internal_value (m)))
       set_value (p, (number_to_scaled (fraction_half_t) - 1));
     else
       set_value (p, (1 - number_to_scaled (fraction_half_t)));
   } else {
-    set_value (p, internal_value_to_halfword (m));
+    set_value (p, number_to_scaled (internal_value (m)));
   }
   return p;
 }
@@ -31441,7 +31441,7 @@ Error messages are not allowed at the time this procedure is called,
 so a warning is printed instead.
 
 The value of |max_tfm_dimen| is calculated so that
-$$\hbox{|make_scaled(16*max_tfm_dimen,internal_value_to_halfword(mp_design_size))|}
+$$\hbox{|make_scaled(16*max_tfm_dimen,internal_value(mp_design_size))|}
  < \\{three\_bytes}.$$
 
 @d three_bytes 0100000000 /* $2^{24}$ */
@@ -31450,13 +31450,13 @@ $$\hbox{|make_scaled(16*max_tfm_dimen,internal_value_to_halfword(mp_design_size)
 static void mp_fix_design_size (MP mp) {
   mp_number d;     /* the design size */
   new_number (d);
-  set_number_from_scaled (d, internal_value_to_halfword (mp_design_size));
-  if ((number_to_scaled (d) < number_to_scaled (unity_t)) || number_greaterequal(d, fraction_half_t)) {
+  number_clone (d, internal_value (mp_design_size));
+  if (number_less(d, unity_t) || number_greaterequal(d, fraction_half_t)) {
     if (!number_zero (d))
       mp_print_nl (mp, "(illegal design size has been changed to 128pt)");
 @.illegal design size...@>;
     set_number_from_scaled (d, 040000000);
-    set_internal_from_scaled_int (mp_design_size, number_to_scaled (d));
+    number_clone (internal_value (mp_design_size), d);
   }
   if (mp->header_byte[4] == 0 && mp->header_byte[5] == 0 &&
       mp->header_byte[6] == 0 && mp->header_byte[7] == 0) {
@@ -31466,8 +31466,8 @@ static void mp_fix_design_size (MP mp) {
     mp->header_byte[7] = (char) ((number_to_scaled (d) % 16) * 16);
   }
   set_number_from_scaled (mp->max_tfm_dimen,
-    16 * internal_value_to_halfword (mp_design_size) - 1 -
-    internal_value_to_halfword (mp_design_size) / 010000000);
+    16 * number_to_scaled (internal_value (mp_design_size)) - 1 -
+    number_to_scaled (internal_value (mp_design_size)) / 010000000);
   if (number_greaterequal (mp->max_tfm_dimen, fraction_half_t))
     set_number_from_scaled (mp->max_tfm_dimen, number_to_scaled (fraction_half_t) - 1);
   free_number (d);
@@ -31497,7 +31497,7 @@ static integer mp_dimen_out (MP mp, mp_number x_orig) {
       number_negate (x);
     }
   }
-  set_number_from_scaled (x, mp_make_scaled (mp, number_to_scaled (x) * 16, internal_value_to_halfword (mp_design_size)));
+  set_number_from_scaled (x, mp_make_scaled (mp, number_to_scaled (x) * 16, number_to_scaled (internal_value (mp_design_size))));
   free_number (abs_x);
   ret = number_to_scaled (x);
   free_number (x);
@@ -31604,7 +31604,7 @@ mp->metric_file_name = xstrdup (mp->name_of_file);
   output the dimensions themselves@>;
 @<Output the ligature/kern program@>;
 @<Output the extensible character recipes and the font metric parameters@>;
-if (internal_value_to_halfword (mp_tracing_stats) > 0)
+if (number_positive (internal_value (mp_tracing_stats)))
   @<Log the subfile sizes of the \.{TFM} file@>;
 mp_print_nl (mp, "Font metrics written on ");
 mp_print (mp, mp->metric_file_name);
@@ -31673,7 +31673,7 @@ starting addresses; we have $-1=|label_loc|[0]<|label_loc|[1]\le\cdots
 \le|label_loc|[|label_ptr]|$.
 
 @<Compute the ligature/kern program offset...@>=
-mp->bchar = mp_round_unscaled (mp, internal_value_to_halfword (mp_boundary_char));
+mp->bchar = mp_round_unscaled (mp, number_to_scaled (internal_value (mp_boundary_char)));
 if ((mp->bchar < 0) || (mp->bchar > 255)) {
   mp->bchar = -1;
   mp->lk_started = false;
@@ -32031,7 +32031,7 @@ static void mp_lost_warning (MP mp, font_number f, int k);
 
 @ @c
 void mp_lost_warning (MP mp, font_number f, int k) {
-  if (internal_value_to_halfword (mp_tracing_lost_chars) > 0) {
+  if (number_positive (internal_value (mp_tracing_lost_chars))) {
     mp_begin_diagnostic (mp);
     if (mp->selector == log_only)
       incr (mp->selector);
@@ -32185,10 +32185,10 @@ static void mp_append_to_template (MP mp, integer ff, integer c, boolean roundin
     mp_print (mp, ss);
   } else if (internal_type (c) == mp_known) {
     if (rounding) {
-      integer cc = mp_round_unscaled (mp, internal_value_to_halfword (c));
+      integer cc = mp_round_unscaled (mp, number_to_scaled (internal_value (c)));
       print_with_leading_zeroes (cc, ff);
     } else {
-      mp_print_scaled (mp, internal_value_to_halfword (c));
+      mp_print_number (mp, internal_value (c));
     }
   }
 }
@@ -32214,7 +32214,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     mp_string s, n, template;  /* a file extension derived from |c| */
     mp_number saved_char_code;  
     new_number (saved_char_code);
-    set_number_from_scaled (saved_char_code, internal_value_to_halfword (mp_char_code));
+    number_clone (saved_char_code, internal_value (mp_char_code));
     set_internal_from_scaled_int (mp_char_code, (c * number_to_scaled (unity_t)));
     if (internal_string (mp_job_name) == NULL) {
       if (mp->job_name == NULL) {
@@ -32238,7 +32238,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
             mp_append_to_template (mp, f, mp_job_name, true);
             break;
           case 'c':
-            if (internal_value_to_halfword (mp_char_code) < 0) {
+            if (number_negative (internal_value (mp_char_code))) {
               mp_print (mp, "ps");
             } else {
               mp_append_to_template (mp, f, mp_char_code, true);
@@ -32344,7 +32344,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
       incr (i);
     }
     s = mp_make_string (mp);
-    set_internal_from_scaled_int (mp_char_code, number_to_scaled (saved_char_code));
+    number_clone (internal_value (mp_char_code), saved_char_code);
     free_number (saved_char_code);
     mp->selector = old_setting;
     if (n->len == 0) {
@@ -32365,8 +32365,7 @@ static char *mp_get_output_file_name (MP mp) {
   saved_name = xstrdup (mp->name_of_file);
   (void) mp_set_output_file_name (mp,
                                   mp_round_unscaled (mp,
-                                                     internal_value_to_halfword
-                                                     (mp_char_code)));
+                                                     number_to_scaled (internal_value(mp_char_code))));
   f = xstrdup (mp->name_of_file);
   mp_pack_file_name (mp, saved_name, NULL, NULL);
   free (saved_name);
@@ -32375,7 +32374,7 @@ static char *mp_get_output_file_name (MP mp) {
 void mp_open_output_file (MP mp) {
   char *ss;     /* filename extension proposal */
   integer c;    /* \&{charcode} rounded to the nearest integer */
-  c = mp_round_unscaled (mp, internal_value_to_halfword (mp_char_code));
+  c = mp_round_unscaled (mp, number_to_scaled (internal_value (mp_char_code)));
   ss = mp_set_output_file_name (mp, c);
   while (!mp_open_out (mp, (void *) &mp->output_file, mp_filetype_postscript))
     mp_prompt_file_name (mp, "file name for output", ss);
@@ -32556,7 +32555,7 @@ static void mp_ship_out (MP mp, mp_node h);
 
 @d export_color(q,p) 
   if ( mp_color_model(p)==mp_uninitialized_model ) {
-    gr_color_model(q)  = (unsigned char)(internal_value_to_halfword(mp_default_color_model)/65536);
+    gr_color_model(q)  = (unsigned char)(number_to_scaled (internal_value(mp_default_color_model))/65536);
     gr_cyan_val(q)     = 0;
 	gr_magenta_val(q)  = 0;
 	gr_yellow_val(q)   = 0;
@@ -32597,12 +32596,12 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
   hh->maxx = number_to_double(h->maxx);
   hh->maxy = number_to_double(h->maxy);
   hh->filename = mp_xstrdup (mp, mp_get_output_file_name (mp));
-  c = mp_round_unscaled (mp, internal_value_to_halfword (mp_char_code));
+  c = mp_round_unscaled (mp, number_to_scaled (internal_value (mp_char_code)));
   hh->charcode = c;
-  hh->width = internal_value_to_halfword (mp_char_wd);
-  hh->height = internal_value_to_halfword (mp_char_ht);
-  hh->depth = internal_value_to_halfword (mp_char_dp);
-  hh->ital_corr = internal_value_to_halfword (mp_char_ic);
+  hh->width = number_to_scaled (internal_value (mp_char_wd));
+  hh->height = number_to_scaled (internal_value (mp_char_ht));
+  hh->depth = number_to_scaled (internal_value (mp_char_dp));
+  hh->ital_corr = number_to_scaled (internal_value (mp_char_ic));
   @<Export pending specials@>;
   p = mp_link (edge_list (h));
   while (p != NULL) {
@@ -32788,11 +32787,11 @@ static mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *h);
 @c
 void mp_ship_out (MP mp, mp_node h) {                               /* output edge structure |h| */
   integer c;    /* \&{charcode} rounded to the nearest integer */
-  c = mp_round_unscaled (mp, internal_value_to_halfword (mp_char_code));
+  c = mp_round_unscaled (mp, number_to_scaled (internal_value (mp_char_code)));
   @<Begin the progress report for the output of picture~|c|@>;
   (mp->shipout_backend) (mp, h);
   @<End progress report@>;
-  if (internal_value_to_halfword (mp_tracing_output) > 0)
+  if (number_positive (internal_value (mp_tracing_output)))
     mp_print_edges (mp, h, " (just shipped out)", true);
 }
 
@@ -32812,11 +32811,11 @@ void mp_shipout_backend (MP mp, void *voidh) {
     s = mp_str (mp, internal_string (mp_output_format));
   if (s && strcmp (s, "svg") == 0) {
     (void) mp_svg_gr_ship_out (hh,
-                               (internal_value_to_halfword (mp_prologues) / 65536), false);
+                               (number_to_scaled (internal_value (mp_prologues)) / 65536), false);
   } else {
     (void) mp_gr_ship_out (hh,
-                           (internal_value_to_halfword (mp_prologues) / 65536),
-                           (internal_value_to_halfword (mp_procset) / 65536), false);
+                           (number_to_scaled (internal_value (mp_prologues)) / 65536),
+                           (number_to_scaled (internal_value (mp_procset)) / 65536), false);
   }
   mp_gr_toss_objects (hh);
 }
@@ -32961,7 +32960,7 @@ void mp_close_files_and_terminate (MP mp) {
   if (mp->finished)
     return;
   @<Close all open files in the |rd_file| and |wr_file| arrays@>;
-  if (internal_value_to_halfword (mp_tracing_stats) > 0)
+  if (number_positive (internal_value (mp_tracing_stats)))
     @<Output statistics about this job@>;
   wake_up_terminal();
   @<Do all the finishing work on the \.{TFM} file@>;
@@ -33029,12 +33028,12 @@ there is no chance of another memory overflow after the memory capacity
 has already been exceeded.
 
 @<Do all the finishing work on the \.{TFM} file@>=
-if (internal_value_to_halfword (mp_fontmaking) > 0) {
+if (number_positive (internal_value (mp_fontmaking))) {
   @<Massage the \.{TFM} widths@>;
   mp_fix_design_size (mp);
   mp_fix_check_sum (mp);
   @<Massage the \.{TFM} heights, depths, and italic corrections@>;
-  set_internal_from_scaled_int (mp_fontmaking, 0);   /* avoid loop in case of fatal error */
+  set_number_to_zero (internal_value (mp_fontmaking));   /* avoid loop in case of fatal error */
   @<Finish the \.{TFM} file@>;
 }
 
@@ -33175,8 +33174,7 @@ But when we finish this part of the program, \MP\ is ready to call on the
 mp->buffer[limit] = (ASCII_code) '%';
 mp_fix_date_and_time (mp);
 if (mp->random_seed == 0)
-  mp->random_seed =
-    (internal_value_to_halfword (mp_time) / number_to_scaled (unity_t)) + internal_value_to_halfword (mp_day);
+  mp->random_seed = (number_to_scaled (internal_value (mp_time)) / number_to_scaled (unity_t)) + number_to_scaled (internal_value (mp_day));
 mp_init_randoms (mp, mp->random_seed);
 @<Initialize the print |selector|...@>;
 mp_normalize_selector (mp);

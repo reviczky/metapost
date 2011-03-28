@@ -736,6 +736,7 @@ The definitions below are temporarily here
 @d set_cur_mod(A) mp->cur_mod_->data.n->data.val=(A)
 
 @
+
 @c
 void mp_wrapup_numeric_token(MP mp, int n, int f) { /* n,f: scaled */
   int mod ; /* scaled */
@@ -743,7 +744,7 @@ void mp_wrapup_numeric_token(MP mp, int n, int f) { /* n,f: scaled */
     mod = (n * unity + f);
     set_cur_mod(mod);
     if (mod >= fraction_one) {
-      if ((internal_value_to_halfword (mp_warning_check) > 0) &&
+      if (internal_value (mp_warning_check)->data.val > 0 &&
           (mp->scanner_status != tex_flushing)) {
         char msg[256];
         const char *hlp[] = {"It is at least 4096. Continue and I'll try to cope",
