@@ -8074,8 +8074,14 @@ mp_number mp_curl_ratio (MP mp, mp_number gamma_orig, mp_number a_tension, mp_nu
 @ We're in the home stretch now.
 
 @<Finish choosing angles and assigning control points@>=
-for (k = n - 1; k >= 0; k--) {
-  set_number_from_scaled(mp->theta[k], number_to_scaled(mp->vv[k]) - mp_take_fraction (mp, number_to_scaled(mp->theta[k + 1]), number_to_scaled(mp->uu[k])));
+{
+  mp_number r1;
+  new_number (r1);
+  for (k = n - 1; k >= 0; k--) {
+    set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(mp->theta[k + 1]), number_to_scaled(mp->uu[k])));
+    set_number_from_substraction(mp->theta[k], mp->vv[k], r1);
+  }
+  free_number (r1);
 }
 s = p;
 k = 0;
@@ -8130,9 +8136,12 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   mp_number lt, rt;        /* tensions */
   mp_number sine;        /* $\sin(\theta+\phi)$ */
   mp_number tmp;
+  mp_number r1, r2;
   new_number(tmp);
   new_number (lt);
   new_number (rt);
+  new_number (r1);
+  new_number (r2);
   number_clone(lt, q->left_tension);
   number_abs(lt);
   number_clone(rt, p->right_tension);
@@ -8144,25 +8153,31 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
     @<Decrease the velocities,
       if necessary, to stay inside the bounding triangle@>;
   }
-  set_number_from_scaled (tmp, mp_take_fraction (mp,
-        mp_take_fraction (mp, number_to_scaled(mp->delta_x [k]), number_to_scaled (mp->ct)) - 
-        mp_take_fraction (mp, number_to_scaled(mp->delta_y [k]), number_to_scaled (mp->st)), number_to_scaled (rr)));
+  set_number_from_scaled (r1, mp_take_fraction (mp, number_to_scaled(mp->delta_x [k]), number_to_scaled (mp->ct)));
+  set_number_from_scaled (r2, mp_take_fraction (mp, number_to_scaled(mp->delta_y [k]), number_to_scaled (mp->st)));
+  number_substract (r1, r2);
+  set_number_from_scaled (tmp, mp_take_fraction (mp, number_to_scaled (r1), number_to_scaled (rr)));
   set_number_from_addition (p->right_x, p->x_coord, tmp);
-  set_number_from_scaled (tmp, mp_take_fraction (mp,
-        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), number_to_scaled (mp->ct)) +
-        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled (mp->st)), number_to_scaled (rr)));
+  set_number_from_scaled (r1, mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), number_to_scaled (mp->ct)));
+  set_number_from_scaled (r2, mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled (mp->st)));
+  number_add (r1, r2);
+  set_number_from_scaled (tmp, mp_take_fraction (mp, number_to_scaled (r1), number_to_scaled (rr)));
   set_number_from_addition (p->right_y, p->y_coord, tmp);
-  set_number_from_scaled (tmp, mp_take_fraction (mp,
-        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled (mp->cf)) +
-        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), number_to_scaled (mp->sf)), number_to_scaled (ss)));
+  set_number_from_scaled (r1, mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled (mp->cf)));
+  set_number_from_scaled (r2, mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), number_to_scaled (mp->sf)));
+  number_add (r1, r2);
+  set_number_from_scaled (tmp, mp_take_fraction (mp, number_to_scaled (r1), number_to_scaled (ss)));
   set_number_from_substraction (q->left_x, q->x_coord, tmp);
-  set_number_from_scaled (tmp, mp_take_fraction (mp,
-        mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), number_to_scaled (mp->cf)) -
-        mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled (mp->sf)), number_to_scaled (ss)));
+  set_number_from_scaled (r1, mp_take_fraction (mp, number_to_scaled(mp->delta_y[k]), number_to_scaled (mp->cf)));
+  set_number_from_scaled (r2, mp_take_fraction (mp, number_to_scaled(mp->delta_x[k]), number_to_scaled (mp->sf)));
+  number_substract (r1, r2);
+  set_number_from_scaled (tmp, mp_take_fraction (mp, number_to_scaled (r1), number_to_scaled (ss)));
   set_number_from_substraction(q->left_y, q->y_coord, tmp);
   mp_right_type (p) = mp_explicit;
   mp_left_type (q) = mp_explicit;
   free_number (tmp);
+  free_number (r1);
+  free_number (r2);
   free_number (lt);
   free_number (rt);
   free_number (rr);
@@ -8178,38 +8193,43 @@ there is no ``bounding triangle.''
 
 @<Decrease the velocities, if necessary...@>=
 if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpositive(mp->st) && number_nonpositive(mp->sf))) {
-  set_number_from_scaled (sine, mp_take_fraction (mp, abs (number_to_scaled (mp->st)), number_to_scaled (mp->cf)) +
-    mp_take_fraction (mp, abs (number_to_scaled (mp->sf)), number_to_scaled (mp->ct)));
+  mp_number r1, r2, arg1;
+  new_number (r1);
+  new_number (r2);
+  new_number (arg1);
+  number_clone (arg1, mp->st);
+  number_abs (arg1);
+  set_number_from_scaled (r1, mp_take_fraction (mp, number_to_scaled (arg1), number_to_scaled (mp->cf)));
+  number_clone (arg1, mp->sf);
+  number_abs (arg1);
+  set_number_from_scaled (r2, mp_take_fraction (mp, number_to_scaled (arg1), number_to_scaled (mp->ct)));
+  set_number_from_addition (sine, r1, r2);
   if (number_positive(sine)) {
-    mp_number  arg1;
-    new_number (arg1);
-    set_number_from_scaled (sine, mp_take_fraction (mp, number_to_scaled (sine), number_to_scaled (fraction_one_t) + number_to_scaled (unity_t)));   /* safety factor */
+    set_number_from_addition (arg1, fraction_one_t, unity_t);  /* safety factor */
+    set_number_from_scaled (sine, mp_take_fraction (mp, number_to_scaled (sine), number_to_scaled (arg1)));  
     if (number_negative(p->right_tension)) {
-      set_number_from_scaled (arg1, abs (number_to_scaled (mp->sf)));
+      number_clone (arg1, mp->sf);
+      number_abs (arg1);
       if (mp_ab_vs_cd (mp, arg1, fraction_one_t, rr, sine) < 0) {
-        mp_number arg1;
-        new_number (arg1);
         number_clone (arg1, mp->sf);
         number_abs (arg1);
         free_number (rr);
         rr = mp_make_fraction (mp, arg1, sine);
-        free_number (arg1);
       }
     }
     if (number_negative(q->left_tension)) {
-      set_number_from_scaled (arg1, abs (number_to_scaled (mp->st)));
+      number_clone (arg1, mp->st);
+      number_abs (arg1);
       if (mp_ab_vs_cd (mp, arg1, fraction_one_t, ss, sine) < 0) {
-        mp_number arg1;
-        new_number (arg1);
         number_clone (arg1, mp->st);
         number_abs (arg1);
         free_number (ss);
         ss = mp_make_fraction (mp, arg1, sine);
-        free_number (arg1);
       }
     }
-    free_number (arg1);
   }
+  free_number (r1);
+  free_number (r2);
 }
 
 @ Only the simple cases remain to be handled.
@@ -8251,17 +8271,19 @@ if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpos
     else
       set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + ((number_to_scaled(mp->delta_y[0]) - 1) / 3));
   } else {
-    mp_number arg2;
+    mp_number arg2, r1;
+    new_number (r1);
     new_number (arg2);
     number_clone (arg2, rt);
     number_multiply_int (arg2, 3);
     free_number (ff);
     ff = mp_make_fraction (mp, unity_t, arg2);  /* $\alpha/3$ */
     free_number (arg2);
-    set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + 
-                                        mp_take_fraction (mp, number_to_scaled(mp->delta_x[0]), number_to_scaled (ff)));
-    set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + 
-                                        mp_take_fraction (mp, number_to_scaled(mp->delta_y[0]), number_to_scaled (ff)));
+    set_number_from_scaled (r1, mp_take_fraction (mp, number_to_scaled(mp->delta_x[0]), number_to_scaled (ff)));
+    set_number_from_addition (p->right_x, p->x_coord, r1);
+    set_number_from_scaled (r1, mp_take_fraction (mp, number_to_scaled(mp->delta_y[0]), number_to_scaled (ff)));
+    set_number_from_addition (p->right_y, p->y_coord, r1);
+    free_number (r1);
   }
   if (number_unity(lt)) {
     if (number_nonnegative(mp->delta_x[0]))
@@ -8273,17 +8295,18 @@ if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpos
     else
       set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - ((number_to_scaled(mp->delta_y[0]) - 1) / 3));
   } else {
-    mp_number arg2;
+    mp_number arg2, r1;
     new_number (arg2);
+    new_number (r1);
     number_clone (arg2, lt);
     number_multiply_int (arg2, 3);
     free_number (ff);
     ff = mp_make_fraction (mp, unity_t, arg2);  /* $\beta/3$ */
     free_number (arg2);
-    set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - 
-         mp_take_fraction (mp, number_to_scaled(mp->delta_x[0]), number_to_scaled (ff)));
-    set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - 
-         mp_take_fraction (mp, number_to_scaled(mp->delta_y[0]), number_to_scaled (ff)));
+    set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(mp->delta_x[0]), number_to_scaled (ff)));
+    set_number_from_substraction(q->left_x, q->x_coord, r1);
+    set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(mp->delta_y[0]), number_to_scaled (ff)));
+    set_number_from_substraction(q->left_y, q->y_coord, r1);
   }
   free_number (lt);
   free_number (rt);
@@ -9701,18 +9724,35 @@ to use there.
 
 @<Initialize |p| as the |k|th knot of a circle of unit diameter,...@>=
 kk = (k + 6) % 8;
-set_number_from_scaled (p->x_coord, number_to_scaled (center_x) + mp_take_fraction (mp, number_to_scaled (mp->half_cos[k]), number_to_scaled (width_x))
-  + mp_take_fraction (mp, number_to_scaled (mp->half_cos[kk]), number_to_scaled (height_x)));
-set_number_from_scaled (p->y_coord, number_to_scaled (center_y) + mp_take_fraction (mp, number_to_scaled (mp->half_cos[k]), number_to_scaled (width_y))
-  + mp_take_fraction (mp, number_to_scaled (mp->half_cos[kk]), number_to_scaled (height_y)));
-set_number_from_scaled (dx, -mp_take_fraction (mp, number_to_scaled (mp->d_cos[kk]), number_to_scaled (width_x))
-  + mp_take_fraction (mp, number_to_scaled (mp->d_cos[k]), number_to_scaled (height_x)));
-set_number_from_scaled (dy, -mp_take_fraction (mp, number_to_scaled (mp->d_cos[kk]), number_to_scaled (width_y))
-  + mp_take_fraction (mp, number_to_scaled (mp->d_cos[k]), number_to_scaled (height_y)));
-set_number_from_addition (p->right_x, p->x_coord, dx);
-set_number_from_addition (p->right_y, p->y_coord, dy);
-set_number_from_substraction (p->left_x, p->x_coord, dx);
-set_number_from_substraction (p->left_y, p->y_coord, dy);
+{ 
+  mp_number r1, r2;
+  new_number (r1);
+  new_number (r2);
+  set_number_from_scaled (r1,mp_take_fraction (mp, number_to_scaled (mp->half_cos[k]), number_to_scaled (width_x)));
+  set_number_from_scaled (r2,mp_take_fraction (mp, number_to_scaled (mp->half_cos[kk]), number_to_scaled (height_x)));
+  number_add (r1, r2);
+  set_number_from_addition (p->x_coord, center_x, r1);
+  set_number_from_scaled (r1, mp_take_fraction (mp, number_to_scaled (mp->half_cos[k]), number_to_scaled (width_y)));
+  set_number_from_scaled (r2, mp_take_fraction (mp, number_to_scaled (mp->half_cos[kk]), number_to_scaled (height_y)));
+  number_add (r1, r2);
+  set_number_from_addition (p->y_coord, center_y, r1);
+  set_number_from_scaled (r1, mp_take_fraction (mp, number_to_scaled (mp->d_cos[kk]), number_to_scaled (width_x)));
+  set_number_from_scaled (r2, mp_take_fraction (mp, number_to_scaled (mp->d_cos[k]), number_to_scaled (height_x)));
+  number_clone (dx, r1);
+  number_negate (dx);
+  number_add (dx, r2);
+  set_number_from_scaled (r1, mp_take_fraction (mp, number_to_scaled (mp->d_cos[kk]), number_to_scaled (width_y)));
+  set_number_from_scaled (r2, mp_take_fraction (mp, number_to_scaled (mp->d_cos[k]), number_to_scaled (height_y)));
+  number_clone (dy, r1);
+  number_negate (dy);
+  number_add (dy, r2);
+  set_number_from_addition (p->right_x, p->x_coord, dx);
+  set_number_from_addition (p->right_y, p->y_coord, dy);
+  set_number_from_substraction (p->left_x, p->x_coord, dx);
+  set_number_from_substraction (p->left_y, p->y_coord, dy);
+  free_number (r1);
+  free_number (r2);
+}
 mp_left_type (p) = mp_explicit;
 mp_right_type (p) = mp_explicit;
 mp_originator (p) = mp_program_code
@@ -10066,14 +10106,21 @@ if (number_zero(x_orig) && number_zero(y_orig)) {
   }
   @<Make |(xx,yy)| the offset on the untransformed \&{pencircle} for the
     untransformed version of |(x,y)|@>;
-  set_number_from_scaled(mp->cur_x,
-    number_to_scaled(h->x_coord) + 
-    mp_take_fraction (mp, number_to_scaled(xx), number_to_scaled(wx)) + 
-    mp_take_fraction (mp, number_to_scaled(yy), number_to_scaled(hx)));
-  set_number_from_scaled(mp->cur_y,
-    number_to_scaled(h->y_coord) + 
-    mp_take_fraction (mp, number_to_scaled(xx), number_to_scaled(wy)) + 
-    mp_take_fraction (mp, number_to_scaled(yy), number_to_scaled(hy)));
+  {
+    mp_number r1, r2;
+    new_number (r1);
+    new_number (r2);
+    set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(xx), number_to_scaled(wx)));
+    set_number_from_scaled(r2, mp_take_fraction (mp, number_to_scaled(yy), number_to_scaled(hx)));
+    number_add(r1, r2);
+    set_number_from_addition(mp->cur_x, h->x_coord, r1);
+    set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(xx), number_to_scaled(wy)));
+    set_number_from_scaled(r2, mp_take_fraction (mp, number_to_scaled(yy), number_to_scaled(hy)));
+    number_add(r1, r2);
+    set_number_from_addition(mp->cur_y, h->y_coord, r1);
+    free_number (r1);
+    free_number (r2);
+  }
   free_number(abs_x);
   free_number(abs_y);
   free_number(x);
@@ -10091,10 +10138,28 @@ if (number_zero(x_orig) && number_zero(y_orig)) {
  
 
 @ @<Make |(xx,yy)| the offset on the untransformed \&{pencircle} for the...@>=
-set_number_from_scaled(yy, -(mp_take_fraction (mp, number_to_scaled(x), number_to_scaled(hy)) + 
-                             mp_take_fraction (mp, number_to_scaled(y), -number_to_scaled(hx))));
-set_number_from_scaled(xx, mp_take_fraction (mp, number_to_scaled(x), -number_to_scaled(wy)) + 
-                           mp_take_fraction (mp, number_to_scaled(y), number_to_scaled(wx)));
+{
+  mp_number r1, r2, arg1;
+  new_number (r1);
+  new_number (r2);
+  new_number (arg1);
+  set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(x), number_to_scaled(hy)));
+  number_clone (arg1, hx);
+  number_negate (arg1);
+  set_number_from_scaled(r2, mp_take_fraction (mp, number_to_scaled(y), number_to_scaled(arg1)));
+  number_add (r1, r2);
+  number_negate (r1);
+  number_clone(yy, r1);
+  number_clone (arg1, wy);
+  number_negate (arg1);
+  set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(x), number_to_scaled(arg1)));
+  set_number_from_scaled(r2, mp_take_fraction (mp, number_to_scaled(y), number_to_scaled(wx)));
+  number_add (r1, r2);
+  number_clone(xx, r1);
+  free_number (arg1);
+  free_number (r1);
+  free_number (r2);
+}
 number_clone(d, mp_pyth_add (mp, xx, yy));
 if (number_positive(d)) {
   mp_number ret;
@@ -10415,10 +10480,18 @@ mp_number mp_sqrt_det (MP mp, mp_number a_orig, mp_number b_orig, mp_number c_or
     number_double(maxabs);
     s = (unsigned) (halfp (s));
   }
-  set_number_from_scaled (ret,(s *
-                   (unsigned) mp_square_rt (mp,
-                                            abs (mp_take_fraction (mp, number_to_scaled(a), number_to_scaled(d)) -
-                                                 mp_take_fraction (mp, number_to_scaled(b), number_to_scaled(c))))));
+  { 
+    mp_number r1, r2;
+    new_number (r1);
+    new_number (r2);
+    set_number_from_scaled (r1, mp_take_fraction (mp, number_to_scaled(a), number_to_scaled(d)));
+    set_number_from_scaled (r2, mp_take_fraction (mp, number_to_scaled(b), number_to_scaled(c)));
+    number_substract (r1, r2);
+    number_abs (r1);
+    set_number_from_scaled (ret,(s * (unsigned) mp_square_rt (mp, number_to_scaled (r1))));
+    free_number (r1);
+    free_number (r2);
+  }
   free_number(a);
   free_number(b);
   free_number(c);
@@ -11847,24 +11920,38 @@ set_number_from_substraction(dy, p->y_coord, q->y_coord);
 }
 
 @ @<Use |(dx,dy)| to generate a vertex of the square end cap and...@>=
-mp_find_offset (mp, dx, dy, pp);
-set_number_from_scaled(d, mp_take_fraction (mp, number_to_scaled(xx) - number_to_scaled(mp->cur_x), number_to_scaled(dx)) +
-                          mp_take_fraction (mp, number_to_scaled(yy) - number_to_scaled(mp->cur_y), number_to_scaled(dy)));
-if ((number_negative(d) && (i == 1)) || (number_positive(d) && (i == 2)))
-  mp_confusion (mp, "box_ends");
+{
+  mp_number r1, r2, arg1;
+  new_number (r1);
+  new_number (r2);
+  new_number (arg1);
+  mp_find_offset (mp, dx, dy, pp);
+  set_number_from_substraction (arg1, xx, mp->cur_x);
+  set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(arg1), number_to_scaled(dx)));
+  set_number_from_substraction (arg1, yy, mp->cur_y);
+  set_number_from_scaled(r2, mp_take_fraction (mp, number_to_scaled(arg1), number_to_scaled(dy))); 
+  set_number_from_addition(d, r1, r2);
+  if ((number_negative(d) && (i == 1)) || (number_positive(d) && (i == 2)))
+    mp_confusion (mp, "box_ends");
 @:this can't happen box ends}{\quad\\{box\_ends}@>;
-set_number_from_scaled(z, number_to_scaled (p->x_coord) + number_to_scaled(mp->cur_x) + 
-                          mp_take_fraction (mp, number_to_scaled (d), number_to_scaled(dx)));
-if (number_less(z, h->minx))
-  number_clone(h->minx, z);
-if (number_greater(z, h->maxx))
-  number_clone(h->maxx, z);
-set_number_from_scaled(z, number_to_scaled (p->y_coord) + number_to_scaled(mp->cur_y) + 
-                          mp_take_fraction (mp, number_to_scaled (d), number_to_scaled(dy)));
-if (number_less(z, h->miny))
-  number_clone(h->miny, z);
-if (number_greater(z, h->maxy))
-  number_clone(h->maxy, z);
+  set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled (d), number_to_scaled(dx)));
+  set_number_from_addition(z, p->x_coord, mp->cur_x);
+  number_add (z, r1);
+  if (number_less(z, h->minx))
+    number_clone(h->minx, z);
+  if (number_greater(z, h->maxx))
+    number_clone(h->maxx, z);
+  set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled (d), number_to_scaled(dy)));
+  set_number_from_addition(z, p->y_coord, mp->cur_y);
+  number_add (z, r1);
+  if (number_less(z, h->miny))
+    number_clone(h->miny, z);
+  if (number_greater(z, h->maxy))
+    number_clone(h->maxy, z);
+  free_number (r1);
+  free_number (r2);
+  free_number (arg1);
+}
 
 @ @<Advance |p| to the end of the path and make |q| the previous knot@>=
 do {
@@ -12618,27 +12705,39 @@ begins to fail.
   number_clone(abs_dv, dv);
   number_abs(abs_dv);
   if (number_greaterequal(abs_du, abs_dv)) {
+    mp_number r1;
+    new_number (r1);
     free_number (s);
     s = mp_make_fraction (mp, dv, du);
-    set_number_from_scaled(t0, mp_take_fraction (mp, number_to_scaled(x0), number_to_scaled(s)) - number_to_scaled(y0));
-    set_number_from_scaled(t1, mp_take_fraction (mp, number_to_scaled(x1), number_to_scaled(s)) - number_to_scaled(y1));
-    set_number_from_scaled(t2, mp_take_fraction (mp, number_to_scaled(x2), number_to_scaled(s)) - number_to_scaled(y2));
+    set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(x0), number_to_scaled(s)));
+    set_number_from_substraction(t0, r1, y0);
+    set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(x1), number_to_scaled(s)));
+    set_number_from_substraction(t1, r1, y1);
+    set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(x2), number_to_scaled(s)));
+    set_number_from_substraction(t2, r1, y2);
     if (number_negative(du)) {
       number_negate (t0);
       number_negate (t1);
       number_negate (t2);
     }
+    free_number (r1);
   } else {
+    mp_number r1;
+    new_number (r1);
     free_number (s);
     s = mp_make_fraction (mp, du, dv);
-    set_number_from_scaled(t0, number_to_scaled(x0) - mp_take_fraction (mp, number_to_scaled(y0), number_to_scaled(s)));
-    set_number_from_scaled(t1, number_to_scaled(x1) - mp_take_fraction (mp, number_to_scaled(y1), number_to_scaled(s)));
-    set_number_from_scaled(t2, number_to_scaled(x2) - mp_take_fraction (mp, number_to_scaled(y2), number_to_scaled(s)));
+    set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(y0), number_to_scaled(s)));
+    set_number_from_substraction(t0, x0, r1);
+    set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(y1), number_to_scaled(s)));
+    set_number_from_substraction(t1, x1, r1);
+    set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(y2), number_to_scaled(s)));
+    set_number_from_substraction(t2, x2, r1);
     if (number_negative(dv)) {
       number_negate (t0);
       number_negate (t1);
       number_negate (t2);
     }
+    free_number (r1);
   }
   free_number (abs_du);
   free_number (abs_dv);
@@ -12910,21 +13009,30 @@ if (turn_amt >= 0) {
     number_clone(t, fraction_one_t);
     number_add_scaled (t, 1);
   } else {
-    mp_number tmp;
+    mp_number tmp, arg1, r1;
     new_number(tmp);
+    new_number(arg1);
+    new_number(r1);
     set_number_from_of_the_way(u0, t, x0, x1);
     set_number_from_of_the_way(u1, t, x1, x2);
     set_number_from_of_the_way(tmp, t, u0, u1);
-    set_number_from_scaled (ss, mp_take_fraction (mp, -number_to_scaled(du), number_to_scaled(tmp)));
+    number_clone (arg1, du);
+    number_abs (arg1);
+    set_number_from_scaled (ss, mp_take_fraction (mp, number_to_scaled(arg1), number_to_scaled(tmp)));
     set_number_from_of_the_way(v0, t, y0, y1);
     set_number_from_of_the_way(v1, t, y1, y2);
     set_number_from_of_the_way(tmp, t, v0, v1);
-    set_number_from_scaled (ss, number_to_scaled (ss) + mp_take_fraction (mp, -number_to_scaled(dv), number_to_scaled(tmp)));
+    number_clone (arg1, dv);
+    number_abs (arg1);
+    set_number_from_scaled (r1, mp_take_fraction (mp, number_to_scaled(arg1), number_to_scaled(tmp)));
+    number_add (ss, r1);
     free_number (tmp);
     if (number_negative(ss)) {
       number_clone(t, fraction_one_t);
       number_add_scaled (t, 1);
     }
+    free_number(arg1);
+    free_number(r1);
   }
 } else if (number_greater(t, fraction_one_t)) {
   number_clone (t, fraction_one_t);
@@ -12980,10 +13088,27 @@ then swapped with |(x2,y2)|.  We make use of the identities
 |t_of_the_way(-a,-b)=-(t_of_the_way(a,b))|.
 
 @<Make |ss| negative if and only if the total change in direction is...@>=
-set_number_from_scaled(t0, half (mp_take_fraction (mp, number_to_scaled(x0), number_to_scaled(y2))) - 
-     half (mp_take_fraction (mp, number_to_scaled(x2), number_to_scaled(y0))));
-set_number_from_scaled(t1, half (mp_take_fraction (mp, number_to_scaled(x1), (number_to_scaled(y0) + number_to_scaled(y2)))) -
-     half (mp_take_fraction (mp, number_to_scaled(y1), (number_to_scaled(x0) + number_to_scaled(x2)))));
+{
+  mp_number r1, r2, arg1;
+  new_number (r1);
+  new_number (r2);
+  new_number (arg1);
+  set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(x0), number_to_scaled(y2)));
+  set_number_from_scaled(r2, mp_take_fraction (mp, number_to_scaled(x2), number_to_scaled(y0)));
+  number_half (r1);
+  number_half (r2);
+  set_number_from_substraction(t0, r1, r2);
+  set_number_from_addition (arg1, y0, y2);
+  set_number_from_scaled(r1, mp_take_fraction (mp, number_to_scaled(x1), number_to_scaled(arg1)));
+  set_number_from_addition (arg1, x0, x2);
+  set_number_from_scaled(r2, mp_take_fraction (mp, number_to_scaled(y1), number_to_scaled(arg1)));
+  number_half (r1);
+  number_half (r2);
+  set_number_from_substraction(t1, r1, r2);
+  free_number (arg1);
+  free_number (r1);
+  free_number (r2);
+}
 if (number_zero(t0))
   set_number_from_scaled(t0, d_sign);                  /* path reversal always negates |d_sign| */
 if (number_positive(t0)) {
@@ -13012,13 +13137,22 @@ if (number_positive(t0)) {
   set_number_from_of_the_way(v1, t, y1, y0);
 }
 { 
-  mp_number tmp1, tmp2;
+  mp_number tmp1, tmp2, r1, r2, arg1;
+  new_number(arg1);
+  new_number(r1);
+  new_number(r2);
   new_number(tmp1);
   new_number(tmp2);
   set_number_from_of_the_way(tmp1, t, u0, u1);
   set_number_from_of_the_way(tmp2, t, v0, v1);
-  set_number_from_scaled (ss, mp_take_fraction (mp, (number_to_scaled(x0) + number_to_scaled(x2)), number_to_scaled(tmp1)) +
-       mp_take_fraction (mp, (number_to_scaled(y0) + number_to_scaled(y2)), number_to_scaled(tmp2)));
+  set_number_from_addition(arg1, x0, x2);
+  set_number_from_scaled (r1,mp_take_fraction (mp, number_to_scaled(arg1), number_to_scaled(tmp1)));
+  set_number_from_addition(arg1, y0, y2);
+  set_number_from_scaled (r2,mp_take_fraction (mp, number_to_scaled(arg1), number_to_scaled(tmp2)));
+  set_number_from_addition (ss, r1, r2);
+  free_number (arg1);
+  free_number (r1);
+  free_number (r2);
   free_number (tmp1);
   free_number (tmp2);
 }
