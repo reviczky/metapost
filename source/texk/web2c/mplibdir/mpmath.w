@@ -74,12 +74,15 @@ void mp_number_add_scaled(mp_number A, int B); /* also for negative B */
 void mp_number_abs(mp_number A);   
 void mp_number_clone(mp_number A, mp_number B);
 void mp_number_swap(mp_number A, mp_number B);
+int mp_round_unscaled(mp_number x_orig);
 int mp_number_to_scaled(mp_number A);
 double mp_number_to_double(mp_number A);
 int mp_number_equal(mp_number A, mp_number B);
 int mp_number_greater(mp_number A, mp_number B);
 int mp_number_less(mp_number A, mp_number B);
 int mp_number_nonequalabs(mp_number A, mp_number B);
+void mp_number_floor (mp_number i);
+void mp_fraction_to_scaled (mp_number x);
 typedef void (*number_from_scaled_func) (mp_number A, int B);
 typedef void (*number_from_double_func) (mp_number A, double B);
 typedef void (*number_from_addition_func) (mp_number A, mp_number B, mp_number C);
@@ -96,6 +99,8 @@ typedef void (*number_clone_func) (mp_number A, mp_number B);
 typedef void (*number_swap_func) (mp_number A, mp_number B);
 typedef void (*number_add_scaled_func) (mp_number A, int b);
 typedef int (*number_to_scaled_func) (mp_number A);
+typedef int (*number_round_func) (mp_number A);
+typedef void (*number_floor_func) (mp_number A);
 typedef double (*number_to_double_func) (mp_number A);
 typedef int (*number_equal_func) (mp_number A, mp_number B);
 typedef int (*number_less_func) (mp_number A, mp_number B);
@@ -103,6 +108,7 @@ typedef int (*number_greater_func) (mp_number A, mp_number B);
 typedef int (*number_nonequalabs_func) (mp_number A, mp_number B);
 typedef mp_number (*new_number_func) (MP mp, mp_number_type t);
 typedef void (*free_number_func) (MP mp, mp_number n);
+typedef void (*fraction_to_scaled_func) (mp_number n);
 
 typedef struct math_data {
   mp_number inf_t;
@@ -142,6 +148,9 @@ typedef struct math_data {
   number_less_func less;
   number_greater_func greater;
   number_nonequalabs_func nonequalabs;
+  number_round_func round_unscaled;
+  number_floor_func floor_scaled;
+  fraction_to_scaled_func fraction_to_scaled;
 } math_data;
 
 @ @<Internal library declarations@>=
@@ -206,6 +215,9 @@ void * mp_initialize_math (MP mp) {
   math->less = mp_number_less;
   math->greater = mp_number_greater;
   math->nonequalabs = mp_number_nonequalabs;
+  math->round_unscaled = mp_round_unscaled;
+  math->floor_scaled = mp_number_floor;
+  math->fraction_to_scaled = mp_fraction_to_scaled;
   return (void *)math;
 }
 
@@ -361,12 +373,6 @@ or zero.
 @<Internal library declarations@>=
 #define half(A) ((A) / 2)
 #define halfp(A) (integer)((unsigned)(A) >> 1)
-
-@ Todo: Here are some compilation tricks for problems to be sorted out later
-
-@<Internal library declarations@>=
-#define integer_as_fraction(A) (int)(A)
-
 
 @ Here is a procedure analogous to |print_int|. If the output
 of this procedure is subsequently read by \MP\ and converted by the
@@ -944,19 +950,33 @@ if (d <= 0) {
 @ We conclude this set of elementary routines with some simple rounding
 and truncation operations.
 
-@ |floor_scaled| floors a |scaled|
-@<Internal library declarations@>=
-#define mp_floor_scaled(M,i) ((i)&(-65536))
 
 @ |round_unscaled| rounds a |scaled| and converts it to |int|
-@<Internal library declarations@>=
-#define mp_round_unscaled(M,x) (x>=0100000 ? 1+((x-0100000) / 0200000) \
-  : ( x>=-0100000 ? 0 : -(1+((-(x+1)-0100000) / 0200000))))
+@c
+int mp_round_unscaled(mp_number x_orig) {
+  int x = x_orig->data.val;
+  if (x >= 32768) {
+    return 1+((x-32768) / 65536);
+  } else if ( x>=-32768) {
+    return 0;
+  } else {
+    return  -(1+((-(x+1)-32768) / 65536));
+  }
+}
 
-@ |round_fraction| rounds a |fraction| and converts it to |scaled|
-@<Internal library declarations@>=
-#define mp_round_fraction(M,x) (x>=2048 ? 1+((x-2048) / 4096) \
-  : ( x>=-2048 ? 0 : -(1+((-(x+1)-2048) / 4096))))
+@ |number_floor| floors a |scaled|
+
+@c
+void mp_number_floor (mp_number i) {
+  i->data.val = i->data.val&-65536;
+}
+
+@ |fraction_to_scaled| rounds a |fraction| and converts it to |scaled|
+@c
+void mp_fraction_to_scaled (mp_number x_orig) {
+  int x = x_orig->data.val;
+  x_orig->data.val = (x>=2048 ? 1+((x-2048) / 4096)  : ( x>=-2048 ? 0 : -(1+((-(x+1)-2048) / 4096))));
+}
 
 
 

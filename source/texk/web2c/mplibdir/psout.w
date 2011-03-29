@@ -59,6 +59,7 @@
 @d number_greater(A,B)		       (((math_data *)(mp->math))->greater)(A,B)		       
 @d number_positive(A)		       number_greater(A, zero_t)		       
 @d number_to_scaled(A)		       (((math_data *)(mp->math))->to_scaled)(A)		       
+@d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
 @d true 1
 @d false 0
 @d null_font 0
@@ -4945,13 +4946,13 @@ void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues) {
   mp_ps_print(mp, s);
   mp_xfree(s);
   mp_ps_print_nl(mp, "%%CreationDate: ");
-  mp_ps_print_int(mp, mp_round_unscaled(mp, number_to_scaled (internal_value(mp_year)))); 
+  mp_ps_print_int(mp, round_unscaled(internal_value(mp_year))); 
   mp_ps_print_char(mp, '.');
-  mp_ps_print_dd(mp, mp_round_unscaled(mp, number_to_scaled (internal_value(mp_month)))); 
+  mp_ps_print_dd(mp, round_unscaled(internal_value(mp_month))); 
   mp_ps_print_char(mp, '.');
-  mp_ps_print_dd(mp, mp_round_unscaled(mp, number_to_scaled (internal_value(mp_day)))); 
+  mp_ps_print_dd(mp, round_unscaled(internal_value(mp_day))); 
   mp_ps_print_char(mp, ':');
-  t=mp_round_unscaled(mp, number_to_scaled (internal_value(mp_time)));
+  t = round_unscaled(internal_value(mp_time));
   mp_ps_print_dd(mp, t / 60); 
   mp_ps_print_dd(mp, t % 60);
   mp_ps_print_nl(mp, "%%Pages: 1");

@@ -10019,6 +10019,9 @@ This first set goes into the header
 @d set_number_to_inf(A)		       (((math_data *)(mp->math))->clone)(A, inf_t)
 @d set_number_to_neg_inf(A)	       do { set_number_to_inf(A); number_negate (A); } while (0)
 @#
+@d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
+@d floor_scaled(A)		       (((math_data *)(mp->math))->floor_scaled)(A)
+@d fraction_to_scaled(A)               (((math_data *)(mp->math))->fraction_to_scaled)(A)
 @d number_to_scaled(A)		       (((math_data *)(mp->math))->to_scaled)(A)		       
 @d number_to_double(A)		       (((math_data *)(mp->math))->to_double)(A)		       
 @d number_negate(A)		       (((math_data *)(mp->math))->negate)(A)		       
@@ -14332,15 +14335,16 @@ static void mp_print_dependency (MP mp, mp_value_node p, quarterword t);
 
 @ @c
 void mp_print_dependency (MP mp, mp_value_node p, quarterword t) {
-  integer v;    /* a coefficient */
+  mp_number v;    /* a coefficient */
   mp_value_node pp;     /* for list manipulation */
   mp_node q;
   pp = p;
+  new_number (v);
   while (true) {
-    v = abs (dep_value (p));
+    set_number_from_scaled (v, abs (dep_value (p)));
     q = dep_info (p);
     if (q == NULL) {            /* the constant term */
-      if ((v != 0) || (p == pp)) {
+      if (number_nonzero(v) || (p == pp)) {
         if (dep_value (p) > 0)
           if (p != pp)
             mp_print_char (mp, xord ('+'));
@@ -14353,10 +14357,10 @@ void mp_print_dependency (MP mp, mp_value_node p, quarterword t) {
       mp_confusion (mp, "dep");
 @:this can't happen dep}{\quad dep@>;
     mp_print_variable_name (mp, q);
-    v = indep_scale(q);
-    while (v > 0) {
+    set_number_from_scaled (v, indep_scale(q));
+    while (number_positive (v)) {
       mp_print (mp, "*4");
-      v = v - 2;
+      number_add_scaled (v, -2);
     }
     p = (mp_value_node) mp_link (p);
   }
@@ -14368,10 +14372,11 @@ if (dep_value (p) < 0)
   mp_print_char (mp, xord ('-'));
 else if (p != pp)
   mp_print_char (mp, xord ('+'));
-if (t == mp_dependent)
-  v = mp_round_fraction (mp, v);
-if (v != number_to_scaled (unity_t))
-  mp_print_scaled (mp, v)
+if (t == mp_dependent) {
+  fraction_to_scaled (v);
+}
+if (!number_equal (v, unity_t))
+  mp_print_number (mp, v)
    
 
 @ The maximum absolute value of a coefficient in a given dependency list
@@ -14726,10 +14731,16 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
   r = (mp_value_node) mp->temp_head;
   while (dep_info (p) != NULL) {
     if (scaling_down) {
-      if (abs (number_to_scaled (v)) < 02000000)
+      if (abs (number_to_scaled (v)) < 02000000) {
         w = mp_make_scaled (mp, dep_value (p), number_to_scaled (v) * 010000);
-      else
-        w = mp_make_scaled (mp, mp_round_fraction (mp, dep_value (p)), number_to_scaled (v));
+      } else {
+        mp_number x;
+        new_number (x);
+        set_number_from_scaled (x, dep_value (p));
+        fraction_to_scaled (x);
+        w = mp_make_scaled (mp, number_to_scaled (x), number_to_scaled (v));
+        free_number (x);
+      }
     } else {
       w = mp_make_scaled (mp, dep_value (p), number_to_scaled (v));
     }
@@ -19712,18 +19723,18 @@ this file.
 {
   wlog (mp->banner);
   mp_print (mp, "  ");
-  mp_print_int (mp, mp_round_unscaled (mp, number_to_scaled (internal_value (mp_day))));
+  mp_print_int (mp, round_unscaled (internal_value (mp_day)));
   mp_print_char (mp, xord (' '));
-  m = mp_round_unscaled (mp, number_to_scaled (internal_value (mp_month)));
+  m = round_unscaled (internal_value (mp_month));
   for (k = 3 * m - 3; k < 3 * m; k++) {
     wlog_chr ((unsigned char) months[k]);
   }
   mp_print_char (mp, xord (' '));
-  mp_print_int (mp, mp_round_unscaled (mp, number_to_scaled (internal_value (mp_year))));
+  mp_print_int (mp, round_unscaled (internal_value (mp_year)));
   mp_print_char (mp, xord (' '));
-  mp_print_dd (mp, mp_round_unscaled (mp, number_to_scaled (internal_value (mp_hour))));
+  mp_print_dd (mp, round_unscaled (internal_value (mp_hour)));
   mp_print_char (mp, xord (':'));
-  mp_print_dd (mp, mp_round_unscaled (mp, number_to_scaled (internal_value (mp_minute))));
+  mp_print_dd (mp, round_unscaled (internal_value (mp_minute)));
 }
 
 
@@ -20894,10 +20905,16 @@ if (mp_interesting (mp, p)) {
 @:]]]\#\#\#_}{\.{\#\#\#}@>;
   if (v > 0)
     mp_print_char (mp, xord ('-'));
-  if (t == mp_dependent)
-    vv = mp_round_fraction (mp, mp->max_c[mp_dependent]);
-  else
+  if (t == mp_dependent) {
+    mp_number x;
+    new_number (x);
+    set_number_from_scaled (x, mp->max_c[mp_dependent]);
+    fraction_to_scaled (x);
+    vv = number_to_scaled (x);
+    free_number (x);
+  } else {
     vv = mp->max_c[mp_proto_dependent];
+  }
   if (vv != number_to_scaled (unity_t))
     mp_print_scaled (mp, vv);
   mp_print_variable_name (mp, p);
@@ -20941,6 +20958,8 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
   while (r != NULL) {
     q = (mp_value_node) dep_info (r);
     if (t == mp_dependent) {    /* for safety's sake, we change |q| to |mp_proto_dependent| */
+      mp_number x;
+      new_number (x);
       if (cur_exp_node () == (mp_node) q && mp->cur_exp.type == mp_dependent)
         mp->cur_exp.type = mp_proto_dependent;
       set_dep_list (q,
@@ -20948,7 +20967,10 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
                                            unity_t, mp_dependent,
                                            mp_proto_dependent));
       mp_type (q) = mp_proto_dependent;
-      set_dep_value (r, mp_round_fraction (mp, dep_value (r)));
+      set_number_from_scaled (x, dep_value (r));
+      fraction_to_scaled (x);
+      set_dep_value (r, number_to_scaled (x));
+      free_number (x);
     }
     set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q),
                                              mp_make_scaled (mp, dep_value (r),
@@ -23379,25 +23401,34 @@ if (mp->cur_exp.type != mp_known) {
       new_fraction (n_cos); /* results computed by |n_sin_cos| */
       set_number_from_scaled (arg1, (cur_exp_value () % three_sixty_units) * 16);
       mp_n_sin_cos (mp, arg1, n_cos, n_sin);
-      if (c == mp_sin_d_op)
-        set_cur_exp_value (mp_round_fraction (mp, number_to_scaled (n_sin)));
-      else
-        set_cur_exp_value (mp_round_fraction (mp, number_to_scaled (n_cos)));
+      if (c == mp_sin_d_op) {
+        fraction_to_scaled (n_sin);
+        set_cur_exp_value (number_to_scaled (n_sin));
+      } else {
+        fraction_to_scaled (n_cos);
+        set_cur_exp_value (number_to_scaled (n_cos));
+      }
       free_number (arg1);
       free_number (n_sin);
       free_number (n_cos);
     }
     break;
   case mp_floor_op:
-    vv = mp_floor_scaled (mp, cur_exp_value ());
-    set_cur_exp_value (vv);
+    {
+      mp_number vvx;
+      new_number (vvx);
+      set_number_from_scaled (vvx, cur_exp_value ());
+      floor_scaled (vvx);
+      set_cur_exp_value (number_to_scaled (vvx));
+      free_number (vvx);
+    }
     break;
   case mp_uniform_deviate:
     free_number (cur_exp_value_number());
     set_cur_exp_value_number (mp_unif_rand (mp, cur_exp_value_number ()));
     break;
   case mp_odd_op:
-    vv = odd (mp_round_unscaled (mp, cur_exp_value ()));
+    vv = odd (round_unscaled (cur_exp_value_number ()));
     boolean_reset (vv);
     mp->cur_exp.type = mp_boolean_type;
     break;
@@ -23898,7 +23929,7 @@ case mp_char_op:
 if (mp->cur_exp.type != mp_known) {
   mp_bad_unary (mp, mp_char_op);
 } else {
-  vv = mp_round_unscaled (mp, cur_exp_value ()) % 256;
+  vv = round_unscaled (cur_exp_value_number ()) % 256;
   set_cur_exp_value (vv);
   mp->cur_exp.type = mp_string_type;
   if (cur_exp_value () < 0) {
@@ -26085,8 +26116,10 @@ break;
   new_fraction (n_cos); /* results computed by |n_sin_cos| */
   set_number_from_scaled (arg1, (value (p) % three_sixty_units) * 16);
   mp_n_sin_cos (mp, arg1, n_cos, n_sin);
-  set_value (xx_part (q), mp_round_fraction (mp, number_to_scaled (n_cos)));
-  set_value (yx_part (q), mp_round_fraction (mp, number_to_scaled (n_sin)));
+  fraction_to_scaled (n_sin);
+  fraction_to_scaled (n_cos);
+  set_value (xx_part (q), number_to_scaled (n_cos));
+  set_value (yx_part (q), number_to_scaled (n_sin));
   set_value (xy_part (q), -value (yx_part (q)));
   set_value (yy_part (q), value (xx_part (q)));
   free_number (arg1);
@@ -26676,8 +26709,8 @@ case mp_substring_of:
 if (mp_nice_pair (mp, p, mp_type (p)) && (mp->cur_exp.type == mp_string_type)) {
   mp_string str = mp_chop_string (mp, 
                       cur_exp_str (),
-                      mp_round_unscaled (mp, value (x_part (value_node(p)))), 
-                      mp_round_unscaled (mp, value (y_part (value_node(p)))));
+                      round_unscaled (value_number (x_part (value_node(p)))), 
+                      round_unscaled (value_number (y_part (value_node(p)))));
   delete_str_ref (cur_exp_str ()) ;
   set_cur_exp_str (str);
 } else
@@ -26916,7 +26949,7 @@ static void mp_set_up_glyph_infont (MP mp, mp_node p) {
   f = mp_ps_font_parse (mp, (int) mp_find_font (mp, n));
   if (f != NULL) {
     if (mp_type (p) == mp_known) {
-      int v = mp_round_unscaled (mp, value (p));
+      int v = round_unscaled (value_number (p));
       if (v < 0 || v > 255) {
         char msg[256];
         mp_snprintf (msg, 256, "glyph index too high (%d)", v);
@@ -27729,11 +27762,16 @@ if (t == tt) {
 } else if (t == mp_proto_dependent) {
   p = mp_p_plus_fq (mp, p, number_to_scaled (unity_t), pp, mp_proto_dependent, mp_dependent);
 } else {
+  mp_number x;
+  new_number (x);
   q = p;
   while (dep_info (q) != NULL) {
-    set_dep_value (q, mp_round_fraction (mp, dep_value (q)));
+    set_number_from_scaled (x, dep_value (q));
+    fraction_to_scaled (x);
+    set_dep_value (q, number_to_scaled (x));
     q = (mp_value_node) mp_link (q);
   }
+  free_number (x);
   t = mp_proto_dependent;
   p = mp_p_plus_q (mp, p, pp, (quarterword) t);
 }
@@ -29960,7 +29998,7 @@ void mp_do_ship_out (MP mp) {
   if (mp->cur_exp.type != mp_picture_type) {
     @<Complain that it's not a known picture@>;
   } else {
-    c = mp_round_unscaled (mp, number_to_scaled (internal_value (mp_char_code))) % 256;
+    c = round_unscaled (internal_value (mp_char_code)) % 256;
     if (c < 0)
       c = c + 256;
     @<Store the width information for character code~|c|@>;
@@ -30740,7 +30778,7 @@ eight_bits mp_get_code (MP mp) {                               /* scans a charac
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type == mp_known) {
-    c = mp_round_unscaled (mp, cur_exp_value ());
+    c = round_unscaled (cur_exp_value_number ());
     if (c >= 0)
       if (c < 256)
         return (eight_bits) c;
@@ -30857,7 +30895,7 @@ void mp_do_tfm_command (MP mp) {
 @.Improper location@>;
       mp_get_x_next (mp);
     } else {
-      j = mp_round_unscaled (mp, cur_exp_value ());
+      j = round_unscaled (cur_exp_value_number ());
       if (cur_cmd() != mp_colon) {
         const char *hlp[] = { 
           "A colon should follow a headerbyte or fontinfo location.",
@@ -31673,7 +31711,7 @@ starting addresses; we have $-1=|label_loc|[0]<|label_loc|[1]\le\cdots
 \le|label_loc|[|label_ptr]|$.
 
 @<Compute the ligature/kern program offset...@>=
-mp->bchar = mp_round_unscaled (mp, number_to_scaled (internal_value (mp_boundary_char)));
+mp->bchar = round_unscaled (internal_value (mp_boundary_char));
 if ((mp->bchar < 0) || (mp->bchar > 255)) {
   mp->bchar = -1;
   mp->lk_started = false;
@@ -32185,7 +32223,7 @@ static void mp_append_to_template (MP mp, integer ff, integer c, boolean roundin
     mp_print (mp, ss);
   } else if (internal_type (c) == mp_known) {
     if (rounding) {
-      integer cc = mp_round_unscaled (mp, number_to_scaled (internal_value (c)));
+      int cc = round_unscaled (internal_value (c));
       print_with_leading_zeroes (cc, ff);
     } else {
       mp_print_number (mp, internal_value (c));
@@ -32363,9 +32401,7 @@ static char *mp_get_output_file_name (MP mp) {
   char *f;
   char *saved_name;     /* saved |name_of_file| */
   saved_name = xstrdup (mp->name_of_file);
-  (void) mp_set_output_file_name (mp,
-                                  mp_round_unscaled (mp,
-                                                     number_to_scaled (internal_value(mp_char_code))));
+  (void) mp_set_output_file_name (mp, round_unscaled (internal_value(mp_char_code)));
   f = xstrdup (mp->name_of_file);
   mp_pack_file_name (mp, saved_name, NULL, NULL);
   free (saved_name);
@@ -32373,8 +32409,8 @@ static char *mp_get_output_file_name (MP mp) {
 }
 void mp_open_output_file (MP mp) {
   char *ss;     /* filename extension proposal */
-  integer c;    /* \&{charcode} rounded to the nearest integer */
-  c = mp_round_unscaled (mp, number_to_scaled (internal_value (mp_char_code)));
+  int c;    /* \&{charcode} rounded to the nearest integer */
+  c = round_unscaled (internal_value (mp_char_code));
   ss = mp_set_output_file_name (mp, c);
   while (!mp_open_out (mp, (void *) &mp->output_file, mp_filetype_postscript))
     mp_prompt_file_name (mp, "file name for output", ss);
@@ -32596,7 +32632,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
   hh->maxx = number_to_double(h->maxx);
   hh->maxy = number_to_double(h->maxy);
   hh->filename = mp_xstrdup (mp, mp_get_output_file_name (mp));
-  c = mp_round_unscaled (mp, number_to_scaled (internal_value (mp_char_code)));
+  c = round_unscaled (internal_value (mp_char_code));
   hh->charcode = c;
   hh->width = number_to_scaled (internal_value (mp_char_wd));
   hh->height = number_to_scaled (internal_value (mp_char_ht));
@@ -32786,8 +32822,8 @@ static mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *h);
 
 @c
 void mp_ship_out (MP mp, mp_node h) {                               /* output edge structure |h| */
-  integer c;    /* \&{charcode} rounded to the nearest integer */
-  c = mp_round_unscaled (mp, number_to_scaled (internal_value (mp_char_code)));
+  int c;    /* \&{charcode} rounded to the nearest integer */
+  c = round_unscaled (internal_value (mp_char_code));
   @<Begin the progress report for the output of picture~|c|@>;
   (mp->shipout_backend) (mp, h);
   @<End progress report@>;
@@ -32832,10 +32868,9 @@ by which a user can send things to the \.{GF} file.
 
 @ @<Determine if a character has been shipped out@>=
 {
-  halfword vv = cur_exp_value ();
-  set_cur_exp_value (mp_round_unscaled (mp, vv) % 256);
+  set_cur_exp_value (round_unscaled (cur_exp_value_number ()) % 256);
   if (cur_exp_value () < 0) {
-    vv = cur_exp_value ();
+    halfword vv = cur_exp_value ();
     set_cur_exp_value (vv + 256);
   }
   boolean_reset (mp->char_exists[cur_exp_value ()]);
