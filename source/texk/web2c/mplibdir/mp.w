@@ -10296,6 +10296,7 @@ This first set goes into the header
 @d set_number_to_inf(A)		       (((math_data *)(mp->math))->clone)(A, inf_t)
 @d set_number_to_neg_inf(A)	       do { set_number_to_inf(A); number_negate (A); } while (0)
 @#
+@d mp_make_scaled(mp,A,B)              (((math_data *)(mp->math))->make_scaled)(mp,A,B)
 @d mp_make_fraction(mp,A,B)            (((math_data *)(mp->math))->make_fraction)(mp,A,B)
 @d mp_take_fraction(mp,A,B)            (((math_data *)(mp->math))->take_fraction)(mp,A,B)
 @d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
@@ -11077,7 +11078,10 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, mp_number w) 
       return NULL;
     }
   } else {
-    set_number_from_scaled(scf, mp_make_scaled (mp, number_to_scaled(w), number_to_scaled(scf)));
+    mp_number ret;
+    ret = mp_make_scaled (mp, w, scf);
+    number_clone(scf, ret);
+    free_number (ret);
     set_number_from_scaled(scf, mp_take_scaled (mp, number_to_scaled(scf), number_to_scaled(q->dash_scale)));
   }
   number_clone(w, scf);
@@ -15227,12 +15231,11 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
     if (scaling_down) {
       if (abs (number_to_scaled (v)) < 02000000) {
         mp_number arg1, arg2, ret;
-        new_number (ret);
         new_number (arg1);
         new_number (arg2);
         set_number_from_scaled (arg1, dep_value (p));
         set_number_from_scaled (arg2, number_to_scaled (v) * 010000);
-        set_number_from_scaled (ret, mp_make_scaled (mp, number_to_scaled (arg1), number_to_scaled (arg2)));
+        ret = mp_make_scaled (mp, arg1, arg2);
         w = number_to_scaled (ret);
         free_number (ret);
         free_number (arg1);
@@ -15240,10 +15243,9 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
       } else {
         mp_number x, ret;
         new_number (x);
-        new_number (ret);
         set_number_from_scaled (x, dep_value (p));
         fraction_to_scaled (x);
-        set_number_from_scaled (ret, mp_make_scaled (mp, number_to_scaled (x), number_to_scaled (v)));
+        ret = mp_make_scaled (mp, x, v);
         w = number_to_scaled (ret);
         free_number (ret);
         free_number (x);
@@ -15251,9 +15253,8 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
     } else {
       mp_number arg1, ret;
       new_number (arg1);
-      new_number (ret);
       set_number_from_scaled (arg1, dep_value (p));
-      set_number_from_scaled (ret, mp_make_scaled (mp, number_to_scaled (arg1), number_to_scaled (v)));
+      ret = mp_make_scaled (mp, arg1, v);
       w = number_to_scaled (ret);
       free_number (ret);
       free_number (arg1);
@@ -15277,9 +15278,8 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
   {
     mp_number arg1, ret;
     new_number (arg1);
-    new_number (ret);
     set_number_from_scaled (arg1, dep_value (p));
-    set_number_from_scaled (ret, mp_make_scaled (mp, number_to_scaled (arg1), number_to_scaled(v)));
+    ret = mp_make_scaled (mp, arg1, v);
     set_dep_value (p, number_to_scaled (ret));
     free_number (ret);
     free_number (arg1);
@@ -15623,10 +15623,9 @@ if (t == mp_proto_dependent) {
   mp_number arg1, arg2, ret;
   new_number (arg1);
   new_number (arg2);
-  new_number (ret);
   set_number_from_scaled (arg1,dep_value (r));
   set_number_from_scaled (arg2,v);
-  set_number_from_scaled (ret, mp_make_scaled (mp, number_to_scaled (arg1), number_to_scaled (arg2)));
+  ret = mp_make_scaled (mp, arg1, arg2);
   number_negate (ret);
   set_dep_value (r, number_to_scaled (ret));
   free_number (ret);
@@ -21544,10 +21543,9 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
       mp_number ret;
       new_number (arg1);
       new_number (arg2);
-      new_number (ret);
       set_number_from_scaled (arg1, dep_value (r));
       set_number_from_scaled (arg2, -v);
-      set_number_from_scaled (ret, mp_make_scaled (mp, number_to_scaled (arg1), number_to_scaled (arg2)));
+      ret = mp_make_scaled (mp, arg1, arg2);
       free_number (arg1);
       free_number (arg2);
       set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q),
@@ -21981,8 +21979,7 @@ multiplication.
       @<Protest division by zero@>;
     } else {
       mp_number ret;
-      new_number (ret);
-      set_number_from_scaled (ret, mp_make_scaled (mp, number_to_scaled(num), number_to_scaled(denom)));
+      ret = mp_make_scaled (mp, num, denom);
       set_cur_exp_value (number_to_scaled (ret));
       free_number (ret);
     }
@@ -26444,8 +26441,7 @@ if ((mp->cur_exp.type != mp_known) || (mp_type (p) < mp_color_type)) {
   } else {
     if (mp->cur_exp.type == mp_known) {
       mp_number ret;
-      new_number (ret);
-      set_number_from_scaled (ret, mp_make_scaled (mp, number_to_scaled (cur_exp_value_number ()), number_to_scaled (v_n)));
+      ret = mp_make_scaled (mp, cur_exp_value_number (), v_n);
       set_cur_exp_value (number_to_scaled (ret));
       free_number (ret);
     } else if (mp->cur_exp.type == mp_pair_type) {
@@ -26492,8 +26488,7 @@ static void mp_dep_div (MP mp, mp_value_node p, mp_number v) {
     q = p;
   else {
     mp_number ret;
-    new_number (ret);
-    set_number_from_scaled (ret, mp_make_scaled (mp, number_to_scaled (value_number (p)), number_to_scaled (v)));
+    ret = mp_make_scaled (mp, value_number (p), v);
     set_value (p, number_to_scaled (ret));
     free_number (ret);
     return;
@@ -27424,11 +27419,16 @@ if (number_greater (b, l)) {
     pp = mp_next_knot (ss);
     mp_xfree (ss);
     if (rr == ss) {
-      mp_number arg1;
+      mp_number arg1, arg2;
       new_number (arg1);
+      new_number (arg2);
       set_number_from_substraction (arg1, unity_t, a);
-      set_number_from_scaled (b, mp_make_scaled (mp, number_to_scaled (b), number_to_scaled (arg1)));
+      number_clone (arg2, b);
+      free_number (b);
+      b = mp_make_scaled (mp, arg2, arg1);
       rr = pp;
+      free_number (arg1);
+      free_number (arg2);
     }
   }
   if (number_negative (b)) {
@@ -32148,7 +32148,8 @@ static integer mp_dimen_out (MP mp, mp_number x_orig) {
     new_number (arg1);
     number_clone (arg1, x);
     number_multiply_int (x, 16);
-    set_number_from_scaled (x, mp_make_scaled (mp, number_to_scaled (arg1), number_to_scaled (internal_value (mp_design_size))));
+    free_number (x);
+    x = mp_make_scaled (mp, arg1, internal_value (mp_design_size));
     free_number (arg1);
   }
   free_number (abs_x);
