@@ -87,6 +87,7 @@ void mp_fraction_to_scaled (mp_number x);
 mp_number mp_number_make_scaled (MP mp, mp_number p, mp_number q);
 mp_number mp_number_make_fraction (MP mp, mp_number p, mp_number q);
 mp_number mp_number_take_fraction (MP mp, mp_number p, mp_number q);
+mp_number mp_number_take_scaled (MP mp, mp_number p, mp_number q);
 typedef void (*number_from_scaled_func) (mp_number A, int B);
 typedef void (*number_from_double_func) (mp_number A, double B);
 typedef void (*number_from_addition_func) (mp_number A, mp_number B, mp_number C);
@@ -114,6 +115,7 @@ typedef int (*number_nonequalabs_func) (mp_number A, mp_number B);
 typedef mp_number (*make_scaled_func) (MP mp, mp_number A, mp_number B);
 typedef mp_number (*make_fraction_func) (MP mp, mp_number A, mp_number B);
 typedef mp_number (*take_fraction_func) (MP mp, mp_number A, mp_number B);
+typedef mp_number (*take_scaled_func) (MP mp, mp_number A, mp_number B);
 typedef mp_number (*new_number_func) (MP mp, mp_number_type t);
 typedef void (*free_number_func) (MP mp, mp_number n);
 typedef void (*fraction_to_scaled_func) (mp_number n);
@@ -162,6 +164,7 @@ typedef struct math_data {
   make_scaled_func make_scaled;
   make_fraction_func make_fraction;
   take_fraction_func take_fraction;
+  take_scaled_func take_scaled;
   fraction_to_scaled_func fraction_to_scaled;
 } math_data;
 
@@ -234,6 +237,7 @@ void * mp_initialize_math (MP mp) {
   math->make_scaled = mp_number_make_scaled;
   math->make_fraction = mp_number_make_fraction;
   math->take_fraction = mp_number_take_fraction;
+  math->take_scaled = mp_number_take_scaled;
   return (void *)math;
 }
 
@@ -669,6 +673,14 @@ integer mp_take_scaled (MP mp, integer p, int q) { /* q = scaled */
       ++i;
   }
   return i;
+}
+mp_number mp_number_take_scaled (MP mp, mp_number p_orig, mp_number q_orig) {
+  int i; /* scaled */
+  mp_number ret;
+  new_number (ret);
+  i = mp_take_scaled (mp, p_orig->data.val, q_orig->data.val);
+  ret->data.val = i;
+  return ret;
 }
 
 
