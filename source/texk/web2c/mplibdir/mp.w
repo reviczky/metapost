@@ -11088,19 +11088,29 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, mp_number w) 
   d = xmalloc (1, sizeof (mp_dash_object));
   add_var_used (sizeof (mp_dash_object));
   set_number_from_addition(mp->null_dash->start_x, p->start_x, h->dash_y);
-  while (p != mp->null_dash) {
-    dashes = xrealloc (dashes, (num_dashes + 2), sizeof (double));
-    dashes[(num_dashes - 1)] =
-      mp_take_scaled (mp, (number_to_scaled(p->stop_x) - number_to_scaled(p->start_x)), number_to_scaled(scf)) / 65536.0;
-    dashes[(num_dashes)] =
-      mp_take_scaled (mp, (number_to_scaled(((mp_dash_node)mp_link (p))->start_x) - number_to_scaled(p->stop_x)), number_to_scaled(scf))  / 65536.0;
-    dashes[(num_dashes + 1)] = -1.0;      /* terminus */
-    num_dashes += 2;
-    p = (mp_dash_node)mp_link (p);
+  {
+    mp_number ret, arg1;
+    new_number (ret);
+    new_number (arg1);
+    while (p != mp->null_dash) {
+      dashes = xrealloc (dashes, (num_dashes + 2), sizeof (double));
+      set_number_from_substraction (arg1, p->stop_x, p->start_x);
+      set_number_from_scaled (ret, mp_take_scaled (mp, number_to_scaled(arg1), number_to_scaled(scf)));
+      dashes[(num_dashes - 1)] = number_to_double (ret);
+      set_number_from_substraction (arg1, ((mp_dash_node)mp_link (p))->start_x, p->stop_x);
+      set_number_from_scaled (ret, mp_take_scaled (mp, number_to_scaled(arg1), number_to_scaled(scf)));
+      dashes[(num_dashes)] = number_to_double (ret);
+      dashes[(num_dashes + 1)] = -1.0;      /* terminus */
+      num_dashes += 2;
+      p = (mp_dash_node)mp_link (p);
+    }
+    d->array = dashes;
+    dashoff = mp_dash_offset (mp, h);
+    set_number_from_scaled (ret, mp_take_scaled (mp, number_to_scaled(dashoff), number_to_scaled(scf)));
+    d->offset = number_to_double(ret);
+    free_number (ret);
+    free_number (arg1);
   }
-  d->array = dashes;
-  dashoff = mp_dash_offset (mp, h);
-  d->offset = mp_take_scaled (mp, number_to_scaled(dashoff), number_to_scaled(scf)) / 65536.0;
   free_number (dashoff);
   free_number(scf);
   return d;
@@ -11444,16 +11454,19 @@ if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
   mp_print (mp, " ??");
 } else {
   mp_number dashoff;
-  set_number_from_scaled(mp->null_dash->start_x, 
-	number_to_scaled(ppd->start_x) + number_to_scaled(hhd->dash_y ));
+  mp_number ret, arg1;
+  new_number (ret);
+  new_number (arg1);
+  set_number_from_addition(mp->null_dash->start_x, ppd->start_x, hhd->dash_y );
   while (ppd != mp->null_dash) {
     mp_print (mp, "on ");
-    mp_print_scaled (mp, mp_take_scaled (mp, number_to_scaled(ppd->stop_x) - 
-	number_to_scaled(ppd->start_x), number_to_scaled (scf)));
+    set_number_from_substraction (arg1, ppd->stop_x, ppd->start_x);
+    set_number_from_scaled (ret, mp_take_scaled (mp, number_to_scaled(arg1), number_to_scaled (scf)));
+    mp_print_number (mp,  ret);
     mp_print (mp, " off ");
-    mp_print_scaled (mp,
-                     mp_take_scaled (mp, number_to_scaled(((mp_dash_node)mp_link (ppd))->start_x)  - 
-	number_to_scaled(ppd->stop_x), number_to_scaled (scf)));
+    set_number_from_substraction (arg1, ((mp_dash_node)mp_link (ppd))->start_x, ppd->stop_x);
+    set_number_from_scaled (ret, mp_take_scaled (mp, number_to_scaled(arg1), number_to_scaled (scf)));
+    mp_print_number (mp, ret);
     ppd = (mp_dash_node)mp_link (ppd);
     if (ppd != mp->null_dash)
       mp_print_char (mp, xord (' '));
@@ -11462,6 +11475,8 @@ if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
   dashoff = mp_dash_offset (mp, hhd);
   mp_print_scaled (mp, -mp_take_scaled (mp, number_to_scaled(dashoff), number_to_scaled (scf)));
   free_number (dashoff);
+  free_number (ret);
+  free_number (arg1);
   if (!ok_to_dash || number_zero(hhd->dash_y) )
     mp_print (mp, " (this will be ignored)");
 }
@@ -11804,15 +11819,21 @@ mp_node ds;     /* the stroked node from which |hh| and |hsf| are derived */
 {
   mp_number xoff;    /* added to $x$ values in |dash_list(hh)| to match |dln| */
   mp_number dashoff;
+  mp_number r1, r2;
   dln = (mp_dash_node)mp_link (d);
   dd = dash_list (hh);
   new_number (xoff);
+  new_number (r1);
+  new_number (r2);
   dashoff = mp_dash_offset (mp, (mp_dash_node)hh);
-  set_number_from_scaled(xoff, number_to_scaled(dln->start_x) - mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x)) -
-                       mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dashoff)));
+  set_number_from_scaled(r1, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x)));
+  set_number_from_scaled(r2, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dashoff)));
+  number_add (r1, r2);
+  set_number_from_substraction(xoff, dln->start_x, r1);
   free_number (dashoff);
-  set_number_from_scaled(mp->null_dash->start_x, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x ))
-                       + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled (hh->dash_y) ));
+  set_number_from_scaled(r1, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x )));
+  set_number_from_scaled(r2, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled (hh->dash_y)));
+  set_number_from_addition(mp->null_dash->start_x, r1, r2);
   number_clone(mp->null_dash->stop_x, mp->null_dash->start_x);
   @<Advance |dd| until finding the first dash that overlaps |dln| when
     offset by |xoff|@>;
@@ -11821,9 +11842,12 @@ mp_node ds;     /* the stroked node from which |hh| and |hsf| are derived */
     @<Insert a dash between |d| and |dln| for the overlap with the offset version
       of |dd|@>;
     dd = (mp_dash_node)mp_link (dd);
-    set_number_from_scaled(dln->start_x , number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x)));
+    set_number_from_scaled(r1, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x)));
+    set_number_from_addition(dln->start_x , xoff, r1);
   }
   free_number(xoff);
+  free_number (r1);
+  free_number (r2);
   mp_link (d) = mp_link (dln);
   mp_free_node (mp, (mp_node)dln, dash_node_size);
 }
@@ -11835,32 +11859,57 @@ overlap possible.  It could be that the unoffset version of dash |dln| falls
 in the gap between |dd| and its predecessor.
 
 @<Advance |dd| until finding the first dash that overlaps |dln| when...@>=
-while (number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->stop_x)) < number_to_scaled(dln->start_x)) {
-  dd = (mp_dash_node)mp_link (dd);
+{
+  mp_number r1;
+  new_number (r1);
+  set_number_from_scaled (r1, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->stop_x)));
+  number_add (r1, xoff);
+  while (number_less(r1, dln->start_x)) {
+    dd = (mp_dash_node)mp_link (dd);
+    set_number_from_scaled (r1, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->stop_x)));
+    number_add (r1, xoff);
+  }
+  free_number (r1);
 }
-
 
 @ @<If |dd| has `fallen off the end', back up to the beginning and fix...@>=
 if (dd == mp->null_dash) {
+  mp_number ret;
+  new_number (ret);
   dd = dash_list (hh);
-  number_add_scaled(xoff, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(hh->dash_y)));
+  set_number_from_scaled (ret, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(hh->dash_y)));
+  number_add(xoff, ret);
+  free_number (ret);
 }
 
 @ At this point we already know that |start_x(dln)<=xoff+take_scaled(hsf,stop_x(dd))|.
 
 @<Insert a dash between |d| and |dln| for the overlap with the offset...@>=
-if ((number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x ))) <= number_to_scaled(dln->stop_x)) {
-  mp_link (d) = (mp_node)mp_get_dash_node (mp);
-  d = (mp_dash_node)mp_link (d);
-  mp_link (d) = (mp_node)dln;
-  if (number_to_scaled(dln->start_x)  > (number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x ))))
-    number_clone(d->start_x , dln->start_x );
-  else
-    set_number_from_scaled(d->start_x, number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x)));
-  if (number_to_scaled(dln->stop_x ) < (number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->stop_x ))))
-    number_clone(d->stop_x , dln->stop_x );
-  else
-    set_number_from_scaled(d->stop_x , number_to_scaled(xoff) + mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->stop_x )));
+{
+  mp_number r1;
+  new_number (r1);
+  set_number_from_scaled(r1, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x )));
+  number_add (r1, xoff);
+  if (number_lessequal(r1, dln->stop_x)) {
+    mp_link (d) = (mp_node)mp_get_dash_node (mp);
+    d = (mp_dash_node)mp_link (d);
+    mp_link (d) = (mp_node)dln;
+    set_number_from_scaled(r1, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->start_x )));
+    number_add (r1, xoff);
+    if (number_greater(dln->start_x, r1))
+      number_clone(d->start_x, dln->start_x);
+    else {
+      number_clone(d->start_x, r1);
+    }
+    set_number_from_scaled(r1, mp_take_scaled (mp, number_to_scaled (hsf), number_to_scaled(dd->stop_x )));
+    number_add (r1, xoff);
+    if (number_less(dln->stop_x, r1))
+      number_clone(d->stop_x, dln->stop_x );
+    else {
+      number_clone(d->stop_x, r1);
+    }
+  }
+  free_number (r1);
 }
 
 @ The next major task is to update the bounding box information in an edge
@@ -12162,15 +12211,18 @@ parameters stored in the text node.
 @<Other cases for updating the bounding box...@>=
 case mp_text_node_type:
 {
-    mp_number x0a, y0a, x1a, y1a;
+    mp_number x0a, y0a, x1a, y1a, arg1;
     mp_text_node p0 = (mp_text_node)p;
     new_number (x0a);
     new_number (y0a);
     new_number (x1a);
     new_number (y1a);
-set_number_from_scaled (x1a, mp_take_scaled (mp, number_to_scaled(p0->txx), number_to_scaled(p0->width)));
-set_number_from_scaled (y0a, mp_take_scaled (mp, number_to_scaled(p0->txy), -number_to_scaled(p0->depth)));
-set_number_from_scaled (y1a, mp_take_scaled (mp, number_to_scaled(p0->txy), number_to_scaled(p0->height)));
+    new_number (arg1);
+    number_clone (arg1, p0->depth);
+    number_negate (arg1);
+    set_number_from_scaled (x1a, mp_take_scaled (mp, number_to_scaled(p0->txx), number_to_scaled(p0->width)));
+    set_number_from_scaled (y0a, mp_take_scaled (mp, number_to_scaled(p0->txy), number_to_scaled(arg1)));
+    set_number_from_scaled (y1a, mp_take_scaled (mp, number_to_scaled(p0->txy), number_to_scaled(p0->height)));
 number_clone (mp_minx, p0->tx);
 number_clone (mp_maxx, mp_minx);
 if (number_less(y0a, y1a)) {
@@ -12184,9 +12236,11 @@ if (number_negative(x1a))
   number_add (mp_minx, x1a);
 else
   number_add (mp_maxx, x1a);
-set_number_from_scaled (x1a, mp_take_scaled (mp, number_to_scaled(p0->tyx), number_to_scaled(p0->width)));
-set_number_from_scaled (y0a, mp_take_scaled (mp, number_to_scaled(p0->tyy), -number_to_scaled(p0->depth)));
-set_number_from_scaled (y1a, mp_take_scaled (mp, number_to_scaled(p0->tyy), number_to_scaled(p0->height)));
+    set_number_from_scaled (x1a, mp_take_scaled (mp, number_to_scaled(p0->tyx), number_to_scaled(p0->width)));
+    number_clone (arg1, p0->depth);
+    number_negate (arg1);
+    set_number_from_scaled (y0a, mp_take_scaled (mp, number_to_scaled(p0->tyy), number_to_scaled(arg1)));
+    set_number_from_scaled (y1a, mp_take_scaled (mp, number_to_scaled(p0->tyy), number_to_scaled(p0->height)));
 number_clone (mp_miny, p0->ty);
 number_clone (mp_maxy, mp_miny);
 if (number_less (y0a, y1a)) {
@@ -13390,9 +13444,14 @@ if (k < zero_off) {
   number_add (r1, fraction_half_t);
   free_number (tmp);
   tmp = mp_take_fraction (mp, miterlim, r1);
-  if (number_less(tmp, unity_t))
-    if (mp_take_scaled (mp, number_to_scaled(miterlim), number_to_scaled(tmp)) < number_to_scaled (unity_t))
+  if (number_less(tmp, unity_t)) {
+    mp_number ret;
+    new_number (ret);
+    set_number_from_scaled (ret, mp_take_scaled (mp, number_to_scaled(miterlim), number_to_scaled(tmp)));
+    if (number_less(ret, unity_t))
       join_type = 2;
+    free_number (ret);
+  }
   free_number (r1);
   free_number (r2);
 }
@@ -14950,23 +15009,24 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
       }
     }
   }
-  if (t == mp_dependent) {
+  {
     mp_number r1;
     mp_number arg1, arg2;
     new_number (arg1);
     new_number (arg2);
     set_number_from_scaled (arg1, dep_value (q));
     set_number_from_scaled (arg2, f);
-    r1 = mp_take_fraction (mp, arg1, arg2);
-    set_dep_value (p,
-                   mp_slow_add (mp, dep_value (p), number_to_scaled (r1)));
+    if (t == mp_dependent) {
+      r1 = mp_take_fraction (mp, arg1, arg2);
+    } else {
+      new_number (r1);
+      set_number_from_scaled (r1, mp_take_scaled (mp, number_to_scaled (arg1), number_to_scaled (arg2)));
+    }
+    set_dep_value (p, mp_slow_add (mp, dep_value (p), number_to_scaled (r1)));
     free_number (r1);
     free_number (arg1);
     free_number (arg2);
-  } else
-    set_dep_value (p,
-                   mp_slow_add (mp, dep_value (p),
-                                mp_take_scaled (mp, dep_value (q), f)));
+  }
   set_mp_link (r, (mp_node) p);
   mp->dep_final = p;
   return (mp_value_node) mp_link (mp->temp_head);
@@ -14975,21 +15035,24 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
 
 @ @<Contribute a term from |p|, plus |f|...@>=
 {
-  if (tt == mp_dependent) {
+  {
     mp_number r1;
     mp_number arg1, arg2;
     new_number (arg1);
     new_number (arg2);
     set_number_from_scaled (arg1, f);
     set_number_from_scaled (arg2, dep_value (q));
-    r1 = mp_take_fraction (mp, arg1, arg2);
-
+    if (tt == mp_dependent) {
+      r1 = mp_take_fraction (mp, arg1, arg2);
+    } else {
+      new_number (r1);
+      set_number_from_scaled (r1, mp_take_scaled (mp, number_to_scaled (arg1), number_to_scaled (arg2)));
+    }
     v = dep_value (p) + number_to_scaled (r1);
     free_number (arg1);
     free_number (arg2);
     free_number (r1);
-  } else
-    v = dep_value (p) + mp_take_scaled (mp, f, dep_value (q));
+  }
   set_dep_value (p, v);
   s = p;
   p = (mp_value_node) mp_link (p);
@@ -15011,20 +15074,24 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
 
 @ @<Contribute a term from |q|, multiplied by~|f|@>=
 {
-  if (tt == mp_dependent) {
+  {
     mp_number r1;
     mp_number arg1, arg2;
     new_number (arg1);
     new_number (arg2);
     set_number_from_scaled (arg1, f);
     set_number_from_scaled (arg2, dep_value (q));
-    r1 = mp_take_fraction (mp, arg1, arg2);
+    if (tt == mp_dependent) {
+      r1 = mp_take_fraction (mp, arg1, arg2);
+    } else {
+      new_number (r1);
+      set_number_from_scaled (r1, mp_take_scaled (mp, number_to_scaled (arg1), number_to_scaled (arg2)));
+    }
     v = number_to_scaled (r1);
     free_number (r1);
     free_number (arg1);
     free_number (arg2);
-  } else
-    v = mp_take_scaled (mp, f, dep_value (q));
+  }
   if (abs (v) > halfp (threshold)) {
     s = mp_get_dep_node (mp);
     set_dep_info (s, qq);
@@ -15152,20 +15219,24 @@ static mp_value_node mp_p_times_v (MP mp, mp_value_node p, integer v,
     threshold = half_scaled_threshold;
   r = (mp_value_node) mp->temp_head;
   while (dep_info (p) != NULL) {
-    if (scaling_down) {
+    {
       mp_number r1;
       mp_number arg1, arg2;
       new_number (arg1);
       new_number (arg2);
       set_number_from_scaled (arg1, v);
       set_number_from_scaled (arg2, dep_value (p));
-      r1 = mp_take_fraction (mp, arg1, arg2);
+      if (scaling_down) {
+        r1 = mp_take_fraction (mp, arg1, arg2);
+      } else {
+        new_number (r1);
+        set_number_from_scaled (r1, mp_take_scaled (mp, number_to_scaled (arg1), number_to_scaled (arg2)));
+      }
       w = number_to_scaled (r1);
       free_number (r1);
       free_number (arg1);
       free_number (arg2);
-    } else
-      w = mp_take_scaled (mp, v, dep_value (p));
+    }
     if (abs (w) <= threshold) {
       s = (mp_value_node) mp_link (p);
       mp_free_dep_node (mp, p);
@@ -15182,16 +15253,19 @@ static mp_value_node mp_p_times_v (MP mp, mp_value_node p, integer v,
     }
   }
   set_mp_link (r, (mp_node) p);
-  if (v_is_scaled)
-    set_dep_value (p, mp_take_scaled (mp, dep_value (p), v));
-  else {
+  {
     mp_number r1;
     mp_number arg1, arg2;
     new_number (arg1);
     new_number (arg2);
     set_number_from_scaled (arg1, dep_value (p));
     set_number_from_scaled (arg2, v);
-    r1 = mp_take_fraction (mp, arg1, arg2);
+    if (v_is_scaled) {
+      new_number (r1);
+      set_number_from_scaled (r1, mp_take_scaled (mp, number_to_scaled (arg1), number_to_scaled (arg2)));
+    } else {
+      r1 = mp_take_fraction (mp, arg1, arg2);
+    }
     set_dep_value (p, number_to_scaled (r1));
     free_number (r1);
     free_number (arg1);
@@ -26212,7 +26286,11 @@ break;
     mp_unstash_cur_exp (mp, p);
   }
   if (mp->cur_exp.type == mp_known) {
-    set_cur_exp_value (mp_take_scaled (mp, cur_exp_value (), number_to_scaled (vv)));
+    mp_number ret;
+    new_number (ret);
+    set_number_from_scaled (ret, mp_take_scaled (mp, number_to_scaled (cur_exp_value_number ()), number_to_scaled (vv)));
+    set_cur_exp_value (number_to_scaled (ret));
+    free_number (ret);
   } else if (mp->cur_exp.type == mp_pair_type) {
     mp_dep_mult (mp, (mp_value_node) x_part (value_node (cur_exp_node ())), vv, true);
     mp_dep_mult (mp, (mp_value_node) y_part (value_node (cur_exp_node ())), vv, true);
@@ -26242,13 +26320,16 @@ static void mp_dep_mult (MP mp, mp_value_node p, mp_number v, boolean v_is_scale
   } else if (mp_type (p) != mp_known) {
     q = p;
   } else {
-    if (v_is_scaled)
-      set_dep_value (p, mp_take_scaled (mp, dep_value (p), number_to_scaled (v)));
-    else {
+    {
       mp_number r1, arg1;
       new_number (arg1);
       set_number_from_scaled (arg1, dep_value (p));
-      r1 = mp_take_fraction (mp, arg1, v);
+      if (v_is_scaled) {
+        new_number (r1);
+        set_number_from_scaled (r1, mp_take_scaled (mp, number_to_scaled (arg1), number_to_scaled (v)));
+      } else {
+        r1 = mp_take_fraction (mp, arg1, v);
+      }
       set_dep_value (p, number_to_scaled (r1));
       free_number (r1);
       free_number (arg1);
@@ -26782,16 +26863,25 @@ coordinates in locations |p| and~|q|.
 @<Declare binary action...@>=
 static void mp_number_trans (MP mp, mp_number p, mp_number q) {
   mp_number pp, qq;
+  mp_number r1, r2;
   new_number (pp);
   new_number (qq);
-  set_number_from_scaled(pp, mp_take_scaled (mp, number_to_scaled(p), number_to_scaled(mp->txx)) +
-       mp_take_scaled (mp, number_to_scaled(q), number_to_scaled(mp->txy)) + number_to_scaled(mp->tx));
-  set_number_from_scaled(qq, mp_take_scaled (mp, number_to_scaled(p), number_to_scaled(mp->tyx)) +
-       mp_take_scaled (mp, number_to_scaled(q), number_to_scaled(mp->tyy)) + number_to_scaled(mp->ty));
+  new_number (r1);
+  new_number (r2);
+  set_number_from_scaled(r1, mp_take_scaled (mp, number_to_scaled(p), number_to_scaled(mp->txx)));
+  set_number_from_scaled(r2, mp_take_scaled (mp, number_to_scaled(q), number_to_scaled(mp->txy)));
+  number_add (r1, r2);
+  set_number_from_addition(pp, r1, mp->tx);
+  set_number_from_scaled(r1, mp_take_scaled (mp, number_to_scaled(p), number_to_scaled(mp->tyx)));
+  set_number_from_scaled(r2, mp_take_scaled (mp, number_to_scaled(q), number_to_scaled(mp->tyy)));
+  number_add (r1, r2);
+  set_number_from_addition(qq, r1, mp->ty);
   number_clone(p,pp); 
   number_clone(q,qq); 
   free_number (pp);
   free_number (qq);
+  free_number (r1);
+  free_number (r2);
 }
 
 
@@ -26927,12 +27017,17 @@ if (number_nonzero(mp->txy) || number_nonzero(mp->tyx) ||
 
 @ @<Scale the dash list by |txx| and shift it by |tx|@>=
 r = dash_list (h);
-while (r != mp->null_dash) {
-  set_number_from_scaled(r->start_x , mp_take_scaled (mp, 
-	number_to_scaled(r->start_x), number_to_scaled( mp->txx)) + number_to_scaled(mp->tx));
-  set_number_from_scaled(r->stop_x , mp_take_scaled (mp, 
-	number_to_scaled(r->stop_x),  number_to_scaled(mp->txx)) + number_to_scaled(mp->tx));
-  r = (mp_dash_node)mp_link (r);
+{
+  mp_number arg1;
+  new_number (arg1);
+  while (r != mp->null_dash) {
+    set_number_from_scaled (arg1, mp_take_scaled (mp, number_to_scaled(r->start_x), number_to_scaled( mp->txx)));
+    set_number_from_addition(r->start_x, arg1, mp->tx);
+    set_number_from_scaled (arg1, mp_take_scaled (mp, number_to_scaled(r->stop_x), number_to_scaled( mp->txx)));
+    set_number_from_addition(r->stop_x, arg1, mp->tx);
+    r = (mp_dash_node)mp_link (r);
+  }
+  free_number (arg1);
 }
 
 
@@ -27122,7 +27217,7 @@ static void mp_bilin1 (MP mp, mp_node p, mp_number t, mp_node q,
     if (mp_type (q) == mp_known) {
       mp_number tmp;
       new_number (tmp);
-      set_number_from_scaled (tmp, mp_take_scaled (mp, value (q), number_to_scaled (u)));
+      set_number_from_scaled (tmp, mp_take_scaled (mp, number_to_scaled (value_number (q)), number_to_scaled (u)));
       number_add (delta, tmp);
       free_number (tmp);
     } else {
@@ -27207,9 +27302,11 @@ numeric quantity to~|p|.
 @<Declare subroutines needed by |big_trans|@>=
 static void mp_add_mult_dep (MP mp, mp_value_node p, mp_number v, mp_node r) {
   if (mp_type (r) == mp_known) {
-    set_dep_value (mp->dep_final,
-                   dep_value (mp->dep_final) + mp_take_scaled (mp, value (r),
-                                                               number_to_scaled (v)));
+    mp_number ret;
+    new_number (ret);
+    set_number_from_scaled (ret, mp_take_scaled (mp, number_to_scaled (value_number (r)), number_to_scaled (v)));
+    set_dep_value (mp->dep_final, dep_value (mp->dep_final) + number_to_scaled (ret));
+    free_number (ret);
   } else {
     set_dep_list (p,
       mp_p_plus_fq (mp, (mp_value_node) dep_list (p), number_to_scaled (v),
@@ -27283,13 +27380,17 @@ static void mp_bilin3 (MP mp, mp_node p, mp_number t,
   new_number (delta);
   number_clone (delta, delta_orig);
   if (!number_equal(t, unity_t)) 
-    set_number_from_scaled (tmp, mp_take_scaled (mp, value (p), number_to_scaled (t)));
+    set_number_from_scaled (tmp, mp_take_scaled (mp, number_to_scaled (value_number (p)), number_to_scaled (t)));
   else
     set_number_from_scaled (tmp, value (p));
   number_add (delta, tmp);
-  if (number_nonzero(u))
-    set_value (p, number_to_scaled (delta) + mp_take_scaled (mp, number_to_scaled (v), number_to_scaled (u)));
-  else
+  if (number_nonzero(u)) {
+    mp_number ret;
+    new_number (ret);
+    set_number_from_scaled (ret, mp_take_scaled (mp, number_to_scaled (v), number_to_scaled (u)));
+    set_value (p, number_to_scaled (delta) + number_to_scaled (ret));
+    free_number (ret);
+  } else
     set_value (p, number_to_scaled (delta));
   free_number (tmp);
   free_number (delta);
