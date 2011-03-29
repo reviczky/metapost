@@ -84,6 +84,7 @@ int mp_number_less(mp_number A, mp_number B);
 int mp_number_nonequalabs(mp_number A, mp_number B);
 void mp_number_floor (mp_number i);
 void mp_fraction_to_scaled (mp_number x);
+mp_number mp_number_make_fraction (MP mp, mp_number p, mp_number q);
 typedef void (*number_from_scaled_func) (mp_number A, int B);
 typedef void (*number_from_double_func) (mp_number A, double B);
 typedef void (*number_from_addition_func) (mp_number A, mp_number B, mp_number C);
@@ -108,6 +109,7 @@ typedef int (*number_equal_func) (mp_number A, mp_number B);
 typedef int (*number_less_func) (mp_number A, mp_number B);
 typedef int (*number_greater_func) (mp_number A, mp_number B);
 typedef int (*number_nonequalabs_func) (mp_number A, mp_number B);
+typedef mp_number (*make_fraction_func) (MP mp, mp_number A, mp_number B);
 typedef mp_number (*new_number_func) (MP mp, mp_number_type t);
 typedef void (*free_number_func) (MP mp, mp_number n);
 typedef void (*fraction_to_scaled_func) (mp_number n);
@@ -153,6 +155,7 @@ typedef struct math_data {
   number_nonequalabs_func nonequalabs;
   number_round_func round_unscaled;
   number_floor_func floor_scaled;
+  make_fraction_func make_fraction;
   fraction_to_scaled_func fraction_to_scaled;
 } math_data;
 
@@ -222,6 +225,7 @@ void * mp_initialize_math (MP mp) {
   math->round_unscaled = mp_round_unscaled;
   math->floor_scaled = mp_number_floor;
   math->fraction_to_scaled = mp_fraction_to_scaled;
+  math->make_fraction = mp_number_make_fraction;
   return (void *)math;
 }
 
@@ -511,9 +515,6 @@ such changes aren't advisable; simplicity and robustness are
 preferable to trickery, unless the cost is too high.
 @^inner loop@>
 
-@<Internal library declarations@>=
-int mp_make_fraction (MP mp, integer p, integer q);
-
 @ We need these preprocessor values
 
 @d TWEXP31  2147483648.0
@@ -524,18 +525,20 @@ int mp_make_fraction (MP mp, integer p, integer q);
 
 
 @c
-int mp_make_fraction (MP mp, integer p, integer q) {
-  int i; /* fraction */
+static integer mp_make_fraction (MP mp, integer p, integer q) {
+  integer i;
   if (q == 0)
     mp_confusion (mp, "/");
-@:this can't happen /}{\quad \./@> {
+@:this can't happen /}{\quad \./@> 
+  {
     register double d;
     d = TWEXP28 * (double) p / (double) q;
     if ((p ^ q) >= 0) {
       d += 0.5;
       if (d >= TWEXP31) {
         mp->arith_error = true;
-        return EL_GORDO;
+        i = EL_GORDO;
+        goto RETURN;
       }
       i = (integer) d;
       if (d == (double) i && (((q > 0 ? -q : q) & 077777)
@@ -545,7 +548,8 @@ int mp_make_fraction (MP mp, integer p, integer q) {
       d -= 0.5;
       if (d <= -TWEXP31) {
         mp->arith_error = true;
-        return -EL_GORDO;
+        i = -EL_GORDO;
+        goto RETURN;
       }
       i = (integer) d;
       if (d == (double) i && (((q > 0 ? q : -q) & 077777)
@@ -553,7 +557,16 @@ int mp_make_fraction (MP mp, integer p, integer q) {
         ++i;
     }
   }
+RETURN:
   return i;
+}
+mp_number mp_number_make_fraction (MP mp, mp_number p_orig, mp_number q_orig) {
+  int i; /* fraction */
+  mp_number ret;
+  new_number (ret);
+  i = mp_make_fraction (mp, p_orig->data.val, q_orig->data.val);
+  ret->data.val = i;
+  return ret;
 }
 
 
@@ -863,7 +876,6 @@ mp_number mp_velocity (MP mp, mp_number st, mp_number ct, mp_number sf,
 	                      mp_number cf, mp_number t) {
   mp_number ret;
   integer acc, num, denom;      /* registers for intermediate calculations */
-  new_number (ret);
   acc = mp_take_fraction (mp, st->data.val - (sf->data.val / 16), sf->data.val - (st->data.val / 16));
   acc = mp_take_fraction (mp, acc, ct->data.val - cf->data.val);
   num = fraction_two + mp_take_fraction (mp, acc, 379625062);
@@ -875,8 +887,8 @@ mp_number mp_velocity (MP mp, mp_number st, mp_number ct, mp_number sf,
   /* $3\cdot2^{27}\cdot(\sqrt5-1)\approx497706706.78$ and
      $3\cdot2^{27}\cdot(3-\sqrt5\,)\approx307599661.22$ */
   if (t->data.val != unity)
-    num = mp_make_scaled (mp, num, t->data.val);
-  /* |make_scaled(fraction,scaled)=fraction| */
+    num = mp_make_scaled (mp, num, t->data.val); /* |make_scaled(fraction,scaled)=fraction| */
+  new_number (ret);
   if (num / 4 >= denom) {
     ret->data.val = fraction_four;
   } else {
