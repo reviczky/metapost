@@ -7701,7 +7701,8 @@ provide temporary storage for intermediate quantities.
 @<Calculate the values $\\{aa}=...@>=
 if (abs (number_to_scaled(r->right_tension)) == number_to_scaled (unity_t)) {
   number_clone (aa, fraction_half_t);
-  set_number_from_scaled (dd, 2 * number_to_scaled(mp->delta[k]));
+  number_clone (dd, mp->delta[k]);
+  number_double (dd);
 } else {
   mp_number arg1, arg2, ret;
   new_number (arg2);
@@ -7883,8 +7884,8 @@ so we can solve for $\theta_n=\theta_0$.
   free_number (r1);
   r1 = mp_make_fraction (mp, aa, arg2);
   number_clone (aa, r1);
-  set_number_from_scaled(mp->theta[n], number_to_scaled (aa));
-  set_number_from_scaled(mp->vv[0], number_to_scaled (aa));
+  number_clone(mp->theta[n], aa);
+  number_clone(mp->vv[0], aa);
   for (k = 1; k < n; k++) {
     free_number (r1);
     r1 = mp_take_fraction (mp, aa, mp->ww[k]);
@@ -7917,8 +7918,7 @@ void mp_reduce_angle (MP mp, mp_number a);
 @ @<Calculate the given value of $\theta_n$...@>=
 {
   mp_number n_arg = mp_n_arg (mp, mp->delta_x[n - 1], mp->delta_y[n - 1]);
-  set_number_from_scaled(mp->theta[n],
-    number_to_scaled(s->left_given) - number_to_scaled (n_arg));
+  set_number_from_scaled(mp->theta[n],  number_to_scaled(s->left_given) - number_to_scaled (n_arg));
   free_number (n_arg);
   mp_reduce_angle (mp, mp->theta[n]);
   goto FOUND;
@@ -8043,7 +8043,7 @@ mp_number mp_curl_ratio (MP mp, mp_number gamma_orig, mp_number a_tension, mp_nu
   new_fraction (gamma);
   alpha = mp_make_fraction (mp, unity_t, a_tension);
   beta = mp_make_fraction (mp, unity_t, b_tension);
-  set_number_from_scaled (gamma, number_to_scaled (gamma_orig));
+  number_clone (gamma, gamma_orig);
   if (number_lessequal(alpha, beta)) {
     mp_number arg1;
     new_number (arg1);
@@ -24957,7 +24957,8 @@ static mp_number mp_new_turn_cycles (MP mp, mp_knot c) {
   new_angle(res);
   new_angle(seven_twenty_deg_t);
   new_angle(neg_one_eighty_deg_t);
-  set_number_from_scaled(seven_twenty_deg_t, seven_twenty_deg);
+  number_clone(seven_twenty_deg_t, three_sixty_deg_t);
+  number_double(seven_twenty_deg_t);
   number_clone(neg_one_eighty_deg_t, one_eighty_deg_t);
   number_negate(neg_one_eighty_deg_t);
   p = c;
@@ -26741,7 +26742,7 @@ set_number_from_scaled(mp->tyx, value (yx_part (q)));
 set_number_from_scaled(mp->tyy, value (yy_part (q)));
 set_number_from_scaled(mp->tx, value (tx_part (q)));
 set_number_from_scaled(mp->ty, value (ty_part (q)));
-set_number_from_scaled (new_expr.data.n, 0);
+set_number_to_zero (new_expr.data.n);
 mp_flush_cur_exp (mp, new_expr)
  
 
