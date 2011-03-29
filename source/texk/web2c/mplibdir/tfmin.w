@@ -182,7 +182,11 @@ mp->depth_base[n]=mp->height_base[n]+nh;
 mp->next_fmem=mp->next_fmem+whd_size;
 
 
-@ @<Read the \.{TFM} header@>=
+@ This macro is a bit odd, but it works.
+
+@d integer_as_fraction(A) (int)(A)
+
+@<Read the \.{TFM} header@>=
 if ( tfm_lh<2 ) goto BAD_TFM;
 tf_ignore(4);
 tfget; read_two(z);

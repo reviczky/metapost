@@ -46,6 +46,7 @@
 @d number_greater(A,B)		       (((math_data *)(mp->math))->greater)(A,B)		       
 @d number_positive(A)		       number_greater(A, zero_t)		       
 @d number_to_scaled(A)		       (((math_data *)(mp->math))->to_scaled)(A)		       
+@d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
 @d true 1
 @d false 0
 @d null_font 0
@@ -481,13 +482,13 @@ void mp_svg_print_initial_comment(MP mp,mp_edge_object *hh) {
   mp_svg_print(mp, s);
   mp_xfree(s);
   mp_svg_print(mp, " on ");
-  mp_svg_store_int(mp, mp_round_unscaled(mp, number_to_scaled (internal_value(mp_year)))); 
+  mp_svg_store_int(mp, round_unscaled(internal_value(mp_year))); 
   append_char('.');
-  mp_svg_store_dd(mp, mp_round_unscaled(mp, number_to_scaled (internal_value(mp_month)))); 
+  mp_svg_store_dd(mp, round_unscaled(internal_value(mp_month))); 
   append_char('.');
-  mp_svg_store_dd(mp, mp_round_unscaled(mp, number_to_scaled (internal_value(mp_day)))); 
+  mp_svg_store_dd(mp, round_unscaled(internal_value(mp_day))); 
   append_char(':');
-  tt=mp_round_unscaled(mp, number_to_scaled (internal_value(mp_time)));
+  tt=round_unscaled(internal_value(mp_time));
   mp_svg_store_dd(mp, tt / 60); 
   mp_svg_store_dd(mp, tt % 60);
   mp_svg_print_buf(mp);
