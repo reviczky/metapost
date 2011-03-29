@@ -2745,12 +2745,12 @@ size_t var_used_max;    /* how much memory was in use max */
 static void do_set_mp_sym_info (MP mp, mp_node p, halfword v) {
   FUNCTION_TRACE3 ("do_set_mp_sym_info(%p,%d)\n", p, v);
   assert (p->type == mp_symbol_node);
-  p->data.n->data.val = v;
+  set_number_from_scaled (p->data.n, v);
 }
 static halfword get_mp_sym_info (MP mp, mp_node p) {
-  FUNCTION_TRACE3 ("%d = get_mp_sym_info(%p)\n", p->data.n->data.val, p);
+  FUNCTION_TRACE3 ("%d = get_mp_sym_info(%p)\n", number_to_scaled (p->data.n), p);
   assert (p->type == mp_symbol_node);
-  return p->data.n->data.val;
+  return number_to_scaled (p->data.n);
 }
 
 @ Similarly, so do these redirect to functions.
@@ -2823,11 +2823,11 @@ void mp_free_node (MP mp, mp_node p, size_t siz);
 @c
 static void do_set_mp_info (MP mp, mp_node p, halfword v) {
   (void) mp;
-  p->data.n->data.val = v;
+  set_number_from_scaled (p->data.n, v);
 }
 halfword get_mp_info (MP mp, mp_node p) {
   (void) mp;
-  return p->data.n->data.val;
+  return number_to_scaled (p->data.n);
 }
 
 
@@ -4178,7 +4178,7 @@ that holds the current command value of the token, and an
 @d equiv(A)      do_get_equiv(mp, (A)) /* parametric part of a token's meaning */
 @d set_equiv(A,B)  do {
    FUNCTION_TRACE3 ("set_equiv(%p, %d)\n",(A),(B));
-   (A)->v.data.n->data.val=(B) ;
+   set_number_from_scaled ((A)->v.data.n, (B));
 } while (0)
 
 @d equiv_node(A) do_get_equiv_node(mp, (A)) /* parametric part of a token's meaning */
@@ -4203,8 +4203,8 @@ static halfword do_get_eq_type (MP mp, mp_sym A) {
   return A->type;
 }
 static halfword do_get_equiv (MP mp, mp_sym A) {
-  FUNCTION_TRACE3 ("%d = do_get_equiv(%p)\n",A->v.data.n->data.val,A);
-  return A->v.data.n->data.val;
+  FUNCTION_TRACE3 ("%d = do_get_equiv(%p)\n",number_to_scaled (A->v.data.n),A);
+  return number_to_scaled (A->v.data.n);
 }
 static mp_node do_get_equiv_node (MP mp, mp_sym A) {
   FUNCTION_TRACE3 ("%p = do_get_equiv_node(%p)\n",A->v.data.node,A);
@@ -4419,7 +4419,7 @@ static mp_sym mp_frozen_primitive (MP mp, const char *ss, halfword c,
                                    halfword o) {
   mp_sym str = mp_frozen_id_lookup (mp, ss, strlen (ss), true);
   str->type = c;
-  str->v.data.n->data.val = o;
+  set_number_from_scaled (str->v.data.n, o);
   return str;
 }
 
@@ -4728,7 +4728,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    ((mp_token_node)(A))->data.p = NULL;
    ((mp_token_node)(A))->data.str = NULL;
    ((mp_token_node)(A))->data.node = NULL;
-   ((mp_token_node)(A))->data.n->data.val = (B);
+   set_number_from_scaled (((mp_token_node)(A))->data.n, (B));
  } while (0)
 
 
@@ -4744,7 +4744,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    ((mp_token_node)(A))->data.str = (B);
    add_str_ref((B));
    ((mp_token_node)(A))->data.node = NULL;
-   ((mp_token_node)(A))->data.n->data.val = 0;
+   set_number_from_scaled (((mp_token_node)(A))->data.n, 0);
  } while (0) 
 
 @d value_knot(A)  get_value_knot(mp, (mp_token_node)(A)) /* the value stored in a large token node */
@@ -4754,7 +4754,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    ((mp_token_node)(A))->data.p = (B);
    ((mp_token_node)(A))->data.str = NULL;
    ((mp_token_node)(A))->data.node = NULL;
-   ((mp_token_node)(A))->data.n->data.val = 0;
+   set_number_from_scaled (((mp_token_node)(A))->data.n, 0);
  } while (0) 
 
 
@@ -4763,20 +4763,22 @@ typedef struct mp_node_data *mp_token_node;
 
 @ @c
 integer mp_do_value (MP mp, mp_node A) {
-  FUNCTION_TRACE3 ("%d = mp_do_value(%p)\n", ((mp_value_node)A)->data.n->data.val, A);
+  mp_value_node a = (mp_value_node)A;
+  FUNCTION_TRACE3 ("%d = mp_do_value(%p)\n", number_to_scaled (a->data.n), A);
   if (mp_type(A) == mp_independent) {
      fprintf(stderr,"bad call to value");
   }
-  return ((mp_value_node)A)->data.n->data.val;
+  return number_to_scaled (a->data.n);
 }
 
 @ @c
 integer mp_do_dep_value (MP mp, mp_node A) {
-  FUNCTION_TRACE3 ("%d = mp_do_dep_value(%p)\n", ((mp_value_node)A)->data.n->data.val, A);
+  mp_value_node a = (mp_value_node)A;
+  FUNCTION_TRACE3 ("%d = mp_do_dep_value(%p)\n", number_to_scaled (a->data.n), A);
   if (mp_type(A) == mp_independent) {
      fprintf(stderr,"bad call to dep_value");
   }
-  return ((mp_value_node)A)->data.n->data.val;
+  return number_to_scaled(a->data.n);
 }
 
 @ @c
@@ -4785,7 +4787,7 @@ static void do_set_value_node(MP mp, mp_token_node A, mp_node B) { /* store the 
    A->data.p = NULL;
    A->data.str = NULL;
    A->data.node = B;
-   A->data.n->data.val = 0;
+   set_number_from_scaled (A->data.n, 0);
 }
 
 @ @c
@@ -6348,7 +6350,7 @@ static void mp_clear_symbol (MP mp, mp_sym p, boolean saving) {
   default:
     break;
   }
-  set_equiv (p, mp->frozen_undefined->v.data.n->data.val);
+  set_equiv (p, number_to_scaled (mp->frozen_undefined->v.data.n));
   set_equiv_node (p, NULL);
   set_eq_type (p, mp->frozen_undefined->type);
 }
@@ -6486,7 +6488,7 @@ static void mp_unsave_internal (MP mp, halfword q) {
     mp_print (mp, internal_name (q));
     mp_print_char (mp, xord ('='));
     if (internal_type (q) == mp_known) {
-      mp_print_scaled (mp, saved.v.data.n->data.val);
+      mp_print_number (mp, saved.v.data.n);
     } else if (internal_type (q) == mp_string_type) {
       char *s = mp_str (mp, saved.v.data.str);
       mp_print (mp, s);
@@ -14282,7 +14284,7 @@ static mp_node get_dep_info (MP mp, mp_value_node p) {
   return d;
 }
 static void do_set_dep_value (MP mp, mp_value_node p, halfword q) {
-   p->data.n->data.val=q;  /* half of the |value| field in a |dependent| variable */
+   set_number_from_scaled (p->data.n, q);  /* half of the |value| field in a |dependent| variable */
    FUNCTION_TRACE3("set_dep_value(%p,%d)\n", p, q);
    p->attr_head_ = NULL;
    p->subscr_head_ = NULL;
@@ -15263,7 +15265,7 @@ static void mp_nonlinear_eq (MP mp, mp_value v, mp_node p, boolean flush_p) {
     mp_type (q) = t;
     switch (t) {
     case mp_boolean_type:
-      set_value (q, v.data.n->data.val);
+      set_value (q, number_to_scaled (v.data.n));
       break;
     case mp_string_type:
       set_value_str (q, v.data.str);
@@ -15363,8 +15365,8 @@ recursive process, but the |get_next| procedure is not recursive.
 
 @d cur_cmd() (unsigned)(mp->cur_mod_->type)
 @d set_cur_cmd(A) mp->cur_mod_->type=(A)
-@d cur_mod() mp->cur_mod_->data.n->data.val /* operand of current command */
-@d set_cur_mod(A) mp->cur_mod_->data.n->data.val=(A)
+@d cur_mod() number_to_scaled (mp->cur_mod_->data.n) /* operand of current command */
+@d set_cur_mod(A) set_number_from_scaled (mp->cur_mod_->data.n, (A))
 @d cur_mod_node() mp->cur_mod_->data.node
 @d set_cur_mod_node(A) mp->cur_mod_->data.node=(A)
 @d cur_mod_str() mp->cur_mod_->data.str
@@ -20022,17 +20024,21 @@ Technically speaking, the parsing algorithms are ``LL(1),'' more or less;
 backup mechanisms have been added in order to provide reasonable error
 recovery.
 
-@d cur_exp_value() mp->cur_exp.data.n->data.val
+@d cur_exp_value() number_to_scaled (mp->cur_exp.data.n)
 @d cur_exp_value_number() mp->cur_exp.data.n
 @d cur_exp_node() mp->cur_exp.data.node
 @d cur_exp_str() mp->cur_exp.data.str
 @d cur_exp_knot() mp->cur_exp.data.p
 
+@d negate_cur_exp_value() do {
+   if (cur_exp_value_number()) 
+     number_negate (cur_exp_value_number());
+} while (0)
 @d set_cur_exp_value(A) do {
     if (cur_exp_str()) {
         delete_str_ref(cur_exp_str());
     }
-    cur_exp_value() = (A);
+    set_number_from_scaled (mp->cur_exp.data.n, (A));
     cur_exp_node() = NULL;
     cur_exp_str() = NULL;
     cur_exp_knot() = NULL;
@@ -20053,7 +20059,7 @@ recovery.
     cur_exp_node() = A;
     cur_exp_str() = NULL;
     cur_exp_knot() = NULL;
-    cur_exp_value() = 0;
+    set_number_to_zero (mp->cur_exp.data.n);
   } while (0)
 @d set_cur_exp_str(A) do {
     if (cur_exp_str()) {
@@ -20063,7 +20069,7 @@ recovery.
     add_str_ref(cur_exp_str());
     cur_exp_node() = NULL;
     cur_exp_knot() = NULL;
-    cur_exp_value() = 0;
+    set_number_to_zero (mp->cur_exp.data.n);
   } while (0)
 @d set_cur_exp_knot(A) do {
     if (cur_exp_str()) {
@@ -20072,7 +20078,7 @@ recovery.
     cur_exp_knot() = A;
     cur_exp_node() = NULL;
     cur_exp_str() = NULL;
-    cur_exp_value() = 0;
+    set_number_to_zero (mp->cur_exp.data.n);
   } while (0)
   
 
@@ -21250,7 +21256,7 @@ if (mp->cur_exp.type < mp_known) {
          "(The b that I didn't like appears above the error message.)",
          NULL };
   mp_disp_err(mp, NULL);
-  new_expr.data.n->data.val = 0;
+  set_number_to_zero(new_expr.data.n);
   mp_back_error (mp,"Nonnumeric ypart has been replaced by 0", hlp, true);
 @.Nonnumeric...replaced by 0@>;
   mp_get_x_next (mp);
@@ -21268,7 +21274,7 @@ if (mp->cur_exp.type < mp_known) {
        "(The c that I didn't like appears above the error message.)",
        NULL };
     mp_disp_err(mp, NULL);
-    new_expr.data.n->data.val = 0;
+    set_number_to_zero(new_expr.data.n);
     mp_back_error (mp,"Nonnumeric third part has been replaced by 0", hlp, true);
 @.Nonnumeric...replaced by 0@>;
     mp_get_x_next (mp);
@@ -21289,7 +21295,7 @@ if (mp->cur_exp.type < mp_known) {
            "(The k that I didn't like appears above the error message.)",
            NULL };
     mp_disp_err(mp, NULL); 
-    new_expr.data.n->data.val = 0;
+    set_number_to_zero(new_expr.data.n);
     mp_back_error (mp,"Nonnumeric blackpart has been replaced by 0", hlp, true);
 @.Nonnumeric...replaced by 0@>;
     mp_get_x_next (mp);
@@ -21733,7 +21739,7 @@ if (p != NULL) {
     "In order to get back on my feet, I've inserted `0' instead.",
     NULL };
   char *msg = mp_obliterated (mp, q);
-  new_expr.data.n->data.val = 0;
+  set_number_to_zero(new_expr.data.n);
   mp_back_error (mp, msg, hlp, true);
   free(msg);
   mp_get_x_next (mp);
@@ -22484,7 +22490,7 @@ static quarterword mp_scan_direction (MP mp) {
 @:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
     memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
-    new_expr.data.n->data.val = 0;
+    set_number_to_zero(new_expr.data.n);
     mp_disp_err(mp, NULL);
     mp_back_error (mp, "Undefined x coordinate has been replaced by 0", hlp, true);
 @.Undefined coordinates...@>;
@@ -22513,7 +22519,7 @@ static quarterword mp_scan_direction (MP mp) {
            NULL };
     memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
-    new_expr.data.n->data.val = 0;
+    set_number_to_zero(new_expr.data.n);
     mp_disp_err(mp, NULL);
     mp_back_error (mp, "Undefined y coordinate has been replaced by 0", hlp, true);
     mp_get_x_next (mp);
@@ -22591,7 +22597,7 @@ DONE:
   mp_scan_primary (mp);
   @<Make sure that the current expression is a valid tension setting@>;
   if (number_to_scaled (y) == mp_at_least)
-    negate (cur_exp_value ());
+    negate_cur_exp_value ();
   set_number_from_scaled(path_q->right_tension, cur_exp_value ());
   if (cur_cmd() == mp_and_command) {
     mp_get_x_next (mp);
@@ -22601,7 +22607,7 @@ DONE:
     mp_scan_primary (mp);
     @<Make sure that the current expression is a valid tension setting@>;
     if (number_to_scaled (y) == mp_at_least)
-      negate (cur_exp_value ());
+      negate_cur_exp_value ();
   }
   set_number_from_scaled (y, cur_exp_value ());
 }
@@ -22613,7 +22619,7 @@ DONE:
 if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < min_tension)) {
   const char *hlp[] = { "The expression above should have been a number >=3/4.", NULL };
   mp_disp_err(mp, NULL);
-  new_expr.data.n->data.val = number_to_scaled (unity_t);
+  number_clone(new_expr.data.n, unity_t);
   mp_back_error (mp, "Improper tension has been set to 1", hlp, true);
 @.Improper tension@>;
   mp_get_x_next (mp);
@@ -22790,7 +22796,7 @@ static void mp_get_boolean (MP mp) {
            "true-or-false value. I'm changing it to `false'.",
            NULL };
     mp_disp_err(mp, NULL);
-    new_expr.data.n->data.val = mp_false_code;
+    set_number_from_scaled (new_expr.data.n, mp_false_code);
     mp_back_error (mp, "Undefined condition will be treated as `false'", hlp, true);
 @.Undefined condition...@>;
     mp_get_x_next (mp);
@@ -23333,7 +23339,7 @@ case mp_proto_dependent:
                                                     cur_exp_node ()));
   break;
 case mp_known:
-  negate (cur_exp_value ());
+  negate_cur_exp_value ();
   break;
 default:
   mp_bad_unary (mp, mp_minus);
@@ -23448,9 +23454,9 @@ if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
   x = number_to_scaled (n_arg);
   free_number (n_arg);
   if (x >= 0)
-    new_expr.data.n->data.val = (x + 8) / 16;
+    set_number_from_scaled (new_expr.data.n, (x + 8) / 16);
   else
-    new_expr.data.n->data.val = -((-x + 8) / 16);
+    set_number_from_scaled (new_expr.data.n, -((-x + 8) / 16));
   mp_flush_cur_exp (mp, new_expr);
 } else {
   mp_bad_unary (mp, mp_angle_op);
@@ -23585,9 +23591,9 @@ static void mp_bad_color_part (MP mp, quarterword c) {
   delete_str_ref(sname);
   mp_error (mp, msg, hlp, true);
   if (c == mp_black_part)
-    new_expr.data.n->data.val = number_to_scaled (unity_t);
+    number_clone (new_expr.data.n, unity_t);
   else
-    new_expr.data.n->data.val = 0;
+    set_number_to_zero(new_expr.data.n);
   mp_flush_cur_exp (mp, new_expr);
 }
 
@@ -23776,7 +23782,7 @@ static void mp_take_pict_part (MP mp, quarterword c) {
         if (mp_color_model (p) == mp_uninitialized_model)
           number_clone (new_expr.data.n, internal_value (mp_default_color_model));
         else
-          new_expr.data.n->data.val = mp_color_model (p) * number_to_scaled (unity_t);
+          set_number_from_scaled (new_expr.data.n, mp_color_model (p) * number_to_scaled (unity_t));
         mp_flush_cur_exp (mp, new_expr);
       } else
         goto NOT_FOUND;
@@ -23918,7 +23924,7 @@ case mp_dash_part:
   mp->cur_exp.type = mp_picture_type;
   break;
 default:
-  new_expr.data.n->data.val = 0;
+  set_number_to_zero(new_expr.data.n);
   mp_flush_cur_exp (mp, new_expr);
   break;
 }
@@ -24016,7 +24022,7 @@ static void mp_str_to_num (MP mp, quarterword c) {                              
     }
     @<Give error messages if |bad_char| or |n>=4096|@>;
   }
-  new_expr.data.n->data.val = n * number_to_scaled (unity_t);
+  set_number_from_scaled (new_expr.data.n, n * number_to_scaled (unity_t));
   mp_flush_cur_exp (mp, new_expr);
 }
 
@@ -24053,7 +24059,7 @@ of different types of operands.
 case mp_length_op:
 switch (mp->cur_exp.type) {
 case mp_string_type:
-  new_expr.data.n->data.val = (integer) (cur_exp_str ()->len * number_to_scaled (unity_t));
+  set_number_from_scaled (new_expr.data.n, (integer) (cur_exp_str ()->len * number_to_scaled (unity_t)));
   mp_flush_cur_exp (mp, new_expr);
   break;
 case mp_path_type:
@@ -24124,7 +24130,7 @@ static mp_number mp_pict_length (MP mp) {
 @<Additional cases of unary...@>=
 case mp_turning_op:
 if (mp->cur_exp.type == mp_pair_type) {
-  new_expr.data.n->data.val = 0;
+  set_number_to_zero(new_expr.data.n);
   mp_flush_cur_exp (mp, new_expr);
 } else if (mp->cur_exp.type != mp_path_type) {
   mp_bad_unary (mp, mp_turning_op);
@@ -24537,17 +24543,17 @@ static mp_number mp_turn_cycles_wrapper (MP mp, mp_knot c) {
 
 @ @d type_range(A,B) { 
   if ( (mp->cur_exp.type>=(A)) && (mp->cur_exp.type<=(B)) ) 
-    new_expr.data.n->data.val = mp_true_code;
+    set_number_from_scaled (new_expr.data.n, mp_true_code);
   else 
-    new_expr.data.n->data.val = mp_false_code;
+    set_number_from_scaled (new_expr.data.n, mp_false_code);
   mp_flush_cur_exp(mp, new_expr);
   mp->cur_exp.type=mp_boolean_type;
   }
 @d type_test(A) { 
   if ( mp->cur_exp.type==(mp_variable_type)(A) ) 
-    new_expr.data.n->data.val = mp_true_code;
+    set_number_from_scaled (new_expr.data.n, mp_true_code);
   else 
-    new_expr.data.n->data.val = mp_false_code;
+    set_number_from_scaled (new_expr.data.n, mp_false_code);
   mp_flush_cur_exp(mp, new_expr);
   mp->cur_exp.type=mp_boolean_type;
   }
@@ -24650,9 +24656,9 @@ static void mp_test_known (MP mp, quarterword c) {
     break;
   }
   if (c == mp_known_op)
-    new_expr.data.n->data.val = b;
+    set_number_from_scaled (new_expr.data.n, b);
   else
-    new_expr.data.n->data.val = mp_true_code + mp_false_code - b;
+    set_number_from_scaled (new_expr.data.n, mp_true_code + mp_false_code - b);
   mp_flush_cur_exp (mp, new_expr);
   cur_exp_node() = NULL; /* !! do not replace with |set_cur_exp_node()| !! */
   mp->cur_exp.type = mp_boolean_type;
@@ -24662,11 +24668,11 @@ static void mp_test_known (MP mp, quarterword c) {
 @ @<Additional cases of unary operators@>=
 case mp_cycle_op:
 if (mp->cur_exp.type != mp_path_type)
-  new_expr.data.n->data.val = mp_false_code;
+  set_number_from_scaled (new_expr.data.n, mp_false_code);
 else if (mp_left_type (cur_exp_knot ()) != mp_endpoint)
-  new_expr.data.n->data.val = mp_true_code;
+  set_number_from_scaled (new_expr.data.n, mp_true_code);
 else
-  new_expr.data.n->data.val = mp_false_code;
+  set_number_from_scaled (new_expr.data.n, mp_false_code);
 mp_flush_cur_exp (mp, new_expr);
 mp->cur_exp.type = mp_boolean_type;
 break;
@@ -24695,14 +24701,14 @@ case mp_textual_op:
 case mp_clipped_op:
 case mp_bounded_op:
 if (mp->cur_exp.type != mp_picture_type) {
-  new_expr.data.n->data.val = mp_false_code;
+  set_number_from_scaled (new_expr.data.n, mp_false_code);
 } else if (mp_link (edge_list (cur_exp_node ())) == NULL) {
-  new_expr.data.n->data.val = mp_false_code;
+  set_number_from_scaled (new_expr.data.n, mp_false_code);
 } else if (mp_type (mp_link (edge_list (cur_exp_node ()))) ==
            (mp_variable_type) (c + mp_fill_node_type - mp_filled_op)) {
-  new_expr.data.n->data.val = mp_true_code;
+  set_number_from_scaled (new_expr.data.n, mp_true_code);
 } else {
-  new_expr.data.n->data.val = mp_false_code;
+  set_number_from_scaled (new_expr.data.n, mp_false_code);
 }
 mp_flush_cur_exp (mp, new_expr);
 mp->cur_exp.type = mp_boolean_type;
@@ -25403,7 +25409,7 @@ if ((mp->cur_exp.type > mp_pair_type) && (mp_type (p) > mp_pair_type)) {
   mp_bad_binary (mp, p, (quarterword) c);
   goto DONE;
 } else if (mp->cur_exp.type == mp_string_type) {
-  new_expr.data.n->data.val = mp_str_vs_str (mp, value_str (p), cur_exp_str ());
+  set_number_from_scaled (new_expr.data.n, mp_str_vs_str (mp, value_str (p), cur_exp_str ()));
   mp_flush_cur_exp (mp, new_expr);
 } else if ((mp->cur_exp.type == mp_unknown_string) ||
            (mp->cur_exp.type == mp_unknown_boolean)) {
@@ -25412,7 +25418,7 @@ if ((mp->cur_exp.type > mp_pair_type) && (mp_type (p) > mp_pair_type)) {
            && (mp->cur_exp.type >= mp_transform_type)) {
   @<Reduce comparison of big nodes to comparison of scalars@>;
 } else if (mp->cur_exp.type == mp_boolean_type) {
-  new_expr.data.n->data.val = cur_exp_value () - value (p);
+  set_number_from_scaled (new_expr.data.n, cur_exp_value () - value (p));
   mp_flush_cur_exp (mp, new_expr);
 } else {
   mp_bad_binary (mp, p, (quarterword) c);
@@ -25435,7 +25441,7 @@ if (mp->cur_exp.type != mp_known) {
     hlp[1]  = NULL;
   }
   mp_disp_err(mp, NULL);
-  new_expr.data.n->data.val = mp_false_code;
+  set_number_from_scaled (new_expr.data.n, mp_false_code);
   mp_back_error (mp,"Unknown relation will be considered false", hlp, true);
 @.Unknown relation...@>;
   mp_get_x_next (mp);
@@ -26058,7 +26064,7 @@ set_number_from_scaled(mp->tyx, value (yx_part (q)));
 set_number_from_scaled(mp->tyy, value (yy_part (q)));
 set_number_from_scaled(mp->tx, value (tx_part (q)));
 set_number_from_scaled(mp->ty, value (ty_part (q)));
-new_expr.data.n->data.val = 0;
+set_number_from_scaled (new_expr.data.n, 0);
 mp_flush_cur_exp (mp, new_expr)
  
 
@@ -26161,7 +26167,7 @@ static void mp_set_up_known_trans (MP mp, quarterword c) {
            "Proceed, and I'll omit the transformation.",
            NULL };
     mp_disp_err(mp, NULL);
-    new_expr.data.n->data.val = 0;
+    set_number_to_zero (new_expr.data.n);
     mp_back_error (mp,"Transform components aren't all known", hlp, true);
 @.Transform components...@>;
     mp_get_x_next (mp);
@@ -27278,7 +27284,7 @@ expression.
 @.Isolated expression@>;
       mp_get_x_next (mp);
     }
-    new_expr.data.n->data.val = 0;
+    set_number_to_zero (new_expr.data.n);
     mp_flush_cur_exp (mp, new_expr);
     mp->cur_exp.type = mp_vacuous;
   }
@@ -27511,7 +27517,7 @@ case mp_pen_type:
 case mp_path_type:
 case mp_picture_type:
 if (mp->cur_exp.type == t + unknown_tag) {
-  new_expr.data.n->data.val = v;
+  set_number_from_scaled (new_expr.data.n, v);
   mp_nonlinear_eq (mp, new_expr, cur_exp_node (), false);
   mp_unstash_cur_exp (mp, cur_exp_node ());
   goto DONE;
@@ -29774,7 +29780,7 @@ mp_node mp_start_draw_cmd (MP mp, quarterword sep) {
          "So I'll not change anything just now.",
          NULL };
   mp_disp_err(mp, NULL);
-  new_expr.data.n->data.val = 0;
+  set_number_to_zero (new_expr.data.n);
   mp_back_error (mp, "Not a suitable variable", hlp, true);
 @.Not a suitable variable@>;
   mp_get_x_next (mp);
@@ -29801,7 +29807,7 @@ void mp_do_bounds (MP mp) {
   if (lhv != NULL) {
     lhe = mp_find_edges_var (mp, lhv);
     if (lhe == NULL) {
-      new_expr.data.n->data.val = 0;
+      set_number_to_zero (new_expr.data.n);
       mp_flush_cur_exp (mp, new_expr);
     } else if (mp->cur_exp.type != mp_path_type) {
       const char *hlp[] ={ 
@@ -29809,7 +29815,7 @@ void mp_do_bounds (MP mp) {
              "So I'll not change anything just now.",
               NULL };
       mp_disp_err(mp, NULL);
-      new_expr.data.n->data.val = 0;
+      set_number_to_zero (new_expr.data.n);
       mp_back_error (mp, "Improper `clip'", hlp, true);
 @.Improper `addto'@>;
       mp_get_x_next (mp);
@@ -29898,7 +29904,7 @@ setting |e:=NULL| prevents anything from being added to |lhe|.
            "So I'll not change anything just now.",
            NULL };
     mp_disp_err(mp, NULL);
-    new_expr.data.n->data.val = 0;
+    set_number_to_zero (new_expr.data.n);
     mp_back_error (mp, "Improper `addto'", hlp, true);
 @.Improper `addto'@>;
     mp_get_x_next (mp);
@@ -29926,7 +29932,7 @@ attempts to add to the edge structure.
            "So I'll not change anything just now.",
            NULL };
     mp_disp_err(mp, NULL);
-    new_expr.data.n->data.val = 0;
+    set_number_to_zero (new_expr.data.n);
     mp_back_error (mp, "Improper `addto'", hlp, true);
 @.Improper `addto'@>;
     mp_get_x_next (mp);
@@ -30003,7 +30009,7 @@ void mp_do_ship_out (MP mp) {
       c = c + 256;
     @<Store the width information for character code~|c|@>;
     mp_ship_out (mp, cur_exp_node ());
-    new_expr.data.n->data.val = 0;
+    set_number_to_zero (new_expr.data.n);
     mp_flush_cur_exp (mp, new_expr);
   }
 }
@@ -30013,7 +30019,7 @@ void mp_do_ship_out (MP mp) {
 {
   const  char *hlp[] = { "I can only output known pictures.", NULL };
   mp_disp_err(mp, NULL);
-  new_expr.data.n->data.val = 0;
+  set_number_to_zero (new_expr.data.n);
   mp_back_error (mp, "Not a known picture", hlp, true);
   mp_get_x_next (mp);
   mp_flush_cur_exp (mp, new_expr);
@@ -30119,7 +30125,7 @@ void mp_do_message (MP mp) {
       break;
     }                           /* there are no other cases */
   }
-  new_expr.data.n->data.val = 0;
+  set_number_to_zero (new_expr.data.n);
   mp_flush_cur_exp (mp, new_expr);
 }
 
@@ -30237,7 +30243,7 @@ void mp_do_write (MP mp) {
     }
     /* |delete_str_ref(t);| *//* todo: is this right? */
   }
-  new_expr.data.n->data.val = 0;
+  set_number_to_zero (new_expr.data.n);
   mp_flush_cur_exp (mp, new_expr);
 }
 
@@ -30789,7 +30795,7 @@ eight_bits mp_get_code (MP mp) {                               /* scans a charac
     }
   }
   mp_disp_err(mp, NULL);
-  new_expr.data.n->data.val = 0;
+  set_number_to_zero (new_expr.data.n);
   mp_back_error (mp, "Invalid code has been replaced by 0", hlp, true);
 @.Invalid code...@>;
   mp_get_x_next (mp);
@@ -31090,7 +31096,7 @@ We may need to cancel skips that span more than 127 lig/kern steps.
              "I'm zeroing this one. Proceed, with fingers crossed.",
              NULL };
       mp_disp_err(mp, NULL);
-      new_expr.data.n->data.val = 0;
+      set_number_to_zero (new_expr.data.n);
       mp_back_error (mp, "Improper kern", hlp, true);
 @.Improper kern@>;
       mp_get_x_next (mp);
@@ -31175,7 +31181,7 @@ do {
   if (mp->cur_exp.type != mp_known) {
     const char *hlp[] = { "I'm zeroing this one. Proceed, with fingers crossed.", NULL };
     mp_disp_err(mp, NULL);
-    new_expr.data.n->data.val = 0;
+    set_number_to_zero (new_expr.data.n);
     mp_back_error (mp, "Improper font parameter", hlp, true);
 @.Improper font parameter@>;
     mp_get_x_next (mp);
@@ -32054,8 +32060,8 @@ operator that gets the design size for a given font name.
 
 @<Find the design size of the font whose name is |cur_exp|@>=
 {
-  new_expr.data.n->data.val =
-    (mp->font_dsize[mp_find_font (mp, mp_str (mp, cur_exp_str ()))] + 8) / 16;
+  set_number_from_scaled (new_expr.data.n,
+    (mp->font_dsize[mp_find_font (mp, mp_str (mp, cur_exp_str ()))] + 8) / 16);
   mp_flush_cur_exp (mp, new_expr);
 }
 
