@@ -71,6 +71,7 @@ void mp_number_half(mp_number A);
 void mp_number_halfp(mp_number A);
 void mp_number_double(mp_number A);
 void mp_number_add_scaled(mp_number A, int B); /* also for negative B */
+void mp_number_multiply_int(mp_number A, int B);
 void mp_number_abs(mp_number A);   
 void mp_number_clone(mp_number A, mp_number B);
 void mp_number_swap(mp_number A, mp_number B);
@@ -98,6 +99,7 @@ typedef void (*number_abs_func) (mp_number A);
 typedef void (*number_clone_func) (mp_number A, mp_number B);
 typedef void (*number_swap_func) (mp_number A, mp_number B);
 typedef void (*number_add_scaled_func) (mp_number A, int b);
+typedef void (*number_multiply_int_func) (mp_number A, int b);
 typedef int (*number_to_scaled_func) (mp_number A);
 typedef int (*number_round_func) (mp_number A);
 typedef void (*number_floor_func) (mp_number A);
@@ -142,6 +144,7 @@ typedef struct math_data {
   number_clone_func clone;
   number_swap_func swap;
   number_add_scaled_func add_scaled;
+  number_multiply_int_func multiply_int;
   number_to_scaled_func to_scaled;
   number_to_double_func to_double;
   number_equal_func equal;
@@ -209,6 +212,7 @@ void * mp_initialize_math (MP mp) {
   math->clone = mp_number_clone;
   math->swap = mp_number_swap;
   math->add_scaled = mp_number_add_scaled;
+  math->multiply_int = mp_number_multiply_int;
   math->to_scaled = mp_number_to_scaled;
   math->to_double = mp_number_to_double;
   math->equal = mp_number_equal;
@@ -308,6 +312,9 @@ void mp_number_double(mp_number A) {
 }
 void mp_number_add_scaled(mp_number A, int B) { /* also for negative B */
   A->data.val = A->data.val + B;
+}
+void mp_number_multiply_int(mp_number A, int B) {
+  A->data.val = B * A->data.val;
 }
 void mp_number_abs(mp_number A) {   
   A->data.val = abs(A->data.val);

@@ -2387,28 +2387,33 @@ can readily be obtained with the ratio method (Algorithm 3.4.1R in
 
 @c
 static mp_number mp_norm_rand (MP mp) {
-  integer x, l;      /* what the book would call $2^{16}X$, $2^{28}U$, and $-2^{24}\ln U$ */
+  integer l;      /* what the book would call $2^{16}X$, $2^{28}U$, and $-2^{24}\ln U$ */
+  mp_number abs_x;
   mp_number ret;
   mp_number u;
   mp_number one_k, la, xa;
   new_number (one_k);
   new_number (la);
   new_number (xa);
+  new_number (abs_x);
   set_number_from_scaled (one_k, 1024);
   new_number (ret);
   do {
     do {
       mp_number v = mp_next_random(mp);
-      x = mp_take_fraction (mp, 112429, number_to_scaled (v) - number_to_scaled (fraction_half_t)); /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
+      number_substract (v, fraction_half_t);
+      set_number_from_scaled (xa, mp_take_fraction (mp, 112429, number_to_scaled (v))); /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
       free_number (v);
       u = mp_next_random(mp);
-    } while (abs (x) >= number_to_scaled (u));
-    x = mp_make_fraction (mp, x, number_to_scaled (u));
+      number_clone (abs_x, xa);
+      number_abs (abs_x);
+    } while (number_greaterequal (abs_x, u));
+    set_number_from_scaled (xa, mp_make_fraction (mp, number_to_scaled (xa), number_to_scaled (u)));
     l = 139548960 - mp_m_log (mp, number_to_scaled (u));   /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
     set_number_from_scaled (la, l);
-    set_number_from_scaled (xa, x);
   } while (mp_ab_vs_cd (mp, one_k, la, xa, xa) < 0);
   number_clone (ret, xa);
+  free_number (abs_x);
   free_number (la);
   free_number (xa);
   free_number (one_k);
@@ -7680,19 +7685,38 @@ if (abs (number_to_scaled(r->right_tension)) == number_to_scaled (unity_t)) {
   number_clone (aa, fraction_half_t);
   set_number_from_scaled (dd, 2 * number_to_scaled(mp->delta[k]));
 } else {
-  set_number_from_scaled (aa, mp_make_fraction (mp, number_to_scaled (unity_t), 3 * abs (number_to_scaled(r->right_tension)) - number_to_scaled (unity_t)));
+  mp_number arg2;
+  new_number (arg2);
+  number_clone (arg2, r->right_tension);
+  number_abs (arg2);
+  number_multiply_int (arg2, 3);
+  number_substract (arg2, unity_t);
+  set_number_from_scaled (aa, mp_make_fraction (mp, number_to_scaled (unity_t), number_to_scaled (arg2)));
+  number_clone (arg2, r->right_tension);
+  number_abs (arg2);
   set_number_from_scaled (dd, mp_take_fraction (mp, number_to_scaled(mp->delta[k]),
-                         number_to_scaled (fraction_three_t) - mp_make_fraction (mp, number_to_scaled (unity_t),
-                                                            abs (number_to_scaled(r->right_tension)))));
+                         number_to_scaled (fraction_three_t) - 
+                         mp_make_fraction (mp, number_to_scaled (unity_t), number_to_scaled(arg2))));
+  free_number (arg2);
 }
 if (abs (number_to_scaled(t->left_tension)) == number_to_scaled (unity_t)) {
   number_clone (bb, fraction_half_t);
-  set_number_from_scaled (ee, 2 * number_to_scaled(mp->delta[k - 1]));
+  number_clone (ee, mp->delta[k - 1]);
+  number_double (ee);
 } else {
-  set_number_from_scaled (bb, mp_make_fraction (mp, number_to_scaled (unity_t), 3 * abs (number_to_scaled(t->left_tension)) - number_to_scaled (unity_t)));
+  mp_number arg2;
+  new_number (arg2);
+  number_clone (arg2, t->left_tension);
+  number_abs (arg2);
+  number_multiply_int (arg2, 3);
+  number_substract (arg2, unity_t);
+  set_number_from_scaled (bb, mp_make_fraction (mp, number_to_scaled (unity_t), number_to_scaled (arg2)));
+  number_clone (arg2, t->left_tension);
+  number_abs (arg2);
   set_number_from_scaled (ee, mp_take_fraction (mp, number_to_scaled(mp->delta[k - 1]),
-                         number_to_scaled (fraction_three_t) - mp_make_fraction (mp, number_to_scaled (unity_t),
-                                                            abs (number_to_scaled(t->left_tension)))));
+                         number_to_scaled (fraction_three_t) - 
+                         mp_make_fraction (mp, number_to_scaled (unity_t), number_to_scaled(arg2))));
+  free_number (arg2);
 }
 set_number_from_scaled (cc, number_to_scaled (fraction_one_t) - mp_take_fraction (mp, number_to_scaled(mp->uu[k - 1]), number_to_scaled (aa)))
  
@@ -10033,6 +10057,7 @@ This first set goes into the header
 @d number_halfp(A)		       (((math_data *)(mp->math))->halfp)(A)		       
 @d number_double(A)		       (((math_data *)(mp->math))->do_double)(A)		       
 @d number_add_scaled(A,B)	       (((math_data *)(mp->math))->add_scaled)(A,B)	       
+@d number_multiply_int(A,B)	       (((math_data *)(mp->math))->multiply_int)(A,B)	       
 @d number_abs(A)		       (((math_data *)(mp->math))->abs)(A)		       
 @d number_nonequalabs(A,B)	       (((math_data *)(mp->math))->nonequalabs)(A,B)	       
 @d number_equal(A,B)		       (((math_data *)(mp->math))->equal)(A,B)		       
