@@ -4731,13 +4731,15 @@ long lines. Nowadays (1.204), we trust backends to do the right thing.
 @<Print the \.{\%*Font} comment for font |f| and advance |cur_fsize[f]|@>=
 { 
   if ( mp_check_ps_marks(mp, f ) ) {
+    double dds;
     mp_ps_print_nl(mp, "%*Font: ");
     mp_ps_print(mp, mp->font_name[f]);
     mp_ps_print_char(mp, ' ');
     ds=(mp->font_dsize[f] + 8) / 16.0;
-    mp_ps_print_double(mp, mp_take_double(mp, ds,sc_factor(cur_fsize[f])));
+    dds = (double)ds / 65536.0;
+    mp_ps_print_double(mp, mp_take_double(mp, dds, sc_factor(cur_fsize[f])));
     mp_ps_print_char(mp, ' ');
-    mp_ps_print_double(mp, ds);
+    mp_ps_print_double(mp, dds);
     mp_ps_marks_out(mp, f );
   }
   cur_fsize[f]=mp_link(cur_fsize[f]);
@@ -5976,10 +5978,10 @@ quarterword mp_size_index (MP mp, font_number f, double s) {
 }
 
 @ @<Declarations@>=
-static int mp_indexed_size (MP mp,font_number f, quarterword j);
+static double mp_indexed_size (MP mp,font_number f, quarterword j);
 
 @ @c
-int mp_indexed_size (MP mp,font_number f, quarterword j) { /* return scaled */
+double mp_indexed_size (MP mp,font_number f, quarterword j) { /* return scaled */
   mp_node p; /* a font size node */
   int i; /* the size index for |p| */
   p=mp->font_sizes[f];
@@ -6017,7 +6019,7 @@ position in the size list for its font.
 @<Types...@>=
 typedef struct mp_font_size_node_data {
   NODE_BODY;
-  int sc_factor_; /* scaled */
+  double sc_factor_; /* scaled */
 } mp_font_size_node_data;
 typedef struct mp_font_size_node_data* mp_font_size_node;
 
