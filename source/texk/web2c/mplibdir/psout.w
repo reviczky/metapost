@@ -54,21 +54,17 @@
 \pageno=3
 
 @ 
-@d zero_t  ((math_data *)mp->math)->zero_t
-@d number_zero(A)		       (((math_data *)(mp->math))->equal)(A,zero_t)		       
-@d number_greater(A,B)		       (((math_data *)(mp->math))->greater)(A,B)		       
-@d number_positive(A)		       number_greater(A, zero_t)		       
-@d number_to_scaled(A)		       (((math_data *)(mp->math))->to_scaled)(A)		       
-@d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
 @d true 1
 @d false 0
 @d null_font 0
 @d null 0
-@d unity   1.0 /* $2^{16}$, represents 1.00000 */
+@d unity   0200000 /* $2^{16}$, represents 1.00000 */
+@d el_gordo   017777777777 /* $2^{31}-1$, the largest value that \MP\ likes */
 @d incr(A)   (A)=(A)+1 /* increase a variable by unity */
 @d decr(A)   (A)=(A)-1 /* decrease a variable by unity */
 @d negate(A)   (A)=-(A) /* change the sign of a variable */
 @d odd(A)   ((A)%2==1)
+@d print_err(A) mp_print_err(mp,(A))
 @d max_quarterword 0x3FFF /* largest allowable value in a |quarterword| */
 
 @c
@@ -84,7 +80,6 @@
 #include "mpmp.h" /* internal header */
 #include "mppsout.h" /* internal header */
 #include "mpmath.h" /* internal header */
-#include "mpstrings.h" /* internal header */
 @h
 @<Declarations@>
 @<Static variables in the outer block@>
@@ -297,16 +292,25 @@ We can stop if and only if $f=0$ satisfies this condition; the loop will
 terminate before $s$ can possibly become zero.
 
 @c
-static void mp_ps_print_double (MP mp, double s) { 
-  char *value, *c;
-  value = xmalloc(32);
-  mp_snprintf(value,32,"%g", s); /* todo: this is just an initial quick fix */
-  c = value;
-  while (*c) {
-    mp_ps_print_char(mp, *c); 
-    c++;
+static void mp_ps_print_scaled (MP mp,scaled s) { 
+  scaled delta; /* amount of allowable inaccuracy */
+  if ( s<0 ) { 
+	mp_ps_print_char(mp, '-'); 
+    negate(s); /* print the sign, if negative */
   }
-  free(value);
+  mp_ps_print_int(mp, s / unity); /* print the integer part */
+  s=10*(s % unity)+5;
+  if ( s!=5 ) { 
+    delta=10; 
+    mp_ps_print_char(mp, '.');
+    do {  
+      if ( delta>unity )
+        s=s+0100000-(delta / 2); /* round the final digit */
+      mp_ps_print_char(mp, '0'+(s / unity)); 
+      s=10*(s % unity); 
+      delta=delta*10;
+    } while (s>delta);
+  }
 }
 
 
@@ -402,7 +406,8 @@ static void mp_enc_getline (MP mp) {
   int c;
 RESTART:
   if (enc_eof ()) {
-    mp_error(mp, "unexpected end of file", NULL, true);
+    print_err("unexpected end of file");
+    mp_error(mp);
   }
   p = mp->ps->enc_line;
   do {
@@ -430,10 +435,11 @@ static void mp_load_enc (MP mp, char *enc_name,
   mp_print (mp, enc_name);
   mp_enc_getline (mp);
   if (*mp->ps->enc_line != '/' || (r = strchr (mp->ps->enc_line, '[')) == NULL) {
-    char msg[256];
     remove_eol (r, mp->ps->enc_line);
-    mp_snprintf (msg, 256, "invalid encoding vector (a name or `[' missing): `%s'", mp->ps->enc_line);
-    mp_error(mp, msg, NULL, true);
+    print_err ("invalid encoding vector (a name or `[' missing): `");
+    mp_print(mp,mp->ps->enc_line);
+    mp_print(mp,"'");
+    mp_error(mp);
   }
   while (*(r-1)==' ') r--; /* strip trailing spaces from encoding name */
   myname = mp_xmalloc(mp,(size_t)(r-mp->ps->enc_line),1);
@@ -451,7 +457,8 @@ static void mp_load_enc (MP mp, char *enc_name,
         *p = 0;
       skip (r, ' ');
       if (names_count > 256) {
-        mp_error(mp, "encoding vector contains more than 256 names", NULL, true);
+        print_err ("encoding vector contains more than 256 names");
+        mp_error(mp);
       }
       if (mp_xstrcmp (buf, notdef) != 0)
         glyph_names[names_count] = mp_xstrdup (mp,buf);
@@ -461,10 +468,12 @@ static void mp_load_enc (MP mp, char *enc_name,
       if (str_prefix (r, "] def"))
         goto DONE;
       else {
-        char msg[256];
         remove_eol (r, mp->ps->enc_line);
-        mp_snprintf(msg, 256,"invalid encoding vector: a name or `] def' expected: `%s'", mp->ps->enc_line);
-        mp_error(mp, msg, NULL, true);
+        print_err
+          ("invalid encoding vector: a name or `] def' expected: `");
+        mp_print(mp,mp->ps->enc_line);
+        mp_print(mp,"'");
+        mp_error(mp);
       }
     }
     mp_enc_getline (mp);
@@ -1482,17 +1491,17 @@ read. Leading blanks and blanks immediately following [+-=] are ignored.
 }
 
 @ @<Exported function headers@>=
-void mp_map_file (MP mp, mp_string t);
-void mp_map_line (MP mp, mp_string t);
+void mp_map_file (MP mp, str_number t);
+void mp_map_line (MP mp, str_number t);
 void mp_init_map_file (MP mp, int is_troff);
 
 @ @c 
-void mp_map_file (MP mp, mp_string t) {
+void mp_map_file (MP mp, str_number t) {
   char *ss = mp_str (mp,t);
   char *s = mp_xstrdup(mp, ss);
   mp_process_map_item (mp, s, MAPFILE);
 }
-void mp_map_line (MP mp, mp_string t) {
+void mp_map_line (MP mp, str_number t) {
   char *ss = mp_str (mp,t);
   char *s = mp_xstrdup(mp,ss);
   mp_process_map_item (mp, s, MAPLINE);
@@ -1599,28 +1608,33 @@ mp->ps->job_id_string = NULL;
 
 @c 
 void mp_set_job_id (MP mp) {
-    char *name_string, *s;
+    char *name_string, *format_string, *s;
     size_t slen;
     if (mp->ps->job_id_string != NULL)
        return;
     if ( mp->job_name==NULL )
        mp->job_name = mp_xstrdup(mp,"mpout");
     name_string = mp_xstrdup (mp,mp->job_name);
+    format_string = mp_xstrdup (mp, mp->mem_ident);
+    if (format_string == NULL) 
+      format_string = mp_xstrdup (mp, "");	
     slen = SMALL_BUF_SIZE +
-        strlen (name_string) ;
+        strlen (name_string) +
+        strlen (format_string);
     s = mp_xmalloc (mp,slen, sizeof (char));
     @= /*@@-bufferoverflowhigh@@*/ @>
-    sprintf (s,"%.4u/%.2u/%.2u %.2u:%.2u %s",
-               ((unsigned)number_to_scaled (internal_value(mp_year))>>16),
-               ((unsigned)number_to_scaled (internal_value(mp_month))>>16), 
-               ((unsigned)number_to_scaled (internal_value(mp_day))>>16), 
-               ((unsigned)number_to_scaled (internal_value(mp_time))>>16) / 60, 
-               ((unsigned)number_to_scaled (internal_value(mp_time))>>16) % 60,
-                name_string);
+    sprintf (s,"%.4u/%.2u/%.2u %.2u:%.2u %s %s",
+               ((unsigned)internal_value(mp_year)>>16),
+               ((unsigned)internal_value(mp_month)>>16), 
+               ((unsigned)internal_value(mp_day)>>16), 
+               ((unsigned)internal_value(mp_time)>>16) / 60, 
+               ((unsigned)internal_value(mp_time)>>16) % 60,
+                name_string, format_string);
     @= /*@@=bufferoverflowhigh@@*/ @>
     mp->ps->job_id_string = mp_xstrdup (mp,s);
     mp_xfree (s);
     mp_xfree (name_string);
+    mp_xfree (format_string);
 }
 static void fnstr_append (MP mp, const char *ss) {
     size_t n = strlen (ss) + 1;
@@ -3513,7 +3527,7 @@ double cur_x, cur_y; /* current point */
 double orig_x, orig_y; /* origin (for seac) */
 mp_edge_object *h; /* the whole picture */
 mp_graphic_object *p; /* the current subpath in the picture */
-mp_gr_knot pp; /* the last known knot in the subpath */
+mp_knot pp; /* the last known knot in the subpath */
 
 
 @ @c
@@ -3559,14 +3573,18 @@ mp_edge_object *mp_ps_do_font_charstring (MP mp, mp_ps_font *f, char *n);
 @<Declarations@>=
 boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
 
-@ @d start_subpath(f,dx,dy) do {  
+@ 
+@d scaled_from_double(a) (scaled)((a)*65536.0)
+@d double_from_scaled(a) (double)((a)/65536.0)
+
+@d start_subpath(f,dx,dy) do {  
   assert(f->pp == NULL);
   assert(f->p == NULL);
-  f->pp = mp_xmalloc(mp, 1, sizeof (struct mp_gr_knot_data));
+  f->pp = mp_xmalloc(mp, 1, sizeof (struct mp_knot_data));
   f->pp->data.types.left_type = mp_explicit;
   f->pp->data.types.right_type = mp_explicit;
-  f->pp->x_coord = (f->cur_x + dx);
-  f->pp->y_coord = (f->cur_y + dy);
+  f->pp->x_coord = scaled_from_double(f->cur_x + dx);
+  f->pp->y_coord = scaled_from_double(f->cur_y + dy);
   f->pp->left_x = f->pp->right_x = f->pp->x_coord;
   f->pp->left_y = f->pp->right_y = f->pp->y_coord;
   f->pp->next = NULL;
@@ -3588,7 +3606,7 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
     }
   }
   if (f->p!=NULL) {
-    mp_gr_knot r, rr;
+    mp_knot r, rr;
     r = gr_path_p((mp_fill_object *)f->p); 
     rr = r;
     if (r && r->x_coord == f->pp->x_coord &&  r->y_coord == f->pp->y_coord ) {
@@ -3606,12 +3624,12 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
 
 @d add_line_segment(f,dx,dy) do {
    assert(f->pp != NULL);
-   n = mp_xmalloc(mp,1, sizeof (struct mp_gr_knot_data));
+   n = mp_xmalloc(mp,1, sizeof (struct mp_knot_data));
    n->data.types.left_type = mp_explicit;
    n->data.types.right_type = mp_explicit;
    n->next = gr_path_p((mp_fill_object *)f->p); /* loop */  
-   n->x_coord = (f->cur_x + dx);
-   n->y_coord = (f->cur_y + dy);
+   n->x_coord = scaled_from_double(f->cur_x + dx);
+   n->y_coord = scaled_from_double(f->cur_y + dy);
    n->right_x = n->x_coord;
    n->right_y = n->y_coord;
    n->left_x = n->x_coord;
@@ -3623,18 +3641,18 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr);
 } while (0)
 
 @d add_curve_segment(f,dx1,dy1,dx2,dy2,dx3,dy3) do {
-   n = mp_xmalloc(mp, 1, sizeof (struct mp_gr_knot_data));
+   n = mp_xmalloc(mp, 1, sizeof (struct mp_knot_data));
    n->data.types.left_type = mp_explicit;
    n->data.types.right_type = mp_explicit; 
    n->next = gr_path_p((mp_fill_object *)f->p); /* loop */  
-   n->x_coord = (f->cur_x + dx1 + dx2 + dx3);
-   n->y_coord = (f->cur_y + dy1 + dy2 + dy3);
+   n->x_coord = scaled_from_double(f->cur_x + dx1 + dx2 + dx3);
+   n->y_coord = scaled_from_double(f->cur_y + dy1 + dy2 + dy3);
    n->right_x = n->x_coord;
    n->right_y = n->y_coord;
-   n->left_x = (f->cur_x + dx1 + dx2);
-   n->left_y = (f->cur_y + dy1 + dy2);
-   f->pp->right_x = (f->cur_x + dx1);
-   f->pp->right_y = (f->cur_y + dy1);
+   n->left_x = scaled_from_double(f->cur_x + dx1 + dx2);
+   n->left_y = scaled_from_double(f->cur_y + dy1 + dy2);
+   f->pp->right_x = scaled_from_double(f->cur_x + dx1);
+   f->pp->right_y = scaled_from_double(f->cur_y + dy1);
    f->pp->next = n;
    f->pp = n;
    f->cur_x += dx1 + dx2 + dx3;
@@ -3669,7 +3687,7 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
 
   cs_entry *ptr;
   cc_entry *cc;
-  mp_gr_knot n;
+  mp_knot n;
 
   if (cs_name == NULL) {
      ptr = f->subr_tab + subr;
@@ -3850,7 +3868,7 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
           f->h->body = NULL; f->h->next = NULL;
           f->h->parent = mp;
           f->h->filename = NULL;
-          f->h->minx = f->h->miny = f->h->maxx = f->h->maxy = 0.0;
+          f->h->minx = f->h->miny = f->h->maxx = f->h->maxy = 0;
         }
         f->cur_x = cc_get(-2) + f->orig_x;
         f->cur_y = 0.0 + f->orig_y;
@@ -3865,7 +3883,7 @@ boolean cs_parse (MP mp, mp_ps_font *f, const char *cs_name, int subr)
           f->h->body = NULL; f->h->next = NULL;
           f->h->parent = mp;
           f->h->filename = NULL;
-          f->h->minx = f->h->miny = f->h->maxx = f->h->maxy = 0.0;
+          f->h->minx = f->h->miny = f->h->maxx = f->h->maxy = 0;
         }
         f->cur_x = cc_get(-4) + f->orig_x;
         f->cur_y = cc_get(-3) + f->orig_y;
@@ -4040,11 +4058,9 @@ static char * mp_fm_font_subset_name (MP mp, font_number f);
       }
     }
   }
-  {
-    char msg[256];
-    mp_snprintf (msg, 256, "fontmap encoding problems for font %s", mp->font_name[f]);
-    mp_error(mp, msg, NULL, true); 
-  }
+  print_err ("fontmap encoding problems for font ");
+  mp_print(mp,mp->font_name[f]);
+  mp_error(mp); 
   return NULL;
 }
 char * mp_fm_font_name (MP mp, font_number f) {
@@ -4056,19 +4072,17 @@ char * mp_fm_font_name (MP mp, font_number f) {
         if (t1_updatefm(mp,f,fm)) {
 	      mp->font_ps_name_fixed[f] = true;
 	    } else {
-              char msg[256];
-              mp_snprintf (msg, 256, "font loading problems for font %s", mp->font_name[f]);
-              mp_error(mp, msg, NULL, true); 
+	      print_err ("font loading problems for font ");
+          mp_print(mp,mp->font_name[f]);
+          mp_error(mp);
 	    }
       }
       return mp_xstrdup(mp,fm->ps_name);
     }
   }
-  {
-     char msg[256];
-     mp_snprintf (msg, 256, "fontmap name problems for font %s", mp->font_name[f]);
-     mp_error(mp, msg, NULL, true); 
-  }
+  print_err ("fontmap name problems for font ");
+  mp_print(mp,mp->font_name[f]);
+  mp_error(mp); 
   return NULL;
 }
 
@@ -4085,11 +4099,9 @@ static char * mp_fm_font_subset_name (MP mp, font_number f) {
       }
     }
   }
-  {
-     char msg[256];
-     mp_snprintf (msg, 256, "fontmap name problems for font %s", mp->font_name[f]);
-     mp_error(mp, msg, NULL, true); 
-  }
+  print_err ("fontmap name problems for font ");
+  mp_print(mp,mp->font_name[f]);
+  mp_error(mp); 
   return NULL;
 }
 
@@ -4442,8 +4454,9 @@ do {
     if ( cur_fsize[f]!=null ) {
       if (prologues==3 ) {
         if ( ! mp_do_ps_font(mp,f) ) {
-          if ( mp_has_fm_entry(mp,f, NULL) ) {
-            mp_error(mp, "Font embedding failed", NULL, true);
+	      if ( mp_has_fm_entry(mp,f, NULL) ) {
+            print_err("Font embedding failed");
+            mp_error(mp);
           }
         }
       }
@@ -4580,7 +4593,7 @@ static font_number mp_print_font_comments (MP mp , mp_edge_object *h, int prolog
   int ff; /* a loop counter */
   boolean done_fonts; /* have we finished listing the fonts in the header? */
   font_number f; /* a font number for loops */
-  int ds; /* design size and scale factor for a text node, scaled */
+  scaled ds; /* design size and scale factor for a text node */
   int ldf=0; /* the last \.{DocumentFont} listed (otherwise |null_font|) */
   cur_fsize = mp_xmalloc(mp,(size_t)(mp->font_max+1),sizeof(mp_node));
   if ( prologues>0 ) {
@@ -4731,15 +4744,13 @@ long lines. Nowadays (1.204), we trust backends to do the right thing.
 @<Print the \.{\%*Font} comment for font |f| and advance |cur_fsize[f]|@>=
 { 
   if ( mp_check_ps_marks(mp, f ) ) {
-    double dds;
     mp_ps_print_nl(mp, "%*Font: ");
     mp_ps_print(mp, mp->font_name[f]);
     mp_ps_print_char(mp, ' ');
-    ds=(mp->font_dsize[f] + 8) / 16.0;
-    dds = (double)ds / 65536.0;
-    mp_ps_print_double(mp, mp_take_double(mp, dds, sc_factor(cur_fsize[f])));
+    ds=(mp->font_dsize[f] + 8) / 16;
+    mp_ps_print_scaled(mp, mp_take_scaled(mp, ds,sc_factor(cur_fsize[f])));
     mp_ps_print_char(mp, ' ');
-    mp_ps_print_double(mp, dds);
+    mp_ps_print_scaled(mp, ds);
     mp_ps_marks_out(mp, f );
   }
   cur_fsize[f]=mp_link(cur_fsize[f]);
@@ -4826,18 +4837,18 @@ for postprocessing.
 @ We often need to print a pair of coordinates.
 
 @c
-void mp_ps_pair_out (MP mp, double x, double y) { 
+void mp_ps_pair_out (MP mp,scaled x, scaled y) { 
   ps_room(26);
-  mp_ps_print_double(mp, x); mp_ps_print_char(mp, ' ');
-  mp_ps_print_double(mp, y); mp_ps_print_char(mp, ' ');
+  mp_ps_print_scaled(mp, x); mp_ps_print_char(mp, ' ');
+  mp_ps_print_scaled(mp, y); mp_ps_print_char(mp, ' ');
 }
 
 @ @<Declarations@>=
-static void mp_ps_pair_out (MP mp, double x, double y) ;
+static void mp_ps_pair_out (MP mp,scaled x, scaled y) ;
 
 @ @c
 void mp_ps_print_cmd (MP mp, const char *l, const char *s) {
-  if ( number_positive (internal_value(mp_procset))) { ps_room(strlen(s)); mp_ps_print(mp,s); }
+  if ( internal_value(mp_procset)>0 ) { ps_room(strlen(s)); mp_ps_print(mp,s); }
   else { ps_room(strlen(l)); mp_ps_print(mp, l); };
 }
 
@@ -4921,7 +4932,7 @@ static void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues);
 
 @ @c
 void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues) {
-  int t; /* scaled */
+  scaled t;
   char *s;   
   mp_ps_print(mp, "%!PS");
   if ( prologues>0 ) 
@@ -4933,8 +4944,8 @@ void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues) {
     mp_ps_pair_out(mp, hh->minx,hh->miny);
     mp_ps_pair_out(mp, hh->maxx,hh->maxy);
   } else { 
-    mp_ps_pair_out(mp, floor(hh->minx),floor(hh->miny));
-    mp_ps_pair_out(mp, -floor(-hh->maxx),-floor(-hh->maxy));
+    mp_ps_pair_out(mp, mp_floor_scaled(mp, hh->minx),mp_floor_scaled(mp, hh->miny));
+    mp_ps_pair_out(mp, -mp_floor_scaled(mp, -hh->maxx),-mp_floor_scaled(mp, -hh->maxy));
   }
   mp_ps_print_nl(mp, "%%HiResBoundingBox: ");
   if ( hh->minx>hh->maxx ) {
@@ -4948,13 +4959,13 @@ void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues) {
   mp_ps_print(mp, s);
   mp_xfree(s);
   mp_ps_print_nl(mp, "%%CreationDate: ");
-  mp_ps_print_int(mp, round_unscaled(internal_value(mp_year))); 
+  mp_ps_print_int(mp, mp_round_unscaled(mp, internal_value(mp_year))); 
   mp_ps_print_char(mp, '.');
-  mp_ps_print_dd(mp, round_unscaled(internal_value(mp_month))); 
+  mp_ps_print_dd(mp, mp_round_unscaled(mp, internal_value(mp_month))); 
   mp_ps_print_char(mp, '.');
-  mp_ps_print_dd(mp, round_unscaled(internal_value(mp_day))); 
+  mp_ps_print_dd(mp, mp_round_unscaled(mp, internal_value(mp_day))); 
   mp_ps_print_char(mp, ':');
-  t = round_unscaled(internal_value(mp_time));
+  t=mp_round_unscaled(mp, internal_value(mp_time));
   mp_ps_print_dd(mp, t / 60); 
   mp_ps_print_dd(mp, t % 60);
   mp_ps_print_nl(mp, "%%Pages: 1");
@@ -4980,10 +4991,10 @@ a \MP\ path.
 @ If we want to duplicate a knot node, we can say |copy_knot|:
 
 @c 
-static mp_gr_knot mp_gr_copy_knot (MP mp,  mp_gr_knot p) {
-  mp_gr_knot q; /* the copy */
-  q = mp_xmalloc(mp, 1, sizeof (struct mp_gr_knot_data));
-  memcpy(q,p,sizeof (struct mp_gr_knot_data));
+static mp_knot mp_gr_copy_knot (MP mp,  mp_knot p) {
+  mp_knot q; /* the copy */
+  q = mp_xmalloc(mp, 1, sizeof (struct mp_knot_data));
+  memcpy(q,p,sizeof (struct mp_knot_data));
   gr_next_knot(q)=NULL;
   return q;
 }
@@ -4991,8 +5002,8 @@ static mp_gr_knot mp_gr_copy_knot (MP mp,  mp_gr_knot p) {
 @ The |copy_path| routine makes a clone of a given path.
 
 @c 
-static mp_gr_knot mp_gr_copy_path (MP mp,  mp_gr_knot p) {
-  mp_gr_knot q, pp, qq; /* for list manipulation */
+static mp_knot mp_gr_copy_path (MP mp,  mp_knot p) {
+  mp_knot q, pp, qq; /* for list manipulation */
   if (p==NULL) 
     return NULL;
   q=mp_gr_copy_knot(mp, p);
@@ -5011,15 +5022,15 @@ static mp_gr_knot mp_gr_copy_path (MP mp,  mp_gr_knot p) {
 calling the following subroutine.
 
 @<Declarations@>=
-static void mp_do_gr_toss_knot_list (mp_gr_knot p) ;
+static void mp_do_gr_toss_knot_list (mp_knot p) ;
 
 @ 
 @d mp_gr_toss_knot_list(B,A) mp_do_gr_toss_knot_list(A)
 
 @c
-void mp_do_gr_toss_knot_list (mp_gr_knot p) {
-  mp_gr_knot q; /* the node being freed */
-  mp_gr_knot r; /* the next node */
+void mp_do_gr_toss_knot_list (mp_knot p) {
+  mp_knot q; /* the node being freed */
+  mp_knot r; /* the next node */
   if (p==NULL)
     return;
   q=p;
@@ -5032,9 +5043,9 @@ void mp_do_gr_toss_knot_list (mp_gr_knot p) {
 
 
 @ @c
-static void mp_gr_ps_path_out (MP mp, mp_gr_knot h) {
-  mp_gr_knot p, q; /* for scanning the path */
-  double d; /* a temporary value */
+static void mp_gr_ps_path_out (MP mp, mp_knot h) {
+  mp_knot p, q; /* for scanning the path */
+  scaled d; /* a temporary value */
   boolean curved; /* |true| unless the cubic is almost straight */
   ps_room(40);
   mp_ps_print_cmd(mp, "newpath ","n ");
@@ -5073,7 +5084,7 @@ cubics with zero initial and final velocity as created by |make_path| or
 |make_envelope|, and cubics with control points uniformly spaced on a line
 as created by |make_choices|.
 
-@d bend_tolerance (131/65536.0) /* allow rounding error of $2\cdot10^{-3}$ */
+@d bend_tolerance 131 /* allow rounding error of $2\cdot10^{-3}$ */
 
 @<Set |curved:=false| if the cubic from |p| to |q| is almost straight@>=
 if ( gr_right_x(p)==gr_x_coord(p) )
@@ -5081,18 +5092,18 @@ if ( gr_right_x(p)==gr_x_coord(p) )
     if ( gr_left_x(q)==gr_x_coord(q) )
       if ( gr_left_y(q)==gr_y_coord(q) ) curved=false;
 d=gr_left_x(q)-gr_right_x(p);
-if ( fabs(gr_right_x(p)-gr_x_coord(p)-d)<=bend_tolerance )
-  if ( fabs(gr_x_coord(q)-gr_left_x(q)-d)<=bend_tolerance )
+if ( abs(gr_right_x(p)-gr_x_coord(p)-d)<=bend_tolerance )
+  if ( abs(gr_x_coord(q)-gr_left_x(q)-d)<=bend_tolerance )
     { d=gr_left_y(q)-gr_right_y(p);
-    if ( fabs(gr_right_y(p)-gr_y_coord(p)-d)<=bend_tolerance )
-      if ( fabs(gr_y_coord(q)-gr_left_y(q)-d)<=bend_tolerance ) curved=false;
+    if ( abs(gr_right_y(p)-gr_y_coord(p)-d)<=bend_tolerance )
+      if ( abs(gr_y_coord(q)-gr_left_y(q)-d)<=bend_tolerance ) curved=false;
     }
 
 @ The colored objects use a struct with anonymous fields to express the color parts:
 
 @(mplibps.h@>=
 typedef struct {
-   double a_val, b_val, c_val, d_val;
+   int a_val, b_val, c_val, d_val;
 } mp_color;
 
 @ The exported form of a dash pattern is simpler than the internal
@@ -5102,8 +5113,8 @@ allowed in PostScript.
 
 @(mplibps.h@>=
 typedef struct {
-  double offset;
-  double *array;
+  int offset;
+  int *array;
 } mp_dash_object ;
 
 
@@ -5133,8 +5144,8 @@ static mp_dash_object *mp_gr_copy_dashes(MP mp, mp_dash_object *dl) {
 	if (dl->array != NULL) {
   	  size_t i = 0;
       while (*(dl->array+i) != -1) i++;
-   	  q->array = mp_xmalloc(mp, i, sizeof (double));
-	  memcpy(q->array,dl->array, (i*sizeof(double)));
+   	  q->array = mp_xmalloc(mp, i, sizeof (scaled));
+	  memcpy(q->array,dl->array, (i*sizeof(scaled)));
     }
 	return q;
 }
@@ -5201,17 +5212,17 @@ typedef struct mp_text_object {
   char *text_p;
   size_t text_l;
   char *font_name ;   
-  double font_dsize ;
+  unsigned int font_dsize ;
   unsigned int font_n ;   
-  double width ;
-  double height ;
-  double depth ;
-  double tx ;
-  double ty ;
-  double txx ;
-  double txy ;
-  double tyx ;
-  double tyy ;
+  int width ;
+  int height ;
+  int depth ;
+  int tx ;
+  int ty ;
+  int txx ;
+  int txy ;
+  int tyx ;
+  int tyy ;
 } mp_text_object;
 
 typedef struct mp_fill_object {
@@ -5221,10 +5232,10 @@ typedef struct mp_fill_object {
   mp_color color;
   unsigned char color_model;
   unsigned char ljoin ;   
-  mp_gr_knot path_p;
-  mp_gr_knot htap_p;
-  mp_gr_knot pen_p;
-  double miterlim ;
+  mp_knot path_p;
+  mp_knot htap_p;
+  mp_knot pen_p;
+  int miterlim ;
 } mp_fill_object;
 
 typedef struct mp_stroked_object {
@@ -5235,20 +5246,20 @@ typedef struct mp_stroked_object {
   unsigned char color_model;
   unsigned char ljoin ;   
   unsigned char lcap ;   
-  mp_gr_knot path_p;
-  mp_gr_knot pen_p;
-  double miterlim ;
+  mp_knot path_p;
+  mp_knot pen_p;
+  int miterlim ;
   mp_dash_object *dash_p;
 } mp_stroked_object;
 
 typedef struct mp_clip_object {
   GRAPHIC_BODY;
-  mp_gr_knot path_p;
+  mp_knot path_p;
 } mp_clip_object;
 
 typedef struct mp_bounds_object {
   GRAPHIC_BODY;
-  mp_gr_knot path_p;
+  mp_knot path_p;
 } mp_bounds_object;
 
 typedef struct mp_special_object {
@@ -5261,8 +5272,8 @@ typedef struct mp_edge_object {
   struct mp_edge_object * next;
   char * filename;
   MP parent;
-  double minx, miny, maxx, maxy;
-  double width, height, depth, ital_corr;
+  int minx, miny, maxx, maxy;
+  int width, height, depth, ital_corr;
   int charcode;
 } mp_edge_object;
 
@@ -5309,10 +5320,10 @@ needed without wasting time and space setting them unnecessarily.
 
 @<Types...@>=
 typedef struct _gs_state {
-  double red_field ;
-  double green_field ; 
-  double blue_field ;
-  double black_field ;
+  scaled red_field ;
+  scaled green_field ; 
+  scaled blue_field ;
+  scaled black_field ;
   /* color from the last \&{setcmykcolor} or \&{setrgbcolor} or \&{setgray} command */
   quarterword colormodel_field ;
    /* the current colormodel */
@@ -5321,14 +5332,14 @@ typedef struct _gs_state {
    /* values from the last \&{setlinejoin} and \&{setlinecap} commands */
   quarterword adj_wx_field ;
    /* what resolution-dependent adjustment applies to the width */
-  double miterlim_field ;
+  scaled miterlim_field ;
    /* the value from the last \&{setmiterlimit} command */
   mp_dash_object * dash_p_field ;
    /* edge structure for last \&{setdash} command */
   boolean dash_done_field ; /* to test for initial \&{setdash} */
   struct _gs_state * previous_field ;
    /* backlink to the previous |_gs_state| structure */
-  double width_field ;
+  scaled width_field ;
    /* width setting or $-1$ if no \&{setlinewidth} command so far */
 } _gs_state;
 
@@ -5352,7 +5363,7 @@ to recover from a situation where we have lost track of the graphics state.
 
 @d mp_void (mp_node)(null+1) /* a null pointer different from |null| */
 
-@c static void mp_gs_unknown_graphics_state (MP mp, int c) {
+@c static void mp_gs_unknown_graphics_state (MP mp,scaled c) {
   struct _gs_state *p; /* to shift graphic states around */
   if ( (c==0)||(c==-1) ) {
     if ( mp->ps->gs_state==NULL ) {
@@ -5369,10 +5380,10 @@ to recover from a situation where we have lost track of the graphics state.
     gs_colormodel=mp_uninitialized_model;
     gs_ljoin=3;
     gs_lcap=3;
-    gs_miterlim=0.0;
+    gs_miterlim=0;
     gs_dash_p=NULL;
     gs_dash_init_done=false;
-    gs_width=-1.0;
+    gs_width=-1;
   } else if ( c==1 ) {
     p= mp->ps->gs_state;
     mp->ps->gs_state =  mp_xmalloc(mp,1,sizeof(struct _gs_state));
@@ -5395,11 +5406,11 @@ static void mp_gr_fix_graphics_state (MP mp, mp_graphic_object *p) ;
 @ @c 
 void mp_gr_fix_graphics_state (MP mp, mp_graphic_object *p) {
   /* get ready to output graphical object |p| */
-  mp_gr_knot pp, path_p; /* for list manipulation */
+  mp_knot pp, path_p; /* for list manipulation */
   mp_dash_object *hh;
-  double wx,wy,ww; /* dimensions of pen bounding box */
+  scaled wx,wy,ww; /* dimensions of pen bounding box */
   quarterword adj_wx; /* whether pixel rounding should be based on |wx| or |wy| */
-  double tx,ty; /* temporaries for computing |adj_wx| */
+  integer tx,ty; /* temporaries for computing |adj_wx| */
   if ( gr_has_color(p) )
     @<Make sure \ps\ will use the right color for object~|p|@>;
   if ( (gr_type(p)==mp_fill_code)||(gr_type(p)==mp_stroked_code) ) {
@@ -5447,7 +5458,7 @@ if ( gr_type(p)==mp_stroked_code ) {
   if ( gs_miterlim!=gr_miterlim_val(p) ) {
     ps_room(27);
     mp_ps_print_char(mp, ' ');
-    mp_ps_print_double(mp, gr_miterlim_val(p)); 
+    mp_ps_print_scaled(mp, gr_miterlim_val(p)); 
     mp_ps_print_cmd(mp, " setmiterlimit"," ml");
     gs_miterlim=gr_miterlim_val(p);
   }
@@ -5472,7 +5483,7 @@ if ( gr_type(p)==mp_stroked_code ) {
 @<Make sure \ps\ will use the right color for object~|p|@>=
 {  
   int object_color_model;
-  double object_color_a, object_color_b, object_color_c, object_color_d ; 
+  int object_color_a, object_color_b, object_color_c, object_color_d ; 
   if (gr_type(p) == mp_fill_code) {
     mp_fill_object *pq = (mp_fill_object *)p;
     set_color_objects(pq);
@@ -5490,13 +5501,13 @@ if ( gr_type(p)==mp_stroked_code ) {
       gs_red   = object_color_a;
       gs_green = object_color_b;
       gs_blue  = object_color_c;
-      gs_black = -1.0;
+      gs_black = -1;
       gs_colormodel=mp_rgb_model;
       { ps_room(36);
         mp_ps_print_char(mp, ' ');
-        mp_ps_print_double(mp, gs_red); mp_ps_print_char(mp, ' ');
-        mp_ps_print_double(mp, gs_green); mp_ps_print_char(mp, ' ');
-        mp_ps_print_double(mp, gs_blue);
+        mp_ps_print_scaled(mp, gs_red); mp_ps_print_char(mp, ' ');
+        mp_ps_print_scaled(mp, gs_green); mp_ps_print_char(mp, ' ');
+        mp_ps_print_scaled(mp, gs_blue);
         mp_ps_print_cmd(mp, " setrgbcolor", " R");
       }
     }
@@ -5511,26 +5522,26 @@ if ( gr_type(p)==mp_stroked_code ) {
       gs_colormodel=mp_cmyk_model;
       { ps_room(45);
         mp_ps_print_char(mp, ' ');
-        mp_ps_print_double(mp, gs_red); 
+        mp_ps_print_scaled(mp, gs_red); 
         mp_ps_print_char(mp, ' ');
-        mp_ps_print_double(mp, gs_green); 
+        mp_ps_print_scaled(mp, gs_green); 
         mp_ps_print_char(mp, ' ');
-        mp_ps_print_double(mp, gs_blue); 
+        mp_ps_print_scaled(mp, gs_blue); 
 	    mp_ps_print_char(mp, ' ');
-        mp_ps_print_double(mp, gs_black);
+        mp_ps_print_scaled(mp, gs_black);
         mp_ps_print_cmd(mp, " setcmykcolor"," C");
       }
     }
   } else if ( object_color_model==mp_grey_model ) {
    if ( (gs_red!=object_color_a)||(gs_colormodel!=mp_grey_model) ) {
       gs_red   = object_color_a;
-      gs_green = -1.0;
-      gs_blue  = -1.0;
-      gs_black = -1.0;
+      gs_green = -1;
+      gs_blue  = -1;
+      gs_black = -1;
       gs_colormodel=mp_grey_model;
       { ps_room(16);
         mp_ps_print_char(mp, ' ');
-        mp_ps_print_double(mp, gs_red);
+        mp_ps_print_scaled(mp, gs_red);
         mp_ps_print_cmd(mp, " setgray"," G");
       }
     }
@@ -5564,18 +5575,18 @@ to compute in \ps.
 if ( (ww!=gs_width) || (adj_wx!=gs_adj_wx) ) {
   if ( adj_wx != 0 ) {
     ps_room(13);
-    mp_ps_print_char(mp, ' '); mp_ps_print_double(mp, ww);
+    mp_ps_print_char(mp, ' '); mp_ps_print_scaled(mp, ww);
     mp_ps_print_cmd(mp, 
       " 0 dtransform exch truncate exch idtransform pop setlinewidth"," hlw");
   } else {
-    if (number_positive (internal_value(mp_procset)) ) {
+    if ( internal_value(mp_procset)>0 ) {
       ps_room(13);
       mp_ps_print_char(mp, ' ');
-      mp_ps_print_double(mp, ww);
+      mp_ps_print_scaled(mp, ww);
       mp_ps_print(mp, " vlw");
     } else { 
       ps_room(15);
-      mp_ps_print(mp, " 0 "); mp_ps_print_double(mp, ww);
+      mp_ps_print(mp, " 0 "); mp_ps_print_scaled(mp, ww);
       mp_ps_print(mp, " dtransform truncate idtransform setlinewidth pop");
     }
   }
@@ -5585,24 +5596,11 @@ if ( (ww!=gs_width) || (adj_wx!=gs_adj_wx) ) {
 
 @ @<Set |wx| and |wy| to the width and height of the bounding box for...@>=
 if ( (gr_right_x(pp)==gr_x_coord(pp)) && (gr_left_y(pp)==gr_y_coord(pp)) ) {
-  wx = fabs(gr_left_x(pp) - gr_x_coord(pp));
-  wy = fabs(gr_right_y(pp) - gr_y_coord(pp));
+  wx = abs(gr_left_x(pp) - gr_x_coord(pp));
+  wy = abs(gr_right_y(pp) - gr_y_coord(pp));
 } else {
-  mp_number arg1, arg2, ret;
-  new_number(arg1);
-  new_number(arg2);
-  mp_set_number_from_double (arg1, gr_left_x(pp)-gr_x_coord(pp));
-  mp_set_number_from_double (arg2, gr_right_x(pp)-gr_x_coord(pp));
-  ret = mp_pyth_add(mp, arg1, arg2);
-  wx = mp_number_to_double(ret);
-  free_number(ret);
-  mp_set_number_from_double (arg1, gr_left_y(pp)-gr_y_coord(pp));
-  mp_set_number_from_double (arg2, gr_right_y(pp)-gr_y_coord(pp));
-  ret = mp_pyth_add(mp, arg1, arg2);
-  wy = mp_number_to_double(ret);
-  free_number(ret);
-  free_number(arg1);
-  free_number(arg2);
+  wx = mp_pyth_add(mp, gr_left_x(pp)-gr_x_coord(pp), gr_right_x(pp)-gr_x_coord(pp));
+  wy = mp_pyth_add(mp, gr_left_y(pp)-gr_y_coord(pp), gr_right_y(pp)-gr_y_coord(pp));
 }
 
 @ The path is considered ``essentially horizontal'' if its range of
@@ -5610,14 +5608,14 @@ $y$~coordinates is less than the $y$~range |wy| for the pen.  ``Essentially
 vertical'' paths are detected similarly.  This code ensures that no component
 of the pen transformation is more that |aspect_bound*(ww+1)|.
 
-@d aspect_bound (10.0/65536.0) /* ``less important'' of |wx|, |wy| cannot exceed the other by
+@d aspect_bound 10 /* ``less important'' of |wx|, |wy| cannot exceed the other by
     more than this factor */
 
 @d do_x_loc 1
 @d do_y_loc 2
 
 @<Use |pen_p(p)| and |path_p(p)| to decide whether |wx| or |wy| is more...@>=
-tx=1.0; ty=1.0;
+tx=1; ty=1;
 if ( mp_gr_coord_rangeOK(path_p, do_y_loc, wy) ) tx=aspect_bound;
 else if ( mp_gr_coord_rangeOK(path_p, do_x_loc, wx) ) ty=aspect_bound;
 if ( wy / ty>=wx / tx ) { ww=wy; adj_wx=0; }
@@ -5629,15 +5627,15 @@ allowable range for $x$ or~$y$.  We do not need and cannot afford a full
 bounding-box computation.
 
 @<Declarations@>=
-static boolean mp_gr_coord_rangeOK (mp_gr_knot h, 
-                          quarterword  zoff, double dz);
+static boolean mp_gr_coord_rangeOK (mp_knot h, 
+                          quarterword  zoff, scaled dz);
 
 @ @c
-boolean mp_gr_coord_rangeOK (mp_gr_knot h, 
-                          quarterword  zoff, double dz) {
-  mp_gr_knot p; /* for scanning the path form |h| */
-  double zlo,zhi; /* coordinate range so far */
-  double z; /* coordinate currently being tested */
+boolean mp_gr_coord_rangeOK (mp_knot h, 
+                          quarterword  zoff, scaled dz) {
+  mp_knot p; /* for scanning the path form |h| */
+  scaled zlo,zhi; /* coordinate range so far */
+  scaled z; /* coordinate currently being tested */
   if (zoff==do_x_loc) {
     zlo=gr_x_coord(h);
     zhi=zlo;
@@ -5709,12 +5707,12 @@ if ( hh==NULL ) {
     mp_ps_print(mp, " [");
     for (i=0; *(hh->array+i) != -1;i++) {
       ps_room(13);
-      mp_ps_print_double(mp, *(hh->array+i)); 
+      mp_ps_print_scaled(mp, *(hh->array+i)); 
  	  mp_ps_print_char(mp, ' ')	;
     }
     ps_room(22);
     mp_ps_print(mp, "] ");
-    mp_ps_print_double(mp, hh->offset);
+    mp_ps_print_scaled(mp, hh->offset);
     mp_ps_print_cmd(mp, " setdash"," sd");
   }
 }
@@ -5763,10 +5761,10 @@ static void mp_gr_stroke_ellipse (MP mp,  mp_graphic_object *h, boolean fill_als
 @ 
 @c void mp_gr_stroke_ellipse (MP mp,  mp_graphic_object *h, boolean fill_also) {
   /* generate an elliptical pen stroke from object |h| */
-  double txx,txy,tyx,tyy; /* transformation parameters */
-  mp_gr_knot p; /* the pen to stroke with */
-  double d1,det; /* for tweaking transformation parameters */
-  double s; /* also for tweaking transformation paramters */
+  scaled txx,txy,tyx,tyy; /* transformation parameters */
+  mp_knot p; /* the pen to stroke with */
+  scaled d1,det; /* for tweaking transformation parameters */
+  integer s; /* also for tweaking transformation paramters */
   boolean transformed; /* keeps track of whether gsave/grestore are needed */
   transformed=false;
   @<Use |pen_p(h)| to set the transformation parameters and give the initial
@@ -5777,14 +5775,14 @@ static void mp_gr_stroke_ellipse (MP mp,  mp_graphic_object *h, boolean fill_als
   } else {
     mp_gr_ps_path_out(mp, gr_path_p((mp_stroked_object *)h));
   }
-  if ( number_zero (internal_value(mp_procset))) {
+  if ( internal_value(mp_procset)==0 ) {
     if ( fill_also ) mp_ps_print_nl(mp, "gsave fill grestore");
     @<Issue \ps\ commands to transform the coordinate system@>;
     mp_ps_print(mp, " stroke");
     if ( transformed ) mp_ps_print(mp, " grestore");
   } else {
     if ( fill_also ) mp_ps_print_nl(mp, "B"); else mp_ps_print_ln(mp);
-    if ( (txy!=0.0)||(tyx!=0.0) ) {
+    if ( (txy!=0)||(tyx!=0) ) {
       mp_ps_print(mp, " [");
       mp_ps_pair_out(mp, txx,tyx);
       mp_ps_pair_out(mp, txy,tyy);
@@ -5810,7 +5808,7 @@ txx=gr_left_x(p);
 tyx=gr_left_y(p);
 txy=gr_right_x(p);
 tyy=gr_right_y(p);
-if ( (gr_x_coord(p)!=0.0)||(gr_y_coord(p)!=0.0) ) {
+if ( (gr_x_coord(p)!=0)||(gr_y_coord(p)!=0) ) {
   mp_ps_print_nl(mp, ""); 
   mp_ps_print_cmd(mp, "gsave ","q ");
   mp_ps_pair_out(mp, gr_x_coord(p), gr_y_coord(p));
@@ -5826,23 +5824,18 @@ if ( (gr_x_coord(p)!=0.0)||(gr_y_coord(p)!=0.0) ) {
 @<Adjust the transformation to account for |gs_width| and output the
   initial \&{gsave} if |transformed| should be |true|@>
 
-@ 
-
-@d mp_make_double(A,B,C) ((B)/(C))
-@d mp_take_double(A,B,C) ((B)*(C))
-
-@<Adjust the transformation to account for |gs_width| and output the...@>=
+@ @<Adjust the transformation to account for |gs_width| and output the...@>=
 if ( gs_width!=unity ) {
-  if ( gs_width==0.0 ) { 
+  if ( gs_width==0 ) { 
     txx=unity; tyy=unity;
-  } else {
-    txx=mp_make_double(mp, txx,gs_width);
-    txy=mp_make_double(mp, txy,gs_width);
-    tyx=mp_make_double(mp, tyx,gs_width);
-    tyy=mp_make_double(mp, tyy,gs_width);
-  }
+  } else { 
+    txx=mp_make_scaled(mp, txx,gs_width);
+    txy=mp_make_scaled(mp, txy,gs_width);
+    tyx=mp_make_scaled(mp, tyx,gs_width);
+    tyy=mp_make_scaled(mp, tyy,gs_width);
+  };
 }
-if ( (txy!=0.0)||(tyx!=0.0)||(txx!=unity)||(tyy!=unity) ) {
+if ( (txy!=0)||(tyx!=0)||(txx!=unity)||(tyy!=unity) ) {
   if ( (! transformed) ){ 
     mp_ps_print_cmd(mp, "gsave ","q ");
     transformed=true;
@@ -5850,7 +5843,7 @@ if ( (txy!=0.0)||(tyx!=0.0)||(txx!=unity)||(tyy!=unity) ) {
 }
 
 @ @<Issue \ps\ commands to transform the coordinate system@>=
-if ( (txy!=0.0)||(tyx!=0.0) ){ 
+if ( (txy!=0)||(tyx!=0) ){ 
   mp_ps_print_ln(mp);
   mp_ps_print_char(mp, '[');
   mp_ps_pair_out(mp, txx,tyx);
@@ -5873,28 +5866,28 @@ The |aspect_bound*(gs_width+1)| bound on the components of the pen
 transformation allows $T_{\rm max}$ to be at most |2*aspect_bound|.
 
 @<Tweak the transformation parameters so the transformation is nonsingular@>=
-det=mp_take_double(mp, txx,tyy) - mp_take_double(mp, txy,tyx);
-d1=4*(aspect_bound+1/65536.0);
-if ( fabs(det)<d1 ) { 
+det=mp_take_scaled(mp, txx,tyy) - mp_take_scaled(mp, txy,tyx);
+d1=4*aspect_bound+1;
+if ( abs(det)<d1 ) { 
   if ( det>=0 ) { d1=d1-det; s=1;  }
   else { d1=-d1-det; s=-1;  };
   d1=d1*unity;
-  if ( fabs(txx)+fabs(tyy)>=fabs(txy)+fabs(tyy) ) {
-    if ( fabs(txx)>fabs(tyy) ) tyy=tyy+(d1+s*fabs(txx)) / txx;
-    else txx=txx+(d1+s*fabs(tyy)) / tyy;
+  if ( abs(txx)+abs(tyy)>=abs(txy)+abs(tyy) ) {
+    if ( abs(txx)>abs(tyy) ) tyy=tyy+(d1+s*abs(txx)) / txx;
+    else txx=txx+(d1+s*abs(tyy)) / tyy;
   } else {
-    if ( fabs(txy)>fabs(tyx) ) tyx=tyx+(d1+s*fabs(txy)) / txy;
-    else txy=txy+(d1+s*fabs(tyx)) / tyx;
+    if ( abs(txy)>abs(tyx) ) tyx=tyx+(d1+s*abs(txy)) / txy;
+    else txy=txy+(d1+s*abs(tyx)) / tyx;
   }
 }
 
 @ Here is a simple routine that just fills a cycle.
 
 @<Declarations@>=
-static void mp_gr_ps_fill_out (MP mp, mp_gr_knot p);
+static void mp_gr_ps_fill_out (MP mp, mp_knot p);
 
 @ @c
-void mp_gr_ps_fill_out (MP mp, mp_gr_knot p) { /* fill cyclic path~|p| */
+void mp_gr_ps_fill_out (MP mp, mp_knot p) { /* fill cyclic path~|p| */
   mp_gr_ps_path_out(mp, p);
   mp_ps_print_cmd(mp, " fill"," F");
   mp_ps_print_ln(mp);
@@ -5911,15 +5904,11 @@ non-shifting part of the transformation matrix.  It is careful to avoid
 additions that might cause undetected overflow.
 
 @<Declarations@>=
-static double mp_gr_choose_scale (MP mp, mp_graphic_object *p) ;
+static scaled mp_gr_choose_scale (MP mp, mp_graphic_object *p) ;
 
-@ @c double mp_gr_choose_scale (MP mp, mp_graphic_object *p) {
+@ @c scaled mp_gr_choose_scale (MP mp, mp_graphic_object *p) {
   /* |p| should point to a text node */
-  double a,b,c,d,ad,bc; /* temporary values */
-  double r;
-  mp_number arg1, arg2, ret, ret1, ret2;
-  new_number(arg1);
-  new_number(arg2);
+  scaled a,b,c,d,ad,bc; /* temporary values */
   a=gr_txx_val(p);
   b=gr_txy_val(p);
   c=gr_tyx_val(p);
@@ -5928,41 +5917,28 @@ static double mp_gr_choose_scale (MP mp, mp_graphic_object *p) ;
   if ( b<0 ) negate(b);
   if ( c<0 ) negate(c);
   if ( d<0 ) negate(d);
-  ad=(a-d)/2.0;
-  bc=(b-c)/2.0;
-  mp_set_number_from_double(arg1, (d+ad));
-  mp_set_number_from_double(arg2, ad);
-  ret1 = mp_pyth_add(mp, arg1, arg2);
-  mp_set_number_from_double(arg1, (c+bc));
-  mp_set_number_from_double(arg2, bc);
-  ret2 = mp_pyth_add(mp, arg1, arg2);
-  ret = mp_pyth_add(mp, ret1, ret2);
-  r = mp_number_to_double(ret);
-  free_number (ret);
-  free_number (ret1);
-  free_number (ret2);
-  free_number (arg1);
-  free_number (arg2);
-  return r;
+  ad=half(a-d);
+  bc=half(b-c);
+  return mp_pyth_add(mp, mp_pyth_add(mp, d+ad,ad), mp_pyth_add(mp, c+bc,bc));
 }
 
 @ The potential overflow here is caused by the fact the returned value
 has to fit in a |name_type|, which is a quarterword. 
 
-@d fscale_tolerance (65/65536.0) /* that's $.001\times2^{16}$ */
+@d fscale_tolerance 65 /* that's $.001\times2^{16}$ */
 
 @<Declarations@>=
-static quarterword mp_size_index (MP mp, font_number f, double s) ;
+static quarterword mp_size_index (MP mp, font_number f, scaled s) ;
 
 @ @c
-quarterword mp_size_index (MP mp, font_number f, double s) {
+quarterword mp_size_index (MP mp, font_number f, scaled s) {
   mp_node p,q; /* the previous and current font size nodes */
   int i; /* the size index for |q| */
   p=NULL;
   q=mp->font_sizes[f];
   i=0;
   while ( q!=null ) {
-    if ( fabs(s-sc_factor(q))<=fscale_tolerance ) 
+    if ( abs(s-sc_factor(q))<=fscale_tolerance ) 
       return (quarterword)i;
     else 
       { p=q; q=mp_link(q); incr(i); };
@@ -5978,10 +5954,10 @@ quarterword mp_size_index (MP mp, font_number f, double s) {
 }
 
 @ @<Declarations@>=
-static double mp_indexed_size (MP mp,font_number f, quarterword j);
+static scaled mp_indexed_size (MP mp,font_number f, quarterword j);
 
 @ @c
-double mp_indexed_size (MP mp,font_number f, quarterword j) { /* return scaled */
+scaled mp_indexed_size (MP mp,font_number f, quarterword j) {
   mp_node p; /* a font size node */
   int i; /* the size index for |p| */
   p=mp->font_sizes[f];
@@ -6009,6 +5985,33 @@ static void mp_clear_sizes (MP mp) ;
   }
 }
 
+@ A text node may specify an arbitrary transformation but the usual case
+involves only shifting, scaling, and occasionally rotation.  The purpose
+of |choose_scale| is to select a scale factor so that the remaining
+transformation is as ``nice'' as possible.  The definition of ``nice''
+is somewhat arbitrary but shifting and $90^\circ$ rotation are especially
+nice because they work out well for bitmap fonts.  The code here selects
+a scale factor equal to $1/\sqrt2$ times the Frobenius norm of the
+non-shifting part of the transformation matrix.  It is careful to avoid
+additions that might cause undetected overflow.
+
+
+@ @c static scaled mp_choose_scale (MP mp, mp_graphic_object *p) {
+  /* |p| should point to a text node */
+  scaled a,b,c,d,ad,bc; /* temporary values */
+  a=gr_txx_val(p);
+  b=gr_txy_val(p);
+  c=gr_tyx_val(p);
+  d=gr_tyy_val(p);
+  if ( (a<0) ) negate(a);
+  if ( (b<0) ) negate(b);
+  if ( (c<0) ) negate(c);
+  if ( (d<0) ) negate(d);
+  ad=half(a-d);
+  bc=half(b-c);
+  return mp_pyth_add(mp, mp_pyth_add(mp, d+ad,ad), mp_pyth_add(mp, c+bc,bc));
+}
+
 @ There may be many sizes of one font and we need to keep track of the
 characters used for each size.  This is done by keeping a linked list of
 sizes for each font with a counter in each text node giving the appropriate
@@ -6019,7 +6022,7 @@ position in the size list for its font.
 @<Types...@>=
 typedef struct mp_font_size_node_data {
   NODE_BODY;
-  double sc_factor_; /* scaled */
+  scaled sc_factor_;
 } mp_font_size_node_data;
 typedef struct mp_font_size_node_data* mp_font_size_node;
 
@@ -6072,7 +6075,7 @@ while ( p!=null ) {
         mp->font_sizes[f]=mp_void;
         break;
       default: 
-        gr_size_index(p)=(unsigned char)mp_size_index(mp, f,mp_gr_choose_scale(mp, p));
+        gr_size_index(p)=(unsigned char)mp_size_index(mp, f,mp_choose_scale(mp, p));
         if ( gr_size_index(p)==0 )
           mp_mark_string_chars(mp, f, gr_text_p(p),gr_text_l(p));
       }
@@ -6091,7 +6094,7 @@ int mp_gr_ship_out (mp_edge_object *hh, int prologues, int procset, int standalo
 @ @c 
 int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standalone) {
   mp_graphic_object *p;
-  double ds,scf; /* design size and scale factor for a text node */
+  scaled ds,scf; /* design size and scale factor for a text node */
   font_number f; /* for loops over fonts while (un)marking characters */
   boolean transformed; /* is the coordinate system being transformed? */
   int prologues, procset;
@@ -6103,11 +6106,11 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standal
   }
   if (mp->history >= mp_fatal_error_stop ) return 1;
   if (qprologues<0) 
-	prologues = (int)((unsigned)number_to_scaled (internal_value(mp_prologues))>>16);
+	prologues = (int)((unsigned)internal_value(mp_prologues)>>16);
   else
    prologues=qprologues;
   if (qprocset<0) 
-	procset = (int)((unsigned)number_to_scaled (internal_value(mp_procset))>>16);
+	procset = (int)((unsigned)internal_value(mp_procset)>>16);
   else
     procset=qprocset;
   mp_open_output_file(mp);
@@ -6179,13 +6182,13 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standal
       mp_gr_ps_path_out(mp, gr_path_p((mp_clip_object *)p));
       mp_ps_print_cmd(mp, " clip"," W");
       mp_ps_print_ln(mp);
-      if ( number_positive (internal_value(mp_restore_clip_color)) )
+      if ( internal_value(mp_restore_clip_color)>0 )
         mp_gs_unknown_graphics_state(mp, 1);
       break;
     case mp_stop_clip_code: 
       mp_ps_print_nl(mp, ""); mp_ps_print_cmd(mp, "grestore","Q");
       mp_ps_print_ln(mp);
-      if ( number_positive (internal_value(mp_restore_clip_color)) )
+      if ( internal_value(mp_restore_clip_color)>0 )
         mp_gs_unknown_graphics_state(mp, 2);
       else
         mp_gs_unknown_graphics_state(mp, -1);
@@ -6242,7 +6245,7 @@ int mp_ps_ship_out (mp_edge_object *hh, int prologues, int procset) {
 ps_room(18);
 mp_ps_print_char(mp, ' ');
 ds=(mp->font_dsize[gr_font_n(p)]+8) / 16;
-mp_ps_print_double(mp, (mp_take_double(mp, ds,scf)/65536.0));
+mp_ps_print_scaled(mp, mp_take_scaled(mp, ds,scf));
 mp_ps_print(mp, " fshow");
 if ( transformed ) 
    mp_ps_print_cmd(mp, " grestore"," Q")
@@ -6254,10 +6257,10 @@ transformed=(gr_txx_val(p)!=scf)||(gr_tyy_val(p)!=scf)||
             (gr_txy_val(p)!=0)||(gr_tyx_val(p)!=0);
 if ( transformed ) {
   mp_ps_print_cmd(mp, "gsave [", "q [");
-  mp_ps_pair_out(mp, mp_make_double(mp, gr_txx_val(p),scf),
-                     mp_make_double(mp, gr_tyx_val(p),scf));
-  mp_ps_pair_out(mp, mp_make_double(mp, gr_txy_val(p),scf),
-                     mp_make_double(mp, gr_tyy_val(p),scf));
+  mp_ps_pair_out(mp, mp_make_scaled(mp, gr_txx_val(p),scf),
+                     mp_make_scaled(mp, gr_tyx_val(p),scf));
+  mp_ps_pair_out(mp, mp_make_scaled(mp, gr_txy_val(p),scf),
+                     mp_make_scaled(mp, gr_tyy_val(p),scf));
   mp_ps_pair_out(mp, gr_tx_val(p),gr_ty_val(p));
   mp_ps_print_cmd(mp, "] concat 0 0 moveto","] t 0 0 m");
 } else { 
