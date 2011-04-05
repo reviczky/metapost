@@ -2,6 +2,24 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.504:
+----------------------------------------------------------------------
+
+* A fix to the automatic detection of 'dvitomp' mode based on the
+  executable name (proposed by PEB).
+
+* A better way to discover the end of the preload file is used now.
+
+* A memory release bug that caused metapost to crash on exit when 
+  fontmaking:=1 has been fixed.
+
+* A memory leak in the string concatenation code has been removed.
+
+* Again, a very long list of improvements to the manual.
+
+* Updated the manual page mpost.man
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.503:
 ----------------------------------------------------------------------
 
