@@ -190,18 +190,23 @@ Please report bugs and request enhancements either on the
 \section{Basic Drawing Statements}
 \label{basic}
 
-The simplest drawing statements are the ones that generate straight lines.
+The simplest drawing statement is the one that draws a single dot with
+the current pen at a given coordinate:
+$$
+\begin{verbatim}
+drawdot (30,0)
+\end{verbatim}
+\index{drawdot?\texttt{drawdot}}
+\label{Ddrawdot}
+$$
+
+MetaPost can also draw straight lines.
 Thus\index{draw?\texttt{draw}}\index{-{}-?\texttt{-{}-}}
 $$ \hbox{\verb|draw (20,20)--(0,0)|} $$
 draws\index{draw?\texttt{draw}} a diagonal line and
 $$ \hbox{\verb|draw (20,20)--(0,0)--(0,30)--(30,0)--(0,0)|} $$
 draws a polygonal line like this:
 $$ \includegraphics{mpman-1.mps} $$
-
-MetaPost also has a
-\verb|drawdot|\index{drawdot?\texttt{drawdot}}\label{Ddrawdot} command
-to draw a single point with the current pen, as in
-\verb|drawdot (30,0)|.
 
 What is meant by coordinates like \verb|(30,0)|?  MetaPost uses the same
 default coordinate system that PostScript\index{PostScript!coordinate
@@ -213,20 +218,32 @@ to distinguish it from the standard printer's
 point\index{point!printer's} which is $1\over72.27$ inches.
 
 MetaPost uses the same names for units of measure that \TeX\ and \MF\
-do.  Thus \verb|bp|\index{bp?\texttt{bp}}\label{Dbp} refers to
-PostScript points (``big points'') and
-\verb|pt|\index{pt?\texttt{pt}}\label{Dpt} refers to printer's points.
-Other units of measure include
-\verb|in|\index{in?\texttt{in}}\label{Din} for inches,
-\verb|cm|\index{cm?\texttt{cm}}\label{Dcm} for centimeters, and
-\verb|mm|\index{mm?\texttt{mm}}\label{Dmm} for millimeters.  For
-example,
+do.  Thus
+\verb|bp|\index{bp?\texttt{bp}}\index{units!bp?\texttt{bp}}\label{Dbp}
+refers to PostScript points (``big points'') and
+\verb|pt|\index{pt?\texttt{pt}}\index{units!pt?\texttt{pt}}\label{Dpt}
+refers to printer's points.  Other units of measure include
+\verb|in|\index{in?\texttt{in}}\index{units!in?\texttt{in}}\label{Din}
+for inches,
+\verb|pc|\index{pc?\texttt{pc}}\index{units!pc?\texttt{pc}}\label{Dpc}
+for picas,
+\verb|cm|\index{cm?\texttt{cm}}\index{units!cm?\texttt{cm}}\label{Dcm}
+for centimeters,
+\verb|mm|\index{mm?\texttt{mm}}\index{units!mm?\texttt{mm}}\label{Dmm}
+for millimeters,
+\verb|cc|\index{cc?\texttt{cc}}\index{units!cc?\texttt{cc}}\label{Dcc}
+for ciceros, and
+\verb|dd|\index{dd?\texttt{dd}}\index{units!dd?\texttt{dd}}\label{Ddd}
+for Didot points.  For example,
 $$ \hbox{\verb|(2cm,2cm)--(0,0)--(0,3cm)--(3cm,0)--(0,0)|} $$
 generates a larger version of the above diagram.  It is OK to say
 \verb|0| instead \verb|0cm| because {\tt cm} is really just a conversion
 factor and {\tt 0cm} just multiplies the conversion factor by zero.
-(MetaPost understands constructions like {\tt
-2cm}\index{multiplication, implicit} as shorthand for \verb|2*cm|).
+(MetaPost understands constructions like {\tt 2cm}\index{multiplication,
+  implicit} as shorthand for \verb|2*cm|).  The coordinate \verb|(0,0)|
+can also be referred to as
+\texttt{origin}\index{origin?\texttt{origin}}\label{Dorigin}, as in
+$$ \hbox{\verb|drawdot origin|} $$
 
 It is convenient to introduce your own scale factor, say $u$.  Then you
 can define coordinates in terms of $u$ and decide later whether you want
@@ -391,8 +408,8 @@ outside \verb|beginfig| \ldots\ \verb|endfig|, e.g., assignments to
 internal variables, such as \texttt{outputtemplate}, or a \LaTeX\
 preamble declaration for enhanced text rendering.
 Comments\index{comments} in MetaPost code are introduced by the percent
-sign~\verb|%|\index{\%?\texttt{\%}}, which causes the remainder of the
-current line to be ignored.
+sign~\verb|%|\index{\%?\texttt{\%}!comment}, which causes the remainder
+of the current line to be ignored.
 
 The remainder of this section briefly introduces three assignments to
 internal variables, each one useful by itself, that can often be found
@@ -472,6 +489,32 @@ $$
         z2..\linebreak[0]z3--\linebreak[0]z4--\linebreak[0]cycle}.}
 \label{fig3}
 \end{figure}
+
+MetaPost already provides a small selection of basic path shapes that
+can be used to derive custom paths from.  The predefined variable
+\texttt{fullcircle}\index{fullcircle?\texttt{fullcircle}}\label{Dfcirc}
+refers to a closed path describing a circle of unit diameter centered on
+the origin.  There are also
+\texttt{halfcircle}\index{halfcircle?\texttt{halfcircle}}\label{Dhcirc}
+and
+\texttt{quartercircle}\index{quartercircle?\texttt{quartercircle}}\label{Dqcirc},
+the former being the part of a full circle covering the first and second
+quadrant and the latter covering just the first quadrant.  Because of
+the mathematical model that is used to describe paths in MetaPost, all
+these are not exactly circular paths, but very good approximations (see
+Figure~\ref{fig3a}).
+
+\begin{figure}
+$$ \includegraphics{mpman-61.mps} $$
+\caption{A circle and a square with cardinal points.  Arrows are
+  pointing to the start and end points of the closed paths.}
+\label{fig3a}
+\end{figure}
+
+Rectangularly shaped paths can be derived from
+\texttt{unitsquare}\index{unitsquare?\texttt{unitsquare}}\label{Dunitsqr},
+a closed path describing a square of unit side length whose lower left
+corner is located at the origin.
 
 \subsection{B\'ezier Cubic Curves}
 
@@ -967,19 +1010,22 @@ tracingonline}\index{tracingonline?\texttt{tracingonline}}\label{Dtonline}.
 
 \subsection{Data Types}
 
-MetaPost actually has ten basic data types\index{types}: numeric,
-pair, path, transform, (rgb)color, cmykcolor, string, boolean, picture, and
+MetaPost actually has ten basic data types\index{types}: numeric, pair,
+path, transform, (rgb)color, cmykcolor, string, boolean, picture, and
 pen.  Let us consider these one at a time beginning with the numeric
 type.
 
-Numeric\index{numeric type} quantities in MetaPost are represented in fixed
-point arithmetic\index{arithmetic} as
-integer multiples of $1\over65536$.  They must normally have absolute values
-less than 4096 but intermediate results can be eight times larger.
-This should not be a problem for distances or coordinate values since 4096
-PostScript points is more than 1.4~meters.  If you need to work with numbers
-of magnitude 4096 or more, setting the internal variable
-{\tt warningcheck}\index{warningcheck?\texttt{warningcheck}}\label{Dwarncheck}
+Numeric\index{numeric type} quantities in MetaPost are represented in
+fixed point arithmetic\index{arithmetic} as integer multiples of
+$1\over65536$, the smallest positive value, which is also available as
+the predefined constant
+\texttt{epsilon}\index{epsilon?\texttt{epsilon}}\label{Depsilon}.
+Numeric quantities must normally have absolute values less than 4096 but
+intermediate results can be eight times larger.  This should not be a
+problem for distances or coordinate values since 4096 PostScript points
+is more than 1.4~meters.  If you need to work with numbers of magnitude
+4096 or more, setting the internal variable
+\texttt{warningcheck}\index{warningcheck?\texttt{warningcheck}}\label{Dwarncheck}
 to zero suppresses the warning messages about large numeric quantities.
 
 The pair\index{pair type} type is represented as a pair of numeric
@@ -1397,11 +1443,11 @@ themselves, the only symbolic tokens involving them are {\tt [}, {\tt
 
 Some characters are not listed in Table~\ref{classes} because they need
 special treatment.  The four characters {\tt ,;()} are ``loners'': each
-comma, semicolon, or parenthesis is a separate token
-even when they occur consecutively.  Thus {\tt (())} is four tokens, not
-one or two.  The percent sign is very special because it introduces
-comments\index{comments}.  The percent sign and everything after it up
-to the end of the line are ignored.
+comma, semicolon, or parenthesis is a separate token even when they
+occur consecutively.  Thus {\tt (())} is four tokens, not one or two.
+The percent sign is very special because it introduces
+comments\index{\%?\texttt{\%}!comment}\index{comments}.  The percent
+sign and everything after it up to the end of the line are ignored.
 
 Another special character is the period.  Two or more periods
 together form a symbolic token, but a single period is ignored, and a period
@@ -2188,15 +2234,9 @@ Value & Color model\\\hline
 Figure~\ref{fig21} illustrates several applications of the fill command
 to fill areas with shades of gray.  The paths involved are intersecting
 circles {\tt a} and {\tt b} and a path {\tt ab} that bounds the region
-inside both circles.  Circles {\tt a} and {\tt b} are derived from a
-predefined path {\tt
-fullcircle}\index{fullcircle?\texttt{fullcircle}}\label{Dfcirc} that
-approximates a circle of unit diameter centered on the origin.  There is
-also a predefined path {\tt
-halfcircle}\index{halfcircle?\texttt{halfcircle}}\label{Dhcirc} that is
-the part of {\tt fullcircle} above the $x$ axis. Path~{\tt ab} is then
-initialized using a predefined macro {\tt buildcycle} that will be
-discussed shortly.
+inside both circles.  Circles {\tt a} and {\tt b} are derived from {\tt
+  fullcircle}.  Path~{\tt ab} is then initialized using a predefined
+macro {\tt buildcycle} that will be discussed shortly.
 
 \begin{figure}[htp]
 $$ \begin{verbatim}
@@ -4807,7 +4847,7 @@ Explanation:
 \begin{itemize}
 
 \item 
-The \texttt{\%\&latex}\index{\%\&?\texttt{\%\&}} causes \LaTeX\ to be invoked instead of \TeX.
+The \texttt{\%\&latex}\index{\%?\texttt{\%}!magic comment!\%\&?\texttt{\%\&}} causes \LaTeX\ to be invoked instead of \TeX.
 (See below, also.)  Web2C- and MiKTeX-based \TeX\ implementations, at
 least, understand this \texttt{\%\&} specification; see, e.g., the Web2C
 documentation for details, \url{http://tug.org/web2c}.  (Information on
@@ -4926,20 +4966,20 @@ output one would want to use \texttt{svg}\index{svg file?{\tt svg}
   file}\index{files!svg?{\tt svg}} instead.
 
 \begin{table}
-  \newcommand*{\otesc}[3]{\%#1\index{\%#1?\texttt{\%#1}} & #2 & \%\{#3\}}
   \centering
   \begin{tabular}{|>{\ttfamily}l|l|>{\ttfamily}l|}
     \hline
     \multicolumn1{|c|}{Escape sequence} & \multicolumn1{c|}{Meaning} & \multicolumn1{c|}{Alternative}\\\hline
-    \%\%\index{\%\%?\texttt{\%\%}} & percent sign &\\
-    \%\{\tdescr{internal variable}\}\index{\%\{...\}?\texttt{\%\{\tdescr{internal variable}\}}} & evaluate internal variable &\\
-    \%j\index{\%j?\texttt{\%j}} & current jobname & \%\{jobname\} \\
-    \otesc{c}{charcode value (\texttt{beginfig} argument)}{charcode}\\
-    \otesc{y}{current year}{year}\\
-    \otesc{m}{month (numeric)}{month}\\
-    \otesc{d}{day of the month}{day}\\
-    \otesc{H}{hour}{hour}\\
-    \otesc{M}{minute}{minute}\\
+    \%\%\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%\%?\texttt{\%\%}} & percent sign &\\
+    \%\{\tdescr{internal variable}\}\index{\%?\texttt{\%}!outputtemplate
+      escape sequence?\texttt{outputtemplate} escape sequence!\%\{...\}?\texttt{\%\{\tdescr{internal variable}\}}} & evaluate internal variable &\\
+    \%j\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%j?\texttt{\%j}} & current jobname & \%\{jobname\}\\
+    \%c\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%c?\texttt{\%c}} & charcode value (\texttt{beginfig} argument) & \%\{charcode\}\\
+    \%y\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%y?\texttt{\%y}} & current year & \%\{year\}\\
+    \%m\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%m?\texttt{\%m}} & month (numeric) & \%\{month\}\\
+    \%d\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%d?\texttt{\%d}} & day of the month & \%\{day\}\\
+    \%H\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%H?\texttt{\%H}} & hour & \%\{hour\}\\
+    \%M\index{\%?\texttt{\%}!outputtemplate escape sequence?\texttt{outputtemplate} escape sequence!\%M?\texttt{\%M}} & minute & \%\{minute\}\\
     \hline
   \end{tabular}
   \caption{Allowed escape sequences for \ttt{outputtemplate}}
@@ -4948,23 +4988,26 @@ output one would want to use \texttt{svg}\index{svg file?{\tt svg}
 
 In single-letter escape sequences referring to internal numerics, the
 corresponding value is rounded to the nearest integer before it is
-converted to a string expression.  In such escape sequences, there can
-be an optional number (0--99) following \verb|%| that determines the
-minimum number of digits in the resulting string expression, like
-\verb|%2m|.  If the decimal representation of the internal variable
-requires more digits, actual string length exceeds the requested length.
-If less digits are required, the string is padded to the requested
-length with zeros from left.
+converted to a string expression.  In such escape sequences, a number
+from the range 0 to~99 can optionally be placed directly after \verb|%|
+that determines the minimum number of digits in the resulting string
+expression, like \verb|%2m|.  If the decimal representation of the
+internal variable requires more digits, actual string length will exceed
+the requested length.  If less digits are required, the string is padded
+to the requested length with zeros from left.
 
-In the \verb|%{...}| escape sequence no rounding takes place.
-Additionally, neither this nor single-letter escape sequences referring
-to internal string variables can be zero-padded.
+In single-letter escape sequences referring to internal string
+variables, like \verb|%j|, and in the \verb|%{...}| escape sequence,
+neither rounding nor zero-padding take place.
 
-For backwards compatibility, the \verb|%c|\index{\%c?\texttt{\%c}}
+For backwards compatibility, the
+\verb|%c|\index{\%?\texttt{\%}!outputtemplate escape
+  sequence?\texttt{outputtemplate} escape sequence!\%c?\texttt{\%c}}
 escape sequence is handled special.  If the result of rounding the
 charcode value is negative, \verb|%c| evaluates to the string \verb|ps|.
 This transformation can be bypassed by using \verb|%{charcode}| instead
-of \verb|%c| (bypassing the rounding, too).
+of \verb|%c|.  But note, that this bypasses rounding and zero-padding as
+well.
 
 The template mechanism can also be used for naming graphic files
 individually, yet keeping all sources in one file.  Collecting, e.g.,

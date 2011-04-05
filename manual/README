@@ -17,48 +17,4 @@ Auxiliary files (and the MetaPost software itself) are public domain,
 including the data (.d) files here, which due to file format limitations
 cannot incorporate a license themselves.
 
-Included files:
-
-Makefile
-README
-TODO
-agepop91.d
-agepopm.d
-charts.mp
-cm2lm.map
-countries.d
-ctabbing.sty
-demo.ms
-energy.d
-figs.1
-figs.mp
-grdemo-doc.ms
-grdemo-doc.pdf
-grdemo-doc.ps
-grdemo.eps
-grdemo.mp
-grdemo.ms
-grdemo.pdf
-lead.d
-matmul.d
-mp.1
-mpboxes.bib
-mpboxes.mp
-mpboxes.tex
-mpgraph.bib
-mpgraph.mp
-mpgraph.tex
-mpintro.bib
-mpintro.mp
-mpintro.tex
-mpman-app-legacy.tex
-mpman-app-optab.tex
-mpman-app-refman.tex
-mpman-charts.mp
-mpman.bib
-mpman.ist
-mpman.mp
-mpman.tex
-timepop.d
-
 See the Makefile for the sequence of commands to create the DVI/PS/PDF output.
