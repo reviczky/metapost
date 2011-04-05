@@ -71,7 +71,7 @@ beginfig(2);
 % Pre-define workflow segment parameters.
   wfsegments := 6;% counter
   wfsegangle = 360/wfsegments;% angle
-  wfstart := 90 + wfsegangle;% angle
+  wfstart := 90;% angle
   wfdiam := 200bp;% dimension
   wfthick := 48bp;% dimension
   wfgap := 8;% angle
@@ -198,13 +198,13 @@ beginfig(2);
   endfor
 
 % Fill-in workflow segment descriptions.
-  label(btex \appl{Editor} etex, degtoxy(wfstart+wfsegangle*0)) withcolor appl_col;
-  label(btex \ext{fig.mp} etex, degtoxy(wfstart+wfsegangle*1)) withcolor ext_col;
-  label(btex \appl{MetaPost} etex, degtoxy(wfstart+wfsegangle*2)) withcolor appl_col;
-  label(btex \ext{fig.1} etex, degtoxy(wfstart+wfsegangle*3+10)) withcolor ext_col;
-  label(btex {\extfontvii fig.log} etex, degtoxy(wfstart+wfsegangle*3-10)) withcolor ext_col;
-  label(btex \appl{Previewer} etex, degtoxy(wfstart+wfsegangle*4)) withcolor appl_col;
-  label(unituserLeft scaled usersize, degtoxy(wfstart+wfsegangle*5));
+  label(unituserLeft scaled usersize, degtoxy(wfstart+wfsegangle*0));
+  label(btex \appl{Editor} etex, degtoxy(wfstart+wfsegangle*1)) withcolor appl_col;
+  label(btex \ext{fig.mp} etex, degtoxy(wfstart+wfsegangle*2)) withcolor ext_col;
+  label(btex \appl{MetaPost} etex, degtoxy(wfstart+wfsegangle*3)) withcolor appl_col;
+  label(btex \ext{fig.1} etex, degtoxy(wfstart+wfsegangle*4+wfsegangle/7)) withcolor ext_col;
+  label(btex \ext{fig.log} etex, degtoxy(wfstart+wfsegangle*4-wfsegangle/7)) withcolor .7[ext_col, wf_col];
+  label(btex \appl{Previewer} etex, degtoxy(wfstart+wfsegangle*5)) withcolor appl_col;
 endfig;
 
 end

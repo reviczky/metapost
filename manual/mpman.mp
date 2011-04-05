@@ -807,4 +807,21 @@ beginfig(60);
   draw origin--(4.38in,0);
 endfig;
 
+
+beginfig(61);
+  def shape_with_cardinal_points(expr shape) =
+    image(
+      interim ahangle := 30;
+      interim ahlength := 6bp;
+      drawarrow shape withpen pencircle scaled .5;
+      for k = 0 upto length shape:
+        drawdot point k of shape withpen pencircle scaled dotlabeldiam;
+      endfor
+    )
+  enddef;
+  
+  draw shape_with_cardinal_points(fullcircle scaled 1in);
+  draw shape_with_cardinal_points(unitsquare scaled 1in) withcolor .5white;
+endfig;
+
 end
