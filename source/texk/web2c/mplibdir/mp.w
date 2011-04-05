@@ -1,6 +1,6 @@
 % $Id$
 %
-% Copyright 2008-2009 Taco Hoekwater.
+% Copyright 2008-2011 Taco Hoekwater.
 %
 % This program is free software: you can redistribute it and/or modify
 % it under the terms of the GNU Lesser General Public License as published by
@@ -88,12 +88,12 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.503" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.504" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @(mpmp.h@>=
-#define metapost_version "1.503"
+#define metapost_version "1.504"
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
 few typedefs and the header defintions for the externally used
