@@ -17920,20 +17920,22 @@ char *mem_name; /* for commandline */
 @ Stripping a |.mem| extension here is for backward compatibility.
 
 @<Find and load preload file, if required@>=
-mp->mem_name = xstrdup (opt->mem_name);
-if (mp->mem_name) {
-  size_t l = strlen (mp->mem_name);
-  if (l > 4) {
-    char *test = strstr (mp->mem_name, ".mem");
-    if (test == mp->mem_name + l - 4) {
-      *test = 0;
+if (!opt->ini_version) {
+  mp->mem_name = xstrdup (opt->mem_name);
+  if (mp->mem_name) {
+    size_t l = strlen (mp->mem_name);
+    if (l > 4) {
+      char *test = strstr (mp->mem_name, ".mem");
+      if (test == mp->mem_name + l - 4) {
+       *test = 0;
+      }
     }
   }
-}
-if (mp->mem_name != NULL) {
-  if (!mp_open_mem_file (mp)) {
-    mp->history = mp_fatal_error_stop;
-    mp_jump_out (mp);
+  if (mp->mem_name != NULL) {
+    if (!mp_open_mem_file (mp)) {
+      mp->history = mp_fatal_error_stop;
+      mp_jump_out (mp);
+    }
   }
 }
 
