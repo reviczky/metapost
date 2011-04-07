@@ -85,8 +85,8 @@ int mp_number_nonequalabs(mp_number A, mp_number B);
 void mp_number_floor (mp_number i);
 void mp_fraction_to_scaled (mp_number x);
 mp_number mp_number_make_scaled (MP mp, mp_number p, mp_number q);
-mp_number mp_number_make_fraction (MP mp, mp_number p, mp_number q);
-mp_number mp_number_take_fraction (MP mp, mp_number p, mp_number q);
+void mp_number_make_fraction (MP mp, mp_number r, mp_number p, mp_number q);
+void mp_number_take_fraction (MP mp, mp_number r, mp_number p, mp_number q);
 mp_number mp_number_take_scaled (MP mp, mp_number p, mp_number q);
 typedef void (*number_from_scaled_func) (mp_number A, int B);
 typedef void (*number_from_double_func) (mp_number A, double B);
@@ -113,8 +113,8 @@ typedef int (*number_less_func) (mp_number A, mp_number B);
 typedef int (*number_greater_func) (mp_number A, mp_number B);
 typedef int (*number_nonequalabs_func) (mp_number A, mp_number B);
 typedef mp_number (*make_scaled_func) (MP mp, mp_number A, mp_number B);
-typedef mp_number (*make_fraction_func) (MP mp, mp_number A, mp_number B);
-typedef mp_number (*take_fraction_func) (MP mp, mp_number A, mp_number B);
+typedef void (*make_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number B);
+typedef void (*take_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number B);
 typedef mp_number (*take_scaled_func) (MP mp, mp_number A, mp_number B);
 typedef mp_number (*new_number_func) (MP mp, mp_number_type t);
 typedef void (*free_number_func) (MP mp, mp_number n);
@@ -572,13 +572,8 @@ static integer mp_make_fraction (MP mp, integer p, integer q) {
 RETURN:
   return i;
 }
-mp_number mp_number_make_fraction (MP mp, mp_number p_orig, mp_number q_orig) {
-  int i; /* fraction */
-  mp_number ret;
-  new_number (ret);
-  i = mp_make_fraction (mp, p_orig->data.val, q_orig->data.val);
-  ret->data.val = i;
-  return ret;
+void mp_number_make_fraction (MP mp, mp_number ret, mp_number p, mp_number q) {
+  ret->data.val = mp_make_fraction (mp, p->data.val, q->data.val);
 }
 
 
@@ -623,13 +618,8 @@ integer mp_take_fraction (MP mp, integer p, int q) { /* q = fraction */
   }
   return i;
 }
-mp_number mp_number_take_fraction (MP mp, mp_number p_orig, mp_number q_orig) {
-  int i; /* fraction */
-  mp_number ret;
-  new_number (ret);
-  i = mp_take_fraction (mp, p_orig->data.val, q_orig->data.val);
-  ret->data.val = i;
-  return ret;
+void mp_number_take_fraction (MP mp, mp_number ret, mp_number p_orig, mp_number q_orig) {
+  ret->data.val = mp_take_fraction (mp, p_orig->data.val, q_orig->data.val);
 }
 
 
