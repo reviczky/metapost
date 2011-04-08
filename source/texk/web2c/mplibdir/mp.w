@@ -7946,8 +7946,7 @@ void mp_reduce_angle (MP mp, mp_number a);
     free_number (arg1);
     free_number (arg2);
   } else {
-    free_number(mp->uu[0]);
-    mp->uu[0] = mp_curl_ratio (mp, cc, rt, lt);
+    mp_curl_ratio (mp, mp->uu[0], cc, rt, lt);
   }
   take_fraction (mp->vv[0], mp->psi[1], mp->uu[0]);
   number_negate(mp->vv[0]);
@@ -7982,9 +7981,7 @@ void mp_reduce_angle (MP mp, mp_number a);
     free_number (arg1);
     free_number (arg2);
   } else {
-    mp_number tmp = mp_curl_ratio (mp, cc, lt, rt);
-    number_clone (ff, tmp);
-    free_number (tmp);
+    mp_curl_ratio (mp, ff, cc, lt, rt);
   }
   {
     mp_number arg1, arg2, r1;
@@ -8017,12 +8014,11 @@ is necessary only if the curl and tension are both large.)
 The values of $\alpha$ and $\beta$ will be at most~4/3.
 
 @<Declarations@>=
-static mp_number mp_curl_ratio (MP mp, mp_number gamma, mp_number a_tension,
+static void mp_curl_ratio (MP mp, mp_number ret, mp_number gamma, mp_number a_tension,
                                  mp_number b_tension);
 
 @ @c
-mp_number mp_curl_ratio (MP mp, mp_number gamma_orig, mp_number a_tension, mp_number b_tension) {
-  mp_number ret;
+void mp_curl_ratio (MP mp, mp_number ret, mp_number gamma_orig, mp_number a_tension, mp_number b_tension) {
   mp_number alpha, beta, gamma, num, denom, ff; /* registers */
   new_fraction (alpha);
   new_fraction (beta);
@@ -8030,7 +8026,6 @@ mp_number mp_curl_ratio (MP mp, mp_number gamma_orig, mp_number a_tension, mp_nu
   new_fraction (ff);
   new_fraction (denom);
   new_fraction (num);
-  new_fraction(ret);
   make_fraction (alpha, unity_t, a_tension);
   make_fraction (beta, unity_t, b_tension);
   number_clone (gamma, gamma_orig);
@@ -8080,7 +8075,6 @@ mp_number mp_curl_ratio (MP mp, mp_number gamma_orig, mp_number a_tension, mp_nu
   free_number (num);
   free_number (denom);
   free_number (ff);
-  return ret;
 }
 
 
@@ -9127,6 +9121,7 @@ $\tau$ given $a$, $b$, $c$, and $x$.
   new_number (tmp2);
   new_number (tmp3);
   new_number (tmp4);
+  new_number (tmp5);
   number_clone(tmp, v02);
   number_add_scaled(tmp, 2);
   number_half(tmp);
@@ -9136,7 +9131,7 @@ $\tau$ given $a$, $b$, $c$, and $x$.
     number_halfp(tmp2);
     set_number_from_substraction(tmp3, arc1, tmp2);
     number_substract(tmp3, tmp);
-    tmp5 = mp_solve_rising_cubic (mp, tmp2, tmp3, tmp, a_goal);
+    mp_solve_rising_cubic (mp, tmp5, tmp2, tmp3, tmp, a_goal);
     number_halfp (tmp5);
     set_number_to_unity(tmp3);
     number_substract(tmp5, tmp3);
@@ -9149,7 +9144,7 @@ $\tau$ given $a$, $b$, $c$, and $x$.
     number_substract(tmp3, tmp);
     number_substract(tmp3, tmp2);
     set_number_from_substraction(tmp4, a_goal, arc1);
-    tmp5 = mp_solve_rising_cubic (mp, tmp, tmp3, tmp2, tmp4);
+    mp_solve_rising_cubic (mp, tmp5, tmp, tmp3, tmp2, tmp4);
     number_halfp(tmp5);
     set_number_to_unity(tmp2);
     set_number_to_unity(tmp3);
@@ -9176,12 +9171,11 @@ it and proceed with binary search.  This finds a time when the function value
 reaches |x| and the slope is positive.
 
 @<Declarations@>=
-static mp_number mp_solve_rising_cubic (MP mp, mp_number a, mp_number b, mp_number c, mp_number x);
+static void mp_solve_rising_cubic (MP mp, mp_number ret, mp_number a, mp_number b, mp_number c, mp_number x);
 
 @ @c
-mp_number mp_solve_rising_cubic (MP mp, mp_number a_orig, mp_number b_orig, mp_number c_orig, mp_number x_orig) {
+void mp_solve_rising_cubic (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig, mp_number c_orig, mp_number x_orig) {
   mp_number abc;
-  mp_number ret;
   mp_number a, b, c, x;      /* local versions of arguments */
   mp_number ab, bc, ac;    /* bisection results */
   int t;    /* $2^k+q$ where unscaled answer is in $[q2^{-k},(q+1)2^{-k})$ */
@@ -9206,7 +9200,6 @@ mp_number mp_solve_rising_cubic (MP mp, mp_number a_orig, mp_number b_orig, mp_n
   new_number (neg_x);
   set_number_from_addition(abc, a, b);
   number_add(abc, c);
-  new_number (ret);
   if (number_nonpositive(x)) {
     set_number_to_zero(ret);
   } else if (number_greaterequal(x, abc)) {
@@ -9247,7 +9240,6 @@ mp_number mp_solve_rising_cubic (MP mp, mp_number a_orig, mp_number b_orig, mp_n
   free_number (xx);
   free_number (x);
   free_number (neg_x);
-  return ret;
 }
 
 
@@ -10476,17 +10468,15 @@ needed because |square_rt| scales its result by $2^8$ while we need $2^{14}$
 to counteract the effect of |take_fraction|.
 
 @ @c
-mp_number mp_sqrt_det (MP mp, mp_number a_orig, mp_number b_orig, mp_number c_orig, mp_number d_orig) {
+void mp_sqrt_det (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig, mp_number c_orig, mp_number d_orig) {
   mp_number a,b,c,d; 
   mp_number maxabs;        /* $max(|a|,|b|,|c|,|d|)$ */
-  mp_number ret;
   unsigned s;   /* amount by which the result of |square_rt| needs to be scaled */
   new_number(a);
   new_number(b);
   new_number(c);
   new_number(d);
   new_number(maxabs);
-  new_number(ret);
   number_clone(a, a_orig);
   number_clone(b, b_orig);
   number_clone(c, c_orig);
@@ -10517,35 +10507,33 @@ mp_number mp_sqrt_det (MP mp, mp_number a_orig, mp_number b_orig, mp_number c_or
   free_number(b);
   free_number(c);
   free_number(d);
-  return ret;
 }
 @#
-static mp_number mp_get_pen_scale (MP mp, mp_knot p) {
-  mp_number ret;
+static void mp_get_pen_scale (MP mp, mp_number ret, mp_knot p) {
   if (p == NULL) {
-    new_number(ret);
+    set_number_to_zero(ret);
   } else {
     mp_number a,b,c,d;
     new_number(a);
     new_number(b);
     new_number(c);
     new_number(d);
+    new_number(ret);
     set_number_from_substraction(a, p->left_x, p->x_coord);
     set_number_from_substraction(b, p->right_x, p->x_coord);
     set_number_from_substraction(c, p->left_y,  p->y_coord);
     set_number_from_substraction(d, p->right_y, p->y_coord);
-    ret = mp_sqrt_det (mp, a, b, c, d);
+    mp_sqrt_det (mp, ret, a, b, c, d);
     free_number(a);
     free_number(b);
     free_number(c);
     free_number(d);
   }
-  return ret;
 }
 
 
 @ @<Declarations@>=
-static mp_number mp_sqrt_det (MP mp, mp_number a, mp_number b, mp_number c, mp_number d);
+static void mp_sqrt_det (MP mp, mp_number ret, mp_number a, mp_number b, mp_number c, mp_number d);
 
 
 @ @<Initialize |maxabs|@>=
@@ -11039,11 +11027,12 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, mp_number w) 
   mp_number dashoff;
   double *dashes = NULL;
   int num_dashes = 1;
+  new_number (scf);
   h = (mp_dash_node)mp_dash_p (q);
   if (h == NULL || dash_list (h) == mp->null_dash)
     return NULL;
   p = dash_list (h);
-  scf = mp_get_pen_scale (mp, mp_pen_p (q));
+  mp_get_pen_scale (mp, scf, mp_pen_p (q));
   if (number_zero(scf)) {
     if (number_zero(w)) {
       number_clone(scf, q->dash_scale);
@@ -11066,6 +11055,7 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, mp_number w) 
     mp_number ret, arg1;
     new_number (ret);
     new_number (arg1);
+    new_number (dashoff);
     while (p != mp->null_dash) {
       dashes = xrealloc (dashes, (num_dashes + 2), sizeof (double));
       set_number_from_substraction (arg1, p->stop_x, p->start_x);
@@ -11079,7 +11069,7 @@ static mp_dash_object *mp_export_dashes (MP mp, mp_stroked_node q, mp_number w) 
       p = (mp_dash_node)mp_link (p);
     }
     d->array = dashes;
-    dashoff = mp_dash_offset (mp, h);
+    mp_dash_offset (mp, dashoff, h);
     take_scaled (ret, dashoff, scf);
     d->offset = number_to_double(ret);
     free_number (ret);
@@ -11431,6 +11421,7 @@ if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
   mp_number ret, arg1;
   new_number (ret);
   new_number (arg1);
+  new_number (dashoff);
   set_number_from_addition(mp->null_dash->start_x, ppd->start_x, hhd->dash_y );
   while (ppd != mp->null_dash) {
     mp_print (mp, "on ");
@@ -11446,7 +11437,7 @@ if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
       mp_print_char (mp, xord (' '));
   }
   mp_print (mp, ") shifted ");
-  dashoff = mp_dash_offset (mp, hhd);
+  mp_dash_offset (mp, dashoff, hhd);
   take_scaled (ret, dashoff, scf);
   number_negate (ret);
   mp_print_number (mp, ret);
@@ -11459,15 +11450,13 @@ if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
 }
 
 @ @<Declarations@>=
-static mp_number mp_dash_offset (MP mp, mp_dash_node h);
+static void mp_dash_offset (MP mp, mp_number x, mp_dash_node h);
 
 @ @c
-mp_number mp_dash_offset (MP mp, mp_dash_node h) {
-  mp_number x;     /* the answer */
+void mp_dash_offset (MP mp, mp_number x, mp_dash_node h) {
   if (dash_list (h) == mp->null_dash || number_negative(h->dash_y ))
     mp_confusion (mp, "dash0");
 @:this can't happen dash0}{\quad dash0@>;
-  new_number (x);
   if (number_zero(h->dash_y)) {
     set_number_to_zero(x); 
   } else {
@@ -11475,7 +11464,6 @@ mp_number mp_dash_offset (MP mp, mp_dash_node h) {
     if (number_negative(x))
       number_add(x, h->dash_y);
   }
-  return x;
 }
 
 
@@ -11801,7 +11789,8 @@ mp_node ds;     /* the stroked node from which |hh| and |hsf| are derived */
   dln = (mp_dash_node)mp_link (d);
   dd = dash_list (hh);
   new_number (xoff);
-  dashoff = mp_dash_offset (mp, (mp_dash_node)hh);
+  new_number (dashoff);
+  mp_dash_offset (mp, dashoff, (mp_dash_node)hh);
   take_scaled (r1, hsf, dd->start_x);
   take_scaled (r2, hsf, dashoff);
   number_add (r1, r2);
@@ -26940,7 +26929,8 @@ static mp_edge_header_node mp_edges_trans (MP mp, mp_edge_header_node h) {
   h = mp_private_edges (mp, h);
   new_number(sx);
   new_number(sy);
-  sqdet = mp_sqrt_det (mp, mp->txx, mp->txy, mp->tyx, mp->tyy);
+  new_number(sqdet);
+  mp_sqrt_det (mp, sqdet, mp->txx, mp->txy, mp->tyx, mp->tyy);
   sgndet = mp_ab_vs_cd (mp, mp->txx, mp->tyy, mp->txy, mp->tyx);
   if (dash_list (h) != mp->null_dash) {
     @<Try to transform the dash list of |h|@>;
@@ -33366,7 +33356,8 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
       mp_fill_node p0 = (mp_fill_node)p;
       tf = (mp_fill_object *) hq;
       gr_pen_p (tf) = mp_export_knot_list (mp, mp_pen_p (p0));
-      d_width = mp_get_pen_scale (mp, mp_pen_p (p0));
+      new_number (d_width);
+      mp_get_pen_scale (mp, d_width, mp_pen_p (p0));
       if ((mp_pen_p (p0) == NULL) || pen_is_elliptical (mp_pen_p (p0))) {
         gr_path_p (tf) = mp_export_knot_list (mp, mp_path_p (p0));
       } else {
@@ -33395,7 +33386,8 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
       mp_stroked_node p0 = (mp_stroked_node)p;
       ts = (mp_stroked_object *) hq;
       gr_pen_p (ts) = mp_export_knot_list (mp, mp_pen_p (p0));
-      d_width = mp_get_pen_scale (mp, mp_pen_p (p0));
+      new_number (d_width);
+      mp_get_pen_scale (mp, d_width, mp_pen_p (p0));
       if (pen_is_elliptical (mp_pen_p (p0))) {
         gr_path_p (ts) =
           mp_export_knot_list (mp, mp_path_p (p0));
