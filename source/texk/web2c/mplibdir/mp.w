@@ -4796,7 +4796,7 @@ static void do_set_value_node(MP mp, mp_token_node A, mp_node B) { /* store the 
    A->data.p = NULL;
    A->data.str = NULL;
    A->data.node = B;
-   set_number_from_scaled (A->data.n, 0);
+   set_number_to_zero (A->data.n);
 }
 
 @ @c
@@ -6100,7 +6100,7 @@ subscript list, even though that word isn't part of a subscript node.
   mp_number nn;
   mp_number save_subscript;      /* temporary storage */
   new_number (nn);
-  set_number_from_scaled (nn, value (t));
+  number_clone (nn, value_number (t));
   pp = mp_link (attr_head (pp));        /* now |hashloc(pp)=collective_subscript| */
   q = mp_link (attr_head (p));
   new_number (save_subscript);
@@ -7898,7 +7898,7 @@ void mp_reduce_angle (MP mp, mp_number a);
   mp_number narg;
   new_angle (narg);
   n_arg (narg, mp->delta_x[n - 1], mp->delta_y[n - 1]);
-  set_number_from_scaled(mp->theta[n],  number_to_scaled(s->left_given) - number_to_scaled (narg));
+  set_number_from_substraction(mp->theta[n], s->left_given, narg);
   free_number (narg);
   mp_reduce_angle (mp, mp->theta[n]);
   goto FOUND;
@@ -7910,7 +7910,7 @@ void mp_reduce_angle (MP mp, mp_number a);
   mp_number narg;
   new_angle (narg);
   n_arg (narg, mp->delta_x[0], mp->delta_y[0]);
-  set_number_from_scaled(mp->vv[0], number_to_scaled(s->right_given) - number_to_scaled (narg));
+  set_number_from_substraction(mp->vv[0], s->right_given, narg);
   free_number (narg);
   mp_reduce_angle (mp, mp->vv[0]);
   set_number_to_zero(mp->uu[0]);
@@ -8043,8 +8043,11 @@ void mp_curl_ratio (MP mp, mp_number ret, mp_number gamma_orig, mp_number a_tens
     free_number (arg1);
   } else {
     mp_number arg1, r1;
+    mp_number approx;
     new_number (arg1);
     new_number (r1);
+    new_number (approx);
+    set_number_from_scaled (approx, 1365);  /* $1365\approx 2^{12}/3$ */
     make_fraction (ff, beta, alpha);
     number_clone (arg1, ff);
     take_fraction (ff, arg1, arg1);
@@ -8053,12 +8056,13 @@ void mp_curl_ratio (MP mp, mp_number ret, mp_number gamma_orig, mp_number a_tens
     number_clone (beta, arg1);   
     take_fraction (arg1, gamma, alpha);
     new_number (denom);
-    set_number_from_scaled (denom, number_to_scaled (arg1) + (number_to_scaled(ff) / 1365) - number_to_scaled(beta)); /* $1365\approx 2^{12}/3$ */
+    set_number_from_scaled (denom, number_to_scaled (arg1) + (number_to_scaled(ff) / number_to_scaled (approx)) - number_to_scaled(beta));
     set_number_from_substraction (arg1, fraction_three_t, alpha);
     take_fraction (num, gamma, arg1);
     number_add (num, beta);
     free_number (arg1);
     free_number (r1);
+    free_number (approx);
   }
   if (number_to_scaled(num) >= number_to_scaled(denom) + number_to_scaled(denom) + number_to_scaled(denom) + number_to_scaled(denom)) {
     number_clone(ret, fraction_four_t);
@@ -11695,13 +11699,13 @@ d = dash_list (h);
 while ((mp_link (d) != (mp_node)mp->null_dash))
   d = (mp_dash_node)mp_link (d);
 dd = dash_list (h);
-set_number_from_scaled(h->dash_y, number_to_scaled(d->stop_x) - number_to_scaled(dd->start_x));
+set_number_from_substraction(h->dash_y, d->stop_x, dd->start_x);
 if (abs (number_to_scaled (y0)) > number_to_scaled(h->dash_y) ) {
   number_clone(h->dash_y, y0);
   number_abs (h->dash_y);
 } else if (d != dd) {
   set_dash_list (h, mp_link (dd));
-  set_number_from_scaled(d->stop_x, number_to_scaled(dd->stop_x) + number_to_scaled(h->dash_y));
+  set_number_from_addition(d->stop_x, dd->stop_x, h->dash_y);
   mp_free_node (mp, (mp_node)dd, dash_node_size);
 }
 
@@ -19426,7 +19430,7 @@ void mp_resume_iteration (MP mp) {
     }
     mp->cur_exp.type = mp_known;
     q = mp_stash_cur_exp (mp);  /* make |q| an \&{expr} argument */
-    set_number_from_scaled (mp->loop_ptr->value, cur_exp_value () + number_to_scaled (mp->loop_ptr->step_size));   
+    set_number_from_addition (mp->loop_ptr->value, cur_exp_value_number (), mp->loop_ptr->step_size);   
                                                                        /* set |value(p)| for the next iteration */
     /* detect numeric overflow */
     if (number_positive(mp->loop_ptr->step_size) &&
@@ -19606,12 +19610,12 @@ CONTINUE:
 {
   if (mp->cur_exp.type != mp_known)
     mp_bad_for (mp, "initial value");
-  set_number_from_scaled (s->value, cur_exp_value ());
+  number_clone (s->value, cur_exp_value_number ());
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_known)
     mp_bad_for (mp, "step size");
-  set_number_from_scaled (s->step_size, cur_exp_value ());
+  number_clone (s->step_size, cur_exp_value_number ());
   if (cur_cmd() != mp_until_token) {
     const char *hlp[] = {
            "I assume you meant to say `until' after `step'.",
@@ -19624,7 +19628,7 @@ CONTINUE:
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_known)
     mp_bad_for (mp, "final value");
-  set_number_from_scaled (s->final_value, cur_exp_value ());
+  number_clone (s->final_value, cur_exp_value_number ());
   s->type = PROGRESSION_FLAG;
   break;
 }
@@ -20598,15 +20602,6 @@ recovery.
         delete_str_ref(cur_exp_str());
     }
     set_number_from_scaled (mp->cur_exp.data.n, (A));
-    cur_exp_node() = NULL;
-    cur_exp_str() = NULL;
-    cur_exp_knot() = NULL;
-  } while (0)
-@d set_cur_exp_value_number(A) do {
-    if (cur_exp_str()) {
-        delete_str_ref(cur_exp_str());
-    }
-    cur_exp_value_number() = (A);
     cur_exp_node() = NULL;
     cur_exp_str() = NULL;
     cur_exp_knot() = NULL;
@@ -23126,10 +23121,10 @@ the value of |mp_right_type(q)| in cases such as
   t = mp_scan_direction (mp);
   if (t != mp_open) {
     mp_right_type (path_q) = (unsigned short) t;
-    set_number_from_scaled(path_q->right_given, cur_exp_value ());
+    number_clone(path_q->right_given, cur_exp_value_number ());
     if (mp_left_type (path_q) == mp_open) {
       mp_left_type (path_q) = (unsigned short) t;
-      set_number_from_scaled(path_q->left_given, cur_exp_value ());
+      number_clone(path_q->left_given, cur_exp_value_number ());
     }                           /* note that |left_given(q)=left_curl(q)| */
   }
 }
@@ -23144,7 +23139,7 @@ there are no explicit control points.
 {
   t = mp_scan_direction (mp);
   if (mp_right_type (path_q) != mp_explicit)
-    set_number_from_scaled (x, cur_exp_value ());
+    number_clone (x, cur_exp_value_number ());
   else
     t = mp_explicit;            /* the direction information is superfluous */
 }
@@ -23183,7 +23178,7 @@ DONE:
   @<Make sure that the current expression is a valid tension setting@>;
   if (number_to_scaled (y) == mp_at_least)
     negate_cur_exp_value ();
-  set_number_from_scaled(path_q->right_tension, cur_exp_value ());
+  number_clone(path_q->right_tension, cur_exp_value_number ());
   if (cur_cmd() == mp_and_command) {
     mp_get_x_next (mp);
     set_number_from_scaled (y, cur_cmd());
@@ -23194,7 +23189,7 @@ DONE:
     if (number_to_scaled (y) == mp_at_least)
       negate_cur_exp_value ();
   }
-  set_number_from_scaled (y, cur_exp_value ());
+  number_clone (y, cur_exp_value_number ());
 }
 
 
@@ -24025,7 +24020,7 @@ if (mp->cur_exp.type != mp_known) {
     {
       mp_number vvx;
       new_number (vvx);
-      set_number_from_scaled (vvx, cur_exp_value ());
+      number_clone (vvx, cur_exp_value_number ());
       floor_scaled (vvx);
       set_cur_exp_value (number_to_scaled (vvx));
       free_number (vvx);
@@ -26354,7 +26349,7 @@ static void mp_frac_mult (MP mp, mp_number n, mp_number d) {
     mp_number r1, arg1;
     new_fraction (r1);
     new_number (arg1);
-    set_number_from_scaled (arg1, cur_exp_value ());
+    number_clone (arg1, cur_exp_value_number ());
     take_fraction (r1, arg1, v);
     set_cur_exp_value (number_to_scaled (r1));
     free_number (r1);
@@ -26471,7 +26466,7 @@ if ((mp->cur_exp.type != mp_known) || (mp_type (p) < mp_color_type)) {
 } else {
   mp_number v_n;
   new_number (v_n); 
-  set_number_from_scaled (v_n, cur_exp_value ());
+  number_clone (v_n, cur_exp_value_number ());
   mp_unstash_cur_exp (mp, p);
   if (number_zero(v_n)) {
     @<Squeal about division by zero@>;
@@ -31783,9 +31778,9 @@ We may need to cancel skips that span more than 127 lig/kern steps.
       mp_get_x_next (mp);
       mp_flush_cur_exp (mp, new_expr);
     }
-    set_number_from_scaled (mp->kern[mp->nk], cur_exp_value ());
+    number_clone (mp->kern[mp->nk], cur_exp_value_number ());
     k = 0;
-    while (number_to_scaled (mp->kern[k]) != cur_exp_value ())
+    while (!number_equal (mp->kern[k], cur_exp_value_number ()))
       incr (k);
     if (k == mp->nk) {
       if (mp->nk == max_tfm_int)
@@ -31868,7 +31863,7 @@ do {
     mp_get_x_next (mp);
     mp_flush_cur_exp (mp, new_expr);
   }
-  set_number_from_scaled (mp->param[j], cur_exp_value ());
+  number_clone (mp->param[j], cur_exp_value_number ());
   incr (j);
 } while (cur_cmd() == mp_comma)
 
