@@ -71,6 +71,10 @@ void mp_set_number_from_scaled(mp_number A, int B);
 void mp_set_number_from_double(mp_number A, double B);
 void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C);
 void mp_set_number_from_substraction (mp_number A, mp_number B, mp_number C);
+void mp_set_number_from_div(mp_number A, mp_number B, mp_number C);
+void mp_set_number_from_mul(mp_number A, mp_number B, mp_number C);
+void mp_set_number_from_int_div(mp_number A, mp_number B, int C);
+void mp_set_number_from_int_mul(mp_number A, mp_number B, int C);
 void mp_set_number_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B, mp_number C);
 void mp_number_negate(mp_number A);
 void mp_number_add(mp_number A, mp_number B);
@@ -107,6 +111,10 @@ typedef void (*number_from_scaled_func) (mp_number A, int B);
 typedef void (*number_from_double_func) (mp_number A, double B);
 typedef void (*number_from_addition_func) (mp_number A, mp_number B, mp_number C);
 typedef void (*number_from_substraction_func) (mp_number A, mp_number B, mp_number C);
+typedef void (*number_from_div_func) (mp_number A, mp_number B, mp_number C);
+typedef void (*number_from_mul_func) (mp_number A, mp_number B, mp_number C);
+typedef void (*number_from_int_div_func) (mp_number A, mp_number B, int C);
+typedef void (*number_from_int_mul_func) (mp_number A, mp_number B, int C);
 typedef void (*number_from_oftheway_func) (MP mp, mp_number A, mp_number t, mp_number B, mp_number C);
 typedef void (*number_negate_func) (mp_number A);
 typedef void (*number_add_func) (mp_number A, mp_number B);
@@ -136,6 +144,7 @@ typedef void (*free_number_func) (MP mp, mp_number n);
 typedef void (*fraction_to_round_scaled_func) (mp_number n);
 
 typedef struct math_data {
+  mp_number epsilon_t;
   mp_number inf_t;
   mp_number one_third_inf_t;
   mp_number zero_t;
@@ -155,12 +164,17 @@ typedef struct math_data {
   mp_number twelve_ln_2_k;
   mp_number coef_bound_k;
   mp_number coef_bound_minus_1;
+  mp_number twelvebits_3;
   new_number_func new;
   free_number_func free;
   number_from_scaled_func from_scaled;
   number_from_double_func from_double;
   number_from_addition_func from_addition;
   number_from_substraction_func from_substraction;
+  number_from_div_func from_div;
+  number_from_mul_func from_mul;
+  number_from_int_div_func from_int_div;
+  number_from_int_mul_func from_int_mul;
   number_from_oftheway_func from_oftheway;
   number_negate_func negate;
   number_add_func add;
@@ -211,6 +225,8 @@ void * mp_initialize_math (MP mp) {
   math->new = mp_new_number;
   math->free = mp_free_number;
   /* here are the constants for |scaled| objects */
+  math->epsilon_t = mp_new_number (mp, mp_scaled_type);
+  math->epsilon_t->data.val  = 1;
   math->inf_t = mp_new_number (mp, mp_scaled_type);
   math->inf_t->data.val  = EL_GORDO;
   math->one_third_inf_t = mp_new_number (mp, mp_scaled_type);
@@ -243,20 +259,26 @@ void * mp_initialize_math (MP mp) {
   /* various approximations */
   math->one_k = mp_new_number (mp, mp_scaled_type);
   math->one_k->data.val = 1024;
-  math->sqrt_8_e_k = mp_new_number (mp, mp_scaled_type); /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
-  math->sqrt_8_e_k->data.val = 112429;
-  math->twelve_ln_2_k = mp_new_number (mp, mp_fraction_type); /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
-  math->twelve_ln_2_k->data.val = 139548960;
+  math->sqrt_8_e_k = mp_new_number (mp, mp_scaled_type); 
+  math->sqrt_8_e_k->data.val = 112429; /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
+  math->twelve_ln_2_k = mp_new_number (mp, mp_fraction_type); 
+  math->twelve_ln_2_k->data.val = 139548960; /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
   math->coef_bound_k = mp_new_number (mp, mp_fraction_type);
   math->coef_bound_k->data.val = coef_bound;
   math->coef_bound_minus_1 = mp_new_number (mp, mp_fraction_type);
   math->coef_bound_minus_1->data.val = coef_bound - 1;
+  math->twelvebits_3 = mp_new_number (mp, mp_scaled_type);
+  math->twelvebits_3->data.val = 1365;  /* $1365\approx 2^{12}/3$ */
   /* functions */
   math->from_scaled = mp_set_number_from_scaled;
   math->from_double = mp_set_number_from_double;
   math->from_addition  = mp_set_number_from_addition;
   math->from_substraction  = mp_set_number_from_substraction;
   math->from_oftheway  = mp_set_number_from_of_the_way;
+  math->from_div  = mp_set_number_from_div;
+  math->from_mul  = mp_set_number_from_mul;
+  math->from_int_div  = mp_set_number_from_int_div;
+  math->from_int_mul  = mp_set_number_from_int_mul;
   math->negate = mp_number_negate;
   math->add  = mp_number_add;
   math->substract = mp_number_substract;
@@ -360,6 +382,18 @@ void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C) {
 }
 void mp_set_number_from_substraction (mp_number A, mp_number B, mp_number C) {
  A->data.val = B->data.val-C->data.val;
+}
+void mp_set_number_from_div(mp_number A, mp_number B, mp_number C) {
+  A->data.val = B->data.val / C->data.val;
+}
+void mp_set_number_from_mul(mp_number A, mp_number B, mp_number C) {
+  A->data.val = B->data.val * C->data.val;
+}
+void mp_set_number_from_int_div(mp_number A, mp_number B, int C) {
+  A->data.val = B->data.val / C;
+}
+void mp_set_number_from_int_mul(mp_number A, mp_number B, int C) {
+  A->data.val = B->data.val * C;
 }
 void mp_set_number_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B, mp_number C) {
   A->data.val = B->data.val - mp_take_fraction(mp, (B->data.val - C->data.val), t->data.val);

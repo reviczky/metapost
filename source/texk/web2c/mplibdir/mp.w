@@ -2200,7 +2200,9 @@ static void mp_clear_arith (MP mp) {
 @d coef_bound_minus_1 ((math_data *)mp->math)->coef_bound_minus_1
 @d sqrt_8_e_k ((math_data *)mp->math)->sqrt_8_e_k
 @d twelve_ln_2_k ((math_data *)mp->math)->twelve_ln_2_k
+@d twelvebits_3 ((math_data *)mp->math)->twelvebits_3
 @d one_k  ((math_data *)mp->math)->one_k
+@d epsilon_t  ((math_data *)mp->math)->epsilon_t
 @d unity_t  ((math_data *)mp->math)->unity_t
 @d zero_t  ((math_data *)mp->math)->zero_t
 @d two_t ((math_data *)mp->math)->two_t
@@ -8012,6 +8014,8 @@ static void mp_curl_ratio (MP mp, mp_number ret, mp_number gamma, mp_number a_te
 @ @c
 void mp_curl_ratio (MP mp, mp_number ret, mp_number gamma_orig, mp_number a_tension, mp_number b_tension) {
   mp_number alpha, beta, gamma, num, denom, ff; /* registers */
+  mp_number n1;
+  new_number (n1);
   new_fraction (alpha);
   new_fraction (beta);
   new_fraction (gamma);
@@ -8039,11 +8043,8 @@ void mp_curl_ratio (MP mp, mp_number ret, mp_number gamma_orig, mp_number a_tens
     free_number (arg1);
   } else {
     mp_number arg1, r1;
-    mp_number approx;
     new_number (arg1);
     new_number (r1);
-    new_number (approx);
-    set_number_from_scaled (approx, 1365);  /* $1365\approx 2^{12}/3$ */
     make_fraction (ff, beta, alpha);
     number_clone (arg1, ff);
     take_fraction (ff, arg1, arg1);
@@ -8052,15 +8053,22 @@ void mp_curl_ratio (MP mp, mp_number ret, mp_number gamma_orig, mp_number a_tens
     number_clone (beta, arg1);   
     take_fraction (arg1, gamma, alpha);
     new_number (denom);
-    set_number_from_scaled (denom, number_to_scaled (arg1) + (number_to_scaled(ff) / number_to_scaled (approx)) - number_to_scaled(beta));
+    {
+      set_number_from_div (n1, ff, twelvebits_3);
+      number_clone (denom, arg1);
+      number_add (denom, n1);
+      number_substract (denom, beta);
+    }
     set_number_from_substraction (arg1, fraction_three_t, alpha);
     take_fraction (num, gamma, arg1);
     number_add (num, beta);
     free_number (arg1);
     free_number (r1);
-    free_number (approx);
   }
-  if (number_to_scaled(num) >= number_to_scaled(denom) + number_to_scaled(denom) + number_to_scaled(denom) + number_to_scaled(denom)) {
+  number_clone (n1, denom);
+  number_double (n1);
+  number_double (n1); /* n1 = 4*denom */
+  if (number_greaterequal(num, n1)) {
     number_clone(ret, fraction_four_t);
   } else {
     make_fraction (ret, num, denom);
@@ -8071,6 +8079,7 @@ void mp_curl_ratio (MP mp, mp_number ret, mp_number gamma_orig, mp_number a_tens
   free_number (num);
   free_number (denom);
   free_number (ff);
+  free_number (n1);
 }
 
 
@@ -8268,14 +8277,23 @@ if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpos
   number_clone (rt, p->right_tension);
   number_abs(rt);
   if (number_unity(rt)) {
-    if (number_nonnegative(mp->delta_x[0]))
-      set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + ((number_to_scaled(mp->delta_x[0]) + 1) / 3));
-    else
-      set_number_from_scaled (p->right_x, number_to_scaled (p->x_coord) + ((number_to_scaled(mp->delta_x[0]) - 1) / 3));
-    if (number_nonnegative(mp->delta_y[0]))
-      set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + ((number_to_scaled(mp->delta_y[0]) + 1) / 3));
-    else
-      set_number_from_scaled (p->right_y, number_to_scaled (p->y_coord) + ((number_to_scaled(mp->delta_y[0]) - 1) / 3));
+    mp_number arg2;
+    new_number (arg2);
+    if (number_nonnegative(mp->delta_x[0])) {
+      set_number_from_addition (arg2, mp->delta_x[0], epsilon_t);
+    } else {
+      set_number_from_substraction (arg2, mp->delta_x[0], epsilon_t);
+    }
+    number_int_div (arg2, 3);
+    set_number_from_addition (p->right_x, p->x_coord, arg2);
+    if (number_nonnegative(mp->delta_y[0])) {
+      set_number_from_addition (arg2, mp->delta_y[0], epsilon_t);
+    } else {
+      set_number_from_substraction (arg2, mp->delta_y[0], epsilon_t);
+    }
+    number_int_div (arg2, 3);
+    set_number_from_addition (p->right_y, p->y_coord, arg2);
+    free_number (arg2);
   } else {
     mp_number arg2, r1;
     new_fraction (r1);
@@ -8290,14 +8308,23 @@ if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpos
     set_number_from_addition (p->right_y, p->y_coord, r1);
   }
   if (number_unity(lt)) {
-    if (number_nonnegative(mp->delta_x[0]))
-      set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - ((number_to_scaled(mp->delta_x[0]) + 1) / 3));
-    else
-      set_number_from_scaled(q->left_x, number_to_scaled(q->x_coord) - ((number_to_scaled(mp->delta_x[0]) - 1) / 3));
-    if (number_nonnegative(mp->delta_y[0]))
-      set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - ((number_to_scaled(mp->delta_y[0]) + 1) / 3));
-    else
-      set_number_from_scaled(q->left_y, number_to_scaled(q->y_coord) - ((number_to_scaled(mp->delta_y[0]) - 1) / 3));
+    mp_number arg2;
+    new_number (arg2);
+    if (number_nonnegative(mp->delta_x[0])) {
+      set_number_from_addition (arg2, mp->delta_x[0], epsilon_t);
+    } else {
+      set_number_from_substraction (arg2, mp->delta_x[0], epsilon_t);
+    }
+    number_int_div (arg2, 3);
+    set_number_from_substraction (q->left_x, q->x_coord, arg2);
+    if (number_nonnegative(mp->delta_y[0])) {
+      set_number_from_addition (arg2, mp->delta_y[0], epsilon_t);
+    } else {
+      set_number_from_substraction (arg2, mp->delta_y[0], epsilon_t);
+    }
+    number_int_div (arg2, 3);
+    set_number_from_substraction (q->left_y, q->y_coord, arg2);
+    free_number (arg2);
   } else {
     mp_number arg2, r1;
     new_fraction (r1);
@@ -10229,6 +10256,10 @@ This first set goes into the header
 @d set_number_from_double(A,B)	       (((math_data *)(mp->math))->from_double)(A,B)
 @d set_number_from_addition(A,B,C)     (((math_data *)(mp->math))->from_addition)(A,B,C)
 @d set_number_from_substraction(A,B,C) (((math_data *)(mp->math))->from_substraction)(A,B,C)
+@d set_number_from_div(A,B,C)          (((math_data *)(mp->math))->from_div)(A,B,C)
+@d set_number_from_mul(A,B,C)          (((math_data *)(mp->math))->from_mul)(A,B,C)
+@d number_int_div(A,C)                 (((math_data *)(mp->math))->from_int_div)(A,A,C)
+@d set_number_from_int_mul(A,B,C)      (((math_data *)(mp->math))->from_int_mul)(A,B,C)
 @#
 @d set_number_to_unity(A)	       (((math_data *)(mp->math))->clone)(A, unity_t)
 @d set_number_to_zero(A)	       (((math_data *)(mp->math))->clone)(A, zero_t)
