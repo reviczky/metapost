@@ -59,6 +59,8 @@
 @<Internal library declarations@>=
 extern mp_number mp_new_number (MP mp, mp_number_type t) ;
 extern void mp_free_number (MP mp, mp_number n) ;
+void mp_pyth_sub (MP mp, mp_number r, mp_number a, mp_number b);
+void mp_pyth_add (MP mp, mp_number r, mp_number a, mp_number b);
 void mp_n_arg (MP mp, mp_number ret, mp_number x, mp_number y);
 void mp_velocity (MP mp, mp_number ret, mp_number st, mp_number ct, mp_number sf,  mp_number cf, mp_number t);
 void mp_set_number_from_scaled(mp_number A, int B);
@@ -90,6 +92,8 @@ void mp_number_make_scaled (MP mp, mp_number r, mp_number p, mp_number q);
 void mp_number_make_fraction (MP mp, mp_number r, mp_number p, mp_number q);
 void mp_number_take_fraction (MP mp, mp_number r, mp_number p, mp_number q);
 void mp_number_take_scaled (MP mp, mp_number r, mp_number p, mp_number q);
+typedef void (*pyth_add_func) (MP mp, mp_number r, mp_number a, mp_number b);
+typedef void (*pyth_sub_func) (MP mp, mp_number r, mp_number a, mp_number b);
 typedef void (*n_arg_func) (MP mp, mp_number r, mp_number a, mp_number b);
 typedef void (*velocity_func) (MP mp, mp_number r, mp_number a, mp_number b, mp_number c, mp_number d, mp_number e);
 typedef void (*number_from_scaled_func) (mp_number A, int B);
@@ -171,6 +175,8 @@ typedef struct math_data {
   take_scaled_func take_scaled;
   velocity_func velocity;
   n_arg_func n_arg;
+  pyth_add_func pyth_add;
+  pyth_sub_func pyth_sub;
   fraction_to_scaled_func fraction_to_scaled;
 } math_data;
 
@@ -246,6 +252,8 @@ void * mp_initialize_math (MP mp) {
   math->take_scaled = mp_number_take_scaled;
   math->velocity = mp_velocity;
   math->n_arg = mp_n_arg;
+  math->pyth_add = mp_pyth_add;
+  math->pyth_sub = mp_pyth_sub;
   return (void *)math;
 }
 
@@ -1107,17 +1115,11 @@ of Research and Development\/ \bf27} (1983), 577--581]. It modifies |a| and~|b|
 in such a way that their Pythagorean sum remains invariant, while the
 smaller argument decreases.
 
-@<Internal library ...@>=
-mp_number mp_pyth_add (MP mp, mp_number a, mp_number b);
-
-
-@ @c
-mp_number mp_pyth_add (MP mp, mp_number a_orig, mp_number b_orig) {
+@c
+void mp_pyth_add (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig) {
   int a, b; /* a,b : scaled */
-  mp_number ret;
   int r;   /* register used to transform |a| and |b|, fraction */
   boolean big;  /* is the result dangerously near $2^{31}$? */
-  new_number(ret);
   a = abs (a_orig->data.val);
   b = abs (b_orig->data.val);
   if (a < b) {
@@ -1144,7 +1146,6 @@ mp_number mp_pyth_add (MP mp, mp_number a_orig, mp_number b_orig) {
     }
   }
   ret->data.val = a;
-  return ret;
 }
 
 
@@ -1166,16 +1167,11 @@ while (1) {
 @ Here is a similar algorithm for $\psqrt{a^2-b^2}$.
 It converges slowly when $b$ is near $a$, but otherwise it works fine.
 
-@<Internal library declarations@>=
-mp_number mp_pyth_sub (MP mp, mp_number a, mp_number b);
-
-@ @c
-mp_number mp_pyth_sub (MP mp, mp_number a_orig, mp_number b_orig) {
-  mp_number ret;
+@c
+void mp_pyth_sub (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig) {
   int a, b; /* a,b: scaled */
   int r;   /* register used to transform |a| and |b|, fraction */
   boolean big;  /* is the result dangerously near $2^{31}$? */
-  new_number(ret);  
   a = abs (a_orig->data.val);
   b = abs (b_orig->data.val);
   if (a <= b) {
@@ -1193,7 +1189,6 @@ mp_number mp_pyth_sub (MP mp, mp_number a_orig, mp_number b_orig) {
       a *= 2;
   }
   ret->data.val = a;
-  return ret;
 }
 
 
@@ -1564,6 +1559,7 @@ void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin) {
   integer x, y, t;      /* temporary registers */
   int z; /* scaled */
   mp_number x_n, y_n, ret;
+  new_number (ret);
   new_number (x_n);
   new_number (y_n);
   z = z_orig->data.val;
@@ -1580,7 +1576,7 @@ void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin) {
   @<Convert |(x,y)| to the octant determined by~|q|@>;
   x_n->data.val = x;
   y_n->data.val = y;
-  ret = mp_pyth_add (mp, x_n, y_n);
+  mp_pyth_add (mp, ret, x_n, y_n);
   n_cos->data.val = mp_make_fraction (mp, x, ret->data.val);
   n_sin->data.val = mp_make_fraction (mp, y, ret->data.val);
   free_number(ret);
