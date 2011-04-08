@@ -147,6 +147,11 @@ typedef struct math_data {
   mp_number fraction_four_t;
   mp_number one_eighty_deg_t;
   mp_number three_sixty_deg_t;
+  mp_number one_k;
+  mp_number sqrt_8_e_k;
+  mp_number twelve_ln_2_k;
+  mp_number coef_bound_k;
+  mp_number coef_bound_minus_1;
   new_number_func new;
   free_number_func free;
   number_from_scaled_func from_scaled;
@@ -190,7 +195,11 @@ typedef struct math_data {
 void * mp_initialize_math (MP mp);
 void mp_free_math (MP mp);
 
-@ @c
+@ 
+
+@d coef_bound 04525252525 /* |fraction| approximation to 7/3 */
+
+@c
 void * mp_initialize_math (MP mp) {
   math_data *math = (math_data *)mp_xmalloc(mp,1,sizeof(math_data));
   /* alloc */
@@ -226,6 +235,17 @@ void * mp_initialize_math (MP mp) {
   math->three_sixty_deg_t->data.val = three_sixty_deg;
   math->one_eighty_deg_t = mp_new_number (mp, mp_angle_type);
   math->one_eighty_deg_t->data.val = one_eighty_deg;
+  /* various approximations */
+  math->one_k = mp_new_number (mp, mp_scaled_type);
+  math->one_k->data.val = 1024;
+  math->sqrt_8_e_k = mp_new_number (mp, mp_scaled_type); /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
+  math->sqrt_8_e_k->data.val = 112429;
+  math->twelve_ln_2_k = mp_new_number (mp, mp_fraction_type); /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
+  math->twelve_ln_2_k->data.val = 139548960;
+  math->coef_bound_k = mp_new_number (mp, mp_fraction_type);
+  math->coef_bound_k->data.val = coef_bound;
+  math->coef_bound_minus_1 = mp_new_number (mp, mp_fraction_type);
+  math->coef_bound_minus_1->data.val = coef_bound - 1;
   /* functions */
   math->from_scaled = mp_set_number_from_scaled;
   math->from_double = mp_set_number_from_double;
@@ -277,6 +297,11 @@ void mp_free_math (MP mp) {
   free_number (((math_data *)mp->math)->three_t);
   free_number (((math_data *)mp->math)->one_third_inf_t);
   free_number (((math_data *)mp->math)->inf_t);
+  free_number (((math_data *)mp->math)->one_k);
+  free_number (((math_data *)mp->math)->sqrt_8_e_k);
+  free_number (((math_data *)mp->math)->twelve_ln_2_k);
+  free_number (((math_data *)mp->math)->coef_bound_k);
+  free_number (((math_data *)mp->math)->coef_bound_minus_1);
   free(mp->math);
 }
 
