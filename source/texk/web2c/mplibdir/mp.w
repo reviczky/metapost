@@ -2298,15 +2298,12 @@ static void mp_new_randoms (MP mp) {
 @ To consume a random fraction, the program below will say `|next_random|'.
 
 @c 
-static mp_number mp_next_random (MP mp) { 
-  mp_number ret;
-  new_number (ret);
+static void mp_next_random (MP mp, mp_number ret) { 
   if ( mp->j_random==0 ) 
     mp_new_randoms(mp);
   else 
     decr(mp->j_random); 
   number_clone (ret, mp->randoms[mp->j_random]);
-  return ret;
 }
 
 
@@ -2351,19 +2348,18 @@ with about half the probability that it will produce any other particular
 values between 0 and~|x|, because it rounds its answers.
 
 @c
-static mp_number mp_unif_rand (MP mp, mp_number x_orig) {
+static void mp_unif_rand (MP mp, mp_number ret, mp_number x_orig) {
   mp_number y;     /* trial value */
   mp_number x, abs_x;
-  mp_number ret;
   mp_number u;
   new_fraction (y);
   new_number (x);
   new_number (abs_x);
-  new_number (ret);
+  new_number (u);
   number_clone (x, x_orig);
   number_clone (abs_x, x);
   number_abs (abs_x);
-  u = mp_next_random(mp);
+  mp_next_random(mp, u);
   take_fraction (y, abs_x, u);
   free_number (u);
   if (number_equal(y, abs_x)) {
@@ -2377,7 +2373,6 @@ static mp_number mp_unif_rand (MP mp, mp_number x_orig) {
   free_number (abs_x);
   free_number (x);
   free_number (y);
-  return ret;
 }
 
 
@@ -2386,10 +2381,9 @@ can readily be obtained with the ratio method (Algorithm 3.4.1R in
 {\sl The Art of Computer Programming\/}).
 
 @c
-static mp_number mp_norm_rand (MP mp) {
+static void mp_norm_rand (MP mp, mp_number ret) {
   integer l;      /* what the book would call $2^{16}X$, $2^{28}U$, and $-2^{24}\ln U$ */
   mp_number abs_x;
-  mp_number ret;
   mp_number u;
   mp_number r;
   mp_number one_k, la, xa;
@@ -2399,17 +2393,19 @@ static mp_number mp_norm_rand (MP mp) {
   new_number (xa);
   new_number (abs_x);
   set_number_from_scaled (one_k, 1024);
+  new_number (u);
   new_number (r);
-  new_number (ret);
   new_number (approx);
   set_number_from_scaled (approx, 112429); /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
   do {
     do {
-      mp_number v = mp_next_random(mp);
+      mp_number v;
+      new_number (v);
+      mp_next_random(mp, v);
       number_substract (v, fraction_half_t);
       take_fraction (xa, approx, v); 
       free_number (v);
-      u = mp_next_random(mp);
+      mp_next_random(mp, u);
       number_clone (abs_x, xa);
       number_abs (abs_x);
     } while (number_greaterequal (abs_x, u));
@@ -2426,7 +2422,6 @@ static mp_number mp_norm_rand (MP mp) {
   free_number (one_k);
   free_number (u);
   free_number (approx);
-  return ret;
 }
 
 
@@ -8362,9 +8357,7 @@ is already negative at |t=0|), |crossing_point| returns the value zero.
 @d zero_crossing { set_number_to_zero(ret); goto RETURN; }
 
 @c
-static mp_number mp_crossing_point (MP mp, mp_number a, mp_number b, mp_number c) {
-  mp_number ret;
-  new_fraction (ret);
+static void mp_crossing_point (MP mp, mp_number ret, mp_number a, mp_number b, mp_number c) {
   if (number_negative(a))
     zero_crossing;
   if (number_positive(c) || number_zero(c)) {
@@ -8385,7 +8378,7 @@ static mp_number mp_crossing_point (MP mp, mp_number a, mp_number b, mp_number c
   }
   @<Use bisection to find the crossing point, if one exists@>;
 RETURN:
-  return ret;
+  ;
 }
 
 
@@ -8595,8 +8588,7 @@ static void mp_bound_cubic (MP mp, mp_knot p, mp_knot q, quarterword c) {
       number_negate (del2);
       number_negate (del3);
     }
-    free_number (t);
-    t = mp_crossing_point (mp, del1, del2, del3);
+    mp_crossing_point (mp, t, del1, del2, del3);
     if (number_less(t, fraction_one_t)) {
       @<Test the extremes of the cubic against the bounding box@>;
     }
@@ -8693,8 +8685,7 @@ must cut it to zero to avoid confusion.
     number_negate(arg2);
     number_clone(arg3, del3);
     number_negate(arg3);
-    free_number (tt);
-    tt = mp_crossing_point (mp, zero_t, arg2, arg3);
+    mp_crossing_point (mp, tt, zero_t, arg2, arg3);
     free_number (arg2);
     free_number (arg3);
   }
@@ -12733,8 +12724,7 @@ void mp_fin_offset_prep (MP mp, mp_knot p, mp_knot w, mp_number
       ww = mp_prev_knot (w);    /* a pointer to $w_{k-1}$ */
     @<Compute test coefficients |(t0,t1,t2)|
       for $d(t)$ versus $d_k$ or $d_{k-1}$@>;
-    free_number (t);
-    t = mp_crossing_point (mp, t0, t1, t2);
+    mp_crossing_point (mp, t, t0, t1, t2);
     if (number_greaterequal(t, fraction_one_t)) {
       if (turn_amt > 0)
         number_clone(t, fraction_one_t);
@@ -12841,8 +12831,7 @@ respectively, yielding another solution of $(*)$.
     number_negate(arg2);
     number_clone(arg3, t2);
     number_negate(arg3);
-    free_number (t);
-    t = mp_crossing_point (mp, arg1, arg2, arg3);
+    mp_crossing_point (mp, t, arg1, arg2, arg3);
     free_number (arg1);
     free_number (arg2);
     free_number (arg3);
@@ -13031,8 +13020,7 @@ if (number_greater(t, fraction_one_t)) {
     number_negate(arg2);
     number_clone(arg3, t2);
     number_negate(arg3);
-    free_number (t);
-    t = mp_crossing_point (mp, arg1, arg2, arg3);
+    mp_crossing_point (mp, t, arg1, arg2, arg3);
     free_number (arg1);
     free_number (arg2);
     free_number (arg3);
@@ -13069,8 +13057,7 @@ answer.  If |t2<0|, there is one crossing and it is antiparallel only if
 crossing and the first crossing cannot be antiparallel.
 
 @<Find the first |t| where $d(t)$ crosses $d_{k-1}$ or set...@>=
-free_number (t);
-t = mp_crossing_point (mp, t0, t1, t2);
+mp_crossing_point (mp, t, t0, t1, t2);
 if (turn_amt >= 0) {
   if (number_negative(t2)) {
     number_clone(t, fraction_one_t);
@@ -13183,8 +13170,7 @@ if (number_positive(t0)) {
   new_number(arg3);
   number_clone(arg3, t0);
   number_negate(arg3);
-  free_number (t);
-  t = mp_crossing_point (mp, t0, t1, arg3);
+  mp_crossing_point (mp, t, t0, t1, arg3);
   free_number (arg3);
   set_number_from_of_the_way(u0, t, x0, x1);
   set_number_from_of_the_way(u1, t, x1, x2);
@@ -13195,8 +13181,7 @@ if (number_positive(t0)) {
   new_number(arg1);
   number_clone(arg1, t0);
   number_negate(arg1);
-  free_number (t);
-  t = mp_crossing_point (mp, arg1, t1, t0);
+  mp_crossing_point (mp, t, arg1, t1, t0);
   free_number (arg1);
   set_number_from_of_the_way(u0, t, x2, x1);
   set_number_from_of_the_way(u1, t, x1, x0);
@@ -14057,8 +14042,7 @@ do the right thing.
 @d we_found_it { set_number_from_scaled (tt,(number_to_scaled (t)+04000) / 010000); goto FOUND; }
 
 @<Check the places where $B(y_1,y_2,y_3;t)=0$...@>=
-free_number (t);
-t = mp_crossing_point (mp, y1, y2, y3);
+mp_crossing_point (mp, t, y1, y2, y3);
 if (number_greater (t, fraction_one_t))
   goto DONE;
 set_number_from_of_the_way(y2, t, y2, y3);
@@ -14079,8 +14063,7 @@ number_clone(tt, t);
   number_negate(arg2);
   number_clone(arg3, y3);
   number_negate(arg3);
-  free_number (t);
-  t = mp_crossing_point (mp, arg1, arg2, arg3);
+  mp_crossing_point (mp, t, arg1, arg2, arg3);
   free_number (arg1);
   free_number (arg2);
   free_number (arg3);
@@ -14149,8 +14132,7 @@ traveling east.
   number_negate(arg2);
   number_clone(arg3, x3);
   number_negate(arg3);
-  free_number (t);
-  t = mp_crossing_point (mp, arg1, arg2, arg3);
+  mp_crossing_point (mp, t, arg1, arg2, arg3);
   free_number (arg1);
   free_number (arg2);
   free_number (arg3);
@@ -23688,9 +23670,14 @@ static void mp_do_nullary (MP mp, quarterword c) {
     }
     break;
   case mp_normal_deviate:
-    mp->cur_exp.type = mp_known;
-    free_number (cur_exp_value_number());
-    set_cur_exp_value_number (mp_norm_rand (mp));
+    {
+      mp_number r;
+      new_number (r);
+      mp_norm_rand (mp, r);
+      mp->cur_exp.type = mp_known;
+      set_cur_exp_value (number_to_scaled (r));
+      free_number (r);
+    }
     break;
   case mp_pen_circle:
     {
@@ -24048,8 +24035,13 @@ if (mp->cur_exp.type != mp_known) {
     }
     break;
   case mp_uniform_deviate:
-    free_number (cur_exp_value_number());
-    set_cur_exp_value_number (mp_unif_rand (mp, cur_exp_value_number ()));
+    {
+      mp_number vvx;
+      new_number (vvx);
+      mp_unif_rand (mp, vvx, cur_exp_value_number ());
+      set_cur_exp_value (number_to_scaled (vvx));
+      free_number (vvx);
+    }
     break;
   case mp_odd_op:
     vv = odd (round_unscaled (cur_exp_value_number ()));
