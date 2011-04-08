@@ -2196,6 +2196,11 @@ static void mp_clear_arith (MP mp) {
 
 @ The definitions of these are set up by the math initialization.
 
+@d coef_bound_k ((math_data *)mp->math)->coef_bound_k
+@d coef_bound_minus_1 ((math_data *)mp->math)->coef_bound_minus_1
+@d sqrt_8_e_k ((math_data *)mp->math)->sqrt_8_e_k
+@d twelve_ln_2_k ((math_data *)mp->math)->twelve_ln_2_k
+@d one_k  ((math_data *)mp->math)->one_k
 @d unity_t  ((math_data *)mp->math)->unity_t
 @d zero_t  ((math_data *)mp->math)->zero_t
 @d two_t ((math_data *)mp->math)->two_t
@@ -2385,26 +2390,19 @@ static void mp_norm_rand (MP mp, mp_number ret) {
   mp_number abs_x;
   mp_number u;
   mp_number r;
-  mp_number one_k, la, xa;
-  mp_number approx, approx2;
-  new_number (one_k);
+  mp_number la, xa;
   new_number (la);
   new_number (xa);
   new_number (abs_x);
-  set_number_from_scaled (one_k, 1024);
   new_number (u);
   new_number (r);
-  new_number (approx);
-  new_number (approx2);
-  set_number_from_scaled (approx, 112429); /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
-  set_number_from_scaled (approx2, 139548960);  /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
   do {
     do {
       mp_number v;
       new_number (v);
       mp_next_random(mp, v);
       number_substract (v, fraction_half_t);
-      take_fraction (xa, approx, v); 
+      take_fraction (xa, sqrt_8_e_k, v); 
       free_number (v);
       mp_next_random(mp, u);
       number_clone (abs_x, xa);
@@ -2413,16 +2411,14 @@ static void mp_norm_rand (MP mp, mp_number ret) {
     make_fraction (r, xa, u);
     number_clone (xa, r);
     m_log (la, u);
-    set_number_from_substraction(la, approx2, la);
+    set_number_from_substraction(la, twelve_ln_2_k, la);
   } while (mp_ab_vs_cd (mp, one_k, la, xa, xa) < 0);
   number_clone (ret, xa);
   free_number (r);
   free_number (abs_x);
   free_number (la);
   free_number (xa);
-  free_number (one_k);
   free_number (u);
-  free_number (approx);
 }
 
 
@@ -14846,7 +14842,7 @@ Several procedures that act on dependency lists, including |p_plus_fq|,
 set the global variable |dep_final| to the final (constant term) node of
 the dependency list that they produce.
 
-@d coef_bound 04525252525 /* |fraction| approximation to 7/3 */
+@d coef_bound number_to_scaled(coef_bound_k)
 @d independent_needing_fix 0
 
 @<Glob...@>=
@@ -26285,22 +26281,19 @@ static void mp_dep_mult (MP mp, mp_value_node p, mp_number v, boolean v_is_scale
       free_number (arg1);
     }
     return;
-  };
+  }
   t = mp_type (q);
   q = (mp_value_node) dep_list (q);
   s = t;
   if (t == mp_dependent) {
     if (v_is_scaled) {
       integer ab_vs_cd;
-      mp_number coef_bound_1, arg1, arg2;
+      mp_number arg1, arg2;
       new_number (arg2);
       new_fraction (arg1);
-      new_number (coef_bound_1);
-      set_number_from_scaled (coef_bound_1, coef_bound - 1);
       mp_max_coef (mp, arg1, q);
       set_number_from_scaled (arg2, abs (number_to_scaled (v)));
-      ab_vs_cd = mp_ab_vs_cd (mp, arg1, arg2, coef_bound_1, unity_t);
-      free_number (coef_bound_1);
+      ab_vs_cd = mp_ab_vs_cd (mp, arg1, arg2, coef_bound_minus_1, unity_t);
       free_number (arg1);
       free_number (arg2);
       if (ab_vs_cd >= 0) {
@@ -26532,16 +26525,13 @@ static void mp_dep_div (MP mp, mp_value_node p, mp_number v) {
   s = t;
   if (t == mp_dependent) {
       integer ab_vs_cd;
-      mp_number coef_bound_1, arg1, arg2;
+      mp_number arg1, arg2;
       new_number (arg2);
       new_fraction (arg1);
-      new_number (coef_bound_1);
-      set_number_from_scaled (coef_bound_1, coef_bound - 1);
       mp_max_coef (mp, arg1, q);
       number_clone (arg2, v);
       number_abs (arg2);
-      ab_vs_cd = mp_ab_vs_cd (mp, arg1, unity_t, coef_bound_1, arg2);
-      free_number (coef_bound_1);
+      ab_vs_cd = mp_ab_vs_cd (mp, arg1, unity_t, coef_bound_minus_1, arg2);
       free_number (arg1);
       free_number (arg2);
       if (ab_vs_cd >=  0) {
