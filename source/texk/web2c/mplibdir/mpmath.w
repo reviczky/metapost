@@ -59,6 +59,8 @@
 @<Internal library declarations@>=
 extern mp_number mp_new_number (MP mp, mp_number_type t) ;
 extern void mp_free_number (MP mp, mp_number n) ;
+void mp_number_fraction_to_scaled (mp_number A);
+void mp_number_scaled_to_fraction (mp_number A);
 void mp_m_exp (MP mp, mp_number ret, mp_number x_orig);
 void mp_m_log (MP mp, mp_number ret, mp_number x_orig);
 void mp_pyth_sub (MP mp, mp_number r, mp_number a, mp_number b);
@@ -89,11 +91,12 @@ int mp_number_greater(mp_number A, mp_number B);
 int mp_number_less(mp_number A, mp_number B);
 int mp_number_nonequalabs(mp_number A, mp_number B);
 void mp_number_floor (mp_number i);
-void mp_fraction_to_scaled (mp_number x);
+void mp_fraction_to_round_scaled (mp_number x);
 void mp_number_make_scaled (MP mp, mp_number r, mp_number p, mp_number q);
 void mp_number_make_fraction (MP mp, mp_number r, mp_number p, mp_number q);
 void mp_number_take_fraction (MP mp, mp_number r, mp_number p, mp_number q);
 void mp_number_take_scaled (MP mp, mp_number r, mp_number p, mp_number q);
+typedef void (*convert_func) (mp_number r);
 typedef void (*m_log_func) (MP mp, mp_number r, mp_number a);
 typedef void (*m_exp_func) (MP mp, mp_number r, mp_number a);
 typedef void (*pyth_add_func) (MP mp, mp_number r, mp_number a, mp_number b);
@@ -130,7 +133,7 @@ typedef void (*take_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number
 typedef void (*take_scaled_func) (MP mp, mp_number ret, mp_number A, mp_number B);
 typedef mp_number (*new_number_func) (MP mp, mp_number_type t);
 typedef void (*free_number_func) (MP mp, mp_number n);
-typedef void (*fraction_to_scaled_func) (mp_number n);
+typedef void (*fraction_to_round_scaled_func) (mp_number n);
 
 typedef struct math_data {
   mp_number inf_t;
@@ -188,7 +191,9 @@ typedef struct math_data {
   m_exp_func m_exp;
   pyth_add_func pyth_add;
   pyth_sub_func pyth_sub;
-  fraction_to_scaled_func fraction_to_scaled;
+  fraction_to_round_scaled_func fraction_to_round_scaled;
+  convert_func fraction_to_scaled;
+  convert_func scaled_to_fraction;
 } math_data;
 
 @ @<Internal library declarations@>=
@@ -271,7 +276,7 @@ void * mp_initialize_math (MP mp) {
   math->nonequalabs = mp_number_nonequalabs;
   math->round_unscaled = mp_round_unscaled;
   math->floor_scaled = mp_number_floor;
-  math->fraction_to_scaled = mp_fraction_to_scaled;
+  math->fraction_to_round_scaled = mp_fraction_to_round_scaled;
   math->make_scaled = mp_number_make_scaled;
   math->make_fraction = mp_number_make_fraction;
   math->take_fraction = mp_number_take_fraction;
@@ -282,6 +287,8 @@ void * mp_initialize_math (MP mp) {
   math->m_exp = mp_m_exp;
   math->pyth_add = mp_pyth_add;
   math->pyth_sub = mp_pyth_sub;
+  math->fraction_to_scaled = mp_number_fraction_to_scaled;
+  math->scaled_to_fraction = mp_number_scaled_to_fraction;
   return (void *)math;
 }
 
@@ -392,6 +399,15 @@ void mp_number_swap(mp_number A, mp_number B) {
   A->data.val=B->data.val;
   B->data.val=swap_tmp;
 }
+void mp_number_fraction_to_scaled (mp_number A) {
+    A->type = mp_scaled_type;
+    A->data.val = A->data.val / 4096;
+}
+void mp_number_scaled_to_fraction (mp_number A) {
+    A->type = mp_fraction_type;
+    A->data.val = A->data.val * 4096;
+}
+
 
 @ Query functions
 
@@ -1050,7 +1066,7 @@ void mp_number_floor (mp_number i) {
 
 @ |fraction_to_scaled| rounds a |fraction| and converts it to |scaled|
 @c
-void mp_fraction_to_scaled (mp_number x_orig) {
+void mp_fraction_to_round_scaled (mp_number x_orig) {
   int x = x_orig->data.val;
   x_orig->data.val = (x>=2048 ? 1+((x-2048) / 4096)  : ( x>=-2048 ? 0 : -(1+((-(x+1)-2048) / 4096))));
 }
