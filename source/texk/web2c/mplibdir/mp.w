@@ -8172,6 +8172,7 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   set_number_from_addition (p->right_x, p->x_coord, tmp);
   mp_take_fraction (mp, r1, mp->delta_y[k], mp->ct);
   mp_take_fraction (mp, r2, mp->delta_x[k], mp->st);
+  number_add (r1, r2);
   mp_take_fraction (mp, tmp, r1, rr);
   set_number_from_addition (p->right_y, p->y_coord, tmp);
   mp_take_fraction (mp, r1, mp->delta_x[k], mp->cf);
