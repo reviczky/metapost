@@ -8472,13 +8472,12 @@ $a<2^{30}$, $\vert a-b\vert<2^{30}$, and $\vert b-c\vert<2^{30}$.
 a cubic corresponding to the |fraction| value~|t|.
 
 @c
-static mp_number mp_eval_cubic (MP mp, mp_knot p, mp_knot q, quarterword c,
+static void mp_eval_cubic (MP mp, mp_number r, mp_knot p, mp_knot q, quarterword c,
                              mp_number t) {
-  mp_number x1, x2, x3, r;    /* intermediate values */
+  mp_number x1, x2, x3;    /* intermediate values */
   new_number(x1);
   new_number(x2);
   new_number(x3);
-  new_number(r);
   if (c == mp_x_code) {
     set_number_from_of_the_way(x1, t, p->x_coord, p->right_x);
     set_number_from_of_the_way(x2, t, p->right_x, q->left_x);
@@ -8494,7 +8493,6 @@ static mp_number mp_eval_cubic (MP mp, mp_knot p, mp_knot q, quarterword c,
   free_number (x1);
   free_number (x2);
   free_number (x3);
-  return r;
 }
 
 
@@ -8670,8 +8668,7 @@ must cut it to zero to avoid confusion.
 
 @<Test the extremes of the cubic against the bounding box@>=
 {
-  free_number (x);
-  x = mp_eval_cubic (mp, p, q, c, t);
+  mp_eval_cubic (mp, x, p, q, c, t);
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
   set_number_from_of_the_way(del2, t, del2, del3);
   /* now |0,del2,del3| represent the derivative on the remaining interval */
@@ -8700,8 +8697,7 @@ must cut it to zero to avoid confusion.
   mp_number arg;
   new_number (arg);
   set_number_from_of_the_way (arg, t, tt, fraction_one_t);
-  free_number (x);
-  x = mp_eval_cubic (mp, p, q, c, arg);
+  mp_eval_cubic (mp, x, p, q, c, arg);
   free_number (arg);
   @<Adjust |bbmin[c]| and |bbmax[c]| to accommodate |x|@>;
 }
@@ -8798,18 +8794,16 @@ ${1\over3}\vb\dot B(1)\vb$.  These quantities are relatively expensive to comput
 and they are needed in different instances of |arc_test|.
 
 @c
-static mp_number mp_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number dx1,
+static void mp_arc_test (MP mp, mp_number ret, mp_number dx0, mp_number dy0, mp_number dx1,
                            mp_number dy1, mp_number dx2, mp_number dy2, mp_number v0,
                            mp_number v02, mp_number v2, mp_number a_goal, mp_number tol_orig) {
   boolean simple;       /* are the control points confined to a $90^\circ$ sector? */
-  mp_number ret;
   mp_number dx01, dy01, dx12, dy12, dx02, dy02;    /* bisection results */
   mp_number v002, v022; /* twice the velocity magnitudes at $t={1\over4}$ and $t={3\over4}$ */
   mp_number arc;   /* best arc length estimate before recursion */
   mp_number arc1;    /* arc length estimate for the first half */
   mp_number simply; 
   mp_number tol; 
-  new_number (ret );
   new_number (arc );
   new_number (arc1);
   new_number (dx01);
@@ -8860,7 +8854,6 @@ DONE:
   free_number (v022);
   free_number (simply);
   free_number (tol);
-  return ret;
 }
 
 
@@ -8889,7 +8882,8 @@ calls, but $1.5$ is an adequate approximation.  It is best to avoid using
   }
   number_clone(half_v02, v02);
   number_halfp(half_v02);
-  a = mp_arc_test (mp, dx0, dy0, dx01, dy01, dx02, dy02, 
+  new_number (a);
+  mp_arc_test (mp, a, dx0, dy0, dx01, dy01, dx02, dy02, 
                               v0, v002, half_v02, a_new, tol);
   if (number_negative(a)) {
     set_number_to_unity(ret);
@@ -8899,7 +8893,8 @@ calls, but $1.5$ is an adequate approximation.  It is best to avoid using
     number_negate(ret); /* -halfp(two - a) */
   } else {
     @<Update |a_new| to reduce |a_new+a_aux| by |a|@>;
-    b = mp_arc_test (mp, dx02, dy02, dx12, dy12, dx2, dy2,
+    new_number (b);
+    mp_arc_test (mp, b, dx02, dy02, dx12, dy12, dx2, dy2,
                          half_v02, v022, v2, a_new, tol);
     if (number_negative(b)) {
       mp_number tmp ;
@@ -9264,16 +9259,14 @@ length less than |fraction_four|.
 @d arc_tol_limit   (number_to_scaled (unity_t)/4096)  /* quit when change in arc length estimate reaches this */
 
 @c
-static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number dx1,
+static void mp_do_arc_test (MP mp, mp_number ret, mp_number dx0, mp_number dy0, mp_number dx1,
                               mp_number dy1, mp_number dx2, mp_number dy2, mp_number a_goal) {
   mp_number v0, v1, v2;    /* length of each $({\it dx},{\it dy})$ pair */
   mp_number v02;   /* twice the norm of the quadratic at $t={1\over2}$ */
-  mp_number ret;
   mp_number arc_tol;
   new_number (v0);
   new_number (v1);
   new_number (v2);
-  new_number (ret);
   new_number (arc_tol);
   set_number_from_scaled(arc_tol, arc_tol_limit);
   pyth_add (v0, dx0, dy0);
@@ -9304,36 +9297,34 @@ static mp_number mp_do_arc_test (MP mp, mp_number dx0, mp_number dy0, mp_number 
     pyth_add (v02, arg1, arg2);
     free_number(arg1);
     free_number(arg2);
-    number_clone(ret, mp_arc_test (mp, dx0, dy0, dx1, dy1, dx2, dy2, v0, v02, v2, a_goal, arc_tol));
+    mp_arc_test (mp, ret, dx0, dy0, dx1, dy1, dx2, dy2, v0, v02, v2, a_goal, arc_tol);
     free_number (v02);
   }
   free_number (v0);
   free_number (v1);
   free_number (v2);
   free_number (arc_tol);
-  return ret;
 }
 
 
 @ Now it is easy to find the arc length of an entire path.
 
 @c
-static mp_number mp_get_arc_length (MP mp, mp_knot h) {
+static void mp_get_arc_length (MP mp, mp_number ret, mp_knot h) {
   mp_knot p, q; /* for traversing the path */
   mp_number a;  /* current arc length */
   mp_number a_tot; /* total arc length */
   mp_number arg1, arg2, arg3, arg4, arg5, arg6;
   mp_number arcgoal; 
-  mp_number ret;
   p = h;
   new_number (a_tot);
-  new_number (ret);
   new_number (arg1);
   new_number (arg2);
   new_number (arg3);
   new_number (arg4);
   new_number (arg5);
   new_number (arg6);
+  new_number (a);
   new_number(arcgoal);
   set_number_to_inf(arcgoal);
   while (mp_right_type (p) != mp_endpoint) {
@@ -9344,7 +9335,7 @@ static mp_number mp_get_arc_length (MP mp, mp_knot h) {
     set_number_from_substraction(arg4, q->left_y,  p->right_y);
     set_number_from_substraction(arg5, q->x_coord, q->left_x);
     set_number_from_substraction(arg6, q->y_coord, q->left_y);
-    a = mp_do_arc_test (mp, arg1, arg2, arg3, arg4, arg5, arg6, arcgoal);
+    mp_do_arc_test (mp, a, arg1, arg2, arg3, arg4, arg5, arg6, arcgoal);
     set_number_from_scaled (a_tot, mp_slow_add (mp, number_to_scaled(a), number_to_scaled (a_tot)));
     if (q == h)
       break;
@@ -9362,7 +9353,6 @@ static mp_number mp_get_arc_length (MP mp, mp_knot h) {
   check_arith();
   number_clone (ret, a_tot);
   free_number (a_tot);
-  return ret;
 }
 
 
@@ -9378,18 +9368,16 @@ we must be prepared to compute the arc length of path~|h| and divide this into
 |arc0| to find how many multiples of the length of path~|h| to add.
 
 @c
-static mp_number mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
+static void mp_get_arc_time (MP mp, mp_number ret, mp_knot h, mp_number arc0_orig) {
   mp_knot p, q; /* for traversing the path */
   mp_number t_tot; /* accumulator for the result */
   mp_number t;     /* the result of |do_arc_test| */
   mp_number arc, arc0;   /* portion of |arc0| not used up so far */
-  mp_number ret;
   integer n;    /* number of extra times to go around the cycle */
   mp_number arg1, arg2, arg3, arg4, arg5, arg6; /* |do_arc_test| arguments */
   if (number_negative(arc0_orig)) {
     @<Deal with a negative |arc0_orig| value and |return|@>;
   }
-  new_number (ret);
   new_number (t_tot);
   new_number (arc0);
   number_clone(arc0, arc0_orig);
@@ -9405,6 +9393,7 @@ static mp_number mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
   new_number (arg4);
   new_number (arg5);
   new_number (arg6);
+  new_number (t);
   while ((mp_right_type (p) != mp_endpoint) && number_positive(arc)) {
     q = mp_next_knot (p);
     set_number_from_substraction(arg1, p->right_x, p->x_coord);
@@ -9413,7 +9402,7 @@ static mp_number mp_get_arc_time (MP mp, mp_knot h, mp_number arc0_orig) {
     set_number_from_substraction(arg4, q->left_y,  p->right_y);
     set_number_from_substraction(arg5, q->x_coord, q->left_x);
     set_number_from_substraction(arg6, q->y_coord, q->left_y);
-    t = mp_do_arc_test (mp, arg1, arg2, arg3, arg4, arg5, arg6, arc);
+    mp_do_arc_test (mp, t, arg1, arg2, arg3, arg4, arg5, arg6, arc);
     @<Update |arc| and |t_tot| after |do_arc_test| has just returned |t|@>;
     if (q == h) {
       @<Update |t_tot| and |arc| to avoid going around the cyclic
@@ -9434,7 +9423,6 @@ RETURN:
   free_number (arg4);
   free_number (arg5);
   free_number (arg6);
-  return ret;
 }
 
 
@@ -9451,21 +9439,21 @@ if (number_negative(t)) {
 
 @ @<Deal with a negative |arc0_orig| value and |return|@>=
 {
+  new_number(ret);
   if (mp_left_type (h) == mp_endpoint) {
-    new_number(ret);
+    set_number_to_zero (ret);
   } else {
     mp_number neg_arc0;
     p = mp_htap_ypoc (mp, h);
     new_number(neg_arc0);
     number_clone(neg_arc0, arc0_orig);
     number_negate(neg_arc0);
-    ret = mp_get_arc_time (mp, p, neg_arc0);
+    mp_get_arc_time (mp, ret, p, neg_arc0);
     number_negate(ret);
     mp_toss_knot_list (mp, p);
     free_number (neg_arc0);
   }
   check_arith();
-  return ret;
 }
 
 
@@ -11203,15 +11191,7 @@ default:                       /* there are no other valid cases, but please the
 |copy_objects|.  Given a non-NULL graphical object list, |skip_1component|
 skips past one picture component, where a ``picture component'' is a single
 graphical object, or a start bounds or start clip object and everything up
-through the matching stop bounds or stop clip object.  The macro version avoids
-procedure call overhead and error handling: |skip_component(p)(e)| advances |p|
-unless |p| points to a stop bounds or stop clip node, in which case it executes
-|e| instead.
-
-@d skip_component(A)
-    if ( ! is_start_or_stop((A)) ) (A)=mp_link((A));
-    else if ( ! is_stop((A)) ) (A)=mp_skip_1component(mp, (A));
-    else 
+through the matching stop bounds or stop clip object.  
 
 @c
 static mp_node mp_skip_1component (MP mp, mp_node p) {
@@ -13753,8 +13733,7 @@ and the given direction so that |(x,y)=(1,0)|; i.e., the main task will be
 to find when a given path first travels ``due east.''
 
 @c
-static mp_number mp_find_direction_time (MP mp, mp_number x_orig, mp_number y_orig, mp_knot h) {
-  mp_number ret;
+static void mp_find_direction_time (MP mp, mp_number ret, mp_number x_orig, mp_number y_orig, mp_knot h) {
   mp_number max;   /* $\max\bigl(\vert x\vert,\vert y\vert\bigr)$ */
   mp_knot p, q; /* for list traversal */
   mp_number n;     /* the direction time at knot |p| */
@@ -13762,12 +13741,12 @@ static mp_number mp_find_direction_time (MP mp, mp_number x_orig, mp_number y_or
   mp_number x, y;
   mp_number abs_x, abs_y;
   @<Other local variables for |find_direction_time|@>;
+  set_number_to_zero (ret); /* just in case */
   new_number (x);
   new_number (y);
   new_number (abs_x);
   new_number (abs_y);
   new_number (n);
-  new_number (ret);
   new_fraction (tt);
   number_clone (x, x_orig);
   number_clone (y, y_orig);
@@ -13803,7 +13782,6 @@ FREE:
   free_number (n);
   free_number (max);
   free_number (tt);
-  return ret; /* = zero */
 }
 
 
@@ -14829,16 +14807,14 @@ if (!number_equal (v, unity_t))
 is returned by the following simple function.
 
 @c
-static mp_number mp_max_coef (MP mp, mp_value_node p) {
-  mp_number x;   /* the maximum so far */
+static void mp_max_coef (MP mp, mp_number x, mp_value_node p) {
   (void) mp;
-  new_fraction (x);
+  set_number_to_zero (x);
   while (dep_info (p) != NULL) {
     if (abs (dep_value (p)) > number_to_scaled (x))
       set_number_from_scaled (x,  abs (dep_value (p)));
     p = (mp_value_node) mp_link (p);
   }
-  return x;
 }
 
 
@@ -19528,7 +19504,13 @@ from...@>=
   q = mp->loop_ptr->list;
   if (q == NULL)
     goto NOT_FOUND;
-  skip_component (q) goto NOT_FOUND;
+    if ( ! is_start_or_stop(q) ) 
+      q=mp_link(q);
+    else if ( ! is_stop(q) ) 
+      q=mp_skip_1component(mp, q);
+    else 
+      goto NOT_FOUND;
+
   set_cur_exp_node ((mp_node)mp_copy_objects (mp, mp->loop_ptr->list, q));
   mp_init_bbox (mp, (mp_edge_header_node)cur_exp_node ());
   mp->cur_exp.type = mp_picture_type;
@@ -24674,8 +24656,7 @@ case mp_string_type:
   mp_flush_cur_exp (mp, new_expr);
   break;
 case mp_path_type:
-  free_number (new_expr.data.n);
-  new_expr.data.n = mp_path_length (mp);
+  mp_path_length (mp, new_expr.data.n);
   mp_flush_cur_exp (mp, new_expr);
   break;
 case mp_known:
@@ -24683,8 +24664,7 @@ case mp_known:
   set_cur_exp_value (vv);
   break;
 case mp_picture_type:
-  free_number (new_expr.data.n);
-  new_expr.data.n = mp_pict_length (mp);
+  mp_pict_length (mp, new_expr.data.n);
   mp_flush_cur_exp (mp, new_expr);
   break;
 default:
@@ -24699,10 +24679,9 @@ default:
 break;
 
 @ @<Declare unary action...@>=
-static mp_number mp_path_length (MP mp) {                               /* computes the length of the current path */
-  mp_number n;     /* the path length so far */
+static void mp_path_length (MP mp, mp_number n) {                               /* computes the length of the current path */
   mp_knot p;    /* traverser */
-  new_number (n);
+  set_number_to_zero (n);
   p = cur_exp_knot ();
   if (mp_left_type (p) == mp_endpoint) {
     number_substract(n, unity_t); /* -unity */
@@ -24711,27 +24690,29 @@ static mp_number mp_path_length (MP mp) {                               /* compu
     p = mp_next_knot (p);
     number_add(n, unity_t);
   } while (p != cur_exp_knot ());
-  return n;
 }
 
 
 @ @<Declare unary action...@>=
-static mp_number mp_pict_length (MP mp) {
+static void mp_pict_length (MP mp, mp_number n) {
   /* counts interior components in picture |cur_exp| */
-  mp_number n;     /* the count so far */
   mp_node p;    /* traverser */
-  new_number (n);
+  set_number_to_zero (n);
   p = mp_link (edge_list (cur_exp_node ()));
   if (p != NULL) {
     if (is_start_or_stop (p))
       if (mp_skip_1component (mp, p) == NULL)
         p = mp_link (p);
     while (p != NULL) {
-      skip_component (p) return n;
+      if ( ! is_start_or_stop(p) ) 
+        p = mp_link(p);
+      else if ( ! is_stop(p)) 
+        p = mp_skip_1component(mp, p);
+      else 
+        return;
       number_add(n, unity_t);
     }
   }
-  return n;
 }
 
 
@@ -24748,8 +24729,7 @@ if (mp->cur_exp.type == mp_pair_type) {
   new_expr.data.p = NULL;
   mp_flush_cur_exp (mp, new_expr);      /* not a cyclic path */
 } else {
-  free_number (new_expr.data.n);
-  new_expr.data.n = mp_turn_cycles_wrapper (mp, cur_exp_knot ());
+  mp_turn_cycles_wrapper (mp, new_expr.data.n, cur_exp_knot ());
   mp_flush_cur_exp (mp, new_expr);
 }
 break;
@@ -24758,13 +24738,11 @@ break;
 argument is |origin|.
 
 @<Declare unary action...@>=
-static mp_number mp_an_angle (MP mp, mp_number xpar, mp_number ypar) {
-  mp_number ret;
-  new_angle (ret);
+static void mp_an_angle (MP mp, mp_number ret, mp_number xpar, mp_number ypar) {
+  set_number_to_zero (ret);
   if ((!(number_zero(xpar) && number_zero(ypar)))) {
     n_arg (ret, xpar, ypar);
   }
-  return ret;
 }
 
 
@@ -24780,19 +24758,18 @@ moves at the actual points.
 @d double2angle(a) (int)mp_floor(a*256.0*256.0*16.0)
 
 @<Declare unary action...@>=
-static mp_number mp_bezier_slope (MP mp, mp_number AX, mp_number AY, mp_number BX,
+static void mp_bezier_slope (MP mp, mp_number ret, mp_number AX, mp_number AY, mp_number BX,
                               mp_number BY, mp_number CX, mp_number CY, mp_number DX,
                               mp_number DY);
 
 @ @c
-static mp_number mp_bezier_slope (MP mp, mp_number AX, mp_number AY, mp_number BX,
+static void mp_bezier_slope (MP mp, mp_number ret, mp_number AX, mp_number AY, mp_number BX,
                               mp_number BY, mp_number CX, mp_number CY, mp_number DX,
                               mp_number DY) {
   double a, b, c;
   mp_number deltax, deltay;
   double ax, ay, bx, by, cx, cy, dx, dy;
   mp_number xi, xo, xm;
-  mp_number ret;
   double res = 0;
   ax = number_to_double (AX);
   ay = number_to_double (AY);
@@ -24802,7 +24779,6 @@ static mp_number mp_bezier_slope (MP mp, mp_number AX, mp_number AY, mp_number B
   cy = number_to_double (CY);
   dx = number_to_double (DX);
   dy = number_to_double (DY);
-  new_angle (ret);
   new_number (deltax);
   new_number (deltay);
   set_number_from_substraction(deltax, BX, AX);
@@ -24815,10 +24791,13 @@ static mp_number mp_bezier_slope (MP mp, mp_number AX, mp_number AY, mp_number B
     set_number_from_substraction(deltax, DX, AX);
     set_number_from_substraction(deltay, DY, AY);
   }
-  xi = mp_an_angle (mp, deltax, deltay);
+  new_number (xi);
+  new_number (xm);
+  new_number (xo);
+  mp_an_angle (mp, xi, deltax, deltay);
   set_number_from_substraction(deltax, CX, BX);
   set_number_from_substraction(deltay, CY, BY);
-  xm = mp_an_angle (mp, deltax, deltay); /* !!! never used? */
+  mp_an_angle (mp, xm, deltax, deltay); /* !!! never used? */
   set_number_from_substraction(deltax, DX, CX);
   set_number_from_substraction(deltay, DY, CY);
   if (number_zero(deltax) && number_zero(deltay)) {
@@ -24829,7 +24808,7 @@ static mp_number mp_bezier_slope (MP mp, mp_number AX, mp_number AY, mp_number B
     set_number_from_substraction(deltax, DX, AX);
     set_number_from_substraction(deltay, DY, AY);
   }
-  xo = mp_an_angle (mp, deltax, deltay);
+  mp_an_angle (mp, xo, deltax, deltay);
   a = (bx - ax) * (cy - by) - (cx - bx) * (by - ay);    /* a = (bp-ap)x(cp-bp); */
   b = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx);;   /* b = (bp-ap)x(dp-cp); */
   c = (cx - bx) * (dy - cy) - (dx - cx) * (cy - by);    /* c = (cp-bp)x(dp-cp); */
@@ -24882,7 +24861,6 @@ static mp_number mp_bezier_slope (MP mp, mp_number AX, mp_number AY, mp_number B
   free_number (xo);
   free_number (xm);
   set_number_from_scaled (ret, double2angle (res));
-  return ret;
 }
 
 
@@ -24892,9 +24870,8 @@ static mp_number mp_bezier_slope (MP mp, mp_number AX, mp_number AY, mp_number B
 @d seven_twenty_deg 05500000000 /* $720\cdot2^{20}$, represents $720^\circ$ */
 
 @<Declare unary action...@>=
-static mp_number mp_new_turn_cycles (MP mp, mp_knot c) {
+static void mp_new_turn_cycles (MP mp, mp_number turns, mp_knot c) {
   mp_angle res, ang;       /*  the angles of intermediate results  */
-  mp_number turns; /*  the turn counter  */
   mp_knot p;    /*  for running around the path  */
   mp_number xp, yp;       /*  coordinates of next point  */
   mp_number x, y; /*  helper coordinates  */
@@ -24902,7 +24879,7 @@ static mp_number mp_new_turn_cycles (MP mp, mp_knot c) {
   mp_angle in_angle, out_angle;    /*  helper angles */
   mp_angle seven_twenty_deg_t, neg_one_eighty_deg_t;
   unsigned old_setting; /* saved |selector| setting */
-  new_number(turns);
+  set_number_to_zero(turns);
   new_number(arg1);
   new_number(arg2);
   new_number(xp);
@@ -24930,9 +24907,8 @@ static mp_number mp_new_turn_cycles (MP mp, mp_knot c) {
   do {
     number_clone (xp, p_next->x_coord);
     number_clone (yp, p_next->y_coord);
-    free_number (ang);
-    ang = mp_bezier_slope (mp,  p->x_coord,  p->y_coord, p->right_x, p->right_y, 
-                           p_next->left_x, p_next->left_y, xp, yp);
+    mp_bezier_slope (mp, ang, p->x_coord,  p->y_coord, p->right_x, p->right_y, 
+                         p_next->left_x, p_next->left_y, xp, yp);
     if (number_greater(ang, seven_twenty_deg_t)) {
       mp_error (mp, "Strange path", NULL, true);
       mp->selector = old_setting;
@@ -24961,8 +24937,7 @@ static mp_number mp_new_turn_cycles (MP mp, mp_knot c) {
     }
     set_number_from_substraction(arg1, xp, x);
     set_number_from_substraction(arg2, yp, y);
-    free_number (in_angle);
-    in_angle = mp_an_angle (mp, arg1, arg2);
+    mp_an_angle (mp, in_angle, arg1, arg2);
     /*  outgoing angle at next point  */
     number_clone (x, p_next->right_x);
     number_clone (y, p_next->right_y);
@@ -24976,8 +24951,7 @@ static mp_number mp_new_turn_cycles (MP mp, mp_knot c) {
     }
     set_number_from_substraction(arg1, x, xp);
     set_number_from_substraction(arg2, y, yp);
-    free_number (out_angle);
-    out_angle = mp_an_angle (mp, arg1, arg2);
+    mp_an_angle (mp, out_angle, arg1, arg2);
     set_number_from_substraction(ang, out_angle, in_angle);
     mp_reduce_angle (mp, ang);
     if (number_nonzero(ang)) {
@@ -25007,7 +24981,6 @@ DONE:
   free_number(res);
   free_number(arg1);
   free_number(arg2);
-  return turns;
 }
 
 
@@ -25055,13 +25028,12 @@ backward once, but forward twice. These defines help hide the trick.
 @d p_from p
 
 @<Declare unary action...@>=
-static mp_number mp_turn_cycles (MP mp, mp_knot c) {
+static void mp_turn_cycles (MP mp, mp_number turns, mp_knot c) {
   mp_angle res, ang;       /*  the angles of intermediate results  */
-  mp_number turns; /*  the turn counter  */
   mp_angle neg_three_sixty_deg_t;
   mp_knot p;    /*  for running around the path  */
   mp_number arg1, arg2, arg3, arg4;
-  new_number (turns);
+  set_number_to_zero (turns);
   new_angle(neg_three_sixty_deg_t);
   new_angle(res);
   new_angle(ang);
@@ -25074,12 +25046,14 @@ static mp_number mp_turn_cycles (MP mp, mp_knot c) {
   p = c;
   do {
     mp_number ret1, ret2;
+    new_angle (ret1);
+    new_angle (ret2);
     set_number_from_substraction(arg1, p_to->x_coord, p_here->x_coord);
     set_number_from_substraction(arg2, p_to->y_coord, p_here->y_coord);
     set_number_from_substraction(arg3, p_here->x_coord, p_from->x_coord);
     set_number_from_substraction(arg4, p_here->y_coord, p_from->y_coord);
-    ret1 = mp_an_angle (mp, arg1, arg2);
-    ret2 = mp_an_angle (mp, arg3, arg4);
+    mp_an_angle (mp, ret1, arg1, arg2);
+    mp_an_angle (mp, ret2, arg3, arg4);
     set_number_from_substraction(ang, ret1, ret2);
     free_number (ret1);
     free_number (ret2);
@@ -25102,22 +25076,20 @@ static mp_number mp_turn_cycles (MP mp, mp_knot c) {
   free_number(ang);
   free_number(res);
   free_number(neg_three_sixty_deg_t);
-  return turns;
 }
 
 
 @ @<Declare unary action...@>=
-static mp_number mp_turn_cycles_wrapper (MP mp, mp_knot c) {
+static void mp_turn_cycles_wrapper (MP mp, mp_number ret, mp_knot c) {
   mp_number arg1, arg2;
   if ((mp_next_knot (c) == c) || (mp_next_knot (mp_next_knot (c)) == c)) {
-    mp_number ret;
     mp_number an_angle;
     new_number (arg1);
     new_number (arg2);
-    new_number (ret);
+    new_angle (an_angle);
     set_number_from_substraction(arg1, c->x_coord, c->right_x);
     set_number_from_substraction(arg2, c->y_coord, c->right_y);
-    an_angle = mp_an_angle(mp, arg1, arg2);
+    mp_an_angle(mp, an_angle, arg1, arg2);
     if (number_positive(an_angle)) {
       set_number_to_unity(ret);
     } else {
@@ -25127,10 +25099,13 @@ static mp_number mp_turn_cycles_wrapper (MP mp, mp_knot c) {
     free_number (an_angle);
     free_number (arg1);
     free_number (arg2);
-    return ret;
   } else {
-    mp_number nval = mp_new_turn_cycles (mp, c);
-    mp_number oval = mp_turn_cycles (mp, c);
+    mp_number nval; 
+    mp_number oval; 
+    new_number (nval);
+    new_number (oval);
+    mp_new_turn_cycles (mp, nval, c);
+    mp_turn_cycles (mp, oval, c);
     if ((!number_equal(nval, oval)) && number_greater (internal_value (mp_tracing_choices), two_t)) {
       mp_number saved_t_o;
       new_number (saved_t_o);
@@ -25147,7 +25122,7 @@ static mp_number mp_turn_cycles_wrapper (MP mp, mp_knot c) {
       free_number (saved_t_o);
     }
     free_number (oval);
-    return nval;
+    number_clone (ret, nval);
   }
 }
 
@@ -25295,8 +25270,7 @@ if (mp->cur_exp.type == mp_pair_type)
 if (mp->cur_exp.type != mp_path_type) {
   mp_bad_unary (mp, mp_arc_length);
 } else {
-  free_number (new_expr.data.n);
-  new_expr.data.n = mp_get_arc_length (mp, cur_exp_knot ());
+  mp_get_arc_length (mp, new_expr.data.n, cur_exp_knot ());
   mp_flush_cur_exp (mp, new_expr);
 }
 break;
@@ -25935,8 +25909,10 @@ if (mp_type (p) == mp_known) {
   if (t == mp_dependent) {
     if (s == mp_dependent) {
       mp_number ret1, ret2;
-      ret1 = mp_max_coef (mp, r);
-      ret2 = mp_max_coef (mp, v);
+      new_fraction (ret1);
+      new_fraction (ret2);
+      mp_max_coef (mp, ret1, r);
+      mp_max_coef (mp, ret2, v);
       number_add (ret1, ret2);
       free_number (ret2);
       if (number_to_scaled (ret1) < coef_bound) {
@@ -26308,9 +26284,10 @@ static void mp_dep_mult (MP mp, mp_value_node p, mp_number v, boolean v_is_scale
       integer ab_vs_cd;
       mp_number coef_bound_1, arg1, arg2;
       new_number (arg2);
+      new_fraction (arg1);
       new_number (coef_bound_1);
       set_number_from_scaled (coef_bound_1, coef_bound - 1);
-      arg1 = mp_max_coef (mp, q);
+      mp_max_coef (mp, arg1, q);
       set_number_from_scaled (arg2, abs (number_to_scaled (v)));
       ab_vs_cd = mp_ab_vs_cd (mp, arg1, arg2, coef_bound_1, unity_t);
       free_number (coef_bound_1);
@@ -26547,9 +26524,10 @@ static void mp_dep_div (MP mp, mp_value_node p, mp_number v) {
       integer ab_vs_cd;
       mp_number coef_bound_1, arg1, arg2;
       new_number (arg2);
+      new_fraction (arg1);
       new_number (coef_bound_1);
       set_number_from_scaled (coef_bound_1, coef_bound - 1);
-      arg1 = mp_max_coef (mp, q);
+      mp_max_coef (mp, arg1, q);
       number_clone (arg2, v);
       number_abs (arg2);
       ab_vs_cd = mp_ab_vs_cd (mp, arg1, unity_t, coef_bound_1, arg2);
@@ -27420,7 +27398,8 @@ static void mp_chop_path (MP mp, mp_node p) {
   boolean reversed;     /* was |a>b|? */
   new_number (a);
   new_number (b);
-  l = mp_path_length (mp);
+  new_number (l);
+  mp_path_length (mp, l);
   set_number_from_scaled (a, value (x_part (p)));
   set_number_from_scaled (b, value (y_part (p)));
   if (number_lessequal(a, b)) {
@@ -27592,7 +27571,8 @@ static void mp_set_up_offset (MP mp, mp_node p) {
 static void mp_set_up_direction_time (MP mp, mp_node p) {
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_expr.data.n = mp_find_direction_time (mp, value_number (x_part (p)),
+  new_number (new_expr.data.n);
+  mp_find_direction_time (mp, new_expr.data.n, value_number (x_part (p)),
                                               value_number (y_part (p)),
                                               cur_exp_knot ());
   mp_flush_cur_exp (mp, new_expr);
@@ -27748,8 +27728,7 @@ case mp_arc_time_of:
 if (mp->cur_exp.type == mp_pair_type)
   mp_pair_to_path (mp);
 if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_known)) {
-  free_number (new_expr.data.n);
-  new_expr.data.n = mp_get_arc_time (mp, cur_exp_knot (), value_number (p));
+  mp_get_arc_time (mp, new_expr.data.n, cur_exp_knot (), value_number (p));
   mp_flush_cur_exp (mp, new_expr);
 } else {
   mp_bad_binary (mp, p, (quarterword) c);
@@ -31987,9 +31966,8 @@ finding the range, then to go sequentially until the exact borderline has
 been discovered.
 
 @c
-static mp_number mp_threshold (MP mp, integer m) {
-  mp_number ret, d, arg1;     /* lower bound on the smallest interval size */
-  new_number (ret);
+static void mp_threshold (MP mp, mp_number ret, integer m) {
+  mp_number d, arg1;     /* lower bound on the smallest interval size */
   new_number (d);
   new_number (arg1);
   mp->excess = mp_min_cover (mp, zero_t) - m;
@@ -32007,7 +31985,6 @@ static mp_number mp_threshold (MP mp, integer m) {
   }
   free_number (d);
   free_number (arg1);
-  return ret;
 }
 
 
@@ -32024,7 +32001,8 @@ static integer mp_skimp (MP mp, integer m) {
   mp_node p, q, r;      /* list manipulation registers */
   mp_number l;     /* the least value in the current interval */
   mp_number v;     /* a compromise value */
-  d = mp_threshold (mp, m);
+  new_number (d);
+  mp_threshold (mp, d, m);
   new_number (l);
   new_number (v);
   set_number_to_zero (mp->perturbation);
@@ -33481,11 +33459,12 @@ mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
     case mp_fill_code:
       if (gr_pen_p ((mp_fill_object *) p) == NULL) {
         mp_number turns;
+        new_number (turns);
         pn = mp_new_fill_node (mp, NULL);
         mp_path_p ((mp_fill_node) pn) =
           mp_import_knot_list (mp, gr_path_p ((mp_fill_object *) p));
         mp_color_model (pn) = mp_grey_model;
-        turns = mp_new_turn_cycles (mp, mp_path_p ((mp_fill_node) pn));
+        mp_new_turn_cycles (mp, turns, mp_path_p ((mp_fill_node) pn));
         if (number_negative(turns)) {
           set_number_to_unity(((mp_fill_node) pn)->grey);
           mp_link (pt) = pn;
