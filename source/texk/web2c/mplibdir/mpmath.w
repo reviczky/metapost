@@ -165,6 +165,10 @@ typedef struct math_data {
   mp_number coef_bound_k;
   mp_number coef_bound_minus_1;
   mp_number twelvebits_3;
+  mp_number arc_tol_k;
+  mp_number twentysixbits_sqrt2_t;
+  mp_number twentyeightbits_d_t;
+  mp_number twentysevenbits_sqrt2_d_t;
   new_number_func new;
   free_number_func free;
   number_from_scaled_func from_scaled;
@@ -243,6 +247,8 @@ void * mp_initialize_math (MP mp) {
   math->three_quarter_unit_t->data.val = three_quarter_unit;
   math->zero_t = mp_new_number (mp, mp_scaled_type);
   /* |fractions| */
+  math->arc_tol_k = mp_new_number (mp, mp_fraction_type);
+  math->arc_tol_k->data.val = (unity/4096);  /* quit when change in arc length estimate reaches this */
   math->fraction_one_t = mp_new_number (mp, mp_fraction_type);
   math->fraction_one_t->data.val = fraction_one;
   math->fraction_half_t = mp_new_number (mp, mp_fraction_type);
@@ -269,6 +275,13 @@ void * mp_initialize_math (MP mp) {
   math->coef_bound_minus_1->data.val = coef_bound - 1;
   math->twelvebits_3 = mp_new_number (mp, mp_scaled_type);
   math->twelvebits_3->data.val = 1365;  /* $1365\approx 2^{12}/3$ */
+  math->twentysixbits_sqrt2_t = mp_new_number (mp, mp_fraction_type);
+  math->twentysixbits_sqrt2_t->data.val = 94906266;      /* $2^{26}\sqrt2\approx94906265.62$ */
+  math->twentyeightbits_d_t = mp_new_number (mp, mp_fraction_type);
+  math->twentyeightbits_d_t->data.val = 35596755;        /* $2^{28}d\approx35596754.69$ */
+  math->twentysevenbits_sqrt2_d_t = mp_new_number (mp, mp_fraction_type);
+  math->twentysevenbits_sqrt2_d_t->data.val = 25170707;  /* $2^{27}\sqrt2\,d\approx25170706.63$ */
+
   /* functions */
   math->from_scaled = mp_set_number_from_scaled;
   math->from_double = mp_set_number_from_double;

@@ -2196,6 +2196,7 @@ static void mp_clear_arith (MP mp) {
 
 @ The definitions of these are set up by the math initialization.
 
+@d arc_tol_k ((math_data *)mp->math)->arc_tol_k
 @d coef_bound_k ((math_data *)mp->math)->coef_bound_k
 @d coef_bound_minus_1 ((math_data *)mp->math)->coef_bound_minus_1
 @d sqrt_8_e_k ((math_data *)mp->math)->sqrt_8_e_k
@@ -2209,6 +2210,9 @@ static void mp_clear_arith (MP mp) {
 @d three_t  ((math_data *)mp->math)->three_t
 @d half_unit_t ((math_data *)mp->math)->half_unit_t
 @d three_quarter_unit_t ((math_data *)mp->math)->three_quarter_unit_t
+@d twentysixbits_sqrt2_t ((math_data *)mp->math)->twentysixbits_sqrt2_t
+@d twentyeightbits_d_t ((math_data *)mp->math)->twentyeightbits_d_t
+@d twentysevenbits_sqrt2_d_t ((math_data *)mp->math)->twentysevenbits_sqrt2_d_t
 
 @ In fact, the two sorts of scaling discussed above aren't quite
 sufficient; \MP\ has yet another, used internally to keep track of angles.
@@ -9192,12 +9196,13 @@ void mp_solve_rising_cubic (MP mp, mp_number ret, mp_number a_orig, mp_number b_
   mp_number abc;
   mp_number a, b, c, x;      /* local versions of arguments */
   mp_number ab, bc, ac;    /* bisection results */
-  int t;    /* $2^k+q$ where unscaled answer is in $[q2^{-k},(q+1)2^{-k})$ */
+  mp_number t;    /* $2^k+q$ where unscaled answer is in $[q2^{-k},(q+1)2^{-k})$ */
   mp_number xx;   /* temporary for updating |x| */
   mp_number neg_x; /* temporary for an |if| */
   if (number_negative(a_orig) || number_negative(c_orig))
     mp_confusion (mp, "rising?");
 @:this can't happen rising?}{\quad rising?@>;
+  new_number (t); 
   new_number (abc);
   new_number (a);
   new_number (b);
@@ -9219,11 +9224,11 @@ void mp_solve_rising_cubic (MP mp, mp_number ret, mp_number a_orig, mp_number b_
   } else if (number_greaterequal(x, abc)) {
     set_number_to_unity(ret);
   } else {
-    t = 1;
+    number_clone (t, epsilon_t);
     @<Rescale if necessary to make sure |a|, |b|, and |c| are all less than
       |EL_GORDO div 3|@>;
     do {
-      t += t;
+      number_add (t, t);
       @<Subdivide the B\'ezier quadratic defined by |a|, |b|, |c|@>;
       number_clone(xx,x);
       number_substract(xx, a);
@@ -9239,12 +9244,13 @@ void mp_solve_rising_cubic (MP mp, mp_number ret, mp_number a_orig, mp_number b_
         number_add(x, xx);
         number_clone(a, ac);
         number_clone(b, bc);
-        t = t + 1;
+        number_add (t, epsilon_t);
       }
-    } while (t < number_to_scaled (unity_t));
-    set_number_from_scaled(ret, (t - number_to_scaled (unity_t)));
+    } while (number_less (t, unity_t));
+    set_number_from_substraction(ret, t, unity_t);
   }
   free_number (abc);
+  free_number (t);
   free_number (a);
   free_number (b);
   free_number (c);
@@ -9284,19 +9290,14 @@ while (number_greater(a, one_third_inf_t) ||
 unnecessary arguments and ensures that each $({\it dx},{\it dy})$ pair has
 length less than |fraction_four|.
 
-@d arc_tol_limit   (number_to_scaled (unity_t)/4096)  /* quit when change in arc length estimate reaches this */
-
 @c
 static void mp_do_arc_test (MP mp, mp_number ret, mp_number dx0, mp_number dy0, mp_number dx1,
                               mp_number dy1, mp_number dx2, mp_number dy2, mp_number a_goal) {
   mp_number v0, v1, v2;    /* length of each $({\it dx},{\it dy})$ pair */
   mp_number v02;   /* twice the norm of the quadratic at $t={1\over2}$ */
-  mp_number arc_tol;
   new_number (v0);
   new_number (v1);
   new_number (v2);
-  new_number (arc_tol);
-  set_number_from_scaled(arc_tol, arc_tol_limit);
   pyth_add (v0, dx0, dy0);
   pyth_add (v1, dx1, dy1);
   pyth_add (v2, dx2, dy2);
@@ -9325,13 +9326,12 @@ static void mp_do_arc_test (MP mp, mp_number ret, mp_number dx0, mp_number dy0, 
     pyth_add (v02, arg1, arg2);
     free_number(arg1);
     free_number(arg2);
-    mp_arc_test (mp, ret, dx0, dy0, dx1, dy1, dx2, dy2, v0, v02, v2, a_goal, arc_tol);
+    mp_arc_test (mp, ret, dx0, dy0, dx1, dy1, dx2, dy2, v0, v02, v2, a_goal, arc_tol_k);
     free_number (v02);
   }
   free_number (v0);
   free_number (v1);
   free_number (v2);
-  free_number (arc_tol);
 }
 
 
@@ -9401,7 +9401,6 @@ static void mp_get_arc_time (MP mp, mp_number ret, mp_knot h, mp_number arc0_ori
   mp_number t_tot; /* accumulator for the result */
   mp_number t;     /* the result of |do_arc_test| */
   mp_number arc, arc0;   /* portion of |arc0| not used up so far */
-  integer n;    /* number of extra times to go around the cycle */
   mp_number arg1, arg2, arg3, arg4, arg5, arg6; /* |do_arc_test| arguments */
   if (number_negative(arc0_orig)) {
     @<Deal with a negative |arc0_orig| value and |return|@>;
@@ -9487,15 +9486,37 @@ if (number_negative(t)) {
 
 @ @<Update |t_tot| and |arc| to avoid going around the cyclic...@>=
 if (number_positive(arc)) {
-  n = number_to_scaled(arc) / (number_to_scaled(arc0) - number_to_scaled(arc));
-  set_number_from_scaled(arc, number_to_scaled(arc) - n * (number_to_scaled(arc0) - number_to_scaled(arc)));
-  if (number_to_scaled (t_tot) > (EL_GORDO / (n + 1))) {
+  mp_number n, n1, d1, v1;
+  new_number (n);
+  new_number (n1);
+  new_number (d1);
+  new_number (v1);
+
+  set_number_from_substraction (d1, arc0, arc); /* d1 = arc0 - arc */
+  set_number_from_div (n1, arc, d1); /* n1 = (arc / d1) */
+  number_clone (n, n1);
+  set_number_from_mul (n1, n1, d1); /* n1 = (n1 * d1) */
+  number_substract (arc, n1); /* arc = arc - n1 */
+
+  number_clone (d1, inf_t);         /* reuse d1 */
+  number_clone (v1, n);             /* v1 = n */
+  number_add (v1, epsilon_t);       /* v1 = n1+1 */
+  set_number_from_div (d1, d1, v1); /* d1 = EL_GORDO / v1  */
+  if (number_greater (t_tot, d1)) {
     mp->arith_error = true;
     check_arith();
     set_number_to_inf(ret);
+    free_number (n);
+    free_number (n1);
+    free_number (d1);
+    free_number (v1);
     goto RETURN;
   }
-  set_number_from_scaled (t_tot, (n + 1) * number_to_scaled (t_tot));
+  set_number_from_mul (t_tot, t_tot, v1);
+  free_number (n);
+  free_number (n1);
+  free_number (d1);
+  free_number (v1);
 }
 
 @* Data structures for pens.
@@ -9787,11 +9808,11 @@ for (k = 0; k <= 7; k++) {
   new_fraction (mp->d_cos[k]);
 }
 number_clone (mp->half_cos[0], fraction_half_t);
-set_number_from_scaled (mp->half_cos[1], 94906266);     /* $2^{26}\sqrt2\approx94906265.62$ */
-set_number_from_scaled (mp->half_cos[2], 0);
-set_number_from_scaled (mp->d_cos[0], 35596755);        /* $2^{28}d\approx35596754.69$ */
-set_number_from_scaled (mp->d_cos[1], 25170707);        /* $2^{27}\sqrt2\,d\approx25170706.63$ */
-set_number_from_scaled (mp->d_cos[2], 0);
+number_clone (mp->half_cos[1], twentysixbits_sqrt2_t);  
+number_clone (mp->half_cos[2], zero_t);
+number_clone (mp->d_cos[0], twentyeightbits_d_t);
+number_clone (mp->d_cos[1], twentysevenbits_sqrt2_d_t);
+number_clone (mp->d_cos[2], zero_t);
 for (k = 3; k <= 4; k++) {
   number_clone (mp->half_cos[k], mp->half_cos[4 - k]);
   number_negate (mp->half_cos[k]);
