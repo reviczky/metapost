@@ -7420,8 +7420,7 @@ RESTART:
       take_fraction (r1, mp->delta_y[k], cosine);
       take_fraction (r2, mp->delta_x[k], sine);
       set_number_from_substraction (arg2, r1, r2);
-      free_number (mp->psi[k]);
-      mp->psi[k] = mp_n_arg (mp, arg1, arg2 );
+      n_arg (mp->psi[k], arg1, arg2 );
       free_number (r1);
       free_number (r2);
       free_number (arg1);
@@ -7468,8 +7467,7 @@ Similarly, |mp_left_type(q)| is either |given| or |curl| or |open| or
       set_number_to_unity(q->left_curl);
     } else {
       mp_left_type (q) = mp_given;
-      free_number (q->left_given);
-      q->left_given = mp_n_arg (mp, delx, dely);
+      n_arg (q->left_given, delx, dely);
     }
   }
   if ((mp_right_type (p) == mp_open) && (mp_left_type (p) == mp_explicit)) {
@@ -7480,8 +7478,7 @@ Similarly, |mp_left_type(q)| is either |given| or |curl| or |open| or
       set_number_to_unity(p->right_curl);
     } else {
       mp_right_type (p) = mp_given;
-      free_number (p->right_given);
-      p->right_given = mp_n_arg (mp, delx, dely);
+      n_arg (p->right_given, delx, dely);
     }
   }
   free_number (delx);
@@ -7902,9 +7899,11 @@ void mp_reduce_angle (MP mp, mp_number a);
 
 @ @<Calculate the given value of $\theta_n$...@>=
 {
-  mp_number n_arg = mp_n_arg (mp, mp->delta_x[n - 1], mp->delta_y[n - 1]);
-  set_number_from_scaled(mp->theta[n],  number_to_scaled(s->left_given) - number_to_scaled (n_arg));
-  free_number (n_arg);
+  mp_number narg;
+  new_angle (narg);
+  n_arg (narg, mp->delta_x[n - 1], mp->delta_y[n - 1]);
+  set_number_from_scaled(mp->theta[n],  number_to_scaled(s->left_given) - number_to_scaled (narg));
+  free_number (narg);
   mp_reduce_angle (mp, mp->theta[n]);
   goto FOUND;
 }
@@ -7912,9 +7911,11 @@ void mp_reduce_angle (MP mp, mp_number a);
 
 @ @<Set up the equation for a given value of $\theta_0$@>=
 {
-  mp_number n_arg = mp_n_arg (mp, mp->delta_x[0], mp->delta_y[0]);
-  set_number_from_scaled(mp->vv[0], number_to_scaled(s->right_given) - number_to_scaled (n_arg));
-  free_number (n_arg);
+  mp_number narg;
+  new_angle (narg);
+  n_arg (narg, mp->delta_x[0], mp->delta_y[0]);
+  set_number_from_scaled(mp->vv[0], number_to_scaled(s->right_given) - number_to_scaled (narg));
+  free_number (narg);
   mp_reduce_angle (mp, mp->vv[0]);
   set_number_to_zero(mp->uu[0]);
   set_number_to_zero(mp->ww[0]);
@@ -8159,8 +8160,10 @@ void mp_set_controls (MP mp, mp_knot p, mp_knot q, integer k) {
   number_clone(rt, p->right_tension);
   number_abs(rt);
   new_fraction (sine);
-  rr = mp_velocity (mp, mp->st, mp->ct, mp->sf, mp->cf, rt);
-  ss = mp_velocity (mp, mp->sf, mp->cf, mp->st, mp->ct, lt);
+  new_fraction (rr);
+  new_fraction (ss);
+  velocity (rr, mp->st, mp->ct, mp->sf, mp->cf, rt);
+  velocity (ss, mp->sf, mp->cf, mp->st, mp->ct, lt);
   if (number_negative(p->right_tension) || number_negative(q->left_tension)) {
     @<Decrease the velocities,
       if necessary, to stay inside the bounding triangle@>;
@@ -8248,15 +8251,17 @@ if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpos
 @<Reduce to simple case of two givens and |return|@>=
 {
   mp_number arg1;
-  mp_number n_arg = mp_n_arg (mp, mp->delta_x[0], mp->delta_y[0]);
+  mp_number narg;
+  new_angle (narg);
+  n_arg (narg, mp->delta_x[0], mp->delta_y[0]);
   new_number (arg1);
-  set_number_from_substraction (arg1, p->right_given, n_arg);
+  set_number_from_substraction (arg1, p->right_given, narg);
   mp_n_sin_cos (mp, arg1, mp->ct, mp->st);
-  set_number_from_substraction (arg1, q->left_given, n_arg);
+  set_number_from_substraction (arg1, q->left_given, narg);
   mp_n_sin_cos (mp, arg1, mp->cf, mp->sf);
   number_negate (mp->sf);
   mp_set_controls (mp, p, q, 0);
-  free_number (n_arg);
+  free_number (narg);
   return;
 }
 
@@ -10262,6 +10267,8 @@ This first set goes into the header
 @d take_scaled(R,A,B)                  (((math_data *)(mp->math))->take_scaled)(mp,R,A,B)
 @d make_fraction(R,A,B)                (((math_data *)(mp->math))->make_fraction)(mp,R,A,B)
 @d take_fraction(R,A,B)                (((math_data *)(mp->math))->take_fraction)(mp,R,A,B)
+@d n_arg(R,A,B)                        (((math_data *)(mp->math))->n_arg)(mp,R,A,B)
+@d velocity(R,A,B,C,D,E)               (((math_data *)(mp->math))->velocity)(mp,R,A,B,C,D,E)
 @d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
 @d floor_scaled(A)		       (((math_data *)(mp->math))->floor_scaled)(A)
 @d fraction_to_scaled(A)               (((math_data *)(mp->math))->fraction_to_scaled)(A)
@@ -13883,8 +13890,7 @@ if (number_positive(n)) {
     break;
 }
 if (number_nonzero(x3) || number_nonzero(y3)) {
-  free_number (phi);
-  phi = mp_n_arg (mp, x3, y3);
+  n_arg (phi, x3, y3);
 }
 @<Exit to |found| if the curve whose derivatives are specified by
   |x1,x2,x3,y1,y2,y3| travels eastward at some time~|tt|@>
@@ -13997,8 +14003,10 @@ free_number (phi);
 
 @ @<Exit to |found| if an eastward direction occurs at knot |p|@>=
 {
-  mp_number theta = mp_n_arg (mp, x1, y1);
+  mp_number theta;
   mp_number tmp;
+  new_angle (theta);
+  n_arg (theta, x1, y1);
   new_angle (tmp);
   set_number_from_substraction (tmp, theta, one_eighty_deg_t);
   if (number_nonnegative(theta) && number_nonpositive(phi) && number_greaterequal(phi, tmp)) {
@@ -23087,10 +23095,12 @@ static quarterword mp_scan_direction (MP mp) {
   if (number_zero(mp->cur_x) && number_zero(mp->cur_y))
     t = mp_open;
   else {
-    mp_number n_arg = mp_n_arg (mp, mp->cur_x, mp->cur_y);
+    mp_number narg;
+    new_angle (narg); 
+    n_arg (narg, mp->cur_x, mp->cur_y);
     t = mp_given;
-    set_cur_exp_value (number_to_scaled (n_arg));
-    free_number (n_arg);
+    set_cur_exp_value (number_to_scaled (narg));
+    free_number (narg);
   }
 }
 
@@ -24069,11 +24079,12 @@ break;
 @ @<Additional cases of unary operators@>=
 case mp_angle_op:
 if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
-  mp_number n_arg;
+  mp_number narg;
+  new_angle (narg);
   p = value_node (cur_exp_node ());
-  n_arg = mp_n_arg (mp, value_number (x_part (p)), value_number (y_part (p)));
-  x = number_to_scaled (n_arg);
-  free_number (n_arg);
+  n_arg (narg, value_number (x_part (p)), value_number (y_part (p)));
+  x = number_to_scaled (narg);
+  free_number (narg);
   if (x >= 0)
     set_number_from_scaled (new_expr.data.n, (x + 8) / 16);
   else
@@ -24771,10 +24782,10 @@ argument is |origin|.
 @<Declare unary action...@>=
 static mp_number mp_an_angle (MP mp, mp_number xpar, mp_number ypar) {
   mp_number ret;
+  new_angle (ret);
   if ((!(number_zero(xpar) && number_zero(ypar)))) {
-    return mp_n_arg (mp, xpar, ypar);
+    n_arg (ret, xpar, ypar);
   }
-  new_number (ret);
   return ret;
 }
 

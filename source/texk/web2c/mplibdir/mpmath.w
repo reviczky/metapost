@@ -59,6 +59,8 @@
 @<Internal library declarations@>=
 extern mp_number mp_new_number (MP mp, mp_number_type t) ;
 extern void mp_free_number (MP mp, mp_number n) ;
+void mp_n_arg (MP mp, mp_number ret, mp_number x, mp_number y);
+void mp_velocity (MP mp, mp_number ret, mp_number st, mp_number ct, mp_number sf,  mp_number cf, mp_number t);
 void mp_set_number_from_scaled(mp_number A, int B);
 void mp_set_number_from_double(mp_number A, double B);
 void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C);
@@ -88,6 +90,8 @@ void mp_number_make_scaled (MP mp, mp_number r, mp_number p, mp_number q);
 void mp_number_make_fraction (MP mp, mp_number r, mp_number p, mp_number q);
 void mp_number_take_fraction (MP mp, mp_number r, mp_number p, mp_number q);
 void mp_number_take_scaled (MP mp, mp_number r, mp_number p, mp_number q);
+typedef void (*n_arg_func) (MP mp, mp_number r, mp_number a, mp_number b);
+typedef void (*velocity_func) (MP mp, mp_number r, mp_number a, mp_number b, mp_number c, mp_number d, mp_number e);
 typedef void (*number_from_scaled_func) (mp_number A, int B);
 typedef void (*number_from_double_func) (mp_number A, double B);
 typedef void (*number_from_addition_func) (mp_number A, mp_number B, mp_number C);
@@ -165,6 +169,8 @@ typedef struct math_data {
   make_fraction_func make_fraction;
   take_fraction_func take_fraction;
   take_scaled_func take_scaled;
+  velocity_func velocity;
+  n_arg_func n_arg;
   fraction_to_scaled_func fraction_to_scaled;
 } math_data;
 
@@ -238,6 +244,8 @@ void * mp_initialize_math (MP mp) {
   math->make_fraction = mp_number_make_fraction;
   math->take_fraction = mp_number_take_fraction;
   math->take_scaled = mp_number_take_scaled;
+  math->velocity = mp_velocity;
+  math->n_arg = mp_n_arg;
   return (void *)math;
 }
 
@@ -883,14 +891,9 @@ The angles $\theta$ and $\phi$ are given implicitly in terms of |fraction|
 arguments |st|, |ct|, |sf|, and |cf|, representing $\sin\theta$, $\cos\theta$,
 $\sin\phi$, and $\cos\phi$, respectively.
 
-@<Internal library declarations@>=
-mp_number mp_velocity (MP mp, mp_number st, mp_number ct, mp_number sf,
-	                      mp_number cf, mp_number t);
-
-@ @c
-mp_number mp_velocity (MP mp, mp_number st, mp_number ct, mp_number sf,
-	                      mp_number cf, mp_number t) {
-  mp_number ret;
+@c
+void mp_velocity (MP mp, mp_number ret, mp_number st, mp_number ct, mp_number sf,
+                  mp_number cf, mp_number t) {
   integer acc, num, denom;      /* registers for intermediate calculations */
   acc = mp_take_fraction (mp, st->data.val - (sf->data.val / 16), sf->data.val - (st->data.val / 16));
   acc = mp_take_fraction (mp, acc, ct->data.val - cf->data.val);
@@ -904,13 +907,11 @@ mp_number mp_velocity (MP mp, mp_number st, mp_number ct, mp_number sf,
      $3\cdot2^{27}\cdot(3-\sqrt5\,)\approx307599661.22$ */
   if (t->data.val != unity)
     num = mp_make_scaled (mp, num, t->data.val); /* |make_scaled(fraction,scaled)=fraction| */
-  new_number (ret);
   if (num / 4 >= denom) {
     ret->data.val = fraction_four;
   } else {
     ret->data.val = mp_make_fraction (mp, num, denom);
   }
-  return ret;
 }
 
 
@@ -1404,18 +1405,13 @@ to be computationally simplest.
 @d seventh_octant (first_octant+switch_x_and_y+negate_y)
 @d eighth_octant (first_octant+negate_y)
 
-@<Internal library declarations@>=
-mp_number mp_n_arg (MP mp, mp_number x, mp_number y);
-
-@ @c
-mp_number mp_n_arg (MP mp, mp_number x_orig, mp_number y_orig) {
-  mp_number ret;
+@c
+void mp_n_arg (MP mp, mp_number ret, mp_number x_orig, mp_number y_orig) {
   integer z;      /* auxiliary register */
   integer t;    /* temporary storage */
   quarterword k;        /* loop counter */
   int octant;   /* octant code */
   integer x, y;
-  new_angle(ret);
   x = x_orig->data.val;
   y = y_orig->data.val;
   if (x >= 0) {
@@ -1451,7 +1447,7 @@ mp_number mp_n_arg (MP mp, mp_number x_orig, mp_number y_orig) {
          NULL };
   mp_error (mp, "angle(0,0) is taken as zero", hlp, true);
 @.angle(0,0)...zero@>;
-  return ret;
+  ret->data.val = 0;
 }
 
 
@@ -1482,7 +1478,7 @@ case eighth_octant:
   ret->data.val = (-z);
   break;
 }                              /* there are no other cases */
-return ret
+
 
 @ At this point we have |x>=y>=0|, and |x>0|. The numbers are scaled up
 or down until $2^{28}\L x<2^{29}$, so that accurate fixed-point calculations
