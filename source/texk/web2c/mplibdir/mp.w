@@ -8029,7 +8029,7 @@ void mp_curl_ratio (MP mp, mp_number ret, mp_number gamma_orig, mp_number a_tens
     take_fraction (ff, arg1, arg1);
     number_clone (arg1, gamma);
     take_fraction (gamma, arg1, ff);
-    set_number_from_scaled (beta, number_to_scaled(beta) / 010000);       /* convert |fraction| to |scaled| */
+    convert_fraction_to_scaled (beta);
     set_number_from_addition (arg1, alpha, three_t);
     number_substract (arg1, beta);
     take_fraction (denom, gamma, arg1);
@@ -8048,7 +8048,7 @@ void mp_curl_ratio (MP mp, mp_number ret, mp_number gamma_orig, mp_number a_tens
     number_clone (arg1, ff);
     take_fraction (ff, arg1, arg1);
     take_fraction (arg1, beta, ff);
-    set_number_from_scaled (arg1, number_to_scaled (arg1) / 010000);  /* convert |fraction| to |scaled| */
+    convert_fraction_to_scaled (arg1);
     number_clone (beta, arg1);   
     take_fraction (arg1, gamma, alpha);
     new_number (denom);
@@ -10247,7 +10247,7 @@ This first set goes into the header
 @d velocity(R,A,B,C,D,E)               (((math_data *)(mp->math))->velocity)(mp,R,A,B,C,D,E)
 @d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
 @d floor_scaled(A)		       (((math_data *)(mp->math))->floor_scaled)(A)
-@d fraction_to_scaled(A)               (((math_data *)(mp->math))->fraction_to_scaled)(A)
+@d fraction_to_round_scaled(A)         (((math_data *)(mp->math))->fraction_to_round_scaled)(A)
 @d number_to_scaled(A)		       (((math_data *)(mp->math))->to_scaled)(A)		       
 @d number_to_double(A)		       (((math_data *)(mp->math))->to_double)(A)		       
 @d number_negate(A)		       (((math_data *)(mp->math))->negate)(A)		       
@@ -10264,7 +10264,9 @@ This first set goes into the header
 @d number_greater(A,B)		       (((math_data *)(mp->math))->greater)(A,B)		       
 @d number_less(A,B)		       (((math_data *)(mp->math))->less)(A,B)		       
 @d number_clone(A,B)		       (((math_data *)(mp->math))->clone)(A,B)		       
-@d number_swap(A,B)		       (((math_data *)(mp->math))->swap)(A,B)		       
+@d number_swap(A,B)		       (((math_data *)(mp->math))->swap)(A,B);
+@d convert_fraction_to_scaled(A)       (((math_data *)(mp->math))->fraction_to_scaled)(A);
+@d convert_scaled_to_fraction(A)       (((math_data *)(mp->math))->scaled_to_fraction)(A);
 @#
 @d number_zero(A)		       number_equal(A, zero_t)		       
 @d number_infinite(A)		       number_equal(A, inf_t)		       
@@ -14020,7 +14022,14 @@ miss the roots when $y_1y_3<y_2^2$. The rotation process is itself
 subject to rounding errors. Yet this code optimistically tries to
 do the right thing.
 
-@d we_found_it { set_number_from_scaled (tt,(number_to_scaled (t)+04000) / 010000); goto FOUND; }
+TODO: this definition may need more work, the original code did something
+different.
+
+@d we_found_it { 
+  number_clone (tt, t);
+  fraction_to_round_scaled (tt);
+  goto FOUND; 
+}
 
 @<Check the places where $B(y_1,y_2,y_3;t)=0$...@>=
 mp_crossing_point (mp, t, y1, y2, y3);
@@ -14800,7 +14809,7 @@ if (dep_value (p) < 0)
 else if (p != pp)
   mp_print_char (mp, xord ('+'));
 if (t == mp_dependent) {
-  fraction_to_scaled (v);
+  fraction_to_round_scaled (v);
 }
 if (!number_equal (v, unity_t))
   mp_print_number (mp, v)
@@ -15228,7 +15237,8 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
         new_number (arg2);
         new_number (ret);
         set_number_from_scaled (arg1, dep_value (p));
-        set_number_from_scaled (arg2, number_to_scaled (v) * 010000);
+        number_clone (arg2, v);
+        convert_scaled_to_fraction (arg2);
         make_scaled (ret, arg1, arg2);
         w = number_to_scaled (ret);
         free_number (ret);
@@ -15239,7 +15249,7 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
         new_number (x);
         new_number (ret);
         set_number_from_scaled (x, dep_value (p));
-        fraction_to_scaled (x);
+        fraction_to_round_scaled (x);
         make_scaled (ret, x, v);
         w = number_to_scaled (ret);
         free_number (ret);
@@ -21396,7 +21406,7 @@ mp_value_node max_link[mp_proto_dependent + 1]; /* other occurrences of |p| */
 
 @ @<Choose a dependent...@>=
 {
-  if ((mp->max_c[mp_dependent] / 010000) >= mp->max_c[mp_proto_dependent])
+  if ((mp->max_c[mp_dependent] / 4096) >= mp->max_c[mp_proto_dependent])
     t = mp_dependent;
   else
     t = mp_proto_dependent;
@@ -21465,7 +21475,7 @@ if (mp_interesting (mp, p)) {
     mp_number x;
     new_number (x);
     set_number_from_scaled (x, mp->max_c[mp_dependent]);
-    fraction_to_scaled (x);
+    fraction_to_round_scaled (x);
     vv = number_to_scaled (x);
     free_number (x);
   } else {
@@ -21532,7 +21542,7 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
                                            mp_proto_dependent));
       mp_type (q) = mp_proto_dependent;
       set_number_from_scaled (x, dep_value (r));
-      fraction_to_scaled (x);
+      fraction_to_round_scaled (x);
       set_dep_value (r, number_to_scaled (x));
       free_number (x);
     }
@@ -24001,10 +24011,10 @@ if (mp->cur_exp.type != mp_known) {
       set_number_from_scaled (arg1, (cur_exp_value () % three_sixty_units) * 16);
       mp_n_sin_cos (mp, arg1, n_cos, n_sin);
       if (c == mp_sin_d_op) {
-        fraction_to_scaled (n_sin);
+        fraction_to_round_scaled (n_sin);
         set_cur_exp_value (number_to_scaled (n_sin));
       } else {
-        fraction_to_scaled (n_cos);
+        fraction_to_round_scaled (n_cos);
         set_cur_exp_value (number_to_scaled (n_cos));
       }
       free_number (arg1);
@@ -26746,8 +26756,8 @@ break;
   new_fraction (n_cos); /* results computed by |n_sin_cos| */
   set_number_from_scaled (arg1, (value (p) % three_sixty_units) * 16);
   mp_n_sin_cos (mp, arg1, n_cos, n_sin);
-  fraction_to_scaled (n_sin);
-  fraction_to_scaled (n_cos);
+  fraction_to_round_scaled (n_sin);
+  fraction_to_round_scaled (n_cos);
   set_value (xx_part (q), number_to_scaled (n_cos));
   set_value (yx_part (q), number_to_scaled (n_sin));
   set_value (xy_part (q), -value (yx_part (q)));
@@ -27478,7 +27488,8 @@ if (number_greater (b, l)) {
     new_number (arg1);
     ss = pp;
     pp = mp_next_knot (pp);
-    set_number_from_scaled (arg1, number_to_scaled (a) * 010000);
+    number_clone (arg1, a);
+    convert_scaled_to_fraction (arg1);
     mp_split_cubic (mp, ss, arg1);
     free_number (arg1);
     pp = mp_next_knot (ss);
@@ -27498,7 +27509,8 @@ if (number_greater (b, l)) {
   if (number_negative (b)) {
     mp_number arg1;
     new_number (arg1);
-    set_number_from_scaled (arg1, (number_to_scaled (b) + number_to_scaled (unity_t)) * 010000);
+    set_number_from_addition (arg1, b, unity_t);
+    convert_scaled_to_fraction (arg1);
     mp_split_cubic (mp, rr, arg1);
     free_number (arg1);
     mp_xfree (qq);
@@ -27512,7 +27524,8 @@ if (number_greater (b, l)) {
   if (number_positive (a)) {
     mp_number arg1;
     new_number (arg1);
-    set_number_from_scaled (arg1, number_to_scaled (a) * 010000);
+    number_clone (arg1, a);
+    convert_scaled_to_fraction (arg1);
     mp_split_cubic (mp, q, arg1);
     free_number (arg1);
     q = mp_next_knot (q);
@@ -27696,7 +27709,8 @@ static void mp_find_point (MP mp, mp_number v_orig, quarterword c) {
 {
   mp_number arg1;
   new_number (arg1);
-  set_number_from_scaled (arg1, number_to_scaled(v) * 010000);
+  number_clone (arg1, v);
+  convert_scaled_to_fraction (arg1);
   mp_split_cubic (mp, p, arg1);
   free_number (arg1);
   p = mp_next_knot (p);
@@ -28439,7 +28453,7 @@ if (t == tt) {
   q = p;
   while (dep_info (q) != NULL) {
     set_number_from_scaled (x, dep_value (q));
-    fraction_to_scaled (x);
+    fraction_to_round_scaled (x);
     set_dep_value (q, number_to_scaled (x));
     q = (mp_value_node) mp_link (q);
   }
@@ -32081,7 +32095,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
 }
 mp->nw = (short) (mp_skimp (mp, 255) + 1);
 mp->dimen_head[1] = mp_link (mp->temp_head);
-if (number_to_scaled (mp->perturbation) >= 010000)
+if (number_to_scaled (mp->perturbation) >= 4096)
   mp_tfm_warning (mp, mp_char_wd)
    
 
@@ -32104,7 +32118,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
 }
 mp->nh = (short) (mp_skimp (mp, 15) + 1);
 mp->dimen_head[2] = mp_link (mp->temp_head);
-if (number_to_scaled (mp->perturbation) >= 010000)
+if (number_to_scaled (mp->perturbation) >= 4096)
   mp_tfm_warning (mp, mp_char_ht);
 clear_the_list;
 for (k = mp->bc; k <= mp->ec; k++) {
@@ -32117,7 +32131,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
 }
 mp->nd = (short) (mp_skimp (mp, 15) + 1);
 mp->dimen_head[3] = mp_link (mp->temp_head);
-if (number_to_scaled (mp->perturbation) >= 010000)
+if (number_to_scaled (mp->perturbation) >= 4096)
   mp_tfm_warning (mp, mp_char_dp);
 clear_the_list;
 for (k = mp->bc; k <= mp->ec; k++) {
@@ -32130,7 +32144,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
 }
 mp->ni = (short) (mp_skimp (mp, 63) + 1);
 mp->dimen_head[4] = mp_link (mp->temp_head);
-if (number_to_scaled (mp->perturbation) >= 010000)
+if (number_to_scaled (mp->perturbation) >= 4096)
   mp_tfm_warning (mp, mp_char_ic)
    
 
