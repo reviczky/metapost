@@ -2382,12 +2382,11 @@ can readily be obtained with the ratio method (Algorithm 3.4.1R in
 
 @c
 static void mp_norm_rand (MP mp, mp_number ret) {
-  integer l;      /* what the book would call $2^{16}X$, $2^{28}U$, and $-2^{24}\ln U$ */
   mp_number abs_x;
   mp_number u;
   mp_number r;
   mp_number one_k, la, xa;
-  mp_number approx;
+  mp_number approx, approx2;
   new_number (one_k);
   new_number (la);
   new_number (xa);
@@ -2396,7 +2395,9 @@ static void mp_norm_rand (MP mp, mp_number ret) {
   new_number (u);
   new_number (r);
   new_number (approx);
+  new_number (approx2);
   set_number_from_scaled (approx, 112429); /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
+  set_number_from_scaled (approx2, 139548960);  /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
   do {
     do {
       mp_number v;
@@ -2411,8 +2412,8 @@ static void mp_norm_rand (MP mp, mp_number ret) {
     } while (number_greaterequal (abs_x, u));
     make_fraction (r, xa, u);
     number_clone (xa, r);
-    l = 139548960 - mp_m_log (mp, number_to_scaled (u));   /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
-    set_number_from_scaled (la, l);
+    m_log (la, u);
+    set_number_from_substraction(la, approx2, la);
   } while (mp_ab_vs_cd (mp, one_k, la, xa, xa) < 0);
   number_clone (ret, xa);
   free_number (r);
@@ -10241,6 +10242,8 @@ This first set goes into the header
 @d pyth_add(R,A,B)                     (((math_data *)(mp->math))->pyth_add)(mp,R,A,B)
 @d pyth_sub(R,A,B)                     (((math_data *)(mp->math))->pyth_sub)(mp,R,A,B)
 @d n_arg(R,A,B)                        (((math_data *)(mp->math))->n_arg)(mp,R,A,B)
+@d m_log(R,A)                          (((math_data *)(mp->math))->m_log)(mp,R,A)
+@d m_exp(R,A)                          (((math_data *)(mp->math))->m_exp)(mp,R,A)
 @d velocity(R,A,B,C,D,E)               (((math_data *)(mp->math))->velocity)(mp,R,A,B,C,D,E)
 @d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
 @d floor_scaled(A)		       (((math_data *)(mp->math))->floor_scaled)(A)
@@ -23978,12 +23981,24 @@ if (mp->cur_exp.type != mp_known) {
     set_cur_exp_value (vv);
     break;
   case mp_m_exp_op:
-    vv = mp_m_exp (mp, cur_exp_value ());
-    set_cur_exp_value (vv);
+    {
+      mp_number r1;
+      new_number (r1);
+      m_exp (r1, cur_exp_value_number ());
+      vv = number_to_scaled (r1);
+      free_number (r1);
+      set_cur_exp_value (vv);
+    }
     break;
   case mp_m_log_op:
-    vv = mp_m_log (mp, cur_exp_value ());
-    set_cur_exp_value (vv);
+    {
+      mp_number r1;
+      new_number (r1);
+      m_log (r1, cur_exp_value_number ());
+      vv = number_to_scaled (r1);
+      free_number (r1);
+      set_cur_exp_value (vv);
+    }
     break;
   case mp_sin_d_op:
   case mp_cos_d_op:

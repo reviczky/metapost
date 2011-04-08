@@ -59,6 +59,8 @@
 @<Internal library declarations@>=
 extern mp_number mp_new_number (MP mp, mp_number_type t) ;
 extern void mp_free_number (MP mp, mp_number n) ;
+void mp_m_exp (MP mp, mp_number ret, mp_number x_orig);
+void mp_m_log (MP mp, mp_number ret, mp_number x_orig);
 void mp_pyth_sub (MP mp, mp_number r, mp_number a, mp_number b);
 void mp_pyth_add (MP mp, mp_number r, mp_number a, mp_number b);
 void mp_n_arg (MP mp, mp_number ret, mp_number x, mp_number y);
@@ -92,6 +94,8 @@ void mp_number_make_scaled (MP mp, mp_number r, mp_number p, mp_number q);
 void mp_number_make_fraction (MP mp, mp_number r, mp_number p, mp_number q);
 void mp_number_take_fraction (MP mp, mp_number r, mp_number p, mp_number q);
 void mp_number_take_scaled (MP mp, mp_number r, mp_number p, mp_number q);
+typedef void (*m_log_func) (MP mp, mp_number r, mp_number a);
+typedef void (*m_exp_func) (MP mp, mp_number r, mp_number a);
 typedef void (*pyth_add_func) (MP mp, mp_number r, mp_number a, mp_number b);
 typedef void (*pyth_sub_func) (MP mp, mp_number r, mp_number a, mp_number b);
 typedef void (*n_arg_func) (MP mp, mp_number r, mp_number a, mp_number b);
@@ -175,6 +179,8 @@ typedef struct math_data {
   take_scaled_func take_scaled;
   velocity_func velocity;
   n_arg_func n_arg;
+  m_log_func m_log;
+  m_exp_func m_exp;
   pyth_add_func pyth_add;
   pyth_sub_func pyth_sub;
   fraction_to_scaled_func fraction_to_scaled;
@@ -252,6 +258,8 @@ void * mp_initialize_math (MP mp) {
   math->take_scaled = mp_number_take_scaled;
   math->velocity = mp_velocity;
   math->n_arg = mp_n_arg;
+  math->m_log = mp_m_log;
+  math->m_exp = mp_m_exp;
   math->pyth_add = mp_pyth_add;
   math->pyth_sub = mp_pyth_sub;
   return (void *)math;
@@ -1254,13 +1262,12 @@ $100\cdot2^{16}=6553600$ to~|z| and subtract 100 from~|y| so that |z| will
 not become negative; also, the actual amount subtracted from~|y| is~96,
 not~100, because we want to add~4 for rounding before the final division by~8.)
 
-@<Internal library declarations@>=
-int mp_m_log (MP mp, int x);
-
-@ @c
-int mp_m_log (MP mp, int x) { /* return, x: scaled */
+@c
+void mp_m_log (MP mp, mp_number ret, mp_number x_orig) { /* return, x: scaled */
+  int x;
   integer y, z; /* auxiliary registers */
   integer k;    /* iteration counter */
+  x = x_orig->data.val;
   if (x <= 0) {
     @<Handle non-positive logarithm@>;
   } else {
@@ -1277,7 +1284,7 @@ int mp_m_log (MP mp, int x) { /* return, x: scaled */
       @<Increase |k| until |x| can be multiplied by a
         factor of $2^{-k}$, and adjust $y$ accordingly@>;
     }
-    return (y / 8);
+    ret->data.val = (y / 8);
   }
 }
 
@@ -1304,7 +1311,7 @@ int mp_m_log (MP mp, int x) { /* return, x: scaled */
   mp_snprintf (msg, 256, "Logarithm of %s has been replaced by 0", mp_string_scaled (mp, x));
 @.Logarithm...replaced by 0@>;
   mp_error (mp, msg, hlp, true);
-  return 0;
+  ret->data.val = 0;
 }
 
 
@@ -1312,20 +1319,19 @@ int mp_m_log (MP mp, int x) { /* return, x: scaled */
 when |x| is |scaled|. The result is an integer approximation to
 $2^{16}\exp(x/2^{24})$, when |x| is regarded as an integer.
 
-@<Internal library declarations@>=
-int mp_m_exp (MP mp, int x);
-
-@ @c
-int mp_m_exp (MP mp, int x) { /* return, x: scaled */
+@c
+void mp_m_exp (MP mp, mp_number ret, mp_number x_orig) {
   quarterword k;        /* loop control index */
   integer y, z; /* auxiliary registers */
+  int x;
+  x = x_orig->data.val;
   if (x > 174436200) {
     /* $2^{24}\ln((2^{31}-1)/2^{16})\approx 174436199.51$ */
     mp->arith_error = true;
-    return EL_GORDO;
+    ret->data.val = EL_GORDO;
   } else if (x < -197694359) {
     /* $2^{24}\ln(2^{-1}/2^{16})\approx-197694359.45$ */
-    return 0;
+    ret->data.val = 0;
   } else {
     if (x <= 0) {
       z = -8 * x;
@@ -1338,12 +1344,12 @@ int mp_m_exp (MP mp, int x) { /* return, x: scaled */
         z = 8 * (174436200 - x);        /* |z| is always nonnegative */
       }
       y = EL_GORDO;
-    };
+    }
     @<Multiply |y| by $\exp(-z/2^{27})$@>;
     if (x <= 127919879)
-      return ((y + 8) / 16);
+      ret->data.val = ((y + 8) / 16);
     else
-      return y;
+      ret->data.val = y;
   }
 }
 
