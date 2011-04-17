@@ -6752,7 +6752,7 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
   new_fraction (n_cos);
   mp_print_nl (mp, " ..");
   if (mp_left_type (p) == mp_given) {
-    mp_n_sin_cos (mp, p->left_given, n_cos, n_sin);
+    n_sin_cos (p->left_given, n_cos, n_sin);
     mp_print_char (mp, xord ('{'));
     mp_print_number (mp, n_cos);
     mp_print_char (mp, xord (','));
@@ -6819,7 +6819,7 @@ if ((mp_left_type (p) != mp_explicit) && (mp_left_type (p) != mp_open)) {
     mp_number n_sin, n_cos;
     new_fraction (n_sin);
     new_fraction (n_cos);
-    mp_n_sin_cos (mp, p->right_given, n_cos, n_sin);
+    n_sin_cos (p->right_given, n_cos, n_sin);
     mp_print_char (mp, xord ('{'));
     mp_print_number (mp, n_cos);
     mp_print_char (mp, xord (','));
@@ -8076,11 +8076,11 @@ mp_number arg;
 new_number (arg);
 do {
   t = mp_next_knot (s);
-  mp_n_sin_cos (mp, mp->theta[k], mp->ct, mp->st);
+  n_sin_cos (mp->theta[k], mp->ct, mp->st);
   number_clone (arg, mp->psi[k + 1]);
   number_negate (arg);
   number_substract (arg, mp->theta[k + 1]);
-  mp_n_sin_cos (mp, arg, mp->cf, mp->sf);
+  n_sin_cos (arg, mp->cf, mp->sf);
   mp_set_controls (mp, s, t, k);
   incr (k);
   s = t;
@@ -8229,9 +8229,9 @@ if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpos
   n_arg (narg, mp->delta_x[0], mp->delta_y[0]);
   new_number (arg1);
   set_number_from_substraction (arg1, p->right_given, narg);
-  mp_n_sin_cos (mp, arg1, mp->ct, mp->st);
+  n_sin_cos (arg1, mp->ct, mp->st);
   set_number_from_substraction (arg1, q->left_given, narg);
-  mp_n_sin_cos (mp, arg1, mp->cf, mp->sf);
+  n_sin_cos (arg1, mp->cf, mp->sf);
   number_negate (mp->sf);
   mp_set_controls (mp, p, q, 0);
   free_number (narg);
@@ -10268,6 +10268,7 @@ This first set goes into the header
 @d m_log(R,A)                          (((math_data *)(mp->math))->m_log)(mp,R,A)
 @d m_exp(R,A)                          (((math_data *)(mp->math))->m_exp)(mp,R,A)
 @d velocity(R,A,B,C,D,E)               (((math_data *)(mp->math))->velocity)(mp,R,A,B,C,D,E)
+@d n_sin_cos(A,S,C)                    (((math_data *)(mp->math))->sin_cos)(mp,A,S,C)
 @d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
 @d floor_scaled(A)		       (((math_data *)(mp->math))->floor_scaled)(A)
 @d fraction_to_round_scaled(A)         (((math_data *)(mp->math))->fraction_to_round_scaled)(A)
@@ -24032,7 +24033,7 @@ if (mp->cur_exp.type != mp_known) {
       new_fraction (n_sin);
       new_fraction (n_cos); /* results computed by |n_sin_cos| */
       set_number_from_scaled (arg1, (cur_exp_value () % three_sixty_units) * 16);
-      mp_n_sin_cos (mp, arg1, n_cos, n_sin);
+      n_sin_cos (arg1, n_cos, n_sin);
       if (c == mp_sin_d_op) {
         fraction_to_round_scaled (n_sin);
         set_cur_exp_value (number_to_scaled (n_sin));
@@ -26778,7 +26779,7 @@ break;
   new_fraction (n_sin);
   new_fraction (n_cos); /* results computed by |n_sin_cos| */
   set_number_from_scaled (arg1, (value (p) % three_sixty_units) * 16);
-  mp_n_sin_cos (mp, arg1, n_cos, n_sin);
+  n_sin_cos (arg1, n_cos, n_sin);
   fraction_to_round_scaled (n_sin);
   fraction_to_round_scaled (n_cos);
   set_value (xx_part (q), number_to_scaled (n_cos));
