@@ -4761,6 +4761,14 @@ integer mp_do_dep_value (MP mp, mp_node A) {
   }
   return number_to_scaled(a->data.n);
 }
+mp_number mp_do_dep_value_number (MP mp, mp_node A) {
+  mp_value_node a = (mp_value_node)A;
+  FUNCTION_TRACE3 ("%d = mp_do_dep_value_number(%p)\n", number_to_scaled (a->data.n), A);
+  if (mp_type(A) == mp_independent) {
+     fprintf(stderr,"bad call to dep_value");
+  }
+  return a->data.n;
+}
 
 @ @c
 static void do_set_value_node(MP mp, mp_token_node A, mp_node B) { /* store the value in a large token node */
@@ -4797,6 +4805,7 @@ static mp_string get_value_str (MP mp, mp_token_node A) ;
 static mp_knot get_value_knot (MP mp, mp_token_node A) ;
 integer mp_do_value (MP mp, mp_node A);
 integer mp_do_dep_value (MP mp, mp_node A);
+mp_number mp_do_dep_value_number (MP mp, mp_node A);
 static void do_set_value_node(MP mp, mp_token_node A, mp_node B);
 
 @
@@ -9334,7 +9343,7 @@ static void mp_get_arc_length (MP mp, mp_number ret, mp_knot h) {
     set_number_from_substraction(arg5, q->x_coord, q->left_x);
     set_number_from_substraction(arg6, q->y_coord, q->left_y);
     mp_do_arc_test (mp, a, arg1, arg2, arg3, arg4, arg5, arg6, arcgoal);
-    set_number_from_scaled (a_tot, mp_slow_add (mp, number_to_scaled(a), number_to_scaled (a_tot)));
+    slow_add (a_tot, a, a_tot);
     if (q == h)
       break;
     else
@@ -10270,6 +10279,7 @@ This first set goes into the header
 @d velocity(R,A,B,C,D,E)               (((math_data *)(mp->math))->velocity)(mp,R,A,B,C,D,E)
 @d n_sin_cos(A,S,C)                    (((math_data *)(mp->math))->sin_cos)(mp,A,S,C)
 @d square_rt(A,S)                      (((math_data *)(mp->math))->sqrt)(mp,A,S)
+@d slow_add(R,A,B)                     (((math_data *)(mp->math))->slow_add)(mp,R,A,B)
 @d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
 @d floor_scaled(A)		       (((math_data *)(mp->math))->floor_scaled)(A)
 @d fraction_to_round_scaled(A)         (((math_data *)(mp->math))->fraction_to_round_scaled)(A)
@@ -14716,6 +14726,7 @@ Dependency nodes sometimes mutate into value nodes and vice versa, so their
 structures have to match.
 
 @d dep_value(A) mp_do_dep_value(mp, (mp_node)(A)) /* the |value| field in a |dependent| variable */
+@d dep_value_number(A) mp_do_dep_value_number(mp, (mp_node)(A)) /* the |value| field in a |dependent| variable */
 @d set_dep_value(A,B) do_set_dep_value(mp,(A),(B)) 
 @d dep_info(A) get_dep_info(mp, (A))
 @d set_dep_info(A,B) do {
@@ -14976,7 +14987,8 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
     } else {
       take_scaled (r1, arg1, arg2);
     }
-    set_dep_value (p, mp_slow_add (mp, dep_value (p), number_to_scaled (r1)));
+    slow_add (arg1, dep_value_number (p), r1);
+    set_dep_value (p, number_to_scaled(arg1));
     free_number (r1);
     free_number (arg1);
     free_number (arg2);
@@ -15118,7 +15130,13 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q,
       }
     }
   }
-  set_dep_value (p, mp_slow_add (mp, dep_value (p), dep_value (q)));
+  {
+    mp_number r1;
+    new_number (r1);
+    slow_add (r1, dep_value_number (p), dep_value_number (q));
+    set_dep_value (p, number_to_scaled (r1));
+    free_number (r1);
+  }
   set_mp_link (r, (mp_node) p);
   mp->dep_final = p;
   return (mp_value_node) mp_link (mp->temp_head);
@@ -25909,7 +25927,14 @@ static void mp_add_or_subtract (MP mp, mp_node p, mp_node q, quarterword c) {
     if (c == mp_minus)
       negate (vv);
     if (mp_type (p) == mp_known) {
-      vv = mp_slow_add (mp, value (p), vv);
+      mp_number r1, r2;
+      new_number (r1);
+      new_number (r2);
+      set_number_from_scaled (r2, vv);
+      slow_add (r1, value_number (p), r2);
+      vv = number_to_scaled (r1);
+      free_number (r1);
+      free_number (r2);
       if (q == NULL)
         set_cur_exp_value (vv);
       else
@@ -25920,7 +25945,16 @@ static void mp_add_or_subtract (MP mp, mp_node p, mp_node q, quarterword c) {
     r = (mp_value_node) dep_list ((mp_value_node) p);
     while (dep_info (r) != NULL)
       r = (mp_value_node) mp_link (r);
-    set_dep_value (r, mp_slow_add (mp, dep_value (r), vv));
+    {
+      mp_number r1, r2;
+      new_number (r1);
+      new_number (r2);
+      set_number_from_scaled (r2, vv);
+      slow_add (r1, dep_value_number (r), r2);
+      set_dep_value (r, number_to_scaled (r1));
+      free_number (r1);
+      free_number (r2);
+    }
     if (qq == NULL) {
       qq = mp_get_dep_node (mp);
       set_cur_exp_node ((mp_node) qq);
@@ -25948,9 +25982,13 @@ But we have to handle both kinds, and mixtures too.
 @<Add operand |p| to the dependency list |v|@>=
 if (mp_type (p) == mp_known) {
   /* Add the known |value(p)| to the constant term of |v| */
+  mp_number r1;
+  new_number (r1);
   while (dep_info (v) != NULL)
     v = (mp_value_node) mp_link (v);
-  set_dep_value (v, mp_slow_add (mp, value (p), dep_value (v)));
+  slow_add (r1, value_number (p), dep_value_number (v));
+  set_dep_value (v, number_to_scaled (r1));
+  free_number (r1);
 } else {
   s = mp_type (p);
   r = (mp_value_node) dep_list ((mp_value_node) p);

@@ -57,6 +57,7 @@
 @ Header definitions for those 
 
 @<Internal library declarations@>=
+void mp_slow_add (MP mp, mp_number ret, mp_number x_orig, mp_number y_orig);
 void mp_square_rt (MP mp, mp_number ret, mp_number x_orig);
 void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin);
 void mp_init_randoms (MP mp, int seed);
@@ -143,6 +144,7 @@ typedef void (*make_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number
 typedef void (*take_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number B);
 typedef void (*take_scaled_func) (MP mp, mp_number ret, mp_number A, mp_number B);
 typedef void (*sin_cos_func) (MP mp, mp_number A, mp_number S, mp_number C);
+typedef void (*slow_add_func) (MP mp, mp_number A, mp_number S, mp_number C);
 typedef void (*sqrt_func) (MP mp, mp_number ret, mp_number A);
 typedef void (*init_randoms_func) (MP mp, int seed);
 typedef mp_number (*new_number_func) (MP mp, mp_number_type t);
@@ -221,6 +223,7 @@ typedef struct math_data {
   init_randoms_func init_randoms;
   sin_cos_func sin_cos;
   sqrt_func sqrt;
+  slow_add_func slow_add;
 } math_data;
 
 @ @<Internal library declarations@>=
@@ -335,6 +338,7 @@ void * mp_initialize_math (MP mp) {
   math->scaled_to_fraction = mp_number_scaled_to_fraction;
   math->init_randoms = mp_init_randoms;
   math->sin_cos = mp_n_sin_cos;
+  math->slow_add = mp_slow_add;
   math->sqrt = mp_square_rt;
   return (void *)math;
 }
@@ -593,23 +597,23 @@ char *mp_string_scaled (MP mp, int s) {    /* s=scaled prints scaled real, round
 but in places where overflow isn't too unlikely the |slow_add| routine
 is used.
 
-@<Internal library declarations@>=
-integer mp_slow_add (MP mp, integer x, integer y);
-
-@ @c
-integer mp_slow_add (MP mp, integer x, integer y) {
+@c
+void mp_slow_add (MP mp, mp_number ret, mp_number x_orig, mp_number y_orig) {
+  integer x, y;
+  x = x_orig->data.val;
+  y = y_orig->data.val;
   if (x >= 0) {
     if (y <= EL_GORDO - x) {
-      return x + y;
+      ret->data.val = x + y;
     } else {
       mp->arith_error = true;
-      return EL_GORDO;
+      ret->data.val =  EL_GORDO;
     }
   } else if (-y <= EL_GORDO + x) {
-    return x + y;
+    ret->data.val = x + y;
   } else {
     mp->arith_error = true;
-    return -EL_GORDO;
+    ret->data.val =  -EL_GORDO;
   }
 }
 
