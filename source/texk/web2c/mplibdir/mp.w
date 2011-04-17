@@ -10269,6 +10269,7 @@ This first set goes into the header
 @d m_exp(R,A)                          (((math_data *)(mp->math))->m_exp)(mp,R,A)
 @d velocity(R,A,B,C,D,E)               (((math_data *)(mp->math))->velocity)(mp,R,A,B,C,D,E)
 @d n_sin_cos(A,S,C)                    (((math_data *)(mp->math))->sin_cos)(mp,A,S,C)
+@d square_rt(A,S)                      (((math_data *)(mp->math))->sqrt)(mp,A,S)
 @d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
 @d floor_scaled(A)		       (((math_data *)(mp->math))->floor_scaled)(A)
 @d fraction_to_round_scaled(A)         (((math_data *)(mp->math))->fraction_to_round_scaled)(A)
@@ -10507,7 +10508,8 @@ void mp_sqrt_det (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig, mp_n
     take_fraction (r2, b, c);
     number_substract (r1, r2);
     number_abs (r1);
-    set_number_from_scaled (ret,(s * (unsigned) mp_square_rt (mp, number_to_scaled (r1))));
+    square_rt(ret, r1);
+    number_multiply_int(ret, s);
     free_number (r1);
     free_number (r2);
   }
@@ -24002,8 +24004,14 @@ if (mp->cur_exp.type != mp_known) {
 } else {
   switch (c) {
   case mp_sqrt_op:
-    vv = mp_square_rt (mp, cur_exp_value ());
-    set_cur_exp_value (vv);
+    {
+      mp_number r1;
+      new_number (r1);
+      square_rt (r1, cur_exp_value_number ());
+      vv = number_to_scaled (r1);
+      free_number (r1);
+      set_cur_exp_value (vv);
+    }
     break;
   case mp_m_exp_op:
     {
