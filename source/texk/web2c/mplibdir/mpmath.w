@@ -57,6 +57,7 @@
 @ Header definitions for those 
 
 @<Internal library declarations@>=
+void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin);
 void mp_init_randoms (MP mp, int seed);
 extern mp_number mp_new_number (MP mp, mp_number_type t) ;
 extern void mp_free_number (MP mp, mp_number n) ;
@@ -140,6 +141,7 @@ typedef void (*make_scaled_func) (MP mp, mp_number ret, mp_number A, mp_number B
 typedef void (*make_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number B);
 typedef void (*take_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number B);
 typedef void (*take_scaled_func) (MP mp, mp_number ret, mp_number A, mp_number B);
+typedef void (*sin_cos_func) (MP mp, mp_number A, mp_number S, mp_number C);
 typedef void (*init_randoms_func) (MP mp, int seed);
 typedef mp_number (*new_number_func) (MP mp, mp_number_type t);
 typedef void (*free_number_func) (MP mp, mp_number n);
@@ -215,6 +217,7 @@ typedef struct math_data {
   convert_func fraction_to_scaled;
   convert_func scaled_to_fraction;
   init_randoms_func init_randoms;
+  sin_cos_func sin_cos;
 } math_data;
 
 @ @<Internal library declarations@>=
@@ -1644,9 +1647,6 @@ any loss of accuracy. Then |x| and~|y| are divided by~|r|.
 @d three_sixty_deg 02640000000 /* $360\cdot2^{20}$, represents $360^\circ$ */
 
 @d odd(A)   ((A)%2==1)
-
-@<Internal library declarations@>=
-void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin);
 
 @ Compute a multiple of the sine and cosine
 
