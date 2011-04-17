@@ -2285,8 +2285,11 @@ mp->random_seed = opt->random_seed;
   }
 }
 
+@ @<Internal library ...@>=
+void mp_new_randoms (MP mp);
+
 @ @c
-static void mp_new_randoms (MP mp) {
+void mp_new_randoms (MP mp) {
   int k;        /* index into |randoms| */
   mp_number x;   /* accumulator */
   new_number (x);
@@ -2315,39 +2318,6 @@ static void mp_next_random (MP mp, mp_number ret) {
   else 
     decr(mp->j_random); 
   number_clone (ret, mp->randoms[mp->j_random]);
-}
-
-
-@ @<Declarations@>=
-static void mp_init_randoms (MP mp, int seed);
-
-@ To initialize the |randoms| table, we call the following routine.
-
-@c
-void mp_init_randoms (MP mp, int seed) {
-  mp_number j, jj, k;    /* more or less random integers */
-  int i;        /* index into |randoms| */
-  new_fraction (j);
-  new_fraction (jj);
-  new_fraction (k);
-  set_number_from_scaled (j, abs (seed));
-  while (number_greaterequal(j, fraction_one_t))
-    number_halfp (j);
-  number_add_scaled (k, 1);
-  for (i = 0; i <= 54; i++) {
-    number_clone (jj, k);
-    set_number_from_substraction (k, j, k);
-    number_clone (j, jj);
-    if (number_negative(k))
-      number_add (k, fraction_one_t);
-    number_clone (mp->randoms[(i * 21) % 55], j);
-  }
-  mp_new_randoms (mp);
-  mp_new_randoms (mp);
-  mp_new_randoms (mp);          /* ``warm up'' the array */
-  free_number (j);
-  free_number (jj);
-  free_number (k);
 }
 
 
@@ -10287,6 +10257,7 @@ This first set goes into the header
 @d set_number_to_inf(A)		       (((math_data *)(mp->math))->clone)(A, inf_t)
 @d set_number_to_neg_inf(A)	       do { set_number_to_inf(A); number_negate (A); } while (0)
 @#
+@d init_randoms(A)                     (((math_data *)(mp->math))->init_randoms)(mp,A)
 @d make_scaled(R,A,B)                  (((math_data *)(mp->math))->make_scaled)(mp,R,A,B)
 @d take_scaled(R,A,B)                  (((math_data *)(mp->math))->take_scaled)(mp,R,A,B)
 @d make_fraction(R,A,B)                (((math_data *)(mp->math))->make_fraction)(mp,R,A,B)
@@ -29124,7 +29095,7 @@ mp_fix_date_and_time (mp);
 if (mp->random_seed == 0)
   mp->random_seed =
     (number_to_scaled (internal_value (mp_time)) / number_to_scaled (unity_t)) + number_to_scaled (internal_value (mp_day));
-mp_init_randoms (mp, mp->random_seed);
+init_randoms (mp->random_seed);
 @<Initialize the print |selector|...@>;
 mp_open_log_file (mp);
 mp_set_job_id (mp);
@@ -29293,7 +29264,7 @@ void mp_do_random_seed (MP mp) {
 
 @ @<Initialize the random seed to |cur_exp|@>=
 {
-  mp_init_randoms (mp, cur_exp_value ());
+  init_randoms (cur_exp_value ());
   if (mp->selector >= log_only && mp->selector < write_file) {
     mp->old_setting = mp->selector;
     mp->selector = log_only;
@@ -33957,7 +33928,7 @@ mp->buffer[limit] = (ASCII_code) '%';
 mp_fix_date_and_time (mp);
 if (mp->random_seed == 0)
   mp->random_seed = (number_to_scaled (internal_value (mp_time)) / number_to_scaled (unity_t)) + number_to_scaled (internal_value (mp_day));
-mp_init_randoms (mp, mp->random_seed);
+init_randoms (mp->random_seed);
 @<Initialize the print |selector|...@>;
 mp_normalize_selector (mp);
 if (loc < limit)

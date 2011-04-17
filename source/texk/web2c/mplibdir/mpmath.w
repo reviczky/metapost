@@ -57,6 +57,7 @@
 @ Header definitions for those 
 
 @<Internal library declarations@>=
+void mp_init_randoms (MP mp, int seed);
 extern mp_number mp_new_number (MP mp, mp_number_type t) ;
 extern void mp_free_number (MP mp, mp_number n) ;
 void mp_number_fraction_to_scaled (mp_number A);
@@ -139,6 +140,7 @@ typedef void (*make_scaled_func) (MP mp, mp_number ret, mp_number A, mp_number B
 typedef void (*make_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number B);
 typedef void (*take_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number B);
 typedef void (*take_scaled_func) (MP mp, mp_number ret, mp_number A, mp_number B);
+typedef void (*init_randoms_func) (MP mp, int seed);
 typedef mp_number (*new_number_func) (MP mp, mp_number_type t);
 typedef void (*free_number_func) (MP mp, mp_number n);
 typedef void (*fraction_to_round_scaled_func) (mp_number n);
@@ -212,6 +214,7 @@ typedef struct math_data {
   fraction_to_round_scaled_func fraction_to_round_scaled;
   convert_func fraction_to_scaled;
   convert_func scaled_to_fraction;
+  init_randoms_func init_randoms;
 } math_data;
 
 @ @<Internal library declarations@>=
@@ -324,6 +327,7 @@ void * mp_initialize_math (MP mp) {
   math->pyth_sub = mp_pyth_sub;
   math->fraction_to_scaled = mp_number_fraction_to_scaled;
   math->scaled_to_fraction = mp_number_scaled_to_fraction;
+  math->init_randoms = mp_init_randoms;
   return (void *)math;
 }
 
@@ -1737,4 +1741,29 @@ while (z > 0) {
 if (y < 0)
   y = 0                         /* this precaution may never be needed */
     
+
+@ To initialize the |randoms| table, we call the following routine.
+
+@c
+void mp_init_randoms (MP mp, int seed) {
+  int j, jj, k;    /* more or less random integers */
+  int i;        /* index into |randoms| */
+  j =  abs (seed);
+  while (j >= fraction_one) {
+    j = j/2;
+  }
+  k = 1;
+  for (i = 0; i <= 54; i++) {
+    jj = k;
+    k = j - k;
+    j = jj;
+    if (k<0)
+      k += fraction_one;
+    mp->randoms[(i * 21) % 55]->data.val = j;
+  }
+  mp_new_randoms (mp);
+  mp_new_randoms (mp);
+  mp_new_randoms (mp);          /* ``warm up'' the array */
+}
+
 
