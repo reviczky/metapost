@@ -57,6 +57,7 @@
 @ Header definitions for those 
 
 @<Internal library declarations@>=
+void mp_square_rt (MP mp, mp_number ret, mp_number x_orig);
 void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin);
 void mp_init_randoms (MP mp, int seed);
 extern mp_number mp_new_number (MP mp, mp_number_type t) ;
@@ -142,6 +143,7 @@ typedef void (*make_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number
 typedef void (*take_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number B);
 typedef void (*take_scaled_func) (MP mp, mp_number ret, mp_number A, mp_number B);
 typedef void (*sin_cos_func) (MP mp, mp_number A, mp_number S, mp_number C);
+typedef void (*sqrt_func) (MP mp, mp_number ret, mp_number A);
 typedef void (*init_randoms_func) (MP mp, int seed);
 typedef mp_number (*new_number_func) (MP mp, mp_number_type t);
 typedef void (*free_number_func) (MP mp, mp_number n);
@@ -218,6 +220,7 @@ typedef struct math_data {
   convert_func scaled_to_fraction;
   init_randoms_func init_randoms;
   sin_cos_func sin_cos;
+  sqrt_func sqrt;
 } math_data;
 
 @ @<Internal library declarations@>=
@@ -331,6 +334,8 @@ void * mp_initialize_math (MP mp) {
   math->fraction_to_scaled = mp_number_fraction_to_scaled;
   math->scaled_to_fraction = mp_number_scaled_to_fraction;
   math->init_randoms = mp_init_randoms;
+  math->sin_cos = mp_n_sin_cos;
+  math->sqrt = mp_square_rt;
   return (void *)math;
 }
 
@@ -1139,14 +1144,13 @@ relations $x=2^{46-2k}x_0\bmod 2^{30}$, $0<y=\lfloor 2^{16-2k}x_0\rfloor
 -s^2+s\L q=2s$, where $x_0$ is the initial value of $x$. The value of~$y$
 might, however, be zero at the start of the first iteration.
 
-@<Internal library declarations@>=
-int mp_square_rt (MP mp, int x);
-
-@ @c
-int mp_square_rt (MP mp, int x) { /* return, x: scaled */
+@c
+void mp_square_rt (MP mp, mp_number ret, mp_number x_orig) { /* return, x: scaled */
+  integer x;
   quarterword k;        /* iteration control counter */
   integer y;    /* register for intermediate calculations */
   integer q;    /* register for intermediate calculations */
+  x = x_orig->data.val;
   if (x <= 0) {
     @<Handle square root of zero or negative argument@>;
   } else {
@@ -1161,12 +1165,12 @@ int mp_square_rt (MP mp, int x) { /* return, x: scaled */
     else {
       x = x - fraction_four;
       y = 1;
-    };
+    }
     do {
       @<Decrease |k| by 1, maintaining the invariant
       relations between |x|, |y|, and~|q|@>;
     } while (k != 0);
-    return (int) (halfp (q));
+    ret->data.val = (int) (halfp (q));
   }
 }
 
@@ -1182,8 +1186,9 @@ int mp_square_rt (MP mp, int x) { /* return, x: scaled */
     mp_snprintf(msg, 256, "Square root of %s has been replaced by 0", mp_string_scaled (mp, x));
 @.Square root...replaced by 0@>;
     mp_error (mp, msg, hlp, true);
-  };
-  return 0;
+  }
+  ret->data.val = 0;
+  return;
 }
 
 
