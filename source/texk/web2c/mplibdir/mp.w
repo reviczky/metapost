@@ -1443,14 +1443,6 @@ void mp_print_int (MP mp, integer n) {                               /* prints a
   mp_print (mp, s);
 }
 
-@ 
-@<Basic print...@>=
-void mp_print_number (MP mp, mp_number n) {
-  mp_print_scaled (mp, number_to_scaled(n));
-}
-
-
-
 @ @<Internal library ...@>=
 void mp_print_int (MP mp, integer n);
 
@@ -2223,9 +2215,9 @@ separated by a comma.
 @<Basic printing...@>=
 void mp_print_two (MP mp, mp_number x, mp_number y) {                               /* prints `|(x,y)|' */
   mp_print_char (mp, xord ('('));
-  mp_print_number (mp, x);
+  print_number (x);
   mp_print_char (mp, xord (','));
-  mp_print_number (mp, y);
+  print_number (y);
   mp_print_char (mp, xord (')'));
 }
 
@@ -4997,11 +4989,11 @@ if (v < 0) {
   if (class == mp_left_bracket_class)
     mp_print_char (mp, xord (' '));
   mp_print_char (mp, xord ('['));
-  mp_print_scaled (mp, v);
+  print_number (value_number (p));
   mp_print_char (mp, xord (']'));
   c = mp_right_bracket_class;
 } else {
-  mp_print_scaled (mp, v);
+  print_number (value_number (p));
   c = digit_class;
 }
 
@@ -6478,7 +6470,7 @@ static void mp_unsave_internal (MP mp, halfword q) {
     mp_print (mp, internal_name (q));
     mp_print_char (mp, xord ('='));
     if (internal_type (q) == mp_known) {
-      mp_print_number (mp, saved.v.data.n);
+      print_number (saved.v.data.n);
     } else if (internal_type (q) == mp_string_type) {
       char *s = mp_str (mp, saved.v.data.str);
       mp_print (mp, s);
@@ -6763,13 +6755,13 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
   if (mp_left_type (p) == mp_given) {
     n_sin_cos (p->left_given, n_cos, n_sin);
     mp_print_char (mp, xord ('{'));
-    mp_print_number (mp, n_cos);
+    print_number (n_cos);
     mp_print_char (mp, xord (','));
-    mp_print_number (mp, n_sin);
+    print_number (n_sin);
     mp_print_char (mp, xord ('}'));
   } else if (mp_left_type (p) == mp_curl) {
     mp_print (mp, "{curl ");
-    mp_print_number (mp, p->left_curl);
+    print_number (p->left_curl);
     mp_print_char (mp, xord ('}'));
   }
   free_number (n_sin);
@@ -6779,16 +6771,23 @@ were |scaled|, the magnitude of a |given| direction vector will be~4096.
 
 @ @<Print tension between |p| and |q|@>=
 {
+  mp_number v1;
+  new_number (v1);
   mp_print (mp, "..tension ");
   if (number_negative(p->right_tension))
     mp_print (mp, "atleast");
-  mp_print_scaled (mp, abs (number_to_scaled(p->right_tension)));
+  number_clone (v1, p->right_tension);
+  number_abs (v1);
+  print_number (v1);
   if (!number_equal(p->right_tension, q->left_tension)) {
     mp_print (mp, " and ");
     if (number_negative(q->left_tension))
       mp_print (mp, "atleast");
-    mp_print_scaled (mp, abs (number_to_scaled(q->left_tension)));
+    number_clone (v1, p->left_tension);
+    number_abs (v1);
+    print_number (v1);
   }
+  free_number (v1);
 }
 
 
@@ -6823,16 +6822,16 @@ if ((mp_left_type (p) != mp_explicit) && (mp_left_type (p) != mp_open)) {
 @.??@>;
   if (mp_right_type (p) == mp_curl) {
     mp_print (mp, "{curl ");
-    mp_print_number (mp, p->right_curl);
+    print_number (p->right_curl);
   } else {
     mp_number n_sin, n_cos;
     new_fraction (n_sin);
     new_fraction (n_cos);
     n_sin_cos (p->right_given, n_cos, n_sin);
     mp_print_char (mp, xord ('{'));
-    mp_print_number (mp, n_cos);
+    print_number (n_cos);
     mp_print_char (mp, xord (','));
-    mp_print_number (mp, n_sin);
+    print_number (n_sin);
     free_number (n_sin);
     free_number (n_cos);
   }
@@ -9619,19 +9618,26 @@ p = q
 
 @ @<Print the elliptical pen |h|@>=
 {
+  mp_number v1;
+  new_number (v1);
   mp_print (mp, "pencircle transformed (");
-  mp_print_number (mp, h->x_coord);
+  print_number (h->x_coord);
   mp_print_char (mp, xord (','));
-  mp_print_number (mp, h->y_coord);
+  print_number (h->y_coord);
   mp_print_char (mp, xord (','));
-  mp_print_scaled (mp, number_to_scaled(h->left_x) - number_to_scaled(h->x_coord));
+  set_number_from_substraction (v1, h->left_x, h->x_coord);
+  print_number (v1);
   mp_print_char (mp, xord (','));
-  mp_print_scaled (mp, number_to_scaled(h->right_x) - number_to_scaled(h->x_coord));
+  set_number_from_substraction (v1, h->right_x, h->x_coord);
+  print_number (v1);
   mp_print_char (mp, xord (','));
-  mp_print_scaled (mp, number_to_scaled(h->left_y) - number_to_scaled(h->y_coord));
+  set_number_from_substraction (v1, h->left_y, h->y_coord);
+  print_number (v1);
   mp_print_char (mp, xord (','));
-  mp_print_scaled (mp, number_to_scaled(h->right_y) - number_to_scaled(h->y_coord));
+  set_number_from_substraction (v1, h->right_y, h->y_coord);
+  print_number (v1);
   mp_print_char (mp, xord (')'));
+  free_number (v1);
 }
 
 
@@ -10267,6 +10273,8 @@ This first set goes into the header
 @d set_number_to_neg_inf(A)	       do { set_number_to_inf(A); number_negate (A); } while (0)
 @#
 @d init_randoms(A)                     (((math_data *)(mp->math))->init_randoms)(mp,A)
+@d print_number(A)                     (((math_data *)(mp->math))->print)(mp,A)
+@d number_tostring(A)                  (((math_data *)(mp->math))->tostring)(mp,A)
 @d make_scaled(R,A,B)                  (((math_data *)(mp->math))->make_scaled)(mp,R,A,B)
 @d take_scaled(R,A,B)                  (((math_data *)(mp->math))->take_scaled)(mp,R,A,B)
 @d make_fraction(R,A,B)                (((math_data *)(mp->math))->make_fraction)(mp,R,A,B)
@@ -11304,7 +11312,7 @@ break;
 switch (((mp_stroked_node)p)->ljoin) {
 case 0:
   mp_print (mp, "mitered joins limited ");
-  mp_print_number (mp, ((mp_stroked_node)p)->miterlim);
+  print_number (((mp_stroked_node)p)->miterlim);
   break;
 case 1:
   mp_print (mp, "round joins");
@@ -11354,7 +11362,7 @@ void mp_print_obj_color (MP mp, mp_node p) {
     if (number_positive(p0->grey)) {
       mp_print (mp, "greyed ");
       mp_print_char (mp, xord ('('));
-      mp_print_number (mp, p0->grey);
+      print_number (p0->grey);
       mp_print_char (mp, xord (')'));
     };
   } else if (mp_color_model (p) == mp_cmyk_model) {
@@ -11362,13 +11370,13 @@ void mp_print_obj_color (MP mp, mp_node p) {
         number_positive(p0->yellow) || number_positive(p0->black)) {
       mp_print (mp, "processcolored ");
       mp_print_char (mp, xord ('('));
-      mp_print_number (mp, p0->cyan);
+      print_number (p0->cyan);
       mp_print_char (mp, xord (','));
-      mp_print_number (mp, p0->magenta);
+      print_number (p0->magenta);
       mp_print_char (mp, xord (','));
-      mp_print_number (mp, p0->yellow);
+      print_number (p0->yellow);
       mp_print_char (mp, xord (','));
-      mp_print_number (mp, p0->black);
+      print_number (p0->black);
       mp_print_char (mp, xord (')'));
     };
   } else if (mp_color_model (p) == mp_rgb_model) {
@@ -11376,11 +11384,11 @@ void mp_print_obj_color (MP mp, mp_node p) {
 	number_positive(p0->blue)) {
       mp_print (mp, "colored ");
       mp_print_char (mp, xord ('('));
-      mp_print_number (mp, p0->red);
+      print_number (p0->red);
       mp_print_char (mp, xord (','));
-      mp_print_number (mp, p0->green);
+      print_number (p0->green);
       mp_print_char (mp, xord (','));
-      mp_print_number (mp, p0->blue);
+      print_number (p0->blue);
       mp_print_char (mp, xord (')'));
     };
   }
@@ -11439,11 +11447,11 @@ if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
     mp_print (mp, "on ");
     set_number_from_substraction (arg1, ppd->stop_x, ppd->start_x);
     take_scaled (ret, arg1, scf);
-    mp_print_number (mp,  ret);
+    print_number ( ret);
     mp_print (mp, " off ");
     set_number_from_substraction (arg1, ((mp_dash_node)mp_link (ppd))->start_x, ppd->stop_x);
     take_scaled (ret, arg1, scf);
-    mp_print_number (mp, ret);
+    print_number (ret);
     ppd = (mp_dash_node)mp_link (ppd);
     if (ppd != mp->null_dash)
       mp_print_char (mp, xord (' '));
@@ -11452,7 +11460,7 @@ if ((ppd == mp->null_dash) || number_negative(hhd->dash_y)) {
   mp_dash_offset (mp, dashoff, hhd);
   take_scaled (ret, dashoff, scf);
   number_negate (ret);
-  mp_print_number (mp, ret);
+  print_number (ret);
   free_number (dashoff);
   free_number (ret);
   free_number (arg1);
@@ -11492,17 +11500,17 @@ mp_print_ln (mp);
 mp_print_obj_color (mp, p);
 mp_print (mp, "transformed ");
 mp_print_char (mp, xord ('('));
-mp_print_number (mp, p0->tx);
+print_number (p0->tx);
 mp_print_char (mp, xord (','));
-mp_print_number (mp, p0->ty);
+print_number (p0->ty);
 mp_print_char (mp, xord (','));
-mp_print_number (mp, p0->txx);
+print_number (p0->txx);
 mp_print_char (mp, xord (','));
-mp_print_number (mp, p0->txy);
+print_number (p0->txy);
 mp_print_char (mp, xord (','));
-mp_print_number (mp, p0->tyx);
+print_number (p0->tyx);
 mp_print_char (mp, xord (','));
-mp_print_number (mp, p0->tyy);
+print_number (p0->tyy);
 mp_print_char (mp, xord (')'));
 }
 break;
@@ -14821,7 +14829,7 @@ void mp_print_dependency (MP mp, mp_value_node p, quarterword t) {
         if (dep_value (p) > 0)
           if (p != pp)
             mp_print_char (mp, xord ('+'));
-        mp_print_scaled (mp, dep_value (p));
+        print_number (dep_value_number (p));
       }
       return;
     }
@@ -14849,7 +14857,7 @@ if (t == mp_dependent) {
   fraction_to_round_scaled (v);
 }
 if (!number_equal (v, unity_t))
-  mp_print_number (mp, v)
+  print_number (v)
    
 
 @ The maximum absolute value of a coefficient in a given dependency list
@@ -15396,12 +15404,11 @@ void mp_val_too_big (MP mp, mp_number x) {
            "with that big value; but it might be dangerous.",
            "(Set warningcheck:=0 to suppress this message.)",
            NULL };
-    mp_snprintf (msg, 256, "Value is too large (%s)", mp_string_scaled(mp, number_to_scaled (x)));
+    mp_snprintf (msg, 256, "Value is too large (%s)", number_tostring(x));
 @.Value is too large@>;
     mp_error (mp, msg, hlp, true);
   }
 }
-
 
 @ When a dependent variable becomes known, the following routine
 removes its dependency list. Here |p| points to the variable, and
@@ -15428,7 +15435,7 @@ void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
 @:]]]\#\#\#\#_}{\.{\#\#\#\#}@>;
     mp_print_variable_name (mp, (mp_node) p);
     mp_print_char (mp, xord ('='));
-    mp_print_scaled (mp, value (p));
+    print_number (value_number (p));
     mp_end_diagnostic (mp, false);
   }
   if (cur_exp_node () == (mp_node) p && mp->cur_exp.type == t) {
@@ -21028,7 +21035,13 @@ case mp_cmykcolor_type:
     @<Display a cmykcolor node@>;
   break;
 case mp_known:
-  mp_print_scaled (mp, vv);
+  {
+    mp_number vv1;
+    new_number (vv1);
+    set_number_from_scaled (vv1, vv);
+    print_number (vv1);
+    free_number (vv1);
+  }
   break;
 case mp_dependent:
 case mp_proto_dependent:
@@ -21047,7 +21060,7 @@ default:
 @ @<Display big node item |v|@>=
 {
   if (mp_type (v) == mp_known)
-    mp_print_scaled (mp, value (v));
+    print_number (value_number (v));
   else if (mp_type (v) == mp_independent)
     mp_print_variable_name (mp, v);
   else
@@ -21525,8 +21538,13 @@ if (mp_interesting (mp, p)) {
   } else {
     vv = mp->max_c[mp_proto_dependent];
   }
-  if (vv != number_to_scaled (unity_t))
-    mp_print_scaled (mp, vv);
+  if (vv != number_to_scaled (unity_t)) {
+    mp_number x;
+    new_number (x);
+    set_number_from_scaled (x, vv);
+    print_number (x);
+    free_number (x);
+  }
   mp_print_variable_name (mp, p);
   while (indep_scale (p) > 0) {
     mp_print (mp, "*4");
@@ -24615,7 +24633,7 @@ if (mp->cur_exp.type != mp_known) {
 } else {
   mp->old_setting = mp->selector;
   mp->selector = new_string;
-  mp_print_scaled (mp, cur_exp_value ());
+  print_number (cur_exp_value_number ());
   set_cur_exp_str (mp_make_string (mp));
   mp->selector = mp->old_setting;
   mp->cur_exp.type = mp_string_type;
@@ -25180,9 +25198,9 @@ static void mp_turn_cycles_wrapper (MP mp, mp_number ret, mp_knot c) {
       mp_begin_diagnostic (mp);
       mp_print_nl (mp, "Warning: the turningnumber algorithms do not agree."
                    " The current computed value is ");
-      mp_print_number (mp, nval);
+      print_number (nval);
       mp_print (mp, ", but the 'connect-the-dots' algorithm returned ");
-      mp_print_number (mp, oval);
+      print_number (oval);
       mp_end_diagnostic (mp, false);
       number_clone (internal_value (mp_tracing_online), saved_t_o);
       free_number (saved_t_o);
@@ -26454,9 +26472,9 @@ static void mp_frac_mult (MP mp, mp_number n, mp_number d) {
 {
   mp_begin_diagnostic (mp);
   mp_print_nl (mp, "{(");
-  mp_print_number (mp, n);
+  print_number (n);
   mp_print_char (mp, xord ('/'));
-  mp_print_number (mp, d);
+  print_number (d);
   mp_print (mp, ")*(");
   mp_print_exp (mp, NULL, 0);
   mp_print (mp, ")}");
@@ -28465,7 +28483,7 @@ if (t == mp_known) {
            "The equation I just read contradicts what was said before.",
            "But don't worry; continue and I'll just ignore it.",
            NULL };
-    mp_snprintf (msg, 256, "Inconsistent equation (off by %s)", mp_string_scaled (mp, value (p)));
+    mp_snprintf (msg, 256, "Inconsistent equation (off by %s)", number_tostring (value_number (p)));
 @.Inconsistent equation@>;
     mp_back_error (mp, msg, hlp, true);
     mp_get_x_next (mp);
@@ -29316,7 +29334,7 @@ void mp_do_random_seed (MP mp) {
     mp->old_setting = mp->selector;
     mp->selector = log_only;
     mp_print_nl (mp, "{randomseed:=");
-    mp_print_scaled (mp, cur_exp_value ());
+    print_number (cur_exp_value_number ());
     mp_print_char (mp, xord ('}'));
     mp_print_nl (mp, "");
     mp->selector = mp->old_setting;
@@ -29730,7 +29748,11 @@ void mp_disp_token (MP mp) {
 @ @<Show a numeric or string or capsule token@>=
 {
   if (cur_cmd() == mp_numeric_token) {
-    mp_print_scaled (mp, cur_mod());
+    mp_number v1;
+    new_number (v1);
+    set_number_from_scaled (v1, cur_mod());
+    print_number (v1);
+    free_number (v1);
   } else if (cur_cmd() == mp_capsule_token) {
     mp_print_capsule (mp, cur_mod_node());
   } else {
@@ -32143,7 +32165,7 @@ static void mp_tfm_warning (MP mp, quarterword m) {
 @.some charhts...@>
 @.some charics...@>;
   mp_print (mp, " values had to be adjusted by as much as ");
-  mp_print_number (mp, mp->perturbation);
+  print_number (mp->perturbation);
   mp_print (mp, "pt)");
 }
 
@@ -32988,7 +33010,7 @@ static void mp_append_to_template (MP mp, integer ff, integer c, boolean roundin
       int cc = round_unscaled (internal_value (c));
       print_with_leading_zeroes (cc, ff);
     } else {
-      mp_print_number (mp, internal_value (c));
+      print_number (internal_value (c));
     }
   }
 }

@@ -57,6 +57,8 @@
 @ Header definitions for those 
 
 @<Internal library declarations@>=
+void mp_print_number (MP mp, mp_number n);
+char * mp_number_tostring (MP mp, mp_number n);
 void mp_slow_add (MP mp, mp_number ret, mp_number x_orig, mp_number y_orig);
 void mp_square_rt (MP mp, mp_number ret, mp_number x_orig);
 void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin);
@@ -150,6 +152,8 @@ typedef void (*init_randoms_func) (MP mp, int seed);
 typedef mp_number (*new_number_func) (MP mp, mp_number_type t);
 typedef void (*free_number_func) (MP mp, mp_number n);
 typedef void (*fraction_to_round_scaled_func) (mp_number n);
+typedef void (*print_func) (MP mp, mp_number A);
+typedef char * (*tostring_func) (MP mp, mp_number A);
 
 typedef struct math_data {
   mp_number epsilon_t;
@@ -224,6 +228,8 @@ typedef struct math_data {
   sin_cos_func sin_cos;
   sqrt_func sqrt;
   slow_add_func slow_add;
+  print_func print;
+  tostring_func tostring;
 } math_data;
 
 @ @<Internal library declarations@>=
@@ -340,6 +346,8 @@ void * mp_initialize_math (MP mp) {
   math->sin_cos = mp_n_sin_cos;
   math->slow_add = mp_slow_add;
   math->sqrt = mp_square_rt;
+  math->print = mp_print_number;
+  math->tostring = mp_number_tostring;
   return (void *)math;
 }
 
@@ -539,12 +547,12 @@ they form a fraction~$f$ in the range $s-\delta\L10\cdot2^{16}f<s$.
 We can stop if and only if $f=0$ satisfies this condition; the loop will
 terminate before $s$ can possibly become zero.
 
-@<Internal library declarations@>=
-void mp_print_scaled (MP mp, int s); /* scaled */
-char *mp_string_scaled (MP mp, int s);
+@<Declarations@>=
+static void mp_print_scaled (MP mp, int s); /* scaled */
+static char *mp_string_scaled (MP mp, int s);
 
 @ @c
-void mp_print_scaled (MP mp, int s) {  /* s=scaled prints scaled real, rounded to five  digits */
+static void mp_print_scaled (MP mp, int s) {  /* s=scaled prints scaled real, rounded to five  digits */
   int delta; /* amount of allowable inaccuracy, scaled */
   if (s < 0) {
     mp_print_char (mp, xord ('-'));
@@ -565,7 +573,7 @@ void mp_print_scaled (MP mp, int s) {  /* s=scaled prints scaled real, rounded t
   }
 }
 
-char *mp_string_scaled (MP mp, int s) {    /* s=scaled prints scaled real, rounded to five  digits */
+static  char *mp_string_scaled (MP mp, int s) {    /* s=scaled prints scaled real, rounded to five  digits */
   static char scaled_string[32];
   int delta; /* amount of allowable inaccuracy, scaled */
   int i = 0;
@@ -1775,4 +1783,15 @@ void mp_init_randoms (MP mp, int seed) {
   mp_new_randoms (mp);          /* ``warm up'' the array */
 }
 
+
+@ @c
+void mp_print_number (MP mp, mp_number n) {
+  mp_print_scaled (mp, n->data.val);
+}
+
+
+@ @c
+char * mp_number_tostring (MP mp, mp_number n) {
+   return mp_string_scaled(mp, n->data.val);
+}
 
