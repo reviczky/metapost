@@ -2355,6 +2355,7 @@ can readily be obtained with the ratio method (Algorithm 3.4.1R in
 
 @c
 static void mp_norm_rand (MP mp, mp_number ret) {
+  integer ab_vs_cd; 
   mp_number abs_x;
   mp_number u;
   mp_number r;
@@ -2380,7 +2381,8 @@ static void mp_norm_rand (MP mp, mp_number ret) {
     number_clone (xa, r);
     m_log (la, u);
     set_number_from_substraction(la, twelve_ln_2_k, la);
-  } while (mp_ab_vs_cd (mp, one_k, la, xa, xa) < 0);
+    ab_vs_cd = mp_ab_vs_cd (mp, one_k, la, xa, xa);
+  } while (ab_vs_cd < 0);
   number_clone (ret, xa);
   free_number (r);
   free_number (abs_x);
@@ -8205,18 +8207,22 @@ if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpos
     number_clone (r1, sine);
     take_fraction (sine, r1, arg1);
     if (number_negative(p->right_tension)) {
+      integer ab_vs_cd;
       number_clone (arg1, mp->sf);
       number_abs (arg1);
-      if (mp_ab_vs_cd (mp, arg1, fraction_one_t, rr, sine) < 0) {
+      ab_vs_cd =  mp_ab_vs_cd (mp, arg1, fraction_one_t, rr, sine);
+      if (ab_vs_cd < 0) {
         number_clone (arg1, mp->sf);
         number_abs (arg1);
         make_fraction (rr, arg1, sine);
       }
     }
     if (number_negative(q->left_tension)) {
+      integer ab_vs_cd;
       number_clone (arg1, mp->st);
       number_abs (arg1);
-      if (mp_ab_vs_cd (mp, arg1, fraction_one_t, ss, sine) < 0) {
+      ab_vs_cd =  mp_ab_vs_cd (mp, arg1, fraction_one_t, ss, sine);
+      if (ab_vs_cd < 0) {
         number_clone (arg1, mp->st);
         number_abs (arg1);
         make_fraction (ss, arg1, sine);
@@ -9887,6 +9893,7 @@ while (p != h) {
 
 @ @<Find any knots on the path from |l| to |r| above the |l|-|r| line...@>=
 {
+  integer ab_vs_cd;
   mp_number arg1, arg2;
   new_number (arg1);
   new_number (arg2);
@@ -9897,7 +9904,8 @@ while (p != h) {
     q = mp_next_knot (p);
     set_number_from_substraction (arg1, p->y_coord, l->y_coord);
     set_number_from_substraction (arg2, p->x_coord, l->x_coord);
-    if (mp_ab_vs_cd (mp, dx, arg1, dy, arg2) > 0)
+    ab_vs_cd = mp_ab_vs_cd (mp, dx, arg1, dy, arg2);
+    if (ab_vs_cd > 0)
       mp_move_knot (mp, p, r);
     p = q;
   }
@@ -9926,6 +9934,7 @@ void mp_move_knot (MP mp, mp_knot p, mp_knot q) {
 
 @ @<Find any knots on the path from |s| to |l| below the |l|-|r| line...@>=
 {
+  integer ab_vs_cd;
   mp_number arg1, arg2;
   new_number (arg1);
   new_number (arg2);
@@ -9934,7 +9943,8 @@ void mp_move_knot (MP mp, mp_knot p, mp_knot q) {
     q = mp_next_knot (p);
     set_number_from_substraction (arg1, p->y_coord, l->y_coord);
     set_number_from_substraction (arg2, p->x_coord, l->x_coord);
-    if (mp_ab_vs_cd (mp, dx, arg1, dy, arg2) < 0)
+    ab_vs_cd = mp_ab_vs_cd (mp, dx, arg1, dy, arg2);
+    if (ab_vs_cd < 0)
       mp_move_knot (mp, p, l);
     p = q;
   }
@@ -9995,6 +10005,7 @@ where the |then| clause is not executed.
 
 @<Do a Gramm scan and remove vertices where there...@>=
 {
+  integer ab_vs_cd;
   mp_number arg1, arg2;
   new_number (arg1);
   new_number (arg2);
@@ -10010,7 +10021,8 @@ where the |then| clause is not executed.
     if (p != r) {
       set_number_from_substraction (arg1, q->y_coord, p->y_coord);
       set_number_from_substraction (arg2, q->x_coord, p->x_coord);
-      if (mp_ab_vs_cd (mp, dx, arg1, dy, arg2) <= 0) {
+      ab_vs_cd = mp_ab_vs_cd (mp, dx, arg1, dy, arg2);
+      if (ab_vs_cd <= 0) {
         @<Remove knot |p| and back up |p| and |q| but don't go past |l|@>;
       }
     }
@@ -10062,6 +10074,7 @@ static void mp_find_offset (MP mp, mp_number x_orig, mp_number y_orig, mp_knot h
     free_number (hy);
     free_number (d);
   } else {
+    integer ab_vs_cd;
     mp_number arg1, arg2;
     new_number (arg1);
     new_number (arg2);
@@ -10071,13 +10084,15 @@ static void mp_find_offset (MP mp, mp_number x_orig, mp_number y_orig, mp_knot h
       q = mp_next_knot (q);
       set_number_from_substraction (arg1, q->x_coord, p->x_coord);
       set_number_from_substraction (arg2, q->y_coord, p->y_coord);
-    } while (mp_ab_vs_cd (mp, arg1, y_orig, arg2, x_orig) < 0);
+      ab_vs_cd = mp_ab_vs_cd (mp, arg1, y_orig, arg2, x_orig);
+    } while (ab_vs_cd < 0);
     do {
       p = q;
       q = mp_next_knot (q);
       set_number_from_substraction (arg1, q->x_coord, p->x_coord);
       set_number_from_substraction (arg2, q->y_coord, p->y_coord);
-    } while (mp_ab_vs_cd (mp, arg1, y_orig, arg2, x_orig) > 0);
+      ab_vs_cd = mp_ab_vs_cd (mp, arg1, y_orig, arg2, x_orig);
+    } while (ab_vs_cd > 0);
     number_clone (mp->cur_x, p->x_coord);
     number_clone (mp->cur_y, p->y_coord);
     free_number (arg1);
@@ -11665,6 +11680,7 @@ monotone in $x$ but is reversed relative to the path from |pp| to |qq|.
   number_clone(x3, rr->x_coord);
   if (number_greater(x0, x1) || number_greater(x1, x2) || number_greater(x2, x3)) {
     if (number_less(x0, x1) || number_less(x1, x2) || number_less(x2, x3)) {
+      integer ab_vs_cd;
       mp_number a1, a2, a3, a4;
       mp_number test;
       new_number(test);
@@ -11676,7 +11692,8 @@ monotone in $x$ but is reversed relative to the path from |pp| to |qq|.
       set_number_from_substraction(a2, x2, x1);
       set_number_from_substraction(a3, x1, x0);
       set_number_from_substraction(a4, x3, x2);
-      set_number_from_scaled (test, mp_ab_vs_cd (mp, a1, a2, a3, a4));
+      ab_vs_cd =  mp_ab_vs_cd (mp, a1, a2, a3, a4);
+      set_number_from_scaled (test, ab_vs_cd);
       free_number(a1);
       free_number(a2);
       free_number(a3);
@@ -12931,11 +12948,14 @@ counter-clockwise in order to make \&{doublepath} envelopes come out
 right.) This code depends on |w0| being the offset for |(dxin,dyin)|.
 
 @<Update |mp_knot_info(p)| and find the offset $w_k$ such that...@>=
-turn_amt = mp_get_turn_amt (mp, w0, dx, dy, 
-        (mp_ab_vs_cd (mp, dy, dxin, dx, dyin) >= 0));
-w = mp_pen_walk (mp, w0, turn_amt);
-w0 = w;
-mp_knot_info (p) = mp_knot_info (p) + turn_amt
+{
+  integer ab_vs_cd;
+  ab_vs_cd = mp_ab_vs_cd (mp, dy, dxin, dx, dyin);
+  turn_amt = mp_get_turn_amt (mp, w0, dx, dy, (ab_vs_cd >= 0));
+  w = mp_pen_walk (mp, w0, turn_amt);
+  w0 = w;
+  mp_knot_info (p) = mp_knot_info (p) + turn_amt;
+}
 
 @ Decide how many pen offsets to go away from |w| in order to find the offset
 for |(dx,dy)|, going counterclockwise if |ccw| is |true|.  This assumes that
@@ -12975,12 +12995,14 @@ integer mp_get_turn_amt (MP mp, mp_knot w, mp_number dx, mp_number dy, boolean c
     ww = mp_prev_knot (w);
     set_number_from_substraction (arg1, w->x_coord, ww->x_coord);
     set_number_from_substraction (arg2, w->y_coord, ww->y_coord);
-    while (mp_ab_vs_cd (mp, dy, arg1, dx, arg2) < 0) {
+    t = mp_ab_vs_cd (mp, dy, arg1, dx, arg2);
+    while (t < 0) {
       decr (s);
       w = ww;
       ww = mp_prev_knot (ww);
       set_number_from_substraction (arg1, w->x_coord, ww->x_coord);
       set_number_from_substraction (arg2, w->y_coord, ww->y_coord);
+      t = mp_ab_vs_cd (mp, dy, arg1, dx, arg2);
     }
   }
   free_number (arg1);
@@ -13001,6 +13023,7 @@ mp->spec_offset = mp_knot_info (c) - zero_off;
 if (mp_next_knot (c) == c) {
 mp_knot_info (c) = zero_off + n;
 } else {
+  integer ab_vs_cd;
   fix_by (k_needed);
   while (w0 != h) {
     fix_by (1);
@@ -13010,8 +13033,8 @@ mp_knot_info (c) = zero_off + n;
     fix_by (n);
   while (mp_knot_info (c) > zero_off)
     fix_by (-n);
-  if ((mp_knot_info (c) != zero_off)
-      && (mp_ab_vs_cd (mp, dy0, dxin, dx0, dyin) >= 0))
+  ab_vs_cd = mp_ab_vs_cd (mp, dy0, dxin, dx0, dyin);
+  if ((mp_knot_info (c) != zero_off)   && (ab_vs_cd >= 0))
     fix_by (n);
 }
 
@@ -13163,9 +13186,14 @@ same sign, we pick this as |d_sign|, since it means we have a flex, not a cusp.
 Otherwise we proceed to the cusp code.
 
 @<Check rotation direction based on node position@>=
-set_number_from_substraction(u0, q->x_coord, p->x_coord);
-set_number_from_substraction(u1, q->y_coord, p->y_coord);
-d_sign = half (mp_ab_vs_cd (mp, dx, u1, u0, dy) + mp_ab_vs_cd (mp, u0, dyin, dxin, u1));
+{
+  integer ab_vs_cd1, ab_vs_cd2; 
+  set_number_from_substraction(u0, q->x_coord, p->x_coord);
+  set_number_from_substraction(u1, q->y_coord, p->y_coord);
+  ab_vs_cd1 = mp_ab_vs_cd (mp, dx, u1, u0, dy);
+  ab_vs_cd2 = mp_ab_vs_cd (mp, u0, dyin, dxin, u1);
+  d_sign = half (ab_vs_cd1 + ab_vs_cd2);
+}
 
 @ In order to be invariant under path reversal, the result of this computation
 should not change when |x0|, |y0|, $\ldots$ are all negated and |(x0,y0)| is
@@ -14042,9 +14070,12 @@ if (number_negative(x1))
   if (number_negative(x2))
     if (number_negative(x3))
       goto DONE;
-if (mp_ab_vs_cd (mp, y1, y3, y2, y2) == 0) {
-  @<Handle the test for eastward directions when $y_1y_3=y_2^2$;
-    either |goto found| or |goto done|@>;
+{
+  integer ab_vs_cd = mp_ab_vs_cd (mp, y1, y3, y2, y2);
+  if (ab_vs_cd == 0) {
+    @<Handle the test for eastward directions when $y_1y_3=y_2^2$;
+      either |goto found| or |goto done|@>;
+  }
 }
 if (number_zero(y1) || number_negative(y1)) {
   if (number_negative(y1)) {
@@ -14159,6 +14190,7 @@ traveling east.
 
 @<Exit to |found| if the derivative $B(x_1,x_2,x_3;t)$ becomes |>=0|...@>=
 {
+  integer ab_vs_cd;
   mp_number arg1, arg2, arg3;
   new_number (arg1);
   new_number (arg2);
@@ -14175,7 +14207,8 @@ traveling east.
   free_number (arg3);
   if (number_lessequal (t, fraction_one_t))
     we_found_it;
-  if (mp_ab_vs_cd (mp, x1, x3, x2, x2) <= 0) {
+  ab_vs_cd = mp_ab_vs_cd (mp, x1, x3, x2, x2);
+  if (ab_vs_cd <= 0) {
     mp_number arg2;
     new_number (arg2);
     set_number_from_substraction (arg2, x1, x2);
