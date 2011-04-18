@@ -57,6 +57,7 @@
 @ Header definitions for those 
 
 @<Internal library declarations@>=
+void mp_ab_vs_cd (MP mp, mp_number ret, mp_number a, mp_number b, mp_number c, mp_number d);
 void mp_number_modulo (mp_number a, mp_number b);
 void mp_print_number (MP mp, mp_number n);
 char * mp_number_tostring (MP mp, mp_number n);
@@ -114,6 +115,7 @@ typedef void (*pyth_add_func) (MP mp, mp_number r, mp_number a, mp_number b);
 typedef void (*pyth_sub_func) (MP mp, mp_number r, mp_number a, mp_number b);
 typedef void (*n_arg_func) (MP mp, mp_number r, mp_number a, mp_number b);
 typedef void (*velocity_func) (MP mp, mp_number r, mp_number a, mp_number b, mp_number c, mp_number d, mp_number e);
+typedef void (*ab_vs_cd_func) (MP mp, mp_number r, mp_number a, mp_number b, mp_number c, mp_number d);
 typedef void (*number_from_scaled_func) (mp_number A, int B);
 typedef void (*number_from_double_func) (mp_number A, double B);
 typedef void (*number_from_addition_func) (mp_number A, mp_number B, mp_number C);
@@ -219,6 +221,7 @@ typedef struct math_data {
   take_fraction_func take_fraction;
   take_scaled_func take_scaled;
   velocity_func velocity;
+  ab_vs_cd_func ab_vs_cd;
   n_arg_func n_arg;
   m_log_func m_log;
   m_exp_func m_exp;
@@ -352,6 +355,7 @@ void * mp_initialize_math (MP mp) {
   math->print = mp_print_number;
   math->tostring = mp_number_tostring;
   math->modulo = mp_number_modulo;
+  math->ab_vs_cd = mp_ab_vs_cd;
   return (void *)math;
 }
 
@@ -1017,11 +1021,8 @@ greater than, equal to, or less than~$cd$,
 given integers $(a,b,c,d)$. In most cases a quick decision is reached.
 The result is $+1$, 0, or~$-1$ in the three respective cases.
 
-@<Internal library declarations@>=
-integer mp_ab_vs_cd (MP mp, mp_number a, mp_number b, mp_number c, mp_number d);
-
-@ @c
-integer mp_ab_vs_cd (MP mp, mp_number a_orig, mp_number b_orig, mp_number c_orig, mp_number d_orig) {
+@c
+void mp_ab_vs_cd (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig, mp_number c_orig, mp_number d_orig) {
   integer q, r; /* temporary registers */
   integer a, b, c, d;
   (void)mp;
@@ -1033,14 +1034,20 @@ integer mp_ab_vs_cd (MP mp, mp_number a_orig, mp_number b_orig, mp_number c_orig
   while (1) {
     q = a / d;
     r = c / b;
-    if (q != r)
-      return (q > r ? 1 : -1);
+    if (q != r) {
+      ret->data.val = (q > r ? 1 : -1);
+      return;
+    }
     q = a % d;
     r = c % b;
-    if (r == 0)
-      return (q ? 1 : 0);
-    if (q == 0)
-      return -1;
+    if (r == 0) {
+      ret->data.val = (q ? 1 : 0);
+      return;
+    }
+    if (q == 0) {
+      ret->data.val = -1;
+      return;
+    }
     a = b;
     b = q;
     c = d;
@@ -1053,20 +1060,23 @@ integer mp_ab_vs_cd (MP mp, mp_number a_orig, mp_number b_orig, mp_number c_orig
 if (a < 0) {
   a = -a;
   b = -b;
-};
+}
 if (c < 0) {
   c = -c;
   d = -d;
-};
+}
 if (d <= 0) {
   if (b >= 0) {
-    if ((a == 0 || b == 0) && (c == 0 || d == 0))
-      return 0;
+    if ((a == 0 || b == 0) && (c == 0 || d == 0)) 
+      ret->data.val = 0;
     else
-      return 1;
+      ret->data.val = 1;
+    return;
   }
-  if (d == 0)
-    return (a == 0 ? 0 : -1);
+  if (d == 0) {
+    ret->data.val = (a == 0 ? 0 : -1);
+    return;
+  }
   q = a;
   a = c;
   c = q;
@@ -1074,10 +1084,12 @@ if (d <= 0) {
   b = -d;
   d = q;
 } else if (b <= 0) {
-  if (b < 0)
-    if (a > 0)
-      return -1;
-  return (c == 0 ? 0 : -1);
+  if (b < 0 && a > 0) {
+    ret->data.val  = -1;
+    return;
+  }
+  ret->data.val = (c == 0 ? 0 : -1);
+  return;
 }
 
 @ We conclude this set of elementary routines with some simple rounding
