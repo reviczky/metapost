@@ -14817,6 +14817,7 @@ structures have to match.
 @d dep_value(A) mp_do_dep_value(mp, (mp_node)(A)) /* the |value| field in a |dependent| variable */
 @d dep_value_number(A) mp_do_dep_value_number(mp, (mp_node)(A)) /* the |value| field in a |dependent| variable */
 @d set_dep_value(A,B) do_set_dep_value(mp,(A),(B)) 
+@d set_dep_value_number(A,B) do_set_dep_value_number(mp,(A),(B)) 
 @d dep_info(A) get_dep_info(mp, (A))
 @d set_dep_info(A,B) do {
    mp_value_node d = (mp_value_node)(B);
@@ -14845,6 +14846,12 @@ static mp_node get_dep_info (MP mp, mp_value_node p) {
 }
 static void do_set_dep_value (MP mp, mp_value_node p, halfword q) {
    set_number_from_scaled (p->data.n, q);  /* half of the |value| field in a |dependent| variable */
+   FUNCTION_TRACE3("set_dep_value(%p,%d)\n", p, q);
+   p->attr_head_ = NULL;
+   p->subscr_head_ = NULL;
+}
+static void do_set_dep_value_number (MP mp, mp_value_node p, mp_number q) {
+   number_clone (p->data.n, q);  /* half of the |value| field in a |dependent| variable */
    FUNCTION_TRACE3("set_dep_value(%p,%d)\n", p, q);
    p->attr_head_ = NULL;
    p->subscr_head_ = NULL;
@@ -15016,12 +15023,12 @@ proto-dependencies.
 @d half_scaled_threshold 4 /* half of |scaled_threshold| */
 
 @<Declarations@>=
-static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
+static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
                                    mp_value_node q, mp_variable_type t,
                                    mp_variable_type tt);
 
 @ @c
-static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
+static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
                                    mp_value_node q, mp_variable_type t,
                                    mp_variable_type tt) {
   mp_node pp, qq;       /* |dep_info(p)| and |dep_info(q)|, respectively */
@@ -15073,14 +15080,14 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
     new_number (arg1);
     new_number (arg2);
     number_clone (arg1, dep_value_number (q));
-    set_number_from_scaled (arg2, f);
+    number_clone (arg2, f);
     if (t == mp_dependent) {
       take_fraction (r1, arg1, arg2);
     } else {
       take_scaled (r1, arg1, arg2);
     }
     slow_add (arg1, dep_value_number (p), r1);
-    set_dep_value (p, number_to_scaled(arg1));
+    set_dep_value_number (p, arg1);
     free_number (r1);
     free_number (arg1);
     free_number (arg2);
@@ -15099,7 +15106,7 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
     new_fraction (r1);
     new_number (arg1);
     new_number (arg2);
-    set_number_from_scaled (arg1, f);
+    number_clone (arg1, f);
     number_clone (arg2, dep_value_number (q));
     if (tt == mp_dependent) {
       take_fraction (r1, arg1, arg2);
@@ -15138,7 +15145,7 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
     new_fraction (r1);
     new_number (arg1);
     new_number (arg2);
-    set_number_from_scaled (arg1, f);
+    number_clone (arg1, f);
     number_clone (arg2, dep_value_number (q));
     if (tt == mp_dependent) {
       take_fraction (r1, arg1, arg2);
@@ -15209,7 +15216,7 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q,
       if (v < vv) {
         s = mp_get_dep_node (mp);
         set_dep_info (s, qq);
-        set_dep_value (s, dep_value (q));
+        set_dep_value_number (s, dep_value_number (q));
         q = (mp_value_node) mp_link (q);
         qq = dep_info (q);
         set_mp_link (r, (mp_node) s);
@@ -15226,7 +15233,7 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q,
     mp_number r1;
     new_number (r1);
     slow_add (r1, dep_value_number (p), dep_value_number (q));
-    set_dep_value (p, number_to_scaled (r1));
+    set_dep_value_number (p, r1);
     free_number (r1);
   }
   set_mp_link (r, (mp_node) p);
@@ -15330,7 +15337,7 @@ static mp_value_node mp_p_times_v (MP mp, mp_value_node p, integer v,
     } else {
       take_fraction (r1, arg1, arg2);
     }
-    set_dep_value (p, number_to_scaled (r1));
+    set_dep_value_number (p, r1);
     free_number (r1);
     free_number (arg1);
     free_number (arg2);
@@ -15423,7 +15430,7 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
     new_number (ret);
     number_clone (arg1, dep_value_number (p));
     make_scaled (ret, arg1, v);
-    set_dep_value (p, number_to_scaled (ret));
+    set_dep_value_number (p, ret);
     free_number (ret);
     free_number (arg1);
   }
@@ -15448,7 +15455,6 @@ static mp_value_node mp_p_with_x_becoming_q (MP mp, mp_value_node p,
                                              mp_node x, mp_node q,
                                              quarterword t) {
   mp_value_node r, s;   /* for list manipulation */
-  integer v;    /* coefficient of |x| */
   integer sx;   /* serial number of |x| */
   s = p;
   r = (mp_value_node) mp->temp_head;
@@ -15460,12 +15466,17 @@ static mp_value_node mp_p_with_x_becoming_q (MP mp, mp_value_node p,
   if (dep_info (s) != x) {
     return p;
   } else {
+    mp_value_node ret;
+    mp_number v1;
+    new_number (v1);
     set_mp_link (mp->temp_head, (mp_node) p);
     set_mp_link (r, mp_link (s));
-    v = dep_value (s);
+    number_clone (v1, dep_value_number (s));
     mp_free_dep_node (mp, s);
-    return mp_p_plus_fq (mp, (mp_value_node) mp_link (mp->temp_head), v,
+    ret = mp_p_plus_fq (mp, (mp_value_node) mp_link (mp->temp_head), v1,
                          (mp_value_node) q, t, mp_dependent);
+    free_number (v1);
+    return ret;
   }
 }
 
@@ -15620,7 +15631,7 @@ a constant term.
 @c
 static mp_value_node mp_const_dependency (MP mp, mp_number v) {
   mp->dep_final = mp_get_dep_node (mp);
-  set_dep_value (mp->dep_final, number_to_scaled (v));
+  set_dep_value_number (mp->dep_final, v);
   set_dep_info (mp->dep_final, NULL);
   FUNCTION_TRACE3 ("%p = mp_const_dependency(%d)\n", mp->dep_final, number_to_scaled (v));
   return mp->dep_final;
@@ -15669,7 +15680,7 @@ static mp_value_node mp_copy_dep_list (MP mp, mp_value_node p) {
   mp->dep_final = q;
   while (1) {
     set_dep_info (mp->dep_final, dep_info (p));
-    set_dep_value (mp->dep_final, dep_value (p));
+    set_dep_value_number (mp->dep_final, dep_value_number (p));
     if (dep_info (mp->dep_final) == NULL)
       break;
     set_mp_link (mp->dep_final, (mp_node) mp_get_dep_node (mp));
@@ -15771,7 +15782,7 @@ if (t == mp_proto_dependent) {
   set_number_from_scaled (arg2,v);
   make_scaled (ret, arg1, arg2);
   number_negate (ret);
-  set_dep_value (r, number_to_scaled (ret));
+  set_dep_value_number (r, ret);
   free_number (ret);
   free_number (arg1);
   free_number (arg2);
@@ -15785,7 +15796,7 @@ if (t == mp_proto_dependent) {
   set_number_from_scaled (arg2,v);
   make_fraction (ret, arg1, arg2);
   number_negate (ret);
-  set_dep_value (r, number_to_scaled(ret));
+  set_dep_value_number (r, ret);
   free_number (ret);
   free_number (arg1);
   free_number (arg2);
@@ -21585,10 +21596,12 @@ s = mp->max_ptr[t];
 pp = (mp_node) dep_info (s);
 /* |debug_printf ("s=%p, pp=%p, r=%p\n",s, pp, dep_list((mp_value_node)pp));| */
 v = dep_value (s);
-if (t == mp_dependent)
-  set_dep_value (s, -number_to_scaled(fraction_one_t));
-else
-  set_dep_value (s, -number_to_scaled (unity_t));
+if (t == mp_dependent) {
+  set_dep_value_number (s, fraction_one_t);
+} else {
+  set_dep_value_number (s, unity_t);
+}
+number_negate(dep_value_number(s));
 r = (mp_value_node) dep_list ((mp_value_node) pp);
 set_mp_link (s, (mp_node) r);
 while (dep_info (r) != NULL)
@@ -21661,7 +21674,7 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
     set_number_from_scaled (arg2,v);
     number_negate (arg2);
     make_fraction (ret, arg1, arg2);
-    set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q), number_to_scaled (ret), s, t, mp_dependent));
+    set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q), ret, s, t, mp_dependent));
     if (dep_list (q) == (mp_node) mp->dep_final)
       mp_make_known (mp, q, mp->dep_final);
     q = r;
@@ -21691,7 +21704,7 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
       mp_type (q) = mp_proto_dependent;
       number_clone (x, dep_value_number (r));
       fraction_to_round_scaled (x);
-      set_dep_value (r, number_to_scaled (x));
+      set_dep_value_number (r, x);
       free_number (x);
     }
     {
@@ -21706,7 +21719,7 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
       free_number (arg1);
       free_number (arg2);
       set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q),
-                                             number_to_scaled (ret), s,
+                                             ret, s,
                                              mp_proto_dependent,
                                              mp_proto_dependent));
       free_number (ret);
@@ -24089,7 +24102,7 @@ default:
 static void mp_negate_dep_list (MP mp, mp_value_node p) {
   (void) mp;
   while (1) {
-    set_dep_value (p, -dep_value (p));
+    number_negate (dep_value_number (p));
     if (dep_info (p) == NULL)
       return;
     p = (mp_value_node) mp_link (p);
@@ -24111,7 +24124,7 @@ if (mp->cur_exp.type != mp_boolean_type) {
 }
 break;
 
-@ @d three_sixty_units 23592960 /* that's |360*unity| */
+@ 
 @d boolean_reset(A) if ( (A) ) set_cur_exp_value(mp_true_code); else set_cur_exp_value(mp_false_code)
 
 @<Additional cases of unary operators@>=
@@ -24935,7 +24948,6 @@ moves at the actual points.
 @d bezier_error (720*(256*256*16))+1
 @d mp_sign(v) ((v)>0 ? 1 : ((v)<0 ? -1 : 0 ))
 @d mp_out(A) (double)((A)/16)
-@d double2angle(a) (int)mp_floor(a*256.0*256.0*16.0)
 
 @<Declare unary action...@>=
 static void mp_bezier_slope (MP mp, mp_number ret, mp_number AX, mp_number AY, mp_number BX,
@@ -25040,7 +25052,8 @@ static void mp_bezier_slope (MP mp, mp_number ret, mp_number AX, mp_number AY, m
   free_number (xi);
   free_number (xo);
   free_number (xm);
-  set_number_from_scaled (ret, double2angle (res));
+  set_number_from_double(ret, mp_floor(res));
+  convert_scaled_to_angle (ret);
 }
 
 
@@ -26070,7 +26083,7 @@ static void mp_add_or_subtract (MP mp, mp_node p, mp_node q, quarterword c) {
       new_number (r2);
       set_number_from_scaled (r2, vv);
       slow_add (r1, dep_value_number (r), r2);
-      set_dep_value (r, number_to_scaled (r1));
+      set_dep_value_number (r, r1);
       free_number (r1);
       free_number (r2);
     }
@@ -26106,7 +26119,7 @@ if (mp_type (p) == mp_known) {
   while (dep_info (v) != NULL)
     v = (mp_value_node) mp_link (v);
   slow_add (r1, value_number (p), dep_value_number (v));
-  set_dep_value (v, number_to_scaled (r1));
+  set_dep_value_number (v, r1);
   free_number (r1);
 } else {
   s = mp_type (p);
@@ -26133,7 +26146,7 @@ if (mp_type (p) == mp_known) {
   if (s == mp_proto_dependent)
     v = mp_p_plus_q (mp, v, r, mp_proto_dependent);
   else
-    v = mp_p_plus_fq (mp, v, number_to_scaled (unity_t), r, mp_proto_dependent, mp_dependent);
+    v = mp_p_plus_fq (mp, v, unity_t, r, mp_proto_dependent, mp_dependent);
 DONE:
   /* Output the answer, |v| (which might have become |known|) */
   if (q != NULL) {
@@ -26475,7 +26488,7 @@ static void mp_dep_mult (MP mp, mp_value_node p, mp_number v, boolean v_is_scale
         new_fraction (r1);
         take_fraction (r1, arg1, v);
       }
-      set_dep_value (p, number_to_scaled (r1));
+      set_dep_value_number (p, r1);
       free_number (r1);
       free_number (arg1);
     }
@@ -27410,7 +27423,7 @@ static void mp_bilin1 (MP mp, mp_node p, mp_number t, mp_node q,
       }
       set_dep_list ((mp_value_node) p,
         mp_p_plus_fq (mp,
-                                (mp_value_node) dep_list ((mp_value_node) p), number_to_scaled (u),
+                                (mp_value_node) dep_list ((mp_value_node) p), u,
                                 (mp_value_node) dep_list ((mp_value_node) q),
                                 mp_proto_dependent, mp_type (q)));
     }
@@ -27483,7 +27496,7 @@ static void mp_add_mult_dep (MP mp, mp_value_node p, mp_number v, mp_node r) {
     free_number (ret);
   } else {
     set_dep_list (p,
-      mp_p_plus_fq (mp, (mp_value_node) dep_list (p), number_to_scaled (v),
+      mp_p_plus_fq (mp, (mp_value_node) dep_list (p), v,
                               (mp_value_node) dep_list ((mp_value_node) r),
                               mp_proto_dependent, mp_type (r)));
     if (mp->fix_needed)
@@ -28582,14 +28595,14 @@ if (t == mp_known) {
 } else if (t == mp_independent) {
   t = mp_dependent;
   p = mp_single_dependency (mp, l);
-  set_dep_value (p, -dep_value (p));
+  number_negate(dep_value_number (p));
   q = mp->dep_final;
 } else {
   mp_value_node ll = (mp_value_node) l;
   p = (mp_value_node) dep_list (ll);
   q = p;
   while (1) {
-    set_dep_value (q, -dep_value (q));
+    number_negate(dep_value_number (q));
     if (dep_info (q) == NULL)
       break;
     q = (mp_value_node) mp_link (q);
@@ -28659,7 +28672,7 @@ mp->watch_coefs = false;
 if (t == tt) {
   p = mp_p_plus_q (mp, p, pp, (quarterword) t);
 } else if (t == mp_proto_dependent) {
-  p = mp_p_plus_fq (mp, p, number_to_scaled (unity_t), pp, mp_proto_dependent, mp_dependent);
+  p = mp_p_plus_fq (mp, p, unity_t, pp, mp_proto_dependent, mp_dependent);
 } else {
   mp_number x;
   new_number (x);
@@ -28667,7 +28680,7 @@ if (t == tt) {
   while (dep_info (q) != NULL) {
     number_clone (x, dep_value_number (q));
     fraction_to_round_scaled (x);
-    set_dep_value (q, number_to_scaled (x));
+    set_dep_value_number (q, x);
     q = (mp_value_node) mp_link (q);
   }
   free_number (x);
@@ -32985,8 +32998,7 @@ operator that gets the design size for a given font name.
 
 @<Find the design size of the font whose name is |cur_exp|@>=
 {
-  set_number_from_scaled (new_expr.data.n,
-    (mp->font_dsize[mp_find_font (mp, mp_str (mp, cur_exp_str ()))] + 8) / 16);
+  set_number_from_scaled (new_expr.data.n, (mp->font_dsize[mp_find_font (mp, mp_str (mp, cur_exp_str ()))] + 8) / 16);
   mp_flush_cur_exp (mp, new_expr);
 }
 
