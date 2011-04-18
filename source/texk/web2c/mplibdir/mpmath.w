@@ -724,6 +724,7 @@ time during typical jobs, so a machine-language substitute is advisable.
 @^inner loop@> @^system dependencies@>
 
 @<Internal library declarations@>=
+/* still in use by tfmin.w */
 integer mp_take_fraction (MP mp, integer q, int f);
 
 @ @c
@@ -769,11 +770,11 @@ possible; otherwise |take_scaled| will use more than 2\pct! of the running time
 when the Computer Modern fonts are being generated.
 @^inner loop@>
 
-@<Internal library declarations@>=
-integer mp_take_scaled (MP mp, integer q, int f);
+@<Declarations@>=
+static integer mp_take_scaled (MP mp, integer q, int f);
 
 @ @c
-integer mp_take_scaled (MP mp, integer p, int q) { /* q = scaled */
+static integer mp_take_scaled (MP mp, integer p, int q) { /* q = scaled */
   register double d;
   register integer i;
   d = (double) p *(double) q *TWEXP_16;
@@ -812,6 +813,7 @@ operands are positive. \ (This procedure is not used especially often,
 so it is not part of \MP's inner loop.)
 
 @<Internal library ...@>=
+/* still in use by svgout.w */
 int mp_make_scaled (MP mp, integer p, integer q);
 
 @ @c
@@ -850,51 +852,14 @@ void mp_number_make_scaled (MP mp, mp_number ret, mp_number p_orig, mp_number q_
   ret->data.val = mp_make_scaled (mp, p_orig->data.val, q_orig->data.val);
 }
 
-@ The following function divides |s| by |m|. |dd| is number of decimal digits.
-
-@<Internal library ...@>=
-int mp_divide_scaled (MP mp, int s, int m, integer dd);
-
-@ @c
-int mp_divide_scaled (MP mp, int s, int m, integer dd) { /* return, s, m: scaled */
-  int q, r; /* q,r: scaled */
-  integer sign, i;
-  sign = 1;
-  if (s < 0) {
-    sign = -sign;
-    s = -s;
-  }
-  if (m < 0) {
-    sign = -sign;
-    m = -m;
-  }
-  if (m == 0)
-    mp_confusion (mp, "arithmetic: divided by zero");
-  else if (m >= (EL_GORDO / 10))
-    mp_confusion (mp, "arithmetic: number too big");
-  q = s / m;
-  r = s % m;
-  for (i = 1; i <= dd; i++) {
-    q = 10 * q + (10 * r) / m;
-    r = (10 * r) % m;
-  }
-  if (2 * r >= m) {
-    q++;
-    r = r - m;
-  }
-  mp->scaled_out = sign * (s - (r / mp->ten_pow[dd]));
-  return (sign * q);
-}
-
-
 @ The following function is used to create a scaled integer from a given decimal
 fraction $(.d_0d_1\ldots d_{k-1})$, where |0<=k<=17|.
 
-@<Internal library declarations@>=
-int mp_round_decimals (MP mp, unsigned char *b, quarterword k);
+@<Declarations@>=
+static int mp_round_decimals (MP mp, unsigned char *b, quarterword k);
 
 @ @c
-int mp_round_decimals (MP mp, unsigned char *b, quarterword k) { /* return: scaled */
+static int mp_round_decimals (MP mp, unsigned char *b, quarterword k) { /* return: scaled */
   /* converts a decimal fraction */
   unsigned a = 0;       /* the accumulator */
   int l = 0;
