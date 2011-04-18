@@ -75,7 +75,9 @@ void mp_pyth_sub (MP mp, mp_number r, mp_number a, mp_number b);
 void mp_pyth_add (MP mp, mp_number r, mp_number a, mp_number b);
 void mp_n_arg (MP mp, mp_number ret, mp_number x, mp_number y);
 void mp_velocity (MP mp, mp_number ret, mp_number st, mp_number ct, mp_number sf,  mp_number cf, mp_number t);
+void mp_set_number_from_boolean(mp_number A, int B);
 void mp_set_number_from_scaled(mp_number A, int B);
+void mp_set_number_from_bolean(mp_number A, int B);
 void mp_set_number_from_double(mp_number A, double B);
 void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C);
 void mp_set_number_from_substraction (mp_number A, mp_number B, mp_number C);
@@ -116,6 +118,7 @@ typedef void (*pyth_sub_func) (MP mp, mp_number r, mp_number a, mp_number b);
 typedef void (*n_arg_func) (MP mp, mp_number r, mp_number a, mp_number b);
 typedef void (*velocity_func) (MP mp, mp_number r, mp_number a, mp_number b, mp_number c, mp_number d, mp_number e);
 typedef void (*ab_vs_cd_func) (MP mp, mp_number r, mp_number a, mp_number b, mp_number c, mp_number d);
+typedef void (*number_from_boolean_func) (mp_number A, int B);
 typedef void (*number_from_scaled_func) (mp_number A, int B);
 typedef void (*number_from_double_func) (mp_number A, double B);
 typedef void (*number_from_addition_func) (mp_number A, mp_number B, mp_number C);
@@ -187,6 +190,7 @@ typedef struct math_data {
   mp_number twentysevenbits_sqrt2_d_t;
   new_number_func new;
   free_number_func free;
+  number_from_boolean_func from_boolean;
   number_from_scaled_func from_scaled;
   number_from_double_func from_double;
   number_from_addition_func from_addition;
@@ -307,6 +311,7 @@ void * mp_initialize_math (MP mp) {
   math->twentysevenbits_sqrt2_d_t->data.val = 25170707;  /* $2^{27}\sqrt2\,d\approx25170706.63$ */
 
   /* functions */
+  math->from_boolean = mp_set_number_from_boolean;
   math->from_scaled = mp_set_number_from_scaled;
   math->from_double = mp_set_number_from_double;
   math->from_addition  = mp_set_number_from_addition;
@@ -416,6 +421,9 @@ void mp_free_number (MP mp, mp_number n) {
 @ Here are the low-level functions on |mp_number| items, setters first.
 
 @c 
+void mp_set_number_from_boolean(mp_number A, int B) {
+  A->data.val = B;
+}
 void mp_set_number_from_scaled(mp_number A, int B) {
   A->data.val = B;
 }

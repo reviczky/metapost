@@ -10285,6 +10285,7 @@ This first set goes into the header
 @ 
 @d set_number_from_of_the_way(A,t,B,C) (((math_data *)(mp->math))->from_oftheway)(mp, A,t,B,C) 
 @d set_number_from_scaled(A,B)	       (((math_data *)(mp->math))->from_scaled)(A,B)
+@d set_number_from_boolean(A,B)	       (((math_data *)(mp->math))->from_boolean)(A,B)
 @d set_number_from_double(A,B)	       (((math_data *)(mp->math))->from_double)(A,B)
 @d set_number_from_addition(A,B,C)     (((math_data *)(mp->math))->from_addition)(A,B,C)
 @d set_number_from_substraction(A,B,C) (((math_data *)(mp->math))->from_substraction)(A,B,C)
@@ -16058,7 +16059,9 @@ recursive process, but the |get_next| procedure is not recursive.
 @d cur_cmd() (unsigned)(mp->cur_mod_->type)
 @d set_cur_cmd(A) mp->cur_mod_->type=(A)
 @d cur_mod() number_to_scaled (mp->cur_mod_->data.n) /* operand of current command */
+@d cur_mod_number() mp->cur_mod_->data.n /* operand of current command */
 @d set_cur_mod(A) set_number_from_scaled (mp->cur_mod_->data.n, (A))
+@d set_cur_mod_number(A) number_clone (mp->cur_mod_->data.n, (A))
 @d cur_mod_node() mp->cur_mod_->data.node
 @d set_cur_mod_node(A) mp->cur_mod_->data.node=(A)
 @d cur_mod_str() mp->cur_mod_->data.str
@@ -17401,7 +17404,7 @@ if (nloc != NULL && mp_type (nloc) == mp_symbol_node) { /* symbolic token */
 {
   if (mp_name_type (nloc) == mp_token) {
     if (mp_type (nloc) == mp_known) {
-      set_cur_mod(value (nloc));
+      set_cur_mod_number(value_number (nloc));
       set_cur_cmd(mp_numeric_token);
     } else {
       set_cur_mod_str(value_str (nloc));
@@ -22318,7 +22321,7 @@ mp_node macro_ref = 0;  /* reference count for a suffixed macro */
     if (mp->cur_exp.type != mp_known)
       mp_bad_subscript (mp);
     set_cur_cmd(mp_numeric_token);
-    set_cur_mod(cur_exp_value ());
+    set_cur_mod_number(cur_exp_value_number ());
     set_cur_sym(NULL);
   }
 }
@@ -22334,7 +22337,7 @@ so as to avoid any embarrassment about our incorrect assumption.
   mp_back_input (mp);           /* that was the token following the current expression */
   mp_back_expr (mp);
   set_cur_cmd(mp_left_bracket);
-  set_cur_mod(0);
+  set_cur_mod_number(zero_t);
   set_cur_sym(mp->frozen_left_bracket);
 }
 
@@ -22741,7 +22744,7 @@ static void mp_scan_suffix (MP mp) {
     if (cur_cmd() == mp_numeric_token) {
       mp_number arg1;
       new_number (arg1);
-      set_number_from_scaled (arg1, cur_mod());
+      number_clone (arg1, cur_mod_number());
       p = mp_new_num_tok (mp, arg1);
       free_number (arg1);
     } else if ((cur_cmd() == mp_tag_token) || (cur_cmd() == mp_internal_quantity)) {
@@ -22777,7 +22780,7 @@ static void mp_scan_suffix (MP mp) {
 @.Missing `]'@>;
   }
   set_cur_cmd(mp_numeric_token);
-  set_cur_mod(cur_exp_value ());
+  set_cur_mod_number(cur_exp_value_number ());
 }
 
 
@@ -23524,7 +23527,7 @@ static void mp_get_boolean (MP mp) {
            "true-or-false value. I'm changing it to `false'.",
            NULL };
     mp_disp_err(mp, NULL);
-    set_number_from_scaled (new_expr.data.n, mp_false_code);
+    set_number_from_boolean (new_expr.data.n, mp_false_code);
     mp_back_error (mp, "Undefined condition will be treated as `false'", hlp, true);
 @.Undefined condition...@>;
     mp_get_x_next (mp);
@@ -24097,7 +24100,11 @@ case mp_not_op:
 if (mp->cur_exp.type != mp_boolean_type) {
   mp_bad_unary (mp, mp_not_op);
 } else {
-  halfword bb = mp_true_code + mp_false_code - cur_exp_value ();
+  halfword bb;
+  if (cur_exp_value () == mp_true_code)
+    bb = mp_false_code;
+  else
+    bb = mp_true_code;
   set_cur_exp_value (bb);
 }
 break;
@@ -25293,17 +25300,17 @@ static void mp_turn_cycles_wrapper (MP mp, mp_number ret, mp_knot c) {
 
 @ @d type_range(A,B) { 
   if ( (mp->cur_exp.type>=(A)) && (mp->cur_exp.type<=(B)) ) 
-    set_number_from_scaled (new_expr.data.n, mp_true_code);
+    set_number_from_boolean (new_expr.data.n, mp_true_code);
   else 
-    set_number_from_scaled (new_expr.data.n, mp_false_code);
+    set_number_from_boolean (new_expr.data.n, mp_false_code);
   mp_flush_cur_exp(mp, new_expr);
   mp->cur_exp.type=mp_boolean_type;
   }
 @d type_test(A) { 
   if ( mp->cur_exp.type==(mp_variable_type)(A) ) 
-    set_number_from_scaled (new_expr.data.n, mp_true_code);
+    set_number_from_boolean (new_expr.data.n, mp_true_code);
   else 
-    set_number_from_scaled (new_expr.data.n, mp_false_code);
+    set_number_from_boolean (new_expr.data.n, mp_false_code);
   mp_flush_cur_exp(mp, new_expr);
   mp->cur_exp.type=mp_boolean_type;
   }
@@ -25405,10 +25412,15 @@ static void mp_test_known (MP mp, quarterword c) {
   default:
     break;
   }
-  if (c == mp_known_op)
-    set_number_from_scaled (new_expr.data.n, b);
-  else
-    set_number_from_scaled (new_expr.data.n, mp_true_code + mp_false_code - b);
+  if (c == mp_known_op) {
+    set_number_from_boolean (new_expr.data.n, b);
+  } else {
+    if (b==mp_true_code) {
+      set_number_from_boolean (new_expr.data.n, mp_false_code);
+    } else {
+      set_number_from_boolean (new_expr.data.n, mp_true_code);
+    }
+  }
   mp_flush_cur_exp (mp, new_expr);
   cur_exp_node() = NULL; /* !! do not replace with |set_cur_exp_node()| !! */
   mp->cur_exp.type = mp_boolean_type;
@@ -25418,11 +25430,11 @@ static void mp_test_known (MP mp, quarterword c) {
 @ @<Additional cases of unary operators@>=
 case mp_cycle_op:
 if (mp->cur_exp.type != mp_path_type)
-  set_number_from_scaled (new_expr.data.n, mp_false_code);
+  set_number_from_boolean (new_expr.data.n, mp_false_code);
 else if (mp_left_type (cur_exp_knot ()) != mp_endpoint)
-  set_number_from_scaled (new_expr.data.n, mp_true_code);
+  set_number_from_boolean (new_expr.data.n, mp_true_code);
 else
-  set_number_from_scaled (new_expr.data.n, mp_false_code);
+  set_number_from_boolean (new_expr.data.n, mp_false_code);
 mp_flush_cur_exp (mp, new_expr);
 mp->cur_exp.type = mp_boolean_type;
 break;
@@ -25450,14 +25462,14 @@ case mp_textual_op:
 case mp_clipped_op:
 case mp_bounded_op:
 if (mp->cur_exp.type != mp_picture_type) {
-  set_number_from_scaled (new_expr.data.n, mp_false_code);
+  set_number_from_boolean (new_expr.data.n, mp_false_code);
 } else if (mp_link (edge_list (cur_exp_node ())) == NULL) {
-  set_number_from_scaled (new_expr.data.n, mp_false_code);
+  set_number_from_boolean (new_expr.data.n, mp_false_code);
 } else if (mp_type (mp_link (edge_list (cur_exp_node ()))) ==
            (mp_variable_type) (c + mp_fill_node_type - mp_filled_op)) {
-  set_number_from_scaled (new_expr.data.n, mp_true_code);
+  set_number_from_boolean (new_expr.data.n, mp_true_code);
 } else {
-  set_number_from_scaled (new_expr.data.n, mp_false_code);
+  set_number_from_boolean (new_expr.data.n, mp_false_code);
 }
 mp_flush_cur_exp (mp, new_expr);
 mp->cur_exp.type = mp_boolean_type;
@@ -26212,7 +26224,7 @@ if (mp->cur_exp.type != mp_known) {
     hlp[1]  = NULL;
   }
   mp_disp_err(mp, NULL);
-  set_number_from_scaled (new_expr.data.n, mp_false_code);
+  set_number_from_boolean (new_expr.data.n, mp_false_code);
   mp_back_error (mp,"Unknown relation will be considered false", hlp, true);
 @.Unknown relation...@>;
   mp_get_x_next (mp);
@@ -29835,11 +29847,7 @@ void mp_disp_token (MP mp) {
 @ @<Show a numeric or string or capsule token@>=
 {
   if (cur_cmd() == mp_numeric_token) {
-    mp_number v1;
-    new_number (v1);
-    set_number_from_scaled (v1, cur_mod());
-    print_number (v1);
-    free_number (v1);
+    print_number (cur_mod_number());
   } else if (cur_cmd() == mp_capsule_token) {
     mp_print_capsule (mp, cur_mod_node());
   } else {
