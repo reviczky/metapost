@@ -57,6 +57,7 @@
 @ Header definitions for those 
 
 @<Internal library declarations@>=
+void mp_number_modulo (mp_number a, mp_number b);
 void mp_print_number (MP mp, mp_number n);
 char * mp_number_tostring (MP mp, mp_number n);
 void mp_slow_add (MP mp, mp_number ret, mp_number x_orig, mp_number y_orig);
@@ -125,6 +126,7 @@ typedef void (*number_from_oftheway_func) (MP mp, mp_number A, mp_number t, mp_n
 typedef void (*number_negate_func) (mp_number A);
 typedef void (*number_add_func) (mp_number A, mp_number B);
 typedef void (*number_substract_func) (mp_number A, mp_number B);
+typedef void (*number_modulo_func) (mp_number A, mp_number B);
 typedef void (*number_half_func) (mp_number A);
 typedef void (*number_halfp_func) (mp_number A);
 typedef void (*number_double_func) (mp_number A);
@@ -196,6 +198,7 @@ typedef struct math_data {
   number_add_func add;
   number_substract_func substract;
   number_half_func half;
+  number_modulo_func modulo;
   number_halfp_func halfp;
   number_double_func do_double;
   number_abs_func abs;
@@ -348,6 +351,7 @@ void * mp_initialize_math (MP mp) {
   math->sqrt = mp_square_rt;
   math->print = mp_print_number;
   math->tostring = mp_number_tostring;
+  math->modulo = mp_number_modulo;
   return (void *)math;
 }
 
@@ -1760,3 +1764,7 @@ char * mp_number_tostring (MP mp, mp_number n) {
    return mp_string_scaled(mp, n->data.val);
 }
 
+@ @c
+void mp_number_modulo (mp_number a, mp_number b) {
+   a->data.val = a->data.val % b->data.val;
+}
