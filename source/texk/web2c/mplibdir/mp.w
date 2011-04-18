@@ -10329,6 +10329,7 @@ This first set goes into the header
 @d number_double(A)		       (((math_data *)(mp->math))->do_double)(A)		       
 @d number_add_scaled(A,B)	       (((math_data *)(mp->math))->add_scaled)(A,B)	       
 @d number_multiply_int(A,B)	       (((math_data *)(mp->math))->multiply_int)(A,B)	       
+@d number_divide_int(A,B)	       (((math_data *)(mp->math))->divide_int)(A,B)	       
 @d number_abs(A)		       (((math_data *)(mp->math))->abs)(A)		       
 @d number_modulo(A,B)		       (((math_data *)(mp->math))->modulo)(A, B)		       
 @d number_nonequalabs(A,B)	       (((math_data *)(mp->math))->nonequalabs)(A,B)	       
@@ -10337,6 +10338,8 @@ This first set goes into the header
 @d number_less(A,B)		       (((math_data *)(mp->math))->less)(A,B)		       
 @d number_clone(A,B)		       (((math_data *)(mp->math))->clone)(A,B)		       
 @d number_swap(A,B)		       (((math_data *)(mp->math))->swap)(A,B);
+@d convert_scaled_to_angle(A)          (((math_data *)(mp->math))->scaled_to_angle)(A);
+@d convert_angle_to_scaled(A)          (((math_data *)(mp->math))->angle_to_scaled)(A);
 @d convert_fraction_to_scaled(A)       (((math_data *)(mp->math))->fraction_to_scaled)(A);
 @d convert_scaled_to_fraction(A)       (((math_data *)(mp->math))->scaled_to_fraction)(A);
 @#
@@ -22128,7 +22131,7 @@ multiplication.
       goto DONE;
     }
     number_clone (num, cur_exp_value_number ());
-    set_number_from_scaled (denom, cur_mod());
+    number_clone (denom, cur_mod_number());
     if (number_zero(denom)) {
       @<Protest division by zero@>;
     } else {
@@ -23860,7 +23863,6 @@ operand to |do_unary| appears in |cur_type| and |cur_exp|.
 @<Declare unary action procedures@>;
 static void mp_do_unary (MP mp, quarterword c) {
   mp_node p, q, r;      /* for list manipulation */
-  integer x;    /* a temporary register */
   halfword vv;  /* a temporary place for |cur_exp_value| */
   mp_value new_expr;
   check_arith();
@@ -24159,11 +24161,16 @@ if (mp->cur_exp.type != mp_known) {
   case mp_sin_d_op:
   case mp_cos_d_op:
     {
-      mp_number n_sin, n_cos, arg1;
+      mp_number n_sin, n_cos, arg1, arg2;
       new_number (arg1);
+      new_number (arg2);
       new_fraction (n_sin);
       new_fraction (n_cos); /* results computed by |n_sin_cos| */
-      set_number_from_scaled (arg1, (cur_exp_value () % three_sixty_units) * 16);
+      number_clone (arg1, cur_exp_value_number()); 
+      number_clone (arg2, unity_t);
+      number_multiply_int (arg2, 360);
+      number_modulo (arg1, arg2);
+      convert_scaled_to_angle (arg1);
       n_sin_cos (arg1, n_cos, n_sin);
       if (c == mp_sin_d_op) {
         fraction_to_round_scaled (n_sin);
@@ -24173,6 +24180,7 @@ if (mp->cur_exp.type != mp_known) {
         set_cur_exp_value (number_to_scaled (n_cos));
       }
       free_number (arg1);
+      free_number (arg2);
       free_number (n_sin);
       free_number (n_cos);
     }
@@ -24215,12 +24223,9 @@ if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
   new_angle (narg);
   p = value_node (cur_exp_node ());
   n_arg (narg, value_number (x_part (p)), value_number (y_part (p)));
-  x = number_to_scaled (narg);
+  number_clone (new_expr.data.n, narg);
+  convert_angle_to_scaled (new_expr.data.n);
   free_number (narg);
-  if (x >= 0)
-    set_number_from_scaled (new_expr.data.n, (x + 8) / 16);
-  else
-    set_number_from_scaled (new_expr.data.n, -((-x + 8) / 16));
   mp_flush_cur_exp (mp, new_expr);
 } else {
   mp_bad_unary (mp, mp_angle_op);
@@ -24543,10 +24548,12 @@ static void mp_take_pict_part (MP mp, quarterword c) {
       break;
     case mp_color_model_part:
       if (has_color (p)) {
-        if (mp_color_model (p) == mp_uninitialized_model)
+        if (mp_color_model (p) == mp_uninitialized_model) {
           number_clone (new_expr.data.n, internal_value (mp_default_color_model));
-        else
-          set_number_from_scaled (new_expr.data.n, mp_color_model (p) * number_to_scaled (unity_t));
+        } else {
+          number_clone (new_expr.data.n, unity_t);
+          number_multiply_int (new_expr.data.n, mp_color_model (p));
+        }
         mp_flush_cur_exp (mp, new_expr);
       } else
         goto NOT_FOUND;
@@ -24786,7 +24793,8 @@ static void mp_str_to_num (MP mp, quarterword c) {                              
     }
     @<Give error messages if |bad_char| or |n>=4096|@>;
   }
-  set_number_from_scaled (new_expr.data.n, n * number_to_scaled (unity_t));
+  number_clone (new_expr.data.n, unity_t);
+  number_multiply_int(new_expr.data.n, n);
   mp_flush_cur_exp (mp, new_expr);
 }
 
@@ -24823,7 +24831,8 @@ of different types of operands.
 case mp_length_op:
 switch (mp->cur_exp.type) {
 case mp_string_type:
-  set_number_from_scaled (new_expr.data.n, (integer) (cur_exp_str ()->len * number_to_scaled (unity_t)));
+  number_clone (new_expr.data.n, unity_t);
+  number_multiply_int(new_expr.data.n, cur_exp_str ()->len);
   mp_flush_cur_exp (mp, new_expr);
   break;
 case mp_path_type:
@@ -26935,11 +26944,16 @@ break;
 
 @ @<Install sines and cosines, then |goto done|@>=
 {
-  mp_number n_sin, n_cos, arg1;
+  mp_number n_sin, n_cos, arg1, arg2;
   new_number (arg1);
+  new_number (arg2);
   new_fraction (n_sin);
   new_fraction (n_cos); /* results computed by |n_sin_cos| */
-  set_number_from_scaled (arg1, (value (p) % three_sixty_units) * 16);
+  number_clone (arg2, unity_t);
+  number_clone (arg1, value_number (p));
+  number_multiply_int (arg2, 360);
+  number_modulo (arg1, arg2);
+  convert_scaled_to_angle (arg1);
   n_sin_cos (arg1, n_cos, n_sin);
   fraction_to_round_scaled (n_sin);
   fraction_to_round_scaled (n_cos);
@@ -26948,6 +26962,7 @@ break;
   set_value (xy_part (q), -value (yx_part (q)));
   set_value (yy_part (q), value (xx_part (q)));
   free_number (arg1);
+  free_number (arg2);
   free_number (n_sin);
   free_number (n_cos);
   goto DONE;
@@ -27868,15 +27883,26 @@ static void mp_find_point (MP mp, mp_number v_orig, quarterword c) {
   if (number_zero (n)) {
     set_number_to_zero(v);
   } else if (number_negative(v)) {
-    if (mp_left_type (p) == mp_endpoint)
+    if (mp_left_type (p) == mp_endpoint) {
       set_number_to_zero(v);
-    else
-      set_number_from_scaled (v, number_to_scaled (n) - 1 - ((-number_to_scaled(v) - 1) % number_to_scaled (n)));
+    } else  {
+      /* v = n - 1 - ((-v - 1) % n) */
+      mp_number secondpart;
+      new_number (secondpart);
+      number_clone (secondpart, v);
+      number_negate (secondpart);
+      number_add_scaled (secondpart, -1);
+      number_modulo (secondpart, n);
+      number_clone (v, n);      
+      number_add_scaled (v, -1);
+      number_substract (v, secondpart);
+      free_number (secondpart);
+    }
   } else if (number_greater(v, n)) {
     if (mp_left_type (p) == mp_endpoint)
       number_clone (v, n);
     else
-      set_number_from_scaled (v, number_to_scaled(v) % number_to_scaled (n));
+      number_modulo (v, n);
   }
   p = cur_exp_knot ();
   while (number_greaterequal(v, unity_t)) {
@@ -32131,9 +32157,11 @@ adjacent values.
 static integer mp_min_cover (MP mp, mp_number d) {
   mp_node p;    /* runs through the current list */
   mp_number l;     /* the least element covered by the current interval */
+  mp_number test;
   integer m;    /* lower bound on the size of the minimum cover */
   m = 0;
   new_number  (l);
+  new_number  (test);
   p = mp_link (mp->temp_head);
   set_number_to_inf(mp->perturbation);
   while (p != mp->inf_val) {
@@ -32141,10 +32169,16 @@ static integer mp_min_cover (MP mp, mp_number d) {
     number_clone (l, value_number (p));
     do {
       p = mp_link (p);
-    } while (value (p) <= number_to_scaled (l) + number_to_scaled (d));
-    if (value (p) - number_to_scaled (l) < number_to_scaled (mp->perturbation))
-      set_number_from_scaled (mp->perturbation, value (p) - number_to_scaled (l));
+      set_number_from_addition(test, l, d);
+    } while (number_lessequal(value_number (p), test));
+    
+    set_number_from_substraction(test, value_number (p), l);
+    if (number_less (test, mp->perturbation)) {
+      number_clone (mp->perturbation, value_number (p));
+      number_substract (mp->perturbation, l);
+    }
   }
+  free_number  (test);
   free_number  (l);
   return m;
 }
@@ -32229,22 +32263,29 @@ static integer mp_skimp (MP mp, integer m) {
 
 @ @<Replace an interval...@>=
 {
+  mp_number test;
+  new_number (test);
   do {
     p = mp_link (p);
     set_mp_info (p, m);
     decr (mp->excess);
     if (mp->excess == 0)
       set_number_to_zero (d);
-  } while (value (mp_link (p)) <= number_to_scaled (l) + number_to_scaled (d));
-  set_number_from_scaled (v, number_to_scaled (l) + halfp (value (p) - number_to_scaled (l)));
-  if (value (p) - number_to_scaled (v) > number_to_scaled (mp->perturbation))
-    set_number_from_scaled (mp->perturbation, value (p) - number_to_scaled (v));
+    set_number_from_addition (test, l, d);
+  } while (number_lessequal(value_number (mp_link (p)), test));
+  set_number_from_substraction (test, value_number (p), l);
+  number_halfp(test);
+  set_number_from_addition (v, l, test);
+  set_number_from_substraction (test, value_number (p), v);
+  if (number_greater (test, mp->perturbation)) 
+    number_clone (mp->perturbation, test);
   r = q;
   do {
     r = mp_link (r);
     set_value (r, number_to_scaled (v));
   } while (r != p);
   mp_link (q) = p;              /* remove duplicate values from the current list */
+  free_number (test);
 }
 
 
@@ -32375,11 +32416,22 @@ static void mp_fix_design_size (MP mp) {
     mp->header_byte[6] = (char) ((number_to_scaled (d) / 16) % 256);
     mp->header_byte[7] = (char) ((number_to_scaled (d) % 16) * 16);
   }
-  set_number_from_scaled (mp->max_tfm_dimen,
-    16 * number_to_scaled (internal_value (mp_design_size)) - 1 -
-    number_to_scaled (internal_value (mp_design_size)) / 010000000);
-  if (number_greaterequal (mp->max_tfm_dimen, fraction_half_t))
-    set_number_from_scaled (mp->max_tfm_dimen, number_to_scaled (fraction_half_t) - 1);
+  /* mp->max_tfm_dimen = 16 * internal_value (mp_design_size) - 1 - internal_value (mp_design_size) / 010000000 */
+  {
+    mp_number secondpart;
+    new_number (secondpart);
+    number_clone (secondpart, internal_value (mp_design_size));
+    number_clone (mp->max_tfm_dimen, secondpart);
+    number_divide_int (secondpart, 010000000);
+    number_multiply_int (mp->max_tfm_dimen, 16);
+    number_add_scaled (mp->max_tfm_dimen, -1);
+    number_substract (mp->max_tfm_dimen, secondpart);
+    free_number (secondpart);
+  }
+  if (number_greaterequal (mp->max_tfm_dimen, fraction_half_t)) {
+    number_clone (mp->max_tfm_dimen, fraction_half_t);
+    number_add_scaled (mp->max_tfm_dimen, -1);
+  }
   free_number (d);
 }
 
