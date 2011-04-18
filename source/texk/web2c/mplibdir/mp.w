@@ -10302,6 +10302,7 @@ This first set goes into the header
 @d number_add_scaled(A,B)	       (((math_data *)(mp->math))->add_scaled)(A,B)	       
 @d number_multiply_int(A,B)	       (((math_data *)(mp->math))->multiply_int)(A,B)	       
 @d number_abs(A)		       (((math_data *)(mp->math))->abs)(A)		       
+@d number_modulo(A,B)		       (((math_data *)(mp->math))->modulo)(A, B)		       
 @d number_nonequalabs(A,B)	       (((math_data *)(mp->math))->nonequalabs)(A,B)	       
 @d number_equal(A,B)		       (((math_data *)(mp->math))->equal)(A,B)		       
 @d number_greater(A,B)		       (((math_data *)(mp->math))->greater)(A,B)		       
@@ -11480,7 +11481,9 @@ void mp_dash_offset (MP mp, mp_number x, mp_dash_node h) {
   if (number_zero(h->dash_y)) {
     set_number_to_zero(x); 
   } else {
-    set_number_from_scaled(x, -(number_to_scaled ((dash_list (h))->start_x ) % number_to_scaled(h->dash_y )));
+    number_clone (x, (dash_list (h))->start_x );
+    number_modulo (x, h->dash_y);
+    number_negate (x);
     if (number_negative(x))
       number_add(x, h->dash_y);
   }
@@ -14822,7 +14825,8 @@ void mp_print_dependency (MP mp, mp_value_node p, quarterword t) {
   pp = p;
   new_number (v);
   while (true) {
-    set_number_from_scaled (v, abs (dep_value (p)));
+    number_clone (v, dep_value_number (p));
+    number_abs (v);
     q = dep_info (p);
     if (q == NULL) {            /* the constant term */
       if (number_nonzero(v) || (p == pp)) {
@@ -14868,8 +14872,10 @@ static void mp_max_coef (MP mp, mp_number x, mp_value_node p) {
   (void) mp;
   set_number_to_zero (x);
   while (dep_info (p) != NULL) {
-    if (abs (dep_value (p)) > number_to_scaled (x))
-      set_number_from_scaled (x,  abs (dep_value (p)));
+    if (abs (dep_value (p)) > number_to_scaled (x)) {
+      number_clone (x, dep_value_number (p));
+      number_abs (x);
+    }
     p = (mp_value_node) mp_link (p);
   }
 }
@@ -14988,7 +14994,7 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
     new_fraction (r1);
     new_number (arg1);
     new_number (arg2);
-    set_number_from_scaled (arg1, dep_value (q));
+    number_clone (arg1, dep_value_number (q));
     set_number_from_scaled (arg2, f);
     if (t == mp_dependent) {
       take_fraction (r1, arg1, arg2);
@@ -15016,7 +15022,7 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
     new_number (arg1);
     new_number (arg2);
     set_number_from_scaled (arg1, f);
-    set_number_from_scaled (arg2, dep_value (q));
+    number_clone (arg2, dep_value_number (q));
     if (tt == mp_dependent) {
       take_fraction (r1, arg1, arg2);
     } else {
@@ -15055,7 +15061,7 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, integer f,
     new_number (arg1);
     new_number (arg2);
     set_number_from_scaled (arg1, f);
-    set_number_from_scaled (arg2, dep_value (q));
+    number_clone (arg2, dep_value_number (q));
     if (tt == mp_dependent) {
       take_fraction (r1, arg1, arg2);
     } else {
@@ -15206,7 +15212,7 @@ static mp_value_node mp_p_times_v (MP mp, mp_value_node p, integer v,
       new_number (arg1);
       new_number (arg2);
       set_number_from_scaled (arg1, v);
-      set_number_from_scaled (arg2, dep_value (p));
+      number_clone (arg2, dep_value_number (p));
       if (scaling_down) {
         take_fraction (r1, arg1, arg2);
       } else {
@@ -15239,7 +15245,7 @@ static mp_value_node mp_p_times_v (MP mp, mp_value_node p, integer v,
     new_fraction (r1);
     new_number (arg1);
     new_number (arg2);
-    set_number_from_scaled (arg1, dep_value (p));
+    number_clone (arg1, dep_value_number (p));
     set_number_from_scaled (arg2, v);
     if (v_is_scaled) {
       take_scaled (r1, arg1, arg2);
@@ -15288,7 +15294,7 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
         new_number (arg1);
         new_number (arg2);
         new_number (ret);
-        set_number_from_scaled (arg1, dep_value (p));
+        number_clone (arg1, dep_value_number (p));
         number_clone (arg2, v);
         convert_scaled_to_fraction (arg2);
         make_scaled (ret, arg1, arg2);
@@ -15300,7 +15306,7 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
         mp_number x, ret;
         new_number (x);
         new_number (ret);
-        set_number_from_scaled (x, dep_value (p));
+        number_clone (x, dep_value_number (p));
         fraction_to_round_scaled (x);
         make_scaled (ret, x, v);
         w = number_to_scaled (ret);
@@ -15311,7 +15317,7 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
       mp_number arg1, ret;
       new_number (arg1);
       new_number (ret);
-      set_number_from_scaled (arg1, dep_value (p));
+      number_clone (arg1, dep_value_number (p));
       make_scaled (ret, arg1, v);
       w = number_to_scaled (ret);
       free_number (ret);
@@ -15337,7 +15343,7 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
     mp_number arg1, ret;
     new_number (arg1);
     new_number (ret);
-    set_number_from_scaled (arg1, dep_value (p));
+    number_clone (arg1, dep_value_number (p));
     make_scaled (ret, arg1, v);
     set_dep_value (p, number_to_scaled (ret));
     free_number (ret);
@@ -15661,7 +15667,7 @@ do {
     new_fraction (ret);
     new_number (arg1);
     new_number (arg2);
-    set_number_from_scaled (arg1,dep_value (r));
+    number_clone (arg1, dep_value_number (r));
     set_number_from_scaled (arg2,v);
     make_fraction (ret, arg1, arg2);
     w = number_to_scaled (ret);
@@ -15683,7 +15689,7 @@ if (t == mp_proto_dependent) {
   new_number (ret);
   new_number (arg1);
   new_number (arg2);
-  set_number_from_scaled (arg1,dep_value (r));
+  number_clone (arg1, dep_value_number (r));
   set_number_from_scaled (arg2,v);
   make_scaled (ret, arg1, arg2);
   number_negate (ret);
@@ -15697,7 +15703,7 @@ if (t == mp_proto_dependent) {
   new_number (arg1);
   new_number (arg2);
   new_fraction (ret);
-  set_number_from_scaled (arg1,dep_value (r));
+  number_clone (arg1, dep_value_number (r));
   set_number_from_scaled (arg2,v);
   make_fraction (ret, arg1, arg2);
   number_negate (ret);
@@ -21571,7 +21577,7 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
   r = mp->max_link[t];
   while (r != NULL) {
     q = (mp_value_node) dep_info (r);
-    set_number_from_scaled (arg1,dep_value (r));
+    number_clone (arg1, dep_value_number (r));
     set_number_from_scaled (arg2,v);
     number_negate (arg2);
     make_fraction (ret, arg1, arg2);
@@ -21603,7 +21609,7 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
                                            unity_t, mp_dependent,
                                            mp_proto_dependent));
       mp_type (q) = mp_proto_dependent;
-      set_number_from_scaled (x, dep_value (r));
+      number_clone (x, dep_value_number (r));
       fraction_to_round_scaled (x);
       set_dep_value (r, number_to_scaled (x));
       free_number (x);
@@ -21614,7 +21620,7 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
       new_number (ret);
       new_number (arg1);
       new_number (arg2);
-      set_number_from_scaled (arg1, dep_value (r));
+      number_clone (arg1, dep_value_number (r));
       set_number_from_scaled (arg2, -v);
       make_scaled (ret, arg1, arg2);
       free_number (arg1);
@@ -22044,7 +22050,7 @@ multiplication.
       set_cur_sym(mp->frozen_slash);
       goto DONE;
     }
-    set_number_from_scaled (num, cur_exp_value ());
+    number_clone (num, cur_exp_value_number ());
     set_number_from_scaled (denom, cur_mod());
     if (number_zero(denom)) {
       @<Protest division by zero@>;
@@ -26366,7 +26372,7 @@ static void mp_dep_mult (MP mp, mp_value_node p, mp_number v, boolean v_is_scale
     {
       mp_number r1, arg1;
       new_number (arg1);
-      set_number_from_scaled (arg1, dep_value (p));
+      number_clone (arg1, dep_value_number (p));
       if (v_is_scaled) {
         new_number (r1);
         take_scaled (r1, arg1, v);
@@ -26390,7 +26396,8 @@ static void mp_dep_mult (MP mp, mp_value_node p, mp_number v, boolean v_is_scale
       new_number (arg2);
       new_fraction (arg1);
       mp_max_coef (mp, arg1, q);
-      set_number_from_scaled (arg2, abs (number_to_scaled (v)));
+      number_clone (arg2, v);
+      number_abs (arg2);
       ab_vs_cd = mp_ab_vs_cd (mp, arg1, arg2, coef_bound_minus_1, unity_t);
       free_number (arg1);
       free_number (arg2);
@@ -26780,12 +26787,12 @@ if (mp_type (yx_part (q)) != mp_known)
   return;
 if (mp_type (yy_part (q)) != mp_known)
   return;
-set_number_from_scaled(mp->txx, value (xx_part (q)));
-set_number_from_scaled(mp->txy, value (xy_part (q)));
-set_number_from_scaled(mp->tyx, value (yx_part (q)));
-set_number_from_scaled(mp->tyy, value (yy_part (q)));
-set_number_from_scaled(mp->tx, value (tx_part (q)));
-set_number_from_scaled(mp->ty, value (ty_part (q)));
+number_clone(mp->txx, value_number (xx_part (q)));
+number_clone(mp->txy, value_number (xy_part (q)));
+number_clone(mp->tyx, value_number (yx_part (q)));
+number_clone(mp->tyy, value_number (yy_part (q)));
+number_clone(mp->tx, value_number (tx_part (q)));
+number_clone(mp->ty, value_number (ty_part (q)));
 set_number_to_zero (new_expr.data.n);
 mp_flush_cur_exp (mp, new_expr)
  
@@ -27310,7 +27317,7 @@ static void mp_bilin1 (MP mp, mp_node p, mp_number t, mp_node q,
     r = (mp_value_node) dep_list ((mp_value_node) p);
     while (dep_info (r) != NULL)
       r = (mp_value_node) mp_link (r);
-    set_number_from_scaled (tmp, value(r));
+    number_clone (tmp, value_number(r));
     number_add (delta, tmp);
     if (r != (mp_value_node) dep_list ((mp_value_node) p))
       set_value (r, number_to_scaled (delta));
@@ -27390,7 +27397,7 @@ static void mp_bilin2 (MP mp, mp_node p, mp_node t, mp_number v,
                        mp_node u, mp_node q) {
   mp_number vv;    /* temporary storage for |value(p)| */
   new_number (vv);
-  set_number_from_scaled (vv, value (p));
+  number_clone (vv, value_number (p));
   mp_new_dep (mp, p, mp_proto_dependent, mp_const_dependency (mp, zero_t));  /* this sets |dep_final| */
   if (number_nonzero(vv)) {
     mp_add_mult_dep (mp, (mp_value_node) p, vv, t);     /* |dep_final| doesn't change */
@@ -27405,7 +27412,7 @@ static void mp_bilin2 (MP mp, mp_node p, mp_node t, mp_number v,
   if (q != NULL)
     mp_add_mult_dep (mp, (mp_value_node) p, unity_t, q);
   if (dep_list ((mp_value_node) p) == (mp_node) mp->dep_final) {
-    set_number_from_scaled (vv, dep_value (mp->dep_final));
+    number_clone (vv, dep_value_number (mp->dep_final));
     mp_recycle_value (mp, p);
     mp_type (p) = mp_known;
     set_value (p, number_to_scaled (vv));
@@ -27442,7 +27449,7 @@ static void mp_bilin3 (MP mp, mp_node p, mp_number t,
   if (!number_equal(t, unity_t)) {
     take_scaled (tmp, value_number (p), t);
   } else {
-    set_number_from_scaled (tmp, value (p));
+    number_clone (tmp, value_number (p));
   }
   number_add (delta, tmp);
   if (number_nonzero(u)) {
@@ -27498,8 +27505,8 @@ static void mp_chop_path (MP mp, mp_node p) {
   new_number (b);
   new_number (l);
   mp_path_length (mp, l);
-  set_number_from_scaled (a, value (x_part (p)));
-  set_number_from_scaled (b, value (y_part (p)));
+  number_clone (a, value_number (x_part (p)));
+  number_clone (b, value_number (y_part (p)));
   if (number_lessequal(a, b)) {
     reversed = false;
   } else {
@@ -28540,7 +28547,7 @@ if (t == tt) {
   new_number (x);
   q = p;
   while (dep_info (q) != NULL) {
-    set_number_from_scaled (x, dep_value (q));
+    number_clone (x, dep_value_number (q));
     fraction_to_round_scaled (x);
     set_dep_value (q, number_to_scaled (x));
     q = (mp_value_node) mp_link (q);
@@ -32043,7 +32050,7 @@ static integer mp_min_cover (MP mp, mp_number d) {
   set_number_to_inf(mp->perturbation);
   while (p != mp->inf_val) {
     incr (m);
-    set_number_from_scaled (l, value (p));
+    number_clone (l, value_number (p));
     do {
       p = mp_link (p);
     } while (value (p) <= number_to_scaled (l) + number_to_scaled (d));
@@ -32117,7 +32124,7 @@ static integer mp_skimp (MP mp, integer m) {
   p = mp_link (mp->temp_head);
   while (p != mp->inf_val) {
     incr (m);
-    set_number_from_scaled (l, value (p));
+    number_clone (l, value_number (p));
     set_mp_info (p, m);
     if (value (mp_link (p)) <= number_to_scaled (l) + number_to_scaled (d)) {
       @<Replace an interval of values by its midpoint@>;
