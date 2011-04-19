@@ -11,9 +11,10 @@ libmplib_a_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/mplibdir
 
 ## libmplib C sources
 libmplib_a_SOURCES = mplibdir/avl.h mplibdir/avl.c
-nodist_libmplib_a_SOURCES = tfmin.c $(mp_c_h) $(mpmath_c_h) $(psout_c_h) $(svgout_c_h) $(tfmin_c_h) $(mpstrings_c_h)
+nodist_libmplib_a_SOURCES = tfmin.c $(mp_c_h) $(mpmath_c_h) $(mpmathdouble_c_h) $(psout_c_h) $(svgout_c_h) $(tfmin_c_h) $(mpstrings_c_h)
 mp_c_h =  mp.c mplib.h mpmp.h
 mpmath_c_h = mpmath.h mpmath.c
+mpmathdouble_c_h = mpmathdouble.h mpmathdouble.c
 mpstrings_c_h = mpstrings.h mpstrings.c
 psout_c_h = mppsout.h psout.c mplibps.h
 svgout_c_h = mplibsvg.h mpsvgout.h svgout.c
@@ -33,6 +34,11 @@ $(mpmath_c_h): mpmath-tangle
 mpmath-tangle: ctangle$(EXEEXT) mplibdir/mpmath.w tangle-sh
 	@$(mp_ctangle_sh) mpmath
 
+$(mpmathdouble_c_h): mpmathdouble-tangle
+	@$(mp_ctangle_sh) mpmathdouble
+mpmathdouble-tangle: ctangle$(EXEEXT) mplibdir/mpmathdouble.w tangle-sh
+	@$(mp_ctangle_sh) mpmathdouble
+
 $(mpstrings_c_h): mpstrings-tangle
 	@$(mp_ctangle_sh) mpstrings
 mpstrings-tangle: ctangle$(EXEEXT) mplibdir/mpstrings.w tangle-sh
@@ -50,14 +56,14 @@ svgout-tangle: ctangle$(EXEEXT) mplibdir/svgout.w tangle-sh
 
 ## libmplib CWeb sources
 libmplib_web = mplibdir/mp.w mplibdir/psout.w mplibdir/svgout.w
-libmplib_web += mplibdir/mpmath.w mplibdir/mpstrings.w mplibdir/tfmin.w
+libmplib_web += mplibdir/mpmath.w mplibdir/mpmathdouble.w mplibdir/mpstrings.w mplibdir/tfmin.w
 
 $(libmplib_a_OBJECTS): $(nodist_libmplib_a_SOURCES)
 
 EXTRA_DIST += $(libmplib_web)
 
 DISTCLEANFILES += $(nodist_libmplib_a_SOURCES) \
-	mp-tangle mpmath-tangle mpstrings-tangle psout-tangle svgout-tangle
+	mp-tangle mpmath-tangle mpmathdouble-tangle mpstrings-tangle psout-tangle svgout-tangle
 
 ## only used by luaTeX
 EXTRA_DIST += mplibdir/lmplib.c
