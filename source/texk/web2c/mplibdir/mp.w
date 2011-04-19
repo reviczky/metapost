@@ -23425,10 +23425,10 @@ DONE:
 }
 
 
-@ @d min_tension number_to_scaled(three_quarter_unit_t)
+@ @d min_tension three_quarter_unit_t
 
 @<Make sure that the current expression is a valid tension setting@>=
-if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < min_tension)) {
+if ((mp->cur_exp.type != mp_known) || number_less(cur_exp_value_number (), min_tension)) {
   const char *hlp[] = { "The expression above should have been a number >=3/4.", NULL };
   mp_disp_err(mp, NULL);
   number_clone(new_expr.data.n, unity_t);
@@ -23941,7 +23941,6 @@ operand to |do_unary| appears in |cur_type| and |cur_exp|.
 @<Declare unary action procedures@>;
 static void mp_do_unary (MP mp, quarterword c) {
   mp_node p, q, r;      /* for list manipulation */
-  halfword vv;  /* a temporary place for |cur_exp_value| */
   mp_value new_expr;
   check_arith();
   memset(&new_expr,0,sizeof(mp_value));
@@ -24192,7 +24191,6 @@ if (mp->cur_exp.type != mp_known) {
       mp_number r1;
       new_number (r1);
       square_rt (r1, cur_exp_value_number ());
-      vv = number_to_scaled (r1);
       set_cur_exp_value_number  (r1);
       free_number (r1);
     }
@@ -24202,7 +24200,6 @@ if (mp->cur_exp.type != mp_known) {
       mp_number r1;
       new_number (r1);
       m_exp (r1, cur_exp_value_number ());
-      vv = number_to_scaled (r1);
       set_cur_exp_value_number (r1);
       free_number (r1);
     }
@@ -24212,7 +24209,6 @@ if (mp->cur_exp.type != mp_known) {
       mp_number r1;
       new_number (r1);
       m_log (r1, cur_exp_value_number ());
-      vv = number_to_scaled (r1);
       set_cur_exp_value_number (r1);
       free_number (r1);
     }
@@ -24264,9 +24260,11 @@ if (mp->cur_exp.type != mp_known) {
     }
     break;
   case mp_odd_op:
-    vv = odd (round_unscaled (cur_exp_value_number ()));
-    boolean_reset (vv);
-    mp->cur_exp.type = mp_boolean_type;
+    {
+      integer vvx = odd (round_unscaled (cur_exp_value_number ()));
+      boolean_reset (vvx);
+      mp->cur_exp.type = mp_boolean_type;
+    }
     break;
   case mp_char_exists_op:
     @<Determine if a character has been shipped out@>;
@@ -24765,7 +24763,7 @@ case mp_char_op:
 if (mp->cur_exp.type != mp_known) {
   mp_bad_unary (mp, mp_char_op);
 } else {
-  vv = round_unscaled (cur_exp_value_number ()) % 256;
+  int vv = round_unscaled (cur_exp_value_number ()) % 256;
   set_cur_exp_value (vv);
   mp->cur_exp.type = mp_string_type;
   if (cur_exp_value () < 0) {
@@ -24899,8 +24897,8 @@ case mp_path_type:
   mp_flush_cur_exp (mp, new_expr);
   break;
 case mp_known:
-  vv = abs (cur_exp_value ());
-  set_cur_exp_value (vv);
+  set_cur_exp_value_number (cur_exp_value_number ());
+  number_abs (cur_exp_value_number ());
   break;
 case mp_picture_type:
   mp_pict_length (mp, new_expr.data.n);
