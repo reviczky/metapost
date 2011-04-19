@@ -200,6 +200,7 @@ typedef struct math_data {
   mp_number half_fraction_threshold_t;
   mp_number scaled_threshold_t;
   mp_number half_scaled_threshold_t;
+  mp_number near_zero_angle_t;
   new_number_func new;
   free_number_func free;
   number_from_boolean_func from_boolean;
@@ -270,6 +271,7 @@ void mp_free_math (MP mp);
 @d half_fraction_threshold 1342 /* half of |fraction_threshold| */
 @d scaled_threshold 8 /* a |scaled| coefficient less than this is zeroed */
 @d half_scaled_threshold 4 /* half of |scaled_threshold| */
+@d near_zero_angle 26844
 
 
 @c
@@ -340,6 +342,8 @@ void * mp_initialize_math (MP mp) {
   math->scaled_threshold_t->data.val = scaled_threshold;
   math->half_scaled_threshold_t = mp_new_number (mp, mp_scaled_type);
   math->half_scaled_threshold_t->data.val = half_scaled_threshold;
+  math->near_zero_angle_t = mp_new_number (mp, mp_angle_type);
+  math->near_zero_angle_t->data.val = near_zero_angle;
   /* functions */
   math->from_boolean = mp_set_number_from_boolean;
   math->from_scaled = mp_set_number_from_scaled;
@@ -420,6 +424,7 @@ void mp_free_math (MP mp) {
   free_number (((math_data *)mp->math)->half_fraction_threshold_t);
   free_number (((math_data *)mp->math)->scaled_threshold_t);
   free_number (((math_data *)mp->math)->half_scaled_threshold_t);
+  free_number (((math_data *)mp->math)->near_zero_angle_t);
   free(mp->math);
 }
 
