@@ -1,12 +1,14 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl
-dnl   Copyright (C) 2009, 2010 Peter Breitenlohner <tex-live@tug.org>
+dnl   Copyright (C) 2009 - 2011 Peter Breitenlohner <tex-live@tug.org>
 dnl
 dnl   This file is free software; the copyright holder
 dnl   gives unlimited permission to copy and/or distribute it,
 dnl   with or without modifications, as long as this notice is preserved.
 dnl
-AC_INIT([TeX Live], [2010-07-20], [tex-k@tug.org])
+m4_include([tardate.ac])[] dnl define tex_live_tardate
+m4_include([version.ac])[] dnl define tex_live_version
+AC_INIT([TeX Live], tex_live_tardate, [tex-k@tug.org])
 AC_PREREQ([2.65])
 AC_CONFIG_SRCDIR([m4/kpse-pkgs.m4])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -134,10 +136,7 @@ if test "x$syslib_used:$enable_native_texlive_build" = xyes:yes; then
 fi
 KPSE_RESTORE_FLAGS
 
-dnl AM_CONDITIONAL([build_kpathsea],
-dnl                [test "x$need_kpathsea" = xyes && test "x$with_system_kpathsea" != xyes])
-
-AM_CONDITIONAL([cross_compiling], [test "x$cross_compiling" = xyes])
+AM_CONDITIONAL([cross], [test "x$cross_compiling" = xyes])
 
 AC_CONFIG_SUBDIRS([auxdir/auxsub libs utils texk])
 
@@ -164,7 +163,7 @@ msg_compiling="$msg_compiling
 test "x$srcdir" = x. || msg_compiling="$msg_compiling
       from sources in $kpse_src"
 AC_MSG_RESULT([
-** Configuration summary for $PACKAGE_STRING:
+** Configuration summary for $PACKAGE_STRING (tex_live_version$with_banner_add):
 
    $msg_compiling])
 case $kpse_src$kpse_bld in
