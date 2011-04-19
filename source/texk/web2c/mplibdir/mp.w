@@ -21527,8 +21527,8 @@ proto-dependent cases.
 @<Recycle an independent variable@>=
 {
   mp_value_node q, r, s;
-  mp->max_c[mp_dependent] = 0;
-  mp->max_c[mp_proto_dependent] = 0;
+  set_number_to_zero(mp->max_c[mp_dependent]);
+  set_number_to_zero(mp->max_c[mp_proto_dependent]);
   mp->max_link[mp_dependent] = NULL;
   mp->max_link[mp_proto_dependent] = NULL;
   q = (mp_value_node) mp_link (mp->dep_head);
@@ -21542,29 +21542,34 @@ proto-dependent cases.
       if (dep_info (r) != p) {
         s = r;
       } else {
+        mp_number test;
+        new_number (test);
         t = mp_type (q);
         if (mp_link (s) == dep_list (q)) {      /* reset the |dep_list| */
           set_dep_list (q, mp_link (r));
         }
         set_mp_link (s, mp_link (r));
         set_dep_info (r, (mp_node) q);
-        if (abs (dep_value (r)) > mp->max_c[t]) {
+        number_clone (test, dep_value_number (r));
+        number_abs (test);
+        if (number_greater (test, mp->max_c[t])) {
           /* Record a new maximum coefficient of type |t| */
-          if (mp->max_c[t] > 0) {
+          if (number_positive(mp->max_c[t])) {
             set_mp_link (mp->max_ptr[t], (mp_node) mp->max_link[t]);
             mp->max_link[t] = mp->max_ptr[t];
           }
-          mp->max_c[t] = abs (dep_value (r));
+          number_clone (mp->max_c[t], test);
           mp->max_ptr[t] = r;
         } else {
           set_mp_link (r, (mp_node) mp->max_link[t]);
           mp->max_link[t] = r;
         }
+        free_number (test);
       }
     }
     q = (mp_value_node) mp_link (r);
   }
-  if ((mp->max_c[mp_dependent] > 0) || (mp->max_c[mp_proto_dependent] > 0)) {
+  if (number_positive(mp->max_c[mp_dependent]) || number_positive(mp->max_c[mp_proto_dependent])) {
     @<Choose a dependent variable to take the place of the disappearing
     independent variable, and change all remaining dependencies
     accordingly@>;
@@ -21575,20 +21580,42 @@ proto-dependent cases.
 @ The code for independency removal makes use of three non-symbolic arrays.
 
 @<Glob...@>=
-integer max_c[mp_proto_dependent + 1];  /* max coefficient magnitude */
+mp_number max_c[mp_proto_dependent + 1];  /* max coefficient magnitude */
 mp_value_node max_ptr[mp_proto_dependent + 1];  /* where |p| occurs with |max_c| */
 mp_value_node max_link[mp_proto_dependent + 1]; /* other occurrences of |p| */
 
+
+@ @<Initialize table ... @>=
+{
+  int i;
+  for (i=0;i<mp_proto_dependent + 1;i++) {
+    new_number (mp->max_c[i]);
+  }
+}
+
+@ @<Dealloc...@>=
+{
+  int i;
+  for (i=0;i<mp_proto_dependent + 1;i++) {
+    free_number (mp->max_c[i]);
+  }
+}
+
+
 @ @<Choose a dependent...@>=
 {
-  if ((mp->max_c[mp_dependent] / 4096) >= mp->max_c[mp_proto_dependent])
+  mp_number test;
+  new_number (test);
+  number_clone (test, mp->max_c[mp_dependent]);
+  number_divide_int (test, 4096);
+  if (number_greaterequal(test, mp->max_c[mp_proto_dependent]))
     t = mp_dependent;
   else
     t = mp_proto_dependent;
   @<Determine the dependency list |s| to substitute for the independent
     variable~|p|@>;
   t = (quarterword) (mp_dependent + mp_proto_dependent - t);    /* complement |t| */
-  if (mp->max_c[t] > 0) {       /* we need to pick up an unchosen dependency */
+  if (number_positive(mp->max_c[t])) {       /* we need to pick up an unchosen dependency */
     set_mp_link (mp->max_ptr[t], (mp_node) mp->max_link[t]);
     mp->max_link[t] = mp->max_ptr[t];
   }
@@ -21649,10 +21676,10 @@ if (mp_interesting (mp, p)) {
   if (number_positive(v))
     mp_print_char (mp, xord ('-'));
   if (t == mp_dependent) {
-    set_number_from_scaled (vv, mp->max_c[mp_dependent]);
+    number_clone (vv, mp->max_c[mp_dependent]);
     fraction_to_round_scaled (vv);
   } else {
-    set_number_from_scaled (vv, mp->max_c[mp_proto_dependent]);
+    number_clone (vv, mp->max_c[mp_proto_dependent]);
   }
   if (!number_equal(vv, unity_t)) {
     print_number (vv);
