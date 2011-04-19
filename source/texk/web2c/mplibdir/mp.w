@@ -3733,8 +3733,8 @@ typedef struct {
 
 @ @(mpmp.h@>=
 #define internal_value(A) mp->internal[(A)].v.data.n
-#define set_internal_from_scaled_int(A,B) do { \
-  set_number_from_scaled (internal_value ((A)),(B));\
+#define set_internal_from_number(A,B) do { \
+  number_clone (internal_value ((A)),(B));\
 } while (0)
 #define internal_string(A) (mp_string)mp->internal[(A)].v.data.str
 #define set_internal_string(A,B) mp->internal[(A)].v.data.str=(B)
@@ -3747,7 +3747,7 @@ typedef struct {
       add_str_ref (cur_exp_str ()); \
       set_internal_string ((A), cur_exp_str ()); \
   } else { \
-      set_internal_from_scaled_int ((A), cur_exp_value ()); \
+      set_internal_from_number ((A), cur_exp_value_number ()); \
   } \
 } while (0)
 
@@ -3912,7 +3912,8 @@ enum mp_color_model {
 
 
 @ @<Initialize table entries@>=
-set_internal_from_scaled_int (mp_default_color_model, (mp_rgb_model * number_to_scaled (unity_t)));
+set_internal_from_number (mp_default_color_model, unity_t);
+number_multiply_int (internal_value (mp_restore_clip_color), mp_rgb_model);
 number_clone (internal_value (mp_restore_clip_color), unity_t);
 set_internal_string (mp_output_template, mp_intern (mp, "%j.%c"));
 set_internal_string (mp_output_format, mp_intern (mp, "eps"));
@@ -3989,12 +3990,18 @@ be used after the year 32767.
 static void mp_fix_date_and_time (MP mp) {
   time_t aclock = time ((time_t *) 0);
   struct tm *tmptr = localtime (&aclock);
-  set_internal_from_scaled_int (mp_time, (tmptr->tm_hour * 60 + tmptr->tm_min) * number_to_scaled (unity_t));     /* minutes since midnight */
-  set_internal_from_scaled_int (mp_hour, (tmptr->tm_hour) * number_to_scaled (unity_t));  /* hours since midnight */
-  set_internal_from_scaled_int (mp_minute, (tmptr->tm_min) * number_to_scaled (unity_t)); /* minutes since the hour */
-  set_internal_from_scaled_int (mp_day, (tmptr->tm_mday) * number_to_scaled (unity_t));   /* fourth day of the month */
-  set_internal_from_scaled_int (mp_month, (tmptr->tm_mon + 1) * number_to_scaled (unity_t));      /* seventh month of the year */
-  set_internal_from_scaled_int (mp_year, (tmptr->tm_year + 1900) * number_to_scaled (unity_t));   /* Anno Domini */
+  set_internal_from_number (mp_time, unity_t);
+  number_multiply_int (internal_value(mp_time), (tmptr->tm_hour * 60 + tmptr->tm_min));
+  set_internal_from_number (mp_hour, unity_t);
+  number_multiply_int (internal_value(mp_hour), (tmptr->tm_hour));
+  set_internal_from_number (mp_minute, unity_t);
+  number_multiply_int (internal_value(mp_minute), (tmptr->tm_min));
+  set_internal_from_number (mp_day, unity_t);
+  number_multiply_int (internal_value(mp_day), (tmptr->tm_mday));
+  set_internal_from_number (mp_month, unity_t);
+  number_multiply_int (internal_value(mp_month), (tmptr->tm_mon + 1));
+  set_internal_from_number (mp_year, unity_t);
+  number_multiply_int (internal_value(mp_year), (tmptr->tm_year + 1900));
 }
 
 
@@ -28933,7 +28940,8 @@ void mp_set_internal (MP mp, char *n, char *v, int isstring) {
           } else if (test < -16383) {
             errid = "value is too small";
           } else {
-            set_internal_from_scaled_int (equiv (p), test * number_to_scaled (unity_t));
+            set_internal_from_number (equiv (p), unity_t);
+            number_multiply_int (internal_value(equiv (p)), test);
           }
         } else {
           errid = "value has the wrong type";
@@ -31599,7 +31607,8 @@ mp->nl = 0;
 mp->nk = 0;
 mp->ne = 0;
 mp->np = 0;
-set_internal_from_scaled_int (mp_boundary_char, -number_to_scaled (unity_t));
+set_internal_from_number (mp_boundary_char, unity_t);
+number_negate (internal_value (mp_boundary_char));
 mp->bch_label = undefined_label;
 mp->label_loc[0] = -1;
 mp->label_ptr = 0;
@@ -33219,7 +33228,8 @@ static char *mp_set_output_file_name (MP mp, integer c) {
     mp_number saved_char_code;  
     new_number (saved_char_code);
     number_clone (saved_char_code, internal_value (mp_char_code));
-    set_internal_from_scaled_int (mp_char_code, (c * number_to_scaled (unity_t)));
+    set_internal_from_number (mp_char_code, unity_t);
+    number_multiply_int (internal_value (mp_char_code), c);
     if (internal_string (mp_job_name) == NULL) {
       if (mp->job_name == NULL) {
         mp->job_name = xstrdup ("mpout");
