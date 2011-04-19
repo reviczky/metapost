@@ -15011,7 +15011,6 @@ Several procedures that act on dependency lists, including |p_plus_fq|,
 set the global variable |dep_final| to the final (constant term) node of
 the dependency list that they produce.
 
-@d coef_bound number_to_scaled(coef_bound_k)
 @d independent_needing_fix 0
 
 @<Glob...@>=
@@ -15152,10 +15151,15 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
   if (abs (number_to_scaled (v)) < threshold) {
     mp_free_dep_node (mp, s);
   } else {
-    if ((abs (number_to_scaled (v)) >= coef_bound) && mp->watch_coefs) {
+    mp_number test;
+    new_number (test);
+    number_clone (test, v);
+    number_abs(test);
+    if (number_greaterequal (test, coef_bound_k) && mp->watch_coefs) {
       mp_type (qq) = independent_needing_fix;
       mp->fix_needed = true;
     }
+    free_number (test);
     set_mp_link (r, (mp_node) s);
     r = s;
   }
@@ -15186,13 +15190,18 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
     free_number (arg2);
   }
   if (abs (number_to_scaled (v)) > halfp (threshold)) {
+    mp_number test;
+    new_number (test);
     s = mp_get_dep_node (mp);
     set_dep_info (s, qq);
     set_dep_value_number (s, v);
-    if ((abs (number_to_scaled (v)) >= coef_bound) && mp->watch_coefs) {
+    number_clone (test, v);
+    number_abs(test);
+    if (number_greaterequal(test, coef_bound_k) && mp->watch_coefs) {
       mp_type (qq) = independent_needing_fix;
       mp->fix_needed = true;
     }
+    free_number (test);
     set_mp_link (r, (mp_node) s);
     r = s;
   }
@@ -15284,10 +15293,15 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q,
   if (abs (number_to_scaled (v)) < threshold) {
     mp_free_dep_node (mp, s);
   } else {
-    if ((abs (number_to_scaled (v)) >= coef_bound) && mp->watch_coefs) {
+    mp_number test;
+    new_number (test);
+    number_clone (test, v);
+    number_abs(test);
+    if (number_greaterequal(test, coef_bound_k) && mp->watch_coefs) {
       mp_type (qq) = independent_needing_fix;
       mp->fix_needed = true;
     }
+    free_number (test);
     set_mp_link (r, (mp_node) s);
     r = s;
   }
@@ -15333,10 +15347,15 @@ static mp_value_node mp_p_times_v (MP mp, mp_value_node p, mp_number v,
       mp_free_dep_node (mp, p);
       p = s;
     } else {
-      if (abs (number_to_scaled (w)) >= coef_bound) {
+      mp_number test;
+      new_number (test);
+      number_clone (test, w);
+      number_abs(test);
+      if (number_greaterequal(test, coef_bound_k)) {
         mp->fix_needed = true;
         mp_type (dep_info (p)) = independent_needing_fix;
       }
+      free_number (test);
       set_mp_link (r, (mp_node) p);
       r = p;
       set_dep_value_number (p, w);
@@ -15427,10 +15446,15 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
       mp_free_dep_node (mp, p);
       p = s;
     } else {
-      if (abs (number_to_scaled (w)) >= coef_bound) {
+      mp_number test;
+      new_number (test);
+      number_clone (test, w);
+      number_abs(test);
+      if (number_greaterequal (test, coef_bound_k)) {
         mp->fix_needed = true;
         mp_type (dep_info (p)) = independent_needing_fix;
       }
+      free_number (test);
       set_mp_link (r, (mp_node) p);
       r = p;
       set_dep_value_number (p, w);
@@ -26143,7 +26167,7 @@ if (mp_type (p) == mp_known) {
       mp_max_coef (mp, ret2, v);
       number_add (ret1, ret2);
       free_number (ret2);
-      if (number_to_scaled (ret1) < coef_bound) {
+      if (number_less (ret1, coef_bound_k)) {
         v = mp_p_plus_q (mp, v, r, mp_dependent);
         free_number (ret1);
         goto DONE;
