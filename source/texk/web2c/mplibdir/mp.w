@@ -10345,6 +10345,7 @@ This first set goes into the header
 @d number_abs(A)		       (((math_data *)(mp->math))->abs)(A)		       
 @d number_modulo(A,B)		       (((math_data *)(mp->math))->modulo)(A, B)		       
 @d number_nonequalabs(A,B)	       (((math_data *)(mp->math))->nonequalabs)(A,B)	       
+@d number_odd(A)		       (((math_data *)(mp->math))->odd)(A)		       
 @d number_equal(A,B)		       (((math_data *)(mp->math))->equal)(A,B)		       
 @d number_greater(A,B)		       (((math_data *)(mp->math))->greater)(A,B)		       
 @d number_less(A,B)		       (((math_data *)(mp->math))->less)(A,B)		       
@@ -14477,10 +14478,20 @@ of fruitless computation would be possible).
 @d max_patience 5000
 
 @<Glob...@>=
-integer cur_t;
-integer cur_tt; /* controls and results of |cubic_intersection| */
+mp_number cur_t;
+mp_number cur_tt; /* controls and results of |cubic_intersection| */
 integer time_to_go;     /* this many backtracks before giving up */
-integer max_t;  /* maximum of $2^{l+1}$ so far achieved */
+mp_number max_t;  /* maximum of $2^{l+1}$ so far achieved */
+
+@ @<Initialize table ...@>=
+new_number (mp->cur_t);
+new_number (mp->cur_tt);
+new_number (mp->max_t);
+
+@ @<Dealloc ...@>=
+free_number (mp->cur_t);
+free_number (mp->cur_tt);
+free_number (mp->max_t);
 
 @ The given cubics $B(w_0,w_1,w_2,w_3;t)$ and
 $B(z_0,z_1,z_2,z_3;t)$ are specified in adjacent knot nodes |(p,mp_link(p))|
@@ -14493,9 +14504,11 @@ static void mp_cubic_intersection (MP mp, mp_knot p, mp_knot pp) {
   integer tol;             /* bound on the uncertainty in the overlap test */
   integer uv, xy;          /* pointers to the current packets of interest */
   integer three_l;         /* |tol_step| times the bisection level */
-  integer appr_t, appr_tt; /* best approximations known to the answers */
+  mp_number appr_t, appr_tt; /* best approximations known to the answers */
   mp->time_to_go = max_patience;
-  mp->max_t = 2;
+  new_number (appr_t);
+  new_number (appr_tt);
+  set_number_from_scaled (mp->max_t, 2);
   @<Initialize for intersections at level zero@>;
 CONTINUE:
   while (1) {
@@ -14507,15 +14520,19 @@ CONTINUE:
             stack_max (y_packet (xy)) - stack_min (v_packet (uv)))
           if (dely + tol >=
               stack_min (y_packet (xy)) - stack_max (v_packet (uv))) {
-            if (mp->cur_t >= mp->max_t) {
-              if (mp->max_t == number_to_scaled(two_t)) {   /* we've done 17 bisections */
-                mp->cur_t = halfp (mp->cur_t + 1);
-                mp->cur_tt = halfp (mp->cur_tt + 1);
+            if (number_greaterequal (mp->cur_t, mp->max_t)) {
+              if (number_equal (mp->max_t, two_t)) {   /* we've done 17 bisections */
+                number_add_scaled (mp->cur_t, 1);
+                number_halfp (mp->cur_t);
+                number_add_scaled (mp->cur_tt, 1);
+                number_halfp (mp->cur_tt);
+                free_number (appr_t);
+                free_number (appr_tt);
                 return;
               }
-              mp->max_t += mp->max_t;
-              appr_t = mp->cur_t;
-              appr_tt = mp->cur_tt;
+              number_double(mp->max_t);
+              number_clone (appr_t, mp->cur_t);
+              number_clone (appr_tt, mp->cur_tt);
             }
             @<Subdivide for a new level of intersection@>;
             goto CONTINUE;
@@ -14523,12 +14540,14 @@ CONTINUE:
     if (mp->time_to_go > 0) {
       decr (mp->time_to_go);
     } else {
-      while (appr_t < number_to_scaled (unity_t)) {
-        appr_t += appr_t;
-        appr_tt += appr_tt;
+      while (number_less (appr_t, unity_t)) {
+        number_double(appr_t);
+        number_double(appr_tt);
       }
-      mp->cur_t = appr_t;
-      mp->cur_tt = appr_tt;
+      number_clone (mp->cur_t, appr_t);
+      number_clone (mp->cur_tt, appr_tt);
+      free_number (appr_t);
+      free_number (appr_tt);
       return;
     }
     @<Advance to the next pair |(cur_t,cur_tt)|@>;
@@ -14566,8 +14585,8 @@ tol = 0;
 uv = r_packets;
 xy = r_packets;
 three_l = 0;
-mp->cur_t = 1;
-mp->cur_tt = 1
+set_number_from_scaled (mp->cur_t, 1);
+set_number_from_scaled (mp->cur_tt, 1)
 
 @ @<Subdivide for a new level of intersection@>=
 stack_dx = delx;
@@ -14576,8 +14595,8 @@ stack_tol = tol;
 stack_uv = uv;
 stack_xy = xy;
 mp->bisect_ptr = mp->bisect_ptr + int_increment;
-mp->cur_t += mp->cur_t;
-mp->cur_tt += mp->cur_tt;
+number_double(mp->cur_t);
+number_double(mp->cur_tt);
 u1l = stack_1 (u_packet (uv));
 u3r = stack_3 (u_packet (uv));
 u2l = half (u1l + stack_2 (u_packet (uv)));
@@ -14620,36 +14639,30 @@ three_l = three_l + (integer) mp->tol_step
 
 @ @<Advance to the next pair |(cur_t,cur_tt)|@>=
 NOT_FOUND:
-if (odd (mp->cur_tt)) {
-  if (odd (mp->cur_t)) {
+if (number_odd (mp->cur_tt)) {
+  if (number_odd (mp->cur_t)) {
     @<Descend to the previous level and |goto not_found|@>;
   } else {
-    incr (mp->cur_t);
-    delx =
-      delx + stack_1 (u_packet (uv)) + stack_2 (u_packet (uv))
+    number_add_scaled (mp->cur_t, 1);
+    delx = delx + stack_1 (u_packet (uv)) + stack_2 (u_packet (uv))
       + stack_3 (u_packet (uv));
-    dely =
-      dely + stack_1 (v_packet (uv)) + stack_2 (v_packet (uv))
+    dely = dely + stack_1 (v_packet (uv)) + stack_2 (v_packet (uv))
       + stack_3 (v_packet (uv));
     uv = uv + int_packets;      /* switch from |l_packets| to |r_packets| */
-    decr (mp->cur_tt);
+    number_add_scaled (mp->cur_tt, -1);
     xy = xy - int_packets;
     /* switch from |r_packets| to |l_packets| */
-    delx =
-      delx + stack_1 (x_packet (xy)) + stack_2 (x_packet (xy))
+    delx = delx + stack_1 (x_packet (xy)) + stack_2 (x_packet (xy))
       + stack_3 (x_packet (xy));
-    dely =
-      dely + stack_1 (y_packet (xy)) + stack_2 (y_packet (xy))
+    dely = dely + stack_1 (y_packet (xy)) + stack_2 (y_packet (xy))
       + stack_3 (y_packet (xy));
   }
 } else {
-  incr (mp->cur_tt);
+  number_add_scaled (mp->cur_tt, 1);
   tol = tol + three_l;
-  delx =
-    delx - stack_1 (x_packet (xy)) - stack_2 (x_packet (xy))
+  delx = delx - stack_1 (x_packet (xy)) - stack_2 (x_packet (xy))
     - stack_3 (x_packet (xy));
-  dely =
-    dely - stack_1 (y_packet (xy)) - stack_2 (y_packet (xy))
+  dely = dely - stack_1 (y_packet (xy)) - stack_2 (y_packet (xy))
     - stack_3 (y_packet (xy));
   xy = xy + int_packets;        /* switch from |l_packets| to |r_packets| */
 }
@@ -14657,10 +14670,13 @@ if (odd (mp->cur_tt)) {
 
 @ @<Descend to the previous level...@>=
 {
-  mp->cur_t = halfp (mp->cur_t);
-  mp->cur_tt = halfp (mp->cur_tt);
-  if (mp->cur_t == 0)
+  number_halfp(mp->cur_t);
+  number_halfp(mp->cur_tt);
+  if (number_zero (mp->cur_t)) {
+    free_number (appr_t);
+    free_number (appr_tt);
     return;
+  }
   mp->bisect_ptr -= int_increment;
   three_l -= (integer) mp->tol_step;
   delx = stack_dx;
@@ -14693,9 +14709,9 @@ static void mp_path_intersection (MP mp, mp_knot h, mp_knot hh) {
         do {
           if (mp_right_type (pp) != mp_endpoint) {
             mp_cubic_intersection (mp, p, pp);
-            if (mp->cur_t > 0) {
-              mp->cur_t = mp->cur_t + n;
-              mp->cur_tt = mp->cur_tt + nn;
+            if (number_positive (mp->cur_t)) {
+              number_add_scaled (mp->cur_t, n);
+              number_add_scaled (mp->cur_tt, nn);
               return;
             }
           }
@@ -14708,8 +14724,10 @@ static void mp_path_intersection (MP mp, mp_knot h, mp_knot hh) {
     } while (p != h);
     mp->tol_step = mp->tol_step + 3;
   } while (mp->tol_step <= 3);
-  mp->cur_t = -number_to_scaled (unity_t);
-  mp->cur_tt = -number_to_scaled (unity_t);
+  number_clone (mp->cur_t, unity_t);
+  number_negate (mp->cur_t);
+  number_clone (mp->cur_tt, unity_t);
+  number_negate (mp->cur_tt);
 }
 
 
@@ -27996,8 +28014,8 @@ if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_path_type)) {
   new_number (arg1);
   new_number (arg2);
   mp_path_intersection (mp, value_knot (p), cur_exp_knot ());
-  set_number_from_scaled (arg1, mp->cur_t);
-  set_number_from_scaled (arg2, mp->cur_tt);
+  number_clone (arg1, mp->cur_t);
+  number_clone (arg2, mp->cur_tt);
   mp_pair_value (mp, arg1, arg2);
   free_number (arg1);
   free_number (arg2);
