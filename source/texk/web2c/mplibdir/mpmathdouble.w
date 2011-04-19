@@ -26,7 +26,7 @@
 \def\MF{{\tenlogo META}\-{\tenlogo FONT}}
 \def\MP{{\tenlogo META}\-{\tenlogo POST}}
 
-\def\title{Math support functions for 32-bit integer math}
+\def\title{Math support functions for IEEE double based math}
 \pdfoutput=1
 
 @ Introduction.
@@ -38,13 +38,13 @@
 #include <string.h>
 #include "mplib.h"
 #include "mpmp.h" /* internal header */
-#include "mpmath.h" /* internal header */
+#include "mpmathdouble.h" /* internal header */
 @h
 
 @ @c
 @<Declarations@>;
 
-@ @(mpmath.h@>=
+@ @(mpmathdouble.h@>=
 @<Internal library declarations@>;
 
 @ Currently empty
@@ -812,7 +812,7 @@ The definitions below are temporarily here
 static void mp_wrapup_numeric_token(MP mp, int n, int f);
 
 @ @c
-static void mp_wrapup_numeric_token(MP mp, int n, int f) { /* n,f: scaled */
+void mp_wrapup_numeric_token(MP mp, int n, int f) { /* n,f: scaled */
   int mod ; /* scaled */
   if (n < 32768) {
     mod = (n * unity + f);

@@ -159,6 +159,7 @@ typedef struct MP_instance {
 #include "mppsout.h"            /* internal header */
 #include "mpsvgout.h"           /* internal header */
 #include "mpmath.h"             /* internal header */
+#include "mpmathdouble.h"       /* internal header */
 #include "mpstrings.h"          /* internal header */
 extern font_number mp_read_font_info (MP mp, char *fname);      /* tfmin.w */
 @h @<Declarations@>;
@@ -288,6 +289,173 @@ static void mp_do_initialize (MP mp) {
 
 @<Global variables@>=
 void *math;
+
+@ @<Types ... @>=
+typedef enum {
+  mp_scaled_type = 0,
+  mp_fraction_type,
+  mp_angle_type,
+  mp_double_type,
+  mp_binary_type,
+  mp_decimal_type,
+} mp_number_type;
+typedef union {
+  double dval;
+  int val;
+} mp_number_store;
+typedef struct mp_number_data {
+  mp_number_store data;
+  mp_number_type type;
+} mp_number_data;
+
+typedef void (*convert_func) (mp_number r);
+typedef void (*m_log_func) (MP mp, mp_number r, mp_number a);
+typedef void (*m_exp_func) (MP mp, mp_number r, mp_number a);
+typedef void (*pyth_add_func) (MP mp, mp_number r, mp_number a, mp_number b);
+typedef void (*pyth_sub_func) (MP mp, mp_number r, mp_number a, mp_number b);
+typedef void (*n_arg_func) (MP mp, mp_number r, mp_number a, mp_number b);
+typedef void (*velocity_func) (MP mp, mp_number r, mp_number a, mp_number b, mp_number c, mp_number d, mp_number e);
+typedef void (*ab_vs_cd_func) (MP mp, mp_number r, mp_number a, mp_number b, mp_number c, mp_number d);
+typedef void (*number_from_boolean_func) (mp_number A, int B);
+typedef void (*number_from_scaled_func) (mp_number A, int B);
+typedef void (*number_from_double_func) (mp_number A, double B);
+typedef void (*number_from_addition_func) (mp_number A, mp_number B, mp_number C);
+typedef void (*number_from_substraction_func) (mp_number A, mp_number B, mp_number C);
+typedef void (*number_from_div_func) (mp_number A, mp_number B, mp_number C);
+typedef void (*number_from_mul_func) (mp_number A, mp_number B, mp_number C);
+typedef void (*number_from_int_div_func) (mp_number A, mp_number B, int C);
+typedef void (*number_from_int_mul_func) (mp_number A, mp_number B, int C);
+typedef void (*number_from_oftheway_func) (MP mp, mp_number A, mp_number t, mp_number B, mp_number C);
+typedef void (*number_negate_func) (mp_number A);
+typedef void (*number_add_func) (mp_number A, mp_number B);
+typedef void (*number_substract_func) (mp_number A, mp_number B);
+typedef void (*number_modulo_func) (mp_number A, mp_number B);
+typedef void (*number_half_func) (mp_number A);
+typedef void (*number_halfp_func) (mp_number A);
+typedef void (*number_double_func) (mp_number A);
+typedef void (*number_abs_func) (mp_number A);
+typedef void (*number_clone_func) (mp_number A, mp_number B);
+typedef void (*number_swap_func) (mp_number A, mp_number B);
+typedef void (*number_add_scaled_func) (mp_number A, int b);
+typedef void (*number_multiply_int_func) (mp_number A, int b);
+typedef void (*number_divide_int_func) (mp_number A, int b);
+typedef int (*number_to_boolean_func) (mp_number A);
+typedef int (*number_to_scaled_func) (mp_number A);
+typedef int (*number_round_func) (mp_number A);
+typedef void (*number_floor_func) (mp_number A);
+typedef double (*number_to_double_func) (mp_number A);
+typedef int (*number_odd_func) (mp_number A);
+typedef int (*number_equal_func) (mp_number A, mp_number B);
+typedef int (*number_less_func) (mp_number A, mp_number B);
+typedef int (*number_greater_func) (mp_number A, mp_number B);
+typedef int (*number_nonequalabs_func) (mp_number A, mp_number B);
+typedef void (*make_scaled_func) (MP mp, mp_number ret, mp_number A, mp_number B);
+typedef void (*make_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number B);
+typedef void (*take_fraction_func) (MP mp, mp_number ret, mp_number A, mp_number B);
+typedef void (*take_scaled_func) (MP mp, mp_number ret, mp_number A, mp_number B);
+typedef void (*sin_cos_func) (MP mp, mp_number A, mp_number S, mp_number C);
+typedef void (*slow_add_func) (MP mp, mp_number A, mp_number S, mp_number C);
+typedef void (*sqrt_func) (MP mp, mp_number ret, mp_number A);
+typedef void (*init_randoms_func) (MP mp, int seed);
+typedef mp_number (*new_number_func) (MP mp, mp_number_type t);
+typedef void (*free_number_func) (MP mp, mp_number n);
+typedef void (*fraction_to_round_scaled_func) (mp_number n);
+typedef void (*print_func) (MP mp, mp_number A);
+typedef char * (*tostring_func) (MP mp, mp_number A);
+typedef struct math_data {
+  mp_number epsilon_t;
+  mp_number inf_t;
+  mp_number one_third_inf_t;
+  mp_number zero_t;
+  mp_number unity_t;
+  mp_number two_t;
+  mp_number three_t;
+  mp_number half_unit_t;
+  mp_number three_quarter_unit_t;
+  mp_number fraction_one_t;
+  mp_number fraction_half_t;
+  mp_number fraction_three_t;
+  mp_number fraction_four_t;
+  mp_number one_eighty_deg_t;
+  mp_number three_sixty_deg_t;
+  mp_number one_k;
+  mp_number sqrt_8_e_k;
+  mp_number twelve_ln_2_k;
+  mp_number coef_bound_k;
+  mp_number coef_bound_minus_1;
+  mp_number twelvebits_3;
+  mp_number arc_tol_k;
+  mp_number twentysixbits_sqrt2_t;
+  mp_number twentyeightbits_d_t;
+  mp_number twentysevenbits_sqrt2_d_t;
+  mp_number fraction_threshold_t;
+  mp_number half_fraction_threshold_t;
+  mp_number scaled_threshold_t;
+  mp_number half_scaled_threshold_t;
+  mp_number near_zero_angle_t;
+  mp_number p_over_v_threshold_t;
+  mp_number equation_threshold_t;
+  mp_number tfm_warn_threshold_t;
+  new_number_func new;
+  free_number_func free;
+  number_from_boolean_func from_boolean;
+  number_from_scaled_func from_scaled;
+  number_from_double_func from_double;
+  number_from_addition_func from_addition;
+  number_from_substraction_func from_substraction;
+  number_from_div_func from_div;
+  number_from_mul_func from_mul;
+  number_from_int_div_func from_int_div;
+  number_from_int_mul_func from_int_mul;
+  number_from_oftheway_func from_oftheway;
+  number_negate_func negate;
+  number_add_func add;
+  number_substract_func substract;
+  number_half_func half;
+  number_modulo_func modulo;
+  number_halfp_func halfp;
+  number_double_func do_double;
+  number_abs_func abs;
+  number_clone_func clone;
+  number_swap_func swap;
+  number_add_scaled_func add_scaled;
+  number_multiply_int_func multiply_int;
+  number_divide_int_func divide_int;
+  number_to_boolean_func to_boolean;
+  number_to_scaled_func to_scaled;
+  number_to_double_func to_double;
+  number_odd_func odd;
+  number_equal_func equal;
+  number_less_func less;
+  number_greater_func greater;
+  number_nonequalabs_func nonequalabs;
+  number_round_func round_unscaled;
+  number_floor_func floor_scaled;
+  make_scaled_func make_scaled;
+  make_fraction_func make_fraction;
+  take_fraction_func take_fraction;
+  take_scaled_func take_scaled;
+  velocity_func velocity;
+  ab_vs_cd_func ab_vs_cd;
+  n_arg_func n_arg;
+  m_log_func m_log;
+  m_exp_func m_exp;
+  pyth_add_func pyth_add;
+  pyth_sub_func pyth_sub;
+  fraction_to_round_scaled_func fraction_to_round_scaled;
+  convert_func fraction_to_scaled;
+  convert_func scaled_to_fraction;
+  convert_func scaled_to_angle;
+  convert_func angle_to_scaled;
+  init_randoms_func init_randoms;
+  sin_cos_func sin_cos;
+  sqrt_func sqrt;
+  slow_add_func slow_add;
+  print_func print;
+  tostring_func tostring;
+} math_data;
+
+
 
 @ This procedure gets things started properly.
 @c
