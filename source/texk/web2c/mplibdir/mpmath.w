@@ -203,6 +203,7 @@ typedef struct math_data {
   mp_number near_zero_angle_t;
   mp_number p_over_v_threshold_t;
   mp_number equation_threshold_t;
+  mp_number tfm_warn_threshold_t;
   new_number_func new;
   free_number_func free;
   number_from_boolean_func from_boolean;
@@ -276,6 +277,7 @@ void mp_free_math (MP mp);
 @d near_zero_angle 26844
 @d p_over_v_threshold 0x80000
 @d equation_threshold 64
+@d tfm_warn_threshold 4096
 
 
 @c
@@ -352,6 +354,8 @@ void * mp_initialize_math (MP mp) {
   math->p_over_v_threshold_t->data.val = p_over_v_threshold;
   math->equation_threshold_t = mp_new_number (mp, mp_scaled_type);
   math->equation_threshold_t->data.val = equation_threshold;
+  math->tfm_warn_threshold_t = mp_new_number (mp, mp_scaled_type);
+  math->tfm_warn_threshold_t->data.val = tfm_warn_threshold;
   /* functions */
   math->from_boolean = mp_set_number_from_boolean;
   math->from_scaled = mp_set_number_from_scaled;
@@ -435,6 +439,7 @@ void mp_free_math (MP mp) {
   free_number (((math_data *)mp->math)->near_zero_angle_t);
   free_number (((math_data *)mp->math)->p_over_v_threshold_t);
   free_number (((math_data *)mp->math)->equation_threshold_t);
+  free_number (((math_data *)mp->math)->tfm_warn_threshold_t);
   free(mp->math);
 }
 
