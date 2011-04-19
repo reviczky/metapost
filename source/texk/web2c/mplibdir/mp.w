@@ -6750,7 +6750,7 @@ default:
 if (mp_left_type (q) <= mp_explicit) {
   mp_print (mp, "..control?");  /* can't happen */
 @.control?@>
-} else if ((number_to_scaled(p->right_tension) != number_to_scaled (unity_t)) || (number_to_scaled(q->left_tension) != number_to_scaled (unity_t))) {
+} else if ((!number_equal(p->right_tension, unity_t)) || (!number_equal(q->left_tension, unity_t))) {
   @<Print tension between |p| and |q|@>;
 }
 
@@ -7681,7 +7681,12 @@ provide temporary storage for intermediate quantities.
 |bb| computed here are never more than 4/5.
 
 @<Calculate the values $\\{aa}=...@>=
-if (abs (number_to_scaled(r->right_tension)) == number_to_scaled (unity_t)) {
+{
+  mp_number absval;
+  new_number (absval);
+  number_clone (absval, r->right_tension);
+  number_abs (absval);
+if (number_equal (absval, unity_t)) {
   number_clone (aa, fraction_half_t);
   number_clone (dd, mp->delta[k]);
   number_double (dd);
@@ -7705,7 +7710,9 @@ if (abs (number_to_scaled(r->right_tension)) == number_to_scaled (unity_t)) {
   free_number (arg1);
   free_number (arg2);
 }
-if (abs (number_to_scaled(t->left_tension)) == number_to_scaled (unity_t)) {
+  number_clone (absval, t->left_tension);
+  number_abs (absval);
+if (number_equal (absval, unity_t)) {
   number_clone (bb, fraction_half_t);
   number_clone (ee, mp->delta[k - 1]);
   number_double (ee);
@@ -7727,6 +7734,8 @@ if (abs (number_to_scaled(t->left_tension)) == number_to_scaled (unity_t)) {
   free_number (ret);
   free_number (arg1);
   free_number (arg2);
+}
+free_number (absval);
 }
 {
   mp_number r1;
@@ -11785,15 +11794,20 @@ while ((mp_link (d) != (mp_node)mp->null_dash))
   d = (mp_dash_node)mp_link (d);
 dd = dash_list (h);
 set_number_from_substraction(h->dash_y, d->stop_x, dd->start_x);
-if (abs (number_to_scaled (y0)) > number_to_scaled(h->dash_y) ) {
-  number_clone(h->dash_y, y0);
-  number_abs (h->dash_y);
-} else if (d != dd) {
-  set_dash_list (h, mp_link (dd));
-  set_number_from_addition(d->stop_x, dd->stop_x, h->dash_y);
-  mp_free_node (mp, (mp_node)dd, dash_node_size);
+{
+  mp_number absval;
+  new_number (absval);
+  number_clone (absval, y0);
+  number_abs (absval);
+  if (number_greater (absval, h->dash_y) ) {
+    number_clone(h->dash_y, absval);
+  } else if (d != dd) {
+    set_dash_list (h, mp_link (dd));
+    set_number_from_addition(d->stop_x, dd->stop_x, h->dash_y);
+    mp_free_node (mp, (mp_node)dd, dash_node_size);
+  }
+  free_number (absval);
 }
-
 @ We get here when the argument is a NULL picture or when there is an error.
 Recovering from an error involves making |dash_list(h)| empty to indicate
 that |h| is not known to be a valid dash pattern.  We also dereference |h|
@@ -13641,6 +13655,7 @@ problems, so we just set |r:=NULL| in that case.
 @ @<Make |r| the last of two knots inserted between |p| and |q| to form a...@>=
 {
   mp_number ht_x, ht_y;    /* perpendicular to the segment from |p| to |q| */
+  mp_number ht_x_abs, ht_y_abs;    /* absolutes */
   mp_number xtot, ytot, xsub, ysub;
   new_fraction(xsub);
   new_fraction(ysub);
@@ -13648,11 +13663,21 @@ problems, so we just set |r:=NULL| in that case.
   new_number(ytot);
   new_fraction (ht_x);
   new_fraction (ht_y);
+  new_fraction (ht_x_abs);
+  new_fraction (ht_y_abs);
   set_number_from_substraction(ht_x, w->y_coord, w0->y_coord);
   set_number_from_substraction(ht_y, w0->x_coord, w->x_coord);
-  while ((abs (number_to_scaled(ht_x)) < number_to_scaled (fraction_half_t)) && (abs (number_to_scaled(ht_y)) < number_to_scaled (fraction_half_t))) {
+  number_clone (ht_x_abs, ht_x);
+  number_clone (ht_y_abs, ht_y);
+  number_abs (ht_x_abs);
+  number_abs (ht_y_abs);
+  while (number_less(ht_x_abs, fraction_half_t) && number_less(ht_y_abs, fraction_half_t)) {
     number_double(ht_x);
     number_double(ht_y);
+    number_clone (ht_x_abs, ht_x);
+    number_clone (ht_y_abs, ht_y);
+    number_abs (ht_x_abs);
+    number_abs (ht_y_abs);
   }
   @<Scan the pen polygon between |w0| and |w| and make |max_ht| the range dot
     product with |(ht_x,ht_y)|@>;
@@ -13694,6 +13719,8 @@ problems, so we just set |r:=NULL| in that case.
   free_number (ytot);
   free_number (ht_x);
   free_number (ht_y);
+  free_number (ht_x_abs);
+  free_number (ht_y_abs);
 }
 
 
@@ -14418,13 +14445,25 @@ the quantities needed for bisection-intersection.
 @d int_increment (int_packets+int_packets+5) /* number of stack words per level */
 
 @<Glob...@>=
-integer *bisect_stack;
+mp_number *bisect_stack;
 integer bisect_ptr;
 
 @ @<Allocate or initialize ...@>=
-mp->bisect_stack = xmalloc ((bistack_size + 1), sizeof (integer));
+mp->bisect_stack = xmalloc ((bistack_size + 1), sizeof (mp_number));
+{
+  int i;
+  for (i=0;i<bistack_size + 1;i++) {
+    new_number (mp->bisect_stack[i]);
+  }
+}
 
 @ @<Dealloc variables@>=
+{
+  int i;
+  for (i=0;i<bistack_size + 1;i++) {
+    free_number (mp->bisect_stack[i]);
+  }
+}
 xfree (mp->bisect_stack);
 
 @ @<Check the ``constant''...@>=
@@ -14435,28 +14474,32 @@ if (int_packets + 17 * int_increment > bistack_size)
 instructions; exactly four comparisons are made in each branch.
 
 @d set_min_max(A) 
-  if ( stack_1((A))<0 ) {
-    if ( stack_3((A))>=0 ) {
-      if ( stack_2((A))<0 ) stack_min((A))=stack_1((A))+stack_2((A));
-      else stack_min((A))=stack_1((A));
-      stack_max((A))=stack_1((A))+stack_2((A))+stack_3((A));
-      if ( stack_max((A))<0 ) stack_max((A))=0;
+  if ( number_negative(stack_1((A))) ) {
+    if ( number_nonnegative (stack_3((A))) ) {
+      if ( number_negative (stack_2((A))) ) set_number_from_addition (stack_min((A)), stack_1((A)), stack_2((A)));
+      else number_clone (stack_min((A)), stack_1((A)));
+      set_number_from_addition (stack_max((A)), stack_1((A)), stack_2((A)));
+      number_add (stack_max((A)), stack_3((A)));
+      if ( number_negative (stack_max((A))) ) set_number_to_zero (stack_max((A)));
     } else { 
-      stack_min((A))=stack_1((A))+stack_2((A))+stack_3((A));
-      if ( stack_min((A))>stack_1((A)) ) stack_min((A))=stack_1((A));
-      stack_max((A))=stack_1((A))+stack_2((A));
-      if ( stack_max((A))<0 ) stack_max((A))=0;
+      set_number_from_addition (stack_min((A)), stack_1((A)), stack_2((A)));
+      number_add (stack_min((A)), stack_3((A)));
+      if ( number_greater (stack_min((A)), stack_1((A)))) number_clone (stack_min((A)), stack_1((A)));
+      set_number_from_addition (stack_max((A)), stack_1((A)), stack_2((A)));
+      if ( number_negative (stack_max((A))) ) set_number_to_zero (stack_max((A)));
     }
-  } else if ( stack_3((A))<=0 ) {
-    if ( stack_2((A))>0 ) stack_max((A))=stack_1((A))+stack_2((A));
-    else stack_max((A))=stack_1((A));
-    stack_min((A))=stack_1((A))+stack_2((A))+stack_3((A));
-    if ( stack_min((A))>0 ) stack_min((A))=0;
+  } else if ( number_nonpositive (stack_3((A)))) {
+    if ( number_positive (stack_2((A))) ) set_number_from_addition (stack_max((A)), stack_1((A)), stack_2((A)));
+    else number_clone (stack_max((A)), stack_1((A)));
+    set_number_from_addition (stack_min((A)), stack_1((A)), stack_2((A)));
+    number_add (stack_min((A)), stack_3((A)));
+    if ( number_positive (stack_min((A))) ) set_number_to_zero (stack_min((A)));
   } else  { 
-    stack_max((A))=stack_1((A))+stack_2((A))+stack_3((A));
-    if ( stack_max((A))<stack_1((A)) ) stack_max((A))=stack_1((A));
-    stack_min((A))=stack_1((A))+stack_2((A));
-    if ( stack_min((A))>0 ) stack_min((A))=0;
+    set_number_from_addition (stack_max((A)), stack_1((A)), stack_2((A)));
+    number_add (stack_max((A)), stack_3((A)));
+    if ( number_less (stack_max((A)), stack_1((A)))) number_clone (stack_max((A)), stack_1((A)));
+    set_number_from_addition (stack_min((A)), stack_1((A)), stack_2((A)));
+    if ( number_positive (stack_min((A))) ) set_number_to_zero (stack_min((A)));
   }
 
 @ It's convenient to keep the current values of $l$, $t_1$, and $t_2$ in
@@ -14496,34 +14539,55 @@ and |(pp,mp_link(pp))|, respectively.
 @c
 static void mp_cubic_intersection (MP mp, mp_knot p, mp_knot pp) {
   mp_knot q, qq;           /* |mp_link(p)|, |mp_link(pp)| */
-  integer delx, dely;      /* the components of $\Delta=2^l(w_0-z_0)$ */
-  integer tol;             /* bound on the uncertainty in the overlap test */
+  mp_number delx, dely;      /* the components of $\Delta=2^l(w_0-z_0)$ */
+  mp_number tol;             /* bound on the uncertainty in the overlap test */
   integer uv, xy;          /* pointers to the current packets of interest */
   integer three_l;         /* |tol_step| times the bisection level */
   mp_number appr_t, appr_tt; /* best approximations known to the answers */
   mp->time_to_go = max_patience;
+  new_number (tol);
+  new_number (delx);
+  new_number (dely);
   new_number (appr_t);
   new_number (appr_tt);
   set_number_from_scaled (mp->max_t, 2);
   @<Initialize for intersections at level zero@>;
 CONTINUE:
   while (1) {
-    if (delx - tol <=
-        stack_max (x_packet (xy)) - stack_min (u_packet (uv)))
-      if (delx + tol >=
-          stack_min (x_packet (xy)) - stack_max (u_packet (uv)))
-        if (dely - tol <=
-            stack_max (y_packet (xy)) - stack_min (v_packet (uv)))
-          if (dely + tol >=
-              stack_min (y_packet (xy)) - stack_max (v_packet (uv))) {
+    mp_number delx_m_tol, delx_p_tol, dely_m_tol, dely_p_tol, try;
+    new_number (delx_m_tol);
+    new_number (delx_p_tol);
+    new_number (dely_m_tol);
+    new_number (dely_p_tol);
+    new_number (try);
+    set_number_from_substraction (delx_m_tol, delx, tol);
+    set_number_from_addition (delx_p_tol, delx, tol);
+    set_number_from_substraction (dely_m_tol, dely, tol);
+    set_number_from_addition (dely_p_tol, dely, tol);
+    set_number_from_substraction (try, stack_max (x_packet (xy)), stack_min (u_packet (uv)));
+    if (number_lessequal (delx_m_tol, try)) {
+      set_number_from_substraction (try, stack_min (x_packet (xy)), stack_max (u_packet (uv)));
+      if (number_greaterequal (delx_p_tol, try)) {
+        set_number_from_substraction (try, stack_max (y_packet (xy)), stack_min (v_packet (uv)));
+        if (number_lessequal (dely_m_tol, try)) {
+          set_number_from_substraction (try, stack_min (y_packet (xy)), stack_max (v_packet (uv)));
+          if (number_greaterequal (dely_p_tol, try)) {
             if (number_greaterequal (mp->cur_t, mp->max_t)) {
               if (number_equal (mp->max_t, two_t)) {   /* we've done 17 bisections */
                 number_add_scaled (mp->cur_t, 1);
                 number_halfp (mp->cur_t);
                 number_add_scaled (mp->cur_tt, 1);
                 number_halfp (mp->cur_tt);
+                free_number (tol);
+                free_number (delx);
+                free_number (dely);
                 free_number (appr_t);
                 free_number (appr_tt);
+                free_number (delx_m_tol);
+                free_number (delx_p_tol);
+                free_number (dely_m_tol);
+                free_number (dely_p_tol);
+                free_number (try);
                 return;
               }
               number_double(mp->max_t);
@@ -14533,6 +14597,14 @@ CONTINUE:
             @<Subdivide for a new level of intersection@>;
             goto CONTINUE;
           }
+        }
+      }
+      free_number (delx_m_tol);
+      free_number (delx_p_tol);
+      free_number (dely_m_tol);
+      free_number (dely_p_tol);
+      free_number (try);
+    }
     if (mp->time_to_go > 0) {
       decr (mp->time_to_go);
     } else {
@@ -14542,8 +14614,11 @@ CONTINUE:
       }
       number_clone (mp->cur_t, appr_t);
       number_clone (mp->cur_tt, appr_tt);
+      free_number (tol);
       free_number (appr_t);
       free_number (appr_tt);
+      free_number (delx);
+      free_number (dely);
       return;
     }
     @<Advance to the next pair |(cur_t,cur_tt)|@>;
@@ -14559,25 +14634,25 @@ integer overflow will not occur.
 q = mp_next_knot (p);
 qq = mp_next_knot (pp);
 mp->bisect_ptr = int_packets;
-u1r = number_to_scaled (p->right_x) - number_to_scaled (p->x_coord);
-u2r = number_to_scaled (q->left_x) - number_to_scaled (p->right_x);
-u3r = number_to_scaled (q->x_coord) - number_to_scaled (q->left_x);
+set_number_from_substraction (u1r, p->right_x, p->x_coord);
+set_number_from_substraction (u2r, q->left_x, p->right_x);
+set_number_from_substraction (u3r, q->x_coord, q->left_x);
 set_min_max (ur_packet);
-v1r = number_to_scaled (p->right_y) - number_to_scaled (p->y_coord);
-v2r = number_to_scaled (q->left_y) - number_to_scaled (p->right_y);
-v3r = number_to_scaled (q->y_coord) - number_to_scaled (q->left_y);
+set_number_from_substraction (v1r, p->right_y, p->y_coord);
+set_number_from_substraction (v2r, q->left_y, p->right_y);
+set_number_from_substraction (v3r, q->y_coord, q->left_y);
 set_min_max (vr_packet);
-x1r = number_to_scaled (pp->right_x) - number_to_scaled (pp->x_coord);
-x2r = number_to_scaled (qq->left_x) - number_to_scaled (pp->right_x);
-x3r = number_to_scaled (qq->x_coord) - number_to_scaled (qq->left_x);
+set_number_from_substraction (x1r, pp->right_x, pp->x_coord);
+set_number_from_substraction (x2r, qq->left_x, pp->right_x);
+set_number_from_substraction (x3r, qq->x_coord, qq->left_x);
 set_min_max (xr_packet);
-y1r = number_to_scaled (pp->right_y) - number_to_scaled (pp->y_coord);
-y2r = number_to_scaled (qq->left_y) - number_to_scaled (pp->right_y);
-y3r = number_to_scaled (qq->y_coord) - number_to_scaled (qq->left_y);
+set_number_from_substraction (y1r, pp->right_y, pp->y_coord);
+set_number_from_substraction (y2r, qq->left_y, pp->right_y);
+set_number_from_substraction (y3r, qq->y_coord, qq->left_y);
 set_min_max (yr_packet);
-delx = number_to_scaled (p->x_coord) - number_to_scaled (pp->x_coord);
-dely = number_to_scaled (p->y_coord) - number_to_scaled (pp->y_coord);
-tol = 0;
+set_number_from_substraction (delx, p->x_coord, pp->x_coord);
+set_number_from_substraction (dely, p->y_coord, pp->y_coord);
+set_number_to_zero (tol);
 uv = r_packets;
 xy = r_packets;
 three_l = 0;
@@ -14585,52 +14660,64 @@ set_number_from_scaled (mp->cur_t, 1);
 set_number_from_scaled (mp->cur_tt, 1)
 
 @ @<Subdivide for a new level of intersection@>=
-stack_dx = delx;
-stack_dy = dely;
-stack_tol = tol;
-stack_uv = uv;
-stack_xy = xy;
+number_clone (stack_dx, delx);
+number_clone (stack_dy, dely);
+number_clone (stack_tol, tol);
+set_number_from_scaled (stack_uv, uv);
+set_number_from_scaled (stack_xy, xy);
 mp->bisect_ptr = mp->bisect_ptr + int_increment;
 number_double(mp->cur_t);
 number_double(mp->cur_tt);
-u1l = stack_1 (u_packet (uv));
-u3r = stack_3 (u_packet (uv));
-u2l = half (u1l + stack_2 (u_packet (uv)));
-u2r = half (u3r + stack_2 (u_packet (uv)));
-u3l = half (u2l + u2r);
-u1r = u3l;
+number_clone (u1l, stack_1 (u_packet (uv)));
+number_clone (u3r, stack_3 (u_packet (uv)));
+set_number_from_addition (u2l, u1l, stack_2 (u_packet (uv)));
+number_half (u2l);
+set_number_from_addition (u2r, u3r, stack_2 (u_packet (uv)));
+number_half (u2r);
+set_number_from_addition (u3l, u2l, u2r);
+number_half (u3l);
+number_clone (u1r, u3l);
 set_min_max (ul_packet);
 set_min_max (ur_packet);
-v1l = stack_1 (v_packet (uv));
-v3r = stack_3 (v_packet (uv));
-v2l = half (v1l + stack_2 (v_packet (uv)));
-v2r = half (v3r + stack_2 (v_packet (uv)));
-v3l = half (v2l + v2r);
-v1r = v3l;
+number_clone (v1l, stack_1 (v_packet (uv)));
+number_clone (v3r, stack_3 (v_packet (uv)));
+set_number_from_addition (v2l, v1l, stack_2 (v_packet (uv)));
+number_half (v2l);
+set_number_from_addition (v2r, v3r, stack_2 (v_packet (uv)));
+number_half (v2r);
+set_number_from_addition (v3l, v2l, v2r);
+number_half (v3l);
+number_clone (v1r, v3l);
 set_min_max (vl_packet);
 set_min_max (vr_packet);
-x1l = stack_1 (x_packet (xy));
-x3r = stack_3 (x_packet (xy));
-x2l = half (x1l + stack_2 (x_packet (xy)));
-x2r = half (x3r + stack_2 (x_packet (xy)));
-x3l = half (x2l + x2r);
-x1r = x3l;
+number_clone (x1l, stack_1 (x_packet (xy)));
+number_clone (x3r, stack_3 (x_packet (xy)));
+set_number_from_addition (x2l, x1l, stack_2 (x_packet (xy)));
+number_half (x2l);
+set_number_from_addition (x2r, x3r, stack_2 (x_packet (xy)));
+number_half (x2r);
+set_number_from_addition (x3l, x2l, x2r);
+number_half (x3l);
+number_clone (x1r, x3l);
 set_min_max (xl_packet);
 set_min_max (xr_packet);
-y1l = stack_1 (y_packet (xy));
-y3r = stack_3 (y_packet (xy));
-y2l = half (y1l + stack_2 (y_packet (xy)));
-y2r = half (y3r + stack_2 (y_packet (xy)));
-y3l = half (y2l + y2r);
-y1r = y3l;
+number_clone (y1l, stack_1 (y_packet (xy)));
+number_clone (y3r, stack_3 (y_packet (xy)));
+set_number_from_addition (y2l, y1l, stack_2 (y_packet (xy)));
+number_half (y2l);
+set_number_from_addition (y2r, y3r, stack_2 (y_packet (xy)));
+number_half (y2r);
+set_number_from_addition (y3l, y2l, y2r);
+number_half (y3l);
+number_clone (y1r, y3l);
 set_min_max (yl_packet);
 set_min_max (yr_packet);
 uv = l_packets;
 xy = l_packets;
-delx += delx;
-dely += dely;
-tol = tol - three_l + (integer) mp->tol_step;
-tol += tol;
+number_double (delx);
+number_double (dely);
+set_number_from_scaled (tol, number_to_scaled (tol) - three_l + (integer) mp->tol_step);
+number_double (tol);
 three_l = three_l + (integer) mp->tol_step
 
 @ @<Advance to the next pair |(cur_t,cur_tt)|@>=
@@ -14640,26 +14727,38 @@ if (number_odd (mp->cur_tt)) {
     @<Descend to the previous level and |goto not_found|@>;
   } else {
     number_add_scaled (mp->cur_t, 1);
-    delx = delx + stack_1 (u_packet (uv)) + stack_2 (u_packet (uv))
-      + stack_3 (u_packet (uv));
-    dely = dely + stack_1 (v_packet (uv)) + stack_2 (v_packet (uv))
-      + stack_3 (v_packet (uv));
+    /* delx = delx + stack_1 (u_packet (uv)) + stack_2 (u_packet (uv))  + stack_3 (u_packet (uv)); */
+    number_add (delx, stack_1 (u_packet (uv)));
+    number_add (delx, stack_2 (u_packet (uv)));
+    number_add (delx, stack_3 (u_packet (uv)));
+    /* dely = dely + stack_1 (v_packet (uv)) + stack_2 (v_packet (uv)) + stack_3 (v_packet (uv)); */
+    number_add (dely, stack_1 (v_packet (uv)));
+    number_add (dely, stack_2 (v_packet (uv)));
+    number_add (dely, stack_3 (v_packet (uv)));
     uv = uv + int_packets;      /* switch from |l_packets| to |r_packets| */
     number_add_scaled (mp->cur_tt, -1);
     xy = xy - int_packets;
     /* switch from |r_packets| to |l_packets| */
-    delx = delx + stack_1 (x_packet (xy)) + stack_2 (x_packet (xy))
-      + stack_3 (x_packet (xy));
-    dely = dely + stack_1 (y_packet (xy)) + stack_2 (y_packet (xy))
-      + stack_3 (y_packet (xy));
+    /* delx = delx + stack_1 (x_packet (xy)) + stack_2 (x_packet (xy)) + stack_3 (x_packet (xy)); */
+    number_add (delx, stack_1 (x_packet (xy)));
+    number_add (delx, stack_2 (x_packet (xy)));
+    number_add (delx, stack_3 (x_packet (xy)));
+    /* dely = dely + stack_1 (y_packet (xy)) + stack_2 (y_packet (xy)) + stack_3 (y_packet (xy)); */
+    number_add (dely, stack_1 (y_packet (xy)));
+    number_add (dely, stack_2 (y_packet (xy)));
+    number_add (dely, stack_3 (y_packet (xy)));
   }
 } else {
   number_add_scaled (mp->cur_tt, 1);
-  tol = tol + three_l;
-  delx = delx - stack_1 (x_packet (xy)) - stack_2 (x_packet (xy))
-    - stack_3 (x_packet (xy));
-  dely = dely - stack_1 (y_packet (xy)) - stack_2 (y_packet (xy))
-    - stack_3 (y_packet (xy));
+  set_number_from_scaled (tol, number_to_scaled (tol) + three_l);
+  /* delx = delx - stack_1 (x_packet (xy)) - stack_2 (x_packet (xy)) - stack_3 (x_packet (xy)); */
+  number_substract (delx, stack_1 (x_packet (xy)));
+  number_substract (delx, stack_2 (x_packet (xy)));
+  number_substract (delx, stack_3 (x_packet (xy)));
+  /* dely = dely - stack_1 (y_packet (xy)) - stack_2 (y_packet (xy))  - stack_3 (y_packet (xy)); */
+  number_substract (dely, stack_1 (y_packet (xy)));
+  number_substract (dely, stack_2 (y_packet (xy)));
+  number_substract (dely, stack_3 (y_packet (xy)));
   xy = xy + int_packets;        /* switch from |l_packets| to |r_packets| */
 }
 
@@ -14669,17 +14768,20 @@ if (number_odd (mp->cur_tt)) {
   number_halfp(mp->cur_t);
   number_halfp(mp->cur_tt);
   if (number_zero (mp->cur_t)) {
+    free_number (tol);
+    free_number (delx);
+    free_number (dely);
     free_number (appr_t);
     free_number (appr_tt);
     return;
   }
   mp->bisect_ptr -= int_increment;
   three_l -= (integer) mp->tol_step;
-  delx = stack_dx;
-  dely = stack_dy;
-  tol = stack_tol;
-  uv = stack_uv;
-  xy = stack_xy;
+  number_clone (delx, stack_dx);
+  number_clone (dely, stack_dy);
+  number_clone (tol, stack_tol);
+  uv = number_to_scaled (stack_uv);
+  xy = number_to_scaled (stack_xy);
   goto NOT_FOUND;
 }
 
