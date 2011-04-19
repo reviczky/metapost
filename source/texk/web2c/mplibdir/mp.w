@@ -15700,10 +15700,16 @@ static void mp_linear_eq (MP mp, mp_value_node p, quarterword t) {
   mp_value_node s;
   mp_node x;    /* the variable that loses its independence */
   integer n;    /* the number of times |x| had been halved */
-  integer v;    /* the coefficient of |x| in list |p| */
+  mp_number v;    /* the coefficient of |x| in list |p| */
+  mp_number vabs; /* its absolute value */
+  mp_number rabs; /* the absolute value of |dep_value(r)| */
   mp_value_node prev_r; /* lags one step behind |r| */
   mp_value_node final_node;     /* the constant term of the new dependency list */
-  integer w;    /* a tentative coefficient */
+  mp_number w;    /* a tentative coefficient */
+  new_number (w);
+  new_number (v);
+  new_number (vabs);
+  new_number (rabs);
   FUNCTION_TRACE3 ("mp_linear_eq(%p,%d)\n", p, t);
   @<Find a node |q| in list |p| whose coefficient |v| is largest@>;
   x = dep_info (q);
@@ -15716,17 +15722,25 @@ static void mp_linear_eq (MP mp, mp_value_node p, quarterword t) {
   @<Change variable |x| from |independent| to |dependent| or |known|@>;
   if (mp->fix_needed)
     mp_fix_dependencies (mp);
+  free_number (v);
+  free_number (w);
+  free_number (vabs);
+  free_number (rabs);
 }
 
 
 @ @<Find a node |q| in list |p| whose coefficient |v| is largest@>=
 q = p;
 r = (mp_value_node) mp_link (p);
-v = dep_value (q);
+number_clone (v, dep_value_number (q));
 while (dep_info (r) != NULL) {
-  if (abs (dep_value (r)) > abs (v)) {
+  number_clone (vabs, v);
+  number_abs (vabs);
+  number_clone (rabs, dep_value_number (r));
+  number_abs (rabs);
+  if (number_greater (rabs, vabs)) {
     q = r;
-    v = dep_value (r);
+    number_clone (v, dep_value_number (r));
   }
   r = (mp_value_node) mp_link (r);
 }
@@ -15745,54 +15759,32 @@ do {
     set_mp_link (s, mp_link (r));
     mp_free_dep_node (mp, r);
   } else {
-    mp_number arg1, arg2, ret;
-    new_fraction (ret);
-    new_number (arg1);
-    new_number (arg2);
-    number_clone (arg1, dep_value_number (r));
-    set_number_from_scaled (arg2,v);
-    make_fraction (ret, arg1, arg2);
-    w = number_to_scaled (ret);
-    free_number (arg1);
-    free_number (arg2);
-    free_number (ret);
-    if (abs (w) <= half_fraction_threshold) {
+    make_fraction (w, dep_value_number (r), v);
+    if (abs (number_to_scaled (w)) <= half_fraction_threshold) {
       set_mp_link (s, mp_link (r));
       mp_free_dep_node (mp, r);
     } else {
-      set_dep_value (r, -w);
+      set_dep_value_number (r, w);
+      number_negate (dep_value_number (r));
       s = r;
     }
   }
   r = (mp_value_node) mp_link (s);
 } while (dep_info (r) != NULL);
 if (t == mp_proto_dependent) {
-  mp_number arg1, arg2, ret;
+  mp_number ret;
   new_number (ret);
-  new_number (arg1);
-  new_number (arg2);
-  number_clone (arg1, dep_value_number (r));
-  set_number_from_scaled (arg2,v);
-  make_scaled (ret, arg1, arg2);
+  make_scaled (ret, dep_value_number (r), v);
   number_negate (ret);
   set_dep_value_number (r, ret);
   free_number (ret);
-  free_number (arg1);
-  free_number (arg2);
-
-} else if (v != -number_to_scaled (fraction_one_t)) {
-  mp_number arg1, arg2, ret;
-  new_number (arg1);
-  new_number (arg2);
+} else if (number_to_scaled (v) != -number_to_scaled (fraction_one_t)) {
+  mp_number ret;
   new_fraction (ret);
-  number_clone (arg1, dep_value_number (r));
-  set_number_from_scaled (arg2,v);
-  make_fraction (ret, arg1, arg2);
+  make_fraction (ret, dep_value_number (r), v);
   number_negate (ret);
   set_dep_value_number (r, ret);
   free_number (ret);
-  free_number (arg1);
-  free_number (arg2);
 }
 final_node = r;
 p = (mp_value_node) mp_link (mp->temp_head)
@@ -15800,14 +15792,15 @@ p = (mp_value_node) mp_link (mp->temp_head)
 
 @ @<Display the new dependency@>=
 if (mp_interesting (mp, (mp_node) x)) {
+  int w0;
   mp_begin_diagnostic (mp);
   mp_print_nl (mp, "## ");
   mp_print_variable_name (mp, (mp_node) x);
 @:]]]\#\#_}{\.{\#\#}@>;
-  w = n;
-  while (w > 0) {
+  w0 = n;
+  while (w0 > 0) {
     mp_print (mp, "*4");
-    w = w - 2;
+    w0 = w0 - 2;
   }
   mp_print_char (mp, xord ('='));
   mp_print_dependency (mp, p, mp_dependent);
@@ -15843,7 +15836,7 @@ if (dep_info (p) == NULL) {
     mp_val_too_big (mp, value_number (x));
   mp_free_dep_node (mp, p);
   if (cur_exp_node () == x && mp->cur_exp.type == mp_independent) {
-    set_cur_exp_value (value (x));
+    set_cur_exp_value_number (value_number (x));
     mp->cur_exp.type = mp_known;
     mp_free_node (mp, x, value_node_size);
   }
@@ -15862,15 +15855,17 @@ if (dep_info (p) == NULL) {
   set_mp_link (mp->temp_head, (mp_node) p);
   r = p;
   do {
-    if (n > 30)
-      w = 0;
-    else
-      w = dep_value (r) / two_to_the (n);
-    if ((abs (w) <= half_fraction_threshold) && (dep_info (r) != NULL)) {
+    if (n > 30) {
+      set_number_to_zero (w);
+    } else {
+      number_clone (w, dep_value_number (r));
+      number_divide_int (w, two_to_the (n));
+    }
+    if ((abs (number_to_scaled (w)) <= half_fraction_threshold) && (dep_info (r) != NULL)) {
       set_mp_link (s, mp_link (r));
       mp_free_dep_node (mp, r);
     } else {
-      set_dep_value (r, w);
+      set_dep_value_number (r, w);
       s = r;
     }
     r = (mp_value_node) mp_link (s);
