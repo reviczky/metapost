@@ -47,76 +47,78 @@
 @ @(mpmath.h@>=
 @<Internal library declarations@>;
 
-@ Currently empty
-@<Declarations@>=
 
 @* Math initialization.
 
-@ Header definitions for those 
+@ Here are the functions that are static as they are not used elsewhere
+
+@<Declarations@>=
+static void mp_scan_fractional_token (MP mp, int n);
+static void mp_scan_numeric_token (MP mp, int n);
+static void mp_ab_vs_cd (MP mp, mp_number ret, mp_number a, mp_number b, mp_number c, mp_number d);
+static void mp_number_modulo (mp_number a, mp_number b);
+static void mp_print_number (MP mp, mp_number n);
+static char * mp_number_tostring (MP mp, mp_number n);
+static void mp_slow_add (MP mp, mp_number ret, mp_number x_orig, mp_number y_orig);
+static void mp_square_rt (MP mp, mp_number ret, mp_number x_orig);
+static void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin);
+static void mp_init_randoms (MP mp, int seed);
+static void mp_number_angle_to_scaled (mp_number A);
+static void mp_number_fraction_to_scaled (mp_number A);
+static void mp_number_scaled_to_fraction (mp_number A);
+static void mp_number_scaled_to_angle (mp_number A);
+static void mp_m_exp (MP mp, mp_number ret, mp_number x_orig);
+static void mp_m_log (MP mp, mp_number ret, mp_number x_orig);
+static void mp_pyth_sub (MP mp, mp_number r, mp_number a, mp_number b);
+static void mp_n_arg (MP mp, mp_number ret, mp_number x, mp_number y);
+static void mp_velocity (MP mp, mp_number ret, mp_number st, mp_number ct, mp_number sf,  mp_number cf, mp_number t);
+static void mp_set_number_from_boolean(mp_number A, int B);
+static void mp_set_number_from_scaled(mp_number A, int B);
+static void mp_set_number_from_boolean(mp_number A, int B);
+static void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C);
+static void mp_set_number_from_substraction (mp_number A, mp_number B, mp_number C);
+static void mp_set_number_from_div(mp_number A, mp_number B, mp_number C);
+static void mp_set_number_from_mul(mp_number A, mp_number B, mp_number C);
+static void mp_set_number_from_int_div(mp_number A, mp_number B, int C);
+static void mp_set_number_from_int_mul(mp_number A, mp_number B, int C);
+static void mp_set_number_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B, mp_number C);
+static void mp_number_negate(mp_number A);
+static void mp_number_add(mp_number A, mp_number B);
+static void mp_number_substract(mp_number A, mp_number B);
+static void mp_number_half(mp_number A);
+static void mp_number_halfp(mp_number A);
+static void mp_number_double(mp_number A);
+static void mp_number_add_scaled(mp_number A, int B); /* also for negative B */
+static void mp_number_multiply_int(mp_number A, int B);
+static void mp_number_divide_int(mp_number A, int B);
+static void mp_number_abs(mp_number A);   
+static void mp_number_clone(mp_number A, mp_number B);
+static void mp_number_swap(mp_number A, mp_number B);
+static int mp_round_unscaled(mp_number x_orig);
+static int mp_number_to_scaled(mp_number A);
+static int mp_number_to_boolean(mp_number A);
+static int mp_number_odd(mp_number A);
+static int mp_number_equal(mp_number A, mp_number B);
+static int mp_number_greater(mp_number A, mp_number B);
+static int mp_number_less(mp_number A, mp_number B);
+static int mp_number_nonequalabs(mp_number A, mp_number B);
+static void mp_number_floor (mp_number i);
+static void mp_fraction_to_round_scaled (mp_number x);
+static void mp_number_make_scaled (MP mp, mp_number r, mp_number p, mp_number q);
+static void mp_number_make_fraction (MP mp, mp_number r, mp_number p, mp_number q);
+static void mp_number_take_fraction (MP mp, mp_number r, mp_number p, mp_number q);
+static void mp_number_take_scaled (MP mp, mp_number r, mp_number p, mp_number q);
+static mp_number mp_new_number (MP mp, mp_number_type t) ;
+static void mp_free_number (MP mp, mp_number n) ;
+static void mp_free_scaled_math (MP mp);
+
+@ And these are the ones that {\it are} used elsewhere
 
 @<Internal library declarations@>=
-void mp_ab_vs_cd (MP mp, mp_number ret, mp_number a, mp_number b, mp_number c, mp_number d);
-void mp_number_modulo (mp_number a, mp_number b);
-void mp_print_number (MP mp, mp_number n);
-char * mp_number_tostring (MP mp, mp_number n);
-void mp_slow_add (MP mp, mp_number ret, mp_number x_orig, mp_number y_orig);
-void mp_square_rt (MP mp, mp_number ret, mp_number x_orig);
-void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin);
-void mp_init_randoms (MP mp, int seed);
-extern mp_number mp_new_number (MP mp, mp_number_type t) ;
-extern void mp_free_number (MP mp, mp_number n) ;
-void mp_number_angle_to_scaled (mp_number A);
-void mp_number_fraction_to_scaled (mp_number A);
-void mp_number_scaled_to_fraction (mp_number A);
-void mp_number_scaled_to_angle (mp_number A);
-void mp_m_exp (MP mp, mp_number ret, mp_number x_orig);
-void mp_m_log (MP mp, mp_number ret, mp_number x_orig);
-void mp_pyth_sub (MP mp, mp_number r, mp_number a, mp_number b);
-void mp_pyth_add (MP mp, mp_number r, mp_number a, mp_number b);
-void mp_n_arg (MP mp, mp_number ret, mp_number x, mp_number y);
-void mp_velocity (MP mp, mp_number ret, mp_number st, mp_number ct, mp_number sf,  mp_number cf, mp_number t);
-void mp_set_number_from_boolean(mp_number A, int B);
-void mp_set_number_from_scaled(mp_number A, int B);
-void mp_set_number_from_bolean(mp_number A, int B);
+void * mp_initialize_scaled_math (MP mp);
 void mp_set_number_from_double(mp_number A, double B);
-void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C);
-void mp_set_number_from_substraction (mp_number A, mp_number B, mp_number C);
-void mp_set_number_from_div(mp_number A, mp_number B, mp_number C);
-void mp_set_number_from_mul(mp_number A, mp_number B, mp_number C);
-void mp_set_number_from_int_div(mp_number A, mp_number B, int C);
-void mp_set_number_from_int_mul(mp_number A, mp_number B, int C);
-void mp_set_number_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B, mp_number C);
-void mp_number_negate(mp_number A);
-void mp_number_add(mp_number A, mp_number B);
-void mp_number_substract(mp_number A, mp_number B);
-void mp_number_half(mp_number A);
-void mp_number_halfp(mp_number A);
-void mp_number_double(mp_number A);
-void mp_number_add_scaled(mp_number A, int B); /* also for negative B */
-void mp_number_multiply_int(mp_number A, int B);
-void mp_number_divide_int(mp_number A, int B);
-void mp_number_abs(mp_number A);   
-void mp_number_clone(mp_number A, mp_number B);
-void mp_number_swap(mp_number A, mp_number B);
-int mp_round_unscaled(mp_number x_orig);
-int mp_number_to_scaled(mp_number A);
-int mp_number_to_boolean(mp_number A);
+void mp_pyth_add (MP mp, mp_number r, mp_number a, mp_number b);
 double mp_number_to_double(mp_number A);
-int mp_number_odd(mp_number A);
-int mp_number_equal(mp_number A, mp_number B);
-int mp_number_greater(mp_number A, mp_number B);
-int mp_number_less(mp_number A, mp_number B);
-int mp_number_nonequalabs(mp_number A, mp_number B);
-void mp_number_floor (mp_number i);
-void mp_fraction_to_round_scaled (mp_number x);
-void mp_number_make_scaled (MP mp, mp_number r, mp_number p, mp_number q);
-void mp_number_make_fraction (MP mp, mp_number r, mp_number p, mp_number q);
-void mp_number_take_fraction (MP mp, mp_number r, mp_number p, mp_number q);
-void mp_number_take_scaled (MP mp, mp_number r, mp_number p, mp_number q);
-
-@ @<Internal library declarations@>=
-void * mp_initialize_math (MP mp);
-void mp_free_math (MP mp);
 
 @ 
 
@@ -132,7 +134,7 @@ void mp_free_math (MP mp);
 
 
 @c
-void * mp_initialize_math (MP mp) {
+void * mp_initialize_scaled_math (MP mp) {
   math_data *math = (math_data *)mp_xmalloc(mp,1,sizeof(math_data));
   /* alloc */
   math->new = mp_new_number;
@@ -263,10 +265,13 @@ void * mp_initialize_math (MP mp) {
   math->tostring = mp_number_tostring;
   math->modulo = mp_number_modulo;
   math->ab_vs_cd = mp_ab_vs_cd;
+  math->scan_numeric = mp_scan_numeric_token;
+  math->scan_fractional = mp_scan_fractional_token;
+  math->free_math = mp_free_scaled_math;
   return (void *)math;
 }
 
-void mp_free_math (MP mp) {
+void mp_free_scaled_math (MP mp) {
   free_number (((math_data *)mp->math)->three_sixty_deg_t);
   free_number (((math_data *)mp->math)->one_eighty_deg_t);
   free_number (((math_data *)mp->math)->fraction_one_t);
@@ -459,9 +464,7 @@ only be trusted to work on positive numbers, there is also a macro |halfp|
 that is used only when the quantity being halved is known to be positive
 or zero.
 
-@<Internal library declarations@>=
-#define half(A) ((A) / 2)
-#define halfp(A) (integer)((unsigned)(A) >> 1)
+@d halfp(A) (integer)((unsigned)(A) >> 1)
 
 @ Here is a procedure analogous to |print_int|. If the output
 of this procedure is subsequently read by \MP\ and converted by the
@@ -874,12 +877,6 @@ void mp_scan_numeric_token (MP mp, int n) { /* n: scaled */
   }
 }
 
-@ @<Internal library declarations@>=
-extern void mp_scan_fractional_token (MP mp, int n);
-extern void mp_scan_numeric_token (MP mp, int n);
-
-
-
 @ The |scaled| quantities in \MP\ programs are generally supposed to be
 less than $2^{12}$ in absolute value, so \MP\ does much of its internal
 arithmetic with 28~significant bits of precision. A |fraction| denotes
@@ -945,7 +942,7 @@ given integers $(a,b,c,d)$. In most cases a quick decision is reached.
 The result is $+1$, 0, or~$-1$ in the three respective cases.
 
 @c
-void mp_ab_vs_cd (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig, mp_number c_orig, mp_number d_orig) {
+static void mp_ab_vs_cd (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig, mp_number c_orig, mp_number d_orig) {
   integer q, r; /* temporary registers */
   integer a, b, c, d;
   (void)mp;

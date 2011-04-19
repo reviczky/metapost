@@ -88,12 +88,12 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.601" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.602" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @(mpmp.h@>=
-#define metapost_version "1.601"
+#define metapost_version "1.602"
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
 few typedefs and the header defintions for the externally used
@@ -274,7 +274,7 @@ static void mp_free (MP mp) {
   }
   xfree (mp->jump_buf);
   @<Free table entries@>;
-  mp_free_math(mp);
+  free_math();
   xfree (mp);
 }
 
@@ -362,6 +362,9 @@ typedef void (*free_number_func) (MP mp, mp_number n);
 typedef void (*fraction_to_round_scaled_func) (mp_number n);
 typedef void (*print_func) (MP mp, mp_number A);
 typedef char * (*tostring_func) (MP mp, mp_number A);
+typedef void (*scan_func) (MP mp, int A);
+typedef void (*free_func) (MP mp);
+
 typedef struct math_data {
   mp_number epsilon_t;
   mp_number inf_t;
@@ -453,6 +456,9 @@ typedef struct math_data {
   slow_add_func slow_add;
   print_func print;
   tostring_func tostring;
+  scan_func scan_numeric;
+  scan_func scan_fractional;
+  free_func free_math;
 } math_data;
 
 
@@ -494,7 +500,11 @@ MP mp_initialize (MP_options * opt) {
 #if DEBUG
   setlinebuf(mp->term_out);
 #endif
-  mp->math = mp_initialize_math(mp);
+  if (1) {
+    mp->math = mp_initialize_scaled_math(mp);
+  } else {
+    mp->math = mp_initialize_double_math(mp);
+  }
   @<Find and load preload file, if required@>;
   @<Allocate or initialize variables@>;
   mp_reallocate_paths (mp, 1000);
@@ -4444,7 +4454,8 @@ static void *copy_symbols_entry (const void *p) {
     return NULL;
   ff->v = fp->v;
   ff->type = fp->type;
-  ff->v.data.n = malloc(sizeof (mp_number));
+  /* todo: this only works for non-allocated numbers */
+  ff->v.data.n = malloc(sizeof (struct mp_number_data));
   memcpy(ff->v.data.n, fp->v.data.n, sizeof(struct mp_number_data));
   return ff;
 }
@@ -10466,6 +10477,9 @@ This first set goes into the header
 #define free_number(A) (((math_data *)(mp->math))->free)(mp, (A))
 
 @ 
+@d free_math()                         (((math_data *)(mp->math))->free_math)(mp) 
+@d scan_numeric_token(A)               (((math_data *)(mp->math))->scan_numeric)(mp, A) 
+@d scan_fractional_token(A)            (((math_data *)(mp->math))->scan_fractional)(mp, A) 
 @d set_number_from_of_the_way(A,t,B,C) (((math_data *)(mp->math))->from_oftheway)(mp, A,t,B,C) 
 @d set_number_from_scaled(A,B)	       (((math_data *)(mp->math))->from_scaled)(A,B)
 @d set_number_from_boolean(A,B)	       (((math_data *)(mp->math))->from_boolean)(A,B)
@@ -10536,8 +10550,8 @@ This first set goes into the header
 @d number_positive(A)		       number_greater(A, zero_t)		       
 @d number_nonpositive(A)	       (!number_positive(A))
 @d number_nonzero(A)		       (!number_zero(A))	       
-@d number_greaterequal(A,B)	       (!mp_number_less(A,B))
-@d number_lessequal(A,B)	       (!mp_number_greater(A,B))
+@d number_greaterequal(A,B)	       (!number_less(A,B))
+@d number_lessequal(A,B)	       (!number_greater(A,B))
 
 @* Edge structures.
 Now we come to \MP's internal scheme for representing pictures.
@@ -10733,7 +10747,7 @@ void mp_sqrt_det (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig, mp_n
     number_double(c);
     number_double(d);
     number_double(maxabs);
-    s = (unsigned) (halfp (s));
+    s = s/2;
   }
   { 
     mp_number r1, r2;
@@ -17607,7 +17621,7 @@ SWITCH:
   class = mp->char_class[c];
   switch (class) {
   case digit_class:
-    mp_scan_numeric_token(mp, (c - '0'));
+    scan_numeric_token((c - '0'));
     return;
     break;
   case period_class:
@@ -17615,7 +17629,7 @@ SWITCH:
     if (class > period_class) {
       goto SWITCH;
     } else if (class < period_class) {  /* |class=digit_class| */
-      mp_scan_fractional_token(mp, 0);
+      scan_fractional_token(0);
       return;
     }
 @:. }{\..\ token@>;
