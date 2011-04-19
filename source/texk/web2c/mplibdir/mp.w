@@ -30440,10 +30440,10 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
 } while (0)
 
 @d set_color_val(A,B) do {
-  set_number_from_scaled(A, (B));
+  number_clone(A, (B));
   if (number_negative(A))
     set_number_to_zero(A);
-  if (number_to_scaled(A) > number_to_scaled (unity_t))
+  if (number_greater(A,unity_t))
     set_number_to_unity(A);
 } while (0)
 
@@ -30453,19 +30453,19 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
   q = value_node (cur_exp_node ());
   clear_color(cp0);
   mp_color_model (cp) = mp_rgb_model;
-  set_color_val (cp0->red, value (red_part (q)));
-  set_color_val (cp0->green, value (green_part (q)));
-  set_color_val (cp0->blue, value (blue_part (q)));
+  set_color_val (cp0->red, value_number (red_part (q)));
+  set_color_val (cp0->green, value_number (green_part (q)));
+  set_color_val (cp0->blue, value_number (blue_part (q)));
 }
 
 @ @<Transfer a cmykcolor from the current expression to object~|cp|@>=
 {
   mp_stroked_node cp0 = (mp_stroked_node)cp;
   q = value_node (cur_exp_node ());
-  set_color_val (cp0->cyan, value (cyan_part (q)));
-  set_color_val (cp0->magenta, value (magenta_part (q)));
-  set_color_val (cp0->yellow, value (yellow_part (q)));
-  set_color_val (cp0->black, value (black_part (q)));
+  set_color_val (cp0->cyan, value_number (cyan_part (q)));
+  set_color_val (cp0->magenta, value_number (magenta_part (q)));
+  set_color_val (cp0->yellow, value_number (yellow_part (q)));
+  set_color_val (cp0->black, value_number (black_part (q)));
   mp_color_model (cp) = mp_cmyk_model;
 }
 
@@ -30478,7 +30478,7 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
   number_clone (qq, cur_exp_value_number ());
   clear_color (cp);
   mp_color_model (cp) = mp_grey_model;
-  set_color_val (cp0->grey, number_to_scaled (qq));
+  set_color_val (cp0->grey, qq);
   free_number (qq);
 }
 
