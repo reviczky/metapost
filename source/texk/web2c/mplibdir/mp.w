@@ -15544,7 +15544,7 @@ void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
   }
   if (cur_exp_node () == (mp_node) p && mp->cur_exp.type == t) {
     mp->cur_exp.type = mp_known;
-    set_cur_exp_value (value (p));
+    set_cur_exp_value_number (value_number (p));
     mp_free_node (mp, (mp_node) p, value_node_size);
   }
 }
@@ -18825,10 +18825,10 @@ if (cur_cmd() != mp_comma) {
 @.Missing argument...@>;
     delete_str_ref(sname);    
     if (mp_name_type (r) == mp_suffix_sym || mp_name_type (r) == mp_text_sym) {
-      set_cur_exp_value (0);    /* todo: this was |null| */
+      set_cur_exp_value_number (zero_t);    /* todo: this was |null| */
       mp->cur_exp.type = mp_token_list;
     } else {
-      set_cur_exp_value (0);
+      set_cur_exp_value_number (zero_t);
       mp->cur_exp.type = mp_known;
     }
     mp_back_error (mp, msg, hlp, true);
@@ -19583,7 +19583,7 @@ void mp_resume_iteration (MP mp) {
   mp_node p, q; /* link registers */
   p = mp->loop_ptr->type;
   if (p == PROGRESSION_FLAG) {
-    set_cur_exp_value (number_to_scaled (mp->loop_ptr->value));
+    set_cur_exp_value_number (mp->loop_ptr->value);
     if (@<The arithmetic progression has ended@>) {
       mp_stop_iteration (mp);
       return;
@@ -21048,7 +21048,7 @@ void mp_unstash_cur_exp (MP mp, mp_node p) {
     mp_free_node (mp, p, value_node_size);
     break;
   default:
-    set_cur_exp_value (value (p));
+    set_cur_exp_value_number (value_number (p));
     mp_free_node (mp, p, value_node_size);
     break;
   }
@@ -21903,7 +21903,7 @@ static void mp_bad_exp (MP mp, const char *s) {
   mp_back_input (mp);
   set_cur_sym(NULL);
   set_cur_cmd(mp_numeric_token);
-  set_cur_mod(0);
+  set_cur_mod_number (zero_t);
   mp_ins_error (mp, msg, hlp, true);
   save_flag = mp->var_flag;
   mp->var_flag = 0;
@@ -22163,7 +22163,7 @@ multiplication.
 
 @ @<Scan a primary that starts with a numeric token@>=
 {
-  set_cur_exp_value (cur_mod());
+  set_cur_exp_value_number (cur_mod_number());
   mp->cur_exp.type = mp_known;
   mp_get_x_next (mp);
   if (cur_cmd() != mp_slash) {
@@ -22186,7 +22186,7 @@ multiplication.
       mp_number ret;
       new_number (ret);
       make_scaled (ret, num, denom);
-      set_cur_exp_value (number_to_scaled (ret));
+      set_cur_exp_value_number (ret);
       free_number (ret);
     }
     check_arith();
@@ -22282,7 +22282,7 @@ of the internal quantity, with |name_type| equal to |mp_internal_sym|.
   if (internal_type (qq) == mp_string_type) {
     set_cur_exp_str (internal_string (qq));
   } else {
-    set_cur_exp_value (number_to_scaled (internal_value (qq)));
+    set_cur_exp_value_number (internal_value (qq));
   }
   mp->cur_exp.type = internal_type (qq);
 }
@@ -22580,7 +22580,7 @@ RESTART:
   case mp_vacuous:
   case mp_boolean_type:
   case mp_known:
-    set_cur_exp_value (value (p));
+    set_cur_exp_value_number (value_number (p));
     break;
   case unknown_types:
     t = mp_new_ring_entry (mp, p);
@@ -22620,7 +22620,7 @@ RESTART:
     q = mp_single_dependency (mp, p);
     if (q == mp->dep_final) {
       mp->cur_exp.type = mp_known;
-      set_cur_exp_value (0);
+      set_cur_exp_value_number (zero_t);
       mp_free_dep_node (mp, q);
     } else {
       mp->cur_exp.type = mp_dependent;
@@ -23250,7 +23250,7 @@ static quarterword mp_scan_direction (MP mp) {
     new_angle (narg); 
     n_arg (narg, mp->cur_x, mp->cur_y);
     t = mp_given;
-    set_cur_exp_value (number_to_scaled (narg));
+    set_cur_exp_value_number (narg);
     free_number (narg);
   }
 }
@@ -23857,7 +23857,7 @@ static void mp_do_nullary (MP mp, quarterword c) {
       new_number (r);
       mp_norm_rand (mp, r);
       mp->cur_exp.type = mp_known;
-      set_cur_exp_value (number_to_scaled (r));
+      set_cur_exp_value_number (r);
       free_number (r);
     }
     break;
@@ -24163,8 +24163,8 @@ if (mp->cur_exp.type != mp_known) {
       new_number (r1);
       square_rt (r1, cur_exp_value_number ());
       vv = number_to_scaled (r1);
+      set_cur_exp_value_number  (r1);
       free_number (r1);
-      set_cur_exp_value (vv);
     }
     break;
   case mp_m_exp_op:
@@ -24173,8 +24173,8 @@ if (mp->cur_exp.type != mp_known) {
       new_number (r1);
       m_exp (r1, cur_exp_value_number ());
       vv = number_to_scaled (r1);
+      set_cur_exp_value_number (r1);
       free_number (r1);
-      set_cur_exp_value (vv);
     }
     break;
   case mp_m_log_op:
@@ -24183,8 +24183,8 @@ if (mp->cur_exp.type != mp_known) {
       new_number (r1);
       m_log (r1, cur_exp_value_number ());
       vv = number_to_scaled (r1);
+      set_cur_exp_value_number (r1);
       free_number (r1);
-      set_cur_exp_value (vv);
     }
     break;
   case mp_sin_d_op:
@@ -24203,10 +24203,10 @@ if (mp->cur_exp.type != mp_known) {
       n_sin_cos (arg1, n_cos, n_sin);
       if (c == mp_sin_d_op) {
         fraction_to_round_scaled (n_sin);
-        set_cur_exp_value (number_to_scaled (n_sin));
+        set_cur_exp_value_number (n_sin);
       } else {
         fraction_to_round_scaled (n_cos);
-        set_cur_exp_value (number_to_scaled (n_cos));
+        set_cur_exp_value_number (n_cos);
       }
       free_number (arg1);
       free_number (arg2);
@@ -24220,7 +24220,7 @@ if (mp->cur_exp.type != mp_known) {
       new_number (vvx);
       number_clone (vvx, cur_exp_value_number ());
       floor_scaled (vvx);
-      set_cur_exp_value (number_to_scaled (vvx));
+      set_cur_exp_value_number (vvx);
       free_number (vvx);
     }
     break;
@@ -24229,7 +24229,7 @@ if (mp->cur_exp.type != mp_known) {
       mp_number vvx;
       new_number (vvx);
       mp_unif_rand (mp, vvx, cur_exp_value_number ());
-      set_cur_exp_value (number_to_scaled (vvx));
+      set_cur_exp_value_number (vvx);
       free_number (vvx);
     }
     break;
@@ -26415,7 +26415,7 @@ case mp_or_op:
 if ((mp_type (p) != mp_boolean_type) || (mp->cur_exp.type != mp_boolean_type))
   mp_bad_binary (mp, p, (quarterword) c);
 else if (value (p) == c + mp_false_code - mp_and_op)
-  set_cur_exp_value (value (p));
+  set_cur_exp_value_number (value_number (p));
 break;
 
 @ @<Additional cases of binary operators@>=
@@ -26450,7 +26450,7 @@ break;
     mp_number ret;
     new_number (ret);
     take_scaled (ret, cur_exp_value_number (), vv);
-    set_cur_exp_value (number_to_scaled (ret));
+    set_cur_exp_value_number (ret);
     free_number (ret);
   } else if (mp->cur_exp.type == mp_pair_type) {
     mp_dep_mult (mp, (mp_value_node) x_part (value_node (cur_exp_node ())), vv, true);
@@ -26563,7 +26563,7 @@ static void mp_frac_mult (MP mp, mp_number n, mp_number d) {
     new_number (arg1);
     number_clone (arg1, cur_exp_value_number ());
     take_fraction (r1, arg1, v);
-    set_cur_exp_value (number_to_scaled (r1));
+    set_cur_exp_value_number (r1);
     free_number (r1);
     free_number (arg1);
   } else if (mp->cur_exp.type == mp_pair_type) {
@@ -26687,7 +26687,7 @@ if ((mp->cur_exp.type != mp_known) || (mp_type (p) < mp_color_type)) {
       mp_number ret;
       new_number (ret);
       make_scaled (ret, cur_exp_value_number (), v_n);
-      set_cur_exp_value (number_to_scaled (ret));
+      set_cur_exp_value_number (ret);
       free_number (ret);
     } else if (mp->cur_exp.type == mp_pair_type) {
       mp_dep_div (mp, (mp_value_node) x_part (value_node (cur_exp_node ())),
@@ -26788,7 +26788,7 @@ if ((mp->cur_exp.type == mp_known) && (mp_type (p) == mp_known)) {
   } else {
     pyth_sub (r, value_number (p), cur_exp_value_number ());
   }
-  set_cur_exp_value (number_to_scaled (r));
+  set_cur_exp_value_number (r);
   free_number (r);
 } else
   mp_bad_binary (mp, p, (quarterword) c);
@@ -28582,7 +28582,7 @@ void mp_try_eq (MP mp, mp_node l, mp_node r) {
     if (r == NULL && mp->cur_exp.type != mp_known) {
       if (mp_type (cur_exp_node ()) == mp_known) {
         mp_node pp = cur_exp_node ();
-        set_cur_exp_value (value (pp));
+        set_cur_exp_value_number (value_number (pp));
         mp->cur_exp.type = mp_known;
         mp_free_node (mp, pp, value_node_size);
       }
