@@ -15087,15 +15087,18 @@ is returned by the following simple function.
 
 @c
 static void mp_max_coef (MP mp, mp_number x, mp_value_node p) {
-  (void) mp;
+  mp_number (absv);
+  new_number (absv);
   set_number_to_zero (x);
   while (dep_info (p) != NULL) {
-    if (abs (dep_value (p)) > number_to_scaled (x)) {
-      number_clone (x, dep_value_number (p));
-      number_abs (x);
+    number_clone (absv, dep_value_number (p));
+    number_abs (absv);
+    if (number_greater (absv, x)) {
+      number_clone (x, absv);
     }
     p = (mp_value_node) mp_link (p);
   }
+  free_number (absv);
 }
 
 
@@ -15496,7 +15499,10 @@ by a given |scaled| constant.
 static mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v, quarterword
                                   t0, quarterword t1);
 
-@ @c
+@ 
+@d p_over_v_threshold_k ((math_data *)mp->math)->p_over_v_threshold_t
+
+@c
 mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
                            t0, quarterword t1) {
   mp_value_node r, s;   /* for list manipulation */
@@ -15519,9 +15525,12 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
   r = (mp_value_node) mp->temp_head;
   while (dep_info (p) != NULL) {
     if (scaling_down) {
-      mp_number x;
+      mp_number x, absv;
       new_number (x);
-      if (abs (number_to_scaled (v)) < 02000000) {
+      new_number (absv);
+      number_clone (absv, v);
+      number_abs (absv);
+      if (number_less (absv, p_over_v_threshold_k)) {
         number_clone (x, v);
         convert_scaled_to_fraction (x);
         make_scaled (w, dep_value_number (p), x);
@@ -15531,6 +15540,7 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
         make_scaled (w, x, v);
       }
       free_number (x);
+      free_number (absv);
     } else {
       make_scaled (w, dep_value_number (p), v);
     }
@@ -15647,13 +15657,17 @@ static void mp_make_known (MP mp, mp_value_node p, mp_value_node q);
 @ @c
 void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
   mp_variable_type t;   /* the previous type */
+  mp_number absp;
+  new_number (absp);
   set_prev_dep (mp_link (q), prev_dep (p));
   set_mp_link (prev_dep (p), mp_link (q));
   t = mp_type (p);
   mp_type (p) = mp_known;
   set_value_number (p, dep_value_number (q));
   mp_free_dep_node (mp, q);
-  if (abs (value (p)) >= number_to_scaled (fraction_one_t))
+  number_clone (absp, value_number (p));
+  number_abs (absp);
+  if (number_greaterequal (absp, fraction_one_t))
     mp_val_too_big (mp, value_number (p));
   if ((number_positive(internal_value (mp_tracing_equations)))
       && mp_interesting (mp, (mp_node) p)) {
@@ -15670,6 +15684,7 @@ void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
     set_cur_exp_value_number (value_number (p));
     mp_free_node (mp, (mp_node) p, value_node_size);
   }
+  free_number (absp);
 }
 
 
@@ -15978,10 +15993,15 @@ while (r != mp->dep_head) {
 if (n > 0)
   @<Divide list |p| by $2^n$@>;
 if (dep_info (p) == NULL) {
+  mp_number absx;
+  new_number (absx);
   mp_type (x) = mp_known;
   set_value_number (x, dep_value_number (p));
-  if (abs (value (x)) >= number_to_scaled (fraction_one_t))
+  number_clone (absx, value_number (x));
+  number_abs (absx);
+  if (number_greaterequal (absx, fraction_one_t))
     mp_val_too_big (mp, value_number (x));
+  free_number (absx);
   mp_free_dep_node (mp, p);
   if (cur_exp_node () == x && mp->cur_exp.type == mp_independent) {
     set_cur_exp_value_number (value_number (x));
@@ -22329,14 +22349,23 @@ multiplication.
   }
   if (cur_cmd() >= mp_min_primary_command) {
     if (cur_cmd() < mp_numeric_token) {  /* in particular, |cur_cmd<>plus_or_minus| */
+      mp_number absnum, absdenom;
+      new_number (absnum);
+      new_number (absdenom);
       p = mp_stash_cur_exp (mp);
       mp_scan_primary (mp);
-      if ((abs (number_to_scaled(num)) >= abs (number_to_scaled(denom))) || (mp->cur_exp.type < mp_color_type)) {
+      number_clone (absnum, num);
+      number_abs (absnum);
+      number_clone (absdenom, denom);
+      number_abs (absdenom);
+      if (number_greaterequal(absnum, absdenom) || (mp->cur_exp.type < mp_color_type)) {
         mp_do_binary (mp, p, mp_times);
       } else {
         mp_frac_mult (mp, num, denom);
         mp_free_node (mp, p, value_node_size);
       }
+      free_number (absnum);
+      free_number (absdenom);
     }
   }
   goto DONE;
@@ -28756,9 +28785,16 @@ if (t == mp_known) {
 }
 
 
-@ @<Deal with redundant or inconsistent equation@>=
+@ 
+@d equation_threshold_k ((math_data *)mp->math)->equation_threshold_t
+
+@<Deal with redundant or inconsistent equation@>=
 {
-  if (abs (value (p)) > 64) {   /* off by .001 or more */
+  mp_number absp;
+  new_number (absp);
+  number_clone (absp, value_number (p));
+  number_abs (absp);
+  if (number_greater (absp, equation_threshold_k)) {   /* off by .001 or more */
     char msg[256];    
     const char *hlp[] = {
            "The equation I just read contradicts what was said before.",
@@ -28771,6 +28807,7 @@ if (t == mp_known) {
   } else if (r == NULL) {
     @<Exclaim about a redundant equation@>;
   }
+  free_number (absp);
   mp_free_dep_node (mp, p);
 }
 
@@ -31733,8 +31770,12 @@ static mp_node mp_tfm_check (MP mp, quarterword m);
 
 @ @c
 static mp_node mp_tfm_check (MP mp, quarterword m) {
+  mp_number absm;
   mp_node p = mp_get_value_node (mp);
-  if (abs (number_to_scaled (internal_value (m))) >= number_to_scaled (fraction_half_t)) {
+  new_number (absm);
+  number_clone (absm, internal_value (m));
+  number_abs (absm);
+  if (number_greaterequal (absm, fraction_half_t)) {
     char msg[256];
     const char *hlp[] = {
        "Font metric dimensions must be less than 2048pt.",
@@ -31758,6 +31799,7 @@ static mp_node mp_tfm_check (MP mp, quarterword m) {
   } else {
     set_value_number (p, internal_value (m));
   }
+  free_number (absm);
   return p;
 }
 
@@ -32898,7 +32940,9 @@ mp_number arg;
 new_number (arg);
 for (k = 1; k <= mp->np; k++) {
   if (k == 1) {
-    if (abs (number_to_scaled (mp->param[1])) < number_to_scaled (fraction_half_t)) {
+    number_clone (arg, mp->param[1]);
+    number_abs (arg);
+    if (number_less(arg, fraction_half_t)) {
       mp_tfm_four (mp, number_to_scaled (mp->param[1]) * 16);
     } else {
       incr (mp->tfm_changed);
