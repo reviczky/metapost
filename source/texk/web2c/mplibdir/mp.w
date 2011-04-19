@@ -13611,17 +13611,23 @@ mp_knot mp_insert_knot (MP mp, mp_knot q, mp_number x, mp_number y) {
 @ For very small angles, adding a knot is unnecessary and would cause numerical
 problems, so we just set |r:=NULL| in that case.
 
+@d near_zero_angle_k ((math_data *)mp->math)->near_zero_angle_t
+
 @<Insert a new knot |r| between |p| and |q| as required for a mitered join@>=
 {
   mp_number det;   /* a determinant used for mitered join calculations */
+  mp_number absdet;
   mp_number r1, r2;
   new_fraction (r1);
   new_fraction (r2);
   new_fraction (det);
+  new_fraction (absdet);
   take_fraction (r1, dyout, dxin);
   take_fraction (r2, dxout, dyin);
   set_number_from_substraction(det, r1, r2);
-  if (abs (number_to_scaled(det)) < 26844) {
+  number_clone (absdet, det);
+  number_abs (absdet);
+  if (number_less (absdet, near_zero_angle_k)) {
     r = NULL;                   /* sine $<10^{-4}$ */
   } else {
     mp_number xtot, ytot, xsub, ysub;
@@ -13649,6 +13655,7 @@ problems, so we just set |r:=NULL| in that case.
   free_number (r1);
   free_number (r2);
   free_number (det);
+  free_number (absdet);
 }
 
 
