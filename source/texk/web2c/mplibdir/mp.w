@@ -897,7 +897,7 @@ mp->file_line_error_style = (opt->file_line_error_style > 0 ? true : false);
 The |do_open_file| function takes care of the |print_found_names| parameter.
 
 @c
-static boolean mp_do_open_file (MP mp, void **f, int ftype, char *mode) {
+static boolean mp_do_open_file (MP mp, void **f, int ftype, const char *mode) {
   if (mp->print_found_names || mp->file_line_error_style) {
     char *s = (mp->find_file)(mp,mp->name_of_file,mode,ftype);
     if (s!=NULL) {
@@ -1394,7 +1394,7 @@ by changing |wterm|, |wterm_ln|, and |wterm_cr| here.
 #define wterm(A)     mp_fputs((A), mp->term_out)
 #define wterm_chr(A) { unsigned char ss[2]; ss[0]=(A); ss[1]='\0'; wterm((char *)ss);}
 #define wterm_cr     mp_fputs("\n", mp->term_out)
-#define wterm_ln(A)  { wterm_cr; mp_fputs(mp->term_out,(A)); }
+#define wterm_ln(A)  { wterm_cr; mp_fputs((A), mp->term_out); }
 #define wlog(A)        mp_fputs((A), mp->log_file)
 #define wlog_chr(A)  { unsigned char ss[2]; ss[0]=(A); ss[1]='\0'; wlog((char *)ss);}
 #define wlog_cr      mp_fputs("\n", mp->log_file)
