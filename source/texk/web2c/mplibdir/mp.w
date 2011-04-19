@@ -4732,7 +4732,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    ((mp_token_node)(A))->data.str = (B);
    add_str_ref((B));
    ((mp_token_node)(A))->data.node = NULL;
-   set_number_from_scaled (((mp_token_node)(A))->data.n, 0);
+   number_clone (((mp_token_node)(A))->data.n, zero_t);
  } while (0) 
 
 @d value_knot(A)  get_value_knot(mp, (mp_token_node)(A)) /* the value stored in a large token node */
@@ -4742,7 +4742,7 @@ printer's sense. It's curious that the same word is used in such different ways.
    ((mp_token_node)(A))->data.p = (B);
    ((mp_token_node)(A))->data.str = NULL;
    ((mp_token_node)(A))->data.node = NULL;
-   set_number_from_scaled (((mp_token_node)(A))->data.n, 0);
+   number_clone (((mp_token_node)(A))->data.n, zero_t);
  } while (0) 
 
 
