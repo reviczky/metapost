@@ -102,6 +102,7 @@ void mp_number_clone(mp_number A, mp_number B);
 void mp_number_swap(mp_number A, mp_number B);
 int mp_round_unscaled(mp_number x_orig);
 int mp_number_to_scaled(mp_number A);
+int mp_number_to_boolean(mp_number A);
 double mp_number_to_double(mp_number A);
 int mp_number_equal(mp_number A, mp_number B);
 int mp_number_greater(mp_number A, mp_number B);
@@ -144,6 +145,7 @@ typedef void (*number_swap_func) (mp_number A, mp_number B);
 typedef void (*number_add_scaled_func) (mp_number A, int b);
 typedef void (*number_multiply_int_func) (mp_number A, int b);
 typedef void (*number_divide_int_func) (mp_number A, int b);
+typedef int (*number_to_boolean_func) (mp_number A);
 typedef int (*number_to_scaled_func) (mp_number A);
 typedef int (*number_round_func) (mp_number A);
 typedef void (*number_floor_func) (mp_number A);
@@ -217,6 +219,7 @@ typedef struct math_data {
   number_add_scaled_func add_scaled;
   number_multiply_int_func multiply_int;
   number_divide_int_func divide_int;
+  number_to_boolean_func to_boolean;
   number_to_scaled_func to_scaled;
   number_to_double_func to_double;
   number_equal_func equal;
@@ -340,6 +343,7 @@ void * mp_initialize_math (MP mp) {
   math->add_scaled = mp_number_add_scaled;
   math->multiply_int = mp_number_multiply_int;
   math->divide_int = mp_number_divide_int;
+  math->to_boolean = mp_number_to_boolean;
   math->to_scaled = mp_number_to_scaled;
   math->to_double = mp_number_to_double;
   math->equal = mp_number_equal;
@@ -526,6 +530,9 @@ void mp_number_scaled_to_angle (mp_number A) {
 @c
 int mp_number_to_scaled(mp_number A) {
   return A->data.val;
+}
+int mp_number_to_boolean(mp_number A) {
+  return (A->data.val != 0);
 }
 double mp_number_to_double(mp_number A) {
   return (A->data.val/65536.0);

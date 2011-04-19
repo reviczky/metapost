@@ -4708,6 +4708,17 @@ printer's sense. It's curious that the same word is used in such different ways.
    set_number_from_scaled (((mp_token_node)(A))->data.n, (B));
  } while (0)
 
+@d set_value_number(A,B) do {  /* store the value in a large token node */
+   FUNCTION_TRACE3 ("set_value(%p,%d)\n", (A),(B));
+   if (mp_type(A) == mp_independent) {
+ 	fprintf(stderr, "Bad call to set_value on %d\n", __LINE__);
+   }
+   ((mp_token_node)(A))->data.p = NULL;
+   ((mp_token_node)(A))->data.str = NULL;
+   ((mp_token_node)(A))->data.node = NULL;
+   number_clone (((mp_token_node)(A))->data.n, (B));
+ } while (0)
+
 
 @d value_node(A)   get_value_node(mp, (mp_token_node)(A)) /* the value stored in a large token node */
 
@@ -10319,6 +10330,7 @@ This first set goes into the header
 @d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
 @d floor_scaled(A)		       (((math_data *)(mp->math))->floor_scaled)(A)
 @d fraction_to_round_scaled(A)         (((math_data *)(mp->math))->fraction_to_round_scaled)(A)
+@d number_to_boolean(A)		       (((math_data *)(mp->math))->to_boolean)(A)
 @d number_to_scaled(A)		       (((math_data *)(mp->math))->to_scaled)(A)		       
 @d number_to_double(A)		       (((math_data *)(mp->math))->to_double)(A)		       
 @d number_negate(A)		       (((math_data *)(mp->math))->negate)(A)		       
@@ -20760,6 +20772,15 @@ recovery.
     cur_exp_str() = NULL;
     cur_exp_knot() = NULL;
   } while (0)
+@d set_cur_exp_value_number(A) do {
+    if (cur_exp_str()) {
+        delete_str_ref(cur_exp_str());
+    }
+    number_clone (mp->cur_exp.data.n, (A));
+    cur_exp_node() = NULL;
+    cur_exp_str() = NULL;
+    cur_exp_knot() = NULL;
+  } while (0)
 @d set_cur_exp_node(A) do {
     if (cur_exp_str()) {
         delete_str_ref(cur_exp_str());
@@ -21059,8 +21080,9 @@ static void mp_print_exp (MP mp, mp_node p, quarterword verbosity);
 void mp_print_exp (MP mp, mp_node p, quarterword verbosity) {
   boolean restore_cur_exp;      /* should |cur_exp| be restored? */
   mp_variable_type t;   /* the type of the expression */
-  integer vv = 0;       /* the value of the expression */
+  mp_number vv;       /* the value of the expression */
   mp_node v = NULL;
+  new_number (vv);
   if (p != NULL) {
     restore_cur_exp = false;
   } else {
@@ -21072,13 +21094,14 @@ void mp_print_exp (MP mp, mp_node p, quarterword verbosity) {
     if (t != mp_vacuous && t != mp_known && value_node (p) != NULL)
       v = value_node (p);
     else
-      vv = value (p);
+      number_clone (vv, value_number (p));
   } else if (t < mp_independent) {
     v = (mp_node) dep_list ((mp_value_node) p);
   }
   @<Print an abbreviated value of |v| or |vv| with format depending on |t|@>;
   if (restore_cur_exp)
     mp_unstash_cur_exp (mp, p);
+  free_number (vv);
 }
 
 
@@ -21088,7 +21111,7 @@ case mp_vacuous:
   mp_print (mp, "vacuous");
   break;
 case mp_boolean_type:
-  if (vv == mp_true_code)
+  if (number_to_boolean (vv) == mp_true_code)
     mp_print (mp, "true");
   else
     mp_print (mp, "false");
@@ -21108,37 +21131,31 @@ case mp_picture_type:
   @<Display a complex type@>;
   break;
 case mp_transform_type:
-  if (vv == 0 && v == NULL)
+  if (number_zero (vv) && v == NULL)
     mp_print_type (mp, t);
   else
     @<Display a transform node@>;
   break;
 case mp_color_type:
-  if (vv == 0 && v == NULL)
+  if (number_zero (vv) && v == NULL)
     mp_print_type (mp, t);
   else
     @<Display a color node@>;
   break;
 case mp_pair_type:
-  if (vv == 0 && v == NULL)
+  if (number_zero (vv) && v == NULL)
     mp_print_type (mp, t);
   else
     @<Display a pair node@>;
   break;
 case mp_cmykcolor_type:
-  if (vv == 0 && v == NULL)
+  if (number_zero (vv) && v == NULL)
     mp_print_type (mp, t);
   else
     @<Display a cmykcolor node@>;
   break;
 case mp_known:
-  {
-    mp_number vv1;
-    new_number (vv1);
-    set_number_from_scaled (vv1, vv);
-    print_number (vv1);
-    free_number (vv1);
-  }
+  print_number (vv);
   break;
 case mp_dependent:
 case mp_proto_dependent:
@@ -21363,13 +21380,15 @@ static void mp_recycle_value (MP mp, mp_node p);
 @ @c
 static void mp_recycle_value (MP mp, mp_node p) {
   mp_variable_type t;   /* a type code */
-  integer vv;   /* another value */
+  mp_number vv;   /* another value */
   mp_node pp;   /* link manipulation register */
-  integer v = 0;        /* a value */
+  mp_number v ;        /* a value */
+  new_number (v);
+  new_number (vv);
   FUNCTION_TRACE2 ("mp_recycle_value(%p)\n", p);
   t = mp_type (p);
   if (t < mp_dependent)
-    v = value (p);
+    number_clone (v, value_number (p));
   switch (t) {
   case mp_vacuous:
   case mp_boolean_type:
@@ -21459,6 +21478,8 @@ static void mp_recycle_value (MP mp, mp_node p) {
     break;
   }                             /* there are no other cases */
   mp_type (p) = undefined;
+  free_number (v);
+  free_number (vv);
 }
 
 
@@ -21595,7 +21616,7 @@ list.
 s = mp->max_ptr[t];
 pp = (mp_node) dep_info (s);
 /* |debug_printf ("s=%p, pp=%p, r=%p\n",s, pp, dep_list((mp_value_node)pp));| */
-v = dep_value (s);
+number_clone (v, dep_value_number (s));
 if (t == mp_dependent) {
   set_dep_value_number (s, fraction_one_t);
 } else {
@@ -21625,24 +21646,16 @@ if (mp_interesting (mp, p)) {
   mp_begin_diagnostic (mp);
   mp_print_nl (mp, "### ");
 @:]]]\#\#\#_}{\.{\#\#\#}@>;
-  if (v > 0)
+  if (number_positive(v))
     mp_print_char (mp, xord ('-'));
   if (t == mp_dependent) {
-    mp_number x;
-    new_number (x);
-    set_number_from_scaled (x, mp->max_c[mp_dependent]);
-    fraction_to_round_scaled (x);
-    vv = number_to_scaled (x);
-    free_number (x);
+    set_number_from_scaled (vv, mp->max_c[mp_dependent]);
+    fraction_to_round_scaled (vv);
   } else {
-    vv = mp->max_c[mp_proto_dependent];
+    set_number_from_scaled (vv, mp->max_c[mp_proto_dependent]);
   }
-  if (vv != number_to_scaled (unity_t)) {
-    mp_number x;
-    new_number (x);
-    set_number_from_scaled (x, vv);
-    print_number (x);
-    free_number (x);
+  if (!number_equal(vv, unity_t)) {
+    print_number (vv);
   }
   mp_print_variable_name (mp, p);
   while (indep_scale (p) > 0) {
@@ -21671,7 +21684,7 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
   while (r != NULL) {
     q = (mp_value_node) dep_info (r);
     number_clone (arg1, dep_value_number (r));
-    set_number_from_scaled (arg2,v);
+    number_clone (arg2, v);
     number_negate (arg2);
     make_fraction (ret, arg1, arg2);
     set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q), ret, s, t, mp_dependent));
@@ -21714,7 +21727,8 @@ for (t = mp_dependent; t <= mp_proto_dependent; t++) {
       new_number (arg1);
       new_number (arg2);
       number_clone (arg1, dep_value_number (r));
-      set_number_from_scaled (arg2, -v);
+      number_clone (arg2, v);
+      number_negate (arg2);
       make_scaled (ret, arg1, arg2);
       free_number (arg1);
       free_number (arg2);
@@ -26040,53 +26054,40 @@ static void mp_add_or_subtract (MP mp, mp_node p, mp_node q, quarterword c) {
   mp_variable_type s, t;        /* operand types */
   mp_value_node r;      /* dependency list traverser */
   mp_value_node v = NULL;       /* second operand value for dep lists */
-  integer vv = 0;       /* second operand value for known values */
+  mp_number vv;       /* second operand value for known values */
+  new_number (vv);
   if (q == NULL) {
     t = mp->cur_exp.type;
     if (t < mp_dependent)
-      vv = cur_exp_value ();
+      number_clone (vv, cur_exp_value_number ());
     else
       v = (mp_value_node) dep_list ((mp_value_node) cur_exp_node ());
   } else {
     t = mp_type (q);
     if (t < mp_dependent)
-      vv = value (q);
+      number_clone (vv, value_number (q));
     else
       v = (mp_value_node) dep_list ((mp_value_node) q);
   }
   if (t == mp_known) {
     mp_value_node qq = (mp_value_node) q;
     if (c == mp_minus)
-      negate (vv);
+      number_negate (vv);
     if (mp_type (p) == mp_known) {
-      mp_number r1, r2;
-      new_number (r1);
-      new_number (r2);
-      set_number_from_scaled (r2, vv);
-      slow_add (r1, value_number (p), r2);
-      vv = number_to_scaled (r1);
-      free_number (r1);
-      free_number (r2);
+      slow_add (vv, value_number (p), vv);
       if (q == NULL)
-        set_cur_exp_value (vv);
+        set_cur_exp_value_number (vv);
       else
-        set_value (q, vv);
+        set_value_number (q, vv);
+      free_number (vv);
       return;
     }
     /* Add a known value to the constant term of |dep_list(p)| */
     r = (mp_value_node) dep_list ((mp_value_node) p);
     while (dep_info (r) != NULL)
       r = (mp_value_node) mp_link (r);
-    {
-      mp_number r1, r2;
-      new_number (r1);
-      new_number (r2);
-      set_number_from_scaled (r2, vv);
-      slow_add (r1, dep_value_number (r), r2);
-      set_dep_value_number (r, r1);
-      free_number (r1);
-      free_number (r2);
-    }
+    slow_add (vv, dep_value_number (r), vv);
+    set_dep_value_number (r, vv);
     if (qq == NULL) {
       qq = mp_get_dep_node (mp);
       set_cur_exp_node ((mp_node) qq);
@@ -26104,6 +26105,7 @@ static void mp_add_or_subtract (MP mp, mp_node p, mp_node q, quarterword c) {
       mp_negate_dep_list (mp, v);
     @<Add operand |p| to the dependency list |v|@>;
   }
+  free_number (vv);
 }
 
 
