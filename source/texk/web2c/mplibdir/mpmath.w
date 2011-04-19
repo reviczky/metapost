@@ -104,6 +104,7 @@ int mp_round_unscaled(mp_number x_orig);
 int mp_number_to_scaled(mp_number A);
 int mp_number_to_boolean(mp_number A);
 double mp_number_to_double(mp_number A);
+int mp_number_odd(mp_number A);
 int mp_number_equal(mp_number A, mp_number B);
 int mp_number_greater(mp_number A, mp_number B);
 int mp_number_less(mp_number A, mp_number B);
@@ -150,6 +151,7 @@ typedef int (*number_to_scaled_func) (mp_number A);
 typedef int (*number_round_func) (mp_number A);
 typedef void (*number_floor_func) (mp_number A);
 typedef double (*number_to_double_func) (mp_number A);
+typedef int (*number_odd_func) (mp_number A);
 typedef int (*number_equal_func) (mp_number A, mp_number B);
 typedef int (*number_less_func) (mp_number A, mp_number B);
 typedef int (*number_greater_func) (mp_number A, mp_number B);
@@ -222,6 +224,7 @@ typedef struct math_data {
   number_to_boolean_func to_boolean;
   number_to_scaled_func to_scaled;
   number_to_double_func to_double;
+  number_odd_func odd;
   number_equal_func equal;
   number_less_func less;
   number_greater_func greater;
@@ -346,6 +349,7 @@ void * mp_initialize_math (MP mp) {
   math->to_boolean = mp_number_to_boolean;
   math->to_scaled = mp_number_to_scaled;
   math->to_double = mp_number_to_double;
+  math->odd = mp_number_odd;
   math->equal = mp_number_equal;
   math->less = mp_number_less;
   math->greater = mp_number_greater;
@@ -536,6 +540,9 @@ int mp_number_to_boolean(mp_number A) {
 }
 double mp_number_to_double(mp_number A) {
   return (A->data.val/65536.0);
+}
+int mp_number_odd(mp_number A) {
+  return odd(A->data.val);
 }
 int mp_number_equal(mp_number A, mp_number B) {
   return (A->data.val==B->data.val);
