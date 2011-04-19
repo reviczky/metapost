@@ -2150,7 +2150,6 @@ carefully so that both varieties of arithmetic will produce identical
 output, but it would be too inefficient to constrain \MP\ in a similar way.
 
 @d inf_t  ((math_data *)mp->math)->inf_t
-@d EL_GORDO  (number_to_scaled (inf_t))
 
 @ A single computation might use several subroutine calls, and it is
 desirable to avoid producing multiple error messages in case of arithmetic
@@ -19749,7 +19748,7 @@ void mp_resume_iteration (MP mp) {
                                                                        /* set |value(p)| for the next iteration */
     /* detect numeric overflow */
     if (number_positive(mp->loop_ptr->step_size) &&
-        (number_to_scaled(mp->loop_ptr->value) < cur_exp_value ())) {
+        number_less(mp->loop_ptr->value,  cur_exp_value_number ())) {
       if (number_positive(mp->loop_ptr->final_value)) {
         number_clone (mp->loop_ptr->value, mp->loop_ptr->final_value);
         number_add_scaled (mp->loop_ptr->final_value, -1);
@@ -19758,7 +19757,7 @@ void mp_resume_iteration (MP mp) {
         number_add_scaled (mp->loop_ptr->value, 1);
       }
     } else if (number_negative(mp->loop_ptr->step_size) &&
-              (number_to_scaled (mp->loop_ptr->value) > cur_exp_value ())) {
+              number_greater (mp->loop_ptr->value, cur_exp_value_number ())) {
       if (number_negative (mp->loop_ptr->final_value)) {
         number_clone (mp->loop_ptr->value, mp->loop_ptr->final_value);
         number_add_scaled (mp->loop_ptr->final_value, 1);
@@ -19801,9 +19800,9 @@ NOT_FOUND:
 
 
 @ @<The arithmetic progression has ended@>=
-(number_positive(mp->loop_ptr->step_size) && (cur_exp_value () > number_to_scaled (mp->loop_ptr->final_value)))
+(number_positive(mp->loop_ptr->step_size) && number_greater(cur_exp_value_number (), mp->loop_ptr->final_value))
 || 
-(number_negative(mp->loop_ptr->step_size) && (cur_exp_value () < number_to_scaled (mp->loop_ptr->final_value)))
+(number_negative(mp->loop_ptr->step_size) && number_less(cur_exp_value_number (), mp->loop_ptr->final_value))
  
 
 @ @<Trace the start of a loop@>=
@@ -31990,7 +31989,7 @@ void mp_do_tfm_command (MP mp) {
     c = cur_mod();
     mp_get_x_next (mp);
     mp_scan_expression (mp);
-    if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < number_to_scaled(half_unit_t))) {
+    if ((mp->cur_exp.type != mp_known) || number_less(cur_exp_value_number (), half_unit_t)) {
       const char *hlp[] = { 
              "I was looking for a known, positive number.",
              "For safety's sake I'll ignore the present command.",
@@ -32442,9 +32441,11 @@ static integer mp_skimp (MP mp, integer m) {
   mp_node p, q, r;      /* list manipulation registers */
   mp_number l;     /* the least value in the current interval */
   mp_number v;     /* a compromise value */
+  mp_number l_d;
   new_number (d);
   mp_threshold (mp, d, m);
   new_number (l);
+  new_number (l_d);
   new_number (v);
   set_number_to_zero (mp->perturbation);
   q = mp->temp_head;
@@ -32454,12 +32455,14 @@ static integer mp_skimp (MP mp, integer m) {
     incr (m);
     number_clone (l, value_number (p));
     set_mp_info (p, m);
-    if (value (mp_link (p)) <= number_to_scaled (l) + number_to_scaled (d)) {
+    set_number_from_addition (l_d, l, d);
+    if (number_lessequal (value_number (mp_link (p)), l_d)) {
       @<Replace an interval of values by its midpoint@>;
     }
     q = p;
     p = mp_link (p);
   }
+  free_number (l_d);
   free_number (d);
   free_number (l);
   free_number (v);
@@ -32521,6 +32524,8 @@ An integer variable |k| will be defined when we use this code.
 The |dimen_head| array will contain pointers to the sorted
 lists of dimensions.
 
+@d tfm_warn_threshold_k  ((math_data *)mp->math)->tfm_warn_threshold_t
+
 @<Massage the \.{TFM} widths@>=
 clear_the_list;
 for (k = mp->bc; k <= mp->ec; k++) {
@@ -32529,7 +32534,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
 }
 mp->nw = (short) (mp_skimp (mp, 255) + 1);
 mp->dimen_head[1] = mp_link (mp->temp_head);
-if (number_to_scaled (mp->perturbation) >= 4096)
+if (number_greaterequal (mp->perturbation, tfm_warn_threshold_k))
   mp_tfm_warning (mp, mp_char_wd)
    
 
@@ -32552,7 +32557,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
 }
 mp->nh = (short) (mp_skimp (mp, 15) + 1);
 mp->dimen_head[2] = mp_link (mp->temp_head);
-if (number_to_scaled (mp->perturbation) >= 4096)
+if (number_greaterequal (mp->perturbation, tfm_warn_threshold_k))
   mp_tfm_warning (mp, mp_char_ht);
 clear_the_list;
 for (k = mp->bc; k <= mp->ec; k++) {
@@ -32565,7 +32570,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
 }
 mp->nd = (short) (mp_skimp (mp, 15) + 1);
 mp->dimen_head[3] = mp_link (mp->temp_head);
-if (number_to_scaled (mp->perturbation) >= 4096)
+if (number_greaterequal (mp->perturbation, tfm_warn_threshold_k))
   mp_tfm_warning (mp, mp_char_dp);
 clear_the_list;
 for (k = mp->bc; k <= mp->ec; k++) {
@@ -32578,7 +32583,7 @@ for (k = mp->bc; k <= mp->ec; k++) {
 }
 mp->ni = (short) (mp_skimp (mp, 63) + 1);
 mp->dimen_head[4] = mp_link (mp->temp_head);
-if (number_to_scaled (mp->perturbation) >= 4096)
+if (number_greaterequal (mp->perturbation, tfm_warn_threshold_k))
   mp_tfm_warning (mp, mp_char_ic)
    
 
@@ -32617,10 +32622,11 @@ static void mp_fix_design_size (MP mp) {
   }
   if (mp->header_byte[4] == 0 && mp->header_byte[5] == 0 &&
       mp->header_byte[6] == 0 && mp->header_byte[7] == 0) {
-    mp->header_byte[4] = (char) (number_to_scaled (d) / 04000000);
-    mp->header_byte[5] = (char) ((number_to_scaled (d) / 4096) % 256);
-    mp->header_byte[6] = (char) ((number_to_scaled (d) / 16) % 256);
-    mp->header_byte[7] = (char) ((number_to_scaled (d) % 16) * 16);
+    integer dd = number_to_scaled (d);
+    mp->header_byte[4] = (char) (dd / 04000000);
+    mp->header_byte[5] = (char) ((dd / 4096) % 256);
+    mp->header_byte[6] = (char) ((dd / 16) % 256);
+    mp->header_byte[7] = (char) ((dd % 16) * 16);
   }
   /* mp->max_tfm_dimen = 16 * internal_value (mp_design_size) - 1 - internal_value (mp_design_size) / 010000000 */
   {
