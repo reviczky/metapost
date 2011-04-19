@@ -142,74 +142,74 @@ void * mp_initialize_double_math (MP mp) {
   math->free = mp_free_number;
   /* here are the constants for |scaled| objects */
   math->epsilon_t = mp_new_number (mp, mp_scaled_type);
-  math->epsilon_t->data.val  = 1;
+  math->epsilon_t->data.dval  = 1;
   math->inf_t = mp_new_number (mp, mp_scaled_type);
-  math->inf_t->data.val  = EL_GORDO;
+  math->inf_t->data.dval  = EL_GORDO;
   math->one_third_inf_t = mp_new_number (mp, mp_scaled_type);
-  math->one_third_inf_t->data.val = one_third_EL_GORDO;
+  math->one_third_inf_t->data.dval = one_third_EL_GORDO;
   math->unity_t = mp_new_number (mp, mp_scaled_type);
-  math->unity_t->data.val = unity;
+  math->unity_t->data.dval = unity;
   math->two_t = mp_new_number (mp, mp_scaled_type);
-  math->two_t->data.val = two;
+  math->two_t->data.dval = two;
   math->three_t = mp_new_number (mp, mp_scaled_type);
-  math->three_t->data.val = three;
+  math->three_t->data.dval = three;
   math->half_unit_t = mp_new_number (mp, mp_scaled_type);
-  math->half_unit_t->data.val = half_unit;
+  math->half_unit_t->data.dval = half_unit;
   math->three_quarter_unit_t = mp_new_number (mp, mp_scaled_type);
-  math->three_quarter_unit_t->data.val = three_quarter_unit;
+  math->three_quarter_unit_t->data.dval = three_quarter_unit;
   math->zero_t = mp_new_number (mp, mp_scaled_type);
   /* |fractions| */
   math->arc_tol_k = mp_new_number (mp, mp_fraction_type);
-  math->arc_tol_k->data.val = (unity/4096);  /* quit when change in arc length estimate reaches this */
+  math->arc_tol_k->data.dval = (unity/4096);  /* quit when change in arc length estimate reaches this */
   math->fraction_one_t = mp_new_number (mp, mp_fraction_type);
-  math->fraction_one_t->data.val = fraction_one;
+  math->fraction_one_t->data.dval = fraction_one;
   math->fraction_half_t = mp_new_number (mp, mp_fraction_type);
-  math->fraction_half_t->data.val = fraction_half;
+  math->fraction_half_t->data.dval = fraction_half;
   math->fraction_three_t = mp_new_number (mp, mp_fraction_type);
-  math->fraction_three_t->data.val = fraction_three;
+  math->fraction_three_t->data.dval = fraction_three;
   math->fraction_four_t = mp_new_number (mp, mp_fraction_type);
-  math->fraction_four_t->data.val = fraction_four;
+  math->fraction_four_t->data.dval = fraction_four;
   /* |angles| */
   math->three_sixty_deg_t = mp_new_number (mp, mp_angle_type);
-  math->three_sixty_deg_t->data.val = three_sixty_deg;
+  math->three_sixty_deg_t->data.dval = three_sixty_deg;
   math->one_eighty_deg_t = mp_new_number (mp, mp_angle_type);
-  math->one_eighty_deg_t->data.val = one_eighty_deg;
+  math->one_eighty_deg_t->data.dval = one_eighty_deg;
   /* various approximations */
   math->one_k = mp_new_number (mp, mp_scaled_type);
-  math->one_k->data.val = 1024;
+  math->one_k->data.dval = 1024;
   math->sqrt_8_e_k = mp_new_number (mp, mp_scaled_type); 
-  math->sqrt_8_e_k->data.val = 112429; /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
+  math->sqrt_8_e_k->data.dval = 112429; /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
   math->twelve_ln_2_k = mp_new_number (mp, mp_fraction_type); 
-  math->twelve_ln_2_k->data.val = 139548960; /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
+  math->twelve_ln_2_k->data.dval = 139548960; /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
   math->coef_bound_k = mp_new_number (mp, mp_fraction_type);
-  math->coef_bound_k->data.val = coef_bound;
+  math->coef_bound_k->data.dval = coef_bound;
   math->coef_bound_minus_1 = mp_new_number (mp, mp_fraction_type);
-  math->coef_bound_minus_1->data.val = coef_bound - 1;
+  math->coef_bound_minus_1->data.dval = coef_bound - 1;
   math->twelvebits_3 = mp_new_number (mp, mp_scaled_type);
-  math->twelvebits_3->data.val = 1365;  /* $1365\approx 2^{12}/3$ */
+  math->twelvebits_3->data.dval = 1365;  /* $1365\approx 2^{12}/3$ */
   math->twentysixbits_sqrt2_t = mp_new_number (mp, mp_fraction_type);
-  math->twentysixbits_sqrt2_t->data.val = 94906266;      /* $2^{26}\sqrt2\approx94906265.62$ */
+  math->twentysixbits_sqrt2_t->data.dval = 94906266;      /* $2^{26}\sqrt2\approx94906265.62$ */
   math->twentyeightbits_d_t = mp_new_number (mp, mp_fraction_type);
-  math->twentyeightbits_d_t->data.val = 35596755;        /* $2^{28}d\approx35596754.69$ */
+  math->twentyeightbits_d_t->data.dval = 35596755;        /* $2^{28}d\approx35596754.69$ */
   math->twentysevenbits_sqrt2_d_t = mp_new_number (mp, mp_fraction_type);
-  math->twentysevenbits_sqrt2_d_t->data.val = 25170707;  /* $2^{27}\sqrt2\,d\approx25170706.63$ */
+  math->twentysevenbits_sqrt2_d_t->data.dval = 25170707;  /* $2^{27}\sqrt2\,d\approx25170706.63$ */
   /* thresholds */
   math->fraction_threshold_t = mp_new_number (mp, mp_fraction_type);
-  math->fraction_threshold_t->data.val = fraction_threshold;
+  math->fraction_threshold_t->data.dval = fraction_threshold;
   math->half_fraction_threshold_t = mp_new_number (mp, mp_fraction_type);
-  math->half_fraction_threshold_t->data.val = half_fraction_threshold;
+  math->half_fraction_threshold_t->data.dval = half_fraction_threshold;
   math->scaled_threshold_t = mp_new_number (mp, mp_scaled_type);
-  math->scaled_threshold_t->data.val = scaled_threshold;
+  math->scaled_threshold_t->data.dval = scaled_threshold;
   math->half_scaled_threshold_t = mp_new_number (mp, mp_scaled_type);
-  math->half_scaled_threshold_t->data.val = half_scaled_threshold;
+  math->half_scaled_threshold_t->data.dval = half_scaled_threshold;
   math->near_zero_angle_t = mp_new_number (mp, mp_angle_type);
-  math->near_zero_angle_t->data.val = near_zero_angle;
+  math->near_zero_angle_t->data.dval = near_zero_angle;
   math->p_over_v_threshold_t = mp_new_number (mp, mp_fraction_type);
-  math->p_over_v_threshold_t->data.val = p_over_v_threshold;
+  math->p_over_v_threshold_t->data.dval = p_over_v_threshold;
   math->equation_threshold_t = mp_new_number (mp, mp_scaled_type);
-  math->equation_threshold_t->data.val = equation_threshold;
+  math->equation_threshold_t->data.dval = equation_threshold;
   math->tfm_warn_threshold_t = mp_new_number (mp, mp_scaled_type);
-  math->tfm_warn_threshold_t->data.val = tfm_warn_threshold;
+  math->tfm_warn_threshold_t->data.dval = tfm_warn_threshold;
   /* functions */
   math->from_boolean = mp_set_number_from_boolean;
   math->from_scaled = mp_set_number_from_scaled;
@@ -305,7 +305,7 @@ void mp_free_double_math (MP mp) {
 @ @c
 mp_number mp_new_number (MP mp, mp_number_type t) {
   mp_number n = (mp_number)mp_xmalloc(mp, 1, sizeof (struct mp_number_data)) ;
-  n->data.val = 0;
+  n->data.dval = 0;
   n->type = t;
   return n;
 }
@@ -321,92 +321,92 @@ void mp_free_number (MP mp, mp_number n) {
 
 @c 
 void mp_set_number_from_boolean(mp_number A, int B) {
-  A->data.val = B;
+  A->data.dval = B;
 }
 void mp_set_number_from_scaled(mp_number A, int B) {
-  A->data.val = B;
+  A->data.dval = B;
 }
 void mp_set_number_from_double(mp_number A, double B) {
-  A->data.val = (int)(B*65536.0);
+  A->data.dval = (int)(B*65536.0);
 }
 void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C) {
-  A->data.val = B->data.val+C->data.val;
+  A->data.dval = B->data.dval+C->data.dval;
 }
 void mp_set_number_from_substraction (mp_number A, mp_number B, mp_number C) {
- A->data.val = B->data.val-C->data.val;
+ A->data.dval = B->data.dval-C->data.dval;
 }
 void mp_set_number_from_div(mp_number A, mp_number B, mp_number C) {
-  A->data.val = B->data.val / C->data.val;
+  A->data.dval = B->data.dval / C->data.dval;
 }
 void mp_set_number_from_mul(mp_number A, mp_number B, mp_number C) {
-  A->data.val = B->data.val * C->data.val;
+  A->data.dval = B->data.dval * C->data.dval;
 }
 void mp_set_number_from_int_div(mp_number A, mp_number B, int C) {
-  A->data.val = B->data.val / C;
+  A->data.dval = B->data.dval / C;
 }
 void mp_set_number_from_int_mul(mp_number A, mp_number B, int C) {
-  A->data.val = B->data.val * C;
+  A->data.dval = B->data.dval * C;
 }
 void mp_set_number_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B, mp_number C) {
-  A->data.val = B->data.val - mp_take_fraction(mp, (B->data.val - C->data.val), t->data.val);
+  A->data.dval = B->data.dval - mp_take_fraction(mp, (B->data.dval - C->data.dval), t->data.dval);
 }
 void mp_number_negate(mp_number A) {
-  A->data.val = -A->data.val;
+  A->data.dval = -A->data.dval;
 }
 void mp_number_add(mp_number A, mp_number B) {
-  A->data.val = A->data.val + B->data.val;
+  A->data.dval = A->data.dval + B->data.dval;
 }
 void mp_number_substract(mp_number A, mp_number B) {
-  A->data.val = A->data.val - B->data.val;
+  A->data.dval = A->data.dval - B->data.dval;
 }
 void mp_number_half(mp_number A) {
-  A->data.val = A->data.val/2;
+  A->data.dval = A->data.dval/2;
 }
 void mp_number_halfp(mp_number A) {
-  A->data.val = (A->data.val>>1);
+  A->data.dval = (A->data.dval/2);
 }
 void mp_number_double(mp_number A) {
-  A->data.val = A->data.val + A->data.val;
+  A->data.dval = A->data.dval + A->data.dval;
 }
 void mp_number_add_scaled(mp_number A, int B) { /* also for negative B */
-  A->data.val = A->data.val + B;
+  A->data.dval = A->data.dval + B;
 }
 void mp_number_multiply_int(mp_number A, int B) {
-  A->data.val = B * A->data.val;
+  A->data.dval = B * A->data.dval;
 }
 void mp_number_divide_int(mp_number A, int B) {
-  A->data.val = B / A->data.val;
+  A->data.dval = B / A->data.dval;
 }
 void mp_number_abs(mp_number A) {   
-  A->data.val = abs(A->data.val);
+  A->data.dval = fabs(A->data.dval);
 }
 void mp_number_clone(mp_number A, mp_number B) {
-  A->data.val=B->data.val;
+  A->data.dval=B->data.dval;
 }
 void mp_number_swap(mp_number A, mp_number B) {
-  int swap_tmp = A->data.val;
-  A->data.val=B->data.val;
-  B->data.val=swap_tmp;
+  int swap_tmp = A->data.dval;
+  A->data.dval=B->data.dval;
+  B->data.dval=swap_tmp;
 }
 void mp_number_fraction_to_scaled (mp_number A) {
     A->type = mp_scaled_type;
-    A->data.val = A->data.val / 4096;
+    A->data.dval = A->data.dval / 4096;
 }
 void mp_number_angle_to_scaled (mp_number A) {
     A->type = mp_scaled_type;
-    if (A->data.val >= 0) {
-      A->data.val = A->data.val + 8 / 16;
+    if (A->data.dval >= 0) {
+      A->data.dval = A->data.dval + 8 / 16;
     } else {
-      A->data.val = -((-A->data.val + 8) / 16);
+      A->data.dval = -((-A->data.dval + 8) / 16);
     }
 }
 void mp_number_scaled_to_fraction (mp_number A) {
     A->type = mp_fraction_type;
-    A->data.val = A->data.val * 4096;
+    A->data.dval = A->data.dval * 4096;
 }
 void mp_number_scaled_to_angle (mp_number A) {
     A->type = mp_angle_type;
-    A->data.val = A->data.val * 16;
+    A->data.dval = A->data.dval * 16;
 }
 
 
@@ -414,28 +414,28 @@ void mp_number_scaled_to_angle (mp_number A) {
 
 @c
 int mp_number_to_scaled(mp_number A) {
-  return A->data.val;
+  return A->data.dval;
 }
 int mp_number_to_boolean(mp_number A) {
-  return (A->data.val != 0);
+  return (A->data.dval != 0);
 }
 double mp_number_to_double(mp_number A) {
-  return (A->data.val/65536.0);
+  return (A->data.dval/65536.0);
 }
 int mp_number_odd(mp_number A) {
-  return odd(A->data.val);
+  return odd((int)A->data.dval);
 }
 int mp_number_equal(mp_number A, mp_number B) {
-  return (A->data.val==B->data.val);
+  return (A->data.dval==B->data.dval);
 }
 int mp_number_greater(mp_number A, mp_number B) {
-  return (A->data.val>B->data.val);
+  return (A->data.dval>B->data.dval);
 }
 int mp_number_less(mp_number A, mp_number B) {
-  return (A->data.val<B->data.val);
+  return (A->data.dval<B->data.dval);
 }
 int mp_number_nonequalabs(mp_number A, mp_number B) {
-  return (!(abs(A->data.val)==abs(B->data.val)));
+  return (!(abs(A->data.dval)==abs(B->data.dval)));
 }
 
 @ Fixed-point arithmetic is done on {\sl scaled integers\/} that are multiples
@@ -540,20 +540,20 @@ is used.
 @c
 void mp_slow_add (MP mp, mp_number ret, mp_number x_orig, mp_number y_orig) {
   integer x, y;
-  x = x_orig->data.val;
-  y = y_orig->data.val;
+  x = x_orig->data.dval;
+  y = y_orig->data.dval;
   if (x >= 0) {
     if (y <= EL_GORDO - x) {
-      ret->data.val = x + y;
+      ret->data.dval = x + y;
     } else {
       mp->arith_error = true;
-      ret->data.val =  EL_GORDO;
+      ret->data.dval =  EL_GORDO;
     }
   } else if (-y <= EL_GORDO + x) {
-    ret->data.val = x + y;
+    ret->data.dval = x + y;
   } else {
     mp->arith_error = true;
-    ret->data.val =  -EL_GORDO;
+    ret->data.dval =  -EL_GORDO;
   }
 }
 
@@ -641,7 +641,7 @@ RETURN:
   return i;
 }
 void mp_number_make_fraction (MP mp, mp_number ret, mp_number p, mp_number q) {
-  ret->data.val = mp_make_fraction (mp, p->data.val, q->data.val);
+  ret->data.dval = mp_make_fraction (mp, p->data.dval, q->data.dval);
 }
 
 
@@ -687,7 +687,7 @@ integer mp_take_fraction (MP mp, integer p, int q) { /* q = fraction */
   return i;
 }
 void mp_number_take_fraction (MP mp, mp_number ret, mp_number p_orig, mp_number q_orig) {
-  ret->data.val = mp_take_fraction (mp, p_orig->data.val, q_orig->data.val);
+  ret->data.dval = mp_take_fraction (mp, p_orig->data.dval, q_orig->data.dval);
 }
 
 
@@ -733,7 +733,7 @@ static integer mp_take_scaled (MP mp, integer p, int q) { /* q = scaled */
   return i;
 }
 void mp_number_take_scaled (MP mp, mp_number ret, mp_number p_orig, mp_number q_orig) {
-  ret->data.val = mp_take_scaled (mp, p_orig->data.val, q_orig->data.val);
+  ret->data.dval = mp_take_scaled (mp, p_orig->data.dval, q_orig->data.dval);
 }
 
 
@@ -780,7 +780,7 @@ int mp_make_scaled (MP mp, integer p, integer q) { /* return scaled */
   return i;
 }
 void mp_number_make_scaled (MP mp, mp_number ret, mp_number p_orig, mp_number q_orig) {
-  ret->data.val = mp_make_scaled (mp, p_orig->data.val, q_orig->data.val);
+  ret->data.dval = mp_make_scaled (mp, p_orig->data.dval, q_orig->data.dval);
 }
 
 @ The following function is used to create a scaled integer from a given decimal
@@ -809,7 +809,7 @@ static int mp_round_decimals (MP mp, unsigned char *b, quarterword k) { /* retur
 The definitions below are temporarily here
 
 @d set_cur_cmd(A) mp->cur_mod_->type=(A)
-@d set_cur_mod(A) mp->cur_mod_->data.n->data.val=(A)
+@d set_cur_mod(A) mp->cur_mod_->data.n->data.dval=(A)
 
 @<Declarations...@>=
 static void mp_wrapup_numeric_token(MP mp, int n, int f);
@@ -821,7 +821,7 @@ void mp_wrapup_numeric_token(MP mp, int n, int f) { /* n,f: scaled */
     mod = (n * unity + f);
     set_cur_mod(mod);
     if (mod >= fraction_one) {
-      if (internal_value (mp_warning_check)->data.val > 0 &&
+      if (internal_value (mp_warning_check)->data.dval > 0 &&
           (mp->scanner_status != tex_flushing)) {
         char msg[256];
         const char *hlp[] = {"It is at least 4096. Continue and I'll try to cope",
@@ -916,22 +916,22 @@ $\sin\phi$, and $\cos\phi$, respectively.
 void mp_velocity (MP mp, mp_number ret, mp_number st, mp_number ct, mp_number sf,
                   mp_number cf, mp_number t) {
   integer acc, num, denom;      /* registers for intermediate calculations */
-  acc = mp_take_fraction (mp, st->data.val - (sf->data.val / 16), sf->data.val - (st->data.val / 16));
-  acc = mp_take_fraction (mp, acc, ct->data.val - cf->data.val);
+  acc = mp_take_fraction (mp, st->data.dval - (sf->data.dval / 16), sf->data.dval - (st->data.dval / 16));
+  acc = mp_take_fraction (mp, acc, ct->data.dval - cf->data.dval);
   num = fraction_two + mp_take_fraction (mp, acc, 379625062);
   /* $2^{28}\sqrt2\approx379625062.497$ */
   denom =
-    fraction_three + mp_take_fraction (mp, ct->data.val,
-                                       497706707) + mp_take_fraction (mp, cf->data.val,
+    fraction_three + mp_take_fraction (mp, ct->data.dval,
+                                       497706707) + mp_take_fraction (mp, cf->data.dval,
                                                                       307599661);
   /* $3\cdot2^{27}\cdot(\sqrt5-1)\approx497706706.78$ and
      $3\cdot2^{27}\cdot(3-\sqrt5\,)\approx307599661.22$ */
-  if (t->data.val != unity)
-    num = mp_make_scaled (mp, num, t->data.val); /* |make_scaled(fraction,scaled)=fraction| */
+  if (t->data.dval != unity)
+    num = mp_make_scaled (mp, num, t->data.dval); /* |make_scaled(fraction,scaled)=fraction| */
   if (num / 4 >= denom) {
-    ret->data.val = fraction_four;
+    ret->data.dval = fraction_four;
   } else {
-    ret->data.val = mp_make_fraction (mp, num, denom);
+    ret->data.dval = mp_make_fraction (mp, num, denom);
   }
 }
 
@@ -946,26 +946,26 @@ void mp_ab_vs_cd (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig, mp_n
   integer q, r; /* temporary registers */
   integer a, b, c, d;
   (void)mp;
-  a = a_orig->data.val;
-  b = b_orig->data.val;
-  c = c_orig->data.val;
-  d = d_orig->data.val;
+  a = a_orig->data.dval;
+  b = b_orig->data.dval;
+  c = c_orig->data.dval;
+  d = d_orig->data.dval;
   @<Reduce to the case that |a,c>=0|, |b,d>0|@>;
   while (1) {
     q = a / d;
     r = c / b;
     if (q != r) {
-      ret->data.val = (q > r ? 1 : -1);
+      ret->data.dval = (q > r ? 1 : -1);
       return;
     }
     q = a % d;
     r = c % b;
     if (r == 0) {
-      ret->data.val = (q ? 1 : 0);
+      ret->data.dval = (q ? 1 : 0);
       return;
     }
     if (q == 0) {
-      ret->data.val = -1;
+      ret->data.dval = -1;
       return;
     }
     a = b;
@@ -988,13 +988,13 @@ if (c < 0) {
 if (d <= 0) {
   if (b >= 0) {
     if ((a == 0 || b == 0) && (c == 0 || d == 0)) 
-      ret->data.val = 0;
+      ret->data.dval = 0;
     else
-      ret->data.val = 1;
+      ret->data.dval = 1;
     return;
   }
   if (d == 0) {
-    ret->data.val = (a == 0 ? 0 : -1);
+    ret->data.dval = (a == 0 ? 0 : -1);
     return;
   }
   q = a;
@@ -1005,10 +1005,10 @@ if (d <= 0) {
   d = q;
 } else if (b <= 0) {
   if (b < 0 && a > 0) {
-    ret->data.val  = -1;
+    ret->data.dval  = -1;
     return;
   }
-  ret->data.val = (c == 0 ? 0 : -1);
+  ret->data.dval = (c == 0 ? 0 : -1);
   return;
 }
 
@@ -1019,7 +1019,7 @@ and truncation operations.
 @ |round_unscaled| rounds a |scaled| and converts it to |int|
 @c
 int mp_round_unscaled(mp_number x_orig) {
-  int x = x_orig->data.val;
+  int x = x_orig->data.dval;
   if (x >= 32768) {
     return 1+((x-32768) / 65536);
   } else if ( x>=-32768) {
@@ -1033,14 +1033,14 @@ int mp_round_unscaled(mp_number x_orig) {
 
 @c
 void mp_number_floor (mp_number i) {
-  i->data.val = i->data.val&-65536;
+  i->data.dval = floor(i->data.dval);
 }
 
 @ |fraction_to_scaled| rounds a |fraction| and converts it to |scaled|
 @c
 void mp_fraction_to_round_scaled (mp_number x_orig) {
-  int x = x_orig->data.val;
-  x_orig->data.val = (x>=2048 ? 1+((x-2048) / 4096)  : ( x>=-2048 ? 0 : -(1+((-(x+1)-2048) / 4096))));
+  int x = x_orig->data.dval;
+  x_orig->data.dval = (x>=2048 ? 1+((x-2048) / 4096)  : ( x>=-2048 ? 0 : -(1+((-(x+1)-2048) / 4096))));
 }
 
 
@@ -1063,7 +1063,7 @@ void mp_square_rt (MP mp, mp_number ret, mp_number x_orig) { /* return, x: scale
   quarterword k;        /* iteration control counter */
   integer y;    /* register for intermediate calculations */
   integer q;    /* register for intermediate calculations */
-  x = x_orig->data.val;
+  x = x_orig->data.dval;
   if (x <= 0) {
     @<Handle square root of zero or negative argument@>;
   } else {
@@ -1083,7 +1083,7 @@ void mp_square_rt (MP mp, mp_number ret, mp_number x_orig) { /* return, x: scale
       @<Decrease |k| by 1, maintaining the invariant
       relations between |x|, |y|, and~|q|@>;
     } while (k != 0);
-    ret->data.val = (int) (halfp (q));
+    ret->data.dval = (int) (halfp (q));
   }
 }
 
@@ -1100,7 +1100,7 @@ void mp_square_rt (MP mp, mp_number ret, mp_number x_orig) { /* return, x: scale
 @.Square root...replaced by 0@>;
     mp_error (mp, msg, hlp, true);
   }
-  ret->data.val = 0;
+  ret->data.dval = 0;
   return;
 }
 
@@ -1141,8 +1141,8 @@ void mp_pyth_add (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig) {
   int a, b; /* a,b : scaled */
   int r;   /* register used to transform |a| and |b|, fraction */
   boolean big;  /* is the result dangerously near $2^{31}$? */
-  a = abs (a_orig->data.val);
-  b = abs (b_orig->data.val);
+  a = abs (a_orig->data.dval);
+  b = abs (b_orig->data.dval);
   if (a < b) {
     r = b;
     b = a;
@@ -1166,7 +1166,7 @@ void mp_pyth_add (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig) {
       };
     }
   }
-  ret->data.val = a;
+  ret->data.dval = a;
 }
 
 
@@ -1193,8 +1193,8 @@ void mp_pyth_sub (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig) {
   int a, b; /* a,b: scaled */
   int r;   /* register used to transform |a| and |b|, fraction */
   boolean big;  /* is the result dangerously near $2^{31}$? */
-  a = abs (a_orig->data.val);
-  b = abs (b_orig->data.val);
+  a = abs (a_orig->data.dval);
+  b = abs (b_orig->data.dval);
   if (a <= b) {
     @<Handle erroneous |pyth_sub| and set |a:=0|@>;
   } else {
@@ -1209,7 +1209,7 @@ void mp_pyth_sub (MP mp, mp_number ret, mp_number a_orig, mp_number b_orig) {
     if (big)
       a *= 2;
   }
-  ret->data.val = a;
+  ret->data.dval = a;
 }
 
 
@@ -1280,7 +1280,7 @@ void mp_m_log (MP mp, mp_number ret, mp_number x_orig) { /* return, x: scaled */
   int x;
   integer y, z; /* auxiliary registers */
   integer k;    /* iteration counter */
-  x = x_orig->data.val;
+  x = x_orig->data.dval;
   if (x <= 0) {
     @<Handle non-positive logarithm@>;
   } else {
@@ -1297,7 +1297,7 @@ void mp_m_log (MP mp, mp_number ret, mp_number x_orig) { /* return, x: scaled */
       @<Increase |k| until |x| can be multiplied by a
         factor of $2^{-k}$, and adjust $y$ accordingly@>;
     }
-    ret->data.val = (y / 8);
+    ret->data.dval = (y / 8);
   }
 }
 
@@ -1324,7 +1324,7 @@ void mp_m_log (MP mp, mp_number ret, mp_number x_orig) { /* return, x: scaled */
   mp_snprintf (msg, 256, "Logarithm of %s has been replaced by 0", mp_string_scaled (mp, x));
 @.Logarithm...replaced by 0@>;
   mp_error (mp, msg, hlp, true);
-  ret->data.val = 0;
+  ret->data.dval = 0;
 }
 
 
@@ -1337,14 +1337,14 @@ void mp_m_exp (MP mp, mp_number ret, mp_number x_orig) {
   quarterword k;        /* loop control index */
   integer y, z; /* auxiliary registers */
   int x;
-  x = x_orig->data.val;
+  x = x_orig->data.dval;
   if (x > 174436200) {
     /* $2^{24}\ln((2^{31}-1)/2^{16})\approx 174436199.51$ */
     mp->arith_error = true;
-    ret->data.val = EL_GORDO;
+    ret->data.dval = EL_GORDO;
   } else if (x < -197694359) {
     /* $2^{24}\ln(2^{-1}/2^{16})\approx-197694359.45$ */
-    ret->data.val = 0;
+    ret->data.dval = 0;
   } else {
     if (x <= 0) {
       z = -8 * x;
@@ -1360,9 +1360,9 @@ void mp_m_exp (MP mp, mp_number ret, mp_number x_orig) {
     }
     @<Multiply |y| by $\exp(-z/2^{27})$@>;
     if (x <= 127919879)
-      ret->data.val = ((y + 8) / 16);
+      ret->data.dval = ((y + 8) / 16);
     else
-      ret->data.val = y;
+      ret->data.dval = y;
   }
 }
 
@@ -1426,8 +1426,8 @@ void mp_n_arg (MP mp, mp_number ret, mp_number x_orig, mp_number y_orig) {
   quarterword k;        /* loop counter */
   int octant;   /* octant code */
   integer x, y;
-  x = x_orig->data.val;
-  y = y_orig->data.val;
+  x = x_orig->data.dval;
+  y = y_orig->data.dval;
   if (x >= 0) {
     octant = first_octant;
   } else {
@@ -1461,35 +1461,35 @@ void mp_n_arg (MP mp, mp_number ret, mp_number x_orig, mp_number y_orig) {
          NULL };
   mp_error (mp, "angle(0,0) is taken as zero", hlp, true);
 @.angle(0,0)...zero@>;
-  ret->data.val = 0;
+  ret->data.dval = 0;
 }
 
 
 @ @<Return an appropriate answer...@>=
 switch (octant) {
 case first_octant:
-  ret->data.val = z;
+  ret->data.dval = z;
   break;
 case second_octant:
-  ret->data.val =  (ninety_deg - z);
+  ret->data.dval =  (ninety_deg - z);
   break;
 case third_octant:
-  ret->data.val =  (ninety_deg + z);
+  ret->data.dval =  (ninety_deg + z);
   break;
 case fourth_octant:
-  ret->data.val =  (one_eighty_deg - z);
+  ret->data.dval =  (one_eighty_deg - z);
   break;
 case fifth_octant:
-  ret->data.val =  (z - one_eighty_deg);
+  ret->data.dval =  (z - one_eighty_deg);
   break;
 case sixth_octant:
-  ret->data.val = (-z - ninety_deg);
+  ret->data.dval = (-z - ninety_deg);
   break;
 case seventh_octant:
-  ret->data.val =  (z - ninety_deg);
+  ret->data.dval =  (z - ninety_deg);
   break;
 case eighth_octant:
-  ret->data.val = (-z);
+  ret->data.dval = (-z);
   break;
 }                              /* there are no other cases */
 
@@ -1578,7 +1578,7 @@ void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin) {
   new_number (ret);
   new_number (x_n);
   new_number (y_n);
-  z = z_orig->data.val;
+  z = z_orig->data.dval;
   while (z < 0)
     z = z + three_sixty_deg;
   z = z % three_sixty_deg;      /* now |0<=z<three_sixty_deg| */
@@ -1590,11 +1590,11 @@ void mp_n_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin) {
     z = forty_five_deg - z;
   @<Subtract angle |z| from |(x,y)|@>;
   @<Convert |(x,y)| to the octant determined by~|q|@>;
-  x_n->data.val = x;
-  y_n->data.val = y;
+  x_n->data.dval = x;
+  y_n->data.dval = y;
   mp_pyth_add (mp, ret, x_n, y_n);
-  n_cos->data.val = mp_make_fraction (mp, x, ret->data.val);
-  n_sin->data.val = mp_make_fraction (mp, y, ret->data.val);
+  n_cos->data.dval = mp_make_fraction (mp, x, ret->data.dval);
+  n_sin->data.dval = mp_make_fraction (mp, y, ret->data.dval);
   free_number(ret);
   free_number(x_n);
   free_number(y_n);
@@ -1677,7 +1677,7 @@ void mp_init_randoms (MP mp, int seed) {
     j = jj;
     if (k<0)
       k += fraction_one;
-    mp->randoms[(i * 21) % 55]->data.val = j;
+    mp->randoms[(i * 21) % 55]->data.dval = j;
   }
   mp_new_randoms (mp);
   mp_new_randoms (mp);
@@ -1687,16 +1687,25 @@ void mp_init_randoms (MP mp, int seed) {
 
 @ @c
 void mp_print_number (MP mp, mp_number n) {
-  mp_print_scaled (mp, n->data.val);
+  mp_print_scaled (mp, n->data.dval);
 }
 
 
 @ @c
 char * mp_number_tostring (MP mp, mp_number n) {
-   return mp_string_scaled(mp, n->data.val);
+   return mp_string_scaled(mp, n->data.dval);
 }
 
 @ @c
+static double modulus(double left, double right);
+double modulus(double left, double right) {
+    double quota = left / right;
+    double frac,tmp;
+    frac = modf(quota,&tmp);
+    /* frac contains what's beyond the '.' */
+    frac *= right;
+    return frac;
+}
 void mp_number_modulo (mp_number a, mp_number b) {
-   a->data.val = a->data.val % b->data.val;
+   a->data.dval = modulus (a->data.dval, b->data.dval);
 }
