@@ -15142,10 +15142,10 @@ and tends to make more variables `|known|'. The threshold is approximately
 $10^{-5}$ in the case of normal dependency lists, $10^{-4}$ for
 proto-dependencies.
 
-@d fraction_threshold 2685 /* a |fraction| coefficient less than this is zeroed */
-@d half_fraction_threshold 1342 /* half of |fraction_threshold| */
-@d scaled_threshold 8 /* a |scaled| coefficient less than this is zeroed */
-@d half_scaled_threshold 4 /* half of |scaled_threshold| */
+@d fraction_threshold_k ((math_data *)mp->math)->fraction_threshold_t
+@d half_fraction_threshold_k ((math_data *)mp->math)->half_fraction_threshold_t
+@d scaled_threshold_k ((math_data *)mp->math)->scaled_threshold_t
+@d half_scaled_threshold_k ((math_data *)mp->math)->half_scaled_threshold_t
 
 @<Declarations@>=
 static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
@@ -15158,14 +15158,19 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
                                    mp_variable_type tt) {
   mp_node pp, qq;       /* |dep_info(p)| and |dep_info(q)|, respectively */
   mp_value_node r, s;   /* for list manipulation */
-  integer threshold;    /* defines a neighborhood of zero */
+  mp_number threshold, half_threshold;    /* defines a neighborhood of zero */
   mp_number v, vv; /* temporary registers */
   new_number (v);
   new_number (vv);
-  if (t == mp_dependent)
-    threshold = fraction_threshold;
-  else
-    threshold = scaled_threshold;
+  new_number (threshold); 
+  new_number (half_threshold); 
+  if (t == mp_dependent) {
+    number_clone (threshold, fraction_threshold_k);
+    number_clone (half_threshold, half_fraction_threshold_k);
+  } else {
+    number_clone (threshold, scaled_threshold_k);
+    number_clone (half_threshold, half_scaled_threshold_k);
+  }
   r = (mp_value_node) mp->temp_head;
   pp = dep_info (p);
   qq = dep_info (q);
@@ -15221,6 +15226,8 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
   }
   set_mp_link (r, (mp_node) p);
   mp->dep_final = p;
+  free_number (threshold);
+  free_number (half_threshold);
   free_number (v);
   free_number (vv);
   return (mp_value_node) mp_link (mp->temp_head);
@@ -15229,42 +15236,33 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
 
 @ @<Contribute a term from |p|, plus |f|...@>=
 {
-  {
-    mp_number r1;
-    mp_number arg1, arg2;
-    new_fraction (r1);
-    new_number (arg1);
-    new_number (arg2);
-    number_clone (arg1, f);
-    number_clone (arg2, dep_value_number (q));
-    if (tt == mp_dependent) {
-      take_fraction (r1, arg1, arg2);
-    } else {
-      take_scaled (r1, arg1, arg2);
-    }
-    set_number_from_addition (v, dep_value_number (p), r1);
-    free_number (arg1);
-    free_number (arg2);
-    free_number (r1);
+  mp_number r1;
+  mp_number absv;
+  new_fraction (r1);
+  new_number (absv);
+  if (tt == mp_dependent) {
+    take_fraction (r1, f, dep_value_number (q));
+  } else {
+    take_scaled (r1, f, dep_value_number (q));
   }
+  set_number_from_addition (v, dep_value_number (p), r1);
+  free_number (r1);
   set_dep_value_number (p, v);
   s = p;
   p = (mp_value_node) mp_link (p);
-  if (abs (number_to_scaled (v)) < threshold) {
+  number_clone (absv, v);
+  number_abs(absv);
+  if (number_less (absv, threshold)) {
     mp_free_dep_node (mp, s);
   } else {
-    mp_number test;
-    new_number (test);
-    number_clone (test, v);
-    number_abs(test);
-    if (number_greaterequal (test, coef_bound_k) && mp->watch_coefs) {
+    if (number_greaterequal (absv, coef_bound_k) && mp->watch_coefs) {
       mp_type (qq) = independent_needing_fix;
       mp->fix_needed = true;
     }
-    free_number (test);
     set_mp_link (r, (mp_node) s);
     r = s;
   }
+  free_number (absv);
   pp = dep_info (p);
   q = (mp_value_node) mp_link (q);
   qq = dep_info (q);
@@ -15273,6 +15271,8 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
 
 @ @<Contribute a term from |q|, multiplied by~|f|@>=
 {
+  mp_number absv;
+  new_number (absv);
   {
     mp_number r1;
     mp_number arg1, arg2;
@@ -15291,24 +15291,22 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
     free_number (arg1);
     free_number (arg2);
   }
-  if (abs (number_to_scaled (v)) > halfp (threshold)) {
-    mp_number test;
-    new_number (test);
+  number_clone (absv, v);
+  number_abs(absv);
+  if (number_greater (absv, half_threshold)) {
     s = mp_get_dep_node (mp);
     set_dep_info (s, qq);
     set_dep_value_number (s, v);
-    number_clone (test, v);
-    number_abs(test);
-    if (number_greaterequal(test, coef_bound_k) && mp->watch_coefs) {
+    if (number_greaterequal(absv, coef_bound_k) && mp->watch_coefs) {
       mp_type (qq) = independent_needing_fix;
       mp->fix_needed = true;
     }
-    free_number (test);
     set_mp_link (r, (mp_node) s);
     r = s;
   }
   q = (mp_value_node) mp_link (q);
   qq = dep_info (q);
+  free_number (absv);
 }
 
 
@@ -15322,14 +15320,15 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q,
   mp_node pp, qq;       /* |dep_info(p)| and |dep_info(q)|, respectively */
   mp_value_node s;      /* for list manipulation */
   mp_value_node r;      /* for list manipulation */
-  integer threshold;    /* defines a neighborhood of zero */
+  mp_number threshold;    /* defines a neighborhood of zero */
   mp_number v, vv;        /* temporary register */
   new_number (v);
   new_number (vv);
+  new_number (threshold);
   if (t == mp_dependent)
-    threshold = fraction_threshold;
+    number_clone (threshold, fraction_threshold_k);
   else
-    threshold = scaled_threshold;
+    number_clone (threshold, scaled_threshold_k);
   r = (mp_value_node) mp->temp_head;
   pp = dep_info (p);
   qq = dep_info (q);
@@ -15381,32 +15380,33 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q,
   mp->dep_final = p;
   free_number (v);
   free_number (vv);
+  free_number (threshold);
   return (mp_value_node) mp_link (mp->temp_head);
 }
 
 
 @ @<Contribute a term from |p|, plus the...@>=
 {
+  mp_number test;
+  new_number (test);
   set_number_from_addition (v, dep_value_number (p), dep_value_number (q)); 
   set_dep_value_number (p, v);
   s = p;
   p = (mp_value_node) mp_link (p);
   pp = dep_info (p);
-  if (abs (number_to_scaled (v)) < threshold) {
+  number_clone (test, v);
+  number_abs(test);
+  if (number_less (test, threshold)) {
     mp_free_dep_node (mp, s);
   } else {
-    mp_number test;
-    new_number (test);
-    number_clone (test, v);
-    number_abs(test);
     if (number_greaterequal(test, coef_bound_k) && mp->watch_coefs) {
       mp_type (qq) = independent_needing_fix;
       mp->fix_needed = true;
     }
-    free_number (test);
     set_mp_link (r, (mp_node) s);
     r = s;
   }
+  free_number (test);
   q = (mp_value_node) mp_link (q);
   qq = dep_info (q);
 }
@@ -15426,43 +15426,44 @@ static mp_value_node mp_p_times_v (MP mp, mp_value_node p, mp_number v,
                                    boolean v_is_scaled) {
   mp_value_node r, s;   /* for list manipulation */
   mp_number w;    /* tentative coefficient */
-  integer threshold;
+  mp_number threshold;
   boolean scaling_down;
   new_number (w);
+  new_number (threshold);
   if (t0 != t1)
     scaling_down = true;
   else
     scaling_down = (!v_is_scaled);
   if (t1 == mp_dependent)
-    threshold = half_fraction_threshold;
+    number_clone (threshold, half_fraction_threshold_k);
   else
-    threshold = half_scaled_threshold;
+    number_clone (threshold, half_scaled_threshold_k);
   r = (mp_value_node) mp->temp_head;
   while (dep_info (p) != NULL) {
+    mp_number test;
+    new_number (test);
     if (scaling_down) {
       take_fraction (w, v, dep_value_number (p));
     } else {
       take_scaled (w, v, dep_value_number (p));
     }
-    if (abs (number_to_scaled (w)) <= threshold) {
+    number_clone (test, w);
+    number_abs(test);
+    if (number_lessequal (test, threshold)) {
       s = (mp_value_node) mp_link (p);
       mp_free_dep_node (mp, p);
       p = s;
     } else {
-      mp_number test;
-      new_number (test);
-      number_clone (test, w);
-      number_abs(test);
       if (number_greaterequal(test, coef_bound_k)) {
         mp->fix_needed = true;
         mp_type (dep_info (p)) = independent_needing_fix;
       }
-      free_number (test);
       set_mp_link (r, (mp_node) p);
       r = p;
       set_dep_value_number (p, w);
       p = (mp_value_node) mp_link (p);
     }
+    free_number (test);
   }
   set_mp_link (r, (mp_node) p);
   {
@@ -15476,6 +15477,7 @@ static mp_value_node mp_p_times_v (MP mp, mp_value_node p, mp_number v,
     set_dep_value_number (p, r1);
     free_number (r1);
   }
+  free_number (threshold);
   return (mp_value_node) mp_link (mp->temp_head);
 }
 
@@ -15492,90 +15494,72 @@ mp_value_node mp_p_over_v (MP mp, mp_value_node p, mp_number v_orig, quarterword
                            t0, quarterword t1) {
   mp_value_node r, s;   /* for list manipulation */
   mp_number w;    /* tentative coefficient */
-  integer threshold;
+  mp_number threshold;
   mp_number v;
   boolean scaling_down;
   new_number (v);
   new_number (w);
+  new_number (threshold);
   number_clone (v, v_orig);
   if (t0 != t1)
     scaling_down = true;
   else
     scaling_down = false;
   if (t1 == mp_dependent)
-    threshold = half_fraction_threshold;
+    number_clone (threshold, half_fraction_threshold_k);
   else
-    threshold = half_scaled_threshold;
+    number_clone (threshold, half_scaled_threshold_k);
   r = (mp_value_node) mp->temp_head;
   while (dep_info (p) != NULL) {
     if (scaling_down) {
+      mp_number x;
+      new_number (x);
       if (abs (number_to_scaled (v)) < 02000000) {
-        mp_number arg1, arg2, ret;
-        new_number (arg1);
-        new_number (arg2);
-        new_number (ret);
-        number_clone (arg1, dep_value_number (p));
-        number_clone (arg2, v);
-        convert_scaled_to_fraction (arg2);
-        make_scaled (ret, arg1, arg2);
-        number_clone (w, ret);
-        free_number (ret);
-        free_number (arg1);
-        free_number (arg2);        
+        number_clone (x, v);
+        convert_scaled_to_fraction (x);
+        make_scaled (w, dep_value_number (p), x);
       } else {
-        mp_number x, ret;
-        new_number (x);
-        new_number (ret);
         number_clone (x, dep_value_number (p));
         fraction_to_round_scaled (x);
-        make_scaled (ret, x, v);
-        number_clone (w, ret);
-        free_number (ret);
-        free_number (x);
+        make_scaled (w, x, v);
       }
+      free_number (x);
     } else {
-      mp_number arg1, ret;
-      new_number (arg1);
-      new_number (ret);
-      number_clone (arg1, dep_value_number (p));
-      make_scaled (ret, arg1, v);
-      number_clone (w, ret);
-      free_number (ret);
-      free_number (arg1);
+      make_scaled (w, dep_value_number (p), v);
     }
-    if (abs (number_to_scaled (w)) <= threshold) {
+    {
+    mp_number test;
+    new_number (test);
+    number_clone (test, w);
+    number_abs(test);
+    if (number_lessequal (test, threshold)) {
       s = (mp_value_node) mp_link (p);
       mp_free_dep_node (mp, p);
       p = s;
     } else {
-      mp_number test;
-      new_number (test);
-      number_clone (test, w);
-      number_abs(test);
       if (number_greaterequal (test, coef_bound_k)) {
         mp->fix_needed = true;
         mp_type (dep_info (p)) = independent_needing_fix;
       }
-      free_number (test);
       set_mp_link (r, (mp_node) p);
       r = p;
       set_dep_value_number (p, w);
       p = (mp_value_node) mp_link (p);
     }
+    free_number (test);
+    }
   }
   set_mp_link (r, (mp_node) p);
   {
-    mp_number arg1, ret;
-    new_number (arg1);
+    mp_number ret;
     new_number (ret);
-    number_clone (arg1, dep_value_number (p));
-    make_scaled (ret, arg1, v);
+    make_scaled (ret, dep_value_number (p), v);
     set_dep_value_number (p, ret);
     free_number (ret);
-    free_number (arg1);
   }
   free_number (v);
   free_number (w);
+  free_number (threshold);
   return (mp_value_node) mp_link (mp->temp_head);
 }
 
@@ -15904,23 +15888,30 @@ like `\.{x=3.14}', we will have |v=-fraction_one|, |q=p|, and |t=mp_dependent|.
 s = (mp_value_node) mp->temp_head;
 set_mp_link (s, (mp_node) p);
 r = p;
+{
+mp_number absw;
+new_number (absw);
 do {
   if (r == q) {
     set_mp_link (s, mp_link (r));
     mp_free_dep_node (mp, r);
   } else {
     make_fraction (w, dep_value_number (r), v);
-    if (abs (number_to_scaled (w)) <= half_fraction_threshold) {
+    number_clone (absw, w);
+    number_abs (absw);
+    if (number_lessequal (absw, half_fraction_threshold_k)) {
       set_mp_link (s, mp_link (r));
       mp_free_dep_node (mp, r);
     } else {
       set_dep_value_number (r, w);
       number_negate (dep_value_number (r));
-      s = r;
+      s = r; 
     }
   }
   r = (mp_value_node) mp_link (s);
 } while (dep_info (r) != NULL);
+free_number (absw);
+}
 if (t == mp_proto_dependent) {
   mp_number ret;
   new_number (ret);
@@ -16001,9 +15992,11 @@ if (dep_info (p) == NULL) {
 
 @ @<Divide list |p| by $2^n$@>=
 {
+  mp_number absw;
+  new_number (absw);
   s = (mp_value_node) mp->temp_head;
   set_mp_link (mp->temp_head, (mp_node) p);
-  r = p;
+  r = p;  
   do {
     if (n > 30) {
       set_number_to_zero (w);
@@ -16011,7 +16004,9 @@ if (dep_info (p) == NULL) {
       number_clone (w, dep_value_number (r));
       number_divide_int (w, two_to_the (n));
     }
-    if ((abs (number_to_scaled (w)) <= half_fraction_threshold) && (dep_info (r) != NULL)) {
+    number_clone (absw, w);
+    number_abs (absw);
+    if (number_lessequal(absw, half_fraction_threshold_k) && (dep_info (r) != NULL)) {
       set_mp_link (s, mp_link (r));
       mp_free_dep_node (mp, r);
     } else {
@@ -16021,6 +16016,7 @@ if (dep_info (p) == NULL) {
     r = (mp_value_node) mp_link (s);
   } while (dep_info (s) != NULL);
   p = (mp_value_node) mp_link (mp->temp_head);
+  free_number (absw);
 }
 
 
