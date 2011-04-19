@@ -14692,30 +14692,34 @@ pair of cubics that intersect. The final intersection times are placed in
 @c
 static void mp_path_intersection (MP mp, mp_knot h, mp_knot hh) {
   mp_knot p, pp;        /* link registers that traverse the given paths */
-  integer n, nn;        /* integer parts of intersection times, minus |unity| */
+  mp_number n, nn;        /* integer parts of intersection times, minus |unity| */
   @<Change one-point paths into dead cycles@>;
+  new_number (n);
+  new_number (nn);
   mp->tol_step = 0;
   do {
-    n = -number_to_scaled (unity_t);
+    set_number_to_unity(n);
+    number_negate (n);
     p = h;
     do {
       if (mp_right_type (p) != mp_endpoint) {
-        nn = -number_to_scaled (unity_t);
+        set_number_to_unity(nn);
+        number_negate (nn);
         pp = hh;
         do {
           if (mp_right_type (pp) != mp_endpoint) {
             mp_cubic_intersection (mp, p, pp);
             if (number_positive (mp->cur_t)) {
-              number_add_scaled (mp->cur_t, n);
-              number_add_scaled (mp->cur_tt, nn);
+              number_add (mp->cur_t, n);
+              number_add (mp->cur_tt, nn);
               return;
             }
           }
-          nn = nn + number_to_scaled (unity_t);
+          number_add(nn, unity_t);
           pp = mp_next_knot (pp);
         } while (pp != hh);
       }
-      n = n + number_to_scaled (unity_t);
+      number_add(n, unity_t);
       p = mp_next_knot (p);
     } while (p != h);
     mp->tol_step = mp->tol_step + 3;
@@ -14724,6 +14728,8 @@ static void mp_path_intersection (MP mp, mp_knot h, mp_knot hh) {
   number_negate (mp->cur_t);
   number_clone (mp->cur_tt, unity_t);
   number_negate (mp->cur_tt);
+  free_number (n);
+  free_number (nn);
 }
 
 
