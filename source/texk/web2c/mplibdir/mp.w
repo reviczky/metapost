@@ -3913,7 +3913,7 @@ enum mp_color_model {
 
 @ @<Initialize table entries@>=
 set_internal_from_number (mp_default_color_model, unity_t);
-number_multiply_int (internal_value (mp_restore_clip_color), mp_rgb_model);
+number_multiply_int (internal_value (mp_default_color_model), mp_rgb_model);
 number_clone (internal_value (mp_restore_clip_color), unity_t);
 set_internal_string (mp_output_template, mp_intern (mp, "%j.%c"));
 set_internal_string (mp_output_format, mp_intern (mp, "eps"));
