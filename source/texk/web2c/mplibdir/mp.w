@@ -500,7 +500,7 @@ MP mp_initialize (MP_options * opt) {
 #if DEBUG
   setlinebuf(mp->term_out);
 #endif
-  if (1) {
+  if (opt->math_mode == mp_math_scaled_mode) {
     mp->math = mp_initialize_scaled_math(mp);
   } else {
     mp->math = mp_initialize_double_math(mp);
