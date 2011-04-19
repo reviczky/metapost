@@ -196,6 +196,10 @@ typedef struct math_data {
   mp_number twentysixbits_sqrt2_t;
   mp_number twentyeightbits_d_t;
   mp_number twentysevenbits_sqrt2_d_t;
+  mp_number fraction_threshold_t;
+  mp_number half_fraction_threshold_t;
+  mp_number scaled_threshold_t;
+  mp_number half_scaled_threshold_t;
   new_number_func new;
   free_number_func free;
   number_from_boolean_func from_boolean;
@@ -262,6 +266,11 @@ void mp_free_math (MP mp);
 @ 
 
 @d coef_bound 04525252525 /* |fraction| approximation to 7/3 */
+@d fraction_threshold 2685 /* a |fraction| coefficient less than this is zeroed */
+@d half_fraction_threshold 1342 /* half of |fraction_threshold| */
+@d scaled_threshold 8 /* a |scaled| coefficient less than this is zeroed */
+@d half_scaled_threshold 4 /* half of |scaled_threshold| */
+
 
 @c
 void * mp_initialize_math (MP mp) {
@@ -322,7 +331,15 @@ void * mp_initialize_math (MP mp) {
   math->twentyeightbits_d_t->data.val = 35596755;        /* $2^{28}d\approx35596754.69$ */
   math->twentysevenbits_sqrt2_d_t = mp_new_number (mp, mp_fraction_type);
   math->twentysevenbits_sqrt2_d_t->data.val = 25170707;  /* $2^{27}\sqrt2\,d\approx25170706.63$ */
-
+  /* thresholds */
+  math->fraction_threshold_t = mp_new_number (mp, mp_fraction_type);
+  math->fraction_threshold_t->data.val = fraction_threshold;
+  math->half_fraction_threshold_t = mp_new_number (mp, mp_fraction_type);
+  math->half_fraction_threshold_t->data.val = half_fraction_threshold;
+  math->scaled_threshold_t = mp_new_number (mp, mp_scaled_type);
+  math->scaled_threshold_t->data.val = scaled_threshold;
+  math->half_scaled_threshold_t = mp_new_number (mp, mp_scaled_type);
+  math->half_scaled_threshold_t->data.val = half_scaled_threshold;
   /* functions */
   math->from_boolean = mp_set_number_from_boolean;
   math->from_scaled = mp_set_number_from_scaled;
@@ -399,6 +416,10 @@ void mp_free_math (MP mp) {
   free_number (((math_data *)mp->math)->twelve_ln_2_k);
   free_number (((math_data *)mp->math)->coef_bound_k);
   free_number (((math_data *)mp->math)->coef_bound_minus_1);
+  free_number (((math_data *)mp->math)->fraction_threshold_t);
+  free_number (((math_data *)mp->math)->half_fraction_threshold_t);
+  free_number (((math_data *)mp->math)->scaled_threshold_t);
+  free_number (((math_data *)mp->math)->half_scaled_threshold_t);
   free(mp->math);
 }
 
