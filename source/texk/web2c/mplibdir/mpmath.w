@@ -374,7 +374,7 @@ void mp_number_multiply_int(mp_number A, int B) {
   A->data.val = B * A->data.val;
 }
 void mp_number_divide_int(mp_number A, int B) {
-  A->data.val = B / A->data.val;
+  A->data.val = A->data.val / B;
 }
 void mp_number_abs(mp_number A) {   
   A->data.val = abs(A->data.val);
