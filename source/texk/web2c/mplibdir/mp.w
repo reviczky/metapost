@@ -28731,13 +28731,14 @@ void mp_make_eq (MP mp, mp_node lhs) {
   mp_value new_expr;
   mp_variable_type t;   /* type of the left-hand side */
   mp_node p;    /* pointer inside of big nodes */
-  integer v = 0;        /* value of the left-hand side */
+  mp_number v;        /* value of the left-hand side */
   memset(&new_expr,0,sizeof(mp_value));
   new_number(new_expr.data.n);
+  new_number (v);
 RESTART:
   t = mp_type (lhs);
   if (t <= mp_pair_type)
-    v = value (lhs);
+    number_clone (v, value_number (lhs));
   switch (t) {
     @<For each type |t|, make an equation and |goto done| unless |cur_type|
     is incompatible with~|t|@>;
@@ -28748,6 +28749,7 @@ RESTART:
 DONE:
   check_arith();
   mp_recycle_value (mp, lhs);
+  free_number (v);
   mp_free_node (mp, lhs, value_node_size);
 }
 
@@ -28776,7 +28778,7 @@ case mp_pen_type:
 case mp_path_type:
 case mp_picture_type:
 if (mp->cur_exp.type == t + unknown_tag) {
-  set_number_from_scaled (new_expr.data.n, v);
+  number_clone (new_expr.data.n, v);
   mp_nonlinear_eq (mp, new_expr, cur_exp_node (), false);
   mp_unstash_cur_exp (mp, cur_exp_node ());
   goto DONE;
@@ -28825,7 +28827,7 @@ break;
       if (mp_str_vs_str (mp, value_str (lhs), cur_exp_str ()) != 0) {
         goto NOT_FOUND;
       }
-    } else if (v != cur_exp_value ()) {
+    } else if (!number_equal (v, cur_exp_value_number ())) {
       goto NOT_FOUND;
     }
     @<Exclaim about a redundant equation@>;
