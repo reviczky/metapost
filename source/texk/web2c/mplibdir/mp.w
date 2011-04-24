@@ -316,6 +316,7 @@ typedef void (*pyth_sub_func) (MP mp, mp_number r, mp_number a, mp_number b);
 typedef void (*n_arg_func) (MP mp, mp_number r, mp_number a, mp_number b);
 typedef void (*velocity_func) (MP mp, mp_number r, mp_number a, mp_number b, mp_number c, mp_number d, mp_number e);
 typedef void (*ab_vs_cd_func) (MP mp, mp_number r, mp_number a, mp_number b, mp_number c, mp_number d);
+typedef void (*number_from_int_func) (mp_number A, int B);
 typedef void (*number_from_boolean_func) (mp_number A, int B);
 typedef void (*number_from_scaled_func) (mp_number A, int B);
 typedef void (*number_from_double_func) (mp_number A, double B);
@@ -339,6 +340,7 @@ typedef void (*number_swap_func) (mp_number A, mp_number B);
 typedef void (*number_add_scaled_func) (mp_number A, int b);
 typedef void (*number_multiply_int_func) (mp_number A, int b);
 typedef void (*number_divide_int_func) (mp_number A, int b);
+typedef int (*number_to_int_func) (mp_number A);
 typedef int (*number_to_boolean_func) (mp_number A);
 typedef int (*number_to_scaled_func) (mp_number A);
 typedef int (*number_round_func) (mp_number A);
@@ -399,8 +401,10 @@ typedef struct math_data {
   mp_number p_over_v_threshold_t;
   mp_number equation_threshold_t;
   mp_number tfm_warn_threshold_t;
+  mp_number warning_limit_t;
   new_number_func new;
   free_number_func free;
+  number_from_int_func from_int;
   number_from_boolean_func from_boolean;
   number_from_scaled_func from_scaled;
   number_from_double_func from_double;
@@ -424,6 +428,7 @@ typedef struct math_data {
   number_add_scaled_func add_scaled;
   number_multiply_int_func multiply_int;
   number_divide_int_func divide_int;
+  number_to_int_func to_int;
   number_to_boolean_func to_boolean;
   number_to_scaled_func to_scaled;
   number_to_double_func to_double;
@@ -2382,6 +2387,7 @@ static void mp_clear_arith (MP mp) {
 @d twentysixbits_sqrt2_t ((math_data *)mp->math)->twentysixbits_sqrt2_t
 @d twentyeightbits_d_t ((math_data *)mp->math)->twentyeightbits_d_t
 @d twentysevenbits_sqrt2_d_t ((math_data *)mp->math)->twentysevenbits_sqrt2_d_t
+@d warning_limit_t ((math_data *)mp->math)->warning_limit_t
 
 @ In fact, the two sorts of scaling discussed above aren't quite
 sufficient; \MP\ has yet another, used internally to keep track of angles.
@@ -10481,6 +10487,7 @@ This first set goes into the header
 @d scan_numeric_token(A)               (((math_data *)(mp->math))->scan_numeric)(mp, A) 
 @d scan_fractional_token(A)            (((math_data *)(mp->math))->scan_fractional)(mp, A) 
 @d set_number_from_of_the_way(A,t,B,C) (((math_data *)(mp->math))->from_oftheway)(mp, A,t,B,C) 
+@d set_number_from_int(A,B)	       (((math_data *)(mp->math))->from_int)(A,B)
 @d set_number_from_scaled(A,B)	       (((math_data *)(mp->math))->from_scaled)(A,B)
 @d set_number_from_boolean(A,B)	       (((math_data *)(mp->math))->from_boolean)(A,B)
 @d set_number_from_double(A,B)	       (((math_data *)(mp->math))->from_double)(A,B)
@@ -10516,6 +10523,7 @@ This first set goes into the header
 @d round_unscaled(A)		       (((math_data *)(mp->math))->round_unscaled)(A)		       
 @d floor_scaled(A)		       (((math_data *)(mp->math))->floor_scaled)(A)
 @d fraction_to_round_scaled(A)         (((math_data *)(mp->math))->fraction_to_round_scaled)(A)
+@d number_to_int(A)		       (((math_data *)(mp->math))->to_int)(A)
 @d number_to_boolean(A)		       (((math_data *)(mp->math))->to_boolean)(A)
 @d number_to_scaled(A)		       (((math_data *)(mp->math))->to_scaled)(A)		       
 @d number_to_double(A)		       (((math_data *)(mp->math))->to_double)(A)		       
@@ -14732,7 +14740,13 @@ static void mp_cubic_intersection (MP mp, mp_knot p, mp_knot pp) {
   integer uv, xy;          /* pointers to the current packets of interest */
   integer three_l;         /* |tol_step| times the bisection level */
   mp_number appr_t, appr_tt; /* best approximations known to the answers */
+  mp_number delx_m_tol, delx_p_tol, dely_m_tol, dely_p_tol, try;
   mp->time_to_go = max_patience;
+  new_number (delx_m_tol);
+  new_number (delx_p_tol);
+  new_number (dely_m_tol);
+  new_number (dely_p_tol);
+  new_number (try);
   new_number (tol);
   new_number (delx);
   new_number (dely);
@@ -14742,12 +14756,6 @@ static void mp_cubic_intersection (MP mp, mp_knot p, mp_knot pp) {
   @<Initialize for intersections at level zero@>;
 CONTINUE:
   while (1) {
-    mp_number delx_m_tol, delx_p_tol, dely_m_tol, dely_p_tol, try;
-    new_number (delx_m_tol);
-    new_number (delx_p_tol);
-    new_number (dely_m_tol);
-    new_number (dely_p_tol);
-    new_number (try);
     set_number_from_substraction (delx_m_tol, delx, tol);
     set_number_from_addition (delx_p_tol, delx, tol);
     set_number_from_substraction (dely_m_tol, dely, tol);
@@ -14761,7 +14769,7 @@ CONTINUE:
           set_number_from_substraction (try, stack_min (y_packet (xy)), stack_max (v_packet (uv)));
           if (number_greaterequal (dely_p_tol, try)) {
             if (number_greaterequal (mp->cur_t, mp->max_t)) {
-              if (number_equal (mp->max_t, two_t)) {   /* we've done 17 bisections */
+              if (number_greaterequal (mp->max_t, two_t)) {   /* we've done 17 bisections */
                 number_add_scaled (mp->cur_t, 1);
                 number_halfp (mp->cur_t);
                 number_add_scaled (mp->cur_tt, 1);
@@ -14787,11 +14795,6 @@ CONTINUE:
           }
         }
       }
-      free_number (delx_m_tol);
-      free_number (delx_p_tol);
-      free_number (dely_m_tol);
-      free_number (dely_p_tol);
-      free_number (try);
     }
     if (mp->time_to_go > 0) {
       decr (mp->time_to_go);
@@ -14807,6 +14810,11 @@ CONTINUE:
       free_number (appr_tt);
       free_number (delx);
       free_number (dely);
+      free_number (delx_m_tol);
+      free_number (delx_p_tol);
+      free_number (dely_m_tol);
+      free_number (dely_p_tol);
+      free_number (try);
       return;
     }
     @<Advance to the next pair |(cur_t,cur_tt)|@>;
@@ -15848,7 +15856,7 @@ void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
   mp_free_dep_node (mp, q);
   number_clone (absp, value_number (p));
   number_abs (absp);
-  if (number_greaterequal (absp, fraction_one_t))
+  if (number_greaterequal (absp, warning_limit_t))
     mp_val_too_big (mp, value_number (p));
   if ((number_positive(internal_value (mp_tracing_equations)))
       && mp_interesting (mp, (mp_node) p)) {
@@ -16180,7 +16188,7 @@ if (dep_info (p) == NULL) {
   set_value_number (x, dep_value_number (p));
   number_clone (absx, value_number (x));
   number_abs (absx);
-  if (number_greaterequal (absx, fraction_one_t))
+  if (number_greaterequal (absx, warning_limit_t))
     mp_val_too_big (mp, value_number (x));
   free_number (absx);
   mp_free_dep_node (mp, p);
@@ -16414,6 +16422,7 @@ recursive process, but the |get_next| procedure is not recursive.
 
 @d cur_cmd() (unsigned)(mp->cur_mod_->type)
 @d set_cur_cmd(A) mp->cur_mod_->type=(A)
+@d cur_mod_int() number_to_int (mp->cur_mod_->data.n) /* operand of current command */
 @d cur_mod() number_to_scaled (mp->cur_mod_->data.n) /* operand of current command */
 @d cur_mod_number() mp->cur_mod_->data.n /* operand of current command */
 @d set_cur_mod(A) set_number_from_scaled (mp->cur_mod_->data.n, (A))
@@ -18818,8 +18827,8 @@ that will be |NULL| if no loop is in progress.
 {
   mp_get_boolean (mp);
   if (number_greater (internal_value (mp_tracing_commands),  unity_t))
-    mp_show_cmd_mod (mp, mp_nullary, cur_exp_value ());
-  if (cur_exp_value () == mp_true_code) {
+    mp_show_cmd_mod (mp, mp_nullary, cur_exp_value_int ());
+  if (cur_exp_value_int () == mp_true_code) {
     if (mp->loop_ptr == NULL) {
       const char *hlp[] = {
           "Why say `exitif' when there's nothing to exit from?", 
@@ -19655,7 +19664,7 @@ RESWITCH:
   }
 FOUND:
   mp_check_colon (mp);
-  if (cur_exp_value () == mp_true_code) {
+  if (cur_exp_value_int () == mp_true_code) {
     mp_change_if_limit (mp, (quarterword) new_if_limit, save_cond_ptr);
     return;                     /* wait for \&{elseif}, \&{else}, or \&{fi} */
   };
@@ -19668,7 +19677,7 @@ DONE:
   } else if (cur_mod() == else_if_code) {
     goto RESWITCH;
   } else {
-    set_cur_exp_value (mp_true_code);
+    set_cur_exp_value_int (mp_true_code);
     new_if_limit = fi_code;
     mp_get_x_next (mp);
     goto FOUND;
@@ -19694,7 +19703,7 @@ while (1) {
 @ @<Display the boolean value...@>=
 {
   mp_begin_diagnostic (mp);
-  if (cur_exp_value () == mp_true_code)
+  if (cur_exp_value_int () == mp_true_code)
     mp_print (mp, "{true}");
   else
     mp_print (mp, "{false}");
@@ -21084,6 +21093,7 @@ backup mechanisms have been added in order to provide reasonable error
 recovery.
 
 @d cur_exp_value() number_to_scaled (mp->cur_exp.data.n)
+@d cur_exp_value_int() number_to_int (mp->cur_exp.data.n)
 @d cur_exp_value_number() mp->cur_exp.data.n
 @d cur_exp_node() mp->cur_exp.data.node
 @d cur_exp_str() mp->cur_exp.data.str
@@ -21098,6 +21108,15 @@ recovery.
         delete_str_ref(cur_exp_str());
     }
     set_number_from_scaled (mp->cur_exp.data.n, (A));
+    cur_exp_node() = NULL;
+    cur_exp_str() = NULL;
+    cur_exp_knot() = NULL;
+  } while (0)
+@d set_cur_exp_value_int(A) do {
+    if (cur_exp_str()) {
+        delete_str_ref(cur_exp_str());
+    }
+    set_number_from_int (mp->cur_exp.data.n, (A));
     cur_exp_node() = NULL;
     cur_exp_str() = NULL;
     cur_exp_knot() = NULL;
@@ -24183,7 +24202,7 @@ static void mp_do_nullary (MP mp, quarterword c) {
   case mp_true_code:
   case mp_false_code:
     mp->cur_exp.type = mp_boolean_type;
-    set_cur_exp_value (c);
+    set_cur_exp_value_int (c);
     break;
   case mp_null_picture_code:
     mp->cur_exp.type = mp_picture_type;
@@ -24476,16 +24495,16 @@ if (mp->cur_exp.type != mp_boolean_type) {
   mp_bad_unary (mp, mp_not_op);
 } else {
   halfword bb;
-  if (cur_exp_value () == mp_true_code)
+  if (cur_exp_value_int () == mp_true_code)
     bb = mp_false_code;
   else
     bb = mp_true_code;
-  set_cur_exp_value (bb);
+  set_cur_exp_value_int (bb);
 }
 break;
 
 @ 
-@d boolean_reset(A) if ( (A) ) set_cur_exp_value(mp_true_code); else set_cur_exp_value(mp_false_code)
+@d boolean_reset(A) if ( (A) ) set_cur_exp_value_int(mp_true_code); else set_cur_exp_value_int(mp_false_code)
 
 @<Additional cases of unary operators@>=
 case mp_sqrt_op:
@@ -30746,9 +30765,9 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
     @<Transfer a cmykcolor from the current expression to object~|cp|@>;
   } else if (mp->cur_exp.type == mp_known) {
     @<Transfer a greyscale from the current expression to object~|cp|@>;
-  } else if (cur_exp_value () == mp_false_code) {
+  } else if (cur_exp_value_int () == mp_false_code) {
     @<Transfer a noncolor from the current expression to object~|cp|@>;
-  } else if (cur_exp_value () == mp_true_code) {
+  } else if (cur_exp_value_int () == mp_true_code) {
     @<Transfer no color from the current expression to object~|cp|@>;
   }
 }
