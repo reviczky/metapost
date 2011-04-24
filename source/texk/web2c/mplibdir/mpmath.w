@@ -72,6 +72,7 @@ static void mp_m_log (MP mp, mp_number ret, mp_number x_orig);
 static void mp_pyth_sub (MP mp, mp_number r, mp_number a, mp_number b);
 static void mp_n_arg (MP mp, mp_number ret, mp_number x, mp_number y);
 static void mp_velocity (MP mp, mp_number ret, mp_number st, mp_number ct, mp_number sf,  mp_number cf, mp_number t);
+static void mp_set_number_from_int(mp_number A, int B);
 static void mp_set_number_from_boolean(mp_number A, int B);
 static void mp_set_number_from_scaled(mp_number A, int B);
 static void mp_set_number_from_boolean(mp_number A, int B);
@@ -97,6 +98,7 @@ static void mp_number_swap(mp_number A, mp_number B);
 static int mp_round_unscaled(mp_number x_orig);
 static int mp_number_to_scaled(mp_number A);
 static int mp_number_to_boolean(mp_number A);
+static int mp_number_to_int(mp_number A);
 static int mp_number_odd(mp_number A);
 static int mp_number_equal(mp_number A, mp_number B);
 static int mp_number_greater(mp_number A, mp_number B);
@@ -144,6 +146,8 @@ void * mp_initialize_scaled_math (MP mp) {
   math->epsilon_t->data.val  = 1;
   math->inf_t = mp_new_number (mp, mp_scaled_type);
   math->inf_t->data.val  = EL_GORDO;
+  math->warning_limit_t = mp_new_number (mp, mp_scaled_type);
+  math->warning_limit_t->data.dval  = fraction_one;
   math->one_third_inf_t = mp_new_number (mp, mp_scaled_type);
   math->one_third_inf_t->data.val = one_third_EL_GORDO;
   math->unity_t = mp_new_number (mp, mp_scaled_type);
@@ -210,6 +214,7 @@ void * mp_initialize_scaled_math (MP mp) {
   math->tfm_warn_threshold_t = mp_new_number (mp, mp_scaled_type);
   math->tfm_warn_threshold_t->data.val = tfm_warn_threshold;
   /* functions */
+  math->from_int = mp_set_number_from_int;
   math->from_boolean = mp_set_number_from_boolean;
   math->from_scaled = mp_set_number_from_scaled;
   math->from_double = mp_set_number_from_double;
@@ -232,6 +237,7 @@ void * mp_initialize_scaled_math (MP mp) {
   math->add_scaled = mp_number_add_scaled;
   math->multiply_int = mp_number_multiply_int;
   math->divide_int = mp_number_divide_int;
+  math->to_int = mp_number_to_int;
   math->to_boolean = mp_number_to_boolean;
   math->to_scaled = mp_number_to_scaled;
   math->to_double = mp_number_to_double;
@@ -283,6 +289,7 @@ void mp_free_scaled_math (MP mp) {
   free_number (((math_data *)mp->math)->three_t);
   free_number (((math_data *)mp->math)->one_third_inf_t);
   free_number (((math_data *)mp->math)->inf_t);
+  free_number (((math_data *)mp->math)->warning_limit_t);
   free_number (((math_data *)mp->math)->one_k);
   free_number (((math_data *)mp->math)->sqrt_8_e_k);
   free_number (((math_data *)mp->math)->twelve_ln_2_k);
@@ -319,6 +326,9 @@ void mp_free_number (MP mp, mp_number n) {
 @ Here are the low-level functions on |mp_number| items, setters first.
 
 @c 
+void mp_set_number_from_int(mp_number A, int B) {
+  A->data.val = B;
+}
 void mp_set_number_from_boolean(mp_number A, int B) {
   A->data.val = B;
 }
@@ -412,6 +422,9 @@ void mp_number_scaled_to_angle (mp_number A) {
 @ Query functions
 
 @c
+int mp_number_to_int(mp_number A) {
+  return A->data.val;
+}
 int mp_number_to_scaled(mp_number A) {
   return A->data.val;
 }
@@ -933,6 +946,7 @@ void mp_velocity (MP mp, mp_number ret, mp_number st, mp_number ct, mp_number sf
   } else {
     ret->data.val = mp_make_fraction (mp, num, denom);
   }
+/*  printf ("num,denom=%f,%f -=> %f\n", num/65536.0, denom/65536.0, ret->data.val/65536.0);*/
 }
 
 

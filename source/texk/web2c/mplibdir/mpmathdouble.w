@@ -79,16 +79,16 @@ static void mp_double_pyth_sub (MP mp, mp_number r, mp_number a, mp_number b);
 static void mp_double_pyth_add (MP mp, mp_number r, mp_number a, mp_number b);
 static void mp_double_n_arg (MP mp, mp_number ret, mp_number x, mp_number y);
 static void mp_double_velocity (MP mp, mp_number ret, mp_number st, mp_number ct, mp_number sf,  mp_number cf, mp_number t);
-static void mp_set_number_from_boolean(mp_number A, int B);
-static void mp_set_number_from_scaled(mp_number A, int B);
-static void mp_set_number_from_boolean(mp_number A, int B);
-static void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C);
-static void mp_set_number_from_substraction (mp_number A, mp_number B, mp_number C);
-static void mp_set_number_from_div(mp_number A, mp_number B, mp_number C);
-static void mp_set_number_from_mul(mp_number A, mp_number B, mp_number C);
-static void mp_set_number_from_int_div(mp_number A, mp_number B, int C);
-static void mp_set_number_from_int_mul(mp_number A, mp_number B, int C);
-static void mp_set_number_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B, mp_number C);
+static void mp_set_double_from_int(mp_number A, int B);
+static void mp_set_double_from_boolean(mp_number A, int B);
+static void mp_set_double_from_scaled(mp_number A, int B);
+static void mp_set_double_from_addition(mp_number A, mp_number B, mp_number C);
+static void mp_set_double_from_substraction (mp_number A, mp_number B, mp_number C);
+static void mp_set_double_from_div(mp_number A, mp_number B, mp_number C);
+static void mp_set_double_from_mul(mp_number A, mp_number B, mp_number C);
+static void mp_set_double_from_int_div(mp_number A, mp_number B, int C);
+static void mp_set_double_from_int_mul(mp_number A, mp_number B, int C);
+static void mp_set_double_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B, mp_number C);
 static void mp_number_negate(mp_number A);
 static void mp_number_add(mp_number A, mp_number B);
 static void mp_number_substract(mp_number A, mp_number B);
@@ -102,8 +102,10 @@ static void mp_double_abs(mp_number A);
 static void mp_number_clone(mp_number A, mp_number B);
 static void mp_number_swap(mp_number A, mp_number B);
 static int mp_round_unscaled(mp_number x_orig);
+static int mp_number_to_int(mp_number A);
 static int mp_number_to_scaled(mp_number A);
 static int mp_number_to_boolean(mp_number A);
+static double mp_number_to_double(mp_number A);
 static int mp_number_odd(mp_number A);
 static int mp_number_equal(mp_number A, mp_number B);
 static int mp_number_greater(mp_number A, mp_number B);
@@ -117,8 +119,7 @@ static void mp_double_number_take_fraction (MP mp, mp_number r, mp_number p, mp_
 static void mp_double_number_take_scaled (MP mp, mp_number r, mp_number p, mp_number q);
 static mp_number mp_new_number (MP mp, mp_number_type t) ;
 static void mp_free_number (MP mp, mp_number n) ;
-static void mp_set_number_from_double(mp_number A, double B);
-static double mp_number_to_double(mp_number A);
+static void mp_set_double_from_double(mp_number A, double B);
 static void mp_free_double_math (MP mp);
 
 @ And these are the ones that {\it are} used elsewhere
@@ -137,6 +138,7 @@ void * mp_initialize_double_math (MP mp);
 @d p_over_v_threshold 0x80000 /* TODO */
 @d equation_threshold 0.001
 @d tfm_warn_threshold 0.0625
+@d warning_limit 4.5E+15  /* this is a large value that can just be expressed without loss of precision */
 
 
 @c
@@ -151,6 +153,8 @@ void * mp_initialize_double_math (MP mp) {
   math->epsilon_t->data.dval  = 1;
   math->inf_t = mp_new_number (mp, mp_scaled_type);
   math->inf_t->data.dval  = EL_GORDO;
+  math->warning_limit_t = mp_new_number (mp, mp_scaled_type);
+  math->warning_limit_t->data.dval  = warning_limit;
   math->one_third_inf_t = mp_new_number (mp, mp_scaled_type);
   math->one_third_inf_t->data.dval = one_third_EL_GORDO;
   math->unity_t = mp_new_number (mp, mp_scaled_type);
@@ -217,16 +221,17 @@ void * mp_initialize_double_math (MP mp) {
   math->tfm_warn_threshold_t = mp_new_number (mp, mp_scaled_type);
   math->tfm_warn_threshold_t->data.dval = tfm_warn_threshold;
   /* functions */
-  math->from_boolean = mp_set_number_from_boolean;
-  math->from_scaled = mp_set_number_from_scaled;
-  math->from_double = mp_set_number_from_double;
-  math->from_addition  = mp_set_number_from_addition;
-  math->from_substraction  = mp_set_number_from_substraction;
-  math->from_oftheway  = mp_set_number_from_of_the_way;
-  math->from_div  = mp_set_number_from_div;
-  math->from_mul  = mp_set_number_from_mul;
-  math->from_int_div  = mp_set_number_from_int_div;
-  math->from_int_mul  = mp_set_number_from_int_mul;
+  math->from_int = mp_set_double_from_int;
+  math->from_boolean = mp_set_double_from_boolean;
+  math->from_scaled = mp_set_double_from_scaled;
+  math->from_double = mp_set_double_from_double;
+  math->from_addition  = mp_set_double_from_addition;
+  math->from_substraction  = mp_set_double_from_substraction;
+  math->from_oftheway  = mp_set_double_from_of_the_way;
+  math->from_div  = mp_set_double_from_div;
+  math->from_mul  = mp_set_double_from_mul;
+  math->from_int_div  = mp_set_double_from_int_div;
+  math->from_int_mul  = mp_set_double_from_int_mul;
   math->negate = mp_number_negate;
   math->add  = mp_number_add;
   math->substract = mp_number_substract;
@@ -242,6 +247,7 @@ void * mp_initialize_double_math (MP mp) {
   math->to_boolean = mp_number_to_boolean;
   math->to_scaled = mp_number_to_scaled;
   math->to_double = mp_number_to_double;
+  math->to_int = mp_number_to_int;
   math->odd = mp_number_odd;
   math->equal = mp_number_equal;
   math->less = mp_number_less;
@@ -290,6 +296,7 @@ void mp_free_double_math (MP mp) {
   free_number (((math_data *)mp->math)->three_t);
   free_number (((math_data *)mp->math)->one_third_inf_t);
   free_number (((math_data *)mp->math)->inf_t);
+  free_number (((math_data *)mp->math)->warning_limit_t);
   free_number (((math_data *)mp->math)->one_k);
   free_number (((math_data *)mp->math)->sqrt_8_e_k);
   free_number (((math_data *)mp->math)->twelve_ln_2_k);
@@ -327,34 +334,37 @@ void mp_free_number (MP mp, mp_number n) {
 @ Here are the low-level functions on |mp_number| items, setters first.
 
 @c 
-void mp_set_number_from_boolean(mp_number A, int B) {
+void mp_set_double_from_int(mp_number A, int B) {
   A->data.dval = B;
 }
-void mp_set_number_from_scaled(mp_number A, int B) {
+void mp_set_double_from_boolean(mp_number A, int B) {
+  A->data.dval = B;
+}
+void mp_set_double_from_scaled(mp_number A, int B) {
   A->data.dval = B / 65536.0;
 }
-void mp_set_number_from_double(mp_number A, double B) {
+void mp_set_double_from_double(mp_number A, double B) {
   A->data.dval = (double)(B);
 }
-void mp_set_number_from_addition(mp_number A, mp_number B, mp_number C) {
+void mp_set_double_from_addition(mp_number A, mp_number B, mp_number C) {
   A->data.dval = B->data.dval+C->data.dval;
 }
-void mp_set_number_from_substraction (mp_number A, mp_number B, mp_number C) {
+void mp_set_double_from_substraction (mp_number A, mp_number B, mp_number C) {
  A->data.dval = B->data.dval-C->data.dval;
 }
-void mp_set_number_from_div(mp_number A, mp_number B, mp_number C) {
+void mp_set_double_from_div(mp_number A, mp_number B, mp_number C) {
   A->data.dval = B->data.dval / C->data.dval;
 }
-void mp_set_number_from_mul(mp_number A, mp_number B, mp_number C) {
+void mp_set_double_from_mul(mp_number A, mp_number B, mp_number C) {
   A->data.dval = B->data.dval * C->data.dval;
 }
-void mp_set_number_from_int_div(mp_number A, mp_number B, int C) {
+void mp_set_double_from_int_div(mp_number A, mp_number B, int C) {
   A->data.dval = B->data.dval / C;
 }
-void mp_set_number_from_int_mul(mp_number A, mp_number B, int C) {
+void mp_set_double_from_int_mul(mp_number A, mp_number B, int C) {
   A->data.dval = B->data.dval * C;
 }
-void mp_set_number_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B, mp_number C) {
+void mp_set_double_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B, mp_number C) {
   A->data.dval = B->data.dval - mp_double_take_fraction(mp, (B->data.dval - C->data.dval), t->data.dval);
 }
 void mp_number_negate(mp_number A) {
@@ -423,6 +433,9 @@ void mp_number_scaled_to_angle (mp_number A) {
 int mp_number_to_scaled(mp_number A) {
   return (int)(A->data.dval * 65536.0);
 }
+int mp_number_to_int(mp_number A) {
+  return (int)(A->data.dval);
+}
 int mp_number_to_boolean(mp_number A) {
   return (A->data.dval != 0.0);
 }
@@ -430,7 +443,7 @@ double mp_number_to_double(mp_number A) {
   return A->data.dval;
 }
 int mp_number_odd(mp_number A) {
-  return odd((int)A->data.dval);
+  return odd((int)(A->data.dval * 65536.0));
 }
 int mp_number_equal(mp_number A, mp_number B) {
   return (A->data.dval==B->data.dval);
@@ -478,8 +491,12 @@ enough for a beta test.
 
 @c
 char * mp_double_number_tostring (MP mp, mp_number n) {
+   static char set[64];
+   int l;
    char *try = mp_xmalloc(mp, 64, 1);
-   snprintf(try, 64, "%30.30g", n->data.dval);
+   snprintf(set, 64, "%32.16g", n->data.dval);
+   while (set[l] == ' ') l++;
+   strcpy(try, set+l);
    return try;
 }
 
@@ -558,7 +575,7 @@ preferable to trickery, unless the cost is too high.
 
 @c
 double mp_double_make_fraction (MP mp, double p, double q) {
-  return ((p / q) / fraction_multiplier);
+  return ((p / q) * fraction_multiplier);
 }
 void mp_double_number_make_fraction (MP mp, mp_number ret, mp_number p, mp_number q) {
   ret->data.dval = mp_double_make_fraction (mp, p->data.dval, q->data.dval);
@@ -643,11 +660,11 @@ void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop) {
   result = strtod ((char *)start, &end);
   if (errno == 0) {
     set_cur_mod(result);
-    if (result >= fraction_one) {
+    if (result >= warning_limit) {
       if (internal_value (mp_warning_check)->data.dval > 0 &&
           (mp->scanner_status != tex_flushing)) {
         char msg[256];
-        const char *hlp[] = {"It is at least 4096. Continue and I'll try to cope",
+        const char *hlp[] = {"Continue and I'll try to cope",
                "with that big value; but it might be dangerous.",
                "(Set warningcheck:=0 to suppress this message.)",
                NULL };
@@ -768,6 +785,7 @@ void mp_double_velocity (MP mp, mp_number ret, mp_number st, mp_number ct, mp_nu
   } else {
     ret->data.dval = mp_double_make_fraction (mp, num, denom);
   }
+/*  printf ("num,denom=%f,%f -> %f\n", num, denom, ret->data.dval);*/
 }
 
 
@@ -854,14 +872,8 @@ and truncation operations.
 @ |round_unscaled| rounds a |scaled| and converts it to |int|
 @c
 int mp_round_unscaled(mp_number x_orig) {
-  int x = x_orig->data.dval;
-  if (x >= 32768) {
-    return 1+((x-32768) / 65536);
-  } else if ( x>=-32768) {
-    return 0;
-  } else {
-    return  -(1+((-(x+1)-32768) / 65536));
-  }
+  int x = round(x_orig->data.dval);
+  return x;
 }
 
 @ |number_floor| floors a number
@@ -1071,8 +1083,8 @@ any loss of accuracy. Then |x| and~|y| are divided by~|r|.
 void mp_double_sin_cos (MP mp, mp_number z_orig, mp_number n_cos, mp_number n_sin) {
   double rad;
   rad = (z_orig->data.dval / angle_multiplier) * PI/180.0;
-  n_cos->data.dval = sin(rad) * fraction_multiplier;
-  n_sin->data.dval = cos(rad) * fraction_multiplier;
+  n_cos->data.dval = cos(rad) * fraction_multiplier;
+  n_sin->data.dval = sin(rad) * fraction_multiplier;
 }
 
 @ To initialize the |randoms| table, we call the following routine.
