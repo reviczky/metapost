@@ -147,7 +147,7 @@ void * mp_initialize_scaled_math (MP mp) {
   math->inf_t = mp_new_number (mp, mp_scaled_type);
   math->inf_t->data.val  = EL_GORDO;
   math->warning_limit_t = mp_new_number (mp, mp_scaled_type);
-  math->warning_limit_t->data.dval  = fraction_one;
+  math->warning_limit_t->data.val  = fraction_one;
   math->one_third_inf_t = mp_new_number (mp, mp_scaled_type);
   math->one_third_inf_t->data.val = one_third_EL_GORDO;
   math->unity_t = mp_new_number (mp, mp_scaled_type);
@@ -311,6 +311,7 @@ void mp_free_scaled_math (MP mp) {
 @ @c
 mp_number mp_new_number (MP mp, mp_number_type t) {
   mp_number n = (mp_number)mp_xmalloc(mp, 1, sizeof (struct mp_number_data)) ;
+  n->data.dval = 0.0;
   n->data.val = 0;
   n->type = t;
   return n;
