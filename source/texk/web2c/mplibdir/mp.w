@@ -174,6 +174,11 @@ most compilers understand the non-debug version.
 
 @(mpmp.h@>=
 #define DEBUG 0
+#if DEBUG
+#define debug_number(A) printf("%d: %s=%.32f (%d)\n", __LINE__, #A, number_to_double(A), number_to_scaled(A))
+#else
+#define debug_number(A)
+#endif
 #if DEBUG>1
 void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...);
 #  define debug_printf(a1,a2,a3) do_debug_printf(mp, "", a1,a2,a3)
@@ -196,6 +201,7 @@ log file is already closed), but that is not so important while debugging.
 
 @c
 #if DEBUG
+void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...) ;
 void do_debug_printf(MP mp, const char *prefix, const char *fmt, ...) {
   va_list ap;
 #if 0
@@ -503,6 +509,7 @@ MP mp_initialize (MP_options * opt) {
   /* open the terminal for output */
   t_open_out();
 #if DEBUG
+  setlinebuf(stdout);
   setlinebuf(mp->term_out);
 #endif
   if (opt->math_mode == mp_math_scaled_mode) {
@@ -4101,18 +4108,18 @@ number_clone (internal_value (mp_restore_clip_color), unity_t);
 set_internal_string (mp_output_template, mp_intern (mp, "%j.%c"));
 set_internal_string (mp_output_format, mp_intern (mp, "eps"));
 #if DEBUG
-number_clone (mp_tracing_titles, three_t);
-number_clone (mp_tracing_equations, three_t);
-number_clone (mp_tracing_capsules, three_t);
-number_clone (mp_tracing_choices, three_t);
-number_clone (mp_tracing_specs, three_t);
-number_clone (mp_tracing_commands, three_t);
-number_clone (mp_tracing_restores, three_t);
-number_clone (mp_tracing_macros, three_t);
-number_clone (mp_tracing_output, three_t);
-number_clone (mp_tracing_stats, three_t);
-number_clone (mp_tracing_lost_chars, three_t);
-number_clone (mp_tracing_online, three_t);
+number_clone (internal_value (mp_tracing_titles), three_t);
+number_clone (internal_value (mp_tracing_equations), three_t);
+number_clone (internal_value (mp_tracing_capsules), three_t);
+number_clone (internal_value (mp_tracing_choices), three_t);
+number_clone (internal_value (mp_tracing_specs), three_t);
+number_clone (internal_value (mp_tracing_commands), three_t);
+number_clone (internal_value (mp_tracing_restores), three_t);
+number_clone (internal_value (mp_tracing_macros), three_t);
+number_clone (internal_value (mp_tracing_output), three_t);
+number_clone (internal_value (mp_tracing_stats), three_t);
+number_clone (internal_value (mp_tracing_lost_chars), three_t);
+number_clone (internal_value (mp_tracing_online), three_t);
 #endif
 
 @ Well, we do have to list the names one more time, for use in symbolic
@@ -7302,6 +7309,7 @@ static void mp_make_choices (MP mp, mp_knot knots) {
   mp_knot h;    /* the first breakpoint */
   mp_knot p, q; /* consecutive breakpoints being processed */
   @<Other local variables for |make_choices|@>;
+  FUNCTION_TRACE1 ("make_choices()\n");
   check_arith();                  /* make sure that |arith_error=false| */
   if (number_positive(internal_value (mp_tracing_choices)))
     mp_print_path (mp, knots, ", before choices", true);
@@ -7607,7 +7615,7 @@ RESTART:
       n = k;
   } while (!((k >= n) && (mp_left_type (s) != mp_end_cycle)));
   if (k == n)
-    set_number_to_zero(mp->psi[n]);
+    set_number_to_zero(mp->psi[k]);
   else
     number_clone(mp->psi[k], mp->psi[1]);
   free_number (sine);
@@ -7752,6 +7760,7 @@ void mp_solve_choices (MP mp, mp_knot p, mp_knot q, halfword n) {
   mp_knot r, s, t;      /* registers for list traversal */
   mp_number ff;
   new_fraction (ff);
+  FUNCTION_TRACE2 ("solve_choices(%d)\n", n);
   k = 0;
   s = p;
   r = 0;
@@ -7852,12 +7861,6 @@ provide temporary storage for intermediate quantities.
   if (mp_left_type (s) == mp_end_cycle) {
     @<Adjust $\theta_n$ to equal $\theta_0$ and |goto found|@>;
   }
-  free_number (ee);
-  free_number (dd);
-  free_number (cc);
-  free_number (bb);
-  free_number (aa);
-  free_number (acc);
 }
 
 
@@ -8060,6 +8063,7 @@ so we can solve for $\theta_n=\theta_0$.
 @ @c 
 void mp_reduce_angle (MP mp, mp_number a) {
   mp_number abs_a;
+  FUNCTION_TRACE2 ("reduce_angle(%f)\n", number_to_double(a));
   new_number(abs_a);
   number_clone(abs_a, a);
   number_abs(abs_a);
@@ -9875,7 +9879,9 @@ static void mp_make_path (MP mp, mp_knot h) {
   mp_knot p;    /* for traversing the knot list */
   quarterword k;        /* a loop counter */
   @<Other local variables in |make_path|@>;
+  FUNCTION_TRACE1 ("make_path()\n");
   if (pen_is_elliptical (h)) {
+    FUNCTION_TRACE1 ("make_path(elliptical)\n");
     @<Make the elliptical pen |h| into a path@>;
   } else {
     p = h;
@@ -14669,33 +14675,48 @@ if (int_packets + 17 * int_increment > bistack_size)
 @ Computation of the min and max is a tedious but fairly fast sequence of
 instructions; exactly four comparisons are made in each branch.
 
-@d set_min_max(A) 
+@d set_min_max(A)
+  debug_number (stack_1(A));
+  debug_number (stack_3(A));
+  debug_number (stack_2(A));
+  debug_number (stack_min(A));
+  debug_number (stack_max(A));
   if ( number_negative(stack_1((A))) ) {
     if ( number_nonnegative (stack_3((A))) ) {
-      if ( number_negative (stack_2((A))) ) set_number_from_addition (stack_min((A)), stack_1((A)), stack_2((A)));
-      else number_clone (stack_min((A)), stack_1((A)));
+      if ( number_negative (stack_2((A))) ) 
+        set_number_from_addition (stack_min((A)), stack_1((A)), stack_2((A)));
+      else 
+        number_clone (stack_min((A)), stack_1((A)));
       set_number_from_addition (stack_max((A)), stack_1((A)), stack_2((A)));
       number_add (stack_max((A)), stack_3((A)));
-      if ( number_negative (stack_max((A))) ) set_number_to_zero (stack_max((A)));
+      if ( number_negative (stack_max((A))) ) 
+        set_number_to_zero (stack_max((A)));
     } else { 
       set_number_from_addition (stack_min((A)), stack_1((A)), stack_2((A)));
       number_add (stack_min((A)), stack_3((A)));
-      if ( number_greater (stack_min((A)), stack_1((A)))) number_clone (stack_min((A)), stack_1((A)));
+      if ( number_greater (stack_min((A)), stack_1((A)))) 
+        number_clone (stack_min((A)), stack_1((A)));
       set_number_from_addition (stack_max((A)), stack_1((A)), stack_2((A)));
-      if ( number_negative (stack_max((A))) ) set_number_to_zero (stack_max((A)));
+      if ( number_negative (stack_max((A))) ) 
+        set_number_to_zero (stack_max((A)));
     }
   } else if ( number_nonpositive (stack_3((A)))) {
-    if ( number_positive (stack_2((A))) ) set_number_from_addition (stack_max((A)), stack_1((A)), stack_2((A)));
-    else number_clone (stack_max((A)), stack_1((A)));
+    if ( number_positive (stack_2((A))) ) 
+      set_number_from_addition (stack_max((A)), stack_1((A)), stack_2((A)));
+    else 
+      number_clone (stack_max((A)), stack_1((A)));
     set_number_from_addition (stack_min((A)), stack_1((A)), stack_2((A)));
     number_add (stack_min((A)), stack_3((A)));
-    if ( number_positive (stack_min((A))) ) set_number_to_zero (stack_min((A)));
+    if ( number_positive (stack_min((A))) ) 
+      set_number_to_zero (stack_min((A)));
   } else  { 
     set_number_from_addition (stack_max((A)), stack_1((A)), stack_2((A)));
     number_add (stack_max((A)), stack_3((A)));
-    if ( number_less (stack_max((A)), stack_1((A)))) number_clone (stack_max((A)), stack_1((A)));
+    if ( number_less (stack_max((A)), stack_1((A)))) 
+      number_clone (stack_max((A)), stack_1((A)));
     set_number_from_addition (stack_min((A)), stack_1((A)), stack_2((A)));
-    if ( number_positive (stack_min((A))) ) set_number_to_zero (stack_min((A)));
+    if ( number_positive (stack_min((A))) ) 
+      set_number_to_zero (stack_min((A)));
   }
 
 @ It's convenient to keep the current values of $l$, $t_1$, and $t_2$ in
@@ -14734,93 +14755,74 @@ and |(pp,mp_link(pp))|, respectively.
 
 @c
 static void mp_cubic_intersection (MP mp, mp_knot p, mp_knot pp) {
-  mp_knot q, qq;           /* |mp_link(p)|, |mp_link(pp)| */
-  mp_number delx, dely;      /* the components of $\Delta=2^l(w_0-z_0)$ */
-  mp_number tol;             /* bound on the uncertainty in the overlap test */
-  integer uv, xy;          /* pointers to the current packets of interest */
-  integer three_l;         /* |tol_step| times the bisection level */
-  mp_number appr_t, appr_tt; /* best approximations known to the answers */
-  mp_number delx_m_tol, delx_p_tol, dely_m_tol, dely_p_tol, try;
+  mp_knot q, qq;        /* |mp_link(p)|, |mp_link(pp)| */
   mp->time_to_go = max_patience;
-  new_number (delx_m_tol);
-  new_number (delx_p_tol);
-  new_number (dely_m_tol);
-  new_number (dely_p_tol);
-  new_number (try);
-  new_number (tol);
-  new_number (delx);
-  new_number (dely);
-  new_number (appr_t);
-  new_number (appr_tt);
   set_number_from_scaled (mp->max_t, 2);
   @<Initialize for intersections at level zero@>;
 CONTINUE:
   while (1) {
-    set_number_from_substraction (delx_m_tol, delx, tol);
-    set_number_from_addition (delx_p_tol, delx, tol);
-    set_number_from_substraction (dely_m_tol, dely, tol);
-    set_number_from_addition (dely_p_tol, dely, tol);
-    set_number_from_substraction (try, stack_max (x_packet (xy)), stack_min (u_packet (uv)));
-    if (number_lessequal (delx_m_tol, try)) {
-      set_number_from_substraction (try, stack_min (x_packet (xy)), stack_max (u_packet (uv)));
-      if (number_greaterequal (delx_p_tol, try)) {
-        set_number_from_substraction (try, stack_max (y_packet (xy)), stack_min (v_packet (uv)));
-        if (number_lessequal (dely_m_tol, try)) {
-          set_number_from_substraction (try, stack_min (y_packet (xy)), stack_max (v_packet (uv)));
-          if (number_greaterequal (dely_p_tol, try)) {
-            if (number_greaterequal (mp->cur_t, mp->max_t)) {
-              if (number_greaterequal (mp->max_t, two_t)) {   /* we've done 17 bisections */
-                number_add_scaled (mp->cur_t, 1);
-                number_halfp (mp->cur_t);
-                number_add_scaled (mp->cur_tt, 1);
-                number_halfp (mp->cur_tt);
-                free_number (tol);
-                free_number (delx);
-                free_number (dely);
-                free_number (appr_t);
-                free_number (appr_tt);
-                free_number (delx_m_tol);
-                free_number (delx_p_tol);
-                free_number (dely_m_tol);
-                free_number (dely_p_tol);
-                free_number (try);
+    if (number_to_scaled (mp->delx) - mp->tol <=
+        number_to_scaled (stack_max (x_packet (mp->xy))) - number_to_scaled (stack_min (u_packet (mp->uv))))
+      if (number_to_scaled (mp->delx) + mp->tol >=
+          number_to_scaled (stack_min (x_packet (mp->xy))) - number_to_scaled (stack_max (u_packet (mp->uv))))
+        if (number_to_scaled (mp->dely) - mp->tol <=
+            number_to_scaled (stack_max (y_packet (mp->xy))) - number_to_scaled (stack_min (v_packet (mp->uv))))
+          if (number_to_scaled (mp->dely) + mp->tol >=
+              number_to_scaled (stack_min (y_packet (mp->xy))) - number_to_scaled (stack_max (v_packet (mp->uv)))) {
+            if (number_to_scaled (mp->cur_t) >= number_to_scaled (mp->max_t)) {
+              if (number_equal(mp->max_t, two_t)) {   /* we've done 17 bisections */
+                set_number_from_scaled (mp->cur_t, ((number_to_scaled (mp->cur_t) + 1)/2));
+                set_number_from_scaled (mp->cur_tt, ((number_to_scaled (mp->cur_tt) + 1)/2));
                 return;
               }
               number_double(mp->max_t);
-              number_clone (appr_t, mp->cur_t);
-              number_clone (appr_tt, mp->cur_tt);
+              number_clone (mp->appr_t, mp->cur_t);
+              number_clone (mp->appr_tt, mp->cur_tt);
             }
             @<Subdivide for a new level of intersection@>;
             goto CONTINUE;
           }
-        }
-      }
-    }
     if (mp->time_to_go > 0) {
       decr (mp->time_to_go);
     } else {
-      while (number_less (appr_t, unity_t)) {
-        number_double(appr_t);
-        number_double(appr_tt);
+      while (number_less (mp->appr_t, unity_t)) {
+        number_double(mp->appr_t);
+        number_double(mp->appr_tt);
       }
-      number_clone (mp->cur_t, appr_t);
-      number_clone (mp->cur_tt, appr_tt);
-      free_number (tol);
-      free_number (appr_t);
-      free_number (appr_tt);
-      free_number (delx);
-      free_number (dely);
-      free_number (delx_m_tol);
-      free_number (delx_p_tol);
-      free_number (dely_m_tol);
-      free_number (dely_p_tol);
-      free_number (try);
+      number_clone (mp->cur_t, mp->appr_t);
+      number_clone (mp->cur_tt, mp->appr_tt);
       return;
     }
     @<Advance to the next pair |(cur_t,cur_tt)|@>;
   }
 }
 
+
+@ The following variables are global, although they are used only by
+|cubic_intersection|, because it is necessary on some machines to
+split |cubic_intersection| up into two procedures.
+
+@<Glob...@>=
+mp_number delx;
+mp_number dely;   /* the components of $\Delta=2^l(w_0-z_0)$ */
+integer tol;    /* bound on the uncertainty in the overlap test */
+integer uv;
+integer xy;     /* pointers to the current packets of interest */
+integer three_l;        /* |tol_step| times the bisection level */
+mp_number appr_t;
+mp_number appr_tt;        /* best approximations known to the answers */
+
+@ @<Initialize table ...@>=
+new_number (mp->delx);
+new_number (mp->dely);
+new_number (mp->appr_t);
+new_number (mp->appr_tt);
+
+@ @<Dealloc...@>=
+free_number (mp->delx);
+free_number (mp->dely);
+free_number (mp->appr_t);
+free_number (mp->appr_tt);
 
 @ We shall assume that the coordinates are sufficiently non-extreme that
 integer overflow will not occur.
@@ -14834,152 +14836,132 @@ set_number_from_substraction (u1r, p->right_x, p->x_coord);
 set_number_from_substraction (u2r, q->left_x, p->right_x);
 set_number_from_substraction (u3r, q->x_coord, q->left_x);
 set_min_max (ur_packet);
-set_number_from_substraction (v1r, p->right_y, p->y_coord);
+set_number_from_substraction (v1r, p->right_y, p->y_coord );
 set_number_from_substraction (v2r, q->left_y, p->right_y);
-set_number_from_substraction (v3r, q->y_coord, q->left_y);
+set_number_from_substraction (v3r, q->y_coord, q->left_y );
 set_min_max (vr_packet);
-set_number_from_substraction (x1r, pp->right_x, pp->x_coord);
-set_number_from_substraction (x2r, qq->left_x, pp->right_x);
-set_number_from_substraction (x3r, qq->x_coord, qq->left_x);
+set_number_from_substraction (x1r, pp->right_x, pp->x_coord );
+set_number_from_substraction (x2r, qq->left_x, pp->right_x );
+set_number_from_substraction (x3r, qq->x_coord, qq->left_x );
 set_min_max (xr_packet);
-set_number_from_substraction (y1r, pp->right_y, pp->y_coord);
+set_number_from_substraction (y1r, pp->right_y, pp->y_coord );
 set_number_from_substraction (y2r, qq->left_y, pp->right_y);
 set_number_from_substraction (y3r, qq->y_coord, qq->left_y);
 set_min_max (yr_packet);
-set_number_from_substraction (delx, p->x_coord, pp->x_coord);
-set_number_from_substraction (dely, p->y_coord, pp->y_coord);
-set_number_to_zero (tol);
-uv = r_packets;
-xy = r_packets;
-three_l = 0;
+set_number_from_substraction (mp->delx, p->x_coord, pp->x_coord );
+set_number_from_substraction (mp->dely, p->y_coord, pp->y_coord );
+mp->tol = 0;
+mp->uv = r_packets;
+mp->xy = r_packets;
+mp->three_l = 0;
 set_number_from_scaled (mp->cur_t, 1);
 set_number_from_scaled (mp->cur_tt, 1)
 
-@ @<Subdivide for a new level of intersection@>=
-number_clone (stack_dx, delx);
-number_clone (stack_dy, dely);
-number_clone (stack_tol, tol);
-set_number_from_scaled (stack_uv, uv);
-set_number_from_scaled (stack_xy, xy);
+@ 
+
+@d half(A) ((A)/2)
+ 
+@<Subdivide for a new level of intersection@>=
+number_clone (stack_dx, mp->delx);
+number_clone (stack_dy, mp->dely);
+set_number_from_scaled (stack_tol, mp->tol);
+set_number_from_scaled (stack_uv, mp->uv);
+set_number_from_scaled (stack_xy, mp->xy);
 mp->bisect_ptr = mp->bisect_ptr + int_increment;
-number_double(mp->cur_t);
-number_double(mp->cur_tt);
-number_clone (u1l, stack_1 (u_packet (uv)));
-number_clone (u3r, stack_3 (u_packet (uv)));
-set_number_from_addition (u2l, u1l, stack_2 (u_packet (uv)));
-number_half (u2l);
-set_number_from_addition (u2r, u3r, stack_2 (u_packet (uv)));
-number_half (u2r);
-set_number_from_addition (u3l, u2l, u2r);
-number_half (u3l);
+number_double (mp->cur_t);
+number_double (mp->cur_tt);
+number_clone (u1l, stack_1 (u_packet (mp->uv)));
+number_clone (u3r, stack_3 (u_packet (mp->uv)));
+set_number_from_addition (u2l, u1l, stack_2 (u_packet (mp->uv))); number_half (u2l);
+set_number_from_addition (u2r, u3r, stack_2 (u_packet (mp->uv))); number_half (u2r);
+set_number_from_addition (u3l, u2l, u2r); number_half (u3l);
 number_clone (u1r, u3l);
 set_min_max (ul_packet);
 set_min_max (ur_packet);
-number_clone (v1l, stack_1 (v_packet (uv)));
-number_clone (v3r, stack_3 (v_packet (uv)));
-set_number_from_addition (v2l, v1l, stack_2 (v_packet (uv)));
-number_half (v2l);
-set_number_from_addition (v2r, v3r, stack_2 (v_packet (uv)));
-number_half (v2r);
-set_number_from_addition (v3l, v2l, v2r);
-number_half (v3l);
+number_clone (v1l, stack_1 (v_packet (mp->uv)));
+number_clone (v3r, stack_3 (v_packet (mp->uv)));
+set_number_from_addition (v2l, v1l, stack_2 (v_packet (mp->uv))); number_half(v2l);
+set_number_from_addition (v2r, v3r, stack_2 (v_packet (mp->uv))); number_half(v2r);
+set_number_from_addition (v3l, v2l, v2r); number_half(v3l);
 number_clone (v1r, v3l);
 set_min_max (vl_packet);
 set_min_max (vr_packet);
-number_clone (x1l, stack_1 (x_packet (xy)));
-number_clone (x3r, stack_3 (x_packet (xy)));
-set_number_from_addition (x2l, x1l, stack_2 (x_packet (xy)));
-number_half (x2l);
-set_number_from_addition (x2r, x3r, stack_2 (x_packet (xy)));
-number_half (x2r);
-set_number_from_addition (x3l, x2l, x2r);
-number_half (x3l);
+number_clone (x1l, stack_1 (x_packet (mp->xy)));
+number_clone (x3r, stack_3 (x_packet (mp->xy)));
+set_number_from_addition (x2l, x1l, stack_2 (x_packet (mp->xy))); number_half(x2l);
+set_number_from_addition (x2r, x3r, stack_2 (x_packet (mp->xy))); number_half(x2r);
+set_number_from_addition (x3l, x2l, x2r); number_half(x3l);
 number_clone (x1r, x3l);
 set_min_max (xl_packet);
 set_min_max (xr_packet);
-number_clone (y1l, stack_1 (y_packet (xy)));
-number_clone (y3r, stack_3 (y_packet (xy)));
-set_number_from_addition (y2l, y1l, stack_2 (y_packet (xy)));
-number_half (y2l);
-set_number_from_addition (y2r, y3r, stack_2 (y_packet (xy)));
-number_half (y2r);
-set_number_from_addition (y3l, y2l, y2r);
-number_half (y3l);
+number_clone (y1l, stack_1 (y_packet (mp->xy)));
+number_clone (y3r, stack_3 (y_packet (mp->xy)));
+set_number_from_addition (y2l, y1l, stack_2 (y_packet (mp->xy))); number_half (y2l);
+set_number_from_addition (y2r, y3r, stack_2 (y_packet (mp->xy))); number_half (y2r);
+set_number_from_addition (y3l, y2l, y2r); number_half (y3l);
 number_clone (y1r, y3l);
 set_min_max (yl_packet);
 set_min_max (yr_packet);
-uv = l_packets;
-xy = l_packets;
-number_double (delx);
-number_double (dely);
-set_number_from_scaled (tol, number_to_scaled (tol) - three_l + (integer) mp->tol_step);
-number_double (tol);
-three_l = three_l + (integer) mp->tol_step
+mp->uv = l_packets;
+mp->xy = l_packets;
+number_double(mp->delx);
+number_double(mp->dely);
+mp->tol = mp->tol - mp->three_l + (integer) mp->tol_step;
+mp->tol += mp->tol;
+mp->three_l = mp->three_l + (integer) mp->tol_step
 
 @ @<Advance to the next pair |(cur_t,cur_tt)|@>=
 NOT_FOUND:
-if (number_odd (mp->cur_tt)) {
-  if (number_odd (mp->cur_t)) {
+if (odd (number_to_scaled (mp->cur_tt))) {
+  if (odd (number_to_scaled (mp->cur_t))) {
     @<Descend to the previous level and |goto not_found|@>;
   } else {
-    number_add_scaled (mp->cur_t, 1);
-    /* delx = delx + stack_1 (u_packet (uv)) + stack_2 (u_packet (uv))  + stack_3 (u_packet (uv)); */
-    number_add (delx, stack_1 (u_packet (uv)));
-    number_add (delx, stack_2 (u_packet (uv)));
-    number_add (delx, stack_3 (u_packet (uv)));
-    /* dely = dely + stack_1 (v_packet (uv)) + stack_2 (v_packet (uv)) + stack_3 (v_packet (uv)); */
-    number_add (dely, stack_1 (v_packet (uv)));
-    number_add (dely, stack_2 (v_packet (uv)));
-    number_add (dely, stack_3 (v_packet (uv)));
-    uv = uv + int_packets;      /* switch from |l_packets| to |r_packets| */
-    number_add_scaled (mp->cur_tt, -1);
-    xy = xy - int_packets;
-    /* switch from |r_packets| to |l_packets| */
-    /* delx = delx + stack_1 (x_packet (xy)) + stack_2 (x_packet (xy)) + stack_3 (x_packet (xy)); */
-    number_add (delx, stack_1 (x_packet (xy)));
-    number_add (delx, stack_2 (x_packet (xy)));
-    number_add (delx, stack_3 (x_packet (xy)));
-    /* dely = dely + stack_1 (y_packet (xy)) + stack_2 (y_packet (xy)) + stack_3 (y_packet (xy)); */
-    number_add (dely, stack_1 (y_packet (xy)));
-    number_add (dely, stack_2 (y_packet (xy)));
-    number_add (dely, stack_3 (y_packet (xy)));
+    set_number_from_scaled (mp->cur_t, number_to_scaled (mp->cur_t) + 1);
+    number_add (mp->delx, stack_1 (u_packet (mp->uv)));
+    number_add (mp->delx, stack_2 (u_packet (mp->uv)));
+    number_add (mp->delx, stack_3 (u_packet (mp->uv)));
+    number_add (mp->dely, stack_1 (v_packet (mp->uv)));
+    number_add (mp->dely, stack_2 (v_packet (mp->uv)));
+    number_add (mp->dely, stack_3 (v_packet (mp->uv)));
+    mp->uv = mp->uv + int_packets;      /* switch from |l_packets| to |r_packets| */
+    set_number_from_scaled (mp->cur_tt, number_to_scaled (mp->cur_tt) - 1);
+    mp->xy = mp->xy - int_packets;
+    number_add (mp->delx, stack_1 (x_packet (mp->xy)));
+    number_add (mp->delx, stack_2 (x_packet (mp->xy)));
+    number_add (mp->delx, stack_3 (x_packet (mp->xy)));
+    number_add (mp->dely, stack_1 (y_packet (mp->xy)));
+    number_add (mp->dely, stack_2 (y_packet (mp->xy)));
+    number_add (mp->dely, stack_3 (y_packet (mp->xy)));
   }
 } else {
-  number_add_scaled (mp->cur_tt, 1);
-  set_number_from_scaled (tol, number_to_scaled (tol) + three_l);
-  /* delx = delx - stack_1 (x_packet (xy)) - stack_2 (x_packet (xy)) - stack_3 (x_packet (xy)); */
-  number_substract (delx, stack_1 (x_packet (xy)));
-  number_substract (delx, stack_2 (x_packet (xy)));
-  number_substract (delx, stack_3 (x_packet (xy)));
-  /* dely = dely - stack_1 (y_packet (xy)) - stack_2 (y_packet (xy))  - stack_3 (y_packet (xy)); */
-  number_substract (dely, stack_1 (y_packet (xy)));
-  number_substract (dely, stack_2 (y_packet (xy)));
-  number_substract (dely, stack_3 (y_packet (xy)));
-  xy = xy + int_packets;        /* switch from |l_packets| to |r_packets| */
+  set_number_from_scaled (mp->cur_tt, number_to_scaled (mp->cur_tt) + 1);
+  mp->tol = mp->tol + mp->three_l;
+  number_substract (mp->delx, stack_1 (x_packet (mp->xy)));
+  number_substract (mp->delx, stack_2 (x_packet (mp->xy)));
+  number_substract (mp->delx, stack_3 (x_packet (mp->xy)));
+  number_substract (mp->dely, stack_1 (y_packet (mp->xy)));
+  number_substract (mp->dely, stack_2 (y_packet (mp->xy)));
+  number_substract (mp->dely, stack_3 (y_packet (mp->xy)));
+  mp->xy = mp->xy + int_packets;        /* switch from |l_packets| to |r_packets| */
 }
 
 
 @ @<Descend to the previous level...@>=
 {
-  number_halfp(mp->cur_t);
-  number_halfp(mp->cur_tt);
-  if (number_zero (mp->cur_t)) {
-    free_number (tol);
-    free_number (delx);
-    free_number (dely);
-    free_number (appr_t);
-    free_number (appr_tt);
+  set_number_from_scaled (mp->cur_t, half (number_to_scaled (mp->cur_t)));
+  set_number_from_scaled (mp->cur_tt, half (number_to_scaled (mp->cur_tt)));
+  if (number_to_scaled (mp->cur_t) == 0)
     return;
-  }
   mp->bisect_ptr -= int_increment;
-  three_l -= (integer) mp->tol_step;
-  number_clone (delx, stack_dx);
-  number_clone (dely, stack_dy);
-  number_clone (tol, stack_tol);
-  uv = number_to_scaled (stack_uv);
-  xy = number_to_scaled (stack_xy);
+  mp->three_l -= (integer) mp->tol_step;
+  number_clone (mp->delx, stack_dx);
+  number_clone (mp->dely, stack_dy);
+  mp->tol = number_to_scaled (stack_tol);
+  mp->uv = number_to_scaled (stack_uv);
+  mp->xy = number_to_scaled (stack_xy);
   goto NOT_FOUND;
 }
+
 
 
 @ The |path_intersection| procedure is much simpler.
@@ -18233,6 +18215,24 @@ static mp_node mp_scan_toks (MP mp, mp_command_code terminator,
   return mp_link (mp->hold_head);
 }
 
+@
+@c
+void mp_print_sym  (mp_sym sym) {
+  printf("{type = %d, v = {type = %d, data = {indep = {scale = %d, serial = %d}, n = %p, str = %p, sym = %p, node = %p, p = %p}}, text = %p}\n", sym->type, sym->v.type, sym->v.data.indep.scale, sym->v.data.indep.serial,
+    sym->v.data.n, sym->v.data.str, sym->v.data.sym, sym->v.data.node, sym->v.data.p, sym->text);
+  if (sym->v.data.n !=NULL) {
+      mp_number n = sym->v.data.n;
+      printf("{data = {dval = %f, val = %d}, type = %d}\n", n->data.dval, n->data.val, n->type);
+  }
+  if (sym->text != NULL) {
+     mp_string t = sym->text;
+     printf ("{str = %p \"%s\", len = %d, refs = %d}\n", t->str, t->str, (int)t->len, t->refs);
+  }
+}
+
+@
+@<Declarations@>=
+void mp_print_sym  (mp_sym sym) ;
 
 @ @<Substitute for |cur_sym|...@>=
 {

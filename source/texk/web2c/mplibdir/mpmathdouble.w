@@ -139,7 +139,7 @@ void * mp_initialize_double_math (MP mp);
 @d equation_threshold 0.001
 @d tfm_warn_threshold 0.0625
 @d warning_limit 4.5E+15  /* this is a large value that can just be expressed without loss of precision */
-
+@d epsilon 4.5E-15
 
 @c
 void * mp_initialize_double_math (MP mp) {
@@ -150,7 +150,7 @@ void * mp_initialize_double_math (MP mp) {
   math->free = mp_free_number;
   /* here are the constants for |scaled| objects */
   math->epsilon_t = mp_new_number (mp, mp_scaled_type);
-  math->epsilon_t->data.dval  = 1;
+  math->epsilon_t->data.dval  = epsilon;
   math->inf_t = mp_new_number (mp, mp_scaled_type);
   math->inf_t->data.dval  = EL_GORDO;
   math->warning_limit_t = mp_new_number (mp, mp_scaled_type);
@@ -318,7 +318,8 @@ void mp_free_double_math (MP mp) {
 @ @c
 mp_number mp_new_number (MP mp, mp_number_type t) {
   mp_number n = (mp_number)mp_xmalloc(mp, 1, sizeof (struct mp_number_data)) ;
-  n->data.dval = 0;
+  n->data.val = 0;
+  n->data.dval = 0.0;
   n->type = t;
   return n;
 }
@@ -369,6 +370,8 @@ void mp_set_double_from_of_the_way(MP mp, mp_number A, mp_number t, mp_number B,
 }
 void mp_number_negate(mp_number A) {
   A->data.dval = -A->data.dval;
+  if (A->data.dval == -0.0)
+    A->data.dval = 0.0;
 }
 void mp_number_add(mp_number A, mp_number B) {
   A->data.dval = A->data.dval + B->data.dval;
@@ -383,10 +386,10 @@ void mp_number_halfp(mp_number A) {
   A->data.dval = (A->data.dval/2.0);
 }
 void mp_number_double(mp_number A) {
-  A->data.dval = A->data.dval + A->data.dval;
+  A->data.dval = A->data.dval * 2.0;
 }
 void mp_number_add_scaled(mp_number A, int B) { /* also for negative B */
-  A->data.dval = A->data.dval + (B/65336.0);
+  A->data.dval = A->data.dval + (B/65536.0);
 }
 void mp_number_multiply_int(mp_number A, int B) {
   A->data.dval = (double)(A->data.dval * B);
@@ -431,7 +434,7 @@ void mp_number_scaled_to_angle (mp_number A) {
 
 @c
 int mp_number_to_scaled(mp_number A) {
-  return (int)(A->data.dval * 65536.0);
+  return (int)round(A->data.dval * 65536.0);
 }
 int mp_number_to_int(mp_number A) {
   return (int)(A->data.dval);
@@ -443,7 +446,7 @@ double mp_number_to_double(mp_number A) {
   return A->data.dval;
 }
 int mp_number_odd(mp_number A) {
-  return odd((int)(A->data.dval * 65536.0));
+  return odd((int)round(A->data.dval * 65536.0));
 }
 int mp_number_equal(mp_number A, mp_number B) {
   return (A->data.dval==B->data.dval);
@@ -492,7 +495,7 @@ enough for a beta test.
 @c
 char * mp_double_number_tostring (MP mp, mp_number n) {
    static char set[64];
-   int l;
+   int l = 0;
    char *try = mp_xmalloc(mp, 64, 1);
    snprintf(set, 64, "%32.16g", n->data.dval);
    while (set[l] == ' ') l++;
@@ -722,7 +725,8 @@ void mp_double_scan_numeric_token (MP mp, int n) { /* n: scaled */
   while (mp->char_class[mp->buffer[mp->cur_input.loc_field]] == digit_class) {
      mp->cur_input.loc_field++;
   }
-  if (mp->buffer[mp->cur_input.loc_field] == '.') {
+  if (mp->buffer[mp->cur_input.loc_field] == '.' && 
+      mp->buffer[mp->cur_input.loc_field+1] != '.') {
      mp->cur_input.loc_field++;
      while (mp->char_class[mp->buffer[mp->cur_input.loc_field]] == digit_class) {
        mp->cur_input.loc_field++;
@@ -785,7 +789,6 @@ void mp_double_velocity (MP mp, mp_number ret, mp_number st, mp_number ct, mp_nu
   } else {
     ret->data.dval = mp_double_make_fraction (mp, num, denom);
   }
-/*  printf ("num,denom=%f,%f -> %f\n", num, denom, ret->data.dval);*/
 }
 
 
@@ -872,7 +875,7 @@ and truncation operations.
 @ |round_unscaled| rounds a |scaled| and converts it to |int|
 @c
 int mp_round_unscaled(mp_number x_orig) {
-  int x = round(x_orig->data.dval);
+  int x = (int)round(x_orig->data.dval);
   return x;
 }
 
@@ -996,7 +999,7 @@ void mp_double_m_log (MP mp, mp_number ret, mp_number x_orig) {
   if (x_orig->data.dval <= 0) {
     @<Handle non-positive logarithm@>;
   } else {
-    ret->data.dval = log (x_orig->data.dval);
+    ret->data.dval = log (x_orig->data.dval*256.0);
   }
 }
 
@@ -1017,13 +1020,12 @@ void mp_double_m_log (MP mp, mp_number ret, mp_number x_orig) {
 
 
 @ Conversely, the exponential routine calculates $\exp(x/2^8)$,
-when |x| is |scaled|. The result is an integer approximation to
-$2^{16}\exp(x/2^{24})$, when |x| is regarded as an integer.
+when |x| is |scaled|. 
 
 @c
 void mp_double_m_exp (MP mp, mp_number ret, mp_number x_orig) {
   errno = 0;  
-  ret->data.dval = exp(x_orig->data.dval);
+  ret->data.dval = exp(x_orig->data.dval/256.0);
   if (errno) {
     if (x_orig->data.dval > 0) {
       mp->arith_error = true;
@@ -1045,6 +1047,8 @@ void mp_double_n_arg (MP mp, mp_number ret, mp_number x_orig, mp_number y_orig) 
   } else {
     ret->type = mp_angle_type;
     ret->data.dval = atan2 (y_orig->data.dval, x_orig->data.dval) * (180.0 / PI)  * angle_multiplier;
+    if (ret->data.dval == -0.0) 
+      ret->data.dval = 0.0;
   }
 }
 
