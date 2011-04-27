@@ -2,6 +2,20 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.750:
+----------------------------------------------------------------------
+
+This is an alpha release for testing & debugging only!
+
+* mpost now accepts --math=double as an argument. This switches the
+  internal arithmetic functions from using a scaled 32-bit data type
+  to 64-bit floating point.
+
+* With --math=double, the input scanner has been changed to allow
+    a := 1.0E20 
+  as valid input format for a numerical value
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.503:
 ----------------------------------------------------------------------
 
