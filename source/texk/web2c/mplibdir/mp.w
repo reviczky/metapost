@@ -18218,7 +18218,7 @@ static mp_node mp_scan_toks (MP mp, mp_command_code terminator,
 @
 @c
 void mp_print_sym  (mp_sym sym) {
-  printf("{type = %d, v = {type = %d, data = {indep = {scale = %d, serial = %d}, n = %p, str = %p, sym = %p, node = %p, p = %p}}, text = %p}\n", sym->type, sym->v.type, sym->v.data.indep.scale, sym->v.data.indep.serial,
+  printf("{type = %d, v = {type = %d, data = {indep = {scale = %d, serial = %d}, n = %p, str = %p, sym = %p, node = %p, p = %p}}, text = %p}\n", sym->type, sym->v.type, (int)sym->v.data.indep.scale, (int)sym->v.data.indep.serial,
     sym->v.data.n, sym->v.data.str, sym->v.data.sym, sym->v.data.node, sym->v.data.p, sym->text);
   if (sym->v.data.n !=NULL) {
       mp_number n = sym->v.data.n;
