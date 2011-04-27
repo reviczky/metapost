@@ -404,7 +404,7 @@ void mp_number_clone(mp_number A, mp_number B) {
   A->data.dval=B->data.dval;
 }
 void mp_number_swap(mp_number A, mp_number B) {
-  int swap_tmp = A->data.dval;
+  double swap_tmp = A->data.dval;
   A->data.dval=B->data.dval;
   B->data.dval=swap_tmp;
 }
