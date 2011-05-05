@@ -30126,7 +30126,7 @@ void mp_grow_internals (MP mp, int l) {
       memcpy (internal + k, mp->internal + k, sizeof (mp_internal));
     } else {
       memset (internal + k, 0, sizeof (mp_internal));
-      new_number(mp->internal[k].v.data.n);
+      new_number(((mp_internal *)(internal + k))->v.data.n);
     }
   }
   xfree (mp->internal);
