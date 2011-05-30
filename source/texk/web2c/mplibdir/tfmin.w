@@ -1,4 +1,4 @@
-% $Id: mp.w 597 2008-07-03 15:35:34Z taco $
+% $Id$
 %
 % Copyright 2008-2009 Taco Hoekwater.
 %
