@@ -1,4 +1,4 @@
-% $Id: svgout.w 657 2008-10-08 09:48:49Z taco $
+% $Id$
 % This file is part of MetaPost;
 % the MetaPost program is in the public domain.
 
