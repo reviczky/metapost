@@ -1,4 +1,4 @@
-% $Id $
+% $Id$
 %
 % This file is part of MetaPost;
 % the MetaPost program is in the public domain.
