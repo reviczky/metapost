@@ -1,3 +1,28 @@
+2011-05-30 Taco Hoekwater  <taco@luatex.org>
+
+	* all files: clarify that base MetaPost is public domain,
+	but uses LGPL'd libraries.
+
+2011-05-13  Taco Hoekwater  <taco@luatex.org>
+
+	* mpost.w (main): change setting of kpse program name
+	(on a hint by PEB).
+
+2011-05-09  Taco Hoekwater  <taco@luatex.org>
+
+	* mpxout.w (mpx_in_TFM): close tfm files.
+
+2011-04-29  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* mp.w (mp_do_snprintf): Removed, instead declare and define
+	static internal version of mp_snprintf().
+	Compare change from 2009-12-05:
+	FIXME: Should unconditionally assume snprintf() exists.
+
+2011-04-06  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* am/libmplib.am: Only one rule for tfmin.w => tfmin.c.
+
 2011-04-05  Taco Hoekwater  <taco@luatex.org>
 
 	* mp.w, mpost.w: import metapost 1.504
