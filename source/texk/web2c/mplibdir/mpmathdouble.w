@@ -984,7 +984,7 @@ void mp_double_m_log (MP mp, mp_number ret, mp_number x_orig) {
   if (x_orig->data.dval <= 0) {
     @<Handle non-positive logarithm@>;
   } else {
-    ret->data.dval = log (x_orig->data.dval*256.0);
+    ret->data.dval = log (x_orig->data.dval)*256.0;
   }
 }
 
