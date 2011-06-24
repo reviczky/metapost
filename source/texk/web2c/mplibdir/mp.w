@@ -25638,23 +25638,9 @@ static void mp_turn_cycles (MP mp, mp_number turns, mp_knot c) {
 @ @<Declare unary action...@>=
 static void mp_turn_cycles_wrapper (MP mp, mp_number ret, mp_knot c) {
   mp_number arg1, arg2;
-  if ((mp_next_knot (c) == c) || (mp_next_knot (mp_next_knot (c)) == c)) {
-    mp_number an_angle;
-    new_number (arg1);
-    new_number (arg2);
-    new_angle (an_angle);
-    set_number_from_substraction(arg1, c->x_coord, c->right_x);
-    set_number_from_substraction(arg2, c->y_coord, c->right_y);
-    mp_an_angle(mp, an_angle, arg1, arg2);
-    if (number_positive(an_angle)) {
-      set_number_to_unity(ret);
-    } else {
-      set_number_to_unity(ret);
-      number_negate(ret);
-    }
-    free_number (an_angle);
-    free_number (arg1);
-    free_number (arg2);
+  if (mp_next_knot (c) == c) { 
+    /* one-knot paths always have a turning number of 1 */
+    set_number_to_unity(ret);
   } else {
     mp_number nval; 
     mp_number oval; 
