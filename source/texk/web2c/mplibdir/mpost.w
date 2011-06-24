@@ -90,13 +90,13 @@ static char *mpost_itoa (int i) {
   while (v>=10) {
     char d = (char)(v % 10);
     v = v / 10;
-    res[idx--] = d;
+    res[idx--] = d  + '0';
   }
-  res[idx--] = (char)v;
+  res[idx--] = (char)v + '0';
   if (i<0) {
       res[idx--] = '-';
   }
-  return mpost_xstrdup(res+idx);
+  return mpost_xstrdup(res+idx+1);
 }
 
 
@@ -124,10 +124,11 @@ static void mpost_run_editor (MP mp, char *fname, int fline) {
               exit(EXIT_FAILURE);  
             } else {
               char *s = mpost_itoa(fline);
+              char *ss = s;
               if (s != NULL) {
                 while (*s != '\0')
 	          *temp++ = *s++;
-                free(s);
+                free(ss);
               }
               ddone = true;
             }
