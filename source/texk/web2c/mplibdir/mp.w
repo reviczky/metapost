@@ -20925,9 +20925,9 @@ with the current input file.
 @c
 void mp_start_mpx_input (MP mp) {
   char *origname = NULL;        /* a copy of nameoffile */
-  mp_pack_file_name (mp, in_name, "", in_ext);
+  mp_pack_file_name (mp, in_name, in_area, in_ext);
   origname = xstrdup (mp->name_of_file);
-  mp_pack_file_name (mp, in_name, "", ".mpx");
+  mp_pack_file_name (mp, in_name, in_area, ".mpx");
   if (!(mp->run_make_mpx) (mp, origname, mp->name_of_file))
     goto NOT_FOUND;
   mp_begin_file_reading (mp);
