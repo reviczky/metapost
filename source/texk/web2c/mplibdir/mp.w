@@ -20602,6 +20602,7 @@ except of course for a short time just after |job_name| has become nonzero.
 
 @<Allocate or ...@>=
 mp->job_name = mp_xstrdup (mp, opt->job_name);
+/*
 if (mp->job_name != NULL) {
   char *s = mp->job_name + strlen (mp->job_name);
   while (s > mp->job_name) {
@@ -20611,6 +20612,7 @@ if (mp->job_name != NULL) {
     s--;
   }
 }
+*/
 if (opt->noninteractive) {
   if (mp->job_name == NULL)
     mp->job_name = mp_xstrdup (mp, mp->mem_name);
