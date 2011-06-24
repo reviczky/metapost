@@ -25423,7 +25423,6 @@ static void mp_bezier_slope (MP mp, mp_number ret, mp_number AX, mp_number AY, m
 @
 @d p_nextnext mp_next_knot(mp_next_knot(p))
 @d p_next mp_next_knot(p)
-@d seven_twenty_deg 05500000000 /* $720\cdot2^{20}$, represents $720^\circ$ */
 
 @<Declare unary action...@>=
 static void mp_new_turn_cycles (MP mp, mp_number turns, mp_knot c) {
@@ -25539,132 +25538,13 @@ DONE:
   free_number(arg2);
 }
 
-
-@ This code is based on Bogus\l{}av Jackowski's
-|emergency_turningnumber| macro, with some minor changes by Taco
-Hoekwater. The macro code looked more like this:
-{\obeylines
-vardef turning\_number primary p =
-~~save res, ang, turns;
-~~res := 0;
-~~if length p <= 2:
-~~~~if Angle ((point 0 of p) - (postcontrol 0 of p)) >= 0:  1  else: -1 fi
-~~else:
-~~~~for t = 0 upto length p-1 :
-~~~~~~angc := Angle ((point t+1 of p)  - (point t of p))
-~~~~~~~~- Angle ((point t of p) - (point t-1 of p));
-~~~~~~if angc > 180: angc := angc - 360; fi;
-~~~~~~if angc < -180: angc := angc + 360; fi;
-~~~~~~res  := res + angc;
-~~~~endfor;
-~~res/360
-~~fi
-enddef;}
-The general idea is to calculate only the sum of the angles of
-straight lines between the points, of a path, not worrying about cusps
-or self-intersections in the segments at all. If the segment is not
-well-behaved, the result is not necesarily correct. But the old code
-was not always correct either, and worse, it sometimes failed for
-well-behaved paths as well. All known bugs that were triggered by the
-original code no longer occur with this code, and it runs roughly 3
-times as fast because the algorithm is much simpler.
-
-@ It is possible to overflow the return value of the |turn_cycles|
-function when the path is sufficiently long and winding, but I am not
-going to bother testing for that. In any case, it would only return
-the looped result value, which is not a big problem.
-
-The macro code for the repeat loop was a bit nicer to look
-at than the pascal code, because it could use |point -1 of p|. In
-pascal, the fastest way to loop around the path is not to look
-backward once, but forward twice. These defines help hide the trick.
-
-@d p_to mp_next_knot(mp_next_knot(p))
-@d p_here mp_next_knot(p)
-@d p_from p
-
-@<Declare unary action...@>=
-static void mp_turn_cycles (MP mp, mp_number turns, mp_knot c) {
-  mp_angle res, ang;       /*  the angles of intermediate results  */
-  mp_angle neg_three_sixty_deg_t;
-  mp_knot p;    /*  for running around the path  */
-  mp_number arg1, arg2, arg3, arg4;
-  set_number_to_zero (turns);
-  new_angle(neg_three_sixty_deg_t);
-  new_angle(res);
-  new_angle(ang);
-  new_number(arg1);
-  new_number(arg2);
-  new_number(arg3);
-  new_number(arg4);
-  number_clone(neg_three_sixty_deg_t, three_sixty_deg_t);
-  number_negate (neg_three_sixty_deg_t);
-  p = c;
-  do {
-    mp_number ret1, ret2;
-    new_angle (ret1);
-    new_angle (ret2);
-    set_number_from_substraction(arg1, p_to->x_coord, p_here->x_coord);
-    set_number_from_substraction(arg2, p_to->y_coord, p_here->y_coord);
-    set_number_from_substraction(arg3, p_here->x_coord, p_from->x_coord);
-    set_number_from_substraction(arg4, p_here->y_coord, p_from->y_coord);
-    mp_an_angle (mp, ret1, arg1, arg2);
-    mp_an_angle (mp, ret2, arg3, arg4);
-    set_number_from_substraction(ang, ret1, ret2);
-    free_number (ret1);
-    free_number (ret2);
-    mp_reduce_angle (mp, ang);
-    number_add(res, ang);
-    if (number_greaterequal(res, three_sixty_deg_t)) {
-      number_substract(res, three_sixty_deg_t);
-      number_add (turns, unity_t);
-    }
-    if (number_lessequal(res, neg_three_sixty_deg_t)) {
-      number_add(res, three_sixty_deg_t);
-      number_substract (turns, unity_t);
-    }
-    p = mp_next_knot (p);
-  } while (p != c);
-  free_number(arg1);
-  free_number(arg2);
-  free_number(arg3);
-  free_number(arg4);
-  free_number(ang);
-  free_number(res);
-  free_number(neg_three_sixty_deg_t);
-}
-
-
 @ @<Declare unary action...@>=
 static void mp_turn_cycles_wrapper (MP mp, mp_number ret, mp_knot c) {
-  mp_number arg1, arg2;
   if (mp_next_knot (c) == c) { 
     /* one-knot paths always have a turning number of 1 */
     set_number_to_unity(ret);
   } else {
-    mp_number nval; 
-    mp_number oval; 
-    new_number (nval);
-    new_number (oval);
-    mp_new_turn_cycles (mp, nval, c);
-    mp_turn_cycles (mp, oval, c);
-    if ((!number_equal(nval, oval)) && number_greater (internal_value (mp_tracing_choices), two_t)) {
-      mp_number saved_t_o;
-      new_number (saved_t_o);
-      number_clone (saved_t_o, internal_value (mp_tracing_online));
-      number_clone (internal_value (mp_tracing_online), unity_t);
-      mp_begin_diagnostic (mp);
-      mp_print_nl (mp, "Warning: the turningnumber algorithms do not agree."
-                   " The current computed value is ");
-      print_number (nval);
-      mp_print (mp, ", but the 'connect-the-dots' algorithm returned ");
-      print_number (oval);
-      mp_end_diagnostic (mp, false);
-      number_clone (internal_value (mp_tracing_online), saved_t_o);
-      free_number (saved_t_o);
-    }
-    free_number (oval);
-    number_clone (ret, nval);
+    mp_new_turn_cycles (mp, ret, c);
   }
 }
 
