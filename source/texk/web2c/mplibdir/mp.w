@@ -73,12 +73,12 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.750" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.760" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @(mpmp.h@>=
-#define metapost_version "1.750"
+#define metapost_version "1.760"
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
 few typedefs and the header defintions for the externally used
@@ -3858,6 +3858,8 @@ fuss with. Every such parameter has an identifying code number, defined here.
 enum mp_given_internal {
   mp_output_template = 1,       /* a string set up by \&{outputtemplate} */
   mp_output_format,             /* the output format set up by \&{outputformat} */
+  mp_number_system,             /* the number system as set up by \&{numbersystem} */
+  mp_number_precision,          /* the number system precision as set up by \&{numberprecision} */
   mp_job_name,                  /* the perceived jobname, as set up from the options stucture, 
                                    the name of the input file, or by \&{jobname}  */
   mp_tracing_titles,            /* show titles online when they appear */
@@ -3956,6 +3958,7 @@ memset (mp->internal, 0,
 }
 set_internal_type (mp_output_format, mp_string_type);
 set_internal_type (mp_output_template, mp_string_type);
+set_internal_type (mp_number_system, mp_string_type);
 set_internal_type (mp_job_name, mp_string_type);
 mp->troff_mode = (opt->troff_mode > 0 ? true : false);
 
@@ -4058,6 +4061,10 @@ mp_primitive (mp, "restoreclipcolor", mp_internal_quantity, mp_restore_clip_colo
 @:mp_restore_clip_color_}{\&{restoreclipcolor} primitive@>;
 mp_primitive (mp, "outputtemplate", mp_internal_quantity, mp_output_template);
 @:mp_output_template_}{\&{outputtemplate} primitive@>;
+mp_primitive (mp, "numbersystem", mp_internal_quantity, mp_number_system);
+@:mp_number_system_}{\&{numbersystem} primitive@>;
+mp_primitive (mp, "numberprecision", mp_internal_quantity, mp_number_precision);
+@:mp_number_precision_}{\&{numberprecision} primitive@>;
 mp_primitive (mp, "outputformat", mp_internal_quantity, mp_output_format);
 @:mp_output_format_}{\&{outputformat} primitive@>;
 mp_primitive (mp, "jobname", mp_internal_quantity, mp_job_name);
@@ -4092,6 +4099,7 @@ number_multiply_int (internal_value (mp_default_color_model), mp_rgb_model);
 number_clone (internal_value (mp_restore_clip_color), unity_t);
 set_internal_string (mp_output_template, mp_intern (mp, "%j.%c"));
 set_internal_string (mp_output_format, mp_intern (mp, "eps"));
+set_internal_string (mp_number_system, mp_intern (mp, "scaled"));
 #if DEBUG
 number_clone (internal_value (mp_tracing_titles), three_t);
 number_clone (internal_value (mp_tracing_equations), three_t);
@@ -4153,6 +4161,8 @@ set_internal_name (mp_restore_clip_color, xstrdup ("restoreclipcolor"));
 set_internal_name (mp_output_template, xstrdup ("outputtemplate"));
 set_internal_name (mp_output_format, xstrdup ("outputformat"));
 set_internal_name (mp_job_name, xstrdup ("jobname"));
+set_internal_name (mp_number_system, xstrdup ("numbersystem"));
+set_internal_name (mp_number_precision, xstrdup ("numberprecision"));
 
 @ The following procedure, which is called just before \MP\ initializes its
 input and output, establishes the initial values of the date and time.

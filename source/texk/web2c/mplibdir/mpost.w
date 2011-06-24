@@ -697,6 +697,7 @@ static struct option mpost_options[]
       { "ini",                       0, &ini_version_test, 1 },
       { "interaction",               1, 0, 0 },
       { "math",                      1, 0, 0 },
+      { "numbersystem",              1, 0, 0 },
       { "halt-on-error",             0, 0, 0 },
       { "kpathsea-debug",            1, 0, 0 },
       { "progname",                  1, 0, 0 },
@@ -766,19 +767,23 @@ static struct option mpost_options[]
       } else if (STREQ (optarg, "errorstopmode")) {
         options->interaction = mp_error_stop_mode;
       } else {
-        fprintf(stdout,"Ignoring unknown argument `%s' to --interaction", optarg);
+        fprintf(stdout,"Ignoring unknown argument `%s' to --interaction\n", optarg);
       }
-    } else if (ARGUMENT_IS ("math")) {
+    } else if (ARGUMENT_IS ("math") || ARGUMENT_IS ("numbersystem")) {
       if (STREQ (optarg, "scaled")) {
         options->math_mode = mp_math_scaled_mode;
+        internal_set_option("numbersystem=\"scaled\"");
       } else if (STREQ (optarg, "double")) {
         options->math_mode = mp_math_double_mode;
+        internal_set_option("numbersystem=\"double\"");
       } else if (STREQ (optarg, "decimal")) {
         options->math_mode = mp_math_decimal_mode;
+        internal_set_option("numbersystem=\"decimal\"");
       } else if (STREQ (optarg, "binary")) {
         options->math_mode = mp_math_binary_mode;
+        internal_set_option("numbersystem=\"binary\"");
       } else {
-        fprintf(stdout,"Ignoring unknown argument `%s' to --math", optarg);
+        fprintf(stdout,"Ignoring unknown argument `%s' to --numbersystem\n", optarg);
       }
     } else if (ARGUMENT_IS("troff") || 
                ARGUMENT_IS("T")) {
@@ -887,7 +892,7 @@ fprintf(stdout,
 "  -ini                      be inimpost, for dumping mem files\n"
 "  -interaction=STRING       set interaction mode (STRING=batchmode/nonstopmode/\n"
 "                            scrollmode/errorstopmode)\n"
-"  -math=STRING              set math mode (STRING=scaled/double/binary/decimal)\n"
+"  -numbersystem=STRING      set number system mode (STRING=scaled/double/binary/decimal)\n"
 "  -jobname=STRING           set the job name to STRING\n"
 "  -progname=STRING          set program (and mem) name to STRING\n"
 "  -tex=TEXPROGRAM           use TEXPROGRAM for text labels\n"
