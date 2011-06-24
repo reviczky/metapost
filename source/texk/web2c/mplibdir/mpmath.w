@@ -415,7 +415,7 @@ int mp_number_to_scaled(mp_number A) {
   return A->data.val;
 }
 int mp_number_to_boolean(mp_number A) {
-  return (A->data.val != 0);
+  return A->data.val;
 }
 double mp_number_to_double(mp_number A) {
   return (A->data.val/65536.0);

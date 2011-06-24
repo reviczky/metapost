@@ -26761,8 +26761,9 @@ case mp_and_op:
 case mp_or_op:
 if ((mp_type (p) != mp_boolean_type) || (mp->cur_exp.type != mp_boolean_type))
   mp_bad_binary (mp, p, (quarterword) c);
-else if (value (p) == c + mp_false_code - mp_and_op)
-  set_cur_exp_value_number (value_number (p));
+else if (number_to_boolean (p->data.n) == c + mp_false_code - mp_and_op) {
+  set_cur_exp_value_int (number_to_boolean (p->data.n));
+}
 break;
 
 @ @<Additional cases of binary operators@>=
