@@ -425,7 +425,7 @@ int mp_number_to_int(mp_number A) {
   return (int)(A->data.dval);
 }
 int mp_number_to_boolean(mp_number A) {
-  return (A->data.dval != 0.0);
+  return (int)(A->data.dval);
 }
 double mp_number_to_double(mp_number A) {
   return A->data.dval;
