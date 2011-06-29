@@ -35,6 +35,10 @@ Integrating Text and Graphics:
 * (SH) Fix bad description of prologues in table ivartab.
 * (SH) Move discussion of prologues to sec. workflow2.
 
+Advanced Graphics:
+* Describe turningnumber (mention differences in sec. 'MetaPost
+  Versus METAFONT').
+
 Notes on the MetaPost Workflow:
 * (SH) Describe variables jobname, charcode.
 
