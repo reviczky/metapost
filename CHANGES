@@ -942,6 +942,8 @@ Changes in version 0.920:
 *  Implement configurable figure output filename templates.
 *  Implement cmyk, greyscale, and marking only color models.
 *  The mpost executable is now version 0.920
+*  mpost no longer autoconverts r==g==b colors to grayscale in the
+   postscript output.
   
 ----------------------------------------------------------------------
 Changes in version 0.902:
