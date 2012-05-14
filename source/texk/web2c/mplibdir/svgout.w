@@ -917,13 +917,13 @@ static void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) ;
 
 @ @c
 void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) {
-  char *fname;
+  /* -Wunused: char *fname; */
   unsigned char *s;
   int k; /* a character */
   size_t l; /* string length */
   boolean transformed ;
   double ds; /* design size and scale factor for a text node */
-  fname = mp->font_ps_name[gr_font_n(p)];
+  /* clang: never read: fname = mp->font_ps_name[gr_font_n(p)]; */
   s = (unsigned char *)gr_text_p(p);
   l = gr_text_l(p);
   transformed=(gr_txx_val(p)!=unity)||(gr_tyy_val(p)!=unity)||

@@ -6278,9 +6278,11 @@ subscript list, even though that word isn't part of a subscript node.
   set_number_to_inf(subscript (q));
   s = mp->temp_head;
   set_mp_link (s, subscr_head (p));
+  fprintf(stdout,"n=%f (q=%p)\n", number_to_double(nn), q);
   do {
     r = s;
     s = mp_link (s);
+    fprintf(stdout,"s=%p (q=%p)\n", s, q);
   } while (number_greater (nn ,subscript (s)));
   if (number_equal(nn, subscript (s))) {
     p = s;
@@ -6373,16 +6375,19 @@ static void mp_flush_cur_exp (MP mp, mp_value v);
 static void mp_flush_variable (MP mp, mp_node p, mp_node t,
                                boolean discard_suffixes) {
   mp_node q, r; /* list manipulation */
+  mp_node s_head;
   mp_sym n;     /* attribute to match */
   while (t != NULL) {
-    if (mp_type (p) != mp_structured)
+    if (mp_type (p) != mp_structured) {
       return;
+    }
     n = mp_sym_sym (t);
     t = mp_link (t);
     if (n == collective_subscript) {
       r = mp->temp_head;
       mp_link (r) = subscr_head (p);
       q = mp_link (r);
+      s_head = q;
       while (mp_name_type (q) == mp_subscr) {
         mp_flush_variable (mp, q, t, discard_suffixes);
         if (t == NULL) {
@@ -6390,6 +6395,9 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t,
             r = q;
           } else {
             set_mp_link (r, mp_link (q));
+            if (q == s_head) {
+              s_head = r;
+            }
             mp_free_node (mp, q, value_node_size);
           }
         } else {
@@ -6398,22 +6406,23 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t,
         q = mp_link (r);
       }
       /* fix |subscr_head| if it was already present */
-      if (q==mp_link(mp->temp_head))
-        set_subscr_head (p, q);
+      set_subscr_head (p, s_head);
     }
     p = attr_head (p);
     do {
-      r = p;
+      /* CLANG never read: r = p; */
       p = mp_link (p);
     } while (hashloc (p) < n);
-    if (hashloc (p) != n)
+    if (hashloc (p) != n) {
       return;
+    }
   }
   if (discard_suffixes) {
     mp_flush_below_variable (mp, p);
   } else {
-    if (mp_type (p) == mp_structured)
-      p = attr_head (p);
+    if (mp_type (p) == mp_structured) {
+      p = attr_head (p); 
+    }
     mp_recycle_value (mp, p);
   }
 }
@@ -6898,7 +6907,7 @@ void mp_pr_path (MP mp, mp_knot h) {
     @<Print information for adjacent knots |p| and |q|@>;
   DONE1:
     p = q;
-    if ((p != h) || (mp_left_type (h) != mp_endpoint)) {
+    if (p && ((p != h) || (mp_left_type (h) != mp_endpoint))) {
       @<Print two dots, followed by |given| or |curl| if present@>;
     }
   } while (p != h);
@@ -12024,9 +12033,10 @@ while (mp_link (d) != (mp_node)mp->null_dash) {
   } else {
     hh = (mp_edge_header_node)mp_dash_p (ds);
     number_clone(hsf, ((mp_stroked_node)ds)->dash_scale);
-    if ((hh == NULL))
+    if (hh == NULL)
       mp_confusion (mp, "dash1");
 @:this can't happen dash0}{\quad dash1@>;
+    /* clang: dereference null pointer 'hh' */ assert(hh); 
     if (number_zero(((mp_dash_node)hh)->dash_y )) {
       d = (mp_dash_node)mp_link (d);
     } else {
@@ -12054,7 +12064,8 @@ mp_node ds;     /* the stroked node from which |hh| and |hsf| are derived */
   new_number (r1);
   new_number (r2);
   dln = (mp_dash_node)mp_link (d);
-  dd = dash_list (hh);
+  dd = dash_list (hh); 
+  /* clang: dereference null pointer 'dd' */ assert(dd); 
   new_number (xoff);
   new_number (dashoff);
   mp_dash_offset (mp, dashoff, (mp_dash_node)hh);
@@ -12393,6 +12404,7 @@ while (lev != 0) {
   if (mp_link (p) == NULL)
     mp_confusion (mp, "bbox2");
 @:this can't happen bbox2}{\quad bbox2@>;
+  /* clang: dereference null pointer */ assert(mp_link(p));   
   p = mp_link (p);
   if (mp_type (p) == mp_start_bounds_node_type)
     incr (lev);
@@ -13894,6 +13906,7 @@ problems, so we just set |r:=NULL| in that case.
   set_number_from_addition(xtot, p->x_coord, xsub);
   set_number_from_addition(ytot, p->y_coord, ysub);
   r = mp_insert_knot (mp, p, xtot, ytot);
+  /* clang: value never read */ assert(r);
   {
     mp_number  r1 ,r2;
     new_fraction (r1);
@@ -15474,7 +15487,8 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
     set_dep_info (s, qq);
     set_dep_value_number (s, v);
     if (number_greaterequal(absv, coef_bound_k) && mp->watch_coefs) {
-      mp_type (qq) = independent_needing_fix;
+    /* clang:  dereference of a null pointer ('qq') */ assert(qq);
+     mp_type (qq) = independent_needing_fix;
       mp->fix_needed = true;
     }
     set_mp_link (r, (mp_node) s);
@@ -17655,7 +17669,7 @@ SWITCH:
         set_cur_mod_str(mp_make_string (mp));
       }
       incr (loc);
-      set_cur_cmd(mp_string_token);
+      set_cur_cmd((mp_variable_type)mp_string_token);
       return;
     }
     break;
@@ -17723,7 +17737,7 @@ if (nloc != NULL && mp_type (nloc) == mp_symbol_node) { /* symbolic token */
   set_cur_sym_mod(mp_name_type (nloc));
   nloc = mp_link (nloc);        /* move to next */
   if (cur_sym_mod() == mp_expr_sym) {
-    set_cur_cmd(mp_capsule_token);
+    set_cur_cmd((mp_variable_type)mp_capsule_token);
     set_cur_mod_node(mp->param_stack[param_start + cur_info]);
     set_cur_sym_mod(0);
     set_cur_sym(NULL);
@@ -17747,15 +17761,15 @@ if (nloc != NULL && mp_type (nloc) == mp_symbol_node) { /* symbolic token */
   if (mp_name_type (nloc) == mp_token) {
     if (mp_type (nloc) == mp_known) {
       set_cur_mod_number(value_number (nloc));
-      set_cur_cmd(mp_numeric_token);
+      set_cur_cmd((mp_variable_type)mp_numeric_token);
     } else {
       set_cur_mod_str(value_str (nloc));
-      set_cur_cmd(mp_string_token);
+      set_cur_cmd((mp_variable_type)mp_string_token);
       add_str_ref (cur_mod_str());
     }
   } else {
     set_cur_mod_node(nloc);
-    set_cur_cmd(mp_capsule_token);
+    set_cur_cmd((mp_variable_type)mp_capsule_token);
   }
   nloc = mp_link (nloc);
   return;
@@ -18236,7 +18250,7 @@ void mp_print_sym  (mp_sym sym) ;
     if (q->info == cur_sym() && q->info_mod == cur_sym_mod()) {
       cur_data = q->value_data;
       cur_data_mod = q->value_mod;
-      set_cur_cmd(mp_relax);
+      set_cur_cmd((mp_variable_type)mp_relax);
       break;
     }
     q = q->link;
@@ -19172,7 +19186,7 @@ if (cur_cmd() != mp_comma) {
       mp->cur_exp.type = mp_known;
     }
     mp_back_error (mp, msg, hlp, true);
-    set_cur_cmd(mp_right_delimiter);
+    set_cur_cmd((mp_variable_type)mp_right_delimiter);
     goto FOUND;
   }
   l_delim = cur_sym();
@@ -19197,7 +19211,7 @@ if ((cur_cmd() != mp_right_delimiter) || (equiv_sym (cur_sym()) != l_delim)) {
            NULL };
     mp_back_error (mp, "Missing `,' has been inserted", hlp, true);
 @.Missing `,'@>;
-    set_cur_cmd(mp_comma);
+    set_cur_cmd((mp_variable_type)mp_comma);
   } else {
     char msg[256];
     const char *hlp[] = {
@@ -19230,7 +19244,7 @@ a token list pointed to by |cur_exp|, in which case we will have
     arg_list = p;
   else
     mp_link (tail) = p;
-  tail = p;
+  /* clang: never read: tail = p; */
   incr (n);
 }
 
@@ -19613,6 +19627,7 @@ static void mp_change_if_limit (MP mp, quarterword l, mp_node p) {
       if (q == NULL)
         mp_confusion (mp, "if");
 @:this can't happen if}{\quad if@>;
+      /* clang: dereference of null pointer */ assert(q);
       if (mp_link (q) == p) {
         mp_type (q) = l;
         return;
@@ -21535,6 +21550,7 @@ default:
 {
   mp_node vvv = v;
   mp_print_char (mp, xord ('('));
+  /* clang: dereference of null pointer */ assert(vvv);
   v = x_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
@@ -21548,6 +21564,7 @@ default:
 {
   mp_node vvv = v;
   mp_print_char (mp, xord ('('));
+  /* clang: dereference of null pointer */ assert(vvv);
   v = tx_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
@@ -21573,6 +21590,7 @@ default:
 {
   mp_node vvv = v;
   mp_print_char (mp, xord ('('));
+  /* clang: dereference of null pointer */ assert(vvv);
   v = red_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
@@ -21589,6 +21607,7 @@ default:
 {
   mp_node vvv = v;
   mp_print_char (mp, xord ('('));
+  /* clang: dereference of null pointer */ assert(vvv);
   v = cyan_part (vvv);
   @<Display big node item |v|@>;
   mp_print_char (mp, xord (','));
@@ -22254,7 +22273,7 @@ static void mp_bad_exp (MP mp, const char *s) {
   }
   mp_back_input (mp);
   set_cur_sym(NULL);
-  set_cur_cmd(mp_numeric_token);
+  set_cur_cmd((mp_variable_type)mp_numeric_token);
   set_cur_mod_number (zero_t);
   mp_ins_error (mp, msg, hlp, true);
   save_flag = mp->var_flag;
@@ -22458,7 +22477,7 @@ integer group_line;     /* where a group began */
     mp_snprintf(msg, 256, "A group begun on line %d never ended", (int)group_line);
 @.A group...never ended@>;
     mp_back_error (mp, msg, hlp, true);
-    set_cur_cmd(mp_end_group);
+    set_cur_cmd((mp_variable_type)mp_end_group);
   }
   mp_unsave (mp);
   /* this might change |cur_type|, if independent variables are recycled */
@@ -22525,7 +22544,7 @@ multiplication.
     mp_get_x_next (mp);
     if (cur_cmd() != mp_numeric_token) {
       mp_back_input (mp);
-      set_cur_cmd(mp_slash);
+      set_cur_cmd((mp_variable_type)mp_slash);
       set_cur_mod(mp_over);
       set_cur_sym(mp->frozen_slash);
       goto DONE;
@@ -22732,7 +22751,7 @@ mp_node macro_ref = 0;  /* reference count for a suffixed macro */
   } else {
     if (mp->cur_exp.type != mp_known)
       mp_bad_subscript (mp);
-    set_cur_cmd(mp_numeric_token);
+    set_cur_cmd((mp_variable_type)mp_numeric_token);
     set_cur_mod_number(cur_exp_value_number ());
     set_cur_sym(NULL);
   }
@@ -22748,7 +22767,7 @@ so as to avoid any embarrassment about our incorrect assumption.
 {
   mp_back_input (mp);           /* that was the token following the current expression */
   mp_back_expr (mp);
-  set_cur_cmd(mp_left_bracket);
+  set_cur_cmd((mp_variable_type)mp_left_bracket);
   set_cur_mod_number(zero_t);
   set_cur_sym(mp->frozen_left_bracket);
 }
@@ -23191,7 +23210,7 @@ static void mp_scan_suffix (MP mp) {
     mp_back_error (mp, "Missing `]' has been inserted", hlp, true);
 @.Missing `]'@>;
   }
-  set_cur_cmd(mp_numeric_token);
+  set_cur_cmd((mp_variable_type)mp_numeric_token);
   set_cur_mod_number(cur_exp_value_number ());
 }
 
@@ -26320,7 +26339,7 @@ static void mp_add_or_subtract (MP mp, mp_node p, mp_node q, quarterword c) {
       set_cur_exp_node ((mp_node) qq);
       mp->cur_exp.type = mp_type (p);
       mp_name_type (qq) = mp_capsule;
-      q = (mp_node) qq;
+      /* clang: never read: q = (mp_node) qq; */
     }
     set_dep_list (qq, dep_list ((mp_value_node) p));
     mp_type (qq) = mp_type (p);
@@ -26345,8 +26364,10 @@ if (mp_type (p) == mp_known) {
   /* Add the known |value(p)| to the constant term of |v| */
   mp_number r1;
   new_number (r1);
-  while (dep_info (v) != NULL)
+  while (dep_info (v) != NULL) {
+    /* clang: dereference of null pointer */ assert(v);
     v = (mp_value_node) mp_link (v);
+  }
   slow_add (r1, value_number (p), dep_value_number (v));
   set_dep_value_number (v, r1);
   free_number (r1);
@@ -27938,7 +27959,7 @@ if (number_greater (b, l)) {
     mp_number arg1;
     new_number (arg1);
     ss = pp;
-    pp = mp_next_knot (pp);
+    /* clang: never read: pp = mp_next_knot (pp); */
     number_clone (arg1, a);
     convert_scaled_to_fraction (arg1);
     mp_split_cubic (mp, ss, arg1);
@@ -28993,7 +29014,7 @@ declared variable.
   if (cur_cmd() != mp_right_bracket) {
     mp_back_input (mp);
     set_cur_sym(ll);
-    set_cur_cmd(mp_left_bracket);
+    set_cur_cmd((mp_variable_type)mp_left_bracket);
     break;
   } else {
     set_cur_sym(collective_subscript);
@@ -30550,7 +30571,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
       if (bp == MP_VOID)
         k = p;
       bp = k;
-      while (mp_link (k) != NULL) {
+      while (k && mp_link (k) != NULL) { /* clang: dereference null pointer 'k' */
         k = mp_link (k);
         if (has_color (k))
           bp = k;
@@ -32100,7 +32121,7 @@ CONTINUE:
     @<Process a |skip_to| command and |goto done|@>;
   if (cur_cmd() == mp_bchar_label) {
     c = 256;
-    set_cur_cmd(mp_colon);
+    set_cur_cmd((mp_variable_type)mp_colon);
   } else {
     mp_back_input (mp);
     c = mp_get_code (mp);
@@ -34343,8 +34364,8 @@ been scanned.
 
 @c
 void mp_final_cleanup (MP mp) {
-  integer c;    /* 0 for \&{end}, 1 for \&{dump} */
-  c = cur_mod();
+  /* -Wunused: integer c; */   /* 0 for \&{end}, 1 for \&{dump} */
+  /* clang: never read: c = cur_mod(); */
   if (mp->job_name == NULL)
     mp_open_log_file (mp);
   while (mp->input_ptr > 0) {

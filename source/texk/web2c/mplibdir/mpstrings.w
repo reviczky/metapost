@@ -377,10 +377,11 @@ mp_string mp_cat (MP mp, mp_string a, mp_string b) {
   size_t saved_cur_length = mp->cur_length;
   unsigned char *saved_cur_string = mp->cur_string;
   size_t saved_cur_string_size = mp->cur_string_size;
-  mp->cur_length = 0;
-  mp->cur_string = NULL;
-  mp->cur_string_size = 0;
   needed = a->len + b->len;
+  mp->cur_length = 0;
+  /* mp->cur_string = NULL; */ /* needs malloc, spotted by clang */
+  mp->cur_string = (unsigned char *) mp_xmalloc (mp, needed+1, sizeof (unsigned char)); 
+  mp->cur_string_size = 0;
   str_room (needed+1);
   (void) memcpy (mp->cur_string, a->str, a->len);
   (void) memcpy (mp->cur_string + a->len, b->str, b->len);
