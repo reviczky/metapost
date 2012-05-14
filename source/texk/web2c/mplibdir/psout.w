@@ -4306,7 +4306,7 @@ static void mp_list_needed_resources (MP mp, int prologues);
   if ( ! firstitem ) {
     mp_ps_print_ln(mp);
     ldf=null_font;
-    firstitem=true;
+    /* clang: never read: firstitem=true; */
     for (f=null_font+1;f<= mp->last_fnum;f++) {
       if ( mp_has_font_size(mp,f) ) {
         for (ff=ldf;ff>=null_font;ff-- ) {
@@ -5975,9 +5975,12 @@ double mp_indexed_size (MP mp,font_number f, quarterword j) { /* return scaled *
   i=0;
   if ( p==null ) mp_confusion(mp, "size");
   while ( (i!=j) ) { 
-    incr(i); p=mp_link(p);
+    incr(i); 
+    /* clang: dereference null pointer 'p' */ assert(p);
+    p=mp_link(p);
     if ( p==null ) mp_confusion(mp, "size");
   }
+  /* clang: dereference null pointer 'p' */ assert(p);
   return sc_factor(p);
 }
 
@@ -6099,7 +6102,7 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standal
     procset=qprocset;
   mp_open_output_file(mp);
   mp_print_initial_comment(mp, hh, prologues);
-  p = hh->body;
+  /* clang: never read: p = hh->body; */
   @<Unmark all marked characters@>;
   if ( prologues==2 || prologues==3 ) {
     mp_reload_encodings(mp);

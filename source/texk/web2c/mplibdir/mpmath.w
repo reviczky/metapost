@@ -840,7 +840,7 @@ static void mp_wrapup_numeric_token(MP mp, int n, int f) { /* n,f: scaled */
 @.Enormous number...@>;
     set_cur_mod(EL_GORDO);
   }
-  set_cur_cmd(mp_numeric_token);
+  set_cur_cmd((mp_variable_type)mp_numeric_token);
 }
 
 @ @c
