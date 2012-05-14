@@ -6278,11 +6278,11 @@ subscript list, even though that word isn't part of a subscript node.
   set_number_to_inf(subscript (q));
   s = mp->temp_head;
   set_mp_link (s, subscr_head (p));
-  fprintf(stdout,"n=%f (q=%p)\n", number_to_double(nn), q);
+  /* fprintf(stdout,"n=%f (q=%p)\n", number_to_double(nn), q); */
   do {
     r = s;
     s = mp_link (s);
-    fprintf(stdout,"s=%p (q=%p)\n", s, q);
+    /* fprintf(stdout,"s=%p (q=%p)\n", s, q); */
   } while (number_greater (nn ,subscript (s)));
   if (number_equal(nn, subscript (s))) {
     p = s;
