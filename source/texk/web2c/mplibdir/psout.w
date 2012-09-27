@@ -78,12 +78,15 @@ to the frontend because I do not know how to set up the includes
 properly. That is the |typedef struct psout_data_struct * psout_data|.
 
 @ @(mppsout.h@>=
+#ifndef MPPSOUT_H
+#define MPPSOUT_H 1
 #include "avl.h"
 @<Types...@>
 typedef struct psout_data_struct {
   @<Globals@>
 } psout_data_struct ;
 @<Exported function headers@>
+#endif
 
 @ @c
 static boolean mp_isdigit (int a) {
@@ -4948,6 +4951,11 @@ void mp_print_initial_comment(MP mp,mp_edge_object *hh, int prologues) {
 a \MP\ path.
 
 @(mplibps.h@>=
+#ifndef MPLIBPS_H
+#define MPLIBPS_H 1
+@<Internal Postscript header information@>
+#endif
+
 
 @ @<Types...@>=
 #define gr_left_type(A)  (A)->data.types.left_type
@@ -5074,7 +5082,7 @@ if ( fabs(gr_right_x(p)-gr_x_coord(p)-d)<=bend_tolerance )
 
 @ The colored objects use a struct with anonymous fields to express the color parts:
 
-@(mplibps.h@>=
+@<Internal Postscript header information@>=
 typedef struct {
    double a_val, b_val, c_val, d_val;
 } mp_color;
@@ -5084,7 +5092,7 @@ format, it is closely modelled to the PostScript model. The array of
 dashes is ended by a single negative value, because this is not
 allowed in PostScript.
 
-@(mplibps.h@>=
+@<Internal Postscript header information@>=
 typedef struct {
   double offset;
   double *array;
@@ -5166,7 +5174,7 @@ structures and access macros.
 #define gr_tyx_val(A)      ((mp_text_object *)A)->tyx
 #define gr_tyy_val(A)      ((mp_text_object *)A)->tyy
 
-@ @(mplibps.h@>=
+@ @<Internal Postscript header information@>=
 #define GRAPHIC_BODY                      \
   int type;                               \
   struct mp_graphic_object * next
@@ -6201,7 +6209,7 @@ int mp_gr_ship_out (mp_edge_object *hh, int qprologues, int qprocset,int standal
   return 1;
 }
 
-@ @(mplibps.h@>=
+@ @<Internal Postscript header information@>=
 int mp_ps_ship_out (mp_edge_object *hh, int prologues, int procset) ;
 
 @ @c
@@ -6256,7 +6264,7 @@ if ( transformed ) {
 }
 mp_ps_print_ln(mp)
 
-@ @(mplibps.h@>=
+@ @<Internal Postscript header information@>=
 void mp_gr_toss_objects ( mp_edge_object *hh) ;
 void mp_gr_toss_object (mp_graphic_object *p) ;
 
@@ -6320,7 +6328,7 @@ void mp_gr_toss_objects (mp_edge_object *hh) {
   mp_xfree(hh);
 }
 
-@ @(mplibps.h@>=
+@ @<Internal Postscript header information@>=
 mp_graphic_object *mp_gr_copy_object (MP mp, mp_graphic_object *p) ;
 
 @ @c
