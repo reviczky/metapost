@@ -19137,7 +19137,7 @@ if (cur_cmd() == mp_comma) {
   mp_print_macro_name (mp, arg_list, macro_name);
   rname = mp_make_string(mp);
   mp->selector = old_setting;
-  mp_snprintf (msg, 256, "Too many arguments to %s; Missing `%s' has been insedrted",
+  mp_snprintf (msg, 256, "Too many arguments to %s; Missing `%s' has been inserted",
 	       mp_str(mp, rname), mp_str(mp, text(r_delim)));
   delete_str_ref(rname);
 @.Too many arguments...@>;
@@ -19240,11 +19240,12 @@ a token list pointed to by |cur_exp|, in which case we will have
     mp_print_arg (mp, (mp_node)mp_sym_sym (p), n, mp_sym_info (r), mp_name_type (r));
     mp_end_diagnostic (mp, false);
   }
-  if (arg_list == NULL)
+  if (arg_list == NULL) {
     arg_list = p;
-  else
+  } else {
     mp_link (tail) = p;
-  /* clang: never read: tail = p; */
+  }
+  tail = p;
   incr (n);
 }
 
