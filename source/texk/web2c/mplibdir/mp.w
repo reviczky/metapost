@@ -29246,7 +29246,7 @@ typedef struct {
   mp_stream term_out;
   mp_stream error_out;
   mp_stream log_out;
-  mp_stream ps_out;
+  mp_stream ship_out;
   mp_stream term_in;
   struct mp_edge_object *edges;
 } mp_run_data;
@@ -29334,9 +29334,9 @@ static void *mplib_open_file (MP mp, const char *fname, const char *fmode,
   } else if (ftype == mp_filetype_log) {
     reset_stream (run->log_out);
   } else if (ftype == mp_filetype_postscript) {
-    mp_free_stream (&(run->ps_out));
+    mp_free_stream (&(run->ship_out));
     ff->f = xmalloc (1, 1);
-    run->ps_out.fptr = ff->f;
+    run->ship_out.fptr = ff->f;
   } else {
     char realmode[3];
     char *f = (mp->find_file) (mp, fname, fmode, ftype);
@@ -29437,8 +29437,8 @@ static void mplib_write_ascii_file (MP mp, void *ff, const char *s) {
         mp_append_string (mp, &(run->error_out), s);
       } else if (f == run->log_out.fptr) {
         mp_append_string (mp, &(run->log_out), s);
-      } else if (f == run->ps_out.fptr) {
-        mp_append_string (mp, &(run->ps_out), s);
+      } else if (f == run->ship_out.fptr) {
+        mp_append_string (mp, &(run->ship_out), s);
       } else {
         fprintf ((FILE *) f, "%s", s);
       }
@@ -29471,7 +29471,7 @@ static void mplib_close_file (MP mp, void *ff) {
       if (f != run->term_out.fptr
           && f != run->error_out.fptr
           && f != run->log_out.fptr
-          && f != run->ps_out.fptr && f != run->term_in.fptr) {
+          && f != run->ship_out.fptr && f != run->term_in.fptr) {
         fclose (f);
       }
     }
@@ -29545,7 +29545,7 @@ mp_free_stream (&(mp->run_data.term_in));
 mp_free_stream (&(mp->run_data.term_out));
 mp_free_stream (&(mp->run_data.log_out));
 mp_free_stream (&(mp->run_data.error_out));
-mp_free_stream (&(mp->run_data.ps_out));
+mp_free_stream (&(mp->run_data.ship_out));
 
 @ @<Finish non-interactive use@>=
 xfree (mp->term_out);
@@ -29602,7 +29602,7 @@ int mp_execute (MP mp, char *s, size_t l) {
   mp_reset_stream (&(mp->run_data.term_out));
   mp_reset_stream (&(mp->run_data.log_out));
   mp_reset_stream (&(mp->run_data.error_out));
-  mp_reset_stream (&(mp->run_data.ps_out));
+  mp_reset_stream (&(mp->run_data.ship_out));
   if (mp->finished) {
     return mp->history;
   } else if (!mp->noninteractive) {
