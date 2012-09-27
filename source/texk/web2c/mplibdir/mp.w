@@ -30208,6 +30208,14 @@ break;
 case mp_defined_macro:
 mp_print (mp, "macro:");
 break;
+case mp_secondary_primary_macro:
+case mp_tertiary_secondary_macro:
+case mp_expression_tertiary_macro:
+  mp_print_cmd_mod(mp, mp_macro_def,c); 
+  mp_print(mp, "'d macro:");
+  mp_print_ln(mp); 
+  mp_show_token_list(mp, mp_link(mp_link(cur_mod_node())),0,1000,0);
+  break;
 case mp_repeat_loop:
 mp_print (mp, "[repeat the loop]");
 break;
