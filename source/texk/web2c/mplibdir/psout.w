@@ -81,6 +81,9 @@ properly. That is the |typedef struct psout_data_struct * psout_data|.
 #ifndef MPPSOUT_H
 #define MPPSOUT_H 1
 #include "avl.h"
+#include "mplib.h"
+#include "mpmp.h"
+#include "mplibps.h"
 @<Types...@>
 typedef struct psout_data_struct {
   @<Globals@>
@@ -4953,6 +4956,7 @@ a \MP\ path.
 @(mplibps.h@>=
 #ifndef MPLIBPS_H
 #define MPLIBPS_H 1
+#include "mplib.h"
 @<Internal Postscript header information@>
 #endif
 

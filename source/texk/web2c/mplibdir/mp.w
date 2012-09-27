@@ -92,6 +92,9 @@ large |MP_instance| structure.
 #ifndef MPLIB_H
 #define MPLIB_H 1
 #include <stdlib.h>
+#ifndef HAVE_BOOLEAN
+typedef int boolean;
+#endif
 @<Metapost version header@>
 typedef struct MP_instance *MP;
 @<Exported types@>;
@@ -113,6 +116,7 @@ wholesale.
 #ifndef MPMP_H
 #define MPMP_H 1
 #include "avl.h"
+#include "mplib.h"
 #include <setjmp.h>
 typedef struct psout_data_struct *psout_data;
 typedef struct svgout_data_struct *svgout_data;
