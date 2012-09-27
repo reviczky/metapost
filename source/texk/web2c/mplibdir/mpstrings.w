@@ -31,7 +31,10 @@
 @ Then there is some stuff we need to prepare ourselves
 
 @(mpstrings.h@>=
+#ifndef MPSTRINGS_H
+#define MPSTRINGS_H 1
 @<Definitions@>;
+#endif
 
 @ Here are the functions needed for the avl construction.
 

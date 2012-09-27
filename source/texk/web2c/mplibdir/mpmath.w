@@ -30,8 +30,10 @@
 @<Declarations@>;
 
 @ @(mpmath.h@>=
+#ifndef MPMATH_H
+#define MPMATH_H 1
 @<Internal library declarations@>;
-
+#endif
 
 @* Math initialization.
 

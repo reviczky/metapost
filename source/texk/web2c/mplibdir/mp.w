@@ -77,7 +77,7 @@ undergoes any modifications, so that it will be clear which version of
 @d true 1
 @d false 0
 
-@(mpmp.h@>=
+@<Metapost version header@>=
 #define metapost_version "1.760"
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
@@ -89,13 +89,18 @@ The most important of the typedefs is the definition of the structure
 large |MP_instance| structure.
  
 @(mplib.h@>=
+#ifndef MPLIB_H
+#define MPLIB_H 1
+#include <stdlib.h>
+@<Metapost version header@>
 typedef struct MP_instance *MP;
 @<Exported types@>;
 typedef struct MP_options {
   @<Option variables@>
 } MP_options;
 @<Exported function headers@>
- 
+@<MPlib header stuff@>
+#endif 
 
 @ The internal header file is much longer: it not only lists the complete
 |MP_instance|, but also a lot of functions that have to be available to
@@ -105,6 +110,8 @@ The variables from |MP_options| are included inside the |MP_instance|
 wholesale.
 
 @(mpmp.h@>=
+#ifndef MPMP_H
+#define MPMP_H 1
 #include "avl.h"
 #include <setjmp.h>
 typedef struct psout_data_struct *psout_data;
@@ -124,7 +131,8 @@ typedef struct MP_instance {
   @<Global variables@>
 } MP_instance;
 @<Internal library declarations@>
- 
+@<MPlib internal header stuff@>
+#endif
 
 @ @c
 #include <w2c/config.h>
@@ -157,7 +165,7 @@ until the c99 standard (and that is too new for us). Lets' hope that at least
 most compilers understand the non-debug version.
 @^system dependencies@>
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 #define DEBUG 0
 #if DEBUG
 #define debug_number(A) printf("%d: %s=%.32f (%d)\n", __LINE__, #A, number_to_double(A), number_to_scaled(A))
@@ -689,7 +697,7 @@ integer i;
 the user's external character set by means of arrays |xord| and |xchr|
 that are analogous to Pascal's |ord| and |chr| functions.
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 #define xchr(A) mp->xchr[(A)]
 #define xord(A) mp->xord[(A)]
 
@@ -1140,7 +1148,7 @@ some instruction to the operating system.  The following macros show how
 these operations can be specified:
 @^system dependencies@>
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 #define update_terminal()  (mp->flush_file)(mp,mp->term_out)      /* empty the terminal output buffer */
 #define clear_terminal()          /* clear the terminal input buffer */
 #define wake_up_terminal() (mp->flush_file)(mp,mp->term_out)
@@ -1386,7 +1394,7 @@ for terminal output, and it is possible to adhere to those conventions
 by changing |wterm|, |wterm_ln|, and |wterm_cr| here.
 @^system dependencies@>
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 #define mp_fputs(b,f) (mp->write_ascii_file)(mp,f,b)
 #define wterm(A)     mp_fputs((A), mp->term_out)
 #define wterm_chr(A) { unsigned char ss[2]; ss[0]=(A); ss[1]='\0'; wterm((char *)ss);}
@@ -2864,7 +2872,7 @@ control of what error messages the user receives.
 @d mp_type(A)      (A)->type /* identifies what kind of value this is */
 @d mp_name_type(A) (A)->name_type /* a clue to the name of this value */
 
-@ @(mpmp.h@>=
+@ @<MPlib internal header stuff@>=
 #define NODE_BODY                       \
   mp_variable_type type;                \
   mp_name_type_type name_type;          \
@@ -3908,7 +3916,7 @@ typedef struct {
 } mp_internal;
 
 
-@ @(mpmp.h@>=
+@ @<MPlib internal header stuff@>=
 #define internal_value(A) mp->internal[(A)].v.data.n
 #define set_internal_from_number(A,B) do { \
   number_clone (internal_value ((A)),(B));\
@@ -4083,7 +4091,7 @@ There is a first state, that is only used for |gs_colormodel|. It flags
 the fact that there has not been any kind of color specification by
 the user so far in the game.
 
-@(mplib.h@>=
+@<MPlib header stuff@>=
 enum mp_color_model {
   mp_no_model = 1,
   mp_grey_model = 3,
@@ -4928,7 +4936,7 @@ printer's sense. It's curious that the same word is used in such different ways.
  } while (0) 
 
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_node_data *mp_token_node;
 
 @ @c
@@ -5398,7 +5406,7 @@ structure is not worth the minimal extra code clarification.
    ((mp_value_node)(A))->subscr_head_ = d;
 } while (0)
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_value_node_data {
   NODE_BODY;
   mp_value_data data;
@@ -5600,7 +5608,7 @@ to this four-word node.
 @d x_part(A) ((mp_pair_node)(A))->x_part_ /* where the \&{xpart} is found in a pair node */
 @d y_part(A) ((mp_pair_node)(A))->y_part_ /* where the \&{ypart} is found in a pair node */
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_pair_node_data {
   NODE_BODY;
   mp_node x_part_;
@@ -5656,7 +5664,7 @@ Variables of type \&{transform} are similar, but in this case their
 @d yx_part(A) ((mp_transform_node)(A))->yx_part_ /* where the \&{yxpart} is found in a transform node */
 @d yy_part(A) ((mp_transform_node)(A))->yy_part_ /* where the \&{yypart} is found in a transform node */
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_transform_node_data {
   NODE_BODY;
   mp_node tx_part_;
@@ -5724,7 +5732,7 @@ Variables of type \&{color} have 3~values in 6~words identified by |mp_red_part_
 
 @d grey_part(A) red_part(A) /* where the \&{greypart} is found in a color node */
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_color_node_data {
   NODE_BODY;
   mp_node red_part_;
@@ -5776,7 +5784,7 @@ static void mp_init_color_node (MP mp, mp_node p) {
 @d yellow_part(A)  ((mp_cmykcolor_node)(A))->yellow_part_ /* where the \&{yellowpart} is found in a color node */
 @d black_part(A)   ((mp_cmykcolor_node)(A))->black_part_ /* where the \&{blackpart} is found in a color node */
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_cmykcolor_node_data {
   NODE_BODY;
   mp_node cyan_part_;
@@ -6793,7 +6801,7 @@ typedef struct mp_gr_knot_data {
 } mp_gr_knot_data;
 
 
-@ @(mplib.h@>=
+@ @<MPlib header stuff@>=
 enum mp_knot_type {
   mp_endpoint = 0,      /* |mp_left_type| at path beginning and |mp_right_type| at path end */
   mp_explicit,                  /* |mp_left_type| or |mp_right_type| when control points are known */
@@ -10484,7 +10492,7 @@ static void mp_pen_bbox (MP mp, mp_knot h) {
 
 This first set goes into the header
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 #define mp_fraction mp_number
 #define mp_angle mp_number
 #define new_number(A) (A)=(((math_data *)(mp->math))->new)(mp, mp_scaled_type)
@@ -10586,7 +10594,7 @@ lists of graphical objects.  \MP\ has no easy way to determine whether
 two such objects overlap, but it suffices to draw the first one first and
 let the second one overwrite it if necessary.
 
-@(mplib.h@>=
+@<MPlib header stuff@>=
 enum mp_graphical_object_code {
   @<Graphical object codes@>
   mp_final_graphic
@@ -10609,7 +10617,7 @@ give the relevant information.
 @d mp_pre_script(A) ((mp_fill_node)(A))->pre_script_
 @d mp_post_script(A) ((mp_fill_node)(A))->post_script_
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_fill_node_data {
   NODE_BODY;
   halfword color_model_;
@@ -10676,7 +10684,7 @@ be transformed without touching the picture that |dash_p| points to.
 
 @d mp_dash_p(A) ((mp_stroked_node)(A))->dash_p_  /* a pointer to the edge structure that gives the dash pattern */
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_stroked_node_data {
   NODE_BODY;
   halfword color_model_;
@@ -10849,7 +10857,7 @@ black with its reference point at the origin.
 @d mp_text_p(A) ((mp_text_node)(A))->text_p_  /* a string pointer for the text to display */
 @d mp_font_n(A) ((mp_text_node)(A))->font_n_ /* the font number */
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_text_node_data {
   NODE_BODY;
   halfword color_model_;
@@ -10933,7 +10941,7 @@ of objects to clip or bound followed by a closing node.
 @d is_start_or_stop(A) (mp_type((A))>=mp_start_clip_node_type)
 @d is_stop(A) (mp_type((A))>=mp_stop_clip_node_type)
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_start_clip_node_data {
   NODE_BODY;
   mp_knot path_p_;
@@ -11029,7 +11037,7 @@ The |dash_info| is explained below.
 @d dash_list(A) (mp_dash_node)(((mp_dash_node)(A))->link)  /* in an edge header this points to the first dash node */
 @d set_dash_list(A,B) ((mp_dash_node)(A))->link=(mp_node)((B))  /* in an edge header this points to the first dash node */
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_dash_node_data {
   NODE_BODY;
   mp_number start_x; /* the starting $x$~coordinate in a dash node */
@@ -11086,7 +11094,7 @@ field is needed to keep track of this.
 @d bblast(A) ((mp_edge_header_node)(A))->bblast_  /* last item considered in bounding box computation */
 @d edge_list(A)  ((mp_edge_header_node)(A))->list_ /* where the object list begins in an edge header */
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_edge_header_node_data {
   NODE_BODY;
   mp_number start_x;
@@ -19483,7 +19491,7 @@ corresponding |if_line|.
 @d else_code 3 /* code for \&{else} */
 @d else_if_code 4 /* code for \&{elseif} */
 
-@(mpmp.h@>=
+@<MPlib internal header stuff@>=
 typedef struct mp_if_node_data {
   NODE_BODY;
   int if_line_field_;

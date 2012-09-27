@@ -77,10 +77,13 @@ to the frontend because I do not know how to set up the includes
 properly. That is |typedef struct svgout_data_struct * svgout_data|.
 
 @ @(mpsvgout.h@>=
+#ifndef MPSVGOUT_H
+#define MPSVGOUT_H 1
 typedef struct svgout_data_struct {
   @<Globals@>
 } svgout_data_struct ;
 @<Exported function headers@>
+#endif
 
 @ @<Exported function headers@>=
 void mp_svg_backend_initialize (MP mp) ;
@@ -1300,7 +1303,10 @@ int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
 }
 
 @ @(mplibsvg.h@>=
+#ifndef MPLIBSVG_H
+#define MPLIBSVG_H 1
 int mp_svg_ship_out (mp_edge_object *hh, int prologues) ;
+#endif
 
 @ @c
 int mp_svg_ship_out (mp_edge_object *hh, int prologues) {

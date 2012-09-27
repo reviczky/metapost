@@ -125,11 +125,15 @@ is the decider between running \TeX\ or Troff as the typesetting
 engine.
 
 @(mpxout.h@>=
+#ifndef MPXOUT_H
+#define MPXOUT_H 1
 typedef enum {
   mpx_tex_mode=0,
   mpx_troff_mode=1 
 } mpx_modes;
 typedef struct mpx_data * MPX;
+@<Makempx header information@>
+#endif
 
 @ @<C Data Types@>=
 @<Types in the outer block@>
@@ -2542,7 +2546,7 @@ mpx->lnno = 0; /* this is a reset */
 mpx->gflag = 0;
 mpx->h = 0; mpx->v = 0; 
 
-@ @(mpxout.h@>=
+@ @<Makempx header information@>=
 typedef char *(*mpx_file_finder)(MPX, const char *, const char *, int);
 enum mpx_filetype {
   mpx_tfm_format,           /* |kpse_tfm_format| */
@@ -4126,7 +4130,7 @@ static void mpx_command_error (MPX mpx, int cmdlength, char **cmdline) {
 
 
 
-@ @(mpxout.h@>=
+@ @<Makempx header information@>=
 typedef struct mpx_options {
   int mode;
   char *cmd;

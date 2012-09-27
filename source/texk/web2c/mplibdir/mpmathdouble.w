@@ -30,8 +30,10 @@
 @<Declarations@>;
 
 @ @(mpmathdouble.h@>=
+#ifndef MPMATHDOUBLE_H
+#define  MPMATHDOUBLE_H 1
 @<Internal library declarations@>;
-
+#endif
 
 @* Math initialization.
 
