@@ -19,13 +19,6 @@
 #  include <unistd.h>           /* for access */
 #endif
 #include <time.h>               /* for struct tm \& co */
-#include "mplib.h"
-#include "mplibps.h"            /* external header */
-#include "mplibsvg.h"           /* external header */
-#include "mpmp.h"               /* internal header */
-#include "mppsout.h"            /* internal header */
-#include "mpsvgout.h"           /* internal header */
-#include "mpmath.h"             /* internal header */
 #include "mpstrings.h"          /* internal header */
 
 @ Then there is some stuff we need to prepare ourselves
@@ -33,6 +26,13 @@
 @(mpstrings.h@>=
 #ifndef MPSTRINGS_H
 #define MPSTRINGS_H 1
+#include "mplib.h"
+#include "mplibps.h"            /* external header */
+#include "mplibsvg.h"           /* external header */
+#include "mpmp.h"               /* internal header */
+#include "mppsout.h"            /* internal header */
+#include "mpsvgout.h"           /* internal header */
+#include "mpmath.h"             /* internal header */
 @<Definitions@>;
 #endif
 

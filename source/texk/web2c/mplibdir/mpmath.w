@@ -21,8 +21,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "mplib.h"
-#include "mpmp.h" /* internal header */
 #include "mpmath.h" /* internal header */
 @h
 
@@ -32,6 +30,8 @@
 @ @(mpmath.h@>=
 #ifndef MPMATH_H
 #define MPMATH_H 1
+#include "mplib.h"
+#include "mpmp.h" /* internal header */
 @<Internal library declarations@>;
 #endif
 
