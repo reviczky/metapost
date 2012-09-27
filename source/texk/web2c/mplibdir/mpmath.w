@@ -392,7 +392,7 @@ void mp_number_fraction_to_scaled (mp_number A) {
 void mp_number_angle_to_scaled (mp_number A) {
     A->type = mp_scaled_type;
     if (A->data.val >= 0) {
-      A->data.val = A->data.val + 8 / 16;
+      A->data.val = (A->data.val + 8) / 16;
     } else {
       A->data.val = -((-A->data.val + 8) / 16);
     }
