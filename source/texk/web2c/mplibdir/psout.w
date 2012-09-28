@@ -289,7 +289,7 @@ terminate before $s$ can possibly become zero.
 @c
 static void mp_ps_print_double (MP mp, double s) { 
   char *value, *c;
-  value = xmalloc(32);
+  value = mp_xmalloc(mp,1,32);
   mp_snprintf(value,32,"%g", s); /* todo: this is just an initial quick fix */
   c = value;
   while (*c) {
@@ -5007,7 +5007,7 @@ static mp_gr_knot mp_gr_copy_path (MP mp,  mp_gr_knot p) {
 calling the following subroutine.
 
 @<Declarations@>=
-static void mp_do_gr_toss_knot_list (mp_gr_knot p) ;
+void mp_do_gr_toss_knot_list (mp_gr_knot p) ;
 
 @ 
 @d mp_gr_toss_knot_list(B,A) mp_do_gr_toss_knot_list(A)

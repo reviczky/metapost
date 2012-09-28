@@ -279,7 +279,7 @@ terminate before $s$ can possibly become zero.
 @c
 static void mp_svg_store_double (MP mp, double s) { 
   char *value, *c;
-  value = xmalloc(32);
+  value = mp_xmalloc(mp,1,32);
   mp_snprintf(value,32,"%f", s);
   c = value;
   while (*c) {
