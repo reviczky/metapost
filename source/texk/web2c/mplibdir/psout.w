@@ -705,6 +705,8 @@ static int fm_getchar (MP mp) {
     (void)fseek(mp->ps->fm_file,0,SEEK_END);
     mp->ps->fm_byte_length = (size_t)ftell(mp->ps->fm_file);
     (void)fseek(mp->ps->fm_file,0,SEEK_SET);
+    if (mp->ps->fm_byte_length==0)
+      return EOF;
     mp->ps->fm_bytes = mp_xmalloc(mp, mp->ps->fm_byte_length, 1);
     byte_ptr = (void *)mp->ps->fm_bytes;
     (mp->read_binary_file)(mp,mp->ps->fm_file,&byte_ptr,&mp->ps->fm_byte_length);
