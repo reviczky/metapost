@@ -7362,6 +7362,8 @@ void mp_make_choices (MP mp, mp_knot knots) {
   }
 }
 
+@ @<Internal ...@>=
+void mp_make_choices (MP mp, mp_knot knots);
 
 @ @<Report an unexpected problem during the choice...@>=
 {
@@ -14287,8 +14289,6 @@ That knot is |p| but if |p<>c|, its coordinates have already been offset by |w|.
 
 @<Set the incoming and outgoing directions at |q|; in case of...@>=
 {
-  mp_number tmpx;
-  new_number(tmpx);
   set_number_from_substraction(dxin, q->x_coord, q->left_x);
   set_number_from_substraction(dyin, q->y_coord, q->left_y);
   if (number_zero(dxin) && number_zero(dyin)) {
@@ -14324,8 +14324,6 @@ and~|r| have already been offset by |h|.
 
 @<Set the outgoing direction at |q|@>=
 {
-  mp_number tmpx;
-  new_number(tmpx);
   set_number_from_substraction(dxout, q->right_x, q->x_coord);
   set_number_from_substraction(dyout, q->right_y, q->y_coord);
   if (number_zero(dxout) && number_zero(dyout)) {
@@ -34169,9 +34167,13 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
   hh->next = NULL;
   hh->parent = mp;
   hh->minx = number_to_double(h->minx);
+  hh->minx = (fabs(hh->minx)<0.00001 ? 0 : hh->minx);
   hh->miny = number_to_double(h->miny);
+  hh->miny = (fabs(hh->miny)<0.00001 ? 0 : hh->miny);
   hh->maxx = number_to_double(h->maxx);
+  hh->maxx = (fabs(hh->maxx)<0.00001 ? 0 : hh->maxx);
   hh->maxy = number_to_double(h->maxy);
+  hh->maxy = (fabs(hh->maxx)<0.00001 ? 0 : hh->maxy);
   hh->filename = mp_xstrdup (mp, mp_get_output_file_name (mp));
   c = round_unscaled (internal_value (mp_char_code));
   hh->charcode = c;
