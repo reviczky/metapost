@@ -6381,7 +6381,7 @@ parameter |t| points to a list of symbolic nodes that represent
 suffixes, with |info=collective_subscript| for subscripts.
 
 @<Declarations@>=
-static void mp_flush_cur_exp (MP mp, mp_value v);
+void mp_flush_cur_exp (MP mp, mp_value v);
 
 @ @c
 static void mp_flush_variable (MP mp, mp_node p, mp_node t,
@@ -7246,7 +7246,6 @@ static mp_knot mp_import_knot_list (MP mp, mp_gr_knot q) {
   return p;
 }
 
-
 @ Similarly, there's a way to copy the {\sl reverse\/} of a path. This procedure
 returns a pointer to the first node of the copy, if the path is a cycle,
 but to the final node of a non-cyclic copy. The global
@@ -7321,7 +7320,7 @@ which are knots whose left and right angles are both prespecified in
 some way (i.e., their |mp_left_type| and |mp_right_type| aren't both open).
 
 @c
-static void mp_make_choices (MP mp, mp_knot knots) {
+void mp_make_choices (MP mp, mp_knot knots) {
   mp_knot h;    /* the first breakpoint */
   mp_knot p, q; /* consecutive breakpoints being processed */
   @<Other local variables for |make_choices|@>;
@@ -8554,6 +8553,264 @@ if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpos
   free_number (rt);
   return;
 }
+
+@ Various subroutines that are useful for the new (1.770) exported 
+api for solving path choices
+
+@c
+#define TOO_LARGE(a) (fabs((a))>=4096.0)
+#define PI 3.1415926535897932384626433832795028841971 
+
+static int mp_link_knotpair (MP mp, mp_knot p, mp_knot q);
+static int mp_link_knotpair (MP mp, mp_knot p, mp_knot q)
+{
+    if (p==NULL ||q==NULL) return 0;
+    p->next = q;
+    set_number_from_double(p->right_tension, 1.0);
+    if (mp_right_type(p)==mp_endpoint) {
+	mp_right_type(p) = mp_open;
+    }
+    set_number_from_double(q->left_tension, 1.0);
+    if (mp_left_type(q) == mp_endpoint) {
+	mp_left_type(q) = mp_open;
+    }
+    return 1;
+}
+
+int mp_close_path_cycle (MP mp, mp_knot p, mp_knot q)
+{
+    return mp_link_knotpair(mp,p,q);
+}
+
+int mp_close_path (MP mp, mp_knot q, mp_knot first)
+{
+    if (q==NULL || first==NULL) return 0;
+    q->next = first;
+    mp_right_type(q) = mp_endpoint;
+    set_number_from_double(q->right_tension, 1.0);
+    mp_left_type(first) = mp_endpoint;
+    set_number_from_double(first->left_tension, 1.0);
+    return 1;
+}
+
+mp_knot mp_create_knot (MP mp)
+{
+    mp_knot q = mp_new_knot(mp);
+    mp_left_type(q) = mp_endpoint;
+    mp_right_type(q) = mp_endpoint;
+    return q;
+}
+
+int mp_set_knot (MP mp, mp_knot p, double x, double y)
+{
+    if (TOO_LARGE(x)) return 0;
+    if (TOO_LARGE(y)) return 0;
+    if (p==NULL) return 0;
+    set_number_from_double(p->x_coord, x);
+    set_number_from_double(p->y_coord, y);
+    return 1;
+}
+
+mp_knot mp_append_knot (MP mp, mp_knot p, double x, double y)
+{
+    mp_knot q = mp_create_knot(mp);
+    if (q==NULL) return NULL;
+    if (!mp_set_knot(mp, q, x, y)) {
+	free(q);
+	return NULL;
+    }
+    if (p == NULL) return q;
+    if (!mp_link_knotpair(mp, p,q)) {
+	free(q);
+	return NULL;
+    }
+    return q;
+}
+
+int mp_set_knot_curl (MP mp, mp_knot q, double value) {
+    if (q==NULL) return 0;
+    if (TOO_LARGE(value)) return 0;
+    mp_right_type(q)=mp_curl; 
+    set_number_from_double(q->right_curl, value);
+    if (mp_left_type(q)==mp_open) {
+	mp_left_type(q)=mp_curl; 
+	set_number_from_double(q->left_curl, value);
+    }
+    return 1;
+}
+
+int mp_set_knotpair_curls (MP mp, mp_knot p, mp_knot q, double t1, double t2) {
+    if (p==NULL || q==NULL) return 0;
+    if (mp_set_knot_curl(mp, p, t1))
+	return mp_set_knot_curl(mp, q, t2);
+    return 0;
+}
+
+int mp_set_knotpair_tensions (MP mp, mp_knot p, mp_knot q, double t1, double t2) {
+    if (p==NULL || q==NULL) return 0;
+    if (TOO_LARGE(t1)) return 0;
+    if (TOO_LARGE(t2)) return 0;
+    if ((fabs(t1)<0.75)) return 0;
+    if ((fabs(t2)<0.75)) return 0;
+    set_number_from_double(p->right_tension, t1);
+    set_number_from_double(q->left_tension, t2);
+    return 1;
+}
+
+int mp_set_knotpair_controls (MP mp, mp_knot p, mp_knot q, double x1, double y1, double x2, double y2) {
+    if (p==NULL || q==NULL) return 0;
+    if (TOO_LARGE(x1)) return 0;
+    if (TOO_LARGE(y1)) return 0;
+    if (TOO_LARGE(x2)) return 0;
+    if (TOO_LARGE(y2)) return 0;
+    mp_right_type(p)=mp_explicit; 
+    set_number_from_double(p->right_x, x1);
+    set_number_from_double(p->right_y, y1);
+    mp_left_type(q)=mp_explicit; 
+    set_number_from_double(q->left_x, x2);
+    set_number_from_double(q->left_y, y2);
+    return 1;
+}
+
+int mp_set_knot_direction (MP mp, mp_knot q, double x, double y) {
+    double value = 0;
+    if (q==NULL) return 0;
+    if (TOO_LARGE(x)) return 0;
+    if (TOO_LARGE(y)) return 0;
+    if (!(x==0 && y == 0))
+	value = atan2 (y, x) * (180.0 / PI)  * 16.0;
+    mp_right_type(q)=mp_given; 
+    set_number_from_double(q->right_curl, value);
+    if (mp_left_type(q)==mp_open) {
+	mp_left_type(q)=mp_given; 
+	set_number_from_double(q->left_curl, value);
+    }
+    return 1;
+}
+
+int mp_set_knotpair_directions (MP mp, mp_knot p, mp_knot q, double x1, double y1, double x2, double y2) {
+    if (p==NULL || q==NULL) return 0;
+    if (mp_set_knot_direction(mp,p, x1, y1))
+	return mp_set_knot_direction(mp,q, x2, y2);
+    return 0;
+}
+
+@
+@c
+static int path_needs_fixing (mp_knot source);
+static int path_needs_fixing (mp_knot source) {
+    mp_knot sourcehead;
+    if (source==NULL) return 0;
+    sourcehead = source;
+    do {
+	source = source->next;
+    } while (source && source != sourcehead);
+    if (!source) {
+	return 1;
+    }
+    return 0;
+}
+
+static int clone_path(mp_knot source, mp_knot target);
+static int clone_path(mp_knot source, mp_knot target)
+{
+    mp_knot sourcehead;
+    if (source==NULL || target==NULL) return 0;
+    sourcehead = source;
+    do {
+	mp_knot next = target->next;
+	memcpy(target,source,sizeof(struct mp_knot_data));
+	target->next = next;
+	source = source->next;
+	target = target->next;
+    } while (source && source != sourcehead);
+    return (source!=NULL);
+}
+
+int mp_solve_path (MP mp, mp_knot first)
+{
+    int saved_arith_error;
+    jmp_buf *saved_jump_buf;
+    int retval = 1;
+    mp_knot imported_path;
+    if (first==NULL) return 0;
+    if (path_needs_fixing(first)) return 0;
+    saved_jump_buf = mp->jump_buf;
+    mp->jump_buf = malloc(sizeof(jmp_buf));
+    if (mp->jump_buf == NULL || setjmp(*(mp->jump_buf)) != 0) {   
+       return 0; 
+    }    
+    saved_arith_error = mp->arith_error;
+    mp->arith_error=0;
+    imported_path = mp_copy_path(mp,first);
+    mp_make_choices(mp, imported_path);
+    if (mp->arith_error) {
+	free(mp->jump_buf);
+	mp->jump_buf = saved_jump_buf;
+ 	return 0;
+    }
+    mp->arith_error = saved_arith_error;
+    if (!clone_path(imported_path, first)) {
+ 	retval = 0;
+    }
+    mp_toss_knot_list(mp,imported_path);
+    free(mp->jump_buf);
+    mp->jump_buf = saved_jump_buf;
+    return retval;
+}
+
+void mp_free_path (MP mp, mp_knot p) {
+    mp_toss_knot_list(mp, p);
+}
+
+@ @<Exported function headers@>=
+int mp_close_path_cycle (MP mp, mp_knot p, mp_knot q);
+int mp_close_path (MP mp, mp_knot q, mp_knot first);
+mp_knot mp_create_knot (MP mp);
+int mp_set_knot (MP mp, mp_knot p, double x, double y);
+mp_knot mp_append_knot (MP mp, mp_knot p, double x, double y);
+int mp_set_knot_curl (MP mp, mp_knot q, double value);
+int mp_set_knotpair_curls (MP mp, mp_knot p, mp_knot q, double t1, double t2) ;
+int mp_set_knotpair_tensions (MP mp, mp_knot p, mp_knot q, double t1, double t2) ;
+int mp_set_knotpair_controls (MP mp, mp_knot p, mp_knot q, double x1, double y1, double x2, double y2) ;
+int mp_set_knot_direction (MP mp, mp_knot q, double x, double y) ;
+int mp_set_knotpair_directions (MP mp, mp_knot p, mp_knot q, double x1, double y1, double x2, double y2) ;
+int mp_solve_path (MP mp, mp_knot first);
+void mp_free_path (MP mp, mp_knot p);
+
+@ Simple accessors for |mp_knot|.
+
+@c
+mp_number mp_knot_x_coord(MP mp, mp_knot p) { return p->x_coord; }
+mp_number mp_knot_y_coord(MP mp, mp_knot p) { return p->y_coord; }
+mp_number mp_knot_left_x (MP mp, mp_knot p) { return p->left_x;  }
+mp_number mp_knot_left_y (MP mp, mp_knot p) { return p->left_y;  }
+mp_number mp_knot_right_x(MP mp, mp_knot p) { return p->right_x;  }
+mp_number mp_knot_right_y(MP mp, mp_knot p) { return p->right_y;  }
+int mp_knot_right_type(MP mp, mp_knot p) { return mp_right_type(p);}
+int mp_knot_left_type (MP mp, mp_knot p) { return mp_left_type(p);}
+mp_knot mp_knot_next (MP mp, mp_knot p)  { return p->next; }
+double mp_number_as_double(MP mp, mp_number n) {
+  return number_to_double(n);
+}
+
+@ @<Exported function headers@>=
+#define mp_knot_left_curl mp_knot_left_x
+#define mp_knot_left_given mp_knot_left_x
+#define mp_knot_left_tension mp_knot_left_y
+#define mp_knot_right_curl mp_knot_right_x
+#define mp_knot_right_given mp_knot_right_x
+#define mp_knot_right_tension mp_knot_right_y
+mp_number mp_knot_x_coord(MP mp, mp_knot p);
+mp_number mp_knot_y_coord(MP mp, mp_knot p);
+mp_number mp_knot_left_x(MP mp, mp_knot p);
+mp_number mp_knot_left_y(MP mp, mp_knot p);
+mp_number mp_knot_right_x(MP mp, mp_knot p);
+mp_number mp_knot_right_y(MP mp, mp_knot p);
+int mp_knot_right_type(MP mp, mp_knot p);
+int mp_knot_left_type(MP mp, mp_knot p);
+mp_knot mp_knot_next(MP mp, mp_knot p);
+double mp_number_as_double(MP mp, mp_number n);
 
 
 @* Measuring paths.
@@ -21718,7 +21975,7 @@ and |cur_exp| as either alive or dormant after this has been done,
 because |cur_exp| will not contain a pointer value.
 
 @ @c
-static void mp_flush_cur_exp (MP mp, mp_value v) {
+void mp_flush_cur_exp (MP mp, mp_value v) {
   switch (mp->cur_exp.type) {
   case unknown_types:
   case mp_transform_type:
@@ -34072,8 +34329,8 @@ mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
 
 
 @ @<Declarations@>=
-static struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h);
-static mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *h);
+struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h);
+mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *h);
 
 @ This function is now nearly trivial.
 
