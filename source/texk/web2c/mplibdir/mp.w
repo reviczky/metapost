@@ -34485,7 +34485,7 @@ boolean mp_load_preload_file (MP mp) {
   update_terminal();
   {
     line = 1;
-    start = loc = limit + 1;
+    start = loc = limit + (mp->noninteractive ? 0 : 1);
     cur_file = mp->mem_file;
     (void) mp_input_ln (mp, cur_file);
     mp_firm_up_the_line (mp);
