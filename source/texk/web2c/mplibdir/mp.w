@@ -26081,6 +26081,11 @@ given ordered pair of values.
 static void mp_pair_value (MP mp, mp_number x, mp_number y) {
   mp_node p;    /* a pair node */
   mp_value new_expr;
+  mp_number x1, y1;
+  new_number(x1);
+  new_number(y1);
+  number_clone (x1, x);
+  number_clone (y1, y);
   memset(&new_expr,0,sizeof(mp_value));
   new_number(new_expr.data.n);
   p = mp_get_value_node (mp);
@@ -26092,9 +26097,11 @@ static void mp_pair_value (MP mp, mp_number x, mp_number y) {
   mp_init_pair_node (mp, p);
   p = value_node (p);
   mp_type (x_part (p)) = mp_known;
-  set_value_number (x_part (p), x);
+  set_value_number (x_part (p), x1);
   mp_type (y_part (p)) = mp_known;
-  set_value_number (y_part (p), y);
+  set_value_number (y_part (p), y1);
+  free_number(x1);
+  free_number(y1);
 }
 
 
