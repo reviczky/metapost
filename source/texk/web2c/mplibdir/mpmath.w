@@ -265,9 +265,15 @@ void * mp_initialize_scaled_math (MP mp) {
 }
 
 void mp_free_scaled_math (MP mp) {
+  free_number (((math_data *)mp->math)->epsilon_t);
+  free_number (((math_data *)mp->math)->inf_t);
+  free_number (((math_data *)mp->math)->arc_tol_k);
   free_number (((math_data *)mp->math)->three_sixty_deg_t);
   free_number (((math_data *)mp->math)->one_eighty_deg_t);
   free_number (((math_data *)mp->math)->fraction_one_t);
+  free_number (((math_data *)mp->math)->fraction_half_t);
+  free_number (((math_data *)mp->math)->fraction_three_t);
+  free_number (((math_data *)mp->math)->fraction_four_t);
   free_number (((math_data *)mp->math)->zero_t);
   free_number (((math_data *)mp->math)->half_unit_t);
   free_number (((math_data *)mp->math)->three_quarter_unit_t);
@@ -275,13 +281,16 @@ void mp_free_scaled_math (MP mp) {
   free_number (((math_data *)mp->math)->two_t);
   free_number (((math_data *)mp->math)->three_t);
   free_number (((math_data *)mp->math)->one_third_inf_t);
-  free_number (((math_data *)mp->math)->inf_t);
   free_number (((math_data *)mp->math)->warning_limit_t);
   free_number (((math_data *)mp->math)->one_k);
   free_number (((math_data *)mp->math)->sqrt_8_e_k);
   free_number (((math_data *)mp->math)->twelve_ln_2_k);
   free_number (((math_data *)mp->math)->coef_bound_k);
   free_number (((math_data *)mp->math)->coef_bound_minus_1);
+  free_number (((math_data *)mp->math)->twelvebits_3);
+  free_number (((math_data *)mp->math)->twentysixbits_sqrt2_t);
+  free_number (((math_data *)mp->math)->twentyeightbits_d_t);
+  free_number (((math_data *)mp->math)->twentysevenbits_sqrt2_d_t);
   free_number (((math_data *)mp->math)->fraction_threshold_t);
   free_number (((math_data *)mp->math)->half_fraction_threshold_t);
   free_number (((math_data *)mp->math)->scaled_threshold_t);

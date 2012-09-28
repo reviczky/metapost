@@ -2972,6 +2972,18 @@ A symbolic node is recycled by calling |free_symbolic_node|.
 void mp_free_node (MP mp, mp_node p, size_t siz) {                               /* node liberation */
   FUNCTION_TRACE3 ("mp_free_node(%p,%d)\n", p, (int)siz);
   mp->var_used -= siz;
+  if (mp_type (p) == mp_value_node_type || 
+      mp_type (p) == mp_dep_node_type || 
+      mp_type (p) == mp_attr_node_type) {
+     free_number(((mp_value_node)p)->data.n); 
+     free_number(((mp_value_node)p)->v.subscript_); 
+  } else if (p->type == mp_symbol_node) {
+     free_number(((mp_symbolic_node)p)->data.n); 
+  } else if (p->type == mp_dash_node_type) {
+     free_number(((mp_dash_node)p)->start_x);
+     free_number(((mp_dash_node)p)->stop_x);
+     free_number(((mp_dash_node)p)->dash_y);
+  }
   xfree (p);                    /* do more later */
 }
 
@@ -4487,6 +4499,7 @@ end of the run.
 @c
 static void *delete_symbols_entry (void *p) {
   mp_sym ff = (mp_sym) p;
+  mp_xfree (ff->v.data.n); /* not good enough! */
   mp_xfree (ff->text->str);
   mp_xfree (ff->text);
   mp_xfree (ff);
@@ -7302,6 +7315,12 @@ void mp_toss_knot_list (MP mp, mp_knot p) {
   q = p;
   do {
     r = mp_next_knot (q);
+    free_number (q->x_coord); 
+    free_number (q->y_coord); 
+    free_number (q->left_x); 
+    free_number (q->left_y); 
+    free_number (q->right_x); 
+    free_number (q->right_y); 
     mp_xfree (q);
     q = r;
   } while (q != p);
@@ -7876,6 +7895,12 @@ provide temporary storage for intermediate quantities.
   if (mp_left_type (s) == mp_end_cycle) {
     @<Adjust $\theta_n$ to equal $\theta_0$ and |goto found|@>;
   }
+  free_number(aa);
+  free_number(bb);
+  free_number(cc);
+  free_number(acc);
+  free_number(dd);
+  free_number(ee);
 }
 
 
@@ -8071,6 +8096,14 @@ so we can solve for $\theta_n=\theta_0$.
     take_fraction (r1, aa, mp->ww[k]);
     number_add(mp->vv[k], r1);
   }
+  free_number(arg2);
+  free_number(r1);
+  free_number(aa);
+  free_number(bb);
+  free_number(cc);
+  free_number(acc);
+  free_number(dd);
+  free_number(ee);
   goto FOUND;
 }
 
@@ -8450,6 +8483,7 @@ if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpos
       }
     }
   }
+  free_number (arg1);
   free_number (r1);
   free_number (r2);
   free_number (ab_vs_cd);
@@ -8471,6 +8505,8 @@ if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpos
   number_negate (mp->sf);
   mp_set_controls (mp, p, q, 0);
   free_number (narg);
+  free_number (arg1);
+  free_number (ff);
   return;
 }
 
@@ -8549,6 +8585,7 @@ if ((number_nonnegative(mp->st) && number_nonnegative(mp->sf)) || (number_nonpos
     set_number_from_substraction(q->left_y, q->y_coord, r1);
     free_number (r1);
   }
+  free_number (ff);
   free_number (lt);
   free_number (rt);
   return;
@@ -8699,9 +8736,7 @@ int mp_set_knotpair_directions (MP mp, mp_knot p, mp_knot q, double x1, double y
 @c
 static int path_needs_fixing (mp_knot source);
 static int path_needs_fixing (mp_knot source) {
-    mp_knot sourcehead;
-    if (source==NULL) return 0;
-    sourcehead = source;
+    mp_knot sourcehead = source;
     do {
 	source = source->next;
     } while (source && source != sourcehead);
@@ -8711,49 +8746,22 @@ static int path_needs_fixing (mp_knot source) {
     return 0;
 }
 
-static int clone_path(mp_knot source, mp_knot target);
-static int clone_path(mp_knot source, mp_knot target)
-{
-    mp_knot sourcehead;
-    if (source==NULL || target==NULL) return 0;
-    sourcehead = source;
-    do {
-	mp_knot next = target->next;
-	memcpy(target,source,sizeof(struct mp_knot_data));
-	target->next = next;
-	source = source->next;
-	target = target->next;
-    } while (source && source != sourcehead);
-    return (source!=NULL);
-}
-
 int mp_solve_path (MP mp, mp_knot first)
 {
-    int saved_arith_error;
-    jmp_buf *saved_jump_buf;
+    int saved_arith_error = mp->arith_error;
+    jmp_buf *saved_jump_buf = mp->jump_buf;
     int retval = 1;
-    mp_knot imported_path;
     if (first==NULL) return 0;
     if (path_needs_fixing(first)) return 0;
-    saved_jump_buf = mp->jump_buf;
     mp->jump_buf = malloc(sizeof(jmp_buf));
     if (mp->jump_buf == NULL || setjmp(*(mp->jump_buf)) != 0) {   
        return 0; 
     }    
-    saved_arith_error = mp->arith_error;
-    mp->arith_error=0;
-    imported_path = mp_copy_path(mp,first);
-    mp_make_choices(mp, imported_path);
-    if (mp->arith_error) {
-	free(mp->jump_buf);
-	mp->jump_buf = saved_jump_buf;
- 	return 0;
-    }
-    mp->arith_error = saved_arith_error;
-    if (!clone_path(imported_path, first)) {
+    mp->arith_error = 0;
+    mp_make_choices(mp, first);
+    if (mp->arith_error)
  	retval = 0;
-    }
-    mp_toss_knot_list(mp,imported_path);
+    mp->arith_error = saved_arith_error;
     free(mp->jump_buf);
     mp->jump_buf = saved_jump_buf;
     return retval;
@@ -16702,6 +16710,9 @@ mp_node cur_mod_;         /* current command, symbol, and its operands */
 @ @<Initialize table...@>=
 mp->cur_mod_ = mp_get_symbolic_node(mp);
 
+@ @<Free table...@>=
+mp_free_symbolic_node(mp, mp->cur_mod_);
+
 @ The |print_cmd_mod| routine prints a symbolic interpretation of a
 command code and its modifier.
 It consists of a rather tedious sequence of print
@@ -21448,6 +21459,9 @@ mp_value cur_exp;       /* the value of the expression just found */
 @ @<Set init...@>=
 memset (&mp->cur_exp.data, 0, sizeof (mp_value));
 new_number(mp->cur_exp.data.n);
+
+@ @<Free table ...@>=
+free_number(mp->cur_exp.data.n);
 
 @ Many different kinds of expressions are possible, so it is wise to have
 precise descriptions of what |cur_type| and |cur_exp| mean in all cases:
@@ -27380,6 +27394,14 @@ new_number(mp->tyy);
 new_number(mp->tx);
 new_number(mp->ty);
 
+@ @<Free table...@>=
+free_number(mp->txx);
+free_number(mp->txy);
+free_number(mp->tyx);
+free_number(mp->tyy);
+free_number(mp->tx);
+free_number(mp->ty);
+
 @ @<Put the current transform...@>=
 {
   const char *hlp[] = {
@@ -30323,6 +30345,7 @@ void mp_do_new_internal (MP mp) {
 
 @ @<Dealloc variables@>=
 for (k = 0; k <= mp->max_internal; k++) {
+  free_number(mp->internal[k].v.data.n);
   xfree (internal_name (k));
 }
 xfree (mp->internal);
