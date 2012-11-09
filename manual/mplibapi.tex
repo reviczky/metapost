@@ -98,7 +98,8 @@ int main (int argc, char **argv) {
 }
 \stoptyping
 
-This example will run in \quote{inimpost} mode. 
+This example will run in \quote{inimpost} mode. See below for how to
+preload a macro package.
 
 \subsection{Embedded \MPLIB\ use}
 
@@ -179,13 +180,13 @@ To create an \type{MP_options} structure, you have to use the \type{mp_options()
 This type is an opaque pointer to a \MPLIB\ instance, it is what you
 have pass along as the first argument to (almost) all the \MPLIB\ 
 functions. The actual C structure it points to has hundreds of fields,
-but you should not use any of those directly. All confuration is done
+but you should not use any of those directly. All configuration is done
 via the \type{MP_options} structure, and there are accessor functions
 for the fields that can be read out.
 
 \ctypedef{}{mp_run_data}{}
 
-When the \MPLIB\ instance is not interactive, any output is redirect
+When the \MPLIB\ instance is not interactive, any output is redirected
 to this structure.  There are a few string output streams, and a
 linked list of output images. 
 
@@ -219,7 +220,8 @@ bookkeeping variables. The fields that are of interest to you are:
 \stoptabulate
 
 There is nothing in the stream unless the \type{size} field is
-nonzero. There will not be embedded zeroes in \type{data}.
+nonzero. There will not be embedded null characters (\type{\0}) 
+in \type{data}.
 
 If \type{size} is nonzero, \type{strlen(data)} is guaranteed to be
 less than that, and may be as low as zero (if \MPLIB\ has written an
@@ -228,7 +230,7 @@ empty string).
 \subsection{Function prototype typedefs}
 
 The following three function prototypes define functions that you can
-pass to \MPLIB\ insert the \type{MP_options} structure.
+pass to \MPLIB\ inside the \type{MP_options} structure.
 
 \ctypedef{char * }{(*mp_file_finder)}{ (MP, const char*, const char*, int)}
 
@@ -259,9 +261,9 @@ This function is executed when there is a need to start generating an
 \type{mpx} file because (the first time a \type{btex} command was
 encountered in the current input file).
 
-The first arguments is the input file name. This is the name that was given
-in the \MP\ language, so it may not be the same as name of the actual
-file that is being used, depending on how you your
+The first argument is the input file name. This is the name that was given
+in the \MP\ language, so it may not be the same as the name of the actual
+file that is being used, depending on how your
 \type{mp_file_finder} function behaves.  The second argument is the 
 requested output name for mpx commands.
 
@@ -302,7 +304,7 @@ stops and asks the user for input. This initial mode can be overruled by using o
 
 \starttabulate[|l|p|]
 \NC mp_math_scaled_mode      \NC uses scaled point data for numerical values   \NC \NR 
-\NC mp_math_double_mode      \NC uses floating point data for numerical values \NC \NR 
+\NC mp_math_double_mode      \NC uses IEEE double floating point data for numerical values \NC \NR 
 \NC mp_math_binary_mode      \NC not used yet.                                 \NC \NR 
 \NC mp_math_decimal_mode     \NC not used yet.                                 \NC \NR 
 \stoptabulate
@@ -929,7 +931,8 @@ involved as well. The final output should behave as follows:
 and also draw \type{path_p} with the \type{pen_p}. Do not forget to take \type{ljoin} and
 \type{miterlim} into account when drawing with the pen.
 \item If there is a more complex pen (\type{pen_p->next} != \type{pen_p}) then its path 
-has already been preprocessed for you. fill \type{path_p} and \type{htap_p}.
+has already been preprocessed for you: \type{path_p} and \type{htap_p} already incorporate
+its shape.
 \stopitemize
 
 \ctypedef {}{mp_stroked_object}{}
