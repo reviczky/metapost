@@ -73,12 +73,12 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.760" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.770" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @<Metapost version header@>=
-#define metapost_version "1.760"
+#define metapost_version "1.770"
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
 few typedefs and the header defintions for the externally used
@@ -120,6 +120,7 @@ wholesale.
 #include <setjmp.h>
 typedef struct psout_data_struct *psout_data;
 typedef struct svgout_data_struct *svgout_data;
+typedef struct pngout_data_struct *pngout_data;
 #ifndef HAVE_BOOLEAN
 typedef int boolean;
 #endif
@@ -153,9 +154,11 @@ typedef struct MP_instance {
 #include "mplib.h"
 #include "mplibps.h"            /* external header */
 #include "mplibsvg.h"           /* external header */
+#include "mplibpng.h"           /* external header */
 #include "mpmp.h"               /* internal header */
 #include "mppsout.h"            /* internal header */
 #include "mpsvgout.h"           /* internal header */
+#include "mppngout.h"           /* internal header */
 #include "mpmath.h"             /* internal header */
 #include "mpmathdouble.h"       /* internal header */
 #include "mpstrings.h"          /* internal header */
@@ -369,7 +372,7 @@ typedef void (*fraction_to_round_scaled_func) (mp_number n);
 typedef void (*print_func) (MP mp, mp_number A);
 typedef char * (*tostring_func) (MP mp, mp_number A);
 typedef void (*scan_func) (MP mp, int A);
-typedef void (*free_func) (MP mp);
+typedef void (*mp_free_func) (MP mp);
 
 typedef struct math_data {
   mp_number epsilon_t;
@@ -467,7 +470,7 @@ typedef struct math_data {
   tostring_func tostring;
   scan_func scan_numeric;
   scan_func scan_fractional;
-  free_func free_math;
+  mp_free_func free_math;
 } math_data;
 
 
@@ -3925,7 +3928,9 @@ enum mp_given_internal {
   mp_default_color_model,       /* the default color model for unspecified items */
   mp_restore_clip_color,
   mp_procset,                   /* wether or not create PostScript command shortcuts */
-  mp_gtroffmode                 /* whether the user specified |-troff| on the command line */
+  mp_hppp,                      /* horizontal pixels per point (for png output) */
+  mp_vppp,                      /* vertical pixels per point (for png output) */
+  mp_gtroffmode,                /* whether the user specified |-troff| on the command line */
 };
 typedef struct {
   mp_value v;
@@ -4094,6 +4099,10 @@ mp_primitive (mp, "outputformat", mp_internal_quantity, mp_output_format);
 @:mp_output_format_}{\&{outputformat} primitive@>;
 mp_primitive (mp, "jobname", mp_internal_quantity, mp_job_name);
 @:mp_job_name_}{\&{jobname} primitive@>
+mp_primitive (mp, "hppp", mp_internal_quantity, mp_hppp);
+@:mp_hppp_}{\&{hppp} primitive@>;
+mp_primitive (mp, "vppp", mp_internal_quantity, mp_vppp);
+@:mp_vppp_}{\&{vppp} primitive@>;
  
 
 @ Colors can be specified in four color models. In the special
@@ -4122,6 +4131,8 @@ enum mp_color_model {
 set_internal_from_number (mp_default_color_model, unity_t);
 number_multiply_int (internal_value (mp_default_color_model), mp_rgb_model);
 number_clone (internal_value (mp_restore_clip_color), unity_t);
+number_clone (internal_value (mp_hppp), unity_t);
+number_clone (internal_value (mp_vppp), unity_t);
 set_internal_string (mp_output_template, mp_intern (mp, "%j.%c"));
 set_internal_string (mp_output_format, mp_intern (mp, "eps"));
 set_internal_string (mp_number_system, mp_intern (mp, "scaled"));
@@ -4188,6 +4199,8 @@ set_internal_name (mp_output_format, xstrdup ("outputformat"));
 set_internal_name (mp_job_name, xstrdup ("jobname"));
 set_internal_name (mp_number_system, xstrdup ("numbersystem"));
 set_internal_name (mp_number_precision, xstrdup ("numberprecision"));
+set_internal_name (mp_hppp, xstrdup ("hppp"));
+set_internal_name (mp_vppp, xstrdup ("vppp"));
 
 @ The following procedure, which is called just before \MP\ initializes its
 input and output, establishes the initial values of the date and time.
@@ -33754,6 +33767,7 @@ etcetera to make it worthwile to move the code to |psout.w|.
 
 @<Internal library declarations@>=
 void mp_open_output_file (MP mp);
+char *mp_get_output_file_name (MP mp);
 
 @ @c
 static void mp_append_to_template (MP mp, integer ff, integer c, boolean rounding) {
@@ -33769,7 +33783,7 @@ static void mp_append_to_template (MP mp, integer ff, integer c, boolean roundin
     }
   }
 }
-static char *mp_set_output_file_name (MP mp, integer c) {
+char *mp_set_output_file_name (MP mp, integer c) {
   char *ss = NULL;      /* filename extension proposal */
   char *nn = NULL;      /* temp string  for str() */
   unsigned old_setting; /* previous |selector| setting */
@@ -33937,7 +33951,7 @@ static char *mp_set_output_file_name (MP mp, integer c) {
   }
   return ss;
 }
-static char *mp_get_output_file_name (MP mp) {
+char *mp_get_output_file_name (MP mp) {
   char *f;
   char *saved_name;     /* saved |name_of_file| */
   saved_name = xstrdup (mp->name_of_file);
@@ -34395,6 +34409,9 @@ void mp_shipout_backend (MP mp, void *voidh) {
   if (s && strcmp (s, "svg") == 0) {
     (void) mp_svg_gr_ship_out (hh,
                                (number_to_scaled (internal_value (mp_prologues)) / 65536), false);
+  } else if (s && strcmp (s, "png") == 0) {
+    (void) mp_png_gr_ship_out (hh,
+                               (number_to_scaled (internal_value (mp_prologues)) / 65536), false);
   } else {
     (void) mp_gr_ship_out (hh,
                            (number_to_scaled (internal_value (mp_prologues)) / 65536),
@@ -34428,14 +34445,17 @@ by which a user can send things to the \.{GF} file.
 @ @<Glob...@>=
 psout_data ps;
 svgout_data svg;
+pngout_data png;
 
 @ @<Allocate or initialize ...@>=
 mp_ps_backend_initialize (mp);
 mp_svg_backend_initialize (mp);
+mp_png_backend_initialize (mp);
 
 @ @<Dealloc...@>=
 mp_ps_backend_free (mp);
 mp_svg_backend_free (mp);
+mp_png_backend_free (mp);
 
 
 @* Dumping and undumping the tables.
