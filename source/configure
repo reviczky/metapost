@@ -788,6 +788,16 @@ enable_tektronixwin
 enable_unitermwin
 enable_mp
 enable_web_progs
+with_system_libpng
+with_system_zlib
+with_zlib_includes
+with_zlib_libdir
+with_system_cairo
+with_cairo_includes
+with_cairo_libdir
+with_system_pixman
+with_pixman_includes
+with_pixman_libdir
 with_system_kpathsea
 with_kpathsea_includes
 with_kpathsea_libdir
@@ -1518,6 +1528,21 @@ Optional Packages:
   --with-editor=CMD       invoke CMD from the `e' option [vi +%d '%s'] or
                           [texworks --position=%d "%s"]
   --without-mf-x-toolkit  do not use X toolkit for METAFONT
+  --with-system-libpng    use installed libpng headers and library (requires
+                          pkg-config)
+  --with-system-zlib      use installed zlib headers and library
+  --with-zlib-includes=DIR
+                          zlib headers installed in DIR
+  --with-zlib-libdir=DIR  zlib library installed in DIR
+  --with-system-cairo     use installed cairo headers and library
+  --with-cairo-includes=DIR
+                          cairo headers installed in DIR
+  --with-cairo-libdir=DIR cairo library installed in DIR
+  --with-system-pixman    use installed pixman headers and library
+  --with-pixman-includes=DIR
+                          pixman headers installed in DIR
+  --with-pixman-libdir=DIR
+                          pixman library installed in DIR
   --with-system-kpathsea  use installed kpathsea headers and library
   --with-kpathsea-includes=DIR
                           kpathsea headers installed in DIR
@@ -3889,6 +3914,172 @@ fi
 
 
 
+## libs/libpng/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/libpng/
+## configure options and TL libraries required for libpng
+
+# Check whether --with-system-libpng was given.
+if test "${with_system_libpng+set}" = set; then :
+  withval=$with_system_libpng;
+fi
+if test "x$with_system_libpng" = x; then
+  if test -f $srcdir/libs/libpng/configure; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`libpng' headers and library from TL tree" >&5
+$as_echo "$as_me: Assuming \`libpng' headers and library from TL tree" >&6;}
+    with_system_libpng=no
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming installed \`libpng' headers and library" >&5
+$as_echo "$as_me: Assuming installed \`libpng' headers and library" >&6;}
+    with_system_libpng=yes
+  fi
+  ac_configure_args="$ac_configure_args '--with-system-libpng=$with_system_libpng'"
+elif test "x$with_system_libpng" = xyes; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Using installed \`libpng' headers and library" >&5
+$as_echo "$as_me: Using installed \`libpng' headers and library" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Using \`libpng' headers and library from TL tree" >&5
+$as_echo "$as_me: Using \`libpng' headers and library from TL tree" >&6;}
+  if test "x$with_system_libpng" != xno; then
+    with_system_libpng=no
+    ac_configure_args="$ac_configure_args '--without-system-libpng'"
+  fi
+fi
+if test "x$with_system_libpng" = xyes; then
+  if test "x$with_system_zlib" = x; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}:   ->  installed \`zlib' headers and library" >&5
+$as_echo "$as_me:   ->  installed \`zlib' headers and library" >&6;}
+    with_system_zlib=yes
+    ac_configure_args="$ac_configure_args '--with-system-zlib'"
+  elif test "x$with_system_zlib" != xyes; then
+    as_fn_error $? "Sorry, \`--with-system-libpng' requires \`--with-system-zlib'" "$LINENO" 5
+  fi
+fi
+
+test "x$need_libpng" = xyes && {
+  need_zlib=yes
+}
+
+
+## libs/zlib/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/zlib/
+## configure options and TL libraries required for zlib
+
+# Check whether --with-system-zlib was given.
+if test "${with_system_zlib+set}" = set; then :
+  withval=$with_system_zlib;
+fi
+
+# Check whether --with-zlib-includes was given.
+if test "${with_zlib_includes+set}" = set; then :
+  withval=$with_zlib_includes;
+fi
+
+# Check whether --with-zlib-libdir was given.
+if test "${with_zlib_libdir+set}" = set; then :
+  withval=$with_zlib_libdir;
+fi
+if test "x$with_system_zlib" = x; then
+  if test -f $srcdir/libs/zlib/configure; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`zlib' headers and library from TL tree" >&5
+$as_echo "$as_me: Assuming \`zlib' headers and library from TL tree" >&6;}
+    with_system_zlib=no
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming installed \`zlib' headers and library" >&5
+$as_echo "$as_me: Assuming installed \`zlib' headers and library" >&6;}
+    with_system_zlib=yes
+  fi
+  ac_configure_args="$ac_configure_args '--with-system-zlib=$with_system_zlib'"
+elif test "x$with_system_zlib" = xyes; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Using installed \`zlib' headers and library" >&5
+$as_echo "$as_me: Using installed \`zlib' headers and library" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Using \`zlib' headers and library from TL tree" >&5
+$as_echo "$as_me: Using \`zlib' headers and library from TL tree" >&6;}
+  if test "x$with_system_zlib" != xno; then
+    with_system_zlib=no
+    ac_configure_args="$ac_configure_args '--without-system-zlib'"
+  fi
+fi
+
+
+## libs/cairo/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/cairo/
+## configure options and TL libraries required for cairo
+
+# Check whether --with-system-cairo was given.
+if test "${with_system_cairo+set}" = set; then :
+  withval=$with_system_cairo;
+fi
+
+# Check whether --with-cairo-includes was given.
+if test "${with_cairo_includes+set}" = set; then :
+  withval=$with_cairo_includes;
+fi
+
+# Check whether --with-cairo-libdir was given.
+if test "${with_cairo_libdir+set}" = set; then :
+  withval=$with_cairo_libdir;
+fi
+if test "x$with_system_cairo" = x; then
+  if test -f $srcdir/libs/cairo/configure; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`cairo' headers and library from TL tree" >&5
+$as_echo "$as_me: Assuming \`cairo' headers and library from TL tree" >&6;}
+    with_system_cairo=no
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming installed \`cairo' headers and library" >&5
+$as_echo "$as_me: Assuming installed \`cairo' headers and library" >&6;}
+    with_system_cairo=yes
+  fi
+  ac_configure_args="$ac_configure_args '--with-system-cairo=$with_system_cairo'"
+elif test "x$with_system_cairo" = xyes; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Using installed \`cairo' headers and library" >&5
+$as_echo "$as_me: Using installed \`cairo' headers and library" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Using \`cairo' headers and library from TL tree" >&5
+$as_echo "$as_me: Using \`cairo' headers and library from TL tree" >&6;}
+  if test "x$with_system_cairo" != xno; then
+    with_system_cairo=no
+    ac_configure_args="$ac_configure_args '--without-system-cairo'"
+  fi
+fi
+
+
+## libs/pixman/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/pixman/
+## configure options and TL libraries required for pixman
+
+# Check whether --with-system-pixman was given.
+if test "${with_system_pixman+set}" = set; then :
+  withval=$with_system_pixman;
+fi
+
+# Check whether --with-pixman-includes was given.
+if test "${with_pixman_includes+set}" = set; then :
+  withval=$with_pixman_includes;
+fi
+
+# Check whether --with-pixman-libdir was given.
+if test "${with_pixman_libdir+set}" = set; then :
+  withval=$with_pixman_libdir;
+fi
+if test "x$with_system_pixman" = x; then
+  if test -f $srcdir/libs/pixman/configure; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`pixman' headers and library from TL tree" >&5
+$as_echo "$as_me: Assuming \`pixman' headers and library from TL tree" >&6;}
+    with_system_pixman=no
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming installed \`pixman' headers and library" >&5
+$as_echo "$as_me: Assuming installed \`pixman' headers and library" >&6;}
+    with_system_pixman=yes
+  fi
+  ac_configure_args="$ac_configure_args '--with-system-pixman=$with_system_pixman'"
+elif test "x$with_system_pixman" = xyes; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Using installed \`pixman' headers and library" >&5
+$as_echo "$as_me: Using installed \`pixman' headers and library" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Using \`pixman' headers and library from TL tree" >&5
+$as_echo "$as_me: Using \`pixman' headers and library from TL tree" >&6;}
+  if test "x$with_system_pixman" != xno; then
+    with_system_pixman=no
+    ac_configure_args="$ac_configure_args '--without-system-pixman'"
+  fi
+fi
 
 
 
@@ -18100,6 +18291,22 @@ elif test "x$need_icu:$with_system_icu" = xyes:yes; then
   as_fn_error $? "did not find icu-config required for system icu libraries" "$LINENO" 5
 fi
 
+if test "x$with_cairo_includes" != x && test "x$with_cairo_includes" != xyes; then
+  CAIRO_INCLUDES="-I$with_cairo_includes"
+fi
+CAIRO_LIBS="-lcairo"
+if test "x$with_cairo_libdir" != x && test "x$with_cairo_libdir" != xyes; then
+  CAIRO_LIBS="-L$with_cairo_libdir $CAIRO_LIBS"
+fi
+
+if test "x$with_pixman_includes" != x && test "x$with_pixman_includes" != xyes; then
+  PIXMAN_INCLUDES="-I$with_pixman_includes"
+fi
+PIXMAN_LIBS="-lpixman-1"
+if test "x$with_pixman_libdir" != x && test "x$with_pixman_libdir" != xyes; then
+  PIXMAN_LIBS="-L$with_pixman_libdir $PIXMAN_LIBS"
+fi
+
 
 
 
@@ -18121,6 +18328,129 @@ main ()
 {
 const char *version = kpathsea_version_string;
 kpse_set_program_name("prog", "name");
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  syslib_used=yes kpse_res=ok
+else
+  syslib_status=no kpse_res=failed
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $kpse_res" >&5
+$as_echo "$kpse_res" >&6; }
+fi
+
+
+## libs/pixman/ac/pixman.ac: configure.ac fragment for the TeX Live subdirectory libs/pixman/
+## basic check of system pixman
+if test "x$need_pixman_1:$with_system_pixman_1" = xyes:yes; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking requested system \`pixman-1' library" >&5
+$as_echo_n "checking requested system \`pixman-1' library... " >&6; }
+  CPPFLAGS="$PIXMAN_1_INCLUDES $CPPFLAGS"
+  LIBS="$PIXMAN_1_LIBS $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <pixman.h>
+int
+main ()
+{
+const char *s = pixman_version_string();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  syslib_used=yes kpse_res=ok
+else
+  syslib_status=no kpse_res=failed
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $kpse_res" >&5
+$as_echo "$kpse_res" >&6; }
+fi
+
+
+## libs/cairo/ac/cairo.ac: configure.ac fragment for the TeX Live subdirectory libs/cairo/
+## basic check of system cairo
+if test "x$need_cairo:$with_system_cairo" = xyes:yes; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking requested system \`cairo' library" >&5
+$as_echo_n "checking requested system \`cairo' library... " >&6; }
+  CPPFLAGS="$CAIRO_INCLUDES $CPPFLAGS"
+  LIBS="$CAIRO_LIBS $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <cairo.h>
+int
+main ()
+{
+const char *s = cairo_version_string();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  syslib_used=yes kpse_res=ok
+else
+  syslib_status=no kpse_res=failed
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $kpse_res" >&5
+$as_echo "$kpse_res" >&6; }
+fi
+
+
+## libs/zlib/ac/zlib.ac: configure.ac fragment for the TeX Live subdirectory libs/zlib/
+## basic check of system zlib
+if test "x$need_zlib:$with_system_zlib" = xyes:yes; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking requested system \`zlib' library" >&5
+$as_echo_n "checking requested system \`zlib' library... " >&6; }
+  CPPFLAGS="$ZLIB_INCLUDES $CPPFLAGS"
+  LIBS="$ZLIB_LIBS $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <zlib.h>
+int
+main ()
+{
+z_stream stream;
+const char *version = zlibVersion();
+deflate(&stream, 0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  syslib_used=yes kpse_res=ok
+else
+  syslib_status=no kpse_res=failed
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $kpse_res" >&5
+$as_echo "$kpse_res" >&6; }
+fi
+
+
+## libs/libpng/ac/libpng.ac: configure.ac fragment for the TeX Live subdirectory libs/libpng/
+## basic check of system libpng
+if test "x$need_libpng:$with_system_libpng" = xyes:yes; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking requested system \`libpng' library" >&5
+$as_echo_n "checking requested system \`libpng' library... " >&6; }
+  CPPFLAGS="$LIBPNG_INCLUDES $CPPFLAGS"
+  LIBS="$LIBPNG_LIBS $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <png.h>
+int
+main ()
+{
+png_structp png; png_voidp io; png_rw_ptr fn;
+png_set_read_fn(png, io, fn);
   ;
   return 0;
 }

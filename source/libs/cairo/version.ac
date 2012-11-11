@@ -1,0 +1,21 @@
+dnl
+dnl   Copyright (C) 2012 Taco Hoekwater <tex-live@tug.org>
+dnl
+dnl   This file is free software; the copyright holder
+dnl   gives unlimited permission to copy and/or distribute it,
+dnl   with or without modifications, as long as this notice is preserved.
+dnl
+dnl --------------------------------------------------------
+dnl
+dnl  m4-include this file to define the current cairo version
+m4_define([cairo_version], [1.12.8])
+m4_define([cairo_version_micro], [8])
+m4_define([cairo_version_minor], [12])
+m4_define([cairo_version_major], [1])
+
+m4_include([build/aclocal.cairo.m4])
+m4_include([build/aclocal.compare.m4])
+m4_include([build/aclocal.enable.m4])
+m4_include([build/aclocal.float.m4])
+m4_include([build/aclocal.pkg.m4])
+m4_include([build/aclocal.makefile.m4])

@@ -260,6 +260,8 @@ KPSE_FREETYPE2_FLAGS
 KPSE_TECKIT_FLAGS
 KPSE_ICU_XETEX_FLAGS([icule])
 KPSE_OBSDCOMPAT_FLAGS
+KPSE_PIXMAN_FLAGS
+KPSE_CAIRO_FLAGS
 
 # Checks for xpdf (libpoppler) features.
 KPSE_ADD_FLAGS([xpdf])
@@ -375,7 +377,5 @@ AC_CONFIG_COMMANDS_POST([AS_IF([test "x$cross_compiling" = xyes],
  ac_configure_args="$ac_configure_args --host='$kpse_build_alias' \
  CC='$BUILDCC' CPPFLAGS='$BUILDCPPFLAGS'\
  CFLAGS='$BUILDCFLAGS' LDFLAGS='$BUILDLDFLAGS'"])])
-
-PKG_CHECK_MODULES([CAIRO], [cairo])
 
 AC_OUTPUT

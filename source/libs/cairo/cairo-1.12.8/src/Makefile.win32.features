@@ -21,7 +21,7 @@ enabled_cairo_sources = $(cairo_sources)
 all_cairo_pkgconf = cairo.pc
 enabled_cairo_pkgconf = cairo.pc
 
-supported_cairo_headers += $(cairo_xlib_headers)
+unsupported_cairo_headers += $(cairo_xlib_headers)
 all_cairo_headers += $(cairo_xlib_headers)
 all_cairo_private += $(cairo_xlib_private)
 all_cairo_cxx_sources += $(cairo_xlib_cxx_sources)
@@ -37,7 +37,7 @@ ifeq ($(CAIRO_HAS_XLIB_SURFACE),1)
 enabled_cairo_pkgconf += cairo-xlib.pc
 endif
 
-supported_cairo_headers += $(cairo_xlib_xrender_headers)
+unsupported_cairo_headers += $(cairo_xlib_xrender_headers)
 all_cairo_headers += $(cairo_xlib_xrender_headers)
 all_cairo_private += $(cairo_xlib_xrender_private)
 all_cairo_cxx_sources += $(cairo_xlib_xrender_cxx_sources)
@@ -53,7 +53,7 @@ ifeq ($(CAIRO_HAS_XLIB_XRENDER_SURFACE),1)
 enabled_cairo_pkgconf += cairo-xlib-xrender.pc
 endif
 
-supported_cairo_headers += $(cairo_xcb_headers)
+unsupported_cairo_headers += $(cairo_xcb_headers)
 all_cairo_headers += $(cairo_xcb_headers)
 all_cairo_private += $(cairo_xcb_private)
 all_cairo_cxx_sources += $(cairo_xcb_cxx_sources)
@@ -85,7 +85,7 @@ ifeq ($(CAIRO_HAS_XLIB_XCB_FUNCTIONS),1)
 enabled_cairo_pkgconf += cairo-xlib-xcb.pc
 endif
 
-supported_cairo_headers += $(cairo_xcb_shm_headers)
+unsupported_cairo_headers += $(cairo_xcb_shm_headers)
 all_cairo_headers += $(cairo_xcb_shm_headers)
 all_cairo_private += $(cairo_xcb_shm_private)
 all_cairo_cxx_sources += $(cairo_xcb_shm_cxx_sources)
@@ -117,7 +117,7 @@ ifeq ($(CAIRO_HAS_QT_SURFACE),1)
 enabled_cairo_pkgconf += cairo-qt.pc
 endif
 
-supported_cairo_headers += $(cairo_quartz_headers)
+unsupported_cairo_headers += $(cairo_quartz_headers)
 all_cairo_headers += $(cairo_quartz_headers)
 all_cairo_private += $(cairo_quartz_private)
 all_cairo_cxx_sources += $(cairo_quartz_cxx_sources)
@@ -133,7 +133,7 @@ ifeq ($(CAIRO_HAS_QUARTZ_SURFACE),1)
 enabled_cairo_pkgconf += cairo-quartz.pc
 endif
 
-supported_cairo_headers += $(cairo_quartz_font_headers)
+unsupported_cairo_headers += $(cairo_quartz_font_headers)
 all_cairo_headers += $(cairo_quartz_font_headers)
 all_cairo_private += $(cairo_quartz_font_private)
 all_cairo_cxx_sources += $(cairo_quartz_font_cxx_sources)
@@ -165,7 +165,7 @@ ifeq ($(CAIRO_HAS_QUARTZ_IMAGE_SURFACE),1)
 enabled_cairo_pkgconf += cairo-quartz-image.pc
 endif
 
-supported_cairo_headers += $(cairo_win32_headers)
+unsupported_cairo_headers += $(cairo_win32_headers)
 all_cairo_headers += $(cairo_win32_headers)
 all_cairo_private += $(cairo_win32_private)
 all_cairo_cxx_sources += $(cairo_win32_cxx_sources)
@@ -181,7 +181,7 @@ ifeq ($(CAIRO_HAS_WIN32_SURFACE),1)
 enabled_cairo_pkgconf += cairo-win32.pc
 endif
 
-supported_cairo_headers += $(cairo_win32_font_headers)
+unsupported_cairo_headers += $(cairo_win32_font_headers)
 all_cairo_headers += $(cairo_win32_font_headers)
 all_cairo_private += $(cairo_win32_font_private)
 all_cairo_cxx_sources += $(cairo_win32_font_cxx_sources)
@@ -277,7 +277,7 @@ ifeq ($(CAIRO_HAS_GALLIUM_SURFACE),1)
 enabled_cairo_pkgconf += cairo-gallium.pc
 endif
 
-supported_cairo_headers += $(cairo_png_headers)
+unsupported_cairo_headers += $(cairo_png_headers)
 all_cairo_headers += $(cairo_png_headers)
 all_cairo_private += $(cairo_png_private)
 all_cairo_cxx_sources += $(cairo_png_cxx_sources)
@@ -373,7 +373,7 @@ ifeq ($(CAIRO_HAS_VG_SURFACE),1)
 enabled_cairo_pkgconf += cairo-vg.pc
 endif
 
-supported_cairo_headers += $(cairo_egl_headers)
+unsupported_cairo_headers += $(cairo_egl_headers)
 all_cairo_headers += $(cairo_egl_headers)
 all_cairo_private += $(cairo_egl_private)
 all_cairo_cxx_sources += $(cairo_egl_cxx_sources)
@@ -389,7 +389,7 @@ ifeq ($(CAIRO_HAS_EGL_FUNCTIONS),1)
 enabled_cairo_pkgconf += cairo-egl.pc
 endif
 
-supported_cairo_headers += $(cairo_glx_headers)
+unsupported_cairo_headers += $(cairo_glx_headers)
 all_cairo_headers += $(cairo_glx_headers)
 all_cairo_private += $(cairo_glx_private)
 all_cairo_cxx_sources += $(cairo_glx_cxx_sources)
@@ -405,7 +405,7 @@ ifeq ($(CAIRO_HAS_GLX_FUNCTIONS),1)
 enabled_cairo_pkgconf += cairo-glx.pc
 endif
 
-supported_cairo_headers += $(cairo_wgl_headers)
+unsupported_cairo_headers += $(cairo_wgl_headers)
 all_cairo_headers += $(cairo_wgl_headers)
 all_cairo_private += $(cairo_wgl_private)
 all_cairo_cxx_sources += $(cairo_wgl_cxx_sources)
@@ -421,7 +421,7 @@ ifeq ($(CAIRO_HAS_WGL_FUNCTIONS),1)
 enabled_cairo_pkgconf += cairo-wgl.pc
 endif
 
-supported_cairo_headers += $(cairo_script_headers)
+unsupported_cairo_headers += $(cairo_script_headers)
 all_cairo_headers += $(cairo_script_headers)
 all_cairo_private += $(cairo_script_private)
 all_cairo_cxx_sources += $(cairo_script_cxx_sources)
@@ -437,7 +437,7 @@ ifeq ($(CAIRO_HAS_SCRIPT_SURFACE),1)
 enabled_cairo_pkgconf += cairo-script.pc
 endif
 
-supported_cairo_headers += $(cairo_ft_headers)
+unsupported_cairo_headers += $(cairo_ft_headers)
 all_cairo_headers += $(cairo_ft_headers)
 all_cairo_private += $(cairo_ft_private)
 all_cairo_cxx_sources += $(cairo_ft_cxx_sources)
@@ -453,7 +453,7 @@ ifeq ($(CAIRO_HAS_FT_FONT),1)
 enabled_cairo_pkgconf += cairo-ft.pc
 endif
 
-supported_cairo_headers += $(cairo_fc_headers)
+unsupported_cairo_headers += $(cairo_fc_headers)
 all_cairo_headers += $(cairo_fc_headers)
 all_cairo_private += $(cairo_fc_private)
 all_cairo_cxx_sources += $(cairo_fc_cxx_sources)
@@ -469,7 +469,7 @@ ifeq ($(CAIRO_HAS_FC_FONT),1)
 enabled_cairo_pkgconf += cairo-fc.pc
 endif
 
-supported_cairo_headers += $(cairo_ps_headers)
+unsupported_cairo_headers += $(cairo_ps_headers)
 all_cairo_headers += $(cairo_ps_headers)
 all_cairo_private += $(cairo_ps_private)
 all_cairo_cxx_sources += $(cairo_ps_cxx_sources)
@@ -485,7 +485,7 @@ ifeq ($(CAIRO_HAS_PS_SURFACE),1)
 enabled_cairo_pkgconf += cairo-ps.pc
 endif
 
-supported_cairo_headers += $(cairo_pdf_headers)
+unsupported_cairo_headers += $(cairo_pdf_headers)
 all_cairo_headers += $(cairo_pdf_headers)
 all_cairo_private += $(cairo_pdf_private)
 all_cairo_cxx_sources += $(cairo_pdf_cxx_sources)
@@ -501,7 +501,7 @@ ifeq ($(CAIRO_HAS_PDF_SURFACE),1)
 enabled_cairo_pkgconf += cairo-pdf.pc
 endif
 
-supported_cairo_headers += $(cairo_svg_headers)
+unsupported_cairo_headers += $(cairo_svg_headers)
 all_cairo_headers += $(cairo_svg_headers)
 all_cairo_private += $(cairo_svg_private)
 all_cairo_cxx_sources += $(cairo_svg_cxx_sources)
@@ -617,7 +617,7 @@ enabled_cairo_cxx_sources += $(cairo_pthread_cxx_sources)
 enabled_cairo_sources += $(cairo_pthread_sources)
 endif
 
-supported_cairo_headers += $(cairo_gobject_headers)
+unsupported_cairo_headers += $(cairo_gobject_headers)
 all_cairo_headers += $(cairo_gobject_headers)
 all_cairo_private += $(cairo_gobject_private)
 all_cairo_cxx_sources += $(cairo_gobject_cxx_sources)
