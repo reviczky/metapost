@@ -15,9 +15,9 @@ endif !WIN32
 endif MP
 EXTRA_PROGRAMS += mpost
 
-mpost_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/mplibdir
-mpost_DEPENDENCIES = libmplib.a
-mpost_LDADD = libmplib.a $(KPATHSEA_LIBS) $(CAIRO_LIBS) -lm
+mpost_CPPFLAGS = $(AM_CPPFLAGS) $(ZLIB_INCLUDES) $(LIBPNG_INCLUDES) -I$(srcdir)/mplibdir
+mpost_DEPENDENCIES = libmplib.a $(CAIRO_DEPEND) $(PIXMAN_DEPEND) $(LIBPNG_DEPEND) $(ZLIB_DEPEND)
+mpost_LDADD = libmplib.a $(KPATHSEA_LIBS) $(CAIRO_LIBS) $(PIXMAN_LIBS) $(LIBPNG_LIBS) $(ZLIB_LIBS) -lm
 
 dvitomp_CPPFLAGS = -DEXEPROG=\"mpost.exe\"
 dvitomp_SOURCES = $(srcdir)/../texlive/w32_wrapper/callexe.c

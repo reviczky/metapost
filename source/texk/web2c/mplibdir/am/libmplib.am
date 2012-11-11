@@ -7,7 +7,7 @@
 ##
 EXTRA_LIBRARIES += libmplib.a
 
-libmplib_a_CPPFLAGS = $(CAIRO_CFLAGS) $(AM_CPPFLAGS) -I$(srcdir)/mplibdir
+libmplib_a_CPPFLAGS = $(CAIRO_INCLUDES) $(PIXMAN_INCLUDES) $(ZLIB_INCLUDES) $(LIBPNG_INCLUDES) $(AM_CPPFLAGS) -I$(srcdir)/mplibdir
 
 ## libmplib C sources
 libmplib_a_SOURCES = mplibdir/avl.h mplibdir/avl.c
