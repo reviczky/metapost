@@ -1,6 +1,6 @@
-/* recorder.h: filename recorder callback.
+/* knj.h: check for 2-Byte Kanji (CP 932, SJIS) codes.
 
-   Copyright 2007, 2008 Karl Berry.
+   Copyright 2010, 2011 Akira Kakuto.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -15,7 +15,15 @@
    You should have received a copy of the GNU Lesser General Public License
    along with this library; if not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef KPATHSEA_RECORDER_H
-#define KPATHSEA_RECORDER_H
+#ifndef KPATHSEA_KNJ_H
+#define KPATHSEA_KNJ_H
 
-#endif /* not KPATHSEA_RECORDER_H */
+extern KPSEDLL int is_cp932_system;
+
+extern KPSEDLL int isknj(int c);
+extern KPSEDLL int isknj2(int c);
+
+/* True if P points to a 2-Byte Kanji (CP 932, SJIS) code.  */
+#define IS_KANJI(p) is_cp932_system && isknj(*(p)) && isknj2(*(p+1))
+
+#endif /* not KPATHSEA_KNJ_H */

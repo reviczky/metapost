@@ -181,6 +181,11 @@ advance_cp (char *cp, int lefts)
   return advance_cp (cp1, lefts - 1);
 }
 
+#ifdef WIN32
+#include <io.h>
+#include <fcntl.h>
+#endif
+
 int
 main (int argc,  string *argv)
 {
@@ -188,6 +193,9 @@ main (int argc,  string *argv)
   int blanks_done, indent, i;
   const char *program_name = "";
 
+#ifdef WIN32
+  setmode(fileno(stdout), _O_BINARY);
+#endif
   for (i = 1; i < argc; i++)
     {
       if (STREQ(argv[i],"-t"))
@@ -357,6 +365,8 @@ main (int argc,  string *argv)
 	      || (strncmp (cp, "buffer", 6) == 0
                   && (STREQ (program_name, "vptovf")
                       || STREQ (program_name, "pltotf")
+                      || STREQ (program_name, "ppltotf")
+                      || STREQ (program_name, "uppltotf")
                       || STREQ (program_name, "ovp2ovf")
                       || STREQ (program_name, "opl2ofm")))
               || (((strncmp (cp, "buf", 3) == 0
@@ -437,6 +447,14 @@ main (int argc,  string *argv)
 	  while (*--as != ')') ;
 	  *as = '\0';
 	  printf ("putc (%s, %s);\n", argp, filename);
+	}
+      else if (strcmp (args, "%c\\n") == 0)
+	{
+	  for (as = argp; *as; ++as) ;
+	  while (*--as != ')') ;
+	  *as = '\0';
+	  printf ("{ putc (%s, %s);  ", argp, filename);
+	  printf ("putc ( '\\n', %s); }\n", filename);
 	}
       else if (strcmp (args, "%s") == 0)
         printf ("Fputs (%s, %s\n", filename, argp);

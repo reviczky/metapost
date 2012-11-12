@@ -43,15 +43,12 @@ recorder_start(void)
        default name.  Throw in the pid so at least parallel builds might
        work (Debian bug 575731).  */
     string cwd;
-    pid_t pid = getpid();
     char pid_str[MAX_INT_LENGTH];
-    sprintf (pid_str, "%ld", (long) pid);
-    
-    recorder_name = xmalloc(strlen(kpse_program_name)
-                                    + strlen (pid_str) + 5);
-    strcpy(recorder_name, kpse_program_name);
-    strcat(recorder_name, pid_str);
-    strcat(recorder_name, ".fls");
+
+    /* Windows (MSVC) seems to have no pid_t, so instead of storing the
+       value returned by getpid() we immediately consume it.  */
+    sprintf (pid_str, "%ld", (long) getpid());
+    recorder_name = concat3(kpse_program_name, pid_str, ".fls");
     
     /* If an output directory was specified, use it instead of cwd.  */
     if (output_directory) {
@@ -67,15 +64,48 @@ recorder_start(void)
     free(cwd);
 }
 
-/* Change the name of the recorder file. */
+/* Change the name of the recorder file after we know the log file to
+   the usual thing -- no pid integer and the document file name instead
+   of the program name.  Unfortunately, we have to explicitly take
+   -output-directory into account (again), since the NEW_NAME we are
+   called with does not; it is just the log file name with .log replaced
+   by .fls.  */
+
 void
 recorder_change_filename (string new_name)
 {
+   string temp = NULL;
+   
    if (!recorder_file)
      return;
+
+   /* On windows, an opened file cannot be renamed. */
+#if defined(WIN32)
+   fclose (recorder_file);
+#endif
+
+   /* If an output directory was specified, use it.  */
+   if (output_directory) {
+     temp = concat3(output_directory, DIR_SEP_STRING, new_name);
+     new_name = temp;
+   }
+
+   /* On windows, renaming fails if a file with new_name exists. */
+#if defined(WIN32)
+   remove (new_name);
+#endif
+
    rename(recorder_name, new_name);
    free(recorder_name);
    recorder_name = xstrdup(new_name);
+
+   /* reopen the recorder file by FOPEN_A_MODE. */
+#if defined(WIN32)
+   recorder_file = fopen (recorder_name, FOPEN_A_MODE);
+#endif
+
+   if (temp)
+     free (temp);
 }
 
 /* helper for recorder_record_* */
@@ -191,7 +221,7 @@ open_input (FILE **f_ptr, int filefmt, const_string fopen_mode)
                 free (fname);
 
                 /* This fopen is not allowed to fail. */
-#ifdef PTEX
+#if defined(PTEX) && !defined(WIN32)
                 if (filefmt == kpse_tex_format ||
                     filefmt == kpse_bib_format) {
                     *f_ptr = nkf_open (nameoffile + 1, fopen_mode);
@@ -284,7 +314,12 @@ close_file (FILE *f)
     return;
     
 #ifdef PTEX
+#ifdef WIN32
+  clear_infile_enc (f);
+  if (fclose (f) == EOF) {
+#else
   if (nkf_close (f) == EOF) {
+#endif
 #else
   if (fclose (f) == EOF) {
 #endif

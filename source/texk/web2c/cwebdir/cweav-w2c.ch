@@ -90,6 +90,48 @@ int main (int ac, char **av)
   return wrap_up(); /* and exit gracefully */
 @z
 
+@x l.120
+@d max_bytes 90000 /* the number of bytes in identifiers,
+@y
+@d max_bytes 1000000 /* the number of bytes in identifiers,
+@z
+
+@x l.112
+@d max_names 4000 /* number of identifiers, strings, section names;
+@y
+@d max_names 10239 /* number of identifiers, strings, section names;
+@z
+
+@x l.124
+@d max_sections 2000 /* greater than the total number of sections */
+@d hash_size 353 /* should be prime */
+@d buf_size 100 /* maximum length of input line, plus one */
+@y
+@d max_sections 10239 /* greater than the total number of sections */
+@d hash_size 8501 /* should be prime */
+@d buf_size 1000 /* maximum length of input line, plus one */
+@z
+
+@x l.131
+@d max_refs 20000 /* number of cross-references; must be less than 65536 */
+@d max_toks 20000 /* number of symbols in \CEE/ texts being parsed;
+@y
+@d max_refs 65535 /* number of cross-references; must be less than 65536 */
+@d max_toks 65535 /* number of symbols in \CEE/ texts being parsed;
+@z
+
+@x l.134
+@d max_texts 4000 /* number of phrases in \CEE/ texts being parsed;
+@y
+@d max_texts 10239 /* number of phrases in \CEE/ texts being parsed;
+@z
+
+@x l.136
+@d max_scraps 2000 /* number of tokens in \CEE/ texts being parsed */
+@y
+@d max_scraps 10000 /* number of tokens in \CEE/ texts being parsed */
+@z
+
 Section 5.
 
 @x common.h l.30 - boolean comes from kpathsea.
@@ -889,6 +931,70 @@ phase_three() {
 @y
 static void
 phase_three (void) {
+@z
+
+@x l.4309 Use binary mode for output files
+  if ((idx_file=fopen(idx_file_name,"w"))==NULL)
+@y
+  if ((idx_file=fopen(idx_file_name,"wb"))==NULL)
+@z
+
+@x l.4324 Use binary mode for output files
+  if ((scn_file=fopen(scn_file_name,"w"))==NULL)
+@y
+  if ((scn_file=fopen(scn_file_name,"wb"))==NULL)
+@z
+
+Section 235.
+
+@x l.4440
+strcpy(collate+1," \1\2\3\4\5\6\7\10\11\12\13\14\15\16\17");
+/* 16 characters + 1 = 17 */
+strcpy(collate+17,"\20\21\22\23\24\25\26\27\30\31\32\33\34\35\36\37");
+/* 16 characters + 17 = 33 */
+strcpy(collate+33,"!\42#$%&'()*+,-./:;<=>?@@[\\]^`{|}~_");
+/* 32 characters + 33 = 65 */
+strcpy(collate+65,"abcdefghijklmnopqrstuvwxyz0123456789");
+/* (26 + 10) characters + 65 = 101 */
+strcpy(collate+101,"\200\201\202\203\204\205\206\207\210\211\212\213\214\215\216\217");
+/* 16 characters + 101 = 117 */
+strcpy(collate+117,"\220\221\222\223\224\225\226\227\230\231\232\233\234\235\236\237");
+/* 16 characters + 117 = 133 */
+strcpy(collate+133,"\240\241\242\243\244\245\246\247\250\251\252\253\254\255\256\257");
+/* 16 characters + 133 = 149 */
+strcpy(collate+149,"\260\261\262\263\264\265\266\267\270\271\272\273\274\275\276\277");
+/* 16 characters + 149 = 165 */
+strcpy(collate+165,"\300\301\302\303\304\305\306\307\310\311\312\313\314\315\316\317");
+/* 16 characters + 165 = 181 */
+strcpy(collate+181,"\320\321\322\323\324\325\326\327\330\331\332\333\334\335\336\337");
+/* 16 characters + 181 = 197 */
+strcpy(collate+197,"\340\341\342\343\344\345\346\347\350\351\352\353\354\355\356\357");
+/* 16 characters + 197 = 213 */
+strcpy(collate+213,"\360\361\362\363\364\365\366\367\370\371\372\373\374\375\376\377");
+@y
+strcpy((char *)collate+1," \1\2\3\4\5\6\7\10\11\12\13\14\15\16\17");
+/* 16 characters + 1 = 17 */
+strcpy((char *)collate+17,"\20\21\22\23\24\25\26\27\30\31\32\33\34\35\36\37");
+/* 16 characters + 17 = 33 */
+strcpy((char *)collate+33,"!\42#$%&'()*+,-./:;<=>?@@[\\]^`{|}~_");
+/* 32 characters + 33 = 65 */
+strcpy((char *)collate+65,"abcdefghijklmnopqrstuvwxyz0123456789");
+/* (26 + 10) characters + 65 = 101 */
+strcpy((char *)collate+101,"\200\201\202\203\204\205\206\207\210\211\212\213\214\215\216\217");
+/* 16 characters + 101 = 117 */
+strcpy((char *)collate+117,"\220\221\222\223\224\225\226\227\230\231\232\233\234\235\236\237");
+/* 16 characters + 117 = 133 */
+strcpy((char *)collate+133,"\240\241\242\243\244\245\246\247\250\251\252\253\254\255\256\257");
+/* 16 characters + 133 = 149 */
+strcpy((char *)collate+149,"\260\261\262\263\264\265\266\267\270\271\272\273\274\275\276\277");
+/* 16 characters + 149 = 165 */
+strcpy((char *)collate+165,"\300\301\302\303\304\305\306\307\310\311\312\313\314\315\316\317");
+/* 16 characters + 165 = 181 */
+strcpy((char *)collate+181,"\320\321\322\323\324\325\326\327\330\331\332\333\334\335\336\337");
+/* 16 characters + 181 = 197 */
+strcpy((char *)collate+197,"\340\341\342\343\344\345\346\347\350\351\352\353\354\355\356\357");
+/* 16 characters + 197 = 213 */
+strcpy((char *)collate+213,"\360\361\362\363\364\365\366\367\370\371\372\373\374\375\376\377");
 @z
 
 Section 237.

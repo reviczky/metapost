@@ -67,6 +67,14 @@ typedef void* voidpointer;
 #define TEXMFPOOLNAME "eptex.pool"
 #define TEXMFENGINENAME "eptex"
 #include "ptexdir/kanji.h"
+#elif defined (upTeX)
+#define TEXMFPOOLNAME "uptex.pool"
+#define TEXMFENGINENAME "uptex"
+#include "uptexdir/kanji.h"
+#elif defined (eupTeX)
+#define TEXMFPOOLNAME "euptex.pool"
+#define TEXMFENGINENAME "euptex"
+#include "uptexdir/kanji.h"
 #else
 #define TEXMFPOOLNAME "tex.pool"
 #define TEXMFENGINENAME "tex"
@@ -87,12 +95,6 @@ typedef void* voidpointer;
 #define OUT_FILE gffile
 #define OUT_BUF gfbuf
 #endif /* MF */
-#ifdef MP
-#define TEXMFPOOLNAME "mp.pool"
-#define TEXMFENGINENAME "metapost"
-#define DUMP_FILE memfile
-#define DUMP_FORMAT kpse_mem_format
-#endif /* MP */
 
 /* Restore underscores.  */
 #define kpsedvipsconfigformat kpse_dvips_config_format
@@ -103,24 +105,27 @@ typedef void* voidpointer;
 #define kpsetexpoolformat kpse_texpool_format
 #define kpsetexformat kpse_tex_format
 
-/* Hacks for TeX that are better not to #ifdef, see texmfmp.c.  */
+/* Hacks for TeX that are better not to #ifdef, see lib/openclose.c.  */
 extern int tfmtemp, texinputtype;
 
-/* pdfTeX uses these for pipe support */
-#if defined(pdfTeX)
+/* pdftex etc. except for tex use these for pipe support */
+#if defined(TeX) && !defined(onlyTeX)
 extern boolean open_in_or_pipe (FILE **, int, const_string fopen_mode);
 extern boolean open_out_or_pipe (FILE **, const_string fopen_mode);
 extern void close_file_or_pipe (FILE *);
+#define ENABLE_PIPES 1
+#else
+#define ENABLE_PIPES 0
 #endif
 
 /* Executing shell commands.  */
-extern void mk_shellcmdlist (const char *);
-extern void init_shell_escape (void);
-extern int shell_cmd_is_allowed (const char *cmd, char **safecmd, char **cmdname);
 extern int runsystem (const char *cmd);
 
 /* The entry point.  */
 extern void maininit (int ac, string *av);
+#if defined(WIN32) && !defined(__MINGW32__) && defined(DLLPROC)
+extern __declspec(dllexport) int DLLPROC (int ac, string *av);
+#endif
 
 /* All but the Omega family use this. */
 #if !defined(Aleph)
@@ -128,8 +133,6 @@ extern void readtcxfile (void);
 extern string translate_filename;
 #define translatefilename translate_filename
 #endif
-
-extern string normalize_quotes (const_string name, const_string mesg);
 
 #ifdef TeX
 /* The type `glueratio' should be a floating point type which won't
@@ -160,13 +163,7 @@ extern void ipcpage (int);
 #endif /* IPC */
 #endif /* TeX */
 
-/* How to output to the GF or DVI file.  */
-#define WRITE_OUT(a, b)							\
-  if ((size_t) fwrite ((char *) &OUT_BUF[a], sizeof (OUT_BUF[a]),       \
-                    (size_t) ((size_t)(b) - (size_t)(a) + 1), OUT_FILE) \
-      != (size_t) ((size_t) (b) - (size_t) (a) + 1))                    \
-    FATAL_PERROR ("fwrite");
-
+/* How to flush the DVI file.  */
 #define flush_out() fflush (OUT_FILE)
 
 /* Used to write to a TFM file.  */
@@ -191,12 +188,11 @@ extern boolean input_line (FILE *);
 #define	dateandtime(i,j,k,l) get_date_and_time (&(i), &(j), &(k), &(l))
 extern void get_date_and_time (integer *, integer *, integer *, integer *);
 
+#if defined(pdfTeX)
 /* Get high-res time info. */
 #define secondsandmicros(i,j) get_seconds_and_micros (&(i), &(j))
 extern void get_seconds_and_micros (integer *, integer *);
-
-/* This routine has to return a scaled value. */
-extern integer getrandomseed (void);
+#endif
 
 /* Copy command-line arguments into the buffer, despite the name.  */
 extern void topenin (void);
@@ -210,7 +206,7 @@ extern void topenin (void);
 /* These defines reroute the file i/o calls to the new pipe-enabled 
    functions in texmfmp.c*/
 
-#if defined(pdfTeX)
+#if ENABLE_PIPES
 #undef aopenin
 #undef aopenout
 #undef aclose
@@ -229,15 +225,14 @@ extern void topenin (void);
 #define bopenout(f)	open_output (&(f), FOPEN_WBIN_MODE)
 #define bclose		aclose
 #ifdef XeTeX
-/* f is declared as gzFile (typedef'd as void *), but we temporarily
-   use it for a FILE * so that we can use the standard open calls */
+/* f is declared as gzFile, but we temporarily use it for a FILE *
+   so that we can use the standard open calls */
 #define wopenin(f)	(open_input ((FILE**)&(f), DUMP_FORMAT, FOPEN_RBIN_MODE) \
 						&& (f = gzdopen(fileno((FILE*)f), FOPEN_RBIN_MODE)))
 #define wopenout(f)	(open_output ((FILE**)&(f), FOPEN_WBIN_MODE) \
 						&& (f = gzdopen(fileno((FILE*)f), FOPEN_WBIN_MODE)) \
 						&& (gzsetparams(f, 1, Z_DEFAULT_STRATEGY) == Z_OK))
 #define wclose(f)	gzclose(f)
-#define weof(f)		gzeof(f)
 #else
 #define wopenin(f)	open_input (&(f), DUMP_FORMAT, FOPEN_RBIN_MODE)
 #define wopenout	bopenout
@@ -253,10 +248,6 @@ extern void topenin (void);
 #define dumpcore abort
 #else
 #define dumpcore uexit (1)
-#endif
-
-#ifdef MP
-extern boolean callmakempx (string, string);
 #endif
 
 #ifdef MF
@@ -357,9 +348,10 @@ extern void do_undump (char *, int, int, FILE *);
 #endif
 
 /* Handle SyncTeX, if requested */
-#if defined(TeX) || defined(eTeX) || defined(pdfTeX) || defined(XeTeX)
+#if defined(TeX)
 # if defined(__SyncTeX__)
 #  include "synctexdir/synctex-common.h"
+extern char *generic_synctex_get_current_name(void);
 # endif
 #endif
 

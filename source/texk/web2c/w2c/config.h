@@ -1,6 +1,6 @@
 /* w2c/config.h: All .c files include this first.
 
-Copyright 1995, 1996, 2006, 2007, 2009, 2010 Karl Berry.
+Copyright 1995, 1996, 2006, 2007, 2009, 2010, 2012 Karl Berry.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -75,6 +75,19 @@ typedef INTEGER_TYPE integer;
 /* We need a type that's at least off_t wide */
 typedef off_t longinteger;
 
+/* To print file offsets we cast them to `LONGINTEGER_TYPE' (or
+   `unsigned LONGINTEGER_TYPE') and use the conversion specifier
+   `"%" LONGINTEGER_PRI "d"' (or `"%" LONGINTEGER_PRI "u"').  */
+#if defined(WIN32) && !defined(__MINGW32__)
+#define LONGINTEGER_TYPE __int64
+#define LONGINTEGER_PRI "I64"
+#elif SIZEOF_LONG < SIZEOF_OFF_T
+#define LONGINTEGER_TYPE long long
+#define LONGINTEGER_PRI "ll"
+#else
+#define LONGINTEGER_TYPE long
+#define LONGINTEGER_PRI "l"
+#endif
 
 /* I don't want to write a configure test for remove when all Unix
    machines have unlink.  But, for the sake of non-Unix machines that

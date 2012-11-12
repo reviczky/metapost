@@ -1,12 +1,10 @@
 # Public macros for the TeX Live (TL) tree.
-# Copyright (C) 1995 - 2009 Karl Berry <tex-live@tug.org>
-# Copyright (C) 2009, 2010 Peter Breitenlohner <tex-live@tug.org>
+# Copyright (C) 1995-2009 Karl Berry <tex-live@tug.org>
+# Copyright (C) 2009-2012 Peter Breitenlohner <tex-live@tug.org>
 #
 # This file is free software; the copyright holders
 # give unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
-
-# serial 0
 
 # KPSE_LIBS_PREPARE
 # -----------------
@@ -64,6 +62,8 @@ AC_LANG(_AC_LANG)[]dnl
 #
 # Set the make variables LIBDIR_INCLUDES and LIBDIR_LIBS to the CPPFLAGS and
 # LIBS required for the library in the directory libs/LIBDIR/ of the TL tree.
+# The resulting values may be used by configure tests; thus they must not
+# use, e.g., ${srcdir} or ${top_builddir}.
 #
 # If an installed (system) version of the library has been selected or is
 # implied, then execute KPSE_LIBDIR_SYSTEM_FLAGS to set the two variables.
@@ -114,29 +114,23 @@ if test "x$with_system_[]AS_TR_SH($1)" = xyes; then
   ]AS_TR_CPP([kpse-$1-system-flags])[[]dnl
 else
 ])[]dnl m4_if
-  AS_TR_CPP($1)[_INCLUDES=`echo '$4' | sed \
-    -e "s,SRC/,$kpse_SRC/,g" \
-    -e "s,BLD/,$kpse_BLD/,g"`]
-  AS_TR_CPP($1)[_LIBS=`echo '$5' | sed \
-    -e "s,BLD/,$kpse_BLD/,g"`
-  $6]
-  m4_ifdef([Kpse_TeX_Lib],
-  [AS_TR_CPP($1)[_DEPEND=`echo '$5' | sed \
-    -e 's,BLD/texk/,${top_builddir}/../,g'`]
-   AS_TR_CPP($1)[_RULE='# Rebuild lib$2
+  AS_TR_CPP($1)[_INCLUDES=]m4_bpatsubst(m4_bpatsubst(["$4"], [SRC], [$kpse_SRC]),
+                                                             [BLD], [$kpse_BLD])
+  AS_TR_CPP($1)[_LIBS=]m4_bpatsubst(["$5"], [BLD], [$kpse_BLD])m4_ifval([$6], [[
+  $6]])
+  AS_TR_CPP($1)[_DEPEND=]m4_ifdef([Kpse_TeX_Lib],
+                                  [m4_bpatsubst(['$5'], [BLD/texk],
+                                                [${top_builddir}/..])m4_pushdef([Kpse_Lib_Bld],
+                                                                                [..])],
+                                  [m4_bpatsubst(['$5'], [BLD],
+                                                [${top_builddir}/../..])m4_pushdef([Kpse_Lib_Bld],
+                                                                                   [../../libs])])
+  AS_TR_CPP($1)[_RULE='# Rebuild lib$2
 $(]AS_TR_CPP($1)[_DEPEND):]m4_ifval([$7],
                                     [[ $7]])m4_ifval([$8], [[ $8
-	cd ${top_builddir}/../$1 && $(MAKE) $(AM_MAKEFLAGS) rebuild
+	cd ${top_builddir}/]Kpse_Lib_Bld[/$1 && $(MAKE) $(AM_MAKEFLAGS) rebuild
 $8:]])[
-	cd ${top_builddir}/../$1 && $(MAKE) $(AM_MAKEFLAGS) rebuild']],
-  [AS_TR_CPP($1)[_DEPEND=`echo '$5' | sed \
-    -e 's,BLD/,${top_builddir}/../../,g'`]
-   AS_TR_CPP($1)[_RULE='# Rebuild lib$2
-$(]AS_TR_CPP($1)[_DEPEND):]m4_ifval([$7],
-                                    [[ $7]])m4_ifval([$8], [[ $8
-	cd ${top_builddir}/../../libs/$1 && $(MAKE) $(AM_MAKEFLAGS) rebuild
-$8:]])[
-	cd ${top_builddir}/../../libs/$1 && $(MAKE) $(AM_MAKEFLAGS) rebuild']])
+	cd ${top_builddir}/]Kpse_Lib_Bld[/$1 && $(MAKE) $(AM_MAKEFLAGS) rebuild']m4_popdef([Kpse_Lib_Bld])
 m4_if(m4_index([ $3 ], [ tree ]), [-1],
       [fi
 ])[]dnl m4_if
@@ -230,8 +224,7 @@ dnl
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_FUNC_CLOSEDIR_VOID
-AC_CHECK_HEADERS([assert.h float.h limits.h memory.h pwd.h stdlib.h \
-                  string.h strings.h sys/param.h unistd.h])
+AC_CHECK_HEADERS([assert.h float.h limits.h pwd.h stdlib.h sys/param.h])
 dnl
 dnl Replacement functions that may be required on ancient broken system.
 AC_CHECK_FUNCS([putenv strcasecmp strtol strstr])
@@ -242,6 +235,10 @@ dnl
 AC_C_CONST
 AC_C_INLINE
 AC_TYPE_SIZE_T
+AC_TYPE_INT64_T
+AC_TYPE_UINT64_T
+AS_CASE([:$ac_cv_c_int64_t:$ac_cv_c_int64_t:],
+        [*':no:'*], [AC_MSG_ERROR([Sorry, your compiler does not support 64-bit integer types.])])
 dnl
 dnl Check whether struct stat provides high-res time.
 AC_CHECK_MEMBERS([struct stat.st_mtim])
