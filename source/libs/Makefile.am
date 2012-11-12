@@ -7,7 +7,7 @@
 ##
 ACLOCAL_AMFLAGS = -I ../m4 --force
 
-SUBDIRS = . libpng zlib pixman cairo $(SUBLIBS)
+SUBDIRS = . $(SUBLIBS)
 DIST_SUBDIRS = $(DIST_SUBLIBS)
 
 # just in case a subdirectory has added directories

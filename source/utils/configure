@@ -696,6 +696,8 @@ enable_pdftex_synctex
 enable_luatex
 enable_xetex
 enable_xetex_synctex
+enable_mp
+enable_mp_synctex
 enable_mf
 enable_mf_nowin
 with_mf_x_toolkit
@@ -707,7 +709,6 @@ enable_regiswin
 enable_suntoolswin
 enable_tektronixwin
 enable_unitermwin
-enable_mp
 enable_web_progs
 with_system_libpng
 with_system_zlib
@@ -1404,6 +1405,8 @@ Optional Features:
   --disable-luatex          do not compile and install luaTeX
   --disable-xetex           do not compile and install XeTeX
   --disable-xetex-synctex     build XeTeX without SyncTeX support
+  --disable-mp              do not compile and install MetaPost
+  --enable-mp-synctex         build MetaPost with SyncTeX support
   --disable-mf              do not build METAFONT
   --disable-mf-nowin          do not build a separate non-windows-capable
                               METAFONT
@@ -1415,7 +1418,6 @@ Optional Features:
   --enable-suntoolswin        include old Suntools (not X) window support
   --enable-tektronixwin       include Tektronix window support
   --enable-unitermwin         include Uniterm window support
-  --disable-mp              do not build METAPOST
   --disable-web-progs       do not build WEB programs bibtex ... weave
   --disable-mktexmf-default   do not run mktexmf if MF source missing
   --disable-mktexpk-default   do not run mktexpk if PK font missing
@@ -3236,6 +3238,27 @@ test "x$enable_web2c:$enable_xetex" = xyes:yes && {
   need_teckit=yes
   need_graphite=yes
 }
+# Check whether --enable-mp was given.
+if test "${enable_mp+set}" = set; then :
+  enableval=$enable_mp;
+fi
+case $enable_mp in #(
+  yes | no) :
+     ;; #(
+  *) :
+    enable_mp=yes ;;
+esac
+
+# Check whether --enable-mp-synctex was given.
+if test "${enable_mp_synctex+set}" = set; then :
+  enableval=$enable_mp_synctex;
+fi
+
+test "x$enable_web2c:$enable_mp" = xyes:yes && {
+  need_cairo=yes
+  need_pixman=yes
+  need_libpng=yes
+}
 ## configure options for MF
 # Check whether --enable-mf was given.
 if test "${enable_mf+set}" = set; then :
@@ -3282,11 +3305,7 @@ fi
 if test "${enable_unitermwin+set}" = set; then :
   enableval=$enable_unitermwin;
 fi
-## configure options for MP
-# Check whether --enable-mp was given.
-if test "${enable_mp+set}" = set; then :
-  enableval=$enable_mp;
-fi
+
 ## configure options for WEB programs
 # Check whether --enable-web-progs was given.
 if test "${enable_web_progs+set}" = set; then :
