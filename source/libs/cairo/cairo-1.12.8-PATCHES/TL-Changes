@@ -1,4 +1,4 @@
 Changes applied to the cairo-1.12.8/ tree as obtained from:
 	http://cairographics.org/releases/cairo-1.12.8.tar.xz
 
-Removed all test/reference static files.
+Removed the unused subdirectories doc, perf, test, and util.
