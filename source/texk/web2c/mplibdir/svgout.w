@@ -663,8 +663,10 @@ mp_pen_info *mp_svg_pen_info(MP mp, mp_gr_knot pp, mp_gr_knot p) {
       pen->sx = unity;
       pen->sy = unity;
     } else {
-      pen->rx = pen->rx / pen->ww;
-      pen->ry = pen->ry / pen->ww;
+      /* this negation is needed because the svg coordinate system differs
+         from postscript's. */
+      pen->rx = -(pen->rx / pen->ww);
+      pen->ry = -(pen->ry / pen->ww);
       pen->sx = pen->sx / pen->ww;
       pen->sy = pen->sy / pen->ww;
     }
