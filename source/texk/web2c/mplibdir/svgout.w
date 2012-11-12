@@ -663,10 +663,10 @@ mp_pen_info *mp_svg_pen_info(MP mp, mp_gr_knot pp, mp_gr_knot p) {
       pen->sx = unity;
       pen->sy = unity;
     } else {
-      pen->rx = mp_make_scaled(mp, pen->rx, pen->ww);
-      pen->ry = mp_make_scaled(mp, pen->ry, pen->ww);
-      pen->sx = mp_make_scaled(mp, pen->sx, pen->ww);
-      pen->sy = mp_make_scaled(mp, pen->sy, pen->ww);
+      pen->rx = pen->rx / pen->ww;
+      pen->ry = pen->ry / pen->ww;
+      pen->sx = pen->sx / pen->ww;
+      pen->sy = pen->sy / pen->ww;
     }
   }
   return pen;
