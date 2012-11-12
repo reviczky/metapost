@@ -1,4 +1,4 @@
 Changes applied to the pixman-0.28.0/ tree as obtained from:
 	http://cairographics.org/releases/pixman-0.28.0.tar.gz
 
-Nothing so far.
+Removed the unused subdirectories demos and test.
