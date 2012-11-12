@@ -33970,7 +33970,7 @@ void mp_open_output_file (MP mp) {
   ss = mp_set_output_file_name (mp, c);
   while (!mp_open_out (mp, (void *) &mp->output_file, mp_filetype_postscript))
     mp_prompt_file_name (mp, "file name for output", ss);
-  @<Store the true output file name if appropriate@>;
+  mp_store_true_output_filename (mp, c);
 }
 
 
@@ -33991,16 +33991,22 @@ files are ordered primarily by \&{charcode} and secondarily by order of
 creation.
 @:char_code_}{\&{charcode} primitive@>
 
-@<Store the true output file name if appropriate@>=
-if ((c < mp->first_output_code) && (mp->first_output_code >= 0)) {
-  mp->first_output_code = c;
-  xfree (mp->first_file_name);
-  mp->first_file_name = xstrdup (mp->name_of_file);
-}
-if (c >= mp->last_output_code) {
-  mp->last_output_code = c;
-  xfree (mp->last_file_name);
-  mp->last_file_name = xstrdup (mp->name_of_file);
+@<Internal library ...@>=
+void mp_store_true_output_filename (MP mp, int c);
+
+@ @c
+void mp_store_true_output_filename (MP mp, int c)
+{
+  if ((c < mp->first_output_code) && (mp->first_output_code >= 0)) {
+    mp->first_output_code = c;
+    xfree (mp->first_file_name);
+    mp->first_file_name = xstrdup (mp->name_of_file);
+  }
+  if (c >= mp->last_output_code) {
+    mp->last_output_code = c;
+    xfree (mp->last_file_name);
+    mp->last_file_name = xstrdup (mp->name_of_file);
+  }
 }
 
 @ @<Glob...@>=

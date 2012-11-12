@@ -124,6 +124,7 @@ static void mp_png_start(MP mp,mp_edge_object *hh);
 
 @ 
 @d number_to_double(A)		       (((math_data *)(mp->math))->to_double)(A)		       
+@d number_to_scaled(A)		       (((math_data *)(mp->math))->to_scaled)(A)		       
 
 @c
 void mp_png_start(MP mp,mp_edge_object *hh) {
@@ -775,7 +776,9 @@ int mp_png_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
   }
   {
     bitmap_t bitmap;
-    char *ss = mp_get_output_file_name (mp);
+    int c = round_unscaled(internal_value (mp_char_code));
+    char *ss = mp_set_output_file_name (mp, c);
+    mp_store_true_output_filename (mp, c);
     cairo_surface_flush (mp->png->surface);
     cairo_destroy (mp->png->cr);
     bitmap.data = cairo_image_surface_get_data (mp->png->surface);
