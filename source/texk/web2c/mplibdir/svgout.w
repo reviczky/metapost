@@ -1226,7 +1226,7 @@ int mp_svg_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
   }
   if (mp->history >= mp_fatal_error_stop ) return 1;
   mp_open_output_file(mp);
-  if ( (qprologues>=1) && (mp->last_ps_fnum<mp->last_fnum) )
+  if ( (qprologues>=1) && (mp->last_ps_fnum==0) )
     mp_read_psname_table(mp);
   /* The next seems counterintuitive, but calls from |mp_svg_ship_out|
    * set standalone to true, and because embedded use is likely, it is 
