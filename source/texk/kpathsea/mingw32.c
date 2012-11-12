@@ -1,6 +1,6 @@
 /* mingw32.c: bits and pieces for mingw32
 
-   Copyright 2009, 2010 Taco Hoekwater <taco@luatex.org>.
+   Copyright 2009-2011 Taco Hoekwater <taco@luatex.org>.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -26,10 +26,13 @@
 #ifdef __MINGW32__
 
 #include <kpathsea/config.h>
+#include <kpathsea/c-pathch.h>
 #include <kpathsea/c-proto.h>
 #include <kpathsea/mingw32.h>
 #include <kpathsea/lib.h>
 #include <kpathsea/concatn.h>
+#include <kpathsea/variable.h>
+#include <kpathsea/c-stat.h>
 #include <shlobj.h>
 #include <errno.h>
 
@@ -186,8 +189,7 @@ normalize_filename (char *fp, char path_sep)
 #if 0
     fprintf(stderr, "moving %s to %s\n", fp+ret, fp+i);
 #endif
-    memcpy(fp+ret, fp+i, len);
-    *(char *)(fp+ret+len) = '\0';
+    memmove (fp+ret, fp+i, len+1);
   }
 
   /* conditionnally rewrite to same path_sep, slash preferably */
@@ -206,11 +208,13 @@ normalize_filename (char *fp, char path_sep)
 
 
 /* Destructively turn backslashes into slashes.  */
-void
+#if 0 /* unused */
+static void
 dostounix_filename (char *p)
 {
   normalize_filename (p, '/');
 }
+#endif
 
 /* Destructively turn slashes into backslashes.  */
 static void
@@ -481,6 +485,48 @@ look_for_cmd(const char *cmd, char **app)
 
   return TRUE;
 
+}
+
+/* special TeXLive Ghostscript */
+
+static int is_dir (char *buff)
+{
+  struct stat stats;
+
+  return stat (buff, &stats) == 0 && S_ISDIR (stats.st_mode);
+}
+
+/*
+   TeXlive uses its own gs in
+   $SELFAUTOPARENT/tlpkg/tlgs
+*/
+void texlive_gs_init(void)
+{
+  char *nptr, *path;
+  char tlgsbindir[512];
+  char tlgslibdir[512];
+  nptr = kpse_var_value("SELFAUTOPARENT");
+  if (nptr) {
+    strcpy(tlgsbindir, nptr);
+    strcat(tlgsbindir,"/tlpkg/tlgs");
+    if(is_dir(tlgsbindir)) {
+      strcpy(tlgslibdir, tlgsbindir);
+      strcat(tlgslibdir, "/lib;");
+      strcat(tlgslibdir, tlgsbindir);
+      strcat(tlgslibdir, "/fonts");
+      strcat(tlgsbindir, "/bin;");
+      free(nptr);
+      for(nptr = tlgsbindir; *nptr; nptr++) {
+        if(*nptr == '/') *nptr = '\\';
+      }
+      nptr = getenv("PATH");
+      path = (char *)malloc(strlen(nptr) + strlen(tlgsbindir) + 6);
+      strcpy(path, tlgsbindir);
+      strcat(path, nptr);
+      xputenv("PATH", path);
+      xputenv("GS_LIB", tlgslibdir);
+    }
+  }
 }
 
 #endif /* __MINGW32__ */

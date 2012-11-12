@@ -52,12 +52,13 @@ DIST_COMMON = README $(am__configure_deps) $(dist_man_MANS) \
 	$(srcdir)/../../build-aux/depcomp \
 	$(srcdir)/../../build-aux/install-sh \
 	$(srcdir)/../../build-aux/ltmain.sh \
-	$(srcdir)/../../build-aux/missing $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(srcdir)/alephdir/am/aleph.am \
-	$(srcdir)/am/bootstrap.am $(srcdir)/am/cweb.am \
-	$(srcdir)/am/texmf.am $(srcdir)/am/web.am $(srcdir)/c-auto.in \
-	$(srcdir)/ctangleboot-sh.in $(srcdir)/eptexdir/am/eptex.am \
-	$(srcdir)/etexdir/am/etex.am $(srcdir)/libmd5/am/md5.am \
+	$(srcdir)/../../build-aux/missing $(srcdir)/../am/bin_links.am \
+	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
+	$(srcdir)/alephdir/am/aleph.am $(srcdir)/am/bootstrap.am \
+	$(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/am/web.am \
+	$(srcdir)/c-auto.in $(srcdir)/ctangleboot-sh.in \
+	$(srcdir)/eptexdir/am/eptex.am $(srcdir)/etexdir/am/etex.am \
+	$(srcdir)/euptexdir/am/euptex.am $(srcdir)/libmd5/am/md5.am \
 	$(srcdir)/luatexdir/am/liblua51.am \
 	$(srcdir)/luatexdir/am/libluatex.am \
 	$(srcdir)/luatexdir/am/luafontforge.am \
@@ -73,11 +74,12 @@ DIST_COMMON = README $(am__configure_deps) $(dist_man_MANS) \
 	$(srcdir)/pdftexdir/am/pdftosrc.am \
 	$(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/ptexdir/am/ptex.am \
 	$(srcdir)/synctexdir/am/synctex.am $(srcdir)/tangle-sh.in \
-	$(srcdir)/web2c-sh.in $(srcdir)/xetexdir/am/xetex.am \
-	$(top_srcdir)/configure \
+	$(srcdir)/uptexdir/am/uptex.am $(srcdir)/web2c-sh.in \
+	$(srcdir)/xetexdir/am/xetex.am $(top_srcdir)/configure \
 	$(top_srcdir)/luatexdir/luafontloader/ff-config.in \
 	$(top_srcdir)/omegafonts/Makefile.in \
 	$(top_srcdir)/otps/Makefile.in \
+	$(top_srcdir)/otps/win32/Makefile.in \
 	$(top_srcdir)/window/Makefile.in ../../build-aux/config.guess \
 	../../build-aux/config.sub ../../build-aux/depcomp \
 	../../build-aux/install-sh ../../build-aux/ltmain.sh \
@@ -87,7 +89,7 @@ DIST_COMMON = README $(am__configure_deps) $(dist_man_MANS) \
 @WEB_TRUE@am__append_2 = $(web_tests)
 @TEX_TRUE@am__append_3 = tex
 @TEX_TRUE@@WIN32_TRUE@am__append_4 = initex
-@TEX_TRUE@@WIN32_FALSE@am__append_5 = tex:initex
+@TEX_TRUE@@WIN32_FALSE@am__append_5 = tex$(EXEEXT):initex
 @TEX_TRUE@am__append_6 = $(tex_tests)
 @TEX_TRUE@am__append_7 = dvitype pltotf tftopl
 @TEX_TRUE@am__append_8 = trip.diffs
@@ -95,7 +97,7 @@ DIST_COMMON = README $(am__configure_deps) $(dist_man_MANS) \
 @MF_TRUE@am__append_10 = mf
 @MFN_TRUE@@MF_TRUE@am__append_11 = mf-nowin
 @MF_TRUE@@WIN32_TRUE@am__append_12 = inimf
-@MF_TRUE@@WIN32_FALSE@am__append_13 = mf:inimf
+@MF_TRUE@@WIN32_FALSE@am__append_13 = mf$(EXEEXT):inimf
 @MF_TRUE@am__append_14 = $(mf_tests)
 @MF_TRUE@am__append_15 = gftype tftopl
 @MF_TRUE@am__append_16 = mftrap.diffs
@@ -125,7 +127,6 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/web2c-disable.m4 \
 	$(top_srcdir)/../../m4/kpse-libpng-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-lt-hack.m4 \
 	$(top_srcdir)/../../m4/kpse-macos-framework.m4 \
-	$(top_srcdir)/../../m4/kpse-obsdcompat-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-pixman-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-poppler-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-ptexenc-flags.m4 \
@@ -150,8 +151,9 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/w2c/c-auto.h ff-config.h
-CONFIG_CLEAN_FILES = omegafonts/Makefile otps/Makefile window/Makefile \
-	web2c-sh tangle-sh ctangleboot-sh
+CONFIG_CLEAN_FILES = omegafonts/Makefile otps/Makefile \
+	otps/win32/Makefile window/Makefile web2c-sh tangle-sh \
+	ctangleboot-sh
 CONFIG_CLEAN_VPATH_FILES =
 ARFLAGS = cru
 libmd5_a_AR = $(AR) $(ARFLAGS)
@@ -504,9 +506,6 @@ OBJCXX = @OBJCXX@
 OBJCXXFLAGS = @OBJCXXFLAGS@
 OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
-OBSDCOMPAT_DEPEND = @OBSDCOMPAT_DEPEND@
-OBSDCOMPAT_INCLUDES = @OBSDCOMPAT_INCLUDES@
-OBSDCOMPAT_LIBS = @OBSDCOMPAT_LIBS@
 OTANGLE = @OTANGLE@
 OTOOL = @OTOOL@
 OTOOL64 = @OTOOL64@
@@ -677,28 +676,30 @@ EXTRA_DIST = PROJECTS cftests cpascal.h help.h w2c/config.h \
 	triptrap/tripos.tex triptrap/writeo triptrap/writeo.2 \
 	mplibdir/ChangeLog $(mpost_web) $(mp_tests) $(libmplib_web) \
 	mplibdir/lmplib.c libmd5/md5.test
-DISTCLEANFILES = $(EXTRA_LIBRARIES) tangle.c tangle.h tangle.p \
-	tangle-web2c tangleboot.c tangleboot.h tangleboot.p \
+DISTCLEANFILES = $(EXTRA_LIBRARIES) CXXLD.sh tangle.c tangle.h \
+	tangle.p tangle-web2c tangleboot.c tangleboot.h tangleboot.p \
 	tangleboot-web2c ctangle.c cweb.c cweb.h ctangle-ctangle \
 	common-ctangle ctangleboot.c cwebboot.c cwebboot.h cftest.p \
 	$(web_programs:=.c) $(web_programs:=.h) $(web_programs:=.p) \
 	$(web_programs:=-web2c) tests/xexampl.aux tests/xexampl.bbl \
-	tests/xexampl.blg tests/memtest* tests/xstory.dvi \
-	tests/xpplr.dvi tests/xstory.dvityp tests/xpagenum.typ \
-	cmr10.dvi tests/xcmr10.dvi cmr10.pk tests/xcmr10.pk \
-	tests/xcmr10.gft1 tests/xcmr10.gft2 io.tex tests/io.tex \
-	tests/xpatout pattmp.4 cmr10.gf tests/xcmr10.600gf \
-	tests/xcmr10.pktyp tests/xcmr10.tfm tests/xtexpool.typ \
-	tests/xcmr10.pl tests/xptmr.vpl tests/xptmr.tfm tests/xptmr.vf \
-	pooltype.tex ctie.c cweave.c tie.c ctie.outc ctie.outm \
-	common.tex common.scn common.idx tie.outc tie.outm \
-	$(nodist_tex_SOURCES) tex-final.ch tex-web2c tex.p tex.pool \
-	tex-tangle trip.diffs mftrap.diffs $(nodist_libmf_a_SOURCES) \
-	mf-final.ch mf-web2c mf.p mf.pool mf-tangle \
-	$(nodist_mpost_SOURCES) mpxout-tangle mptrap.diffs ptmr.mpx \
-	tests/xptmr.mpx tests/xstory.mpx $(nodist_libmplib_a_SOURCES) \
-	mp-tangle mpmath-tangle mpmathdouble-tangle mpstrings-tangle \
-	psout-tangle svgout-tangle pngout-tangle
+	tests/xexampl.blg longline.aux longline.bbl longline.bib \
+	longline.blg tests/memtest.bib tests/memtest?.* \
+	tests/xstory.dvi tests/xpplr.dvi tests/xstory.dvityp \
+	tests/xpagenum.typ cmr10.dvi tests/xcmr10.dvi cmr10.pk \
+	tests/xcmr10.pk tests/xcmr10.gft1 tests/xcmr10.gft2 io.tex \
+	tests/io.tex tests/xpatout pattmp.4 cmr10.gf \
+	tests/xcmr10.600gf tests/xcmr10.pktyp tests/xcmr10.tfm \
+	tests/xtexpool.typ tests/xcmr10.pl tests/xptmr.vpl \
+	tests/xptmr.tfm tests/xptmr.vf pooltype.tex ctie.c cweave.c \
+	tie.c ctie.outc ctie.outm common.tex common.scn common.idx \
+	tie.outc tie.outm $(nodist_tex_SOURCES) tex-final.ch tex-web2c \
+	tex.p tex.pool tex-tangle trip.diffs write18-quote.log \
+	mftrap.diffs $(nodist_libmf_a_SOURCES) mf-final.ch mf-web2c \
+	mf.p mf.pool mf-tangle $(nodist_mpost_SOURCES) mpxout-tangle \
+	mptrap.diffs ptmr.mpx tests/xptmr.mpx tests/xstory.mpx \
+	$(nodist_libmplib_a_SOURCES) mp-tangle mpmath-tangle \
+	mpmathdouble-tangle mpstrings-tangle psout-tangle \
+	svgout-tangle pngout-tangle
 CLEANFILES = 
 TRIPTRAP_CLEAN = $(am__append_9) $(am__append_17) $(am__append_24)
 TRIPTRAP = $(am__append_8) $(am__append_16) $(am__append_23)
@@ -883,7 +884,7 @@ all: ff-config.h
 .SUFFIXES: .c .cin .h .hin .lo .o .obj .p .pin
 am--refresh: Makefile
 	@:
-$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/liblua51.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/luatexdir/am/txt2zlib.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(am__configure_deps)
+$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am $(srcdir)/uptexdir/am/uptex.am $(srcdir)/euptexdir/am/euptex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/liblua51.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/luatexdir/am/txt2zlib.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(srcdir)/../am/bin_links.am $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -905,7 +906,7 @@ Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe)'; \
 	    cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe);; \
 	esac;
-$(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/liblua51.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/luatexdir/am/txt2zlib.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am:
+$(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am $(srcdir)/uptexdir/am/uptex.am $(srcdir)/euptexdir/am/euptex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/liblua51.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/luatexdir/am/txt2zlib.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(srcdir)/../am/bin_links.am:
 
 $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	$(SHELL) ./config.status --recheck
@@ -941,6 +942,8 @@ distclean-hdr:
 omegafonts/Makefile: $(top_builddir)/config.status $(top_srcdir)/omegafonts/Makefile.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 otps/Makefile: $(top_builddir)/config.status $(top_srcdir)/otps/Makefile.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+otps/win32/Makefile: $(top_builddir)/config.status $(top_srcdir)/otps/win32/Makefile.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 window/Makefile: $(top_builddir)/config.status $(top_srcdir)/window/Makefile.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
@@ -2115,12 +2118,13 @@ $(proglib): ${srcdir}/lib/*.c
 @LIBPNG_RULE@
 @XPDF_RULE@
 @POPPLER_RULE@
-@OBSDCOMPAT_RULE@
 @ZZIPLIB_RULE@
 @GRAPHITE_RULE@
 @FREETYPE2_RULE@
 @TECKIT_RULE@
 @ICU_RULE@
+@CAIRO_RULE@
+@PIXMAN_RULE@
 
 .PHONY: triptrap
 triptrap:
@@ -2297,7 +2301,6 @@ tex-tangle: tangle$(EXEEXT) tex.web tex-final.ch tangle-sh
 tex-final.ch: tie$(EXEEXT) $(tex_ch_srcs)
 	$(tie) -c $@ $(tex_ch_srcs)
 
-# trip.test
 trip.diffs: tex$(EXEEXT)
 	$(triptrap_diffs) $@
 .PHONY: trip-clean
@@ -2332,7 +2335,6 @@ mf-tangle: tangle$(EXEEXT) mf.web mf-final.ch tangle-sh
 mf-final.ch: tie$(EXEEXT) $(mf_ch_src)
 	$(tie) -c $@ $(mf_ch_src)
 
-# trap.test
 mftrap.diffs: mf$(EXEEXT)
 	$(triptrap_diffs) $@
 .PHONY: trap-clean
@@ -2406,24 +2408,26 @@ pngout-tangle: ctangle$(EXEEXT) mplibdir/pngout.w tangle-sh
 	@$(mp_ctangle_sh) pngout
 
 $(libmplib_a_OBJECTS): $(nodist_libmplib_a_SOURCES)
+.PHONY: install-bin-links uninstall-bin-links
 
-# Symlinks within $(bindir): FILE:LINK indicates LINK$(EXEEXT)->FILE$(EXEEXT)
-install-exec-hook: $(install_exe_links)
-	@test -z "$(bin_links)" || { \
-	  cd $(DESTDIR)$(bindir) && \
-	  for s in $(bin_links); do \
-	    link=`echo $$s | sed 's,.*:,,'`$(EXEEXT); \
-	    file=`echo $$s | sed 's,:.*,,'`$(EXEEXT); \
-	    rm -f $$link; \
-	    echo "creating link '$$link' -> '$$file'"; \
-	    $(LN_S) $$file $$link || exit 1; \
-	  done; }
-uninstall-hook: $(uninstall_exe_links)
-	@test -z "$(bin_links)" || \
-	for s in $(bin_links); do \
-	  link=`echo $$s | sed 's,.*:,,'`$(EXEEXT); \
-	  rm -f $(DESTDIR)$(bindir)/$$link; \
-	done  
+install-bin-links:
+@WIN32_FALSE@	@cd $(DESTDIR)$(bindir) && \
+@WIN32_FALSE@	  for s in $(bin_links); do \
+@WIN32_FALSE@	    link=`echo $$s | sed 's,.*:,,'`; \
+@WIN32_FALSE@	    file=`echo $$s | sed 's,:.*,,'`; \
+@WIN32_FALSE@	    rm -f $$link; \
+@WIN32_FALSE@	    echo "creating link '$$link' -> '$$file'"; \
+@WIN32_FALSE@	    $(LN_S) $$file $$link || exit 1; \
+@WIN32_FALSE@	  done
+
+uninstall-bin-links:
+@WIN32_FALSE@	@for s in $(bin_links); do \
+@WIN32_FALSE@	  link=`echo $$s | sed 's,.*:,,'`; \
+@WIN32_FALSE@	  rm -f $(DESTDIR)$(bindir)/$$link; \
+@WIN32_FALSE@	done
+
+install-exec-hook: install-bin-links $(install_exe_links)
+uninstall-hook: uninstall-bin-links $(uninstall_exe_links)
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
