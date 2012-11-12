@@ -18861,8 +18861,6 @@ fi
 rm -f confcache
 
 
-
-
  if test "x$have_dl" = "xyes"; then
   CAIRO_HAS_DL_TRUE=
   CAIRO_HAS_DL_FALSE='#'
@@ -18870,6 +18868,7 @@ else
   CAIRO_HAS_DL_TRUE='#'
   CAIRO_HAS_DL_FALSE=
 fi
+
 
  if test "x$have_dlsym" = "xyes"; then
   CAIRO_HAS_DLSYM_TRUE=
@@ -22718,9 +22717,6 @@ png_NONPKGCONFIG_EXTRA_LIBS="$ac_env_png_NONPKGCONFIG_EXTRA_LIBS_value"
 
 
 
-  use_png=yes
-  png_CFLAGS='-I../../../../build/libs/libpng/include'
-
 
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether cairo's PNG functions feature could be enabled" >&5
 $as_echo_n "checking whether cairo's PNG functions feature could be enabled... " >&6; }
@@ -25064,21 +25060,6 @@ fi
 
 
 
-# We use pkg-config to look for freetype2, but fall back to
-# freetype-config if it fails.  We prefer pkg-config, since we can
-# then just put freetype2 >= $FREETYPE_MIN_VERSION in
-# Requires.private, but at least up to 2003-06-07, there was no
-# freetype2.pc in the release.
-#
-# FreeType versions come in three forms:
-#   release (such as 2.1.9)
-#   libtool (such as 9.7.3) (returned by freetype-config and pkg-config)
-#   platform-specific/soname (such as 6.3.4)
-# and they recommend you never use the platform-specific version
-# (see docs/VERSION.DLL in freetype2 sources)
-#
-# Set these as appropriate:
-
 																# Check whether --enable-ft was given.
 if test "${enable_ft+set}" = set; then :
   enableval=$enable_ft; enable_ft=$enableval
@@ -25786,7 +25767,6 @@ fi
 
 
 fi
-
 
 
 
@@ -28586,8 +28566,6 @@ fi
 
 
 
-
-
  if test "x$any2ppm_svg" = "xyes" \
 	         -o "x$any2ppm_pdf" = "xyes" \
 		 -o "x$any2ppm_ps"  = "xyes" \
@@ -28598,9 +28576,6 @@ else
   BUILD_ANY2PPM_TRUE='#'
   BUILD_ANY2PPM_FALSE=
 fi
-
-
-
 
 
 
@@ -29142,9 +29117,6 @@ fi
 
 
 
-
-
-
  if test "x$disable_some_floating_point" = "xyes"; then
   DISABLE_SOME_FLOATING_POINT_TRUE=
   DISABLE_SOME_FLOATING_POINT_FALSE='#'
@@ -29152,7 +29124,6 @@ else
   DISABLE_SOME_FLOATING_POINT_TRUE='#'
   DISABLE_SOME_FLOATING_POINT_FALSE=
 fi
-
 
 
 
@@ -29166,7 +29137,6 @@ fi
 
 
 
-# We use GTK+ for some utility/debugging tools
  if test "x$have_gtk" = "xyes"; then
   HAVE_GTK_TRUE=
   HAVE_GTK_FALSE='#'
