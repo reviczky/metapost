@@ -793,12 +793,13 @@ enum mp_filetype {
   mp_filetype_program,          /* \MP\ language input */
   mp_filetype_log,              /* the log file */
   mp_filetype_postscript,       /* the postscript output */
+  mp_filetype_bitmap,           /* the bitmap output file */
   mp_filetype_memfile,          /* memory dumps, obsolete */
   mp_filetype_metrics,          /* TeX font metric files */
   mp_filetype_fontmap,          /* PostScript font mapping files */
   mp_filetype_font,             /*  PostScript type1 font programs */
   mp_filetype_encoding,         /*  PostScript font encoding files */
-  mp_filetype_text              /* first text file for readfrom and writeto primitives */
+  mp_filetype_text,             /* first text file for readfrom and writeto primitives */
 };
 typedef char *(*mp_file_finder) (MP, const char *, const char *, int);
 typedef void *(*mp_file_opener) (MP, const char *, const char *, int);
@@ -33768,6 +33769,7 @@ etcetera to make it worthwile to move the code to |psout.w|.
 @<Internal library declarations@>=
 void mp_open_output_file (MP mp);
 char *mp_get_output_file_name (MP mp);
+char *mp_set_output_file_name (MP mp, integer c);
 
 @ @c
 static void mp_append_to_template (MP mp, integer ff, integer c, boolean rounding) {
