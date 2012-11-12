@@ -227,7 +227,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I ../m4 --force
-SUBDIRS = . libpng zlib pixman cairo $(SUBLIBS)
+SUBDIRS = . $(SUBLIBS)
 DIST_SUBDIRS = $(DIST_SUBLIBS)
 CONFIG_AUX = ../subsubdir-conf.cmd
 all: all-recursive

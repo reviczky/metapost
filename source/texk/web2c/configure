@@ -689,8 +689,6 @@ PWEB_FALSE
 PWEB_TRUE
 WEB_FALSE
 WEB_TRUE
-MP_FALSE
-MP_TRUE
 wlibs
 x_tool_libs
 x_ext_lib
@@ -709,6 +707,10 @@ OMFONTS_FALSE
 OMFONTS_TRUE
 OTANGLE_FALSE
 OTANGLE_TRUE
+MP_SYNCTEX_FALSE
+MP_SYNCTEX_TRUE
+MP_FALSE
+MP_TRUE
 XETEX_SYNCTEX_FALSE
 XETEX_SYNCTEX_TRUE
 XETEX_FALSE
@@ -928,6 +930,8 @@ enable_pdftex_synctex
 enable_luatex
 enable_xetex
 enable_xetex_synctex
+enable_mp
+enable_mp_synctex
 enable_mf
 enable_mf_nowin
 with_mf_x_toolkit
@@ -939,7 +943,6 @@ enable_regiswin
 enable_suntoolswin
 enable_tektronixwin
 enable_unitermwin
-enable_mp
 enable_web_progs
 enable_missing
 with_fontconfig_includes
@@ -1650,6 +1653,8 @@ Optional Features:
   --disable-luatex        do not compile and install luaTeX
   --disable-xetex         do not compile and install XeTeX
   --disable-xetex-synctex   build XeTeX without SyncTeX support
+  --disable-mp            do not compile and install MetaPost
+  --enable-mp-synctex       build MetaPost with SyncTeX support
   --disable-mf            do not build METAFONT
   --disable-mf-nowin        do not build a separate non-windows-capable
                             METAFONT
@@ -1661,7 +1666,6 @@ Optional Features:
   --enable-suntoolswin      include old Suntools (not X) window support
   --enable-tektronixwin     include Tektronix window support
   --enable-unitermwin       include Uniterm window support
-  --disable-mp            do not build METAPOST
   --disable-web-progs     do not build WEB programs bibtex ... weave
   --disable-missing       terminate if a requested program or feature must be
                           disabled, e.g., due to missing libraries
@@ -17742,6 +17746,27 @@ test "x$enable_web2c:$enable_xetex" = xyes:yes && {
   need_teckit=yes
   need_graphite=yes
 }
+# Check whether --enable-mp was given.
+if test "${enable_mp+set}" = set; then :
+  enableval=$enable_mp;
+fi
+case $enable_mp in #(
+  yes | no) :
+     ;; #(
+  *) :
+    enable_mp=yes ;;
+esac
+
+# Check whether --enable-mp-synctex was given.
+if test "${enable_mp_synctex+set}" = set; then :
+  enableval=$enable_mp_synctex;
+fi
+
+test "x$enable_web2c:$enable_mp" = xyes:yes && {
+  need_cairo=yes
+  need_pixman=yes
+  need_libpng=yes
+}
 ## configure options for MF
 # Check whether --enable-mf was given.
 if test "${enable_mf+set}" = set; then :
@@ -17788,11 +17813,7 @@ fi
 if test "${enable_unitermwin+set}" = set; then :
   enableval=$enable_unitermwin;
 fi
-## configure options for MP
-# Check whether --enable-mp was given.
-if test "${enable_mp+set}" = set; then :
-  enableval=$enable_mp;
-fi
+
 ## configure options for WEB programs
 # Check whether --enable-web-progs was given.
 if test "${enable_web_progs+set}" = set; then :
@@ -18898,6 +18919,34 @@ esac
 else
   XETEX_SYNCTEX_TRUE='#'
   XETEX_SYNCTEX_FALSE=
+fi
+ if test "x$enable_mp" = xyes; then
+  MP_TRUE=
+  MP_FALSE='#'
+else
+  MP_TRUE='#'
+  MP_FALSE=
+fi
+
+case $enable_native_texlive_build:$enable_mp_synctex in #(
+  yes:no | no:yes | no:no) :
+     ;; #(
+  *) :
+    if test -z "$enable_mp_synctex"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-mp-synctex=no'" >&5
+$as_echo "$as_me: Assuming \`--enable-mp-synctex=no'" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-mp-synctex=no' (native TeX Live build)" >&5
+$as_echo "$as_me: WARNING: Enforcing \`--enable-mp-synctex=no' (native TeX Live build)" >&2;}
+fi
+         enable_mp_synctex=no ;;
+esac
+ if test "x$enable_mp_synctex" = xyes; then
+  MP_SYNCTEX_TRUE=
+  MP_SYNCTEX_FALSE='#'
+else
+  MP_SYNCTEX_TRUE='#'
+  MP_SYNCTEX_FALSE=
 fi
 
 test "x$enable_omfonts" = xno || enable_omfonts=yes
@@ -23512,6 +23561,14 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${XETEX_SYNCTEX_TRUE}" && test -z "${XETEX_SYNCTEX_FALSE}"; then
   as_fn_error $? "conditional \"XETEX_SYNCTEX\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${MP_TRUE}" && test -z "${MP_FALSE}"; then
+  as_fn_error $? "conditional \"MP\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${MP_SYNCTEX_TRUE}" && test -z "${MP_SYNCTEX_FALSE}"; then
+  as_fn_error $? "conditional \"MP_SYNCTEX\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${OTANGLE_TRUE}" && test -z "${OTANGLE_FALSE}"; then
