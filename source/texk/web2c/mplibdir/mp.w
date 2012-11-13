@@ -11740,49 +11740,79 @@ mp_edge_header_node mp_copy_objects (MP mp, mp_node p, mp_node q) {
 @ @<Fix anything in graphical object |pp| that should differ from the...@>=
 switch (mp_type (p)) {
 case mp_start_clip_node_type:
-  mp_path_p ((mp_start_clip_node) pp) =
-    mp_copy_path (mp, mp_path_p ((mp_start_clip_node) p));
+  {
+    mp_start_clip_node tt = (mp_start_clip_node)pp;
+    mp_start_clip_node t =  (mp_start_clip_node)p;
+    mp_path_p (tt) = mp_copy_path (mp, mp_path_p (t));
+  }
   break;
 case mp_start_bounds_node_type:
-  mp_path_p ((mp_start_bounds_node) pp) =
-    mp_copy_path (mp, mp_path_p ((mp_start_bounds_node) p));
+  {
+    mp_start_bounds_node tt = (mp_start_bounds_node)pp;
+    mp_start_bounds_node t =  (mp_start_bounds_node)p;
+    mp_path_p (tt) = mp_copy_path (mp, mp_path_p (t));
+  }
   break;
 case mp_fill_node_type:
-  mp_path_p ((mp_fill_node) pp) =
-    mp_copy_path (mp, mp_path_p ((mp_fill_node) p));
-  if (mp_pre_script (p) != NULL)
-    add_str_ref (mp_pre_script (p));
-  if (mp_post_script (p) != NULL)
-    add_str_ref (mp_post_script (p));
-  if (mp_pen_p ((mp_fill_node) p) != NULL)
-    mp_pen_p ((mp_fill_node) pp) = copy_pen (mp_pen_p ((mp_fill_node) p));
+  {
+    mp_fill_node tt = (mp_fill_node)pp;
+    mp_fill_node t =  (mp_fill_node)p;
+    new_number(tt->red);    number_clone(tt->red,    t->red);
+    new_number(tt->green);  number_clone(tt->green,  t->green);
+    new_number(tt->blue);   number_clone(tt->blue,   t->blue);
+    new_number(tt->black);  number_clone(tt->black,  t->black);
+    new_number(tt->miterlim); number_clone(tt->miterlim,t->miterlim);
+    mp_path_p (tt) =  mp_copy_path (mp, mp_path_p (t));
+    if (mp_pre_script (p) != NULL)
+      add_str_ref (mp_pre_script (p));
+    if (mp_post_script (p) != NULL)
+      add_str_ref (mp_post_script (p));
+    if (mp_pen_p (t) != NULL)
+      mp_pen_p (tt) = copy_pen (mp_pen_p (t));
+  }
   break;
 case mp_stroked_node_type:
-  if (mp_pre_script (p) != NULL)
-    add_str_ref (mp_pre_script (p));
-  if (mp_post_script (p) != NULL)
-    add_str_ref (mp_post_script (p));
-  mp_path_p ((mp_stroked_node) pp) =
-    mp_copy_path (mp, mp_path_p ((mp_stroked_node) p));
-  mp_pen_p ((mp_stroked_node) pp) = copy_pen (mp_pen_p ((mp_stroked_node) p));
-  if (mp_dash_p (p) != NULL)
-    add_edge_ref (mp_dash_p (pp));
+  {
+    mp_stroked_node tt = (mp_stroked_node)pp;
+    mp_stroked_node t =  (mp_stroked_node)p;
+    new_number(tt->red);        number_clone(tt->red,    t->red);
+    new_number(tt->green);      number_clone(tt->green,  t->green);
+    new_number(tt->blue);       number_clone(tt->blue,   t->blue);
+    new_number(tt->black);      number_clone(tt->black,  t->black);
+    new_number(tt->miterlim);   number_clone(tt->miterlim,t->miterlim);
+    new_number(tt->dash_scale); number_clone(tt->dash_scale,t->dash_scale);
+    if (mp_pre_script (p) != NULL)
+      add_str_ref (mp_pre_script (p));
+    if (mp_post_script (p) != NULL)
+      add_str_ref (mp_post_script (p));
+    mp_path_p (tt) =  mp_copy_path (mp, mp_path_p (t));
+    mp_pen_p (tt) =  copy_pen (mp_pen_p (t));
+    if (mp_dash_p (p) != NULL)
+      add_edge_ref (mp_dash_p (pp));
+  }
   break;
 case mp_text_node_type:
-  if (mp_pre_script (p) != NULL)
-    add_str_ref (mp_pre_script (p));
-  if (mp_post_script (p) != NULL)
-    add_str_ref (mp_post_script (p));
-  add_str_ref (mp_text_p (pp));
   { 
     mp_text_node tt = (mp_text_node)pp;
     mp_text_node t = (mp_text_node)p;
+    new_number(tt->red);    number_clone(tt->red,    t->red);
+    new_number(tt->green);  number_clone(tt->green,  t->green);
+    new_number(tt->blue);   number_clone(tt->blue,   t->blue);
+    new_number(tt->black);  number_clone(tt->black,  t->black);
+    new_number(tt->width);  number_clone(tt->width,  t->width);
+    new_number(tt->height); number_clone(tt->height, t->height);
+    new_number(tt->depth);  number_clone(tt->depth,  t->depth);
     new_number(tt->tx);  number_clone(tt->tx,  t->tx);
     new_number(tt->ty);  number_clone(tt->ty,  t->ty);
     new_number(tt->txx); number_clone(tt->txx, t->txx);
     new_number(tt->tyx); number_clone(tt->tyx, t->tyx);
     new_number(tt->txy); number_clone(tt->txy, t->txy);
     new_number(tt->tyy); number_clone(tt->tyy, t->tyy);
+    if (mp_pre_script (p) != NULL)
+      add_str_ref (mp_pre_script (p));
+    if (mp_post_script (p) != NULL)
+      add_str_ref (mp_post_script (p));
+    add_str_ref (mp_text_p (pp));
   }
   break;
 case mp_stop_clip_node_type:
