@@ -19727,6 +19727,8 @@ if (mp->param_ptr + n > mp->max_param_stack) {
 mp_begin_token_list (mp, def_ref, (quarterword) macro);
 if (macro_name)
   name = text (macro_name);
+else
+  name = NULL;
 nloc = r;
 if (n > 0) {
   p = arg_list;
