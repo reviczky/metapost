@@ -106,6 +106,10 @@ then
     --disable-ptex \
     --enable-mp  \
     --enable-compiler-warnings=max \
+    --without-system-cairo \
+    --without-system-pixman \
+    --without-system-libpng \
+    --without-system-zlib \
     --without-ptexenc \
     --without-system-ptexenc \
     --without-system-kpathsea \
@@ -113,9 +117,7 @@ then
     --without-system-freetype \
     --without-system-freetype2 \
     --without-system-gd \
-    --without-system-libpng \
     --without-system-teckit \
-    --without-system-zlib \
     --without-system-t1lib \
     --without-system-icu \
     --without-system-graphite \
