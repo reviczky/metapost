@@ -1634,9 +1634,15 @@ void mp_print_int (MP mp, integer n) {                               /* prints a
   mp_snprintf (s, 12, "%d", (int) n);
   mp_print (mp, s);
 }
+void mp_print_pointer (MP mp, void *n) {                               /* prints an pointer in hexadecimal form */
+  char s[12];
+  mp_snprintf (s, 12, "%p", n);
+  mp_print (mp, s);
+}
 
 @ @<Internal library ...@>=
 void mp_print_int (MP mp, integer n);
+void mp_print_pointer (MP mp, void *n);
 
 @ \MP\ also makes use of a trivial procedure to print two digits. The
 following subroutine is usually called with a parameter in the range |0<=n<=99|.
@@ -11768,6 +11774,16 @@ case mp_text_node_type:
   if (mp_post_script (p) != NULL)
     add_str_ref (mp_post_script (p));
   add_str_ref (mp_text_p (pp));
+  { 
+    mp_text_node tt = (mp_text_node)pp;
+    mp_text_node t = (mp_text_node)p;
+    new_number(tt->tx);  number_clone(tt->tx,  t->tx);
+    new_number(tt->ty);  number_clone(tt->ty,  t->ty);
+    new_number(tt->txx); number_clone(tt->txx, t->txx);
+    new_number(tt->tyx); number_clone(tt->tyx, t->tyx);
+    new_number(tt->txy); number_clone(tt->txy, t->txy);
+    new_number(tt->tyy); number_clone(tt->tyy, t->tyy);
+  }
   break;
 case mp_stop_clip_node_type:
 case mp_stop_bounds_node_type:
@@ -27600,24 +27616,17 @@ coordinates in locations |p| and~|q|.
 
 @<Declare binary action...@>=
 static void mp_number_trans (MP mp, mp_number p, mp_number q) {
-  mp_number pp, qq;
   mp_number r1, r2;
   new_number (r1);
   new_number (r2);
-  new_number (pp);
-  new_number (qq);
   take_scaled (r1, p, mp->txx);
   take_scaled (r2, q, mp->txy);
   number_add (r1, r2);
-  set_number_from_addition(pp, r1, mp->tx);
+  set_number_from_addition(p, r1, mp->tx);
   take_scaled (r1, p, mp->tyx);
   take_scaled (r2, q, mp->tyy);
   number_add (r1, r2);
-  set_number_from_addition(qq, r1, mp->ty);
-  number_clone(p,pp); 
-  number_clone(q,qq); 
-  free_number (pp);
-  free_number (qq);
+  set_number_from_addition(q, r1, mp->ty);
   free_number (r1);
   free_number (r2);
 }
