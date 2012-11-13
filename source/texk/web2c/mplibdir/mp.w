@@ -6058,7 +6058,7 @@ in a capsule, or if the user wants to trace capsules.
 
 @c
 static boolean mp_interesting (MP mp, mp_node p) {
-  quarterword t;        /* a |name_type| */
+  mp_name_type_type t;        /* a |name_type| */
   if (number_positive(internal_value (mp_tracing_capsules))) {
     return true;
   } else {
@@ -6066,46 +6066,48 @@ static boolean mp_interesting (MP mp, mp_node p) {
     if (t >= mp_x_part_sector && t != mp_capsule) {
       switch (t) {
       case mp_x_part_sector:
-        t = mp_name_type (mp_link (x_part (p)));
+        t = mp_name_type (x_part (value_node(mp_link(p))));
         break;
       case mp_y_part_sector:
-        t = mp_name_type (mp_link (y_part (p)));
+        t = mp_name_type (y_part (value_node(mp_link(p))));
         break;
       case mp_xx_part_sector:
-        t = mp_name_type (mp_link (xx_part (p)));
+        t = mp_name_type (xx_part (value_node(mp_link(p))));
         break;
       case mp_xy_part_sector:
-        t = mp_name_type (mp_link (xy_part (p)));
+        t = mp_name_type (xy_part (value_node(mp_link(p))));
         break;
       case mp_yx_part_sector:
-        t = mp_name_type (mp_link (yx_part (p)));
+        t = mp_name_type (yx_part (value_node(mp_link(p))));
         break;
       case mp_yy_part_sector:
-        t = mp_name_type (mp_link (yy_part (p)));
+        t = mp_name_type (yy_part (value_node(mp_link(p))));
         break;
       case mp_red_part_sector:
-        t = mp_name_type (mp_link (red_part (p)));
+        t = mp_name_type (red_part (value_node(mp_link(p))));
         break;
       case mp_green_part_sector:
-        t = mp_name_type (mp_link (green_part (p)));
+        t = mp_name_type (green_part (value_node(mp_link(p))));
         break;
       case mp_blue_part_sector:
-        t = mp_name_type (mp_link (blue_part (p)));
+        t = mp_name_type (blue_part (value_node(mp_link(p))));
         break;
       case mp_cyan_part_sector:
-        t = mp_name_type (mp_link (cyan_part (p)));
+        t = mp_name_type (cyan_part (value_node(mp_link(p))));
         break;
       case mp_magenta_part_sector:
-        t = mp_name_type (mp_link (magenta_part (p)));
+        t = mp_name_type (magenta_part (value_node(mp_link(p))));
         break;
       case mp_yellow_part_sector:
-        t = mp_name_type (mp_link (yellow_part (p)));
+        t = mp_name_type (yellow_part (value_node(mp_link(p))));
         break;
       case mp_black_part_sector:
-        t = mp_name_type (mp_link (black_part (p)));
+        t = mp_name_type (black_part (value_node(mp_link(p))));
         break;
       case mp_grey_part_sector:
-        t = mp_name_type (mp_link (grey_part (p)));
+        t = mp_name_type (grey_part (value_node(mp_link(p))));
+        break;
+      default:
         break;
       }
     }
@@ -29216,7 +29218,6 @@ if (t == mp_known) {
 @ @<Add the right operand to list |p|@>=
 if (r == NULL) {
   if (mp->cur_exp.type == mp_known) {
-    set_value_number (q, value_number (q));
     number_add (value_number (q), cur_exp_value_number ());
     goto DONE1;
   } else {
@@ -29228,7 +29229,6 @@ if (r == NULL) {
   }
 } else {
   if (mp_type (r) == mp_known) {
-    set_dep_value_number (q, dep_value_number (q));
     number_add (dep_value_number (q), value_number (r));
     goto DONE1;
   } else {
