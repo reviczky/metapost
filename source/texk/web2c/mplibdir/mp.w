@@ -2707,11 +2707,7 @@ void *mp_xmalloc (MP mp, size_t nmem, size_t size) {
 }
 
 @ @<Internal library declarations@>=
-#ifdef HAVE_SNPRINTF
 #  define mp_snprintf (void)snprintf
-#else
-#  define mp_snprintf mp_do_snprintf
-#endif
 
 @ This internal version is rather stupid, but good enough for its purpose.
 
