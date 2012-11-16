@@ -107,9 +107,7 @@ then
     --enable-mp  \
     --enable-compiler-warnings=max \
     --without-system-cairo \
-    --without-system-pixman \
     --without-system-libpng \
-    --without-system-zlib \
     --without-ptexenc \
     --without-system-ptexenc \
     --without-system-kpathsea \
