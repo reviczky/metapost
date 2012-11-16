@@ -91,6 +91,10 @@ $(proglib): ${srcdir}/lib/*.c
 @XPDF_RULE@
 ## Rebuild poppler
 @POPPLER_RULE@
+## Rebuild pixman
+@PIXMAN_RULE@
+## Rebuild cairo
+@CAIRO_RULE@
 ## Rebuild libzzip
 @ZZIPLIB_RULE@
 ## Rebuild libgraphite
@@ -101,10 +105,6 @@ $(proglib): ${srcdir}/lib/*.c
 @TECKIT_RULE@
 ## Rebuild libsicuxxx
 @ICU_RULE@
-## Rebuild cairo
-@CAIRO_RULE@
-## Rebuild pixman
-@PIXMAN_RULE@
 
 # The environment for building.
 buildenv = TEXMFCNF=$(srcdir)/../kpathsea
@@ -112,13 +112,11 @@ buildenv = TEXMFCNF=$(srcdir)/../kpathsea
 # Calling tangle & Co.
 tangle = WEBINPUTS=.:$(srcdir) $(buildenv) $(TANGLE)
 tangleboot = WEBINPUTS=.:$(srcdir) $(buildenv) $(TANGLEBOOT)
-otangle = WEBINPUTS=.:$(srcdir) $(buildenv) $(OTANGLE)
 ctangle = $(buildenv) $(CTANGLE)
 tie = WEBINPUTS=.:$(srcdir) $(buildenv) $(TIE)
 
 # Calling tangle & Co. via tangle-sh (several output files)
 texmf_tangle = WEBINPUTS=.:$(srcdir) $(SHELL) ./tangle-sh $@ $(TANGLE)
-o_tangle = WEBINPUTS=.:$(srcdir) $(SHELL) ./tangle-sh $@ $(OTANGLE)
 
 # For trip, trap, and other tests
 DIFF = diff

@@ -7,3 +7,4 @@
 
 echo '                *** pixman test SKIPPED ***'
 
+exit 77
