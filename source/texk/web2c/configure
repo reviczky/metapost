@@ -624,14 +624,6 @@ CTANGLE
 CTANGLEBOOT
 TANGLE
 TANGLEBOOT
-CAIRO_RULE
-CAIRO_DEPEND
-CAIRO_LIBS
-CAIRO_INCLUDES
-PIXMAN_RULE
-PIXMAN_DEPEND
-PIXMAN_LIBS
-PIXMAN_INCLUDES
 ICU_RULE
 ICU_DEPEND
 ICU_LIBS
@@ -661,6 +653,14 @@ XPDF_RULE
 XPDF_DEPEND
 XPDF_LIBS
 XPDF_INCLUDES
+CAIRO_RULE
+CAIRO_DEPEND
+CAIRO_LIBS
+CAIRO_INCLUDES
+PIXMAN_RULE
+PIXMAN_DEPEND
+PIXMAN_LIBS
+PIXMAN_INCLUDES
 LIBPNG_RULE
 LIBPNG_DEPEND
 LIBPNG_LIBS
@@ -707,42 +707,30 @@ OMFONTS_FALSE
 OMFONTS_TRUE
 OTANGLE_FALSE
 OTANGLE_TRUE
-MP_SYNCTEX_FALSE
-MP_SYNCTEX_TRUE
-MP_FALSE
-MP_TRUE
-XETEX_SYNCTEX_FALSE
-XETEX_SYNCTEX_TRUE
-XETEX_FALSE
-XETEX_TRUE
-LUATEX_FALSE
-LUATEX_TRUE
-PDFTEX_SYNCTEX_FALSE
-PDFTEX_SYNCTEX_TRUE
-PDFTEX_FALSE
-PDFTEX_TRUE
+ALEPH_SYNCTEX_FALSE
+ALEPH_SYNCTEX_TRUE
 ALEPH_FALSE
 ALEPH_TRUE
-EUPTEX_SYNCTEX_FALSE
-EUPTEX_SYNCTEX_TRUE
-EUPTEX_FALSE
-EUPTEX_TRUE
-UPTEX_SYNCTEX_FALSE
-UPTEX_SYNCTEX_TRUE
-UPTEX_FALSE
-UPTEX_TRUE
-EPTEX_SYNCTEX_FALSE
-EPTEX_SYNCTEX_TRUE
-EPTEX_FALSE
-EPTEX_TRUE
 PTEX_SYNCTEX_FALSE
 PTEX_SYNCTEX_TRUE
 PTEX_FALSE
 PTEX_TRUE
+XETEX_SYNCTEX_FALSE
+XETEX_SYNCTEX_TRUE
+XETEX_FALSE
+XETEX_TRUE
+PDFTEX_SYNCTEX_FALSE
+PDFTEX_SYNCTEX_TRUE
+PDFTEX_FALSE
+PDFTEX_TRUE
 ETEX_SYNCTEX_FALSE
 ETEX_SYNCTEX_TRUE
 ETEX_FALSE
 ETEX_TRUE
+MP_FALSE
+MP_TRUE
+LUATEX_FALSE
+LUATEX_TRUE
 TEX_SYNCTEX_FALSE
 TEX_SYNCTEX_TRUE
 TEX_FALSE
@@ -914,24 +902,18 @@ enable_ipc
 enable_omfonts
 enable_tex
 enable_tex_synctex
+enable_luatex
+enable_mp
 enable_etex
 enable_etex_synctex
-enable_ptex
-enable_ptex_synctex
-enable_eptex
-enable_eptex_synctex
-enable_uptex
-enable_uptex_synctex
-enable_euptex
-enable_euptex_synctex
-enable_aleph
 enable_pdftex
 enable_pdftex_synctex
-enable_luatex
 enable_xetex
 enable_xetex_synctex
-enable_mp
-enable_mp_synctex
+enable_ptex
+enable_ptex_synctex
+enable_aleph
+enable_aleph_synctex
 enable_mf
 enable_mf_nowin
 with_mf_x_toolkit
@@ -958,6 +940,8 @@ with_system_zlib
 with_zlib_includes
 with_zlib_libdir
 with_system_libpng
+with_system_pixman
+with_system_cairo
 with_system_xpdf
 with_system_poppler
 with_system_zziplib
@@ -966,12 +950,6 @@ with_system_freetype2
 with_system_teckit
 with_teckit_includes
 with_teckit_libdir
-with_system_pixman
-with_pixman_includes
-with_pixman_libdir
-with_system_cairo
-with_cairo_includes
-with_cairo_libdir
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1637,24 +1615,18 @@ Optional Features:
                           versions)
   --disable-tex           do not compile and install TeX
   --enable-tex-synctex      build TeX with SyncTeX support
-  --enable-etex           compile and install e-TeX
-  --disable-etex-synctex    build e-TeX without SyncTeX support
-  --disable-ptex          do not compile and install pTeX
-  --disable-ptex-synctex    build pTeX without SyncTeX support
-  --disable-eptex         do not compile and install e-pTeX
-  --disable-eptex-synctex   build e-pTeX without SyncTeX support
-  --disable-uptex         do not compile and install upTeX
-  --disable-uptex-synctex   build upTeX without SyncTeX support
-  --disable-euptex        do not compile and install e-upTeX
-  --disable-euptex-synctex  build e-upTeX without SyncTeX support
-  --disable-aleph         do not compile and install Aleph
-  --disable-pdftex        do not compile and install pdfTeX
-  --disable-pdftex-synctex  build pdfTeX without SyncTeX support
   --disable-luatex        do not compile and install luaTeX
-  --disable-xetex         do not compile and install XeTeX
-  --disable-xetex-synctex   build XeTeX without SyncTeX support
   --disable-mp            do not compile and install MetaPost
-  --enable-mp-synctex       build MetaPost with SyncTeX support
+  --enable-etex           compile and install e-TeX
+  --enable-etex-synctex     build e-TeX with SyncTeX support
+  --enable-pdftex         compile and install pdfTeX
+  --enable-pdftex-synctex   build pdfTeX with SyncTeX support
+  --enable-xetex          compile and install XeTeX
+  --enable-xetex-synctex    build XeTeX with SyncTeX support
+  --enable-ptex           compile and install pTeX
+  --enable-ptex-synctex     build pTeX with SyncTeX support
+  --enable-aleph          compile and install Aleph
+  --enable-aleph-synctex    build Aleph with SyncTeX support
   --disable-mf            do not build METAFONT
   --disable-mf-nowin        do not build a separate non-windows-capable
                             METAFONT
@@ -1703,6 +1675,10 @@ Optional Packages:
   --with-zlib-libdir=DIR  zlib library installed in DIR
   --with-system-libpng    use installed libpng headers and library (requires
                           pkg-config)
+  --with-system-pixman    use installed pixman headers and library (requires
+                          pkg-config)
+  --with-system-cairo     use installed cairo headers and library (requires
+                          pkg-config)
   --with-system-xpdf      use installed poppler headers and library instead of
                           xpdf library from TL (requires pkg-config)
   --with-system-poppler   use installed poppler headers and library (requires
@@ -1718,15 +1694,6 @@ Optional Packages:
                           teckit headers installed in DIR
   --with-teckit-libdir=DIR
                           teckit library installed in DIR
-  --with-system-pixman    use installed pixman headers and library
-  --with-pixman-includes=DIR
-                          pixman headers installed in DIR
-  --with-pixman-libdir=DIR
-                          pixman library installed in DIR
-  --with-system-cairo     use installed cairo headers and library
-  --with-cairo-includes=DIR
-                          cairo headers installed in DIR
-  --with-cairo-libdir=DIR cairo library installed in DIR
 
 Some influential environment variables:
   CC          C compiler command
@@ -17585,127 +17552,6 @@ esac
 if test "${enable_tex_synctex+set}" = set; then :
   enableval=$enable_tex_synctex;
 fi
-# Check whether --enable-etex was given.
-if test "${enable_etex+set}" = set; then :
-  enableval=$enable_etex;
-fi
-case $enable_etex in #(
-  yes | no) :
-     ;; #(
-  *) :
-    enable_etex=no ;;
-esac
-
-# Check whether --enable-etex-synctex was given.
-if test "${enable_etex_synctex+set}" = set; then :
-  enableval=$enable_etex_synctex;
-fi
-# Check whether --enable-ptex was given.
-if test "${enable_ptex+set}" = set; then :
-  enableval=$enable_ptex;
-fi
-case $enable_ptex in #(
-  yes | no) :
-     ;; #(
-  *) :
-    enable_ptex=yes ;;
-esac
-
-# Check whether --enable-ptex-synctex was given.
-if test "${enable_ptex_synctex+set}" = set; then :
-  enableval=$enable_ptex_synctex;
-fi
-
-test "x$enable_web2c:$enable_ptex" = xyes:yes && {
-  need_ptexenc=yes
-}
-# Check whether --enable-eptex was given.
-if test "${enable_eptex+set}" = set; then :
-  enableval=$enable_eptex;
-fi
-case $enable_eptex in #(
-  yes | no) :
-     ;; #(
-  *) :
-    enable_eptex=yes ;;
-esac
-
-# Check whether --enable-eptex-synctex was given.
-if test "${enable_eptex_synctex+set}" = set; then :
-  enableval=$enable_eptex_synctex;
-fi
-
-test "x$enable_web2c:$enable_eptex" = xyes:yes && {
-  need_ptexenc=yes
-}
-# Check whether --enable-uptex was given.
-if test "${enable_uptex+set}" = set; then :
-  enableval=$enable_uptex;
-fi
-case $enable_uptex in #(
-  yes | no) :
-     ;; #(
-  *) :
-    enable_uptex=yes ;;
-esac
-
-# Check whether --enable-uptex-synctex was given.
-if test "${enable_uptex_synctex+set}" = set; then :
-  enableval=$enable_uptex_synctex;
-fi
-
-test "x$enable_web2c:$enable_uptex" = xyes:yes && {
-  need_ptexenc=yes
-}
-# Check whether --enable-euptex was given.
-if test "${enable_euptex+set}" = set; then :
-  enableval=$enable_euptex;
-fi
-case $enable_euptex in #(
-  yes | no) :
-     ;; #(
-  *) :
-    enable_euptex=yes ;;
-esac
-
-# Check whether --enable-euptex-synctex was given.
-if test "${enable_euptex_synctex+set}" = set; then :
-  enableval=$enable_euptex_synctex;
-fi
-
-test "x$enable_web2c:$enable_euptex" = xyes:yes && {
-  need_ptexenc=yes
-}
-# Check whether --enable-aleph was given.
-if test "${enable_aleph+set}" = set; then :
-  enableval=$enable_aleph;
-fi
-case $enable_aleph in #(
-  yes | no) :
-     ;; #(
-  *) :
-    enable_aleph=yes ;;
-esac
-# Check whether --enable-pdftex was given.
-if test "${enable_pdftex+set}" = set; then :
-  enableval=$enable_pdftex;
-fi
-case $enable_pdftex in #(
-  yes | no) :
-     ;; #(
-  *) :
-    enable_pdftex=yes ;;
-esac
-
-# Check whether --enable-pdftex-synctex was given.
-if test "${enable_pdftex_synctex+set}" = set; then :
-  enableval=$enable_pdftex_synctex;
-fi
-
-test "x$enable_web2c:$enable_pdftex" = xyes:yes && {
-  need_xpdf=yes
-  need_libpng=yes
-}
 # Check whether --enable-luatex was given.
 if test "${enable_luatex+set}" = set; then :
   enableval=$enable_luatex;
@@ -17722,30 +17568,6 @@ test "x$enable_web2c:$enable_luatex" = xyes:yes && {
   need_libpng=yes
   need_zziplib=yes
 }
-# Check whether --enable-xetex was given.
-if test "${enable_xetex+set}" = set; then :
-  enableval=$enable_xetex;
-fi
-case $enable_xetex in #(
-  yes | no) :
-     ;; #(
-  *) :
-    enable_xetex=yes ;;
-esac
-
-# Check whether --enable-xetex-synctex was given.
-if test "${enable_xetex_synctex+set}" = set; then :
-  enableval=$enable_xetex_synctex;
-fi
-
-test "x$enable_web2c:$enable_xetex" = xyes:yes && {
-  need_poppler=yes
-  need_libpng=yes
-  need_freetype2=yes
-  need_icu_xetex=yes
-  need_teckit=yes
-  need_graphite=yes
-}
 # Check whether --enable-mp was given.
 if test "${enable_mp+set}" = set; then :
   enableval=$enable_mp;
@@ -17757,16 +17579,85 @@ case $enable_mp in #(
     enable_mp=yes ;;
 esac
 
-# Check whether --enable-mp-synctex was given.
-if test "${enable_mp_synctex+set}" = set; then :
-  enableval=$enable_mp_synctex;
-fi
-
 test "x$enable_web2c:$enable_mp" = xyes:yes && {
   need_cairo=yes
-  need_pixman=yes
   need_libpng=yes
 }
+# Check whether --enable-etex was given.
+if test "${enable_etex+set}" = set; then :
+  enableval=$enable_etex;
+fi
+case $enable_etex in #(
+  yes | no) :
+     ;; #(
+  *) :
+    enable_etex=no ;;
+esac
+
+# Check whether --enable-etex-synctex was given.
+if test "${enable_etex_synctex+set}" = set; then :
+  enableval=$enable_etex_synctex;
+fi
+# Check whether --enable-pdftex was given.
+if test "${enable_pdftex+set}" = set; then :
+  enableval=$enable_pdftex;
+fi
+case $enable_pdftex in #(
+  yes | no) :
+     ;; #(
+  *) :
+    enable_pdftex=no ;;
+esac
+
+# Check whether --enable-pdftex-synctex was given.
+if test "${enable_pdftex_synctex+set}" = set; then :
+  enableval=$enable_pdftex_synctex;
+fi
+# Check whether --enable-xetex was given.
+if test "${enable_xetex+set}" = set; then :
+  enableval=$enable_xetex;
+fi
+case $enable_xetex in #(
+  yes | no) :
+     ;; #(
+  *) :
+    enable_xetex=no ;;
+esac
+
+# Check whether --enable-xetex-synctex was given.
+if test "${enable_xetex_synctex+set}" = set; then :
+  enableval=$enable_xetex_synctex;
+fi
+# Check whether --enable-ptex was given.
+if test "${enable_ptex+set}" = set; then :
+  enableval=$enable_ptex;
+fi
+case $enable_ptex in #(
+  yes | no) :
+     ;; #(
+  *) :
+    enable_ptex=no ;;
+esac
+
+# Check whether --enable-ptex-synctex was given.
+if test "${enable_ptex_synctex+set}" = set; then :
+  enableval=$enable_ptex_synctex;
+fi
+# Check whether --enable-aleph was given.
+if test "${enable_aleph+set}" = set; then :
+  enableval=$enable_aleph;
+fi
+case $enable_aleph in #(
+  yes | no) :
+     ;; #(
+  *) :
+    enable_aleph=no ;;
+esac
+
+# Check whether --enable-aleph-synctex was given.
+if test "${enable_aleph_synctex+set}" = set; then :
+  enableval=$enable_aleph_synctex;
+fi
 ## configure options for MF
 # Check whether --enable-mf was given.
 if test "${enable_mf+set}" = set; then :
@@ -17813,7 +17704,6 @@ fi
 if test "${enable_unitermwin+set}" = set; then :
   enableval=$enable_unitermwin;
 fi
-
 ## configure options for WEB programs
 # Check whether --enable-web-progs was given.
 if test "${enable_web_progs+set}" = set; then :
@@ -18710,6 +18600,20 @@ else
   TEX_SYNCTEX_TRUE='#'
   TEX_SYNCTEX_FALSE=
 fi
+ if test "x$enable_luatex" = xyes; then
+  LUATEX_TRUE=
+  LUATEX_FALSE='#'
+else
+  LUATEX_TRUE='#'
+  LUATEX_FALSE=
+fi
+ if test "x$enable_mp" = xyes; then
+  MP_TRUE=
+  MP_FALSE='#'
+else
+  MP_TRUE='#'
+  MP_FALSE=
+fi
  if test "x$enable_etex" = xyes; then
   ETEX_TRUE=
   ETEX_FALSE='#'
@@ -18719,17 +18623,17 @@ else
 fi
 
 case $enable_native_texlive_build:$enable_etex_synctex in #(
-  yes:yes | no:yes | no:no) :
+  yes:no | no:yes | no:no) :
      ;; #(
   *) :
     if test -z "$enable_etex_synctex"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-etex-synctex=yes'" >&5
-$as_echo "$as_me: Assuming \`--enable-etex-synctex=yes'" >&6;}
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-etex-synctex=no'" >&5
+$as_echo "$as_me: Assuming \`--enable-etex-synctex=no'" >&6;}
 else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-etex-synctex=yes' (native TeX Live build)" >&5
-$as_echo "$as_me: WARNING: Enforcing \`--enable-etex-synctex=yes' (native TeX Live build)" >&2;}
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-etex-synctex=no' (native TeX Live build)" >&5
+$as_echo "$as_me: WARNING: Enforcing \`--enable-etex-synctex=no' (native TeX Live build)" >&2;}
 fi
-         enable_etex_synctex=yes ;;
+         enable_etex_synctex=no ;;
 esac
  if test "x$enable_etex_synctex" = xyes; then
   ETEX_SYNCTEX_TRUE=
@@ -18737,125 +18641,6 @@ esac
 else
   ETEX_SYNCTEX_TRUE='#'
   ETEX_SYNCTEX_FALSE=
-fi
- if test "x$enable_ptex" = xyes; then
-  PTEX_TRUE=
-  PTEX_FALSE='#'
-else
-  PTEX_TRUE='#'
-  PTEX_FALSE=
-fi
-
-case $enable_native_texlive_build:$enable_ptex_synctex in #(
-  yes:yes | no:yes | no:no) :
-     ;; #(
-  *) :
-    if test -z "$enable_ptex_synctex"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-ptex-synctex=yes'" >&5
-$as_echo "$as_me: Assuming \`--enable-ptex-synctex=yes'" >&6;}
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-ptex-synctex=yes' (native TeX Live build)" >&5
-$as_echo "$as_me: WARNING: Enforcing \`--enable-ptex-synctex=yes' (native TeX Live build)" >&2;}
-fi
-         enable_ptex_synctex=yes ;;
-esac
- if test "x$enable_ptex_synctex" = xyes; then
-  PTEX_SYNCTEX_TRUE=
-  PTEX_SYNCTEX_FALSE='#'
-else
-  PTEX_SYNCTEX_TRUE='#'
-  PTEX_SYNCTEX_FALSE=
-fi
- if test "x$enable_eptex" = xyes; then
-  EPTEX_TRUE=
-  EPTEX_FALSE='#'
-else
-  EPTEX_TRUE='#'
-  EPTEX_FALSE=
-fi
-
-case $enable_native_texlive_build:$enable_eptex_synctex in #(
-  yes:yes | no:yes | no:no) :
-     ;; #(
-  *) :
-    if test -z "$enable_eptex_synctex"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-eptex-synctex=yes'" >&5
-$as_echo "$as_me: Assuming \`--enable-eptex-synctex=yes'" >&6;}
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-eptex-synctex=yes' (native TeX Live build)" >&5
-$as_echo "$as_me: WARNING: Enforcing \`--enable-eptex-synctex=yes' (native TeX Live build)" >&2;}
-fi
-         enable_eptex_synctex=yes ;;
-esac
- if test "x$enable_eptex_synctex" = xyes; then
-  EPTEX_SYNCTEX_TRUE=
-  EPTEX_SYNCTEX_FALSE='#'
-else
-  EPTEX_SYNCTEX_TRUE='#'
-  EPTEX_SYNCTEX_FALSE=
-fi
- if test "x$enable_uptex" = xyes; then
-  UPTEX_TRUE=
-  UPTEX_FALSE='#'
-else
-  UPTEX_TRUE='#'
-  UPTEX_FALSE=
-fi
-
-case $enable_native_texlive_build:$enable_uptex_synctex in #(
-  yes:yes | no:yes | no:no) :
-     ;; #(
-  *) :
-    if test -z "$enable_uptex_synctex"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-uptex-synctex=yes'" >&5
-$as_echo "$as_me: Assuming \`--enable-uptex-synctex=yes'" >&6;}
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-uptex-synctex=yes' (native TeX Live build)" >&5
-$as_echo "$as_me: WARNING: Enforcing \`--enable-uptex-synctex=yes' (native TeX Live build)" >&2;}
-fi
-         enable_uptex_synctex=yes ;;
-esac
- if test "x$enable_uptex_synctex" = xyes; then
-  UPTEX_SYNCTEX_TRUE=
-  UPTEX_SYNCTEX_FALSE='#'
-else
-  UPTEX_SYNCTEX_TRUE='#'
-  UPTEX_SYNCTEX_FALSE=
-fi
- if test "x$enable_euptex" = xyes; then
-  EUPTEX_TRUE=
-  EUPTEX_FALSE='#'
-else
-  EUPTEX_TRUE='#'
-  EUPTEX_FALSE=
-fi
-
-case $enable_native_texlive_build:$enable_euptex_synctex in #(
-  yes:yes | no:yes | no:no) :
-     ;; #(
-  *) :
-    if test -z "$enable_euptex_synctex"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-euptex-synctex=yes'" >&5
-$as_echo "$as_me: Assuming \`--enable-euptex-synctex=yes'" >&6;}
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-euptex-synctex=yes' (native TeX Live build)" >&5
-$as_echo "$as_me: WARNING: Enforcing \`--enable-euptex-synctex=yes' (native TeX Live build)" >&2;}
-fi
-         enable_euptex_synctex=yes ;;
-esac
- if test "x$enable_euptex_synctex" = xyes; then
-  EUPTEX_SYNCTEX_TRUE=
-  EUPTEX_SYNCTEX_FALSE='#'
-else
-  EUPTEX_SYNCTEX_TRUE='#'
-  EUPTEX_SYNCTEX_FALSE=
-fi
- if test "x$enable_aleph" = xyes; then
-  ALEPH_TRUE=
-  ALEPH_FALSE='#'
-else
-  ALEPH_TRUE='#'
-  ALEPH_FALSE=
 fi
  if test "x$enable_pdftex" = xyes; then
   PDFTEX_TRUE=
@@ -18866,17 +18651,17 @@ else
 fi
 
 case $enable_native_texlive_build:$enable_pdftex_synctex in #(
-  yes:yes | no:yes | no:no) :
+  yes:no | no:yes | no:no) :
      ;; #(
   *) :
     if test -z "$enable_pdftex_synctex"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-pdftex-synctex=yes'" >&5
-$as_echo "$as_me: Assuming \`--enable-pdftex-synctex=yes'" >&6;}
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-pdftex-synctex=no'" >&5
+$as_echo "$as_me: Assuming \`--enable-pdftex-synctex=no'" >&6;}
 else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-pdftex-synctex=yes' (native TeX Live build)" >&5
-$as_echo "$as_me: WARNING: Enforcing \`--enable-pdftex-synctex=yes' (native TeX Live build)" >&2;}
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-pdftex-synctex=no' (native TeX Live build)" >&5
+$as_echo "$as_me: WARNING: Enforcing \`--enable-pdftex-synctex=no' (native TeX Live build)" >&2;}
 fi
-         enable_pdftex_synctex=yes ;;
+         enable_pdftex_synctex=no ;;
 esac
  if test "x$enable_pdftex_synctex" = xyes; then
   PDFTEX_SYNCTEX_TRUE=
@@ -18884,13 +18669,6 @@ esac
 else
   PDFTEX_SYNCTEX_TRUE='#'
   PDFTEX_SYNCTEX_FALSE=
-fi
- if test "x$enable_luatex" = xyes; then
-  LUATEX_TRUE=
-  LUATEX_FALSE='#'
-else
-  LUATEX_TRUE='#'
-  LUATEX_FALSE=
 fi
  if test "x$enable_xetex" = xyes; then
   XETEX_TRUE=
@@ -18901,17 +18679,17 @@ else
 fi
 
 case $enable_native_texlive_build:$enable_xetex_synctex in #(
-  yes:yes | no:yes | no:no) :
+  yes:no | no:yes | no:no) :
      ;; #(
   *) :
     if test -z "$enable_xetex_synctex"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-xetex-synctex=yes'" >&5
-$as_echo "$as_me: Assuming \`--enable-xetex-synctex=yes'" >&6;}
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-xetex-synctex=no'" >&5
+$as_echo "$as_me: Assuming \`--enable-xetex-synctex=no'" >&6;}
 else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-xetex-synctex=yes' (native TeX Live build)" >&5
-$as_echo "$as_me: WARNING: Enforcing \`--enable-xetex-synctex=yes' (native TeX Live build)" >&2;}
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-xetex-synctex=no' (native TeX Live build)" >&5
+$as_echo "$as_me: WARNING: Enforcing \`--enable-xetex-synctex=no' (native TeX Live build)" >&2;}
 fi
-         enable_xetex_synctex=yes ;;
+         enable_xetex_synctex=no ;;
 esac
  if test "x$enable_xetex_synctex" = xyes; then
   XETEX_SYNCTEX_TRUE=
@@ -18920,33 +18698,61 @@ else
   XETEX_SYNCTEX_TRUE='#'
   XETEX_SYNCTEX_FALSE=
 fi
- if test "x$enable_mp" = xyes; then
-  MP_TRUE=
-  MP_FALSE='#'
+ if test "x$enable_ptex" = xyes; then
+  PTEX_TRUE=
+  PTEX_FALSE='#'
 else
-  MP_TRUE='#'
-  MP_FALSE=
+  PTEX_TRUE='#'
+  PTEX_FALSE=
 fi
 
-case $enable_native_texlive_build:$enable_mp_synctex in #(
+case $enable_native_texlive_build:$enable_ptex_synctex in #(
   yes:no | no:yes | no:no) :
      ;; #(
   *) :
-    if test -z "$enable_mp_synctex"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-mp-synctex=no'" >&5
-$as_echo "$as_me: Assuming \`--enable-mp-synctex=no'" >&6;}
+    if test -z "$enable_ptex_synctex"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-ptex-synctex=no'" >&5
+$as_echo "$as_me: Assuming \`--enable-ptex-synctex=no'" >&6;}
 else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-mp-synctex=no' (native TeX Live build)" >&5
-$as_echo "$as_me: WARNING: Enforcing \`--enable-mp-synctex=no' (native TeX Live build)" >&2;}
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-ptex-synctex=no' (native TeX Live build)" >&5
+$as_echo "$as_me: WARNING: Enforcing \`--enable-ptex-synctex=no' (native TeX Live build)" >&2;}
 fi
-         enable_mp_synctex=no ;;
+         enable_ptex_synctex=no ;;
 esac
- if test "x$enable_mp_synctex" = xyes; then
-  MP_SYNCTEX_TRUE=
-  MP_SYNCTEX_FALSE='#'
+ if test "x$enable_ptex_synctex" = xyes; then
+  PTEX_SYNCTEX_TRUE=
+  PTEX_SYNCTEX_FALSE='#'
 else
-  MP_SYNCTEX_TRUE='#'
-  MP_SYNCTEX_FALSE=
+  PTEX_SYNCTEX_TRUE='#'
+  PTEX_SYNCTEX_FALSE=
+fi
+ if test "x$enable_aleph" = xyes; then
+  ALEPH_TRUE=
+  ALEPH_FALSE='#'
+else
+  ALEPH_TRUE='#'
+  ALEPH_FALSE=
+fi
+
+case $enable_native_texlive_build:$enable_aleph_synctex in #(
+  yes:no | no:yes | no:no) :
+     ;; #(
+  *) :
+    if test -z "$enable_aleph_synctex"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-aleph-synctex=no'" >&5
+$as_echo "$as_me: Assuming \`--enable-aleph-synctex=no'" >&6;}
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-aleph-synctex=no' (native TeX Live build)" >&5
+$as_echo "$as_me: WARNING: Enforcing \`--enable-aleph-synctex=no' (native TeX Live build)" >&2;}
+fi
+         enable_aleph_synctex=no ;;
+esac
+ if test "x$enable_aleph_synctex" = xyes; then
+  ALEPH_SYNCTEX_TRUE=
+  ALEPH_SYNCTEX_FALSE='#'
+else
+  ALEPH_SYNCTEX_TRUE='#'
+  ALEPH_SYNCTEX_FALSE=
 fi
 
 test "x$enable_omfonts" = xno || enable_omfonts=yes
@@ -22545,6 +22351,54 @@ ${top_builddir}/../../libs/libpng/include/png.h:
 	cd ${top_builddir}/../../libs/libpng && $(MAKE) $(AM_MAKEFLAGS) rebuild'
 fi
 
+## _KPSE_LIB_FLAGS: Setup pixman (-lpixman) flags
+
+# Check whether --with-system-pixman was given.
+if test "${with_system_pixman+set}" = set; then :
+  withval=$with_system_pixman;
+fi
+if test "x$with_system_pixman" = xyes; then
+  if $PKG_CONFIG pixman-1 --atleast-version=0.18; then
+  PIXMAN_INCLUDES=`$PKG_CONFIG pixman-1 --cflags`
+  PIXMAN_LIBS=`$PKG_CONFIG pixman-1 --libs`
+elif test "x$need_pixman:$with_system_pixman" = xyes:yes; then
+  as_fn_error $? "did not find pixman-0.18 or better" "$LINENO" 5
+fi
+else
+  PIXMAN_INCLUDES="-I$kpse_BLD/libs/pixman/include"
+  PIXMAN_LIBS="$kpse_BLD/libs/pixman/libpixman.la"
+  PIXMAN_DEPEND='${top_builddir}/../../libs/pixman/libpixman.la'
+  PIXMAN_RULE='# Rebuild libpixman
+$(PIXMAN_DEPEND): ${top_builddir}/../../libs/pixman/include/pixman.h
+	cd ${top_builddir}/../../libs/pixman && $(MAKE) $(AM_MAKEFLAGS) rebuild
+${top_builddir}/../../libs/pixman/include/pixman.h:
+	cd ${top_builddir}/../../libs/pixman && $(MAKE) $(AM_MAKEFLAGS) rebuild'
+fi
+
+## _KPSE_LIB_FLAGS: Setup cairo (-lpixman) flags
+
+# Check whether --with-system-cairo was given.
+if test "${with_system_cairo+set}" = set; then :
+  withval=$with_system_cairo;
+fi
+if test "x$with_system_cairo" = xyes; then
+  if $PKG_CONFIG cairo --atleast-version=1.10; then
+  CAIRO_INCLUDES=`$PKG_CONFIG cairo --cflags`
+  CAIRO_LIBS=`$PKG_CONFIG cairo --libs`
+elif test "x$need_cairo:$with_system_cairo" = xyes:yes; then
+  as_fn_error $? "did not find cairo-1.10 or better" "$LINENO" 5
+fi
+else
+  CAIRO_INCLUDES="-I$kpse_BLD/libs/cairo/cairo"
+  CAIRO_LIBS="$kpse_BLD/libs/cairo/libcairo.a"
+  CAIRO_DEPEND='${top_builddir}/../../libs/cairo/libcairo.a'
+  CAIRO_RULE='# Rebuild libpixman
+$(CAIRO_DEPEND): ${top_builddir}/../../libs/cairo/cairo/cairo.h
+	cd ${top_builddir}/../../libs/cairo && $(MAKE) $(AM_MAKEFLAGS) rebuild
+${top_builddir}/../../libs/cairo/cairo/cairo.h:
+	cd ${top_builddir}/../../libs/cairo && $(MAKE) $(AM_MAKEFLAGS) rebuild'
+fi
+
 ## _KPSE_LIB_FLAGS: Setup xpdf (-lxpdf) flags
 
 # Check whether --with-system-xpdf was given.
@@ -22807,76 +22661,6 @@ $(ICU_DEPEND): ${top_builddir}/../../libs/icu/include/unicode/uversion.h
 	cd ${top_builddir}/../../libs/icu && $(MAKE) $(AM_MAKEFLAGS) rebuild
 ${top_builddir}/../../libs/icu/include/unicode/uversion.h:
 	cd ${top_builddir}/../../libs/icu && $(MAKE) $(AM_MAKEFLAGS) rebuild'
-
-## _KPSE_LIB_FLAGS: Setup pixman (-lpixman) flags
-
-# Check whether --with-system-pixman was given.
-if test "${with_system_pixman+set}" = set; then :
-  withval=$with_system_pixman;
-fi
-
-# Check whether --with-pixman-includes was given.
-if test "${with_pixman_includes+set}" = set; then :
-  withval=$with_pixman_includes;
-fi
-
-# Check whether --with-pixman-libdir was given.
-if test "${with_pixman_libdir+set}" = set; then :
-  withval=$with_pixman_libdir;
-fi
-if test "x$with_system_pixman" = xyes; then
-  if test "x$with_pixman_includes" != x && test "x$with_pixman_includes" != xyes; then
-  PIXMAN_INCLUDES="-I$with_pixman_includes"
-fi
-PIXMAN_LIBS="-lpixman-1"
-if test "x$with_pixman_libdir" != x && test "x$with_pixman_libdir" != xyes; then
-  PIXMAN_LIBS="-L$with_pixman_libdir $PIXMAN_LIBS"
-fi
-else
-  PIXMAN_INCLUDES="-I$kpse_BLD/libs/pixman/pixman"
-  PIXMAN_LIBS="$kpse_BLD/libs/pixman/pixman/.libs/libpixman-1.a"
-  PIXMAN_DEPEND='${top_builddir}/../../libs/pixman/pixman/.libs/libpixman-1.a'
-  PIXMAN_RULE='# Rebuild libpixman
-$(PIXMAN_DEPEND): ${top_builddir}/../../libs/pixman/pixman/pixman.h
-	cd ${top_builddir}/../../libs/pixman && $(MAKE) $(AM_MAKEFLAGS) rebuild
-${top_builddir}/../../libs/pixman/pixman/pixman.h:
-	cd ${top_builddir}/../../libs/pixman && $(MAKE) $(AM_MAKEFLAGS) rebuild'
-fi
-
-## _KPSE_LIB_FLAGS: Setup cairo (-lcairo) flags
-
-# Check whether --with-system-cairo was given.
-if test "${with_system_cairo+set}" = set; then :
-  withval=$with_system_cairo;
-fi
-
-# Check whether --with-cairo-includes was given.
-if test "${with_cairo_includes+set}" = set; then :
-  withval=$with_cairo_includes;
-fi
-
-# Check whether --with-cairo-libdir was given.
-if test "${with_cairo_libdir+set}" = set; then :
-  withval=$with_cairo_libdir;
-fi
-if test "x$with_system_cairo" = xyes; then
-  if test "x$with_cairo_includes" != x && test "x$with_cairo_includes" != xyes; then
-  CAIRO_INCLUDES="-I$with_cairo_includes"
-fi
-CAIRO_LIBS="-lcairo"
-if test "x$with_cairo_libdir" != x && test "x$with_cairo_libdir" != xyes; then
-  CAIRO_LIBS="-L$with_cairo_libdir $CAIRO_LIBS"
-fi
-else
-  CAIRO_INCLUDES="-I$kpse_BLD/libs/cairo/src -I$kpse_SRC/libs/cairo/src"
-  CAIRO_LIBS="$kpse_BLD/libs/cairo/src/.libs/libcairo.a"
-  CAIRO_DEPEND='${top_builddir}/../../libs/cairo/src/.libs/libcairo.a'
-  CAIRO_RULE='# Rebuild libcairo
-$(CAIRO_DEPEND): ${top_builddir}/../../libs/cairo/src/cairo.h
-	cd ${top_builddir}/../../libs/cairo && $(MAKE) $(AM_MAKEFLAGS) rebuild
-${top_builddir}/../../libs/cairo/src/cairo.h:
-	cd ${top_builddir}/../../libs/cairo && $(MAKE) $(AM_MAKEFLAGS) rebuild'
-fi
 
 
 # Check size of off_t (using <kpathsea/config.h>)
@@ -23327,7 +23111,7 @@ fi
 subdirs="$subdirs web2c"
 
 
-ac_config_files="$ac_config_files Makefile doc/Makefile lib/Makefile man/Makefile omegafonts/Makefile otps/Makefile otps/win32/Makefile window/Makefile"
+ac_config_files="$ac_config_files Makefile doc/Makefile lib/Makefile man/Makefile window/Makefile"
 
 ac_config_files="$ac_config_files web2c-sh"
 
@@ -23499,48 +23283,20 @@ if test -z "${TEX_SYNCTEX_TRUE}" && test -z "${TEX_SYNCTEX_FALSE}"; then
   as_fn_error $? "conditional \"TEX_SYNCTEX\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
+if test -z "${LUATEX_TRUE}" && test -z "${LUATEX_FALSE}"; then
+  as_fn_error $? "conditional \"LUATEX\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${MP_TRUE}" && test -z "${MP_FALSE}"; then
+  as_fn_error $? "conditional \"MP\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
 if test -z "${ETEX_TRUE}" && test -z "${ETEX_FALSE}"; then
   as_fn_error $? "conditional \"ETEX\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${ETEX_SYNCTEX_TRUE}" && test -z "${ETEX_SYNCTEX_FALSE}"; then
   as_fn_error $? "conditional \"ETEX_SYNCTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${PTEX_TRUE}" && test -z "${PTEX_FALSE}"; then
-  as_fn_error $? "conditional \"PTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${PTEX_SYNCTEX_TRUE}" && test -z "${PTEX_SYNCTEX_FALSE}"; then
-  as_fn_error $? "conditional \"PTEX_SYNCTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${EPTEX_TRUE}" && test -z "${EPTEX_FALSE}"; then
-  as_fn_error $? "conditional \"EPTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${EPTEX_SYNCTEX_TRUE}" && test -z "${EPTEX_SYNCTEX_FALSE}"; then
-  as_fn_error $? "conditional \"EPTEX_SYNCTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${UPTEX_TRUE}" && test -z "${UPTEX_FALSE}"; then
-  as_fn_error $? "conditional \"UPTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${UPTEX_SYNCTEX_TRUE}" && test -z "${UPTEX_SYNCTEX_FALSE}"; then
-  as_fn_error $? "conditional \"UPTEX_SYNCTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${EUPTEX_TRUE}" && test -z "${EUPTEX_FALSE}"; then
-  as_fn_error $? "conditional \"EUPTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${EUPTEX_SYNCTEX_TRUE}" && test -z "${EUPTEX_SYNCTEX_FALSE}"; then
-  as_fn_error $? "conditional \"EUPTEX_SYNCTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${ALEPH_TRUE}" && test -z "${ALEPH_FALSE}"; then
-  as_fn_error $? "conditional \"ALEPH\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${PDFTEX_TRUE}" && test -z "${PDFTEX_FALSE}"; then
@@ -23551,10 +23307,6 @@ if test -z "${PDFTEX_SYNCTEX_TRUE}" && test -z "${PDFTEX_SYNCTEX_FALSE}"; then
   as_fn_error $? "conditional \"PDFTEX_SYNCTEX\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
-if test -z "${LUATEX_TRUE}" && test -z "${LUATEX_FALSE}"; then
-  as_fn_error $? "conditional \"LUATEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
 if test -z "${XETEX_TRUE}" && test -z "${XETEX_FALSE}"; then
   as_fn_error $? "conditional \"XETEX\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
@@ -23563,12 +23315,20 @@ if test -z "${XETEX_SYNCTEX_TRUE}" && test -z "${XETEX_SYNCTEX_FALSE}"; then
   as_fn_error $? "conditional \"XETEX_SYNCTEX\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
-if test -z "${MP_TRUE}" && test -z "${MP_FALSE}"; then
-  as_fn_error $? "conditional \"MP\" was never defined.
+if test -z "${PTEX_TRUE}" && test -z "${PTEX_FALSE}"; then
+  as_fn_error $? "conditional \"PTEX\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
-if test -z "${MP_SYNCTEX_TRUE}" && test -z "${MP_SYNCTEX_FALSE}"; then
-  as_fn_error $? "conditional \"MP_SYNCTEX\" was never defined.
+if test -z "${PTEX_SYNCTEX_TRUE}" && test -z "${PTEX_SYNCTEX_FALSE}"; then
+  as_fn_error $? "conditional \"PTEX_SYNCTEX\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${ALEPH_TRUE}" && test -z "${ALEPH_FALSE}"; then
+  as_fn_error $? "conditional \"ALEPH\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${ALEPH_SYNCTEX_TRUE}" && test -z "${ALEPH_SYNCTEX_FALSE}"; then
+  as_fn_error $? "conditional \"ALEPH_SYNCTEX\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${OTANGLE_TRUE}" && test -z "${OTANGLE_FALSE}"; then
@@ -24601,9 +24361,6 @@ do
     "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
     "lib/Makefile") CONFIG_FILES="$CONFIG_FILES lib/Makefile" ;;
     "man/Makefile") CONFIG_FILES="$CONFIG_FILES man/Makefile" ;;
-    "omegafonts/Makefile") CONFIG_FILES="$CONFIG_FILES omegafonts/Makefile" ;;
-    "otps/Makefile") CONFIG_FILES="$CONFIG_FILES otps/Makefile" ;;
-    "otps/win32/Makefile") CONFIG_FILES="$CONFIG_FILES otps/win32/Makefile" ;;
     "window/Makefile") CONFIG_FILES="$CONFIG_FILES window/Makefile" ;;
     "web2c-sh") CONFIG_FILES="$CONFIG_FILES web2c-sh" ;;
     "tangle-sh") CONFIG_FILES="$CONFIG_FILES tangle-sh" ;;

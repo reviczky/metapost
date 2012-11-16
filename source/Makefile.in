@@ -46,8 +46,6 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/kpse-cairo-flags.m4 \
 	$(top_srcdir)/m4/kpse-freetype-flags.m4 \
 	$(top_srcdir)/m4/kpse-freetype2-flags.m4 \
 	$(top_srcdir)/m4/kpse-gd-flags.m4 \
-	$(top_srcdir)/m4/kpse-graphite-flags.m4 \
-	$(top_srcdir)/m4/kpse-icu-flags.m4 \
 	$(top_srcdir)/m4/kpse-kpathsea-flags.m4 \
 	$(top_srcdir)/m4/kpse-libpng-flags.m4 \
 	$(top_srcdir)/m4/kpse-lt-hack.m4 \
@@ -59,7 +57,6 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/kpse-cairo-flags.m4 \
 	$(top_srcdir)/m4/kpse-ptexenc-flags.m4 \
 	$(top_srcdir)/m4/kpse-setup.m4 \
 	$(top_srcdir)/m4/kpse-t1lib-flags.m4 \
-	$(top_srcdir)/m4/kpse-teckit-flags.m4 \
 	$(top_srcdir)/m4/kpse-warnings.m4 \
 	$(top_srcdir)/m4/kpse-web2c.m4 $(top_srcdir)/m4/kpse-win32.m4 \
 	$(top_srcdir)/m4/kpse-xpdf-flags.m4 \
@@ -71,17 +68,17 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/kpse-cairo-flags.m4 \
 	$(top_srcdir)/version.ac \
 	$(top_srcdir)/texk/web2c/ac/withenable.ac \
 	$(top_srcdir)/texk/web2c/ac/web2c.ac \
-	$(top_srcdir)/libs/libpng/ac/withenable.ac \
-	$(top_srcdir)/libs/zlib/ac/withenable.ac \
 	$(top_srcdir)/libs/cairo/ac/withenable.ac \
 	$(top_srcdir)/libs/pixman/ac/withenable.ac \
+	$(top_srcdir)/libs/libpng/ac/withenable.ac \
+	$(top_srcdir)/libs/zlib/ac/withenable.ac \
 	$(top_srcdir)/texk/kpathsea/ac/withenable.ac \
 	$(top_srcdir)/texk/kpathsea/ac/mktex.ac \
 	$(top_srcdir)/texk/kpathsea/ac/kpathsea.ac \
-	$(top_srcdir)/libs/pixman/ac/pixman.ac \
-	$(top_srcdir)/libs/cairo/ac/cairo.ac \
 	$(top_srcdir)/libs/zlib/ac/zlib.ac \
 	$(top_srcdir)/libs/libpng/ac/libpng.ac \
+	$(top_srcdir)/libs/pixman/ac/pixman.ac \
+	$(top_srcdir)/libs/cairo/ac/cairo.ac \
 	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
@@ -176,7 +173,6 @@ EXEEXT = @EXEEXT@
 FGREP = @FGREP@
 FT2_CONFIG = @FT2_CONFIG@
 GREP = @GREP@
-ICU_CONFIG = @ICU_CONFIG@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@

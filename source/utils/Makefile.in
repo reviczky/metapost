@@ -61,10 +61,10 @@ am__aclocal_m4_deps = $(top_srcdir)/../m4/kpse-cairo-flags.m4 \
 	$(top_srcdir)/../m4/kpse-zlib-flags.m4 \
 	$(top_srcdir)/../texk/web2c/ac/withenable.ac \
 	$(top_srcdir)/../texk/web2c/ac/web2c.ac \
-	$(top_srcdir)/../libs/libpng/ac/withenable.ac \
-	$(top_srcdir)/../libs/zlib/ac/withenable.ac \
 	$(top_srcdir)/../libs/cairo/ac/withenable.ac \
 	$(top_srcdir)/../libs/pixman/ac/withenable.ac \
+	$(top_srcdir)/../libs/libpng/ac/withenable.ac \
+	$(top_srcdir)/../libs/zlib/ac/withenable.ac \
 	$(top_srcdir)/../texk/kpathsea/ac/withenable.ac \
 	$(top_srcdir)/../texk/kpathsea/ac/mktex.ac \
 	$(top_srcdir)/configure.ac
@@ -220,7 +220,6 @@ psdir = @psdir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
-subdirs = @subdirs@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
