@@ -265,6 +265,8 @@ KPSE_KPATHSEA_FLAGS
 KPSE_PTEXENC_FLAGS
 KPSE_ZLIB_FLAGS
 KPSE_LIBPNG_FLAGS
+KPSE_PIXMAN_FLAGS
+KPSE_CAIRO_FLAGS
 KPSE_XPDF_FLAGS
 KPSE_POPPLER_FLAGS
 KPSE_ZZIPLIB_FLAGS
@@ -272,8 +274,6 @@ KPSE_GRAPHITE_FLAGS
 KPSE_FREETYPE2_FLAGS
 KPSE_TECKIT_FLAGS
 KPSE_ICU_XETEX_FLAGS([icule])
-KPSE_PIXMAN_FLAGS
-KPSE_CAIRO_FLAGS
 
 # Check size of off_t (using <kpathsea/config.h>)
 KPSE_ADD_FLAGS([kpathsea])
@@ -384,7 +384,6 @@ fi
 AC_CONFIG_SUBDIRS([web2c])
 
 AC_CONFIG_FILES([Makefile doc/Makefile lib/Makefile man/Makefile
-                 omegafonts/Makefile otps/Makefile otps/win32/Makefile
                  window/Makefile])
 AC_CONFIG_FILES([web2c-sh], [chmod +x web2c-sh])
 AC_CONFIG_FILES([tangle-sh], [chmod +x tangle-sh])

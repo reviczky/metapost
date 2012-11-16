@@ -5,5 +5,6 @@
 
 # sorry, don't know what to do ..
 
-echo '                *** pixman test SKIPPED ***'
+echo '                *** cairo test SKIPPED ***'
 
+exit 77

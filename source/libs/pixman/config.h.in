@@ -3,44 +3,17 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
-/* Whether we have alarm() */
-#undef HAVE_ALARM
-
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
-/* Whether we have feenableexcept() */
-#undef HAVE_FEENABLEEXCEPT
-
-/* Define to 1 if we have <fenv.h> */
-#undef HAVE_FENV_H
-
 /* Define to 1 if you have the `getisax' function. */
 #undef HAVE_GETISAX
-
-/* Whether we have getpagesize() */
-#undef HAVE_GETPAGESIZE
-
-/* Whether we have gettimeofday() */
-#undef HAVE_GETTIMEOFDAY
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
-
-/* Whether we have mmap() */
-#undef HAVE_MMAP
-
-/* Whether we have mprotect() */
-#undef HAVE_MPROTECT
-
-/* Whether we have posix_memalign() */
-#undef HAVE_POSIX_MEMALIGN
-
-/* Whether we have sigaction() */
-#undef HAVE_SIGACTION
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -53,9 +26,6 @@
 
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
-
-/* Define to 1 if we have <sys/mman.h> */
-#undef HAVE_SYS_MMAN_H
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
@@ -123,9 +93,6 @@
 
 /* use MIPS DSPr2 assembly optimizations */
 #undef USE_MIPS_DSPR2
-
-/* use OpenMP in the test suite */
-#undef USE_OPENMP
 
 /* use SSE2 compiler intrinsics */
 #undef USE_SSE2

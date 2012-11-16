@@ -1,21 +1,14 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl
-dnl   Copyright (C) 2009-2011 Peter Breitenlohner <tex-live@tug.org>
+dnl   Copyright (C) 2012 Peter Breitenlohner <tex-live@tug.org>
 dnl
 dnl   This file is free software; the copyright holder
 dnl   gives unlimited permission to copy and/or distribute it,
 dnl   with or without modifications, as long as this notice is preserved.
 dnl
 m4_include([version.ac])[] dnl define pixman_version
-
-m4_define([pixman_major], 0)
-m4_define([pixman_minor], 28)
-m4_define([pixman_micro], 0)
-
-m4_define([pixman_version],[pixman_major.pixman_minor.pixman_micro])
-
 AC_INIT([pixman for TeX Live], pixman_version, [tex-k@tug.org])
-AC_PREREQ([2.57])
+AC_PREREQ([2.65])
 AC_CONFIG_SRCDIR([pixman-]pixman_version[/pixman/pixman.h])
 AC_CONFIG_AUX_DIR([../../build-aux])
 AC_CONFIG_MACRO_DIR([../../m4])
@@ -23,18 +16,45 @@ AC_CONFIG_MACRO_DIR([../../m4])
 AM_INIT_AUTOMAKE([foreign])
 AM_MAINTAINER_MODE
 
+KPSE_LIB_VERSION([pixman])[]dnl
+AC_SUBST([PIXMAN_VERSION_MAJOR], [pixman_major])[]dnl
+AC_SUBST([PIXMAN_VERSION_MINOR], [pixman_minor])[]dnl
+AC_SUBST([PIXMAN_VERSION_MICRO], [pixman_micro])[]dnl
+
+enable_static=yes enable_shared=no
+
+LT_INIT
+
+test_CFLAGS=${CFLAGS+set} # We may override autoconf default CFLAGS.
+
 AC_PROG_CC
-AM_PROG_AS
-AC_PROG_LIBTOOL
 AC_CHECK_FUNCS([getisax])
 AC_C_BIGENDIAN
 AC_C_INLINE
 
-AC_CONFIG_HEADERS([config.h])[]dnl unused, to avoid zillions of -D' on command line
+KPSE_COMPILER_WARNINGS
+
+AC_CONFIG_HEADERS([config.h])
 
 AM_CONDITIONAL([build], [test "x$enable_build" != xno])
 
-AC_DEFINE(PIXMAN_NO_TLS, 1, [We do not want threading])
+AC_DEFINE([PIXMAN_NO_TLS], 1, [We do not want threading])
+
+dnl add all these to config.h.in but do not define them in config.h
+if false; then
+   AC_DEFINE([USE_LOONGSON_MMI], 1, [use Loongson Multimedia Instructions])
+   AC_DEFINE([USE_X86_MMX], 1, [use x86 MMX compiler intrinsics])
+   AC_DEFINE([USE_SSE2], 1, [use SSE2 compiler intrinsics])
+   AC_DEFINE([USE_VMX], 1, [use VMX compiler intrinsics])
+   AC_DEFINE([USE_ARM_SIMD], 1, [use ARM SIMD assembly optimizations])
+   AC_DEFINE([USE_ARM_NEON], 1, [use ARM NEON assembly optimizations])
+   AC_DEFINE([USE_ARM_IWMMXT], 1, [use ARM IWMMXT compiler intrinsics])
+   AC_DEFINE([USE_MIPS_DSPR2], 1, [use MIPS DSPr2 assembly optimizations])
+   AC_DEFINE([USE_GCC_INLINE_ASM], 1, [use GNU-style inline assembler])
+   AC_DEFINE([PIXMAN_TIMERS], 1, [enable TIMER_BEGIN/TIMER_END macros])
+   AC_DEFINE([TOOLCHAIN_SUPPORTS_ATTRIBUTE_CONSTRUCTOR], 1,
+             [Whether the tool chain supports __attribute__((constructor))])
+fi
 
 dnl PIXMAN_LINK_WITH_ENV(env-setup, program, true-action, false-action)
 dnl
@@ -102,7 +122,7 @@ AC_DEFUN([PIXMAN_CHECK_CFLAG], [dnl
 	AC_MSG_RESULT($_yesno)
 ])
 
-AC_CHECK_SIZEOF(long)
+AC_CHECK_SIZEOF([long])
 
 # Checks for Sun Studio compilers
 AC_CHECK_DECL([__SUNPRO_C], [SUNCC="yes"], [SUNCC="no"])
@@ -118,697 +138,19 @@ then
   CFLAGS="-O -g"
 fi
 
-# 
-# We ignore pixman_major in the version here because the major version should
-# always be encoded in the actual library name. Ie., the soname is:
-#
-#      pixman-$(pixman_major).0.minor.micro
-#
-m4_define([lt_current], [pixman_minor])
-m4_define([lt_revision], [pixman_micro])
-m4_define([lt_age], [pixman_minor])
-
-LT_VERSION_INFO="lt_current:lt_revision:lt_age"
-
-PIXMAN_VERSION_MAJOR=pixman_major()
-AC_SUBST(PIXMAN_VERSION_MAJOR)
-PIXMAN_VERSION_MINOR=pixman_minor()
-AC_SUBST(PIXMAN_VERSION_MINOR)
-PIXMAN_VERSION_MICRO=pixman_micro()
-AC_SUBST(PIXMAN_VERSION_MICRO)
-
-AC_SUBST(LT_VERSION_INFO)
-
 # Check for dependencies
 
 PIXMAN_CHECK_CFLAG([-Wall])
 PIXMAN_CHECK_CFLAG([-fno-strict-aliasing])
 
-dnl =========================================================================
-dnl OpenMP for the test suite?
-dnl
-
-# Check for OpenMP support only when autoconf support that (require autoconf >=2.62)
-OPENMP_CFLAGS=
-m4_ifdef([AC_OPENMP], [AC_OPENMP])
-
-if test "x$enable_openmp" = "xyes" && test "x$ac_cv_prog_c_openmp" = "xunsupported" ; then
-  AC_MSG_WARN([OpenMP support requested but found unsupported])
-fi
-
-dnl May not fail to link without -Wall -Werror added
-dnl So try to link only when openmp is supported
-dnl ac_cv_prog_c_openmp is not defined when --disable-openmp is used
-if test "x$ac_cv_prog_c_openmp" != "xunsupported" && test "x$ac_cv_prog_c_openmp" != "x"; then
-  m4_define([openmp_test_program],[dnl
-  #include <stdio.h>
-
-  extern unsigned int lcg_seed;
-  #pragma omp threadprivate(lcg_seed)
-  unsigned int lcg_seed;
-
-  unsigned function(unsigned a, unsigned b)
-  {
-	lcg_seed ^= b;
-	return ((a + b) ^ a ) + lcg_seed;
-  }
-
-  int main(int argc, char **argv)
-  {
-	int i;
-	int n1 = 0, n2 = argc;
-	unsigned checksum = 0;
-	int verbose = argv != NULL;
-	unsigned (*test_function)(unsigned, unsigned);
-	test_function = function;
-	#pragma omp parallel for reduction(+:checksum) default(none) \
-					shared(n1, n2, test_function, verbose)
-	for (i = n1; i < n2; i++)
-	{
-		unsigned crc = test_function (i, 0);
-		if (verbose)
-			printf ("%d: %08X\n", i, crc);
-		checksum += crc;
-	}
-	printf("%u\n", checksum);
-	return 0;
-  }
-  ])
-
-  PIXMAN_LINK_WITH_ENV(
-	[CFLAGS="$OPENMP_CFLAGS" LDFLAGS="$OPENMP_CFLAGS"],
-	[openmp_test_program],
-	[have_openmp=yes],
-	[have_openmp=no])
-  if test "x$have_openmp" = "xyes" ; then
-    AC_DEFINE(USE_OPENMP, 1, [use OpenMP in the test suite])
-  fi
-fi
-AC_SUBST(OPENMP_CFLAGS)
-
-dnl =========================================================================
-dnl -fvisibility stuff
-
-PIXMAN_CHECK_CFLAG([-fvisibility=hidden], [dnl
-#if defined(__GNUC__) && (__GNUC__ >= 4)
-#ifdef _WIN32
-#error Have -fvisibility but it is ignored and generates a warning
-#endif
-#else
-#error Need GCC 4.0 for visibility
-#endif
-])
-
-PIXMAN_CHECK_CFLAG([-xldscope=hidden], [dnl
-#if defined(__SUNPRO_C) && (__SUNPRO_C >= 0x550)
-#else
-#error Need Sun Studio 8 for visibility
-#endif
-])
-
-dnl ===========================================================================
-dnl Check for Loongson Multimedia Instructions
-
-if test "x$LS_CFLAGS" = "x" ; then
-    LS_CFLAGS="-march=loongson2f"
-fi
-
-have_loongson_mmi=no
-AC_MSG_CHECKING(whether to use Loongson MMI assembler)
-
-xserver_save_CFLAGS=$CFLAGS
-CFLAGS=" $LS_CFLAGS $CFLAGS -I$srcdir"
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-#ifndef __mips_loongson_vector_rev
-#error "Loongson Multimedia Instructions are only available on Loongson"
-#endif
-#if defined(__GNUC__) && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4))
-#error "Need GCC >= 4.4 for Loongson MMI compilation"
-#endif
-#include "pixman/loongson-mmintrin.h"
-int main () {
-    union {
-        __m64 v;
-        char c[8];
-    } a = { .c = {1, 2, 3, 4, 5, 6, 7, 8} };
-    int b = 4;
-    __m64 c = _mm_srli_pi16 (a.v, b);
-    return 0;
-}]])], have_loongson_mmi=yes)
-CFLAGS=$xserver_save_CFLAGS
-
-AC_ARG_ENABLE(loongson-mmi,
-   [AC_HELP_STRING([--disable-loongson-mmi],
-                   [disable Loongson MMI fast paths])],
-   [enable_loongson_mmi=$enableval], [enable_loongson_mmi=auto])
-
-if test $enable_loongson_mmi = no ; then
-   have_loongson_mmi=disabled
-fi
-
-if test $have_loongson_mmi = yes ; then
-   AC_DEFINE(USE_LOONGSON_MMI, 1, [use Loongson Multimedia Instructions])
-else
-   LS_CFLAGS=
-fi
-
-AC_MSG_RESULT($have_loongson_mmi)
-if test $enable_loongson_mmi = yes && test $have_loongson_mmi = no ; then
-   AC_MSG_ERROR([Loongson MMI not detected])
-fi
-
-AM_CONDITIONAL(USE_LOONGSON_MMI, test $have_loongson_mmi = yes)
-
-dnl ===========================================================================
-dnl Check for MMX
-
-if test "x$MMX_CFLAGS" = "x" ; then
-   if test "x$SUNCC" = "xyes"; then
-      # Sun Studio doesn't have an -xarch=mmx flag, so we have to use sse
-      # but if we're building 64-bit, mmx & sse support is on by default and
-      # -xarch=sse throws an error instead
-      if test "$AMD64_ABI" = "no" ; then
-         MMX_CFLAGS="-xarch=sse"
-      fi
-   else
-      MMX_CFLAGS="-mmmx -Winline"
-   fi
-fi
-
-have_mmx_intrinsics=no
-AC_MSG_CHECKING(whether to use MMX intrinsics)
-xserver_save_CFLAGS=$CFLAGS
-CFLAGS="$MMX_CFLAGS $CFLAGS"
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-#if defined(__GNUC__) && (__GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 4))
-#error "Need GCC >= 3.4 for MMX intrinsics"
-#endif
-#include <mmintrin.h>
-int main () {
-    __m64 v = _mm_cvtsi32_si64 (1);
-    __m64 w;
-
-    /* Some versions of clang will choke on K */
-    asm ("pshufw %2, %1, %0\n\t"
-        : "=y" (w)
-        : "y" (v), "K" (5)
-    );
-
-    return _mm_cvtsi64_si32 (v);
-}]])], have_mmx_intrinsics=yes)
-CFLAGS=$xserver_save_CFLAGS
-
-AC_ARG_ENABLE(mmx,
-   [AC_HELP_STRING([--disable-mmx],
-                   [disable x86 MMX fast paths])],
-   [enable_mmx=$enableval], [enable_mmx=auto])
-
-if test $enable_mmx = no ; then
-   have_mmx_intrinsics=disabled
-fi
-
-if test $have_mmx_intrinsics = yes ; then
-   AC_DEFINE(USE_X86_MMX, 1, [use x86 MMX compiler intrinsics])
-else
-   MMX_CFLAGS=
-fi
-
-AC_MSG_RESULT($have_mmx_intrinsics)
-if test $enable_mmx = yes && test $have_mmx_intrinsics = no ; then
-   AC_MSG_ERROR([x86 MMX intrinsics not detected])
-fi
-
-AM_CONDITIONAL(USE_X86_MMX, test $have_mmx_intrinsics = yes)
-
-dnl ===========================================================================
-dnl Check for SSE2
-
-if test "x$SSE2_CFLAGS" = "x" ; then
-   if test "x$SUNCC" = "xyes"; then
-      # SSE2 is enabled by default in the Sun Studio 64-bit environment
-      if test "$AMD64_ABI" = "no" ; then
-         SSE2_CFLAGS="-xarch=sse2"
-      fi
-   else
-      SSE2_CFLAGS="-msse2 -Winline"
-   fi
-fi
-
-have_sse2_intrinsics=no
-AC_MSG_CHECKING(whether to use SSE2 intrinsics)
-xserver_save_CFLAGS=$CFLAGS
-CFLAGS="$SSE2_CFLAGS $CFLAGS"
-
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-#if defined(__GNUC__) && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 2))
-#   if !defined(__amd64__) && !defined(__x86_64__)
-#      error "Need GCC >= 4.2 for SSE2 intrinsics on x86"
-#   endif
-#endif
-#include <mmintrin.h>
-#include <xmmintrin.h>
-#include <emmintrin.h>
-int main () {
-    __m128i a = _mm_set1_epi32 (0), b = _mm_set1_epi32 (0), c;
-	c = _mm_xor_si128 (a, b);
-    return 0;
-}]])], have_sse2_intrinsics=yes)
-CFLAGS=$xserver_save_CFLAGS
-
-AC_ARG_ENABLE(sse2,
-   [AC_HELP_STRING([--disable-sse2],
-                   [disable SSE2 fast paths])],
-   [enable_sse2=$enableval], [enable_sse2=auto])
-
-if test $enable_sse2 = no ; then
-   have_sse2_intrinsics=disabled
-fi
-
-if test $have_sse2_intrinsics = yes ; then
-   AC_DEFINE(USE_SSE2, 1, [use SSE2 compiler intrinsics])
-fi
-
-AC_MSG_RESULT($have_sse2_intrinsics)
-if test $enable_sse2 = yes && test $have_sse2_intrinsics = no ; then
-   AC_MSG_ERROR([SSE2 intrinsics not detected])
-fi
-
-AM_CONDITIONAL(USE_SSE2, test $have_sse2_intrinsics = yes)
-
-dnl ===========================================================================
-dnl Other special flags needed when building code using MMX or SSE instructions
-case $host_os in
-   solaris*)
-      # When building 32-bit binaries, apply a mapfile to ensure that the
-      # binaries aren't flagged as only able to run on MMX+SSE capable CPUs
-      # since they check at runtime before using those instructions.
-      # Not all linkers grok the mapfile format so we check for that first.
-      if test "$AMD64_ABI" = "no" ; then
-	 use_hwcap_mapfile=no
-	 AC_MSG_CHECKING(whether to use a hardware capability map file)
-	 hwcap_save_LDFLAGS="$LDFLAGS"
-	 HWCAP_LDFLAGS='-Wl,-M,$(srcdir)/solaris-hwcap.mapfile'
-	 LDFLAGS="$LDFLAGS -Wl,-M,pixman/solaris-hwcap.mapfile"
-	 AC_LINK_IFELSE([AC_LANG_SOURCE([[int main() { return 0; }]])],
-			use_hwcap_mapfile=yes,
-			HWCAP_LDFLAGS="")
-	 LDFLAGS="$hwcap_save_LDFLAGS"
-	 AC_MSG_RESULT($use_hwcap_mapfile)
-      fi
-      if test "x$MMX_LDFLAGS" = "x" ; then
-         MMX_LDFLAGS="$HWCAP_LDFLAGS"
-      fi
-      if test "x$SSE2_LDFLAGS" = "x" ; then
-	 SSE2_LDFLAGS="$HWCAP_LDFLAGS"
-      fi
-      ;;
-esac
-
-AC_SUBST(LS_CFLAGS)
-AC_SUBST(IWMMXT_CFLAGS)
-AC_SUBST(MMX_CFLAGS)
-AC_SUBST(MMX_LDFLAGS)
-AC_SUBST(SSE2_CFLAGS)
-AC_SUBST(SSE2_LDFLAGS)
-
-dnl ===========================================================================
-dnl Check for VMX/Altivec
-if test -n "`$CC -v 2>&1 | grep version | grep Apple`"; then
-    VMX_CFLAGS="-faltivec"
-else
-    VMX_CFLAGS="-maltivec -mabi=altivec"
-fi
-
-have_vmx_intrinsics=no
-AC_MSG_CHECKING(whether to use VMX/Altivec intrinsics)
-xserver_save_CFLAGS=$CFLAGS
-CFLAGS="$VMX_CFLAGS $CFLAGS"
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-#if defined(__GNUC__) && (__GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 4))
-#error "Need GCC >= 3.4 for sane altivec support"
-#endif
-#include <altivec.h>
-int main () {
-    vector unsigned int v = vec_splat_u32 (1);
-    v = vec_sub (v, v);
-    return 0;
-}]])], have_vmx_intrinsics=yes)
-CFLAGS=$xserver_save_CFLAGS
-
-AC_ARG_ENABLE(vmx,
-   [AC_HELP_STRING([--disable-vmx],
-                   [disable VMX fast paths])],
-   [enable_vmx=$enableval], [enable_vmx=auto])
-
-if test $enable_vmx = no ; then
-   have_vmx_intrinsics=disabled
-fi
-
-if test $have_vmx_intrinsics = yes ; then
-   AC_DEFINE(USE_VMX, 1, [use VMX compiler intrinsics])
-else
-   VMX_CFLAGS=
-fi
-
-AC_MSG_RESULT($have_vmx_intrinsics)
-if test $enable_vmx = yes && test $have_vmx_intrinsics = no ; then
-   AC_MSG_ERROR([VMX intrinsics not detected])
-fi
-
-AC_SUBST(VMX_CFLAGS)
-
-AM_CONDITIONAL(USE_VMX, test $have_vmx_intrinsics = yes)
-
-dnl ==========================================================================
-dnl Check if assembler is gas compatible and supports ARM SIMD instructions
-have_arm_simd=no
-AC_MSG_CHECKING(whether to use ARM SIMD assembler)
-xserver_save_CFLAGS=$CFLAGS
-CFLAGS="-x assembler-with-cpp $CFLAGS"
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-.text
-.arch armv6
-.object_arch armv4
-.arm
-.altmacro
-#ifndef __ARM_EABI__
-#error EABI is required (to be sure that calling conventions are compatible)
-#endif
-pld [r0]
-uqadd8 r0, r0, r0]])], have_arm_simd=yes)
-CFLAGS=$xserver_save_CFLAGS
-
-AC_ARG_ENABLE(arm-simd,
-   [AC_HELP_STRING([--disable-arm-simd],
-                   [disable ARM SIMD fast paths])],
-   [enable_arm_simd=$enableval], [enable_arm_simd=auto])
-
-if test $enable_arm_simd = no ; then
-   have_arm_simd=disabled
-fi
-
-if test $have_arm_simd = yes ; then
-   AC_DEFINE(USE_ARM_SIMD, 1, [use ARM SIMD assembly optimizations])
-fi
-
-AM_CONDITIONAL(USE_ARM_SIMD, test $have_arm_simd = yes)
-
-AC_MSG_RESULT($have_arm_simd)
-if test $enable_arm_simd = yes && test $have_arm_simd = no ; then
-   AC_MSG_ERROR([ARM SIMD intrinsics not detected])
-fi
-
-dnl ==========================================================================
-dnl Check if assembler is gas compatible and supports NEON instructions
-have_arm_neon=no
-AC_MSG_CHECKING(whether to use ARM NEON assembler)
-xserver_save_CFLAGS=$CFLAGS
-CFLAGS="-x assembler-with-cpp $CFLAGS"
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-.text
-.fpu neon
-.arch armv7a
-.object_arch armv4
-.eabi_attribute 10, 0
-.arm
-.altmacro
-#ifndef __ARM_EABI__
-#error EABI is required (to be sure that calling conventions are compatible)
-#endif
-pld [r0]
-vmovn.u16 d0, q0]])], have_arm_neon=yes)
-CFLAGS=$xserver_save_CFLAGS
-
-AC_ARG_ENABLE(arm-neon,
-   [AC_HELP_STRING([--disable-arm-neon],
-                   [disable ARM NEON fast paths])],
-   [enable_arm_neon=$enableval], [enable_arm_neon=auto])
-
-if test $enable_arm_neon = no ; then
-   have_arm_neon=disabled
-fi
-
-if test $have_arm_neon = yes ; then
-   AC_DEFINE(USE_ARM_NEON, 1, [use ARM NEON assembly optimizations])
-fi
-
-AM_CONDITIONAL(USE_ARM_NEON, test $have_arm_neon = yes)
-
-AC_MSG_RESULT($have_arm_neon)
-if test $enable_arm_neon = yes && test $have_arm_neon = no ; then
-   AC_MSG_ERROR([ARM NEON intrinsics not detected])
-fi
-
-dnl ===========================================================================
-dnl Check for IWMMXT
-
-AC_ARG_ENABLE(arm-iwmmxt,
-   [AC_HELP_STRING([--disable-arm-iwmmxt],
-                   [disable ARM IWMMXT fast paths])],
-   [enable_iwmmxt=$enableval], [enable_iwmmxt=auto])
-
-AC_ARG_ENABLE(arm-iwmmxt2,
-   [AC_HELP_STRING([--disable-arm-iwmmxt2],
-                   [build ARM IWMMXT fast paths with -march=iwmmxt instead of -march=iwmmxt2])],
-   [enable_iwmmxt2=$enableval], [enable_iwmmxt2=auto])
-
-if test "x$IWMMXT_CFLAGS" = "x" ; then
-   IWMMXT_CFLAGS="-flax-vector-conversions -Winline -march=iwmmxt"
-   if test $enable_iwmmxt2 != no ; then
-      IWMMXT_CFLAGS+="2"
-   fi
-fi
-
-have_iwmmxt_intrinsics=no
-AC_MSG_CHECKING(whether to use ARM IWMMXT intrinsics)
-xserver_save_CFLAGS=$CFLAGS
-CFLAGS="$CFLAGS $IWMMXT_CFLAGS"
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-#ifndef __arm__
-#error "IWMMXT is only available on ARM"
-#endif
-#ifndef __IWMMXT__
-#error "IWMMXT not enabled (with -march=iwmmxt)"
-#endif
-#if defined(__GNUC__) && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 5))
-#error "Need GCC >= 4.5 for IWMMXT intrinsics"
-#endif
-#include <mmintrin.h>
-int main () {
-	union {
-		__m64 v;
-		char c[8];
-	} a = { .c = {1, 2, 3, 4, 5, 6, 7, 8} };
-	int b = 4;
-	__m64 c = _mm_srli_si64 (a.v, b);
-}]])], have_iwmmxt_intrinsics=yes)
-CFLAGS=$xserver_save_CFLAGS
-
-if test $enable_iwmmxt = no ; then
-   have_iwmmxt_intrinsics=disabled
-fi
-
-if test $have_iwmmxt_intrinsics = yes ; then
-   AC_DEFINE(USE_ARM_IWMMXT, 1, [use ARM IWMMXT compiler intrinsics])
-else
-   IWMMXT_CFLAGS=
-fi
-
-AC_MSG_RESULT($have_iwmmxt_intrinsics)
-if test $enable_iwmmxt = yes && test $have_iwmmxt_intrinsics = no ; then
-   AC_MSG_ERROR([IWMMXT intrinsics not detected])
-fi
-
-AM_CONDITIONAL(USE_ARM_IWMMXT, test $have_iwmmxt_intrinsics = yes)
-
-dnl ==========================================================================
-dnl Check if assembler is gas compatible and supports MIPS DSPr2 instructions
-
-have_mips_dspr2=no
-AC_MSG_CHECKING(whether to use MIPS DSPr2 assembler)
-xserver_save_CFLAGS=$CFLAGS
-CFLAGS="-mdspr2 $CFLAGS"
-
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-#if !(defined(__mips__) &&  __mips_isa_rev >= 2)
-#error MIPS DSPr2 is currently only available on MIPS32r2 platforms.
-#endif
-int
-main ()
-{
-    int c = 0, a = 0, b = 0;
-    __asm__ __volatile__ (
-        "precr.qb.ph %[c], %[a], %[b]          \n\t"
-        : [c] "=r" (c)
-        : [a] "r" (a), [b] "r" (b)
-    );
-    return c;
-}]])], have_mips_dspr2=yes)
-CFLAGS=$xserver_save_CFLAGS
-
-AC_ARG_ENABLE(mips-dspr2,
-   [AC_HELP_STRING([--disable-mips-dspr2],
-                   [disable MIPS DSPr2 fast paths])],
-   [enable_mips_dspr2=$enableval], [enable_mips_dspr2=auto])
-
-if test $enable_mips_dspr2 = no ; then
-   have_mips_dspr2=disabled
-fi
-
-if test $have_mips_dspr2 = yes ; then
-   AC_DEFINE(USE_MIPS_DSPR2, 1, [use MIPS DSPr2 assembly optimizations])
-fi
-
-AM_CONDITIONAL(USE_MIPS_DSPR2, test $have_mips_dspr2 = yes)
-
-AC_MSG_RESULT($have_mips_dspr2)
-if test $enable_mips_dspr2 = yes && test $have_mips_dspr2 = no ; then
-   AC_MSG_ERROR([MIPS DSPr2 instructions not detected])
-fi
-
-dnl =========================================================================================
-dnl Check for GNU-style inline assembly support
-
-have_gcc_inline_asm=no
-AC_MSG_CHECKING(whether to use GNU-style inline assembler)
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-int main () {
-    /* Most modern architectures have a NOP instruction, so this is a fairly generic test. */
-	asm volatile ( "\tnop\n" : : : "cc", "memory" );
-    return 0;
-}]])], have_gcc_inline_asm=yes)
-
-AC_ARG_ENABLE(gcc-inline-asm,
-   [AC_HELP_STRING([--disable-gcc-inline-asm],
-                   [disable GNU-style inline assembler])],
-   [enable_gcc_inline_asm=$enableval], [enable_gcc_inline_asm=auto])
-
-if test $enable_gcc_inline_asm = no ; then
-   have_gcc_inline_asm=disabled
-fi
-
-if test $have_gcc_inline_asm = yes ; then
-   AC_DEFINE(USE_GCC_INLINE_ASM, 1, [use GNU-style inline assembler])
-fi
-
-AC_MSG_RESULT($have_gcc_inline_asm)
-if test $enable_gcc_inline_asm = yes && test $have_gcc_inline_asm = no ; then
-   AC_MSG_ERROR([GNU-style inline assembler not detected])
-fi
-
-AM_CONDITIONAL(USE_GCC_INLINE_ASM, test $have_gcc_inline_asm = yes)
-
-dnl ==============================================
-dnl Static test programs
-
-AC_ARG_ENABLE(static-testprogs,
-   [AC_HELP_STRING([--enable-static-testprogs],
-		   [build test programs as static binaries [default=no]])],
-   [enable_static_testprogs=$enableval], [enable_static_testprogs=no])
-
-TESTPROGS_EXTRA_LDFLAGS=
-if test "x$enable_static_testprogs" = "xyes" ; then
-   TESTPROGS_EXTRA_LDFLAGS="-all-static"
-fi
-AC_SUBST(TESTPROGS_EXTRA_LDFLAGS)
-
-dnl ==============================================
-dnl Timers
-
-AC_ARG_ENABLE(timers,
-   [AC_HELP_STRING([--enable-timers],
-		   [enable TIMER_BEGIN and TIMER_END macros [default=no]])],
-   [enable_timers=$enableval], [enable_timers=no])
-
-if test $enable_timers = yes ; then 
-   AC_DEFINE(PIXMAN_TIMERS, 1, [enable TIMER_BEGIN/TIMER_END macros])
-fi
-AC_SUBST(PIXMAN_TIMERS)
-
-dnl =====================================
-dnl posix_memalign, sigaction, alarm, gettimeofday
-
-AC_CHECK_FUNC(posix_memalign, have_posix_memalign=yes, have_posix_memalign=no)
-if test x$have_posix_memalign = xyes; then
-   AC_DEFINE(HAVE_POSIX_MEMALIGN, 1, [Whether we have posix_memalign()])
-fi
-
-AC_CHECK_FUNC(sigaction, have_sigaction=yes, have_sigaction=no)
-if test x$have_sigaction = xyes; then
-   AC_DEFINE(HAVE_SIGACTION, 1, [Whether we have sigaction()])
-fi
-
-AC_CHECK_FUNC(alarm, have_alarm=yes, have_alarm=no)
-if test x$have_alarm = xyes; then
-   AC_DEFINE(HAVE_ALARM, 1, [Whether we have alarm()])
-fi
-
-AC_CHECK_HEADER([sys/mman.h],
-   [AC_DEFINE(HAVE_SYS_MMAN_H, [1], [Define to 1 if we have <sys/mman.h>])])
-
-AC_CHECK_FUNC(mmap, have_mmap=yes, have_mmap=no)
-if test x$have_mmap = xyes; then
-   AC_DEFINE(HAVE_MMAP, 1, [Whether we have mmap()])
-fi
-
-AC_CHECK_FUNC(mprotect, have_mprotect=yes, have_mprotect=no)
-if test x$have_mprotect = xyes; then
-   AC_DEFINE(HAVE_MPROTECT, 1, [Whether we have mprotect()])
-fi
-
-AC_CHECK_FUNC(getpagesize, have_getpagesize=yes, have_getpagesize=no)
-if test x$have_getpagesize = xyes; then
-   AC_DEFINE(HAVE_GETPAGESIZE, 1, [Whether we have getpagesize()])
-fi
-
-AC_CHECK_HEADER([fenv.h],
-   [AC_DEFINE(HAVE_FENV_H, [1], [Define to 1 if we have <fenv.h>])])
-
-AC_CHECK_LIB(m, feenableexcept, have_feenableexcept=yes, have_feenableexcept=no)
-if test x$have_feenableexcept = xyes; then
-   AC_DEFINE(HAVE_FEENABLEEXCEPT, 1, [Whether we have feenableexcept()])
-fi
-
-AC_CHECK_FUNC(gettimeofday, have_gettimeofday=yes, have_gettimeofday=no)
-AC_CHECK_HEADER(sys/time.h, have_sys_time_h=yes, have_sys_time_h=no)
-if test x$have_gettimeofday = xyes && test x$have_sys_time_h = xyes; then
-   AC_DEFINE(HAVE_GETTIMEOFDAY, 1, [Whether we have gettimeofday()])
-fi
-
-dnl =====================================
-dnl __attribute__((constructor))
-
-support_for_attribute_constructor=no
-
-AC_MSG_CHECKING(for __attribute__((constructor)))
-AC_LINK_IFELSE([AC_LANG_SOURCE([[
-#if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 7))
-/* attribute 'constructor' is supported since gcc 2.7, but some compilers
- * may only pretend to be gcc, so let's try to actually use it
- */
-static int x = 1;
-static void __attribute__((constructor)) constructor_function () { x = 0; }
-int main (void) { return x; }
-#else
-#error not gcc or gcc version is older than 2.7
-#endif
-]])], support_for_attribute_constructor=yes)
-
-if test x$support_for_attribute_constructor = xyes; then
-   AC_DEFINE([TOOLCHAIN_SUPPORTS_ATTRIBUTE_CONSTRUCTOR],
-             [],[Whether the tool chain supports __attribute__((constructor))])
-fi
-
-AC_MSG_RESULT($support_for_attribute_constructor)
-AC_SUBST(TOOLCHAIN_SUPPORTS_ATTRIBUTE_CONSTRUCTOR)
-
-AC_SUBST([PIXMAN_DEFINES])
-
 AC_SUBST([PIXMAN_TREE], [pixman-]pixman_version)
 
+if test -f $srcdir/$PIXMAN_TREE/pixman/pixman-version.h; then
+  AC_MSG_ERROR([Sorry, you must remove the file $PIXMAN_TREE/pixman/pixman-version.h])
+fi
 
 AC_CONFIG_FILES([Makefile
-		 pixman/Makefile
-	         pixman/pixman-version.h])
+		 include/Makefile
+	         pixman-version.h:pixman-]pixman_version[/pixman/pixman-version.h.in])
 
 AC_OUTPUT
