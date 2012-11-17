@@ -19516,7 +19516,7 @@ if (cur_cmd() != mp_comma) {
 @.Missing argument...@>;
     delete_str_ref(sname);    
     if (mp_name_type (r) == mp_suffix_sym || mp_name_type (r) == mp_text_sym) {
-      set_cur_exp_value_number (zero_t);    /* todo: this was |null| */
+      set_cur_exp_value_number (zero_t);  /* todo: this was |null| */
       mp->cur_exp.type = mp_token_list;
     } else {
       set_cur_exp_value_number (zero_t);
@@ -21743,6 +21743,10 @@ void mp_unstash_cur_exp (MP mp, mp_node p) {
   case mp_independent:
   case mp_cmykcolor_type:
     set_cur_exp_node (p);
+    break;
+  case mp_token_list: /* this is how symbols are stashed */
+    set_cur_exp_node (value_node(p));
+    mp_free_node (mp, p, value_node_size);
     break;
   case mp_path_type:
   case mp_pen_type:
