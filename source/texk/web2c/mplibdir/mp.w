@@ -13084,7 +13084,7 @@ do {
       number_equal (p->y_coord, r->left_y) &&
       number_equal (p->x_coord, r->x_coord) && 
       number_equal (p->y_coord, r->y_coord) &&
-      r != p) {
+      r != p && r != q) {
     @<Remove the cubic following |p| and update the data structures
         to merge |r| into |p|@>;
   }
