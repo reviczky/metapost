@@ -10600,7 +10600,7 @@ static void mp_find_offset (MP mp, mp_number x_orig, mp_number y_orig, mp_knot h
       set_number_from_substraction (arg1, q->x_coord, p->x_coord);
       set_number_from_substraction (arg2, q->y_coord, p->y_coord);
       ab_vs_cd (ab_vs_cd, arg1, y_orig, arg2, x_orig);
-    } while (number_negative(ab_vs_cd));
+    } while (number_negative(ab_vs_cd));    
     do {
       p = q;
       q = mp_next_knot (q);
@@ -27647,19 +27647,22 @@ coordinates in locations |p| and~|q|.
 
 @<Declare binary action...@>=
 static void mp_number_trans (MP mp, mp_number p, mp_number q) {
-  mp_number r1, r2;
+  mp_number r1, r2, v;
   new_number (r1);
   new_number (r2);
+  new_number (v);
   take_scaled (r1, p, mp->txx);
   take_scaled (r2, q, mp->txy);
   number_add (r1, r2);
-  set_number_from_addition(p, r1, mp->tx);
+  set_number_from_addition(v, r1, mp->tx);
   take_scaled (r1, p, mp->tyx);
   take_scaled (r2, q, mp->tyy);
   number_add (r1, r2);
   set_number_from_addition(q, r1, mp->ty);
+  number_clone(p,v);
   free_number (r1);
   free_number (r2);
+  free_number(v);
 }
 
 
