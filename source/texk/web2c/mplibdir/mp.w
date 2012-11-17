@@ -6428,9 +6428,7 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t,
     n = mp_sym_sym (t);
     t = mp_link (t);
     if (n == collective_subscript) {
-      r = mp->temp_head;
-      mp_link (r) = subscr_head (p);
-      q = mp_link (r);
+      q = subscr_head (p);
       s_head = q;
       while (mp_name_type (q) == mp_subscr) {
         mp_flush_variable (mp, q, t, discard_suffixes);
@@ -6454,7 +6452,6 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t,
     }
     p = attr_head (p);
     do {
-      /* CLANG never read: r = p; */
       p = mp_link (p);
     } while (hashloc (p) < n);
     if (hashloc (p) != n) {
@@ -29336,14 +29333,27 @@ mp_node mp_scan_declared_variable (MP mp) {
     mp_get_x_next (mp);
     if (cur_sym() == NULL)
       break;
-    if (cur_cmd() != mp_tag_token)
+    if (cur_cmd() != mp_tag_token) {
       if (cur_cmd() != mp_internal_quantity) {
         if (cur_cmd() == mp_left_bracket) {
-          @<Descend past a collective subscript@>;
+          /* Descend past a collective subscript */
+	  /* If the subscript isn't collective, we don't accept it as part of the
+  	     declared variable. */
+	   mp_sym ll = cur_sym();      /* hash address of left bracket */
+	   mp_get_x_next (mp);
+	   if (cur_cmd() == mp_right_bracket) {
+	     set_cur_sym(collective_subscript);
+	   } else {
+	     mp_back_input (mp);
+	     set_cur_sym(ll);
+	     set_cur_cmd((mp_variable_type)mp_left_bracket);
+	     break;  
+	   }
         } else {
           break;
         }
       }
+    }
     mp_link (t) = mp_get_symbolic_node (mp);
     t = mp_link (t);
     set_mp_sym_sym (t, cur_sym());
@@ -29354,24 +29364,6 @@ mp_node mp_scan_declared_variable (MP mp) {
   if (equiv_node (x) == NULL)
     mp_new_root (mp, x);
   return h;
-}
-
-
-@ If the subscript isn't collective, we don't accept it as part of the
-declared variable.
-
-@<Descend past a collective subscript@>=
-{
-  mp_sym ll = cur_sym();      /* hash address of left bracket */
-  mp_get_x_next (mp);
-  if (cur_cmd() != mp_right_bracket) {
-    mp_back_input (mp);
-    set_cur_sym(ll);
-    set_cur_cmd((mp_variable_type)mp_left_bracket);
-    break;
-  } else {
-    set_cur_sym(collective_subscript);
-  }
 }
 
 
@@ -29414,6 +29406,7 @@ break;
 static void mp_do_type_declaration (MP mp);
 
 @ @c
+static void flush_spurious_symbols_after_declared_variable(MP mp);
 void mp_do_type_declaration (MP mp) {
   integer t;        /* the type being declared */
   mp_node p;    /* token list for a declared variable */
@@ -29435,18 +29428,19 @@ void mp_do_type_declaration (MP mp) {
              "Proceed, and I'll ignore the illegal redeclaration.",
              NULL };
       mp_back_error (mp, "Declared variable conflicts with previous vardef", hlp, true);
-@.Declared variable conflicts...@>;
       mp_get_x_next (mp);
     }
     mp_flush_node_list (mp, p);
     if (cur_cmd() < mp_comma) {
-      @<Flush spurious symbols after the declared variable@>;
+      flush_spurious_symbols_after_declared_variable(mp);
     }
   } while (!mp_end_of_statement);
 }
 
 
-@ @<Flush spurious symbols after the declared variable@>=
+@
+@c
+static void flush_spurious_symbols_after_declared_variable (MP mp)
 {
   const char *hlp[] = { 
          "Variables in declarations must consist entirely of",
@@ -29458,13 +29452,12 @@ void mp_do_type_declaration (MP mp) {
   if (cur_cmd() == mp_numeric_token)
     hlp[2] = "Explicit subscripts like `x15a' aren't permitted.";
   mp_back_error (mp, "Illegal suffix of declared variable will be flushed", hlp, true);
-@.Illegal suffix...flushed@>;
   mp_get_x_next (mp);
   mp->scanner_status = flushing;
   do {
     get_t_next (mp);
     @<Decrease the string reference count...@>;
-  } while (cur_cmd() < mp_comma);        /* either |end_of_statement| or |cur_cmd=comma| */
+  } while (cur_cmd() < mp_comma); /* break on either |end_of_statement| or |comma| */
   mp->scanner_status = normal;
 }
 
