@@ -777,8 +777,10 @@ int mp_png_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
   {
     bitmap_t bitmap;
     int c = round_unscaled(internal_value (mp_char_code));
-    char *ss = mp_set_output_file_name (mp, c);
+    char *ss;
+    (void)mp_set_output_file_name (mp, c);
     mp_store_true_output_filename (mp, c);
+    ss = xstrdup(mp->name_of_file);
     cairo_surface_flush (mp->png->surface);
     cairo_destroy (mp->png->cr);
     bitmap.data = cairo_image_surface_get_data (mp->png->surface);
@@ -786,6 +788,7 @@ int mp_png_gr_ship_out (mp_edge_object *hh, int qprologues, int standalone) {
     bitmap.height = cairo_image_surface_get_height (mp->png->surface);
     mp_png_save_to_file (mp, &bitmap, ss);
     cairo_surface_destroy (mp->png->surface);
+    free(ss);
   }
   return 1;
 }
