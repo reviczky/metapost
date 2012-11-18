@@ -15704,13 +15704,13 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
       }
     } else {
       if (pp == NULL) 
-        set_number_to_zero(v);
+        set_number_to_neg_inf(v);
       else if (mp_type(pp) == mp_independent)
         set_number_from_scaled(v, indep_value(pp));
       else
         number_clone (v, value_number (pp));
       if (qq == NULL) 
-        set_number_to_zero(vv);
+        set_number_to_neg_inf(vv);
       else if (mp_type(qq) == mp_independent)
         set_number_from_scaled(vv, indep_value(qq));
       else
@@ -16362,54 +16362,76 @@ thereby possibly making other dependent variables known.
 The given list |p| is, of course, totally destroyed by all this processing.
 
 @c
+static mp_value_node find_node_with_largest_coefficient(MP mp, mp_value_node p, mp_number v);
+static void display_new_dependency (MP mp, mp_value_node p, mp_node x, integer n);
+static void change_to_known (MP mp, mp_value_node p, mp_node x, mp_value_node final_node, integer n);
+static mp_value_node divide_p_by_minusv_removing_q (MP mp, mp_value_node p, mp_value_node q, 
+       		     				    mp_value_node *final_node, mp_number v, quarterword t);
 static void mp_linear_eq (MP mp, mp_value_node p, quarterword t) {
-  mp_value_node q, r;   /* for link manipulation */
-  mp_value_node s;
+  mp_value_node r;   /* for link manipulation */
   mp_node x;    /* the variable that loses its independence */
   integer n;    /* the number of times |x| had been halved */
   mp_number v;    /* the coefficient of |x| in list |p| */
-  mp_number vabs; /* its absolute value */
-  mp_number rabs; /* the absolute value of |dep_value(r)| */
   mp_value_node prev_r; /* lags one step behind |r| */
   mp_value_node final_node;     /* the constant term of the new dependency list */
-  mp_number w;    /* a tentative coefficient */
-  new_number (w);
+  mp_value_node qq;
   new_number (v);
-  new_number (vabs);
-  new_number (rabs);
   FUNCTION_TRACE3 ("mp_linear_eq(%p,%d)\n", p, t);
-  @<Find a node |q| in list |p| whose coefficient |v| is largest@>;
-  x = dep_info (q);
+  qq = find_node_with_largest_coefficient(mp, p, v);
+  x = dep_info (qq);
   n = indep_scale (x);
-  @<Divide list |p| by |-v|, removing node |q|@>;
+  p = divide_p_by_minusv_removing_q(mp, p, qq, &final_node, v, t);
   if (number_positive (internal_value (mp_tracing_equations))) {
-    @<Display the new dependency@>;
+    display_new_dependency(mp,p,(mp_node)x,n);
   }
-  @<Simplify all existing dependencies by substituting for |x|@>;
-  @<Change variable |x| from |independent| to |dependent| or |known|@>;
+  prev_r = (mp_value_node) mp->dep_head;
+  r = (mp_value_node) mp_link (mp->dep_head);
+  while (r != mp->dep_head) {
+    mp_value_node s = (mp_value_node) dep_list (r);
+    mp_value_node q = mp_p_with_x_becoming_q (mp, s, x, (mp_node) p, mp_type (r));
+    if (dep_info (q) == NULL) {
+      mp_make_known (mp, r, q);
+    } else {
+      set_dep_list (r, q);
+      do {
+        q = (mp_value_node) mp_link (q);
+      } while (dep_info (q) != NULL);
+      prev_r = q;
+    }
+    r = (mp_value_node) mp_link (prev_r);
+  }
+  change_to_known(mp,p,(mp_node)x,final_node,n);
   if (mp->fix_needed)
     mp_fix_dependencies (mp);
   free_number (v);
-  free_number (w);
-  free_number (vabs);
-  free_number (rabs);
 }
 
 
-@ @<Find a node |q| in list |p| whose coefficient |v| is largest@>=
-q = p;
-r = (mp_value_node) mp_link (p);
-number_clone (v, dep_value_number (q));
-while (dep_info (r) != NULL) {
-  number_clone (vabs, v);
-  number_abs (vabs);
-  number_clone (rabs, dep_value_number (r));
-  number_abs (rabs);
-  if (number_greater (rabs, vabs)) {
-    q = r;
-    number_clone (v, dep_value_number (r));
+@ 
+@c
+static mp_value_node find_node_with_largest_coefficient(MP mp, mp_value_node p, mp_number v) 
+{
+  mp_number vabs; /* its absolute value of v*/
+  mp_number rabs; /* the absolute value of |dep_value(r)| */
+  mp_value_node q = p;
+  mp_value_node r = (mp_value_node) mp_link (p);
+  new_number (vabs);
+  new_number (rabs);
+  number_clone (v, dep_value_number (q));
+  while (dep_info (r) != NULL) {
+     number_clone (vabs, v);
+     number_abs (vabs);
+     number_clone (rabs, dep_value_number (r));
+     number_abs (rabs);
+     if (number_greater (rabs, vabs)) {
+       q = r;
+       number_clone (v, dep_value_number (r));
+    }
+    r = (mp_value_node) mp_link (r);
   }
-  r = (mp_value_node) mp_link (r);
+  free_number (vabs);
+  free_number (rabs);
+  return q;
 }
 
 
@@ -16417,90 +16439,85 @@ while (dep_info (r) != NULL) {
 except in the constant term. In the common case of a trivial equation
 like `\.{x=3.14}', we will have |v=-fraction_one|, |q=p|, and |t=mp_dependent|.
 
-@<Divide list |p| by |-v|, removing node |q|@>=
-s = (mp_value_node) mp->temp_head;
-set_mp_link (s, (mp_node) p);
-r = p;
+@c
+static mp_value_node divide_p_by_minusv_removing_q (MP mp, mp_value_node p, mp_value_node q, 
+       		     				   mp_value_node *final_node, mp_number v, quarterword t)
 {
-mp_number absw;
-new_number (absw);
-do {
-  if (r == q) {
-    set_mp_link (s, mp_link (r));
-    mp_free_dep_node (mp, r);
-  } else {
-    make_fraction (w, dep_value_number (r), v);
-    number_clone (absw, w);
-    number_abs (absw);
-    if (number_lessequal (absw, half_fraction_threshold_k)) {
+  mp_value_node r;   /* for link manipulation */
+  mp_value_node s;
+  s = (mp_value_node) mp->temp_head;
+  set_mp_link (s, (mp_node) p);
+  r = p;
+  do {
+    if (r == q) {
       set_mp_link (s, mp_link (r));
       mp_free_dep_node (mp, r);
     } else {
-      set_dep_value_number (r, w);
-      number_negate (dep_value_number (r));
-      s = r; 
+      mp_number w;    /* a tentative coefficient */
+      mp_number absw;
+      new_number (w);
+      new_number (absw);
+      make_fraction (w, dep_value_number (r), v);
+      number_clone (absw, w);
+      number_abs (absw);
+      if (number_lessequal (absw, half_fraction_threshold_k)) {
+        set_mp_link (s, mp_link (r));
+        mp_free_dep_node (mp, r);
+      } else {
+        number_negate (w);
+        set_dep_value_number (r, w);
+        s = r; 
+      }
+      free_number(w);
+      free_number (absw);
     }
+    r = (mp_value_node) mp_link (s);
+  } while (dep_info (r) != NULL);
+
+  if (t == mp_proto_dependent) {
+    mp_number ret;
+    new_number (ret);
+    make_scaled (ret, dep_value_number (r), v);
+    number_negate (ret);
+    set_dep_value_number (r, ret);
+    free_number (ret);
+  } else if (number_to_scaled (v) != -number_to_scaled (fraction_one_t)) {
+    mp_number ret;
+    new_fraction (ret);
+    make_fraction (ret, dep_value_number (r), v);
+    number_negate (ret);
+    set_dep_value_number (r, ret);
+    free_number (ret);
   }
-  r = (mp_value_node) mp_link (s);
-} while (dep_info (r) != NULL);
-free_number (absw);
+  *final_node = r;
+  return (mp_value_node) mp_link (mp->temp_head);
 }
-if (t == mp_proto_dependent) {
-  mp_number ret;
-  new_number (ret);
-  make_scaled (ret, dep_value_number (r), v);
-  number_negate (ret);
-  set_dep_value_number (r, ret);
-  free_number (ret);
-} else if (number_to_scaled (v) != -number_to_scaled (fraction_one_t)) {
-  mp_number ret;
-  new_fraction (ret);
-  make_fraction (ret, dep_value_number (r), v);
-  number_negate (ret);
-  set_dep_value_number (r, ret);
-  free_number (ret);
-}
-final_node = r;
-p = (mp_value_node) mp_link (mp->temp_head)
  
 
-@ @<Display the new dependency@>=
-if (mp_interesting (mp, (mp_node) x)) {
-  int w0;
-  mp_begin_diagnostic (mp);
-  mp_print_nl (mp, "## ");
-  mp_print_variable_name (mp, (mp_node) x);
-@:]]]\#\#_}{\.{\#\#}@>;
-  w0 = n;
-  while (w0 > 0) {
-    mp_print (mp, "*4");
-    w0 = w0 - 2;
+@ 
+@c
+static void display_new_dependency (MP mp, mp_value_node p, mp_node x, integer n)
+{
+  if (mp_interesting (mp, x)) {
+    int w0;
+    mp_begin_diagnostic (mp);
+    mp_print_nl (mp, "## ");
+    mp_print_variable_name (mp, x);
+    w0 = n;
+    while (w0 > 0) {
+      mp_print (mp, "*4");
+      w0 = w0 - 2;
+    }
+    mp_print_char (mp, xord ('='));
+    mp_print_dependency (mp, p, mp_dependent);
+    mp_end_diagnostic (mp, false);
   }
-  mp_print_char (mp, xord ('='));
-  mp_print_dependency (mp, p, mp_dependent);
-  mp_end_diagnostic (mp, false);
 }
 
-@ @<Simplify all existing dependencies by substituting for |x|@>=
-prev_r = (mp_value_node) mp->dep_head;
-r = (mp_value_node) mp_link (mp->dep_head);
-while (r != mp->dep_head) {
-  s = (mp_value_node) dep_list (r);
-  q = mp_p_with_x_becoming_q (mp, s, x, (mp_node) p, mp_type (r));
-  if (dep_info (q) == NULL) {
-    mp_make_known (mp, r, q);
-  } else {
-    set_dep_list (r, q);
-    do {
-      q = (mp_value_node) mp_link (q);
-    } while (dep_info (q) != NULL);
-    prev_r = q;
-  }
-  r = (mp_value_node) mp_link (prev_r);
-}
-
-
-@ @<Change variable |x| from |independent| to |dependent| or |known|@>=
+@ 
+@c
+static void change_to_known (MP mp, mp_value_node p, mp_node x, mp_value_node final_node, integer n)
+{
 if (n > 0)
   @<Divide list |p| by $2^n$@>;
 if (dep_info (p) == NULL) {
@@ -16526,11 +16543,15 @@ if (dep_info (p) == NULL) {
     mp->cur_exp.type = mp_dependent;
   }
 }
-
+}
 
 @ @<Divide list |p| by $2^n$@>=
 {
+  mp_value_node r;
+  mp_value_node s;
   mp_number absw;
+  mp_number w;    /* a tentative coefficient */
+  new_number (w);
   new_number (absw);
   s = (mp_value_node) mp->temp_head;
   set_mp_link (mp->temp_head, (mp_node) p);
@@ -16555,6 +16576,7 @@ if (dep_info (p) == NULL) {
   } while (dep_info (s) != NULL);
   p = (mp_value_node) mp_link (mp->temp_head);
   free_number (absw);
+  free_number (w);
 }
 
 
