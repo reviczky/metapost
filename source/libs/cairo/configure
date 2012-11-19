@@ -12722,12 +12722,6 @@ fi
 
 if test "x$enable_build" != xno || test -f config.force; then
 
-kpse_save_CPPFLAGS=$CPPFLAGS
-kpse_save_LIBS=$LIBS
-
-eval CPPFLAGS=\"$PIXMAN_INCLUDES \$CPPFLAGS\"
-eval LIBS=\"$PIXMAN_LIBS \$LIBS\"
-
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing sqrt" >&5
 $as_echo_n "checking for library containing sqrt... " >&6; }
 if ${ac_cv_search_sqrt+:} false; then :
@@ -12783,6 +12777,12 @@ if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
 
 fi
+
+kpse_save_CPPFLAGS=$CPPFLAGS
+kpse_save_LIBS=$LIBS
+
+eval CPPFLAGS=\"$PIXMAN_INCLUDES \$CPPFLAGS\"
+eval LIBS=\"$PIXMAN_LIBS \$LIBS\"
 
 ac_fn_c_check_func "$LINENO" "pixman_version_string" "ac_cv_func_pixman_version_string"
 if test "x$ac_cv_func_pixman_version_string" = xyes; then :

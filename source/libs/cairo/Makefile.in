@@ -207,7 +207,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I ../../m4
 EXTRA_DIST = $(CAIRO_TREE) $(CAIRO_TREE)-PATCHES
-noinst_DATA = libcairo.a
+noinst_DATA = libcairo.la
 DISTCLEANFILES = config.force
 @build_TRUE@dist_check_SCRIPTS = cairo.test
 @build_TRUE@TESTS = cairo.test
@@ -659,13 +659,13 @@ uninstall-am:
 
 # Rebuild
 .PHONY: rebuild
-rebuild: all
+rebuild: config.force all
 
 # in case of an SVN repository
 dist-hook:
 	rm -rf `find $(distdir) -name .svn -o -name autom4te.cache`
 
-cairo-build/Makefile:
+cairo-build/Makefile: config.force
 	rm -rf cairo-build
 	$(MKDIR_P) cairo-build
 	cd cairo-build && \
@@ -688,7 +688,7 @@ cairo-build/Makefile:
 
 # Unfortunately the Cairo build system installs the headers after the library;
 # to get our dependencies right we wait for a second and then touch the library.
-libcairo.a: cairo-build/Makefile $(ZLIB_DEPEND)
+libcairo.la: cairo-build/Makefile $(ZLIB_DEPEND)
 	rm -rf cairo-install
 	cd cairo-build \
 	  && $(MAKE) $(AM_MAKEFLAGS) \
