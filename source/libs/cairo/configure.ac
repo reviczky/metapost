@@ -25,8 +25,8 @@ AM_CONDITIONAL([build], [test "x$enable_build" != xno])
 
 if test "x$enable_build" != xno || test -f config.force; then
 
-KPSE_ADD_FLAGS([pixman])
 AC_SEARCH_LIBS([sqrt], [m])
+KPSE_ADD_FLAGS([pixman])
 AC_CHECK_FUNC([pixman_version_string], , [AC_ERROR([pixman not found])])
 KPSE_RESTORE_FLAGS
 

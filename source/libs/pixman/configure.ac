@@ -38,6 +38,8 @@ AC_CONFIG_HEADERS([config.h])
 
 AM_CONDITIONAL([build], [test "x$enable_build" != xno])
 
+if test "x$enable_build" != xno || test -f config.force; then
+
 AC_DEFINE([PIXMAN_NO_TLS], 1, [We do not want threading])
 
 dnl add all these to config.h.in but do not define them in config.h
@@ -142,6 +144,9 @@ fi
 
 PIXMAN_CHECK_CFLAG([-Wall])
 PIXMAN_CHECK_CFLAG([-fno-strict-aliasing])
+
+echo timestamp >config.force
+fi
 
 AC_SUBST([PIXMAN_TREE], [pixman-]pixman_version)
 

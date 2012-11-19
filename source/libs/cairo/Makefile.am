@@ -10,7 +10,7 @@ ACLOCAL_AMFLAGS = -I ../../m4
 
 # Rebuild
 .PHONY: rebuild
-rebuild: all
+rebuild: config.force all
 
 ## We want to re-distribute the whole original cairo source tree.
 ##
@@ -24,9 +24,9 @@ EXTRA_DIST += $(CAIRO_TREE)-PATCHES
 dist-hook:
 	rm -rf `find $(distdir) -name .svn -o -name autom4te.cache`
 
-noinst_DATA = libcairo.a
+noinst_DATA = libcairo.la
 
-cairo-build/Makefile:
+cairo-build/Makefile: config.force
 	rm -rf cairo-build
 	$(MKDIR_P) cairo-build
 	cd cairo-build && \
@@ -49,7 +49,7 @@ cairo-build/Makefile:
 
 # Unfortunately the Cairo build system installs the headers after the library;
 # to get our dependencies right we wait for a second and then touch the library.
-libcairo.a: cairo-build/Makefile $(ZLIB_DEPEND)
+libcairo.la: cairo-build/Makefile $(ZLIB_DEPEND)
 	rm -rf cairo-install
 	cd cairo-build \
 	  && $(MAKE) $(AM_MAKEFLAGS) \

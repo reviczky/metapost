@@ -2150,6 +2150,7 @@ tangleboot-web2c: tangleboot.p $(web2c_depend)
 # tangleboot.pin is in the distribution
 .pin.p:
 	cp -f $< $@
+$(tangleboot_OBJECTS): $(tangleboot_DEPENDENCIES)
 $(ctangle_OBJECTS): cweb.h
 ctangle.c: ctangle-ctangle
 	@$(ctangleboot) ctangle ctang-w2c
@@ -2159,7 +2160,7 @@ cweb.c cweb.h: common-ctangle
 	@$(ctangleboot) common comm-w2c cweb.c
 common-ctangle: ctangleboot$(EXEEXT) cwebdir/common.w cwebdir/comm-w2c.ch ctangleboot-sh
 	@$(ctangleboot) common comm-w2c cweb.c
-$(ctangleboot_OBJECTS): cwebboot.h
+$(ctangleboot_OBJECTS): cwebboot.h $(ctangleboot_DEPENDENCIES)
 # ctangleboot.cin and cwebboot.[ch]in are in the distribution
 .cin.c:
 	cp -f $< $@
@@ -2394,7 +2395,7 @@ $(pngout_c_h): pngout-tangle
 pngout-tangle: ctangle$(EXEEXT) mplibdir/pngout.w tangle-sh
 	@$(mp_ctangle_sh) pngout
 
-$(libmplib_a_OBJECTS): $(nodist_libmplib_a_SOURCES)
+$(libmplib_a_OBJECTS): $(nodist_libmplib_a_SOURCES) $(KPATHSEA_DEPEND) $(CAIRO_DEPEND)
 .PHONY: install-bin-links uninstall-bin-links
 
 install-bin-links:

@@ -125,9 +125,6 @@ then
 fi
 
 $MAKE
-(cd texk/kpathsea; $MAKE )
-(cd libs/pixman; $MAKE )
-(cd libs/cairo; $MAKE )
 (cd texk/web2c; $MAKE $MPOSTEXE )
 
 # go back

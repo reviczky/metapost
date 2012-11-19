@@ -12461,6 +12461,8 @@ else
 fi
 
 
+if test "x$enable_build" != xno || test -f config.force; then
+
 
 $as_echo "#define PIXMAN_NO_TLS 1" >>confdefs.h
 
@@ -12708,6 +12710,9 @@ rm -f core conftest.err conftest.$ac_objext \
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $_yesno" >&5
 $as_echo "$_yesno" >&6; }
 
+
+echo timestamp >config.force
+fi
 
 PIXMAN_TREE=pixman-0.28.0
 
