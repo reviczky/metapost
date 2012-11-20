@@ -15565,10 +15565,19 @@ void mp_print_dependency (MP mp, mp_value_node p, quarterword t) {
       }
       return;
     }
-    @<Print the coefficient, unless it's $\pm1.0$@>;
+    /* Print the coefficient, unless it's $\pm1.0$ */
+    if (dep_value (p) < 0)
+      mp_print_char (mp, xord ('-'));
+    else if (p != pp)
+      mp_print_char (mp, xord ('+'));
+    if (t == mp_dependent) {
+      fraction_to_round_scaled (v);
+    }
+    if (!number_equal (v, unity_t))
+      print_number (v);
+   
     if (mp_type (q) != mp_independent)
       mp_confusion (mp, "dep");
-@:this can't happen dep}{\quad dep@>;
     mp_print_variable_name (mp, q);
     set_number_from_scaled (v, indep_scale(q));
     while (number_positive (v)) {
@@ -15580,17 +15589,6 @@ void mp_print_dependency (MP mp, mp_value_node p, quarterword t) {
 }
 
 
-@ @<Print the coefficient, unless it's $\pm1.0$@>=
-if (dep_value (p) < 0)
-  mp_print_char (mp, xord ('-'));
-else if (p != pp)
-  mp_print_char (mp, xord ('+'));
-if (t == mp_dependent) {
-  fraction_to_round_scaled (v);
-}
-if (!number_equal (v, unity_t))
-  print_number (v)
-   
 
 @ The maximum absolute value of a coefficient in a given dependency list
 is returned by the following simple function.
@@ -15699,9 +15697,40 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
       if (pp == NULL) {
         break;
       } else {
-        @<Contribute a term from |p|, plus |f| times the
-          corresponding term from |q|@>
+        /* Contribute a term from |p|, plus |f| times the
+          corresponding term from |q| */
+        mp_number r1;
+        mp_number absv;
+        new_fraction (r1);
+        new_number (absv);
+        if (tt == mp_dependent) {
+          take_fraction (r1, f, dep_value_number (q));
+        } else {
+          take_scaled (r1, f, dep_value_number (q));
+        }
+        set_number_from_addition (v, dep_value_number (p), r1);
+        free_number (r1);
+        set_dep_value_number (p, v);
+        s = p;
+        p = (mp_value_node) mp_link (p);
+        number_clone (absv, v);
+        number_abs(absv);
+        if (number_less (absv, threshold)) {
+          mp_free_dep_node (mp, s);
+        } else {
+          if (number_greaterequal (absv, coef_bound_k) && mp->watch_coefs) {
+            mp_type (qq) = independent_needing_fix;
+            mp->fix_needed = true;
+          }
+          set_mp_link (r, (mp_node) s);
+          r = s;
+        }
+        free_number (absv);
+        pp = dep_info (p);
+        q = (mp_value_node) mp_link (q);
+        qq = dep_info (q);
       }
+
     } else {
       if (pp == NULL) 
         set_number_to_neg_inf(v);
@@ -15716,7 +15745,45 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
       else
         number_clone (vv, value_number (qq));
       if (number_less (v, vv)) {
-        @<Contribute a term from |q|, multiplied by~|f|@>
+        /* Contribute a term from |q|, multiplied by~|f| */
+        mp_number absv;
+        new_number (absv);
+        {
+          mp_number r1;
+          mp_number arg1, arg2;
+          new_fraction (r1);
+          new_number (arg1);
+          new_number (arg2);
+          number_clone (arg1, f);
+          number_clone (arg2, dep_value_number (q));
+          if (tt == mp_dependent) {
+            take_fraction (r1, arg1, arg2);
+          } else {
+            take_scaled (r1, arg1, arg2);
+          }
+          number_clone (v, r1);
+          free_number (r1);
+          free_number (arg1);
+          free_number (arg2);
+        }
+        number_clone (absv, v);
+        number_abs(absv);
+        if (number_greater (absv, half_threshold)) {
+          s = mp_get_dep_node (mp);
+          set_dep_info (s, qq);
+          set_dep_value_number (s, v);
+          if (number_greaterequal(absv, coef_bound_k) && mp->watch_coefs) {
+          /* clang:  dereference of a null pointer ('qq') */ assert(qq);
+           mp_type (qq) = independent_needing_fix;
+            mp->fix_needed = true;
+          }
+          set_mp_link (r, (mp_node) s);
+          r = s;
+        }
+        q = (mp_value_node) mp_link (q);
+        qq = dep_info (q);
+        free_number (absv);
+      
       } else {
         set_mp_link (r, (mp_node) p);
         r = p;
@@ -15754,83 +15821,6 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
 }
 
 
-@ @<Contribute a term from |p|, plus |f|...@>=
-{
-  mp_number r1;
-  mp_number absv;
-  new_fraction (r1);
-  new_number (absv);
-  if (tt == mp_dependent) {
-    take_fraction (r1, f, dep_value_number (q));
-  } else {
-    take_scaled (r1, f, dep_value_number (q));
-  }
-  set_number_from_addition (v, dep_value_number (p), r1);
-  free_number (r1);
-  set_dep_value_number (p, v);
-  s = p;
-  p = (mp_value_node) mp_link (p);
-  number_clone (absv, v);
-  number_abs(absv);
-  if (number_less (absv, threshold)) {
-    mp_free_dep_node (mp, s);
-  } else {
-    if (number_greaterequal (absv, coef_bound_k) && mp->watch_coefs) {
-      mp_type (qq) = independent_needing_fix;
-      mp->fix_needed = true;
-    }
-    set_mp_link (r, (mp_node) s);
-    r = s;
-  }
-  free_number (absv);
-  pp = dep_info (p);
-  q = (mp_value_node) mp_link (q);
-  qq = dep_info (q);
-}
-
-
-@ @<Contribute a term from |q|, multiplied by~|f|@>=
-{
-  mp_number absv;
-  new_number (absv);
-  {
-    mp_number r1;
-    mp_number arg1, arg2;
-    new_fraction (r1);
-    new_number (arg1);
-    new_number (arg2);
-    number_clone (arg1, f);
-    number_clone (arg2, dep_value_number (q));
-    if (tt == mp_dependent) {
-      take_fraction (r1, arg1, arg2);
-    } else {
-      take_scaled (r1, arg1, arg2);
-    }
-    number_clone (v, r1);
-    free_number (r1);
-    free_number (arg1);
-    free_number (arg2);
-  }
-  number_clone (absv, v);
-  number_abs(absv);
-  if (number_greater (absv, half_threshold)) {
-    s = mp_get_dep_node (mp);
-    set_dep_info (s, qq);
-    set_dep_value_number (s, v);
-    if (number_greaterequal(absv, coef_bound_k) && mp->watch_coefs) {
-    /* clang:  dereference of a null pointer ('qq') */ assert(qq);
-     mp_type (qq) = independent_needing_fix;
-      mp->fix_needed = true;
-    }
-    set_mp_link (r, (mp_node) s);
-    r = s;
-  }
-  q = (mp_value_node) mp_link (q);
-  qq = dep_info (q);
-  free_number (absv);
-}
-
-
 @ It is convenient to have another subroutine for the special case
 of |p_plus_fq| when |f=1.0|. In this routine lists |p| and |q| are
 both of the same type~|t| (either |dependent| or |mp_proto_dependent|).
@@ -15858,9 +15848,31 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q,
       if (pp == NULL) {
         break;
       } else {
-        @<Contribute a term from |p|, plus the
-          corresponding term from |q|@>
+        /* Contribute a term from |p|, plus the corresponding term from |q| */
+        mp_number test;
+        new_number (test);
+        set_number_from_addition (v, dep_value_number (p), dep_value_number (q)); 
+        set_dep_value_number (p, v);
+        s = p;
+        p = (mp_value_node) mp_link (p);
+        pp = dep_info (p);
+        number_clone (test, v);
+        number_abs(test);
+        if (number_less (test, threshold)) {
+          mp_free_dep_node (mp, s);
+        } else {
+          if (number_greaterequal(test, coef_bound_k) && mp->watch_coefs) {
+            mp_type (qq) = independent_needing_fix;
+            mp->fix_needed = true;
+          }
+          set_mp_link (r, (mp_node) s);
+          r = s;
+        }
+        free_number (test);
+        q = (mp_value_node) mp_link (q);
+        qq = dep_info (q);
       }
+
     } else {
       if (pp == NULL) 
         set_number_to_zero (v);
@@ -15904,34 +15916,6 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q,
   free_number (threshold);
   return (mp_value_node) mp_link (mp->temp_head);
 }
-
-
-@ @<Contribute a term from |p|, plus the...@>=
-{
-  mp_number test;
-  new_number (test);
-  set_number_from_addition (v, dep_value_number (p), dep_value_number (q)); 
-  set_dep_value_number (p, v);
-  s = p;
-  p = (mp_value_node) mp_link (p);
-  pp = dep_info (p);
-  number_clone (test, v);
-  number_abs(test);
-  if (number_less (test, threshold)) {
-    mp_free_dep_node (mp, s);
-  } else {
-    if (number_greaterequal(test, coef_bound_k) && mp->watch_coefs) {
-      mp_type (qq) = independent_needing_fix;
-      mp->fix_needed = true;
-    }
-    set_mp_link (r, (mp_node) s);
-    r = s;
-  }
-  free_number (test);
-  q = (mp_value_node) mp_link (q);
-  qq = dep_info (q);
-}
-
 
 @ A somewhat simpler routine will multiply a dependency list
 by a given constant~|v|. The constant is either a |fraction| less than
@@ -16137,23 +16121,20 @@ static mp_value_node mp_p_with_x_becoming_q (MP mp, mp_value_node p,
 @ Here's a simple procedure that reports an error when a variable
 has just received a known value that's out of the required range.
 
-Todo: this is |scaled| specific.
-
 @<Declarations@>=
 static void mp_val_too_big (MP mp, mp_number x);
 
 @ @c
-void mp_val_too_big (MP mp, mp_number x) {
+static void mp_val_too_big (MP mp, mp_number x) {
   if (number_positive (internal_value (mp_warning_check))) {
     char msg[256];
     const char *hlp[] = {
-           "The equation I just processed has given some variable",
-           "a value of 4096 or more. Continue and I'll try to cope",
-           "with that big value; but it might be dangerous.",
+           "The equation I just processed has given some variable a",
+           "value outside of the safetyp range. Continue and I'll try",
+           "to cope with that big value; but it might be dangerous.",
            "(Set warningcheck:=0 to suppress this message.)",
            NULL };
     mp_snprintf (msg, 256, "Value is too large (%s)", number_tostring(x));
-@.Value is too large@>;
     mp_error (mp, msg, hlp, true);
   }
 }
@@ -16184,7 +16165,6 @@ void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
       && mp_interesting (mp, (mp_node) p)) {
     mp_begin_diagnostic (mp);
     mp_print_nl (mp, "#### ");
-@:]]]\#\#\#\#_}{\.{\#\#\#\#}@>;
     mp_print_variable_name (mp, (mp_node) p);
     mp_print_char (mp, xord ('='));
     print_number (value_number (p));
@@ -16209,7 +16189,9 @@ to zero, so that a variable will become known more or less by default.
 @<Declarations@>=
 static void mp_fix_dependencies (MP mp);
 
-@ @c
+@ 
+@d independent_being_fixed 1 /* this variable already appears in |s| */
+@c
 static void mp_fix_dependencies (MP mp) {
   mp_value_node p, q, r, s, t;  /* list manipulation registers */
   mp_node x;    /* an independent variable */
@@ -16217,8 +16199,33 @@ static void mp_fix_dependencies (MP mp) {
   s = NULL;
   while (r != mp->dep_head) {
     t = r;
-    @<Run through the dependency list for variable |t|, fixing
-      all nodes, and ending with final link~|q|@>;
+    /* Run through the dependency list for variable |t|, fixing
+      all nodes, and ending with final link~|q| */
+    set_mp_link (r, dep_list (t));  /* start off one item before the actual |dep_list| */
+    while (1) {
+      q = (mp_value_node) mp_link (r);
+      x = dep_info (q);
+      if (x == NULL)
+        break;
+      if (mp_type (x) <= independent_being_fixed) {
+        if (mp_type (x) < independent_being_fixed) {
+          p = mp_get_dep_node (mp);
+          set_mp_link (p, (mp_node) s);
+          s = p;
+          set_dep_info (s, x);
+          mp_type (x) = independent_being_fixed;
+        }
+        set_dep_value_number (q, dep_value_number (q));
+        number_divide_int (dep_value_number (q), 4);
+        if (dep_value (q) == 0) {
+          set_mp_link (r, mp_link (q));
+          mp_free_dep_node (mp, q);
+          q = r;
+        }
+      }
+      r = q;
+    }
+
     r = (mp_value_node) mp_link (q);
     if (q == (mp_value_node) dep_list (t))
       mp_make_known (mp, t, q);
@@ -16232,35 +16239,6 @@ static void mp_fix_dependencies (MP mp) {
     set_indep_scale (x, indep_scale (x) + 2);
   }
   mp->fix_needed = false;
-}
-
-
-@ @d independent_being_fixed 1 /* this variable already appears in |s| */
-
-@<Run through the dependency list for variable |t|...@>=
-set_mp_link (r, dep_list (t));  /* start off one item before the actual |dep_list| */
-while (1) {
-  q = (mp_value_node) mp_link (r);
-  x = dep_info (q);
-  if (x == NULL)
-    break;
-  if (mp_type (x) <= independent_being_fixed) {
-    if (mp_type (x) < independent_being_fixed) {
-      p = mp_get_dep_node (mp);
-      set_mp_link (p, (mp_node) s);
-      s = p;
-      set_dep_info (s, x);
-      mp_type (x) = independent_being_fixed;
-    }
-    set_dep_value_number (q, dep_value_number (q));
-    number_divide_int (dep_value_number (q), 4);
-    if (dep_value (q) == 0) {
-      set_mp_link (r, mp_link (q));
-      mp_free_dep_node (mp, q);
-      q = r;
-    }
-  }
-  r = q;
 }
 
 
@@ -16366,7 +16344,7 @@ static mp_value_node find_node_with_largest_coefficient(MP mp, mp_value_node p, 
 static void display_new_dependency (MP mp, mp_value_node p, mp_node x, integer n);
 static void change_to_known (MP mp, mp_value_node p, mp_node x, mp_value_node final_node, integer n);
 static mp_value_node divide_p_by_minusv_removing_q (MP mp, mp_value_node p, mp_value_node q, 
-       		     				    mp_value_node *final_node, mp_number v, quarterword t);
+     				    mp_value_node *final_node, mp_number v, quarterword t);
 static void mp_linear_eq (MP mp, mp_value_node p, quarterword t) {
   mp_value_node r;   /* for link manipulation */
   mp_node x;    /* the variable that loses its independence */
@@ -16409,8 +16387,7 @@ static void mp_linear_eq (MP mp, mp_value_node p, quarterword t) {
 
 @ 
 @c
-static mp_value_node find_node_with_largest_coefficient(MP mp, mp_value_node p, mp_number v) 
-{
+static mp_value_node find_node_with_largest_coefficient(MP mp, mp_value_node p, mp_number v) {
   mp_number vabs; /* its absolute value of v*/
   mp_number rabs; /* the absolute value of |dep_value(r)| */
   mp_value_node q = p;
@@ -16441,8 +16418,7 @@ like `\.{x=3.14}', we will have |v=-fraction_one|, |q=p|, and |t=mp_dependent|.
 
 @c
 static mp_value_node divide_p_by_minusv_removing_q (MP mp, mp_value_node p, mp_value_node q, 
-       		     				   mp_value_node *final_node, mp_number v, quarterword t)
-{
+       		     				   mp_value_node *final_node, mp_number v, quarterword t) {
   mp_value_node r;   /* for link manipulation */
   mp_value_node s;
   s = (mp_value_node) mp->temp_head;
@@ -16496,8 +16472,7 @@ static mp_value_node divide_p_by_minusv_removing_q (MP mp, mp_value_node p, mp_v
 
 @ 
 @c
-static void display_new_dependency (MP mp, mp_value_node p, mp_node x, integer n)
-{
+static void display_new_dependency (MP mp, mp_value_node p, mp_node x, integer n) {
   if (mp_interesting (mp, x)) {
     int w0;
     mp_begin_diagnostic (mp);
@@ -16516,69 +16491,65 @@ static void display_new_dependency (MP mp, mp_value_node p, mp_node x, integer n
 
 @ 
 @c
-static void change_to_known (MP mp, mp_value_node p, mp_node x, mp_value_node final_node, integer n)
-{
-if (n > 0)
-  @<Divide list |p| by $2^n$@>;
-if (dep_info (p) == NULL) {
-  mp_number absx;
-  new_number (absx);
-  mp_type (x) = mp_known;
-  set_value_number (x, dep_value_number (p));
-  number_clone (absx, value_number (x));
-  number_abs (absx);
-  if (number_greaterequal (absx, warning_limit_t))
-    mp_val_too_big (mp, value_number (x));
-  free_number (absx);
-  mp_free_dep_node (mp, p);
-  if (cur_exp_node () == x && mp->cur_exp.type == mp_independent) {
-    set_cur_exp_value_number (value_number (x));
-    mp->cur_exp.type = mp_known;
-    mp_free_node (mp, x, value_node_size);
+static void change_to_known (MP mp, mp_value_node p, mp_node x, mp_value_node final_node, integer n) {
+  if (n > 0) {
+    /* Divide list |p| by $2^n$ */
+    mp_value_node r;
+    mp_value_node s;
+    mp_number absw;
+    mp_number w;    /* a tentative coefficient */
+    new_number (w);
+    new_number (absw);
+    s = (mp_value_node) mp->temp_head;
+    set_mp_link (mp->temp_head, (mp_node) p);
+    r = p;  
+    do {
+      if (n > 30) {
+        set_number_to_zero (w);
+      } else {
+        number_clone (w, dep_value_number (r));
+        number_divide_int (w, two_to_the (n));
+      }
+      number_clone (absw, w);
+      number_abs (absw);
+      if (number_lessequal(absw, half_fraction_threshold_k) && (dep_info (r) != NULL)) {
+        set_mp_link (s, mp_link (r));
+        mp_free_dep_node (mp, r);
+      } else {
+        set_dep_value_number (r, w);
+        s = r;
+      }
+      r = (mp_value_node) mp_link (s);
+    } while (dep_info (s) != NULL);
+    p = (mp_value_node) mp_link (mp->temp_head);
+    free_number (absw);
+    free_number (w);
   }
-} else {
-  mp->dep_final = final_node;
-  mp_new_dep (mp, x, mp_dependent, p);
-  if (cur_exp_node () == x && mp->cur_exp.type == mp_independent) {
-    mp->cur_exp.type = mp_dependent;
+  
+  if (dep_info (p) == NULL) {
+    mp_number absx;
+    new_number (absx);
+    mp_type (x) = mp_known;
+    set_value_number (x, dep_value_number (p));
+    number_clone (absx, value_number (x));
+    number_abs (absx);
+    if (number_greaterequal (absx, warning_limit_t))
+      mp_val_too_big (mp, value_number (x));
+    free_number (absx);
+    mp_free_dep_node (mp, p);
+    if (cur_exp_node () == x && mp->cur_exp.type == mp_independent) {
+      set_cur_exp_value_number (value_number (x));
+      mp->cur_exp.type = mp_known;
+      mp_free_node (mp, x, value_node_size);
+    }
+  } else {
+    mp->dep_final = final_node;
+    mp_new_dep (mp, x, mp_dependent, p);
+    if (cur_exp_node () == x && mp->cur_exp.type == mp_independent) {
+      mp->cur_exp.type = mp_dependent;
+    }
   }
 }
-}
-
-@ @<Divide list |p| by $2^n$@>=
-{
-  mp_value_node r;
-  mp_value_node s;
-  mp_number absw;
-  mp_number w;    /* a tentative coefficient */
-  new_number (w);
-  new_number (absw);
-  s = (mp_value_node) mp->temp_head;
-  set_mp_link (mp->temp_head, (mp_node) p);
-  r = p;  
-  do {
-    if (n > 30) {
-      set_number_to_zero (w);
-    } else {
-      number_clone (w, dep_value_number (r));
-      number_divide_int (w, two_to_the (n));
-    }
-    number_clone (absw, w);
-    number_abs (absw);
-    if (number_lessequal(absw, half_fraction_threshold_k) && (dep_info (r) != NULL)) {
-      set_mp_link (s, mp_link (r));
-      mp_free_dep_node (mp, r);
-    } else {
-      set_dep_value_number (r, w);
-      s = r;
-    }
-    r = (mp_value_node) mp_link (s);
-  } while (dep_info (s) != NULL);
-  p = (mp_value_node) mp_link (mp->temp_head);
-  free_number (absw);
-  free_number (w);
-}
-
 
 @* Dynamic nonlinear equations.
 Variables of numeric type are maintained by the general scheme of
