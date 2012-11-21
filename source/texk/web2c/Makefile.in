@@ -39,13 +39,14 @@ EXTRA_PROGRAMS = $(am__EXEEXT_1) tex$(EXEEXT) mf$(EXEEXT) \
 bin_PROGRAMS = tangle$(EXEEXT) ctangle$(EXEEXT) $(am__EXEEXT_2) \
 	ctie$(EXEEXT) cweave$(EXEEXT) tie$(EXEEXT) $(am__EXEEXT_3) \
 	$(am__EXEEXT_4) $(am__EXEEXT_5) $(am__EXEEXT_6) \
-	$(am__EXEEXT_7) $(am__EXEEXT_8) $(am__EXEEXT_9)
-noinst_PROGRAMS = tangleboot$(EXEEXT) ctangleboot$(EXEEXT)
-check_PROGRAMS = $(am__EXEEXT_10) $(am__EXEEXT_11) $(am__EXEEXT_12) \
-	$(am__EXEEXT_13) md5main$(EXEEXT)
+	$(am__EXEEXT_7) $(am__EXEEXT_8)
+noinst_PROGRAMS = tangleboot$(EXEEXT) ctangleboot$(EXEEXT) \
+	$(am__EXEEXT_13)
+check_PROGRAMS = $(am__EXEEXT_9) $(am__EXEEXT_10) $(am__EXEEXT_11) \
+	$(am__EXEEXT_12) md5main$(EXEEXT)
 TESTS = tangle.test $(am__EXEEXT_16) ctiedir/ctie.test \
 	cwebdir/cweave.test tiedir/tie.test $(am__append_6) \
-	$(am__append_14) $(am__append_21) libmd5/md5.test
+	$(am__append_14) $(am__append_23) libmd5/md5.test
 DIST_COMMON = README $(am__configure_deps) $(dist_man_MANS) \
 	$(srcdir)/../../build-aux/config.guess \
 	$(srcdir)/../../build-aux/config.sub \
@@ -100,13 +101,15 @@ DIST_COMMON = README $(am__configure_deps) $(dist_man_MANS) \
 @MF_TRUE@am__append_16 = mftrap.diffs
 @MF_TRUE@am__append_17 = trap-clean
 @MP_TRUE@am__append_18 = mpost
-@MP_TRUE@@WIN32_TRUE@am__append_19 = dvitomp
-@MP_TRUE@@WIN32_FALSE@am__append_20 = mpost:dvitomp
-@MP_TRUE@am__append_21 = $(mp_tests)
-@MP_TRUE@am__append_22 = pltotf tftopl
-@MP_TRUE@am__append_23 = mptrap.diffs
-@MP_TRUE@am__append_24 = mptrap-clean
-@OTANGLE_TRUE@am__append_25 = pltotf tftopl
+@MP_TRUE@@WIN32_TRUE@am__append_19 = call_mpost
+@MP_TRUE@@WIN32_TRUE@am__append_20 = install-mpost-links
+@MP_TRUE@@WIN32_TRUE@am__append_21 = uninstall-mpost-links
+@MP_TRUE@@WIN32_FALSE@am__append_22 = mpost$(EXEEXT):dvitomp mpost$(EXEEXT):mfplain
+@MP_TRUE@am__append_23 = $(mp_tests)
+@MP_TRUE@am__append_24 = pltotf tftopl
+@MP_TRUE@am__append_25 = mptrap.diffs
+@MP_TRUE@am__append_26 = mptrap-clean
+@OTANGLE_TRUE@am__append_27 = pltotf tftopl
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/web2c-disable.m4 \
@@ -188,19 +191,22 @@ am__EXEEXT_1 = bibtex$(EXEEXT) dvicopy$(EXEEXT) dvitype$(EXEEXT) \
 @MFN_TRUE@@MF_TRUE@am__EXEEXT_6 = mf-nowin$(EXEEXT)
 @MF_TRUE@@WIN32_TRUE@am__EXEEXT_7 = inimf$(EXEEXT)
 @MP_TRUE@am__EXEEXT_8 = mpost$(EXEEXT)
-@MP_TRUE@@WIN32_TRUE@am__EXEEXT_9 = dvitomp$(EXEEXT)
 am__installdirs = "$(DESTDIR)$(bindir)"
-@TEX_TRUE@am__EXEEXT_10 = dvitype$(EXEEXT) pltotf$(EXEEXT) \
+@TEX_TRUE@am__EXEEXT_9 = dvitype$(EXEEXT) pltotf$(EXEEXT) \
 @TEX_TRUE@	tftopl$(EXEEXT)
-@MF_TRUE@am__EXEEXT_11 = gftype$(EXEEXT) tftopl$(EXEEXT)
-@MP_TRUE@am__EXEEXT_12 = pltotf$(EXEEXT) tftopl$(EXEEXT)
-@OTANGLE_TRUE@am__EXEEXT_13 = pltotf$(EXEEXT) tftopl$(EXEEXT)
+@MF_TRUE@am__EXEEXT_10 = gftype$(EXEEXT) tftopl$(EXEEXT)
+@MP_TRUE@am__EXEEXT_11 = pltotf$(EXEEXT) tftopl$(EXEEXT)
+@OTANGLE_TRUE@am__EXEEXT_12 = pltotf$(EXEEXT) tftopl$(EXEEXT)
+@MP_TRUE@@WIN32_TRUE@am__EXEEXT_13 = call_mpost$(EXEEXT)
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
 nodist_bibtex_OBJECTS = bibtex.$(OBJEXT)
 bibtex_OBJECTS = $(nodist_bibtex_OBJECTS)
 bibtex_LDADD = $(LDADD)
 am__DEPENDENCIES_1 =
 bibtex_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
+am_call_mpost_OBJECTS = call_mpost-callexe.$(OBJEXT)
+call_mpost_OBJECTS = $(am_call_mpost_OBJECTS)
+call_mpost_DEPENDENCIES =
 nodist_ctangle_OBJECTS = ctangle.$(OBJEXT) cweb.$(OBJEXT)
 ctangle_OBJECTS = $(nodist_ctangle_OBJECTS)
 ctangle_LDADD = $(LDADD)
@@ -220,9 +226,6 @@ nodist_dvicopy_OBJECTS = dvicopy.$(OBJEXT)
 dvicopy_OBJECTS = $(nodist_dvicopy_OBJECTS)
 dvicopy_LDADD = $(LDADD)
 dvicopy_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
-am_dvitomp_OBJECTS = dvitomp-callexe.$(OBJEXT)
-dvitomp_OBJECTS = $(am_dvitomp_OBJECTS)
-dvitomp_DEPENDENCIES =
 nodist_dvitype_OBJECTS = dvitype.$(OBJEXT)
 dvitype_OBJECTS = $(nodist_dvitype_OBJECTS)
 dvitype_LDADD = $(LDADD)
@@ -335,10 +338,10 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(libmd5_a_SOURCES) $(nodist_libmf_a_SOURCES) \
 	$(libmplib_a_SOURCES) $(nodist_libmplib_a_SOURCES) \
-	$(nodist_bibtex_SOURCES) $(nodist_ctangle_SOURCES) \
-	$(nodist_ctangleboot_SOURCES) $(nodist_ctie_SOURCES) \
-	$(nodist_cweave_SOURCES) $(nodist_dvicopy_SOURCES) \
-	$(dvitomp_SOURCES) $(nodist_dvitype_SOURCES) \
+	$(nodist_bibtex_SOURCES) $(call_mpost_SOURCES) \
+	$(nodist_ctangle_SOURCES) $(nodist_ctangleboot_SOURCES) \
+	$(nodist_ctie_SOURCES) $(nodist_cweave_SOURCES) \
+	$(nodist_dvicopy_SOURCES) $(nodist_dvitype_SOURCES) \
 	$(gftodvi_SOURCES) $(nodist_gftodvi_SOURCES) \
 	$(nodist_gftopk_SOURCES) $(nodist_gftype_SOURCES) \
 	$(inimf_SOURCES) $(initex_SOURCES) $(md5main_SOURCES) \
@@ -352,7 +355,7 @@ SOURCES = $(libmd5_a_SOURCES) $(nodist_libmf_a_SOURCES) \
 	$(nodist_tie_SOURCES) $(nodist_vftovp_SOURCES) \
 	$(nodist_vptovf_SOURCES) $(nodist_weave_SOURCES)
 DIST_SOURCES = $(libmd5_a_SOURCES) $(libmplib_a_SOURCES) \
-	$(dvitomp_SOURCES) $(gftodvi_SOURCES) $(inimf_SOURCES) \
+	$(call_mpost_SOURCES) $(gftodvi_SOURCES) $(inimf_SOURCES) \
 	$(initex_SOURCES) $(md5main_SOURCES) $(dist_mf_SOURCES) \
 	$(dist_mf_nowin_SOURCES) $(dist_tex_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
@@ -670,7 +673,7 @@ EXTRA_DIST = PROJECTS cftests cpascal.h help.h w2c/config.h \
 	triptrap/trip2.in triptrap/tripin.log triptrap/tripman.tex \
 	triptrap/tripos.tex triptrap/writeo triptrap/writeo.2 \
 	mplibdir/ChangeLog $(mpost_web) $(mp_tests) $(libmplib_web) \
-	mplibdir/lmplib.c libmd5/md5.test
+	libmd5/md5.test
 DISTCLEANFILES = $(EXTRA_LIBRARIES) CXXLD.sh tangle.c tangle.h \
 	tangle.p tangle-web2c tangleboot.c tangleboot.h tangleboot.p \
 	tangleboot-web2c ctangle.c cweb.c cweb.h ctangle-ctangle \
@@ -696,11 +699,11 @@ DISTCLEANFILES = $(EXTRA_LIBRARIES) CXXLD.sh tangle.c tangle.h \
 	mpmathdouble-tangle mpstrings-tangle psout-tangle \
 	svgout-tangle pngout-tangle
 CLEANFILES = 
-TRIPTRAP_CLEAN = $(am__append_9) $(am__append_17) $(am__append_24)
-TRIPTRAP = $(am__append_8) $(am__append_16) $(am__append_23)
-bin_links = $(am__append_5) $(am__append_13) $(am__append_20)
-install_exe_links = 
-uninstall_exe_links = 
+TRIPTRAP_CLEAN = $(am__append_9) $(am__append_17) $(am__append_26)
+TRIPTRAP = $(am__append_8) $(am__append_16) $(am__append_25)
+bin_links = $(am__append_5) $(am__append_13) $(am__append_22)
+install_exe_links = $(am__append_20)
+uninstall_exe_links = $(am__append_21)
 web2c = $(SHELL) ./web2c-sh $@
 makecpool = web2c/makecpool
 
@@ -839,10 +842,10 @@ mf_ch_src = \
 mf_tests = trap.test
 mpost_CPPFLAGS = $(AM_CPPFLAGS) $(ZLIB_INCLUDES) $(LIBPNG_INCLUDES) -I$(srcdir)/mplibdir
 mpost_DEPENDENCIES = libmplib.a $(CAIRO_DEPEND) $(PIXMAN_DEPEND) $(LIBPNG_DEPEND) $(ZLIB_DEPEND)
-mpost_LDADD = libmplib.a $(KPATHSEA_LIBS) $(CAIRO_LIBS) $(PIXMAN_LIBS) $(LIBPNG_LIBS) $(ZLIB_LIBS) -lm
-dvitomp_CPPFLAGS = -DEXEPROG=\"mpost.exe\"
-dvitomp_SOURCES = $(srcdir)/../texlive/w32_wrapper/callexe.c
-dvitomp_LDADD = 
+mpost_LDADD = libmplib.a $(KPATHSEA_LIBS) $(CAIRO_LIBS) $(PIXMAN_LIBS) $(LIBPNG_LIBS) $(ZLIB_LIBS)
+call_mpost_CPPFLAGS = -DEXEPROG=\"mpost.exe\"
+call_mpost_SOURCES = $(srcdir)/../texlive/w32_wrapper/callexe.c
+call_mpost_LDADD = 
 
 # Creating one file: just one rule
 mp_ctangle = CWEBINPUTS=$(srcdir)/mplibdir $(ctangle)
@@ -854,7 +857,7 @@ mpost_web = mplibdir/mpost.w mplibdir/mpxout.w
 mp_tests = mplibdir/dvitomp.test mplibdir/mptrap.test
 libmplib_a_CPPFLAGS = $(CAIRO_INCLUDES) $(PIXMAN_INCLUDES) $(ZLIB_INCLUDES) $(LIBPNG_INCLUDES) $(AM_CPPFLAGS) -I$(srcdir)/mplibdir
 libmplib_a_SOURCES = mplibdir/avl.h mplibdir/avl.c
-nodist_libmplib_a_SOURCES = tfmin.c $(mp_c_h) $(mpmath_c_h) $(mpmathdouble_c_h) $(psout_c_h) $(svgout_c_h) $(pngout_c_h) $(tfmin_c_h) $(mpstrings_c_h)
+nodist_libmplib_a_SOURCES = tfmin.c $(mp_c_h) $(mpmath_c_h) $(mpmathdouble_c_h) $(psout_c_h) $(svgout_c_h) $(pngout_c_h) $(mpstrings_c_h)
 mp_c_h = mp.c mplib.h mpmp.h
 mpmath_c_h = mpmath.h mpmath.c
 mpmathdouble_c_h = mpmathdouble.h mpmathdouble.c
@@ -1016,6 +1019,9 @@ clean-noinstPROGRAMS:
 bibtex$(EXEEXT): $(bibtex_OBJECTS) $(bibtex_DEPENDENCIES) $(EXTRA_bibtex_DEPENDENCIES) 
 	@rm -f bibtex$(EXEEXT)
 	$(LINK) $(bibtex_OBJECTS) $(bibtex_LDADD) $(LIBS)
+call_mpost$(EXEEXT): $(call_mpost_OBJECTS) $(call_mpost_DEPENDENCIES) $(EXTRA_call_mpost_DEPENDENCIES) 
+	@rm -f call_mpost$(EXEEXT)
+	$(LINK) $(call_mpost_OBJECTS) $(call_mpost_LDADD) $(LIBS)
 ctangle$(EXEEXT): $(ctangle_OBJECTS) $(ctangle_DEPENDENCIES) $(EXTRA_ctangle_DEPENDENCIES) 
 	@rm -f ctangle$(EXEEXT)
 	$(LINK) $(ctangle_OBJECTS) $(ctangle_LDADD) $(LIBS)
@@ -1031,9 +1037,6 @@ cweave$(EXEEXT): $(cweave_OBJECTS) $(cweave_DEPENDENCIES) $(EXTRA_cweave_DEPENDE
 dvicopy$(EXEEXT): $(dvicopy_OBJECTS) $(dvicopy_DEPENDENCIES) $(EXTRA_dvicopy_DEPENDENCIES) 
 	@rm -f dvicopy$(EXEEXT)
 	$(LINK) $(dvicopy_OBJECTS) $(dvicopy_LDADD) $(LIBS)
-dvitomp$(EXEEXT): $(dvitomp_OBJECTS) $(dvitomp_DEPENDENCIES) $(EXTRA_dvitomp_DEPENDENCIES) 
-	@rm -f dvitomp$(EXEEXT)
-	$(LINK) $(dvitomp_OBJECTS) $(dvitomp_LDADD) $(LIBS)
 dvitype$(EXEEXT): $(dvitype_OBJECTS) $(dvitype_DEPENDENCIES) $(EXTRA_dvitype_DEPENDENCIES) 
 	@rm -f dvitype$(EXEEXT)
 	$(LINK) $(dvitype_OBJECTS) $(dvitype_LDADD) $(LIBS)
@@ -1114,6 +1117,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bibtex.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/call_mpost-callexe.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ctangle.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ctangleboot.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ctie.Po@am__quote@
@@ -1121,7 +1125,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cweb.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cwebboot.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dvicopy.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dvitomp-callexe.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dvitype.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gftodvi.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gftopk.Po@am__quote@
@@ -1325,19 +1328,19 @@ libmplib_a-mpstrings.obj: mpstrings.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-mpstrings.obj `if test -f 'mpstrings.c'; then $(CYGPATH_W) 'mpstrings.c'; else $(CYGPATH_W) '$(srcdir)/mpstrings.c'; fi`
 
-dvitomp-callexe.o: $(srcdir)/../texlive/w32_wrapper/callexe.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dvitomp_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT dvitomp-callexe.o -MD -MP -MF $(DEPDIR)/dvitomp-callexe.Tpo -c -o dvitomp-callexe.o `test -f '$(srcdir)/../texlive/w32_wrapper/callexe.c' || echo '$(srcdir)/'`$(srcdir)/../texlive/w32_wrapper/callexe.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/dvitomp-callexe.Tpo $(DEPDIR)/dvitomp-callexe.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(srcdir)/../texlive/w32_wrapper/callexe.c' object='dvitomp-callexe.o' libtool=no @AMDEPBACKSLASH@
+call_mpost-callexe.o: $(srcdir)/../texlive/w32_wrapper/callexe.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(call_mpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT call_mpost-callexe.o -MD -MP -MF $(DEPDIR)/call_mpost-callexe.Tpo -c -o call_mpost-callexe.o `test -f '$(srcdir)/../texlive/w32_wrapper/callexe.c' || echo '$(srcdir)/'`$(srcdir)/../texlive/w32_wrapper/callexe.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/call_mpost-callexe.Tpo $(DEPDIR)/call_mpost-callexe.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(srcdir)/../texlive/w32_wrapper/callexe.c' object='call_mpost-callexe.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dvitomp_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dvitomp-callexe.o `test -f '$(srcdir)/../texlive/w32_wrapper/callexe.c' || echo '$(srcdir)/'`$(srcdir)/../texlive/w32_wrapper/callexe.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(call_mpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o call_mpost-callexe.o `test -f '$(srcdir)/../texlive/w32_wrapper/callexe.c' || echo '$(srcdir)/'`$(srcdir)/../texlive/w32_wrapper/callexe.c
 
-dvitomp-callexe.obj: $(srcdir)/../texlive/w32_wrapper/callexe.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dvitomp_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT dvitomp-callexe.obj -MD -MP -MF $(DEPDIR)/dvitomp-callexe.Tpo -c -o dvitomp-callexe.obj `if test -f '$(srcdir)/../texlive/w32_wrapper/callexe.c'; then $(CYGPATH_W) '$(srcdir)/../texlive/w32_wrapper/callexe.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../texlive/w32_wrapper/callexe.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/dvitomp-callexe.Tpo $(DEPDIR)/dvitomp-callexe.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(srcdir)/../texlive/w32_wrapper/callexe.c' object='dvitomp-callexe.obj' libtool=no @AMDEPBACKSLASH@
+call_mpost-callexe.obj: $(srcdir)/../texlive/w32_wrapper/callexe.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(call_mpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT call_mpost-callexe.obj -MD -MP -MF $(DEPDIR)/call_mpost-callexe.Tpo -c -o call_mpost-callexe.obj `if test -f '$(srcdir)/../texlive/w32_wrapper/callexe.c'; then $(CYGPATH_W) '$(srcdir)/../texlive/w32_wrapper/callexe.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../texlive/w32_wrapper/callexe.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/call_mpost-callexe.Tpo $(DEPDIR)/call_mpost-callexe.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$(srcdir)/../texlive/w32_wrapper/callexe.c' object='call_mpost-callexe.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(dvitomp_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o dvitomp-callexe.obj `if test -f '$(srcdir)/../texlive/w32_wrapper/callexe.c'; then $(CYGPATH_W) '$(srcdir)/../texlive/w32_wrapper/callexe.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../texlive/w32_wrapper/callexe.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(call_mpost_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o call_mpost-callexe.obj `if test -f '$(srcdir)/../texlive/w32_wrapper/callexe.c'; then $(CYGPATH_W) '$(srcdir)/../texlive/w32_wrapper/callexe.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../texlive/w32_wrapper/callexe.c'; fi`
 
 inimf-callexe.o: $(srcdir)/../texlive/w32_wrapper/callexe.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(inimf_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT inimf-callexe.o -MD -MP -MF $(DEPDIR)/inimf-callexe.Tpo -c -o inimf-callexe.o `test -f '$(srcdir)/../texlive/w32_wrapper/callexe.c' || echo '$(srcdir)/'`$(srcdir)/../texlive/w32_wrapper/callexe.c
@@ -2331,6 +2334,14 @@ trap-clean:
 	rm -f mftrapin.fot mftrapin.log
 	rm -f mftrap.fot mftrap.log mftrap.tfm
 	rm -f mftrap.pl trap.72270gf trap.typ
+
+.PHONY: install-mpost-links uninstall-mpost-links
+@WIN32_TRUE@install-mpost-links: call_mpost$(EXEEXT)
+@WIN32_TRUE@	$(INSTALL_PROGRAM) call_mpost$(EXEEXT) $(DESTDIR)$(bindir)/dvitomp$(EXEEXT)
+@WIN32_TRUE@	$(INSTALL_PROGRAM) call_mpost$(EXEEXT) $(DESTDIR)$(bindir)/mfplain$(EXEEXT)
+@WIN32_TRUE@uninstall-mpost-links:
+@WIN32_TRUE@	rm -f $(DESTDIR)$(bindir)/dvitomp$(EXEEXT)
+@WIN32_TRUE@	rm -f $(DESTDIR)$(bindir)/mfplain$(EXEEXT)
 
 mpost.c: ctangle$(EXEEXT) mplibdir/mpost.w
 	$(mp_ctangle) mpost.w
