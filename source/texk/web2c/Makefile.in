@@ -271,6 +271,9 @@ mft_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
 am__objects_9 = mpost-mpxout.$(OBJEXT)
 nodist_mpost_OBJECTS = mpost-mpost.$(OBJEXT) $(am__objects_9)
 mpost_OBJECTS = $(nodist_mpost_OBJECTS)
+mpost_DEPENDENCIES = libmplib.a $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 nodist_patgen_OBJECTS = patgen.$(OBJEXT)
 patgen_OBJECTS = $(nodist_patgen_OBJECTS)
 patgen_LDADD = $(LDADD)
@@ -618,13 +621,12 @@ wlibs = @wlibs@
 x_ext_lib = @x_ext_lib@
 x_tool_libs = @x_tool_libs@
 ACLOCAL_AMFLAGS = -I ../../m4 -I m4
-INCLUDES = 
 AM_CPPFLAGS = $(KPATHSEA_INCLUDES)
 AM_CFLAGS = $(WARNING_CFLAGS)
 AM_CXXFLAGS = ## $(WARNING_CXXFLAGS)
 AM_OBJCXXFLAGS = ## $(WARNING_OBJCXXFLAGS)
 version = $(WEB2CVERSION)
-SUBDIRS = doc lib man web2c . window omegafonts otps
+SUBDIRS = doc lib man web2c . window # omegafonts otps
 proglib = lib/lib.a
 dist_man_MANS = 
 nodist_man_MANS = 
@@ -841,7 +843,6 @@ mf_ch_src = \
 #
 mf_tests = trap.test
 mpost_CPPFLAGS = $(AM_CPPFLAGS) $(ZLIB_INCLUDES) $(LIBPNG_INCLUDES) -I$(srcdir)/mplibdir
-mpost_DEPENDENCIES = libmplib.a $(CAIRO_DEPEND) $(PIXMAN_DEPEND) $(LIBPNG_DEPEND) $(ZLIB_DEPEND)
 mpost_LDADD = libmplib.a $(KPATHSEA_LIBS) $(CAIRO_LIBS) $(PIXMAN_LIBS) $(LIBPNG_LIBS) $(ZLIB_LIBS)
 call_mpost_CPPFLAGS = -DEXEPROG=\"mpost.exe\"
 call_mpost_SOURCES = $(srcdir)/../texlive/w32_wrapper/callexe.c
@@ -2351,7 +2352,7 @@ $(mpxout_c_h): mpxout-tangle
 mpxout-tangle: ctangle$(EXEEXT) mplibdir/mpxout.w tangle-sh
 	@$(mp_ctangle_sh) mpxout
 
-$(mpost_OBJECTS): $(nodist_mpost_SOURCES) libmplib.a
+$(mpost_OBJECTS): $(nodist_mpost_SOURCES) libmplib.a $(LIBPNG_DEPEND)
 mptrap.diffs: mpost$(EXEEXT)
 	$(triptrap_diffs) $@
 .PHONY: mptrap-clean

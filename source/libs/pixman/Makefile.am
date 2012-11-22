@@ -10,7 +10,7 @@ ACLOCAL_AMFLAGS = -I ../../m4
 
 # Rebuild
 .PHONY: rebuild
-rebuild: config.force all
+rebuild: all
 
 ## We want to re-distribute the whole original pixman source tree.
 ##
@@ -36,14 +36,6 @@ noinst_LTLIBRARIES = libpixman.la
 include $(srcdir)/sources.am
 
 libpixman_la_SOURCES = $(libpixman_sources) $(libpixman_headers)
-
-$(libpixman_la_OBJECTS): config.force
-
-config.force:
-	echo timestamp >config.force
-	$(SHELL) ./config.status --recheck
-
-DISTCLEANFILES = config.force
 
 if build
 check_PROGRAMS = 
