@@ -2833,7 +2833,7 @@ void mp_free_node (MP mp, mp_node p, size_t siz) {                              
       mp_type (p) == mp_dep_node_type || 
       mp_type (p) == mp_attr_node_type) {
      free_number(((mp_value_node)p)->data.n); 
-     free_number(((mp_value_node)p)->v.subscript_); 
+     free_number(((mp_value_node)p)->subscript_); 
   } else if (p->type == mp_symbol_node) {
      free_number(((mp_symbolic_node)p)->data.n); 
   } else if (p->type == mp_dash_node_type) {
@@ -5253,7 +5253,7 @@ elsewhere, so using three different C structures is simply not
 workable. All three are now represented as a single C structure called
 |mp_value_node|.
 
-There is a union in this structure in the interest of space
+There is a potential union in this structure in the interest of space
 saving: |subscript_| and |hashloc_| are mutually exclusive.
 
 Actually, so are |attr_head_| + |subscr_head_| on one side and and
@@ -5271,12 +5271,14 @@ structure is not worth the minimal extra code clarification.
 @d set_attr_head(A,B) do {
    mp_node d = (B);
    FUNCTION_TRACE4 ("set_attr_head(%p,%p) on line %d\n", (A), (B), __LINE__);
+   assert (A->type == mp_structured);
    ((mp_value_node)(A))->attr_head_ = d;
 } while (0)
 
 @d subscr_head(A)   do_get_subscr_head(mp,(mp_value_node)(A))
 @d set_subscr_head(A,B) do {
    mp_node d = (B);
+   assert (A->type == mp_structured);
    FUNCTION_TRACE4 ("set_subscr_head(%p,%p) on line %d\n", (A), (B), __LINE__);
    ((mp_value_node)(A))->subscr_head_ = d;
 } while (0)
@@ -5285,10 +5287,8 @@ structure is not worth the minimal extra code clarification.
 typedef struct mp_value_node_data {
   NODE_BODY;
   mp_value_data data;
-  struct {
-    mp_number subscript_;
-    mp_sym hashloc_;
-  } v;
+  mp_number subscript_;
+  mp_sym hashloc_;
   mp_node parent_;
   mp_node attr_head_;
   mp_node subscr_head_;
@@ -5296,10 +5296,12 @@ typedef struct mp_value_node_data {
 
 @ @c
 static mp_node do_get_attr_head (MP mp, mp_value_node A) {
+  assert (A->type == mp_structured);
   FUNCTION_TRACE3 ("%p = get_attr_head(%p)\n", A->attr_head_, A);
   return A->attr_head_;
 }
 static mp_node do_get_subscr_head (MP mp, mp_value_node A) {
+  assert (A->type == mp_structured);
   FUNCTION_TRACE3 ("%p = get_subscr_head(%p)\n", A->subscr_head_, A);
   return A->subscr_head_;
 }
@@ -5324,7 +5326,7 @@ static mp_node mp_get_value_node (MP mp) {
   memset (p, 0, value_node_size);
   mp_type (p) = mp_value_node_type;
   new_number(p->data.n);
-  new_number(p->v.subscript_);
+  new_number(p->subscript_);
   FUNCTION_TRACE2 ("%p = mp_get_value_node()\n", p);
   return (mp_node)p;
 }
@@ -5419,22 +5421,35 @@ subscript attributes do not carry actual values except for macro identifiers;
 branches of the structure below subscript nodes do not carry significant
 information in their collective subscript attributes.
 
-@d hashloc(A) ((mp_value_node)(A))->v.hashloc_ /* hash address of this attribute */
+@d hashloc(A) do_get_hashloc(mp,(mp_value_node)(A)) /* hash address of this attribute */
 @d set_hashloc(A,B) do {
   FUNCTION_TRACE4 ("set_hashloc(%p,%p) on line %d\n", (A), (B), __LINE__);
-  ((mp_value_node)(A))->v.hashloc_ = (mp_sym)(B);
+   assert((A)->type == mp_attr_node_type || (A)->name_type == mp_attr);
+  ((mp_value_node)(A))->hashloc_ = (mp_sym)(B);
   } while (0)
-@d parent(A) (A)->parent_ /* pointer to |mp_structured| variable */
+@d parent(A) do_get_parent(mp, A)
 @d set_parent(A,B) do {
    mp_node d = (B);
+   assert((A)->type == mp_attr_node_type || (A)->name_type == mp_attr);
    FUNCTION_TRACE4 ("set_parent(%p,%p) on line %d\n", (A), (B), __LINE__);
    ((mp_value_node)(A))->parent_ = d;
 } while (0)
 
 @ 
-@d mp_free_attr_node(a,b) mp_free_node(a,b,value_node_size)
+@d mp_free_attr_node(a,b) do {
+   assert((b)->type == mp_attr_node_type || (b)->name_type == mp_attr);
+   mp_free_node(a,b,value_node_size);
+} while (0)
 
 @c
+static mp_sym do_get_hashloc (MP mp, mp_value_node A) {
+  assert((A)->type == mp_attr_node_type || (A)->name_type == mp_attr);
+  return (A)->hashloc_;
+}
+static mp_node do_get_parent (MP mp, mp_value_node A) {
+  assert((A)->type == mp_attr_node_type || (A)->name_type == mp_attr);
+  return (A)->parent_; /* pointer to |mp_structured| variable */
+}
 static mp_value_node mp_get_attr_node (MP mp) {
   mp_value_node p = (mp_value_node) mp_get_value_node (mp);
   mp_type (p) = mp_attr_node_type;
@@ -5458,15 +5473,21 @@ set_parent ((mp_value_node) mp->end_attr, NULL);
 mp_free_attr_node (mp, mp->end_attr);
 
 @
-@d collective_subscript 0 /* code for the attribute `\.{[]}' */
-@d subscript(A) ((mp_value_node)(A))->v.subscript_ /* subscript of this variable */
+@d collective_subscript (void *)0 /* code for the attribute `\.{[]}' */
+@d subscript(A) do_get_subscript (mp,(mp_value_node)(A))
 @d set_subscript(A,B) do {
   FUNCTION_TRACE3("set_subscript(%p,%d)\n", (A), (B));
-  ((mp_value_node)(A))->v.subscript_=(B); /* subscript of this variable */
+  assert((A)->type == mp_subscr_node_type || (A)->name_type == mp_subscr);
+  ((mp_value_node)(A))->subscript_=(B); /* subscript of this variable */
 } while (0)
 
 
 @c
+static mp_number do_get_subscript (MP mp, mp_value_node A) {
+   /* the addition of |mp_attr| is for the benefit of |find_variable} */
+   assert(A->type == mp_subscr_node_type || A->name_type == mp_subscr  || (A)->name_type == mp_attr);
+   return A->subscript_; /* subscript of this variable */
+}
 static mp_value_node mp_get_subscr_node (MP mp) {
   mp_value_node p = (mp_value_node) mp_get_value_node (mp);
   mp_type (p) = mp_subscr_node_type;
@@ -6031,7 +6052,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
   } else {
     set_mp_link (q_new, r);
   }
-  subscript (r) = subscript (p);
+  set_subscript (r, subscript (p));
 }
 
 
