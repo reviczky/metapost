@@ -61,9 +61,9 @@ CONFHOST=
 if [ "$MINGWCROSS" = "TRUE" ]
 then
   B=build-windows
-  STRIP=mingw32-strip
+  STRIP=i586-mingw32msvc-strip
   MPOSTEXE=mpost.exe
-  CONFHOST="--host=i586-pc-mingw32 --build=i586-linux-gnu "
+  CONFHOST="--host=i586-mingw32msvc --build=i586-linux-gnu "
 fi
 
 if [ "$PPCCROSS" = "TRUE" ]
