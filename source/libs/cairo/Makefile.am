@@ -49,7 +49,7 @@ cairo-build/Makefile: config.force
 
 # Unfortunately the Cairo build system installs the headers after the library;
 # to get our dependencies right we wait for a second and then touch the library.
-libcairo.la: cairo-build/Makefile $(ZLIB_DEPEND)
+libcairo.la: cairo-build/Makefile
 	rm -rf cairo-install
 	cd cairo-build \
 	  && $(MAKE) $(AM_MAKEFLAGS) \
@@ -68,7 +68,7 @@ config.force: $(PIXMAN_DEPEND)
 
 DISTCLEANFILES = config.force
 
-## Rebuild zlib
+## Rebuild pixman
 @PIXMAN_RULE@
 
 if build

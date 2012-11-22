@@ -323,7 +323,6 @@ libpixman_headers = \
 	$(PIXMAN_SRC)/pixman-private.h
 
 libpixman_la_SOURCES = $(libpixman_sources) $(libpixman_headers)
-DISTCLEANFILES = config.force
 @build_TRUE@dist_check_SCRIPTS = pixman.test
 @build_TRUE@TESTS = pixman.test
 LDADD = libpixman.la
@@ -1129,7 +1128,6 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
-	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -1233,18 +1231,12 @@ uninstall-am:
 
 # Rebuild
 .PHONY: rebuild
-rebuild: config.force all
+rebuild: all
 
 # in case of an SVN repository
 dist-hook:
 	rm -rf `find $(distdir) -name .svn`
 	rm -f $(distdir)/$(PIXMAN_SRC)/pixman-version.h
-
-$(libpixman_la_OBJECTS): config.force
-
-config.force:
-	echo timestamp >config.force
-	$(SHELL) ./config.status --recheck
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

@@ -38,24 +38,22 @@ AC_CONFIG_HEADERS([config.h])
 
 AM_CONDITIONAL([build], [test "x$enable_build" != xno])
 
-if test "x$enable_build" != xno || test -f config.force; then
-
-AC_DEFINE([PIXMAN_NO_TLS], 1, [We do not want threading])
-
+if :; then
+  AC_DEFINE([PIXMAN_NO_TLS], 1, [We do not want threading])
+else
 dnl add all these to config.h.in but do not define them in config.h
-if false; then
-   AC_DEFINE([USE_LOONGSON_MMI], 1, [use Loongson Multimedia Instructions])
-   AC_DEFINE([USE_X86_MMX], 1, [use x86 MMX compiler intrinsics])
-   AC_DEFINE([USE_SSE2], 1, [use SSE2 compiler intrinsics])
-   AC_DEFINE([USE_VMX], 1, [use VMX compiler intrinsics])
-   AC_DEFINE([USE_ARM_SIMD], 1, [use ARM SIMD assembly optimizations])
-   AC_DEFINE([USE_ARM_NEON], 1, [use ARM NEON assembly optimizations])
-   AC_DEFINE([USE_ARM_IWMMXT], 1, [use ARM IWMMXT compiler intrinsics])
-   AC_DEFINE([USE_MIPS_DSPR2], 1, [use MIPS DSPr2 assembly optimizations])
-   AC_DEFINE([USE_GCC_INLINE_ASM], 1, [use GNU-style inline assembler])
-   AC_DEFINE([PIXMAN_TIMERS], 1, [enable TIMER_BEGIN/TIMER_END macros])
-   AC_DEFINE([TOOLCHAIN_SUPPORTS_ATTRIBUTE_CONSTRUCTOR], 1,
-             [Whether the tool chain supports __attribute__((constructor))])
+  AC_DEFINE([USE_LOONGSON_MMI], 1, [use Loongson Multimedia Instructions])
+  AC_DEFINE([USE_X86_MMX], 1, [use x86 MMX compiler intrinsics])
+  AC_DEFINE([USE_SSE2], 1, [use SSE2 compiler intrinsics])
+  AC_DEFINE([USE_VMX], 1, [use VMX compiler intrinsics])
+  AC_DEFINE([USE_ARM_SIMD], 1, [use ARM SIMD assembly optimizations])
+  AC_DEFINE([USE_ARM_NEON], 1, [use ARM NEON assembly optimizations])
+  AC_DEFINE([USE_ARM_IWMMXT], 1, [use ARM IWMMXT compiler intrinsics])
+  AC_DEFINE([USE_MIPS_DSPR2], 1, [use MIPS DSPr2 assembly optimizations])
+  AC_DEFINE([USE_GCC_INLINE_ASM], 1, [use GNU-style inline assembler])
+  AC_DEFINE([PIXMAN_TIMERS], 1, [enable TIMER_BEGIN/TIMER_END macros])
+  AC_DEFINE([TOOLCHAIN_SUPPORTS_ATTRIBUTE_CONSTRUCTOR], 1,
+            [Whether the tool chain supports __attribute__((constructor))])
 fi
 
 dnl PIXMAN_LINK_WITH_ENV(env-setup, program, true-action, false-action)
@@ -144,9 +142,6 @@ fi
 
 PIXMAN_CHECK_CFLAG([-Wall])
 PIXMAN_CHECK_CFLAG([-fno-strict-aliasing])
-
-echo timestamp >config.force
-fi
 
 AC_SUBST([PIXMAN_TREE], [pixman-]pixman_version)
 

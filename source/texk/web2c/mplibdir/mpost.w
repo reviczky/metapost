@@ -93,6 +93,13 @@ static char *mpost_itoa (int i) {
 
 
 @ @c
+#ifdef WIN32
+static int
+Isspace (char c)
+{
+  return (c == ' ' || c == '\t');
+}
+#endif 
 static void mpost_run_editor (MP mp, char *fname, int fline) {
   char *temp, *command, *fullcmd, *edit_value;
   char c;

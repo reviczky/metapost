@@ -5,17 +5,15 @@
 ##
 ACLOCAL_AMFLAGS = -I ../../m4 -I m4
 
-INCLUDES =
 AM_CPPFLAGS = $(KPATHSEA_INCLUDES)
 ## Not yet for C, C++, and ObjC++ (too many warnings or not yet implemented)
 AM_CFLAGS = $(WARNING_CFLAGS)
 AM_CXXFLAGS = ## $(WARNING_CXXFLAGS)
-## Not yet for ObjC++ (not yet implemented)
 AM_OBJCXXFLAGS = ## $(WARNING_OBJCXXFLAGS)
 
 version = $(WEB2CVERSION)
 
-SUBDIRS = doc lib man web2c . window omegafonts otps
+SUBDIRS = doc lib man web2c . window # omegafonts otps
 
 proglib = lib/lib.a
 
