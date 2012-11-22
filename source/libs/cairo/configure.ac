@@ -22,14 +22,17 @@ LT_INIT
 KPSE_PIXMAN_FLAGS
 
 AM_CONDITIONAL([build], [test "x$enable_build" != xno])
+AC_SEARCH_LIBS([sqrt], [m])
 
 if test "x$enable_build" != xno || test -f config.force; then
 
-AC_SEARCH_LIBS([sqrt], [m])
 KPSE_ADD_FLAGS([pixman])
 AC_CHECK_FUNC([pixman_version_string], , [AC_ERROR([pixman not found])])
 KPSE_RESTORE_FLAGS
 
+echo timestamp >config.force
+fi
+ 
 if test "x$host" = x; then
   config_args=
 else
@@ -39,9 +42,6 @@ else
   fi
 fi
 AC_SUBST([config_args])
-
-echo timestamp >config.force
-fi
 
 AC_SUBST([CAIRO_TREE], [cairo-]cairo_version)
 

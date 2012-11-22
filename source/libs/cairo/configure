@@ -12719,9 +12719,6 @@ else
   build_FALSE=
 fi
 
-
-if test "x$enable_build" != xno || test -f config.force; then
-
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing sqrt" >&5
 $as_echo_n "checking for library containing sqrt... " >&6; }
 if ${ac_cv_search_sqrt+:} false; then :
@@ -12778,6 +12775,9 @@ if test "$ac_res" != no; then :
 
 fi
 
+
+if test "x$enable_build" != xno || test -f config.force; then
+
 kpse_save_CPPFLAGS=$CPPFLAGS
 kpse_save_LIBS=$LIBS
 
@@ -12795,6 +12795,9 @@ CPPFLAGS=$kpse_save_CPPFLAGS
 LIBS=$kpse_save_LIBS
 
 
+echo timestamp >config.force
+fi
+
 if test "x$host" = x; then
   config_args=
 else
@@ -12804,9 +12807,6 @@ else
   fi
 fi
 
-
-echo timestamp >config.force
-fi
 
 CAIRO_TREE=cairo-1.12.8
 
