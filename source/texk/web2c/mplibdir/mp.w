@@ -1422,6 +1422,7 @@ use an array |wr_file| that will be declared later.
 
 @<Internal library ...@>=
 void mp_print (MP mp, const char *s);
+void mp_printf (MP mp, const char *ss, ...);
 void mp_print_ln (MP mp);
 void mp_print_char (MP mp, ASCII_code k);
 void mp_print_str (MP mp, mp_string s);
@@ -1580,6 +1581,17 @@ void mp_print (MP mp, const char *ss) {
   assert (ss != NULL);
   mp_do_print (mp, ss, strlen (ss));
 }
+void mp_printf (MP mp, const char *ss, ...) {
+  va_list ap;
+  char pval[256];
+  assert (ss != NULL);
+  mp_print (mp, pval);
+  va_start(ap, ss);
+  vsnprintf (pval, 256, ss, ap);
+  mp_do_print (mp, pval, strlen (pval));
+  va_end(ap);
+}
+
 void mp_print_str (MP mp, mp_string s) {
   assert (s != NULL);
   mp_do_print (mp, (const char *) s->str, s->len);
@@ -5790,132 +5802,62 @@ void mp_print_variable_name (MP mp, mp_node p) {
   mp_node q;    /* a token list that will name the variable's suffix */
   mp_node r;    /* temporary for token list creation */
   while (mp_name_type (p) >= mp_x_part_sector) {
-    @<Preface the output with a part specifier; |return| in the
-      case of a capsule@>;
+    switch (mp_name_type (p)) {
+    case mp_x_part_sector:      mp_print (mp, "xpart ");      break;
+    case mp_y_part_sector:      mp_print (mp, "ypart ");      break;
+    case mp_xx_part_sector:     mp_print (mp, "xxpart ");     break;
+    case mp_xy_part_sector:     mp_print (mp, "xypart ");     break;
+    case mp_yx_part_sector:     mp_print (mp, "yxpart ");     break;
+    case mp_yy_part_sector:     mp_print (mp, "yypart ");     break;
+    case mp_red_part_sector:    mp_print (mp, "redpart ");    break;
+    case mp_green_part_sector:  mp_print (mp, "greenpart ");  break;
+    case mp_blue_part_sector:   mp_print (mp, "bluepart ");   break;
+    case mp_cyan_part_sector:   mp_print (mp, "cyanpart ");   break;
+    case mp_magenta_part_sector:mp_print (mp, "magentapart ");break;
+    case mp_yellow_part_sector: mp_print (mp, "yellowpart "); break;
+    case mp_black_part_sector:  mp_print (mp, "blackpart ");  break;
+    case mp_grey_part_sector:   mp_print (mp, "greypart ");   break;
+    case mp_capsule:            mp_printf (mp, "%%CAPSULE%p",p); return; break;
+    /* this is to please the compiler: the remaining cases are operation codes */
+    default: break;
+    }
+    p = mp_link (p);
   }
   q = NULL;
   while (mp_name_type (p) > mp_saved_root) {
-    @<Ascend one level, pushing a token onto list |q|
-     and replacing |p| by its parent@>;
+    /* Ascend one level, pushing a token onto list |q|
+       and replacing |p| by its parent */
+    if (mp_name_type (p) == mp_subscr) {
+      r = mp_new_num_tok (mp, subscript (p));
+      do {
+        p = mp_link (p);
+      } while (mp_name_type (p) != mp_attr);
+    } else if (mp_name_type (p) == mp_structured_root) {
+      p = mp_link (p);
+      goto FOUND;
+    } else {
+      if (mp_name_type (p) != mp_attr)
+        mp_confusion (mp, "var");
+      r = mp_get_symbolic_node (mp);
+      set_mp_sym_sym (r, hashloc (p)); /* the hash address */
+    }
+    set_mp_link (r, q);
+    q = r;
+  FOUND:
+    p = parent ((mp_value_node) p);
+
   }
   /* now |link(p)| is the hash address of |p|, and
      |name_type(p)| is either |root| or |saved_root|. 
-     Have to prepend a token to |q| for |show_token_list|. 
-   */
+     Have to prepend a token to |q| for |show_token_list|. */
   r = mp_get_symbolic_node (mp);
   set_mp_sym_sym (r, value_sym (p));
   mp_link (r) = q;
   if (mp_name_type (p) == mp_saved_root)
     mp_print (mp, "(SAVED)");
-@.SAVED@>;
   mp_show_token_list (mp, r, NULL, max_integer, mp->tally);
   mp_flush_token_list (mp, r);
 }
-
-
-@ @<Ascend one level, pushing a token onto list |q|...@>=
-{
-  if (mp_name_type (p) == mp_subscr) {
-    mp_number arg1;
-    new_number (arg1);
-    number_clone (arg1, subscript (p));
-    r = mp_new_num_tok (mp, arg1);
-    free_number (arg1);
-    do {
-      p = mp_link (p);
-    } while (mp_name_type (p) != mp_attr);
-  } else if (mp_name_type (p) == mp_structured_root) {
-    p = mp_link (p);
-    goto FOUND;
-  } else {
-    if (mp_name_type (p) != mp_attr)
-      mp_confusion (mp, "var");
-@:this can't happen var}{\quad var@>;
-    r = mp_get_symbolic_node (mp);
-    set_mp_sym_sym (r, hashloc (p));    /* the hash address */
-  }
-  set_mp_link (r, q);
-  q = r;
-FOUND:
-  p = parent ((mp_value_node) p);
-}
-
-
-@ @<Preface the output with a part specifier...@>=
-{
-  switch (mp_name_type (p)) {
-  case mp_x_part_sector:
-    mp_print (mp, "x");
-    break;
-  case mp_y_part_sector:
-    mp_print (mp, "y");
-    break;
-  case mp_xx_part_sector:
-    mp_print (mp, "xx");
-    break;
-  case mp_xy_part_sector:
-    mp_print (mp, "xy");
-    break;
-  case mp_yx_part_sector:
-    mp_print (mp, "yx");
-    break;
-  case mp_yy_part_sector:
-    mp_print (mp, "yy");
-    break;
-  case mp_red_part_sector:
-    mp_print (mp, "red");
-    break;
-  case mp_green_part_sector:
-    mp_print (mp, "green");
-    break;
-  case mp_blue_part_sector:
-    mp_print (mp, "blue");
-    break;
-  case mp_cyan_part_sector:
-    mp_print (mp, "cyan");
-    break;
-  case mp_magenta_part_sector:
-    mp_print (mp, "magenta");
-    break;
-  case mp_yellow_part_sector:
-    mp_print (mp, "yellow");
-    break;
-  case mp_black_part_sector:
-    mp_print (mp, "black");
-    break;
-  case mp_grey_part_sector:
-    mp_print (mp, "grey");
-    break;
-  case mp_capsule:
-    {
-      char pval[19];    /* allow 64bit pointers, + "0x" */
-      mp_print (mp, "%CAPSULE");
-      sprintf (pval, "%p", p);
-      mp_print (mp, pval);
-      return;
-    }
-    break;
-@.CAPSULE@>
-  case mp_root:
-  case mp_saved_root:
-  case mp_structured_root:
-  case mp_subscr:
-  case mp_attr:
-  case mp_token:
-  case mp_normal_sym:
-  case mp_internal_sym:
-  case mp_macro_sym:
-  case mp_expr_sym:
-  case mp_suffix_sym:
-  case mp_text_sym:
-    break;
-  default: /* this is to please the compiler: the remaining cases are operation codes */
-    break;
-  }                             /* there are no other cases */
-  mp_print (mp, "part ");
-  p = mp_link (p);
-}
-
 
 @ The |interesting| function returns |true| if a given variable is not
 in a capsule, or if the user wants to trace capsules.
@@ -5928,48 +5870,49 @@ static boolean mp_interesting (MP mp, mp_node p) {
   } else {
     t = mp_name_type (p);
     if (t >= mp_x_part_sector && t != mp_capsule) {
+      mp_node tt = value_node(mp_link(p)); 
       switch (t) {
       case mp_x_part_sector:
-        t = mp_name_type (x_part (value_node(mp_link(p))));
+        t = mp_name_type (x_part (tt));
         break;
       case mp_y_part_sector:
-        t = mp_name_type (y_part (value_node(mp_link(p))));
+        t = mp_name_type (y_part (tt));
         break;
       case mp_xx_part_sector:
-        t = mp_name_type (xx_part (value_node(mp_link(p))));
+        t = mp_name_type (xx_part (tt));
         break;
       case mp_xy_part_sector:
-        t = mp_name_type (xy_part (value_node(mp_link(p))));
+        t = mp_name_type (xy_part (tt));
         break;
       case mp_yx_part_sector:
-        t = mp_name_type (yx_part (value_node(mp_link(p))));
+        t = mp_name_type (yx_part (tt));
         break;
       case mp_yy_part_sector:
-        t = mp_name_type (yy_part (value_node(mp_link(p))));
+        t = mp_name_type (yy_part (tt));
         break;
       case mp_red_part_sector:
-        t = mp_name_type (red_part (value_node(mp_link(p))));
+        t = mp_name_type (red_part (tt));
         break;
       case mp_green_part_sector:
-        t = mp_name_type (green_part (value_node(mp_link(p))));
+        t = mp_name_type (green_part (tt));
         break;
       case mp_blue_part_sector:
-        t = mp_name_type (blue_part (value_node(mp_link(p))));
+        t = mp_name_type (blue_part (tt));
         break;
       case mp_cyan_part_sector:
-        t = mp_name_type (cyan_part (value_node(mp_link(p))));
+        t = mp_name_type (cyan_part (tt));
         break;
       case mp_magenta_part_sector:
-        t = mp_name_type (magenta_part (value_node(mp_link(p))));
+        t = mp_name_type (magenta_part (tt));
         break;
       case mp_yellow_part_sector:
-        t = mp_name_type (yellow_part (value_node(mp_link(p))));
+        t = mp_name_type (yellow_part (tt));
         break;
       case mp_black_part_sector:
-        t = mp_name_type (black_part (value_node(mp_link(p))));
+        t = mp_name_type (black_part (tt));
         break;
       case mp_grey_part_sector:
-        t = mp_name_type (grey_part (value_node(mp_link(p))));
+        t = mp_name_type (grey_part (tt));
         break;
       default:
         break;
@@ -6002,14 +5945,62 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
     }
     break;
   case mp_subscr:
-    @<Link a new subscript node |r| in place of node |p|@>;
+    /* Link a new subscript node |r| in place of node |p| */
+    {
+      mp_node q_new;
+      q = p;
+      do {
+        q = mp_link (q);
+      } while (mp_name_type (q) != mp_attr);
+      q = parent ((mp_value_node) q);
+      r = mp->temp_head;
+      set_mp_link (r, subscr_head (q));
+      do {
+        q_new = r;
+        r = mp_link (r);
+      } while (r != p);
+      r = (mp_node) mp_get_subscr_node (mp);
+      if (q_new == mp->temp_head) {
+        set_subscr_head (q, r);
+      } else {
+        set_mp_link (q_new, r);
+      }
+      set_subscript (r, subscript (p));
+    }
+
     break;
   case mp_attr:
-    @<Link a new attribute node |r| in place of node |p|@>;
+    /* Link a new attribute node |r| in place of node |p| */
+    /* If the attribute is |collective_subscript|, there are two pointers to
+       node~|p|, so we must change both of them. */
+    {
+      mp_value_node rr;
+      q = parent ((mp_value_node) p);
+      r = attr_head (q);
+      do {
+        q = r;
+        r = mp_link (r);
+      } while (r != p);
+      rr = mp_get_attr_node (mp);
+      r = (mp_node) rr;
+      set_mp_link (q, (mp_node) rr);
+      set_hashloc (rr, hashloc (p));
+      set_parent (rr, parent ((mp_value_node) p));
+      if (hashloc (p) == collective_subscript) {
+        q = mp->temp_head;
+        set_mp_link (q, subscr_head (parent ((mp_value_node) p)));
+        while (mp_link (q) != p)
+          q = mp_link (q);
+        if (q == mp->temp_head)
+          set_subscr_head (parent ((mp_value_node) p), (mp_node) rr);
+        else
+          set_mp_link (q, (mp_node) rr);
+      }
+    }
+
     break;
   default:
     mp_confusion (mp, "struct");
-@:this can't happen struct}{\quad struct@>;
     break;
   }
   set_mp_link (r, mp_link (p));
@@ -6030,61 +6021,6 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
   }
   return r;
 }
-
-
-@ @<Link a new subscript node |r| in place of node |p|@>=
-{
-  mp_node q_new;
-  q = p;
-  do {
-    q = mp_link (q);
-  } while (mp_name_type (q) != mp_attr);
-  q = parent ((mp_value_node) q);
-  r = mp->temp_head;
-  set_mp_link (r, subscr_head (q));
-  do {
-    q_new = r;
-    r = mp_link (r);
-  } while (r != p);
-  r = (mp_node) mp_get_subscr_node (mp);
-  if (q_new == mp->temp_head) {
-    set_subscr_head (q, r);
-  } else {
-    set_mp_link (q_new, r);
-  }
-  set_subscript (r, subscript (p));
-}
-
-
-@ If the attribute is |collective_subscript|, there are two pointers to
-node~|p|, so we must change both of them.
-
-@<Link a new attribute node |r| in place of node |p|@>=
-{
-  mp_value_node rr;
-  q = parent ((mp_value_node) p);
-  r = attr_head (q);
-  do {
-    q = r;
-    r = mp_link (r);
-  } while (r != p);
-  rr = mp_get_attr_node (mp);
-  r = (mp_node) rr;
-  set_mp_link (q, (mp_node) rr);
-  set_hashloc (rr, hashloc (p));
-  set_parent (rr, parent ((mp_value_node) p));
-  if (hashloc (p) == collective_subscript) {
-    q = mp->temp_head;
-    set_mp_link (q, subscr_head (parent ((mp_value_node) p)));
-    while (mp_link (q) != p)
-      q = mp_link (q);
-    if (q == mp->temp_head)
-      set_subscr_head (parent ((mp_value_node) p), (mp_node) rr);
-    else
-      set_mp_link (q, (mp_node) rr);
-  }
-}
-
 
 @ The |find_variable| routine is given a pointer~|t| to a nonempty token
 list of suffixes; it returns a pointer to the corresponding non-symbolic
