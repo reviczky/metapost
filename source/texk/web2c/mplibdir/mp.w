@@ -6256,8 +6256,7 @@ void mp_flush_cur_exp (MP mp, mp_value v);
 @ @c
 static void mp_flush_variable (MP mp, mp_node p, mp_node t,
                                boolean discard_suffixes) {
-  mp_node q, r; /* list manipulation */
-  mp_node s_head;
+  mp_node q, r = NULL; /* list manipulation */
   mp_sym n;     /* attribute to match */
   while (t != NULL) {
     if (mp_type (p) != mp_structured) {
@@ -6267,26 +6266,23 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t,
     t = mp_link (t);
     if (n == collective_subscript) {
       q = subscr_head (p);
-      s_head = q;
       while (mp_name_type (q) == mp_subscr) {
         mp_flush_variable (mp, q, t, discard_suffixes);
         if (t == NULL) {
           if (mp_type (q) == mp_structured) {
             r = q;
           } else {
-            set_mp_link (r, mp_link (q));
-            if (q == s_head) {
-              s_head = r;
-            }
+            if (r==NULL) 
+   	      set_subscr_head (p, mp_link (q));
+            else
+              set_mp_link (r, mp_link (q));
             mp_free_node (mp, q, value_node_size);
           }
         } else {
           r = q;
         }
-        q = mp_link (r);
+        q = (r==NULL ? subscr_head (p) : mp_link (r));
       }
-      /* fix |subscr_head| if it was already present */
-      set_subscr_head (p, s_head);
     }
     p = attr_head (p);
     do {
