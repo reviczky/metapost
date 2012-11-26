@@ -2681,6 +2681,21 @@ extern void mp_xfree (void *x);
 extern void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size);
 extern void *mp_xmalloc (MP mp, size_t nmem, size_t size);
 extern void mp_do_snprintf (char *str, int size, const char *fmt, ...);
+extern void *do_alloc_node(MP mp, size_t size);
+
+@ This is a nicer way of allocating nodes.
+
+@d malloc_node(A) do_alloc_node(mp,(A))
+
+@ 
+@c
+void *do_alloc_node (MP mp, size_t size) {
+    void *p = xmalloc(1,size);
+    add_var_used (size);
+    memset (p, 0, size);
+    return p;
+}
+
 
 @ The |max_size_test| guards against overflow, on the assumption that
 |size_t| is at least 31bits wide.
@@ -2817,9 +2832,7 @@ static mp_sym get_mp_sym_sym (MP mp, mp_node p);
 @d symbolic_node_size sizeof(mp_node_data)
 @c
 static mp_node mp_get_symbolic_node (MP mp) {
-  mp_symbolic_node p = xmalloc (1, symbolic_node_size);
-  add_var_used (symbolic_node_size);
-  memset (p, 0, symbolic_node_size);
+  mp_symbolic_node p = malloc_node (symbolic_node_size);
   p->type = mp_symbol_node;
   p->name_type = mp_normal_sym;
   new_number(p->data.n);
@@ -3226,6 +3239,18 @@ static const char *mp_type_string (quarterword t) {
   case mp_subscr_node_type:
     s = "subscript node";
     break;
+  case mp_pair_node_type:
+    s = "pair node";
+    break;
+  case mp_transform_node_type:
+    s = "transform node";
+    break;
+  case mp_color_node_type:
+    s = "color node";
+    break;
+  case mp_cmykcolor_node_type:
+    s = "cmykcolor node";
+    break;
   case mp_fill_node_type:
     s = "fill node";
     break;
@@ -3260,7 +3285,11 @@ static const char *mp_type_string (quarterword t) {
     s = "edge header node";
     break;
   default:
-    assert (0);
+    {
+        char ss[256];
+    	mp_snprintf (ss, 256, "<unknown type %d>", t);
+	s = strdup(ss);
+    }
     break;
   }
   return s;
@@ -4788,11 +4817,11 @@ printer's sense. It's curious that the same word is used in such different ways.
 
 @d token_node_size sizeof(mp_node_data) /* the number of words in a large token node */
 
-@d value_sym_OLD(A)   do_get_value_sym(mp,(mp_token_node)(A))
-@d set_value_sym_OLD(A,B) do_set_value_sym(mp, (mp_token_node)(A), (B))
+@d value_sym(A)   do_get_value_sym(mp,(mp_token_node)(A))
+@d set_value_sym(A,B) do_set_value_sym(mp, (mp_token_node)(A), (B))
 
-@d value_sym(A) (mp_sym)mp_link(A)
-@d set_value_sym(A,B) set_mp_link(A,(mp_node)B)
+@d value_sym_NEW(A) (mp_sym)mp_link(A)
+@d set_value_sym_NEW(A,B) set_mp_link(A,(mp_node)B)
 
 @d value_number(A) do_get_value_number(mp,(mp_token_node)(A))
 @d set_value_number(A,B) do_set_value_number(mp, (mp_token_node)(A), (B))
@@ -4896,9 +4925,7 @@ static void do_set_value_knot   (MP mp, mp_token_node A, mp_knot B);
 @
 @c
 static mp_node mp_get_token_node (MP mp) {
-  mp_token_node p = (mp_token_node) xmalloc (1, token_node_size);
-  add_var_used (token_node_size);
-  memset (p, 0, token_node_size);
+  mp_token_node p = malloc_node (token_node_size);
   p->type = mp_token_node_type;
   new_number(p->data.n);
   FUNCTION_TRACE2 ("%p = mp_get_token_node()\n", p);
@@ -5309,18 +5336,54 @@ became messy: lots of typecasts. So, it returns a simple
 
 @c
 static mp_node mp_get_value_node (MP mp) {
-  mp_value_node p = xmalloc (1, value_node_size);
-  add_var_used (value_node_size);
-  memset (p, 0, value_node_size);
+  mp_value_node p = malloc_node (value_node_size);
   mp_type (p) = mp_value_node_type;
   new_number(p->data.n);
   new_number(p->subscript_);
   FUNCTION_TRACE2 ("%p = mp_get_value_node()\n", p);
   return (mp_node)p;
 }
+#if DEBUG
+static void debug_dump_value_node (mp_node x) {
+  mp_value_node qq = (mp_value_node)x;
+  fprintf (stdout, "\nnode %p:\n", qq);
+  fprintf (stdout, "  type=%s\n", mp_type_string(qq->type));
+  fprintf (stdout, "  name_type=%d\n", qq->name_type);
+  fprintf (stdout, "  link=%p\n", qq->link);
+  fprintf (stdout, "  data.n=%p\n", qq->data.n);
+  if (qq->data.n != NULL) {
+    fprintf (stdout, "    data.n->type=%d\n", qq->data.n->type);
+    fprintf (stdout, "    data.n->data.val=%d\n",  qq->data.n->data.val);
+    fprintf (stdout, "    data.n->data.dval=%f\n", qq->data.n->data.dval);
+  }
+  fprintf (stdout, "  data.str=%p\n", qq->data.str);
+  if (qq->data.str != NULL) {
+    fprintf (stdout, "    data.str->len=%d\n", (int)qq->data.str->len);
+    fprintf (stdout, "    data.str->str=%s\n", qq->data.str->str);
+  }
+  fprintf (stdout, "  data.indep.serial=%d\n  data.indep.scale=%d\n", qq->data.indep.serial, 
+                                                                       qq->data.indep.scale);
+  fprintf (stdout, "  data.sym=%p\n", qq->data.sym);
+  fprintf (stdout, "  data.p=%p\n", qq->data.p);
+  fprintf (stdout, "  data.node=%p\n", qq->data.node);
+  fprintf (stdout, "  subscript=%p\n", qq->subscript_);
+  if (qq->subscript_ != NULL) {
+    fprintf (stdout, "    subscript_->type=%d\n", qq->subscript_->type);
+    fprintf (stdout, "    subscript_->data.val=%d\n",  qq->subscript_->data.val);
+    fprintf (stdout, "    subscript_->data.dval=%f\n", qq->subscript_->data.dval);
+  }
+  fprintf (stdout, "  hashloc=%p\n", qq->hashloc_);
+  fprintf (stdout, "  parent=%p\n", qq->parent_);
+  fprintf (stdout, "  attr_head=%p\n", qq->attr_head_);
+  fprintf (stdout, "  subscr_head=%p\n\n", qq->subscr_head_);
+}
+#endif
 
 @ @<Declarations@>=
 static mp_node mp_get_value_node (MP mp);
+#if DEBUG
+static void debug_dump_value_node (mp_node x);
+#endif
 
 @ An attribute node is three words long. Two of these words contain |type|
 and |value| fields as described above, and the third word contains
@@ -5513,9 +5576,7 @@ typedef struct mp_pair_node_data *mp_pair_node;
 
 @c
 static mp_node mp_get_pair_node (MP mp) {
-  mp_pair_node p = (mp_pair_node) xmalloc (1, pair_node_size);
-  add_var_used (pair_node_size);
-  memset (p, 0, pair_node_size);
+  mp_pair_node p = malloc_node (pair_node_size);
   mp_type (p) = mp_pair_node_type;
   FUNCTION_TRACE2("get_pair_node(): %p\n", p);
   return (mp_node) p;
@@ -5573,9 +5634,7 @@ typedef struct mp_transform_node_data *mp_transform_node;
 
 @c
 static mp_node mp_get_transform_node (MP mp) {
-  mp_transform_node p = (mp_transform_node) xmalloc (1, transform_node_size);
-  add_var_used (transform_node_size);
-  memset (p, 0, transform_node_size);
+  mp_transform_node p = (mp_transform_node) malloc_node (transform_node_size);
   mp_type (p) = mp_transform_node_type;
   return (mp_node) p;
 }
@@ -5638,9 +5697,7 @@ typedef struct mp_color_node_data *mp_color_node;
 
 @c
 static mp_node mp_get_color_node (MP mp) {
-  mp_color_node p = (mp_color_node) xmalloc (1, color_node_size);
-  add_var_used (color_node_size);
-  memset (p, 0, color_node_size);
+  mp_color_node p = (mp_color_node) malloc_node (color_node_size);
   mp_type (p) = mp_color_node_type;
   p->link = NULL;
   return (mp_node) p;
@@ -5691,9 +5748,7 @@ typedef struct mp_cmykcolor_node_data *mp_cmykcolor_node;
 
 @c
 static mp_node mp_get_cmykcolor_node (MP mp) {
-  mp_cmykcolor_node p = (mp_cmykcolor_node) xmalloc (1, cmykcolor_node_size);
-  add_var_used (cmykcolor_node_size);
-  memset (p, 0, cmykcolor_node_size);
+  mp_cmykcolor_node p = (mp_cmykcolor_node) malloc_node (cmykcolor_node_size);
   mp_type (p) = mp_cmykcolor_node_type;
   p->link = NULL;
   return (mp_node) p;
@@ -6098,6 +6153,7 @@ subscript list, even though that word isn't part of a subscript node.
   new_number (nn);
   number_clone (nn, value_number (t));
   pp = mp_link (attr_head (pp));        /* now |hashloc(pp)=collective_subscript| */
+  assert(hashloc(pp)==collective_subscript);
   q = mp_link (attr_head (p));
   new_number (save_subscript);
   number_clone (save_subscript, subscript (q));
@@ -10711,9 +10767,7 @@ mp_fill_code = 1,
 
 @c
 static mp_node mp_new_fill_node (MP mp, mp_knot p) {
-  mp_fill_node t = xmalloc (1, fill_node_size);
-  add_var_used (fill_node_size);
-  memset (t, 0, fill_node_size);
+  mp_fill_node t = malloc_node (fill_node_size);
   mp_type (t) = mp_fill_node_type;
   mp_path_p (t) = p;
   mp_pen_p (t) = NULL;          /* |NULL| means don't use a pen */
@@ -10782,9 +10836,7 @@ mp_stroked_code = 2,
 
 @c
 static mp_node mp_new_stroked_node (MP mp, mp_knot p) {
-  mp_stroked_node t = (mp_stroked_node) xmalloc (1, stroked_node_size);
-  add_var_used (stroked_node_size);
-  memset (t, 0, stroked_node_size);
+  mp_stroked_node t = malloc_node (stroked_node_size);
   mp_type (t) = mp_stroked_node_type;
   mp_path_p (t) = p;
   mp_pen_p (t) = NULL;
@@ -10958,9 +11010,7 @@ mp_text_code = 3,
 
 @c
 static mp_node mp_new_text_node (MP mp, char *f, mp_string s) {
-  mp_text_node t = (mp_text_node) xmalloc (1, text_node_size);
-  add_var_used (text_node_size);
-  memset (t, 0, text_node_size);
+  mp_text_node t = malloc_node (text_node_size);
   mp_type (t) = mp_text_node_type;
   mp_text_p (t) = s;
   add_str_ref(s); 
@@ -11049,31 +11099,27 @@ static mp_node mp_new_bounds_node (MP mp, mp_knot p, quarterword c) {
   /* make a node of type |c| where |p| is the clipping or \&{setbounds} path */
   if (c == mp_start_clip_node_type) {
     mp_start_clip_node t;       /* the new node */
-    t = (mp_start_clip_node) xmalloc (1, start_clip_size);
-    add_var_used (start_clip_size);
+    t = (mp_start_clip_node) malloc_node (start_clip_size);
     t->path_p_ = p;
     mp_type (t) = c;
     t->link = NULL;
     return (mp_node) t;
   } else if (c == mp_start_bounds_node_type) {
     mp_start_bounds_node t;     /* the new node */
-    t = (mp_start_bounds_node) xmalloc (1, start_bounds_size);
-    add_var_used (start_bounds_size);
+    t = (mp_start_bounds_node) malloc_node (start_bounds_size);
     t->path_p_ = p;
     mp_type (t) = c;
     t->link = NULL;
     return (mp_node) t;
   } else if (c == mp_stop_clip_node_type) {
     mp_stop_clip_node t;        /* the new node */
-    t = (mp_stop_clip_node) xmalloc (1, stop_clip_size);
-    add_var_used (stop_clip_size);
+    t = (mp_stop_clip_node) malloc_node (stop_clip_size);
     mp_type (t) = c;
     t->link = NULL;
     return (mp_node) t;
   } else if (c == mp_stop_bounds_node_type) {
     mp_stop_bounds_node t;      /* the new node */
-    t = (mp_stop_bounds_node) xmalloc (1, stop_bounds_size);
-    add_var_used (stop_bounds_size);
+    t = (mp_stop_bounds_node) malloc_node (stop_bounds_size);
     mp_type (t) = c;
     t->link = NULL;
     return (mp_node) t;
@@ -11128,9 +11174,7 @@ mp_free_node (mp, (mp_node)mp->null_dash, dash_node_size);
 
 @c
 static mp_dash_node mp_get_dash_node (MP mp) {
-  mp_dash_node p = (mp_dash_node) xmalloc (1, dash_node_size);
-  add_var_used (dash_node_size);
-  memset (p, 0, dash_node_size);
+  mp_dash_node p = (mp_dash_node) malloc_node (dash_node_size);
   new_number(p->start_x);
   new_number(p->stop_x);
   new_number(p->dash_y);
@@ -11208,9 +11252,7 @@ word and a pointer to the tail of the object list in the last word.
 
 @c
 static mp_edge_header_node mp_get_edge_header_node (MP mp) {
-  mp_edge_header_node p = (mp_edge_header_node) xmalloc (1, edge_header_size);
-  add_var_used (edge_header_size);
-  memset (p, 0, edge_header_size);
+  mp_edge_header_node p = (mp_edge_header_node) malloc_node (edge_header_size);
   mp_type (p) = mp_edge_header_node_type;
   new_number(p->start_x);
   new_number(p->stop_x);
@@ -11504,8 +11546,7 @@ mp_edge_header_node mp_copy_objects (MP mp, mp_node p, mp_node q) {
   default:                     /* there are no other valid cases, but please the compiler */
     break;
   }
-  mp_link (pp) = xmalloc (1, (size_t) k);       /* |gr_object| */
-  add_var_used ((size_t)k);
+  mp_link (pp) = malloc_node ((size_t) k);       /* |gr_object| */
   pp = mp_link (pp);
   memcpy (pp, p, (size_t) k);
   pp->link = NULL;
@@ -15888,7 +15929,7 @@ static mp_value_node mp_p_with_x_becoming_q (MP mp, mp_value_node p,
     r = s;
     s = (mp_value_node) mp_link (s);
   }
-  if (dep_info (s) != x) {
+  if (dep_info (s) == NULL || dep_info (s) != x) {
     return p;
   } else {
     mp_value_node ret;
@@ -15989,9 +16030,12 @@ static void mp_fix_dependencies (MP mp) {
     t = r;
     /* Run through the dependency list for variable |t|, fixing
       all nodes, and ending with final link~|q| */
-    set_mp_link (r, dep_list (t));  /* start off one item before the actual |dep_list| */
     while (1) {
-      q = (mp_value_node) mp_link (r);
+      if (t==r) {
+        q = (mp_value_node) dep_list(t);
+      } else {
+        q = (mp_value_node) mp_link (r);
+      }
       x = dep_info (q);
       if (x == NULL)
         break;
@@ -16133,6 +16177,7 @@ static void display_new_dependency (MP mp, mp_value_node p, mp_node x, integer n
 static void change_to_known (MP mp, mp_value_node p, mp_node x, mp_value_node final_node, integer n);
 static mp_value_node divide_p_by_minusv_removing_q (MP mp, mp_value_node p, mp_value_node q, 
      				    mp_value_node *final_node, mp_number v, quarterword t);
+static mp_value_node divide_p_by_2_n (MP mp, mp_value_node p, integer n);
 static void mp_linear_eq (MP mp, mp_value_node p, quarterword t) {
   mp_value_node r;   /* for link manipulation */
   mp_node x;    /* the variable that loses its independence */
@@ -16165,6 +16210,9 @@ static void mp_linear_eq (MP mp, mp_value_node p, quarterword t) {
       prev_r = q;
     }
     r = (mp_value_node) mp_link (prev_r);
+  }
+  if (n > 0) {
+    p = divide_p_by_2_n(mp, p, n);  
   }
   change_to_known(mp,p,(mp_node)x,final_node,n);
   if (mp->fix_needed)
@@ -16277,9 +16325,12 @@ static void display_new_dependency (MP mp, mp_value_node p, mp_node x, integer n
   }
 }
 
-@ 
+@ The |n > 0| test is repeated here because it is of vital importance to the
+function's functioning.
+
 @c
-static void change_to_known (MP mp, mp_value_node p, mp_node x, mp_value_node final_node, integer n) {
+static mp_value_node divide_p_by_2_n (MP mp, mp_value_node p, integer n) {
+  mp_value_node pp = NULL;
   if (n > 0) {
     /* Divide list |p| by $2^n$ */
     mp_value_node r;
@@ -16309,11 +16360,16 @@ static void change_to_known (MP mp, mp_value_node p, mp_node x, mp_value_node fi
       }
       r = (mp_value_node) mp_link (s);
     } while (dep_info (s) != NULL);
-    p = (mp_value_node) mp_link (mp->temp_head);
+    pp = (mp_value_node) mp_link (mp->temp_head);
     free_number (absw);
     free_number (w);
   }
-  
+  return pp;
+}
+
+@
+@c
+static void change_to_known (MP mp, mp_value_node p, mp_node x, mp_value_node final_node, integer n) {
   if (dep_info (p) == NULL) {
     mp_number absx;
     new_number (absx);
@@ -19606,9 +19662,7 @@ typedef struct mp_if_node_data *mp_if_node;
 
 @c
 static mp_node mp_get_if_node (MP mp) {
-  mp_if_node p = (mp_if_node) xmalloc (1, if_node_size);
-  add_var_used (if_node_size);
-  memset (p, 0, if_node_size);
+  mp_if_node p = (mp_if_node) malloc_node (if_node_size);
   mp_type (p) = mp_if_node_type;
   return (mp_node) p;
 }
