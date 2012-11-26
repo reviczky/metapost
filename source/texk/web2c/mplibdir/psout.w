@@ -5645,7 +5645,7 @@ $y$~coordinates is less than the $y$~range |wy| for the pen.  ``Essentially
 vertical'' paths are detected similarly.  This code ensures that no component
 of the pen transformation is more that |aspect_bound*(ww+1)|.
 
-@d aspect_bound (10.0/65536.0) /* ``less important'' of |wx|, |wy| cannot exceed the other by
+@d aspect_bound 10.0 /* ``less important'' of |wx|, |wy| cannot exceed the other by
     more than this factor */
 
 @d do_x_loc 1
