@@ -272,31 +272,68 @@ static void mp_ps_print_dd (MP mp,integer n) { /* prints two least significant d
   mp_ps_print_char(mp, '0'+(n % 10));
 }
 
-@ Conversely, here is a procedure analogous to |print_int|. If the output
-of this procedure is subsequently read by \MP\ and converted by the
-|round_decimals| routine above, it turns out that the original value will
-be reproduced exactly. A decimal point is printed only if the value is
-not an integer. If there is more than one way to print the result with
-the optimum number of digits following the decimal point, the closest
-possible value is given.
+@ Conversely, here is a procedure analogous to |print_int|. 
 
-The invariant relation in the \&{repeat} loop is that a sequence of
-decimal digits yet to be printed will yield the original number if and only if
-they form a fraction~$f$ in the range $s-\delta\L10\cdot2^{16}f<s$.
-We can stop if and only if $f=0$ satisfies this condition; the loop will
-terminate before $s$ can possibly become zero.
+There are two versions of this function: |ps_print_double_scaled| is used 
+if metapost runs in scaled (backward compatibility) mode, because that
+version produces results that are much closer to the old version that exported
+figures with scaled fields instead of double fields. It is not always the
+same because a little bit of precision has gone in the scaled to double 
+conversion, but still quite a bit closer than |%.6f| in the 'double' case.
 
+@d unityold 65536
 @c
-static void mp_ps_print_double (MP mp, double s) { 
+static void mp_ps_print_double_new (MP mp, double s) { 
   char *value, *c;
+  int i;
   value = mp_xmalloc(mp,1,32);
-  mp_snprintf(value,32,"%g", s); /* todo: this is just an initial quick fix */
+  memset(value,0,32);
+  mp_snprintf(value,32,"%.6f", s);
+  for (i=31;i>=0;i--) {
+     if (value[i]) {
+       if (value[i] == '0') 
+         value[i] = '\0';
+       else
+         break;
+     }
+  }
+  if (value[i] == '.') 
+    value[i] = '\0';
   c = value;
   while (*c) {
     mp_ps_print_char(mp, *c); 
     c++;
   }
   free(value);
+}
+
+static void mp_ps_print_double_scaled (MP mp, double ss) { 
+  int delta; /* amount of allowable inaccuracy */
+  int s = ss * unityold;
+  if ( s<0 ) { 
+	mp_ps_print_char(mp, '-'); 
+     negate(s); /* print the sign, if negative */
+  }
+  mp_ps_print_int(mp, s / unityold); /* print the integer part */
+  s=10*(s % unityold)+5;
+  if ( s!=5 ) { 
+    delta=10; 
+    mp_ps_print_char(mp, '.');
+    do {  
+      if ( delta>unityold )
+        s=s+0100000-(delta / 2); /* round the final digit */
+      mp_ps_print_char(mp, '0'+(s / unityold)); 
+      s=10*(s % unityold); 
+      delta=delta*10;
+    } while (s>delta);
+  }
+}
+static void mp_ps_print_double (MP mp, double s) { 
+  if (mp->math_mode == mp_math_scaled_mode) {
+    mp_ps_print_double_scaled (mp, s); 
+  } else {
+    mp_ps_print_double_new (mp, s); 
+  }
 }
 
 
