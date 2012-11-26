@@ -21266,18 +21266,13 @@ Technically speaking, the parsing algorithms are ``LL(1),'' more or less;
 backup mechanisms have been added in order to provide reasonable error
 recovery.
 
-@d cur_exp_value() number_to_scaled (mp->cur_exp.data.n)
 @d cur_exp_value_boolean() number_to_int (mp->cur_exp.data.n)
 @d cur_exp_value_number() mp->cur_exp.data.n
 @d cur_exp_node() mp->cur_exp.data.node
 @d cur_exp_str() mp->cur_exp.data.str
 @d cur_exp_knot() mp->cur_exp.data.p
 
-@d negate_cur_exp_value() do {
-   if (cur_exp_value_number()) 
-     number_negate (cur_exp_value_number());
-} while (0)
-@d set_cur_exp_value(A) do {
+@d set_cur_exp_value_scaled(A) do {
     if (cur_exp_str()) {
         delete_str_ref(cur_exp_str());
     }
@@ -23768,7 +23763,7 @@ static quarterword mp_scan_direction (MP mp) {
 {
   mp_get_x_next (mp);
   mp_scan_expression (mp);
-  if ((mp->cur_exp.type != mp_known) || (cur_exp_value () < 0)) {
+  if ((mp->cur_exp.type != mp_known) || (number_negative(cur_exp_value_number ()))) {
     mp_value new_expr;
     const char *hlp[] = { "A curl must be a known, nonnegative number.", NULL };
     memset(&new_expr,0,sizeof(mp_value));
@@ -23927,8 +23922,10 @@ DONE:
     mp_get_x_next (mp);
   mp_scan_primary (mp);
   @<Make sure that the current expression is a valid tension setting@>;
-  if (number_to_scaled (y) == mp_at_least)
-    negate_cur_exp_value ();
+  if (number_to_scaled (y) == mp_at_least) {
+   if (cur_exp_value_number()) 
+     number_negate (cur_exp_value_number());
+  }
   number_clone(path_q->right_tension, cur_exp_value_number ());
   if (cur_cmd() == mp_and_command) {
     mp_get_x_next (mp);
@@ -23937,8 +23934,10 @@ DONE:
       mp_get_x_next (mp);
     mp_scan_primary (mp);
     @<Make sure that the current expression is a valid tension setting@>;
-    if (number_to_scaled (y) == mp_at_least)
-      negate_cur_exp_value ();
+    if (number_to_scaled (y) == mp_at_least) {
+      if (cur_exp_value_number()) 
+        number_negate (cur_exp_value_number());
+    }
   }
   number_clone (y, cur_exp_value_number ());
 }
@@ -24654,7 +24653,8 @@ case mp_proto_dependent:
                                                     cur_exp_node ()));
   break;
 case mp_known:
-  negate_cur_exp_value ();
+  if (cur_exp_value_number()) 
+    number_negate (cur_exp_value_number());
   break;
 default:
   mp_bad_unary (mp, mp_minus);
@@ -24882,7 +24882,7 @@ else if (mp->cur_exp.type == mp_picture_type) {
   mp_bad_unary (mp, c);
 break;
 case mp_grey_part:
-if (mp->cur_exp.type == mp_known);      /* |cur_exp_value()=cur_exp_value()| */
+if (mp->cur_exp.type == mp_known); 
 else if (mp->cur_exp.type == mp_picture_type) {
   if pict_color_type
     (mp_grey_model) mp_take_pict_part (mp, c);
@@ -25283,15 +25283,15 @@ if (mp->cur_exp.type != mp_known) {
   mp_bad_unary (mp, mp_char_op);
 } else {
   int vv = round_unscaled (cur_exp_value_number ()) % 256;
-  set_cur_exp_value (vv);
+  set_cur_exp_value_scaled (vv);
   mp->cur_exp.type = mp_string_type;
-  if (cur_exp_value () < 0) {
-    vv = cur_exp_value () + 256;
-    set_cur_exp_value (vv);
+  if (number_negative(cur_exp_value_number ())) {
+    vv = number_to_scaled(cur_exp_value_number ()) + 256;
+    set_cur_exp_value_scaled (vv);
   }
   {
     unsigned char ss[2];
-    ss[0] = (unsigned char) cur_exp_value ();
+    ss[0] = (unsigned char) number_to_scaled(cur_exp_value_number ());
     ss[1] = '\0';
     set_cur_exp_str (mp_rtsl (mp, (char *) ss, 1));
   }
@@ -26649,7 +26649,7 @@ if ((mp->cur_exp.type > mp_pair_type) && (mp_type (p) > mp_pair_type)) {
            && (mp->cur_exp.type >= mp_transform_type)) {
   @<Reduce comparison of big nodes to comparison of scalars@>;
 } else if (mp->cur_exp.type == mp_boolean_type) {
-  set_number_from_boolean (new_expr.data.n, cur_exp_value () - number_to_scaled (value_number (p)));
+  set_number_from_boolean (new_expr.data.n, number_to_scaled(cur_exp_value_number ()) - number_to_scaled (value_number (p)));
   mp_flush_cur_exp (mp, new_expr);
 } else {
   mp_bad_binary (mp, p, (quarterword) c);
@@ -26680,22 +26680,22 @@ if (mp->cur_exp.type != mp_known) {
 } else {
   switch (c) {
   case mp_less_than:
-    boolean_reset (cur_exp_value () < 0);
+    boolean_reset (number_negative(cur_exp_value_number ()));
     break;
   case mp_less_or_equal:
-    boolean_reset (cur_exp_value () <= 0);
+    boolean_reset (number_nonpositive(cur_exp_value_number ()));
     break;
   case mp_greater_than:
-    boolean_reset (cur_exp_value () > 0);
+    boolean_reset (number_positive(cur_exp_value_number ()));
     break;
   case mp_greater_or_equal:
-    boolean_reset (cur_exp_value () >= 0);
+    boolean_reset (number_nonnegative(cur_exp_value_number ()));
     break;
   case mp_equal_to:
-    boolean_reset (cur_exp_value () == 0);
+    boolean_reset (number_zero(cur_exp_value_number ()));
     break;
   case mp_unequal_to:
-    boolean_reset (cur_exp_value () != 0);
+    boolean_reset (number_nonzero(cur_exp_value_number ()));
     break;
   };                            /* there are no other cases */
 }
@@ -29911,7 +29911,7 @@ void mp_do_random_seed (MP mp) {
 
 @ @<Initialize the random seed to |cur_exp|@>=
 {
-  init_randoms (cur_exp_value ());
+  init_randoms (number_to_scaled(cur_exp_value_number ()));
   if (mp->selector >= log_only && mp->selector < write_file) {
     mp->old_setting = mp->selector;
     mp->selector = log_only;
@@ -34302,12 +34302,12 @@ by which a user can send things to the \.{GF} file.
 
 @ @<Determine if a character has been shipped out@>=
 {
-  set_cur_exp_value (round_unscaled (cur_exp_value_number ()) % 256);
-  if (cur_exp_value () < 0) {
-    halfword vv = cur_exp_value ();
-    set_cur_exp_value (vv + 256);
+  set_cur_exp_value_scaled (round_unscaled (cur_exp_value_number ()) % 256);
+  if (number_negative(cur_exp_value_number ())) {
+    halfword vv = number_to_scaled(cur_exp_value_number ());
+    set_cur_exp_value_scaled (vv + 256);
   }
-  boolean_reset (mp->char_exists[cur_exp_value ()]);
+  boolean_reset (mp->char_exists[number_to_scaled(cur_exp_value_number ())]);
   mp->cur_exp.type = mp_boolean_type;
 }
 
