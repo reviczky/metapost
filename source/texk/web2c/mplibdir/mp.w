@@ -18997,8 +18997,8 @@ that will be |NULL| if no loop is in progress.
 {
   mp_get_boolean (mp);
   if (number_greater (internal_value (mp_tracing_commands),  unity_t))
-    mp_show_cmd_mod (mp, mp_nullary, cur_exp_value_int ());
-  if (cur_exp_value_int () == mp_true_code) {
+    mp_show_cmd_mod (mp, mp_nullary, cur_exp_value_boolean ());
+  if (cur_exp_value_boolean () == mp_true_code) {
     if (mp->loop_ptr == NULL) {
       const char *hlp[] = {
           "Why say `exitif' when there's nothing to exit from?", 
@@ -19836,7 +19836,7 @@ RESWITCH:
   }
 FOUND:
   mp_check_colon (mp);
-  if (cur_exp_value_int () == mp_true_code) {
+  if (cur_exp_value_boolean () == mp_true_code) {
     mp_change_if_limit (mp, (quarterword) new_if_limit, save_cond_ptr);
     return;                     /* wait for \&{elseif}, \&{else}, or \&{fi} */
   };
@@ -19849,7 +19849,7 @@ DONE:
   } else if (cur_mod() == else_if_code) {
     goto RESWITCH;
   } else {
-    set_cur_exp_value_int (mp_true_code);
+    set_cur_exp_value_boolean (mp_true_code);
     new_if_limit = fi_code;
     mp_get_x_next (mp);
     goto FOUND;
@@ -19875,7 +19875,7 @@ while (1) {
 @ @<Display the boolean value...@>=
 {
   mp_begin_diagnostic (mp);
-  if (cur_exp_value_int () == mp_true_code)
+  if (cur_exp_value_boolean () == mp_true_code)
     mp_print (mp, "{true}");
   else
     mp_print (mp, "{false}");
@@ -21267,7 +21267,7 @@ backup mechanisms have been added in order to provide reasonable error
 recovery.
 
 @d cur_exp_value() number_to_scaled (mp->cur_exp.data.n)
-@d cur_exp_value_int() number_to_int (mp->cur_exp.data.n)
+@d cur_exp_value_boolean() number_to_int (mp->cur_exp.data.n)
 @d cur_exp_value_number() mp->cur_exp.data.n
 @d cur_exp_node() mp->cur_exp.data.node
 @d cur_exp_str() mp->cur_exp.data.str
@@ -21286,7 +21286,7 @@ recovery.
     cur_exp_str() = NULL;
     cur_exp_knot() = NULL;
   } while (0)
-@d set_cur_exp_value_int(A) do {
+@d set_cur_exp_value_boolean(A) do {
     if (cur_exp_str()) {
         delete_str_ref(cur_exp_str());
     }
@@ -24387,7 +24387,7 @@ static void mp_do_nullary (MP mp, quarterword c) {
   case mp_true_code:
   case mp_false_code:
     mp->cur_exp.type = mp_boolean_type;
-    set_cur_exp_value_int (c);
+    set_cur_exp_value_boolean (c);
     break;
   case mp_null_picture_code:
     mp->cur_exp.type = mp_picture_type;
@@ -24680,16 +24680,16 @@ if (mp->cur_exp.type != mp_boolean_type) {
   mp_bad_unary (mp, mp_not_op);
 } else {
   halfword bb;
-  if (cur_exp_value_int () == mp_true_code)
+  if (cur_exp_value_boolean () == mp_true_code)
     bb = mp_false_code;
   else
     bb = mp_true_code;
-  set_cur_exp_value_int (bb);
+  set_cur_exp_value_boolean (bb);
 }
 break;
 
 @ 
-@d boolean_reset(A) if ( (A) ) set_cur_exp_value_int(mp_true_code); else set_cur_exp_value_int(mp_false_code)
+@d boolean_reset(A) if ( (A) ) set_cur_exp_value_boolean(mp_true_code); else set_cur_exp_value_boolean(mp_false_code)
 
 @<Additional cases of unary operators@>=
 case mp_sqrt_op:
@@ -26837,7 +26837,7 @@ case mp_or_op:
 if ((mp_type (p) != mp_boolean_type) || (mp->cur_exp.type != mp_boolean_type))
   mp_bad_binary (mp, p, (quarterword) c);
 else if (number_to_boolean (p->data.n) == c + mp_false_code - mp_and_op) {
-  set_cur_exp_value_int (number_to_boolean (p->data.n));
+  set_cur_exp_value_boolean (number_to_boolean (p->data.n));
 }
 break;
 
@@ -30833,9 +30833,9 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
     @<Transfer a cmykcolor from the current expression to object~|cp|@>;
   } else if (mp->cur_exp.type == mp_known) {
     @<Transfer a greyscale from the current expression to object~|cp|@>;
-  } else if (cur_exp_value_int () == mp_false_code) {
+  } else if (cur_exp_value_boolean () == mp_false_code) {
     @<Transfer a noncolor from the current expression to object~|cp|@>;
-  } else if (cur_exp_value_int () == mp_true_code) {
+  } else if (cur_exp_value_boolean () == mp_true_code) {
     @<Transfer no color from the current expression to object~|cp|@>;
   }
 }
