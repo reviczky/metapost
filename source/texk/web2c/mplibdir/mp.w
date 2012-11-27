@@ -25261,151 +25261,141 @@ static void mp_take_pict_part (MP mp, quarterword c) {
       } else
         goto NOT_FOUND;
       break;
-      @<Handle other cases in |take_pict_part| or |goto not_found|@>;
+    case mp_text_part:
+      if (mp_type (p) != mp_text_node_type)
+        goto NOT_FOUND;
+      else {
+        new_expr.data.str = mp_text_p (p);
+        add_str_ref (new_expr.data.str);
+        mp_flush_cur_exp (mp, new_expr);
+        mp->cur_exp.type = mp_string_type;
+      };
+      break;
+    case mp_font_part:
+      if (mp_type (p) != mp_text_node_type)
+        goto NOT_FOUND;
+      else {
+        new_expr.data.str = mp_rts (mp, mp->font_name[mp_font_n (p)]);
+        add_str_ref (new_expr.data.str);
+        mp_flush_cur_exp (mp, new_expr);
+        mp->cur_exp.type = mp_string_type;
+      };
+      break;
+    case mp_path_part:
+      if (mp_type (p) == mp_text_node_type) {
+        goto NOT_FOUND;
+      } else if (is_stop (p)) {
+        mp_confusion (mp, "pict");
+      } else {
+        new_expr.data.node = NULL;
+        switch (mp_type (p)) {
+        case mp_fill_node_type:
+          new_expr.data.p = mp_copy_path (mp, mp_path_p ((mp_fill_node) p));
+          break;
+        case mp_stroked_node_type:
+          new_expr.data.p = mp_copy_path (mp, mp_path_p ((mp_stroked_node) p));
+          break;
+        case mp_start_bounds_node_type:
+          new_expr.data.p = mp_copy_path (mp, mp_path_p ((mp_start_bounds_node) p));
+          break;
+        case mp_start_clip_node_type:
+          new_expr.data.p = mp_copy_path (mp, mp_path_p ((mp_start_clip_node) p));
+          break;
+        default:
+          assert (0);
+          break;
+        }
+        mp_flush_cur_exp (mp, new_expr);
+        mp->cur_exp.type = mp_path_type;
+      }
+      break;
+    case mp_pen_part:
+      if (!has_pen (p)) {
+        goto NOT_FOUND;
+      } else {
+        switch (mp_type (p)) {
+        case mp_fill_node_type:
+          if (mp_pen_p ((mp_fill_node) p) == NULL)
+            goto NOT_FOUND;
+          else {
+            new_expr.data.p = copy_pen (mp_pen_p ((mp_fill_node) p));
+            mp_flush_cur_exp (mp, new_expr);
+            mp->cur_exp.type = mp_pen_type;
+          }
+          break;
+        case mp_stroked_node_type:
+          if (mp_pen_p ((mp_stroked_node) p) == NULL)
+            goto NOT_FOUND;
+          else {
+            new_expr.data.p = copy_pen (mp_pen_p ((mp_stroked_node) p));
+            mp_flush_cur_exp (mp, new_expr);
+            mp->cur_exp.type = mp_pen_type;
+          }
+          break;
+        default:
+          assert (0);
+          break;
+        }
+      }
+      break;
+    case mp_dash_part:
+      if (mp_type (p) != mp_stroked_node_type) {
+        goto NOT_FOUND;
+      } else {
+        if (mp_dash_p (p) == NULL) {
+          goto NOT_FOUND;
+        } else {
+          add_edge_ref (mp_dash_p (p));
+          new_expr.data.node = (mp_node)mp_scale_edges (mp, ((mp_stroked_node)p)->dash_scale, 
+                                                            (mp_edge_header_node)mp_dash_p (p));
+          mp_flush_cur_exp (mp, new_expr);
+          mp->cur_exp.type = mp_picture_type;
+        }
+      }
+      break;
     }                           /* all cases have been enumerated */
     return;
   };
 NOT_FOUND:
-  @<Convert the current expression to a NULL value appropriate
-    for |c|@>;
-}
-
-
-@ @<Handle other cases in |take_pict_part| or |goto not_found|@>=
-case mp_text_part:
-if (mp_type (p) != mp_text_node_type)
-  goto NOT_FOUND;
-else {
-  new_expr.data.str = mp_text_p (p);
-  add_str_ref (new_expr.data.str);
-  mp_flush_cur_exp (mp, new_expr);
-  mp->cur_exp.type = mp_string_type;
-};
-break;
-case mp_font_part:
-if (mp_type (p) != mp_text_node_type)
-  goto NOT_FOUND;
-else {
-  new_expr.data.str = mp_rts (mp, mp->font_name[mp_font_n (p)]);
-  add_str_ref (new_expr.data.str);
-  mp_flush_cur_exp (mp, new_expr);
-  mp->cur_exp.type = mp_string_type;
-};
-break;
-case mp_path_part:
-if (mp_type (p) == mp_text_node_type)
-  goto NOT_FOUND;
-else if (is_stop (p))
-  mp_confusion (mp, "pict");
-@:this can't happen pict}{\quad pict@>
-  else {
-  new_expr.data.node = NULL;
-  switch (mp_type (p)) {
-  case mp_fill_node_type:
-    new_expr.data.p = mp_copy_path (mp, mp_path_p ((mp_fill_node) p));
-    break;
-  case mp_stroked_node_type:
-    new_expr.data.p = mp_copy_path (mp, mp_path_p ((mp_stroked_node) p));
-    break;
-  case mp_start_bounds_node_type:
-    new_expr.data.p = mp_copy_path (mp, mp_path_p ((mp_start_bounds_node) p));
-    break;
-  case mp_start_clip_node_type:
-    new_expr.data.p = mp_copy_path (mp, mp_path_p ((mp_start_clip_node) p));
-    break;
-  default:
-    assert (0);
-    break;
-  }
-  mp_flush_cur_exp (mp, new_expr);
-  mp->cur_exp.type = mp_path_type;
-}
-break;
-case mp_pen_part:
-if (!has_pen (p))
-  goto NOT_FOUND;
-else {
-  switch (mp_type (p)) {
-  case mp_fill_node_type:
-    if (mp_pen_p ((mp_fill_node) p) == NULL)
-      goto NOT_FOUND;
-    else {
-      new_expr.data.p = copy_pen (mp_pen_p ((mp_fill_node) p));
-      mp_flush_cur_exp (mp, new_expr);
-      mp->cur_exp.type = mp_pen_type;
-    }
-    break;
-  case mp_stroked_node_type:
-    if (mp_pen_p ((mp_stroked_node) p) == NULL)
-      goto NOT_FOUND;
-    else {
-      new_expr.data.p = copy_pen (mp_pen_p ((mp_stroked_node) p));
-      mp_flush_cur_exp (mp, new_expr);
-      mp->cur_exp.type = mp_pen_type;
-    }
-    break;
-  default:
-    assert (0);
-    break;
-  }
-}
-break;
-case mp_dash_part:
-if (mp_type (p) != mp_stroked_node_type)
-  goto NOT_FOUND;
-else {
-  if (mp_dash_p (p) == NULL)
-    goto NOT_FOUND;
-  else {
-    add_edge_ref (mp_dash_p (p));
-    new_expr.data.node = (mp_node)mp_scale_edges (mp, ((mp_stroked_node)p)->dash_scale, (mp_edge_header_node)mp_dash_p (p));
+  /* Convert the current expression to a NULL value appropriate for |c| */
+  switch (c) {
+  case mp_text_part:
+  case mp_font_part:
+    new_expr.data.str = mp_rts(mp,"");
     mp_flush_cur_exp (mp, new_expr);
-    mp->cur_exp.type = mp_picture_type;
-  }
-}
-break;
-
-@ @<Convert the current expression to a NULL value appropriate...@>=
-switch (c) {
-case mp_text_part:
-case mp_font_part:
-  new_expr.data.str = mp_rts(mp,"");
-  mp_flush_cur_exp (mp, new_expr);
-  mp->cur_exp.type = mp_string_type;
-  break;
-case mp_path_part:
-  new_expr.data.p = mp_new_knot (mp);
-  mp_flush_cur_exp (mp, new_expr);
-  mp_left_type (cur_exp_knot ()) = mp_endpoint;
-  mp_right_type (cur_exp_knot ()) = mp_endpoint;
-  mp_next_knot (cur_exp_knot ()) = cur_exp_knot ();
-  set_number_to_zero(cur_exp_knot ()->x_coord);
-  set_number_to_zero(cur_exp_knot ()->y_coord);
-  mp_originator (cur_exp_knot ()) = mp_metapost_user;
-  mp->cur_exp.type = mp_path_type;
-  break;
-case mp_pen_part:
-  {
+    mp->cur_exp.type = mp_string_type;
+    break;
+  case mp_path_part:
+    new_expr.data.p = mp_new_knot (mp);
+    mp_flush_cur_exp (mp, new_expr);
+    mp_left_type (cur_exp_knot ()) = mp_endpoint;
+    mp_right_type (cur_exp_knot ()) = mp_endpoint;
+    mp_next_knot (cur_exp_knot ()) = cur_exp_knot ();
+    set_number_to_zero(cur_exp_knot ()->x_coord);
+    set_number_to_zero(cur_exp_knot ()->y_coord);
+    mp_originator (cur_exp_knot ()) = mp_metapost_user;
+    mp->cur_exp.type = mp_path_type;
+    break;
+  case mp_pen_part:
     new_expr.data.p = mp_get_pen_circle (mp, zero_t);
     mp_flush_cur_exp (mp, new_expr);
     mp->cur_exp.type = mp_pen_type;
+    break;
+  case mp_dash_part:
+    new_expr.data.node = (mp_node)mp_get_edge_header_node (mp);
+    mp_flush_cur_exp (mp, new_expr);
+    mp_init_edges (mp, (mp_edge_header_node)cur_exp_node ());
+    mp->cur_exp.type = mp_picture_type;
+    break;
+  default:
+    set_number_to_zero(new_expr.data.n);
+    mp_flush_cur_exp (mp, new_expr);
+    break;
   }
-  break;
-case mp_dash_part:
-  new_expr.data.node = (mp_node)mp_get_edge_header_node (mp);
-  mp_flush_cur_exp (mp, new_expr);
-  mp_init_edges (mp, (mp_edge_header_node)cur_exp_node ());
-  mp->cur_exp.type = mp_picture_type;
-  break;
-default:
-  set_number_to_zero(new_expr.data.n);
-  mp_flush_cur_exp (mp, new_expr);
-  break;
 }
 
-
 @ @<Declare unary action...@>=
-static void mp_str_to_num (MP mp, quarterword c) {                               /* converts a string to a number */
+static void mp_str_to_num (MP mp, quarterword c) {  /* converts a string to a number */
   integer n;    /* accumulator */
   ASCII_code m; /* current character */
   unsigned k;   /* index into |str_pool| */
