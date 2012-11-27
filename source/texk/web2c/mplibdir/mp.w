@@ -1788,11 +1788,7 @@ error messages are
 
 \hang|term_and_log| (when |interaction>mp_batch_mode| and |log_file| is open).
 
-@<Initialize the print |selector| based on |interaction|@>=
-if (mp->interaction == mp_batch_mode)
-  mp->selector = no_print;
-else
-  mp->selector = term_only
+@d initialize_print_selector() mp->selector = (mp->interaction == mp_batch_mode ? no_print : term_only);
 
 @ The global variable |history| records the worst level of error that
 has been detected. It has four possible values: |spotless|, |warning_issued|,
@@ -28556,22 +28552,141 @@ to interpret a statement that starts with, e.g., `\&{string}',
 as a type declaration rather than a boolean expression.
 
 @c
+static void worry_about_bad_statement (MP mp);
+static void flush_unparsable_junk_after_statement (MP mp);
 void mp_do_statement (MP mp) {                               /* governs \MP's activities */
-  mp_value new_expr;
-  memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
   mp->cur_exp.type = mp_vacuous;
   mp_get_x_next (mp);
   if (cur_cmd() > mp_max_primary_command) {
-    @<Worry about bad statement@>;
+    worry_about_bad_statement (mp);
   } else if (cur_cmd() > mp_max_statement_command) {
-    @<Do an equation, assignment, title, or
-     `$\langle\,$expression$\,\rangle\,$\&{endgroup}'@>;
+    /* Do an equation, assignment, title, or
+     `$\langle\,$expression$\,\rangle\,$\&{endgroup}'; */
+    /* The most important statements begin with expressions */
+    mp_value new_expr;
+    memset(&new_expr,0,sizeof(mp_value));
+    mp->var_flag = mp_assignment;
+    mp_scan_expression (mp);
+    if (cur_cmd() < mp_end_group) {
+      if (cur_cmd() == mp_equals)
+        mp_do_equation (mp);
+      else if (cur_cmd() == mp_assignment)
+        mp_do_assignment (mp);
+      else if (mp->cur_exp.type == mp_string_type) {
+       /* Do a title */
+       if (number_positive (internal_value (mp_tracing_titles))) {
+         mp_print_nl (mp, "");
+         mp_print_str (mp, cur_exp_str ());
+         update_terminal();
+       }
+
+      } else if (mp->cur_exp.type != mp_vacuous) {
+        const char *hlp[] = {
+             "I couldn't find an `=' or `:=' after the",
+             "expression that is shown above this error message,",
+             "so I guess I'll just ignore it and carry on.",
+             NULL };
+        mp_disp_err(mp, NULL);
+        mp_back_error (mp, "Isolated expression", hlp, true);
+        mp_get_x_next (mp);
+      }
+      new_number(new_expr.data.n);
+      set_number_to_zero (new_expr.data.n);
+      mp_flush_cur_exp (mp, new_expr);
+      mp->cur_exp.type = mp_vacuous;
+    }
   } else {
-    @<Do a statement that doesn't begin with an expression@>;
+    /* Do a statement that doesn't begin with an expression */
+    /* If |do_statement| ends with |cur_cmd=end_group|, we should have
+       |cur_type=mp_vacuous| unless the statement was simply an expression;
+       in the latter case, |cur_type| and |cur_exp| should represent that
+       expression. */
+    if (number_positive (internal_value (mp_tracing_commands)))
+      show_cur_cmd_mod;
+    switch (cur_cmd()) {
+    case mp_type_name:
+      mp_do_type_declaration (mp);
+      break;
+    case mp_macro_def:
+      if (cur_mod() > var_def)
+        mp_make_op_def (mp);
+      else if (cur_mod() > end_def)
+        mp_scan_def (mp);
+      break;
+    case mp_random_seed:
+      mp_do_random_seed (mp);
+      break;
+    case mp_mode_command:
+      mp_print_ln (mp);
+      mp->interaction = cur_mod();
+      initialize_print_selector();
+      if (mp->log_opened)
+        mp->selector = mp->selector + 2;
+      mp_get_x_next (mp);
+      break;
+    case mp_protection_command:
+      mp_do_protection (mp);
+      break;
+    case mp_delimiters:
+      mp_def_delims (mp);
+      break;
+    case mp_save_command:
+      do {
+        mp_get_symbol (mp);
+        mp_save_variable (mp, cur_sym());
+        mp_get_x_next (mp);
+      } while (cur_cmd() == mp_comma);
+      break;
+    case mp_interim_command:
+      mp_do_interim (mp);
+      break;
+    case mp_let_command:
+      mp_do_let (mp);
+      break;
+    case mp_new_internal:
+      mp_do_new_internal (mp);
+      break;
+    case mp_show_command:
+      mp_do_show_whatever (mp);
+      break;
+    case mp_add_to_command:
+      mp_do_add_to (mp);
+      break;
+    case mp_bounds_command:
+      mp_do_bounds (mp);
+      break;
+    case mp_ship_out_command:
+      mp_do_ship_out (mp);
+      break;
+    case mp_every_job_command:
+      mp_get_symbol (mp);
+      mp->start_sym = cur_sym();
+      mp_get_x_next (mp);
+      break;
+    case mp_message_command:
+      mp_do_message (mp);
+      break;
+    case mp_write_command:
+      mp_do_write (mp);
+      break;
+    case mp_tfm_command:
+      mp_do_tfm_command (mp);
+      break;
+    case mp_special_command:
+      if (cur_mod() == 0)
+        mp_do_special (mp);
+      else if (cur_mod() == 1)
+        mp_do_mapfile (mp);
+      else
+        mp_do_mapline (mp);
+      break;
+    default:
+      break; /* make the compiler happy */
+    }
+    mp->cur_exp.type = mp_vacuous;
   }
   if (cur_cmd() < mp_semicolon)
-    @<Flush unparsable junk that was found after the statement@>;
+    flush_unparsable_junk_after_statement(mp);
   mp->error_count = 0;
 }
 
@@ -28584,8 +28699,8 @@ void mp_do_statement (MP mp) {                               /* governs \MP's ac
 at the beginning of a statement are |semicolon| and higher; these
 occur when the statement is null.
 
-@<Worry about bad statement@>=
-{
+@c
+static void worry_about_bad_statement (MP mp) {
   if (cur_cmd() < mp_semicolon) {
     char msg[256];
     mp_string sname;
@@ -28597,13 +28712,11 @@ occur when the statement is null.
            "now in front of anything that you don't want me to delete.",
            "(See Chapter 27 of The METAFONTbook for an example.)",
            NULL };
-@:METAFONTbook}{\sl The {\logos METAFONT\/}book@>;
     mp->selector = new_string;
     mp_print_cmd_mod (mp, cur_cmd(), cur_mod());
     sname = mp_make_string(mp);
     mp->selector = old_setting;
     mp_snprintf (msg, 256, "A statement can't begin with `%s'", mp_str(mp, sname));
-@.A statement can't begin with x@>;
     delete_str_ref(sname);
     mp_back_error (mp, msg, hlp, true);
     mp_get_x_next (mp);
@@ -28615,7 +28728,8 @@ occur when the statement is null.
 a semicolon, but actually the commands |end_group| and |stop| will
 also terminate a statement.
 
-@<Flush unparsable junk that was found after the statement@>=
+@c
+static void flush_unparsable_junk_after_statement (MP mp)
 {
   const char *hlp[] = {
          "I've just read as much of that statement as I could fathom,",
@@ -28625,84 +28739,17 @@ also terminate a statement.
          "now in front of anything that you don't want me to delete.",
          "(See Chapter 27 of The METAFONTbook for an example.)",
           NULL };
-@:METAFONTbook}{\sl The {\logos METAFONT\/}book@>;
   mp_back_error (mp, "Extra tokens will be flushed", hlp, true);
-@.Extra tokens will be flushed@>;
   mp->scanner_status = flushing;
   do {
     get_t_next (mp);
-    @<Decrease the string reference count...@>;
+    if (cur_cmd() == mp_string_token) {
+      delete_str_ref (cur_mod_str());
+    }
   } while (!mp_end_of_statement);  /* |cur_cmd=semicolon|, |end_group|, or |stop| */
   mp->scanner_status = normal;
 }
 
-
-@ If |do_statement| ends with |cur_cmd=end_group|, we should have
-|cur_type=mp_vacuous| unless the statement was simply an expression;
-in the latter case, |cur_type| and |cur_exp| should represent that
-expression.
-
-@<Do a statement that doesn't...@>=
-{
-  if (number_positive (internal_value (mp_tracing_commands)))
-    show_cur_cmd_mod;
-  switch (cur_cmd()) {
-  case mp_type_name:
-    mp_do_type_declaration (mp);
-    break;
-  case mp_macro_def:
-    if (cur_mod() > var_def)
-      mp_make_op_def (mp);
-    else if (cur_mod() > end_def)
-      mp_scan_def (mp);
-    break;
-    @<Cases of |do_statement| that invoke particular commands@>;
-  default:
-    break; /* make the compiler happy */
-  }
-  mp->cur_exp.type = mp_vacuous;
-}
-
-
-@ The most important statements begin with expressions.
-
-@<Do an equation, assignment, title, or...@>=
-{
-  mp->var_flag = mp_assignment;
-  mp_scan_expression (mp);
-  if (cur_cmd() < mp_end_group) {
-    if (cur_cmd() == mp_equals)
-      mp_do_equation (mp);
-    else if (cur_cmd() == mp_assignment)
-      mp_do_assignment (mp);
-    else if (mp->cur_exp.type == mp_string_type) {
-      @<Do a title@>;
-    } else if (mp->cur_exp.type != mp_vacuous) {
-      const char *hlp[] = {
-             "I couldn't find an `=' or `:=' after the",
-             "expression that is shown above this error message,",
-             "so I guess I'll just ignore it and carry on.",
-             NULL };
-      mp_disp_err(mp, NULL);
-      mp_back_error (mp, "Isolated expression", hlp, true);
-@.Isolated expression@>;
-      mp_get_x_next (mp);
-    }
-    set_number_to_zero (new_expr.data.n);
-    mp_flush_cur_exp (mp, new_expr);
-    mp->cur_exp.type = mp_vacuous;
-  }
-}
-
-
-@ @<Do a title@>=
-{
-  if (number_positive (internal_value (mp_tracing_titles))) {
-    mp_print_nl (mp, "");
-    mp_print_str (mp, cur_exp_str ());
-    update_terminal();
-  }
-}
 
 
 @ Equations and assignments are performed by the pair of mutually recursive
@@ -29804,7 +29851,7 @@ if (mp->random_seed == 0)
   mp->random_seed =
     (number_to_scaled (internal_value (mp_time)) / number_to_scaled (unity_t)) + number_to_scaled (internal_value (mp_day));
 init_randoms (mp->random_seed);
-@<Initialize the print |selector|...@>;
+initialize_print_selector();
 mp_open_log_file (mp);
 mp_set_job_id (mp);
 mp_init_map_file (mp, mp->troff_mode);
@@ -29933,11 +29980,6 @@ then we'll tackle the tougher commands.
 
 Here's one of the simplest:
 
-@<Cases of |do_statement|...@>=
-case mp_random_seed:
-mp_do_random_seed (mp);
-break;
-
 @ @<Declare action procedures for use by |do_statement|@>=
 static void mp_do_random_seed (MP mp);
 
@@ -29987,16 +30029,6 @@ void mp_do_random_seed (MP mp) {
 
 @ And here's another simple one (somewhat different in flavor):
 
-@<Cases of |do_statement|...@>=
-case mp_mode_command:
-mp_print_ln (mp);
-mp->interaction = cur_mod();
-@<Initialize the print |selector| based on |interaction|@>;
-if (mp->log_opened)
-  mp->selector = mp->selector + 2;
-mp_get_x_next (mp);
-break;
-
 @ @<Put each...@>=
 mp_primitive (mp, "batchmode", mp_mode_command, mp_batch_mode);
 @:mp_batch_mode_}{\&{batchmode} primitive@>;
@@ -30027,11 +30059,6 @@ default:
 break;
 
 @ The `\&{inner}' and `\&{outer}' commands are only slightly harder.
-
-@<Cases of |do_statement|...@>=
-case mp_protection_command:
-mp_do_protection (mp);
-break;
 
 @ @<Put each...@>=
 mp_primitive (mp, "inner", mp_protection_command, 0);
@@ -30075,11 +30102,6 @@ plain \MP\ begins with the declaration `\&{delimiters} \.{()}'. Such a
 declaration assigns the command code |left_delimiter| to `\.{(}' and
 |right_delimiter| to `\.{)}'; the |equiv| of each delimiter is the
 hash address of its mate.
-
-@<Cases of |do_statement|...@>=
-case mp_delimiters:
-mp_def_delims (mp);
-break;
 
 @ @<Declare action procedures for use by |do_statement|@>=
 static void mp_def_delims (MP mp);
@@ -30134,24 +30156,6 @@ void mp_check_delimiter (MP mp, mp_sym l_delim, mp_sym r_delim) {
 
 
 @ The next four commands save or change the values associated with tokens.
-
-@<Cases of |do_statement|...@>=
-case mp_save_command:
-do {
-  mp_get_symbol (mp);
-  mp_save_variable (mp, cur_sym());
-  mp_get_x_next (mp);
-} while (cur_cmd() == mp_comma);
-break;
-case mp_interim_command:
-mp_do_interim (mp);
-break;
-case mp_let_command:
-mp_do_let (mp);
-break;
-case mp_new_internal:
-mp_do_new_internal (mp);
-break;
 
 @ @<Declare action procedures for use by |do_statement|@>=
 static void mp_do_statement (MP mp);
@@ -30335,11 +30339,6 @@ default:
   mp_print (mp, "showdependencies");
   break;
 }
-break;
-
-@ @<Cases of |do_statement|...@>=
-case mp_show_command:
-mp_do_show_whatever (mp);
 break;
 
 @ The value of |cur_mod| controls the |verbosity| in the |print_exp| routine:
@@ -31129,14 +31128,6 @@ mp_edge_header_node mp_find_edges_var (MP mp, mp_node t) {
 }
 
 
-@ @<Cases of |do_statement|...@>=
-case mp_add_to_command:
-mp_do_add_to (mp);
-break;
-case mp_bounds_command:
-mp_do_bounds (mp);
-break;
-
 @ @<Put each...@>=
 mp_primitive (mp, "clip", mp_bounds_command, mp_start_clip_node_type);
 @:clip_}{\&{clip} primitive@>;
@@ -31404,10 +31395,6 @@ if (lhe == NULL) {
 }
 
 
-@ @<Cases of |do_statement|...@>=
-case mp_ship_out_command:
-mp_do_ship_out (mp);
-break;
 
 @ @<Declare action procedures for use by |do_statement|@>=
 @<Declare the \ps\ output procedures@>;
@@ -31449,12 +31436,6 @@ void mp_do_ship_out (MP mp) {
 @ The \&{everyjob} command simply assigns a nonzero value to the global variable
 |start_sym|.
 
-@<Cases of |do_statement|...@>=
-case mp_every_job_command:
-mp_get_symbol (mp);
-mp->start_sym = cur_sym();
-mp_get_x_next (mp);
-break;
 
 @ @<Glob...@>=
 mp_sym start_sym;       /* a symbolic token to insert at beginning of job */
@@ -31505,11 +31486,6 @@ else if (m == filename_template_code)
   mp_print (mp, "filenametemplate");
 else
   mp_print (mp, "errhelp");
-break;
-
-@ @<Cases of |do_statement|...@>=
-case mp_message_command:
-mp_do_message (mp);
 break;
 
 @ @<Declare action procedures for use by |do_statement|@>=
@@ -31624,11 +31600,6 @@ mp->long_help_seen = false;
   mp->use_err_help = false;
 }
 
-
-@ @<Cases of |do_statement|...@>=
-case mp_write_command:
-mp_do_write (mp);
-break;
 
 @ @<Declare action procedures for use by |do_statement|@>=
 static void mp_do_write (MP mp);
@@ -32153,10 +32124,6 @@ mp->tfm_ital_corr[c] = mp_tfm_check (mp, mp_char_ic)
 
 @ Now let's consider \MP's special \.{TFM}-oriented commands.
 
-@<Cases of |do_statement|...@>=
-case mp_tfm_command:
-mp_do_tfm_command (mp);
-break;
 
 @ @d char_list_code 0
 @d lig_table_code 1
@@ -34008,15 +33975,6 @@ boolean mp_has_font_size (MP mp, font_number f) {
 @<Glob...@>=
 mp_node last_pending;   /* the last token in a list of pending specials */
 
-@ @<Cases of |do_statement|...@>=
-case mp_special_command:
-if (cur_mod() == 0)
-  mp_do_special (mp);
-else if (cur_mod() == 1)
-  mp_do_mapfile (mp);
-else
-  mp_do_mapline (mp);
-break;
 
 @ @<Declare action procedures for use by |do_statement|@>=
 static void mp_do_special (MP mp);
@@ -34709,7 +34667,7 @@ mp_fix_date_and_time (mp);
 if (mp->random_seed == 0)
   mp->random_seed = (number_to_scaled (internal_value (mp_time)) / number_to_scaled (unity_t)) + number_to_scaled (internal_value (mp_day));
 init_randoms (mp->random_seed);
-@<Initialize the print |selector|...@>;
+initialize_print_selector();
 mp_normalize_selector (mp);
 if (loc < limit)
   if (mp->buffer[loc] != '\\')
