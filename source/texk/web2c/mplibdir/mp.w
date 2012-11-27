@@ -23151,7 +23151,64 @@ RESTART:
   case mp_color_type:
   case mp_cmykcolor_type:
   case mp_pair_type:
-    @<Copy the big node |p|@>;
+    /* Copy the big node |p| */
+    /* The most tedious case arises when the user refers to a
+       \&{pair}, \&{color}, or \&{transform} variable; we must copy several fields,
+       each of which can be |independent|, |dependent|, |mp_proto_dependent|,
+       or |known|. */
+    if (value_node (p) == NULL) {
+      switch (mp_type (p)) {
+      case mp_pair_type:
+        mp_init_pair_node (mp, p);
+        break;
+      case mp_color_type:
+        mp_init_color_node (mp, p);
+        break;
+      case mp_cmykcolor_type:
+        mp_init_cmykcolor_node (mp, p);
+        break;
+      case mp_transform_type:
+        mp_init_transform_node (mp, p);
+        break;
+      default:                   /* there are no other valid cases, but please the compiler */
+        break;
+      }
+    }
+    t = mp_get_value_node (mp);
+    mp_name_type (t) = mp_capsule;
+    q = (mp_value_node)value_node (p);
+    switch (mp->cur_exp.type) {
+    case mp_pair_type:
+      mp_init_pair_node (mp, t);
+      mp_install (mp, y_part (value_node (t)), y_part (q));
+      mp_install (mp, x_part (value_node (t)), x_part (q));
+      break;
+    case mp_color_type:
+      mp_init_color_node (mp, t);
+      mp_install (mp, blue_part (value_node (t)),  blue_part (q));
+      mp_install (mp, green_part (value_node (t)), green_part (q));
+      mp_install (mp, red_part (value_node (t)),   red_part (q));
+      break;
+    case mp_cmykcolor_type:
+      mp_init_cmykcolor_node (mp, t);
+      mp_install (mp, black_part (value_node (t)),   black_part (q));
+      mp_install (mp, yellow_part (value_node (t)),  yellow_part (q));
+      mp_install (mp, magenta_part (value_node (t)), magenta_part (q));
+      mp_install (mp, cyan_part (value_node (t)),    cyan_part (q));
+      break;
+    case mp_transform_type:
+      mp_init_transform_node (mp, t);
+      mp_install (mp, yy_part (value_node (t)), yy_part (q));
+      mp_install (mp, yx_part (value_node (t)), yx_part (q));
+      mp_install (mp, xy_part (value_node (t)), xy_part (q));
+      mp_install (mp, xx_part (value_node (t)), xx_part (q));
+      mp_install (mp, ty_part (value_node (t)), ty_part (q));
+      mp_install (mp, tx_part (value_node (t)), tx_part (q));
+      break;
+    default:  /* there are no other valid cases, but please the compiler */
+      break;
+    }
+    set_cur_exp_node (t);
     break;
   case mp_dependent:
   case mp_proto_dependent:
@@ -23195,77 +23252,6 @@ static void mp_encapsulate (MP mp, mp_value_node p) {
   set_cur_exp_node (q);
 }
 
-
-@ The most tedious case arises when the user refers to a
-\&{pair}, \&{color}, or \&{transform} variable; we must copy several fields,
-each of which can be |independent|, |dependent|, |mp_proto_dependent|,
-or |known|.
-
-@<Copy the big node |p|@>=
-{
-  debug_printf("value_node (%p) = %p\n", p, value_node(p));
-  if (value_node (p) == NULL) {
-    switch (mp_type (p)) {
-    case mp_pair_type:
-      mp_init_pair_node (mp, p);
-      break;
-    case mp_color_type:
-      mp_init_color_node (mp, p);
-      break;
-    case mp_cmykcolor_type:
-      mp_init_cmykcolor_node (mp, p);
-      break;
-    case mp_transform_type:
-      mp_init_transform_node (mp, p);
-      break;
-    default:                   /* there are no other valid cases, but please the compiler */
-      break;
-    }
-  }
-  t = mp_get_value_node (mp);
-  mp_name_type (t) = mp_capsule;
-  switch (mp->cur_exp.type) {
-  case mp_pair_type:
-    mp_init_pair_node (mp, t);
-    mp_install (mp, y_part (value_node (t)), y_part (value_node (p)));
-    mp_install (mp, x_part (value_node (t)), x_part (value_node (p)));
-    break;
-  case mp_color_type:
-    mp_init_color_node (mp, t);
-    mp_install (mp, blue_part (value_node (t)),
-                blue_part (value_node (p)));
-    mp_install (mp, green_part (value_node (t)),
-                green_part (value_node (p)));
-    mp_install (mp, red_part (value_node (t)),
-                red_part (value_node (p)));
-    break;
-  case mp_cmykcolor_type:
-    mp_init_cmykcolor_node (mp, t);
-    mp_install (mp, black_part (value_node (t)),
-                black_part (value_node (p)));
-    mp_install (mp, yellow_part (value_node (t)),
-                yellow_part (value_node (p)));
-    mp_install (mp, magenta_part (value_node (t)),
-                magenta_part (value_node (p)));
-    mp_install (mp, cyan_part (value_node (t)),
-                cyan_part (value_node (p)));
-    break;
-  case mp_transform_type:
-    mp_init_transform_node (mp, t);
-    mp_install (mp, yy_part (value_node (t)), yy_part (value_node (p)));
-    mp_install (mp, yx_part (value_node (t)), yx_part (value_node (p)));
-    mp_install (mp, xy_part (value_node (t)), xy_part (value_node (p)));
-    mp_install (mp, xx_part (value_node (t)), xx_part (value_node (p)));
-    mp_install (mp, ty_part (value_node (t)), ty_part (value_node (p)));
-    mp_install (mp, tx_part (value_node (t)), tx_part (value_node (p)));
-    break;
-  default:                     /* there are no other valid cases, but please the compiler */
-    break;
-  }
-  set_cur_exp_node (t);
-}
-
-
 @ The |install| procedure copies a numeric field~|q| into field~|r| of
 a big node that will be part of a capsule.
 
@@ -23303,7 +23289,22 @@ static void mp_scan_suffix (MP mp) {
   t = h;
   while (1) {
     if (cur_cmd() == mp_left_bracket) {
-      @<Scan a bracketed subscript and set |cur_cmd:=numeric_token|@>;
+      /* Scan a bracketed subscript and set |cur_cmd:=numeric_token| */
+      mp_get_x_next (mp);
+      mp_scan_expression (mp);
+      if (mp->cur_exp.type != mp_known)
+        mp_bad_subscript (mp);
+      if (cur_cmd() != mp_right_bracket) {
+        const char *hlp[] = {
+               "I've seen a `[' and a subscript value, in a suffix,",
+               "so a right bracket should have come next.",
+               "I shall pretend that one was there.",
+               NULL };
+        mp_back_error (mp, "Missing `]' has been inserted", hlp, true);
+      }
+      set_cur_cmd((mp_variable_type)mp_numeric_token);
+      set_cur_mod_number(cur_exp_value_number ());
+
     }
     if (cur_cmd() == mp_numeric_token) {
       mp_number arg1;
@@ -23326,27 +23327,6 @@ static void mp_scan_suffix (MP mp) {
   mp_free_symbolic_node (mp, h);
   mp->cur_exp.type = mp_token_list;
 }
-
-
-@ @<Scan a bracketed subscript and set |cur_cmd:=numeric_token|@>=
-{
-  mp_get_x_next (mp);
-  mp_scan_expression (mp);
-  if (mp->cur_exp.type != mp_known)
-    mp_bad_subscript (mp);
-  if (cur_cmd() != mp_right_bracket) {
-    const char *hlp[] = {
-           "I've seen a `[' and a subscript value, in a suffix,",
-           "so a right bracket should have come next.",
-           "I shall pretend that one was there.",
-           NULL };
-    mp_back_error (mp, "Missing `]' has been inserted", hlp, true);
-@.Missing `]'@>;
-  }
-  set_cur_cmd((mp_variable_type)mp_numeric_token);
-  set_cur_mod_number(cur_exp_value_number ());
-}
-
 
 @* Parsing secondary and higher expressions.
 
@@ -23460,29 +23440,11 @@ CONTINUE:
 This one is much like the others; but it has an extra complication from
 paths, which materialize here.
 
-@d continue_path 25 /* a label inside of |scan_expression| */
-@d finish_path 26 /* another */
-
 @<Declare the basic parsing subroutines@>=
+static int mp_scan_path (MP mp);
 static void mp_scan_expression (MP mp) {
-  mp_node p;    /* for list manipulation */
-  mp_knot path_p, path_q, r;
-  mp_knot pp, qq;
-  halfword c, d;        /* operation codes or modifiers */
-  mp_node cc = NULL;
   int my_var_flag;      /* initial value of |var_flag| */
-  mp_sym mac_name;      /* token defined with \&{tertiarydef} */
-  boolean cycle_hit;    /* did a path expression just end with `\&{cycle}'? */
-  mp_number x, y;  /* explicit coordinates or tension at a path join */
-  int t;        /* knot type following a path join */
-  mp_value new_expr;
-  t = 0;
-  new_number (y);
-  new_number (x);
-  memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
   my_var_flag = mp->var_flag;
-  mac_name = NULL;
   mp->expand_depth_count++;
   mp_check_expansion_depth (mp);
 RESTART:
@@ -23492,9 +23454,15 @@ RESTART:
 @.An expression...@>;
   mp_scan_tertiary (mp);
 CONTINUE:
-  if (cur_cmd() <= mp_max_expression_command)
+  if (cur_cmd() <= mp_max_expression_command) {
     if (cur_cmd() >= mp_min_expression_command) {
       if ((cur_cmd() != mp_equals) || (my_var_flag != mp_assignment)) {
+        mp_node p;    /* for list manipulation */
+        mp_node cc = NULL;
+        halfword c; 
+        halfword d;        /* operation codes or modifiers */
+        mp_sym mac_name;      /* token defined with \&{tertiarydef} */
+        mac_name = NULL;
         p = mp_stash_cur_exp (mp);
         d = cur_cmd();
         c = cur_mod();
@@ -23506,8 +23474,13 @@ CONTINUE:
         if ((d < mp_ampersand) || ((d == mp_ampersand) &&
                                 ((mp_type (p) == mp_pair_type)
                                  || (mp_type (p) == mp_path_type)))) {
-          @<Scan a path construction operation;
-            but |return| if |p| has the wrong type@>;
+          /* Scan a path construction operation;  but |return| if |p| has the wrong type */
+          
+          mp_unstash_cur_exp (mp, p);
+          if (!mp_scan_path(mp)) {
+            mp->expand_depth_count--;
+            return;
+          }
         } else {
           mp_get_x_next (mp);
           mp_scan_tertiary (mp);
@@ -23524,50 +23497,49 @@ CONTINUE:
         goto CONTINUE;
       }
     }
+  }
   mp->expand_depth_count--;
-  free_number (x);
-  free_number (y);
 }
 
 
 @ The reader should review the data structure conventions for paths before
 hoping to understand the next part of this code.
 
-@<Scan a path construction operation...@>=
-{
-  cycle_hit = false;
-  @<Convert the left operand, |p|, into a partial path ending at~|q|;
-    but |return| if |p| doesn't have a suitable type@>;
-CONTINUE_PATH:
-  @<Determine the path join parameters;
-    but |goto finish_path| if there's only a direction specifier@>;
-  if (cur_cmd() == mp_cycle) {
-    @<Get ready to close a cycle@>;
-  } else {
-    mp_scan_tertiary (mp);
-    @<Convert the right operand, |cur_exp|,
-      into a partial path from |pp| to~|qq|@>;
+@d min_tension three_quarter_unit_t
+
+@<Declare the basic parsing subroutines@>=
+static void force_valid_tension_setting(MP mp) {
+  if ((mp->cur_exp.type != mp_known) || number_less(cur_exp_value_number (), min_tension)) {
+    mp_value new_expr;
+    const char *hlp[] = { 
+               "The expression above should have been a number >=3/4.", 
+                NULL };
+    memset(&new_expr,0,sizeof(mp_value));
+    new_number(new_expr.data.n);
+    mp_disp_err(mp, NULL);
+    number_clone(new_expr.data.n, unity_t);
+    mp_back_error (mp, "Improper tension has been set to 1", hlp, true);
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
   }
-  @<Join the partial paths and reset |p| and |q| to the head and tail
-    of the result@>;
-  if (cur_cmd() >= mp_min_expression_command)
-    if (cur_cmd() <= mp_ampersand)
-      if (!cycle_hit)
-        goto CONTINUE_PATH;
-FINISH_PATH:
-  @<Choose control points for the path and put the result into |cur_exp|@>;
 }
-
-
-@ @<Convert the left operand, |p|, into a partial path ending at~|q|...@>=
-{
-  mp_unstash_cur_exp (mp, p);
+static int mp_scan_path (MP mp) {
+  mp_knot path_p, path_q, r;
+  mp_knot pp, qq;
+  halfword d;        /* operation code or modifier */
+  boolean cycle_hit; /* did a path expression just end with `\&{cycle}'? */
+  mp_number x, y;    /* explicit coordinates or tension at a path join */
+  int t;             /* knot type following a path join */
+  t = 0;
+  cycle_hit = false;
+  /* Convert the left operand, |p|, into a partial path ending at~|q|;
+    but |return| if |p| doesn't have a suitable type */
   if (mp->cur_exp.type == mp_pair_type)
     path_p = mp_pair_to_knot (mp);
   else if (mp->cur_exp.type == mp_path_type)
     path_p = cur_exp_knot ();
   else
-    return;
+    return 0;
   path_q = path_p;
   while (mp_next_knot (path_q) != path_p)
     path_q = mp_next_knot (path_q);
@@ -23578,6 +23550,242 @@ FINISH_PATH:
   }
   mp_left_type (path_p) = mp_open;
   mp_right_type (path_q) = mp_open;
+
+  new_number (y);
+  new_number (x);
+
+CONTINUE_PATH:
+  /* Determine the path join parameters;
+    but |goto finish_path| if there's only a direction specifier */
+  /* At this point |cur_cmd| is either |ampersand|, |left_brace|, or |path_join|. */
+
+  if (cur_cmd() == mp_left_brace) {
+    /* Put the pre-join direction information into node |q| */
+    /* At this point |mp_right_type(q)| is usually |open|, but it may have been
+       set to some other value by a previous operation. We must maintain
+       the value of |mp_right_type(q)| in cases such as
+       `\.{..\{curl2\}z\{0,0\}..}'. */
+    t = mp_scan_direction (mp);
+    if (t != mp_open) {
+      mp_right_type (path_q) = (unsigned short) t;
+      number_clone(path_q->right_given, cur_exp_value_number ());
+      if (mp_left_type (path_q) == mp_open) {
+        mp_left_type (path_q) = (unsigned short) t;
+        number_clone(path_q->left_given, cur_exp_value_number ());
+      }   /* note that |left_given(q)=left_curl(q)| */
+    }
+  }
+  d = cur_cmd();
+  if (d == mp_path_join) {
+    /* Determine the tension and/or control points */
+    mp_get_x_next (mp);
+    if (cur_cmd() == mp_tension) {
+      /* Set explicit tensions */
+      mp_get_x_next (mp);
+      set_number_from_scaled (y, cur_cmd());
+      if (cur_cmd() == mp_at_least)
+        mp_get_x_next (mp);
+      mp_scan_primary (mp);
+      force_valid_tension_setting(mp);
+      if (number_to_scaled (y) == mp_at_least) {
+       if (cur_exp_value_number()) 
+         number_negate (cur_exp_value_number());
+      }
+      number_clone(path_q->right_tension, cur_exp_value_number ());
+      if (cur_cmd() == mp_and_command) {
+        mp_get_x_next (mp);
+        set_number_from_scaled (y, cur_cmd());
+        if (cur_cmd() == mp_at_least)
+          mp_get_x_next (mp);
+        mp_scan_primary (mp);
+        force_valid_tension_setting(mp);
+        if (number_to_scaled (y) == mp_at_least) {
+          if (cur_exp_value_number()) 
+            number_negate (cur_exp_value_number());
+        }
+      }
+      number_clone (y, cur_exp_value_number ());
+  
+    } else if (cur_cmd() == mp_controls) {
+      /* Set explicit control points */
+      mp_right_type (path_q) = mp_explicit;
+      t = mp_explicit;
+      mp_get_x_next (mp);
+      mp_scan_primary (mp);
+      mp_known_pair (mp);
+      number_clone (path_q->right_x, mp->cur_x);
+      number_clone (path_q->right_y, mp->cur_y);
+      if (cur_cmd() != mp_and_command) {
+        number_clone (x, path_q->right_x);
+        number_clone (y, path_q->right_y);
+      } else {
+        mp_get_x_next (mp);
+        mp_scan_primary (mp);
+        mp_known_pair (mp);
+        number_clone (x, mp->cur_x);
+        number_clone (y, mp->cur_y);
+      }
+    
+    } else {
+      set_number_to_unity(path_q->right_tension);
+      set_number_to_unity(y);
+      mp_back_input (mp);         /* default tension */
+      goto DONE;
+    };
+    if (cur_cmd() != mp_path_join) {
+      const char *hlp[] = { "A path join command should end with two dots.", NULL};
+      mp_back_error (mp, "Missing `..' has been inserted", hlp, true);
+    }
+  DONE:
+    ;
+  } else if (d != mp_ampersand) {
+    goto FINISH_PATH;
+  }
+  mp_get_x_next (mp);
+  if (cur_cmd() == mp_left_brace) {
+    /* Put the post-join direction information into |x| and |t| */
+    /* Since |left_tension| and |mp_left_y| share the same position in knot nodes,
+       and since |left_given| is similarly equivalent to |left_x|, we use
+       |x| and |y| to hold the given direction and tension information when
+       there are no explicit control points. */
+    t = mp_scan_direction (mp);
+    if (mp_right_type (path_q) != mp_explicit)
+      number_clone (x, cur_exp_value_number ());
+    else
+      t = mp_explicit;            /* the direction information is superfluous */
+
+  } else if (mp_right_type (path_q) != mp_explicit) {
+    t = mp_open;
+    set_number_to_zero(x);
+  }
+  
+  if (cur_cmd() == mp_cycle) {
+    /* Get ready to close a cycle */
+    /* If a person tries to define an entire path by saying `\.{(x,y)\&cycle}',
+       we silently change the specification to `\.{(x,y)..cycle}', since a cycle
+       shouldn't have length zero. */
+    cycle_hit = true;
+    mp_get_x_next (mp);
+    pp = path_p;
+    qq = path_p;
+    if (d == mp_ampersand) {
+      if (path_p == path_q) {
+        d = mp_path_join;
+        set_number_to_unity(path_q->right_tension);
+        set_number_to_unity(y);
+      }
+    }
+  } else {
+    mp_scan_tertiary (mp);
+    /* Convert the right operand, |cur_exp|,
+      into a partial path from |pp| to~|qq| */
+    if (mp->cur_exp.type != mp_path_type)
+      pp = mp_pair_to_knot (mp);
+    else
+      pp = cur_exp_knot ();
+    qq = pp;
+    while (mp_next_knot (qq) != pp)
+      qq = mp_next_knot (qq);
+    if (mp_left_type (pp) != mp_endpoint) {       /* open up a cycle */
+      r = mp_copy_knot (mp, pp);
+      mp_next_knot (qq) = r;
+      qq = r;
+    }
+    mp_left_type (pp) = mp_open;
+    mp_right_type (qq) = mp_open;
+  }
+  /* Join the partial paths and reset |p| and |q| to the head and tail
+    of the result */
+  if (d == mp_ampersand) {
+    if (!(number_equal (path_q->x_coord, pp->x_coord)) ||
+        !(number_equal (path_q->y_coord, pp->y_coord))) {
+      const char *hlp[] = {
+             "When you join paths `p&q', the ending point of p",
+             "must be exactly equal to the starting point of q.",
+             "So I'm going to pretend that you said `p..q' instead.",
+             NULL };
+      mp_back_error (mp, "Paths don't touch; `&' will be changed to `..'", hlp, true);
+@.Paths don't touch@>;
+      mp_get_x_next (mp);
+      d = mp_path_join;
+      set_number_to_unity (path_q->right_tension);
+      set_number_to_unity (y);
+    }
+  }
+  /* Plug an opening in |mp_right_type(pp)|, if possible */
+  if (mp_right_type (pp) == mp_open) {
+    if ((t == mp_curl) || (t == mp_given)) {
+      mp_right_type (pp) = (unsigned short) t;
+      number_clone (pp->right_given, x);
+    }
+  }
+  if (d == mp_ampersand) {
+    /* Splice independent paths together */
+    if (mp_left_type (path_q) == mp_open)
+      if (mp_right_type (path_q) == mp_open) {
+        mp_left_type (path_q) = mp_curl;
+        set_number_to_unity(path_q->left_curl);
+      }
+    if (mp_right_type (pp) == mp_open)
+      if (t == mp_open) {
+        mp_right_type (pp) = mp_curl;
+        set_number_to_unity(pp->right_curl);
+      }
+    mp_right_type (path_q) = mp_right_type (pp);
+    mp_next_knot (path_q) = mp_next_knot (pp);
+    number_clone (path_q->right_x, pp->right_x);
+    number_clone (path_q->right_y, pp->right_y);
+    mp_xfree (pp);
+    if (qq == pp)
+      qq = path_q;
+
+  } else {
+    /* Plug an opening in |mp_right_type(q)|, if possible */
+    if (mp_right_type (path_q) == mp_open) {
+      if ((mp_left_type (path_q) == mp_curl) || (mp_left_type (path_q) == mp_given)) {
+        mp_right_type (path_q) = mp_left_type (path_q);
+        number_clone(path_q->right_given, path_q->left_given);
+      }
+    }
+
+    mp_next_knot (path_q) = pp;
+    number_clone (pp->left_y, y);
+    if (t != mp_open) {
+      number_clone (pp->left_x, x);
+      mp_left_type (pp) = (unsigned short) t;
+    };
+  }
+  path_q = qq;
+
+  if (cur_cmd() >= mp_min_expression_command)
+    if (cur_cmd() <= mp_ampersand)
+      if (!cycle_hit)
+        goto CONTINUE_PATH;
+FINISH_PATH:
+  /* Choose control points for the path and put the result into |cur_exp| */
+  if (cycle_hit) {
+    if (d == mp_ampersand)
+      path_p = path_q;
+  } else {
+    mp_left_type (path_p) = mp_endpoint;
+    if (mp_right_type (path_p) == mp_open) {
+      mp_right_type (path_p) = mp_curl;
+      set_number_to_unity(path_p->right_curl);
+    }
+    mp_right_type (path_q) = mp_endpoint;
+    if (mp_left_type (path_q) == mp_open) {
+      mp_left_type (path_q) = mp_curl;
+      set_number_to_unity(path_q->left_curl);
+    }
+    mp_next_knot (path_q) = path_p;
+  }
+  mp_make_choices (mp, path_p);
+  mp->cur_exp.type = mp_path_type;
+  set_cur_exp_knot (path_p);
+
+  free_number (x);
+  free_number (y);
+  return 1;
 }
 
 
@@ -23621,78 +23829,50 @@ void mp_known_pair (MP mp) {
            "(Chapter 27 of The METAFONTbook explains that",
            "you might want to type `I ??" "?' now.)",
            NULL };
-@:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
     mp_disp_err(mp, NULL);
     mp_back_error (mp, "Undefined coordinates have been replaced by (0,0)", hlp, true);
-@.Undefined coordinates...@>;
     mp_get_x_next (mp);
     mp_flush_cur_exp (mp, new_expr);
     set_number_to_zero(mp->cur_x);
     set_number_to_zero(mp->cur_y);
   } else {
     p = value_node (cur_exp_node ());
-    @<Make sure that both |x| and |y| parts of |p| are known;
-       copy them into |cur_x| and |cur_y|@>;
+    /* Make sure that both |x| and |y| parts of |p| are known;
+       copy them into |cur_x| and |cur_y| */
+    if (mp_type (x_part (p)) == mp_known) {
+      number_clone(mp->cur_x, value_number (x_part (p)));
+    } else {
+      const char *hlp[] = { 
+             "I need a `known' x value for this part of the path.",
+             "The value I found (see above) was no good;",
+             "so I'll try to keep going by using zero instead.",
+             "(Chapter 27 of The METAFONTbook explains that",
+             "you might want to type `I ??" "?' now.)",
+             NULL };
+      mp_disp_err (mp, x_part (p));
+      mp_back_error (mp, "Undefined x coordinate has been replaced by 0", hlp, true);
+      mp_get_x_next (mp);
+      mp_recycle_value (mp, x_part (p));
+      set_number_to_zero(mp->cur_x);
+    }
+    if (mp_type (y_part (p)) == mp_known) {
+      number_clone(mp->cur_y, value_number (y_part (p)));
+    } else {
+      const char *hlp[] = { 
+             "I need a `known' y value for this part of the path.",
+             "The value I found (see above) was no good;",
+             "so I'll try to keep going by using zero instead.",
+             "(Chapter 27 of The METAFONTbook explains that",
+             "you might want to type `I ??" "?' now.)",
+             NULL };
+      mp_disp_err (mp, y_part (p));
+      mp_back_error (mp, "Undefined y coordinate has been replaced by 0", hlp, true);
+      mp_get_x_next (mp);
+      mp_recycle_value (mp, y_part (p));
+      set_number_to_zero(mp->cur_y);
+    }
     mp_flush_cur_exp (mp, new_expr);
   }
-}
-
-
-@ @<Make sure that both |x| and |y| parts of |p| are known...@>=
-if (mp_type (x_part (p)) == mp_known) {
-  number_clone(mp->cur_x, value_number (x_part (p)));
-} else {
-  const char *hlp[] = { 
-         "I need a `known' x value for this part of the path.",
-         "The value I found (see above) was no good;",
-         "so I'll try to keep going by using zero instead.",
-         "(Chapter 27 of The METAFONTbook explains that",
-@:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
-         "you might want to type `I ??" "?' now.)",
-         NULL };
-  mp_disp_err (mp, x_part (p));
-  mp_back_error (mp, "Undefined x coordinate has been replaced by 0", hlp, true);
-@.Undefined coordinates...@>;
-  mp_get_x_next (mp);
-  mp_recycle_value (mp, x_part (p));
-  set_number_to_zero(mp->cur_x);
-}
-if (mp_type (y_part (p)) == mp_known) {
-  number_clone(mp->cur_y, value_number (y_part (p)));
-} else {
-  const char *hlp[] = { 
-         "I need a `known' y value for this part of the path.",
-         "The value I found (see above) was no good;",
-         "so I'll try to keep going by using zero instead.",
-         "(Chapter 27 of The METAFONTbook explains that",
-         "you might want to type `I ??" "?' now.)",
-         NULL };
-  mp_disp_err (mp, y_part (p));
-  mp_back_error (mp, "Undefined y coordinate has been replaced by 0", hlp, true);
-  mp_get_x_next (mp);
-  mp_recycle_value (mp, y_part (p));
-  set_number_to_zero(mp->cur_y);
-}
-
-
-@ At this point |cur_cmd| is either |ampersand|, |left_brace|, or |path_join|.
-
-@<Determine the path join parameters...@>=
-if (cur_cmd() == mp_left_brace) {
-  @<Put the pre-join direction information into node |q|@>;
-}
-d = cur_cmd();
-if (d == mp_path_join) {
-  @<Determine the tension and/or control points@>;
-} else if (d != mp_ampersand) {
-  goto FINISH_PATH;
-}
-mp_get_x_next (mp);
-if (cur_cmd() == mp_left_brace) {
-  @<Put the post-join direction information into |x| and |t|@>;
-} else if (mp_right_type (path_q) != mp_explicit) {
-  t = mp_open;
-  set_number_to_zero(x);
 }
 
 @ The |scan_direction| subroutine looks at the directional information
@@ -23710,9 +23890,90 @@ static quarterword mp_scan_direction (MP mp) {
   int t;        /* the type of information found */
   mp_get_x_next (mp);
   if (cur_cmd() == mp_curl_command) {
-    @<Scan a curl specification@>;
+    /* Scan a curl specification */
+    mp_get_x_next (mp);
+    mp_scan_expression (mp);
+    if ((mp->cur_exp.type != mp_known) || (number_negative(cur_exp_value_number ()))) {
+      mp_value new_expr;
+      const char *hlp[] = { "A curl must be a known, nonnegative number.", NULL };
+      memset(&new_expr,0,sizeof(mp_value));
+      new_number(new_expr.data.n);
+      set_number_to_unity(new_expr.data.n);
+      mp_disp_err(mp, NULL);
+      mp_back_error (mp, "Improper curl has been replaced by 1", hlp, true);
+      mp_get_x_next (mp);
+      mp_flush_cur_exp (mp, new_expr);
+    }
+    t = mp_curl;
+
   } else {
-    @<Scan a given direction@>;
+    /* Scan a given direction */
+    mp_scan_expression (mp);
+    if (mp->cur_exp.type > mp_pair_type) {
+      /* Get given directions separated by commas */
+      mp_number xx;
+      new_number(xx);
+      if (mp->cur_exp.type != mp_known) {
+        mp_value new_expr;
+        const char *hlp[] = { 
+               "I need a `known' x value for this part of the path.",
+               "The value I found (see above) was no good;",
+               "so I'll try to keep going by using zero instead.",
+               "(Chapter 27 of The METAFONTbook explains that",
+               "you might want to type `I ??" "?' now.)",
+               NULL };
+        memset(&new_expr,0,sizeof(mp_value));
+        new_number(new_expr.data.n);
+        set_number_to_zero(new_expr.data.n);
+        mp_disp_err(mp, NULL);
+        mp_back_error (mp, "Undefined x coordinate has been replaced by 0", hlp, true);
+        mp_get_x_next (mp);
+        mp_flush_cur_exp (mp, new_expr);
+      }
+      number_clone(xx, cur_exp_value_number ());
+      if (cur_cmd() != mp_comma) {
+        const char *hlp[] = {
+               "I've got the x coordinate of a path direction;",
+               "will look for the y coordinate next.",
+               NULL };
+        mp_back_error (mp, "Missing `,' has been inserted", hlp, true);
+      }
+      mp_get_x_next (mp);
+      mp_scan_expression (mp);
+      if (mp->cur_exp.type != mp_known) {
+        mp_value new_expr;
+        const char *hlp[] = { 
+               "I need a `known' y value for this part of the path.",
+               "The value I found (see above) was no good;",
+               "so I'll try to keep going by using zero instead.",
+               "(Chapter 27 of The METAFONTbook explains that",
+               "you might want to type `I ??" "?' now.)",
+               NULL };
+        memset(&new_expr,0,sizeof(mp_value));
+        new_number(new_expr.data.n);
+        set_number_to_zero(new_expr.data.n);
+        mp_disp_err(mp, NULL);
+        mp_back_error (mp, "Undefined y coordinate has been replaced by 0", hlp, true);
+        mp_get_x_next (mp);
+        mp_flush_cur_exp (mp, new_expr);
+      }
+      number_clone(mp->cur_y, cur_exp_value_number ());
+      number_clone(mp->cur_x, xx);
+      free_number(xx);
+  
+    } else {
+      mp_known_pair (mp);
+    }
+    if (number_zero(mp->cur_x) && number_zero(mp->cur_y))
+      t = mp_open;
+    else {
+      mp_number narg;
+      new_angle (narg); 
+      n_arg (narg, mp->cur_x, mp->cur_y);
+      t = mp_given;
+      set_cur_exp_value_number (narg);
+      free_number (narg);
+    }
   }
   if (cur_cmd() != mp_right_brace) {
     const char *hlp[] = {
@@ -23721,363 +23982,11 @@ static quarterword mp_scan_direction (MP mp) {
            "I shall pretend that one was there.",
            NULL };
     mp_back_error (mp, "Missing `}' has been inserted", hlp, true);
-@.Missing `\char`\}'@>;
   }
   mp_get_x_next (mp);
   return (quarterword) t;
 }
 
-
-@ @<Scan a curl specification@>=
-{
-  mp_get_x_next (mp);
-  mp_scan_expression (mp);
-  if ((mp->cur_exp.type != mp_known) || (number_negative(cur_exp_value_number ()))) {
-    mp_value new_expr;
-    const char *hlp[] = { "A curl must be a known, nonnegative number.", NULL };
-    memset(&new_expr,0,sizeof(mp_value));
-    new_number(new_expr.data.n);
-    set_number_to_unity(new_expr.data.n);
-    mp_disp_err(mp, NULL);
-    mp_back_error (mp, "Improper curl has been replaced by 1", hlp, true);
-@.Improper curl@>;
-    mp_get_x_next (mp);
-    mp_flush_cur_exp (mp, new_expr);
-  }
-  t = mp_curl;
-}
-
-
-@ @<Scan a given direction@>=
-{
-  mp_scan_expression (mp);
-  if (mp->cur_exp.type > mp_pair_type) {
-    @<Get given directions separated by commas@>;
-  } else {
-    mp_known_pair (mp);
-  }
-  if (number_zero(mp->cur_x) && number_zero(mp->cur_y))
-    t = mp_open;
-  else {
-    mp_number narg;
-    new_angle (narg); 
-    n_arg (narg, mp->cur_x, mp->cur_y);
-    t = mp_given;
-    set_cur_exp_value_number (narg);
-    free_number (narg);
-  }
-}
-
-
-@ @<Get given directions separated by commas@>=
-{
-  mp_number xx;
-  new_number(xx);
-  if (mp->cur_exp.type != mp_known) {
-    mp_value new_expr;
-    const char *hlp[] = { 
-           "I need a `known' x value for this part of the path.",
-           "The value I found (see above) was no good;",
-           "so I'll try to keep going by using zero instead.",
-           "(Chapter 27 of The METAFONTbook explains that",
-           "you might want to type `I ??" "?' now.)",
-           NULL };
-@:METAFONTbook}{\sl The {\logos METAFONT\/}book@>
-    memset(&new_expr,0,sizeof(mp_value));
-    new_number(new_expr.data.n);
-    set_number_to_zero(new_expr.data.n);
-    mp_disp_err(mp, NULL);
-    mp_back_error (mp, "Undefined x coordinate has been replaced by 0", hlp, true);
-@.Undefined coordinates...@>;
-    mp_get_x_next (mp);
-    mp_flush_cur_exp (mp, new_expr);
-  }
-  number_clone(xx, cur_exp_value_number ());
-  if (cur_cmd() != mp_comma) {
-    const char *hlp[] = {
-           "I've got the x coordinate of a path direction;",
-           "will look for the y coordinate next.",
-           NULL };
-    mp_back_error (mp, "Missing `,' has been inserted", hlp, true);
-@.Missing `,'@>;
-  }
-  mp_get_x_next (mp);
-  mp_scan_expression (mp);
-  if (mp->cur_exp.type != mp_known) {
-    mp_value new_expr;
-    const char *hlp[] = { 
-           "I need a `known' y value for this part of the path.",
-           "The value I found (see above) was no good;",
-           "so I'll try to keep going by using zero instead.",
-           "(Chapter 27 of The METAFONTbook explains that",
-           "you might want to type `I ??" "?' now.)",
-           NULL };
-    memset(&new_expr,0,sizeof(mp_value));
-    new_number(new_expr.data.n);
-    set_number_to_zero(new_expr.data.n);
-    mp_disp_err(mp, NULL);
-    mp_back_error (mp, "Undefined y coordinate has been replaced by 0", hlp, true);
-    mp_get_x_next (mp);
-    mp_flush_cur_exp (mp, new_expr);
-  }
-  number_clone(mp->cur_y, cur_exp_value_number ());
-  number_clone(mp->cur_x, xx);
-  free_number(xx);
-}
-
-
-@ At this point |mp_right_type(q)| is usually |open|, but it may have been
-set to some other value by a previous operation. We must maintain
-the value of |mp_right_type(q)| in cases such as
-`\.{..\{curl2\}z\{0,0\}..}'.
-
-@<Put the pre-join...@>=
-{
-  t = mp_scan_direction (mp);
-  if (t != mp_open) {
-    mp_right_type (path_q) = (unsigned short) t;
-    number_clone(path_q->right_given, cur_exp_value_number ());
-    if (mp_left_type (path_q) == mp_open) {
-      mp_left_type (path_q) = (unsigned short) t;
-      number_clone(path_q->left_given, cur_exp_value_number ());
-    }                           /* note that |left_given(q)=left_curl(q)| */
-  }
-}
-
-
-@ Since |left_tension| and |mp_left_y| share the same position in knot nodes,
-and since |left_given| is similarly equivalent to |left_x|, we use
-|x| and |y| to hold the given direction and tension information when
-there are no explicit control points.
-
-@<Put the post-join...@>=
-{
-  t = mp_scan_direction (mp);
-  if (mp_right_type (path_q) != mp_explicit)
-    number_clone (x, cur_exp_value_number ());
-  else
-    t = mp_explicit;            /* the direction information is superfluous */
-}
-
-
-@ @<Determine the tension and/or...@>=
-{
-  mp_get_x_next (mp);
-  if (cur_cmd() == mp_tension) {
-    @<Set explicit tensions@>;
-  } else if (cur_cmd() == mp_controls) {
-    @<Set explicit control points@>;
-  } else {
-    set_number_to_unity(path_q->right_tension);
-    set_number_to_unity(y);
-    mp_back_input (mp);         /* default tension */
-    goto DONE;
-  };
-  if (cur_cmd() != mp_path_join) {
-    const char *hlp[] = { "A path join command should end with two dots.", NULL};
-    mp_back_error (mp, "Missing `..' has been inserted", hlp, true);
-@.Missing `..'@>;
-  }
-DONE:
-  ;
-}
-
-
-@ @<Set explicit tensions@>=
-{
-  mp_get_x_next (mp);
-  set_number_from_scaled (y, cur_cmd());
-  if (cur_cmd() == mp_at_least)
-    mp_get_x_next (mp);
-  mp_scan_primary (mp);
-  @<Make sure that the current expression is a valid tension setting@>;
-  if (number_to_scaled (y) == mp_at_least) {
-   if (cur_exp_value_number()) 
-     number_negate (cur_exp_value_number());
-  }
-  number_clone(path_q->right_tension, cur_exp_value_number ());
-  if (cur_cmd() == mp_and_command) {
-    mp_get_x_next (mp);
-    set_number_from_scaled (y, cur_cmd());
-    if (cur_cmd() == mp_at_least)
-      mp_get_x_next (mp);
-    mp_scan_primary (mp);
-    @<Make sure that the current expression is a valid tension setting@>;
-    if (number_to_scaled (y) == mp_at_least) {
-      if (cur_exp_value_number()) 
-        number_negate (cur_exp_value_number());
-    }
-  }
-  number_clone (y, cur_exp_value_number ());
-}
-
-
-@ @d min_tension three_quarter_unit_t
-
-@<Make sure that the current expression is a valid tension setting@>=
-if ((mp->cur_exp.type != mp_known) || number_less(cur_exp_value_number (), min_tension)) {
-  const char *hlp[] = { "The expression above should have been a number >=3/4.", NULL };
-  mp_disp_err(mp, NULL);
-  number_clone(new_expr.data.n, unity_t);
-  mp_back_error (mp, "Improper tension has been set to 1", hlp, true);
-@.Improper tension@>;
-  mp_get_x_next (mp);
-  mp_flush_cur_exp (mp, new_expr);
-}
-
-@ @<Set explicit control points@>=
-{
-  mp_right_type (path_q) = mp_explicit;
-  t = mp_explicit;
-  mp_get_x_next (mp);
-  mp_scan_primary (mp);
-  mp_known_pair (mp);
-  number_clone (path_q->right_x, mp->cur_x);
-  number_clone (path_q->right_y, mp->cur_y);
-  if (cur_cmd() != mp_and_command) {
-    number_clone (x, path_q->right_x);
-    number_clone (y, path_q->right_y);
-  } else {
-    mp_get_x_next (mp);
-    mp_scan_primary (mp);
-    mp_known_pair (mp);
-    number_clone (x, mp->cur_x);
-    number_clone (y, mp->cur_y);
-  }
-}
-
-
-@ @<Convert the right operand, |cur_exp|, into a partial path...@>=
-{
-  if (mp->cur_exp.type != mp_path_type)
-    pp = mp_pair_to_knot (mp);
-  else
-    pp = cur_exp_knot ();
-  qq = pp;
-  while (mp_next_knot (qq) != pp)
-    qq = mp_next_knot (qq);
-  if (mp_left_type (pp) != mp_endpoint) {       /* open up a cycle */
-    r = mp_copy_knot (mp, pp);
-    mp_next_knot (qq) = r;
-    qq = r;
-  }
-  mp_left_type (pp) = mp_open;
-  mp_right_type (qq) = mp_open;
-}
-
-
-@ If a person tries to define an entire path by saying `\.{(x,y)\&cycle}',
-we silently change the specification to `\.{(x,y)..cycle}', since a cycle
-shouldn't have length zero.
-
-@<Get ready to close a cycle@>=
-{
-  cycle_hit = true;
-  mp_get_x_next (mp);
-  pp = path_p;
-  qq = path_p;
-  if (d == mp_ampersand)
-    if (path_p == path_q) {
-      d = mp_path_join;
-      set_number_to_unity(path_q->right_tension);
-      set_number_to_unity(y);
-    }
-}
-
-
-@ @<Join the partial paths and reset |p| and |q|...@>=
-{
-  if (d == mp_ampersand) {
-    if (!(number_equal (path_q->x_coord, pp->x_coord)) ||
-        !(number_equal (path_q->y_coord, pp->y_coord))) {
-      const char *hlp[] = {
-             "When you join paths `p&q', the ending point of p",
-             "must be exactly equal to the starting point of q.",
-             "So I'm going to pretend that you said `p..q' instead.",
-             NULL };
-      mp_back_error (mp, "Paths don't touch; `&' will be changed to `..'", hlp, true);
-@.Paths don't touch@>;
-      mp_get_x_next (mp);
-      d = mp_path_join;
-      set_number_to_unity (path_q->right_tension);
-      set_number_to_unity (y);
-    }
-  }
-  @<Plug an opening in |mp_right_type(pp)|, if possible@>;
-  if (d == mp_ampersand) {
-    @<Splice independent paths together@>;
-  } else {
-    @<Plug an opening in |mp_right_type(q)|, if possible@>;
-    mp_next_knot (path_q) = pp;
-    number_clone (pp->left_y, y);
-    if (t != mp_open) {
-      number_clone (pp->left_x, x);
-      mp_left_type (pp) = (unsigned short) t;
-    };
-  }
-  path_q = qq;
-}
-
-
-@ @<Plug an opening in |mp_right_type(q)|...@>=
-if (mp_right_type (path_q) == mp_open) {
-  if ((mp_left_type (path_q) == mp_curl) || (mp_left_type (path_q) == mp_given)) {
-    mp_right_type (path_q) = mp_left_type (path_q);
-    number_clone(path_q->right_given, path_q->left_given);
-  }
-}
-
-@ @<Plug an opening in |mp_right_type(pp)|...@>=
-if (mp_right_type (pp) == mp_open) {
-  if ((t == mp_curl) || (t == mp_given)) {
-    mp_right_type (pp) = (unsigned short) t;
-    number_clone (pp->right_given, x);
-  }
-}
-
-@ @<Splice independent paths together@>=
-{
-  if (mp_left_type (path_q) == mp_open)
-    if (mp_right_type (path_q) == mp_open) {
-      mp_left_type (path_q) = mp_curl;
-      set_number_to_unity(path_q->left_curl);
-    }
-  if (mp_right_type (pp) == mp_open)
-    if (t == mp_open) {
-      mp_right_type (pp) = mp_curl;
-      set_number_to_unity(pp->right_curl);
-    }
-  mp_right_type (path_q) = mp_right_type (pp);
-  mp_next_knot (path_q) = mp_next_knot (pp);
-  number_clone (path_q->right_x, pp->right_x);
-  number_clone (path_q->right_y, pp->right_y);
-  mp_xfree (pp);
-  if (qq == pp)
-    qq = path_q;
-}
-
-
-@ @<Choose control points for the path...@>=
-if (cycle_hit) {
-  if (d == mp_ampersand)
-    path_p = path_q;
-} else {
-  mp_left_type (path_p) = mp_endpoint;
-  if (mp_right_type (path_p) == mp_open) {
-    mp_right_type (path_p) = mp_curl;
-    set_number_to_unity(path_p->right_curl);
-  }
-  mp_right_type (path_q) = mp_endpoint;
-  if (mp_left_type (path_q) == mp_open) {
-    mp_left_type (path_q) = mp_curl;
-    set_number_to_unity(path_q->left_curl);
-  }
-  mp_next_knot (path_q) = path_p;
-}
-mp_make_choices (mp, path_p);
-mp->cur_exp.type = mp_path_type;
-set_cur_exp_knot (path_p)
- 
 
 @ Finally, we sometimes need to scan an expression whose value is
 supposed to be either |true_code| or |false_code|.
