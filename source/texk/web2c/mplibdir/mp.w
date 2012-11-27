@@ -26045,7 +26045,6 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
   mp_node old_p, old_exp;       /* capsules to recycle */
   mp_value new_expr;
   memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
   check_arith();
   if (number_greater (internal_value (mp_tracing_commands), two_t)) {
     /* Trace the current binary operation */
@@ -26165,6 +26164,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
       mp_bad_binary (mp, p, (quarterword) c);
       goto DONE;
     } else if (mp->cur_exp.type == mp_string_type) {
+      new_number(new_expr.data.n);
       set_number_from_scaled (new_expr.data.n, mp_str_vs_str (mp, value_str (p), cur_exp_str ()));
       mp_flush_cur_exp (mp, new_expr);
     } else if ((mp->cur_exp.type == mp_unknown_string) ||
@@ -26177,6 +26177,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
       while ((q != cur_exp_node ()) && (q != p))
         q = value_node (q);
       if (q == p) {
+        new_number(new_expr.data.n);
         set_cur_exp_node (NULL);
         mp_flush_cur_exp (mp, new_expr);
       }
@@ -26292,6 +26293,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
       }
     
     } else if (mp->cur_exp.type == mp_boolean_type) {
+      new_number(new_expr.data.n);
       set_number_from_boolean (new_expr.data.n, number_to_scaled(cur_exp_value_number ()) - 
                                                 number_to_scaled (value_number (p)));
       mp_flush_cur_exp (mp, new_expr);
@@ -26311,6 +26313,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
         hlp[1]  = NULL;
       }
       mp_disp_err(mp, NULL);
+      new_number(new_expr.data.n);
       set_number_from_boolean (new_expr.data.n, mp_false_code);
       mp_back_error (mp,"Unknown relation will be considered false", hlp, true);
     @.Unknown relation...@>;
@@ -26342,9 +26345,271 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
   DONE:
     mp->arith_error = false;        /* ignore overflow in comparisons */
     break;
-
-    @<Additional cases of binary operators@>;
-  };                            /* there are no other cases */
+  case mp_and_op:
+  case mp_or_op:
+    /* Here we use the sneaky fact that |and_op-false_code=or_op-true_code| */
+    if ((mp_type (p) != mp_boolean_type) || (mp->cur_exp.type != mp_boolean_type))
+      mp_bad_binary (mp, p, (quarterword) c);
+    else if (number_to_boolean (p->data.n) == c + mp_false_code - mp_and_op) {
+      set_cur_exp_value_boolean (number_to_boolean (p->data.n));
+    }
+    break;
+  case mp_times:
+    if ((mp->cur_exp.type < mp_color_type) || (mp_type (p) < mp_color_type)) {
+      mp_bad_binary (mp, p, mp_times);
+    } else if ((mp->cur_exp.type == mp_known) || (mp_type (p) == mp_known)) {
+      /* Multiply when at least one operand is known */
+      mp_number vv;
+      new_fraction (vv);
+      if (mp_type (p) == mp_known) {
+        number_clone(vv, value_number (p));
+        mp_free_node (mp, p, value_node_size);
+      } else {
+        number_clone(vv, cur_exp_value_number ());
+        mp_unstash_cur_exp (mp, p);
+      }
+      if (mp->cur_exp.type == mp_known) {
+        mp_number ret;
+        new_number (ret);
+        take_scaled (ret, cur_exp_value_number (), vv);
+        set_cur_exp_value_number (ret);
+        free_number (ret);
+      } else if (mp->cur_exp.type == mp_pair_type) {
+        mp_dep_mult (mp, (mp_value_node) x_part (value_node (cur_exp_node ())), vv, true);
+        mp_dep_mult (mp, (mp_value_node) y_part (value_node (cur_exp_node ())), vv, true);
+      } else if (mp->cur_exp.type == mp_color_type) {
+        mp_dep_mult (mp, (mp_value_node) red_part (value_node (cur_exp_node ())), vv, true);
+        mp_dep_mult (mp, (mp_value_node) green_part (value_node (cur_exp_node ())), vv, true);
+        mp_dep_mult (mp, (mp_value_node) blue_part (value_node (cur_exp_node ())), vv, true);
+      } else if (mp->cur_exp.type == mp_cmykcolor_type) {
+        mp_dep_mult (mp, (mp_value_node) cyan_part (value_node (cur_exp_node ())), vv, true);
+        mp_dep_mult (mp, (mp_value_node) magenta_part (value_node (cur_exp_node ())), vv, true);
+        mp_dep_mult (mp, (mp_value_node) yellow_part (value_node (cur_exp_node ())), vv, true);
+        mp_dep_mult (mp, (mp_value_node) black_part (value_node (cur_exp_node ())),  vv, true);
+      } else {
+        mp_dep_mult (mp, NULL, vv, true);
+      }
+      free_number (vv);
+      binary_return;
+    
+    } else if ((mp_nice_color_or_pair (mp, p, mp_type (p))
+                && (mp->cur_exp.type > mp_pair_type))
+               || (mp_nice_color_or_pair (mp, cur_exp_node (), mp->cur_exp.type)
+                   && (mp_type (p) > mp_pair_type))) {
+      mp_hard_times (mp, p);
+      binary_return;
+    } else {
+      mp_bad_binary (mp, p, mp_times);
+    }
+    break;
+  case mp_over:
+    if ((mp->cur_exp.type != mp_known) || (mp_type (p) < mp_color_type)) {
+      mp_bad_binary (mp, p, mp_over);
+    } else {
+      mp_number v_n;
+      new_number (v_n); 
+      number_clone (v_n, cur_exp_value_number ());
+      mp_unstash_cur_exp (mp, p);
+      if (number_zero(v_n)) {
+        /* Squeal about division by zero */
+        const char *hlp[] = {
+             "You're trying to divide the quantity shown above the error",
+             "message by zero. I'm going to divide it by one instead.",
+             NULL };
+        mp_disp_err(mp, NULL);
+        mp_back_error (mp, "Division by zero", hlp, true);
+        mp_get_x_next (mp);
+    
+      } else {
+        if (mp->cur_exp.type == mp_known) {
+          mp_number ret;
+          new_number (ret);
+          make_scaled (ret, cur_exp_value_number (), v_n);
+          set_cur_exp_value_number (ret);
+          free_number (ret);
+        } else if (mp->cur_exp.type == mp_pair_type) {
+          mp_dep_div (mp, (mp_value_node) x_part (value_node (cur_exp_node ())),
+                      v_n);
+          mp_dep_div (mp, (mp_value_node) y_part (value_node (cur_exp_node ())),
+                      v_n);
+        } else if (mp->cur_exp.type == mp_color_type) {
+          mp_dep_div (mp,
+                      (mp_value_node) red_part (value_node (cur_exp_node ())),
+                      v_n);
+          mp_dep_div (mp,
+                      (mp_value_node) green_part (value_node (cur_exp_node ())),
+                      v_n);
+          mp_dep_div (mp,
+                      (mp_value_node) blue_part (value_node (cur_exp_node ())),
+                      v_n);
+        } else if (mp->cur_exp.type == mp_cmykcolor_type) {
+          mp_dep_div (mp,
+                      (mp_value_node) cyan_part (value_node (cur_exp_node ())),
+                      v_n);
+          mp_dep_div (mp, (mp_value_node)
+                      magenta_part (value_node (cur_exp_node ())), v_n);
+          mp_dep_div (mp, (mp_value_node)
+                      yellow_part (value_node (cur_exp_node ())), v_n);
+          mp_dep_div (mp,
+                      (mp_value_node) black_part (value_node (cur_exp_node ())),
+                      v_n);
+        } else {
+          mp_dep_div (mp, NULL, v_n);
+        }
+      }
+      binary_return;
+    }
+    break;
+  case mp_pythag_add:
+  case mp_pythag_sub:
+    if ((mp->cur_exp.type == mp_known) && (mp_type (p) == mp_known)) {
+      mp_number r;
+      new_number (r);
+      if (c == mp_pythag_add) {
+        pyth_add (r, value_number (p), cur_exp_value_number ());
+      } else {
+        pyth_sub (r, value_number (p), cur_exp_value_number ());
+      }
+      set_cur_exp_value_number (r);
+      free_number (r);
+    } else
+      mp_bad_binary (mp, p, (quarterword) c);
+    break;
+  case mp_rotated_by:
+  case mp_slanted_by:
+  case mp_scaled_by:
+  case mp_shifted_by:
+  case mp_transformed_by:
+  case mp_x_scaled:
+  case mp_y_scaled:
+  case mp_z_scaled:
+    /* The next few sections of the program deal with affine transformations
+    of coordinate data. */
+    if (mp_type (p) == mp_path_type) {
+      path_trans ((quarterword) c, p);
+      binary_return;
+    } else if (mp_type (p) == mp_pen_type) {
+      pen_trans ((quarterword) c, p);
+      set_cur_exp_knot (mp_convex_hull (mp, cur_exp_knot ()));
+      /* rounding error could destroy convexity */
+      binary_return;
+    } else if ((mp_type (p) == mp_pair_type) || (mp_type (p) == mp_transform_type)) {
+      mp_big_trans (mp, p, (quarterword) c);
+    } else if (mp_type (p) == mp_picture_type) {
+      mp_do_edges_trans (mp, p, (quarterword) c);
+      binary_return;
+    } else {
+      mp_bad_binary (mp, p, (quarterword) c);
+    }
+    break;
+  case mp_concatenate:
+    if ((mp->cur_exp.type == mp_string_type) && (mp_type (p) == mp_string_type)) {
+      mp_string str = mp_cat (mp, value_str (p), cur_exp_str());
+      delete_str_ref (cur_exp_str ()) ;
+      set_cur_exp_str (str);
+    } else
+      mp_bad_binary (mp, p, mp_concatenate);
+    break;
+  case mp_substring_of:
+    if (mp_nice_pair (mp, p, mp_type (p)) && (mp->cur_exp.type == mp_string_type)) {
+      mp_string str = mp_chop_string (mp, 
+                          cur_exp_str (),
+                          round_unscaled (value_number (x_part (value_node(p)))), 
+                          round_unscaled (value_number (y_part (value_node(p)))));
+      delete_str_ref (cur_exp_str ()) ;
+      set_cur_exp_str (str);
+    } else
+      mp_bad_binary (mp, p, mp_substring_of);
+    break;
+  case mp_subpath_of:
+    if (mp->cur_exp.type == mp_pair_type)
+      mp_pair_to_path (mp);
+    if (mp_nice_pair (mp, p, mp_type (p)) && (mp->cur_exp.type == mp_path_type))
+      mp_chop_path (mp, value_node (p));
+    else
+      mp_bad_binary (mp, p, mp_subpath_of);
+    break;
+  case mp_point_of:
+  case mp_precontrol_of:
+  case mp_postcontrol_of:
+    if (mp->cur_exp.type == mp_pair_type)
+      mp_pair_to_path (mp);
+    if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_known))
+      mp_find_point (mp, value_number (p), (quarterword) c);
+    else
+      mp_bad_binary (mp, p, (quarterword) c);
+    break;
+  case mp_pen_offset_of:
+    if ((mp->cur_exp.type == mp_pen_type) && mp_nice_pair (mp, p, mp_type (p)))
+      mp_set_up_offset (mp, value_node (p));
+    else
+      mp_bad_binary (mp, p, mp_pen_offset_of);
+    break;
+  case mp_direction_time_of:
+    if (mp->cur_exp.type == mp_pair_type)
+      mp_pair_to_path (mp);
+    if ((mp->cur_exp.type == mp_path_type) && mp_nice_pair (mp, p, mp_type (p)))
+      mp_set_up_direction_time (mp, value_node (p));
+    else
+      mp_bad_binary (mp, p, mp_direction_time_of);
+    break;
+  case mp_envelope_of:
+    if ((mp_type (p) != mp_pen_type) || (mp->cur_exp.type != mp_path_type))
+      mp_bad_binary (mp, p, mp_envelope_of);
+    else
+      mp_set_up_envelope (mp, p);
+    break;
+  case mp_glyph_infont:
+    if ((mp_type (p) != mp_string_type &&
+         mp_type (p) != mp_known) || (mp->cur_exp.type != mp_string_type))
+      mp_bad_binary (mp, p, mp_glyph_infont);
+    else
+      mp_set_up_glyph_infont (mp, p);
+    break;
+  case mp_arc_time_of:
+    if (mp->cur_exp.type == mp_pair_type)
+      mp_pair_to_path (mp);
+    if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_known)) {
+      new_number(new_expr.data.n);
+      mp_get_arc_time (mp, new_expr.data.n, cur_exp_knot (), value_number (p));
+      mp_flush_cur_exp (mp, new_expr);
+    } else {
+      mp_bad_binary (mp, p, (quarterword) c);
+    }
+    break;
+  case mp_intersect:
+    if (mp_type (p) == mp_pair_type) {
+      q = mp_stash_cur_exp (mp);
+      mp_unstash_cur_exp (mp, p);
+      mp_pair_to_path (mp);
+      p = mp_stash_cur_exp (mp);
+      mp_unstash_cur_exp (mp, q);
+    }
+    if (mp->cur_exp.type == mp_pair_type)
+      mp_pair_to_path (mp);
+    if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_path_type)) {
+      mp_number arg1, arg2;
+      new_number (arg1);
+      new_number (arg2);
+      mp_path_intersection (mp, value_knot (p), cur_exp_knot ());
+      number_clone (arg1, mp->cur_t);
+      number_clone (arg2, mp->cur_tt);
+      mp_pair_value (mp, arg1, arg2);
+      free_number (arg1);
+      free_number (arg2);
+    } else {
+      mp_bad_binary (mp, p, mp_intersect);
+    }
+    break;
+  case mp_in_font:
+    if ((mp->cur_exp.type != mp_string_type) || mp_type (p) != mp_string_type) {
+      mp_bad_binary (mp, p, mp_in_font);
+    } else {
+      mp_do_infont (mp, p);
+      binary_return;
+    }
+    break;
+  }                            /* there are no other cases */
   mp_recycle_value (mp, p);
   mp_free_node (mp, p, value_node_size);        /* |return| to avoid this */
   mp_finish_binary (mp, old_p, old_exp);
@@ -26594,11 +26859,6 @@ final pointer as the list |v|.
 static void mp_dep_finish (MP mp, mp_value_node v, mp_value_node q,
                            quarterword t) {
   mp_value_node p;      /* the destination */
-  mp_number vv;    /* the value, if it is |known| */
-  mp_value new_expr;
-  memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
-  new_number (vv);
   if (q == NULL)
     p = (mp_value_node) cur_exp_node ();
   else
@@ -26606,8 +26866,13 @@ static void mp_dep_finish (MP mp, mp_value_node v, mp_value_node q,
   set_dep_list (p, v);
   mp_type (p) = t;
   if (dep_info (v) == NULL) {
+    mp_number vv;    /* the value, if it is |known| */
+    new_number (vv);
     number_clone (vv, value_number (v));
     if (q == NULL) {
+      mp_value new_expr;
+      memset(&new_expr,0,sizeof(mp_value));
+      new_number(new_expr.data.n);
       number_clone (new_expr.data.n, vv);
       mp_flush_cur_exp (mp, new_expr);
     } else {
@@ -26615,79 +26880,13 @@ static void mp_dep_finish (MP mp, mp_value_node v, mp_value_node q,
       mp_type (q) = mp_known;
       set_value_number (q, vv);
     }
+    free_number (vv);
   } else if (q == NULL) {
     mp->cur_exp.type = t;
   }
   if (mp->fix_needed)
     mp_fix_dependencies (mp);
-  free_number (vv);
 }
-
-@ Here we use the sneaky fact that |and_op-false_code=or_op-true_code|.
-
-@<Additional cases of binary operators@>=
-case mp_and_op:
-case mp_or_op:
-if ((mp_type (p) != mp_boolean_type) || (mp->cur_exp.type != mp_boolean_type))
-  mp_bad_binary (mp, p, (quarterword) c);
-else if (number_to_boolean (p->data.n) == c + mp_false_code - mp_and_op) {
-  set_cur_exp_value_boolean (number_to_boolean (p->data.n));
-}
-break;
-
-@ @<Additional cases of binary operators@>=
-case mp_times:
-if ((mp->cur_exp.type < mp_color_type) || (mp_type (p) < mp_color_type)) {
-  mp_bad_binary (mp, p, mp_times);
-} else if ((mp->cur_exp.type == mp_known) || (mp_type (p) == mp_known)) {
-  @<Multiply when at least one operand is known@>;
-} else if ((mp_nice_color_or_pair (mp, p, mp_type (p))
-            && (mp->cur_exp.type > mp_pair_type))
-           || (mp_nice_color_or_pair (mp, cur_exp_node (), mp->cur_exp.type)
-               && (mp_type (p) > mp_pair_type))) {
-  mp_hard_times (mp, p);
-  binary_return;
-} else {
-  mp_bad_binary (mp, p, mp_times);
-}
-break;
-
-@ @<Multiply when at least one operand is known@>=
-{
-  mp_number vv;
-  new_fraction (vv);
-  if (mp_type (p) == mp_known) {
-    number_clone(vv, value_number (p));
-    mp_free_node (mp, p, value_node_size);
-  } else {
-    number_clone(vv, cur_exp_value_number ());
-    mp_unstash_cur_exp (mp, p);
-  }
-  if (mp->cur_exp.type == mp_known) {
-    mp_number ret;
-    new_number (ret);
-    take_scaled (ret, cur_exp_value_number (), vv);
-    set_cur_exp_value_number (ret);
-    free_number (ret);
-  } else if (mp->cur_exp.type == mp_pair_type) {
-    mp_dep_mult (mp, (mp_value_node) x_part (value_node (cur_exp_node ())), vv, true);
-    mp_dep_mult (mp, (mp_value_node) y_part (value_node (cur_exp_node ())), vv, true);
-  } else if (mp->cur_exp.type == mp_color_type) {
-    mp_dep_mult (mp, (mp_value_node) red_part (value_node (cur_exp_node ())), vv, true);
-    mp_dep_mult (mp, (mp_value_node) green_part (value_node (cur_exp_node ())), vv, true);
-    mp_dep_mult (mp, (mp_value_node) blue_part (value_node (cur_exp_node ())), vv, true);
-  } else if (mp->cur_exp.type == mp_cmykcolor_type) {
-    mp_dep_mult (mp, (mp_value_node) cyan_part (value_node (cur_exp_node ())), vv, true);
-    mp_dep_mult (mp, (mp_value_node) magenta_part (value_node (cur_exp_node ())), vv, true);
-    mp_dep_mult (mp, (mp_value_node) yellow_part (value_node (cur_exp_node ())), vv, true);
-    mp_dep_mult (mp, (mp_value_node) black_part (value_node (cur_exp_node ())),  vv, true);
-  } else {
-    mp_dep_mult (mp, NULL, vv, true);
-  }
-  free_number (vv);
-  binary_return;
-}
-
 
 @ @<Declare binary action...@>=
 static void mp_dep_mult (MP mp, mp_value_node p, mp_number v, boolean v_is_scaled) {
@@ -26887,59 +27086,6 @@ static void mp_hard_times (MP mp, mp_node p) {
   free_number (v);
 }
 
-
-@ @<Additional cases of binary operators@>=
-case mp_over:
-if ((mp->cur_exp.type != mp_known) || (mp_type (p) < mp_color_type)) {
-  mp_bad_binary (mp, p, mp_over);
-} else {
-  mp_number v_n;
-  new_number (v_n); 
-  number_clone (v_n, cur_exp_value_number ());
-  mp_unstash_cur_exp (mp, p);
-  if (number_zero(v_n)) {
-    @<Squeal about division by zero@>;
-  } else {
-    if (mp->cur_exp.type == mp_known) {
-      mp_number ret;
-      new_number (ret);
-      make_scaled (ret, cur_exp_value_number (), v_n);
-      set_cur_exp_value_number (ret);
-      free_number (ret);
-    } else if (mp->cur_exp.type == mp_pair_type) {
-      mp_dep_div (mp, (mp_value_node) x_part (value_node (cur_exp_node ())),
-                  v_n);
-      mp_dep_div (mp, (mp_value_node) y_part (value_node (cur_exp_node ())),
-                  v_n);
-    } else if (mp->cur_exp.type == mp_color_type) {
-      mp_dep_div (mp,
-                  (mp_value_node) red_part (value_node (cur_exp_node ())),
-                  v_n);
-      mp_dep_div (mp,
-                  (mp_value_node) green_part (value_node (cur_exp_node ())),
-                  v_n);
-      mp_dep_div (mp,
-                  (mp_value_node) blue_part (value_node (cur_exp_node ())),
-                  v_n);
-    } else if (mp->cur_exp.type == mp_cmykcolor_type) {
-      mp_dep_div (mp,
-                  (mp_value_node) cyan_part (value_node (cur_exp_node ())),
-                  v_n);
-      mp_dep_div (mp, (mp_value_node)
-                  magenta_part (value_node (cur_exp_node ())), v_n);
-      mp_dep_div (mp, (mp_value_node)
-                  yellow_part (value_node (cur_exp_node ())), v_n);
-      mp_dep_div (mp,
-                  (mp_value_node) black_part (value_node (cur_exp_node ())),
-                  v_n);
-    } else {
-      mp_dep_div (mp, NULL, v_n);
-    }
-  }
-  binary_return;
-}
-break;
-
 @ @<Declare binary action...@>=
 static void mp_dep_div (MP mp, mp_value_node p, mp_number v) {
   mp_value_node q;      /* the dependency list being divided by |v| */
@@ -26979,67 +27125,6 @@ static void mp_dep_div (MP mp, mp_value_node p, mp_number v) {
   q = mp_p_over_v (mp, q, v, s, t);
   mp_dep_finish (mp, q, p, t);
 }
-
-
-@ @<Squeal about division by zero@>=
-{
-  const char *hlp[] = {
-         "You're trying to divide the quantity shown above the error",
-         "message by zero. I'm going to divide it by one instead.",
-         NULL };
-  mp_disp_err(mp, NULL);
-  mp_back_error (mp, "Division by zero", hlp, true);
-@.Division by zero@>;
-  mp_get_x_next (mp);
-}
-
-
-@ @<Additional cases of binary operators@>=
-case mp_pythag_add:
-case mp_pythag_sub:
-if ((mp->cur_exp.type == mp_known) && (mp_type (p) == mp_known)) {
-  mp_number r;
-  new_number (r);
-  if (c == mp_pythag_add) {
-    pyth_add (r, value_number (p), cur_exp_value_number ());
-  } else {
-    pyth_sub (r, value_number (p), cur_exp_value_number ());
-  }
-  set_cur_exp_value_number (r);
-  free_number (r);
-} else
-  mp_bad_binary (mp, p, (quarterword) c);
-break;
-
-@ The next few sections of the program deal with affine transformations
-of coordinate data.
-
-@<Additional cases of binary operators@>=
-case mp_rotated_by:
-case mp_slanted_by:
-case mp_scaled_by:
-case mp_shifted_by:
-case mp_transformed_by:
-case mp_x_scaled:
-case mp_y_scaled:
-case mp_z_scaled:
-if (mp_type (p) == mp_path_type) {
-  path_trans ((quarterword) c, p);
-  binary_return;
-} else if (mp_type (p) == mp_pen_type) {
-  pen_trans ((quarterword) c, p);
-  set_cur_exp_knot (mp_convex_hull (mp, cur_exp_knot ()));
-  /* rounding error could destroy convexity */
-  binary_return;
-} else if ((mp_type (p) == mp_pair_type) || (mp_type (p) == mp_transform_type)) {
-  mp_big_trans (mp, p, (quarterword) c);
-} else if (mp_type (p) == mp_picture_type) {
-  mp_do_edges_trans (mp, p, (quarterword) c);
-  binary_return;
-} else {
-  mp_bad_binary (mp, p, (quarterword) c);
-}
-break;
 
 @ Let |c| be one of the eight transform operators. The procedure call
 |set_up_trans(c)| first changes |cur_exp| to a transform that corresponds to
@@ -27816,35 +27901,6 @@ static void mp_bilin3 (MP mp, mp_node p, mp_number t,
 }
 
 
-@ @<Additional cases of binary operators@>=
-case mp_concatenate:
-if ((mp->cur_exp.type == mp_string_type) && (mp_type (p) == mp_string_type)) {
-  mp_string str = mp_cat (mp, value_str (p), cur_exp_str());
-  delete_str_ref (cur_exp_str ()) ;
-  set_cur_exp_str (str);
-} else
-  mp_bad_binary (mp, p, mp_concatenate);
-break;
-case mp_substring_of:
-if (mp_nice_pair (mp, p, mp_type (p)) && (mp->cur_exp.type == mp_string_type)) {
-  mp_string str = mp_chop_string (mp, 
-                      cur_exp_str (),
-                      round_unscaled (value_number (x_part (value_node(p)))), 
-                      round_unscaled (value_number (y_part (value_node(p)))));
-  delete_str_ref (cur_exp_str ()) ;
-  set_cur_exp_str (str);
-} else
-  mp_bad_binary (mp, p, mp_substring_of);
-break;
-case mp_subpath_of:
-if (mp->cur_exp.type == mp_pair_type)
-  mp_pair_to_path (mp);
-if (mp_nice_pair (mp, p, mp_type (p)) && (mp->cur_exp.type == mp_path_type))
-  mp_chop_path (mp, value_node (p));
-else
-  mp_bad_binary (mp, p, mp_subpath_of);
-break;
-
 @ @<Declare binary action...@>=
 static void mp_chop_path (MP mp, mp_node p) {
   mp_knot q;    /* a knot in the original path */
@@ -27980,46 +28036,6 @@ if (number_greater (b, l)) {
   qq = pp;
 }
 
-
-@ @<Additional cases of binary operators@>=
-case mp_point_of:
-case mp_precontrol_of:
-case mp_postcontrol_of:
-if (mp->cur_exp.type == mp_pair_type)
-  mp_pair_to_path (mp);
-if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_known))
-  mp_find_point (mp, value_number (p), (quarterword) c);
-else
-  mp_bad_binary (mp, p, (quarterword) c);
-break;
-case mp_pen_offset_of:
-if ((mp->cur_exp.type == mp_pen_type) && mp_nice_pair (mp, p, mp_type (p)))
-  mp_set_up_offset (mp, value_node (p));
-else
-  mp_bad_binary (mp, p, mp_pen_offset_of);
-break;
-case mp_direction_time_of:
-if (mp->cur_exp.type == mp_pair_type)
-  mp_pair_to_path (mp);
-if ((mp->cur_exp.type == mp_path_type) && mp_nice_pair (mp, p, mp_type (p)))
-  mp_set_up_direction_time (mp, value_node (p));
-else
-  mp_bad_binary (mp, p, mp_direction_time_of);
-break;
-case mp_envelope_of:
-if ((mp_type (p) != mp_pen_type) || (mp->cur_exp.type != mp_path_type))
-  mp_bad_binary (mp, p, mp_envelope_of);
-else
-  mp_set_up_envelope (mp, p);
-break;
-case mp_glyph_infont:
-if ((mp_type (p) != mp_string_type &&
-     mp_type (p) != mp_known) || (mp->cur_exp.type != mp_string_type))
-  mp_bad_binary (mp, p, mp_glyph_infont);
-else
-  mp_set_up_glyph_infont (mp, p);
-break;
-break;
 
 @ @<Declare binary action...@>=
 static void mp_set_up_offset (MP mp, mp_node p) {
@@ -28193,54 +28209,6 @@ case mp_postcontrol_of:
   break;
 }                               /* there are no other cases */
 
-
-@ @<Additional cases of binary operators@>=
-case mp_arc_time_of:
-if (mp->cur_exp.type == mp_pair_type)
-  mp_pair_to_path (mp);
-if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_known)) {
-  mp_get_arc_time (mp, new_expr.data.n, cur_exp_knot (), value_number (p));
-  mp_flush_cur_exp (mp, new_expr);
-} else {
-  mp_bad_binary (mp, p, (quarterword) c);
-}
-break;
-
-@ @<Additional cases of bin...@>=
-case mp_intersect:
-if (mp_type (p) == mp_pair_type) {
-  q = mp_stash_cur_exp (mp);
-  mp_unstash_cur_exp (mp, p);
-  mp_pair_to_path (mp);
-  p = mp_stash_cur_exp (mp);
-  mp_unstash_cur_exp (mp, q);
-}
-if (mp->cur_exp.type == mp_pair_type)
-  mp_pair_to_path (mp);
-if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_path_type)) {
-  mp_number arg1, arg2;
-  new_number (arg1);
-  new_number (arg2);
-  mp_path_intersection (mp, value_knot (p), cur_exp_knot ());
-  number_clone (arg1, mp->cur_t);
-  number_clone (arg2, mp->cur_tt);
-  mp_pair_value (mp, arg1, arg2);
-  free_number (arg1);
-  free_number (arg2);
-} else {
-  mp_bad_binary (mp, p, mp_intersect);
-}
-break;
-
-@ @<Additional cases of bin...@>=
-case mp_in_font:
-if ((mp->cur_exp.type != mp_string_type) || mp_type (p) != mp_string_type) {
-  mp_bad_binary (mp, p, mp_in_font);
-} else {
-  mp_do_infont (mp, p);
-  binary_return;
-}
-break;
 
 @ Function |new_text_node| owns the reference count for its second argument
 (the text string) but not its first (the font name).
