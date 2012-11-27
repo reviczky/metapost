@@ -10776,23 +10776,39 @@ static mp_node mp_new_fill_node (MP mp, mp_knot p) {
   mp_color_model (t) = mp_uninitialized_model;
   mp_pre_script (t) = NULL;
   mp_post_script (t) = NULL;
-  @<Set the |ljoin| and |miterlim| fields in object |t|@>;
+  /* Set the |ljoin| and |miterlim| fields in object |t| */
+  if (number_greater(internal_value (mp_linejoin), unity_t))
+    t->ljoin = 2;
+  else if (number_positive(internal_value (mp_linejoin)))
+    t->ljoin = 1;
+  else
+    t->ljoin = 0;
+  if (number_less(internal_value (mp_miterlimit), unity_t)) {
+    set_number_to_unity(t->miterlim);
+  } else {
+    number_clone(t->miterlim,internal_value (mp_miterlimit));
+  }
   return (mp_node) t;
 }
 
-
-@ @<Set the |ljoin| and |miterlim| fields in object |t|@>=
-if (number_greater(internal_value (mp_linejoin), unity_t))
-  t->ljoin = 2;
-else if (number_positive(internal_value (mp_linejoin)))
-  t->ljoin = 1;
-else
-  t->ljoin = 0;
-if (number_less(internal_value (mp_miterlimit), unity_t)) {
-  set_number_to_unity(t->miterlim);
-} else {
-  number_clone(t->miterlim,internal_value (mp_miterlimit));
+@ @c
+static void mp_free_fill_node (MP mp, mp_fill_node p) {
+  mp_toss_knot_list (mp, mp_path_p (p));
+  if (mp_pen_p (p) != NULL)
+    mp_toss_knot_list (mp, mp_pen_p (p));
+  if (mp_pre_script (p) != NULL)
+    delete_str_ref (mp_pre_script (p));
+  if (mp_post_script (p) != NULL)
+    delete_str_ref (mp_post_script (p));
+  free_number(p->red);
+  free_number(p->green);
+  free_number(p->blue);
+  free_number(p->black);
+  free_number(p->miterlim);
+  mp_free_node (mp, (mp_node)p, fill_node_size);
 }
+
+
 
 @ A stroked path is represented by an eight-word node that is like a filled
 contour node except that it contains the current \&{linecap} value, a scale
@@ -10847,7 +10863,18 @@ static mp_node mp_new_stroked_node (MP mp, mp_knot p) {
   clear_color(t);
   mp_pre_script (t) = NULL;
   mp_post_script (t) = NULL;
-  @<Set the |ljoin| and |miterlim| fields in object |t|@>;
+  /* Set the |ljoin| and |miterlim| fields in object |t| */
+  if (number_greater(internal_value (mp_linejoin), unity_t))
+    t->ljoin = 2;
+  else if (number_positive(internal_value (mp_linejoin)))
+    t->ljoin = 1;
+  else
+    t->ljoin = 0;
+  if (number_less(internal_value (mp_miterlimit), unity_t)) {
+    set_number_to_unity(t->miterlim);
+  } else {
+    number_clone(t->miterlim,internal_value (mp_miterlimit));
+  }
   if (number_greater(internal_value (mp_linecap), unity_t))
     t->lcap = 2;
   else if (number_positive(internal_value (mp_linecap)))
@@ -10857,6 +10884,26 @@ static mp_node mp_new_stroked_node (MP mp, mp_knot p) {
   return (mp_node) t;
 }
 
+@ @c
+static mp_edge_header_node mp_free_stroked_node (MP mp, mp_stroked_node p) {
+  mp_edge_header_node e = NULL;
+  mp_toss_knot_list (mp, mp_path_p (p));
+  if (mp_pen_p (p) != NULL)
+    mp_toss_knot_list (mp, mp_pen_p (p));
+  if (mp_pre_script (p) != NULL)
+    delete_str_ref (mp_pre_script (p));
+  if (mp_post_script (p) != NULL)
+    delete_str_ref (mp_post_script (p));
+  e = (mp_edge_header_node)mp_dash_p (p);
+  free_number(p->dash_scale);
+  free_number(p->red);
+  free_number(p->green);
+  free_number(p->blue);
+  free_number(p->black);
+  free_number(p->miterlim);
+  mp_free_node (mp, (mp_node)p, stroked_node_size);
+  return e;
+}
 
 @ When a dashed line is computed in a transformed coordinate system, the dash
 lengths get scaled like the pen shape and we need to compensate for this.  Since
@@ -11021,9 +11068,6 @@ static mp_node mp_new_text_node (MP mp, char *f, mp_string s) {
   clear_color (t);
   mp_pre_script (t) = NULL;
   mp_post_script (t) = NULL;
-  new_number(t->width);
-  new_number(t->height);
-  new_number(t->depth);
   new_number(t->tx);
   new_number(t->ty);
   new_number(t->txx);
@@ -11038,6 +11082,28 @@ static mp_node mp_new_text_node (MP mp, char *f, mp_string s) {
   return (mp_node) t;
 }
 
+@ @c
+static void mp_free_text_node (MP mp, mp_text_node p) {
+  /* |delete_str_ref (mp_text_p (p));| */ /* gives errors */
+  if (mp_pre_script (p) != NULL)
+    delete_str_ref (mp_pre_script (p));
+  if (mp_post_script (p) != NULL)
+    delete_str_ref (mp_post_script (p));
+  free_number(p->red);
+  free_number(p->green);
+  free_number(p->blue);
+  free_number(p->black);
+  free_number(p->width);
+  free_number(p->height);
+  free_number(p->depth);
+  free_number(p->tx);
+  free_number(p->ty);
+  free_number(p->txx);
+  free_number(p->txy);
+  free_number(p->tyx);
+  free_number(p->tyy);
+  mp_free_node (mp, (mp_node)p, text_node_size);
+}
 
 @ The last two types of graphical objects that can occur in an edge structure
 are clipping paths and \&{setbounds} paths.  These are slightly more difficult
@@ -11123,6 +11189,23 @@ static mp_node mp_new_bounds_node (MP mp, mp_knot p, quarterword c) {
     assert (0);
   }
   return NULL;
+}
+
+
+@ @c
+static void mp_free_start_clip_node (MP mp, mp_start_clip_node p) {
+  mp_toss_knot_list (mp, mp_path_p (p));
+  mp_free_node (mp, (mp_node)p, start_clip_size);
+}
+static void mp_free_start_bounds_node (MP mp, mp_start_bounds_node p) {
+  mp_toss_knot_list (mp, mp_path_p (p));
+  mp_free_node (mp, (mp_node)p, start_bounds_size);
+}
+static void mp_free_stop_clip_node (MP mp, mp_stop_clip_node p) {
+  mp_free_node (mp, (mp_node)p, stop_clip_size);
+}
+static void mp_free_stop_bounds_node (MP mp, mp_stop_bounds_node p) {
+  mp_free_node (mp, (mp_node)p, stop_bounds_size);
 }
 
 
@@ -11318,50 +11401,28 @@ mp_edge_header_node mp_toss_gr_object (MP mp, mp_node p) {
   mp_edge_header_node e = NULL;     /* the edge structure to return */
   switch (mp_type (p)) {
   case mp_fill_node_type:
-    mp_toss_knot_list (mp, mp_path_p ((mp_fill_node) p));
-    if (mp_pen_p ((mp_fill_node) p) != NULL)
-      mp_toss_knot_list (mp, mp_pen_p ((mp_fill_node) p));
-    if (mp_pre_script (p) != NULL)
-      delete_str_ref (mp_pre_script (p));
-    if (mp_post_script (p) != NULL)
-      delete_str_ref (mp_post_script (p));
-    mp_free_node (mp, p, fill_node_size);
+    mp_free_fill_node (mp, (mp_fill_node)p);
     break;
   case mp_stroked_node_type:
-    mp_toss_knot_list (mp, mp_path_p ((mp_stroked_node) p));
-    if (mp_pen_p ((mp_stroked_node) p) != NULL)
-      mp_toss_knot_list (mp, mp_pen_p ((mp_stroked_node) p));
-    if (mp_pre_script (p) != NULL)
-      delete_str_ref (mp_pre_script (p));
-    if (mp_post_script (p) != NULL)
-      delete_str_ref (mp_post_script (p));
-    e = (mp_edge_header_node)mp_dash_p (p);
-    mp_free_node (mp, p, stroked_node_size);
+    e = mp_free_stroked_node (mp, (mp_stroked_node)p);
     break;
   case mp_text_node_type:
-    /* |delete_str_ref (mp_text_p (p));| */ /* gives errors */
-    if (mp_pre_script (p) != NULL)
-      delete_str_ref (mp_pre_script (p));
-    if (mp_post_script (p) != NULL)
-      delete_str_ref (mp_post_script (p));
-    mp_free_node (mp, p, text_node_size);
+    mp_free_text_node(mp, (mp_text_node)p);
     break;
   case mp_start_clip_node_type:
-    mp_toss_knot_list (mp, mp_path_p ((mp_start_clip_node) p));
-    mp_free_node (mp, p, start_clip_size);
+    mp_free_start_clip_node(mp, (mp_start_clip_node)p);
     break;
   case mp_start_bounds_node_type:
-    mp_toss_knot_list (mp, mp_path_p ((mp_start_bounds_node) p));
-    mp_free_node (mp, p, start_bounds_size);
+    mp_free_start_bounds_node(mp, (mp_start_bounds_node)p);
     break;
   case mp_stop_clip_node_type:
-    mp_free_node (mp, p, stop_clip_size);
+    mp_free_stop_clip_node(mp, (mp_stop_clip_node)p);
     break;
   case mp_stop_bounds_node_type:
-    mp_free_node (mp, p, stop_bounds_size);
+    mp_free_stop_bounds_node(mp, (mp_stop_bounds_node)p);
     break;
-  default:                     /* there are no other valid cases, but please the compiler */
-    return e;
+  default:  /* there are no other valid cases, but please the compiler */
+    break;
   }
   return e;
 }
