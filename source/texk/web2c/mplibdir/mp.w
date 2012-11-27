@@ -23993,16 +23993,16 @@ supposed to be either |true_code| or |false_code|.
 
 @<Declare the basic parsing subroutines@>=
 static void mp_get_boolean (MP mp) {
-  mp_value new_expr;
-  memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_boolean_type) {
+    mp_value new_expr;
     const char *hlp[] = { 
            "The expression shown above should have had a definite",
            "true-or-false value. I'm changing it to `false'.",
            NULL };
+    memset(&new_expr,0,sizeof(mp_value));
+    new_number(new_expr.data.n);
     mp_disp_err(mp, NULL);
     set_number_from_boolean (new_expr.data.n, mp_false_code);
     mp_back_error (mp, "Undefined condition will be treated as `false'", hlp, true);
@@ -24272,10 +24272,8 @@ static void mp_do_nullary (MP mp, quarterword c) {
     mp_init_edges (mp, (mp_edge_header_node)cur_exp_node ());
     break;
   case mp_null_pen_code:
-    {
-      mp->cur_exp.type = mp_pen_type;
-      set_cur_exp_knot (mp_get_pen_circle (mp, zero_t));
-    }
+    mp->cur_exp.type = mp_pen_type;
+    set_cur_exp_knot (mp_get_pen_circle (mp, zero_t));
     break;
   case mp_normal_deviate:
     {
@@ -24288,32 +24286,25 @@ static void mp_do_nullary (MP mp, quarterword c) {
     }
     break;
   case mp_pen_circle:
-    {
-       mp->cur_exp.type = mp_pen_type;
-       set_cur_exp_knot (mp_get_pen_circle (mp, unity_t));
-     }
+    mp->cur_exp.type = mp_pen_type;
+    set_cur_exp_knot (mp_get_pen_circle (mp, unity_t));
     break;
   case mp_version:
     mp->cur_exp.type = mp_string_type;
     set_cur_exp_str (mp_intern (mp, metapost_version));
     break;
   case mp_read_string_op:
-    @<Read a string from the terminal@>;
+    /* Read a string from the terminal */
+    if (mp->noninteractive || mp->interaction <= mp_nonstop_mode)
+      mp_fatal_error (mp, "*** (cannot readstring in nonstop modes)");
+    mp_begin_file_reading (mp);
+    name = is_read;
+    limit = start;
+    prompt_input ("");
+    mp_finish_read (mp);
     break;
   }                             /* there are no other cases */
   check_arith();
-}
-
-
-@ @<Read a string...@>=
-{
-  if (mp->noninteractive || mp->interaction <= mp_nonstop_mode)
-    mp_fatal_error (mp, "*** (cannot readstring in nonstop modes)");
-  mp_begin_file_reading (mp);
-  name = is_read;
-  limit = start;
-  prompt_input ("");
-  mp_finish_read (mp);
 }
 
 
@@ -24333,25 +24324,518 @@ static void mp_finish_read (MP mp) {                               /* copy |buff
 @ Things get a bit more interesting when there's an operand. The
 operand to |do_unary| appears in |cur_type| and |cur_exp|.
 
+This complicated if test makes sure that any |bounds| or |clip|
+picture objects that get passed into \&{within} do not raise an 
+error when queried using the color part primitives (this is needed
+for backward compatibility) .
+
+@d cur_pic_item mp_link(edge_list(cur_exp_node()))
+@d pict_color_type(A) ((cur_pic_item!=NULL) &&
+         ((!has_color(cur_pic_item)) 
+          ||
+         (((mp_color_model(cur_pic_item)==A)
+          ||
+          ((mp_color_model(cur_pic_item)==mp_uninitialized_model) &&
+           (number_to_scaled (internal_value(mp_default_color_model))/number_to_scaled (unity_t))==(A))))))
+
+@d boolean_reset(A) if ( (A) ) set_cur_exp_value_boolean(mp_true_code); else set_cur_exp_value_boolean(mp_false_code)
+
+@d type_range(A,B) { 
+  if ( (mp->cur_exp.type>=(A)) && (mp->cur_exp.type<=(B)) ) 
+    set_number_from_boolean (new_expr.data.n, mp_true_code);
+  else 
+    set_number_from_boolean (new_expr.data.n, mp_false_code);
+  mp_flush_cur_exp(mp, new_expr);
+  mp->cur_exp.type=mp_boolean_type;
+  }
+@d type_test(A) { 
+  if ( mp->cur_exp.type==(mp_variable_type)(A) ) 
+    set_number_from_boolean (new_expr.data.n, mp_true_code);
+  else 
+    set_number_from_boolean (new_expr.data.n, mp_false_code);
+  mp_flush_cur_exp(mp, new_expr);
+  mp->cur_exp.type=mp_boolean_type;
+  }
+
+
 @c
 @<Declare unary action procedures@>;
 static void mp_do_unary (MP mp, quarterword c) {
-  mp_node p, q, r;      /* for list manipulation */
+  mp_node p;      /* for list manipulation */
   mp_value new_expr;
   check_arith();
   memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
-  if (number_greater (internal_value (mp_tracing_commands), two_t))
-    @<Trace the current unary operation@>;
+  if (number_greater (internal_value (mp_tracing_commands), two_t)) {
+    /* Trace the current unary operation */
+    mp_begin_diagnostic (mp);
+    mp_print_nl (mp, "{");
+    mp_print_op (mp, c);
+    mp_print_char (mp, xord ('('));
+    mp_print_exp (mp, NULL, 0);   /* show the operand, but not verbosely */
+    mp_print (mp, ")}");
+    mp_end_diagnostic (mp, false);
+  }
   switch (c) {
   case mp_plus:
     if (mp->cur_exp.type < mp_color_type)
       mp_bad_unary (mp, mp_plus);
     break;
   case mp_minus:
-    @<Negate the current expression@>;
+    negate_cur_expr(mp);
     break;
-    @<Additional cases of unary operators@>;
+  case mp_not_op:
+    if (mp->cur_exp.type != mp_boolean_type) {
+      mp_bad_unary (mp, mp_not_op);
+    } else {
+      halfword bb;
+      if (cur_exp_value_boolean () == mp_true_code)
+        bb = mp_false_code;
+      else
+        bb = mp_true_code;
+      set_cur_exp_value_boolean (bb);
+    }
+    break;
+  case mp_sqrt_op:
+  case mp_m_exp_op:
+  case mp_m_log_op:
+  case mp_sin_d_op:
+  case mp_cos_d_op:
+  case mp_floor_op:
+  case mp_uniform_deviate:
+  case mp_odd_op:
+  case mp_char_exists_op:
+    if (mp->cur_exp.type != mp_known) {
+      mp_bad_unary (mp, c);
+    } else {
+      switch (c) {
+      case mp_sqrt_op:
+        {
+          mp_number r1;
+          new_number (r1);
+          square_rt (r1, cur_exp_value_number ());
+          set_cur_exp_value_number  (r1);
+          free_number (r1);
+        }
+        break;
+      case mp_m_exp_op:
+        {
+          mp_number r1;
+          new_number (r1);
+          m_exp (r1, cur_exp_value_number ());
+          set_cur_exp_value_number (r1);
+          free_number (r1);
+        }
+        break;
+      case mp_m_log_op:
+        {
+          mp_number r1;
+          new_number (r1);
+          m_log (r1, cur_exp_value_number ());
+          set_cur_exp_value_number (r1);
+          free_number (r1);
+        }
+        break;
+      case mp_sin_d_op:
+      case mp_cos_d_op:
+        {
+          mp_number n_sin, n_cos, arg1, arg2;
+          new_number (arg1);
+          new_number (arg2);
+          new_fraction (n_sin);
+          new_fraction (n_cos); /* results computed by |n_sin_cos| */
+          number_clone (arg1, cur_exp_value_number()); 
+          number_clone (arg2, unity_t);
+          number_multiply_int (arg2, 360);
+          number_modulo (arg1, arg2);
+          convert_scaled_to_angle (arg1);
+          n_sin_cos (arg1, n_cos, n_sin);
+          if (c == mp_sin_d_op) {
+            fraction_to_round_scaled (n_sin);
+            set_cur_exp_value_number (n_sin);
+          } else {
+            fraction_to_round_scaled (n_cos);
+            set_cur_exp_value_number (n_cos);
+          }
+          free_number (arg1);
+          free_number (arg2);
+          free_number (n_sin);
+          free_number (n_cos);
+        }
+        break;
+      case mp_floor_op:
+        {
+          mp_number vvx;
+          new_number (vvx);
+          number_clone (vvx, cur_exp_value_number ());
+          floor_scaled (vvx);
+          set_cur_exp_value_number (vvx);
+          free_number (vvx);
+        }
+        break;
+      case mp_uniform_deviate:
+        {
+          mp_number vvx;
+          new_number (vvx);
+          mp_unif_rand (mp, vvx, cur_exp_value_number ());
+          set_cur_exp_value_number (vvx);
+          free_number (vvx);
+        }
+        break;
+      case mp_odd_op:
+        {
+          integer vvx = odd (round_unscaled (cur_exp_value_number ()));
+          boolean_reset (vvx);
+          mp->cur_exp.type = mp_boolean_type;
+        }
+        break;
+      case mp_char_exists_op:
+        /* Determine if a character has been shipped out */
+        set_cur_exp_value_scaled (round_unscaled (cur_exp_value_number ()) % 256);
+        if (number_negative(cur_exp_value_number ())) {
+          halfword vv = number_to_scaled(cur_exp_value_number ());
+          set_cur_exp_value_scaled (vv + 256);
+        }
+        boolean_reset (mp->char_exists[number_to_scaled(cur_exp_value_number ())]);
+        mp->cur_exp.type = mp_boolean_type;
+        break;
+      }                             /* there are no other cases */
+    }
+    break;
+  case mp_angle_op:
+    if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
+      mp_number narg;
+      new_number(new_expr.data.n);
+      new_angle (narg);
+      p = value_node (cur_exp_node ());
+      n_arg (narg, value_number (x_part (p)), value_number (y_part (p)));
+      number_clone (new_expr.data.n, narg);
+      convert_angle_to_scaled (new_expr.data.n);
+      free_number (narg);
+      mp_flush_cur_exp (mp, new_expr);
+    } else {
+      mp_bad_unary (mp, mp_angle_op);
+    }
+    break;
+  case mp_x_part:
+  case mp_y_part:
+    if ((mp->cur_exp.type == mp_pair_type)
+        || (mp->cur_exp.type == mp_transform_type))
+      mp_take_part (mp, c);
+    else if (mp->cur_exp.type == mp_picture_type)
+      mp_take_pict_part (mp, c);
+    else
+      mp_bad_unary (mp, c);
+    break;
+  case mp_xx_part:
+  case mp_xy_part:
+  case mp_yx_part:
+  case mp_yy_part:
+    if (mp->cur_exp.type == mp_transform_type)
+      mp_take_part (mp, c);
+    else if (mp->cur_exp.type == mp_picture_type)
+      mp_take_pict_part (mp, c);
+    else
+      mp_bad_unary (mp, c);
+    break;
+  case mp_red_part:
+  case mp_green_part:
+  case mp_blue_part:
+    if (mp->cur_exp.type == mp_color_type)
+      mp_take_part (mp, c);
+    else if (mp->cur_exp.type == mp_picture_type) {
+      if pict_color_type
+        (mp_rgb_model) mp_take_pict_part (mp, c);
+      else
+        mp_bad_color_part (mp, c);
+    } else
+      mp_bad_unary (mp, c);
+    break;
+  case mp_cyan_part:
+  case mp_magenta_part:
+  case mp_yellow_part:
+  case mp_black_part:
+    if (mp->cur_exp.type == mp_cmykcolor_type)
+      mp_take_part (mp, c);
+    else if (mp->cur_exp.type == mp_picture_type) {
+      if pict_color_type
+        (mp_cmyk_model) mp_take_pict_part (mp, c);
+      else
+        mp_bad_color_part (mp, c);
+    } else
+      mp_bad_unary (mp, c);
+    break;
+  case mp_grey_part:
+    if (mp->cur_exp.type == mp_known); 
+    else if (mp->cur_exp.type == mp_picture_type) {
+      if pict_color_type
+        (mp_grey_model) mp_take_pict_part (mp, c);
+      else
+        mp_bad_color_part (mp, c);
+    } else
+      mp_bad_unary (mp, c);
+    break;
+  case mp_color_model_part:
+    if (mp->cur_exp.type == mp_picture_type)
+      mp_take_pict_part (mp, c);
+    else
+      mp_bad_unary (mp, c);
+    break;
+  case mp_font_part:
+  case mp_text_part:
+  case mp_path_part:
+  case mp_pen_part:
+  case mp_dash_part:
+    if (mp->cur_exp.type == mp_picture_type)
+      mp_take_pict_part (mp, c);
+    else
+      mp_bad_unary (mp, c);
+    break;
+  case mp_char_op:
+    if (mp->cur_exp.type != mp_known) {
+      mp_bad_unary (mp, mp_char_op);
+    } else {
+      int vv = round_unscaled (cur_exp_value_number ()) % 256;
+      set_cur_exp_value_scaled (vv);
+      mp->cur_exp.type = mp_string_type;
+      if (number_negative(cur_exp_value_number ())) {
+        vv = number_to_scaled(cur_exp_value_number ()) + 256;
+        set_cur_exp_value_scaled (vv);
+      }
+      {
+        unsigned char ss[2];
+        ss[0] = (unsigned char) number_to_scaled(cur_exp_value_number ());
+        ss[1] = '\0';
+        set_cur_exp_str (mp_rtsl (mp, (char *) ss, 1));
+      }
+    }
+    break;
+  case mp_decimal:
+    if (mp->cur_exp.type != mp_known) {
+      mp_bad_unary (mp, mp_decimal);
+    } else {
+      mp->old_setting = mp->selector;
+      mp->selector = new_string;
+      print_number (cur_exp_value_number ());
+      set_cur_exp_str (mp_make_string (mp));
+      mp->selector = mp->old_setting;
+      mp->cur_exp.type = mp_string_type;
+    }
+    break;
+  case mp_oct_op:
+  case mp_hex_op:
+  case mp_ASCII_op:
+    if (mp->cur_exp.type != mp_string_type)
+      mp_bad_unary (mp, c);
+    else
+      mp_str_to_num (mp, c);
+    break;
+  case mp_font_size:
+    if (mp->cur_exp.type != mp_string_type) {
+      mp_bad_unary (mp, mp_font_size);
+    } else {
+      /* Find the design size of the font whose name is |cur_exp| */
+      /* One simple application of |find_font| is the implementation of the |font_size|
+         operator that gets the design size for a given font name. */
+      new_number(new_expr.data.n);
+      set_number_from_scaled (new_expr.data.n, 
+               (mp->font_dsize[mp_find_font (mp, mp_str (mp, cur_exp_str ()))] + 8) / 16);
+      mp_flush_cur_exp (mp, new_expr);
+    }
+    break;
+  case mp_length_op:
+    /* The length operation is somewhat unusual in that it applies to a variety
+       of different types of operands. */
+    switch (mp->cur_exp.type) {
+    case mp_string_type:
+      new_number(new_expr.data.n);
+      number_clone (new_expr.data.n, unity_t);
+      number_multiply_int(new_expr.data.n, cur_exp_str ()->len);
+      mp_flush_cur_exp (mp, new_expr);
+      break;
+    case mp_path_type:
+      new_number(new_expr.data.n);
+      mp_path_length (mp, new_expr.data.n);
+      mp_flush_cur_exp (mp, new_expr);
+      break;
+    case mp_known:
+      set_cur_exp_value_number (cur_exp_value_number ());
+      number_abs (cur_exp_value_number ());
+      break;
+    case mp_picture_type:
+      new_number(new_expr.data.n);
+      mp_pict_length (mp, new_expr.data.n);
+      mp_flush_cur_exp (mp, new_expr);
+      break;
+    default:
+      if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
+        new_number(new_expr.data.n);
+        pyth_add (new_expr.data.n, value_number (x_part (value_node (cur_exp_node ()))),
+                                   value_number (y_part (value_node (cur_exp_node ()))));
+        mp_flush_cur_exp (mp, new_expr);
+      } else
+        mp_bad_unary (mp, c);
+      break;
+    }
+    break;
+  case mp_turning_op:
+    if (mp->cur_exp.type == mp_pair_type) {
+      new_number(new_expr.data.n);
+      set_number_to_zero(new_expr.data.n);
+      mp_flush_cur_exp (mp, new_expr);
+    } else if (mp->cur_exp.type != mp_path_type) {
+      mp_bad_unary (mp, mp_turning_op);
+    } else if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
+      new_number(new_expr.data.n);
+      new_expr.data.p = NULL;
+      mp_flush_cur_exp (mp, new_expr);      /* not a cyclic path */
+    } else {
+      new_number(new_expr.data.n);
+      mp_turn_cycles_wrapper (mp, new_expr.data.n, cur_exp_knot ());
+      mp_flush_cur_exp (mp, new_expr);
+    }
+    break;
+  case mp_boolean_type:
+    new_number(new_expr.data.n);
+    type_range (mp_boolean_type, mp_unknown_boolean);
+    break;
+  case mp_string_type:
+    new_number(new_expr.data.n);
+    type_range (mp_string_type, mp_unknown_string);
+    break;
+  case mp_pen_type:
+    new_number(new_expr.data.n);
+    type_range (mp_pen_type, mp_unknown_pen);
+    break;
+  case mp_path_type:
+    new_number(new_expr.data.n);
+    type_range (mp_path_type, mp_unknown_path);
+    break;
+  case mp_picture_type:
+    new_number(new_expr.data.n);
+    type_range (mp_picture_type, mp_unknown_picture);
+    break;
+  case mp_transform_type:
+  case mp_color_type:
+  case mp_cmykcolor_type:
+  case mp_pair_type:
+    new_number(new_expr.data.n);
+    type_test (c);
+    break;
+  case mp_numeric_type:
+    new_number(new_expr.data.n);
+    type_range (mp_known, mp_independent);
+    break;
+  case mp_known_op:
+  case mp_unknown_op:
+    mp_test_known (mp, c);
+    break;
+  case mp_cycle_op:
+    new_number(new_expr.data.n);
+    if (mp->cur_exp.type != mp_path_type)
+      set_number_from_boolean (new_expr.data.n, mp_false_code);
+    else if (mp_left_type (cur_exp_knot ()) != mp_endpoint)
+      set_number_from_boolean (new_expr.data.n, mp_true_code);
+    else
+      set_number_from_boolean (new_expr.data.n, mp_false_code);
+    mp_flush_cur_exp (mp, new_expr);
+    mp->cur_exp.type = mp_boolean_type;
+    break;
+  case mp_arc_length:
+    if (mp->cur_exp.type == mp_pair_type)
+      mp_pair_to_path (mp);
+    if (mp->cur_exp.type != mp_path_type) {
+      mp_bad_unary (mp, mp_arc_length);
+    } else {
+      new_number(new_expr.data.n);
+      mp_get_arc_length (mp, new_expr.data.n, cur_exp_knot ());
+      mp_flush_cur_exp (mp, new_expr);
+    }
+    break;
+  case mp_filled_op:
+  case mp_stroked_op:
+  case mp_textual_op:
+  case mp_clipped_op:
+  case mp_bounded_op:
+    /* Here we use the fact that |c-filled_op+fill_code| is the desired graphical
+    object |type|. */
+@^data structure assumptions@>
+    new_number(new_expr.data.n);
+    if (mp->cur_exp.type != mp_picture_type) {
+      set_number_from_boolean (new_expr.data.n, mp_false_code);
+    } else if (mp_link (edge_list (cur_exp_node ())) == NULL) {
+      set_number_from_boolean (new_expr.data.n, mp_false_code);
+    } else if (mp_type (mp_link (edge_list (cur_exp_node ()))) ==
+               (mp_variable_type) (c + mp_fill_node_type - mp_filled_op)) {
+      set_number_from_boolean (new_expr.data.n, mp_true_code);
+    } else {
+      set_number_from_boolean (new_expr.data.n, mp_false_code);
+    }
+    mp_flush_cur_exp (mp, new_expr);
+    mp->cur_exp.type = mp_boolean_type;
+    break;
+  case mp_make_pen_op:
+    if (mp->cur_exp.type == mp_pair_type)
+      mp_pair_to_path (mp);
+    if (mp->cur_exp.type != mp_path_type)
+      mp_bad_unary (mp, mp_make_pen_op);
+    else {
+      mp->cur_exp.type = mp_pen_type;
+      set_cur_exp_knot (mp_make_pen (mp, cur_exp_knot (), true));
+    }
+    break;
+  case mp_make_path_op:
+    if (mp->cur_exp.type != mp_pen_type) {
+      mp_bad_unary (mp, mp_make_path_op);
+    } else {
+      mp->cur_exp.type = mp_path_type;
+      mp_make_path (mp, cur_exp_knot ());
+    }
+    break;
+  case mp_reverse:
+    if (mp->cur_exp.type == mp_path_type) {
+      mp_knot pk = mp_htap_ypoc (mp, cur_exp_knot ());
+      if (mp_right_type (pk) == mp_endpoint)
+        pk = mp_next_knot (pk);
+      mp_toss_knot_list (mp, cur_exp_knot ());
+      set_cur_exp_knot (pk);
+    } else if (mp->cur_exp.type == mp_pair_type) {
+      mp_pair_to_path (mp);
+    } else {
+      mp_bad_unary (mp, mp_reverse);
+    }
+    break;
+  case mp_ll_corner_op:
+    if (!mp_get_cur_bbox (mp))
+      mp_bad_unary (mp, mp_ll_corner_op);
+    else
+      mp_pair_value (mp, mp_minx, mp_miny);
+    break;
+  case mp_lr_corner_op:
+    if (!mp_get_cur_bbox (mp))
+      mp_bad_unary (mp, mp_lr_corner_op);
+    else
+      mp_pair_value (mp,  mp_maxx, mp_miny);
+    break;
+  case mp_ul_corner_op:
+    if (!mp_get_cur_bbox (mp))
+      mp_bad_unary (mp, mp_ul_corner_op);
+    else
+      mp_pair_value (mp, mp_minx, mp_maxy);
+    break;
+  case mp_ur_corner_op:
+    if (!mp_get_cur_bbox (mp))
+      mp_bad_unary (mp, mp_ur_corner_op);
+    else
+      mp_pair_value (mp, mp_maxx,  mp_maxy);
+    break;
+  case mp_read_from_op:
+  case mp_close_from_op:
+    if (mp->cur_exp.type != mp_string_type)
+      mp_bad_unary (mp, c);
+    else
+      mp_do_read_or_close (mp, c);
+    break;
+
   }                             /* there are no other cases */
   check_arith();
 }
@@ -24446,23 +24930,24 @@ static void mp_bad_unary (MP mp, quarterword c) {
 }
 
 
-@ @<Trace the current unary operation@>=
-{
-  mp_begin_diagnostic (mp);
-  mp_print_nl (mp, "{");
-  mp_print_op (mp, c);
-  mp_print_char (mp, xord ('('));
-  mp_print_exp (mp, NULL, 0);   /* show the operand, but not verbosely */
-  mp_print (mp, ")}");
-  mp_end_diagnostic (mp, false);
-}
-
 
 @ Negation is easy except when the current expression
 is of type |independent|, or when it is a pair with one or more
 |independent| components.
 
-It is tempting to argue that the negative of an independent variable
+@<Declare unary action...@>=
+static void mp_negate_dep_list (MP mp, mp_value_node p) {
+  (void) mp;
+  while (1) {
+    number_negate (dep_value (p));
+    if (dep_info (p) == NULL)
+      return;
+    p = (mp_value_node) mp_link (p);
+  }
+}
+
+
+@ It is tempting to argue that the negative of an independent variable
 is an independent variable, hence we don't have to do anything when
 negating it. The fallacy is that other dependent variables pointing
 to the current expression must change the sign of their
@@ -24478,213 +24963,68 @@ and recycling it afterwards (cf.~the |stash_in| routine).
         mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node) A));
       }
 
-
-@<Negate the current expression@>=
-switch (mp->cur_exp.type) {
-case mp_color_type:
-case mp_cmykcolor_type:
-case mp_pair_type:
-case mp_independent:
-  q = cur_exp_node ();
-  mp_make_exp_copy (mp, q);
-  if (mp->cur_exp.type == mp_dependent) {
+@<Declare unary action...@>=
+static void negate_cur_expr(MP mp) {
+  mp_node p, q, r;      /* for list manipulation */
+  switch (mp->cur_exp.type) {
+  case mp_color_type:
+  case mp_cmykcolor_type:
+  case mp_pair_type:
+  case mp_independent:
+    q = cur_exp_node ();
+    mp_make_exp_copy (mp, q);
+    if (mp->cur_exp.type == mp_dependent) {
+      mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node)
+                                                        cur_exp_node ()));
+    } else if (mp->cur_exp.type <= mp_pair_type) {
+      /* |mp_color_type| |mp_cmykcolor_type|, or |mp_pair_type| */
+      p = value_node (cur_exp_node ());
+      switch (mp->cur_exp.type) {
+      case mp_pair_type:
+        r = x_part (p);
+        negate_value (r);
+        r = y_part (p);
+        negate_value (r);
+        break;
+      case mp_color_type:
+        r = red_part (p);
+        negate_value (r);
+        r = green_part (p);
+        negate_value (r);
+        r = blue_part (p);
+        negate_value (r);
+        break;
+      case mp_cmykcolor_type:
+        r = cyan_part (p);
+        negate_value (r);
+        r = magenta_part (p);
+        negate_value (r);
+        r = yellow_part (p);
+        negate_value (r);
+        r = black_part (p);
+        negate_value (r);
+        break;
+      default:                   /* there are no other valid cases, but please the compiler */
+        break;
+      }
+    }                             /* if |cur_type=mp_known| then |cur_exp=0| */
+    mp_recycle_value (mp, q);
+    mp_free_node (mp, q, value_node_size);
+    break;
+  case mp_dependent:
+  case mp_proto_dependent:
     mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node)
                                                       cur_exp_node ()));
-  } else if (mp->cur_exp.type <= mp_pair_type) {
-    /* |mp_color_type| |mp_cmykcolor_type|, or |mp_pair_type| */
-    p = value_node (cur_exp_node ());
-    switch (mp->cur_exp.type) {
-    case mp_pair_type:
-      r = x_part (p);
-      negate_value (r);
-      r = y_part (p);
-      negate_value (r);
-      break;
-    case mp_color_type:
-      r = red_part (p);
-      negate_value (r);
-      r = green_part (p);
-      negate_value (r);
-      r = blue_part (p);
-      negate_value (r);
-      break;
-    case mp_cmykcolor_type:
-      r = cyan_part (p);
-      negate_value (r);
-      r = magenta_part (p);
-      negate_value (r);
-      r = yellow_part (p);
-      negate_value (r);
-      r = black_part (p);
-      negate_value (r);
-      break;
-    default:                   /* there are no other valid cases, but please the compiler */
-      break;
-    }
-  }                             /* if |cur_type=mp_known| then |cur_exp=0| */
-  mp_recycle_value (mp, q);
-  mp_free_node (mp, q, value_node_size);
-  break;
-case mp_dependent:
-case mp_proto_dependent:
-  mp_negate_dep_list (mp, (mp_value_node) dep_list ((mp_value_node)
-                                                    cur_exp_node ()));
-  break;
-case mp_known:
-  if (cur_exp_value_number()) 
-    number_negate (cur_exp_value_number());
-  break;
-default:
-  mp_bad_unary (mp, mp_minus);
-  break;
-}
-
-
-@ @<Declare unary action...@>=
-static void mp_negate_dep_list (MP mp, mp_value_node p) {
-  (void) mp;
-  while (1) {
-    number_negate (dep_value (p));
-    if (dep_info (p) == NULL)
-      return;
-    p = (mp_value_node) mp_link (p);
+    break;
+  case mp_known:
+    if (cur_exp_value_number()) 
+      number_negate (cur_exp_value_number());
+    break;
+  default:
+    mp_bad_unary (mp, mp_minus);
+    break;
   }
 }
-
-
-@ @<Additional cases of unary operators@>=
-case mp_not_op:
-if (mp->cur_exp.type != mp_boolean_type) {
-  mp_bad_unary (mp, mp_not_op);
-} else {
-  halfword bb;
-  if (cur_exp_value_boolean () == mp_true_code)
-    bb = mp_false_code;
-  else
-    bb = mp_true_code;
-  set_cur_exp_value_boolean (bb);
-}
-break;
-
-@ 
-@d boolean_reset(A) if ( (A) ) set_cur_exp_value_boolean(mp_true_code); else set_cur_exp_value_boolean(mp_false_code)
-
-@<Additional cases of unary operators@>=
-case mp_sqrt_op:
-case mp_m_exp_op:
-case mp_m_log_op:
-case mp_sin_d_op:
-case mp_cos_d_op:
-case mp_floor_op:
-case mp_uniform_deviate:
-case mp_odd_op:
-case mp_char_exists_op:
-if (mp->cur_exp.type != mp_known) {
-  mp_bad_unary (mp, c);
-} else {
-  switch (c) {
-  case mp_sqrt_op:
-    {
-      mp_number r1;
-      new_number (r1);
-      square_rt (r1, cur_exp_value_number ());
-      set_cur_exp_value_number  (r1);
-      free_number (r1);
-    }
-    break;
-  case mp_m_exp_op:
-    {
-      mp_number r1;
-      new_number (r1);
-      m_exp (r1, cur_exp_value_number ());
-      set_cur_exp_value_number (r1);
-      free_number (r1);
-    }
-    break;
-  case mp_m_log_op:
-    {
-      mp_number r1;
-      new_number (r1);
-      m_log (r1, cur_exp_value_number ());
-      set_cur_exp_value_number (r1);
-      free_number (r1);
-    }
-    break;
-  case mp_sin_d_op:
-  case mp_cos_d_op:
-    {
-      mp_number n_sin, n_cos, arg1, arg2;
-      new_number (arg1);
-      new_number (arg2);
-      new_fraction (n_sin);
-      new_fraction (n_cos); /* results computed by |n_sin_cos| */
-      number_clone (arg1, cur_exp_value_number()); 
-      number_clone (arg2, unity_t);
-      number_multiply_int (arg2, 360);
-      number_modulo (arg1, arg2);
-      convert_scaled_to_angle (arg1);
-      n_sin_cos (arg1, n_cos, n_sin);
-      if (c == mp_sin_d_op) {
-        fraction_to_round_scaled (n_sin);
-        set_cur_exp_value_number (n_sin);
-      } else {
-        fraction_to_round_scaled (n_cos);
-        set_cur_exp_value_number (n_cos);
-      }
-      free_number (arg1);
-      free_number (arg2);
-      free_number (n_sin);
-      free_number (n_cos);
-    }
-    break;
-  case mp_floor_op:
-    {
-      mp_number vvx;
-      new_number (vvx);
-      number_clone (vvx, cur_exp_value_number ());
-      floor_scaled (vvx);
-      set_cur_exp_value_number (vvx);
-      free_number (vvx);
-    }
-    break;
-  case mp_uniform_deviate:
-    {
-      mp_number vvx;
-      new_number (vvx);
-      mp_unif_rand (mp, vvx, cur_exp_value_number ());
-      set_cur_exp_value_number (vvx);
-      free_number (vvx);
-    }
-    break;
-  case mp_odd_op:
-    {
-      integer vvx = odd (round_unscaled (cur_exp_value_number ()));
-      boolean_reset (vvx);
-      mp->cur_exp.type = mp_boolean_type;
-    }
-    break;
-  case mp_char_exists_op:
-    @<Determine if a character has been shipped out@>;
-    break;
-  }                             /* there are no other cases */
-}
-break;
-
-@ @<Additional cases of unary operators@>=
-case mp_angle_op:
-if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
-  mp_number narg;
-  new_angle (narg);
-  p = value_node (cur_exp_node ());
-  n_arg (narg, value_number (x_part (p)), value_number (y_part (p)));
-  number_clone (new_expr.data.n, narg);
-  convert_angle_to_scaled (new_expr.data.n);
-  free_number (narg);
-  mp_flush_cur_exp (mp, new_expr);
-} else {
-  mp_bad_unary (mp, mp_angle_op);
-}
-break;
 
 @ If the current expression is a pair, but the context wants it to
 be a path, we call |pair_to_path|.
@@ -24696,85 +25036,6 @@ static void mp_pair_to_path (MP mp) {
 }
 
 
-@ This complicated if test makes sure that any |bounds| or |clip|
-picture objects that get passed into \&{within} do not raise an 
-error when queried using the color part primitives (this is needed
-for backward compatibility) .
-
-@d cur_pic_item mp_link(edge_list(cur_exp_node()))
-@d pict_color_type(A) ((cur_pic_item!=NULL) &&
-         ((!has_color(cur_pic_item)) 
-          ||
-         (((mp_color_model(cur_pic_item)==A)
-          ||
-          ((mp_color_model(cur_pic_item)==mp_uninitialized_model) &&
-           (number_to_scaled (internal_value(mp_default_color_model))/number_to_scaled (unity_t))==(A))))))
-
-@<Additional cases of unary operators@>=
-case mp_x_part:
-case mp_y_part:
-if ((mp->cur_exp.type == mp_pair_type)
-    || (mp->cur_exp.type == mp_transform_type))
-  mp_take_part (mp, c);
-else if (mp->cur_exp.type == mp_picture_type)
-  mp_take_pict_part (mp, c);
-else
-  mp_bad_unary (mp, c);
-break;
-case mp_xx_part:
-case mp_xy_part:
-case mp_yx_part:
-case mp_yy_part:
-if (mp->cur_exp.type == mp_transform_type)
-  mp_take_part (mp, c);
-else if (mp->cur_exp.type == mp_picture_type)
-  mp_take_pict_part (mp, c);
-else
-  mp_bad_unary (mp, c);
-break;
-case mp_red_part:
-case mp_green_part:
-case mp_blue_part:
-if (mp->cur_exp.type == mp_color_type)
-  mp_take_part (mp, c);
-else if (mp->cur_exp.type == mp_picture_type) {
-  if pict_color_type
-    (mp_rgb_model) mp_take_pict_part (mp, c);
-  else
-    mp_bad_color_part (mp, c);
-} else
-  mp_bad_unary (mp, c);
-break;
-case mp_cyan_part:
-case mp_magenta_part:
-case mp_yellow_part:
-case mp_black_part:
-if (mp->cur_exp.type == mp_cmykcolor_type)
-  mp_take_part (mp, c);
-else if (mp->cur_exp.type == mp_picture_type) {
-  if pict_color_type
-    (mp_cmyk_model) mp_take_pict_part (mp, c);
-  else
-    mp_bad_color_part (mp, c);
-} else
-  mp_bad_unary (mp, c);
-break;
-case mp_grey_part:
-if (mp->cur_exp.type == mp_known); 
-else if (mp->cur_exp.type == mp_picture_type) {
-  if pict_color_type
-    (mp_grey_model) mp_take_pict_part (mp, c);
-  else
-    mp_bad_color_part (mp, c);
-} else
-  mp_bad_unary (mp, c);
-break;
-case mp_color_model_part:
-if (mp->cur_exp.type == mp_picture_type)
-  mp_take_pict_part (mp, c);
-else
-  mp_bad_unary (mp, c);
-break;
 
 @ @<Declarations@>=
 static void mp_bad_color_part (MP mp, quarterword c);
@@ -24890,18 +25151,6 @@ mp_name_type (mp->temp_val) = mp_capsule;
 @ @<Free table entries@>=
 mp_free_value_node (mp, mp->temp_val);
 
-
-@ @<Additional cases of unary operators@>=
-case mp_font_part:
-case mp_text_part:
-case mp_path_part:
-case mp_pen_part:
-case mp_dash_part:
-if (mp->cur_exp.type == mp_picture_type)
-  mp_take_pict_part (mp, c);
-else
-  mp_bad_unary (mp, c);
-break;
 
 @ @<Declarations@>=
 static mp_edge_header_node mp_scale_edges (MP mp, mp_number se_sf, mp_edge_header_node se_pic);
@@ -25155,53 +25404,6 @@ default:
 }
 
 
-@ @<Additional cases of unary...@>=
-case mp_char_op:
-if (mp->cur_exp.type != mp_known) {
-  mp_bad_unary (mp, mp_char_op);
-} else {
-  int vv = round_unscaled (cur_exp_value_number ()) % 256;
-  set_cur_exp_value_scaled (vv);
-  mp->cur_exp.type = mp_string_type;
-  if (number_negative(cur_exp_value_number ())) {
-    vv = number_to_scaled(cur_exp_value_number ()) + 256;
-    set_cur_exp_value_scaled (vv);
-  }
-  {
-    unsigned char ss[2];
-    ss[0] = (unsigned char) number_to_scaled(cur_exp_value_number ());
-    ss[1] = '\0';
-    set_cur_exp_str (mp_rtsl (mp, (char *) ss, 1));
-  }
-}
-break;
-case mp_decimal:
-if (mp->cur_exp.type != mp_known) {
-  mp_bad_unary (mp, mp_decimal);
-} else {
-  mp->old_setting = mp->selector;
-  mp->selector = new_string;
-  print_number (cur_exp_value_number ());
-  set_cur_exp_str (mp_make_string (mp));
-  mp->selector = mp->old_setting;
-  mp->cur_exp.type = mp_string_type;
-}
-break;
-case mp_oct_op:
-case mp_hex_op:
-case mp_ASCII_op:
-if (mp->cur_exp.type != mp_string_type)
-  mp_bad_unary (mp, c);
-else
-  mp_str_to_num (mp, c);
-break;
-case mp_font_size:
-if (mp->cur_exp.type != mp_string_type)
-  mp_bad_unary (mp, mp_font_size);
-else
-  @<Find the design size of the font whose name is |cur_exp|@>;
-break;
-
 @ @<Declare unary action...@>=
 static void mp_str_to_num (MP mp, quarterword c) {                               /* converts a string to a number */
   integer n;    /* accumulator */
@@ -25278,39 +25480,6 @@ if ((n > 4095)) {
   }
 }
 
-@ The length operation is somewhat unusual in that it applies to a variety
-of different types of operands.
-
-@<Additional cases of unary...@>=
-case mp_length_op:
-switch (mp->cur_exp.type) {
-case mp_string_type:
-  number_clone (new_expr.data.n, unity_t);
-  number_multiply_int(new_expr.data.n, cur_exp_str ()->len);
-  mp_flush_cur_exp (mp, new_expr);
-  break;
-case mp_path_type:
-  mp_path_length (mp, new_expr.data.n);
-  mp_flush_cur_exp (mp, new_expr);
-  break;
-case mp_known:
-  set_cur_exp_value_number (cur_exp_value_number ());
-  number_abs (cur_exp_value_number ());
-  break;
-case mp_picture_type:
-  mp_pict_length (mp, new_expr.data.n);
-  mp_flush_cur_exp (mp, new_expr);
-  break;
-default:
-  if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
-    pyth_add (new_expr.data.n, value_number (x_part (value_node (cur_exp_node ()))),
-                               value_number (y_part (value_node (cur_exp_node ()))));
-    mp_flush_cur_exp (mp, new_expr);
-  } else
-    mp_bad_unary (mp, c);
-  break;
-}
-break;
 
 @ @<Declare unary action...@>=
 static void mp_path_length (MP mp, mp_number n) {                               /* computes the length of the current path */
@@ -25349,24 +25518,6 @@ static void mp_pict_length (MP mp, mp_number n) {
   }
 }
 
-
-@ Implement |turningnumber|
-
-@<Additional cases of unary...@>=
-case mp_turning_op:
-if (mp->cur_exp.type == mp_pair_type) {
-  set_number_to_zero(new_expr.data.n);
-  mp_flush_cur_exp (mp, new_expr);
-} else if (mp->cur_exp.type != mp_path_type) {
-  mp_bad_unary (mp, mp_turning_op);
-} else if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
-  new_expr.data.p = NULL;
-  mp_flush_cur_exp (mp, new_expr);      /* not a cyclic path */
-} else {
-  mp_turn_cycles_wrapper (mp, new_expr.data.n, cur_exp_knot ());
-  mp_flush_cur_exp (mp, new_expr);
-}
-break;
 
 @ The function |an_angle| returns the value of the |angle| primitive, or $0$ if the
 argument is |origin|.
@@ -25626,54 +25777,6 @@ static void mp_turn_cycles_wrapper (MP mp, mp_number ret, mp_knot c) {
   }
 }
 
-
-@ @d type_range(A,B) { 
-  if ( (mp->cur_exp.type>=(A)) && (mp->cur_exp.type<=(B)) ) 
-    set_number_from_boolean (new_expr.data.n, mp_true_code);
-  else 
-    set_number_from_boolean (new_expr.data.n, mp_false_code);
-  mp_flush_cur_exp(mp, new_expr);
-  mp->cur_exp.type=mp_boolean_type;
-  }
-@d type_test(A) { 
-  if ( mp->cur_exp.type==(mp_variable_type)(A) ) 
-    set_number_from_boolean (new_expr.data.n, mp_true_code);
-  else 
-    set_number_from_boolean (new_expr.data.n, mp_false_code);
-  mp_flush_cur_exp(mp, new_expr);
-  mp->cur_exp.type=mp_boolean_type;
-  }
-
-@<Additional cases of unary operators@>=
-case mp_boolean_type:
-type_range (mp_boolean_type, mp_unknown_boolean);
-break;
-case mp_string_type:
-type_range (mp_string_type, mp_unknown_string);
-break;
-case mp_pen_type:
-type_range (mp_pen_type, mp_unknown_pen);
-break;
-case mp_path_type:
-type_range (mp_path_type, mp_unknown_path);
-break;
-case mp_picture_type:
-type_range (mp_picture_type, mp_unknown_picture);
-break;
-case mp_transform_type:
-case mp_color_type:
-case mp_cmykcolor_type:
-case mp_pair_type:
-type_test (c);
-break;
-case mp_numeric_type:
-type_range (mp_known, mp_independent);
-break;
-case mp_known_op:
-case mp_unknown_op:
-mp_test_known (mp, c);
-break;
-
 @ @<Declare unary action procedures@>=
 static void mp_test_known (MP mp, quarterword c) {
   int b;        /* is the current expression known? */
@@ -25755,88 +25858,6 @@ static void mp_test_known (MP mp, quarterword c) {
   mp->cur_exp.type = mp_boolean_type;
 }
 
-
-@ @<Additional cases of unary operators@>=
-case mp_cycle_op:
-if (mp->cur_exp.type != mp_path_type)
-  set_number_from_boolean (new_expr.data.n, mp_false_code);
-else if (mp_left_type (cur_exp_knot ()) != mp_endpoint)
-  set_number_from_boolean (new_expr.data.n, mp_true_code);
-else
-  set_number_from_boolean (new_expr.data.n, mp_false_code);
-mp_flush_cur_exp (mp, new_expr);
-mp->cur_exp.type = mp_boolean_type;
-break;
-
-@ @<Additional cases of unary operators@>=
-case mp_arc_length:
-if (mp->cur_exp.type == mp_pair_type)
-  mp_pair_to_path (mp);
-if (mp->cur_exp.type != mp_path_type) {
-  mp_bad_unary (mp, mp_arc_length);
-} else {
-  mp_get_arc_length (mp, new_expr.data.n, cur_exp_knot ());
-  mp_flush_cur_exp (mp, new_expr);
-}
-break;
-
-@ Here we use the fact that |c-filled_op+fill_code| is the desired graphical
-object |type|.
-@^data structure assumptions@>
-
-@<Additional cases of unary operators@>=
-case mp_filled_op:
-case mp_stroked_op:
-case mp_textual_op:
-case mp_clipped_op:
-case mp_bounded_op:
-if (mp->cur_exp.type != mp_picture_type) {
-  set_number_from_boolean (new_expr.data.n, mp_false_code);
-} else if (mp_link (edge_list (cur_exp_node ())) == NULL) {
-  set_number_from_boolean (new_expr.data.n, mp_false_code);
-} else if (mp_type (mp_link (edge_list (cur_exp_node ()))) ==
-           (mp_variable_type) (c + mp_fill_node_type - mp_filled_op)) {
-  set_number_from_boolean (new_expr.data.n, mp_true_code);
-} else {
-  set_number_from_boolean (new_expr.data.n, mp_false_code);
-}
-mp_flush_cur_exp (mp, new_expr);
-mp->cur_exp.type = mp_boolean_type;
-break;
-
-@ @<Additional cases of unary operators@>=
-case mp_make_pen_op:
-if (mp->cur_exp.type == mp_pair_type)
-  mp_pair_to_path (mp);
-if (mp->cur_exp.type != mp_path_type)
-  mp_bad_unary (mp, mp_make_pen_op);
-else {
-  mp->cur_exp.type = mp_pen_type;
-  set_cur_exp_knot (mp_make_pen (mp, cur_exp_knot (), true));
-}
-break;
-case mp_make_path_op:
-if (mp->cur_exp.type != mp_pen_type) {
-  mp_bad_unary (mp, mp_make_path_op);
-} else {
-  mp->cur_exp.type = mp_path_type;
-  mp_make_path (mp, cur_exp_knot ());
-}
-break;
-case mp_reverse:
-if (mp->cur_exp.type == mp_path_type) {
-  mp_knot pk = mp_htap_ypoc (mp, cur_exp_knot ());
-  if (mp_right_type (pk) == mp_endpoint)
-    pk = mp_next_knot (pk);
-  mp_toss_knot_list (mp, cur_exp_knot ());
-  set_cur_exp_knot (pk);
-} else if (mp->cur_exp.type == mp_pair_type) {
-  mp_pair_to_path (mp);
-} else {
-  mp_bad_unary (mp, mp_reverse);
-}
-break;
-
 @ The |pair_value| routine changes the current expression to a
 given ordered pair of values.
 
@@ -25867,32 +25888,6 @@ static void mp_pair_value (MP mp, mp_number x, mp_number y) {
   free_number(y1);
 }
 
-
-@ @<Additional cases of unary operators@>=
-case mp_ll_corner_op:
-if (!mp_get_cur_bbox (mp))
-  mp_bad_unary (mp, mp_ll_corner_op);
-else
-  mp_pair_value (mp, mp_minx, mp_miny);
-break;
-case mp_lr_corner_op:
-if (!mp_get_cur_bbox (mp))
-  mp_bad_unary (mp, mp_lr_corner_op);
-else
-  mp_pair_value (mp,  mp_maxx, mp_miny);
-break;
-case mp_ul_corner_op:
-if (!mp_get_cur_bbox (mp))
-  mp_bad_unary (mp, mp_ul_corner_op);
-else
-  mp_pair_value (mp, mp_minx, mp_maxy);
-break;
-case mp_ur_corner_op:
-if (!mp_get_cur_bbox (mp))
-  mp_bad_unary (mp, mp_ur_corner_op);
-else
-  mp_pair_value (mp, mp_maxx,  mp_maxy);
-break;
 
 @ Here is a function that sets |minx|, |maxx|, |miny|, |maxy| to the bounding
 box of the current expression.  The boolean result is |false| if the expression
@@ -25930,15 +25925,6 @@ static boolean mp_get_cur_bbox (MP mp) {
   return true;
 }
 
-
-@ @<Additional cases of unary operators@>=
-case mp_read_from_op:
-case mp_close_from_op:
-if (mp->cur_exp.type != mp_string_type)
-  mp_bad_unary (mp, c);
-else
-  mp_do_read_or_close (mp, c);
-break;
 
 @ Here is a routine that interprets |cur_exp| as a file name and tries to read
 a line from the file or to close the file.
@@ -33283,16 +33269,6 @@ double mp_get_char_dimension (MP mp, char *fname, int c, int t) {
 double mp_get_char_dimension (MP mp, char *fname, int n, int t);
 
 
-@ One simple application of |find_font| is the implementation of the |font_size|
-operator that gets the design size for a given font name.
-
-@<Find the design size of the font whose name is |cur_exp|@>=
-{
-  set_number_from_scaled (new_expr.data.n, (mp->font_dsize[mp_find_font (mp, mp_str (mp, cur_exp_str ()))] + 8) / 16);
-  mp_flush_cur_exp (mp, new_expr);
-}
-
-
 @ If we discover that the font doesn't have a requested character, we omit it
 from the bounding box computation and expect the \ps\ interpreter to drop it.
 This routine issues a warning message if the user has asked for it.
@@ -34108,18 +34084,6 @@ mp_backend_writer shipout_backend;
 
 @ Now that we've finished |ship_out|, let's look at the other commands
 by which a user can send things to the \.{GF} file.
-
-@ @<Determine if a character has been shipped out@>=
-{
-  set_cur_exp_value_scaled (round_unscaled (cur_exp_value_number ()) % 256);
-  if (number_negative(cur_exp_value_number ())) {
-    halfword vv = number_to_scaled(cur_exp_value_number ());
-    set_cur_exp_value_scaled (vv + 256);
-  }
-  boolean_reset (mp->char_exists[number_to_scaled(cur_exp_value_number ())]);
-  mp->cur_exp.type = mp_boolean_type;
-}
-
 
 @ @<Glob...@>=
 psout_data ps;
