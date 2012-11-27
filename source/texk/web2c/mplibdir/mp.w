@@ -25437,39 +25437,33 @@ static void mp_str_to_num (MP mp, quarterword c) {  /* converts a string to a nu
       else
         n = 32767;
     }
-    @<Give error messages if |bad_char| or |n>=4096|@>;
+    /* Give error messages if |bad_char| or |n>=4096| */
+    if (bad_char) {
+      const char *hlp[] = {"I zeroed out characters that weren't hex digits.", NULL};
+      if (c == mp_oct_op) {
+        hlp[0] = "I zeroed out characters that weren't in the range 0..7.";
+      }
+      mp_disp_err(mp, NULL);
+      mp_back_error (mp, "String contains illegal digits", hlp, true);
+      mp_get_x_next (mp);
+    }
+    if ((n > 4095)) { /* todo, this is scaled specific */
+      if (number_positive (internal_value (mp_warning_check))) {
+        char msg[256];
+        const char *hlp[] = {
+               "I have trouble with numbers greater than 4095; watch out.",
+               "(Set warningcheck:=0 to suppress this message.)",
+               NULL };
+        mp_snprintf (msg, 256,"Number too large (%d)", (int)n);
+        mp_back_error (mp, msg, hlp, true);
+        mp_get_x_next (mp);
+      }
+    }
   }
   number_clone (new_expr.data.n, unity_t);
   number_multiply_int(new_expr.data.n, n);
   mp_flush_cur_exp (mp, new_expr);
 }
-
-
-@ @<Give error messages if |bad_char|...@>=
-if (bad_char) {
-  const char *hlp[] = {"I zeroed out characters that weren't hex digits.", NULL};
-  if (c == mp_oct_op) {
-    hlp[0] = "I zeroed out characters that weren't in the range 0..7.";
-  }
-  mp_disp_err(mp, NULL);
-  mp_back_error (mp, "String contains illegal digits", hlp, true);
-@.String contains illegal digits@>;
-  mp_get_x_next (mp);
-}
-if ((n > 4095)) {
-  if (number_positive (internal_value (mp_warning_check))) {
-    char msg[256];
-    const char *hlp[] = {
-           "I have trouble with numbers greater than 4095; watch out.",
-           "(Set warningcheck:=0 to suppress this message.)",
-           NULL };
-    mp_snprintf (msg, 256,"Number too large (%d)", (int)n);
-@.Number too large@>;
-    mp_back_error (mp, msg, hlp, true);
-    mp_get_x_next (mp);
-  }
-}
-
 
 @ @<Declare unary action...@>=
 static void mp_path_length (MP mp, mp_number n) {                               /* computes the length of the current path */
@@ -25644,7 +25638,7 @@ static void mp_bezier_slope (MP mp, mp_number ret, mp_number AX, mp_number AY, m
 @d p_next mp_next_knot(p)
 
 @<Declare unary action...@>=
-static void mp_new_turn_cycles (MP mp, mp_number turns, mp_knot c) {
+static void mp_turn_cycles (MP mp, mp_number turns, mp_knot c) {
   mp_angle res, ang;       /*  the angles of intermediate results  */
   mp_knot p;    /*  for running around the path  */
   mp_number xp, yp;       /*  coordinates of next point  */
@@ -25763,7 +25757,7 @@ static void mp_turn_cycles_wrapper (MP mp, mp_number ret, mp_knot c) {
     /* one-knot paths always have a turning number of 1 */
     set_number_to_unity(ret);
   } else {
-    mp_new_turn_cycles (mp, ret, c);
+    mp_turn_cycles (mp, ret, c);
   }
 }
 
@@ -25925,15 +25919,79 @@ static void mp_do_read_or_close (MP mp, quarterword c) {
   readf_index n, n0;    /* indices for searching |rd_fname| */
   memset(&new_expr,0,sizeof(mp_value));
   new_number(new_expr.data.n);
-  @<Find the |n| where |rd_fname[n]=cur_exp|; if |cur_exp| must be inserted,
-    call |start_read_input| and |goto found| or |not_found|@>;
+  /* Find the |n| where |rd_fname[n]=cur_exp|; if |cur_exp| must be inserted,
+     call |start_read_input| and |goto found| or |not_found| */
+  /* Free slots in the |rd_file| and |rd_fname| arrays are marked with NULL's in
+     |rd_fname|. */
+  {
+    char *fn;
+    n = mp->read_files;
+    n0 = mp->read_files;
+    fn = mp_xstrdup (mp, mp_str (mp, cur_exp_str ()));
+    while (mp_xstrcmp (fn, mp->rd_fname[n]) != 0) {
+      if (n > 0) {
+        decr (n);
+      } else if (c == mp_close_from_op) {
+        goto CLOSE_FILE;
+      } else {
+        if (n0 == mp->read_files) {
+          if (mp->read_files < mp->max_read_files) {
+            incr (mp->read_files);
+          } else {
+            void **rd_file;
+            char **rd_fname;
+            readf_index l, k;
+            l = mp->max_read_files + (mp->max_read_files / 4);
+            rd_file = xmalloc ((l + 1), sizeof (void *));
+            rd_fname = xmalloc ((l + 1), sizeof (char *));
+            for (k = 0; k <= l; k++) {
+              if (k <= mp->max_read_files) {
+                rd_file[k] = mp->rd_file[k];
+                rd_fname[k] = mp->rd_fname[k];
+              } else {
+                rd_file[k] = 0;
+                rd_fname[k] = NULL;
+              }
+            }
+            xfree (mp->rd_file);
+            xfree (mp->rd_fname);
+            mp->max_read_files = l;
+            mp->rd_file = rd_file;
+            mp->rd_fname = rd_fname;
+          }
+        }
+        n = n0;
+        if (mp_start_read_input (mp, fn, n))
+          goto FOUND;
+        else
+          goto NOT_FOUND;
+      }
+      if (mp->rd_fname[n] == NULL) {
+        n0 = n;
+      }
+    }
+    if (c == mp_close_from_op) {
+      (mp->close_file) (mp, mp->rd_file[n]);
+      goto NOT_FOUND;
+    }
+  }
   mp_begin_file_reading (mp);
   name = is_read;
   if (mp_input_ln (mp, mp->rd_file[n]))
     goto FOUND;
   mp_end_file_reading (mp);
 NOT_FOUND:
-  @<Record the end of file and set |cur_exp| to a dummy value@>;
+  /* Record the end of file and set |cur_exp| to a dummy value  */
+  xfree (mp->rd_fname[n]);
+  mp->rd_fname[n] = NULL;
+  if (n == mp->read_files - 1)
+    mp->read_files = n;
+  if (c == mp_close_from_op)
+    goto CLOSE_FILE;
+  new_expr.data.str = mp->eof_line;
+  add_str_ref (new_expr.data.str);
+  mp_flush_cur_exp (mp, new_expr);
+  mp->cur_exp.type = mp_string_type;
   return;
 CLOSE_FILE:
   mp_flush_cur_exp (mp, new_expr);
@@ -25943,79 +26001,6 @@ FOUND:
   mp_flush_cur_exp (mp, new_expr);
   mp_finish_read (mp);
 }
-
-
-@ Free slots in the |rd_file| and |rd_fname| arrays are marked with NULL's in
-|rd_fname|.
-
-@<Find the |n| where |rd_fname[n]=cur_exp|...@>=
-{
-  char *fn;
-  n = mp->read_files;
-  n0 = mp->read_files;
-  fn = mp_xstrdup (mp, mp_str (mp, cur_exp_str ()));
-  while (mp_xstrcmp (fn, mp->rd_fname[n]) != 0) {
-    if (n > 0) {
-      decr (n);
-    } else if (c == mp_close_from_op) {
-      goto CLOSE_FILE;
-    } else {
-      if (n0 == mp->read_files) {
-        if (mp->read_files < mp->max_read_files) {
-          incr (mp->read_files);
-        } else {
-          void **rd_file;
-          char **rd_fname;
-          readf_index l, k;
-          l = mp->max_read_files + (mp->max_read_files / 4);
-          rd_file = xmalloc ((l + 1), sizeof (void *));
-          rd_fname = xmalloc ((l + 1), sizeof (char *));
-          for (k = 0; k <= l; k++) {
-            if (k <= mp->max_read_files) {
-              rd_file[k] = mp->rd_file[k];
-              rd_fname[k] = mp->rd_fname[k];
-            } else {
-              rd_file[k] = 0;
-              rd_fname[k] = NULL;
-            }
-          }
-          xfree (mp->rd_file);
-          xfree (mp->rd_fname);
-          mp->max_read_files = l;
-          mp->rd_file = rd_file;
-          mp->rd_fname = rd_fname;
-        }
-      }
-      n = n0;
-      if (mp_start_read_input (mp, fn, n))
-        goto FOUND;
-      else
-        goto NOT_FOUND;
-    }
-    if (mp->rd_fname[n] == NULL) {
-      n0 = n;
-    }
-  }
-  if (c == mp_close_from_op) {
-    (mp->close_file) (mp, mp->rd_file[n]);
-    goto NOT_FOUND;
-  }
-}
-
-
-@ @<Record the end of file and set |cur_exp| to a dummy value@>=
-xfree (mp->rd_fname[n]);
-mp->rd_fname[n] = NULL;
-if (n == mp->read_files - 1)
-  mp->read_files = n;
-if (c == mp_close_from_op)
-  goto CLOSE_FILE;
-{
-  new_expr.data.str = mp->eof_line;
-  add_str_ref (new_expr.data.str);
-  mp_flush_cur_exp (mp, new_expr);
-}
-mp->cur_exp.type = mp_string_type
 
 @ The string denoting end-of-file is a one-byte string at position zero, by definition.
 I have to cheat a little here because 
@@ -26030,13 +26015,30 @@ mp->eof_line->refs = MAX_STR_REF;
 @ Finally, we have the operations that combine a capsule~|p|
 with the current expression.
 
+Several of the binary operations are potentially complicated by the
+fact that |independent| values can sneak into capsules. For example,
+we've seen an instance of this difficulty in the unary operation
+of negation. In order to reduce the number of cases that need to be
+handled, we first change the two operands (if necessary)
+to rid them of |independent| components. The original operands are
+put into capsules called |old_p| and |old_exp|, which will be
+recycled after the binary operation has been safely carried out.
+
 @d binary_return  { mp_finish_binary(mp, old_p, old_exp); return; }
 
 @c
 @<Declare binary action procedures@>;
 static void mp_finish_binary (MP mp, mp_node old_p, mp_node old_exp) {
   check_arith();
-  @<Recycle any sidestepped |independent| capsules@>;
+  /* Recycle any sidestepped |independent| capsules */
+  if (old_p != NULL) {
+    mp_recycle_value (mp, old_p);
+    mp_free_node (mp, old_p, value_node_size);
+  }
+  if (old_exp != NULL) {
+    mp_recycle_value (mp, old_exp);
+    mp_free_node (mp, old_exp, value_node_size);
+  }
 }
 static void mp_do_binary (MP mp, mp_node p, integer c) {
   mp_node q, r, rr;     /* for list manipulation */
@@ -26046,14 +26048,109 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
   new_number(new_expr.data.n);
   check_arith();
   if (number_greater (internal_value (mp_tracing_commands), two_t)) {
-    @<Trace the current binary operation@>;
+    /* Trace the current binary operation */
+    mp_begin_diagnostic (mp);
+    mp_print_nl (mp, "{(");
+    mp_print_exp (mp, p, 0);      /* show the operand, but not verbosely */
+    mp_print_char (mp, xord (')'));
+    mp_print_op (mp, (quarterword) c);
+    mp_print_char (mp, xord ('('));
+    mp_print_exp (mp, NULL, 0);
+    mp_print (mp, ")}");
+    mp_end_diagnostic (mp, false);
   }
-  @<Sidestep |independent| cases in capsule |p|@>;
-  @<Sidestep |independent| cases in the current expression@>;
+  /* Sidestep |independent| cases in capsule |p| */
+  /* A big node is considered to be ``tarnished'' if it contains at least one
+     independent component. We will define a simple function called `|tarnished|'
+     that returns |NULL| if and only if its argument is not tarnished. */
+  switch (mp_type (p)) {
+  case mp_transform_type:
+  case mp_color_type:
+  case mp_cmykcolor_type:
+  case mp_pair_type:
+    old_p = mp_tarnished (mp, p);
+    break;
+  case mp_independent:
+    old_p = MP_VOID;
+    break;
+  default:
+    old_p = NULL;
+    break;
+  }
+  if (old_p != NULL) {
+    q = mp_stash_cur_exp (mp);
+    old_p = p;
+    mp_make_exp_copy (mp, old_p);
+    p = mp_stash_cur_exp (mp);
+    mp_unstash_cur_exp (mp, q);
+  }
+
+  /* Sidestep |independent| cases in the current expression */
+  switch (mp->cur_exp.type) {
+  case mp_transform_type:
+  case mp_color_type:
+  case mp_cmykcolor_type:
+  case mp_pair_type:
+    old_exp = mp_tarnished (mp, cur_exp_node ());
+    break;
+  case mp_independent:
+    old_exp = MP_VOID;
+    break;
+  default:
+    old_exp = NULL;
+    break;
+  }
+  if (old_exp != NULL) {
+    old_exp = cur_exp_node ();
+    mp_make_exp_copy (mp, old_exp);
+  }
+  
   switch (c) {
   case mp_plus:
   case mp_minus:
-    @<Add or subtract the current expression from |p|@>;
+    /* Add or subtract the current expression from |p| */
+    if ((mp->cur_exp.type < mp_color_type) || (mp_type (p) < mp_color_type)) {
+      mp_bad_binary (mp, p, (quarterword) c);
+    } else {
+      quarterword cc = (quarterword)c;
+      if ((mp->cur_exp.type > mp_pair_type) && (mp_type (p) > mp_pair_type)) {
+        mp_add_or_subtract (mp, p, NULL, cc);
+      } else {
+        if (mp->cur_exp.type != mp_type (p)) {
+          mp_bad_binary (mp, p, cc);
+        } else {
+          q = value_node (p);
+          r = value_node (cur_exp_node ());
+          switch (mp->cur_exp.type) {
+          case mp_pair_type:
+            mp_add_or_subtract (mp, x_part (q), x_part (r),cc);
+            mp_add_or_subtract (mp, y_part (q), y_part (r),cc);
+            break;
+          case mp_color_type:
+            mp_add_or_subtract (mp, red_part (q), red_part (r),cc);
+            mp_add_or_subtract (mp, green_part (q), green_part (r),cc);
+            mp_add_or_subtract (mp, blue_part (q), blue_part (r),cc);
+            break;
+          case mp_cmykcolor_type:
+            mp_add_or_subtract (mp, cyan_part (q), cyan_part (r),cc);
+            mp_add_or_subtract (mp, magenta_part (q), magenta_part (r),cc);
+            mp_add_or_subtract (mp, yellow_part (q), yellow_part (r),cc);
+            mp_add_or_subtract (mp, black_part (q), black_part (r),cc);
+            break;
+          case mp_transform_type:
+            mp_add_or_subtract (mp, tx_part (q), tx_part (r),cc);
+            mp_add_or_subtract (mp, ty_part (q), ty_part (r),cc);
+            mp_add_or_subtract (mp, xx_part (q), xx_part (r),cc);
+            mp_add_or_subtract (mp, xy_part (q), xy_part (r),cc);
+            mp_add_or_subtract (mp, yx_part (q), yx_part (r),cc);
+            mp_add_or_subtract (mp, yy_part (q), yy_part (r),cc);
+            break;
+          default:                 /* there are no other valid cases, but please the compiler */
+            break;
+          }
+        }
+      }
+    }
     break;
     @<Additional cases of binary operators@>;
   };                            /* there are no other cases */
@@ -26065,7 +26162,6 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
 
 @ @<Declare binary action...@>=
 static void mp_bad_binary (MP mp, mp_node p, quarterword c) {
-
   char msg[256];
   mp_string sname;
   int old_setting = mp->selector;
@@ -26104,87 +26200,6 @@ static void mp_bad_envelope_pen (MP mp) {
   mp_back_error (mp, "Not implemented: envelope(elliptical pen)of(path)", hlp, true);
 @.Not implemented...@>;
   mp_get_x_next (mp);
-}
-
-
-@ @<Trace the current binary operation@>=
-{
-  mp_begin_diagnostic (mp);
-  mp_print_nl (mp, "{(");
-  mp_print_exp (mp, p, 0);      /* show the operand, but not verbosely */
-  mp_print_char (mp, xord (')'));
-  mp_print_op (mp, (quarterword) c);
-  mp_print_char (mp, xord ('('));
-  mp_print_exp (mp, NULL, 0);
-  mp_print (mp, ")}");
-  mp_end_diagnostic (mp, false);
-}
-
-
-@ Several of the binary operations are potentially complicated by the
-fact that |independent| values can sneak into capsules. For example,
-we've seen an instance of this difficulty in the unary operation
-of negation. In order to reduce the number of cases that need to be
-handled, we first change the two operands (if necessary)
-to rid them of |independent| components. The original operands are
-put into capsules called |old_p| and |old_exp|, which will be
-recycled after the binary operation has been safely carried out.
-
-@<Recycle any sidestepped |independent| capsules@>=
-if (old_p != NULL) {
-  mp_recycle_value (mp, old_p);
-  mp_free_node (mp, old_p, value_node_size);
-}
-if (old_exp != NULL) {
-  mp_recycle_value (mp, old_exp);
-  mp_free_node (mp, old_exp, value_node_size);
-}
-
-@ A big node is considered to be ``tarnished'' if it contains at least one
-independent component. We will define a simple function called `|tarnished|'
-that returns |NULL| if and only if its argument is not tarnished.
-
-@<Sidestep |independent| cases in capsule |p|@>=
-switch (mp_type (p)) {
-case mp_transform_type:
-case mp_color_type:
-case mp_cmykcolor_type:
-case mp_pair_type:
-  old_p = mp_tarnished (mp, p);
-  break;
-case mp_independent:
-  old_p = MP_VOID;
-  break;
-default:
-  old_p = NULL;
-  break;
-}
-if (old_p != NULL) {
-  q = mp_stash_cur_exp (mp);
-  old_p = p;
-  mp_make_exp_copy (mp, old_p);
-  p = mp_stash_cur_exp (mp);
-  mp_unstash_cur_exp (mp, q);
-}
-
-@ @<Sidestep |independent| cases in the current expression@>=
-switch (mp->cur_exp.type) {
-case mp_transform_type:
-case mp_color_type:
-case mp_cmykcolor_type:
-case mp_pair_type:
-  old_exp = mp_tarnished (mp, cur_exp_node ());
-  break;
-case mp_independent:
-  old_exp = MP_VOID;
-  break;
-default:
-  old_exp = NULL;
-  break;
-}
-if (old_exp != NULL) {
-  old_exp = cur_exp_node ();
-  mp_make_exp_copy (mp, old_exp);
 }
 
 @ @<Declare binary action...@>=
@@ -26252,66 +26267,6 @@ static mp_node mp_tarnished (MP mp, mp_node p) {
   }
   return NULL;
 }
-
-
-@ @<Add or subtract the current expression from |p|@>=
-if ((mp->cur_exp.type < mp_color_type) || (mp_type (p) < mp_color_type)) {
-  mp_bad_binary (mp, p, (quarterword) c);
-} else {
-  if ((mp->cur_exp.type > mp_pair_type) && (mp_type (p) > mp_pair_type)) {
-    mp_add_or_subtract (mp, p, NULL, (quarterword) c);
-  } else {
-    if (mp->cur_exp.type != mp_type (p)) {
-      mp_bad_binary (mp, p, (quarterword) c);
-    } else {
-      q = value_node (p);
-      r = value_node (cur_exp_node ());
-      switch (mp->cur_exp.type) {
-      case mp_pair_type:
-        mp_add_or_subtract (mp, x_part (q), x_part (r),
-                            (quarterword) c);
-        mp_add_or_subtract (mp, y_part (q), y_part (r),
-                            (quarterword) c);
-        break;
-      case mp_color_type:
-        mp_add_or_subtract (mp, red_part (q), red_part (r),
-                            (quarterword) c);
-        mp_add_or_subtract (mp, green_part (q), green_part (r),
-                            (quarterword) c);
-        mp_add_or_subtract (mp, blue_part (q), blue_part (r),
-                            (quarterword) c);
-        break;
-      case mp_cmykcolor_type:
-        mp_add_or_subtract (mp, cyan_part (q), cyan_part (r),
-                            (quarterword) c);
-        mp_add_or_subtract (mp, magenta_part (q), magenta_part (r),
-                            (quarterword) c);
-        mp_add_or_subtract (mp, yellow_part (q), yellow_part (r),
-                            (quarterword) c);
-        mp_add_or_subtract (mp, black_part (q), black_part (r),
-                            (quarterword) c);
-        break;
-      case mp_transform_type:
-        mp_add_or_subtract (mp, tx_part (q), tx_part (r),
-                            (quarterword) c);
-        mp_add_or_subtract (mp, ty_part (q), ty_part (r),
-                            (quarterword) c);
-        mp_add_or_subtract (mp, xx_part (q), xx_part (r),
-                            (quarterword) c);
-        mp_add_or_subtract (mp, xy_part (q), xy_part (r),
-                            (quarterword) c);
-        mp_add_or_subtract (mp, yx_part (q), yx_part (r),
-                            (quarterword) c);
-        mp_add_or_subtract (mp, yy_part (q), yy_part (r),
-                            (quarterword) c);
-        break;
-      default:                 /* there are no other valid cases, but please the compiler */
-        break;
-      }
-    }
-  }
-}
-
 
 @ The first argument to |add_or_subtract| is the location of a value node
 in a capsule or pair node that will soon be recycled. The second argument
@@ -33989,7 +33944,7 @@ mp_edge_header_node mp_gr_import (MP mp, struct mp_edge_object *hh) {
         mp_path_p ((mp_fill_node) pn) =
           mp_import_knot_list (mp, gr_path_p ((mp_fill_object *) p));
         mp_color_model (pn) = mp_grey_model;
-        mp_new_turn_cycles (mp, turns, mp_path_p ((mp_fill_node) pn));
+        mp_turn_cycles (mp, turns, mp_path_p ((mp_fill_node) pn));
         if (number_negative(turns)) {
           set_number_to_unity(((mp_fill_node) pn)->grey);
           mp_link (pt) = pn;
