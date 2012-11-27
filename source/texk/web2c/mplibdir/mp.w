@@ -21928,6 +21928,9 @@ because |cur_exp| will not contain a pointer value.
 
 @ @c
 void mp_flush_cur_exp (MP mp, mp_value v) {
+  if (mp->cur_exp.data.n) {
+    free_number(mp->cur_exp.data.n);
+  }
   switch (mp->cur_exp.type) {
   case unknown_types:
   case mp_transform_type:
