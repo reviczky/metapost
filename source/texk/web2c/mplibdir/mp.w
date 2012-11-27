@@ -26152,6 +26152,197 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
       }
     }
     break;
+  case mp_less_than:
+  case mp_less_or_equal:
+  case mp_greater_than:
+  case mp_greater_or_equal:
+  case mp_equal_to:
+  case mp_unequal_to:
+    check_arith();                    /* at this point |arith_error| should be |false|? */
+    if ((mp->cur_exp.type > mp_pair_type) && (mp_type (p) > mp_pair_type)) {
+      mp_add_or_subtract (mp, p, NULL, mp_minus);      /* |cur_exp:=(p)-cur_exp| */
+    } else if (mp->cur_exp.type != mp_type (p)) {
+      mp_bad_binary (mp, p, (quarterword) c);
+      goto DONE;
+    } else if (mp->cur_exp.type == mp_string_type) {
+      set_number_from_scaled (new_expr.data.n, mp_str_vs_str (mp, value_str (p), cur_exp_str ()));
+      mp_flush_cur_exp (mp, new_expr);
+    } else if ((mp->cur_exp.type == mp_unknown_string) ||
+               (mp->cur_exp.type == mp_unknown_boolean)) {
+      /* Check if unknowns have been equated */
+      /* When two unknown strings are in the same ring, we know that they are
+         equal. Otherwise, we don't know whether they are equal or not, so we
+         make no change. */
+      q = value_node (cur_exp_node ());
+      while ((q != cur_exp_node ()) && (q != p))
+        q = value_node (q);
+      if (q == p) {
+        set_cur_exp_node (NULL);
+        mp_flush_cur_exp (mp, new_expr);
+      }
+    
+    } else if ((mp->cur_exp.type <= mp_pair_type)
+               && (mp->cur_exp.type >= mp_transform_type)) {
+      /* Reduce comparison of big nodes to comparison of scalars */
+      /* In the following, the |while| loops exist just so that |break| can be used,
+         each loop runs exactly once. */
+      quarterword part_type;
+      q = value_node (p);
+      r = value_node (cur_exp_node ());
+      part_type = 0;
+      switch (mp->cur_exp.type) {
+      case mp_pair_type:
+        while (part_type==0) {
+          rr = x_part (r);
+          part_type = mp_x_part;
+          mp_add_or_subtract (mp, x_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || ! number_zero(value_number (rr)))
+            break;
+          rr = y_part (r);
+          part_type = mp_y_part;
+          mp_add_or_subtract (mp, y_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+        }
+        mp_take_part (mp, part_type);
+        break;
+      case mp_color_type:
+        while (part_type==0) {
+          rr = red_part (r);
+          part_type = mp_red_part;
+          mp_add_or_subtract (mp, red_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || ! number_zero(value_number (rr)))
+            break;
+          rr = green_part (r);
+          part_type = mp_green_part;
+          mp_add_or_subtract (mp, green_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+          rr = blue_part (r);
+          part_type = mp_blue_part;
+          mp_add_or_subtract (mp, blue_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+        }
+        mp_take_part (mp, part_type);
+        break;
+      case mp_cmykcolor_type:
+        while (part_type==0) {
+          rr = cyan_part (r);
+          part_type = mp_cyan_part;
+          mp_add_or_subtract (mp, cyan_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+          rr = magenta_part (r);
+          part_type = mp_magenta_part;
+          mp_add_or_subtract (mp, magenta_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+          rr = yellow_part (r);
+          part_type = mp_yellow_part;
+          mp_add_or_subtract (mp, yellow_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+          rr = black_part (r);
+          part_type = mp_black_part;
+          mp_add_or_subtract (mp, black_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+        }
+        mp_take_part (mp, part_type);
+        break;
+      case mp_transform_type:
+        while (part_type==0) {
+          rr = tx_part (r);
+          part_type = mp_x_part;
+          mp_add_or_subtract (mp, tx_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+          rr = ty_part (r);
+          part_type = mp_y_part;
+          mp_add_or_subtract (mp, ty_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+          rr = xx_part (r);
+          part_type = mp_xx_part;
+          mp_add_or_subtract (mp, xx_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+          rr = xy_part (r);
+          part_type = mp_xy_part;
+          mp_add_or_subtract (mp, xy_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+          rr = yx_part (r);
+          part_type = mp_yx_part;
+          mp_add_or_subtract (mp, yx_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+          rr = yy_part (r);
+          part_type = mp_yy_part;
+          mp_add_or_subtract (mp, yy_part (q), rr, mp_minus);
+          if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
+            break;
+        }
+        mp_take_part (mp, part_type);
+        break;
+      default:
+        assert (0);                 /* todo: |mp->cur_exp.type>mp_transform_node_type| ? */
+        break;
+      }
+    
+    } else if (mp->cur_exp.type == mp_boolean_type) {
+      set_number_from_boolean (new_expr.data.n, number_to_scaled(cur_exp_value_number ()) - 
+                                                number_to_scaled (value_number (p)));
+      mp_flush_cur_exp (mp, new_expr);
+    } else {
+      mp_bad_binary (mp, p, (quarterword) c);
+      goto DONE;
+    }
+    /* Compare the current expression with zero */
+    if (mp->cur_exp.type != mp_known) {
+      const char *hlp[] = {
+          "Oh dear. I can\'t decide if the expression above is positive,",
+          "negative, or zero. So this comparison test won't be `true'.",
+          NULL  };
+      if (mp->cur_exp.type < mp_known) {
+        mp_disp_err (mp, p);
+        hlp[0]  = "The quantities shown above have not been equated.";
+        hlp[1]  = NULL;
+      }
+      mp_disp_err(mp, NULL);
+      set_number_from_boolean (new_expr.data.n, mp_false_code);
+      mp_back_error (mp,"Unknown relation will be considered false", hlp, true);
+    @.Unknown relation...@>;
+      mp_get_x_next (mp);
+      mp_flush_cur_exp (mp, new_expr);
+    } else {
+      switch (c) {
+      case mp_less_than:
+        boolean_reset (number_negative(cur_exp_value_number ()));
+        break;
+      case mp_less_or_equal:
+        boolean_reset (number_nonpositive(cur_exp_value_number ()));
+        break;
+      case mp_greater_than:
+        boolean_reset (number_positive(cur_exp_value_number ()));
+        break;
+      case mp_greater_or_equal:
+        boolean_reset (number_nonnegative(cur_exp_value_number ()));
+        break;
+      case mp_equal_to:
+        boolean_reset (number_zero(cur_exp_value_number ()));
+        break;
+      case mp_unequal_to:
+        boolean_reset (number_nonzero(cur_exp_value_number ()));
+        break;
+      };                            /* there are no other cases */
+    }
+    mp->cur_exp.type = mp_boolean_type;
+  DONE:
+    mp->arith_error = false;        /* ignore overflow in comparisons */
+    break;
+
     @<Additional cases of binary operators@>;
   };                            /* there are no other cases */
   mp_recycle_value (mp, p);
@@ -26431,212 +26622,6 @@ static void mp_dep_finish (MP mp, mp_value_node v, mp_value_node q,
     mp_fix_dependencies (mp);
   free_number (vv);
 }
-
-
-@ Let's turn now to the six basic relations of comparison.
-
-@<Additional cases of binary operators@>=
-case mp_less_than:
-case mp_less_or_equal:
-case mp_greater_than:
-case mp_greater_or_equal:
-case mp_equal_to:
-case mp_unequal_to:
-check_arith();                    /* at this point |arith_error| should be |false|? */
-if ((mp->cur_exp.type > mp_pair_type) && (mp_type (p) > mp_pair_type)) {
-  mp_add_or_subtract (mp, p, NULL, mp_minus);      /* |cur_exp:=(p)-cur_exp| */
-} else if (mp->cur_exp.type != mp_type (p)) {
-  mp_bad_binary (mp, p, (quarterword) c);
-  goto DONE;
-} else if (mp->cur_exp.type == mp_string_type) {
-  set_number_from_scaled (new_expr.data.n, mp_str_vs_str (mp, value_str (p), cur_exp_str ()));
-  mp_flush_cur_exp (mp, new_expr);
-} else if ((mp->cur_exp.type == mp_unknown_string) ||
-           (mp->cur_exp.type == mp_unknown_boolean)) {
-  @<Check if unknowns have been equated@>;
-} else if ((mp->cur_exp.type <= mp_pair_type)
-           && (mp->cur_exp.type >= mp_transform_type)) {
-  @<Reduce comparison of big nodes to comparison of scalars@>;
-} else if (mp->cur_exp.type == mp_boolean_type) {
-  set_number_from_boolean (new_expr.data.n, number_to_scaled(cur_exp_value_number ()) - number_to_scaled (value_number (p)));
-  mp_flush_cur_exp (mp, new_expr);
-} else {
-  mp_bad_binary (mp, p, (quarterword) c);
-  goto DONE;
-}
-@<Compare the current expression with zero@>;
-DONE:
-mp->arith_error = false;        /* ignore overflow in comparisons */
-break;
-
-@ @<Compare the current expression with zero@>=
-if (mp->cur_exp.type != mp_known) {
-  const char *hlp[] = {
-      "Oh dear. I can\'t decide if the expression above is positive,",
-      "negative, or zero. So this comparison test won't be `true'.",
-      NULL  };
-  if (mp->cur_exp.type < mp_known) {
-    mp_disp_err (mp, p);
-    hlp[0]  = "The quantities shown above have not been equated.";
-    hlp[1]  = NULL;
-  }
-  mp_disp_err(mp, NULL);
-  set_number_from_boolean (new_expr.data.n, mp_false_code);
-  mp_back_error (mp,"Unknown relation will be considered false", hlp, true);
-@.Unknown relation...@>;
-  mp_get_x_next (mp);
-  mp_flush_cur_exp (mp, new_expr);
-} else {
-  switch (c) {
-  case mp_less_than:
-    boolean_reset (number_negative(cur_exp_value_number ()));
-    break;
-  case mp_less_or_equal:
-    boolean_reset (number_nonpositive(cur_exp_value_number ()));
-    break;
-  case mp_greater_than:
-    boolean_reset (number_positive(cur_exp_value_number ()));
-    break;
-  case mp_greater_or_equal:
-    boolean_reset (number_nonnegative(cur_exp_value_number ()));
-    break;
-  case mp_equal_to:
-    boolean_reset (number_zero(cur_exp_value_number ()));
-    break;
-  case mp_unequal_to:
-    boolean_reset (number_nonzero(cur_exp_value_number ()));
-    break;
-  };                            /* there are no other cases */
-}
-mp->cur_exp.type = mp_boolean_type
-
-@ When two unknown strings are in the same ring, we know that they are
-equal. Otherwise, we don't know whether they are equal or not, so we
-make no change.
-
-@<Check if unknowns have been equated@>=
-{
-  q = value_node (cur_exp_node ());
-  while ((q != cur_exp_node ()) && (q != p))
-    q = value_node (q);
-  if (q == p) {
-    set_cur_exp_node (NULL);
-    mp_flush_cur_exp (mp, new_expr);
-  }
-}
-
-
-@ In the following, the |while| loops exist just so that |break| can be used,
-each loop runs exactly once.
-
-@<Reduce comparison of big nodes to comparison of scalars@>=
-{
-  quarterword part_type;
-  q = value_node (p);
-  r = value_node (cur_exp_node ());
-  part_type = 0;
-  switch (mp->cur_exp.type) {
-  case mp_pair_type:
-    while (part_type==0) {
-      rr = x_part (r);
-      part_type = mp_x_part;
-      mp_add_or_subtract (mp, x_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || ! number_zero(value_number (rr)))
-        break;
-      rr = y_part (r);
-      part_type = mp_y_part;
-      mp_add_or_subtract (mp, y_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-    }
-    mp_take_part (mp, part_type);
-    break;
-  case mp_color_type:
-    while (part_type==0) {
-      rr = red_part (r);
-      part_type = mp_red_part;
-      mp_add_or_subtract (mp, red_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || ! number_zero(value_number (rr)))
-        break;
-      rr = green_part (r);
-      part_type = mp_green_part;
-      mp_add_or_subtract (mp, green_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-      rr = blue_part (r);
-      part_type = mp_blue_part;
-      mp_add_or_subtract (mp, blue_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-    }
-    mp_take_part (mp, part_type);
-    break;
-  case mp_cmykcolor_type:
-    while (part_type==0) {
-      rr = cyan_part (r);
-      part_type = mp_cyan_part;
-      mp_add_or_subtract (mp, cyan_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-      rr = magenta_part (r);
-      part_type = mp_magenta_part;
-      mp_add_or_subtract (mp, magenta_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-      rr = yellow_part (r);
-      part_type = mp_yellow_part;
-      mp_add_or_subtract (mp, yellow_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-      rr = black_part (r);
-      part_type = mp_black_part;
-      mp_add_or_subtract (mp, black_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-    }
-    mp_take_part (mp, part_type);
-    break;
-  case mp_transform_type:
-    while (part_type==0) {
-      rr = tx_part (r);
-      part_type = mp_x_part;
-      mp_add_or_subtract (mp, tx_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-      rr = ty_part (r);
-      part_type = mp_y_part;
-      mp_add_or_subtract (mp, ty_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-      rr = xx_part (r);
-      part_type = mp_xx_part;
-      mp_add_or_subtract (mp, xx_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-      rr = xy_part (r);
-      part_type = mp_xy_part;
-      mp_add_or_subtract (mp, xy_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-      rr = yx_part (r);
-      part_type = mp_yx_part;
-      mp_add_or_subtract (mp, yx_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-      rr = yy_part (r);
-      part_type = mp_yy_part;
-      mp_add_or_subtract (mp, yy_part (q), rr, mp_minus);
-      if (mp_type (rr) != mp_known || !number_zero(value_number (rr)))
-        break;
-    }
-    mp_take_part (mp, part_type);
-    break;
-  default:
-    assert (0);                 /* todo: |mp->cur_exp.type>mp_transform_node_type| ? */
-    break;
-  }
-}
-
 
 @ Here we use the sneaky fact that |and_op-false_code=or_op-true_code|.
 
