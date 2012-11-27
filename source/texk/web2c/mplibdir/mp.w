@@ -22397,54 +22397,342 @@ of |cur_type| and |cur_exp| should be either dead or dormant, as explained
 earlier. If |cur_cmd| is not between |min_primary_command| and
 |max_primary_command|, inclusive, a syntax error will be signaled.
 
+Later we'll come to procedures that perform actual operations like
+addition, square root, and so on; our purpose now is to do the parsing.
+But we might as well mention those future procedures now, so that the
+suspense won't be too bad:
+
+\smallskip
+|do_nullary(c)| does primitive operations that have no operands (e.g.,
+`\&{true}' or `\&{pencircle}');
+
+\smallskip
+|do_unary(c)| applies a primitive operation to the current expression;
+
+\smallskip
+|do_binary(p,c)| applies a primitive operation to the capsule~|p|
+and the current expression.
+
 @<Declare the basic parsing subroutines@>=
+static void check_for_mediation (MP mp);
 void mp_scan_primary (MP mp) {
-  mp_node p, q, r;      /* for list manipulation */
-  quarterword c;        /* a primitive operation code */
   mp_command_code my_var_flag;      /* initial value of |my_var_flag| */
-  mp_sym l_delim, r_delim;      /* hash addresses of a delimiter pair */
-  mp_value new_expr;
-  mp_number num, denom;      /* for primaries that are fractions, like `1/2' */
-  @<Other local variables for |scan_primary|@>;
-  memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
-  new_number (num);
-  new_number (denom);
   my_var_flag = mp->var_flag;
   mp->var_flag = 0;
 RESTART:
   check_arith();
-  @<Supply diagnostic information, if requested@>;
+  /* Supply diagnostic information, if requested */
+  if (mp->interrupt != 0) {
+    if (mp->OK_to_interrupt) {
+      mp_back_input (mp);
+      check_interrupt;
+      mp_get_x_next (mp);
+    }
+  }
   switch (cur_cmd()) {
   case mp_left_delimiter:
-    @<Scan a delimited primary@>;
+  {
+    /* Scan a delimited primary */
+    mp_node p, q, r;      /* for list manipulation */
+    mp_sym l_delim, r_delim;      /* hash addresses of a delimiter pair */
+    l_delim = cur_sym();
+    r_delim = equiv_sym (cur_sym());
+    mp_get_x_next (mp);
+    mp_scan_expression (mp);
+    if ((cur_cmd() == mp_comma) && (mp->cur_exp.type >= mp_known)) {
+      /* Scan the rest of a delimited set of numerics */
+      /* This code uses the fact that |red_part| and |green_part|
+         are synonymous with |x_part| and |y_part|. */
+      p = mp_stash_cur_exp (mp);
+      mp_get_x_next (mp);
+      mp_scan_expression (mp);
+      /* Make sure the second part of a pair or color has a numeric type */
+      if (mp->cur_exp.type < mp_known) {
+        const char *hlp[] = {
+               "I've started to scan a pair `(a,b)' or a color `(a,b,c)';",
+               "but after finding a nice `a' I found a `b' that isn't",
+               "of numeric type. So I've changed that part to zero.",
+               "(The b that I didn't like appears above the error message.)",
+               NULL };
+        mp_value new_expr;
+        memset(&new_expr,0,sizeof(mp_value));
+        mp_disp_err(mp, NULL);
+        new_number(new_expr.data.n);
+        set_number_to_zero(new_expr.data.n);
+        mp_back_error (mp,"Nonnumeric ypart has been replaced by 0", hlp, true);
+        mp_get_x_next (mp);
+        mp_flush_cur_exp (mp, new_expr);
+      }
+
+      q = mp_get_value_node (mp);
+      mp_name_type (q) = mp_capsule;
+      if (cur_cmd() == mp_comma) {
+        mp_init_color_node (mp, q);
+        r = value_node (q);
+        mp_stash_in (mp, y_part (r));
+        mp_unstash_cur_exp (mp, p);
+        mp_stash_in (mp, x_part (r));
+        /* Scan the last of a triplet of numerics */
+        mp_get_x_next (mp);
+        mp_scan_expression (mp);
+        if (mp->cur_exp.type < mp_known) {
+          mp_value new_expr;
+          const char *hlp[] = {
+              "I've just scanned a color `(a,b,c)' or cmykcolor(a,b,c,d); but the `c'",
+              "isn't of numeric type. So I've changed that part to zero.",
+              "(The c that I didn't like appears above the error message.)",
+              NULL };
+          memset(&new_expr,0,sizeof(mp_value));
+          mp_disp_err(mp, NULL);
+          new_number(new_expr.data.n);
+          set_number_to_zero(new_expr.data.n);
+          mp_back_error (mp,"Nonnumeric third part has been replaced by 0", hlp, true);
+          mp_get_x_next (mp);
+          mp_flush_cur_exp (mp, new_expr);
+        }
+        mp_stash_in (mp, blue_part (r));
+
+        if (cur_cmd() == mp_comma) {
+          mp_node t;      /* a token */
+          mp_init_cmykcolor_node (mp, q);
+          t = value_node (q);
+          mp_type (cyan_part (t)) = mp_type (red_part (r));
+          set_value_number (cyan_part (t), value_number (red_part (r)));
+          mp_type (magenta_part (t)) = mp_type (green_part (r));
+          set_value_number (magenta_part (t), value_number (green_part (r)));
+          mp_type (yellow_part (t)) = mp_type (blue_part (r));
+          set_value_number (yellow_part (t), value_number (blue_part (r)));
+          mp_recycle_value (mp, r);
+          r = t;
+          /* Scan the last of a quartet of numerics */
+          mp_get_x_next (mp);
+          mp_scan_expression (mp);
+          if (mp->cur_exp.type < mp_known) {
+            const char *hlp[] = {
+                   "I've just scanned a cmykcolor `(c,m,y,k)'; but the `k' isn't",
+                   "of numeric type. So I've changed that part to zero.",
+                   "(The k that I didn't like appears above the error message.)",
+                   NULL };
+            mp_value new_expr;
+            memset(&new_expr,0,sizeof(mp_value));
+            new_number(new_expr.data.n);
+            mp_disp_err(mp, NULL); 
+            set_number_to_zero(new_expr.data.n);
+            mp_back_error (mp,"Nonnumeric blackpart has been replaced by 0", hlp, true);
+            mp_get_x_next (mp);
+            mp_flush_cur_exp (mp, new_expr);
+          }
+          mp_stash_in (mp, black_part (r));      
+
+        }
+      } else {
+        mp_init_pair_node (mp, q);
+        r = value_node (q);
+        mp_stash_in (mp, y_part (r));
+        mp_unstash_cur_exp (mp, p);
+        mp_stash_in (mp, x_part (r));
+      }
+      mp_check_delimiter (mp, l_delim, r_delim);
+      mp->cur_exp.type = mp_type (q);
+      set_cur_exp_node (q);
+
+    } else {
+      mp_check_delimiter (mp, l_delim, r_delim);
+    }
+  }
     break;
   case mp_begin_group:
-    @<Scan a grouped primary@>;
+    /* Scan a grouped primary */
+    /* The local variable |group_line| keeps track of the line
+       where a \&{begingroup} command occurred; this will be useful
+       in an error message if the group doesn't actually end. */
+    {
+      integer group_line;     /* where a group began */
+      group_line = mp_true_line (mp);
+      if (number_positive (internal_value (mp_tracing_commands)))
+        show_cur_cmd_mod;
+      mp_save_boundary (mp);
+      do {
+        mp_do_statement (mp);       /* ends with |cur_cmd>=semicolon| */
+      } while (cur_cmd() == mp_semicolon);
+      if (cur_cmd() != mp_end_group) {
+        char msg[256];
+        const char *hlp[] = {
+               "I saw a `begingroup' back there that hasn't been matched",
+               "by `endgroup'. So I've inserted `endgroup' now.",
+               NULL };
+        mp_snprintf(msg, 256, "A group begun on line %d never ended", (int)group_line);
+        mp_back_error (mp, msg, hlp, true);
+        set_cur_cmd((mp_variable_type)mp_end_group);
+      }
+      mp_unsave (mp);
+      /* this might change |cur_type|, if independent variables are recycled */
+      if (number_positive (internal_value (mp_tracing_commands)))
+        show_cur_cmd_mod;
+    }
     break;
   case mp_string_token:
-    @<Scan a string constant@>;
+    /* Scan a string constant */
+    mp->cur_exp.type = mp_string_type;
+    set_cur_exp_str (cur_mod_str());
     break;
   case mp_numeric_token:
-    @<Scan a primary that starts with a numeric token@>;
+  {
+    /* Scan a primary that starts with a numeric token */
+    /* A numeric token might be a primary by itself, or it might be the
+       numerator of a fraction composed solely of numeric tokens, or it might
+       multiply the primary that follows (provided that the primary doesn't begin
+       with a plus sign or a minus sign). The code here uses the facts that
+       |max_primary_command=plus_or_minus| and
+       |max_primary_command-1=numeric_token|. If a fraction is found that is less
+       than unity, we try to retain higher precision when we use it in scalar
+       multiplication. */
+    mp_number num, denom;      /* for primaries that are fractions, like `1/2' */
+    new_number (num);
+    new_number (denom);
+    set_cur_exp_value_number (cur_mod_number());
+    mp->cur_exp.type = mp_known;
+    mp_get_x_next (mp);
+    if (cur_cmd() != mp_slash) {
+      set_number_to_zero(num);
+      set_number_to_zero(denom);
+    } else {
+      mp_get_x_next (mp);
+      if (cur_cmd() != mp_numeric_token) {
+        mp_back_input (mp);
+        set_cur_cmd((mp_variable_type)mp_slash);
+        set_cur_mod(mp_over);
+        set_cur_sym(mp->frozen_slash);
+        goto DONE;
+      }
+      number_clone (num, cur_exp_value_number ());
+      number_clone (denom, cur_mod_number());
+      if (number_zero(denom)) {
+        /* Protest division by zero */
+        const char *hlp[] = { "I'll pretend that you meant to divide by 1.", NULL };
+        mp_error (mp, "Division by zero", hlp, true);
+      } else {
+        mp_number ret;
+        new_number (ret);
+        make_scaled (ret, num, denom);
+        set_cur_exp_value_number (ret);
+        free_number (ret);
+      }
+      check_arith();
+      mp_get_x_next (mp);
+    }
+    if (cur_cmd() >= mp_min_primary_command) {
+      if (cur_cmd() < mp_numeric_token) {  /* in particular, |cur_cmd<>plus_or_minus| */
+        mp_node p;      /* for list manipulation */
+        mp_number absnum, absdenom;
+        new_number (absnum);
+        new_number (absdenom);
+        p = mp_stash_cur_exp (mp);
+        mp_scan_primary (mp);
+        number_clone (absnum, num);
+        number_abs (absnum);
+        number_clone (absdenom, denom);
+        number_abs (absdenom);
+        if (number_greaterequal(absnum, absdenom) || (mp->cur_exp.type < mp_color_type)) {
+          mp_do_binary (mp, p, mp_times);
+        } else {
+          mp_frac_mult (mp, num, denom);
+          mp_free_node (mp, p, value_node_size);
+        }
+        free_number (absnum);
+        free_number (absdenom);
+      }
+    }
+    goto DONE;
+  }
     break;
   case mp_nullary:
-    @<Scan a nullary operation@>;
+    /* Scan a nullary operation */
+    mp_do_nullary (mp, (quarterword) cur_mod());
     break;
   case mp_unary:
   case mp_type_name:
   case mp_cycle:
   case mp_plus_or_minus:
-    @<Scan a unary operation@>;
+  {
+    /* Scan a unary operation */
+    quarterword c;        /* a primitive operation code */
+    c = (quarterword) cur_mod();
+    mp_get_x_next (mp);
+    mp_scan_primary (mp);
+    mp_do_unary (mp, c);
+    goto DONE;
+  }
     break;
   case mp_primary_binary:
-    @<Scan a binary operation with `\&{of}' between its operands@>;
+  {
+    /* Scan a binary operation with `\&{of}' between its operands */
+    mp_node p;      /* for list manipulation */
+    quarterword c;        /* a primitive operation code */
+    c = (quarterword) cur_mod();
+    mp_get_x_next (mp);
+    mp_scan_expression (mp);
+    if (cur_cmd() != mp_of_token) {
+      char msg[256];
+      mp_string sname;
+      const char *hlp[] = {
+          "I've got the first argument; will look now for the other.",
+          NULL };
+      int old_setting = mp->selector;
+      mp->selector = new_string;
+      mp_print_cmd_mod (mp, mp_primary_binary, c);
+      mp->selector = old_setting;
+      sname = mp_make_string(mp);
+      mp_snprintf (msg, 256, "Missing `of' has been inserted for %s", mp_str(mp, sname));
+      delete_str_ref(sname);
+      mp_back_error (mp, msg, hlp, true);
+    }
+    p = mp_stash_cur_exp (mp);
+    mp_get_x_next (mp);
+    mp_scan_primary (mp);
+    mp_do_binary (mp, p, c);
+    goto DONE;
+  }
     break;
   case mp_str_op:
-    @<Convert a suffix to a string@>;
+    /* Convert a suffix to a string */
+    mp_get_x_next (mp);
+    mp_scan_suffix (mp);
+    mp->old_setting = mp->selector;
+    mp->selector = new_string;
+    mp_show_token_list (mp, cur_exp_node (), NULL, 100000, 0);
+    mp_flush_token_list (mp, cur_exp_node ());
+    set_cur_exp_str (mp_make_string (mp));
+    mp->selector = mp->old_setting;
+    mp->cur_exp.type = mp_string_type;
+    goto DONE;
     break;
   case mp_internal_quantity:
-    @<Scan an internal numeric quantity@>;
+    /* Scan an internal numeric quantity */
+    /* If an internal quantity appears all by itself on the left of an
+       assignment, we return a token list of length one, containing the address
+       of the internal quantity, with |name_type| equal to |mp_internal_sym|. 
+       (This accords with the conventions of the save stack, as described earlier.) */
+    {
+      halfword qq = cur_mod();
+      if (my_var_flag == mp_assignment) {
+        mp_get_x_next (mp);
+        if (cur_cmd() == mp_assignment) {
+          set_cur_exp_node (mp_get_symbolic_node (mp));
+          set_mp_sym_info (cur_exp_node (), qq);
+          mp_name_type (cur_exp_node ()) = mp_internal_sym;
+          mp->cur_exp.type = mp_token_list;
+          goto DONE;
+        }
+        mp_back_input (mp);
+      }
+      if (internal_type (qq) == mp_string_type) {
+        set_cur_exp_str (internal_string (qq));
+      } else {
+        set_cur_exp_value_number (internal_value (qq));
+      }
+      mp->cur_exp.type = internal_type (qq);
+    }
     break;
   case mp_capsule_token:
     mp_make_exp_copy (mp, cur_mod_node());
@@ -22456,17 +22744,58 @@ RESTART:
     mp_bad_exp (mp, "A primary");
     goto RESTART;
     break;
-@.A primary expression...@>
   }
   mp_get_x_next (mp);           /* the routines |goto done| if they don't want this */
 DONE:
+  check_for_mediation (mp);
+}
+
+@  Expressions of the form `\.{a[b,c]}' are converted into
+`\.{b+a*(c-b)}', without checking the types of \.b~or~\.c,
+provided that \.a is numeric.
+
+@<Declare the basic parsing subroutines@>=
+static void check_for_mediation (MP mp) {
+  mp_node p, q, r;      /* for list manipulation */
   if (cur_cmd() == mp_left_bracket) {
     if (mp->cur_exp.type >= mp_known) {
-      @<Scan a mediation construction@>;
+      /* Scan a mediation construction */
+      p = mp_stash_cur_exp (mp);
+      mp_get_x_next (mp);
+      mp_scan_expression (mp);
+      if (cur_cmd() != mp_comma) {
+        /* Put the left bracket and the expression back to be rescanned */
+        /* The left bracket that we thought was introducing a subscript might have
+           actually been the left bracket in a mediation construction like `\.{x[a,b]}'.
+           So we don't issue an error message at this point; but we do want to back up
+           so as to avoid any embarrassment about our incorrect assumption. */
+        mp_back_input (mp);           /* that was the token following the current expression */
+        mp_back_expr (mp);
+        set_cur_cmd((mp_variable_type)mp_left_bracket);
+        set_cur_mod_number(zero_t);
+        set_cur_sym(mp->frozen_left_bracket);
+        mp_unstash_cur_exp (mp, p);
+      } else {
+        q = mp_stash_cur_exp (mp);
+        mp_get_x_next (mp);
+        mp_scan_expression (mp);
+        if (cur_cmd() != mp_right_bracket) {
+          const char *hlp[] = {
+                 "I've scanned an expression of the form `a[b,c',",
+                 "so a right bracket should have come next.",
+                 "I shall pretend that one was there.",
+                 NULL };
+          mp_back_error (mp, "Missing `]' has been inserted", hlp, true);
+        }
+        r = mp_stash_cur_exp (mp);
+        mp_make_exp_copy (mp, q);
+        mp_do_binary (mp, r, mp_minus);
+        mp_do_binary (mp, p, mp_times);
+        mp_do_binary (mp, q, mp_plus);
+        mp_get_x_next (mp);
+      }
     }
   }
-  free_number (num);
-  free_number (denom);
 }
 
 
@@ -22505,28 +22834,6 @@ static void mp_bad_exp (MP mp, const char *s) {
 }
 
 
-@ @<Supply diagnostic information, if requested@>=
-if (mp->interrupt != 0)
-  if (mp->OK_to_interrupt) {
-    mp_back_input (mp);
-    check_interrupt;
-    mp_get_x_next (mp);
-  }
-
-@ @<Scan a delimited primary@>=
-{
-  l_delim = cur_sym();
-  r_delim = equiv_sym (cur_sym());
-  mp_get_x_next (mp);
-  mp_scan_expression (mp);
-  if ((cur_cmd() == mp_comma) && (mp->cur_exp.type >= mp_known)) {
-    @<Scan the rest of a delimited set of numerics@>;
-  } else {
-    mp_check_delimiter (mp, l_delim, r_delim);
-  }
-}
-
-
 @ The |stash_in| subroutine puts the current (numeric) expression into a field
 within a ``big node.''
 
@@ -22538,7 +22845,20 @@ static void mp_stash_in (MP mp, mp_node p) {
     set_value_number (p, cur_exp_value_number ());
   } else {
     if (mp->cur_exp.type == mp_independent) {
-      @<Stash an independent |cur_exp| into a big node@>;
+      /* Stash an independent |cur_exp| into a big node */
+      /* In rare cases the current expression can become |independent|. There
+         may be many dependency lists pointing to such an independent capsule,
+	 so we can't simply move it into place within a big node. Instead,
+	 we copy it, then recycle it. */
+      q = mp_single_dependency (mp, cur_exp_node ());
+      if (q == mp->dep_final) {
+        mp_type (p) = mp_known;
+        set_value_number (p, zero_t);
+        mp_free_dep_node (mp, q);
+      } else {
+        mp_new_dep (mp, p, mp_dependent, q);
+      }
+      mp_recycle_value (mp, cur_exp_node ());
       mp_free_node (mp, cur_exp_node (), value_node_size);
     } else {
       set_dep_list ((mp_value_node) p,
@@ -22551,344 +22871,6 @@ static void mp_stash_in (MP mp, mp_node p) {
   }
   mp->cur_exp.type = mp_vacuous;
 }
-
-
-@ In rare cases the current expression can become |independent|. There
-may be many dependency lists pointing to such an independent capsule,
-so we can't simply move it into place within a big node. Instead,
-we copy it, then recycle it.
-
-@ @<Stash an independent |cur_exp|...@>=
-{
-  q = mp_single_dependency (mp, cur_exp_node ());
-  if (q == mp->dep_final) {
-    mp_type (p) = mp_known;
-    set_value_number (p, zero_t);
-    mp_free_dep_node (mp, q);
-  } else {
-    mp_new_dep (mp, p, mp_dependent, q);
-  }
-  mp_recycle_value (mp, cur_exp_node ());
-}
-
-
-@ This code uses the fact that |red_part| and |green_part|
-are synonymous with |x_part| and |y_part|.
-
-@<Scan the rest of a delimited set of numerics@>=
-{
-  p = mp_stash_cur_exp (mp);
-  mp_get_x_next (mp);
-  mp_scan_expression (mp);
-  @<Make sure the second part of a pair or color has a numeric type@>;
-  q = mp_get_value_node (mp);
-  mp_name_type (q) = mp_capsule;
-  if (cur_cmd() == mp_comma) {
-    mp_init_color_node (mp, q);
-    r = value_node (q);
-    mp_stash_in (mp, y_part (r));
-    mp_unstash_cur_exp (mp, p);
-    mp_stash_in (mp, x_part (r));
-    @<Scan the last of a triplet of numerics@>;
-    if (cur_cmd() == mp_comma) {
-      mp_init_cmykcolor_node (mp, q);
-      t = value_node (q);
-      mp_type (cyan_part (t)) = mp_type (red_part (r));
-      set_value_number (cyan_part (t), value_number (red_part (r)));
-      mp_type (magenta_part (t)) = mp_type (green_part (r));
-      set_value_number (magenta_part (t), value_number (green_part (r)));
-      mp_type (yellow_part (t)) = mp_type (blue_part (r));
-      set_value_number (yellow_part (t), value_number (blue_part (r)));
-      mp_recycle_value (mp, r);
-      r = t;
-      @<Scan the last of a quartet of numerics@>;
-    }
-  } else {
-    mp_init_pair_node (mp, q);
-    r = value_node (q);
-    mp_stash_in (mp, y_part (r));
-    mp_unstash_cur_exp (mp, p);
-    mp_stash_in (mp, x_part (r));
-  }
-  mp_check_delimiter (mp, l_delim, r_delim);
-  mp->cur_exp.type = mp_type (q);
-  set_cur_exp_node (q);
-}
-
-
-@ @<Make sure the second part of a pair or color has a numeric type@>=
-if (mp->cur_exp.type < mp_known) {
-  const char *hlp[] = {
-         "I've started to scan a pair `(a,b)' or a color `(a,b,c)';",
-         "but after finding a nice `a' I found a `b' that isn't",
-         "of numeric type. So I've changed that part to zero.",
-         "(The b that I didn't like appears above the error message.)",
-         NULL };
-  mp_disp_err(mp, NULL);
-  set_number_to_zero(new_expr.data.n);
-  mp_back_error (mp,"Nonnumeric ypart has been replaced by 0", hlp, true);
-@.Nonnumeric...replaced by 0@>;
-  mp_get_x_next (mp);
-  mp_flush_cur_exp (mp, new_expr);
-}
-
-@ @<Scan the last of a triplet of numerics@>=
-{
-  mp_get_x_next (mp);
-  mp_scan_expression (mp);
-  if (mp->cur_exp.type < mp_known) {
-    const char *hlp[] = {
-       "I've just scanned a color `(a,b,c)' or cmykcolor(a,b,c,d); but the `c'",
-       "isn't of numeric type. So I've changed that part to zero.",
-       "(The c that I didn't like appears above the error message.)",
-       NULL };
-    mp_disp_err(mp, NULL);
-    set_number_to_zero(new_expr.data.n);
-    mp_back_error (mp,"Nonnumeric third part has been replaced by 0", hlp, true);
-@.Nonnumeric...replaced by 0@>;
-    mp_get_x_next (mp);
-    mp_flush_cur_exp (mp, new_expr);
-  }
-  mp_stash_in (mp, blue_part (r));
-}
-
-
-@ @<Scan the last of a quartet of numerics@>=
-{
-  mp_get_x_next (mp);
-  mp_scan_expression (mp);
-  if (mp->cur_exp.type < mp_known) {
-    const char *hlp[] = {
-           "I've just scanned a cmykcolor `(c,m,y,k)'; but the `k' isn't",
-           "of numeric type. So I've changed that part to zero.",
-           "(The k that I didn't like appears above the error message.)",
-           NULL };
-    mp_disp_err(mp, NULL); 
-    set_number_to_zero(new_expr.data.n);
-    mp_back_error (mp,"Nonnumeric blackpart has been replaced by 0", hlp, true);
-@.Nonnumeric...replaced by 0@>;
-    mp_get_x_next (mp);
-    mp_flush_cur_exp (mp, new_expr);
-  }
-  mp_stash_in (mp, black_part (r));
-}
-
-
-@ The local variable |group_line| keeps track of the line
-where a \&{begingroup} command occurred; this will be useful
-in an error message if the group doesn't actually end.
-
-@<Other local variables for |scan_primary|@>=
-integer group_line;     /* where a group began */
-
-@ @<Scan a grouped primary@>=
-{
-  group_line = mp_true_line (mp);
-  if (number_positive (internal_value (mp_tracing_commands)))
-    show_cur_cmd_mod;
-  mp_save_boundary (mp);
-  do {
-    mp_do_statement (mp);       /* ends with |cur_cmd>=semicolon| */
-  } while (cur_cmd() == mp_semicolon);
-  if (cur_cmd() != mp_end_group) {
-    char msg[256];
-    const char *hlp[] = {
-           "I saw a `begingroup' back there that hasn't been matched",
-           "by `endgroup'. So I've inserted `endgroup' now.",
-           NULL };
-    mp_snprintf(msg, 256, "A group begun on line %d never ended", (int)group_line);
-@.A group...never ended@>;
-    mp_back_error (mp, msg, hlp, true);
-    set_cur_cmd((mp_variable_type)mp_end_group);
-  }
-  mp_unsave (mp);
-  /* this might change |cur_type|, if independent variables are recycled */
-  if (number_positive (internal_value (mp_tracing_commands)))
-    show_cur_cmd_mod;
-}
-
-
-@ @<Scan a string constant@>=
-{
-  mp->cur_exp.type = mp_string_type;
-  set_cur_exp_str (cur_mod_str());
-}
-
-
-@ Later we'll come to procedures that perform actual operations like
-addition, square root, and so on; our purpose now is to do the parsing.
-But we might as well mention those future procedures now, so that the
-suspense won't be too bad:
-
-\smallskip
-|do_nullary(c)| does primitive operations that have no operands (e.g.,
-`\&{true}' or `\&{pencircle}');
-
-\smallskip
-|do_unary(c)| applies a primitive operation to the current expression;
-
-\smallskip
-|do_binary(p,c)| applies a primitive operation to the capsule~|p|
-and the current expression.
-
-@<Scan a nullary operation@>=
-mp_do_nullary (mp, (quarterword) cur_mod())
- 
-
-@ @<Scan a unary operation@>=
-{
-  c = (quarterword) cur_mod();
-  mp_get_x_next (mp);
-  mp_scan_primary (mp);
-  mp_do_unary (mp, c);
-  goto DONE;
-}
-
-
-@ A numeric token might be a primary by itself, or it might be the
-numerator of a fraction composed solely of numeric tokens, or it might
-multiply the primary that follows (provided that the primary doesn't begin
-with a plus sign or a minus sign). The code here uses the facts that
-|max_primary_command=plus_or_minus| and
-|max_primary_command-1=numeric_token|. If a fraction is found that is less
-than unity, we try to retain higher precision when we use it in scalar
-multiplication.
-
-@ @<Scan a primary that starts with a numeric token@>=
-{
-  set_cur_exp_value_number (cur_mod_number());
-  mp->cur_exp.type = mp_known;
-  mp_get_x_next (mp);
-  if (cur_cmd() != mp_slash) {
-    set_number_to_zero(num);
-    set_number_to_zero(denom);
-  } else {
-    mp_get_x_next (mp);
-    if (cur_cmd() != mp_numeric_token) {
-      mp_back_input (mp);
-      set_cur_cmd((mp_variable_type)mp_slash);
-      set_cur_mod(mp_over);
-      set_cur_sym(mp->frozen_slash);
-      goto DONE;
-    }
-    number_clone (num, cur_exp_value_number ());
-    number_clone (denom, cur_mod_number());
-    if (number_zero(denom)) {
-      @<Protest division by zero@>;
-    } else {
-      mp_number ret;
-      new_number (ret);
-      make_scaled (ret, num, denom);
-      set_cur_exp_value_number (ret);
-      free_number (ret);
-    }
-    check_arith();
-    mp_get_x_next (mp);
-  }
-  if (cur_cmd() >= mp_min_primary_command) {
-    if (cur_cmd() < mp_numeric_token) {  /* in particular, |cur_cmd<>plus_or_minus| */
-      mp_number absnum, absdenom;
-      new_number (absnum);
-      new_number (absdenom);
-      p = mp_stash_cur_exp (mp);
-      mp_scan_primary (mp);
-      number_clone (absnum, num);
-      number_abs (absnum);
-      number_clone (absdenom, denom);
-      number_abs (absdenom);
-      if (number_greaterequal(absnum, absdenom) || (mp->cur_exp.type < mp_color_type)) {
-        mp_do_binary (mp, p, mp_times);
-      } else {
-        mp_frac_mult (mp, num, denom);
-        mp_free_node (mp, p, value_node_size);
-      }
-      free_number (absnum);
-      free_number (absdenom);
-    }
-  }
-  goto DONE;
-}
-
-
-@ @<Protest division...@>=
-{
-  const char *hlp[] = { "I'll pretend that you meant to divide by 1.", NULL };
-  mp_error (mp, "Division by zero", hlp, true);
-@.Division by zero@>;
-}
-
-
-@ @<Scan a binary operation with `\&{of}' between its operands@>=
-{
-  c = (quarterword) cur_mod();
-  mp_get_x_next (mp);
-  mp_scan_expression (mp);
-  if (cur_cmd() != mp_of_token) {
-    char msg[256];
-    mp_string sname;
-    const char *hlp[] = {
-        "I've got the first argument; will look now for the other.",
-        NULL };
-    int old_setting = mp->selector;
-    mp->selector = new_string;
-    mp_print_cmd_mod (mp, mp_primary_binary, c);
-    mp->selector = old_setting;
-    sname = mp_make_string(mp);
-    mp_snprintf (msg, 256, "Missing `of' has been inserted for %s", mp_str(mp, sname));
-    delete_str_ref(sname);
-    mp_back_error (mp, msg, hlp, true);
-@.Missing `of'@>;
-  }
-  p = mp_stash_cur_exp (mp);
-  mp_get_x_next (mp);
-  mp_scan_primary (mp);
-  mp_do_binary (mp, p, c);
-  goto DONE;
-}
-
-
-@ @<Convert a suffix to a string@>=
-{
-  mp_get_x_next (mp);
-  mp_scan_suffix (mp);
-  mp->old_setting = mp->selector;
-  mp->selector = new_string;
-  mp_show_token_list (mp, cur_exp_node (), NULL, 100000, 0);
-  mp_flush_token_list (mp, cur_exp_node ());
-  set_cur_exp_str (mp_make_string (mp));
-  mp->selector = mp->old_setting;
-  mp->cur_exp.type = mp_string_type;
-  goto DONE;
-}
-
-
-@ If an internal quantity appears all by itself on the left of an
-assignment, we return a token list of length one, containing the address
-of the internal quantity, with |name_type| equal to |mp_internal_sym|. 
-(This accords with the conventions of the save stack, as described earlier.)
-
-@<Scan an internal...@>=
-{
-  halfword qq = cur_mod();
-  if (my_var_flag == mp_assignment) {
-    mp_get_x_next (mp);
-    if (cur_cmd() == mp_assignment) {
-      set_cur_exp_node (mp_get_symbolic_node (mp));
-      set_mp_sym_info (cur_exp_node (), qq);
-      mp_name_type (cur_exp_node ()) = mp_internal_sym;
-      mp->cur_exp.type = mp_token_list;
-      goto DONE;
-    }
-    mp_back_input (mp);
-  }
-  if (internal_type (qq) == mp_string_type) {
-    set_cur_exp_str (internal_string (qq));
-  } else {
-    set_cur_exp_value_number (internal_value (qq));
-  }
-  mp->cur_exp.type = internal_type (qq);
-}
-
 
 @ The most difficult part of |scan_primary| has been saved for last, since
 it was necessary to build up some confidence first. We can now face the task
@@ -22909,15 +22891,13 @@ relation |tt=mp_type(q)| will always hold. If |tt=undefined|, the routine
 doesn't bother to update its information about type. And if
 |undefined<tt<mp_unsuffixed_macro|, the precise value of |tt| isn't critical.
 
-@ @<Other local variables for |scan_primary|@>=
-mp_node pre_head, post_head, tail;
-  /* prefix and suffix list variables */
-quarterword tt; /* approximation to the type of the variable-so-far */
-mp_node t;      /* a token */
-mp_node macro_ref = 0;  /* reference count for a suffixed macro */
-
 @ @<Scan a variable primary...@>=
 {
+  mp_node p, q;      /* for list manipulation */
+  mp_node t;      /* a token */
+  mp_node pre_head, post_head, tail; /* prefix and suffix list variables */
+  quarterword tt; /* approximation to the type of the variable-so-far */
+  mp_node macro_ref = 0;  /* reference count for a suffixed macro */
   pre_head = mp_get_symbolic_node (mp);
   tail = pre_head;
   post_head = NULL;
@@ -22926,72 +22906,147 @@ mp_node macro_ref = 0;  /* reference count for a suffixed macro */
     t = mp_cur_tok (mp);
     mp_link (tail) = t;
     if (tt != undefined) {
-      @<Find the approximate type |tt| and corresponding~|q|@>;
+      /* Find the approximate type |tt| and corresponding~|q| */
+      /* Every time we call |get_x_next|, there's a chance that the variable we've
+         been looking at will disappear. Thus, we cannot safely keep |q| pointing
+         into the variable structure; we need to start searching from the root each 
+         time. */
+      mp_sym qq;
+      p = mp_link (pre_head);
+      qq = mp_sym_sym (p);
+      tt = undefined;
+      if (eq_type (qq) % mp_outer_tag == mp_tag_token) {
+        q = equiv_node (qq);
+        if (q == NULL)
+          goto DONE2;
+        while (1) {
+          p = mp_link (p);
+          if (p == NULL) {
+            tt = mp_type (q);
+            goto DONE2;
+          }
+          if (mp_type (q) != mp_structured)
+            goto DONE2;
+          q = mp_link (attr_head (q));      /* the |collective_subscript| attribute */
+          if (mp_type (p) == mp_symbol_node) {      /* it's not a subscript */
+            do {
+              q = mp_link (q);
+            } while (!(hashloc (q) >= mp_sym_sym (p)));
+            if (hashloc (q) > mp_sym_sym (p))
+              goto DONE2;
+          }
+        }
+      }
+    DONE2:
+
       if (tt >= mp_unsuffixed_macro) {
-        @<Either begin an unsuffixed macro call or
-          prepare for a suffixed one@>;
+        /* Either begin an unsuffixed macro call or
+          prepare for a suffixed one */
+        mp_link (tail) = NULL;
+        if (tt > mp_unsuffixed_macro) {       /* |tt=mp_suffixed_macro| */
+          post_head = mp_get_symbolic_node (mp);
+          tail = post_head;
+          mp_link (tail) = t;
+          tt = undefined;
+          macro_ref = value_node (q);
+          add_mac_ref (macro_ref);
+        } else {
+          /* Set up unsuffixed macro call and |goto restart| */
+          /* The only complication associated with macro calling is that the prefix
+             and ``at'' parameters must be packaged in an appropriate list of lists. */
+          p = mp_get_symbolic_node (mp);
+          set_mp_sym_sym (pre_head, mp_link (pre_head));
+          mp_link (pre_head) = p;
+          set_mp_sym_sym (p, t);
+          mp_macro_call (mp, value_node (q), pre_head, NULL);
+          mp_get_x_next (mp);
+          goto RESTART;
+        }
       }
     }
     mp_get_x_next (mp);
     tail = t;
     if (cur_cmd() == mp_left_bracket) {
-      @<Scan for a subscript; replace |cur_cmd| by |numeric_token| if found@>;
+      /* Scan for a subscript; replace |cur_cmd| by |numeric_token| if found */
+      mp_get_x_next (mp);
+      mp_scan_expression (mp);
+      if (cur_cmd() != mp_right_bracket) {
+        /* Put the left bracket and the expression back to be rescanned */
+        /* The left bracket that we thought was introducing a subscript might have
+           actually been the left bracket in a mediation construction like `\.{x[a,b]}'.
+           So we don't issue an error message at this point; but we do want to back up
+           so as to avoid any embarrassment about our incorrect assumption. */
+        mp_back_input (mp);           /* that was the token following the current expression */
+        mp_back_expr (mp);
+        set_cur_cmd((mp_variable_type)mp_left_bracket);
+        set_cur_mod_number(zero_t);
+        set_cur_sym(mp->frozen_left_bracket);
+
+      } else {
+        if (mp->cur_exp.type != mp_known)
+          mp_bad_subscript (mp);
+        set_cur_cmd((mp_variable_type)mp_numeric_token);
+        set_cur_mod_number(cur_exp_value_number ());
+        set_cur_sym(NULL);
+      }
     }
     if (cur_cmd() > mp_max_suffix_token)
       break;
     if (cur_cmd() < mp_min_suffix_token)
       break;
-  }                             /* now |cur_cmd| is |internal_quantity|, |tag_token|, or |numeric_token| */
-  @<Handle unusual cases that masquerade as variables, and |goto restart|
-    or |goto done| if appropriate;
-    otherwise make a copy of the variable and |goto done|@>;
-}
-
-
-@ @<Either begin an unsuffixed macro call or...@>=
-{
-  mp_link (tail) = NULL;
-  if (tt > mp_unsuffixed_macro) {       /* |tt=mp_suffixed_macro| */
-    post_head = mp_get_symbolic_node (mp);
-    tail = post_head;
-    mp_link (tail) = t;
-    tt = undefined;
-    macro_ref = value_node (q);
-    add_mac_ref (macro_ref);
-  } else {
-    @<Set up unsuffixed macro call and |goto restart|@>;
+  } /* now |cur_cmd| is |internal_quantity|, |tag_token|, or |numeric_token| */
+   /* Handle unusual cases that masquerade as variables, and |goto restart| or
+      |goto done| if appropriate; otherwise make a copy of the variable and |goto done| */
+   /* If the variable does exist, we also need to check
+      for a few other special cases before deciding that a plain old ordinary
+      variable has, indeed, been scanned. */
+  if (post_head != NULL) {
+    /* Set up suffixed macro call and |goto restart| */
+    /* If the ``variable'' that turned out to be a suffixed macro no longer exists,
+       we don't care, because we have reserved a pointer (|macro_ref|) to its
+       token list. */
+    mp_back_input (mp);
+    p = mp_get_symbolic_node (mp);
+    q = mp_link (post_head);
+    set_mp_sym_sym (pre_head, mp_link (pre_head));
+    mp_link (pre_head) = post_head;
+    set_mp_sym_sym (post_head, q);
+    mp_link (post_head) = p;
+    set_mp_sym_sym (p, mp_link (q));
+    mp_link (q) = NULL;
+    mp_macro_call (mp, macro_ref, pre_head, NULL);
+    decr_mac_ref (macro_ref);
+    mp_get_x_next (mp);
+    goto RESTART;
   }
-}
-
-
-@ @<Scan for a subscript; replace |cur_cmd| by |numeric_token| if found@>=
-{
-  mp_get_x_next (mp);
-  mp_scan_expression (mp);
-  if (cur_cmd() != mp_right_bracket) {
-    @<Put the left bracket and the expression back to be rescanned@>;
-  } else {
-    if (mp->cur_exp.type != mp_known)
-      mp_bad_subscript (mp);
-    set_cur_cmd((mp_variable_type)mp_numeric_token);
-    set_cur_mod_number(cur_exp_value_number ());
-    set_cur_sym(NULL);
+  q = mp_link (pre_head);
+  mp_free_symbolic_node (mp, pre_head);
+  if (cur_cmd() == my_var_flag) {
+    mp->cur_exp.type = mp_token_list;
+    set_cur_exp_node (q);
+    goto DONE;
   }
-}
-
-
-@ The left bracket that we thought was introducing a subscript might have
-actually been the left bracket in a mediation construction like `\.{x[a,b]}'.
-So we don't issue an error message at this point; but we do want to back up
-so as to avoid any embarrassment about our incorrect assumption.
-
-@<Put the left bracket and the expression back to be rescanned@>=
-{
-  mp_back_input (mp);           /* that was the token following the current expression */
-  mp_back_expr (mp);
-  set_cur_cmd((mp_variable_type)mp_left_bracket);
-  set_cur_mod_number(zero_t);
-  set_cur_sym(mp->frozen_left_bracket);
+  p = mp_find_variable (mp, q);
+  if (p != NULL) {
+    mp_make_exp_copy (mp, p);
+  } else {
+    mp_value new_expr;
+    const char *hlp[] = {
+      "While I was evaluating the suffix of this variable,",
+      "something was redefined, and it's no longer a variable!",
+      "In order to get back on my feet, I've inserted `0' instead.",
+      NULL };
+    char *msg = mp_obliterated (mp, q);
+    memset(&new_expr,0,sizeof(mp_value));
+    new_number(new_expr.data.n);
+    set_number_to_zero(new_expr.data.n);
+    mp_back_error (mp, msg, hlp, true);
+    free(msg);
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
+  }
+  mp_flush_node_list (mp, q);
+  goto DONE;
 }
 
 
@@ -23025,44 +23080,6 @@ static void mp_bad_subscript (MP mp) {
 }
 
 
-@ Every time we call |get_x_next|, there's a chance that the variable we've
-been looking at will disappear. Thus, we cannot safely keep |q| pointing
-into the variable structure; we need to start searching from the root each time.
-
-@<Find the approximate type |tt| and corresponding~|q|@>=
-@^inner loop@>
-{
-  mp_sym qq;
-  p = mp_link (pre_head);
-  qq = mp_sym_sym (p);
-  tt = undefined;
-  if (eq_type (qq) % mp_outer_tag == mp_tag_token) {
-    q = equiv_node (qq);
-    if (q == NULL)
-      goto DONE2;
-    while (1) {
-      p = mp_link (p);
-      if (p == NULL) {
-        tt = mp_type (q);
-        goto DONE2;
-      }
-      if (mp_type (q) != mp_structured)
-        goto DONE2;
-      q = mp_link (attr_head (q));      /* the |collective_subscript| attribute */
-      if (mp_type (p) == mp_symbol_node) {      /* it's not a subscript */
-        do {
-          q = mp_link (q);
-        } while (!(hashloc (q) >= mp_sym_sym (p)));
-        if (hashloc (q) > mp_sym_sym (p))
-          goto DONE2;
-      }
-    }
-  }
-DONE2:
-  ;
-}
-
-
 @ How do things stand now? Well, we have scanned an entire variable name,
 including possible subscripts and/or attributes; |cur_cmd|, |cur_mod|, and
 |cur_sym| represent the token that follows. If |post_head=NULL|, a
@@ -23093,77 +23110,6 @@ static char *mp_obliterated (MP mp, mp_node q) {
 @.Variable...obliterated@>;
   delete_str_ref(sname);
   return xstrdup(msg);
-}
-
-
-@ If the variable does exist, we also need to check
-for a few other special cases before deciding that a plain old ordinary
-variable has, indeed, been scanned.
-
-@<Handle unusual cases that masquerade as variables...@>=
-if (post_head != NULL) {
-  @<Set up suffixed macro call and |goto restart|@>;
-}
-q = mp_link (pre_head);
-mp_free_symbolic_node (mp, pre_head);
-if (cur_cmd() == my_var_flag) {
-  mp->cur_exp.type = mp_token_list;
-  set_cur_exp_node (q);
-  goto DONE;
-}
-p = mp_find_variable (mp, q);
-if (p != NULL) {
-  mp_make_exp_copy (mp, p);
-} else {
-  const char *hlp[] = {
-    "While I was evaluating the suffix of this variable,",
-    "something was redefined, and it's no longer a variable!",
-    "In order to get back on my feet, I've inserted `0' instead.",
-    NULL };
-  char *msg = mp_obliterated (mp, q);
-  set_number_to_zero(new_expr.data.n);
-  mp_back_error (mp, msg, hlp, true);
-  free(msg);
-  mp_get_x_next (mp);
-  mp_flush_cur_exp (mp, new_expr);
-}
-mp_flush_node_list (mp, q);
-goto DONE
-
-@ The only complication associated with macro calling is that the prefix
-and ``at'' parameters must be packaged in an appropriate list of lists.
-
-@<Set up unsuffixed macro call and |goto restart|@>=
-{
-  p = mp_get_symbolic_node (mp);
-  set_mp_sym_sym (pre_head, mp_link (pre_head));
-  mp_link (pre_head) = p;
-  set_mp_sym_sym (p, t);
-  mp_macro_call (mp, value_node (q), pre_head, NULL);
-  mp_get_x_next (mp);
-  goto RESTART;
-}
-
-
-@ If the ``variable'' that turned out to be a suffixed macro no longer exists,
-we don't care, because we have reserved a pointer (|macro_ref|) to its
-token list.
-
-@<Set up suffixed macro call and |goto restart|@>=
-{
-  mp_back_input (mp);
-  p = mp_get_symbolic_node (mp);
-  q = mp_link (post_head);
-  set_mp_sym_sym (pre_head, mp_link (pre_head));
-  mp_link (pre_head) = post_head;
-  set_mp_sym_sym (post_head, q);
-  mp_link (post_head) = p;
-  set_mp_sym_sym (p, mp_link (q));
-  mp_link (q) = NULL;
-  mp_macro_call (mp, macro_ref, pre_head, NULL);
-  decr_mac_ref (macro_ref);
-  mp_get_x_next (mp);
-  goto RESTART;
 }
 
 
@@ -23342,41 +23288,6 @@ static void mp_install (MP mp, mp_node r, mp_node q) {
     mp_new_dep (mp, r, mp_type (q),
                 mp_copy_dep_list (mp, (mp_value_node) dep_list ((mp_value_node)
                                                                 q)));
-  }
-}
-
-
-@ Expressions of the form `\.{a[b,c]}' are converted into
-`\.{b+a*(c-b)}', without checking the types of \.b~or~\.c,
-provided that \.a is numeric.
-
-@<Scan a mediation...@>=
-{
-  p = mp_stash_cur_exp (mp);
-  mp_get_x_next (mp);
-  mp_scan_expression (mp);
-  if (cur_cmd() != mp_comma) {
-    @<Put the left bracket and the expression back...@>;
-    mp_unstash_cur_exp (mp, p);
-  } else {
-    q = mp_stash_cur_exp (mp);
-    mp_get_x_next (mp);
-    mp_scan_expression (mp);
-    if (cur_cmd() != mp_right_bracket) {
-      const char *hlp[] = {
-             "I've scanned an expression of the form `a[b,c',",
-             "so a right bracket should have come next.",
-             "I shall pretend that one was there.",
-             NULL };
-      mp_back_error (mp, "Missing `]' has been inserted", hlp, true);
-@.Missing `]'@>;
-    }
-    r = mp_stash_cur_exp (mp);
-    mp_make_exp_copy (mp, q);
-    mp_do_binary (mp, r, mp_minus);
-    mp_do_binary (mp, p, mp_times);
-    mp_do_binary (mp, q, mp_plus);
-    mp_get_x_next (mp);
   }
 }
 
