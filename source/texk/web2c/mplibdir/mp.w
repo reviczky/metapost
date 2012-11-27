@@ -2849,17 +2849,51 @@ A symbolic node is recycled by calling |free_symbolic_node|.
 void mp_free_node (MP mp, mp_node p, size_t siz) {                               /* node liberation */
   FUNCTION_TRACE3 ("mp_free_node(%p,%d)\n", p, (int)siz);
   mp->var_used -= siz;
-  if (mp_type (p) == mp_value_node_type || 
-      mp_type (p) == mp_dep_node_type || 
-      mp_type (p) == mp_attr_node_type) {
+  switch (mp_type (p)) {
+  case mp_value_node_type:
+  case mp_dep_node_type:
+  case mp_attr_node_type:
      free_number(((mp_value_node)p)->data.n); 
      free_number(((mp_value_node)p)->subscript_); 
-  } else if (p->type == mp_symbol_node) {
+     break;
+  case mp_symbol_node:
+  case mp_token_node_type:
      free_number(((mp_symbolic_node)p)->data.n); 
-  } else if (p->type == mp_dash_node_type) {
+     break;
+  case mp_dash_node_type:
      free_number(((mp_dash_node)p)->start_x);
      free_number(((mp_dash_node)p)->stop_x);
      free_number(((mp_dash_node)p)->dash_y);
+     break;
+  case mp_dependent:
+  case mp_string_type:
+  case mp_pen_type:
+  case mp_transform_type:
+  case mp_pair_type:
+  case mp_path_type:
+  case mp_boolean_type:
+  case mp_picture_type:
+  case mp_pair_node_type:
+  case mp_stroked_node_type:
+  case mp_fill_node_type:
+  case mp_color_node_type:
+  case mp_start_clip_node_type:
+  case mp_stop_clip_node_type:
+  case mp_start_bounds_node_type:
+  case mp_stop_bounds_node_type:
+  case mp_text_node_type:
+  case mp_transform_node_type:
+  case mp_edge_header_node_type:
+  case mp_undefined:
+     break;
+  case mp_vacuous:
+  case mp_known:
+     free_number(((mp_value_node)p)->data.n); 
+     break;
+  default:
+     /* there is at least one of these, |mp->cur_mod_| */
+     /* fprintf(stderr,"unhandled node free: %s\n", mp_type_string(p->type)); */
+     break;
   }
   xfree (p);                    /* do more later */
 }
@@ -3083,14 +3117,14 @@ all other types must be smaller than |transform_type|; and among the types
 that are not unknown or vacuous, the smallest two must be |boolean_type|
 and |string_type| in that order.
 
-@d undefined 0 /* no type has been declared */
 @d unknown_tag 1 /* this constant is added to certain type codes below */
 @d unknown_types mp_unknown_boolean: case mp_unknown_string:
   case mp_unknown_pen: case mp_unknown_picture: case mp_unknown_path
 
 @<Enumeration types@>=
 typedef enum {
-  mp_vacuous = 1,       /* no expression was present */
+  mp_undefined = 0,       /* no type has been declared */
+  mp_vacuous,                   /* no expression was present */
   mp_boolean_type,              /* \&{boolean} with a known value */
   mp_unknown_boolean,
   mp_string_type,               /* \&{string} with a known value */
@@ -3145,7 +3179,7 @@ static void mp_print_type (MP mp, quarterword t);
 static const char *mp_type_string (quarterword t) {
   const char *s = NULL;
   switch (t) {
-  case undefined:
+  case mp_undefined:
     s = "undefined";
     break;
   case mp_vacuous:
@@ -5818,7 +5852,7 @@ The following subroutine establishes the root node on such grand occasions.
 static void mp_new_root (MP mp, mp_sym x) {
   mp_node p;    /* the new node */
   p = mp_get_value_node (mp);
-  mp_type (p) = undefined;
+  mp_type (p) = mp_undefined;
   mp_name_type (p) = mp_root;
   set_value_sym (p, x);
   set_equiv_node (x, p);
@@ -6049,7 +6083,7 @@ static mp_node mp_new_structure (MP mp, mp_node p) {
     set_mp_link (p, (mp_node) qqr);
     set_subscr_head (r, (mp_node) qqr);
     set_parent (qqr, r);
-    mp_type (qqr) = undefined;
+    mp_type (qqr) = mp_undefined;
     mp_name_type (qqr) = mp_attr;
     set_mp_link (qqr, mp->end_attr);
     set_hashloc (qqr, collective_subscript);
@@ -6104,8 +6138,8 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
   }
   if (mp_type (p) == mp_structured)
     p = attr_head (p);
-  if (mp_type (p) == undefined) {
-    if (mp_type (pp) == undefined) {
+  if (mp_type (p) == mp_undefined) {
+    if (mp_type (pp) == mp_undefined) {
       mp_type (pp) = mp_numeric_type;
       set_value_number (pp, zero_t);        /* todo: this was |null| */
     }
@@ -6173,7 +6207,7 @@ subscript list, even though that word isn't part of a subscript node.
     set_mp_link (p1, s);
     number_clone (subscript (p1), nn);
     mp_name_type (p1) = mp_subscr;
-    mp_type (p1) = undefined;
+    mp_type (p1) = mp_undefined;
     p = (mp_node) p1;
   }
   number_clone (subscript (q), save_subscript);
@@ -6196,7 +6230,7 @@ subscript list, even though that word isn't part of a subscript node.
     set_mp_link (qq, ss);
     set_hashloc (qq, nn);
     mp_name_type (qq) = mp_attr;
-    mp_type (qq) = undefined;
+    mp_type (qq) = mp_undefined;
     set_parent ((mp_value_node) qq, pp);
     ss = qq;
   }
@@ -6218,7 +6252,7 @@ subscript list, even though that word isn't part of a subscript node.
       set_mp_link (q, s);
       set_hashloc (q, nn);
       mp_name_type (q) = mp_attr;
-      mp_type (q) = undefined;
+      mp_type (q) = mp_undefined;
       set_parent ((mp_value_node) q, p);
       p = q;
     }
@@ -6329,7 +6363,7 @@ void mp_flush_below_variable (MP mp, mp_node p) {
       q = mp_link (q);
       mp_free_node (mp, r, value_node_size);
     } while (q != mp->end_attr);
-    mp_type (p) = undefined;
+    mp_type (p) = mp_undefined;
   }
 }
 
@@ -6344,7 +6378,7 @@ static quarterword mp_und_type (MP mp, mp_node p) {
   (void) mp;
   switch (mp_type (p)) {
   case mp_vacuous:
-    return undefined;
+    return mp_undefined;
   case mp_boolean_type:
   case mp_unknown_boolean:
     return mp_unknown_boolean;
@@ -11379,6 +11413,10 @@ void mp_toss_edges (MP mp, mp_edge_header_node h) {
     if (r != NULL)
       delete_edge_ref (r);
   }
+  free_number(h->minx);
+  free_number(h->miny);
+  free_number(h->maxx);
+  free_number(h->maxy);
   mp_free_node (mp, h->list_, token_node_size);
   mp_free_node (mp, (mp_node)h, edge_header_size);
 }
@@ -22067,7 +22105,7 @@ static void mp_recycle_value (MP mp, mp_node p) {
   default:                     /* there are no other valid cases, but please the compiler */
     break;
   }                             /* there are no other cases */
-  mp_type (p) = undefined;
+  mp_type (p) = mp_undefined;
   free_number (v);
   free_number (vv);
 }
@@ -22646,6 +22684,8 @@ RESTART:
         free_number (absdenom);
       }
     }
+    free_number (num);
+    free_number (denom);
     goto DONE;
   }
     break;
@@ -22908,7 +22948,7 @@ doesn't bother to update its information about type. And if
   while (1) {
     t = mp_cur_tok (mp);
     mp_link (tail) = t;
-    if (tt != undefined) {
+    if (tt != mp_undefined) {
       /* Find the approximate type |tt| and corresponding~|q| */
       /* Every time we call |get_x_next|, there's a chance that the variable we've
          been looking at will disappear. Thus, we cannot safely keep |q| pointing
@@ -22917,7 +22957,7 @@ doesn't bother to update its information about type. And if
       mp_sym qq;
       p = mp_link (pre_head);
       qq = mp_sym_sym (p);
-      tt = undefined;
+      tt = mp_undefined;
       if (eq_type (qq) % mp_outer_tag == mp_tag_token) {
         q = equiv_node (qq);
         if (q == NULL)
@@ -22950,7 +22990,7 @@ doesn't bother to update its information about type. And if
           post_head = mp_get_symbolic_node (mp);
           tail = post_head;
           mp_link (tail) = t;
-          tt = undefined;
+          tt = mp_undefined;
           macro_ref = value_node (q);
           add_mac_ref (macro_ref);
         } else {
@@ -26460,6 +26500,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
           mp_dep_div (mp, NULL, v_n);
         }
       }
+      free_number(v_n);
       binary_return;
     }
     break;
@@ -30168,7 +30209,7 @@ void mp_disp_var (MP mp, mp_node p) {
     @<Descend the structure@>;
   } else if (mp_type (p) >= mp_unsuffixed_macro) {
     @<Display a variable macro@>;
-  } else if (mp_type (p) != undefined) {
+  } else if (mp_type (p) != mp_undefined) {
     mp_print_nl (mp, "");
     mp_print_variable_name (mp, p);
     mp_print_char (mp, xord ('='));
