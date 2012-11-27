@@ -29080,7 +29080,30 @@ but to equate the two operands.
 static void mp_try_eq (MP mp, mp_node l, mp_node r);
 
 @ 
+@d equation_threshold_k ((math_data *)mp->math)->equation_threshold_t
+
 @c
+static void deal_with_redundant_or_inconsistent_equation(MP mp, mp_value_node p, mp_node r) {
+  mp_number absp;
+  new_number (absp);
+  number_clone (absp, value_number (p));
+  number_abs (absp);
+  if (number_greater (absp, equation_threshold_k)) {   /* off by .001 or more */
+    char msg[256];    
+    const char *hlp[] = {
+           "The equation I just read contradicts what was said before.",
+           "But don't worry; continue and I'll just ignore it.",
+           NULL };
+    mp_snprintf (msg, 256, "Inconsistent equation (off by %s)", number_tostring (value_number (p)));
+    mp_back_error (mp, msg, hlp, true);
+    mp_get_x_next (mp);
+  } else if (r == NULL) {
+    exclaim_redundant_equation(mp);
+  }
+  free_number (absp);
+  mp_free_dep_node (mp, p);
+}
+
 void mp_try_eq (MP mp, mp_node l, mp_node r) {
   mp_value_node p;      /* dependency list for right operand minus left operand */
   mp_variable_type t;   /* the type of list |p| */
@@ -29088,11 +29111,96 @@ void mp_try_eq (MP mp, mp_node l, mp_node r) {
   mp_value_node pp;     /* dependency list for right operand */
   mp_variable_type tt;  /* the type of list |pp| */
   boolean copied;       /* have we copied a list that ought to be recycled? */
-  @<Remove the left operand from its container, negate it, and
-    put it into dependency list~|p| with constant term~|q|@>;
-  @<Add the right operand to list |p|@>;
+  /* Remove the left operand from its container, negate it, and
+     put it into dependency list~|p| with constant term~|q| */
+  t = mp_type (l);
+  if (t == mp_known) {
+    mp_number arg1;
+    new_number (arg1);
+    number_clone (arg1, value_number(l));
+    number_negate (arg1);
+    t = mp_dependent;
+    p = mp_const_dependency (mp, arg1);
+    q = p;
+    free_number (arg1);
+  } else if (t == mp_independent) {
+    t = mp_dependent;
+    p = mp_single_dependency (mp, l);
+    number_negate(dep_value (p));
+    q = mp->dep_final;
+  } else {
+    mp_value_node ll = (mp_value_node) l;
+    p = (mp_value_node) dep_list (ll);
+    q = p;
+    while (1) {
+      number_negate(dep_value (q));
+      if (dep_info (q) == NULL)
+        break;
+      q = (mp_value_node) mp_link (q);
+    }
+    mp_link (prev_dep (ll)) = mp_link (q);
+    set_prev_dep ((mp_value_node) mp_link (q), prev_dep (ll));
+    mp_type (ll) = mp_known;
+  }
+  
+  /* Add the right operand to list |p| */
+  if (r == NULL) {
+    if (mp->cur_exp.type == mp_known) {
+      number_add (value_number (q), cur_exp_value_number ());
+      goto DONE1;
+    } else {
+      tt = mp->cur_exp.type;
+      if (tt == mp_independent)
+        pp = mp_single_dependency (mp, cur_exp_node ());
+      else
+        pp = (mp_value_node) dep_list ((mp_value_node) cur_exp_node ());
+    }
+  } else {
+    if (mp_type (r) == mp_known) {
+      number_add (dep_value (q), value_number (r));
+      goto DONE1;
+    } else {
+      tt = mp_type (r);
+      if (tt == mp_independent)
+        pp = mp_single_dependency (mp, r);
+      else
+        pp = (mp_value_node) dep_list ((mp_value_node) r);
+    }
+  }
+  if (tt != mp_independent) {
+    copied = false;
+  } else {
+    copied = true;
+    tt = mp_dependent;
+  }
+  /* Add dependency list |pp| of type |tt| to dependency list~|p| of type~|t| */
+  mp->watch_coefs = false;
+  if (t == tt) {
+    p = mp_p_plus_q (mp, p, pp, (quarterword) t);
+  } else if (t == mp_proto_dependent) {
+    p = mp_p_plus_fq (mp, p, unity_t, pp, mp_proto_dependent, mp_dependent);
+  } else {
+    mp_number x;
+    new_number (x);
+    q = p;
+    while (dep_info (q) != NULL) {
+      number_clone (x, dep_value (q));
+      fraction_to_round_scaled (x);
+      set_dep_value (q, x);
+      q = (mp_value_node) mp_link (q);
+    }
+    free_number (x);
+    t = mp_proto_dependent;
+    p = mp_p_plus_q (mp, p, pp, (quarterword) t);
+  }
+  mp->watch_coefs = true;
+
+  if (copied)
+    mp_flush_node_list (mp, (mp_node) pp);
+  DONE1:
+
   if (dep_info (p) == NULL) {
-    @<Deal with redundant or inconsistent equation@>;
+    deal_with_redundant_or_inconsistent_equation(mp, p, r);
   } else {
     mp_linear_eq (mp, p, (quarterword) t);
     if (r == NULL && mp->cur_exp.type != mp_known) {
@@ -29105,123 +29213,6 @@ void mp_try_eq (MP mp, mp_node l, mp_node r) {
     }
   }
 }
-
-
-@ @<Remove the left operand from its container, negate it, and...@>=
-t = mp_type (l);
-if (t == mp_known) {
-  mp_number arg1;
-  new_number (arg1);
-  number_clone (arg1, value_number(l));
-  number_negate (arg1);
-  t = mp_dependent;
-  p = mp_const_dependency (mp, arg1);
-  q = p;
-  free_number (arg1);
-} else if (t == mp_independent) {
-  t = mp_dependent;
-  p = mp_single_dependency (mp, l);
-  number_negate(dep_value (p));
-  q = mp->dep_final;
-} else {
-  mp_value_node ll = (mp_value_node) l;
-  p = (mp_value_node) dep_list (ll);
-  q = p;
-  while (1) {
-    number_negate(dep_value (q));
-    if (dep_info (q) == NULL)
-      break;
-    q = (mp_value_node) mp_link (q);
-  }
-  mp_link (prev_dep (ll)) = mp_link (q);
-  set_prev_dep ((mp_value_node) mp_link (q), prev_dep (ll));
-  mp_type (ll) = mp_known;
-}
-
-
-@ 
-@d equation_threshold_k ((math_data *)mp->math)->equation_threshold_t
-
-@<Deal with redundant or inconsistent equation@>=
-{
-  mp_number absp;
-  new_number (absp);
-  number_clone (absp, value_number (p));
-  number_abs (absp);
-  if (number_greater (absp, equation_threshold_k)) {   /* off by .001 or more */
-    char msg[256];    
-    const char *hlp[] = {
-           "The equation I just read contradicts what was said before.",
-           "But don't worry; continue and I'll just ignore it.",
-           NULL };
-    mp_snprintf (msg, 256, "Inconsistent equation (off by %s)", number_tostring (value_number (p)));
-@.Inconsistent equation@>;
-    mp_back_error (mp, msg, hlp, true);
-    mp_get_x_next (mp);
-  } else if (r == NULL) {
-    exclaim_redundant_equation(mp);
-  }
-  free_number (absp);
-  mp_free_dep_node (mp, p);
-}
-
-
-@ @<Add the right operand to list |p|@>=
-if (r == NULL) {
-  if (mp->cur_exp.type == mp_known) {
-    number_add (value_number (q), cur_exp_value_number ());
-    goto DONE1;
-  } else {
-    tt = mp->cur_exp.type;
-    if (tt == mp_independent)
-      pp = mp_single_dependency (mp, cur_exp_node ());
-    else
-      pp = (mp_value_node) dep_list ((mp_value_node) cur_exp_node ());
-  }
-} else {
-  if (mp_type (r) == mp_known) {
-    number_add (dep_value (q), value_number (r));
-    goto DONE1;
-  } else {
-    tt = mp_type (r);
-    if (tt == mp_independent)
-      pp = mp_single_dependency (mp, r);
-    else
-      pp = (mp_value_node) dep_list ((mp_value_node) r);
-  }
-}
-if (tt != mp_independent) {
-  copied = false;
-} else {
-  copied = true;
-  tt = mp_dependent;
-}
-@<Add dependency list |pp| of type |tt| to dependency list~|p| of type~|t|@>;
-if (copied)
-  mp_flush_node_list (mp, (mp_node) pp);
-DONE1:
-
-@ @<Add dependency list |pp| of type |tt| to dependency list~|p| of type~|t|@>=
-mp->watch_coefs = false;
-if (t == tt) {
-  p = mp_p_plus_q (mp, p, pp, (quarterword) t);
-} else if (t == mp_proto_dependent) {
-  p = mp_p_plus_fq (mp, p, unity_t, pp, mp_proto_dependent, mp_dependent);
-} else {
-  mp_number x;
-  new_number (x);
-  q = p;
-  while (dep_info (q) != NULL) {
-    number_clone (x, dep_value (q));
-    fraction_to_round_scaled (x);
-    set_dep_value (q, x);
-    q = (mp_value_node) mp_link (q);
-  }
-  free_number (x);
-  t = mp_proto_dependent;
-  p = mp_p_plus_q (mp, p, pp, (quarterword) t);
-}
-mp->watch_coefs = true;
 
 @ Our next goal is to process type declarations. For this purpose it's
 convenient to have a procedure that scans a $\langle\,$declared
