@@ -16567,7 +16567,7 @@ static void mp_ring_merge (MP mp, mp_node p, mp_node q) {
   r = value_node (p);
   while (r != p) {
     if (r == q) {
-      @<Exclaim about a redundant equation@>;
+      exclaim_redundant_equation(mp);
       return;
     };
     r = value_node (r);
@@ -16578,17 +16578,18 @@ static void mp_ring_merge (MP mp, mp_node p, mp_node q) {
 }
 
 
-@ @<Exclaim about a redundant equation@>=
-{
+@ @c
+static void exclaim_redundant_equation (MP mp) {
   const char *hlp[] = {
          "I already knew that this equation was true.",
          "But perhaps no harm has been done; let's continue.",
          NULL };
   mp_back_error (mp, "Redundant equation", hlp, true);
-@.Redundant equation@>;
   mp_get_x_next (mp);
 }
 
+@ @<Declarations@>=
+static void exclaim_redundant_equation (MP mp);
 
 @* Introduction to the syntactic routines.
 Let's pause a moment now and try to look at the Big Picture.
@@ -28915,35 +28916,7 @@ static void mp_make_eq (MP mp, mp_node lhs);
 
 @ 
 @c
-void mp_make_eq (MP mp, mp_node lhs) {
-  mp_value new_expr;
-  mp_variable_type t;   /* type of the left-hand side */
-  mp_node p;    /* pointer inside of big nodes */
-  mp_number v;        /* value of the left-hand side */
-  memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
-  new_number (v);
-RESTART:
-  t = mp_type (lhs);
-  if (t <= mp_pair_type)
-    number_clone (v, value_number (lhs));
-  switch (t) {
-    @<For each type |t|, make an equation and |goto done| unless |cur_type|
-    is incompatible with~|t|@>;
-  default:                     /* there are no other valid cases, but please the compiler */
-    break;
-  }                             /* all valid cases have been listed */
-  @<Announce that the equation cannot be performed@>;
-DONE:
-  check_arith();
-  mp_recycle_value (mp, lhs);
-  free_number (v);
-  mp_free_node (mp, lhs, value_node_size);
-}
-
-
-@ @<Announce that the equation cannot be performed@>=
-{
+static void announce_bad_equation (MP mp, mp_node lhs) {
   char msg[256];
   const char *hlp[] = {
        "I'm sorry, but I don't know how to make such things equal.",
@@ -28952,139 +28925,149 @@ DONE:
   mp_snprintf(msg, 256, "Equation cannot be performed (%s=%s)", 
 	(mp_type (lhs) <= mp_pair_type ? mp_type_string (mp_type (lhs)) : "numeric"),
 	(mp->cur_exp.type <= mp_pair_type ? mp_type_string (mp->cur_exp.type) : "numeric"));
-@.Equation cannot be performed@>;
   mp_disp_err (mp, lhs);
   mp_disp_err(mp, NULL);
   mp_back_error (mp, msg, hlp, true);
   mp_get_x_next (mp);
 }
-
-@ @<For each type |t|, make an equation and |goto done| unless...@>=
-case mp_boolean_type:
-case mp_string_type:
-case mp_pen_type:
-case mp_path_type:
-case mp_picture_type:
-if (mp->cur_exp.type == t + unknown_tag) {
-  number_clone (new_expr.data.n, v);
-  mp_nonlinear_eq (mp, new_expr, cur_exp_node (), false);
-  mp_unstash_cur_exp (mp, cur_exp_node ());
-  goto DONE;
-} else if (mp->cur_exp.type == t) {
-  @<Report redundant or inconsistent equation and |goto done|@>;
+static void exclaim_inconsistent_equation (MP mp) {
+  const char *hlp[] = {
+       "The equation I just read contradicts what was said before.",
+       "But don't worry; continue and I'll just ignore it.",
+        NULL };
+  mp_back_error (mp,"Inconsistent equation", hlp, true);
+  mp_get_x_next (mp);
 }
-break;
-case unknown_types:
-if (mp->cur_exp.type == t - unknown_tag) {
-  mp_nonlinear_eq (mp, mp->cur_exp, lhs, true);
-  goto DONE;
-} else if (mp->cur_exp.type == t) {
-  mp_ring_merge (mp, lhs, cur_exp_node ());
-  goto DONE;
-} else if (mp->cur_exp.type == mp_pair_type) {
-  if (t == mp_unknown_path) {
-    mp_pair_to_path (mp);
-    goto RESTART;
-  }
+static void exclaim_redundant_or_inconsistent_equation (MP mp) {
+  const char *hlp[] = {
+       "An equation between already-known quantities can't help.",
+       "But don't worry; continue and I'll just ignore it.",
+        NULL };
+  mp_back_error (mp, "Redundant or inconsistent equation", hlp, true);
+  mp_get_x_next (mp);
 }
-break;
-case mp_transform_type:
-case mp_color_type:
-case mp_cmykcolor_type:
-case mp_pair_type:
-if (mp->cur_exp.type == t) {
-  @<Do multiple equations and |goto done|@>;
-}
-break;
-case mp_known:
-case mp_dependent:
-case mp_proto_dependent:
-case mp_independent:
-if (mp->cur_exp.type >= mp_known) {
-  mp_try_eq (mp, lhs, NULL);
-  goto DONE;
-}
-break;
-case mp_vacuous:
-break;
-
-@ @<Report redundant or inconsistent equation and |goto done|@>=
-{
+static void report_redundant_or_inconsistent_equation (MP mp, mp_node lhs, mp_number v) {
   if (mp->cur_exp.type <= mp_string_type) {
     if (mp->cur_exp.type == mp_string_type) {
       if (mp_str_vs_str (mp, value_str (lhs), cur_exp_str ()) != 0) {
-        goto NOT_FOUND;
+        exclaim_inconsistent_equation(mp);
+      } else {
+        exclaim_redundant_equation(mp);
       }
     } else if (!number_equal (v, cur_exp_value_number ())) {
-      goto NOT_FOUND;
+      exclaim_inconsistent_equation(mp);
+    } else {
+      exclaim_redundant_equation(mp);
     }
-    @<Exclaim about a redundant equation@>;
-    goto DONE;
+  } else {
+    exclaim_redundant_or_inconsistent_equation (mp);
   }
-  {
-    const char *hlp[] = {
-         "An equation between already-known quantities can't help.",
-         "But don't worry; continue and I'll just ignore it.",
-          NULL };
-    mp_back_error (mp, "Redundant or inconsistent equation", hlp, true);
-@.Redundant or inconsistent equation@>;
-    mp_get_x_next (mp);
-  }
-  goto DONE;
-NOT_FOUND:
-  {
-    const char *hlp[] = {
-         "The equation I just read contradicts what was said before.",
-         "But don't worry; continue and I'll just ignore it.",
-          NULL };
-    mp_back_error (mp,"Inconsistent equation", hlp, true);
-@.Inconsistent equation@>;
-    mp_get_x_next (mp);
-  }
-  goto DONE;  
 }
 
-
-@ @<Do multiple equations and |goto done|@>=
-{
-  p = value_node (lhs);
+void mp_make_eq (MP mp, mp_node lhs) {
+  mp_value new_expr;
+  mp_variable_type t;   /* type of the left-hand side */
+  mp_number v;        /* value of the left-hand side */
+  memset(&new_expr,0,sizeof(mp_value));
+  new_number (v);
+RESTART:
+  t = mp_type (lhs);
+  if (t <= mp_pair_type)
+    number_clone (v, value_number (lhs));
+  /* For each type |t|, make an equation or complain if |cur_type|
+     is incompatible with~|t| */
   switch (t) {
+  case mp_boolean_type:
+  case mp_string_type:
+  case mp_pen_type:
+  case mp_path_type:
+  case mp_picture_type:
+    if (mp->cur_exp.type == t + unknown_tag) {
+      new_number(new_expr.data.n);
+      number_clone (new_expr.data.n, v);
+      mp_nonlinear_eq (mp, new_expr, cur_exp_node (), false);
+      mp_unstash_cur_exp (mp, cur_exp_node ());
+    } else if (mp->cur_exp.type == t) {
+      report_redundant_or_inconsistent_equation(mp, lhs, v);
+    } else {
+      announce_bad_equation(mp, lhs);
+    }
+    break;
+  case unknown_types:
+    if (mp->cur_exp.type == t - unknown_tag) {
+      mp_nonlinear_eq (mp, mp->cur_exp, lhs, true);
+    } else if (mp->cur_exp.type == t) {
+      mp_ring_merge (mp, lhs, cur_exp_node ());
+    } else if (mp->cur_exp.type == mp_pair_type) {
+      if (t == mp_unknown_path) {
+        mp_pair_to_path (mp);
+        goto RESTART;
+      }
+    } else {
+      announce_bad_equation(mp, lhs);
+    }
+    break;
   case mp_transform_type:
-    mp_try_eq (mp, yy_part (p), yy_part (value_node (cur_exp_node ())));
-    mp_try_eq (mp, yx_part (p), yx_part (value_node (cur_exp_node ())));
-    mp_try_eq (mp, xy_part (p), xy_part (value_node (cur_exp_node ())));
-    mp_try_eq (mp, xx_part (p), xx_part (value_node (cur_exp_node ())));
-    mp_try_eq (mp, ty_part (p), ty_part (value_node (cur_exp_node ())));
-    mp_try_eq (mp, tx_part (p), tx_part (value_node (cur_exp_node ())));
-    break;
   case mp_color_type:
-    mp_try_eq (mp, blue_part (p),
-               blue_part (value_node (cur_exp_node ())));
-    mp_try_eq (mp, green_part (p),
-               green_part (value_node (cur_exp_node ())));
-    mp_try_eq (mp, red_part (p),
-               red_part (value_node (cur_exp_node ())));
-    break;
   case mp_cmykcolor_type:
-    mp_try_eq (mp, black_part (p),
-               black_part (value_node (cur_exp_node ())));
-    mp_try_eq (mp, yellow_part (p),
-               yellow_part (value_node (cur_exp_node ())));
-    mp_try_eq (mp, magenta_part (p),
-               magenta_part (value_node (cur_exp_node ())));
-    mp_try_eq (mp, cyan_part (p),
-               cyan_part (value_node (cur_exp_node ())));
-    break;
   case mp_pair_type:
-    mp_try_eq (mp, y_part (p), y_part (value_node (cur_exp_node ())));
-    mp_try_eq (mp, x_part (p), x_part (value_node (cur_exp_node ())));
+    if (mp->cur_exp.type == t) {
+      /* Do multiple equations */
+      mp_node q = value_node (cur_exp_node ());
+      mp_node p = value_node (lhs);
+      switch (t) {
+      case mp_transform_type:
+        mp_try_eq (mp, yy_part (p), yy_part (q));
+        mp_try_eq (mp, yx_part (p), yx_part (q));
+        mp_try_eq (mp, xy_part (p), xy_part (q));
+        mp_try_eq (mp, xx_part (p), xx_part (q));
+        mp_try_eq (mp, ty_part (p), ty_part (q));
+        mp_try_eq (mp, tx_part (p), tx_part (q));
+        break;
+      case mp_color_type:
+        mp_try_eq (mp, blue_part (p),  blue_part (q));
+        mp_try_eq (mp, green_part (p), green_part (q));
+        mp_try_eq (mp, red_part (p),   red_part (q));
+        break;
+      case mp_cmykcolor_type:
+        mp_try_eq (mp, black_part (p),   black_part (q));
+        mp_try_eq (mp, yellow_part (p),  yellow_part (q));
+        mp_try_eq (mp, magenta_part (p), magenta_part (q));
+        mp_try_eq (mp, cyan_part (p),    cyan_part (q));
+        break;
+      case mp_pair_type:
+        mp_try_eq (mp, y_part (p), y_part (q));
+        mp_try_eq (mp, x_part (p), x_part (q));
+        break;
+      default:  /* there are no other valid cases, but please the compiler */
+        break;
+      }
+    } else {
+      announce_bad_equation(mp, lhs);
+    }
     break;
-  default:                     /* there are no other valid cases, but please the compiler */
+  case mp_known:
+  case mp_dependent:
+  case mp_proto_dependent:
+  case mp_independent:
+    if (mp->cur_exp.type >= mp_known) {
+      mp_try_eq (mp, lhs, NULL);
+    } else {
+      announce_bad_equation(mp, lhs);
+    }
     break;
-  }
-  goto DONE;
+  case mp_vacuous:
+    announce_bad_equation(mp, lhs);
+    break;
+  default: /* there are no other valid cases, but please the compiler */
+    announce_bad_equation(mp, lhs);
+    break;
+  } 
+  check_arith();
+  mp_recycle_value (mp, lhs);
+  free_number (v);
+  mp_free_node (mp, lhs, value_node_size);
 }
-
 
 @ The first argument to |try_eq| is the location of a value node
 in a capsule that will soon be recycled. The second argument is
@@ -29176,7 +29159,7 @@ if (t == mp_known) {
     mp_back_error (mp, msg, hlp, true);
     mp_get_x_next (mp);
   } else if (r == NULL) {
-    @<Exclaim about a redundant equation@>;
+    exclaim_redundant_equation(mp);
   }
   free_number (absp);
   mp_free_dep_node (mp, p);
