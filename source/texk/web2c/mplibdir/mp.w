@@ -28766,9 +28766,17 @@ to the left-hand side).
 static void mp_do_equation (MP mp);
 
 @ @c
+static void trace_equation (MP mp, mp_node lhs) {
+  mp_begin_diagnostic (mp);
+  mp_print_nl (mp, "{(");
+  mp_print_exp (mp, lhs, 0);
+  mp_print (mp, ")=(");
+  mp_print_exp (mp, NULL, 0);
+  mp_print (mp, ")}");
+  mp_end_diagnostic (mp, false);
+}
 void mp_do_equation (MP mp) {
   mp_node lhs;  /* capsule for the left-hand side */
-  mp_node p;    /* temporary register */
   lhs = mp_stash_cur_exp (mp);
   mp_get_x_next (mp);
   mp->var_flag = mp_assignment;
@@ -28777,15 +28785,18 @@ void mp_do_equation (MP mp) {
     mp_do_equation (mp);
   else if (cur_cmd() == mp_assignment)
     mp_do_assignment (mp);
-  if (number_greater (internal_value (mp_tracing_commands), two_t))
-    @<Trace the current equation@>;
-  if (mp->cur_exp.type == mp_unknown_path)
+  if (number_greater (internal_value (mp_tracing_commands), two_t)) {
+    trace_equation(mp, lhs);
+  }
+  if (mp->cur_exp.type == mp_unknown_path) {
     if (mp_type (lhs) == mp_pair_type) {
+      mp_node p;    /* temporary register */
       p = mp_stash_cur_exp (mp);
       mp_unstash_cur_exp (mp, lhs);
       lhs = p;
-    };                          /* in this case |make_eq| will change the pair to a path */
-  mp_make_eq (mp, lhs);         /* equate |lhs| to |(cur_type,cur_exp)| */
+    }  /* in this case |make_eq| will change the pair to a path */
+  }
+  mp_make_eq (mp, lhs); /* equate |lhs| to |(cur_type,cur_exp)| */
 }
 
 
@@ -28795,72 +28806,16 @@ void mp_do_equation (MP mp) {
 static void mp_do_assignment (MP mp);
 
 @ @c
-void mp_do_assignment (MP mp) {
-  mp_node lhs;  /* token list for the left-hand side */
-  mp_node p;    /* where the left-hand value is stored */
-  mp_node q;    /* temporary capsule for the right-hand value */
-  if (mp->cur_exp.type != mp_token_list) {
-    const char *hlp[] = {
-           "I didn't find a variable name at the left of the `:=',",
-           "so I'm going to pretend that you said `=' instead.",
-           NULL };
-    mp_disp_err(mp, NULL);
-    mp_error (mp, "Improper `:=' will be changed to `='", hlp, true);
-@.Improper `:='@>;
-    mp_do_equation (mp);
-  } else {
-    lhs = cur_exp_node ();
-    mp->cur_exp.type = mp_vacuous;
-    mp_get_x_next (mp);
-    mp->var_flag = mp_assignment;
-    mp_scan_expression (mp);
-    if (cur_cmd() == mp_equals)
-      mp_do_equation (mp);
-    else if (cur_cmd() == mp_assignment)
-      mp_do_assignment (mp);
-    if (number_greater (internal_value (mp_tracing_commands), two_t))
-      @<Trace the current assignment@>;
-    if (mp_name_type (lhs) == mp_internal_sym) {
-      @<Assign the current expression to an internal variable@>;
-    } else {
-      @<Assign the current expression to the variable |lhs|@>;
-    }
-    mp_flush_node_list (mp, lhs);
-  }
+static void bad_lhs (MP mp) {
+  const char *hlp[] = {
+         "I didn't find a variable name at the left of the `:=',",
+         "so I'm going to pretend that you said `=' instead.",
+         NULL };
+  mp_disp_err(mp, NULL);
+  mp_error (mp, "Improper `:=' will be changed to `='", hlp, true);
+  mp_do_equation (mp);
 }
-
-
-@ @<Trace the current equation@>=
-{
-  mp_begin_diagnostic (mp);
-  mp_print_nl (mp, "{(");
-  mp_print_exp (mp, lhs, 0);
-  mp_print (mp, ")=(");
-  mp_print_exp (mp, NULL, 0);
-  mp_print (mp, ")}");
-  mp_end_diagnostic (mp, false);
-}
-
-
-@ @<Trace the current assignment@>=
-{
-  mp_begin_diagnostic (mp);
-  mp_print_nl (mp, "{");
-  if (mp_name_type (lhs) == mp_internal_sym)
-    mp_print (mp, internal_name (mp_sym_info (lhs)));
-  else
-    mp_show_token_list (mp, lhs, NULL, 1000, 0);
-  mp_print (mp, ":=");
-  mp_print_exp (mp, NULL, 0);
-  mp_print_char (mp, xord ('}'));
-  mp_end_diagnostic (mp, false);
-}
-
-@ @<Assign the current expression to an internal variable@>=
-if ((mp->cur_exp.type == mp_known || mp->cur_exp.type == mp_string_type)
-    && (internal_type (mp_sym_info (lhs)) == mp->cur_exp.type)) {
-  set_internal_from_cur_exp(mp_sym_info (lhs));
-} else {
+static void bad_internal_assignment (MP mp, mp_node lhs) {
   char msg[256];
   const char *hlp[] = {
            "I can\'t set this internal quantity to anything but a known",
@@ -28876,36 +28831,78 @@ if ((mp->cur_exp.type == mp_known || mp->cur_exp.type == mp_string_type)
     hlp[1] = "string, so I'll have to ignore this assignment.";
   }
   mp_back_error (mp, msg, hlp, true);
-@.Internal quantity...@>;
   mp_get_x_next (mp);
 }
-
-
-@ @<Assign the current expression to the variable |lhs|@>=
-{
-  p = mp_find_variable (mp, lhs);
-  if (p != NULL) {
-    q = mp_stash_cur_exp (mp);
-    mp->cur_exp.type = mp_und_type (mp, p);
-    mp_recycle_value (mp, p);
-    mp_type (p) = mp->cur_exp.type;
-    set_value_number (p, zero_t);           /* todo: this was |null| */
-    mp_make_exp_copy (mp, p);
-    p = mp_stash_cur_exp (mp);
-    mp_unstash_cur_exp (mp, q);
-    mp_make_eq (mp, p);
+static void bad_expression_assignment (MP mp, mp_node lhs) {
+  const char *hlp[] = { 
+       "It seems you did a nasty thing---probably by accident,",
+       "but nevertheless you nearly hornswoggled me...",
+       "While I was evaluating the right-hand side of this",
+       "command, something happened, and the left-hand side",
+       "is no longer a variable! So I won't change anything.",
+       NULL };
+  char *msg = mp_obliterated (mp, lhs);
+  mp_back_error (mp, msg, hlp, true);
+  free(msg);
+  mp_get_x_next (mp);
+}
+static void trace_assignment (MP mp, mp_node lhs) {
+  mp_begin_diagnostic (mp);
+  mp_print_nl (mp, "{");
+  if (mp_name_type (lhs) == mp_internal_sym)
+    mp_print (mp, internal_name (mp_sym_info (lhs)));
+  else
+    mp_show_token_list (mp, lhs, NULL, 1000, 0);
+  mp_print (mp, ":=");
+  mp_print_exp (mp, NULL, 0);
+  mp_print_char (mp, xord ('}'));
+  mp_end_diagnostic (mp, false);
+}
+void mp_do_assignment (MP mp) {
+  if (mp->cur_exp.type != mp_token_list) {
+    bad_lhs(mp);
   } else {
-    const char *hlp[] = { 
-         "It seems you did a nasty thing---probably by accident,",
-         "but nevertheless you nearly hornswoggled me...",
-         "While I was evaluating the right-hand side of this",
-         "command, something happened, and the left-hand side",
-         "is no longer a variable! So I won't change anything.",
-         NULL };
-    char *msg = mp_obliterated (mp, lhs);
-    mp_back_error (mp, msg, hlp, true);
-    free(msg);
+    mp_node lhs;  /* token list for the left-hand side */
+    lhs = cur_exp_node ();
+    mp->cur_exp.type = mp_vacuous;
     mp_get_x_next (mp);
+    mp->var_flag = mp_assignment;
+    mp_scan_expression (mp);
+    if (cur_cmd() == mp_equals)
+      mp_do_equation (mp);
+    else if (cur_cmd() == mp_assignment)
+      mp_do_assignment (mp);
+    if (number_greater (internal_value (mp_tracing_commands), two_t)) {
+      trace_assignment (mp, lhs);
+    }
+    if (mp_name_type (lhs) == mp_internal_sym) {
+      /* Assign the current expression to an internal variable */
+      if ((mp->cur_exp.type == mp_known || mp->cur_exp.type == mp_string_type)
+          && (internal_type (mp_sym_info (lhs)) == mp->cur_exp.type)) {
+        set_internal_from_cur_exp(mp_sym_info (lhs));
+      } else {
+        bad_internal_assignment (mp, lhs);
+      }
+    } else {
+      /* Assign the current expression to the variable |lhs| */
+      mp_node p;    /* where the left-hand value is stored */
+      mp_node q;    /* temporary capsule for the right-hand value */
+      p = mp_find_variable (mp, lhs);
+      if (p != NULL) {
+        q = mp_stash_cur_exp (mp);
+        mp->cur_exp.type = mp_und_type (mp, p);
+        mp_recycle_value (mp, p);
+        mp_type (p) = mp->cur_exp.type;
+        set_value_number (p, zero_t); /* todo: this was |null| */
+        mp_make_exp_copy (mp, p);
+        p = mp_stash_cur_exp (mp);
+        mp_unstash_cur_exp (mp, q);
+        mp_make_eq (mp, p);
+      } else {
+        bad_expression_assignment(mp, lhs);
+      }
+    }
+    mp_flush_node_list (mp, lhs);
   }
 }
 
@@ -28915,7 +28912,6 @@ a pointer to a capsule that is to be equated to the current expression.
 
 @<Declare the procedure called |make_eq|@>=
 static void mp_make_eq (MP mp, mp_node lhs);
-
 
 @ 
 @c
