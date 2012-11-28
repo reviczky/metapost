@@ -11413,6 +11413,9 @@ void mp_toss_edges (MP mp, mp_edge_header_node h) {
     if (r != NULL)
       delete_edge_ref (r);
   }
+  free_number(h->start_x);
+  free_number(h->stop_x);
+  free_number(h->dash_y);
   free_number(h->minx);
   free_number(h->miny);
   free_number(h->maxx);
@@ -27364,20 +27367,19 @@ insists that the transformation be entirely known.
 
 @<Declare binary action...@>=
 static void mp_set_up_known_trans (MP mp, quarterword c) {
-  mp_value new_expr;
-  memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
   mp_set_up_trans (mp, c);
   if (mp->cur_exp.type != mp_known) {
+    mp_value new_expr;
     const char *hlp[] = { 
            "I'm unable to apply a partially specified transformation",
            "except to a fully known pair or transform.",
            "Proceed, and I'll omit the transformation.",
            NULL };
+    memset(&new_expr,0,sizeof(mp_value));
+    new_number(new_expr.data.n);
     mp_disp_err(mp, NULL);
     set_number_to_zero (new_expr.data.n);
     mp_back_error (mp,"Transform components aren't all known", hlp, true);
-@.Transform components...@>;
     mp_get_x_next (mp);
     mp_flush_cur_exp (mp, new_expr);
     set_number_to_unity(mp->txx);
@@ -30878,16 +30880,27 @@ static mp_node mp_start_draw_cmd (MP mp, quarterword sep);
 @ @c
 mp_node mp_start_draw_cmd (MP mp, quarterword sep) {
   mp_node lhv;  /* variable to add to left */
-  mp_value new_expr;
   quarterword add_type = 0;     /* value to be returned in |last_add_type| */
   lhv = NULL;
-  memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
   mp_get_x_next (mp);
   mp->var_flag = sep;
   mp_scan_primary (mp);
   if (mp->cur_exp.type != mp_token_list) {
-    @<Abandon edges command because there's no variable@>;
+    /* Abandon edges command because there's no variable */
+    mp_value new_expr;
+    const char *hlp[] = { 
+         "At this point I needed to see the name of a picture variable.",
+         "(Or perhaps you have indeed presented me with one; I might",
+         "have missed it, if it wasn't followed by the proper token.)",
+         "So I'll not change anything just now.",
+         NULL };
+    memset(&new_expr,0,sizeof(mp_value));
+    new_number(new_expr.data.n);
+    mp_disp_err(mp, NULL);
+    set_number_to_zero (new_expr.data.n);
+    mp_back_error (mp, "Not a suitable variable", hlp, true);
+    mp_get_x_next (mp);
+    mp_flush_cur_exp (mp, new_expr);
   } else {
     lhv = cur_exp_node ();
     add_type = (quarterword) cur_mod();
@@ -30898,24 +30911,6 @@ mp_node mp_start_draw_cmd (MP mp, quarterword sep) {
   mp->last_add_type = add_type;
   return lhv;
 }
-
-
-@ @<Abandon edges command because there's no variable@>=
-{
-  const char *hlp[] = { 
-         "At this point I needed to see the name of a picture variable.",
-         "(Or perhaps you have indeed presented me with one; I might",
-         "have missed it, if it wasn't followed by the proper token.)",
-         "So I'll not change anything just now.",
-         NULL };
-  mp_disp_err(mp, NULL);
-  set_number_to_zero (new_expr.data.n);
-  mp_back_error (mp, "Not a suitable variable", hlp, true);
-@.Not a suitable variable@>;
-  mp_get_x_next (mp);
-  mp_flush_cur_exp (mp, new_expr);
-}
-
 
 @ Here is an example of how to use |start_draw_cmd|.
 
@@ -30928,14 +30923,14 @@ void mp_do_bounds (MP mp) {
   mp_edge_header_node lhe;
   mp_node p;    /* for list manipulation */
   integer m;    /* initial value of |cur_mod| */
-  mp_value new_expr;
-  memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
   m = cur_mod();
   lhv = mp_start_draw_cmd (mp, mp_to_token);
   if (lhv != NULL) {
+    mp_value new_expr;
+    memset(&new_expr,0,sizeof(mp_value));
     lhe = mp_find_edges_var (mp, lhv);
     if (lhe == NULL) {
+      new_number(new_expr.data.n);
       set_number_to_zero (new_expr.data.n);
       mp_flush_cur_exp (mp, new_expr);
     } else if (mp->cur_exp.type != mp_path_type) {
@@ -30944,47 +30939,36 @@ void mp_do_bounds (MP mp) {
              "So I'll not change anything just now.",
               NULL };
       mp_disp_err(mp, NULL);
+      new_number(new_expr.data.n);
       set_number_to_zero (new_expr.data.n);
       mp_back_error (mp, "Improper `clip'", hlp, true);
-@.Improper `addto'@>;
       mp_get_x_next (mp);
       mp_flush_cur_exp (mp, new_expr);
     } else if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
-      @<Complain about a non-cycle@>;
+      /* Complain about a non-cycle */
+      const char *hlp[] = {
+            "That contour should have ended with `..cycle' or `&cycle'.",
+            "So I'll not change anything just now.",
+            NULL };
+      mp_back_error (mp, "Not a cycle" , hlp, true);
+      mp_get_x_next (mp);
     } else {
-      @<Make |cur_exp| into a \&{setbounds} or clipping path and add it to |lhe|@>;
+      /* Make |cur_exp| into a \&{setbounds} or clipping path and add it to |lhe| */
+      p = mp_new_bounds_node (mp, cur_exp_knot (), (quarterword) m);
+      mp_link (p) = mp_link (edge_list (lhe));
+      mp_link (edge_list (lhe)) = p;
+      if (obj_tail (lhe) == edge_list (lhe))
+        obj_tail (lhe) = p;
+      if (m == mp_start_clip_node_type) {
+        p = mp_new_bounds_node (mp, NULL, mp_stop_clip_node_type);
+      } else if (m == mp_start_bounds_node_type) {
+        p = mp_new_bounds_node (mp, NULL, mp_stop_bounds_node_type);
+      }
+      mp_link (obj_tail (lhe)) = p;
+      obj_tail (lhe) = p;
+      mp_init_bbox (mp, lhe);
     }
   }
-}
-
-
-@ @<Complain about a non-cycle@>=
-{
-  const char *hlp[] = {
-         "That contour should have ended with `..cycle' or `&cycle'.",
-         "So I'll not change anything just now.",
-         NULL };
-  mp_back_error (mp, "Not a cycle" , hlp, true);
-@.Not a cycle@>;
-  mp_get_x_next (mp);
-}
-
-
-@ @<Make |cur_exp| into a \&{setbounds} or clipping path and add...@>=
-{
-  p = mp_new_bounds_node (mp, cur_exp_knot (), (quarterword) m);
-  mp_link (p) = mp_link (edge_list (lhe));
-  mp_link (edge_list (lhe)) = p;
-  if (obj_tail (lhe) == edge_list (lhe))
-    obj_tail (lhe) = p;
-  if (m == mp_start_clip_node_type) {
-    p = mp_new_bounds_node (mp, NULL, mp_stop_clip_node_type);
-  } else if (m == mp_start_bounds_node_type) {
-    p = mp_new_bounds_node (mp, NULL, mp_stop_bounds_node_type);
-  }
-  mp_link (obj_tail (lhe)) = p;
-  obj_tail (lhe) = p;
-  mp_init_bbox (mp, lhe);
 }
 
 
@@ -31001,118 +30985,108 @@ void mp_do_add_to (MP mp) {
   mp_node p;    /* the graphical object or list for |scan_with_list| to update */
   mp_edge_header_node e;    /* an edge structure to be merged */
   quarterword add_type; /* |also_code|, |contour_code|, or |double_path_code| */
-  mp_value new_expr;
-  memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
   lhv = mp_start_draw_cmd (mp, mp_thing_to_add);
   add_type = mp->last_add_type;
   if (lhv != NULL) {
     if (add_type == also_code) {
-      @<Make sure the current expression is a suitable picture and set |e| and |p|
-       appropriately@>;
+      /* Make sure the current expression is a suitable picture and set |e| and |p|
+         appropriately */
+      /* Setting |p:=NULL| causes the $\langle$with list$\rangle$ to be ignored;
+         setting |e:=NULL| prevents anything from being added to |lhe|. */
+      p = NULL;
+      e = NULL;
+      if (mp->cur_exp.type != mp_picture_type) {
+        mp_value new_expr;
+        const char *hlp[]= { 
+               "This expression should have specified a known picture.",
+               "So I'll not change anything just now.",
+               NULL };
+        memset(&new_expr,0,sizeof(mp_value));
+        new_number(new_expr.data.n);
+        mp_disp_err(mp, NULL);
+        set_number_to_zero (new_expr.data.n);
+        mp_back_error (mp, "Improper `addto'", hlp, true);
+        mp_get_x_next (mp);
+        mp_flush_cur_exp (mp, new_expr);
+      } else {
+        e = mp_private_edges (mp, (mp_edge_header_node)cur_exp_node ());
+        mp->cur_exp.type = mp_vacuous;
+        p = mp_link (edge_list (e));
+      }
+
     } else {
-      @<Create a graphical object |p| based on |add_type| and the current
-        expression@>;
+      /* Create a graphical object |p| based on |add_type| and the current
+         expression */
+      /* In this case |add_type<>also_code| so setting |p:=NULL| suppresses future
+         attempts to add to the edge structure. */
+      e = NULL;
+      p = NULL;
+      if (mp->cur_exp.type == mp_pair_type)
+        mp_pair_to_path (mp);
+      if (mp->cur_exp.type != mp_path_type) {
+        mp_value new_expr;
+        const char *hlp[] = { 
+               "This expression should have specified a known path.",
+               "So I'll not change anything just now.",
+               NULL };
+        memset(&new_expr,0,sizeof(mp_value));
+        new_number(new_expr.data.n);
+        mp_disp_err(mp, NULL);
+        set_number_to_zero (new_expr.data.n);
+        mp_back_error (mp, "Improper `addto'", hlp, true);
+        mp_get_x_next (mp);
+        mp_flush_cur_exp (mp, new_expr);
+      } else if (add_type == contour_code) {
+        if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
+          /* Complain about a non-cycle */
+          const char *hlp[] = {
+                "That contour should have ended with `..cycle' or `&cycle'.",
+                "So I'll not change anything just now.",
+                NULL };
+          mp_back_error (mp, "Not a cycle" , hlp, true);
+          mp_get_x_next (mp);
+    
+        } else {
+          p = mp_new_fill_node (mp, cur_exp_knot ());
+          mp->cur_exp.type = mp_vacuous;
+        }
+      } else {
+        p = mp_new_stroked_node (mp, cur_exp_knot ());
+        mp->cur_exp.type = mp_vacuous;
+      }
+
     }
     mp_scan_with_list (mp, p);
-    @<Use |p|, |e|, and |add_type| to augment |lhv| as requested@>;
-  }
-}
-
-
-@ Setting |p:=NULL| causes the $\langle$with list$\rangle$ to be ignored;
-setting |e:=NULL| prevents anything from being added to |lhe|.
-
-@ @<Make sure the current expression is a suitable picture and set |e|...@>=
-{
-  p = NULL;
-  e = NULL;
-  if (mp->cur_exp.type != mp_picture_type) {
-    const char *hlp[]= { 
-           "This expression should have specified a known picture.",
-           "So I'll not change anything just now.",
-           NULL };
-    mp_disp_err(mp, NULL);
-    set_number_to_zero (new_expr.data.n);
-    mp_back_error (mp, "Improper `addto'", hlp, true);
-@.Improper `addto'@>;
-    mp_get_x_next (mp);
-    mp_flush_cur_exp (mp, new_expr);
-  } else {
-    e = mp_private_edges (mp, (mp_edge_header_node)cur_exp_node ());
-    mp->cur_exp.type = mp_vacuous;
-    p = mp_link (edge_list (e));
-  }
-}
-
-
-@ In this case |add_type<>also_code| so setting |p:=NULL| suppresses future
-attempts to add to the edge structure.
-
-@<Create a graphical object |p| based on |add_type| and the current...@>=
-{
-  e = NULL;
-  p = NULL;
-  if (mp->cur_exp.type == mp_pair_type)
-    mp_pair_to_path (mp);
-  if (mp->cur_exp.type != mp_path_type) {
-    const char *hlp[] = { 
-           "This expression should have specified a known path.",
-           "So I'll not change anything just now.",
-           NULL };
-    mp_disp_err(mp, NULL);
-    set_number_to_zero (new_expr.data.n);
-    mp_back_error (mp, "Improper `addto'", hlp, true);
-@.Improper `addto'@>;
-    mp_get_x_next (mp);
-    mp_flush_cur_exp (mp, new_expr);
-  } else if (add_type == contour_code) {
-    if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
-      @<Complain about a non-cycle@>;
-    } else {
-      p = mp_new_fill_node (mp, cur_exp_knot ());
-      mp->cur_exp.type = mp_vacuous;
+    /* Use |p|, |e|, and |add_type| to augment |lhv| as requested */
+    lhe = mp_find_edges_var (mp, lhv);
+    if (lhe == NULL) {
+      if ((e == NULL) && (p != NULL))
+        e = mp_toss_gr_object (mp, p);
+      if (e != NULL)
+        delete_edge_ref (e);
+    } else if (add_type == also_code) {
+      if (e != NULL) {
+        /* Merge |e| into |lhe| and delete |e| */
+        if (mp_link (edge_list (e)) != NULL) {
+          mp_link (obj_tail (lhe)) = mp_link (edge_list (e));
+          obj_tail (lhe) = obj_tail (e);
+          obj_tail (e) = edge_list (e);
+          mp_link (edge_list (e)) = NULL;
+          mp_flush_dash_list (mp, lhe);
+        }
+        mp_toss_edges (mp, e);
+      }
+    } else if (p != NULL) {
+      mp_link (obj_tail (lhe)) = p;
+      obj_tail (lhe) = p;
+      if (add_type == double_path_code) {
+        if (mp_pen_p ((mp_stroked_node) p) == NULL) {
+          mp_pen_p ((mp_stroked_node) p) = mp_get_pen_circle (mp, zero_t);
+        }
+      }
     }
-  } else {
-    p = mp_new_stroked_node (mp, cur_exp_knot ());
-    mp->cur_exp.type = mp_vacuous;
   }
 }
-
-
-@ @<Use |p|, |e|, and |add_type| to augment |lhv| as requested@>=
-lhe = mp_find_edges_var (mp, lhv);
-if (lhe == NULL) {
-  if ((e == NULL) && (p != NULL))
-    e = mp_toss_gr_object (mp, p);
-  if (e != NULL)
-    delete_edge_ref (e);
-} else if (add_type == also_code) {
-  if (e != NULL) {
-    @<Merge |e| into |lhe| and delete |e|@>;
-  }
-} else if (p != NULL) {
-  mp_link (obj_tail (lhe)) = p;
-  obj_tail (lhe) = p;
-  if (add_type == double_path_code)
-    if (mp_pen_p ((mp_stroked_node) p) == NULL) {
-      mp_pen_p ((mp_stroked_node) p) = mp_get_pen_circle (mp, zero_t);
-    }
-}
-
-@ @<Merge |e| into |lhe| and delete |e|@>=
-{
-  if (mp_link (edge_list (e)) != NULL) {
-    mp_link (obj_tail (lhe)) = mp_link (edge_list (e));
-    obj_tail (lhe) = obj_tail (e);
-    obj_tail (e) = edge_list (e);
-    mp_link (edge_list (e)) = NULL;
-    mp_flush_dash_list (mp, lhe);
-  }
-  mp_toss_edges (mp, e);
-}
-
-
 
 @ @<Declare action procedures for use by |do_statement|@>=
 @<Declare the \ps\ output procedures@>;
