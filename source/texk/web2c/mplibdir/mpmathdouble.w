@@ -17,6 +17,7 @@
 @ Introduction.
 
 @c 
+#define _ISOC99_SOURCE /* to get the round() prototype */
 #include <w2c/config.h>
 #include <stdio.h>
 #include <stdlib.h>
