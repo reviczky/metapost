@@ -18728,87 +18728,155 @@ static void mp_scan_def (MP mp) {
   q = mp_get_symbolic_node (mp);
   set_mp_sym_info (q, 0);       /* |ref_count(q)=NULL;| */
   r = NULL;
-  @<Scan the token or variable to be defined;
-    set |n|, |scanner_status|, and |warning_info|@>;
+  /* Scan the token or variable to be defined;
+    set |n|, |scanner_status|, and |warning_info| */
+  if (m == start_def) {
+    mp_get_clear_symbol (mp);
+    mp->warning_info = cur_sym();
+    get_t_next (mp);
+    mp->scanner_status = op_defining;
+    n = 0;
+    set_eq_type (mp->warning_info, mp_defined_macro);
+    set_equiv_node (mp->warning_info, q);
+  } else { /* var_def */
+    p = mp_scan_declared_variable (mp);
+    mp_flush_variable (mp, equiv_node (mp_sym_sym (p)), mp_link (p), true);
+    mp->warning_info_node = mp_find_variable (mp, p);
+    mp_flush_node_list (mp, p);
+    if (mp->warning_info_node == NULL) {
+      /* Change to `\.{a bad variable}' */
+      const char *hlp[] = {
+         "After `vardef a' you can\'t say `vardef a.b'.",
+         "So I'll have to discard this definition.",
+         NULL };
+      mp_error (mp, "This variable already starts with a macro", hlp, true);
+      mp->warning_info_node = mp->bad_vardef;
+    }
+    mp->scanner_status = var_defining;
+    n = 2;
+    if (cur_cmd() == mp_macro_special && cur_mod() == macro_suffix) {    /* \.{\AT!\#} */
+      n = 3;
+      get_t_next (mp);
+    }
+    mp_type (mp->warning_info_node) = (quarterword) (mp_unsuffixed_macro - 2 + n);
+    /* |mp_suffixed_macro=mp_unsuffixed_macro+1| */
+    set_value_node (mp->warning_info_node, q);
+  }
+
   k = n;
   if (cur_cmd() == mp_left_delimiter) {
-    @<Absorb delimited parameters, putting them into lists |q| and |r|@>;
+    /* Absorb delimited parameters, putting them into lists |q| and |r| */
+    do {
+      l_delim = cur_sym();
+      r_delim = equiv_sym (cur_sym());
+      get_t_next (mp);
+      if ((cur_cmd() == mp_param_type) && (cur_mod() == mp_expr_param)) {
+        sym_type = mp_expr_sym;
+      } else if ((cur_cmd() == mp_param_type) && (cur_mod() == mp_suffix_param)) {
+        sym_type = mp_suffix_sym;
+      } else if ((cur_cmd() == mp_param_type) && (cur_mod() == mp_text_param)) {
+        sym_type = mp_text_sym;
+      } else {
+        const char *hlp[] = { "You should've had `expr' or `suffix' or `text' here.", NULL };
+        mp_back_error (mp, "Missing parameter type; `expr' will be assumed", hlp, true);
+        sym_type = mp_expr_sym;
+      }
+      /* Absorb parameter tokens for type |sym_type| */
+      do {
+        mp_link (q) = mp_get_symbolic_node (mp);
+        q = mp_link (q);
+        mp_name_type (q) = sym_type;
+        set_mp_sym_info (q, k);
+        mp_get_symbol (mp);
+        rp = xmalloc (1, sizeof (mp_subst_list_item));
+        rp->link = NULL;
+        rp->value_data = k;
+        rp->value_mod = sym_type;
+        rp->info = cur_sym();
+        rp->info_mod = cur_sym_mod();
+        mp_check_param_size (mp, k);
+        incr (k);
+        rp->link = r;
+        r = rp;
+        get_t_next (mp);
+      } while (cur_cmd() == mp_comma);
+    
+      mp_check_delimiter (mp, l_delim, r_delim);
+      get_t_next (mp);
+    } while (cur_cmd() == mp_left_delimiter);
+
   }
   if (cur_cmd() == mp_param_type) {
-    @<Absorb undelimited parameters, putting them into list |r|@>;
+    /* Absorb undelimited parameters, putting them into list |r| */
+    rp = xmalloc (1, sizeof (mp_subst_list_item));
+    rp->link = NULL;
+    rp->value_data = k;
+    if (cur_mod() == mp_expr_param) {
+      rp->value_mod = mp_expr_sym;
+      c = mp_expr_macro;
+    } else if (cur_mod() == mp_suffix_param) {
+      rp->value_mod = mp_suffix_sym;
+      c = mp_suffix_macro;
+    } else if (cur_mod() == mp_text_param) {
+      rp->value_mod = mp_text_sym;
+      c = mp_text_macro;
+    } else {
+      c = cur_mod();
+      rp->value_mod = mp_expr_sym;
+    }
+    mp_check_param_size (mp, k);
+    incr (k);
+    mp_get_symbol (mp);
+    rp->info = cur_sym();
+    rp->info_mod = cur_sym_mod();
+    rp->link = r;
+    r = rp;
+    get_t_next (mp);
+    if (c == mp_expr_macro) {
+      if (cur_cmd() == mp_of_token) {
+        c = mp_of_macro;
+        rp = xmalloc (1, sizeof (mp_subst_list_item));
+        rp->link = NULL;
+        mp_check_param_size (mp, k);
+        rp->value_data = k;
+        rp->value_mod = mp_expr_sym;
+        mp_get_symbol (mp);
+        rp->info = cur_sym();
+        rp->info_mod = cur_sym_mod();
+        rp->link = r;
+        r = rp;
+        get_t_next (mp);
+      }
+    }
   }
   mp_check_equals (mp);
   p = mp_get_symbolic_node (mp);
   set_mp_sym_info (p, c);
   mp_name_type (p) = mp_macro_sym;
   mp_link (q) = p;
-  @<Attach the replacement text to the tail of node |p|@>;
+  /* Attach the replacement text to the tail of node |p| */
+  /* We don't put `|mp->frozen_end_group|' into the replacement text of
+     a \&{vardef}, because the user may want to redefine `\.{endgroup}'. */
+  if (m == start_def) {
+    mp_link (p) = mp_scan_toks (mp, mp_macro_def, r, NULL, (quarterword) n);
+  } else {
+    mp_node qq = mp_get_symbolic_node (mp);
+    set_mp_sym_sym (qq, mp->bg_loc);
+    mp_link (p) = qq;
+    p = mp_get_symbolic_node (mp);
+    set_mp_sym_sym (p, mp->eg_loc);
+    mp_link (qq) = mp_scan_toks (mp, mp_macro_def, r, p, (quarterword) n);
+  }
+  if (mp->warning_info_node == mp->bad_vardef)
+    mp_flush_token_list (mp, value_node (mp->bad_vardef));
+
   mp->scanner_status = normal;
   mp_get_x_next (mp);
 }
 
-
-@ We don't put `|mp->frozen_end_group|' into the replacement text of
-a \&{vardef}, because the user may want to redefine `\.{endgroup}'.
-
-@<Attach the replacement text to the tail of node |p|@>=
-if (m == start_def) {
-  mp_link (p) = mp_scan_toks (mp, mp_macro_def, r, NULL, (quarterword) n);
-} else {
-  mp_node qq = mp_get_symbolic_node (mp);
-  set_mp_sym_sym (qq, mp->bg_loc);
-  mp_link (p) = qq;
-  p = mp_get_symbolic_node (mp);
-  set_mp_sym_sym (p, mp->eg_loc);
-  mp_link (qq) = mp_scan_toks (mp, mp_macro_def, r, p, (quarterword) n);
-}
-if (mp->warning_info_node == mp->bad_vardef)
-  mp_flush_token_list (mp, value_node (mp->bad_vardef))
-   
-
 @ @<Glob...@>=
 mp_sym bg_loc;
 mp_sym eg_loc;  /* hash addresses of `\.{begingroup}' and `\.{endgroup}' */
-
-@ @<Scan the token or variable to be defined;...@>=
-if (m == start_def) {
-  mp_get_clear_symbol (mp);
-  mp->warning_info = cur_sym();
-  get_t_next (mp);
-  mp->scanner_status = op_defining;
-  n = 0;
-  set_eq_type (mp->warning_info, mp_defined_macro);
-  set_equiv_node (mp->warning_info, q);
-} else {
-  p = mp_scan_declared_variable (mp);
-  mp_flush_variable (mp, equiv_node (mp_sym_sym (p)), mp_link (p), true);
-  mp->warning_info_node = mp_find_variable (mp, p);
-  mp_flush_node_list (mp, p);
-  if (mp->warning_info_node == NULL)
-    @<Change to `\.{a bad variable}'@>;
-  mp->scanner_status = var_defining;
-  n = 2;
-  if (cur_cmd() == mp_macro_special && cur_mod() == macro_suffix) {    /* \.{\AT!\#} */
-    n = 3;
-    get_t_next (mp);
-  }
-  mp_type (mp->warning_info_node) = (quarterword) (mp_unsuffixed_macro - 2 + n);
-  /* |mp_suffixed_macro=mp_unsuffixed_macro+1| */
-  set_value_node (mp->warning_info_node, q);
-}
-
-
-@ @<Change to `\.{a bad variable}'@>=
-{
-  const char *hlp[] = {
-         "After `vardef a' you can\'t say `vardef a.b'.",
-         "So I'll have to discard this definition.",
-         NULL };
-  mp_error (mp, "This variable already starts with a macro", hlp, true);
-@.This variable already...@>;
-  mp->warning_info_node = mp->bad_vardef;
-}
-
 
 @ @<Initialize table entries@>=
 mp->bad_vardef = mp_get_value_node (mp);
@@ -18817,92 +18885,6 @@ set_value_sym (mp->bad_vardef, mp->frozen_bad_vardef);
 
 @ @<Free table entries@>=
 mp_free_value_node (mp, mp->bad_vardef);
-
-
-@ @<Absorb delimited parameters, putting them into lists |q| and |r|@>=
-do {
-  l_delim = cur_sym();
-  r_delim = equiv_sym (cur_sym());
-  get_t_next (mp);
-  if ((cur_cmd() == mp_param_type) && (cur_mod() == mp_expr_param)) {
-    sym_type = mp_expr_sym;
-  } else if ((cur_cmd() == mp_param_type) && (cur_mod() == mp_suffix_param)) {
-    sym_type = mp_suffix_sym;
-  } else if ((cur_cmd() == mp_param_type) && (cur_mod() == mp_text_param)) {
-    sym_type = mp_text_sym;
-  } else {
-    const char *hlp[] = { "You should've had `expr' or `suffix' or `text' here.", NULL };
-    mp_back_error (mp, "Missing parameter type; `expr' will be assumed", hlp, true);
-@.Missing parameter type@>;
-    sym_type = mp_expr_sym;
-  }
-  @<Absorb parameter tokens for type |sym_type|@>;
-  mp_check_delimiter (mp, l_delim, r_delim);
-  get_t_next (mp);
-} while (cur_cmd() == mp_left_delimiter)
-
-@ @<Absorb parameter tokens for type |sym_type|@>=
-do {
-  mp_link (q) = mp_get_symbolic_node (mp);
-  q = mp_link (q);
-  mp_name_type (q) = sym_type;
-  set_mp_sym_info (q, k);
-  mp_get_symbol (mp);
-  rp = xmalloc (1, sizeof (mp_subst_list_item));
-  rp->link = NULL;
-  rp->value_data = k;
-  rp->value_mod = sym_type;
-  rp->info = cur_sym();
-  rp->info_mod = cur_sym_mod();
-  mp_check_param_size (mp, k);
-  incr (k);
-  rp->link = r;
-  r = rp;
-  get_t_next (mp);
-} while (cur_cmd() == mp_comma)
-
-@ @<Absorb undelimited parameters, putting them into list |r|@>=
-{
-  rp = xmalloc (1, sizeof (mp_subst_list_item));
-  rp->link = NULL;
-  rp->value_data = k;
-  if (cur_mod() == mp_expr_param) {
-    rp->value_mod = mp_expr_sym;
-    c = mp_expr_macro;
-  } else if (cur_mod() == mp_suffix_param) {
-    rp->value_mod = mp_suffix_sym;
-    c = mp_suffix_macro;
-  } else if (cur_mod() == mp_text_param) {
-    rp->value_mod = mp_text_sym;
-    c = mp_text_macro;
-  } else {
-    c = cur_mod();
-    rp->value_mod = mp_expr_sym;
-  }
-  mp_check_param_size (mp, k);
-  incr (k);
-  mp_get_symbol (mp);
-  rp->info = cur_sym();
-  rp->info_mod = cur_sym_mod();
-  rp->link = r;
-  r = rp;
-  get_t_next (mp);
-  if (c == mp_expr_macro)
-    if (cur_cmd() == mp_of_token) {
-      c = mp_of_macro;
-      rp = xmalloc (1, sizeof (mp_subst_list_item));
-      rp->link = NULL;
-      mp_check_param_size (mp, k);
-      rp->value_data = k;
-      rp->value_mod = mp_expr_sym;
-      mp_get_symbol (mp);
-      rp->info = cur_sym();
-      rp->info_mod = cur_sym_mod();
-      rp->link = r;
-      r = rp;
-      get_t_next (mp);
-    }
-}
 
 
 @* Expanding the next token.
