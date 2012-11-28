@@ -17642,7 +17642,7 @@ name of a macro whose replacement text is being scanned.
 integer scanner_status; /* are we scanning at high speed? */
 mp_sym warning_info;    /* if so, what else do we need to know,
                            in case an error occurs? */
-integer warning_info_line;
+integer warning_line;
 mp_node warning_info_node;
 
 @ @<Initialize the input routines@>=
@@ -17672,7 +17672,7 @@ static boolean mp_check_outer_validity (MP mp) {
              "This kind of error happens when you say `if...' and forget",
              "the matching `fi'. I've inserted a `fi'; this might work.",
              NULL };
-      mp_snprintf(msg, 256, "Incomplete if; all text was ignored after line %d", (int)mp->warning_info_line);
+      mp_snprintf(msg, 256, "Incomplete if; all text was ignored after line %d", (int)mp->warning_line);
 @.Incomplete if...@>;
       if (cur_sym() == NULL) {
         hlp[0] = "The file ended while I was skipping conditional text.";
@@ -17694,7 +17694,7 @@ if (cur_sym() != NULL) {
          "The file ended while I was looking for the `etex' to",
          "finish this TeX material.  I've inserted `etex' now.",
           NULL };
-  mp_snprintf(msg, 256, "TeX mode didn't end; all text was ignored after line %d", (int)mp->warning_info_line);
+  mp_snprintf(msg, 256, "TeX mode didn't end; all text was ignored after line %d", (int)mp->warning_line);
   set_cur_sym(mp->frozen_etex);
   mp_ins_error (mp, msg, hlp, false);
   return false;
@@ -18285,14 +18285,14 @@ text when \TeX\ material is encountered, so we must be careful to save the
 
 @<Flush the \TeX\ material@>=
 old_status = mp->scanner_status;
-old_info = mp->warning_info_line;
+old_info = mp->warning_line;
 mp->scanner_status = tex_flushing;
-mp->warning_info_line = line;
+mp->warning_line = line;
 do {
   mp_get_next (mp);
 } while (cur_cmd() != mp_etex_marker);
 mp->scanner_status = old_status;
-mp->warning_info_line = old_info
+mp->warning_line = old_info
 
 @ @<Complain that \.{MPX} files cannot contain \TeX\ material@>=
 {
@@ -18869,7 +18869,6 @@ static void mp_scan_def (MP mp) {
   }
   if (mp->warning_info_node == mp->bad_vardef)
     mp_flush_token_list (mp, value_node (mp->bad_vardef));
-
   mp->scanner_status = normal;
   mp_get_x_next (mp);
 }
@@ -19801,7 +19800,7 @@ makes the skipping process a bit simpler.
 void mp_pass_text (MP mp) {
   integer l = 0;
   mp->scanner_status = skipping;
-  mp->warning_info_line = mp_true_line (mp);
+  mp->warning_line = mp_true_line (mp);
   while (1) {
     get_t_next (mp);
     if (cur_cmd() <= mp_fi_or_else) {
@@ -21660,8 +21659,22 @@ void mp_unstash_cur_exp (MP mp, mp_node p) {
     set_cur_exp_node (value_node (p));
     mp_free_node (mp, p, value_node_size);
     break;
+  case mp_boolean_type:
+  case mp_known:
+    set_cur_exp_value_number (value_number (p));
+    mp_free_node (mp, p, value_node_size);
+    break;
   default:
     set_cur_exp_value_number (value_number (p));
+    if (value_knot(p)) {
+      set_cur_exp_knot (value_knot (p));
+    } 
+    if (value_node(p)) {
+      set_cur_exp_node (value_node (p));
+    } 
+    if (value_str(p)) {
+      set_cur_exp_str (value_str (p));
+    } 
     mp_free_node (mp, p, value_node_size);
     break;
   }
