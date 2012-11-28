@@ -30420,14 +30420,38 @@ Other objects are ignored.
 @<Declare action procedures for use by |do_statement|@>=
 static void mp_scan_with_list (MP mp, mp_node p);
 
-@ @c
+@ Forcing the color to be between |0| and |unity| here guarantees that no
+picture will ever contain a color outside the legal range for \ps\ graphics.
+
+@d make_cp_a_colored_object() do {
+  cp = p;
+  while (cp != NULL) {
+    if (has_color (cp))
+      break;
+    cp = mp_link (cp);
+  }
+} while (0)
+
+@d clear_color(A) do {
+  set_number_to_zero(((mp_stroked_node)(A))->cyan);
+  set_number_to_zero(((mp_stroked_node)(A))->magenta);
+  set_number_to_zero(((mp_stroked_node)(A))->yellow);
+  set_number_to_zero(((mp_stroked_node)(A))->black);
+  mp_color_model ((A)) = mp_uninitialized_model;
+} while (0)
+
+@d set_color_val(A,B) do {
+  number_clone(A, (B));
+  if (number_negative(A))
+    set_number_to_zero(A);
+  if (number_greater(A,unity_t))
+    set_number_to_unity(A);
+} while (0)
+
+@c
 void mp_scan_with_list (MP mp, mp_node p) {
   mp_variable_type t;   /* |cur_mod| of the |with_option| (should match |cur_type|) */
   mp_node q;    /* for list manipulation */
-  unsigned old_setting; /* saved |selector| setting */
-  mp_node k;    /* for finding the near-last item in a list  */
-  mp_string s; /* for string cleanup after combining  */
-  mp_value new_expr;
   mp_node cp, pp, dp, ap, bp;
   /* objects being updated; |void| initially; |NULL| to suppress update */
   cp = MP_VOID;
@@ -30435,9 +30459,6 @@ void mp_scan_with_list (MP mp, mp_node p) {
   dp = MP_VOID;
   ap = MP_VOID;
   bp = MP_VOID;
-  k = 0;
-  memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
   while (cur_cmd() == mp_with_option) {
     /* todo this is not very nice: the color models have their own enumeration */
     t = (mp_variable_type) cur_mod();
@@ -30457,39 +30478,151 @@ void mp_scan_with_list (MP mp, mp_node p) {
         || ((t == (mp_variable_type) mp_grey_model) && (mp->cur_exp.type != mp_known))
         || ((t == (mp_variable_type) mp_pen_type) && (mp->cur_exp.type != t))
         || ((t == (mp_variable_type) mp_picture_type) && (mp->cur_exp.type != t))) {
-      @<Complain about improper type@>;
+      /* Complain about improper type */
+      mp_value new_expr;
+      const char *hlp[] = {
+         "Next time say `withpen <known pen expression>';",
+         "I'll ignore the bad `with' clause and look for another.",
+         NULL };
+      memset(&new_expr,0,sizeof(mp_value));
+      new_number(new_expr.data.n);
+      mp_disp_err(mp, NULL);
+      if (t == with_mp_pre_script)
+        hlp[0] = "Next time say `withprescript <known string expression>';";
+      else if (t == with_mp_post_script)
+        hlp[0] = "Next time say `withpostscript <known string expression>';";
+      else if (t == mp_picture_type)
+        hlp[0] = "Next time say `dashed <known picture expression>';";
+      else if (t == (mp_variable_type) mp_uninitialized_model)
+        hlp[0] = "Next time say `withcolor <known color expression>';";
+      else if (t == (mp_variable_type) mp_rgb_model)
+        hlp[0] = "Next time say `withrgbcolor <known color expression>';";
+      else if (t == (mp_variable_type) mp_cmyk_model)
+        hlp[0] = "Next time say `withcmykcolor <known cmykcolor expression>';";
+      else if (t == (mp_variable_type) mp_grey_model)
+        hlp[0] = "Next time say `withgreyscale <known numeric expression>';";;
+      mp_back_error (mp, "Improper type", hlp, true);
+      mp_get_x_next (mp);
+      mp_flush_cur_exp (mp, new_expr);
+
     } else if (t == (mp_variable_type) mp_uninitialized_model) {
+      mp_value new_expr;
+      memset(&new_expr,0,sizeof(mp_value));
+      new_number(new_expr.data.n);
       if (cp == MP_VOID)
-        @<Make |cp| a colored object in object list~|p|@>;
-      if (cp != NULL)
-        @<Transfer a color from the current expression to object~|cp|@>;
+        make_cp_a_colored_object();
+      if (cp != NULL) {
+        /* Transfer a color from the current expression to object~|cp| */
+        if (mp->cur_exp.type == mp_color_type) {
+          /* Transfer a rgbcolor from the current expression to object~|cp| */
+          mp_stroked_node cp0 = (mp_stroked_node)cp;
+          q = value_node (cur_exp_node ());
+          clear_color(cp0);
+          mp_color_model (cp) = mp_rgb_model;
+          set_color_val (cp0->red, value_number (red_part (q)));
+          set_color_val (cp0->green, value_number (green_part (q)));
+          set_color_val (cp0->blue, value_number (blue_part (q)));
+        } else if (mp->cur_exp.type == mp_cmykcolor_type) {
+          /* Transfer a cmykcolor from the current expression to object~|cp| */
+          mp_stroked_node cp0 = (mp_stroked_node)cp;
+          q = value_node (cur_exp_node ());
+          set_color_val (cp0->cyan, value_number (cyan_part (q)));
+          set_color_val (cp0->magenta, value_number (magenta_part (q)));
+          set_color_val (cp0->yellow, value_number (yellow_part (q)));
+          set_color_val (cp0->black, value_number (black_part (q)));
+          mp_color_model (cp) = mp_cmyk_model;
+        } else if (mp->cur_exp.type == mp_known) {
+          /* Transfer a greyscale from the current expression to object~|cp| */
+          mp_number qq;
+          mp_stroked_node cp0 = (mp_stroked_node)cp;
+          new_number (qq);
+          number_clone (qq, cur_exp_value_number ());
+          clear_color (cp);
+          mp_color_model (cp) = mp_grey_model;
+          set_color_val (cp0->grey, qq);
+          free_number (qq);
+        } else if (cur_exp_value_boolean () == mp_false_code) {
+          /* Transfer a noncolor from the current expression to object~|cp| */
+          clear_color (cp);
+          mp_color_model (cp) = mp_no_model;
+        } else if (cur_exp_value_boolean () == mp_true_code) {
+          /* Transfer no color from the current expression to object~|cp| */
+          clear_color (cp);
+          mp_color_model (cp) = mp_uninitialized_model;
+        }
+      }
       mp_flush_cur_exp (mp, new_expr);
     } else if (t == (mp_variable_type) mp_rgb_model) {
+      mp_value new_expr;
+      memset(&new_expr,0,sizeof(mp_value));
+      new_number(new_expr.data.n);
       if (cp == MP_VOID)
-        @<Make |cp| a colored object in object list~|p|@>;
-      if (cp != NULL)
-        @<Transfer a rgbcolor from the current expression to object~|cp|@>;
+        make_cp_a_colored_object();
+      if (cp != NULL) {
+        /* Transfer a rgbcolor from the current expression to object~|cp| */
+        mp_stroked_node cp0 = (mp_stroked_node)cp;
+        q = value_node (cur_exp_node ());
+        clear_color(cp0);
+        mp_color_model (cp) = mp_rgb_model;
+        set_color_val (cp0->red, value_number (red_part (q)));
+        set_color_val (cp0->green, value_number (green_part (q)));
+        set_color_val (cp0->blue, value_number (blue_part (q)));
+      }
       mp_flush_cur_exp (mp, new_expr);
     } else if (t == (mp_variable_type) mp_cmyk_model) {
+      mp_value new_expr;
+      memset(&new_expr,0,sizeof(mp_value));
+      new_number(new_expr.data.n);
       if (cp == MP_VOID)
-        @<Make |cp| a colored object in object list~|p|@>;
-      if (cp != NULL)
-        @<Transfer a cmykcolor from the current expression to object~|cp|@>;
+        make_cp_a_colored_object();
+      if (cp != NULL) {
+        /* Transfer a cmykcolor from the current expression to object~|cp| */
+        mp_stroked_node cp0 = (mp_stroked_node)cp;
+        q = value_node (cur_exp_node ());
+        set_color_val (cp0->cyan, value_number (cyan_part (q)));
+        set_color_val (cp0->magenta, value_number (magenta_part (q)));
+        set_color_val (cp0->yellow, value_number (yellow_part (q)));
+        set_color_val (cp0->black, value_number (black_part (q)));
+        mp_color_model (cp) = mp_cmyk_model;
+      }
       mp_flush_cur_exp (mp, new_expr);
     } else if (t == (mp_variable_type) mp_grey_model) {
+      mp_value new_expr;
+      memset(&new_expr,0,sizeof(mp_value));
+      new_number(new_expr.data.n);
       if (cp == MP_VOID)
-        @<Make |cp| a colored object in object list~|p|@>;
-      if (cp != NULL)
-        @<Transfer a greyscale from the current expression to object~|cp|@>;
+        make_cp_a_colored_object();
+      if (cp != NULL) {
+        /* Transfer a greyscale from the current expression to object~|cp| */
+        mp_number qq;
+        mp_stroked_node cp0 = (mp_stroked_node)cp;
+        new_number (qq);
+        number_clone (qq, cur_exp_value_number ());
+        clear_color (cp);
+        mp_color_model (cp) = mp_grey_model;
+        set_color_val (cp0->grey, qq);
+        free_number (qq);
+      }
       mp_flush_cur_exp (mp, new_expr);
     } else if (t == (mp_variable_type) mp_no_model) {
       if (cp == MP_VOID)
-        @<Make |cp| a colored object in object list~|p|@>;
-      if (cp != NULL)
-        @<Transfer a noncolor from the current expression to object~|cp|@>;
+        make_cp_a_colored_object();
+      if (cp != NULL) {
+        /* Transfer a noncolor from the current expression to object~|cp| */
+        clear_color (cp);
+        mp_color_model (cp) = mp_no_model;
+      }
     } else if (t == mp_pen_type) {
-      if (pp == MP_VOID)
-        @<Make |pp| an object in list~|p| that needs a pen@>;
+      if (pp == MP_VOID) {
+        /* Make |pp| an object in list~|p| that needs a pen */
+        pp = p;
+        while (pp != NULL) {
+          if (has_pen (pp))
+            break;
+          pp = mp_link (pp);
+        }
+      }
+
       if (pp != NULL) {
         switch (mp_type (pp)) {
         case mp_fill_node_type:
@@ -30515,6 +30648,8 @@ void mp_scan_with_list (MP mp, mp_node p) {
         ap = mp_link (ap);
       if (ap != NULL) {
         if (mp_pre_script (ap) != NULL) {       /*  build a new,combined string  */
+          unsigned old_setting; /* saved |selector| setting */
+          mp_string s; /* for string cleanup after combining  */
           s = mp_pre_script (ap);
           old_setting = mp->selector;
           mp->selector = new_string;
@@ -30531,6 +30666,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
         mp->cur_exp.type = mp_vacuous;
       }
     } else if (t == with_mp_post_script) {
+      mp_node k = NULL;    /* for finding the near-last item in a list  */
       if (bp == MP_VOID)
         k = p;
       bp = k;
@@ -30541,6 +30677,8 @@ void mp_scan_with_list (MP mp, mp_node p) {
       }
       if (bp != NULL) {
         if (mp_post_script (bp) != NULL) {
+          unsigned old_setting; /* saved |selector| setting */
+          mp_string s; /* for string cleanup after combining  */
           s = mp_post_script (bp);
           old_setting = mp->selector;
           mp->selector = new_string;
@@ -30558,7 +30696,13 @@ void mp_scan_with_list (MP mp, mp_node p) {
       }
     } else {
       if (dp == MP_VOID) {
-        @<Make |dp| a stroked node in list~|p|@>;
+        /* Make |dp| a stroked node in list~|p| */
+        dp = p;
+        while (dp != NULL) {
+          if (mp_type (dp) == mp_stroked_node_type)
+            break;
+          dp = mp_link (dp);
+        }
       }
       if (dp != NULL) {
         if (mp_dash_p (dp) != NULL)
@@ -30569,228 +30713,63 @@ void mp_scan_with_list (MP mp, mp_node p) {
       }
     }
   }
-  @<Copy the information from objects |cp|, |pp|, and |dp| into the rest
-    of the list@>;
-}
-
-
-@ @<Complain about improper type@>=
-{
-  const char *hlp[] = {
-         "Next time say `withpen <known pen expression>';",
-         "I'll ignore the bad `with' clause and look for another.",
-         NULL };
-  mp_disp_err(mp, NULL);
-  if (t == with_mp_pre_script)
-    hlp[0] = "Next time say `withprescript <known string expression>';";
-  else if (t == with_mp_post_script)
-    hlp[0] = "Next time say `withpostscript <known string expression>';";
-  else if (t == mp_picture_type)
-    hlp[0] = "Next time say `dashed <known picture expression>';";
-  else if (t == (mp_variable_type) mp_uninitialized_model)
-    hlp[0] = "Next time say `withcolor <known color expression>';";
-  else if (t == (mp_variable_type) mp_rgb_model)
-    hlp[0] = "Next time say `withrgbcolor <known color expression>';";
-  else if (t == (mp_variable_type) mp_cmyk_model)
-    hlp[0] = "Next time say `withcmykcolor <known cmykcolor expression>';";
-  else if (t == (mp_variable_type) mp_grey_model)
-    hlp[0] = "Next time say `withgreyscale <known numeric expression>';";;
-  mp_back_error (mp, "Improper type", hlp, true);
-@.Improper type@>;
-  mp_get_x_next (mp);
-  mp_flush_cur_exp (mp, new_expr);
-}
-
-
-@ Forcing the color to be between |0| and |unity| here guarantees that no
-picture will ever contain a color outside the legal range for \ps\ graphics.
-
-@<Transfer a color from the current expression to object~|cp|@>=
-{
-  if (mp->cur_exp.type == mp_color_type) {
-    @<Transfer a rgbcolor from the current expression to object~|cp|@>;
-  } else if (mp->cur_exp.type == mp_cmykcolor_type) {
-    @<Transfer a cmykcolor from the current expression to object~|cp|@>;
-  } else if (mp->cur_exp.type == mp_known) {
-    @<Transfer a greyscale from the current expression to object~|cp|@>;
-  } else if (cur_exp_value_boolean () == mp_false_code) {
-    @<Transfer a noncolor from the current expression to object~|cp|@>;
-  } else if (cur_exp_value_boolean () == mp_true_code) {
-    @<Transfer no color from the current expression to object~|cp|@>;
-  }
-}
-
-
-@ 
-
-@d clear_color(A) do {
-  set_number_to_zero(((mp_stroked_node)(A))->cyan);
-  set_number_to_zero(((mp_stroked_node)(A))->magenta);
-  set_number_to_zero(((mp_stroked_node)(A))->yellow);
-  set_number_to_zero(((mp_stroked_node)(A))->black);
-  mp_color_model ((A)) = mp_uninitialized_model;
-} while (0)
-
-@d set_color_val(A,B) do {
-  number_clone(A, (B));
-  if (number_negative(A))
-    set_number_to_zero(A);
-  if (number_greater(A,unity_t))
-    set_number_to_unity(A);
-} while (0)
-
-@<Transfer a rgbcolor from the current expression to object~|cp|@>=
-{
-  mp_stroked_node cp0 = (mp_stroked_node)cp;
-  q = value_node (cur_exp_node ());
-  clear_color(cp0);
-  mp_color_model (cp) = mp_rgb_model;
-  set_color_val (cp0->red, value_number (red_part (q)));
-  set_color_val (cp0->green, value_number (green_part (q)));
-  set_color_val (cp0->blue, value_number (blue_part (q)));
-}
-
-@ @<Transfer a cmykcolor from the current expression to object~|cp|@>=
-{
-  mp_stroked_node cp0 = (mp_stroked_node)cp;
-  q = value_node (cur_exp_node ());
-  set_color_val (cp0->cyan, value_number (cyan_part (q)));
-  set_color_val (cp0->magenta, value_number (magenta_part (q)));
-  set_color_val (cp0->yellow, value_number (yellow_part (q)));
-  set_color_val (cp0->black, value_number (black_part (q)));
-  mp_color_model (cp) = mp_cmyk_model;
-}
-
-
-@ @<Transfer a greyscale from the current expression to object~|cp|@>=
-{
-  mp_number qq;
-  mp_stroked_node cp0 = (mp_stroked_node)cp;
-  new_number (qq);
-  number_clone (qq, cur_exp_value_number ());
-  clear_color (cp);
-  mp_color_model (cp) = mp_grey_model;
-  set_color_val (cp0->grey, qq);
-  free_number (qq);
-}
-
-
-@ @<Transfer a noncolor from the current expression to object~|cp|@>=
-{
-  clear_color (cp);
-  mp_color_model (cp) = mp_no_model;
-}
-
-
-@ @<Transfer no color from the current expression to object~|cp|@>=
-{
-  clear_color (cp);
-  mp_color_model (cp) = mp_uninitialized_model;
-}
-
-
-@ @<Make |cp| a colored object in object list~|p|@>=
-{
-  cp = p;
-  while (cp != NULL) {
-    if (has_color (cp))
-      break;
-    cp = mp_link (cp);
-  }
-}
-
-
-@ @<Make |pp| an object in list~|p| that needs a pen@>=
-{
-  pp = p;
-  while (pp != NULL) {
-    if (has_pen (pp))
-      break;
-    pp = mp_link (pp);
-  }
-}
-
-
-@ @<Make |dp| a stroked node in list~|p|@>=
-{
-  dp = p;
-  while (dp != NULL) {
-    if (mp_type (dp) == mp_stroked_node_type)
-      break;
-    dp = mp_link (dp);
-  }
-}
-
-
-@ @<Copy the information from objects |cp|, |pp|, and |dp| into...@>=
-if (cp > MP_VOID) {
-  @<Copy |cp|'s color into the colored objects linked to~|cp|@>;
-}
-if (pp > MP_VOID) {
-  @<Copy |mp_pen_p(pp)| into stroked and filled nodes linked to |pp|@>;
-}
-if (dp > MP_VOID) {
-  @<Make stroked nodes linked to |dp| refer to |mp_dash_p(dp)|@>;
-}
-
-@ @<Copy |cp|'s color into the colored objects linked to~|cp|@>=
-{
-  q = mp_link (cp);
-  while (q != NULL) {
-    if (has_color (q)) {
-      mp_stroked_node q0 = (mp_stroked_node)q;
-      mp_stroked_node cp0 = (mp_stroked_node)cp;
-      number_clone(q0->red,   cp0->red);
-      number_clone(q0->green, cp0->green);
-      number_clone(q0->blue,  cp0->blue);
-      number_clone(q0->black, cp0->black);
-      mp_color_model (q) = mp_color_model (cp);
-    }
-    q = mp_link (q);
-  }
-}
-
-
-@ @<Copy |mp_pen_p(pp)| into stroked and filled nodes linked to |pp|@>=
-{
-  q = mp_link (pp);
-  while (q != NULL) {
-    if (has_pen (q)) {
-      switch (mp_type (q)) {
-      case mp_fill_node_type:
-        if (mp_pen_p ((mp_fill_node) q) != NULL)
-          mp_toss_knot_list (mp, mp_pen_p ((mp_fill_node) q));
-        mp_pen_p ((mp_fill_node) q) = copy_pen (mp_pen_p ((mp_fill_node) pp));
-        break;
-      case mp_stroked_node_type:
-        if (mp_pen_p ((mp_stroked_node) q) != NULL)
-          mp_toss_knot_list (mp, mp_pen_p ((mp_stroked_node) q));
-        mp_pen_p ((mp_stroked_node) q) =
-          copy_pen (mp_pen_p ((mp_stroked_node) pp));
-        break;
-      default:
-        assert (0);
-        break;
+  /* Copy the information from objects |cp|, |pp|, and |dp| into the rest
+    of the list */
+  if (cp > MP_VOID) {
+    /* Copy |cp|'s color into the colored objects linked to~|cp| */
+    q = mp_link (cp);
+    while (q != NULL) {
+      if (has_color (q)) {
+        mp_stroked_node q0 = (mp_stroked_node)q;
+        mp_stroked_node cp0 = (mp_stroked_node)cp;
+        number_clone(q0->red,   cp0->red);
+        number_clone(q0->green, cp0->green);
+        number_clone(q0->blue,  cp0->blue);
+        number_clone(q0->black, cp0->black);
+        mp_color_model (q) = mp_color_model (cp);
       }
+      q = mp_link (q);
     }
-    q = mp_link (q);
   }
-}
-
-
-@ @<Make stroked nodes linked to |dp| refer to |mp_dash_p(dp)|@>=
-{
-  q = mp_link (dp);
-  while (q != NULL) {
-    if (mp_type (q) == mp_stroked_node_type) {
-      if (mp_dash_p (q) != NULL)
-        delete_edge_ref (mp_dash_p (q));
-      mp_dash_p (q) = mp_dash_p (dp);
-      set_number_to_unity(((mp_stroked_node)q)->dash_scale);
-      if (mp_dash_p (q) != NULL)
-        add_edge_ref (mp_dash_p (q));
+  if (pp > MP_VOID) {
+    /* Copy |mp_pen_p(pp)| into stroked and filled nodes linked to |pp| */
+    q = mp_link (pp);
+    while (q != NULL) {
+      if (has_pen (q)) {
+        switch (mp_type (q)) {
+        case mp_fill_node_type:
+          if (mp_pen_p ((mp_fill_node) q) != NULL)
+            mp_toss_knot_list (mp, mp_pen_p ((mp_fill_node) q));
+          mp_pen_p ((mp_fill_node) q) = copy_pen (mp_pen_p ((mp_fill_node) pp));
+          break;
+        case mp_stroked_node_type:
+          if (mp_pen_p ((mp_stroked_node) q) != NULL)
+            mp_toss_knot_list (mp, mp_pen_p ((mp_stroked_node) q));
+          mp_pen_p ((mp_stroked_node) q) =
+            copy_pen (mp_pen_p ((mp_stroked_node) pp));
+          break;
+        default:
+          assert (0);
+          break;
+        }
+      }
+      q = mp_link (q);
     }
-    q = mp_link (q);
+  }
+  if (dp > MP_VOID) {
+    /* Make stroked nodes linked to |dp| refer to |mp_dash_p(dp)| */
+    q = mp_link (dp);
+    while (q != NULL) {
+      if (mp_type (q) == mp_stroked_node_type) {
+        if (mp_dash_p (q) != NULL)
+          delete_edge_ref (mp_dash_p (q));
+        mp_dash_p (q) = mp_dash_p (dp);
+        set_number_to_unity(((mp_stroked_node)q)->dash_scale);
+        if (mp_dash_p (q) != NULL)
+          add_edge_ref (mp_dash_p (q));
+      }
+      q = mp_link (q);
+    }
   }
 }
 
