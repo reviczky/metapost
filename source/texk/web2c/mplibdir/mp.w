@@ -2846,8 +2846,9 @@ A symbolic node is recycled by calling |free_symbolic_node|.
 @d mp_free_symbolic_node(mp, A) mp_free_node(mp, (A), symbolic_node_size)
 
 @c
-void mp_free_node (MP mp, mp_node p, size_t siz) {                               /* node liberation */
+void mp_free_node (MP mp, mp_node p, size_t siz) {  /* node liberation */
   FUNCTION_TRACE3 ("mp_free_node(%p,%d)\n", p, (int)siz);
+  if (!p) return;
   mp->var_used -= siz;
   switch (mp_type (p)) {
   case mp_value_node_type:
@@ -31776,20 +31777,19 @@ static mp_node mp_tfm_check (MP mp, quarterword m) {
   return p;
 }
 
-
 @ @<Store the width information for character code~|c|@>=
 if (c < mp->bc)
   mp->bc = (eight_bits) c;
 if (c > mp->ec)
   mp->ec = (eight_bits) c;
 mp->char_exists[c] = true;
-mp_xfree (mp->tfm_width[c]);
+mp_free_value_node (mp, mp->tfm_width[c]);
 mp->tfm_width[c] = mp_tfm_check (mp, mp_char_wd);
-mp_xfree (mp->tfm_height[c]);
+mp_free_value_node (mp, mp->tfm_height[c]);
 mp->tfm_height[c] = mp_tfm_check (mp, mp_char_ht);
-mp_xfree (mp->tfm_depth[c]);
+mp_free_value_node (mp, mp->tfm_depth[c]);
 mp->tfm_depth[c] = mp_tfm_check (mp, mp_char_dp);
-mp_xfree (mp->tfm_ital_corr[c]);
+mp_free_value_node (mp, mp->tfm_ital_corr[c]);
 mp->tfm_ital_corr[c] = mp_tfm_check (mp, mp_char_ic)
  
 
@@ -33014,11 +33014,12 @@ for (k = 1; k <= (int) mp->last_fnum; k++) {
   xfree (mp->font_name[k]);
   xfree (mp->font_ps_name[k]);
 }
-
-mp_xfree (mp->tfm_width[0]);
-mp_xfree (mp->tfm_height[0]);
-mp_xfree (mp->tfm_depth[0]);
-mp_xfree (mp->tfm_ital_corr[0]);
+for (k = 0; k <= 255; k++) {
+  mp_free_value_node (mp, mp->tfm_width[k]);
+  mp_free_value_node (mp, mp->tfm_height[k]);
+  mp_free_value_node (mp, mp->tfm_depth[k]);
+  mp_free_value_node (mp, mp->tfm_ital_corr[k]);
+}
 
 xfree (mp->font_info);
 xfree (mp->font_enc_name);
