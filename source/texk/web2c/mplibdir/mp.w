@@ -30684,59 +30684,63 @@ void mp_scan_with_list (MP mp, mp_node p) {
         mp->cur_exp.type = mp_vacuous;
       }
     } else if (t == with_mp_pre_script) {
-      if (ap == MP_VOID)
-        ap = p;
-      while ((ap != NULL) && (!has_color (ap)))
-        ap = mp_link (ap);
-      if (ap != NULL) {
-        if (mp_pre_script (ap) != NULL) {       /*  build a new,combined string  */
-          unsigned old_setting; /* saved |selector| setting */
-          mp_string s; /* for string cleanup after combining  */
-          s = mp_pre_script (ap);
-          old_setting = mp->selector;
-          mp->selector = new_string;
-          str_room (mp_pre_script (ap)->len + cur_exp_str ()->len + 2);
-          mp_print_str (mp, cur_exp_str ());
-          append_char (13);     /* a forced \ps\ newline  */
-          mp_print_str (mp, mp_pre_script (ap));
-          mp_pre_script (ap) = mp_make_string (mp);
-          delete_str_ref (s);
-          mp->selector = old_setting;
-        } else {
-          mp_pre_script (ap) = cur_exp_str ();
+      if (cur_exp_str ()->len) {
+        if (ap == MP_VOID)
+          ap = p;
+        while ((ap != NULL) && (!has_color (ap)))
+          ap = mp_link (ap);
+        if (ap != NULL) {
+          if (mp_pre_script (ap) != NULL) {       /*  build a new,combined string  */
+            unsigned old_setting; /* saved |selector| setting */
+            mp_string s; /* for string cleanup after combining  */
+            s = mp_pre_script (ap);
+            old_setting = mp->selector;
+            mp->selector = new_string;
+            str_room (mp_pre_script (ap)->len + cur_exp_str ()->len + 2);
+            mp_print_str (mp, cur_exp_str ());
+            append_char (13);     /* a forced \ps\ newline  */
+            mp_print_str (mp, mp_pre_script (ap));
+            mp_pre_script (ap) = mp_make_string (mp);
+            delete_str_ref (s);
+            mp->selector = old_setting;
+          } else {
+            mp_pre_script (ap) = cur_exp_str ();
+          }
+          add_str_ref (mp_pre_script (ap));
+          mp->cur_exp.type = mp_vacuous;
         }
-        add_str_ref (mp_pre_script (ap));
-        mp->cur_exp.type = mp_vacuous;
       }
     } else if (t == with_mp_post_script) {
-      mp_node k = NULL;    /* for finding the near-last item in a list  */
-      if (bp == MP_VOID)
-        k = p;
-      bp = k;
-      while (k && mp_link (k) != NULL) { /* clang: dereference null pointer 'k' */
-        k = mp_link (k);
-        if (has_color (k))
-          bp = k;
-      }
-      if (bp != NULL) {
-        if (mp_post_script (bp) != NULL) {
-          unsigned old_setting; /* saved |selector| setting */
-          mp_string s; /* for string cleanup after combining  */
-          s = mp_post_script (bp);
-          old_setting = mp->selector;
-          mp->selector = new_string;
-          str_room (mp_post_script (bp)->len + cur_exp_str ()->len + 2);
-          mp_print_str (mp, mp_post_script (bp));
-          append_char (13);     /* a forced \ps\ newline  */
-          mp_print_str (mp, cur_exp_str ());
-          mp_post_script (bp) = mp_make_string (mp);
-          delete_str_ref (s);
-          mp->selector = old_setting;
-        } else {
-          mp_post_script (bp) = cur_exp_str ();
+      if (cur_exp_str ()->len) {
+        mp_node k = NULL;    /* for finding the near-last item in a list  */
+        if (bp == MP_VOID)
+          k = p;
+        bp = k;
+        while (k && mp_link (k) != NULL) { /* clang: dereference null pointer 'k' */
+          k = mp_link (k);
+          if (has_color (k))
+            bp = k;
         }
-        add_str_ref (mp_post_script (bp));
-        mp->cur_exp.type = mp_vacuous;
+        if (bp != NULL) {
+          if (mp_post_script (bp) != NULL) {
+            unsigned old_setting; /* saved |selector| setting */
+            mp_string s; /* for string cleanup after combining  */
+            s = mp_post_script (bp);
+            old_setting = mp->selector;
+            mp->selector = new_string;
+            str_room (mp_post_script (bp)->len + cur_exp_str ()->len + 2);
+            mp_print_str (mp, mp_post_script (bp));
+            append_char (13);     /* a forced \ps\ newline  */
+            mp_print_str (mp, cur_exp_str ());
+            mp_post_script (bp) = mp_make_string (mp);
+            delete_str_ref (s);
+            mp->selector = old_setting;
+          } else {
+            mp_post_script (bp) = cur_exp_str ();
+          }
+          add_str_ref (mp_post_script (bp));
+          mp->cur_exp.type = mp_vacuous;
+        }
       }
     } else {
       if (dp == MP_VOID) {
