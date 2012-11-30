@@ -30483,6 +30483,50 @@ picture will ever contain a color outside the legal range for \ps\ graphics.
 } while (0)
 
 @c
+static int is_invalid_with_list (MP mp, mp_variable_type t) {
+  return ((t == with_mp_pre_script) && (mp->cur_exp.type != mp_string_type)) ||
+        ((t == with_mp_post_script) && (mp->cur_exp.type != mp_string_type)) ||
+        ((t == (mp_variable_type) mp_uninitialized_model) &&
+         ((mp->cur_exp.type != mp_cmykcolor_type)
+          && (mp->cur_exp.type != mp_color_type)
+          && (mp->cur_exp.type != mp_known)
+          && (mp->cur_exp.type != mp_boolean_type))) || ((t == (mp_variable_type) mp_cmyk_model)
+                                                         && (mp->cur_exp.type !=
+                                                             mp_cmykcolor_type))
+        || ((t == (mp_variable_type) mp_rgb_model) && (mp->cur_exp.type != mp_color_type))
+        || ((t == (mp_variable_type) mp_grey_model) && (mp->cur_exp.type != mp_known))
+        || ((t == (mp_variable_type) mp_pen_type) && (mp->cur_exp.type != t))
+        || ((t == (mp_variable_type) mp_picture_type) && (mp->cur_exp.type != t));
+}
+static void complain_invalid_with_list (MP mp, mp_variable_type t) {
+   /* Complain about improper type */
+   mp_value new_expr;
+   const char *hlp[] = {
+      "Next time say `withpen <known pen expression>';",
+      "I'll ignore the bad `with' clause and look for another.",
+      NULL };
+   memset(&new_expr,0,sizeof(mp_value));
+   new_number(new_expr.data.n);
+   mp_disp_err(mp, NULL);
+   if (t == with_mp_pre_script)
+     hlp[0] = "Next time say `withprescript <known string expression>';";
+   else if (t == with_mp_post_script)
+     hlp[0] = "Next time say `withpostscript <known string expression>';";
+   else if (t == mp_picture_type)
+     hlp[0] = "Next time say `dashed <known picture expression>';";
+   else if (t == (mp_variable_type) mp_uninitialized_model)
+     hlp[0] = "Next time say `withcolor <known color expression>';";
+   else if (t == (mp_variable_type) mp_rgb_model)
+     hlp[0] = "Next time say `withrgbcolor <known color expression>';";
+   else if (t == (mp_variable_type) mp_cmyk_model)
+     hlp[0] = "Next time say `withcmykcolor <known cmykcolor expression>';";
+   else if (t == (mp_variable_type) mp_grey_model)
+     hlp[0] = "Next time say `withgreyscale <known numeric expression>';";;
+   mp_back_error (mp, "Improper type", hlp, true);
+   mp_get_x_next (mp);
+   mp_flush_cur_exp (mp, new_expr);
+}
+
 void mp_scan_with_list (MP mp, mp_node p) {
   mp_variable_type t;   /* |cur_mod| of the |with_option| (should match |cur_type|) */
   mp_node q;    /* for list manipulation */
@@ -30499,47 +30543,11 @@ void mp_scan_with_list (MP mp, mp_node p) {
     mp_get_x_next (mp);
     if (t != (mp_variable_type) mp_no_model)
       mp_scan_expression (mp);
-    if (((t == with_mp_pre_script) && (mp->cur_exp.type != mp_string_type)) ||
-        ((t == with_mp_post_script) && (mp->cur_exp.type != mp_string_type)) ||
-        ((t == (mp_variable_type) mp_uninitialized_model) &&
-         ((mp->cur_exp.type != mp_cmykcolor_type)
-          && (mp->cur_exp.type != mp_color_type)
-          && (mp->cur_exp.type != mp_known)
-          && (mp->cur_exp.type != mp_boolean_type))) || ((t == (mp_variable_type) mp_cmyk_model)
-                                                         && (mp->cur_exp.type !=
-                                                             mp_cmykcolor_type))
-        || ((t == (mp_variable_type) mp_rgb_model) && (mp->cur_exp.type != mp_color_type))
-        || ((t == (mp_variable_type) mp_grey_model) && (mp->cur_exp.type != mp_known))
-        || ((t == (mp_variable_type) mp_pen_type) && (mp->cur_exp.type != t))
-        || ((t == (mp_variable_type) mp_picture_type) && (mp->cur_exp.type != t))) {
-      /* Complain about improper type */
-      mp_value new_expr;
-      const char *hlp[] = {
-         "Next time say `withpen <known pen expression>';",
-         "I'll ignore the bad `with' clause and look for another.",
-         NULL };
-      memset(&new_expr,0,sizeof(mp_value));
-      new_number(new_expr.data.n);
-      mp_disp_err(mp, NULL);
-      if (t == with_mp_pre_script)
-        hlp[0] = "Next time say `withprescript <known string expression>';";
-      else if (t == with_mp_post_script)
-        hlp[0] = "Next time say `withpostscript <known string expression>';";
-      else if (t == mp_picture_type)
-        hlp[0] = "Next time say `dashed <known picture expression>';";
-      else if (t == (mp_variable_type) mp_uninitialized_model)
-        hlp[0] = "Next time say `withcolor <known color expression>';";
-      else if (t == (mp_variable_type) mp_rgb_model)
-        hlp[0] = "Next time say `withrgbcolor <known color expression>';";
-      else if (t == (mp_variable_type) mp_cmyk_model)
-        hlp[0] = "Next time say `withcmykcolor <known cmykcolor expression>';";
-      else if (t == (mp_variable_type) mp_grey_model)
-        hlp[0] = "Next time say `withgreyscale <known numeric expression>';";;
-      mp_back_error (mp, "Improper type", hlp, true);
-      mp_get_x_next (mp);
-      mp_flush_cur_exp (mp, new_expr);
-
-    } else if (t == (mp_variable_type) mp_uninitialized_model) {
+    if (is_invalid_with_list(mp, t)) {
+      complain_invalid_with_list (mp, t);
+      continue;
+    }
+    if (t == (mp_variable_type) mp_uninitialized_model) {
       mp_value new_expr;
       memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
@@ -30697,6 +30705,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
         } else {
           mp_pre_script (ap) = cur_exp_str ();
         }
+        add_str_ref (mp_pre_script (ap));
         mp->cur_exp.type = mp_vacuous;
       }
     } else if (t == with_mp_post_script) {
@@ -30726,6 +30735,7 @@ void mp_scan_with_list (MP mp, mp_node p) {
         } else {
           mp_post_script (bp) = cur_exp_str ();
         }
+        add_str_ref (mp_post_script (bp));
         mp->cur_exp.type = mp_vacuous;
       }
     } else {
