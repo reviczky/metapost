@@ -3429,6 +3429,8 @@ mp_text_part, /* operation code for \.{textpart} */
 mp_path_part, /* operation code for \.{pathpart} */
 mp_pen_part, /* operation code for \.{penpart} */
 mp_dash_part, /* operation code for \.{dashpart} */
+mp_prescript_part, /* operation code for \.{prescriptpart} */
+mp_postscript_part, /* operation code for \.{postscriptpart} */
 mp_sqrt_op, /* operation code for \.{sqrt} */
 mp_m_exp_op, /* operation code for \.{mexp} */
 mp_m_log_op, /* operation code for \.{mlog} */
@@ -3614,6 +3616,12 @@ static void mp_print_op (MP mp, quarterword c) {
       break;
     case mp_text_part:
       mp_print (mp, "textpart");
+      break;
+    case mp_prescript_part:
+      mp_print (mp, "prescriptpart");
+      break;
+    case mp_postscript_part:
+      mp_print (mp, "postscriptpart");
       break;
     case mp_path_part:
       mp_print (mp, "pathpart");
@@ -24167,6 +24175,10 @@ mp_primitive (mp, "fontpart", mp_unary, mp_font_part);
 @:font_part_}{\&{fontpart} primitive@>;
 mp_primitive (mp, "textpart", mp_unary, mp_text_part);
 @:text_part_}{\&{textpart} primitive@>;
+mp_primitive (mp, "prescriptpart", mp_unary, mp_prescript_part);
+@:prescript_part_}{\&{prescriptpart} primitive@>;
+mp_primitive (mp, "postscriptpart", mp_unary, mp_postscript_part);
+@:postscript_part_}{\&{postscriptpart} primitive@>;
 mp_primitive (mp, "pathpart", mp_unary, mp_path_part);
 @:path_part_}{\&{pathpart} primitive@>;
 mp_primitive (mp, "penpart", mp_unary, mp_pen_part);
@@ -24639,6 +24651,8 @@ static void mp_do_unary (MP mp, quarterword c) {
   case mp_path_part:
   case mp_pen_part:
   case mp_dash_part:
+  case mp_prescript_part:
+  case mp_postscript_part:
     if (mp->cur_exp.type == mp_picture_type)
       mp_take_pict_part (mp, c);
     else
@@ -25325,6 +25339,34 @@ static void mp_take_pict_part (MP mp, quarterword c) {
         mp->cur_exp.type = mp_string_type;
       };
       break;
+    case mp_prescript_part:
+      if (!has_color (p)) {
+        goto NOT_FOUND;
+      } else {
+        if (mp_pre_script(p)) {
+          new_expr.data.str = mp_pre_script(p);
+          add_str_ref (new_expr.data.str);
+        } else {
+          new_expr.data.str = mp_rts(mp,"");
+        }
+        mp_flush_cur_exp (mp, new_expr);
+        mp->cur_exp.type = mp_string_type;
+      };
+      break;
+    case mp_postscript_part:
+      if (!has_color (p)) {
+        goto NOT_FOUND;
+      } else {
+        if (mp_post_script(p)) {
+          new_expr.data.str = mp_post_script(p);
+          add_str_ref (new_expr.data.str);
+        } else {
+          new_expr.data.str = mp_rts(mp,"");
+        }
+        mp_flush_cur_exp (mp, new_expr);
+        mp->cur_exp.type = mp_string_type;
+      };
+      break;
     case mp_font_part:
       if (mp_type (p) != mp_text_node_type)
         goto NOT_FOUND;
@@ -25415,6 +25457,8 @@ NOT_FOUND:
   switch (c) {
   case mp_text_part:
   case mp_font_part:
+  case mp_prescript_part:
+  case mp_postscript_part:
     new_expr.data.str = mp_rts(mp,"");
     mp_flush_cur_exp (mp, new_expr);
     mp->cur_exp.type = mp_string_type;
