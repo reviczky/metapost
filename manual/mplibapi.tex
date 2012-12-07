@@ -3,6 +3,9 @@
 \def\MP{MetaPost}
 \def\POSTSCRIPT{PostScript}
 \def\PS{PostScript}
+\def\SVG{SVG}
+\def\PNG{PNG}
+\def\MNG{MNG}
 \def\TFM{{\sc tfm}}
 \def\LUA{Lua}
 
@@ -31,9 +34,11 @@
 
 \nonknuthmode
 
-\def\ctypedef#1#2#3{\subsubsection[#2]{\type{#1#2#3}}\bookmark{#2}}
+\defineselector[title][max=2,n=2]
+
+\def\ctypedef#1#2#3{\subsubsection[#2]{\select{title}{\type{#2}}{\type{#1#2#3}}}\bookmark{#2}}
 \def\cenumeration#1{\subsubsection{\type{#1}}\bookmark{#1}}
-\def\cfunction#1#2#3{\subsubsection[#2]{\type{#1 #2#3}}\bookmark{#2}}
+\def\cfunction#1#2#3{\subsubsection[#2]{\select{title}{\type{#2}}{\type{#1 #2#3}}}\bookmark{#2}}
 
 
 \starttext
@@ -48,7 +53,11 @@
 
 \section{Table of contents}
 
+\setupselector[title][n=1]
+
 \placecontent[criterium=all,level=subsection]
+
+\setupselector[title][n=2]
 
 \page
 
@@ -194,7 +203,7 @@ linked list of output images.
 \NC mp_stream \NC term_out    \NC holds the terminal output            \NC \NR
 \NC mp_stream \NC error_out   \NC holds error messages                 \NC \NR
 \NC mp_stream \NC log_out     \NC holds the log output                 \NC \NR
-\NC mp_stream \NC ship_out    \NC holds the exported EPS or SVG string \NC \NR
+\NC mp_stream \NC ship_out    \NC holds the exported EPS, SVG or PNG string \NC \NR
 \NC mp_edge_object *\NC edges \NC linked list of generated pictures    \NC \NR 
 \stoptabulate
 
@@ -204,8 +213,9 @@ is currently only used for memory allocation errors, the \MP\ error
 messages are written to \type{term_out} (and are often duplicated to
 \type{log_out} as well).
 
-You need to include \type{mplibps.h} to be able to actually make use this list of images, 
-see the next section for the details on \type{mp_edge_object} lists.
+You need to include at least \type{mplibps.h} to be able to actually
+make use of this list of images, see the next section for the details
+on \type{mp_edge_object} lists.
 
 See next paragraph for \type{mp_stream}.
 
@@ -221,7 +231,7 @@ bookkeeping variables. The fields that are of interest to you are:
 
 There is nothing in the stream unless the \type{size} field is
 nonzero. There will not be embedded null characters (\type{\0}) 
-in \type{data}.
+in \type{data} except when \type{ship_out} is used for PNG output.
 
 If \type{size} is nonzero, \type{strlen(data)} is guaranteed to be
 less than that, and may be as low as zero (if \MPLIB\ has written an
@@ -279,8 +289,8 @@ The \type{mp_file_finder} receives an \type{int} argument that is one of the fol
 \starttabulate[|l|p|]
 \NC mp_filetype_program    \NC Metapost language code (r)\NC \NR
 \NC mp_filetype_log        \NC Log output (w)\NC \NR
-\NC mp_filetype_postscript \NC PostScript output (w)\NC \NR
-\NC mp_filetype_memfile    \NC Mem file (r+w)\NC \NR
+\NC mp_filetype_postscript \NC PostScript or SVG output (w)\NC \NR
+\NC mp_filetype_bitmap     \NC PNG output (w)\NC \NR
 \NC mp_filetype_metrics    \NC \TeX\ font metric file (r+w)\NC \NR
 \NC mp_filetype_fontmap    \NC Font map file (r)\NC \NR
 \NC mp_filetype_font       \NC Font PFB file (r)\NC \NR
@@ -529,28 +539,36 @@ Access the right tension value of the knot  (applies to unresolved knots, see be
 
 Converts an \type{mp_number} to \type{double}.
 
+\subsection{Functions for creating and modifying knot data}
+
 \cfunction{mp_knot}{mp_create_knot}{(MP mp)}
 
 Allocates and returns a new knot.  Returns \type{NULL} on (malloc) failure. 
 
 \cfunction{int}{mp_set_knot}{(MP mp,mp_knot p,double x,double y)}
 
-Fills in the coordinate of knot \type{p}. \type{fabs(x)} and \type{fabs(y)} should be less than 4096.0.
+Fills in the coordinate of knot \type{p}. \type{x1} and \type{y1} values should be
+within the proper range for the current numerical mode.
 Return 1 on success, 0 on failure.
 
 \cfunction{int}{mp_close_path}{(MP mp,mp_knot p,mp_knot q)}
 
 Connects \type{p} and \type{q} using an \quote{endpoint join}, where \type{p} is the last knot
-of the path, and \type{q} is the first knot. 
-Because all knot lists are cyclic, this is needed to end the path 
-properly (or use \type{mp_close_path_cycle()}).
+of the path, and \type{q} is the first knot. The right tension of \type{p} and the
+left tension of \type{q} are (re)set to the default of 1.0.
+
+Because all knot list data structures are always circular, this is needed to end the path 
+properly even if the path is not intended cyclic (or use \type{mp_close_path_cycle()}, 
+if it is indeed a cycle).
 Return 1 on success, 0 on failure.
 
 \cfunction{int}{mp_close_path_cycle}{(MP mp,mp_knot p,mp_knot q)}
 
 Connects \type{p} and \type{q} using an \quote{open join}, where \type{p} is the last knot
-of the path, and \type{q} is the first knot. 
-This is needed to mimic metapost's 'cycle'.
+of the path, and \type{q} is the first knot. The right tension of \type{p} and the
+left tension of \type{q} are (re)set to the default of 1.0.
+
+This is needed to mimic metapost's \type{cycle}.
 return 1 on success, 0 on failure.
 
 \cfunction{mp_knot}{mp_append_knot}{(MP mp,mp_knot p,double x,double y)}
@@ -559,6 +577,18 @@ Appends a knot to previous knot \type{q}, and returns the new knot.
 This is a convenience method combining \type{mp_create_knot()}, \type{mp_set_knot()}, and
 (if \type{q} is not NULL) \type{mp_close_path_cycle()}. 
 Returns NULL on failure. 
+
+\cfunction{int}{mp_set_knot_left_curl}{(MP mp,mp_knot q,double value)}
+
+Sets the left curl value for a knot. 
+\type{fabs(value)} should be less than 4096.0
+return 1 on success, 0 on failure.
+
+\cfunction{int}{mp_set_knot_right_curl}{(MP mp,mp_knot q,double value)}
+
+Sets the right curl value for a knot. 
+\type{fabs(value)} should be less than 4096.0
+return 1 on success, 0 on failure.
 
 \cfunction{int}{mp_set_knot_curl}{(MP mp,mp_knot q,double value)}
 
@@ -589,11 +619,27 @@ Sets the tension specifiers for a pair of connected knots.
 \type{fabs(t1)} and \type{fabs(t2)} should be more than 0.75 and less than 4096.0
 return 1 on success, 0 on failure.
 
+\cfunction{int}{mp_set_knot_left_tension}{(MP mp, mp_knot p, double t1)}
+
+Set the left tension of a knot. \type{fabs(t1)} should be more than 0.75 and less than 4096.0
+return 1 on success, 0 on failure.
+
+\cfunction{int}{mp_set_knot_right_tension}{(MP mp, mp_knot p, double t1)}
+
+Set the right tension of a knot. \type{fabs(t1)} should be more than 0.75 and less than 4096.0
+return 1 on success, 0 on failure.
+
+\cfunction{int}{mp_set_knot_left_control}{(MP mp, mp_knot p, double x1, double y1)}
+\cfunction{int}{mp_set_knot_right_control}{(MP mp, mp_knot p, double x1, double y1)}
+
+Sets explicit left or right control for a knot. \type{x1} and \type{y1} values should be
+within the proper range for the current numerical mode.
+return 1 on success, 0 on failure.
+
 \cfunction{int}{mp_set_knotpair_controls}{(MP mp,mp_knot p,mp_knot q,double x1,double y1,double x2,double y2)}
 
-Sets explicit controls for a knot pair.
-\type{fabs(x1)} and \type{fabs(y1)} should be less than 4096.0
-\type{fabs(x2)} and \type{fabs(y2)} should be less than 4096.0
+Sets explicit controls for a knot pair. All four \type{x} and \type{y} values should be
+within the proper range for the current numerical mode.
 return 1 on success, 0 on failure.
 
 \cfunction{int}{mp_solve_path}{(MP mp,mp_knot first)}
@@ -670,7 +716,7 @@ example of the path processing code:
                 (3,10)..tension 3 and atleast 4 .. 
                 (1,14){2,0} .. {0,1}(5,-4);
          */
-        first p = mp_append_knot(mp,NULL,0,0); 
+        first = p = mp_append_knot(mp,NULL,0,0); 
         q = mp_append_knot(mp,p,2,20);  
         p = mp_append_knot(mp,q,10,5);
         if (!mp_set_knotpair_curls(mp, q,p, 1.0, 1.0)) 
@@ -828,22 +874,22 @@ void mp_dump_solved_path (MP mp, mp_knot h) {
 }
 \stoptyping
 
-
+\page
 \section{C API for graphical backend functions}
+\bookmark{C API for graphical backend functions}
 
 These are all defined in \type{mplibps.h}
-
-Unless otherwise stated, the \type{int} fields that express \MP\ values
-should be interpreted as scaled points: the 32bits are divided into an
-integer part and a fraction part so that the value $65536$ equals
-1~\PS\ point (of which there are exactly 72 in an inch).
-
 
 \subsection{Structures}
 
 The structures in this section are used by the items in the body of
 the \type{edges} field of an \type{mp_rundata} structure. They are
 presented here in a bottom-up manner.
+
+\ctypedef {}{mp_gr_knot}{}
+
+These are like \type{mp_knot}, except that all \type{mp_number} values 
+have been simplified to \type{double}.
 
 \ctypedef {}{mp_color}{}
 
@@ -852,10 +898,10 @@ the color: one for the color model and one for the color values. The
 structure for the color values is defined as follows:
 
 \starttabulate[|l|l|p|]
-\NC int \NC a_val \NC see below, values are in scaled points\NC \NR
-\NC int \NC b_val \NC --\NC \NR
-\NC int \NC c_val \NC --\NC \NR
-\NC int \NC d_val \NC --\NC \NR 
+\NC double \NC a_val \NC see below\NC \NR
+\NC double \NC b_val \NC --\NC \NR
+\NC double \NC c_val \NC --\NC \NR
+\NC double \NC d_val \NC --\NC \NR 
 \stoptabulate
 
 All graphical objects that have \type{mp_color} fields also have
@@ -875,9 +921,8 @@ the four data fields:
 Dash lists are represented like this:
 
 \starttabulate[|l|l|p|]
-\NC int * \NC array \NC an array of dash lengths, terminated by $-1$.
-                        the values are in scaled points\NC \NR
-\NC int   \NC offset\NC the dash array offset (as in PostScript) \NC \NR
+\NC double * \NC array \NC an array of dash lengths, terminated by $-1$.\NC \NR
+\NC double   \NC offset\NC the dash array offset (as in PostScript) \NC \NR
 \stoptabulate
 
 \ctypedef {}{mp_graphic_object}{}
@@ -895,7 +940,7 @@ base line of graphical object types. It has only two fields:
 \NC struct mp_graphic_object * \NC next \NC next object or NULL \NC \NR
 \stoptabulate
 
-Because every graphical object has at least these two types, the body
+Because every graphical object has at least these two fields, the body
 of a picture is represented as  a linked list of
 \type{mp_graphic_object} items. Each object in turn can then be
 typecast to the proper type depending on its \type{type}.
@@ -915,10 +960,10 @@ Contains the following fields on top of the ones defined by \type{mp_graphic_obj
 \NC mp_color_model   \NC color_model \NC the color model\NC \NR
 \NC unsigned char    \NC ljoin       \NC the line join style; values have the same meaning 
                as in \PS: 0 for mitered, 1 for round, 2 for beveled.\NC \NR
-\NC mp_knot          \NC path_p      \NC the (always cyclic) path\NC \NR
-\NC mp_knot          \NC htap_p      \NC a possible reversed path (see below)\NC \NR
-\NC mp_knot          \NC pen_p       \NC a possible pen (see below)\NC \NR
-\NC int              \NC miterlim    \NC the miter limit\NC \NR
+\NC mp_gr_knot        \NC path_p      \NC the (always cyclic) path\NC \NR
+\NC mp_gr_knot        \NC htap_p      \NC a possible reversed path (see below)\NC \NR
+\NC mp_gr_knot        \NC pen_p       \NC a possible pen (see below)\NC \NR
+\NC double              \NC miterlim    \NC the miter limit\NC \NR
 \stoptabulate
 
 Even though this object is called an \type{mp_fill_object}, it can be the result of both
@@ -947,9 +992,9 @@ Contains the following fields on top of the ones defined by \type{mp_graphic_obj
 \NC unsigned char    \NC ljoin       \NC the line join style \NC \NR
 \NC unsigned char    \NC lcap        \NC the line cap style; values have the same meaning 
                as in \PS: 0 for butt ends, 1 for round ends, 2 for projecting ends.\NC \NR
-\NC mp_knot          \NC path_p      \NC the path \NC \NR
-\NC mp_knot          \NC pen_p       \NC the pen \NC \NR
-\NC int              \NC miterlim    \NC miter limit \NC \NR
+\NC mp_gr_knot       \NC path_p      \NC the path \NC \NR
+\NC mp_gr_knot       \NC pen_p       \NC the pen \NC \NR
+\NC double           \NC miterlim    \NC miter limit \NC \NR
 \NC mp_dash_object * \NC dash_p      \NC a possible dash list\NC \NR
 \stoptabulate
 
@@ -964,16 +1009,16 @@ Contains the following fields on top of the ones defined by \type{mp_graphic_obj
 \NC mp_color_model \NC color_model\NC color model \NC \NR
 \NC char *         \NC text_p     \NC string to be placed \NC \NR
 \NC char *         \NC font_name  \NC the \MP\ font name\NC \NR
-\NC unsigned int   \NC font_dsize \NC size of the font\NC \NR
-\NC int            \NC width      \NC width of the picture resulting from the string\NC \NR
-\NC int            \NC height     \NC height\NC \NR
-\NC int            \NC depth      \NC depth\NC \NR
-\NC int            \NC tx         \NC transformation component\NC \NR
-\NC int            \NC ty         \NC transformation component\NC \NR
-\NC int            \NC txx        \NC transformation component\NC \NR
-\NC int            \NC tyx        \NC transformation component\NC \NR
-\NC int            \NC txy        \NC transformation component\NC \NR
-\NC int            \NC tyy        \NC transformation component\NC \NR
+\NC double         \NC font_dsize \NC size of the font\NC \NR
+\NC double         \NC width      \NC width of the picture resulting from the string\NC \NR
+\NC double         \NC height     \NC height\NC \NR
+\NC double         \NC depth      \NC depth\NC \NR
+\NC double         \NC tx         \NC transformation component\NC \NR
+\NC double         \NC ty         \NC transformation component\NC \NR
+\NC double         \NC txx        \NC transformation component\NC \NR
+\NC double         \NC tyx        \NC transformation component\NC \NR
+\NC double         \NC txy        \NC transformation component\NC \NR
+\NC double         \NC tyy        \NC transformation component\NC \NR
 \stoptabulate
 
 All fonts are loaded by \MPLIB\ at the design size (but not all fonts have the same design
@@ -984,7 +1029,7 @@ size). If text is to be scaled, this happens via the transformation components.
 Contains the following field on top of the ones defined by \type{mp_graphic_object}:
 
 \starttabulate[|l|l|p|]
-\NC  mp_knot   \NC  path_p \NC defines the clipping path that is in effect until 
+\NC  mp_gr_knot   \NC  path_p \NC defines the clipping path that is in effect until 
          the object with the matching \type{mp_stop_clip_code} is encountered\NC \NR
 \stoptabulate
 
@@ -993,7 +1038,7 @@ Contains the following field on top of the ones defined by \type{mp_graphic_obje
 Contains the following field on top of the ones defined by \type{mp_graphic_object}:
 
 \starttabulate[|l|l|p|]
-\NC  mp_knot   \NC  path_p \NC the path that was used for boundary calculation \NC \NR
+\NC  mp_gr_knot   \NC  path_p \NC the path that was used for boundary calculation \NC \NR
 \stoptabulate
 
 This object can be ignored when output is generated, it only has effect on the boudingbox
@@ -1021,15 +1066,15 @@ of that figure.
                                                 would have been generated\NC \NR
 \NC MP                        \NC parent    \NC a pointer to the instance that created 
                                                 this figure\NC \NR
-\NC int                       \NC minx      \NC lower-left $x$ of the bounding box\NC \NR
-\NC int                       \NC miny      \NC lower-left $y$ of the bounding box\NC \NR
-\NC int                       \NC maxx      \NC upper right $x$ of the bounding box\NC \NR
-\NC int                       \NC maxy      \NC upper right $y$ of the bounding box\NC \NR
-\NC int                       \NC width     \NC value of \type{charwd};
+\NC double                       \NC minx      \NC lower-left $x$ of the bounding box\NC \NR
+\NC double                       \NC miny      \NC lower-left $y$ of the bounding box\NC \NR
+\NC double                       \NC maxx      \NC upper right $x$ of the bounding box\NC \NR
+\NC double                       \NC maxy      \NC upper right $y$ of the bounding box\NC \NR
+\NC double                       \NC width     \NC value of \type{charwd};
 this would become the \TFM\ width (but without the potential rounding correction for \TFM\ file format)\NC \NR
-\NC int                       \NC height    \NC similar for height (\type{charht})\NC \NR
-\NC int                       \NC depth     \NC similar for depth (\type{chardp})\NC \NR
-\NC int                       \NC ital_corr \NC similar for italic correction (\type{charic})\NC \NR
+\NC double                       \NC height    \NC similar for height (\type{charht})\NC \NR
+\NC double                       \NC depth     \NC similar for depth (\type{chardp})\NC \NR
+\NC double                       \NC ital_corr \NC similar for italic correction (\type{charic})\NC \NR
 \NC int                       \NC charcode  \NC Value of \type{charcode} (rounded, but not
                                                 modulated for \TFM's 256 values yet)\NC \NR
 \stoptabulate
@@ -1043,6 +1088,27 @@ generate the \PS\ output for the figure and save it internally. A subsequent cal
 \type{mp_rundata} will find the generated text in the \type{ship_out} field.
 
 Returns zero for success. 
+
+\cfunction{int }{mp_svg_ship_out}{(mp_edge_object*hh,int prologues)}
+
+If you have an \type{mp_edge_object},  you can call this function. It will 
+generate the \SVG\ output for the figure and save it internally. A subsequent call to
+\type{mp_rundata} will find the generated text in the \type{ship_out} field.
+
+Returns zero for success. 
+
+
+\cfunction{int }{mp_png_ship_out}{(mp_edge_object*hh,int prologues)}
+
+If you have an \type{mp_edge_object},  you can call this function. It will 
+generate the \PNG\ bitmap for the figure and save it internally. A subsequent call to
+\type{mp_rundata} will find the generated data in the \type{ship_out} field.
+
+Note: the \type{prologues} argument is currently unused, but it may be used
+in the future to support \MNG\ output.
+
+Returns zero for success. 
+
 
 \cfunction{void }{mp_gr_toss_objects}{(mp_edge_object*hh)}
 
@@ -1142,23 +1208,22 @@ To create a new metapost instance, call
 <mpinstance> mp = mplib.new({...})
 \stoptyping
 
-This creates the \type{mp} instance object. The argument hash can have a number of
-different fields,  as follows:
+This creates the \type{mp} instance object. The \type{mp} instance object
+always starts out in so|-|called \quote{inimp} mode, there is no
+support for preload files.
+
+The argument hash can have a number of different fields,  as follows:
 
 \starttabulate[|lT|l|p|p|]
 \NC \ssbf name  \NC \bf type   \NC \bf description                \NC \bf default \NC\NR
 \NC error_line \NC         number \NC error line width            \NC 79 \NC\NR
 \NC print_line \NC         number \NC line length in ps output    \NC 100\NC\NR
-\NC main_memory \NC        number \NC total memory size           \NC 5000\NC\NR
-\NC hash_size \NC          number \NC hash size                   \NC 16384 \NC\NR
-\NC param_size \NC         number \NC max. active macro parameters\NC 150\NC\NR
-\NC max_in_open \NC        number \NC max. input file nestings    \NC 10\NC\NR
 \NC random_seed \NC        number \NC the initial random seed     \NC variable\NC\NR
-\NC interaction \NC        string \NC the interaction mode, one of
-\type {batch}, \type {nonstop}, \type {scroll}, \type {errorstop} \NC \type {errorstop}\NC\NR
-\NC ini_version \NC        boolean \NC the --ini switch           \NC true \NC\NR
-\NC mem_name \NC           string \NC \type {--mem}               \NC \type {plain} \NC\NR
+\NC interaction \NC        string \NC the interaction mode, one of \type {batch}, \type {nonstop}, 
+                                     \type {scroll}, \type {errorstop} \NC \type {errorstop}\NC\NR
 \NC job_name \NC           string \NC \type {--jobname}           \NC \type {mpout} \NC\NR
+\NC math_mode \NC          string \NC the number system mode, one of \type{scaled} or 
+                                     \type{double} \NC \type {scaled} \NC\NR
 \NC find_file \NC          function \NC a function to find files  \NC only local files\NC\NR
 \stoptabulate
 
@@ -1173,7 +1238,7 @@ with:
 \starttabulate[|lT|l|p|]
 \NC name \NC the requested file \NC   \NR
 \NC mode \NC the file mode: \type {r} or \type {w} \NC \NR
-\NC type \NC the kind of file, one of: \type {mp}, \type {mem}, \type {tfm}, \type {map}, \type {pfb}, \type {enc} \NC \NR
+\NC type \NC the kind of file, one of: \type {mp}, \type {tfm}, \type {map}, \type {pfb}, \type {enc} \NC \NR
 \stoptabulate
 
 Return either the full pathname of the found file, or \type{nil} if
@@ -1187,15 +1252,15 @@ You can request statistics with:
 <table> stats = mp:statistics()
 \stoptyping
 
-This function returns the vital statistics for an \MPLIB\ instance. There are four
-fields, giving the maximum number of used items in each of the four
-statically allocated object classes:
+This function returns the allocation statistics for an \MPLIB\
+instance. There are four fields, giving the maximum number of used
+items in each of four object classes:
 
 \starttabulate[|lT|l|p|]
-\NC main_memory \NC number \NC memory size \NC\NR
-\NC hash_size   \NC number \NC hash size\NC\NR
-\NC param_size  \NC number \NC simultaneous macro parameters\NC\NR
-\NC max_in_open \NC number \NC input file nesting levels\NC\NR
+\NC memory  \NC number \NC allocated memory (in bytes)\NC\NR
+\NC hash    \NC number \NC hash size (in entries)\NC\NR
+\NC params  \NC number \NC simultaneous macro parameters\NC\NR
+\NC open    \NC number \NC input file nesting levels\NC\NR
 \stoptabulate
 
 \subsection{\luatex{mp:execute}}
@@ -1254,6 +1319,7 @@ object methods you can call:
 \NC boundingbox  \NC function \NC returns the bounding box, as an array of 4 values\NC \NR
 \NC postscript   \NC function \NC return a string that is the ps output of the \type{fig} \NC \NR
 \NC svg          \NC function \NC return a string that is the svg output of the \type{fig} \NC \NR
+\NC png          \NC function \NC return a string that is the png output of the \type{fig} \NC \NR
 \NC objects      \NC function \NC returns the actual array of graphic objects in this \type{fig} \NC \NR
 \NC copy_objects \NC function \NC returns a deep copy of the array of graphic objects in this \type{fig} \NC \NR
 \NC filename     \NC function \NC the filename this \type{fig}'s \POSTSCRIPT\ output
@@ -1450,6 +1516,44 @@ the \type{char} is a glyph id in the range 0 to 255; the returned
 <number> w = mp.char_depth(<string> fontname, <number> char)
 \stoptyping
 
+\subsection{Solving path control points}
+
+\starttyping
+<boolean> success = mp.solve_path(<table> knots, <boolean> cyclic)
+\stoptyping
+
+This modifies the \type{knots} table (which should contain an
+array of points in a path, with the substructure explained below) 
+by filling in the control points. The boolean \type{cyclic} is
+used to determine whether the path should be the equivalent of 
+\type{--cycle}. If the return value is \type{false}, there
+is an extra return argument containing the error string.
+
+On entry, the individual knot tables can contain the values
+mentioned above (but typically the \type{left_{x,y}} and 
+\type{right_{x,y}} will be missing). \type{{x,y}_coord} are 
+both required. Also, some extra values are allowed:
+\starttabulate[|lT|l|p|]
+\NC left_tension	\NC number \NC A tension specifier \NC \NR
+\NC right_tension	\NC number \NC like \type{left_tension}\NC \NR
+\NC left_curl	        \NC number \NC A curl specifier\NC \NR
+\NC right_curl	        \NC number \NC like \type{left_curl}\NC \NR
+\NC direction_x		\NC number \NC $x$ displacement of a direction specifier\NC \NR
+\NC direction_y		\NC number \NC $y$ displacement of a direction specifier\NC \NR
+\stoptabulate
+
+Note the following: 
+\startitemize
+\item A knot has either a direction specifier, or a curl specifier, or a tension specification, 
+      or explicit control points, with the note that tensions, curls and control points are split
+      in a left and a right side (directions apply to both sides equally).
+\item The absolute value of a tension specifier should be more than 0.75 and less than 4096.0,
+      with negative values indicating \quote{\type{atleast}}.
+\item The absolute value of a direction or curl should be less than 4096.0.
+\item If a tension, curl, or direction is specified, then existing control points will be
+      replaced by the newly computed value.
+\item Calling \type{solve_path} does not alter the used mplib instance.
+\stopitemize
 
 \stoptext
 
