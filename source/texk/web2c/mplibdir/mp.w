@@ -25805,7 +25805,7 @@ static void mp_bezier_slope (MP mp, mp_number ret, mp_number AX, mp_number AY, m
   free_number (xi);
   free_number (xo);
   free_number (xm);
-  set_number_from_double(ret, mp_floor(res));
+  set_number_from_double(ret, res);
   convert_scaled_to_angle (ret);
 }
 
@@ -25902,7 +25902,7 @@ static void mp_turn_cycles (MP mp, mp_number turns, mp_knot c) {
     if (number_nonzero(ang)) {
       number_add(res, ang);
       if (number_greaterequal(res, one_eighty_deg_t)) {
-        number_add(res, three_sixty_deg_t);
+        number_substract(res, three_sixty_deg_t);
         number_add(turns, unity_t);
       }
       if (number_lessequal(res, neg_one_eighty_deg_t)) {
