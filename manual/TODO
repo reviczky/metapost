@@ -31,22 +31,39 @@ mp-implementors list or alternatively the metapost list.
 ***   Wanted For Release  ***
 *****************************
 
+* Discussion of floating point vs. fixed point numbers:
+
+  + needs complete review of the manual ...
+
+  + description of new command-line option
+
+* Describe PNG backend.
+
+* Describe prescriptpart/postscriptpart.
+
+
+
+
+*****************************
+***   Short term issues   ***
+*****************************
+
 Integrating Text and Graphics:
-* (SH) Fix bad description of prologues in table ivartab.
-* (SH) Move discussion of prologues to sec. workflow2.
+* Fix bad description of prologues in table ivartab.
+* Move discussion of prologues to sec. workflow2.
 
 Advanced Graphics:
 * Describe turningnumber (mention differences in sec. 'MetaPost
   Versus METAFONT').
 
 Notes on the MetaPost Workflow:
-* (SH) Describe variables jobname, charcode.
+* Describe variables jobname, charcode.
 
 Reference Manual:
 * Describe environment variables and configuration files.
 
 Legacy Information:
-* (SH) Cite original Hobby papers.
+* Cite original Hobby papers.
 
 
 
@@ -63,7 +80,7 @@ Integrating Text and Graphics:
     scattered around mpman.
 * More information and examples on alternatives for calling TeX
     or LaTeX from within MetaPost.
-* (SH) Revise (and add more) flow charts for MetaPost workflow.
+* Revise (and add more) flow charts for MetaPost workflow.
 * Describe whitespace handling of verbatimtex/btex/etex.
 * Why is verbatimtex\end{document}etex "safer", cf. sec. 13.1?
 * Discuss difference between "draw <pic> withpen" and
@@ -71,7 +88,7 @@ Integrating Text and Graphics:
 
 Advanced Graphics:
 * Add a sub-section discussing colours.
-* (SH) Colour cars and change code example in section piccomp.
+* Colour cars and change code example in section piccomp.
 
 Reference Manual:
 * Describe missing variables, constants, and operators.
