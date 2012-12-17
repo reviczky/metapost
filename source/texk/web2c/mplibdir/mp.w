@@ -29524,13 +29524,13 @@ static char *mplib_read_ascii_file (MP mp, void *ff, size_t * size) {
   return s;
 }
 static void mp_append_string (MP mp, mp_stream * a, const char *b) {
-  size_t l = strlen (b);
+  size_t l = strlen (b) + 1; /* don't forget the trailing '\0' */
   if ((a->used + l) >= a->size) {
     a->size += 256 + (a->size) / 5 + l;
     a->data = xrealloc (a->data, a->size, 1);
   }
   memcpy (a->data + a->used, b, l);
-  a->used += l;
+  a->used += (l-1);
 }
 static void mp_append_data (MP mp, mp_stream * a, void *b, size_t l) {
   if ((a->used + l) >= a->size) {
