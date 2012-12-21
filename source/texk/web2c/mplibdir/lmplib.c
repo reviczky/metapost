@@ -30,9 +30,11 @@
 #  include <lauxlib.h>
 #  include <lualib.h>
 #else
-#  include <../lua51/lua.h>
-#  include <../lua51/lauxlib.h>
-#  include <../lua51/lualib.h>
+#  include <../lua52/lua.h>
+#  include <../lua52/lauxlib.h>
+#  include <../lua52/lualib.h>
+#define luaL_reg luaL_Reg
+#define lua_objlen lua_rawlen 
 #endif
 
 #include "mplib.h"
@@ -703,11 +705,12 @@ void mp_dump_path (MP mp, mp_knot h) {
 static int mplib_solve_path(lua_State * L)
 {
     MP *mp_ptr;
-    MP mp;
+    MP mp = NULL;
     int cyclic;
     const char *errormsg = NULL;
     mp_knot p, q, first; 
     int numpoints, i;
+    p = q = first = NULL; 
     if (lua_gettop(L) != 3) {
 	errormsg = "Wrong number of arguments";
 	goto BAD;
