@@ -7005,8 +7005,7 @@ static mp_gr_knot mp_gr_new_knot (MP mp) {
 
 @c
 static mp_knot mp_copy_knot (MP mp, mp_knot p) {
-  mp_knot q;    /* the copy */
-  q = mp_new_knot (mp);
+  mp_knot q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
   memcpy (q, p, sizeof (struct mp_knot_data));
   new_number(q->x_coord);
   new_number(q->y_coord);
@@ -7202,7 +7201,7 @@ void mp_toss_knot (MP mp, mp_knot q) {
   free_number (q->left_x); 
   free_number (q->left_y); 
   free_number (q->right_x); 
-  free_number (q->right_y); 
+  free_number (q->right_y);
   mp_xfree (q);
 }
 void mp_toss_knot_list (MP mp, mp_knot p) {
