@@ -2,6 +2,79 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.780:
+----------------------------------------------------------------------
+
+* The turningnumber calculation in 1.770 was bugged.
+
+* The picture export in 1.770 forgot to add trailing zeroes to the
+  log and term output channel resulting in rubbish output.
+
+* The arguments of the PS "dtransform" operator have been fixed
+  (was wrong since 1.750).
+
+* The warning limit in numbersystem=double mode is now exactly 2**52.
+
+* A bunch of obvious memory leaks fixed. Not all yet, but now the 
+  MPlib seems to be usable even with many graphics.
+
+----------------------------------------------------------------------
+What is new in MetaPost version 1.770:
+----------------------------------------------------------------------
+
+This is an alpha release for testing & debugging only!
+
+* The command line switch --numbersystem replaces --math.
+
+* Two new internals: numbersystem (string, read-only, either "scaled"
+  or "double" at the moment) and numberprecision (numeric, currently 
+  a no-op).
+
+* There is a new bitmap backend:
+
+    outputformat:="png";
+
+  This backend uses cairo and libpng to generate PNG bitmap data.
+  The created PNG used RGB + Alpha, with anti-aliasing, at 72dpi, 
+  and with a transparent background.
+
+* Associated with this, there are new internals "hppp" and "vppp",
+  that are used by the bitmap backend to decide on the scale of
+  the generated bitmap. Default value for both new internals is
+  "1.0", i.e. one pixel per Metapost point. 
+
+  The internal names come from metafont.
+
+* There are two new primitives for use with picture item objects:
+
+     prescriptpart
+     postscriptpart 
+
+* The C API has been extended to allow path control point resolution
+   without going through the Metapost input language, see
+   manual/mplibapi.tex for details.
+
+* The C API has been extended with a "math_mode" switch in the options
+  structure, and the memory size options as well as "ini_mode" have
+  been removed (the MPlib instance now always starts up in inimp mode)
+
+* The code for picture shipout now uses "double" for all floating point
+  values. This can give small differences in the actual output files in
+  traditional mode due to the required scaled -> double conversion, but
+  was necessary to support the new numerical backend code.
+
+* The Lua API internals have been updated to reflect the C API changes.
+
+* All known crashes in earlier versions of Metapost have been fixed. 
+
+Known issues:
+
+* The manual is not up-to-date yet on the metapost input language
+  changes.
+
+* There are various memory leaks. 
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.750:
 ----------------------------------------------------------------------
 
