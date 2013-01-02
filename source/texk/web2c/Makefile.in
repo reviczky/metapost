@@ -2407,7 +2407,7 @@ $(pngout_c_h): pngout-tangle
 pngout-tangle: ctangle$(EXEEXT) mplibdir/pngout.w tangle-sh
 	@$(mp_ctangle_sh) pngout
 
-$(libmplib_a_OBJECTS): $(nodist_libmplib_a_SOURCES) $(KPATHSEA_DEPEND) $(CAIRO_DEPEND)
+$(libmplib_a_OBJECTS): $(LIBPNG_DEPEND) $(nodist_libmplib_a_SOURCES) $(KPATHSEA_DEPEND) $(CAIRO_DEPEND)
 .PHONY: install-bin-links uninstall-bin-links
 
 install-bin-links:
