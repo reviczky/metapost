@@ -46,6 +46,9 @@ while [ "$1" != "" ] ; do
   fi ;
   shift ;
 done
+
+export MAKE
+
 #
 STRIP=strip
 MPOSTEXE=mpost
