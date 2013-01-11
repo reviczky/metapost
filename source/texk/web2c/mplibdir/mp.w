@@ -30215,9 +30215,9 @@ static void mp_do_show (MP mp);
 @ @c
 void mp_do_show (MP mp) {
   mp_value new_expr;
-  memset(&new_expr,0,sizeof(mp_value));
-  new_number(new_expr.data.n);
   do {
+    memset(&new_expr,0,sizeof(mp_value));
+    new_number(new_expr.data.n);
     mp_get_x_next (mp);
     mp_scan_expression (mp);
     mp_print_nl (mp, ">> ");
