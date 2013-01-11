@@ -28853,7 +28853,15 @@ RESTART:
   case mp_picture_type:
     if (mp->cur_exp.type == t + unknown_tag) {
       new_number(new_expr.data.n);
-      number_clone (new_expr.data.n, v);
+      if (t==mp_boolean_type) {
+        number_clone (new_expr.data.n, v);
+      } else if (t==mp_string_type) {
+        new_expr.data.str = value_str(lhs);
+      } else if (t==mp_picture_type) {
+        new_expr.data.node = value_node(lhs);
+      } else { /* pen or path */
+        new_expr.data.p = value_knot(lhs);
+      }
       mp_nonlinear_eq (mp, new_expr, cur_exp_node (), false);
       mp_unstash_cur_exp (mp, cur_exp_node ());
     } else if (mp->cur_exp.type == t) {
