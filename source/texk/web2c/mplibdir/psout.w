@@ -6045,7 +6045,7 @@ static void mp_clear_sizes (MP mp) ;
     while ( mp->font_sizes[f]!=null ) {
       p=mp->font_sizes[f];
       mp->font_sizes[f]=mp_link(p);
-      mp_free_node(mp, p,font_size_size);
+      mp_xfree(p);
     }
   }
 }
