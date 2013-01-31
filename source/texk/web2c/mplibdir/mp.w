@@ -5580,9 +5580,9 @@ mp_free_attr_node (mp, mp->end_attr);
 
 @c
 static void do_set_subscript (MP mp, mp_value_node A, mp_number B) {
-  FUNCTION_TRACE3("set_subscript(%p,%d)\n", (A), (B));
+  FUNCTION_TRACE3("set_subscript(%p,%p)\n", (A), (B));
   assert((A)->type == mp_subscr_node_type || (A)->name_type == mp_subscr);
-  A->subscript_=(B); /* subscript of this variable */
+  number_clone(A->subscript_,B); /* subscript of this variable */
 }
 static mp_number do_get_subscript (MP mp, mp_value_node A) {
    /* the addition of |mp_attr| is for the benefit of |find_variable} */
