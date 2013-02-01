@@ -6502,6 +6502,7 @@ typedef struct mp_save_data {
   halfword equiv;
   halfword eq_type;
   mp_node equiv_n;
+  mp_sym equiv_sym;
   struct mp_save_data *link;
 } mp_save_data;
 
@@ -6544,6 +6545,7 @@ static void mp_save_variable (MP mp, mp_sym q) {
     p->equiv = equiv (q);
     p->eq_type = eq_type (q);
     p->equiv_n = equiv_node (q);
+    p->equiv_sym = equiv_sym (q);
     mp->save_ptr = p;
   }
   mp_clear_symbol (mp, q, (mp->save_ptr != NULL));
@@ -6557,9 +6559,10 @@ static void mp_unsave_variable (MP mp, mp_sym q) {
     mp_end_diagnostic (mp, false);
   }
   mp_clear_symbol (mp, q, false);
-  set_equiv (q, mp->save_ptr->equiv);
+  set_equiv(q,mp->save_ptr->equiv);
   set_eq_type (q, mp->save_ptr->eq_type);
-  set_equiv_node (q, mp->save_ptr->equiv_n);
+  q->v.data.node = mp->save_ptr->equiv_n;
+  q->v.data.sym = mp->save_ptr->equiv_sym;
   if (eq_type (q) % mp_outer_tag == mp_tag_token) {
     mp_node pp = equiv_node (q);
     if (pp != NULL)
