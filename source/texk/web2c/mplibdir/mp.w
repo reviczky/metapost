@@ -17481,11 +17481,16 @@ static mp_node mp_cur_tok (MP mp) {
   mp_node p;    /* a new token node */
   if (cur_sym() == NULL && cur_sym_mod() == 0) {
     if (cur_cmd() == mp_capsule_token) {
+      mp_number save_exp_num; /* possible |cur_exp| numerical to be restored */
       mp_value save_exp = mp->cur_exp;  /* |cur_exp| to be restored */
+      new_number (save_exp_num);
+      number_clone (save_exp_num, cur_exp_value_number());
       mp_make_exp_copy (mp, cur_mod_node());
       p = mp_stash_cur_exp (mp);
       mp_link (p) = NULL;
       mp->cur_exp = save_exp;
+      number_clone (mp->cur_exp.data.n, save_exp_num);
+      free_number (save_exp_num);
     } else {
       p = mp_get_token_node (mp);
       mp_name_type (p) = mp_token;
