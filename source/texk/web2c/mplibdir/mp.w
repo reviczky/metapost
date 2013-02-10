@@ -2722,11 +2722,13 @@ void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) {
 }
 void *mp_xmalloc (MP mp, size_t nmem, size_t size) {
   void *w;
+#if DEBUG
   if ((max_size_test / size) < nmem) {
     mp_fputs ("Memory size overflow!\n", mp->err_out);
     mp->history = mp_fatal_error_stop;
     mp_jump_out (mp);
   }
+#endif
   w = malloc (nmem * size);
   if (w == NULL) {
     mp_fputs ("Out of memory!\n", mp->err_out);
@@ -33513,7 +33515,7 @@ char *mp_set_output_file_name (MP mp, integer c) {
               if (l > 0) {
                 mp_sym p =
                   mp_id_lookup (mp, (char *) (template->str + frst), l, false);
-                char *id = xmalloc (mp, (size_t) (l + 1));
+                char *id = xmalloc ((l + 1), 1);
                 (void) memcpy (id, (char *) (template->str + frst), (size_t) l);
                 *(id + l) = '\0';
                 if (p == NULL) {
