@@ -2859,18 +2859,20 @@ void mp_free_node (MP mp, mp_node p, size_t siz) {  /* node liberation */
   FUNCTION_TRACE3 ("mp_free_node(%p,%d)\n", p, (int)siz);
   if (!p) return;
   mp->var_used -= siz;
-  if (p->has_number >= 1 && is_number(((mp_symbolic_node)p)->data.n)) {
-     free_number(((mp_symbolic_node)p)->data.n); 
-  }
-  if (p->has_number == 2 && is_number(((mp_value_node)p)->subscript_)) {
-     free_number(((mp_value_node)p)->subscript_); 
-  }
-  /* There was a quite large |switch| here first, but the |mp_dash_node|
-     case was the only one that did anything ... */
-  if (mp_type (p) == mp_dash_node_type) {
-     free_number(((mp_dash_node)p)->start_x);
-     free_number(((mp_dash_node)p)->stop_x);
-     free_number(((mp_dash_node)p)->dash_y);
+  if (mp->math_mode > mp_math_double_mode) {
+    if (p->has_number >= 1 && is_number(((mp_symbolic_node)p)->data.n)) {
+      free_number(((mp_symbolic_node)p)->data.n); 
+    }
+    if (p->has_number == 2 && is_number(((mp_value_node)p)->subscript_)) {
+      free_number(((mp_value_node)p)->subscript_); 
+    }
+    /* There was a quite large |switch| here first, but the |mp_dash_node|
+       case was the only one that did anything ... */
+    if (mp_type (p) == mp_dash_node_type) {
+      free_number(((mp_dash_node)p)->start_x);
+      free_number(((mp_dash_node)p)->stop_x);
+      free_number(((mp_dash_node)p)->dash_y);
+    }
   }
   xfree (p);
 }
