@@ -7185,13 +7185,14 @@ static void mp_toss_knot (MP mp, mp_knot p);
 
 @ @c
 void mp_toss_knot (MP mp, mp_knot q) {
-  (void) mp;
-  free_number (q->x_coord); 
-  free_number (q->y_coord); 
-  free_number (q->left_x); 
-  free_number (q->left_y); 
-  free_number (q->right_x); 
-  free_number (q->right_y);
+  if (mp->math_mode > mp_math_double_mode) {
+    free_number (q->x_coord); 
+    free_number (q->y_coord); 
+    free_number (q->left_x); 
+    free_number (q->left_y); 
+    free_number (q->right_x); 
+    free_number (q->right_y);
+  }
   mp_xfree (q);
 }
 void mp_toss_knot_list (MP mp, mp_knot p) {
@@ -7200,11 +7201,19 @@ void mp_toss_knot_list (MP mp, mp_knot p) {
   if (p == NULL)
     return;
   q = p;
-  do {
-    r = mp_next_knot (q);
-    mp_toss_knot(mp, q);
-    q = r;
-  } while (q != p);
+  if (mp->math_mode > mp_math_double_mode) {
+    do {
+      r = mp_next_knot (q);
+      mp_toss_knot(mp, q);
+      q = r;
+    } while (q != p);
+  } else {
+    do {
+      r = mp_next_knot (q);
+      mp_xfree (q);
+      q = r;
+    } while (q != p);
+  }
 }
 
 
