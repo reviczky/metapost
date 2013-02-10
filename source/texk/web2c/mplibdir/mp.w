@@ -2793,12 +2793,12 @@ size_t var_used_max;    /* how much memory was in use max */
 static void do_set_mp_sym_info (MP mp, mp_node p, halfword v) {
   FUNCTION_TRACE3 ("do_set_mp_sym_info(%p,%d)\n", p, v);
   assert (p->type == mp_symbol_node);
-  set_number_from_scaled (p->data.n, v);
+  set_indep_value(p, v);
 }
 static halfword get_mp_sym_info (MP mp, mp_node p) {
-  FUNCTION_TRACE3 ("%d = get_mp_sym_info(%p)\n", number_to_scaled (p->data.n), p);
+  FUNCTION_TRACE3 ("%d = get_mp_sym_info(%p)\n", indep_value (p), p);
   assert (p->type == mp_symbol_node);
-  return number_to_scaled (p->data.n);
+  return indep_value(p);
 }
 static void do_set_mp_sym_sym (MP mp, mp_node p, mp_sym v) {
   mp_symbolic_node pp = (mp_symbolic_node) p;
@@ -2813,8 +2813,8 @@ static mp_sym get_mp_sym_sym (MP mp, mp_node p) {
   return pp->data.sym;
 }
 #else
-#define mp_sym_info(A)       number_to_scaled ((A)->data.n)
-#define set_mp_sym_info(A,B) set_number_from_scaled ((A)->data.n, (B))
+#define mp_sym_info(A)        indep_value(A)
+#define set_mp_sym_info(A,B)  set_indep_value(A, (B))
 #define mp_sym_sym(A)        (A)->data.sym
 #define set_mp_sym_sym(A,B)  (A)->data.sym = (mp_sym)(B)
 #endif
