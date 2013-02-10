@@ -6995,18 +6995,20 @@ static mp_gr_knot mp_gr_new_knot (MP mp) {
 static mp_knot mp_copy_knot (MP mp, mp_knot p) {
   mp_knot q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
   memcpy (q, p, sizeof (struct mp_knot_data));
-  new_number(q->x_coord);
-  new_number(q->y_coord);
-  new_number(q->left_x);
-  new_number(q->left_y);
-  new_number(q->right_x);
-  new_number(q->right_y);
-  number_clone(q->x_coord, p->x_coord);
-  number_clone(q->y_coord, p->y_coord);
-  number_clone(q->left_x, p->left_x);
-  number_clone(q->left_y, p->left_y);
-  number_clone(q->right_x, p->right_x);
-  number_clone(q->right_y, p->right_y);
+  if (mp->math_mode > mp_math_double_mode) {
+    new_number(q->x_coord);
+    new_number(q->y_coord);
+    new_number(q->left_x);
+    new_number(q->left_y);
+    new_number(q->right_x);
+    new_number(q->right_y);
+    number_clone(q->x_coord, p->x_coord);
+    number_clone(q->y_coord, p->y_coord);
+    number_clone(q->left_x, p->left_x);
+    number_clone(q->left_y, p->left_y);
+    number_clone(q->right_x, p->right_x);
+    number_clone(q->right_y, p->right_y);
+  }
   mp_next_knot (q) = NULL;
   return q;
 }
