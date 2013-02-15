@@ -2681,6 +2681,35 @@ extern void *mp_xmalloc (MP mp, size_t nmem, size_t size);
 extern void mp_do_snprintf (char *str, int size, const char *fmt, ...);
 extern void *do_alloc_node(MP mp, size_t size);
 
+@ This is an attempt to spend less time in |malloc()|:
+
+@d max_num_value_nodes 1000
+@d max_num_symbolic_nodes 1000
+
+@<Global ...@>=
+mp_node value_nodes;
+int num_value_nodes;
+mp_node symbolic_nodes;
+int num_symbolic_nodes;
+
+@ @<Allocate or initialize ...@>=
+mp->value_nodes = NULL;
+mp->num_value_nodes = 0;
+mp->symbolic_nodes = NULL;
+mp->num_symbolic_nodes = 0;
+
+@ @<Dealloc ...@>=
+while (mp->value_nodes) {
+      mp_node p = mp->value_nodes;
+      mp->value_nodes = p->link;
+      mp_free_node(mp,p,value_node_size);
+}
+while (mp->symbolic_nodes) {
+      mp_node p = mp->symbolic_nodes;
+      mp->symbolic_nodes = p->link;
+      mp_free_node(mp,p,symbolic_node_size);
+}
+
 @ This is a nicer way of allocating nodes.
 
 @d malloc_node(A) do_alloc_node(mp,(A))
@@ -2688,7 +2717,8 @@ extern void *do_alloc_node(MP mp, size_t size);
 @ 
 @c
 void *do_alloc_node (MP mp, size_t size) {
-    void *p = xmalloc(1,size);
+    void *p;
+    p = xmalloc(1,size);
     add_var_used (size);
     memset (p, 0, size);
     return p;
@@ -2836,10 +2866,19 @@ static mp_sym get_mp_sym_sym (MP mp, mp_node p);
 @d symbolic_node_size sizeof(mp_node_data)
 @c
 static mp_node mp_get_symbolic_node (MP mp) {
-  mp_symbolic_node p = malloc_node (symbolic_node_size);
+  mp_symbolic_node p;
+  if (mp->symbolic_nodes) {
+    p = (mp_symbolic_node)mp->symbolic_nodes;
+    mp->symbolic_nodes = p->link;
+    mp->num_symbolic_nodes--;
+    memset(p,0,symbolic_node_size);
+    set_number_to_zero(p->data.n);
+  } else {
+    p = malloc_node (symbolic_node_size);
+    new_number(p->data.n);
+  }
   p->type = mp_symbol_node;
   p->name_type = mp_normal_sym;
-  new_number(p->data.n);
   p->has_number = 1;
   FUNCTION_TRACE2 ("%p = mp_get_symbolic_node()\n", p);
   return (mp_node) p;
@@ -2851,8 +2890,6 @@ the operation |free_node(p,s)| will make its words available, by inserting
 |p| as a new empty node just before where |rover| now points.
 
 A symbolic node is recycled by calling |free_symbolic_node|.
-
-@d mp_free_symbolic_node(mp, A) mp_free_node(mp, (A), symbolic_node_size)
 
 @c
 void mp_free_node (MP mp, mp_node p, size_t siz) {  /* node liberation */
@@ -2876,10 +2913,45 @@ void mp_free_node (MP mp, mp_node p, size_t siz) {  /* node liberation */
   }
   xfree (p);
 }
+void mp_free_symbolic_node (MP mp, mp_node p) {  /* node liberation */
+  FUNCTION_TRACE2 ("mp_free_symbolic_node(%p)\n", p);
+  if (!p) return;
+  if (mp->num_symbolic_nodes < max_num_symbolic_nodes) {
+    p->link = mp->symbolic_nodes;
+    mp->symbolic_nodes = p;
+    mp->num_symbolic_nodes++;
+    return;
+  }
+  mp->var_used -= symbolic_node_size;
+  assert(p->has_number == 1);
+  if (mp->math_mode > mp_math_double_mode) {
+    free_number(((mp_symbolic_node)p)->data.n); 
+  }
+  xfree (p);
+}
+void mp_free_value_node (MP mp, mp_node p) {  /* node liberation */
+  FUNCTION_TRACE2 ("mp_free_value_node(%p)\n", p);
+  if (!p) return;
+  if (mp->num_value_nodes < max_num_value_nodes) {
+    p->link = mp->value_nodes;
+    mp->value_nodes = p;
+    mp->num_value_nodes++;
+    return;
+  }
+  mp->var_used -= value_node_size;
+  assert(p->has_number == 2);
+  if (mp->math_mode > mp_math_double_mode) {
+    free_number(((mp_value_node)p)->data.n); 
+    free_number(((mp_value_node)p)->subscript_); 
+  }
+  xfree (p);
+}
 
 
 @ @<Internal library declarations@>=
 void mp_free_node (MP mp, mp_node p, size_t siz);
+void mp_free_symbolic_node (MP mp, mp_node p);
+void mp_free_value_node (MP mp, mp_node p);
 
 @ Same redirection trick as above
 
@@ -5366,14 +5438,23 @@ became messy: lots of typecasts. So, it returns a simple
 |mp_node| for now.
 
 @d value_node_size sizeof(struct mp_value_node_data)
-@d mp_free_value_node(a,b) mp_free_node(a,b,value_node_size)
 
 @c
 static mp_node mp_get_value_node (MP mp) {
-  mp_value_node p = malloc_node (value_node_size);
+  mp_value_node p; 
+  if (mp->value_nodes) {
+    p = (mp_value_node)mp->value_nodes;
+    mp->value_nodes = p->link;
+    mp->num_value_nodes--;
+    memset(p,0,value_node_size);
+    set_number_to_zero(p->data.n);
+    set_number_to_zero(p->subscript_);
+  } else {
+    p = malloc_node (value_node_size);
+    new_number(p->data.n);
+    new_number(p->subscript_);
+  }
   mp_type (p) = mp_value_node_type;
-  new_number(p->data.n);
-  new_number(p->subscript_);
   p->has_number = 2;
   FUNCTION_TRACE2 ("%p = mp_get_value_node()\n", p);
   return (mp_node)p;
@@ -5542,7 +5623,7 @@ static void do_set_parent (MP mp, mp_value_node A, mp_node d) {
 @ 
 @d mp_free_attr_node(a,b) do {
    assert((b)->type == mp_attr_node_type || (b)->name_type == mp_attr);
-   mp_free_node(a,b,value_node_size);
+   mp_free_value_node(a,b);
 } while (0)
 
 @c
@@ -6304,7 +6385,7 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t,
    	      set_subscr_head (p, mp_link (q));
             else
               set_mp_link (r, mp_link (q));
-            mp_free_node (mp, q, value_node_size);
+            mp_free_value_node (mp, q);
           }
         } else {
           r = q;
@@ -6349,17 +6430,17 @@ void mp_flush_below_variable (MP mp, mp_node p) {
       mp_flush_below_variable (mp, q);
       r = q;
       q = mp_link (q);
-      mp_free_node (mp, r, value_node_size);
+      mp_free_value_node (mp, r);
     }
     r = attr_head (p);
     q = mp_link (r);
     mp_recycle_value (mp, r);
-    mp_free_node (mp, r, value_node_size);
+    mp_free_value_node (mp, r);
     do {
       mp_flush_below_variable (mp, q);
       r = q;
       q = mp_link (q);
-      mp_free_node (mp, r, value_node_size);
+      mp_free_value_node (mp, r);
     } while (q != mp->end_attr);
     mp_type (p) = mp_undefined;
   }
@@ -6434,7 +6515,7 @@ static void mp_clear_symbol (MP mp, mp_sym p, boolean saving) {
         mp_name_type (q) = mp_saved_root;
       } else {
         mp_flush_below_variable (mp, q);
-        mp_free_node (mp, q, value_node_size);
+        mp_free_value_node (mp, q);
       }
     }
     break;
@@ -15524,7 +15605,7 @@ static mp_value_node mp_get_dep_node (MP mp) {
   return p;
 }
 static void mp_free_dep_node (MP mp, mp_value_node p) {
-  mp_free_node (mp, (mp_node) p, value_node_size);
+  mp_free_value_node (mp, (mp_node) p);
 }
 
 
@@ -16185,7 +16266,7 @@ void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
   if (cur_exp_node () == (mp_node) p && mp->cur_exp.type == t) {
     mp->cur_exp.type = mp_known;
     set_cur_exp_value_number (value_number (p));
-    mp_free_node (mp, (mp_node) p, value_node_size);
+    mp_free_value_node (mp, (mp_node) p);
   }
   free_number (absp);
 }
@@ -16567,7 +16648,7 @@ static void change_to_known (MP mp, mp_value_node p, mp_node x, mp_value_node fi
     if (cur_exp_node () == x && mp->cur_exp.type == mp_independent) {
       set_cur_exp_value_number (value_number (x));
       mp->cur_exp.type = mp_known;
-      mp_free_node (mp, x, value_node_size);
+      mp_free_value_node (mp, x);
     }
   } else {
     mp->dep_final = final_node;
@@ -17445,7 +17526,7 @@ static void mp_end_token_list (MP mp) {                               /* leave a
     if (p != NULL) {
       if (mp_link (p) == MP_VOID) {        /* it's an \&{expr} parameter */
         mp_recycle_value (mp, p);
-        mp_free_node (mp, p, value_node_size);
+        mp_free_value_node (mp, p);
       } else {
         mp_flush_token_list (mp, p);    /* it's a \&{suffix} or \&{text} parameter */
       }
@@ -20339,7 +20420,7 @@ void mp_stop_iteration (MP mp) {
       if (p != NULL) {
         if (mp_link (p) == MP_VOID) {      /* it's an \&{expr} parameter */
           mp_recycle_value (mp, p);
-          mp_free_node (mp, p, value_node_size);
+          mp_free_value_node (mp, p);
         } else {
           mp_flush_token_list (mp, p);  /* it's a \&{suffix} or \&{text}
                                            parameter */
@@ -21681,25 +21762,25 @@ void mp_unstash_cur_exp (MP mp, mp_node p) {
     break;
   case mp_token_list: /* this is how symbols are stashed */
     set_cur_exp_node (value_node(p));
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
     break;
   case mp_path_type:
   case mp_pen_type:
     set_cur_exp_knot (value_knot (p));
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
     break;
   case mp_string_type:
     set_cur_exp_str (value_str (p));
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
     break;
   case mp_picture_type:
     set_cur_exp_node (value_node (p));
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
     break;
   case mp_boolean_type:
   case mp_known:
     set_cur_exp_value_number (value_number (p));
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
     break;
   default:
     set_cur_exp_value_number (value_number (p));
@@ -21712,7 +21793,7 @@ void mp_unstash_cur_exp (MP mp, mp_node p) {
     if (value_str(p)) {
       set_cur_exp_str (value_str (p));
     } 
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
     break;
   }
 }
@@ -22015,7 +22096,7 @@ void mp_flush_cur_exp (MP mp, mp_value v) {
   case mp_independent:
   case mp_cmykcolor_type:
     mp_recycle_value (mp, cur_exp_node ());
-    mp_free_node (mp, cur_exp_node (), value_node_size);
+    mp_free_value_node (mp, cur_exp_node ());
     break;
   case mp_string_type:
     delete_str_ref (cur_exp_str ());
@@ -22078,10 +22159,10 @@ static void mp_recycle_value (MP mp, mp_node p) {
       mp_recycle_value (mp, magenta_part (value_node (p)));
       mp_recycle_value (mp, yellow_part (value_node (p)));
       mp_recycle_value (mp, black_part (value_node (p)));
-      mp_free_node (mp, cyan_part (value_node (p)), value_node_size);
-      mp_free_node (mp, magenta_part (value_node (p)), value_node_size);
-      mp_free_node (mp, black_part (value_node (p)), value_node_size);
-      mp_free_node (mp, yellow_part (value_node (p)), value_node_size);
+      mp_free_value_node (mp, cyan_part (value_node (p)));
+      mp_free_value_node (mp, magenta_part (value_node (p)));
+      mp_free_value_node (mp, black_part (value_node (p)));
+      mp_free_value_node (mp, yellow_part (value_node (p)));
       mp_free_node (mp, value_node (p), cmykcolor_node_size);
     }
     break;
@@ -22089,8 +22170,8 @@ static void mp_recycle_value (MP mp, mp_node p) {
     if (value_node (p) != NULL) {
       mp_recycle_value (mp, x_part (value_node (p)));
       mp_recycle_value (mp, y_part (value_node (p)));
-      mp_free_node (mp, x_part (value_node (p)), value_node_size);
-      mp_free_node (mp, y_part (value_node (p)), value_node_size);
+      mp_free_value_node (mp, x_part (value_node (p)));
+      mp_free_value_node (mp, y_part (value_node (p)));
       mp_free_node (mp, value_node (p), pair_node_size);
     }
     break;
@@ -22099,9 +22180,9 @@ static void mp_recycle_value (MP mp, mp_node p) {
       mp_recycle_value (mp, red_part (value_node (p)));
       mp_recycle_value (mp, green_part (value_node (p)));
       mp_recycle_value (mp, blue_part (value_node (p)));
-      mp_free_node (mp, red_part (value_node (p)), value_node_size);
-      mp_free_node (mp, green_part (value_node (p)), value_node_size);
-      mp_free_node (mp, blue_part (value_node (p)), value_node_size);
+      mp_free_value_node (mp, red_part (value_node (p)));
+      mp_free_value_node (mp, green_part (value_node (p)));
+      mp_free_value_node (mp, blue_part (value_node (p)));
       mp_free_node (mp, value_node (p), color_node_size);
     }
     break;
@@ -22113,12 +22194,12 @@ static void mp_recycle_value (MP mp, mp_node p) {
       mp_recycle_value (mp, xy_part (value_node (p)));
       mp_recycle_value (mp, yx_part (value_node (p)));
       mp_recycle_value (mp, yy_part (value_node (p)));
-      mp_free_node (mp, tx_part (value_node (p)), value_node_size);
-      mp_free_node (mp, ty_part (value_node (p)), value_node_size);
-      mp_free_node (mp, xx_part (value_node (p)), value_node_size);
-      mp_free_node (mp, xy_part (value_node (p)), value_node_size);
-      mp_free_node (mp, yx_part (value_node (p)), value_node_size);
-      mp_free_node (mp, yy_part (value_node (p)), value_node_size);
+      mp_free_value_node (mp, tx_part (value_node (p)));
+      mp_free_value_node (mp, ty_part (value_node (p)));
+      mp_free_value_node (mp, xx_part (value_node (p)));
+      mp_free_value_node (mp, xy_part (value_node (p)));
+      mp_free_value_node (mp, yx_part (value_node (p)));
+      mp_free_value_node (mp, yy_part (value_node (p)));
       mp_free_node (mp, value_node (p), transform_node_size);
     }
     break;
@@ -22719,7 +22800,7 @@ RESTART:
           mp_do_binary (mp, p, mp_times);
         } else {
           mp_frac_mult (mp, num, denom);
-          mp_free_node (mp, p, value_node_size);
+          mp_free_value_node (mp, p);
         }
         free_number (absnum);
         free_number (absdenom);
@@ -22943,7 +23024,7 @@ static void mp_stash_in (MP mp, mp_node p) {
         mp_new_dep (mp, p, mp_dependent, q);
       }
       mp_recycle_value (mp, cur_exp_node ());
-      mp_free_node (mp, cur_exp_node (), value_node_size);
+      mp_free_value_node (mp, cur_exp_node ());
     } else {
       set_dep_list ((mp_value_node) p,
                     dep_list ((mp_value_node) cur_exp_node ()));
@@ -25099,7 +25180,7 @@ static void negate_cur_expr(MP mp) {
       }
     }                             /* if |cur_type=mp_known| then |cur_exp=0| */
     mp_recycle_value (mp, q);
-    mp_free_node (mp, q, value_node_size);
+    mp_free_value_node (mp, q);
     break;
   case mp_dependent:
   case mp_proto_dependent:
@@ -25182,7 +25263,7 @@ static void mp_take_part (MP mp, quarterword c) {
   set_value_node (mp->temp_val, p);
   mp_type (mp->temp_val) = mp->cur_exp.type;
   mp_link (p) = mp->temp_val;
-  mp_free_node (mp, cur_exp_node (), value_node_size); 
+  mp_free_value_node (mp, cur_exp_node ()); 
   switch (c) {
   case mp_x_part:
     if (mp->cur_exp.type == mp_pair_type)
@@ -26153,11 +26234,11 @@ static void mp_finish_binary (MP mp, mp_node old_p, mp_node old_exp) {
   /* Recycle any sidestepped |independent| capsules */
   if (old_p != NULL) {
     mp_recycle_value (mp, old_p);
-    mp_free_node (mp, old_p, value_node_size);
+    mp_free_value_node (mp, old_p);
   }
   if (old_exp != NULL) {
     mp_recycle_value (mp, old_exp);
-    mp_free_node (mp, old_exp, value_node_size);
+    mp_free_value_node (mp, old_exp);
   }
 }
 static void mp_do_binary (MP mp, mp_node p, integer c) {
@@ -26483,7 +26564,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
       new_fraction (vv);
       if (mp_type (p) == mp_known) {
         number_clone(vv, value_number (p));
-        mp_free_node (mp, p, value_node_size);
+        mp_free_value_node (mp, p);
       } else {
         number_clone(vv, cur_exp_value_number ());
         mp_unstash_cur_exp (mp, p);
@@ -26732,7 +26813,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
     break;
   }                            /* there are no other cases */
   mp_recycle_value (mp, p);
-  mp_free_node (mp, p, value_node_size);        /* |return| to avoid this */
+  mp_free_value_node (mp, p);        /* |return| to avoid this */
   mp_finish_binary (mp, old_p, old_exp);
 }
 
@@ -27120,7 +27201,7 @@ static void mp_frac_mult (MP mp, mp_number n, mp_number d) {
   }
   if (old_exp != NULL) {
     mp_recycle_value (mp, old_exp);
-    mp_free_node (mp, old_exp, value_node_size);
+    mp_free_value_node (mp, old_exp);
   }
   free_number (v);
 }
@@ -27282,7 +27363,7 @@ static void mp_set_up_trans (MP mp, quarterword c) {
     mp_get_x_next (mp);
   DONE:
     mp_recycle_value (mp, p);
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
 
   }
   /* If the current transform is entirely known, stash it in global variables;
@@ -27904,7 +27985,7 @@ if (mp->cur_exp.type == mp_known) {
   mp_bilin2 (mp, x_part (r), xx_part (qq), value_number (y_part (q)),
              xy_part (qq), x_part (qq));
   mp_recycle_value (mp, pp);
-  mp_free_node (mp, pp, value_node_size);
+  mp_free_value_node (mp, pp);
 }
 
 
@@ -28327,7 +28408,7 @@ static void mp_do_infont (MP mp, mp_node p) {
   mp_link (obj_tail (q)) =
     mp_new_text_node (mp, mp_str (mp, cur_exp_str ()), value_str (p));
   obj_tail (q) = mp_link (obj_tail (q));
-  mp_free_node (mp, p, value_node_size);
+  mp_free_value_node (mp, p);
   new_expr.data.node = (mp_node)q;
   mp_flush_cur_exp (mp, new_expr);
   mp->cur_exp.type = mp_picture_type;
@@ -28880,7 +28961,7 @@ RESTART:
   check_arith();
   mp_recycle_value (mp, lhs);
   free_number (v);
-  mp_free_node (mp, lhs, value_node_size);
+  mp_free_value_node (mp, lhs);
 }
 
 @ The first argument to |try_eq| is the location of a value node
@@ -29022,7 +29103,7 @@ void mp_try_eq (MP mp, mp_node l, mp_node r) {
         mp_node pp = cur_exp_node ();
         set_cur_exp_value_number (value_number (pp));
         mp->cur_exp.type = mp_known;
-        mp_free_node (mp, pp, value_node_size);
+        mp_free_value_node (mp, pp);
       }
     }
   }
