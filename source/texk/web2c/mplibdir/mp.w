@@ -27665,27 +27665,26 @@ sum is similar.
   new_number(tot);
   new_number (ret);
   set_number_from_addition(tot,mp->txx,mp->txy);
-  number_add(tot,mp->tx);
   take_scaled (ret, h->minx, tot);
-  number_clone(h->minx, ret);
+  set_number_from_addition(h->minx,ret, mp->tx);
   take_scaled (ret, h->maxx, tot);
-  number_clone(h->maxx, ret);
+  set_number_from_addition(h->maxx,ret, mp->tx);
+
   set_number_from_addition(tot,mp->tyx,mp->tyy);
-  number_add(tot,mp->ty);
   take_scaled (ret, h->miny, tot);
-  number_clone(h->miny, ret);
+  set_number_from_addition(h->miny, ret, mp->ty);
   take_scaled (ret, h->maxy, tot);
-  number_clone(h->maxy, ret);
-  free_number (ret);
-  
+  set_number_from_addition(h->maxy, ret, mp->ty);
+
   set_number_from_addition(tot, mp->txx, mp->txy);
-  if (number_negative(tot) < 0) {
+  if (number_negative(tot)) {
     number_swap(h->minx, h->maxx);
   }
   set_number_from_addition(tot, mp->tyx, mp->tyy);
-  if (number_negative(tot) < 0) {
+  if (number_negative(tot)) {
     number_swap(h->miny, h->maxy);
   }
+  free_number (ret);  
   free_number (tot);
 }
 
