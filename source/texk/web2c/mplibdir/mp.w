@@ -6187,8 +6187,6 @@ item on |t| isn't a |tag_token|, the value |NULL| is returned.
 Otherwise |p| will be a non-NULL pointer to a node such that
 |undefined<type(p)<mp_structured|.
 
-@d abort_find { return NULL; }
-
 @c
 static mp_node mp_find_variable (MP mp, mp_node t) {
   mp_node p, q, r, s;   /* nodes in the ``value'' line */
@@ -6198,7 +6196,7 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
   p_sym = mp_sym_sym (t);
   t = mp_link (t);
   if ((eq_type (p_sym) % mp_outer_tag) != mp_tag_token)
-    abort_find;
+    return NULL;
   if (equiv_node (p_sym) == NULL)
     mp_new_root (mp, p_sym);
   p = equiv_node (p_sym);
@@ -6210,7 +6208,7 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
        values. */
     if (mp_type (pp) != mp_structured) {
       if (mp_type (pp) > mp_structured)
-        abort_find;
+        return NULL;
       ss = mp_new_structure (mp, pp);
       if (p == pp)
         p = ss;
@@ -6221,15 +6219,83 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
     }
 
     if (mp_type (t) != mp_symbol_node) {
-      mp_number nn;
-      mp_number save_subscript;      /* temporary storage */
+      /* Descend one level for the subscript |value(t)| */
+      /* We want this part of the program to be reasonably fast, in case there are
+        lots of subscripts at the same level of the data structure. Therefore
+        we store an ``infinite'' value in the word that appears at the end of the
+        subscript list, even though that word isn't part of a subscript node. */
+      mp_number nn, save_subscript;      /* temporary storage */
       new_number (nn);
       new_number (save_subscript);
-      @<Descend one level for the subscript |value(t)|@>
+      number_clone (nn, value_number (t));
+      pp = mp_link (attr_head (pp)); /* now |hashloc(pp)=collective_subscript| */
+      q = mp_link (attr_head (p));
+      number_clone (save_subscript, subscript (q));
+      set_number_to_inf(subscript (q));
+      s = mp->temp_head;
+      set_mp_link (s, subscr_head (p));
+      do {
+        r = s;
+        s = mp_link (s);
+      } while (number_greater (nn, subscript (s)));
+      if (number_equal(nn, subscript (s))) {
+        p = s;
+      } else {
+        mp_value_node p1 = mp_get_subscr_node (mp);
+        if (r == mp->temp_head)
+          set_subscr_head (p, (mp_node) p1);
+        else
+          set_mp_link (r, (mp_node) p1);
+        set_mp_link (p1, s);
+        number_clone (subscript (p1), nn);
+        mp_name_type (p1) = mp_subscr;
+        mp_type (p1) = mp_undefined;
+        p = (mp_node) p1;
+      }
+      number_clone (subscript (q), save_subscript);
       free_number (save_subscript);
       free_number (nn);
     } else {
-      @<Descend one level for the attribute |mp_sym_info(t)|@>;
+      /* Descend one level for the attribute |mp_sym_info(t)| */
+      mp_sym nn1 = mp_sym_sym (t);
+      ss = attr_head (pp);
+      do {
+        rr = ss;
+        ss = mp_link (ss);
+      } while (nn1 > hashloc (ss));
+      if (nn1 < hashloc (ss)) {
+        qq = (mp_node) mp_get_attr_node (mp);
+        set_mp_link (rr, qq);
+        set_mp_link (qq, ss);
+        set_hashloc (qq, nn1);
+        mp_name_type (qq) = mp_attr;
+        mp_type (qq) = mp_undefined;
+        set_parent ((mp_value_node) qq, pp);
+        ss = qq;
+      }
+      if (p == pp) {
+        p = ss;
+        pp = ss;
+      } else {
+        pp = ss;
+        s = attr_head (p);
+        do {
+          r = s;
+          s = mp_link (s);
+        } while (nn1 > hashloc (s));
+        if (nn1 == hashloc (s)) {
+          p = s;
+        } else {
+          q = (mp_node) mp_get_attr_node (mp);
+          set_mp_link (r, q);
+          set_mp_link (q, s);
+          set_hashloc (q, nn1);
+          mp_name_type (q) = mp_attr;
+          mp_type (q) = mp_undefined;
+          set_parent ((mp_value_node) q, p);
+          p = q;
+        }
+      }
     }
     t = mp_link (t);
   }
@@ -6237,7 +6303,7 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
     if (mp_type (pp) == mp_structured)
       pp = attr_head (pp);
     else
-      abort_find;
+      return NULL;
   }
   if (mp_type (p) == mp_structured)
     p = attr_head (p);
@@ -6250,88 +6316,6 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
     set_value_number (p, zero_t);
   }
   return p;
-}
-
-
-@ We want this part of the program to be reasonably fast, in case there are
-@^inner loop@>
-lots of subscripts at the same level of the data structure. Therefore
-we store an ``infinite'' value in the word that appears at the end of the
-subscript list, even though that word isn't part of a subscript node.
-
-@<Descend one level for the subscript |value(t)|@>=
-{
-  number_clone (nn, value_number (t));
-  pp = mp_link (attr_head (pp));        /* now |hashloc(pp)=collective_subscript| */
-  assert(hashloc(pp)==collective_subscript);
-  q = mp_link (attr_head (p));
-  number_clone (save_subscript, subscript (q));
-  set_number_to_inf(subscript (q));
-  s = mp->temp_head;
-  set_mp_link (s, subscr_head (p));
-  do {
-    r = s;
-    s = mp_link (s);
-  } while (number_greater (nn ,subscript (s)));
-  if (number_equal(nn, subscript (s))) {
-    p = s;
-  } else {
-    mp_value_node p1 = mp_get_subscr_node (mp);
-    if (r == mp->temp_head)
-      set_subscr_head (p, (mp_node) p1);
-    else
-      set_mp_link (r, (mp_node) p1);
-    set_mp_link (p1, s);
-    number_clone (subscript (p1), nn);
-    mp_name_type (p1) = mp_subscr;
-    mp_type (p1) = mp_undefined;
-    p = (mp_node) p1;
-  }
-  number_clone (subscript (q), save_subscript);
-}
-
-
-@ @<Descend one level for the attribute |mp_sym_info(t)|@>=
-{
-  mp_sym nn = mp_sym_sym (t);
-  ss = attr_head (pp);
-  do {
-    rr = ss;
-    ss = mp_link (ss);
-  } while (nn > hashloc (ss));
-  if (nn < hashloc (ss)) {
-    qq = (mp_node) mp_get_attr_node (mp);
-    set_mp_link (rr, qq);
-    set_mp_link (qq, ss);
-    set_hashloc (qq, nn);
-    mp_name_type (qq) = mp_attr;
-    mp_type (qq) = mp_undefined;
-    set_parent ((mp_value_node) qq, pp);
-    ss = qq;
-  }
-  if (p == pp) {
-    p = ss;
-    pp = ss;
-  } else {
-    pp = ss;
-    s = attr_head (p);
-    do {
-      r = s;
-      s = mp_link (s);
-    } while (nn > hashloc (s));
-    if (nn == hashloc (s)) {
-      p = s;
-    } else {
-      q = (mp_node) mp_get_attr_node (mp);
-      set_mp_link (r, q);
-      set_mp_link (q, s);
-      set_hashloc (q, nn);
-      mp_name_type (q) = mp_attr;
-      mp_type (q) = mp_undefined;
-      set_parent ((mp_value_node) q, p);
-      p = q;
-    }
-  }
 }
 
 
