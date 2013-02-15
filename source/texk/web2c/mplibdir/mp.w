@@ -5445,6 +5445,7 @@ static mp_node mp_get_value_node (MP mp) {
     p = (mp_value_node)mp->value_nodes;
     mp->value_nodes = p->link;
     mp->num_value_nodes--;
+    p->link = NULL;
   } else {
     p = malloc_node (value_node_size);
     new_number(p->data.n);
