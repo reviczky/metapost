@@ -22100,13 +22100,19 @@ the storage associated with any non-symbolic value packet.
 
 @<Declarations@>=
 static void mp_recycle_value (MP mp, mp_node p);
-static void mp_recycle_independent (MP mp, mp_node p, mp_variable_type t);
 
 @ @c
 static void mp_recycle_value (MP mp, mp_node p) {
   mp_variable_type t;   /* a type code */
+  mp_number vv;   /* another value */
+  mp_node pp;   /* link manipulation register */
+  mp_number v ;        /* a value */
+  new_number (v);
+  new_number (vv);
   FUNCTION_TRACE2 ("mp_recycle_value(%p)\n", p);
   t = mp_type (p);
+  if (t < mp_dependent)
+    number_clone (v, value_number (p));
   switch (t) {
   case mp_vacuous:
   case mp_boolean_type:
@@ -22178,25 +22184,16 @@ static void mp_recycle_value (MP mp, mp_node p) {
     break;
   case mp_dependent:
   case mp_proto_dependent:
-    /* Recycle a dependency list */
-    {
-      mp_value_node qq = (mp_value_node) dep_list ((mp_value_node) p);
-      while (dep_info (qq) != NULL)
-        qq = (mp_value_node) mp_link (qq);
-      set_mp_link (prev_dep ((mp_value_node) p), mp_link (qq));
-      set_prev_dep (mp_link (qq), prev_dep ((mp_value_node) p));
-      set_mp_link (qq, NULL);
-      mp_flush_node_list (mp, (mp_node) dep_list ((mp_value_node) p));
-    }
+    @<Recycle a dependency list@>;
     break;
   case mp_independent:
-    /* @<Recycle an independent variable@>; */
-    mp_recycle_independent (mp, p, t);
+    @<Recycle an independent variable@>;
     break;
   case mp_token_list:
   case mp_structured:
     mp_confusion (mp, "recycle");
     break;
+@:this can't happen recycle}{\quad recycle@>
   case mp_unsuffixed_macro:
   case mp_suffixed_macro:
     mp_delete_mac_ref (mp, value_node (p));
@@ -22205,6 +22202,20 @@ static void mp_recycle_value (MP mp, mp_node p) {
     break;
   }                             /* there are no other cases */
   mp_type (p) = mp_undefined;
+  free_number (v);
+  free_number (vv);
+}
+
+
+@ @<Recycle a dependency list@>=
+{
+  mp_value_node qq = (mp_value_node) dep_list ((mp_value_node) p);
+  while (dep_info (qq) != NULL)
+    qq = (mp_value_node) mp_link (qq);
+  set_mp_link (prev_dep ((mp_value_node) p), mp_link (qq));
+  set_prev_dep (mp_link (qq), prev_dep ((mp_value_node) p));
+  set_mp_link (qq, NULL);
+  mp_flush_node_list (mp, (mp_node) dep_list ((mp_value_node) p));
 }
 
 
@@ -22237,14 +22248,16 @@ we shall link together the occurrences of~$x$ among all the linear
 dependencies, maintaining separate lists for the dependent and
 proto-dependent cases.
 
-@c
-static void mp_recycle_independent (MP mp, mp_node p, mp_variable_type t) {
+@<Recycle an independent variable@>=
+{
   mp_value_node q, r, s;
   mp_node pp;   /* link manipulation register */
   mp_number v ;        /* a value */
   mp_number vv;   /* another value, also for temp use */
   new_number (v);
   new_number (vv);
+  if (t < mp_dependent) 	 
+    number_clone (v, value_number (p));
   set_number_to_zero(mp->max_c[mp_dependent]);
   set_number_to_zero(mp->max_c[mp_proto_dependent]);
   mp->max_link[mp_dependent] = NULL;
@@ -22260,26 +22273,29 @@ static void mp_recycle_independent (MP mp, mp_node p, mp_variable_type t) {
       if (dep_info (r) != p) {
         s = r;
       } else {
+        mp_number test;
+        new_number (test);
         t = mp_type (q);
         if (mp_link (s) == dep_list (q)) {      /* reset the |dep_list| */
           set_dep_list (q, mp_link (r));
         }
         set_mp_link (s, mp_link (r));
         set_dep_info (r, (mp_node) q);
-        number_clone (vv, dep_value (r));
-        number_abs (vv);
-        if (number_greater (vv, mp->max_c[t])) {
+        number_clone (test, dep_value (r));
+        number_abs (test);
+        if (number_greater (test, mp->max_c[t])) {
           /* Record a new maximum coefficient of type |t| */
           if (number_positive(mp->max_c[t])) {
             set_mp_link (mp->max_ptr[t], (mp_node) mp->max_link[t]);
             mp->max_link[t] = mp->max_ptr[t];
           }
-          number_clone (mp->max_c[t], vv);
+          number_clone (mp->max_c[t], test);
           mp->max_ptr[t] = r;
         } else {
           set_mp_link (r, (mp_node) mp->max_link[t]);
           mp->max_link[t] = r;
         }
+        free_number (test);
       }
     }
     q = (mp_value_node) mp_link (r);
@@ -22289,8 +22305,6 @@ static void mp_recycle_independent (MP mp, mp_node p, mp_variable_type t) {
     independent variable, and change all remaining dependencies
     accordingly@>;
   }
-  free_number (v);
-  free_number (vv);
 }
 
 
@@ -22321,65 +22335,28 @@ mp_value_node max_link[mp_proto_dependent + 1]; /* other occurrences of |p| */
 
 @ @<Choose a dependent...@>=
 {
-  number_clone (vv, mp->max_c[mp_dependent]);
-  number_divide_int (vv, 4096);
-  t = (number_greaterequal(vv, mp->max_c[mp_proto_dependent]) ? mp_dependent : mp_proto_dependent);
-  @<Determine the dependency list |s| to substitute for the independent variable~|p|@>;
+  {
+  mp_number test;
+  new_number (test);
+  number_clone (test, mp->max_c[mp_dependent]);
+  number_divide_int (test, 4096);
+  if (number_greaterequal(test, mp->max_c[mp_proto_dependent]))
+    t = mp_dependent;
+  else
+    t = mp_proto_dependent;
+  free_number(test);
+  }
+  @<Determine the dependency list |s| to substitute for the independent
+    variable~|p|@>;
   t = (quarterword) (mp_dependent + mp_proto_dependent - t);    /* complement |t| */
   if (number_positive(mp->max_c[t])) {       /* we need to pick up an unchosen dependency */
     set_mp_link (mp->max_ptr[t], (mp_node) mp->max_link[t]);
     mp->max_link[t] = mp->max_ptr[t];
   }
-  /* Finally, there are dependent and proto-dependent variables whose
-     dependency lists must be brought up to date. */
   if (t != mp_dependent) {
-    /* Substitute new dependencies in place of |p| */
-    for (t = mp_dependent; t <= mp_proto_dependent; t++) {
-      r = mp->max_link[t];
-      while (r != NULL) {
-        q = (mp_value_node) dep_info (r);
-        number_clone (vv, v);
-        number_negate (vv);
-        make_fraction (v, dep_value (r), vv);
-        set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q), v, s, t, mp_dependent));
-        if (dep_list (q) == (mp_node) mp->dep_final)
-          mp_make_known (mp, q, mp->dep_final);
-        q = r;
-        r = (mp_value_node) mp_link (r);
-        mp_free_dep_node (mp, q);
-      }
-    }
+    @<Substitute new dependencies in place of |p|@>;
   } else {
-    /* Substitute new proto-dependencies in place of |p| */
-    for (t = mp_dependent; t <= mp_proto_dependent; t++) {
-      r = mp->max_link[t];
-      while (r != NULL) {
-        q = (mp_value_node) dep_info (r);
-        if (t == mp_dependent) {    
-          /* for safety's sake, we change |q| to |mp_proto_dependent| */
-          if (cur_exp_node () == (mp_node)q && mp->cur_exp.type == mp_dependent)
-            mp->cur_exp.type = mp_proto_dependent;
-          set_dep_list (q,
-                        mp_p_over_v (mp, (mp_value_node) dep_list (q),
-                                               unity_t, mp_dependent,
-                                               mp_proto_dependent));
-          mp_type (q) = mp_proto_dependent;
-          number_clone (vv, dep_value (r));
-          fraction_to_round_scaled (vv);
-          set_dep_value (r, vv);
-        }
-        number_clone (vv, v);
-        number_negate (vv);
-        make_scaled (v, dep_value (r), vv);
-        set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q),
-                                       v, s, mp_proto_dependent, mp_proto_dependent));
-        if (dep_list (q) == (mp_node) mp->dep_final)
-          mp_make_known (mp, q, mp->dep_final);
-        q = r;
-        r = (mp_value_node) mp_link (r);
-        mp_free_dep_node (mp, q);
-      }
-    }
+    @<Substitute new proto-dependencies in place of |p|@>;
   }
   mp_flush_node_list (mp, (mp_node) s);
   if (mp->fix_needed)
@@ -22452,6 +22429,82 @@ if (mp_interesting (mp, p)) {
     mp_print (mp, " = ");
   mp_print_dependency (mp, s, t);
   mp_end_diagnostic (mp, false);
+}
+
+@ Finally, there are dependent and proto-dependent variables whose
+dependency lists must be brought up to date.
+
+@<Substitute new dependencies...@>=
+{
+  mp_number arg1, arg2, ret;
+  new_number (arg1);
+  new_number (arg2);
+  new_number (ret);
+for (t = mp_dependent; t <= mp_proto_dependent; t++) {
+  r = mp->max_link[t];
+  while (r != NULL) {
+    q = (mp_value_node) dep_info (r);
+    number_clone (arg1, dep_value (r));
+    number_clone (arg2, v);
+    number_negate (arg2);
+    make_fraction (ret, arg1, arg2);
+    set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q), ret, s, t, mp_dependent));
+    if (dep_list (q) == (mp_node) mp->dep_final)
+      mp_make_known (mp, q, mp->dep_final);
+    q = r;
+    r = (mp_value_node) mp_link (r);
+    mp_free_dep_node (mp, q);
+  }
+}
+  free_number (ret);
+  free_number (arg1);
+  free_number (arg2);
+}
+
+@ @<Substitute new proto...@>=
+for (t = mp_dependent; t <= mp_proto_dependent; t++) {
+  r = mp->max_link[t];
+  while (r != NULL) {
+    q = (mp_value_node) dep_info (r);
+    if (t == mp_dependent) {    /* for safety's sake, we change |q| to |mp_proto_dependent| */
+      mp_number x;
+      new_number (x);
+      if (cur_exp_node () == (mp_node) q && mp->cur_exp.type == mp_dependent)
+        mp->cur_exp.type = mp_proto_dependent;
+      set_dep_list (q,
+                    mp_p_over_v (mp, (mp_value_node) dep_list (q),
+                                           unity_t, mp_dependent,
+                                           mp_proto_dependent));
+      mp_type (q) = mp_proto_dependent;
+      number_clone (x, dep_value (r));
+      fraction_to_round_scaled (x);
+      set_dep_value (r, x);
+      free_number (x);
+    }
+    {
+      mp_number arg1, arg2;
+      mp_number ret;
+      new_number (ret);
+      new_number (arg1);
+      new_number (arg2);
+      number_clone (arg1, dep_value (r));
+      number_clone (arg2, v);
+      number_negate (arg2);
+      make_scaled (ret, arg1, arg2);
+      free_number (arg1);
+      free_number (arg2);
+      set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q),
+                                             ret, s,
+                                             mp_proto_dependent,
+                                             mp_proto_dependent));
+      free_number (ret);
+    }
+    if (dep_list (q) == (mp_node) mp->dep_final)
+      mp_make_known (mp, q, mp->dep_final);
+    q = r;
+    r = (mp_value_node) mp_link (r);
+    mp_free_dep_node (mp, q);
+  }
 }
 
 
