@@ -15274,8 +15274,6 @@ set_number_from_scaled (mp->cur_tt, 1)
 
 @ 
 
-@d half(A) ((A)/2)
- 
 @<Subdivide for a new level of intersection@>=
 number_clone (stack_dx, mp->delx);
 number_clone (stack_dy, mp->dely);
@@ -15325,7 +15323,9 @@ mp->tol = mp->tol - mp->three_l + (integer) mp->tol_step;
 mp->tol += mp->tol;
 mp->three_l = mp->three_l + (integer) mp->tol_step
 
-@ @<Advance to the next pair |(cur_t,cur_tt)|@>=
+@ 
+
+@<Advance to the next pair |(cur_t,cur_tt)|@>=
 NOT_FOUND:
 if (odd (number_to_scaled (mp->cur_tt))) {
   if (odd (number_to_scaled (mp->cur_t))) {
@@ -15361,7 +15361,10 @@ if (odd (number_to_scaled (mp->cur_tt))) {
 }
 
 
-@ @<Descend to the previous level...@>=
+@ 
+@d half(A) ((A)/2)
+ 
+@<Descend to the previous level...@>=
 {
   set_number_from_scaled (mp->cur_t, half (number_to_scaled (mp->cur_t)));
   set_number_from_scaled (mp->cur_tt, half (number_to_scaled (mp->cur_tt)));
@@ -19047,9 +19050,11 @@ space available on the call stack.
 
 In any case, when the limit is crossed, that is a fatal error.
 
+@d check_expansion_depth()  if (++mp->expand_depth_count >= mp->expand_depth)
+                              mp_expansion_depth_error(mp)
+
 @c
-static void mp_check_expansion_depth (MP mp) {
-  if (mp->expand_depth_count >= mp->expand_depth) {
+static void mp_expansion_depth_error (MP mp) {
     const char *hlp[] = {
          "Recursive macro expansion cannot be unlimited because of runtime",
          "stack constraints. The limit is 10000 recursion levels in total.",
@@ -19060,7 +19065,6 @@ static void mp_check_expansion_depth (MP mp) {
       mp_error(mp, "Maximum expansion depth reached", hlp, true);
     mp->history=mp_fatal_error_stop; 
     mp_jump_out(mp);
-  }
 }
 
 
@@ -19071,8 +19075,7 @@ when it has to do exotic expansion commands.
 static void mp_expand (MP mp) {
   size_t k;     /* something that we hope is |<=buf_size| */
   size_t j;     /* index into |str_pool| */
-  mp->expand_depth_count++;
-  mp_check_expansion_depth (mp);
+  check_expansion_depth();
   if (number_greater (internal_value (mp_tracing_commands), unity_t))
     if (cur_cmd() != mp_defined_macro)
       show_cur_cmd_mod;
@@ -23550,8 +23553,7 @@ static int mp_scan_path (MP mp);
 static void mp_scan_expression (MP mp) {
   int my_var_flag;      /* initial value of |var_flag| */
   my_var_flag = mp->var_flag;
-  mp->expand_depth_count++;
-  mp_check_expansion_depth (mp);
+  check_expansion_depth();
 RESTART:
   if ((cur_cmd() < mp_min_primary_command) ||
       (cur_cmd() > mp_max_primary_command))
