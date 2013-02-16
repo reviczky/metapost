@@ -24475,7 +24475,6 @@ static void mp_do_unary (MP mp, quarterword c) {
   mp_node p;      /* for list manipulation */
   mp_value new_expr;
   check_arith();
-  memset(&new_expr,0,sizeof(mp_value));
   if (number_greater (internal_value (mp_tracing_commands), two_t)) {
     /* Trace the current unary operation */
     mp_begin_diagnostic (mp);
@@ -24615,6 +24614,7 @@ static void mp_do_unary (MP mp, quarterword c) {
   case mp_angle_op:
     if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
       mp_number narg;
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       new_angle (narg);
       p = value_node (cur_exp_node ());
@@ -24749,6 +24749,7 @@ static void mp_do_unary (MP mp, quarterword c) {
       /* Find the design size of the font whose name is |cur_exp| */
       /* One simple application of |find_font| is the implementation of the |font_size|
          operator that gets the design size for a given font name. */
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       set_number_from_scaled (new_expr.data.n, 
                (mp->font_dsize[mp_find_font (mp, mp_str (mp, cur_exp_str ()))] + 8) / 16);
@@ -24760,12 +24761,14 @@ static void mp_do_unary (MP mp, quarterword c) {
        of different types of operands. */
     switch (mp->cur_exp.type) {
     case mp_string_type:
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       number_clone (new_expr.data.n, unity_t);
       number_multiply_int(new_expr.data.n, cur_exp_str ()->len);
       mp_flush_cur_exp (mp, new_expr);
       break;
     case mp_path_type:
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       mp_path_length (mp, &new_expr.data.n);
       mp_flush_cur_exp (mp, new_expr);
@@ -24775,12 +24778,14 @@ static void mp_do_unary (MP mp, quarterword c) {
       number_abs (cur_exp_value_number ());
       break;
     case mp_picture_type:
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       mp_pict_length (mp, &new_expr.data.n);
       mp_flush_cur_exp (mp, new_expr);
       break;
     default:
       if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
+        memset(&new_expr,0,sizeof(mp_value));
         new_number(new_expr.data.n);
         pyth_add (new_expr.data.n, value_number (x_part (value_node (cur_exp_node ()))),
                                    value_number (y_part (value_node (cur_exp_node ()))));
@@ -24792,38 +24797,46 @@ static void mp_do_unary (MP mp, quarterword c) {
     break;
   case mp_turning_op:
     if (mp->cur_exp.type == mp_pair_type) {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       set_number_to_zero(new_expr.data.n);
       mp_flush_cur_exp (mp, new_expr);
     } else if (mp->cur_exp.type != mp_path_type) {
       mp_bad_unary (mp, mp_turning_op);
     } else if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       new_expr.data.p = NULL;
       mp_flush_cur_exp (mp, new_expr);      /* not a cyclic path */
     } else {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       mp_turn_cycles_wrapper (mp, &new_expr.data.n, cur_exp_knot ());
       mp_flush_cur_exp (mp, new_expr);
     }
     break;
   case mp_boolean_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_range (mp_boolean_type, mp_unknown_boolean);
     break;
   case mp_string_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_range (mp_string_type, mp_unknown_string);
     break;
   case mp_pen_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_range (mp_pen_type, mp_unknown_pen);
     break;
   case mp_path_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_range (mp_path_type, mp_unknown_path);
     break;
   case mp_picture_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_range (mp_picture_type, mp_unknown_picture);
     break;
@@ -24831,10 +24844,12 @@ static void mp_do_unary (MP mp, quarterword c) {
   case mp_color_type:
   case mp_cmykcolor_type:
   case mp_pair_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_test (c);
     break;
   case mp_numeric_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_range (mp_known, mp_independent);
     break;
@@ -24843,6 +24858,7 @@ static void mp_do_unary (MP mp, quarterword c) {
     mp_test_known (mp, c);
     break;
   case mp_cycle_op:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     if (mp->cur_exp.type != mp_path_type)
       set_number_from_boolean (new_expr.data.n, mp_false_code);
@@ -24859,6 +24875,7 @@ static void mp_do_unary (MP mp, quarterword c) {
     if (mp->cur_exp.type != mp_path_type) {
       mp_bad_unary (mp, mp_arc_length);
     } else {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       mp_get_arc_length (mp, &new_expr.data.n, cur_exp_knot ());
       mp_flush_cur_exp (mp, new_expr);
@@ -24872,6 +24889,7 @@ static void mp_do_unary (MP mp, quarterword c) {
     /* Here we use the fact that |c-filled_op+fill_code| is the desired graphical
     object |type|. */
 @^data structure assumptions@>
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     if (mp->cur_exp.type != mp_picture_type) {
       set_number_from_boolean (new_expr.data.n, mp_false_code);
@@ -26187,7 +26205,6 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
   mp_node q, r, rr;     /* for list manipulation */
   mp_node old_p, old_exp;       /* capsules to recycle */
   mp_value new_expr;
-  memset(&new_expr,0,sizeof(mp_value));
   check_arith();
   if (number_greater (internal_value (mp_tracing_commands), two_t)) {
     /* Trace the current binary operation */
@@ -26307,6 +26324,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
       mp_bad_binary (mp, p, (quarterword) c);
       goto DONE;
     } else if (mp->cur_exp.type == mp_string_type) {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       set_number_from_scaled (new_expr.data.n, mp_str_vs_str (mp, value_str (p), cur_exp_str ()));
       mp_flush_cur_exp (mp, new_expr);
@@ -26320,6 +26338,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
       while ((q != cur_exp_node ()) && (q != p))
         q = value_node (q);
       if (q == p) {
+        memset(&new_expr,0,sizeof(mp_value));
         new_number(new_expr.data.n);
         set_cur_exp_node (NULL);
         mp_flush_cur_exp (mp, new_expr);
@@ -26436,6 +26455,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
       }
     
     } else if (mp->cur_exp.type == mp_boolean_type) {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       set_number_from_boolean (new_expr.data.n, number_to_scaled(cur_exp_value_number ()) - 
                                                 number_to_scaled (value_number (p)));
@@ -26456,6 +26476,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
         hlp[1]  = NULL;
       }
       mp_disp_err(mp, NULL);
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       set_number_from_boolean (new_expr.data.n, mp_false_code);
       mp_back_error (mp,"Unknown relation will be considered false", hlp, true);
@@ -26714,6 +26735,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
     if (mp->cur_exp.type == mp_pair_type)
       mp_pair_to_path (mp);
     if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_known)) {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       mp_get_arc_time (mp, &new_expr.data.n, cur_exp_knot (), value_number (p));
       mp_flush_cur_exp (mp, new_expr);
