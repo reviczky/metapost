@@ -2683,11 +2683,17 @@ extern void *do_alloc_node(MP mp, size_t size);
 
 @ This is an attempt to spend less time in |malloc()|:
 
+@d max_num_token_nodes 1000
+@d max_num_pair_nodes 1000
 @d max_num_knot_nodes 1000
 @d max_num_value_nodes 1000
 @d max_num_symbolic_nodes 1000
 
 @<Global ...@>=
+mp_node token_nodes;
+int num_token_nodes;
+mp_node pair_nodes;
+int num_pair_nodes;
 mp_knot knot_nodes;
 int num_knot_nodes;
 mp_node value_nodes;
@@ -2696,6 +2702,10 @@ mp_node symbolic_nodes;
 int num_symbolic_nodes;
 
 @ @<Allocate or initialize ...@>=
+mp->token_nodes = NULL;
+mp->num_token_nodes = 0;
+mp->pair_nodes = NULL;
+mp->num_pair_nodes = 0;
 mp->knot_nodes = NULL;
 mp->num_knot_nodes = 0;
 mp->value_nodes = NULL;
@@ -2713,6 +2723,16 @@ while (mp->symbolic_nodes) {
       mp_node p = mp->symbolic_nodes;
       mp->symbolic_nodes = p->link;
       mp_free_node(mp,p,symbolic_node_size);
+}
+while (mp->pair_nodes) {
+      mp_node p = mp->pair_nodes;
+      mp->pair_nodes = p->link;
+      mp_free_node(mp,p,pair_node_size);
+}
+while (mp->token_nodes) {
+      mp_node p = mp->token_nodes;
+      mp->token_nodes = p->link;
+      mp_free_node(mp,p,token_node_size);
 }
 while (mp->knot_nodes) {
       mp_knot p = mp->knot_nodes;
@@ -3018,7 +3038,7 @@ static void mp_flush_node_list (MP mp, mp_node p) {
     q = p;
     p = p->link;
     if (q->type != mp_symbol_node)
-      mp_free_node (mp, q, token_node_size);
+      mp_free_token_node (mp, q);
     else
       mp_free_symbolic_node (mp, q);
   }
@@ -5041,14 +5061,41 @@ static void do_set_value_knot   (MP mp, mp_token_node A, mp_knot B);
 @
 @c
 static mp_node mp_get_token_node (MP mp) {
-  mp_token_node p = malloc_node (token_node_size);
+  mp_node p; 
+  if (mp->token_nodes) {
+    p = mp->token_nodes;
+    mp->token_nodes = p->link;
+    mp->num_token_nodes--;
+    p->link = NULL;
+  } else {
+    p = malloc_node (token_node_size);
+    new_number(p->data.n);
+    p->has_number = 1;
+  }
   p->type = mp_token_node_type;
-  new_number(p->data.n);
-  p->has_number = 1;
   FUNCTION_TRACE2 ("%p = mp_get_token_node()\n", p);
   return (mp_node) p;
 }
 
+@ @c
+static void mp_free_token_node (MP mp, mp_node p) {
+  FUNCTION_TRACE2 ("mp_free_token_node(%p)\n", p);
+  if (!p) return;
+  if (mp->num_token_nodes < max_num_token_nodes) {
+    p->link = mp->token_nodes;
+    mp->token_nodes = p;
+    mp->num_token_nodes++;
+    return;
+  }
+  mp->var_used -= token_node_size;
+  if (mp->math_mode > mp_math_double_mode) {
+    free_number(((mp_value_node)p)->data.n); 
+  }
+  xfree (p);
+}
+
+@ @<Declarations@>=
+static void mp_free_token_node (MP mp, mp_node p);
 
 @ A numeric token is created by the following trivial routine.
 
@@ -5103,7 +5150,7 @@ static void mp_flush_token_list (MP mp, mp_node p) {
         mp_confusion (mp, "token");
 @:this can't happen token}{\quad token@>;
       }
-      mp_free_node (mp, q, token_node_size);
+      mp_free_token_node (mp, q);
     }
   }
 }
@@ -5702,10 +5749,35 @@ typedef struct mp_pair_node_data *mp_pair_node;
 
 @c
 static mp_node mp_get_pair_node (MP mp) {
-  mp_pair_node p = malloc_node (pair_node_size);
+  mp_node p;
+  if (mp->pair_nodes) {
+    p = mp->pair_nodes;
+    mp->pair_nodes = p->link;
+    mp->num_pair_nodes--;
+    p->link = NULL;
+  } else {
+    p = malloc_node (pair_node_size);
+  }
   mp_type (p) = mp_pair_node_type;
   FUNCTION_TRACE2("get_pair_node(): %p\n", p);
   return (mp_node) p;
+}
+
+@ @<Declarations@>=
+void mp_free_pair_node (MP mp, mp_node p);
+
+@ @c
+void mp_free_pair_node (MP mp, mp_node p) {
+  FUNCTION_TRACE2 ("mp_free_pair_node(%p)\n", p);
+  if (!p) return;
+  if (mp->num_pair_nodes < max_num_pair_nodes) {
+    p->link = mp->pair_nodes;
+    mp->pair_nodes = p;
+    mp->num_pair_nodes++;
+    return;
+  }
+  mp->var_used -= pair_node_size;
+  xfree (p);
 }
 
 
@@ -11621,7 +11693,7 @@ void mp_toss_edges (MP mp, mp_edge_header_node h) {
   free_number(h->miny);
   free_number(h->maxx);
   free_number(h->maxy);
-  mp_free_node (mp, h->list_, token_node_size);
+  mp_free_token_node (mp, h->list_);
   mp_free_node (mp, (mp_node)h, edge_header_size);
 }
 void mp_flush_dash_list (MP mp, mp_edge_header_node h) {
@@ -22192,7 +22264,7 @@ static void mp_recycle_value (MP mp, mp_node p) {
       mp_recycle_value (mp, y_part (value_node (p)));
       mp_free_value_node (mp, x_part (value_node (p)));
       mp_free_value_node (mp, y_part (value_node (p)));
-      mp_free_node (mp, value_node (p), pair_node_size);
+      mp_free_pair_node (mp, value_node (p));
     }
     break;
   case mp_color_type:
