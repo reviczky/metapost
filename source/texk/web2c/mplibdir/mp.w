@@ -4920,38 +4920,38 @@ printer's sense. It's curious that the same word is used in such different ways.
 
 @d token_node_size sizeof(mp_node_data) /* the number of words in a large token node */
 
-@d value_sym(A)   do_get_value_sym(mp,(mp_token_node)(A))
 @d set_value_sym(A,B) do_set_value_sym(mp, (mp_token_node)(A), (B))
+@d set_value_number(A,B) do_set_value_number(mp, (mp_token_node)(A), (B))
+@d set_value_node(A,B) do_set_value_node(mp, (mp_token_node)(A), (B))
+@d set_value_str(A,B) do_set_value_str(mp, (mp_token_node)(A), (B))
+@d set_value_knot(A,B) do_set_value_knot(mp, (mp_token_node)A, (B))
 
 @d value_sym_NEW(A) (mp_sym)mp_link(A)
 @d set_value_sym_NEW(A,B) set_mp_link(A,(mp_node)B)
-
-@d value_number(A) ((mp_token_node)(A))->data.n
-@d set_value_number(A,B) do_set_value_number(mp, (mp_token_node)(A), (B))
-
-@d value_node(A)   do_get_value_node(mp, (mp_token_node)(A))
-@d set_value_node(A,B) do_set_value_node(mp, (mp_token_node)(A), (B))
-
-@d value_str(A)   do_get_value_str(mp, (mp_token_node)(A))
-@d set_value_str(A,B) do_set_value_str(mp, (mp_token_node)(A), (B))
-
-@d value_knot(A)  do_get_value_knot(mp, (mp_token_node)(A))
-@d set_value_knot(A,B) do_set_value_knot(mp, (mp_token_node)A, (B))
 
 @<MPlib internal header stuff@>=
 typedef struct mp_node_data *mp_token_node;
 
 @ @c
+#if DEBUG
+#define value_sym(A)    do_get_value_sym(mp_token_node)(A))
+#define value_number(A) do_get_value_number(mp_token_node)(A))
+#define value_node(A)   do_get_value_node(mp_token_node)(A))
+#define value_str(A)    do_get_value_str(mp_token_node)(A))
+#define value_knot(A)   do_get_value_knot(mp_token_node)(A))
+#else
+#define value_sym(A)    ((mp_token_node)(A))->data.sym
+#define value_number(A) ((mp_token_node)(A))->data.n
+#define value_node(A)   ((mp_token_node)(A))->data.node
+#define value_str(A)    ((mp_token_node)(A))->data.str
+#define value_knot(A)   ((mp_token_node)(A))->data.p
+#endif
 static void do_set_value_sym(MP mp, mp_token_node A, mp_sym B) {
    FUNCTION_TRACE3 ("set_value_sym(%p,%p)\n", (A),(B));
    A->data.sym=(B);
 }
 static void do_set_value_number(MP mp, mp_token_node A, mp_number B) {
    FUNCTION_TRACE3 ("set_value(%p,%d)\n", (A),(B));
-   assert (A->type != mp_structured);
-   if (mp_type(A) == mp_independent) {
- 	fprintf(stderr, "Bad call to set_value on %d\n", __LINE__);
-   }
    A->data.p = NULL;
    A->data.str = NULL;
    A->data.node = NULL;
@@ -4973,7 +4973,7 @@ static void do_set_value_node(MP mp, mp_token_node A, mp_node B) {
    A->data.p = NULL;
    A->data.str = NULL;
    A->data.node = B;
-   set_number_to_zero (A->data.n);
+   number_clone (A->data.n, zero_t);
 }
 static void do_set_value_knot(MP mp, mp_token_node A, mp_knot B) {
    FUNCTION_TRACE3 ("set_value_knot(%p,%p)\n", (A),(B));
@@ -4986,10 +4986,11 @@ static void do_set_value_knot(MP mp, mp_token_node A, mp_knot B) {
 
 
 @ @c
+#if DEBUG
 static mp_sym do_get_value_sym (MP mp, mp_token_node A) {
   /* |A->type| can be structured in this case */
   FUNCTION_TRACE3 ("%p = get_value_sym(%p)\n", A->data.sym, A);
-  return  A->data.sym ;
+  return A->data.sym ;
 }
 static mp_node do_get_value_node (MP mp, mp_token_node A) {
   assert (A->type != mp_structured);
@@ -5006,13 +5007,21 @@ static mp_knot do_get_value_knot (MP mp, mp_token_node A) {
   FUNCTION_TRACE3 ("%p = get_value_knot(%p)\n", A->data.p, A);
   return  A->data.p ;
 }
-
+static mp_knot do_get_value_number (MP mp, mp_token_node A) {
+  assert (A->type != mp_structured);
+  FUNCTION_TRACE3 ("%d = get_value_number(%p)\n", A->data.n.type, A);
+  return  A->data.n ;
+}
+#endif
 
 @ @<Declarations@>=
+#if DEBUG
+static mp_sym    do_get_value_number (MP mp, mp_token_node A);
 static mp_sym    do_get_value_sym    (MP mp, mp_token_node A);
 static mp_node   do_get_value_node   (MP mp, mp_token_node A);
 static mp_string do_get_value_str    (MP mp, mp_token_node A) ;
 static mp_knot   do_get_value_knot   (MP mp, mp_token_node A) ;
+#endif
 static void do_set_value_sym    (MP mp, mp_token_node A, mp_sym B);
 static void do_set_value_number (MP mp, mp_token_node A, mp_number B);
 static void do_set_value_node   (MP mp, mp_token_node A, mp_node B);
