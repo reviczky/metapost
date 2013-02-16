@@ -4589,17 +4589,25 @@ static mp_sym new_symbols_entry (MP mp, unsigned char *nam, size_t len) {
 }
 
 
+@ There is one global variable so that |id_lookup| does not always have to
+create a new entry just for testing. This is not freed because it creates
+a double-free thanks to the |NULL| init.
+
+@<Global ...@>=
+mp_sym id_lookup_test;
+
+@ @<Initialize table entries@>=
+mp->id_lookup_test = new_symbols_entry (mp, NULL, 0);
+
 @ Certain symbols are ``frozen'' and not redefinable, since they are
 used
 in error recovery.
 
 @<Initialize table entries@>=
 mp->st_count = 0;
-mp->frozen_bad_vardef =
-mp_frozen_primitive (mp, "a bad variable", mp_tag_token, 0);
+mp->frozen_bad_vardef = mp_frozen_primitive (mp, "a bad variable", mp_tag_token, 0);
 mp->frozen_right_delimiter = mp_frozen_primitive (mp, ")", mp_right_delimiter, 0);
-mp->frozen_inaccessible =
-mp_frozen_primitive (mp, " INACCESSIBLE", mp_tag_token, 0);
+mp->frozen_inaccessible = mp_frozen_primitive (mp, " INACCESSIBLE", mp_tag_token, 0);
 mp->frozen_undefined = mp_frozen_primitive (mp, " UNDEFINED", mp_tag_token, 0);
 
 @ Here is the subroutine that searches the avl tree for an identifier
@@ -4610,27 +4618,27 @@ that matches a given string of length~|l| appearing in |buffer[j..
 There are two variations on the lookup function: one for the normal
 symbol table, and one for the table of error recovery symbols.
 
+@d mp_id_lookup(A,B,C,D) mp_do_id_lookup ((A), mp->symbols, (B), (C), (D))
+
 @c
-static mp_sym mp_do_id_lookup (MP mp, avl_tree symbols, const char *j,
+static mp_sym mp_do_id_lookup (MP mp, avl_tree symbols, char *j,
                                size_t l, boolean insert_new) {
   /* search an avl tree */
-  mp_sym s, str;
-  unsigned char *nam = (unsigned char *) mp_xstrldup (mp, j, l);
-  s = new_symbols_entry (mp, nam, l);
-  str = (mp_sym) avl_find (s, symbols);
+  mp_sym str;
+  mp->id_lookup_test->text->str = (unsigned char *)j;
+  mp->id_lookup_test->text->len = l;
+  str = (mp_sym) avl_find (mp->id_lookup_test, symbols);
   if (str == NULL && insert_new) {
+    unsigned char *nam = (unsigned char *) mp_xstrldup (mp, j, l);
+    mp_sym s = new_symbols_entry (mp, nam, l);
     mp->st_count++;
     assert (avl_ins (s, symbols, avl_false) > 0);
     str = (mp_sym) avl_find (s, symbols);
+    delete_symbols_entry (s);
   }
-  delete_symbols_entry (s);
   return str;
 }
-static mp_sym mp_id_lookup (MP mp, char *j, size_t l, boolean insert_new) {
-  /* search the normal symbol table */
-  return mp_do_id_lookup (mp, mp->symbols, j, l, insert_new);
-}
-static mp_sym mp_frozen_id_lookup (MP mp, const char *j, size_t l,
+static mp_sym mp_frozen_id_lookup (MP mp, char *j, size_t l,
                                    boolean insert_new) {
   /* search the error recovery symbol table */
   return mp_do_id_lookup (mp, mp->frozen_symbols, j, l, insert_new);
@@ -4658,7 +4666,9 @@ static void mp_primitive (MP mp, const char *ss, halfword c, halfword o) {
 @c
 static mp_sym mp_frozen_primitive (MP mp, const char *ss, halfword c,
                                    halfword o) {
-  mp_sym str = mp_frozen_id_lookup (mp, ss, strlen (ss), true);
+  char *s = mp_xstrdup (mp, ss);
+  mp_sym str = mp_frozen_id_lookup (mp, s, strlen (ss), true);
+  mp_xfree (s);
   str->type = c;
   set_number_from_scaled (str->v.data.n, o);
   return str;
@@ -19131,7 +19141,6 @@ static void mp_scan_secondary (MP mp);
 static void mp_scan_tertiary (MP mp);
 static void mp_scan_expression (MP mp);
 static void mp_scan_suffix (MP mp);
-static void mp_get_boolean (MP mp);
 static void mp_pass_text (MP mp);
 static void mp_conditional (MP mp);
 static void mp_start_input (MP mp);
@@ -24212,28 +24221,33 @@ static quarterword mp_scan_direction (MP mp) {
 @ Finally, we sometimes need to scan an expression whose value is
 supposed to be either |true_code| or |false_code|.
 
-@<Declare the basic parsing subroutines@>=
-static void mp_get_boolean (MP mp) {
+@d mp_get_boolean(mp) do {
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_boolean_type) {
-    mp_value new_expr;
-    const char *hlp[] = { 
-           "The expression shown above should have had a definite",
-           "true-or-false value. I'm changing it to `false'.",
-           NULL };
-    memset(&new_expr,0,sizeof(mp_value));
-    new_number(new_expr.data.n);
-    mp_disp_err(mp, NULL);
-    set_number_from_boolean (new_expr.data.n, mp_false_code);
-    mp_back_error (mp, "Undefined condition will be treated as `false'", hlp, true);
-@.Undefined condition...@>;
-    mp_get_x_next (mp);
-    mp_flush_cur_exp (mp, new_expr);
-    mp->cur_exp.type = mp_boolean_type;
+    do_boolean_error(mp);
   }
+} while (0)
+
+@<Declare the basic parsing subroutines@>=
+static void do_boolean_error (MP mp) {
+  mp_value new_expr;
+  const char *hlp[] = { 
+         "The expression shown above should have had a definite",
+         "true-or-false value. I'm changing it to `false'.",
+         NULL };
+  memset(&new_expr,0,sizeof(mp_value));
+  new_number(new_expr.data.n);
+  mp_disp_err(mp, NULL);
+  set_number_from_boolean (new_expr.data.n, mp_false_code);
+  mp_back_error (mp, "Undefined condition will be treated as `false'", hlp, true);
+  mp_get_x_next (mp);
+  mp_flush_cur_exp (mp, new_expr);
+  mp->cur_exp.type = mp_boolean_type;
 }
 
+@ @<Declarations@>=
+static void do_boolean_error (MP mp);
 
 @* Doing the operations.
 The purpose of parsing is primarily to permit people to avoid piles of
@@ -28506,7 +28520,6 @@ void mp_do_statement (MP mp) {                               /* governs \MP's ac
      `$\langle\,$expression$\,\rangle\,$\&{endgroup}'; */
     /* The most important statements begin with expressions */
     mp_value new_expr;
-    memset(&new_expr,0,sizeof(mp_value));
     mp->var_flag = mp_assignment;
     mp_scan_expression (mp);
     if (cur_cmd() < mp_end_group) {
@@ -28515,13 +28528,12 @@ void mp_do_statement (MP mp) {                               /* governs \MP's ac
       else if (cur_cmd() == mp_assignment)
         mp_do_assignment (mp);
       else if (mp->cur_exp.type == mp_string_type) {
-       /* Do a title */
-       if (number_positive (internal_value (mp_tracing_titles))) {
-         mp_print_nl (mp, "");
-         mp_print_str (mp, cur_exp_str ());
-         update_terminal();
-       }
-
+        /* Do a title */
+        if (number_positive (internal_value (mp_tracing_titles))) {
+          mp_print_nl (mp, "");
+          mp_print_str (mp, cur_exp_str ());
+          update_terminal();
+        }
       } else if (mp->cur_exp.type != mp_vacuous) {
         const char *hlp[] = {
              "I couldn't find an `=' or `:=' after the",
@@ -28532,6 +28544,7 @@ void mp_do_statement (MP mp) {                               /* governs \MP's ac
         mp_back_error (mp, "Isolated expression", hlp, true);
         mp_get_x_next (mp);
       }
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       set_number_to_zero (new_expr.data.n);
       mp_flush_cur_exp (mp, new_expr);
@@ -28835,7 +28848,7 @@ void mp_do_assignment (MP mp) {
         mp->cur_exp.type = mp_und_type (mp, p);
         mp_recycle_value (mp, p);
         mp_type (p) = mp->cur_exp.type;
-        set_value_number (p, zero_t); /* todo: this was |null| */
+        set_value_number (p, zero_t);
         mp_make_exp_copy (mp, p);
         p = mp_stash_cur_exp (mp);
         mp_unstash_cur_exp (mp, q);
