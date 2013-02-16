@@ -2874,8 +2874,6 @@ static mp_node mp_get_symbolic_node (MP mp) {
     p->link = NULL;
   } else {
     p = malloc_node (symbolic_node_size);
-    new_number(p->data.n);
-    p->has_number = 1;
   }
   p->type = mp_symbol_node;
   p->name_type = mp_normal_sym;
@@ -2922,10 +2920,6 @@ void mp_free_symbolic_node (MP mp, mp_node p) {  /* node liberation */
     return;
   }
   mp->var_used -= symbolic_node_size;
-  assert(p->has_number == 1);
-  if (mp->math_mode > mp_math_double_mode) {
-    free_number(((mp_symbolic_node)p)->data.n); 
-  }
   xfree (p);
 }
 void mp_free_value_node (MP mp, mp_node p) {  /* node liberation */
@@ -5450,9 +5444,9 @@ static mp_node mp_get_value_node (MP mp) {
     p = malloc_node (value_node_size);
     new_number(p->data.n);
     new_number(p->subscript_);
+    p->has_number = 2;
   }
   mp_type (p) = mp_value_node_type;
-  p->has_number = 2;
   FUNCTION_TRACE2 ("%p = mp_get_value_node()\n", p);
   return (mp_node)p;
 }
