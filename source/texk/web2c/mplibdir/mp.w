@@ -28269,17 +28269,14 @@ static void mp_find_point (MP mp, mp_number v_orig, quarterword c) {
     if (mp_left_type (p) == mp_endpoint) {
       set_number_to_zero(v);
     } else  {
-      /* v = n - 1 - ((-v - 1) % n) */
-      mp_number secondpart;
-      new_number (secondpart);
-      number_clone (secondpart, v);
-      number_negate (secondpart);
-      number_add_scaled (secondpart, -1);
-      number_modulo (secondpart, n);
-      number_clone (v, n);      
+      /* v = n - 1 - ((-v - 1) % n)
+          == - ((-v - 1) % n) - 1 + n */
+      number_negate (v);
       number_add_scaled (v, -1);
-      number_substract (v, secondpart);
-      free_number (secondpart);
+      number_modulo (v, n);
+      number_negate (v);
+      number_add_scaled (v, -1);
+      number_add (v, n);
     }
   } else if (number_greater(v, n)) {
     if (mp_left_type (p) == mp_endpoint)
@@ -28293,45 +28290,32 @@ static void mp_find_point (MP mp, mp_number v_orig, quarterword c) {
     number_substract (v, unity_t);
   }
   if (number_nonzero(v)) {
-    @<Insert a fractional node by splitting the cubic@>;
+    /* Insert a fractional node by splitting the cubic */
+    convert_scaled_to_fraction (v);
+    mp_split_cubic (mp, p, v);
+    p = mp_next_knot (p);
   }
-  @<Set the current expression to the desired path coordinates@>;
+  /* Set the current expression to the desired path coordinates */
+  switch (c) {
+  case mp_point_of:
+    mp_pair_value (mp, p->x_coord, p->y_coord);
+    break;
+  case mp_precontrol_of:
+    if (mp_left_type (p) == mp_endpoint)
+      mp_pair_value (mp, p->x_coord, p->y_coord);
+    else
+      mp_pair_value (mp, p->left_x, p->left_y);
+    break;
+  case mp_postcontrol_of:
+    if (mp_right_type (p) == mp_endpoint)
+      mp_pair_value (mp, p->x_coord, p->y_coord);
+    else
+      mp_pair_value (mp, p->right_x, p->right_y);
+    break;
+  }  /* there are no other cases */
   free_number (v);
   free_number (n);
 }
-
-
-@ @<Insert a fractional node...@>=
-{
-  mp_number arg1;
-  new_number (arg1);
-  number_clone (arg1, v);
-  convert_scaled_to_fraction (arg1);
-  mp_split_cubic (mp, p, arg1);
-  free_number (arg1);
-  p = mp_next_knot (p);
-}
-
-
-@ @<Set the current expression to the desired path coordinates...@>=
-switch (c) {
-case mp_point_of:
-  mp_pair_value (mp, p->x_coord, p->y_coord);
-  break;
-case mp_precontrol_of:
-  if (mp_left_type (p) == mp_endpoint)
-    mp_pair_value (mp, p->x_coord, p->y_coord);
-  else
-    mp_pair_value (mp, p->left_x, p->left_y);
-  break;
-case mp_postcontrol_of:
-  if (mp_right_type (p) == mp_endpoint)
-    mp_pair_value (mp, p->x_coord, p->y_coord);
-  else
-    mp_pair_value (mp, p->right_x, p->right_y);
-  break;
-}                               /* there are no other cases */
-
 
 @ Function |new_text_node| owns the reference count for its second argument
 (the text string) but not its first (the font name).
