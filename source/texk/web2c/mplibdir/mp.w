@@ -21816,11 +21816,9 @@ static mp_node mp_stash_cur_exp (MP mp) {
     set_value_number (p, cur_exp_value_number ());    /* this also resets the rest to 0/NULL */
     if (cur_exp_str ())  {
       set_value_str (p, cur_exp_str ());
-    }
-    if (cur_exp_knot ()) {
+    } else if (cur_exp_knot ()) {
       set_value_knot (p, cur_exp_knot ());
-    }
-    if (cur_exp_node ()) {
+    } else if (cur_exp_node ()) {
       set_value_node (p, cur_exp_node ());
     }
     break;
@@ -21894,11 +21892,9 @@ void mp_unstash_cur_exp (MP mp, mp_node p) {
     set_cur_exp_value_number (value_number (p));
     if (value_knot(p)) {
       set_cur_exp_knot (value_knot (p));
-    } 
-    if (value_node(p)) {
+    } else if (value_node(p)) {
       set_cur_exp_node (value_node (p));
-    } 
-    if (value_str(p)) {
+    } else if (value_str(p)) {
       set_cur_exp_str (value_str (p));
     } 
     mp_free_value_node (mp, p);
