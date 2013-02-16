@@ -7046,7 +7046,14 @@ static mp_knot mp_new_knot (MP mp);
 
 @ @c
 static mp_knot mp_new_knot (MP mp) {
-  mp_knot q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
+  mp_knot q;
+  if (mp->knot_nodes) {
+    q = mp->knot_nodes;
+    mp->knot_nodes = q->next;
+    mp->num_knot_nodes--;
+  } else {
+    q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
+  }
   memset(q,0,sizeof (struct mp_knot_data));
   new_number(q->x_coord);
   new_number(q->y_coord);
@@ -7072,7 +7079,14 @@ static mp_gr_knot mp_gr_new_knot (MP mp) {
 
 @c
 static mp_knot mp_copy_knot (MP mp, mp_knot p) {
-  mp_knot q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
+  mp_knot q;
+  if (mp->knot_nodes) {
+    q  = mp->knot_nodes;
+    mp->knot_nodes = q->next;
+    mp->num_knot_nodes--;
+  } else {
+    q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
+  }
   memcpy (q, p, sizeof (struct mp_knot_data));
   if (mp->math_mode > mp_math_double_mode) {
     new_number(q->x_coord);
