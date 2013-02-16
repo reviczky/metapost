@@ -26932,62 +26932,54 @@ static void mp_add_or_subtract (MP mp, mp_node p, mp_node q, quarterword c) {
   } else {
     if (c == mp_minus)
       mp_negate_dep_list (mp, v);
-    @<Add operand |p| to the dependency list |v|@>;
+    /* Add operand |p| to the dependency list |v| */
+    /* We prefer |dependent| lists to |mp_proto_dependent| ones, because it is
+       nice to retain the extra accuracy of |fraction| coefficients.
+       But we have to handle both kinds, and mixtures too. */
+    if (mp_type (p) == mp_known) {
+      /* Add the known |value(p)| to the constant term of |v| */
+      while (dep_info (v) != NULL) {
+        v = (mp_value_node) mp_link (v);
+      }
+      slow_add (vv, value_number (p), dep_value (v));
+      set_dep_value (v, vv);
+    } else {
+      s = mp_type (p);
+      r = (mp_value_node) dep_list ((mp_value_node) p);
+      if (t == mp_dependent) {
+        if (s == mp_dependent) {
+          mp_number ret1, ret2;
+          new_fraction (ret1);
+          new_fraction (ret2);
+          mp_max_coef (mp, &ret1, r);
+          mp_max_coef (mp, &ret2, v);
+          number_add (ret1, ret2);
+          free_number (ret2);
+          if (number_less (ret1, coef_bound_k)) {
+            v = mp_p_plus_q (mp, v, r, mp_dependent);
+            free_number (ret1);
+            goto DONE;
+          }
+          free_number (ret1);
+        }                           /* |fix_needed| will necessarily be false */
+        t = mp_proto_dependent;
+        v = mp_p_over_v (mp, v, unity_t, mp_dependent, mp_proto_dependent);
+      }
+      if (s == mp_proto_dependent)
+        v = mp_p_plus_q (mp, v, r, mp_proto_dependent);
+      else
+        v = mp_p_plus_fq (mp, v, unity_t, r, mp_proto_dependent, mp_dependent);
+    DONE:
+      /* Output the answer, |v| (which might have become |known|) */
+      if (q != NULL) {
+        mp_dep_finish (mp, v, (mp_value_node) q, t);
+      } else {
+        mp->cur_exp.type = t;
+        mp_dep_finish (mp, v, NULL, t);
+      }
+    }
   }
   free_number (vv);
-}
-
-
-@ We prefer |dependent| lists to |mp_proto_dependent| ones, because it is
-nice to retain the extra accuracy of |fraction| coefficients.
-But we have to handle both kinds, and mixtures too.
-
-@<Add operand |p| to the dependency list |v|@>=
-if (mp_type (p) == mp_known) {
-  /* Add the known |value(p)| to the constant term of |v| */
-  mp_number r1;
-  new_number (r1);
-  while (dep_info (v) != NULL) {
-    /* clang: dereference of null pointer */ assert(v);
-    v = (mp_value_node) mp_link (v);
-  }
-  slow_add (r1, value_number (p), dep_value (v));
-  set_dep_value (v, r1);
-  free_number (r1);
-} else {
-  s = mp_type (p);
-  r = (mp_value_node) dep_list ((mp_value_node) p);
-  if (t == mp_dependent) {
-    if (s == mp_dependent) {
-      mp_number ret1, ret2;
-      new_fraction (ret1);
-      new_fraction (ret2);
-      mp_max_coef (mp, &ret1, r);
-      mp_max_coef (mp, &ret2, v);
-      number_add (ret1, ret2);
-      free_number (ret2);
-      if (number_less (ret1, coef_bound_k)) {
-        v = mp_p_plus_q (mp, v, r, mp_dependent);
-        free_number (ret1);
-        goto DONE;
-      }
-      free_number (ret1);
-    }                           /* |fix_needed| will necessarily be false */
-    t = mp_proto_dependent;
-    v = mp_p_over_v (mp, v, unity_t, mp_dependent, mp_proto_dependent);
-  }
-  if (s == mp_proto_dependent)
-    v = mp_p_plus_q (mp, v, r, mp_proto_dependent);
-  else
-    v = mp_p_plus_fq (mp, v, unity_t, r, mp_proto_dependent, mp_dependent);
-DONE:
-  /* Output the answer, |v| (which might have become |known|) */
-  if (q != NULL) {
-    mp_dep_finish (mp, v, (mp_value_node) q, t);
-  } else {
-    mp->cur_exp.type = t;
-    mp_dep_finish (mp, v, NULL, t);
-  }
 }
 
 
