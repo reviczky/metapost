@@ -2683,16 +2683,21 @@ extern void *do_alloc_node(MP mp, size_t size);
 
 @ This is an attempt to spend less time in |malloc()|:
 
+@d max_num_knot_nodes 1000
 @d max_num_value_nodes 1000
 @d max_num_symbolic_nodes 1000
 
 @<Global ...@>=
+mp_knot knot_nodes;
+int num_knot_nodes;
 mp_node value_nodes;
 int num_value_nodes;
 mp_node symbolic_nodes;
 int num_symbolic_nodes;
 
 @ @<Allocate or initialize ...@>=
+mp->knot_nodes = NULL;
+mp->num_knot_nodes = 0;
 mp->value_nodes = NULL;
 mp->num_value_nodes = 0;
 mp->symbolic_nodes = NULL;
@@ -2708,6 +2713,11 @@ while (mp->symbolic_nodes) {
       mp_node p = mp->symbolic_nodes;
       mp->symbolic_nodes = p->link;
       mp_free_node(mp,p,symbolic_node_size);
+}
+while (mp->knot_nodes) {
+      mp_knot p = mp->knot_nodes;
+      mp->knot_nodes = p->next;
+      mp_free_knot(mp,p);
 }
 
 @ This is a nicer way of allocating nodes.
@@ -7251,18 +7261,30 @@ calling the following subroutine.
 @<Declarations@>=
 static void mp_toss_knot_list (MP mp, mp_knot p);
 static void mp_toss_knot (MP mp, mp_knot p);
+static void mp_free_knot (MP mp, mp_knot p);
 
 @ @c
-void mp_toss_knot (MP mp, mp_knot q) {
-  if (mp->math_mode > mp_math_double_mode) {
-    free_number (q->x_coord); 
-    free_number (q->y_coord); 
-    free_number (q->left_x); 
-    free_number (q->left_y); 
-    free_number (q->right_x); 
-    free_number (q->right_y);
-  }
+void mp_free_knot  (MP mp, mp_knot q) {
+  free_number (q->x_coord); 
+  free_number (q->y_coord); 
+  free_number (q->left_x); 
+  free_number (q->left_y); 
+  free_number (q->right_x); 
+  free_number (q->right_y);
   mp_xfree (q);
+}
+void mp_toss_knot (MP mp, mp_knot q) {
+  if (mp->num_knot_nodes < max_num_knot_nodes) {
+    q->next = mp->knot_nodes;
+    mp->knot_nodes = q;
+    mp->num_knot_nodes++;
+    return;
+  }
+  if (mp->math_mode > mp_math_double_mode) {
+    mp_free_knot(mp,q);
+  } else {
+    mp_xfree (q);
+  }
 }
 void mp_toss_knot_list (MP mp, mp_knot p) {
   mp_knot q;    /* the node being freed */
@@ -7279,7 +7301,13 @@ void mp_toss_knot_list (MP mp, mp_knot p) {
   } else {
     do {
       r = mp_next_knot (q);
-      mp_xfree (q);
+      if (mp->num_knot_nodes < max_num_knot_nodes) {
+        q->next = mp->knot_nodes;
+	mp->knot_nodes = q;
+	mp->num_knot_nodes++;
+      } else {
+        mp_xfree (q);
+      }
       q = r;
     } while (q != p);
   }
