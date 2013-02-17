@@ -2,6 +2,23 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.790:
+----------------------------------------------------------------------
+
+* Lots of speedups.
+
+* Fixed bug in division expressions that started with a literal number.
+
+* A few problems with bad deallocations were solved.
+
+* A bug where after saving and redefinition of primitives, they later
+  were restored to 'undefined' instead of to their primitive meaning.
+
+* The "double" literal number parser now only accepts scientific 
+  notation if the character following 'E' or 'e' is '+', '-', or 
+  a digit.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.780:
 ----------------------------------------------------------------------
 
