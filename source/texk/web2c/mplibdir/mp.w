@@ -6639,10 +6639,7 @@ typedef struct mp_save_data {
   mp_sym sym;
   quarterword type;
   mp_internal value;
-  halfword equiv;
   halfword eq_type;
-  mp_node equiv_n;
-  mp_sym equiv_sym;
   struct mp_save_data *link;
 } mp_save_data;
 
@@ -6682,15 +6679,17 @@ static void mp_save_variable (MP mp, mp_sym q) {
     p->sym = q;
     p->type = mp_normal_sym;
     p->link = mp->save_ptr;
-    p->equiv = equiv (q);
     p->eq_type = eq_type (q);
-    p->equiv_n = equiv_node (q);
-    p->equiv_sym = equiv_sym (q);
+    new_number(p->value.v.data.n);
+    number_clone(p->value.v.data.n, equiv_number(q));
+    p->value.v.data.node = equiv_node(q);
+    p->value.v.data.sym = equiv_sym(q);
     mp->save_ptr = p;
   }
   mp_clear_symbol (mp, q, (mp->save_ptr != NULL));
 }
-static void mp_unsave_variable (MP mp, mp_sym q) {
+static void mp_unsave_variable (MP mp) {
+  mp_sym q = mp->save_ptr->sym;
   if (number_positive(internal_value (mp_tracing_restores))) {
     mp_begin_diagnostic (mp);
     mp_print_nl (mp, "{restoring ");
@@ -6699,12 +6698,13 @@ static void mp_unsave_variable (MP mp, mp_sym q) {
     mp_end_diagnostic (mp, false);
   }
   mp_clear_symbol (mp, q, false);
-  set_equiv(q,mp->save_ptr->equiv);
   set_eq_type (q, mp->save_ptr->eq_type);
-  q->v.data.node = mp->save_ptr->equiv_n;
-  q->v.data.sym = mp->save_ptr->equiv_sym;
+  set_equiv_number(q,mp->save_ptr->value.v.data.n);
+  q->v.data.node = mp->save_ptr->value.v.data.node; 
+  q->v.data.sym = mp->save_ptr->value.v.data.sym;
+  free_number(mp->save_ptr->value.v.data.n);
   if (eq_type (q) % mp_outer_tag == mp_tag_token) {
-    mp_node pp = equiv_node (q);
+    mp_node pp = q->v.data.node;
     if (pp != NULL)
       mp_name_type (pp) = mp_root;
   }
@@ -6730,7 +6730,8 @@ static void mp_save_internal (MP mp, halfword q) {
   }
 }
 
-static void mp_unsave_internal (MP mp, halfword q) {
+static void mp_unsave_internal (MP mp) {
+  halfword q = mp->save_ptr->info;
   mp_internal saved = mp->save_ptr->value;
   if (number_positive(internal_value (mp_tracing_restores))) {
     mp_begin_diagnostic (mp);
@@ -6762,9 +6763,9 @@ static void mp_unsave (MP mp) {
   FUNCTION_TRACE1 ("mp_unsave ()\n");
   while (mp->save_ptr->info != 0) {
     if (mp->save_ptr->type == mp_internal_sym) {
-      mp_unsave_internal(mp, mp->save_ptr->info);
+      mp_unsave_internal(mp);
     } else {
-      mp_unsave_variable(mp, mp->save_ptr->sym);
+      mp_unsave_variable(mp);
     }
     p = mp->save_ptr->link;
     xfree (mp->save_ptr);
