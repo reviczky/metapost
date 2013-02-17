@@ -744,9 +744,6 @@ static integer mp_take_scaled (MP mp, integer p, int q) { /* q = scaled */
 }
 void mp_number_take_scaled (MP mp, mp_number *ret, mp_number p_orig, mp_number q_orig) {
   ret->data.val = mp_take_scaled (mp, p_orig.data.val, q_orig.data.val);
-  if (mp->arith_error) {
-    mp->arith_error = false;
-  }
 }
 
 

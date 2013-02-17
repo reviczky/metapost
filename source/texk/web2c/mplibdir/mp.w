@@ -2681,6 +2681,65 @@ extern void *mp_xmalloc (MP mp, size_t nmem, size_t size);
 extern void mp_do_snprintf (char *str, int size, const char *fmt, ...);
 extern void *do_alloc_node(MP mp, size_t size);
 
+@ This is an attempt to spend less time in |malloc()|:
+
+@d max_num_token_nodes 1000
+@d max_num_pair_nodes 1000
+@d max_num_knot_nodes 1000
+@d max_num_value_nodes 1000
+@d max_num_symbolic_nodes 1000
+
+@<Global ...@>=
+mp_node token_nodes;
+int num_token_nodes;
+mp_node pair_nodes;
+int num_pair_nodes;
+mp_knot knot_nodes;
+int num_knot_nodes;
+mp_node value_nodes;
+int num_value_nodes;
+mp_node symbolic_nodes;
+int num_symbolic_nodes;
+
+@ @<Allocate or initialize ...@>=
+mp->token_nodes = NULL;
+mp->num_token_nodes = 0;
+mp->pair_nodes = NULL;
+mp->num_pair_nodes = 0;
+mp->knot_nodes = NULL;
+mp->num_knot_nodes = 0;
+mp->value_nodes = NULL;
+mp->num_value_nodes = 0;
+mp->symbolic_nodes = NULL;
+mp->num_symbolic_nodes = 0;
+
+@ @<Dealloc ...@>=
+while (mp->value_nodes) {
+      mp_node p = mp->value_nodes;
+      mp->value_nodes = p->link;
+      mp_free_node(mp,p,value_node_size);
+}
+while (mp->symbolic_nodes) {
+      mp_node p = mp->symbolic_nodes;
+      mp->symbolic_nodes = p->link;
+      mp_free_node(mp,p,symbolic_node_size);
+}
+while (mp->pair_nodes) {
+      mp_node p = mp->pair_nodes;
+      mp->pair_nodes = p->link;
+      mp_free_node(mp,p,pair_node_size);
+}
+while (mp->token_nodes) {
+      mp_node p = mp->token_nodes;
+      mp->token_nodes = p->link;
+      mp_free_node(mp,p,token_node_size);
+}
+while (mp->knot_nodes) {
+      mp_knot p = mp->knot_nodes;
+      mp->knot_nodes = p->next;
+      mp_free_knot(mp,p);
+}
+
 @ This is a nicer way of allocating nodes.
 
 @d malloc_node(A) do_alloc_node(mp,(A))
@@ -2688,9 +2747,10 @@ extern void *do_alloc_node(MP mp, size_t size);
 @ 
 @c
 void *do_alloc_node (MP mp, size_t size) {
-    void *p = xmalloc(1,size);
+    void *p;
+    p = xmalloc(1,size);
     add_var_used (size);
-    memset (p, 0, size);
+    ((mp_node)p)->link = NULL;
     return p;
 }
 
@@ -2836,11 +2896,17 @@ static mp_sym get_mp_sym_sym (MP mp, mp_node p);
 @d symbolic_node_size sizeof(mp_node_data)
 @c
 static mp_node mp_get_symbolic_node (MP mp) {
-  mp_symbolic_node p = malloc_node (symbolic_node_size);
+  mp_symbolic_node p;
+  if (mp->symbolic_nodes) {
+    p = (mp_symbolic_node)mp->symbolic_nodes;
+    mp->symbolic_nodes = p->link;
+    mp->num_symbolic_nodes--;
+    p->link = NULL;
+  } else {
+    p = malloc_node (symbolic_node_size);
+  }
   p->type = mp_symbol_node;
   p->name_type = mp_normal_sym;
-  new_number(p->data.n);
-  p->has_number = 1;
   FUNCTION_TRACE2 ("%p = mp_get_symbolic_node()\n", p);
   return (mp_node) p;
 }
@@ -2851,8 +2917,6 @@ the operation |free_node(p,s)| will make its words available, by inserting
 |p| as a new empty node just before where |rover| now points.
 
 A symbolic node is recycled by calling |free_symbolic_node|.
-
-@d mp_free_symbolic_node(mp, A) mp_free_node(mp, (A), symbolic_node_size)
 
 @c
 void mp_free_node (MP mp, mp_node p, size_t siz) {  /* node liberation */
@@ -2876,10 +2940,41 @@ void mp_free_node (MP mp, mp_node p, size_t siz) {  /* node liberation */
   }
   xfree (p);
 }
+void mp_free_symbolic_node (MP mp, mp_node p) {  /* node liberation */
+  FUNCTION_TRACE2 ("mp_free_symbolic_node(%p)\n", p);
+  if (!p) return;
+  if (mp->num_symbolic_nodes < max_num_symbolic_nodes) {
+    p->link = mp->symbolic_nodes;
+    mp->symbolic_nodes = p;
+    mp->num_symbolic_nodes++;
+    return;
+  }
+  mp->var_used -= symbolic_node_size;
+  xfree (p);
+}
+void mp_free_value_node (MP mp, mp_node p) {  /* node liberation */
+  FUNCTION_TRACE2 ("mp_free_value_node(%p)\n", p);
+  if (!p) return;
+  if (mp->num_value_nodes < max_num_value_nodes) {
+    p->link = mp->value_nodes;
+    mp->value_nodes = p;
+    mp->num_value_nodes++;
+    return;
+  }
+  mp->var_used -= value_node_size;
+  assert(p->has_number == 2);
+  if (mp->math_mode > mp_math_double_mode) {
+    free_number(((mp_value_node)p)->data.n); 
+    free_number(((mp_value_node)p)->subscript_); 
+  }
+  xfree (p);
+}
 
 
 @ @<Internal library declarations@>=
 void mp_free_node (MP mp, mp_node p, size_t siz);
+void mp_free_symbolic_node (MP mp, mp_node p);
+void mp_free_value_node (MP mp, mp_node p);
 
 @ Same redirection trick as above
 
@@ -2943,7 +3038,7 @@ static void mp_flush_node_list (MP mp, mp_node p) {
     q = p;
     p = p->link;
     if (q->type != mp_symbol_node)
-      mp_free_node (mp, q, token_node_size);
+      mp_free_token_node (mp, q);
     else
       mp_free_symbolic_node (mp, q);
   }
@@ -4293,29 +4388,19 @@ that holds the current command value of the token, and an
 @d set_equiv(A,B)  do {
    FUNCTION_TRACE3 ("set_equiv(%p, %d)\n",(A),(B));
    (A)->v.data.node=NULL ;
-   (A)->v.data.sym=NULL ;
-   set_number_from_scaled ((A)->v.data.n, (B));
-} while (0)
-
-@d set_equiv_number(A,B)  do {
-   FUNCTION_TRACE3 ("set_equiv(%p, %d)\n",(A),(B));
-   (A)->v.data.node=NULL ;
-   (A)->v.data.sym=NULL ;
-   number_clone ((A)->v.data.n, (B));
+   (A)->v.data.indep.serial=(B);
 } while (0)
 
 @d set_equiv_node(A,B)  do {
    FUNCTION_TRACE3 ("set_equiv_node(%p, %p)\n",(A),(B));
    (A)->v.data.node=(B) ;
-   (A)->v.data.sym=NULL ;
-   set_number_to_zero ((A)->v.data.n);
+   (A)->v.data.indep.serial=0;
 } while (0)
 
 @d set_equiv_sym(A,B)  do {
    FUNCTION_TRACE3 ("set_equiv_sym(%p, %p)\n",(A),(B));
-   (A)->v.data.node=NULL ;
-   (A)->v.data.sym=(B) ;
-   set_number_to_zero ((A)->v.data.n);
+   (A)->v.data.node=(mp_node)(B);
+   (A)->v.data.indep.serial=0;
 } while (0)
 
 @ @c
@@ -4323,7 +4408,6 @@ that holds the current command value of the token, and an
 #define text(A)         do_get_text(mp, (A))
 #define eq_type(A)      do_get_eq_type(mp, (A))
 #define equiv(A)        do_get_equiv(mp, (A))
-#define equiv_number(A) do_get_equiv_number(mp, (A))
 #define equiv_node(A)   do_get_equiv_node(mp, (A))
 #define equiv_sym(A)    do_get_equiv_sym(mp, (A))
 static mp_string do_get_text (MP mp, mp_sym A) {
@@ -4335,28 +4419,23 @@ static halfword do_get_eq_type (MP mp, mp_sym A) {
   return A->type;
 }
 static halfword do_get_equiv (MP mp, mp_sym A) {
-  FUNCTION_TRACE3 ("%d = do_get_equiv(%p)\n",number_to_scaled (A->v.data.n),A);
-  return number_to_scaled (A->v.data.n);
-}
-static mp_number do_get_equiv_number (MP mp, mp_sym A) {
-  FUNCTION_TRACE3 ("%d = do_get_equiv_number(%p)\n",number_to_scaled (A->v.data.n),A);
-  return A->v.data.n;
+  FUNCTION_TRACE3 ("%d = do_get_equiv(%p)\n",A->v.data.indep.serial,A);
+  return A->v.data.indep.serial;
 }
 static mp_node do_get_equiv_node (MP mp, mp_sym A) {
   FUNCTION_TRACE3 ("%p = do_get_equiv_node(%p)\n",A->v.data.node,A);
   return A->v.data.node;
 }
 static mp_sym do_get_equiv_sym (MP mp, mp_sym A) {
-  FUNCTION_TRACE3 ("%p = do_get_equiv_sym(%p)\n",A->v.data.sym,A);
+  FUNCTION_TRACE3 ("%p = do_get_equiv_sym(%p)\n",A->v.data.node,A);
   return A->v.data.sym;
 }
 #else
 #define text(A)         (A)->text
 #define eq_type(A)      (A)->type
-#define equiv(A)        number_to_scaled ((A)->v.data.n)
-#define equiv_number(A) (A)->v.data.n
+#define equiv(A)        (A)->v.data.indep.serial
 #define equiv_node(A)   (A)->v.data.node
-#define equiv_sym(A)    (A)->v.data.sym
+#define equiv_sym(A)    (mp_sym)(A)->v.data.node
 #endif
 
 @ @<Declarations...@>=
@@ -4494,17 +4573,25 @@ static mp_sym new_symbols_entry (MP mp, unsigned char *nam, size_t len) {
 }
 
 
+@ There is one global variable so that |id_lookup| does not always have to
+create a new entry just for testing. This is not freed because it creates
+a double-free thanks to the |NULL| init.
+
+@<Global ...@>=
+mp_sym id_lookup_test;
+
+@ @<Initialize table entries@>=
+mp->id_lookup_test = new_symbols_entry (mp, NULL, 0);
+
 @ Certain symbols are ``frozen'' and not redefinable, since they are
 used
 in error recovery.
 
 @<Initialize table entries@>=
 mp->st_count = 0;
-mp->frozen_bad_vardef =
-mp_frozen_primitive (mp, "a bad variable", mp_tag_token, 0);
+mp->frozen_bad_vardef = mp_frozen_primitive (mp, "a bad variable", mp_tag_token, 0);
 mp->frozen_right_delimiter = mp_frozen_primitive (mp, ")", mp_right_delimiter, 0);
-mp->frozen_inaccessible =
-mp_frozen_primitive (mp, " INACCESSIBLE", mp_tag_token, 0);
+mp->frozen_inaccessible = mp_frozen_primitive (mp, " INACCESSIBLE", mp_tag_token, 0);
 mp->frozen_undefined = mp_frozen_primitive (mp, " UNDEFINED", mp_tag_token, 0);
 
 @ Here is the subroutine that searches the avl tree for an identifier
@@ -4515,27 +4602,27 @@ that matches a given string of length~|l| appearing in |buffer[j..
 There are two variations on the lookup function: one for the normal
 symbol table, and one for the table of error recovery symbols.
 
+@d mp_id_lookup(A,B,C,D) mp_do_id_lookup ((A), mp->symbols, (B), (C), (D))
+
 @c
-static mp_sym mp_do_id_lookup (MP mp, avl_tree symbols, const char *j,
+static mp_sym mp_do_id_lookup (MP mp, avl_tree symbols, char *j,
                                size_t l, boolean insert_new) {
   /* search an avl tree */
-  mp_sym s, str;
-  unsigned char *nam = (unsigned char *) mp_xstrldup (mp, j, l);
-  s = new_symbols_entry (mp, nam, l);
-  str = (mp_sym) avl_find (s, symbols);
+  mp_sym str;
+  mp->id_lookup_test->text->str = (unsigned char *)j;
+  mp->id_lookup_test->text->len = l;
+  str = (mp_sym) avl_find (mp->id_lookup_test, symbols);
   if (str == NULL && insert_new) {
+    unsigned char *nam = (unsigned char *) mp_xstrldup (mp, j, l);
+    mp_sym s = new_symbols_entry (mp, nam, l);
     mp->st_count++;
     assert (avl_ins (s, symbols, avl_false) > 0);
     str = (mp_sym) avl_find (s, symbols);
+    delete_symbols_entry (s);
   }
-  delete_symbols_entry (s);
   return str;
 }
-static mp_sym mp_id_lookup (MP mp, char *j, size_t l, boolean insert_new) {
-  /* search the normal symbol table */
-  return mp_do_id_lookup (mp, mp->symbols, j, l, insert_new);
-}
-static mp_sym mp_frozen_id_lookup (MP mp, const char *j, size_t l,
+static mp_sym mp_frozen_id_lookup (MP mp, char *j, size_t l,
                                    boolean insert_new) {
   /* search the error recovery symbol table */
   return mp_do_id_lookup (mp, mp->frozen_symbols, j, l, insert_new);
@@ -4563,7 +4650,9 @@ static void mp_primitive (MP mp, const char *ss, halfword c, halfword o) {
 @c
 static mp_sym mp_frozen_primitive (MP mp, const char *ss, halfword c,
                                    halfword o) {
-  mp_sym str = mp_frozen_id_lookup (mp, ss, strlen (ss), true);
+  char *s = mp_xstrdup (mp, ss);
+  mp_sym str = mp_frozen_id_lookup (mp, s, strlen (ss), true);
+  mp_xfree (s);
   str->type = c;
   set_number_from_scaled (str->v.data.n, o);
   return str;
@@ -4855,38 +4944,38 @@ printer's sense. It's curious that the same word is used in such different ways.
 
 @d token_node_size sizeof(mp_node_data) /* the number of words in a large token node */
 
-@d value_sym(A)   do_get_value_sym(mp,(mp_token_node)(A))
 @d set_value_sym(A,B) do_set_value_sym(mp, (mp_token_node)(A), (B))
+@d set_value_number(A,B) do_set_value_number(mp, (mp_token_node)(A), (B))
+@d set_value_node(A,B) do_set_value_node(mp, (mp_token_node)(A), (B))
+@d set_value_str(A,B) do_set_value_str(mp, (mp_token_node)(A), (B))
+@d set_value_knot(A,B) do_set_value_knot(mp, (mp_token_node)A, (B))
 
 @d value_sym_NEW(A) (mp_sym)mp_link(A)
 @d set_value_sym_NEW(A,B) set_mp_link(A,(mp_node)B)
-
-@d value_number(A) ((mp_token_node)(A))->data.n
-@d set_value_number(A,B) do_set_value_number(mp, (mp_token_node)(A), (B))
-
-@d value_node(A)   do_get_value_node(mp, (mp_token_node)(A))
-@d set_value_node(A,B) do_set_value_node(mp, (mp_token_node)(A), (B))
-
-@d value_str(A)   do_get_value_str(mp, (mp_token_node)(A))
-@d set_value_str(A,B) do_set_value_str(mp, (mp_token_node)(A), (B))
-
-@d value_knot(A)  do_get_value_knot(mp, (mp_token_node)(A))
-@d set_value_knot(A,B) do_set_value_knot(mp, (mp_token_node)A, (B))
 
 @<MPlib internal header stuff@>=
 typedef struct mp_node_data *mp_token_node;
 
 @ @c
+#if DEBUG
+#define value_sym(A)    do_get_value_sym(mp_token_node)(A))
+#define value_number(A) do_get_value_number(mp_token_node)(A))
+#define value_node(A)   do_get_value_node(mp_token_node)(A))
+#define value_str(A)    do_get_value_str(mp_token_node)(A))
+#define value_knot(A)   do_get_value_knot(mp_token_node)(A))
+#else
+#define value_sym(A)    ((mp_token_node)(A))->data.sym
+#define value_number(A) ((mp_token_node)(A))->data.n
+#define value_node(A)   ((mp_token_node)(A))->data.node
+#define value_str(A)    ((mp_token_node)(A))->data.str
+#define value_knot(A)   ((mp_token_node)(A))->data.p
+#endif
 static void do_set_value_sym(MP mp, mp_token_node A, mp_sym B) {
    FUNCTION_TRACE3 ("set_value_sym(%p,%p)\n", (A),(B));
    A->data.sym=(B);
 }
 static void do_set_value_number(MP mp, mp_token_node A, mp_number B) {
    FUNCTION_TRACE3 ("set_value(%p,%d)\n", (A),(B));
-   assert (A->type != mp_structured);
-   if (mp_type(A) == mp_independent) {
- 	fprintf(stderr, "Bad call to set_value on %d\n", __LINE__);
-   }
    A->data.p = NULL;
    A->data.str = NULL;
    A->data.node = NULL;
@@ -4908,7 +4997,7 @@ static void do_set_value_node(MP mp, mp_token_node A, mp_node B) {
    A->data.p = NULL;
    A->data.str = NULL;
    A->data.node = B;
-   set_number_to_zero (A->data.n);
+   number_clone (A->data.n, zero_t);
 }
 static void do_set_value_knot(MP mp, mp_token_node A, mp_knot B) {
    FUNCTION_TRACE3 ("set_value_knot(%p,%p)\n", (A),(B));
@@ -4921,10 +5010,11 @@ static void do_set_value_knot(MP mp, mp_token_node A, mp_knot B) {
 
 
 @ @c
+#if DEBUG
 static mp_sym do_get_value_sym (MP mp, mp_token_node A) {
   /* |A->type| can be structured in this case */
   FUNCTION_TRACE3 ("%p = get_value_sym(%p)\n", A->data.sym, A);
-  return  A->data.sym ;
+  return A->data.sym ;
 }
 static mp_node do_get_value_node (MP mp, mp_token_node A) {
   assert (A->type != mp_structured);
@@ -4941,13 +5031,21 @@ static mp_knot do_get_value_knot (MP mp, mp_token_node A) {
   FUNCTION_TRACE3 ("%p = get_value_knot(%p)\n", A->data.p, A);
   return  A->data.p ;
 }
-
+static mp_knot do_get_value_number (MP mp, mp_token_node A) {
+  assert (A->type != mp_structured);
+  FUNCTION_TRACE3 ("%d = get_value_number(%p)\n", A->data.n.type, A);
+  return  A->data.n ;
+}
+#endif
 
 @ @<Declarations@>=
+#if DEBUG
+static mp_sym    do_get_value_number (MP mp, mp_token_node A);
 static mp_sym    do_get_value_sym    (MP mp, mp_token_node A);
 static mp_node   do_get_value_node   (MP mp, mp_token_node A);
 static mp_string do_get_value_str    (MP mp, mp_token_node A) ;
 static mp_knot   do_get_value_knot   (MP mp, mp_token_node A) ;
+#endif
 static void do_set_value_sym    (MP mp, mp_token_node A, mp_sym B);
 static void do_set_value_number (MP mp, mp_token_node A, mp_number B);
 static void do_set_value_node   (MP mp, mp_token_node A, mp_node B);
@@ -4957,14 +5055,41 @@ static void do_set_value_knot   (MP mp, mp_token_node A, mp_knot B);
 @
 @c
 static mp_node mp_get_token_node (MP mp) {
-  mp_token_node p = malloc_node (token_node_size);
+  mp_node p; 
+  if (mp->token_nodes) {
+    p = mp->token_nodes;
+    mp->token_nodes = p->link;
+    mp->num_token_nodes--;
+    p->link = NULL;
+  } else {
+    p = malloc_node (token_node_size);
+    new_number(p->data.n);
+    p->has_number = 1;
+  }
   p->type = mp_token_node_type;
-  new_number(p->data.n);
-  p->has_number = 1;
   FUNCTION_TRACE2 ("%p = mp_get_token_node()\n", p);
   return (mp_node) p;
 }
 
+@ @c
+static void mp_free_token_node (MP mp, mp_node p) {
+  FUNCTION_TRACE2 ("mp_free_token_node(%p)\n", p);
+  if (!p) return;
+  if (mp->num_token_nodes < max_num_token_nodes) {
+    p->link = mp->token_nodes;
+    mp->token_nodes = p;
+    mp->num_token_nodes++;
+    return;
+  }
+  mp->var_used -= token_node_size;
+  if (mp->math_mode > mp_math_double_mode) {
+    free_number(((mp_value_node)p)->data.n); 
+  }
+  xfree (p);
+}
+
+@ @<Declarations@>=
+static void mp_free_token_node (MP mp, mp_node p);
 
 @ A numeric token is created by the following trivial routine.
 
@@ -5019,7 +5144,7 @@ static void mp_flush_token_list (MP mp, mp_node p) {
         mp_confusion (mp, "token");
 @:this can't happen token}{\quad token@>;
       }
-      mp_free_node (mp, q, token_node_size);
+      mp_free_token_node (mp, q);
     }
   }
 }
@@ -5366,15 +5491,22 @@ became messy: lots of typecasts. So, it returns a simple
 |mp_node| for now.
 
 @d value_node_size sizeof(struct mp_value_node_data)
-@d mp_free_value_node(a,b) mp_free_node(a,b,value_node_size)
 
 @c
 static mp_node mp_get_value_node (MP mp) {
-  mp_value_node p = malloc_node (value_node_size);
+  mp_value_node p; 
+  if (mp->value_nodes) {
+    p = (mp_value_node)mp->value_nodes;
+    mp->value_nodes = p->link;
+    mp->num_value_nodes--;
+    p->link = NULL;
+  } else {
+    p = malloc_node (value_node_size);
+    new_number(p->data.n);
+    new_number(p->subscript_);
+    p->has_number = 2;
+  }
   mp_type (p) = mp_value_node_type;
-  new_number(p->data.n);
-  new_number(p->subscript_);
-  p->has_number = 2;
   FUNCTION_TRACE2 ("%p = mp_get_value_node()\n", p);
   return (mp_node)p;
 }
@@ -5542,7 +5674,7 @@ static void do_set_parent (MP mp, mp_value_node A, mp_node d) {
 @ 
 @d mp_free_attr_node(a,b) do {
    assert((b)->type == mp_attr_node_type || (b)->name_type == mp_attr);
-   mp_free_node(a,b,value_node_size);
+   mp_free_value_node(a,b);
 } while (0)
 
 @c
@@ -5611,10 +5743,35 @@ typedef struct mp_pair_node_data *mp_pair_node;
 
 @c
 static mp_node mp_get_pair_node (MP mp) {
-  mp_pair_node p = malloc_node (pair_node_size);
+  mp_node p;
+  if (mp->pair_nodes) {
+    p = mp->pair_nodes;
+    mp->pair_nodes = p->link;
+    mp->num_pair_nodes--;
+    p->link = NULL;
+  } else {
+    p = malloc_node (pair_node_size);
+  }
   mp_type (p) = mp_pair_node_type;
   FUNCTION_TRACE2("get_pair_node(): %p\n", p);
   return (mp_node) p;
+}
+
+@ @<Declarations@>=
+void mp_free_pair_node (MP mp, mp_node p);
+
+@ @c
+void mp_free_pair_node (MP mp, mp_node p) {
+  FUNCTION_TRACE2 ("mp_free_pair_node(%p)\n", p);
+  if (!p) return;
+  if (mp->num_pair_nodes < max_num_pair_nodes) {
+    p->link = mp->pair_nodes;
+    mp->pair_nodes = p;
+    mp->num_pair_nodes++;
+    return;
+  }
+  mp->var_used -= pair_node_size;
+  xfree (p);
 }
 
 
@@ -6110,8 +6267,6 @@ item on |t| isn't a |tag_token|, the value |NULL| is returned.
 Otherwise |p| will be a non-NULL pointer to a node such that
 |undefined<type(p)<mp_structured|.
 
-@d abort_find { return NULL; }
-
 @c
 static mp_node mp_find_variable (MP mp, mp_node t) {
   mp_node p, q, r, s;   /* nodes in the ``value'' line */
@@ -6121,7 +6276,7 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
   p_sym = mp_sym_sym (t);
   t = mp_link (t);
   if ((eq_type (p_sym) % mp_outer_tag) != mp_tag_token)
-    abort_find;
+    return NULL;
   if (equiv_node (p_sym) == NULL)
     mp_new_root (mp, p_sym);
   p = equiv_node (p_sym);
@@ -6133,7 +6288,7 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
        values. */
     if (mp_type (pp) != mp_structured) {
       if (mp_type (pp) > mp_structured)
-        abort_find;
+        return NULL;
       ss = mp_new_structure (mp, pp);
       if (p == pp)
         p = ss;
@@ -6144,15 +6299,83 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
     }
 
     if (mp_type (t) != mp_symbol_node) {
-      mp_number nn;
-      mp_number save_subscript;      /* temporary storage */
+      /* Descend one level for the subscript |value(t)| */
+      /* We want this part of the program to be reasonably fast, in case there are
+        lots of subscripts at the same level of the data structure. Therefore
+        we store an ``infinite'' value in the word that appears at the end of the
+        subscript list, even though that word isn't part of a subscript node. */
+      mp_number nn, save_subscript;      /* temporary storage */
       new_number (nn);
       new_number (save_subscript);
-      @<Descend one level for the subscript |value(t)|@>
+      number_clone (nn, value_number (t));
+      pp = mp_link (attr_head (pp)); /* now |hashloc(pp)=collective_subscript| */
+      q = mp_link (attr_head (p));
+      number_clone (save_subscript, subscript (q));
+      set_number_to_inf(subscript (q));
+      s = mp->temp_head;
+      set_mp_link (s, subscr_head (p));
+      do {
+        r = s;
+        s = mp_link (s);
+      } while (number_greater (nn, subscript (s)));
+      if (number_equal(nn, subscript (s))) {
+        p = s;
+      } else {
+        mp_value_node p1 = mp_get_subscr_node (mp);
+        if (r == mp->temp_head)
+          set_subscr_head (p, (mp_node) p1);
+        else
+          set_mp_link (r, (mp_node) p1);
+        set_mp_link (p1, s);
+        number_clone (subscript (p1), nn);
+        mp_name_type (p1) = mp_subscr;
+        mp_type (p1) = mp_undefined;
+        p = (mp_node) p1;
+      }
+      number_clone (subscript (q), save_subscript);
       free_number (save_subscript);
       free_number (nn);
     } else {
-      @<Descend one level for the attribute |mp_sym_info(t)|@>;
+      /* Descend one level for the attribute |mp_sym_info(t)| */
+      mp_sym nn1 = mp_sym_sym (t);
+      ss = attr_head (pp);
+      do {
+        rr = ss;
+        ss = mp_link (ss);
+      } while (nn1 > hashloc (ss));
+      if (nn1 < hashloc (ss)) {
+        qq = (mp_node) mp_get_attr_node (mp);
+        set_mp_link (rr, qq);
+        set_mp_link (qq, ss);
+        set_hashloc (qq, nn1);
+        mp_name_type (qq) = mp_attr;
+        mp_type (qq) = mp_undefined;
+        set_parent ((mp_value_node) qq, pp);
+        ss = qq;
+      }
+      if (p == pp) {
+        p = ss;
+        pp = ss;
+      } else {
+        pp = ss;
+        s = attr_head (p);
+        do {
+          r = s;
+          s = mp_link (s);
+        } while (nn1 > hashloc (s));
+        if (nn1 == hashloc (s)) {
+          p = s;
+        } else {
+          q = (mp_node) mp_get_attr_node (mp);
+          set_mp_link (r, q);
+          set_mp_link (q, s);
+          set_hashloc (q, nn1);
+          mp_name_type (q) = mp_attr;
+          mp_type (q) = mp_undefined;
+          set_parent ((mp_value_node) q, p);
+          p = q;
+        }
+      }
     }
     t = mp_link (t);
   }
@@ -6160,7 +6383,7 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
     if (mp_type (pp) == mp_structured)
       pp = attr_head (pp);
     else
-      abort_find;
+      return NULL;
   }
   if (mp_type (p) == mp_structured)
     p = attr_head (p);
@@ -6173,88 +6396,6 @@ static mp_node mp_find_variable (MP mp, mp_node t) {
     set_value_number (p, zero_t);
   }
   return p;
-}
-
-
-@ We want this part of the program to be reasonably fast, in case there are
-@^inner loop@>
-lots of subscripts at the same level of the data structure. Therefore
-we store an ``infinite'' value in the word that appears at the end of the
-subscript list, even though that word isn't part of a subscript node.
-
-@<Descend one level for the subscript |value(t)|@>=
-{
-  number_clone (nn, value_number (t));
-  pp = mp_link (attr_head (pp));        /* now |hashloc(pp)=collective_subscript| */
-  assert(hashloc(pp)==collective_subscript);
-  q = mp_link (attr_head (p));
-  number_clone (save_subscript, subscript (q));
-  set_number_to_inf(subscript (q));
-  s = mp->temp_head;
-  set_mp_link (s, subscr_head (p));
-  do {
-    r = s;
-    s = mp_link (s);
-  } while (number_greater (nn ,subscript (s)));
-  if (number_equal(nn, subscript (s))) {
-    p = s;
-  } else {
-    mp_value_node p1 = mp_get_subscr_node (mp);
-    if (r == mp->temp_head)
-      set_subscr_head (p, (mp_node) p1);
-    else
-      set_mp_link (r, (mp_node) p1);
-    set_mp_link (p1, s);
-    number_clone (subscript (p1), nn);
-    mp_name_type (p1) = mp_subscr;
-    mp_type (p1) = mp_undefined;
-    p = (mp_node) p1;
-  }
-  number_clone (subscript (q), save_subscript);
-}
-
-
-@ @<Descend one level for the attribute |mp_sym_info(t)|@>=
-{
-  mp_sym nn = mp_sym_sym (t);
-  ss = attr_head (pp);
-  do {
-    rr = ss;
-    ss = mp_link (ss);
-  } while (nn > hashloc (ss));
-  if (nn < hashloc (ss)) {
-    qq = (mp_node) mp_get_attr_node (mp);
-    set_mp_link (rr, qq);
-    set_mp_link (qq, ss);
-    set_hashloc (qq, nn);
-    mp_name_type (qq) = mp_attr;
-    mp_type (qq) = mp_undefined;
-    set_parent ((mp_value_node) qq, pp);
-    ss = qq;
-  }
-  if (p == pp) {
-    p = ss;
-    pp = ss;
-  } else {
-    pp = ss;
-    s = attr_head (p);
-    do {
-      r = s;
-      s = mp_link (s);
-    } while (nn > hashloc (s));
-    if (nn == hashloc (s)) {
-      p = s;
-    } else {
-      q = (mp_node) mp_get_attr_node (mp);
-      set_mp_link (r, q);
-      set_mp_link (q, s);
-      set_hashloc (q, nn);
-      mp_name_type (q) = mp_attr;
-      mp_type (q) = mp_undefined;
-      set_parent ((mp_value_node) q, p);
-      p = q;
-    }
-  }
 }
 
 
@@ -6304,7 +6445,7 @@ static void mp_flush_variable (MP mp, mp_node p, mp_node t,
    	      set_subscr_head (p, mp_link (q));
             else
               set_mp_link (r, mp_link (q));
-            mp_free_node (mp, q, value_node_size);
+            mp_free_value_node (mp, q);
           }
         } else {
           r = q;
@@ -6349,17 +6490,17 @@ void mp_flush_below_variable (MP mp, mp_node p) {
       mp_flush_below_variable (mp, q);
       r = q;
       q = mp_link (q);
-      mp_free_node (mp, r, value_node_size);
+      mp_free_value_node (mp, r);
     }
     r = attr_head (p);
     q = mp_link (r);
     mp_recycle_value (mp, r);
-    mp_free_node (mp, r, value_node_size);
+    mp_free_value_node (mp, r);
     do {
       mp_flush_below_variable (mp, q);
       r = q;
       q = mp_link (q);
-      mp_free_node (mp, r, value_node_size);
+      mp_free_value_node (mp, r);
     } while (q != mp->end_attr);
     mp_type (p) = mp_undefined;
   }
@@ -6434,14 +6575,14 @@ static void mp_clear_symbol (MP mp, mp_sym p, boolean saving) {
         mp_name_type (q) = mp_saved_root;
       } else {
         mp_flush_below_variable (mp, q);
-        mp_free_node (mp, q, value_node_size);
+        mp_free_value_node (mp, q);
       }
     }
     break;
   default:
     break;
   }
-  set_equiv_number (p, mp->frozen_undefined->v.data.n);
+  set_equiv (p, mp->frozen_undefined->v.data.indep.serial);
   set_eq_type (p, mp->frozen_undefined->type);
 }
 
@@ -6455,37 +6596,32 @@ be saved, \MP\ puts that value into its ``save stack.'' An appearance of
 stack and put back in their former places.
 
 The save stack is a linked list containing three kinds of entries,
-distinguished by their |info| fields. If |p| points to a saved item,
+distinguished by their |type| fields. If |p| points to a saved item,
 then
 
 \smallskip\hang
-|p->info=0| stands for a group boundary; each \&{begingroup} contributes
+|p->type=0| stands for a group boundary; each \&{begingroup} contributes
 such an item to the save stack and each \&{endgroup} cuts back the stack
 until the most recent such entry has been removed.
 
 \smallskip\hang
-|p->type=mp_normal_sym| and |p->info=q|, means that |p->equiv| holds the former
-contents of |eqtb[q]|. Such save stack entries are generated by \&{save}
+|p->type=mp_normal_sym| means that |p->value| holds the former
+contents of |eqtb[q]| (saved in the |knot| field of the value, which
+is otherwise unused for variables). Such save stack entries are generated by \&{save}
 commands.
 
 \smallskip\hang
-|p->type=mp_internal_sym| and |p->info=q|, where |q>0|, means that |p->value| is a |mp_internal|
-to be restored to internal parameter number~|q|. Such entries
-are generated by \&{interim} commands.
+|p->type=mp_internal_sym| means that |p->value| is a |mp_internal|
+to be restored to internal parameter number~|q| (saved in the |serial| field of the value, which
+is otherwise unused for internals). Such entries are generated by \&{interim} commands.
 
 \smallskip\noindent
 The global variable |save_ptr| points to the top item on the save stack.
 
 @<Types...@>=
 typedef struct mp_save_data {
-  halfword info;
-  mp_sym sym;
   quarterword type;
   mp_internal value;
-  halfword equiv;
-  halfword eq_type;
-  mp_node equiv_n;
-  mp_sym equiv_sym;
   struct mp_save_data *link;
 } mp_save_data;
 
@@ -6501,7 +6637,7 @@ static void mp_save_boundary (MP mp) {
   mp_save_data *p;      /* temporary register */
   FUNCTION_TRACE1 ("mp_save_boundary ()\n");
   p = xmalloc (1, sizeof (mp_save_data));
-  p->info = 0;
+  p->type = 0;
   p->link = mp->save_ptr;
   mp->save_ptr = p;
 }
@@ -6521,19 +6657,18 @@ static void mp_save_variable (MP mp, mp_sym q) {
   FUNCTION_TRACE2 ("mp_save_variable (%p)\n", q);
   if (mp->save_ptr != NULL) {
     p = xmalloc (1, sizeof (mp_save_data));
-    p->info = 1;
-    p->sym = q;
     p->type = mp_normal_sym;
     p->link = mp->save_ptr;
-    p->equiv = equiv (q);
-    p->eq_type = eq_type (q);
-    p->equiv_n = equiv_node (q);
-    p->equiv_sym = equiv_sym (q);
+    p->value.v.data.indep.scale = eq_type (q);
+    p->value.v.data.indep.serial = equiv(q);
+    p->value.v.data.node = equiv_node(q);
+    p->value.v.data.p = (mp_knot)q;
     mp->save_ptr = p;
   }
   mp_clear_symbol (mp, q, (mp->save_ptr != NULL));
 }
-static void mp_unsave_variable (MP mp, mp_sym q) {
+static void mp_unsave_variable (MP mp) {
+  mp_sym q = (mp_sym)mp->save_ptr->value.v.data.p;
   if (number_positive(internal_value (mp_tracing_restores))) {
     mp_begin_diagnostic (mp);
     mp_print_nl (mp, "{restoring ");
@@ -6542,12 +6677,11 @@ static void mp_unsave_variable (MP mp, mp_sym q) {
     mp_end_diagnostic (mp, false);
   }
   mp_clear_symbol (mp, q, false);
-  set_equiv(q,mp->save_ptr->equiv);
-  set_eq_type (q, mp->save_ptr->eq_type);
-  q->v.data.node = mp->save_ptr->equiv_n;
-  q->v.data.sym = mp->save_ptr->equiv_sym;
+  set_eq_type(q, mp->save_ptr->value.v.data.indep.scale);
+  set_equiv  (q,mp->save_ptr->value.v.data.indep.serial);
+  q->v.data.node = mp->save_ptr->value.v.data.node; 
   if (eq_type (q) % mp_outer_tag == mp_tag_token) {
-    mp_node pp = equiv_node (q);
+    mp_node pp = q->v.data.node;
     if (pp != NULL)
       mp_name_type (pp) = mp_root;
   }
@@ -6563,17 +6697,18 @@ static void mp_save_internal (MP mp, halfword q) {
   FUNCTION_TRACE2 ("mp_save_internal (%d)\n", q);
   if (mp->save_ptr != NULL) {
     p = xmalloc (1, sizeof (mp_save_data));
-    p->info = q;
     p->type = mp_internal_sym;
     p->link = mp->save_ptr;
     p->value = mp->internal[q];
+    p->value.v.data.indep.serial = q;
     new_number(p->value.v.data.n);
     number_clone(p->value.v.data.n, mp->internal[q].v.data.n);
     mp->save_ptr = p;
   }
 }
 
-static void mp_unsave_internal (MP mp, halfword q) {
+static void mp_unsave_internal (MP mp) {
+  halfword q = mp->save_ptr->value.v.data.indep.serial;
   mp_internal saved = mp->save_ptr->value;
   if (number_positive(internal_value (mp_tracing_restores))) {
     mp_begin_diagnostic (mp);
@@ -6603,11 +6738,11 @@ is at least one boundary item on the save stack.
 static void mp_unsave (MP mp) {
   mp_save_data *p;      /* saved item */
   FUNCTION_TRACE1 ("mp_unsave ()\n");
-  while (mp->save_ptr->info != 0) {
+  while (mp->save_ptr->type != 0) {
     if (mp->save_ptr->type == mp_internal_sym) {
-      mp_unsave_internal(mp, mp->save_ptr->info);
+      mp_unsave_internal(mp);
     } else {
-      mp_unsave_variable(mp, mp->save_ptr->sym);
+      mp_unsave_variable(mp);
     }
     p = mp->save_ptr->link;
     xfree (mp->save_ptr);
@@ -6971,7 +7106,14 @@ static mp_knot mp_new_knot (MP mp);
 
 @ @c
 static mp_knot mp_new_knot (MP mp) {
-  mp_knot q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
+  mp_knot q;
+  if (mp->knot_nodes) {
+    q = mp->knot_nodes;
+    mp->knot_nodes = q->next;
+    mp->num_knot_nodes--;
+  } else {
+    q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
+  }
   memset(q,0,sizeof (struct mp_knot_data));
   new_number(q->x_coord);
   new_number(q->y_coord);
@@ -6997,7 +7139,14 @@ static mp_gr_knot mp_gr_new_knot (MP mp) {
 
 @c
 static mp_knot mp_copy_knot (MP mp, mp_knot p) {
-  mp_knot q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
+  mp_knot q;
+  if (mp->knot_nodes) {
+    q  = mp->knot_nodes;
+    mp->knot_nodes = q->next;
+    mp->num_knot_nodes--;
+  } else {
+    q = mp_xmalloc (mp, 1, sizeof (struct mp_knot_data));
+  }
   memcpy (q, p, sizeof (struct mp_knot_data));
   if (mp->math_mode > mp_math_double_mode) {
     new_number(q->x_coord);
@@ -7186,18 +7335,30 @@ calling the following subroutine.
 @<Declarations@>=
 static void mp_toss_knot_list (MP mp, mp_knot p);
 static void mp_toss_knot (MP mp, mp_knot p);
+static void mp_free_knot (MP mp, mp_knot p);
 
 @ @c
-void mp_toss_knot (MP mp, mp_knot q) {
-  if (mp->math_mode > mp_math_double_mode) {
-    free_number (q->x_coord); 
-    free_number (q->y_coord); 
-    free_number (q->left_x); 
-    free_number (q->left_y); 
-    free_number (q->right_x); 
-    free_number (q->right_y);
-  }
+void mp_free_knot  (MP mp, mp_knot q) {
+  free_number (q->x_coord); 
+  free_number (q->y_coord); 
+  free_number (q->left_x); 
+  free_number (q->left_y); 
+  free_number (q->right_x); 
+  free_number (q->right_y);
   mp_xfree (q);
+}
+void mp_toss_knot (MP mp, mp_knot q) {
+  if (mp->num_knot_nodes < max_num_knot_nodes) {
+    q->next = mp->knot_nodes;
+    mp->knot_nodes = q;
+    mp->num_knot_nodes++;
+    return;
+  }
+  if (mp->math_mode > mp_math_double_mode) {
+    mp_free_knot(mp,q);
+  } else {
+    mp_xfree (q);
+  }
 }
 void mp_toss_knot_list (MP mp, mp_knot p) {
   mp_knot q;    /* the node being freed */
@@ -7214,7 +7375,13 @@ void mp_toss_knot_list (MP mp, mp_knot p) {
   } else {
     do {
       r = mp_next_knot (q);
-      mp_xfree (q);
+      if (mp->num_knot_nodes < max_num_knot_nodes) {
+        q->next = mp->knot_nodes;
+	mp->knot_nodes = q;
+	mp->num_knot_nodes++;
+      } else {
+        mp_xfree (q);
+      }
       q = r;
     } while (q != p);
   }
@@ -11514,7 +11681,7 @@ void mp_toss_edges (MP mp, mp_edge_header_node h) {
   free_number(h->miny);
   free_number(h->maxx);
   free_number(h->maxy);
-  mp_free_node (mp, h->list_, token_node_size);
+  mp_free_token_node (mp, h->list_);
   mp_free_node (mp, (mp_node)h, edge_header_size);
 }
 void mp_flush_dash_list (MP mp, mp_edge_header_node h) {
@@ -15209,8 +15376,6 @@ set_number_from_scaled (mp->cur_tt, 1)
 
 @ 
 
-@d half(A) ((A)/2)
- 
 @<Subdivide for a new level of intersection@>=
 number_clone (stack_dx, mp->delx);
 number_clone (stack_dy, mp->dely);
@@ -15260,7 +15425,9 @@ mp->tol = mp->tol - mp->three_l + (integer) mp->tol_step;
 mp->tol += mp->tol;
 mp->three_l = mp->three_l + (integer) mp->tol_step
 
-@ @<Advance to the next pair |(cur_t,cur_tt)|@>=
+@ 
+
+@<Advance to the next pair |(cur_t,cur_tt)|@>=
 NOT_FOUND:
 if (odd (number_to_scaled (mp->cur_tt))) {
   if (odd (number_to_scaled (mp->cur_t))) {
@@ -15296,7 +15463,10 @@ if (odd (number_to_scaled (mp->cur_tt))) {
 }
 
 
-@ @<Descend to the previous level...@>=
+@ 
+@d half(A) ((A)/2)
+ 
+@<Descend to the previous level...@>=
 {
   set_number_from_scaled (mp->cur_t, half (number_to_scaled (mp->cur_t)));
   set_number_from_scaled (mp->cur_tt, half (number_to_scaled (mp->cur_tt)));
@@ -15524,7 +15694,7 @@ static mp_value_node mp_get_dep_node (MP mp) {
   return p;
 }
 static void mp_free_dep_node (MP mp, mp_value_node p) {
-  mp_free_node (mp, (mp_node) p, value_node_size);
+  mp_free_value_node (mp, (mp_node) p);
 }
 
 
@@ -16185,7 +16355,7 @@ void mp_make_known (MP mp, mp_value_node p, mp_value_node q) {
   if (cur_exp_node () == (mp_node) p && mp->cur_exp.type == t) {
     mp->cur_exp.type = mp_known;
     set_cur_exp_value_number (value_number (p));
-    mp_free_node (mp, (mp_node) p, value_node_size);
+    mp_free_value_node (mp, (mp_node) p);
   }
   free_number (absp);
 }
@@ -16567,7 +16737,7 @@ static void change_to_known (MP mp, mp_value_node p, mp_node x, mp_value_node fi
     if (cur_exp_node () == x && mp->cur_exp.type == mp_independent) {
       set_cur_exp_value_number (value_number (x));
       mp->cur_exp.type = mp_known;
-      mp_free_node (mp, x, value_node_size);
+      mp_free_value_node (mp, x);
     }
   } else {
     mp->dep_final = final_node;
@@ -17445,7 +17615,7 @@ static void mp_end_token_list (MP mp) {                               /* leave a
     if (p != NULL) {
       if (mp_link (p) == MP_VOID) {        /* it's an \&{expr} parameter */
         mp_recycle_value (mp, p);
-        mp_free_node (mp, p, value_node_size);
+        mp_free_value_node (mp, p);
       } else {
         mp_flush_token_list (mp, p);    /* it's a \&{suffix} or \&{text} parameter */
       }
@@ -18083,7 +18253,7 @@ COMMON_ENDING:
      is increased by |outer_tag|. */
   cur_sym_ = cur_sym();
   set_cur_cmd(eq_type (cur_sym_));
-  set_cur_mod_number(equiv_number (cur_sym_));
+  set_cur_mod(equiv (cur_sym_));
   set_cur_mod_node(equiv_node (cur_sym_));
   if (cur_cmd() >= mp_outer_tag) {
     if (mp_check_outer_validity (mp))
@@ -18267,16 +18437,14 @@ break;
 in the unusual case where \&{btex}, \&{verbatimtex}, \&{etex}, or \&{mpxbreak}
 is encountered.
 
-@c
-static void get_t_next (MP mp) {
+@d get_t_next(a) do {
   mp_get_next (mp);
   if (cur_cmd() <= mp_max_pre_command)
     mp_t_next (mp);
-}
+} while (0)
 
-
+@c
 @ @<Declarations@>=
-static void get_t_next (MP mp);
 static void mp_t_next (MP mp);
 static void mp_start_mpx_input (MP mp);
 
@@ -18951,7 +19119,6 @@ static void mp_scan_secondary (MP mp);
 static void mp_scan_tertiary (MP mp);
 static void mp_scan_expression (MP mp);
 static void mp_scan_suffix (MP mp);
-static void mp_get_boolean (MP mp);
 static void mp_pass_text (MP mp);
 static void mp_conditional (MP mp);
 static void mp_start_input (MP mp);
@@ -18984,9 +19151,11 @@ space available on the call stack.
 
 In any case, when the limit is crossed, that is a fatal error.
 
+@d check_expansion_depth()  if (++mp->expand_depth_count >= mp->expand_depth)
+                              mp_expansion_depth_error(mp)
+
 @c
-static void mp_check_expansion_depth (MP mp) {
-  if (mp->expand_depth_count >= mp->expand_depth) {
+static void mp_expansion_depth_error (MP mp) {
     const char *hlp[] = {
          "Recursive macro expansion cannot be unlimited because of runtime",
          "stack constraints. The limit is 10000 recursion levels in total.",
@@ -18997,7 +19166,6 @@ static void mp_check_expansion_depth (MP mp) {
       mp_error(mp, "Maximum expansion depth reached", hlp, true);
     mp->history=mp_fatal_error_stop; 
     mp_jump_out(mp);
-  }
 }
 
 
@@ -19008,8 +19176,7 @@ when it has to do exotic expansion commands.
 static void mp_expand (MP mp) {
   size_t k;     /* something that we hope is |<=buf_size| */
   size_t j;     /* index into |str_pool| */
-  mp->expand_depth_count++;
-  mp_check_expansion_depth (mp);
+  check_expansion_depth();
   if (number_greater (internal_value (mp_tracing_commands), unity_t))
     if (cur_cmd() != mp_defined_macro)
       show_cur_cmd_mod;
@@ -20339,7 +20506,7 @@ void mp_stop_iteration (MP mp) {
       if (p != NULL) {
         if (mp_link (p) == MP_VOID) {      /* it's an \&{expr} parameter */
           mp_recycle_value (mp, p);
-          mp_free_node (mp, p, value_node_size);
+          mp_free_value_node (mp, p);
         } else {
           mp_flush_token_list (mp, p);  /* it's a \&{suffix} or \&{text}
                                            parameter */
@@ -21627,11 +21794,9 @@ static mp_node mp_stash_cur_exp (MP mp) {
     set_value_number (p, cur_exp_value_number ());    /* this also resets the rest to 0/NULL */
     if (cur_exp_str ())  {
       set_value_str (p, cur_exp_str ());
-    }
-    if (cur_exp_knot ()) {
+    } else if (cur_exp_knot ()) {
       set_value_knot (p, cur_exp_knot ());
-    }
-    if (cur_exp_node ()) {
+    } else if (cur_exp_node ()) {
       set_value_node (p, cur_exp_node ());
     }
     break;
@@ -21681,38 +21846,36 @@ void mp_unstash_cur_exp (MP mp, mp_node p) {
     break;
   case mp_token_list: /* this is how symbols are stashed */
     set_cur_exp_node (value_node(p));
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
     break;
   case mp_path_type:
   case mp_pen_type:
     set_cur_exp_knot (value_knot (p));
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
     break;
   case mp_string_type:
     set_cur_exp_str (value_str (p));
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
     break;
   case mp_picture_type:
     set_cur_exp_node (value_node (p));
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
     break;
   case mp_boolean_type:
   case mp_known:
     set_cur_exp_value_number (value_number (p));
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
     break;
   default:
     set_cur_exp_value_number (value_number (p));
     if (value_knot(p)) {
       set_cur_exp_knot (value_knot (p));
-    } 
-    if (value_node(p)) {
+    } else if (value_node(p)) {
       set_cur_exp_node (value_node (p));
-    } 
-    if (value_str(p)) {
+    } else if (value_str(p)) {
       set_cur_exp_str (value_str (p));
     } 
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
     break;
   }
 }
@@ -22015,7 +22178,7 @@ void mp_flush_cur_exp (MP mp, mp_value v) {
   case mp_independent:
   case mp_cmykcolor_type:
     mp_recycle_value (mp, cur_exp_node ());
-    mp_free_node (mp, cur_exp_node (), value_node_size);
+    mp_free_value_node (mp, cur_exp_node ());
     break;
   case mp_string_type:
     delete_str_ref (cur_exp_str ());
@@ -22044,15 +22207,8 @@ static void mp_recycle_value (MP mp, mp_node p);
 @ @c
 static void mp_recycle_value (MP mp, mp_node p) {
   mp_variable_type t;   /* a type code */
-  mp_number vv;   /* another value */
-  mp_node pp;   /* link manipulation register */
-  mp_number v ;        /* a value */
-  new_number (v);
-  new_number (vv);
   FUNCTION_TRACE2 ("mp_recycle_value(%p)\n", p);
   t = mp_type (p);
-  if (t < mp_dependent)
-    number_clone (v, value_number (p));
   switch (t) {
   case mp_vacuous:
   case mp_boolean_type:
@@ -22078,10 +22234,10 @@ static void mp_recycle_value (MP mp, mp_node p) {
       mp_recycle_value (mp, magenta_part (value_node (p)));
       mp_recycle_value (mp, yellow_part (value_node (p)));
       mp_recycle_value (mp, black_part (value_node (p)));
-      mp_free_node (mp, cyan_part (value_node (p)), value_node_size);
-      mp_free_node (mp, magenta_part (value_node (p)), value_node_size);
-      mp_free_node (mp, black_part (value_node (p)), value_node_size);
-      mp_free_node (mp, yellow_part (value_node (p)), value_node_size);
+      mp_free_value_node (mp, cyan_part (value_node (p)));
+      mp_free_value_node (mp, magenta_part (value_node (p)));
+      mp_free_value_node (mp, black_part (value_node (p)));
+      mp_free_value_node (mp, yellow_part (value_node (p)));
       mp_free_node (mp, value_node (p), cmykcolor_node_size);
     }
     break;
@@ -22089,9 +22245,9 @@ static void mp_recycle_value (MP mp, mp_node p) {
     if (value_node (p) != NULL) {
       mp_recycle_value (mp, x_part (value_node (p)));
       mp_recycle_value (mp, y_part (value_node (p)));
-      mp_free_node (mp, x_part (value_node (p)), value_node_size);
-      mp_free_node (mp, y_part (value_node (p)), value_node_size);
-      mp_free_node (mp, value_node (p), pair_node_size);
+      mp_free_value_node (mp, x_part (value_node (p)));
+      mp_free_value_node (mp, y_part (value_node (p)));
+      mp_free_pair_node (mp, value_node (p));
     }
     break;
   case mp_color_type:
@@ -22099,9 +22255,9 @@ static void mp_recycle_value (MP mp, mp_node p) {
       mp_recycle_value (mp, red_part (value_node (p)));
       mp_recycle_value (mp, green_part (value_node (p)));
       mp_recycle_value (mp, blue_part (value_node (p)));
-      mp_free_node (mp, red_part (value_node (p)), value_node_size);
-      mp_free_node (mp, green_part (value_node (p)), value_node_size);
-      mp_free_node (mp, blue_part (value_node (p)), value_node_size);
+      mp_free_value_node (mp, red_part (value_node (p)));
+      mp_free_value_node (mp, green_part (value_node (p)));
+      mp_free_value_node (mp, blue_part (value_node (p)));
       mp_free_node (mp, value_node (p), color_node_size);
     }
     break;
@@ -22113,18 +22269,27 @@ static void mp_recycle_value (MP mp, mp_node p) {
       mp_recycle_value (mp, xy_part (value_node (p)));
       mp_recycle_value (mp, yx_part (value_node (p)));
       mp_recycle_value (mp, yy_part (value_node (p)));
-      mp_free_node (mp, tx_part (value_node (p)), value_node_size);
-      mp_free_node (mp, ty_part (value_node (p)), value_node_size);
-      mp_free_node (mp, xx_part (value_node (p)), value_node_size);
-      mp_free_node (mp, xy_part (value_node (p)), value_node_size);
-      mp_free_node (mp, yx_part (value_node (p)), value_node_size);
-      mp_free_node (mp, yy_part (value_node (p)), value_node_size);
+      mp_free_value_node (mp, tx_part (value_node (p)));
+      mp_free_value_node (mp, ty_part (value_node (p)));
+      mp_free_value_node (mp, xx_part (value_node (p)));
+      mp_free_value_node (mp, xy_part (value_node (p)));
+      mp_free_value_node (mp, yx_part (value_node (p)));
+      mp_free_value_node (mp, yy_part (value_node (p)));
       mp_free_node (mp, value_node (p), transform_node_size);
     }
     break;
   case mp_dependent:
   case mp_proto_dependent:
-    @<Recycle a dependency list@>;
+    /* Recycle a dependency list */
+    {
+      mp_value_node qq = (mp_value_node) dep_list ((mp_value_node) p);
+      while (dep_info (qq) != NULL)
+        qq = (mp_value_node) mp_link (qq);
+      set_mp_link (prev_dep ((mp_value_node) p), mp_link (qq));
+      set_prev_dep (mp_link (qq), prev_dep ((mp_value_node) p));
+      set_mp_link (qq, NULL);
+      mp_flush_node_list (mp, (mp_node) dep_list ((mp_value_node) p));
+    }
     break;
   case mp_independent:
     @<Recycle an independent variable@>;
@@ -22133,31 +22298,15 @@ static void mp_recycle_value (MP mp, mp_node p) {
   case mp_structured:
     mp_confusion (mp, "recycle");
     break;
-@:this can't happen recycle}{\quad recycle@>
   case mp_unsuffixed_macro:
   case mp_suffixed_macro:
     mp_delete_mac_ref (mp, value_node (p));
     break;
-  default:                     /* there are no other valid cases, but please the compiler */
+  default: /* there are no other valid cases, but please the compiler */
     break;
-  }                             /* there are no other cases */
+  } 
   mp_type (p) = mp_undefined;
-  free_number (v);
-  free_number (vv);
 }
-
-
-@ @<Recycle a dependency list@>=
-{
-  mp_value_node qq = (mp_value_node) dep_list ((mp_value_node) p);
-  while (dep_info (qq) != NULL)
-    qq = (mp_value_node) mp_link (qq);
-  set_mp_link (prev_dep ((mp_value_node) p), mp_link (qq));
-  set_prev_dep (mp_link (qq), prev_dep ((mp_value_node) p));
-  set_mp_link (qq, NULL);
-  mp_flush_node_list (mp, (mp_node) dep_list ((mp_value_node) p));
-}
-
 
 @ When an independent variable disappears, it simply fades away, unless
 something depends on it. In the latter case, a dependent variable whose
@@ -22191,6 +22340,13 @@ proto-dependent cases.
 @<Recycle an independent variable@>=
 {
   mp_value_node q, r, s;
+  mp_node pp;   /* link manipulation register */
+  mp_number v ;        /* a value */
+  mp_number test;      /* a temporary value */
+  new_number (test);
+  new_number (v);
+  if (t < mp_dependent) 	 
+    number_clone (v, value_number (p));
   set_number_to_zero(mp->max_c[mp_dependent]);
   set_number_to_zero(mp->max_c[mp_proto_dependent]);
   mp->max_link[mp_dependent] = NULL;
@@ -22206,8 +22362,6 @@ proto-dependent cases.
       if (dep_info (r) != p) {
         s = r;
       } else {
-        mp_number test;
-        new_number (test);
         t = mp_type (q);
         if (mp_link (s) == dep_list (q)) {      /* reset the |dep_list| */
           set_dep_list (q, mp_link (r));
@@ -22228,16 +22382,159 @@ proto-dependent cases.
           set_mp_link (r, (mp_node) mp->max_link[t]);
           mp->max_link[t] = r;
         }
-        free_number (test);
       }
     }
     q = (mp_value_node) mp_link (r);
   }
   if (number_positive(mp->max_c[mp_dependent]) || number_positive(mp->max_c[mp_proto_dependent])) {
-    @<Choose a dependent variable to take the place of the disappearing
-    independent variable, and change all remaining dependencies
-    accordingly@>;
+    /* Choose a dependent variable to take the place of the disappearing
+       independent variable, and change all remaining dependencies
+       accordingly */
+    mp_number test, ret; /* temporary use */
+    new_number (ret);
+    new_number (test);
+    number_clone (test, mp->max_c[mp_dependent]);
+    number_divide_int (test, 4096);
+    if (number_greaterequal(test, mp->max_c[mp_proto_dependent]))
+      t = mp_dependent;
+    else
+      t = mp_proto_dependent;
+
+    /* Let |s=max_ptr[t]|. At this point we have $|value|(s)=\pm|max_c|[t]$,
+       and |dep_info(s)| points to the dependent variable~|pp| of type~|t| from
+       whose dependency list we have removed node~|s|. We must reinsert
+       node~|s| into the dependency list, with coefficient $-1.0$, and with
+       |pp| as the new independent variable. Since |pp| will have a larger serial
+       number than any other variable, we can put node |s| at the head of the
+       list. */
+    /* Determine the dependency list |s| to substitute for the independent
+       variable~|p| */
+
+    s = mp->max_ptr[t];
+    pp = (mp_node) dep_info (s);
+    number_clone (v, dep_value (s));
+    if (t == mp_dependent) {
+      set_dep_value (s, fraction_one_t);
+    } else {
+      set_dep_value (s, unity_t);
+    }
+    number_negate(dep_value(s));
+    r = (mp_value_node) dep_list ((mp_value_node) pp);
+    set_mp_link (s, (mp_node) r);
+    while (dep_info (r) != NULL)
+      r = (mp_value_node) mp_link (r);
+    q = (mp_value_node) mp_link (r);
+    set_mp_link (r, NULL);
+    set_prev_dep (q, prev_dep ((mp_value_node) pp));
+    set_mp_link (prev_dep ((mp_value_node) pp), (mp_node) q);
+    mp_new_indep (mp, pp);
+    if (cur_exp_node () == pp && mp->cur_exp.type == t)
+      mp->cur_exp.type = mp_independent;
+    if (number_positive (internal_value (mp_tracing_equations))) {
+      /* Show the transformed dependency */
+      if (mp_interesting (mp, p)) {
+        mp_begin_diagnostic (mp);
+        mp_show_transformed_dependency(mp, v, t, p);
+        mp_print_dependency (mp, s, t);
+        mp_end_diagnostic (mp, false);
+      }
+    }
+
+    t = (quarterword) (mp_dependent + mp_proto_dependent - t);    /* complement |t| */
+    if (number_positive(mp->max_c[t])) {
+      /* we need to pick up an unchosen dependency */
+      set_mp_link (mp->max_ptr[t], (mp_node) mp->max_link[t]);
+      mp->max_link[t] = mp->max_ptr[t];
+    }
+    /* Finally, there are dependent and proto-dependent variables whose
+       dependency lists must be brought up to date. */
+    if (t != mp_dependent) {
+      /* Substitute new dependencies in place of |p| */
+      for (t = mp_dependent; t <= mp_proto_dependent; t++) {
+        r = mp->max_link[t];
+        while (r != NULL) {
+          q = (mp_value_node) dep_info (r);
+          number_clone (test, v);
+          number_negate (test);
+          make_fraction (ret, dep_value (r), test);
+          set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q), ret, s, t, mp_dependent));
+          if (dep_list (q) == (mp_node) mp->dep_final)
+            mp_make_known (mp, q, mp->dep_final);
+          q = r;
+          r = (mp_value_node) mp_link (r);
+          mp_free_dep_node (mp, q);
+        }
+      }
+    } else {
+      /* Substitute new proto-dependencies in place of |p| */
+      for (t = mp_dependent; t <= mp_proto_dependent; t++) {
+        r = mp->max_link[t];
+        while (r != NULL) {
+          q = (mp_value_node) dep_info (r);
+          if (t == mp_dependent) {    /* for safety's sake, we change |q| to |mp_proto_dependent| */
+            if (cur_exp_node () == (mp_node) q && mp->cur_exp.type == mp_dependent)
+              mp->cur_exp.type = mp_proto_dependent;
+            set_dep_list (q, mp_p_over_v (mp, (mp_value_node) dep_list (q),
+                                           unity_t, mp_dependent,
+                                           mp_proto_dependent));
+            mp_type (q) = mp_proto_dependent;
+            fraction_to_round_scaled (dep_value (r));
+          }
+          number_clone (test, v);
+          number_negate (test);
+          make_scaled (ret, dep_value (r), test);
+          set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q),
+                                             ret, s,
+                                             mp_proto_dependent,
+                                             mp_proto_dependent));
+          if (dep_list (q) == (mp_node) mp->dep_final)
+            mp_make_known (mp, q, mp->dep_final);
+          q = r;
+          r = (mp_value_node) mp_link (r);
+          mp_free_dep_node (mp, q);
+        }
+      }
+    }
+    mp_flush_node_list (mp, (mp_node) s);
+    if (mp->fix_needed)
+      mp_fix_dependencies (mp);
+    check_arith();
+    free_number (ret);
   }
+  free_number (v);
+  free_number(test);
+}
+
+@ @<Declarations@>=
+static void mp_show_transformed_dependency(MP mp, mp_number v, mp_variable_type t, mp_node p);
+
+@ @c
+static void mp_show_transformed_dependency(MP mp, mp_number v, mp_variable_type t, mp_node p)
+{
+  mp_number vv;   /* for temp use */
+  new_number (vv);
+  mp_print_nl (mp, "### ");
+  if (number_positive(v))
+    mp_print_char (mp, xord ('-'));
+  if (t == mp_dependent) {
+    number_clone (vv, mp->max_c[mp_dependent]);
+    fraction_to_round_scaled (vv);
+  } else {
+    number_clone (vv, mp->max_c[mp_proto_dependent]);
+  }
+  if (!number_equal(vv, unity_t)) {
+    print_number (vv);
+  }
+  mp_print_variable_name (mp, p);
+  while (indep_scale (p) > 0) {
+    mp_print (mp, "*4");
+    set_indep_scale(p, indep_scale(p)-2);
+  }
+  if (t == mp_dependent)
+    mp_print_char (mp, xord ('='));
+  else
+    mp_print (mp, " = ");
+  free_number (vv);
 }
 
 
@@ -22264,182 +22561,6 @@ mp_value_node max_link[mp_proto_dependent + 1]; /* other occurrences of |p| */
     free_number (mp->max_c[i]);
   }
 }
-
-
-@ @<Choose a dependent...@>=
-{
-  {
-  mp_number test;
-  new_number (test);
-  number_clone (test, mp->max_c[mp_dependent]);
-  number_divide_int (test, 4096);
-  if (number_greaterequal(test, mp->max_c[mp_proto_dependent]))
-    t = mp_dependent;
-  else
-    t = mp_proto_dependent;
-  free_number(test);
-  }
-  @<Determine the dependency list |s| to substitute for the independent
-    variable~|p|@>;
-  t = (quarterword) (mp_dependent + mp_proto_dependent - t);    /* complement |t| */
-  if (number_positive(mp->max_c[t])) {       /* we need to pick up an unchosen dependency */
-    set_mp_link (mp->max_ptr[t], (mp_node) mp->max_link[t]);
-    mp->max_link[t] = mp->max_ptr[t];
-  }
-  if (t != mp_dependent) {
-    @<Substitute new dependencies in place of |p|@>;
-  } else {
-    @<Substitute new proto-dependencies in place of |p|@>;
-  }
-  mp_flush_node_list (mp, (mp_node) s);
-  if (mp->fix_needed)
-    mp_fix_dependencies (mp);
-  check_arith();
-}
-
-
-@ Let |s=max_ptr[t]|. At this point we have $|value|(s)=\pm|max_c|[t]$,
-and |dep_info(s)| points to the dependent variable~|pp| of type~|t| from
-whose dependency list we have removed node~|s|. We must reinsert
-node~|s| into the dependency list, with coefficient $-1.0$, and with
-|pp| as the new independent variable. Since |pp| will have a larger serial
-number than any other variable, we can put node |s| at the head of the
-list.
-
-@<Determine the dep...@>=
-s = mp->max_ptr[t];
-pp = (mp_node) dep_info (s);
-/* |debug_printf ("s=%p, pp=%p, r=%p\n",s, pp, dep_list((mp_value_node)pp));| */
-number_clone (v, dep_value (s));
-if (t == mp_dependent) {
-  set_dep_value (s, fraction_one_t);
-} else {
-  set_dep_value (s, unity_t);
-}
-number_negate(dep_value(s));
-r = (mp_value_node) dep_list ((mp_value_node) pp);
-set_mp_link (s, (mp_node) r);
-while (dep_info (r) != NULL)
-  r = (mp_value_node) mp_link (r);
-q = (mp_value_node) mp_link (r);
-set_mp_link (r, NULL);
-set_prev_dep (q, prev_dep ((mp_value_node) pp));
-set_mp_link (prev_dep ((mp_value_node) pp), (mp_node) q);
-mp_new_indep (mp, pp);
-if (cur_exp_node () == pp && mp->cur_exp.type == t)
-  mp->cur_exp.type = mp_independent;
-if (number_positive (internal_value (mp_tracing_equations))) {
-  @<Show the transformed dependency@>;
-}
-
-@ Now $(-v)$ times the formerly independent variable~|p| is being replaced
-by the dependency list~|s|.
-
-@<Show the transformed...@>=
-if (mp_interesting (mp, p)) {
-  mp_begin_diagnostic (mp);
-  mp_print_nl (mp, "### ");
-@:]]]\#\#\#_}{\.{\#\#\#}@>;
-  if (number_positive(v))
-    mp_print_char (mp, xord ('-'));
-  if (t == mp_dependent) {
-    number_clone (vv, mp->max_c[mp_dependent]);
-    fraction_to_round_scaled (vv);
-  } else {
-    number_clone (vv, mp->max_c[mp_proto_dependent]);
-  }
-  if (!number_equal(vv, unity_t)) {
-    print_number (vv);
-  }
-  mp_print_variable_name (mp, p);
-  while (indep_scale (p) > 0) {
-    mp_print (mp, "*4");
-    set_indep_scale(p, indep_scale(p)-2);
-  }
-  if (t == mp_dependent)
-    mp_print_char (mp, xord ('='));
-  else
-    mp_print (mp, " = ");
-  mp_print_dependency (mp, s, t);
-  mp_end_diagnostic (mp, false);
-}
-
-@ Finally, there are dependent and proto-dependent variables whose
-dependency lists must be brought up to date.
-
-@<Substitute new dependencies...@>=
-{
-  mp_number arg1, arg2, ret;
-  new_number (arg1);
-  new_number (arg2);
-  new_number (ret);
-for (t = mp_dependent; t <= mp_proto_dependent; t++) {
-  r = mp->max_link[t];
-  while (r != NULL) {
-    q = (mp_value_node) dep_info (r);
-    number_clone (arg1, dep_value (r));
-    number_clone (arg2, v);
-    number_negate (arg2);
-    make_fraction (ret, arg1, arg2);
-    set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q), ret, s, t, mp_dependent));
-    if (dep_list (q) == (mp_node) mp->dep_final)
-      mp_make_known (mp, q, mp->dep_final);
-    q = r;
-    r = (mp_value_node) mp_link (r);
-    mp_free_dep_node (mp, q);
-  }
-}
-  free_number (ret);
-  free_number (arg1);
-  free_number (arg2);
-}
-
-@ @<Substitute new proto...@>=
-for (t = mp_dependent; t <= mp_proto_dependent; t++) {
-  r = mp->max_link[t];
-  while (r != NULL) {
-    q = (mp_value_node) dep_info (r);
-    if (t == mp_dependent) {    /* for safety's sake, we change |q| to |mp_proto_dependent| */
-      mp_number x;
-      new_number (x);
-      if (cur_exp_node () == (mp_node) q && mp->cur_exp.type == mp_dependent)
-        mp->cur_exp.type = mp_proto_dependent;
-      set_dep_list (q,
-                    mp_p_over_v (mp, (mp_value_node) dep_list (q),
-                                           unity_t, mp_dependent,
-                                           mp_proto_dependent));
-      mp_type (q) = mp_proto_dependent;
-      number_clone (x, dep_value (r));
-      fraction_to_round_scaled (x);
-      set_dep_value (r, x);
-      free_number (x);
-    }
-    {
-      mp_number arg1, arg2;
-      mp_number ret;
-      new_number (ret);
-      new_number (arg1);
-      new_number (arg2);
-      number_clone (arg1, dep_value (r));
-      number_clone (arg2, v);
-      number_negate (arg2);
-      make_scaled (ret, arg1, arg2);
-      free_number (arg1);
-      free_number (arg2);
-      set_dep_list (q, mp_p_plus_fq (mp, (mp_value_node) dep_list (q),
-                                             ret, s,
-                                             mp_proto_dependent,
-                                             mp_proto_dependent));
-      free_number (ret);
-    }
-    if (dep_list (q) == (mp_node) mp->dep_final)
-      mp_make_known (mp, q, mp->dep_final);
-    q = r;
-    r = (mp_value_node) mp_link (r);
-    mp_free_dep_node (mp, q);
-  }
-}
-
 
 @ A global variable |var_flag| is set to a special command code
 just before \MP\ calls |scan_expression|, if the expression should be
@@ -22719,7 +22840,7 @@ RESTART:
           mp_do_binary (mp, p, mp_times);
         } else {
           mp_frac_mult (mp, num, denom);
-          mp_free_node (mp, p, value_node_size);
+          mp_free_value_node (mp, p);
         }
         free_number (absnum);
         free_number (absdenom);
@@ -22943,7 +23064,7 @@ static void mp_stash_in (MP mp, mp_node p) {
         mp_new_dep (mp, p, mp_dependent, q);
       }
       mp_recycle_value (mp, cur_exp_node ());
-      mp_free_node (mp, cur_exp_node (), value_node_size);
+      mp_free_value_node (mp, cur_exp_node ());
     } else {
       set_dep_list ((mp_value_node) p,
                     dep_list ((mp_value_node) cur_exp_node ()));
@@ -23529,8 +23650,7 @@ static int mp_scan_path (MP mp);
 static void mp_scan_expression (MP mp) {
   int my_var_flag;      /* initial value of |var_flag| */
   my_var_flag = mp->var_flag;
-  mp->expand_depth_count++;
-  mp_check_expansion_depth (mp);
+  check_expansion_depth();
 RESTART:
   if ((cur_cmd() < mp_min_primary_command) ||
       (cur_cmd() > mp_max_primary_command))
@@ -24075,28 +24195,33 @@ static quarterword mp_scan_direction (MP mp) {
 @ Finally, we sometimes need to scan an expression whose value is
 supposed to be either |true_code| or |false_code|.
 
-@<Declare the basic parsing subroutines@>=
-static void mp_get_boolean (MP mp) {
+@d mp_get_boolean(mp) do {
   mp_get_x_next (mp);
   mp_scan_expression (mp);
   if (mp->cur_exp.type != mp_boolean_type) {
-    mp_value new_expr;
-    const char *hlp[] = { 
-           "The expression shown above should have had a definite",
-           "true-or-false value. I'm changing it to `false'.",
-           NULL };
-    memset(&new_expr,0,sizeof(mp_value));
-    new_number(new_expr.data.n);
-    mp_disp_err(mp, NULL);
-    set_number_from_boolean (new_expr.data.n, mp_false_code);
-    mp_back_error (mp, "Undefined condition will be treated as `false'", hlp, true);
-@.Undefined condition...@>;
-    mp_get_x_next (mp);
-    mp_flush_cur_exp (mp, new_expr);
-    mp->cur_exp.type = mp_boolean_type;
+    do_boolean_error(mp);
   }
+} while (0)
+
+@<Declare the basic parsing subroutines@>=
+static void do_boolean_error (MP mp) {
+  mp_value new_expr;
+  const char *hlp[] = { 
+         "The expression shown above should have had a definite",
+         "true-or-false value. I'm changing it to `false'.",
+         NULL };
+  memset(&new_expr,0,sizeof(mp_value));
+  new_number(new_expr.data.n);
+  mp_disp_err(mp, NULL);
+  set_number_from_boolean (new_expr.data.n, mp_false_code);
+  mp_back_error (mp, "Undefined condition will be treated as `false'", hlp, true);
+  mp_get_x_next (mp);
+  mp_flush_cur_exp (mp, new_expr);
+  mp->cur_exp.type = mp_boolean_type;
 }
 
+@ @<Declarations@>=
+static void do_boolean_error (MP mp);
 
 @* Doing the operations.
 The purpose of parsing is primarily to permit people to avoid piles of
@@ -24452,7 +24577,6 @@ static void mp_do_unary (MP mp, quarterword c) {
   mp_node p;      /* for list manipulation */
   mp_value new_expr;
   check_arith();
-  memset(&new_expr,0,sizeof(mp_value));
   if (number_greater (internal_value (mp_tracing_commands), two_t)) {
     /* Trace the current unary operation */
     mp_begin_diagnostic (mp);
@@ -24592,6 +24716,7 @@ static void mp_do_unary (MP mp, quarterword c) {
   case mp_angle_op:
     if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
       mp_number narg;
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       new_angle (narg);
       p = value_node (cur_exp_node ());
@@ -24726,6 +24851,7 @@ static void mp_do_unary (MP mp, quarterword c) {
       /* Find the design size of the font whose name is |cur_exp| */
       /* One simple application of |find_font| is the implementation of the |font_size|
          operator that gets the design size for a given font name. */
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       set_number_from_scaled (new_expr.data.n, 
                (mp->font_dsize[mp_find_font (mp, mp_str (mp, cur_exp_str ()))] + 8) / 16);
@@ -24737,12 +24863,14 @@ static void mp_do_unary (MP mp, quarterword c) {
        of different types of operands. */
     switch (mp->cur_exp.type) {
     case mp_string_type:
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       number_clone (new_expr.data.n, unity_t);
       number_multiply_int(new_expr.data.n, cur_exp_str ()->len);
       mp_flush_cur_exp (mp, new_expr);
       break;
     case mp_path_type:
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       mp_path_length (mp, &new_expr.data.n);
       mp_flush_cur_exp (mp, new_expr);
@@ -24752,12 +24880,14 @@ static void mp_do_unary (MP mp, quarterword c) {
       number_abs (cur_exp_value_number ());
       break;
     case mp_picture_type:
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       mp_pict_length (mp, &new_expr.data.n);
       mp_flush_cur_exp (mp, new_expr);
       break;
     default:
       if (mp_nice_pair (mp, cur_exp_node (), mp->cur_exp.type)) {
+        memset(&new_expr,0,sizeof(mp_value));
         new_number(new_expr.data.n);
         pyth_add (new_expr.data.n, value_number (x_part (value_node (cur_exp_node ()))),
                                    value_number (y_part (value_node (cur_exp_node ()))));
@@ -24769,38 +24899,46 @@ static void mp_do_unary (MP mp, quarterword c) {
     break;
   case mp_turning_op:
     if (mp->cur_exp.type == mp_pair_type) {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       set_number_to_zero(new_expr.data.n);
       mp_flush_cur_exp (mp, new_expr);
     } else if (mp->cur_exp.type != mp_path_type) {
       mp_bad_unary (mp, mp_turning_op);
     } else if (mp_left_type (cur_exp_knot ()) == mp_endpoint) {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       new_expr.data.p = NULL;
       mp_flush_cur_exp (mp, new_expr);      /* not a cyclic path */
     } else {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       mp_turn_cycles_wrapper (mp, &new_expr.data.n, cur_exp_knot ());
       mp_flush_cur_exp (mp, new_expr);
     }
     break;
   case mp_boolean_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_range (mp_boolean_type, mp_unknown_boolean);
     break;
   case mp_string_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_range (mp_string_type, mp_unknown_string);
     break;
   case mp_pen_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_range (mp_pen_type, mp_unknown_pen);
     break;
   case mp_path_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_range (mp_path_type, mp_unknown_path);
     break;
   case mp_picture_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_range (mp_picture_type, mp_unknown_picture);
     break;
@@ -24808,10 +24946,12 @@ static void mp_do_unary (MP mp, quarterword c) {
   case mp_color_type:
   case mp_cmykcolor_type:
   case mp_pair_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_test (c);
     break;
   case mp_numeric_type:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     type_range (mp_known, mp_independent);
     break;
@@ -24820,6 +24960,7 @@ static void mp_do_unary (MP mp, quarterword c) {
     mp_test_known (mp, c);
     break;
   case mp_cycle_op:
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     if (mp->cur_exp.type != mp_path_type)
       set_number_from_boolean (new_expr.data.n, mp_false_code);
@@ -24836,6 +24977,7 @@ static void mp_do_unary (MP mp, quarterword c) {
     if (mp->cur_exp.type != mp_path_type) {
       mp_bad_unary (mp, mp_arc_length);
     } else {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       mp_get_arc_length (mp, &new_expr.data.n, cur_exp_knot ());
       mp_flush_cur_exp (mp, new_expr);
@@ -24849,6 +24991,7 @@ static void mp_do_unary (MP mp, quarterword c) {
     /* Here we use the fact that |c-filled_op+fill_code| is the desired graphical
     object |type|. */
 @^data structure assumptions@>
+    memset(&new_expr,0,sizeof(mp_value));
     new_number(new_expr.data.n);
     if (mp->cur_exp.type != mp_picture_type) {
       set_number_from_boolean (new_expr.data.n, mp_false_code);
@@ -25099,7 +25242,7 @@ static void negate_cur_expr(MP mp) {
       }
     }                             /* if |cur_type=mp_known| then |cur_exp=0| */
     mp_recycle_value (mp, q);
-    mp_free_node (mp, q, value_node_size);
+    mp_free_value_node (mp, q);
     break;
   case mp_dependent:
   case mp_proto_dependent:
@@ -25182,7 +25325,7 @@ static void mp_take_part (MP mp, quarterword c) {
   set_value_node (mp->temp_val, p);
   mp_type (mp->temp_val) = mp->cur_exp.type;
   mp_link (p) = mp->temp_val;
-  mp_free_node (mp, cur_exp_node (), value_node_size); 
+  mp_free_value_node (mp, cur_exp_node ()); 
   switch (c) {
   case mp_x_part:
     if (mp->cur_exp.type == mp_pair_type)
@@ -26153,18 +26296,17 @@ static void mp_finish_binary (MP mp, mp_node old_p, mp_node old_exp) {
   /* Recycle any sidestepped |independent| capsules */
   if (old_p != NULL) {
     mp_recycle_value (mp, old_p);
-    mp_free_node (mp, old_p, value_node_size);
+    mp_free_value_node (mp, old_p);
   }
   if (old_exp != NULL) {
     mp_recycle_value (mp, old_exp);
-    mp_free_node (mp, old_exp, value_node_size);
+    mp_free_value_node (mp, old_exp);
   }
 }
 static void mp_do_binary (MP mp, mp_node p, integer c) {
   mp_node q, r, rr;     /* for list manipulation */
   mp_node old_p, old_exp;       /* capsules to recycle */
   mp_value new_expr;
-  memset(&new_expr,0,sizeof(mp_value));
   check_arith();
   if (number_greater (internal_value (mp_tracing_commands), two_t)) {
     /* Trace the current binary operation */
@@ -26284,6 +26426,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
       mp_bad_binary (mp, p, (quarterword) c);
       goto DONE;
     } else if (mp->cur_exp.type == mp_string_type) {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       set_number_from_scaled (new_expr.data.n, mp_str_vs_str (mp, value_str (p), cur_exp_str ()));
       mp_flush_cur_exp (mp, new_expr);
@@ -26297,6 +26440,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
       while ((q != cur_exp_node ()) && (q != p))
         q = value_node (q);
       if (q == p) {
+        memset(&new_expr,0,sizeof(mp_value));
         new_number(new_expr.data.n);
         set_cur_exp_node (NULL);
         mp_flush_cur_exp (mp, new_expr);
@@ -26413,6 +26557,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
       }
     
     } else if (mp->cur_exp.type == mp_boolean_type) {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       set_number_from_boolean (new_expr.data.n, number_to_scaled(cur_exp_value_number ()) - 
                                                 number_to_scaled (value_number (p)));
@@ -26433,6 +26578,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
         hlp[1]  = NULL;
       }
       mp_disp_err(mp, NULL);
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       set_number_from_boolean (new_expr.data.n, mp_false_code);
       mp_back_error (mp,"Unknown relation will be considered false", hlp, true);
@@ -26483,7 +26629,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
       new_fraction (vv);
       if (mp_type (p) == mp_known) {
         number_clone(vv, value_number (p));
-        mp_free_node (mp, p, value_node_size);
+        mp_free_value_node (mp, p);
       } else {
         number_clone(vv, cur_exp_value_number ());
         mp_unstash_cur_exp (mp, p);
@@ -26691,6 +26837,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
     if (mp->cur_exp.type == mp_pair_type)
       mp_pair_to_path (mp);
     if ((mp->cur_exp.type == mp_path_type) && (mp_type (p) == mp_known)) {
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       mp_get_arc_time (mp, &new_expr.data.n, cur_exp_knot (), value_number (p));
       mp_flush_cur_exp (mp, new_expr);
@@ -26732,7 +26879,7 @@ static void mp_do_binary (MP mp, mp_node p, integer c) {
     break;
   }                            /* there are no other cases */
   mp_recycle_value (mp, p);
-  mp_free_node (mp, p, value_node_size);        /* |return| to avoid this */
+  mp_free_value_node (mp, p);        /* |return| to avoid this */
   mp_finish_binary (mp, old_p, old_exp);
 }
 
@@ -26911,62 +27058,54 @@ static void mp_add_or_subtract (MP mp, mp_node p, mp_node q, quarterword c) {
   } else {
     if (c == mp_minus)
       mp_negate_dep_list (mp, v);
-    @<Add operand |p| to the dependency list |v|@>;
+    /* Add operand |p| to the dependency list |v| */
+    /* We prefer |dependent| lists to |mp_proto_dependent| ones, because it is
+       nice to retain the extra accuracy of |fraction| coefficients.
+       But we have to handle both kinds, and mixtures too. */
+    if (mp_type (p) == mp_known) {
+      /* Add the known |value(p)| to the constant term of |v| */
+      while (dep_info (v) != NULL) {
+        v = (mp_value_node) mp_link (v);
+      }
+      slow_add (vv, value_number (p), dep_value (v));
+      set_dep_value (v, vv);
+    } else {
+      s = mp_type (p);
+      r = (mp_value_node) dep_list ((mp_value_node) p);
+      if (t == mp_dependent) {
+        if (s == mp_dependent) {
+          mp_number ret1, ret2;
+          new_fraction (ret1);
+          new_fraction (ret2);
+          mp_max_coef (mp, &ret1, r);
+          mp_max_coef (mp, &ret2, v);
+          number_add (ret1, ret2);
+          free_number (ret2);
+          if (number_less (ret1, coef_bound_k)) {
+            v = mp_p_plus_q (mp, v, r, mp_dependent);
+            free_number (ret1);
+            goto DONE;
+          }
+          free_number (ret1);
+        }                           /* |fix_needed| will necessarily be false */
+        t = mp_proto_dependent;
+        v = mp_p_over_v (mp, v, unity_t, mp_dependent, mp_proto_dependent);
+      }
+      if (s == mp_proto_dependent)
+        v = mp_p_plus_q (mp, v, r, mp_proto_dependent);
+      else
+        v = mp_p_plus_fq (mp, v, unity_t, r, mp_proto_dependent, mp_dependent);
+    DONE:
+      /* Output the answer, |v| (which might have become |known|) */
+      if (q != NULL) {
+        mp_dep_finish (mp, v, (mp_value_node) q, t);
+      } else {
+        mp->cur_exp.type = t;
+        mp_dep_finish (mp, v, NULL, t);
+      }
+    }
   }
   free_number (vv);
-}
-
-
-@ We prefer |dependent| lists to |mp_proto_dependent| ones, because it is
-nice to retain the extra accuracy of |fraction| coefficients.
-But we have to handle both kinds, and mixtures too.
-
-@<Add operand |p| to the dependency list |v|@>=
-if (mp_type (p) == mp_known) {
-  /* Add the known |value(p)| to the constant term of |v| */
-  mp_number r1;
-  new_number (r1);
-  while (dep_info (v) != NULL) {
-    /* clang: dereference of null pointer */ assert(v);
-    v = (mp_value_node) mp_link (v);
-  }
-  slow_add (r1, value_number (p), dep_value (v));
-  set_dep_value (v, r1);
-  free_number (r1);
-} else {
-  s = mp_type (p);
-  r = (mp_value_node) dep_list ((mp_value_node) p);
-  if (t == mp_dependent) {
-    if (s == mp_dependent) {
-      mp_number ret1, ret2;
-      new_fraction (ret1);
-      new_fraction (ret2);
-      mp_max_coef (mp, &ret1, r);
-      mp_max_coef (mp, &ret2, v);
-      number_add (ret1, ret2);
-      free_number (ret2);
-      if (number_less (ret1, coef_bound_k)) {
-        v = mp_p_plus_q (mp, v, r, mp_dependent);
-        free_number (ret1);
-        goto DONE;
-      }
-      free_number (ret1);
-    }                           /* |fix_needed| will necessarily be false */
-    t = mp_proto_dependent;
-    v = mp_p_over_v (mp, v, unity_t, mp_dependent, mp_proto_dependent);
-  }
-  if (s == mp_proto_dependent)
-    v = mp_p_plus_q (mp, v, r, mp_proto_dependent);
-  else
-    v = mp_p_plus_fq (mp, v, unity_t, r, mp_proto_dependent, mp_dependent);
-DONE:
-  /* Output the answer, |v| (which might have become |known|) */
-  if (q != NULL) {
-    mp_dep_finish (mp, v, (mp_value_node) q, t);
-  } else {
-    mp->cur_exp.type = t;
-    mp_dep_finish (mp, v, NULL, t);
-  }
 }
 
 
@@ -27120,7 +27259,7 @@ static void mp_frac_mult (MP mp, mp_number n, mp_number d) {
   }
   if (old_exp != NULL) {
     mp_recycle_value (mp, old_exp);
-    mp_free_node (mp, old_exp, value_node_size);
+    mp_free_value_node (mp, old_exp);
   }
   free_number (v);
 }
@@ -27282,7 +27421,7 @@ static void mp_set_up_trans (MP mp, quarterword c) {
     mp_get_x_next (mp);
   DONE:
     mp_recycle_value (mp, p);
-    mp_free_node (mp, p, value_node_size);
+    mp_free_value_node (mp, p);
 
   }
   /* If the current transform is entirely known, stash it in global variables;
@@ -27665,27 +27804,26 @@ sum is similar.
   new_number(tot);
   new_number (ret);
   set_number_from_addition(tot,mp->txx,mp->txy);
-  number_add(tot,mp->tx);
   take_scaled (ret, h->minx, tot);
-  number_clone(h->minx, ret);
+  set_number_from_addition(h->minx,ret, mp->tx);
   take_scaled (ret, h->maxx, tot);
-  number_clone(h->maxx, ret);
+  set_number_from_addition(h->maxx,ret, mp->tx);
+
   set_number_from_addition(tot,mp->tyx,mp->tyy);
-  number_add(tot,mp->ty);
   take_scaled (ret, h->miny, tot);
-  number_clone(h->miny, ret);
+  set_number_from_addition(h->miny, ret, mp->ty);
   take_scaled (ret, h->maxy, tot);
-  number_clone(h->maxy, ret);
-  free_number (ret);
-  
+  set_number_from_addition(h->maxy, ret, mp->ty);
+
   set_number_from_addition(tot, mp->txx, mp->txy);
-  if (number_negative(tot) < 0) {
+  if (number_negative(tot)) {
     number_swap(h->minx, h->maxx);
   }
   set_number_from_addition(tot, mp->tyx, mp->tyy);
-  if (number_negative(tot) < 0) {
+  if (number_negative(tot)) {
     number_swap(h->miny, h->maxy);
   }
+  free_number (ret);  
   free_number (tot);
 }
 
@@ -27905,7 +28043,7 @@ if (mp->cur_exp.type == mp_known) {
   mp_bilin2 (mp, x_part (r), xx_part (qq), value_number (y_part (q)),
              xy_part (qq), x_part (qq));
   mp_recycle_value (mp, pp);
-  mp_free_node (mp, pp, value_node_size);
+  mp_free_value_node (mp, pp);
 }
 
 
@@ -28249,17 +28387,14 @@ static void mp_find_point (MP mp, mp_number v_orig, quarterword c) {
     if (mp_left_type (p) == mp_endpoint) {
       set_number_to_zero(v);
     } else  {
-      /* v = n - 1 - ((-v - 1) % n) */
-      mp_number secondpart;
-      new_number (secondpart);
-      number_clone (secondpart, v);
-      number_negate (secondpart);
-      number_add_scaled (secondpart, -1);
-      number_modulo (secondpart, n);
-      number_clone (v, n);      
+      /* v = n - 1 - ((-v - 1) % n)
+          == - ((-v - 1) % n) - 1 + n */
+      number_negate (v);
       number_add_scaled (v, -1);
-      number_substract (v, secondpart);
-      free_number (secondpart);
+      number_modulo (v, n);
+      number_negate (v);
+      number_add_scaled (v, -1);
+      number_add (v, n);
     }
   } else if (number_greater(v, n)) {
     if (mp_left_type (p) == mp_endpoint)
@@ -28273,45 +28408,32 @@ static void mp_find_point (MP mp, mp_number v_orig, quarterword c) {
     number_substract (v, unity_t);
   }
   if (number_nonzero(v)) {
-    @<Insert a fractional node by splitting the cubic@>;
+    /* Insert a fractional node by splitting the cubic */
+    convert_scaled_to_fraction (v);
+    mp_split_cubic (mp, p, v);
+    p = mp_next_knot (p);
   }
-  @<Set the current expression to the desired path coordinates@>;
+  /* Set the current expression to the desired path coordinates */
+  switch (c) {
+  case mp_point_of:
+    mp_pair_value (mp, p->x_coord, p->y_coord);
+    break;
+  case mp_precontrol_of:
+    if (mp_left_type (p) == mp_endpoint)
+      mp_pair_value (mp, p->x_coord, p->y_coord);
+    else
+      mp_pair_value (mp, p->left_x, p->left_y);
+    break;
+  case mp_postcontrol_of:
+    if (mp_right_type (p) == mp_endpoint)
+      mp_pair_value (mp, p->x_coord, p->y_coord);
+    else
+      mp_pair_value (mp, p->right_x, p->right_y);
+    break;
+  }  /* there are no other cases */
   free_number (v);
   free_number (n);
 }
-
-
-@ @<Insert a fractional node...@>=
-{
-  mp_number arg1;
-  new_number (arg1);
-  number_clone (arg1, v);
-  convert_scaled_to_fraction (arg1);
-  mp_split_cubic (mp, p, arg1);
-  free_number (arg1);
-  p = mp_next_knot (p);
-}
-
-
-@ @<Set the current expression to the desired path coordinates...@>=
-switch (c) {
-case mp_point_of:
-  mp_pair_value (mp, p->x_coord, p->y_coord);
-  break;
-case mp_precontrol_of:
-  if (mp_left_type (p) == mp_endpoint)
-    mp_pair_value (mp, p->x_coord, p->y_coord);
-  else
-    mp_pair_value (mp, p->left_x, p->left_y);
-  break;
-case mp_postcontrol_of:
-  if (mp_right_type (p) == mp_endpoint)
-    mp_pair_value (mp, p->x_coord, p->y_coord);
-  else
-    mp_pair_value (mp, p->right_x, p->right_y);
-  break;
-}                               /* there are no other cases */
-
 
 @ Function |new_text_node| owns the reference count for its second argument
 (the text string) but not its first (the font name).
@@ -28328,7 +28450,7 @@ static void mp_do_infont (MP mp, mp_node p) {
   mp_link (obj_tail (q)) =
     mp_new_text_node (mp, mp_str (mp, cur_exp_str ()), value_str (p));
   obj_tail (q) = mp_link (obj_tail (q));
-  mp_free_node (mp, p, value_node_size);
+  mp_free_value_node (mp, p);
   new_expr.data.node = (mp_node)q;
   mp_flush_cur_exp (mp, new_expr);
   mp->cur_exp.type = mp_picture_type;
@@ -28372,7 +28494,6 @@ void mp_do_statement (MP mp) {                               /* governs \MP's ac
      `$\langle\,$expression$\,\rangle\,$\&{endgroup}'; */
     /* The most important statements begin with expressions */
     mp_value new_expr;
-    memset(&new_expr,0,sizeof(mp_value));
     mp->var_flag = mp_assignment;
     mp_scan_expression (mp);
     if (cur_cmd() < mp_end_group) {
@@ -28381,13 +28502,12 @@ void mp_do_statement (MP mp) {                               /* governs \MP's ac
       else if (cur_cmd() == mp_assignment)
         mp_do_assignment (mp);
       else if (mp->cur_exp.type == mp_string_type) {
-       /* Do a title */
-       if (number_positive (internal_value (mp_tracing_titles))) {
-         mp_print_nl (mp, "");
-         mp_print_str (mp, cur_exp_str ());
-         update_terminal();
-       }
-
+        /* Do a title */
+        if (number_positive (internal_value (mp_tracing_titles))) {
+          mp_print_nl (mp, "");
+          mp_print_str (mp, cur_exp_str ());
+          update_terminal();
+        }
       } else if (mp->cur_exp.type != mp_vacuous) {
         const char *hlp[] = {
              "I couldn't find an `=' or `:=' after the",
@@ -28398,6 +28518,7 @@ void mp_do_statement (MP mp) {                               /* governs \MP's ac
         mp_back_error (mp, "Isolated expression", hlp, true);
         mp_get_x_next (mp);
       }
+      memset(&new_expr,0,sizeof(mp_value));
       new_number(new_expr.data.n);
       set_number_to_zero (new_expr.data.n);
       mp_flush_cur_exp (mp, new_expr);
@@ -28701,7 +28822,7 @@ void mp_do_assignment (MP mp) {
         mp->cur_exp.type = mp_und_type (mp, p);
         mp_recycle_value (mp, p);
         mp_type (p) = mp->cur_exp.type;
-        set_value_number (p, zero_t); /* todo: this was |null| */
+        set_value_number (p, zero_t);
         mp_make_exp_copy (mp, p);
         p = mp_stash_cur_exp (mp);
         mp_unstash_cur_exp (mp, q);
@@ -28881,7 +29002,7 @@ RESTART:
   check_arith();
   mp_recycle_value (mp, lhs);
   free_number (v);
-  mp_free_node (mp, lhs, value_node_size);
+  mp_free_value_node (mp, lhs);
 }
 
 @ The first argument to |try_eq| is the location of a value node
@@ -29023,7 +29144,7 @@ void mp_try_eq (MP mp, mp_node l, mp_node r) {
         mp_node pp = cur_exp_node ();
         set_cur_exp_value_number (value_number (pp));
         mp->cur_exp.type = mp_known;
-        mp_free_node (mp, pp, value_node_size);
+        mp_free_value_node (mp, pp);
       }
     }
   }
