@@ -4388,21 +4388,18 @@ that holds the current command value of the token, and an
 @d set_equiv(A,B)  do {
    FUNCTION_TRACE3 ("set_equiv(%p, %d)\n",(A),(B));
    (A)->v.data.node=NULL ;
-   (A)->v.data.sym=NULL ;
    (A)->v.data.indep.serial=(B);
 } while (0)
 
 @d set_equiv_node(A,B)  do {
    FUNCTION_TRACE3 ("set_equiv_node(%p, %p)\n",(A),(B));
    (A)->v.data.node=(B) ;
-   (A)->v.data.sym=NULL ;
    (A)->v.data.indep.serial=0;
 } while (0)
 
 @d set_equiv_sym(A,B)  do {
    FUNCTION_TRACE3 ("set_equiv_sym(%p, %p)\n",(A),(B));
-   (A)->v.data.node=NULL ;
-   (A)->v.data.sym=(B) ;
+   (A)->v.data.node=(mp_node)(B);
    (A)->v.data.indep.serial=0;
 } while (0)
 
@@ -4430,7 +4427,7 @@ static mp_node do_get_equiv_node (MP mp, mp_sym A) {
   return A->v.data.node;
 }
 static mp_sym do_get_equiv_sym (MP mp, mp_sym A) {
-  FUNCTION_TRACE3 ("%p = do_get_equiv_sym(%p)\n",A->v.data.sym,A);
+  FUNCTION_TRACE3 ("%p = do_get_equiv_sym(%p)\n",A->v.data.node,A);
   return A->v.data.sym;
 }
 #else
@@ -4438,7 +4435,7 @@ static mp_sym do_get_equiv_sym (MP mp, mp_sym A) {
 #define eq_type(A)      (A)->type
 #define equiv(A)        (A)->v.data.indep.serial
 #define equiv_node(A)   (A)->v.data.node
-#define equiv_sym(A)    (A)->v.data.sym
+#define equiv_sym(A)    (mp_sym)(A)->v.data.node
 #endif
 
 @ @<Declarations...@>=
@@ -6665,7 +6662,6 @@ static void mp_save_variable (MP mp, mp_sym q) {
     p->value.v.data.indep.scale = eq_type (q);
     p->value.v.data.indep.serial = equiv(q);
     p->value.v.data.node = equiv_node(q);
-    p->value.v.data.sym = equiv_sym(q);
     p->value.v.data.p = (mp_knot)q;
     mp->save_ptr = p;
   }
@@ -6684,7 +6680,6 @@ static void mp_unsave_variable (MP mp) {
   set_eq_type(q, mp->save_ptr->value.v.data.indep.scale);
   set_equiv  (q,mp->save_ptr->value.v.data.indep.serial);
   q->v.data.node = mp->save_ptr->value.v.data.node; 
-  q->v.data.sym = mp->save_ptr->value.v.data.sym;
   if (eq_type (q) % mp_outer_tag == mp_tag_token) {
     mp_node pp = q->v.data.node;
     if (pp != NULL)
