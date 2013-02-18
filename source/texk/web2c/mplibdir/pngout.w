@@ -653,7 +653,7 @@ int mp_png_save_to_file (MP mp, const bitmap_t * bitmap, const char *path, int c
     /* Compression level |3| appears the best tradeoff between 
        disk size and compression speed */
     png_set_compression_level(png_ptr, 3); 
-
+    png_set_filter(png_ptr,0,PNG_FILTER_NONE);
     /* setup some information */
     if (1) {
         png_text  text[2];
@@ -708,10 +708,8 @@ int mp_png_save_to_file (MP mp, const bitmap_t * bitmap, const char *path, int c
         for (i = 0; i < bitmap->width*bitmap->height*4; i+=4) {
 	   unsigned char b = bitmap->data[i];
 	   unsigned char g = bitmap->data[i+1];
-	   unsigned char r = bitmap->data[i+2];
-	   unsigned char a = bitmap->data[i+3];
-	   bitmap->data[i]   = a;
-	   bitmap->data[i+1] = r;
+	   bitmap->data[i]   = bitmap->data[i+3];
+	   bitmap->data[i+1] = bitmap->data[i+2];
 	   bitmap->data[i+2] = g;
 	   bitmap->data[i+3] = b;
         }
@@ -726,10 +724,9 @@ int mp_png_save_to_file (MP mp, const bitmap_t * bitmap, const char *path, int c
 	   unsigned char b = bitmap->data[i];
 	   unsigned char g = bitmap->data[i+1];
 	   unsigned char r = bitmap->data[i+2];
-	   unsigned char a = bitmap->data[i+3];
     	   bitmap->data[j++] = ((r==g && r==b) ? r : 0.2126*r + 0.7152*g + 0.0722*b);
 	   if (colormodel == PNG_COLOR_TYPE_GRAY_ALPHA)
-	     bitmap->data[j++] = a;
+	     bitmap->data[j++] = bitmap->data[i+3];
         }
         png_write_png (png_ptr, info_ptr, PNG_TRANSFORM_IDENTITY, NULL);
     }
