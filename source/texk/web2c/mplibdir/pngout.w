@@ -727,7 +727,7 @@ int mp_png_save_to_file (MP mp, const bitmap_t * bitmap, const char *path, int c
 	   unsigned char g = bitmap->data[i+1];
 	   unsigned char r = bitmap->data[i+2];
 	   unsigned char a = bitmap->data[i+3];
-    	   bitmap->data[j++] = ((r==g==b) ? r : 0.2126*r + 0.7152*g + 0.0722*b);
+    	   bitmap->data[j++] = ((r==g && r==b) ? r : 0.2126*r + 0.7152*g + 0.0722*b);
 	   if (colormodel == PNG_COLOR_TYPE_GRAY_ALPHA)
 	     bitmap->data[j++] = a;
         }
