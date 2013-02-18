@@ -879,11 +879,11 @@ int mp_png_gr_ship_out (mp_edge_object *hh, const char *options, int standalone)
 @ @(mplibpng.h@>=
 #ifndef MPLIBPNG_H
 #define MPLIBPNG_H 1
-int mp_png_ship_out (mp_edge_object *hh, int prologues) ;
+int mp_png_ship_out (mp_edge_object *hh, char *options) ;
 #endif
 
 @ @c
-int mp_png_ship_out (mp_edge_object *hh, int prologues) {
-  return mp_png_gr_ship_out (hh, "", (int)true);
+int mp_png_ship_out (mp_edge_object *hh, char *options) {
+  return mp_png_gr_ship_out (hh, options, (int)true);
 }
 

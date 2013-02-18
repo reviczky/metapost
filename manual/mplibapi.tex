@@ -1098,14 +1098,14 @@ generate the \SVG\ output for the figure and save it internally. A subsequent ca
 Returns zero for success. 
 
 
-\cfunction{int }{mp_png_ship_out}{(mp_edge_object*hh,int prologues)}
+\cfunction{int }{mp_png_ship_out}{(mp_edge_object*hh, char *options)}
 
 If you have an \type{mp_edge_object},  you can call this function. It will 
 generate the \PNG\ bitmap for the figure and save it internally. A subsequent call to
 \type{mp_rundata} will find the generated data in the \type{ship_out} field.
 
-Note: the \type{prologues} argument is currently unused, but it may be used
-in the future to support \MNG\ output.
+Note: the \type{options} structure follows the same syntax as in the Metapost language,
+and can be NULL.
 
 Returns zero for success. 
 
