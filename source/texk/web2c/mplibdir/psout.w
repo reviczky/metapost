@@ -435,7 +435,7 @@ RESTART:
   do {
     c = enc_getchar (mp);
     append_char_to_buf (c, p, mp->ps->enc_line, ENC_BUF_SIZE);
-  } while (c != 10);
+  } while (c && c != 10);
   append_eol (p, mp->ps->enc_line, ENC_BUF_SIZE);
   if (p - mp->ps->enc_line < 2 || *mp->ps->enc_line == '%')
     goto RESTART;
