@@ -14625,7 +14625,20 @@ static void mp_find_direction_time (MP mp, mp_number *ret, mp_number x_orig, mp_
   mp_number tt;    /* the direction time within a cubic */
   mp_number x, y;
   mp_number abs_x, abs_y;
-  @<Other local variables for |find_direction_time|@>;
+  mp_number x1, x2, x3, y1, y2, y3;  /* multiples of rotated derivatives */
+  mp_number phi;       /* angles of exit and entry at a knot */
+  mp_number t;     /* temp storage */
+  mp_number ab_vs_cd;
+  new_number(max);
+  new_number(x1);
+  new_number(x2);
+  new_number(x3);
+  new_number(y1);
+  new_number(y2);
+  new_number(y3);
+  new_fraction(t);
+  new_angle(phi);
+  new_number (ab_vs_cd);
   set_number_to_zero (*ret); /* just in case */
   new_number (x);
   new_number (y);
@@ -14639,39 +14652,8 @@ static void mp_find_direction_time (MP mp, mp_number *ret, mp_number x_orig, mp_
   number_clone (abs_y, y_orig);
   number_abs (abs_x);
   number_abs (abs_y);
-  @<Normalize the given direction for better accuracy;
-      but |return| with zero result if it's zero@>;
-  p = h;
-  while (1) {
-    if (mp_right_type (p) == mp_endpoint)
-      break;
-    q = mp_next_knot (p);
-    @<Rotate the cubic between |p| and |q|; then
-      |goto found| if the rotated cubic travels due east at some time |tt|;
-      but |break| if an entire cyclic path has been traversed@>;
-    p = q;
-    number_add(n, unity_t);
-  }
-  set_number_to_unity (*ret);
-  number_negate(*ret);
-  goto FREE;
-FOUND:
-  set_number_from_addition (*ret, n, tt);
-  goto FREE;
-FREE: 
-  free_number (x);
-  free_number (y);
-  free_number (abs_x);
-  free_number (abs_y);
-  @<Free local variables for |find_direction_time|@>;
-  free_number (n);
-  free_number (max);
-  free_number (tt);
-}
-
-
-@ @<Normalize the given direction for better accuracy...@>=
-{
+  /* Normalize the given direction for better accuracy;
+     but |return| with zero result if it's zero */
   if (number_less(abs_x, abs_y)) {
     mp_number r1;
     new_fraction (r1);
@@ -14699,65 +14681,120 @@ FREE:
       number_negate(x);
     }
   }
+
+  p = h;
+  while (1) {
+    if (mp_right_type (p) == mp_endpoint)
+      break;
+    q = mp_next_knot (p);
+    /* Rotate the cubic between |p| and |q|; then
+       |goto found| if the rotated cubic travels due east at some time |tt|;
+       but |break| if an entire cyclic path has been traversed */
+    /* Since we're interested in the tangent directions, we work with the
+       derivative $${1\over3}B'(x_0,x_1,x_2,x_3;t)=
+       B(x_1-x_0,x_2-x_1,x_3-x_2;t)$$ instead of
+       $B(x_0,x_1,x_2,x_3;t)$ itself. The derived coefficients are also scale-d 
+       up in order to achieve better accuracy.
+
+       The given path may turn abruptly at a knot, and it might pass the critical
+       tangent direction at such a time. Therefore we remember the direction 
+       |phi| in which the previous rotated cubic was traveling. (The value of 
+       |phi| will be undefined on the first cubic, i.e., when |n=0|.) */
+    set_number_to_zero(tt);
+    @<Set local variables |x1,x2,x3| and |y1,y2,y3| to multiples of the control
+      points of the rotated derivatives@>;
+    if (number_zero(y1))
+      if (number_zero(x1) || number_positive(x1))
+        goto FOUND;
+    if (number_positive(n)) {
+      /* Exit to |found| if an eastward direction occurs at knot |p| */
+      mp_number theta;
+      mp_number tmp;
+      new_angle (theta);
+      n_arg (theta, x1, y1);
+      new_angle (tmp);
+      set_number_from_substraction (tmp, theta, one_eighty_deg_t);
+      if (number_nonnegative(theta) && number_nonpositive(phi) && 
+          number_greaterequal(phi, tmp)) {
+        free_number (tmp);
+        free_number (theta);
+        goto FOUND;
+      }
+      set_number_from_addition (tmp, theta, one_eighty_deg_t);
+      if (number_nonpositive(theta) && number_nonnegative(phi) && 
+      	  number_lessequal(phi, tmp)) {
+        free_number (tmp);
+        free_number (theta);
+        goto FOUND;
+      }
+      free_number (tmp);
+      free_number (theta);
+
+      if (p == h)
+        break;
+    }
+    if (number_nonzero(x3) || number_nonzero(y3)) {
+      n_arg (phi, x3, y3);
+    }
+    /* Exit to |found| if the curve whose derivatives are specified by
+       |x1,x2,x3,y1,y2,y3| travels eastward at some time~|tt| */
+    /* At this point we know that the derivative of |y(t)| is identically zero,
+       and that |x1<0|; but either |x2>=0| or |x3>=0|, so there's some hope of
+       traveling east. */
+    {
+    mp_number arg1, arg2, arg3;
+    new_number (arg1);
+    new_number (arg2);
+    new_number (arg3);
+    number_clone(arg1, x1);
+    number_negate(arg1);
+    number_clone(arg2, x2);
+    number_negate(arg2);
+    number_clone(arg3, x3);
+    number_negate(arg3);
+    mp_crossing_point (mp, &t, arg1, arg2, arg3);
+    free_number (arg1);
+    free_number (arg2);
+    free_number (arg3);
+    if (number_lessequal (t, fraction_one_t))
+      we_found_it;
+    ab_vs_cd (ab_vs_cd, x1, x3, x2, x2);
+    if (number_nonpositive(ab_vs_cd)) {
+      mp_number arg2;
+      new_number (arg2);
+      set_number_from_substraction (arg2, x1, x2);
+      make_fraction (t, x1, arg2);
+      free_number (arg2);
+      we_found_it;
+    }
+    }
+    p = q;
+    number_add(n, unity_t);
+  }
+  set_number_to_unity (*ret);
+  number_negate(*ret);
+  goto FREE;
+FOUND:
+  set_number_from_addition (*ret, n, tt);
+  goto FREE;
+FREE: 
+  free_number (x);
+  free_number (y);
+  free_number (abs_x);
+  free_number (abs_y);
+  free_number (x1);
+  free_number (x2);
+  free_number (x3);
+  free_number (y1);
+  free_number (y2);
+  free_number (y3);
+  free_number (t);
+  free_number (phi);
+  free_number (ab_vs_cd);
+  free_number (n);
+  free_number (max);
+  free_number (tt);
 }
-
-@ Since we're interested in the tangent directions, we work with the
-derivative $${1\over3}B'(x_0,x_1,x_2,x_3;t)=
-B(x_1-x_0,x_2-x_1,x_3-x_2;t)$$ instead of
-$B(x_0,x_1,x_2,x_3;t)$ itself. The derived coefficients are also scale-d up
-in order to achieve better accuracy.
-
-The given path may turn abruptly at a knot, and it might pass the critical
-tangent direction at such a time. Therefore we remember the direction |phi|
-in which the previous rotated cubic was traveling. (The value of |phi| will be
-undefined on the first cubic, i.e., when |n=0|.)
-
-@<Rotate the cubic between |p| and |q|; then...@>=
-set_number_to_zero(tt);
-@<Set local variables |x1,x2,x3| and |y1,y2,y3| to multiples of the control
-  points of the rotated derivatives@>;
-if (number_zero(y1))
-  if (number_zero(x1) || number_positive(x1))
-    goto FOUND;
-if (number_positive(n)) {
-  @<Exit to |found| if an eastward direction occurs at knot |p|@>;
-  if (p == h)
-    break;
-}
-if (number_nonzero(x3) || number_nonzero(y3)) {
-  n_arg (phi, x3, y3);
-}
-@<Exit to |found| if the curve whose derivatives are specified by
-  |x1,x2,x3,y1,y2,y3| travels eastward at some time~|tt|@>
-
- 
-
-@ @<Other local variables for |find_direction_time|@>=
-mp_number x1, x2, x3, y1, y2, y3;  /* multiples of rotated derivatives */
-mp_number phi;       /* angles of exit and entry at a knot */
-mp_number t;     /* temp storage */
-mp_number ab_vs_cd;
-new_number(max);
-new_number(x1);
-new_number(x2);
-new_number(x3);
-new_number(y1);
-new_number(y2);
-new_number(y3);
-new_fraction(t);
-new_angle(phi);
-new_number (ab_vs_cd);
-
-@ @<Free local variables for |find_direction_time|@>=
-free_number (x1);
-free_number (x2);
-free_number (x3);
-free_number (y1);
-free_number (y2);
-free_number (y3);
-free_number (t);
-free_number (phi);
-free_number (ab_vs_cd);
 
 @ @<Set local variables |x1,x2,x3| and |y1,y2,y3| to multiples...@>=
 {
@@ -14838,30 +14875,6 @@ free_number (ab_vs_cd);
   }
 }
  
-
-@ @<Exit to |found| if an eastward direction occurs at knot |p|@>=
-{
-  mp_number theta;
-  mp_number tmp;
-  new_angle (theta);
-  n_arg (theta, x1, y1);
-  new_angle (tmp);
-  set_number_from_substraction (tmp, theta, one_eighty_deg_t);
-  if (number_nonnegative(theta) && number_nonpositive(phi) && number_greaterequal(phi, tmp)) {
-    free_number (tmp);
-    free_number (theta);
-    goto FOUND;
-  }
-  set_number_from_addition (tmp, theta, one_eighty_deg_t);
-  if (number_nonpositive(theta) && number_nonnegative(phi) && number_lessequal(phi, tmp)) {
-    free_number (tmp);
-    free_number (theta);
-    goto FOUND;
-  }
-  free_number (tmp);
-  free_number (theta);
-}
-
 
 @ In this step we want to use the |crossing_point| routine to find the
 roots of the quadratic equation $B(y_1,y_2,y_3;t)=0$.
@@ -14988,40 +15001,6 @@ if (number_greater (t, fraction_one_t))
     }
   }
   goto DONE;
-}
-
-
-@ At this point we know that the derivative of |y(t)| is identically zero,
-and that |x1<0|; but either |x2>=0| or |x3>=0|, so there's some hope of
-traveling east.
-
-@<Exit to |found| if the derivative $B(x_1,x_2,x_3;t)$ becomes |>=0|...@>=
-{
-  mp_number arg1, arg2, arg3;
-  new_number (arg1);
-  new_number (arg2);
-  new_number (arg3);
-  number_clone(arg1, x1);
-  number_negate(arg1);
-  number_clone(arg2, x2);
-  number_negate(arg2);
-  number_clone(arg3, x3);
-  number_negate(arg3);
-  mp_crossing_point (mp, &t, arg1, arg2, arg3);
-  free_number (arg1);
-  free_number (arg2);
-  free_number (arg3);
-  if (number_lessequal (t, fraction_one_t))
-    we_found_it;
-  ab_vs_cd (ab_vs_cd, x1, x3, x2, x2);
-  if (number_nonpositive(ab_vs_cd)) {
-    mp_number arg2;
-    new_number (arg2);
-    set_number_from_substraction (arg2, x1, x2);
-    make_fraction (t, x1, arg2);
-    free_number (arg2);
-    we_found_it;
-  }
 }
 
 
