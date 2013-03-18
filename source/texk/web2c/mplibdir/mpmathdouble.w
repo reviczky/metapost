@@ -927,7 +927,8 @@ static void mp_double_crossing_point (MP mp, mp_number *ret, mp_number aa, mp_nu
   x1 = a - b;
   x2 = b - c;
   do {
-    x = (x1 + x2) / 2;
+    /* not sure why the error correction has to be >= 1E-12 */
+    x = (x1 + x2) / 2 + 1E-12;
     if (x1 - x0 > x0) {
       x2 = x;
       x0 += x0;
@@ -976,7 +977,7 @@ void mp_number_floor (mp_number *i) {
 void mp_double_fraction_to_round_scaled (mp_number *x_orig) {
   double x = x_orig->data.dval;
   x_orig->type = mp_scaled_type;
-  x_orig->data.dval = round(x)/fraction_multiplier;
+  x_orig->data.dval = x/fraction_multiplier;
 }
 
 
