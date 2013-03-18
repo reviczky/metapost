@@ -3892,6 +3892,7 @@ fuss with. Every such parameter has an identifying code number, defined here.
 @<Types...@>=
 enum mp_given_internal {
   mp_output_template = 1,       /* a string set up by \&{outputtemplate} */
+  mp_output_filename,           /* the output file name, accessible as \&{outputfilename} */
   mp_output_format,             /* the output format set up by \&{outputformat} */
   mp_output_format_options,     /* the output format options set up by \&{outputformatoptions} */
   mp_number_system,             /* the number system as set up by \&{numbersystem} */
@@ -3995,6 +3996,7 @@ memset (mp->internal, 0,
   }
 }
 set_internal_type (mp_output_format, mp_string_type);
+set_internal_type (mp_output_filename, mp_string_type);
 set_internal_type (mp_output_format_options, mp_string_type);
 set_internal_type (mp_output_template, mp_string_type);
 set_internal_type (mp_number_system, mp_string_type);
@@ -4100,6 +4102,8 @@ mp_primitive (mp, "restoreclipcolor", mp_internal_quantity, mp_restore_clip_colo
 @:mp_restore_clip_color_}{\&{restoreclipcolor} primitive@>;
 mp_primitive (mp, "outputtemplate", mp_internal_quantity, mp_output_template);
 @:mp_output_template_}{\&{outputtemplate} primitive@>;
+mp_primitive (mp, "outputfilename", mp_internal_quantity, mp_output_filename);
+@:mp_output_filename_}{\&{outputfilename} primitive@>;
 mp_primitive (mp, "numbersystem", mp_internal_quantity, mp_number_system);
 @:mp_number_system_}{\&{numbersystem} primitive@>;
 mp_primitive (mp, "numberprecision", mp_internal_quantity, mp_number_precision);
@@ -4145,6 +4149,7 @@ number_clone (internal_value (mp_restore_clip_color), unity_t);
 number_clone (internal_value (mp_hppp), unity_t);
 number_clone (internal_value (mp_vppp), unity_t);
 set_internal_string (mp_output_template, mp_intern (mp, "%j.%c"));
+set_internal_string (mp_output_filename, mp_intern (mp, ""));
 set_internal_string (mp_output_format, mp_intern (mp, "eps"));
 set_internal_string (mp_output_format_options, mp_intern (mp, ""));
 set_internal_string (mp_number_system, mp_intern (mp, "scaled"));
@@ -4207,6 +4212,7 @@ set_internal_name (mp_procset, xstrdup ("mpprocset"));
 set_internal_name (mp_gtroffmode, xstrdup ("troffmode"));
 set_internal_name (mp_restore_clip_color, xstrdup ("restoreclipcolor"));
 set_internal_name (mp_output_template, xstrdup ("outputtemplate"));
+set_internal_name (mp_output_filename, xstrdup ("outputfilename"));
 set_internal_name (mp_output_format, xstrdup ("outputformat"));
 set_internal_name (mp_output_format_options, xstrdup ("outputformatoptions"));
 set_internal_name (mp_job_name, xstrdup ("jobname"));
@@ -33638,6 +33644,7 @@ void mp_store_true_output_filename (MP mp, int c)
     xfree (mp->last_file_name);
     mp->last_file_name = xstrdup (mp->name_of_file);
   }
+  set_internal_string (mp_output_filename, mp_rts (mp, mp->name_of_file));
 }
 
 @ @<Glob...@>=
