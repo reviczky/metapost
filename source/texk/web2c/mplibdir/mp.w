@@ -16990,7 +16990,7 @@ by analogy with |line_stack|.
 @<Glob...@>=
 integer in_open;        /* the number of lines in the buffer, less one */
 integer in_open_max;    /* highest value of |in_open| ever seen */
-int open_parens;       /* the number of open text files */
+unsigned int open_parens;       /* the number of open text files */
 void **input_file;
 integer *line_stack;    /* the line number for each file */
 char **inext_stack;     /* used for naming \.{MPX} files */
@@ -34140,11 +34140,36 @@ boolean mp_load_preload_file (MP mp) {
   mp->reading_preload = true;
   do {
     mp_do_statement (mp);
-  } while (!(cur_cmd() == mp_stop && cur_mod() == 1));     /* "dump" or EOF */
+  } while (!(cur_cmd() == mp_stop));     /* "dump" or EOF */
   mp->reading_preload = false;
   mp_primitive (mp, "dump", mp_relax, 0); /* reset |dump| */
-  mp_print_char (mp, xord (')'));
-  decr (mp->open_parens);
+  while (mp->input_ptr > 0) {
+    if (token_state)
+      mp_end_token_list (mp);
+    else
+      mp_end_file_reading (mp);
+  }
+  while (mp->loop_ptr != NULL)
+    mp_stop_iteration (mp);
+  while (mp->open_parens > 0) {
+    mp_print (mp, " )");
+    decr (mp->open_parens);
+  };
+  while (mp->cond_ptr != NULL) {
+    mp_print_nl (mp, "(dump occurred when ");
+@.dump occurred...@>;
+    mp_print_cmd_mod (mp, mp_fi_or_else, mp->cur_if);
+    /* `\.{if}' or `\.{elseif}' or `\.{else}' */
+    if (mp->if_line != 0) {
+      mp_print (mp, " on line ");
+      mp_print_int (mp, mp->if_line);
+    }
+    mp_print (mp, " was incomplete)");
+    mp->if_line = if_line_field (mp->cond_ptr);
+    mp->cur_if = mp_name_type (mp->cond_ptr);
+    mp->cond_ptr = mp_link (mp->cond_ptr);
+  }
+
 /*  |(mp->close_file) (mp, mp->mem_file);| */
   cur_file = old_cur_file;
   mp->cur_input  = old_state;
