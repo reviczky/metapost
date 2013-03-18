@@ -864,9 +864,9 @@ void mp_svg_print_glyph_defs (MP mp, mp_edge_object *h) {
                }
                mp_svg_open_starttag(mp,"g");
                append_string("scale(");
-               mp_svg_store_double(mp,dx);
+               mp_svg_store_double(mp,dx/65536);
                append_char(',');
-               mp_svg_store_double(mp,ds);
+               mp_svg_store_double(mp,ds/65536);
                append_char(')');
                if (sk!=0) {
                   append_string(" skewX(");
