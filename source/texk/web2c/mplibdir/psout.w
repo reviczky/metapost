@@ -1407,7 +1407,7 @@ fm_entry * mp_fm_lookup (MP mp, font_number f) {
     fm_entry tmp;
     int e;
     if (mp->ps->tfm_tree == NULL)
-        fm_read_info (mp);        /* only to read default map file */
+        mp_read_psname_table (mp);        /* only to read default map file */
     tfm = mp->font_name[f];
     assert (strcmp (tfm, nontfm));
     /* Look up for full <tfmname>[+-]<expand> */
