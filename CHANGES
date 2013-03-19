@@ -2,6 +2,76 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.800:
+----------------------------------------------------------------------
+
+* A new string valued internal "outputformatoptions" is used by PNG
+  output mode to control the png file format. In the future, this
+  internal may also be used for options to the other output formats.
+
+  The syntax for "outputformatoptions" is a space-separated list of
+  settings. Individual settings are keyword+'='+value. The only
+  currently allowed ones are:
+    format=[rgba|rgb|graya|gray]
+    antialias=[none|fast|good|best]
+  No spaces are allowed on the left, nor on the right, of the equals 
+  sign inside a setting.
+
+  The assignment that would match the compiled-in default setup is:  
+    outputformatoptions := "format=rgba antialias=fast";
+  however, "outputformatoptions" is initially the empty string.
+
+  Some notes on the (new) PNG output formats:
+  - The 'rgb' and 'gray' subformats have a white background. The 
+    'rgba' and 'graya' subformats have a transparent background.
+  - Bitdepth is always 8.
+  - In all cases, the image is initially created in 8-bit RGB
+    mode. For 'gray' and 'graya', the RGB colors are reduced just 
+    before the actual PNG file is written, using a standard rule:
+      g = 0.2126*r + 0.7152*g + 0.0722*b
+  - CMYK colors are always converted to RGB during generation of 
+    the output image using:
+      r = 1 - (c+k>1 ? 1 : c+k);
+      g = 1 - (m+k>1 ? 1 : m+k);
+      b = 1 - (y+k>1 ? 1 : y+k);
+   - If you care about color conversions, you should be doing a 
+     "within <pic>" loop inside "extra_endfig". The built-in
+     conversions are more of a fallback.
+
+* A new string-valued internal "outputfilename", which is set by 
+  "shipout" to the value of the just created file name. Until the
+  first shipout has occurred, it is the empty string.
+
+
+* Fixed a number of bugs where Metapost loaded the default font map
+  file multiple times, resulting in lots of "fontmap entry for 
+  `<fontname>' already exists, duplicates ignored" warnings.
+
+* The "glyph <> of <>" operation could crash on fonts with empty 
+  subpaths in the charstrings.
+
+* Fixed a bug in the postscript encoding reader that caused a buffer
+  overflow (fatal error) for encoding files that do not end with a 
+  newline.
+
+* Sped up png creation a bit by using smarter libpng options.
+
+* In the 'double' numbersystem, lots of precision was lost due to a bad
+  internal conversion of fractions to scaled values. This affected the 
+  "rotated by", "directiontime", "sind" and "cosd" primitives, as well 
+  as internal dependency calculations.
+
+* In the 'double' numbersystem, an internal rounding error caused 
+  "directiontime" to return bad results for requests near zero.
+
+* There was a big scaling miscalculation while outputting glyphs in SVG
+  mode with "prologues:=3". The output labels were so big that they
+  fell completely outside of the generated image.
+
+* A problem resulting in 'This can't happen (endinput)' caused by a 
+  missing "end" at the end of the run was fixed.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.790:
 ----------------------------------------------------------------------
 
