@@ -108,6 +108,7 @@ then
     --disable-ptex \
     --enable-mp  \
     --enable-compiler-warnings=max \
+    --without-system-harfbuzz \
     --without-system-cairo \
     --without-system-libpng \
     --without-ptexenc \
