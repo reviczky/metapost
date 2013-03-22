@@ -62,6 +62,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <math.h>
 #include "avl.h"
 #include "mplib.h"
 #include "mplibps.h" /* external header */
