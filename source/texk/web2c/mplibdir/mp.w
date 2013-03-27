@@ -14466,10 +14466,22 @@ and~|r| have already been offset by |h|.
     number_substract(dyout, h->y_coord);
   }
   pyth_add (tmp, dxout, dyout);
-  if (number_zero(tmp))
-    mp_confusion (mp, "degenerate spec");
+  if (number_zero(tmp)) {
+    /* |mp_confusion (mp, "degenerate spec");| */
 @:this can't happen degerate spec}{\quad degenerate spec@>;
-  {
+    /* But apparently, it actually can happen. The test case is this:  
+
+  path p;
+  linejoin := mitered;
+  p:= (10,0)..(0,10)..(-10,0)..(0,-10)..cycle;
+  addto currentpicture contour p withpen pensquare;
+
+  The reason for failure here is the addition of |r != q| in revision 1757 
+  in ``Advance |p| to node |q|, removing any ``dead'' cubics'', which itself 
+  was needed to fix a bug with disappearing knots in a path that was rotated 
+  exactly 45 degrees (luatex.org bug 530).
+     */
+  } else {
     mp_number r1;
     new_fraction (r1);
     make_fraction (r1, dxout, tmp);
