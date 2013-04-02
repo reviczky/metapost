@@ -33838,7 +33838,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
   hh->maxx = number_to_double(h->maxx);
   hh->maxx = (fabs(hh->maxx)<0.00001 ? 0 : hh->maxx);
   hh->maxy = number_to_double(h->maxy);
-  hh->maxy = (fabs(hh->maxx)<0.00001 ? 0 : hh->maxy);
+  hh->maxy = (fabs(hh->maxy)<0.00001 ? 0 : hh->maxy);
   hh->filename = mp_get_output_file_name (mp);
   c = round_unscaled (internal_value (mp_char_code));
   hh->charcode = c;
