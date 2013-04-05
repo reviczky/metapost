@@ -2,6 +2,24 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.801:
+----------------------------------------------------------------------
+
+* fixed an off-by-one error in the SVG output that prevented the last 
+  font's glyphs from actually being output to the svg file under
+  prologues:=3;
+
+* fixed a bug in bbox calculations in that caused the max y to be set
+  based on the maximum x coordinate internal value instead of the 
+  maximum y coordinate.
+
+* fixed a bug where metapost incorrectly produced a 'degenerate spec'
+  error.
+
+* build fixes for various platforms imported from TeXLive 2013, as
+  well as the latest kpathsea development etc.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.800:
 ----------------------------------------------------------------------
 
