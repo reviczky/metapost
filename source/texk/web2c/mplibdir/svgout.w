@@ -986,7 +986,7 @@ void mp_svg_text_out (MP mp, mp_text_object *p, int prologues) {
    }
   }  else {
     mp_svg_open_starttag(mp, "text");
-    ds=(mp->font_dsize[gr_font_n(p)]+8) / 16;
+    ds=(mp->font_dsize[gr_font_n(p)]+8) / 16 / 65536.0;
     mp_svg_store_double(mp,ds);
     mp_svg_attribute(mp, "font-size", mp->svg->buf);
     mp_svg_reset_buf(mp);
