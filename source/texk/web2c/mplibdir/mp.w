@@ -33113,10 +33113,14 @@ for (k = 1; k <= (int) mp->last_fnum; k++) {
   xfree (mp->font_ps_name[k]);
 }
 for (k = 0; k <= 255; k++) {
+/* These are disabled for now following a bug-report about double free
+   errors. TO BE FIXED, bug tracker id 831 */
+/*
   mp_free_value_node (mp, mp->tfm_width[k]);
   mp_free_value_node (mp, mp->tfm_height[k]);
   mp_free_value_node (mp, mp->tfm_depth[k]);
   mp_free_value_node (mp, mp->tfm_ital_corr[k]);
+*/
 }
 
 xfree (mp->font_info);
