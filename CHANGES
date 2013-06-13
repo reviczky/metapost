@@ -2,6 +2,22 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.803:
+----------------------------------------------------------------------
+
+* Fixed a bug in the path tension handling that sometimes caused 
+  distorted output.
+
+* A number of small alterations to the build system making it easier
+  to integrate metapost with W32TEX.
+
+* Fix the internal rounding functions in --numbersystem=double so that
+  they round exactly like in --numbersystem=scaled mode.
+
+* From Elie Roux: a fix to graph.mp to prevent log-scaled graphs with 
+  large ranges from causing the "Value is too large" error.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.802:
 ----------------------------------------------------------------------
 
