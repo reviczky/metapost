@@ -70,17 +70,16 @@ DIST_COMMON = $(srcdir)/am/bootstrap.am $(srcdir)/am/web.am \
 	$(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am \
 	$(srcdir)/uptexdir/am/uptex.am \
 	$(srcdir)/euptexdir/am/euptex.am \
-	$(srcdir)/pdftexdir/am/pdftex.am \
 	$(srcdir)/pdftexdir/am/libpdftex.am \
+	$(srcdir)/pdftexdir/am/pdftex.am \
 	$(srcdir)/pdftexdir/am/ttf2afm.am \
 	$(srcdir)/pdftexdir/am/pdftosrc.am \
-	$(srcdir)/luatexdir/am/luatex.am \
-	$(srcdir)/luatexdir/am/liblua51.am \
 	$(srcdir)/luatexdir/am/liblua52.am \
 	$(srcdir)/luatexdir/am/luasocket.am \
 	$(srcdir)/luatexdir/am/luamisc.am \
 	$(srcdir)/luatexdir/am/luafontforge.am \
 	$(srcdir)/luatexdir/am/libluatex.am \
+	$(srcdir)/luatexdir/am/luatex.am \
 	$(srcdir)/luatexdir/am/txt2zlib.am \
 	$(srcdir)/xetexdir/am/xetex.am \
 	$(srcdir)/omegaware/am/omegaware.am \
@@ -1195,7 +1194,7 @@ all: ff-config.h
 .SUFFIXES: .c .cin .h .hin .lo .log .o .obj .p .pin .test .test$(EXEEXT) .trs
 am--refresh: Makefile
 	@:
-$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am $(srcdir)/uptexdir/am/uptex.am $(srcdir)/euptexdir/am/euptex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/liblua51.am $(srcdir)/luatexdir/am/liblua52.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/luatexdir/am/txt2zlib.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(srcdir)/../am/bin_links.am $(am__configure_deps)
+$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am $(srcdir)/uptexdir/am/uptex.am $(srcdir)/euptexdir/am/euptex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/liblua52.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/txt2zlib.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(srcdir)/../am/bin_links.am $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -1217,7 +1216,7 @@ Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe)'; \
 	    cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe);; \
 	esac;
-$(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am $(srcdir)/uptexdir/am/uptex.am $(srcdir)/euptexdir/am/euptex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/liblua51.am $(srcdir)/luatexdir/am/liblua52.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/luatexdir/am/txt2zlib.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(srcdir)/../am/bin_links.am:
+$(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am $(srcdir)/uptexdir/am/uptex.am $(srcdir)/euptexdir/am/euptex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/liblua52.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/txt2zlib.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(srcdir)/../am/bin_links.am:
 
 $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	$(SHELL) ./config.status --recheck
@@ -2759,7 +2758,7 @@ mptrap.diffs: mpost$(EXEEXT)
 	$(triptrap_diffs) $@
 .PHONY: mptrap-clean
 mptrap-clean:
-	rm -f mtrapdir
+	rm -rf mptrapdir
 
 # Creating one file: just one rule
 tfmin.c: ctangle$(EXEEXT) mplibdir/tfmin.w
@@ -2801,7 +2800,7 @@ $(pngout_c_h): pngout-tangle
 pngout-tangle: ctangle$(EXEEXT) mplibdir/pngout.w tangle-sh
 	@$(mp_ctangle_sh) pngout
 
-$(libmplib_a_OBJECTS): $(LIBPNG_DEPEND) $(nodist_libmplib_a_SOURCES) $(KPATHSEA_DEPEND) $(CAIRO_DEPEND)
+$(libmplib_a_OBJECTS): $(nodist_libmplib_a_SOURCES) $(KPATHSEA_DEPEND) $(CAIRO_DEPEND)
 .PHONY: install-bin-links uninstall-bin-links
 
 install-bin-links:
