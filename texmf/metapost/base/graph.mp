@@ -459,6 +459,7 @@ enddef;
 % Unknown pair components are set to 0 because glabel and gdotlabel understand
 % unknown coordinates as `0 in absolute units'.
 vardef Gupbb_(expr p) =
+  interim warningcheck:=0; % This is needed because Gupbb_ has to work with internal graph coordinates which may be in Mlog form.
   if known p: addto Gcbb_ doublepath p;
   else:
     save x,y;
