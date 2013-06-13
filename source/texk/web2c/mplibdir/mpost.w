@@ -1295,7 +1295,7 @@ static char *cleaned_invocation_name(char *arg)
     char *ret, *dot;
     const char *start = xbasename(arg);
     ret = xstrdup(start);
-    dot = index(ret, '.');
+    dot = strrchr(ret, '.');
     if (dot != NULL) {
         *dot = 0;               /* chop */
     }
@@ -1318,7 +1318,7 @@ main (int argc, char **argv)
   options->print_found_names = (int)true;
   {
     const char *base = cleaned_invocation_name(argv[0]);
-    if (STREQ(base, "dvitomp"))
+    if (FILESTRCASEEQ(base, "dvitomp"))
       dvitomp_only=1;
   }
   if (dvitomp_only) {
