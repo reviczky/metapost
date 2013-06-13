@@ -24,7 +24,7 @@
 #include <string.h>
 #include <math.h>
 #include "mpmathdouble.h" /* internal header */
-#define ROUND(a) ceil(a-0.5)
+#define ROUND(a) ceil((a)-0.5)
 @h
 
 @ @c
