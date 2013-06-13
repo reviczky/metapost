@@ -17,14 +17,13 @@
 @ Introduction.
 
 @c 
-#define _ISOC99_SOURCE /* to get the ceil() prototype */
 #include <w2c/config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include "mpmathdouble.h" /* internal header */
-#define ROUND(a) ceil((a)-0.5)
+#define ROUND(a) floor((a)+0.5)
 @h
 
 @ @c
