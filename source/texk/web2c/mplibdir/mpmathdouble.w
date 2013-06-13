@@ -17,13 +17,14 @@
 @ Introduction.
 
 @c 
-#define _ISOC99_SOURCE /* to get the round() prototype */
+#define _ISOC99_SOURCE /* to get the ceil() prototype */
 #include <w2c/config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include "mpmathdouble.h" /* internal header */
+#define ROUND(a) ceil(a-0.5)
 @h
 
 @ @c
@@ -403,9 +404,9 @@ void mp_number_fraction_to_scaled (mp_number *A) {
 void mp_number_angle_to_scaled (mp_number *A) {
     A->type = mp_scaled_type;
     if (A->data.dval >= 0) {
-      A->data.dval = round(A->data.dval) / angle_multiplier;
+      A->data.dval = ROUND(A->data.dval) / angle_multiplier;
     } else {
-      A->data.dval = -((-round(A->data.dval))/ angle_multiplier);
+      A->data.dval = -((-ROUND(A->data.dval))/ angle_multiplier);
     }
 }
 void mp_number_scaled_to_fraction (mp_number *A) {
@@ -422,7 +423,7 @@ void mp_number_scaled_to_angle (mp_number *A) {
 
 @c
 int mp_number_to_scaled(mp_number A) {
-  return (int)round(A.data.dval * 65536.0);
+  return (int)ROUND(A.data.dval * 65536.0);
 }
 int mp_number_to_int(mp_number A) {
   return (int)(A.data.dval);
@@ -434,7 +435,7 @@ double mp_number_to_double(mp_number A) {
   return A.data.dval;
 }
 int mp_number_odd(mp_number A) {
-  return odd((int)round(A.data.dval * 65536.0));
+  return odd((int)ROUND(A.data.dval * 65536.0));
 }
 int mp_number_equal(mp_number A, mp_number B) {
   return (A.data.dval==B.data.dval);
@@ -962,7 +963,7 @@ and truncation operations.
 @ |round_unscaled| rounds a |scaled| and converts it to |int|
 @c
 int mp_round_unscaled(mp_number x_orig) {
-  int x = (int)round(x_orig.data.dval);
+  int x = (int)ROUND(x_orig.data.dval);
   return x;
 }
 
