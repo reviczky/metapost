@@ -516,8 +516,8 @@ MP mp_initialize (MP_options * opt) {
   /* open the terminal for output */
   t_open_out();
 #if DEBUG
-  setlinebuf(stdout);
-  setlinebuf(mp->term_out);
+  setvbuf(stdout, (char *) NULL, _IOLBF, 0);
+  setvbuf(mp->term_out, (char *) NULL, _IOLBF, 0);
 #endif
   if (opt->math_mode == mp_math_scaled_mode) {
     mp->math = mp_initialize_scaled_math(mp);
