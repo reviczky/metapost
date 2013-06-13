@@ -206,6 +206,12 @@ This is an alpha release for testing & debugging only!
   as valid input format for a numerical value
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.504:
+----------------------------------------------------------------------
+
+* Small build system tweaks from TeXLive 2012.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.503:
 ----------------------------------------------------------------------
 
@@ -290,6 +296,12 @@ What is new in MetaPost version 1.500:
   in effect. This results in log files that can help in debugging.
 
 * Expect bugs and (minor) memory leaks.
+
+----------------------------------------------------------------------
+What is new in MetaPost version 1.212:
+----------------------------------------------------------------------
+
+* Small build system tweaks from TeXLive 2011.
 
 ----------------------------------------------------------------------
 What is new in MetaPost version 1.211:
