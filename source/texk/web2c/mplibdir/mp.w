@@ -8330,8 +8330,8 @@ static void mp_curl_ratio (MP mp, mp_number *ret, mp_number gamma, mp_number a_t
 @ @c
 void mp_curl_ratio (MP mp, mp_number *ret, mp_number gamma_orig, mp_number a_tension, mp_number b_tension) {
   mp_number alpha, beta, gamma, num, denom, ff; /* registers */
-  mp_number n1;
-  new_number (n1);
+  mp_number arg1;
+  new_number (arg1);
   new_fraction (alpha);
   new_fraction (beta);
   new_fraction (gamma);
@@ -8342,49 +8342,33 @@ void mp_curl_ratio (MP mp, mp_number *ret, mp_number gamma_orig, mp_number a_ten
   make_fraction (beta, unity_t, b_tension);
   number_clone (gamma, gamma_orig);
   if (number_lessequal(alpha, beta)) {
-    mp_number arg1;
-    new_number (arg1);
     make_fraction (ff, alpha, beta);
     number_clone (arg1, ff);
     take_fraction (ff, arg1, arg1);
     number_clone (arg1, gamma);
     take_fraction (gamma, arg1, ff);
     convert_fraction_to_scaled (beta);
-    set_number_from_addition (arg1, alpha, three_t);
-    number_substract (arg1, beta);
-    take_fraction (denom, gamma, arg1);
-    set_number_from_substraction (arg1, fraction_three_t, alpha);
-    number_add (arg1, beta);
-    take_fraction (num, gamma, arg1);
-    free_number (arg1);
+    take_fraction (denom, gamma, alpha);
+    number_add (denom, three_t);
   } else {
-    mp_number arg1, r1;
-    new_number (arg1);
-    new_number (r1);
     make_fraction (ff, beta, alpha);
     number_clone (arg1, ff);
     take_fraction (ff, arg1, arg1);
     take_fraction (arg1, beta, ff);
     convert_fraction_to_scaled (arg1);
-    number_clone (beta, arg1);   
-    take_fraction (arg1, gamma, alpha);
-    new_number (denom);
-    {
-      set_number_from_div (n1, ff, twelvebits_3);
-      number_clone (denom, arg1);
-      number_add (denom, n1);
-      number_substract (denom, beta);
-    }
-    set_number_from_substraction (arg1, fraction_three_t, alpha);
-    take_fraction (num, gamma, arg1);
-    number_add (num, beta);
-    free_number (arg1);
-    free_number (r1);
+    number_clone (beta, arg1);
+    take_fraction (denom, gamma, alpha);
+    set_number_from_div (arg1, ff, twelvebits_3);
+    number_add (denom, arg1);
   }
-  number_clone (n1, denom);
-  number_double (n1);
-  number_double (n1); /* n1 = 4*denom */
-  if (number_greaterequal(num, n1)) {
+  number_substract (denom, beta);
+  set_number_from_substraction (arg1, fraction_three_t, alpha);
+  take_fraction (num, gamma, arg1);
+  number_add (num, beta);
+  number_clone (arg1, denom);
+  number_double (arg1);
+  number_double (arg1); /* arg1 = 4*denom */
+  if (number_greaterequal(num, arg1)) {
     number_clone(*ret, fraction_four_t);
   } else {
     make_fraction (*ret, num, denom);
@@ -8395,7 +8379,7 @@ void mp_curl_ratio (MP mp, mp_number *ret, mp_number gamma_orig, mp_number a_ten
   free_number (num);
   free_number (denom);
   free_number (ff);
-  free_number (n1);
+  free_number (arg1);
 }
 
 
