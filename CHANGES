@@ -2,6 +2,18 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.802:
+----------------------------------------------------------------------
+
+* Fixed a bug causing overly large characters in  SVG output mode when
+  prologues != 3.
+
+* Removed a crash during free-ing of TFM metric data at the end of the 
+  run.
+
+* Fixed a problem with colors in SVG output mode.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.801:
 ----------------------------------------------------------------------
 
