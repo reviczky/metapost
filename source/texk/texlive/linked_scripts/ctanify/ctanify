@@ -7,7 +7,7 @@
 
 use Cwd;
 use File::Basename;
-use File::Copy;
+use File::Copy qw(cp);
 use File::Find;
 use File::Path;
 use File::Spec;
@@ -19,7 +19,7 @@ use warnings;
 use strict;
 
 # Define some global variables.
-our $VERSION = "1.1";          # ctanify version number
+our $VERSION = "1.3";          # ctanify version number
 my $progname = basename $0;    # Name of this program
 my $pkgname;                   # Base name of the package to create
 my $miscify = 0;               # 1=replace singletons with misc; 0=don't
@@ -36,12 +36,13 @@ my $pkgdir = "";               # Absolute directory of the package directory
 my $zipname;                   # Name of the TDS zip file
 my $tarname;                   # Name of the package tar file
 my $tdsoutdir;                 # Directory name where to output TDS tree
-my $usagestr = "Usage: ${progname} [--help] [--version] [--pkgname=<package>] [--[no]auto] [--[no]skip] [--[no]unixify] [--tdsonly=<filespec> ...] filename[=<dirname>] ...\n";
 
 # Associate file extensions with TDS directories.  "%s" is replaced
 # with the package name.
 my %ext2tds =
     ("afm"     => "fonts/afm/public/%s",
+     "README"  => "doc/latex/%s",
+     "bat"     => "scripts/%s",
      "bib"     => "bibtex/bib/%s",
      "bst"     => "bibtex/bst/%s",
      "cls"     => "tex/latex/%s",
@@ -55,7 +56,8 @@ my %ext2tds =
      "pfb"     => "fonts/type1/public/%s",
      "pfm"     => "fonts/type1/public/%s",
      "ps"      => "doc/latex/%s",
-     "README"  => "doc/latex/%s",
+     "py"      => "scripts/%s",
+     "sh"      => "scripts/%s",
      "sty"     => "tex/latex/%s",
      "tfm"     => "fonts/tfm/public/%s",
      "txt"     => "doc/latex/%s",
@@ -220,11 +222,27 @@ if ($skipdroppings) {
 foreach my $fname (@manifest) {
     next if defined $file2tds{$fname};
     my $fext = ($fname =~ m|([^./]+)$| && $1);
-    if (!defined $ext2tds{$fext}) {
-        warn "${progname}: Not including $fname in the TDS tree (unknown extension)\n";
-        next;
+    if (defined $ext2tds{$fext}) {
+        # Most files -- determine the directory based on the file extension.
+        $file2tds{$fname} = sprintf $ext2tds{$fext}, $pkgname;
     }
-    $file2tds{$fname} = sprintf $ext2tds{$fext}, $pkgname;
+    elsif ($fext =~ /^(\d+)[a-z]*$/i) {
+        # Man page (e.g., "ls.1" or "File::Temp.3pm").
+        $file2tds{$fname} = "doc/man/man$1";
+    }
+    else {
+        # Read the file to determine if it's a Unix script (starts with "#!").
+        open(SCRIPT, "<", $fname) || die "${progname}: Failed to open $fname ($!)\n";
+        my $shebang;
+        read(SCRIPT, $shebang, 2) || die "${progname}: Failed to read $fname ($!)\n";
+        close SCRIPT;
+        if ($shebang eq "#!") {
+            $file2tds{$fname} = "scripts/$pkgname";
+        }
+        else {
+            warn "${progname}: Not including $fname in the TDS tree (unknown extension)\n";
+        }
+    }
 }
 
 # Create a working directory and populate it with TDS files.
@@ -238,7 +256,7 @@ foreach my $fname (@manifest) {
     mkpath "$tdsdir/$subdir";
 
     # Copy the specified file into the subdirectory.
-    copy($fname, "$tdsdir/$subdir/" . basename $fname) || die "${progname}: Failed to copy $fname ($!)\n";
+    cp($fname, "$tdsdir/$subdir/" . basename $fname) || die "${progname}: Failed to copy $fname ($!)\n";
 }
 if ($miscify) {
     # Replace package directories containing a single file with "misc".
@@ -308,7 +326,7 @@ foreach my $fname (@manifest) {
     my ($namepart, $pathpart, $suffixpart) = fileparse($relname);
     mkpath "$pkgdir/$pathpart";
     my $targetfile = "$pkgdir/$pathpart/$namepart$suffixpart";
-    copy($fname, $targetfile) || die "${progname}: Failed to copy $fname ($!)\n";
+    cp($fname, $targetfile) || die "${progname}: Failed to copy $fname ($!)\n";
 }
 if ($unixify) {
     # Make all text files use Unix line endings.
@@ -616,8 +634,8 @@ tarball.  In short, before running B<ctanify> you should manually
 process any F<.ins> files and otherwise generate any files that should
 be sent to CTAN.
 
-B<ctanify> has been tested only on Linux.  It may work on S<MacOS X>.
-It probably does not work on Windows.  Volunteers willing to help port
+B<ctanify> has been tested only on Linux.  It may work on S<OS X>.  It
+probably does not work on Windows.  Volunteers willing to help port
 B<ctanify> to other platforms are extremely welcome.
 
 
@@ -638,7 +656,7 @@ Scott Pakin, I<scott+ctify@pakin.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2009 Scott Pakin
+Copyright 2013 Scott Pakin
 
 This work may be distributed and/or modified under the conditions of
 the LaTeX Project Public License, either S<version 1.3c> of this

@@ -1,4 +1,4 @@
-$Id: README 29471 2013-03-22 08:14:43Z peter $
+$Id: README 30830 2013-06-07 07:01:51Z peter $
 Public domain.  Originally created by Karl Berry, 2005.
 
 Libraries we compile for TeX Live.
@@ -25,13 +25,14 @@ gd 2.0.35 - unchecked 10may12, libgd still down
 graphite2 1.2.1 - checked 7mar13
   http://sourceforge.net/projects/silgraphite/files/graphite2/
 
-harfbuzz 0.9.14 - checked 22mar19
+harfbuzz 0.9.15 - checked 5apr13
   http://www.freedesktop.org/software/harfbuzz/release/
 
 icu 51.1 (51_r1) - checked 21mar13
   http://download.icu-project.org/files/icu4c/
 
-libpng 1.6.0 - checked 16feb13
+libpng 1.6.2 - checked 3jun13
+       1.5.16 - downgraded 7jun13
   http://www.libpng.org/ - used by many
   http://www.libpng.org/pub/png/pngcode.html
 

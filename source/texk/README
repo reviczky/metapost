@@ -1,4 +1,4 @@
-$Id: README 29434 2013-03-19 12:41:14Z peter $
+$Id: README 30772 2013-05-28 18:07:34Z karl $
 Copyright 2006-2012 TeX Users Group.
 You may freely use, modify and/or distribute this file.
 
@@ -59,8 +59,8 @@ dvipos - ?
 
 dvipsk - maintained here, by us
 
-dvisvgm - checked 2mar13
-  http://downloads.sourceforge.net/dvisvgm/dvisvgm-1.2.tar.gz
+dvisvgm - checked 21may13
+  http://downloads.sourceforge.net/dvisvgm/dvisvgm-1.2.2.tar.gz
 
 gsftopk - from Paul Vojta's xdvi?
 
@@ -69,9 +69,12 @@ kpathsea - maintained here, by us
 lacheck - checked 25apr11
   http://mirror.ctan.org/support/lacheck/lacheck-1.26.tar.gz
 
-lcdf-typetools 2.97 - checked 26oct12
+lcdf-typetools 2.98 - checked 11apr13
   http://www.lcdf.org/type/
-  http://www.lcdf.org/type/lcdf-typetools-2.97.tar.gz
+  http://www.lcdf.org/type/lcdf-typetools-2.98.tar.gz
+
+luatex - update texmf-dist/doc/luatex/base from
+  https://foundry.supelec.fr/svn/luatex/trunk/manual
 
 makeindexk - maintained here, by us
 
@@ -102,7 +105,7 @@ web2c - maintained here, by us - core web2c, plain tex, etc.
 
 xdv2pdf - maintained here, by Khaled Hosny, Jonathan Kew
 
-xdvik 22.85 - checked 10may12
+xdvik 22.86 - checked 7apr13
   http://sourceforge.net/projects/xdvi/files/xdvik/
 
 xdvipdfmx - maintainered here, by Khaled Hosny, Jonathan Kew
