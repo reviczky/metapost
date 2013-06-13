@@ -402,11 +402,7 @@ void mp_number_fraction_to_scaled (mp_number *A) {
 }
 void mp_number_angle_to_scaled (mp_number *A) {
     A->type = mp_scaled_type;
-    if (A->data.dval >= 0) {
-      A->data.dval = ROUND(A->data.dval) / angle_multiplier;
-    } else {
-      A->data.dval = -((-ROUND(A->data.dval))/ angle_multiplier);
-    }
+    A->data.dval = ROUND(A->data.dval) / angle_multiplier;
 }
 void mp_number_scaled_to_fraction (mp_number *A) {
     A->type = mp_fraction_type;
