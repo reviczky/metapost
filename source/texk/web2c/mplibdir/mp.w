@@ -32727,7 +32727,7 @@ static integer mp_dimen_out (MP mp, mp_number x_orig) {
     mp_number arg1;
     new_number (arg1);
     number_clone (arg1, x);
-    number_multiply_int (x, 16);
+    number_multiply_int (arg1, 16);
     make_scaled (x, arg1, internal_value (mp_design_size));
     free_number (arg1);
   }
