@@ -309,6 +309,7 @@ typedef enum {
   mp_decimal_type
 } mp_number_type;
 typedef union {
+  void *num;
   double dval;
   int val;
 } mp_number_store;
