@@ -20785,6 +20785,9 @@ boolean mp_open_mem_name (MP mp) {
       s = xrealloc (s, l + 5, 1);
       strcat (s, ".mp");
     }
+    s = (mp->find_file) (mp, s, "r", mp_filetype_program);
+    xfree(mp->name_of_file);
+    mp->name_of_file = xstrdup(s);
     mp->mem_file = (mp->open_file) (mp, s, "r", mp_filetype_program);
     xfree (mp->name_of_file);
     mp->name_of_file = xstrdup (s);
