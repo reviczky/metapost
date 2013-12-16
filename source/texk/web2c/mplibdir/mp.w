@@ -30068,7 +30068,7 @@ void mp_do_new_internal (MP mp) {
     set_equiv (cur_sym(), mp->int_ptr);
     if (internal_name (mp->int_ptr) != NULL)
       xfree (internal_name (mp->int_ptr));
-    set_internal_name (mp->int_ptr,
+      set_internal_name (mp->int_ptr,
       mp_xstrdup (mp, mp_str (mp, text (cur_sym()))));
     if (the_type == mp_string_type) {
       set_internal_string (mp->int_ptr, mp_rts(mp,""));
@@ -33907,7 +33907,7 @@ struct mp_edge_object *mp_gr_export (MP mp, mp_edge_header_node h) {
       {
       mp_text_node p0 = (mp_text_node)p;
       tt = (mp_text_object *) hq;
-      gr_text_p (tt) = mp_xstrdup (mp, mp_str (mp, mp_text_p (p)));
+      gr_text_p (tt) = mp_xstrldup (mp, mp_str (mp, mp_text_p (p)),mp_text_p (p)->len);
       gr_text_l (tt) = (size_t) mp_text_p (p)->len;
       gr_font_n (tt) = (unsigned int) mp_font_n (p);
       gr_font_name (tt) = mp_xstrdup (mp, mp->font_name[mp_font_n (p)]);
