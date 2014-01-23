@@ -5,7 +5,7 @@
 % It contains all the features of plain METAFONT except those specific to
 % font-making.  (See The METAFONTbook by D.E. Knuth).
 % There are also a number of macros for labeling figures, etc.
-string base_name, base_version; base_name="plain"; base_version="1.004";
+string base_name, base_version; base_name="plain"; base_version="1.005";
 
 message "Preloading the plain mem file, version "&base_version;
 
@@ -356,9 +356,13 @@ enddef;
 def filldraw expr c =
   addto currentpicture contour c withpen currentpen
   _op_ enddef;
-def drawdot expr z =
-  addto currentpicture contour makepath currentpen shifted z
-  _op_ enddef;
+def drawdot expr p =
+  if pair p :
+     addto currentpicture doublepath p withpen currentpen _op_
+  else :
+     errmessage("drawdot only accepts a pair expression")
+  fi
+enddef;
 
 def unfill expr c = fill c withcolor background enddef;
 def undraw expr p = draw p withcolor background enddef;
