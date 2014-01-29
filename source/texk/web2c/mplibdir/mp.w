@@ -4670,7 +4670,7 @@ static mp_sym mp_frozen_primitive (MP mp, const char *ss, halfword c,
   mp_sym str = mp_frozen_id_lookup (mp, s, strlen (ss), true);
   mp_xfree (s);
   str->type = c;
-  set_number_from_scaled (str->v.data.n, o);
+  str->v.data.indep.serial = o;
   return str;
 }
 
