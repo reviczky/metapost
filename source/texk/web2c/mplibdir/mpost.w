@@ -546,7 +546,7 @@ static char *mpost_find_file(MP mp, const char *fname, const char *fmode, int ft
   char *s;
   (void)mp;
   s = NULL;
-  if ((fmode[0]=='r' &&  !kpse_in_name_ok(fname)) ||
+  if (fname == NULL || (fmode[0]=='r' &&  !kpse_in_name_ok(fname)) ||
       (fmode[0]=='w' &&  !kpse_out_name_ok(fname)))
     return NULL;  /* disallowed filename */
   if (fmode[0]=='r') {
