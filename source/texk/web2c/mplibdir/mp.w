@@ -163,6 +163,8 @@ typedef struct MP_instance {
 #include "mpmath.h"             /* internal header */
 #include "mpmathdouble.h"       /* internal header */
 #include "mpstrings.h"          /* internal header */
+extern char *pixman_version_string(void);
+extern const char *zlibVersion(void);
 extern font_number mp_read_font_info (MP mp, char *fname);      /* tfmin.w */
 @h @<Declarations@>;
 @<Basic printing procedures@>;
@@ -29741,13 +29743,16 @@ int mp_finish (MP mp) {
 char *mp_metapost_version (void) {
   return mp_strdup (metapost_version);
 }
-
+void mp_show_library_versions (void) {
+  fprintf(stdout, "Compiled with cairo %s, pixman %s\n", cairo_version_string(), pixman_version_string());
+  fprintf(stdout, "Compiled with libpng %s, zlib %s\n\n", PNG_LIBPNG_VER_STRING, zlibVersion());
+}
 
 @ @<Exported function headers@>=
 int mp_run (MP mp);
 int mp_execute (MP mp, char *s, size_t l);
 int mp_finish (MP mp);
-char *mp_metapost_version (void);
+char *mp_metapost_version (void);void mp_show_library_versions (void);
 
 @ @<Put each...@>=
 mp_primitive (mp, "end", mp_stop, 0);
