@@ -20787,6 +20787,8 @@ boolean mp_open_mem_name (MP mp) {
     }
     s = (mp->find_file) (mp, s, "r", mp_filetype_program);
     xfree(mp->name_of_file);
+    if (s == NULL)
+      return false;
     mp->name_of_file = xstrdup(s);
     mp->mem_file = (mp->open_file) (mp, s, "r", mp_filetype_program);
     free (s);
