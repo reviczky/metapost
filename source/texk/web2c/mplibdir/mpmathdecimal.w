@@ -467,31 +467,79 @@ void mp_number_scaled_to_angle (mp_number *A) {
 
 @c
 int mp_number_to_scaled(mp_number A) {
-  return (int)ROUND(A.data.dval * 65536.0);
+  int32_t result;
+  set.status = 0;
+  result = decNumberToInt32(A.data.num, &set);
+  if (set.status == DEC_Invalid_operation) {
+     set.status = 0;
+     //mp->arith_error = 1;
+     return 0; // whatever
+  } else {
+     return result * 65536;
+  }
 }
 int mp_number_to_int(mp_number A) {
-  return (int)(A.data.dval);
+  int32_t result;
+  set.status = 0;
+  result = decNumberToInt32(A.data.num, &set);
+  if (set.status == DEC_Invalid_operation) {
+     set.status = 0;
+     // mp->arith_error = 1;
+     return 0; // whatever
+  } else {
+     return result;
+  }
 }
 int mp_number_to_boolean(mp_number A) {
-  return (int)(A.data.dval);
+  uint32_t result;
+  set.status = 0;
+  result = decNumberToUInt32(A.data.num, &set);
+  if (set.status == DEC_Invalid_operation) {
+     set.status = 0;
+     // mp->arith_error = 1;
+     return 0; // whatever
+  } else {
+     return (result ? 1 : 0);
+  }
 }
 double mp_number_to_double(mp_number A) {
-  return A.data.dval;
+  char *buffer = malloc(set.digits + 14);
+  double res = 0.0;
+  assert (buffer);
+  decNumberToString(A.data.num, buffer);
+  if (sscanf(buffer, "%lf", &res)) {
+     free(buffer);
+     return res;
+  } else {
+     free(buffer);
+     //mp->arith_error = 1;
+     return 0.0; // whatever
+  }
 }
 int mp_number_odd(mp_number A) {
-  return odd((int)ROUND(A.data.dval * 65536.0));
+  return odd(mp_number_to_int(A));
 }
 int mp_number_equal(mp_number A, mp_number B) {
-  return (A.data.dval==B.data.dval);
+  decNumber res;
+  decNumberCompare(&res,A.data.num,B.data.num, &set);
+  return decNumberIsZero(&res);
 }
 int mp_number_greater(mp_number A, mp_number B) {
-  return (A.data.dval>B.data.dval);
+  decNumber res;
+  decNumberCompare(&res,A.data.num,B.data.num, &set);
+  return !decNumberIsNegative(&res);
 }
 int mp_number_less(mp_number A, mp_number B) {
-  return (A.data.dval<B.data.dval);
+  decNumber res;
+  decNumberCompare(&res,A.data.num,B.data.num, &set);
+  return decNumberIsNegative(&res);
 }
 int mp_number_nonequalabs(mp_number A, mp_number B) {
-  return (!(fabs(A.data.dval)==fabs(B.data.dval)));
+  decNumber res, a, b;
+  decNumberCopyAbs(&a, A.data.num);
+  decNumberCopyAbs(&b, B.data.num);
+  decNumberCompare(&res, &a, &b, &set);
+  return !decNumberIsZero(&res);
 }
 
 @ Fixed-point arithmetic is done on {\sl scaled integers\/} that are multiples
@@ -527,13 +575,10 @@ enough for a beta test.
 
 @c
 char * mp_decimal_number_tostring (MP mp, mp_number n) {
-   static char set[64];
-   int l = 0;
-   char *ret = mp_xmalloc(mp, 64, 1);
-   snprintf(set, 64, "%32.16g", n.data.dval);
-   while (set[l] == ' ') l++;
-   strcpy(ret, set+l);
-   return ret;
+  char *buffer = malloc(set.digits + 14);
+  assert (buffer);
+  decNumberToString(n.data.num, buffer);
+  return buffer;
 }
 
 
@@ -552,23 +597,8 @@ but in places where overflow isn't too unlikely the |slow_add| routine
 is used.
 
 @c
-void mp_decimal_slow_add (MP mp, mp_number *ret, mp_number x_orig, mp_number y_orig) {
-  double x, y;
-  x = x_orig.data.dval;
-  y = y_orig.data.dval;
-  if (x >= 0) {
-    if (y <= EL_GORDO - x) {
-      ret->data.dval = x + y;
-    } else {
-      mp->arith_error = true;
-      ret->data.dval =  EL_GORDO;
-    }
-  } else if (-y <= EL_GORDO + x) {
-    ret->data.dval = x + y;
-  } else {
-    mp->arith_error = true;
-    ret->data.dval =  -EL_GORDO;
-  }
+void mp_decimal_slow_add (MP mp, mp_number *ret, mp_number A, mp_number B) {
+  decNumberAdd(ret->data.num,A.data.num,B.data.num, &set);
 }
 
 @ The |make_fraction| routine produces the |fraction| equivalent of
@@ -659,7 +689,7 @@ when the Computer Modern fonts are being generated.
 
 @c
 void mp_decimal_number_take_scaled (MP mp, mp_number *ret, mp_number p_orig, mp_number q_orig) {
-  ret->data.dval = p_orig.data.dval * q_orig.data.dval;
+  decNumberMultiply(ret->data.num, p_orig.data.num, q_orig.data.num, &set);
 }
 
 
@@ -671,7 +701,7 @@ so it is not part of \MP's inner loop.)
 
 @c
 void mp_decimal_number_make_scaled (MP mp, mp_number *ret, mp_number p_orig, mp_number q_orig) {
-  ret->data.dval = p_orig.data.dval / q_orig.data.dval;
+  decNumberDivide(ret->data.num, p_orig.data.num, q_orig.data.num, &set);
 }
 
 @ 
