@@ -44,6 +44,7 @@
 First, here are some very important constants.
 
 @d PI 3.1415926535897932384626433832795028841971 
+@d PI_STRING "3.1415926535897932384626433832795028841971"
 @d fraction_multiplier 4096
 @d angle_multiplier 16
 
@@ -135,8 +136,28 @@ void * mp_initialize_decimal_math (MP mp);
 
 @c
 static decContext set;
+static decNumber one;
+static decNumber minusone;
+static decNumber fraction_multiplier_decNumber;
+static decNumber angle_multiplier_decNumber;
+static decNumber PI_decNumber;
+static decNumber **factorials = NULL;
+static int last_cached_factorial = 0;
 void * mp_initialize_decimal_math (MP mp) {
   math_data *math = (math_data *)mp_xmalloc(mp,1,sizeof(math_data));
+  // various decNumber initializations
+  decContextDefault(&set, DEC_INIT_BASE); // initialize
+  set.traps=0;                     // no traps, thank you
+  set.digits=DECNUMDIGITS;         // set precision
+  decNumberFromInt32(&one, 1);
+  decNumberFromInt32(&minusone, -1);
+  decNumberFromInt32(&fraction_multiplier_decNumber, fraction_multiplier);
+  decNumberFromInt32(&angle_multiplier_decNumber, angle_multiplier);
+  decNumberFromString(&PI_decNumber, PI_STRING, &set);
+  factorials = (decNumber **)mp_xmalloc(mp,PRECALC_FACTORIALS_CACHESIZE,sizeof(decNumber *));
+  factorials[0] = (decNumber *)mp_xmalloc(mp,1,sizeof(decNumber));
+  decNumberCopy(factorials[0], &one);
+
   /* alloc */
   math->allocate = mp_new_number;
   math->free = mp_free_number;
@@ -173,9 +194,9 @@ void * mp_initialize_decimal_math (MP mp) {
   math->fraction_four_t.data.dval = fraction_four;
   /* |angles| */
   mp_new_number (mp, &math->three_sixty_deg_t, mp_angle_type);
-  math->three_sixty_deg_t.data.dval = three_sixty_deg;
+  decNumberFromInt32(math->three_sixty_deg_t.data.num, 360);
   mp_new_number (mp, &math->one_eighty_deg_t, mp_angle_type);
-  math->one_eighty_deg_t.data.dval = one_eighty_deg;
+  decNumberFromInt32(math->one_eighty_deg_t.data.num, 180);
   /* various approximations */
   mp_new_number (mp, &math->one_k, mp_scaled_type);
   math->one_k.data.dval = 1024;
@@ -274,13 +295,12 @@ void * mp_initialize_decimal_math (MP mp) {
   math->scan_numeric = mp_decimal_scan_numeric_token;
   math->scan_fractional = mp_decimal_scan_fractional_token;
   math->free_math = mp_free_decimal_math;
-  decContextDefault(&set, DEC_INIT_BASE); // initialize
-  set.traps=0;                     // no traps, thank you
-  set.digits=DECNUMDIGITS;         // set precision
+  
   return (void *)math;
 }
 
 void mp_free_decimal_math (MP mp) {
+  int i;
   free_number (((math_data *)mp->math)->three_sixty_deg_t);
   free_number (((math_data *)mp->math)->one_eighty_deg_t);
   free_number (((math_data *)mp->math)->fraction_one_t);
@@ -306,6 +326,10 @@ void mp_free_decimal_math (MP mp) {
   free_number (((math_data *)mp->math)->p_over_v_threshold_t);
   free_number (((math_data *)mp->math)->equation_threshold_t);
   free_number (((math_data *)mp->math)->tfm_warn_threshold_t);
+  for (i = 0; i <= last_cached_factorial; i++) {
+    free(factorials[i]);
+  }
+  free(factorials);
   free(mp->math);
 }
 
@@ -346,7 +370,15 @@ void mp_set_decimal_from_scaled(mp_number *A, int B) {
 }
 void mp_set_decimal_from_double(mp_number *A, double B) {
   char buf[40];
-  snprintf(buf,40,"%32e",B);
+  char *c;
+  snprintf(buf,40,"%-32.16lf",B);
+  c = buf;
+  while (*c++) {
+    if (*c == ' ') {
+      *c = '\0';
+      break;
+    }
+  }
   decNumberFromString(A->data.num, buf, &set);
 }
 void mp_set_decimal_from_addition(mp_number *A, mp_number B, mp_number C) {
@@ -464,6 +496,8 @@ void mp_number_scaled_to_angle (mp_number *A) {
 
 
 @ Query functions
+
+@d odd(A)   ((A)%2==1)
 
 @c
 int mp_number_to_scaled(mp_number A) {
@@ -1271,26 +1305,68 @@ void mp_decimal_n_arg (MP mp, mp_number *ret, mp_number x_orig, mp_number y_orig
 and cosine of that angle. The results of this routine are
 stored in global integer variables |n_sin| and |n_cos|.
 
-@ Given an integer |z| that is $2^{20}$ times an angle $\theta$ in degrees,
-the purpose of |n_sin_cos(z)| is to set
-|x=@t$r\cos\theta$@>| and |y=@t$r\sin\theta$@>| (approximately),
-for some rather large number~|r|. The maximum of |x| and |y|
-will be between $2^{28}$ and $2^{30}$, so that there will be hardly
-any loss of accuracy. Then |x| and~|y| are divided by~|r|.
+First, we need a decNumber function that calculates sines and cosines
+using the Taylor series. This function is fairly optimized.
 
-@d one_eighty_deg (180.0*angle_multiplier)
-@d three_sixty_deg (360.0*angle_multiplier)
-
-@d odd(A)   ((A)%2==1)
-
-@ Compute a multiple of the sine and cosine
+@d PRECALC_FACTORIALS_CACHESIZE 50
 
 @c
+static void sinecosine(decNumber *theangle, decNumber *c, decNumber *s)
+{
+    int n, i;
+    decNumber p, pxa, fac, cc;
+    decNumber n1, n2, p1;
+    decNumberZero(c);
+    decNumberZero(s);
+    for (n=0;n<(set.digits/2);n++)
+    {
+        decNumberFromInt32(&p1, n);
+        decNumberFromInt32(&n1, 2*n);
+        decNumberPower(&p,  &minusone, &p1, &set);
+        decNumberPower(&pxa, theangle, &n1, &set);
+
+        if (2*n<last_cached_factorial) {
+	  decNumberCopy(&fac,factorials[2*n]);
+	} else {
+     	  decNumberCopy(&fac,factorials[last_cached_factorial]);
+	  for (i = last_cached_factorial+1; i <= 2*n; i++) {
+	    decNumberFromInt32(&cc, i);
+	    decNumberMultiply (&fac, &fac, &cc, &set);
+	    if (i<PRECALC_FACTORIALS_CACHESIZE) {
+	      factorials[i] = malloc(sizeof(decNumber));
+	      decNumberCopy(factorials[i],&fac);
+	      last_cached_factorial = i;
+	    }  
+	  }
+	}
+
+        decNumberDivide   (&pxa, &pxa, &fac, &set);
+        decNumberMultiply (&pxa, &pxa, &p,   &set);
+        decNumberAdd      (s,    s,    &pxa, &set);
+
+        decNumberFromInt32(&n2, 2*n+1);
+        decNumberMultiply (&fac, &fac, &n2,  &set); // fac = fac * (2*n+1)
+        decNumberPower(&pxa, theangle, &n2, &set);
+        decNumberDivide   (&pxa, &pxa, &fac, &set);
+        decNumberMultiply (&pxa, &pxa, &p,   &set);
+        decNumberAdd      (c,    c,    &pxa, &set);
+	// printf("\niteration %2d: %-42s %-42s",n,tostring(c), tostring(s));
+    }
+}
+
+@ Calculate sines and cosines.
+@c
 void mp_decimal_sin_cos (MP mp, mp_number z_orig, mp_number *n_cos, mp_number *n_sin) {
-  double rad;
-  rad = (z_orig.data.dval / angle_multiplier) * PI/180.0;
-  n_cos->data.dval = cos(rad) * fraction_multiplier;
-  n_sin->data.dval = sin(rad) * fraction_multiplier;
+  mp_number rad;
+  math_data *math = (math_data *)(mp->math);
+  new_number (rad);
+  decNumberDivide(rad.data.num, z_orig.data.num, &angle_multiplier_decNumber, &set);
+  decNumberMultiply(rad.data.num, rad.data.num, &PI_decNumber, &set);
+  decNumberDivide(rad.data.num, rad.data.num, math->one_eighty_deg_t.data.num, &set);
+  sinecosine(rad.data.num, n_cos->data.num, n_sin->data.num); 
+  free_number (rad);
+  decNumberMultiply(n_cos->data.num,n_cos->data.num,&fraction_multiplier_decNumber, &set);
+  decNumberMultiply(n_sin->data.num,n_sin->data.num,&fraction_multiplier_decNumber, &set);
 }
 
 @ To initialize the |randoms| table, we call the following routine.
