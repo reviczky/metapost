@@ -135,9 +135,9 @@ static int decNumberGreater(decNumber *a, decNumber *b) {
   return decNumberIsPositive(&comp);
 }
 static void decNumberFromDouble(decNumber *A, double B) {
-  char buf[40];
+  char buf[1000];
   char *c;
-  snprintf(buf,40,"%-32.16lf",B);
+  snprintf(buf,1000,"%-650.325lf",B);
   c = buf;
   while (*c++) {
     if (*c == ' ') {
@@ -147,8 +147,9 @@ static void decNumberFromDouble(decNumber *A, double B) {
   }
   decNumberFromString(A, buf, &set);
 }
+#if DEBUG
 static double decNumberToDouble(decNumber A) {
-  char *buffer = malloc(set.digits + 14);
+  char *buffer = malloc(A.digits + 14);
   double res = 0.0;
   assert (buffer);
   decNumberToString(&A, buffer);
@@ -161,6 +162,7 @@ static double decNumberToDouble(decNumber A) {
      return 0.0; // whatever
   }
 }
+#endif
 
 @ Borrowed code from libdfp:
 
@@ -743,7 +745,7 @@ int mp_number_to_boolean(mp_number A) {
   }
 }
 double mp_number_to_double(mp_number A) {
-  char *buffer = malloc(set.digits + 14);
+  char *buffer = malloc(((decNumber *)A.data.num)->digits + 14);
   double res = 0.0;
   assert (buffer);
   decNumberToString(A.data.num, buffer);
@@ -807,7 +809,7 @@ enough for a beta test.
 @c
 char * mp_decimal_number_tostring (MP mp, mp_number n) {
   decNumber corrected;
-  char *buffer = malloc(set.digits + 14);
+  char *buffer = malloc(((decNumber *)n.data.num)->digits + 14);
   assert (buffer);
   decNumberCopy(&corrected,n.data.num);
   decNumberTrim(&corrected);
