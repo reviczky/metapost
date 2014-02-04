@@ -384,8 +384,11 @@ typedef void (*print_func) (MP mp, mp_number A);
 typedef char * (*tostring_func) (MP mp, mp_number A);
 typedef void (*scan_func) (MP mp, int A);
 typedef void (*mp_free_func) (MP mp);
+typedef void (*set_precision_func) (MP mp);
 
 typedef struct math_data {
+  mp_number precision_default;
+  mp_number precision_max;
   mp_number epsilon_t;
   mp_number inf_t;
   mp_number one_third_inf_t;
@@ -483,6 +486,7 @@ typedef struct math_data {
   scan_func scan_numeric;
   scan_func scan_fractional;
   mp_free_func free_math;
+  set_precision_func set_precision;
 } math_data;
 
 
@@ -2424,6 +2428,8 @@ static void mp_clear_arith (MP mp) {
 @d twentyeightbits_d_t ((math_data *)mp->math)->twentyeightbits_d_t
 @d twentysevenbits_sqrt2_d_t ((math_data *)mp->math)->twentysevenbits_sqrt2_d_t
 @d warning_limit_t ((math_data *)mp->math)->warning_limit_t
+@d precision_default  ((math_data *)mp->math)->precision_default
+@d precision_max  ((math_data *)mp->math)->precision_max
 
 @ In fact, the two sorts of scaling discussed above aren't quite
 sufficient; \MP\ has yet another, used internally to keep track of angles.
@@ -4165,6 +4171,7 @@ set_internal_string (mp_output_filename, mp_intern (mp, ""));
 set_internal_string (mp_output_format, mp_intern (mp, "eps"));
 set_internal_string (mp_output_format_options, mp_intern (mp, ""));
 set_internal_string (mp_number_system, mp_intern (mp, "scaled"));
+set_internal_from_number (mp_number_precision, precision_default);
 #if DEBUG
 number_clone (internal_value (mp_tracing_titles), three_t);
 number_clone (internal_value (mp_tracing_equations), three_t);
@@ -10808,6 +10815,7 @@ This first set goes into the header
 #define free_number(A) (((math_data *)(mp->math))->free)(mp, &(A))
 
 @ 
+@d set_precision()                     (((math_data *)(mp->math))->set_precision)(mp) 
 @d free_math()                         (((math_data *)(mp->math))->free_math)(mp) 
 @d scan_numeric_token(A)               (((math_data *)(mp->math))->scan_numeric)(mp, A) 
 @d scan_fractional_token(A)            (((math_data *)(mp->math))->scan_fractional)(mp, A) 
@@ -28657,9 +28665,22 @@ static void forbidden_internal_assignment (MP mp, mp_node lhs) {
            "I can\'t set this internal quantity to anything just yet",
            "(it is read-only), so I'll have to ignore this assignment.",
            NULL };
-  mp_disp_err(mp, NULL);
   mp_snprintf (msg, 256, "Internal quantity `%s' is read-only",
                internal_name (mp_sym_info (lhs)));
+  mp_back_error (mp, msg, hlp, true);
+  mp_get_x_next (mp);
+}
+static void bad_internal_assignment_precision (MP mp, mp_node lhs, mp_number max) {
+  char msg[256];
+  char s[256];
+  const char *hlp[] = {
+       "Precision values must be positive and are limited by the current numbersystem.",
+       NULL,
+       NULL } ;
+  mp_snprintf (msg, 256, "Bad '%s' has been ignored", internal_name (mp_sym_info (lhs)));
+  mp_snprintf (s, 256, "Currently I am using '%s'; the maximum allowed 'numberprecision' is %s.", 
+               mp_str (mp, internal_string (mp_number_system)), number_tostring(max));
+  hlp[1] = s;
   mp_back_error (mp, msg, hlp, true);
   mp_get_x_next (mp);
 }
@@ -28709,10 +28730,21 @@ void mp_do_assignment (MP mp) {
       /* Assign the current expression to an internal variable */
       if ((mp->cur_exp.type == mp_known || mp->cur_exp.type == mp_string_type)
           && (internal_type (mp_sym_info (lhs)) == mp->cur_exp.type)) {
-	  if(mp_sym_info (lhs) != mp_number_system) /* silently ignored */
-	     set_internal_from_cur_exp(mp_sym_info (lhs));
-          else
+	  if(mp_sym_info (lhs) == mp_number_system) {
              forbidden_internal_assignment (mp, lhs);
+          } else if (mp_sym_info (lhs) == mp_number_precision) {
+	     if (!(mp->cur_exp.type == mp_known && 
+	       number_positive(cur_exp_value_number()) && 
+               (!number_greater(cur_exp_value_number(), precision_max))
+               )) {
+	       bad_internal_assignment_precision(mp, lhs, precision_max);
+             } else {
+	       set_internal_from_cur_exp(mp_sym_info (lhs));
+               set_precision();
+             }
+          } else {
+	     set_internal_from_cur_exp(mp_sym_info (lhs));
+          }
       } else {
         bad_internal_assignment (mp, lhs);
       }
