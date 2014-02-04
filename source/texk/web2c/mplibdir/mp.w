@@ -28651,6 +28651,18 @@ static void bad_internal_assignment (MP mp, mp_node lhs) {
   mp_back_error (mp, msg, hlp, true);
   mp_get_x_next (mp);
 }
+static void forbidden_internal_assignment (MP mp, mp_node lhs) {
+  char msg[256];
+  const char *hlp[] = {
+           "I can\'t set this internal quantity to anything just yet",
+           "(it is read-only), so I'll have to ignore this assignment.",
+           NULL };
+  mp_disp_err(mp, NULL);
+  mp_snprintf (msg, 256, "Internal quantity `%s' is read-only",
+               internal_name (mp_sym_info (lhs)));
+  mp_back_error (mp, msg, hlp, true);
+  mp_get_x_next (mp);
+}
 static void bad_expression_assignment (MP mp, mp_node lhs) {
   const char *hlp[] = { 
        "It seems you did a nasty thing---probably by accident,",
@@ -28697,7 +28709,10 @@ void mp_do_assignment (MP mp) {
       /* Assign the current expression to an internal variable */
       if ((mp->cur_exp.type == mp_known || mp->cur_exp.type == mp_string_type)
           && (internal_type (mp_sym_info (lhs)) == mp->cur_exp.type)) {
-        set_internal_from_cur_exp(mp_sym_info (lhs));
+	  if(mp_sym_info (lhs) != mp_number_system) /* silently ignored */
+	     set_internal_from_cur_exp(mp_sym_info (lhs));
+          else
+             forbidden_internal_assignment (mp, lhs);
       } else {
         bad_internal_assignment (mp, lhs);
       }
