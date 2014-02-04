@@ -2762,6 +2762,7 @@ void *do_alloc_node (MP mp, size_t size) {
     p = xmalloc(1,size);
     add_var_used (size);
     ((mp_node)p)->link = NULL;
+    ((mp_node)p)->has_number = 0;
     return p;
 }
 
