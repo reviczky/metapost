@@ -146,6 +146,20 @@ static void decNumberFromDouble(decNumber *A, double B) {
   }
   decNumberFromString(A, buf, &set);
 }
+static double decNumberToDouble(decNumber A) {
+  char *buffer = malloc(set.digits + 14);
+  double res = 0.0;
+  assert (buffer);
+  decNumberToString(&A, buffer);
+  if (sscanf(buffer, "%lf", &res)) {
+     free(buffer);
+     return res;
+  } else {
+     free(buffer);
+     //mp->arith_error = 1;
+     return 0.0; // whatever
+  }
+}
 
 @ Borrowed code from libdfp:
 
@@ -201,8 +215,6 @@ static void decNumberAtan (decNumber *result, decNumber *x, decContext *set)
 static void decNumberAtan2 (decNumber *result, decNumber *y, decNumber *x, decContext *set) 
 {
   decNumber temp;
-  decNumber generate_inexact;
-  decNumberFromDouble(&generate_inexact, 1e-94);
   if (!decNumberIsInfinite (x) && !decNumberIsZero (y)
       && !decNumberIsInfinite (y) && !decNumberIsZero (x)) {
       decNumberDivide (&temp, y, x, set);
@@ -220,21 +232,18 @@ static void decNumberAtan2 (decNumber *result, decNumber *y, decNumber *x, decCo
   }
   if (decNumberIsInfinite (y) && decNumberIsInfinite (x)) {
       /* If x and y are both inf, the result depends on the sign of x */
-      decNumber a,b;
-      decNumberFromDouble(&a, 3.0);
-      decNumberDivide(&b, &PI_decNumber, &four_decNumber, set);
+      decNumberDivide(result, &PI_decNumber, &four_decNumber, set);
       if (decNumberIsNegative (x) ) {
-        decNumberMultiply(result, &a, &b, set);
-        decNumberAdd(result, result, &generate_inexact, set);
-      } else {
-        decNumberAdd(result, &b, &generate_inexact, set);
+        decNumber a;
+        decNumberFromDouble(&a, 3.0);
+        decNumberMultiply(result, result, &a, set);
       }
   } else if (!decNumberIsZero (y) && !decNumberIsInfinite (x) ) {
     /*  If y is non-zero and x is non-inf, the result is +-pi/2 */
     decNumberDivide(result, &PI_decNumber, &two_decNumber, set);
   } else { /*  Otherwise it is +0 if x is positive, +pi if x is neg */
       if (decNumberIsNegative (x)) {
-	decNumberSubtract(result, &PI_decNumber, &generate_inexact, set);
+        decNumberCopy(result, &PI_decNumber);
       } else {
 	decNumberZero(result);
       }
@@ -269,6 +278,7 @@ void * mp_initialize_decimal_math (MP mp);
 @d tfm_warn_threshold 0.0625
 @d warning_limit pow(2.0,52.0)  /* this is a large value that can just be expressed without loss of precision */
 @d epsilon "1E-52"
+@d epsilonf pow(2.0,-52.0)
 @d EL_GORDO   "1E1000000" /* the largest value that \MP\ likes. */
 @d one_third_EL_GORDO (EL_GORDO/3.0)
 
@@ -655,14 +665,10 @@ void mp_number_fraction_to_scaled (mp_number *A) {
     decNumberDivide(A->data.num, A->data.num, &fmul, &set);
 }
 void mp_number_angle_to_scaled (mp_number *A) {
-    decNumber fmul, arounded, dec_half;
+    decNumber fmul;
     decNumberFromInt32(&fmul, angle_multiplier);
-    decNumberFromString(&dec_half, "0.5", &set);
     A->type = mp_scaled_type;
-    decNumberCopy(&arounded,A->data.num);
-    decNumberAdd(&arounded, &arounded, &dec_half, &set);
-    decNumberToIntegralValue(&arounded, &arounded, &set);
-    decNumberDivide(A->data.num, &arounded, &fmul, &set);
+    decNumberDivide(A->data.num, A->data.num, &fmul, &set);
 }
 void mp_number_scaled_to_fraction (mp_number *A) {
     decNumber fmul;
@@ -856,10 +862,8 @@ preferable to trickery, unless the cost is too high.
 
 @c
 void mp_decimal_make_fraction (MP mp, decNumber *ret, decNumber *p, decNumber *q) {
-  decNumber frac;
-  decNumberFromInt32(&frac,fraction_multiplier);
   decNumberDivide(ret, p, q, &set);
-  decNumberMultiply(ret, ret, &frac, &set);
+  decNumberMultiply(ret, ret, &fraction_multiplier_decNumber, &set);
 }
 void mp_decimal_number_make_fraction (MP mp, mp_number *ret, mp_number p, mp_number q) {
   mp_decimal_make_fraction (mp, ret->data.num, p.data.num, q.data.num);
@@ -880,10 +884,8 @@ time during typical jobs, so a machine-language substitute is advisable.
 
 @c
 void mp_decimal_take_fraction (MP mp, decNumber *ret, decNumber *p, decNumber *q) {
-  decNumber f;
-  decNumberFromInt32(&f, fraction_multiplier);
   decNumberMultiply(ret, p, q, &set);
-  decNumberDivide(ret, ret, &f, &set);
+  decNumberDivide(ret, ret, &fraction_multiplier_decNumber, &set);
 }
 void mp_decimal_number_take_fraction (MP mp, mp_number *ret, mp_number p, mp_number q) {
   mp_decimal_take_fraction (mp, ret->data.num, p.data.num, q.data.num);
@@ -1065,58 +1067,61 @@ void mp_decimal_velocity (MP mp, mp_number *ret, mp_number st, mp_number ct, mp_
   decNumber acc, num, denom;      /* registers for intermediate calculations */
   decNumber r1, r2;
   decNumber arg1, arg2;
-  decNumber i16, fone, fhalf, ftwo, i3, i1;
+  decNumber i16, fone, fhalf, ftwo, sqrtfive;
   decNumberFromInt32(&i16, 16);
-  decNumberFromInt32(&i3, 3);
-  decNumberFromInt32(&i1, 1);
   decNumberFromInt32(&fone, fraction_one);
   decNumberFromInt32(&fhalf, fraction_half);
   decNumberFromInt32(&ftwo, fraction_two);
-  decNumberDivide(&arg1,sf.data.num, &i16, &set);
-  decNumberSubtract(&arg1,st.data.num,&arg1, &set);
-  decNumberDivide(&arg2,st.data.num, &i16, &set);
-  decNumberSubtract(&arg2,sf.data.num,&arg1, &set);
-  mp_decimal_take_fraction (mp, &acc, &arg1, &arg2);
-  decNumberSubtract(&arg1, ct.data.num, cf.data.num, &set);
-  mp_decimal_take_fraction (mp, &acc, &acc, &arg1);
-  decNumberFromInt32(&arg1, 2);
-  decNumberSquareRoot(&arg1, &arg1, &set);
-  decNumberMultiply(&arg1, &arg1, &fone, &set);
-  mp_decimal_take_fraction (mp, &r1, &acc, &arg1);
-  decNumberAdd(&num, &ftwo, &r1, &set);
+  decNumberFromInt32(&sqrtfive, 5);                     // sqrt(5)
+  decNumberSquareRoot(&sqrtfive, &sqrtfive, &set);          
+
+
+  decNumberDivide(&arg1,sf.data.num, &i16, &set); // arg1 = sf / 16
+  decNumberSubtract(&arg1,st.data.num,&arg1, &set); // arg1 = st - arg1
+  decNumberDivide(&arg2,st.data.num, &i16, &set); // arg2 = st / 16
+  decNumberSubtract(&arg2,sf.data.num,&arg2, &set); // arg2 = sf - arg2
+  mp_decimal_take_fraction (mp, &acc, &arg1, &arg2); // acc = (arg1 * arg2) / fmul
+
+  decNumberCopy(&arg1, &acc);
+  decNumberSubtract(&arg2, ct.data.num, cf.data.num, &set); // arg2 = ct - cf
+  mp_decimal_take_fraction (mp, &acc, &arg1, &arg2); // acc = (arg1 * arg2 ) / fmul
+
+  decNumberSquareRoot(&arg1, &two_decNumber, &set); // arg1 = sqrt(2)
+  decNumberMultiply(&arg1, &arg1, &fone, &set);     // arg1 = arg1 * fmul
+  mp_decimal_take_fraction (mp, &r1, &acc, &arg1);  // r1 = (acc * arg1) / fmul
+  decNumberAdd(&num, &ftwo, &r1, &set);             // num = ftwo + r1
   
-  decNumberFromInt32(&arg1, 5);
-  decNumberSquareRoot(&arg1, &arg1, &set);
-  decNumberSubtract(&arg1,&arg1, &i1, &set);
-  decNumberMultiply(&arg1,&arg1,&fhalf, &set);
-  decNumberMultiply(&arg1,&arg1,&i3, &set);
+  decNumberSubtract(&arg1,&sqrtfive, &one, &set);   // arg1 = sqrt(5) - 1
+  decNumberMultiply(&arg1,&arg1,&fhalf, &set);      // arg1 = arg1 * fmul/2
+  decNumberMultiply(&arg1,&arg1,&three_decNumber, &set); // arg1 = arg1 * 3
 
-  decNumberFromInt32(&arg2, 5);
-  decNumberSquareRoot(&arg2, &arg2, &set);
-  decNumberSubtract(&arg2,&i3, &arg2, &set);
-  decNumberMultiply(&arg2,&arg2,&fhalf, &set);
-  decNumberMultiply(&arg2,&arg2,&i3, &set);
-  mp_decimal_take_fraction (mp, &r1, ct.data.num, &arg1) ;
-  mp_decimal_take_fraction (mp, &r2, cf.data.num, &arg2);
+  decNumberSubtract(&arg2,&three_decNumber, &sqrtfive, &set); // arg2 = 3 - sqrt(5)
+  decNumberMultiply(&arg2,&arg2,&fhalf, &set);            // arg2 = arg2 * fmul/2
+  decNumberMultiply(&arg2,&arg2,&three_decNumber, &set);  // arg2 = arg2 * 3
+  mp_decimal_take_fraction (mp, &r1, ct.data.num, &arg1) ; // r1 = (ct * arg1) / fmul
+  mp_decimal_take_fraction (mp, &r2, cf.data.num, &arg2);  // r2 = (cf * arg2) / fmul
 
-  decNumberFromInt32(&denom, fraction_three);
-  decNumberAdd(&denom, &denom, &r1, &set);
-  decNumberAdd(&denom, &denom, &r2, &set);
+  decNumberFromInt32(&denom, fraction_three);  // denom = 3fmul
+  decNumberAdd(&denom, &denom, &r1, &set);     // denom = denom + r1
+  decNumberAdd(&denom, &denom, &r2, &set);     // denom = denom + r1
 
-  decNumberFromInt32(&r1, unity);
-  decNumberCompare(&arg1, t.data.num, &r1, &set);
-  if (!decNumberIsZero(&arg1)) {
-    decNumberDivide(&num, &num, t.data.num, &set);
+  decNumberCompare(&arg1, t.data.num, &one, &set); 
+  if (!decNumberIsZero(&arg1)) {                 // t != r1
+    decNumberDivide(&num, &num, t.data.num, &set); // num = num / t
   }
-  decNumberFromInt32(&r1, 4);
-  decNumberCopy(&r2, &num);
-  decNumberDivide(&r2, &r2, &r1, &set);
-  decNumberCompare(&arg1, &denom,&r2, &set);
-  if (decNumberIsNegative(&arg1)) { // num/4 >= denom => denom < num/4
+  decNumberCopy(&r2, &num);                        // r2 = num / 4
+  decNumberDivide(&r2, &r2, &four_decNumber, &set);
+  if (decNumberLess(&denom,&r2)) { // num/4 >= denom => denom < num/4
     decNumberFromInt32(ret->data.num,fraction_four);
   } else {
     mp_decimal_make_fraction (mp, ret->data.num, &num, &denom);
   }
+#if DEBUG
+  fprintf(stdout, "\n%f = velocity(%f,%f,%f,%f,%f)", mp_number_to_double(*ret), 
+mp_number_to_double(st),mp_number_to_double(ct),
+mp_number_to_double(sf),mp_number_to_double(cf),
+mp_number_to_double(t));
+#endif
 }
 
 
@@ -1140,12 +1145,12 @@ void mp_ab_vs_cd (MP mp, mp_number *ret, mp_number a_orig, mp_number b_orig, mp_
     decNumberDivide(&r,&c,&b, &set);
     decNumberCompare(&test,&q,&r, &set);
     if (!decNumberIsZero(&test)) {
-      if (decNumberIsPositive(&q)) {
+      if (decNumberIsPositive(&test)) {
          decNumberCopy(ret->data.num, &one);
       } else {
          decNumberCopy(ret->data.num, &minusone);
       }
-      return;
+      goto RETURN;
     }
     decNumberRemainder(&q,&a,&d, &set);
     decNumberRemainder(&r,&c,&b, &set);
@@ -1155,18 +1160,26 @@ void mp_ab_vs_cd (MP mp, mp_number *ret, mp_number a_orig, mp_number b_orig, mp_
       } else {
          decNumberCopy(ret->data.num, &one);
       }
-      return;
+      goto RETURN;
     }
     if (decNumberIsZero(&q)) {
       decNumberCopy(ret->data.num, &minusone);
-      return;
+      goto RETURN;
     }
     decNumberCopy(&a,&b);
     decNumberCopy(&b,&q);
     decNumberCopy(&c,&d);
     decNumberCopy(&d,&r);
   }                             /* now |a>d>0| and |c>b>0| */
+RETURN:
+#if DEBUG
+  fprintf(stdout, "\n%f = ab_vs_cd(%f,%f,%f,%f)", mp_number_to_double(*ret), 
+mp_number_to_double(a_orig),mp_number_to_double(b_orig),
+mp_number_to_double(c_orig),mp_number_to_double(d_orig));
+#endif
+  return;
 }
+
 
 
 @ @<Reduce to the case that |a...@>=
@@ -1184,14 +1197,14 @@ if (!decNumberIsPositive(&d)) {
          decNumberCopy(ret->data.num, &zero);
     else
          decNumberCopy(ret->data.num, &one);
-    return;
+    goto RETURN;
   }
   if (decNumberIsZero(&d)) {
     if (decNumberIsZero(&a)) 
          decNumberCopy(ret->data.num, &zero);
     else
          decNumberCopy(ret->data.num, &minusone);
-    return;
+    goto RETURN;
   }
   decNumberCopy(&q, &a);
   decNumberCopy(&a, &c);
@@ -1202,13 +1215,13 @@ if (!decNumberIsPositive(&d)) {
 } else if (!decNumberIsPositive(&b)) {
   if (decNumberIsNegative(&b) && decNumberIsPositive(&a)) {
     decNumberCopy(ret->data.num, &minusone);
-    return;
+    goto RETURN;
   }
   if (decNumberIsZero(&c)) 
     decNumberCopy(ret->data.num, &zero);
   else
     decNumberCopy(ret->data.num, &minusone);
-  return;
+  goto RETURN;
 }
 
 @ Now here's a subroutine that's handy for all sorts of path computations:
@@ -1240,14 +1253,14 @@ it has been constructed in such a way that no arithmetic overflow
 will occur if the inputs satisfy
 $a<2^{30}$, $\vert a-b\vert<2^{30}$, and $\vert b-c\vert<2^{30}$.
 
-@d no_crossing   { decNumberCopy(ret->data.num, &fraction_one_plus_decNumber); return; }
-@d one_crossing  { decNumberCopy(ret->data.num, &fraction_one_decNumber); return; }
-@d zero_crossing { decNumberCopy(ret->data.num, &zero); return; }
+@d no_crossing   { decNumberCopy(ret->data.num, &fraction_one_plus_decNumber); goto RETURN; }
+@d one_crossing  { decNumberCopy(ret->data.num, &fraction_one_decNumber); goto RETURN; }
+@d zero_crossing { decNumberCopy(ret->data.num, &zero); goto RETURN; }
 
 @c
 static void mp_decimal_crossing_point (MP mp, mp_number *ret, mp_number aa, mp_number bb, mp_number cc) {
   decNumber a,b,c;
-  decNumber d;    /* recursive counter */
+  double d;    /* recursive counter */
   decNumber x, xx, x0, x1, x2;    /* temporary registers for bisection */
   decNumber scratch;
   decNumberCopy(&a, (decNumber *)aa.data.num);
@@ -1273,28 +1286,27 @@ static void mp_decimal_crossing_point (MP mp, mp_number *ret, mp_number aa, mp_n
   }
 
   /* Use bisection to find the crossing point... */
-  decNumberCopy(&d, &epsilon_decNumber);
+  d = epsilonf;
   decNumberCopy(&x0, &a);
   decNumberSubtract(&x1,&a, &b, &set);
   decNumberSubtract(&x2,&b, &c, &set);
   do {
     /* not sure why the error correction has to be >= 1E-12 */
     decNumberAdd(&x, &x1, &x2, &set);
-    decNumberFromInt32(&scratch, 2);
-    decNumberDivide(&x, &x, &scratch, &set);
+    decNumberDivide(&x, &x, &two_decNumber, &set);
     decNumberFromDouble(&scratch, 1E-12);
     decNumberAdd(&x, &x, &scratch, &set);
     decNumberSubtract(&scratch, &x1, &x0, &set);
     if (decNumberGreater(&scratch, &x0)) {
       decNumberCopy(&x2, &x);
       decNumberAdd(&x0, &x0, &x0, &set);
-      decNumberAdd(&d, &d, &d, &set);
+      d += d;
     } else {
       decNumberAdd(&xx, &scratch, &x, &set);
       if (decNumberGreater(&xx,&x0)) {
         decNumberCopy(&x2,&x);
         decNumberAdd(&x0, &x0, &x0, &set);
-        decNumberAdd(&d, &d, &d, &set);
+        d += d;
       } else {
         decNumberSubtract(&x0, &x0, &xx, &set);
         if (!decNumberGreater(&x,&x0)) {
@@ -1303,13 +1315,18 @@ static void mp_decimal_crossing_point (MP mp, mp_number *ret, mp_number aa, mp_n
             no_crossing;
         }
         decNumberCopy(&x1,&x);
-        decNumberAdd(&d, &d, &d, &set);
-        decNumberAdd(&d, &d, &epsilon_decNumber, &set);
+        d = d + d + epsilonf;
       }
     }
-  } while (decNumberLess(&d,&fraction_one_decNumber));
-  decNumberSubtract(&scratch, &d, &fraction_one_decNumber, &set);
-  decNumberCopy(ret->data.num, &scratch);
+  } while (d < fraction_one);
+  decNumberFromDouble(&scratch, d);
+  decNumberSubtract(ret->data.num,&scratch, &fraction_one_decNumber, &set);
+RETURN:
+#if DEBUG
+  fprintf(stdout, "\n%f = crossing_point(%f,%f,%f)", mp_number_to_double(*ret), 
+mp_number_to_double(aa),mp_number_to_double(bb),mp_number_to_double(cc));
+#endif
+  return;
 }
  
 
@@ -1393,10 +1410,10 @@ void mp_decimal_pyth_add (MP mp, mp_number *ret, mp_number a_orig, mp_number b_o
   decNumberMultiply(&bsq, &b, &b, &set);
   decNumberAdd(&a, &asq, &bsq, &set);
   decNumberSquareRoot(ret->data.num, &a, &set);
-  if (set.status != 0) {
-    mp->arith_error = true;
-    decNumberCopy(ret->data.num, &EL_GORDO_decNumber);
-  }
+  //if (set.status != 0) {
+  //  mp->arith_error = true;
+  //  decNumberCopy(ret->data.num, &EL_GORDO_decNumber);
+  //}
 }
 
 @ Here is a similar algorithm for $\psqrt{a^2-b^2}$. Same quick hack, also.
@@ -1503,9 +1520,13 @@ void mp_decimal_n_arg (MP mp, mp_number *ret, mp_number x_orig, mp_number y_orig
     decNumber atan2val, oneeighty_angle;
     ret->type = mp_angle_type;
     decNumberFromInt32(&oneeighty_angle, 180 * angle_multiplier);
+    decNumberDivide(&oneeighty_angle, &oneeighty_angle, &PI_decNumber, &set);
     decNumberAtan2(&atan2val, y_orig.data.num, x_orig.data.num, &set);
-    decNumberMultiply(&atan2val,&atan2val, &oneeighty_angle, &set);
-    decNumberDivide(ret->data.num,&atan2val, &PI_decNumber, &set);
+    decNumberMultiply(ret->data.num,&atan2val, &oneeighty_angle, &set);
+#if DEBUG
+    fprintf(stdout, "\nn_arg(%g,%g,%g)", mp_number_to_double(*ret),
+    mp_number_to_double(x_orig),mp_number_to_double(y_orig));
+#endif
   }
 }
 
@@ -1584,10 +1605,14 @@ void mp_decimal_sin_cos (MP mp, mp_number z_orig, mp_number *n_cos, mp_number *n
   decNumberDivide(rad.data.num, z_orig.data.num, &angle_multiplier_decNumber, &set);
   decNumberMultiply(rad.data.num, rad.data.num, &PI_decNumber, &set);
   decNumberDivide(rad.data.num, rad.data.num, math->one_eighty_deg_t.data.num, &set);
-  sinecosine(rad.data.num, n_cos->data.num, n_sin->data.num); 
+  sinecosine(rad.data.num, n_sin->data.num, n_cos->data.num); 
   free_number (rad);
   decNumberMultiply(n_cos->data.num,n_cos->data.num,&fraction_multiplier_decNumber, &set);
   decNumberMultiply(n_sin->data.num,n_sin->data.num,&fraction_multiplier_decNumber, &set);
+#if DEBUG
+  fprintf(stdout, "\nsin_cos(%f,%f,%f)", mp_number_to_double(z_orig),
+mp_number_to_double(*n_cos), mp_number_to_double(*n_sin));
+#endif
 }
 
 @ To initialize the |randoms| table, we call the following routine.
