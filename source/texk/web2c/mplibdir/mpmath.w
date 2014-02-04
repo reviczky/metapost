@@ -102,6 +102,7 @@ static void mp_number_take_scaled (MP mp, mp_number *r, mp_number p, mp_number q
 static void mp_new_number (MP mp, mp_number *n, mp_number_type t) ;
 static void mp_free_number (MP mp, mp_number *n) ;
 static void mp_free_scaled_math (MP mp);
+static void mp_scaled_set_precision (MP mp);
 
 @ And these are the ones that {\it are} used elsewhere
 
@@ -130,6 +131,10 @@ void * mp_initialize_scaled_math (MP mp) {
   /* alloc */
   math->allocate = mp_new_number;
   math->free = mp_free_number;
+  mp_new_number (mp, &math->precision_default, mp_scaled_type);
+  math->precision_default.data.val  = unity * 5;
+  mp_new_number (mp, &math->precision_max, mp_scaled_type);
+  math->precision_max.data.val  = unity * 5;
   /* here are the constants for |scaled| objects */
   mp_new_number (mp, &math->epsilon_t, mp_scaled_type);
   math->epsilon_t.data.val  = 1;
@@ -264,7 +269,11 @@ void * mp_initialize_scaled_math (MP mp) {
   math->scan_numeric = mp_scan_numeric_token;
   math->scan_fractional = mp_scan_fractional_token;
   math->free_math = mp_free_scaled_math;
+  math->set_precision = mp_scaled_set_precision;
   return (void *)math;
+}
+
+void mp_scaled_set_precision (MP mp) {
 }
 
 void mp_free_scaled_math (MP mp) {

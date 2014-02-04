@@ -34,7 +34,7 @@
 #define  MPMATHDECIMAL_H 1
 #include "mplib.h"
 #include "mpmp.h" /* internal header */
-#define  DECNUMDIGITS 34
+#define  DECNUMDIGITS 1000
 #include "decNumber.h"
 @<Internal library declarations@>;
 #endif
@@ -114,6 +114,7 @@ static void mp_new_number (MP mp, mp_number *n, mp_number_type t) ;
 static void mp_free_number (MP mp, mp_number *n) ;
 static void mp_set_decimal_from_double(mp_number *A, double B);
 static void mp_free_decimal_math (MP mp);
+static void mp_decimal_set_precision (MP mp);
 
 @ There are a few short decNumber functions that do not exist, but 
 make life easier for us:
@@ -281,6 +282,7 @@ void * mp_initialize_decimal_math (MP mp);
 @d epsilonf pow(2.0,-52.0)
 @d EL_GORDO   "1E1000000" /* the largest value that \MP\ likes. */
 @d one_third_EL_GORDO (EL_GORDO/3.0)
+@d DECPRECISION_DEFAULT 34
 
 @<Declarations@>=
 static decNumber zero;
@@ -305,12 +307,12 @@ void * mp_initialize_decimal_math (MP mp) {
   // various decNumber initializations
   decContextDefault(&set, DEC_INIT_BASE); // initialize
   set.traps=0;                     // no traps, thank you
-  set.digits=DECNUMDIGITS;         // set precision
   decContextDefault(&limitedset, DEC_INIT_BASE); // initialize
   limitedset.traps=0;                     // no traps, thank you
-  limitedset.digits=DECNUMDIGITS;         // set precision
   limitedset.emax = 999999;
   limitedset.emin = -999999;
+  set.digits = DECPRECISION_DEFAULT;
+  limitedset.digits = DECPRECISION_DEFAULT;
   decNumberFromInt32(&one, 1);
   decNumberFromInt32(&minusone, -1);
   decNumberFromInt32(&zero, 0);
@@ -331,6 +333,10 @@ void * mp_initialize_decimal_math (MP mp) {
   /* alloc */
   math->allocate = mp_new_number;
   math->free = mp_free_number;
+  mp_new_number (mp, &math->precision_default, mp_scaled_type);
+  decNumberFromInt32(math->precision_default.data.num, DECPRECISION_DEFAULT);
+  mp_new_number (mp, &math->precision_max, mp_scaled_type);
+  decNumberFromInt32(math->precision_max.data.num, DECNUMDIGITS);
   /* here are the constants for |scaled| objects */
   mp_new_number (mp, &math->epsilon_t, mp_scaled_type);
   decNumberCopy(math->epsilon_t.data.num, &epsilon_decNumber);
@@ -498,8 +504,15 @@ void * mp_initialize_decimal_math (MP mp) {
   math->scan_numeric = mp_decimal_scan_numeric_token;
   math->scan_fractional = mp_decimal_scan_fractional_token;
   math->free_math = mp_free_decimal_math;
-  
+  math->set_precision = mp_decimal_set_precision;  
   return (void *)math;
+}
+
+void mp_decimal_set_precision (MP mp) {
+  int i;
+  i = decNumberToInt32((decNumber *)internal_value (mp_number_precision).data.num, &set);
+  set.digits = i;
+  limitedset.digits = i;
 }
 
 void mp_free_decimal_math (MP mp) {
@@ -551,7 +564,7 @@ void mp_new_number (MP mp, mp_number *n, mp_number_type t) {
 @c
 void mp_free_number (MP mp, mp_number *n) {
   (void)mp;
-  free(n->data.num);
+  //free(n->data.num);
   n->data.num = NULL;
   n->type = mp_nan_type;
 }
