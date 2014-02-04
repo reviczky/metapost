@@ -122,6 +122,7 @@ make life easier for us:
 
 @c
 static decContext set;
+static decContext limitedset;
 static int decNumberLess(decNumber *a, decNumber *b) {
   decNumber comp;
   decNumberCompare(&comp, a, b, &set);
@@ -295,6 +296,11 @@ void * mp_initialize_decimal_math (MP mp) {
   decContextDefault(&set, DEC_INIT_BASE); // initialize
   set.traps=0;                     // no traps, thank you
   set.digits=DECNUMDIGITS;         // set precision
+  decContextDefault(&limitedset, DEC_INIT_BASE); // initialize
+  limitedset.traps=0;                     // no traps, thank you
+  limitedset.digits=DECNUMDIGITS;         // set precision
+  limitedset.emax = 999999;
+  limitedset.emin = -999999;
   decNumberFromInt32(&one, 1);
   decNumberFromInt32(&minusone, -1);
   decNumberFromInt32(&zero, 0);
@@ -679,14 +685,18 @@ void mp_number_scaled_to_angle (mp_number *A) {
 @c
 int mp_number_to_scaled(mp_number A) {
   int32_t result;
+  decNumber corrected;
+  decNumberFromInt32(&corrected, 65536);
+  decNumberMultiply(&corrected,&corrected,A.data.num, &set);
   set.status = 0;
-  result = decNumberToInt32(A.data.num, &set);
+  decNumberReduce(&corrected, &corrected, &set);
+  result = decNumberToInt32(&corrected, &set);
   if (set.status == DEC_Invalid_operation) {
      set.status = 0;
      //mp->arith_error = 1;
      return 0; // whatever
   } else {
-     return result * 65536;
+     return result;
   }
 }
 int mp_number_to_int(mp_number A) {
@@ -738,7 +748,7 @@ int mp_number_equal(mp_number A, mp_number B) {
 int mp_number_greater(mp_number A, mp_number B) {
   decNumber res;
   decNumberCompare(&res,A.data.num,B.data.num, &set);
-  return !decNumberIsNegative(&res);
+  return decNumberIsPositive(&res);
 }
 int mp_number_less(mp_number A, mp_number B) {
   decNumber res;
@@ -777,9 +787,12 @@ enough for a beta test.
 
 @c
 char * mp_decimal_number_tostring (MP mp, mp_number n) {
+  decNumber corrected;
   char *buffer = malloc(set.digits + 14);
   assert (buffer);
-  decNumberToString(n.data.num, buffer);
+  decNumberCopy(&corrected,n.data.num);
+  decNumberTrim(&corrected);
+  decNumberToString(&corrected, buffer);
   return buffer;
 }
 
@@ -924,7 +937,7 @@ static void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *
 @c
 void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop) {
   decNumber result;
-  size_t l = stop-start;
+  size_t l = stop-start+1;
   char *buf = strndup((const char *)start, l);
   set.status = 0;
   decNumberFromString(&result,buf, &set);
@@ -1436,8 +1449,8 @@ void mp_decimal_m_log (MP mp, mp_number *ret, mp_number x_orig) {
   } else {
     decNumber twofivesix;
     decNumberFromInt32(&twofivesix, 256);
-    decNumberLn(ret->data.num, x_orig.data.num, &set);
-    decNumberMultiply(ret->data.num, x_orig.data.num, &twofivesix, &set);
+    decNumberLn(ret->data.num, x_orig.data.num, &limitedset);
+    decNumberMultiply(ret->data.num, ret->data.num, &twofivesix, &set);
   }
 }
 
@@ -1465,9 +1478,9 @@ void mp_decimal_m_exp (MP mp, mp_number *ret, mp_number x_orig) {
   decNumber temp, twofivesix;
   decNumberFromInt32(&twofivesix, 256);
   decNumberDivide(&temp, x_orig.data.num, &twofivesix, &set);
-  set.status = 0;
-  decNumberExp(ret->data.num, &temp, &set);
-  if (set.status != 0) {
+  limitedset.status = 0;
+  decNumberExp(ret->data.num, &temp, &limitedset);
+  if (limitedset.status & DEC_Clamped) {
     if (decNumberIsPositive((decNumber *)x_orig.data.num)) {
       mp->arith_error = true;
       decNumberCopy(ret->data.num, &EL_GORDO_decNumber);
@@ -1475,6 +1488,7 @@ void mp_decimal_m_exp (MP mp, mp_number *ret, mp_number x_orig) {
       decNumberZero(ret->data.num);
     }
   }
+  limitedset.status = 0;
 }
 
 

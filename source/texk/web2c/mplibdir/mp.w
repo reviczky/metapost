@@ -166,6 +166,7 @@ typedef struct MP_instance {
 #include "mppngout.h"           /* internal header */
 #include "mpmath.h"             /* internal header */
 #include "mpmathdouble.h"       /* internal header */
+#include "mpmathdecimal.h"      /* internal header */
 #include "mpstrings.h"          /* internal header */
 extern font_number mp_read_font_info (MP mp, char *fname);      /* tfmin.w */
 @h @<Declarations@>;
@@ -526,6 +527,8 @@ MP mp_initialize (MP_options * opt) {
 #endif
   if (opt->math_mode == mp_math_scaled_mode) {
     mp->math = mp_initialize_scaled_math(mp);
+  } else if (opt->math_mode == mp_math_decimal_mode) {
+    mp->math = mp_initialize_decimal_math(mp);
   } else {
     mp->math = mp_initialize_double_math(mp);
   }
@@ -2912,6 +2915,8 @@ static mp_node mp_get_symbolic_node (MP mp) {
     p->link = NULL;
   } else {
     p = malloc_node (symbolic_node_size);
+    new_number(p->data.n);
+    p->has_number = 1;
   }
   p->type = mp_symbol_node;
   p->name_type = mp_normal_sym;
@@ -4448,7 +4453,7 @@ static mp_node do_get_equiv_node (MP mp, mp_sym A) {
 }
 static mp_sym do_get_equiv_sym (MP mp, mp_sym A) {
   FUNCTION_TRACE3 ("%p = do_get_equiv_sym(%p)\n",A->v.data.node,A);
-  return A->v.data.sym;
+  return (mp_sym)A->v.data.node;
 }
 #else
 #define text(A)         (A)->text
@@ -4472,6 +4477,7 @@ typedef struct mp_symbol_entry {
   halfword type;
   mp_value v;
   mp_string text;
+  void *parent;
 } mp_symbol_entry;
 
 @ @<Glob...@>=
@@ -4521,13 +4527,16 @@ static int comp_symbols_entry (void *p, const void *pa, const void *pb) {
 
 
 @ Copying a symbol happens when an item is inserted into an AVL tree.
-The |text| needs to be deep copied, every thing else can be reassigned.
-
+The |text| and |mp_number| needs to be deep copied, every thing else 
+can be reassigned.
+ 
 @c
 static void *copy_symbols_entry (const void *p) {
+  MP mp;
   mp_sym ff;
   const mp_symbol_entry *fp;
   fp = (const mp_symbol_entry *) p;
+  mp = (MP)fp->parent;
   ff = malloc (sizeof (mp_symbol_entry));
   if (ff == NULL)
     return NULL;
@@ -4536,9 +4545,9 @@ static void *copy_symbols_entry (const void *p) {
     return NULL;
   ff->v = fp->v;
   ff->type = fp->type;
-  /* todo: this only works for non-allocated numbers */
-  /* ff->v.data.n = malloc(sizeof (struct mp_number_data)); */
-  memcpy(&ff->v.data.n, &fp->v.data.n, sizeof(struct mp_number_data));
+  ff->parent = mp;
+  new_number(ff->v.data.n);
+  number_clone(ff->v.data.n, fp->v.data.n);
   return ff;
 }
 
@@ -4548,8 +4557,10 @@ end of the run.
 
 @c
 static void *delete_symbols_entry (void *p) {
+  MP mp;
   mp_sym ff = (mp_sym) p;
-  /* mp_xfree (ff->v.data.n); */ /* not good enough! */
+  mp = (MP)ff->parent;
+  free_number(ff->v.data.n);
   mp_xfree (ff->text->str);
   mp_xfree (ff->text);
   mp_xfree (ff);
@@ -4582,6 +4593,7 @@ static mp_sym new_symbols_entry (MP mp, unsigned char *nam, size_t len) {
   mp_sym ff;
   ff = mp_xmalloc (mp, 1, sizeof (mp_symbol_entry));
   memset (ff, 0, sizeof (mp_symbol_entry));
+  ff->parent = mp;
   ff->text = mp_xmalloc (mp, 1, sizeof (mp_lstring));
   ff->text->str = nam;
   ff->text->len = len;
@@ -4978,11 +4990,12 @@ typedef struct mp_node_data *mp_token_node;
 
 @ @c
 #if DEBUG
-#define value_sym(A)    do_get_value_sym(mp_token_node)(A))
-#define value_number(A) do_get_value_number(mp_token_node)(A))
-#define value_node(A)   do_get_value_node(mp_token_node)(A))
-#define value_str(A)    do_get_value_str(mp_token_node)(A))
-#define value_knot(A)   do_get_value_knot(mp_token_node)(A))
+#define value_sym(A)    do_get_value_sym(mp,(mp_token_node)(A))
+//#define value_number(A) do_get_value_number(mp,(mp_token_node)(A))
+#define value_number(A) ((mp_token_node)(A))->data.n
+#define value_node(A)   do_get_value_node(mp,(mp_token_node)(A))
+#define value_str(A)    do_get_value_str(mp,(mp_token_node)(A))
+#define value_knot(A)   do_get_value_knot(mp,(mp_token_node)(A))
 #else
 #define value_sym(A)    ((mp_token_node)(A))->data.sym
 #define value_number(A) ((mp_token_node)(A))->data.n
@@ -5051,7 +5064,7 @@ static mp_knot do_get_value_knot (MP mp, mp_token_node A) {
   FUNCTION_TRACE3 ("%p = get_value_knot(%p)\n", A->data.p, A);
   return  A->data.p ;
 }
-static mp_knot do_get_value_number (MP mp, mp_token_node A) {
+static mp_number do_get_value_number (MP mp, mp_token_node A) {
   assert (A->type != mp_structured);
   FUNCTION_TRACE3 ("%d = get_value_number(%p)\n", A->data.n.type, A);
   return  A->data.n ;
@@ -5060,7 +5073,7 @@ static mp_knot do_get_value_number (MP mp, mp_token_node A) {
 
 @ @<Declarations@>=
 #if DEBUG
-static mp_sym    do_get_value_number (MP mp, mp_token_node A);
+static mp_number do_get_value_number (MP mp, mp_token_node A);
 static mp_sym    do_get_value_sym    (MP mp, mp_token_node A);
 static mp_node   do_get_value_node   (MP mp, mp_token_node A);
 static mp_string do_get_value_str    (MP mp, mp_token_node A) ;
@@ -11426,6 +11439,7 @@ mp_free_node (mp, (mp_node)mp->null_dash, dash_node_size);
 @c
 static mp_dash_node mp_get_dash_node (MP mp) {
   mp_dash_node p = (mp_dash_node) malloc_node (dash_node_size);
+  p->has_number = 0;
   new_number(p->start_x);
   new_number(p->stop_x);
   new_number(p->dash_y);
