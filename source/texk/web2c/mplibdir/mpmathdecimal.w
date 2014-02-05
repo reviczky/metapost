@@ -51,6 +51,7 @@ First, here are some very important constants.
 @ Here are the functions that are static as they are not used elsewhere
 
 @<Declarations@>=
+#define DEBUG 0
 static void mp_decimal_scan_fractional_token (MP mp, int n);
 static void mp_decimal_scan_numeric_token (MP mp, int n);
 static void mp_ab_vs_cd (MP mp, mp_number *ret, mp_number a, mp_number b, mp_number c, mp_number d);
@@ -124,6 +125,10 @@ make life easier for us:
 @c
 static decContext set;
 static decContext limitedset;
+static void checkZero (decNumber *ret) {
+  if (decNumberIsZero(ret) && decNumberIsNegative(ret)) 
+    decNumberZero(ret);
+}
 static int decNumberLess(decNumber *a, decNumber *b) {
   decNumber comp;
   decNumberCompare(&comp, a, b, &set);
@@ -147,12 +152,11 @@ static void decNumberFromDouble(decNumber *A, double B) {
   }
   decNumberFromString(A, buf, &set);
 }
-#if DEBUG
-static double decNumberToDouble(decNumber A) {
-  char *buffer = malloc(A.digits + 14);
+static double decNumberToDouble(decNumber *A) {
+  char *buffer = malloc(A->digits + 14);
   double res = 0.0;
   assert (buffer);
-  decNumberToString(&A, buffer);
+  decNumberToString(A, buffer);
   if (sscanf(buffer, "%lf", &res)) {
      free(buffer);
      return res;
@@ -162,7 +166,6 @@ static double decNumberToDouble(decNumber A) {
      return 0.0; // whatever
   }
 }
-#endif
 
 @ Borrowed code from libdfp:
 
@@ -225,13 +228,13 @@ static void decNumberAtan2 (decNumber *result, decNumber *y, decNumber *x, decCo
       /* decNumberAtan doesn't quite return the values in the ranges we
        * want for x < 0. So we need to do some correction */
       if (decNumberIsNegative (x)) {
-	  if (decNumberIsNegative (y))
+	  if (decNumberIsNegative (y)) {
             decNumberSubtract(result, result, &PI_decNumber, set);
-	  else
+	  } else {
             decNumberAdd(result, result, &PI_decNumber, set);
-	}
-      else
-	return;
+          }
+      }
+      return;
   }
   if (decNumberIsInfinite (y) && decNumberIsInfinite (x)) {
       /* If x and y are both inf, the result depends on the sign of x */
@@ -378,53 +381,44 @@ void * mp_initialize_decimal_math (MP mp) {
   decNumberFromInt32(math->fraction_four_t.data.num, fraction_four);
   /* |angles| */
   mp_new_number (mp, &math->three_sixty_deg_t, mp_angle_type);
-  decNumberFromInt32(math->three_sixty_deg_t.data.num, 360);
+  decNumberFromInt32(math->three_sixty_deg_t.data.num, 360  * angle_multiplier);
   mp_new_number (mp, &math->one_eighty_deg_t, mp_angle_type);
-  decNumberFromInt32(math->one_eighty_deg_t.data.num, 180);
+  decNumberFromInt32(math->one_eighty_deg_t.data.num, 180 * angle_multiplier);
   /* various approximations */
   mp_new_number (mp, &math->one_k, mp_scaled_type);
   decNumberFromInt32(math->one_k.data.num, 1024);
   mp_new_number (mp, &math->sqrt_8_e_k, mp_scaled_type); 
   {
-    decNumber a,b;
-    decNumberFromInt32(&a, 112429);
-    decNumberFromInt32(&b, 65536);
-    decNumberDivide(math->sqrt_8_e_k.data.num, &a, &b, &set);
+    decNumberFromDouble(math->sqrt_8_e_k.data.num, 112428.82793 / 65536.0);
     /* $2^{16}\sqrt{8/e}\approx 112428.82793$ */
   }
   mp_new_number (mp, &math->twelve_ln_2_k, mp_fraction_type); 
   {
-    decNumber a,b;
-    decNumberFromInt32(&a, 139548960);
-    decNumberFromInt32(&b, 65536);
-    decNumberDivide(math->twelve_ln_2_k.data.num, &a, &b, &set);
+    decNumberFromDouble(math->twelve_ln_2_k.data.num, 139548959.6165 / 65536.0);
     /* $2^{24}\cdot12\ln2\approx139548959.6165$ */
   }
   mp_new_number (mp, &math->coef_bound_k, mp_fraction_type);
   decNumberFromDouble(math->coef_bound_k.data.num,coef_bound);
   mp_new_number (mp, &math->coef_bound_minus_1, mp_fraction_type);
-  decNumberFromDouble(math->coef_bound_minus_1.data.num,coef_bound - 1 / 65536);
+  decNumberFromDouble(math->coef_bound_minus_1.data.num,coef_bound - 1 / 65536.0);
   mp_new_number (mp, &math->twelvebits_3, mp_scaled_type);
   {
-    decNumber a,b;
-    decNumberFromInt32(&a, 1365);
-    decNumberFromInt32(&b, 65536);
-    decNumberDivide(math->twelvebits_3.data.num, &a, &b, &set);
+    decNumberFromDouble(math->twelvebits_3.data.num, 1365 / 65536.0);
     /* $1365\approx 2^{12}/3$ */
   }
   mp_new_number (mp, &math->twentysixbits_sqrt2_t, mp_fraction_type);
   {
-    decNumberFromDouble(math->twentysixbits_sqrt2_t.data.num, 94906265.62);
+    decNumberFromDouble(math->twentysixbits_sqrt2_t.data.num, 94906265.62 / 65536.0);
     /* $2^{26}\sqrt2\approx94906265.62$ */
   }
   mp_new_number (mp, &math->twentyeightbits_d_t, mp_fraction_type);
   {
-    decNumberFromDouble(math->twentyeightbits_d_t.data.num, 35596754.69);
+    decNumberFromDouble(math->twentyeightbits_d_t.data.num, 35596754.69  / 65536.0);
     /* $2^{28}d\approx35596754.69$ */
   }
   mp_new_number (mp, &math->twentysevenbits_sqrt2_d_t, mp_fraction_type);
   {
-    decNumberFromDouble(math->twentysevenbits_sqrt2_d_t.data.num, 25170706.63);
+    decNumberFromDouble(math->twentysevenbits_sqrt2_d_t.data.num, 25170706.63  / 65536.0);
     /* $2^{27}\sqrt2\,d\approx25170706.63$ */
   }
   /* thresholds */
@@ -619,9 +613,8 @@ void mp_set_decimal_from_of_the_way(MP mp, mp_number *A, mp_number t, mp_number 
   decNumberSubtract(A->data.num, B.data.num, &r1, &set);
 }
 void mp_number_negate(mp_number *A) {
-  decNumber c;
-  decNumberCopy(&c, A->data.num);
-  decNumberCopyNegate(A->data.num, &c);
+  decNumberCopyNegate(A->data.num, A->data.num);
+  checkZero(A->data.num);
 }
 void mp_number_add(mp_number *A, mp_number B) {
   decNumberAdd(A->data.num,A->data.num,B.data.num, &set);
@@ -674,34 +667,28 @@ void mp_number_swap(mp_number *A, mp_number *B) {
   decNumberCopy(B->data.num, &swap_tmp);
 }
 void mp_number_fraction_to_scaled (mp_number *A) {
-    decNumber fmul;
-    decNumberFromInt32(&fmul, fraction_multiplier);
     A->type = mp_scaled_type;
-    decNumberDivide(A->data.num, A->data.num, &fmul, &set);
+    decNumberDivide(A->data.num, A->data.num, &fraction_multiplier_decNumber, &set);
 }
 void mp_number_angle_to_scaled (mp_number *A) {
-    decNumber fmul;
-    decNumberFromInt32(&fmul, angle_multiplier);
     A->type = mp_scaled_type;
-    decNumberDivide(A->data.num, A->data.num, &fmul, &set);
+    decNumberDivide(A->data.num, A->data.num, &angle_multiplier_decNumber, &set);
 }
 void mp_number_scaled_to_fraction (mp_number *A) {
-    decNumber fmul;
-    decNumberFromInt32(&fmul, fraction_multiplier);
     A->type = mp_fraction_type;
-    decNumberMultiply(A->data.num, A->data.num, &fmul, &set);
+    decNumberMultiply(A->data.num, A->data.num, &fraction_multiplier_decNumber, &set);
 }
 void mp_number_scaled_to_angle (mp_number *A) {
-    decNumber fmul;
-    decNumberFromInt32(&fmul, angle_multiplier);
     A->type = mp_angle_type;
-    decNumberMultiply(A->data.num, A->data.num, &fmul, &set);
+    decNumberMultiply(A->data.num, A->data.num, &angle_multiplier_decNumber, &set);
 }
 
 
-@ Query functions
+@* Query functions
 
-@d odd(A)   ((A)%2==1)
+@ Convert a number to a scaled value. |decNumberToInt32| is not
+able to make this conversion properly, so instead we are using
+|decNumberToDouble| and a typecast. Bad!
 
 @c
 int mp_number_to_scaled(mp_number A) {
@@ -709,17 +696,16 @@ int mp_number_to_scaled(mp_number A) {
   decNumber corrected;
   decNumberFromInt32(&corrected, 65536);
   decNumberMultiply(&corrected,&corrected,A.data.num, &set);
-  set.status = 0;
   decNumberReduce(&corrected, &corrected, &set);
-  result = decNumberToInt32(&corrected, &set);
-  if (set.status == DEC_Invalid_operation) {
-     set.status = 0;
-     //mp->arith_error = 1;
-     return 0; // whatever
-  } else {
-     return result;
-  }
+  result = (int)floor(decNumberToDouble(&corrected)+0.5);
+  return result;
 }
+
+@ 
+
+@d odd(A)   ((A)%2==1)
+
+@c
 int mp_number_to_int(mp_number A) {
   int32_t result;
   set.status = 0;
@@ -1196,7 +1182,6 @@ mp_number_to_double(c_orig),mp_number_to_double(d_orig));
 }
 
 
-
 @ @<Reduce to the case that |a...@>=
 if (decNumberIsNegative(&a)) {
   decNumberCopyNegate(&a, &a);
@@ -1536,8 +1521,14 @@ void mp_decimal_n_arg (MP mp, mp_number *ret, mp_number x_orig, mp_number y_orig
     ret->type = mp_angle_type;
     decNumberFromInt32(&oneeighty_angle, 180 * angle_multiplier);
     decNumberDivide(&oneeighty_angle, &oneeighty_angle, &PI_decNumber, &set);
+    checkZero(y_orig.data.num);
+    checkZero(x_orig.data.num);
     decNumberAtan2(&atan2val, y_orig.data.num, x_orig.data.num, &set);
+#if DEBUG
+    fprintf(stdout, "\n%g = atan2(%g,%g)", decNumberToDouble(&atan2val),mp_number_to_double(x_orig),mp_number_to_double(y_orig)); 
+#endif
     decNumberMultiply(ret->data.num,&atan2val, &oneeighty_angle, &set);
+    checkZero(ret->data.num);
 #if DEBUG
     fprintf(stdout, "\nn_arg(%g,%g,%g)", mp_number_to_double(*ret),
     mp_number_to_double(x_orig),mp_number_to_double(y_orig));
@@ -1579,8 +1570,12 @@ static void sinecosine(decNumber *theangle, decNumber *c, decNumber *s)
     {
         decNumberFromInt32(&p1, n);
         decNumberFromInt32(&n1, 2*n);
-        decNumberPower(&p,  &minusone, &p1, &set);
-        decNumberPower(&pxa, theangle, &n1, &set);
+        decNumberPower(&p,  &minusone, &p1, &limitedset);
+        if (n==0) {
+          decNumberCopy(&pxa, &one);
+        } else {
+          decNumberPower(&pxa, theangle, &n1, &limitedset);
+        }
 
         if (2*n<last_cached_factorial) {
 	  decNumberCopy(&fac,factorials[2*n]);
@@ -1603,7 +1598,7 @@ static void sinecosine(decNumber *theangle, decNumber *c, decNumber *s)
 
         decNumberFromInt32(&n2, 2*n+1);
         decNumberMultiply (&fac, &fac, &n2,  &set); // fac = fac * (2*n+1)
-        decNumberPower(&pxa, theangle, &n2, &set);
+        decNumberPower(&pxa, theangle, &n2,  &limitedset);
         decNumberDivide   (&pxa, &pxa, &fac, &set);
         decNumberMultiply (&pxa, &pxa, &p,   &set);
         decNumberAdd      (c,    c,    &pxa, &set);
@@ -1614,18 +1609,28 @@ static void sinecosine(decNumber *theangle, decNumber *c, decNumber *s)
 @ Calculate sines and cosines.
 @c
 void mp_decimal_sin_cos (MP mp, mp_number z_orig, mp_number *n_cos, mp_number *n_sin) {
-  mp_number rad;
-  math_data *math = (math_data *)(mp->math);
-  new_number (rad);
-  decNumberDivide(rad.data.num, z_orig.data.num, &angle_multiplier_decNumber, &set);
-  decNumberMultiply(rad.data.num, rad.data.num, &PI_decNumber, &set);
-  decNumberDivide(rad.data.num, rad.data.num, math->one_eighty_deg_t.data.num, &set);
-  sinecosine(rad.data.num, n_sin->data.num, n_cos->data.num); 
-  free_number (rad);
+  decNumber rad;
+  decNumber one_eighty;
+  decNumberFromInt32(&one_eighty, 180 * 16);
+#if DEBUG
+  fprintf(stdout, "\nsin_cos(%f)", mp_number_to_double(z_orig));
+#endif
+  decNumberMultiply(&rad, z_orig.data.num, &PI_decNumber, &set);
+  decNumberDivide(&rad, &rad, &one_eighty, &set);
+#if 0
+  if (decNumberIsNegative(&rad)) {
+    while (decNumberLess(&rad,&PI_decNumber))
+      decNumberAdd(&rad, &rad, &PI_decNumber, &set);
+  } else {
+    while (decNumberGreater(&rad,&PI_decNumber))
+      decNumberSubtract(&rad, &rad, &PI_decNumber, &set);
+  }
+#endif
+  sinecosine(&rad, n_sin->data.num, n_cos->data.num); 
   decNumberMultiply(n_cos->data.num,n_cos->data.num,&fraction_multiplier_decNumber, &set);
   decNumberMultiply(n_sin->data.num,n_sin->data.num,&fraction_multiplier_decNumber, &set);
 #if DEBUG
-  fprintf(stdout, "\nsin_cos(%f,%f,%f)", mp_number_to_double(z_orig),
+  fprintf(stdout, "\nsin_cos(%f,%f,%f)", decNumberToDouble(&rad),
 mp_number_to_double(*n_cos), mp_number_to_double(*n_sin));
 #endif
 }
