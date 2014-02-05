@@ -132,9 +132,9 @@ void * mp_initialize_scaled_math (MP mp) {
   math->allocate = mp_new_number;
   math->free = mp_free_number;
   mp_new_number (mp, &math->precision_default, mp_scaled_type);
-  math->precision_default.data.val  = unity * 5;
+  math->precision_default.data.val  = unity * 10;
   mp_new_number (mp, &math->precision_max, mp_scaled_type);
-  math->precision_max.data.val  = unity * 5;
+  math->precision_max.data.val  = unity * 10;
   /* here are the constants for |scaled| objects */
   mp_new_number (mp, &math->epsilon_t, mp_scaled_type);
   math->epsilon_t.data.val  = 1;
