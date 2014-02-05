@@ -5016,7 +5016,7 @@ static void do_set_value_sym(MP mp, mp_token_node A, mp_sym B) {
    A->data.sym=(B);
 }
 static void do_set_value_number(MP mp, mp_token_node A, mp_number B) {
-   FUNCTION_TRACE3 ("set_value(%p,%d)\n", (A),(B));
+   FUNCTION_TRACE3 ("set_value(%p,%s)\n", (A), number_tostring(B));
    A->data.p = NULL;
    A->data.str = NULL;
    A->data.node = NULL;
@@ -15163,7 +15163,9 @@ free_number (mp->max_t);
 @ The given cubics $B(w_0,w_1,w_2,w_3;t)$ and
 $B(z_0,z_1,z_2,z_3;t)$ are specified in adjacent knot nodes |(p,mp_link(p))|
 and |(pp,mp_link(pp))|, respectively.
-
+ 
+@d half(A) ((A)/2)
+ 
 @c
 static void mp_cubic_intersection (MP mp, mp_knot p, mp_knot pp) {
   mp_knot q, qq;        /* |mp_link(p)|, |mp_link(pp)| */
@@ -15204,7 +15206,55 @@ CONTINUE:
       number_clone (mp->cur_tt, mp->appr_tt);
       return;
     }
-    @<Advance to the next pair |(cur_t,cur_tt)|@>;
+  NOT_FOUND:
+    /* Advance to the next pair |(cur_t,cur_tt)| */
+    if (odd (number_to_scaled (mp->cur_tt))) {
+      if (odd (number_to_scaled (mp->cur_t))) {
+        /* Descend to the previous level and |goto not_found| */
+        {
+          set_number_from_scaled (mp->cur_t, half (number_to_scaled (mp->cur_t)));
+          set_number_from_scaled (mp->cur_tt, half (number_to_scaled (mp->cur_tt)));
+          if (number_to_scaled (mp->cur_t) == 0)
+            return;
+          mp->bisect_ptr -= int_increment;
+          mp->three_l -= (integer) mp->tol_step;
+          number_clone (mp->delx, stack_dx);
+          number_clone (mp->dely, stack_dy);
+          mp->tol = number_to_scaled (stack_tol);
+          mp->uv = number_to_scaled (stack_uv);
+          mp->xy = number_to_scaled (stack_xy);
+          goto NOT_FOUND;
+        }
+        
+      } else {
+        set_number_from_scaled (mp->cur_t, number_to_scaled (mp->cur_t) + 1);
+        number_add (mp->delx, stack_1 (u_packet (mp->uv)));
+        number_add (mp->delx, stack_2 (u_packet (mp->uv)));
+        number_add (mp->delx, stack_3 (u_packet (mp->uv)));
+        number_add (mp->dely, stack_1 (v_packet (mp->uv)));
+        number_add (mp->dely, stack_2 (v_packet (mp->uv)));
+        number_add (mp->dely, stack_3 (v_packet (mp->uv)));
+        mp->uv = mp->uv + int_packets;      /* switch from |l_packets| to |r_packets| */
+        set_number_from_scaled (mp->cur_tt, number_to_scaled (mp->cur_tt) - 1);
+        mp->xy = mp->xy - int_packets;
+        number_add (mp->delx, stack_1 (x_packet (mp->xy)));
+        number_add (mp->delx, stack_2 (x_packet (mp->xy)));
+        number_add (mp->delx, stack_3 (x_packet (mp->xy)));
+        number_add (mp->dely, stack_1 (y_packet (mp->xy)));
+        number_add (mp->dely, stack_2 (y_packet (mp->xy)));
+        number_add (mp->dely, stack_3 (y_packet (mp->xy)));
+      }
+    } else {
+      set_number_from_scaled (mp->cur_tt, number_to_scaled (mp->cur_tt) + 1);
+      mp->tol = mp->tol + mp->three_l;
+      number_substract (mp->delx, stack_1 (x_packet (mp->xy)));
+      number_substract (mp->delx, stack_2 (x_packet (mp->xy)));
+      number_substract (mp->delx, stack_3 (x_packet (mp->xy)));
+      number_substract (mp->dely, stack_1 (y_packet (mp->xy)));
+      number_substract (mp->dely, stack_2 (y_packet (mp->xy)));
+      number_substract (mp->dely, stack_3 (y_packet (mp->xy)));
+      mp->xy = mp->xy + int_packets;        /* switch from |l_packets| to |r_packets| */
+    }
   }
 }
 
@@ -15318,65 +15368,6 @@ number_double(mp->dely);
 mp->tol = mp->tol - mp->three_l + (integer) mp->tol_step;
 mp->tol += mp->tol;
 mp->three_l = mp->three_l + (integer) mp->tol_step
-
-@ 
-
-@<Advance to the next pair |(cur_t,cur_tt)|@>=
-NOT_FOUND:
-if (odd (number_to_scaled (mp->cur_tt))) {
-  if (odd (number_to_scaled (mp->cur_t))) {
-    @<Descend to the previous level and |goto not_found|@>;
-  } else {
-    set_number_from_scaled (mp->cur_t, number_to_scaled (mp->cur_t) + 1);
-    number_add (mp->delx, stack_1 (u_packet (mp->uv)));
-    number_add (mp->delx, stack_2 (u_packet (mp->uv)));
-    number_add (mp->delx, stack_3 (u_packet (mp->uv)));
-    number_add (mp->dely, stack_1 (v_packet (mp->uv)));
-    number_add (mp->dely, stack_2 (v_packet (mp->uv)));
-    number_add (mp->dely, stack_3 (v_packet (mp->uv)));
-    mp->uv = mp->uv + int_packets;      /* switch from |l_packets| to |r_packets| */
-    set_number_from_scaled (mp->cur_tt, number_to_scaled (mp->cur_tt) - 1);
-    mp->xy = mp->xy - int_packets;
-    number_add (mp->delx, stack_1 (x_packet (mp->xy)));
-    number_add (mp->delx, stack_2 (x_packet (mp->xy)));
-    number_add (mp->delx, stack_3 (x_packet (mp->xy)));
-    number_add (mp->dely, stack_1 (y_packet (mp->xy)));
-    number_add (mp->dely, stack_2 (y_packet (mp->xy)));
-    number_add (mp->dely, stack_3 (y_packet (mp->xy)));
-  }
-} else {
-  set_number_from_scaled (mp->cur_tt, number_to_scaled (mp->cur_tt) + 1);
-  mp->tol = mp->tol + mp->three_l;
-  number_substract (mp->delx, stack_1 (x_packet (mp->xy)));
-  number_substract (mp->delx, stack_2 (x_packet (mp->xy)));
-  number_substract (mp->delx, stack_3 (x_packet (mp->xy)));
-  number_substract (mp->dely, stack_1 (y_packet (mp->xy)));
-  number_substract (mp->dely, stack_2 (y_packet (mp->xy)));
-  number_substract (mp->dely, stack_3 (y_packet (mp->xy)));
-  mp->xy = mp->xy + int_packets;        /* switch from |l_packets| to |r_packets| */
-}
-
-
-@ 
-@d half(A) ((A)/2)
- 
-@<Descend to the previous level...@>=
-{
-  set_number_from_scaled (mp->cur_t, half (number_to_scaled (mp->cur_t)));
-  set_number_from_scaled (mp->cur_tt, half (number_to_scaled (mp->cur_tt)));
-  if (number_to_scaled (mp->cur_t) == 0)
-    return;
-  mp->bisect_ptr -= int_increment;
-  mp->three_l -= (integer) mp->tol_step;
-  number_clone (mp->delx, stack_dx);
-  number_clone (mp->dely, stack_dy);
-  mp->tol = number_to_scaled (stack_tol);
-  mp->uv = number_to_scaled (stack_uv);
-  mp->xy = number_to_scaled (stack_xy);
-  goto NOT_FOUND;
-}
-
-
 
 @ The |path_intersection| procedure is much simpler.
 It invokes |cubic_intersection| in lexicographic order until finding a
