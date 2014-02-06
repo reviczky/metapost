@@ -20824,7 +20824,7 @@ boolean mp_open_mem_file (MP mp) {
     wake_up_terminal();
     wterm_ln ("Sorry, I can\'t find the '");
     wterm (mp->mem_name);
-    wterm ("' preload file; will try 'plain'.");
+    wterm_ln ("' preload file; will try 'plain'.");
 @.Sorry, I can't find...@>;
     update_terminal();
     /* now pull out all the stops: try for the system \.{plain} file */
