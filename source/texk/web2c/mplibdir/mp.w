@@ -9983,7 +9983,6 @@ if (number_negative(t)) {
 
 @ @<Deal with a negative |arc0_orig| value and |return|@>=
 {
-  new_number(*ret);
   if (mp_left_type (h) == mp_endpoint) {
     set_number_to_zero (*ret);
   } else {
@@ -9998,6 +9997,7 @@ if (number_negative(t)) {
     free_number (neg_arc0);
   }
   check_arith();
+  return;
 }
 
 
