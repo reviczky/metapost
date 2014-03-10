@@ -490,7 +490,7 @@ char * mp_double_number_tostring (MP mp, mp_number n) {
    static char set[64];
    int l = 0;
    char *ret = mp_xmalloc(mp, 64, 1);
-   snprintf(set, 64, "%32.15g", n.data.dval); /* 16 is too much */
+   snprintf(set, 64, "%.17g", n.data.dval);
    while (set[l] == ' ') l++;
    strcpy(ret, set+l);
    return ret;
