@@ -2996,27 +2996,6 @@ void mp_free_node (MP mp, mp_node p, size_t siz);
 void mp_free_symbolic_node (MP mp, mp_node p);
 void mp_free_value_node (MP mp, mp_node p);
 
-@ Same redirection trick as above
-
-@d mp_info(A) get_mp_info(mp,(A))
-@d set_mp_info(A,B) do_set_mp_info(mp,(A),(B))
-
-@c
-static void do_set_mp_info (MP mp, mp_node p, halfword v) {
-  (void) mp;
-  set_number_from_scaled (p->data.n, v);
-}
-halfword get_mp_info (MP mp, mp_node p) {
-  (void) mp;
-  return number_to_scaled (p->data.n);
-}
-
-
-@ @<Declarations@>=
-static halfword get_mp_info (MP mp, mp_node p);
-static void do_set_mp_info (MP mp, mp_node p, halfword v);
-
-
 @* Memory layout.
 Some nodes are created statically, since static allocation is
 more efficient than dynamic allocation when we can get away with it. 
@@ -32548,7 +32527,7 @@ static void mp_threshold (MP mp, mp_number ret, integer m) {
 
 
 @ The |skimp| procedure reduces the current list to at most |m| entries,
-by changing values if necessary. It also sets |mp_info(p):=k| if |value(p)|
+by changing values if necessary. It also sets |indep_value(p):=k| if |value(p)|
 is the |k|th distinct value on the resulting list, and it sets
 |perturbation| to the maximum amount by which a |value| field has
 been changed. The size of the resulting list is returned as the
@@ -32573,7 +32552,7 @@ static integer mp_skimp (MP mp, integer m) {
   while (p != mp->inf_val) {
     incr (m);
     number_clone (l, value_number (p));
-    set_mp_info (p, m);
+    set_indep_value (p,m);
     set_number_from_addition (l_d, l, d);
     if (number_lessequal (value_number (mp_link (p)), l_d)) {
       @<Replace an interval of values by its midpoint@>;
@@ -32595,12 +32574,12 @@ static integer mp_skimp (MP mp, integer m) {
   new_number (test);
   do {
     p = mp_link (p);
-    set_mp_info (p, m);
+    set_indep_value (p, m);
     decr (mp->excess);
-    if (mp->excess == 0)
-      set_number_to_zero (d);
-    set_number_from_addition (test, l, d);
-  } while (number_lessequal(value_number (mp_link (p)), test));
+    if (mp->excess == 0) {
+       number_clone (l_d, l);
+    }
+  } while (number_lessequal(value_number (mp_link (p)), l_d));
   set_number_from_substraction (test, value_number (p), l);
   number_halfp(test);
   set_number_from_addition (v, l, test);
@@ -32709,7 +32688,6 @@ if (number_greaterequal (mp->perturbation, tfm_warn_threshold_k))
 @ @<Initialize table entries@>=
 mp->zero_val = mp_get_value_node (mp);
 set_value_number (mp->zero_val, zero_t);
-set_mp_info (mp->zero_val, 0);
 
 @ @<Free table entries@>=
 mp_free_value_node (mp, mp->zero_val);
@@ -32948,9 +32926,9 @@ for (k = mp->bc; k <= mp->ec; k++) {
   if (!mp->char_exists[k]) {
     mp_tfm_four (mp, 0);
   } else {
-    tfm_out (mp_info (mp->tfm_width[k]));       /* the width index */
-    tfm_out ((mp_info (mp->tfm_height[k])) * 16 + mp_info (mp->tfm_depth[k]));
-    tfm_out ((mp_info (mp->tfm_ital_corr[k])) * 4 + mp->char_tag[k]);
+    tfm_out (indep_value (mp->tfm_width[k]));       /* the width index */
+    tfm_out ((indep_value (mp->tfm_height[k])) * 16 + indep_value (mp->tfm_depth[k]));
+    tfm_out ((indep_value (mp->tfm_ital_corr[k])) * 4 + mp->char_tag[k]);
     tfm_out (mp->char_remainder[k]);
   };
 }
