@@ -116,6 +116,49 @@ static void mp_free_number (MP mp, mp_number *n) ;
 static void mp_set_decimal_from_double(mp_number *A, double B);
 static void mp_free_decimal_math (MP mp);
 static void mp_decimal_set_precision (MP mp);
+static void mp_check_decNumber (MP mp, decNumber *dec, decContext *context);
+static int decNumber_check (decNumber *dec, decContext *context);
+static char * mp_decnumber_tostring (decNumber *n);
+
+@ We do not want special numbers as return values for functions, so:
+
+
+@c 
+int decNumber_check (decNumber *dec, decContext *context)
+{
+   int test = false;
+   if (context->status & DEC_Errors) {
+     fprintf(stdout, "DEC_ERROR %x (%s)\n", context->status, decContextStatusToString(context));
+     test = true;
+     decNumberZero(dec);
+   }
+   context->status = 0;
+   if (decNumberIsSpecial(dec)) {
+      test = true;
+      if (decNumberIsInfinite(dec)) {
+       fprintf(stdout, "INF\n");
+        if (decNumberIsNegative(dec)) {
+	  decNumberCopyNegate(dec, &EL_GORDO_decNumber);
+        } else {
+	  decNumberCopy(dec, &EL_GORDO_decNumber);
+        }
+      } else { // Nan 
+        fprintf(stdout, "NAN\n");
+        decNumberZero(dec);
+      }
+   }
+   if (decNumberIsZero(dec) && decNumberIsNegative(dec)) {
+     decNumberZero(dec);
+   }
+   return test;
+}
+void mp_check_decNumber (MP mp, decNumber *dec, decContext *context)
+{
+  mp->arith_error = decNumber_check (dec, context);
+}
+
+
+
 
 @ There are a few short decNumber functions that do not exist, but 
 make life easier for us:
@@ -186,27 +229,32 @@ The second application gives us a new x with x < 0.4142136.
 For that x, we use the power series and multiply the result by four.
 
 @c
-static void decNumberAtan (decNumber *result, decNumber *x, decContext *set) 
+static void decNumberAtan (decNumber *result, decNumber *x_orig, decContext *set) 
 {
-  decNumber f, g, mx2, term;
+  decNumber x, f, g, mx2, term;
   int i;
-  if (decNumberIsZero (x)) {
-    decNumberCopy (result, x);
+  decNumberCopy(&x, x_orig); 
+  if (decNumberIsZero (&x)) {
+    decNumberCopy (result, &x);
     return;
   }
   for (i=0; i<2; i++) {
     decNumber y;
-    decNumberMultiply (&y, x, x, set);     // y = x^2
+    decNumberMultiply (&y, &x, &x, set);     // y = x^2
     decNumberAdd (&y, &y, &one, set);      // y = y+1
     decNumberSquareRoot (&y, &y, set);     // y = sqrt(y)
     decNumberSubtract (&y, &y, &one, set); // y = y-1
-    decNumberDivide (x, &y, x, set);       // x = y/x
+    decNumberDivide (&x, &y, &x, set);       // x = y/x
+    if (decNumberIsZero (&x)) {
+      decNumberCopy (result, &x);
+      return;
+    }
   }
-  decNumberCopy (&f, x);     // f(0) = x
+  decNumberCopy (&f, &x);     // f(0) = x
   decNumberCopy (&g, &one);  // g(0) = 1
-  decNumberCopy (&term, x);  // term = x
-  decNumberCopy (result, x); // sum  = x 
-  decNumberMultiply (&mx2, x, x, set); // mx2 = x^2
+  decNumberCopy (&term, &x);  // term = x
+  decNumberCopy (result, &x); // sum  = x 
+  decNumberMultiply (&mx2, &x, &x, set); // mx2 = x^2
   decNumberMinus (&mx2, &mx2, set);    // mx2 = -x^2  
   for (i=0; i<2*set->digits; i++) {
     decNumberMultiply (&f, &f, &mx2, set);
@@ -560,7 +608,7 @@ void mp_new_number (MP mp, mp_number *n, mp_number_type t) {
 @c
 void mp_free_number (MP mp, mp_number *n) {
   (void)mp;
-  //free(n->data.num);
+  // free(n->data.num);
   n->data.num = NULL;
   n->type = mp_nan_type;
 }
@@ -611,6 +659,7 @@ void mp_set_decimal_from_of_the_way(MP mp, mp_number *A, mp_number t, mp_number 
   decNumberSubtract(&c,B.data.num, C.data.num, &set);
   mp_decimal_take_fraction(mp, &r1, &c, t.data.num);
   decNumberSubtract(A->data.num, B.data.num, &r1, &set);
+  mp_check_decNumber(mp, A->data.num, &set);
 }
 void mp_number_negate(mp_number *A) {
   decNumberCopyNegate(A->data.num, A->data.num);
@@ -793,14 +842,17 @@ is fairly stupid, and it is not round-trip safe, but this is good
 enough for a beta test.
 
 @c
-char * mp_decimal_number_tostring (MP mp, mp_number n) {
+char * mp_decnumber_tostring (decNumber *n) {
   decNumber corrected;
-  char *buffer = malloc(((decNumber *)n.data.num)->digits + 14);
+  char *buffer = malloc(((decNumber *)n)->digits + 14);
   assert (buffer);
-  decNumberCopy(&corrected,n.data.num);
+  decNumberCopy(&corrected,n);
   decNumberTrim(&corrected);
   decNumberToString(&corrected, buffer);
   return buffer;
+}
+char * mp_decimal_number_tostring (MP mp, mp_number n) {
+  return mp_decnumber_tostring(n.data.num);
 }
 
 
@@ -864,6 +916,7 @@ preferable to trickery, unless the cost is too high.
 @c
 void mp_decimal_make_fraction (MP mp, decNumber *ret, decNumber *p, decNumber *q) {
   decNumberDivide(ret, p, q, &set);
+  mp_check_decNumber(mp, ret, &set);
   decNumberMultiply(ret, ret, &fraction_multiplier_decNumber, &set);
 }
 void mp_decimal_number_make_fraction (MP mp, mp_number *ret, mp_number p, mp_number q) {
@@ -920,6 +973,7 @@ so it is not part of \MP's inner loop.)
 @c
 void mp_decimal_number_make_scaled (MP mp, mp_number *ret, mp_number p_orig, mp_number q_orig) {
   decNumberDivide(ret->data.num, p_orig.data.num, q_orig.data.num, &set);
+  mp_check_decNumber(mp, ret->data.num, &set);
 }
 
 @ 
@@ -1123,6 +1177,7 @@ mp_number_to_double(st),mp_number_to_double(ct),
 mp_number_to_double(sf),mp_number_to_double(cf),
 mp_number_to_double(t));
 #endif
+  mp_check_decNumber(mp, ret->data.num, &set);
 }
 
 
@@ -1178,6 +1233,7 @@ RETURN:
 mp_number_to_double(a_orig),mp_number_to_double(b_orig),
 mp_number_to_double(c_orig),mp_number_to_double(d_orig));
 #endif
+  mp_check_decNumber(mp, ret->data.num, &set);
   return;
 }
 
@@ -1326,6 +1382,7 @@ RETURN:
   fprintf(stdout, "\n%f = crossing_point(%f,%f,%f)", mp_number_to_double(*ret), 
 mp_number_to_double(aa),mp_number_to_double(bb),mp_number_to_double(cc));
 #endif
+  mp_check_decNumber(mp, ret->data.num, &set);
   return;
 }
  
@@ -1376,6 +1433,7 @@ void mp_decimal_square_rt (MP mp, mp_number *ret, mp_number x_orig) { /* return,
   } else {
     decNumberSquareRoot(ret->data.num, &x, &set);
   }
+  mp_check_decNumber(mp, ret->data.num, &set);
 }
 
 
@@ -1414,6 +1472,7 @@ void mp_decimal_pyth_add (MP mp, mp_number *ret, mp_number a_orig, mp_number b_o
   //  mp->arith_error = true;
   //  decNumberCopy(ret->data.num, &EL_GORDO_decNumber);
   //}
+  mp_check_decNumber(mp, ret->data.num, &set);
 }
 
 @ Here is a similar algorithm for $\psqrt{a^2-b^2}$. Same quick hack, also.
@@ -1433,6 +1492,7 @@ void mp_decimal_pyth_sub (MP mp, mp_number *ret, mp_number a_orig, mp_number b_o
     decNumberSquareRoot(&a, &a, &set);
   }
   decNumberCopy(ret->data.num, &a);
+  mp_check_decNumber(mp, ret->data.num, &set);
 }
 
 
@@ -1467,8 +1527,10 @@ void mp_decimal_m_log (MP mp, mp_number *ret, mp_number x_orig) {
     decNumber twofivesix;
     decNumberFromInt32(&twofivesix, 256);
     decNumberLn(ret->data.num, x_orig.data.num, &limitedset);
+    mp_check_decNumber(mp, ret->data.num, &limitedset);
     decNumberMultiply(ret->data.num, ret->data.num, &twofivesix, &set);
   }
+  mp_check_decNumber(mp, ret->data.num, &set);
 }
 
 @ @<Handle non-positive logarithm@>=
@@ -1505,6 +1567,7 @@ void mp_decimal_m_exp (MP mp, mp_number *ret, mp_number x_orig) {
       decNumberZero(ret->data.num);
     }
   }
+  mp_check_decNumber(mp, ret->data.num, &limitedset);
   limitedset.status = 0;
 }
 
@@ -1534,6 +1597,7 @@ void mp_decimal_n_arg (MP mp, mp_number *ret, mp_number x_orig, mp_number y_orig
     mp_number_to_double(x_orig),mp_number_to_double(y_orig));
 #endif
   }
+  mp_check_decNumber(mp, ret->data.num, &set);
 }
 
 
@@ -1633,6 +1697,8 @@ void mp_decimal_sin_cos (MP mp, mp_number z_orig, mp_number *n_cos, mp_number *n
   fprintf(stdout, "\nsin_cos(%f,%f,%f)", decNumberToDouble(&rad),
 mp_number_to_double(*n_cos), mp_number_to_double(*n_sin));
 #endif
+   mp_check_decNumber(mp, n_cos->data.num, &set);
+   mp_check_decNumber(mp, n_sin->data.num, &set);
 }
 
 @ To initialize the |randoms| table, we call the following routine.
