@@ -802,7 +802,6 @@ static struct option mpost_options[]
       break;
 
     if (g == '?') { /* Unknown option.  */
-     /* fprintf(stdout,"fatal error: %s: unknown option %s\n", argv[0], argv[optind]); */
       exit(EXIT_FAILURE);
     }
 
