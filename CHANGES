@@ -2,6 +2,52 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.890:
+----------------------------------------------------------------------
+
+* The numbersystem 'decimal' is now operational.
+
+* New internal: 'numberprecision', for use with 'the 'decimal' number
+  system. The (numeric) value expresses the desired calculation precision, 
+  in decimal places.
+
+  system  default   min    max
+  ============================
+  scaled       10    10     10  (assignment effectively ignored)
+  double       16    16     16  (assignment effectively ignored)
+  decimal      34     1   1000 
+
+* Bug fix: in the 'double' numbersystem, 
+
+    if X = scantokens decimal X:
+
+  will now always be true, because the 'decimal' operator now has 
+  the same resolution as the scanning routine (which is two decimal
+  places more than in the previous release).
+
+* Fixed a bug in the handling of the / operator (wrong precendence).
+ 
+* Fixed a bug in arctime (did not handle negative values currectly).
+
+* Fixed TFM generation issues (various scale-related errors).
+
+* Fixed application crashes when there was no TEXMF tree to be found
+  anywhere.
+
+* It is no longer possible to assign to the 'numbersystem' internal.
+
+* There is a new definition of 'drawdot' in plain.mp.
+
+* PNG output did not output anything for draws of a single point.
+
+* Metapost now prints the full name of any preloaded files.
+
+* Fixed a bug in the handling of labels with embedded ascii zero(es).
+
+* Fixed handling of unknown command-line options, the reporting
+  on used libraries in the --version output, and the banner line.
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.803:
 ----------------------------------------------------------------------
 
