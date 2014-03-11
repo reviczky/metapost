@@ -30,9 +30,9 @@
 #  include <lauxlib.h>
 #  include <lualib.h>
 #else
-#  include <../lua52/lua.h>
-#  include <../lua52/lauxlib.h>
-#  include <../lua52/lualib.h>
+#  include "lua.h"
+#  include "lauxlib.h"
+#  include "lualib.h"
 #define luaL_reg luaL_Reg
 #define lua_objlen lua_rawlen 
 #endif
@@ -49,7 +49,7 @@ int luaopen_mplib(lua_State * L); /* forward */
 
 /* metatable identifiers and tests */
 
-#define MPLIB_METATABLE     "MPlib"
+#define MPLIB_METATABLE     "MPlib.meta"
 #define MPLIB_FIG_METATABLE "MPlib.fig"
 #define MPLIB_GR_METATABLE  "MPlib.gr"
 
@@ -177,7 +177,7 @@ static void mplib_init_Ses(lua_State * L)
 /* Enumeration arrays to map MPlib enums to Lua strings */
 
 static const char *math_options[] =
-    { "scaled", "double", NULL };
+  { "scaled", "double", "binary", "decimal", NULL };
 
 static const char *interaction_options[] =
     { "unknown", "batch", "nonstop", "scroll", "errorstop", NULL };

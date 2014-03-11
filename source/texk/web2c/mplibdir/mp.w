@@ -553,6 +553,13 @@ MP mp_initialize (MP_options * opt) {
   }
   mp_do_initialize (mp);        /* erase preloaded mem */
   mp_init_tab (mp);             /* initialize the tables */
+  if (opt->math_mode == mp_math_scaled_mode) {
+    set_internal_string (mp_number_system, mp_intern (mp, "scaled"));
+  } else if (opt->math_mode == mp_math_decimal_mode) {
+    set_internal_string (mp_number_system, mp_intern (mp, "decimal"));
+  } else {
+    set_internal_string (mp_number_system, mp_intern (mp, "double"));
+  }
   mp_init_prim (mp);            /* call |primitive| for each primitive */
   mp_fix_date_and_time (mp);
   if (!mp->noninteractive) {
