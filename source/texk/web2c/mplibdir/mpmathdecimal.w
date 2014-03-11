@@ -390,6 +390,8 @@ void * mp_initialize_decimal_math (MP mp) {
   decNumberFromInt32(math->precision_default.data.num, DECPRECISION_DEFAULT);
   mp_new_number (mp, &math->precision_max, mp_scaled_type);
   decNumberFromInt32(math->precision_max.data.num, DECNUMDIGITS);
+  mp_new_number (mp, &math->precision_min, mp_scaled_type);
+  decNumberFromInt32(math->precision_min.data.num, 1);
   /* here are the constants for |scaled| objects */
   mp_new_number (mp, &math->epsilon_t, mp_scaled_type);
   decNumberCopy(math->epsilon_t.data.num, &epsilon_decNumber);

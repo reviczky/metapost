@@ -142,6 +142,8 @@ void * mp_initialize_double_math (MP mp) {
   math->precision_default.data.dval  = 16 * unity;
   mp_new_number (mp, &math->precision_max, mp_scaled_type);
   math->precision_max.data.dval  = 16 * unity;
+  mp_new_number (mp, &math->precision_min, mp_scaled_type);
+  math->precision_min.data.dval  = 16 * unity;
   /* here are the constants for |scaled| objects */
   mp_new_number (mp, &math->epsilon_t, mp_scaled_type);
   math->epsilon_t.data.dval  = epsilon;

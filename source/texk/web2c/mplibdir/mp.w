@@ -389,6 +389,7 @@ typedef void (*set_precision_func) (MP mp);
 typedef struct math_data {
   mp_number precision_default;
   mp_number precision_max;
+  mp_number precision_min;
   mp_number epsilon_t;
   mp_number inf_t;
   mp_number one_third_inf_t;
@@ -2430,6 +2431,7 @@ static void mp_clear_arith (MP mp) {
 @d warning_limit_t ((math_data *)mp->math)->warning_limit_t
 @d precision_default  ((math_data *)mp->math)->precision_default
 @d precision_max  ((math_data *)mp->math)->precision_max
+@d precision_min  ((math_data *)mp->math)->precision_min
 
 @ In fact, the two sorts of scaling discussed above aren't quite
 sufficient; \MP\ has yet another, used internally to keep track of angles.
@@ -28641,16 +28643,16 @@ static void forbidden_internal_assignment (MP mp, mp_node lhs) {
   mp_back_error (mp, msg, hlp, true);
   mp_get_x_next (mp);
 }
-static void bad_internal_assignment_precision (MP mp, mp_node lhs, mp_number max) {
+static void bad_internal_assignment_precision (MP mp, mp_node lhs, mp_number min, mp_number max) {
   char msg[256];
   char s[256];
   const char *hlp[] = {
-       "Precision values must be positive and are limited by the current numbersystem.",
+       "Precision values are limited by the current numbersystem.",
        NULL,
        NULL } ;
   mp_snprintf (msg, 256, "Bad '%s' has been ignored", internal_name (mp_sym_info (lhs)));
-  mp_snprintf (s, 256, "Currently I am using '%s'; the maximum allowed 'numberprecision' is %s.", 
-               mp_str (mp, internal_string (mp_number_system)), number_tostring(max));
+  mp_snprintf (s, 256, "Currently I am using '%s'; the allowed precision range is [%s,%s].", 
+               mp_str (mp, internal_string (mp_number_system)), number_tostring(min), number_tostring(max));
   hlp[1] = s;
   mp_back_error (mp, msg, hlp, true);
   mp_get_x_next (mp);
@@ -28705,10 +28707,10 @@ void mp_do_assignment (MP mp) {
              forbidden_internal_assignment (mp, lhs);
           } else if (mp_sym_info (lhs) == mp_number_precision) {
 	     if (!(mp->cur_exp.type == mp_known && 
-	       number_positive(cur_exp_value_number()) && 
+               (!number_less(cur_exp_value_number(), precision_min)) &&
                (!number_greater(cur_exp_value_number(), precision_max))
                )) {
-	       bad_internal_assignment_precision(mp, lhs, precision_max);
+	       bad_internal_assignment_precision(mp, lhs, precision_min, precision_max);
              } else {
 	       set_internal_from_cur_exp(mp_sym_info (lhs));
                set_precision();
