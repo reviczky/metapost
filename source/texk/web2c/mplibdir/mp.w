@@ -78,7 +78,7 @@ undergoes any modifications, so that it will be clear which version of
 @d false 0
 
 @<Metapost version header@>=
-#define metapost_version "1.890"
+#define metapost_version "1.900"
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
 few typedefs and the header defintions for the externally used
