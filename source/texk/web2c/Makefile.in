@@ -74,9 +74,9 @@ DIST_COMMON = $(srcdir)/am/bootstrap.am $(srcdir)/am/web.am \
 	$(srcdir)/pdftexdir/am/pdftex.am \
 	$(srcdir)/pdftexdir/am/ttf2afm.am \
 	$(srcdir)/pdftexdir/am/pdftosrc.am \
-	$(srcdir)/luatexdir/am/liblua52.am \
 	$(srcdir)/luatexdir/am/luasocket.am \
 	$(srcdir)/luatexdir/am/luamisc.am \
+	$(srcdir)/luatexdir/am/libunilib.am \
 	$(srcdir)/luatexdir/am/luafontforge.am \
 	$(srcdir)/luatexdir/am/libluatex.am \
 	$(srcdir)/luatexdir/am/luatex.am \
@@ -85,7 +85,7 @@ DIST_COMMON = $(srcdir)/am/bootstrap.am $(srcdir)/am/web.am \
 	$(srcdir)/omegaware/am/omegaware.am \
 	$(srcdir)/alephdir/am/aleph.am \
 	$(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am \
-	$(srcdir)/../am/bin_links.am $(srcdir)/Makefile.in \
+	$(srcdir)/../../am/bin_links.am $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(top_srcdir)/configure \
 	$(am__configure_deps) $(srcdir)/c-auto.in \
 	$(top_srcdir)/luatexdir/luafontloader/ff-config.in \
@@ -98,11 +98,11 @@ DIST_COMMON = $(srcdir)/am/bootstrap.am $(srcdir)/am/web.am \
 	$(top_srcdir)/../texlive/w32_wrapper/callexe.c \
 	$(top_srcdir)/../../build-aux/depcomp $(dist_man_MANS) \
 	$(top_srcdir)/../../build-aux/test-driver AUTHORS ChangeLog \
-	NEWS README ../../build-aux/config.guess \
-	../../build-aux/config.sub ../../build-aux/depcomp \
-	../../build-aux/install-sh ../../build-aux/missing \
-	../../build-aux/texinfo.tex ../../build-aux/ylwrap \
-	../../build-aux/ltmain.sh \
+	NEWS README ../../build-aux/compile \
+	../../build-aux/config.guess ../../build-aux/config.sub \
+	../../build-aux/depcomp ../../build-aux/install-sh \
+	../../build-aux/missing ../../build-aux/texinfo.tex \
+	../../build-aux/ylwrap ../../build-aux/ltmain.sh \
 	$(top_srcdir)/../../build-aux/config.guess \
 	$(top_srcdir)/../../build-aux/config.sub \
 	$(top_srcdir)/../../build-aux/install-sh \
@@ -152,6 +152,8 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/web2c-disable.m4 \
 	$(top_srcdir)/../../m4/kpse-lex.m4 \
 	$(top_srcdir)/../../m4/kpse-libpng-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-lt-hack.m4 \
+	$(top_srcdir)/../../m4/kpse-lua52-flags.m4 \
+	$(top_srcdir)/../../m4/kpse-luajit-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-macos-framework.m4 \
 	$(top_srcdir)/../../m4/kpse-pixman-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-poppler-flags.m4 \
@@ -790,6 +792,15 @@ LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+LUA52_DEFINES = @LUA52_DEFINES@
+LUA52_DEPEND = @LUA52_DEPEND@
+LUA52_INCLUDES = @LUA52_INCLUDES@
+LUA52_LIBS = @LUA52_LIBS@
+LUAJIT_DEFINES = @LUAJIT_DEFINES@
+LUAJIT_DEPEND = @LUAJIT_DEPEND@
+LUAJIT_INCLUDES = @LUAJIT_INCLUDES@
+LUAJIT_LDEXTRA = @LUAJIT_LDEXTRA@
+LUAJIT_LIBS = @LUAJIT_LIBS@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
@@ -914,7 +925,6 @@ top_srcdir = @top_srcdir@
 wlibs = @wlibs@
 x_ext_lib = @x_ext_lib@
 x_tool_libs = @x_tool_libs@
-ACLOCAL_AMFLAGS = -I ../../m4 -I m4
 AM_CPPFLAGS = $(KPATHSEA_INCLUDES)
 AM_CFLAGS = $(WARNING_CFLAGS)
 AM_CXXFLAGS = ## $(WARNING_CXXFLAGS)
@@ -984,13 +994,13 @@ DISTCLEANFILES = $(EXTRA_LIBRARIES) CXXLD.sh tangle.c tangle.h \
 	tests/io.tex tests/xpatout pattmp.4 cmr10.gf \
 	tests/xcmr10.600gf tests/xcmr10.pktyp tests/xcmr10.tfm \
 	tests/xtexpool.typ tests/xcmr10.pl tests/xptmr.vpl \
-	tests/xptmr.tfm tests/xptmr.vf pooltype.tex ctie.c cweave.c \
-	tie.c ctie.outc ctie.outm common.tex common.scn common.idx \
-	tie.outc tie.outm $(nodist_tex_SOURCES) tex-final.ch tex-web2c \
-	tex.p tex.pool tex-tangle trip.diffs write18-quote.log \
-	mftrap.diffs $(nodist_libmf_a_SOURCES) mf-final.ch mf-web2c \
-	mf.p mf.pool mf-tangle $(nodist_mpost_SOURCES) mpxout-tangle \
-	mptrap.diffs ptmr.mpx tests/xptmr.mpx tests/xstory.mpx \
+	tests/yptmr*.* pooltype.tex ctie.c cweave.c tie.c ctie.outc \
+	ctie.outm common.tex common.scn common.idx tie.outc tie.outm \
+	$(nodist_tex_SOURCES) tex-final.ch tex-web2c tex.p tex.pool \
+	tex-tangle trip.diffs write18-quote.log mftrap.diffs \
+	$(nodist_libmf_a_SOURCES) mf-final.ch mf-web2c mf.p mf.pool \
+	mf-tangle $(nodist_mpost_SOURCES) mpxout-tangle mptrap.diffs \
+	ptmr.mpx tests/xptmr.mpx tests/xstory.mpx \
 	$(nodist_libmplib_a_SOURCES) mp-tangle mpmath-tangle \
 	mpmathdecimal-tangle mpmathdouble-tangle mpstrings-tangle \
 	psout-tangle svgout-tangle pngout-tangle
@@ -1003,7 +1013,7 @@ uninstall_exe_links = $(am__append_21)
 NEVER_DIST = `find . -name .svn` cwebdir/cweave.log cwebdir/cweave.trs \
 	ctiedir/ctie.log ctiedir/ctie.trs tiedir/tie.log \
 	tiedir/tie.trs
-web2c = $(SHELL) ./web2c-sh $@
+web2c = AM_V_P=$(AM_V_P) $(SHELL) ./web2c-sh $@
 makecpool = $(AM_V_GEN)web2c/makecpool
 
 # Additional dependencies:
@@ -1124,7 +1134,7 @@ tex_ch_srcs = \
 
 # TeX tests
 #
-tex_tests = trip.test tests/write18-quote-test.pl
+tex_tests = triptest tests/write18-quote-test.pl
 inimf_CPPFLAGS = -DEXEPROG=\"mf.exe\"
 nodist_inimf_SOURCES = callexe.c
 inimf_LDADD = 
@@ -1156,7 +1166,7 @@ mf_ch_src = \
 
 # Metafont tests
 #
-mf_tests = trap.test
+mf_tests = mftraptest
 mpost_CPPFLAGS = $(AM_CPPFLAGS) $(ZLIB_INCLUDES) $(LIBPNG_INCLUDES) -I$(srcdir)/mplibdir
 mpost_DEPENDENCIES = libmplib.a
 mpost_LDADD = libmplib.a $(KPATHSEA_LIBS) $(CAIRO_LIBS) $(PIXMAN_LIBS) $(LIBPNG_LIBS) $(ZLIB_LIBS)
@@ -1204,7 +1214,7 @@ all: ff-config.h
 .SUFFIXES: .c .cin .h .hin .lo .log .o .obj .p .pin .test .test$(EXEEXT) .trs
 am--refresh: Makefile
 	@:
-$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am $(srcdir)/uptexdir/am/uptex.am $(srcdir)/euptexdir/am/euptex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/liblua52.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/txt2zlib.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(srcdir)/../am/bin_links.am $(am__configure_deps)
+$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am $(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am $(srcdir)/uptexdir/am/uptex.am $(srcdir)/euptexdir/am/euptex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/libunilib.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/txt2zlib.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(srcdir)/../../am/bin_links.am $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -1226,7 +1236,7 @@ Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe)'; \
 	    cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe);; \
 	esac;
-$(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am $(srcdir)/uptexdir/am/uptex.am $(srcdir)/euptexdir/am/euptex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/liblua52.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/txt2zlib.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(srcdir)/../am/bin_links.am:
+$(srcdir)/am/bootstrap.am $(srcdir)/am/web.am $(srcdir)/am/cweb.am $(srcdir)/am/texmf.am $(srcdir)/mplibdir/am/mplib.am $(srcdir)/mplibdir/am/libmplib.am $(srcdir)/etexdir/am/etex.am $(srcdir)/ptexdir/am/ptex.am $(srcdir)/eptexdir/am/eptex.am $(srcdir)/uptexdir/am/uptex.am $(srcdir)/euptexdir/am/euptex.am $(srcdir)/pdftexdir/am/libpdftex.am $(srcdir)/pdftexdir/am/pdftex.am $(srcdir)/pdftexdir/am/ttf2afm.am $(srcdir)/pdftexdir/am/pdftosrc.am $(srcdir)/luatexdir/am/luasocket.am $(srcdir)/luatexdir/am/luamisc.am $(srcdir)/luatexdir/am/libunilib.am $(srcdir)/luatexdir/am/luafontforge.am $(srcdir)/luatexdir/am/libluatex.am $(srcdir)/luatexdir/am/luatex.am $(srcdir)/luatexdir/am/txt2zlib.am $(srcdir)/xetexdir/am/xetex.am $(srcdir)/omegaware/am/omegaware.am $(srcdir)/alephdir/am/aleph.am $(srcdir)/synctexdir/am/synctex.am $(srcdir)/libmd5/am/md5.am $(srcdir)/../../am/bin_links.am:
 
 $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	$(SHELL) ./config.status --recheck
@@ -2191,9 +2201,23 @@ tests/bibtex-longline-test.pl.log: tests/bibtex-longline-test.pl
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+triptest.log: triptest
+	@p='triptest'; \
+	b='triptest'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 tests/write18-quote-test.pl.log: tests/write18-quote-test.pl
 	@p='tests/write18-quote-test.pl'; \
 	b='tests/write18-quote-test.pl'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+mftraptest.log: mftraptest
+	@p='mftraptest'; \
+	b='mftraptest'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
@@ -2573,7 +2597,10 @@ web2c/stamp-makecpool: $(web2c_common) ${srcdir}/web2c/makecpool.c
 $(proglib): ${srcdir}/lib/*.c
 	cd lib && $(MAKE) $(AM_MAKEFLAGS) lib.a
 @KPATHSEA_RULE@
+@PTEXENC_RULE@
 @ZLIB_RULE@
+@LUA52_RULE@
+@LUAJIT_RULE@
 @LIBPNG_RULE@
 @FREETYPE2_RULE@
 @PIXMAN_RULE@
