@@ -54,7 +54,7 @@ MPOSTEXE=mpost
 
 if [ `uname` = "Darwin" ] ; 
 then
-   export MACOSX_DEPLOYMENT_TARGET=10.4
+   export MACOSX_DEPLOYMENT_TARGET=10.5
 fi;
 
 B=build
