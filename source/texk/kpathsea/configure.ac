@@ -14,7 +14,6 @@ AC_CONFIG_AUX_DIR([../../build-aux])
 AC_CONFIG_MACRO_DIR([../../m4])
 
 AC_SUBST([KPSEVERSION], [kpse_version])
-AC_DEFINE([KPSEVERSION], ["kpathsea version kpse_version"])
 KPSE_LT_VERSION([kpse])
 
 m4_include([../../version.ac])[] dnl define tex_live_version
@@ -61,6 +60,10 @@ fi
 fi
 
 KPSE_COND_MINGW32
+AS_CASE([$host_os],
+        [cygwin* | mingw*], [kpse_have_cygwin_or_mingw=yes])
+AM_CONDITIONAL([CYGWIN_OR_MINGW],
+               [test "x$kpse_have_cygwin_or_mingw" = xyes])
 
 AC_SUBST([LT_OBJDIR], ["$lt_cv_objdir"])
 
@@ -109,6 +112,8 @@ if test "x$kpse_cv_wrap_snprintf" = xyes; then
             [Define to 1 if we need (v)snprintf wrapper functions.])
 fi               
 
+AM_CONDITIONAL([have_EXEEXT], [test -n "$EXEEXT"])
+
 dnl Write output here, instead of putting a zillion -D's on the command line.
 AC_CONFIG_HEADERS([c-auto.h:c-auto.in],
  [sed -e 's/^#define PACKAGE/#define KPSE_PACKAGE/' \
@@ -137,7 +142,7 @@ AH_TOP([/* c-auto.h: defines for kpathsea, as determined by configure.
 #define KPATHSEA_C_AUTO_H
 
 /* kpathsea: the version string. */
-#define KPSEVERSION "REPLACE-WITH-KPSEVERSION"])
+#define KPSEVERSION "kpathsea version] kpse_version["])
 AH_BOTTOM([#endif /* !KPATHSEA_C_AUTO_H */])
 
 AC_CONFIG_FILES([Makefile doc/Makefile man/Makefile win32/Makefile])
