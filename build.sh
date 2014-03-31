@@ -130,6 +130,7 @@ fi
 $MAKE
 (cd libs/zlib; $MAKE )
 (cd libs/libpng; $MAKE )
+(cd libs/gmp; $MAKE ; $MAKE gmpbuild )
 (cd texk/web2c; $MAKE $MPOSTEXE )
 
 # go back

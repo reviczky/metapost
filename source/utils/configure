@@ -741,6 +741,7 @@ with_system_libpng
 with_system_zlib
 with_zlib_includes
 with_zlib_libdir
+with_system_gmp
 with_system_kpathsea
 with_kpathsea_includes
 with_kpathsea_libdir
@@ -1470,6 +1471,8 @@ Optional Packages:
   --with-zlib-includes=DIR
                           zlib headers installed in DIR
   --with-zlib-libdir=DIR  zlib library installed in DIR
+  --with-system-gmp       use installed gmp headers and library (requires
+                          pkg-config)
   --with-system-kpathsea  use installed kpathsea headers and library
   --with-kpathsea-includes=DIR
                           kpathsea headers installed in DIR
@@ -3525,6 +3528,26 @@ $as_echo "$as_me: Assuming installed \`zlib' headers and library" >&6;}
     with_system_zlib=yes
   fi
   ac_configure_args="$ac_configure_args '--with-system-zlib=$with_system_zlib'"
+fi
+
+## libs/gmp/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/gmp/
+## configure options and TL libraries required for cairo
+
+# Check whether --with-system-gmp was given.
+if test "${with_system_gmp+set}" = set; then :
+  withval=$with_system_gmp;
+fi
+if test "x$with_system_gmp" = x; then
+  if test -f $srcdir/../libs/gmp/configure; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`gmp' headers and library from TL tree" >&5
+$as_echo "$as_me: Assuming \`gmp' headers and library from TL tree" >&6;}
+    with_system_gmp=no
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming installed \`gmp' headers and library" >&5
+$as_echo "$as_me: Assuming installed \`gmp' headers and library" >&6;}
+    with_system_gmp=yes
+  fi
+  ac_configure_args="$ac_configure_args '--with-system-gmp=$with_system_gmp'"
 fi
 
 
