@@ -290,6 +290,7 @@ KPSE_ICU_FLAGS
 KPSE_HARFBUZZ_FLAGS
 KPSE_GRAPHITE2_FLAGS
 KPSE_GMP_FLAGS
+KPSE_MPFR_FLAGS
 
 # Check size of off_t (using <kpathsea/config.h>)
 KPSE_ADD_FLAGS([kpathsea])

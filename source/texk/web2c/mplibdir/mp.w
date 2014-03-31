@@ -157,6 +157,7 @@ typedef struct MP_instance {
 #include <pixman.h>             /* for PIXMAN_VERSION_STRING, pixman_version_string() */
 #include <cairo.h>              /* for CAIRO_VERSION_STRING, cairo_version_string() */
 #include <gmp.h>                /* for gmp_version */
+#include <mpfr.h>               /* for MPFR_VERSION_STRING, mpfr_get_version() */
 #include "mplib.h"
 #include "mplibps.h"            /* external header */
 #include "mplibsvg.h"           /* external header */
@@ -29800,6 +29801,7 @@ void mp_show_library_versions (void) {
   fprintf(stdout, "Compiled with pixman %s; using %s\n", PIXMAN_VERSION_STRING, pixman_version_string());
   fprintf(stdout, "Compiled with libpng %s; using %s\n", PNG_LIBPNG_VER_STRING, png_libpng_ver);
   fprintf(stdout, "Compiled with zlib %s; using %s\n", ZLIB_VERSION, zlibVersion());
+  fprintf(stdout, "Compiled with mpfr %s; using %s\n", MPFR_VERSION_STRING, mpfr_get_version());
   fprintf(stdout, "Compiled with gmp %s\n\n", gmp_version);
 }
 
