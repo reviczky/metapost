@@ -73,6 +73,7 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/web2c-disable.m4 \
 	$(top_srcdir)/../../m4/kpse-lua52-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-luajit-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-macos-framework.m4 \
+	$(top_srcdir)/../../m4/kpse-mpfr-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-pixman-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-poppler-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-ptexenc-flags.m4 \
@@ -281,6 +282,9 @@ MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
+MPFR_DEPEND = @MPFR_DEPEND@
+MPFR_INCLUDES = @MPFR_INCLUDES@
+MPFR_LIBS = @MPFR_LIBS@
 NM = @NM@
 NMEDIT = @NMEDIT@
 OBJCXX = @OBJCXX@

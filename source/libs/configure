@@ -744,6 +744,7 @@ with_system_zlib
 with_zlib_includes
 with_zlib_libdir
 with_system_gmp
+with_system_mpfr
 with_system_kpathsea
 with_kpathsea_includes
 with_kpathsea_libdir
@@ -771,7 +772,8 @@ ac_subdirs_all='cairo
 pixman
 libpng
 zlib
-gmp'
+gmp
+mpfr'
 
 # Initialize some variables set by options.
 ac_init_help=
@@ -1478,6 +1480,8 @@ Optional Packages:
                           zlib headers installed in DIR
   --with-zlib-libdir=DIR  zlib library installed in DIR
   --with-system-gmp       use installed gmp headers and library (requires
+                          pkg-config)
+  --with-system-mpfr      use installed mpfr headers and library (requires
                           pkg-config)
   --with-system-kpathsea  use installed kpathsea headers and library
   --with-kpathsea-includes=DIR
@@ -3556,6 +3560,40 @@ $as_echo "$as_me: Assuming installed \`gmp' headers and library" >&6;}
   ac_configure_args="$ac_configure_args '--with-system-gmp=$with_system_gmp'"
 fi
 
+## libs/mpfr/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/gmp/
+## configure options and TL libraries required for mpfr
+
+# Check whether --with-system-mpfr was given.
+if test "${with_system_mpfr+set}" = set; then :
+  withval=$with_system_mpfr;
+fi
+if test "x$with_system_mpfr" = x; then
+  if test -f $srcdir/../libs/mpfr/configure; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`mpfr' headers and library from TL tree" >&5
+$as_echo "$as_me: Assuming \`mpfr' headers and library from TL tree" >&6;}
+    with_system_mpfr=no
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming installed \`mpfr' headers and library" >&5
+$as_echo "$as_me: Assuming installed \`mpfr' headers and library" >&6;}
+    with_system_mpfr=yes
+  fi
+  ac_configure_args="$ac_configure_args '--with-system-mpfr=$with_system_mpfr'"
+fi
+if test "x$with_system_mpfr" = xyes; then
+  if test "x$with_system_gmp" = x; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}:   ->  installed \`gmp' headers and library" >&5
+$as_echo "$as_me:   ->  installed \`gmp' headers and library" >&6;}
+    with_system_gmp=yes
+    ac_configure_args="$ac_configure_args '--with-system-gmp'"
+  elif test "x$with_system_gmp" != xyes; then
+    as_fn_error $? "Sorry, \`--with-system-mpfr' requires \`--with-system-gmp'" "$LINENO" 5
+  fi
+fi
+
+test "x$need_mpfr" = xyes && {
+  need_gmp=yes
+}
+
 
 ## texk/kpathsea/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory texk/kpathsea/
 ## configure options and TL libraries required for kpathsea
@@ -4514,6 +4552,14 @@ if test -x $srcdir/gmp/configure; then
   CONF_SUBDIRS="gmp $CONF_SUBDIRS"
   if false; then
     subdirs="$subdirs gmp"
+
+  fi
+fi
+if test -x $srcdir/mpfr/configure; then
+  test "x$with_system_mpfr" != xyes && test "x$need_mpfr" = xyes && MAKE_SUBDIRS="mpfr $MAKE_SUBDIRS"
+  CONF_SUBDIRS="mpfr $CONF_SUBDIRS"
+  if false; then
+    subdirs="$subdirs mpfr"
 
   fi
 fi

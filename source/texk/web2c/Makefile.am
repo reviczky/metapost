@@ -113,6 +113,8 @@ $(proglib): ${srcdir}/lib/*.c
 @GRAPHITE2_RULE@
 ## Rebuild libgmp
 @GMP_RULE@
+## Rebuild libmpfr
+@MPFR_RULE@
 
 # The environment for building.
 buildenv = TEXMFCNF=$(srcdir)/../kpathsea

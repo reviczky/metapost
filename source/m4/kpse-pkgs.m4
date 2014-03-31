@@ -41,6 +41,7 @@ luajit
 lua52
 zlib
 gmp
+mpfr
 ])[]dnl
 m4_define([kpse_texlibs_pkgs], [dnl
 ptexenc
@@ -71,6 +72,7 @@ AC_REQUIRE([KPSE_TECKIT_SYSTEM_FLAGS])[]dnl
 AC_REQUIRE([KPSE_ICU_SYSTEM_FLAGS])[]dnl
 AC_REQUIRE([KPSE_HARFBUZZ_SYSTEM_FLAGS])[]dnl
 AC_REQUIRE([KPSE_GMP_SYSTEM_FLAGS])[]dnl
+AC_REQUIRE([KPSE_MPFR_SYSTEM_FLAGS])[]dnl
 ]) # KPSE_ALL_SYSTEM_FLAGS
 
 # KPSE_UTILS_PKGS()
