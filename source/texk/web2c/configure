@@ -644,6 +644,10 @@ CTANGLE
 CTANGLEBOOT
 TANGLE
 TANGLEBOOT
+GMP_RULE
+GMP_DEPEND
+GMP_LIBS
+GMP_INCLUDES
 HARFBUZZ_RULE
 HARFBUZZ_DEPEND
 HARFBUZZ_LIBS
@@ -1016,6 +1020,7 @@ with_teckit_libdir
 with_system_icu
 with_system_graphite2
 with_system_harfbuzz
+with_system_gmp
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1772,6 +1777,8 @@ Optional Packages:
   --with-system-graphite2 use installed graphite2 headers and library
                           (requires pkg-config)
   --with-system-harfbuzz  use installed harfbuzz headers and library (requires
+                          pkg-config)
+  --with-system-gmp       use installed gmp headers and library (requires
                           pkg-config)
 
 Some influential environment variables:
@@ -23514,6 +23521,30 @@ $(GRAPHITE2_DEPEND): ${top_builddir}/../../libs/graphite2/include/graphite2/Font
 	cd ${top_builddir}/../../libs/graphite2 && $(MAKE) $(AM_MAKEFLAGS) rebuild
 ${top_builddir}/../../libs/graphite2/include/graphite2/Font.h:
 	cd ${top_builddir}/../../libs/graphite2 && $(MAKE) $(AM_MAKEFLAGS) rebuild'
+fi
+
+## _KPSE_LIB_FLAGS: Setup gmp (-lgmp) flags
+
+# Check whether --with-system-gmp was given.
+if test "${with_system_gmp+set}" = set; then :
+  withval=$with_system_gmp;
+fi
+if test "x$with_system_gmp" = xyes; then
+  if $PKG_CONFIG gmp; then
+  GMP_INCLUDES=`$PKG_CONFIG gmp --cflags`
+  GMP_LIBS=`$PKG_CONFIG gmp --libs`
+elif test "x$need_gmp:$with_system_gmp" = xyes:yes; then
+  as_fn_error $? "did not find gmp" "$LINENO" 5
+fi
+else
+  GMP_INCLUDES="-I$kpse_BLD/libs/gmp/gmp-build"
+  GMP_LIBS="$kpse_BLD/libs/gmp/gmp-build/.libs/libgmp.a"
+  GMP_DEPEND='${top_builddir}/../../libs/gmp/gmp-build/.libs/libgmp.a'
+  GMP_RULE='# Rebuild libgmp
+$(GMP_DEPEND): ${top_builddir}/../../libs/gmp/gmp-build/gmp.h
+	cd ${top_builddir}/../../libs/gmp && $(MAKE) $(AM_MAKEFLAGS) rebuild
+${top_builddir}/../../libs/gmp/gmp-build/gmp.h:
+	cd ${top_builddir}/../../libs/gmp && $(MAKE) $(AM_MAKEFLAGS) rebuild'
 fi
 
 
