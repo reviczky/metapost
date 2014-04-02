@@ -208,15 +208,16 @@ am_libmplib_a_OBJECTS = mplibdir/libmplib_a-avl.$(OBJEXT) \
 am__objects_2 = libmplib_a-mp.$(OBJEXT)
 am__objects_3 = libmplib_a-mpmath.$(OBJEXT)
 am__objects_4 = libmplib_a-mpmathdecimal.$(OBJEXT)
-am__objects_5 = libmplib_a-mpmathdouble.$(OBJEXT)
-am__objects_6 = libmplib_a-mpstrings.$(OBJEXT)
-am__objects_7 = libmplib_a-pngout.$(OBJEXT)
-am__objects_8 = libmplib_a-psout.$(OBJEXT)
-am__objects_9 = libmplib_a-svgout.$(OBJEXT)
+am__objects_5 = libmplib_a-mpmathbinary.$(OBJEXT)
+am__objects_6 = libmplib_a-mpmathdouble.$(OBJEXT)
+am__objects_7 = libmplib_a-mpstrings.$(OBJEXT)
+am__objects_8 = libmplib_a-pngout.$(OBJEXT)
+am__objects_9 = libmplib_a-psout.$(OBJEXT)
+am__objects_10 = libmplib_a-svgout.$(OBJEXT)
 nodist_libmplib_a_OBJECTS = libmplib_a-tfmin.$(OBJEXT) \
 	$(am__objects_2) $(am__objects_3) $(am__objects_4) \
 	$(am__objects_5) $(am__objects_6) $(am__objects_7) \
-	$(am__objects_8) $(am__objects_9)
+	$(am__objects_8) $(am__objects_9) $(am__objects_10)
 libmplib_a_OBJECTS = $(am_libmplib_a_OBJECTS) \
 	$(nodist_libmplib_a_OBJECTS)
 am__EXEEXT_1 = bibtex$(EXEEXT) dvicopy$(EXEEXT) dvitype$(EXEEXT) \
@@ -312,8 +313,8 @@ nodist_mft_OBJECTS = mft.$(OBJEXT)
 mft_OBJECTS = $(nodist_mft_OBJECTS)
 mft_LDADD = $(LDADD)
 mft_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
-am__objects_10 = mpost-mpxout.$(OBJEXT)
-nodist_mpost_OBJECTS = mpost-mpost.$(OBJEXT) $(am__objects_10)
+am__objects_11 = mpost-mpxout.$(OBJEXT)
+nodist_mpost_OBJECTS = mpost-mpost.$(OBJEXT) $(am__objects_11)
 mpost_OBJECTS = $(nodist_mpost_OBJECTS)
 nodist_patgen_OBJECTS = patgen.$(OBJEXT)
 patgen_OBJECTS = $(nodist_patgen_OBJECTS)
@@ -343,8 +344,8 @@ nodist_tangleboot_OBJECTS = tangleboot.$(OBJEXT)
 tangleboot_OBJECTS = $(nodist_tangleboot_OBJECTS)
 tangleboot_LDADD = $(LDADD)
 dist_tex_OBJECTS = tex-texextra.$(OBJEXT)
-am__objects_11 = tex-texini.$(OBJEXT) tex-tex0.$(OBJEXT)
-nodist_tex_OBJECTS = $(am__objects_11) tex-tex-pool.$(OBJEXT)
+am__objects_12 = tex-texini.$(OBJEXT) tex-tex0.$(OBJEXT)
+nodist_tex_OBJECTS = $(am__objects_12) tex-tex-pool.$(OBJEXT)
 tex_OBJECTS = $(dist_tex_OBJECTS) $(nodist_tex_OBJECTS)
 tex_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1)
 nodist_tftopl_OBJECTS = tftopl.$(OBJEXT)
@@ -1011,7 +1012,7 @@ DISTCLEANFILES = $(EXTRA_LIBRARIES) CXXLD.sh tangle.c tangle.h \
 	ptmr.mpx tests/xptmr.mpx tests/xstory.mpx \
 	$(nodist_libmplib_a_SOURCES) mp-tangle mpmath-tangle \
 	mpmathdecimal-tangle mpmathdouble-tangle mpstrings-tangle \
-	psout-tangle svgout-tangle pngout-tangle
+	mpmathbinary-tangle psout-tangle svgout-tangle pngout-tangle
 CLEANFILES = 
 TRIPTRAP_CLEAN = $(am__append_9) $(am__append_17) $(am__append_26)
 TRIPTRAP = $(am__append_8) $(am__append_16) $(am__append_25)
@@ -1196,11 +1197,12 @@ libmplib_a_CPPFLAGS = $(CAIRO_INCLUDES) $(PIXMAN_INCLUDES) $(ZLIB_INCLUDES) $(LI
 libmplib_a_SOURCES = mplibdir/avl.h mplibdir/avl.c mplibdir/decNumber.c mplibdir/decNumber.h \
 	mplibdir/decNumberLocal.h mplibdir/decContext.h mplibdir/decContext.c
 
-nodist_libmplib_a_SOURCES = tfmin.c $(mp_c_h) $(mpmath_c_h) $(mpmathdecimal_c_h) \
+nodist_libmplib_a_SOURCES = tfmin.c $(mp_c_h) $(mpmath_c_h) $(mpmathdecimal_c_h) $(mpmathbinary_c_h) \
 	$(mpmathdouble_c_h) $(mpstrings_c_h) $(pngout_c_h) $(psout_c_h) $(svgout_c_h)
 
 mp_c_h = mp.c mplib.h mpmp.h
 mpmath_c_h = mpmath.h mpmath.c
+mpmathbinary_c_h = mpmathbinary.h mpmathbinary.c
 mpmathdecimal_c_h = mpmathdecimal.h mpmathdecimal.c
 mpmathdouble_c_h = mpmathdouble.h mpmathdouble.c
 mpstrings_c_h = mpstrings.h mpstrings.c
@@ -1209,7 +1211,8 @@ svgout_c_h = mplibsvg.h mpsvgout.h svgout.c
 pngout_c_h = mplibpng.h mppngout.h pngout.c
 libmplib_web = mplibdir/mp.w mplibdir/psout.w mplibdir/svgout.w \
 	mplibdir/pngout.w mplibdir/mpmath.w mplibdir/mpmathdecimal.w \
-	mplibdir/mpmathdouble.w mplibdir/mpstrings.w mplibdir/tfmin.w
+	mplibdir/mpmathdouble.w mplibdir/mpmathbinary.w \
+	mplibdir/mpstrings.w mplibdir/tfmin.w
 libmd5_a_CPPFLAGS = -I$(srcdir)/libmd5
 libmd5_a_SOURCES = libmd5/md5.c libmd5/md5.h
 md5main_CPPFLAGS = -I$(srcdir)/libmd5
@@ -1513,6 +1516,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/initex-callexe.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplib_a-mp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplib_a-mpmath.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplib_a-mpmathbinary.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplib_a-mpmathdecimal.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplib_a-mpmathdouble.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplib_a-mpstrings.Po@am__quote@
@@ -1685,6 +1689,20 @@ libmplib_a-mpmathdecimal.obj: mpmathdecimal.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mpmathdecimal.c' object='libmplib_a-mpmathdecimal.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-mpmathdecimal.obj `if test -f 'mpmathdecimal.c'; then $(CYGPATH_W) 'mpmathdecimal.c'; else $(CYGPATH_W) '$(srcdir)/mpmathdecimal.c'; fi`
+
+libmplib_a-mpmathbinary.o: mpmathbinary.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-mpmathbinary.o -MD -MP -MF $(DEPDIR)/libmplib_a-mpmathbinary.Tpo -c -o libmplib_a-mpmathbinary.o `test -f 'mpmathbinary.c' || echo '$(srcdir)/'`mpmathbinary.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmplib_a-mpmathbinary.Tpo $(DEPDIR)/libmplib_a-mpmathbinary.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mpmathbinary.c' object='libmplib_a-mpmathbinary.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-mpmathbinary.o `test -f 'mpmathbinary.c' || echo '$(srcdir)/'`mpmathbinary.c
+
+libmplib_a-mpmathbinary.obj: mpmathbinary.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-mpmathbinary.obj -MD -MP -MF $(DEPDIR)/libmplib_a-mpmathbinary.Tpo -c -o libmplib_a-mpmathbinary.obj `if test -f 'mpmathbinary.c'; then $(CYGPATH_W) 'mpmathbinary.c'; else $(CYGPATH_W) '$(srcdir)/mpmathbinary.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmplib_a-mpmathbinary.Tpo $(DEPDIR)/libmplib_a-mpmathbinary.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mpmathbinary.c' object='libmplib_a-mpmathbinary.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplib_a-mpmathbinary.obj `if test -f 'mpmathbinary.c'; then $(CYGPATH_W) 'mpmathbinary.c'; else $(CYGPATH_W) '$(srcdir)/mpmathbinary.c'; fi`
 
 libmplib_a-mpmathdouble.o: mpmathdouble.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplib_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplib_a-mpmathdouble.o -MD -MP -MF $(DEPDIR)/libmplib_a-mpmathdouble.Tpo -c -o libmplib_a-mpmathdouble.o `test -f 'mpmathdouble.c' || echo '$(srcdir)/'`mpmathdouble.c
@@ -2877,6 +2895,11 @@ $(mpmath_c_h): mpmath-tangle
 	@$(mp_ctangle_sh) mpmath
 mpmath-tangle: ctangle$(EXEEXT) mplibdir/mpmath.w tangle-sh
 	@$(mp_ctangle_sh) mpmath
+
+$(mpmathbinary_c_h): mpmathbinary-tangle
+	@$(mp_ctangle_sh) mpmathbinary
+mpmathbinary-tangle: ctangle$(EXEEXT) mplibdir/mpmathbinary.w tangle-sh
+	@$(mp_ctangle_sh) mpmathbinary
 
 $(mpmathdecimal_c_h): mpmathdecimal-tangle
 	@$(mp_ctangle_sh) mpmathdecimal

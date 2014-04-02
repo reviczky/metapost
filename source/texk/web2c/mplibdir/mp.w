@@ -169,6 +169,7 @@ typedef struct MP_instance {
 #include "mpmath.h"             /* internal header */
 #include "mpmathdouble.h"       /* internal header */
 #include "mpmathdecimal.h"      /* internal header */
+#include "mpmathbinary.h"       /* internal header */
 #include "mpstrings.h"          /* internal header */
 extern font_number mp_read_font_info (MP mp, char *fname);      /* tfmin.w */
 @h @<Declarations@>;
@@ -536,6 +537,8 @@ MP mp_initialize (MP_options * opt) {
     mp->math = mp_initialize_scaled_math(mp);
   } else if (opt->math_mode == mp_math_decimal_mode) {
     mp->math = mp_initialize_decimal_math(mp);
+  } else if (opt->math_mode == mp_math_binary_mode) {
+    mp->math = mp_initialize_binary_math(mp);
   } else {
     mp->math = mp_initialize_double_math(mp);
   }
@@ -559,6 +562,8 @@ MP mp_initialize (MP_options * opt) {
     set_internal_string (mp_number_system, mp_intern (mp, "scaled"));
   } else if (opt->math_mode == mp_math_decimal_mode) {
     set_internal_string (mp_number_system, mp_intern (mp, "decimal"));
+  } else if (opt->math_mode == mp_math_binary_mode) {
+    set_internal_string (mp_number_system, mp_intern (mp, "binary"));
   } else {
     set_internal_string (mp_number_system, mp_intern (mp, "double"));
   }
