@@ -35,7 +35,7 @@
 
 First, here are some very important constants.
 
-@d ROUNDING MPFR_RNDU
+@d ROUNDING MPFR_RNDN
 @d E_STRING  "2.7182818284590452353602874713526624977572470936999595749669676277240766303535"
 @d PI_STRING "3.1415926535897932384626433832795028841971693993751058209749445923078164062862"
 @d fraction_multiplier 4096
@@ -210,7 +210,7 @@ static mpfr_t EL_GORDO_mpfr_t;
 
 @ @c
 void init_binary_constants (void) {
-  mpfr_inits2 (256, one, minusone, zero, two_mpfr_t, three_mpfr_t, four_mpfr_t, fraction_multiplier_mpfr_t,
+  mpfr_inits2 (precision_bits, one, minusone, zero, two_mpfr_t, three_mpfr_t, four_mpfr_t, fraction_multiplier_mpfr_t,
               fraction_one_mpfr_t, fraction_one_plus_mpfr_t,  angle_multiplier_mpfr_t, PI_mpfr_t, 
               epsilon_mpfr_t, EL_GORDO_mpfr_t, (mpfr_ptr) 0);
   mpfr_set_si (one, 1, ROUNDING);
@@ -234,10 +234,14 @@ void free_binary_constants (void) {
   mpfr_free_cache ();
 }
 
-@ @c
+@ |precision_max| is limited to 1000, because the precision of already initialized 
+|mpfr_t| numbers cannot be raised, only lowered. The value of 1000.0 is a tradeoff
+between precision and allocation size / processing speed.
+
+@c
 void * mp_initialize_binary_math (MP mp) {
   math_data *math = (math_data *)mp_xmalloc(mp,1,sizeof(math_data));
-  double d = precision_bits_to_digits(256);
+  double d = 1000.0;
   precision_bits = precision_digits_to_bits(d);
   init_binary_constants();
   /* alloc */
@@ -246,7 +250,7 @@ void * mp_initialize_binary_math (MP mp) {
   mp_new_number (mp, &math->precision_default, mp_scaled_type);
   mpfr_set_d(math->precision_default.data.num, d, ROUNDING);
   mp_new_number (mp, &math->precision_max, mp_scaled_type);
-  mpfr_set_d(math->precision_max.data.num, precision_bits_to_digits(MPFR_PREC_MAX), ROUNDING);
+  mpfr_set_d(math->precision_max.data.num, d, ROUNDING);
   mp_new_number (mp, &math->precision_min, mp_scaled_type);
   /* really should be |precision_bits_to_digits(MPFR_PREC_MIN)| but that produces a horrible number */
   mpfr_set_d(math->precision_min.data.num, 1.0 , ROUNDING); 
@@ -648,7 +652,7 @@ enough for a beta test.
 char * mp_binnumber_tostring (mpfr_t n) {
   char *str = NULL, *buffer = NULL;
   int c = 0;
-  if ((c = mpfr_asprintf (&str, "%Rg", n))>0) {
+  if ((c = mpfr_asprintf (&str, "%RE", n))>0) {
     buffer = malloc(c+1);
     if (buffer) {
       memcpy(buffer,str,c+1);
@@ -806,6 +810,7 @@ void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop) {
   buf[l] = '\0';
   mpfr_init2(result, precision_bits);
   (void)strncpy(buf,(const char *)start, l);
+  fprintf(stdout,"\nbuf=[%s],prec=%d\n",buf,(int)precision_bits);
   valid = mpfr_set_str(result,buf, 10, ROUNDING);
   free(buf);
   if (valid == 0) {
