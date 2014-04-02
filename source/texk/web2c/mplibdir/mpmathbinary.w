@@ -653,11 +653,75 @@ enough for a beta test.
 @c
 char * mp_binnumber_tostring (mpfr_t n) {
   char *str = NULL, *buffer = NULL;
-  int c = 0;
-  if ((c = mpfr_asprintf (&str, "%RE", n))>0) {
-    buffer = malloc(c+1);
+  mpfr_exp_t exp = 0;
+  int neg = 0;
+  if ((str = mpfr_get_str (NULL, &exp, 10, 0, n, ROUNDING))>0) {
+    int numprecdigits = precision_bits_to_digits(precision_bits);
+    if (*str == '-') {
+      neg = 1;
+    }
+    while (strlen(str)>0 && *(str+strlen(str)-1) == '0' ) {
+      *(str+strlen(str)-1) = '\0'; /* get rid of trailing zeroes */
+    }
+    buffer = malloc(strlen(str)+13+numprecdigits+1); 
+    /* the buffer should also fit at least strlen("E+%d", exp) or (numprecdigits-2) worth of zeroes, 
+     * because with numprecdigits == 33, the str for "1E32" will be "1", and needing 32 extra zeroes,
+     * and the decimal dot. To avoid miscalculations by myself, it is safer to add these
+     * three together.
+     */
     if (buffer) {
-      memcpy(buffer,str,c+1);
+      int i = 0, j = 0;
+      if (neg) {
+        buffer[i++] = '-';
+	j = 1;
+      }
+      if (strlen(str+j) == 0) {
+         buffer[i++] = '0';
+      } else {
+         /* non-zero */
+         if (exp<=numprecdigits && exp > -6) {
+           if (exp>0) {
+             buffer[i++] = str[j++];
+             while (--exp>0) {
+	        buffer[i++] = (str[j] ? str[j++] : '0');
+             }
+             if (str[j]) {
+	        buffer[i++] = '.';
+                while (str[j]) {
+   	          buffer[i++] = str[j++];
+                }
+             }
+           } else {
+             buffer[i++] = '0';
+             buffer[i++] = '.';
+             int absexp = -exp;
+             while (absexp-- > 0) {
+               buffer[i++] = '0';
+             }
+             while (str[j]) {
+               buffer[i++] = str[j++];
+             }
+           }
+         } else {
+           buffer[i++] = str[j++];
+           if (str[j]) {
+              buffer[i++] = '.';
+              while (str[j]) {
+                buffer[i++] = str[j++];
+              }
+           }
+	   {
+	     char msg[256];
+             int k = 0;
+             mp_snprintf (msg, 256, "%s%d", (exp>0?"+":""), (int)(exp>0 ? (exp-1) : (exp-1)));
+             buffer[i++] = 'E';
+             while (msg[k]) {
+                buffer[i++] = msg[k++];
+             }
+           }
+         }
+      }
+      buffer[i++] = '\0';
     }
     mpfr_free_str(str);
   }
