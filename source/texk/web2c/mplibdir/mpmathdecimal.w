@@ -1431,7 +1431,7 @@ relying on |real| arithmetic or system subroutines for sines, cosines, etc.
 @c
 void mp_decimal_square_rt (MP mp, mp_number *ret, mp_number x_orig) { /* return, x: scaled */
   decNumber x;
-  decNumberCopyAbs(&x, x_orig.data.num);
+  decNumberCopy(&x, x_orig.data.num);
   if (!decNumberIsPositive(&x)) {
     @<Handle square root of zero or negative argument@>;
   } else {
