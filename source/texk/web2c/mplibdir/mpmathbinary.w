@@ -155,14 +155,13 @@ void mp_check_mpfr_t (MP mp, mpfr_t dec)
 
 @c
 static double precision_bits;
-static double precision_digits;
 mpfr_prec_t precision_digits_to_bits (double i)
 {
-  return i/log(2);
+  return i/log10(2);
 }
 double precision_bits_to_digits (mpfr_prec_t d)
 {
-  return d*log(2);
+  return d*log10(2);
 }
 
 
@@ -238,18 +237,19 @@ void free_binary_constants (void) {
 @ @c
 void * mp_initialize_binary_math (MP mp) {
   math_data *math = (math_data *)mp_xmalloc(mp,1,sizeof(math_data));
-  precision_digits = 256*0.3;
-  precision_bits = precision_digits_to_bits(precision_digits);
+  double d = precision_bits_to_digits(256);
+  precision_bits = precision_digits_to_bits(d);
   init_binary_constants();
   /* alloc */
   math->allocate = mp_new_number;
   math->free = mp_free_number;
   mp_new_number (mp, &math->precision_default, mp_scaled_type);
-  mpfr_set_d(math->precision_default.data.num, precision_digits, ROUNDING);
+  mpfr_set_d(math->precision_default.data.num, d, ROUNDING);
   mp_new_number (mp, &math->precision_max, mp_scaled_type);
   mpfr_set_d(math->precision_max.data.num, precision_bits_to_digits(MPFR_PREC_MAX), ROUNDING);
   mp_new_number (mp, &math->precision_min, mp_scaled_type);
-  mpfr_set_d(math->precision_min.data.num, precision_bits_to_digits(MPFR_PREC_MIN), ROUNDING);
+  /* really should be |precision_bits_to_digits(MPFR_PREC_MIN)| but that produces a horrible number */
+  mpfr_set_d(math->precision_min.data.num, 1.0 , ROUNDING); 
   /* here are the constants for |scaled| objects */
   mp_new_number (mp, &math->epsilon_t, mp_scaled_type);
   mpfr_set (math->epsilon_t.data.num, epsilon_mpfr_t, ROUNDING);
@@ -412,7 +412,6 @@ void * mp_initialize_binary_math (MP mp) {
 
 void mp_binary_set_precision (MP mp) {
   double d = mpfr_get_d(internal_value (mp_number_precision).data.num, ROUNDING);
-  precision_digits = d;
   precision_bits = precision_digits_to_bits(d);
 }
 
@@ -451,9 +450,9 @@ void mp_free_binary_math (MP mp) {
 @ @c
 void mp_new_number (MP mp, mp_number *n, mp_number_type t) {
   (void)mp;
-  n->data.num = (mpfr_ptr)mp_xmalloc(mp,1,sizeof(mpfr_t));
+  n->data.num = mp_xmalloc(mp,1,sizeof(mpfr_t));
   mpfr_init2 ((mpfr_ptr)(n->data.num), precision_bits);
-  mpfr_set_zero((n->data.num),1); /* 1 == positive */
+  mpfr_set_zero((mpfr_ptr)(n->data.num),1); /* 1 == positive */
   n->type = t;
 }
 
@@ -462,8 +461,10 @@ void mp_new_number (MP mp, mp_number *n, mp_number_type t) {
 @c
 void mp_free_number (MP mp, mp_number *n) {
   (void)mp;
-  mpfr_clear (n->data.num);
-  n->data.num = NULL;
+  if (n->data.num) {
+    mpfr_clear (n->data.num);
+    n->data.num = NULL;
+  }
   n->type = mp_nan_type;
 }
 
@@ -477,7 +478,8 @@ void mp_set_binary_from_boolean(mp_number *A, int B) {
   mpfr_set_si(A->data.num,B, ROUNDING);
 }
 void mp_set_binary_from_scaled(mp_number *A, int B) {
-  mpfr_div_si(A->data.num, A->data.num, B, ROUNDING);
+  mpfr_set_si(A->data.num, B, ROUNDING);
+  mpfr_div_si(A->data.num, A->data.num, 65536, ROUNDING);
 }
 void mp_set_binary_from_double(mp_number *A, double B) {
   mpfr_set_d(A->data.num, B, ROUNDING);
@@ -646,7 +648,7 @@ enough for a beta test.
 char * mp_binnumber_tostring (mpfr_t n) {
   char *str = NULL, *buffer = NULL;
   int c = 0;
-  if ((c = mpfr_asprintf (&str, "%RE", n))>0) {
+  if ((c = mpfr_asprintf (&str, "%Rg", n))>0) {
     buffer = malloc(c+1);
     if (buffer) {
       memcpy(buffer,str,c+1);
