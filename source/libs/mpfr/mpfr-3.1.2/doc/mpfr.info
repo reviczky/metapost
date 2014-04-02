@@ -1,4 +1,7 @@
-This is mpfr.info, produced by makeinfo version 4.13 from mpfr.texi.
+This is
+/opt/svn/foundry.supelec.fr/metapost/trunk/build/libs/mpfr/../../../source/libs/mpfr/mpfr-3.1.2/doc/mpfr.info,
+produced by makeinfo version 4.13 from
+/opt/svn/foundry.supelec.fr/metapost/trunk/build/libs/mpfr/../../../source/libs/mpfr/mpfr-3.1.2/doc/mpfr.texi.
 
 This manual documents how to install and use the Multiple Precision
 Floating-Point Reliable Library, version 3.1.2.
@@ -4215,48 +4218,48 @@ Function and Type Index
 
 
 Tag Table:
-Node: Top892
-Node: Copying2243
-Node: Introduction to MPFR4003
-Node: Installing MPFR6092
-Node: Reporting Bugs10914
-Node: MPFR Basics12843
-Node: Headers and Libraries13159
-Node: Nomenclature and Types16143
-Node: MPFR Variable Conventions18147
-Node: Rounding Modes19677
-Ref: ternary value20774
-Node: Floating-Point Values on Special Numbers22727
-Node: Exceptions25703
-Node: Memory Handling28855
-Node: MPFR Interface29987
-Node: Initialization Functions32083
-Node: Assignment Functions38997
-Node: Combined Initialization and Assignment Functions47651
-Node: Conversion Functions48944
-Node: Basic Arithmetic Functions57496
-Node: Comparison Functions66504
-Node: Special Functions69986
-Node: Input and Output Functions83739
-Node: Formatted Output Functions85662
-Node: Integer Related Functions94781
-Node: Rounding Related Functions100543
-Node: Miscellaneous Functions104157
-Node: Exception Related Functions112724
-Node: Compatibility with MPF119478
-Node: Custom Interface122166
-Node: Internals126411
-Node: API Compatibility127895
-Node: Type and Macro Changes129825
-Node: Added Functions132546
-Node: Changed Functions135489
-Node: Removed Functions139770
-Node: Other Changes140182
-Node: Contributors141711
-Node: References144285
-Node: GNU Free Documentation License146026
-Node: Concept Index168469
-Node: Function and Type Index174388
+Node: Top1092
+Node: Copying2443
+Node: Introduction to MPFR4203
+Node: Installing MPFR6292
+Node: Reporting Bugs11114
+Node: MPFR Basics13043
+Node: Headers and Libraries13359
+Node: Nomenclature and Types16343
+Node: MPFR Variable Conventions18347
+Node: Rounding Modes19877
+Ref: ternary value20974
+Node: Floating-Point Values on Special Numbers22927
+Node: Exceptions25903
+Node: Memory Handling29055
+Node: MPFR Interface30187
+Node: Initialization Functions32283
+Node: Assignment Functions39197
+Node: Combined Initialization and Assignment Functions47851
+Node: Conversion Functions49144
+Node: Basic Arithmetic Functions57696
+Node: Comparison Functions66704
+Node: Special Functions70186
+Node: Input and Output Functions83939
+Node: Formatted Output Functions85862
+Node: Integer Related Functions94981
+Node: Rounding Related Functions100743
+Node: Miscellaneous Functions104357
+Node: Exception Related Functions112924
+Node: Compatibility with MPF119678
+Node: Custom Interface122366
+Node: Internals126611
+Node: API Compatibility128095
+Node: Type and Macro Changes130025
+Node: Added Functions132746
+Node: Changed Functions135689
+Node: Removed Functions139970
+Node: Other Changes140382
+Node: Contributors141911
+Node: References144485
+Node: GNU Free Documentation License146226
+Node: Concept Index168669
+Node: Function and Type Index174588
 
 End Tag Table
 
