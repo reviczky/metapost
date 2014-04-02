@@ -810,7 +810,6 @@ void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop) {
   buf[l] = '\0';
   mpfr_init2(result, precision_bits);
   (void)strncpy(buf,(const char *)start, l);
-  fprintf(stdout,"\nbuf=[%s],prec=%d\n",buf,(int)precision_bits);
   valid = mpfr_set_str(result,buf, 10, ROUNDING);
   free(buf);
   if (valid == 0) {
