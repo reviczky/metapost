@@ -238,19 +238,21 @@ void free_binary_constants (void) {
 |mpfr_t| numbers cannot be raised, only lowered. The value of 1000.0 is a tradeoff
 between precision and allocation size / processing speed.
 
+@d MAX_PRECISION 1000.0
+@d DEF_PRECISION 34.0
+
 @c
 void * mp_initialize_binary_math (MP mp) {
   math_data *math = (math_data *)mp_xmalloc(mp,1,sizeof(math_data));
-  double d = 1000.0;
-  precision_bits = precision_digits_to_bits(d);
+  precision_bits = precision_digits_to_bits(DEF_PRECISION);
   init_binary_constants();
   /* alloc */
   math->allocate = mp_new_number;
   math->free = mp_free_number;
   mp_new_number (mp, &math->precision_default, mp_scaled_type);
-  mpfr_set_d(math->precision_default.data.num, d, ROUNDING);
+  mpfr_set_d(math->precision_default.data.num, DEF_PRECISION, ROUNDING);
   mp_new_number (mp, &math->precision_max, mp_scaled_type);
-  mpfr_set_d(math->precision_max.data.num, d, ROUNDING);
+  mpfr_set_d(math->precision_max.data.num, MAX_PRECISION, ROUNDING);
   mp_new_number (mp, &math->precision_min, mp_scaled_type);
   /* really should be |precision_bits_to_digits(MPFR_PREC_MIN)| but that produces a horrible number */
   mpfr_set_d(math->precision_min.data.num, 1.0 , ROUNDING); 
@@ -455,7 +457,7 @@ void mp_free_binary_math (MP mp) {
 void mp_new_number (MP mp, mp_number *n, mp_number_type t) {
   (void)mp;
   n->data.num = mp_xmalloc(mp,1,sizeof(mpfr_t));
-  mpfr_init2 ((mpfr_ptr)(n->data.num), precision_bits);
+  mpfr_init2 ((mpfr_ptr)(n->data.num), MAX_PRECISION);
   mpfr_set_zero((mpfr_ptr)(n->data.num),1); /* 1 == positive */
   n->type = t;
 }
