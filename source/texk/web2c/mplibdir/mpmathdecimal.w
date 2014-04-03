@@ -127,8 +127,16 @@ static char * mp_decnumber_tostring (decNumber *n);
 int decNumber_check (decNumber *dec, decContext *context)
 {
    int test = false;
+   if (context->status & DEC_Overflow) {
+      test = true;
+      context->status &= ~DEC_Overflow; 
+   }
+   if (context->status & DEC_Underflow) {
+      test = true;
+      context->status &= ~DEC_Underflow; 
+   }
    if (context->status & DEC_Errors) {
-     fprintf(stdout, "DEC_ERROR %x (%s)\n", context->status, decContextStatusToString(context));
+//     fprintf(stdout, "DEC_ERROR %x (%s)\n", context->status, decContextStatusToString(context));
      test = true;
      decNumberZero(dec);
    }
@@ -136,14 +144,12 @@ int decNumber_check (decNumber *dec, decContext *context)
    if (decNumberIsSpecial(dec)) {
       test = true;
       if (decNumberIsInfinite(dec)) {
-       fprintf(stdout, "INF\n");
         if (decNumberIsNegative(dec)) {
 	  decNumberCopyNegate(dec, &EL_GORDO_decNumber);
         } else {
 	  decNumberCopy(dec, &EL_GORDO_decNumber);
         }
       } else { // Nan 
-        fprintf(stdout, "NAN\n");
         decNumberZero(dec);
       }
    }
@@ -330,11 +336,10 @@ void * mp_initialize_decimal_math (MP mp);
 @d p_over_v_threshold 0x80000 /* TODO */
 @d equation_threshold 0.001
 @d tfm_warn_threshold 0.0625
-@d warning_limit pow(2.0,52.0)  /* this is a large value that can just be expressed without loss of precision */
 @d epsilon "1E-52"
-@d epsilonf pow(2.0,-52.0)
-@d EL_GORDO   "1E1000000" /* the largest value that \MP\ likes. */
-@d one_third_EL_GORDO (EL_GORDO/3.0)
+@d epsilonf 1E-52
+@d EL_GORDO     "1E1000000" /* the largest value that \MP\ likes. */
+@d warning_limit "1E1000000" /* this is a large value that can just be expressed without loss of precision */
 @d DECPRECISION_DEFAULT 34
 
 @<Declarations@>=
@@ -398,7 +403,7 @@ void * mp_initialize_decimal_math (MP mp) {
   mp_new_number (mp, &math->inf_t, mp_scaled_type);
   decNumberCopy(math->inf_t.data.num, &EL_GORDO_decNumber);
   mp_new_number (mp, &math->warning_limit_t, mp_scaled_type);
-  decNumberFromDouble(math->warning_limit_t.data.num, warning_limit);
+  decNumberFromString(math->warning_limit_t.data.num, warning_limit, &set);
   mp_new_number (mp, &math->one_third_inf_t, mp_scaled_type);
   decNumberDivide(math->one_third_inf_t.data.num, math->inf_t.data.num, &three_decNumber, &set);
   mp_new_number (mp, &math->unity_t, mp_scaled_type);
@@ -991,8 +996,9 @@ The definitions below are temporarily here
 @<Declarations...@>=
 static void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop);
 
-@ Precision check is TODO
-@d too_precise(a) 0
+@
+@d too_precise(a) (a == (DEC_Inexact+DEC_Rounded))
+@d too_large(a) (a & DEC_Overflow)
 @c
 void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop) {
   decNumber result;
@@ -1005,30 +1011,35 @@ void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop) {
   free(buf);
   if (set.status == 0) {
     set_cur_mod(result);
-    if (too_precise(l)) {
+  } else if (mp->scanner_status != tex_flushing) {
+    if (too_large(set.status)) {
+       decNumber_check (&result, &set);
+       set_cur_mod(result);
+       const char *hlp[] = {"I could not handle this number specification",
+                           "because it is out of range.",
+                            NULL };   
+       mp_error (mp, "Enormous number has been reduced", hlp, false);
+    } else if (too_precise(set.status)) {
+       set_cur_mod(result);
        if (decNumberIsPositive((decNumber *)internal_value (mp_warning_check).data.num) &&
           (mp->scanner_status != tex_flushing)) {
         char msg[256];
-        const char *hlp[] = {"Continue and I'll try to cope",
-               "with that big value; but it might be dangerous.",
+        const char *hlp[] = {"Continue and I'll round the value until it fits the current numberprecision",
                "(Set warningcheck:=0 to suppress this message.)",
                NULL };
-        mp_snprintf (msg, 256, "Number is too large (%s)", mp_decimal_number_tostring(mp,mp->cur_mod_->data.n));
-@.Number is too large@>;
+        mp_snprintf (msg, 256, "Number is too precise (numberprecision = %d)", set.digits);
         mp_error (mp, msg, hlp, true);
       }
+    } else {
+      const char *hlp[] = {"I could not handle this number specification",
+                           "Error:",
+                           "",
+                            NULL };   
+      hlp[2] = decContextStatusToString(&set);
+      mp_error (mp, "Erroneous number specification changed to zero.", hlp, false);
+      decNumberZero(&result);
+      set_cur_mod(result);
     }
-  } else if (mp->scanner_status != tex_flushing) {
-    decNumber *el_gordo;
-    const char *hlp[] = {"I could not handle this number specification",
-                         "probably because it is out of range. Error:",
-                         "",
-                          NULL };   
-    hlp[2] = strerror(errno);
-    mp_error (mp, "Enormous number has been reduced.", hlp, false);
-@.Enormous number...@>;
-    el_gordo = (decNumber *)(((math_data *)(mp->math))->inf_t.data.num);
-    set_cur_mod(*el_gordo);
   }
   set_cur_cmd((mp_variable_type)mp_numeric_token);
 }
