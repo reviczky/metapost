@@ -244,8 +244,9 @@ between precision and allocation size / processing speed.
 @c
 void * mp_initialize_binary_math (MP mp) {
   math_data *math = (math_data *)mp_xmalloc(mp,1,sizeof(math_data));
-  precision_bits = precision_digits_to_bits(DEF_PRECISION);
+  precision_bits = precision_digits_to_bits(MAX_PRECISION);
   init_binary_constants();
+  precision_bits = precision_digits_to_bits(DEF_PRECISION);
   /* alloc */
   math->allocate = mp_new_number;
   math->free = mp_free_number;
@@ -457,7 +458,7 @@ void mp_free_binary_math (MP mp) {
 void mp_new_number (MP mp, mp_number *n, mp_number_type t) {
   (void)mp;
   n->data.num = mp_xmalloc(mp,1,sizeof(mpfr_t));
-  mpfr_init2 ((mpfr_ptr)(n->data.num), MAX_PRECISION);
+  mpfr_init2 ((mpfr_ptr)(n->data.num), precision_bits);
   mpfr_set_zero((mpfr_ptr)(n->data.num),1); /* 1 == positive */
   n->type = t;
 }
@@ -551,6 +552,7 @@ void mp_binary_abs(mp_number *A) {
   mpfr_abs(A->data.num, A->data.num, ROUNDING);
 }
 void mp_number_clone(mp_number *A, mp_number B) {
+  mpfr_prec_round (A->data.num, precision_bits, ROUNDING);
   mpfr_set(A->data.num, (mpfr_ptr)B.data.num, ROUNDING);
 }
 void mp_number_swap(mp_number *A, mp_number *B) {
@@ -870,17 +872,19 @@ static void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *
 @d too_precise(a) 0
 @c
 void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop) {
-  int valid = 0;
+  int invalid = 0;
   mpfr_t result;
   size_t l = stop-start+1;
   char *buf = mp_xmalloc(mp, l+1, 1);
   buf[l] = '\0';
   mpfr_init2(result, precision_bits);
   (void)strncpy(buf,(const char *)start, l);
-  valid = mpfr_set_str(result,buf, 10, ROUNDING);
+  invalid = mpfr_set_str(result,buf, 10, ROUNDING);
+  //fprintf(stdout,"scan of [%s] produced %s, ", buf, mp_binnumber_tostring(result));
   free(buf);
-  if (valid == 0) {
+  if (invalid == 0) {
     set_cur_mod(result);
+   // fprintf(stdout,"mod=%s\n", mp_binary_number_tostring(mp,mp->cur_mod_->data.n));
     if (too_precise(l)) {
        if (mpfr_positive_p((mpfr_ptr)(internal_value (mp_warning_check).data.num)) &&
           (mp->scanner_status != tex_flushing)) {
