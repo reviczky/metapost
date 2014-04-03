@@ -1030,13 +1030,13 @@ void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop) {
         mp_snprintf (msg, 256, "Number is too precise (numberprecision = %d)", set.digits);
         mp_error (mp, msg, hlp, true);
       }
-    } else {
+    } else { // this also captures underflow
       const char *hlp[] = {"I could not handle this number specification",
                            "Error:",
                            "",
                             NULL };   
       hlp[2] = decContextStatusToString(&set);
-      mp_error (mp, "Erroneous number specification changed to zero.", hlp, false);
+      mp_error (mp, "Erroneous number specification changed to zero", hlp, false);
       decNumberZero(&result);
       set_cur_mod(result);
     }
