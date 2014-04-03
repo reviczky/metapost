@@ -692,9 +692,10 @@ char * mp_binnumber_tostring (mpfr_t n) {
                 }
              }
            } else {
+             int absexp;
              buffer[i++] = '0';
              buffer[i++] = '.';
-             int absexp = -exp;
+             absexp = -exp;
              while (absexp-- > 0) {
                buffer[i++] = '0';
              }

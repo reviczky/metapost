@@ -29807,7 +29807,7 @@ void mp_show_library_versions (void) {
   fprintf(stdout, "Compiled with libpng %s; using %s\n", PNG_LIBPNG_VER_STRING, png_libpng_ver);
   fprintf(stdout, "Compiled with zlib %s; using %s\n", ZLIB_VERSION, zlibVersion());
   fprintf(stdout, "Compiled with mpfr %s; using %s\n", MPFR_VERSION_STRING, mpfr_get_version());
-  fprintf(stdout, "Compiled with gmp %s\n\n", gmp_version);
+  fprintf(stdout, "Compiled with gmp %d.%d.%d; using %s\n\n", __GNU_MP_VERSION, __GNU_MP_VERSION_MINOR, __GNU_MP_VERSION_PATCHLEVEL, gmp_version);
 }
 
 @ @<Exported function headers@>=
