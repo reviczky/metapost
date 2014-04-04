@@ -1013,11 +1013,11 @@ void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop) {
     set_cur_mod(result);
   } else if (mp->scanner_status != tex_flushing) {
     if (too_large(set.status)) {
-       decNumber_check (&result, &set);
-       set_cur_mod(result);
        const char *hlp[] = {"I could not handle this number specification",
                            "because it is out of range.",
                             NULL };   
+       decNumber_check (&result, &set);
+       set_cur_mod(result);
        mp_error (mp, "Enormous number has been reduced", hlp, false);
     } else if (too_precise(set.status)) {
        set_cur_mod(result);
