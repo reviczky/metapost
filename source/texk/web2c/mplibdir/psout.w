@@ -1205,8 +1205,9 @@ static int check_fm_entry (MP mp, fm_entry * fm, boolean warn) {
     float d;
     fm_entry *fm;
     char fm_line[FM_BUF_SIZE], buf[FM_BUF_SIZE];
-    char *p, *q, *r, *s;
+    char *p, *q, *s;
     char warn_s[128];
+    char *r = NULL;
     switch (mp->ps->mitem->type) {
     case MAPFILE:
         p = fm_line;
