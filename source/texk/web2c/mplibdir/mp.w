@@ -577,6 +577,7 @@ MP mp_initialize (MP_options * opt) {
   } else {
     mp->history = mp_spotless;
   }
+  set_precision();
   return mp;
 }
 

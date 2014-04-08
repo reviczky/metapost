@@ -246,7 +246,6 @@ void * mp_initialize_binary_math (MP mp) {
   math_data *math = (math_data *)mp_xmalloc(mp,1,sizeof(math_data));
   precision_bits = precision_digits_to_bits(MAX_PRECISION);
   init_binary_constants();
-  precision_bits = precision_digits_to_bits(DEF_PRECISION);
   /* alloc */
   math->allocate = mp_new_number;
   math->free = mp_free_number;
