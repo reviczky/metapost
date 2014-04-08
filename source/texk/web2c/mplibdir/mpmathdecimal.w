@@ -337,7 +337,7 @@ void * mp_initialize_decimal_math (MP mp);
 @d equation_threshold 0.001
 @d tfm_warn_threshold 0.0625
 @d epsilon "1E-52"
-@d epsilonf 1E-52
+@d epsilonf pow(2.0,-52.0)
 @d EL_GORDO     "1E1000000" /* the largest value that \MP\ likes. */
 @d warning_limit "1E1000000" /* this is a large value that can just be expressed without loss of precision */
 @d DECPRECISION_DEFAULT 34
@@ -1333,7 +1333,7 @@ static void mp_decimal_crossing_point (MP mp, mp_number *ret, mp_number aa, mp_n
   decNumber a,b,c;
   double d;    /* recursive counter */
   decNumber x, xx, x0, x1, x2;    /* temporary registers for bisection */
-  decNumber scratch;
+  decNumber scratch, scratch2;
   decNumberCopy(&a, (decNumber *)aa.data.num);
   decNumberCopy(&b, (decNumber *)bb.data.num);
   decNumberCopy(&c, (decNumber *)cc.data.num);
@@ -1361,12 +1361,12 @@ static void mp_decimal_crossing_point (MP mp, mp_number *ret, mp_number aa, mp_n
   decNumberCopy(&x0, &a);
   decNumberSubtract(&x1,&a, &b, &set);
   decNumberSubtract(&x2,&b, &c, &set);
+  /* not sure why the error correction has to be >= 1E-12 */
+  decNumberFromDouble(&scratch2, 1E-12);
   do {
-    /* not sure why the error correction has to be >= 1E-12 */
     decNumberAdd(&x, &x1, &x2, &set);
     decNumberDivide(&x, &x, &two_decNumber, &set);
-    decNumberFromDouble(&scratch, 1E-12);
-    decNumberAdd(&x, &x, &scratch, &set);
+    decNumberAdd(&x, &x, &scratch2, &set);
     decNumberSubtract(&scratch, &x1, &x0, &set);
     if (decNumberGreater(&scratch, &x0)) {
       decNumberCopy(&x2, &x);
@@ -1640,12 +1640,14 @@ using the Taylor series. This function is fairly optimized.
 @c
 static void sinecosine(decNumber *theangle, decNumber *c, decNumber *s)
 {
-    int n, i;
+    int n, i, prec;
     decNumber p, pxa, fac, cc;
     decNumber n1, n2, p1;
     decNumberZero(c);
     decNumberZero(s);
-    for (n=0;n<(set.digits/2);n++)
+    prec = (set.digits/2);
+    if (prec < DECPRECISION_DEFAULT) prec = DECPRECISION_DEFAULT;
+    for (n=0;n<prec;n++)
     {
         decNumberFromInt32(&p1, n);
         decNumberFromInt32(&n1, 2*n);
