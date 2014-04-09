@@ -111,10 +111,6 @@ $(proglib): ${srcdir}/lib/*.c
 @HARFBUZZ_RULE@
 ## Rebuild libgraphite2
 @GRAPHITE2_RULE@
-## Rebuild libgmp
-@GMP_RULE@
-## Rebuild libmpfr
-@MPFR_RULE@
 
 # The environment for building.
 buildenv = TEXMFCNF=$(srcdir)/../kpathsea

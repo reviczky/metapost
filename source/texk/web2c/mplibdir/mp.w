@@ -73,12 +73,12 @@ undergoes any modifications, so that it will be clear which version of
 @^extensions to \MP@>
 @^system dependencies@>
 
-@d default_banner "This is MetaPost, Version 1.990" /* printed when \MP\ starts */
+@d default_banner "This is MetaPost, Version 1.901" /* printed when \MP\ starts */
 @d true 1
 @d false 0
 
 @<Metapost version header@>=
-#define metapost_version "1.990"
+#define metapost_version "1.901"
 
 @ The external library header for \MP\ is |mplib.h|. It contains a
 few typedefs and the header defintions for the externally used
@@ -156,8 +156,6 @@ typedef struct MP_instance {
 #include <png.h>                /* for PNG_LIBPNG_VER_STRING, png_libpng_ver */
 #include <pixman.h>             /* for PIXMAN_VERSION_STRING, pixman_version_string() */
 #include <cairo.h>              /* for CAIRO_VERSION_STRING, cairo_version_string() */
-#include <gmp.h>                /* for gmp_version */
-#include <mpfr.h>               /* for MPFR_VERSION_STRING, mpfr_get_version() */
 #include "mplib.h"
 #include "mplibps.h"            /* external header */
 #include "mplibsvg.h"           /* external header */
@@ -169,7 +167,6 @@ typedef struct MP_instance {
 #include "mpmath.h"             /* internal header */
 #include "mpmathdouble.h"       /* internal header */
 #include "mpmathdecimal.h"      /* internal header */
-#include "mpmathbinary.h"       /* internal header */
 #include "mpstrings.h"          /* internal header */
 extern font_number mp_read_font_info (MP mp, char *fname);      /* tfmin.w */
 @h @<Declarations@>;
@@ -537,8 +534,6 @@ MP mp_initialize (MP_options * opt) {
     mp->math = mp_initialize_scaled_math(mp);
   } else if (opt->math_mode == mp_math_decimal_mode) {
     mp->math = mp_initialize_decimal_math(mp);
-  } else if (opt->math_mode == mp_math_binary_mode) {
-    mp->math = mp_initialize_binary_math(mp);
   } else {
     mp->math = mp_initialize_double_math(mp);
   }
@@ -562,8 +557,6 @@ MP mp_initialize (MP_options * opt) {
     set_internal_string (mp_number_system, mp_intern (mp, "scaled"));
   } else if (opt->math_mode == mp_math_decimal_mode) {
     set_internal_string (mp_number_system, mp_intern (mp, "decimal"));
-  } else if (opt->math_mode == mp_math_binary_mode) {
-    set_internal_string (mp_number_system, mp_intern (mp, "binary"));
   } else {
     set_internal_string (mp_number_system, mp_intern (mp, "double"));
   }
@@ -577,7 +570,6 @@ MP mp_initialize (MP_options * opt) {
   } else {
     mp->history = mp_spotless;
   }
-  set_precision();
   return mp;
 }
 
@@ -29806,9 +29798,7 @@ void mp_show_library_versions (void) {
   fprintf(stdout, "Compiled with cairo %s; using %s\n", CAIRO_VERSION_STRING, cairo_version_string());
   fprintf(stdout, "Compiled with pixman %s; using %s\n", PIXMAN_VERSION_STRING, pixman_version_string());
   fprintf(stdout, "Compiled with libpng %s; using %s\n", PNG_LIBPNG_VER_STRING, png_libpng_ver);
-  fprintf(stdout, "Compiled with zlib %s; using %s\n", ZLIB_VERSION, zlibVersion());
-  fprintf(stdout, "Compiled with mpfr %s; using %s\n", MPFR_VERSION_STRING, mpfr_get_version());
-  fprintf(stdout, "Compiled with gmp %d.%d.%d; using %s\n\n", __GNU_MP_VERSION, __GNU_MP_VERSION_MINOR, __GNU_MP_VERSION_PATCHLEVEL, gmp_version);
+  fprintf(stdout, "Compiled with zlib %s; using %s\n\n", ZLIB_VERSION, zlibVersion());
 }
 
 @ @<Exported function headers@>=
