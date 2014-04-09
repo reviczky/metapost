@@ -2,6 +2,21 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
+What is new in MetaPost version 1.901:
+----------------------------------------------------------------------
+
+* Fixed a bug in 'decimal' mode that affected (among other things)
+  the directionpoint and bbox calculations.
+
+* Fixed a bug in 'decimal' mode calculation of sine / cosine that
+  affected the precision of the answer in situations where 
+  'numberprecision' was less than 34.
+
+* Updated the number parsing in 'decimal' mode to detect 'too precise'
+  input and optionally generate an error in that case (depends on
+  'warningcheck')
+
+----------------------------------------------------------------------
 What is new in MetaPost version 1.900:
 ----------------------------------------------------------------------
 
