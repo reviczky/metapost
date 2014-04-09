@@ -432,9 +432,9 @@ void mp_png_text_out (MP mp, mp_text_object *p) {
   double scf;
   ds =(mp->font_dsize[fn]+8) / (16*65536.0);
   scf = mp_png_choose_scale (mp,(mp_graphic_object *)p);
+  cairo_save(mp->png->cr);
   if ( transformed ) {
     cairo_matrix_t matrix = {0,0,0,0,0,0};
-    cairo_save(mp->png->cr);
     cairo_matrix_init(&matrix, (gr_txx_val(p)/scf),  (gr_tyx_val(p)/scf), 
                                (gr_txy_val(p)/scf), (gr_tyy_val(p)/scf), 
                                gr_tx_val(p),gr_ty_val(p));
@@ -468,9 +468,7 @@ void mp_png_text_out (MP mp, mp_text_object *p) {
       wd = mp_get_char_dimension (mp, mp->font_name[fn], k, 'w');
       cairo_translate(mp->png->cr,wd,0);
   }
-  if ( transformed ) {
-    cairo_restore(mp->png->cr);
-  }
+  cairo_restore(mp->png->cr);
 }
 
 @ When stroking a path with an elliptical pen, it is necessary to transform
