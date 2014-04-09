@@ -16,6 +16,13 @@ What is new in MetaPost version 1.901:
   input and optionally generate an error in that case (depends on
   'warningcheck')
 
+* Fixed a bug in the svg output where it could crash in 'decimal' mode.
+
+* Fixed a bug in the png output where it could get confused if there
+  was more than one text label
+
+* Fixed a bug in the png output for stroked paths
+
 ----------------------------------------------------------------------
 What is new in MetaPost version 1.900:
 ----------------------------------------------------------------------
