@@ -1027,7 +1027,8 @@ fprintf(stdout,
 "For more information about these matters, see the file\n"
 "COPYING.LESSER or <http://gnu.org/licenses/lgpl.html>.\n"
 "Original author of MetaPost: John Hobby.\n"
-"Author of the CWEB MetaPost: Taco Hoekwater.\n\n"
+"Author of the CWEB MetaPost: Taco Hoekwater.\n"
+"Current maintainer of MetaPost: Luigi Scarso.\n\n"
 );
   mpost_xfree(s);
   if (!dvitomp_only) {
