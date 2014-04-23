@@ -130,8 +130,6 @@ fi
 $MAKE
 (cd libs/zlib; $MAKE )
 (cd libs/libpng; $MAKE )
-(cd libs/gmp; $MAKE ; $MAKE gmpbuild )
-(cd libs/mpfr; $MAKE ; $MAKE mpfrbuild )
 (cd texk/web2c; $MAKE $MPOSTEXE )
 
 # go back
