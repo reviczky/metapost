@@ -1,4 +1,4 @@
-% $Id$
+% $Id: mpost.w 2007 2014-04-10 11:13:03Z taco $
 %
 % This file is part of MetaPost;
 % the MetaPost program is in the public domain.

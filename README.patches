@@ -1,0 +1,61 @@
+2014-05-08
+%
+picture ZXW;
+showvariable ZXW ;
+bye.
+%
+shows ZXW=tag 
+
+But it should be 
+ZXW=unknown picture
+as in mp1.211
+
+showvariable is implemented by means of mp_do_show_var
+
+void mp_do_show_var (MP mp) {
+  do {
+    get_t_next (mp);
+    if (cur_sym() != NULL)
+      if (cur_sym_mod() == 0)
+        if (cur_cmd() == mp_tag_token)
+          if (cur_mod() != 0) {
+            mp_disp_var (mp, cur_mod_node());
+            goto DONE;
+          }
+    mp_disp_token (mp);
+  DONE:
+    mp_get_x_next (mp);
+  } while (cur_cmd() == mp_comma);
+}
+
+Given that cur_mod()=0 then mp1.999 calls mp_disp_token 
+but mp1.211 sets cord_mod()!=0, so it calls mp_disp_var instead.
+
+
+Probably the reason is the mp_new_root in 1.999
+
+static void mp_new_root (MP mp, mp_sym x) {
+  mp_node p;    /* the new node */
+  p = mp_get_value_node (mp);
+  mp_type (p) = mp_undefined;
+  mp_name_type (p) = mp_root;
+  set_value_sym (p, x);
+  set_equiv_node (x, p);
+}
+
+where set_equiv_node is 
+
+@d set_equiv_node(A,B)  do {
+   FUNCTION_TRACE3 ("set_equiv_node(%p, %p)\n",(A),(B));
+   (A)->v.data.node=(B) ;
+   (A)->v.data.indep.serial=0;
+} while (0)
+
+while it should be 
+
+@d set_equiv_node(A,B)  do {
+   FUNCTION_TRACE3 ("set_equiv_node(%p, %p)\n",(A),(B));
+   (A)->v.data.node=(B) ;
+   (A)->v.data.indep.serial=(B)->data.indep.serial; 
+} while (0)
+

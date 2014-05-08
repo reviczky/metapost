@@ -1,4 +1,4 @@
-% $Id$
+% $Id: mp.w 2005 2014-04-09 10:02:21Z taco $
 %
 % This file is part of MetaPost;
 % the MetaPost program is in the public domain.
@@ -4423,7 +4423,7 @@ that holds the current command value of the token, and an
 @d set_equiv_node(A,B)  do {
    FUNCTION_TRACE3 ("set_equiv_node(%p, %p)\n",(A),(B));
    (A)->v.data.node=(B) ;
-   (A)->v.data.indep.serial=0;
+   (A)->v.data.indep.serial=(B)->data.indep.serial; 
 } while (0)
 
 @d set_equiv_sym(A,B)  do {
