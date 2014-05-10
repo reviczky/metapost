@@ -37,8 +37,6 @@ mp-implementors list or alternatively the metapost list.
 
   + description of new command-line option
 
-* Describe PNG backend.
-
 * Describe prescriptpart/postscriptpart.
 
 * Describe envelope primitive/macro.
