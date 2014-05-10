@@ -5052,6 +5052,12 @@ it will revert to that default.  MetaPost versions~1.000 to~1.102 used a
 different template mechanism, see Section~\ref{Dfilenametemplate} for
 more information.
 
+During \texttt{shipout}\index{shipout?\texttt{shipout}}, the name of the
+output file to be written is stored in an internal string variable
+\texttt{outputfilename}\index{outputfilename?\texttt{outputfilename}}\label{Doutputfilename}.
+It remains available until the next \texttt{shipout} command.  The
+variable is initially empty.
+
 \paragraph{Output Format}
 
 MetaPost can generate graphics in three output formats:

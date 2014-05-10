@@ -65,7 +65,7 @@ Advanced Graphics:
 * Make fig56 black and white.
 
 Notes on the MetaPost Workflow:
-* Describe variables jobname, charcode, outputfilename.
+* Describe variables jobname, charcode.
 
 Reference Manual:
 * Describe environment variables and configuration files.
