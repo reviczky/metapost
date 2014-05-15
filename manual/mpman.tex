@@ -1,4 +1,4 @@
-% $Id: mpman.tex 1920 2013-06-13 14:21:25Z stephanhennig $
+% $Id: mpman.tex 2017 2014-05-10 21:14:45Z stephanhennig $
 % MetaPost manual, by John Hobby.  License at end.
 \listfiles
 \RequirePackage{ifpdf}
@@ -12,7 +12,7 @@
 \fi
 \documentclass{article} % article is NOT the original style
 \usepackage[nofancy]{svninfo}% Access VCS information.
-\svnInfo $Id: mpman.tex 1920 2013-06-13 14:21:25Z stephanhennig $
+\svnInfo $Id: mpman.tex 2017 2014-05-10 21:14:45Z stephanhennig $
 \newcommand*{\mpversion}{1.503}
 
 \usepackage[T1]{fontenc}
@@ -67,7 +67,7 @@
 \hypersetup{
   pdftitle={MetaPost: A User's Manual},
   pdfauthor={John D. Hobby and the MetaPost development team},
-  pdfkeywords={MetaPost, PostScript, SVG, vector graphics language,
+  pdfkeywords={MetaPost, PostScript, SVG, PNG, vector graphics language,
     MetaFont, TeX}
 }
 \hypersetup{
@@ -94,10 +94,10 @@
     \raisebox{0pt}[0pt][0pt]{%
       \begin{minipage}{\linewidth}
         \emph{The manual currently doesn't cover all recent features of
-          MetaPost, such as the PNG backend or support for calculations
-          in different number systems.  We'll try to keep up.  For more
-          information, please refer to the
-          \href{https://foundry.supelec.fr/scm/viewvc.php/trunk/CHANGES?view=markup&revision=1919&root=metapost}{change
+          MetaPost, such as the support for calculations in double,
+          decimal, and binary number systems.  We'll try to keep up.
+          For more information, please refer to the
+          \href{https://foundry.supelec.fr/scm/viewvc.php/trunk/CHANGES?view=markup&root=metapost}{change
             log}.  Sorry for the inconvenience!}
       \end{minipage}%
     }
@@ -142,12 +142,12 @@
 MetaPost is a programming language much like Knuth's \MF\footnote{\MF\
 is a trademark of Addison Wesley Publishing
 company.}\index{metafont?\MF}~\cite{kn:c} except that it outputs
-vector graphics, either PostScript programs or SVG\index{SVG} graphics,
-instead of bitmaps.  Borrowed from \MF\ are the
-basic tools for creating and manipulating pictures. These include
-numbers, coordinate pairs, cubic splines, affine transformations, text
-strings, and boolean quantities.  Additional features facilitate
-integrating text and graphics and accessing special features of
+either vector graphics in the Postscript or SVG formats or bitmap
+graphics in the PNG format.  Borrowed from \MF\ are the basic tools for
+creating and manipulating pictures.  These include numbers, coordinate
+pairs, cubic splines, affine transformations, text strings, and boolean
+quantities.  Additional features facilitate integrating text and
+graphics and accessing special features of
 PostScript\footnote{PostScript is a trademark of Adobe Systems
 Inc.}\index{PostScript} such as clipping, shading, and dashed lines.
 Another feature borrowed from \MF\ is the ability to solve linear
@@ -372,18 +372,19 @@ PS\_View\index{PSView?PS\_View}.  Section~\ref{preview} has some tips
 and discusses several more elaborate ways for previewing PostScript
 output.  Particularly, if graphics contain text labels, some more work
 might be required to get robust results in a PostScript viewer.
-Starting with version~1.200, MetaPost is also capable of generating
-graphics in the SVG\index{SVG} format.  SVG files can be previewed with
+MetaPost is also capable of generating graphics in the SVG\index{SVG}
+and PNG\index{PNG} formats.  These file types can be previewed with
 certain web browsers, for example Firefox~3\index{Firefox} or
-Konqueror~4.2\index{Konqueror}.
+Konqueror~4.2\index{Konqueror}, or general purpose image viewers.
 
 What does one do with all the graphic files?  PostScript files are
 perfectly suitable for inclusion into documents created by
 \TeX\index{TeX?\TeX} or troff\index{troff}.  The SVG format, as an XML
 descendant (Extensible Meta Language), is more aiming at automated data
-processing/interchanging and is widely used for web applications.
-Section~\ref{mpimport} deals with the import of MetaPost graphics into
-external applications.
+processing/interchanging.  The PNG format is a losslessly compressing
+bitmap format.  Both, SVG and PNG graphics, are widely used for web
+applications.  Section~\ref{mpimport} deals with the import of MetaPost
+graphics into external applications.
 
 A MetaPost input file\index{files!input}\index{edit}\index{edit}
 normally contains a sequence of
@@ -394,9 +395,9 @@ one.\footnote{Omitting the final \verb|end| statement causes MetaPost to
   enter interactive mode\index{interactive mode} after processing the
   input file.}  These are macros that perform various administrative
 functions and ensure that the results of all drawing operations get
-packaged up and translated into PostScript or SVG format.  The numeric
-argument to the \verb|beginfig| macro determines the name of the
-corresponding output file, whose name, by default, is of the form
+packaged up and translated into PostScript (or the SVG or PNG format).
+The numeric argument to the \verb|beginfig| macro determines the name of
+the corresponding output file, whose name, by default, is of the form
 \texttt{\tdescr{jobname}.\tdescr{n}}, where \tdescr{n} is the current
 argument to \verb|beginfig| rounded to the nearest integer.  As an
 example, if a file is named \texttt{fig.mp} and contains the lines
@@ -1961,6 +1962,9 @@ popular use-cases:
 \item[\normalfont\itshape SVG output:] Converting font glyphs to paths
   by setting variable \texttt{prologues} to~3 is currently the only
   reliable way to export text objects to SVG.
+
+\item[\normalfont\itshape PNG output:] Variable \texttt{prologues} has
+  no effect in PNG output mode.
 
 \end{description}
 
@@ -4971,9 +4975,11 @@ $$
 it will create the output file \texttt{fig-1.mps} instead of
 \texttt{fig.1}.  The file extension \texttt{mps}\index{mps file?{\tt
     mps} file}\index{files!mps?{\tt mps}} is conventionally chosen for
-MetaPost's PostScript output (see Section~\ref{mpimport}).  For SVG
-output one would want to use \texttt{svg}\index{svg file?{\tt svg}
-  file}\index{files!svg?{\tt svg}} instead.
+MetaPost's PostScript output (see Section~\ref{mpimport}).  For SVG and
+PNG output one would want to use file extensions \texttt{svg}\index{svg
+  file?{\tt svg} file}\index{files!svg?{\tt svg}} and
+\texttt{png}\index{png file?{\tt png} file}\index{files!png?{\tt png}}
+instead.
 
 \begin{table}
   \centering
@@ -5046,15 +5052,28 @@ it will revert to that default.  MetaPost versions~1.000 to~1.102 used a
 different template mechanism, see Section~\ref{Dfilenametemplate} for
 more information.
 
+During \texttt{shipout}\index{shipout?\texttt{shipout}}, the name of the
+output file to be written is stored in an internal string variable
+\texttt{outputfilename}\index{outputfilename?\texttt{outputfilename}}\label{Doutputfilename}.
+It remains available until the next \texttt{shipout} command.  The
+variable is initially empty.
+
 \paragraph{Output Format}
 
-MetaPost can generate graphics in two output formats: Encapsulated
-PostScript\index{PostScript!structured} (EPSF\index{EPSF}) and, since
-version~1.200, Scalable Vector Graphics (SVG\index{SVG}) following
-version~1.1 of the SVG specification~\cite{w3c:svg1.1}.  By default,
-MetaPost outputs PostScript files---hence the name MetaPost.  The output
-format can be changed to SVG by assigning the value \verb|"svg"| to the
-internal string variable\index{internal
+MetaPost can generate graphics in three output formats:
+
+\begin{itemize}
+\item Encapsulated PostScript\index{PostScript!structured}
+  (EPSF\index{EPSF}),
+\item Scalable Vector Graphics (SVG\index{SVG}) following version~1.1 of
+  the SVG specification~\cite{w3c:svg1.1} (since MetaPost version
+  1.200),
+\item Portable Network Graphics (PNG), a losslessly compressing bitmap
+  format (since MetaPost version 1.800).
+\end{itemize}
+By default, MetaPost outputs PostScript files---hence the name MetaPost.
+The output format can be changed by assigning values \verb|"svg"| or
+\verb|"png"| to the internal string variable\index{internal
   variables}\index{variables!internal}
 \verb|outputformat|\index{outputformat?\texttt{outputformat}}\label{Doutputformat}:
 $$
@@ -5062,11 +5081,118 @@ $$
 outputformat := "svg";
 \end{verbatim}
 $$
-
-Any other value makes MetaPost fall back to PostScript output.  Variable
+Other values make MetaPost fall back to PostScript output.  Variable
 \verb|outputformat| is case-sensitive, so assigning it the string
 \verb|"SVG"| enables PostScript output, too.  Default value of variable
 \verb|outputformat| is \verb|"eps"|.
+
+\paragraph{Bitmap output} To create bitmap output in the PNG format,
+MetaPost utilizes the Cairo\index{Cairo} graphic library.  Bitmap
+conversion can be controlled from within MetaPost using three internal
+variables: \texttt{outputformatoptions}, \texttt{hppp}, and
+\texttt{vppp}.
+
+\begin{table}
+  \centering
+  \begin{tabular}{|>{\ttfamily}l|>{\ttfamily}l|l|}
+    \hline
+    \multicolumn1{|c|}{Key} & \multicolumn1{c|}{Values} & \multicolumn1{c|}{Meaning}\\\hline
+    format &
+    rgba\index{rgba?\texttt{rgba}|see{\texttt{outputformatoptions},
+        \texttt{format}}} & RGB color space\index{PNG!color space!RGBA}
+    with alpha channel\index{PNG!alpha channel}\\
+    & rgb\index{rgb?\texttt{rgb}|see{\texttt{outputformatoptions},
+        \texttt{format}}} & RGB color space\index{PNG!color space!RGB}\\
+    & graya\index{graya?\texttt{graya}|see{\texttt{outputformatoptions},
+        \texttt{format}}} & gray scale color space\index{PNG!color
+      space!gray scale with alpha} with alpha channel\index{PNG!alpha
+      channel}\\
+    & gray\index{gray?\texttt{gray}|see{\texttt{outputformatoptions},
+        \texttt{format}}} & gray scale color space\index{PNG!color
+      space!gray scale}\\
+    \hline
+    antialias &
+    none\index{none?\texttt{none}|see{\texttt{outputformatoptions},
+        \texttt{antialias}}} & no anti aliasing\index{PNG!anti
+      aliasing}\\
+    & fast\index{fast?\texttt{fast}|see{\texttt{outputformatoptions},
+        \texttt{antialias}}} & fastest anti aliasing algorithm\\
+    & good\index{good?\texttt{good}|see{\texttt{outputformatoptions},
+        \texttt{antialias}}} & better quality, but slower\\
+    & best\index{best?\texttt{best}|see{\texttt{outputformatoptions},
+        \texttt{antialias}}} & best quality, slowest\\
+    \hline
+  \end{tabular}
+  \caption{Valid keys and values in variable \texttt{outputformatoptions}.}
+  \label{tab:outputformatoptions}
+\end{table}
+
+Variable
+\texttt{outputformatoptions}\index{outputformatoptions?\texttt{outputformatoptions}}\label{Doutputformatoptions}
+is a string containing a list of \tdescr{key}\verb|=|\tdescr{value}
+pairs separated by spaces (no other spaces are allowed).  Key
+\texttt{format}\index{format?\texttt{format}|see{outputformatoptions,
+    \texttt{format}}}\index{outputformatoptions?\texttt{outputformatoptions}!format?\texttt{format}}
+determines color space of the written PNG file.  Key
+\texttt{antialias}\index{antialias?\texttt{antialias}|see{outputformatoptions,
+    \texttt{antialias}}}\index{outputformatoptions?\texttt{outputformatoptions}!antialias?\texttt{antialias}}
+determines what level of anti aliasing\index{anti aliasing|see{PNG, anti
+    aliasing}}\index{PNG!anti aliasing} is applied during vector graphic
+to bitmap conversion.  The set of accepted values and their meanings can
+be found in table~\ref{tab:outputformatoptions}.  By default, variable
+\texttt{outputformatoptions} is empty.  An assignment that would match
+the compiled-in default setup would look like
+
+$$
+\begin{verbatim}
+outputformatoptions := "format=rgba antialias=fast";
+\end{verbatim}
+$$
+
+PNG files have a transparent background\index{background in PNG output},
+if output color space provides an alpha channel\index{alpha
+  channel|see{PNG, alpha channel}}\index{PNG!alpha channel}
+(\texttt{format}\index{outputformatoptions?\texttt{outputformatoptions}!format?\texttt{format}}
+is \texttt{rgba} or \texttt{graya}).  Otherwise background becomes
+white.  All color channels have a bit-depth of~8.  Note, the PNG format
+has no support for the CMYK color space.  Here's what color conversions
+are applied during bitmap conversion.  Whatever input and output color
+spaces are used, all colors are initially converted to RGB color space.
+A gray scale color with intensity $i$ is converted to an RGB color with
+all components set to~$i$.  RGB colors are left unchanged.  A CMYK color
+with components $(c,m,y,k)$ is converted to an RGB color with components
+$(r,g,b)$ using equations
+\begin{eqnarray}
+  r &=& \max(1 - k - c, 0)\\
+  g &=& \max(1 - k - m, 0)\\
+  b &=& \max(1 - k - y, 0)
+\end{eqnarray}
+If requested by the output format (\texttt{gray}, \texttt{graya}), such
+a color is further converted to gray scale with an intensity~$j$ using
+equation
+\begin{eqnarray}
+j = 0.2126 \cdot r + 0.7152 \cdot g + 0.0722 \cdot b
+\end{eqnarray}
+
+Note, colors are exact in PNG output if input and output color spaces
+are compatible, \emph{i.e.}, both are RGB or gray scale or an RGB format
+PNG file contains only gray scale colors.  Users that care about color
+conversion can apply the necessary transformations explicitly in a
+\texttt{for within~\tdescr{\mbox{picture}}}\index{for within?\texttt{for
+    within}} loop inside
+\texttt{extra\_endfig}\index{extra_endfig?\texttt{extra\_endfig}} (see
+Section~\ref{Dforwithin} and Appendix~\ref{Dxefig}).  The built-in
+conversions are provided just as a convenience.
+
+Resolution of PNG output is always 72~dpi\index{dpi}\index{units!dpi}
+(dots per inch).  The two internal variables
+\texttt{hppp}\index{hppp?\texttt{hppp}}\label{Dhppp} and
+\texttt{vppp}\index{vppp?\texttt{vppp}}\label{Dvppp} are used by the PNG
+backend to decide on the scale of the generated bitmap.  Default value
+for both variables is $1.0$, \emph{i.e.}, one pixel per MetaPost point.
+These two variables have already been present in MetaFont, which outputs
+bitmaps only, and have been revived when MetaPost acquired the bitmap
+backend in version 1.800.
 
 \paragraph{PostScript Dictionary}
 
@@ -5076,8 +5202,8 @@ reduce the size of output files.  Setting the internal variable
 \texttt{mpprocset}\index{mpprocset?\texttt{mpprocset}}\label{Dmpprocset}
 to~1 makes MetaPost create an extended preamble setting-up the
 dictionary.  Default value of variable \texttt{mpprocset} is~0, that is,
-no dictionary is used.  For SVG output, variable \texttt{mpprocset} is
-not relevant.
+no dictionary is used.  For SVG and PNG output, variable
+\texttt{mpprocset} is not relevant.
 
 \paragraph{Version Number}
 
@@ -5114,14 +5240,19 @@ versions gracefully that don't even know about variable
 work.
 
 The version number is also written to output files and the transcript
-file.  For PostScript output the version number can be found in the
+file.  For PostScript output, the version number can be found in the
 \texttt{Creator}\index{Creator comment in PostScript
   output?\texttt{Creator} comment in PostScript output|see{PostScript,
     \texttt{Creator} comment}}\index{PostScript!Creator
   comment?\texttt{Creator} comment} comment.  SVG files contain a simple
-comment line near the beginning of the file.  The
-transcript\index{files!transcript} file starts with a banner line that
-identifies the version\index{version number} of the MetaPost compiler.
+comment line near the beginning of the file.  For PNG output, the
+version number can be found in a text chunk with keyword
+\texttt{Software}\index{Software keyword in PNG text
+  chunk?\texttt{Software} keyword in PNG text chunk|see{PNG, text
+    chunk}}\index{text chunk|see{PNG, text chunk}}\index{PNG!text
+  chunk}.  The transcript\index{files!transcript} file starts with a
+banner line that identifies the version\index{version number} of the
+MetaPost compiler.
 
 \subsection{Previewing PostScript Output}
 \label{preview}
@@ -5734,23 +5865,38 @@ image as given in the file's bounding box.
 
 \subsubsection{Web Applications}
 \label{webimport}
-\index{SVG!files}
 
 An SVG\index{svg file?{\tt svg} file}\index{files!svg?{\tt svg}} file
-\texttt{fig.svg} can be easily embedded into HTML\index{HTML} documents
-with the following code snippet:
+\texttt{fig.svg} can be easily embedded into
+HTML\index{HTML}\index{files!HTML} documents with the following code
+snippet:
 $$\begin{verbatim}
 <p>
   <object data="fig.svg" type="image/svg+xml" width="300" height="200">
   </object>
 </p>
 \end{verbatim}
+\index{object tag?\texttt{object} tag|see{HTML, tags, \texttt{object}}}
+\index{HTML!tags!object?\texttt{object}}
 $$
+The code is similar for PNG\index{png file?{\tt png}
+  file}\index{files!png?{\tt png}} files:
+$$\begin{verbatim}
+<p>
+  <img src="fig.png" alt="A picture.">
+</p>
+\end{verbatim}
+\index{img tag?\texttt{img} tag|see{HTML, tags, \texttt{img}}}
+\index{HTML!tags!img?\texttt{img}}
+$$
+The \texttt{width} and \texttt{height} attributes used above allow for
+scaling a graphic to an arbitrary size.  More information about HTML
+tags and attributes can be found in an HTML reference.
 
-SVG files can also be imported by various interactive graphics editing
-programs, for example GIMP\index{GIMP} or Inkscape\index{Inkscape}.  See
-Section~\ref{Dprologues} for information on font handling in SVG
-graphics.
+SVG and PNG files can also be imported by various interactive graphics
+editing programs, for example GIMP\index{GIMP} or
+Inkscape\index{Inkscape}.  See Section~\ref{Dprologues} for information
+on font handling in SVG graphics.
 
 
 \section*{Acknowledgement}

@@ -37,12 +37,14 @@ mp-implementors list or alternatively the metapost list.
 
   + description of new command-line option
 
-* Describe PNG backend.
-
 * Describe prescriptpart/postscriptpart.
 
 * Describe envelope primitive/macro.
 
+* Describe penrazor, penspeck.
+
+* Describe drawdot withpen counter-intuitivity.  Describe recent change
+  in drawdot definition.
 
 
 
@@ -53,10 +55,14 @@ mp-implementors list or alternatively the metapost list.
 Integrating Text and Graphics:
 * Fix bad description of prologues in table ivartab.
 * Move discussion of prologues to sec. workflow2.
+* Discuss difference between
+    label(btex ... etex, ...)
+    draw btex ... etex
 
 Advanced Graphics:
 * Describe turningnumber (mention differences in sec. 'MetaPost
   Versus METAFONT').
+* Make fig56 black and white.
 
 Notes on the MetaPost Workflow:
 * Describe variables jobname, charcode.
@@ -67,6 +73,8 @@ Reference Manual:
 Legacy Information:
 * Cite original Hobby papers.
 
+Debugging:
+* turningnumber and tracingchoices > 2
 
 
 

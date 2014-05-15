@@ -96,6 +96,8 @@ $$\begin{tabular}{|l|r|l|}
         Diameter of the dot drawn by \verb|dotlabel| (default 3{\tt bp})\\\hline
 \tt     hour&           \pageref{Dhour}&
         The hour of the day this job started\\\hline
+\tt     hppp&           \pageref{Dhppp}&
+        The number of horizontal pixels per point for bitmap output\\\hline
 \pl\tt  labeloffset&    \pageref{Dlaboff}&
         Offset distance for labels (default 3{\tt bp})\\\hline
 \tt     linecap&        \pageref{Dlinecap}&
@@ -148,6 +150,8 @@ $$\begin{tabular}{|l|r|l|}
         Set to~1 if a {\tt -troff} or {\tt -T} option was given\\\hline
 \tt     truecorners&    \pageref{Dtruecorn}&
         ${}>0$ to make {\tt llcorner} etc. ignore {\tt setbounds}\\\hline
+\tt     vppp&           \pageref{Dvppp}&
+        The number of vertical pixels per point for bitmap output\\\hline
 \tt     warningcheck&   \pageref{Dwarncheck}&
         Controls error message when variable value is large\\\hline
 \tt     year&           \pageref{Dyear}&
@@ -169,8 +173,12 @@ $$\begin{tabular}{|l|r|l|}
 \hline
 \tt     jobname&    --&
         The name of this job\\\hline
+\tt     outputfilename&    \pageref{Doutputfilename}&
+        Name of the output file last written\\\hline
 \tt     outputformat&    \pageref{Doutputformat}&
         Output backend to be used (default: ``eps'')\\\hline
+\tt     outputformatoptions&    \pageref{Doutputformatoptions}&
+        Configure PNG output backend (default: ``'')\\\hline
 \tt     outputtemplate&    \pageref{Doutputtemplate}&
         Output filename template (default: ``\%j.\%c'')\\\hline
 \end{tabular}
@@ -572,14 +580,15 @@ $\tt \descr{subscript} \rightarrow \descr{number} \;|\; \hbox{\tt [}\descr{numer
 $\tt $\\
 $\tt \descr{internal variable} \rightarrow ahangle \;|\; ahlength \;|\; bboxmargin$\\
 $\tt \qquad \;|\; charcode \;|\; day \;|\; defaultcolormodel \;|\; defaultpen \;|\; defaultscale$\\
-$\tt \qquad \;|\; hour \;|\; jobname \;|\; labeloffset \;|\; linecap \;|\; linejoin
+$\tt \qquad \;|\; hour \;|\; hppp \;|\; jobname \;|\; labeloffset \;|\; linecap \;|\; linejoin
 \;|\; minute \;|\; miterlimit \;|\; month$\\
-$\tt \qquad \;|\; outputformat \;|\; outputtemplate \;|\; pausing \;|\; prologues \;|\; showstopping$\\
+$\tt \qquad \;|\; outputfilename \;|\; outputformat \;|\; outputformatoptions \;|\; outputtemplate$\\
+$\tt \qquad \;|\; pausing \;|\; prologues \;|\; showstopping$\\
 $\tt \qquad \;|\; time \;|\; tracingoutput \;|\; tracingcapsules \;|\; tracingchoices \;|\; tracingcommands$\\
 $\tt \qquad \;|\; tracingequations \;|\; tracinglostchars \;|\; tracingmacros$\\
 $\tt \qquad \;|\; tracingonline \;|\; tracingrestores \;|\; tracingspecs$\\
 $\tt \qquad \;|\; tracingstats \;|\; tracingtitles \;|\; truecorners$\\
-$\tt \qquad \;|\; warningcheck \;|\; year$\\
+$\tt \qquad \;|\; warningcheck \;|\; vppp \;|\; year$\\
 $\tt \qquad \;|\; \descr{symbolic token defined by {\tt newinternal}}$
 \end{ctabbing}
 \caption{Part 2 of the syntax for expressions}
