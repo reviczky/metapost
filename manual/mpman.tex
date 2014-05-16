@@ -1,4 +1,4 @@
-% $Id: mpman.tex 2017 2014-05-10 21:14:45Z stephanhennig $
+% $Id: mpman.tex 2019 2014-05-15 16:28:13Z stephanhennig $
 % MetaPost manual, by John Hobby.  License at end.
 \listfiles
 \RequirePackage{ifpdf}
@@ -12,7 +12,7 @@
 \fi
 \documentclass{article} % article is NOT the original style
 \usepackage[nofancy]{svninfo}% Access VCS information.
-\svnInfo $Id: mpman.tex 2017 2014-05-10 21:14:45Z stephanhennig $
+\svnInfo $Id: mpman.tex 2019 2014-05-15 16:28:13Z stephanhennig $
 \newcommand*{\mpversion}{1.503}
 
 \usepackage[T1]{fontenc}
@@ -1020,6 +1020,7 @@ variables} variable\index{variables!internal} {\tt
 tracingonline}\index{tracingonline?\texttt{tracingonline}}\label{Dtonline}.
 
 \subsection{Data Types}
+\label{datatypes}
 
 MetaPost actually has ten basic data types\index{types}: numeric, pair,
 path, transform, (rgb)color, cmykcolor, string, boolean, picture, and
@@ -5087,7 +5088,9 @@ Other values make MetaPost fall back to PostScript output.  Variable
 \verb|outputformat| is \verb|"eps"|.
 
 \paragraph{Bitmap output} To create bitmap output in the PNG format,
-MetaPost utilizes the Cairo\index{Cairo} graphic library.  Bitmap
+MetaPost utilizes the Cairo\index{Cairo} \cite{lib:cairo} graphics
+library.\footnote{The Cairo library version is printed when MetaPost is
+  run with the \texttt{-version} command-line switch.}  Bitmap
 conversion can be controlled from within MetaPost using three internal
 variables: \texttt{outputformatoptions}, \texttt{hppp}, and
 \texttt{vppp}.
@@ -5139,60 +5142,73 @@ determines color space of the written PNG file.  Key
 determines what level of anti aliasing\index{anti aliasing|see{PNG, anti
     aliasing}}\index{PNG!anti aliasing} is applied during vector graphic
 to bitmap conversion.  The set of accepted values and their meanings can
-be found in table~\ref{tab:outputformatoptions}.  By default, variable
-\texttt{outputformatoptions} is empty.  An assignment that would match
-the compiled-in default setup would look like
+be found in table~\ref{tab:outputformatoptions}.  An assignment that
+would match the compiled-in default setup would look like
 
 $$
 \begin{verbatim}
 outputformatoptions := "format=rgba antialias=fast";
 \end{verbatim}
 $$
+Keys not given in an assignment to \texttt{outputformatoptions} are
+reset to their default value.  By default, this variable is empty.
 
-PNG files have a transparent background\index{background in PNG output},
+PNG files have a transparent background\index{background in PNG output}
 if output color space provides an alpha channel\index{alpha
   channel|see{PNG, alpha channel}}\index{PNG!alpha channel}
 (\texttt{format}\index{outputformatoptions?\texttt{outputformatoptions}!format?\texttt{format}}
 is \texttt{rgba} or \texttt{graya}).  Otherwise background becomes
-white.  All color channels have a bit-depth of~8.  Note, the PNG format
-has no support for the CMYK color space.  Here's what color conversions
-are applied during bitmap conversion.  Whatever input and output color
-spaces are used, all colors are initially converted to RGB color space.
-A gray scale color with intensity $i$ is converted to an RGB color with
-all components set to~$i$.  RGB colors are left unchanged.  A CMYK color
-with components $(c,m,y,k)$ is converted to an RGB color with components
-$(r,g,b)$ using equations
+white.  Color channels have a bit-depth of~8 in output.  Colors not
+supported by the output format, e.g., CMYK colors, are transformed to a
+color with a similar visual impression.  Here's how colors are
+transformed during bitmap conversion.  Let's recall that color
+components in a MetaPost picture are in the range $[0;1]$ (see the
+discussion of color types in Section~\ref{datatypes}).  Whatever input
+and output color spaces are used, all colors found in a picture are
+initially converted to RGB color space.  A gray scale color with
+intensity $i$ is converted to an RGB color with all components set
+to~$i$.  RGB colors are left unchanged.  A CMYK color with components
+$(c,m,y,k)$ is converted to an RGB color with components $(r,g,b)$ using
+equations
 \begin{eqnarray}
-  r &=& \max(1 - k - c, 0)\\
-  g &=& \max(1 - k - m, 0)\\
-  b &=& \max(1 - k - y, 0)
+  r &=& 1 - k - c\\
+  g &=& 1 - k - m\\
+  b &=& 1 - k - y
 \end{eqnarray}
-If requested by the output format (\texttt{gray}, \texttt{graya}), such
-a color is further converted to gray scale with an intensity~$j$ using
-equation
+with results clipped to the range $[0;1]$.  If requested by the output
+format (\texttt{gray} or \texttt{graya}), such a color is further
+converted to a gray color with intensity
 \begin{eqnarray}
 j = 0.2126 \cdot r + 0.7152 \cdot g + 0.0722 \cdot b
 \end{eqnarray}
 
 Note, colors are exact in PNG output if input and output color spaces
-are compatible, \emph{i.e.}, both are RGB or gray scale or an RGB format
-PNG file contains only gray scale colors.  Users that care about color
+are compatible, i.e., both are RGB or gray scale or output in RGB color
+space contains only gray scale colors.  Users that care about color
 conversion can apply the necessary transformations explicitly in a
 \texttt{for within~\tdescr{\mbox{picture}}}\index{for within?\texttt{for
     within}} loop inside
 \texttt{extra\_endfig}\index{extra_endfig?\texttt{extra\_endfig}} (see
-Section~\ref{Dforwithin} and Appendix~\ref{Dxefig}).  The built-in
-conversions are provided just as a convenience.
+Section~\ref{Dforwithin} and Appendix~\ref{Dxefig}).  MetaPost has no
+built-in color management support.  The built-in conversions are
+provided just as a convenience.
 
 Resolution of PNG output is always 72~dpi\index{dpi}\index{units!dpi}
-(dots per inch).  The two internal variables
+(dots per inch).  Two internal variables
 \texttt{hppp}\index{hppp?\texttt{hppp}}\label{Dhppp} and
 \texttt{vppp}\index{vppp?\texttt{vppp}}\label{Dvppp} are used by the PNG
-backend to decide on the scale of the generated bitmap.  Default value
-for both variables is $1.0$, \emph{i.e.}, one pixel per MetaPost point.
-These two variables have already been present in MetaFont, which outputs
-bitmaps only, and have been revived when MetaPost acquired the bitmap
-backend in version 1.800.
+backend to decide on the scale of the generated bitmap.  These two
+variables have already been present in \MF\ and have been revived when
+MetaPost acquired the bitmap backend in version 1.800.  But there's a
+catch: In \MF, variables \texttt{hppp} and \texttt{vppp} refer to
+horizontal and vertical scale in \emph{pixels per
+  point}\index{units!pixels per point} and values larger than~1 result
+in output of larger dimensions.  In MetaPost, the meaning of both
+variables is the other way around.  They refer to horizontal and
+vertical scale in \emph{points per pixel}\index{units!points per pixel}
+and values larger than~1 result in output of smaller dimensions.
+Default value for both variables is $1.0$, i.e., one MetaPost point per
+pixel.
 
 \paragraph{PostScript Dictionary}
 
