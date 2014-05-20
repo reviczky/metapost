@@ -31,12 +31,6 @@ mp-implementors list or alternatively the metapost list.
 ***   Wanted For Release  ***
 *****************************
 
-* Discussion of floating point vs. fixed point numbers:
-
-  + needs complete review of the manual ...
-
-  + description of new command-line option
-
 * Describe prescriptpart/postscriptpart.
 
 * Describe envelope primitive/macro.
