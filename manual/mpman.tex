@@ -1021,12 +1021,14 @@ Numeric\index{numeric type} quantities in MetaPost are represented in
 fixed point arithmetic\index{arithmetic} as integer multiples of
 $1\over65536$, the smallest positive value, which is also available as
 the predefined constant
-\texttt{epsilon}\index{epsilon?\texttt{epsilon}}\label{Depsilon}.
-Numeric quantities must normally have absolute values less than 4096 but
-intermediate results can be eight times larger.  This should not be a
-problem for distances or coordinate values since 4096 PostScript points
-is more than 1.4~meters.  If you need to work with numbers of magnitude
-4096 or more, setting the internal variable
+\texttt{epsilon}\index{epsilon?\texttt{epsilon}}\label{Depsilon}.\footnote{MetaPost
+  can also do arithmetic with higher and (almost) arbitrary precision.
+  See Appendix~\ref{hparith} for more information.}  Numeric quantities
+must normally have absolute values less than 4096 but intermediate
+results can be eight times larger.  This should not be a problem for
+distances or coordinate values since 4096 PostScript points is more than
+1.4~meters.  If you need to work with numbers of magnitude 4096 or more,
+setting the internal variable
 \texttt{warningcheck}\index{warningcheck?\texttt{warningcheck}}\label{Dwarncheck}
 to zero suppresses the warning messages about large numeric quantities.
 
