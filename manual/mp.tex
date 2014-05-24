@@ -1,5 +1,4 @@
 \input cwebmac
-%\input pdfcwebmac
 % $Id: mp.w 2005 2014-04-09 10:02:21Z taco $
 %
 % This file is part of MetaPost;
@@ -160,14 +159,16 @@ internal header stuff\X\6
 \8\#\&{include} \.{<unistd.h>}\C{ for access }\6
 \8\#\&{endif}\6
 \8\#\&{include} \.{<time.h>}\C{ for struct tm \& co }\6
-\8\#\&{include} \.{<zlib.h>}\C{ for ZLIB\_VERSION, zlibVersion() }\6
-\8\#\&{include} \.{<png.h>}\C{ for PNG\_LIBPNG\_VER\_STRING, png\_libpng\_ver }\6
-\8\#\&{include} \.{<pixman.h>}\C{ for PIXMAN\_VERSION\_STRING,
-pixman\_version\_string() }\6
-\8\#\&{include} \.{<cairo.h>}\C{ for CAIRO\_VERSION\_STRING,
-cairo\_version\_string() }\6
-\8\#\&{include} \.{<gmp.h>}\C{ for gmp\_version }\6
-\8\#\&{include} \.{<mpfr.h>}\C{ for MPFR\_VERSION\_STRING, mpfr\_get\_version() }\6
+\8\#\&{include} \.{<zlib.h>}\C{ for \PB{\.{ZLIB\_VERSION}}, zlibVersion() }\6
+\8\#\&{include} \.{<png.h>}\C{ for \PB{\.{PNG\_LIBPNG\_VER\_STRING}}, \PB{%
+\\{png\_libpng\_ver}} }\6
+\8\#\&{include} \.{<pixman.h>}\C{ for \PB{\.{PIXMAN\_VERSION\_STRING}}, \PB{%
+\\{pixman\_version\_string}(\,)} }\6
+\8\#\&{include} \.{<cairo.h>}\C{ for \PB{\.{CAIRO\_VERSION\_STRING}}, \PB{%
+\\{cairo\_version\_string}(\,)} }\6
+\8\#\&{include} \.{<gmp.h>}\C{ for \PB{\\{gmp\_version}} }\6
+\8\#\&{include} \.{<mpfr.h>}\C{ for \PB{\.{MPFR\_VERSION\_STRING}}, \PB{\\{mpfr%
+\_get\_version}(\,)} }\6
 \8\#\&{include} \.{"mplib.h"}\6
 \8\#\&{include} \.{"mplibps.h"}\C{ external header }\6
 \8\#\&{include} \.{"mplibsvg.h"}\C{ external header }\6
@@ -6296,8 +6297,8 @@ $\\{set\_mp\_link}(\|A,\39{}$(\&{mp\_node}) \|B)\par
 \M{236}\B\6
 \8\#\&{if} \.{DEBUG}\6
 \8\#\&{define} \\{value\_sym}(\|A)\\{do\_get\_value\_sym} \5${}(\\{mp},\39(%
-\&{mp\_token\_node})(\|A)){}$\SHC{\#define value\_number(A)
-do\_get\_value\_number(mp,(mp\_token\_node)(A)) }\6
+\&{mp\_token\_node})(\|A)){}$\C{ \PB{$\#$ \&{define} $\\{value\_number}(\|A)%
+\\{do\_get\_value\_number}(\\{mp},(\&{mp\_token\_node})(\|A))$} }\6
 \8\#\&{define} ${}\\{value\_number}(\|A)((\&{mp\_token\_node})(\|A))\MG%
 \\{data}.\|n{}$\6
 \8\#\&{define} \\{value\_node}(\|A)\\{do\_get\_value\_node} \5${}(\\{mp},\39(%
@@ -12643,8 +12644,8 @@ ${}\\{number\_substract}(\\{arc},\39\\{n1}){}$;\C{ arc = arc - n1 }\6
 ${}\\{number\_clone}(\\{d1},\39\\{inf\_t}){}$;\C{ reuse d1 }\6
 ${}\\{number\_clone}(\\{v1},\39\|n){}$;\C{ v1 = n }\6
 ${}\\{number\_add}(\\{v1},\39\\{epsilon\_t}){}$;\C{ v1 = n1+1 }\6
-${}\\{set\_number\_from\_div}(\\{d1},\39\\{d1},\39\\{v1}){}$;\C{ d1 = EL\_GORDO
-/ v1  }\6
+${}\\{set\_number\_from\_div}(\\{d1},\39\\{d1},\39\\{v1}){}$;\C{ \PB{$\\{d1}\K%
+\.{EL\_GORDO}/\\{v1}$} }\6
 \&{if} ${}(\\{number\_greater}(\\{t\_tot},\39\\{d1})){}$\5
 ${}\{{}$\1\6
 ${}\\{mp}\MG\\{arith\_error}\K\\{true};{}$\6
@@ -23741,7 +23742,7 @@ ${}\\{set\_eq\_type}(\\{mp}\MG\\{warning\_info},\39\\{mp\_defined\_macro});{}$\6
 ${}\\{set\_equiv\_node}(\\{mp}\MG\\{warning\_info},\39\|q);{}$\6
 \4${}\}{}$\2\6
 \&{else}\5
-${}\{{}$\C{ var\_def }\1\6
+${}\{{}$\C{ \PB{\\{var\_def}} }\1\6
 ${}\|p\K\\{mp\_scan\_declared\_variable}(\\{mp});{}$\6
 ${}\\{mp\_flush\_variable}(\\{mp},\39\\{equiv\_node}(\\{mp\_sym\_sym}(\|p)),\39%
 \\{mp\_link}(\|p),\39\\{true});{}$\6
@@ -26329,9 +26330,10 @@ nonzero.
 
 \Y\B\4\X28:Allocate or initialize variables\X${}\mathrel+\E{}$\6
 $\\{mp}\MG\\{job\_name}\K\\{mp\_xstrdup}(\\{mp},\39\\{opt}\MG\\{job\_name}){}$;%
-\C{ if (mp->job\_name != NULL) {   char *s = mp->job\_name + strlen
-(mp->job\_name);   while (s > mp->job\_name) {     if (*s == '.') {       *s = '%
-\\0';     }     s--;   } } }\6
+\C{\PB{ \&{if} ${}(\\{mp}\MG\\{job\_name}\I\NULL){}$ ${}\{{}$ \&{char} ${}{*}%
+\|s\K\\{mp}\MG\\{job\_name}+\\{strlen}(\\{mp}\MG\\{job\_name});{}$ \&{while}
+${}(\|s>\\{mp}\MG\\{job\_name}){}$ ${}\{{}$ \&{if} ${}({*}\|s\E\.{'.'}){}$ ${}%
+\{{}$ ${}{*}\|s\K\.{'\\0'};{}$ ${}\}{}$ ${}\|s\MM;{}$ ${}\}{}$ ${}\}{}$}}\6
 \&{if} ${}(\\{opt}\MG\\{noninteractive}){}$\5
 ${}\{{}$\1\6
 \&{if} ${}(\\{mp}\MG\\{job\_name}\E\NULL){}$\1\5
@@ -33639,8 +33641,8 @@ ${}\{{}$\1\6
 ${}\\{qq}\K\\{mp\_get\_dep\_node}(\\{mp});{}$\6
 \\{set\_cur\_exp\_node}((\&{mp\_node}) \\{qq});\6
 ${}\\{mp}\MG\\{cur\_exp}.\\{type}\K\\{mp\_type}(\|p);{}$\6
-${}\\{mp\_name\_type}(\\{qq})\K\\{mp\_capsule}{}$;\C{ clang: never read: q =
-(mp\_node) qq; }\6
+${}\\{mp\_name\_type}(\\{qq})\K\\{mp\_capsule}{}$;\C{ clang: never read: \PB{$%
+\|q\K{}$(\&{mp\_node}) \\{qq};} }\6
 \4${}\}{}$\2\6
 ${}\\{set\_dep\_list}(\\{qq},\39{}$\\{dep\_list}((\&{mp\_value\_node}) \|p));\6
 ${}\\{mp\_type}(\\{qq})\K\\{mp\_type}(\|p);{}$\6
@@ -35345,8 +35347,8 @@ ${}\{{}$\1\6
 \\{set\_number\_to\_zero}(\|v);\6
 \4${}\}{}$\2\6
 \&{else}\5
-${}\{{}$\C{ v = n - 1 - ((-v - 1) \% n)           == - ((-v - 1) \% n) - 1 + n }%
-%\1\6
+${}\{{}$\C{ \PB{$\|v\K\|n-\T{1}-(({-}\|v-\T{1})\MOD\|n)\E{-}(({-}\|v-\T{1})\MOD%
+\|n)-\T{1}+\|n$} }\1\6
 \\{number\_negate}(\|v);\6
 ${}\\{number\_add\_scaled}(\|v,\39{-}\T{1});{}$\6
 ${}\\{number\_modulo}(\|v,\39\|n);{}$\6
@@ -36937,8 +36939,8 @@ ${}{*}\\{size}\K\\{len};{}$\6
 \&{static} \&{void} \\{mp\_append\_string}(\&{MP} \\{mp}${},\39{}$\&{mp%
 \_stream} ${}{*}\|a,\39{}$\&{const} \&{char} ${}{*}\|b){}$\1\1\2\2\6
 ${}\{{}$\1\6
-\&{size\_t} \|l${}\K\\{strlen}(\|b)+\T{1}{}$;\C{ don't forget the trailing '\\0'
-}\7
+\&{size\_t} \|l${}\K\\{strlen}(\|b)+\T{1}{}$;\C{ don't forget the trailing \PB{%
+\.{'\\0'}} }\7
 \&{if} ${}((\|a\MG\\{used}+\|l)\G\|a\MG\\{size}){}$\5
 ${}\{{}$\1\6
 ${}\|a\MG\\{size}\MRL{+{\K}}\T{256}+(\|a\MG\\{size})/\T{5}+\|l;{}$\6
@@ -41002,8 +41004,9 @@ ${}\\{mp}\MG\\{header\_byte}[\T{5}]\K(\&{char})((\\{dd}/\T{4096})\MOD%
 ${}\\{mp}\MG\\{header\_byte}[\T{6}]\K(\&{char})((\\{dd}/\T{16})\MOD\T{256});{}$%
 \6
 ${}\\{mp}\MG\\{header\_byte}[\T{7}]\K(\&{char})((\\{dd}\MOD\T{16})*\T{16});{}$\6
-\4${}\}{}$\C{ mp->max\_tfm\_dimen = 16 * internal\_value (mp\_design\_size) - 1 -
-internal\_value (mp\_design\_size) / 010000000 }\2\6
+\4${}\}{}$\C{ \PB{$\\{mp}\MG\\{max\_tfm\_dimen}\K\T{16}*\\{internal\_value}(%
+\\{mp\_design\_size})-\T{1}-\\{internal\_value}(\\{mp\_design\_size})/\T{%
+\~10000000}$} }\2\6
 ${}\{{}$\1\6
 \&{mp\_number} \\{secondpart};\7
 \\{new\_number}(\\{secondpart});\6
@@ -41542,10 +41545,11 @@ ${}\\{xfree}(\\{mp}\MG\\{font\_ps\_name}[\|k]);{}$\6
 \4${}\}{}$\2\6
 \&{for} ${}(\|k\K\T{0};{}$ ${}\|k\Z\T{255};{}$ ${}\|k\PP){}$\5
 ${}\{{}$\C{ These are disabled for now following a bug-report about double free
-   errors. TO BE FIXED, bug tracker id 831 }\C{   mp\_free\_value\_node (mp,
-mp->tfm\_width[k]);   mp\_free\_value\_node (mp, mp->tfm\_height[k]);
-mp\_free\_value\_node (mp, mp->tfm\_depth[k]);   mp\_free\_value\_node (mp,
-mp->tfm\_ital\_corr[k]); }\6
+   errors. TO BE FIXED, bug tracker id 831 }\C{\PB{$\\{mp\_free\_value\_node}(%
+\\{mp},\\{mp}\MG\\{tfm\_width}[\|k]);{}$ ${}\\{mp\_free\_value\_node}(\\{mp},%
+\\{mp}\MG\\{tfm\_height}[\|k]);{}$ ${}\\{mp\_free\_value\_node}(\\{mp},\\{mp}%
+\MG\\{tfm\_depth}[\|k]);{}$ ${}\\{mp\_free\_value\_node}(\\{mp},\\{mp}\MG\\{tfm%
+\_ital\_corr}[\|k]);$}}\6
 \,${}\}{}$\6
 ${}\\{xfree}(\\{mp}\MG\\{font\_info});{}$\6
 ${}\\{xfree}(\\{mp}\MG\\{font\_enc\_name});{}$\6
@@ -43042,7 +43046,7 @@ been scanned.
 
 \Y\B\&{void} \\{mp\_final\_cleanup}(\&{MP} \\{mp})\1\1\2\2\6
 ${}\{{}$\C{ -Wunused: integer c; }\C{ 0 for \&{end}, 1 for \&{dump} }\C{ clang:
-never read: c = cur\_mod(); }\1\6
+never read: \PB{$\|c\K\\{cur\_mod}(\,);$} }\1\6
 \&{if} ${}(\\{mp}\MG\\{job\_name}\E\NULL){}$\1\5
 \\{mp\_open\_log\_file}(\\{mp});\2\6
 \&{while} ${}(\\{mp}\MG\\{input\_ptr}>\T{0}){}$\5
