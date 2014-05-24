@@ -152,12 +152,12 @@ typedef struct MP_instance {
 #  include <unistd.h>           /* for access */
 #endif
 #include <time.h>               /* for struct tm \& co */
-#include <zlib.h>               /* for ZLIB_VERSION, zlibVersion() */
-#include <png.h>                /* for PNG_LIBPNG_VER_STRING, png_libpng_ver */
-#include <pixman.h>             /* for PIXMAN_VERSION_STRING, pixman_version_string() */
-#include <cairo.h>              /* for CAIRO_VERSION_STRING, cairo_version_string() */
-#include <gmp.h>                /* for gmp_version */
-#include <mpfr.h>               /* for MPFR_VERSION_STRING, mpfr_get_version() */
+#include <zlib.h>               /* for |ZLIB_VERSION|, zlibVersion() */
+#include <png.h>                /* for |PNG_LIBPNG_VER_STRING|, |png_libpng_ver| */
+#include <pixman.h>             /* for |PIXMAN_VERSION_STRING|, |pixman_version_string()| */
+#include <cairo.h>              /* for |CAIRO_VERSION_STRING|, |cairo_version_string()| */
+#include <gmp.h>                /* for |gmp_version| */
+#include <mpfr.h>               /* for |MPFR_VERSION_STRING|, |mpfr_get_version()| */
 #include "mplib.h"
 #include "mplibps.h"            /* external header */
 #include "mplibsvg.h"           /* external header */
@@ -4423,7 +4423,7 @@ that holds the current command value of the token, and an
 @d set_equiv_node(A,B)  do {
    FUNCTION_TRACE3 ("set_equiv_node(%p, %p)\n",(A),(B));
    (A)->v.data.node=(B) ;
-   (A)->v.data.indep.serial=(B)->data.indep.serial; 
+   (A)->v.data.indep.serial=0;
 } while (0)
 
 @d set_equiv_sym(A,B)  do {
@@ -4995,7 +4995,7 @@ typedef struct mp_node_data *mp_token_node;
 @ @c
 #if DEBUG
 #define value_sym(A)    do_get_value_sym(mp,(mp_token_node)(A))
-//#define value_number(A) do_get_value_number(mp,(mp_token_node)(A))
+/* |#define value_number(A) do_get_value_number(mp,(mp_token_node)(A))| */
 #define value_number(A) ((mp_token_node)(A))->data.n
 #define value_node(A)   do_get_value_node(mp,(mp_token_node)(A))
 #define value_str(A)    do_get_value_str(mp,(mp_token_node)(A))
@@ -10014,7 +10014,7 @@ if (number_positive(arc)) {
   number_clone (d1, inf_t);         /* reuse d1 */
   number_clone (v1, n);             /* v1 = n */
   number_add (v1, epsilon_t);       /* v1 = n1+1 */
-  set_number_from_div (d1, d1, v1); /* d1 = EL_GORDO / v1  */
+  set_number_from_div (d1, d1, v1); /* |d1 = EL_GORDO / v1| */
   if (number_greater (t_tot, d1)) {
     mp->arith_error = true;
     check_arith();
@@ -18824,7 +18824,7 @@ static void mp_scan_def (MP mp) {
     n = 0;
     set_eq_type (mp->warning_info, mp_defined_macro);
     set_equiv_node (mp->warning_info, q);
-  } else { /* var_def */
+  } else { /* |var_def| */
     p = mp_scan_declared_variable (mp);
     mp_flush_variable (mp, equiv_node (mp_sym_sym (p)), mp_link (p), true);
     mp->warning_info_node = mp_find_variable (mp, p);
@@ -20949,7 +20949,7 @@ except of course for a short time just after |job_name| has become nonzero.
 
 @<Allocate or ...@>=
 mp->job_name = mp_xstrdup (mp, opt->job_name);
-/*
+/*|
 if (mp->job_name != NULL) {
   char *s = mp->job_name + strlen (mp->job_name);
   while (s > mp->job_name) {
@@ -20959,7 +20959,7 @@ if (mp->job_name != NULL) {
     s--;
   }
 }
-*/
+|*/
 if (opt->noninteractive) {
   if (mp->job_name == NULL)
     mp->job_name = mp_xstrdup (mp, mp->mem_name);
@@ -26933,7 +26933,7 @@ static void mp_add_or_subtract (MP mp, mp_node p, mp_node q, quarterword c) {
       set_cur_exp_node ((mp_node) qq);
       mp->cur_exp.type = mp_type (p);
       mp_name_type (qq) = mp_capsule;
-      /* clang: never read: q = (mp_node) qq; */
+      /* clang: never read: |q = (mp_node) qq;| */
     }
     set_dep_list (qq, dep_list ((mp_value_node) p));
     mp_type (qq) = mp_type (p);
@@ -28272,8 +28272,8 @@ static void mp_find_point (MP mp, mp_number v_orig, quarterword c) {
     if (mp_left_type (p) == mp_endpoint) {
       set_number_to_zero(v);
     } else  {
-      /* v = n - 1 - ((-v - 1) % n)
-          == - ((-v - 1) % n) - 1 + n */
+      /* |v = n - 1 - ((-v - 1) % n)
+          == - ((-v - 1) % n) - 1 + n| */
       number_negate (v);
       number_add_scaled (v, -1);
       number_modulo (v, n);
@@ -29527,7 +29527,7 @@ static char *mplib_read_ascii_file (MP mp, void *ff, size_t * size) {
   return s;
 }
 static void mp_append_string (MP mp, mp_stream * a, const char *b) {
-  size_t l = strlen (b) + 1; /* don't forget the trailing '\0' */
+  size_t l = strlen (b) + 1; /* don't forget the trailing |'\0'| */
   if ((a->used + l) >= a->size) {
     a->size += 256 + (a->size) / 5 + l;
     a->data = xrealloc (a->data, a->size, 1);
@@ -32751,7 +32751,7 @@ static void mp_fix_design_size (MP mp) {
     mp->header_byte[6] = (char) ((dd / 16) % 256);
     mp->header_byte[7] = (char) ((dd % 16) * 16);
   }
-  /* mp->max_tfm_dimen = 16 * internal_value (mp_design_size) - 1 - internal_value (mp_design_size) / 010000000 */
+  /* |mp->max_tfm_dimen = 16 * internal_value (mp_design_size) - 1 - internal_value (mp_design_size) / 010000000| */
   {
     mp_number secondpart;
     new_number (secondpart);
@@ -33170,12 +33170,12 @@ for (k = 1; k <= (int) mp->last_fnum; k++) {
 for (k = 0; k <= 255; k++) {
 /* These are disabled for now following a bug-report about double free
    errors. TO BE FIXED, bug tracker id 831 */
-/*
+/*|
   mp_free_value_node (mp, mp->tfm_width[k]);
   mp_free_value_node (mp, mp->tfm_height[k]);
   mp_free_value_node (mp, mp->tfm_depth[k]);
   mp_free_value_node (mp, mp->tfm_ital_corr[k]);
-*/
+|*/
 }
 
 xfree (mp->font_info);
@@ -34414,7 +34414,7 @@ been scanned.
 @c
 void mp_final_cleanup (MP mp) {
   /* -Wunused: integer c; */   /* 0 for \&{end}, 1 for \&{dump} */
-  /* clang: never read: c = cur_mod(); */
+  /* clang: never read: |c = cur_mod();| */
   if (mp->job_name == NULL)
     mp_open_log_file (mp);
   while (mp->input_ptr > 0) {
