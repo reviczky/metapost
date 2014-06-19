@@ -5,16 +5,16 @@ show a problem with dependencies, i.e. something like
 l.109 ....-m[34].c = m14.c-m13.c
 
 The problem seems to be how mp_p_plus_fq and mp_p_plus_q update the dep. list
-of an equation. I can happen that an independent  variable of a dep list need a fix 
+of an equation. It can happen that an independent  variable of a dep list need a fix 
 so its type is marked as  'independent_needing_fix' --- which is 0.
-When it's fixed it return to mp_independent, but in the meanwhile mp_p_plus_fq and mp_p_plus_q
-still sees the type as independent_needing_fix which is different from mp_independent.
+When it's fixed it returns to mp_independent, but in the meanwhile mp_p_plus_fq and mp_p_plus_q
+still see the type as independent_needing_fix which is different from mp_independent.
 Suppose pp!=qq, mp_type(pp)=independent_needing_fix, mp_type(qq)=mp_independent
-Then the serial number of pp is v given by number_clone (v, value_number (pp))
-and the serial number vv of qq is given by set_number_from_scaled(vv, indep_value(qq))
-This is wrong: is should be set_number_from_scaled(v, indep_value(pp))
+Then the serial number of pp is v,  given by number_clone (v, value_number (pp))
+and the serial number vv of qq is given by set_number_from_scaled(vv, indep_value(qq)) .
+This is wrong: it  should be set_number_from_scaled(v, indep_value(pp))
 or, in this case,   value_number (pp) = indep_value(pp) 
-The patch choose the first solution and adds the condition (mp_type(pp) == independent_needing_fix && mp->fix_needed) )
+The patch chooses the first solution and adds the condition (mp_type(pp) == independent_needing_fix && mp->fix_needed) )
 so in this case the serial number is set_number_from_scaled(v, indep_value(pp)).
 It's not excluded that we should really modify the value_number of pp.
 
