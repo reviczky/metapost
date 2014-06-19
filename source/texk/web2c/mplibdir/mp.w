@@ -15796,13 +15796,13 @@ static mp_value_node mp_p_plus_fq (MP mp, mp_value_node p, mp_number f,
     } else {
       if (pp == NULL) 
         set_number_to_neg_inf(v);
-      else if (mp_type(pp) == mp_independent)
+      else if (mp_type(pp) == mp_independent || (mp_type(pp) == independent_needing_fix && mp->fix_needed) )
         set_number_from_scaled(v, indep_value(pp));
       else
         number_clone (v, value_number (pp));
       if (qq == NULL) 
         set_number_to_neg_inf(vv);
-      else if (mp_type(qq) == mp_independent)
+      else if (mp_type(qq) == mp_independent || (mp_type(qq) == independent_needing_fix && mp->fix_needed) )
         set_number_from_scaled(vv, indep_value(qq));
       else
         number_clone (vv, value_number (qq));
@@ -15938,13 +15938,13 @@ static mp_value_node mp_p_plus_q (MP mp, mp_value_node p, mp_value_node q,
     } else {
       if (pp == NULL) 
         set_number_to_zero (v);
-      else if (mp_type(pp) == mp_independent)
+      else if (mp_type(pp) == mp_independent || (mp_type(pp) == independent_needing_fix && mp->fix_needed))
         set_number_from_scaled (v, indep_value(pp));
       else
         number_clone (v, value_number (pp));
       if (qq == NULL) 
         set_number_to_zero (vv);
-      else if (mp_type(qq) == mp_independent)
+      else if (mp_type(qq) == mp_independent || (mp_type(qq) == independent_needing_fix && mp->fix_needed))
         set_number_from_scaled (vv, indep_value(qq));
       else
         number_clone (vv, value_number (qq));

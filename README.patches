@@ -1,9 +1,98 @@
+2014-06-19
+  http://www-cs-faculty.stanford.edu/~knuth/mpbug.tgz
+show a problem with dependencies, i.e. something like
+ This can't happen (dep).
+l.109 ....-m[34].c = m14.c-m13.c
+
+The problem seems to be how mp_p_plus_fq and mp_p_plus_q update the dep. list
+of an equation. I can happen that an independent  variable of a dep list need a fix 
+so its type is marked as  'independent_needing_fix' --- which is 0.
+When it's fixed it return to mp_independent, but in the meanwhile mp_p_plus_fq and mp_p_plus_q
+still sees the type as independent_needing_fix which is different from mp_independent.
+Suppose pp!=qq, mp_type(pp)=independent_needing_fix, mp_type(qq)=mp_independent
+Then the serial number of pp is v given by number_clone (v, value_number (pp))
+and the serial number vv of qq is given by set_number_from_scaled(vv, indep_value(qq))
+This is wrong: is should be set_number_from_scaled(v, indep_value(pp))
+or, in this case,   value_number (pp) = indep_value(pp) 
+The patch choose the first solution and adds the condition (mp_type(pp) == independent_needing_fix && mp->fix_needed) )
+so in this case the serial number is set_number_from_scaled(v, indep_value(pp)).
+It's not excluded that we should really modify the value_number of pp.
+
+
+*** mp.w.orig	2014-06-19 09:50:18.613027087 +0200
+--- mp.w	2014-06-19 10:24:34.065112301 +0200
+***************
+*** 15796,15808 ****
+      } else {
+        if (pp == NULL) 
+          set_number_to_neg_inf(v);
+!       else if (mp_type(pp) == mp_independent)
+          set_number_from_scaled(v, indep_value(pp));
+        else
+          number_clone (v, value_number (pp));
+        if (qq == NULL) 
+          set_number_to_neg_inf(vv);
+!       else if (mp_type(qq) == mp_independent)
+          set_number_from_scaled(vv, indep_value(qq));
+        else
+          number_clone (vv, value_number (qq));
+--- 15796,15808 ----
+      } else {
+        if (pp == NULL) 
+          set_number_to_neg_inf(v);
+!       else if (mp_type(pp) == mp_independent || (mp_type(pp) == independent_needing_fix && mp->fix_needed) )
+          set_number_from_scaled(v, indep_value(pp));
+        else
+          number_clone (v, value_number (pp));
+        if (qq == NULL) 
+          set_number_to_neg_inf(vv);
+!       else if (mp_type(qq) == mp_independent || (mp_type(qq) == independent_needing_fix && mp->fix_needed) )
+          set_number_from_scaled(vv, indep_value(qq));
+        else
+          number_clone (vv, value_number (qq));
+***************
+*** 15938,15950 ****
+      } else {
+        if (pp == NULL) 
+          set_number_to_zero (v);
+!       else if (mp_type(pp) == mp_independent)
+          set_number_from_scaled (v, indep_value(pp));
+        else
+          number_clone (v, value_number (pp));
+        if (qq == NULL) 
+          set_number_to_zero (vv);
+!       else if (mp_type(qq) == mp_independent)
+          set_number_from_scaled (vv, indep_value(qq));
+        else
+          number_clone (vv, value_number (qq));
+--- 15938,15950 ----
+      } else {
+        if (pp == NULL) 
+          set_number_to_zero (v);
+!       else if (mp_type(pp) == mp_independent || (mp_type(pp) == independent_needing_fix && mp->fix_needed))
+          set_number_from_scaled (v, indep_value(pp));
+        else
+          number_clone (v, value_number (pp));
+        if (qq == NULL) 
+          set_number_to_zero (vv);
+!       else if (mp_type(qq) == mp_independent || (mp_type(qq) == independent_needing_fix && mp->fix_needed))
+          set_number_from_scaled (vv, indep_value(qq));
+        else
+          number_clone (vv, value_number (qq));
+
+
+
+
+
 2014-05-24
 Fixed underscore verbatim in  mp.w (H. Henkel)
 
 
 
 2014-05-08
+UPDATE 2014-06-19: The patch is not applied. Others tests show that 
+the bug is not solved with this patch.
+
 %
 picture ZXW;
 showvariable ZXW ;
