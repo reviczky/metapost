@@ -30401,7 +30401,7 @@ void mp_do_show_var (MP mp) {
     if (cur_sym() != NULL)
       if (cur_sym_mod() == 0)
         if (cur_cmd() == mp_tag_token)
-          if (cur_mod() != 0) {
+          if (cur_mod() != 0 || cur_mod_node()!=NULL) {
             mp_disp_var (mp, cur_mod_node());
             goto DONE;
           }
