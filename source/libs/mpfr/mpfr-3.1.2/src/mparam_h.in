@@ -27,7 +27,9 @@ http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
    for example with gcc -dM -E -xc /dev/null
    As of gcc 4.2, you can also use: -march=native or -mtune=native */
 
-#if defined (__tune_pentium4__) /* Threshold for Pentium 4 */
+#if 1 /* no processor specific optimization for TeX Live */
+#define MPFR_TUNE_CASE "default"
+#elif defined (__tune_pentium4__) /* Threshold for Pentium 4 */
 #define MPFR_TUNE_CASE "src/x86_64/pentium4/mparam.h"
 #include "x86_64/pentium4/mparam.h"
 
