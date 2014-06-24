@@ -3,5 +3,5 @@
 # Copyright (C) 2014 Taco Hoekwater <taco@metatex.org>
 # You may freely use, modify and/or distribute this file.
 
-./gmptst || exit 1
+./gmptest || exit 1
 
