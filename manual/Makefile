@@ -36,7 +36,7 @@ mpgraph.pdf: mpgraph.tex mpgraph.bib mpgraph.mp
 	$(pdflatex) mpgraph
 	$(pdflatex) mpgraph
 
-mpman.pdf: mpman.tex mpman-app-legacy.tex mpman-app-optab.tex mpman-app-refman.tex mpman.bib mpman.ist mpman.mp charts.mp mpman-charts.mp
+mpman.pdf: mpman.tex mpman-app-legacy.tex mpman-app-optab.tex mpman-app-refman.tex mpman-app-numbersystems.tex mpman.bib mpman.ist mpman.mp charts.mp mpman-charts.mp
 	$(mpost) mpman
 	$(mpost) mpman-charts
 	$(pdflatex) mpman
@@ -86,4 +86,4 @@ clean:
 	$(RM) *.tui *.tuo *.tmp *-mpgraph.mp
 
 distclean: clean
-	$(RM) mp*.pdf mp*.ps
+	$(RM) mp?*.pdf mp?*.ps

@@ -23,6 +23,11 @@ http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 #ifndef __MPFR_IMPL_H__
 #define __MPFR_IMPL_H__
 
+/* Include MPFR 'config.h' before ANY system headers */
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
+
 /* Let's include some standard headers unconditionally as they are
    already needed by several source files or when some options are
    enabled/disabled, and it is easy to forget them (some configure
@@ -55,12 +60,6 @@ http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
 /******************************************************
  ****************** Include files *********************
  ******************************************************/
-
-/* Include 'config.h' before using ANY configure macros if needed
-   NOTE: It isn't MPFR 'config.h', but GMP's one! */
-#ifdef HAVE_CONFIG_H
-# include "config.h"
-#endif
 
 #ifdef  MPFR_HAVE_GMP_IMPL /* Build with gmp internals*/
 

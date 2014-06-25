@@ -1,4 +1,4 @@
-% $Id: mpman.tex 2019 2014-05-15 16:28:13Z stephanhennig $
+% $Id: mpman.tex 2023 2014-05-21 08:47:19Z stephanhennig $
 % MetaPost manual, by John Hobby.  License at end.
 \listfiles
 \RequirePackage{ifpdf}
@@ -12,7 +12,7 @@
 \fi
 \documentclass{article} % article is NOT the original style
 \usepackage[nofancy]{svninfo}% Access VCS information.
-\svnInfo $Id: mpman.tex 2019 2014-05-15 16:28:13Z stephanhennig $
+\svnInfo $Id: mpman.tex 2023 2014-05-21 08:47:19Z stephanhennig $
 \newcommand*{\mpversion}{1.503}
 
 \usepackage[T1]{fontenc}
@@ -91,16 +91,6 @@
 \begin{titlepage}
   \vbox to \textheight {%
     \vskip0pt
-    \raisebox{0pt}[0pt][0pt]{%
-      \begin{minipage}{\linewidth}
-        \emph{The manual currently doesn't cover all recent features of
-          MetaPost, such as the support for calculations in double,
-          decimal, and binary number systems.  We'll try to keep up.
-          For more information, please refer to the
-          \href{https://foundry.supelec.fr/scm/viewvc.php/trunk/CHANGES?view=markup&root=metapost}{change
-            log}.  Sorry for the inconvenience!}
-      \end{minipage}%
-    }
     \vfil
     \vfil
     \vfil
@@ -1031,12 +1021,14 @@ Numeric\index{numeric type} quantities in MetaPost are represented in
 fixed point arithmetic\index{arithmetic} as integer multiples of
 $1\over65536$, the smallest positive value, which is also available as
 the predefined constant
-\texttt{epsilon}\index{epsilon?\texttt{epsilon}}\label{Depsilon}.
-Numeric quantities must normally have absolute values less than 4096 but
-intermediate results can be eight times larger.  This should not be a
-problem for distances or coordinate values since 4096 PostScript points
-is more than 1.4~meters.  If you need to work with numbers of magnitude
-4096 or more, setting the internal variable
+\texttt{epsilon}\index{epsilon?\texttt{epsilon}}\label{Depsilon}.\footnote{MetaPost
+  can also do arithmetic with higher and (almost) arbitrary precision.
+  See Appendix~\ref{hparith} for more information.}  Numeric quantities
+must normally have absolute values less than 4096 but intermediate
+results can be eight times larger.  This should not be a problem for
+distances or coordinate values since 4096 PostScript points is more than
+1.4~meters.  If you need to work with numbers of magnitude 4096 or more,
+setting the internal variable
 \texttt{warningcheck}\index{warningcheck?\texttt{warningcheck}}\label{Dwarncheck}
 to zero suppresses the warning messages about large numeric quantities.
 
@@ -5924,6 +5916,7 @@ treatment of included \TeX\ material.
 
 
 \appendix
+\include{mpman-app-numbersystems}
 \include{mpman-app-refman}
 \include{mpman-app-legacy}
 

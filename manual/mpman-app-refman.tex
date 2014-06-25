@@ -1,4 +1,4 @@
-\svnInfo $Id: mpman-app-refman.tex 1381 2010-10-08 16:13:03Z stephanhennig $
+\svnInfo $Id: mpman-app-refman.tex 2022 2014-05-20 21:50:47Z stephanhennig $
 \section{Reference Manual}
 \label{refman}
 
@@ -112,6 +112,8 @@ $$\begin{tabular}{|l|r|l|}
         The current month (e.g, 3 $\equiv$ March)\\\hline
 \tt     mpprocset&      \pageref{Dmpprocset}&
         Create a PostScript dictionary of command abbreviations\\\hline
+\tt     numberprecision&\pageref{Dnumberprecision}&
+        Arithmetic precision in \texttt{binary} and \texttt{decimal} mode\\\hline
 \tt     pausing&        --&
         ${}>0$ to display lines on the terminal before they are read\\\hline
 \tt     prologues&      \pageref{Dprologues}&
@@ -173,6 +175,8 @@ $$\begin{tabular}{|l|r|l|}
 \hline
 \tt     jobname&    --&
         The name of this job\\\hline
+\tt     numbersystem&    \pageref{Dnumbersystem}&
+        Arithmetic mode as given on the command-line\\\hline
 \tt     outputfilename&    \pageref{Doutputfilename}&
         Name of the output file last written\\\hline
 \tt     outputformat&    \pageref{Doutputformat}&
@@ -582,6 +586,7 @@ $\tt \descr{internal variable} \rightarrow ahangle \;|\; ahlength \;|\; bboxmarg
 $\tt \qquad \;|\; charcode \;|\; day \;|\; defaultcolormodel \;|\; defaultpen \;|\; defaultscale$\\
 $\tt \qquad \;|\; hour \;|\; hppp \;|\; jobname \;|\; labeloffset \;|\; linecap \;|\; linejoin
 \;|\; minute \;|\; miterlimit \;|\; month$\\
+$\tt \qquad \;|\; numberprecision \;|\; numbersystem$\\
 $\tt \qquad \;|\; outputfilename \;|\; outputformat \;|\; outputformatoptions \;|\; outputtemplate$\\
 $\tt \qquad \;|\; pausing \;|\; prologues \;|\; showstopping$\\
 $\tt \qquad \;|\; time \;|\; tracingoutput \;|\; tracingcapsules \;|\; tracingchoices \;|\; tracingcommands$\\
@@ -932,6 +937,9 @@ Here's a summary of the command-line switches provided by mpost:
   \cmdindex{-no-kpathsea}
   & Do not use the kpathsea program to find files.  All files have to be
   in the current directory or specified via a full path.\\
+  \cmdindex{-numbersystem}=\tdescr{string}
+  & Set arithmetic mode to one of \texttt{scaled}, \texttt{double},
+  \texttt{binary}, \texttt{decimal}\\
   \cmdindex{-progname}=\tdescr{string}
   & Pretend to be the \tdescr{string} executable.\\
   \cmdindex{-recorder}
