@@ -1,0 +1,29 @@
+
+This file is public domain.
+
+
+INSTALL for MPlib releases
+========================
+
+This distribution is partially a subset of the TeX Live distribution,
+hence the peculiar directory layout.
+
+All source code is in the directory source; the script build.sh will 
+generate and populate a directory named build, or build-windows
+when called with --mingw (this assumes you are on linux and have a 
+cross-compiling mingw32 installed) or ppc when called with --pc
+(this assumes you are on intel MacOSX coss-compiling for powerpc). 
+
+For cross-compilation, you have to make sure you have access to the
+command "ctangle" from the commandline, and if not install it
+(e.g. from TEXLIVE).
+
+If the build succeeds, you will end up with the executable "mpost" or
+in <builddir>/texk/web2c. If it doesn't, feel free to email questions
+to mp-implementors@tug.org. To install, simply copy the executable
+to somewhere in your path. 
+
+For now, the executable still contains a statically linked libmplib.
+
+See CHANGES for a rundown of differences between this release and 
+previous releases. 

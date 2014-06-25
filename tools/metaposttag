@@ -1,0 +1,20 @@
+#!/bin/sh
+a=$1
+svndir=/opt/tex/metapost/svn
+shift
+cd $svndir/tags
+if  test -d $a ; then
+  find $a -name \*~ -exec rm \{\} \;
+  rm -rf $a/build $a/build-windows
+  ln -s $a metapost-$a
+  tar cvj --exclude=.svn -f $svndir/metapost-$a-src.tar.bz2 metapost-$a/*
+  cd metapost-$a
+  ./build.sh "$@"
+  ./build.sh --mingw "$@"
+  zip -j $svndir/metapost-$a-win32-mingw.zip build-windows/texk/web2c/mpost.exe
+  cd build/texk/web2c
+  tar cjvf $svndir/metapost-$a-linux2.6-i386.tar.bz2 mpost
+  cd $svndir/tags
+  rm -rf $a/build $a/build-win
+  rm metapost-$a
+fi
