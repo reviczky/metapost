@@ -70,7 +70,8 @@ This is wrong: it  should be set_number_from_scaled(v, indep_value(pp))
 or, in this case,   value_number (pp) = indep_value(pp) 
 The patch chooses the first solution and adds the condition (mp_type(pp) == independent_needing_fix && mp->fix_needed) )
 so in this case the serial number is set_number_from_scaled(v, indep_value(pp)).
-It's not excluded that we should really modify the value_number of pp.
+It's not excluded that we should really modify the value_number of pp, as showed 
+in a comment in the code.
 
 
 *** mp.w.orig	2014-06-19 09:50:18.613027087 +0200
