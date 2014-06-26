@@ -78,7 +78,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 subdir = linked_scripts
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
-	$(nobase_dist_texmf_scripts_SCRIPTS) ChangeLog README
+	$(nobase_dist_texmf_scripts_SCRIPTS) ChangeLog
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/../../m4/kpse-win32.m4 \
 	$(top_srcdir)/../../version.ac $(top_srcdir)/ac/texlive.ac \

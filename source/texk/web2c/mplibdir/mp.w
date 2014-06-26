@@ -517,6 +517,7 @@ MP mp_initialize (MP_options * opt) {
   set_callback_option (write_ascii_file);
   set_callback_option (write_binary_file);
   set_callback_option (shipout_backend);
+  set_callback_option (run_script);
   if (opt->banner && *(opt->banner)) {
     mp->banner = xstrdup (opt->banner);
   } else {
@@ -836,6 +837,7 @@ enum mp_filetype {
   mp_filetype_text              /* first text file for readfrom and writeto primitives */
 };
 typedef char *(*mp_file_finder) (MP, const char *, const char *, int);
+typedef char *(*mp_script_runner) (MP, const char *);
 typedef void *(*mp_file_opener) (MP, const char *, const char *, int);
 typedef char *(*mp_file_reader) (MP, void *, size_t *);
 typedef void (*mp_binfile_reader) (MP, void *, void **, size_t *);
@@ -848,6 +850,7 @@ typedef void (*mp_binfile_writer) (MP, void *, void *, size_t);
 @ @<Option variables@>=
 mp_file_finder find_file;
 mp_file_opener open_file;
+mp_script_runner run_script;
 mp_file_reader read_ascii_file;
 mp_binfile_reader read_binary_file;
 mp_file_closer close_file;
@@ -869,6 +872,12 @@ static char *mp_find_file (MP mp, const char *fname, const char *fmode,
   return NULL;
 }
 
+@ @c
+static char *mp_run_script (MP mp, const char *str) {
+  (void) mp;
+  return mp_strdup (str);
+}
+
 
 @ Because |mp_find_file| is used so early, it has to be in the helpers
 section.
@@ -885,6 +894,7 @@ static int mp_eof_file (MP mp, void *f);
 static void mp_flush_file (MP mp, void *f);
 static void mp_write_ascii_file (MP mp, void *f, const char *s);
 static void mp_write_binary_file (MP mp, void *f, void *s, size_t t);
+static char *mp_run_script (MP mp, const char *str);
 
 @ The function to open files can now be very short.
 
@@ -3116,6 +3126,7 @@ mp_repeat_loop, /* special command substituted for \&{endfor} */
 mp_exit_test, /* premature exit from a loop (\&{exitif}) */
 mp_relax, /* do nothing (\.{\char`\\}) */
 mp_scan_tokens, /* put a string into the input buffer */
+mp_runscript, /* put a script result string into the input buffer */
 mp_expand_after, /* look ahead one token */
 mp_defined_macro, /* a macro defined by the user */
 mp_save_command, /* save a list of tokens (\&{save}) */
@@ -4664,6 +4675,59 @@ static mp_sym mp_frozen_id_lookup (MP mp, char *j, size_t l,
   return mp_do_id_lookup (mp, mp->frozen_symbols, j, l, insert_new);
 }
 
+/* see mp_print_sym  (mp_sym sym) */
+
+double mp_get_numeric_value (MP mp, const char *s, size_t l) {
+    char *ss = mp_xstrdup(mp,s);
+    if (ss) {
+     mp_sym sym = mp_id_lookup(mp,ss,l,false);
+     if (sym != NULL) {
+        if (mp_type(sym->v.data.node) == mp_known) {
+	    mp_xfree (ss);
+            return number_to_double(sym->v.data.node->data.n) ;
+        }
+     }
+    }
+    mp_xfree (ss);
+    return 0 ;
+}
+
+int mp_get_boolean_value (MP mp, const char *s, size_t l) {
+   char *ss = mp_xstrdup(mp,s);
+   if (ss) {
+    mp_sym sym = mp_id_lookup(mp,ss,l,false);
+    if (sym != NULL) {
+        if (mp_type(sym->v.data.node) == mp_boolean_type) {
+            if (number_to_boolean (sym->v.data.node->data.n) == mp_true_code) {
+ 	        mp_xfree(ss);
+                return 1 ;
+            }
+        }
+     }
+   }
+   mp_xfree (ss);
+   return 0;
+}
+
+char *mp_get_string_value (MP mp, const char *s, size_t l) {
+   char *ss = mp_xstrdup(mp,s);
+   if (ss) {
+    mp_sym sym = mp_id_lookup(mp,ss,l,false);
+    if (sym != NULL) {
+        if (mp_type(sym->v.data.node) == mp_string_type) {
+	    mp_xfree (ss);
+            return (char *) sym->v.data.node->data.str->str;
+        }
+    }
+   }
+   mp_xfree (ss);
+   return NULL;
+}
+
+@ @<Exported function headers@>=
+double mp_get_numeric_value(MP mp,const char *s,size_t l);
+int mp_get_boolean_value(MP mp,const char *s,size_t l);
+char *mp_get_string_value(MP mp,const char *s,size_t l);
 
 @ We need to put \MP's ``primitive'' symbolic tokens into the hash
 table, together with their command code (which will be the |eq_type|)
@@ -4777,6 +4841,10 @@ mp_primitive (mp, "save", mp_save_command, 0);
 @:save_}{\&{save} primitive@>;
 mp_primitive (mp, "scantokens", mp_scan_tokens, 0);
 @:scan_tokens_}{\&{scantokens} primitive@>;
+
+mp_primitive (mp, "runscript", mp_runscript, 0);
+@:run_script_}{\&{runscript} primitive@>;
+
 mp_primitive (mp, "shipout", mp_ship_out_command, 0);
 @:ship_out_}{\&{shipout} primitive@>;
 mp_primitive (mp, "skipto", mp_skip_to, 0);
@@ -4893,6 +4961,9 @@ mp_print (mp, "save");
 break;
 case mp_scan_tokens:
 mp_print (mp, "scantokens");
+break;
+case mp_runscript:
+mp_print (mp, "runscript");
 break;
 case mp_semicolon:
 mp_print_char (mp, xord (';'));
@@ -18980,7 +19051,7 @@ mp_free_value_node (mp, mp->bad_vardef);
 Only a few command codes |<min_command| can possibly be returned by
 |get_t_next|; in increasing order, they are
 |if_test|, |fi_or_else|, |input|, |iteration|, |repeat_loop|,
-|exit_test|, |relax|, |scan_tokens|, |expand_after|, and |defined_macro|.
+|exit_test|, |relax|, |scan_tokens|, |run_script|, |expand_after|, and |defined_macro|.
 
 \MP\ usually gets the next token of input by saying |get_x_next|. This is
 like |get_t_next| except that it keeps getting more tokens until
@@ -19095,6 +19166,9 @@ static void mp_expand (MP mp) {
     break;
   case mp_scan_tokens:
     @<Put a string into the input buffer@>;
+    break;
+  case mp_runscript:
+    @<Put a script result string into the input buffer@>;
     break;
   case mp_defined_macro:
     mp_macro_call (mp, cur_mod_node(), NULL, cur_sym());
@@ -19252,6 +19326,53 @@ is less than |loop_text|.
   }
 }
 
+@ @<Put a script result string into the input buffer@>=
+{
+    mp_get_x_next (mp);
+    mp_scan_primary (mp);
+    if (mp->cur_exp.type != mp_string_type) {
+        mp_value new_expr;
+        const char *hlp[] = {
+           "I'm going to flush this expression, since",
+           "runscript should be followed by a known string.",
+           NULL };
+        memset(&new_expr,0,sizeof(mp_value));
+        new_number(new_expr.data.n);
+        mp_disp_err (mp, NULL);
+        mp_back_error (mp, "Not a string", hlp, true);
+@.Not a string@>;
+        mp_get_x_next (mp);
+        mp_flush_cur_exp (mp, new_expr);
+    } else {
+        mp_back_input (mp);
+        if (cur_exp_str ()->len > 0) {
+            mp_value new_expr;
+            char *s = mp->run_script(mp,(const char*) cur_exp_str()->str) ;
+            if (s != NULL) {
+                size_t size = strlen(s);
+                memset(&new_expr,0,sizeof(mp_value));
+                new_number(new_expr.data.n);
+                mp_begin_file_reading (mp);
+                name = is_scantok;
+                mp->last = mp->first;
+                k = mp->first + size;
+                if (k >= mp->max_buf_stack) {
+                    while (k >= mp->buf_size) {
+                        mp_reallocate_buffer (mp, (mp->buf_size + (mp->buf_size / 4)));
+                    }
+                    mp->max_buf_stack = k + 1;
+                }
+                limit = (halfword) k;
+                (void) memcpy ((mp->buffer + mp->first), s, size);
+                free(s);
+                mp->buffer[limit] = xord ('%');
+                mp->first = (size_t) (limit + 1);
+                loc = start;
+                mp_flush_cur_exp (mp, new_expr);
+            }
+        }
+    }
+}
 
 @ @<Pretend we're reading a new one-line file@>=
 {
