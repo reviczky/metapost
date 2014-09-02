@@ -1681,7 +1681,7 @@ any loss of accuracy. Then |x| and~|y| are divided by~|r|.
 @d one_eighty_deg 01320000000 /* $180\cdot2^{20}$, represents $180^\circ$ */
 @d three_sixty_deg 02640000000 /* $360\cdot2^{20}$, represents $360^\circ$ */
 
-@d odd(A)   ((A)%2==1)
+@d odd(A)   (abs(A)%2==1)
 
 @ Compute a multiple of the sine and cosine
 

@@ -52,7 +52,7 @@
 @d incr(A)   (A)=(A)+1 /* increase a variable by unity */
 @d decr(A)   (A)=(A)-1 /* decrease a variable by unity */
 @d negate(A)   (A)=-(A) /* change the sign of a variable */
-@d odd(A)   ((A)%2==1)
+@d odd(A)   (abs(A)%2==1)
 @d max_quarterword 0x3FFF /* largest allowable value in a |quarterword| */
 
 @c
