@@ -704,7 +704,7 @@ mp->bad = 0;
 @d decr(A)   (A)=(A)-1 /* decrease a variable by unity */
 @d negate(A) (A)=-(A) /* change the sign of a variable */
 @d double(A) (A)=(A)+(A)
-@d odd(A)   ((A)%2==1)
+@d odd(A)   (abs(A)%2==1)
 
 @* The character set.
 In order to make \MP\ readily portable to a wide variety of
