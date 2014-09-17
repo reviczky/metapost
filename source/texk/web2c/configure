@@ -744,14 +744,16 @@ MFN_FALSE
 MFN_TRUE
 MF_FALSE
 MF_TRUE
-OMFONTS_FALSE
-OMFONTS_TRUE
 OTANGLE_FALSE
 OTANGLE_TRUE
 XETEX_SYNCTEX_FALSE
 XETEX_SYNCTEX_TRUE
 XETEX_FALSE
 XETEX_TRUE
+UPMP_FALSE
+UPMP_TRUE
+PMP_FALSE
+PMP_TRUE
 MP_FALSE
 MP_TRUE
 LUAJITTEX_FALSE
@@ -965,7 +967,6 @@ with_editor
 enable_auto_core
 enable_dump_share
 enable_ipc
-enable_omfonts
 enable_tex
 enable_tex_synctex
 enable_etex
@@ -984,6 +985,8 @@ enable_pdftex_synctex
 enable_luatex
 enable_luajittex
 enable_mp
+enable_pmp
+enable_upmp
 enable_xetex
 enable_xetex_synctex
 enable_mf
@@ -998,6 +1001,7 @@ enable_suntoolswin
 enable_tektronixwin
 enable_unitermwin
 enable_web_progs
+enable_synctex
 enable_missing
 with_fontconfig_includes
 with_fontconfig_libdir
@@ -1694,8 +1698,6 @@ Optional Features:
   --enable-auto-core      cause TeX&MF to dump core, given a certain filename
   --disable-dump-share    make fmt/base/mem files architecture-dependent
   --disable-ipc           disable TeX's --ipc option, i.e., pipe to a program
-  --disable-omfonts       do not compile and install omfonts (use Web2C
-                          versions)
   --disable-tex           do not compile and install TeX
   --enable-tex-synctex      build TeX with SyncTeX support
   --enable-etex           compile and install e-TeX
@@ -1714,6 +1716,8 @@ Optional Features:
   --disable-luatex        do not compile and install LuaTeX
   --disable-luajittex     do not compile and install LuaJITTeX
   --disable-mp            do not compile and install MetaPost
+  --disable-pmp           do not compile and install pMetaPost
+  --disable-upmp          do not compile and install upMetaPost
   --disable-xetex         do not compile and install XeTeX
   --disable-xetex-synctex   build XeTeX without SyncTeX support
   --disable-mf            do not build METAFONT
@@ -1728,6 +1732,7 @@ Optional Features:
   --enable-tektronixwin     include Tektronix window support
   --enable-unitermwin       include Uniterm window support
   --disable-web-progs     do not build WEB programs bibtex ... weave
+  --disable-synctex       do not build the SyncTeX tool
   --disable-missing       terminate if a requested program or feature must be
                           disabled, e.g., due to missing libraries
 
@@ -17973,10 +17978,6 @@ fi
 if test "${enable_ipc+set}" = set; then :
   enableval=$enable_ipc;
 fi
-# Check whether --enable-omfonts was given.
-if test "${enable_omfonts+set}" = set; then :
-  enableval=$enable_omfonts;
-fi
 # Check whether --enable-tex was given.
 if test "${enable_tex+set}" = set; then :
   enableval=$enable_tex;
@@ -18167,6 +18168,40 @@ test "x$enable_web2c:$enable_mp" = xyes:yes && {
   need_cairo=yes
   need_libpng=yes
 }
+# Check whether --enable-pmp was given.
+if test "${enable_pmp+set}" = set; then :
+  enableval=$enable_pmp;
+fi
+case $enable_pmp in #(
+  yes | no) :
+     ;; #(
+  *) :
+    enable_pmp=yes ;;
+esac
+
+test "x$enable_web2c:$enable_pmp" = xyes:yes && {
+  need_mpfr=yes
+  need_cairo=yes
+  need_libpng=yes
+  need_ptexenc=yes
+}
+# Check whether --enable-upmp was given.
+if test "${enable_upmp+set}" = set; then :
+  enableval=$enable_upmp;
+fi
+case $enable_upmp in #(
+  yes | no) :
+     ;; #(
+  *) :
+    enable_upmp=yes ;;
+esac
+
+test "x$enable_web2c:$enable_upmp" = xyes:yes && {
+  need_mpfr=yes
+  need_cairo=yes
+  need_libpng=yes
+  need_ptexenc=yes
+}
 # Check whether --enable-xetex was given.
 if test "${enable_xetex+set}" = set; then :
   enableval=$enable_xetex;
@@ -18241,6 +18276,13 @@ fi
 if test "${enable_web_progs+set}" = set; then :
   enableval=$enable_web_progs;
 fi
+
+## configure option for the SyncTeX tool
+# Check whether --enable-synctex was given.
+if test "${enable_synctex+set}" = set; then :
+  enableval=$enable_synctex;
+fi
+
 
 
 if test "x$enable_texlive_build" = xyes; then :
@@ -19479,6 +19521,20 @@ else
   MP_TRUE='#'
   MP_FALSE=
 fi
+ if test "x$enable_pmp" = xyes; then
+  PMP_TRUE=
+  PMP_FALSE='#'
+else
+  PMP_TRUE='#'
+  PMP_FALSE=
+fi
+ if test "x$enable_upmp" = xyes; then
+  UPMP_TRUE=
+  UPMP_FALSE='#'
+else
+  UPMP_TRUE='#'
+  UPMP_FALSE=
+fi
  if test "x$enable_xetex" = xyes; then
   XETEX_TRUE=
   XETEX_FALSE='#'
@@ -19522,15 +19578,6 @@ else
   OTANGLE_TRUE='#'
   OTANGLE_FALSE=
 fi
-
- if test "x$enable_omfonts" != xno; then
-  OMFONTS_TRUE=
-  OMFONTS_FALSE='#'
-else
-  OMFONTS_TRUE='#'
-  OMFONTS_FALSE=
-fi
-
 
  if test "x$enable_mf" != xno; then
   MF_TRUE=
@@ -20358,15 +20405,6 @@ if test "x$enable_unitermwin" = xyes; then :
 $as_echo "#define UNITERMWIN /**/" >>confdefs.h
 
 fi
-
- if test "x$enable_mp" != xno; then
-  MP_TRUE=
-  MP_FALSE='#'
-else
-  MP_TRUE='#'
-  MP_FALSE=
-fi
-
 
  if test "x$enable_web_progs" != xno; then
   WEB_TRUE=
@@ -23743,6 +23781,58 @@ _ACEOF
 
 
 
+# Check of poppler 0.25 or better
+case $with_system_poppler in #(
+  yes) :
+    eval CPPFLAGS=\"$POPPLER_INCLUDES \$CPPFLAGS\"
+eval LIBS=\"$POPPLER_LIBS \$LIBS\"
+
+ac_ext=cpp
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+ac_link="./libtool --mode=link --tag=CXX $ac_link"
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for StructTreeRoot.h (poppler 0.25 or better)" >&5
+$as_echo_n "checking for StructTreeRoot.h (poppler 0.25 or better)... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <stdio.h>
+#include <StructTreeRoot.h>
+int
+main ()
+{
+PDFDoc *doc;
+                                     Dict *dict;
+                                     StructTreeRoot root(doc, dict);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"; then :
+  kpse_cv_have_StructTreeRoot_h=yes
+else
+  kpse_cv_have_StructTreeRoot_h=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $kpse_cv_have_StructTreeRoot_h" >&5
+$as_echo "$kpse_cv_have_StructTreeRoot_h" >&6; }
+ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+ac_link="./libtool --mode=link --tag=CC $ac_link"
+ ;; #(
+  *) :
+    kpse_cv_have_StructTreeRoot_h=yes ;;
+esac
+if test "x$kpse_cv_have_StructTreeRoot_h" = xyes; then
+
+$as_echo "#define HAVE_STRUCTTREEROOT_H 1" >>confdefs.h
+
+fi
 CPPFLAGS=$kpse_save_CPPFLAGS
 LIBS=$kpse_save_LIBS
 
@@ -24106,6 +24196,8 @@ ac_config_files="$ac_config_files ctangleboot-sh"
 ac_config_files="$ac_config_files silent-sh"
 
 
+
+
 if test "x$host_alias" != x && test "x$build_alias" = x; then :
   as_fn_error $? "when cross-compiling you must specify both --host and --build." "$LINENO" 5
 fi
@@ -24359,6 +24451,14 @@ if test -z "${MP_TRUE}" && test -z "${MP_FALSE}"; then
   as_fn_error $? "conditional \"MP\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
+if test -z "${PMP_TRUE}" && test -z "${PMP_FALSE}"; then
+  as_fn_error $? "conditional \"PMP\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${UPMP_TRUE}" && test -z "${UPMP_FALSE}"; then
+  as_fn_error $? "conditional \"UPMP\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
 if test -z "${XETEX_TRUE}" && test -z "${XETEX_FALSE}"; then
   as_fn_error $? "conditional \"XETEX\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
@@ -24371,10 +24471,6 @@ if test -z "${OTANGLE_TRUE}" && test -z "${OTANGLE_FALSE}"; then
   as_fn_error $? "conditional \"OTANGLE\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
-if test -z "${OMFONTS_TRUE}" && test -z "${OMFONTS_FALSE}"; then
-  as_fn_error $? "conditional \"OMFONTS\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
 if test -z "${MF_TRUE}" && test -z "${MF_FALSE}"; then
   as_fn_error $? "conditional \"MF\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
@@ -24385,10 +24481,6 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${MFXT_TRUE}" && test -z "${MFXT_FALSE}"; then
   as_fn_error $? "conditional \"MFXT\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${MP_TRUE}" && test -z "${MP_FALSE}"; then
-  as_fn_error $? "conditional \"MP\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${WEB_TRUE}" && test -z "${WEB_FALSE}"; then
