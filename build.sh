@@ -6,9 +6,10 @@
 # ----------
 # Options:
 #       --make      : only make, no make distclean; configure
-#       --parallel  : make -j 2 -l 3.0
+#       --parallel  : make -j 4 -l 4.0
 #       --nostrip   : do not strip binary
-#       --mingw     : crosscompile for mingw32 from i-386linux
+#       --mingw     : crosscompile for mingw32 from linux
+#       --mingw64   : crosscompile for mingw64 from linux
       
 
 # try to find gnu make; we may need it
@@ -29,9 +30,10 @@ fi
 ONLY_MAKE=FALSE
 STRIP_MPOST=TRUE
 MINGWCROSS=FALSE
+MINGWCROSS64=FALSE
 PPCCROSS=FALSE
-JOBS_IF_PARALLEL=2
-MAX_LOAD_IF_PARALLEL=3.0
+JOBS_IF_PARALLEL=4
+MAX_LOAD_IF_PARALLEL=4.0
 
 while [ "$1" != "" ] ; do
   if [ "$1" = "--make" ] ;
@@ -40,6 +42,8 @@ while [ "$1" != "" ] ; do
   then STRIP_MPOST=FALSE ;
   elif [ "$1" = "--mingw" ] ;
   then MINGWCROSS=TRUE ;
+  elif [ "$1" = "--mingw64" ] ;
+  then MINGWCROSS64=TRUE ;
   elif [ "$1" = "--ppc" ] ;
   then PPCCROSS=TRUE ;
   elif [ "$1" = "--parallel" ] ;
@@ -67,6 +71,16 @@ then
   MPOSTEXE=mpost.exe
   CONFHOST="--host=i586-mingw32msvc --build=i586-linux-gnu "
 fi
+
+if [ "$MINGWCROSS64" = "TRUE" ]
+then
+  B=build-windows64
+  STRIP=x86_64-w64-mingw32-strip
+  MPOSTEXE=mpost.exe
+  CONFHOST="--host=x86_64-w64-mingw32 --build=x86_64-unknown-linux-gnu"
+fi
+
+
 
 if [ "$PPCCROSS" = "TRUE" ]
 then
