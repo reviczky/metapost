@@ -1,3 +1,10 @@
+2014-12-04  Luigi Scarso  <luigi.scarso@gmail.com>
+
+	* mpost.w: fixed exit values to match metafont/old metapost behavior.
+	(thanks to Wojciech A. Koszek <wkoszek@freebsd.org>).
+
+
+
 2014-09-16  Peter Breitenlohner  <peb@mppmu.mpg.de>
 
 	* am/libmplib.am: Build a separate library libmputil.a from
