@@ -106,6 +106,7 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/mpfr-check-printf-spec.m4 \
 	$(top_srcdir)/../../m4/kpse-gmp-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-search-libs.m4 \
 	$(top_srcdir)/../../m4/kpse-size-max.m4 \
+	$(top_srcdir)/../../m4/kpse-visibility.m4 \
 	$(top_srcdir)/../../m4/kpse-warnings.m4 \
 	$(top_srcdir)/version.ac $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -126,8 +127,8 @@ am__v_AR_1 =
 libmpfr_a_AR = $(AR) $(ARFLAGS)
 libmpfr_a_LIBADD =
 am__dirstamp = $(am__leading_dot)dirstamp
-nodist_libmpfr_a_OBJECTS = @MPFR_TREE@/src/add.$(OBJEXT) \
-	@MPFR_TREE@/src/add1.$(OBJEXT) \
+nodist_libmpfr_a_OBJECTS = @MPFR_TREE@/src/abort_prec_max.$(OBJEXT) \
+	@MPFR_TREE@/src/add.$(OBJEXT) @MPFR_TREE@/src/add1.$(OBJEXT) \
 	@MPFR_TREE@/src/add1sp.$(OBJEXT) \
 	@MPFR_TREE@/src/add_d.$(OBJEXT) \
 	@MPFR_TREE@/src/add_ui.$(OBJEXT) @MPFR_TREE@/src/agm.$(OBJEXT) \
@@ -588,6 +589,7 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 VERSION = @VERSION@
+VISIBILITY_CFLAGS = @VISIBILITY_CFLAGS@
 WARNING_CFLAGS = @WARNING_CFLAGS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
@@ -642,9 +644,10 @@ top_srcdir = @top_srcdir@
 EXTRA_DIST = $(MPFR_TREE) $(MPFR_TREE)-PATCHES
 SUBDIRS = . include
 AM_CPPFLAGS = -I$(srcdir)/$(MPFR_TREE)/src $(GMP_INCLUDES)
-AM_CFLAGS = # $(WARNING_CFLAGS)
+AM_CFLAGS = $(VISIBILITY_CFLAGS) # $(WARNING_CFLAGS)
 noinst_LIBRARIES = libmpfr.a
 nodist_libmpfr_a_SOURCES = \
+	@MPFR_TREE@/src/abort_prec_max.c \
 	@MPFR_TREE@/src/add.c \
 	@MPFR_TREE@/src/add1.c \
 	@MPFR_TREE@/src/add1sp.c \
@@ -742,7 +745,6 @@ nodist_libmpfr_a_SOURCES = \
 	@MPFR_TREE@/src/version.c
 
 unused_sources = \
-	@MPFR_TREE@/src/abort_prec_max.c \
 	@MPFR_TREE@/src/acos.c \
 	@MPFR_TREE@/src/acosh.c \
 	@MPFR_TREE@/src/ai.c \
@@ -945,6 +947,9 @@ clean-noinstLIBRARIES:
 @MPFR_TREE@/src/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) @MPFR_TREE@/src/$(DEPDIR)
 	@: > @MPFR_TREE@/src/$(DEPDIR)/$(am__dirstamp)
+@MPFR_TREE@/src/abort_prec_max.$(OBJEXT):  \
+	@MPFR_TREE@/src/$(am__dirstamp) \
+	@MPFR_TREE@/src/$(DEPDIR)/$(am__dirstamp)
 @MPFR_TREE@/src/add.$(OBJEXT): @MPFR_TREE@/src/$(am__dirstamp) \
 	@MPFR_TREE@/src/$(DEPDIR)/$(am__dirstamp)
 @MPFR_TREE@/src/add1.$(OBJEXT): @MPFR_TREE@/src/$(am__dirstamp) \
@@ -1163,6 +1168,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mpfrtest-mpfrtest.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@@MPFR_TREE@/src/$(DEPDIR)/abort_prec_max.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@@MPFR_TREE@/src/$(DEPDIR)/add.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@@MPFR_TREE@/src/$(DEPDIR)/add1.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@@MPFR_TREE@/src/$(DEPDIR)/add1sp.Po@am__quote@

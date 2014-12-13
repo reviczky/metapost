@@ -1,3 +1,43 @@
+2014-12-11  Karl Berry  <karl@tug.org>
+
+	* triptest,
+	* mftraptest: complain early if trip.fmt/trap.base are not created.
+	Original report from vvv, tlbuild 14 Jun 2011 10:25:47.
+
+2014-11-10  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* cpascal.h (makebinaryfile): Avoid gcc -Wunused-value warning.
+
+2014-11-07  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* tftopl.ch, vftovp.ch: Add missing space to message.
+	* tftopl.test, vftovp.test: Display help and warning message.
+
+	* help.h: Correct help messages for ofm2opl & Co.
+
+2014-11-06  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* mf.ch, tftopl.ch, vftovp.ch: Add stringcast to avoid printing
+	strings as numbers.
+
+	* configure.ac: AC_CHECK_SIZEOF([void *]) and AC_TYPE_UINTPTR_T.
+	* w2c/config.h: If necessary define uintptr_t.
+	* texmfmp.h: Cast pointers to uintptr_t and use PRIdPTR, PRIxPTR
+	to print them.
+
+2014-10-30  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* texmfmp.h: Define here whether or not to build tex*.dll.
+
+2014-10-28  Karl Berry  <karl@tug.org>
+
+	* enctex.ch: patch for \^^ab control sequences from Petr Olsak.
+
+2014-09-25  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* w2c/config.h: Bug fix: integer64 must always be a 64bit type,
+	even when long and off_t are not (detected by Norbert Preinig).
+
 2014-09-16  Peter Breitenlohner  <peb@mppmu.mpg.de>
 
 	* Makefile.am: Include fragments libmputil.am and pmpost.am.

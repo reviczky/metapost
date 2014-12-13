@@ -3,7 +3,7 @@
 % Load plain if necessary, i.e., if running under initex.
 \expandafter\ifx\csname fmtname\endcsname\relax\input plain\fi
 %
-\def\texinfoversion{2014-05-20.16}
+\def\texinfoversion{2014-11-14.07}
 %
 % Copyright 1985, 1986, 1988, 1990, 1991, 1992, 1993, 1994, 1995,
 % 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
@@ -1010,24 +1010,15 @@ where each line of input produces a line of output.}
 % paragraph.
 %
 \gdef\dosuppressfirstparagraphindent{%
-  \gdef\indent{%
-    \restorefirstparagraphindent
-    \indent
-  }%
-  \gdef\noindent{%
-    \restorefirstparagraphindent
-    \noindent
-  }%
-  \global\everypar = {%
-    \kern -\parindent
-    \restorefirstparagraphindent
-  }%
+  \gdef\indent  {\restorefirstparagraphindent \indent}%
+  \gdef\noindent{\restorefirstparagraphindent \noindent}%
+  \global\everypar = {\kern -\parindent \restorefirstparagraphindent}%
 }
-
+%
 \gdef\restorefirstparagraphindent{%
-  \global \let \indent = \ptexindent
-  \global \let \noindent = \ptexnoindent
-  \global \everypar = {}%
+  \global\let\indent = \ptexindent
+  \global\let\noindent = \ptexnoindent
+  \global\everypar = {}%
 }
 
 
@@ -5739,13 +5730,16 @@ end
 %
 % #1 is the text, #2 is the section type (Ynumbered, Ynothing,
 % Yappendix, Yomitfromtoc), #3 the chapter number.
+% Not used for @heading series.
 %
 % To test against our argument.
 \def\Ynothingkeyword{Ynothing}
-\def\Yomitfromtockeyword{Yomitfromtoc}
 \def\Yappendixkeyword{Yappendix}
+\def\Yomitfromtockeyword{Yomitfromtoc}
 %
 \def\chapmacro#1#2#3{%
+  \checkenv{}% chapters, etc., should not start inside an environment.
+  %
   % Insert the first mark before the heading break (see notes for \domark).
   \let\prevchapterdefs=\lastchapterdefs
   \let\prevsectiondefs=\lastsectiondefs
@@ -5798,6 +5792,7 @@ end
   %
   {%
     \chapfonts \rmisbold
+    \let\footnote=\errfootnoteheading % give better error message
     %
     % Have to define \lastsection before calling \donoderef, because the
     % xref code eventually uses it.  On the other hand, it has to be called
@@ -5891,21 +5886,28 @@ end
 
 % Print any size, any type, section title.
 %
-% #1 is the text, #2 is the section level (sec/subsec/subsubsec), #3 is
-% the section type for xrefs (Ynumbered, Ynothing, Yappendix), #4 is the
-% section number.
+% #1 is the text of the title,
+% #2 is the section level (sec/subsec/subsubsec),
+% #3 is the section type (Ynumbered, Ynothing, Yappendix, Yomitfromtoc),
+% #4 is the section number.
 %
 \def\seckeyword{sec}
 %
 \def\sectionheading#1#2#3#4{%
   {%
-    \checkenv{}% should not be in an environment.
+    \def\sectionlevel{#2}%
+    \def\temptype{#3}%
+    %
+    % It is ok for the @heading series commands to appear inside an
+    % environment (it's been historically allowed, though the logic is
+    % dubious), but not the others.
+    \ifx\temptype\Yomitfromtockeyword\else
+      \checkenv{}% non-@*heading should not be in an environment.
+    \fi
+    \let\footnote=\errfootnoteheading
     %
     % Switch to the right set of fonts.
     \csname #2fonts\endcsname \rmisbold
-    %
-    \def\sectionlevel{#2}%
-    \def\temptype{#3}%
     %
     % Insert first mark before the heading break (see notes for \domark).
     \let\prevsectiondefs=\lastsectiondefs
@@ -8359,9 +8361,6 @@ end
 %
 % Auto-number footnotes.  Otherwise like plain.
 \gdef\footnote{%
-  \let\indent=\ptexindent
-  \let\noindent=\ptexnoindent
-  %
   \global\advance\footnoteno by \@ne
   \edef\thisfootno{$^{\the\footnoteno}$}%
   %
@@ -8388,7 +8387,7 @@ end
   %
   % Nested footnotes are not supported in TeX, that would take a lot
   % more work.  (\startsavinginserts does not suffice.)
-  \let\footnote=\errfootnote
+  \let\footnote=\errfootnotenest
   %
   % We want to typeset this text as a normal paragraph, even if the
   % footnote reference occurs in (for example) a display environment.
@@ -8427,10 +8426,15 @@ end
 }
 }%end \catcode `\@=11
 
-\def\errfootnote{%
+\def\errfootnotenest{%
   \errhelp=\EMsimple
   \errmessage{Nested footnotes not supported in texinfo.tex,
     even though they work in makeinfo; sorry}
+}
+
+\def\errfootnoteheading{%
+  \errhelp=\EMsimple
+  \errmessage{Footnotes in chapters, sections, etc., are not supported}
 }
 
 % In case a @footnote appears in a vbox, save the footnote text and create
