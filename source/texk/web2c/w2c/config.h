@@ -93,8 +93,21 @@ typedef off_t longinteger;
 #define LONGINTEGER_PRI "l"
 #endif
 
-/* We also need a genuine 64-bit integer type, in case of 32-bit off_t */
-typedef LONGINTEGER_TYPE integer64;
+/* We also need a genuine 64-bit integer type.  */
+#if defined(WIN32)
+typedef __int64 integer64;
+#else
+typedef int64_t integer64;
+#endif
+
+/* And we need uintptr_t.  */
+#ifndef HAVE_UINTPTR_T
+# if SIZEOF_VOID_P == SIZEOF_INT
+typedef unsigned int uintptr_t;
+# elif SIZEOF_VOID_P == SIZEOF_LONG
+typedef unsigned long uintptr_t;
+# endif
+#endif
 
 /* I don't want to write a configure test for remove when all Unix
    machines have unlink.  But, for the sake of non-Unix machines that
