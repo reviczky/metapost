@@ -1,4 +1,4 @@
-$Id: README 34273 2014-06-18 11:02:12Z peter $
+$Id: README 35661 2014-11-25 08:47:42Z peter $
 Public domain.  Originally written 2005 by Karl Berry.
 
 Extra utilities we (optionally) compile for TeX Live.
@@ -12,7 +12,7 @@ asymptote 2.31 - checked 17may14
 m-tx 0.60d - checked 16apr12
   http://mirror.ctan.org/support/m-tx/
 
-pmx 2.7.0 - checked 11apr13
+pmx 2.7.0 - checked 25nov14
   http://mirror.ctan.org/support/pmx/
 
 ps2eps 1.68 - checked 10may12
@@ -37,12 +37,17 @@ xpdfopen 0.86 - checked 24may14
   http://cs.acadiau.ca/~jdiamond/xpdfopen/
 
 
-xindy 2.5.0 - checked 28apr14
+xindy 2.5.1 - checked 15sep14
   http://www.ctan.org/tex-archive/indexing/xindy/base/
 
 After building clisp as described below, run the TL
   Build --enable-xindy CLISP=$clisp_builddir/clisp
 to include xindy in the build.  It is disabled by default.
+
+xindy/README-clisp has alternative instructions with some extra
+information, especially for those building xindy on its own.  The
+process here is written for building clisp-for-xindy-for-TL.  The
+differences are minimal.
 
 mkdir clisp; cd clisp
 clisp_basedir=`pwd`
