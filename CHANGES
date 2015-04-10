@@ -2,16 +2,16 @@
 This file is public domain.
 
 ----------------------------------------------------------------------
-What is new in MetaPost version 1.902:
-----------------------------------------------------------------------
-
-* Fixed a crash in 'decimal' mode during choose_scale calculations.
-
-----------------------------------------------------------------------
 What is new in MetaPost version 1.999:
 ----------------------------------------------------------------------
 
 * The numbersystem 'binary' is now operational.
+
+----------------------------------------------------------------------
+What is new in MetaPost version 1.902:
+----------------------------------------------------------------------
+
+* Fixed a crash in 'decimal' mode during choose_scale calculations.
 
 ----------------------------------------------------------------------
 What is new in MetaPost version 1.901:
