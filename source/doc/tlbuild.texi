@@ -1,8 +1,8 @@
 \input texinfo
 @setfilename tlbuild.info
 
-@set version 2014
-@set month-year May 2014
+@set version 2015
+@set month-year May 2015
 
 @set mytitle Building @TeX{} Live (@value{version})
 @settitle @value{mytitle}
@@ -14,7 +14,7 @@
 @copying
 This file documents the @TL{} build system and more.
 
-Copyright @copyright{} 2013, 2014 Karl Berry & Peter Breitenlohner.
+Copyright @copyright{} 2013, 2014, 2015 Karl Berry & Peter Breitenlohner.
 
 Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
@@ -344,11 +344,10 @@ to be done unless some source files have been modified.
 @cindex problems with build
 @cindex failure to build
 @vindex --no-clean Build @r{option}
-If configuring or building a module fails, you could either
-(a)@tie{}find and fix the problem, or (b)@tie{}remove the subdirectory
-for that module from the build tree, and rerun the top-level
-@code{make} (or @file{Build} with @code{--no-clean} as its first
-argument).
+If configuring or building a module fails, you should first find and fix the
+problem, then perhaps remove the subdirectory for that module from the build
+tree, and finally rerun the top-level @code{make} (or @file{Build} with
+@code{--no-clean} as its first argument).
 
 
 @node Build in parallel
@@ -414,7 +413,7 @@ e-@TeX{}).
 
 If you want to work on a single program within the TL sources, this is
 the recommended way to do it.  Here is an example from start to
-finish for working on @code{dvipdfmx}.
+finish for working on @code{dvipdfm-x}.
 
 @example
 mkdir mydir && cd mydir  # new working directory
@@ -434,17 +433,17 @@ mkdir Work && cd Work
 make >&outm
 
 # Test:
-cd texk/dvipdfmx
+cd texk/dvipdfm-x
 make check
 @end example
 
 Then you modify source files in @file{mydir/texk/dvipdfm-x} and rerun
 @code{make} in @file{mydir/Work/texk/dvipdfm-x} to rebuild.
 
-The second line the @code{configure} invocation shows examples of
+The second line of the @code{configure} invocation shows examples of
 extra things you likely want to specify if you intend to hack the
 sources (and not just build binaries): the @code{-C} speeds up
-@code{configure}, and the @code{CFLAGS} and @code{CXXFLAGS} are to
+@code{configure}, and the @code{CFLAGS} and @code{CXXFLAGS} settings
 eliminate compiler optimization for debugging purposes.
 
 Of course, one should actually look at the output and check that
@@ -524,7 +523,7 @@ otherwise, they are given by their usual Autoconf defaults:
 @var{infodir}                 @var{datarootdir}/info
 @end example
 
-@noindent @dots{} except possibly modified as follows:
+@noindent except possibly modified as follows:
 
 @itemize @bullet
 @item
@@ -754,8 +753,8 @@ To avoid unnecessary runs of @code{bison}, @code{flex}, or
 Here is a brief description of the top-level directories in the @TL{}
 source tree.
 
-As mentioned at the beginning of the chapter (@pxref{Overview of build
-system}), the main source directories are @file{texk/}
+As mentioned at the beginning of @pxref{Overview of build
+system}, the main source directories are @file{texk/}
 (@TeX{}-specific programs and libraries), @file{utils/} (additional
 programs), and @file{libs/} (generic libraries).
 
@@ -895,7 +894,7 @@ Macros for compiler-related checks:
 @defmac KPSE_COMPILER_WARNINGS
 @vindex WARNING_C[XX]FLAGS
 When using the (Objective) C/C++ compiler, set
-@code{WARNING_[OBJ]C[XX}]FLAGS to suitable warning flags (depending on
+@code{WARNING_[OBJ]C[XX]FLAGS} to suitable warning flags (depending on
 the value given to or implied for @code{--enable-compiler-warnings}).
 Call @code{AC_SUBST} for them.  At the moment this only works for GNU
 compilers, but could be extended to others if necessary.
@@ -960,14 +959,14 @@ that provides make variables for that library.  E.g., for
 Provide the configure option @code{--with-system-libpng}.  Set and
 @code{AC_SUBST} @code{make} variables for modules using this library (either
 an installed version or from the @TL{} tree): @code{LIBPNG_INCLUDES} for use
-in CPPFLAGS, @code{LIBPNG_LIBS} for use in LDADD, @code{LIBPNG_DEPEND} for
-use as dependency, and @code{LIBPNG_RULE} defining @code{make} rules to
-rebuild the library.
+in @code{CPPFLAGS}, @code{LIBPNG_LIBS} for use in @code{LDADD},
+@code{LIBPNG_DEPEND} for use as dependency, and @code{LIBPNG_RULE} defining
+@code{make} rules to rebuild the library.
 @end defmac
 
 @defmac KPSE_ADD_FLAGS (@var{name})
-Temporarily extend CPPFLAGS and LIBS with the values required for the
-library module @code{@var{name}}.
+Temporarily extend @code{CPPFLAGS} and @code{LIBS} with the values required
+for the library module @code{@var{name}}.
 @end defmac
 
 @defmac KPSE_RESTORE_FLAGS
@@ -985,8 +984,8 @@ KPSE_LIBPNG_FLAGS
 @noindent and its @file{Makefile.am} would be along these lines:
 @example
 bin_PROGRAMS = foo
-AM_CPPFLAGS = $@{ZLIB_INCLUDES@} $@{LIBPNG_INCLUDES@}
-foo_LDADD = $@{ZLIB_LIBS@} $@{LIBPNG_LIBS@}
+AM_CPPFLAGS = $@{LIBPNG_INCLUDES@} $@{ZLIB_INCLUDES@}
+foo_LDADD = $@{LIBPNG_LIBS@} $@{ZLIB_LIBS@}
 foo_DEPENDENCIES = $@{ZLIB_DEPEND@} $@{LIBPNG_DEPEND@}
 ## Rebuild libz
 @@ZLIB_RULE@@
@@ -1078,9 +1077,10 @@ structure and variation.
 
 @pindex png @r{library}
 @pindex libpng @r{library}
+@set libpngversion libpng-1.6.16
 This generic library uses the source tree in, e.g., the subdirectory
-@file{libpng-1.5.17} with all modifications for TL recorded in
-@file{libpng-1.5.17-PATCHES/*}.  The @file{configure.ac} fragment
+@file{@value{libpngversion}} with all modifications for TL recorded in
+@file{@value{libpngversion}-PATCHES/*}.  The @file{configure.ac} fragment
 @file{ac/withenable.ac} contains
 
 @example
@@ -1184,11 +1184,10 @@ distributed by @TeX{} user groups, and have never been officially
 released for standalone use.
 
 @pindex --with-system-kpathsea
-It is possible, and possibly even useful for distro builds
-(@pxref{Distro builds}), to specify the configure option
-@code{--with-system-kpathsea} in order to use a system version of the
-library and it may then be necessary to specify
-@code{--with-kpathsea-includes} and/or @code{--with-kpathsea-libdir}.
+It is possible, and perhaps even useful for distro builds (@pxref{Distro
+builds}), to specify the configure option @code{--with-system-kpathsea} in
+order to use a system version of the library.  Programs outside the TL tree
+should use @code{pkg-config} for the required flags.
 
 @pindex kpathsea.ac
 @pindex mktex.ac
@@ -1224,11 +1223,12 @@ details for a few of the programs in TL.
 @subsection The @code{t1utils} package in @file{utils/t1utils}
 
 @pindex t1utils @r{package}
+@set t1utilsversion t1utils-1.39
 
-Once again we use the distributed source tree @file{t1utils-1.38} with
-modifications documented in @file{t1utils-1.38-PATCHES/*} and a proxy
-build system consisting of @file{configure.ac} and @file{Makefile.am}.
-The fragment @file{ac/withenable.ac} contains
+Once again we use the distributed source tree @file{@value{t1utilsversion}}
+with modifications documented in @file{@value{t1utilsversion}-PATCHES/*} and
+a proxy build system consisting of @file{configure.ac} and
+@file{Makefile.am}.  The fragment @file{ac/withenable.ac} contains
 
 @example
 KPSE_ENABLE_PROG([t1utils])
@@ -1242,15 +1242,15 @@ supplies the configure option @code{--disable-t1utils}.
 @subsection The @code{xindy} package in @file{utils/xindy}
 
 @pindex xindy
+@set xindyversion xindy-2.5.1
 
-This module uses the distributed source tree @file{xindy-2.4} with
-modifications documented in @file{xindy-2.4-PATCHES/*}, a proxy
-@file{configure.ac}, and a wrapper @file{Makefile.am} that descends
-into @file{xindy-2.4}.  The @code{xindy} build requires that the
-distributed @file{Makefile}s allow a @code{VPATH} build, can handle
-all targets, and do not refer to @code{$@{top_srcdir@}} or
-@code{$@{top_builddir@}}.  The fragment @code{ac/withenable.ac}
-contains
+This module uses the distributed source tree @file{@value{xindyversion}}
+with modifications documented in @file{@value{xindyversion}-PATCHES/*}, a
+proxy @file{configure.ac}, and a wrapper @file{Makefile.am} that descends
+into @file{@value{xindyversion}}.  The @code{xindy} build requires that the
+distributed @file{Makefile}s allow a @code{VPATH} build, can handle all
+targets, and do not refer to @code{$@{top_srcdir@}} or
+@code{$@{top_builddir@}}.  The fragment @code{ac/withenable.ac} contains
 
 @example
 KPSE_ENABLE_PROG([xindy], , [disable native])
@@ -1467,8 +1467,8 @@ described here.  The command@*@ @ @ @code{configure --help}@*at the
 top level gives an exhaustive list of all global options and a few
 important module-specific ones, whereas, e.g.,@*@ @ @
 @code{texk/lcdf-typetools/configure --help}@* also displays the
-@code{lcdf-typetools} specific options, which are not shown by the
-top-level @code{--help}.
+@code{lcdf-typetools} specific options, which are not shown at the
+top-level.
 
 @cindex environment variables, for @code{configure}
 The help text also mentions several influential environment variables,
@@ -1625,14 +1625,15 @@ rebuilds infrastructure files as needed.  @xref{maintainer-mode,,
 
 @vindex --enable-multiplatform
 @vindex exec_prefix
-@vindex --libdir
-If enabled, install executables and libraries in per-platform
+@vindex --bindir configure @r{option}
+@vindex --libdir configure @r{option}
+If enabled and @code{--bindir=@var{dir}} or @code{--libdir=@var{dir}}
+are not specified, install executables and libraries in per-platform
 subdirectories of @file{@var{eprefix}/bin} and
 @file{@var{eprefix}/lib} where @var{eprefix} is the value given or
-implied for @code{exec_prefix}.  This can be overridden by explicitly
-@code{--bindir=@var{dir}} or @code{--libdir=@var{dir}}.  In any case,
-the values for @code{bindir} and @code{libdir} are automatically
-propagated to all subdirectories.
+implied for @code{exec_prefix}.  In any case, the values for
+@code{bindir} and @code{libdir} are automatically propagated to all
+subdirectories.
 
 
 @node @code{--enable-shared}
@@ -1807,6 +1808,11 @@ support for Metafont (EPSF output, @code{mftalk}, old terminals, @dots{}).
 support; ignored for a native @TL{} build, defaults are again defined
 in @file{texk/web2c/ac/web2c.ac}.
 
+@vindex --disable-synctex
+@cindex synctex
+@noindent @code{--disable-synctex}
+@*Do not build the @code{SyncTeX} library and tool.
+
 
 @node Configure options for @file{texk/bibtex-x}
 @subsection Configure options for @file{texk/bibtex-x}
@@ -1815,8 +1821,8 @@ in @file{texk/web2c/ac/web2c.ac}.
 @pindex bibtex8
 @pindex bibtexu
 @pindex bibtex-x
-The former programs @code{bibtex8} and @code{bibtexu} have been merged
-into the module @code{bibtex-x} (extended Bib@TeX{}).
+The programs @code{bibtex8} and @code{bibtexu} have been merged into the
+module @code{bibtex-x} (extended Bib@TeX{}).
 
 @vindex --disable-bibtex8
 @noindent @code{--disable-bibtex8}@*Do not build the @file{bibtex8} program.
@@ -1842,11 +1848,11 @@ different) behavior.
 
 @vindex --disable-dvipdfmx
 @noindent @code{--disable-dvipdfmx}@*Do not build the @file{dvipdfmx}
-program or create the @file{dvipdfm} symlink.
+program with the @file{dvipdfm} symlink.
 
 @vindex --disable-xdvipdfmx
 @noindent @code{--disable-xdvipdfmx}@*Do not build the @file{xdvipdfmx}
-program (building @file{xdvipdfmx} requires the @code{freetype} library).
+program.
 
 
 @node Configure options for @file{texk/dvisvgm}
@@ -2093,9 +2099,14 @@ name, but note that this should @emph{not} be @code{--host=@var{host}}
 (@pxref{Hosts and Cross-Compilation,,, autoconf, GNU Autoconf}).
 
 In order to build, e.g., 32-bit binaries with @command{clang} on a 64-bit
-OSX system one could use @* @ @ @ @code{./Build --build=i386-apple-darwin
-CC='clang -arch i386'} @backslashchar{} @* @ @ @ @ @ @ @ @ @
-@code{CXX='clang++ -arch i386' OBJCXX='clang++ -arch i386'}
+MacOSX system one could use:
+
+@example
+TL_BUILD_ENV="CC='clang -arch i386' \
+  CXX='clang++ -arch i386' \
+  OBJCXX='clang++ -arch i386'" \
+  ./Build --build=i386-apple-darwin
+@end example
 
 @menu
 * Cross configuring::           Configuring for cross compilation.
@@ -2276,7 +2287,7 @@ less efficient alternative
 
 @example
 #if !(defined HAVE_DECL_STPCPY && HAVE_DECL_STPCPY)
-#static inline char *stpcpy(char *dest, const char *src)
+static inline char *stpcpy(char *dest, const char *src)
 @{
   return strcpy(dest, src) + strlen(src);
 @}
