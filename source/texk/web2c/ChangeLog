@@ -1,3 +1,84 @@
+2015-04-12  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* triptrap/{mftrap,mptrap,trip}.diffs: Updated for TL 2015.
+
+2015-03-31  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* mftalk.h (removed): Moved from here to window/mftalk.h.
+	* am/texmf.am: Adapted.
+
+2015-03-30  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* ac/web2c.ac: Define kpse_mf_progs and use KPSE_WITH_XMF.
+	* configure.ac: Use KPSE_XMF_COND.
+
+2015-03-14  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* configure.ac: Correctly locate installed <kpathsea/paths.h>.
+
+2015-03-10  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* w2c/config.h: Drop the strtol() prototype.
+
+2015-03-08  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* Makefile.am: Initialize {EXTRA,lib}_{,LT}LIBRARIES.
+
+2015-02-17  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* ac/web2c.ac: Update some help texts.
+
+2015-02-16  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* Makefile.am: Use the fragment ../../am/dist_hook.am.
+
+2015-01-19  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* cpascal.h: Remove intcast.
+
+2015-01-18  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* dvicopy.ch: Drop intcast().
+	* dvitype.ch: Drop intcast().
+	* gftodvi.ch: Drop intcast().
+	* mf.ch: Drop intcast().
+	* pltotf.ch: Drop intcast().
+	* tangle.ch: Drop intcast().
+	* tex.ch: Drop intcast().
+	* tftopl.ch: Drop intcast().
+	* vftovp.ch: Drop intcast().
+	* vptovf.ch: Drop intcast().
+
+2015-01-14  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* mf.ch: Revert the previous change (^Z is again invalid).
+
+	* dvitype.ch: Cosmetic changes.
+
+2015-01-13  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* mf.ch: Ignore ^Z in input files (as tab and form_feed).
+
+2015-01-12  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* tftopl.ch, vftovp.ch: Use ^byte and x*alloc_array().
+	* cpascal.h: Remove casttobytepointer and pointertobyte.
+
+2015-01-10  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* tftopl.ch: Non-zero return code in case of problems.
+	* tftopl.test, vftovp.test: Add more tests.
+	* tests/badtfm.tfm, tests/badvf.{tfm,vf}: New test input files.
+	* am/web.am: Adjust for additional test input and output files.
+
+2015-01-09  Peter Breitenlohner  <peb@mppmu.mpg.de>
+
+	* pltotf.ch, vptovf.ch: Send diagnostic messages to stderr.
+	Non-zero return code in case of problems.
+	* pltotf.test, vptovf.test: Add more tests.
+	* tests/badpl.pl, tests/badvpl.vpl: New test input files.
+	* am/web.am: Adjust for additional test input and output files.
+
 2014-12-11  Karl Berry  <karl@tug.org>
 
 	* triptest,

@@ -1,5 +1,5 @@
-$Id: README 35838 2014-12-16 08:47:28Z peter $
-Copyright 2006-2012 TeX Users Group.
+$Id: README 36903 2015-04-18 11:14:51Z peter $
+Copyright 2006-2015 TeX Users Group.
 You may freely use, modify and/or distribute this file.
 
 This TeX Live directory contains the programs that use the kpathsea
@@ -27,17 +27,15 @@ bibtex-x - maintained here, contains
   bibtexu
     http://omega.enstb.org/yannis/bibtexu/
 
-chktex 1.7.2 - checked 30may13
+chktex 1.7.4 - checked 12apr15
   http://mirror.ctan.org/support/chktex/
   http://download.savannah.gnu.org/releases/chktex/
 
-cjkutils 4.8.3 - checked 11may12
-  http://cjk.ffii.org/cjk-4.8.3.tar.gz
+cjkutils 4.8.4 - checked 18apr15
+  http://cjk.ffii.org/cjk-4.8.4.tar.gz
 
 detex 2.8 - checked 10may12
   http://www.cs.purdue.edu/homes/trinkle/detex/
-
-devnag - from devnag package installed in texmf-dist.
 
 dtl - ?
 
@@ -45,15 +43,15 @@ dvi2tty 5.3.4 - checked 10may12
   http://www.mesa.nl/pub/dvi2tty/
   ftp://ftp.mesa.nl/pub/dvi2tty/
 
-dvidvi - ?
+dvidvi - maintained here.
 
 dviljk - maintained here, by Joachim Schrod
 
-dvipdfm-x - maintained here, by Khaled Hosny, Jonathan Kew, contains
+dvipdfm-x - maintained here, by Khaled Hosny, Akira Kakuto, et al., contains
   dvipdfmx
   xdvipdfmx
 
-dvipng 1.14 - checked 10may12
+dvipng 1.15 - checked 3mar15
   http://mirror.ctan.org/dviware/dvipng/ (but maybe stale)
   http://savannah.nongnu.org/files/?group=dvipng
 
@@ -61,15 +59,12 @@ dvipos - ?
 
 dvipsk - maintained here, by us
 
-dvisvgm 1.8.1 - checked 15sep14
+dvisvgm 1.9.2 - checked 12apr15
   http://downloads.sourceforge.net/dvisvgm/
 
 gsftopk - from Paul Vojta's xdvi?
 
 kpathsea - maintained here, by us
-
-lacheck - checked 25apr11
-  http://mirror.ctan.org/support/lacheck/lacheck-1.26.tar.gz
 
 lcdf-typetools 2.104 - checked 8jul14
   http://www.lcdf.org/type/
@@ -79,6 +74,9 @@ makeindexk - maintained here, by us
 makejvf - ?
 
 mendexk - maintained here, by us (akira et al.)
+
+/musixtnt 2015-02-09 - checked 10feb15
+  http://mirror.ctan.org/macros/musixtnt/
 
 ps2pk - maintained here, by us
 
