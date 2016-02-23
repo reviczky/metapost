@@ -3,11 +3,11 @@
 % Load plain if necessary, i.e., if running under initex.
 \expandafter\ifx\csname fmtname\endcsname\relax\input plain\fi
 %
-\def\texinfoversion{2015-10-29.16}
+\def\texinfoversion{2016-02-16.15}
 %
 % Copyright 1985, 1986, 1988, 1990, 1991, 1992, 1993, 1994, 1995,
 % 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-% 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015
+% 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016
 % Free Software Foundation, Inc.
 %
 % This texinfo.tex file is free software: you can redistribute it and/or
@@ -158,22 +158,10 @@
 \ifx\putwordDefopt\undefined    \gdef\putwordDefopt{User Option}\fi
 \ifx\putwordDeffunc\undefined   \gdef\putwordDeffunc{Function}\fi
 
-% Since the category of space is not known, we have to be careful.
-\chardef\spacecat = 10
-\def\spaceisspace{\catcode`\ =\spacecat}
+% Give the space character the catcode for a space.
+\def\spaceisspace{\catcode`\ =10\relax}
 
-% sometimes characters are active, so we need control sequences.
-\chardef\ampChar   = `\&
-\chardef\colonChar = `\:
-\chardef\commaChar = `\,
 \chardef\dashChar  = `\-
-\chardef\dotChar   = `\.
-\chardef\exclamChar= `\!
-\chardef\hashChar  = `\#
-\chardef\lquoteChar= `\`
-\chardef\questChar = `\?
-\chardef\rquoteChar= `\'
-\chardef\semiChar  = `\;
 \chardef\slashChar = `\/
 \chardef\underChar = `\_
 
@@ -271,11 +259,18 @@
 %
 % Another complication is to let the user choose whether \thischapter
 % (\thissection) refers to the chapter (section) in effect at the top
-% of a page, or that at the bottom of a page.  The solution is
-% described on page 260 of The TeXbook.  It involves outputting two
-% marks for the sectioning macros, one before the section break, and
-% one after.  I won't pretend I can describe this better than DEK...
+% of a page, or that at the bottom of a page.
+
+% \domark is called twice inside \chapmacro, to add one
+% mark before the section break, and one after.
+%   In the second call \prevchapterdefs is the same as \lastchapterdefs,
+% and \prevsectiondefs is the same as \lastsectiondefs.
+%   Then if the page is not broken at the mark, some of the previous
+% section appears on the page, and we can get the name of this section
+% from \firstmark for @everyheadingmarks top.
+%   @everyheadingmarks bottom uses \botmark.
 %
+% See page 260 of The TeXbook.
 \def\domark{%
   \toks0=\expandafter{\lastchapterdefs}%
   \toks2=\expandafter{\lastsectiondefs}%
@@ -283,13 +278,14 @@
   \toks6=\expandafter{\prevsectiondefs}%
   \toks8=\expandafter{\lastcolordefs}%
   \mark{%
-                   \the\toks0 \the\toks2  % 0: top marks (\last...)
-      \noexpand\or \the\toks4 \the\toks6  % 1: bottom marks (default, \prev...)
+                   \the\toks0 \the\toks2  % 0: marks for @everyheadingmarks top
+      \noexpand\or \the\toks4 \the\toks6  % 1: for @everyheadingmarks bottom
     \noexpand\else \the\toks8             % 2: color marks
   }%
 }
 
-% \gettopheadingmarks, \getbottomheadingmarks - extract needed part of mark.
+% \gettopheadingmarks, \getbottomheadingmarks,
+% \getcolormarks - extract needed part of mark.
 %
 % \topmark doesn't work for the very first chapter (after the title
 % page or the contents), so we use \firstmark there -- this gets us
@@ -314,7 +310,7 @@
 % Margin to add to right of even pages, to left of odd pages.
 \newdimen\bindingoffset
 \newdimen\normaloffset
-\newdimen\pagewidth \newdimen\pageheight
+\newdimen\txipagewidth \newdimen\txipageheight
 
 % Main output routine.
 %
@@ -338,35 +334,28 @@
   % Common context changes for both heading and footing.
   % Do this outside of the \shipout so @code etc. will be expanded in
   % the headline as they should be, not taken literally (outputting ''code).
-  \def\commmonheadfootline{\let\hsize=\pagewidth \texinfochars}
+  \def\commmonheadfootline{\let\hsize=\txipagewidth \texinfochars}
   %
   % Retrieve the information for the headings from the marks in the page,
   % and call Plain TeX's \makeheadline and \makefootline, which use the
   % values in \headline and \footline.
   %
   % This is used to check if we are on the first page of a chapter.
-  \ifcase0\topmark\fi
-  \ifx\thischapter\empty
-    % See comment for \gettopheadingmarks
-    \ifcase0\firstmark\fi
-    \let\curchaptername\thischaptername
-    \ifcase1\firstmark\fi
-    \let\prevchaptername\thischaptername
-  \else
-    \let\curchaptername\thischaptername
-    \ifcase1\topmark\fi
-    \let\prevchaptername\thischaptername
-  \fi
+  \ifcase1\topmark\fi
+  \let\prevchaptername\thischaptername
+  \ifcase0\firstmark\fi
+  \let\curchaptername\thischaptername
   %
   \ifodd\pageno \getoddheadingmarks \else \getevenheadingmarks \fi
   \ifodd\pageno \getoddfootingmarks \else \getevenfootingmarks \fi
   %
   \ifx\curchaptername\prevchaptername
+    \let\thischapterheading\thischapter
   \else
-    % If on the first page of a chapter, clear @thischapter so it
-    % doesn't appear in the headline, because the chapter is already
-    % shown in the chapter heading.
-    \def\thischapter{}%
+    % \thischapterheading is the same as \thischapter except it is blank
+    % for the first page of a chapter.  This is to prevent the chapter name 
+    % being shown twice.
+    \def\thischapterheading{}%
   \fi
   %
   \global\setbox\headlinebox = \vbox{\commmonheadfootline \makeheadline}%
@@ -444,7 +433,7 @@
 \newinsert\margin \dimen\margin=\maxdimen
 
 % Main part of page, including any footnotes
-\def\pagebody#1{\vbox to\pageheight{\boxmaxdepth=\maxdepth #1}}
+\def\pagebody#1{\vbox to\txipageheight{\boxmaxdepth=\maxdepth #1}}
 {\catcode`\@ =11
 \gdef\pagecontents#1{\ifvoid\topins\else\unvbox\topins\fi
 % marginal hacks, juha@viisa.uucp (Juha Takala)
@@ -735,11 +724,11 @@
   % \dimen0 is the vertical size of the group's box.
   \dimen0 = \ht\groupbox  \advance\dimen0 by \dp\groupbox
   % \dimen2 is how much space is left on the page (more or less).
-  \dimen2 = \pageheight   \advance\dimen2 by -\pagetotal
+  \dimen2 = \txipageheight   \advance\dimen2 by -\pagetotal
   % if the group doesn't fit on the current page, and it's a big big
   % group, force a page break.
   \ifdim \dimen0 > \dimen2
-    \ifdim \pagetotal < \vfilllimit\pageheight
+    \ifdim \pagetotal < \vfilllimit\txipageheight
       \page
     \fi
   \fi
@@ -1111,6 +1100,64 @@ where each line of input produces a line of output.}
 \newif\ifpdf
 \newif\ifpdfmakepagedest
 
+%
+% For LuaTeX
+%
+
+\ifx\luatexversion\thisisundefined
+\else
+  % Escape PDF strings UTF-8 to UTF-16
+  \begingroup
+    \catcode`\%=12
+    \directlua{
+      function UTF16oct(str)
+        tex.sprint(string.char(0x5c) .. '376' .. string.char(0x5c) .. '377')
+        for c in string.utfvalues(str) do
+          if c < 0x10000 then
+            tex.sprint(
+              string.format(string.char(0x5c) .. string.char(0x25) .. '03o' ..
+                            string.char(0x5c) .. string.char(0x25) .. '03o',
+                            (c / 256), (c % 256)))
+          else
+            c = c - 0x10000
+            local c_hi = c / 1024 + 0xd800
+            local c_lo = c % 1024 + 0xdc00
+            tex.sprint(
+              string.format(string.char(0x5c) .. string.char(0x25) .. '03o' ..
+                            string.char(0x5c) .. string.char(0x25) .. '03o' ..
+                            string.char(0x5c) .. string.char(0x25) .. '03o' ..
+                            string.char(0x5c) .. string.char(0x25) .. '03o',
+                            (c_hi / 256), (c_hi % 256),
+                            (c_lo / 256), (c_lo % 256)))
+          end
+        end
+      end
+    }
+  \endgroup
+  \def\pdfescapestring#1{\directlua{UTF16oct('\luaescapestring{#1}')}}
+  \ifnum\luatexversion>84
+    % For LuaTeX >= 0.85
+    \def\pdfdest{\pdfextension dest}
+    \let\pdfoutput\outputmode
+    \def\pdfliteral{\pdfextension literal}
+    \def\pdfcatalog{\pdfextension catalog}
+    \def\pdftexversion{\numexpr\pdffeedback version\relax}
+    \let\pdfximage\saveimageresource
+    \let\pdfrefximage\useimageresource
+    \let\pdflastximage\lastsavedimageresourceindex
+    \def\pdfendlink{\pdfextension endlink\relax}
+    \def\pdfoutline{\pdfextension outline}
+    \def\pdfstartlink{\pdfextension startlink}
+    \def\pdffontattr{\pdfextension fontattr}
+    \def\pdfobj{\pdfextension obj}
+    \def\pdflastobj{\numexpr\pdffeedback lastobj\relax}
+    \let\pdfpagewidth\pagewidth
+    \let\pdfpageheight\pageheight
+    \edef\pdfhorigin{\pdfvariable horigin}
+    \edef\pdfvorigin{\pdfvariable vorigin}
+  \fi
+\fi
+
 % when pdftex is run in dvi mode, \pdfoutput is defined (so \pdfoutput=1
 % can be set).  So we test for \relax and 0 as well as being undefined.
 \ifx\pdfoutput\thisisundefined
@@ -1164,8 +1211,8 @@ output) for that.)}
   \def\rgbDarkRed{0.50 0.09 0.12}
   \def\rgbBlack{0 0 0}
   %
-  % k sets the color for filling (usual text, etc.);
-  % K sets the color for stroking (thin rules, e.g., normal _'s).
+  % rg sets the color for filling (usual text, etc.);
+  % RG sets the color for stroking (thin rules, e.g., normal _'s).
   \def\pdfsetcolor#1{\pdfliteral{#1 rg  #1 RG}}
   %
   % Set color, and create a mark which defines \thiscolor accordingly,
@@ -1294,18 +1341,23 @@ output) for that.)}
     % page number.  We could generate a destination for the section
     % text in the case where a section has no node, but it doesn't
     % seem worth the trouble, since most documents are normally structured.
-    \edef\pdfoutlinedest{#3}%
-    \ifx\pdfoutlinedest\empty
-      \def\pdfoutlinedest{#4}%
-    \else
-      \txiescapepdf\pdfoutlinedest
-    \fi
-    %
-    % Also escape PDF chars in the display string.
-    \edef\pdfoutlinetext{#1}%
-    \txiescapepdf\pdfoutlinetext
-    %
-    \pdfoutline goto name{\pdfmkpgn{\pdfoutlinedest}}#2{\pdfoutlinetext}%
+    {
+      \ifx\luatexversion\thisisundefined \else
+        \turnoffactive % LuaTeX can use Unicode strings for PDF
+      \fi
+      \edef\pdfoutlinedest{#3}%
+      \ifx\pdfoutlinedest\empty
+        \def\pdfoutlinedest{#4}%
+      \else
+        \txiescapepdf\pdfoutlinedest
+      \fi
+      %
+      % Also escape PDF chars in the display string.
+      \edef\pdfoutlinetext{#1}%
+      \txiescapepdf\pdfoutlinetext
+      %
+      \pdfoutline goto name{\pdfmkpgn{\pdfoutlinedest}}#2{\pdfoutlinetext}%
+    }
   }
   %
   \def\pdfmakeoutlines{%
@@ -1416,7 +1468,6 @@ output) for that.)}
       \normalturnoffactive
       \def\@{@}%
       \let\/=\empty
-      \let\xprocessmacroarg=\eatspaces % in case we are in a macro expansion
       \makevalueexpandable
       % do we want to go so far as to use \indexnofonts instead of just
       % special-casing \var here?
@@ -1461,6 +1512,147 @@ output) for that.)}
   \let\pdfmakeoutlines = \relax
 \fi  % \ifx\pdfoutput
 
+%
+% PDF outline support for XeTeX
+%
+\ifx\XeTeXrevision\thisisundefined
+\else
+  \pdfmakepagedesttrue \relax
+  % Emulate the primitive of pdfTeX
+  \def\pdfdest name#1 xyz{%
+    \special{pdf:dest (name#1) [@thispage /XYZ @xpos @ypos]}%
+  }
+  \def\pdfmkdest#1{{%
+    % We have to set dummies so commands such as @code, and characters
+    % such as \, aren't expanded when present in a section title.
+    \indexnofonts
+    \makevalueexpandable
+    % In the case of XeTeX, xdvipdfmx converts strings to UTF-16.
+    % Therefore \txiescapepdf is not necessary.
+    \safewhatsit{\pdfdest name{#1} xyz}%
+  }}
+  %
+  \def\dopdfoutline#1#2#3#4{%
+    \edef\pdfoutlinedest{#3}%
+    \ifx\pdfoutlinedest\empty
+      \def\pdfoutlinedest{#4}%
+    \fi
+    {
+      \turnoffactive
+      % In the case of XeTeX, xdvipdfmx converts strings to UTF-16.
+      % Therefore \txiescapepdf is not necessary.
+      \special{pdf:out [-] #2 << /Title (#1) /A << /S /GoTo /D (name\pdfoutlinedest) >> >> }%
+    }
+  }
+  %
+  \def\pdfmakeoutlines{%
+    \begingroup
+      %
+      % In the case of XeTeX, counts of subentries is not necesary.
+      % Therefore, read toc only once.
+      %
+      % We use the node names as the destinations.
+      \def\partentry##1##2##3##4{}% ignore parts in the outlines
+      \def\numchapentry##1##2##3##4{%
+        \dopdfoutline{##1}{1}{##3}{##4}}%
+      \def\numsecentry##1##2##3##4{%
+        \dopdfoutline{##1}{2}{##3}{##4}}%
+      \def\numsubsecentry##1##2##3##4{%
+        \dopdfoutline{##1}{3}{##3}{##4}}%
+      \def\numsubsubsecentry##1##2##3##4{%
+        \dopdfoutline{##1}{4}{##3}{##4}}%
+      %
+      \let\appentry\numchapentry%
+      \let\appsecentry\numsecentry%
+      \let\appsubsecentry\numsubsecentry%
+      \let\appsubsubsecentry\numsubsubsecentry%
+      \let\unnchapentry\numchapentry%
+      \let\unnsecentry\numsecentry%
+      \let\unnsubsecentry\numsubsecentry%
+      \let\unnsubsubsecentry\numsubsubsecentry%
+      %
+      % In the case of XeTeX, xdvipdfmx converts strings to UTF-16.
+      % Therefore, the encoding and the language may not be considered.
+      %
+      \indexnofonts
+      \setupdatafile
+      % We can have normal brace characters in the PDF outlines, unlike
+      % Texinfo index files.  So set that up.
+      \def\{{\lbracecharliteral}%
+      \def\}{\rbracecharliteral}%
+      \catcode`\\=\active \otherbackslash
+      \input \tocreadfilename
+    \endgroup
+  }
+  {\catcode`[=1 \catcode`]=2
+   \catcode`{=\other \catcode`}=\other
+   \gdef\lbracecharliteral[{]%
+   \gdef\rbracecharliteral[}]%
+  ]
+
+  \special{pdf:docview << /PageMode /UseOutlines >> }
+  \openin 1 uptex.tex % upTeX has UTF8-UTF16 cmap
+  \ifeof 1
+    % upTeX does not exist. To use UTF8-UCS2 cmap.
+    % In this case, non-BMP characters (over U+FFFF) can not be used.
+    \special{pdf:tounicode UTF8-UCS2}
+  \else
+    % upTeX exists. To use UTF8-UTF16 cmap.
+    % Non-BMP characters (over U+FFFF) can be used.
+    \special{pdf:tounicode UTF8-UTF16}
+  \fi
+\fi
+
+%
+% @image support for XeTeX
+%
+\newif\ifxeteximgpdf
+\ifx\XeTeXrevision\thisisundefined
+\else
+  %
+  % #1 is image name, #2 width (might be empty/whitespace), #3 height (ditto).
+  \def\doxeteximage#1#2#3{%
+    \def\xeteximagewidth{#2}\setbox0 = \hbox{\ignorespaces #2}%
+    \def\xeteximageheight{#3}\setbox2 = \hbox{\ignorespaces #3}%
+    %
+    % XeTeX (and the PDF format) support .pdf, .png, .jpg (among
+    % others).  Let's try in that order, PDF first since if
+    % someone has a scalable image, presumably better to use that than a
+    % bitmap.
+    \let\xeteximgext=\empty
+    \xeteximgpdffalse
+    \begingroup
+      \openin 1 #1.pdf \ifeof 1
+        \openin 1 #1.PDF \ifeof 1
+          \openin 1 #1.png \ifeof 1
+            \openin 1 #1.jpg \ifeof 1
+              \openin 1 #1.jpeg \ifeof 1
+                \openin 1 #1.JPG \ifeof 1
+                  \errmessage{Could not find image file #1 for XeTeX}%
+                \else \gdef\xeteximgext{JPG}%
+                \fi
+              \else \gdef\xeteximgext{jpeg}%
+              \fi
+            \else \gdef\xeteximgext{jpg}%
+            \fi
+          \else \gdef\xeteximgext{png}%
+          \fi
+        \else \gdef\xeteximgext{PDF} \global\xeteximgpdftrue%
+        \fi
+      \else \gdef\xeteximgext{pdf} \global\xeteximgpdftrue%
+      \fi
+      \closein 1
+    \endgroup
+    %
+    \ifxeteximgpdf
+      \XeTeXpdffile "#1".\xeteximgext ""
+    \else
+      \XeTeXpicfile "#1".\xeteximgext ""
+    \fi
+    \ifdim \wd0 >0pt width \xeteximagewidth \fi
+    \ifdim \wd2 >0pt height \xeteximageheight \fi \relax
+  }
+\fi
 
 \message{fonts,}
 
@@ -2452,8 +2644,8 @@ end
 %
 \catcode`@=11
   \def\plainfrenchspacing{%
-    \sfcode\dotChar  =\@m \sfcode\questChar=\@m \sfcode\exclamChar=\@m
-    \sfcode\colonChar=\@m \sfcode\semiChar =\@m \sfcode\commaChar =\@m
+    \sfcode`\.=\@m \sfcode`\?=\@m \sfcode`\!=\@m
+    \sfcode`\:=\@m \sfcode`\;=\@m \sfcode`\,=\@m
     \def\endofsentencespacefactor{1000}% for @. and friends
   }
   \def\plainnonfrenchspacing{%
@@ -2641,9 +2833,9 @@ end
 
 % Allow line breaks around only a few characters (only).
 \def\urefcatcodes{%
-  \catcode\ampChar=\active   \catcode\dotChar=\active
-  \catcode\hashChar=\active  \catcode\questChar=\active
-  \catcode\slashChar=\active
+  \catcode`\&=\active \catcode`\.=\active
+  \catcode`\#=\active \catcode`\?=\active
+  \catcode`\/=\active
 }
 {
   \urefcatcodes
@@ -2852,23 +3044,24 @@ end
 \def\mathbackslash{\ifnum\fam=\ttfam \mathchar"075C \else\backslash \fi}
 %
 \def\math{%
-  \tex
-  \mathunderscore
-  \let\\ = \mathbackslash
-  \mathactive
-  % make the texinfo accent commands work in math mode
-  \let\"=\ddot
-  \let\'=\acute
-  \let\==\bar
-  \let\^=\hat
-  \let\`=\grave
-  \let\u=\breve
-  \let\v=\check
-  \let\~=\tilde
-  \let\dotaccent=\dot
-  % have to provide another name for sup operator
-  \let\mathopsup=\sup
-  $\finishmath
+  \ifmmode\else % only go into math if not in math mode already
+    \tex
+    \mathunderscore
+    \let\\ = \mathbackslash
+    \mathactive
+    % make the texinfo accent commands work in math mode
+    \let\"=\ddot
+    \let\'=\acute
+    \let\==\bar
+    \let\^=\hat
+    \let\`=\grave
+    \let\u=\breve
+    \let\v=\check
+    \let\~=\tilde
+    \let\dotaccent=\dot
+    % have to provide another name for sup operator
+    \let\mathopsup=\sup
+  $\expandafter\finishmath\fi
 }
 \def\finishmath#1{#1$\endgroup}  % Close the group opened by \tex.
 
@@ -3449,7 +3642,7 @@ end
   %
   % Leave some space for the footline.  Hopefully ok to assume
   % @evenfooting will not be used by itself.
-  \global\advance\pageheight by -12pt
+  \global\advance\txipageheight by -12pt
   \global\advance\vsize by -12pt
 }
 
@@ -3474,9 +3667,9 @@ end
 \def\oddheadingmarks{\headingmarks{odd}{heading}}
 \def\evenfootingmarks{\headingmarks{even}{footing}}
 \def\oddfootingmarks{\headingmarks{odd}{footing}}
-\def\everyheadingmarks#1 {\headingmarks{even}{heading}{#1}
+\parseargdef\everyheadingmarks{\headingmarks{even}{heading}{#1}
                           \headingmarks{odd}{heading}{#1} }
-\def\everyfootingmarks#1 {\headingmarks{even}{footing}{#1}
+\parseargdef\everyfootingmarks{\headingmarks{even}{footing}{#1}
                           \headingmarks{odd}{footing}{#1} }
 % #1 = even/odd, #2 = heading/footing, #3 = top/bottom.
 \def\headingmarks#1#2#3 {%
@@ -3497,7 +3690,7 @@ end
 % By default, they are off at the start of a document,
 % and turned `on' after @end titlepage.
 
-\def\headings #1 {\csname HEADINGS#1\endcsname}
+\parseargdef\headings{\csname HEADINGS#1\endcsname}
 
 \def\headingsoff{% non-global headings elimination
   \evenheadline={\hfil}\evenfootline={\hfil}%
@@ -3517,7 +3710,7 @@ end
 \global\evenfootline={\hfil}
 \global\oddfootline={\hfil}
 \global\evenheadline={\line{\folio\hfil\thistitle}}
-\global\oddheadline={\line{\thischapter\hfil\folio}}
+\global\oddheadline={\line{\thischapterheading\hfil\folio}}
 \global\let\contentsalignmacro = \chapoddpage
 }
 \let\contentsalignmacro = \chappager
@@ -3528,8 +3721,8 @@ end
 \global\pageno=1
 \global\evenfootline={\hfil}
 \global\oddfootline={\hfil}
-\global\evenheadline={\line{\thischapter\hfil\folio}}
-\global\oddheadline={\line{\thischapter\hfil\folio}}
+\global\evenheadline={\line{\thischapterheading\hfil\folio}}
+\global\oddheadline={\line{\thischapterheading\hfil\folio}}
 \global\let\contentsalignmacro = \chappager
 }
 \def\HEADINGSon{\HEADINGSdouble}
@@ -3540,7 +3733,7 @@ end
 \global\evenfootline={\hfil}
 \global\oddfootline={\hfil}
 \global\evenheadline={\line{\folio\hfil\thistitle}}
-\global\oddheadline={\line{\thischapter\hfil\folio}}
+\global\oddheadline={\line{\thischapterheading\hfil\folio}}
 \global\let\contentsalignmacro = \chapoddpage
 }
 
@@ -3548,8 +3741,8 @@ end
 \def\HEADINGSsinglex{%
 \global\evenfootline={\hfil}
 \global\oddfootline={\hfil}
-\global\evenheadline={\line{\thischapter\hfil\folio}}
-\global\oddheadline={\line{\thischapter\hfil\folio}}
+\global\evenheadline={\line{\thischapterheading\hfil\folio}}
+\global\oddheadline={\line{\thischapterheading\hfil\folio}}
 \global\let\contentsalignmacro = \chappager
 }
 
@@ -4676,16 +4869,6 @@ end
   \definedummyword\verb
   \definedummyword\w
   \definedummyword\xref
-  %
-  % Consider:
-  %   @macro mkind{arg1,arg2}
-  %   @cindex \arg2\
-  %   @end macro
-  %   @mkind{foo, bar}
-  % The space after the comma will end up in the temporary definition
-  % that we make for arg2 (see \parsemargdef ff.).  We want all this to be
-  % expanded for the sake of the index, so we end up just seeing "bar".
-  \let\xprocessmacroarg\eatspaces
 }
 
 % For testing: output @{ and @} in index sort strings as \{ and \}.
@@ -4758,11 +4941,10 @@ end
   \def\_{\normalunderscore}%
   \def\-{}% @- shouldn't affect sorting
   %
-  \def\lbracechar{{\indexlbrace}}%
-  \def\rbracechar{{\indexrbrace}}%
-  \let\{=\lbracechar
-  \let\}=\rbracechar
-  %
+  \uccode`\1=`\{ \uppercase{\def\{{1}}%
+  \uccode`\1=`\} \uppercase{\def\}{1}}%
+  \let\lbracechar\{%
+  \let\rbracechar\}%
   %
   % Non-English letters.
   \def\AA{AA}%
@@ -4922,9 +5104,15 @@ end
   \indexdummies % Must do this here, since \bf, etc expand at this stage
   \useindexbackslash % \indexbackslash isn't defined now so it will be output 
                      % as is; and it will print as backslash.
+  % The braces around \indexbrace are recognized by texindex.
+  %
   % Get the string to sort by, by processing the index entry with all
   % font commands turned off.
   {\indexnofonts
+   \def\lbracechar{{\indexlbrace}}%
+   \def\rbracechar{{\indexrbrace}}%
+   \let\{=\lbracechar
+   \let\}=\rbracechar
    \indexnonalnumdisappear
    \xdef\indexsortkey{}%
    \let\sortas=\indexwritesortas
@@ -5212,16 +5400,12 @@ end
     % from @* into spaces.  The user might give these in long section
     % titles, for instance.
     \def\*{\unskip\space\ignorespaces}%
-    \def\entrybreak{\hfil\break}%
+    \def\entrybreak{\hfil\break}% An undocumented command
     %
     % A bit of stretch before each entry for the benefit of balancing
     % columns.
     \vskip 0pt plus0.5pt
     %
-    % Badness calculation for paragraph affected by -
-    %  How much \indexdotfill is stretched, or how much \parfillskip is shrunk
-    %  Number of lines (\linepenalty)
-    %  
     % Swallow the left brace of the text (first parameter):
     \afterassignment\doentry
     \let\temp =
@@ -5255,16 +5439,23 @@ end
       %
       \ifpdf
         \pdfgettoks#1.%
-        \hskip\skip\thinshrinkable\the\toksA
+        \bgroup\let\domark\relax
+          \hskip\skip\thinshrinkable\the\toksA
+        \egroup
+        % The redefinion of \domark stops marks being added in \pdflink to 
+        % preserve coloured links across page boundaries.  Otherwise the marks
+        % would get in the way of \lastbox in \insertindexentrybox.
       \else
         \hskip\skip\thinshrinkable #1%
       \fi
     \fi
     \egroup % end \boxA
     \ifdim\wd\boxB = 0pt
-      \global\setbox\entryindexbox=\box\boxA
+      \global\setbox\entryindexbox=\vbox{\unhbox\boxA}%
     \else
-    \global\setbox\entryindexbox=\vbox\bgroup\noindent
+    \global\setbox\entryindexbox=\vbox\bgroup
+      \prevdepth=\entrylinedepth
+      \noindent
       % We want the text of the entries to be aligned to the left, and the
       % page numbers to be aligned to the right.
       %
@@ -5333,10 +5524,21 @@ end
 
 \newbox\entryindexbox
 \def\insertindexentrybox{%
-\lineskip=.7ex plus .5ex % This comes into effect when the \vbox has a large 
-                         % height due to the paragraph in it having several 
-                         % lines.
-\box\entryindexbox}
+  \copy\entryindexbox
+  % The following gets the depth of the last box.  This is for even
+  % line spacing when entries span several lines.
+  \setbox\dummybox\vbox{%
+    \unvbox\entryindexbox
+    \nointerlineskip
+    \lastbox
+    \global\entrylinedepth=\prevdepth
+  }%
+  % Note that we couldn't simply \unvbox\entryindexbox followed by 
+  % \nointerlineskip\lastbox to remove the last box and then reinstate it, 
+  % because this resets how far the box has been \moveleft'ed to 0.  \unvbox
+  % doesn't affect \prevdepth either.
+}
+\newdimen\entrylinedepth
 
 % Default is no penalty
 \let\entryorphanpenalty\egroup
@@ -5387,17 +5589,39 @@ end
 % Define two-column mode, which we use to typeset indexes.
 % Adapted from the TeXbook, page 416, which is to say,
 % the manmac.tex format used to print the TeXbook itself.
-\catcode`\@=11
+\catcode`\@=11  % private names
 
 \newbox\partialpage
 \newdimen\doublecolumnhsize
 \newdimen\doublecolumntopgap
 \doublecolumntopgap = 0pt
 
-\newtoks\savedtopmark % Used in \begindoublecolumns
+% Use inside an output routine to save \topmark and \firstmark
+\def\savemarks{%
+  \global\savedtopmark=\expandafter{\topmark }%
+  \global\savedfirstmark=\expandafter{\firstmark }%
+}
+\newtoks\savedtopmark
 \newtoks\savedfirstmark
 
+% Set \topmark and \firstmark for next time \output runs.
+% Can't be run from withinside \output (because any material
+% added while an output routine is active, including 
+% penalties, is saved for after it finishes).  The page so far
+% should be empty, otherwise what's on it will be thrown away.
+\def\restoremarks{%
+  \mark{\the\savedtopmark}%
+  \bgroup\output = {%
+    \setbox\dummybox=\box\PAGE
+  }abc\eject\egroup
+  % "abc" because output routine doesn't fire for a completely empty page.
+  \mark{\the\savedfirstmark}%
+}
+
 \def\begindoublecolumns{\begingroup % ended by \enddoublecolumns
+  % If not much space left on page, start a new page.
+  \ifdim\pagetotal>0.8\vsize\vfill\eject\fi
+  %
   % Grab any single-column material above us.
   \output = {%
     %
@@ -5417,22 +5641,15 @@ end
       \unvbox\PAGE
       \kern-\topskip \kern\baselineskip
     }%
-    % Save \topmark and \firstmark
-    \global\savedtopmark=\expandafter{\topmark}%
-    \global\savedfirstmark=\expandafter{\firstmark}%
+    \savemarks
   }%
   \eject % run that output routine to set \partialpage
+  \restoremarks
   %
   % We recover the two marks that the last output routine saved in order
   % to propagate the information in marks added around a chapter heading,
   % which could be otherwise be lost by the time the final page is output.
   %
-  \mark{\the\savedtopmark}% Only mark in page passed to following \output.
-  \output = {%
-    \setbox0=\box\PAGE % clear box 255
-  }abc\eject
-  %
-  \mark{\the\savedfirstmark}%
   %
   % Use the double-column output routine for subsequent pages.
   \output = {\doublecolumnout}%
@@ -5462,15 +5679,17 @@ end
   % since nobody clobbers \vsize.)
   \global\doublecolumntopgap = \topskip
   \global\advance\doublecolumntopgap by -1\baselineskip
-  \global\advance\vsize by -1\doublecolumntopgap
+  \advance\vsize by -1\doublecolumntopgap
   \vsize = 2\vsize
   \topskip=0pt
+  \global\entrylinedepth=0pt\relax
 }
 
 % The double-column output routine for all double-column pages except
 % the last, which is done by \balancecolumns.
 %
 \def\doublecolumnout{%
+  %
   \splittopskip=\topskip \splitmaxdepth=\maxdepth
   % Get the available space for the double columns -- the normal
   % (undoubled) page height minus any material left over from the
@@ -5495,7 +5714,7 @@ end
   \wd0=\hsize \wd2=\hsize
   \vbox{%
     \vskip\doublecolumntopgap
-    \hbox to\pagewidth{\box0\hfil\box2}}%
+    \hbox to\txipagewidth{\box0\hfil\box2}}%
 }
 
 
@@ -5522,7 +5741,7 @@ end
   % goal.  When TeX sees \eject from below which follows the final
   % section, it invokes the new output routine that we've set after
   % \balancecolumns below; \onepageout will try to fit the two columns
-  % and the final section into the vbox of \pageheight (see
+  % and the final section into the vbox of \txipageheight (see
   % \pagebody), causing an overfull box.
   %
   % Note that glue won't work here, because glue does not exercise the
@@ -5530,21 +5749,21 @@ end
   \penalty0
   %
   \output = {%
-    % Split the last of the double-column material.  Leave it on the
-    % current page, no automatic page break.
+    % Split the last of the double-column material.
+    \savemarks
     \balancecolumns
     %
-    % If we end up splitting too much material for the current page,
-    % though, there will be another page break right after this \output
-    % invocation ends.  Having called \balancecolumns once, we do not
+    % Having called \balancecolumns once, we do not
     % want to call it again.  Therefore, reset \output to its normal
-    % definition right away.  (We hope \balancecolumns will never be
-    % called on to balance too much material, but if it is, this makes
-    % the output somewhat more palatable.)
+    % definition right away.
     \global\output = {\onepageout{\pagecontents\PAGE}}%
   }%
   \eject
   \endgroup % started in \begindoublecolumns
+  \restoremarks
+  % Leave the double-column material on the current page, no automatic
+  % page break.
+  \box\balancedcolumns
   %
   % \pagegoal was set to the doubled \vsize above, since we restarted
   % the current page.  We're now back to normal single-column
@@ -5552,6 +5771,8 @@ end
   % \endgroup where \vsize got restored).
   \pagegoal = \vsize
 }
+\newbox\balancedcolumns
+\setbox\balancedcolumns=\vbox{shouldnt see this}%
 %
 % Only called for the last of the double column material.  \doublecolumnout 
 % does the others.
@@ -5595,7 +5816,7 @@ end
     \fi
   \fi
   %
-  \pagesofar
+  \global\setbox\balancedcolumns=\vbox{\pagesofar}%
 }
 \catcode`\@ = \other
 
@@ -6004,7 +6225,7 @@ end
   \fi
 }
 
-\def\setchapternewpage #1 {\csname CHAPPAG#1\endcsname}
+\parseargdef\setchapternewpage{\csname CHAPPAG#1\endcsname}
 
 \def\CHAPPAGoff{%
 \global\let\contentsalignmacro = \chappager
@@ -6037,7 +6258,13 @@ end
 \def\Yomitfromtockeyword{Yomitfromtoc}
 %
 \def\chapmacro#1#2#3{%
-  \checkenv{}% chapters, etc., should not start inside an environment.
+  \expandafter\ifx\thisenv\titlepage\else
+    \checkenv{}% chapters, etc., should not start inside an environment.
+  \fi
+  % FIXME: \chapmacro is currently called from inside \titlepage when
+  % \setcontentsaftertitlepage to print the "Table of Contents" heading, but
+  % this should probably be done by \sectionheading with an option to print
+  % in chapter size.
   %
   % Insert the first mark before the heading break (see notes for \domark).
   \let\prevchapterdefs=\lastchapterdefs
@@ -6147,7 +6374,7 @@ end
 % I don't think this chapter style is supported any more, so I'm not
 % updating it with the new noderef stuff.  We'll see.  --karl, 11aug03.
 %
-\def\setchapterstyle #1 {\csname CHAPF#1\endcsname}
+\parseargdef\setchapterstyle{\csname CHAPF#1\endcsname}
 %
 \def\unnchfopen #1{%
   \chapoddpage
@@ -7612,8 +7839,7 @@ end
 % Argument is macro body with arguments substituted
 \def\scanmacro#1{%
   \newlinechar`\^^M
-  % Reduce doubled backslashes to one
-  \def\xprocessmacroarg{\passargtomacro\eatspaces}%
+  \def\xprocessmacroarg{\eatspaces}%
   %
   % Process the macro body under the current catcode regime.
   \scantokens{#1\texinfoc}\aftermacro%
@@ -7629,6 +7855,7 @@ end
   % to allow macros to open or close groups themselves.
 }
 
+% Used for copying and captions
 \def\scanexp#1{%
   \bgroup
   % Undo catcode changes of \startcontents and \printindex
@@ -7708,7 +7935,7 @@ end
   \catcode`\_=\other
   \catcode`\|=\other
   \catcode`\~=\other
-  \ifx\declaredencoding\ascii \else \setnonasciicharscatcodenonglobal\other \fi
+  \ifx\declaredencoding\ascii \else \setcharscatcodeothernonglobal \fi
 }
 
 \def\scanargctxt{% used for copying and captions, not macros.
@@ -7733,6 +7960,7 @@ end
 % an argument to another Texinfo command.
 \def\macroargctxt{%
   \scanctxt
+  \catcode`\ =\active
   \catcode`\^^M=\other
   \catcode`\\=\active
 }
@@ -8127,16 +8355,23 @@ end
          \egroup\noexpand\scanmacro{\macrobody}}%
     \else
       \ifnum\paramno<10\relax % at most 9
+        % See non-recursive section below for comments
         \expandafter\xdef\csname\the\macname\endcsname{%
-           \bgroup\noexpand\macroargctxt
-           \noexpand\csname\the\macname @@\endcsname}%
+          \bgroup
+          \noexpand\expandafter
+          \noexpand\macroargctxt
+          \noexpand\expandafter
+          \expandafter\noexpand\csname\the\macname @@\endcsname}%
         \expandafter\xdef\csname\the\macname @@\endcsname##1{%
-            \expandafter\noexpand\csname\the\macname @@@\endcsname ##1,}%
+            \noexpand\passargtomacro
+            \expandafter\noexpand\csname\the\macname @@@\endcsname{##1,}}%
+        \expandafter\xdef\csname\the\macname @@@\endcsname##1{%
+            \expandafter\noexpand\csname\the\macname @@@@\endcsname ##1}%
         \expandafter\expandafter
         \expandafter\xdef
         \expandafter\expandafter
-          \csname\the\macname @@@\endcsname
-            \paramlist{\egroup\noexpand\scanmacro{\macrobody}}%
+          \csname\the\macname @@@@\endcsname\paramlist{%
+            \egroup\noexpand\scanmacro{\macrobody}}%
       \else % 10 or more
         \expandafter\xdef\csname\the\macname\endcsname{%
           \noexpand\getargvals@{\the\macname}{\argl}%
@@ -8166,19 +8401,27 @@ end
         }%
     \else % at most 9
       \ifnum\paramno<10\relax
+        % @MACNAME sets the context for reading the macro argument
+        % @MACNAME@@ gets the argument, processes backslashes and appends a 
+        % comma.
+        % @MACNAME@@@ removes braces surrounding the argument list.
+        % @MACNAME@@@@ scans the macro body with arguments substituted.
         \expandafter\xdef\csname\the\macname\endcsname{%
-           \bgroup\noexpand\macroargctxt
-           \expandafter\noexpand\csname\the\macname @@\endcsname}%
+          \bgroup
+          \noexpand\expandafter  % This \expandafter skip any spaces after the
+          \noexpand\macroargctxt % macro before we change the catcode of space.
+          \noexpand\expandafter
+          \expandafter\noexpand\csname\the\macname @@\endcsname}%
         \expandafter\xdef\csname\the\macname @@\endcsname##1{%
-            \expandafter\noexpand\csname\the\macname @@@\endcsname ##1,}%
+            \noexpand\passargtomacro
+            \expandafter\noexpand\csname\the\macname @@@\endcsname{##1,}}%
+        \expandafter\xdef\csname\the\macname @@@\endcsname##1{%
+            \expandafter\noexpand\csname\the\macname @@@@\endcsname ##1}%
         \expandafter\expandafter
         \expandafter\xdef
         \expandafter\expandafter
-        \csname\the\macname @@@\endcsname
-        \paramlist{%
-            \egroup
-            \noexpand\scanmacro{\macrobody}%
-            }%
+          \csname\the\macname @@@@\endcsname\paramlist{%
+            \egroup\noexpand\scanmacro{\macrobody}}%
       \else % 10 or more:
         \expandafter\xdef\csname\the\macname\endcsname{%
           \noexpand\getargvals@{\the\macname}{\argl}%
@@ -8194,71 +8437,96 @@ end
 \def\norecurse#1{\bgroup\cslet{#1}{macsave.#1}}
 
 
-{\catcode`\@=0 \catcode`\\=13
-@catcode`@_=11
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+{\catcode`\@=0 \catcode`\\=13  % We need to manipulate \ so use @ as escape
+@catcode`@_=11  % private names
+@catcode`@!=11  % used as argument separator
 
+% \passargtomacro#1#2 -
 % Call #1 with a list of tokens #2, with any doubled backslashes in #2
 % compressed to one.
+%
+% This implementation works by expansion, and not execution (so we cannot use 
+% \def or similar).  This reduces the risk of this failing in contexts where 
+% complete expansion is done with no execution (for example, in writing out to 
+% an auxiliary file for an index entry).
+% 
+% State is kept in the input stream: the argument passed to
+% @look_ahead, @gobble_and_check_finish and @add_segment is
+%
+% THE_MACRO ARG_RESULT ! {PENDING_BS} NEXT_TOKEN  (... rest of input)
+%
+% where:
+% THE_MACRO - name of the macro we want to call
+% ARG_RESULT - argument list we build to pass to that macro
+% PENDING_BS - either a backslash or nothing
+% NEXT_TOKEN - used to look ahead in the input stream to see what's coming next
+
 @gdef@passargtomacro#1#2{%
-  @def@the_macro{#1}%
-  @def@pending_backslash{}%
-  @def@finish{@finish}%
-  @def@arg_result{}%
-  @let@next_token=@relax
-  @add_segment#2\@finish\%
+  @add_segment #1!{}@relax#2\@_finish\%
 }
+@gdef@_finish{@_finishx} @global@let@_finishx@relax
 
-% Input stream is just after a backslash.  If the next token is not a
-% backslash, process the rest of the argument; otherwise, remove the next
-% token.
-@gdef@look_ahead{%
-  @futurelet@next_token@look_aheadzzz}
-@gdef@look_aheadzzz{%
-  @ifx@next_token\%
-   @let@next=@gobble_and_check_finish 
+% #1 - THE_MACRO ARG_RESULT
+% #2 - PENDING_BS
+% #3 - NEXT_TOKEN
+% #4 used to look ahead
+%
+% If the next token is not a backslash, process the rest of the argument; 
+% otherwise, remove the next token.
+@gdef@look_ahead#1!#2#3#4{%
+  @ifx#4\%
+   @expandafter@gobble_and_check_finish 
   @else
-   @let@next=@add_segment
-  @fi@next
+   @expandafter@add_segment
+  @fi#1!{#2}#4#4%
 }
 
-% Double backslash found.  Add a single backslash here.
-@gdef@gobble_and_check_finish#1{%
-  @add_the_backslash
-  @def@pending_backslash{}%
-  @futurelet@next_token@add_segment
+% #1 - THE_MACRO ARG_RESULT
+% #2 - PENDING_BS
+% #3 - NEXT_TOKEN
+% #4 should be a backslash, which is gobbled.
+% #5 looks ahead
+%
+% Double backslash found.  Add a single backslash, and look ahead.
+@gdef@gobble_and_check_finish#1!#2#3#4#5{%
+  @add_segment#1\!{}#5#5%
 }
 
-% append a backslash to \arg_result
-@gdef@add_the_backslash{%
-  @expandafter@gdef@expandafter@arg_result@expandafter{@arg_result\}%
-}
+@gdef@is_fi{@fi}
 
+% #1 - THE_MACRO ARG_RESULT
+% #2 - PENDING_BS
+% #3 - NEXT_TOKEN
+% #4 is input stream until next backslash
+%
 % Input stream is either at the start of the argument, or just after a 
 % backslash sequence, either a lone backslash, or a doubled backslash.  
-% \next_token contains the first token in the input stream: if it is \finish, 
-% finish; otherwise, append to \arg_result the segment of the argument up until
-% the next backslash.  \pending_backslash contains a backslash to represent
+% NEXT_TOKEN contains the first token in the input stream: if it is \finish, 
+% finish; otherwise, append to ARG_RESULT the segment of the argument up until
+% the next backslash.  PENDING_BACKSLASH contains a backslash to represent
 % a backslash just before the start of the input stream that has not been
-% added to \arg_result.
-@gdef@add_segment#1\{%
-@ifx@next_token@finish
-  @let@next=@call_the_macro%
+% added to ARG_RESULT.
+@gdef@add_segment#1!#2#3#4\{%
+@ifx#3@_finish
+  @call_the_macro#1!%
 @else
-  @let@next=@look_ahead
-  %
-  % append to @arg_result
-  % token list registers might be better
-  @expandafter@expandafter@expandafter@gdef
-  @expandafter@expandafter@expandafter@arg_result
-  @expandafter@expandafter@expandafter{%
-  @expandafter@arg_result
-  @pending_backslash#1}%
-  @def@pending_backslash{\}%
-@fi@next}
+  % append the pending backslash to the result, followed by the next segment
+  @expandafter@is_fi@look_ahead#1#2#4!{\}@fi
+  % this @fi is discarded by @look_ahead.
+  % we can't get rid of it with \expandafter because we don't know how 
+  % long #4 is.
+}
 
-@gdef@call_the_macro{@expandafter@the_macro@expandafter{@arg_result}}
+% #1 - THE_MACRO
+% #2 - ARG_RESULT
+% #3 discards the res of the conditional in @add_segment, and @is_fi ends the 
+% conditional.
+@gdef@call_the_macro#1#2!#3@fi{@is_fi #1{#2}}
 
 }
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % \braceorline MAC is used for a one-argument macro MAC.  It checks
 % whether the next non-whitespace character is a {.  It sets the context
@@ -8473,10 +8741,6 @@ end
     }%
     \setcolor{\linkcolor}%
   \fi
-  %
-  % Float references are printed completely differently: "Figure 1.2"
-  % instead of "[somenode], p.3".  We distinguish them by the
-  % LABEL-title being set to a magic string.
   {%
     % Have to otherify everything special to allow the \csname to
     % include an _ in the xref name, etc.
@@ -8485,6 +8749,10 @@ end
     \expandafter\global\expandafter\let\expandafter\Xthisreftitle
       \csname XR#1-title\endcsname
   }%
+  %
+  % Float references are printed completely differently: "Figure 1.2"
+  % instead of "[somenode], p.3".  \iffloat distinguishes them by
+  % \Xthisreftitle being set to a magic string.
   \iffloat\Xthisreftitle
     % If the user specified the print name (third arg) to the ref,
     % print it instead of our usual "Figure 1.2".
@@ -8543,12 +8811,15 @@ end
       %
       % output the `page 3'.
       \turnoffactive \putwordpage\tie\refx{#1-pg}{}%
-           \ifx,\tokenafterxref
-      \else\ifx.\tokenafterxref
-      \else\ifx;\tokenafterxref
-      \else\ifx)\tokenafterxref
-      \else,% add a , if xref not followed by punctuation
-      \fi\fi\fi\fi
+      % Add a , if xref followed by a space
+      \if\space\noexpand\tokenafterxref ,%
+      \else\ifx\	\tokenafterxref ,% @TAB
+      \else\ifx\*\tokenafterxref ,%   @*
+      \else\ifx\ \tokenafterxref ,%   @SPACE
+      \else\ifx\
+                \tokenafterxref ,%    @NL
+      \else\ifx\tie\tokenafterxref ,% @tie
+      \fi\fi\fi\fi\fi\fi
     \fi\fi
   \fi
   \endlink
@@ -8779,7 +9050,7 @@ end
   \catcode`\\=\other
   %
   % Make the characters 128-255 be printing characters.
-  {\setnonasciicharscatcodenonglobal\other}%
+  {\setcharscatcodeothernonglobal}%
   %
   % @ is our escape character in .aux files, and we need braces.
   \catcode`\{=1
@@ -8844,7 +9115,7 @@ end
   % We want to typeset this text as a normal paragraph, even if the
   % footnote reference occurs in (for example) a display environment.
   % So reset some parameters.
-  \hsize=\pagewidth
+  \hsize=\txipagewidth
   \interlinepenalty\interfootnotelinepenalty
   \splittopskip\ht\strutbox % top baseline for broken footnotes
   \splitmaxdepth\dp\strutbox
@@ -9023,12 +9294,21 @@ end
   %
   % Output the image.
   \ifpdf
+    % For pdfTeX and LuaTeX <= 0.80
     \dopdfimage{#1}{#2}{#3}%
   \else
-    % \epsfbox itself resets \epsf?size at each figure.
-    \setbox0 = \hbox{\ignorespaces #2}\ifdim\wd0 > 0pt \epsfxsize=#2\relax \fi
-    \setbox0 = \hbox{\ignorespaces #3}\ifdim\wd0 > 0pt \epsfysize=#3\relax \fi
-    \epsfbox{#1.eps}%
+    \ifx\XeTeXrevision\thisisundefined
+      % For epsf.tex
+      % \epsfbox itself resets \epsf?size at each figure.
+      \setbox0 = \hbox{\ignorespaces #2}%
+        \ifdim\wd0 > 0pt \epsfxsize=#2\relax \fi
+      \setbox0 = \hbox{\ignorespaces #3}%
+        \ifdim\wd0 > 0pt \epsfysize=#3\relax \fi
+      \epsfbox{#1.eps}%
+    \else
+      % For XeTeX
+      \doxeteximage{#1}{#2}{#3}%
+    \fi
   \fi
   %
   \ifimagevmode
@@ -9375,6 +9655,70 @@ directory should work if nowhere else does.}
   \global\righthyphenmin = #3\relax
 }
 
+% XeTeX and LuaTeX can handle native Unicode.
+% Their default I/O is UTF-8 sequence instead of byte-wise.
+% Other TeX engine (pdfTeX etc.) I/O is byte-wise.
+%
+\newif\iftxinativeunicodecapable
+\newif\iftxiusebytewiseio
+
+\ifx\XeTeXrevision\thisisundefined
+  \ifx\luatexversion\thisisundefined
+    \txinativeunicodecapablefalse
+    \txiusebytewiseiotrue
+  \else
+    \txinativeunicodecapabletrue
+    \txiusebytewiseiofalse
+  \fi
+\else
+  \txinativeunicodecapabletrue
+  \txiusebytewiseiofalse
+\fi
+
+% Set I/O by bytes instead of UTF-8 sequence for XeTeX and LuaTex
+% for non-UTF-8 (byte-wise) encodings.
+%
+\def\setbytewiseio{%
+  \ifx\XeTeXrevision\thisisundefined
+  \else
+    \XeTeXdefaultencoding "bytes"  % For subsequent files to be read
+    \XeTeXinputencoding "bytes"  % For document root file
+    % Unfortunately, there seems to be no corresponding XeTeX command for
+    % output encoding.  This is a problem for auxiliary index and TOC files.
+    % The only solution would be perhaps to write out @U{...} sequences in
+    % place of non-ASCII characters.
+  \fi
+
+  \ifx\luatexversion\thisisundefined
+  \else
+    \directlua{
+    local utf8_char, byte, gsub = unicode.utf8.char, string.byte, string.gsub
+    local function convert_char (char)
+      return utf8_char(byte(char))
+    end
+
+    local function convert_line (line)
+      return gsub(line, ".", convert_char)
+    end
+
+    callback.register("process_input_buffer", convert_line)
+
+    local function convert_line_out (line)
+      local line_out = ""
+      for c in string.utfvalues(line) do
+         line_out = line_out .. string.char(c)
+      end
+      return line_out
+    end
+
+    callback.register("process_output_buffer", convert_line_out)
+    }
+  \fi
+
+  \txiusebytewiseiotrue
+}
+
+
 % Helpers for encodings.
 % Set the catcode of characters 128 through 255 to the specified number.
 %
@@ -9399,6 +9743,7 @@ directory should work if nowhere else does.}
 %
 \def\documentencoding{\parseargusing\filenamecatcodes\documentencodingzzz}
 \def\documentencodingzzz#1{%
+  %
   % Encoding being declared for the document.
   \def\declaredencoding{\csname #1.enc\endcsname}%
   %
@@ -9414,22 +9759,37 @@ directory should work if nowhere else does.}
      \asciichardefs
   %
   \else \ifx \declaredencoding \lattwo
+     \iftxinativeunicodecapable
+       \setbytewiseio
+     \fi
      \setnonasciicharscatcode\active
      \lattwochardefs
   %
   \else \ifx \declaredencoding \latone
+     \iftxinativeunicodecapable
+       \setbytewiseio
+     \fi
      \setnonasciicharscatcode\active
      \latonechardefs
   %
   \else \ifx \declaredencoding \latnine
+     \iftxinativeunicodecapable
+       \setbytewiseio
+     \fi
      \setnonasciicharscatcode\active
      \latninechardefs
   %
   \else \ifx \declaredencoding \utfeight
-     \setnonasciicharscatcode\active
-     % since we already invoked \utfeightchardefs at the top level
-     % (below), do not re-invoke it, then our check for duplicated
-     % definitions triggers.  Making non-ascii chars active is enough.
+     \iftxinativeunicodecapable
+       % For native Unicode (XeTeX and LuaTeX)
+       \nativeunicodechardefs
+     \else
+       % For UTF-8 byte sequence (TeX, eTeX and pdfTeX)
+       \setnonasciicharscatcode\active
+       % since we already invoked \utfeightchardefs at the top level
+       % (below), do not re-invoke it, then our check for duplicated
+       % definitions triggers.  Making non-ascii chars active is enough.
+     \fi
   %
   \else
     \message{Ignoring unknown document encoding: #1.}%
@@ -9744,13 +10104,26 @@ directory should work if nowhere else does.}
 % @U{xxxx} to produce U+xxxx, if we support it.
 \def\U#1{%
   \expandafter\ifx\csname uni:#1\endcsname \relax
-    \errhelp = \EMsimple	
-    \errmessage{Unicode character U+#1 not supported, sorry}%
+    \iftxinativeunicodecapable
+      % Any Unicode characters can be used by native Unicode.
+      % However, if the font does not have the glyph, the letter will miss.
+      \begingroup
+        \uccode`\.="#1\relax
+        \uppercase{.}
+      \endgroup
+    \else
+      \errhelp = \EMsimple	
+      \errmessage{Unicode character U+#1 not supported, sorry}%
+    \fi
   \else
     \csname uni:#1\endcsname
   \fi
 }
 
+% For UTF-8 byte sequence (TeX, e-TeX and pdfTeX)
+% Definition macro to replace the Unicode character
+% Definition macro that is used by @U command
+%
 \begingroup
   \catcode`\"=12
   \catcode`\<=12
@@ -9759,7 +10132,7 @@ directory should work if nowhere else does.}
   \catcode`\;=12
   \catcode`\!=12
   \catcode`\~=13
-  \gdef\DeclareUnicodeCharacter#1#2{%
+  \gdef\DeclareUnicodeCharacterUTFviii#1#2{%
     \countUTFz = "#1\relax
     %\wlog{\space\space defining Unicode char U+#1 (decimal \the\countUTFz)}%
     \begingroup
@@ -9817,6 +10190,13 @@ directory should work if nowhere else does.}
     \uppercase{\gdef\UTFviiiTmp{#2#3#4}}}
 \endgroup
 
+% For native Unicode (XeTeX and LuaTeX)
+% Definition macro that is set catcode other non global
+%
+\def\DeclareUnicodeCharacterNativeOther#1#2{%
+  \catcode"#1=\other
+}
+
 % https://en.wikipedia.org/wiki/Plane_(Unicode)#Basic_M
 % U+0000..U+007F = https://en.wikipedia.org/wiki/Basic_Latin_(Unicode_block)
 % U+0080..U+00FF = https://en.wikipedia.org/wiki/Latin-1_Supplement_(Unicode_block)
@@ -9831,684 +10211,755 @@ directory should work if nowhere else does.}
 % We won't be doing that here in this simple file.  But we can try to at
 % least make most of the characters not bomb out.
 %
-\def\utfeightchardefs{%
-  \DeclareUnicodeCharacter{00A0}{\tie}
-  \DeclareUnicodeCharacter{00A1}{\exclamdown}
+\def\unicodechardefs{%
+  \DeclareUnicodeCharacter{00A0}{\tie}%
+  \DeclareUnicodeCharacter{00A1}{\exclamdown}%
   \DeclareUnicodeCharacter{00A2}{{\tcfont \char162}}% 0242=cent
-  \DeclareUnicodeCharacter{00A3}{\pounds}
+  \DeclareUnicodeCharacter{00A3}{\pounds}%
   \DeclareUnicodeCharacter{00A4}{{\tcfont \char164}}% 0244=currency
   \DeclareUnicodeCharacter{00A5}{{\tcfont \char165}}% 0245=yen
   \DeclareUnicodeCharacter{00A6}{{\tcfont \char166}}% 0246=brokenbar
-  \DeclareUnicodeCharacter{00A7}{\S}
-  \DeclareUnicodeCharacter{00A8}{\"{ }}
-  \DeclareUnicodeCharacter{00A9}{\copyright}
-  \DeclareUnicodeCharacter{00AA}{\ordf}
-  \DeclareUnicodeCharacter{00AB}{\guillemetleft}
-  \DeclareUnicodeCharacter{00AC}{\ensuremath\lnot}
-  \DeclareUnicodeCharacter{00AD}{\-}
-  \DeclareUnicodeCharacter{00AE}{\registeredsymbol}
-  \DeclareUnicodeCharacter{00AF}{\={ }}
-
-  \DeclareUnicodeCharacter{00B0}{\ringaccent{ }}
-  \DeclareUnicodeCharacter{00B1}{\ensuremath\pm}
-  \DeclareUnicodeCharacter{00B2}{$^2$}
-  \DeclareUnicodeCharacter{00B3}{$^3$}
-  \DeclareUnicodeCharacter{00B4}{\'{ }}
-  \DeclareUnicodeCharacter{00B5}{$\mu$}
-  \DeclareUnicodeCharacter{00B6}{\P}
-  \DeclareUnicodeCharacter{00B7}{\ensuremath\cdot}
-  \DeclareUnicodeCharacter{00B8}{\cedilla{ }}
-  \DeclareUnicodeCharacter{00B9}{$^1$}
-  \DeclareUnicodeCharacter{00BA}{\ordm}
-  \DeclareUnicodeCharacter{00BB}{\guillemetright}
-  \DeclareUnicodeCharacter{00BC}{$1\over4$}
-  \DeclareUnicodeCharacter{00BD}{$1\over2$}
-  \DeclareUnicodeCharacter{00BE}{$3\over4$}
-  \DeclareUnicodeCharacter{00BF}{\questiondown}
-
-  \DeclareUnicodeCharacter{00C0}{\`A}
-  \DeclareUnicodeCharacter{00C1}{\'A}
-  \DeclareUnicodeCharacter{00C2}{\^A}
-  \DeclareUnicodeCharacter{00C3}{\~A}
-  \DeclareUnicodeCharacter{00C4}{\"A}
-  \DeclareUnicodeCharacter{00C5}{\AA}
-  \DeclareUnicodeCharacter{00C6}{\AE}
-  \DeclareUnicodeCharacter{00C7}{\cedilla{C}}
-  \DeclareUnicodeCharacter{00C8}{\`E}
-  \DeclareUnicodeCharacter{00C9}{\'E}
-  \DeclareUnicodeCharacter{00CA}{\^E}
-  \DeclareUnicodeCharacter{00CB}{\"E}
-  \DeclareUnicodeCharacter{00CC}{\`I}
-  \DeclareUnicodeCharacter{00CD}{\'I}
-  \DeclareUnicodeCharacter{00CE}{\^I}
-  \DeclareUnicodeCharacter{00CF}{\"I}
-
-  \DeclareUnicodeCharacter{00D0}{\DH}
-  \DeclareUnicodeCharacter{00D1}{\~N}
-  \DeclareUnicodeCharacter{00D2}{\`O}
-  \DeclareUnicodeCharacter{00D3}{\'O}
-  \DeclareUnicodeCharacter{00D4}{\^O}
-  \DeclareUnicodeCharacter{00D5}{\~O}
-  \DeclareUnicodeCharacter{00D6}{\"O}
-  \DeclareUnicodeCharacter{00D7}{\ensuremath\times}
-  \DeclareUnicodeCharacter{00D8}{\O}
-  \DeclareUnicodeCharacter{00D9}{\`U}
-  \DeclareUnicodeCharacter{00DA}{\'U}
-  \DeclareUnicodeCharacter{00DB}{\^U}
-  \DeclareUnicodeCharacter{00DC}{\"U}
-  \DeclareUnicodeCharacter{00DD}{\'Y}
-  \DeclareUnicodeCharacter{00DE}{\TH}
-  \DeclareUnicodeCharacter{00DF}{\ss}
-
-  \DeclareUnicodeCharacter{00E0}{\`a}
-  \DeclareUnicodeCharacter{00E1}{\'a}
-  \DeclareUnicodeCharacter{00E2}{\^a}
-  \DeclareUnicodeCharacter{00E3}{\~a}
-  \DeclareUnicodeCharacter{00E4}{\"a}
-  \DeclareUnicodeCharacter{00E5}{\aa}
-  \DeclareUnicodeCharacter{00E6}{\ae}
-  \DeclareUnicodeCharacter{00E7}{\cedilla{c}}
-  \DeclareUnicodeCharacter{00E8}{\`e}
-  \DeclareUnicodeCharacter{00E9}{\'e}
-  \DeclareUnicodeCharacter{00EA}{\^e}
-  \DeclareUnicodeCharacter{00EB}{\"e}
-  \DeclareUnicodeCharacter{00EC}{\`{\dotless{i}}}
-  \DeclareUnicodeCharacter{00ED}{\'{\dotless{i}}}
-  \DeclareUnicodeCharacter{00EE}{\^{\dotless{i}}}
-  \DeclareUnicodeCharacter{00EF}{\"{\dotless{i}}}
-
-  \DeclareUnicodeCharacter{00F0}{\dh}
-  \DeclareUnicodeCharacter{00F1}{\~n}
-  \DeclareUnicodeCharacter{00F2}{\`o}
-  \DeclareUnicodeCharacter{00F3}{\'o}
-  \DeclareUnicodeCharacter{00F4}{\^o}
-  \DeclareUnicodeCharacter{00F5}{\~o}
-  \DeclareUnicodeCharacter{00F6}{\"o}
-  \DeclareUnicodeCharacter{00F7}{\ensuremath\div}
-  \DeclareUnicodeCharacter{00F8}{\o}
-  \DeclareUnicodeCharacter{00F9}{\`u}
-  \DeclareUnicodeCharacter{00FA}{\'u}
-  \DeclareUnicodeCharacter{00FB}{\^u}
-  \DeclareUnicodeCharacter{00FC}{\"u}
-  \DeclareUnicodeCharacter{00FD}{\'y}
-  \DeclareUnicodeCharacter{00FE}{\th}
-  \DeclareUnicodeCharacter{00FF}{\"y}
-
-  \DeclareUnicodeCharacter{0100}{\=A}
-  \DeclareUnicodeCharacter{0101}{\=a}
-  \DeclareUnicodeCharacter{0102}{\u{A}}
-  \DeclareUnicodeCharacter{0103}{\u{a}}
-  \DeclareUnicodeCharacter{0104}{\ogonek{A}}
-  \DeclareUnicodeCharacter{0105}{\ogonek{a}}
-  \DeclareUnicodeCharacter{0106}{\'C}
-  \DeclareUnicodeCharacter{0107}{\'c}
-  \DeclareUnicodeCharacter{0108}{\^C}
-  \DeclareUnicodeCharacter{0109}{\^c}
-  \DeclareUnicodeCharacter{010A}{\dotaccent{C}}
-  \DeclareUnicodeCharacter{010B}{\dotaccent{c}}
-  \DeclareUnicodeCharacter{010C}{\v{C}}
-  \DeclareUnicodeCharacter{010D}{\v{c}}
-  \DeclareUnicodeCharacter{010E}{\v{D}}
-  \DeclareUnicodeCharacter{010F}{d'}
-
-  \DeclareUnicodeCharacter{0110}{\DH}
-  \DeclareUnicodeCharacter{0111}{\dh}
-  \DeclareUnicodeCharacter{0112}{\=E}
-  \DeclareUnicodeCharacter{0113}{\=e}
-  \DeclareUnicodeCharacter{0114}{\u{E}}
-  \DeclareUnicodeCharacter{0115}{\u{e}}
-  \DeclareUnicodeCharacter{0116}{\dotaccent{E}}
-  \DeclareUnicodeCharacter{0117}{\dotaccent{e}}
-  \DeclareUnicodeCharacter{0118}{\ogonek{E}}
-  \DeclareUnicodeCharacter{0119}{\ogonek{e}}
-  \DeclareUnicodeCharacter{011A}{\v{E}}
-  \DeclareUnicodeCharacter{011B}{\v{e}}
-  \DeclareUnicodeCharacter{011C}{\^G}
-  \DeclareUnicodeCharacter{011D}{\^g}
-  \DeclareUnicodeCharacter{011E}{\u{G}}
-  \DeclareUnicodeCharacter{011F}{\u{g}}
-
-  \DeclareUnicodeCharacter{0120}{\dotaccent{G}}
-  \DeclareUnicodeCharacter{0121}{\dotaccent{g}}
-  \DeclareUnicodeCharacter{0122}{\cedilla{G}}
-  \DeclareUnicodeCharacter{0123}{\cedilla{g}}
-  \DeclareUnicodeCharacter{0124}{\^H}
-  \DeclareUnicodeCharacter{0125}{\^h}
-  \DeclareUnicodeCharacter{0126}{\missingcharmsg{H WITH STROKE}}
-  \DeclareUnicodeCharacter{0127}{\missingcharmsg{h WITH STROKE}}
-  \DeclareUnicodeCharacter{0128}{\~I}
-  \DeclareUnicodeCharacter{0129}{\~{\dotless{i}}}
-  \DeclareUnicodeCharacter{012A}{\=I}
-  \DeclareUnicodeCharacter{012B}{\={\dotless{i}}}
-  \DeclareUnicodeCharacter{012C}{\u{I}}
-  \DeclareUnicodeCharacter{012D}{\u{\dotless{i}}}
-  \DeclareUnicodeCharacter{012E}{\ogonek{I}}
-  \DeclareUnicodeCharacter{012F}{\ogonek{i}}
-
-  \DeclareUnicodeCharacter{0130}{\dotaccent{I}}
-  \DeclareUnicodeCharacter{0131}{\dotless{i}}
-  \DeclareUnicodeCharacter{0132}{IJ}
-  \DeclareUnicodeCharacter{0133}{ij}
-  \DeclareUnicodeCharacter{0134}{\^J}
-  \DeclareUnicodeCharacter{0135}{\^{\dotless{j}}}
-  \DeclareUnicodeCharacter{0136}{\cedilla{K}}
-  \DeclareUnicodeCharacter{0137}{\cedilla{k}}
-  \DeclareUnicodeCharacter{0138}{\ensuremath\kappa}  
-  \DeclareUnicodeCharacter{0139}{\'L}
-  \DeclareUnicodeCharacter{013A}{\'l}
-  \DeclareUnicodeCharacter{013B}{\cedilla{L}}
-  \DeclareUnicodeCharacter{013C}{\cedilla{l}}
+  \DeclareUnicodeCharacter{00A7}{\S}%
+  \DeclareUnicodeCharacter{00A8}{\"{ }}%
+  \DeclareUnicodeCharacter{00A9}{\copyright}%
+  \DeclareUnicodeCharacter{00AA}{\ordf}%
+  \DeclareUnicodeCharacter{00AB}{\guillemetleft}%
+  \DeclareUnicodeCharacter{00AC}{\ensuremath\lnot}%
+  \DeclareUnicodeCharacter{00AD}{\-}%
+  \DeclareUnicodeCharacter{00AE}{\registeredsymbol}%
+  \DeclareUnicodeCharacter{00AF}{\={ }}%
+  %
+  \DeclareUnicodeCharacter{00B0}{\ringaccent{ }}%
+  \DeclareUnicodeCharacter{00B1}{\ensuremath\pm}%
+  \DeclareUnicodeCharacter{00B2}{$^2$}%
+  \DeclareUnicodeCharacter{00B3}{$^3$}%
+  \DeclareUnicodeCharacter{00B4}{\'{ }}%
+  \DeclareUnicodeCharacter{00B5}{$\mu$}%
+  \DeclareUnicodeCharacter{00B6}{\P}%
+  \DeclareUnicodeCharacter{00B7}{\ensuremath\cdot}%
+  \DeclareUnicodeCharacter{00B8}{\cedilla{ }}%
+  \DeclareUnicodeCharacter{00B9}{$^1$}%
+  \DeclareUnicodeCharacter{00BA}{\ordm}%
+  \DeclareUnicodeCharacter{00BB}{\guillemetright}%
+  \DeclareUnicodeCharacter{00BC}{$1\over4$}%
+  \DeclareUnicodeCharacter{00BD}{$1\over2$}%
+  \DeclareUnicodeCharacter{00BE}{$3\over4$}%
+  \DeclareUnicodeCharacter{00BF}{\questiondown}%
+  %
+  \DeclareUnicodeCharacter{00C0}{\`A}%
+  \DeclareUnicodeCharacter{00C1}{\'A}%
+  \DeclareUnicodeCharacter{00C2}{\^A}%
+  \DeclareUnicodeCharacter{00C3}{\~A}%
+  \DeclareUnicodeCharacter{00C4}{\"A}%
+  \DeclareUnicodeCharacter{00C5}{\AA}%
+  \DeclareUnicodeCharacter{00C6}{\AE}%
+  \DeclareUnicodeCharacter{00C7}{\cedilla{C}}%
+  \DeclareUnicodeCharacter{00C8}{\`E}%
+  \DeclareUnicodeCharacter{00C9}{\'E}%
+  \DeclareUnicodeCharacter{00CA}{\^E}%
+  \DeclareUnicodeCharacter{00CB}{\"E}%
+  \DeclareUnicodeCharacter{00CC}{\`I}%
+  \DeclareUnicodeCharacter{00CD}{\'I}%
+  \DeclareUnicodeCharacter{00CE}{\^I}%
+  \DeclareUnicodeCharacter{00CF}{\"I}%
+  %
+  \DeclareUnicodeCharacter{00D0}{\DH}%
+  \DeclareUnicodeCharacter{00D1}{\~N}%
+  \DeclareUnicodeCharacter{00D2}{\`O}%
+  \DeclareUnicodeCharacter{00D3}{\'O}%
+  \DeclareUnicodeCharacter{00D4}{\^O}%
+  \DeclareUnicodeCharacter{00D5}{\~O}%
+  \DeclareUnicodeCharacter{00D6}{\"O}%
+  \DeclareUnicodeCharacter{00D7}{\ensuremath\times}%
+  \DeclareUnicodeCharacter{00D8}{\O}%
+  \DeclareUnicodeCharacter{00D9}{\`U}%
+  \DeclareUnicodeCharacter{00DA}{\'U}%
+  \DeclareUnicodeCharacter{00DB}{\^U}%
+  \DeclareUnicodeCharacter{00DC}{\"U}%
+  \DeclareUnicodeCharacter{00DD}{\'Y}%
+  \DeclareUnicodeCharacter{00DE}{\TH}%
+  \DeclareUnicodeCharacter{00DF}{\ss}%
+  %
+  \DeclareUnicodeCharacter{00E0}{\`a}%
+  \DeclareUnicodeCharacter{00E1}{\'a}%
+  \DeclareUnicodeCharacter{00E2}{\^a}%
+  \DeclareUnicodeCharacter{00E3}{\~a}%
+  \DeclareUnicodeCharacter{00E4}{\"a}%
+  \DeclareUnicodeCharacter{00E5}{\aa}%
+  \DeclareUnicodeCharacter{00E6}{\ae}%
+  \DeclareUnicodeCharacter{00E7}{\cedilla{c}}%
+  \DeclareUnicodeCharacter{00E8}{\`e}%
+  \DeclareUnicodeCharacter{00E9}{\'e}%
+  \DeclareUnicodeCharacter{00EA}{\^e}%
+  \DeclareUnicodeCharacter{00EB}{\"e}%
+  \DeclareUnicodeCharacter{00EC}{\`{\dotless{i}}}%
+  \DeclareUnicodeCharacter{00ED}{\'{\dotless{i}}}%
+  \DeclareUnicodeCharacter{00EE}{\^{\dotless{i}}}%
+  \DeclareUnicodeCharacter{00EF}{\"{\dotless{i}}}%
+  %
+  \DeclareUnicodeCharacter{00F0}{\dh}%
+  \DeclareUnicodeCharacter{00F1}{\~n}%
+  \DeclareUnicodeCharacter{00F2}{\`o}%
+  \DeclareUnicodeCharacter{00F3}{\'o}%
+  \DeclareUnicodeCharacter{00F4}{\^o}%
+  \DeclareUnicodeCharacter{00F5}{\~o}%
+  \DeclareUnicodeCharacter{00F6}{\"o}%
+  \DeclareUnicodeCharacter{00F7}{\ensuremath\div}%
+  \DeclareUnicodeCharacter{00F8}{\o}%
+  \DeclareUnicodeCharacter{00F9}{\`u}%
+  \DeclareUnicodeCharacter{00FA}{\'u}%
+  \DeclareUnicodeCharacter{00FB}{\^u}%
+  \DeclareUnicodeCharacter{00FC}{\"u}%
+  \DeclareUnicodeCharacter{00FD}{\'y}%
+  \DeclareUnicodeCharacter{00FE}{\th}%
+  \DeclareUnicodeCharacter{00FF}{\"y}%
+  %
+  \DeclareUnicodeCharacter{0100}{\=A}%
+  \DeclareUnicodeCharacter{0101}{\=a}%
+  \DeclareUnicodeCharacter{0102}{\u{A}}%
+  \DeclareUnicodeCharacter{0103}{\u{a}}%
+  \DeclareUnicodeCharacter{0104}{\ogonek{A}}%
+  \DeclareUnicodeCharacter{0105}{\ogonek{a}}%
+  \DeclareUnicodeCharacter{0106}{\'C}%
+  \DeclareUnicodeCharacter{0107}{\'c}%
+  \DeclareUnicodeCharacter{0108}{\^C}%
+  \DeclareUnicodeCharacter{0109}{\^c}%
+  \DeclareUnicodeCharacter{010A}{\dotaccent{C}}%
+  \DeclareUnicodeCharacter{010B}{\dotaccent{c}}%
+  \DeclareUnicodeCharacter{010C}{\v{C}}%
+  \DeclareUnicodeCharacter{010D}{\v{c}}%
+  \DeclareUnicodeCharacter{010E}{\v{D}}%
+  \DeclareUnicodeCharacter{010F}{d'}%
+  %
+  \DeclareUnicodeCharacter{0110}{\DH}%
+  \DeclareUnicodeCharacter{0111}{\dh}%
+  \DeclareUnicodeCharacter{0112}{\=E}%
+  \DeclareUnicodeCharacter{0113}{\=e}%
+  \DeclareUnicodeCharacter{0114}{\u{E}}%
+  \DeclareUnicodeCharacter{0115}{\u{e}}%
+  \DeclareUnicodeCharacter{0116}{\dotaccent{E}}%
+  \DeclareUnicodeCharacter{0117}{\dotaccent{e}}%
+  \DeclareUnicodeCharacter{0118}{\ogonek{E}}%
+  \DeclareUnicodeCharacter{0119}{\ogonek{e}}%
+  \DeclareUnicodeCharacter{011A}{\v{E}}%
+  \DeclareUnicodeCharacter{011B}{\v{e}}%
+  \DeclareUnicodeCharacter{011C}{\^G}%
+  \DeclareUnicodeCharacter{011D}{\^g}%
+  \DeclareUnicodeCharacter{011E}{\u{G}}%
+  \DeclareUnicodeCharacter{011F}{\u{g}}%
+  %
+  \DeclareUnicodeCharacter{0120}{\dotaccent{G}}%
+  \DeclareUnicodeCharacter{0121}{\dotaccent{g}}%
+  \DeclareUnicodeCharacter{0122}{\cedilla{G}}%
+  \DeclareUnicodeCharacter{0123}{\cedilla{g}}%
+  \DeclareUnicodeCharacter{0124}{\^H}%
+  \DeclareUnicodeCharacter{0125}{\^h}%
+  \DeclareUnicodeCharacter{0126}{\missingcharmsg{H WITH STROKE}}%
+  \DeclareUnicodeCharacter{0127}{\missingcharmsg{h WITH STROKE}}%
+  \DeclareUnicodeCharacter{0128}{\~I}%
+  \DeclareUnicodeCharacter{0129}{\~{\dotless{i}}}%
+  \DeclareUnicodeCharacter{012A}{\=I}%
+  \DeclareUnicodeCharacter{012B}{\={\dotless{i}}}%
+  \DeclareUnicodeCharacter{012C}{\u{I}}%
+  \DeclareUnicodeCharacter{012D}{\u{\dotless{i}}}%
+  \DeclareUnicodeCharacter{012E}{\ogonek{I}}%
+  \DeclareUnicodeCharacter{012F}{\ogonek{i}}%
+  %
+  \DeclareUnicodeCharacter{0130}{\dotaccent{I}}%
+  \DeclareUnicodeCharacter{0131}{\dotless{i}}%
+  \DeclareUnicodeCharacter{0132}{IJ}%
+  \DeclareUnicodeCharacter{0133}{ij}%
+  \DeclareUnicodeCharacter{0134}{\^J}%
+  \DeclareUnicodeCharacter{0135}{\^{\dotless{j}}}%
+  \DeclareUnicodeCharacter{0136}{\cedilla{K}}%
+  \DeclareUnicodeCharacter{0137}{\cedilla{k}}%
+  \DeclareUnicodeCharacter{0138}{\ensuremath\kappa}%
+  \DeclareUnicodeCharacter{0139}{\'L}%
+  \DeclareUnicodeCharacter{013A}{\'l}%
+  \DeclareUnicodeCharacter{013B}{\cedilla{L}}%
+  \DeclareUnicodeCharacter{013C}{\cedilla{l}}%
   \DeclareUnicodeCharacter{013D}{L'}% should kern
   \DeclareUnicodeCharacter{013E}{l'}% should kern
-  \DeclareUnicodeCharacter{013F}{L\U{00B7}}
-
-  \DeclareUnicodeCharacter{0140}{l\U{00B7}}
-  \DeclareUnicodeCharacter{0141}{\L}
-  \DeclareUnicodeCharacter{0142}{\l}
-  \DeclareUnicodeCharacter{0143}{\'N}
-  \DeclareUnicodeCharacter{0144}{\'n}
-  \DeclareUnicodeCharacter{0145}{\cedilla{N}}
-  \DeclareUnicodeCharacter{0146}{\cedilla{n}}
-  \DeclareUnicodeCharacter{0147}{\v{N}}
-  \DeclareUnicodeCharacter{0148}{\v{n}}
-  \DeclareUnicodeCharacter{0149}{'n}
-  \DeclareUnicodeCharacter{014A}{\missingcharmsg{ENG}}
-  \DeclareUnicodeCharacter{014B}{\missingcharmsg{eng}}
-  \DeclareUnicodeCharacter{014C}{\=O}
-  \DeclareUnicodeCharacter{014D}{\=o}
-  \DeclareUnicodeCharacter{014E}{\u{O}}
-  \DeclareUnicodeCharacter{014F}{\u{o}}
-
-  \DeclareUnicodeCharacter{0150}{\H{O}}
-  \DeclareUnicodeCharacter{0151}{\H{o}}
-  \DeclareUnicodeCharacter{0152}{\OE}
-  \DeclareUnicodeCharacter{0153}{\oe}
-  \DeclareUnicodeCharacter{0154}{\'R}
-  \DeclareUnicodeCharacter{0155}{\'r}
-  \DeclareUnicodeCharacter{0156}{\cedilla{R}}
-  \DeclareUnicodeCharacter{0157}{\cedilla{r}}
-  \DeclareUnicodeCharacter{0158}{\v{R}}
-  \DeclareUnicodeCharacter{0159}{\v{r}}
-  \DeclareUnicodeCharacter{015A}{\'S}
-  \DeclareUnicodeCharacter{015B}{\'s}
-  \DeclareUnicodeCharacter{015C}{\^S}
-  \DeclareUnicodeCharacter{015D}{\^s}
-  \DeclareUnicodeCharacter{015E}{\cedilla{S}}
-  \DeclareUnicodeCharacter{015F}{\cedilla{s}}
-
-  \DeclareUnicodeCharacter{0160}{\v{S}}
-  \DeclareUnicodeCharacter{0161}{\v{s}}
-  \DeclareUnicodeCharacter{0162}{\cedilla{T}}
-  \DeclareUnicodeCharacter{0163}{\cedilla{t}}
-  \DeclareUnicodeCharacter{0164}{\v{T}}
-  \DeclareUnicodeCharacter{0165}{\v{t}}
-  \DeclareUnicodeCharacter{0166}{\missingcharmsg{H WITH STROKE}}
-  \DeclareUnicodeCharacter{0167}{\missingcharmsg{h WITH STROKE}}
-  \DeclareUnicodeCharacter{0168}{\~U}
-  \DeclareUnicodeCharacter{0169}{\~u}
-  \DeclareUnicodeCharacter{016A}{\=U}
-  \DeclareUnicodeCharacter{016B}{\=u}
-  \DeclareUnicodeCharacter{016C}{\u{U}}
-  \DeclareUnicodeCharacter{016D}{\u{u}}
-  \DeclareUnicodeCharacter{016E}{\ringaccent{U}}
-  \DeclareUnicodeCharacter{016F}{\ringaccent{u}}
-
-  \DeclareUnicodeCharacter{0170}{\H{U}}
-  \DeclareUnicodeCharacter{0171}{\H{u}}
-  \DeclareUnicodeCharacter{0172}{\ogonek{U}}
-  \DeclareUnicodeCharacter{0173}{\ogonek{u}}
-  \DeclareUnicodeCharacter{0174}{\^W}
-  \DeclareUnicodeCharacter{0175}{\^w}
-  \DeclareUnicodeCharacter{0176}{\^Y}
-  \DeclareUnicodeCharacter{0177}{\^y}
-  \DeclareUnicodeCharacter{0178}{\"Y}
-  \DeclareUnicodeCharacter{0179}{\'Z}
-  \DeclareUnicodeCharacter{017A}{\'z}
-  \DeclareUnicodeCharacter{017B}{\dotaccent{Z}}
-  \DeclareUnicodeCharacter{017C}{\dotaccent{z}}
-  \DeclareUnicodeCharacter{017D}{\v{Z}}
-  \DeclareUnicodeCharacter{017E}{\v{z}}
-  \DeclareUnicodeCharacter{017F}{\missingcharmsg{LONG S}}
-
-  \DeclareUnicodeCharacter{01C4}{D\v{Z}}
-  \DeclareUnicodeCharacter{01C5}{D\v{z}}
-  \DeclareUnicodeCharacter{01C6}{d\v{z}}
-  \DeclareUnicodeCharacter{01C7}{LJ}
-  \DeclareUnicodeCharacter{01C8}{Lj}
-  \DeclareUnicodeCharacter{01C9}{lj}
-  \DeclareUnicodeCharacter{01CA}{NJ}
-  \DeclareUnicodeCharacter{01CB}{Nj}
-  \DeclareUnicodeCharacter{01CC}{nj}
-  \DeclareUnicodeCharacter{01CD}{\v{A}}
-  \DeclareUnicodeCharacter{01CE}{\v{a}}
-  \DeclareUnicodeCharacter{01CF}{\v{I}}
-
-  \DeclareUnicodeCharacter{01D0}{\v{\dotless{i}}}
-  \DeclareUnicodeCharacter{01D1}{\v{O}}
-  \DeclareUnicodeCharacter{01D2}{\v{o}}
-  \DeclareUnicodeCharacter{01D3}{\v{U}}
-  \DeclareUnicodeCharacter{01D4}{\v{u}}
-
-  \DeclareUnicodeCharacter{01E2}{\={\AE}}
-  \DeclareUnicodeCharacter{01E3}{\={\ae}}
-  \DeclareUnicodeCharacter{01E6}{\v{G}}
-  \DeclareUnicodeCharacter{01E7}{\v{g}}
-  \DeclareUnicodeCharacter{01E8}{\v{K}}
-  \DeclareUnicodeCharacter{01E9}{\v{k}}
-
-  \DeclareUnicodeCharacter{01F0}{\v{\dotless{j}}}
-  \DeclareUnicodeCharacter{01F1}{DZ}
-  \DeclareUnicodeCharacter{01F2}{Dz}
-  \DeclareUnicodeCharacter{01F3}{dz}
-  \DeclareUnicodeCharacter{01F4}{\'G}
-  \DeclareUnicodeCharacter{01F5}{\'g}
-  \DeclareUnicodeCharacter{01F8}{\`N}
-  \DeclareUnicodeCharacter{01F9}{\`n}
-  \DeclareUnicodeCharacter{01FC}{\'{\AE}}
-  \DeclareUnicodeCharacter{01FD}{\'{\ae}}
-  \DeclareUnicodeCharacter{01FE}{\'{\O}}
-  \DeclareUnicodeCharacter{01FF}{\'{\o}}
-
-  \DeclareUnicodeCharacter{021E}{\v{H}}
-  \DeclareUnicodeCharacter{021F}{\v{h}}
-
-  \DeclareUnicodeCharacter{0226}{\dotaccent{A}}
-  \DeclareUnicodeCharacter{0227}{\dotaccent{a}}
-  \DeclareUnicodeCharacter{0228}{\cedilla{E}}
-  \DeclareUnicodeCharacter{0229}{\cedilla{e}}
-  \DeclareUnicodeCharacter{022E}{\dotaccent{O}}
-  \DeclareUnicodeCharacter{022F}{\dotaccent{o}}
-
-  \DeclareUnicodeCharacter{0232}{\=Y}
-  \DeclareUnicodeCharacter{0233}{\=y}
-  \DeclareUnicodeCharacter{0237}{\dotless{j}}
-
-  \DeclareUnicodeCharacter{02DB}{\ogonek{ }}
-
+  \DeclareUnicodeCharacter{013F}{L\U{00B7}}%
+  %
+  \DeclareUnicodeCharacter{0140}{l\U{00B7}}%
+  \DeclareUnicodeCharacter{0141}{\L}%
+  \DeclareUnicodeCharacter{0142}{\l}%
+  \DeclareUnicodeCharacter{0143}{\'N}%
+  \DeclareUnicodeCharacter{0144}{\'n}%
+  \DeclareUnicodeCharacter{0145}{\cedilla{N}}%
+  \DeclareUnicodeCharacter{0146}{\cedilla{n}}%
+  \DeclareUnicodeCharacter{0147}{\v{N}}%
+  \DeclareUnicodeCharacter{0148}{\v{n}}%
+  \DeclareUnicodeCharacter{0149}{'n}%
+  \DeclareUnicodeCharacter{014A}{\missingcharmsg{ENG}}%
+  \DeclareUnicodeCharacter{014B}{\missingcharmsg{eng}}%
+  \DeclareUnicodeCharacter{014C}{\=O}%
+  \DeclareUnicodeCharacter{014D}{\=o}%
+  \DeclareUnicodeCharacter{014E}{\u{O}}%
+  \DeclareUnicodeCharacter{014F}{\u{o}}%
+  %
+  \DeclareUnicodeCharacter{0150}{\H{O}}%
+  \DeclareUnicodeCharacter{0151}{\H{o}}%
+  \DeclareUnicodeCharacter{0152}{\OE}%
+  \DeclareUnicodeCharacter{0153}{\oe}%
+  \DeclareUnicodeCharacter{0154}{\'R}%
+  \DeclareUnicodeCharacter{0155}{\'r}%
+  \DeclareUnicodeCharacter{0156}{\cedilla{R}}%
+  \DeclareUnicodeCharacter{0157}{\cedilla{r}}%
+  \DeclareUnicodeCharacter{0158}{\v{R}}%
+  \DeclareUnicodeCharacter{0159}{\v{r}}%
+  \DeclareUnicodeCharacter{015A}{\'S}%
+  \DeclareUnicodeCharacter{015B}{\'s}%
+  \DeclareUnicodeCharacter{015C}{\^S}%
+  \DeclareUnicodeCharacter{015D}{\^s}%
+  \DeclareUnicodeCharacter{015E}{\cedilla{S}}%
+  \DeclareUnicodeCharacter{015F}{\cedilla{s}}%
+  %
+  \DeclareUnicodeCharacter{0160}{\v{S}}%
+  \DeclareUnicodeCharacter{0161}{\v{s}}%
+  \DeclareUnicodeCharacter{0162}{\cedilla{T}}%
+  \DeclareUnicodeCharacter{0163}{\cedilla{t}}%
+  \DeclareUnicodeCharacter{0164}{\v{T}}%
+  \DeclareUnicodeCharacter{0165}{\v{t}}%
+  \DeclareUnicodeCharacter{0166}{\missingcharmsg{H WITH STROKE}}%
+  \DeclareUnicodeCharacter{0167}{\missingcharmsg{h WITH STROKE}}%
+  \DeclareUnicodeCharacter{0168}{\~U}%
+  \DeclareUnicodeCharacter{0169}{\~u}%
+  \DeclareUnicodeCharacter{016A}{\=U}%
+  \DeclareUnicodeCharacter{016B}{\=u}%
+  \DeclareUnicodeCharacter{016C}{\u{U}}%
+  \DeclareUnicodeCharacter{016D}{\u{u}}%
+  \DeclareUnicodeCharacter{016E}{\ringaccent{U}}%
+  \DeclareUnicodeCharacter{016F}{\ringaccent{u}}%
+  %
+  \DeclareUnicodeCharacter{0170}{\H{U}}%
+  \DeclareUnicodeCharacter{0171}{\H{u}}%
+  \DeclareUnicodeCharacter{0172}{\ogonek{U}}%
+  \DeclareUnicodeCharacter{0173}{\ogonek{u}}%
+  \DeclareUnicodeCharacter{0174}{\^W}%
+  \DeclareUnicodeCharacter{0175}{\^w}%
+  \DeclareUnicodeCharacter{0176}{\^Y}%
+  \DeclareUnicodeCharacter{0177}{\^y}%
+  \DeclareUnicodeCharacter{0178}{\"Y}%
+  \DeclareUnicodeCharacter{0179}{\'Z}%
+  \DeclareUnicodeCharacter{017A}{\'z}%
+  \DeclareUnicodeCharacter{017B}{\dotaccent{Z}}%
+  \DeclareUnicodeCharacter{017C}{\dotaccent{z}}%
+  \DeclareUnicodeCharacter{017D}{\v{Z}}%
+  \DeclareUnicodeCharacter{017E}{\v{z}}%
+  \DeclareUnicodeCharacter{017F}{\missingcharmsg{LONG S}}%
+  %
+  \DeclareUnicodeCharacter{01C4}{D\v{Z}}%
+  \DeclareUnicodeCharacter{01C5}{D\v{z}}%
+  \DeclareUnicodeCharacter{01C6}{d\v{z}}%
+  \DeclareUnicodeCharacter{01C7}{LJ}%
+  \DeclareUnicodeCharacter{01C8}{Lj}%
+  \DeclareUnicodeCharacter{01C9}{lj}%
+  \DeclareUnicodeCharacter{01CA}{NJ}%
+  \DeclareUnicodeCharacter{01CB}{Nj}%
+  \DeclareUnicodeCharacter{01CC}{nj}%
+  \DeclareUnicodeCharacter{01CD}{\v{A}}%
+  \DeclareUnicodeCharacter{01CE}{\v{a}}%
+  \DeclareUnicodeCharacter{01CF}{\v{I}}%
+  %
+  \DeclareUnicodeCharacter{01D0}{\v{\dotless{i}}}%
+  \DeclareUnicodeCharacter{01D1}{\v{O}}%
+  \DeclareUnicodeCharacter{01D2}{\v{o}}%
+  \DeclareUnicodeCharacter{01D3}{\v{U}}%
+  \DeclareUnicodeCharacter{01D4}{\v{u}}%
+  %
+  \DeclareUnicodeCharacter{01E2}{\={\AE}}%
+  \DeclareUnicodeCharacter{01E3}{\={\ae}}%
+  \DeclareUnicodeCharacter{01E6}{\v{G}}%
+  \DeclareUnicodeCharacter{01E7}{\v{g}}%
+  \DeclareUnicodeCharacter{01E8}{\v{K}}%
+  \DeclareUnicodeCharacter{01E9}{\v{k}}%
+  %
+  \DeclareUnicodeCharacter{01F0}{\v{\dotless{j}}}%
+  \DeclareUnicodeCharacter{01F1}{DZ}%
+  \DeclareUnicodeCharacter{01F2}{Dz}%
+  \DeclareUnicodeCharacter{01F3}{dz}%
+  \DeclareUnicodeCharacter{01F4}{\'G}%
+  \DeclareUnicodeCharacter{01F5}{\'g}%
+  \DeclareUnicodeCharacter{01F8}{\`N}%
+  \DeclareUnicodeCharacter{01F9}{\`n}%
+  \DeclareUnicodeCharacter{01FC}{\'{\AE}}%
+  \DeclareUnicodeCharacter{01FD}{\'{\ae}}%
+  \DeclareUnicodeCharacter{01FE}{\'{\O}}%
+  \DeclareUnicodeCharacter{01FF}{\'{\o}}%
+  %
+  \DeclareUnicodeCharacter{021E}{\v{H}}%
+  \DeclareUnicodeCharacter{021F}{\v{h}}%
+  %
+  \DeclareUnicodeCharacter{0226}{\dotaccent{A}}%
+  \DeclareUnicodeCharacter{0227}{\dotaccent{a}}%
+  \DeclareUnicodeCharacter{0228}{\cedilla{E}}%
+  \DeclareUnicodeCharacter{0229}{\cedilla{e}}%
+  \DeclareUnicodeCharacter{022E}{\dotaccent{O}}%
+  \DeclareUnicodeCharacter{022F}{\dotaccent{o}}%
+  %
+  \DeclareUnicodeCharacter{0232}{\=Y}%
+  \DeclareUnicodeCharacter{0233}{\=y}%
+  \DeclareUnicodeCharacter{0237}{\dotless{j}}%
+  %
+  \DeclareUnicodeCharacter{02DB}{\ogonek{ }}%
+  %
   % Greek letters upper case
-  \DeclareUnicodeCharacter{0391}{{\it A}}
-  \DeclareUnicodeCharacter{0392}{{\it B}}
-  \DeclareUnicodeCharacter{0393}{\ensuremath{\mit\Gamma}}
-  \DeclareUnicodeCharacter{0394}{\ensuremath{\mit\Delta}}
-  \DeclareUnicodeCharacter{0395}{{\it E}}
-  \DeclareUnicodeCharacter{0396}{{\it Z}}
-  \DeclareUnicodeCharacter{0397}{{\it H}}
-  \DeclareUnicodeCharacter{0398}{\ensuremath{\mit\Theta}}
-  \DeclareUnicodeCharacter{0399}{{\it I}}
-  \DeclareUnicodeCharacter{039A}{{\it K}}
-  \DeclareUnicodeCharacter{039B}{\ensuremath{\mit\Lambda}}
-  \DeclareUnicodeCharacter{039C}{{\it M}}
-  \DeclareUnicodeCharacter{039D}{{\it N}}
-  \DeclareUnicodeCharacter{039E}{\ensuremath{\mit\Xi}}
-  \DeclareUnicodeCharacter{039F}{{\it O}}
-  \DeclareUnicodeCharacter{03A0}{\ensuremath{\mit\Pi}}
-  \DeclareUnicodeCharacter{03A1}{{\it P}}
+  \DeclareUnicodeCharacter{0391}{{\it A}}%
+  \DeclareUnicodeCharacter{0392}{{\it B}}%
+  \DeclareUnicodeCharacter{0393}{\ensuremath{\mit\Gamma}}%
+  \DeclareUnicodeCharacter{0394}{\ensuremath{\mit\Delta}}%
+  \DeclareUnicodeCharacter{0395}{{\it E}}%
+  \DeclareUnicodeCharacter{0396}{{\it Z}}%
+  \DeclareUnicodeCharacter{0397}{{\it H}}%
+  \DeclareUnicodeCharacter{0398}{\ensuremath{\mit\Theta}}%
+  \DeclareUnicodeCharacter{0399}{{\it I}}%
+  \DeclareUnicodeCharacter{039A}{{\it K}}%
+  \DeclareUnicodeCharacter{039B}{\ensuremath{\mit\Lambda}}%
+  \DeclareUnicodeCharacter{039C}{{\it M}}%
+  \DeclareUnicodeCharacter{039D}{{\it N}}%
+  \DeclareUnicodeCharacter{039E}{\ensuremath{\mit\Xi}}%
+  \DeclareUnicodeCharacter{039F}{{\it O}}%
+  \DeclareUnicodeCharacter{03A0}{\ensuremath{\mit\Pi}}%
+  \DeclareUnicodeCharacter{03A1}{{\it P}}%
   %\DeclareUnicodeCharacter{03A2}{} % none - corresponds to final sigma
-  \DeclareUnicodeCharacter{03A3}{\ensuremath{\mit\Sigma}}
-  \DeclareUnicodeCharacter{03A4}{{\it T}}
-  \DeclareUnicodeCharacter{03A5}{\ensuremath{\mit\Upsilon}}
-  \DeclareUnicodeCharacter{03A6}{\ensuremath{\mit\Phi}}
-  \DeclareUnicodeCharacter{03A7}{{\it X}}
-  \DeclareUnicodeCharacter{03A8}{\ensuremath{\mit\Psi}}
-  \DeclareUnicodeCharacter{03A9}{\ensuremath{\mit\Omega}}
-
+  \DeclareUnicodeCharacter{03A3}{\ensuremath{\mit\Sigma}}%
+  \DeclareUnicodeCharacter{03A4}{{\it T}}%
+  \DeclareUnicodeCharacter{03A5}{\ensuremath{\mit\Upsilon}}%
+  \DeclareUnicodeCharacter{03A6}{\ensuremath{\mit\Phi}}%
+  \DeclareUnicodeCharacter{03A7}{{\it X}}%
+  \DeclareUnicodeCharacter{03A8}{\ensuremath{\mit\Psi}}%
+  \DeclareUnicodeCharacter{03A9}{\ensuremath{\mit\Omega}}%
+  %
   % Vowels with accents
-  \DeclareUnicodeCharacter{0390}{\ensuremath{\ddot{\acute\iota}}}
-  \DeclareUnicodeCharacter{03AC}{\ensuremath{\acute\alpha}}
-  \DeclareUnicodeCharacter{03AD}{\ensuremath{\acute\epsilon}}
-  \DeclareUnicodeCharacter{03AE}{\ensuremath{\acute\eta}}
-  \DeclareUnicodeCharacter{03AF}{\ensuremath{\acute\iota}}
-  \DeclareUnicodeCharacter{03B0}{\ensuremath{\acute{\ddot\upsilon}}}
-
+  \DeclareUnicodeCharacter{0390}{\ensuremath{\ddot{\acute\iota}}}%
+  \DeclareUnicodeCharacter{03AC}{\ensuremath{\acute\alpha}}%
+  \DeclareUnicodeCharacter{03AD}{\ensuremath{\acute\epsilon}}%
+  \DeclareUnicodeCharacter{03AE}{\ensuremath{\acute\eta}}%
+  \DeclareUnicodeCharacter{03AF}{\ensuremath{\acute\iota}}%
+  \DeclareUnicodeCharacter{03B0}{\ensuremath{\acute{\ddot\upsilon}}}%
+  %
   % Standalone accent
-  \DeclareUnicodeCharacter{0384}{\ensuremath{\acute{\ }}}
-
+  \DeclareUnicodeCharacter{0384}{\ensuremath{\acute{\ }}}%
+  %
   % Greek letters lower case
-  \DeclareUnicodeCharacter{03B1}{\ensuremath\alpha}
-  \DeclareUnicodeCharacter{03B2}{\ensuremath\beta}
-  \DeclareUnicodeCharacter{03B3}{\ensuremath\gamma}
-  \DeclareUnicodeCharacter{03B4}{\ensuremath\delta}
-  \DeclareUnicodeCharacter{03B5}{\ensuremath\epsilon}
-  \DeclareUnicodeCharacter{03B6}{\ensuremath\zeta}
-  \DeclareUnicodeCharacter{03B7}{\ensuremath\eta}
-  \DeclareUnicodeCharacter{03B8}{\ensuremath\theta}
-  \DeclareUnicodeCharacter{03B9}{\ensuremath\iota}
-  \DeclareUnicodeCharacter{03BA}{\ensuremath\kappa}
-  \DeclareUnicodeCharacter{03BB}{\ensuremath\lambda}
-  \DeclareUnicodeCharacter{03BC}{\ensuremath\mu}
-  \DeclareUnicodeCharacter{03BD}{\ensuremath\nu}
-  \DeclareUnicodeCharacter{03BE}{\ensuremath\xi}
-  \DeclareUnicodeCharacter{03BF}{{\it o}} % omicron
-  \DeclareUnicodeCharacter{03C0}{\ensuremath\pi}
-  \DeclareUnicodeCharacter{03C1}{\ensuremath\rho}
-  \DeclareUnicodeCharacter{03C2}{\ensuremath\varsigma}
-  \DeclareUnicodeCharacter{03C3}{\ensuremath\sigma}
-  \DeclareUnicodeCharacter{03C4}{\ensuremath\tau}
-  \DeclareUnicodeCharacter{03C5}{\ensuremath\upsilon}
-  \DeclareUnicodeCharacter{03C6}{\ensuremath\phi}
-  \DeclareUnicodeCharacter{03C7}{\ensuremath\chi}
-  \DeclareUnicodeCharacter{03C8}{\ensuremath\psi}
-  \DeclareUnicodeCharacter{03C9}{\ensuremath\omega}
-
+  \DeclareUnicodeCharacter{03B1}{\ensuremath\alpha}%
+  \DeclareUnicodeCharacter{03B2}{\ensuremath\beta}%
+  \DeclareUnicodeCharacter{03B3}{\ensuremath\gamma}%
+  \DeclareUnicodeCharacter{03B4}{\ensuremath\delta}%
+  \DeclareUnicodeCharacter{03B5}{\ensuremath\epsilon}%
+  \DeclareUnicodeCharacter{03B6}{\ensuremath\zeta}%
+  \DeclareUnicodeCharacter{03B7}{\ensuremath\eta}%
+  \DeclareUnicodeCharacter{03B8}{\ensuremath\theta}%
+  \DeclareUnicodeCharacter{03B9}{\ensuremath\iota}%
+  \DeclareUnicodeCharacter{03BA}{\ensuremath\kappa}%
+  \DeclareUnicodeCharacter{03BB}{\ensuremath\lambda}%
+  \DeclareUnicodeCharacter{03BC}{\ensuremath\mu}%
+  \DeclareUnicodeCharacter{03BD}{\ensuremath\nu}%
+  \DeclareUnicodeCharacter{03BE}{\ensuremath\xi}%
+  \DeclareUnicodeCharacter{03BF}{{\it o}}% omicron
+  \DeclareUnicodeCharacter{03C0}{\ensuremath\pi}%
+  \DeclareUnicodeCharacter{03C1}{\ensuremath\rho}%
+  \DeclareUnicodeCharacter{03C2}{\ensuremath\varsigma}%
+  \DeclareUnicodeCharacter{03C3}{\ensuremath\sigma}%
+  \DeclareUnicodeCharacter{03C4}{\ensuremath\tau}%
+  \DeclareUnicodeCharacter{03C5}{\ensuremath\upsilon}%
+  \DeclareUnicodeCharacter{03C6}{\ensuremath\phi}%
+  \DeclareUnicodeCharacter{03C7}{\ensuremath\chi}%
+  \DeclareUnicodeCharacter{03C8}{\ensuremath\psi}%
+  \DeclareUnicodeCharacter{03C9}{\ensuremath\omega}%
+  %
   % More Greek vowels with accents
-  \DeclareUnicodeCharacter{03CA}{\ensuremath{\ddot\iota}}
-  \DeclareUnicodeCharacter{03CB}{\ensuremath{\ddot\upsilon}}
-  \DeclareUnicodeCharacter{03CC}{\ensuremath{\acute o}}
-  \DeclareUnicodeCharacter{03CD}{\ensuremath{\acute\upsilon}}
-  \DeclareUnicodeCharacter{03CE}{\ensuremath{\acute\omega}}
-
+  \DeclareUnicodeCharacter{03CA}{\ensuremath{\ddot\iota}}%
+  \DeclareUnicodeCharacter{03CB}{\ensuremath{\ddot\upsilon}}%
+  \DeclareUnicodeCharacter{03CC}{\ensuremath{\acute o}}%
+  \DeclareUnicodeCharacter{03CD}{\ensuremath{\acute\upsilon}}%
+  \DeclareUnicodeCharacter{03CE}{\ensuremath{\acute\omega}}%
+  %
   % Variant Greek letters
-  \DeclareUnicodeCharacter{03D1}{\ensuremath\vartheta}
-  \DeclareUnicodeCharacter{03D6}{\ensuremath\varpi}
-  \DeclareUnicodeCharacter{03F1}{\ensuremath\varrho}
-
-  \DeclareUnicodeCharacter{1E02}{\dotaccent{B}}
-  \DeclareUnicodeCharacter{1E03}{\dotaccent{b}}
-  \DeclareUnicodeCharacter{1E04}{\udotaccent{B}}
-  \DeclareUnicodeCharacter{1E05}{\udotaccent{b}}
-  \DeclareUnicodeCharacter{1E06}{\ubaraccent{B}}
-  \DeclareUnicodeCharacter{1E07}{\ubaraccent{b}}
-  \DeclareUnicodeCharacter{1E0A}{\dotaccent{D}}
-  \DeclareUnicodeCharacter{1E0B}{\dotaccent{d}}
-  \DeclareUnicodeCharacter{1E0C}{\udotaccent{D}}
-  \DeclareUnicodeCharacter{1E0D}{\udotaccent{d}}
-  \DeclareUnicodeCharacter{1E0E}{\ubaraccent{D}}
-  \DeclareUnicodeCharacter{1E0F}{\ubaraccent{d}}
-
-  \DeclareUnicodeCharacter{1E1E}{\dotaccent{F}}
-  \DeclareUnicodeCharacter{1E1F}{\dotaccent{f}}
-
-  \DeclareUnicodeCharacter{1E20}{\=G}
-  \DeclareUnicodeCharacter{1E21}{\=g}
-  \DeclareUnicodeCharacter{1E22}{\dotaccent{H}}
-  \DeclareUnicodeCharacter{1E23}{\dotaccent{h}}
-  \DeclareUnicodeCharacter{1E24}{\udotaccent{H}}
-  \DeclareUnicodeCharacter{1E25}{\udotaccent{h}}
-  \DeclareUnicodeCharacter{1E26}{\"H}
-  \DeclareUnicodeCharacter{1E27}{\"h}
-
-  \DeclareUnicodeCharacter{1E30}{\'K}
-  \DeclareUnicodeCharacter{1E31}{\'k}
-  \DeclareUnicodeCharacter{1E32}{\udotaccent{K}}
-  \DeclareUnicodeCharacter{1E33}{\udotaccent{k}}
-  \DeclareUnicodeCharacter{1E34}{\ubaraccent{K}}
-  \DeclareUnicodeCharacter{1E35}{\ubaraccent{k}}
-  \DeclareUnicodeCharacter{1E36}{\udotaccent{L}}
-  \DeclareUnicodeCharacter{1E37}{\udotaccent{l}}
-  \DeclareUnicodeCharacter{1E3A}{\ubaraccent{L}}
-  \DeclareUnicodeCharacter{1E3B}{\ubaraccent{l}}
-  \DeclareUnicodeCharacter{1E3E}{\'M}
-  \DeclareUnicodeCharacter{1E3F}{\'m}
-
-  \DeclareUnicodeCharacter{1E40}{\dotaccent{M}}
-  \DeclareUnicodeCharacter{1E41}{\dotaccent{m}}
-  \DeclareUnicodeCharacter{1E42}{\udotaccent{M}}
-  \DeclareUnicodeCharacter{1E43}{\udotaccent{m}}
-  \DeclareUnicodeCharacter{1E44}{\dotaccent{N}}
-  \DeclareUnicodeCharacter{1E45}{\dotaccent{n}}
-  \DeclareUnicodeCharacter{1E46}{\udotaccent{N}}
-  \DeclareUnicodeCharacter{1E47}{\udotaccent{n}}
-  \DeclareUnicodeCharacter{1E48}{\ubaraccent{N}}
-  \DeclareUnicodeCharacter{1E49}{\ubaraccent{n}}
-
-  \DeclareUnicodeCharacter{1E54}{\'P}
-  \DeclareUnicodeCharacter{1E55}{\'p}
-  \DeclareUnicodeCharacter{1E56}{\dotaccent{P}}
-  \DeclareUnicodeCharacter{1E57}{\dotaccent{p}}
-  \DeclareUnicodeCharacter{1E58}{\dotaccent{R}}
-  \DeclareUnicodeCharacter{1E59}{\dotaccent{r}}
-  \DeclareUnicodeCharacter{1E5A}{\udotaccent{R}}
-  \DeclareUnicodeCharacter{1E5B}{\udotaccent{r}}
-  \DeclareUnicodeCharacter{1E5E}{\ubaraccent{R}}
-  \DeclareUnicodeCharacter{1E5F}{\ubaraccent{r}}
-
-  \DeclareUnicodeCharacter{1E60}{\dotaccent{S}}
-  \DeclareUnicodeCharacter{1E61}{\dotaccent{s}}
-  \DeclareUnicodeCharacter{1E62}{\udotaccent{S}}
-  \DeclareUnicodeCharacter{1E63}{\udotaccent{s}}
-  \DeclareUnicodeCharacter{1E6A}{\dotaccent{T}}
-  \DeclareUnicodeCharacter{1E6B}{\dotaccent{t}}
-  \DeclareUnicodeCharacter{1E6C}{\udotaccent{T}}
-  \DeclareUnicodeCharacter{1E6D}{\udotaccent{t}}
-  \DeclareUnicodeCharacter{1E6E}{\ubaraccent{T}}
-  \DeclareUnicodeCharacter{1E6F}{\ubaraccent{t}}
-
-  \DeclareUnicodeCharacter{1E7C}{\~V}
-  \DeclareUnicodeCharacter{1E7D}{\~v}
-  \DeclareUnicodeCharacter{1E7E}{\udotaccent{V}}
-  \DeclareUnicodeCharacter{1E7F}{\udotaccent{v}}
-
-  \DeclareUnicodeCharacter{1E80}{\`W}
-  \DeclareUnicodeCharacter{1E81}{\`w}
-  \DeclareUnicodeCharacter{1E82}{\'W}
-  \DeclareUnicodeCharacter{1E83}{\'w}
-  \DeclareUnicodeCharacter{1E84}{\"W}
-  \DeclareUnicodeCharacter{1E85}{\"w}
-  \DeclareUnicodeCharacter{1E86}{\dotaccent{W}}
-  \DeclareUnicodeCharacter{1E87}{\dotaccent{w}}
-  \DeclareUnicodeCharacter{1E88}{\udotaccent{W}}
-  \DeclareUnicodeCharacter{1E89}{\udotaccent{w}}
-  \DeclareUnicodeCharacter{1E8A}{\dotaccent{X}}
-  \DeclareUnicodeCharacter{1E8B}{\dotaccent{x}}
-  \DeclareUnicodeCharacter{1E8C}{\"X}
-  \DeclareUnicodeCharacter{1E8D}{\"x}
-  \DeclareUnicodeCharacter{1E8E}{\dotaccent{Y}}
-  \DeclareUnicodeCharacter{1E8F}{\dotaccent{y}}
-
-  \DeclareUnicodeCharacter{1E90}{\^Z}
-  \DeclareUnicodeCharacter{1E91}{\^z}
-  \DeclareUnicodeCharacter{1E92}{\udotaccent{Z}}
-  \DeclareUnicodeCharacter{1E93}{\udotaccent{z}}
-  \DeclareUnicodeCharacter{1E94}{\ubaraccent{Z}}
-  \DeclareUnicodeCharacter{1E95}{\ubaraccent{z}}
-  \DeclareUnicodeCharacter{1E96}{\ubaraccent{h}}
-  \DeclareUnicodeCharacter{1E97}{\"t}
-  \DeclareUnicodeCharacter{1E98}{\ringaccent{w}}
-  \DeclareUnicodeCharacter{1E99}{\ringaccent{y}}
-
-  \DeclareUnicodeCharacter{1EA0}{\udotaccent{A}}
-  \DeclareUnicodeCharacter{1EA1}{\udotaccent{a}}
-
-  \DeclareUnicodeCharacter{1EB8}{\udotaccent{E}}
-  \DeclareUnicodeCharacter{1EB9}{\udotaccent{e}}
-  \DeclareUnicodeCharacter{1EBC}{\~E}
-  \DeclareUnicodeCharacter{1EBD}{\~e}
-
-  \DeclareUnicodeCharacter{1ECA}{\udotaccent{I}}
-  \DeclareUnicodeCharacter{1ECB}{\udotaccent{i}}
-  \DeclareUnicodeCharacter{1ECC}{\udotaccent{O}}
-  \DeclareUnicodeCharacter{1ECD}{\udotaccent{o}}
-
-  \DeclareUnicodeCharacter{1EE4}{\udotaccent{U}}
-  \DeclareUnicodeCharacter{1EE5}{\udotaccent{u}}
-
-  \DeclareUnicodeCharacter{1EF2}{\`Y}
-  \DeclareUnicodeCharacter{1EF3}{\`y}
-  \DeclareUnicodeCharacter{1EF4}{\udotaccent{Y}}
-
-  \DeclareUnicodeCharacter{1EF8}{\~Y}
-  \DeclareUnicodeCharacter{1EF9}{\~y}
-
+  \DeclareUnicodeCharacter{03D1}{\ensuremath\vartheta}%
+  \DeclareUnicodeCharacter{03D6}{\ensuremath\varpi}%
+  \DeclareUnicodeCharacter{03F1}{\ensuremath\varrho}%
+  %
+  \DeclareUnicodeCharacter{1E02}{\dotaccent{B}}%
+  \DeclareUnicodeCharacter{1E03}{\dotaccent{b}}%
+  \DeclareUnicodeCharacter{1E04}{\udotaccent{B}}%
+  \DeclareUnicodeCharacter{1E05}{\udotaccent{b}}%
+  \DeclareUnicodeCharacter{1E06}{\ubaraccent{B}}%
+  \DeclareUnicodeCharacter{1E07}{\ubaraccent{b}}%
+  \DeclareUnicodeCharacter{1E0A}{\dotaccent{D}}%
+  \DeclareUnicodeCharacter{1E0B}{\dotaccent{d}}%
+  \DeclareUnicodeCharacter{1E0C}{\udotaccent{D}}%
+  \DeclareUnicodeCharacter{1E0D}{\udotaccent{d}}%
+  \DeclareUnicodeCharacter{1E0E}{\ubaraccent{D}}%
+  \DeclareUnicodeCharacter{1E0F}{\ubaraccent{d}}%
+  %
+  \DeclareUnicodeCharacter{1E1E}{\dotaccent{F}}%
+  \DeclareUnicodeCharacter{1E1F}{\dotaccent{f}}%
+  %
+  \DeclareUnicodeCharacter{1E20}{\=G}%
+  \DeclareUnicodeCharacter{1E21}{\=g}%
+  \DeclareUnicodeCharacter{1E22}{\dotaccent{H}}%
+  \DeclareUnicodeCharacter{1E23}{\dotaccent{h}}%
+  \DeclareUnicodeCharacter{1E24}{\udotaccent{H}}%
+  \DeclareUnicodeCharacter{1E25}{\udotaccent{h}}%
+  \DeclareUnicodeCharacter{1E26}{\"H}%
+  \DeclareUnicodeCharacter{1E27}{\"h}%
+  %
+  \DeclareUnicodeCharacter{1E30}{\'K}%
+  \DeclareUnicodeCharacter{1E31}{\'k}%
+  \DeclareUnicodeCharacter{1E32}{\udotaccent{K}}%
+  \DeclareUnicodeCharacter{1E33}{\udotaccent{k}}%
+  \DeclareUnicodeCharacter{1E34}{\ubaraccent{K}}%
+  \DeclareUnicodeCharacter{1E35}{\ubaraccent{k}}%
+  \DeclareUnicodeCharacter{1E36}{\udotaccent{L}}%
+  \DeclareUnicodeCharacter{1E37}{\udotaccent{l}}%
+  \DeclareUnicodeCharacter{1E3A}{\ubaraccent{L}}%
+  \DeclareUnicodeCharacter{1E3B}{\ubaraccent{l}}%
+  \DeclareUnicodeCharacter{1E3E}{\'M}%
+  \DeclareUnicodeCharacter{1E3F}{\'m}%
+  %
+  \DeclareUnicodeCharacter{1E40}{\dotaccent{M}}%
+  \DeclareUnicodeCharacter{1E41}{\dotaccent{m}}%
+  \DeclareUnicodeCharacter{1E42}{\udotaccent{M}}%
+  \DeclareUnicodeCharacter{1E43}{\udotaccent{m}}%
+  \DeclareUnicodeCharacter{1E44}{\dotaccent{N}}%
+  \DeclareUnicodeCharacter{1E45}{\dotaccent{n}}%
+  \DeclareUnicodeCharacter{1E46}{\udotaccent{N}}%
+  \DeclareUnicodeCharacter{1E47}{\udotaccent{n}}%
+  \DeclareUnicodeCharacter{1E48}{\ubaraccent{N}}%
+  \DeclareUnicodeCharacter{1E49}{\ubaraccent{n}}%
+  %
+  \DeclareUnicodeCharacter{1E54}{\'P}%
+  \DeclareUnicodeCharacter{1E55}{\'p}%
+  \DeclareUnicodeCharacter{1E56}{\dotaccent{P}}%
+  \DeclareUnicodeCharacter{1E57}{\dotaccent{p}}%
+  \DeclareUnicodeCharacter{1E58}{\dotaccent{R}}%
+  \DeclareUnicodeCharacter{1E59}{\dotaccent{r}}%
+  \DeclareUnicodeCharacter{1E5A}{\udotaccent{R}}%
+  \DeclareUnicodeCharacter{1E5B}{\udotaccent{r}}%
+  \DeclareUnicodeCharacter{1E5E}{\ubaraccent{R}}%
+  \DeclareUnicodeCharacter{1E5F}{\ubaraccent{r}}%
+  %
+  \DeclareUnicodeCharacter{1E60}{\dotaccent{S}}%
+  \DeclareUnicodeCharacter{1E61}{\dotaccent{s}}%
+  \DeclareUnicodeCharacter{1E62}{\udotaccent{S}}%
+  \DeclareUnicodeCharacter{1E63}{\udotaccent{s}}%
+  \DeclareUnicodeCharacter{1E6A}{\dotaccent{T}}%
+  \DeclareUnicodeCharacter{1E6B}{\dotaccent{t}}%
+  \DeclareUnicodeCharacter{1E6C}{\udotaccent{T}}%
+  \DeclareUnicodeCharacter{1E6D}{\udotaccent{t}}%
+  \DeclareUnicodeCharacter{1E6E}{\ubaraccent{T}}%
+  \DeclareUnicodeCharacter{1E6F}{\ubaraccent{t}}%
+  %
+  \DeclareUnicodeCharacter{1E7C}{\~V}%
+  \DeclareUnicodeCharacter{1E7D}{\~v}%
+  \DeclareUnicodeCharacter{1E7E}{\udotaccent{V}}%
+  \DeclareUnicodeCharacter{1E7F}{\udotaccent{v}}%
+  %
+  \DeclareUnicodeCharacter{1E80}{\`W}%
+  \DeclareUnicodeCharacter{1E81}{\`w}%
+  \DeclareUnicodeCharacter{1E82}{\'W}%
+  \DeclareUnicodeCharacter{1E83}{\'w}%
+  \DeclareUnicodeCharacter{1E84}{\"W}%
+  \DeclareUnicodeCharacter{1E85}{\"w}%
+  \DeclareUnicodeCharacter{1E86}{\dotaccent{W}}%
+  \DeclareUnicodeCharacter{1E87}{\dotaccent{w}}%
+  \DeclareUnicodeCharacter{1E88}{\udotaccent{W}}%
+  \DeclareUnicodeCharacter{1E89}{\udotaccent{w}}%
+  \DeclareUnicodeCharacter{1E8A}{\dotaccent{X}}%
+  \DeclareUnicodeCharacter{1E8B}{\dotaccent{x}}%
+  \DeclareUnicodeCharacter{1E8C}{\"X}%
+  \DeclareUnicodeCharacter{1E8D}{\"x}%
+  \DeclareUnicodeCharacter{1E8E}{\dotaccent{Y}}%
+  \DeclareUnicodeCharacter{1E8F}{\dotaccent{y}}%
+  %
+  \DeclareUnicodeCharacter{1E90}{\^Z}%
+  \DeclareUnicodeCharacter{1E91}{\^z}%
+  \DeclareUnicodeCharacter{1E92}{\udotaccent{Z}}%
+  \DeclareUnicodeCharacter{1E93}{\udotaccent{z}}%
+  \DeclareUnicodeCharacter{1E94}{\ubaraccent{Z}}%
+  \DeclareUnicodeCharacter{1E95}{\ubaraccent{z}}%
+  \DeclareUnicodeCharacter{1E96}{\ubaraccent{h}}%
+  \DeclareUnicodeCharacter{1E97}{\"t}%
+  \DeclareUnicodeCharacter{1E98}{\ringaccent{w}}%
+  \DeclareUnicodeCharacter{1E99}{\ringaccent{y}}%
+  %
+  \DeclareUnicodeCharacter{1EA0}{\udotaccent{A}}%
+  \DeclareUnicodeCharacter{1EA1}{\udotaccent{a}}%
+  %
+  \DeclareUnicodeCharacter{1EB8}{\udotaccent{E}}%
+  \DeclareUnicodeCharacter{1EB9}{\udotaccent{e}}%
+  \DeclareUnicodeCharacter{1EBC}{\~E}%
+  \DeclareUnicodeCharacter{1EBD}{\~e}%
+  %
+  \DeclareUnicodeCharacter{1ECA}{\udotaccent{I}}%
+  \DeclareUnicodeCharacter{1ECB}{\udotaccent{i}}%
+  \DeclareUnicodeCharacter{1ECC}{\udotaccent{O}}%
+  \DeclareUnicodeCharacter{1ECD}{\udotaccent{o}}%
+  %
+  \DeclareUnicodeCharacter{1EE4}{\udotaccent{U}}%
+  \DeclareUnicodeCharacter{1EE5}{\udotaccent{u}}%
+  %
+  \DeclareUnicodeCharacter{1EF2}{\`Y}%
+  \DeclareUnicodeCharacter{1EF3}{\`y}%
+  \DeclareUnicodeCharacter{1EF4}{\udotaccent{Y}}%
+  %
+  \DeclareUnicodeCharacter{1EF8}{\~Y}%
+  \DeclareUnicodeCharacter{1EF9}{\~y}%
+  %
   % Punctuation
-  \DeclareUnicodeCharacter{2013}{--}
-  \DeclareUnicodeCharacter{2014}{---}
-  \DeclareUnicodeCharacter{2018}{\quoteleft}
-  \DeclareUnicodeCharacter{2019}{\quoteright}
-  \DeclareUnicodeCharacter{201A}{\quotesinglbase}
-  \DeclareUnicodeCharacter{201C}{\quotedblleft}
-  \DeclareUnicodeCharacter{201D}{\quotedblright}
-  \DeclareUnicodeCharacter{201E}{\quotedblbase}
-  \DeclareUnicodeCharacter{2020}{\ensuremath\dagger}
-  \DeclareUnicodeCharacter{2021}{\ensuremath\ddagger}
-  \DeclareUnicodeCharacter{2022}{\bullet}
-  \DeclareUnicodeCharacter{202F}{\thinspace}
-  \DeclareUnicodeCharacter{2026}{\dots}
-  \DeclareUnicodeCharacter{2039}{\guilsinglleft}
-  \DeclareUnicodeCharacter{203A}{\guilsinglright}
-
-  \DeclareUnicodeCharacter{20AC}{\euro}
-
-  \DeclareUnicodeCharacter{2192}{\expansion}
-  \DeclareUnicodeCharacter{21D2}{\result}
-
+  \DeclareUnicodeCharacter{2013}{--}%
+  \DeclareUnicodeCharacter{2014}{---}%
+  \DeclareUnicodeCharacter{2018}{\quoteleft}%
+  \DeclareUnicodeCharacter{2019}{\quoteright}%
+  \DeclareUnicodeCharacter{201A}{\quotesinglbase}%
+  \DeclareUnicodeCharacter{201C}{\quotedblleft}%
+  \DeclareUnicodeCharacter{201D}{\quotedblright}%
+  \DeclareUnicodeCharacter{201E}{\quotedblbase}%
+  \DeclareUnicodeCharacter{2020}{\ensuremath\dagger}%
+  \DeclareUnicodeCharacter{2021}{\ensuremath\ddagger}%
+  \DeclareUnicodeCharacter{2022}{\bullet}%
+  \DeclareUnicodeCharacter{202F}{\thinspace}%
+  \DeclareUnicodeCharacter{2026}{\dots}%
+  \DeclareUnicodeCharacter{2039}{\guilsinglleft}%
+  \DeclareUnicodeCharacter{203A}{\guilsinglright}%
+  %
+  \DeclareUnicodeCharacter{20AC}{\euro}%
+  %
+  \DeclareUnicodeCharacter{2192}{\expansion}%
+  \DeclareUnicodeCharacter{21D2}{\result}%
+  %
   % Mathematical symbols
-  \DeclareUnicodeCharacter{2200}{\ensuremath\forall}
-  \DeclareUnicodeCharacter{2203}{\ensuremath\exists}
-  \DeclareUnicodeCharacter{2208}{\ensuremath\in}
-  \DeclareUnicodeCharacter{2212}{\minus}
-  \DeclareUnicodeCharacter{2217}{\ast}
-  \DeclareUnicodeCharacter{221E}{\ensuremath\infty}
-  \DeclareUnicodeCharacter{2225}{\ensuremath\parallel}
-  \DeclareUnicodeCharacter{2227}{\ensuremath\wedge}
-  \DeclareUnicodeCharacter{2229}{\ensuremath\cap}
-  \DeclareUnicodeCharacter{2261}{\equiv}
-  \DeclareUnicodeCharacter{2264}{\ensuremath\leq}
-  \DeclareUnicodeCharacter{2265}{\ensuremath\geq}
-  \DeclareUnicodeCharacter{2282}{\ensuremath\subset}
-  \DeclareUnicodeCharacter{2287}{\ensuremath\supseteq}
+  \DeclareUnicodeCharacter{2200}{\ensuremath\forall}%
+  \DeclareUnicodeCharacter{2203}{\ensuremath\exists}%
+  \DeclareUnicodeCharacter{2208}{\ensuremath\in}%
+  \DeclareUnicodeCharacter{2212}{\minus}%
+  \DeclareUnicodeCharacter{2217}{\ast}%
+  \DeclareUnicodeCharacter{221E}{\ensuremath\infty}%
+  \DeclareUnicodeCharacter{2225}{\ensuremath\parallel}%
+  \DeclareUnicodeCharacter{2227}{\ensuremath\wedge}%
+  \DeclareUnicodeCharacter{2229}{\ensuremath\cap}%
+  \DeclareUnicodeCharacter{2261}{\equiv}%
+  \DeclareUnicodeCharacter{2264}{\ensuremath\leq}%
+  \DeclareUnicodeCharacter{2265}{\ensuremath\geq}%
+  \DeclareUnicodeCharacter{2282}{\ensuremath\subset}%
+  \DeclareUnicodeCharacter{2287}{\ensuremath\supseteq}%
+  %
+  \DeclareUnicodeCharacter{2016}{\ensuremath\Vert}%
+  \DeclareUnicodeCharacter{2032}{\ensuremath\prime}%
+  \DeclareUnicodeCharacter{210F}{\ensuremath\hbar}%
+  \DeclareUnicodeCharacter{2111}{\ensuremath\Im}%
+  \DeclareUnicodeCharacter{2113}{\ensuremath\ell}%
+  \DeclareUnicodeCharacter{2118}{\ensuremath\wp}%
+  \DeclareUnicodeCharacter{211C}{\ensuremath\Re}%
+  \DeclareUnicodeCharacter{2127}{\ensuremath\mho}%
+  \DeclareUnicodeCharacter{2135}{\ensuremath\aleph}%
+  \DeclareUnicodeCharacter{2190}{\ensuremath\leftarrow}%
+  \DeclareUnicodeCharacter{2191}{\ensuremath\uparrow}%
+  \DeclareUnicodeCharacter{2193}{\ensuremath\downarrow}%
+  \DeclareUnicodeCharacter{2194}{\ensuremath\leftrightarrow}%
+  \DeclareUnicodeCharacter{2195}{\ensuremath\updownarrow}%
+  \DeclareUnicodeCharacter{2196}{\ensuremath\nwarrow}%
+  \DeclareUnicodeCharacter{2197}{\ensuremath\nearrow}%
+  \DeclareUnicodeCharacter{2198}{\ensuremath\searrow}%
+  \DeclareUnicodeCharacter{2199}{\ensuremath\swarrow}%
+  \DeclareUnicodeCharacter{21A6}{\ensuremath\mapsto}%
+  \DeclareUnicodeCharacter{21A9}{\ensuremath\hookleftarrow}%
+  \DeclareUnicodeCharacter{21AA}{\ensuremath\hookrightarrow}%
+  \DeclareUnicodeCharacter{21BC}{\ensuremath\leftharpoonup}%
+  \DeclareUnicodeCharacter{21BD}{\ensuremath\leftharpoondown}%
+  \DeclareUnicodeCharacter{21BE}{\ensuremath\upharpoonright}%
+  \DeclareUnicodeCharacter{21C0}{\ensuremath\rightharpoonup}%
+  \DeclareUnicodeCharacter{21C1}{\ensuremath\rightharpoondown}%
+  \DeclareUnicodeCharacter{21CC}{\ensuremath\rightleftharpoons}%
+  \DeclareUnicodeCharacter{21D0}{\ensuremath\Leftarrow}%
+  \DeclareUnicodeCharacter{21D1}{\ensuremath\Uparrow}%
+  \DeclareUnicodeCharacter{21D3}{\ensuremath\Downarrow}%
+  \DeclareUnicodeCharacter{21D4}{\ensuremath\Leftrightarrow}%
+  \DeclareUnicodeCharacter{21D5}{\ensuremath\Updownarrow}%
+  \DeclareUnicodeCharacter{21DD}{\ensuremath\leadsto}%
+  \DeclareUnicodeCharacter{2201}{\ensuremath\complement}%
+  \DeclareUnicodeCharacter{2202}{\ensuremath\partial}%
+  \DeclareUnicodeCharacter{2205}{\ensuremath\emptyset}%
+  \DeclareUnicodeCharacter{2207}{\ensuremath\nabla}%
+  \DeclareUnicodeCharacter{2209}{\ensuremath\notin}%
+  \DeclareUnicodeCharacter{220B}{\ensuremath\owns}%
+  \DeclareUnicodeCharacter{220F}{\ensuremath\prod}%
+  \DeclareUnicodeCharacter{2210}{\ensuremath\coprod}%
+  \DeclareUnicodeCharacter{2211}{\ensuremath\sum}%
+  \DeclareUnicodeCharacter{2213}{\ensuremath\mp}%
+  \DeclareUnicodeCharacter{2218}{\ensuremath\circ}%
+  \DeclareUnicodeCharacter{221A}{\ensuremath\surd}%
+  \DeclareUnicodeCharacter{221D}{\ensuremath\propto}%
+  \DeclareUnicodeCharacter{2220}{\ensuremath\angle}%
+  \DeclareUnicodeCharacter{2223}{\ensuremath\mid}%
+  \DeclareUnicodeCharacter{2228}{\ensuremath\vee}%
+  \DeclareUnicodeCharacter{222A}{\ensuremath\cup}%
+  \DeclareUnicodeCharacter{222B}{\ensuremath\smallint}%
+  \DeclareUnicodeCharacter{222E}{\ensuremath\oint}%
+  \DeclareUnicodeCharacter{223C}{\ensuremath\sim}%
+  \DeclareUnicodeCharacter{2240}{\ensuremath\wr}%
+  \DeclareUnicodeCharacter{2243}{\ensuremath\simeq}%
+  \DeclareUnicodeCharacter{2245}{\ensuremath\cong}%
+  \DeclareUnicodeCharacter{2248}{\ensuremath\approx}%
+  \DeclareUnicodeCharacter{224D}{\ensuremath\asymp}%
+  \DeclareUnicodeCharacter{2250}{\ensuremath\doteq}%
+  \DeclareUnicodeCharacter{2260}{\ensuremath\neq}%
+  \DeclareUnicodeCharacter{226A}{\ensuremath\ll}%
+  \DeclareUnicodeCharacter{226B}{\ensuremath\gg}%
+  \DeclareUnicodeCharacter{227A}{\ensuremath\prec}%
+  \DeclareUnicodeCharacter{227B}{\ensuremath\succ}%
+  \DeclareUnicodeCharacter{2283}{\ensuremath\supset}%
+  \DeclareUnicodeCharacter{2286}{\ensuremath\subseteq}%
+  \DeclareUnicodeCharacter{228E}{\ensuremath\uplus}%
+  \DeclareUnicodeCharacter{228F}{\ensuremath\sqsubset}%
+  \DeclareUnicodeCharacter{2290}{\ensuremath\sqsupset}%
+  \DeclareUnicodeCharacter{2291}{\ensuremath\sqsubseteq}%
+  \DeclareUnicodeCharacter{2292}{\ensuremath\sqsupseteq}%
+  \DeclareUnicodeCharacter{2293}{\ensuremath\sqcap}%
+  \DeclareUnicodeCharacter{2294}{\ensuremath\sqcup}%
+  \DeclareUnicodeCharacter{2295}{\ensuremath\oplus}%
+  \DeclareUnicodeCharacter{2296}{\ensuremath\ominus}%
+  \DeclareUnicodeCharacter{2297}{\ensuremath\otimes}%
+  \DeclareUnicodeCharacter{2298}{\ensuremath\oslash}%
+  \DeclareUnicodeCharacter{2299}{\ensuremath\odot}%
+  \DeclareUnicodeCharacter{22A2}{\ensuremath\vdash}%
+  \DeclareUnicodeCharacter{22A3}{\ensuremath\dashv}%
+  \DeclareUnicodeCharacter{22A4}{\ensuremath\ptextop}%
+  \DeclareUnicodeCharacter{22A5}{\ensuremath\bot}%
+  \DeclareUnicodeCharacter{22A8}{\ensuremath\models}%
+  \DeclareUnicodeCharacter{22B4}{\ensuremath\unlhd}%
+  \DeclareUnicodeCharacter{22B5}{\ensuremath\unrhd}%
+  \DeclareUnicodeCharacter{22C0}{\ensuremath\bigwedge}%
+  \DeclareUnicodeCharacter{22C1}{\ensuremath\bigvee}%
+  \DeclareUnicodeCharacter{22C2}{\ensuremath\bigcap}%
+  \DeclareUnicodeCharacter{22C3}{\ensuremath\bigcup}%
+  \DeclareUnicodeCharacter{22C4}{\ensuremath\diamond}%
+  \DeclareUnicodeCharacter{22C5}{\ensuremath\cdot}%
+  \DeclareUnicodeCharacter{22C6}{\ensuremath\star}%
+  \DeclareUnicodeCharacter{22C8}{\ensuremath\bowtie}%
+  \DeclareUnicodeCharacter{2308}{\ensuremath\lceil}%
+  \DeclareUnicodeCharacter{2309}{\ensuremath\rceil}%
+  \DeclareUnicodeCharacter{230A}{\ensuremath\lfloor}%
+  \DeclareUnicodeCharacter{230B}{\ensuremath\rfloor}%
+  \DeclareUnicodeCharacter{2322}{\ensuremath\frown}%
+  \DeclareUnicodeCharacter{2323}{\ensuremath\smile}%
+  %
+  \DeclareUnicodeCharacter{25A1}{\ensuremath\Box}%
+  \DeclareUnicodeCharacter{25B3}{\ensuremath\triangle}%
+  \DeclareUnicodeCharacter{25B7}{\ensuremath\triangleright}%
+  \DeclareUnicodeCharacter{25BD}{\ensuremath\bigtriangledown}%
+  \DeclareUnicodeCharacter{25C1}{\ensuremath\triangleleft}%
+  \DeclareUnicodeCharacter{25C7}{\ensuremath\Diamond}%
+  \DeclareUnicodeCharacter{2660}{\ensuremath\spadesuit}%
+  \DeclareUnicodeCharacter{2661}{\ensuremath\heartsuit}%
+  \DeclareUnicodeCharacter{2662}{\ensuremath\diamondsuit}%
+  \DeclareUnicodeCharacter{2663}{\ensuremath\clubsuit}%
+  \DeclareUnicodeCharacter{266D}{\ensuremath\flat}%
+  \DeclareUnicodeCharacter{266E}{\ensuremath\natural}%
+  \DeclareUnicodeCharacter{266F}{\ensuremath\sharp}%
+  \DeclareUnicodeCharacter{26AA}{\ensuremath\bigcirc}%
+  \DeclareUnicodeCharacter{27B9}{\ensuremath\rangle}%
+  \DeclareUnicodeCharacter{27C2}{\ensuremath\perp}%
+  \DeclareUnicodeCharacter{27E8}{\ensuremath\langle}%
+  \DeclareUnicodeCharacter{27F5}{\ensuremath\longleftarrow}%
+  \DeclareUnicodeCharacter{27F6}{\ensuremath\longrightarrow}%
+  \DeclareUnicodeCharacter{27F7}{\ensuremath\longleftrightarrow}%
+  \DeclareUnicodeCharacter{27FC}{\ensuremath\longmapsto}%
+  \DeclareUnicodeCharacter{29F5}{\ensuremath\setminus}%
+  \DeclareUnicodeCharacter{2A00}{\ensuremath\bigodot}%
+  \DeclareUnicodeCharacter{2A01}{\ensuremath\bigoplus}%
+  \DeclareUnicodeCharacter{2A02}{\ensuremath\bigotimes}%
+  \DeclareUnicodeCharacter{2A04}{\ensuremath\biguplus}%
+  \DeclareUnicodeCharacter{2A06}{\ensuremath\bigsqcup}%
+  \DeclareUnicodeCharacter{2A1D}{\ensuremath\Join}%
+  \DeclareUnicodeCharacter{2A3F}{\ensuremath\amalg}%
+  \DeclareUnicodeCharacter{2AAF}{\ensuremath\preceq}%
+  \DeclareUnicodeCharacter{2AB0}{\ensuremath\succeq}%
+  %
+  \global\mathchardef\checkmark="1370% actually the square root sign
+  \DeclareUnicodeCharacter{2713}{\ensuremath\checkmark}%
+}% end of \unicodechardefs
 
-  \DeclareUnicodeCharacter{2016}{\ensuremath\Vert}
-  \DeclareUnicodeCharacter{2032}{\ensuremath\prime}
-  \DeclareUnicodeCharacter{210F}{\ensuremath\hbar}
-  \DeclareUnicodeCharacter{2111}{\ensuremath\Im}
-  \DeclareUnicodeCharacter{2113}{\ensuremath\ell}
-  \DeclareUnicodeCharacter{2118}{\ensuremath\wp}
-  \DeclareUnicodeCharacter{211C}{\ensuremath\Re}
-  \DeclareUnicodeCharacter{2127}{\ensuremath\mho}
-  \DeclareUnicodeCharacter{2135}{\ensuremath\aleph}
-  \DeclareUnicodeCharacter{2190}{\ensuremath\leftarrow}
-  \DeclareUnicodeCharacter{2191}{\ensuremath\uparrow}
-  \DeclareUnicodeCharacter{2193}{\ensuremath\downarrow}
-  \DeclareUnicodeCharacter{2194}{\ensuremath\leftrightarrow}
-  \DeclareUnicodeCharacter{2195}{\ensuremath\updownarrow}
-  \DeclareUnicodeCharacter{2196}{\ensuremath\nwarrow}
-  \DeclareUnicodeCharacter{2197}{\ensuremath\nearrow}
-  \DeclareUnicodeCharacter{2198}{\ensuremath\searrow}
-  \DeclareUnicodeCharacter{2199}{\ensuremath\swarrow}
-  \DeclareUnicodeCharacter{21A6}{\ensuremath\mapsto}
-  \DeclareUnicodeCharacter{21A9}{\ensuremath\hookleftarrow}
-  \DeclareUnicodeCharacter{21AA}{\ensuremath\hookrightarrow}
-  \DeclareUnicodeCharacter{21BC}{\ensuremath\leftharpoonup}
-  \DeclareUnicodeCharacter{21BD}{\ensuremath\leftharpoondown}
-  \DeclareUnicodeCharacter{21BE}{\ensuremath\upharpoonright}
-  \DeclareUnicodeCharacter{21C0}{\ensuremath\rightharpoonup}
-  \DeclareUnicodeCharacter{21C1}{\ensuremath\rightharpoondown}
-  \DeclareUnicodeCharacter{21CC}{\ensuremath\rightleftharpoons}
-  \DeclareUnicodeCharacter{21D0}{\ensuremath\Leftarrow}
-  \DeclareUnicodeCharacter{21D1}{\ensuremath\Uparrow}
-  \DeclareUnicodeCharacter{21D3}{\ensuremath\Downarrow}
-  \DeclareUnicodeCharacter{21D4}{\ensuremath\Leftrightarrow}
-  \DeclareUnicodeCharacter{21D5}{\ensuremath\Updownarrow}
-  \DeclareUnicodeCharacter{21DD}{\ensuremath\leadsto}
-  \DeclareUnicodeCharacter{2201}{\ensuremath\complement}
-  \DeclareUnicodeCharacter{2202}{\ensuremath\partial}
-  \DeclareUnicodeCharacter{2205}{\ensuremath\emptyset}
-  \DeclareUnicodeCharacter{2207}{\ensuremath\nabla}
-  \DeclareUnicodeCharacter{2209}{\ensuremath\notin}
-  \DeclareUnicodeCharacter{220B}{\ensuremath\owns}
-  \DeclareUnicodeCharacter{220F}{\ensuremath\prod}
-  \DeclareUnicodeCharacter{2210}{\ensuremath\coprod}
-  \DeclareUnicodeCharacter{2211}{\ensuremath\sum}
-  \DeclareUnicodeCharacter{2213}{\ensuremath\mp}
-  \DeclareUnicodeCharacter{2218}{\ensuremath\circ}
-  \DeclareUnicodeCharacter{221A}{\ensuremath\surd}
-  \DeclareUnicodeCharacter{221D}{\ensuremath\propto}
-  \DeclareUnicodeCharacter{2220}{\ensuremath\angle}
-  \DeclareUnicodeCharacter{2223}{\ensuremath\mid}
-  \DeclareUnicodeCharacter{2228}{\ensuremath\vee}
-  \DeclareUnicodeCharacter{222A}{\ensuremath\cup}
-  \DeclareUnicodeCharacter{222B}{\ensuremath\smallint}
-  \DeclareUnicodeCharacter{222E}{\ensuremath\oint}
-  \DeclareUnicodeCharacter{223C}{\ensuremath\sim}
-  \DeclareUnicodeCharacter{2240}{\ensuremath\wr}
-  \DeclareUnicodeCharacter{2243}{\ensuremath\simeq}
-  \DeclareUnicodeCharacter{2245}{\ensuremath\cong}
-  \DeclareUnicodeCharacter{2248}{\ensuremath\approx}
-  \DeclareUnicodeCharacter{224D}{\ensuremath\asymp}
-  \DeclareUnicodeCharacter{2250}{\ensuremath\doteq}
-  \DeclareUnicodeCharacter{2260}{\ensuremath\neq}
-  \DeclareUnicodeCharacter{226A}{\ensuremath\ll}
-  \DeclareUnicodeCharacter{226B}{\ensuremath\gg}
-  \DeclareUnicodeCharacter{227A}{\ensuremath\prec}
-  \DeclareUnicodeCharacter{227B}{\ensuremath\succ}
-  \DeclareUnicodeCharacter{2283}{\ensuremath\supset}
-  \DeclareUnicodeCharacter{2286}{\ensuremath\subseteq}
-  \DeclareUnicodeCharacter{228E}{\ensuremath\uplus}
-  \DeclareUnicodeCharacter{228F}{\ensuremath\sqsubset}
-  \DeclareUnicodeCharacter{2290}{\ensuremath\sqsupset}
-  \DeclareUnicodeCharacter{2291}{\ensuremath\sqsubseteq}
-  \DeclareUnicodeCharacter{2292}{\ensuremath\sqsupseteq}
-  \DeclareUnicodeCharacter{2293}{\ensuremath\sqcap}
-  \DeclareUnicodeCharacter{2294}{\ensuremath\sqcup}
-  \DeclareUnicodeCharacter{2295}{\ensuremath\oplus}
-  \DeclareUnicodeCharacter{2296}{\ensuremath\ominus}
-  \DeclareUnicodeCharacter{2297}{\ensuremath\otimes}
-  \DeclareUnicodeCharacter{2298}{\ensuremath\oslash}
-  \DeclareUnicodeCharacter{2299}{\ensuremath\odot}
-  \DeclareUnicodeCharacter{22A2}{\ensuremath\vdash}
-  \DeclareUnicodeCharacter{22A3}{\ensuremath\dashv}
-  \DeclareUnicodeCharacter{22A4}{\ensuremath\ptextop}
-  \DeclareUnicodeCharacter{22A5}{\ensuremath\bot}
-  \DeclareUnicodeCharacter{22A8}{\ensuremath\models}
-  \DeclareUnicodeCharacter{22B4}{\ensuremath\unlhd}
-  \DeclareUnicodeCharacter{22B5}{\ensuremath\unrhd}
-  \DeclareUnicodeCharacter{22C0}{\ensuremath\bigwedge}
-  \DeclareUnicodeCharacter{22C1}{\ensuremath\bigvee}
-  \DeclareUnicodeCharacter{22C2}{\ensuremath\bigcap}
-  \DeclareUnicodeCharacter{22C3}{\ensuremath\bigcup}
-  \DeclareUnicodeCharacter{22C4}{\ensuremath\diamond}
-  \DeclareUnicodeCharacter{22C5}{\ensuremath\cdot}
-  \DeclareUnicodeCharacter{22C6}{\ensuremath\star}
-  \DeclareUnicodeCharacter{22C8}{\ensuremath\bowtie}
-  \DeclareUnicodeCharacter{2308}{\ensuremath\lceil}
-  \DeclareUnicodeCharacter{2309}{\ensuremath\rceil}
-  \DeclareUnicodeCharacter{230A}{\ensuremath\lfloor}
-  \DeclareUnicodeCharacter{230B}{\ensuremath\rfloor}
-  \DeclareUnicodeCharacter{2322}{\ensuremath\frown}
-  \DeclareUnicodeCharacter{2323}{\ensuremath\smile}
+% UTF-8 byte sequence (pdfTeX) definitions (replacing and @U command)
+% It makes the setting that replace UTF-8 byte sequence.
+\def\utfeightchardefs{%
+  \let\DeclareUnicodeCharacter\DeclareUnicodeCharacterUTFviii
+  \unicodechardefs
+}
 
-  \DeclareUnicodeCharacter{25A1}{\ensuremath\Box}
-  \DeclareUnicodeCharacter{25B3}{\ensuremath\triangle}
-  \DeclareUnicodeCharacter{25B7}{\ensuremath\triangleright}
-  \DeclareUnicodeCharacter{25BD}{\ensuremath\bigtriangledown}
-  \DeclareUnicodeCharacter{25C1}{\ensuremath\triangleleft}
-  \DeclareUnicodeCharacter{25C7}{\ensuremath\Diamond}
-  \DeclareUnicodeCharacter{2660}{\ensuremath\spadesuit}
-  \DeclareUnicodeCharacter{2661}{\ensuremath\heartsuit}
-  \DeclareUnicodeCharacter{2662}{\ensuremath\diamondsuit}
-  \DeclareUnicodeCharacter{2663}{\ensuremath\clubsuit}
-  \DeclareUnicodeCharacter{266D}{\ensuremath\flat}
-  \DeclareUnicodeCharacter{266E}{\ensuremath\natural}
-  \DeclareUnicodeCharacter{266F}{\ensuremath\sharp}
-  \DeclareUnicodeCharacter{26AA}{\ensuremath\bigcirc}
-  \DeclareUnicodeCharacter{27B9}{\ensuremath\rangle}
-  \DeclareUnicodeCharacter{27C2}{\ensuremath\perp}
-  \DeclareUnicodeCharacter{27E8}{\ensuremath\langle}
-  \DeclareUnicodeCharacter{27F5}{\ensuremath\longleftarrow}
-  \DeclareUnicodeCharacter{27F6}{\ensuremath\longrightarrow}
-  \DeclareUnicodeCharacter{27F7}{\ensuremath\longleftrightarrow}
-  \DeclareUnicodeCharacter{27FC}{\ensuremath\longmapsto}
-  \DeclareUnicodeCharacter{29F5}{\ensuremath\setminus}
-  \DeclareUnicodeCharacter{2A00}{\ensuremath\bigodot}
-  \DeclareUnicodeCharacter{2A01}{\ensuremath\bigoplus}
-  \DeclareUnicodeCharacter{2A02}{\ensuremath\bigotimes}
-  \DeclareUnicodeCharacter{2A04}{\ensuremath\biguplus}
-  \DeclareUnicodeCharacter{2A06}{\ensuremath\bigsqcup}
-  \DeclareUnicodeCharacter{2A1D}{\ensuremath\Join}
-  \DeclareUnicodeCharacter{2A3F}{\ensuremath\amalg}
-  \DeclareUnicodeCharacter{2AAF}{\ensuremath\preceq}
-  \DeclareUnicodeCharacter{2AB0}{\ensuremath\succeq}
+\newif\ifpassthroughchars
+\passthroughcharsfalse
 
-  \global\mathchardef\checkmark="1370 % actually the square root sign
-  \DeclareUnicodeCharacter{2713}{\ensuremath\checkmark}
-}% end of \utfeightchardefs
+% For native Unicode (XeTeX and LuaTeX)
+% Definition macro to replace / pass-through the Unicode character
+%
+\def\DeclareUnicodeCharacterNative#1#2{%
+  \catcode"#1=\active
+  \def\dodeclareunicodecharacternative##1##2##3{%
+    \begingroup
+      \uccode`\~="##2\relax
+      \uppercase{\gdef~}{%
+        \ifpassthroughchars
+          ##1%
+        \else
+          ##3%
+        \fi
+      }
+    \endgroup
+  }
+  \begingroup
+    \uccode`\.="#1\relax
+    \uppercase{\def\UTFNativeTmp{.}}%
+    \expandafter\dodeclareunicodecharacternative\UTFNativeTmp{#1}{#2}%
+  \endgroup
+}
+
+% Native Unicode (XeTeX and LuaTeX) character replacing definitions
+% It makes the setting that replace the Unicode characters.
+\def\nativeunicodechardefs{%
+  \let\DeclareUnicodeCharacter\DeclareUnicodeCharacterNative
+  \unicodechardefs
+}
+
+% For native Unicode (XeTeX and LuaTeX).  Make the character token expand
+% to the sequences given in \unicodechardefs for printing.
+\def\DeclareUnicodeCharacterNativeAtU#1#2{%
+  \def\UTFAtUTmp{#2}
+  \expandafter\globallet\csname uni:#1\endcsname \UTFAtUTmp
+}
+
+% Native Unicode (XeTeX and LuaTeX) @U command definitions
+\def\nativeunicodechardefsatu{%
+  \let\DeclareUnicodeCharacter\DeclareUnicodeCharacterNativeAtU
+  \unicodechardefs
+}
+
+% Native Unicode (XeTeX and LuaTeX) catcode other non global definitions
+\def\nativeunicodecharscatcodeothernonglobal{%
+  \let\DeclareUnicodeCharacter\DeclareUnicodeCharacterNativeOther
+  \unicodechardefs
+}
+
+% Catcode (non-ASCII or native Unicode) are set to \other (non-global
+% assignments).
+\def\setcharscatcodeothernonglobal{%
+  \iftxiusebytewiseio
+    \setnonasciicharscatcodenonglobal\other
+  \else
+    \nativeunicodecharscatcodeothernonglobal
+  \fi
+}
 
 % US-ASCII character definitions.
 \def\asciichardefs{% nothing need be done
    \relax
 }
 
-% Latin1 (ISO-8859-1) character definitions.
+% Redefine the active definitions of non-ASCII characters to expand to
+% non-active tokens with the same character code.
 \def\nonasciistringdefs{%
   \setnonasciicharscatcode\active
   \def\defstringchar##1{\def##1{\string##1}}%
@@ -10554,9 +11005,23 @@ directory should work if nowhere else does.}
   \defstringchar^^fc\defstringchar^^fd\defstringchar^^fe\defstringchar^^ff%
 }
 
+% Write characters literally, instead of using active definitions for
+% printing the correct glyphs.
+\def\passthroughcharacters{%
+  \iftxiusebytewiseio
+    \nonasciistringdefs
+  \else
+    \passthroughcharstrue
+  \fi
+}
+
 
 % define all the unicode characters we know about, for the sake of @U.
-\utfeightchardefs
+\iftxinativeunicodecapable
+  \nativeunicodechardefsatu
+\else
+  \utfeightchardefs
+\fi
 
 
 % Make non-ASCII characters printable again for compatibility with
@@ -10614,12 +11079,12 @@ directory should work if nowhere else does.}
   \advance\vsize by \topskip
   \outervsize = \vsize
   \advance\outervsize by 2\topandbottommargin
-  \pageheight = \vsize
+  \txipageheight = \vsize
   %
   \hsize = #2\relax
   \outerhsize = \hsize
   \advance\outerhsize by 0.5in
-  \pagewidth = \hsize
+  \txipagewidth = \hsize
   %
   \normaloffset = #4\relax
   \bindingoffset = #5\relax
@@ -10818,11 +11283,12 @@ directory should work if nowhere else does.}
 % this is not a problem.
 \def\ifusingit#1#2{\ifdim \fontdimen1\font>0pt #1\else #2\fi}
 
-% Turn off all special characters except @
-% (and those which the user can use as if they were ordinary).
+% Set catcodes for Texinfo file
+
+% Active characters for printing the wanted glyph.
 % Most of these we simply print from the \tt font, but for some, we can
 % use math or other variants that look better in normal text.
-
+%
 \catcode`\"=\active
 \def\activedoublequote{{\tt\char34}}
 \let"=\activedoublequote
@@ -10832,12 +11298,10 @@ directory should work if nowhere else does.}
 
 \catcode`\_=\active
 \def_{\ifusingtt\normalunderscore\_}
-\let\realunder=_
-% Subroutine for the previous macro.
 \def\_{\leavevmode \kern.07em \vbox{\hrule width.3em height.1ex}\kern .07em }
+\let\realunder=_
 
-\catcode`\|=\active
-\def|{{\tt\char124}}
+\catcode`\|=\active \def|{{\tt\char124}}
 
 \chardef \less=`\<
 \catcode`\<=\active \def\activeless{{\tt \less}}\let< = \activeless
@@ -10906,7 +11370,7 @@ directory should work if nowhere else does.}
 %
 {@catcode`- = @active
  @gdef@normalturnoffactive{%
-   @nonasciistringdefs
+   @passthroughcharacters
    @let-=@normaldash
    @let"=@normaldoublequote
    @let$=@normaldollar %$ font-lock fix
@@ -10944,17 +11408,29 @@ directory should work if nowhere else does.}
   @global@let\ = @eatinput%
   @catcode`@^^M=13%
   @def@c{@fixbackslash@c}%
+  % Definition for the newline at the end of this file.
   @def ^^M{@let^^M@secondlinenl}%
-  @gdef @secondlinenl{@let^^M@thirdlinenl}%
-  @gdef @thirdlinenl{@fixbackslash}%
+  % Definition for a newline in the main Texinfo file.
+  @gdef @secondlinenl{@fixbackslash}%
 }}
 
 {@catcode`@^=7 @catcode`@^^M=13%
 @gdef@eatinput input texinfo#1^^M{@fixbackslash}}
 
+% Emergency active definition of newline, in case an active newline token
+% appears by mistake.
+{@catcode`@^=7 @catcode13=13%
+@gdef@enableemergencynewline{%
+  @gdef^^M{%
+    @par%
+    %<warning: active newline>@par%
+}}}
+
+
 @gdef@fixbackslash{%
   @ifx\@eatinput @let\ = @ttbackslash @fi
   @catcode13=5 % regular end of line
+  @enableemergencynewline
   @let@c=@texinfoc
   % Also turn back on active characters that might appear in the input
   % file name, in case not using a pre-dumped format.

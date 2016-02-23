@@ -1,10 +1,22 @@
-2015-12-04 Luigi Scarso  <luigi.scarso@gmail.com>
+2016-02-15  Karl Berry  <karl@tug.org>
+
+	* libpng-PATCHES: rename from libpng-src-PATCHES.
+	* Makefile.am (EXTRA_DIST): likewise.
+
+2016-01-20  Karl Berry  <karl@tug.org>
+
+	* Makefile.am (AM_CPPFLAGS): add LIBPNG_USER_CPPFLAGS for Mojca.
+	http://tug.org/pipermail/tlbuild/2016q1/003327.html
+
+2016-01-15 Akira Kakuto  <kakuto@fuk.kindai.ac.jp>
+
+	Import libpng-1.6.21.
+	* version.ac: Adjust.
+
+2015-12-28 Akira Kakuto  <kakuto@fuk.kindai.ac.jp>
 
 	Import libpng-1.6.20.
-
-2015-11-27 Luigi Scarso  <luigi.scarso@gmail.com>
-
-	Import libpng-1.6.19.
+	* version.ac: Adjust.
 
 2015-08-01 Peter Breitenlohner  <peb@mppmu.mpg.de>
 
