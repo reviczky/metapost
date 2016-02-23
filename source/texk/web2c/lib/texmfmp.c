@@ -536,6 +536,7 @@ runsystem (const char *cmd)
   int allow = 0;
   char *safecmd = NULL;
   char *cmdname = NULL;
+  int status = 0;
 
   if (shellenabledp <= 0) {
     return 0;
@@ -548,9 +549,13 @@ runsystem (const char *cmd)
     allow = shell_cmd_is_allowed (cmd, &safecmd, &cmdname);
 
   if (allow == 1)
-    (void) system (cmd);
+    status = system (cmd);
   else if (allow == 2)
-    (void) system (safecmd);
+    status =  system (safecmd);
+
+  /* Not really meaningful, but we have to manage the return value of system. */
+  if (status != 0)
+    fprintf(stderr,"system returned with code %d\n", status); 
 
   if (safecmd)
     free (safecmd);
@@ -2283,12 +2288,13 @@ input_line (FILE *f)
     long position = ftell (f);
 
     if (position == 0L) {  /* Detect and skip Byte order marks.  */
-      int k1 = getc (f);
+      int k1, k2, k3, k4;
+      k1 = getc (f);
 
       if (k1 != 0xff && k1 != 0xfe && k1 != 0xef)
         rewind (f);
       else {
-        int k2 = getc (f);
+        k2 = getc (f);
 
         if (k2 != 0xff && k2 != 0xfe && k2 != 0xbb)
           rewind (f);
@@ -2296,10 +2302,11 @@ input_line (FILE *f)
                  (k1 == 0xfe && k2 == 0xff))   /* UTF-16(BE) */
           ;
         else {
-          int k3 = getc (f);
-
-          if (k1 == 0xef && k2 == 0xbb && k3 == 0xbf) /* UTF-8 */
-            ;
+          k3 = getc (f);
+          k4 = getc (f);
+          if (k1 == 0xef && k2 == 0xbb && k3 == 0xbf &&
+              k4 >= 0 && k4 <= 0x7e) /* UTF-8 */
+            ungetc (k4, f);
           else
             rewind (f);
         }

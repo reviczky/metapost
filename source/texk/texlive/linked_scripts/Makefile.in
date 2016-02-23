@@ -147,7 +147,7 @@ am__can_run_installinfo = \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
-am__DIST_COMMON = $(srcdir)/Makefile.in ChangeLog
+am__DIST_COMMON = $(srcdir)/Makefile.in ChangeLog README
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
@@ -367,6 +367,7 @@ texmf_other_scripts = \
 	pdfcrop/pdfcrop.pl \
 	pedigree-perl/pedigree.pl \
 	perltex/perltex.pl \
+	petri-nets/pn2pdf \
 	pfarrei/a5toa4.tlu \
 	pfarrei/pfarrei.tlu \
 	pkfix-helper/pkfix-helper \
