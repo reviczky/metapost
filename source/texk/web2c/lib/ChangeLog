@@ -1,3 +1,17 @@
+2016-04-14  Akira Kakuto  <kakuto@fuk.kinidai.ac.jp>
+
+	* texmfmp.c: Fix a bug to show input file name in the case of pipe input.
+	Reported by Enrico Gregorio:
+	http://tug.org/pipermail/tex-live/2016-April/038030.html
+
+2016-03-22  Karl Berry  <karl@freefriends.org>
+
+	* texmfmp.c: no uexit after FATAL.
+
+2016-03-21  Karl Berry  <karl@freefriends.org>
+
+	* texmfmp.c (initstarttime): wording of invalid SOURCE_DATE_EPOCH.
+
 2016-01-26  Akira Kakuto  <kakuto@fuk.kinidai.ac.jp>
 
 	* texmfmp.c: Improve to skip BOM (win32 only).

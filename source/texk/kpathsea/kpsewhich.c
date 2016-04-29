@@ -1,7 +1,7 @@
 /* kpsewhich -- standalone path lookup and variable expansion for Kpathsea.
    Ideas from Thomas Esser, Pierre MacKay, and many others.
 
-   Copyright 1995-2015 Karl Berry & Olaf Weber.
+   Copyright 1995-2016 Karl Berry & Olaf Weber.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -631,7 +631,7 @@ read_command_line (kpathsea kpse, int argc, string *argv)
 
     } else if (ARGUMENT_IS ("version")) {
       puts (kpathsea_version_string);
-      puts ("Copyright 2015 Karl Berry & Olaf Weber.\n\
+      puts ("Copyright 2016 Karl Berry & Olaf Weber.\n\
 License LGPLv2.1+: GNU Lesser GPL version 2.1 or later <http://gnu.org/licenses/lgpl.html>\n\
 This is free software: you are free to change and redistribute it.\n\
 There is NO WARRANTY, to the extent permitted by law.\n");
@@ -714,9 +714,12 @@ main (int argc,  string *argv)
      || strstr(kpse->program_name,"uptex") || strstr(kpse->program_name,"uplatex")
      || strstr(kpse->program_name,"dvipdfm") || strstr(kpse->program_name,"extractbb")
      || strstr(kpse->program_name,"xbb") || strstr(kpse->program_name,"ebb")
-     || strstr(kpse->program_name,"dvips"))
+     || strstr(kpse->program_name,"dvips") || strstr(kpse->program_name,"upmendex"))
   {
-    enc = kpathsea_var_value (kpse, "command_line_encoding");
+    if (strstr(kpse->program_name,"upmendex"))
+      enc = "utf-8";
+    else
+      enc = kpathsea_var_value (kpse, "command_line_encoding");
     if (get_command_line_args_utf8(enc, &ac, &av)) {
       optind = 0;
       read_command_line (kpse, ac, av);

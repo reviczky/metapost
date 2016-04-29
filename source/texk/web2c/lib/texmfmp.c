@@ -2030,6 +2030,9 @@ open_in_or_pipe (FILE **f_ptr, int filefmt, const_string fopen_mode)
       *f_ptr = NULL;
       fname = xmalloc(strlen((const_string)(nameoffile+1))+1);
       strcpy(fname,(const_string)(nameoffile+1));
+      if (fullnameoffile)
+        free(fullnameoffile);
+      fullnameoffile = xstrdup(fname);
       recorder_record_input (fname + 1);
       *f_ptr = runpopen(fname+1,"r");
       free(fname);
@@ -2072,6 +2075,9 @@ u_open_in_or_pipe(unicodefile* f, integer filefmt, const_string fopen_mode, inte
       (*f)->f = NULL;
       fname = xmalloc(strlen((const_string)(nameoffile+1))+1);
       strcpy(fname,(const_string)(nameoffile+1));
+      if (fullnameoffile)
+        free(fullnameoffile);
+      fullnameoffile = xstrdup(fname);
       recorder_record_input (fname + 1);
       (*f)->f = runpopen(fname+1,"r");
       free(fname);
@@ -3000,8 +3006,8 @@ void initstarttime(void)
             errno = 0;
             epoch = strtoll(source_date_epoch, &endptr, 10);
             if (epoch < 0 || *endptr != '\0' || errno != 0) {
-                fprintf(stderr, "Environment variable $SOURCE_DATE_EPOCH: invalid value: %s\n", source_date_epoch);
-                uexit(EXIT_FAILURE);
+       FATAL1 ("invalid value for environment variable $SOURCE_DATE_EPOCH: %s",
+                source_date_epoch);
             }
             start_time = epoch;
             makepdftime(start_time, start_time_str, /* utc= */true);

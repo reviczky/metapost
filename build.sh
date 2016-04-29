@@ -141,6 +141,7 @@ then
     || exit 1 
 fi
 
+##    --without-system-zlib no, poopler conflicts
 $MAKE
 (cd libs/zlib; $MAKE )
 (cd libs/libpng; $MAKE )
