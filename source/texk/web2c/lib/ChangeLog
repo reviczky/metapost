@@ -1,3 +1,41 @@
+2016-11-14  Hironori Kitagawa  <h_kitagawa2001@yahoo.co.jp>
+
+	* texmfmp.c: Change a condition to support new primitives in e(u)ptex.
+
+2016-06-12  Karl Berry  <karl@freefriends.org>
+
+	* texmfmp.c (get_date_and_time):
+	rename envvar SOURCE_DATE_EPOCH_TEX_PRIMITIVES to FORCE_SOURCE_DATE.
+	http://tug.org/pipermail/tex-k/2016-June/002722.html
+	(and surrounding thread, starting in May)
+
+2016-05-20  Karl Berry  <karl@tug.org>
+
+	* TeX Live 2016 release.
+
+2016-05-06  Akira Kakuto  <kakuto@fuk.kinidai.ac.jp>
+
+	* texmfmp.c: Avoid crash for too large a value of SOURCE_DATE_EPOCH.
+	(w32 only).
+
+2016-05-06  Karl Berry  <karl@tug.org>
+
+	* texmfmp.c (init_start_time, get_date_and_time) [onlyTeX]:
+	ignore SOURCE_DATE_EPOCH... envvars for original TeX.
+
+2016-05-05  Akira Kakuto  <kakuto@fuk.kinidai.ac.jp>
+
+	* texmfmp.c (strtoull) [_MSC_VER]: #define as _strtoui64.
+
+2016-05-04  Karl Berry  <karl@freefriends.org>
+
+	* texmfmp.c (init_start_time): new fn, factored out from
+	initstarttime.
+	(get_date_and_time): if envvar SOURCE_DATE_EPOCH_TEX_PRIMITIVES
+	is set, initialize minutes, day, month, year, from
+	SOURCE_DATE_EPOCH value.  Requested by Debian, thread starting at
+	http://tug.org/pipermail/tex-k/2016-May/002691.html.
+
 2016-04-14  Akira Kakuto  <kakuto@fuk.kinidai.ac.jp>
 
 	* texmfmp.c: Fix a bug to show input file name in the case of pipe input.

@@ -125,11 +125,15 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/kpse-cairo-flags.m4 \
 	$(top_srcdir)/texk/web2c/ac/web2c.ac \
 	$(top_srcdir)/texk/texlive/ac/withenable.ac \
 	$(top_srcdir)/texk/texlive/ac/texlive.ac \
+	$(top_srcdir)/libs/zziplib/ac/withenable.ac \
+	$(top_srcdir)/libs/poppler/ac/withenable.ac \
 	$(top_srcdir)/libs/mpfr/ac/withenable.ac \
 	$(top_srcdir)/libs/gmp/ac/withenable.ac \
 	$(top_srcdir)/libs/cairo/ac/withenable.ac \
 	$(top_srcdir)/libs/pixman/ac/withenable.ac \
 	$(top_srcdir)/libs/libpng/ac/withenable.ac \
+	$(top_srcdir)/libs/luajit/ac/withenable.ac \
+	$(top_srcdir)/libs/lua52/ac/withenable.ac \
 	$(top_srcdir)/libs/zlib/ac/withenable.ac \
 	$(top_srcdir)/texk/kpathsea/ac/withenable.ac \
 	$(top_srcdir)/texk/kpathsea/ac/mktex.ac \
@@ -139,7 +143,10 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/kpse-cairo-flags.m4 \
 	$(top_srcdir)/libs/pixman/ac/pixman.ac \
 	$(top_srcdir)/libs/cairo/ac/cairo.ac \
 	$(top_srcdir)/libs/gmp/ac/gmp.ac \
-	$(top_srcdir)/libs/mpfr/ac/mpfr.ac $(top_srcdir)/configure.ac
+	$(top_srcdir)/libs/mpfr/ac/mpfr.ac \
+	$(top_srcdir)/libs/poppler/ac/poppler.ac \
+	$(top_srcdir)/libs/zziplib/ac/zziplib.ac \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am $(top_srcdir)/configure \
@@ -843,7 +850,8 @@ install-dvi: install-dvi-recursive
 install-dvi-am:
 
 install-exec-am:
-
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
 install-html: install-html-recursive
 
 install-html-am:
@@ -884,7 +892,8 @@ ps-am:
 
 uninstall-am:
 
-.MAKE: $(am__recursive_targets) install-am install-strip
+.MAKE: $(am__recursive_targets) install-am install-exec-am \
+	install-strip
 
 .PHONY: $(am__recursive_targets) CTAGS GTAGS TAGS all all-am all-local \
 	am--refresh check check-am clean clean-cscope clean-generic \
@@ -895,13 +904,13 @@ uninstall-am:
 	distcleancheck distdir distuninstallcheck dvi dvi-am html \
 	html-am info info-am install install-am install-data \
 	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-pdf install-pdf-am \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs installdirs-am maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-generic \
-	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-am uninstall \
-	uninstall-am
+	install-exec-am install-exec-hook install-html install-html-am \
+	install-info install-info-am install-man install-pdf \
+	install-pdf-am install-ps install-ps-am install-strip \
+	installcheck installcheck-am installdirs installdirs-am \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
+	tags tags-am uninstall uninstall-am
 
 .PRECIOUS: Makefile
 
@@ -953,6 +962,12 @@ world: all
 	@echo "top-level make $@: running $(check_target)..."
 	$(MAKE) $(AM_MAKEFLAGS) $(check_target)
 	@echo "top-level make $@ done."
+
+install-exec-hook:
+	@echo "WARNING: make install does not result in a usable TeX!"
+	@echo "  ! The binaries require the myriad support files."
+	@echo "  ! See http://tug.org/texlive/distro.html"
+	@echo "  ! and http://tug.org/texlive/build.html#deploy, for example."
 skip:
 .PHONY: skip
 
