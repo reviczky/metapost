@@ -6,7 +6,7 @@
 ##
 ## TeX Live's extra scripts.
 
-## Build lists of texmf and texmf-dist scripts.
+## Build lists of scripts.
 ##
 scripts-list: Makefile
 	@echo "Create $@"
@@ -79,6 +79,7 @@ texmf_shell_scripts = \
 	pdfxup/pdfxup \
 	pst-pdf/ps4pdf \
 	simpdftex/simpdftex \
+	texosquery/texosquery \
 	typeoutfileinfo/typeoutfileinfo.sh
 texmf_other_scripts = \
 	a2ping/a2ping.pl \
@@ -124,7 +125,9 @@ texmf_other_scripts = \
 	kotex-utils/komkindex.pl \
 	kotex-utils/ttf2kotexfont.pl \
 	latex-git-log/latex-git-log \
+	latex-papersize/latex-papersize.py \
 	latex2man/latex2man \
+	latex2nemeth/latex2nemeth \
 	latexdiff/latexdiff-vc.pl \
 	latexdiff/latexdiff.pl \
 	latexdiff/latexrevise.pl \
@@ -136,6 +139,7 @@ texmf_other_scripts = \
 	lilyglyphs/lily-rebuild-pdfs.py \
 	ltximg/ltximg.pl \
 	luaotfload/luaotfload-tool.lua \
+	m-tx/m-tx.lua \
 	makedtx/makedtx.pl \
 	make4ht/make4ht \
 	match_parens/match_parens \
@@ -150,6 +154,7 @@ texmf_other_scripts = \
 	oberdiek/pdfatfi.pl \
 	pax/pdfannotextractor.pl \
 	pdfcrop/pdfcrop.pl \
+	pdflatexpicscale/pdflatexpicscale.pl \
 	pedigree-perl/pedigree.pl \
 	perltex/perltex.pl \
 	petri-nets/pn2pdf \
@@ -157,6 +162,7 @@ texmf_other_scripts = \
 	pfarrei/pfarrei.tlu \
 	pkfix-helper/pkfix-helper \
 	pkfix/pkfix.pl \
+	pmx/pmx2pdf.lua \
 	pmxchords/pmxchords.lua \
 	pst2pdf/pst2pdf.pl \
 	ptex2pdf/ptex2pdf.lua \
