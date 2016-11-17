@@ -14497,13 +14497,14 @@ dbg_key(Decide on the net change in pen offsets and set turn_amt);dbg_open_t;dbg
 dbg_n(ab_vs_cd);dbg_n(dx);dbg_n(dyin);dbg_n(dxin);dbg_n(dy);
 #endif
 /* BEGIN PATCH */
+/*
  if (number_negative(dy) && number_equal(dy,dyin) && number_equal(dx,epsilon_t))
         set_number_to_unity(ab_vs_cd);
+*/
 #ifdef DEBUGENVELOPE
 dbg_key_nval(ab_vs_cd patched,ab_vs_cd);
 dbg_close_t;dbg_comma;dbg_nl;
 #endif
-
 /* END PATCH */
   if (number_negative (ab_vs_cd))
     d_sign = -1;
@@ -14668,7 +14669,7 @@ dbg_n(ss);dbg_close_t;dbg_comma;
   number_clone(abs_ss,ss);
   number_abs(abs_ss);
   if (number_greaterequal(eps_ss,abs_ss)) {
-    set_number_to_zero(ss);/* a warning here ? */
+    /* set_number_to_zero(ss)*/;/* a warning here ? */
   }
 #ifdef DEBUGENVELOPE
 dbg_key(patch ss after);dbg_open_t;
