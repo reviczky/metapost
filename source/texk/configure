@@ -743,8 +743,6 @@ enable_web_progs
 enable_synctex
 enable_texlive
 enable_linked_scripts
-with_system_zziplib
-with_system_poppler
 with_system_mpfr
 with_mpfr_includes
 with_mpfr_libdir
@@ -1480,10 +1478,6 @@ Optional Packages:
   --with-editor=CMD       invoke CMD from the `e' option [vi +%d '%s'] or
                           [texworks --position=%d "%s"]
   --with-mf-x-toolkit     use X toolkit for METAFONT
-  --with-system-zziplib   use installed zziplib headers and library (requires
-                          pkg-config)
-  --with-system-poppler   use installed poppler headers and library (requires
-                          pkg-config)
   --with-system-mpfr      use installed mpfr headers and library
   --with-mpfr-includes=DIR
                           mpfr headers installed in DIR
@@ -3628,74 +3622,6 @@ if test "${enable_linked_scripts+set}" = set; then :
 fi
 
 
-## libs/zziplib/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/zziplib/
-## configure options and TL libraries required for zziplib
-
-# Check whether --with-system-zziplib was given.
-if test "${with_system_zziplib+set}" = set; then :
-  withval=$with_system_zziplib;
-fi
-if test "x$with_system_zziplib" = x; then
-  if test -f $srcdir/../libs/zziplib/configure; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`zziplib' headers and library from TL tree" >&5
-$as_echo "$as_me: Assuming \`zziplib' headers and library from TL tree" >&6;}
-    with_system_zziplib=no
-  else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming installed \`zziplib' headers and library" >&5
-$as_echo "$as_me: Assuming installed \`zziplib' headers and library" >&6;}
-    with_system_zziplib=yes
-  fi
-  ac_configure_args="$ac_configure_args '--with-system-zziplib=$with_system_zziplib'"
-fi
-if test "x$with_system_zziplib" = xyes; then
-  if test "x$with_system_zlib" = x; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}:   ->  installed \`zlib' headers and library" >&5
-$as_echo "$as_me:   ->  installed \`zlib' headers and library" >&6;}
-    with_system_zlib=yes
-    ac_configure_args="$ac_configure_args '--with-system-zlib'"
-  elif test "x$with_system_zlib" != xyes; then
-    as_fn_error $? "Sorry, \`--with-system-zziplib' requires \`--with-system-zlib'" "$LINENO" 5
-  fi
-fi
-
-test "x$need_zziplib" = xyes && {
-  need_zlib=yes
-}
-
-## libs/poppler/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/poppler/
-## configure options and TL libraries required for poppler
-
-# Check whether --with-system-poppler was given.
-if test "${with_system_poppler+set}" = set; then :
-  withval=$with_system_poppler;
-fi
-if test "x$with_system_poppler" = x; then
-  if test -f $srcdir/../libs/poppler/configure; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming \`poppler' headers and library from TL tree" >&5
-$as_echo "$as_me: Assuming \`poppler' headers and library from TL tree" >&6;}
-    with_system_poppler=no
-  else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: Assuming installed \`poppler' headers and library" >&5
-$as_echo "$as_me: Assuming installed \`poppler' headers and library" >&6;}
-    with_system_poppler=yes
-  fi
-  ac_configure_args="$ac_configure_args '--with-system-poppler=$with_system_poppler'"
-fi
-if test "x$with_system_poppler" = xyes; then
-  if test "x$with_system_zlib" = x; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}:   ->  installed \`zlib' headers and library" >&5
-$as_echo "$as_me:   ->  installed \`zlib' headers and library" >&6;}
-    with_system_zlib=yes
-    ac_configure_args="$ac_configure_args '--with-system-zlib'"
-  elif test "x$with_system_zlib" != xyes; then
-    as_fn_error $? "Sorry, \`--with-system-poppler' requires \`--with-system-zlib'" "$LINENO" 5
-  fi
-fi
-
-test "x$need_poppler" = xyes && {
-  need_zlib=yes
-}
-
 ## libs/mpfr/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/mpfr/
 ## configure options and TL libraries required for mpfr
 
@@ -3857,12 +3783,6 @@ fi
 test "x$need_libpng" = xyes && {
   need_zlib=yes
 }
-
-## libs/luajit/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/luajit/
-## configure options and TL libraries required for luajit
-
-## libs/lua52/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/lua52/
-## configure options and TL libraries required for lua52
 
 ## libs/zlib/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/zlib/
 ## configure options and TL libraries required for zlib

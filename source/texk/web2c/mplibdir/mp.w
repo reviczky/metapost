@@ -2881,7 +2881,7 @@ void *do_alloc_node (MP mp, size_t size) {
 
 @c
 void mp_xfree (void *x) {
-  if (x != NULL)
+  if (x != NULL) 
     free (x);
 }
 void *mp_xrealloc (MP mp, void *p, size_t nmem, size_t size) {
