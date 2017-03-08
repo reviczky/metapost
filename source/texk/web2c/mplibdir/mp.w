@@ -176,18 +176,18 @@ static int DEBUGENVELOPECOUNTER=0;
 #include <time.h>               /* for struct tm \& co */
 #include <zlib.h>               /* for |ZLIB_VERSION|, zlibVersion() */
 #include <png.h>                /* for |PNG_LIBPNG_VER_STRING|, |png_libpng_ver| */
-/*#include <pixman.h>*/             /* for |PIXMAN_VERSION_STRING|, |pixman_version_string()| */
-/*#include <cairo.h>*/              /* for |CAIRO_VERSION_STRING|, |cairo_version_string()| */
+/*\#include <pixman.h>*/             /* for |PIXMAN_VERSION_STRING|, |pixman_version_string()| */
+/*\#include <cairo.h>*/              /* for |CAIRO_VERSION_STRING|, |cairo_version_string()| */
 #include <gmp.h>                /* for |gmp_version| */
 #include <mpfr.h>               /* for |MPFR_VERSION_STRING|, |mpfr_get_version()| */
 #include "mplib.h"
 #include "mplibps.h"            /* external header */
-/*#include "mplibsvg.h" */          /* external header */
-/*#include "mplibpng.h" */          /* external header */
+/*\#include "mplibsvg.h" */          /* external header */
+/*\#include "mplibpng.h" */          /* external header */
 #include "mpmp.h"               /* internal header */
 #include "mppsout.h"            /* internal header */
-/*#include "mpsvgout.h"*/           /* internal header */
-/*#include "mppngout.h"*/           /* internal header */
+/*\#include "mpsvgout.h"*/           /* internal header */
+/*\#include "mppngout.h"*/           /* internal header */
 #include "mpmath.h"             /* internal header */
 #include "mpmathdouble.h"       /* internal header */
 #include "mpmathdecimal.h"      /* internal header */
@@ -202,26 +202,24 @@ mp_number ueps_ap;  /* epsilon for above approximations */
 boolean is_dxdy, is_dxindyin;
 /* END PATCH */
 
+@ We move the {\tt cairo} and {\tt pixman} libraries outside {\tt mp.w}, 
+to minimize dependencies.
 
+@c
 extern const char *COMPILED_CAIRO_VERSION_STRING;
 extern const char* cairo_version_string (void);
-
 extern const char *COMPILED_PIXMAN_VERSION_STRING;
 extern const char* pixman_version_string (void);
-
 extern void mp_png_backend_initialize (MP mp);
 extern void mp_png_backend_free (MP mp);
 extern int mp_png_gr_ship_out (void *hh, const char  *options, int standalone);
 extern int mp_png_ship_out (void *hh, const char *options);
-
 extern void mp_svg_backend_initialize (MP mp);
 extern void mp_svg_backend_free (MP mp);
 extern int mp_svg_ship_out (mp_edge_object  *hh, int prologues);
 extern int mp_svg_gr_ship_out (mp_edge_object  *hh, int prologues, int standalone);
 
-
-
-
+@ @c
 extern font_number mp_read_font_info (MP mp, char *fname);      /* tfmin.w */
 @h @<Declarations@>;
 @<Basic printing procedures@>;
