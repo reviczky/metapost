@@ -121,6 +121,7 @@ then
     --disable-largefile \
     --disable-ptex \
     --enable-mp  \
+    --enable-web2c \
     --enable-compiler-warnings=max \
     --without-system-harfbuzz \
     --without-system-cairo \

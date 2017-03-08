@@ -589,8 +589,8 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
-CONF_SUBDIRS
 MAKE_SUBDIRS
+CONF_SUBDIRS
 WARNING_CFLAGS
 MAINT
 MAINTAINER_MODE_FALSE
@@ -4762,8 +4762,8 @@ WARNING_CFLAGS=$kpse_cv_warning_cflags
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Utils programs to build" >&5
 $as_echo_n "checking for Utils programs to build... " >&6; }
-MAKE_SUBDIRS=
 CONF_SUBDIRS=
+MAKE_SUBDIRS=
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $MAKE_SUBDIRS" >&5
 $as_echo "$MAKE_SUBDIRS" >&6; }
