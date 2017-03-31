@@ -1,4 +1,4 @@
-% $Id: mp.w 2129 2017-03-31 08:42:02Z luigi.scarso@gmail.com $
+% $Id: mp.w 2123 2017-03-08 12:49:56Z luigi $
 %
 % This file is part of MetaPost;
 % the MetaPost program is in the public domain.
