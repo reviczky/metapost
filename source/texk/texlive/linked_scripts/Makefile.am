@@ -97,7 +97,9 @@ texmf_other_scripts = \
 	cjk-gs-integrate/cjk-gs-integrate.pl \
 	context/perl/mptopdf.pl \
 	convbkmk/convbkmk.rb \
+	crossrefware/bbl2bib.pl \
 	crossrefware/bibdoiadd.pl \
+	crossrefware/bibmradd.pl \
 	crossrefware/bibzbladd.pl \
 	crossrefware/ltx2crossrefxml.pl \
 	ctanify/ctanify \
@@ -106,6 +108,7 @@ texmf_other_scripts = \
 	diadia/diadia.lua \
 	dosepsbin/dosepsbin.pl \
 	dviasm/dviasm.py \
+	dviinfox/dviinfox.pl \
 	ebong/ebong.py \
 	epspdf/epspdf.tlu \
 	epspdf/epspdftk.tcl \
@@ -120,6 +123,7 @@ texmf_other_scripts = \
 	getmap/getmapdl.lua \
 	glossaries/makeglossaries \
 	glossaries/makeglossaries-lite.lua \
+	jfmutil/jfmutil.pl \
 	kotex-utils/jamo-normalize.pl \
 	kotex-utils/komkindex.pl \
 	kotex-utils/ttf2kotexfont.pl \
@@ -162,10 +166,10 @@ texmf_other_scripts = \
 	pfarrei/pfarrei.tlu \
 	pkfix-helper/pkfix-helper \
 	pkfix/pkfix.pl \
-	pmx/pmx2pdf.lua \
 	pmxchords/pmxchords.lua \
 	pst2pdf/pst2pdf.pl \
 	ptex-fontmaps/kanji-config-updmap-sys.sh \
+	ptex-fontmaps/kanji-config-updmap-user.sh \
 	ptex-fontmaps/kanji-config-updmap.pl \
 	ptex-fontmaps/kanji-fontmap-creator.pl \
 	ptex2pdf/ptex2pdf.lua \
@@ -186,10 +190,12 @@ texmf_other_scripts = \
 	texdoc/texdoc.tlu \
 	texfot/texfot.pl \
 	texlive/fmtutil-sys.sh \
+	texlive/fmtutil-user.sh \
 	texlive/fmtutil.pl \
 	texlive/rungs.tlu \
 	texlive/tlmgr.pl \
 	texlive/updmap-sys.sh \
+	texlive/updmap-user.sh \
 	texlive/updmap.pl \
 	texliveonfly/texliveonfly.py \
 	texloganalyser/texloganalyser \
