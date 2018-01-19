@@ -589,8 +589,8 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
-MAKE_SUBDIRS
 CONF_SUBDIRS
+MAKE_SUBDIRS
 WARNING_CFLAGS
 MAINT
 MAINTAINER_MODE_FALSE
@@ -666,7 +666,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -717,6 +716,7 @@ enable_aleph
 enable_pdftex
 enable_pdftex_synctex
 enable_luatex
+enable_luatex53
 enable_luajittex
 enable_mp
 enable_pmp
@@ -813,7 +813,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1066,15 +1065,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1212,7 +1202,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1365,7 +1355,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -1435,6 +1424,7 @@ Optional Features:
   --disable-pdftex          do not compile and install pdfTeX
   --disable-pdftex-synctex    build pdfTeX without SyncTeX support
   --disable-luatex          do not compile and install LuaTeX
+  --disable-luatex53        do not compile and install LuaTeX53
   --disable-luajittex       do not compile and install LuaJITTeX
   --disable-mp              do not compile and install MetaPost
   --disable-pmp             do not compile and install pMetaPost
@@ -3391,6 +3381,24 @@ test "x$enable_web2c:$enable_luatex" = xyes:yes && {
   need_zziplib=yes
   need_lua52=yes
 }
+# Check whether --enable-luatex53 was given.
+if test "${enable_luatex53+set}" = set; then :
+  enableval=$enable_luatex53;
+fi
+case $enable_luatex53 in #(
+  yes | no) :
+     ;; #(
+  *) :
+    enable_luatex53=yes ;;
+esac
+
+test "x$enable_web2c:$enable_luatex53" = xyes:yes && {
+  need_poppler=yes
+  need_mpfr=yes
+  need_libpng=yes
+  need_zziplib=yes
+  need_lua53=yes
+}
 # Check whether --enable-luajittex was given.
 if test "${enable_luajittex+set}" = set; then :
   enableval=$enable_luajittex;
@@ -4772,8 +4780,9 @@ WARNING_CFLAGS=$kpse_cv_warning_cflags
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Utils programs to build" >&5
 $as_echo_n "checking for Utils programs to build... " >&6; }
-CONF_SUBDIRS=
+echo 'dbg:_KPSE_RECURSE called: list=utils, text=Utils programs, cond=test "x$enable_Kpse_pkg" = xyes, prefix=.' >&5
 MAKE_SUBDIRS=
+CONF_SUBDIRS=
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $MAKE_SUBDIRS" >&5
 $as_echo "$MAKE_SUBDIRS" >&6; }
