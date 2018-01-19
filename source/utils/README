@@ -1,4 +1,4 @@
-$Id: README 43602 2017-03-25 21:11:20Z karl $
+$Id: README 46354 2018-01-17 22:59:48Z karl $
 Public domain.  Originally written 2005 by Karl Berry.
 
 Extra utilities we (optionally) compile for TeX Live.
@@ -10,14 +10,14 @@ asymptote 2.41 - checked 23mar17
   see http://tug.org/texlive/build.html#asymptote
   and tlpkg/bin/tl-update-asy
 
-autosp 2016-11-02 - checked 28feb17
+autosp 2017-12-26 - checked 29dec17
   http://ctan.org/pkg/autosp
 
 devnag - from devanagari package installed in texmf-dist.
 
 lacheck - maintained here, by us
 
-m-tx 0.62 - checked 10feb16
+m-tx 0.63 - checked 09jan18
   http://ctan.org/pkg/m-tx/
 
 pmx 2.7.6 - checked 09dec16
@@ -26,7 +26,7 @@ pmx 2.7.6 - checked 09dec16
 ps2eps 1.68 - checked 10may12
   http://tm.uka.de/~bless/ps2eps
 
-t1utils 1.39 - checked 1mar15
+t1utils 1.41 - checked 28aug17
   http://www.lcdf.org/type/
 
 texdoctk - reluctantly maintained here in TL
@@ -65,7 +65,7 @@ mkdir $clisp_toolsdir
 
 wget=wget  # or "curl -O" or whatever
 
-libsigsegv_ver=libsigsegv-2.11
+libsigsegv_ver=libsigsegv-2.12
 cd $clisp_basedir
 $wget http://ftp.gnu.org/gnu/libsigsegv/$libsigsegv_ver.tar.gz
 gzip -dc $libsigsegv_ver.tar.gz | tar xf -
@@ -80,9 +80,9 @@ ln -s lib $clisp_toolsdir/lib64
 # if you can't build libsigsegv, pass --ignore-absence-of-libsigsegv
 # when running configure for clisp.
 
-ffcall_ver=libffcall-1.13-20170225
+ffcall_ver=libffcall-1.13
 cd $clisp_basedir
-$wget http://www.haible.de/bruno/gnu/$ffcall_ver.tar.gz
+$wget https://ftp.gnu.org/gnu/libsigsegv/$ffcall_ver.tar.gz
 gzip -dc $ffcall_ver.tar.gz | tar xf -
 cd $ffcall_ver
 ./configure -C --prefix=$clisp_toolsdir --disable-shared --enable-static \
@@ -104,7 +104,7 @@ cd $libiconv_ver
 # foil wrong attempts at dynamic linking, etc.
 (cd $clisp_basedir/clisp-tools/lib && rm -f *.dylib *.la)
 
-clisp_ver=clisp-2.49
+clisp_ver=clisp-2.49.50
 cd $clisp_basedir
 $wget https://haible.de/bruno/gnu/clisp-2.49.50.tar.bz2
 bunzip2 -dc $clisp_ver.tar.bz2 | tar xf -
@@ -117,7 +117,7 @@ cd $clisp_ver
 # On FreeBSD/amd64: add --disable-mmap.
 #
 ./configure CPPFLAGS=-DUNIX_BINARY_DISTRIB --prefix=$clisp_toolsdir \
-  --without-readline --without-dynamic-modules \
+  --without-readline --without-dynamic-modules --without-termcap-ncurses \
   --disable-nls --enable-portability \
   --with-libsigsegv-prefix=$clisp_toolsdir \
   --with-libffcall-prefix=$clisp_toolsdir \
