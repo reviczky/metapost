@@ -417,6 +417,30 @@ pickup pencircle scaled 1pt;
 draw fun;
 endfig;
 
+beginfig(261);
+path p[] ;
+pen mypen ;
+pen mypenC;
+numeric L ;
+numeric S ;
+L:=10;
+Sa:=1;
+Sb:=2;
+Rot=32;
+p[-1] := ( (Sa*cosd(0),Sb*sind(0)) for i=1 upto L-1: -- (Sa*cosd(i/L*360), Sb*sind(i/L*360)) endfor -- cycle )  rotated Rot;
+mypen := makepen(p[-1]) ;
+mypenC:= (pencircle xscaled 2Sa yscaled 2Sb) rotated Rot;
+p0 := (0,0){down} .. {up} (100,0)  ;
+p1 := envelope  mypen  of p0 ;
+draw  p1 withcolor black   withpen pencircle scaled 0.2pt ;
+draw p0 withcolor 0.8white withpen mypenC;
+for t=1 upto length(p1): 
+ draw (point t of p1) withpen pencircle scaled 0.8pt; 
+endfor;
+%currentpicture := currentpicture scaled  30 ;
+endfig;
+
+
 
 beginfig(28);
 path p[];
