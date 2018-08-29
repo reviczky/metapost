@@ -2,7 +2,7 @@
 @setfilename tlbuild.info
 
 @set version 2018
-@set month-year February 2018
+@set month-year April 2018
 
 @set mytitle Building @TeX{} Live (@value{version})
 @settitle @value{mytitle}
@@ -88,8 +88,8 @@ For an overview of this manual, @pxref{Introduction}.
 * Installing::                  How and where installation happens (or not).
 * Layout and infrastructure::   Autoconf macros, etc., in detail.
 * Configure options::           List of all configure options.
-* Cross compilation::           Building on host X for target Y.
 * Coding conventions::          Conventions to follow.
+* Continuous integration::      Automated build testing.
 * install-tl::                  The @TL{} installer.
 * tlmgr::                       The native @TL{} package manager.
 * Index::                       General index.
@@ -118,13 +118,13 @@ information for different systems, along with
 For information on acquiring the TL sources, see
 @url{http://tug.org/texlive/svn}.
 
-This manual does not duplicate the (primarily user-level) information
-found in other TL documentation resources, such as:
+This manual does not duplicate the information found in other TL
+documentation resources, such as:
 
 @itemize
 @item The @TL{} web pages: @url{http://tug.org/texlive}.
 
-@item The web page with an overview of how to build the binaries which 
+@item The web page describing how to build the binaries which 
 are distributed with @TL{}: @url{http://tug.org/texlive/build.html}.
 
 @item The @TL{} user manual: @url{http://tug.org/texlive/doc.html}, or
@@ -335,6 +335,7 @@ supported (sorry).
 * Build in parallel::   Simultaneous @code{make} processes.
 * Build distribution::  Making a distribution tarball.
 * Build one package::   Example of working on just one program.
+* Cross compilation::   Building on host X for target Y.
 @end menu
 
 
@@ -473,7 +474,8 @@ make check
 @end example
 
 Then you modify source files in @file{mydir/texk/dvipdfm-x} and rerun
-@code{make} in @file{mydir/Work/texk/dvipdfm-x} to rebuild.
+@code{make} in @file{mydir/Work/texk/dvipdfm-x} to rebuild (that
+build directory is where the binaries end up).
 
 The second line of the @code{configure} invocation shows examples of
 extra things you likely want to specify if you intend to hack the
@@ -487,15 +489,15 @@ tweak as desired; check the output from @code{configure --help}.
 
 @cindex size of source tree
 Finally, the above retrieves the entire TL source tree (several
-hundred megabytes).  It is natural to ask if this is really necessary.
+hundred megabytes). It is natural to ask if this is really necessary.
 Strictly speaking, the answer is no, but it is vastly more convenient
-to do so.  If you cut down the source tree, you must also give
+to do so. If you cut down the source tree, you must also give
 additional @code{configure} flags to individually disable using system
 versions of libraries, or the intricacies of the dependencies (such as
 @code{teckit} requiring @code{zlib}) will have undesired side effects.
 For an example, see the @code{build-pdftex.sh} script in the
-@code{pdftex} development source (@url{http://pdftex.org}), which is
-indeed a cut-down TL source tree.
+@code{pdftex} development source (details at @url{http://pdftex.org}),
+which is indeed a cut-down TL source tree.
 
 @vindex --enable-missing @r{to ignore dependencies}
 Even with @code{--disable-all-pkgs}, dependencies will be checked.
@@ -513,6 +515,153 @@ otherwise, individual packages may use something different.  You can
 explicitly specify the compilers to be used with the environment
 variables @code{CC}, @code{CXX}, and @code{OBJCXX}.
 
+@node Cross compilation
+@section Cross compilation
+
+@cindex cross compilation
+In a cross compilation a @dfn{build} system is used to create
+binaries to be executed on a @dfn{host} system with different
+hardware and/or operating system.
+
+@cindex native cross compilation
+In simple cases, the build system can execute binaries for the host
+system.  This typically occurs for bi-arch systems where, e.g.,
+@code{i386-linux} binaries can run on @code{x86_64-linux} systems and
+@code{win32} binaries can run on @code{win64} systems.  Although
+sometimes called ``native cross'', technically this is not cross
+compilation at all.  In most such cases it suffices to specify
+suitable compiler flags.  It might be useful to add the configure
+option @code{--build=@var{host}} to get the correct canonical host
+name, but note that this should @emph{not} be @code{--host=@var{host}}
+(@pxref{Hosts and Cross-Compilation,,, autoconf, GNU Autoconf}).
+
+In order to build, e.g., 32-bit binaries with @command{clang} on a 64-bit
+MacOSX system one could use:
+
+@example
+TL_BUILD_ENV="CC='clang -arch i386' \
+  CXX='clang++ -arch i386' \
+  OBJCXX='clang++ -arch i386'" \
+  ./Build --build=i386-apple-darwin
+@end example
+
+@menu
+* Cross configuring::           Configuring for cross compilation.
+* Cross problems::              Cross compilation problems.
+@end menu
+
+@node Cross configuring
+@subsection Cross configuring
+
+@cindex cross compilation configuring
+@cindex configuring, for cross compilation
+
+@vindex --host=@var{host}
+@vindex --build=@var{host}
+In a standard cross compilation, binaries for the host system cannot
+execute on the build system and it is necessary to specify the
+configure options @code{--host=@var{host}} and
+@code{--build=@var{build}} with two different values.
+
+Building binaries requires suitable ``cross'' tools, e.g., compiler,
+linker, and archiver, and perhaps a ``cross'' version of
+@code{pkg-config} and similar to locate host system libraries.
+Autoconf expects that these cross tools are given by their usual
+variables or found under their usual name prefixed with
+@code{@var{host}-}.  Here a list of such tools and corresponding
+variables:
+
+@example
+@code{ar}                AR
+@code{freetype-config}   FT2_CONFIG
+@code{g++}               CXX
+@code{gcc}               CC
+@code{icu-config}        ICU_CONFIG
+@code{objdump}           OBJDUMP
+@code{pkg-config}        PKG_CONFIG
+@code{ranlib}            RANLIB
+@code{strip}             STRIP
+@end example
+
+@cindex @code{mingw32}
+@noindent In order to, e.g., build @code{mingw32} binaries on
+@code{x86_64-linux} with a cross compiler found as
+@file{i386-pc-mingw32-gcc} one would specify
+
+@example
+--host=i386-pc-mingw32 --build=x86_64-linux-gnu
+@end example
+
+@noindent or perhaps
+
+@example
+--host=mingw32 --build=x86_64-linux CC=i386-pc-mingw32-gcc
+@end example
+
+@noindent but this latter, especially, might require adding @code{CXX} and others.
+
+Configure arguments such as @code{CFLAGS=@dots{}} refer to the cross
+compiler.  If necessary, you can specify compilers and flags for the
+few auxiliary C and C++ programs required for the build process as
+configure arguments
+
+@vindex BUILDCC@r{,} BUILDCFLAGS@r{, @dots{}}
+@example
+BUILDCC=@dots{}
+BUILDCPPFLAGS=@dots{}
+BUILDCFLAGS=@dots{}
+BUILDCXX=@dots{}
+BUILDCXXFLAGS=@dots{}
+BUILDLDFLAGS=@dots{}
+@end example
+
+@node Cross problems
+@subsection Cross problems
+
+@cindex cross compilation problems
+
+The fact that binaries for the host system cannot be executed on the
+build system causes some problems.
+
+One problem is that configure tests using @code{AC_RUN_IFELSE} can
+compile and link the test program but cannot execute it.  Such tests
+should be avoided if possible and otherwise must supply a pessimistic
+test result.
+
+@pindex squeeze
+@pindex web2c @r{program}
+@cindex @code{freetype} cross compiling
+@vindex CC_BUILD
+Another problem arises if the build process must execute some
+(auxiliary or installable) programs.  Auxiliary programs can be placed
+into a subdirectory that is configured natively as is done for
+@file{texk/web2c/web2c}, @file{texk/dvipsk/squeeze}, and
+@file{texk/xdvik/squeeze}.  The module @file{libs/freetype2} uses the
+value of @code{CC_BUILD}, @file{@var{build}-gcc}, @file{gcc}, or
+@file{cc} as the compiler for the auxiliary program.
+
+@cindex ICU cross compiling
+The situation for installable programs needed by the build process is
+somewhat different.  A rather expensive possibility, chosen for the ICU
+libraries in module @file{libs/icu}, is to first compile natively for
+the build system and in a second step to use these (uninstalled)
+programs during the cross compilation.
+
+@pindex tangle
+@pindex ctangle
+@pindex otangle
+@pindex tie
+This approach would also be possible for the tools such as
+@file{tangle} used in the module @file{texk/web2c} to build the WEB
+programs, but that would require first building a native
+@code{kpathsea} library.  To avoid this complication, cross
+compilation of the WEB or CWEB programs requires sufficiently recent
+installed versions of @file{tangle}, @file{ctangle}, @file{otangle},
+and @file{tie}.
+
+@cindex @code{xindy} cross compiling impossible
+Building @code{xindy} requires running the host system @file{clisp}
+binary, thus cross compilation is not possible.
 
 @node Installing
 @chapter Installing
@@ -527,7 +676,7 @@ source tree.
 @pindex plain.tex@r{, not in source tree}
 The main consideration is that @code{make install} is not enough to
 make a usable @TeX{} installation.  Beyond the compiled binaries,
-(thousands of) support files are needed; just as a first example
+(thousands of) support files are needed; just as a first example,
 @file{plain.tex} is not in the source tree.
 
 These support files are maintained completely independently and are
@@ -2195,157 +2344,6 @@ commands used, e.g., to build the @code{xindy} documentation.
 @end vtable
 
 
-@node Cross compilation
-@chapter Cross compilation
-
-@cindex cross compilation
-In a cross compilation a @dfn{build} system is used to create
-binaries to be executed on a @dfn{host} system with different
-hardware and/or operating system.
-
-@cindex native cross compilation
-In simple cases, the build system can execute binaries for the host
-system.  This typically occurs for bi-arch systems where, e.g.,
-@code{i386-linux} binaries can run on @code{x86_64-linux} systems and
-@code{win32} binaries can run on @code{win64} systems.  Although
-sometimes called ``native cross'', technically this is not cross
-compilation at all.  In most such cases it suffices to specify
-suitable compiler flags.  It might be useful to add the configure
-option @code{--build=@var{host}} to get the correct canonical host
-name, but note that this should @emph{not} be @code{--host=@var{host}}
-(@pxref{Hosts and Cross-Compilation,,, autoconf, GNU Autoconf}).
-
-In order to build, e.g., 32-bit binaries with @command{clang} on a 64-bit
-MacOSX system one could use:
-
-@example
-TL_BUILD_ENV="CC='clang -arch i386' \
-  CXX='clang++ -arch i386' \
-  OBJCXX='clang++ -arch i386'" \
-  ./Build --build=i386-apple-darwin
-@end example
-
-@menu
-* Cross configuring::           Configuring for cross compilation.
-* Cross problems::              Cross compilation problems.
-@end menu
-
-
-@node Cross configuring
-@section Cross configuring
-
-@cindex cross compilation configuring
-@cindex configuring, for cross compilation
-
-@vindex --host=@var{host}
-@vindex --build=@var{host}
-In a standard cross compilation, binaries for the host system cannot
-execute on the build system and it is necessary to specify the
-configure options @code{--host=@var{host}} and
-@code{--build=@var{build}} with two different values.
-
-Building binaries requires suitable ``cross'' tools, e.g., compiler,
-linker, and archiver, and perhaps a ``cross'' version of
-@code{pkg-config} and similar to locate host system libraries.
-Autoconf expects that these cross tools are given by their usual
-variables or found under their usual name prefixed with
-@code{@var{host}-}.  Here a list of such tools and corresponding
-variables:
-
-@example
-@code{ar}                AR
-@code{freetype-config}   FT2_CONFIG
-@code{g++}               CXX
-@code{gcc}               CC
-@code{icu-config}        ICU_CONFIG
-@code{objdump}           OBJDUMP
-@code{pkg-config}        PKG_CONFIG
-@code{ranlib}            RANLIB
-@code{strip}             STRIP
-@end example
-
-@cindex @code{mingw32}
-@noindent In order to, e.g., build @code{mingw32} binaries on
-@code{x86_64-linux} with a cross compiler found as
-@file{i386-pc-mingw32-gcc} one would specify
-
-@example
---host=i386-pc-mingw32 --build=x86_64-linux-gnu
-@end example
-
-@noindent or perhaps
-
-@example
---host=mingw32 --build=x86_64-linux CC=i386-pc-mingw32-gcc
-@end example
-
-@noindent but this latter, especially, might require adding @code{CXX} and others.
-
-Configure arguments such as @code{CFLAGS=@dots{}} refer to the cross
-compiler.  If necessary, you can specify compilers and flags for the
-few auxiliary C and C++ programs required for the build process as
-configure arguments
-
-@vindex BUILDCC@r{,} BUILDCFLAGS@r{, @dots{}}
-@example
-BUILDCC=@dots{}
-BUILDCPPFLAGS=@dots{}
-BUILDCFLAGS=@dots{}
-BUILDCXX=@dots{}
-BUILDCXXFLAGS=@dots{}
-BUILDLDFLAGS=@dots{}
-@end example
-
-
-@node Cross problems
-@section Cross problems
-
-@cindex cross compilation problems
-
-The fact that binaries for the host system cannot be executed on the
-build system causes some problems.
-
-One problem is that configure tests using @code{AC_RUN_IFELSE} can
-compile and link the test program but cannot execute it.  Such tests
-should be avoided if possible and otherwise must supply a pessimistic
-test result.
-
-@pindex squeeze
-@pindex web2c @r{program}
-@cindex @code{freetype} cross compiling
-@vindex CC_BUILD
-Another problem arises if the build process must execute some
-(auxiliary or installable) programs.  Auxiliary programs can be placed
-into a subdirectory that is configured natively as is done for
-@file{texk/web2c/web2c}, @file{texk/dvipsk/squeeze}, and
-@file{texk/xdvik/squeeze}.  The module @file{libs/freetype2} uses the
-value of @code{CC_BUILD}, @file{@var{build}-gcc}, @file{gcc}, or
-@file{cc} as the compiler for the auxiliary program.
-
-@cindex ICU cross compiling
-The situation for installable programs needed by the build process is
-somewhat different.  A rather expensive possibility, chosen for the ICU
-libraries in module @file{libs/icu}, is to first compile natively for
-the build system and in a second step to use these (uninstalled)
-programs during the cross compilation.
-
-@pindex tangle
-@pindex ctangle
-@pindex otangle
-@pindex tie
-This approach would also be possible for the tools such as
-@file{tangle} used in the module @file{texk/web2c} to build the WEB
-programs, but that would require first building a native
-@code{kpathsea} library.  To avoid this complication, cross
-compilation of the WEB or CWEB programs requires sufficiently recent
-installed versions of @file{tangle}, @file{ctangle}, @file{otangle},
-and @file{tie}.
-
-@cindex @code{xindy} cross compiling impossible
-Building @code{xindy} requires running the host system @file{clisp}
-binary, thus cross compilation is not possible.
-
-
 @node Coding conventions
 @chapter Coding conventions
 
@@ -2482,47 +2480,61 @@ otherwise must be carefully analyzed to make sure that they cannot
 cause the modification of quantities supposed to be constant.
 
 
-@node Continuous Integration
-@chapter Continuous Integration
+@node Continuous integration
+@chapter Continuous integration
 
 @cindex ci
 @cindex continuous integration
+@cindex Travis-CI
 
-The sources of @TL{} are subjected to continuous integration testing on
-Travis-CI (@url{https://travis-ci.org/TeX-Live/texlive-source}) via a
-git-svn mirror of the sources that is pushed to Github
+Overview: the sources of @TL{} are subjected to continuous integration
+testing on Travis-CI
+(@url{https://travis-ci.org/TeX-Live/texlive-source}) via a git-svn
+mirror of the sources that is pushed to Github
 (@url{https://github.com/TeX-Live/texlive-source}). The git-svn mirror
-is updated (currently) at a 30min interval and only the last commit
-pushed is tested on Travis-CI.
+is updated (currently) at 30 minute intervals, and only the last
+commit pushed is tested on Travis-CI.
 
-@subheading Transfer from Subversion to Github
+@menu
+* Transfer from Subversion to Github::
+* Automatic update of the Git mirror::
+* CI testing on Travis-CI::
+@end menu
 
-Git-svn (@url{https://git-scm.com/docs/git-svn}) is used to check out
-the subtree @code{Build/source} of the Subversion repository. The author
-index file used is not maintained in Git or Subversion but provided on
-demand. 
+@node Transfer from Subversion to Github
+@section Transfer from Subversion to Github
 
-TODO what should we do here with the author index file? It contains a
-mapping from subversion names to name/email as shown in git.
+git-svn (@url{https://git-scm.com/docs/git-svn}) is used to check out
+the subtree @code{Build/source} of the Subversion repository. The
+author index file used is not maintained in either Git or Subversion
+but can be provided on request.
 
-The initial checkout was done by invocing
-@code{git svn --authors-file usermap clone svn://USER@tug.org/texlive/trunk/Build/source}
-where the @code{usermap} file maps subversion user names to name and
-emails of the authors. 
+@c TODO what should we do here with the author index file? It contains a
+@c mapping from subversion names to name/email as shown in git.
 
-TODO should we use anonymous checkout here? Should be possible!
+The initial checkout was done by invoking
+@example
+git svn --authors-file usermap clone svn://USER@@tug.org/texlive/trunk/Build/source
+@end example
 
-In the following we will refer with @emph{admin} to a user who has
-read/write access to the \TL{} subversion repository, and an
-administrator of the \@code{TeX-Live} Team on Github. The above initial
+@noindent where the @code{usermap} file maps Subversion user names to
+name and emails of the authors. If no user account at @url{tug.org} is
+available, anonymous checkout is possible, too:
+@example
+git svn --authors-file usermap clone svn://tug.org/texlive/trunk/Build/source
+@end example
+
+In the following, we will use @emph{admin} to refer to a user who has
+read/write access to the @TL{} subversion repository, and is also an
+administrator of the @code{TeX-Live} Team on Github. The above initial
 checkout has been carried out by @emph{admin} on the server
-@code{texlive.info}. 
+@code{texlive.info}.
 
-On Github (@url{https://github.com/}) a new git repository named
+On Github (@url{https://github.com}), a new git repository named
 @code{texlive-source} was created by @emph{admin} within the
-@code{TeX-Live} organization (@url{https://github.com/TeX-Live/}), the
-remote added to the checkout with
-@code{git remote add origin git@github.com:TeX-Live/texlive-source.git}.
+@code{TeX-Live} ``organization'' (@url{https://github.com/TeX-Live}).
+The remote was added to the checkout with @code{git remote add origin
+git@@github.com:TeX-Live/texlive-source.git}.
 
 To automate the update on Github, a new ssh key was generated and added
 to the @code{texlive-source} repository on Github as deployment
@@ -2535,91 +2547,35 @@ mirror facility, we have decided to further restrict the @code{master}
 branch of the @code{texlive-source} repository on Github to changes by
 @emph{admin}.
 
-This setup allows other developers to branch of @code{master} and
+This setup allows other developers to branch off @code{master} and
 push their branches to the Github repository, but all updates need to
-from the local @code{master} (not the one on Github) to Subversion and
-back to @code{master} on @code{texlive.info} and from there to Github.
-See below for setup for developers.
+come from the local @code{master} (not the one on Github) to
+Subversion, back to @code{master} on @code{texlive.info}, and from
+there to Github.
 
-@subheading Automatic update of the Git mirror
+@node Automatic update of the Git mirror
+@section Automatic update of the Git mirror
 
 @emph{admin} has installed a cron job on @code{texlive.info} running
-every 30min which basically runs @code{git svn rebase} and @code{git
-push} in the @code{master} branch of the checkout. The first command
-fetches the changes from the Subversion repository and updates the
-@code{master} branch with them, the second one pushes changes (if
-available) to Github. 
+every 30 minute which essentially runs @code{git svn rebase} and
+@code{git push} in the @code{master} branch of the checkout. The first
+command fetches the changes from the Subversion repository and updates
+the @code{master} branch with them, the second one pushes changes (if
+available) to Github.
 
-@subheading CI testing on Travis-CI
+@node CI testing on Travis-CI
+@section CI testing on Travis-CI
 
-The @code{source} tree of \TL{} already contains a file
+@pindex .travis.yml
+The @code{source} tree of @TL{} contains a top-level file
 @code{.travis.yml} which controls the automatic testing on
 Travis-CI. @emph{admin} has registered to Travis-CI and allowed access
 to the Github's @code{TeX-Live} organization's @code{texlive-source}
 repository. The default settings are to build the last commit of each
 push. No further action is necessary on Travis-CI.
 
-In case changes have been pushed during the cron job mentioned above,
-Travis-CI will automatically checkout the last pushed commit and try
-building it.
-
-@comment
-@comment The following needs improvement
-@comment
-@comment @subheading Developer setup for Git/Subversion
-@comment 
-@comment In case a developer of code in the @TL{} source code wants to use the CI
-@comment testing facility, the following steps are necessary for initialization:
-@comment 
-@comment @itemize @bullet
-@comment @item
-@comment Initial @code{git-svn} checkout as laid out above, replacing
-@comment @code{USER} with the Subversion user name. This initial checkout might
-@comment take quite some time as the whole history has to be parsed. In case the
-@comment checkout is interrupted, change into the already created folder and call
-@comment @code{git svn fetch} to continue pulling from the remote until all
-@comment changes have been fetched.
-@comment 
-@comment @item
-@comment Adding the Git remote as laid out above. After that it is also necessary
-@comment to set the upstream for the @code{master} branch with
-@comment @code{git branch --set-upstream-to=origin/master master} followed by a
-@comment @code{git pull}. The last command will probably not fetch anything since
-@comment but update the local information about availability.
-@comment 
-@comment @end itemize
-@comment 
-@comment After this development can be done as follows:
-@comment 
-@comment @itemize @bullet
-@comment @item
-@comment Create a new branch based on @code{master}: @code{git checkout -b feature}
-@comment and develop the new features in this branch.
-@comment 
-@comment @item
-@comment Pushing the branch to Github will kick of automatic CI testing on this
-@comment branch, too.
-@comment 
-@comment @item
-@comment When the feature is ready, first the branch @code{feature} needs to be
-@comment rebased onto current @code{master} with @code{git rebase master}, then
-@comment merged into @code{master}, followed by a submission to the Subversion
-@comment repository via @code{git svn dcommit}. Don't push to master on Github
-@comment (it is anyway protected), your changes will come in in due time via a
-@comment pull on master.
-@comment 
-@comment @item
-@comment After the branch is included in master, optionally delete the local and
-@comment rmeote branch @code{feature}.
-@comment 
-@comment @end itemize
-@comment 
-@comment The above method is the standards and safest method, but there is an
-@comment alternative way by first pulling from Github, and then tricking git-svn
-@comment into believing that everything has been fetched from Subversion
-@comment already. This alternative method is explained XXXXXXXXX (my BLOG?)
-@comment 
-@comment 
+If changes have been pushed via the cron job above, Travis-CI will
+automatically checkout the last pushed commit and try building it.
 
 @c made from pod doc.
 @include tlbuild-incl/install-tl.texi
