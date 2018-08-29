@@ -665,24 +665,6 @@ const char *ptexbanner = BANNER;
 /* forward declaration */
 static string
 normalize_quotes (const_string name, const_string mesg);
-#ifndef TeX
-int srcspecialsp = 0;
-#endif
-/* Support of 8.3-name convention. If *buffer == NULL, nothing is done. */
-static void change_to_long_name (char **buffer)
-{
-  if (*buffer) {
-    char inbuf[260];
-    char outbuf[260];
-
-    memset (outbuf, 0, 260);
-    strcpy (inbuf, *buffer);
-    if (GetLongPathName (inbuf, outbuf, 260)) {
-      *buffer = (char *)realloc(*buffer, strlen(outbuf) + 1);
-      strcpy (*buffer, outbuf);
-    }
-  }
-}
 #endif /* WIN32 */
 
 /* The entry point: set up for reading the command line, which will
@@ -692,7 +674,7 @@ void
 maininit (int ac, string *av)
 {
   string main_input_file;
-#if (IS_upTeX || defined(XeTeX)) && defined(WIN32)
+#if (IS_upTeX || defined(XeTeX) || defined(pdfTeX)) && defined(WIN32)
   string enc;
 #endif
   /* Save to pass along to topenin.  */
@@ -721,18 +703,21 @@ maininit (int ac, string *av)
   kpse_set_program_name (argv[0], NULL);
   initkanji ();
 #endif
-#if defined(XeTeX) && defined(WIN32)
+#if (defined(XeTeX) || defined(pdfTeX)) && defined(WIN32)
   kpse_set_program_name (argv[0], NULL);
 #endif
-#if (IS_upTeX || defined(XeTeX)) && defined(WIN32)
+#if (IS_upTeX || defined(XeTeX) || defined(pdfTeX)) && defined(WIN32)
   enc = kpse_var_value("command_line_encoding");
   get_command_line_args_utf8(enc, &argc, &argv);
+#endif
+#if IS_pTeX && !IS_upTeX && !defined(WIN32)
+  ptenc_get_command_line_args(&argc, &argv);
 #endif
 
   /* If the user says --help or --version, we need to notice early.  And
      since we want the --ini option, have to do it before getting into
      the web (which would read the base file, etc.).  */
-#if (IS_upTeX || defined(XeTeX)) && defined(WIN32)
+#if ((IS_upTeX || defined(XeTeX) || defined(pdfTeX)) && defined(WIN32)) || (IS_pTeX && !IS_upTeX && !defined(WIN32))
   parse_options (argc, argv);
 #else
   parse_options (ac, av);
@@ -756,7 +741,7 @@ maininit (int ac, string *av)
   /* Do this early so we can inspect kpse_invocation_name and
      kpse_program_name below, and because we have to do this before
      any path searching.  */
-#if IS_pTeX || (defined(XeTeX) && defined(WIN32))
+#if IS_pTeX || ((defined(XeTeX) || defined(pdfTeX)) && defined(WIN32))
   if (user_progname)
     kpse_reset_program_name (user_progname);
 #else
@@ -804,17 +789,11 @@ maininit (int ac, string *av)
             *pp = '/';
         }
       }
-#ifdef XeTeX
       name = normalize_quotes(argv[argc-1], "argument");
+#ifdef XeTeX
       main_input_file = kpse_find_file(argv[argc-1], INPUT_FORMAT, false);
-      if (!srcspecialsp) {
-        change_to_long_name (&main_input_file);
-        if (main_input_file)
-          name = normalize_quotes(main_input_file, "argument");
-      }
       argv[argc-1] = name;
 #else
-      name = normalize_quotes(argv[argc-1], "argument");
       quoted = (name[0] == '"');
       if (quoted) {
         /* Overwrite last quote and skip first quote. */
@@ -822,16 +801,10 @@ maininit (int ac, string *av)
         name++;
       }
       main_input_file = kpse_find_file(name, INPUT_FORMAT, false);
-      if (!srcspecialsp)
-        change_to_long_name (&main_input_file);
       if (quoted) {
         /* Undo modifications */
         name[strlen(name)] = '"';
         name--;
-      }
-      if (!srcspecialsp) {
-        if (main_input_file)
-          name = normalize_quotes(main_input_file, "argument");
       }
       argv[argc-1] = name;
 #endif
@@ -1406,6 +1379,24 @@ tcx_get_num (int upb,
 
 /* FIXME: A new format ought to be introduced for these files. */
 
+#ifdef _WIN32
+#undef fopen
+#undef xfopen
+#define fopen fsyscp_fopen
+#define xfopen fsyscp_xfopen
+#include <wchar.h>
+int fsyscp_stat(const char *path, struct stat *buffer)
+{
+  wchar_t *wpath;
+  int     ret;
+  wpath = get_wstring_from_mbstring(file_system_codepage,
+          path, wpath = NULL);
+  ret = _wstat(wpath, buffer);
+  free(wpath);
+  return ret;
+}
+#endif /* WIN32 */
+
 void
 readtcxfile (void)
 {
@@ -1572,14 +1563,9 @@ get_input_file_name (void)
       }
     }
 #endif
-
     name = normalize_quotes(argv[optind], "argument");
 #ifdef XeTeX
     input_file_name = kpse_find_file(argv[optind], INPUT_FORMAT, false);
-#ifdef WIN32
-    if (!srcspecialsp)
-      change_to_long_name (&input_file_name);
-#endif
 #else
     quoted = (name[0] == '"');
     if (quoted) {
@@ -1588,20 +1574,10 @@ get_input_file_name (void)
         name++;
     }
     input_file_name = kpse_find_file(name, INPUT_FORMAT, false);
-#ifdef WIN32
-    if (!srcspecialsp)
-      change_to_long_name (&input_file_name);
-#endif
     if (quoted) {
         /* Undo modifications */
         name[strlen(name)] = '"';
         name--;
-    }
-#endif
-#ifdef WIN32
-    if (!srcspecialsp) {
-      if (input_file_name)
-        name = normalize_quotes (input_file_name, "argument");
     }
 #endif
     argv[optind] = name;
@@ -1687,7 +1663,6 @@ static struct option long_options[]
 #endif /* TeX or MF */
 #if IS_pTeX
 #ifdef WIN32
-      { "sjis-terminal",             0, &sjisterminal, 1 },
       { "guess-input-enc",           0, &infile_enc_auto, 1 },
       { "no-guess-input-enc",        0, &infile_enc_auto, 0 },
 #endif
@@ -3182,7 +3157,11 @@ void getfilemoddate(integer s)
 
     recorder_record_input(file_name);
     /* get file status */
+#ifdef _WIN32
+    if (fsyscp_stat(file_name, &file_data) == 0) {
+#else
     if (stat(file_name, &file_data) == 0) {
+#endif
         size_t len;
 
         makepdftime(file_data.st_mtime, time_str, /* utc= */false);
@@ -3212,7 +3191,11 @@ void getfilesize(integer s)
 
     recorder_record_input(file_name);
     /* get file status */
+#ifdef _WIN32
+    if (fsyscp_stat(file_name, &file_data) == 0) {
+#else
     if (stat(file_name, &file_data) == 0) {
+#endif
         size_t len;
         char buf[20];
 
