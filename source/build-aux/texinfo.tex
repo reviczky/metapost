@@ -3,9 +3,10 @@
 % Load plain if necessary, i.e., if running under initex.
 \expandafter\ifx\csname fmtname\endcsname\relax\input plain\fi
 %
-\def\texinfoversion{2018-12-28.17}
+\def\texinfoversion{2019-02-01.12}
+
 %
-% Copyright 1985, 1986, 1988, 1990-2018 Free Software Foundation, Inc.
+% Copyright 1985, 1986, 1988, 1990-2019 Free Software Foundation, Inc.
 %
 % This texinfo.tex file is free software: you can redistribute it and/or
 % modify it under the terms of the GNU General Public License as
@@ -5043,8 +5044,8 @@ end
   \commondummyword\xref
 }
 
-% For testing: output @{ and @} in index sort strings as \{ and \}.
-\newif\ifusebracesinindexes
+% This does nothing, but for a time it was recommended to use
+% \usebracesinindexestrue to be able to use braces in index entries.
 
 \let\indexlbrace\relax
 \let\indexrbrace\relax
@@ -7514,7 +7515,7 @@ end
   \nonfillstart
   \tt % easiest (and conventionally used) font for verbatim
   % The \leavevmode here is for blank lines.  Otherwise, we would
-  % never \starttabox and the \egroup would end verbatim mode.
+  % never \starttabbox and the \egroup would end verbatim mode.
   \def\par{\leavevmode\egroup\box\verbbox\endgraf}%
   \tabexpand
   \setupmarkupstyle{verbatim}%
@@ -7577,9 +7578,12 @@ end
   {%
     \makevalueexpandable
     \setupverbatim
-    \indexnofonts       % Allow `@@' and other weird things in file names.
-    \wlog{texinfo.tex: doing @verbatiminclude of #1^^J}%
-    \input #1
+    {%
+      \indexnofonts       % Allow `@@' and other weird things in file names.
+      \wlog{texinfo.tex: doing @verbatiminclude of #1^^J}%
+      \edef\tmp{\noexpand\input #1 }
+      \expandafter
+    }\tmp
     \afterenvbreak
   }%
 }
