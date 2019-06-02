@@ -4,8 +4,9 @@ This is the source for the documentation for MetaPost, consisting of
 "A User's Manual for MetaPost", "Drawing Boxes with MetaPost",
 "Drawing Graphs with MetaPost" and the introductory article "The
 MetaPost System", written by John D. Hobby.
-They were converted to more modern LaTeX by Dylan Thurston and are
-currently maintained by Troy Henderson and Stephan Hennig.  The manual
+They were converted to more modern LaTeX by Dylan Thurston,
+later updated Troy Henderson and Stephan Hennig, and currently
+maintained by the MetaPost developers.  The manual
 may be freely used and modified, but John Hobby makes these requests:
 
  - I request that it remain clear that I am the author of

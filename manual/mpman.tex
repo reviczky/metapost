@@ -113,10 +113,12 @@
     \vskip3bp
     \centerline{and the MetaPost development team}
     \vskip20.8bp% actually 31.8bp (-11bp)
-    \centerline{\large documented version: \mpversion\ (2.0rc2)}
+    \centerline{\large documented version: \mpversion}
     \vskip3bp
 \tracingall    \centerline{\svnInfoMaxToday} \tracingnone
-    \vfil
+    \vskip\baselineskip
+    \centerline{Web page: {\tt https://tug.org/metapost}}
+    \centerline{Mailing list: {\tt https://lists.tug.org/metapost}}
     \vfil
     \vfil
   }
@@ -169,23 +171,25 @@ master MetaPost, both are beneficial, since the MetaPost language is
 based on Knuth's \MF\ to a large extent.  Appendix~\ref{MPvsMF} gives a
 detailed comparison of MetaPost and \MF.
 
-MetaPost documentation is completed by ``Drawing Boxes with MetaPost''
-and ``Drawing Graphs with MetaPost''---the manuals of the \texttt{boxes}
-and \texttt{graph} packages originally developed by John~D. Hobby.
+The basic MetaPost documentation is completed with ``Drawing Boxes with
+MetaPost'' and ``Drawing Graphs with MetaPost''---the manuals of the
+\texttt{boxes} and \texttt{graph} packages originally developed by
+John~D. Hobby.
 
-The MetaPost home page is \url{http://tug.org/metapost}.  It has links
+The MetaPost home page is \url{https://tug.org/metapost}.  It has links
 to much additional information, including many articles that have been
-written about MetaPost.  For general help, try the
+written about MetaPost.  For general help and discussion, try the
 \url{metapost@tug.org} mailing list; you can subscribe to this list at
-\url{http://tug.org/mailman/listinfo/metapost}.
+\url{https://lists.tug.org/metapost}.
 
-The development is currently hosted at
-\url{https://serveur-svn.lri.fr/svn/modhel/metapost}; visit this site for
-the current development team members and  sources (currently no web interface, only anonymouse svn access).
+The development repository is currently hosted at
+\url{https://serveur-svn.lri.fr/svn/modhel/metapost}; web browsing and
+anonymous svn checkout are allowed with username \texttt{anonsvn} and
+password \texttt{anonsvn}.
 
-Please report bugs and request enhancements either on the
-\url{metapost@tug.org} list, or through the address given above.
-(Please do not send reports directly to Dr.\ Hobby any more.)
+If bug reports get no reply from \url{metapost@tug.org}, feel free to
+resend to \url{mp-implementors@tug.org}. (Please do not send reports
+directly to Dr.~Hobby in any event.)
 
 
 \section{Basic Drawing Statements}
