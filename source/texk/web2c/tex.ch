@@ -12,7 +12,7 @@
 % (12/21/87) ETM Brought up to TeX 2.7
 % (01/14/88) ETM Brought up to TeX 2.9
 % (02/20/88) PAM Revised format and module numbers
-% (03/01/88) ETM Eliminated some unused variables and unnecesary tests
+% (03/01/88) ETM Eliminated some unused variables and unnecessary tests
 % (05/09/88) ETM Added yet another casting bug fix
 % (06/21/88) ETM Brought up to TeX version 2.93
 % (12/11/88) ETM Brought up to TeX version 2.94
@@ -54,7 +54,7 @@
   \def\?##1]{\hbox to 1in{\hfil##1.\ }}
   }
 @y 83
-  \def\?##1]{\hbox{Changes to \hbox to 1em{\hfil##1}.\ }}
+  \def\?##1]{\hbox{Changes to ##1.\ }}
   }
 \let\maybe=\iffalse
 @z
@@ -554,7 +554,7 @@ tini@/
 @!font_max:integer; {maximum internal font number; ok to exceed |max_quarterword|
   and must be at most |font_base|+|max_font_max|}
 @!font_k:integer; {loop variable for initialization}
-@!hyph_size:integer; {maximun number of hyphen exceptions}
+@!hyph_size:integer; {maximum number of hyphen exceptions}
 @!trie_size:integer; {space for hyphenation patterns; should be larger for
   \.{INITEX} than it is in production versions of \TeX.  50000 is
   needed for English, German, and Portuguese.}
@@ -822,11 +822,29 @@ else
 % under Unix.  We call it `uexit' because there's a WEB symbol called
 % `exit' already.  We use a C macro to change `uexit' back to `exit'.
 @x [6.81] l.1852 - Eliminate nonlocal goto, since C doesn't have them.
+@ The |jump_out| procedure just cuts across all active procedure levels and
+goes to |end_of_TEX|. This is the only nontrivial |@!goto| statement in the
+whole program. It is used when there is no recovery from a particular error.
+
+Some \PASCAL\ compilers do not implement non-local |goto| statements.
+@^system dependencies@>
+In such cases the body of |jump_out| should simply be
+`|close_files_and_terminate|;\thinspace' followed by a call on some system
+procedure that quietly terminates the program.
+
 @<Error hand...@>=
 procedure jump_out;
 begin goto end_of_TEX;
 end;
 @y
+@ The |jump_out| procedure just cuts across all active procedure levels.
+The body of |jump_out| simply calls
+`|close_files_and_terminate|;\thinspace' followed by a call on some system
+procedure that quietly terminates the program.
+@^system dependencies@>
+
+@f noreturn==procedure
+
 @d do_final_end==begin
    update_terminal;
    ready_already:=0;
@@ -853,7 +871,26 @@ if (halt_on_error_p) then begin
 end;
 @z
 
-@x [6.84] l.1888 - Implement the switch-to-editor option.
+% Original reports:
+%   https://tex.stackexchange.com/questions/551313/
+%   https://tug.org/pipermail/tex-live/2020-June/045876.html
+%
+% This will probably be fixed by DEK in the 2021 tuneup in a different
+% way (so we'll have to remove or alter this change), but the interaction
+% sequence in the reports above causes a segmentation fault in web2c -
+% writing to the closed \write15 stream because we wrongly decrement
+% selector from 16 to 15 in term_input, due to the lack of this check in
+% a recursive error() call.
+%
+@x [6.83] l.1893 - avoid wrong interaction 
+loop@+begin continue: clear_for_error_prompt; prompt_input("? ");
+@y
+loop@+begin continue:
+if interaction<>error_stop_mode then return;
+clear_for_error_prompt; prompt_input("? ");
+@z
+
+@x [6.84] l.1904 - Implement the switch-to-editor option.
 line ready to be edited. But such an extension requires some system
 wizardry, so the present implementation simply types out the name of the
 file that should be
@@ -975,7 +1012,7 @@ So they have been simplified here in the obvious way.
 @^inner loop@>@^system dependencies@>
 
 The \.{WEB} source for \TeX\ defines |hi(#)==#+min_halfword| which can be
-simplified when |min_halfword=0|.  The Web2C implemetation of \TeX\ can use
+simplified when |min_halfword=0|.  The Web2C implementation of \TeX\ can use
 |hi(#)==#| together with |min_halfword<0| as long as |max_halfword| is
 sufficiently large.
 
@@ -1493,30 +1530,6 @@ aligning:begin print(" while scanning preamble"); info(p):=right_brace_token+"}"
 absorbing:begin print(" while scanning text"); info(p):=right_brace_token+"}";
 @z
 
-@x [25.366] expansion depth check
-The |expand| subroutine is used when |cur_cmd>max_command|. It removes a
-@y
-@ Sometimes, recursive calls to the following |expand| routine may
-cause exhaustion of the run-time calling stack, resulting in
-forced execution stops by the operating system. To diminish the chance
-of this happening, a counter is used to keep track of the recursion
-depth, in conjunction with a constant called |expand_depth|.
-
-This does not catch all possible infinite recursion loops, just the ones
-that exhaust the application calling stack. The actual maximum value of
-|expand_depth| is outside of our control, but the initial setting of
-|10000| should be enough to prevent problems.
-@^system dependencies@>
-
-@<Global...@>=
-expand_depth_count:integer;
-
-@ @<Set init...@>=
-expand_depth_count:=0;
-
-@ The |expand| subroutine is used when |cur_cmd>max_command|. It removes a
-@z
-
 @x [25.366]
 begin cv_backup:=cur_val; cvl_backup:=cur_val_level; radix_backup:=radix;
 @y
@@ -1892,6 +1905,27 @@ begin if (pool_ptr+name_length>pool_size)or(str_ptr=max_strings)or
   area_delimiter:=save_area_delimiter; ext_delimiter:=save_ext_delimiter;
 @z
 
+@x [29.526] l.10193 - look for a left_brace when scanning a file name
+@p procedure scan_file_name;
+label done;
+@y
+@p procedure scan_file_name;
+label done;
+var
+  @!save_warning_index: pointer;
+begin
+  save_warning_index := warning_index;
+  warning_index := cur_cs; {store |cur_cs| here to remember until later}
+  @<Get the next non-blank non-relax non-call...@>; {here the program expands
+    tokens and removes spaces and \.{\\relax}es from the input. The \.{\\relax}
+    removal follows LuaTeX''s implementation, and other cases of
+    balanced text scanning.}
+  back_input; {return the last token to be read by either code path}
+  if cur_cmd=left_brace then
+    scan_file_name_braced
+  else
+@z
+
 @x [29.526] l.10194 - stop scanning file name if we're at end-of-line.
   if not more_name(cur_chr) then goto done;
 @y
@@ -1900,6 +1934,16 @@ begin if (pool_ptr+name_length>pool_size)or(str_ptr=max_strings)or
    spurious spaces to file names in some cases.}
   if (cur_chr=" ") and (state<>token_list) and (loc>limit) then goto done;
   if not more_name(cur_chr) then goto done;
+@z
+
+@x [29.526] l.10203 - scan a bgroup/egroup-delimited file name
+done: end_name; name_in_progress:=false;
+end;
+@y
+  end;
+done: end_name; name_in_progress:=false;
+warning_index := save_warning_index; {restore |warning_index|}
+end;
 @z
 
 @x [29.530] l.10245 - prompt_file_name: prevent empty filenames.
@@ -2504,7 +2548,7 @@ have spliced appropriate character, kern, and box nodes into the
 horizontal list.
 %
 % 91/05/08 \charsubdefmax bug detected by Bernd Raichle
-Because the user can change character substitions or
+Because the user can change character substitutions or
 \.{\\charsubdefmax} on the fly, we have to test a again
 for valid substitutions.
 %
@@ -2701,7 +2745,7 @@ and |v:=hyf_next[v]|; repeat, if necessary, until |v=min_trie_op|.
 @ For more than 255 trie op codes, the three fields |trie_link|, |trie_char|,
 and |trie_op| will no longer fit into one memory word; thus using web2c
 we define |trie| as three array instead of an array of records.
-The variant will be implented by reusing the opcode field later on with
+The variant will be implemented by reusing the opcode field later on with
 another macro.
 
 @d trie_link(#)==trie_trl[#] {``downward'' link in a trie}
@@ -3890,7 +3934,7 @@ for k:=0 to hyph_size do if hyph_word[k]<>0 then
 @y  24061
 dump_int(hyph_count);
 if hyph_next <= hyph_prime then hyph_next:=hyph_size;
-dump_int(hyph_next);{minumum value of |hyphen_size| needed}
+dump_int(hyph_next);{minimum value of |hyphen_size| needed}
 for k:=0 to hyph_size do if hyph_word[k]<>0 then
   begin dump_int(k+65536*hyph_link[k]);
         {assumes number of hyphen exceptions does not exceed 65535}
@@ -4381,7 +4425,16 @@ var j:small_number; {write stream number}
     @!old_setting:0..max_selector;
 @z
 
-@x [53.1374] Disallow certain \openout filenames, and log results.
+@x [53.1374]
+  else  begin if write_open[j] then a_close(write_file[j]);
+    if subtype(p)=close_node then write_open[j]:=false
+@y
+  else  begin if write_open[j] then begin a_close(write_file[j]);
+                                          write_open[j]:=false; end;
+    if subtype(p)=close_node then do_nothing {already closed}
+@z
+
+@x [still 53.1374] Disallow certain \openout filenames, and log results.
       while not a_open_out(write_file[j]) do
         prompt_file_name("output file name",".tex");
       write_open[j]:=true;
@@ -4391,7 +4444,7 @@ var j:small_number; {write stream number}
         prompt_file_name("output file name",".tex");
       write_open[j]:=true;
       {If on first line of input, log file is not ready yet, so don't log.}
-      if log_opened then begin
+      if log_opened and texmf_yesno('log_openout') then begin
         old_setting:=selector;
         if (tracing_online<=0) then
           selector:=log_only  {Show what we're doing in the log file.}
@@ -4407,11 +4460,21 @@ var j:small_number; {write stream number}
 
 @x [54.1376] l.24903 - Add editor-switch variables to globals.
 @* \[54] System-dependent changes.
+This section should be replaced, if necessary, by any special
+modifications of the program
+that are necessary to make \TeX\ work at a particular installation.
+It is usually best to design your change file so that all changes to
+previous sections preserve the section numbering; then everybody's version
+will be consistent with the published program. More extensive changes,
+which introduce new sections, can be inserted here; then only the index
+itself will get a new section number.
+@^system dependencies@>
+
 @y
 @* \[54/web2c] System-dependent changes for Web2c.
 Here are extra variables for Web2c.  (This numbering of the
 system-dependent section allows easy integration of Web2c and e-\TeX, etc.)
-@^<system dependencies@>
+@^system dependencies@>
 
 @<Glob...@>=
 @!edit_name_start: pool_pointer; {where the filename to switch to starts}
@@ -4582,8 +4645,77 @@ slow_make_string:=t;
 exit:end;
 
 
-@* \[54/ML\TeX] System-dependent changes for ML\TeX.
+@* \[54/web2c] More changes for Web2c.
+% Related to [25.366] expansion depth check
+Sometimes, recursive calls to the |expand| routine may
+cause exhaustion of the run-time calling stack, resulting in
+forced execution stops by the operating system. To diminish the chance
+of this happening, a counter is used to keep track of the recursion
+depth, in conjunction with a constant called |expand_depth|.
 
+This does not catch all possible infinite recursion loops, just the ones
+that exhaust the application calling stack. The actual maximum value of
+|expand_depth| is outside of our control, but the initial setting of
+|10000| should be enough to prevent problems.
+@^system dependencies@>
+
+@<Global...@>=
+expand_depth_count:integer;
+
+@ @<Set init...@>=
+expand_depth_count:=0;
+
+@ % Related to [29.526] expansion depth check
+When |scan_file_name| starts it looks for a |left_brace|
+(skipping \.{\\relax}es, as other \.{\\toks}-like primitives).
+If a |left_brace| is found, then the procedure scans a file
+name contained in a balanced token list, expanding tokens as
+it goes. When the scanner finds the balanced token list, it
+is converted into a string and fed character-by-character to
+|more_name| to do its job the same as in the ``normal'' file
+name scanning.
+
+@p procedure scan_file_name_braced;
+var
+  @!save_scanner_status: small_number; {|scanner_status| upon entry}
+  @!save_def_ref: pointer; {|def_ref| upon entry, important if inside `\.{\\message}}
+  @!save_cur_cs: pointer;
+  @!s: str_number; {temp string}
+  @!p: pointer; {temp pointer}
+  @!i: integer; {loop tally}
+  @!save_stop_at_space: boolean; {this should be in tex.ch}
+  @!dummy: boolean;
+    {Initializing}
+begin save_scanner_status := scanner_status; {|scan_toks| sets |scanner_status| to |absorbing|}
+  save_def_ref := def_ref; {|scan_toks| uses |def_ref| to point to the token list just read}
+  save_cur_cs := cur_cs; {we set |cur_cs| back a few tokens to use in runaway errors}
+    {Scanning a token list}
+  cur_cs := warning_index; {for possible runaway error}
+  {mimick |call_func| from pdfTeX}
+  if scan_toks(false, true) <> 0 then do_nothing; {actually do the scanning}
+  {|s := tokens_to_string(def_ref);|}
+  old_setting := selector; selector:=new_string;
+  show_token_list(link(def_ref),null,pool_size-pool_ptr);
+  selector := old_setting;
+  s := make_string;
+  {turns the token list read in a string to input}
+    {Restoring some variables}
+  delete_token_ref(def_ref); {remove the token list from memory}
+  def_ref := save_def_ref; {and restore |def_ref|}
+  cur_cs := save_cur_cs; {restore |cur_cs|}
+  scanner_status := save_scanner_status; {restore |scanner_status|}
+    {Passing the read string to the input machinery}
+  save_stop_at_space := stop_at_space; {save |stop_at_space|}
+  stop_at_space := false; {set |stop_at_space| to false to allow spaces in file names}
+  begin_name;
+  for i:=str_start[s] to str_start[s+1]-1 do
+    dummy := more_name(str_pool[i]); {add each read character to the current file name}
+  stop_at_space := save_stop_at_space; {restore |stop_at_space|}
+end;
+
+
+@* \[54/ML\TeX] System-dependent changes for ML\TeX.
+@^system dependencies@>
 The boolean variable |mltex_p| is set by web2c according to the given
 command line option (or an entry in the configuration file) before any
 \TeX{} function is called.
@@ -4592,7 +4724,7 @@ command line option (or an entry in the configuration file) before any
 @!mltex_p: boolean;
 
 @ The boolean variable |mltex_enabled_p| is used to enable ML\TeX's
-character substitution.  It is initialised to |false|.  When loading
+character substitution.  It is initialized to |false|.  When loading
 a \.{FMT} it is set to the value of the boolean |mltex_p| saved in
 the \.{FMT} file.  Additionally it is set to the value of |mltex_p|
 in Ini\TeX.
@@ -4698,7 +4830,7 @@ construct for |c| generating appropriate \.{DVI} code using the
 character substitution definition for this character.  If a valid
 character substitution exists \.{DVI} code is created as if
 |make_accent| was used.  In all other cases the status of the
-substituion for this character has been changed between the creation
+substitution for this character has been changed between the creation
 of the character node in the hlist and the output of the page---the
 created \.{DVI} code will be correct but the visual result will be
 undefined.
@@ -4715,14 +4847,14 @@ within a \.{\\leaders} box.
   begin
   @<Get substitution information, check it, goto |found|
   if all is ok, otherwise goto |continue|@>;
-found: @<Print character substition tracing log@>;
+found: @<Print character substitution tracing log@>;
   @<Rebuild character using substitution information@>;
   end
 
 
 @ The global variables for the code to substitute a virtual character
 can be declared as local.  Nonetheless we declare them as global to
-avoid stack overflows because |hlist_out| can be called recursivly.
+avoid stack overflows because |hlist_out| can be called recursively.
 
 @<Glob...@>=
 @!accent_c,@!base_c,@!replace_c:integer;
@@ -4735,7 +4867,7 @@ avoid stack overflows because |hlist_out| can be called recursivly.
 
 
 @ Get the character substitution information in |char_sub_code| for
-the character |c|.  The current code checks that the substition
+the character |c|.  The current code checks that the substitution
 exists and is valid and all substitution characters exist in the
 font, so we can {\it not\/} substitute a character used in a
 substitution.  This simplifies the code because we have not to check
@@ -4771,7 +4903,7 @@ for cycles in all character substitution definitions.
 
 @ For |tracinglostchars>99| the substitution is shown in the log file.
 
-@<Print character substition tracing log@>=
+@<Print character substitution tracing log@>=
  if tracing_lost_chars>99 then
    begin begin_diagnostic;
    print_nl("Using character substitution: ");
@@ -4850,16 +4982,15 @@ if x<>@"4D4C5458 then goto bad_fmt;
 undump_int(x);   {undump |mltex_p| flag into |mltex_enabled_p|}
 if x=1 then mltex_enabled_p:=true
 else if x<>0 then goto bad_fmt;
-
-
-@* \[54] System-dependent changes.
 @z
 
 @x [54.1379] l.24916 - extra routines
 @* \[55] Index.
 @y
 
-@ @<Declare action procedures for use by |main_control|@>=
+@* \[54] System-dependent changes.
+
+@<Declare action procedures for use by |main_control|@>=
 
 procedure insert_src_special;
 var toklist, p, q : pointer;
@@ -4903,6 +5034,7 @@ end;
 begin
     get_nullstr := "";
 end;
+
 
 @* \[55] Index.
 @z

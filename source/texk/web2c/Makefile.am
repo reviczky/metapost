@@ -1,7 +1,7 @@
-## $Id: Makefile.am 48591 2018-09-05 21:30:41Z lscarso $
+## $Id: Makefile.am 55138 2020-05-14 17:47:47Z karl $
 ## Makefile.am for the TeX Live subdirectory texk/web2c/.
 ##
-## Copyright 2017      Karl Berry <tex-live@tug.org>
+## Copyright 2017-2020 Karl Berry <tex-live@tug.org>
 ## Copyright 2009-2015 Peter Breitenlohner <tex-live@tug.org>
 ## You may freely use, modify and/or distribute this file.
 ##
@@ -107,8 +107,8 @@ $(proglib): ${srcdir}/lib/*.c
 @MPFR_RULE@
 ## Rebuild libxpdf
 @XPDF_RULE@
-## Rebuild poppler
-@POPPLER_RULE@
+## Rebuild pplib
+@PPLIB_RULE@
 ## Rebuild libzzip
 @ZZIPLIB_RULE@
 ## Rebuild libTEXkit
@@ -237,8 +237,13 @@ include $(srcdir)/luatexdir/am/libunilib.am
 include $(srcdir)/luatexdir/am/luafontforge.am
 include $(srcdir)/luatexdir/am/libluatex.am
 include $(srcdir)/luatexdir/am/luaffi.am
-include $(srcdir)/luatexdir/am/luapplib.am 
 include $(srcdir)/luatexdir/am/luatex.am
+
+
+## luahbTeX
+include $(srcdir)/luatexdir/am/luaharfbuzz.am
+
+
 
 ## XeTeX
 include $(srcdir)/xetexdir/am/xetex.am
