@@ -2960,15 +2960,8 @@ void *mp_xmalloc (MP mp, size_t nmem, size_t size) {
 }
 
 @ @<Internal library declarations@>=
-/*int mp_snprintf_res ;*/
-/* Some compilers (i.e. gcc 8.2.0 ) complained with the old */
-/* #define mp_snprintf (void)snprintf                       */
-/* about truncation. For the moment we store the result.    */
-/*#  define mp_snprintf mp_snprintf_res=snprintf            */
-/* Now gcc 10 does't like common symbols, so we switch back */ 
-/* to the old define. */
-#define mp_snprintf (void)snprintf     
-
+/* Avoid warning on format truncation */
+#define mp_snprintf(...) (snprintf(__VA_ARGS__) < 0 ? abort() : (void)0)
 
 @* Dynamic memory allocation.
 
@@ -4386,9 +4379,32 @@ Note that the values are |scaled| integers. Hence \MP\ can no longer
 be used after the year 32767.
 
 @c
+#if defined(_MSC_VER)
+#define strtoull _strtoui64
+#endif
 static void mp_fix_date_and_time (MP mp) {
-  time_t aclock = time ((time_t *) 0);
-  struct tm *tmptr = localtime (&aclock);
+  char *source_date_epoch;
+  time_t epoch;
+  char *endptr;
+  struct tm *tmptr;
+  source_date_epoch = getenv("SOURCE_DATE_EPOCH");
+  if (source_date_epoch) {
+    errno = 0;
+    epoch = strtoull(source_date_epoch, &endptr, 10);
+    if (*endptr != '\0' || errno != 0) {
+      FATAL1("invalid epoch-seconds-timezone value for environment variable $SOURCE_DATE_EPOCH: %s",
+              source_date_epoch);
+    }
+/* there is a limit 3001.01.01:2059 for epoch in Microsoft C */
+#if defined(_MSC_VER)
+    if (epoch > 32535291599ULL)
+      epoch = 32535291599ULL;
+#endif
+    tmptr = gmtime (&epoch);
+  } else {
+    epoch = time ((time_t *) 0);
+    tmptr = localtime (&epoch);
+  }
   set_internal_from_number (mp_time, unity_t);
   number_multiply_int (internal_value(mp_time), (tmptr->tm_hour * 60 + tmptr->tm_min));
   set_internal_from_number (mp_hour, unity_t);

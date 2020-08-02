@@ -58,7 +58,22 @@ begin
   print_ln (version_string);
 @z
 
+@x [10] Purge 'jump_out' and 'end_of_PATGEN'.
+error message about what caused the error. Such errors might be
+discovered inside of subroutines inside of subroutines, so a \.{WEB}
+macro called |jump_out| has been introduced. This macro, which transfers
+control to the label |end_of_PATGEN| at the end of the program, contains
+the only non-local |@!goto| statement in \.{PATGEN}. Some \PASCAL\
+compilers do not implement non-local |goto| statements. In such cases
+the |goto end_of_PATGEN| in the definition of |jump_out| should simply
+be replaced by a call on some system procedure that quietly terminates
+the program.
+@y
+error message about what caused the error.
+@z
 @x Error handling
+@d jump_out==goto end_of_PATGEN {terminates \.{PATGEN}}
+@#
 @d error(#)==begin print_ln(#); jump_out; end
 @y
 @d error(#)==begin write_ln(stderr, #); uexit(1); end;
@@ -72,7 +87,19 @@ begin
 @!text_char=ASCII_code; {the data type of characters in text files}
 @z
 
-@x Increase constants.
+% Much larger values requested from Keno Wehr, 17 May 2019 16:03:00,
+% but reduced (76000000/38000000) due to lack of memory on other
+% machines, from Johannes Hielscher, 10 Jul 2019 00:00:03 (tex-live list),
+% and later from Mojca Miklavec, 23 Sep 2019 21:21:42.
+% It seems hopeless, so went back to the original values (10000000/500000).
+% 
+% The real solution is to provide a way to allocate the arrays
+% dynamically, so that the large arrays can be used by those who need
+% them but other are not affected.
+% 
+% If the values here are still too big, you can probably get it to work
+% by adding swap or zram; or write a patch to allocate the arrays dynamically.
+@x
 @!trie_size=55000; {space for pattern trie}
 @!triec_size=26000; {space for pattern count trie, must be less than
  |trie_size| and greater than the number of occurrences of any pattern in
@@ -146,18 +173,18 @@ reset (dictionary, f_name);
     filnam[7]:=xdig[hyph_level];
 @z
 
-@x Work around floating point I/O deficiency.
+@x Work around floating point I/O deficiency; reorder to avoid overflow.
   if (good_count+miss_count)>0 then
     print_ln((100*good_count/(good_count+miss_count)):1:2,' %, ',
       (100*bad_count/(good_count+miss_count)):1:2,' %, ',
       (100*miss_count/(good_count+miss_count)):1:2,' %');
 @y
   if (good_count+miss_count)>0 then
-  begin print_real((100*good_count/(good_count+miss_count)),1,2);
+  begin print_real((100*(good_count/(good_count+miss_count))),1,2);
     print(' %, ');
-    print_real((100*bad_count/(good_count+miss_count)),1,2);
+    print_real((100*(bad_count/(good_count+miss_count))),1,2);
     print(' %, ');
-    print_real((100*miss_count/(good_count+miss_count)),1,2);
+    print_real((100*(miss_count/(good_count+miss_count))),1,2);
     print_ln(' %');
   end;
 @z

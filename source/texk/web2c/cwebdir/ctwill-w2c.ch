@@ -58,6 +58,19 @@
 @z
 
 @x
+\def\botofcontents{\vfill
+@y
+\def\covernote{\vbox{%
+@z
+
+@x
+}
+@y
+}}
+\datecontentspage
+@z
+
+@x
 @s not_eq normal @q unreserve a C++ keyword @>
 @y
 @z
@@ -111,8 +124,8 @@ extern int strncmp(); /* compare up to $n$ string characters */
 extern char* strncpy(); /* copy up to $n$ string characters */
 @y
 @ For string handling we include the {\mc ANSI C} system header file instead
-of predeclaring the standard system functions |strlen|, |strcmp|, |strcpy|,
-|strncmp|, and |strncpy|.
+of predeclaring the standard system functions |@!strlen|, |@!strcmp|,
+|@!strcpy|, |@!strncmp|, and |@!strncpy|.
 @^system dependencies@>
 
 @<Include files@>=
@@ -246,8 +259,6 @@ can also be replaced by a string. For example,
 $$\.{@@\$printf "<stdio.h>" \\zip@@>}$$
 will generate a mini-index entry like `\\{printf}, \.{<stdio.h>}.'.
 
-\vfill\eject
-
 A special ``proofmode'' is provided so that you can check \.{CTWILL}'s
 conclusions about cross-references. Run \.{CTWILL} with the
 flag \.{+P}, and \TeX\ will produce a specially formatted document
@@ -289,13 +300,6 @@ char **av; /* argument values */
 int main (@t\1\1@>
 int ac, /* argument count */
 char **av@t\2\2@>) /* argument values */
-@z
-
-@x
-  argc=ac; argv=av;
-@y
-  extern const char *use_language; /* prefix to \.{cwebmac.tex} in \TEX/ output */
-  argc=ac; argv=av;
 @z
 
 @x
@@ -358,8 +362,10 @@ char **av@t\2\2@>) /* argument values */
 
 @x
 @d max_scraps 2000 /* number of tokens in \CEE/ texts being parsed */
+@d stack_size 400 /* number of simultaneous output levels */
 @y
 @d max_scraps 10000 /* number of tokens in \CEE/ texts being parsed */
+@d stack_size 2000 /* number of simultaneous output levels */
 @z
 
 @x
@@ -1299,6 +1305,12 @@ copy_limbo(void)
 @y
         case right_start: right_start_switch=1; break;
         default: err_print(_("! Double @@ should be used in limbo"));
+@z
+
+@x
+@ @f copy_TeX TeX
+@y
+@f copy_TeX TeX
 @z
 
 @x
@@ -2875,6 +2887,12 @@ for (c=0; c<256; c++) bucket[c]=NULL;
 @z
 
 @x
+@ @<Rest of |trans_plus| union@>=
+@y
+@<Rest of |trans_plus| union@>=
+@z
+
+@x
 collate[0]=0;
 strcpy(collate+1," \1\2\3\4\5\6\7\10\11\12\13\14\15\16\17");
 /* 16 characters + 1 = 17 */
@@ -3095,16 +3113,16 @@ print_stats(void) {
 @x
 @** Index.
 @y
-@** Extensions for modern {\tt CWEB}.
+@** Extensions for modern {\tt CWEB}.  The following sections introduce changes
+and extensions to the code that have been created by numerous contributors over
+the course of a quarter century. They make \.{CWEB} adhere to modern coding
+standards and introduce new or improved features.
 
-The following sections introduce code changes and extensions that have been
-created by numerous contributors over the course of a quarter century. They
-make \.{CWEB} adhere to modern coding standards and introduce new or improved
-features.
-
-Care has been taken to keep the original section numbering intact, so this new
-section should have the same number as the original ``\&{275.~Index},'' and
-additional material follows below.
+\bigskip
+\font\itt=cmitt10
+{\noindent \it Although \.{\itt CTWILL} is based on \.{\itt cweave.w}, new and
+modified material is incorporated all over the place, without taking special
+care for keeping the original section numbering intact.}
 
 @* Set {\tt CWEAVE} flags.
 At least one of these is already used in \.{COMMON}.
@@ -3152,6 +3170,12 @@ static void skip_limbo(void);@/
 static void squash(scrap_pointer,short,eight_bits,short,short);@/
 static void update_node(name_pointer p);@/
 
+@* Language setting.  This global variable is defined and set in \.{COMMON} by
+the `\.{+l}' (or `\.{-l}') command-line option.
+
+@<Global var...@>=
+extern const char *use_language; /* prefix to \.{cwebmac.tex} in \TEX/ output */
+
 @* Output file update.  Most \CEE/ projects are controlled by a
 \.{Makefile} that automatically takes care of the temporal dependecies
 between the different source modules.  It is suitable that \.{CWEB} doesn't
@@ -3163,13 +3187,13 @@ be found in the program \.{NUWEB} by Preston Briggs, to whom credit is due.
 @<Update the result...@>=
 if((tex_file=fopen(tex_file_name,"r"))!=NULL) {
   char x[BUFSIZ],y[BUFSIZ];
-  int x_size,y_size,comparison;
+  int x_size,y_size,comparison=false;
 
   if((check_file=fopen(check_file_name,"r"))==NULL)
     fatal(_("! Cannot open output file "),check_file_name);
 @.Cannot open output file@>
 
-  @<Compare the temporary output to the previous output@>@;
+  if (temporary_output) @<Compare the temporary output...@>@;
 
   fclose(tex_file); tex_file=NULL;
   fclose(check_file); check_file=NULL;
@@ -3182,7 +3206,7 @@ strcpy(check_file_name,""); /* We want to get rid of the temporary file */
 
 @ We hope that this runs fast on most systems.
 
-@<Compare the temp...@>=
+@<Compare the temporary output to the previous output@>=
 do {
   x_size = fread(x,1,BUFSIZ,tex_file);
   y_size = fread(y,1,BUFSIZ,check_file);
@@ -3201,7 +3225,7 @@ else {
   rename(check_file_name,tex_file_name);
 }
 
-@* Put ``version'' information in a single spot.
+@* Put ``version'' information in \.{COMMON}.
 Don't do this at home, kids! Push our local macro to the variable in \.{COMMON}
 for printing the |banner| and the |versionstring| from there.
 
