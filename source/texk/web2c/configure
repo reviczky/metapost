@@ -638,12 +638,6 @@ am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
 subdirs
-LIBSYNCTEX
-LTLIBSYNCTEX
-SYNCTEX_FALSE
-SYNCTEX_TRUE
-SYNCTEX_LT_VERSINFO
-SYNCTEXVERSION
 OTANGLE
 TIE
 CTANGLE
@@ -26344,34 +26338,6 @@ ac_config_files="$ac_config_files ctangleboot-sh"
 ac_config_files="$ac_config_files silent-sh"
 
 
-## texk/web2c/synctexdir/ac/synctex.ac: configure.ac fragment for the TeX Live subdirectory texk/web2c/
-
-SYNCTEXVERSION=2.0.0
-
-
-SYNCTEX_LT_VERSINFO=2:0:0
-
-
- if test "x$enable_synctex" != xno; then
-  SYNCTEX_TRUE=
-  SYNCTEX_FALSE='#'
-else
-  SYNCTEX_TRUE='#'
-  SYNCTEX_FALSE=
-fi
-
-
-if test "x$with_system_zlib" = xyes; then :
-  LTLIBSYNCTEX=libsynctex.la
-
-else
-  LIBSYNCTEX=libsynctex.a
-
-fi
-
-ac_config_files="$ac_config_files synctexdir/synctex.pc"
-
-
 
 
 if test "x$host_alias" != x && test "x$build_alias" = x; then :
@@ -26696,10 +26662,6 @@ if test -z "${UPWEB_TRUE}" && test -z "${UPWEB_FALSE}"; then
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 
-if test -z "${SYNCTEX_TRUE}" && test -z "${SYNCTEX_FALSE}"; then
-  as_fn_error $? "conditional \"SYNCTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
 
 : "${CONFIG_STATUS=./config.status}"
 ac_write_fail=0
@@ -27700,7 +27662,6 @@ do
     "tangle-sh") CONFIG_FILES="$CONFIG_FILES tangle-sh" ;;
     "ctangleboot-sh") CONFIG_FILES="$CONFIG_FILES ctangleboot-sh" ;;
     "silent-sh") CONFIG_FILES="$CONFIG_FILES silent-sh" ;;
-    "synctexdir/synctex.pc") CONFIG_FILES="$CONFIG_FILES synctexdir/synctex.pc" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
