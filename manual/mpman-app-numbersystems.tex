@@ -21,7 +21,7 @@ Assigning a value to this variable at run-time triggers an error.
 
 The \texttt{scaled}\index{scaled?\texttt{scaled}} number system refers
 to 32~bit fixed-point arithmetics described in Section~\ref{datatypes}.
-This is the default number system.  Precision is ca. 10~decimal digits,
+This is the default number system.  Precision is ca.~10~decimal digits,
 5 digits before and after the comma.  All arithmetic operations are done
 in software.
 
@@ -31,9 +31,9 @@ precision.  In the internal representation, double floating-point
 numbers use $52+1$~bits for the mantissa, which determines precision,
 11~bits for the exponent, which determines the valid range of numbers,
 and one bit for the sign.  The smallest absolute value that can be
-represented is ca. $2.2\cdot10^{-308}$, the largest value is
-ca. $1.8\cdot10^{308}$.  The 53~bit mantissa makes for a precision of
-ca. 15 decimal digits.  The smallest possible difference between two
+represented is ca.~$2.2\cdot10^{-308}$, the largest value is
+ca.~$1.8\cdot10^{308}$.  The 53~bit mantissa makes for a precision of
+ca.~15 decimal digits.  The smallest possible difference between two
 distinct numbers in double floating-point number representation is
 $2^{-53} \approx 1.1\cdot10^{-16}$.  The largest integer value that can
 be represented exactly is $2^{53}-1 \approx 9,0\cdot10^{15}$.  Variable
@@ -53,7 +53,7 @@ Precision is determined by an internal variable
 in decimal digits.  Valid numbers are in the range 1 to 1000.  Higher
 values make for better precision at the expense of performance of
 arithmetic operations.  Default precision is 34~decimal digits
-(ca. 113~bits in the mantissa).  Exponent in the internal representation
+(ca.~113~bits in the mantissa).  Exponent in the internal representation
 is an integer in the range $[-9,999,999; +9,999,999]$.  All arithmetic
 operations are done in software using the MPFR library~\cite{lib:mpfr}
 and are usually orders of magnitude slower than in \texttt{double} mode.
