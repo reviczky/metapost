@@ -1,3 +1,13 @@
+2020-10-27  Karl Berry  <karl@freefriends.org>
+
+	* pktogf.web: TFM widths are 2^20 times the ratio, not 2^24.
+	Report from Richard Sandberg, 2 Jul 2019 10:49:50.
+
+2020-08-31  Karl Berry  <karl@freefriends.org>
+
+	* tests/expanded-overflow.tex: new (unused) informational file
+	for \expanded overflow.
+
 2020-08-01  Andreas Scherer  <https://ascherer.github.io>
 
 	* dvicopy.ch,
