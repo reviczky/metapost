@@ -17,15 +17,15 @@
 @q Please send comments, suggestions, etc. to tex-k@@tug.org.            @>
 
 @x
-\def\title{CTANGLE (Version 4.6)}
+\def\title{CTANGLE (Version 4.8)}
 @y
-\def\title{CTANGLE (Version 4.6 [\TeX~Live])}
+\def\title{CTANGLE (Version 4.8 [\TeX~Live])}
 @z
 
 @x
-  \centerline{(Version 4.6)}
+  \centerline{(Version 4.8)}
 @y
-  \centerline{(Version 4.6 [\TeX~Live])}
+  \centerline{(Version 4.8 [\TeX~Live])}
 @z
 
 @x
@@ -41,9 +41,9 @@
 @z
 
 @x
-@d banner "This is CTANGLE (Version 4.6)"
+@d banner "This is CTANGLE (Version 4.8)"
 @y
-@d banner "This is CTANGLE, Version 4.6"
+@d banner "This is CTANGLE, Version 4.8"
   /* will be extended by the \TeX~Live |versionstring| */
 @z
 
@@ -60,7 +60,7 @@
 @z
 
 @x
-@ @d max_texts 2500 /* number of replacement texts, must be less than 10240 */
+@ @d max_texts 4000 /* number of replacement texts, must be less than 10240 */
 @d max_toks 270000 /* number of bytes in compressed \CEE/ code */
 @y
 @ @d max_texts 10239 /* number of replacement texts, must be less than 10240 */
@@ -319,8 +319,10 @@ case output_defs_code: if (t!=section_name) err_print(_("! Misplaced @@h"));
 @z
 
 @x
+          } @=/* otherwise fall through */@>@;
         default: err_print("! Double @@ should be used in limbo");
 @y
+          } @=/* otherwise fall through */@>@;
         default: err_print(_("! Double @@ should be used in limbo"));
 @z
 

@@ -1,3 +1,11 @@
+2022-03-21  Karl Berry  <karl@freefriends.org>
+
+	* tardate.ac (tex_live_tardate): 2020-03-21 for TL'22.
+
+2022-01-18  Karl Berry  <karl@freefriends.org>
+
+	* version.ac: 2022, no more /dev.
+
 2021-10-04  Karl Berry  <karl@freefriends.org>
 
 	* reautoconf with automake-1.16.5.

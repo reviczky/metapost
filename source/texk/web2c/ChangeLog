@@ -1,3 +1,134 @@
+2022-07-16  Karl Berry  <karl@freefriends.org>
+
+	* tex.ch (25.369, <Suppress expansion ...>): disallow
+	\noexpand\endwrite, else we get a seg fault because of fetching
+	mem[null]. Fix from drf.
+	Original report: https://tex.stackexchange.com/questions/609423
+	TeX bug entry: https://tug.org/texmfbug/newbug.html#B155endwrite
+
+2022-06-12  TANAKA Takuji  <ttk@t-lab.opal.ne.jp>
+
+	* texmfmp-help.h ((e)(u)pTeX), help.h ((u)pBibTeX):
+	Support guessing input file encodings.
+	https://github.com/texjporg/tex-jp-build/issues/142
+	* tests/enc-{asc,jis,sjis,euc,utf8{,a,b},amb[012]}.bib,
+	tests/enc{,-[es]}.aux, tests/testfield.bst,
+	tests/enc-{,[es]}[pu].bbl:
+	Add tests for guess encodings & (u)pBibTeX.
+
+2022-06-05  Andreas Scherer  <https://ascherer.github.io>
+
+	* ctangleboot.cin: CWEB 4.8 release.
+
+2022-05-06  TANAKA Takuji  <ttk@t-lab.opal.ne.jp>
+
+	* bibtex.ch:
+	Apply max_print_line variable in kpathsea to ((u)p)BibTeX.
+	* bibtex.test, tests/exampl.bbl, am/web.am:
+	Update tests for ((u)p)BibTeX.
+
+2022-04-30  Andreas Scherer  <https://ascherer.github.io>
+
+	* weav-twill.ch,
+	* weave.ch: Reshuffle '\title' changes..
+
+2022-04-27  Andreas Scherer  <https://ascherer.github.io>
+
+	* weav-twill.ch: Avoid non-POSIX conflict with Solaris 11.4.
+
+2022-04-06  Andreas Scherer  <https://ascherer.github.io>
+
+	* weav-twill.ch: My name is 'twill'.
+
+2022-03-27  Andreas Scherer  <https://ascherer.github.io>
+
+	* help.h: TWILL has a third file argument.
+
+2022-03-21  Karl Berry  <karl@tug.org>
+
+	* TL'22 release.
+
+2022-03-10  Andreas Scherer  <https://ascherer.github.io>
+
+	* ctangleboot.cin,
+	* cwebboot.cin: Make 'fall thru' comments active.
+
+2022-03-03  Andreas Scherer  <https://ascherer.github.io>
+
+	* cpascal.h,
+	* tangle.ch,
+	* tangleboot.pin: Always create pool file next to Pascal file.
+
+2022-03-02  Andreas Scherer  <https://ascherer.github.io>
+
+	* help.h,
+	* tangle.ch,
+	* tangleboot.pin,
+	* weave.ch: Permit user-defined output file names.
+
+2022-02-24  Karl Berry  <karl@freefriends.org>
+
+	* dvitype.ch (scan_bop, [99]): output a newline between
+	font definitions so they do not run together.
+	From Igor Liferenko,
+	https://tug.org/pipermail/tex-k/2022-January/003760.html (change#3).
+	Original report part of
+	https://tug.org/pipermail/tex-k/2021-November/003711.html,
+	and a first patch from Andreas Scherer in that thread,
+	https://tug.org/pipermail/tex-k/2021-November/003721.html.
+
+2022-02-18  Andreas Scherer  <https://ascherer.github.io>
+
+	* cwebboot.cin,
+	* ctangleboot.bin: Add '#line' after '#elif', '#else', and '#endif'.
+
+2022-02-15  Andreas Scherer  <https://ascherer.github.io>
+
+	* cwebboot.cin,
+	* ctangleboot.bin: Add '#line' after '#endif'.
+
+2022-02-11  Andreas Scherer  <https://ascherer.github.io>
+
+	* weave.ch: Fix spacing in math expression.
+
+2022-02-05  Andreas Scherer  <https://ascherer.github.io>
+
+	* ctangleboot.bin: CWEB 4.7 release.
+
+2022-01-29  Karl Berry  <karl@freefriends.org>
+
+	* doc/web2c.texi (TeX extensions): simplify references.
+
+2022-01-22  Hironori Kitagawa  <h_kitagawa2001@yahoo.co.jp>
+
+	* texmfmem.h: Change type of str_pool to unsigned short for pTeX.
+	  We use only 0--511, and use flag 0x100 for Japanese char.
+
+2022-01-21  Karl Berry  <karl@freefriends.org>
+
+	* ac/web2c.ac (kpse_tex_progs): enable hitex by default.
+
+2022-01-18  Karl Berry  <karl@freefriends.org>
+
+	* doc/web2c.texi (TeX extensions): mention pdftex manual and
+	ltnews31.pdf as primary documentation for the cross-engine
+	functionality.
+	(Introduction): mention TeX Live and teTeX.	
+
+2022-01-16  Andreas Scherer  <https://ascherer.github.io>
+
+	* weave.ch: Add a third layer to 'byte_mem'.
+
+2022-01-15  Andreas Scherer  <https://ascherer.github.io>
+
+	* tangle.ch,
+	* tangleboot.pin,
+	* weave.ch: Adapt WEB to general conventions.
+
+2022-01-12  Marcel Kr\"uger  <tex@2krueger.de>
+
+	* showstream.ch: if (selector<no_print), rather than <log_only.
+
 2022-01-11  Marcel Kr\"uger  <tex@2krueger.de>
 
 	* showstream.ch: adjust selector for show_stream.

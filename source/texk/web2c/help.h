@@ -373,6 +373,7 @@ const_string PBIBTEXHELP[] = {
     "  Write bibliography for entries in AUXFILE to AUXFILE.bbl,",
     "  along with a log file AUXFILE.blg."
     "",
+    "[-no]-guess-input-enc  disable/enable to guess input file encoding",
     "-kanji=STRING          set Japanese encoding (STRING=euc|jis|sjis|utf8)",
     "-min-crossrefs=NUMBER  include item after NUMBER cross-refs; default 2",
     "-terse                 do not print progress reports",
@@ -486,11 +487,13 @@ const_string PTFTOPLHELP[] = {
 
 #if defined (TANGLE) || defined (TANGLEBOOT)
 const_string TANGLEHELP[] = {
-    "Usage: tangle [OPTION]... WEBFILE[.web] [CHANGEFILE[.ch]]",
+    "Usage: tangle [OPTION] WEBFILE[.web] [{CHANGEFILE[.ch]|-} [OUTFILE[.p]]]",
     "  Tangle WEBFILE with CHANGEFILE into a Pascal program.",
     "  Default CHANGEFILE is " DEV_NULL ";",
     "  Pascal output goes to the basename of WEBFILE extended with `.p',",
-    "  and a string pool file, if necessary, to the same extended with `.pool'.",
+    "  unless otherwise specified by OUTFILE,",
+    "  and a string pool file, if necessary, to the same extended with `.pool';",
+    "  in this case, '-' specifies a null CHANGEFILE.",
     "",
     "-length=NUMBER the first NUMBER characters of an identifier have to be",
     "                unique (default 32)",
@@ -531,6 +534,7 @@ const_string UPBIBTEXHELP[] = {
     "  Write bibliography for entries in AUXFILE to AUXFILE.bbl,",
     "  along with a log file AUXFILE.blg."
     "",
+    "[-no]-guess-input-enc  disable/enable to guess input file encoding",
     "-kanji=STRING          set Japanese encoding (STRING=euc|jis|sjis|utf8|uptex)",
     "-kanji-internal=STRING set Japanese internal encoding (STRING=euc|uptex)",
     "-min-crossrefs=NUMBER  include item after NUMBER cross-refs; default 2",
@@ -627,10 +631,12 @@ const_string VPTOVFHELP[] = {
 
 #ifdef WEAVE
 const_string WEAVEHELP[] = {
-    "Usage: weave [OPTION]... WEBFILE[.web] [CHANGEFILE[.ch]]",
+    "Usage: weave [OPTION] WEBFILE[.web] [{CHANGEFILE[.ch]|-} [OUTFILE[.tex]]]",
     "  Weave WEBFILE with CHANGEFILE into a TeX document.",
     "  Default CHANGEFILE is " DEV_NULL ";",
-    "  TeX output goes to the basename of WEBFILE extended with `.tex'.",
+    "  TeX output goes to the basename of WEBFILE extended with `.tex',",
+    "  unless otherwise specified by OUTFILE;",
+    "  in this case, '-' specifies a null CHANGEFILE.",
     "",
     "-x          omit cross-reference information",
     "-help       display this help and exit",
@@ -641,10 +647,12 @@ const_string WEAVEHELP[] = {
 
 #ifdef TWILL
 const_string TWILLHELP[] = {
-    "Usage: twill [OPTION]... WEBFILE[.web] [CHANGEFILE[.ch]]",
+    "Usage: twill [OPTION] WEBFILE[.web] [{CHANGEFILE[.ch]|-} [OUTFILE[.tex]]]",
     "  Weave WEBFILE with CHANGEFILE into a TeX document with mini-indexes.",
     "  Default CHANGEFILE is " DEV_NULL ";",
-    "  TeX output goes to the basename of WEBFILE extended with `.tex'.",
+    "  TeX output goes to the basename of WEBFILE extended with `.tex',",
+    "  unless otherwise specified by OUTFILE;",
+    "  in this case, '-' specifies a null CHANGEFILE.",
     "",
     "-x          omit cross-reference information",
     "-help       display this help and exit",

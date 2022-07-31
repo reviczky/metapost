@@ -2,7 +2,7 @@
 % This program by Silvio Levy and Donald E. Knuth
 % is based on a program by Knuth.
 % It is distributed WITHOUT ANY WARRANTY, express or implied.
-% Version 4.6 --- December 2021 (works also with later versions)
+% Version 4.8 --- June 2022 (works also with later versions)
 
 % Copyright (C) 1987,1990,1993 Silvio Levy and Donald E. Knuth
 
@@ -251,9 +251,8 @@ extern void common_init(void);@/
 extern void print_stats(void);@/
 extern void cb_show_banner(void);
 
-@ The following parameters were sufficient in the original \.{WEB} to
-handle \TEX/, so they should be sufficient for most applications of
-\.{CWEB}.
+@ The following parameters are sufficient to handle \TEX/ (converted to
+\.{CWEB}), so they should be sufficient for most applications of \.{CWEB}.
 
 @d buf_size 1000 /* maximum length of input line, plus one */
 @d longest_name 10000 /* file names, section names, and section texts

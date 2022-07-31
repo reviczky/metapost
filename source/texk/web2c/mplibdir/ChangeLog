@@ -1,5 +1,21 @@
+2022-07-31 Luigi Scarso <luigi.scarso@gmail.com>
+    * MetaPost: Working on the file extension (work in progress).
+
+2022-05-28  Akira Kakuto  <kakuto@jcom.zaq.ne.jp>
+
+        * mp.w: Typo.
+
+2022-05-23  Luigi Scarso <luigi.scarso@gmail.com>
+    * Fixed mp_begin_iteration (H.Hagen)
+
+2022-05-15  Luigi Scarso <luigi.scarso@gmail.com>
+    * Fixed a memory leak in mplib (H.Hagen)
+
+2022-03-21  Karl Berry  <karl@tug.org>
+	* TL'22 release.
+
 2022-01-19  Luigi Scarso  <luigi.scarso@gmail.com>
-	* MetaPost 2.02
+	* mp.w: MetaPost 2.02 (twice).
 
 2022-01-10  Karl Berry  <karl@freefriends.org>
 
@@ -17,7 +33,7 @@
 	* Revert the patch in mpx_copy_mpto, it was wrong in tex mode. Added a check if in troff mode.
 
 2021-03-23 Karl Berry <karl@tug.org>
-    * TL'21.
+	* TL'21.
 
 2020-12-28  Luigi Scarso  <luigi.scarso@gmail.com>
 	* Temp, fix in mpx_copy_mpto, changed || with && to avoid a wrong final %
