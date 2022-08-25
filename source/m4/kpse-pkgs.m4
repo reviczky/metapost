@@ -32,6 +32,10 @@ teckit
 graphite2
 zziplib
 xpdf
+<<<<<<< HEAD
+=======
+mpfi
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 mpfr
 gmp
 cairo
@@ -67,6 +71,10 @@ AC_REQUIRE([KPSE_PIXMAN_SYSTEM_FLAGS])[]dnl
 AC_REQUIRE([KPSE_CAIRO_SYSTEM_FLAGS])[]dnl
 AC_REQUIRE([KPSE_GMP_SYSTEM_FLAGS])[]dnl
 AC_REQUIRE([KPSE_MPFR_SYSTEM_FLAGS])[]dnl
+<<<<<<< HEAD
+=======
+AC_REQUIRE([KPSE_MPFI_SYSTEM_FLAGS])[]dnl
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 AC_REQUIRE([KPSE_XPDF_SYSTEM_FLAGS])[]dnl
 AC_REQUIRE([KPSE_ZZIPLIB_SYSTEM_FLAGS])[]dnl
 AC_REQUIRE([KPSE_GRAPHITE2_SYSTEM_FLAGS])[]dnl

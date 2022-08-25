@@ -259,6 +259,10 @@ KPSE_PIXMAN_FLAGS
 KPSE_CAIRO_FLAGS
 KPSE_GMP_FLAGS
 KPSE_MPFR_FLAGS
+<<<<<<< HEAD
+=======
+KPSE_MPFI_FLAGS
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 KPSE_XPDF_FLAGS
 KPSE_ZZIPLIB_FLAGS
 KPSE_TECKIT_FLAGS

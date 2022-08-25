@@ -1242,6 +1242,10 @@ m4_include([../../m4/kpse-lua52-flags.m4])
 m4_include([../../m4/kpse-lua53-flags.m4])
 m4_include([../../m4/kpse-luajit-flags.m4])
 m4_include([../../m4/kpse-macos-framework.m4])
+<<<<<<< HEAD
+=======
+m4_include([../../m4/kpse-mpfi-flags.m4])
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 m4_include([../../m4/kpse-mpfr-flags.m4])
 m4_include([../../m4/kpse-pixman-flags.m4])
 m4_include([../../m4/kpse-pplib-flags.m4])

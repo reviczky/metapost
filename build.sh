@@ -149,6 +149,10 @@ $MAKE
 (cd libs/libpng; $MAKE )
 (cd libs/gmp; $MAKE ; $MAKE gmpbuild )
 (cd libs/mpfr; $MAKE ; $MAKE mpfrbuild )
+<<<<<<< HEAD
+=======
+(cd libs/mpfi; $MAKE ; $MAKE mpfibuild )
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 (cd texk/web2c; $MAKE $MPOSTEXE )
 
 # go back

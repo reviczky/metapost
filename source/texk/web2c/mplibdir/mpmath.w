@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 % $Id$
+=======
+% $Id: mpmath.w 2118 2017-02-15 17:49:54Z luigi $
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 %
 % This file is part of MetaPost;
 % the MetaPost program is in the public domain.

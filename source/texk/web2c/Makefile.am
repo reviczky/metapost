@@ -129,6 +129,11 @@ $(proglib): $(proglib_sources)
 @GMP_RULE@
 ## Rebuild libmpfr
 @MPFR_RULE@
+<<<<<<< HEAD
+=======
+## Rebuild libmpfi
+@MPFI_RULE@
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 ## Rebuild libxpdf
 @XPDF_RULE@
 ## Rebuild pplib

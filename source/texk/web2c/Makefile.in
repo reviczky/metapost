@@ -290,6 +290,10 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/web2c-disable.m4 \
 	$(top_srcdir)/../../m4/kpse-lua53-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-luajit-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-macos-framework.m4 \
+<<<<<<< HEAD
+=======
+	$(top_srcdir)/../../m4/kpse-mpfi-flags.m4 \
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 	$(top_srcdir)/../../m4/kpse-mpfr-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-pixman-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-pplib-flags.m4 \
@@ -1044,7 +1048,13 @@ libmplibcore_a_OBJECTS = $(nodist_libmplibcore_a_OBJECTS)
 libmplibextramath_a_AR = $(AR) $(ARFLAGS)
 libmplibextramath_a_LIBADD =
 am__objects_25 = libmplibextramath_a-mpmathbinary.$(OBJEXT)
+<<<<<<< HEAD
 nodist_libmplibextramath_a_OBJECTS = $(am__objects_25)
+=======
+am__objects_26 = libmplibextramath_a-mpmathinterval.$(OBJEXT)
+nodist_libmplibextramath_a_OBJECTS = $(am__objects_25) \
+	$(am__objects_26)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 libmplibextramath_a_OBJECTS = $(nodist_libmplibextramath_a_OBJECTS)
 libmputil_a_AR = $(AR) $(ARFLAGS)
 libmputil_a_LIBADD =
@@ -1066,7 +1076,11 @@ am__libpdftex_a_SOURCES_DIST = pdftexdir/avl.c pdftexdir/avl.h \
 	pdftexdir/writepng.c pdftexdir/writet1.c pdftexdir/writet3.c \
 	pdftexdir/writettf.c pdftexdir/writettf.h pdftexdir/writezip.c \
 	pdftexdir/regex/regex.c pdftexdir/regex/regex.h
+<<<<<<< HEAD
 @MINGW32_TRUE@am__objects_26 =  \
+=======
+@MINGW32_TRUE@am__objects_27 =  \
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 @MINGW32_TRUE@	pdftexdir/regex/libpdftex_a-regex.$(OBJEXT)
 am_libpdftex_a_OBJECTS = pdftexdir/libpdftex_a-avl.$(OBJEXT) \
 	pdftexdir/libpdftex_a-avlstuff.$(OBJEXT) \
@@ -1087,7 +1101,11 @@ am_libpdftex_a_OBJECTS = pdftexdir/libpdftex_a-avl.$(OBJEXT) \
 	pdftexdir/libpdftex_a-writet1.$(OBJEXT) \
 	pdftexdir/libpdftex_a-writet3.$(OBJEXT) \
 	pdftexdir/libpdftex_a-writettf.$(OBJEXT) \
+<<<<<<< HEAD
 	pdftexdir/libpdftex_a-writezip.$(OBJEXT) $(am__objects_26)
+=======
+	pdftexdir/libpdftex_a-writezip.$(OBJEXT) $(am__objects_27)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 libpdftex_a_OBJECTS = $(am_libpdftex_a_OBJECTS)
 libukanji_a_AR = $(AR) $(ARFLAGS)
 libukanji_a_LIBADD =
@@ -1127,10 +1145,17 @@ am__libxetex_a_SOURCES_DIST = xetexdir/XeTeXFontInst.cpp \
 	xetexdir/XeTeXFontInst_Mac.h xetexdir/XeTeXFontMgr_Mac.mm \
 	xetexdir/XeTeXFontMgr_Mac.h xetexdir/XeTeX_mac.c \
 	xetexdir/XeTeXFontMgr_FC.cpp xetexdir/XeTeXFontMgr_FC.h
+<<<<<<< HEAD
 @XETEX_MACOSX_TRUE@am__objects_27 = xetexdir/libxetex_a-XeTeXFontInst_Mac.$(OBJEXT) \
 @XETEX_MACOSX_TRUE@	xetexdir/libxetex_a-XeTeXFontMgr_Mac.$(OBJEXT) \
 @XETEX_MACOSX_TRUE@	xetexdir/libxetex_a-XeTeX_mac.$(OBJEXT)
 @XETEX_MACOSX_FALSE@am__objects_28 = xetexdir/libxetex_a-XeTeXFontMgr_FC.$(OBJEXT)
+=======
+@XETEX_MACOSX_TRUE@am__objects_28 = xetexdir/libxetex_a-XeTeXFontInst_Mac.$(OBJEXT) \
+@XETEX_MACOSX_TRUE@	xetexdir/libxetex_a-XeTeXFontMgr_Mac.$(OBJEXT) \
+@XETEX_MACOSX_TRUE@	xetexdir/libxetex_a-XeTeX_mac.$(OBJEXT)
+@XETEX_MACOSX_FALSE@am__objects_29 = xetexdir/libxetex_a-XeTeXFontMgr_FC.$(OBJEXT)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 am_libxetex_a_OBJECTS = xetexdir/libxetex_a-XeTeXFontInst.$(OBJEXT) \
 	xetexdir/libxetex_a-XeTeXFontMgr.$(OBJEXT) \
 	xetexdir/libxetex_a-XeTeXLayoutInterface.$(OBJEXT) \
@@ -1144,14 +1169,24 @@ am_libxetex_a_OBJECTS = xetexdir/libxetex_a-XeTeXFontInst.$(OBJEXT) \
 	xetexdir/image/libxetex_a-jpegimage.$(OBJEXT) \
 	xetexdir/image/libxetex_a-mfileio.$(OBJEXT) \
 	xetexdir/image/libxetex_a-numbers.$(OBJEXT) \
+<<<<<<< HEAD
 	xetexdir/image/libxetex_a-pngimage.$(OBJEXT) $(am__objects_27) \
 	$(am__objects_28)
+=======
+	xetexdir/image/libxetex_a-pngimage.$(OBJEXT) $(am__objects_28) \
+	$(am__objects_29)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 libxetex_a_OBJECTS = $(am_libxetex_a_OBJECTS)
 dist_aleph_OBJECTS = alephdir/aleph-aleph.$(OBJEXT) \
 	alephdir/aleph-alephbis.$(OBJEXT) \
 	alephdir/aleph-alephextra.$(OBJEXT)
+<<<<<<< HEAD
 am__objects_29 = aleph-alephini.$(OBJEXT) aleph-aleph0.$(OBJEXT)
 nodist_aleph_OBJECTS = $(am__objects_29) aleph-aleph-pool.$(OBJEXT)
+=======
+am__objects_30 = aleph-alephini.$(OBJEXT) aleph-aleph0.$(OBJEXT)
+nodist_aleph_OBJECTS = $(am__objects_30) aleph-aleph-pool.$(OBJEXT)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 aleph_OBJECTS = $(dist_aleph_OBJECTS) $(nodist_aleph_OBJECTS)
 am__DEPENDENCIES_1 =
 am__DEPENDENCIES_2 = $(proglib) $(am__DEPENDENCIES_1)
@@ -1230,6 +1265,7 @@ dvitype_OBJECTS = $(nodist_dvitype_OBJECTS)
 dvitype_LDADD = $(LDADD)
 dvitype_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
 dist_eptex_OBJECTS = eptexdir/eptex-eptexextra.$(OBJEXT)
+<<<<<<< HEAD
 am__objects_30 = eptex-eptexini.$(OBJEXT) eptex-eptex0.$(OBJEXT)
 nodist_eptex_OBJECTS = $(am__objects_30) eptex-eptex-pool.$(OBJEXT)
 eptex_OBJECTS = $(dist_eptex_OBJECTS) $(nodist_eptex_OBJECTS)
@@ -1240,6 +1276,18 @@ etex_OBJECTS = $(dist_etex_OBJECTS) $(nodist_etex_OBJECTS)
 dist_euptex_OBJECTS = euptexdir/euptex-euptexextra.$(OBJEXT)
 am__objects_32 = euptex-euptexini.$(OBJEXT) euptex-euptex0.$(OBJEXT)
 nodist_euptex_OBJECTS = $(am__objects_32) euptex-euptex-pool.$(OBJEXT)
+=======
+am__objects_31 = eptex-eptexini.$(OBJEXT) eptex-eptex0.$(OBJEXT)
+nodist_eptex_OBJECTS = $(am__objects_31) eptex-eptex-pool.$(OBJEXT)
+eptex_OBJECTS = $(dist_eptex_OBJECTS) $(nodist_eptex_OBJECTS)
+dist_etex_OBJECTS = etexdir/etex-etexextra.$(OBJEXT)
+am__objects_32 = etex-etexini.$(OBJEXT) etex-etex0.$(OBJEXT)
+nodist_etex_OBJECTS = $(am__objects_32) etex-etex-pool.$(OBJEXT)
+etex_OBJECTS = $(dist_etex_OBJECTS) $(nodist_etex_OBJECTS)
+dist_euptex_OBJECTS = euptexdir/euptex-euptexextra.$(OBJEXT)
+am__objects_33 = euptex-euptexini.$(OBJEXT) euptex-euptex0.$(OBJEXT)
+nodist_euptex_OBJECTS = $(am__objects_33) euptex-euptex-pool.$(OBJEXT)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 euptex_OBJECTS = $(dist_euptex_OBJECTS) $(nodist_euptex_OBJECTS)
 am_gftodvi_OBJECTS =
 nodist_gftodvi_OBJECTS = gftodvi.$(OBJEXT)
@@ -1266,16 +1314,28 @@ hishrink_OBJECTS = $(nodist_hishrink_OBJECTS)
 nodist_histretch_OBJECTS = histretch-hitables.$(OBJEXT) \
 	histretch-histretch.$(OBJEXT)
 histretch_OBJECTS = $(nodist_histretch_OBJECTS)
+<<<<<<< HEAD
 am__objects_33 = hitex-hitex.$(OBJEXT)
 nodist_hitex_OBJECTS = hitex-hitables.$(OBJEXT) hitex-hiput.$(OBJEXT) \
 	$(am__objects_33)
+=======
+am__objects_34 = hitex-hitex.$(OBJEXT)
+nodist_hitex_OBJECTS = hitex-hitables.$(OBJEXT) hitex-hiput.$(OBJEXT) \
+	$(am__objects_34)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 hitex_OBJECTS = $(nodist_hitex_OBJECTS)
 nodist_initex_OBJECTS = initex-callexe.$(OBJEXT)
 initex_OBJECTS = $(nodist_initex_OBJECTS)
 initex_DEPENDENCIES =
+<<<<<<< HEAD
 am__objects_34 = luatexdir/luahbtex-luatex.$(OBJEXT) \
 	mplibdir/luahbtex-lmplib.$(OBJEXT)
 nodist_luahbtex_OBJECTS = $(am__objects_34)
+=======
+am__objects_35 = luatexdir/luahbtex-luatex.$(OBJEXT) \
+	mplibdir/luahbtex-lmplib.$(OBJEXT)
+nodist_luahbtex_OBJECTS = $(am__objects_35)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 luahbtex_OBJECTS = $(nodist_luahbtex_OBJECTS)
 am__DEPENDENCIES_3 = $(am__DEPENDENCIES_1)
 am__DEPENDENCIES_4 = libmplibcore.a $(am__DEPENDENCIES_1) \
@@ -1286,16 +1346,28 @@ am__DEPENDENCIES_4 = libmplibcore.a $(am__DEPENDENCIES_1) \
 luahbtex_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(luahbtex_CXXFLAGS) \
 	$(CXXFLAGS) $(luahbtex_LDFLAGS) $(LDFLAGS) -o $@
+<<<<<<< HEAD
 am__objects_35 = luatexdir/luajithbtex-luatex.$(OBJEXT) \
 	mplibdir/luajithbtex-lmplib.$(OBJEXT)
 nodist_luajithbtex_OBJECTS = $(am__objects_35)
+=======
+am__objects_36 = luatexdir/luajithbtex-luatex.$(OBJEXT) \
+	mplibdir/luajithbtex-lmplib.$(OBJEXT)
+nodist_luajithbtex_OBJECTS = $(am__objects_36)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 luajithbtex_OBJECTS = $(nodist_luajithbtex_OBJECTS)
 luajithbtex_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(luajithbtex_CXXFLAGS) \
 	$(CXXFLAGS) $(luajithbtex_LDFLAGS) $(LDFLAGS) -o $@
+<<<<<<< HEAD
 am__objects_36 = luatexdir/luajittex-luatex.$(OBJEXT) \
 	mplibdir/luajittex-lmplib.$(OBJEXT)
 nodist_luajittex_OBJECTS = $(am__objects_36)
+=======
+am__objects_37 = luatexdir/luajittex-luatex.$(OBJEXT) \
+	mplibdir/luajittex-lmplib.$(OBJEXT)
+nodist_luajittex_OBJECTS = $(am__objects_37)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 luajittex_OBJECTS = $(nodist_luajittex_OBJECTS)
 am__DEPENDENCIES_5 = libmplibcore.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
@@ -1304,9 +1376,15 @@ am__DEPENDENCIES_5 = libmplibcore.a $(am__DEPENDENCIES_1) \
 luajittex_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(luajittex_LDFLAGS) $(LDFLAGS) -o $@
+<<<<<<< HEAD
 am__objects_37 = luatexdir/luatex-luatex.$(OBJEXT) \
 	mplibdir/luatex-lmplib.$(OBJEXT)
 nodist_luatex_OBJECTS = $(am__objects_37)
+=======
+am__objects_38 = luatexdir/luatex-luatex.$(OBJEXT) \
+	mplibdir/luatex-lmplib.$(OBJEXT)
+nodist_luatex_OBJECTS = $(am__objects_38)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 luatex_OBJECTS = $(nodist_luatex_OBJECTS)
 luatex_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -1333,8 +1411,13 @@ mflua_DEPENDENCIES = libmflua.a libmfluaotfcc.a libmfluapotrace.a \
 mflua_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(mflua_LDFLAGS) $(LDFLAGS) -o $@
+<<<<<<< HEAD
 am__objects_38 = mfluadir/mflua_nowin-mfluaextra.$(OBJEXT)
 nodist_mflua_nowin_OBJECTS = $(am__objects_38)
+=======
+am__objects_39 = mfluadir/mflua_nowin-mfluaextra.$(OBJEXT)
+nodist_mflua_nowin_OBJECTS = $(am__objects_39)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 mflua_nowin_OBJECTS = $(nodist_mflua_nowin_OBJECTS)
 mflua_nowin_DEPENDENCIES = libmflua.a libmfluaotfcc.a \
 	libmfluapotrace.a libmflualpeg.a $(am__DEPENDENCIES_2) \
@@ -1350,8 +1433,13 @@ mfluajit_DEPENDENCIES = libmfluajit.a libmfluaotfcc.a \
 mfluajit_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(mfluajit_LDFLAGS) $(LDFLAGS) -o $@
+<<<<<<< HEAD
 am__objects_39 = mfluajitdir/mfluajit_nowin-mfluajitextra.$(OBJEXT)
 nodist_mfluajit_nowin_OBJECTS = $(am__objects_39)
+=======
+am__objects_40 = mfluajitdir/mfluajit_nowin-mfluajitextra.$(OBJEXT)
+nodist_mfluajit_nowin_OBJECTS = $(am__objects_40)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 mfluajit_nowin_OBJECTS = $(nodist_mfluajit_nowin_OBJECTS)
 mfluajit_nowin_DEPENDENCIES = libmfluajit.a libmfluaotfcc.a \
 	libmfluapotrace.a libmfluajitlpeg.a $(am__DEPENDENCIES_2) \
@@ -1364,14 +1452,23 @@ nodist_mft_OBJECTS = mft.$(OBJEXT)
 mft_OBJECTS = $(nodist_mft_OBJECTS)
 mft_LDADD = $(LDADD)
 mft_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
+<<<<<<< HEAD
 am__objects_40 = mpost-mpxout.$(OBJEXT)
 nodist_mpost_OBJECTS = mpost-mpost.$(OBJEXT) $(am__objects_40)
+=======
+am__objects_41 = mpost-mpxout.$(OBJEXT)
+nodist_mpost_OBJECTS = mpost-mpost.$(OBJEXT) $(am__objects_41)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 mpost_OBJECTS = $(nodist_mpost_OBJECTS)
 mpost_DEPENDENCIES = libmplibcore.a libmplibextramath.a \
 	libmplibbackends.a $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+<<<<<<< HEAD
 	$(am__DEPENDENCIES_1) libmputil.a
+=======
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) libmputil.a
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 nodist_odvicopy_OBJECTS = odvicopy.$(OBJEXT)
 odvicopy_OBJECTS = $(nodist_odvicopy_OBJECTS)
 odvicopy_LDADD = $(LDADD)
@@ -1394,8 +1491,13 @@ pbibtex_OBJECTS = $(am_pbibtex_OBJECTS) $(nodist_pbibtex_OBJECTS)
 am__DEPENDENCIES_7 = libkanji.a $(pproglib) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1)
 dist_pdftex_OBJECTS = pdftexdir/pdftex-pdftexextra.$(OBJEXT)
+<<<<<<< HEAD
 am__objects_41 = pdftex-pdftexini.$(OBJEXT) pdftex-pdftex0.$(OBJEXT)
 nodist_pdftex_OBJECTS = $(am__objects_41) pdftex-pdftex-pool.$(OBJEXT)
+=======
+am__objects_42 = pdftex-pdftexini.$(OBJEXT) pdftex-pdftex0.$(OBJEXT)
+nodist_pdftex_OBJECTS = $(am__objects_42) pdftex-pdftex-pool.$(OBJEXT)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 pdftex_OBJECTS = $(dist_pdftex_OBJECTS) $(nodist_pdftex_OBJECTS)
 am__DEPENDENCIES_8 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) libmd5.a
@@ -1422,6 +1524,7 @@ nodist_pltotf_OBJECTS = pltotf.$(OBJEXT)
 pltotf_OBJECTS = $(nodist_pltotf_OBJECTS)
 pltotf_LDADD = $(LDADD)
 pltotf_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
+<<<<<<< HEAD
 am__objects_42 = pmpost-pmp.$(OBJEXT)
 am__objects_43 = pmpost-pmpmath.$(OBJEXT)
 am__objects_44 = pmpost-pmpmathbinary.$(OBJEXT)
@@ -1436,6 +1539,22 @@ nodist_pmpost_OBJECTS = $(am__objects_42) $(am__objects_43) \
 	$(am__objects_44) $(am__objects_45) $(am__objects_46) \
 	pmpost-pmpost.$(OBJEXT) $(am__objects_47) $(am__objects_48) \
 	$(am__objects_49) $(am__objects_50) $(am__objects_51) \
+=======
+am__objects_43 = pmpost-pmp.$(OBJEXT)
+am__objects_44 = pmpost-pmpmath.$(OBJEXT)
+am__objects_45 = pmpost-pmpmathbinary.$(OBJEXT)
+am__objects_46 = pmpost-pmpmathdecimal.$(OBJEXT)
+am__objects_47 = pmpost-pmpmathdouble.$(OBJEXT)
+am__objects_48 = pmpost-pmpstrings.$(OBJEXT)
+am__objects_49 = pmpost-pmpxout.$(OBJEXT)
+am__objects_50 = pmpost-ppngout.$(OBJEXT)
+am__objects_51 = pmpost-ppsout.$(OBJEXT)
+am__objects_52 = pmpost-psvgout.$(OBJEXT)
+nodist_pmpost_OBJECTS = $(am__objects_43) $(am__objects_44) \
+	$(am__objects_45) $(am__objects_46) $(am__objects_47) \
+	pmpost-pmpost.$(OBJEXT) $(am__objects_48) $(am__objects_49) \
+	$(am__objects_50) $(am__objects_51) $(am__objects_52) \
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 	pmpost-ptfmin.$(OBJEXT)
 pmpost_OBJECTS = $(nodist_pmpost_OBJECTS)
 pmpost_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
@@ -1450,8 +1569,13 @@ am_ppltotf_OBJECTS =
 nodist_ppltotf_OBJECTS = ppltotf-ppltotf.$(OBJEXT)
 ppltotf_OBJECTS = $(am_ppltotf_OBJECTS) $(nodist_ppltotf_OBJECTS)
 dist_ptex_OBJECTS = ptexdir/ptex-ptexextra.$(OBJEXT)
+<<<<<<< HEAD
 am__objects_52 = ptex-ptexini.$(OBJEXT) ptex-ptex0.$(OBJEXT)
 nodist_ptex_OBJECTS = $(am__objects_52) ptex-ptex-pool.$(OBJEXT)
+=======
+am__objects_53 = ptex-ptexini.$(OBJEXT) ptex-ptex0.$(OBJEXT)
+nodist_ptex_OBJECTS = $(am__objects_53) ptex-ptex-pool.$(OBJEXT)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 ptex_OBJECTS = $(dist_ptex_OBJECTS) $(nodist_ptex_OBJECTS)
 am_ptftopl_OBJECTS =
 nodist_ptftopl_OBJECTS = ptftopl-ptftopl.$(OBJEXT)
@@ -1464,8 +1588,13 @@ nodist_tangleboot_OBJECTS = tangleboot.$(OBJEXT)
 tangleboot_OBJECTS = $(nodist_tangleboot_OBJECTS)
 tangleboot_LDADD = $(LDADD)
 dist_tex_OBJECTS = tex-texextra.$(OBJEXT)
+<<<<<<< HEAD
 am__objects_53 = tex-texini.$(OBJEXT) tex-tex0.$(OBJEXT)
 nodist_tex_OBJECTS = $(am__objects_53) tex-tex-pool.$(OBJEXT)
+=======
+am__objects_54 = tex-texini.$(OBJEXT) tex-tex0.$(OBJEXT)
+nodist_tex_OBJECTS = $(am__objects_54) tex-tex-pool.$(OBJEXT)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 tex_OBJECTS = $(dist_tex_OBJECTS) $(nodist_tex_OBJECTS)
 tex_DEPENDENCIES = $(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1)
 nodist_tftopl_OBJECTS = tftopl.$(OBJEXT)
@@ -1492,6 +1621,7 @@ am_updvitype_OBJECTS =
 nodist_updvitype_OBJECTS = updvitype-updvitype.$(OBJEXT)
 updvitype_OBJECTS = $(am_updvitype_OBJECTS) \
 	$(nodist_updvitype_OBJECTS)
+<<<<<<< HEAD
 am__objects_54 = upmpost-pmp.$(OBJEXT)
 am__objects_55 = upmpost-pmpmath.$(OBJEXT)
 am__objects_56 = upmpost-pmpmathbinary.$(OBJEXT)
@@ -1507,6 +1637,23 @@ am__objects_64 = $(am__objects_54) $(am__objects_55) $(am__objects_56) \
 	$(am__objects_59) $(am__objects_60) $(am__objects_61) \
 	$(am__objects_62) $(am__objects_63) upmpost-ptfmin.$(OBJEXT)
 nodist_upmpost_OBJECTS = $(am__objects_64)
+=======
+am__objects_55 = upmpost-pmp.$(OBJEXT)
+am__objects_56 = upmpost-pmpmath.$(OBJEXT)
+am__objects_57 = upmpost-pmpmathbinary.$(OBJEXT)
+am__objects_58 = upmpost-pmpmathdecimal.$(OBJEXT)
+am__objects_59 = upmpost-pmpmathdouble.$(OBJEXT)
+am__objects_60 = upmpost-pmpstrings.$(OBJEXT)
+am__objects_61 = upmpost-pmpxout.$(OBJEXT)
+am__objects_62 = upmpost-ppngout.$(OBJEXT)
+am__objects_63 = upmpost-ppsout.$(OBJEXT)
+am__objects_64 = upmpost-psvgout.$(OBJEXT)
+am__objects_65 = $(am__objects_55) $(am__objects_56) $(am__objects_57) \
+	$(am__objects_58) $(am__objects_59) upmpost-pmpost.$(OBJEXT) \
+	$(am__objects_60) $(am__objects_61) $(am__objects_62) \
+	$(am__objects_63) $(am__objects_64) upmpost-ptfmin.$(OBJEXT)
+nodist_upmpost_OBJECTS = $(am__objects_65)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 upmpost_OBJECTS = $(nodist_upmpost_OBJECTS)
 am__DEPENDENCIES_10 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
@@ -1517,8 +1664,13 @@ am_uppltotf_OBJECTS =
 nodist_uppltotf_OBJECTS = uppltotf-uppltotf.$(OBJEXT)
 uppltotf_OBJECTS = $(am_uppltotf_OBJECTS) $(nodist_uppltotf_OBJECTS)
 dist_uptex_OBJECTS = uptexdir/uptex-uptexextra.$(OBJEXT)
+<<<<<<< HEAD
 am__objects_65 = uptex-uptexini.$(OBJEXT) uptex-uptex0.$(OBJEXT)
 nodist_uptex_OBJECTS = $(am__objects_65) uptex-uptex-pool.$(OBJEXT)
+=======
+am__objects_66 = uptex-uptexini.$(OBJEXT) uptex-uptex0.$(OBJEXT)
+nodist_uptex_OBJECTS = $(am__objects_66) uptex-uptex-pool.$(OBJEXT)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 uptex_OBJECTS = $(dist_uptex_OBJECTS) $(nodist_uptex_OBJECTS)
 am_uptftopl_OBJECTS =
 nodist_uptftopl_OBJECTS = uptftopl-uptftopl.$(OBJEXT)
@@ -1552,8 +1704,13 @@ wovp2ovf_OBJECTS = $(nodist_wovp2ovf_OBJECTS)
 wovp2ovf_LDADD = $(LDADD)
 wovp2ovf_DEPENDENCIES = $(proglib) $(am__DEPENDENCIES_1)
 dist_xetex_OBJECTS = xetexdir/xetex-xetexextra.$(OBJEXT)
+<<<<<<< HEAD
 am__objects_66 = xetex-xetexini.$(OBJEXT) xetex-xetex0.$(OBJEXT)
 nodist_xetex_OBJECTS = $(am__objects_66) xetex-xetex-pool.$(OBJEXT)
+=======
+am__objects_67 = xetex-xetexini.$(OBJEXT) xetex-xetex0.$(OBJEXT)
+nodist_xetex_OBJECTS = $(am__objects_67) xetex-xetex-pool.$(OBJEXT)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 xetex_OBJECTS = $(dist_xetex_OBJECTS) $(nodist_xetex_OBJECTS)
 @XETEX_MACOSX_FALSE@am__DEPENDENCIES_11 = $(am__DEPENDENCIES_1)
 am__DEPENDENCIES_12 = $(libxetex) $(am__DEPENDENCIES_1) \
@@ -1635,6 +1792,10 @@ am__depfiles_remade = ./$(DEPDIR)/aleph-aleph-pool.Po \
 	./$(DEPDIR)/libmplibcore_a-psout.Po \
 	./$(DEPDIR)/libmplibcore_a-tfmin.Po \
 	./$(DEPDIR)/libmplibextramath_a-mpmathbinary.Po \
+<<<<<<< HEAD
+=======
+	./$(DEPDIR)/libmplibextramath_a-mpmathinterval.Po \
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 	./$(DEPDIR)/luahbtex-dummy.Po ./$(DEPDIR)/luajithbtex-dummy.Po \
 	./$(DEPDIR)/mf-mfextra.Po ./$(DEPDIR)/mf-pool.Po \
 	./$(DEPDIR)/mf0.Po ./$(DEPDIR)/mf_nowin-mfextra.Po \
@@ -2836,6 +2997,12 @@ MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
+<<<<<<< HEAD
+=======
+MPFI_DEPEND = @MPFI_DEPEND@
+MPFI_INCLUDES = @MPFI_INCLUDES@
+MPFI_LIBS = @MPFI_LIBS@
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 MPFR_DEPEND = @MPFR_DEPEND@
 MPFR_INCLUDES = @MPFR_INCLUDES@
 MPFR_LIBS = @MPFR_LIBS@
@@ -4077,7 +4244,11 @@ libmfluajitlpeg_a_SOURCES = \
 	mfluadir/luapeg/lpeg.h 
 
 mpost_CPPFLAGS = $(AM_CPPFLAGS) $(ZLIB_INCLUDES) $(LIBPNG_INCLUDES) -I$(srcdir)/mplibdir
+<<<<<<< HEAD
 mpost_LDADD = libmplibcore.a libmplibextramath.a libmplibbackends.a  $(KPATHSEA_LIBS) $(MPFR_LIBS) $(GMP_LIBS) \
+=======
+mpost_LDADD = libmplibcore.a libmplibextramath.a libmplibbackends.a  $(KPATHSEA_LIBS) $(MPFI_LIBS) $(MPFR_LIBS) $(GMP_LIBS) \
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 	$(CAIRO_LIBS) $(PIXMAN_LIBS) $(LIBPNG_LIBS) $(ZLIB_LIBS) libmputil.a
 
 call_mpost_CPPFLAGS = -DEXEPROG=\"mpost.exe\"
@@ -4146,28 +4317,46 @@ libmputil_a_SOURCES = mplibdir/avl.h mplibdir/avl.c mplibdir/decNumber.c mplibdi
 	mplibdir/decNumberLocal.h mplibdir/decContext.h mplibdir/decContext.c
 
 libmplibcore_a_CPPFLAGS = $(LIBPNG_INCLUDES) $(ZLIB_INCLUDES) $(AM_CPPFLAGS) -I$(srcdir)/mplibdir
+<<<<<<< HEAD
 libmplibextramath_a_CPPFLAGS = $(MPFR_INCLUDES) $(GMP_INCLUDES) -I${top_builddir}/../../libs   $(AM_CPPFLAGS) -I$(srcdir)/mplibdir
 libmplibbackends_a_CPPFLAGS = $(MPFR_INCLUDES) $(GMP_INCLUDES) $(CAIRO_INCLUDES) $(PIXMAN_INCLUDES) \
+=======
+libmplibextramath_a_CPPFLAGS = $(MPFI_INCLUDES) $(MPFR_INCLUDES) $(GMP_INCLUDES) -I${top_builddir}/../../libs   $(AM_CPPFLAGS) -I$(srcdir)/mplibdir
+libmplibbackends_a_CPPFLAGS = $(MPFI_INCLUDES) $(MPFR_INCLUDES) $(GMP_INCLUDES) $(CAIRO_INCLUDES) $(PIXMAN_INCLUDES) \
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 	$(LIBPNG_INCLUDES) $(ZLIB_INCLUDES) $(AM_CPPFLAGS) -I$(srcdir)/mplibdir
 
 nodist_libmplibcore_a_SOURCES = tfmin.c $(mp_c_h) $(mpmath_c_h) $(mpmathdecimal_c_h) \
 	$(mpmathdouble_c_h) $(mpstrings_c_h) $(psout_c_h) 
 
+<<<<<<< HEAD
 nodist_libmplibextramath_a_SOURCES = $(mpmathbinary_c_h)
+=======
+nodist_libmplibextramath_a_SOURCES = $(mpmathbinary_c_h) $(mpmathinterval_c_h)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 nodist_libmplibbackends_a_SOURCES = $(pngout_c_h)  $(svgout_c_h)
 mp_c_h = mp.c mplib.h mpmp.h
 mpmath_c_h = mpmath.h mpmath.c
 mpmathbinary_c_h = mpmathbinary.h mpmathbinary.c
 mpmathdecimal_c_h = mpmathdecimal.h mpmathdecimal.c
 mpmathdouble_c_h = mpmathdouble.h mpmathdouble.c
+<<<<<<< HEAD
+=======
+mpmathinterval_c_h = mpmathinterval.h mpmathinterval.c
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 mpstrings_c_h = mpstrings.h mpstrings.c
 psout_c_h = mplibps.h mppsout.h psout.c
 svgout_c_h = mplibsvg.h mpsvgout.h svgout.c
 pngout_c_h = mplibpng.h mppngout.h pngout.c
 libmplib_web = mplibdir/mp.w mplibdir/psout.w mplibdir/svgout.w \
 	mplibdir/pngout.w mplibdir/mpmath.w mplibdir/mpmathbinary.w \
+<<<<<<< HEAD
 	mplibdir/mpmathdecimal.w mplibdir/mpmathdouble.w \
 	mplibdir/mpstrings.w mplibdir/tfmin.w
+=======
+	mplibdir/mpmathinterval.w mplibdir/mpmathdecimal.w \
+	mplibdir/mpmathdouble.w mplibdir/mpstrings.w mplibdir/tfmin.w
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 etex_CPPFLAGS = $(AM_CPPFLAGS) $(ZLIB_INCLUDES)
 
 # With --enable-ipc, e-TeX may need to link with -lsocket.
@@ -8252,6 +8441,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplibcore_a-psout.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplibcore_a-tfmin.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplibextramath_a-mpmathbinary.Po@am__quote@ # am--include-marker
+<<<<<<< HEAD
+=======
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmplibextramath_a-mpmathinterval.Po@am__quote@ # am--include-marker
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/luahbtex-dummy.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/luajithbtex-dummy.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mf-mfextra.Po@am__quote@ # am--include-marker
@@ -16106,6 +16299,23 @@ libmplibextramath_a-mpmathbinary.obj: mpmathbinary.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplibextramath_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplibextramath_a-mpmathbinary.obj `if test -f 'mpmathbinary.c'; then $(CYGPATH_W) 'mpmathbinary.c'; else $(CYGPATH_W) '$(srcdir)/mpmathbinary.c'; fi`
 
+<<<<<<< HEAD
+=======
+libmplibextramath_a-mpmathinterval.o: mpmathinterval.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplibextramath_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplibextramath_a-mpmathinterval.o -MD -MP -MF $(DEPDIR)/libmplibextramath_a-mpmathinterval.Tpo -c -o libmplibextramath_a-mpmathinterval.o `test -f 'mpmathinterval.c' || echo '$(srcdir)/'`mpmathinterval.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmplibextramath_a-mpmathinterval.Tpo $(DEPDIR)/libmplibextramath_a-mpmathinterval.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mpmathinterval.c' object='libmplibextramath_a-mpmathinterval.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplibextramath_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplibextramath_a-mpmathinterval.o `test -f 'mpmathinterval.c' || echo '$(srcdir)/'`mpmathinterval.c
+
+libmplibextramath_a-mpmathinterval.obj: mpmathinterval.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplibextramath_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libmplibextramath_a-mpmathinterval.obj -MD -MP -MF $(DEPDIR)/libmplibextramath_a-mpmathinterval.Tpo -c -o libmplibextramath_a-mpmathinterval.obj `if test -f 'mpmathinterval.c'; then $(CYGPATH_W) 'mpmathinterval.c'; else $(CYGPATH_W) '$(srcdir)/mpmathinterval.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmplibextramath_a-mpmathinterval.Tpo $(DEPDIR)/libmplibextramath_a-mpmathinterval.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mpmathinterval.c' object='libmplibextramath_a-mpmathinterval.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmplibextramath_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libmplibextramath_a-mpmathinterval.obj `if test -f 'mpmathinterval.c'; then $(CYGPATH_W) 'mpmathinterval.c'; else $(CYGPATH_W) '$(srcdir)/mpmathinterval.c'; fi`
+
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 mplibdir/libmputil_a-avl.o: mplibdir/avl.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libmputil_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT mplibdir/libmputil_a-avl.o -MD -MP -MF mplibdir/$(DEPDIR)/libmputil_a-avl.Tpo -c -o mplibdir/libmputil_a-avl.o `test -f 'mplibdir/avl.c' || echo '$(srcdir)/'`mplibdir/avl.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) mplibdir/$(DEPDIR)/libmputil_a-avl.Tpo mplibdir/$(DEPDIR)/libmputil_a-avl.Po
@@ -19432,6 +19642,10 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/libmplibcore_a-psout.Po
 	-rm -f ./$(DEPDIR)/libmplibcore_a-tfmin.Po
 	-rm -f ./$(DEPDIR)/libmplibextramath_a-mpmathbinary.Po
+<<<<<<< HEAD
+=======
+	-rm -f ./$(DEPDIR)/libmplibextramath_a-mpmathinterval.Po
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 	-rm -f ./$(DEPDIR)/luahbtex-dummy.Po
 	-rm -f ./$(DEPDIR)/luajithbtex-dummy.Po
 	-rm -f ./$(DEPDIR)/mf-mfextra.Po
@@ -20206,6 +20420,10 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/libmplibcore_a-psout.Po
 	-rm -f ./$(DEPDIR)/libmplibcore_a-tfmin.Po
 	-rm -f ./$(DEPDIR)/libmplibextramath_a-mpmathbinary.Po
+<<<<<<< HEAD
+=======
+	-rm -f ./$(DEPDIR)/libmplibextramath_a-mpmathinterval.Po
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 	-rm -f ./$(DEPDIR)/luahbtex-dummy.Po
 	-rm -f ./$(DEPDIR)/luajithbtex-dummy.Po
 	-rm -f ./$(DEPDIR)/mf-mfextra.Po
@@ -20942,6 +21160,10 @@ $(proglib): $(proglib_sources)
 @CAIRO_RULE@
 @GMP_RULE@
 @MPFR_RULE@
+<<<<<<< HEAD
+=======
+@MPFI_RULE@
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 @XPDF_RULE@
 @PPLIB_RULE@
 @ZZIPLIB_RULE@
@@ -21446,6 +21668,14 @@ $(mpmathbinary_c_h): mpmathbinary-tangle mp-tangle
 mpmathbinary-tangle: ctangle$(EXEEXT) mplibdir/mpmathbinary.w tangle-sh
 	$(mp_ctangle_sh) mpmathbinary
 
+<<<<<<< HEAD
+=======
+$(mpmathinterval_c_h): mpmathinterval-tangle mp-tangle
+	$(mp_ctangle_sh) mpmathinterval
+mpmathinterval-tangle: ctangle$(EXEEXT) mplibdir/mpmathinterval.w tangle-sh
+	$(mp_ctangle_sh) mpmathinterval
+
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 $(mpmathdecimal_c_h): mpmathdecimal-tangle mp-tangle
 	$(mp_ctangle_sh) mpmathdecimal
 mpmathdecimal-tangle: ctangle$(EXEEXT) mplibdir/mpmathdecimal.w tangle-sh
@@ -21476,11 +21706,19 @@ $(svgout_c_h): svgout-tangle
 svgout-tangle: ctangle$(EXEEXT) mplibdir/svgout.w tangle-sh
 	$(mp_ctangle_sh) svgout
 
+<<<<<<< HEAD
 $(nodist_libmplibcore_a_SOURCES): $(mpmathbinary_c_h) $(svgout_c_h) $(pngout_c_h)
 
 $(libmplibcore_a_OBJECTS): $(nodist_libmplibcore_a_SOURCES) $(KPATHSEA_DEPEND)  
 $(libmplibextramath_a_OBJECTS): $(nodist_libmplibextramath_a_SOURCES) $(KPATHSEA_DEPEND)  $(MPFR_DEPEND)
 $(libmplibbackends_a_OBJECTS): $(nodist_libmplibbackends_a_SOURCES) $(KPATHSEA_DEPEND) $(CAIRO_DEPEND) $(MPFR_DEPEND)
+=======
+$(nodist_libmplibcore_a_SOURCES): $(mpmathbinary_c_h) $(mpmathinterval_c_h) $(svgout_c_h) $(pngout_c_h)
+
+$(libmplibcore_a_OBJECTS): $(nodist_libmplibcore_a_SOURCES) $(KPATHSEA_DEPEND)  
+$(libmplibextramath_a_OBJECTS): $(nodist_libmplibextramath_a_SOURCES) $(KPATHSEA_DEPEND)  $(MPFR_DEPEND) $(MPFI_DEPEND)
+$(libmplibbackends_a_OBJECTS): $(nodist_libmplibbackends_a_SOURCES) $(KPATHSEA_DEPEND) $(CAIRO_DEPEND) $(MPFR_DEPEND) $(MPFI_DEPEND)
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 
 # (end of libmplib.am)
 $(etex_OBJECTS): $(etex_prereq)

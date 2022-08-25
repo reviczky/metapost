@@ -15,4 +15,7 @@
 .*.swp
 .DS_store
 # Simulated Subversion default ignores end here
+<<<<<<< HEAD
 /build-ppc
+=======
+>>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
