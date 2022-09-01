@@ -205,6 +205,7 @@ static int DEBUGENVELOPECOUNTER=0;
 #include "mpmathdouble.h"       /* internal header */
 #include "mpmathdecimal.h"      /* internal header */
 /*|#include "mpmathbinary.h"|*/       /* internal header */
+/*|#include "mpmathinterval.h"|*/       /* internal header */
 #include "mpstrings.h"          /* internal header */
 /* BEGIN PATCH */
 mp_number dx_ap;    /* approximation of dx */
@@ -224,6 +225,7 @@ extern const char* cairo_version_string (void);
 extern const char *COMPILED_MPFR_VERSION_STRING;
 extern const char* mpfr_get_version (void);
 extern void * mp_initialize_binary_math (MP mp) ;
+extern void * mp_initialize_interval_math(MP mp);
 extern int COMPILED__GNU_MP_VERSION;
 extern int COMPILED__GNU_MP_VERSION_MINOR;
 extern int COMPILED__GNU_MP_VERSION_PATCHLEVEL;
@@ -615,6 +617,8 @@ MP mp_initialize (MP_options * opt) {
     mp->math = mp_initialize_decimal_math(mp);
   } else if (opt->math_mode == mp_math_binary_mode) {
     mp->math = mp_initialize_binary_math(mp);
+  } else if (opt->math_mode == mp_math_interval_mode) {
+    mp->math = mp_initialize_interval_math(mp);
   } else {
     mp->math = mp_initialize_double_math(mp);
   }
@@ -640,6 +644,8 @@ MP mp_initialize (MP_options * opt) {
     set_internal_string (mp_number_system, mp_intern (mp, "decimal"));
   } else if (opt->math_mode == mp_math_binary_mode) {
     set_internal_string (mp_number_system, mp_intern (mp, "binary"));
+  } else if (opt->math_mode == mp_math_interval_mode) {
+    set_internal_string (mp_number_system, mp_intern (mp, "interval"));
   } else {
     set_internal_string (mp_number_system, mp_intern (mp, "double"));
   }
@@ -2813,10 +2819,11 @@ the typedef for |mp_number| is here because it has to come very early.
 
 @<Exported types@>=
 typedef enum {
-  mp_math_scaled_mode = 0,
-  mp_math_double_mode = 1,
-  mp_math_binary_mode = 2,
-  mp_math_decimal_mode = 3
+  mp_math_scaled_mode   = 0,
+  mp_math_double_mode   = 1,
+  mp_math_binary_mode   = 2,
+  mp_math_decimal_mode  = 3,
+  mp_math_interval_mode = 4
 } mp_math_mode;
 
 @ @<Option variables@>=
