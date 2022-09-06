@@ -224,6 +224,8 @@ extern const char *COMPILED_CAIRO_VERSION_STRING;
 extern const char* cairo_version_string (void);
 extern const char *COMPILED_MPFR_VERSION_STRING;
 extern const char* mpfr_get_version (void);
+extern const char *COMPILED_MPFI_VERSION_STRING;
+extern const char* mpfi_get_version (void);
 extern void * mp_initialize_binary_math (MP mp) ;
 extern void * mp_initialize_interval_math(MP mp);
 extern int COMPILED__GNU_MP_VERSION;
@@ -385,7 +387,8 @@ typedef enum {
   mp_angle_type,
   mp_double_type,
   mp_binary_type,
-  mp_decimal_type
+  mp_decimal_type,
+  mp_interval_type
 } mp_number_type;
 typedef union {
   void *num;
@@ -30931,6 +30934,7 @@ void mp_show_library_versions (void) {
   fprintf(stdout, "Compiled with libpng %s; using %s\n", PNG_LIBPNG_VER_STRING, png_libpng_ver);
   fprintf(stdout, "Compiled with zlib %s; using %s\n", ZLIB_VERSION, zlibVersion());
   fprintf(stdout, "Compiled with mpfr %s; using %s\n", COMPILED_MPFR_VERSION_STRING, mpfr_get_version());
+  fprintf(stdout, "Compiled with mpfi %s; using %s\n", COMPILED_MPFI_VERSION_STRING, mpfi_get_version());
   fprintf(stdout, "Compiled with gmp %d.%d.%d; using %s\n\n", COMPILED__GNU_MP_VERSION, COMPILED__GNU_MP_VERSION_MINOR, COMPILED__GNU_MP_VERSION_PATCHLEVEL, COMPILED_gmp_version);
 }
 

@@ -62,7 +62,8 @@ const char *COMPILED_MPFI_VERSION_STRING = MPFI_VERSION_STRING;
 
 First, here are some very important constants.
 
-@d ROUNDING MPFR_RNDN
+@d MPFI_ROUNDING MPFI_RNDN
+@d MPFR_ROUNDING MPFR_RNDN
 @d E_STRING  "2.7182818284590452353602874713526624977572470936999595749669676277240766303535"
 @d PI_STRING "3.1415926535897932384626433832795028841971693993751058209749445923078164062862"
 @d fraction_multiplier 4096
@@ -141,7 +142,7 @@ static void mp_free_interval_math (MP mp);
 static void mp_interval_set_precision (MP mp);
 static void mp_check_mpfi_t (MP mp, mpfi_t dec);
 static int interval_number_check (mpfi_t dec);
-static char * mp_binnumber_tostring (mpfi_t n);
+static char * mp_intervalnumber_tostring (mpfi_t n);
 static void init_interval_constants (void);
 static void free_interval_constants (void);
 static mpfr_prec_t precision_digits_to_bits(double i);
@@ -153,23 +154,25 @@ static int mpfi_remainder (mpfi_t ROP, mpfi_t OP1, mpfi_t OP2) ;
 
 @d mpfi_negative_p(a) (mpfi_is_strictly_neg((a))>0) 
 @d mpfi_positive_p(a) (mpfi_is_strictly_pos((a))>0)
-@d checkZero(dec)  if (mpfi_is_zero(dec) ) { // or mpfi_has_zero ?
+@d checkZero(dec)  if (mpfi_has_zero(dec) ) { // CHECK or mpfi_is_zero ?
      mpfi_set_d(dec,0.0);
    }
 
 @ CHECK: on user demand, this could be also mpfi_has_zero .
 
-@d mpfi_zero_p(a) mpfi_is_zero(a) 
+@d mpfi_zero_p(a) mpfi_has_zero(a) 
 
 @c 
 int interval_number_check (mpfi_t dec)
 {
    int test = false;
-   if (mpfi_bounded_p(dec)) {
+   if (!mpfi_bounded_p(dec)) {
       test = true;
       if (mpfi_inf_p(dec)) {
+        int neg ;
+	neg = mpfi_is_neg(dec);
         mpfi_set(dec, EL_GORDO_mpfi_t);
-        if (mpfi_is_neg(dec)) {
+        if (neg) {
           mpfi_neg(dec, dec);
         } 
       } else { // Nan 
@@ -189,15 +192,15 @@ void mp_check_mpfi_t (MP mp, mpfi_t dec)
 
 @c
 int mpfi_remainder (mpfi_t r, mpfi_t x, mpfi_t y) {
- // We lie ...
+ // CHECK We lie ...
  double dx,dy,dr;
  mpfr_t px,py,pr;
  dx = mpfi_get_d(x);
  dy = mpfi_get_d(y);
- mpfr_init_set_d(px, dx, ROUNDING);
- mpfr_init_set_d(py, dy, ROUNDING);
- mpfr_remainder(pr,px,py, ROUNDING);
- dr = mpfr_get_d(pr, ROUNDING);
+ mpfr_init_set_d(px, dx, MPFR_ROUNDING);
+ mpfr_init_set_d(py, dy, MPFR_ROUNDING);
+ mpfr_remainder(pr,px,py, MPFR_ROUNDING);
+ dr = mpfr_get_d(pr, MPFR_ROUNDING);
  return mpfi_init_set_d(r, dr);
 }
 
@@ -696,6 +699,7 @@ int mp_number_equal(mp_number A, mp_number B) {
 //CHECK  return mpfi_equal_p(A.data.num,B.data.num);
  mpfr_t lA,rA,lB,rB;
  int la,ra,lb, rb;
+ mpfr_inits2(precision_bits,lA,rA,lB,rB,(mpfr_ptr) 0);
  la = mpfi_get_left (lA, A.data.num);
  lb = mpfi_get_left (lB, B.data.num);
  ra = mpfi_get_right (rA, A.data.num);
@@ -743,7 +747,7 @@ is fairly stupid, and it is not round-trip safe, but this is good
 enough for a beta test.
 
 @c
-char * mp_binnumber_tostring (mpfi_t n) {
+char * mp_intervalnumber_tostring (mpfi_t n) {
 // CHECK
 // This function probably should be rewritten
 // it's the same as in mpmathbinary
@@ -755,8 +759,8 @@ char * mp_binnumber_tostring (mpfi_t n) {
   double double_n ;
   mpfr_t nn;
   double_n = mpfi_get_d(n) ;
-  mpfr_set_d (nn, double_n, ROUNDING);
-  if ((str = mpfr_get_str (NULL, &exp, 10, 0, nn, ROUNDING))>0) {
+  mpfr_init_set_d (nn, double_n, MPFR_ROUNDING);
+  if ((str = mpfr_get_str (NULL, &exp, 10, 0, nn, MPFR_ROUNDING))>0) {
     int numprecdigits = precision_bits_to_digits(precision_bits);
     if (*str == '-') {
       neg = 1;
@@ -830,7 +834,7 @@ char * mp_binnumber_tostring (mpfi_t n) {
   return buffer;
 }
 char * mp_interval_number_tostring (MP mp, mp_number n) {
-  return mp_binnumber_tostring(n.data.num);
+  return mp_intervalnumber_tostring(n.data.num);
 }
 
 
@@ -987,7 +991,7 @@ void mp_wrapup_numeric_token(MP mp, unsigned char *start, unsigned char *stop) {
   mpfi_init2(result, precision_bits);
   (void)strncpy(buf,(const char *)start, l);
   invalid = mpfi_set_str(result,buf, 10);
-  /*|fprintf(stdout,"scan of [%s] produced %s, ", buf, mp_binnumber_tostring(result));|*/
+  /*|fprintf(stdout,"scan of [%s] produced %s, ", buf, mp_intervalnumber_tostring(result));|*/
   lp = (unsigned long) l;
   /* strip leading - or + or 0 or .*/
   if ( (*bufp=='-') || (*bufp=='+') || (*bufp=='0') || (*bufp=='.') ) { lp--; bufp++;}
@@ -1834,13 +1838,13 @@ static void mp_interval_m_unif_rand (MP mp, mp_number *ret, mp_number x_orig) {
                   10,       /* |int b|,             */
                   0,        /* |size_t n|,          */
                   ret_val, /* |mpfi_t op|,    */      
-                  ROUNDING       /* |mpfi_rnd_t rnd|*/
+                  MPFR_ROUNDING       /* |mpfi_rnd_t rnd|*/
                   );
   mpfr_free_str(r);
   free_number (abs_x);
   free_number (x);
   free_number (y);
-  ret_d = mpfr_get_d(ret_val, ROUNDING);
+  ret_d = mpfr_get_d(ret_val, MPFR_ROUNDING);
   mpfi_set_d (ret->data.num, ret_d);
 }
 
