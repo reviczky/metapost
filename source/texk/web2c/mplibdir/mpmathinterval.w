@@ -704,7 +704,7 @@ int mp_number_equal(mp_number A, mp_number B) {
  lb = mpfi_get_left (lB, B.data.num);
  ra = mpfi_get_right (rA, A.data.num);
  rb = mpfi_get_right (rB, B.data.num);
- return ( (la==0 && lb==0 && mpfr_equal_p(lA,lB)==0) && (ra==0 && rb==0 &&  mpfr_equal_p(rA,rB)==0) );
+ return ( (la==0 && lb==0 && mpfr_equal_p(lA,lB)!=0) && (ra==0 && rb==0 &&  mpfr_equal_p(rA,rB)!=0) );
 }
 int mp_number_greater(mp_number A, mp_number B) {
 //CHECK  return mpfi_greater_p(A.data.num,B.data.num);
