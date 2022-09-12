@@ -1,3 +1,7 @@
+2022-09-13 Luigi Scarso <luigi.scarso@gmail.com>
+	* Interval arithmetic: new primitives interval_get_left_endpoint,
+	 interval_get_right_endpoint, interval_set.
+
 2022-09-01 Luigi Scarso <luigi.scarso@gmail.com>
 	* Interval arithmetic: mpost compiles without errors.
 

@@ -147,8 +147,14 @@ static void init_interval_constants (void);
 static void free_interval_constants (void);
 static mpfr_prec_t precision_digits_to_bits(double i);
 static double precision_bits_to_digits (mpfr_prec_t i);
+/* math interval new primitives */
+static void mp_interval_m_get_left_endpoint (MP mp, mp_number *ret, mp_number x_orig);
+static void mp_interval_m_get_right_endpoint (MP mp, mp_number *ret, mp_number x_orig);
+static void mp_interval_m_interval_set (MP mp, mp_number *ret, mp_number a, mp_number b);
+
 
 static int mpfi_remainder (mpfi_t ROP, mpfi_t OP1, mpfi_t OP2) ;
+static int mpfi_remainder_1 (mpfi_t ROP, mpfi_t OP1, mpfr_t OP2) ;
 
 @ We do not want special numbers as return values for functions, so:
 
@@ -188,22 +194,6 @@ void mp_check_mpfi_t (MP mp, mpfi_t dec)
 }
 
 
-@ Implement remainder for interval arithmetic.
-
-@c
-int mpfi_remainder (mpfi_t r, mpfi_t x, mpfi_t y) {
- // CHECK We lie ...
- double dx,dy,dr;
- mpfr_t px,py,pr;
- dx = mpfi_get_d(x);
- dy = mpfi_get_d(y);
- mpfr_init_set_d(px, dx, MPFR_ROUNDING);
- mpfr_init_set_d(py, dy, MPFR_ROUNDING);
- mpfr_remainder(pr,px,py, MPFR_ROUNDING);
- dr = mpfr_get_d(pr, MPFR_ROUNDING);
- return mpfi_init_set_d(r, dr);
-}
-
 
 @ Precision IO uses |double| because |MPFI_PREC_MAX| overflows int. 
 
@@ -217,6 +207,76 @@ double precision_bits_to_digits (mpfr_prec_t d)
 {
   return d*log10(2);
 }
+
+
+@ Implement remainder for interval arithmetic.
+
+@c
+int mpfi_remainder (mpfi_t r, mpfi_t x, mpfi_t y) {
+ // CHECK We lie ...
+ int ret_val;
+ mpfr_t m,yd;
+ mpfr_inits2(precision_bits, m, yd,(mpfr_ptr) 0);
+ if (mpfi_diam(yd, y)==0){
+   mpfi_get_fr(m, y);
+   ret_val = mpfi_remainder_1(r,x,m);
+ } else {
+   ret_val = 0;
+ }
+ mpfr_clears(m, yd, (mpfr_ptr) 0);
+ return ret_val;
+}
+
+
+static int mpfi_remainder_1 (mpfi_t r, mpfi_t x, mpfr_t m) {
+  if (mpfi_is_strictly_neg(x)>0) {
+    /*return -mod1([-b,-a], m)*/
+    int ret_val;
+    mpfi_neg (x, x);
+    ret_val = mpfi_remainder_1(r,x,m);
+    mpfi_neg (r, r);
+    return ret_val;
+  } else {
+    mpfr_t a,b;
+    mpfr_inits2(precision_bits,a,b,(mpfr_ptr) 0);
+    mpfi_get_left(a,x); mpfi_get_right(b,x);
+    if (mpfr_sgn(a)<0) {
+     /*return mod1([a,-1], m) u mod1([0,b], m) */
+     /* which is the same of mod1([1,-a], m) u mod1([0,b], m) */
+     mpfi_t l1,l2,ret1, ret2 ;
+     mpfr_t one,zero ;
+     mpfi_inits2(precision_bits, ret1, ret2, l1, l2, (mpfi_ptr) 0);
+     mpfr_inits2(precision_bits, one, zero, (mpfr_ptr) 0);
+     mpfr_set_si(one, 1, MPFR_RNDN); mpfr_set_si(zero, 0, MPFR_RNDN);
+     mpfr_neg(a, a, MPFR_RNDN);
+     mpfi_interv_fr(l1, one, a); mpfi_interv_fr(l2, zero, b);
+     mpfi_remainder_1(ret1,l1,m); mpfi_remainder_1(ret2,l2,m);
+     mpfi_union(r,ret1,ret2);
+     mpfi_clears(ret1, ret2, l1,l2,(mpfi_ptr)0);
+     mpfr_clears(one,zero,(mpfr_ptr)0);
+   } else {
+     /*if b-a < |m| && a % m <= b % m:*/
+     mpfr_t d,abs_m, rem_a,rem_b,zero,one,abs_m_1;
+     mpfr_inits2(precision_bits, d, abs_m, rem_a, rem_b, zero, one, abs_m_1,(mpfr_ptr) 0);
+     mpfr_sub(d, b, a, MPFR_RNDN);
+     mpfr_abs(abs_m, m, MPFR_RNDN);
+     mpfr_remainder(rem_a, a, m, MPFR_RNDN);  mpfr_remainder(rem_b, b, m, MPFR_RNDN);
+     if (mpfr_less_p(d,abs_m) && mpfr_lessequal_p(rem_a,rem_b)) {
+       /*return [a % m, b % m] */
+       mpfi_interv_fr(r, rem_a, rem_b);
+     } else {
+      /* return [0,|m|-1] */
+      mpfr_set_si(one, 1, MPFR_RNDN); mpfr_set_si(zero, 0, MPFR_RNDN);      mpfr_set_si(zero, 0, MPFR_RNDN);
+      mpfr_sub(abs_m_1, abs_m, one, MPFR_RNDN);
+      mpfi_interv_fr(r, zero, abs_m_1);
+     }
+     mpfr_clears(d, abs_m, rem_a, rem_b, zero, one, abs_m_1, (mpfr_ptr)0);
+   }
+   mpfr_clears(a, b, (mpfr_ptr)0);
+  }
+  return 0;
+}
+
 
 
 @ And these are the ones that {\it are} used elsewhere
@@ -476,7 +536,12 @@ void * mp_initialize_interval_math (MP mp) {
   math->scan_fractional = mp_interval_scan_fractional_token;
   math->free_math = mp_free_interval_math;
   math->set_precision = mp_interval_set_precision;  
-  return (void *)math;
+  /* math interval new primitives */
+  math->m_get_left_endpoint  = mp_interval_m_get_left_endpoint;
+  math->m_get_right_endpoint = mp_interval_m_get_right_endpoint;
+  math->m_interval_set       = mp_interval_m_interval_set ;
+
+return (void *)math;
 }
 
 void mp_interval_set_precision (MP mp) {
@@ -756,10 +821,9 @@ char * mp_intervalnumber_tostring (mpfi_t n) {
   char *str = NULL, *buffer = NULL;
   mpfr_exp_t exp = 0;
   int neg = 0;
-  double double_n ;
   mpfr_t nn;
-  double_n = mpfi_get_d(n) ;
-  mpfr_init_set_d (nn, double_n, MPFR_ROUNDING);
+  mpfr_init2(nn,precision_bits);
+  mpfi_mid (nn, n);
   if ((str = mpfr_get_str (NULL, &exp, 10, 0, nn, MPFR_ROUNDING))>0) {
     int numprecdigits = precision_bits_to_digits(precision_bits);
     if (*str == '-') {
@@ -1432,12 +1496,12 @@ int mp_round_unscaled(mp_number x_orig) {
 @c
 void mp_number_floor (mp_number *i) {
 //CHECK  mpfi_rint_floor(i->data.num, i->data.num, MPFR_RNDD);
- double di;
- mpfi_t temp;
- di = mpfi_get_d(i->data.num);
- mpfi_init_set_d(temp, floor(di));
- mpfi_increase(temp, i->data.num);
- mpfi_set(i->data.num, temp);
+ mpfr_t le,re;
+ mpfr_inits2(precision_bits, le, re, (mpfr_ptr)0 );
+ mpfi_get_left (le, i->data.num); mpfi_get_right(re, i->data.num); 
+ mpfr_rint_floor(le, le, MPFR_RNDD); mpfr_rint_floor(re, re, MPFR_RNDD);
+ mpfi_interv_fr(i->data.num, le, re);
+ mpfr_clears(le, re, (mpfr_ptr)0);
 }
 
 @ |fraction_to_scaled| rounds a |fraction| and converts it to |scaled|
@@ -1543,6 +1607,39 @@ void mp_interval_pyth_sub (MP mp, mp_number *ret, mp_number a_orig, mp_number b_
   }
   /*mpfi_set_zero(a,1); */ /* 1 == positive */
   mpfi_set_d(a,0.0);
+}
+
+
+@ A new primitive to set an  an |interval| quantity|;
+
+@c
+void mp_interval_m_interval_set(MP mp, mp_number *ret, mp_number a, mp_number b) {
+   mpfi_t ret_val;
+   mpfi_init2(ret_val,precision_bits);
+   mpfi_interv_fr(ret_val, a.data.num, b.data.num);
+   mpfi_set(ret->data.num,ret_val);
+   mpfi_clear(ret_val);
+}
+
+
+
+@ Two new primitives to retrive the left and right endpoint of an |interval| quantity|;
+
+@c
+void mp_interval_m_get_left_endpoint (MP mp, mp_number *ret, mp_number x_orig) {
+   mpfr_t ret_val;
+   mpfr_init2(ret_val,precision_bits);
+   mpfi_get_left(ret_val, x_orig.data.num);
+   mpfi_set_fr(ret->data.num,ret_val);
+   mpfr_clear(ret_val);
+}
+
+void mp_interval_m_get_right_endpoint (MP mp, mp_number *ret, mp_number x_orig) {
+   mpfr_t ret_val;
+   mpfr_init2(ret_val,precision_bits);
+   mpfi_get_right(ret_val, x_orig.data.num);
+   mpfi_set_fr(ret->data.num,ret_val);
+   mpfr_clear(ret_val);
 }
 
 
@@ -1815,6 +1912,7 @@ static void mp_interval_m_unif_rand (MP mp, mp_number *ret, mp_number x_orig) {
   char *r ;mpfr_exp_t e;
   mpfr_t ret_val;
   double ret_d;
+  mpfr_init2(ret_val,precision_bits);
   new_fraction (y);
   new_number (x);
   new_number (abs_x);
