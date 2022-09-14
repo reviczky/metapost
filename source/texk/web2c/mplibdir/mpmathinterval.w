@@ -164,8 +164,6 @@ static int mpfi_remainder_1 (mpfi_t ROP, mpfi_t OP1, mpfr_t OP2) ;
      mpfi_set_d(dec,0.0);
    }
 
-@ CHECK: on user demand, this could be also mpfi_has_zero .
-
 @d mpfi_zero_p(a) mpfi_has_zero(a) 
 
 @c 
