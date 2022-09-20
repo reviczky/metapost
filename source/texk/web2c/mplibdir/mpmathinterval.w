@@ -155,6 +155,7 @@ static void mp_interval_m_interval_set (MP mp, mp_number *ret, mp_number a, mp_n
 
 static int mpfi_remainder (mpfi_t ROP, mpfi_t OP1, mpfi_t OP2) ;
 static int mpfi_remainder_1 (mpfi_t ROP, mpfi_t OP1, mpfr_t OP2) ;
+static int mpfi_remainder_2 (mpfi_t ROP, mpfi_t OP1, mpfi_t OP2) ;
 
 @ We do not want special numbers as return values for functions, so:
 
@@ -170,9 +171,10 @@ static int mpfi_remainder_1 (mpfi_t ROP, mpfi_t OP1, mpfr_t OP2) ;
 int interval_number_check (mpfi_t dec)
 {
    int test = false;
-   if (!mpfi_bounded_p(dec)) {
+   if (mpfi_nan_p(dec)!=0 || mpfi_is_empty(dec)!=0 ) {
       test = true;
-      if (mpfi_inf_p(dec)) {
+      mpfi_set_d(dec,0.0); 
+      /*if (mpfi_inf_p(dec)) {
         int neg ;
 	neg = mpfi_is_neg(dec);
         mpfi_set(dec, EL_GORDO_mpfi_t);
@@ -181,9 +183,9 @@ int interval_number_check (mpfi_t dec)
         } 
       } else { // Nan 
         mpfi_set_d(dec,0.0); 
-      }
+      }*/
    }
-   checkZero(dec);
+   /*checkZero(dec);*/
    return test;
 }
 void mp_check_mpfi_t (MP mp, mpfi_t dec)
@@ -210,26 +212,82 @@ double precision_bits_to_digits (mpfr_prec_t d)
 @ Implement remainder for interval arithmetic.
 
 @c
+/* https://stackoverflow.com/questions/31057473/calculating-the-modulo-of-two-intervals */
+/*
+def mod1([a,b], m):
+    // (1): empty interval
+    if a > b || m == 0:
+        return []
+    // (2): compute modulo with positive interval and negate
+    else if b < 0:
+        return -mod1([-b,-a], m)
+    // (3): split into negative and non-negative interval, compute and join 
+    else if a < 0:
+        return mod1([a,-1], m) u mod1([0,b], m)
+    // (4): there is no k > 0 such that a < k*m <= b
+    else if b-a < |m| && a % m <= b % m:
+        return [a % m, b % m]
+    // (5): we can't do better than that
+    else
+        return [0,|m|-1]
+
+
+def mod2([a,b], [m,n]):
+    // (1): empty interval
+    if a > b || m > n:
+        return []
+    // (2): compute modulo with positive interval and negate
+    else if b < 0:
+         return -mod2([-b,-a], [m,n])
+    // (3): split into negative and non-negative interval, compute, and join 
+    else if a < 0:
+        return mod2([a,-1], [m,n]) u mod2([0,b], [m,n])
+    // (4): use the simpler function from before
+    else if m == n:
+        return mod1([a,b], m)
+    // (5): use only non-negative m and n
+    else if n <= 0:
+        return mod2([a,b], [-n,-m])
+    // (6): similar to (5), make modulus non-negative
+    else if m <= 0:
+        return mod2([a,b], [1, max(-m,n)])
+    // (7): compare to (4) in mod1, check b-a < |modulus|
+    else if b-a >= n:
+        return [0,n-1]
+    // (8): similar to (7), split interval, compute, and join
+    else if b-a >= m:
+        return [0, b-a-1] u mod2([a,b], [b-a+1,n])
+    // (9): modulo has no effect
+    else if m > b:
+        return [a,b]
+    // (10): there is some overlapping of [a,b] and [n,m]
+    else if n > b:
+        return [0,b]
+    // (11): either compute all possibilities and join, or be imprecise
+    else:
+        return [0,n-1] // imprecise
+*/	  
 int mpfi_remainder (mpfi_t r, mpfi_t x, mpfi_t y) {
- // CHECK We lie ...
- int ret_val;
- mpfr_t m,yd;
- mpfr_inits2(precision_bits, m, yd,(mpfr_ptr) 0);
- if (mpfi_diam(yd, y)==0){
-   mpfi_get_fr(m, y);
-   ret_val = mpfi_remainder_1(r,x,m);
- } else {
-   ret_val = 0;
- }
- mpfr_clears(m, yd, (mpfr_ptr) 0);
- return ret_val;
+  // CHECK 
+  int test,ret_val;
+  mpfr_t m,yd;
+  mpfr_inits2(precision_bits, m, yd,(mpfr_ptr) 0);
+  test=mpfi_diam(yd, y);
+  if (test==0 && mpfr_zero_p(yd)>0){
+    mpfi_get_fr(m, y);
+    ret_val = mpfi_remainder_1(r,x,m);
+  } else {
+    ret_val = mpfi_remainder_2(r,x,y);
+  }
+  mpfr_clears(m, yd, (mpfr_ptr) 0);
+  return ret_val;
 }
 
-
 static int mpfi_remainder_1 (mpfi_t r, mpfi_t x, mpfr_t m) {
+  int ret_val;
+  ret_val=-1;
   if (mpfi_is_strictly_neg(x)>0) {
     /*return -mod1([-b,-a], m)*/
-    int ret_val;
     mpfi_neg (x, x);
     ret_val = mpfi_remainder_1(r,x,m);
     mpfi_neg (r, r);
@@ -249,7 +307,7 @@ static int mpfi_remainder_1 (mpfi_t r, mpfi_t x, mpfr_t m) {
      mpfr_neg(a, a, MPFR_RNDN);
      mpfi_interv_fr(l1, one, a); mpfi_interv_fr(l2, zero, b);
      mpfi_remainder_1(ret1,l1,m); mpfi_remainder_1(ret2,l2,m);
-     mpfi_union(r,ret1,ret2);
+     ret_val = mpfi_union(r,ret1,ret2);
      mpfi_clears(ret1, ret2, l1,l2,(mpfi_ptr)0);
      mpfr_clears(one,zero,(mpfr_ptr)0);
    } else {
@@ -261,20 +319,122 @@ static int mpfi_remainder_1 (mpfi_t r, mpfi_t x, mpfr_t m) {
      mpfr_remainder(rem_a, a, m, MPFR_RNDN);  mpfr_remainder(rem_b, b, m, MPFR_RNDN);
      if (mpfr_less_p(d,abs_m) && mpfr_lessequal_p(rem_a,rem_b)) {
        /*return [a % m, b % m] */
-       mpfi_interv_fr(r, rem_a, rem_b);
+       ret_val= mpfi_interv_fr(r, rem_a, rem_b);
      } else {
       /* return [0,|m|-1] */
       mpfr_set_si(one, 1, MPFR_RNDN); mpfr_set_si(zero, 0, MPFR_RNDN);      mpfr_set_si(zero, 0, MPFR_RNDN);
       mpfr_sub(abs_m_1, abs_m, one, MPFR_RNDN);
-      mpfi_interv_fr(r, zero, abs_m_1);
+      ret_val =  mpfi_interv_fr(r, zero, abs_m_1);
      }
      mpfr_clears(d, abs_m, rem_a, rem_b, zero, one, abs_m_1, (mpfr_ptr)0);
    }
    mpfr_clears(a, b, (mpfr_ptr)0);
   }
-  return 0;
+  return ret_val;
 }
 
+static int mpfi_remainder_2 (mpfi_t r, mpfi_t x, mpfi_t m) {
+  int ret_val;
+  if (mpfi_is_strictly_neg(x)>0) {
+   /*return -mod2([-b,-a], [m,n])*/
+    mpfi_neg (x, x);
+    ret_val = mpfi_remainder_2(r,x,m);
+    mpfi_neg (r, r);
+    return ret_val;
+  } else {
+    mpfr_t a,b,n1,m1;
+    mpfr_t one, zero ;
+    mpfr_inits2(precision_bits, one, zero, (mpfr_ptr) 0);
+    mpfr_set_si(one, 1, MPFR_RNDN); mpfr_set_si(zero, 0, MPFR_RNDN);
+    mpfr_inits2(precision_bits,a,b,(mpfr_ptr) 0);
+    mpfi_get_left(a,x); mpfi_get_right(b,x);
+    mpfi_get_left(m1,m); mpfi_get_right(n1,m);
+    if (mpfr_sgn(a)<0) {
+      /* return mod2([a,-1], [m,n]) u mod2([0,b], [m,n]) */
+      mpfi_t l1, l2, ret1, ret2 ;
+      mpfi_inits2(precision_bits, ret1, ret2, l1, l2, (mpfi_ptr) 0);
+      mpfr_neg(a,a,MPFR_RNDN);
+      mpfi_interv_fr(l1, one, a); mpfi_interv_fr(l2, zero, b);
+      mpfi_remainder_2(ret1,l1,m); mpfi_remainder_2(ret2,l2,m);
+      ret_val = mpfi_union(r,ret1,ret2);
+      mpfi_clears(ret1, ret2, l1,l2,(mpfi_ptr)0);
+    } else {
+      int test;
+      mpfr_t yd;
+      mpfr_inits2(precision_bits, yd, (mpfr_ptr) 0);
+      test=mpfi_diam(yd, m);
+      if(test==0 &&  mpfr_zero_p(yd)>0){
+	/*return mod1([a,b], m)*/
+	mpfr_t m2;
+	mpfr_inits2(precision_bits, m2,(mpfr_ptr) 0);
+	mpfi_get_fr(m2, m);
+	ret_val = mpfi_remainder_1(r,x,m2);
+	mpfr_clears(m2, (mpfi_ptr)0);
+      } else if (mpfr_sgn(n1)<=0) {
+	/*return mod2([a,b], [-n,-m]) */
+        mpfi_neg(m, m);
+	ret_val = mpfi_remainder_2(r,x,m);
+      } else if(mpfr_sgn(m1)<=0) {
+	/* return mod2([a,b], [1, max(-m,n)]) */
+	mpfr_t r1;
+	mpfi_t l1;
+	mpfi_inits2(precision_bits, l1, (mpfi_ptr) 0);
+	mpfr_inits2(precision_bits, r1, (mpfr_ptr) 0);
+	mpfr_neg(m1,m1,MPFR_RNDN);
+        /*mpfr_max (r1, m1, n1, MPFR_RNDN);*/
+	if(mpfr_greater_p(m1,n1)){
+	  mpfr_set(r1,m1,MPFR_RNDN);
+	} else {
+	  mpfr_set(r1,n1,MPFR_RNDN);
+	}
+	mpfi_interv_fr(l1, one, r1);
+	ret_val = mpfi_remainder_2(r,x,l1);
+	mpfr_clears(r1, (mpfr_ptr)0);
+	mpfi_clears(l1, (mpfi_ptr)0);
+      } else {
+	mpfr_t d;
+	mpfr_inits2(precision_bits, d, (mpfr_ptr) 0);
+	mpfr_sub(d, b, a, MPFR_RNDN);
+	if(mpfr_greaterequal_p(d, n1)!=0){
+	  /*return [0,n-1]*/
+	  mpfr_sub(n1,n1,one, MPFR_RNDN);
+	  ret_val =  mpfi_interv_fr(r, zero, n1);
+	} else if(mpfr_greaterequal_p(d, m1)!=0){
+	  /*return [0, b-a-1] u mod2([a,b], [b-a+1,n])*/
+	  mpfi_t r1,l1,l2;
+	  mpfi_inits2(precision_bits, l1, l2,(mpfi_ptr) 0);
+	  mpfr_sub(d, d, one, MPFR_RNDN);
+	  mpfi_interv_fr(l1, zero, d);/* [0, b-a-1] */
+	  mpfi_interv_fr(l2, d, n1);/* [b-a+1,n] */
+	  mpfi_remainder_2(r1,x,l2);/* mod2([a,b], [b-a+1,n])*/
+	  ret_val = mpfi_union(r,l1,r1); /* [0, b-a-1] u mod2([a,b], [b-a+1,n])*/
+	  mpfi_clears(r1, l1, l2, (mpfi_ptr)0);
+	} else if(mpfr_greater_p(m1,b)!=0){
+	  /* return [a,b]*/
+	  ret_val = mpfi_set(r,x);
+	} else if (mpfr_greater_p(n1,b)!=0) {
+	  /*return [0,b]*/
+	  mpfi_t l1;
+	  mpfi_inits2(precision_bits, l1,(mpfi_ptr) 0);
+	  mpfi_interv_fr(l1, zero, b);
+	  ret_val = mpfi_set(r,l1);
+	  mpfi_clears(l1, (mpfi_ptr)0);
+	} else {
+	  /*return [0,n-1] // imprecise */
+	  mpfi_t l1;
+	  mpfi_inits2(precision_bits, l1,(mpfi_ptr) 0);
+	  mpfr_sub(n1, n1, one, MPFR_RNDN);
+	  mpfi_interv_fr(l1, zero, n1);
+	  ret_val = mpfi_set(r,l1);
+	  mpfi_clears(l1, (mpfi_ptr)0);
+	}
+	mpfr_clears(d, (mpfr_ptr)0);
+      }
+    }
+    mpfr_clears(one,zero,(mpfr_ptr)0);
+ }
+  return ret_val;       
+}
 
 
 @ And these are the ones that {\it are} used elsewhere
@@ -1608,7 +1768,7 @@ void mp_interval_pyth_sub (MP mp, mp_number *ret, mp_number a_orig, mp_number b_
 }
 
 
-@ A new primitive to set an  an |interval| quantity|;
+@ A new primitive to set an  an |interval| quantity:
 
 @c
 void mp_interval_m_interval_set(MP mp, mp_number *ret, mp_number a, mp_number b) {
@@ -1621,7 +1781,7 @@ void mp_interval_m_interval_set(MP mp, mp_number *ret, mp_number a, mp_number b)
 
 
 
-@ Two new primitives to retrive the left and right endpoint of an |interval| quantity|;
+@ and two new primitives to retrive the left and right endpoint of an |interval| quantity|:
 
 @c
 void mp_interval_m_get_left_endpoint (MP mp, mp_number *ret, mp_number x_orig) {
