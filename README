@@ -17,9 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 - The <metapost@tug.org> mailing list is for general help and discussion
   of MetaPost; to subscribe, visit http://tug.org/mailman/listinfo/metapost.
 
-- MetaPost development is currently hosted at supelec.fr; visit
-  https://foundry.supelec.fr/projects/metapost for the current development
-  team members, sources, and much else.
+- Starting from  Nov 9, 2022 MetaPost development is hosted at https://gitlab.lisn.upsaclay.fr/texlive/metapost;
   
 - Please report bugs and request enhancements either on the
   metapost@tug.org list, or through the trackers at Supelec.fr.  
