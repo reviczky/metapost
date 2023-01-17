@@ -673,12 +673,6 @@ am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
 subdirs
-LIBSYNCTEX
-LTLIBSYNCTEX
-SYNCTEX_FALSE
-SYNCTEX_TRUE
-SYNCTEX_LT_VERSINFO
-SYNCTEXVERSION
 OTANGLE
 TIE
 CTANGLE
@@ -830,18 +824,10 @@ EUPTEX_SYNCTEX_FALSE
 EUPTEX_SYNCTEX_TRUE
 EUPTEX_FALSE
 EUPTEX_TRUE
-UPTEX_SYNCTEX_FALSE
-UPTEX_SYNCTEX_TRUE
-UPTEX_FALSE
-UPTEX_TRUE
 EPTEX_SYNCTEX_FALSE
 EPTEX_SYNCTEX_TRUE
 EPTEX_FALSE
 EPTEX_TRUE
-PTEX_SYNCTEX_FALSE
-PTEX_SYNCTEX_TRUE
-PTEX_FALSE
-PTEX_TRUE
 ETEX_SYNCTEX_FALSE
 ETEX_SYNCTEX_TRUE
 ETEX_FALSE
@@ -1038,12 +1024,8 @@ enable_tex
 enable_tex_synctex
 enable_etex
 enable_etex_synctex
-enable_ptex
-enable_ptex_synctex
 enable_eptex
 enable_eptex_synctex
-enable_uptex
-enable_uptex_synctex
 enable_euptex
 enable_euptex_synctex
 enable_aleph
@@ -1778,12 +1760,8 @@ Optional Features:
   --enable-tex-synctex      build TeX with SyncTeX support
   --enable-etex           compile and install e-TeX
   --disable-etex-synctex    build e-TeX without SyncTeX support
-  --disable-ptex          do not compile and install pTeX
-  --disable-ptex-synctex    build pTeX without SyncTeX support
   --disable-eptex         do not compile and install e-pTeX
   --disable-eptex-synctex   build e-pTeX without SyncTeX support
-  --disable-uptex         do not compile and install upTeX
-  --disable-uptex-synctex   build upTeX without SyncTeX support
   --disable-euptex        do not compile and install e-upTeX
   --disable-euptex-synctex  build e-upTeX without SyncTeX support
   --disable-aleph         do not compile and install Aleph
@@ -19716,28 +19694,6 @@ fi
 test "x$enable_web2c:$enable_etex" = xyes:yes && {
   need_zlib=yes
 }
-# Check whether --enable-ptex was given.
-if test ${enable_ptex+y}
-then :
-  enableval=$enable_ptex;
-fi
-case $enable_ptex in #(
-  yes | no) :
-     ;; #(
-  *) :
-    enable_ptex=yes ;;
-esac
-
-# Check whether --enable-ptex-synctex was given.
-if test ${enable_ptex_synctex+y}
-then :
-  enableval=$enable_ptex_synctex;
-fi
-
-test "x$enable_web2c:$enable_ptex" = xyes:yes && {
-  need_ptexenc=yes
-  need_zlib=yes
-}
 # Check whether --enable-eptex was given.
 if test ${enable_eptex+y}
 then :
@@ -19757,28 +19713,6 @@ then :
 fi
 
 test "x$enable_web2c:$enable_eptex" = xyes:yes && {
-  need_ptexenc=yes
-  need_zlib=yes
-}
-# Check whether --enable-uptex was given.
-if test ${enable_uptex+y}
-then :
-  enableval=$enable_uptex;
-fi
-case $enable_uptex in #(
-  yes | no) :
-     ;; #(
-  *) :
-    enable_uptex=yes ;;
-esac
-
-# Check whether --enable-uptex-synctex was given.
-if test ${enable_uptex_synctex+y}
-then :
-  enableval=$enable_uptex_synctex;
-fi
-
-test "x$enable_web2c:$enable_uptex" = xyes:yes && {
   need_ptexenc=yes
   need_zlib=yes
 }
@@ -20055,6 +19989,7 @@ esac
 
 test "x$enable_web2c:$enable_mflua" = xyes:yes && {
   need_lua53=yes
+  need_potrace=yes
 }
 # Check whether --enable-mfluajit was given.
 if test ${enable_mfluajit+y}
@@ -20082,6 +20017,7 @@ esac
 
 test "x$enable_web2c:$enable_mfluajit" = xyes:yes && {
   need_luajit=yes
+  need_potrace=yes
 }
 
 # Check whether --with-mf-x-toolkit was given.
@@ -22422,35 +22358,6 @@ else
   ETEX_SYNCTEX_TRUE='#'
   ETEX_SYNCTEX_FALSE=
 fi
- if test "x$enable_ptex" = xyes; then
-  PTEX_TRUE=
-  PTEX_FALSE='#'
-else
-  PTEX_TRUE='#'
-  PTEX_FALSE=
-fi
-
-case $enable_native_texlive_build:$enable_ptex_synctex in #(
-  yes:yes | no:yes | no:no) :
-     ;; #(
-  *) :
-    if test -z "$enable_ptex_synctex"
-then :
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-ptex-synctex=yes'" >&5
-printf "%s\n" "$as_me: Assuming \`--enable-ptex-synctex=yes'" >&6;}
-else $as_nop
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-ptex-synctex=yes' (native TeX Live build)" >&5
-printf "%s\n" "$as_me: WARNING: Enforcing \`--enable-ptex-synctex=yes' (native TeX Live build)" >&2;}
-fi
-         enable_ptex_synctex=yes ;;
-esac
- if test "x$enable_ptex_synctex" = xyes; then
-  PTEX_SYNCTEX_TRUE=
-  PTEX_SYNCTEX_FALSE='#'
-else
-  PTEX_SYNCTEX_TRUE='#'
-  PTEX_SYNCTEX_FALSE=
-fi
  if test "x$enable_eptex" = xyes; then
   EPTEX_TRUE=
   EPTEX_FALSE='#'
@@ -22479,35 +22386,6 @@ esac
 else
   EPTEX_SYNCTEX_TRUE='#'
   EPTEX_SYNCTEX_FALSE=
-fi
- if test "x$enable_uptex" = xyes; then
-  UPTEX_TRUE=
-  UPTEX_FALSE='#'
-else
-  UPTEX_TRUE='#'
-  UPTEX_FALSE=
-fi
-
-case $enable_native_texlive_build:$enable_uptex_synctex in #(
-  yes:yes | no:yes | no:no) :
-     ;; #(
-  *) :
-    if test -z "$enable_uptex_synctex"
-then :
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: Assuming \`--enable-uptex-synctex=yes'" >&5
-printf "%s\n" "$as_me: Assuming \`--enable-uptex-synctex=yes'" >&6;}
-else $as_nop
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Enforcing \`--enable-uptex-synctex=yes' (native TeX Live build)" >&5
-printf "%s\n" "$as_me: WARNING: Enforcing \`--enable-uptex-synctex=yes' (native TeX Live build)" >&2;}
-fi
-         enable_uptex_synctex=yes ;;
-esac
- if test "x$enable_uptex_synctex" = xyes; then
-  UPTEX_SYNCTEX_TRUE=
-  UPTEX_SYNCTEX_FALSE='#'
-else
-  UPTEX_SYNCTEX_TRUE='#'
-  UPTEX_SYNCTEX_FALSE=
 fi
  if test "x$enable_euptex" = xyes; then
   EUPTEX_TRUE=
@@ -23724,7 +23602,7 @@ else
 fi
 
 
-if test "x$enable_ptex:$enable_eptex" = xno:no
+if test "x$enable_eptex" = xno:no
 then :
   enable_pweb_progs=no
 else $as_nop
@@ -23739,7 +23617,7 @@ else
 fi
 
 
-if test "x$enable_uptex:$enable_euptex" = xno:no
+if test "x$enable_euptex" = xno:no
 then :
   enable_upweb_progs=no
 else $as_nop
@@ -27143,6 +27021,7 @@ ${top_builddir}/../../libs/cairo/cairo/cairo.h:
 	cd ${top_builddir}/../../libs/cairo && $(MAKE) $(AM_MAKEFLAGS) rebuild'
 fi
 
+KPSE_POTRACE_FLAGS
 ##tldbg _KPSE_LIB_FLAGS: Setup gmp (-lgmp) flags.
 echo 'tldbg:_KPSE_LIB_FLAGS called: libdir=gmp, libname=gmp, options=, tlincl=-IBLD/libs/gmp/include, tllib=BLD/libs/gmp/libgmp.a, tlextra=, rebuildsrcdeps=, rebuildblddeps=${top_builddir}/../../libs/gmp/include/gmp.h.' >&5
 ##tldbg _KPSE_LIB_FLAGS_TL: gmp (gmp) .
@@ -28136,35 +28015,6 @@ ac_config_files="$ac_config_files ctangleboot-sh"
 ac_config_files="$ac_config_files silent-sh"
 
 
-## texk/web2c/synctexdir/ac/synctex.ac: configure.ac fragment for the TeX Live subdirectory texk/web2c/
-
-SYNCTEXVERSION=2.0.0
-
-
-SYNCTEX_LT_VERSINFO=2:0:0
-
-
- if test "x$enable_synctex" != xno; then
-  SYNCTEX_TRUE=
-  SYNCTEX_FALSE='#'
-else
-  SYNCTEX_TRUE='#'
-  SYNCTEX_FALSE=
-fi
-
-
-if test "x$with_system_zlib" = xyes
-then :
-  LTLIBSYNCTEX=libsynctex.la
-
-else $as_nop
-  LIBSYNCTEX=libsynctex.a
-
-fi
-
-ac_config_files="$ac_config_files synctexdir/synctex.pc"
-
-
 
 
 if test "x$host_alias" != x && test "x$build_alias" = x
@@ -28365,28 +28215,12 @@ if test -z "${ETEX_SYNCTEX_TRUE}" && test -z "${ETEX_SYNCTEX_FALSE}"; then
   as_fn_error $? "conditional \"ETEX_SYNCTEX\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
-if test -z "${PTEX_TRUE}" && test -z "${PTEX_FALSE}"; then
-  as_fn_error $? "conditional \"PTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${PTEX_SYNCTEX_TRUE}" && test -z "${PTEX_SYNCTEX_FALSE}"; then
-  as_fn_error $? "conditional \"PTEX_SYNCTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
 if test -z "${EPTEX_TRUE}" && test -z "${EPTEX_FALSE}"; then
   as_fn_error $? "conditional \"EPTEX\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${EPTEX_SYNCTEX_TRUE}" && test -z "${EPTEX_SYNCTEX_FALSE}"; then
   as_fn_error $? "conditional \"EPTEX_SYNCTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${UPTEX_TRUE}" && test -z "${UPTEX_FALSE}"; then
-  as_fn_error $? "conditional \"UPTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${UPTEX_SYNCTEX_TRUE}" && test -z "${UPTEX_SYNCTEX_FALSE}"; then
-  as_fn_error $? "conditional \"UPTEX_SYNCTEX\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${EUPTEX_TRUE}" && test -z "${EUPTEX_FALSE}"; then
@@ -28494,10 +28328,6 @@ if test -z "${UPWEB_TRUE}" && test -z "${UPWEB_FALSE}"; then
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 
-if test -z "${SYNCTEX_TRUE}" && test -z "${SYNCTEX_FALSE}"; then
-  as_fn_error $? "conditional \"SYNCTEX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
 
 : "${CONFIG_STATUS=./config.status}"
 ac_write_fail=0
@@ -29493,7 +29323,6 @@ do
     "tangle-sh") CONFIG_FILES="$CONFIG_FILES tangle-sh" ;;
     "ctangleboot-sh") CONFIG_FILES="$CONFIG_FILES ctangleboot-sh" ;;
     "silent-sh") CONFIG_FILES="$CONFIG_FILES silent-sh" ;;
-    "synctexdir/synctex.pc") CONFIG_FILES="$CONFIG_FILES synctexdir/synctex.pc" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
