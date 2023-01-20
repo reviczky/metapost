@@ -1,4 +1,4 @@
-## $Id: Makefile.am 61780 2022-01-28 22:36:18Z karl $
+## $Id: Makefile.am 65465 2023-01-04 23:22:48Z karl $
 ## Makefile.am for the TeX Live subdirectory texk/texlive/linked_scripts/
 ##
 ## Copyright 2016-2022 Karl Berry <tex-live@tug.org>
@@ -75,6 +75,7 @@ texmf_shell_scripts = \
 	pdfxup/pdfxup \
 	pst-pdf/ps4pdf \
 	simpdftex/simpdftex \
+	texaccents/texaccents.sno \
 	texlive-extra/allcm.sh \
 	texlive-extra/allneeded.sh \
 	texlive-extra/dvi2fax.sh \
@@ -97,7 +98,9 @@ texmf_shell_scripts = \
 	texosquery/texosquery-jre8.sh \
 	tikztosvg/tikztosvg \
 	typeoutfileinfo/typeoutfileinfo.sh \
-	wordcount/wordcount.sh
+	wordcount/wordcount.sh \
+	xput/xput \
+	xput/xputserver
 
 texmf_other_scripts = \
 	a2ping/a2ping.pl \
@@ -110,11 +113,12 @@ texmf_other_scripts = \
 	authorindex/authorindex \
 	bib2gls/bib2gls.sh \
 	bib2gls/convertgls2bib.sh \
+	bibcop/bibcop.pl \
 	bundledoc/arlatex \
 	bundledoc/bundledoc \
 	cachepic/cachepic.tlu \
 	checkcites/checkcites.lua \
-	citation-style-language/citeproc.lua \
+	citation-style-language/citeproc-lua.lua \
 	chklref/chklref.pl \
 	cjk-gs-integrate/cjk-gs-integrate.pl \
 	clojure-pamphlet/pamphletangler \
@@ -132,6 +136,7 @@ texmf_other_scripts = \
 	ctanupload/ctanupload.pl \
 	de-macro/de-macro \
 	diadia/diadia.lua \
+	digestif/digestif.texlua \
 	dosepsbin/dosepsbin.pl \
 	dviasm/dviasm.py \
 	dviinfox/dviinfox.pl \
@@ -228,7 +233,7 @@ texmf_other_scripts = \
 	texlive/mktexmf \
 	texlive/mktexpk \
 	texlive/mktextfm \
-	texlive/rungs.tlu \
+	texlive/rungs.lua \
 	texlive/tlmgr.pl \
 	texlive/updmap-sys.sh \
 	texlive/updmap-user.sh \

@@ -826,12 +826,8 @@ enable_tex
 enable_tex_synctex
 enable_etex
 enable_etex_synctex
-enable_ptex
-enable_ptex_synctex
 enable_eptex
 enable_eptex_synctex
-enable_uptex
-enable_uptex_synctex
 enable_euptex
 enable_euptex_synctex
 enable_aleph
@@ -866,12 +862,9 @@ enable_web_progs
 enable_synctex
 enable_texlive
 enable_linked_scripts
-<<<<<<< HEAD
-=======
 with_system_mpfi
 with_mpfi_includes
 with_mpfi_libdir
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 with_system_mpfr
 with_mpfr_includes
 with_mpfr_libdir
@@ -1573,12 +1566,8 @@ Optional Features:
   --enable-tex-synctex        build TeX with SyncTeX support
   --enable-etex             compile and install e-TeX
   --disable-etex-synctex      build e-TeX without SyncTeX support
-  --disable-ptex            do not compile and install pTeX
-  --disable-ptex-synctex      build pTeX without SyncTeX support
   --disable-eptex           do not compile and install e-pTeX
   --disable-eptex-synctex     build e-pTeX without SyncTeX support
-  --disable-uptex           do not compile and install upTeX
-  --disable-uptex-synctex     build upTeX without SyncTeX support
   --disable-euptex          do not compile and install e-upTeX
   --disable-euptex-synctex    build e-upTeX without SyncTeX support
   --disable-aleph           do not compile and install Aleph
@@ -1646,13 +1635,10 @@ Optional Packages:
   --with-editor=CMD       invoke CMD from the `e' option [vi +%d '%s'] or
                           [texworks --position=%d "%s"]
   --with-mf-x-toolkit     use X toolkit for METAFONT
-<<<<<<< HEAD
-=======
   --with-system-mpfi      use installed mpfi headers and library
   --with-mpfi-includes=DIR
                           mpfi headers installed in DIR
   --with-mpfi-libdir=DIR  mpfi library installed in DIR
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
   --with-system-mpfr      use installed mpfr headers and library
   --with-mpfr-includes=DIR
                           mpfr headers installed in DIR
@@ -4903,28 +4889,6 @@ fi
 test "x$enable_web2c:$enable_etex" = xyes:yes && {
   need_zlib=yes
 }
-# Check whether --enable-ptex was given.
-if test ${enable_ptex+y}
-then :
-  enableval=$enable_ptex;
-fi
-case $enable_ptex in #(
-  yes | no) :
-     ;; #(
-  *) :
-    enable_ptex=yes ;;
-esac
-
-# Check whether --enable-ptex-synctex was given.
-if test ${enable_ptex_synctex+y}
-then :
-  enableval=$enable_ptex_synctex;
-fi
-
-test "x$enable_web2c:$enable_ptex" = xyes:yes && {
-  need_ptexenc=yes
-  need_zlib=yes
-}
 # Check whether --enable-eptex was given.
 if test ${enable_eptex+y}
 then :
@@ -4944,28 +4908,6 @@ then :
 fi
 
 test "x$enable_web2c:$enable_eptex" = xyes:yes && {
-  need_ptexenc=yes
-  need_zlib=yes
-}
-# Check whether --enable-uptex was given.
-if test ${enable_uptex+y}
-then :
-  enableval=$enable_uptex;
-fi
-case $enable_uptex in #(
-  yes | no) :
-     ;; #(
-  *) :
-    enable_uptex=yes ;;
-esac
-
-# Check whether --enable-uptex-synctex was given.
-if test ${enable_uptex_synctex+y}
-then :
-  enableval=$enable_uptex_synctex;
-fi
-
-test "x$enable_web2c:$enable_uptex" = xyes:yes && {
   need_ptexenc=yes
   need_zlib=yes
 }
@@ -5127,10 +5069,7 @@ case $enable_mp in #(
 esac
 
 test "x$enable_web2c:$enable_mp" = xyes:yes && {
-<<<<<<< HEAD
-=======
   need_mpfi=yes
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
   need_mpfr=yes
   need_cairo=yes
   need_libpng=yes
@@ -5148,10 +5087,7 @@ case $enable_pmp in #(
 esac
 
 test "x$enable_web2c:$enable_pmp" = xyes:yes && {
-<<<<<<< HEAD
-=======
   need_mpfi=yes
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
   need_mpfr=yes
   need_cairo=yes
   need_libpng=yes
@@ -5170,10 +5106,7 @@ case $enable_upmp in #(
 esac
 
 test "x$enable_web2c:$enable_upmp" = xyes:yes && {
-<<<<<<< HEAD
-=======
   need_mpfi=yes
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
   need_mpfr=yes
   need_cairo=yes
   need_libpng=yes
@@ -5254,6 +5187,7 @@ esac
 
 test "x$enable_web2c:$enable_mflua" = xyes:yes && {
   need_lua53=yes
+  need_potrace=yes
 }
 # Check whether --enable-mfluajit was given.
 if test ${enable_mfluajit+y}
@@ -5281,6 +5215,7 @@ esac
 
 test "x$enable_web2c:$enable_mfluajit" = xyes:yes && {
   need_luajit=yes
+  need_potrace=yes
 }
 
 # Check whether --with-mf-x-toolkit was given.
@@ -5370,8 +5305,6 @@ then :
 fi
 
 
-<<<<<<< HEAD
-=======
 ## libs/mpfi/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/mpfi/
 ## configure options and TL libraries required for mpfi
 
@@ -5429,7 +5362,6 @@ test "x$need_mpfi" = xyes && {
   need_mpfr=yes
 }
 
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 ## libs/mpfr/ac/withenable.ac: configure.ac fragment for the TeX Live subdirectory libs/mpfr/
 ## configure options and TL libraries required for mpfr
 
@@ -21204,8 +21136,6 @@ if test "x$with_mpfr_libdir" != x && test "x$with_mpfr_libdir" != xyes; then
   MPFR_LIBS="-L$with_mpfr_libdir $MPFR_LIBS"
 fi
 
-<<<<<<< HEAD
-=======
 ##tldbg _KPSE_LIB_FLAGS_SYSTEM: mpfi (mpfi).
 if test "x$with_mpfi_includes" != x && test "x$with_mpfi_includes" != xyes; then
   MPFI_INCLUDES="-I$with_mpfi_includes"
@@ -21215,7 +21145,6 @@ if test "x$with_mpfi_libdir" != x && test "x$with_mpfi_libdir" != xyes; then
   MPFI_LIBS="-L$with_mpfi_libdir $MPFI_LIBS"
 fi
 
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 : "kpse_xpdf_system_flags - no-op"
 
 if $PKG_CONFIG zziplib --atleast-version=0.12; then

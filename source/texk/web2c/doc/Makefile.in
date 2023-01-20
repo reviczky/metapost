@@ -110,12 +110,10 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/web2c-disable.m4 \
 	$(top_srcdir)/../../m4/kpse-lua53-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-luajit-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-macos-framework.m4 \
-<<<<<<< HEAD
-=======
 	$(top_srcdir)/../../m4/kpse-mpfi-flags.m4 \
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 	$(top_srcdir)/../../m4/kpse-mpfr-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-pixman-flags.m4 \
+	$(top_srcdir)/../../m4/kpse-potrace-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-pplib-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-ptexenc-flags.m4 \
 	$(top_srcdir)/../../m4/kpse-socket-libs.m4 \
@@ -336,12 +334,9 @@ MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
-<<<<<<< HEAD
-=======
 MPFI_DEPEND = @MPFI_DEPEND@
 MPFI_INCLUDES = @MPFI_INCLUDES@
 MPFI_LIBS = @MPFI_LIBS@
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 MPFR_DEPEND = @MPFR_DEPEND@
 MPFR_INCLUDES = @MPFR_INCLUDES@
 MPFR_LIBS = @MPFR_LIBS@
@@ -367,6 +362,9 @@ PIXMAN_DEPEND = @PIXMAN_DEPEND@
 PIXMAN_INCLUDES = @PIXMAN_INCLUDES@
 PIXMAN_LIBS = @PIXMAN_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
+POTRACE_DEPEND = @POTRACE_DEPEND@
+POTRACE_INCLUDES = @POTRACE_INCLUDES@
+POTRACE_LIBS = @POTRACE_LIBS@
 PPLIB_DEPEND = @PPLIB_DEPEND@
 PPLIB_INCLUDES = @PPLIB_INCLUDES@
 PPLIB_LIBS = @PPLIB_LIBS@

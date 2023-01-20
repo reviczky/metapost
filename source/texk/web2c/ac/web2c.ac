@@ -31,9 +31,7 @@ dnl [PROG, BUILD-OR-NO, SYNC-OR-NO, TEXT, REQUIRED-LIBS]
 m4_define([kpse_tex_progs], [dnl
 [[tex],       [yes], [no],  [TeX],        []],
 [[etex],      [no],  [yes], [e-TeX],      [zlib]],
-[[ptex],      [yes], [yes], [pTeX],       [ptexenc zlib]],
 [[eptex],     [yes], [yes], [e-pTeX],     [ptexenc zlib]],
-[[uptex],     [yes], [yes], [upTeX],      [ptexenc zlib]],
 [[euptex],    [yes], [yes], [e-upTeX],    [ptexenc zlib]],
 [[aleph],     [yes], [],    [Aleph],      []],
 [[hitex],     [yes], [],    [HiTeX],      [zlib]],
@@ -42,15 +40,9 @@ m4_define([kpse_tex_progs], [dnl
 [[luajittex], [yes], [],    [LuaJITTeX],  [pplib libpng zziplib luajit]],
 [[luahbtex],    [yes], [],    [LuaHBTeX],     [pplib libpng zziplib lua53 harfbuzz]],
 [[luajithbtex], [yes], [],    [LuaHBJITTeX],  [pplib libpng zziplib luajit harfbuzz]],
-<<<<<<< HEAD
-[[mp],        [yes], [],    [MetaPost],   [mpfr cairo libpng]],
-[[pmp],       [yes], [],    [pMetaPost],  [mpfr cairo libpng ptexenc]],
-[[upmp],      [yes], [],    [upMetaPost], [mpfr cairo libpng ptexenc]],
-=======
 [[mp],        [yes], [],    [MetaPost],   [mpfi mpfr cairo libpng]],
 [[pmp],       [yes], [],    [pMetaPost],  [mpfi mpfr cairo libpng ptexenc]],
 [[upmp],      [yes], [],    [upMetaPost], [mpfi mpfr cairo libpng ptexenc]],
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 [[xetex],     [yes], [yes], [XeTeX],      [pplib libpng freetype2 teckit harfbuzz]],
 ])[]dnl
 m4_foreach([Kpse_Prog], [kpse_tex_progs],
@@ -60,8 +52,8 @@ m4_foreach([Kpse_Prog], [kpse_tex_progs],
 dnl [PROG, BUILD-OR-NO, NOWIN-OR-NO, TEXT, REQUIRED-LIBS]
 m4_define([kpse_mf_progs], [dnl
 [[mf],       [yes], [yes], [METAFONT], []],
-[[mflua],    [yes], [no],  [MFLua],    [lua53]],
-[[mfluajit], [yes], [no],  [MFLuaJIT], [luajit]],
+[[mflua],    [yes], [no],  [MFLua],    [lua53 potrace]],
+[[mfluajit], [yes], [no],  [MFLuaJIT], [luajit potrace]],
 ])[]dnl
 m4_foreach([Kpse_Prog], [kpse_mf_progs],
            [m4_ifset([Kpse_Prog],

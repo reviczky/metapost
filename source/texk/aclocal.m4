@@ -1192,10 +1192,7 @@ m4_include([../m4/kpse-kpathsea-flags.m4])
 m4_include([../m4/kpse-libpng-flags.m4])
 m4_include([../m4/kpse-lt-hack.m4])
 m4_include([../m4/kpse-mktex.m4])
-<<<<<<< HEAD
-=======
 m4_include([../m4/kpse-mpfi-flags.m4])
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 m4_include([../m4/kpse-mpfr-flags.m4])
 m4_include([../m4/kpse-options.m4])
 m4_include([../m4/kpse-pixman-flags.m4])

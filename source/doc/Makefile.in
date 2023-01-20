@@ -103,10 +103,7 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/kpse-cairo-flags.m4 \
 	$(top_srcdir)/m4/kpse-libpng-flags.m4 \
 	$(top_srcdir)/m4/kpse-lt-hack.m4 \
 	$(top_srcdir)/m4/kpse-mktex.m4 \
-<<<<<<< HEAD
-=======
 	$(top_srcdir)/m4/kpse-mpfi-flags.m4 \
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 	$(top_srcdir)/m4/kpse-mpfr-flags.m4 \
 	$(top_srcdir)/m4/kpse-options.m4 \
 	$(top_srcdir)/m4/kpse-pixman-flags.m4 \
@@ -128,10 +125,7 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/kpse-cairo-flags.m4 \
 	$(top_srcdir)/texk/web2c/ac/web2c.ac \
 	$(top_srcdir)/texk/texlive/ac/withenable.ac \
 	$(top_srcdir)/texk/texlive/ac/texlive.ac \
-<<<<<<< HEAD
-=======
 	$(top_srcdir)/libs/mpfi/ac/withenable.ac \
->>>>>>> 5974746c (Branch mpfi: support for interval arithmetic. Initial commit (work in progress))
 	$(top_srcdir)/libs/mpfr/ac/withenable.ac \
 	$(top_srcdir)/libs/gmp/ac/withenable.ac \
 	$(top_srcdir)/libs/cairo/ac/withenable.ac \

@@ -48,9 +48,8 @@
 % (more recent changes in the ChangeLog)
 
 @x [0] WEAVE: print changes only
-\pageno=\contentspagenumber \advance\pageno by 1
+\def\title{WEAVE}
 @y
-\pageno=\contentspagenumber \advance\pageno by 1
 \let\maybe=\iffalse
 \def\title{WEAVE changes for C}
 @z
@@ -111,7 +110,7 @@ procedure initialize;
 @!long_buf_size=500; {|buf_size+longest_name|}
 @!line_length=80; {lines of \TeX\ output have at most this many characters,
 @y
-@!max_modules=10239; {greater than the total number of modules}
+@!max_modules=4000; {greater than the total number of modules}
 @!hash_size=8501; {should be prime}
 @!buf_size=1000; {maximum length of input line}
 @!longest_name=10000; {module names shouldn't be longer than this}
@@ -276,6 +275,28 @@ stat @<Print statistics about memory usage@>;@+tats@;@/
 end;
 @z
 
+@x [37] extend 'byte_mem' for "pdftex.web + pdftex-final.ch"
+there are programs that need more than 65536 bytes; \TeX\ is one of these.
+@y
+there are programs that need more than 65536 bytes; \TeX\ is one of these
+(and the pdf\TeX\ variant even requires more than twice that amount when
+its ``final'' change file is applied).
+@z
+
+@x
+is either 0 or 1. (For generality, the first index is actually allowed to
+run between 0 and |ww-1|, where |ww| is defined to be 2; the program will
+@y
+is either 0, 1 or 2. (For generality, the first index is actually allowed to
+run between 0 and |ww-1|, where |ww| is defined to be 3; the program will
+@z
+
+@x
+@d ww=2 {we multiply the byte capacity by approximately this amount}
+@y
+@d ww=3 {we multiply the byte capacity by approximately this amount}
+@z
+
 @x [50] don't enter xrefs if no_xref set
 @d append_xref(#)==if xref_ptr=max_refs then overflow('cross reference')
   else  begin incr(xref_ptr); num(xref_ptr):=#;
@@ -302,6 +323,130 @@ var q:xref_number; {pointer to previous cross-reference}
 @!m,@!n: sixteen_bits; {new and previous cross-reference value}
 begin if no_xref then return;
 if (reserved(p)or(byte_start[p]+1=byte_start[p+ww]))and
+@z
+
+@x [148] Purify 'reduce' and 'squash'.
+@d production(#)==@!debug prod(#) gubed; goto found
+@d reduce(#)==red(#); production
+@d production_end(#)==@!debug prod(#) gubed; goto found;
+  end
+@d squash(#)==begin sq(#); production_end
+@y
+@d production(#)==@!debug prod(#) gubed; goto found; end
+@d reduce(#)==begin red(#); production
+@d squash(#)==begin sq(#); production
+@z
+
+@x [151] Special case 'k=0'.
+else if cat[pp+1]=simp then squash(pp+1,1,math,0)(4)
+@y
+else if cat[pp+1]=simp then reduce(pp+1,0,math,0)(4)
+@z
+
+@x [157] Special case 'k=0'.
+squash(pp,1,intro,-3)(14)
+@y
+reduce(pp,0,intro,-3)(14)
+@z
+
+@x [161] Special case 'k=0'.
+else squash(pp,1,simp,-2)(25)
+@y
+else reduce(pp,0,simp,-2)(25)
+@z
+
+@x [162] Special case 'k=0'.
+else if cat[pp+1]=simp then squash(pp+1,1,math,0)(35)
+@y
+else if cat[pp+1]=simp then reduce(pp+1,0,math,0)(35)
+@z
+
+@x [166] Special case 'k=0'.
+squash(pp,1,terminator,-3)(42)
+@y
+reduce(pp,0,terminator,-3)(42)
+@z
+
+@x [167] Special case 'k=0'.
+if cat[pp+1]=close then squash(pp,1,stmt,-2)(43)
+@y
+if cat[pp+1]=close then reduce(pp,0,stmt,-2)(43)
+@z
+
+@x [167] Apply 'squash(...,2,...)'.
+  begin app(force); app(backup); app2(pp); reduce(pp,2,intro,-3)(44);
+@y
+  begin app(force); app(backup); squash(pp,2,intro,-3)(44);
+@z
+
+@x [169] Special case 'k=0'.
+squash(pp,1,stmt,-2)(50)
+@y
+reduce(pp,0,stmt,-2)(50)
+@z
+
+@x [170] Special case 'k=0'.
+if cat[pp+1]=beginning then squash(pp,1,stmt,-2)(51)
+@y
+if cat[pp+1]=beginning then reduce(pp,0,stmt,-2)(51)
+@z
+
+@x [172] Move special case 'k=1' from 'squash' to special case 'k=0' here.
+scrap list.
+@y
+scrap list.  This procedure takes advantage of the simplification that
+occurs when |k=0|.
+@z
+
+@x
+begin cat[j]:=c; trans[j]:=text_ptr; freeze_text;
+@y
+begin cat[j]:=c;
+if k>0 then
+  begin
+    trans[j]:=text_ptr; freeze_text;
+  end;
+@z
+
+@x [172] Fix spacing.
+@<Change |pp| to $\max(|scrap_base|,|pp+d|)$@>;
+@y
+@<Change |pp| to $\max(|scrap_base|,\,|pp+d|)$@>;
+@z
+
+@x [173] Fix spacing.
+@ @<Change |pp| to $\max(|scrap_base|,|pp+d|)$@>=
+@y
+@ @<Change |pp| to $\max(|scrap_base|,\,|pp+d|)$@>=
+@z
+
+@x [174] Rewrite 'squash' to match description in section [148].
+@ Similarly, the `|squash|' macro invokes a procedure called `|sq|'. This
+procedure takes advantage of the simplification that occurs when |k=1|.
+@y
+@ Similarly, the `|squash|' macro invokes a procedure called `|sq|', which
+combines |app|${}_k$ and |red| for matching numbers~|k|.
+@z
+
+@x
+var i:0..max_scraps; {index into scrap memory}
+begin if k=1 then
+  begin cat[j]:=c; @<Change |pp|...@>;
+  end
+else  begin for i:=j to j+k-1 do
+    begin app1(i);
+    end;
+  red(j,k,c,d);
+  end;
+@y
+begin
+  case k of
+  1: begin app1(j);@+ end;
+  2: begin app2(j);@+ end;
+  3: begin app3(j);@+ end;
+  othercases confusion('squash')
+  endcases;@/
+  red(j,k,c,d);
 @z
 
 @x [239] omit index and module names if no_xref set
@@ -406,19 +551,23 @@ begin
   until getopt_return_val = -1;
 
   {Now |optind| is the index of first non-option on the command line.}
-  if (optind + 1 <> argc) and (optind + 2 <> argc) then begin
-    write_ln (stderr, my_name, ': Need one or two file arguments.');
+  if (optind + 1 > argc) or (optind + 3 < argc) then begin
+    write_ln (stderr, my_name, ': Need one to three file arguments.');
     usage (my_name);
   end;
 
   {Supply |".web"| and |".ch"| extensions if necessary.}
   web_name := extend_filename (cmdline (optind), 'web');
-  if optind + 2 = argc then begin
-    chg_name := extend_filename (cmdline (optind + 1), 'ch');
+  if optind + 2 <= argc then begin
+    if strcmp(char_to_string('-'), cmdline (optind + 1)) <> 0 then
+      chg_name := extend_filename (cmdline (optind + 1), 'ch');
   end;
 
   {Change |".web"| to |".tex"| and use the current directory.}
-  tex_name := basename_change_suffix (web_name, '.web', '.tex');
+  if optind + 3 = argc then
+    tex_name := extend_filename (cmdline (optind + 2), 'tex')
+  else
+    tex_name := basename_change_suffix (web_name, '.web', '.tex');
 end;
 
 @ Here are the options we allow.  The first is one of the standard GNU options.

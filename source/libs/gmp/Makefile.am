@@ -273,6 +273,7 @@ mpz_sources = \
 	@GMP_TREE@/mpz/add_ui.c \
 	@GMP_TREE@/mpz/aorsmul.c \
 	@GMP_TREE@/mpz/aorsmul_i.c \
+	@GMP_TREE@/mpz/cdiv_qr_ui.c \
 	@GMP_TREE@/mpz/cdiv_q_ui.c \
 	@GMP_TREE@/mpz/cfdiv_q_2exp.c \
 	@GMP_TREE@/mpz/clear.c \
@@ -282,8 +283,8 @@ mpz_sources = \
 	@GMP_TREE@/mpz/divexact.c \
 	@GMP_TREE@/mpz/fdiv_q.c \
 	@GMP_TREE@/mpz/fdiv_q_ui.c \
-	@GMP_TREE@/mpz/fdiv_qr.c \
 	@GMP_TREE@/mpz/fdiv_r_ui.c \
+	@GMP_TREE@/mpz/fdiv_qr.c \
 	@GMP_TREE@/mpz/fits_slong.c \
 	@GMP_TREE@/mpz/gcdext.c \
 	@GMP_TREE@/mpz/get_si.c \
@@ -332,7 +333,6 @@ mpz_unused = \
 	@GMP_TREE@/mpz/bin_uiui.c \
 	@GMP_TREE@/mpz/cdiv_q.c \
 	@GMP_TREE@/mpz/cdiv_qr.c \
-	@GMP_TREE@/mpz/cdiv_qr_ui.c \
 	@GMP_TREE@/mpz/cdiv_r.c \
 	@GMP_TREE@/mpz/cdiv_r_ui.c \
 	@GMP_TREE@/mpz/cdiv_ui.c \
